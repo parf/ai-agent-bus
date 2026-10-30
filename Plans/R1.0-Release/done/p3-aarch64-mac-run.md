@@ -22,15 +22,35 @@
 | 4 Clean install, first runs (0.9.222, J58 only) | `fresh-install.sh` with J58 builds the Debian 13 systemd image and runs: 20 `PASS` lines (packaged checksum, real unit under the service account, accounts and sockets, build info, setup over a running node, web sign-in, a script agent, bundled agents, idempotent reinstall, samples, TLS on the daemon port) and then `FAIL the web face does not answer TLS`, exit 1; the same on four runs | first run 21 s with the image build; later runs 8 s |
 | 4 Clean install, after J59 (0.9.223, branch `ab-w1b/J59b`) | 21 `PASS` lines and exit 0: the web face restarts only when something it reads changed, and the fixture waits for the daemon's start-limit window before each setup run that restarts it | release build 172 s, `release-verify` 4 s, the install 28 s including the waits |
 
-## The passing run's result, as far as it was kept
+## The passing run's result
 
-**Partial excerpt.** The run directory, with the full `result.log`, was deleted in the Mac cleanup before this excerpt was asked for; Mac access was then lost. What the run's console output showed, version 0.9.223 built from the J59b tree (before its last two review commits), native arm64, Debian 13 base:
+The final run, run by `#ab-ceo` on the Mac on 2026-10-30 from the J59b tree `351f1a9e` (version 0.9.224), native arm64, Debian 13 base. `release-verify` printed `release-verify: agent-bus-0.9.224-linux-aarch64 ok (version 0.9.224, full, queried)` and `release-verify: agent-bus-client-0.9.224-linux-aarch64 ok (version 0.9.224, client, queried)`, exit 0. `fresh.log`: 21 `PASS`, no `FAIL`, `fresh rc=0`. Timings (s): image pull 22, release build 185, `release-verify` 5, clean install 36.
 
-- `release-verify: agent-bus-0.9.223-linux-aarch64 ok (version 0.9.223, full, queried)` and `release-verify: agent-bus-client-0.9.223-linux-aarch64 ok (version 0.9.223, client, queried)`
-- 21 lines beginning `PASS`, and `fresh rc=0`
-- the last two lines: `PASS setup turns TLS on with a self-signed certificate; the port answers both; the pinned CLI and the forced command agree, and a re-run keeps it` and `PASS the web face serves TLS with its own copy, redirects plain HTTP, keeps /healthz, signs in with a Secure cookie, and --tls off takes it all back`
+The `PASS` lines of `result.log`, in order:
 
-The full PASS list, and a run on the final tree (J59 second review), follow when Mac access is back.
+1. packaged checksum and archive
+2. web missing artifact fails before host mutation
+3. compiled missing artifact fails before host mutation
+4. agent-helper missing artifact fails before host mutation
+5. real generated systemd unit runs under its service account and starts API plus dashboard
+6. first-user provisioning waits for the daemon account credential socket
+7. two actual accounts discover their own sockets and authenticate as themselves
+8. cross-account sockets and the tokenless shared socket are refused
+9. credential-bearing sockets have their exact owner and mode
+10. installed commands and the running node report the package's build_info (`root@… 2026-10-30 22:36:10`)
+11. setup over a running node applies a changed unit, waits for the release, and reports the durable Owner
+12. supervisor alone holds CAP_CHOWN; the bus holds none as agent-busd; the web face holds none as agent-bus-web; all with NoNewPrivs
+13. the installed web face signs the owner in and serves the Overview
+14. the web face's ps line names its version and counts the requests it served
+15. new user calls a real script agent using only installed programs; a User is refused as an agent
+16. complete stamped release is installed without build-host paths
+17. bundled agents and their helpers load outside the checkout
+18. identical package reinstall is idempotent
+19. setup adds the sample node, the web face shows it, and removal takes exactly it away
+20. setup turns TLS on with a self-signed certificate; the port answers both; the pinned CLI and the forced command agree, and a re-run keeps it
+21. the web face serves TLS with its own copy, redirects plain HTTP, keeps /healthz, signs in with a Secure cookie, and --tls off takes it all back
+
+Cleanup by explicit image ID and path: the three images and the run directory were removed, leaving `~/agent-bus-dev` at 57M (the clone).
 
 ## Why step 4 failed on the first runs
 
