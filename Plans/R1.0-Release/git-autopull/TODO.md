@@ -58,7 +58,7 @@ Acceptance, each failing on the old code or by a named mutant:
 - With no log channel configured, an attempt and a failed script publish nothing and still run.
 - A script key holding a path, `..`, a name that is a symlink out of `autopull.d/`, or a group-writable file is refused at configuration time; a file made group-writable after configuration is refused before the run, and nothing runs.
 - The owner's flow end to end on two scratch checkouts: one `push` event from a pipeline name gives each `mirror` copy the commit, each runs its success script once, and `autopull-log` holds one `ok` record per host; with a dirty `ff` third copy, that copy is unchanged and its fail script runs.
-- A refused or timed-out log publish is attempted once, leaves the git result unchanged and still runs the post-attempt hook; status/direct answer show a safe local failure note.
+- A refused or timed-out log publish is attempted once, leaves the git result unchanged and still runs the post-attempt hook; `autopull <repo>` status shows a safe local failure note, while a direct answer stays the pure, unchanged record JSON.
 - After reinstall, no `--autopull` timer unit exists; `--autopull` is refused with a pointer to the new Configuration.
 
 ### B.26 `#webhook` publishes to a pubsub channel
