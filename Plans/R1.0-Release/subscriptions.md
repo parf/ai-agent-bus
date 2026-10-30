@@ -13,6 +13,11 @@ The settled rules, with what is built and what is pending, now live in
 [current docs § the shared behaviour](../../docs/agents/subscriptions.md#the-shared-behaviour);
 what remains here is moving each agent onto them.
 
+Status: the shared engine is built, in Python since 0.9.171 and the TypeScript
+twin since 0.9.173; no agent runs on it yet, so every rule is pending for users
+until its agent moves. Each agent's own behaviour, in the docs' "today" table,
+was compared at 0.9.173.
+
 What stays agent-specific is only the selector and the match: a mailbox and
 mail for `#imap`, a source and lines for `#logwatch`, a channel and messages for
 Slack and Telegram, a log and level for `#eventlog`. A cron entry is a schedule,
