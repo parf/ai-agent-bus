@@ -7,3 +7,7 @@
 - **What:** `.deb` and `.rpm` packages and the repositories that serve them, so a host installs with its own package manager.
 - **Deferred:** not in R1 ([RD171](DECISIONS.md#recorded-decisions), owner, 2026-10-30). The Linux install is the signed archive through [simple install](distribution.md#simple-install), with `npm` as the other channel.
 - **To start it:** the owner asks for it, and names where the package repositories are hosted; nothing is built for it before that.
+
+## Logwatch subscription start boundary
+
+- Deferred from B.29 by lead1 (2026-10-30): enqueue a line, add a subscription, then drain the forward queue; the pre-add line is forwarded. Pin the subscription-start boundary before changing this existing queue behavior.

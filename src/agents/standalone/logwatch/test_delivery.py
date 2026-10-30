@@ -70,6 +70,11 @@ class SharedDelivery(unittest.TestCase):
     def take(self):
         return self.target.consume(wait=.01)
 
+    def expect_body(self, body):
+        received = self.take()
+        self.assertIsNotNone(received, 'expected inbox copy is missing')
+        self.assertEqual(received.body, body)
+
     def counts(self):
         rows = json.loads(self.command('sub list'))['subs']
         self.assertEqual(len(rows), 1)
@@ -85,10 +90,10 @@ class SharedDelivery(unittest.TestCase):
         self.owner.send(self.target.name, 'fill')
         self.forward('ERROR repeated')
         self.assertEqual(self.warnings, ['subscription: send_refused'])
-        self.assertEqual(self.take().body, 'fill')
+        self.expect_body('fill')
         self.assertIsNone(self.take(), 'the refused copy was delivered')
         self.forward('ERROR repeated')
-        self.assertEqual(self.take().body, '[fixture] ERROR repeated')
+        self.expect_body('[fixture] ERROR repeated')
         self.assertIsNone(self.take(), 'the next match was delivered twice')
         self.assertEqual(self.counts(), (2, 1))
         self.assertEqual(self.warnings, ['subscription: send_refused'])
@@ -102,7 +107,7 @@ class SharedDelivery(unittest.TestCase):
         self.assertEqual(self.warnings, ['subscription: admission_refused'])
         self.owner.record(self.target.name).manage(allow=[self.source.name, self.author.name])
         self.forward('restored target')
-        self.assertEqual(self.take().body, '[fixture] restored target')
+        self.expect_body('[fixture] restored target')
         self.assertIsNone(self.take())
         self.assertEqual(self.counts(), (1, 1))
         self.owner.record(self.source.name).manage(allow=[])

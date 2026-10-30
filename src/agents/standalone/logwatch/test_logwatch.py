@@ -249,7 +249,9 @@ time.sleep(30)
         self.assertEqual(len(agent.bus.attempts), 2)
         self.assertEqual([body for _, body, _ in agent.bus.sent], ['[file] ERROR repeat'])
         self.assertEqual(warnings, ['subscription: send_refused'])
-        row = json.loads(agent.handle(message('sub list')))['subs'][0]
+        rows = json.loads(agent.handle(message('sub list')))['subs']
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
         self.assertEqual((row['sent'], row['dropped']), (1, 1))
         self.assertNotIn('paused', row)
 
@@ -279,7 +281,9 @@ time.sleep(30)
             self.assertEqual(agent.handle(message('sub add #other@t')), 'error: admission_unavailable')
         agent.bus.may = True
         agent.forward([agent.ring.add('file', 'ERROR recovered')])
-        row = json.loads(agent.handle(message('sub list')))['subs'][0]
+        rows = json.loads(agent.handle(message('sub list')))['subs']
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
         self.assertEqual((row['sent'], row['dropped']), (3, 5))
         self.assertNotIn('paused', row)
 
@@ -322,7 +326,9 @@ time.sleep(30)
         agent.bus.kv.set('sub.000000000001', {'id':'000000000001','target':'events',
                         'filter':'','created_by':'#caller@t'})
         agent.load()
-        row = json.loads(agent.handle(message('sub list')))['subs'][0]
+        rows = json.loads(agent.handle(message('sub list')))['subs']
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
         self.assertEqual(row['target'], 'events@t')
         agent.forward([agent.ring.add('file', 'arrival')])
         self.assertEqual(agent.bus.sent[0][0], 'events@t')
@@ -332,7 +338,9 @@ time.sleep(30)
         agent.bus.kv.set('sub.000000000001', {'id':'000000000001','target':'#target@t',
                         'filter':'error.dot','created_by':'#caller@t'})
         agent.load()
-        row = json.loads(agent.handle(message('sub list')))['subs'][0]
+        rows = json.loads(agent.handle(message('sub list')))['subs']
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
         self.assertEqual(row['filter'], r'/error\.dot/iu')
         agent.forward([agent.ring.add('file', 'errorXdot'), agent.ring.add('file', 'ERROR.dot')])
         self.assertEqual([body for _, body, _ in agent.bus.sent], ['[file] ERROR.dot'])
