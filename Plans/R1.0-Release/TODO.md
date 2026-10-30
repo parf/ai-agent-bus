@@ -672,6 +672,14 @@ Plan and acceptance in [macOS](macos.md#tasks); decided in [RD166](DECISIONS.md#
 - ☐ MAC.2 Daemon with a reduced setup: [daemon](macos.md#mac2-daemon-with-a-reduced-setup); after MAC.1
 - ☐ MAC.3 Sandbox: [sandbox](macos.md#mac3-sandbox); deferred, built only if the owner asks
 
+## macOS
+
+Plan and acceptance in [macOS](macos.md#tasks); decided in [RD166](DECISIONS.md#recorded-decisions). Placed after the distribution tasks; code waits for the owner's go.
+
+- ☐ MAC.1 Client and runner on macOS without a sandbox: [client and runner](macos.md#mac1-client-and-runner-on-macos); shares `src/cmd/agent-bus-runner/`, `src/internal/cgroup/` and `src/internal/sandbox/` with team 2's M.5 and DR.1
+- ☐ MAC.2 Daemon with a reduced setup: [daemon](macos.md#mac2-daemon-with-a-reduced-setup); after MAC.1
+- ☐ MAC.3 Sandbox: [sandbox](macos.md#mac3-sandbox); deferred, built only if the owner asks
+
 ## Web scale follow-up from MVP
 
 - ⏳ F.13.6 follow-up — growing pages and directory reads
