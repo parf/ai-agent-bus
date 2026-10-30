@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.205 — 2026-10-30
+
+Slack and Telegram subscriptions run on the shared engine: deterministic ids migrated once, delete-and-add instead of edit, drops counted and warned
+
 ## 0.9.204 — 2026-10-30
 
 Tenth published 0.9 changeset: 0.9.199–0.9.204, squashed.

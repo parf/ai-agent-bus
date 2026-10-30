@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 process.env.SLACK_AGENT_QUEUE = "3";
-const { Forwarder } = await import("./forward.ts");
+// A distinct module instance pins this fixture even if J22 imported the default first.
+const { Forwarder } = await import("./forward.ts?queue-fixture");
 delete process.env.SLACK_AGENT_QUEUE;
 const event = (text = "x", extra = {}) => ({ type: "message", channel: "C1", user: "U1", text, ts: text, ...extra });
 function fixture(over: any = {}) {
