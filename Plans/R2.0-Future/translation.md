@@ -1,12 +1,12 @@
-# Outreach
+# Translation
 
 📌 **TL;DR:** translate only the entry funnel (README, landing page, user
-guide, glossary) into Chinese, Japanese and Russian, then Korean; announce
-where AI-coding-agent developers and self-hosters read. The audience is narrow:
-people building with Claude Code, Codex or OpenCode, and self-hosted Linux
-users. Owner, 2026-10-29; no release assigned.
+guide, glossary) into Chinese, Japanese and Russian, then Korean. The audience
+is narrow: developers building with Claude Code, Codex or OpenCode, and
+self-hosted Linux users. Owner, 2026-10-29; no release assigned.
+Announcing is [promotion](promotion.md#promotion).
 
-## Translation
+## Languages
 
 | Order | Language | Why for this audience |
 |---|---|---|
@@ -29,14 +29,3 @@ What to translate, and what not:
 Commands, record names and glyphs stay as they are in every language
 (`agent-bus register`, `#worker@srv1`, the kind glyphs).
 
-## Promotion
-
-| Where | Channels |
-|---|---|
-| Global | Show HN; r/ClaudeAI, r/ChatGPTCoding, r/LocalLLaMA, r/selfhosted; X with Claude Code and MCP tags; pull requests to awesome-mcp-servers and awesome-claude-code lists |
-| Chinese | Juejin, V2EX, Zhihu; the Gitee mirror |
-| Japanese | a Zenn article on Claude Code sessions talking to each other; X |
-| Russian | Habr; a few Telegram channels on AI coding |
-
-Every public post is the owner's own decision and voice; nothing is posted for
-him.
