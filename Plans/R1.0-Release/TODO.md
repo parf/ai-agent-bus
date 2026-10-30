@@ -268,6 +268,7 @@ configuration written under `runner/` on the host, then a `reload` call.
   - Acceptance: an agent is installed and served with no shell on the host; reading a configuration back is refused; a caller outside the runner's ACL is refused
   - Mutants: shortened pins, URL credentials, wrong fetched HEAD, implicit replacement, old-file overlay, token loss, subdirectory layout, changing a read-only root, escaping symlinks, bundled-name removal and missing management checks each fail an owning assertion.
   - Built on `ab-w1c/M8`, awaiting review and gate: management-gated install/remove, exact pinned Git fetch with isolated credentials, checked root packages, whole-tree replacement, bundled-name removal refusal and preserved work/tokens/records. Focused, real-bus and real-Git fixtures plus assertion-red mutants are in [the evidence](DONE.md#m8-deploy-over-the-bus).
+  - Follow-ups from review (LOW, 2026-10-30): (1) the explicit read-only `--agents` check in `deployRoot` is shadowed by `MkdirTemp`'s error, which carries the same "writable --agents" text: mutating only the check survives, so the operator may not see the settled "read-only agents dir" message in every case; make the check run first and assert its exact wording, and drop the shadow. Worth doing soon. (2) `-c core.hooksPath=/dev/null` on every deploy git call has no test: removing it survives; a fetch brings no hooks and `init.templateDir` is empty, so it is defence in depth, but an assertion that no hook runs would pin it
 
 ## Bundled agents
 

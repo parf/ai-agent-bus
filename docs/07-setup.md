@@ -431,7 +431,7 @@ Release builds follow [working rules § versioning](../CLAUDE.md#versioning).
 
 ### Release evidence
 
-`src/release-verify.sh <archive>...` checks release archives against the source: the archive name, packed `VERSION` and Go programs’ versions agree, build stamps and `LICENSE.md` are present, and `MANIFEST.sha256` matches. Foreign-CPU binaries are read rather than run. The compiled TypeScript binary is checked for carrying the version.
+`src/release-verify.sh <archive>...` checks release archives against the source: the archive name, packed `VERSION` and Go programs’ versions agree, build stamps and `LICENSE.md` are present, and `MANIFEST.sha256` matches. Foreign-CPU binaries are read rather than run. The compiled TypeScript binary answers `mcp --version` and `launcher claude --version` with the release version where it can run, and carries a build stamp; the `agent-bus-token` wrapper answers its version too.
 
 The release build supplies `SHA256SUMS`; npm assembly checks each downloaded archive against it and then checks the archive’s manifest. Release signatures and signing keys are not part of installation or publication. The release workflow and legacy verifier’s signing modes are pending migration under the [distribution work](../Plans/R1.0-Release/TODO.md#distribution-acceptance); archive verification remains required. Earlier throwaway-key fixtures are historical coverage, not a need for an owner key.
 
