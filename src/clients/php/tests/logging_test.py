@@ -62,7 +62,7 @@ exit 0
     def test_preserves_test_failure(self):
         self.assertEqual(self.run_guard('bash', '-c', 'exit 9').returncode, 9)
 
-    def test_runner_suppresses_native_syslog(self):
+    def fake_php(self):
         # Execute the real runner, replacing only PHP. An unsafe launch emits
         # a fake journal entry, never a real syslog write, even in a mutant.
         self.script('php', '''#!/bin/bash
@@ -76,7 +76,26 @@ case " $* " in
 esac
 exit 0
 ''')
+
+    def test_runner_suppresses_native_syslog(self):
+        self.fake_php()
         p = self.run_guard('bash', str(ROOT / 'src/clients/check.sh'), 'php')
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        self.assertIn('journal gained 0 lines', p.stdout)
+
+    def test_example_suppresses_native_syslog(self):
+        self.fake_php()
+        self.script('java', '#!/bin/bash\nexit 0\n')
+        self.script('sha256sum', '#!/bin/bash\nexit 0\n')
+        jar = self.work / 'fake.jar'
+        jar.write_text('compiler stub input')
+        tokens = self.work / 'tokens'
+        tokens.mkdir()
+        for language in ['php', 'java']:
+            (tokens / f'_stats-{language}_localhost').write_text('fixture-token')
+        self.env.update(EXAMPLES_ROOT=str(ROOT), EXAMPLES_TOKENS=str(tokens),
+                        JACKSON_CORE_JAR=str(jar))
+        p = self.run_guard('bash', str(ROOT / 'src/clients/examples/codestats/run.sh'))
         self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
         self.assertIn('journal gained 0 lines', p.stdout)
 
