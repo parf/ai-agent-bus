@@ -31,7 +31,11 @@ LEDGER = {'version', 'identity', 'validity', 'start', 'floor', 'pause', 'entries
           'last_reset_pause', 'sent', 'skipped', 'skipped_first', 'skipped_last', 'skips', 'discarded', 'resets'}
 ENTRY = {'state', 'bytes', 'attempts', 'due', 'reason'}
 STATES = {'pending', 'sending', 'retrying', 'sent', 'skipped', 'paused'}
-COUNTER = 2**63 - 1
+MAX_COUNTER = 2**63 - 1
+MAX_PENDING, MAX_BYTES, MAX_VALUE, MAX_ENTRIES = 64, 16 * 1024 * 1024, 96 * 1024, 128
+REASONS = {'backlog', 'unconfirmed', 'acl', 'oversize', 'malformed', 'ambiguous',
+           'fetch', 'unmatched', 'regex', 'reset', 'refused'}
+TERMINAL = {'sent', 'skipped'}
 MESSAGES = {
     'invalid_target': 'target must be one queue or agent name of at most 64 ASCII characters',
     'invalid_selector': 'invalid subscription selector',
@@ -70,21 +74,76 @@ def selected(value, event):
 
 
 def legacy_ledger(value):
-    """The pre-B.29 ledger invariants the migration counts on; anything else stays invalid_state."""
-    if not isinstance(value, dict) or set(value) != LEDGER or value['version'] != 1:
-        raise ValueError('unsupported legacy ledger')
+    """The removed pre-B.29 ledger validator, kept verbatim for the migration: a ledger it
+    refused stays raw and inert as invalid_state, never an active row."""
+    if not isinstance(value, dict) or set(value) != LEDGER or type(value['version']) is not int or value['version'] != 1:
+        raise progress.ProgressError('invalid subscription delivery state')
+    if not isinstance(value['identity'], str) or not 1 <= len(value['identity']) <= 512:
+        raise progress.ProgressError('invalid subscription mailbox identity')
     progress.integer(value['validity'], 1)
     progress.integer(value['start'], 1, progress.MAX_UID + 1)
-    for field in ('sent', 'skipped', 'discarded'):
-        progress.integer(value[field], 0, COUNTER)
-    entries, skips = value['entries'], value['skips']
-    if not isinstance(entries, dict) or not isinstance(skips, dict):
-        raise ValueError('invalid legacy ledger')
+    progress.integer(value['floor'], value['start'], progress.MAX_UID + 1)
+    if value['pause'] is not None and (not isinstance(value['pause'], str) or value['pause'] not in {'acl', 'unconfirmed'}):
+        raise progress.ProgressError('invalid subscription pause reason')
+    if value['intake'] is not None and (not isinstance(value['intake'], str) or value['intake'] not in {'backlog', 'regex'}):
+        raise progress.ProgressError('invalid subscription intake reason')
+    if value['last_reset_pause'] is not None and (not isinstance(value['last_reset_pause'], str) or value['last_reset_pause'] not in {'acl', 'unconfirmed'}):
+        raise progress.ProgressError('invalid historical reset reason')
+    entries = value['entries']
+    if not isinstance(entries, dict) or len(entries) > MAX_ENTRIES:
+        raise progress.ProgressError('subscription delivery entry cap exceeded')
     for uid, entry in entries.items():
-        if not uid.isdigit() or not isinstance(entry, dict) or set(entry) != ENTRY or entry['state'] not in STATES:
-            raise ValueError('invalid legacy delivery entry')
-    if sum(counter['count'] for counter in skips.values()) != value['skipped']:
-        raise ValueError('legacy skip totals do not agree')
+        if not isinstance(uid, str) or len(uid) > 10 or not uid.isascii() or not uid.isdigit() or uid != str(int(uid)):
+            raise progress.ProgressError('invalid subscription delivery UID')
+        progress.integer(int(uid), value['start'])
+        if not isinstance(entry, dict) or set(entry) != ENTRY or not isinstance(entry['state'], str) or entry['state'] not in STATES:
+            raise progress.ProgressError('invalid subscription delivery entry')
+        progress.integer(entry['bytes'], 0, 2 * 1024 * 1024)
+        progress.integer(entry['attempts'], 0, MAX_COUNTER)
+        progress.integer(entry['due'], 0, MAX_COUNTER)
+        if entry['reason'] is not None and (not isinstance(entry['reason'], str) or entry['reason'] not in REASONS):
+            raise progress.ProgressError('invalid subscription delivery reason')
+        if entry['state'] in TERMINAL and entry['bytes'] != 0:
+            raise progress.ProgressError('terminal delivery retains a body reference')
+        if entry['state'] in {'sending', 'retrying', 'sent'} and entry['attempts'] < 1:
+            raise progress.ProgressError('attempted delivery lacks its sending marker')
+        if (entry['state'] == 'pending' or (entry['state'] == 'skipped' and entry['reason'] not in {'refused', 'fetch', 'oversize', 'malformed'})) and entry['attempts'] != 0:
+            raise progress.ProgressError('unattempted delivery has an attempt count')
+        if (entry['state'] == 'retrying') != (entry['due'] > 0):
+            raise progress.ProgressError('delivery backoff does not match its state')
+        if entry['state'] in {'pending', 'sending', 'retrying', 'sent'} and entry['reason'] is not None:
+            raise progress.ProgressError('delivery state has an unexpected reason')
+        if entry['state'] == 'skipped' and entry['reason'] is None:
+            raise progress.ProgressError('skipped delivery lacks its reason')
+        if entry['state'] == 'skipped' and entry['reason'] == 'refused' and entry['attempts'] < 1:
+            raise progress.ProgressError('refused delivery lacks its attempt')
+        if entry['state'] == 'paused' and (entry['reason'] not in {'acl', 'unconfirmed'} or value['pause'] is None):
+            raise progress.ProgressError('paused delivery lacks its visible reason')
+        if entry['state'] == 'paused' and entry['reason'] == 'unconfirmed' and entry['attempts'] < 1:
+            raise progress.ProgressError('uncertain delivery lacks its sending marker')
+    holds = {int(uid): entry['bytes'] for uid, entry in value['entries'].items() if entry['state'] not in TERMINAL}
+    if len(holds) > MAX_PENDING or sum(holds.values()) > MAX_BYTES:
+        raise progress.ProgressError('subscription pending delivery budget exceeded')
+    for field in ('sent', 'skipped', 'discarded', 'resets', 'intake_cleared'):
+        progress.integer(value[field], 0, MAX_COUNTER)
+    first, last = value['skipped_first'], value['skipped_last']
+    if value['skipped']:
+        progress.integer(first, 1)
+        progress.integer(last, first)
+    elif first is not None or last is not None:
+        raise progress.ProgressError('empty skipped counter has a UID range')
+    if not isinstance(value['skips'], dict) or len(value['skips']) > len(REASONS):
+        raise progress.ProgressError('invalid per-reason skip counters')
+    for reason, counter in value['skips'].items():
+        if reason not in REASONS - {'unmatched'} or not isinstance(counter, dict) or set(counter) != {'count', 'first', 'last'}:
+            raise progress.ProgressError('invalid per-reason skip counter')
+        progress.integer(counter['count'], 1, MAX_COUNTER)
+        progress.integer(counter['first'], 1)
+        progress.integer(counter['last'], counter['first'])
+    if sum(counter['count'] for counter in value['skips'].values()) != value['skipped']:
+        raise progress.ProgressError('skip totals do not agree')
+    if len(json.dumps(value, separators=(',', ':'), ensure_ascii=False).encode()) > MAX_VALUE:
+        raise progress.ProgressError('subscription delivery value exceeds 96 KiB')
     return value
 
 

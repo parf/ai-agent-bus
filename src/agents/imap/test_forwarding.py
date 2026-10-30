@@ -382,6 +382,35 @@ class MigrationTests(unittest.TestCase):
         self.assertEqual(self.bus.kv.data['sub.aabbccdd0000']['dropped'], 1)
         self.assertEqual(self.bus.kv.data['sub.112233440000']['dropped'], 0)
 
+    def test_a_ledger_the_old_validator_refused_stays_raw_and_inert(self):
+        def broken(change):
+            value = ledger()
+            change(value)
+            return value
+        cases = {
+            'negative bytes': broken(lambda v: v['entries']['95'].update(bytes=-1)),
+            'unknown entry state': broken(lambda v: v['entries']['95'].update(state='lost')),
+            'pending with an attempt': broken(lambda v: v['entries']['95'].update(attempts=1)),
+            'retrying without a due time': broken(lambda v: v['entries']['96'].update(due=0)),
+            'negative sent': broken(lambda v: v.update(sent=-1)),
+            'negative discarded': broken(lambda v: v.update(discarded=-1)),
+            'floor below start': broken(lambda v: v.update(floor=1)),
+            'skipped range without skips': broken(lambda v: v.update(skips={}, skipped=0)),
+        }
+        owner = SimpleNamespace(envelope={'from': '#boss@t', 'roles': ['owner'], 'original_to': SELF})
+        for name, value in cases.items():
+            with self.subTest(name):
+                self.setUp()
+                self.legacy('aabbccdd', ledger=value)
+                worker = self.start()
+                self.assertIn('sub.aabbccdd0000', self.bus.kv.data)
+                self.assertIn('ledger', self.bus.kv.data['sub.aabbccdd0000'])   # kept raw, not converted
+                self.assertIn('aabbccdd0000 invalid subscription state', worker.text(owner))
+                self.source.arrive(100)
+                worker.tick()
+                self.assertEqual(self.bus.sent, [])
+                worker.close()
+
     def test_a_ledger_whose_skip_totals_disagree_is_kept_as_invalid_state(self):
         broken = ledger()
         broken['skipped'] += 1
