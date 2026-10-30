@@ -638,11 +638,11 @@ Implement the [release artifacts](distribution.md#release-artifacts) and [contai
 
 - ✅ P.5 Homepage: live 2026-10-30 from parf.dev `8b0e411`, flowcharts fixed in live `d65e4af`; [result and archived acceptance](done/homepage.md#result)
 
-- ⏳ P.3 Release evidence
+- ✅ P.3 Release evidence
   - Acceptance: Query every shipped program's version in both distributions and compare with the release source; require stamped Go build information and packaged license. Substitute an unstamped binary, alter one version or omit the license: each fails its corresponding check
   - Mutant: Substitute an unstamped binary, alter one version or omit the license: each fails its corresponding check
   - Built: each native build in `.github/workflows/release.yml` runs `src/release-verify.sh` on every full/client archive before upload; the release job requires both builds to succeed and verifies the complete unsigned checksum set before publication (P.1a). The owning test executes that exact workflow command and refuses unstamped, wrong-version and license-free artifacts, including a bad client beside a valid full archive; [result](DONE.md#p3-release-run-evidence), [release evidence](../../docs/07-setup.md#release-evidence).
-  - Native aarch64 build and version evidence passed ([result](done/p3-aarch64-mac-run.md#steps)); installed npm acceptance remains under P.1. Require both native builds and checksum/manifest verification before the GitHub build release or npm wrapping; no signature, owner key or signing wait. This docs-only change pushes no tag and publishes nothing.
+  - Native aarch64 build and version evidence passed ([result](done/p3-aarch64-mac-run.md#steps)), and the clean install there passed 21 checks (0.9.224; [the PASS list](done/p3-aarch64-mac-run.md#the-passing-runs-result)); installed npm acceptance remains under P.1. Require both native builds and checksum/manifest verification before the GitHub build release or npm wrapping; no signature, owner key or signing wait. This docs-only change pushes no tag and publishes nothing.
 
 ## macOS
 

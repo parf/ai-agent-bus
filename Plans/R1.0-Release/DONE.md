@@ -135,7 +135,8 @@ Owner, 2026-10-30: every doc leads with why, then what you get, then real exampl
 - The release workflow verifies every archive in each native build before uploading it. The draft job requires both builds, so verification failure prevents draft creation.
 - `src/release-verify.test.sh` executes the actual workflow command against full/client fixtures. An unstamped binary, an altered version and an omitted license each stop that command on the corresponding diagnostic; a wrong-version client also fails beside a valid full archive. Existing notice and manifest checks remain.
 - Under the smoke-gate lock, suppressing the workflow command's failure with `|| true` failed the test assertion `unstamped: accepted a bad release`; restored wiring passed. The test also pins verification after packaging and before upload, without a conditional or `continue-on-error`, and the draft dependency on the builds.
-- No tag was pushed and no live release was created. Native aarch64 evidence remains the owner's Mac check.
+- Native aarch64, on the owner's Mac (arm64 podman machine, 2026-10-30): the Linux aarch64 full and client archives build in 185 s and `release-verify` prints `ok (… queried)` for both, so the aarch64 binaries ran and passed the version, stamp and license checks; the clean install of the same release passes its 21 checks ([result](done/p3-aarch64-mac-run.md#steps), [PASS list](done/p3-aarch64-mac-run.md#the-passing-runs-result)). Step 3's signed set was dropped by RD178.
+- No tag was pushed and no live release was created. Acceptance is met: both distributions' programs are queried against the release source, with a stamp and the license required, and the unstamped, altered-version and no-license mutants each fail their check.
 
 ## P.4 Simple install
 
