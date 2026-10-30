@@ -84,7 +84,7 @@ tar -xzf "$good/$full" -C "$run/forge"
 (
   cd "$run/forge/${full%.tar.gz}"
   printf 'tampered\n' >>INSTALL.md
-  sha256sum $(cut -d' ' -f3- MANIFEST.sha256) >MANIFEST.sha256.new
+  cut -d' ' -f3- MANIFEST.sha256 | xargs -d '\n' sha256sum >MANIFEST.sha256.new
   mv MANIFEST.sha256.new MANIFEST.sha256
   sha256sum -c --quiet MANIFEST.sha256
 )
