@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -17,13 +18,11 @@ import (
 )
 
 // install.sh, driven the way a person runs it, against a local release
-// signed with a throwaway key: the shipped script carries neither, so the
-// test renders a copy with this key and this server (and plain HTTP).
+// with SHA256SUMS: the test renders only the local server URL and permits HTTP.
 type installFixture struct {
 	t       *testing.T
 	dir     string // releases served: <dir>/download/v<version>/...
 	home    string
-	key     string
 	script  string
 	server  *httptest.Server
 	release string
@@ -36,29 +35,20 @@ type installFixture struct {
 
 func newInstallFixture(t *testing.T) *installFixture {
 	t.Helper()
-	for _, tool := range []string{"ssh-keygen", "sha256sum", "tar", "curl"} {
+	for _, tool := range []string{"sha256sum", "tar", "curl"} {
 		if _, err := exec.LookPath(tool); err != nil {
 			t.Skipf("needs %s", tool)
 		}
 	}
 	f := &installFixture{t: t, dir: t.TempDir(), home: t.TempDir()}
-	keys := t.TempDir()
-	f.key = filepath.Join(keys, "release")
-	if out, err := exec.Command("ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", "test", "-f", f.key).CombinedOutput(); err != nil {
-		t.Fatalf("ssh-keygen: %v %s", err, out)
-	}
 	f.server = httptest.NewServer(http.FileServer(http.Dir(f.dir)))
 	t.Cleanup(f.server.Close)
-	pub, err := os.ReadFile(f.key + ".pub")
-	if err != nil {
-		t.Fatal(err)
-	}
-	f.script = f.render("agent-bus-release " + strings.TrimSpace(string(pub)))
+	f.script = f.render()
 	return f
 }
 
-// render is install.sh with the test's key and server, and HTTPS not required.
-func (f *installFixture) render(keys string) string {
+// render changes only the server and HTTPS requirement for the local fixture.
+func (f *installFixture) render() string {
 	src, err := os.ReadFile("../../../install.sh")
 	if err != nil {
 		f.t.Fatal(err)
@@ -66,8 +56,7 @@ func (f *installFixture) render(keys string) string {
 	s := string(src)
 	for old, new := range map[string]string{
 		`RELEASES="https://github.com/parf/ai-agent-bus/releases"`: `RELEASES="` + f.server.URL + `"`,
-		`RELEASE_KEYS=""`: `RELEASE_KEYS="` + keys + `"`,
-		` --proto '=https' --proto-redir '=https' --tlsv1.2`: "",
+		` --proto '=https' --proto-redir '=https' --tlsv1.2`:       "",
 	} {
 		if strings.Count(s, old) != 1 {
 			f.t.Fatalf("install.sh no longer holds %q once", old)
@@ -81,22 +70,22 @@ func (f *installFixture) render(keys string) string {
 	return path
 }
 
-// publish writes one client release, signed unless sign is false.
-func (f *installFixture) publish(version string, sign bool) string {
-	return f.publishEdition("agent-bus-client", version, sign, nil)
+// publish writes one client release, checksummed unless checksums is false.
+func (f *installFixture) publish(version string, checksums bool) string {
+	return f.publishEdition("agent-bus-client", version, checksums, nil)
 }
 
 // publishEdition writes one edition's archive for this host, plus stand-ins
-// for the other three, and signs the four unless sign is false.
-func (f *installFixture) publishEdition(edition, version string, sign bool, extra map[string]string) string {
-	return f.publishForged(edition, version, sign, extra, "")
+// for the other three, and checksums the four unless checksums is false.
+func (f *installFixture) publishEdition(edition, version string, checksums bool, extra map[string]string) string {
+	return f.publishForged(edition, version, checksums, extra, "")
 }
 
-// publishForged is publishEdition with the archive itself wrong but signed:
+// publishForged is publishEdition with the archive itself wrong but checksummed:
 // forge "manifest" changes a file after its manifest line was written, "top"
 // adds a second top directory beside the release's own, "missing:<path>"
 // leaves that file out of the archive and its manifest.
-func (f *installFixture) publishForged(edition, version string, sign bool, extra map[string]string, forge string) string {
+func (f *installFixture) publishForged(edition, version string, checksums bool, extra map[string]string, forge string) string {
 	f.t.Helper()
 	osName, arch := f.os, f.arch
 	if osName == "" {
@@ -113,7 +102,7 @@ func (f *installFixture) publishForged(edition, version string, sign bool, extra
 		files[p] = body
 	}
 	if missing, ok := strings.CutPrefix(forge, "missing:"); ok {
-		delete(files, missing) // left out before the manifest is written: a well-formed, signed, incomplete release
+		delete(files, missing) // left out before the manifest is written: a well-formed, checksummed, incomplete release
 	}
 	var manifest strings.Builder
 	for _, p := range sortedKeys(files) {
@@ -148,7 +137,7 @@ func (f *installFixture) publishForged(edition, version string, sign bool, extra
 	if err := os.WriteFile(filepath.Join(rel, name+".tar.gz"), buf.Bytes(), 0o644); err != nil {
 		f.t.Fatal(err)
 	}
-	// release-sign.sh signs exactly a release's four archives; the other
+	// release-sign.sh checksums exactly a release's four archives; the other
 	// three are stand-ins here.
 	others := []string{"linux/agent-bus/x86_64", "linux/agent-bus/aarch64", "linux/agent-bus-client/x86_64", "linux/agent-bus-client/aarch64"}
 	if osName == "darwin" {
@@ -161,8 +150,8 @@ func (f *installFixture) publishForged(edition, version string, sign bool, extra
 			os.WriteFile(other, []byte("stand-in "+o), 0o644)
 		}
 	}
-	if sign {
-		if out, err := exec.Command("../../release-sign.sh", rel, f.key, version, "--no-ci-check").CombinedOutput(); err != nil {
+	if checksums {
+		if out, err := exec.Command("../../release-sign.sh", rel, version).CombinedOutput(); err != nil {
 			f.t.Fatalf("release-sign.sh: %v %s", err, out)
 		}
 	}
@@ -245,7 +234,7 @@ func TestInstallShClientInstallsUpdatesAndRollsBack(t *testing.T) {
 	}
 }
 
-// A signed, self-consistent client archive that lacks a command the client
+// A checksummed, self-consistent client archive that lacks a command the client
 // links is refused before anything is written, as setup refuses the full node's.
 func TestInstallShRefusesAnIncompleteClientArchive(t *testing.T) {
 	for _, missing := range []string{"agent-bus-ts", "agent-bus-runner", "launchers/ab-claude"} {
@@ -277,16 +266,17 @@ func TestInstallShRefusesBeforeWritingAnything(t *testing.T) {
 			body, _ := os.ReadFile(sums)
 			os.WriteFile(sums, append([]byte(strings.Repeat("0", 64)+"  agent-bus-client-9.9.9-linux-x86_64.tar.gz\n"), body...), 0o644)
 		},
-		"missing signature": func(f *installFixture, rel string) { os.Remove(filepath.Join(rel, "SHA256SUMS.sig")) },
-		"another key": func(f *installFixture, rel string) {
-			other := filepath.Join(f.t.TempDir(), "other")
-			exec.Command("ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", other).Run()
-			os.Remove(filepath.Join(rel, "SHA256SUMS.sig"))
-			exec.Command("ssh-keygen", "-Y", "sign", "-q", "-f", other, "-n", "agent-bus-release", filepath.Join(rel, "SHA256SUMS")).Run()
-		},
-		"another namespace": func(f *installFixture, rel string) {
-			os.Remove(filepath.Join(rel, "SHA256SUMS.sig"))
-			exec.Command("ssh-keygen", "-Y", "sign", "-q", "-f", f.key, "-n", "agent-bus", filepath.Join(rel, "SHA256SUMS")).Run()
+		"missing checksums": func(f *installFixture, rel string) { os.Remove(filepath.Join(rel, "SHA256SUMS")) },
+		"wrong checksum": func(f *installFixture, rel string) {
+			sums := filepath.Join(rel, "SHA256SUMS")
+			body, _ := os.ReadFile(sums)
+			lines := strings.Split(string(body), "\n")
+			for i, line := range lines {
+				if strings.Contains(line, "agent-bus-client-") {
+					lines[i] = strings.Repeat("0", 64) + line[64:]
+				}
+			}
+			os.WriteFile(sums, []byte(strings.Join(lines, "\n")), 0o644)
 		},
 	}
 	for name, damage := range cases {
@@ -298,7 +288,7 @@ func TestInstallShRefusesBeforeWritingAnything(t *testing.T) {
 			if err == nil {
 				t.Fatalf("installed anyway: %s", out)
 			}
-			if !strings.Contains(out, "nothing installed") && !strings.Contains(out, "cannot download the signature") {
+			if !strings.Contains(out, "nothing installed") && !strings.Contains(out, "cannot download") && !strings.Contains(out, "checksum list names no single") {
 				t.Fatalf("refusal does not say nothing was installed: %s", out)
 			}
 			if entries, _ := os.ReadDir(f.home); len(entries) != 0 {
@@ -308,12 +298,23 @@ func TestInstallShRefusesBeforeWritingAnything(t *testing.T) {
 	}
 }
 
-func TestInstallShWithoutAKeyInstallsNothing(t *testing.T) {
+func TestInstallShNeedsNoSigningToolOrKey(t *testing.T) {
 	f := newInstallFixture(t)
-	f.publish("1.0.0", true)
-	f.script = f.render("")
-	if out, err := f.run("--client", "--version", "1.0.0"); err == nil || !strings.Contains(out, "carries no release key") {
-		t.Fatalf("an unkeyed script installed or said otherwise: %v %s", err, out)
+	rel := f.publish("1.0.0", true)
+	tools := t.TempDir()
+	called := filepath.Join(tools, "called")
+	if err := os.WriteFile(filepath.Join(tools, "ssh-keygen"), []byte(fmt.Sprintf("#!/bin/sh\necho called > %q\nexit 99\n", called)), 0755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", tools+string(os.PathListSeparator)+os.Getenv("PATH"))
+	if out, err := f.run("--client", "--version", "1.0.0"); err != nil || f.current() != "1.0.0" {
+		t.Fatalf("unsigned install failed: %v %s", err, out)
+	}
+	if _, err := os.Stat(called); !os.IsNotExist(err) {
+		t.Fatal("installer invoked ssh-keygen")
+	}
+	if _, err := os.Stat(filepath.Join(rel, "SHA256SUMS.sig")); !os.IsNotExist(err) {
+		t.Fatal("checksum generator produced a signature")
 	}
 }
 
@@ -342,43 +343,35 @@ func TestInstallShRefusesAQuietDowngradeButTakesANamedOne(t *testing.T) {
 	}
 }
 
-func TestInstallShKeyFingerprintAndForeignCommands(t *testing.T) {
+func TestInstallShRefusesObsoleteKeyOptionAndForeignCommands(t *testing.T) {
 	f := newInstallFixture(t)
 	f.publish("1.0.0", true)
-	out, err := exec.Command("ssh-keygen", "-l", "-f", f.key+".pub").Output()
-	if err != nil {
-		t.Fatal(err)
-	}
-	fp := strings.Fields(string(out))[1]
-	if out, err := f.run("--client", "--version", "1.0.0", "--key-fingerprint", "SHA256:not-this-one"); err == nil || !strings.Contains(out, "is not SHA256:not-this-one") {
-		t.Fatalf("a wrong pinned key installed: %v %s", err, out)
+	if out, err := f.run("--client", "--key-fingerprint", "SHA256:obsolete"); err == nil || !strings.Contains(out, "unknown option --key-fingerprint") {
+		t.Fatalf("obsolete key option accepted: %v %s", err, out)
 	}
 	bin := filepath.Join(f.home, ".local/bin")
-	os.MkdirAll(bin, 0o755)
-	os.WriteFile(filepath.Join(bin, "ab-claude"), []byte("mine"), 0o755)
-	if out, err := f.run("--client", "--version", "1.0.0", "--key-fingerprint", fp); err == nil || !strings.Contains(out, "is not a link this installer made") || f.current() != "" {
-		t.Fatalf("a real file was replaced or the release switched: %v %s", err, out)
+	os.MkdirAll(bin, 0755)
+	os.WriteFile(filepath.Join(bin, "ab-claude"), []byte("mine"), 0755)
+	if out, err := f.run("--client", "--version", "1.0.0"); err == nil || !strings.Contains(out, "is not a link this installer made") || f.current() != "" {
+		t.Fatalf("foreign command was replaced: %v %s", err, out)
 	}
 	os.Remove(filepath.Join(bin, "ab-claude"))
-	if out, err := f.run("--client", "--version", "1.0.0", "--key-fingerprint", fp); err != nil || f.current() != "1.0.0" || !strings.Contains(out, fp) {
-		t.Fatalf("the pinned key did not install: %v %s", err, out)
+	if out, err := f.run("--client", "--version", "1.0.0"); err != nil || f.current() != "1.0.0" {
+		t.Fatalf("unsigned release did not install: %v %s", err, out)
 	}
 }
 
-func TestReleaseSignSignsExactlyOneReleaseMatchingCI(t *testing.T) {
+func TestReleaseSumsNamesExactlyOneReleaseMatchingCI(t *testing.T) {
 	f := newInstallFixture(t)
 	rel := f.publish("1.0.0", false)
-	sign := func(extra ...string) (string, error) {
-		out, err := exec.Command("../../release-sign.sh", append([]string{rel, f.key, "1.0.0"}, extra...)...).CombinedOutput()
+	checksums := func(extra ...string) (string, error) {
+		out, err := exec.Command("../../release-sign.sh", append([]string{rel, "1.0.0"}, extra...)...).CombinedOutput()
 		return string(out), err
-	}
-	if out, err := sign(); err == nil || !strings.Contains(out, "usage") {
-		t.Fatalf("signed without a CI list or an explicit opt-out: %v %s", err, out)
 	}
 	stray := filepath.Join(rel, "agent-bus-0.0.9-linux-x86_64.tar.gz")
 	os.WriteFile(stray, []byte("old"), 0o644)
-	if out, err := sign("--no-ci-check"); err == nil || !strings.Contains(out, "not one of this release's archives") {
-		t.Fatalf("a stray archive was signed: %v %s", err, out)
+	if out, err := checksums(); err == nil || !strings.Contains(out, "not one of this release's archives") {
+		t.Fatalf("a stray archive was checksummed: %v %s", err, out)
 	}
 	os.Remove(stray)
 	ci := filepath.Join(t.TempDir(), "ci-sums")
@@ -387,8 +380,8 @@ func TestReleaseSignSignsExactlyOneReleaseMatchingCI(t *testing.T) {
 	matches, _ := filepath.Glob(filepath.Join(rel, "agent-bus-client-*.tar.gz"))
 	body, _ := os.ReadFile(matches[0])
 	os.WriteFile(matches[0], append(body, 0), 0o644)
-	if out, err := sign(ci); err == nil || !strings.Contains(out, "does not match the CI hash list") {
-		t.Fatalf("a draft swapped after CI was signed: %v %s", err, out)
+	if out, err := checksums(ci); err == nil || !strings.Contains(out, "does not match the CI hash list") {
+		t.Fatalf("a draft swapped after CI was checksummed: %v %s", err, out)
 	}
 	if _, err := os.Stat(filepath.Join(rel, "SHA256SUMS.sig")); err == nil {
 		t.Fatal("a refused release left a signature")
@@ -397,16 +390,16 @@ func TestReleaseSignSignsExactlyOneReleaseMatchingCI(t *testing.T) {
 	os.Remove(matches[0])
 	os.WriteFile(matches[0]+".real", body, 0o644)
 	os.Symlink(matches[0]+".real", matches[0])
-	if out, err := sign("--no-ci-check"); err == nil || !strings.Contains(out, "not a regular file") {
-		t.Fatalf("a symlinked archive was signed: %v %s", err, out)
+	if out, err := checksums(); err == nil || !strings.Contains(out, "not a regular file") {
+		t.Fatalf("a symlinked archive was checksummed: %v %s", err, out)
 	}
 	os.Remove(matches[0])
 	os.Remove(matches[0] + ".real")
 	os.WriteFile(matches[0], body, 0o644)
-	if out, err := exec.Command("../../release-sign.sh", rel, f.key, "1.0", ci).CombinedOutput(); err == nil || !strings.Contains(string(out), "not MAJOR.MINOR.PATCH") {
+	if out, err := exec.Command("../../release-sign.sh", rel, "1.0", ci).CombinedOutput(); err == nil || !strings.Contains(string(out), "not MAJOR.MINOR.PATCH") {
 		t.Fatalf("a two-part version was taken: %v %s", err, out)
 	}
-	if out, err := sign(ci); err != nil {
+	if out, err := checksums(ci); err != nil {
 		t.Fatalf("matching release refused: %v %s", err, out)
 	}
 }
@@ -504,11 +497,11 @@ func TestInstallShFullNodeRefusesAnArchiveSwappedBeforeRootCopiesIt(t *testing.T
 	}
 }
 
-// A signed archive whose content is wrong is refused before anything runs or
+// A checksummed archive whose content is wrong is refused before anything runs or
 // moves: one that does not match its own manifest, and one that holds more
 // than the release's top directory. The client checks its download, root its
 // own copy.
-func TestInstallShRefusesASignedArchiveOfTheWrongShape(t *testing.T) {
+func TestInstallShRefusesAnArchiveOfTheWrongShape(t *testing.T) {
 	for _, c := range []struct{ forge, client, root string }{
 		{"manifest", "agent-bus-client-1.0.0-linux-", "the archive does not match its own manifest"},
 		{"top", "agent-bus-client-1.0.0-linux-", "the archive does not hold exactly agent-bus-1.0.0-linux-"},
@@ -628,25 +621,25 @@ func TestInstallShFullNodeIsRefusedOnMacOS(t *testing.T) {
 	}
 }
 
-// release-sign signs the macOS client edition with the four, both CPUs or neither.
-func TestReleaseSignTakesTheMacOSClientBothOrNone(t *testing.T) {
+// release-checksums checksums the macOS client edition with the four, both CPUs or neither.
+func TestReleaseSumsTakesTheMacOSClientBothOrNone(t *testing.T) {
 	f := newInstallFixture(t)
 	rel := f.publish("1.0.0", false)
-	sign := func() (string, error) {
-		out, err := exec.Command("../../release-sign.sh", rel, f.key, "1.0.0", "--no-ci-check").CombinedOutput()
+	checksums := func() (string, error) {
+		out, err := exec.Command("../../release-sign.sh", rel, "1.0.0").CombinedOutput()
 		return string(out), err
 	}
 	one := filepath.Join(rel, "agent-bus-client-1.0.0-darwin-aarch64.tar.gz")
 	os.WriteFile(one, []byte("mac"), 0o644)
-	if out, err := sign(); err == nil || !strings.Contains(out, "agent-bus-client-1.0.0-darwin-x86_64.tar.gz is missing") {
-		t.Fatalf("one macOS archive was signed: %v %s", err, out)
+	if out, err := checksums(); err == nil || !strings.Contains(out, "agent-bus-client-1.0.0-darwin-x86_64.tar.gz is missing") {
+		t.Fatalf("one macOS archive was checksummed: %v %s", err, out)
 	}
 	os.WriteFile(filepath.Join(rel, "agent-bus-client-1.0.0-darwin-x86_64.tar.gz"), []byte("mac"), 0o644)
-	if out, err := sign(); err != nil {
+	if out, err := checksums(); err != nil {
 		t.Fatalf("both macOS archives refused: %v %s", err, out)
 	}
 	sums, _ := os.ReadFile(filepath.Join(rel, "SHA256SUMS"))
 	if n := strings.Count(string(sums), "\n"); n != 6 || !strings.Contains(string(sums), "-darwin-aarch64.tar.gz") {
-		t.Fatalf("the signed list holds %d lines:\n%s", n, sums)
+		t.Fatalf("the checksummed list holds %d lines:\n%s", n, sums)
 	}
 }

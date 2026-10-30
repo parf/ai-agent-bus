@@ -4,12 +4,10 @@
 #   sh install.sh                 the full node: needs root (asks for sudo), then agent-bus-setup
 #   sh install.sh --client        the client edition into ~/.local, no root
 #   sh install.sh --version 0.9.x a given release instead of the latest; also the only way to go back
-#   sh install.sh --key-fingerprint SHA256:...   refuse unless the built-in release key is that one
 #   sh install.sh --client --rollback   switch the client edition back to its previous release
 #   sh install.sh -- <setup args> everything after -- goes to agent-bus-setup (full node)
 #
-# Nothing is unpacked before the release's SHA256SUMS signature and the
-# archive's hash are verified; a full node verifies again as root. Running it
+# Nothing is unpacked before the release archive's SHA256SUMS hash is verified; a full node verifies again as root. Running it
 # again updates, keeping configuration and data and the previous release for
 # rollback. Docs: docs/07-setup.md#simple-install
 #
@@ -19,13 +17,6 @@
 set -eu
 
 RELEASES="https://github.com/parf/ai-agent-bus/releases"
-NAMESPACE="agent-bus-release"
-# The release signing keys, as ssh-keygen allowed_signers lines. Kept by the
-# owner off this repository's machines; a second line carries the next key
-# during a rotation.
-# release-keys-begin
-RELEASE_KEYS=""
-# release-keys-end
 
 say() { printf 'agent-bus install: %s\n' "$*" >&2; }
 die() { say "$*"; exit 1; }
@@ -92,7 +83,7 @@ client_switch() { # root bin release
 }
 
 # Run as root on a full node: copy the archive into a root-owned directory,
-# check its signed hash and manifest again there, and only then run its
+# check its checksum and manifest again there, and only then run its
 # setup. A user-owned tree is never executed by root. $1 archive, $2 hash,
 # $3 name, the rest for setup.
 # shellcheck disable=SC2016 # expanded by the root shell that runs it
@@ -111,14 +102,12 @@ tar -xzf "$stage/release.tar.gz" -C "$stage/x" --no-same-owner
 "$stage/x/$name/agent-bus-setup" "$@"'
 
 main() {
-    edition=full version="" rollback="" fingerprint=""
+    edition=full version="" rollback=""
     while [ $# -gt 0 ]; do
         case $1 in
             --client) edition=client ;;
             --version) [ $# -ge 2 ] || die "--version needs a version"; version=$2; shift ;;
             --version=*) version=${1#--version=} ;;
-            --key-fingerprint) [ $# -ge 2 ] || die "--key-fingerprint needs SHA256:..."; fingerprint=$2; shift ;;
-            --key-fingerprint=*) fingerprint=${1#--key-fingerprint=} ;;
             --rollback) rollback=1 ;;
             --) shift; break ;;
             -h|--help) sed -n '2,14p' "$0" 2>/dev/null || true; exit 0 ;;
@@ -145,20 +134,15 @@ main() {
         aarch64|arm64) arch=aarch64 ;;
         *) die "no release for CPU $(uname -m)" ;;
     esac
-    for tool in tar ssh-keygen sort; do
+    for tool in tar sort; do
         command -v "$tool" >/dev/null 2>&1 || die "needs $tool"
     done
     command -v sha256sum >/dev/null 2>&1 || command -v shasum >/dev/null 2>&1 || die "needs sha256sum or shasum"
-    # ssh-keygen -Y arrived in OpenSSH 8.1; an older one cannot check a signature.
-    if ssh-keygen -Y check-novalidate </dev/null 2>&1 | grep -qi 'unknown option\|illegal option'; then
-        die "needs OpenSSH 8.1 or later (ssh-keygen -Y) to check the release signature"
-    fi
     # The runner sandboxes its agents with bubblewrap by default and refuses
     # one it cannot sandbox; the install works without it, so only say so.
     # macOS has no sandbox at all, so there the warning would only mislead.
     [ "$os" = darwin ] || command -v bwrap >/dev/null 2>&1 ||
         say "warning: bubblewrap (bwrap) is not installed: the runner will refuse sandboxed agents until it is"
-    [ -n "$RELEASE_KEYS" ] || die "this install.sh carries no release key; use a published copy"
     case $version in
         "") ;;
         *[!0-9.]*|.*|*.|*..*) die "a version is MAJOR.MINOR.PATCH, not $version" ;;
@@ -166,36 +150,22 @@ main() {
 
     work=$(mktemp -d)
     trap 'rm -rf "$work"' EXIT INT TERM
-    printf '%s\n' "$RELEASE_KEYS" >"$work/allowed_signers"
-    keyprints=$(printf '%s\n' "$RELEASE_KEYS" | while read -r _principal type blob _rest; do
-        printf '%s %s\n' "$type" "$blob" >"$work/key.pub"
-        ssh-keygen -l -f "$work/key.pub" | cut -d' ' -f2
-    done)
-    say "release key: $(printf '%s' "$keyprints" | tr '\n' ' ')"
-    if [ -n "$fingerprint" ]; then
-        printf '%s\n' "$keyprints" | grep -qxF "$fingerprint" || die "the built-in release key is not $fingerprint: nothing installed"
-    fi
-
     if [ -n "$version" ]; then base="$RELEASES/download/v$version"; else base="$RELEASES/latest/download"; fi
     fetch "$base/SHA256SUMS" "$work/SHA256SUMS" || die "cannot download $base/SHA256SUMS"
-    fetch "$base/SHA256SUMS.sig" "$work/SHA256SUMS.sig" || die "cannot download the signature of SHA256SUMS"
-    ssh-keygen -Y verify -f "$work/allowed_signers" -I "$NAMESPACE" -n "$NAMESPACE" \
-        -s "$work/SHA256SUMS.sig" <"$work/SHA256SUMS" >/dev/null 2>&1 ||
-        die "SHA256SUMS is not signed by a release key: nothing installed"
 
     prefix=agent-bus
     [ "$edition" = client ] && prefix=agent-bus-client
     # Only lines of the exact form "<64 hex>  <prefix>-<version>-linux-<arch>.tar.gz";
-    # the version is signed through that name.
+    # the checksum selects exactly that version and platform.
     line=$(grep -E "^[0-9a-f]{64}  $prefix-[0-9]+\.[0-9]+\.[0-9]+-$os-$arch\.tar\.gz\$" "$work/SHA256SUMS" || true)
-    [ -n "$line" ] && [ "$(printf '%s\n' "$line" | wc -l)" -eq 1 ] || die "the signed list names no single $prefix archive for $os-$arch"
+    [ -n "$line" ] && [ "$(printf '%s\n' "$line" | wc -l)" -eq 1 ] || die "the checksum list names no single $prefix archive for $os-$arch"
     want=${line%% *}
     archive=${line##* }
     name=${archive%.tar.gz}
     release=${name#"$prefix"-}; release=${release%-"$os"-"$arch"}
-    [ -z "$version" ] || [ "$release" = "$version" ] || die "the signed list is for $release, not $version"
+    [ -z "$version" ] || [ "$release" = "$version" ] || die "the checksum list is for $release, not $version"
 
-    # An older signed release served as the latest is a downgrade nobody asked for.
+    # An older release served as the latest is a downgrade nobody asked for.
     installed=""
     if [ "$edition" = client ]; then
         installed=$(basename "$(readlink "$croot/current" 2>/dev/null || true)")
@@ -213,7 +183,7 @@ main() {
 
     fetch "$base/$archive" "$work/$archive" || die "cannot download $archive"
     got=$(sha256 "$work/$archive" | cut -d' ' -f1)
-    [ "$got" = "$want" ] || die "$archive does not match its signed hash: nothing installed"
+    [ "$got" = "$want" ] || die "$archive does not match its SHA256SUMS checksum: nothing installed"
 
     if [ "$edition" = full ]; then
         upgrade=""
