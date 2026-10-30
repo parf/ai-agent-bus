@@ -57,6 +57,34 @@ class Selection(unittest.TestCase):
             p = self.plan([path])
             self.assertEqual(set(p['checks'].values()), {'normal'}, path)
 
+    def test_a_linked_node_modules_is_not_a_change(self):
+        # Every worktree links node_modules from the main checkout. A symlink is a file to git, so
+        # ignore patterns written for directories ("node_modules/") let it through as untracked, and
+        # a docs-only diff then selected the web, MCP, client and every agent check at normal (J25).
+        import shutil, subprocess, tempfile
+        (ROOT/'tmp').mkdir(exist_ok=True)
+        repo = Path(tempfile.mkdtemp(prefix='select-ignore-', dir=ROOT/'tmp'))
+        try:
+            def git(*args): subprocess.run(['git', '-C', str(repo), *args], check=True, capture_output=True)
+            git('init', '-q', '-b', 'main')
+            git('config', 'user.email', 't@t'); git('config', 'user.name', 't')
+            shutil.copy(ROOT/'.gitignore', repo/'.gitignore')
+            (repo/'README.md').write_text('x\n')
+            git('add', '.gitignore', 'README.md'); git('commit', '-q', '-m', 'base')
+            target = repo/'elsewhere'
+            (target/'node_modules').mkdir(parents=True)
+            for where in ('src/web', 'src/mcp', 'src/clients/typescript'):
+                (repo/where).mkdir(parents=True)
+                (repo/where/'node_modules').symlink_to(target/'node_modules')
+            (repo/'Plans/R1.0-Release').mkdir(parents=True)
+            (repo/'Plans/R1.0-Release/TODO.md').write_text('docs only\n')
+            self.assertEqual(selector.changed(repo), ['Plans/R1.0-Release/TODO.md'])
+            p = selector.plan(ROOT, 'normal', paths=selector.changed(repo))
+            self.assertEqual({c for c, m in p['modes'].items() if m == 'normal'}, {'O'})
+            self.assertEqual({c for c, l in p['checks'].items() if l == 'normal'}, set())
+        finally:
+            shutil.rmtree(repo, ignore_errors=True)
+
     def test_override_and_release(self):
         p = self.plan([], 'slow', 'L')
         self.assertEqual(p['checks']['agent_slack'], 'slow')

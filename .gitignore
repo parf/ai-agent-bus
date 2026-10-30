@@ -14,8 +14,11 @@ tmp/
 local/
 *.local
 *.local.*
-/src/mcp/node_modules/
-/src/web/node_modules/
+# No trailing slash: a worktree links these from the main checkout, and a slash matches
+# directories only, so a symlink was an untracked change and selected normal checks.
+/src/mcp/node_modules
+/src/web/node_modules
+/src/clients/typescript/node_modules
 /src/*.test
 /src/**/*.test
 
