@@ -424,6 +424,22 @@
       },
       {
         "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "check_links_test"
+        ]
+      },
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "check-links.py"
+        ]
+      },
+      {
+        "argv": [
           "bash",
           "smoke-gofail.test.sh"
         ]

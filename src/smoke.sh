@@ -362,6 +362,12 @@ ok_exit "the conflict-marker check fails each marker and passes a setext heading
 out=$(PYTHONDONTWRITEBYTECODE=1 python3 ./check-markers.py 2>&1); rc=$?
 ok_exit "this tree adds no git conflict marker against main" "$rc"
 [ "$rc" = 0 ] || echo "$out"
+out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest check_links_test 2>&1); rc=$?
+ok_exit "the link check fails a moved or deleted file that a file nobody edited still links to" "$rc"
+[ "$rc" = 0 ] || echo "$out"
+out=$(PYTHONDONTWRITEBYTECODE=1 python3 ./check-links.py 2>&1); rc=$?
+ok_exit "this tree leaves no Markdown link to nothing, and none to a file it moved or deleted" "$rc"
+[ "$rc" = 0 ] || echo "$out"
 # One package.sh build serves both archive checks; each built its own, the shard's largest CPU cost (J35).
 out=$(./package.sh "$D/dist" 2>&1); rc=$?
 ok_exit "package.sh builds the host's archives" "$rc"
