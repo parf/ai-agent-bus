@@ -786,20 +786,18 @@ func (s *Server) ls(w http.ResponseWriter, r *http.Request, caller protocol.Name
 func (s *Server) listRecords(caller protocol.Name, query url.Values) ([]protocol.Record, error) {
 	recs := s.bus.List(caller.String(), query.Get("kind"))
 	if raw := query.Get("tag"); raw != "" {
-		tag := strings.ToLower(raw)
-		if tag != "no-tags" {
-			tags, err := protocol.NormalizeTags([]string{raw})
-			if err != nil {
-				return nil, err
-			}
-			tag = ""
-			if len(tags) > 0 {
-				tag = tags[0]
-			}
+		labels, none, err := protocol.TagFilter(raw)
+		if err != nil {
+			return nil, err
 		}
 		filtered := recs[:0]
 		for _, rec := range recs {
-			if protocol.HasTag(rec.Tags, tag) || tag == "no-tags" && len(rec.Tags) == 0 {
+			switch {
+			case none:
+				if len(rec.Tags) == 0 {
+					filtered = append(filtered, rec)
+				}
+			case len(labels) > 0 && protocol.HasEveryTag(rec.Tags, labels):
 				filtered = append(filtered, rec)
 			}
 		}
