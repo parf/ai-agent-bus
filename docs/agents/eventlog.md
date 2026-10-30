@@ -89,8 +89,7 @@ no source checkout is needed. Register it with `agent.json`, grant callers the
 appropriate roles, then enable it through your runner inventory. Keep each
 instance's work directory separate; `AGENT_BUS_WORK` selects it, otherwise the
 runner's working directory is used. State is never written into the package.
-The agent is bus-only, kept, serialized and sandboxed. A manager performs the
-live deployment and post-deploy check after review and the normal gate.
+The agent is bus-only, kept and sandboxed.
 
 ## Configuration
 
@@ -100,7 +99,14 @@ live deployment and post-deploy check after review and the normal gate.
 | `logs` | log name → per-level overrides on top of `rings` |
 | `max_logs` | active log bound, default 100, range 1–100 |
 
-Defaults follow [agent-event rings](../../Plans/R1.0-Release/agent-events/README.md#levels).
+Default rings:
+
+| Level | Entries | TTL |
+|---|---|---|
+| notice | 200 | 1 day |
+| warning | 200 | 7 days |
+| alert | 50 | 30 days |
+
 The combined ring capacity of a log is at most 500. Each level's size is at
 least one. TTL is a positive duration with one `s`, `m`, `h` or `d` unit, at
 most 366 days. `config.json.dist` demonstrates an unconfigured-safe instance.
@@ -141,10 +147,10 @@ write answer.
 | alert | invalid Configuration or persistent ring state; storage mutation failed or has an unknown outcome |
 | warning | a subscription copy is dropped, its filter is invalid/slow, or delivery counters could not be stored |
 
-Diagnostics contain fixed codes, never log text, bodies or credentials. Until
-the shared agent-event writer API is available, these diagnostics use fixed
-stderr lines; the runner treats stderr as warning. Log entries supplied to
-`write` are the caller's content, not automatic diagnostics.
+Diagnostics contain fixed codes, never log text, bodies or credentials.
+They currently appear on stderr and the runner records them as warnings; the
+separate view of agent warnings and alerts is in progress. Log entries supplied
+to `write` are the caller's content, not automatic diagnostics.
 
 ## Troubleshooting
 
