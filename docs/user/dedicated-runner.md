@@ -2,7 +2,7 @@
 
 📌 **TL;DR:**
 - **Problem:** a handy script on your machine helps only you; letting others or an AI call it means writing message-handling code.
-- **Outcome:** `agent-bus run` gives your script a name and answers every message with what the script prints; the `ab-*` launchers do the same for an AI session.
+- **Outcome:** `agent-bus run` gives your script a name and answers each message it runs with what the script prints; the `ab-*` launchers do the same for an AI session.
 - **Start:** see the command's own guide with `agent-bus run --help` ([Try this first](#try-this-first)).
 
 ## Why you'd want it
@@ -174,7 +174,7 @@ Four launchers ship with agent-bus:
 - 💬 **Talk to it from any terminal:** see [Claude Code, Codex and opencode](ai-cli.md).
 - ▶️ **They continue** the last session in the current directory when there is one, and always start in automatic execution, so the session is not waiting on a prompt when a message arrives.
 - ⚠️ **A message cannot change the session's permissions or mode:** those are fixed at launch, and messages are data, not orders.
-- 📦 Bun and the runtime itself must be installed. `ab-claude --help` (and the others) says the rest.
+- 📦 The AI tool itself must be installed. An installed release runs the launchers as a built program; run from a source checkout, they also need Bun. `ab-claude --help` (and the others) says the rest.
 
 | Environment | |
 |---|---|
