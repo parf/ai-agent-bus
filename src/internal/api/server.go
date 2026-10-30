@@ -925,6 +925,13 @@ func (s *Server) consume(w http.ResponseWriter, r *http.Request, caller protocol
 	defer cancel()
 
 	e, err := s.bus.ConsumeAddressed(ctx, caller.String(), inbox, topic, tag, q.Get("original_to"), filtered, q.Has("share"))
+	if err == nil && peerGone(r) {
+		// The caller closed its end while the message was on its way: nobody
+		// is there to take it, so it goes back for the next reader.
+		s.bus.Requeue(inbox, e)
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 	if err != nil && !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, context.Canceled) {
 		s.bus.RecordRefusal(inbox)
 	}

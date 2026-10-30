@@ -201,6 +201,7 @@ func runBus(c config) {
 			TLSConfig:   tlsCfg,
 			Handler:     countCalls(&calls, h),
 			BaseContext: func(net.Listener) context.Context { return requests },
+			ConnContext: api.ConnContext,
 			// Long-poll consume holds a request open, so there is no write
 			// deadline; the header and idle deadlines cost nothing.
 			ReadHeaderTimeout: 10 * time.Second,
