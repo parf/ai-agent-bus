@@ -20,6 +20,7 @@ mode: mutants required.
 | 4 | Triggers: `autopull-cmd` events, one check per repository at start, `autopull <repo> now`, `deploy <repo> <branch> [<rev>]`; `deploy <repo>` keeps working |
 | 5 | Publish one [result record](README.md#result-record) per attempt to `autopull-log`, topic `<repo>@<host>`, tag = result |
 | 6 | `sub add/list/delete` with the [subscription](README.md#subscriptions) rules shared with `#imap` (may-send check at add and before each send) |
+| 6a | `autopull-success-script` / `autopull-fail-script` per repository: Owner-only, absolute path, writable only by root or the agent user, record on stdin, time limit, outcome in `script` |
 | 7 | Remove the install-time `--autopull` timer; reinstall removes an existing timer unit |
 | 8 | Update [the git guide](../../../docs/agents/git.md#autopull) and decisions; bump, changelog |
 
@@ -37,6 +38,9 @@ Acceptance, each failing on the old code or by a named mutant:
 - A subscription with `/^FAIL /` receives the fail record and not the ok one; a subscriber without may-send to its target is refused at add.
 - No record and no answer contains the checkout path, the remote URL or a commit message (asserted on a fixture whose path, URL and message are unique strings).
 - A `deploy` event with `id` gives records carrying that `id` on every matching copy; a direct `deploy` call exits non-zero when the result is `fail`; an `id` outside its character set is `invalid_event`.
+- After an `ok` attempt the success script runs once in the checkout with the record on stdin, and the published record carries its exit code; on `skip` no script runs.
+- A success script exiting 1 gives one record with `result: fail`, `error.code: script`, and the fail script runs once; a script past its time limit is killed and records `exit: null`.
+- A script path that is relative, group-writable or set by a non-Owner is refused at configuration time and nothing runs.
 - After reinstall, no `--autopull` timer unit exists; `--autopull` is refused with a pointer to the new Configuration.
 
 ### B.26 `#webhook` publishes to a pubsub channel
@@ -54,5 +58,6 @@ Acceptance:
 
 ## Dependencies
 
-- B.25 needs nothing new from the daemon: pubsub records, Deliver-To and the may-send query exist.
+- B.25 needs nothing new from the daemon: pubsub records, Deliver-To, ring queues and the may-send query exist.
+- Setup on this node after B.25: `autopull-cmd`, `autopull-log`, and the `autopull-history` ring queue in its Deliver-To.
 - The owner chooses the realty servers' switch from Redis autopull, after B.25 and B.26.

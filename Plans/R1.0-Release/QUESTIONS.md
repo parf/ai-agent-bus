@@ -39,6 +39,10 @@ Choices for the [shorter prompts plan](short-prompts.md#proposal), to discuss wi
   - Options: a subscription to the chat agent, sending the JSON record as is; or a relay that turns each record into the one-line form and posts it
   - Impact: the first needs no new agent but posts raw JSON; the second is readable but is one more agent to keep
 
+- ❓ Q211 Where the [`autopull-log` ring](git-autopull/README.md#log-size) lives
+  - Options: a bounded `--overflow ring` queue in its Deliver-To, no daemon change, but reading takes a record (recommended for B.25); or a new pubsub option that keeps the last N messages, readable by anyone allowed, without taking
+  - Impact: the second gives every reader the same history and replay at start, and is a daemon and wire change for every pubsub
+
 ## RAG service
 
 - ❓ Q194 Which keyword half of [RAG](rag/README.md#rules) hybrid search wins the trial on the owner's real Russian and English texts: Qdrant's built-in BM25 or the agent's own sparse vectors with stemming

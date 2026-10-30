@@ -3,22 +3,25 @@
 📌 **TL;DR:** `#git` keeps a server's checkout up to date when new code is
 announced on the `autopull-cmd` pubsub channel, in one of two modes per
 repository: `ff` (safe, never discards work) or `mirror` (production deploy).
-Every attempt is one JSON record on `autopull-log`, and goes to filtered
-subscribers as `#imap` and `#logwatch` forward theirs, so other services can act
-on a successful deploy. No timers.
+CI/CD publishes there after a green pipeline. Each server runs its own
+success or fail script after the attempt. Every attempt is one JSON record on
+`autopull-log`, an information feed kept as a fixed-size ring. No timers.
 
-Owner, 2026-10-29. Decisions: [RD147, RD148, RD149](../DECISIONS.md#recorded-decisions).
+Owner, 2026-10-29. Decisions: [RD147, RD148, RD150, RD151](../DECISIONS.md#recorded-decisions).
 Tasks: [TODO](TODO.md#tasks).
 
 ## Two channels
 
 | Channel | Who publishes | Who receives (Deliver-To) | Carries |
 |---|---|---|---|
-| `autopull-cmd` | CI/CD pipelines (deploys), a hosting webhook through `#webhook` (pushes), an operator | every `#git` that serves a matching repository | a [push or deploy event](#new-code-event) |
-| `autopull-log` | every `#git` | services that act on a deploy: reload, tests, chat relay, an AI | one [result record](#result-record) per attempt |
+| `autopull-cmd` | the CI/CD pipeline on success, directly or through `#webhook`; an operator | every `#git` that serves a matching repository | a [push or deploy event](#new-code-event) |
+| `autopull-log` | every `#git` | people, dashboards, chat relays, pipelines waiting for their `id`, and optionally services that act on `ok` | one [result record](#result-record) per attempt |
 
 Both are ordinary pubsub records: their ACL says who may publish, their
-Deliver-To says who gets a copy of everything. The bus has no per-subscriber
+Deliver-To says who gets a copy of everything. Work after a deploy is usually
+the [server's own script](#after-an-attempt); a service that acts on
+`autopull-log` records still works, as an option (owner: "the old scheme with
+autopull-log works; just optional"). The bus has no per-subscriber
 filter, so for a filtered feed `#git` keeps [subscriptions](#subscriptions) of
 its own (owner: "autopull is like our subscriptions").
 
@@ -65,7 +68,10 @@ moves a `mirror` copy on again; there is no hold. Every deploy writes a
 
 ## From CI/CD
 
-Deploys usually come from a pipeline (owner, 2026-10-29). A pipeline job is a
+The owner's flow, as in realty today: a developer pushes; GitLab runs CI; on
+success CI publishes a `push` event; every server serving that branch pulls and
+runs its after-deploy script. Deploys usually come from a pipeline (owner,
+2026-10-29). A pipeline job is a
 bus caller with its own name (for example `#ci/realty@parf.us`) allowed to
 publish to `autopull-cmd`, or, without the bus CLI, an HTTP POST to a
 `#webhook` route that publishes there ([B.26](TODO.md#b26-webhook-publishes-to-a-pubsub-channel)).
@@ -73,7 +79,7 @@ publish to `autopull-cmd`, or, without the bus CLI, an HTTP POST to a
 | Pipeline wants | It does |
 |---|---|
 | One known server, wait for the result | `agent-bus call '#git@host' 'deploy site main <sha>'`: the answer is the result, the exit code says ok or fail |
-| Every matching server | publish a `deploy` event with an `id`, then read the `autopull-log` records carrying that `id` from its own queue (a Deliver-To of `autopull-log`) until each expected `host` has answered or the job's timeout passes |
+| Every server on the branch | publish a `push` (or `deploy`) event with an `id`, then read the `autopull-log` records carrying that `id` from its own queue (a Deliver-To of `autopull-log`) until each expected `host` has answered or the job's timeout passes |
 
 `#git` does not know which servers a deploy should reach; the pipeline names its
 expected hosts.
@@ -111,7 +117,8 @@ One message per attempt on `autopull-log`. Message `topic` is
  "at":"2026-10-30T19:23:42-04:00", "agent":"#git@parf.us",
  "remote":"realmo/realty", "requested_by":"#ci/realty@parf.us", "id":"pipeline-81234",
  "from":"<40 hex>", "to":"<40 hex>", "requested":"<40 hex>",
- "discarded":{"files":2,"commits":0}, "error":null, "ms":1840}
+ "discarded":{"files":2,"commits":0}, "script":{"run":"success","exit":0,"ms":5210},
+ "error":null, "ms":7050}
 ```
 
 | Field | Meaning |
@@ -126,8 +133,9 @@ One message per attempt on `autopull-log`. Message `topic` is
 | `agent`, `requested_by` | the `#git` name, and the bus sender of the event or call (`null` for `start`) |
 | `id` | the event's or call's `id`, else `null` |
 | `from`, `to`, `requested` | full commit ids; `to` equals `from` when nothing moved; `requested` is the event's or call's commit, else `null` |
+| `script` | `null` when none ran; else `run` (`success` or `fail`), `exit` (`null` on time-out) and `ms`; with both, the fail script's |
 | `discarded` | `mirror` only: local files and commits removed; otherwise `null` |
-| `error` | `null`, or `{"code":…, "text":…}` with code one of `dirty`, `diverged`, `not_in_branch`, `fetch`, `timeout`, `lock`, `invalid_event` |
+| `error` | `null`, or `{"code":…, "text":…}` with code one of `dirty`, `diverged`, `not_in_branch`, `fetch`, `timeout`, `lock`, `invalid_event`, `script` |
 
 Never in a record: local paths, remote URLs or keys, commit messages.
 
@@ -156,9 +164,34 @@ channel names are agent-wide Configuration, defaulting to `autopull-cmd` and
 `autopull-log` (owner: "autopull-* names"). Changing them needs no reinstall.
 The install-time `--autopull` timer option is removed.
 
-## After a deploy
+## After an attempt
 
-`#git` runs no hooks and restarts nothing. Services that must act on a
-successful deploy (reload php-fpm, run tests, post to chat) receive
-`autopull-log`, or subscribe with a filter, and act on `result: ok`.
-A chat relay for these records is an [open question](../QUESTIONS.md#git-autopull).
+Each repository's Configuration may name two scripts, run on that server after
+the attempt (owner: "autopull-success-script & autopull-fail-script"):
+
+| Key | Runs when |
+|---|---|
+| `autopull-success-script` | `result` is `ok`: reload php-fpm, run tests, warm caches |
+| `autopull-fail-script` | `result` is `fail`, including a failed success script: alert, roll back |
+
+Neither runs on `skip`. A script gets the result record on stdin, runs in the
+checkout as `#git`'s own user, with a time limit, and its exit code and duration
+go into the record's [`script`](#result-record) field; the record is published
+after it ends. A failed success script turns the result into `fail` with code
+`script`, then the fail script runs. ⚠️ A script is code run on the server, so
+only the record's Owner may set it, the path is absolute, and a file writable by
+anyone but root or `#git`'s user is refused.
+
+## Log size
+
+`autopull-log` is a fixed-size ring: when full, the oldest record is lost
+(owner, 2026-10-29). A pubsub keeps nothing itself
+([channel kinds](../../../docs/03-records-channel.md#the-two-channel-kinds));
+each copy lives in its recipient's inbox, so the ring is the recipient's. The
+recommended setup: one 📮 queue in its Deliver-To, `autopull-history`, bounded
+(for example 1,000) with `--overflow ring`
+([overflow](../../../docs/04-messaging.md#overflow)), and ring inboxes for
+listeners. Reading a queue takes the message; a ring kept on the pubsub itself
+and readable without taking is [Q211](../QUESTIONS.md#git-autopull).
+
+A chat relay for these records is [Q210](../QUESTIONS.md#git-autopull).
