@@ -33,6 +33,12 @@ Choices for the [shorter prompts plan](short-prompts.md#proposal), to discuss wi
   - Settled by the owner, 2026-10-26 ([RD116](DECISIONS.md#recorded-decisions)): the runner answers from metadata what it can; any other ask, `status` included, reaches the script as `AGENT_BUS_ASK=<ask>` with empty input. A script that knows nothing of asks runs with `--no-asks` ([RD117](DECISIONS.md#recorded-decisions)). The runner answers `status` itself when it can ([RD118](DECISIONS.md#recorded-decisions))
   - Impact: the help line keeps the daemon out of describing agents (constitution § agent self-description) and needs no new wire field, at the cost of one `help` round trip before any further ask; a record field saves that trip but makes the daemon carry agent self-description
 
+## Git autopull
+
+- ❓ Q210 Who posts autopull results to chat: a [`#git` subscription](git-autopull/README.md#subscriptions) straight to `#slack`/`#telegram`, or a small relay agent that formats records for people
+  - Options: a subscription to the chat agent, sending the JSON record as is; or a relay that turns each record into the one-line form and posts it
+  - Impact: the first needs no new agent but posts raw JSON; the second is readable but is one more agent to keep
+
 ## RAG service
 
 - ❓ Q194 Which keyword half of [RAG](rag/README.md#rules) hybrid search wins the trial on the owner's real Russian and English texts: Qdrant's built-in BM25 or the agent's own sparse vectors with stemming
