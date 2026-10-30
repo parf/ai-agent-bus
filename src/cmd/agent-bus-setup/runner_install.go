@@ -62,6 +62,16 @@ func runnerFor(person, host string) (personRunner, error) {
 	}, nil
 }
 
+// namedRunner is the runner with its automatic name: the bus's realm, or the
+// host's where this person's runner is already registered under it.
+func namedRunner(bus realmBus, person, host string) (personRunner, error) {
+	realm, err := automaticRealm(bus, host, func(r string) string { return "#runner/" + person + "@" + r })
+	if err != nil {
+		return personRunner{}, err
+	}
+	return runnerFor(person, realm)
+}
+
 func (p personRunner) envFile() string { return filepath.Join(p.private, "runner.env") }
 
 // runnerTemplate is the one unit every person's runner is an instance of:
@@ -234,12 +244,16 @@ func runnerVerb(verb, person string, purge, dry bool) error {
 	if err != nil {
 		return err
 	}
-	p, err := runnerFor(person, host)
-	if err != nil {
+	if _, err := runnerFor(person, host); err != nil { // the person's name is checked first
 		return err
 	}
 	if !dry && os.Geteuid() != 0 {
 		return fmt.Errorf("a person's runner is root's to install; run %s", sudoLine())
+	}
+	bus := newOwnerClient()
+	p, err := namedRunner(bus, person, host)
+	if err != nil {
+		return err
 	}
 	self, err := os.Executable()
 	if err != nil {
@@ -249,7 +263,7 @@ func runnerVerb(verb, person string, purge, dry bool) error {
 	if _, err := os.Stat(exe); err != nil && verb == "install" {
 		return fmt.Errorf("no runner beside agent-bus-setup: %w", err)
 	}
-	ops := runnerOps{bus: newOwnerClient()}
+	ops := runnerOps{bus: bus}
 	st, err := observeRunner(p, ops)
 	if err != nil {
 		return err
