@@ -144,7 +144,8 @@ def build(full, client, checksums, output):
             if kind == 'bus':
                 value['dependencies'] = {package_names['client']: version}
                 shutil.copy2(Path(__file__).with_name('setup.cjs'), root / 'setup.cjs')
-                value['files'].append('setup.cjs')
+                shutil.copy2(Path(__file__).with_name('root-trust.cjs'), root / 'root-trust.cjs')
+                value['files'] += ['setup.cjs', 'root-trust.cjs']
             write_json(root / 'package.json', value)
             packages.append(root)
         tarballs = []

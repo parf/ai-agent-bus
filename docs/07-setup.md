@@ -488,7 +488,12 @@ required; Go and Bun are not needed. Commands retain their `agent-bus` and
 `ab-*` names.
 
 An npm install creates no service accounts or systemd units. To start a full
-node, explicitly run its setup command with sudo:
+node, use a root-owned global npm prefix: its packages, command shims and every
+parent directory must be owned by root and not writable by group or others.
+A user-owned prefix (such as nvm or `~/.npm-global`) is suitable for the client,
+not for sudo setup. Never run a sudo command from such a prefix: its verifier
+could be replaced before it starts. Install the bus into the administrator's
+root-owned global prefix, then explicitly run its setup command with sudo:
 
 ```sh
 sudo "$(npm prefix -g)/bin/agent-bus-setup" --owner alice

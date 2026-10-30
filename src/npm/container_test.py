@@ -53,6 +53,33 @@ class ExplicitSetup(unittest.TestCase):
     def assert_clean_stage(self):
         self.assertEqual(list(Path('/run').glob('agent-bus-npm-*')), [], 'root staging tree leaked')
 
+    def test_00_setup_refuses_user_owned_or_writable_prefix_before_staging(self):
+        # Actual uid 0 only inside this disposable rootless container. The
+        # ordinary client can use a user prefix; sudo setup must refuse it.
+        cases = [(self.bus, 'owner'), (self.bus.parents[2], 'owner'),
+                 (self.bus.parents[2], 'writable'),
+                 (self.bus / 'launch.cjs', 'writable'),
+                 (self.client_platform.parent, 'owner'),
+                 (self.platform / 'agent-busd', 'writable')]
+        for target, change in cases:
+            with self.subTest(path=str(target), change=change):
+                before = target.stat()
+                try:
+                    if change == 'owner':
+                        os.chown(target, 1000, before.st_gid)
+                    else:
+                        target.chmod((before.st_mode & 0o777) | 0o020)
+                    result = self.setup_command('--dry-run', '--owner', 'alice')
+                    self.assertNotEqual(result.returncode, 0, 'unsafe npm prefix ran setup')
+                    self.assertIn('root-owned global npm prefix', result.stderr)
+                    self.assertIn(str(target), result.stderr)
+                    self.assertNotIn('Would', result.stdout)
+                    self.assertFalse(Path('/var/lib/agent-bus').exists())
+                    self.assert_clean_stage()
+                finally:
+                    os.chown(target, before.st_uid, before.st_gid)
+                    target.chmod(before.st_mode & 0o777)
+
     def test_01_versions_and_changed_byte_refused_before_setup(self):
         # A changed full-only file must fail the copied-byte check, even when
         # setup itself could otherwise handle --dry-run without changing state.

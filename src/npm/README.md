@@ -33,7 +33,13 @@ remain the verify-before-unpack route.
 ## Explicit setup
 
 No lifecycle hook runs at installation. `agent-bus-setup` requires an explicit
-sudo invocation for a real installation. It checks client/bus package and
+sudo invocation for a real installation from a root-owned global prefix.
+The package directories, verifier, command shim, release files and every parent
+must be root-owned and not group/other-writable; unsafe paths are named in the
+refusal. Do not sudo a command from nvm or another user-owned npm prefix: a
+replacement verifier could bypass its own checks. The administrator must
+install into the trusted prefix before invoking sudo setup.
+It checks client/bus package and
 platform versions, creates a root-owned 0700 temporary directory under `/run`
 outside the npm prefix, and copies the split files according to the full
 manifest. Every copied byte is checked before the packaged setup program runs.

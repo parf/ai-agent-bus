@@ -33,16 +33,24 @@ function child(file, args, cleanup = () => {}, detachSignals = () => {}) {
 
 module.exports = function launch(program, args) {
   try {
+    const installing = program === "agent-bus-setup" && !args.some(arg => ["--version", "-version", "--help", "-h"].includes(arg));
+    if (installing) {
+      if (process.getuid?.() !== 0) throw new Error("setup requires explicit sudo; npm install never creates accounts or units");
+      const trusted = require("./root-trust.cjs");
+      for (const name of [__dirname, __filename, path.join(__dirname, "root-trust.cjs"), path.join(__dirname, "setup.cjs"), path.join(__dirname, "package.json")]) trusted(name);
+      trusted(process.argv[1], true);
+    }
     const clientCommand = ["agent-bus", "agent-bus-runner", "agent-bus-mcp", "ab-claude", "ab-codex", "ab-opencode", "ab-opencode1"].includes(program);
     let client;
     if (meta.agentBus.kind === "bus" && (clientCommand || program === "agent-bus-setup")) {
       const clientPackage = require.resolve(`${meta.agentBus.client}/package.json`);
       if (JSON.parse(fs.readFileSync(clientPackage, "utf8")).version !== meta.version)
         throw new Error("client and bus package versions differ");
+      if (installing) require("./root-trust.cjs")(clientPackage);
       client = bundle(meta.agentBus.clientPlatforms[platform], path.dirname(clientPackage));
     }
     const root = meta.agentBus.kind === "bus" && clientCommand ? client : bundle(meta.agentBus.platforms[platform]);
-    if (program === "agent-bus-setup" && !args.some(arg => ["--version", "-version", "--help", "-h"].includes(arg))) {
+    if (installing) {
       if (process.getuid?.() !== 0) throw new Error("setup requires explicit sudo; npm install never creates accounts or units");
       const staged = require("./setup.cjs")(client, root);
       child(path.join(staged.root, "agent-bus-setup"), args, staged.cleanup, staged.detachSignals);

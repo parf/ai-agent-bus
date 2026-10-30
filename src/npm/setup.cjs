@@ -8,6 +8,8 @@ const crypto = require("node:crypto");
 
 module.exports = function stage(client, bus) {
   if (process.getuid?.() !== 0) throw new Error("setup requires root");
+  const trusted = require("./root-trust.cjs");
+  for (const name of [__dirname, __filename, path.join(__dirname, "root-trust.cjs"), client, bus]) trusted(name);
   // Fixed root-owned parent, outside user-controlled npm prefixes/TMPDIR.
   const root = fs.mkdtempSync("/run/agent-bus-npm-");
   fs.chmodSync(root, 0o700);
@@ -26,6 +28,7 @@ module.exports = function stage(client, bus) {
     const manifestPath = path.join(bus, "MANIFEST.sha256");
     if (fs.lstatSync(manifestPath).isSymbolicLink() || fs.statSync(manifestPath).size > 1024 * 1024)
       throw new Error("invalid full release manifest");
+    trusted(manifestPath);
     const manifest = fs.readFileSync(manifestPath, "utf8");
     const files = new Map();
     for (const line of manifest.trim().split("\n")) {
@@ -46,6 +49,7 @@ module.exports = function stage(client, bus) {
         source = path.join(source, part);
         if (fs.lstatSync(source).isSymbolicLink()) throw new Error("symlink in release files");
       }
+      trusted(source);
       const fd = fs.openSync(source, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
       let bytes, mode;
       try {
