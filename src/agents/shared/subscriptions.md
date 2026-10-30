@@ -130,3 +130,12 @@ candidate. A kind that changed to pubsub gives admission_refused and no send.
 Per-batch cache keys include both creator and target and expire with that batch.
 
 Invalid delivery match-text (non-string, >8192 UTF-8 bytes or lone surrogate) drops every selector candidate with invalid_text, including match-all rows; no query/send is attempted. The empty filter never bypasses UTF-8/size checks.
+
+Differential simple-fold vectors are selected C+S mappings from
+[Unicode 16.0.0 CaseFolding.txt](https://www.unicode.org/Public/16.0.0/ucd/CaseFolding.txt),
+including titlecase, Greek extended and Cherokee. The parity contract assumes
+those Unicode 16.0.0 mappings, not a runtime's full-casefold expansion. Refuse
+classes with multiple hyphens (such as [a-c-e]) in both modes; a lone leading or
+trailing class hyphen remains literal. Open upper bounds {n,} remain unbounded
+like * and +; every explicit numeric bound is <=100. Lazy quantifiers, a
+quantifier after a group containing a quantifier, and lone { } ] are refused.

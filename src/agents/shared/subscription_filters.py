@@ -11,7 +11,7 @@ MAX_PATTERN = 200
 MAX_TEXT = 8192
 MAX_QUANTIFIERS = 20
 MAX_REPEAT = 100
-JS_SPACE = '\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff'
+JS_SPACE = '\t\n\v\f\r \u00a0\u1680' + ''.join(chr(n) for n in range(0x2000,0x200b)) + '\u2028\u2029\u202f\u205f\u3000\ufeff'
 TERMINATORS = '\n\r\u2028\u2029'
 
 
@@ -72,6 +72,7 @@ def character_class(body):
     if any(op in body for op in ('&&','--','~~','||')): raise FilterError()
     negative = body.startswith('^'); body = body[1:] if negative else body
     if not body: raise FilterError()
+    if body.count('-') > 1: raise FilterError()
     values = set(); i = 0
     while i < len(body):
         if i+2 < len(body) and body[i+1] == '-':
@@ -158,17 +159,25 @@ def worker():
     try:
         request=json.loads(raw);value=text(request['text']);patterns=request['filters']
         if not isinstance(patterns,list) or len(patterns)>100:return 78
-        def alarm(*_):raise PatternTimeout()
+        running=False
+        def alarm(*_):
+            if running: raise PatternTimeout()
         signal.signal(signal.SIGALRM,alarm)
         results=[];end=time.monotonic()+.9
         for pattern in patterns:
             if time.monotonic()>=end:results.append('timeout');continue
             try:
+                running=True
                 signal.setitimer(signal.ITIMER_REAL,min(.05,end-time.monotonic()))
-                result=matches(compile_filter(pattern),value)
-            except PatternTimeout:result='timeout'
-            except FilterError:result='invalid'
-            finally:signal.setitimer(signal.ITIMER_REAL,0)
+                try:result=matches(compile_filter(pattern),value)
+                except FilterError:result='invalid'
+                running=False  # Still inside the timeout-catching scope.
+            except PatternTimeout:
+                running=False  # One-shot signal has fired; no second alarm.
+                result='timeout'
+            finally:
+                running=False  # A late signal during disarm cannot raise.
+                signal.setitimer(signal.ITIMER_REAL,0)
             results.append(result)
         print(json.dumps(results,separators=(',',':')))
         return 0
