@@ -104,6 +104,7 @@ One line each, from the description its `help` prints.
 - [`#cron`](cron.md) — Send a message to a queue or an agent on a cron schedule or once later
 - [`#db`](db.md) — Run one SQL statement against a MySQL, PostgreSQL or ClickHouse database; read is enforced by the database
 - [`#debug`](debug.md) — Check delivery and runner health; diagnose failures with bounded probes
+- [`#eventlog`](eventlog.md) — Named notice, warning and alert logs with independent rings and once-only subscriptions
 - [`#fetch`](fetch.md) — Fetch pages or make scoped HTTP requests without a browser
 - [`#git`](git.md) — Inspect, synchronize and deploy repositories within configured access levels
 - [`#imap`](imap.md) — Read a private mail cache, manage Seen status and subscribe to future mail
@@ -147,6 +148,7 @@ The **runner** keeps some helpers running; others have their own Linux service.
 | [RAG](rag.md) | Runner, kept process | Owner-only at first; all namespaces share its ACL |
 | [Telnyx SMS](sms.md) | Runner, one process per call | Admin installs; any bus caller may send |
 | [Cron](cron.md) | Runner, kept process | Owner grants callers; a destination receives only if its access list allows cron |
+| [Eventlog](eventlog.md) | Runner, kept process with private alert state | Direct read/write roles; write also permits pull and clean |
 | [At](at.md) | Runner, kept process | Owner grants callers; a destination receives only if its access list allows `#at` |
 | [Debug](debug.md) | Runner, kept process | Admin installs; owner-only diagnostics |
 

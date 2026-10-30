@@ -24,6 +24,9 @@ clock, id_factory, max_subscriptions=100, max_per_creator=20, delivery=None)`
 - `delete(message, id) -> bool`: creator or direct source Owner/Maintainers;
   delete storage before changing memory. Invalid/damaged rows are repairable
   only by the source's direct Owner/Maintainers, never silently removed.
+- `has_candidates(event) -> bool`: selector-only preflight over all valid rows,
+  independent of caller visibility; allows adapters to check their deadline
+  floor before storing an entry. It does not test regex or send anything.
 - `deliver(event, text, body, *, topic, tag, deadline) -> {matched,sent,dropped}`:
   selector first, bounded regex second, then one checked send per match. No
   history is scanned or replayed. Complete/kill/reap all delivery workers before
@@ -86,8 +89,11 @@ A write with selector candidates and less than three seconds left is refused
 before storage; no-candidate writes have no artificial forwarding floor. A
 shorter admitted deadline shortens the batch. Matching has a one-second total
 budget and 50 ms per pattern; one pathological pattern drops only its copy.
-Python uses private process groups to make DNS/regex/pipe deadlines hard;
-helpers never register a bus name, tokens never appear in argv/stdout/stderr,
+Python uses private process groups to make DNS/regex/pipe deadlines hard.
+The send child inherits its parent transport's exact fingerprint. HTTPS is
+fingerprint-pinned when that parent is pinned; otherwise normal certificate and
+hostname verification uses the system trust store, including SSL_CERT_FILE/DIR.
+Helpers never register a bus name, tokens never appear in argv/stdout/stderr,
 and send helpers use only the source's own connection credentials. Transport
 acceptance after a timeout remains unknown. The TS twin uses bounded workers
 and abortable requests. Timing is checked by owning runtime tests, not vectors.

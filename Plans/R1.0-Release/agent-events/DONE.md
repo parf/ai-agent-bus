@@ -92,3 +92,52 @@ check now asserts capacity immediately after write, before a second operation.
 `PureSupport.test_manager_identity_is_case_insensitive_but_not_forwarded`
 failed when original_to normalization was removed. Mutant batch used the smoke
 lock, released immediately afterward. No normal gate run by the worker.
+
+## Eventlog agent
+
+2026-10-30, T-2 step 2, `ab-w1c/T-2` (pending QA/landing): serialized kept
+Python agent, strict text/JSON calls, direct read/write roles and metadata,
+source/destination creator checks through shared subscriptions, selector-only
+preflight before storage, subscription copies before pull, isolated work state,
+package/runtime inventories, guide/index and fast/normal shard. Owner pinned
+read subscription access; management links the shared current subscription
+section owned by team 2. No frozen subscription vectors changed.
+
+27 focused tests pass: 12 ring tests plus 15 adapter/support/package/daemon
+tests. Five adapter tests use the isolated real daemon, including a kept-process
+launch/config/work-directory/SIGTERM check. The fast shard passes in under two
+seconds. Setup export, build/install, missing-artifact and archive-delivery
+checks pass; five guide/index checks and 12 smoke-map/fast-driver tests pass.
+No normal gate or live deployment was performed by the worker.
+
+19 additional compiling mutants failed on assertions and were restored:
+
+| Mutants | Owning test in `src/agents/eventlog/test_eventlog.py` |
+|---|---|
+| Unknown/missing fields, duplicate JSON, boolean count | `Pure.test_text_json_grammar_and_strict_bounds` |
+| Forwarded roles | `Pure.test_direct_roles_status_and_metadata_ignore_ambient_and_forwarded_roles` |
+| Reader destructive calls | `Pure.test_read_only_refuses_destructive_calls_without_removal` |
+| Pre-storage deadline floor | `Pure.test_deadline_preflight_is_before_storage_but_no_candidates_have_no_floor` |
+| Per-call source KV budget | `Pure.test_source_kv_budget_shares_deadline_and_restores_client` |
+| Uncertain-storage poison | `Pure.test_storage_uncertainty_never_forwards_or_exposes_failure_details` |
+| Escaped-ASCII reply overflow | `Pure.test_reply_bound_counts_newest_order_and_json_shapes` |
+| Read caller deleting another creator's subscription | `Daemon.test_authenticated_reader_roles_and_foreign_subscription_delete` |
+| Refusal counted as sent | `Daemon.test_full_target_drops_warns_once_then_next_delivers_and_revocation_blocks` |
+| Sender claims delivery without inbox copies | `Daemon.test_subscriptions_arrive_before_pull_once_per_fold_and_selector` |
+| Bare ACL data access | `Daemon.test_real_forwarded_owner_and_bare_acl_cannot_read_or_destroy` |
+| Ignored work directory | `Daemon.test_kept_entry_uses_bus_config_work_directory_and_clean_shutdown` |
+| Remove read from metadata's subscription roles | `Pure.test_help_json_exposes_reader_subscriptions_and_status_with_distinct_examples` |
+| Omit each of four shared support files | `PurePackage.test_exported_helpers_config_and_offline_metadata_need_no_checkout_or_credentials` |
+
+The unknown-field mutant initially survived because the negative fixture's
+integer value was refused by argument typing. It now uses a valid string in
+an unknown field, plus a separate missing-field case. Neither can rely on a
+different validation path. Both mutant batches used/released the smoke lock;
+all smoke invocations use PORT=8211.
+
+QA lows: direct original_to comparison is normalized without trusting forwarded
+roles; helper fingerprint inheritance is documented precisely. Failure-code
+classification and caller replay/idempotency scope remain in
+[FUTURE](FUTURE.md#subscription-failure-classification). No 200-message seen
+cache was introduced. The numeric-zero caller-wait bug discovered against the
+real daemon was separated into urgent `ab-w1c/T-2-wait` for its own landing.

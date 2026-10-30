@@ -2,6 +2,9 @@
 
 ## Recorded decisions
 
+- Eventlog readers manage their own subscriptions — owner, 2026-10-30.
+  - Home: [shared subscription behavior](../../docs/agents/subscriptions.md#the-shared-behaviour).
+
 - Damaged subscription state has an explicit manager repair reason — owner, 2026-10-30.
   - Home: [invalid stored state](subscriptions.md#one-behaviour).
 

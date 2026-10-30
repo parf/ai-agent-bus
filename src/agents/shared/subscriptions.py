@@ -57,7 +57,9 @@ def actor(message):
 
 def own_manager(message,source):
     e=getattr(message,'envelope',{})
-    return e.get('original_to') in (None,'',source) and bool(set(e.get('roles',())) & {'owner','maintainer'})
+    original=e.get('original_to')
+    direct=original in (None,'') or isinstance(original,str) and original.lower()==source
+    return direct and bool(set(e.get('roles',())) & {'owner','maintainer'})
 
 
 def stamp(clock):
@@ -242,6 +244,16 @@ class Subscriptions:
         for row in rows:
             if row['filter']:result[row['id']]=selected[row['filter']]
         return result
+
+    def has_candidates(self,event):
+        """Selector-only preflight, before an adapter commits an entry."""
+        with self.lock:
+            rows,_=self._load()
+            for row in rows.values():
+                try:
+                    if self.selector_matches(row['selector'],event):return True
+                except Exception:pass
+            return False
 
     def deliver(self,event,text,body,*,topic,tag,deadline):
         with self.lock:
