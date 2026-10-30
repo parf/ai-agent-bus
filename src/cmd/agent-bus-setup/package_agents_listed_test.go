@@ -68,11 +68,9 @@ func TestEveryFileTheAgentPackagerWritesIsInTheBundleContract(t *testing.T) {
 	if len(bare) > 0 {
 		t.Fatalf("packages ship LICENSE.md without licenses/NOTICE.md beside it: %s", strings.Join(bare, ", "))
 	}
-	// Discord must be exported as well as accepted by setup.
-	for _, name := range []string{"agents/discord/agent.json", "agents/discord/env.dist", "agents/discord/discord.js", "agents/discord/LICENSE.md", "agents/discord/licenses/NOTICE.md"} {
-		if _, err := os.Stat(filepath.Join(dest, filepath.FromSlash(name))); err != nil {
-			t.Fatalf("Discord runtime artifact %s is absent: %v", name, err)
-		}
+	// Discord is R1.1: its code stays in the tree, but no R1 package carries it.
+	if _, err := os.Stat(filepath.Join(dest, "agents/discord")); err == nil {
+		t.Fatal("agents/discord is in the release: Discord moved to R1.1, so the R1 archives hold no discord tree")
 	}
 	if _, err := os.Stat(filepath.Join(dest, "agents/db")); err == nil {
 		t.Fatal("agents/db is in the release: its native libraries are copied from the host, so it ships from a checkout until the owner decides (Q)")

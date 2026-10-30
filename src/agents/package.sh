@@ -7,7 +7,6 @@ mkdir -p "$dest/agents"
 dest=$(realpath "$dest")
 "$here/slack/package.sh" "$dest/agents/slack"
 "$here/telegram/package.sh" "$dest/agents/telegram"
-"$here/discord/package.sh" "$dest/agents/discord"
 "$here/ai/package.sh" "$dest/agents/ai"
 "$here/voyage/package.sh" "$dest/agents/voyage"
 "$here/qdrant/package.sh" "$dest/agents/qdrant"
