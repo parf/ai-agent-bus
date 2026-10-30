@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.203 — 2026-10-30
+
+A named session resumes its own transcript by id, never the newest one in its directory
+
 ## 0.9.202 — 2026-10-30
 
 Logwatch uses the shared subscriptions module: one copy per match, refused sends warn once, invalid filters are refused, and sub edit is gone
