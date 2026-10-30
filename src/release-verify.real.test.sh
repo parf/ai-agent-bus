@@ -4,6 +4,8 @@
 # throwaway key. It must pass on the set and fail on a tampered archive, a
 # missing one and a bad signature. The other CPU's archives need a cross C
 # compiler this node lacks, so the set is the host's arch only (--arches).
+# RELEASE_DIST names archives package.sh already built (smoke's go_checks
+# builds once for this and npm-pack.test.sh); they are copied, never changed.
 set -eu
 cd "$(dirname "$0")"
 here=$PWD
@@ -11,13 +13,14 @@ mkdir -p ../tmp
 work=$(mktemp -d "$here/../tmp/rvreal.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 arch=$(uname -m)
-./package.sh "$work/dist" >/dev/null 2>&1
+dist=${RELEASE_DIST:-$work/dist}
+[ -n "${RELEASE_DIST:-}" ] || ./package.sh "$dist" >/dev/null 2>&1
 for k in key other; do ssh-keygen -q -t ed25519 -N '' -C throwaway -f "$work/$k"; done
 echo "agent-bus-release $(cut -d' ' -f1,2 "$work/key.pub")" >"$work/signers"
 sign() { (cd "$1" && rm -f SHA256SUMS SHA256SUMS.sig && sha256sum agent-bus-*.tar.gz >SHA256SUMS && ssh-keygen -Y sign -q -f "$2" -n agent-bus-release SHA256SUMS); }
 verify() { "$here/release-verify.sh" --signers "$work/signers" --arches "$arch" "$1"; }
 mkdir "$work/rel"
-ln "$work"/dist/agent-bus-*.tar.gz "$work/rel/" 2>/dev/null || cp "$work"/dist/agent-bus-*.tar.gz "$work/rel/"
+cp "$dist"/agent-bus-*.tar.gz "$work/rel/"
 sign "$work/rel" "$work/key"
 out=$(verify "$work/rel") || { echo "real release refused: $out"; exit 1; }
 grep -q 'ok (version' <<<"$out" || { echo "real release: no ok line: $out"; exit 1; }

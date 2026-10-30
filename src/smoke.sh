@@ -316,7 +316,23 @@ users() {
 # the same users, records and scripts, made the same way, with no check of its
 # own. Each such shard opens with those lines, under an "Inherited:" comment.
 
+# A check of seconds runs beside the rest of its shard; bg_report waits for each, in order, and counts it as ok_exit
+# would. It stays in the shard's process group, which the driver's timeout signals whole.
+bg_names=() bg_pids=()
+bg_start() { bg_names+=("$1"); shift; "$@" >"$D/bg.${#bg_pids[@]}" 2>&1 & bg_pids+=($!); }
+bg_report() {
+  local i rc
+  for i in "${!bg_pids[@]}"; do
+    wait "${bg_pids[$i]}"; rc=$?
+    ok_exit "${bg_names[$i]}" "$rc"
+    [ "$rc" = 0 ] || cat "$D/bg.$i"
+  done
+}
+
 go_checks() {
+# These two mostly wait (fake podman, stub journal): they run beside the rest and are reported last (J35).
+bg_start "a private-store podman harness killed by any signal leaves no container and no run directory (J32)" bash ./acceptance/guard.test.sh
+bg_start "journal-quiet fails a run whose containers wrote to the journal, against a stub journal (J32)" bash ./journal-quiet.test.sh
 out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s . -p smoke_privacy_test.py -v 2>&1); rc=$?
 ok_exit "live SMS recipient absent from tracked files" "$rc"
 [ "$rc" = 0 ] || echo "$out"
@@ -341,20 +357,18 @@ ok_exit "the conflict-marker check fails each marker and passes a setext heading
 out=$(PYTHONDONTWRITEBYTECODE=1 python3 ./check-markers.py 2>&1); rc=$?
 ok_exit "this tree adds no git conflict marker against main" "$rc"
 [ "$rc" = 0 ] || echo "$out"
-out=$(bash ./release-verify.real.test.sh 2>&1); rc=$?
+# One package.sh build serves both archive checks; each built its own, the shard's largest CPU cost (J35).
+out=$(./package.sh "$D/dist" 2>&1); rc=$?
+ok_exit "package.sh builds the host's archives" "$rc"
+[ "$rc" = 0 ] || echo "$out"
+out=$(RELEASE_DIST=$D/dist bash ./release-verify.real.test.sh 2>&1); rc=$?
 ok_exit "release evidence passes the signed archives package.sh builds and fails each bad release" "$rc"
 [ "$rc" = 0 ] || echo "$out"
 out=$(bash ./smoke-port.test.sh 2>&1); rc=$?
 ok_exit "smoke port claim contract" "$rc"
 [ "$rc" = 0 ] || echo "$out"
-out=$(bash ./npm-pack.test.sh 2>&1); rc=$?
+out=$(NPM_DIST=$D/dist bash ./npm-pack.test.sh 2>&1); rc=$?
 ok_exit "the npm wrapper installs from its tarballs and runs a request, a reply and an MCP call" "$rc"
-[ "$rc" = 0 ] || echo "$out"
-out=$(bash ./journal-quiet.test.sh 2>&1); rc=$?
-ok_exit "journal-quiet fails a run whose containers wrote to the journal, against a stub journal (J32)" "$rc"
-[ "$rc" = 0 ] || echo "$out"
-out=$(bash ./acceptance/guard.test.sh 2>&1); rc=$?
-ok_exit "a private-store podman harness killed by any signal leaves no container and no run directory (J32)" "$rc"
 [ "$rc" = 0 ] || echo "$out"
 out=$(bash ./acceptance/guard-lock.test.sh 2>&1); rc=$?
 ok_exit "a private-store podman harness refuses to start a container nobody holds the smoke-gate lock for (J32)" "$rc"
@@ -399,7 +413,8 @@ has "while the process that assembles them holds the ones that persist" \
   "$(go list -deps ./cmd/agent-busd | grep -E 'internal/(store|dump|directory|signature|journal)' | tr '\n' ' ')" 'internal/directory/file .*internal/directory/github .*internal/journal .*internal/signature/sshkeygen .*internal/store/sqlite'
 has "and core is what asks for it" \
   "$(go list -f '{{join .Imports "\n"}}' ./internal/auth 2>&1)" 'internal/ports'
-
+sec "the fixture harness checks"
+bg_report
 }
 process_titles() {
 if normal; then
