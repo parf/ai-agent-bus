@@ -41,7 +41,7 @@
       "text": "sub add <m> <h> <dom> <mon> <dow> <target> <message>"
     },
     "sub.list": {
-      "help": "Review your repeating messages, next delivery times, outcomes and pauses. The Owner and Maintainers see everyone's schedules.",
+      "help": "Review your repeating messages, next delivery times, outcomes and pauses. The Owner and Maintainers also see other creators' schedules without their message bodies.",
       "args": [],
       "text": "sub list",
       "example": "agent-bus call '#cron@parf.us' 'sub list'"
@@ -82,7 +82,7 @@
       "text": "later <when> <target> <message>"
     },
     "later.list": {
-      "help": "Review your pending one-time messages and recent outcomes. The Owner and Maintainers see everyone's messages.",
+      "help": "Review your pending one-time messages and recent outcomes. The Owner and Maintainers also see other creators' entry IDs, targets and outcomes, without their message bodies.",
       "args": [],
       "text": "later list",
       "example": "agent-bus call '#cron@parf.us' 'later list'"

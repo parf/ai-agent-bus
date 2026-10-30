@@ -41,8 +41,7 @@
       "destructive": true
     },
     "routes": {
-      "help": "Find configured route names and whether they receive or send events. Credentials and URLs are not shown.",
-      "example": "agent-bus call '#webhook@parf.us' routes"
+      "help": "Find configured route names and whether they receive or send events. Credentials and URLs are not shown."
     }
   },
   "config": {}

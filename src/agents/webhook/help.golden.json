@@ -1,5 +1,5 @@
 {
-  "text": "Connect outside events and services without sharing their credentials. Receive authenticated events or send a body to a configured destination. Start with routes to see available names; post sends once and returns the response.\n[destructive] post <route> <body...>: Send one body to a configured outbound route, once. The reply contains the HTTP status and response text.\n  route (string): Configured outbound route name; a caller cannot supply a URL\n  body (string): UTF-8 body, unchanged; at most 262144 bytes and the route cap\nroutes: Find configured route names and whether they receive or send events. Credentials and URLs are not shown.\n\nExamples\nagent-bus call '#webhook@parf.us' routes\n\nv<version> · PolyForm-NC · parf.dev/agent-bus/\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/webhook.md\nMore: agent-bus help <name> config | secret | json",
+  "text": "Connect outside events and services without sharing their credentials. Receive authenticated events or send a body to a configured destination. Start with routes to see available names; post sends once and returns the response.\n[destructive] post <route> <body...>: Send one body to a configured outbound route, once. The reply contains the HTTP status and response text.\n  route (string): Configured outbound route name; a caller cannot supply a URL\n  body (string): UTF-8 body, unchanged; at most 262144 bytes and the route cap\nroutes: Find configured route names and whether they receive or send events. Credentials and URLs are not shown.\n\nv<version> · PolyForm-NC · parf.dev/agent-bus/\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/webhook.md\nMore: agent-bus help <name> config | secret | json",
   "json": {
     "description": "Connect outside events and services without sharing their credentials. Receive authenticated events or send a body to a configured destination. Start with routes to see available names; post sends once and returns the response.",
     "license": "PolyForm-Noncommercial-1.0.0",
@@ -29,7 +29,6 @@
       "routes": {
         "type": "string",
         "help": "Find configured route names and whether they receive or send events. Credentials and URLs are not shown.",
-        "example": "agent-bus call '#webhook@parf.us' routes",
         "args": []
       }
     },

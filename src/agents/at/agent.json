@@ -64,7 +64,7 @@
       "text": "at <time> <target> <message>"
     },
     "list": {
-      "help": "Review your pending messages and recent outcomes, with the configured time zone. The Owner and Maintainers see everyone's messages.",
+      "help": "Review your pending messages and recent outcomes, with the configured time zone. The Owner and Maintainers also see other creators' entry IDs, targets and outcomes, without their message bodies.",
       "args": [],
       "text": "list",
       "example": "agent-bus call '#at@parf.us' list"
