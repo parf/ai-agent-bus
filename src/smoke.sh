@@ -331,9 +331,10 @@ bg_report() {
 }
 
 go_checks() {
-# These two mostly wait (fake podman, stub journal): they run beside the rest and are reported last (J35).
+# These three mostly wait (fake podman, stub journal): they run beside the rest and are reported last (J35).
 bg_start "a private-store podman harness killed by any signal leaves no container and no run directory (J32)" bash ./acceptance/guard.test.sh
 bg_start "journal-quiet fails a run whose containers wrote to the journal, against a stub journal (J32)" bash ./journal-quiet.test.sh
+bg_start "guard.test.sh killed mid-run never reaches a podman on PATH (J36)" bash ./acceptance/guard-escape.test.sh
 out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s . -p smoke_privacy_test.py -v 2>&1); rc=$?
 ok_exit "live SMS recipient absent from tracked files" "$rc"
 [ "$rc" = 0 ] || echo "$out"
@@ -374,9 +375,6 @@ ok_exit "the npm wrapper installs from its tarballs and runs a request, a reply 
 [ "$rc" = 0 ] || echo "$out"
 out=$(bash ./acceptance/guard-lock.test.sh 2>&1); rc=$?
 ok_exit "a private-store podman harness refuses to start a container nobody holds the smoke-gate lock for (J32)" "$rc"
-[ "$rc" = 0 ] || echo "$out"
-out=$(bash ./acceptance/guard-escape.test.sh 2>&1); rc=$?
-ok_exit "guard.test.sh killed mid-run never reaches a podman on PATH (J36)" "$rc"
 [ "$rc" = 0 ] || echo "$out"
 out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents -p agent_docs_test.py -v 2>&1); rc=$?
 ok_exit "every bundled agent has its page, index entry and docs link" "$rc"
