@@ -75,16 +75,24 @@ OPENROUTER_API_KEY (required): Provider API key, required. Set only in runner/ai
 
 The runner reads shared packages first, then bundled packages. The first package with a name wins, including when that package is refused; removing it lets the next `reload` fall back to the bundled copy.
 
+A stale or emptied shared package directory still shadows its bundled copy as `refused`; remove that shared directory to fall back.
+
 | Source | Default | Starts without an inventory entry? |
 |---|---|---|
 | Shared packages (`--agents`) | `/var/lib/agent-bus/agent.d` | Yes |
 | Bundled packages (`--bundled`) | `/usr/local/lib/agent-bus/current/agents` on a release node; the checkout's `src/agents` when running from git | No: set `enabled:true` in `agents.json` |
+
+`--bundled=` with an empty value is refused.
 
 - Bundled manifests under `standalone/` are included; support directories without a manifest are skipped. New bundled agents appear at the next `reload`.
 - Each status row's `agent_dir` names the selected package directory.
 - A bundled agent without an explicit enable is `available`, with no reader or process. Explicitly disabling it shows `disabled`.
 
 Commands, default env values and read-only author files come from the selected package. Host settings and overrides keep their paths under `runner/<agent>[/<instance>]/`.
+
+Only git-node bundled agents also read these checkout support roots, mounted read-only in their sandbox: `src/agents/shared`, `src/clients/python`, `src/clients/typescript` and `src/internal/version`.
+
+Shared packages and release bundles get no extra roots; neither the checkout root nor host settings are mounted.
 
 ## Package options
 

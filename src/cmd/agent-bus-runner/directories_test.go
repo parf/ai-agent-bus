@@ -87,6 +87,12 @@ func TestSharedAgentWinsAndRemovalFallsBackToBundle(t *testing.T) {
 		if row := directoryRow(t, r, "fixture"); row.AgentDir != dir || !row.Enabled {
 			t.Fatalf("selected source: %+v, want %s", row, dir)
 		}
+		r.mu.Lock()
+		selected := r.served["#fixture@h"].dir
+		r.mu.Unlock()
+		if selected != dir {
+			t.Fatalf("serving snapshot still binds %s, want %s", selected, dir)
+		}
 		if _, err := b.Send(protocol.Envelope{From: "owner@h", To: "#fixture@h", Body: "hello"}); err != nil {
 			t.Fatal(err)
 		}

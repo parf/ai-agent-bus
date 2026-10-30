@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.214 — 2026-10-30
+
+The runner loads shared agents first, then bundled ones from --bundled, which serve only when enabled explicitly
+
 ## 0.9.213 — 2026-10-30
 
 PHP client long polls use HTTP/1.1 so a replaced reader's cancelled poll no longer swallows messages

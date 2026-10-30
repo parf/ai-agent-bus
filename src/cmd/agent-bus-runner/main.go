@@ -103,6 +103,10 @@ func main() {
 	host := flag.String("host", "", "the runner account's private directory (required)")
 	flag.Usage = func() { fmt.Fprintln(os.Stderr, "agent-bus-runner "+version.String+usage) }
 	flag.Parse()
+	if strings.TrimSpace(*bundled) == "" {
+		fmt.Fprintln(os.Stderr, "agent-bus-runner: --bundled wants a directory")
+		os.Exit(1)
+	}
 	if *host == "" {
 		fmt.Fprintln(os.Stderr, "agent-bus-runner: --host wants the runner account's private directory")
 		os.Exit(1)

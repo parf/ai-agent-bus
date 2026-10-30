@@ -79,3 +79,38 @@ func (r *runner) packageRoot(name string) (string, error) {
 	}
 	return "", fmt.Errorf("no agent %s is installed in agent.d or the bundled directories", name)
 }
+
+// Checkout agents import the shared engines and clients outside their own
+// package. Only git-node bundles get these public code roots; host packages
+// and release bundles must remain self-contained. Never bind the checkout
+// itself: it can hold host files beside the code.
+func (r *runner) codeReads(in installed, dir string) []string {
+	read := []string{dir}
+	if !in.Bundled || !gitAgentDirectory(r.bundled) {
+		return read
+	}
+	src := filepath.Dir(r.bundled)
+	for _, path := range []string{
+		filepath.Join(r.bundled, "shared"),
+		filepath.Join(src, "clients", "python"),
+		filepath.Join(src, "clients", "typescript"),
+		filepath.Join(src, "internal", "version"),
+	} {
+		if _, err := os.Stat(path); err == nil {
+			read = append(read, path)
+		}
+	}
+	return read
+}
+
+func gitAgentDirectory(root string) bool {
+	src := filepath.Dir(root)
+	if filepath.Base(root) != "agents" || filepath.Base(src) != "src" {
+		return false
+	}
+	if _, err := os.Stat(filepath.Join(src, "go.mod")); err != nil {
+		return false
+	}
+	_, err := os.Stat(filepath.Join(src, "..", ".git"))
+	return err == nil
+}

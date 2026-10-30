@@ -29,7 +29,7 @@ func TestRunnerHelpAndRealExitCodes(t *testing.T) {
 	for _, c := range []struct {
 		args []string
 		code int
-	}{{[]string{"--help"}, 0}, {nil, 1}, {[]string{"--unknown"}, 2}} {
+	}{{[]string{"--help"}, 0}, {nil, 1}, {[]string{"--unknown"}, 2}, {[]string{"--bundled="}, 1}} {
 		cmd := exec.Command(os.Args[0], append([]string{"-test.run=^TestRunnerHelpProcess$", "--"}, c.args...)...)
 		cmd.Env = append(os.Environ(), "AB_RUNNER_HELP_TEST=1", "GORACE=atexit_sleep_ms=0")
 		out, err := cmd.CombinedOutput()
@@ -39,6 +39,9 @@ func TestRunnerHelpAndRealExitCodes(t *testing.T) {
 		}
 		if code != c.code {
 			t.Fatalf("%v: %d %s", c.args, code, out)
+		}
+		if len(c.args) == 1 && c.args[0] == "--bundled=" && !strings.Contains(string(out), "--bundled wants a directory") {
+			t.Fatalf("empty bundled directory was not refused: %s", out)
 		}
 		if regexp.MustCompile(`(^|\s)docs/`).Match(out) {
 			t.Fatal("bare docs path")

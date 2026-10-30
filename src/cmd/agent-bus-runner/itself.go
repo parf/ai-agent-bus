@@ -206,7 +206,7 @@ func (k *keeper) command() (*exec.Cmd, *jail, error) {
 	}
 	job := ports.Job{
 		Argv: []string{"/bin/sh", "-c", "exec " + launch.cmd},
-		Work: s.work, Read: []string{s.dir}, Over: launch.over, Net: launch.net, TmpSize: j.tmp, Seccomp: len(j.seccomp) > 0,
+		Work: s.work, Read: launch.read, Over: launch.over, Net: launch.net, TmpSize: j.tmp, Seccomp: len(j.seccomp) > 0,
 	}
 	addr := k.r.addr
 	if strings.HasPrefix(addr, "/") {

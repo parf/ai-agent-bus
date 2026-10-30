@@ -67,6 +67,7 @@ type served struct {
 // served fields (name, work, bus and dir) are fixed at adoption.
 type launchSettings struct {
 	key       string
+	read      []string
 	agent     agentFile
 	cmd       string
 	env       []string
@@ -81,7 +82,7 @@ type launchSettings struct {
 func (r *runner) launchSettings(s *served) launchSettings {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return launchSettings{key: s.in.Key, agent: s.in.Agent, cmd: s.cmd, env: s.env, secretEnv: s.secretEnv, box: s.box, net: s.net, jail: s.jail, over: s.in.Over, stream: s.stream}
+	return launchSettings{read: r.codeReads(s.in, s.dir), key: s.in.Key, agent: s.in.Agent, cmd: s.cmd, env: s.env, secretEnv: s.secretEnv, box: s.box, net: s.net, jail: s.jail, over: s.in.Over, stream: s.stream}
 }
 
 // serveable says why an agent cannot be served by this wave, or "".
@@ -348,9 +349,9 @@ func (r *runner) serve(ctx context.Context) {
 			continue
 		}
 		name, as, env, box := p.name, p.as, p.env, p.box
-		// The inbox reader and kept process are different serving modes.
-		// Retire the old mode before adopting the replacement.
-		if s := r.served[name]; s != nil && ((s.in.Agent.Serves == "itself") != (in.Agent.Serves == "itself") || (s.stream != nil) != isStream(*in)) {
+		// The package directory is fixed at adoption, as is the serving mode.
+		// Retire either change before adopting its replacement.
+		if s := r.served[name]; s != nil && (in.Source != s.in.Source || (s.in.Agent.Serves == "itself") != (in.Agent.Serves == "itself") || (s.stream != nil) != isStream(*in)) {
 			r.stop(name, s)
 		}
 		r.waitRetired(in.Key)
@@ -868,7 +869,7 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	}
 	argv := launch.box.Wrap(ports.Job{
 		Argv: script.Argv(launch.cmd, launch.agent.Form == "args", e.Body, e.Roles),
-		Work: s.work, Read: []string{s.dir}, Over: launch.over, Net: launch.net, TmpSize: j.tmp, Seccomp: len(j.seccomp) > 0,
+		Work: s.work, Read: launch.read, Over: launch.over, Net: launch.net, TmpSize: j.tmp, Seccomp: len(j.seccomp) > 0,
 	})
 	// Open files are a limit of the process, not of the cgroup: prlimit sets
 	// it and then is the sandbox, so every process of the agent inherits it.
