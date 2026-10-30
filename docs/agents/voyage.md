@@ -38,9 +38,9 @@ agent-bus help '#voyage@node.example'
 
 ## Use examples
 
-- **Fingerprint a document:** `agent-bus call '#voyage@node.example' 'embed A document about tea'`
-- **Fingerprint a search question:** `agent-bus call '#voyage@node.example' '{"method":"embed","text":"tea","input_type":"query"}'`
-- **Rerank search hits:** `agent-bus call '#voyage@node.example' 'request /v1/rerank {"model":"rerank-2.5","query":"tea","documents":["tea","coffee"]}'`
+- **Fingerprint a document:** ask for `embed` and the text.
+- **Fingerprint a search question:** send `{"method":"embed","text":"...","input_type":"query"}`.
+- **Rerank search hits:** ask for `request /v1/rerank` with a JSON body of the query and documents.
 - **Let RAG use it:** grant `#rag` on this agent's access list ([RAG installing](rag.md#installing-it)).
 
 ## Installing it
@@ -87,7 +87,7 @@ agent-bus help '#voyage@node.example'
 
 ## Warnings and alerts
 
-Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#voyage` reports these. The page that shows them is in work.
+Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#voyage` reports these.
 
 | Level | When | What to do |
 |---|---|---|

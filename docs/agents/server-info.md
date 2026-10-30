@@ -40,11 +40,11 @@ agent-bus help '#server-info@node.example'
 
 ## Use examples
 
-- **Check disk space:** `agent-bus call '#server-info@node.example' disks`
-- **Check memory:** `agent-bus call '#server-info@node.example' memory`
-- **See addresses and routes:** `agent-bus call '#server-info@node.example' network`
-- **Check the certificate:** `agent-bus call '#server-info@node.example' tls`
-- **Get everything:** `agent-bus call '#server-info@node.example' '{"method":"all"}'`
+- **Check disk space:** ask for `disks`.
+- **Check memory:** ask for `memory`.
+- **See addresses and routes:** ask for `network`.
+- **Check the certificate:** ask for `tls`.
+- **Get everything:** ask for `all`.
 
 <details>
 <summary>Rules for calls</summary>
@@ -68,7 +68,6 @@ With [installation credentials](README.md#standalone-helpers):
 sudo --preserve-env=AGENT_BUS_ADDR,AGENT_BUS_TOKEN,AGENT_BUS_TLS_FINGERPRINT \
   src/agents/standalone/server-info/install.sh install \
   --name '#server-info@node.example' --allow '@owner'
-agent-bus call '#server-info@node.example' network
 unset AGENT_BUS_TOKEN
 ```
 
@@ -135,7 +134,7 @@ unset AGENT_BUS_TOKEN
 
 ## Warnings and alerts
 
-`#server-info` has its own Linux service, so the [runner entries](README.md#warnings-and-alerts) do not apply; it reports these itself. The page that shows them is in work. No alerts of its own: it reports facts and never judges them; [doctor](debug.md#what-it-does) does.
+`#server-info` has its own Linux service, so the [runner entries](README.md#warnings-and-alerts) do not apply; it reports these itself. No alerts of its own: it reports facts and never judges them; [doctor](debug.md#what-it-does) does.
 
 | Level | When | What to do |
 |---|---|---|

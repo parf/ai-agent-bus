@@ -3,7 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** your AI or a teammate needs numbers from a database that lives elsewhere, and sharing the password gives away everything that account can do, forever.
 - **Outcome:** they ask SQL questions through a door to one database account; the password stays on the server and the database itself decides what each caller may do.
-- **Start:** run one harmless statement: `agent-bus call '#mysql/billing-ro@node.example' 'query SELECT 1'` ([Try this first](#try-this-first)).
+- **Start:** ask what the helper can do: `agent-bus help '#mysql/billing-ro@node.example'` ([Try this first](#try-this-first)).
 
 ## Why you'd want it
 
@@ -36,18 +36,20 @@ A nonempty `needs.network` in `agent.json` enables network access (it is not a h
 
 ## Try this first
 
-- Run one harmless statement:
+- Ask the helper what it can do:
 
 ```sh
-agent-bus call '#mysql/billing-ro@node.example' 'query SELECT 1'
+agent-bus help '#mysql/billing-ro@node.example'
 ```
+
+- Then send one harmless `query` of `SELECT 1`.
 
 ## Use examples
 
-- **Count unpaid invoices:** `agent-bus call '#mysql/billing-ro@node.example' 'query SELECT count(*) FROM invoices WHERE paid = 0'`
-- **Peek at recent rows:** `agent-bus call '#mysql/billing-ro@node.example' 'query SELECT id, total FROM invoices LIMIT 5'`
-- **Mark an invoice paid:** `agent-bus call '#mysql/billing-rw@node.example' 'query UPDATE invoices SET paid = 1 WHERE id = 7'`
-- **Call from a script as JSON:** `agent-bus call '#mysql/billing-ro@node.example' '{"method":"query","sql":"SELECT 1"}'`
+- **Count unpaid invoices:** ask the read-only agent for a `query` with a `SELECT count(*)` statement.
+- **Peek at recent rows:** ask it for a `SELECT` with a `LIMIT`.
+- **Mark an invoice paid:** ask the read-write agent for an `UPDATE` statement.
+- **Call from a script as JSON:** send `{"method":"query","sql":"..."}`.
 - **The same UPDATE through the read-only agent** is refused by the database.
 - **On a fallback instance,** grant roles in its access list, for example `bob(write)`, `ops(admin)`.
 
@@ -127,7 +129,7 @@ agent-bus call '#mysql/billing-ro@node.example' 'query SELECT 1'
 
 ## Warnings and alerts
 
-Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#db` reports these. The page that shows them is in work.
+Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#db` reports these.
 
 | Level | When | What to do |
 |---|---|---|

@@ -39,12 +39,12 @@ agent-bus help '#systemd/web@node.example'
 
 ## Use examples
 
-- **Find failures on all servers:** `agent-bus call --tagged=systemd failed`
-- **Check one service:** `agent-bus call '#systemd@node.example' 'status nginx.service'`
-- **Read its last hour of logs:** `agent-bus call '#systemd@node.example' 'logs nginx.service 100 since 1h'`
-- **Restart it (for example after a [git pull](git.md#use-examples)):** `agent-bus call '#systemd@node.example' 'restart nginx.service'`
-- **See scheduled jobs:** `agent-bus call '#systemd@node.example' timers`
-- **See my team's services:** `agent-bus call '#systemd/web@node.example' list`
+- **Find failures on all servers:** ask every tagged helper for `failed`.
+- **Check one service:** ask for `status` and its name, such as `nginx.service`.
+- **Read its last hour of logs:** ask for `logs`, the service, a line count and `since 1h`.
+- **Restart it (for example after a [git pull](git.md#use-examples)):** ask for `restart` and its name.
+- **See scheduled jobs:** ask for `timers`.
+- **See my team's services:** ask your team's helper for `list`.
 
 <details>
 <summary>Rules for these calls</summary>
@@ -151,7 +151,7 @@ Names need their ending (`.service`, `.timer`); no wildcards or paths. An empty 
 
 ## Warnings and alerts
 
-`#systemd` has its own Linux service, so the [runner entries](README.md#warnings-and-alerts) do not apply; it reports these itself. The page that shows them is in work.
+`#systemd` has its own Linux service, so the [runner entries](README.md#warnings-and-alerts) do not apply; it reports these itself.
 
 | Level | When | What to do |
 |---|---|---|

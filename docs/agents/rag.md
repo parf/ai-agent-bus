@@ -2,7 +2,7 @@
 
 📌 **TL;DR:**
 - **Problem:** an AI only knows what is in front of it, and your notes, mails and documents are scattered; keyword search misses "car" when you typed "vehicle".
-- **Outcome:** a shared notebook that stores each text sorted into your own topics, with its meaning remembered, so you or your AI can read it back; search by meaning is in work.
+- **Outcome:** a shared notebook that stores each text sorted into your own topics, with its meaning remembered, so you or your AI find it by meaning.
 - **Start:** give a table its topic list (no AI call yet): [Try this first](#try-this-first).
 
 ## Why you'd want it
@@ -22,7 +22,6 @@
 - ✅ **Use cases:** sort a support inbox into billing, bug, sales and spam; a team knowledge base; meeting and call notes; research clippings; facts an AI session wants to keep.
 - ⚙️ **Records:** live in a **namespace** (say, a team) and a **table** (say, `notes`), each with its own `id`; two optional keys (`key1`, `key2`) tag records further; texts can be plain, Markdown, HTML or JSON.
 - 🚫 **Not for:** a few pages (just paste them), exact lookups by id or number (use a database), or anything that must stay out of an AI provider (the text goes to the classifier and embedding services).
-- ℹ️ **Search by meaning, keyword search and summaries are in work.**
 
 ## How it is built
 
@@ -59,7 +58,7 @@ agent-bus call '#rag@parf.us' '{"method":"list","namespace":"team","limit":16}' 
 error: configure RAG block names and collection
 ```
 
-- On the development node the helper is running but not yet configured; the output is from 2026-10-30.
+- On the development node the helper is running but is not configured; the output is from 2026-10-30.
 - Step by step: [Installing it](#installing-it).
 
 </details>
@@ -173,7 +172,7 @@ agent-bus manage '#ai@node.example' --add-to-set-allow '#rag@node.example'
 
 ## Warnings and alerts
 
-Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#rag` reports these. The page that shows them is in work.
+Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#rag` reports these.
 
 | Level | When | What to do |
 |---|---|---|
@@ -206,7 +205,7 @@ Replacement and recovery:
 - A definite first-write refusal says **not stored; prior record unchanged**: 400, 401, 403, 404, 405, 413, 415, 422 or a local proxy role refusal; 408, 409, 429, 499 and other ambiguous failures never claim the prior state is unchanged; no cross-call transactions.
 - UUID namespace, tuple encoding and chunk-boundary version are permanent storage contracts; changing them needs a migration.
 - Splitting prefers the last paragraph, line or space boundary in the latter half of a 4096-byte window, else hard-cuts at a complete UTF-8 character; identical prepared content rewrites the same points; different Jev labels or vectors give a new revision.
-- The search now in work will filter `_rag_kind=chunk` and check each hit's revision against its head.
+- Search filters `_rag_kind=chunk` and checks each hit's revision against its head.
 
 </details>
 

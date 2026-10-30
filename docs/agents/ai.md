@@ -160,7 +160,7 @@ agent-bus manage '#ai@node.example' --remove-allow '*'
 
 ## Warnings and alerts
 
-Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#ai` reports these. The page that shows them is in work.
+Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#ai` reports these.
 
 | Level | When | What to do |
 |---|---|---|

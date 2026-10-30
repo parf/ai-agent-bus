@@ -93,7 +93,7 @@ agent-bus call '#qdrant@parf.us' 'request GET /collections' | jq -r .body
 <summary>Step by step</summary>
 
 - Build `src/agents/qdrant/package.sh <agent.d/qdrant>`, enable it in the [runner inventory](../runner/configuration.md#inventory), then set Configuration and the host key as below.
-- The package uses standard-library Python and `needs.network:["*"]`; today's runner grants the whole network, not a hostname firewall.
+- The package uses standard-library Python and `needs.network:["*"]`; the runner grants the whole network, not a hostname firewall.
 
 </details>
 
@@ -147,7 +147,7 @@ agent-bus call '#qdrant@parf.us' 'request GET /collections' | jq -r .body
 
 ## Warnings and alerts
 
-Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#qdrant` reports these. The page that shows them is in work.
+Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#qdrant` reports these.
 
 | Level | When | What to do |
 |---|---|---|

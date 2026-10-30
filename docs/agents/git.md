@@ -223,7 +223,7 @@ unset AGENT_BUS_TOKEN
 
 ## Warnings and alerts
 
-`#git` has its own Linux service, so the [runner entries](README.md#warnings-and-alerts) do not apply; it reports these itself. Update results also go to the log channel and autopull status. The page that shows them is in work.
+`#git` has its own Linux service, so the [runner entries](README.md#warnings-and-alerts) do not apply; it reports these itself. Update results also go to the log channel and autopull status.
 
 | Level | When | What to do |
 |---|---|---|

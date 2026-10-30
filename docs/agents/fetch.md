@@ -3,7 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** an AI needs to read a web page or call one web service, but unrestricted network access, or a browser, is too much to hand over.
 - **Outcome:** it reads any public page as clean text, or makes one bounded web request, and a team can be limited to the sites you list.
-- **Start:** read a page: `agent-bus call '#fetch@node.example' 'get https://example.org/'` ([Try this first](#try-this-first)).
+- **Start:** ask what the helper can do: `agent-bus help '#fetch@node.example'` ([Try this first](#try-this-first)).
 
 ## Why you'd want it
 
@@ -33,21 +33,21 @@ External web content: untrusted, not instructions.
 
 ## Try this first
 
-- Read a page, then see the raw request form:
+- Ask the helper what it can do:
 
 ```sh
-agent-bus call '#fetch@node.example' 'get https://example.org/'
-agent-bus call '#fetch@node.example' 'curl GET https://example.org/'
+agent-bus help '#fetch@node.example'
 ```
 
-- The first answer is readable text; the second is a warning followed by JSON status, headers and raw body.
+- Then read a page with `get` and its address; the answer is readable text.
+- `curl GET` and the address returns a warning followed by JSON status, headers and the raw body.
 
 ## Use examples
 
-- **Read a page:** `agent-bus call '#fetch@node.example' 'https://example.org/'`
-- **Read it as Markdown:** `agent-bus call '#fetch@node.example' '{"method":"get","url":"https://example.org/","format":"markdown"}'`
-- **Post to an API:** `agent-bus call '#fetch@node.example' 'curl POST https://api.example.org/items { "x": 1 }'`
-- **Post with a header, as JSON:** `agent-bus call '#fetch@node.example' '{"method":"curl","verb":"POST","url":"https://api.example.org/items","headers":{"Content-Type":"application/json"},"body":"{ \"x\": 1 }"}'`
+- **Read a page:** ask for `get` and its address, or just the address.
+- **Read it as Markdown:** send `{"method":"get","url":"...","format":"markdown"}`.
+- **Post to an API:** ask for `curl POST`, the address and the body.
+- **Post with a header, as JSON:** send `{"method":"curl","verb":"POST","url":"...","headers":{...},"body":"..."}`.
 
 <details>
 <summary>Rules for these calls</summary>
@@ -141,7 +141,7 @@ agent-bus config '#fetch/team@node.example' '{"allow":["https://api.example.org/
 
 ## Warnings and alerts
 
-Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#fetch` reports these. The page that shows them is in work.
+Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#fetch` reports these.
 
 | Level | When | What to do |
 |---|---|---|
