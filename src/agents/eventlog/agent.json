@@ -98,7 +98,7 @@
         },
         {
           "name": "count",
-          "type": "integer",
+          "type": "int",
           "help": "Oldest entries to remove, 1..500; default 100",
           "optional": true,
           "default": 100
@@ -126,7 +126,7 @@
         },
         {
           "name": "id",
-          "type": "integer",
+          "type": "int",
           "help": "Inclusive entry upper id boundary; positive integer",
           "optional": true
         }
@@ -216,15 +216,15 @@
   },
   "config": {
     "rings": {
-      "type": "object",
+      "type": "json",
       "help": "Level \u2192 optional size and ttl duration; defaults notice 200/1d, warning 200/7d, alert 50/30d; combined size <=500"
     },
     "logs": {
-      "type": "object",
+      "type": "json",
       "help": "Log name \u2192 per-level ring overrides, same shape as rings"
     },
     "max_logs": {
-      "type": "integer",
+      "type": "int",
       "help": "Maximum active logs, 1..100",
       "default": 100
     }

@@ -167,3 +167,24 @@ real daemon was separated into urgent `ab-w1c/T-2-wait` for its own landing.
   export/install checks, 13 smoke-selection checks and five guide checks pass.
 - Smoke runs now leave PORT unset for the automatic block allocator. Frozen
   subscription vectors, version and changelog were not edited.
+
+## Step 2 gate integration repairs
+
+Both gate attempts reproduced two eventlog integration failures. The runner
+refused unsupported metadata types, and setup omitted the agent command from
+its executable inventory. Metadata now uses the supported `int` and `json`
+types; setup installs `eventlog.py` executable.
+
+| Restored defect | Failing assertion |
+|---|---|
+| Metadata `integer` | `TestTheShippedAgentsLoad`: `unknown type "integer"` |
+| Omit executable inventory entry | `TestEveryBundledAgentCommandIsInstalledExecutable`: `setup would install 0644` |
+
+Both mutants compiled and failed their named assertions under one smoke-lock
+hold; both were restored and the lock released. The two checks and four focused
+bundle/install checks pass. The eventlog fast shard passes in 1.93 seconds.
+
+The first gate attempt also caught an unrelated `agent_sessions` failure:
+`test_immediate_exit_failure_preserves_sibling_and_allows_retry` expected
+`: failed:` but received `Bad: started`. That failure was reported separately;
+the second attempt repeated only the two integration failures above.

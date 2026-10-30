@@ -271,6 +271,7 @@ var legacyFiles = map[string]bool{"agent-bus-web": true}
 var legacyBundles = map[string]bool{"mcp/server.js": true, "launchers/launcher.js": true}
 
 var executableFiles = map[string]bool{
+	"agents/eventlog/eventlog.py":                  true,
 	"agents/fetch/fetch.py":                        true,
 	"agents/sms-telnyx/sms.py":                     true,
 	"agents/standalone/tmux-sessions/sessions.py":  true,

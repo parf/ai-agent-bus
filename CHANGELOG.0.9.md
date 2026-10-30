@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.184 — 2026-10-30
+
+agent events: a ring restarted smaller keeps only its newest entries, events.lock is created 0600, and the eventlog agent installs executable
+
 ## 0.9.183 — 2026-10-30
 
 Sixth published 0.9 changeset: 0.9.163–0.9.183, squashed.
