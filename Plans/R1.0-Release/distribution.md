@@ -51,7 +51,7 @@ Owner, 2026-10-30, superseding the earlier installer and signing choices ([RD178
 
 The installed command stays `agent-bus`. npm refused the earlier `agent-bus` package name as too similar to `agentbus`; the CEO reserved `ai-agent-bus` at placeholder version 0.0.1 on 2026-10-30. Read-only `npm view ai-agent-bus-client --json` returned E404 on the same date; use `ai-agent-bus-client` without reserving or publishing it.
 
-`src/npm/pack.py` emits the split platform and command manifests; change its defaults to these names as the separate implementation step. The three tracked `@agent-bus/` manifests are private development projects, not published packages. The exact manifest inventory and pending migration are [P.1](TODO.md#distribution-acceptance).
+`src/npm/pack.py` emits the split platform and command manifests; T-16’s separate implementation commit changes its defaults to these names, preserving the installed commands. The three tracked `@agent-bus/` manifests are private development projects, not published packages. The exact manifest inventory and pending migration are [P.1](TODO.md#distribution-acceptance).
 
 ### Install acceptance
 

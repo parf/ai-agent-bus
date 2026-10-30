@@ -68,6 +68,30 @@ class Packages(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         return Path(result.stdout.strip()).parent
 
+    def test_reserved_package_names_keep_the_agent_bus_command(self):
+        cpu = 'arm64' if os.uname().machine == 'aarch64' else 'x64'
+        expected = {'ai-agent-bus', 'ai-agent-bus-client',
+                    'ai-agent-bus-linux-' + cpu, 'ai-agent-bus-client-linux-' + cpu}
+        manifests = {}
+        for archive in self.tarballs.glob('*.tgz'):
+            with tarfile.open(archive) as tar:
+                meta = json.load(tar.extractfile('package/package.json'))
+                manifests[meta['name']] = meta
+                if 'agentBus' in meta:
+                    self.assertIn('agent-bus', meta['bin'])
+                    self.assertEqual(meta['bin']['agent-bus'], 'bin/agent-bus')
+                    self.assertNotIn('ai-agent-bus', meta['bin'])
+                    self.assertIn('package/bin/agent-bus', tar.getnames())
+        self.assertEqual(set(manifests), expected)
+        self.assertEqual(manifests['ai-agent-bus']['dependencies'],
+                         {'ai-agent-bus-client': self.version})
+        for name in ('ai-agent-bus', 'ai-agent-bus-client'):
+            self.assertEqual(set(manifests[name]['optionalDependencies']),
+                             {name + '-linux-x64', name + '-linux-arm64'})
+        result = self.run_command([str(self.bin / 'agent-bus'), '--version'])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.splitlines()[0], self.version)
+
     def test_bus_alone_installs_exact_client_and_platform_pins(self):
         bus = json.loads((self.bus_root / 'package.json').read_text())
         self.assertEqual(bus['dependencies'], {self.names['client']: self.version})

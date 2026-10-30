@@ -12,7 +12,7 @@ import tarfile
 import tempfile
 
 # The sole package-name defaults. Owner may revise these; commands do not change.
-NAMES = {'bus': 'agent-bus', 'client': 'agent-bus-client'}
+NAMES = {'bus': 'ai-agent-bus', 'client': 'ai-agent-bus-client'}
 
 
 def names():

@@ -28,11 +28,11 @@ class ExplicitSetup(unittest.TestCase):
         # the ordinary installer. Only the bus is requested from the registry.
         result = subprocess.run(['npm', 'install', '-g', '--prefix', '/opt/npm', '--ignore-scripts',
                                  '--no-audit', '--no-fund', '--registry', f'http://127.0.0.1:{cls.server.server_port}',
-                                 'agent-bus'], env=cls.env, capture_output=True, text=True)
+                                 'ai-agent-bus'], env=cls.env, capture_output=True, text=True)
         if result.returncode:
             raise AssertionError(result.stderr)
         cls.bin = Path('/opt/npm/bin')
-        cls.bus = Path('/opt/npm/lib/node_modules/agent-bus')
+        cls.bus = Path('/opt/npm/lib/node_modules/ai-agent-bus')
         cls.metadata = json.loads((cls.bus / 'package.json').read_text())
         cls.version = cls.metadata['version']
         resolve = lambda name, where: Path(subprocess.check_output(['node', '-e',
