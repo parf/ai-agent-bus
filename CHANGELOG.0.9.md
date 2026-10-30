@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.195 — 2026-10-30
+
+Repeated --tag options on ls and call --tagged select records carrying every tag
+
 ## 0.9.194 — 2026-10-30
 
 Eighth published 0.9 changeset: 0.9.192–0.9.194, squashed.

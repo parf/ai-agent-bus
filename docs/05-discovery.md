@@ -103,7 +103,7 @@ rule](04-messaging.md#one-reader-per-inbox).
 Record [tags](03-records.md#tags) narrow the CLI listing, including idle records:
 
 - `ls --tag t` keeps the records carrying that tag.
-- `ls --tag a,b` keeps the records carrying both.
+- `ls --tag a,b`, or `ls --tag a --tag b`, keeps the records carrying both.
 - [Calling many agents](user/cli.md#calling-many-agents-at-once) uses the same caller-visible filter to select agents for one question.
 
 ## Faces
