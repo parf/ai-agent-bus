@@ -660,8 +660,7 @@ Implement the [release artifacts](distribution.md#release-artifacts) and [contai
   - Acceptance: On a clean supported host without the checkout or Go toolchain, install the published package, start the bus, complete an agent request/reply and an MCP tool call. Omit a required executable or MCP runtime asset from the package and the corresponding exercise fails
   - Mutant: Omit a required executable or MCP runtime asset from the package and the corresponding exercise fails
 
-- ⏳ P.5 Homepage says what a user gets: the [parf.dev/agent-bus](https://parf.dev/agent-bus/) page leads with what a person can do and how fast (one install command, agents talking in minutes, the bundled agents, MCP for Claude and Codex sessions), in user words without architecture terms, every claim true at HEAD as docs mark built or pending (owner, 2026-10-30). Draft T-8; replacing the live page waits for the owner
-  - Acceptance: every claim on the page maps to a built section in `docs/` or is marked pending; every link on the page resolves; the owner approves the text before the live page changes
+- ✅ P.5 Homepage: live 2026-10-30 from parf.dev `8b0e411`, flowcharts fixed in live `d65e4af`; [result and archived acceptance](done/homepage.md#result)
 
 - ⏳ P.3 Release evidence
   - Acceptance: Query every shipped program's version in both distributions and compare with the release source; require stamped Go build information and packaged license. Substitute an unstamped binary, alter one version or omit the license: each fails its corresponding check
