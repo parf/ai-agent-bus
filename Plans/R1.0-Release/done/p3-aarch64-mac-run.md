@@ -22,6 +22,16 @@
 | 4 Clean install, first runs (0.9.222, J58 only) | `fresh-install.sh` with J58 builds the Debian 13 systemd image and runs: 20 `PASS` lines (packaged checksum, real unit under the service account, accounts and sockets, build info, setup over a running node, web sign-in, a script agent, bundled agents, idempotent reinstall, samples, TLS on the daemon port) and then `FAIL the web face does not answer TLS`, exit 1; the same on four runs | first run 21 s with the image build; later runs 8 s |
 | 4 Clean install, after J59 (0.9.223, branch `ab-w1b/J59b`) | 21 `PASS` lines and exit 0: the web face restarts only when something it reads changed, and the fixture waits for the daemon's start-limit window before each setup run that restarts it | release build 172 s, `release-verify` 4 s, the install 28 s including the waits |
 
+## The passing run's result, as far as it was kept
+
+**Partial excerpt.** The run directory, with the full `result.log`, was deleted in the Mac cleanup before this excerpt was asked for; Mac access was then lost. What the run's console output showed, version 0.9.223 built from the J59b tree (before its last two review commits), native arm64, Debian 13 base:
+
+- `release-verify: agent-bus-0.9.223-linux-aarch64 ok (version 0.9.223, full, queried)` and `release-verify: agent-bus-client-0.9.223-linux-aarch64 ok (version 0.9.223, client, queried)`
+- 21 lines beginning `PASS`, and `fresh rc=0`
+- the last two lines: `PASS setup turns TLS on with a self-signed certificate; the port answers both; the pinned CLI and the forced command agree, and a re-run keeps it` and `PASS the web face serves TLS with its own copy, redirects plain HTTP, keeps /healthz, signs in with a Secure cookie, and --tls off takes it all back`
+
+The full PASS list, and a run on the final tree (J59 second review), follow when Mac access is back.
+
 ## Why step 4 failed on the first runs
 
 A copy of the fixture that dumps the unit's journal when a check fails shows it. The web face starts and listens, and `setup` restarts its unit about eight times in six seconds (once per change); the last start, the one with TLS (`listening on https://127.0.0.1:6780/`), is stopped by the next restart, and systemd then refuses a start: `Start request repeated too quickly` and `Failed with result 'start-limit-hit'`. The unit is left failed, nothing listens on 6780, and `curl` says `Failed to connect … after 0 ms`.
