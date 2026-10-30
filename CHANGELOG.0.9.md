@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.173 — 2026-10-30
+
+TypeScript twin of the unified subscriptions engine passes the shared vectors (B.29). Also: replace "TS twin ✅ (T-1)" in the B.29 row of Plans/R1.0-Release/TODO.md with "TS twin ✅ <the new version>".
+
 ## 0.9.172 — 2026-10-30
 
 the debug agent env answer masks every bus-prefixed secret (AGENT_BUS_CONFIG, control token, record secret keys), showing only an allowlist

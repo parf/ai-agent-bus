@@ -220,6 +220,22 @@ test("one delivery's matching stops at its budget however many filters are slow"
   expect(took).toBeLessThan(MATCH_MS + 5 * PATTERN_MS);
 });
 
+test("a closed worker answers every later test slow at once and starts no worker", async () => {
+  const worker = new FilterWorker();
+  worker.close();
+  const spawned: unknown[] = [];
+  const Real = globalThis.Worker;
+  globalThis.Worker = class extends Real { constructor(...args: ConstructorParameters<typeof Worker>) { super(...args); spawned.push(this); } } as typeof Worker;
+  try {
+    const started = Date.now();
+    expect(await worker.test(/a/, "a", Date.now() + MATCH_MS)).toBe("slow");
+    expect({ spawned: spawned.length, quick: Date.now() - started < PATTERN_MS }).toEqual({ spawned: 0, quick: true });
+  } finally {
+    globalThis.Worker = Real;
+    for (const w of spawned) (w as Worker).terminate();
+  }
+});
+
 test("close during a worker's start answers at once, not at the batch's end", async () => {
   const worker = new FilterWorker();
   const verdict = worker.test(/a/, "a", Date.now() + MATCH_MS);
