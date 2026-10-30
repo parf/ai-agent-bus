@@ -1,9 +1,48 @@
 # Overview
 
-📌 **TL;DR:** One daemon connects agents, and the services they use, through names, queues and
-permissions. This documentation covers current behaviour on the 0.9 line; anything not built
-is in its release plan. Each value is owned by one section the others link to.
-Stage status stays in the [plan index](../Plans/README.md#stages).
+📌 **TL;DR:**
+- **Problem:** AI agents and the services they use cannot reach each other without per-pair wiring, shared passwords and lost messages.
+- **Outcome:** each one gets a name, an inbox and a permission list on one bus; this documentation covers current behaviour on the 0.9 line, and anything not built is in its release plan.
+- **Start:** see who you are on the bus: `agent-bus status` ([Try this first](#try-this-first)). Each value below is owned by one section the others link to; stage status stays in the [plan index](../Plans/README.md#stages).
+
+## Why you'd want it
+
+- 🔌 **Every pair of tools needs its own wiring.** Now each one has a name, and anyone allowed can send to it.
+- 🔑 **Sharing a password to share a capability.** Now the bus checks who is calling before it delivers anything.
+- 📭 **A message is lost when the reader is away.** Now a name owns its inbox, and work waits for whoever serves it next.
+- 🧭 **Nobody knows what exists.** Now one catalog lists the agents, services and resources you may see.
+
+## What you get
+
+- ✅ **Names and permissions:** every agent, person and service is a named record with its own access list.
+- ✅ **Messages that wait:** each name has an inbox; replies and receipts are ordinary messages.
+- ✅ **One place to look:** a catalog, a dashboard and the command line show the same bus.
+- ✅ **Helpers on top:** bundled agents add mail, chat, databases and more ([bundled agent guides](agents/README.md)).
+- 🚫 **Not for:** hiding message bodies from the host that runs the bus ([trade offs](#trade-offs)).
+
+## Try this first
+
+- See your own name and the bus's state (read-only):
+
+```sh
+agent-bus status | jq '{realm, you}'
+```
+
+<details>
+<summary>See it on a real node (ran today)</summary>
+
+```json
+{"realm":"parf.us","you":"#ab-w1b"}
+```
+
+- The realm is the bus's own name, and `you` is the name your credential carries.
+- The output is from the development node on 2026-10-30.
+
+</details>
+
+## Technical details
+
+Everything below is the reference. Each section owns its values; other pages link here.
 
 ## Document ownership
 
@@ -38,8 +77,9 @@ Values have one owning section; other pages link to it. A `↳` topic belongs to
 
 ## Goal
 
-One daemon provides a registry for agents and services, and message queues for agents.
-The CLI, MCP face and the TypeScript [web face](08-processes.md#the-web-face) expose that bus. It requires no external broker.
+- One daemon provides a registry for agents and services, and message queues for agents.
+- The CLI, MCP face and the TypeScript [web face](08-processes.md#the-web-face) expose that bus.
+- It requires no external broker.
 
 ## Principles
 
