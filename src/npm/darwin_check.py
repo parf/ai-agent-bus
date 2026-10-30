@@ -28,7 +28,7 @@ pack = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(pack)
 
 ARCH = 'aarch64' if os.uname().machine == 'aarch64' else 'x86_64'
-MAC = {'arm64': 'arm64', 'x64': 'x86_64'}  # npm cpu -> the archive name's CPU
+MAC = {'arm64': 'aarch64', 'x64': 'x86_64'}  # npm cpu -> the archive name's CPU, as package.sh names it
 
 
 def darwin_archive(client_archive, version, mac_cpu, out):

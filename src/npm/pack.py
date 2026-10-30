@@ -79,7 +79,7 @@ def ship_legal(release, root):
         shutil.copy2(release / name, root / name)
 
 
-DARWIN_CPU = {'x86_64': 'x64', 'arm64': 'arm64'}
+DARWIN_CPU = {'x86_64': 'x64', 'aarch64': 'arm64'}  # package.sh's names for the archives, npm's for the packages
 
 
 def build(full, client, checksums, output, darwin=()):
@@ -100,7 +100,7 @@ def build(full, client, checksums, output, darwin=()):
     sums = manifest(checksums)
     darwin_cpus = {}
     for archive in darwin:
-        found = re.fullmatch(rf'agent-bus-client-{re.escape(version)}-darwin-(x86_64|arm64)\.tar\.gz', archive.name)
+        found = re.fullmatch(rf'agent-bus-client-{re.escape(version)}-darwin-(x86_64|aarch64)\.tar\.gz', archive.name)
         if not found or DARWIN_CPU[found.group(1)] in darwin_cpus:
             raise ValueError('expected one macOS client archive per CPU, of the same version: ' + archive.name)
         darwin_cpus[DARWIN_CPU[found.group(1)]] = archive
@@ -133,7 +133,7 @@ def build(full, client, checksums, output, darwin=()):
             if not (full_root / name).is_file() or digest(full_root / name) != checksum:
                 raise ValueError('client file differs from full release: ' + name)
         darwin_roots = {}
-        for number, (mac_cpu, archive) in enumerate(sorted(darwin_cpus.items())):
+        for number, (mac_cpu, archive) in enumerate(sorted(i for i in darwin_cpus.items() if i[0] != 'x64')):
             target = work / f'darwin-{number}'
             target.mkdir()
             with tarfile.open(archive) as tar:
@@ -236,7 +236,7 @@ def main():
     parser.add_argument('checksums', type=Path, help='SHA256SUMS from the verified release')
     parser.add_argument('output', type=Path)
     parser.add_argument('--darwin-client', type=Path, action='append', default=[], metavar='ARCHIVE',
-                        help='a macOS client archive (agent-bus-client-<version>-darwin-<cpu>.tar.gz); one per CPU')
+                        help='a macOS client archive (agent-bus-client-<version>-darwin-x86_64|aarch64.tar.gz); one per CPU')
     args = parser.parse_args()
     build(*(path.resolve() for path in (args.full, args.client, args.checksums, args.output)),
           darwin=[path.resolve() for path in args.darwin_client])
