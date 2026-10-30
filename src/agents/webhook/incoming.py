@@ -8,7 +8,7 @@ import socket
 import threading
 import time
 from agent_bus.errors import BusError, Refusal, UncertainOutcome
-from rules import HEADER_MAX, Invalid, basic_ok, path, signature_ok
+from rules import HEADER_MAX, Invalid, basic_ok, new_code, path, signature_ok
 
 GENERIC = b'Not found\n'
 
@@ -206,11 +206,20 @@ class Handler(BaseHTTPRequestHandler):
             self.fail(400, 'body', route['name']); return
         if not self.server.state.take(route):
             self.fail(429, 'rate', route['name']); return
+        channel = route.get('publish')
+        if channel:
+            try: decoded = new_code(route, headers, decoded)
+            except Invalid:
+                self.fail(400, 'payload', route['name']); return
+            if decoded is None:
+                self.server.state.count('ignored', route['name']); self.server.state.log(route['name'], size, 'ignored')
+                self.respond(202, b'Ignored\n'); return
         try:
-            record = self.server.bus.record(route['target']).lookup()
-            if record.get('kind') not in ('queue', 'agent'):
+            record = self.server.bus.record(channel or route['target']).lookup()
+            if record.get('kind') not in (('pubsub',) if channel else ('queue', 'agent')):
                 self.fail(503, 'target', route['name']); return
-            self.server.bus.send(route['target'], decoded)
+            if channel: self.server.bus.publish(channel, decoded)
+            else: self.server.bus.send(route['target'], decoded)
         except UncertainOutcome:
             self.server.state.count('unknown', route['name']); self.server.state.log(route['name'], size, 'unknown')
             self.respond(503, b'Delivery outcome unknown; not retried\n'); return

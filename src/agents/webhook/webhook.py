@@ -17,7 +17,7 @@ from rules import Invalid, State, configuration, credentials, loads, parse_call,
 from incoming import Listener
 from outgoing import post, Unknown
 
-ROOT_HELP = 'Configuration is a root list of named inbound {name,path,target,...} or outbound {name,url,...} routes; no object wrapper. See docs for optional Basic, signature, limits and examples.'
+ROOT_HELP = 'Configuration is a root list of named inbound {name,path,target,...} or {name,path,publish,event,branches,...}, or outbound {name,url,...} routes; no object wrapper. See docs for optional Basic, signature, limits and examples.'
 
 
 def address(raw):
@@ -33,6 +33,14 @@ def address(raw):
         raise Invalid('WEBHOOK_LISTEN must be numeric IPv4:port') from None
 
 
+def publishable(bus, channel):
+    # Checked once at start: the record is a pubsub and this agent may publish to it.
+    try:
+        return bus.record(channel).lookup().get('kind') == 'pubsub' and bus.may_send(bus.name, channel)
+    except BusError:
+        return False
+
+
 class Agent:
     def __init__(self, bus, cfg=None, secret=b'', listen='127.0.0.1:8788'):
         self.bus = bus; self.routes = []; self.secrets = {}; self.listener = None
@@ -41,6 +49,10 @@ class Agent:
         try:
             self.routes = configuration(cfg); self.secrets = credentials(self.routes, secret)
             self.state = State(self.routes)
+            for route in self.routes:
+                if 'publish' in route and not publishable(bus, route['publish']):
+                    self.problem = 'route ' + route['name'] + ' may not publish to its pubsub record'
+                    return
             if any('path' in r for r in self.routes):
                 self.listener = Listener(address(listen), self.routes, self.secrets, bus, self.state)
                 self.listener.start()

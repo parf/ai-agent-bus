@@ -20,7 +20,7 @@ HERE=Path(__file__).resolve().parent;ROOT=HERE.parents[2]
 sys.path[:0]=[str(HERE),str(ROOT/'src/clients/python'),str(ROOT/'src/agents/shared')]
 from agent_bus import Bus,Refusal
 from webhook import Agent
-from test_webhook import RAW,SECRET,AUTH,FakeBus
+from test_webhook import RAW,SECRET,AUTH,FakeBus,GITLAB,LAB,PUSH
 from test_outgoing import Fake
 
 
@@ -175,6 +175,37 @@ class Runtime(unittest.TestCase):
                 process.stdout.close();process.stderr.close()
                 if thread:self.assertFalse(thread.is_alive())
         self.assertNotIn('fixture-password',log.getvalue())
+
+    def test_real_bus_push_reaches_every_deliver_to_receiver_and_a_closed_channel_is_refused(self):
+        fixture=Path(os.environ.get('WEBHOOK_BUS_FIXTURE',ROOT/'tmp/webhook-client-fixture'))
+        self.assertTrue(fixture.is_file(),'build clients/fixture for real-client proof')
+        process=subprocess.Popen([str(fixture)],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+        buses=[];agents=[];log=io.StringIO()
+        with contextlib.redirect_stderr(log):
+            try:
+                ready,_,_=select.select([process.stdout],[],[],5);self.assertTrue(ready)
+                info=json.loads(process.stdout.readline())
+                def bus(name):
+                    b=Bus(name,addr=info['addr'],token=info['tokens'][name],timeout=3);buses.append(b);return b
+                owner=bus('owner@fixture');worker=bus('#worker@fixture')
+                owner.record('autopull-cmd@fixture').register(kind='pubsub',allow=[worker.name],subs=['#helper@fixture','#caller@fixture'])
+                owner.record('closed@fixture').register(kind='pubsub',subs=['#helper@fixture'])
+                closed=Agent(worker,[dict(LAB,publish='closed@fixture')],SECRET,'127.0.0.1:0');agents.append(closed)
+                self.assertIsNone(closed.listener);self.assertIn('may not publish',closed.status())
+                agent=Agent(worker,[LAB],SECRET,'127.0.0.1:0');agents.append(agent);self.assertIsNone(agent.problem)
+                c=http.client.HTTPConnection('127.0.0.1',agent.listener.server_port,timeout=3)
+                try:
+                    c.request('POST','/lab',json.dumps(GITLAB),{'X-Gitlab-Token':'fixture-signing-unique','X-Gitlab-Event':'Push Hook'})
+                    r=c.getresponse();self.assertEqual(r.status,202,r.read())
+                finally:c.close()
+                for inbox in ('#helper@fixture','#caller@fixture'):
+                    got=owner.consume(inbox=inbox,wait=1)
+                    self.assertEqual((got.envelope['from'],got.body),(worker.name,PUSH))
+                    self.assertIsNone(owner.consume(inbox=inbox,wait=.1))
+            finally:
+                for a in agents:a.close()
+                for b in buses:b.close()
+                process.stdin.close();process.wait(timeout=5);process.stdout.close();process.stderr.close()
 
 
 if __name__=='__main__':unittest.main()

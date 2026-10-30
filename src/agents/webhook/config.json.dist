@@ -22,6 +22,19 @@
     }
   },
   {
+    "name": "gitlab",
+    "path": "/hooks/gitlab",
+    "publish": "autopull-cmd@node.example",
+    "event": "gitlab-push",
+    "branches": [
+      "main"
+    ],
+    "signature": {
+      "preset": "gitlab",
+      "secret": "GITLAB_TOKEN"
+    }
+  },
+  {
     "name": "notify",
     "url": "https://example.net/hooks/notify",
     "content_type": "application/json"

@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.157 — 2026-10-29
+
+A `#webhook` route can publish a GitLab or GitHub push, or a pipeline's deploy request, to a pubsub channel as a strict new-code event; a channel it may not publish to keeps the listener closed.
+
 ## 0.9.156 — 2026-10-29
 
 The Secret and Configuration key tables on the agent pages break a key name only after an underscore, never inside a word.

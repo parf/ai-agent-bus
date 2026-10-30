@@ -1,14 +1,16 @@
 # Webhook bridge
 
 📌 **TL;DR:** Receive HTTP POST bodies at fixed paths and forward them to a
-configured queue or agent. Bus callers can post to named, configured outbound
+configured queue or agent, or turn a GitLab or GitHub push into a new-code
+event on a pubsub channel. Bus callers can post to named, configured outbound
 URLs. Basic and signature checks are optional per inbound route; deploy behind
 TLS and keep the record owner-only until its outbound authority is intended.
 
 ## Why you'd want it
 
-Connect an HTTP event source to a queue, or let an admitted bus caller notify
-one fixed HTTP endpoint without receiving its credentials.
+Connect an HTTP event source to a queue, let a hosting service's push reach
+every server that follows the branch, or let an admitted bus caller notify one
+fixed HTTP endpoint without receiving its credentials.
 
 ## What it does
 
@@ -101,10 +103,14 @@ At most 64 routes; names are unique ASCII letters/digits/underscore/hyphen,
 | Entry field | Meaning |
 |---|---|
 | `name` | Required unique name, also used by outbound `post` |
-| `path`, `target` | Inbound only, both required: literal HTTP path and queue/agent name |
+| `path` | Inbound only, required: literal HTTP path |
+| `target` | Inbound: the queue/agent that gets the body unchanged; or use `publish` |
+| `publish` | Inbound, instead of `target`: a pubsub name that gets a [new-code event](#publishing-new-code) |
+| `event` | With `publish`, required: `gitlab-push`, `github-push` or `deploy` |
+| `branches` | With `publish`, required: 1–16 branch names; any other branch publishes nothing |
 | `url` | Outbound only, required fixed HTTP(S) URL; no userinfo, fragment or controls |
 | `basic` | Optional `{ "user":"sender", "password":"PASSWORD_KEY" }`; password is a Secret key reference |
-| `signature` | Inbound only, optional `{ "preset":"github", "secret":"KEY" }` or `stripe` |
+| `signature` | Inbound only, optional `{ "preset":"github", "secret":"KEY" }`, `gitlab` or `stripe` |
 | `max_bytes` | Integer 1–262144, default 262144, bounding incoming/outgoing request bodies |
 | `rate`, `burst` | Inbound only: token refill per minute (1–600, default 60), bucket capacity (1–100, default 10) |
 | `content_type` | Outbound only: `application/json` (default) or `text/plain` |
@@ -128,8 +134,8 @@ never bodies, credentials, signatures or URLs. Counters and buckets reset at res
 
 Empty authenticated bodies are accepted as empty messages. Queued events use
 the destination record's own retention/bound; this bridge invents no different
-expiry policy. Each delivery checks the target's current kind, with no cache. Pubsub, service,
-resource, user or group targets refuse. Configuration changes apply on runner
+expiry policy. Each delivery checks the target's current kind, with no cache. A `target`
+must be a queue or agent and a `publish` name a pubsub; anything else refuses. Configuration changes apply on runner
 reload; a Secret change requires restarting the kept process.
 
 Outbound uses a fixed helper process, private pipes and a ten-second whole
@@ -143,6 +149,37 @@ Loopback/private configured URLs are permitted: Configuration, not the caller,
 chooses the authority. No SO_REUSEPORT is used; an overlapping listener on the
 same address fails visibly rather than splitting traffic.
 
+## Publishing new code
+
+A route with `publish` reads the payload, which stays untrusted, and publishes
+one strict event instead of the body. Every name on the channel's Deliver-To
+list, such as each `#git` that follows the branch, gets a copy.
+
+| `event` | Accepted request | Published |
+|---|---|---|
+| `gitlab-push` | `X-Gitlab-Event: Push Hook`; `ref`, `after`, `project.path_with_namespace` | `{"v":1,"type":"push","remote":"realmo/realty","branch":"main","commit":"<40 hex>"}` |
+| `github-push` | `X-GitHub-Event: push`; `ref`, `after`, `repository.full_name` | the same |
+| `deploy` | a pipeline's JSON with exactly `remote`, `branch`, `commit` (7–40 hex) and an optional `id` (1–64 of `A-Za-z0-9._-`) | `{"v":1,"type":"deploy",…,"id":"pipeline-81234"}` |
+
+| Request | Answer |
+|---|---|
+| mapped and published | 202 `Accepted` |
+| another branch, a tag push, a deleted branch, a ping or another event type | 202 `Ignored`, nothing published |
+| a malformed payload or a field outside the table | 400, nothing published |
+| failed Basic, token or signature | the generic 404, nothing published |
+
+At start the webhook checks every `publish` name: it must be a pubsub that the
+webhook's own name may publish to, by the channel's ACL. Otherwise the whole
+listener stays closed and `status` names the route. Grant it with, for example,
+`agent-bus manage autopull-cmd@node.example --add-to-set-allow='#webhook@node.example'`.
+A GitHub push payload can exceed the default 256 KiB cap on a large push; such
+a request is refused, not truncated.
+
+```json
+{"name":"gitlab","path":"/hooks/gitlab","publish":"autopull-cmd@node.example",
+ "event":"gitlab-push","branches":["main"],"signature":{"preset":"gitlab","secret":"GITLAB_TOKEN"}}
+```
+
 ## Secret keys
 
 Basic passwords and HMAC keys are **bus Secret env-file entries**, not host
@@ -153,7 +190,7 @@ agent-bus secret '#webhook@node.example' - < private-webhook.env
 ```
 
 The private file uses the shared [env-file rules](../runner/configuration.md#environment-files).
-Its key names might be `HOOK_PASSWORD`, `GITHUB_KEY` and `STRIPE_KEY`; never put
+Its key names might be `HOOK_PASSWORD`, `GITHUB_KEY`, `GITLAB_TOKEN` and `STRIPE_KEY`; never put
 values into commands, Configuration, examples, logs or reports. Missing/invalid
 referenced keys disable the whole listener; other routes are not partly enabled.
 Each signature route uses one UTF-8 key, with no overlapping-key rotation.
@@ -162,7 +199,9 @@ Each signature route uses one UTF-8 key, with no overlapping-key rotation.
 checks `X-Hub-Signature-256` against the exact raw body with HMAC-SHA256 and a
 constant-time comparison. The prefix is exactly `sha256=` and hex is 64 digits.
 [Stripe's verifier](https://github.com/stripe/stripe-go/blob/master/webhook/client.go)
-uses `Stripe-Signature` timestamp-dot-raw-body HMAC-SHA256. This preset permits
+uses `Stripe-Signature` timestamp-dot-raw-body HMAC-SHA256. The `gitlab` preset
+compares the one `X-Gitlab-Token` header with the key in constant time; GitLab
+sends the token itself, so keep the route behind TLS. This preset permits
 one decimal timestamp and at most eight `v1` candidates, ignores unknown
 schemes, and requires absolute clock distance at most 300 seconds. Both Basic
 and signature must pass if both are configured.

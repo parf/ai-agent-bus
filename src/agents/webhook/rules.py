@@ -16,6 +16,9 @@ ROUTE_MAX = 64
 NAME = re.compile(r'[A-Za-z0-9_-]{1,64}')
 KEY = re.compile(r'[A-Za-z_][A-Za-z0-9_]{0,63}')
 PATH = re.compile(r'/[A-Za-z0-9._~/-]*')
+EVENTS = ('gitlab-push', 'github-push', 'deploy')
+REF = re.compile(r'[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*')
+EVENT_ID = re.compile(r'[A-Za-z0-9._-]{1,64}')
 
 
 class Invalid(ValueError):
@@ -67,6 +70,13 @@ def secret_key(v):
     return v
 
 
+def ref(v, label):
+    # A branch or project path: plain segments, never a dot segment or a lock name.
+    if not isinstance(v, str) or len(v) > 255 or not REF.fullmatch(v) or '..' in v or v.startswith(('-', '.')) or v.endswith(('.', '.lock')) or '/.' in v:
+        raise Invalid('invalid ' + label)
+    return v
+
+
 def configuration(value):
     if not isinstance(value, list) or not 1 <= len(value) <= ROUTE_MAX:
         raise Invalid('Configuration must be a list of 1..64 routes')
@@ -80,24 +90,36 @@ def configuration(value):
             raise Invalid('route names must be unique ASCII identifiers')
         names.add(name)
         incoming = 'path' in route
-        allowed = {'name', 'path', 'target', 'basic', 'signature', 'max_bytes', 'rate', 'burst'} if incoming else {'name', 'url', 'basic', 'content_type', 'max_bytes'}
+        allowed = {'name', 'path', 'target', 'publish', 'event', 'branches', 'basic', 'signature', 'max_bytes', 'rate', 'burst'} if incoming else {'name', 'url', 'basic', 'content_type', 'max_bytes'}
         if set(route) - allowed:
             raise Invalid('unknown or mixed route fields')
+        if incoming and ('target' in route) == ('publish' in route):
+            raise Invalid('inbound route needs exactly one of target or publish')
+        if ('publish' in route) != ('event' in route) or ('publish' in route) != ('branches' in route):
+            raise Invalid('publish needs event and branches; target takes neither')
         route['max_bytes'] = integer(route.get('max_bytes', BODY_MAX), 1, BODY_MAX)
         if incoming:
             path(route['path'])
             if route['path'] in paths:
                 raise Invalid('duplicate inbound path')
             paths.add(route['path'])
-            target = text(route.get('target'), 512, 'bus target')
+            if 'publish' in route:
+                if route['event'] not in EVENTS:
+                    raise Invalid('event must be gitlab-push, github-push or deploy')
+                branches = route['branches']
+                if not isinstance(branches, list) or not 1 <= len(branches) <= 16 or len(set(map(str, branches))) != len(branches):
+                    raise Invalid('branches must be a list of 1..16 distinct names')
+                for branch in branches:
+                    ref(branch, 'branch')
+            target = text(route.get('target', route.get('publish')), 512, 'bus target')
             if target != target.strip().lower() or any(ord(c) <= 32 or ord(c) == 127 for c in target):
                 raise Invalid('invalid bus target')
             route['rate'] = integer(route.get('rate', 60), 1, 600)
             route['burst'] = integer(route.get('burst', 10), 1, 100)
             if 'signature' in route:
                 signature = route['signature']
-                if not isinstance(signature, dict) or set(signature) != {'preset', 'secret'} or signature['preset'] not in ('github', 'stripe'):
-                    raise Invalid('signature needs github/stripe preset and Secret key')
+                if not isinstance(signature, dict) or set(signature) != {'preset', 'secret'} or signature['preset'] not in ('github', 'gitlab', 'stripe'):
+                    raise Invalid('signature needs github/gitlab/stripe preset and Secret key')
                 secret_key(signature['secret'])
         else:
             url = text(route.get('url'), 4096, 'outbound URL')
@@ -167,10 +189,16 @@ def signature_ok(route, headers, body, secrets, now=None):
     if 'signature' not in route:
         return True
     cfg = route['signature']; key = secrets[cfg['secret']].encode('utf-8')
-    name = 'X-Hub-Signature-256' if cfg['preset'] == 'github' else 'Stripe-Signature'
+    name = {'github': 'X-Hub-Signature-256', 'gitlab': 'X-Gitlab-Token', 'stripe': 'Stripe-Signature'}[cfg['preset']]
     values = headers.get_all(name, [])
     if len(values) != 1 or len(values[0]) > 2048:
         return False
+    if cfg['preset'] == 'gitlab':
+        # GitLab sends the configured token itself, not a signature of the body.
+        try:
+            return hmac.compare_digest(values[0].encode('utf-8'), key)
+        except UnicodeError:
+            return False
     if cfg['preset'] == 'github':
         value = values[0]
         if not re.fullmatch(r'sha256=[0-9A-Fa-f]{64}', value):
@@ -194,6 +222,46 @@ def signature_ok(route, headers, body, secrets, now=None):
         return False
     expected = hmac.digest(key, timestamp.encode() + b'.' + body, 'sha256')
     return any(hmac.compare_digest(value, expected) for value in candidates)
+
+
+def hex_commit(v, lo):
+    if not isinstance(v, str) or not lo <= len(v) <= 40 or not re.fullmatch(r'[0-9A-Fa-f]+', v):
+        raise Invalid('invalid commit')
+    return v.lower()
+
+
+def new_code(route, headers, body):
+    """Map one untrusted payload to a new-code event's text; None when it is not for this route."""
+    kind = route['event']
+    if kind == 'deploy':
+        value = loads(body, BODY_MAX)
+        if not isinstance(value, dict) or not {'remote', 'branch', 'commit'} <= set(value) or set(value) - {'remote', 'branch', 'commit', 'id'}:
+            raise Invalid('deploy needs remote, branch, commit and an optional id')
+        event = {'v': 1, 'type': 'deploy', 'remote': ref(value['remote'], 'remote'), 'branch': ref(value['branch'], 'branch'), 'commit': hex_commit(value['commit'], 7)}
+        if 'id' in value:
+            if not isinstance(value['id'], str) or not EVENT_ID.fullmatch(value['id']):
+                raise Invalid('invalid id')
+            event['id'] = value['id']
+    else:
+        header, wanted = ('X-Gitlab-Event', 'Push Hook') if kind == 'gitlab-push' else ('X-GitHub-Event', 'push')
+        # A tag push, a ping or any other event type is not new code on a branch.
+        if headers.get_all(header, []) != [wanted]:
+            return None
+        value = loads(body, BODY_MAX)
+        if not isinstance(value, dict):
+            raise Invalid('push payload must be an object')
+        project = value.get('project') if kind == 'gitlab-push' else value.get('repository')
+        remote = project.get('path_with_namespace' if kind == 'gitlab-push' else 'full_name') if isinstance(project, dict) else None
+        refname, after = value.get('ref'), value.get('after')
+        if not isinstance(refname, str) or not refname.startswith('refs/heads/'):
+            return None
+        commit = hex_commit(after, 40)
+        if commit == '0' * 40:
+            return None  # the branch was deleted
+        event = {'v': 1, 'type': 'push', 'remote': ref(remote, 'remote'), 'branch': ref(refname[len('refs/heads/'):], 'branch'), 'commit': commit}
+    if event['branch'] not in route['branches']:
+        return None
+    return json.dumps(event, separators=(',', ':'))
 
 
 def parse_call(body):

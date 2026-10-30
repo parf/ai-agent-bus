@@ -38,7 +38,7 @@ def headers(**values):
 
 class Pure(unittest.TestCase):
     def test_dist_and_root_list_strictness(self):
-        self.assertEqual(len(configuration(loads((HERE/'config.json.dist').read_text()))),3)
+        self.assertEqual(len(configuration(loads((HERE/'config.json.dist').read_text()))),4)
         for value in ({'routes':RAW},[],[RAW[0],RAW[0]], [dict(RAW[0], url='http://127.0.0.1/')],
                       [dict(RAW[0], extra=True)], [dict(RAW[0], max_bytes=True)], [dict(RAW[0], rate=0)],
                       [dict(RAW[0], signature={'preset':'sha1','secret':'SIGNING'})]):
@@ -100,7 +100,10 @@ class Pure(unittest.TestCase):
 
 
 class FakeBus:
-    def __init__(self):self.sent=[];self.kind='queue';self.problem=None;self.lock=threading.Lock()
+    def __init__(self):self.sent=[];self.published=[];self.kind='queue';self.may=True;self.problem=None;self.lock=threading.Lock()
+    def may_send(self,who,name):return self.may
+    def publish(self,channel,body,**options):
+        with self.lock:self.published.append((channel,body))
     def record(self,name):
         self.name=name;return self
     def lookup(self):return {'kind':self.kind}
@@ -230,6 +233,102 @@ class HTTP(unittest.TestCase):
         overlap=Agent(self.bus,RAW,SECRET,'127.0.0.1:'+str(self.port))
         self.assertIsNone(overlap.listener);self.assertTrue(overlap.status().startswith('failed:'))
         self.assertEqual(self.request()[0],202);bad.close();overlap.close()
+
+
+COMMIT='9f2c1a7e5b3d4c6e8f0a1b2c3d4e5f6a7b8c9d0e'
+GITLAB={'object_kind':'push','ref':'refs/heads/main','before':'0'*40,'after':COMMIT,
+        'project':{'path_with_namespace':'realmo/realty','name':'realty'},'commits':[{'message':'fixture message'}]}
+GITHUB={'ref':'refs/heads/main','after':COMMIT,'deleted':False,'repository':{'full_name':'realmo/realty'}}
+PUSH='{"v":1,"type":"push","remote":"realmo/realty","branch":"main","commit":"'+COMMIT+'"}'
+LAB={'name':'lab','path':'/lab','publish':'autopull-cmd@fixture','event':'gitlab-push','branches':['main'],'signature':{'preset':'gitlab','secret':'SIGNING'}}
+CI={'name':'ci','path':'/ci','publish':'autopull-cmd@fixture','event':'deploy','branches':['main'],'basic':{'user':'sender','password':'PASSWORD'}}
+
+
+class Publish(unittest.TestCase):
+    def test_push_payloads_map_to_the_exact_event(self):
+        lab=configuration([LAB])[0];hub=configuration([dict(LAB,event='github-push')])[0]
+        self.assertEqual(new_code(lab,headers(X_Gitlab_Event='Push Hook'),json.dumps(GITLAB)),PUSH)
+        self.assertEqual(new_code(hub,headers(X_GitHub_Event='push'),json.dumps(GITHUB)),PUSH)
+        upper=dict(GITLAB,after=COMMIT.upper())
+        self.assertEqual(new_code(lab,headers(X_Gitlab_Event='Push Hook'),json.dumps(upper)),PUSH)
+    def test_other_branch_tag_ping_and_deletion_publish_nothing(self):
+        lab=configuration([LAB])[0];push=headers(X_Gitlab_Event='Push Hook')
+        for value,h in ((dict(GITLAB,ref='refs/heads/feature'),push),(dict(GITLAB,ref='refs/tags/v1'),push),
+                        (dict(GITLAB,after='0'*40),push),(GITLAB,headers(X_Gitlab_Event='Tag Push Hook')),(GITLAB,headers())):
+            with self.subTest(value=value.get('ref'),h=h.items()):self.assertIsNone(new_code(lab,h,json.dumps(value)))
+        hub=configuration([dict(LAB,event='github-push')])[0]
+        self.assertIsNone(new_code(hub,headers(X_GitHub_Event='ping'),json.dumps(GITHUB)))
+    def test_malformed_push_payloads_are_refused(self):
+        lab=configuration([LAB])[0];push=headers(X_Gitlab_Event='Push Hook')
+        for value in ([GITLAB],dict(GITLAB,after=COMMIT[:39]),dict(GITLAB,after='g'*40),dict(GITLAB,project={}),
+                      dict(GITLAB,project={'path_with_namespace':'realmo/../etc'}),dict(GITLAB,ref='refs/heads/main/.x')):
+            with self.subTest(value=value),self.assertRaises(Invalid):new_code(lab,push,json.dumps(value))
+        with self.assertRaises(Invalid):new_code(lab,push,'{"ref":"a","ref":"b"}')
+    def test_deploy_request_keeps_its_id_and_refuses_extras(self):
+        ci=configuration([CI])[0]
+        body={'remote':'realmo/realty','branch':'main','commit':'ABCDEF1','id':'pipeline-81234'}
+        self.assertEqual(json.loads(new_code(ci,headers(),json.dumps(body))),
+                         {'v':1,'type':'deploy','remote':'realmo/realty','branch':'main','commit':'abcdef1','id':'pipeline-81234'})
+        self.assertNotIn('id',json.loads(new_code(ci,headers(),json.dumps({k:v for k,v in body.items() if k!='id'}))))
+        self.assertIsNone(new_code(ci,headers(),json.dumps(dict(body,branch='other'))))
+        for bad in (dict(body,v=1),dict(body,type='push'),dict(body,commit='abcdef'),dict(body,commit='a'*41),
+                    dict(body,id='has space'),dict(body,id='x'*65),{'remote':'realmo/realty','branch':'main'}):
+            with self.subTest(bad=bad),self.assertRaises(Invalid):new_code(ci,headers(),json.dumps(bad))
+    def test_publish_route_fields_are_strict(self):
+        for route in (dict(LAB,target='events@fixture'),{k:v for k,v in LAB.items() if k!='event'},
+                      {k:v for k,v in LAB.items() if k!='branches'},dict(LAB,event='push'),dict(LAB,branches=[]),
+                      dict(LAB,branches=['main','main']),dict(LAB,branches=['../x']),dict(RAW[0],event='deploy'),
+                      dict(RAW[0],branches=['main']),{'name':'out','url':'http://127.0.0.1/','publish':'c@fixture'}):
+            with self.subTest(route=route),self.assertRaises(Invalid):configuration([route])
+    def test_gitlab_token_is_exact_and_single(self):
+        route=configuration([LAB])[0];keys={'SIGNING':'fixture-signing-unique'}
+        self.assertTrue(signature_ok(route,headers(X_Gitlab_Token='fixture-signing-unique'),b'',keys))
+        for value in ('fixture-signing-uniqu','fixture-signing-unique ','x'):
+            self.assertFalse(signature_ok(route,headers(X_Gitlab_Token=value),b'',keys))
+        dup=headers(X_Gitlab_Token='fixture-signing-unique');dup['X-Gitlab-Token']='fixture-signing-unique'
+        self.assertFalse(signature_ok(route,dup,b'',keys))
+        self.assertFalse(signature_ok(route,headers(),b'',keys))
+
+
+class PublishHTTP(unittest.TestCase):
+    def setUp(self):
+        self.log=io.StringIO();self.redirect=contextlib.redirect_stderr(self.log);self.redirect.__enter__()
+        self.bus=FakeBus();self.bus.kind='pubsub'
+        self.agent=Agent(self.bus,deepcopy([LAB,CI]),SECRET,'127.0.0.1:0')
+        self.assertIsNone(self.agent.problem);self.port=self.agent.listener.server_port
+    def tearDown(self):
+        self.agent.close();self.redirect.__exit__(None,None,None)
+    def post(self,path,value,**h):
+        c=http.client.HTTPConnection('127.0.0.1',self.port,timeout=4)
+        try:
+            c.request('POST',path,json.dumps(value),{k.replace('_','-'):v for k,v in h.items()});r=c.getresponse();return r.status,r.read()
+        finally:c.close()
+    def test_gitlab_push_publishes_one_event_and_bad_token_or_branch_nothing(self):
+        good={'X_Gitlab_Token':'fixture-signing-unique','X_Gitlab_Event':'Push Hook'}
+        self.assertEqual(self.post('/lab',GITLAB,**good)[0],202)
+        self.assertEqual(self.bus.published,[('autopull-cmd@fixture',PUSH)]);self.assertEqual(self.bus.sent,[])
+        self.assertEqual(self.post('/lab',GITLAB,**dict(good,X_Gitlab_Token='wrong'))[0],404)
+        self.assertEqual(self.post('/lab',GITLAB,X_Gitlab_Event='Push Hook')[0],404)
+        self.assertEqual(self.post('/lab',dict(GITLAB,ref='refs/heads/other'),**good),(202,b'Ignored\n'))
+        self.assertEqual(self.post('/lab',dict(GITLAB,after='x'),**good)[0],400)
+        self.assertEqual(len(self.bus.published),1)
+        self.assertNotIn('fixture message',self.log.getvalue())
+    def test_deploy_request_publishes_its_id(self):
+        body={'remote':'realmo/realty','branch':'main','commit':COMMIT[:12],'id':'pipeline-81234'}
+        self.assertEqual(self.post('/ci',body,Authorization=AUTH)[0],202)
+        self.assertEqual(json.loads(self.bus.published[0][1])['id'],'pipeline-81234')
+        self.assertEqual(self.post('/ci',body,Authorization='Basic bad')[0],404);self.assertEqual(len(self.bus.published),1)
+    def test_a_target_that_is_no_longer_pubsub_publishes_nothing(self):
+        self.bus.kind='queue'
+        self.assertEqual(self.post('/ci',{'remote':'r/x','branch':'main','commit':COMMIT},Authorization=AUTH)[0],503)
+        self.assertEqual(self.bus.published,[])
+    def test_unpublishable_channel_is_refused_at_start_and_binds_nothing(self):
+        for kind,may in (('queue',True),('agent',True),('pubsub',False)):
+            bus=FakeBus();bus.kind=kind;bus.may=may
+            agent=Agent(bus,deepcopy([LAB]),SECRET,'127.0.0.1:0')
+            with self.subTest(kind=kind,may=may):
+                self.assertIsNone(agent.listener);self.assertEqual(agent.status(),'failed: route lab may not publish to its pubsub record')
+            agent.close()
 
 
 if __name__=='__main__':unittest.main()
