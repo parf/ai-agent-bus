@@ -97,8 +97,9 @@ func (r *runner) installPackage(ctx context.Context, body string) error {
 			return err
 		}
 		script := filepath.Join(source, "package.sh")
-		if gitAgentDirectory(r.bundled) {
-			if fi, err := os.Lstat(script); err != nil || !fi.Mode().IsRegular() {
+		scriptInfo, scriptErr := os.Lstat(script)
+		if scriptErr == nil || gitAgentDirectory(r.bundled) {
+			if scriptErr != nil || !scriptInfo.Mode().IsRegular() {
 				return fmt.Errorf("checkout bundled package has no regular package.sh")
 			}
 			buildCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)

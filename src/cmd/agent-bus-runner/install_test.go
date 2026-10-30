@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -250,5 +251,40 @@ func TestDeployInventoryFailureRestoresThePreviousWholeTree(t *testing.T) {
 	}
 	if got, err := os.ReadFile(inventory); err != nil || string(got) != string(previous) {
 		t.Fatalf("failed inventory write changed settings: %s %v", got, err)
+	}
+}
+
+func TestDeployReleaseStandaloneUsesItsPackagerForSelfContainedCode(t *testing.T) {
+	r, _, _ := configurationFixture(t, "", "printf old")
+	release := t.TempDir()
+	r.bundled = filepath.Join(release, "agents")
+	source := filepath.Join("..", "..")
+	for _, rel := range []string{"agents/standalone/tmux-sessions/agent.json", "agents/standalone/tmux-sessions/package.sh", "agents/standalone/tmux-sessions/sessions.py", "agents/standalone/tmux-sessions/config.json.dist", "agents/shared/metadata.py", "agents/shared/envfile.py", "internal/version/VERSION"} {
+		data, err := os.ReadFile(filepath.Join(source, rel))
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, filepath.Join(release, rel), string(data))
+	}
+	for _, legal := range []string{"LICENSE.md", "licenses/NOTICE.md"} {
+		data, err := os.ReadFile(filepath.Join(source, "..", legal))
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, filepath.Join(r.bundled, legal), string(data))
+	}
+	// J46/J49 ship this helper after they land. The fixture works across the
+	// preceding base as well, whose standalone packager has no helper yet.
+	if data, err := os.ReadFile(filepath.Join(source, "agents", "package-tree.sh")); err == nil {
+		writeFile(t, filepath.Join(r.bundled, "package-tree.sh"), string(data))
+	}
+	writeFile(t, filepath.Join(r.host, "agents.json"), `{"fixture":{"sandbox":"off"},"tmux-sessions":{"enabled":false}}`)
+	if err := r.installPackage(context.Background(), "install tmux-sessions"); err != nil {
+		t.Fatal(err)
+	}
+	script := filepath.Join(r.agents, "tmux-sessions", "sessions.py")
+	cmd := exec.Command("python3", "-B", "-c", "import runpy,sys; runpy.run_path(sys.argv[1], run_name='package_probe')", script)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("deployed standalone is not self-contained: %v %s", err, out)
 	}
 }
