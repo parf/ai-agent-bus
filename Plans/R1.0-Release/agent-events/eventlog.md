@@ -13,7 +13,7 @@ model and the same web view as agent events, for anything (owner, 2026-10-29:
 |---|---|
 | `write <log> notice\|warning\|alert <text>` | adds one line; a log is created by its first write |
 | `read <log> [level]` | the log's entries, newest first, alerts first when no level is named |
-| `pull <log> [level] [count]` | at most `count` entries (default 100) written since this caller's previous `pull` of that log, oldest first; the rest wait for the next `pull`, so a script or AI follows a log without repeats; others' reads are unaffected |
+| `pull <log> [level] [count]` | takes the oldest `count` entries (default 100) and **removes** them from the log, like a queue; the rest wait for the next `pull`. Owner, Maintainers and the `write` role (owner, 2026-10-29: "pull should remove items") |
 | `clean <log> [level]` | empties the log, or one level of it; Owner, Maintainers and the `write` role (owner, 2026-10-29) |
 | `list` | logs with their counts per level and the time of the newest alert |
 
@@ -25,7 +25,7 @@ Example: an autopull success script writes `write realty-prod notice deployed
 | | |
 |---|---|
 | Rings | per log, one per level, fixed size and TTL; defaults as [agent events](README.md#levels), set in the agent's Configuration, optionally per log |
-| Ids | every entry gets the next number of its log, one sequence across the three levels, never reused, not reset by `clean` or a restart; a `pull` cursor is the last id it returned, and a gap between ids is what was missed |
+| Ids | every entry gets the next number of its log, one sequence across the three levels, never reused, not reset by `clean` or a restart; a gap between ids a reader saw is what expired, was pushed out or was pulled by someone else |
 | Lines | one line, cut at 200 characters; a line repeated within a minute is kept once with a count |
 | Kept | alerts on disk in the agent's work directory, surviving a restart; notices and warnings in memory |
 | Access | the agent's ACL with roles `read` and `write`; Owner and Maintainers do both. Many instances, each with its own Configuration and ACL |

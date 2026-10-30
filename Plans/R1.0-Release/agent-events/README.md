@@ -49,7 +49,7 @@ entries their own messages caused: stderr is not tied to one message reliably
 and may carry other callers' data, and a caller already gets an error answer.
 
 Every entry has an increasing id per agent, one sequence across the three
-levels, never reused, so a reader can resume after the last id it saw.
+levels, never reused, so a reader can tell what it has already seen.
 
 An entry is one line, cut at 200 characters as `error.log` lines are; a line
 repeated within a minute is kept once with a count of those held back. stderr

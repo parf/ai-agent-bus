@@ -102,8 +102,8 @@ Acceptance, each failing on a missing implementation or by a named mutant:
 - A caller with only `read` is refused on `write` and the log is unchanged; a caller with neither sees nothing; a 201-character line is stored cut at 200.
 - A log name with `/`, a space or over the length bound is refused; the log count bound refuses a new log and keeps the old ones.
 - Ids rise by one per entry across levels, survive a restart and a `clean`, and are never reused.
-- `pull <log> notice 2` on 5 new notices returns the oldest 2, the next `pull` the following 2.
-- Two `pull`s by one caller return each entry once, a second caller's first `pull` still gets them all; an entry expired or pushed out between pulls is counted as missed, not returned.
+- `pull <log> notice 2` on 5 notices returns the oldest 2 and leaves 3; a `read` after it shows only those 3; a second caller's `pull` never gets the 2 again.
+- `pull` by a `read`-only caller is refused and removes nothing.
 - `clean <log> warning` empties only warnings; `clean` by a `read`-only caller is refused and changes nothing.
 - The web shows an alert mark only for logs with an alert within its window, and a reader without the role gets no page.
 
