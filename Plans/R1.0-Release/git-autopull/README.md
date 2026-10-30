@@ -14,7 +14,7 @@ Tasks: [TODO](TODO.md#tasks).
 
 | Channel | Who publishes | Who receives (Deliver-To) | Carries |
 |---|---|---|---|
-| `autopull-cmd` | a hosting webhook through `#webhook`, CI, an operator | every `#git` that serves a matching repository | a [push or deploy event](#new-code-event) |
+| `autopull-cmd` | CI/CD pipelines (deploys), a hosting webhook through `#webhook` (pushes), an operator | every `#git` that serves a matching repository | a [push or deploy event](#new-code-event) |
 | `autopull-log` | every `#git` | services that act on a deploy: reload, tests, chat relay, an AI | one [result record](#result-record) per attempt |
 
 Both are ordinary pubsub records: their ACL says who may publish, their
@@ -63,12 +63,28 @@ once (the replacement for realty's `request-revision-pull`). A later push event
 moves a `mirror` copy on again; there is no hold. Every deploy writes a
 [result record](#result-record) with `action: deploy`.
 
+## From CI/CD
+
+Deploys usually come from a pipeline (owner, 2026-10-29). A pipeline job is a
+bus caller with its own name (for example `#ci/realty@parf.us`) allowed to
+publish to `autopull-cmd`, or, without the bus CLI, an HTTP POST to a
+`#webhook` route that publishes there ([B.26](TODO.md#b26-webhook-publishes-to-a-pubsub-channel)).
+
+| Pipeline wants | It does |
+|---|---|
+| One known server, wait for the result | `agent-bus call '#git@host' 'deploy site main <sha>'`: the answer is the result, the exit code says ok or fail |
+| Every matching server | publish a `deploy` event with an `id`, then read the `autopull-log` records carrying that `id` from its own queue (a Deliver-To of `autopull-log`) until each expected `host` has answered or the job's timeout passes |
+
+`#git` does not know which servers a deploy should reach; the pipeline names its
+expected hosts.
+
 ## New-code event
 
 Message body, JSON:
 
 ```json
 {"v":1, "type":"push", "remote":"realmo/realty", "branch":"main", "commit":"<40 hex>"}
+{"v":1, "type":"deploy", "remote":"realmo/realty", "branch":"main", "commit":"<7–40 hex>", "id":"pipeline-81234"}
 ```
 
 | Field | Meaning |
@@ -78,6 +94,7 @@ Message body, JSON:
 | `remote` | the project path on the hosting service; `#git` matches it against each repository's `origin`, not its local name |
 | `branch` | must equal the copy's branch (pinned, else checked out), otherwise the event is ignored |
 | `commit` | 40 hex for `push`; 7–40 hex for `deploy` |
+| `id` | optional, 1–64 of `A-Za-z0-9._-`; copied into every result record so a pipeline finds its own |
 
 Unknown fields are refused. An event that names no served repository is ignored
 without a record; one that names a served repository but is invalid gets a
@@ -92,7 +109,7 @@ One message per attempt on `autopull-log`. Message `topic` is
 {"v":1, "host":"realmo-parf.ny.7w7.us", "repo":"site", "branch":"main",
  "result":"ok", "action":"autopull", "trigger":"event", "mode":"mirror",
  "at":"2026-10-30T19:23:42-04:00", "agent":"#git@parf.us",
- "remote":"realmo/realty", "requested_by":"#webhook@parf.us",
+ "remote":"realmo/realty", "requested_by":"#ci/realty@parf.us", "id":"pipeline-81234",
  "from":"<40 hex>", "to":"<40 hex>", "requested":"<40 hex>",
  "discarded":{"files":2,"commits":0}, "error":null, "ms":1840}
 ```
@@ -107,6 +124,7 @@ One message per attempt on `autopull-log`. Message `topic` is
 | `mode` | `ff` or `mirror` |
 | `at`, `ms` | finish time (RFC 3339 with offset) and duration |
 | `agent`, `requested_by` | the `#git` name, and the bus sender of the event or call (`null` for `start`) |
+| `id` | the event's or call's `id`, else `null` |
 | `from`, `to`, `requested` | full commit ids; `to` equals `from` when nothing moved; `requested` is the event's or call's commit, else `null` |
 | `discarded` | `mirror` only: local files and commits removed; otherwise `null` |
 | `error` | `null`, or `{"code":…, "text":…}` with code one of `dirty`, `diverged`, `not_in_branch`, `fetch`, `timeout`, `lock`, `invalid_event` |

@@ -36,6 +36,7 @@ Acceptance, each failing on the old code or by a named mutant:
 - Two events for one repository at once give two records and one move; neither leaves the lock held.
 - A subscription with `/^FAIL /` receives the fail record and not the ok one; a subscriber without may-send to its target is refused at add.
 - No record and no answer contains the checkout path, the remote URL or a commit message (asserted on a fixture whose path, URL and message are unique strings).
+- A `deploy` event with `id` gives records carrying that `id` on every matching copy; a direct `deploy` call exits non-zero when the result is `fail`; an `id` outside its character set is `invalid_event`.
 - After reinstall, no `--autopull` timer unit exists; `--autopull` is refused with a pointer to the new Configuration.
 
 ### B.26 `#webhook` publishes to a pubsub channel
@@ -47,6 +48,7 @@ or GitHub push reaches `autopull-cmd`. The route maps the hosting payload to the
 Acceptance:
 
 - A GitLab push payload posted to a configured route yields one `autopull-cmd` message equal to the expected event, and every Deliver-To receiver gets it.
+- A pipeline's plain JSON deploy request posted to its route yields one `deploy` event with its `id`.
 - A payload for another branch, or with a bad signature or secret, publishes nothing.
 - A route to a pubsub record `#webhook` may not publish to is refused at configuration time.
 
