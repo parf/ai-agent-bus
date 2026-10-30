@@ -361,6 +361,9 @@ func (r *runner) serve(ctx context.Context) {
 			// it (№Q161), as does a changed installed package digest.
 			cmd := command(filepath.Join(r.agents, in.Dir), in.Agent.Command)
 			changed := s.kept != nil && (in.Digest != s.in.Digest || cmd != s.cmd || strings.Join(env, "\x00") != strings.Join(s.env, "\x00") || strings.Join(p.secretEnv, "\x00") != strings.Join(s.secretEnv, "\x00"))
+			// Any other change of its settings, the host's overrides included,
+			// is told to the running processes by SIGHUP.
+			hangup := s.kept != nil && !changed && settingsChanged(s.in, *in)
 			s.in, s.env, s.secretEnv, s.box, s.net, s.jail = *in, env, p.secretEnv, box, wantsNet(*in), j
 			s.cmd = cmd
 			if changed {
@@ -371,6 +374,9 @@ func (r *runner) serve(ctx context.Context) {
 						s.kept = r.keep(s, s.bus.token)
 					}
 				})
+			}
+			if hangup {
+				s.kept.hangup()
 			}
 			want[name] = true
 			continue
@@ -1183,4 +1189,19 @@ func (r *runner) observedStatus(s *served) string {
 		}
 	}
 	return ""
+}
+
+// settingsChanged is whether an agent's effective agent.json, its host entry or
+// its process count differ between two loads.
+func settingsChanged(a, b installed) bool {
+	// The start times are the runner's own bookkeeping, not a setting.
+	a.Host.FirstStarted, a.Host.LastStarted, b.Host.FirstStarted, b.Host.LastStarted = "", "", "", ""
+	for _, pair := range [][2]any{{a.Agent, b.Agent}, {a.Host, b.Host}, {a.Span, b.Span}} {
+		x, _ := json.Marshal(pair[0])
+		y, _ := json.Marshal(pair[1])
+		if !bytes.Equal(x, y) {
+			return true
+		}
+	}
+	return false
 }

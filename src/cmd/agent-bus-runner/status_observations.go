@@ -2,6 +2,7 @@ package main
 
 import (
 	"os/exec"
+	"syscall"
 	"time"
 )
 
@@ -17,6 +18,7 @@ type exitStatus struct {
 	Code   int       `json:"code"`
 	At     time.Time `json:"at"`
 	Reason string    `json:"reason"`
+	Signal string    `json:"signal,omitempty"` // the signal that ended it, as "killed", if one did
 }
 
 func (r *runner) recordExit(s *served, k *keeper, cmd *exec.Cmd) {
@@ -27,6 +29,9 @@ func (r *runner) recordExit(s *served, k *keeper, cmd *exec.Cmd) {
 	exit := &exitStatus{Code: cmd.ProcessState.ExitCode(), At: time.Now().UTC()}
 	if stderr, ok := cmd.Stderr.(*stderrLine); ok {
 		exit.Reason = stderr.reason()
+	}
+	if ws, ok := cmd.ProcessState.Sys().(syscall.WaitStatus); ok && ws.Signaled() {
+		exit.Signal = ws.Signal().String()
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()

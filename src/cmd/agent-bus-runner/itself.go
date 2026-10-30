@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -49,6 +50,8 @@ type keeper struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
+
+	hups atomic.Int64 // SIGHUPs sent: a process exiting after one is started again at once
 
 	mu      sync.Mutex
 	running map[*exec.Cmd]keptProcess // successful starts and their actual launch jails
@@ -97,7 +100,7 @@ func (k *keeper) loop() {
 	defer k.wg.Done()
 	wait := backoffFirst
 	for k.ctx.Err() == nil {
-		began := time.Now()
+		began, hups := time.Now(), k.hups.Load()
 		cmd, j, err := k.command()
 		var sock *boundSocket
 		if err == nil {
@@ -164,6 +167,12 @@ func (k *keeper) loop() {
 		}
 		if time.Since(began) >= stable {
 			wait = backoffFirst
+		}
+		if k.hups.Load() != hups {
+			// It did not handle SIGHUP: a fresh start reads the configuration.
+			fmt.Fprintf(k.r.say, "%s: %s exited after SIGHUP (%v); restarting\n", k.r.name, k.s.name, err)
+			wait = backoffFirst
+			continue
 		}
 		fmt.Fprintf(k.r.say, "%s: %s exited (%v); restarting in %s\n", k.r.name, k.s.name, err, wait)
 		select {
@@ -234,6 +243,15 @@ func (k *keeper) command() (*exec.Cmd, *jail, error) {
 		cmd.ExtraFiles = []*os.File{rd}
 	}
 	return cmd, j, nil
+}
+
+// hangup tells each process its configuration changed: SIGHUP, to reread it
+// and keep serving (Plans/R1.0-Release/runner.md#stop-and-reload). One that
+// does not handle it exits, and is started again at once.
+func (k *keeper) hangup() {
+	k.hups.Add(1)
+	k.signal(syscall.SIGHUP)
+	fmt.Fprintf(k.r.say, "%s: %s: its configuration changed; sent SIGHUP\n", k.r.name, k.s.name)
 }
 
 // stop ends the agent: no more restarts, SIGTERM to its own processes — not
