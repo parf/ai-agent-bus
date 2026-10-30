@@ -1,5 +1,10 @@
 # DONE — R1
 
+## M.8 source selection
+
+- Partial implementation: `install_source.go` checks the proposed `install [--replace] <agent> [git <url> <full-commit>]` source line and resolves bundled code only from the release's bundled roots. Full SHA-1/SHA-256 pins are accepted; branches, tags, short revisions, paths/instances, body-carried credentials and unsafe URL forms are refused. This slice performs no deploy, fetch or removal and is not yet connected to runner calls.
+- Three focused checks pass (0.005 s). Under smoke-gate, accepting abbreviated IDs, accepting URL userinfo and resolving a bundled name from the writable shared directory each compile and fail a named assertion; restored checks pass and the lock is released. Existing package, authority and serving behavior is unchanged until the deployment calls are integrated.
+
 `RR` labels the original unnumbered result rows; existing KV IDs are unchanged.
 
 Completed R1 work, built ahead of the release on the 0.8 line. Remaining work
