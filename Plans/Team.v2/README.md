@@ -27,8 +27,8 @@ resumes its own conversation.
 ```mermaid
 flowchart TD
   parf(["parf — owner"]) <-->|talks only to| ceo
-  ceo["#ab-ceo<br/>kitty window CEO · Claude /fast<br/>local/ceo/"]
-  dir["#ab-dir<br/>tmux DIR · Claude /fast<br/>local/dir/"]
+  ceo["<b>#ab-ceo</b><br/>kitty window CEO · Claude /fast · local/ceo/<br/>• owner's single contact, answers at once<br/>• writes tickets T-n, hands them to #ab-dir<br/>• keeps the waiting-on-owner list<br/>• reports results · never executes or waits"]
+  dir["<b>#ab-dir</b><br/>tmux DIR · Claude /fast · local/dir/<br/>• splits tickets into tasks on disjoint paths<br/>• picks the team by subsystem, balances load<br/>• sets deadlines, requeues overdue tasks<br/>• settles cross-team conflicts · no code"]
   subgraph team1 ["team 1 · repository root"]
     lead1["#ab-lead1<br/>tmux LEAD1 · Claude /fast<br/>decides bump"]
     w1a["#ab-w1a<br/>Claude, account 1"]
