@@ -45,12 +45,45 @@ def scan(added):
     return found
 
 
-def added_from_diff(diff):
-    """The added lines of a unified diff, each with its path and line number in the new file."""
-    path, number = None, 0
+_ESCAPES = {'a': 7, 'b': 8, 't': 9, 'n': 10, 'v': 11, 'f': 12, 'r': 13, '"': 34, '\\': 92}
+
+
+def unquote(name):
+    """A path as git prints it: plain, or in double quotes with C escapes and octal bytes for the unusual."""
+    if not (len(name) >= 2 and name.startswith('"') and name.endswith('"')):
+        return name
+    out, body, i = bytearray(), name[1:-1], 0
+    while i < len(body):
+        c = body[i]
+        if c == '\\' and i + 1 < len(body):
+            n = body[i + 1]
+            if n in _ESCAPES:
+                out.append(_ESCAPES[n])
+                i += 2
+            elif n.isdigit() and re.fullmatch(r'[0-7]{3}', body[i + 1:i + 4] or ''):
+                out.append(int(body[i + 1:i + 4], 8))
+                i += 4
+            else:
+                out += c.encode()
+                i += 1
+        else:
+            out += c.encode()
+            i += 1
+    return out.decode('utf-8', 'replace')
+
+
+def added_from_diff(diff, path=None):
+    """The added lines of a unified diff, each with its path and line number in the new file.
+
+    The path is the caller's when it knows it (git lists changed names NUL-separated, never quoted);
+    otherwise it comes from the `+++ b/...` header, unquoted.
+    """
+    known, number = path, 0
     for line in diff.splitlines():
         if line.startswith('+++ '):
-            path = line[6:] if line.startswith('+++ b/') else None
+            if known is None or path is None:
+                name = unquote(line[4:])
+                path = name[2:] if name.startswith('b/') else None
         elif line.startswith('@@'):
             m = re.search(r'\+(\d+)', line)
             number = int(m.group(1)) if m else 0
@@ -66,20 +99,18 @@ def git(root, *args):
 
 
 def added_from_tree(root=ROOT):
+    """What the working tree adds against where it branched from main: the final tree, not each commit on the way."""
     added = []
-    base = subprocess.run(['git', '-C', str(root), 'rev-parse', '--verify', 'main'], capture_output=True).returncode == 0
-    # Binary files have no text diff; untracked files have no diff at all, so they are read.
-    diffs = [git(root, 'diff', *DIFF, 'main...HEAD') if base else '', git(root, 'diff', *DIFF, 'HEAD')]
-    seen = set()
-    for diff in diffs:
-        for item in added_from_diff(diff):
-            if item not in seen:
-                seen.add(item)
-                added.append(item)
-    for name in git(root, 'ls-files', '--others', '--exclude-standard').splitlines():
+    base = git(root, 'merge-base', 'main', 'HEAD').strip() or 'HEAD'
+    # Names come NUL-separated, so no name is ever quoted; each file's own diff is then read by that name.
+    for name in git(root, 'diff', '--name-only', '-z', '--no-renames', base).split('\0'):
+        if name:
+            added += list(added_from_diff(git(root, 'diff', *DIFF, base, '--', ':(literal)' + name), name))
+    # Untracked files have no diff at all, so they are read.
+    for name in git(root, 'ls-files', '--others', '--exclude-standard', '-z').split('\0'):
         path = root / name
         try:
-            if path.is_file() and not path.is_symlink() and path.stat().st_size < 2_000_000:
+            if name and path.is_file() and not path.is_symlink() and path.stat().st_size < 2_000_000:
                 for number, text in enumerate(path.read_text(errors='replace').splitlines(), 1):
                     added.append((name, number, text))
         except OSError:

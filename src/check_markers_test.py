@@ -57,6 +57,13 @@ class Markers(unittest.TestCase):
     def test_the_line_number_is_the_new_files(self):
         self.assertEqual(found(diff('a', BASE + ' x', context=('one', 'two')))[0][:2], ('Plans/x.md', 4))
 
+    def test_a_quoted_header_is_unquoted_in_a_diff_on_standard_input(self):
+        quoted = '\n'.join(['diff --git "a/unicode-\\320\\264.md" "b/unicode-\\320\\264.md"', '--- "a/unicode-\\320\\264.md"',
+                           '+++ "b/unicode-\\320\\264.md"', '@@ -0,0 +1,1 @@', '+' + BASE + ' parent']) + '\n'
+        self.assertEqual([p for p, _, _ in found(quoted)], ['unicode-\u0434.md'])
+        self.assertEqual(cm.unquote('"a\\tb\\"c\\\\d"'), 'a\tb"c\\d')
+        self.assertEqual(cm.unquote('plain.md'), 'plain.md')
+
     def test_a_marker_in_one_file_does_not_open_a_block_in_another(self):
         a = diff(OPEN + ' h', path='a.md')
         b = diff('Heading', MID, path='b.md')
@@ -96,6 +103,28 @@ class RealTree(unittest.TestCase):
     def test_an_unstaged_marker_fails(self):
         (self.repo / 'a.md').write_text('base\n' + OPEN + ' HEAD\n')
         self.assertEqual(self.lines(), [OPEN + ' HEAD'])
+
+    def test_a_marker_in_a_file_with_a_non_ascii_or_awkward_name_fails(self):
+        # With git's default core.quotePath such a name is quoted in the diff header (octal bytes), which
+        # once made the path unreadable and the marker invisible.
+        for name in ('unicode-\u0434.md', 'with space.md', 'tab\there.md', 'quote"d.md'):
+            (self.repo / name).write_text('x\n' + BASE + ' parent\n')
+            self.git('add', '--', name)
+            self.git('commit', '-qm', 'add ' + name)
+            self.assertIn(BASE + ' parent', self.lines(), name)
+
+    def test_a_committed_marker_the_working_tree_has_removed_is_not_reported(self):
+        (self.repo / 'a.md').write_text('base\n' + BASE + ' parent\n')
+        self.git('commit', '-qam', 'leftover')
+        (self.repo / 'a.md').write_text('base\n')
+        self.assertEqual(self.lines(), [])
+
+    def test_a_marker_added_and_removed_by_later_commits_is_not_reported(self):
+        (self.repo / 'a.md').write_text('base\n' + OPEN + ' h\n')
+        self.git('commit', '-qam', 'leftover')
+        (self.repo / 'a.md').write_text('base\n')
+        self.git('commit', '-qam', 'fixed')
+        self.assertEqual(self.lines(), [])
 
     def test_an_untracked_file_with_a_marker_fails_and_a_setext_one_passes(self):
         (self.repo / 'new.md').write_text('Title\n' + MID + '\n')
