@@ -11,7 +11,8 @@ default realm, following [RD108](DECISIONS.md#recorded-decisions), and the
 [agent-event](agent-events/README.md#levels) ring sizes and TTLs. `#bus`
 declares its keys through `help-config`, and the daemon validates a save and
 applies it without a restart. Only the daemon Owner writes it; a Maintainer of
-`#bus` cannot. This is a plan, not built behaviour.
+`#bus` cannot. The web's left navigation has its own link straight to the
+`#bus` Configuration (owner, 2026-10-29). This is a plan, not built behaviour.
 An explicit realm remains valid; a realm-less name remains a complete identity
 under the [existing name rules](../../docs/01-identity-and-authority.md#names).
 
