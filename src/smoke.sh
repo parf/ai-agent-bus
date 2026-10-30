@@ -67,6 +67,7 @@ fi
 # takes the next, where a shared default found the other's daemon ("bad token").
 source ./smoke-port.sh
 source ./smoke-gofail.sh
+source ./smoke-bun.sh
 smoke_port $((15 * ${#SHARDS[@]})) || exit 2
 
 if [ -n "${SMOKE_TEST_PATTERN:-}" ]; then
@@ -348,6 +349,7 @@ ok_exit "fast allowlist refuses empty matches" "$rc"
 out=$(bash ./smoke-options.test.sh 2>&1); rc=$?
 ok_exit "smoke mode contract" "$rc"
 [ "$rc" = 0 ] || echo "$out"
+out=$(python3 -B smoke_bun_test.py 2>&1); rc=$?; ok_exit "Bun failures retain their diff and source location" "$rc"; [ "$rc" = 0 ] || echo "$out"
 out=$(bash ./smoke-gofail.test.sh 2>&1); rc=$?
 ok_exit "a failed go run says why: setup failures print go's error, test failures stay terse" "$rc"
 [ "$rc" = 0 ] || echo "$out"
@@ -3964,7 +3966,7 @@ web_ts() {
   p=$(sed -n 's/^ *\([0-9][0-9]*\) pass$/\1/p' <<<"$out" | tail -1); f=$(sed -n 's/^ *\([0-9][0-9]*\) fail$/\1/p' <<<"$out" | tail -1)
   p=${p:-0}; f=${f:-0}
   pass=$((pass + p)); fail=$((fail + f))
-  grep -A12 '^(fail)\|error:' <<<"$out" | head -60 | sed 's/^/  /'
+  bun_test_text "$rc" <<<"$out"
   if [ "$rc" != 0 ] && [ "$f" = 0 ]; then echo "  FAIL bun test exited $rc with no failed test"; fail=$((fail + 1)); fi
   [ "$p" -gt 40 ] || { echo "  FAIL only $p web tests ran"; fail=$((fail + 1)); }
   echo "  ok   $p web tests"
@@ -4011,7 +4013,7 @@ agent_telegram() {
     local pattern=()
     [ -z "${SMOKE_TEST_PATTERN:-}" ] || pattern=(--test-name-pattern "$SMOKE_TEST_PATTERN")
     out=$(SMOKE_TEST_SET="$(level)" SMOKE_BIN="$D" timeout 240 python3 ./smoke-agent-pool.py ./agents/telegram "${pattern[@]}" 2>&1); rc=$?
-    echo "$out" | grep -E '^\(fail\)| pass$| fail$|^error:|^FILE_TIMING' | sed 's/^/  /'
+    bun_test_text "$rc" <<<"$out"
     ok_exit "telegram agent tests" "$rc"
   else
     skipped=$((skipped+1))
@@ -4025,10 +4027,10 @@ agent_slack() {
     local pattern=()
     [ -z "${SMOKE_TEST_PATTERN:-}" ] || pattern=(--test-name-pattern "$SMOKE_TEST_PATTERN")
     out=$(SMOKE_TEST_SET="$(level)" SMOKE_BIN="$D" timeout 240 python3 ./smoke-agent-pool.py ./agents/slack "${pattern[@]}" 2>&1); rc=$?
-    echo "$out" | grep -E '^\(fail\)| pass$| fail$|^error:|^FILE_TIMING' | sed 's/^/  /'
+    bun_test_text "$rc" <<<"$out"
     ok_exit "slack agent tests" "$rc"
     out=$(timeout 60 bun test "${pattern[@]}" ./agents/shared/subscriptions.test.ts 2>&1); rc=$?
-    echo "$out" | grep -E '^\(fail\)| pass$| fail$|^error:' | sed 's/^/  /'
+    bun_test_text "$rc" <<<"$out"
     ok_exit "shared subscription engine tests" "$rc"
   else
     skipped=$((skipped+1))
