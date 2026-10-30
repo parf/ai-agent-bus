@@ -21,6 +21,10 @@ set -u
 cd "$(dirname "$0")"
 SELF=$PWD/$(basename "$0")
 source "$PWD/clients/cargo-target.sh"
+# Modes are parsed separately so their contract is checked without a build.
+source ./smoke-options.sh
+smoke_options "$@" || exit $?
+smoke_require_gate_lock || exit $?
 # This run builds its own fixture: whatever bus the caller is already talking
 # to is not it. A session launcher exports AGENT_BUS_TOKEN, NAME, ADDR, PUSH,
 # RUNTIME, DESCR and the control pair, and the MCP face reads all of them —
@@ -30,9 +34,6 @@ source "$PWD/clients/cargo-target.sh"
 for v in $(env | sed -n 's/^\(AGENT_BUS_[A-Z_]*\)=.*/\1/p'); do
   case $v in AGENT_BUS_ROLE|AGENT_BUS_FDS) ;; *) unset "$v" ;; esac
 done
-# Modes are parsed separately so their contract is checked without a build.
-source ./smoke-options.sh
-smoke_options "$@" || exit $?
 declare -A LEVELS
 load_plan() { while IFS=$'\t' read -r check level; do LEVELS[$check]=$level; done <"$SMOKE_PLAN"; }
 level() { echo "${LEVELS[${CURRENT_CHECK:-${SHARD:-driver}}]:-normal}"; }

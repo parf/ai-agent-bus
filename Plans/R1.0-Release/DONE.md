@@ -195,3 +195,8 @@ Owner, 2026-10-30: every doc leads with why, then what you get, then real exampl
 
 - Sandbox review repair: an enabled real checkout cron runs its actual Python entry point inside the default bubblewrap sandbox on a copied git tree outside `/usr`. Its native help proves startup imports and metadata access without a live send. Restoring the original keeper mount list, or dropping the shared-engine bind, fails on `ModuleNotFoundError: cronexpr` at an assertion. Git bundles alone gain read-only `src/agents/shared`, `src/clients/python`, `src/clients/typescript` and `src/internal/version`; the whole checkout and host settings remain unmounted. Scope mutants fail if shared or release packages inherit these roots. All three launch forms use the same read-list snapshot.
 - The source-fallback check now asserts the serving snapshot's package directory too. It failed before retiring/re-adopting a changed source; restoring that stale snapshot compiles and fails the same assertion. Empty `--bundled=` is refused, with a refusal mutant; an emptied shared directory's refusal/shadowing is documented.
+
+## J47 smoke driver lock
+
+- Result: normal and slow drivers refuse before starting work unless their original caller holds `smoke-gate@parf.us`'s `slow` lock; the gate's `parf` identity remains accepted. Child shards inherit the checked run.
+- Evidence: the actual driver's mode and lock checks run against a fake CLI, including missing and mismatched holders and failed authority reads; both guard removal and checking after session clearing fail assertions. Restored `go_checks` fast passes in 5.644 s; see [J47](../issues/2026-10/2026-10-30.md#gate).
