@@ -273,6 +273,10 @@ func socketIdentity(path string) (dev, ino uint64, ok bool) {
 
 // socketToWatch is the bus socket a process about to start gets mounted, or
 // nil: no socket path, or no sandbox, whose process opens the path afresh.
+// It is read just before the start, so a socket replaced in between costs one
+// extra restart. A path with no socket at the start is not watched: the mount
+// itself fails and the loop retries with backoff until the daemon is back.
+// A device and inode reused by a new socket, as tmpfs can, would go unseen.
 func (k *keeper) socketToWatch() *boundSocket {
 	addr := k.r.addr
 	if !strings.HasPrefix(addr, "/") || k.r.launchSettings(k.s).box.Name() == "off" {
@@ -315,16 +319,58 @@ func (k *keeper) watchSocket(cmd *exec.Cmd, j *jail, sock *boundSocket, exited <
 	}
 }
 
-// signalOne sends sig to one process: its cgroup's own processes, or with no
-// cgroup the process group it started.
+// signalOne sends sig to one process and what it started, never to the rest
+// of the agent's cgroup: its siblings share it, and one may already run on the
+// new socket (J30b). As in stop, TERM skips bubblewrap so the agent can drain;
+// KILL takes bubblewrap too, and its --die-with-parent ends the sandbox.
 func (k *keeper) signalOne(cmd *exec.Cmd, j *jail, sig syscall.Signal) {
-	if j != nil && j.group != nil {
-		signalGroup(j.group, sig)
+	if cmd.Process == nil {
 		return
 	}
-	if cmd.Process != nil {
+	if j == nil || j.group == nil {
 		syscall.Kill(-cmd.Process.Pid, sig)
+		return
 	}
+	for _, pid := range descendants(cmd.Process.Pid) {
+		if sig != syscall.SIGKILL {
+			if comm, _ := os.ReadFile(fmt.Sprintf("/proc/%d/comm", pid)); strings.TrimSpace(string(comm)) == "bwrap" {
+				continue
+			}
+		}
+		syscall.Kill(pid, sig)
+	}
+}
+
+// descendants is root and every process below it, from /proc. A sandbox's own
+// processes stay its descendants: bubblewrap's new session and namespaces
+// change neither their parent nor what this namespace sees of them.
+func descendants(root int) []int {
+	entries, _ := os.ReadDir("/proc")
+	children := map[int][]int{}
+	for _, e := range entries {
+		pid, err := strconv.Atoi(e.Name())
+		if err != nil {
+			continue
+		}
+		stat, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
+		if err != nil {
+			continue
+		}
+		// pid (comm) state ppid ...: comm may hold spaces and parentheses.
+		i := strings.LastIndexByte(string(stat), ')')
+		fields := strings.Fields(string(stat[i+1:]))
+		if i < 0 || len(fields) < 2 {
+			continue
+		}
+		if ppid, err := strconv.Atoi(fields[1]); err == nil {
+			children[ppid] = append(children[ppid], pid)
+		}
+	}
+	out := []int{root}
+	for n := 0; n < len(out); n++ {
+		out = append(out, children[out[n]]...)
+	}
+	return out
 }
 
 // signal sends sig to the agent's own processes: those in its cgroup that are
