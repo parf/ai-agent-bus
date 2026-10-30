@@ -31,7 +31,7 @@ Install the selected npm package, then use its commands. Installing the full pac
 |---|---|
 | Runtime | Node 18 or later for the npm command shims; release binaries contain the TypeScript runtime, so no separate bun or Go; Python for Python agents; Linux sandbox prerequisites remain in the [runner guide](../../docs/runner/security.md#isolation-today) |
 | Update | Install the selected package at the new shared version, then explicitly upgrade the node; preserve configuration, credentials and data |
-| Platforms | Linux x64 and arm64 packages exist in the builder; add and prove macOS packages with [MAC.1](macos.md#mac1-client-and-runner-on-macos). Windows is [R1.1](../R1.1/windows-cli.md#windows-cli-client) |
+| Platforms | Linux x64 and arm64 packages exist in the builder; macOS client platform packages are built from the darwin client archives ([MAC.1](macos.md#mac1-client-and-runner-on-macos)); the Mac run proves them. Windows is [R1.1](../R1.1/windows-cli.md#windows-cli-client) |
 | Other installers | `curl … \| sh` and the `install.sh` path are [deferred](FUTURE.md#shell-installer), not an R1 publication prerequisite |
 
 ## npm

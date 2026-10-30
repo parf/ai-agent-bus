@@ -18,7 +18,7 @@ The builder checks the archive hashes and each archive's manifest, and records
 the `SHA256SUMS` hash in every npm package. It emits a client platform package,
 a bus platform package, and two thin command packages. Both thin packages pin
 their platform dependencies. Linux x64 and arm64 are declared; the release set must include matching platform artifacts for both before the owner authorizes publication of the command packages.
-No Darwin package is declared before it is built. Thin packages built from the
+macOS has the client edition only: `pack.py ... --darwin-client agent-bus-client-<version>-darwin-<cpu>.tar.gz` (one per CPU, checked against `SHA256SUMS`, the same version and the Linux client's file list) adds `<client>-darwin-arm64` and `<client>-darwin-x64` platform packages and lists them in both command packages, so `agent-bus` resolves on a Mac; the daemon commands there refuse with `unsupported platform darwin-<cpu>`. No Darwin package is declared before its archive is built. Thin packages built from the
 same complete `SHA256SUMS` have the same content on either architecture.
 
 The bus platform contains the full release's files absent from the client,
@@ -58,3 +58,5 @@ refusal. All prefixes and registry state are temporary; nothing is published.
 ## Clean-install acceptance
 
 `src/acceptance/npm-clean-install.sh` is the P.1 acceptance, on local tarballs only. `src/npm/acceptance.py` runs on the host: an unchanged release passes the binary and MCP-tool-call assertions and installs exactly the bytes its manifest lists; a release without an executable, or without the compiled MCP face, still wraps and installs and fails its own runtime assertion; a corrupt archive, an altered file and a file the manifest does not check are each refused before any package is built. The container half (`container-check.sh`) adds an installed agent that answers a call and the client package alone installed by a second account, which has no daemon or setup command, starts no daemon, writes only under its prefix and npm cache, and calls the installed agent over the running bus. The container half takes the smoke-gate lock like any podman run.
+
+`src/npm/darwin_check.py` is the macOS build check: names, `os`, `cpu` and files of the two platform packages, their pins in both command packages, the launcher resolving `agent-bus` as macOS arm64 from an `--os=darwin` install, and the refusal of a mismatched archive. The Mac acceptance steps are in the [P.1c plan](../../Plans/R1.0-Release/TODO.md#distribution-acceptance).
