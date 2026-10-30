@@ -6,6 +6,7 @@ import atexit
 import json
 import os
 import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -17,6 +18,7 @@ POSTGRES = 'docker.io/library/postgres@sha256:ef257d85f76e48da1c64832459b59fcaba
 CLICKHOUSE = 'docker.io/clickhouse/clickhouse-server@sha256:87e0a5b72f5465b18eacca7c76850e7ff551c9795c50e451f5646299e5e24146'
 SENTINEL = 'sentinel-pw-7f3a91'   # the one password every fixture account uses
 STOP = []
+PRIVATE = []   # this run's private temp dir: the log copies and the ClickHouse config; removed with the run
 START_SECONDS = 45   # per attempt; two attempts make the 90 s a start used to be given
 
 
@@ -27,6 +29,42 @@ def _cleanup():
             fn()
         except Exception:
             pass
+    STOP.clear()
+    for path in PRIVATE:
+        shutil.rmtree(path, ignore_errors=True)
+    PRIVATE.clear()
+
+
+def _terminate(number, frame):
+    sys.exit(128 + number)   # a signal's default ends the process without atexit: this makes it run the cleanup
+
+
+try:
+    for _number in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+        signal.signal(_number, _terminate)
+except ValueError:   # imported off the main thread: no handlers, the watchdog still covers the run
+    pass
+
+
+def private():
+    """The run's own temp dir, under the repository's tmp/ and never /tmp."""
+    if not PRIVATE:
+        scratch = Path(__file__).resolve().parents[3] / 'tmp'
+        scratch.mkdir(exist_ok=True)
+        PRIVATE.append(tempfile.mkdtemp(prefix='ab-db-fixture-', dir=scratch))
+    return PRIVATE[0]
+
+
+WATCH = 'while kill -0 "$1" 2>/dev/null; do sleep 1; done; shift; exec "$@"'
+
+
+def watch(*cleanup):
+    """Run `cleanup` once this process is gone, however it went: SIGKILL runs no handler and no atexit.
+
+    The watcher is its own session, so a kill aimed at the test's process group leaves it alone.
+    """
+    subprocess.Popen(['sh', '-c', WATCH, 'sh', str(os.getpid()), *cleanup], start_new_session=True,
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 def wait(probe, what, seconds=60):
@@ -53,6 +91,7 @@ def mariadb():
                                '--innodb-buffer-pool-size=16M', '--performance-schema=OFF', f'--pid-file={root}/pid'],
                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     STOP.append(lambda: (server.terminate(), server.wait(20), shutil.rmtree(root, ignore_errors=True)))
+    watch('sh', '-c', 'kill "$1" 2>/dev/null; sleep 3; rm -rf "$2"', 'sh', str(server.pid), root)
     import pymysql
 
     def admin():
@@ -77,19 +116,29 @@ def podman(*args, check=True):
     return subprocess.run(['podman', *args], check=check, capture_output=True, text=True)
 
 
-def container(image, port, env):
-    """Start a container with its port on a free loopback port; return (name, host port)."""
+def container(image, port, env, files=()):
+    """Start a container with its port on a free loopback port; return (name, host port).
+
+    `files` are (host path, container path) pairs mounted read-only. The container's own log is capped, so a chatty
+    server cannot fill the disk; a watcher removes the container if this process dies without cleaning up.
+    """
     with socket.socket() as s:
         s.bind(('127.0.0.1', 0))
         host_port = s.getsockname()[1]
+    for stale in leaked():   # a killed earlier run's container, cleared before it can hold a port or a disk
+        podman('rm', '-f', '-t', '1', stale, check=False)
     name = f'ab-db-fixture-{os.getpid()}-{host_port}'
-    # No --rm: a container that exits must stay listed with its logs for diagnose; bring_up and STOP remove it.
+    # No --rm: a container that exits must stay listed for diagnose, which copies its logs out before bring_up and STOP remove it.
     # The label scopes this run's containers: diagnostics and cleanup name only these, never a neighbour's.
-    args = ['run', '-d', '--name', name, '--label', f'ab-db-fixture={os.getpid()}', '-p', f'127.0.0.1:{host_port}:{port}']
+    args = ['run', '-d', '--name', name, '--label', f'ab-db-fixture={os.getpid()}', '-p', f'127.0.0.1:{host_port}:{port}',
+            '--log-driver', 'k8s-file', '--log-opt', 'max-size=10mb']
+    for host, inside in files:
+        args += ['-v', f'{host}:{inside}:ro,Z']
     for key, value in env.items():
         args += ['-e', f'{key}={value}']
     # Registered before the run: a run that fails after creating the container still leaves one to remove.
     STOP.append(lambda: podman('rm', '-f', '-t', '1', name, check=False))
+    watch('podman', 'rm', '-f', '-t', '1', name)
     podman(*args, image)
     return name, host_port
 
@@ -111,8 +160,11 @@ def diagnose(what):
     print(f'fixture {what} failed; containers of this run:', file=sys.stderr)
     print(podman('ps', '-a', '--filter', mine, '--format', '{{.Names}} {{.Status}}', check=False).stdout, file=sys.stderr)
     for line in podman('ps', '-a', '--filter', mine, '--format', '{{.Names}}', check=False).stdout.split():
+        # Copied into the run's private dir first, so the container can be removed and the lines are still there.
+        copy = Path(private()) / f'{line}.log'
+        copy.write_text(podman('logs', '--tail', '20', line, check=False).stdout)
         print(f'--- last lines of {line}', file=sys.stderr)
-        print(podman('logs', '--tail', '20', line, check=False).stdout, file=sys.stderr)
+        print(copy.read_text(), file=sys.stderr)
 
 
 def bring_up(what, make, ready, setup, seconds=None):
@@ -162,7 +214,26 @@ def postgres():
     return {'engine': 'postgres', 'host': '127.0.0.1', 'port': port, 'database': 'app'}
 
 
+LOGGING = """<clickhouse><logger><level>warning</level><console>1</console><log remove="remove"/><errorlog remove="remove"/></logger></clickhouse>
+"""   # the image logs to /var/log/clickhouse-server without a limit: stdout only, which the container's log cap bounds
+
+
+def leaked():
+    """Names of fixture containers whose test process is gone: what a run that was killed left behind."""
+    names = podman('ps', '-a', '--filter', 'label=ab-db-fixture', '--format', '{{.Names}} {{.Labels}}', check=False).stdout
+    out = []
+    for line in names.splitlines():
+        name = line.split()[0]
+        pid = name.split('-')[3] if name.count('-') >= 4 else '0'
+        if not os.path.exists(f'/proc/{pid}'):
+            out.append(name)
+    return out
+
+
 def clickhouse():
+    logging = os.path.join(private(), 'logging.xml')
+    Path(logging).write_text(LOGGING)
+
     def sql(name, text):
         return podman('exec', name, 'clickhouse-client', '--user', 'app', '--password', SENTINEL, '-q', text)
 
@@ -178,6 +249,11 @@ def clickhouse():
                      f"CREATE USER adm IDENTIFIED BY '{SENTINEL}'", 'GRANT ALL ON app.* TO adm']:
             sql(name, text)
     _, port = bring_up('ClickHouse', lambda: container(CLICKHOUSE, 8123, {'CLICKHOUSE_USER': 'app', 'CLICKHOUSE_PASSWORD': SENTINEL,
-                                                                         'CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT': '1', 'CLICKHOUSE_DB': 'app'}),
+                                                                         'CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT': '1', 'CLICKHOUSE_DB': 'app'},
+                                                                         files=[(logging, '/etc/clickhouse-server/config.d/logging.xml')]),
                        ready, setup)
     return {'engine': 'clickhouse', 'host': '127.0.0.1', 'port': port, 'database': 'app'}
+
+
+if __name__ == '__main__' and sys.argv[1:] == ['leaked']:
+    print('\n'.join(leaked()))

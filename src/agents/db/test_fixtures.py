@@ -1,6 +1,8 @@
 """The fixture's start-up, without podman: a container that vanishes is started again once, a second failure explains itself."""
 import io
 import contextlib
+import os
+import signal
 import socket
 import subprocess
 import sys
@@ -39,6 +41,10 @@ class FakePodman:
 class Patched(unittest.TestCase):
     def setUp(self):
         self.saved = (fixtures.podman, fixtures.container, fixtures.speaks_postgres)
+        self.watched = []
+        saved_watch = fixtures.watch
+        fixtures.watch = lambda *cleanup: self.watched.append(cleanup)   # no real watcher for a fake container
+        self.addCleanup(lambda: setattr(fixtures, 'watch', saved_watch))
         fixtures.START_SECONDS = 0.05
         self.addCleanup(lambda: setattr(fixtures, 'START_SECONDS', 45))
         self.addCleanup(lambda: setattr(fixtures, 'podman', self.saved[0]) or setattr(fixtures, 'container', self.saved[1])
@@ -48,7 +54,7 @@ class Patched(unittest.TestCase):
     def containers(self, *names):
         it = iter(names)
 
-        def container(image, port, env):
+        def container(image, port, env, files=()):
             name = next(it)
             self.made.append(name)
             return name, 5000 + len(self.made)
@@ -179,6 +185,94 @@ class StartUp(Patched):
         finally:
             fixtures.STOP[:] = saved
         self.assertIn(('rm', '-f', '-t', '1', name), fake.calls)
+
+
+class Leaks(Patched):
+    def setUp(self):
+        super().setUp()
+        global saved_leaked
+        saved_leaked = fixtures.leaked
+
+    def test_a_failed_starts_logs_are_copied_out_before_the_container_is_removed(self):
+        fake = fixtures.podman = FakePodman()
+        fixtures.speaks_postgres = lambda port: False
+        self.containers('c1', 'c2')
+        self.quiet(fixtures.bring_up, 'PostgreSQL', lambda: fixtures.container(None, 0, {}),
+                   lambda name, port: False, lambda name, port: None, 0.05)
+        copy = Path(fixtures.private()) / 'ab-db-fixture-1-2.log'
+        self.assertIn('database system was shut down', copy.read_text())
+        order = [c[0] for c in fake.calls]
+        self.assertLess(order.index('logs'), order.index('rm'))   # the lines are kept, then the container goes
+
+    def test_the_private_dir_goes_with_the_run(self):
+        path = fixtures.private()
+        self.assertTrue(os.path.isdir(path))
+        self.assertTrue(path.startswith(str(Path(__file__).resolve().parents[3] / 'tmp')))
+        fixtures._cleanup()
+        self.assertFalse(os.path.exists(path))
+
+    def test_every_container_has_a_watcher_and_a_capped_log(self):
+        fake = fixtures.podman = FakePodman()
+        saved = fixtures.STOP[:]
+        try:
+            name, _ = self.saved[1]('image', 5432, {})
+        finally:
+            fixtures.STOP[:] = saved
+        self.assertEqual(self.watched, [('podman', 'rm', '-f', '-t', '1', name)])
+        run = fake.verbs('run')[0]
+        self.assertIn('max-size=10mb', run)
+
+    def test_clickhouse_logs_to_the_console_only(self):
+        self.assertIn('<console>1</console>', fixtures.LOGGING)
+        self.assertIn('<log remove="remove"/>', fixtures.LOGGING)
+        self.assertIn('<errorlog remove="remove"/>', fixtures.LOGGING)
+
+    def test_a_container_left_by_a_dead_run_is_removed_when_the_next_one_starts(self):
+        fake = fixtures.podman = FakePodman()
+        fixtures.leaked = lambda: ['ab-db-fixture-999999999-2']
+        self.addCleanup(lambda: setattr(fixtures, 'leaked', saved_leaked))
+        saved = fixtures.STOP[:]
+        try:
+            self.saved[1]('image', 5432, {})
+        finally:
+            fixtures.STOP[:] = saved
+        self.assertIn(('rm', '-f', '-t', '1', 'ab-db-fixture-999999999-2'), fake.calls)
+
+    def test_leaked_names_only_containers_whose_test_is_gone(self):
+        mine = 'ab-db-fixture-%d-1' % os.getpid()
+        fixtures.podman = lambda *a, check=True: subprocess.CompletedProcess(
+            a, 0, '%s x\nab-db-fixture-999999999-2 x\n' % mine, '')
+        self.assertEqual(fixtures.leaked(), ['ab-db-fixture-999999999-2'])
+
+
+@unittest.skipUnless(subprocess.run(['which', 'podman'], capture_output=True).returncode == 0, 'podman is not installed')
+class KilledRun(unittest.TestCase):
+    """A real container, a real kill: nothing of the fixture may be left. Needs the smoke-gate lock (rootless podman)."""
+    CHILD = ('import sys; sys.path.insert(0, %r); import fixtures, time\n'
+             'name, port = fixtures.container(fixtures.POSTGRES, 5432, {"POSTGRES_PASSWORD": "x"})\n'
+             'print(name, flush=True); time.sleep(600)\n') % str(Path(__file__).resolve().parent)
+
+    def run_and_kill(self, number):
+        child = subprocess.Popen([sys.executable, '-c', self.CHILD], stdout=subprocess.PIPE, text=True)
+        self.addCleanup(child.wait)
+        name = child.stdout.readline().strip()
+        self.assertTrue(name.startswith('ab-db-fixture-%d-' % child.pid), name)
+        self.assertEqual(fixtures.podman('ps', '-a', '--filter', 'name=' + name, '-q').stdout.count('\n'), 1)   # it exists
+        self.addCleanup(lambda: fixtures.podman('rm', '-f', '-t', '1', name, check=False))
+        os.kill(child.pid, number)
+        child.wait(30)
+        end = __import__('time').time() + 30
+        while __import__('time').time() < end and fixtures.podman('ps', '-a', '--filter', 'name=' + name, '-q').stdout.strip():
+            __import__('time').sleep(0.5)
+        left = fixtures.podman('ps', '-a', '--filter', 'name=' + name, '-q').stdout.strip()
+        self.assertEqual(left, '', 'the container outlived its killed test')
+        self.assertEqual([n for n in fixtures.leaked() if n.startswith('ab-db-fixture-%d-' % child.pid)], [])   # a neighbour's is not this test's
+
+    def test_sigterm_leaves_no_container(self):
+        self.run_and_kill(signal.SIGTERM)
+
+    def test_sigkill_leaves_no_container(self):
+        self.run_and_kill(signal.SIGKILL)
 
 
 class Wire(unittest.TestCase):
