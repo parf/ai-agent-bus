@@ -32,12 +32,14 @@ func TestSetupDoesNotManageExternalQdrant(t *testing.T) {
 
 // J31: --help named no option, because it answered before any was defined.
 func TestSetupHelpListsItsOptions(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
+	// The build has no deadline of its own: a cold build cache is slow, and
+	// only the help answer is bounded.
 	binary := filepath.Join(t.TempDir(), "setup")
-	if out, err := exec.CommandContext(ctx, "go", "build", "-o", binary, ".").CombinedOutput(); err != nil {
+	if out, err := exec.Command("go", "build", "-o", binary, ".").CombinedOutput(); err != nil {
 		t.Fatalf("build: %v %s", err, out)
 	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	cmd := exec.CommandContext(ctx, binary, "--help")
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
