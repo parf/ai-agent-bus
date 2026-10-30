@@ -53,6 +53,7 @@ class OwnersFlow(unittest.TestCase):
         self.assertTrue(fixture.is_file(), 'build clients/fixture for the end-to-end proof')
         # Under the home, as the script fixtures are: a script directory is refused when any parent is group-writable.
         self.tmp = tempfile.TemporaryDirectory(prefix='.agent-bus-e2e-', dir=Path.home())
+        self.addCleanup(self.tmp.cleanup)  # a crash before tearDown still removes it
         self.base = Path(self.tmp.name)
         self.git_env = {**{k: v for k, v in os.environ.items() if not k.startswith(('AB_ROLE_', 'AGENT_BUS_', 'GIT_'))},
                         'HOME': str(self.base), 'GIT_CONFIG_NOSYSTEM': '1'}
@@ -78,7 +79,6 @@ class OwnersFlow(unittest.TestCase):
         with contextlib.suppress(Exception): self.bus_process.wait(timeout=5)
         for s in (self.bus_process.stdout, self.bus_process.stderr):
             with contextlib.suppress(Exception): s.close()
-        self.tmp.cleanup()
 
     def bus(self, name):
         b = Bus(name, addr=self.info['addr'], token=self.info['tokens'][name], timeout=3)
@@ -155,6 +155,10 @@ class OwnersFlow(unittest.TestCase):
                 break
         return got
 
+    def drain(self, seconds=2):
+        """Whatever else reaches the log observer in a bounded time: an extra or doubled record shows here."""
+        return self.records(lambda r: False, seconds)
+
     def lines(self, host, kind):
         marker = self.marks[host, kind]
         return [json.loads(x) for x in marker.read_text().splitlines() if x.strip()] if marker.exists() else []
@@ -189,6 +193,9 @@ class OwnersFlow(unittest.TestCase):
             self.assertEqual((r['repo'], r['mode'], r['to'], r['action'], r['remote']), ('realty', 'mirror', new, 'autopull', 'realty'))
             self.assertNotEqual(r['from'], r['to'])
         self.assertEqual([(r['host'], r['mode'], r['error']['code']) for r in fail], [('host-c.test', 'ff', 'dirty')])
+        for r in events:  # who asked, what moved, whether anything was discarded
+            self.assertEqual((r['requested_by'], r['id'], r['trigger']), ('#caller@fixture', None, 'event'), r)
+        self.assertEqual((fail[0]['to'], fail[0]['from'], fail[0]['discarded']), (head_c, head_c, None))
         self.assertEqual(self.sh(self.copies['host-c.test'], 'rev-parse', 'HEAD'), head_c)
         self.assertEqual(snapshot(self.copies['host-c.test']), dirty_c, 'the dirty ff copy changed')
         for host in ('host-a.test', 'host-b.test'):
@@ -200,6 +207,7 @@ class OwnersFlow(unittest.TestCase):
         self.assertEqual(self.settled(expected), expected,
                          'one push: each mirror copy\'s success script once, the dirty ff copy\'s fail script once, nothing else')
         self.runs = expected
+        self.assertEqual(self.drain(), [], 'an extra record followed the three event records')
         for host in ('host-a.test', 'host-b.test'):
             self.assertEqual(self.lines(host, 'success')[-1]['to'], new)
         self.assertEqual(self.lines('host-c.test', 'fail')[-1]['error']['code'], 'dirty')
@@ -211,13 +219,17 @@ class OwnersFlow(unittest.TestCase):
             kind='pubsub', allow=['#caller@fixture'], subs=[s[0] for s in SERVERS])
         self.owner.record('autopull-log@fixture').register(
             kind='pubsub', allow=[s[0] for s in SERVERS], subs=['#caller@fixture'])
+        for host in ('host-a.test', 'host-c.test'):  # local work already there when the agents start
+            (self.copies[host] / 'a').write_text('local edit\n')
+            (self.copies[host] / 'junk').write_text('untracked\n')
         self.start_agents()
         starts = self.records(lambda r: len(r) >= 3, 30)
-        self.assertEqual(sorted((r['host'], r['trigger']) for r in starts),
-                         [(h, 'start') for h in ('host-a.test', 'host-b.test', 'host-c.test')], starts or self.agent_errors())
-
-        # The start attempt of a dirty copy is its own case (a mirror resets it, an ff copy refuses); the
-        # event attempts are counted from what the scripts had run by now.
+        self.assertEqual(sorted((r['host'], r['trigger'], r['result'], (r['error'] or {}).get('code')) for r in starts),
+                         [('host-a.test', 'start', 'ok', None), ('host-b.test', 'start', 'skip', None),
+                          ('host-c.test', 'start', 'fail', 'dirty')], starts or self.agent_errors())
+        self.assertEqual([r['discarded'] for r in starts if r['host'] == 'host-a.test'], [{'files': 2, 'commits': 0}])
+        self.assertEqual(self.drain(), [], 'a start attempt published more than one record')
+        # The event attempts are counted from what the scripts had run after the start attempts.
         self.runs = self.settled({('host-a.test', 'success'): 0, ('host-a.test', 'fail'): 0, ('host-b.test', 'success'): 0,
                                   ('host-b.test', 'fail'): 0, ('host-c.test', 'success'): 0, ('host-c.test', 'fail'): 0}, 0)
         # A pipeline name publishes one push.

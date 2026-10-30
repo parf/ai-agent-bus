@@ -17,9 +17,20 @@ with distinct hosts and `to` = the pushed commit, `discarded.files` 2 and 0, one
 script ran once per `ok`, the `ff` host's fail script once, no other script ran.
 
 Mutants, each compiled and red on an assertion: skip `clean -fd` (discard count 1 ≠ 2), run the success
-script twice (run counts), skip the dirty refusal (`fetch` ≠ `dirty`). Skipping `reset --hard` survives and
-is equivalent: `checkout --force -B` already resets tracked files. Both publishers send as `#caller`, because
-the disposable bus has a fixed set of names.
+script twice (run counts), skip the dirty refusal (the start and event records say `skip`/`fetch`, not
+`dirty`), `checkout` without `--force` (the dirty mirror copy no longer moves), and both the branch move
+(`-B`) and `reset --hard` removed together. Either of those two alone survives: `checkout --force -B
+<branch> <target>` and `reset --hard <target>` each put the branch and every tracked file on the target.
+Compared on nine shapes (staged new file, staged deletion, locally deleted file, chmod, file replaced by a
+directory or a symlink, directory replaced by a file, local edit with the copy already at the target,
+staged edit at the target) the tree, index and diff were identical with and without `reset`, so it is
+belt-and-braces, not a case the check misses.
+
+Counted too: the start attempts (a dirty mirror copy is reset and reports `discarded.files` 2, a dirty `ff`
+copy refuses), no extra record in the two seconds after each push, `requested_by`, `trigger`, `id` and
+`discarded` on the records. Limits: both publishers send as `#caller`, because the disposable bus has a
+fixed set of names, so `#webhook` publishing under its own name and ACL grant is not exercised here; the
+test saves Configuration through the client's private request method.
 
 ## Scripts 0.9.162
 
