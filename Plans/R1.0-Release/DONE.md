@@ -125,6 +125,11 @@ Owner, 2026-10-30: every doc leads with why, then what you get, then real exampl
 - ✅ DW8 `docs/runner/*` and `docs/user/*`
   - Result: built in 0.9.190 (`cded895b`): all twelve pass the checker and are enforced
 
+### Docs rewrite dw9
+
+- ✅ DW9 Agent manifests: `agent.json` descriptions and method help
+  - Result: built in 0.9.190 (`07065bcf`, `9005e89a`) and 0.9.191 (`99b1f94f`), each batch after its normal gate; Discord shipped in 0.9.206 (`4e74e3b6`) with its own fixture. All 22 manifests, 174 methods, lead with outcomes and are pinned by `help.golden.json`; evidence in [batch 9 progress](docs-rewrite.md#batch-9-progress)
+
 ### Docs rewrite dw10
 
 - ✅ DW10 Web page intros and CLI help text

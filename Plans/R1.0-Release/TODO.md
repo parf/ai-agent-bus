@@ -678,7 +678,7 @@ Owner, 2026-10-30: every doc leads with why, then what you get, then real workin
 - ✅ DW6 `docs/06`-`09` except setup — **0.9.189**, `d3f2ab22` ([result](DONE.md#docs-rewrite-dw6))
 - ⏳ DW7 `docs/07-setup.md`; starts after distribution (T-6) lands
 - ✅ DW8 `docs/runner/*` and `docs/user/*` — **0.9.190**, `cded895b` ([result](DONE.md#docs-rewrite-dw8))
-- ⏳ DW9 Agent manifests: `agent.json` descriptions and method help, with golden fixtures and a normal gate
+- ✅ DW9 Agent manifests — **0.9.191**, `99b1f94f`; Discord **0.9.206**, `4e74e3b6` ([result](DONE.md#docs-rewrite-dw9))
 - ✅ DW10 Web page intros and CLI help text — **0.9.189**, `79f03e08` ([result](DONE.md#docs-rewrite-dw10))
 - ⏳ DW11 Client READMEs and `src/*.md`; RT8 has landed
   - State 2026-10-30, branch `ab-w2b/DW11`: `src/README.md`, `INSTALL.md`, `MODULES.md`, the client hub, the Go, Java, Python, Rust and TypeScript READMEs, the examples README and its five example pages follow the order and are in the checker's ENFORCED list. Examples ran on disposable nodes with private data directories: the six-language examples harness, one snippet per language client, the three-terminal sequence and the first-agent example; `INSTALL.md`'s install and update commands are root steps and were not run, only its read-only checks (`agent-bus status`, `systemctl is-active`). Left: `src/clients/php/README.md`, after J43 lands
