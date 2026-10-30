@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.213 — 2026-10-30
+
+PHP client long polls use HTTP/1.1 so a replaced reader's cancelled poll no longer swallows messages
+
 ## 0.9.212 — 2026-10-30
 
 A consume may state its host; the daemon lists each name's recent reader hosts for two minutes, in memory only
