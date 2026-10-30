@@ -15,21 +15,25 @@ export SOURCE_VERSION=$src
 
 # Exercise the command the release workflow actually runs, not a parallel test
 # invocation. This workflow intentionally uses an unconditional
-# verification step; reject a missing/moved/conditional step or a draft that
+# verification step; reject a missing/moved/conditional step or a release that
 # no longer depends on both native builds.
 workflow_step=$(python3 - "$here/../.github/workflows/release.yml" <<'WORKFLOW'
 from pathlib import Path
 import re
 import sys
 text = Path(sys.argv[1]).read_text()
-build, separator, draft = text.partition('\n  draft:\n')
-assert separator, 'release workflow has no draft job'
-for job, body in [('build', build), ('draft', draft)]:
+assert not re.search(r'ssh-keygen|release-sign|SHA256SUMS\.sig|owner[^\n]*(?:sign|key)|--draft', text, re.I), 'release workflow must have no signing, owner key or draft wait'
+build, separator, release = text.partition('\n  release:\n')
+assert separator, 'release workflow has no release job'
+for job, body in [('build', build), ('release', release)]:
     assert not re.search(r'^    (if|continue-on-error):', body, re.M), job + ' job must be unconditional and stop on failure'
 matrix = re.search(r'^        runner: \[(.+)\]$', build, re.M)
 assert matrix and {x.strip() for x in matrix[1].split(',')} == {'ubuntu-24.04', 'ubuntu-24.04-arm'}, 'both native architecture builds are required'
 assert not re.search(r'^        (exclude|include):', build, re.M), 'the native architecture matrix must not skip or replace builds'
-assert re.search(r'^    needs: build$', draft, re.M), 'draft does not require the verified builds'
+assert re.search(r'^    needs: build$', release, re.M), 'release does not require the verified builds'
+assert 'src/release-verify.sh dist' in release, 'publication must verify the complete checksum set'
+assert 'dist/*.tar.gz dist/SHA256SUMS' in release, 'publication must include archives and SHA256SUMS'
+assert release.index('src/release-verify.sh dist') < release.index('gh release create'), 'publication precedes verification'
 steps = re.split(r'(?=^      - )', build, flags=re.M)
 found = [i for i, step in enumerate(steps) if re.search(r'^        id: release-evidence$', step, re.M)]
 assert len(found) == 1, 'release workflow needs exactly one release-evidence step'
@@ -169,3 +173,17 @@ for cpu in x86_64 aarch64; do
     echo "wired missing $edition/$cpu: refused"
   done
 done
+
+# The complete set is unsigned, but checksums remain a refusal boundary.
+mkdir "$work/set"
+cp "$good/$name.tar.gz" "$client" "$work/set/"
+(cd "$work/set" && sha256sum *.tar.gz >SHA256SUMS)
+out=$("$here/release-verify.sh" --arches "$arch" "$work/set") || { echo "unsigned release set refused: $out"; exit 1; }
+cp "$work/set/SHA256SUMS" "$work/sums.good"
+sed -i '1s/^[0-9a-f]\{64\}/0000000000000000000000000000000000000000000000000000000000000000/' "$work/set/SHA256SUMS"
+out=$("$here/release-verify.sh" --arches "$arch" "$work/set" 2>&1) && { echo 'checksum mismatch: accepted a bad release'; exit 1; }
+grep -qF 'does not match SHA256SUMS' <<<"$out" || { echo "checksum mismatch: wrong failure: $out"; exit 1; }
+cp "$work/sums.good" "$work/set/SHA256SUMS"
+out=$("$here/release-verify.sh" --signers ignored "$work/set" 2>&1) && { echo 'obsolete --signers accepted'; exit 1; }
+grep -qF 'unsupported option --signers' <<<"$out" || { echo "wrong obsolete-option refusal: $out"; exit 1; }
+echo 'unsigned release set: checksums required; obsolete --signers refused'

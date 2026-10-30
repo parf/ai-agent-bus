@@ -6,23 +6,19 @@
 # internal/version/VERSION beside this script).
 #
 #   src/release-verify.sh <archive.tar.gz>...
-#   src/release-verify.sh --signers <allowed_signers> [--arches "x86_64 aarch64"] [--os "linux darwin"] <release-dir>
-#
-# A release directory is the archives (the full node and the client for linux,
-# the client alone for darwin, per arch in --arches and os in --os, linux by
-# default), SHA256SUMS and SHA256SUMS.sig: it must hold exactly those, the
-# sums must match the archives, the signature must verify against the signers
-# file in the agent-bus-release namespace, and each archive is checked as above.
+#   src/release-verify.sh [--arches "x86_64 aarch64"] [--os "linux darwin"] <release-dir>
+# A directory holds exactly the expected full/client archives and SHA256SUMS.
+# Checksums and manifests are required; release signatures are not used.
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 src=${SOURCE_VERSION:-$here/internal/version/VERSION}
-usage="usage: release-verify.sh <archive.tar.gz>... | --signers <allowed_signers> [--arches \"x86_64 aarch64\"] [--os \"linux darwin\"] <release-dir>"
-signers="" arches="x86_64 aarch64" oses=linux
+usage="usage: release-verify.sh <archive.tar.gz>... | [--arches \"x86_64 aarch64\"] [--os \"linux darwin\"] <release-dir>"
+arches="x86_64 aarch64" oses=linux
 while [ $# -gt 0 ]; do
   case $1 in
-    --signers) signers=${2:?$usage}; shift 2 ;;
     --arches) arches=${2:?$usage}; shift 2 ;;
     --os) oses=${2:?$usage}; shift 2 ;;
+    --*) echo "unsupported option $1: $usage" >&2; exit 2 ;;
     *) break ;;
   esac
 done
@@ -33,7 +29,7 @@ work=$(mktemp -d "$here/../tmp/verify.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 fail=0
 bad() { echo "release-verify: $name: $*" >&2; fail=1; }
-if [ -n "$signers" ]; then
+if [ "$#" = 1 ] && [ -d "$1" ]; then
   [ $# = 1 ] && [ -d "$1" ] || { echo "$usage" >&2; exit 2; }
   rel=$(cd "$1" && pwd); name=release
   set --
@@ -45,18 +41,16 @@ if [ -n "$signers" ]; then
   done
   for f in "$@"; do [ -f "$f" ] || bad "$(basename "$f") is missing"; done
   for f in "$rel"/*; do
-    case " $* $rel/SHA256SUMS $rel/SHA256SUMS.sig " in *" $f "*) ;; *) bad "$(basename "$f") is not part of this release" ;; esac
+    case " $* $rel/SHA256SUMS " in *" $f "*) ;; *) bad "$(basename "$f") is not part of this release" ;; esac
   done
-  if [ -f "$rel/SHA256SUMS" ] && [ -f "$rel/SHA256SUMS.sig" ]; then
-    ssh-keygen -Y verify -f "$signers" -I agent-bus-release -n agent-bus-release -s "$rel/SHA256SUMS.sig" \
-      <"$rel/SHA256SUMS" >/dev/null 2>&1 || bad "SHA256SUMS.sig does not verify"
+  if [ -f "$rel/SHA256SUMS" ]; then
     for f in "$@"; do
       b=$(basename "$f")
       [ -f "$f" ] && { grep -qxF "$(cd "$rel" && sha256sum "$b")" "$rel/SHA256SUMS" || bad "$b does not match SHA256SUMS"; }
     done
     [ "$(wc -l <"$rel/SHA256SUMS")" = $# ] || bad "SHA256SUMS does not list exactly the $# archives"
   else
-    bad "SHA256SUMS or SHA256SUMS.sig is missing"
+    bad "SHA256SUMS is missing"
   fi
   [ $fail = 0 ] || exit 1
 fi

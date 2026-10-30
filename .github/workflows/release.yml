@@ -1,8 +1,5 @@
-# A version tag (v0.9.x) builds both Linux release archives on native x86_64
-# and arm64 runners and attaches them, with install.sh, to a DRAFT release.
-# Nothing is signed here: the owner downloads the archives, runs
-# src/release-sign.sh with the release key on their own machine, uploads
-# SHA256SUMS and SHA256SUMS.sig, and publishes (docs/07-setup.md#simple-install).
+# A version tag builds both Linux editions on native x86_64 and arm64 runners.
+# Publish the checked archives and SHA256SUMS as the npm wrapping source.
 # Actions are pinned to commits: each SHA is what `git ls-remote` gave for the
 # named tag on 2026-10-29. Moving one is a reviewed change, by hand or by a
 # dependency bot, never a floating tag.
@@ -42,7 +39,7 @@ jobs:
         env:
           BUILD_COMMIT: ${{ github.sha }}
         run: src/package.sh "$PWD/dist"
-      - name: Verify every archive before upload and draft creation
+      - name: Verify every archive before upload and release creation
         id: release-evidence
         shell: bash
         run: |
@@ -53,13 +50,13 @@ jobs:
             test -f "$expected" || { echo "missing expected archive: $expected" >&2; exit 1; }
           done
           src/release-verify.sh dist/*.tar.gz
-      - name: Archive hashes, for the owner to compare before signing
+      - name: Archive hashes
         run: (cd dist && sha256sum *.tar.gz) | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: archives-${{ matrix.runner }}
           path: dist/*.tar.gz
-  draft:
+  release:
     needs: build
     runs-on: ubuntu-24.04
     permissions:
@@ -72,13 +69,15 @@ jobs:
         with:
           path: dist
           merge-multiple: true
-      - name: Draft release, unsigned
+      - name: Publish checked build artifacts
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           ls -l dist
-          (cd dist && sha256sum *.tar.gz) | tee -a "$GITHUB_STEP_SUMMARY"
-          gh release create "${GITHUB_REF_NAME}" --draft --verify-tag \
+          (cd dist && sha256sum *.tar.gz > SHA256SUMS)
+          cat dist/SHA256SUMS >> "$GITHUB_STEP_SUMMARY"
+          src/release-verify.sh dist
+          gh release create "${GITHUB_REF_NAME}" --verify-tag \
             --title "agent-bus ${GITHUB_REF_NAME#v}" \
-            --notes "Unsigned draft: the owner signs SHA256SUMS before publishing." \
-            dist/*.tar.gz install.sh
+            --notes "Release binaries and SHA256SUMS for npm packaging." \
+            dist/*.tar.gz dist/SHA256SUMS
