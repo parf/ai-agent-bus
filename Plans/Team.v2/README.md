@@ -20,19 +20,19 @@ team before it is in [today's team](#today). Open choices are in
 
 One team runs today ([TD1](DECISIONS.md#recorded-decisions)); a second adds
 `#ab-lead2`, `#ab-w2a..c` and `#ab-qa2` beside it. Names carry the project
-prefix `ab-` ([TD2](DECISIONS.md#recorded-decisions)). Two sessions of one
-account never share a directory, so each resumes its own conversation.
+prefix `ab-` ([TD2](DECISIONS.md#recorded-decisions)). Account 1 sessions run in the repository root and account 2 sessions in
+`Plans/`; each name resumes its own conversation.
 
 ```mermaid
 flowchart TD
   parf(["parf — owner"]) <-->|talks only to| ceo
-  ceo["#ab-ceo<br/>kitty window CEO · Claude /fast<br/>local/team-v2/"]
+  ceo["#ab-ceo<br/>kitty window CEO · Claude /fast<br/>repo root"]
   dir["#ab-dir<br/>tmux DIR · Claude /fast<br/>repo root"]
-  lead["#ab-lead1<br/>tmux LEAD1 · Claude /fast<br/>Plans/ · decides bump"]
-  w1a["#ab-w1a<br/>tmux W1A · Claude, account 1<br/>src/"]
-  w1b["#ab-w1b<br/>tmux W1B · Claude, account 2<br/>repo root"]
+  lead["#ab-lead1<br/>tmux LEAD1 · Claude /fast<br/>repo root · decides bump"]
+  w1a["#ab-w1a<br/>tmux W1A · Claude, account 1<br/>repo root"]
+  w1b["#ab-w1b<br/>tmux W1B · Claude, account 2<br/>Plans/"]
   w1c["#ab-w1c<br/>tmux W1C · Codex<br/>repo root"]
-  qa["#ab-qa1<br/>tmux QA1 · opencode on z.ai<br/>Plans/ · read-only"]
+  qa["#ab-qa1<br/>tmux QA1 · opencode on z.ai<br/>repo root · read-only"]
   gate[["#ab-gate<br/>tmux GATE · script gate.sh<br/>no model · sole lander"]]
   main[("main")]
   keeper{{"#tmux-sessions/ab-dvp@parf.us<br/>keeps every tmux window"}}
