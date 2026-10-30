@@ -288,17 +288,22 @@ func (b *Bus) member(caller, group string) bool {
 // the caller. The protected Administrator group is always a direct membership
 // boundary, including when an ordinary group names it for an access grant.
 func (b *Bus) memberThrough(caller, group string, seen map[string]bool) bool {
-	if !groupName(group) || seen[group] {
-		return false
-	}
-	seen[group] = true
-	members, _ := b.groupMembers(group)
-	for _, member := range members {
-		if member == caller {
-			return true
+	todo := []string{group}
+	for len(todo) > 0 {
+		group := todo[len(todo)-1]
+		todo = todo[:len(todo)-1]
+		if !groupName(group) || seen[group] {
+			continue
 		}
-		if group != AdministratorsGroup && groupName(member) && b.memberThrough(caller, member, seen) {
-			return true
+		seen[group] = true
+		members, _ := b.groupMembers(group)
+		for _, member := range members {
+			if member == caller {
+				return true
+			}
+			if group != AdministratorsGroup && groupName(member) {
+				todo = append(todo, member)
+			}
 		}
 	}
 	return false

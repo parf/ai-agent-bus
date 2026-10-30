@@ -142,41 +142,50 @@ func (b *Bus) deliverTo(topic protocol.Record) []string {
 	out := make([]string, 0, len(topic.Subs))
 	seen := map[string]bool{}
 	walked := map[string]bool{}
-	var add func(string, bool)
-	add = func(term string, fromGroup bool) {
+	type entry struct {
+		term      string
+		fromGroup bool
+	}
+	// Reverse pushes retain the recursive walk's depth-first recipient order.
+	todo := make([]entry, 0, len(topic.Subs))
+	for i := len(topic.Subs) - 1; i >= 0; i-- {
+		todo = append(todo, entry{term: topic.Subs[i]})
+	}
+	for len(todo) > 0 {
+		next := todo[len(todo)-1]
+		todo = todo[:len(todo)-1]
+		term, fromGroup := next.term, next.fromGroup
 		if groupName(term) {
 			if walked[term] {
-				return // already expanded, or nested in itself
+				continue // already expanded, or nested in itself
 			}
 			walked[term] = true
 			members, _ := b.groupMembers(term)
-			for _, m := range members {
+			for i := len(members) - 1; i >= 0; i-- {
+				m := members[i]
 				if groupName(m) && term == AdministratorsGroup {
 					continue
 				}
-				add(m, true)
+				todo = append(todo, entry{term: m, fromGroup: true})
 			}
-			return
+			continue
 		}
 		if fromGroup {
 			target, ok := b.records[term]
 			if !ok {
 				b.warnRepeated("a publication to %s skipped unknown deliver-to group member %s", topic.Name, term)
-				return
+				continue
 			}
 			if target.Kind != protocol.KindUser && !b.resourceManages(target.Owner, topic) {
 				b.warnRepeated("a publication to %s skipped deliver-to group member %s: owner %s does not manage the channel", topic.Name, term, target.Owner)
-				return
+				continue
 			}
 		}
 		if seen[term] {
-			return
+			continue
 		}
 		seen[term] = true
 		out = append(out, term)
-	}
-	for _, s := range topic.Subs {
-		add(s, false)
 	}
 	return out
 }

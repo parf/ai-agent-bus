@@ -788,15 +788,20 @@ func (b *Bus) indexDirectory() *directoryIndex {
 // reachThrough collects every name member(name, group) would find: the
 // same graph walk as memberThrough, gathering instead of searching.
 func (b *Bus) reachThrough(group string, seen, reached map[string]bool) {
-	if !groupName(group) || seen[group] {
-		return
-	}
-	seen[group] = true
-	members, _ := b.groupMembers(group)
-	for _, member := range members {
-		reached[member] = true
-		if group != AdministratorsGroup && groupName(member) {
-			b.reachThrough(member, seen, reached)
+	todo := []string{group}
+	for len(todo) > 0 {
+		group := todo[len(todo)-1]
+		todo = todo[:len(todo)-1]
+		if !groupName(group) || seen[group] {
+			continue
+		}
+		seen[group] = true
+		members, _ := b.groupMembers(group)
+		for _, member := range members {
+			reached[member] = true
+			if group != AdministratorsGroup && groupName(member) {
+				todo = append(todo, member)
+			}
 		}
 	}
 }
