@@ -42,6 +42,8 @@ ENFORCED = ['docs/runner/README.md'] + ['docs/%s.md' % name for name in (
     'README', 'at', 'bus', 'sms', 'smtp', 'tmux-sessions', 'webhook',
     'cron', 'debug', 'eventlog', 'imap', 'logwatch', 'slack', 'telegram')]
 
+ENFORCED += ['docs/%s.md' % name for name in ('06-dedicated-runner', '06-launchers', '08-processes', '09-daemon-api')]
+
 KINDS = ('order', 'missing-part', 'first-fifth', 'empty-example', 'no-example', 'jargon-lead', 'wall')
 
 
