@@ -8,9 +8,13 @@ heavy work runs below it on ordinary models.
 
 ## Status
 
-Idea from the owner, 2026-10-29. Nothing here is built or adopted. The team
-that runs today is in [today's team](#today) and keeps its rules in
-`CLAUDE.local.md`. Open choices are in [questions](QUESTIONS.md#open-questions).
+Idea from the owner, 2026-10-29; partly running from 2026-10-30 with one team
+([decision](DECISIONS.md#recorded-decisions)). Node-local, not in Git, under
+`local/team-v2/`: the role prompts, `start-ceo.sh` for the `#ceo` kitty window,
+`gate.sh` behind `#gate`, and the `#tmux-sessions/ab-dvp@parf.us`
+Configuration that starts `DIR`, `LEAD1`, `W1-1..3`, `QA1` and `GATE`. The
+team before it is in [today's team](#today). Open choices are in
+[questions](QUESTIONS.md#open-questions).
 
 ## Shape
 
@@ -42,7 +46,7 @@ parf ──► #ceo (kitty window, /fast)
 | `#lead1`, `#lead2` | `/fast`, tmux | assigns a task to a worker by fit; sends the finished branch to QA and to `#gate` together; reads receipts; marks done or failed; returns a red result to the same worker | gates, merges, code fixes, docs, reading logs or diffs |
 | `#w<team>-1..3` | ordinary models by task type: Claude for architecture and refactors, Codex for scoped fixes, z.ai for tests and boilerplate; tmux | one task at a time in its own worktree; done means commits, tests, a mutant where [verification](../../CLAUDE.md#mutation-first-then-belief) asks for one, docs, and the plan's TODO and DONE in the same change; runs fast checks only; sends a receipt on done or blocked | the version file, the changelog, merging to main |
 | `#qa1`, `#qa2` | a vendor other than the author's | checks every diff of its team; findings carry file:line and a fix, reproduced first; doc drift is a standard finding; advisory, blocks a merge only at high severity | code |
-| `#gate` | a script agent, no model | sole reader of the gate queue; rebases on main, runs the normal gate, bumps the version and adds the changelog line from the ticket, fast-forwards main only without a high finding; reruns once on a flake; sends a receipt | — |
+| `#gate` | a script agent, no model | sole reader of the gate queue; rebases on main, runs the normal gate, bumps the version and adds the changelog line from the ticket, fast-forwards main; the lead sends a branch only after QA reports no high finding; reruns once on a flake; sends a receipt | — |
 
 ## Principles
 
