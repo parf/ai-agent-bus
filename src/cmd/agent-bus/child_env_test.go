@@ -19,6 +19,10 @@ import (
 // script, which would answer it.
 func TestAScriptGetsNoTokenAndNoReceipts(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/secret" { // an agent with no bus secret
+			http.NotFound(w, r)
+			return
+		}
 		w.Write([]byte(`{"id":"r"}`))
 	}))
 	defer server.Close()
@@ -60,6 +64,10 @@ func TestAScriptGetsNoTokenAndNoReceipts(t *testing.T) {
 // for a caller that stopped waiting meanwhile.
 func TestASlowAckDoesNotRunWorkPastItsDeadline(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/secret" { // an agent with no bus secret
+			http.NotFound(w, r)
+			return
+		}
 		select {
 		case <-time.After(800 * time.Millisecond):
 		case <-r.Context().Done():

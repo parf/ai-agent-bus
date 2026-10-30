@@ -28,6 +28,10 @@ func TestRunReceiptsOnlyForSlowScripts(t *testing.T) {
 			cancelled := make(chan struct{})
 			release := make(chan struct{})
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/secret" { // an agent with no bus secret
+					http.NotFound(w, r)
+					return
+				}
 				if r.URL.Path == "/config" {
 					w.Write([]byte("null"))
 					return

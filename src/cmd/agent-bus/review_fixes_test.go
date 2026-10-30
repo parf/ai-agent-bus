@@ -17,6 +17,10 @@ import (
 func TestRunConfigurationFailureAnswers(t *testing.T) {
 	posts := make(chan protocol.Envelope, 4)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/secret" { // an agent with no bus secret
+			http.NotFound(w, r)
+			return
+		}
 		if r.URL.Path == "/config" {
 			http.Error(w, "away", 503)
 			return

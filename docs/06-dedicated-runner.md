@@ -109,6 +109,13 @@ Configuration reaches each script as `AGENT_BUS_CONFIG`: compact JSON, unset
 when unconfigured. It is refreshed at the next invocation; see
 [configuration and jq](03-records-agent.md#configuring-a-template).
 
+The record's Secret (`KEY=value` lines, [env-file syntax](03-records-service.md#env-file-syntax))
+reaches each script as environment variables too, read again for every message,
+so `agent-bus secret` takes effect without a restart, sandboxed or not. It wins
+over the shell's value of the same name; the message's own `AGENT_BUS_*` fields
+win over it, and the credential is never set by it. A value never appears in
+`agent-bus logs` (a script line holding one is masked) or on any command line.
+
 Without `--package-dir`, asks reach the script as `AGENT_BUS_ASK`:
 `help`, `help-config`, `help-secret`, `help-json` or `status`, with an empty
 body. Packaged metadata answers what it can; `help: native` delegates help to

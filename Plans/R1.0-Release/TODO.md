@@ -221,7 +221,7 @@ configuration written under `runner/` on the host, then a `reload` call.
   - Acceptance: an agent cannot see a sibling's processes, read a sibling's files or env, connect to the runner's or another account's socket, write outside its work directory, or exceed its memory; on a host without `bwrap` it is refused; each removed limit fails its check
   - Mutant: each removed limit fails its check
 
-- ⏳ DR.1 The dedicated runner applies the agent's bus secret
+- ⏳ DR.1 The dedicated runner applies the agent's bus secret (code on branch ab-w2b/T-7-dr1: ten mutants red; awaits review and landing)
   - Builds: `agent-bus run` reads its agent's own bus secret with the agent's token and puts it in the script's environment, as the runner does for a script agent, parsed by the shared [env-file parser](../../docs/03-records-service.md#env-file-syntax); stated in the sandbox job's environment, since a `--sandbox on` child starts from the user manager's, not the dedicated runner's; read per message, so `agent-bus secret` takes effect without a restart; never in `agent-bus logs`, the process title or an error
   - Precedence: the secret wins over the shell's value of the same name ([№Q174](DECISIONS.md#recorded-decisions)); the message stamps still win over both
   - Also: ✅ the bundled debug agent's `env` answer no longer shows `AGENT_BUS_CONFIG` or any bus-prefixed secret key: only delivered fields and the bus address show a value (branch ab-w2b/T-7-leak)

@@ -16,6 +16,10 @@ func TestRunScriptConfigurationAtEveryStart(t *testing.T) {
 	var raw atomic.Value
 	raw.Store("null")
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/secret" { // an agent with no bus secret
+			http.NotFound(w, r)
+			return
+		}
 		if r.URL.Path == "/config" {
 			if r.URL.Query().Get("name") != "#config@h" {
 				t.Error("wrong config name")

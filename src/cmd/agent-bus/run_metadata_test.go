@@ -21,6 +21,10 @@ func TestRunAnswersPackageAsksWithoutScript(t *testing.T) {
 	t.Setenv("AGENT_BUS_TOKEN", "fixture")
 	posts := make(chan protocol.Envelope, 8)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/secret" { // an agent with no bus secret
+			http.NotFound(w, r)
+			return
+		}
 		if r.URL.Path != "/send" {
 			t.Errorf("metadata ask reached %s", r.URL.Path)
 			io.WriteString(w, "null")
@@ -97,6 +101,10 @@ func TestRunForwardsNativeHelpAsks(t *testing.T) {
 	t.Setenv("AGENT_BUS_TOKEN", "fixture")
 	posts := make(chan protocol.Envelope, 8)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/secret" { // an agent with no bus secret
+			http.NotFound(w, r)
+			return
+		}
 		if r.URL.Path == "/config" {
 			io.WriteString(w, `{"units":"scoped.service"}`)
 			return

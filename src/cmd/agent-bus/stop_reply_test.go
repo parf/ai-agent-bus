@@ -40,6 +40,10 @@ func TestStopStillDeliversCompletedRepliesWithinTheirBound(t *testing.T) {
 			defer cancel()
 			posts := make(chan protocol.Envelope, 128)
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/secret" { // an agent with no bus secret
+					http.NotFound(w, r)
+					return
+				}
 				if r.URL.Path == "/config" {
 					cancel() // Stop after accepting work, before it completes.
 					w.Write([]byte("null"))
