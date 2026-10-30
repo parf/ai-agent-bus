@@ -105,17 +105,25 @@ There is no `can` method: debug cannot act as you, so a check made as debug woul
 
 ## Installing it
 
-Package it into the runner's code folder and reload the runner, as in
-[deploy only the changed component](../07-setup.md#deploy-only-the-changed-component).
-Keep its access list at `@owner`.
+Debug [serves itself](../runner/configuration.md#agents-that-serve-themselves),
+so the runner never registers it: package it into the runner's code folder,
+register it as its Owner, hand the runner its token once, then reload the
+runner. Keep its access list at `@owner`.
 
 <details><summary>Step by step</summary>
 
+For `alice`'s runner on `node.example`:
+
 ```sh
-src/agents/debug/package.sh /var/lib/agent-bus/agent.d/debug
+src/agents/debug/package.sh /var/lib/agent-bus/agent.d/debug   # a release: copy /usr/local/lib/agent-bus/current/agents/debug
+agent-bus register '#debug@node.example' --allow=@owner
+agent-bus token '#debug@node.example' | sudo install -o alice-ab-runner -m 600 /dev/stdin \
+  '/var/lib/agent-bus/alice-ab-runner/tokens/%23debug@node.example'
+agent-bus call '#runner/alice@node.example' reload
 ```
 
-- Then reload the runner, which grants debug its own credential.
+- Until it holds the token, the runner refuses debug by name and says where the token goes.
+- Later changes need only the package and a reload ([deploy only the changed component](../07-setup.md#deploy-only-the-changed-component)).
 - The package holds the Python bus client, metadata helper and version; copy the whole package, never only `debug.py`.
 - With explicit arguments `debug.py` runs one method and exits; KV, selftest and doctor need the serving process.
 

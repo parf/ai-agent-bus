@@ -83,10 +83,10 @@ Findings from the first runs, 2026-10-30:
 
 | Finding | Where it bites |
 |---|---|
-| the system runner's default sandbox needs `bubblewrap`, which the install needs do not list | every distribution: debug is refused until it is installed |
-| RHEL's sudo `secure_path` omits `/usr/local/bin` | AlmaLinux: `sudo agent-bus-setup` is not found, so the harness calls it by path |
-| debug serves itself, so its Owner registers it and hands the runner its token; [debug § installing it](../../docs/agents/debug.md#installing-it) says a reload grants it | any node following that page |
-| `GOARCH=arm64 src/package.sh` fails on x86_64 (`gspt` needs cgo) | aarch64 archives come only from a native runner |
+| the system runner's default sandbox needs `bubblewrap` | every distribution: debug is refused until it is installed; the install Needs now list it and install.sh warns |
+| RHEL's sudo `secure_path` omits `/usr/local/bin` | AlmaLinux: a bare `sudo agent-bus-setup` is not found; the docs and setup's hints now give the path |
+| debug serves itself, so its Owner registers it and hands the runner its token; [debug § installing it](../../docs/agents/debug.md#installing-it) said a reload grants it | any node following that page; corrected |
+| `GOARCH=arm64 src/package.sh` fails on x86_64 (`gspt` needs cgo) | aarch64 archives come only from a native runner; the Mac run list builds one |
 
 </details>
 
