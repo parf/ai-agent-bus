@@ -183,18 +183,21 @@ type delivery struct {
 }
 type work struct {
 	delivery
-	release func()
+	release     func()
+	selfRequest bool // accepted request id, not an answer sharing its call tag
 }
 type serving struct {
-	ctx        context.Context
-	pollCtx    context.Context
-	inbox      string
-	topic, tag string
-	polls      sync.WaitGroup
-	inflight   atomic.Int32
-	share      bool
-	slots      chan struct{}
-	ch         chan work
+	ctx         context.Context
+	pollCtx     context.Context
+	inbox       string
+	topic, tag  string
+	polls       sync.WaitGroup
+	selfCalls   sync.WaitGroup
+	selfWaiting atomic.Int32
+	inflight    atomic.Int32
+	share       bool
+	slots       chan struct{}
+	ch          chan work
 }
 type Bus struct {
 	client                        *http.Client
@@ -623,11 +626,30 @@ func (b *Bus) Call(ctx context.Context, to, body string, opts ...Option) (CallOu
 	if topic == "" {
 		topic = "call"
 	}
+	// Register with this serving generation before it can begin draining.
+	// A self request may be taken by the reply poll while all workers are busy.
+	var self *serving
+	if to == b.you && b.serving != nil && b.serving.ctx.Err() == nil && b.serving.inbox == b.you {
+		self = b.serving
+		self.selfCalls.Add(1)
+	}
 	p := &pending{inbox: inbox, topic: topic, tag: tag, ctx: ctx, ch: make(chan delivery, 32), poll: true}
 	b.pending[tag] = p
 	b.mu.Unlock()
 	b.wake()
-	defer func() { b.mu.Lock(); delete(b.pending, tag); b.mu.Unlock(); b.wake() }()
+	waitingSelf := false
+	defer func() {
+		b.mu.Lock()
+		delete(b.pending, tag)
+		b.mu.Unlock()
+		b.wake()
+		if self != nil {
+			if waitingSelf {
+				self.selfWaiting.Add(-1)
+			}
+			self.selfCalls.Done()
+		}
+	}()
 	options := []Option{WithTopic(topic), WithTag(tag), WithTTL(s.ttl), WithAsk(s.ask)}
 	if deadline, ok := ctx.Deadline(); ok {
 		options = append(options, WithWait(time.Until(deadline)))
@@ -657,6 +679,43 @@ func (b *Bus) Call(ctx context.Context, to, body string, opts ...Option) (CallOu
 				return out, d.err
 			}
 			m := d.msg
+			if m.Receipt == "" && m.Re == "" && m.ID == sent.ID {
+				// Send has returned before this loop, including messages queued
+				// during POST. Retain the request until a worker slot is free.
+				for self == nil {
+					b.mu.Lock()
+					if b.serving != nil && b.serving.ctx.Err() == nil && b.serving.inbox == m.To {
+						self = b.serving
+						self.selfCalls.Add(1)
+					}
+					b.mu.Unlock()
+					if self != nil {
+						break
+					}
+					select {
+					case <-ctx.Done():
+						return out, &ErrCallTimeout{out, ctx.Err()}
+					case <-b.ctx.Done():
+						return out, ErrClosed
+					case <-time.After(20 * time.Millisecond):
+					}
+				}
+				self.selfWaiting.Add(1)
+				waitingSelf = true
+				select {
+				case self.slots <- struct{}{}:
+					self.ch <- work{delivery: delivery{m, nil}, release: func() { <-self.slots }, selfRequest: true}
+					self.selfWaiting.Add(-1)
+					waitingSelf = false
+				case <-ctx.Done():
+					return out, &ErrCallTimeout{out, ctx.Err()}
+				case <-b.ctx.Done():
+					return out, ErrClosed
+				case <-self.pollCtx.Done():
+					return out, &ErrCallTimeout{out, self.pollCtx.Err()}
+				}
+				continue
+			}
 			if m.Receipt != "" && m.Re != sent.ID {
 				continue
 			}

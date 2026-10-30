@@ -66,7 +66,7 @@ func (b *Bus) dispatch() {
 				b.mu.Lock()
 				var match *pending
 				for _, candidate := range b.pending {
-					if candidate.inbox == m.To && candidate.topic == m.Topic && candidate.tag == m.Tag {
+					if candidate.topic == m.Topic && candidate.tag == m.Tag && (candidate.inbox == m.To || (m.From == b.you && m.Receipt == "" && m.Re == "")) {
 						match = candidate
 						break
 					}
@@ -84,7 +84,7 @@ func (b *Bus) dispatch() {
 				}
 			}
 			// The reserved slot guarantees buffer capacity, even on intake stop.
-			s.ch <- work{delivery{m, e}, release}
+			s.ch <- work{delivery: delivery{m, e}, release: release}
 			finishPoll()
 		} else if p != nil {
 			m, e := b.consumeWire(b.ctx, settings{inbox: p.inbox, topic: p.topic, tag: p.tag, wait: 100 * time.Millisecond})
@@ -148,7 +148,7 @@ func (b *Bus) Serve(ctx context.Context, handler func(context.Context, Envelope)
 			return
 		}
 		m := w.msg
-		if m == nil || m.Receipt != "" || m.Re != "" || strings.HasPrefix(m.Tag, b.prefix) {
+		if m == nil || m.Receipt != "" || m.Re != "" || (strings.HasPrefix(m.Tag, b.prefix) && !w.selfRequest) {
 			w.release()
 			return
 		}
@@ -228,7 +228,7 @@ func (b *Bus) Serve(ctx context.Context, handler func(context.Context, Envelope)
 	b.wake()
 	// Removal under the reader lock prevents further poll additions. All known
 	// successful in-flight takes are handed over before this channel closes.
-	go func() { s.polls.Wait(); close(s.ch) }()
+	go func() { s.polls.Wait(); s.selfCalls.Wait(); close(s.ch) }()
 	timer := time.NewTimer(o.drain)
 	defer timer.Stop()
 	ch := s.ch
@@ -247,7 +247,7 @@ func (b *Bus) Serve(ctx context.Context, handler func(context.Context, Envelope)
 			}
 		case <-timer.C:
 			cancelMessages()
-			return &ServeError{failed, active + len(s.ch) + int(s.inflight.Load()), cause}
+			return &ServeError{failed, active + len(s.ch) + int(s.inflight.Load()) + int(s.selfWaiting.Load()), cause}
 		}
 	}
 	if failed > 0 || cause != nil {
