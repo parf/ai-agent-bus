@@ -93,8 +93,33 @@ for archive in "$@"; do
       grep -aqF "$want" "$f" || bad "$p does not carry version $want"
     fi
   done
-  [ -x "$root/agent-bus-ts" ] || bad "agent-bus-ts missing or not executable"
-  grep -aqF "$want" "$root/agent-bus-ts" 2>/dev/null || bad "agent-bus-ts does not carry version $want"
+  # The compiled TypeScript parts are one program, run under its first argument:
+  # `mcp --version` and `launcher <runtime> --version` answer the release version
+  # alone (the web part has no version query and would start a server). Where it
+  # cannot run, its bytes are read as the Go programs' are. Either way the build
+  # stamp is in the binary.
+  ts="$root/agent-bus-ts"
+  if [ ! -x "$ts" ]; then
+    bad "agent-bus-ts missing or not executable"
+  else
+    if [ $native = yes ]; then
+      for ask in "mcp" "launcher claude"; do
+        # shellcheck disable=SC2086
+        got=$("$ts" $ask --version 2>/dev/null | sed -n 1p) || got=""
+        [ "$got" = "$want" ] || bad "agent-bus-ts $ask reports ${got:-nothing}, source is $want"
+      done
+    else
+      grep -aqF "$want" "$ts" 2>/dev/null || bad "agent-bus-ts does not carry version $want"
+    fi
+    grep -aqE '[A-Za-z0-9._-]+@[A-Za-z0-9._-]+ [0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}' "$ts" || bad "agent-bus-ts carries no build stamp"
+  fi
+  # The SSH forced command is a script that runs agent-bus: present and runnable.
+  if [ $edition = full ]; then
+    [ -x "$root/agent-bus-token" ] || bad "agent-bus-token missing or not executable"
+    if [ $native = yes ] && [ -x "$root/agent-bus-token" ]; then
+      [ "$("$root/agent-bus-token" --version 2>/dev/null | sed -n 1p)" = "$want" ] || bad "agent-bus-token does not report version $want"
+    fi
+  fi
   [ $fail = 0 ] && echo "release-verify: $name ok (version $want, $edition, $([ $native = yes ] && echo queried || echo read))"
 done
 exit $fail

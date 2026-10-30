@@ -84,7 +84,10 @@ mk() { # mk <dir> : a good full archive tree under <dir>/<name>
   for p in agent-bus agent-bus-runner agent-busd agent-bus-admin agent-bus-setup; do
     printf '#!/bin/sh\nprintf "%s\\nbuild_info: u@h 2026-01-01 00:00:00\\n"\n' $v >"$root/$p"; chmod +x "$root/$p"
   done
-  printf '#!/bin/sh\n# %s\n' $v >"$root/agent-bus-ts"; chmod +x "$root/agent-bus-ts"
+  # The compiled TypeScript program answers `mcp --version` and `launcher <runtime> --version` with the version alone,
+  # and carries its build stamp in its bytes; the stub does both.
+  printf '#!/bin/sh\n# u@h 2026-01-01 00:00:00\nprintf "%s\\n"\n' $v >"$root/agent-bus-ts"; chmod +x "$root/agent-bus-ts"
+  printf '#!/bin/sh\nexec "$(dirname "$0")/agent-bus" token "$@"\n' >"$root/agent-bus-token"; chmod +x "$root/agent-bus-token"
   (cd "$root" && find . -type f ! -name MANIFEST.sha256 -printf '%P\n' | sort | xargs sha256sum >MANIFEST.sha256)
 }
 pack() { tar -C "$1" -czf "$1/$name.tar.gz" "$name"; }
@@ -116,7 +119,14 @@ case_ unstamped 'has no build stamp' 'printf "#!/bin/sh\nprintf \"1.2.3\\nbuild_
 case_ altered 'agent-bus-runner reports 9.9.9' 'sed -i s/1.2.3/9.9.9/ agent-bus-runner'
 case_ nolicence 'licence LICENSE.md missing' 'rm LICENSE.md'
 case_ nonotice 'notices licenses/NOTICE.md missing' 'rm licenses/NOTICE.md'
-case_ ts-stale 'agent-bus-ts does not carry version' 'echo "#!/bin/sh" >agent-bus-ts'
+case_ ts-stale 'agent-bus-ts mcp reports nothing, source is 1.2.3' 'echo "#!/bin/sh" >agent-bus-ts'
+# The old stub, a comment holding the version: the file greps clean and answers nothing.
+case_ ts-comment-only 'agent-bus-ts mcp reports nothing, source is 1.2.3' 'printf "#!/bin/sh\n# 1.2.3 u@h 2026-01-01 00:00:00\n" >agent-bus-ts'
+case_ ts-wrong-answer 'agent-bus-ts mcp reports 9.9.9, source is 1.2.3' 'printf "#!/bin/sh\n# 1.2.3 u@h 2026-01-01 00:00:00\nprintf \"9.9.9\\n\"\n" >agent-bus-ts'
+case_ ts-unstamped 'agent-bus-ts carries no build stamp' 'printf "#!/bin/sh\nprintf \"1.2.3\\n\"\n" >agent-bus-ts'
+case_ ts-launcher-wrong 'agent-bus-ts launcher claude reports 9.9.9, source is 1.2.3' 'printf "#!/bin/sh\n# u@h 2026-01-01 00:00:00\ncase \"$1\" in mcp) echo 1.2.3;; *) echo 9.9.9;; esac\n" >agent-bus-ts'
+case_ no-token 'agent-bus-token missing or not executable' 'rm agent-bus-token'
+case_ token-stale 'agent-bus-token does not report version 1.2.3' 'printf "#!/bin/sh\necho 9.9.9\n" >agent-bus-token'
 case_ renamed 'missing expected archive: dist/agent-bus-1.2.4-linux-' 'echo 1.2.4 >"$SOURCE_VERSION"'
 # A macOS archive cannot run here even for this host's own CPU, so its binaries
 # are read: the version and a build stamp must be in them.
