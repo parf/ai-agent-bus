@@ -100,9 +100,10 @@ Plan for discussion of the note above: [shorter prompts](short-prompts.md#propos
   - State: built in 0.9.41; CLI `agent-bus may-send <name>`, shared target-admission function with Send; no queue, refusal counter or activity changes. The caller asks only for itself; Send keeps its ACL `403`, including invisible targets.
   - Verification: API parity for active/allowed, ACL/Personal refused, invisible, inactive, absent, external and User-inbox cases; CLI success/refusal; no on-behalf input. Enqueue and divergent-answer mutants compiled and failed assertions under `--slow go_checks`; restored full gate 1160/0.
 
-- ⏳ RT21 A client calling itself takes its own request as the answer
-  - Found by Codex #3 in B.13, 2026-10-19: the Python client's `Bus.call` to its own name consumes the request it just sent (the same inbox, topic and tag) as the correlated answer, before the handler runs. Check every client (RT8 conformance), not only Python
-  - Acceptance: an agent calling itself gets its handler's answer, never its own request echoed back; a conformance case per client. Mutant: correlation that ignores the reply marker
+- ✅ RT21 A client calling itself gets its handler's answer, never its own request
+  - Found by Codex #3 in B.13, 2026-10-19: the Python client's `Bus.call` to its own name consumes the request it just sent (the same inbox, topic and tag) as the correlated answer, before the handler runs. All six clients had it
+  - Built on `ab-w2a/RT21`, with #ab-w2c's RT8 Python, TypeScript and Go slices: an unmarked message carrying the call's own message ID is work for a free serving worker, drained like other taken work; PHP, serving one message at a time, runs its handler in the call and refuses outside `serve()`. Shared `self-call.json` runs in all six adapters, direct and through another reply inbox; red on the old code in each
+  - Mutants, 2026-10-30: the own-request check off in each client compiled and failed its self-call checks on assertions (Python 5, TypeScript 4, Go 3, Rust 2, Java 4, PHP 5)
 
 - ✅ J27 Lock waiters are served in arrival order ([issue](../issues/2026-10/2026-10-30.md#locks)) — **0.9.185**, `de98f55d`; deployed 2026-10-30 ([result](DONE.md#j27-lock-waiters-in-arrival-order))
 
