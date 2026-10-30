@@ -176,12 +176,33 @@ def podman(*args, check=True):
     return subprocess.run([*PODMAN, *args], check=check, capture_output=True, text=True)
 
 
+# A container run belongs to a gate or a mutant, which hold this lock; a run outside one is the stray that leaked (J32).
+LOCK = ('smoke-gate@parf.us', 'slow')
+
+
+def gate_held():
+    """Raise unless someone holds the smoke-gate lock: a holders answer that cannot be read is not a held lock."""
+    take = f'agent-bus lock {LOCK[0]} {LOCK[1]} --ttl=900s'
+    try:
+        said = subprocess.run(['agent-bus', 'holders', LOCK[0]], capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise RuntimeError(f'refused to start a container: cannot ask who holds the {LOCK[1]} lock on {LOCK[0]} ({error})')
+    if said.returncode:
+        raise RuntimeError(f'refused to start a container: agent-bus holders {LOCK[0]} failed (exit {said.returncode}): '
+                           f'{said.stderr.strip()}')
+    if not any(line.split()[:2] == list(LOCK) for line in said.stdout.splitlines()):   # "<record> <name> <holder> <left> left"
+        raise RuntimeError(f'refused to start a container: nobody holds the {LOCK[1]} lock on {LOCK[0]}; '
+                           f'a container run belongs to a gate or a mutant ({take})')
+
+
 def container(image, port, env, files=()):
     """Start a container with its port on a free loopback port; return (name, host port).
 
-    `files` are (host path, container path) pairs mounted read-only. The container's own log is capped, so a chatty
-    server cannot fill the disk; a watcher removes the container if this process dies without cleaning up.
+    Refused before any podman call unless someone holds the smoke-gate lock. `files` are (host path, container path)
+    pairs mounted read-only. The container's own log is capped, so a chatty server cannot fill the disk; a watcher
+    removes the container if this process dies without cleaning up.
     """
+    gate_held()
     with socket.socket() as s:
         s.bind(('127.0.0.1', 0))
         host_port = s.getsockname()[1]

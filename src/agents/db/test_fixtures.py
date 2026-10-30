@@ -46,6 +46,9 @@ class Patched(unittest.TestCase):
         saved_watch = fixtures.watch
         fixtures.watch = lambda *what: self.watched.append(what)   # no real watcher for a fake container
         self.addCleanup(lambda: setattr(fixtures, 'watch', saved_watch))
+        saved_held = fixtures.gate_held
+        fixtures.gate_held = lambda: None   # a fake container needs no gate; Lock tests the real check
+        self.addCleanup(lambda: setattr(fixtures, 'gate_held', saved_held))
         fixtures.START_SECONDS = 0.05
         self.addCleanup(lambda: setattr(fixtures, 'START_SECONDS', 45))
         self.addCleanup(lambda: setattr(fixtures, 'podman', self.saved[0]) or setattr(fixtures, 'container', self.saved[1])
@@ -276,6 +279,59 @@ class Leaks(Patched):
             self.addCleanup(lambda p=path: __import__('shutil').rmtree(p, ignore_errors=True))
         fixtures.sweep()
         self.assertEqual([p.exists() for p in made], [False, False, True])
+
+
+class Lock(Patched):
+    """No container starts unless someone holds the smoke-gate lock (J32): a stub agent-bus answers holders."""
+    HELD = 'smoke-gate@parf.us slow #ab-gate 14m left'
+
+    def setUp(self):
+        super().setUp()
+        fixtures.gate_held = Lock.real_held   # Patched stubbed it; this class checks the real one
+        self.dir = Path(fixtures.SCRATCH) / f'ab-db-lock-{fixtures.RUN}-{self.id().rsplit(".", 1)[1]}'
+        self.dir.mkdir(parents=True, exist_ok=True)
+        self.addCleanup(lambda: __import__('shutil').rmtree(self.dir, ignore_errors=True))
+        self.asked = self.dir / 'asked'
+        stub = self.dir / 'agent-bus'
+        stub.write_text('#!/bin/sh\necho "$*" >>"$ASKED"\nprintf "%s" "$SAY"\nexit "${RC:-0}"\n')
+        stub.chmod(0o755)
+        self.env = {'PATH': f'{self.dir}:{os.environ["PATH"]}', 'ASKED': str(self.asked)}
+        self.fake = fixtures.podman = FakePodman()
+
+    def start(self, say, rc=0):
+        saved = dict(os.environ)
+        os.environ.update(self.env, SAY=say, RC=str(rc))
+        try:
+            return self.quiet(fixtures.container, 'image', 5432, {})
+        finally:
+            os.environ.clear()
+            os.environ.update(saved)
+
+    def refused(self, say, rc=0):
+        result, _ = self.start(say, rc)
+        self.assertIsInstance(result, RuntimeError)
+        self.assertIn('refused to start a container', str(result))
+        self.assertEqual(self.fake.calls, [], 'podman was called before the lock was checked')
+        self.assertEqual(self.asked.read_text(), 'holders smoke-gate@parf.us\n')   # it asked, once, about the right record
+        return str(result)
+
+    def test_nobody_holding_the_lock_refuses_before_any_podman_call(self):
+        self.assertIn('nobody holds the slow lock on smoke-gate@parf.us', self.refused('smoke-gate@parf.us holds no locks\n'))
+
+    def test_another_lock_on_the_record_is_not_the_gate(self):
+        self.refused('smoke-gate@parf.us fast #ab-w1a 3m left\n')
+
+    def test_a_failing_holders_answer_refuses(self):
+        self.assertIn('failed (exit 1)', self.refused(self.HELD + '\n', rc=1))
+
+    def test_a_held_lock_lets_the_run_proceed(self):
+        result, _ = self.start(self.HELD + '\n')
+        self.assertIsInstance(result, tuple, result)
+        self.assertTrue(result[0].startswith(f'ab-db-fixture-{fixtures.RUN}-'))
+        self.assertEqual(len(self.fake.verbs('run')), 1)
+
+
+Lock.real_held = fixtures.gate_held
 
 
 class Identity(unittest.TestCase):
