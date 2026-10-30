@@ -47,7 +47,7 @@ if [ -n "$signers" ]; then
       <"$rel/SHA256SUMS" >/dev/null 2>&1 || bad "SHA256SUMS.sig does not verify"
     for f in "$@"; do
       b=$(basename "$f")
-      [ -f "$f" ] && { grep -qx "$(cd "$rel" && sha256sum "$b")" "$rel/SHA256SUMS" || bad "$b does not match SHA256SUMS"; }
+      [ -f "$f" ] && { grep -qxF "$(cd "$rel" && sha256sum "$b")" "$rel/SHA256SUMS" || bad "$b does not match SHA256SUMS"; }
     done
     [ "$(wc -l <"$rel/SHA256SUMS")" = $# ] || bad "SHA256SUMS does not list exactly the $# archives"
   else

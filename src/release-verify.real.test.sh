@@ -37,7 +37,14 @@ expect_fail missing 'is missing' "$work/missing"
 # Signed by a key the signers file does not name.
 t badsig; sign "$work/badsig" "$work/other"
 expect_fail badsig 'SHA256SUMS.sig does not verify' "$work/badsig"
+# A signed list that names the right hash under a name differing at a dot:
+# the archive's name is text, not a pattern, so it does not match.
+t dotname
+sed -i -E 's/(agent-bus-client-[0-9]+)\./\1x/' "$work/dotname/SHA256SUMS"
+rm "$work/dotname/SHA256SUMS.sig"
+(cd "$work/dotname" && ssh-keygen -Y sign -q -f "$work/key" -n agent-bus-release SHA256SUMS)
+expect_fail dotname 'does not match SHA256SUMS' "$work/dotname"
 # An unsigned release.
 t nosig; rm "$work/nosig/SHA256SUMS.sig"
 expect_fail nosig 'SHA256SUMS or SHA256SUMS.sig is missing' "$work/nosig"
-echo 'real package.sh archives: pass signed; fail tampered, missing, wrongly signed, unsigned'
+echo 'real package.sh archives: pass signed; fail tampered, missing, wrongly signed, renamed, unsigned'

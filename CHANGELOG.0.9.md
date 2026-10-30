@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.179 — 2026-10-30
+
+release-verify matches the signed SHA256SUMS line literally, so a name differing at a dot is refused; Mac check dated 10-30
+
 ## 0.9.178 — 2026-10-30
 
 three-distro rootless podman install acceptance; bubblewrap listed in install needs; full setup path in hints; install defences tested
