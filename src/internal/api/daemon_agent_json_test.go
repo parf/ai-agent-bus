@@ -113,6 +113,13 @@ func TestBusStatusJSONIsTheDaemonsStatusForTheCaller(t *testing.T) {
 		if kinds[protocol.KindAgent] != float64(2+1) || kinds[protocol.KindQueue] != float64(1) || kinds[protocol.KindPubSub] != float64(1) {
 			t.Fatalf("records by kind: %v", kinds) // #worker, #hidden and the built-in #bus; not #suspended
 		}
+		total := 0.0
+		for _, n := range kinds {
+			total += n.(float64)
+		}
+		if got["records"] != total || got["records"] != float64(b.Status().Records) {
+			t.Fatalf("records are the live records of every kind: %v, kinds add to %v, node says %d", got["records"], total, b.Status().Records)
+		}
 		if got["you"] == "" {
 			t.Fatal("no caller named")
 		}
