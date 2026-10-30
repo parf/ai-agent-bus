@@ -1,25 +1,30 @@
 # Agents your team can use
 
-📌 **TL;DR:** Ready-made helpers let people and their AI assistants send
-messages, check servers and work with code through the bus. An administrator
-installs a helper once and chooses who may use it; people and AIs then call it
-by name and never see its passwords.
+📌 **TL;DR:**
+- **Problem:** your AI assistants and teammates need mail, chat, servers, code and data, and handing out the passwords or a server login is risky.
+- **Outcome:** ready-made helpers do the job under their own name; an administrator installs one once and chooses who may use it, and people and AIs call it by name and never see its passwords.
+- **Start:** pick a job in [Choose an agent](#choose-an-agent), then ask the helper what it can do: `agent-bus help '#<helper>'`.
 
-## What the bus gives your team
+## Why you want these helpers
 
-| Idea | In practice |
-|---|---|
-| One name per job | `#systemd`, `#smtp/work`: callers ask the helper, not the server |
-| Keys stay put | Provider keys and passwords live with the helper; callers only get its answers |
-| Access per job | Grant a person or AI one helper, or one role on it, rather than a host login |
-| Helpers combine | An AI can read from one helper, decide with another and post through a third |
+- 🔑 **Passwords spread everywhere.** Now they stay with the helper; callers only get its answers.
+- 🧱 **A login gives too much.** Now you grant one helper, or one role on it, per person or AI.
+- 🧩 **Each tool is its own island.** Now an AI reads from one helper, decides with another and posts through a third.
+- 🗂️ **One account for everybody.** Now each team gets its own instance with its own settings and access.
+
+## What you get
+
+- ✅ **One name per job:** `#systemd`, `#smtp/work`; callers ask the helper, not the server.
+- ✅ **Keys stay put:** provider keys and passwords live with the helper.
+- ✅ **Access per job:** grant a person or AI one helper, or one role on it, rather than a host login.
+- ✅ **Helpers combine:** [incoming events](#incoming-events-go-to-a-queue-or-an-agent) flow into queues or AI sessions, as in the [mail help desk](#example-a-mail-help-desk).
+- ✅ **Many instances:** [run as many as you need](#run-as-many-instances-as-you-need).
 
 ## Run as many instances as you need
 
-Most helpers can run as **many instances**, side by side (`#bus` is the exception). Each instance is its
-own agent on the bus, `#<helper>/<name>`, with **its own settings, its own
-passwords and its own access list**. Give a person or an AI exactly the instance
-it needs and nothing else.
+- Most helpers can run as **many instances**, side by side (`#bus` is the exception).
+- Each instance is its own agent on the bus, `#<helper>/<name>`, with **its own settings, its own passwords and its own access list**.
+- Give a person or an AI exactly the instance it needs and nothing else.
 
 | Instances | Why |
 |---|---|
@@ -29,14 +34,11 @@ it needs and nothing else.
 | `#cron/team`, `#cron/ops` | One per trust group, so a destination allows only the group it trusts |
 | `#systemd/web` | Only the web units, for the web team |
 
-Adding an instance is a settings change, not new code: for a runner helper see
-[several configurations](../runner/agents.md#give-one-package-several-configurations);
-a standalone helper is installed again under another `--name`.
+Adding an instance is a settings change, not new code: for a runner helper see [several configurations](../runner/agents.md#give-one-package-several-configurations); a standalone helper is installed again under another `--name`.
 
 ## Incoming events go to a queue or an agent
 
-Helpers that receive something from outside, such as a chat message, a log line
-or a mail, hand it to a destination you choose. That destination is either a
+Helpers that receive something from outside, such as a chat message, a log line or a mail, hand it to a destination you choose. That destination is either a
 **queue** (an [inbox](../04-messaging.md#inbox-queues) that keeps messages until
 someone reads them) or an **agent** directly, which may be an AI session.
 
@@ -50,18 +52,13 @@ someone reads them) or an **agent** directly, which may be an AI session.
 | [Cron](cron.md#what-it-does) | A scheduled or delayed message to a queue or agent |
 | [At](at.md#what-it-does) | One deferred message to a queue or agent |
 
-A queue suits work that may wait or is shared by several readers. An agent suits
-work one helper or AI should handle right away.
+A queue suits work that may wait or is shared by several readers. An agent suits work one helper or AI should handle right away.
 
-Subscriptions in every helper are meant to work one way: who may add one,
-what a refused copy does, what `sub list` shows
-([subscriptions § the shared behaviour](subscriptions.md#the-shared-behaviour)).
+Subscriptions in every helper are meant to work one way: who may add one, what a refused copy does, what `sub list` shows ([subscriptions § the shared behaviour](subscriptions.md#the-shared-behaviour)).
 
 ### Example: a mail help desk
 
-Questions from customers come in by mail. A help system written as an Obsidian
-vault (a folder of Markdown pages) answers most of them, and an AI that cannot
-do anything else sorts the mail and replies.
+Questions from customers come in by mail. A help system written as an Obsidian vault (a folder of Markdown pages) answers most of them, and an AI that cannot do anything else sorts the mail and replies.
 
 | Step | Helper |
 |---|---|
@@ -71,23 +68,17 @@ do anything else sorts the mail and replies.
 | 4. Reply to the customer | [`#smtp`](smtp.md#what-it-does) `send`, with a recipient allowlist if wanted |
 | 5. Alert a person when it matters | [`#slack`](slack.md#what-it-does) `post` or [`#sms-telnyx`](sms.md#what-it-does) |
 
-"Sandboxed" here means the AI holds grants for these few helpers and nothing
-else, so it can read mail and reply, but cannot touch servers, code or other
-accounts. Mail content is untrusted: `#imap` marks every published mail as
-external content, not instructions.
+- "Sandboxed" here means the AI holds grants for these few helpers and nothing else, so it can read mail and reply, but cannot touch servers, code or other accounts.
+- Mail content is untrusted: `#imap` marks every published mail as external content, not instructions.
 
-A subscription forwards each new mail by itself; nothing is forwarded until
-someone adds one, and the queue's access list must allow `#imap`.
+A subscription forwards each new mail by itself; nothing is forwarded until someone adds one, and the queue's access list must allow `#imap`.
 
 ## How to pick one
 
-- **What job?** Pick the helper named for it below; each page opens with when
-  to use it and when not to.
-- **Who installs it?** The table under [Choose an agent](#choose-an-agent) says
-  whether it needs an administrator, a runner or nothing at all.
+- **What job?** Pick the helper named for it below; each page opens with when to use it and when not to.
+- **Who installs it?** The table under [Choose an agent](#choose-an-agent) says whether it needs an administrator, a runner or nothing at all.
 - **Who may call it?** Most start owner-only; the Owner grants people and AIs.
-- **One for everybody, or one each?** Run a separate [instance](#run-as-many-instances-as-you-need)
-  per account, team or site list, each with its own settings and access.
+- **One for everybody, or one each?** Run a separate [instance](#run-as-many-instances-as-you-need) per account, team or site list, each with its own settings and access.
 
 ## What a guide leaves out
 
@@ -124,8 +115,7 @@ One line each, from the description its `help` prints.
 
 ## Choose an agent
 
-An **agent** is a small helper with a name, such as `#systemd@node.example`.
-The **runner** keeps some helpers running; others have their own Linux service.
+An **agent** is a small helper with a name, such as `#systemd@node.example`. The **runner** keeps some helpers running; others have their own Linux service.
 
 | Agent | How it runs | Who sets it up / who uses it |
 |---|---|---|
@@ -154,8 +144,7 @@ The **runner** keeps some helpers running; others have their own Linux service.
 
 ## Use examples
 
-Your Claude Code, Codex or OpenCode session must be connected to the bus, and
-can only use the helpers and actions it is granted.
+Your Claude Code, Codex or OpenCode session must be connected to the bus, and can only use the helpers and actions it is granted.
 
 | Say this to your AI | What it calls |
 |---|---|
@@ -167,37 +156,31 @@ can only use the helpers and actions it is granted.
 | "Mail the team the nightly build report." | SMTP `send` |
 | "Post to Telegram that the deploy finished." | Telegram `post`; you can answer from your phone |
 
-Writing your own agent? Use the [prompt for your coding AI](create-agent-prompt.md#prompt-to-paste)
-and the [description and help checklist](authoring.md#checklist-writing-an-agents-description-and-help).
+Writing your own agent? Use the [prompt for your coding AI](create-agent-prompt.md#prompt-to-paste) and the [description and help checklist](authoring.md#checklist-writing-an-agents-description-and-help).
 
-## Before you install
+## Technical details
 
-An administrator does this part. The bus and CLI must already be
-[installed](../07-setup.md#install). Pages use example names such as
-`node.example`; replace them with your server and account.
+### Before you install
+
+An administrator does this part. The bus and CLI must already be [installed](../07-setup.md#install). Pages use example names such as `node.example`; replace them with your server and account.
 
 <details><summary>Running from a checkout or a release archive</summary>
 
-Run commands from the checkout root. From a release archive, replace
-`src/agents/` with `/usr/local/lib/agent-bus/current/agents/`; Slack and Telegram
-are bundled there, so copy their folders to the runner's shared code directory
-instead of running `package.sh` (see [installed layout](../07-setup.md#install)).
+- Run commands from the checkout root.
+- From a release archive, replace `src/agents/` with `/usr/local/lib/agent-bus/current/agents/`;
+- Slack and Telegram are bundled there, so copy their folders to the runner's shared code directory instead of running `package.sh` (see [installed layout](../07-setup.md#install)).
 
 </details>
 
 ### Runner helpers
 
-Helpers marked "Runner" above need [a person's runner](../07-setup.md#a-persons-runner)
-(a background program that keeps a person's helpers running), such as
-`#runner/ann@node.example` running as `ann-ab-runner`. Its shared code
-directory is `/var/lib/agent-bus/agent.d`; its private settings are in
-`/var/lib/agent-bus/ann-ab-runner`. Installing helper code needs sudo.
+- Helpers marked "Runner" above need [a person's runner](../07-setup.md#a-persons-runner) (a background program that keeps a person's helpers running), such as `#runner/ann@node.example` running as `ann-ab-runner`.
+- Its shared code directory is `/var/lib/agent-bus/agent.d`; its private settings are in `/var/lib/agent-bus/ann-ab-runner`.
+- Installing helper code needs sudo.
 
 ### Standalone helpers
 
-Systemd, git, server-info, logwatch and tmux-sessions have their own Linux
-services. Their installers need sudo and your current bus credentials; they
-save only the helper's own credential, never yours.
+Systemd, git, server-info, logwatch and tmux-sessions have their own Linux services. Their installers need sudo and your current bus credentials; they save only the helper's own credential, never yours.
 
 <details><summary>Getting your credentials for an installer</summary>
 
@@ -206,8 +189,7 @@ save only the helper's own credential, never yours.
 | Another computer | `ssh agent-busd@<node> token --fingerprint` | `ssh agent-busd@<node> token` |
 | The bus server itself | `agent-bus token --fingerprint` | `agent-bus token` |
 
-On the server, `agent-bus token` uses your login socket's identity; without one,
-pass the name, such as `agent-bus token ann`. Then:
+On the server, `agent-bus token` uses your login socket's identity; without one, pass the name, such as `agent-bus token ann`. Then:
 
 ```sh
 export AGENT_BUS_ADDR=https://bus.example.com:6767
@@ -216,32 +198,24 @@ read -rsp 'Your bus token: ' AGENT_BUS_TOKEN; printf '\n'
 export AGENT_BUS_TOKEN
 ```
 
-On the bus server itself, the plain HTTP address the bus listens on (such as
-`http://127.0.0.1:6767`) works without a fingerprint; the token is still needed.
-Unix socket paths are not accepted; see [remote access](../02-access-remote.md#over-https).
+- On the bus server itself, the plain HTTP address the bus listens on (such as `http://127.0.0.1:6767`) works without a fingerprint; the token is still needed.
+- Unix socket paths are not accepted; see [remote access](../02-access-remote.md#over-https).
 
-Run `unset AGENT_BUS_TOKEN` afterwards. Removal needs your credentials again;
-see [installer lifecycle](../../src/agents/standalone/starter.md#lifecycle).
+Run `unset AGENT_BUS_TOKEN` afterwards. Removal needs your credentials again; see [installer lifecycle](../../src/agents/standalone/starter.md#lifecycle).
 
 </details>
 
-## Settings and passwords
+### Settings and passwords
 
 **Configuration** holds ordinary settings: destinations, people, allowed units.
 **Secret** keys are outside passwords such as bot tokens; never put them in
-Configuration. Each agent page lists its keys and where they go; the two secret
-stores, bus Secret and the runner's private files, are compared in
-[runner security](../runner/security.md#secrets).
+Configuration. Each agent page lists its keys and where they go; the two secret stores, bus Secret and the runner's private files, are compared in [runner security](../runner/security.md#secrets).
 
-For [systemd](systemd.md#who-may-use-it) and [Git](git.md#who-may-use-it), the
-Owner and Maintainers can do everything; give others a role. Configured unit and
-repository limits still apply to everyone.
+For [systemd](systemd.md#who-may-use-it) and [Git](git.md#who-may-use-it), the Owner and Maintainers can do everything; give others a role. Configured unit and repository limits still apply to everyone.
 
-## Warnings and alerts
+### Warnings and alerts
 
-Each agent keeps a short record of what went wrong, at three levels, for its
-Owner and Maintainers to see on its web page; callers on its access list see
-none of it and get their own error answers. This is in work.
+Each agent keeps a short record of what went wrong, at three levels, for its Owner and Maintainers to see on its web page; callers on its access list see none of it and get their own error answers.
 
 | Level | Means | Shown | Every runner agent gets |
 |---|---|---|---|
@@ -249,5 +223,4 @@ none of it and get their own error answers. This is in work.
 | warning | Something went wrong, but it still does its job | Quieter | Each line it writes to its error output |
 | notice | Ordinary news | Folded away | Started, stopped |
 
-Old entries expire. Agents with their own Linux service, and `#bus`, get no
-runner entries. Each agent's page lists its own under **Warnings and alerts**.
+Old entries expire. Agents with their own Linux service, and `#bus`, get no runner entries. Each agent's page lists its own under **Warnings and alerts**.
