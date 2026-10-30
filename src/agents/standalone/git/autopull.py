@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Channel-driven updates and their bounded, per-checkout result lifecycle."""
+import copy
+import selectors
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 import hashlib
@@ -35,14 +37,123 @@ def state_directory():
     return g.state_directory()
 
 
-def after_attempt(repo, checkout, record, publish):
-    """Script extension: called under checkout lock after one publication attempt.
+SCRIPT_SECONDS = 30
+HOOK_SECONDS = 60
+SCRIPT_INPUT_MAX = 16 * 1024
 
-    repo is the validated entry; checkout is a verified worktree Path. publish
-    returns acceptance/no-op True, delivery failure False, never retries. The
-    extension has a separate 60s budget (at most two 30s process-group runs).
-    No hook runs when no checkout lock was acquired or root verification failed.
+
+def _kill_script(child):
+    try: os.killpg(child.pid, signal.SIGKILL)
+    except ProcessLookupError: pass
+
+
+def script_environment():
+    """No bus credentials, SSH agent, Git settings or caller environment."""
+    runtime = '/run/user/' + str(os.geteuid())
+    return {'PATH':'/usr/bin:/bin', 'HOME':str(Path.home()), 'LANG':'C.UTF-8',
+            'XDG_STATE_HOME':str(state_directory().parent), 'XDG_RUNTIME_DIR':runtime,
+            'DBUS_SESSION_BUS_ADDRESS':'unix:path=' + runtime + '/bus'}
+
+
+def run_script(name, checkout, record, deadline):
+    """Execute a held trusted fd; bound stdin/time and drain, never retain floods."""
+    started = time.monotonic()
+    fd = child = None
+    stderr_seen, preview, line_done = False, bytearray(), False
+    result, diagnostic, timed_out = 127, 'script could not be started', False
+    try:
+        payload = json.dumps(record, separators=(',', ':'), ensure_ascii=False).encode()
+        if len(payload) > SCRIPT_INPUT_MAX:
+            raise ValueError('script input exceeds limit')
+        fd = g.open_script(name)
+        g.recheck_script(fd, name)
+        if time.monotonic() >= deadline:
+            timed_out = True
+        else:
+            child = subprocess.Popen([name], executable='/proc/self/fd/' + str(fd),
+                pass_fds=(fd,), cwd=checkout, env=script_environment(),
+                stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                start_new_session=True, close_fds=True, umask=0o077)
+            diagnostic = None
+            offset, stopped, drain_until = 0, False, None
+            with selectors.DefaultSelector() as poll:
+                for stream, mode in ((child.stdin, selectors.EVENT_WRITE), (child.stderr, selectors.EVENT_READ)):
+                    os.set_blocking(stream.fileno(), False)
+                    poll.register(stream, mode)
+                def close(stream):
+                    try: poll.unregister(stream)
+                    except KeyError: pass
+                    stream.close()
+                while poll.get_map() or child.poll() is None:
+                    now = time.monotonic()
+                    if now >= deadline:
+                        timed_out = True
+                        _kill_script(child)
+                        break
+                    if child.poll() is not None and not stopped:
+                        # A successful leader may leave pipe-holding children.
+                        _kill_script(child); stopped = True
+                        drain_until = min(deadline, now + .1)
+                        if not child.stdin.closed: close(child.stdin)
+                    if drain_until is not None and now >= drain_until: break
+                    for key, _ in poll.select(min(.05, max(0, deadline - now))):
+                        stream = key.fileobj
+                        if stream is child.stdin:
+                            try: offset += os.write(stream.fileno(), payload[offset:offset + 4096])
+                            except BrokenPipeError: offset = len(payload)
+                            if offset >= len(payload): close(stream)
+                        else:
+                            chunk = os.read(stream.fileno(), 65536)
+                            if not chunk:
+                                close(stream); continue
+                            stderr_seen = True
+                            if not line_done:
+                                ends = [index for index in (chunk.find(b'\n'), chunk.find(b'\r')) if index >= 0]
+                                prefix = chunk[:min(ends)] if ends else chunk
+                                preview.extend(prefix[:max(0, 800 - len(preview))])
+                                line_done = bool(ends) or len(preview) >= 800
+                _kill_script(child)
+                try: result = child.wait(timeout=.5)
+                except subprocess.TimeoutExpired: timed_out = True
+    except (OSError, ValueError, subprocess.SubprocessError):
+        diagnostic = 'script could not be started'
+    finally:
+        if child is not None:
+            _kill_script(child)
+            try: child.wait(timeout=.5)
+            except subprocess.TimeoutExpired: pass
+            for stream in (child.stdin, child.stderr):
+                if stream is not None: stream.close()
+        if fd is not None: os.close(fd)
+    stderr = preview.decode('utf-8', errors='replace')[:200] if stderr_seen else diagnostic
+    return {'exit':None if timed_out else result, 'stderr':stderr,
+            'ms':int((time.monotonic() - started) * 1000)}
+
+
+def after_attempt(repo, checkout, record, publish):
+    """At most two scripts under the core checkout lock, after publication.
+
+    Optional log refusal never gates execution. A failed fail-script gets its
+    own record but never recursively fires itself. Scripts share a 60s hook
+    budget, each run at most 30s, plus bounded kill/reap cleanup. Children that
+    deliberately setsid escape a process group; these are host-admin programs,
+    not a sandbox for untrusted code. Runner resource limits stay inherited.
     """
+    run = {'ok':'success', 'fail':'fail'}.get(record['result'])
+    deadline, current = time.monotonic() + HOOK_SECONDS, copy.deepcopy(record)
+    while run is not None:
+        name = repo.get('autopull-' + run + '-script')
+        if not name: return
+        outcome = run_script(name, checkout, current, min(deadline, time.monotonic() + SCRIPT_SECONDS))
+        if outcome['exit'] == 0 and outcome['stderr'] is None: return
+        failure = copy.deepcopy(current)
+        failure.update(action='script', result='fail', script={'run':run, **outcome},
+            error={'code':'script', 'text':'post-attempt script failed'},
+            at=datetime.now().astimezone().isoformat(timespec='seconds'), ms=outcome['ms'])
+        try: publish(failure)
+        except Exception: print('git: script log publish failed or unknown', file=sys.stderr)
+        current = failure
+        run = 'fail' if run == 'success' else None
 
 
 def remote_path(origin):

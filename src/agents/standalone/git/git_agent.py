@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import re
 import signal
+import stat
 import shlex
 import subprocess
 import sys
@@ -167,7 +168,7 @@ def configuration(raw=None, *, identity=None):
         try:
             if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]{0,63}', name):
                 raise ValueError('invalid name')
-            if not isinstance(entry, dict) or set(entry) - {'path','access','branch','mode','follow'}:
+            if not isinstance(entry, dict) or set(entry) - {'path','access','branch','mode','follow','autopull-success-script','autopull-fail-script'}:
                 raise ValueError('expected path, access and optional branch, mode, follow')
             path = entry.get('path')
             if not isinstance(path, str) or not Path(path).is_absolute() or '\x00' in path:
@@ -181,6 +182,10 @@ def configuration(raw=None, *, identity=None):
                 raise ValueError('mirror/follow requires access deploy or commit')
             if entry.get('follow') and not config.get('autopull-cmd'):
                 raise ValueError('follow requires autopull-cmd')
+            for key in ('autopull-success-script', 'autopull-fail-script'):
+                if key in entry:
+                    fd = open_script(entry[key])
+                    os.close(fd)
         except (ValueError, TypeError) as error:
             raise ValueError(f'Configuration repos {name!r}: {error}') from error
     return config
@@ -250,6 +255,121 @@ def state_directory():
     return Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state'))) / 'agent-bus-git'
 
 
+def _trusted(info, directory=False):
+    kind = stat.S_ISDIR if directory else stat.S_ISREG
+    if (not kind(info.st_mode) or info.st_uid not in (0, os.geteuid())
+            or info.st_mode & 0o022 or info.st_mode & (stat.S_ISUID | stat.S_ISGID)
+            or not directory and not info.st_mode & 0o111):
+        raise ValueError('post-attempt script or directory is not trusted')
+
+
+def _trusted_open(path, *, directory=False):
+    """Walk all parents with nofollow; never block opening a special file."""
+    path = Path(path)
+    if not path.is_absolute() or '..' in path.parts:
+        raise ValueError('post-attempt script path is invalid')
+    current = os.open('/', os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        _trusted(os.fstat(current), True)
+        for index, part in enumerate(path.parts[1:]):
+            folder = index < len(path.parts) - 2 or directory
+            flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
+            if folder: flags |= os.O_DIRECTORY
+            child = os.open(part, flags, dir_fd=current)
+            os.close(current); current = child
+            _trusted(os.fstat(current), folder)
+        return current
+    except BaseException:
+        os.close(current)
+        raise
+
+
+def _resolve_trusted(path):
+    """Check each alias namespace too, not only its eventual target."""
+    path = Path(path)
+    if not path.is_absolute(): raise ValueError('script interpreter path is not absolute')
+    current, pending, links, steps = Path('/'), list(path.parts[1:]), 0, 0
+    _trusted(os.stat('/'), True)
+    while pending:
+        steps += 1
+        if steps > 256: raise ValueError('script path resolution is too deep')
+        part = pending.pop(0)
+        if part == '.': continue
+        if part == '..':
+            current = current.parent
+            continue
+        child = current / part
+        info = os.lstat(child)
+        if stat.S_ISLNK(info.st_mode):
+            links += 1
+            if links > 40 or info.st_uid not in (0, os.geteuid()):
+                raise ValueError('script alias is not trusted')
+            target = Path(os.readlink(child))
+            if target.is_absolute(): current = Path('/')
+            pending = list(target.parts[1:] if target.is_absolute() else target.parts) + pending
+            continue
+        _trusted(info, bool(pending))
+        current = child
+    return current
+
+
+def _script_executable(fd, depth=0):
+    if depth > 4:
+        raise ValueError('post-attempt script interpreter chain is too deep')
+    header = os.pread(fd, 512, 0)
+    if header.startswith(b'\x7fELF'):
+        return
+    first = header.split(b'\n', 1)[0]
+    if not first.startswith(b'#!') or len(first) > 255:
+        raise ValueError('post-attempt script must be executable ELF or have a shebang')
+    words = first[2:].strip().split()
+    if not words:
+        raise ValueError('post-attempt script has no interpreter')
+    interpreter = Path(os.fsdecode(words[0]))
+    if not interpreter.is_absolute():
+        raise ValueError('post-attempt script interpreter must be absolute')
+    # System interpreter aliases (e.g. /bin/sh) may resolve to a trusted ELF.
+    interpreter = _resolve_trusted(interpreter)
+    handle = _trusted_open(interpreter)
+    try: _script_executable(handle, depth + 1)
+    finally: os.close(handle)
+
+
+def open_script(name):
+    """Configuration chooses only an admin-installed file within autopull.d."""
+    if (not isinstance(name, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,127}', name)
+            or '..' in name):
+        raise ValueError('post-attempt script must be a bare file name in autopull.d')
+    fd = rootfd = None
+    try:
+        root = state_directory() / 'autopull.d'
+        rootfd = _trusted_open(root, directory=True)
+        target = _resolve_trusted(root / name)
+        if not target.is_relative_to(root) or target == root:
+            raise ValueError('post-attempt script must stay inside autopull.d')
+        fd = _trusted_open(target)
+        root_stat = os.stat(root, follow_symlinks=False)
+        if (root_stat.st_dev, root_stat.st_ino) != (os.fstat(rootfd).st_dev, os.fstat(rootfd).st_ino):
+            raise ValueError('post-attempt script directory changed')
+        _script_executable(fd)
+        return fd
+    except (OSError, ValueError, RuntimeError):
+        if fd is not None: os.close(fd)
+        raise ValueError('post-attempt script is unavailable or untrusted') from None
+    finally:
+        if rootfd is not None: os.close(rootfd)
+
+
+def recheck_script(fd, name):
+    _trusted(os.fstat(fd))
+    current = open_script(name)
+    try:
+        before, after = os.fstat(fd), os.fstat(current)
+        if (before.st_dev, before.st_ino) != (after.st_dev, after.st_ino):
+            raise ValueError('post-attempt script changed before execution')
+    finally: os.close(current)
+
+
 def autopull_file(root):
     return state_directory() / ('autopull-' + hashlib.sha256(str(root).encode()).hexdigest() + '.json')
 
@@ -279,12 +399,14 @@ def store_autopull(path, result):
         if os.path.exists(tmp): os.unlink(tmp)
 
 
-def execute(repos, call, *, automatic=False):
+def execute(repos, call):
     method = call['method']
     if tier() < TIERS[method]:
         raise ValueError('requires ' + ('commit' if TIERS[method] == 2 else 'deploy') + ' role')
     if method == 'list':
         return {'repos': sorted(repos), 'stdout': '\n'.join(sorted(repos)), 'status': 0}
+    if method == 'deploy':
+        raise ValueError('updates use channel-driven autopull')
     name = call['repo']
     if name not in repos:
         raise ValueError('undeclared repository: ' + name)
@@ -303,11 +425,11 @@ def execute(repos, call, *, automatic=False):
     # Each invocation takes a lock outside the work tree; parallel calls from
     # this instance cannot interleave multi-command deploys.
     with checkout_lock(root, time.monotonic() + COMMAND_TIMEOUT):
-        branch = repository_branch(root, declared, env) if method in ('fetch','reset','deploy') else None
-        return operation(root, branch, call, paths, file, env, automatic=automatic)
+        branch = repository_branch(root, declared, env) if method in ('fetch','reset') else None
+        return operation(root, branch, call, paths, file, env)
 
 
-def operation(root, branch, call, paths, file, env, *, automatic=False):
+def operation(root, branch, call, paths, file, env):
     method = call['method']
     def run(*args): return git(root, list(args), env)
     def text(*args): return run(*args)['stdout'].strip()
@@ -326,20 +448,12 @@ def operation(root, branch, call, paths, file, env, *, automatic=False):
     if method == 'push': return run('push')
     if method == 'clean': return run('clean', '-fd', '--')
     if method == 'reset': return run('reset', '--hard', text('rev-parse', '--verify', '--end-of-options', branch + '@{upstream}^{commit}'), '--')
-    if automatic and text('status', '--porcelain', '--untracked-files=all'):
-        raise ValueError('dirty working tree; autopull refused')
     old = text('rev-parse', '--verify', 'HEAD')
     run('fetch')
     if method == 'fetch':
         counts = text('rev-list', '--left-right', '--count', 'HEAD...' + branch + '@{upstream}')
         ahead, behind = map(int, counts.split())
         return {'ahead': ahead, 'behind': behind, 'status': 0, 'stdout': f'ahead {ahead}, behind {behind}'}
-    if method == 'deploy':
-        new = text('rev-parse', '--verify', '--end-of-options', branch + '@{upstream}^{commit}')
-        run('checkout', '--force', branch, '--')
-        run('reset', '--hard', new, '--')
-        result = run('clean', '-fd', '--')
-        return {**result, 'old_head': old, 'new_head': new, 'stdout': old + ' -> ' + new + '\n' + result['stdout']}
     if 'rev' in call:
         rev = call['rev']
         resolved = git(root, ['rev-parse', '--verify', '--end-of-options', rev + '^{commit}'], env, check=False)
