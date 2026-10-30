@@ -84,7 +84,7 @@ A stale or emptied shared package directory still shadows its bundled copy as `r
 
 `--bundled=` with an empty value is refused.
 
-- Bundled manifests under `standalone/` are included; support directories without a manifest are skipped. New bundled agents appear at the next `reload`.
+- Bundled manifests under `standalone/` are included when they declare a runner `command`. Valid metadata-only services managed by their own units are skipped, as are support directories without a manifest. New bundled agents appear at the next `reload`.
 - Each status row's `agent_dir` names the selected package directory.
 - A bundled agent without an explicit enable is `available`, with no reader or process. Explicitly disabling it shows `disabled`.
 

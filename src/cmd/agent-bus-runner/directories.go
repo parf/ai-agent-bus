@@ -138,8 +138,10 @@ func (source agentSource) metadataOnly(data []byte, manifest agentFile) bool {
 	if json.Unmarshal(data, &fields) != nil || fields == nil {
 		return false
 	}
-	if _, present := fields["command"]; present {
-		return false
+	for field := range fields {
+		if strings.EqualFold(field, "command") { // Match encoding/json's field lookup.
+			return false
+		}
 	}
 	return agentmeta.Manifest(manifest).Check() == nil
 }

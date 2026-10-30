@@ -38,13 +38,14 @@ func TestStandaloneScanDoesNotHideBrokenRunnerPackages(t *testing.T) {
 	writeFile(t, filepath.Join(shared, "broken-shared", "agent.json"), `{"description":"Missing command"}`)
 	writeFile(t, filepath.Join(bundled, "broken-bundle", "agent.json"), `{"description":"Missing command"}`)
 	writeFile(t, filepath.Join(bundled, "standalone", "empty-command", "agent.json"), `{"description":"Broken runner","command":""}`)
+	writeFile(t, filepath.Join(bundled, "standalone", "upper-empty-command", "agent.json"), `{ "description":"Broken runner", "COMMAND":"" }`)
 	writeFile(t, filepath.Join(bundled, "standalone", "malformed", "agent.json"), `{"description":`)
 	r := &runner{agents: shared, bundled: bundled}
 	rows, err := loadSources(r.sources(), host)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rows) != 4 {
+	if len(rows) != 5 {
 		t.Fatalf("broken packages disappeared: %+v", rows)
 	}
 	for _, in := range rows {
