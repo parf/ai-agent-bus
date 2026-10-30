@@ -36,6 +36,7 @@ case_() {
   local out rc=0
   out=$("$here/release-verify.sh" "$d/$name.tar.gz" 2>&1) || rc=$?
   [ $rc != 0 ] || { echo "$label: accepted a bad release"; exit 1; }
+  echo $v >"$src" # a case may have moved the source version
   grep -qF "$want" <<<"$out" || { echo "$label: failed, but not on '$want': $out"; exit 1; }
 }
 good="$work/good"; mkdir "$good"; mk "$good"; pack "$good"
