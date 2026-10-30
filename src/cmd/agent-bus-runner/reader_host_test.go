@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -74,7 +75,7 @@ func TestTwoRunnersServeOneNameSharingMessagesAndTheListingShowsBothHosts(t *tes
 	started := t.TempDir()
 	body := "touch \"" + started + "/$$\"\n" +
 		"for i in $(seq 1 100); do [ \"$(ls \"" + started + "\" | wc -l)\" -ge 2 ] && break; sleep 0.05; done\n" +
-		"printf x >> \"$AGENT_BUS_WORK/handled\"\necho done\n"
+		"echo \"$AGENT_BUS_MESSAGE_ID\" >> \"$AGENT_BUS_WORK/handled\"\necho done\n"
 	r1, b, _, tokens := configurationFixtureTokens(t, "", body, io.Discard)
 	write := func(r *runner, entry map[string]any) {
 		t.Helper()
@@ -128,25 +129,41 @@ func TestTwoRunnersServeOneNameSharingMessagesAndTheListingShowsBothHosts(t *tes
 	}
 	waitFor("both runners reading", func() bool { return b.Status().Waiting >= 2 })
 	const sent = 8
+	want := map[string]bool{}
 	for i := 0; i < sent; i++ {
-		if _, err := b.Send(protocol.Envelope{From: "owner@h", To: "#fixture@h", Body: "job"}); err != nil {
+		e, err := b.Send(protocol.Envelope{From: "owner@h", To: "#fixture@h", Body: fmt.Sprintf("job %d", i)})
+		if err != nil {
 			t.Fatal(err)
 		}
+		want[e.ID] = true
 	}
-	handled := func(r *runner) int {
+	handled := func(r *runner) []string {
 		r.mu.Lock()
 		s := r.served["#fixture@h"]
 		r.mu.Unlock()
 		if s == nil {
-			return 0
+			return nil
 		}
 		raw, _ := os.ReadFile(filepath.Join(s.work, "handled"))
-		return len(raw)
+		return strings.Fields(string(raw))
 	}
-	waitFor("every message handled", func() bool { return handled(r1)+handled(r2) >= sent })
+	waitFor("every message handled", func() bool { return len(handled(r1))+len(handled(r2)) >= sent })
 	time.Sleep(200 * time.Millisecond)
-	if one, two := handled(r1), handled(r2); one+two != sent || one == 0 || two == 0 {
-		t.Fatalf("runner one handled %d, runner two %d of %d: want both to serve and each message once", one, two, sent)
+	one, two := handled(r1), handled(r2)
+	if len(one) == 0 || len(two) == 0 {
+		t.Fatalf("runner one handled %d, runner two %d of %d: want both to serve", len(one), len(two), sent)
+	}
+	seen := map[string]int{}
+	for _, id := range append(append([]string{}, one...), two...) {
+		seen[id]++
+	}
+	if len(seen) != sent {
+		t.Fatalf("%d distinct messages handled of %d sent: %v", len(seen), sent, seen)
+	}
+	for id, n := range seen {
+		if !want[id] || n != 1 {
+			t.Fatalf("message %s handled %d times (sent here: %v), want each message once", id, n, want[id])
+		}
 	}
 	rec, _ := b.Lookup("owner@h", "#fixture@h")
 	var hosts []string
