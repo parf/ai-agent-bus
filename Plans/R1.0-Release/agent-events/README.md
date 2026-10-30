@@ -12,9 +12,9 @@ Tasks: [RT34](../TODO.md#rt34-agent-events).
 
 | Level | Written when | Ring | Kept |
 |---|---|---|---|
-| notice | the runner starts or stops the agent; an agent or a diagnostic says something worth keeping | its own | daemon memory |
-| warning | a line on the agent's stderr; a daemon warning about the record (a dropped copy, a refused forward) | its own | daemon memory |
-| alert | an unexpected failure: a non-zero exit nobody asked for, a kill by signal, memory or process limit, a start that fails, a restart loop, a sandbox refusal | its own | disk, survives a daemon restart |
+| notice | usual information: the runner starts or stops the agent; the agent or a diagnostic reports something worth keeping | its own | daemon memory |
+| warning | usual warnings, never a failure: a line on the agent's stderr; a warning the agent reports; a daemon warning about the record (a dropped copy, a refused forward) | its own | daemon memory |
+| alert | the agent's script failed: a non-zero exit nobody asked for, a kill by signal, memory or process limit, a start that fails, a restart loop, a sandbox refusal; or the script reports an alert itself | its own | disk, survives a daemon restart |
 
 One ring per level, so a stream of stderr warnings never pushes an alert out
 (owner, 2026-10-29). Each ring is fixed-size; when full, the oldest entry is
