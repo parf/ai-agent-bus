@@ -127,6 +127,77 @@ test("exactly one runner: a 301 to it, not stored, though others exist", async (
   expect(r.headers.get("cache-control")).toBe("no-store");
 });
 
+// RW19 HTTP coverage: one client cookie jar and one handler throughout.
+// Real browser caching remains separate. no-store is this face's contract;
+// it does not rely on private/Vary to partition a reusable cache entry.
+test("RW19 current caller set and no-store on every revocation, user-switch and second-runner hop", async () => {
+  let cookie = "";
+  const extra = "#runner/rw19-new@test";
+  let added = false;
+  const removeExtra = async () => {
+    const token = (await api("/token", { name: extra })).token;
+    // The chooser queued one status ask to this deliberately silent runner.
+    await api("/consume?wait=1ms", undefined, token, "GET");
+    await api("/unregister", { name: extra });
+  };
+  const fresh = (response: Response, status: number) => {
+    expect(response.status).toBe(status);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    return response;
+  };
+  const login = async (token: string) => {
+    const response = fresh(await req("/signin", cookie, { token }), 303);
+    cookie = /agent_bus_session=([^;]+)/.exec(response.headers.get("set-cookie")!)![1]!;
+    const landing = fresh(await req(response.headers.get("location")!, cookie), 200);
+    await landing.text();
+  };
+  const one = async () => {
+    const response = fresh(await req("/runners", cookie), 301);
+    expect(response.headers.get("location")).toBe(`/runner?name=${encodeURIComponent(A)}`);
+    const page = fresh(await req(response.headers.get("location")!, cookie), 200);
+    expect(rows(await page.text(), "agent")).toEqual(["#hello@test", "#secretive@test", "#plain@test"]);
+  };
+  const none = async () => {
+    const response = fresh(await req("/runners", cookie), 200);
+    const page = await response.text();
+    expect(rows(page, "runner")).toEqual([]);
+    expect(page).toContain("No runners you can see");
+    for (const hidden of [A, B, C, D, extra]) expect(page).not.toContain(hidden);
+    const denied = fresh(await req(`/runner?name=${encodeURIComponent(A)}`, cookie), 404);
+    await denied.text();
+  };
+  try {
+    await login(bob);
+    await one();
+    await api("/manage", { name: A, allow: [] });
+    await none();
+    // Restore bob before switching users: a stale bob session would now
+    // expose alpha, while carol's current accessible set must remain empty.
+    await api("/manage", { name: A, allow: ["bob"] });
+    await one();
+    const out = fresh(await req("/signout", cookie, {}), 303);
+    expect(out.headers.get("set-cookie")).toContain("Max-Age=0");
+    cookie = "";
+    fresh(await req(out.headers.get("location")!, cookie), 200);
+    await login(carol);
+    await none();
+    await login(bob);
+    await one();
+    await api("/register", { name: extra, kind: "agent", allow: ["bob"] });
+    added = true;
+    const multiple = fresh(await req("/runners", cookie), 200);
+    const chooser = await multiple.text();
+    expect(rows(chooser, "runner")).toEqual([A, extra]);
+    for (const hidden of [B, C, D]) expect(chooser).not.toContain(hidden);
+    await removeExtra();
+    added = false;
+    await one();
+  } finally {
+    await api("/manage", { name: A, allow: ["bob"] });
+    if (added) await removeExtra();
+  }
+}, 15_000);
+
 test("no runner: the empty state, and a runner tag or a look-alike name does not make one", async () => {
   const r = await req("/runners", await signIn(carol));
   expect(r.status).toBe(200);
@@ -210,6 +281,83 @@ test("an agent's page opened from a runner returns to it; a forged return does n
   expect(t).toContain(`class="back-link" href="${back.replace("&", "&amp;")}"`);
   const forged = await (await req(`/agent?name=${encodeURIComponent("#hello@test")}&return=${encodeURIComponent("//evil.example/runner")}`, s)).text();
   expect(forged).not.toContain("evil.example");
+});
+
+// RW25 follows the links and hidden return field actually rendered by the
+// detail/edit pages, then checks both successful save and local validation.
+const unescapeHTML = (value: string) => value.replace(/&amp;/g, "&").replace(/&#x2F;|&#47;/g, "/");
+function editReturn(page: string): string {
+  const field = /<input type="hidden" name="return" value="([^"]*)"/.exec(page);
+  expect(field).not.toBeNull();
+  return unescapeHTML(field![1]!);
+}
+
+test("RW25 runner return survives detail, edit, save and validation failure", async () => {
+  const session = await signIn(owner);
+  const name = "#hello@test";
+  const back = `/runner-settings?name=${encodeURIComponent(A)}&key=hello`;
+  const detail = `/agent?${new URLSearchParams({ name, return: back })}`;
+  const page = await (await req(detail, session)).text();
+  const editLink = [...page.matchAll(/href="([^"]+)"/g)].map(m => unescapeHTML(m[1]!))
+    .find(href => href.startsWith("/agent/edit?") && new URL(href, ORIGIN).searchParams.get("name") === name);
+  expect(editLink).toBeDefined();
+  expect(new URL(editLink!, ORIGIN).searchParams.get("return")).toBe(back);
+  const edit = await req(editLink!, session);
+  expect(edit.status).toBe(200);
+  const form = await edit.text();
+  expect(editReturn(form)).toBe(back);
+  expect(form).toContain(`href="${detail.replaceAll("&", "&amp;")}"`);
+  const values = { action: "save", name, return: editReturn(form), descr: "RW25 saved description" };
+  try {
+    const invalid = await req("/record", session, { ...values, bound: "not-a-number" });
+    expect(invalid.status).toBe(400);
+    const errorPage = await invalid.text();
+    expect(errorPage).toContain("Queue capacity must be a whole number.");
+    expect(editReturn(errorPage)).toBe(back);
+    expect(errorPage).toContain(`href="${detail.replaceAll("&", "&amp;")}"`);
+    expect((await api(`/lookup?name=${encodeURIComponent(name)}`, undefined, owner, "GET")).descr).toBe("Hello agent");
+    const saved = await req("/record", session, { ...values, return: editReturn(errorPage) });
+    expect(saved.status).toBe(303);
+    const location = saved.headers.get("location")!;
+    const destination = new URL(location, ORIGIN);
+    expect(destination.pathname).toBe("/agent");
+    expect(destination.searchParams.get("name")).toBe(name);
+    expect(destination.searchParams.get("return")).toBe(back);
+    expect((await api(`/lookup?name=${encodeURIComponent(name)}`, undefined, owner, "GET")).descr).toBe(values.descr);
+    const after = await (await req(location, session)).text();
+    expect(after).toContain(`class="back-link" href="${back.replaceAll("&", "&amp;")}"`);
+    expect(after).toContain(values.descr);
+  } finally {
+    await api("/manage", { name, descr: "Hello agent" });
+  }
+});
+
+test("RW25 forged external return stays out of edit, validation and save", async () => {
+  const session = await signIn(owner);
+  const name = "#hello@test";
+  for (const forged of ["https://evil.example/runner", "//evil.example/runner"]) {
+    const edit = await req(`/agent/edit?${new URLSearchParams({ name, return: forged })}`, session);
+    expect(edit.status).toBe(200);
+    const form = await edit.text();
+    expect(form).not.toContain("evil.example");
+    expect(form).not.toContain('name="return"');
+    for (const bound of ["not-a-number", ""]) {
+      const result = await req("/record", session, { action: "save", name, return: forged, descr: "Hello agent", ...(bound ? { bound } : {}) });
+      if (bound) {
+        expect(result.status).toBe(400);
+        const error = await result.text();
+        expect(error).not.toContain("evil.example");
+        expect(error).not.toContain('name="return"');
+      } else {
+        expect(result.status).toBe(303);
+        const location = result.headers.get("location")!;
+        expect(location).not.toContain("evil.example");
+        expect(new URL(location, ORIGIN).searchParams.has("return")).toBe(false);
+        const after = await (await req(location, session)).text();
+        expect(after).toContain('class="back-link" href="/agents"');
+      }
+    }
+  }
 });
 
 test("a reload sent and then unanswerable is uncertain, never 'not carried out'", async () => {
