@@ -55,8 +55,13 @@ class Budget:
         return remaining
 
 
+# Only names the runner or the delivery sets for every agent show a value; the bus prefix alone
+# proves nothing, since AGENT_BUS_CONFIG and a record's secret keys carry it too.
+SHOWN = {'AGENT_BUS_' + key for key in ('FROM', 'TO', 'TOPIC', 'TAG', 'ASK', 'DEADLINE', 'ORIGINAL_TO',
+                                       'NAME', 'ADDR', 'WORK', 'TLS_FINGERPRINT')}
+
+
 def environment(envelope):
-    # Never display the credential, even though its name uses the bus prefix.
     values = dict(os.environ)
     if envelope:
         for key in list(values):
@@ -65,7 +70,7 @@ def environment(envelope):
             values['AGENT_BUS_' + key.upper()] = str(envelope.get(key) or '')
         for role in envelope.get('roles', ()):
             values['AB_ROLE_' + role.upper()] = '1'
-    return '\n'.join(f'{key}={value if key != "AGENT_BUS_TOKEN" and key.startswith(("AGENT_BUS_", "AB_ROLE_")) else "***"}'
+    return '\n'.join(f'{key}={value if key in SHOWN or key.startswith("AB_ROLE_") else "***"}'
                      for key, value in sorted(values.items()))
 
 
