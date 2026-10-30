@@ -1,11 +1,11 @@
-# WhatsApp agent (B.27d)
+# WhatsApp agent (B.27d, deferred)
 
 📌 **TL;DR:**
 - **Problem:** customers, partners or your own people use WhatsApp, and your AI assistants cannot answer there or tell them something.
 - **Outcome:** `#whatsapp/<account>@<realm>` puts one WhatsApp business number on the bus like the Slack helper: people message the number, the reply reaches the right session, and the session answers in the same chat.
 - **How:** Meta's WhatsApp Business Platform (Cloud API): outgoing messages are web calls, incoming ones arrive as webhook requests, so it needs a public HTTPS address.
 - **Hard parts:** only a business number works (not a personal WhatsApp), free-form answers are allowed only inside 24 hours of the person's last message, and Meta charges per message from 1 October 2026.
-- **Status:** proposal for the owner's approval, no code. Facts from Meta's developer docs fetched 2026-10-30; unconfirmed ones are marked.
+- **Status:** deferred out of R1 ([why](../R1.0-Release/DECISIONS.md#recorded-decisions), RD174): R1 exposes no public HTTPS address and Meta's webhook needs one. Plan kept for when the owner decides exposure. Facts from Meta's developer docs fetched 2026-10-30; unconfirmed ones are marked.
 
 ## What you get
 
@@ -18,14 +18,13 @@
 ## One way to start (once approved)
 
 - In Meta Business, create a business portfolio, a WhatsApp business account and a business phone number; make a token.
-- Register `#whatsapp/support`, set the token as its Secret, point Meta's webhook at the agent's HTTPS address (the owner's decision, Q255), message the number from a phone.
+- Register `#whatsapp/support`, set the token as its Secret, point Meta's webhook at the agent's HTTPS address (not possible in R1), message the number from a phone.
 
 ## Proposed methods (for approval)
 
 | Method | Text form | Cloud API | Differs from Slack/Telegram |
 |---|---|---|---|
 | `post` | `post <to> <text…>` | send text message | `<to>` is a phone number in international form or an alias; refused outside the 24-hour window unless the JSON names a `template`; answers the message id |
-| `template` | `template <to> <name> [params…]` | send template message | only an approved template; needs the person's opt-in recorded in Configuration |
 | `read` | `read [<to>] [N]` | none | answers the last N messages received from that person (a ring); WhatsApp has no history API |
 | `chats` | `chats [filter]` | none | aliases and people who wrote, with the time of their last message (window open or closed) |
 | `react` | `react <to> <id> <emoji>` | reaction message | to a message the person sent |
@@ -33,7 +32,7 @@
 | `whoami` | `whoami` | none | the business number and account |
 | `sub …`, `help` | as Slack | | the channel is a `<to>` |
 
-- **Left out:** media, groups, calls, interactive buttons and lists, business profile, `edit` and `delete`.
+- **Left out:** `template` (starting a conversation outside the window; later, and blocked for a contact whose opt-in flag is missing), media, groups, calls, interactive buttons and lists, business profile, `edit` and `delete`.
 
 ## Proposed Configuration keys (for approval)
 
@@ -41,8 +40,7 @@
 |---|---|
 | `users` | phone number to bus person: who may pick sessions by tag |
 | `tags`, `route` | as Slack |
-| `contacts` | per number: an alias, `route`, `optin` (true only when the person agreed to be messaged) |
-| `templates` | the approved template names `template` may send, with their parameter counts |
+| `contacts` | per number: an alias, `route`, `optin` (true only when the person agreed to be messaged; the agent enforces it) |
 | `phone_number_id` | which business number this instance sends from |
 | `listen` | the address the agent listens on |
 
@@ -75,9 +73,12 @@
 - **Webhook:** a bad signature or verify token is refused before the body is read; a duplicate delivery is dropped by message id.
 - **Mutants:** signature check skipped, window not enforced, opt-in ignored, token read from the environment, the same webhook delivered twice forwarded twice; each fails an assertion.
 
-## Questions for the owner (drafted, not filed)
+## Decided
 
-- **Q253** Which business number and Meta business account will this use, and who pays Meta's per-message charges from 1 October 2026?
-- **Q254** Allow `template` (starting conversations) or answer-only inside the window?
-- **Q255** May the agent be exposed on a public HTTPS address for Meta's webhook?
-- **Q256** Who records and honours each person's opt-in, and where?
+- **Answer inside the 24-hour window only, no templates first** (Q254). #ab-dir, 2026-10-30.
+- **Opt-in is a per-contact Configuration flag the agent enforces**; a missing flag blocks `template` (Q256). #ab-dir, 2026-10-30.
+- **No public HTTPS exposure in R1** (Q255): this plan waits. #ab-ceo, 2026-10-30.
+
+## Open
+
+- **Q253** Which business number and Meta business account, and who pays Meta's per-message charges from 1 October 2026? See [future questions](QUESTIONS.md#open-questions).

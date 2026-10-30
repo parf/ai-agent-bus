@@ -5,7 +5,7 @@
 - **Outcome:** `#googlechat/<account>@<realm>` puts one Chat app on the bus like the Slack helper: your assistant posts to spaces, people message or mention the app, and the reply reaches the right session.
 - **How:** a Chat app with its own service account, receiving what people send it through a Google Pub/Sub subscription the runner pulls, so no public address is needed.
 - **Limit that shapes it:** a Chat app is told only about direct messages and @mentions, so it forwards those, not every message in a space.
-- **Status:** proposal for the owner's approval, no code. Facts from Google's developer docs fetched 2026-10-30; unconfirmed ones are marked.
+- **Status:** technical choices decided 2026-10-30 ([decisions](#decided)); the Google account and project are the owner's open questions (Q247, Q248). No code. Facts from Google's developer docs fetched 2026-10-30; unconfirmed ones are marked.
 
 ## What you get
 
@@ -25,15 +25,14 @@
 | Method | Text form | Chat API | Differs from Slack/Telegram |
 |---|---|---|---|
 | `post` | `post [<space>] <text…>` | create message | plain text; JSON `reply_to` keeps the thread; answers space and message name |
-| `read` | `read [<space>] [N]` | none by default | answers the last N messages the app received in that space (a ring, as Telegram); listing real history needs an administrator-approved scope, see Q246 |
+| `read` | `read [<space>] [N]` | none | answers the last N messages the app received in that space (a ring, as Telegram); real history is not used |
 | `spaces` | `spaces [filter]` | list spaces | only the spaces the app is a member of |
 | `space` | `space <space>` | get space | name, type, display name |
-| `members` | `members <space>` | list memberships | needs the app memberships scope; proposed off, see Q246 |
 | `edit`, `delete` | as Telegram | update, delete message | the app's own messages |
 | `whoami` | `whoami` | none | the app's name and project |
 | `sub …`, `help` | as Slack | | the channel is a `<space>`; matches only messages the app received |
 
-- **Left out:** cards and dialogs, file upload, reactions, search (not available to an app), `join` (a person adds the app).
+- **Left out:** `members` and real message history (they need an administrator-approved scope), cards and dialogs, file upload, reactions, search (not available to an app), `join` (a person adds the app).
 - **`<space>`** is an alias or a space name such as `spaces/AAA…`.
 
 ## Proposed Configuration keys (for approval)
@@ -50,7 +49,7 @@
 
 ## How it receives
 
-- **Pub/Sub pull** (proposed): the app's connection is a Pub/Sub topic; the runner pulls the subscription, so only outbound calls are made.
+- **Pub/Sub pull:** the app's connection is a Pub/Sub topic; the runner pulls the subscription, so only outbound calls are made.
 - **Other options** the console offers: an HTTP endpoint (needs a public address and verifying Chat's requests), Apps Script, Dialogflow.
 - **What arrives:** message events for direct messages and @mentions, added-to and removed-from space, and card clicks; the app is not told about other messages in a space.
 - **Not forwarded:** the app's own posts.
@@ -76,9 +75,14 @@
 - **Per method and routing:** as the Discord plan; 429 or quota errors answered `error: …`, never retried.
 - **Mutants:** the key read from the environment, a space outside `spaces` acted on, the app's own post forwarded, a pull acknowledged before the session got it (loses a message), a duplicate delivery sent twice; each fails an assertion.
 
-## Questions for the owner (drafted, not filed)
+## Decided
 
-- **Q245** Pub/Sub pull or an HTTP endpoint? Proposed pull (outbound only).
-- **Q246** Accept that the app sees only DMs and @mentions, and leave real history and members off? The alternative needs an administrator's one-time approval and a Marketplace-compatible OAuth client.
-- **Q247** Which Google account type will this run on (Workspace or personal)? Unconfirmed that personal accounts can host Chat apps.
-- **Q248** Who creates the Cloud project, the app and the service account, and in which organisation?
+- **Pub/Sub pull** (Q245): outbound only; no HTTP endpoint. #ab-dir, 2026-10-30.
+- **Direct messages and @mentions only** (Q246): history and members stay off. #ab-dir, 2026-10-30.
+- **Record:** [decision RD173](../DECISIONS.md#recorded-decisions).
+
+## Open for the owner
+
+- **Q247** Which Google account type hosts the app (Workspace or personal)?
+- **Q248** Who creates the Cloud project, the app and its service account, in which organisation?
+- See [questions](../QUESTIONS.md#messaging-agents).

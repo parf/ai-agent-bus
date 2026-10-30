@@ -479,11 +479,11 @@ and no daemon change. A row that needs a format first proposes it for approval.
 - ⏳ B.28 `#eventlog`: named logs with notice/warning/alert rings, the agent-events model for anything; web page — [design](agent-events/eventlog.md#what-it-does), [tasks](agent-events/TODO.md#b28-eventlog-agent) (owner, 2026-10-29)
 
 - ⏳ B.27 Messaging agents, the [Slack and Telegram shape](../R1.2/services.md#people-and-the-world-outside): post and read, replies routed to the asking session, `sub` forwarding a conversation; one instance per account, the provider token as the record's Secret (owner, 2026-10-29). Unassigned; each needs a plan of its own, with methods and Configuration proposed for approval, before code ([plans](messaging/README.md#plans))
-  - B.27a Discord: [plan, proposal for approval](messaging/discord.md#proposed-methods-for-approval)
-  - B.27b Google Chat: [plan, proposal for approval](messaging/google-chat.md#proposed-methods-for-approval)
-  - B.27c Microsoft Teams: [plan, proposal for approval](messaging/teams.md#proposed-methods-for-approval)
-  - B.27d WhatsApp: [plan, proposal for approval](messaging/whatsapp.md#proposed-methods-for-approval)
-  - B.27e Facebook Messenger: [plan, proposal for approval](messaging/messenger.md#proposed-methods-for-approval)
+  - B.27a Discord: [plan](messaging/discord.md#proposed-methods-for-approval), technical choices decided
+  - B.27b Google Chat: [plan](messaging/google-chat.md#proposed-methods-for-approval), technical choices decided
+  - B.27c Microsoft Teams: deferred to R2.0 until a public HTTPS address is decided, [plan](../R2.0-Future/teams.md)
+  - B.27d WhatsApp: deferred to R2.0 until a public HTTPS address is decided, [plan](../R2.0-Future/whatsapp.md)
+  - B.27e Facebook Messenger: deferred to R2.0 until a public HTTPS address is decided, [plan](../R2.0-Future/messenger.md)
 
 - ⏳ B.15 Node cleanup with a lasting bound ([RD110](DECISIONS.md#recorded-decisions))
   - Observation: [report-only script](../../src/maintenance/OBSERVATION.md), run manually as an ordinary user; timestamped samples stay in ignored `tmp/b15/`. First sample captured 2026-10-30; growth and bound choices await repeated observations. No new timer, install or deletion.

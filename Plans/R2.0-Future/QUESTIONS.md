@@ -15,6 +15,9 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q11 | OpenCode (Z.AI) push path | one spike | [runner § adapters](../../docs/06-launchers.md#adapters) |
 | Q24 | Whether the daemon publicly exports its people and their keys, unauthenticated and on by default | owner | [public directory](public-directory.md#a-public-directory-of-people-and-their-keys) |
 | Q34 | Which proposed storage engine actually supplies each required encryption and replication property | an engine evaluation and owner decision | [context](storage.md#storage) |
+| Q252 | Microsoft Teams: which tenant and Azure subscription host the bot, and who pays | owner | [teams.md](teams.md#decided) |
+| Q253 | WhatsApp: which business number and Meta business account, and who pays Meta's per-message charges | owner | [whatsapp.md](whatsapp.md#decided) |
+| Q257 | Messenger: which Facebook Page and Meta app, and who owns them | owner | [messenger.md](messenger.md#decided) |
 
 ## Constitution forwarding
 

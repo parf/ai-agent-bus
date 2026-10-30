@@ -1,11 +1,11 @@
-# Facebook Messenger agent (B.27e)
+# Facebook Messenger agent (B.27e, deferred)
 
 📌 **TL;DR:**
 - **Problem:** people write to your Facebook Page in Messenger, and your AI assistants cannot answer them or follow up.
 - **Outcome:** `#messenger/<page>@<realm>` puts one Facebook Page's inbox on the bus like the Slack helper: people message the Page, the reply reaches the right session, and the session answers in the same conversation.
 - **How:** Meta's Messenger Platform: incoming messages arrive as webhook requests and replies are sent through its Send API, so it needs a public HTTPS address.
 - **Hard parts:** only a Facebook Page works (not a personal profile), a person must write first, and free-form replies are allowed only within the 24-hour window.
-- **Status:** proposal for the owner's approval, no code. Facts from Meta's Messenger overview fetched 2026-10-30; unconfirmed ones are marked.
+- **Status:** deferred out of R1 ([why](../R1.0-Release/DECISIONS.md#recorded-decisions), RD174): R1 exposes no public HTTPS address and Meta's webhook needs one. Plan kept for when the owner decides exposure. Facts from Meta's Messenger overview fetched 2026-10-30; unconfirmed ones are marked.
 
 ## What you get
 
@@ -17,7 +17,7 @@
 ## One way to start (once approved)
 
 - Register a Meta app with the Messenger use case, link it to your Facebook Page, create the Page access token.
-- Register `#messenger/page`, set the token as its Secret, point the app's webhook at the agent's HTTPS address (the owner's decision, Q259), message the Page from a test account.
+- Register `#messenger/page`, set the token as its Secret, point the app's webhook at the agent's HTTPS address (not possible in R1), message the Page from a test account.
 
 ## Proposed methods (for approval)
 
@@ -72,8 +72,11 @@
 - **Webhook:** a bad signature or verify token is refused before the body is read; a duplicate delivery is dropped.
 - **Mutants:** signature check skipped, window not enforced, a message from another Page accepted, token read from the environment, the Page's own send forwarded; each fails an assertion.
 
-## Questions for the owner (drafted, not filed)
+## Decided
 
-- **Q257** Which Facebook Page and Meta app will this use, and who owns them?
-- **Q258** Only your own Page (no App Review) or a Page of others (Advanced Access and review)? Proposed: your own.
-- **Q259** May the agent be exposed on a public HTTPS address for Meta's webhook?
+- **Own Page only** (Q258): no App Review. #ab-dir, 2026-10-30.
+- **No public HTTPS exposure in R1** (Q259): this plan waits. #ab-ceo, 2026-10-30.
+
+## Open
+
+- **Q257** Which Facebook Page and Meta app, and who owns them? See [future questions](QUESTIONS.md#open-questions).

@@ -1,11 +1,11 @@
-# Microsoft Teams agent (B.27c)
+# Microsoft Teams agent (B.27c, deferred)
 
 📌 **TL;DR:**
 - **Problem:** your company lives in Microsoft Teams and your AI assistants cannot post there, read it, or be answered from it.
 - **Outcome:** `#teams/<account>@<realm>` puts one Teams bot on the bus like the Slack helper: your assistant posts, people message or mention the bot, and the reply reaches the right session.
 - **How:** a bot registered in Azure and installed in Teams; Teams sends it each message as a web request, so unlike Discord it needs a public HTTPS address.
 - **Hard part:** that public address, and Microsoft's SDK churn; both are owner choices below.
-- **Status:** proposal for the owner's approval, no code. Facts from Microsoft's Teams docs fetched 2026-10-30; unconfirmed ones are marked.
+- **Status:** deferred out of R1 ([why](../R1.0-Release/DECISIONS.md#recorded-decisions), RD174): R1 exposes no public HTTPS address and Teams needs one. Plan kept for when the owner decides exposure. Facts from Microsoft's Teams docs fetched 2026-10-30; unconfirmed ones are marked.
 
 ## What you get
 
@@ -18,7 +18,7 @@
 
 - In Azure, register the bot and note its app id and secret; in Teams, upload the app package to a team or chat.
 - Register `#teams/work`, set the app id and secret as its Secret, give a session access, call `post`.
-- Expose the agent's HTTPS address to Azure (the owner's decision, see Q250).
+- Expose the agent's HTTPS address to Azure (not possible in R1, see the status line).
 
 ## Proposed methods (for approval)
 
@@ -74,9 +74,12 @@
 - **Authentication:** an activity with a bad or missing token, the wrong audience or the wrong tenant is refused before any text is read.
 - **Mutants:** token check skipped, tenant not enforced, a message of another bot accepted, the secret read from the environment, the bot's own post forwarded; each fails an assertion.
 
-## Questions for the owner (drafted, not filed)
+## Decided
 
-- **Q249** Which SDK: the Teams SDK or the Agents SDK for TypeScript, or a small hand-written Bot Connector client? It decides a dependency under the modules rule and the security surface.
-- **Q250** May the agent be exposed on a public HTTPS address for Azure to call? Without it Teams cannot reach it, and the owner has reserved exposing the webhook the same way.
-- **Q251** Ask the team owner for the all-messages RSC consent, or stay with @mentions and DMs?
-- **Q252** Which Microsoft tenant and Azure subscription host the bot, and who pays?
+- **SDK** (Q249): the Teams SDK or the Microsoft 365 Agents SDK for TypeScript, chosen at build time by weight and licence; never a hand-written connector. #ab-dir, 2026-10-30.
+- **@mentions and direct messages first** (Q251): the all-messages consent is asked per team later. #ab-dir, 2026-10-30.
+- **No public HTTPS exposure in R1** (Q250): this plan waits. #ab-ceo, 2026-10-30.
+
+## Open
+
+- **Q252** Which tenant and Azure subscription host the bot, and who pays? See [future questions](QUESTIONS.md#open-questions).

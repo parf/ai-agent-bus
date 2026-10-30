@@ -4,7 +4,7 @@
 - **Problem:** your team is in a Discord server and your AI assistants cannot post there, read it, or be answered from it.
 - **Outcome:** `#discord/<account>@<realm>` puts one Discord bot on the bus like the Slack helper: your assistant posts and reads, people reply or mention the bot, and the reply reaches the right session.
 - **How:** a bot account kept connected to Discord's live gateway by the runner; no public address needed.
-- **Status:** proposal for the owner's approval, no code. Facts are from Discord's developer docs, fetched 2026-10-30; unconfirmed ones are marked.
+- **Status:** technical choices decided 2026-10-30 ([decisions](#decided)); the Discord account is the owner's open question (Q244). No code. Facts are from Discord's developer docs, fetched 2026-10-30; unconfirmed ones are marked.
 
 ## What you get
 
@@ -28,14 +28,13 @@
 | `read` | `read [<channel>] [N]` | get channel messages | N 1 to 100, default 50, oldest first as Slack; needs read-history permission; content is empty for others' messages without the privileged intent below |
 | `channels` | `channels [filter]` | guild channels | aliases from Configuration plus channels in the bot's servers |
 | `channel` | `channel <channel>` | get channel | id, name, type, topic |
-| `users`, `user` | as Slack | guild members | needs the members intent (privileged); proposed left out, see Q243 |
 | `react` | `react <channel> <id> <emoji>` | create reaction | emoji URL-encoded |
 | `edit`, `delete` | as Telegram | edit and delete message | only the bot's own messages unless it holds manage-messages |
 | `thread` | `thread <channel> <id> <name>` | start thread from message | optional; one thread per message |
 | `whoami` | `whoami` | current user | the bot's name, id and servers |
 | `sub …`, `help` | as Slack | | the channel is a `<channel>` |
 
-- **Left out:** voice, stage and forum channels, file upload, embeds and components, slash commands; `post` sends plain text.
+- **Left out:** `users` and `user` (they need the privileged members intent), voice, stage and forum channels, file upload, embeds and components, slash commands; `post` sends plain text.
 - **`<channel>`** is an alias, `#name` in a configured server, or a numeric channel id.
 
 ## Proposed Configuration keys (for approval)
@@ -57,7 +56,7 @@
 - **Intents:** guild messages and direct messages (standard), and **message content** (privileged) so the bot can read what people write; without it the bot gets empty content except its own messages, DMs to it and messages that mention it.
 - **Privileged intents** are switched on in the Developer Portal; apps in 100 or more servers need verification and approval, and apps with over 10,000 users a review. One team's bot is far below that.
 - **Not forwarded:** the bot's own posts and edits.
-- **Why not an HTTP endpoint:** interactions need a public address; the gateway needs only outbound access, as Slack's socket mode.
+- **Why not an HTTP endpoint:** interactions need a public address, and R1 exposes none; the gateway needs only outbound access, as Slack's socket mode.
 
 ## Provider facts that matter
 
@@ -81,9 +80,13 @@
 - **Routing:** reply, tag, subscription, route, and "not understood", as the shared router's checks.
 - **Mutants:** the token read from the environment, a message of another server acted on, the bot's own post forwarded, content over 2,000 characters sent whole, an invalid-request loop not stopped; each fails an assertion.
 
-## Questions for the owner (drafted, not filed)
+## Decided
 
-- **Q241** Gateway or interactions? Proposed: gateway (outbound only), no public address.
-- **Q242** Rely on the privileged message-content intent so the bot reads ordinary channel chatter? Proposed yes, switched on in the portal; the alternative reads only mentions and DMs.
-- **Q243** Include `users` and `user` (needs the privileged members intent)? Proposed: leave out; ids come from `whoami` and the reply router.
-- **Q244** Who creates and owns the Discord application and bot, and for which server? Needed before any live test; the owner's decision, no sign-up was made.
+- **Gateway, not interactions** (Q241): the bot holds an outbound connection; no public address. #ab-dir, 2026-10-30.
+- **Message-content intent on** (Q242): switched on in the developer portal so the bot reads channel chatter. #ab-dir, 2026-10-30.
+- **No `users` or `user` methods** (Q243): they would need a second privileged intent. #ab-dir, 2026-10-30.
+- **Record:** [decision RD172](../DECISIONS.md#recorded-decisions).
+
+## Open for the owner
+
+- **Q244** Who creates and owns the Discord application and bot, and for which server? Needed before any live test; no sign-up was made. See [questions](../QUESTIONS.md#messaging-agents).
