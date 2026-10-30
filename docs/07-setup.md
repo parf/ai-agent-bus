@@ -480,19 +480,30 @@ release run is not yet wired to it ([distribution](../Plans/R1.0-Release/TODO.md
 
 ## npm package
 
-`src/npm-pack.sh <client archive> [out]` wraps the Linux x86_64 client
-edition from `package.sh` as two tarballs: a platform package holding the
-archive tree unchanged, and a thin package whose bins (`agent-bus`,
-`agent-bus-runner`, `agent-bus-mcp`, the `ab-*` launchers) start the matching
-program of that bundle, passing arguments, input, exit status and signals
-through. The thin package depends on the platform package at the same exact
-version, so npm installs only the one that matches the host. It needs Node 18
-or later and never creates accounts or units: it joins an existing bus with
-`AGENT_BUS_ADDR` and a token, as the `--client` edition does. The package
-names are [Q224](../Plans/R1.0-Release/QUESTIONS.md#distribution), and
-publishing is the owner's. Pending: other platforms and the full node.
-`src/npm-pack.test.sh` installs both tarballs offline and exercises them
-against a disposable daemon.
+Choose `npm install -g agent-bus-client` to join an existing bus, or
+`npm install -g agent-bus` for a full node. The bus package pulls the client
+at exactly its own version. Both use the same release binaries, with only the
+matching Linux x64 or arm64 platform packages downloaded. Node 18 or later is
+required; Go and Bun are not needed. Commands retain their `agent-bus` and
+`ab-*` names.
+
+An npm install creates no service accounts or systemd units. To start a full
+node, explicitly run its setup command with sudo:
+
+```sh
+sudo "$(npm prefix -g)/bin/agent-bus-setup" --owner alice
+```
+
+Setup requires matching client/bus versions. It assembles their files in a
+root-owned private directory outside the npm prefix, verifies the complete
+release manifest, then runs the ordinary installer. The temporary tree is
+removed afterward, including on failure. The client package alone never
+installs a daemon.
+
+This path trusts the npm registry. The [signed release installer](../install.sh)
+remains the path that verifies a release signature before unpacking it.
+Package assembly and local checks are described in
+[the packaging guide](../src/npm/README.md).
 
 ## Local users
 
