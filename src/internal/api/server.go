@@ -941,10 +941,24 @@ func (s *Server) consume(w http.ResponseWriter, r *http.Request, caller protocol
 			return
 		}
 	}
+	// `asks=only` takes only messages that carry an ask and leaves the rest
+	// queued for the ordinary reader; any other value is refused by name.
+	asksOnly := false
+	if q.Has("asks") {
+		if err := core.CheckAsks(q.Get("asks")); err != nil {
+			s.bus.RecordRefusal(inbox)
+			s.reply(w, nil, err)
+			return
+		}
+		asksOnly = true
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), wait)
 	defer cancel()
 	if host != "" {
 		ctx = core.WithHost(ctx, host)
+	}
+	if asksOnly {
+		ctx = core.WithAsksOnly(ctx)
 	}
 	// The bus asks before it hands this poll a message: a caller that has
 	// closed its end takes nothing.
