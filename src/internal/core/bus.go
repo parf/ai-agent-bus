@@ -101,8 +101,10 @@ type waiter struct {
 	// read for one agent it serves (docs/04-messaging.md#inbox-selection-and-filters).
 	addressed string
 	filtered  bool
-	share     bool
-	ch        chan protocol.Envelope
+	// asks is an asks-only read (asks_only.go): it takes only messages with an ask.
+	asks  bool
+	share bool
+	ch    chan protocol.Envelope
 	// ctx is the poll that waits: once it is cancelled — the reader went
 	// away — the waiter takes nothing, and what it was handed goes back.
 	ctx context.Context
@@ -1532,7 +1534,7 @@ func (b *Bus) deliver(rec protocol.Record, in *inbox, e protocol.Envelope) error
 			if w.filtered != filteredPass {
 				continue
 			}
-			if w.filtered && !selects(w.topic, w.tag, w.addressed, e) {
+			if w.filtered && !w.takes(e) {
 				continue
 			}
 			if held && !w.filtered {
@@ -1841,6 +1843,12 @@ func (b *Bus) ConsumeAddressed(ctx context.Context, caller, name, topic, tag, ad
 		}
 		filtered = true
 	}
+	// An asks-only read is a filtered one: it may wait beside the unfiltered
+	// reader and never makes it, or is made, a second reader.
+	asksOnly, _ := ctx.Value(asksOnlyKey{}).(bool)
+	if asksOnly {
+		filtered = true
+	}
 	b.mu.Lock()
 	// An inbox belongs to a registered name. Creating one for whoever asks
 	// would let any caller name leave a permanent entry behind — and the
@@ -1884,7 +1892,7 @@ func (b *Bus) ConsumeAddressed(ctx context.Context, caller, name, topic, tag, ad
 		if !filtered && in.held(e, now) {
 			continue
 		}
-		if !filtered || selects(topic, tag, addressed, e) {
+		if !filtered || (selects(topic, tag, addressed, e) && (!asksOnly || e.Ask != "")) {
 			if filtered {
 				in.served(e, now)
 			}
@@ -1911,7 +1919,7 @@ func (b *Bus) ConsumeAddressed(ctx context.Context, caller, name, topic, tag, ad
 			}
 		}
 	}
-	w := &waiter{topic: topic, tag: tag, addressed: addressed, filtered: filtered, share: share, ch: make(chan protocol.Envelope, 1), ctx: ctx}
+	w := &waiter{topic: topic, tag: tag, addressed: addressed, filtered: filtered, asks: asksOnly, share: share, ch: make(chan protocol.Envelope, 1), ctx: ctx}
 	w.alive, _ = ctx.Value(aliveKey{}).(func() bool)
 	in.waiters = append(in.waiters, w)
 	b.unlock()
@@ -1974,7 +1982,7 @@ func (b *Bus) requeue(name string, e protocol.Envelope) {
 	held := in.held(e, now)
 	for _, filteredPass := range []bool{true, false} {
 		for i, w := range in.waiters {
-			if w.filtered != filteredPass || (w.filtered && !selects(w.topic, w.tag, w.addressed, e)) || (held && !w.filtered) {
+			if w.filtered != filteredPass || (w.filtered && !w.takes(e)) || (held && !w.filtered) {
 				continue
 			}
 			if w.filtered {
