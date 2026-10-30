@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.225 — 2026-10-30
+
+A Codex session keeps its bus push across /compact: delivery waits out a non-steerable turn, and a failed push restarts up to three times
+
 ## 0.9.224 — 2026-10-30
 
 The daemon answers as #bus: status, version and ls take --json and return what /status, /identity, /ls and /lookup give that caller
