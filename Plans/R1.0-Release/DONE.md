@@ -156,3 +156,9 @@ Owner, 2026-10-30: every doc leads with why, then what you get, then real exampl
 
 - The documentation follow-up is done: the constitution's self-description, the authoring checklist and the create-agent prompt carry the ask-first rule, and the runner guide holds the shell template (`case "$AGENT_BUS_ASK"`).
 - The two unpackaged-script examples (runner getting started, remote access) declare `"asks":"none"` / `--no-asks`: the asks are answered as `unsupported: <ask>` without starting the script, and in the getting-started package the runner answers `help` from its description. Checks: link and docs-order checkers only.
+
+## RT8 Shared client conformance
+
+- `send.json`, `call.json` and `self-call.json` in `src/testdata/client-conformance` are run by all six client adapters (Python, TypeScript and Go, then Rust, PHP and Java) against a disposable daemon, with the fixture names mapped to each daemon's; every adapter walks the expected fields of each case. No schema or generator.
+- Mutants, each failing on an assertion under the smoke-gate lock: Rust, PHP and Java with `topic` left out of the emitted send (the send cases; Java and PHP also the call case).
+

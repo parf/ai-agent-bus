@@ -240,10 +240,15 @@ section('shared send and call cases', function () use ($me, $owner, $dir) {
         $id = $me->send($r['to'], $r['body'], new SendOptions($r['topic'] ?? null, $r['tag'] ?? null, ask: $r['ask'] ?? null));
         $m = $svc->consume(new ConsumeOptions(wait: 2));
         $want = $k['expected'];
-        check("send {$k['id']}: arrives field for field under the returned ID", $m !== null && $m->id === $id
-            && $m->from === $want['from'] && $m->to === $want['to'] && $m->body === $want['body']
-            && ($m->topic ?? '') === ($want['topic'] ?? '') && ($m->tag ?? '') === ($want['tag'] ?? '')
-            && ($m->ask ?? '') === ($want['ask'] ?? ''), var_export($m, true));
+        // Every expected key is read, so a field added to the fixtures cannot go unchecked.
+        $field = fn(?Message $m, string $key) => match ($key) {
+            'from' => $m?->from, 'to' => $m?->to, 'body' => $m?->body,
+            'topic' => $m?->topic ?? '', 'tag' => $m?->tag ?? '', 'ask' => $m?->ask ?? '',
+            default => "no adapter for expected field $key",
+        };
+        $same = $m !== null && $m->id === $id;
+        foreach ($want as $key => $value) { $same = $same && $field($m, $key) === $value; }
+        check("send {$k['id']}: arrives field for field under the returned ID", $same, var_export($m, true));
     }
     $rows = $cases('call');
     $log = "$dir/php-shared-call-handled";
@@ -264,9 +269,16 @@ section('shared send and call cases', function () use ($me, $owner, $dir) {
         $r = $k['request'];
         $o = $me->call($r['to'], $r['body'], new CallOptions(5, $r['topic'] ?? null));
         $want = $k['expected'];
-        check("call {$k['id']}: the handler's answer", $o instanceof Answer && $o->message->body === $want['body']
-            && $o->message->from === $want['from'] && $o->message->to === $want['to']
-            && ($o->message->topic ?? '') === ($want['topic'] ?? ''), $o instanceof Answer ? json_encode($o->message->body) : get_class($o));
+        $same = $o instanceof Answer;
+        foreach ($want as $key => $value) {
+            $got = !$same ? null : match ($key) {
+                'from' => $o->message->from, 'to' => $o->message->to, 'body' => $o->message->body,
+                'topic' => $o->message->topic ?? '', 'tag' => $o->message->tag ?? '', 'ask' => $o->message->ask ?? '',
+                default => "no adapter for expected field $key",
+            };
+            $same = $same && $got === $value;
+        }
+        check("call {$k['id']}: the handler's answer", $same, $o instanceof Answer ? json_encode($o->message->body) : get_class($o));
         $handled[$k['id']] = $o instanceof Answer ? $o->message->re : null;
     }
     reap($srv);

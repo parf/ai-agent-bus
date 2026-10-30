@@ -28,5 +28,5 @@ reproduce the same meaning; native types and execution models remain its own.
 Explanatory prose can accompany those cases. A schema or generator is deferred,
 not approved by this decision. No new wire shape is defined here.
 
-The libraries and their existing checks are built; the common conformance-first
-specification is unfinished [№RT8](TODO.md#objective).
+The libraries and their existing checks are built; the common cases all six clients
+run are [№RT8](TODO.md#objective), done.

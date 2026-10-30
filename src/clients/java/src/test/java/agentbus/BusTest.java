@@ -83,6 +83,23 @@ public final class BusTest {
 
     static String name(Throwable e) { return e == null ? "none" : e.getClass().getSimpleName() + " " + e.getMessage(); }
 
+    /** Every expected key is read, so a field added to the shared fixtures cannot go unchecked. */
+    static boolean sameFields(Message m, Map<?, ?> want) {
+        for (Map.Entry<?, ?> e : want.entrySet()) {
+            String got = switch ((String) e.getKey()) {
+                case "from" -> m.from();
+                case "to" -> m.to();
+                case "body" -> m.body();
+                case "topic" -> m.topic().orElse("");
+                case "tag" -> m.tag().orElse("");
+                case "ask" -> m.ask().orElse("");
+                default -> "no adapter for expected field " + e.getKey();
+            };
+            if (!got.equals(e.getValue())) return false;
+        }
+        return true;
+    }
+
     static final List<String> AGENTS = List.of("#j-svc@localhost", "#j-slow@localhost", "#j-helper@localhost", "#j-other@localhost", "#j-caller@localhost");
 
     static void awaitReaderRelease(String name) throws Exception {
@@ -442,10 +459,7 @@ public final class BusTest {
                 String id = me.send((String) req.get("to"), (String) req.get("body"), options);
                 Optional<Message> got = svc.consume(Consume.waiting(ms(2000)));
                 check("send " + k.get("id") + ": arrives field for field under the returned ID", got.isPresent()
-                        && got.get().id().equals(id) && got.get().from().equals(want.get("from")) && got.get().to().equals(want.get("to"))
-                        && got.get().body().equals(want.get("body")) && got.get().topic().orElse("").equals(java.util.Objects.toString(want.get("topic"), ""))
-                        && got.get().tag().orElse("").equals(java.util.Objects.toString(want.get("tag"), ""))
-                        && got.get().ask().orElse("").equals(java.util.Objects.toString(want.get("ask"), "")), got);
+                        && got.get().id().equals(id) && sameFields(got.get(), want), got);
             }
             List<?> calls = load.apply("call");
             List<String> handled = new java.util.concurrent.CopyOnWriteArrayList<>();
@@ -464,8 +478,7 @@ public final class BusTest {
                     Outcome o = me.call((String) req.get("to"), (String) req.get("body"),
                             Call.within(Duration.ofSeconds(5)).topic((String) req.get("topic")));
                     check("call " + k.get("id") + ": the handler's answer", o instanceof Outcome.Answer a
-                            && a.message().body().equals(want.get("body")) && a.message().from().equals(want.get("from"))
-                            && a.message().to().equals(want.get("to")) && a.message().topic().orElse("").equals(want.get("topic")), o);
+                            && sameFields(a.message(), want), o);
                     check("call " + k.get("id") + ": the handler ran once on the request it answers", o instanceof Outcome.Answer a
                             && handled.stream().filter(h -> h.equals(a.message().re().orElse("") + " " + req.get("body"))).count() == 1, handled + " " + o);
                 }

@@ -31,11 +31,7 @@ the 0.8 line; no release wave is committed yet. Item glyphs follow
 - ✅ RT7 [Record tags](tags.md#classification-and-filtering)
   - State: built 0.8.143; [verification](done/record-tags.md#verification); multiple-tag matching is built ([№RTA1](#record-tags-acceptance))
 
-- ⏳ RT8 A shared executable protocol conformance suite for the clients
-  - Details: start with the calls the six clients already support; explanatory prose may accompany executable examples, with no new schema or generator
-  - Acceptance: each client passes the same request/answer cases; a changed request or answer in one client fails the corresponding case independently
-  - Mutant: change one client's emitted request or interpretation of an answer and the common case must fail
-  - State 2026-10-30: `send.json`, `call.json` and `self-call.json` run in all six adapters (Python, TypeScript and Go from #ab-w2c's slices; Rust, PHP and Java here, against the same files with the fixture names mapped to each daemon's). Mutants, each failing on an assertion under the lock: Rust `topic` not sent (`text-route: topic`), PHP `topic` not sent (the four send cases), Java `topic` not sent (the four send cases and the call case)
+- ✅ RT8 A shared executable protocol conformance suite for the clients ([result](DONE.md#rt8-shared-client-conformance))
   - Home: [protocol conformance](modules.md#protocol-conformance), [№RD90](DECISIONS.md#recorded-decisions)
 
 - ✅ RT9 [Agent method metadata](done/method-metadata.md#method-metadata)
