@@ -460,6 +460,17 @@ build date. The interpreted MCP and web faces report the shared SemVer only,
 read from `VERSION`.
 Release builds follow [working rules § versioning](../CLAUDE.md#versioning).
 
+### Release evidence
+
+`src/release-verify.sh <archive>...` reads release archives and refuses any
+that is not what the source says. Per archive: the name, the packed `VERSION`
+and every Go program's `--version` equal the source `VERSION`; each Go program
+carries a build stamp, not `development (unstamped)`; `LICENSE.md` is present;
+`MANIFEST.sha256` still matches. The compiled TypeScript binary has no version
+query, so it is checked for carrying the version. An archive for another CPU
+cannot run here, so its binaries are read instead of queried. Pending: the
+release run is not yet wired to it ([distribution](../Plans/R1.0-Release/TODO.md#objective)).
+
 ## Local users
 
 Setup asks for two things per user, and they are **configuration, not
