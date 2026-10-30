@@ -71,6 +71,8 @@ test("Slack answers starting while it loads the directory, keeps ordinary messag
   open();
   const outcome = await pending;
   expect(outcome.kind).toBe("answer");
+  // Ready: the same ask now answers ok, not unsupported.
+  expect(await ask(bus, "status")).toBe("ok");
   const after = await fx.call(fx.ownerToken, "GET", `/lookup?name=${encodeURIComponent(name)}`);
   expect(after.queued ?? 0).toBe(0);
 }, 40000);

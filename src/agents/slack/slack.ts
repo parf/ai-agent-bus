@@ -416,7 +416,7 @@ function render(json: boolean, r: Result, ctx?: Ctx): string {
 // The client's serve loop acks each message before the handler runs and
 // refuses receipts there, so they are consumed and never answered here.
 async function handle(e: Message): Promise<string | null> {
-  const answer = dispatchAsk(e.ask, ask => describe(name, mayChangeSubscriptions(e, name), ask));
+  const answer = dispatchAsk(e.ask, ask => describe(name, mayChangeSubscriptions(e, name), ask), { status: () => "ok" });
   if (answer !== undefined) return answer;
   const json = e.body.trim().startsWith("{");
   const call = parseCall(e.body);

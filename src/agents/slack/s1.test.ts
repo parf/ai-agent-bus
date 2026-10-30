@@ -253,7 +253,7 @@ t("every ask is answered before normal provider work", async () => {
       const result=await bus.call(name,"",{ask,timeout:5000});
       expect(result.kind).toBe("answer");
       if(result.kind!=="answer") throw Error("no ask answer");
-      if(ask==="status") expect(result.message.body).toBe("unsupported: status");
+      if(ask==="status") expect(result.message.body).toMatch(/^(ok|starting: )/); // starting while it loads, ok once it serves
       else expect(result.message.body.length).toBeGreaterThan(0);
     }
   } finally {bus.close();}
