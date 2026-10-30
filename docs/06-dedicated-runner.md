@@ -1,20 +1,58 @@
 # Dedicated runner
 
-📌 **TL;DR:** The dedicated runner, `agent-bus run`, puts one script behind
-one 👾 name: it stays in the foreground, reads that agent's queue and runs the
-script for each message. It is dedicated to that one agent; installed agents,
-pools, reload and restarts are the [runner](runner/README.md)'s.
+📌 **TL;DR:**
+- **Problem:** you have a script and want it to answer messages as a named agent, without a package or an installer.
+- **Outcome:** `agent-bus run` puts one script behind one 👾 name: it stays in the foreground, reads that agent's queue and runs the script for each message. Installed agents, pools, reload and restarts are the [runner](runner/README.md)'s; [session launchers](06-launchers.md) put a live AI session behind a name instead of a script.
+- **Start:** see the options: `agent-bus help run` ([Try this first](#try-this-first)).
+
+## Why you'd want it
+
+- 🚀 **A script should answer messages now.** Now one command makes it an agent.
+- 🪪 **A script has no name on the bus.** Now it registers one and reads its own inbox.
+- 🧱 **A script should not touch the whole machine.** Now it can run sandboxed.
+
+## What you get
+
+- ✅ **One script, one name:** each message runs the script once and its output is the answer.
+- ✅ **What the script is told:** the message arrives as the script's argument, or as JSON on stdin.
+- ✅ **Who it runs as:** the account that started it.
+- ✅ **Optional sandbox:** confinement for the child.
+- 🚫 **Not for:** installed or pooled agents, reloads and restarts (the [runner](runner/README.md)).
+
+## Try this first
+
+- See the options (read-only):
+
+```sh
+agent-bus help run
+```
+
+<details>
+<summary>See it on a real node (ran today)</summary>
+
+```text
+USAGE
+  agent-bus run <name> <script>
+  agent-bus run [-N] -
+```
+
+- The first lines of the answer; the rest explains each option.
+- The output is from the development node on 2026-10-30.
+
+</details>
+
+## Technical details
+
+The reference below keeps every section as it was; other pages link to these sections.
 
 This page owns `agent-bus run`. [Session launchers](06-launchers.md) put a live
 AI session behind a name instead of a script.
 
 ## What it does
 
-The dedicated runner, `agent-bus run`, stays in the foreground, registers an 👾
-[agent](03-records.md#record-kinds) — the kind that has a
-queue here — obtains its credential and reads that queue. It runs the script once per message. It serves one agent, the one it was
-started for, and does not manage installed instances, autostart, reload or
-restart policies: those are the [runner](runner/README.md)'s.
+- The dedicated runner, `agent-bus run`, stays in the foreground, registers an 👾 [agent](03-records.md#record-kinds) — the kind that has a queue here — obtains its credential and reads that queue.
+- It runs the script once per message.
+- It serves one agent, the one it was started for, and does not manage installed instances, autostart, reload or restart policies: those are the [runner](runner/README.md)'s.
 
 ## Script agents
 
@@ -33,11 +71,8 @@ agent-bus run '#hello@srv1' "$PWD/hello-world.sh" --descr "greets you"
 agent-bus run -5 - < agent.json
 ```
 
-The agent itself may be JSON on stdin, read only when `run` is given `-`; its
-fields are [the agent JSON](dedicated-runner/agent-json.md#fields).
-With no arguments, `run` prints its usage and a link to the
-[dedicated runner guide](user/dedicated-runner.md#-the-one-liner) on GitHub and exits non-zero; JSON
-piped without `-` is refused.
+- The agent itself may be JSON on stdin, read only when `run` is given `-`; its fields are [the agent JSON](dedicated-runner/agent-json.md#fields).
+- With no arguments, `run` prints its usage and a link to the [dedicated runner guide](user/dedicated-runner.md#-the-one-liner) on GitHub and exits non-zero; JSON piped without `-` is refused.
 
 | Rule | Built behavior |
 |---|---|
@@ -61,21 +96,17 @@ piped without `-` is refused.
 
 ### Keeping a supervised registration
 
-`agent-bus run --stay-registered` leaves the agent record and credential in
-place on a graceful stop. The default still unregisters an idle agent.
-An external supervisor can therefore restart the agent with its own token,
-without retaining a person's credential. The [standalone starter](../src/agents/standalone/starter.md#lifecycle)
-uses this mode and requires the remover's current credential for explicit
-unregistration. This flag controls lifecycle only; normal registration and
-authorization checks still apply on start.
+- `agent-bus run --stay-registered` leaves the agent record and credential in place on a graceful stop.
+- The default still unregisters an idle agent.
+- An external supervisor can therefore restart the agent with its own token, without retaining a person's credential.
+- The [standalone starter](../src/agents/standalone/starter.md#lifecycle) uses this mode and requires the remover's current credential for explicit unregistration.
+- This flag controls lifecycle only; normal registration and authorization checks still apply on start.
 
 ### Stopping it and reading what it said
 
-The daemon does not know **where** a script agent runs: the registry holds a
-description of it, not a handle to it. So a running agent leaves a note of
-itself in **its owner's own state directory**, and the two verbs read that.
-Which is also what makes *only whoever started it may stop it* true with no
-check in it — nobody else can see the file.
+- The daemon does not know **where** a script agent runs: the registry holds a description of it, not a handle to it.
+- So a running agent leaves a note of itself in **its owner's own state directory**, and the two verbs read that.
+- Which is also what makes *only whoever started it may stop it* true with no check in it — nobody else can see the file.
 
 | | |
 |---|---|
@@ -96,34 +127,27 @@ A forced kill or an error exit leaves the registration in place; remove an idle 
 
 ## What the child is told
 
-The script receives message id, sender, receiver, topic, tag and its work path
-through environment variables. Their exact names are owned by
-[its source](../src/cmd/agent-bus/run.go). These labels describe the work;
-`AB_ROLE_<NAME>=1` separately carries each role the bus granted toward this
-agent. Use those grants to guard methods, never a sender-name comparison
-([roles](03-records-agent.md#roles)). The [runner](runner/README.md)'s agents get
-[configuration layers](../Plans/R1.0-Release/runner-implementation.md#the-three-env-layers) as well.
+- The script receives message id, sender, receiver, topic, tag and its work path through environment variables.
+- Their exact names are owned by [its source](../src/cmd/agent-bus/run.go).
+- These labels describe the work; `AB_ROLE_<NAME>=1` separately carries each role the bus granted toward this agent.
+- Use those grants to guard methods, never a sender-name comparison ([roles](03-records-agent.md#roles)).
+- The [runner](runner/README.md)'s agents get [configuration layers](../Plans/R1.0-Release/runner-implementation.md#the-three-env-layers) as well.
 
-Keep secrets in Secret and config in Configuration ([rule](03-records-agent.md#configuring-a-template)).
-Configuration reaches each script as `AGENT_BUS_CONFIG`: compact JSON, unset
-when unconfigured. It is refreshed at the next invocation; see
-[configuration and jq](03-records-agent.md#configuring-a-template).
+- Keep secrets in Secret and config in Configuration ([rule](03-records-agent.md#configuring-a-template)).
+- Configuration reaches each script as `AGENT_BUS_CONFIG`: compact JSON, unset when unconfigured.
+- It is refreshed at the next invocation; see [configuration and jq](03-records-agent.md#configuring-a-template).
 
-The record's Secret (`KEY=value` lines, [env-file syntax](03-records-service.md#env-file-syntax))
-reaches each script as environment variables too, read again for every message,
-so `agent-bus secret` takes effect without a restart, sandboxed or not. It wins
-over the shell's value of the same name; the message's own `AGENT_BUS_*` fields
-win over it, and the credential is never set by it. A value never appears on
-any command line, and `agent-bus logs` masks a script line holding a value, or one
-line of a multi-line value, of four bytes or more. A value or line under four
-bytes (`PIN=123`, a trailing `w==`) is not masked, so keep such a secret out of
-what a script prints.
+- The record's Secret (`KEY=value` lines, [env-file syntax](03-records-service.md#env-file-syntax)) reaches each script as environment variables too, read again for every message, so `agent-bus secret` takes effect without a restart, sandboxed or not.
+- It wins over the shell's value of the same name; the message's own `AGENT_BUS_*` fields win over it, and the credential is never set by it.
+- A value never appears on any command line, and `agent-bus logs` masks a script line holding a value, or one line of a multi-line value, of four bytes or more.
+- A value or line under four bytes (`PIN=123`, a trailing `w==`) is not masked, so keep such a secret out of what a script prints.
 
-Without `--package-dir`, asks reach the script as `AGENT_BUS_ASK`:
-`help`, `help-config`, `help-secret`, `help-json` or `status`, with an empty
-body. Packaged metadata answers what it can; `help: native` delegates help to
-the script. Every remaining ask follows the same path. An unpackaged script has no MCP tools; the runner answers `mcp` with `{"tools":[]}`. To offer tools, use a package with `help: native`. See
-[package help](runner/configuration.md#package-help).
+- Without `--package-dir`, asks reach the script as `AGENT_BUS_ASK`: `help`, `help-config`, `help-secret`, `help-json` or `status`, with an empty body.
+- Packaged metadata answers what it can; `help: native` delegates help to the script.
+- Every remaining ask follows the same path.
+- An unpackaged script has no MCP tools; the runner answers `mcp` with `{"tools":[]}`.
+- To offer tools, use a package with `help: native`.
+- See [package help](runner/configuration.md#package-help).
 
 Use `--no-asks` (JSON `no_asks: true`), or `"asks":"none"` in the package,
 for an unchanged shell script: metadata still answers, and everything else
@@ -150,11 +174,10 @@ unit only on request ([a person's runner](07-setup.md#a-persons-runner)).
 
 ## Sandboxing
 
-The dedicated runner's sandbox is off by default; `--sandbox on|off` selects it explicitly. The built backend is
-`systemd-run --user` behind the sandbox port. Asking for a sandbox without a
-working user manager and support for `--expand-environment=no` fails rather
-than silently running unsandboxed. Startup reports the selected backend or the
-probe's failure diagnostic.
+- The dedicated runner's sandbox is off by default; `--sandbox on|off` selects it explicitly.
+- The built backend is `systemd-run --user` behind the sandbox port.
+- Asking for a sandbox without a working user manager and support for `--expand-environment=no` fails rather than silently running unsandboxed.
+- Startup reports the selected backend or the probe's failure diagnostic.
 
 | Profile | Behavior |
 |---|---|
