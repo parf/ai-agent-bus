@@ -5,5 +5,13 @@ if (!entry) {
   console.error("agent-bus channel: start this session with ab-claude");
   process.exit(0);
 }
-await import(entry);
+if (/\.[cm]?[jt]s$/.test(entry)) {
+  await import(entry);
+} else {
+  // A release's launcher names its compiled binary: run it as the MCP face on
+  // this process's stdio, and end as it ends.
+  const face = Bun.spawn([entry, "mcp"], { stdio: ["inherit", "inherit", "inherit"] });
+  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) process.on(signal, () => face.kill(signal));
+  process.exit(await face.exited);
+}
 export {};
