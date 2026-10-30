@@ -334,6 +334,21 @@ func TestBusStatusJSONCountsKindsReadersAndCurrentVersusCumulative(t *testing.T)
 	if mid["queued"] != before["queued"].(float64)+2 { // the ring's survivor and the fresh job
 		t.Fatalf("queued is the depth now: %v, was %v", mid["queued"], before["queued"])
 	}
+	// ok means the request was served: backlog and drop or expiry history never make it degraded.
+	okLine := func(when string) {
+		for _, text := range []string{busAnswer(t, s, "bob@h", "status"), func() string {
+			got, err := s.daemonAnswer(protocol.Envelope{From: "bob@h", Ask: protocol.AskStatus})
+			if err != nil {
+				t.Fatal(err)
+			}
+			return got
+		}()} {
+			if !strings.HasPrefix(text, "ok: ") {
+				t.Fatalf("%s: status is ok, got %q", when, text)
+			}
+		}
+	}
+	okLine("with backlog and history")
 	for _, name := range []string{"#ring@h", "jobs@h"} {
 		c, done := context.WithTimeout(context.Background(), time.Second)
 		if _, err := b.ConsumeAs(c, "alice@h", name, "", "", false, false); err != nil {
@@ -342,6 +357,7 @@ func TestBusStatusJSONCountsKindsReadersAndCurrentVersusCumulative(t *testing.T)
 		done()
 	}
 	after := status()
+	okLine("after the drain")
 	if after["queued"] != before["queued"] || after["dropped"] != mid["dropped"] || after["expired"] != mid["expired"] {
 		t.Fatalf("draining lowers queued only: before %v, after %v", mid, after)
 	}
