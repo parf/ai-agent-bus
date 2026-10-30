@@ -110,7 +110,7 @@ func (r *runner) environment(in installed, as *client) ([]string, string) {
 // Keep provenance separate from the merged environment: defaults and
 // Configuration are public settings, while Secret and host files are private.
 func (r *runner) environmentWithSecrets(in installed, as *client) ([]string, []string, string) {
-	dir := filepath.Join(r.agents, in.Dir)
+	dir := r.codeDir(in)
 	dist, err := readEnv(filepath.Join(dir, "env.dist"))
 	if err != nil {
 		return nil, nil, err.Error()
@@ -366,8 +366,8 @@ func (r *runner) serve(ctx context.Context) {
 		if s, ok := r.served[name]; ok && s.stream != nil {
 			// Kept jsonl processes cannot be told a new env or jail either: a
 			// launch change starts them again, any other change is SIGHUP.
-			cmd := command(filepath.Join(r.agents, in.Dir), in.Agent.Command)
-			if in.Digest != s.in.Digest || cmd != s.cmd || strings.Join(env, "\x00") != strings.Join(s.env, "\x00") ||
+			cmd := command(r.codeDir(*in), in.Agent.Command)
+			if r.codeDir(*in) != s.dir || in.Digest != s.in.Digest || cmd != s.cmd || strings.Join(env, "\x00") != strings.Join(s.env, "\x00") ||
 				strings.Join(p.secretEnv, "\x00") != strings.Join(s.secretEnv, "\x00") || jailChanged(s, *in, box) ||
 				in.Span != s.in.Span || inFlight(in.Agent) != inFlight(s.in.Agent) {
 				r.stop(name, s)
@@ -394,8 +394,8 @@ func (r *runner) serve(ctx context.Context) {
 			// gets the new one (Plans/R1.0-Release/runner.md#stop-and-reload).
 			// A kept process cannot be told a new env, so a change restarts
 			// it (№Q161), as does a changed installed package digest.
-			cmd := command(filepath.Join(r.agents, in.Dir), in.Agent.Command)
-			changed := s.kept != nil && (in.Digest != s.in.Digest || cmd != s.cmd || strings.Join(env, "\x00") != strings.Join(s.env, "\x00") || strings.Join(p.secretEnv, "\x00") != strings.Join(s.secretEnv, "\x00") ||
+			cmd := command(r.codeDir(*in), in.Agent.Command)
+			changed := s.kept != nil && (r.codeDir(*in) != s.dir || in.Digest != s.in.Digest || cmd != s.cmd || strings.Join(env, "\x00") != strings.Join(s.env, "\x00") || strings.Join(p.secretEnv, "\x00") != strings.Join(s.secretEnv, "\x00") ||
 				jailChanged(s, *in, box))
 			// Any other change of its settings, the host's overrides included,
 			// is told to the running processes by SIGHUP.
@@ -715,8 +715,8 @@ func (r *runner) adopt(ctx context.Context, in installed, name string, as *clien
 	}
 	rctx, cancel := context.WithCancel(ctx)
 	s := &served{in: in, name: name, work: work, bus: as, env: env, secretEnv: private,
-		box: box, jail: j, dir: filepath.Join(r.agents, in.Dir), net: wantsNet(in),
-		cmd:   command(filepath.Join(r.agents, in.Dir), in.Agent.Command),
+		box: box, jail: j, dir: r.codeDir(in), net: wantsNet(in),
+		cmd:   command(r.codeDir(in), in.Agent.Command),
 		slots: make(chan struct{}, max), cancel: cancel}
 	if isStream(in) {
 		// A hand on the inbox per place: each process holds in_flight.

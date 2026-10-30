@@ -78,7 +78,11 @@ func (r *runner) hostFile(name string) (string, string, error) {
 		if err := r.isInstalled(parts[1]); err != nil {
 			return "", "", err
 		}
-		return filepath.Join(r.agents, parts[1], last), fileAuthor, r.noLinks(r.agents, parts[1:]...)
+		root, err := r.packageRoot(parts[1])
+		if err != nil {
+			return "", "", err
+		}
+		return filepath.Join(root, parts[1], last), fileAuthor, r.noLinks(root, parts[1:]...)
 	case base == "runner" && len(parts) == 2 && last == "agents.json":
 		return filepath.Join(r.host, last), fileAgents, r.noLinks(r.host, last)
 	case base == "runner" && len(parts) >= 3 && (last == "env" || last == "agent.json"):
@@ -115,10 +119,8 @@ func (r *runner) isInstalled(dir string) error {
 	if !segment.MatchString(dir) {
 		return fmt.Errorf("%q is not an agent's directory name", dir)
 	}
-	if fi, err := os.Lstat(filepath.Join(r.agents, dir)); err != nil || !fi.IsDir() {
-		return fmt.Errorf("no agent %s is installed in agent.d", dir)
-	}
-	return nil
+	_, err := r.packageRoot(dir)
+	return err
 }
 
 // noLinks refuses a path through a symbolic link under base: a link placed
@@ -411,7 +413,11 @@ func (r *runner) checkSettingsOverride(name string, content []byte) error {
 	}
 	parts := strings.Split(name, "/")
 	last := parts[len(parts)-1]
-	b, err := agentmeta.ReadFile(filepath.Join(r.agents, parts[1], last))
+	root, err := r.packageRoot(parts[1])
+	if err != nil {
+		return err
+	}
+	b, err := agentmeta.ReadFile(filepath.Join(root, parts[1], last))
 	if errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("%s overrides a file agent.d/%s does not ship", name, parts[1])
 	}

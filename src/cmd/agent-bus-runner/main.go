@@ -43,7 +43,7 @@ var usage = display.ManText(runnerUsage)
 const runnerUsage = ` — serve installed agents · ` + display.Homepage + `
 
 USAGE
-  agent-bus-runner --host=<directory> [--agents=<directory>]
+  agent-bus-runner --host=<directory> [--agents=<directory>] [--bundled=<directory>]
   agent-bus-runner -h, --help | --version
 
 DESCRIPTION
@@ -59,6 +59,7 @@ DESCRIPTION
 OPTIONS
   --host=directory — runner account's private directory (required)
   --agents=directory — shared agent packages (default /var/lib/agent-bus/agent.d)
+  --bundled=directory — bundled packages; opt-in through agents.json
 
 GLOBAL OPTIONS
   -h, --help — show program help; use alone
@@ -97,6 +98,7 @@ func main() {
 	if version.Print() {
 		return
 	}
+	bundled := flag.String("bundled", defaultBundledDirectory(), "the bundled agent directory (opt-in)")
 	agents := flag.String("agents", "/var/lib/agent-bus/agent.d", "the shared directory of agent code")
 	host := flag.String("host", "", "the runner account's private directory (required)")
 	flag.Usage = func() { fmt.Fprintln(os.Stderr, "agent-bus-runner "+version.String+usage) }
@@ -108,6 +110,7 @@ func main() {
 	r := &runner{
 		startedAt: time.Now().UTC(),
 		agents:    *agents,
+		bundled:   *bundled,
 		host:      *host,
 		say:       os.Stderr,
 	}
@@ -129,7 +132,8 @@ type runner struct {
 	name      string    // the runner's own agent, whoever its token is
 	person    string    // the User that agent is — and so every agent it serves — owned by
 	realm     string
-	agents    string // agent.d
+	agents    string // shared agent.d
+	bundled   string // bundled agents; opt-in
 	host      string // runner/
 	say       io.Writer
 	bus       *client // as the runner's agent
@@ -227,7 +231,7 @@ func (r *runner) reload() {
 // apply rereads what is installed and serves it, keeping what stop calls took
 // down stopped. It holds reloadMu.
 func (r *runner) apply() {
-	list, err := load(r.agents, r.host)
+	list, err := loadSources(r.sources(), r.host)
 	for i := range list {
 		list[i].Stopped = r.stopped[list[i].Key]
 	}
@@ -270,6 +274,7 @@ type statusAnswer struct {
 }
 
 type agentStatus struct {
+	AgentDir  string        `json:"agent_dir,omitempty"`
 	Serves    string        `json:"serves,omitempty"`
 	Sandbox   string        `json:"sandbox,omitempty"`
 	Limits    *statusLimits `json:"limits,omitempty"`
@@ -297,7 +302,7 @@ func (r *runner) status() statusAnswer {
 		st.StartedAt = &r.startedAt
 	}
 	for _, in := range r.installed {
-		a := agentStatus{Name: r.agentName(in), Key: in.Key, Enabled: in.enabled(), LastExit: in.LastExit}
+		a := agentStatus{AgentDir: r.codeDir(in), Name: r.agentName(in), Key: in.Key, Enabled: in.enabled(), LastExit: in.LastExit}
 		switch in.Agent.Serves {
 		case "", "runner":
 			if in.Agent.Command != "" {
@@ -320,6 +325,9 @@ func (r *runner) status() statusAnswer {
 			a.State, a.Reason = "refused", in.Refused
 		case !a.Enabled:
 			a.State = "disabled"
+			if in.Bundled && in.Host.Enabled == nil {
+				a.State = "available"
+			}
 		case in.Stopped:
 			a.State, a.Reason = "stopped", "stopped by a call; start or reload serves it again"
 		default:

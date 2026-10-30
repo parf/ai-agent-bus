@@ -60,7 +60,9 @@ type span struct{ Min, Max int }
 // silently.
 type installed struct {
 	Key          string // <agent> or <agent>/<instance>, the agents.json key
-	Dir          string // the directory under agent.d
+	Dir          string // the package name, shared by host settings
+	Source       string // directory containing the selected package
+	Bundled      bool   // requires an explicit enabled:true
 	Digest       string // installed package files at load
 	Agent        agentFile
 	Host         hostEntry
@@ -72,7 +74,12 @@ type installed struct {
 	Stopped      bool        // by a stop call, until reload or the runner's restart
 }
 
-func (in installed) enabled() bool { return in.Host.Enabled == nil || *in.Host.Enabled }
+func (in installed) enabled() bool {
+	if in.Host.Enabled != nil {
+		return *in.Host.Enabled
+	}
+	return !in.Bundled
+}
 
 // wanted is whether serve should run it, before serve's own preflight.
 func (in installed) wanted() bool {
@@ -171,6 +178,10 @@ func (a agentFile) check() (span, error) {
 // An agents.json entry naming no installed agent is refused too, by name: a
 // typo left alone is an agent that never starts and looks fine.
 func load(agentDir, runnerDir string) ([]installed, error) {
+	return loadSources([]agentSource{{path: agentDir}}, runnerDir)
+}
+
+func loadSources(sources []agentSource, runnerDir string) ([]installed, error) {
 	host := map[string]hostEntry{}
 	if err := strict(filepath.Join(runnerDir, "agents.json"), &host); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, err
@@ -180,64 +191,77 @@ func load(agentDir, runnerDir string) ([]installed, error) {
 			return nil, err
 		}
 	}
-	entries, err := os.ReadDir(agentDir)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return nil, err
-	}
 	var out []installed
 	seen := map[string]bool{}
-	for _, e := range entries {
-		if !e.IsDir() || strings.HasPrefix(e.Name(), ".") {
-			continue
+	packages := map[string]bool{}
+	for _, source := range sources {
+		agentDir := source.path
+		entries, err := os.ReadDir(agentDir)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return nil, err
 		}
-		dir := e.Name()
-		var a agentFile
-		refused := ""
-		sp := span{}
-		author, _ := agentmeta.ReadFile(filepath.Join(agentDir, dir, "agent.json"))
-		if err := strict(filepath.Join(agentDir, dir, "agent.json"), &a); err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				refused = "agent.json: missing"
-			} else {
+		for _, e := range entries {
+			if !e.IsDir() || strings.HasPrefix(e.Name(), ".") {
+				continue
+			}
+			dir := e.Name()
+			if packages[dir] {
+				continue
+			}
+			if source.bundled {
+				if _, err := os.Stat(filepath.Join(agentDir, dir, "agent.json")); errors.Is(err, os.ErrNotExist) {
+					continue
+				}
+			}
+			packages[dir] = true
+			var a agentFile
+			refused := ""
+			sp := span{}
+			author, _ := agentmeta.ReadFile(filepath.Join(agentDir, dir, "agent.json"))
+			if err := strict(filepath.Join(agentDir, dir, "agent.json"), &a); err != nil {
+				if errors.Is(err, os.ErrNotExist) {
+					refused = "agent.json: missing"
+				} else {
+					refused = err.Error()
+				}
+			} else if sp, err = a.check(); err != nil {
 				refused = err.Error()
 			}
-		} else if sp, err = a.check(); err != nil {
-			refused = err.Error()
-		}
-		digest := ""
-		if refused == "" {
-			digest, err = packageDigest(filepath.Join(agentDir, dir))
-			if err != nil {
-				refused = err.Error()
-			}
-		}
-		// The agent itself, and each instance the host configured for it.
-		keys := []string{}
-		for k := range host {
-			if k == dir || strings.HasPrefix(k, dir+"/") {
-				keys = append(keys, k)
-			}
-		}
-		if len(keys) == 0 {
-			keys = []string{dir}
-		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			seen[k] = true
-			in := installed{Key: k, Dir: dir, Digest: digest, Agent: a, Host: host[k], Span: sp, Refused: refused}
+			digest := ""
 			if refused == "" {
-				if o, osp, ok, err := overridden(runnerDir, dir, k, author); err != nil {
-					in.Refused = err.Error()
-				} else if ok {
-					in.Agent, in.Span = o, osp
-				}
-				if over, sum, err := shippedOverlays(runnerDir, agentDir, dir, k); err != nil {
-					in.Refused = err.Error()
-				} else if len(over) > 0 {
-					in.Over, in.Digest = over, in.Digest+sum
+				digest, err = packageDigest(filepath.Join(agentDir, dir))
+				if err != nil {
+					refused = err.Error()
 				}
 			}
-			out = append(out, in)
+			// The agent itself, and each instance the host configured for it.
+			keys := []string{}
+			for k := range host {
+				if k == dir || strings.HasPrefix(k, dir+"/") {
+					keys = append(keys, k)
+				}
+			}
+			if len(keys) == 0 {
+				keys = []string{dir}
+			}
+			sort.Strings(keys)
+			for _, k := range keys {
+				seen[k] = true
+				in := installed{Key: k, Dir: dir, Source: agentDir, Bundled: source.bundled, Digest: digest, Agent: a, Host: host[k], Span: sp, Refused: refused}
+				if refused == "" {
+					if o, osp, ok, err := overridden(runnerDir, dir, k, author); err != nil {
+						in.Refused = err.Error()
+					} else if ok {
+						in.Agent, in.Span = o, osp
+					}
+					if over, sum, err := shippedOverlays(runnerDir, agentDir, dir, k); err != nil {
+						in.Refused = err.Error()
+					} else if len(over) > 0 {
+						in.Over, in.Digest = over, in.Digest+sum
+					}
+				}
+				out = append(out, in)
+			}
 		}
 	}
 	for k := range host {
