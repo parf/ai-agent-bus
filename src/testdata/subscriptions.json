@@ -2212,6 +2212,68 @@
           }
         }
       ]
+    },
+    {
+      "name": "stored-overlong-filter-inert-visible",
+      "source": "#eventlog@fixture.test",
+      "initial": [
+        {
+          "id": "000000000001",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "created_by": "#writer@fixture.test",
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        }
+      ],
+      "steps": [
+        {
+          "op": "list",
+          "author": "#writer@fixture.test",
+          "expect": {
+            "rows": [
+              {
+                "id": "000000000001",
+                "target": "events@fixture.test",
+                "selector": {
+                  "log": "deploys",
+                  "level": "alert"
+                },
+                "filter": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "created_by": "#writer@fixture.test",
+                "created_at": "2026-10-29T00:00:00.000Z",
+                "sent": 0,
+                "dropped": 0,
+                "reason": "invalid_filter"
+              }
+            ]
+          }
+        },
+        {
+          "op": "deliver",
+          "event": {
+            "log": "deploys",
+            "level": "alert",
+            "text": "tests FAILED",
+            "id": 1
+          },
+          "expect": {
+            "matched": 1,
+            "sent": 0,
+            "dropped": 1,
+            "attempts": 0,
+            "warnings": [
+              "filter_invalid"
+            ],
+            "queries": []
+          }
+        }
+      ]
     }
   ],
   "unicode_casefold_source": "https://www.unicode.org/Public/16.0.0/ucd/CaseFolding.txt"

@@ -139,7 +139,7 @@ class Subscriptions:
     def _row(self,value,key):
         if not isinstance(value,dict) or set(value)!=FIELDS or value.get('id')!=key:raise ValueError()
         validate_id(key);target_text(value['target']);identity(value['created_by'])
-        if not isinstance(value['filter'],str) or len(value['filter'])>206:raise ValueError()
+        if not isinstance(value['filter'],str):raise ValueError()
         self._selector(value['selector'])
         if not isinstance(value['created_at'],str) or not re.fullmatch(r'\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z',value['created_at']):raise ValueError()
         datetime.fromisoformat(value['created_at'].replace('Z','+00:00'))
