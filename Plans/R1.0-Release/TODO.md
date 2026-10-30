@@ -600,6 +600,14 @@ and no daemon change. A row that needs a format first proposes it for approval.
     | 6 Web (last, optional) | Docs row in the agent page's About |
     | Land | normal gate under `smoke-gate` per code commit; version slots from `#codex/xab` (R.4 keeps .128); deploy changed packages after the loader is live; `check-deploy`; live check `for a in $(agent-bus ls --kind=agent …); do agent-bus help "$a" \| grep '^Docs: '; done`. No push |
 
+## RT34 Agent events
+
+⏳ Owner, 2026-10-29, under discussion: per-agent notice/warning/alert rings in
+the daemon, written by the runner, the daemon, the agent and diagnostics, shown
+by the API and the web to Owner and Maintainers ([design](agent-events/README.md#levels)).
+Unassigned until [Q212 and Q213](QUESTIONS.md#agent-events) are settled and the
+owner asks for the API shape; then runner, daemon and web parts are split.
+
 ## RT33 May-send for another name
 
 - ⏳ RT33 `GET /may-send?who=<name>&name=<target>` and its use by every agent that sends for someone else (daemon and clients ✅ 0.9.141 `2889a06b`/`f5442b9a`, deployed, 14 mutants, reviewed; Slack, Telegram and logwatch `sub` ✅ 0.9.145 `a54afe01`/`ba3b9c82`, 20 mutants, gate 233/0, reviewed, not yet deployed; IMAP `sub` (xAB2) open) ([RD141](DECISIONS.md#recorded-decisions))

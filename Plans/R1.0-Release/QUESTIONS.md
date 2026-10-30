@@ -33,6 +33,16 @@ Choices for the [shorter prompts plan](short-prompts.md#proposal), to discuss wi
   - Settled by the owner, 2026-10-26 ([RD116](DECISIONS.md#recorded-decisions)): the runner answers from metadata what it can; any other ask, `status` included, reaches the script as `AGENT_BUS_ASK=<ask>` with empty input. A script that knows nothing of asks runs with `--no-asks` ([RD117](DECISIONS.md#recorded-decisions)). The runner answers `status` itself when it can ([RD118](DECISIONS.md#recorded-decisions))
   - Impact: the help line keeps the daemon out of describing agents (constitution § agent self-description) and needs no new wire field, at the cost of one `help` round trip before any further ask; a record field saves that trip but makes the daemon carry agent self-description
 
+## Agent events
+
+- ❓ Q212 How big each [agent-event](agent-events/README.md#levels) ring is
+  - Proposal: per agent 200 notices, 200 warnings, 50 alerts; one node-wide setting, no per-agent override at first
+  - Impact: 200 short lines per ring is about 40 KB an agent in memory; alerts on disk stay small
+
+- ❓ Q213 Do allow-list callers see the events their own messages caused
+  - Options: no, Owner and Maintainers only (recommended: stderr is not tied to one message reliably and may carry other callers' data; a caller already gets an error answer); or yes, the entries the runner can tie to one message id, such as a failure while handling it
+  - Impact: yes needs the runner to tag entries with the message being handled, and a filtered read per caller
+
 ## RAG service
 
 - ❓ Q194 Which keyword half of [RAG](rag/README.md#rules) hybrid search wins the trial on the owner's real Russian and English texts: Qdrant's built-in BM25 or the agent's own sparse vectors with stemming
