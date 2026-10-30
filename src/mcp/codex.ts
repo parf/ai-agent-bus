@@ -37,16 +37,26 @@ type Rpc = {
   method?: string;
   params?: unknown;
   result?: any;
-  error?: { code: number; message: string };
+  error?: { code: number; message: string; data?: unknown };
 };
 type Turn = { id: string; status?: unknown };
 export type Thread = { id: string; cwd?: string; name?: string | null; turns?: Turn[] };
 
 export class AppServerError extends Error {
-  constructor(readonly code: number, message: string) {
+  constructor(readonly code: number, message: string, readonly data?: unknown) {
     super(message);
   }
 }
+
+/** The App Server's answer to a turn/steer or turn/start while the active turn
+ *  cannot take one: a manual /compact or /review (`activeTurnNotSteerable` in
+ *  its protocol). The turn ends by itself, so the message waits for it. */
+export function notSteerable(err: unknown): boolean {
+  if (!(err instanceof AppServerError)) return false;
+  return /active_?turn_?not_?steerable|not steerable|same-turn steering/i.test(`${err.message} ${JSON.stringify(err.data ?? "")}`);
+}
+
+export type CodexTiming = { steerWaitMs: number; retryMs: number };
 
 // Only what both transports need: a line out, lines in, and an end.
 type Wire = {
@@ -81,7 +91,12 @@ export class Codex {
     approvalsReviewer: "user" as const,
   };
 
-  constructor(cwd: string, log: (s: string, ok?: boolean) => void, url = process.env.AGENT_BUS_CODEX_WS, token = process.env.AGENT_BUS_CODEX_AUTH_TOKEN) {
+  // How long a delivery waits for a turn that cannot be steered, and how often
+  // it tries again: five minutes covers a /compact.
+  readonly #timing: CodexTiming;
+
+  constructor(cwd: string, log: (s: string, ok?: boolean) => void, url = process.env.AGENT_BUS_CODEX_WS, token = process.env.AGENT_BUS_CODEX_AUTH_TOKEN, timing: CodexTiming = { steerWaitMs: 300_000, retryMs: 1_000 }) {
+    this.#timing = timing;
     this.#cwd = resolve(cwd);
     this.#log = log;
     this.#url = url?.trim() || undefined;
@@ -223,6 +238,7 @@ export class Codex {
         // active turn was wrong, and even then only after the server has
         // confirmed no turn is running. Overload and timeouts propagate.
         if (!(err instanceof AppServerError)) throw err;
+        if (notSteerable(err)) return this.#startWhenIdle(common, id);
         if (err.code === -32001) throw err; // overload: retrying is not the fix
         this.#log(`codex: steer rejected (${err.code} ${err.message}); asking the server what is running`);
         await this.#refresh();
@@ -230,9 +246,40 @@ export class Codex {
       }
     }
     const epoch = this.#turnEpoch;
-    const r = await this.#request<{ turn: Turn }>("turn/start", { ...common, ...this.#policy });
+    let r: { turn: Turn };
+    try {
+      r = await this.#request<{ turn: Turn }>("turn/start", { ...common, ...this.#policy });
+    } catch (err) {
+      if (notSteerable(err)) return this.#startWhenIdle(common, id);
+      throw err;
+    }
     this.#setActiveTurn(r.turn.id, epoch);
     return "turn/start";
+  }
+
+  // The active turn is a /compact or /review that takes no steering: wait for
+  // it to end, trying turn/start again, so a compacted session keeps its push
+  // and the message is delivered. Only this rejection waits; any other fails at
+  // once. After the bound the message fails as before, and is named in the log
+  // because it was already consumed from the inbox (J60).
+  async #startWhenIdle(common: Record<string, unknown>, id: string): Promise<"turn/start"> {
+    const until = Date.now() + this.#timing.steerWaitMs;
+    this.#log(`codex: the active turn takes no steering (a /compact or /review); message ${id} waits for it to end`);
+    for (;;) {
+      await sleepMs(Math.min(this.#timing.retryMs, Math.max(0, until - Date.now())));
+      const epoch = this.#turnEpoch;
+      try {
+        const r = await this.#request<{ turn: Turn }>("turn/start", { ...common, ...this.#policy });
+        this.#setActiveTurn(r.turn.id, epoch);
+        return "turn/start";
+      } catch (err) {
+        if (!notSteerable(err)) throw err;
+        if (Date.now() >= until) {
+          this.#log(`codex: message ${id} was not delivered: the turn was still not steerable after ${Math.round(this.#timing.steerWaitMs / 1000)}s`);
+          throw err;
+        }
+      }
+    }
   }
 
   stop(): void {
@@ -372,7 +419,7 @@ export class Codex {
     if (msg.id !== undefined && (msg.result !== undefined || msg.error)) {
       this.#pending.settle(
         msg.id,
-        msg.error ? new AppServerError(msg.error.code, msg.error.message) : null,
+        msg.error ? new AppServerError(msg.error.code, msg.error.message, msg.error.data) : null,
         msg.result,
       );
       return;
@@ -418,6 +465,8 @@ export class Codex {
     }
   }
 }
+
+const sleepMs = (ms: number) => new Promise<void>((done) => setTimeout(done, ms));
 
 function latestActiveTurn(turns?: Turn[]): Turn | undefined {
   if (!turns?.length) return undefined;
