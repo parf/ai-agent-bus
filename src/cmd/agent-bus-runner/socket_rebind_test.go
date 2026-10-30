@@ -5,12 +5,15 @@ import (
 	"io"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/parf/ai-agent-bus/internal/cgroup"
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/sandbox"
 )
@@ -107,17 +110,17 @@ func TestUnsandboxedKeptProcessIsNotRestartedForAReplacedSocket(t *testing.T) {
 	defer daemon.Close()
 	k := &keeper{r: r, s: s}
 	s.box = passBox{}
-	if k.socketToWatch() == nil {
-		t.Fatal("a sandboxed process with a socket path was not watched")
+	if sock, err := k.socketToWatch(); sock == nil || err != nil {
+		t.Fatalf("a sandboxed process with a socket path was not watched: %v", err)
 	}
 	s.box = sandbox.Off{}
-	if k.socketToWatch() != nil {
-		t.Fatal("a process with the sandbox off was watched")
+	if sock, err := k.socketToWatch(); sock != nil || err != nil {
+		t.Fatalf("a process with the sandbox off was watched: %v", err)
 	}
 	r.addr = "http://127.0.0.1:6767"
 	s.box = passBox{}
-	if k.socketToWatch() != nil {
-		t.Fatal("a process talking over TCP was watched")
+	if sock, err := k.socketToWatch(); sock != nil || err != nil {
+		t.Fatalf("a process talking over TCP was watched: %v", err)
 	}
 }
 
@@ -170,5 +173,97 @@ func TestSandboxSeesTheBusSocketButNotItsNeighbouringAccountSocket(t *testing.T)
 	}
 	if got, want := string(seen), "bus.sock seen\nuser-runner.sock hidden\n"; got != want {
 		t.Fatalf("inside the sandbox: %q, want %q", got, want)
+	}
+}
+
+// J30, review: a socket that appears between the look and the start must not
+// leave the process unwatched for good. #ab-w1c's probe, synchronised on the
+// loop's state rather than a line number: hold the keeper's lock so a loop that
+// looked at an absent socket waits at it; create the socket, release, replace.
+func TestASocketAppearingBeforeTheStartIsStillWatched(t *testing.T) {
+	check, first := socketCheck, backoffFirst
+	socketCheck, backoffFirst = 10*time.Millisecond, 10*time.Millisecond
+	defer func() { socketCheck, backoffFirst = check, first }()
+	dir := t.TempDir()
+	sock := filepath.Join(dir, "bus.sock")
+	starts := filepath.Join(dir, "starts")
+	script := filepath.Join(dir, "agent.sh")
+	body := "echo start >> " + strconv.Quote(starts) + "\ntrap 'exit 0' TERM\nwhile :; do sleep .02; done\n"
+	if err := os.WriteFile(script, []byte(body), 0600); err != nil {
+		t.Fatal(err)
+	}
+	logs := restartLog{lines: make(chan string, 64)}
+	r := &runner{ctx: context.Background(), say: logs, addr: sock}
+	s := &served{bus: unconfiguredClient(), name: "#fixture@h", cmd: "/bin/sh " + strconv.Quote(script), work: dir, dir: dir, box: passBox{}, jail: &jail{}, in: installed{Agent: agentFile{Deadline: "200ms"}, Span: span{Min: 1, Max: 1}}}
+	ctx, cancel := context.WithCancel(r.ctx)
+	k := &keeper{r: r, s: s, ctx: ctx, cancel: cancel, running: map[*exec.Cmd]keptProcess{}, groups: map[*cgroup.Group]bool{}}
+	k.mu.Lock()
+	locked := true
+	defer func() {
+		if locked {
+			k.mu.Unlock()
+		}
+		k.stop()
+	}()
+	k.wg.Add(1)
+	go k.loop()
+	waitingForLock := func() bool {
+		stack := make([]byte, 1<<20)
+		n := runtime.Stack(stack, true)
+		for _, g := range strings.Split(string(stack[:n]), "\n\n") {
+			if strings.Contains(g, "(*keeper).loop") && strings.Contains(g, "sync.(*Mutex).Lock") {
+				return true
+			}
+		}
+		return false
+	}
+	// The loop has looked at the absent socket: it either waits at the lock
+	// with nothing to watch, or it refused the start and will try again.
+	end := time.Now().Add(2 * time.Second)
+	for !waitingForLock() {
+		select {
+		case line := <-logs.lines:
+			if strings.Contains(line, "no bus socket") {
+				goto looked
+			}
+		default:
+		}
+		if time.Now().After(end) {
+			t.Fatal("the loop never looked at the socket")
+		}
+		time.Sleep(time.Millisecond)
+	}
+looked:
+	daemon, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer daemon.Close()
+	for end = time.Now().Add(2 * time.Second); !waitingForLock(); time.Sleep(time.Millisecond) {
+		if time.Now().After(end) {
+			t.Fatal("the loop never came back to start the process")
+		}
+	}
+	k.mu.Unlock()
+	locked = false
+	count := func() int {
+		b, _ := os.ReadFile(starts)
+		return strings.Count(string(b), "start\n")
+	}
+	for end = time.Now().Add(2 * time.Second); count() < 1; time.Sleep(time.Millisecond) {
+		if time.Now().After(end) {
+			t.Fatal("the process never started")
+		}
+	}
+	daemon.Close()
+	again, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer again.Close()
+	for end = time.Now().Add(2 * time.Second); count() < 2 && time.Now().Before(end); time.Sleep(time.Millisecond) {
+	}
+	if n := count(); n != 2 {
+		t.Fatalf("a socket that appeared before the start went unwatched: %d start(s), want 2", n)
 	}
 }

@@ -101,7 +101,9 @@ func (k *keeper) loop() {
 		cmd, j, err := k.command()
 		var sock *boundSocket
 		if err == nil {
-			sock = k.socketToWatch()
+			sock, err = k.socketToWatch()
+		}
+		if err == nil {
 			k.mu.Lock()
 			if k.ctx.Err() != nil {
 				err = k.ctx.Err()
@@ -115,6 +117,8 @@ func (k *keeper) loop() {
 				}
 			}
 			k.mu.Unlock()
+		}
+		if cmd != nil {
 			// The filter's pipe is the child's now, or nobody's.
 			for _, f := range cmd.ExtraFiles {
 				f.Close()
@@ -280,19 +284,20 @@ func socketIdentity(path string) (dev, ino uint64, ok bool) {
 // socketToWatch is the bus socket a process about to start gets mounted, or
 // nil: no socket path, or no sandbox, whose process opens the path afresh.
 // It is read just before the start, so a socket replaced in between costs one
-// extra restart. A path with no socket at the start is not watched: the mount
-// itself fails and the loop retries with backoff until the daemon is back.
-// A device and inode reused by a new socket, as tmpfs can, would go unseen.
-func (k *keeper) socketToWatch() *boundSocket {
+// extra restart. With no socket at the path the start is refused, and the loop
+// retries with backoff: one that appeared before the mount would otherwise run
+// unwatched for good. A device and inode reused by a new socket, as tmpfs can,
+// would go unseen.
+func (k *keeper) socketToWatch() (*boundSocket, error) {
 	addr := k.r.addr
 	if !strings.HasPrefix(addr, "/") || k.r.launchSettings(k.s).box.Name() == "off" {
-		return nil
+		return nil, nil
 	}
 	dev, ino, ok := socketIdentity(addr)
 	if !ok {
-		return nil
+		return nil, fmt.Errorf("no bus socket at %s yet", addr)
 	}
-	return &boundSocket{path: addr, dev: dev, ino: ino}
+	return &boundSocket{path: addr, dev: dev, ino: ino}, nil
 }
 
 // watchSocket stops one process, as stop does, once another socket is at the
