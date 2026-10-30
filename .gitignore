@@ -6,6 +6,7 @@
 /src/agent-bus-admin
 /src/agent-bus-runner
 /src/agent-bus-web
+/src/agent-bus-ts
 # Scratch space, and the two ways to name something that is not ours to keep.
 # tmp/ is where temp data and one-off scripts go; anything else throwaway
 # carries .local in its name or sits in a local/ directory.

@@ -22,7 +22,10 @@ if [ "$out" != . ]; then
     # The plugin starts the compiled face by its name on PATH (setup links it).
     sed 's|"command": "bun",|"command": "agent-bus-mcp",|; s|"args": \["${CLAUDE_PLUGIN_ROOT}/channel.ts"\]|"args": ["channel"]|' \
         mcp/.claude-plugin/plugin.json >"$out/mcp/.claude-plugin/plugin.json"
+    # Both halves, or the face would start outside ab-claude in every session.
     grep -q '"command": "agent-bus-mcp"' "$out/mcp/.claude-plugin/plugin.json"
+    grep -q '"args": \["channel"\]' "$out/mcp/.claude-plugin/plugin.json"
+    ! grep -q 'channel\.ts\|"bun"' "$out/mcp/.claude-plugin/plugin.json"
     cp mcp/channel.ts mcp/tags.ts "$out/mcp/"
     cp mcp/commands/ls.md mcp/commands/send.md "$out/mcp/commands/"
     # The web face is TypeScript run from source by the system bun, under its

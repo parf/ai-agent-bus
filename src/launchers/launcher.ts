@@ -18,6 +18,7 @@ import { claimFork, claimIdentity, releaseIdle } from "./identity.ts";
 import { serveControl } from "./control.ts";
 import { codexAuth } from "./runtime-auth.ts";
 import { restartOption, RestartBackoff } from "./restart.ts";
+import { pluginSteps } from "./plugin-steps.ts";
 import { tagOption } from "./tags.ts";
 import { descriptionOption } from "./description.ts";
 import { ForeignListener, startOwnedServer } from "./runtime-listener.ts";
@@ -624,14 +625,17 @@ See docs/06-launchers.md#smart-launchers.`);
 function ensureClaudePlugin(binary: string, env: NodeJS.ProcessEnv): void {
   const plugin = "agent-bus@agent-bus-local";
   const read = (file: string) => { try { return JSON.parse(readFileSync(join(claudeHome(), "plugins", file), "utf8")); } catch { return {}; } };
-  if (read("installed_plugins.json").plugins?.[plugin]?.length) return;
-  const run = (step: string[]) => {
+  const known = read("known_marketplaces.json")["agent-bus-local"];
+  const steps = pluginSteps({
+    compiled, source: compiled ? dirname(process.execPath) : dirname(import.meta.dir),
+    knownPath: known ? String(known.source?.path ?? "") : undefined,
+    installed: !!read("installed_plugins.json").plugins?.[plugin]?.length,
+  });
+  for (const step of steps) {
     const r = spawnSync(binary, ["plugin", ...step], { env, encoding: "utf8", timeout: 120_000 });
     if (r.status !== 0) throw new Error(`claude plugin ${step.join(" ")} failed: ${(r.stderr || r.stdout || r.error?.message || "").trim().slice(-300)}`);
-  };
-  if (!read("known_marketplaces.json")["agent-bus-local"]) run(["marketplace", "add", compiled ? dirname(process.execPath) : dirname(import.meta.dir)]);
-  run(["install", plugin, "--scope", "user"]);
-  note(`installed the ${plugin} channel plugin in ${claudeHome()}`);
+  }
+  if (steps.length) note(`installed the ${plugin} channel plugin in ${claudeHome()}`);
 }
 
 function claudeArgs(input: string[]): string[] {

@@ -1,8 +1,9 @@
 #!/bin/sh
 set -eu
 dir=$(dirname "$(readlink -f "$0")")
-# A release archive carries the compiled binary beside launchers/; a checkout runs the source with bun.
-[ -x "$dir/../agent-bus-ts" ] && exec "$dir/../agent-bus-ts" launcher codex "$@"
+# A release tree carries the compiled binary beside launchers/; a checkout (its
+# go.mod beside them) runs the source with bun, even with a stray binary there.
+[ -x "$dir/../agent-bus-ts" ] && [ ! -e "$dir/../go.mod" ] && exec "$dir/../agent-bus-ts" launcher codex "$@"
 command -v bun >/dev/null 2>&1 || { echo 'ab-codex: install bun to run the launcher' >&2; exit 1; }
 entry="$dir/launcher.js"
 [ -f "$entry" ] || entry="$dir/launcher.ts"
