@@ -39,7 +39,10 @@ Example: an autopull success script writes `write realty-prod notice deployed
 
 ## Same code
 
-The ring rules (size, TTL, repeat folding, levels) are written once as a shared
-module that RT34 and this agent both follow, and the web uses one component for
+The ring rules (size, TTL, repeat folding, levels, ids, `clean`, `pull`,
+restart) are written once: `src/agents/shared/event_rings.py` for this agent,
+plus language-neutral JSON test vectors that RT34's Go implementation in the
+daemon must also pass, as the env-file parser's shared cases do. The Go daemon
+does not import Python code; and the web uses one component for
 an agent's events and for a log. v1 is a runner agent in Python with no daemon
 change.
