@@ -250,6 +250,17 @@ that is the accepted cost — it keeps `ack` an optional business receipt rather
 than a dequeue contract, and keeps the daemon from tracking in-flight state
 for every reader.
 
+
+## An asks-only read
+
+An agent that has not attached its reader yet, or is still loading, can still answer `help` and `status` without taking work.
+
+- **What it takes:** `GET /consume?asks=only` takes the oldest queued message whose `ask` is set; every other message stays queued, in place and in order, for the ordinary reader.
+- **Waiting:** it waits like any consume, and an ask that arrives is handed to it ahead of the unfiltered reader.
+- **Beside the reader:** it neither counts as the second unfiltered reader nor is refused for it, so it can wait while the one unfiltered reader does.
+- **Authority:** the caller's existing consume authority on that inbox, unchanged: a caller the ACL refuses is refused.
+- **Spelling:** any value other than `only` is a 400 that names `asks`.
+
 ## Message fields
 
 Every message carries:
