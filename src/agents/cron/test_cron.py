@@ -575,6 +575,33 @@ class Delivery(Fixture):
         self.assertEqual(restarted.later, {})
         self.assertEqual([r['status'] for r in self.ask(restarted, 'later list')['finished']], ['dropped'])
 
+    def test_a_legacy_gone_claim_is_dropped_once_at_restart_without_replaying_its_slot(self):
+        agent = self.agent()
+        key = self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')['id']
+        claim = f'fired.{key}.2026-10-28T12:01'
+        self.owner.record(WORKER).kv.set(claim, 'gone')
+        self.at(12, 1)
+        self.logs.clear()
+        self.die(agent)
+        restarted = self.agent()
+        self.assertEqual(restarted.claims[claim], 'dropped')
+        self.assertEqual(restarted.state[key]['dropped'], 1)
+        restarted.tick()
+        restarted.tick()
+        self.assertEqual(self.received(), [])
+        self.assertIn(key, restarted.subs)
+        self.assertNotIn('paused', restarted.subs[key])
+        self.die(restarted)
+        again = self.agent()
+        self.assertEqual(again.claims[claim], 'dropped')  # durable, not just an in-memory conversion
+        again.tick()
+        self.assertEqual(self.received(), [])
+        warnings = [json.loads(line) for line in self.logs if line.startswith('{') and 'warning' in json.loads(line)]
+        self.assertEqual(warnings, [{'id': key, 'warning': 'target_gone'}])
+        self.at(12, 2)
+        again.tick()
+        self.assertEqual(self.received(), ['tick'])  # the recurring entry stayed active
+
     def test_a_legacy_unconfirmed_claim_is_settled_and_the_subscription_stays_active(self):
         agent = self.agent()
         key = self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')['id']

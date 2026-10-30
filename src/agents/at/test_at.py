@@ -213,6 +213,28 @@ class Firing(AtFixture):
         self.assertEqual(self.ask(agent, 'cancel ' + key), {'deleted': key})
         self.assertIn(f'fired.{key}.once', [e['name'] for e in self.owner.record(WORKER).kv.list().get('string', [])])
 
+    def test_a_legacy_gone_one_shot_is_dropped_once_at_restart_and_never_sent(self):
+        agent = self.agent()
+        key = self.ask(agent, f'in 1s {TARGET} once')['id']
+        self.owner.record(WORKER).kv.set(f'fired.{key}.once', 'gone')
+        self.clock.now += 2
+        self.logs.clear()
+        self.die(agent)
+        restarted = self.agent()
+        self.assertNotIn(key, restarted.later)
+        outcomes = self.owner.record(WORKER).kv.get('outcomes', kind='json')
+        self.assertEqual(outcomes[key]['status'], 'dropped')
+        restarted.tick()
+        self.assertEqual(self.received(), [])
+        self.die(restarted)
+        again = self.agent()
+        self.assertNotIn(key, again.later)
+        self.clock.now += 120
+        again.tick()
+        self.assertEqual(self.received(), [])
+        warnings = [json.loads(line) for line in self.logs if line.startswith('{') and 'warning' in json.loads(line)]
+        self.assertEqual(warnings, [{'id': key, 'warning': 'target_gone'}])
+
     def test_an_unconfirmed_one_shot_is_dropped_and_leaves_no_entry_or_claim(self):
         agent = self.agent()
         key = self.ask(agent, f'in 1s {TARGET} x')['id']
