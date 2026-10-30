@@ -194,6 +194,7 @@ function by<T>(promise: Promise<T>, until: number): Promise<T | undefined> {
 export class FilterWorker {
   private worker: Worker | undefined;
   private started: Promise<boolean> | undefined;
+  private ready: ((ok: boolean) => void) | undefined;
   private pending: ((hit: boolean | undefined) => void) | undefined;
   private tail: Promise<unknown> = Promise.resolve();
   private closed = false;
@@ -235,14 +236,13 @@ export class FilterWorker {
     workerURL ??= URL.createObjectURL(new Blob([WORKER], { type: "application/javascript" }));
     const w = new Worker(workerURL);
     (w as { unref?: () => void }).unref?.();
-    let ready!: (ok: boolean) => void;
-    this.started = new Promise(resolve => { ready = resolve; });
+    this.started = new Promise(resolve => { this.ready = resolve; });
     w.onmessage = (e: MessageEvent) => {
-      if (e.data === "ready") ready(true);
+      if (e.data === "ready") this.ready?.(true);
       else this.pending?.(e.data === true);
     };
     w.onerror = () => {
-      ready(false);
+      this.ready?.(false);
       this.pending?.(undefined);
     };
     this.worker = w;
@@ -251,10 +251,13 @@ export class FilterWorker {
 
   private stop(w: Worker): void {
     w.terminate();
+    // Whatever waits on this worker, its start or its answer, is answered now.
+    if (this.worker === w) this.ready?.(false);
     this.pending?.(undefined);
     if (this.worker === w) {
       this.worker = undefined;
       this.started = undefined;
+      this.ready = undefined;
     }
   }
 }

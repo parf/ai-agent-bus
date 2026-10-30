@@ -220,6 +220,17 @@ test("one delivery's matching stops at its budget however many filters are slow"
   expect(took).toBeLessThan(MATCH_MS + 5 * PATTERN_MS);
 });
 
+test("close during a worker's start answers at once, not at the batch's end", async () => {
+  const worker = new FilterWorker();
+  const verdict = worker.test(/a/, "a", Date.now() + MATCH_MS);
+  // Before the new worker can have said it is ready.
+  await Promise.resolve();
+  const started = Date.now();
+  worker.close();
+  expect(await verdict).toBe("slow");
+  expect(Date.now() - started).toBeLessThan(PATTERN_MS);
+});
+
 test("close terminates a test in flight; the worker answers nothing after", async () => {
   const worker = new FilterWorker();
   const verdict = worker.test(new RegExp(slow), slowText, Date.now() + MATCH_MS);
