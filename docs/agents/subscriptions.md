@@ -4,7 +4,8 @@
 log lines or chat messages, into a queue or an agent's inbox. Every helper is
 meant to share one behaviour: one copy per match, the author's send right
 checked at `sub add` and before every send, a refused copy dropped and counted
-while the subscription stays active. Logwatch uses the shared implementation; the other helpers retain their own subscription code ([today](#what-each-helper-does-today)).
+while the subscription stays active. Coming: today each helper still runs its
+own subscription code ([today](#what-each-helper-does-today)).
 
 What stays per helper is only the selector, what a subscription watches: a
 mailbox for [IMAP](imap.md#what-it-does), a source for
@@ -14,7 +15,8 @@ a schedule, not a match, and keeps its own calls.
 
 ## The shared behaviour
 
-Logwatch follows these rules. For other helpers, see [what each helper does today](#what-each-helper-does-today).
+The rules every helper moves to. Coming: a helper follows them once it moves
+to the shared code; until then, see [what each helper does today](#what-each-helper-does-today).
 
 | Rule | Every subscription |
 |---|---|
@@ -30,7 +32,8 @@ Logwatch follows these rules. For other helpers, see [what each helper does toda
 
 ## What each helper does today
 
-Logwatch runs the shared engine. The other helpers retain their own implementations; Telegram shares Slack's code.
+Each helper still runs its own subscription code. A cell says where it
+already follows the rule, otherwise what it does instead. Telegram shares Slack's subscription code.
 
 | Rule | [IMAP](imap.md#what-it-does) | [Logwatch](logwatch.md#what-it-does) | [Slack](slack.md#what-it-does), [Telegram](telegram.md#reply-routing) |
 |---|---|---|---|
