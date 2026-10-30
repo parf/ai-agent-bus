@@ -13,7 +13,7 @@ trap 'rm -rf "$tmp"' EXIT
 # The client reads the bus's version file beside the checkout; the bundle has
 # no checkout around it, so the version is written in at build time.
 AGENT_BUS_BUILD_VERSION=$(cat "$here/../../internal/version/VERSION") \
-  bun build "$here/slack.ts" "$here/filter-worker.ts" --target=bun --outdir "$tmp" \
+  bun build "$here/slack.ts" --target=bun --outdir "$tmp" \
   --env 'AGENT_BUS_BUILD_*' >/dev/null
 # The bundle keeps slack.ts's own #! line; one is added only if it is gone.
 head -c 2 "$tmp/slack.js" | grep -q '#!' || { echo '#!/usr/bin/env bun'; cat "$tmp/slack.js"; } >"$tmp/slack.js.x"
@@ -21,7 +21,7 @@ head -c 2 "$tmp/slack.js" | grep -q '#!' || { echo '#!/usr/bin/env bun'; cat "$t
 # The runner's account reads it: the code holds no secret.
 install -d -m 0755 "$tmp/licenses"
 install -m 0644 "$here/../../../licenses/NOTICE.md" "$tmp/licenses/NOTICE.md"
-chmod 755 "$tmp" "$tmp/slack.js"; chmod 644 "$tmp/filter-worker.js"
+chmod 755 "$tmp" "$tmp/slack.js"
 sed 's|"command": "./slack.ts"|"command": "./slack.js"|' "$here/agent.json" >"$tmp/agent.json"
 cp "$here/env.dist" "$tmp/env.dist"
 chmod 644 "$tmp/agent.json" "$tmp/env.dist"

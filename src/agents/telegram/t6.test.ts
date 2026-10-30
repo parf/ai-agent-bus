@@ -3,7 +3,7 @@ import { spawn, type Subprocess } from "bun";
 import { join } from "node:path";
 import { call as busCall, identity, startFixture, type Fixture } from "../slack/daemon.ts";
 import { Bus } from "../../clients/typescript/src/index.js";
-import { testFilter } from "../slack/filters.ts";
+import { FilterWorker, compileFilter } from "../shared/subscriptions.ts";
 
 // TG.6: subscriptions. A match reaches its target with topic `telegram`,
 // tag the chat id, and the README's body; a non-match reaches nothing; the
@@ -147,7 +147,9 @@ const msg = (update_id: number, text: string, chat_id: number, from_id = 900) =>
 });
 
 t("the filter worker is warm before the subscriptions evaluate", async () => {
-  expect(await testFilter("/warm/", "warm")).toBe("hit");
+  const worker = new FilterWorker();
+  expect(await worker.test(compileFilter("/warm/")!, "warm", Date.now()+1000)).toBe("hit");
+  worker.close();
 });
 
 t("S.8: the destination's maintainer adds; an ACL-only caller does not", async () => {

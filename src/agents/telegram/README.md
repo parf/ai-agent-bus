@@ -1,14 +1,14 @@
 # The Telegram agent
 
 📌 **TL;DR:** Telegram serves itself while a long poll receives bot updates.
-It bundles the shared session router and subscription/filter code; receive
+It bundles the shared session router and subscription engine; receive
 history and routes persist through the agent's own KV.
 User instructions live in the [Telegram guide](../../../docs/agents/telegram.md).
 
 ## Setup
 
 See [bot and runner setup](../../../docs/agents/telegram.md#installing-it).
-`package.sh` emits a flat telegram.js, filter-worker.js and agent.json package;
+`package.sh` emits a flat telegram.js and agent.json package;
 no runtime import may reach the checkout. Both Slack and Telegram bundle
 `../shared/router.ts`, with Telegram retaining numeric message ids.
 

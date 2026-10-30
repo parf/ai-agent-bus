@@ -217,39 +217,13 @@
       "text": "sub add <channel> <target> [from=user,…] [filter]"
     },
     "sub.list": {
-      "help": "See each subscription with its authors, filters and delivery counters.",
+      "help": "See your subscriptions and their sent and dropped counts; this agent’s direct Owner and Maintainers see all.",
       "args": [],
       "text": "sub list",
       "example": "agent-bus call '#slack@parf.us' 'sub list'"
     },
-    "sub.edit": {
-      "help": "Change a subscription; an empty filter= clears its filter.",
-      "args": [
-        {
-          "name": "id"
-        },
-        {
-          "name": "channel",
-          "optional": true
-        },
-        {
-          "name": "target",
-          "optional": true
-        },
-        {
-          "name": "from_users",
-          "optional": true
-        },
-        {
-          "name": "filter",
-          "optional": true,
-          "rest": true
-        }
-      ],
-      "text": "sub edit <id> [channel=…] [target=…] [from=…] [filter=…]"
-    },
     "sub.delete": {
-      "help": "Stop forwarding.",
+      "help": "Delete your subscription, or any subscription as this agent’s direct Owner or Maintainer.",
       "args": [
         {
           "name": "id"
@@ -310,7 +284,7 @@
     },
     "target": {
       "type": "string",
-      "help": "Bus destination; you must manage it, or be this agent’s direct Owner/Maintainer"
+      "help": "Bus queue or agent destination; the author must be allowed to send to it and this helper"
     },
     "from_users": {
       "type": "list",
@@ -322,7 +296,7 @@
     },
     "filter": {
       "type": "string",
-      "help": "Regex /pattern/flags or plain regex; empty filter= clears an edited subscription"
+      "help": "Common regular-expression subset, at most 200 characters; empty matches all selector messages"
     }
   },
   "body_formats": [

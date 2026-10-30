@@ -16,7 +16,6 @@ describe("the call parser", () => {
     ["sub list", '{"method":"sub.list"}', { method: "sub.list" }],
     ["sub add #dev #worker ^agent:", '{"method":"sub.add","channel":"#dev","target":"#worker","filter":"^agent:"}', { method: "sub.add", channel: "#dev", target: "#worker", filter: "^agent:" }],
     ["sub add C123 #worker", '{"method":"sub.add","channel":"C123","target":"#worker"}', { method: "sub.add", channel: "C123", target: "#worker" }],
-    ["sub edit abc123 target=#other", '{"method":"sub.edit","id":"abc123","target":"#other"}', { method: "sub.edit", id: "abc123", edits: { target: "#other" } }],
     ["sub delete abc123", '{"method":"sub.delete","id":"abc123"}', { method: "sub.delete", id: "abc123" }],
     ["channels", '{"method":"channels"}', { method: "channels" }],
     ["channels prod", '{"method":"channels","filter":"prod"}', { method: "channels", filter: "prod" }],
@@ -40,15 +39,12 @@ describe("the call parser", () => {
     expect(parseCall("post C1 a  b\tc\n```\nx = 1\n```")).toEqual({ method: "post", channel: "C1", text: "a  b\tc\n```\nx = 1\n```" });
     expect(parseCall("edit C1 1.0 first\nsecond")).toEqual({ method: "edit", channel: "C1", ts: "1.0", text: "first\nsecond" });
     expect(parseCall("sub add C1 #w ^a  b$")).toEqual({ method: "sub.add", channel: "C1", target: "#w", filter: "^a  b$" });
-    expect(parseCall("sub   edit abc target=#other")).toEqual({ method: "sub.edit", id: "abc", edits: { target: "#other" } });
-    expect(parseCall("sub\tedit abc filter=^a  b$")).toEqual({ method: "sub.edit", id: "abc", edits: { filter: "^a  b$" } });
     expect(parseCall("post\tC1   spaced  out")).toEqual({ method: "post", channel: "C1", text: "spaced  out" });
   });
 
   test("a JSON key the method does not take is refused by name, never ignored", () => {
     expect(parseCall('{"method":"post","chanel":"C1","text":"hi"}')).toEqual({ method: "help", why: 'post takes no "chanel"' });
     expect(parseCall('{"method":"whoami","channel":"C1"}')).toEqual({ method: "help", why: 'whoami takes no "channel"' });
-    expect(parseCall('{"method":"sub.edit","id":"a","target":"#t","name":"x"}')).toEqual({ method: "help", why: 'sub.edit takes no "name"' });
   });
 
   test("a JSON field that is present but invalid is no call; an absent one takes its default (slack-review-S.2)", () => {
@@ -69,10 +65,8 @@ describe("the call parser", () => {
     expect(parseCall('{"method":"channels","member_only":false}')).toEqual({ method: "channels", member_only: false });
   });
 
-  test("a multi-word filter runs to the end of the line, in add and in edit", () => {
+  test("a multi-word filter runs to the end of the add line", () => {
     expect(parseCall("sub add #dev #worker ^agent: keep going")).toEqual({ method: "sub.add", channel: "#dev", target: "#worker", filter: "^agent: keep going" });
-    expect(parseCall('sub edit abc filter=^agent: with spaces')).toEqual({ method: "sub.edit", id: "abc", edits: { filter: "^agent: with spaces" } });
-    expect(parseCall("sub edit abc channel=#x filter=")).toEqual({ method: "sub.edit", id: "abc", edits: { channel: "#x", filter: "" } }); // filter= clears it
   });
 
   test("JSON-only fields parse: thread_ts, username, icon; a numeric timestamp is refused", () => {
@@ -96,10 +90,18 @@ describe("the call parser", () => {
   });
 });
 
-test("subscription authors have equivalent text and JSON forms, including clearing", () => {
+test("subscription authors have equivalent text and JSON forms, without local edits", () => {
   expect(parseCall('sub add #alerts #oncall@h from=@ann,U123,bob@x.com /error/i')).toEqual({method:'sub.add',channel:'#alerts',target:'#oncall@h',from_users:['@ann','U123','bob@x.com'],filter:'/error/i'});
   expect(parseCall(JSON.stringify({method:'sub.add',channel:'#alerts',target:'#oncall@h',from_users:['@ann','U123','bob@x.com'],filter:'/error/i'}))).toEqual(parseCall('sub add #alerts #oncall@h from=@ann,U123,bob@x.com /error/i'));
-  expect(parseCall('sub edit abc from=')).toEqual({method:'sub.edit',id:'abc',edits:{from_users:[]}});
-  expect(parseCall('{"method":"sub.edit","id":"abc","from_users":[]}')).toEqual(parseCall('sub edit abc from='));
   for (const from_users of [null, 'U1', [1], [''], ['U1,U2']]) expect(parseCall(JSON.stringify({method:'sub.add',channel:'C1',target:'#t@h',from_users})).method).toBe('help');
+});
+
+
+test("removed sub.edit refuses both forms and names delete/add", () => {
+  for (const body of ['sub edit abc target=#other', '{"method":"sub.edit","id":"abc","target":"#other"}']) {
+    const result = parseCall(body);
+    expect(result.method).toBe("help");
+    expect((result as { why?: string }).why).toContain("sub delete");
+    expect((result as { why?: string }).why).toContain("sub add");
+  }
 });

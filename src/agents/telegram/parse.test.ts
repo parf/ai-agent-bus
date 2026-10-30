@@ -28,8 +28,6 @@ test("every method parses from both forms to the same call", () => {
   case_("sub add #dev #target relay", `{"method":"sub.add","channel":"#dev","target":"#target","filter":"relay"}`, { method: "sub.add", channel: "#dev", target: "#target", filter: "relay" });
   case_("sub add #dev #target", `{"method":"sub.add","channel":"#dev","target":"#target"}`, { method: "sub.add", channel: "#dev", target: "#target" });
   case_("sub list", `{"method":"sub.list"}`, { method: "sub.list" });
-  case_("sub edit 3 channel=#new", `{"method":"sub.edit","id":"3","channel":"#new"}`, { method: "sub.edit", id: "3", edits: { channel: "#new" } });
-  case_("sub edit 3 target=#new filter=hi", `{"method":"sub.edit","id":"3","target":"#new","filter":"hi"}`, { method: "sub.edit", id: "3", edits: { target: "#new", filter: "hi" } });
   case_("sub delete 3", `{"method":"sub.delete","id":"3"}`, { method: "sub.delete", id: "3" });
   case_("refused", `{ "method":"refused" }`, { method: "refused" });
   case_("whoami", `{"method":"whoami"}`, { method: "whoami" });
@@ -69,7 +67,6 @@ test("unknown or malformed is help — never a guess", () => {
     "", "  ", "--help", "help me", "POST #dev hi", "nonsense", "post", "read a b c d",
     "not json {", `{}`, `{"method":42}`, `[]`, `{"method":"post","text":""}`,
     `{"method":"read","channel":"#dev","limit":1e9}`, `{"method":"wat"}`,
-    `{"method":"sub.edit","id":"3"}`, // nothing named is not an edit
   ]) {
     expect(parseCall(body)).toEqual({ method: "help" });
   }
@@ -77,7 +74,6 @@ test("unknown or malformed is help — never a guess", () => {
   // --help is the ask, and help answers it too.
   expect(parseCall("--help")).toEqual({ method: "help" });
   // A JSON key the method does not take is refused by name (tg5 P3-3).
-  expect((parseCall(`{"method":"sub.edit","id":"3","wat":"x"}`) as { method: string; why?: string }).why).toBe(`sub.edit takes no "wat"`);
 });
 
 test("help and the parser list the same set (tg1-review P3-2)", () => {
@@ -85,7 +81,7 @@ test("help and the parser list the same set (tg1-review P3-2)", () => {
     "post": "post #d hi", "read": "read #d", "channels": "channels", "channel": "channel #d",
     "users": "users", "user": "user @a", "react": "react #d 5 👍", "edit": "edit #d 5 hi",
     "delete": "delete #d 5", "sub add": "sub add #d #t", "sub list": "sub list",
-    "sub edit": "sub edit 1 channel=#d", "sub delete": "sub delete 1", "whoami": "whoami", "refused": "refused", "help": "help",
+     "sub delete": "sub delete 1", "whoami": "whoami", "refused": "refused", "help": "help",
   };
   // The parser accepts a sample for every method it knows.
   for (const m of methods) {
@@ -96,4 +92,14 @@ test("help and the parser list the same set (tg1-review P3-2)", () => {
   const listed = [...help.split("\nArguments")[0]!.matchAll(/^(?:\[destructive\] )?([a-z]+(?: [a-z]+)?)(?:[ <:]|$)/gm)]
     .map(m => m[1]!).filter(name => methods.includes(name.replace(".", " ") as any));
   expect(listed.sort()).toEqual(methods.filter(m => m !== "help").sort());
+});
+
+
+test("removed sub.edit refuses both forms and names delete/add", () => {
+  for (const body of ['sub edit abc target=#other', '{"method":"sub.edit","id":"abc","target":"#other"}']) {
+    const result = parseCall(body);
+    expect(result.method).toBe("help");
+    expect((result as { why?: string }).why).toContain("sub delete");
+    expect((result as { why?: string }).why).toContain("sub add");
+  }
 });

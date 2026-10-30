@@ -17,7 +17,6 @@ test("manifest help matches the parser and every handler", () => {
     expect(method.args.map(arg => arg.name).sort()).toEqual([...KEYS[name]!].sort());
     const call: Record<string, unknown> = { method: name };
     for (const arg of method.args) if (!("optional" in arg && arg.optional)) call[arg.name] = examples[arg.name];
-    if (name === "sub.edit") call.filter = "";
     expect(parseCall(JSON.stringify(call)).method).toBe(name);
   }
   const generated = JSON.parse(describe("#fixture@t", true, "help", true));

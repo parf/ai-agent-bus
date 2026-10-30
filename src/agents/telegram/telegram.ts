@@ -22,8 +22,8 @@ import { Seen } from "./seen.ts";
 import { Receiver } from "./receive.ts";
 import { Router } from "./router.ts";
 import { Forwarder } from "./forward.ts";
-import { authorCannotSend, mayChangeSubscriptions, subAdd, subDelete, subDisable, subEdit, subList as subListStore, withSub, type Subscription } from "../slack/subs.ts";
-import { testFilter } from "../slack/filters.ts";
+import { ChatPort, ChatSubscriptions, staff as mayChangeSubscriptions, subscriptionList } from "../slack/subscription-port.ts";
+import { SubscriptionError } from "../shared/subscriptions.ts";
 
 const name = (process.env.AGENT_BUS_NAME ?? "").trim().toLowerCase();
 if (!name) {
@@ -256,34 +256,14 @@ async function kvGet(key: string): Promise<string | undefined> {
 // (TG.6) — the subscription's channel resolves through the live mapping
 // and the message is sent to the target with topic telegram, tag the chat
 // id (README § receiving).
-const forwarder = new Forwarder({
-  async subs() {
-    const r = await subListStore(bus, name);
-    return r.ok ? (r.fields.subs as Subscription[]) : [];
+const subscriptions = new ChatSubscriptions(new ChatPort(bus, name), {
+  resolve: async channel => {
+    const dest = resolveDestination(channel, lastConfig ?? { aliases: {} });
+    return dest.ok ? dest.chat_id : undefined;
   },
-  async exists(id) {
-    try {
-      await bus.record(name).kv.get("json", `sub.${id}`);
-      return true;
-    } catch (e) {
-      if ((e as any)?.name === "KVNotFound" || (e as any)?.status === 404) return false;
-      return true; // the store is unreachable: assume it exists, let the write fail if it must
-    }
-  },
-  resolve: (channel) => resolveDestination(channel, lastConfig ?? { aliases: {} }),
-  refreshConfig: async () => { await configuration(); },
-  send: async (to, body, topic, tag) => { await bus.send(to, body, { topic, tag }); },
-  maySend: (who, to) => bus.maySend(who, to),
-  persistCount: async (id, forwarded) => { await bus.record(name).kv.increment(`stat.${id}.forwarded`, { by: forwarded }); },
-  persistError: async (id, lastError) => { await bus.record(name).kv.set("string", `stat.${id}.last_error`, lastError, { mode: "set" }); },
-  disable: async (id, why) => {
-    await withSub(id, async () => {
-      await subDisable(bus, name, id).catch(() => {});
-      await bus.record(name).kv.set("string", `stat.${id}.last_error`, why, { mode: "set" });
-    });
-  },
-  log: (line) => console.error(`telegram: ${line}`),
+  warning: (code, id) => console.error(`telegram: subscription ${id ?? "store"}: ${code}`),
 });
+const forwarder = new Forwarder({ subscriptions, refreshConfig: async () => { await configuration(); } });
 
 async function read(json: boolean, call: Extract<Call, { method: "read" }>, deadline: number): Promise<Result> {
   const cfg = await configuration();
@@ -317,13 +297,6 @@ async function users(json: boolean, call: Extract<Call, { method: "users" }>): P
   return ok(lines.length > 0 ? lines.join("\n") : "no senders seen yet", { count: hit.length });
 }
 
-/** The subscriptions, from the shared store, with the in-memory counters. */
-async function subList(json: boolean): Promise<Result> {
-  const r = await subListStore(bus, name, (id) => forwarder.pending(id));
-  if (!r.ok) return fail(r.error);
-  return ok(r.text, r.fields);
-}
-
 async function handle(e: Message): Promise<string | null> {
   const answer = dispatchAsk(e.ask, ask => describe(mayChangeSubscriptions(e, name), ask));
   if (answer !== undefined) return answer;
@@ -334,6 +307,7 @@ async function _handle(e: Message): Promise<string | null> {
   const json = e.body.trim().startsWith("{");
   const call = parseCall(e.body);
   if (call.method === "help") {
+    if (call.why?.startsWith("sub edit")) return render(json, fail(call.why));
     const help = describe(mayChangeSubscriptions(e, name));
     if (json && !isHelpCall(e.body)) return JSON.stringify({ ok: false, error: call.why ?? "not a call this agent knows", help });
     return json ? describe(mayChangeSubscriptions(e, name), "help", true) : help;
@@ -381,38 +355,17 @@ async function _handle(e: Message): Promise<string | null> {
       case "users":
         r = await users(json, call, deadline);
         break;
-      case "sub.add":
-      case "sub.edit":
-      case "sub.delete": {
-        // Whoever manages a subscription's destination may change it, and
-        // this agent's own Owner and Maintainers may change any (S.8) —
-        // the same rule Slack's dispatch runs, through the shared subs
-        // module.
-        const any = mayChangeSubscriptions(e, name);
-        const guard = async (sub: Subscription) => {
-          if (!any) {
-            const to = call.method === "sub.edit" ? call.edits.target : undefined;
-            for (const target of to !== undefined ? [sub.target, to] : [sub.target]) {
-              const why = await uncontrolled(e.from, target);
-              if (why) return why;
-            }
-          }
-          // A moved target is one the entry's author must be able to send to.
-          if (call.method === "sub.edit" && call.edits.target !== undefined) return authorCannotSend(bus, name, sub.created_by, call.edits.target);
-          return undefined;
-        };
-        if (call.method === "sub.add") {
-          const why = any ? undefined : await uncontrolled(e.from, call.target);
-          const cannot = why ?? await authorCannotSend(bus, name, e.from, call.target);
-          const r = cannot ? fail(cannot) : await subAdd(bus, name, e, call.channel, call.target, call.filter);
-          return render(json, r);
-        }
-        if (call.method === "sub.delete") return render(json, await subDelete(bus, name, call.id, guard));
-        return render(json, await subEdit(bus, name, call.id, call.edits, guard));
-
+      case "sub.add": {
+        const row = await subscriptions.add(e, call.channel, call.target, call.filter);
+        r = ok(JSON.stringify({ id: row.id }), { id: row.id });
+        break;
       }
+      case "sub.delete":
+        await subscriptions.delete(e, call.id);
+        r = ok("deleted", { id: call.id });
+        break;
       case "sub.list":
-        r = await subList(json);
+        r = subscriptionList(await subscriptions.list(e));
         break;
       default:
         return fail("not a call this agent knows");
@@ -421,6 +374,7 @@ async function _handle(e: Message): Promise<string | null> {
   } catch (err) {
     // Nothing escapes as a stack or a URL: a bus failure is answered as the
     // bus, and any other unexpected throw is the method failing.
+    if (err instanceof SubscriptionError) return render(json, fail(err.code));
     if (err instanceof BusDidNotAnswer) return render(json, fail("the bus did not answer"));
     if (err instanceof DeadlinePassed) return render(json, fail("the caller's deadline passed"));
     return render(json, fail(`${call.method} failed`));
@@ -433,18 +387,6 @@ function isHelpCall(body: string): boolean {
   } catch {
     return false;
   }
-}
-
-/** Why `who` may not point a subscription at `target`, or undefined when
- *  it controls it: manages it, by the daemon's answer (S.8). */
-async function uncontrolled(who: string, target: string): Promise<string | undefined> {
-  try {
-    if (await bus.manages(who, target)) return undefined;
-  } catch (err) {
-    if ((err as any)?.status === 404) return `${target} is not a destination this agent can see; its ACL must admit ${name}`;
-    throw err;
-  }
-  return `${who} does not control ${target}: a subscription is changed by whoever manages its destination`;
 }
 
 await bus.register({ name, kind: "agent", descr: manifest.description }, { createOnly: false });
@@ -489,7 +431,6 @@ process.on("SIGTERM", () => stop.abort());
 // The offset is loaded before serving: a KV that cannot answer it is a
 // bus failure — exit 1, never 78, and let the runner restart (tg5 review
 // P2-2a).
-const flushTimer = setInterval(() => void forwarder.flush(), 60_000);
 const receiver = new Receiver(seen, async (kind, method, params) => {
   const env = await secrets();
   if (!env.TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN is not set");
@@ -513,10 +454,7 @@ const router = new Router({
   log: line => console.error(`telegram: ${line}`),
 });
 receiver.onMessage = (m, chat, title) => router.incoming(m, chat, title);
-// The filter worker is warm before the subscriptions evaluate: a cold
-// first evaluation exceeds the limit and would disable a subscription
-// before its first real hit (Slack's semantics, mirrored).
-try { await testFilter("/warm/", "warm"); } catch {}
+await subscriptions.ready();
 try {
   await router.load();
   await receiver.load();
@@ -532,8 +470,7 @@ void (async () => {
 })();
 receiver.start();
 await bus.serve(handle, { signal: stop.signal, drainTimeout: 5000, matchesReply: message => router.matchesReply(message), onReply: message => router.answer(message) });
-clearInterval(flushTimer);
-await forwarder.flush();
+forwarder.stop();
 receiver.stop();
 
 await bus.close();

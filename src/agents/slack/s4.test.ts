@@ -75,160 +75,49 @@ const subCount = async () => {
   return JSON.stringify(listing).match(/sub\./g)?.length ?? 0;
 };
 
-let made = "";
 
-t("the owner adds, lists, edits fields and deletes, through the KV", async () => {
-  expect((await fx.call(ownerToken, "GET", `/lookup?name=${encodeURIComponent(name)}`)).descr).toBe(manifest.description);
+t("the owner adds a canonical shared row and deletes it; edit gives delete/add guidance", async () => {
   const answer = await call("sub add C1 #worker ^agent: keep going", ownerToken);
-  made = JSON.parse(answer).id;
-  expect(typeof made).toBe("string");
-  const value = await stored(made);
-  expect(value.value.channel).toBe("C1");
-  expect(value.value.target).toBe("#worker");
-  expect(value.value.filter).toBe("^agent: keep going"); // multi-word survives
-  expect(await call("sub list", plainToken)).toContain(`${made} C1 #worker ^agent: keep going`);
-  expect(await call(`sub edit ${made} channel=C2 target=#other`, ownerToken)).toBe("edited");
-  const edited = await stored(made);
-  expect(edited.value.channel).toBe("C2");
-  expect(edited.value.target).toBe("#other");
-  expect(edited.value.filter).toBe("^agent: keep going"); // untouched field kept
-  expect(await call(`sub edit ${made} filter=`, ownerToken)).toBe("edited");
-  expect((await stored(made)).value.filter).toBeUndefined(); // filter= clears it
-  expect(await call(`sub delete ${made}`, ownerToken)).toBe("deleted");
-  expect(await subCount()).toBe(0);
+  const id = JSON.parse(answer).id;
+  expect(id).toMatch(/^[0-9a-f]{12}$/);
+  expect((await stored(id)).value).toMatchObject({ selector: { channel: "C1" }, target: "#worker", filter: "^agent: keep going", sent: 0, dropped: 0 });
+  expect(await call(`sub edit ${id} target=#other`, ownerToken)).toContain("sub delete");
+  expect(await call(`sub edit ${id} target=#other`, ownerToken)).toContain("sub add");
+  expect((await stored(id)).value.target).toBe("#worker");
+  expect(await call(`sub delete ${id}`, ownerToken)).toBe("deleted");
 });
 
-t("an ACL-only caller lists but cannot change, and a body claiming roles changes nothing", async () => {
-  expect(await call("sub list", plainToken)).toBe("(no subscriptions)");
-  expect(await call("sub add C1 #w", plainToken)).toContain("error:");
-  expect(JSON.parse(await call('{"method":"sub.add","channel":"C1","target":"#w","roles":["owner"]}', plainToken)).ok).toBe(false);
-  expect(await subCount()).toBe(0);
-});
-
-t("a direct Maintainer is a positive control", async () => {
-  const answer = await call("sub add C3 #ops", maintToken);
-  expect(JSON.parse(answer).id).toBeDefined();
-  expect(await call(`sub delete ${JSON.parse(answer).id}`, maintToken)).toBe("deleted");
-});
-
-t("a Maintainer arriving through a forward is refused: roles count only when addressed here", async () => {
-  // #front's maintainer calls #front, which forwards to #slack with
-  // original_to=#front and roles=[maintainer] — asserted for #front, not us.
-  const answer = await call("sub add C9 #sneak", frontToken, `#front-${process.pid}@t`);
-  expect(answer).toContain("error:");
-  expect(await subCount()).toBe(0);
-});
-
-t("bad filters are refused on add and on edit, the old value kept", async () => {
-  for (const bad of ["/x/g", "/x/y", "x".repeat(201), "[unclosed"]) {
-    expect(await call(`sub add C1 #w ${bad}`, ownerToken)).toContain("error:");
-  }
-  const good = await call("sub add C1 #w ok", ownerToken);
-  const id = JSON.parse(good).id;
-  for (const bad of ["/x/g", "x".repeat(201), "[unclosed"]) {
-    expect(await call(`sub edit ${id} filter=${bad}`, ownerToken)).toContain("error:");
-  }
-  expect((await stored(id)).value.filter).toBe("ok");
-  await call(`sub delete ${id}`, ownerToken);
-});
-
-t("two disjoint edits of one subscription both land", async () => {
-  const id = JSON.parse(await call("sub add C1 #first", ownerToken)).id;
-  const [a, b] = await Promise.all([
-    call(`sub edit ${id} channel=C7`, ownerToken),
-    call(`sub edit ${id} target=#second`, ownerToken),
-  ]);
-  expect(a).toBe("edited");
-  expect(b).toBe("edited");
-  const value = (await stored(id)).value;
-  expect(value.channel).toBe("C7");
-  expect(value.target).toBe("#second");
-  await call(`sub delete ${id}`, ownerToken);
-});
-
-// An ask for help describes the agent for an AI reader, as the caller may
-// use it (docs/constitution.md#agent-self-description): every caller learns
-// subscriptions follow their destination; only #slack's Owner and
-// Maintainers are told they may change any, in the description and the
-// short help.
-t("manifest help describes destination management and restricts refused to direct managers", async () => {
-  for (const token of [ownerToken, maintToken]) {
-    const full = await call("", token, name, "help");
-    expect(full).toContain("sub add <channel> <target>");
-    expect(full).toContain("refused:");
-    expect(await call("help", token)).toBe(full);
-  }
-  for (const token of [plainToken, frontToken]) {
-    const full = await call("", token, name, "help");
-    expect(full).toContain("post <channel>");
-    expect(full).toContain("<text...>");
-    expect(full).toContain("Bus destination; you must manage it");
-    expect(full).not.toContain("refused:");
-    expect(await call("help", token)).toBe(full);
-  }
-});
-
-t("--help in a body is ordinary text, not an ask", async () => {
-  expect(await call("--help", ownerToken)).not.toContain("Slack on the bus");
-});
-
-// S.8 (Plans/R1.2/done/slack/TODO.md): a subscription is added, edited and deleted
-// by whoever manages its destination, as the daemon answers it, or by
-// #slack's own Owner and Maintainers; its creator counts for nothing.
-const d1 = `#d1-${process.pid}@t`; // maintained by #plain and #bob
-const d2 = `#d2-${process.pid}@t`; // the fixture owner's alone
-t("S.8: whoever manages the destination adds, edits and deletes; nobody else does", async () => {
-  for (const d of [d1, d2]) await fx.call(ownerToken, "POST", "/register", { name: d, kind: "agent", allow: ["*"] });
-  await fx.call(ownerToken, "POST", "/manage", { name: d1, maintainers: [`#plain-${process.pid}@t`, `#bob-${process.pid}@t`] });
-  const before = await subCount();
-  // An ACL-only caller managing d1 adds, edits and deletes there.
-  const mine = JSON.parse(await call(`sub add C1 ${d1}`, plainToken)).id;
-  expect(typeof mine).toBe("string");
-  expect(await call(`sub edit ${mine} filter=/x/i`, plainToken)).toBe("edited");
-  // It may not aim at a destination it does not control: refused, nothing written.
-  expect(await call(`sub add C1 ${d2}`, plainToken)).toContain(`does not control ${d2}`);
-  expect(await call(`sub edit ${mine} target=${d2}`, plainToken)).toContain(`does not control ${d2}`);
-  expect((await stored(mine)).value.target).toBe(d1);
-  // One on d2, made by the owner: the plain caller changes neither.
-  const theirs = JSON.parse(await call(`sub add C2 ${d2}`, ownerToken)).id;
-  expect(await call(`sub edit ${theirs} filter=x`, plainToken)).toContain(`does not control ${d2}`);
-  expect(await call(`sub delete ${theirs}`, plainToken)).toContain(`does not control ${d2}`);
-  expect((await stored(theirs)).value.filter).toBeUndefined();
-  // Nor takes it over by moving it to a destination it does control.
-  expect(await call(`sub edit ${theirs} target=${d1}`, plainToken)).toContain(`does not control ${d2}`);
-  expect((await stored(theirs)).value.target).toBe(d2);
-  // #slack's Maintainer changes any, even to a destination it does not manage.
-  expect(await call(`sub edit ${mine} target=${d2}`, maintToken)).toBe("edited");
-  expect(await call(`sub edit ${mine} target=${d1}`, maintToken)).toBe("edited");
-  // Control is the sender's: #bob, maintaining d1, reaches #slack through a forward.
-  const via = JSON.parse(await call(`sub add C3 ${d1}`, frontToken, `#front-${process.pid}@t`)).id;
-  expect(typeof via).toBe("string");
-  // A creator who loses control keeps its subscription: control is not rechecked.
-  await fx.call(ownerToken, "POST", "/manage", { name: d1, maintainers: [] });
-  expect(await call("sub list", ownerToken)).toContain(`${mine} C1 ${d1}`);
-  expect(await call(`sub delete ${mine}`, plainToken)).toContain(`does not control ${d1}`);
-  for (const id of [mine, theirs, via]) expect(await call(`sub delete ${id}`, ownerToken)).toBe("deleted");
-  expect(await subCount()).toBe(before);
-});
-
-t("an ask for its MCP tools answers the MCP shape for none, and changes nothing", async () => {
-  const before = await subCount();
-  expect(await call("", plainToken, name, "mcp")).toBe('{"tools":[]}');
-  expect(await subCount()).toBe(before);
-});
-
-// RD141: even one who may change any subscription needs the right to send to
-// the target itself, at add and when an edit moves the target.
-t("the author needs may-send to the target, whatever else it may change", async () => {
-  const guarded = `#guarded-${process.pid}@t`;
-  await fx.call(ownerToken, "POST", "/register", { name: guarded, kind: "agent", allow: [name] }); // the agent sees it; #maint does not
-  const before = await subCount();
-  expect(await call(`sub add C1 ${guarded}`, maintToken)).toContain(`may not send to ${guarded}`);
-  expect(await subCount()).toBe(before); // nothing stored
-  const id = JSON.parse(await call("sub add C1 #first", maintToken)).id;
-  expect(await call(`sub edit ${id} target=${guarded}`, maintToken)).toContain(`may not send to ${guarded}`);
-  expect((await stored(id)).value.target).toBe("#first");
+t("admitted authors add and see their own rows; source staff see all, strangers cannot delete", async () => {
+  const id = JSON.parse(await call("sub add C1 #worker", plainToken)).id;
+  expect(id).toMatch(/^[0-9a-f]{12}$/);
+  const own = JSON.parse(await call('{"method":"sub.list"}', plainToken));
+  expect(own.subs.map((r: any) => r.id)).toEqual([id]);
+  const other = JSON.parse(await call('{"method":"sub.list"}', frontToken));
+  expect(other.subs).toEqual([]);
+  expect(await call(`sub delete ${id}`, frontToken)).toContain("not_author");
+  expect(JSON.parse(await call('{"method":"sub.list"}', maintToken)).subs.map((r: any) => r.id)).toEqual([id]);
   expect(await call(`sub delete ${id}`, maintToken)).toBe("deleted");
-  const mine = JSON.parse(await call(`sub add C1 ${guarded}`, ownerToken)).id;
-  expect(await call(`sub delete ${mine}`, ownerToken)).toBe("deleted");
+});
+
+t("roles supplied in a body do not grant visibility or management", async () => {
+  expect(JSON.parse(await call('{"method":"sub.add","channel":"C1","target":"#w","roles":["owner"]}', plainToken)).ok).toBe(false);
+  const id = JSON.parse(await call("sub add C1 #worker", ownerToken)).id;
+  expect(await call(`sub delete ${id}`, frontToken, `#front-${process.pid}@t`)).toContain("not_author");
+  const listed = JSON.parse(await call('{"method":"sub.list"}', frontToken, `#front-${process.pid}@t`));
+  expect(listed.subs).toEqual([]);
+  expect(await call(`sub delete ${id}`, ownerToken)).toBe("deleted");
+});
+
+t("shared filter grammar refuses malformed and unsupported patterns before storing", async () => {
+  for (const bad of ["/(/", "/x/g", "x".repeat(201), "^(a+)+$", "[unclosed"]) {
+    expect(await call(`sub add C1 #worker ${bad}`, ownerToken)).toContain("invalid_filter");
+  }
+  expect(await subCount()).toBe(0);
+});
+
+t("help exposes add/list/delete and explains creator visibility", async () => {
+  const help = await call("", ownerToken, name, "help");
+  expect(help).not.toContain("sub edit");
+  expect(help).toContain("sub add"); expect(help).toContain("sub delete");
+  expect(help).toContain("Owner and Maintainers see all");
 });

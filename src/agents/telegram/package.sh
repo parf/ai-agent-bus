@@ -18,14 +18,13 @@ trap 'rm -rf "$tmp"' EXIT
 AGENT_BUS_BUILD_VERSION=$(cat "$here/../../internal/version/VERSION") \
   bun build "$here/telegram.ts" --target=bun --outfile "$tmp/telegram.js" \
   --env 'AGENT_BUS_BUILD_*' >/dev/null
-bun build "$here/../slack/filter-worker.ts" --target=bun --outfile "$tmp/filter-worker.js" >/dev/null
 # The bundle keeps telegram.ts's own #! line; one is added only if it is gone.
 head -c 2 "$tmp/telegram.js" | grep -q '#!' || { echo '#!/usr/bin/env bun'; cat "$tmp/telegram.js"; } >"$tmp/telegram.js.x"
 [ -e "$tmp/telegram.js.x" ] && mv "$tmp/telegram.js.x" "$tmp/telegram.js"
 # The runner's account reads it: the code holds no secret.
 install -d -m 0755 "$tmp/licenses"
 install -m 0644 "$here/../../../licenses/NOTICE.md" "$tmp/licenses/NOTICE.md"
-chmod 755 "$tmp" "$tmp/telegram.js"; chmod 644 "$tmp/filter-worker.js"
+chmod 755 "$tmp" "$tmp/telegram.js"
 sed 's|"command": "./telegram.ts"|"command": "./telegram.js"|' "$here/agent.json" >"$tmp/agent.json"
 cp "$here/env.dist" "$tmp/env.dist"
 chmod 644 "$tmp/agent.json" "$tmp/env.dist"

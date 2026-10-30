@@ -178,39 +178,13 @@
       "text": "sub add <channel> <target> [filter]"
     },
     "sub.list": {
-      "help": "See each subscription with its delivery counters.",
+      "help": "See your subscriptions and their sent and dropped counts; this agent’s direct Owner and Maintainers see all.",
       "args": [],
       "text": "sub list",
       "example": "agent-bus call '#telegram/parf@parf.us' 'sub list'"
     },
-    "sub.edit": {
-      "help": "Change a subscription; an empty filter= clears its filter.",
-      "args": [
-        {
-          "name": "id",
-          "type": "string",
-          "help": "Subscription ID"
-        },
-        {
-          "name": "channel",
-          "optional": true
-        },
-        {
-          "name": "target",
-          "optional": true
-        },
-        {
-          "name": "filter",
-          "type": "string",
-          "help": "Regex /pattern/flags or plain regex; empty clears an edited filter",
-          "optional": true,
-          "rest": true
-        }
-      ],
-      "text": "sub edit <id> [channel=…] [target=…] [filter=…]"
-    },
     "sub.delete": {
-      "help": "Stop forwarding.",
+      "help": "Delete your subscription, or any subscription as this agent’s direct Owner or Maintainer.",
       "args": [
         {
           "name": "id",
@@ -277,7 +251,7 @@
     },
     "target": {
       "type": "string",
-      "help": "Bus destination; you must manage it, or be this agent’s direct Owner/Maintainer"
+      "help": "Bus queue or agent destination; the author must be allowed to send to it and this helper"
     }
   },
   "body_formats": [

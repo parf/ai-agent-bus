@@ -24,7 +24,6 @@ export type Call =
   | { method: "delete"; channel: string; id: string }
   | { method: "sub.list" }
   | { method: "sub.add"; channel: string; target: string; filter?: string }
-  | { method: "sub.edit"; id: string; edits: { channel?: string; target?: string; filter?: string } }
   | { method: "sub.delete"; id: string }
   | { method: "whoami" }
   | { method: "refused" }
@@ -43,7 +42,7 @@ export function isChat(word: string | undefined): boolean {
 
 /** The methods the parser accepts, for the test that keeps help and the
  *  parser listing the same set (tg1-review P3-2). */
-export const methods = ["post", "read", "channels", "channel", "users", "user", "react", "edit", "delete", "sub add", "sub list", "sub edit", "sub delete", "whoami", "refused", "help"] as const;
+export const methods = ["post", "read", "channels", "channel", "users", "user", "react", "edit", "delete", "sub add", "sub list", "sub delete", "whoami", "refused", "help"] as const;
 
 /** The keys each JSON method takes, besides "method" — the same keyword
  *  Slack's table uses, with the destination spelled channel (tg5: a JSON
@@ -53,7 +52,6 @@ export const KEYS: Record<string, string[]> = {
   post: ["channel", "text", "reply_to"],
   read: ["channel", "limit"],
   "sub.add": ["channel", "target", "filter"],
-  "sub.edit": ["id", "channel", "target", "filter"],
   "sub.delete": ["id"],
   channels: ["filter"], users: ["filter"], user: ["who"], channel: ["channel"],
   react: ["channel", "id", "emoji"], edit: ["channel", "id", "text"], delete: ["channel", "id"],
@@ -98,6 +96,7 @@ function fromJSON(body: string): Call {
     return v === undefined || v === BAD ? v : isChat(v as string) ? v : BAD;
   };
   const m = p.method;
+  if (m === "sub.edit") return { method: "help", why: "sub edit was removed; use sub delete <id> and sub add <channel> <target> [filter]" };
   // A key the method does not take is refused by name, never ignored: a
   // misspelt "chanel" would otherwise post as if no channel were named.
   const allowed = Object.hasOwn(KEYS, m) ? KEYS[m] : undefined;
@@ -150,16 +149,6 @@ function fromJSON(body: string): Call {
       if (!need(c) || !need(t) || !fine(f)) return helpCall;
       return { method: m, channel: c as string, target: t, ...(f !== undefined && f !== "" ? { filter: f as string } : {}) };
     }
-    case "sub.edit": {
-      const [id, c, t, f] = [str("id"), chat("channel"), str("target"), filter("filter")];
-      if (!need(id) || !fine(c, t, f)) return helpCall;
-      const edits: { channel?: string; target?: string; filter?: string } = {};
-      if (c !== undefined) edits.channel = c as string;
-      if (t !== undefined) edits.target = t as string;
-      if (f !== undefined) edits.filter = f as string;
-      if (Object.keys(edits).length === 0) return helpCall; // nothing named is not an edit
-      return { method: m, id, edits };
-    }
     case "sub.delete": {
       const id = str("id");
       return need(id) ? { method: m, id } : helpCall;
@@ -198,7 +187,7 @@ function fromText(body: string): Call {
         return { method: "sub.add", channel, target, ...(filter !== "" ? { filter } : {}) };
       }
       case "edit":
-        return subEdit(body, toks);
+        return { method: "help", why: "sub edit was removed; use sub delete <id> and sub add <channel> <target> [filter]" };
       case "delete":
         return n === 3 ? { method: "sub.delete", id: word(2)! } : helpCall;
       default:
@@ -250,27 +239,3 @@ function fromText(body: string): Call {
   }
 }
 
-/** `sub edit <id> [chat=…] [target=…] [filter=…]`; `filter=` is the last key
- *  and its value is the original bytes to the end, `filter=` alone clearing
- *  it. */
-function subEdit(body: string, toks: { word: string; at: number }[]): Call {
-  const id = toks[2]?.word;
-  if (!id) return helpCall;
-  const edits: { channel?: string; target?: string; filter?: string } = {};
-  for (let i = 3; i < toks.length; i++) {
-    const { word, at } = toks[i]!;
-    if (word.startsWith("filter=")) {
-      edits.filter = body.slice(at + "filter=".length).replace(/\s+$/, "");
-      break;
-    }
-    const eq = word.indexOf("=");
-    if (eq <= 0 || eq === word.length - 1) return helpCall;
-    const key = word.slice(0, eq);
-    const value = word.slice(eq + 1);
-    if (key === "channel") edits.channel = value;
-    else if (key === "target") edits.target = value;
-    else return helpCall;
-  }
-  if (Object.keys(edits).length === 0) return helpCall; // nothing named is not an edit
-  return { method: "sub.edit", id, edits };
-}

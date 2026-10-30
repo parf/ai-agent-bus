@@ -1,170 +1,99 @@
-import { afterAll, beforeAll, expect, test } from "bun:test";
-import { startFixture, type Fixture } from "./daemon.ts";
-import { Bus, type Message } from "../../clients/typescript/src/index.js";
-import { filterProblem, subAdd, subDelete, subDisable, subEdit, subList, type Store } from "./subs.ts";
+import { expect, test } from "bun:test";
+import { fixture, row, caller, owner, source } from "./b29-fixture.ts";
+import { migrationId } from "./subscription-migration.ts";
+import { Subscriptions } from "../shared/subscriptions.ts";
 
-// The subscription store's own rules (slack-review-S.4), through a real KV:
-// only "not found" means absent, the pattern is what the 200-character cap
-// counts, and two edits that truly overlap both land.
-/** The real store's methods, one of them replaced: a class's methods do not spread. */
-function wrap(over: Partial<Store["kv"]>): Store {
-  const kv = store.kv;
-  return { kv: {
-    get: (k, n) => kv.get(k, n), set: (k, n, v, o) => kv.set(k, n, v, o), delete: (k, n) => kv.delete(k, n),
-    jsonApply: (n, ops) => kv.jsonApply(n, ops), list: () => kv.list(), ...over,
-  } };
-}
+const legacy = (id = "deadbeef", changes = {}) => ({ id, channel: "C1", target: "#target", filter: "", created_by: caller.from, created_at: "2026-10-30T00:00:00.000Z", ...changes });
 
-let fx: Fixture;
-let store: Store;
-const self = `#slack-subs-${process.pid}@t`;
-const msg = { from: "owner@t", roles: ["owner"] } as unknown as Message;
-
-beforeAll(async () => {
-  fx = await startFixture();
-  await fx.call(fx.ownerToken, "POST", "/register", { name: self, kind: "agent" });
-  store = Bus.connect({ addr: fx.socket, token: fx.ownerToken }).record(self) as unknown as Store;
-}, 30000);
-
-afterAll(async () => {
-  await fx?.stop();
-}, 15000);
-
-test("a failing store is the call failing, never an empty list or a missing id", async () => {
-  const broken = wrap({
-    list: async () => ({ json: [{ name: "sub.dead" }] }),
-    get: async () => { throw new Error("transport failed"); },
-  });
-  await expect(subList(broken, self)).rejects.toThrow("transport failed");
-  await expect(subEdit(broken, self, "dead", { target: "#x" })).rejects.toThrow("transport failed");
-  // A real "not found" is still an answer.
-  expect(await subEdit(store, self, "nosuch", { target: "#x" })).toEqual({ ok: false, error: "no subscription nosuch" });
+test("chat adapter instantiates the shared engine, not a local subscription implementation", () => {
+  const f = fixture(); const s = f.make(); expect(s.engine).toBeInstanceOf(Subscriptions); s.close();
 });
 
-test("the 200-character cap counts the pattern, not its delimiters or flags", () => {
-  const p200 = "x".repeat(200);
-  expect(filterProblem(p200)).toBeUndefined();
-  expect(filterProblem(`/${p200}/i`)).toBeUndefined();
-  expect(filterProblem("x".repeat(201))).toContain("at most 200");
-  expect(filterProblem(`/${"x".repeat(201)}/i`)).toContain("at most 200");
-  expect(filterProblem("/a/g")).toContain("flags are i m s u");
+test("refused and unknown copies warn once, count once, and leave the next match active", async () => {
+  for (const failure of ["refusal", "uncertain"] as const) {
+    const f = fixture({ "json:sub.000000000001": row() }), s = f.make();
+    f.state[failure] = true;
+    expect(await s.deliver("C1", "U1", "first", "first", "chat")).toEqual({ matched: 1, sent: 0, dropped: 1 });
+    expect(f.warnings).toEqual([`000000000001:${failure === "refusal" ? "send_refused" : "send_unknown"}`]);
+    f.state[failure] = false;
+    expect(await s.deliver("C1", "U1", "next", "next", "chat")).toEqual({ matched: 1, sent: 1, dropped: 0 });
+    expect(f.sent.map(x => x.body)).toEqual(["next"]);
+    expect(f.values.get("json:sub.000000000001")).toMatchObject({ sent: 1, dropped: 1 });
+    expect(f.sent[0]!.options).not.toHaveProperty("wait"); s.close();
+  }
 });
 
-test("two edits of one subscription that overlap both land", async () => {
-  const made = await subAdd(store, self, msg, "C1", "#w", "^a");
-  if (!made.ok) throw new Error(made.error);
-  const id = made.fields.id as string;
-  // Each edit pauses after its read. Taking turns, the second does not read
-  // until the first has written; without the turns both would read first, and
-  // only field-level writes would keep both. Released after both reads or
-  // 200 ms, so the check never waits on an order it forbids.
-  let reads = 0;
-  let release!: () => void;
-  const bothRead = new Promise<void>(r => { release = r; setTimeout(r, 200); });
-  const barrier = wrap({
-    get: async (kind: "json", name: string) => {
-      const got = await store.kv.get(kind, name);
-      if (++reads === 2) release();
-      await bothRead;
-      return got;
-    },
-  });
-  const [a, b] = await Promise.all([
-    subEdit(barrier, self, id, { channel: "C2" }),
-    subEdit(barrier, self, id, { target: "#other" }),
-  ]);
-  expect(a.ok && b.ok).toBe(true);
-  const value = (await store.kv.get("json", `sub.${id}`)).value;
-  expect(value.channel).toBe("C2");
-  expect(value.target).toBe("#other");
-  expect(value.filter).toBe("^a");
+test("each event refreshes both author grants; a revoked source or target sends nothing", async () => {
+  for (const what of ["allowed", "sourceAllowed", "unavailable"] as const) {
+    const f = fixture({ "json:sub.000000000001": row() }), s = f.make();
+    await s.deliver("C1", "U1", "before", "before", "chat");
+    f.state[what] = what === "unavailable";
+    await s.deliver("C1", "U1", "revoked", "revoked", "chat");
+    expect(f.sent.map(x => x.body)).toEqual(["before"]);
+    expect(f.warnings).toHaveLength(1);
+    expect(f.checks).toContain(`${caller.from}>${source}`);
+    expect(f.values.get("json:sub.000000000001")).toMatchObject({ sent: 1, dropped: 1 }); s.close();
+  }
 });
 
-test("a delete during a disable is not undone by it (slack-review-S.5)", async () => {
-  const made = await subAdd(store, self, msg, "C1", "#w", "^a");
-  if (!made.ok) throw new Error(made.error);
-  const id = made.fields.id as string;
-  let release!: () => void;
-  const paused = new Promise<void>(r => (release = r));
-  let haveRead!: () => void;
-  const read = new Promise<void>(r => (haveRead = r));
-  const slowRead = wrap({
-    get: async (kind: "json", name: string) => {
-      const got = await store.kv.get(kind, name);
-      haveRead();
-      await paused; // the disable holds here, mid-way, having seen it present
-      return got;
-    },
-  });
-  const disabling = subDisable(slowRead, self, id);
-  await read; // forced: the disable has read before the delete is asked for
-  const deleting = subDelete(store, self, id); // the Owner deletes it meanwhile
-  await Bun.sleep(50);
-  release();
-  await disabling.catch(() => {});
-  expect(await deleting).toEqual({ ok: true, text: "deleted", fields: { id } });
-  await expect(store.kv.get("json", `sub.${id}`)).rejects.toThrow(); // gone, and stays gone
+test("add checks authenticated author, filter, both grants and target kind before storage", async () => {
+  const f = fixture(), s = f.make();
+  await expect(s.add(caller, "C1", "#target", "/(/")).rejects.toMatchObject({ code: "invalid_filter" });
+  expect(f.checks).toEqual([]); expect(f.writes()).toBe(0);
+  f.state.sourceAllowed = false;
+  await expect(s.add(caller, "C1", "#target")).rejects.toMatchObject({ code: "admission_refused" });
+  expect(f.writes()).toBe(0); f.state.sourceAllowed = true; f.state.kind = "pubsub";
+  await expect(s.add(caller, "C1", "#target")).rejects.toMatchObject({ code: "invalid_target" });
+  expect(f.writes()).toBe(0); s.close();
 });
 
-test("a disable and an edit of one subscription both land, in turn (slack-review-S.5)", async () => {
-  const made = await subAdd(store, self, msg, "C1", "#old", "^a");
-  if (!made.ok) throw new Error(made.error);
-  const id = made.fields.id as string;
-  let release!: () => void;
-  const paused = new Promise<void>(r => (release = r));
-  const slowRead = wrap({
-    get: async (kind: "json", name: string) => {
-      const got = await store.kv.get(kind, name);
-      await paused; // the disable holds here, mid-way
-      return got;
-    },
-  });
-  const disabling = subDisable(slowRead, self, id);
-  const editing = subEdit(store, self, id, { target: "#new" }); // arrives while the disable is mid-way
-  await Bun.sleep(50);
-  release();
-  await Promise.all([disabling, editing]);
-  const value = (await store.kv.get("json", `sub.${id}`)).value;
-  expect(value.target).toBe("#new");
-  expect(value.disabled).toBe(true);
+test("visibility and deletion are creator or direct source staff, never forwarded staff", async () => {
+  const f = fixture({ "json:sub.000000000001": row(), "json:sub.000000000002": row("000000000002", { created_by: "other@fixture" }) }), s = f.make();
+  expect((await s.list(caller)).map(r => r.id)).toEqual(["000000000001"]);
+  expect(await s.list(owner)).toHaveLength(2);
+  const forwarded = { ...owner, original_to: "#front" };
+  expect(await s.list(forwarded)).toHaveLength(0);
+  await expect(s.delete(forwarded, "000000000001")).rejects.toMatchObject({ code: "not_author" });
+  await s.delete(caller, "000000000001"); await s.delete(owner, "000000000002");
+  expect(await s.list(owner)).toEqual([]); s.close();
 });
 
-test("a filter edit enables a subscription its slow filter disabled; another edit leaves it disabled", async () => {
-  const made = await subAdd(store, self, msg, "C1", "#t", "(a+)+$");
-  if (!made.ok) throw new Error(made.error);
-  const id = made.fields.id as string;
-  await subDisable(store, self, id);
-  expect(await subEdit(store, self, id, { target: "#u" })).toMatchObject({ ok: true });
-  expect((await store.kv.get("json", `sub.${id}`)).value.disabled).toBe(true);
-  expect(await subEdit(store, self, id, { filter: "^a" })).toMatchObject({ ok: true });
-  expect((await store.kv.get("json", `sub.${id}`)).value.disabled).toBeUndefined();
+test("legacy migration preserves counts and selectors, removes disabled state and is idempotent", async () => {
+  const f = fixture({ "json:sub.deadbeef": legacy("deadbeef", { disabled: true, from_users: ["U1"] }), "int:stat.deadbeef.forwarded": 7n }), s = f.make();
+  const listed = await s.list(owner);
+  expect(listed).toEqual([row(migrationId("sub.deadbeef"), { sent: 7, selector: { channel: "C1", from_users: ["U1"] } })]);
+  expect(f.values.has("json:sub.deadbeef")).toBe(false);
+  expect(f.values.has("int:stat.deadbeef.forwarded")).toBe(false);
+  const writes = f.writes(); expect(await s.list(owner)).toEqual(listed); expect(f.writes()).toBe(writes); s.close();
 });
 
-test("an id the daemon says is taken is retried with a new one", async () => {
-  const kv = store.kv;
-  const taken: string[] = [];
-  const colliding = wrap({
-    set: async (k, n, v, o) => {
-      if (taken.length === 0) { taken.push(n); await kv.set(k, n, v, o); } // another subscription got this id first
-      return kv.set(k, n, v, o);
-    },
-  });
-  const made = await subAdd(colliding, self, msg, "C1", "#t", undefined);
-  if (!made.ok) throw new Error(made.error);
-  expect(`sub.${made.fields.id}`).not.toBe(taken[0]!);
-  expect((await kv.get("json", `sub.${made.fields.id}`)).value.target).toBe("#t");
+test("migration collisions preserve both distinct subscriptions and invalid filters stay inert", async () => {
+  const occupied = migrationId("sub.deadbeef");
+  const f = fixture({ [`json:sub.${occupied}`]: row(occupied), "json:sub.deadbeef": legacy("deadbeef", { filter: "/(/" }) }), s = f.make();
+  const listed = await s.list(owner);
+  expect(listed).toHaveLength(2); expect(listed.find(r => r.id === migrationId("sub.deadbeef", 1))).toMatchObject({ reason: "invalid_filter", filter: "/(/" });
+  await s.deliver("C1", "U1", "match", "match", "chat");
+  expect(f.sent).toHaveLength(1); expect(f.warnings.filter(w => w.endsWith(":filter_invalid"))).toHaveLength(1); s.close();
 });
 
-// RD141: the author's right to send, as the add and edit paths of Slack and
-// Telegram ask it. A daemon that cannot answer is a failed call, never a yes.
-test("authorCannotSend: a yes passes; a no, a hidden target and an old daemon are refusals; a dead daemon fails the call", async () => {
-  const { authorCannotSend } = await import("./subs.ts");
-  const { UnexpectedAnswer, BusTimeout, BusError } = await import("../../clients/typescript/src/index.js");
-  const stub = (answer: () => Promise<boolean>) => ({ maySend: async (_who: string, _to: string) => answer() }) as any;
-  expect(await authorCannotSend(stub(async () => true), "#slack@t", "a@t", "#t@t")).toBeUndefined();
-  expect(await authorCannotSend(stub(async () => false), "#slack@t", "a@t", "#t@t")).toContain("a@t may not send to #t@t");
-  expect(await authorCannotSend(stub(async () => { throw new BusError(404, "no such name"); }), "#slack@t", "a@t", "#t@t")).toContain("not a destination this agent can see");
-  expect(await authorCannotSend(stub(async () => { throw new UnexpectedAnswer("old"); }), "#slack@t", "a@t", "#t@t")).toContain("nothing stored");
-  await expect(authorCannotSend(stub(async () => { throw new BusTimeout(); }), "#slack@t", "a@t", "#t@t")).rejects.toBeInstanceOf(BusTimeout);
-  await expect(authorCannotSend(stub(async () => { throw new BusError(500, "boom"); }), "#slack@t", "a@t", "#t@t")).rejects.toBeInstanceOf(BusError);
+test("a lost migration commit reply serves nothing until recovery and never serves both keys", async () => {
+  const f = fixture({ "json:sub.deadbeef": legacy() }), first = f.make();
+  f.state.afterWrite = (_kind, key) => { if (key === `sub.${migrationId("sub.deadbeef")}`) throw Error("reply lost"); };
+  await expect(first.deliver("C1", "U1", "one", "one", "chat")).rejects.toMatchObject({ code: "store_unknown" });
+  expect(f.sent).toEqual([]); expect(f.values.has("json:sub.deadbeef")).toBe(true); first.close();
+  f.state.afterWrite = undefined; const recovered = f.make();
+  expect(await recovered.list(owner)).toHaveLength(1);
+  await recovered.deliver("C1", "U1", "one", "one", "chat");
+  expect(f.sent.map(x => x.body)).toEqual(["one"]); expect(f.values.has("json:sub.deadbeef")).toBe(false); recovered.close();
+});
+
+test("counter failure never retries a send or resurrects a deleted row", async () => {
+  const f = fixture({ "json:sub.000000000001": row() }), s = f.make();
+  f.state.beforeWrite = (_kind, key) => { if (key.startsWith("sub.")) throw Error("counter unavailable"); };
+  await s.deliver("C1", "U1", "one", "one", "chat");
+  expect(f.sent).toHaveLength(1); expect(f.warnings).toEqual(["undefined:store_unknown"]);
+  f.state.beforeWrite = undefined;
+  await s.delete(caller, "000000000001");
+  await s.deliver("C1", "U1", "next", "next", "chat");
+  expect(f.sent).toHaveLength(1); expect(f.values.has("json:sub.000000000001")).toBe(false); s.close();
 });

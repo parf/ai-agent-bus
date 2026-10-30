@@ -50,6 +50,7 @@ export async function call(socket: string, token: string, method: string, path: 
 }
 
 export async function startFixture(account = process.env.USER || "tester"): Promise<Fixture> {
+  mkdirSync(join(repo, "tmp"), { recursive: true });
   const dir = mkdtempSync(join(repo, "tmp", `slack-agent-`));
   const owner = `owner-${process.pid}@t${(Math.random() * 1e6) | 0}`;
   const socket = join(dir, "bus.sock");

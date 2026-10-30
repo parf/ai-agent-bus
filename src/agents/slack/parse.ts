@@ -14,7 +14,6 @@ export type Call =
   | { method: "read"; channel: string; limit: number }
   | { method: "sub.list" }
   | { method: "sub.add"; channel: string; target: string; filter?: string; from_users?: string[] }
-  | { method: "sub.edit"; id: string; edits: { channel?: string; target?: string; filter?: string; from_users?: string[] } }
   | { method: "sub.delete"; id: string }
   | { method: "channels"; filter?: string; member_only?: boolean }
   | { method: "users"; filter?: string }
@@ -53,7 +52,6 @@ export const KEYS: Record<string, string[]> = {
   post: ["channel", "text", "thread_ts", "username", "icon"],
   read: ["channel", "limit"],
   "sub.add": ["channel", "target", "filter", "from_users"],
-  "sub.edit": ["id", "channel", "target", "filter", "from_users"],
   "sub.delete": ["id"],
   channels: ["filter", "member_only"],
   users: ["filter"],
@@ -84,6 +82,7 @@ function fromJSON(body: string): Call {
   const need = <T,>(v: Field<T>): v is T => v !== undefined && v !== BAD;
   const fine = (...vs: Field<unknown>[]) => vs.every(v => v !== BAD);
   const m = p.method;
+  if (m === "sub.edit") return { method: "help", why: "sub edit was removed; use sub delete <id> and sub add <channel> <target> [filter]" };
   // A key the method does not take is refused by name, never ignored: a
   // misspelt "chanel" would otherwise post as if no channel were named.
   const allowed = Object.hasOwn(KEYS, m) ? KEYS[m] : undefined;
@@ -109,17 +108,6 @@ function fromJSON(body: string): Call {
       const [c, t, f, a] = [str("channel"), str("target"), filter("filter"), authors()];
       if (!need(c) || !need(t) || !fine(f, a)) return helpCall;
       return { method: m, channel: c, target: t, ...(a !== undefined ? { from_users: a as string[] } : {}), ...(f !== undefined && f !== "" ? { filter: f as string } : {}) };
-    }
-    case "sub.edit": {
-      const [id, c, t, f, a] = [str("id"), str("channel"), str("target"), filter("filter"), authors()];
-      if (!need(id) || !fine(c, t, f, a)) return helpCall;
-      const edits: { channel?: string; target?: string; filter?: string; from_users?: string[] } = {};
-      if (c !== undefined) edits.channel = c as string;
-      if (t !== undefined) edits.target = t as string;
-      if (a !== undefined) edits.from_users = a as string[];
-      if (f !== undefined) edits.filter = f as string;
-      if (Object.keys(edits).length === 0) return helpCall; // nothing named is not an edit
-      return { method: m, id, edits };
     }
     case "sub.delete": {
       const id = str("id");
@@ -198,7 +186,7 @@ function fromText(body: string): Call {
         return { method: "sub.add", channel, target, ...(from_users !== undefined ? { from_users } : {}), ...(filter !== "" ? { filter } : {}) };
       }
       case "edit":
-        return subEdit(body, toks);
+        return { method: "help", why: "sub edit was removed; use sub delete <id> and sub add <channel> <target> [filter]" };
       case "delete":
         return n === 3 ? { method: "sub.delete", id: word(2)! } : helpCall;
       default:
@@ -248,32 +236,3 @@ function fromText(body: string): Call {
   }
 }
 
-/** `sub edit <id> [channel=…] [target=…] [filter=…]`; `filter=` is the last
- *  key and its value is the original bytes to the end, `filter=` alone
- *  clearing it. */
-function subEdit(body: string, toks: { word: string; at: number }[]): Call {
-  const id = toks[2]?.word;
-  if (!id) return helpCall;
-  const edits: { channel?: string; target?: string; filter?: string; from_users?: string[] } = {};
-  for (let i = 3; i < toks.length; i++) {
-    const { word, at } = toks[i]!;
-    if (word.startsWith("filter=")) {
-      edits.filter = body.slice(at + "filter=".length).replace(/\s+$/, "");
-      break;
-    }
-    if (word.startsWith("from=")) {
-      edits.from_users = word === "from=" ? [] : word.slice(5).split(",");
-      if (edits.from_users.some(v => !v)) return helpCall;
-      continue;
-    }
-    const eq = word.indexOf("=");
-    if (eq <= 0 || eq === word.length - 1) return helpCall;
-    const key = word.slice(0, eq);
-    const value = word.slice(eq + 1);
-    if (key === "channel") edits.channel = value;
-    else if (key === "target") edits.target = value;
-    else return helpCall;
-  }
-  if (Object.keys(edits).length === 0) return helpCall; // nothing named is not an edit
-  return { method: "sub.edit", id, edits };
-}

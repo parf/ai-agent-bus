@@ -1,5 +1,5 @@
 {
-  "text": "Put your AI in your team's Slack. Post and read messages, reply in threads, route replies to the right session and forward chosen conversations. Start with whoami, then post.\npost <channel> <text...>: Send a message to a channel, or reply in a thread; the answer is the message link.; returns: the message permalink\n  text (string): Message text\nread <channel> [limit]: Read recent messages in a channel, oldest first.; returns: Messages with timestamp, user and text\nthread <channel> <ts> [limit]: Read one thread, oldest first.\nchannels [filter]: Find channels, optionally by part of the name.\n  filter (string): Channel name substring\nchannel <channel>: See one channel's details.\nusers [filter]: Find people by name, email or ID; bots and deleted accounts are left out.\n  filter (string): Match name, email or ID\nuser <who>: See one person or bot.\n  who (string): User ID, email or @name\nreact <channel> <ts> <emoji>: Add a reaction to a message.\n  emoji (string): Slack emoji name, for example white_check_mark\n[destructive] edit <channel> <ts> <text...>: Change one of the bot's own messages.\n  text (string): Replacement text\n[destructive] delete <channel> <ts>: Remove one of the bot's own messages.\njoin <channel>: Make the bot join a public channel.\nwhoami: See which bot you are talking to, its workspace and whether it is connected.\nrefused: See the last 20 senders turned away by routing and not on the list; direct Owner and Maintainers only.; role: maintainer\nsub add <channel> <target> [from=user,…] [filter]: Forward matching channel messages to a destination; the answer is the subscription ID.; returns: Subscription ID\nsub list: See each subscription with its authors, filters and delivery counters.\nsub edit <id> [channel=…] [target=…] [from=…] [filter=…]: Change a subscription; an empty filter= clears its filter.\n[destructive] sub delete <id>: Stop forwarding.\n\nArguments\nchannel (string): Slack #channel, channel ID or user email for a DM\nfilter (string): Regex /pattern/flags or plain regex; empty filter= clears an edited subscription\nfrom_users (list): Author IDs, emails, @names or bot IDs; text uses from= before filter\nid (string): Subscription ID\nlimit (int): Number of messages, 1..200; default 20\ntarget (string): Bus destination; you must manage it, or be this agent’s direct Owner/Maintainer\nts (string): Message or thread timestamp\n\nExamples\nagent-bus call '#slack@parf.us' 'channels alerts'\nagent-bus call '#slack@parf.us' whoami\nagent-bus call '#slack@parf.us' 'sub list'\n\nv<version> · PolyForm-NC · parf.dev/agent-bus/\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/slack.md\nMore: agent-bus help <name> config | secret | json",
+  "text": "Put your AI in your team's Slack. Post and read messages, reply in threads, route replies to the right session and forward chosen conversations. Start with whoami, then post.\npost <channel> <text...>: Send a message to a channel, or reply in a thread; the answer is the message link.; returns: the message permalink\n  text (string): Message text\nread <channel> [limit]: Read recent messages in a channel, oldest first.; returns: Messages with timestamp, user and text\nthread <channel> <ts> [limit]: Read one thread, oldest first.\nchannels [filter]: Find channels, optionally by part of the name.\n  filter (string): Channel name substring\nchannel <channel>: See one channel's details.\nusers [filter]: Find people by name, email or ID; bots and deleted accounts are left out.\n  filter (string): Match name, email or ID\nuser <who>: See one person or bot.\n  who (string): User ID, email or @name\nreact <channel> <ts> <emoji>: Add a reaction to a message.\n  emoji (string): Slack emoji name, for example white_check_mark\n[destructive] edit <channel> <ts> <text...>: Change one of the bot's own messages.\n  text (string): Replacement text\n[destructive] delete <channel> <ts>: Remove one of the bot's own messages.\njoin <channel>: Make the bot join a public channel.\nwhoami: See which bot you are talking to, its workspace and whether it is connected.\nrefused: See the last 20 senders turned away by routing and not on the list; direct Owner and Maintainers only.; role: maintainer\nsub add <channel> <target> [from=user,…] [filter]: Forward matching channel messages to a destination; the answer is the subscription ID.; returns: Subscription ID\nsub list: See your subscriptions and their sent and dropped counts; this agent’s direct Owner and Maintainers see all.\n[destructive] sub delete <id>: Delete your subscription, or any subscription as this agent’s direct Owner or Maintainer.\n\nArguments\nchannel (string): Slack #channel, channel ID or user email for a DM\nfilter (string): Common regular-expression subset, at most 200 characters; empty matches all selector messages\nfrom_users (list): Author IDs, emails, @names or bot IDs; text uses from= before filter\nid (string): Subscription ID\nlimit (int): Number of messages, 1..200; default 20\ntarget (string): Bus queue or agent destination; the author must be allowed to send to it and this helper\nts (string): Message or thread timestamp\n\nExamples\nagent-bus call '#slack@parf.us' 'channels alerts'\nagent-bus call '#slack@parf.us' whoami\nagent-bus call '#slack@parf.us' 'sub list'\n\nv<version> · PolyForm-NC · parf.dev/agent-bus/\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/slack.md\nMore: agent-bus help <name> config | secret | json",
   "json": {
     "description": "Put your AI in your team's Slack. Post and read messages, reply in threads, route replies to the right session and forward chosen conversations. Start with whoami, then post.",
     "license": "PolyForm-Noncommercial-1.0.0",
@@ -236,7 +236,7 @@
           },
           {
             "type": "string",
-            "help": "Bus destination; you must manage it, or be this agent’s direct Owner/Maintainer",
+            "help": "Bus queue or agent destination; the author must be allowed to send to it and this helper",
             "name": "target"
           },
           {
@@ -247,7 +247,7 @@
           },
           {
             "type": "string",
-            "help": "Regex /pattern/flags or plain regex; empty filter= clears an edited subscription",
+            "help": "Common regular-expression subset, at most 200 characters; empty matches all selector messages",
             "name": "filter",
             "optional": true,
             "rest": true
@@ -258,51 +258,14 @@
       },
       "sub.list": {
         "type": "string",
-        "help": "See each subscription with its authors, filters and delivery counters.",
+        "help": "See your subscriptions and their sent and dropped counts; this agent’s direct Owner and Maintainers see all.",
         "args": [],
         "text": "sub list",
         "example": "agent-bus call '#slack@parf.us' 'sub list'"
       },
-      "sub.edit": {
-        "type": "string",
-        "help": "Change a subscription; an empty filter= clears its filter.",
-        "args": [
-          {
-            "type": "string",
-            "help": "Subscription ID",
-            "name": "id"
-          },
-          {
-            "type": "string",
-            "help": "Slack #channel, channel ID or user email for a DM",
-            "name": "channel",
-            "optional": true
-          },
-          {
-            "type": "string",
-            "help": "Bus destination; you must manage it, or be this agent’s direct Owner/Maintainer",
-            "name": "target",
-            "optional": true
-          },
-          {
-            "type": "list",
-            "help": "Author IDs, emails, @names or bot IDs; text uses from= before filter",
-            "name": "from_users",
-            "optional": true
-          },
-          {
-            "type": "string",
-            "help": "Regex /pattern/flags or plain regex; empty filter= clears an edited subscription",
-            "name": "filter",
-            "optional": true,
-            "rest": true
-          }
-        ],
-        "text": "sub edit <id> [channel=…] [target=…] [from=…] [filter=…]"
-      },
       "sub.delete": {
         "type": "string",
-        "help": "Stop forwarding.",
+        "help": "Delete your subscription, or any subscription as this agent’s direct Owner or Maintainer.",
         "args": [
           {
             "type": "string",

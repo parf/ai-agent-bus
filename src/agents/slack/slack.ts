@@ -18,13 +18,12 @@ import { parseEnvFile } from "./envfile.js";
 import { DeadlinePassed, endpoint, scrub, slackWeb } from "./slackapi.js";
 import { parseCall, type Call } from "./parse.js";
 import { BusError, KVNotFound } from "../../clients/typescript/src/index.js";
-import { authorCannotSend, mayChangeSubscriptions, subAdd, subDelete, subDisable, subEdit, subList, withSub, type Store, type Subscription, type SubResult } from "./subs.js";
+import { ChatPort, ChatSubscriptions, staff as mayChangeSubscriptions, subscriptionList } from "./subscription-port.ts";
 import { Forwarder, Posted, type Identity } from "./forward.js";
 import { SocketMode } from "./socket.js";
 import { postAs } from "./postas.js";
 import { describe } from "./describe.js";
 import { SlackRouter, routingConfig, type RoutingConfig } from "./routing.ts";
-import { stopFilters } from "./filters.js";
 
 const name = (process.env.AGENT_BUS_NAME ?? "").trim().toLowerCase();
 if (!name) {
@@ -33,6 +32,10 @@ if (!name) {
 }
 
 const bus = Bus.connect({ expectName: name });
+const subscriptions = new ChatSubscriptions(new ChatPort(bus, name), {
+  resolve: eventChannelId,
+  warning: (code, id) => console.error(`slack: subscription ${id ?? "store"}: ${code}`),
+});
 const help = describe(name, false);
 const helpFor = (e: Message) => describe(name, mayChangeSubscriptions(e, name));
 
@@ -385,40 +388,16 @@ async function run(ctx: Ctx, e: Message, call: Call): Promise<Result> {
       return ok(word, { channel: where.id, ...("ts" in call ? { ts: call.ts } : {}) });
     }
     case "sub.list":
-      return subList(bus, name, id => forwarder.pending(id));
-    case "sub.add":
-    case "sub.edit":
-    case "sub.delete": {
-      // Whoever manages a subscription's destination may change it, and this
-      // agent's own Owner and Maintainers may change any (S.8). Control is
-      // asked of the daemon for the sender it delivered, never the body's.
-      const any = mayChangeSubscriptions(e, name);
-      const guard = async (sub: Subscription) => {
-        if (!any) {
-          const to = call.method === "sub.edit" ? call.edits.target : undefined;
-          for (const target of to !== undefined ? [sub.target, to] : [sub.target]) {
-            const why = await uncontrolled(e.from, target);
-            if (why) return why;
-          }
-        }
-        // A moved target is one the entry's author must be able to send to.
-        if (call.method === "sub.edit" && call.edits.target !== undefined) return authorCannotSend(bus, name, sub.created_by, call.edits.target);
-        return undefined;
-      };
-      if (call.method === "sub.add") {
-        const why = any ? undefined : await uncontrolled(e.from, call.target);
-        if (why) return fail(why);
-        const cannot = await authorCannotSend(bus, name, e.from, call.target);
-        if (cannot) return fail(cannot);
-        const authors = call.from_users === undefined ? undefined : await resolveAuthors(ctx, call.from_users);
-        if (authors && "error" in authors) return fail(authors.error);
-        return subAdd(bus, name, e, call.channel, call.target, call.filter, authors?.ids);
-      }
-      if (call.method === "sub.delete") return subDelete(bus, name, call.id, guard);
-      const authors = call.edits.from_users === undefined ? undefined : await resolveAuthors(ctx, call.edits.from_users);
+      return subscriptionList(await subscriptions.list(e));
+    case "sub.add": {
+      const authors = call.from_users === undefined ? undefined : await resolveAuthors(ctx, call.from_users);
       if (authors && "error" in authors) return fail(authors.error);
-      return subEdit(bus, name, call.id, { ...call.edits, ...(authors ? { from_users: authors.ids } : {}) }, guard);
+      const row = await subscriptions.add(e, call.channel, call.target, call.filter, authors?.ids);
+      return ok(JSON.stringify({ id: row.id }), { id: row.id });
     }
+    case "sub.delete":
+      await subscriptions.delete(e, call.id);
+      return ok("deleted", { id: call.id });
     default:
       return ok(help, { help });
   }
@@ -435,25 +414,13 @@ function render(json: boolean, r: Result, ctx?: Ctx): string {
 
 // The client's serve loop acks each message before the handler runs and
 // refuses receipts there, so they are consumed and never answered here.
-/** Why `who` may not point a subscription at `target`, or undefined when it
- *  controls it: manages it, by the daemon's answer. A destination this agent
- *  may not see is one nothing could be forwarded to either. */
-async function uncontrolled(who: string, target: string): Promise<string | undefined> {
-  try {
-    if (await bus.manages(who, target)) return undefined;
-  } catch (err) {
-    if ((err as any)?.status === 404) return `${target} is not a destination this agent can see; its ACL must admit ${name}`;
-    throw err;
-  }
-  return `${who} does not control ${target}: a subscription is changed by whoever manages its destination`;
-}
-
 async function handle(e: Message): Promise<string | null> {
   const answer = dispatchAsk(e.ask, ask => describe(name, mayChangeSubscriptions(e, name), ask));
   if (answer !== undefined) return answer;
   const json = e.body.trim().startsWith("{");
   const call = parseCall(e.body);
   if (call.method === "help") {
+    if (call.why?.startsWith("sub edit")) return render(json, fail(call.why));
     const help = helpFor(e);
     // A JSON call that is no call is refused, with the help to say why.
     if (json && !isHelpCall(e.body)) return JSON.stringify({ ok: false, error: call.why ?? "not a call this agent knows", help });
@@ -484,7 +451,6 @@ function isHelpCall(body: string): boolean {
 
 // Forwarding (S.5) and Socket Mode (S.6). Each event gets a context of its
 // own: the secret as it is then, and a 15 s budget for its Slack lookups.
-const store = (): Store => bus.record(name) as unknown as Store;
 let identity: Identity | undefined;
 const posted = new Posted();
 let identityFor = ""; // the workspace key it was learned for
@@ -514,11 +480,7 @@ const forwarder = new Forwarder({
     try { title = (await listChannels(await eventCtx())).find(c => c.id === event.channel)?.name; } catch { /* ids still identify the channel */ }
     return router.event(event, me.botUser, title);
   },
-  async subs() {
-    const r = await subList(store(), name);
-    return r.ok ? (r.fields.subs as Subscription[]) : [];
-  },
-  channelId: eventChannelId,
+  subscriptions,
   async userName(id) {
     try {
       return (await whoIs(await eventCtx(), id))?.name ?? "";
@@ -534,37 +496,8 @@ const forwarder = new Forwarder({
       return "";
     }
   },
-  async send(to, body, topic, tag) {
-    await bus.send(to, body, { topic, tag });
-  },
-  maySend: (who, to) => bus.maySend(who, to),
   identity: () => ensureIdentity(),
   posted: (channel, ts) => posted.mine(channel, ts),
-  async persistCount(id, forwarded) {
-    await (bus.record(name) as any).kv.increment(`stat.${id}.forwarded`, { by: forwarded });
-  },
-  async persistError(id, lastError) {
-    await (bus.record(name) as any).kv.set("string", `stat.${id}.last_error`, lastError, { mode: "set" });
-  },
-  async exists(id) {
-    try {
-      await store().kv.get("json", `sub.${id}`);
-      return true;
-    } catch (err) {
-      if (err instanceof KVNotFound) return false;
-      throw err;
-    }
-  },
-  async disable(id) {
-    await subDisable(store(), name, id);
-  },
-  serialize: (id, fn) => withSub(id, fn),
-  async forget(id) {
-    const kv = store().kv;
-    for (const [kind, key] of [["int", `stat.${id}.forwarded`], ["string", `stat.${id}.last_error`]] as const) {
-      await kv.delete(kind, key).catch(() => {});
-    }
-  },
   log: line => console.error(`slack: ${scrubKnown(line)}`),
   scrub: text => scrubKnown(text),
 });
@@ -647,7 +580,7 @@ try {
 } catch {
   /* loaded on first use */
 }
-forwarder.start();
+await subscriptions.ready();
 void socket.start();
 const stop = new AbortController();
 const shutdown = () => stop.abort();
@@ -657,5 +590,4 @@ await bus.serve(handle, { signal: stop.signal, drainTimeout: 5000, matchesReply:
 // Stopped: the socket and its timers first, then the queue drained, counters flushed.
 socket.stop();
 await forwarder.stop(5000);
-stopFilters();
 process.exit(0);

@@ -1,7 +1,7 @@
 # Slack agent
 
 📌 **TL;DR:** Slack serves itself through Socket Mode and the TypeScript bus
-client. Its package includes the shared session router and filter worker;
+client. Its package includes the shared session router and subscription engine;
 the runner mounts only the completed package.
 User instructions live in the [Slack guide](../../../docs/agents/slack.md).
 

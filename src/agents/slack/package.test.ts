@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
@@ -24,8 +24,10 @@ test("the package is self-contained and names its bundle", () => {
     expect(bundle).not.toMatch(/from\s+["']\.\.\//);
     // Nor reads a file of the checkout's: the version is written in.
     expect(bundle).not.toContain("internal/version/VERSION");
-    expect(bundle).toContain('new URL("./filter-worker" + ext');
-    expect(statSync(join(dest, "filter-worker.js")).isFile()).toBe(true);
+    expect(bundle).toContain("class Subscriptions");
+    expect(bundle).toContain("admission_refused");
+    expect(bundle).toContain("filter_invalid");
+    expect(existsSync(join(dest, "filter-worker.js"))).toBe(false);
     expect(statSync(dest).mode & 0o777).toBe(0o755);
   } finally {
     rmSync(parent, { recursive: true, force: true });
