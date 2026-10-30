@@ -10,11 +10,7 @@ the eventlog agent starts on its documented defaults when its record has no Conf
 
 ## 0.9.185 — 2026-10-30
 
-lock waiters are served in arrival order, and a waiter that gives up or cancels leaves the queue (live after the next daemon restart)
-
-## 0.9.184 — 2026-10-30
-
-Sixth published 0.9 changeset: 0.9.163–0.9.184, squashed.
+Sixth published 0.9 changeset: 0.9.163–0.9.185, squashed.
 
 | Area | Changes |
 |---|---|
@@ -28,7 +24,7 @@ Sixth published 0.9 changeset: 0.9.163–0.9.184, squashed.
 | Clients | Every client library sends a zero or sub-millisecond wait as a plain send, and still refuses a negative wait. |
 | Runner | Agents start in their `depends` order; an unknown or cyclic dependency is refused by name. A dedicated runner script reads its bus secret on each message. One shared masker hides each secret value, and each line of a multi-line secret, in runner and CLI output. |
 | Debug | The `env` answer masks every bus-prefixed secret and shows only an allowlist. |
-| Daemon | Group walks for ACL, directory and delivery are iterative, so a deep or cyclic group chain no longer exhausts the stack. Needs a daemon restart. |
+| Daemon | Group walks for ACL, directory and delivery are iterative, so a deep or cyclic group chain no longer exhausts the stack. Needs a daemon restart. Lock waiters are served in arrival order, and a waiter that gives up or cancels leaves the queue; also live after the next daemon restart. |
 
 ## 0.9.162 — 2026-10-29
 
