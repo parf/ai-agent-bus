@@ -44,8 +44,9 @@ resolving conflicts, or anything needing arbitrary Git commands.
 
 | Ability | Calls |
 |---|---|
-| Look | `list`, `status`, `log`, `rev`, `fetch`, `diff`, `autopull` |
+| Look | `list`, `status`, `log`, `rev`, `fetch`, `diff` |
 | Update | `pull`, `deploy`, `reset`, `clean` |
+| Autopull | `autopull <project>` shows the last automatic update; `autopull <project> now` runs one; events on the command channel run them by themselves ([autopull](#autopull)) |
 | Save | `add`, `commit`, `push` |
 
 Every call names a project declared in [Configuration](#repositories-and-access-levels).
