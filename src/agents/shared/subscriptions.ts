@@ -266,6 +266,7 @@ export class Subscriptions {
   private readonly idFactory: () => string;
   private readonly matcher: (re: RegExp, text: string, until: number) => Promise<Verdict>;
   private readonly filters = new FilterWorker();
+  private closed = false;
   private readonly maxSubscriptions: number;
   private readonly maxPerCreator: number;
 
@@ -309,6 +310,14 @@ export class Subscriptions {
       return false;
     }
     return true;
+  }
+
+  /** Terminates the filter worker. A delivery still running drops its
+   *  remaining copies as past their deadline; no send starts after this
+   *  returns, and a later delivery is refused. */
+  close(): void {
+    this.closed = true;
+    this.filters.close();
   }
 
   /** Whether the caller manages this source: a daemon-asserted owner or
@@ -394,6 +403,7 @@ export class Subscriptions {
    *  match. A refused or uncertain copy is dropped, counted and warned; the
    *  subscription stays active. Nothing is retried, held or replayed. */
   async deliver(event: Record<string, unknown>, text: string, body: string, options: { topic?: string; tag?: string; deadline?: number } = {}): Promise<{ matched: number; sent: number; dropped: number }> {
+    if (this.closed) throw new SubscriptionError("store_unknown");
     const result = { matched: 0, sent: 0, dropped: 0 };
     const admitted = new Map<string, Admission>();
     const ask = async (who: string, target: string): Promise<Admission> => {
@@ -421,7 +431,7 @@ export class Subscriptions {
         row.dropped = bump(row.dropped);
         changed.add(row);
       };
-      const expired = () => options.deadline !== undefined && Date.now() >= options.deadline;
+      const expired = () => this.closed || (options.deadline !== undefined && Date.now() >= options.deadline);
       // An expired deadline, malformed text or an inert filter drops every
       // selector candidate before any matching or admission question.
       const late = expired();
@@ -467,6 +477,10 @@ export class Subscriptions {
       }
       if (refused) {
         drop(refused);
+        continue;
+      }
+      if (expired()) {
+        drop("deadline");
         continue;
       }
       const outcome = await this.port.send(row.target, body, options).catch((): SendOutcome => "unknown");

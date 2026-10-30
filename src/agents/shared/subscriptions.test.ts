@@ -2,7 +2,7 @@
 // the same file; a case that passes here and fails there is a parity bug.
 import { expect, test } from "bun:test";
 import vectors from "../../testdata/subscriptions.json";
-import { checkText, compileFilter, MATCH_MS, PATTERN_MS, SubscriptionError, Subscriptions, type Admission, type Options, type Port, type Row, type SendOutcome, type WarningCode } from "./subscriptions.ts";
+import { checkText, compileFilter, FilterWorker, MATCH_MS, PATTERN_MS, SubscriptionError, Subscriptions, type Admission, type Options, type Port, type Row, type SendOutcome, type WarningCode } from "./subscriptions.ts";
 
 const code = (fn: () => unknown): string | undefined => {
   try {
@@ -129,7 +129,7 @@ async function engine(stored: Record<string, unknown>, options: Partial<Options>
     ...options,
   });
   await subs.reload();
-  return { subs, state, store, warnings };
+  return { subs, port, state, store, warnings };
 }
 
 const good: Row = { id: "000000000001", target: "events@fixture.test", selector: {}, filter: "", created_by: "#writer@fixture.test",
@@ -216,4 +216,29 @@ test("one delivery's matching stops at its budget however many filters are slow"
   expect({ warnings: warnings.length, every: new Set(warnings) }).toEqual({ warnings: count, every: new Set(["filter_timeout"]) });
   expect(took).toBeGreaterThanOrEqual(MATCH_MS - PATTERN_MS);
   expect(took).toBeLessThan(MATCH_MS + 5 * PATTERN_MS);
+});
+
+test("close terminates a test in flight; the worker answers nothing after", async () => {
+  const worker = new FilterWorker();
+  const verdict = worker.test(new RegExp(slow), slowText, Date.now() + MATCH_MS);
+  await Bun.sleep(10);
+  const started = Date.now();
+  worker.close();
+  expect(await verdict).toBe("slow");
+  expect(Date.now() - started).toBeLessThan(PATTERN_MS);
+  expect(await worker.test(/a/, "a", Date.now() + MATCH_MS)).toBe("slow");
+});
+
+test("a send never starts once close has returned, and a later delivery is refused", async () => {
+  const { subs, port, state, warnings } = await engine({ "sub.000000000001": good });
+  const ask = port.admits;
+  // The engine closes while a copy waits on its admission answer.
+  port.admits = async (who, target) => { subs.close(); return ask(who, target); };
+  state.checks = [true, true];
+  state.send = "ok";
+  expect(await subs.deliver({}, "x", "x")).toEqual({ matched: 1, sent: 0, dropped: 1 });
+  expect({ attempts: state.attempts, warnings }).toEqual({ attempts: 0, warnings: ["deadline"] });
+  state.queries = [];
+  expect(await subs.deliver({}, "x", "x").catch(e => e.code)).toBe("store_unknown");
+  expect(state.queries).toEqual([]);
 });
