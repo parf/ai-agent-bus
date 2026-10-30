@@ -263,12 +263,12 @@ configuration written under `runner/` on the host, then a `reload` call.
   - Acceptance: a re-registration of an existing record answers no token; a register that created the record answers its token, which works; the runner never holds its person's token and serves no name it has no token for; removing the created-only guard lets a re-registration collect an existing agent's token, and the check fails
   - Mutant: removing the created-only guard lets a re-registration collect an existing agent's token, and the check fails
 
-- ⚠️ M.11 Runner install through setup
+- ✅ M.11 Runner install through setup (plan rules under test with six assertion-red mutants, branch ab-w2b/T-7-m11; real-host acceptance of the system runner's verbs is pending, the owner's)
   - State: owner, 2026-10-17; built 0.8.149: `--runner install|uninstall|enable|disable --for <person> [--purge]`, the `<person>-ab-runner` account and `agent-bus-runner@.service` template, nothing installed by default; [a person's runner](../../docs/07-setup.md#a-persons-runner)
   - Builds: `agent-bus-setup` options that install, uninstall, enable and disable a person's runner: the Linux account, its home, the unit, and with №M.10 the person's `#runner/<person>`; nothing installed by default
   - Format: the option names
   - Acceptance: each verb leaves the host in its stated state and a second run changes nothing; uninstall leaves no account, unit or link behind and always keeps shared `agent.d`, including with `--purge`; disable stops and disables the unit and keeps the files; a verb for a person who is not a bus User is refused
-  - Mutant: Not recorded in the source.
+  - Mutant: purge removing agent.d, a second run planning again, a non-User accepted, a record of another owner or kind taken over, the shared template removed beside another runner, a disable that ignores an active unit: each fails an assertion in `runner_install_test.go`
 
 - ⏳ M.12 Agent code from a list of directories (owner, 2026-10-17)
   - Builds: the runner reads agent code from an ordered list of directories: first the shared `agent.d` (`/var/lib/agent-bus/agent.d`), then the release's bundled agents (`/usr/local/lib/agent-bus/current/agents`, or the checkout's `src/agents` on a node running from git), so every bundled agent is always there and a new one arrives with an upgrade; each bundled agent is installed in its packaged form (the Slack agent through its `package.sh`) by the release build
