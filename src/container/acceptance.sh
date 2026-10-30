@@ -21,6 +21,19 @@ case ${1:?release archive directory or --image=<reference> required} in
 esac
 mutant=${MUTANT:-}
 id="agent-bus-acc-$$-$RANDOM"
+# Nothing reaches the host journal (J32): no podman events, and every container logs to a capped file in the
+# private work dir rather than journald. Each run is named after this one, so a journal check can find it.
+podman() {
+  if [ "$1" = run ]; then
+    shift
+    local n=$id-$(date +%s%N) named=()
+    [[ " $* " == *" --name "* ]] || named=(--name "$n")
+    command podman --events-backend=none run "${named[@]}" --log-driver k8s-file --log-opt max-size=10mb \
+      --log-opt "path=$work/$n.log" "$@"
+  else
+    command podman --events-backend=none "$@"
+  fi
+}
 built="localhost/$id"
 image=$built
 net="$id-net"

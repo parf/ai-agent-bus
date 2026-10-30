@@ -350,6 +350,9 @@ ok_exit "smoke port claim contract" "$rc"
 out=$(bash ./npm-pack.test.sh 2>&1); rc=$?
 ok_exit "the npm wrapper installs from its tarballs and runs a request, a reply and an MCP call" "$rc"
 [ "$rc" = 0 ] || echo "$out"
+out=$(bash ./journal-quiet.test.sh 2>&1); rc=$?
+ok_exit "journal-quiet fails a run whose containers wrote to the journal, against a stub journal (J32)" "$rc"
+[ "$rc" = 0 ] || echo "$out"
 out=$(bash ./acceptance/guard.test.sh 2>&1); rc=$?
 ok_exit "a private-store podman harness killed by any signal leaves no container and no run directory (J32)" "$rc"
 [ "$rc" = 0 ] || echo "$out"
@@ -4106,9 +4109,11 @@ agent_db() {
   if normal; then
     sec "Database proxy: read enforced by the database on MySQL, PostgreSQL and ClickHouse"
     local out rc
-    out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/db -p 'test_*.py' -v 2>&1); rc=$?
+    # The whole run, under journal-quiet: no fixture container or podman event of it reaches the host journal (J32).
+    out=$(PYTHONDONTWRITEBYTECODE=1 ./journal-quiet.sh ab-db-fixture python3 -m unittest discover -s agents/db -p 'test_*.py' -v 2>&1); rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "database proxy roles, read-only enforcement, bounds and password secrecy" "$rc"
+    has "the database fixtures wrote nothing to the host journal" "$out" "^journal-quiet: no journal entry for ab-db-fixture$"
     # A fixture container whose test process is gone was leaked (J32); a neighbour's live run is not one.
     out=$(PYTHONDONTWRITEBYTECODE=1 python3 agents/db/fixtures.py leaked 2>&1)
     is_empty "no database fixture container outlives its test" "$out"
@@ -4160,9 +4165,10 @@ container_image() {
       ok_exit "container image prerequisites: podman and the pinned base image" 1; return
     fi
     out=$(timeout 240 ./package.sh "$dist" 2>&1 >/dev/null); rc=$?
-    [ "$rc" != 0 ] || { out=$(timeout 240 ./container/acceptance.sh "$dist" 2>&1); rc=$?; }
+    [ "$rc" != 0 ] || { out=$(timeout 240 ./journal-quiet.sh agent-bus-acc- ./container/acceptance.sh "$dist" 2>&1); rc=$?; }
     echo "$out" | sed 's/^/  /'
     ok_exit "container image acceptance from the release archive" "$rc"
+    has "the container acceptance wrote nothing to the host journal" "$out" "^journal-quiet: no journal entry for agent-bus-acc-$"
   else skipped=$((skipped+1)); fi
 }
 
