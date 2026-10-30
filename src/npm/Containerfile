@@ -1,0 +1,10 @@
+# Clean Linux systemd host with npm, without Go or Bun. It is disposable;
+# real host accounts/services are never touched by container-check.sh.
+ARG BASE=docker.io/library/debian:13
+FROM ${BASE}
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    systemd systemd-sysv sudo openssh-client python3 tar gzip curl ca-certificates \
+    procps util-linux nodejs npm \
+    && rm -rf /var/lib/apt/lists/*
+STOPSIGNAL SIGRTMIN+3
+CMD ["/sbin/init"]
