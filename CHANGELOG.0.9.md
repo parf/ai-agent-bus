@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.176 — 2026-10-30
+
+release-verify.sh checks release evidence on signed archives; x86_64 verified, aarch64 not built here
+
 ## 0.9.175 — 2026-10-30
 
 a container image on a digest-pinned AlmaLinux 10 base runs the daemon or a runner from the release archive, with its own acceptance as smoke subsystem Q
