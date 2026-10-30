@@ -153,8 +153,7 @@ roles and never restricts which application labels may be assigned.
 - Each complete name is a record of its own, with its own configuration and — for the four kinds that have one — its own queue.
 - Nothing parses configuration out of an instance's name.
 
-**A record's method information is its description, and nothing else.** The
-- record's one free-text field is what `ls` and the MCP catalog show, so anything whose callers need to know its verbs writes them into that sentence.
+**A record's method information is its description, and nothing else.** The record's one free-text field is what `ls` and the MCP catalog show, so anything whose callers need to know its verbs writes them into that sentence.
 - The release has no method list, no per-method destructive hint and nothing generated from one; a better representation is proposed in [R1 method metadata](../Plans/R1.0-Release/done/method-metadata.md#method-metadata).
 
 ## Configuring a template

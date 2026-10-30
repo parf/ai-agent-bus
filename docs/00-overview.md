@@ -77,9 +77,8 @@ Values have one owning section; other pages link to it. A `↳` topic belongs to
 
 ## Goal
 
-- One daemon provides a registry for agents and services, and message queues for agents.
-- The CLI, MCP face and the TypeScript [web face](08-processes.md#the-web-face) expose that bus.
-- It requires no external broker.
+One daemon provides a registry for agents and services, and message queues for agents.
+The CLI, MCP face and the TypeScript [web face](08-processes.md#the-web-face) expose that bus. It requires no external broker.
 
 ## Principles
 

@@ -44,6 +44,9 @@ agent-bus may-send '#ab-lead1'
 
 The reference below keeps every section as it was; other pages link to these sections.
 
+For ownership and management, see [Identity and authority](01-identity-and-authority.md#positions-and-scopes).
+Reaching the bus from another host — HTTP, HTTPS, a forwarded socket — is [remote access](02-access-remote.md#choosing-a-way).
+
 ## Scope
 
 - Tokens, key-possession enrolment, account sockets, rotation, browser sessions, ACLs and nested groups are built, as are TCP on any address and optional TLS with fingerprint pinning ([remote access](02-access-remote.md#choosing-a-way)).
@@ -185,8 +188,7 @@ Forwarding uses the constitution's
 [hop-specific ACL checks](constitution.md#-channels): a route's destination
 must list the forwarding record itself, a queue source by its channel name.
 
-**ACL governs other principals' access to a record**, whichever of the six
-- [kinds](03-records.md#record-kinds) it is.
+**ACL governs other principals' access to a record**, whichever of the six [kinds](03-records.md#record-kinds) it is.
 - A record does not need to list itself in its own ACL: it may read its own inbox independently.
 - Caller standing and the record's status still apply: an inactive record, or one whose User is inactive, is no such record.
 - On a 📡 the list governs who may **read** the record — its address, protocol, description and [secret](03-records-service.md#secrets) — because a service has no delivery to govern.
@@ -203,8 +205,7 @@ resource positions, not additional entries that must be placed in the ACL.
 - A [Personal agent](03-records.md#personal-and-shared) cannot use this grant because it admits every registered user.
 - `*` also admits every active Agent, which acts for its User.
 
-**`@owner` is a runtime ACL term for the record's direct Owner and every 👾
-- `agent` directly owned by that Owner.** No other [kind](03-records.md#record-kinds) joins the cohort: a 📮, a 📣 and a 👤 are destinations or people rather than callers acting for an owner, and a 📡 calls nothing here at all.
+**`@owner` is a runtime ACL term for the record's direct Owner and every 👾 `agent` directly owned by that Owner.** No other [kind](03-records.md#record-kinds) joins the cohort: a 📮, a 📣 and a 👤 are destinations or people rather than callers acting for an owner, and a 📡 calls nothing here at all.
 - Ownership is one step: an agent owned by another agent does not inherit the human owner's cohort.
 - The term follows current registry ownership, grants access rather than management, and is not a stored group: it cannot be created, nested in a group or assigned as a Maintainer.
 

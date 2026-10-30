@@ -79,8 +79,7 @@ The reference below keeps every section as it was; other pages link to these sec
 | At start | a stored value whose record is not stored is ignored and reported, never reattached |
 | Faces | the API's `GET /kv` and `POST /kv/set`, `/kv/delete`, `/kv/inc`, `/kv/json` take `record`, `kind` and `name`; a string travels as a JSON string, or `value_base64` when its bytes are not UTF-8, an int as a number and a JSON value as the object. `GET /kv/list` answers a record's names with sizes and previews, or with no record every store the caller may use. The MCP face has `ab_kv_get`, `ab_kv_set`, `ab_kv_delete`, `ab_kv_inc` and `ab_kv_json`; the web face shows a record's store on its page, and on the **KV** page and its own pages ([web face](../src/web/web-face/records.md#key-value-stores)) |
 
-**Current implementation:** a value may be at most 512 KiB; the API body
-- bound accommodates JSON escaping at that size.
+**Current implementation:** a value may be at most 512 KiB; the API body bound accommodates JSON escaping at that size.
 - The accepted 128 KiB cap above is still pending for both string and JSON writes.
 - The narrowed integer range also awaits enforcement; the implementation still uses signed 64-bit bounds.
 - MCP must preserve integers exactly across its JavaScript boundary: the MCP face already preserves large integer values; narrowing to 63 bits alone would not prevent rounding.

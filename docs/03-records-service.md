@@ -62,8 +62,7 @@ instead ([records § record kinds](03-records.md#record-kinds)).
 - The daemon does not implement a second protocol and does not proxy.
 - They are facts in the registry for whoever is choosing what to call ([discovery § what a listing answers](05-discovery.md#what-a-listing-answers)).
 
-**`/etc/services` is the suggested vocabulary for `protocol`, and only a
-- suggestion.** Use the name from it where there is one, so two people registering the same kind of thing write the same word.
+**`/etc/services` is the suggested vocabulary for `protocol`, and only a suggestion.** Use the name from it where there is one, so two people registering the same kind of thing write the same word.
 - It is not a checked set and cannot become one: the file is outdated and incomplete — half of what anyone registers here (`mcp`, `grpc`, an in-house protocol) is not in it, and refusing those would make the field useless to the people who need it most.
 
 A thing outside that somebody wants reachable **over** the bus is not this case:

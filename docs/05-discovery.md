@@ -46,8 +46,7 @@ The reference below keeps every section as it was; other pages link to these sec
 
 ## What a listing answers
 
-**Being in the registry and being callable are different facts.** "There is a
-- MySQL on `db1:3306`" is a complete 📡 registration ([records § record kinds](03-records.md#record-kinds)) and nothing on this bus answers for it; an agent template is registered and deliberately does not run ([records § agent templates](03-records-agent.md#agent-templates)).
+**Being in the registry and being callable are different facts.** "There is a MySQL on `db1:3306`" is a complete 📡 registration ([records § record kinds](03-records.md#record-kinds)) and nothing on this bus answers for it; an agent template is registered and deliberately does not run ([records § agent templates](03-records-agent.md#agent-templates)).
 - So a caller reading a listing needs more than a name:
 
 | Field | Says | Absent means |
@@ -92,8 +91,7 @@ rule](04-messaging.md#one-reader-per-inbox).
 ## CLI listing
 
 **Built:** `agent-bus ls --table` renders a table; plain `ls` retains JSON.
-**With no option, both list only the agents being read now** — agents with at
-- least one reader, the ones that can take a message.
+**With no option, both list only the agents being read now** — agents with at least one reader, the ones that can take a message.
 - `--kind k` lists every record of that kind, readers or not; `--all` lists everything the caller may see; a single name looks that record up.
 - `ab_ls` follows the same rule, with `kind` and `all: true`.
 - The web face's lists are not filtered this way.
@@ -149,8 +147,7 @@ anywhere.
 - Bodies are struck out **in the bus**, where the feed is written — so no reader has to be trusted to leave them alone.
 - The feed and the records beside it are both filtered per caller: you see the exchanges you were **party to**, sent or addressed to you, and the daemon Owner sees the node's through node-wide authority.
 
-**The node's own counters are the node's, not the caller's.** Uptime, the
-- registry's totals and the [refusal counts](#refusals) describe the daemon, and anybody who may ask sees the same numbers — there is no narrower audience for them.
+**The node's own counters are the node's, not the caller's.** Uptime, the registry's totals and the [refusal counts](#refusals) describe the daemon, and anybody who may ask sees the same numbers — there is no narrower audience for them.
 - Somebody with no access sees nothing at all, which is the whole of the restriction.
 - A page showing them beside a caller-filtered list must say which is which: *the node refused 40 calls* and *you were refused 2* are both true, and neither is the other.
 
@@ -264,8 +261,7 @@ The Go dashboard's layout and styling prose is
 - One record produces one item while the item retains every supporting fact.
 - With nothing to report, the attention section gives way to one short `Nothing to report` card that makes no health claim.
 
-**Records inactive because their owner is.** `GET /status`
-- carries `owner_inactive`: how many records are inactive only because their owning User is, and how many messages they hold.
+**Records inactive because their owner is.** `GET /status` carries `owner_inactive`: how many records are inactive only because their owning User is, and how many messages they hold.
 - It counts records whose own status is active, owned by an inactive User, other than that User's own record — what reactivating the User would bring back.
 - The Overview shows one orange, node-wide item from those two numbers when the first is non-zero, linking to the inactive Users; the face joins nothing per record.
 
@@ -332,12 +328,10 @@ and cannot put itself on.
 
 ### What a node says about itself
 
-**Owner-settled, 2026-09-16; where the call counts show revised 2026-09-18.** A
-- short closed list of facts about the node is published to **anybody who can reach the dashboard, signed in or not**: what it is, where it runs, whose it is and how long it has been up.
+**Owner-settled, 2026-09-16; where the call counts show revised 2026-09-18.** A short closed list of facts about the node is published to **anybody who can reach the dashboard, signed in or not**: what it is, where it runs, whose it is and how long it has been up.
 - They appear in the shell every page shares and on the **sign-in page**, which is the whole point — somebody who arrives at a bus they do not have a credential for should be able to tell what it is and whose it is without asking anybody.
 
-**Calls served is the one that moved.** By owner instruction the
-- dashboard prints the counters in the signed-in [Overview node strip](#overview-and-diagnostics) instead of the shared footer, so an unauthenticated visitor no longer reads them from a page.
+**Calls served is the one that moved.** By owner instruction the dashboard prints the counters in the signed-in [Overview node strip](#overview-and-diagnostics) instead of the shared footer, so an unauthenticated visitor no longer reads them from a page.
 - What the daemon publishes is unchanged: `GET /identity` still answers them to any caller with no credential, and the closed list below is still the closed list.
 
 | | |
@@ -360,8 +354,7 @@ and cannot put itself on.
 - The counter is process-local and resets with the daemon, so on any node restarted within 24 hours `day:` would report everything since start while calling itself a day.
 - `total:` reports the same number and is honest about it — and it needs no span of its own, because `uptime:` is on the same line and scopes it.
 
-**This figure is nobody's listing.** It is a process-local counter, incremented
-- where every HTTP request enters the bus process, with no caller, no record and no ACL anywhere in it.
+**This figure is nobody's listing.** It is a process-local counter, incremented where every HTTP request enters the bus process, with no caller, no record and no ACL anywhere in it.
 - That is what lets it be published to a stranger at all: there is no per-caller view to get wrong, because there is no per-caller view.
 - The dashboard's activity series is the other thing entirely — filtered to what one named caller may see, and unable to answer this question for a caller it cannot name, since for a stranger it would report a confident **zero** on a busy node.
 
@@ -399,8 +392,7 @@ name to type, no other kind of credential and no password anywhere.
 
 A bus restart invalidates browser sessions: their map is not persisted.
 
-**So does removing the credential they came from.** A session is a credential
-- without being a token, so one that outlived its token would leave a name answering for up to the idle timeout after the daemon decided it answers for nothing — [no registration, no access](01-identity-and-authority.md#unregistering) not holding, quietly.
+**So does removing the credential they came from.** A session is a credential without being a token, so one that outlived its token would leave a name answering for up to the idle timeout after the daemon decided it answers for nothing — [no registration, no access](01-identity-and-authority.md#unregistering) not holding, quietly.
 - Unregistering, deleting a record and the [ownerless sweep](02-access.md#ownerless-credentials) all end that name's sessions with its token.
 
 ### What it shows
@@ -469,14 +461,13 @@ not* — authenticated, and refused for lack of permission. Retrying a `403` wit
 the same credential is a caller asking the same question twice; a `401` is
 worth presenting a credential for.
 
-**An inactive caller and an inactive target are different answers.** A caller
-- that is inactive is told it is the one refused, `403 suspended`: it is somebody, and nothing it presents makes it active.
+**An inactive caller and an inactive target are different answers.** A caller that is inactive is told it is the one refused, `403 suspended`: it is somebody, and nothing it presents makes it active.
 - A target that is inactive, itself or through its User, is no such name, `404 unknown`, whoever asks — the daemon Owner included — because an inactive record is no entity at all.
 - The dashboard follows it: a `suspended` refusal is a page saying the caller's access is suspended, not the permission page's "Not yours to see", and every problem page shows the daemon's sentence, never the envelope it arrived in.
 - Declared states beyond active and inactive are [R1.2 work](../Plans/R1.2/records.md#down-and-retired) and would each bring their own reason rather than borrow one.
 
-**Every supported reason appears**, including measured zero. This keeps the
-- reason vocabulary inspectable without making zero a health claim.
+**Every supported reason appears**, including measured zero.
+- This keeps the reason vocabulary inspectable without making zero a health claim.
 - A fault of the daemon's own is a 500 and is **not** in here: refusing a caller and failing one are different things to be told about, and folding them together would answer *"how often am I refusing callers?"* with a number that includes our bugs.
 
 ### Where it listens
@@ -490,13 +481,11 @@ address it binds, not a name anybody has to make resolve.
 | a certificate | **none**, unless setup turned TLS on ([setup § TLS](07-setup.md#tls)). Then `AGENT_BUS_WEB_TLS_DIR` names the face's copy of the node's certificate, and the port answers TLS, redirecting plain HTTP to `https://`. By hand, `AGENT_BUS_WEB_CERT` *and* `AGENT_BUS_WEB_KEY` still serve HTTPS alone on the address it was given. Ask for one and miss it and it **refuses to start**: either variable is the ask, either without the other is the same refusal, and a log line nobody reads is not an answer when the page they open is unencrypted |
 | a port it may not bind | an error. No port is a default any more, so every one was asked for on purpose and none is silently traded for another |
 
-**The web face listens on loopback**, so the page is for the person at the
-- machine; agents on other hosts use the daemon's own TCP address instead.
+**The web face listens on loopback**, so the page is for the person at the machine; agents on other hosts use the daemon's own TCP address instead.
 - A borrowed public hostname bought a certificate a browser would accept and nothing else; the one this project used had expired, which left the trust decision without even that to show for it.
 - Setup's `--tls` gives it the node's certificate; by hand, a certificate of your own.
 
-**The API's own root sends a browser here.** `http://127.0.0.1:6767/` is the
-- daemon, which has no page: a person who typed it in wanted the dashboard, and gets `301` to it.
+**The API's own root sends a browser here.** `http://127.0.0.1:6767/` is the daemon, which has no page: a person who typed it in wanted the dashboard, and gets `301` to it.
 - Only the exact root — a mistyped route stays the 404 it is.
 - The daemon is told where to point, with `--dashboard` or `AGENT_BUS_DASHBOARD`, defaulting to the address above; empty serves no root at all.
 - The redirect is permanent because the root will never grow a page of its own, so a browser may stop asking: moving the dashboard afterwards is a thing to clear from a cache.
@@ -516,8 +505,7 @@ a session that ended, a refusal for want of permission, and a daemon that is
 not answering. A permission refusal never offers a credential, because one
 cannot help.
 
-**A failed section is not an empty one.** When part of a page cannot be read
-- and the rest is still true, that part says so.
+**A failed section is not an empty one.** When part of a page cannot be read and the rest is still true, that part says so.
 - A refusal the daemon worded is shown as its message rather than its JSON envelope; anything else is logged and replaced, because the transport text names the socket or address this face talks to.
 - No page renders that address.
 - A failed whole-page read is a refusal, never a page reporting that nothing is registered.
@@ -587,8 +575,7 @@ the daemon did not state stays unlabeled.
 - Group headings use the same compact form: `👥 @group`.
 - Other contexts keep the visible type word beside the glyph.
 
-**Two authorities carry a mark of their own**: `🔱` beside the
-- daemon owner and `👮` beside a record's Maintainers.
+**Two authorities carry a mark of their own**: `🔱` beside the daemon owner and `👮` beside a record's Maintainers.
 - They are the exception that the no-glyph default allows rather than a second vocabulary: a node has exactly one daemon owner and a record states its maintainers once, so neither mark can spread across rows and become a column heading.
 - A daemon administrator, a record Owner and a Member stay words, because those can be many.
 - All of them remain [position labels](01-identity-and-authority.md#positions-and-scopes) rather than entity types.

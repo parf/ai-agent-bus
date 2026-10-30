@@ -96,8 +96,7 @@ does not know is refused rather than answered with an empty wait: nothing
 could ever arrive in it — `send` refuses an unknown receiver — and creating
 one on demand would let any caller name leave an inbox behind for good.
 
-**The address outlives the process**: anyone may `send` to a registered agent
-- that is down — or one that has never run yet — and the message waits until something with that name reads it, unless the TTL expires or the queue fills first.
+**The address outlives the process**: anyone may `send` to a registered agent that is down — or one that has never run yet — and the message waits until something with that name reads it, unless the TTL expires or the queue fills first.
 - Choose both sensibly.
 - A queue belongs to a **name**, never to a connection or a session, so nothing is lost because a reader died: that is the whole difference from an ephemeral channel.
 
@@ -108,8 +107,7 @@ one on demand would let any caller name leave an inbox behind for good.
 | **`send`** | a known receiver with a queue here, `name@realm` | exactly that queue | you may talk to that principal. A 📡 is refused: it is [external](03-records.md#record-kinds) and has no queue |
 | **`publish`** | a channel | **as the channel's kind says** — a 📮 to one consumer and kept until taken; a 📣 to every name on its [Deliver-To list](#deliver-to), kept for none ([channels](03-records-channel.md#the-two-channel-kinds)) | the channel's [access policy](02-access.md#acl) permits the caller — on a 📣 that list is who may publish, and not who receives; delivery-state checks still apply |
 
-**A message is addressed to a name, and a name that is registered nowhere is
-- refused at `send`** — there is no label to send to and nothing accepts on behalf of an address that does not exist.
+**A message is addressed to a name, and a name that is registered nowhere is refused at `send`** — there is no label to send to and nothing accepts on behalf of an address that does not exist.
 - Accepting something undeliverable and reporting the truth later is the failure mode this rules out: what comes back from `send` is the whole delivery story, and whether anyone *acted* is the receiver's own `ack` or reply, never the transport's ([receipts](#receipts)).
 
 `consume` defaults to your own queue; see [inbox selection](#inbox-selection-and-filters). Delivery does not report who
@@ -329,8 +327,7 @@ Optional, and **both emitted by the receiver**, not the bus:
 - And **no receipt means unknown** — the request, the work or the receipt may be late or lost — never proof of loss.
 - Receipts remove a layer of guessing, not the uncertainty itself.
 
-**`done` ends a caller's wait.** A receiver that replies has plainly finished,
-- so it sends no `done`; therefore a `done` that does arrive says *finished, and no answer is coming*.
+**`done` ends a caller's wait.** A receiver that replies has plainly finished, so it sends no `done`; therefore a `done` that does arrive says *finished, and no answer is coming*.
 - A caller blocked on the answer stops there rather than sitting out its deadline for something that will never be sent — and says which of the two happened, because "finished with nothing to return" and "no answer in time" are different outcomes.
 - `ack` ends nothing: it says the message arrived, not that the work stopped.
 
@@ -358,8 +355,7 @@ To the sender's queue with the same topic + tag — unless the request sets
 **A request that expects a reply needs a reply address that exists.** The
 route is the requester's own name plus the exchange's topic and tag, or an
 explicit `reply-to` naming another; either way the destination is a
-**registered name**, checked when the request is accepted rather than
-- discovered when the answer bounces.
+**registered name**, checked when the request is accepted rather than discovered when the answer bounces.
 - Registered is not the same as *live* — the name owns a queue and its reader may be offline, which is the point of name-owned queues ([inbox queues](#inbox-queues)).
 - A plain `send` or `publish` stays open to unregistered senders: fire-and-forget asks for nothing back.
 
