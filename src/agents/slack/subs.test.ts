@@ -59,7 +59,7 @@ test("visibility and deletion are creator or direct source staff, never forwarde
 });
 
 test("legacy migration preserves counts and selectors, removes disabled state and is idempotent", async () => {
-  const f = fixture({ "json:sub.deadbeef": legacy("deadbeef", { disabled: true, from_users: ["U1"] }), "int:stat.deadbeef.forwarded": 7n }), s = f.make();
+  const f = fixture({ "json:sub.deadbeef": legacy("deadbeef", { disabled: true, target: "#TARGET", from_users: ["U1"] }), "int:stat.deadbeef.forwarded": 7n }), s = f.make();
   const listed = await s.list(owner);
   expect(listed).toEqual([row(migrationId("sub.deadbeef"), { sent: 7, selector: { channel: "C1", from_users: ["U1"] } })]);
   expect(f.values.has("json:sub.deadbeef")).toBe(false);

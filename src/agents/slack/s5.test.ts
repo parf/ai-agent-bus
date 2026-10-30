@@ -165,13 +165,10 @@ t("its own posts are dropped, even ahead of their answer; others in the same bot
   await call(`sub delete ${id}`);
 });
 
-t("a pubsub target fans out to both its recipients", async () => {
-  const id = await addSub(`C1 ${news}`);
-  push(msg({ text: "to everyone" }));
-  const [a, b] = [await drain(r1), await drain(r2)];
-  expect(a.map(m => JSON.parse(m.body).text)).toEqual(["to everyone"]);
-  expect(b.map(m => JSON.parse(m.body).text)).toEqual(["to everyone"]);
-  await call(`sub delete ${id}`);
+t("shared subscriptions refuse a pubsub target rather than silently fan out", async () => {
+  expect(await call(`sub add C1 ${news}`)).toContain("invalid_target");
+  push(msg({ text: "not subscribed" }));
+  expect(await drain(r1, 100)).toEqual([]); expect(await drain(r2, 100)).toEqual([]);
 });
 
 t("the same event_id on a new connection is forwarded once, and every envelope is acked", async () => {
@@ -190,9 +187,9 @@ t("the same event_id on a new connection is forwarded once, and every envelope i
   await call(`sub delete ${id}`);
 });
 
-t("a target this agent cannot see is refused at add; one it loses sight of stops the subscription at the next forward", async () => {
+t("a target this agent cannot see is refused at add; one it loses sight of drops its copy without disabling", async () => {
   // Refused at add: the author may send there, the agent cannot see it (RD141).
-  expect(await call(`sub add C1 ${closed}`)).toContain("not a destination this agent can see");
+  expect(await call(`sub add C1 ${closed}`)).toContain("admission_refused");
   // Added while visible, then the ACL closes: the check before the send says 404 and the subscription is disabled, visibly, with nothing sent.
   const later = `#later-${process.pid}@t`;
   await fx.call(fx.ownerToken, "POST", "/register", { name: later, kind: "agent", allow: [name] });
@@ -203,46 +200,38 @@ t("a target this agent cannot see is refused at add; one it loses sight of stops
   await Bun.sleep(800);
   expect(await drain(later, 300)).toHaveLength(0);
   const listed = JSON.parse(await call('{"method":"sub.list"}')).subs.find((s: any) => s.id === id);
-  expect(listed.disabled).toBe(true);
-  expect(listed.last_error).toContain("no longer visible");
-  expect(listed.forwarded).toBe(0);
+  expect(listed).not.toHaveProperty("disabled");
+  expect(listed.sent).toBe(0);
+  expect(listed.dropped).toBe(1);
+  await fx.call(fx.ownerToken, "POST", "/manage", { name: later, allow: [name] });
+  push(msg({ text: "back again" }));
+  expect((await drain(later, 1000, 1)).map(m => JSON.parse(m.body).text)).toEqual(["back again"]);
   await call(`sub delete ${id}`);
 });
 
-t("counters are written once per flush, not per event, and a flush never brings back a deleted subscription", async () => {
+t("shared counters persist per copy and deleted subscriptions do not reappear", async () => {
   const id = await addSub(`C1 ${target}`);
   for (let i = 0; i < 5; i++) push(msg({ text: `n${i}` }));
   expect(await drain(target, 1500, 5)).toHaveLength(5);
   const kv = Bus.connect({ addr: fx.socket, token: fx.ownerToken }).record(name).kv as any;
   // No-write-per-event is proved by the explicit-flush forward unit; the
   // agent-wide timer may legitimately flush before this integration reaches KV.
-  expect(JSON.parse(await call('{"method":"sub.list"}')).subs.find((s: any) => s.id === id).forwarded).toBe(5);
-  await Bun.sleep(2200); // past one flush
-  expect(Number((await kv.get("int", `stat.${id}.forwarded`)).value)).toBe(5);
+  expect(JSON.parse(await call('{"method":"sub.list"}')).subs.find((s: any) => s.id === id).sent).toBe(5);
+  expect((await kv.get("json", `sub.${id}`)).value.sent).toBe(5);
   // A deleted subscription stays deleted through a flush that had its counts.
   push(msg({ text: "late" }));
   expect(await drain(target, 1500, 1)).toHaveLength(1);
   await call(`sub delete ${id}`);
-  await Bun.sleep(2200);
+  await Bun.sleep(100);
   await expect(kv.get("json", `sub.${id}`)).rejects.toThrow();
   await expect(kv.get("int", `stat.${id}.forwarded`)).rejects.toThrow();
 });
 
-t("a filter that takes too long is disabled, and says why", async () => {
-  const id = await addSub(`C1 ${target} ^(a+)+$`);
-  push(msg({ text: "a".repeat(32) + "!" }));
-  for (let i = 0; i < 60; i++) {
-    const s = JSON.parse(await call('{"method":"sub.list"}')).subs.find((x: any) => x.id === id);
-    if (s?.disabled) {
-      expect(s.last_error).toContain("took longer");
-      break;
-    }
-    expect(i).toBeLessThan(59); // never disabled within 6 s fails here
-    await Bun.sleep(100);
-  }
-  push(msg({ text: "a".repeat(5) }));
-  expect(await drain(target, 600)).toHaveLength(0); // disabled: it forwards nothing more
-  await call(`sub delete ${id}`);
+t("unsupported filters are refused before storage and never disable healthy subscriptions", async () => {
+  expect(await call(`sub add C1 ${target} ^(a+)+$`)).toContain("invalid_filter");
+  await addSub(`C1 ${target} /invoice/i`);
+  push(msg({ text: "invoice" }));
+  expect((await drain(target, 1000, 1)).map(m => JSON.parse(m.body).text)).toEqual(["invoice"]);
 });
 
 t("a subscription to a #name Slack does not know costs no channel list per event, and the others still forward", async () => {
@@ -359,9 +348,9 @@ t("stopping while a reconnect is waiting cancels it (S.6)", async () => {
 
 
 t("S.9 authors resolve before storage, constrain bots and preserve the following filter", async () => {
-  const id = await addSub(`#dev ${target} from=@ada,BBUILD /error/i`);
+  let id = await addSub(`#dev ${target} from=@ada,BBUILD /error/i`);
   const listing = JSON.parse(await call('{"method":"sub.list"}'));
-  expect(listing.subs.find((s: any) => s.id === id).from_users).toEqual(['U1','BBUILD']);
+  expect(listing.subs.find((s: any) => s.id === id).selector.from_users).toEqual(['U1','BBUILD']);
   expect(await call('sub list')).toContain('from=U1,BBUILD');
   push(msg({text:'ERROR listed user'}));
   push(msg({user:'U2',text:'ERROR excluded user'}));
@@ -373,20 +362,22 @@ t("S.9 authors resolve before storage, constrain bots and preserve the following
   expect((await drain(target,1500,3)).map(m => JSON.parse(m.body).text)).toEqual(['ERROR listed user','ERROR listed bot','ERROR listed modern bot']);
   const before = await call('{"method":"sub.list"}');
   for (const who of ['@missing','UNOPE','BNOPE']) {
-    expect(await call(`sub edit ${id} from=${who}`)).toContain(who);
+    expect(await call(`sub edit ${id} from=${who}`)).toContain("sub delete");
     expect(await call(`sub add #dev ${target} from=${who}`)).toContain(who);
   }
   // Counters may flush, but subscription data and count stay the same.
   const after = JSON.parse(await call('{"method":"sub.list"}'));
   expect(after.subs).toEqual(JSON.parse(before).subs);
-  await call(`sub edit ${id} from=bob@x.com,@buildbot`);
-  expect(JSON.parse(await call('{"method":"sub.list"}')).subs.find((s: any) => s.id === id).from_users).toEqual(['U2','BBUILD']);
+  await call(`sub delete ${id}`);
+  id = await addSub(`#dev ${target} from=bob@x.com,@buildbot /error/i`);
+  expect(JSON.parse(await call('{"method":"sub.list"}')).subs.find((s: any) => s.id === id).selector.from_users).toEqual(['U2','BBUILD']);
   push(msg({text:'ERROR formerly listed'}));
   push(msg({user:'U2',text:'ERROR email resolved'}));
   push(msg({subtype:'bot_message',user:undefined,bot_id:'BBUILD',text:'ERROR bot name resolved'}));
   expect((await drain(target,1500,2)).map(m => JSON.parse(m.body).text)).toEqual(['ERROR email resolved','ERROR bot name resolved']);
-  await call(`sub edit ${id} from=`);
-  expect(JSON.parse(await call('{"method":"sub.list"}')).subs.find((s: any) => s.id === id).from_users).toBeUndefined();
+  await call(`sub delete ${id}`);
+  id = await addSub(`#dev ${target} /error/i`);
+  expect(JSON.parse(await call('{"method":"sub.list"}')).subs.find((s: any) => s.id === id).selector.from_users).toBeUndefined();
   push(msg({user:'UOTHER',text:'ERROR all users'}));
   push(msg({subtype:'bot_message',user:undefined,bot_id:'BOTHER',text:'ERROR all bots'}));
   expect((await drain(target,1500,2)).map(m => JSON.parse(m.body).text)).toEqual(['ERROR all users','ERROR all bots']);

@@ -129,14 +129,13 @@ async function forwarded(token: string, want?: number): Promise<{ topic?: string
   // stopped at its first empty drain (tg5 review's hint).
   const bus = Bus.connect({ addr: fx.socket, token });
   const out: { topic?: string; tag?: string; body: any }[] = [];
-  const until = Date.now() + 10000;
+  const until = Date.now() + 5000;
   for (let wait = 500; Date.now() < until;) {
     const m = await bus.consume({ wait }).catch(() => null);
     if (!m) { if (want !== undefined && out.length >= want) break; continue; }
     if (m.receipt) { wait = 200; continue; }
     out.push({ topic: m.topic as string | undefined, tag: m.tag as string | undefined, body: JSON.parse(m.body) });
-    if (want !== undefined && out.length >= want) break;
-    wait = 300;
+    wait = 200; // drain a quiet interval after the expected copies too
   }
   return out;
 }
@@ -152,19 +151,19 @@ t("the filter worker is warm before the subscriptions evaluate", async () => {
   worker.close();
 });
 
-t("S.8: the destination's maintainer adds; an ACL-only caller does not", async () => {
-  expect(await t6call(`sub add #dev ${target}`, bobToken)).not.toContain("does not control");
-  const refused = await t6call(`sub add #dev ${target}`, plainToken);
-  expect(refused).toContain(`does not control ${target}`);
-  // The agent's own owner may change any (S.8).
-  expect(await t6call(`sub add #ops ${target}`, ownerToken)).not.toContain("does not control");
+t("admitted authors may subscribe; listing is author-only unless source staff", async () => {
+  const made = JSON.parse(await t6call(`sub add #dev ${target}`, bobToken));
+  expect(made.id).toMatch(/^[0-9a-f]{12}$/);
+  expect(JSON.parse(await t6call('{"method":"sub.list"}', plainToken)).subs).toEqual([]);
+  expect(await t6call(`sub delete ${made.id}`, plainToken)).toContain("not_author");
+  expect(await t6call(`sub add #ops ${target}`, ownerToken)).not.toContain("error:");
   expect(await t6call("sub list", ownerToken)).toContain(target);
 });
 
 t("a match reaches its target: topic telegram, tag the chat id, the README's body", async () => {
   t6Updates.push(msg(300, "hello from the group", -100123));
-  const fs = await forwarded(targetToken, 2);
-  expect(fs.length).toBeGreaterThanOrEqual(1);
+  const fs = await forwarded(targetToken, 1);
+  expect(fs).toHaveLength(1);
   const f = fs.find(x => x.body.text === "hello from the group");
   expect(f).toBeDefined();
   expect(f!.topic).toBe("telegram");
@@ -173,10 +172,8 @@ t("a match reaches its target: topic telegram, tag the chat id, the README's bod
 });
 
 t("a non-matching chat reaches nothing", async () => {
-  t6Updates.push(msg(301, "ops noise", -100999));
-  const fs = await forwarded(targetToken, 1);
-  expect(fs.find(x => x.body.text === "ops noise")).toBeDefined(); // the #ops subscription covers it
-  expect(fs.find(x => x.body.text === "unsubscribed noise")).toBeUndefined(); // the chat with no subscription reaches nothing
+  t6Updates.push(msg(301, "unsubscribed noise", -100777));
+  expect(await forwarded(targetToken, 0)).toEqual([]);
 });
 
 t("the filter holds: only matching text is forwarded", async () => {
@@ -198,30 +195,29 @@ t("the bot's own posts and edits are not forwarded", async () => {
   // an edited_message update is not a message.
   t6Updates.push(msg(304, "my own post", -100123, 42));
   t6Updates.push({ update_id: 305, edited_message: { message_id: 300, text: "edited", chat: { id: -100123, title: "Dev", type: "supergroup" } } });
-  const fs = await forwarded(targetToken, 1);
+  const fs = await forwarded(targetToken, 0);
+  expect(fs).toEqual([]);
   expect(fs.find(x => x.body.text === "my own post")).toBeUndefined();
   expect(fs.find(x => x.body.text === "edited")).toBeUndefined();
 });
 
-t("the counters are kept per subscription (S.5): in memory at once, in KV at a flush", async () => {
+t("shared delivery counters are persisted in the subscription row", async () => {
   const answer = JSON.parse(await t6call(`{"method":"sub.list"}`));
-  const withFilter = (answer.subs as { id: string; filter?: string; forwarded: number }[]).find(s => s.filter === "/alarm/");
+  const withFilter = (answer.subs as { id: string; filter?: string; sent: number }[]).find(s => s.filter === "/alarm/");
   expect(withFilter).toBeDefined();
   // In memory at once: the listing carries the count before any flush.
-  expect(withFilter!.forwarded).toBeGreaterThanOrEqual(1);
-  // Not in KV yet: the counters are written once per flush, never per send.
-  await expect((async () => {
-    await fx.call(ownerToken, "GET", `/kv?record=${encodeURIComponent(t6name)}&name=stat.${withFilter!.id}.forwarded`);
-  })()).rejects.toThrow();
+  expect(withFilter!.sent).toBeGreaterThanOrEqual(1);
+  const stored = await fx.call(ownerToken, "GET", `/kv?record=${encodeURIComponent(t6name)}&kind=json&name=sub.${withFilter!.id}`);
+  expect(stored.value.sent).toBe(withFilter!.sent);
 });
 
-t("a destination maintainer cannot move a subscription to an uncontrolled target", async () => {
+t("removed editing cannot retarget a subscription", async () => {
  const foreign=`#foreign-${process.pid}@t`;
  await fx.call(ownerToken,"POST","/register",{name:foreign,kind:"agent",allow:["*"]});
  const created=JSON.parse(await t6call(JSON.stringify({method:"sub.add",channel:"#dev",target}),bobToken));
  expect(created.id).toBeDefined();
  const edit=JSON.parse(await t6call(JSON.stringify({method:"sub.edit",id:created.id,target:foreign}),bobToken));
- expect(edit.ok).toBe(false);expect(edit.error).toContain(`does not control ${foreign}`);
+ expect(edit.ok).toBe(false);expect(edit.error).toContain("sub delete");
  const list=JSON.parse(await t6call('{"method":"sub.list"}',ownerToken));
  expect(list.subs.find((s:any)=>s.id===created.id).target).toBe(target);
 });

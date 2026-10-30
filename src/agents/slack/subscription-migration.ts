@@ -79,7 +79,7 @@ export async function migrateSubscriptions(kv: KV, op: Op): Promise<void> {
       typeof raw.channel === "string" && typeof raw.target === "string" && typeof raw.created_by === "string" && typeof raw.created_at === "string" &&
       (raw.filter === undefined || typeof raw.filter === "string") && Number.isSafeInteger(sent) && sent >= 0;
     const value = valid ? {
-      id: nextId, target: raw.target, selector: { channel: raw.channel, ...(raw.from_users !== undefined ? { from_users: raw.from_users } : {}) },
+      id: nextId, target: raw.target.trim().toLowerCase(), selector: { channel: raw.channel, ...(raw.from_users !== undefined ? { from_users: raw.from_users } : {}) },
       filter: raw.filter ?? "", created_by: raw.created_by, created_at: raw.created_at, sent, dropped: 0,
     } : { ...raw, id: nextId, invalid_legacy: true };
     const journal: Journal = { oldKey: name, nextKey: `sub.${nextId}`, oldHash: digest(raw), value };
