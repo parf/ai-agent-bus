@@ -46,9 +46,10 @@ case $(uname -m) in
   *) echo "no release for CPU $(uname -m)" >&2; exit 1 ;;
 esac
 
-# Its own store under tmp/; fuse-overlayfs, as a kernel overlay mount there is refused rootless.
+# Its own store under tmp/; fuse-overlayfs, as a kernel overlay mount there is refused rootless. Nothing goes to the
+# host journal: no podman events, and each container logs to a capped file in the run directory (J32).
 podman=(podman --root "$base/storage" --runroot "${XDG_RUNTIME_DIR:?}/agent-bus-distro-acceptance"
-  --storage-opt overlay.mount_program=/usr/bin/fuse-overlayfs)
+  --storage-opt overlay.mount_program=/usr/bin/fuse-overlayfs --events-backend=none)
 mkdir -p "$base"
 run=$(mktemp -d "$base/run.XXXXXX")
 # A run killed by any signal, SIGKILL included, leaves no container and no run directory: guard.sh (J32).
@@ -150,6 +151,7 @@ start() { # distro
   mkdir -p "$run/evidence-$d"
   "${podman[@]}" run -d --rm --pull=never --privileged --systemd=always --network=none \
     --security-opt label=disable --hostname "node-$d.test" --name "$name" --label "agent-bus-run=$guard_run" \
+    --log-driver k8s-file --log-opt "path=$run/$d.ctr.log" --log-opt max-size=10mb \
     -v "$run/release:/release:ro" -v "$run/fixture:/fixture:ro" -v "$run/evidence-$d:/evidence:rw" \
     "localhost/agent-bus-distro:$d" >/dev/null
   for _ in $(seq 1 200); do

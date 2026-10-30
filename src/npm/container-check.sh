@@ -10,7 +10,8 @@ base="$common/tmp/npm-acceptance"
 mkdir -p "$base"
 run=$(mktemp -d "$base/run.XXXXXX")
 name="agent-bus-npm-check-$$"
-podman=(podman --root "$common/tmp/distro-acceptance/storage" --runroot "${XDG_RUNTIME_DIR:?}/agent-bus-distro-acceptance" --storage-opt overlay.mount_program=/usr/bin/fuse-overlayfs)
+# Nothing goes to the host journal: no podman events, and the container logs to a capped file in the run dir (J32).
+podman=(podman --root "$common/tmp/distro-acceptance/storage" --runroot "${XDG_RUNTIME_DIR:?}/agent-bus-distro-acceptance" --storage-opt overlay.mount_program=/usr/bin/fuse-overlayfs --events-backend=none)
 # A run killed by any signal, SIGKILL included, leaves no container and no run directory (J32).
 . "$here/../acceptance/guard.sh"
 guard "$run"
@@ -22,6 +23,7 @@ trap cleanup EXIT
 "${podman[@]}" build -q --pull=missing -t localhost/agent-bus-npm-check:debian13 -f "$here/Containerfile" "$here" >/dev/null
 "${podman[@]}" run -d --rm --pull=never --privileged --systemd=always --network=none \
   --security-opt label=disable --hostname npm-fixture.test --name "$name" --label "agent-bus-run=$guard_run" \
+  --log-driver k8s-file --log-opt "path=$run/container.ctr.log" --log-opt max-size=10mb \
   -v "$packages:/packages:ro" -v "$here:/fixture:ro" -v "$run:/evidence:rw" \
   localhost/agent-bus-npm-check:debian13 >/dev/null
 for _ in $(seq 1 150); do
