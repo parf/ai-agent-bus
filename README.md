@@ -1,24 +1,45 @@
 # agent-bus
 
-**A team of AI assistants that work together safely and use your tools without ever seeing your passwords.**
+🏢 **An enterprise platform that connects your AI agents, tools and people, governs every access, and runs each agent safely in its own box.**
+
+It runs on one laptop and grows to many machines, users and teams.
 
 ![Codex and Claude sessions greeting each other and OpenCode over the bus](docs/img/agents-talking.png)
 
+## What it gives you
+
+- 🔗 **Connect:** reach any assistant, script, service or person by name.
+- 🔍 **Discover:** see who is there and what each one can do.
+- 🛡️ **Control:** decide who may call, read and manage each name.
+- 🔑 **Secrets:** shared passwords on the bus; a script's own stay on its host.
+- 📦 **Confinement:** scripts run walled off, with memory and process caps.
+- 🧱 **Ready helpers:** chat, mail, text messages, databases, server checks.
+- ⏰ **Scheduling:** wake an assistant at a time or on a rhythm.
+- 🚨 **Alerts:** a server error reaches an assistant, then your phone.
+- 🌐 **Clients:** Python, TypeScript, Go, Rust, Java and PHP.
+- 🖥️ **Web console:** see and manage everything from one page.
+- 🔜 **Coming:** one-command install; search by meaning in documents; buses that link to each other; pools of runner processes.
+
+```mermaid
+flowchart LR
+  P[People] <--> B((Bus))
+  A[AI sessions] <--> B
+  S[Scripts] <--> B
+  B <--> R[Runner]
+  R <--> H[Helpers]
+  H <--> O[Outside services]
+```
+
 ## Why you want it
 
-- **Your AI assistants work alone.** Now they message each other and you by name, and a message waits for whoever is away. [How](docs/04-messaging.md#inbox-queues)
-- **You cannot trust an assistant with a password.** Now it uses mail, chat, databases and servers without ever seeing your passwords, and you decide who may use what. [How](docs/02-access.md#acl)
-- **Routine work waits for somebody to remember.** Now reminders and daily checks wake an assistant by themselves, once. [How](docs/agents/cron.md#what-it-does)
-- **You hear about breakage late.** Now a server problem reaches an assistant that looks into it and tells you on your phone. [How](docs/agents/logwatch.md#what-it-does)
-- **Updating servers means logging in to each.** Now one code push updates them all and reports back. [How](docs/agents/git-autopull.md#how-it-works) (coming: first live use)
-- **Your handy scripts stay private hacks.** Now any script becomes a safe, shared team tool. [How](docs/runner/README.md)
-- **You cannot see what is going on.** Now one web page shows what needs attention and who may do what. [How](docs/05-discovery.md#dashboard)
-
-## What you get
-
-- **Assistants that cooperate:** your Claude Code, Codex and opencode sessions ask each other for work and answers. [Sessions](docs/06-launchers.md#smart-launchers)
-- **Ready-made helpers:** switch on chat, mail, text messages, schedules, server checks, databases, web pages and AI models; your AI uses them without ever seeing your passwords. [Choose a helper](docs/agents/README.md#choose-an-agent)
-- **Coming:** one-command install; search by meaning in stored documents. [Install](docs/07-setup.md#simple-install)
+- 🤝 **Your AI assistants work alone.** Now they message each other and you by name. [How](docs/04-messaging.md#inbox-queues)
+- 📬 **Someone is away.** A message waits in their inbox until they read it. [How](docs/04-messaging.md#durability)
+- 🔑 **You cannot trust an assistant with a password.** Now it uses your tools through helpers that hold the passwords. [How](docs/02-access.md#acl)
+- ⏰ **Routine work waits for somebody to remember.** Now reminders and daily checks wake an assistant by themselves. [How](docs/agents/cron.md#what-it-does)
+- 🚨 **You hear about breakage late.** Now a server problem reaches an assistant that tells you on your phone. [How](docs/agents/logwatch.md#what-it-does)
+- 🔄 **Updating servers means logging in to each.** Coming: one code push updates them all and reports back. [How](docs/agents/git-autopull.md#how-it-works)
+- 🧰 **Your handy scripts stay private hacks.** Now any script becomes a safe, shared team tool. [How](docs/runner/README.md)
+- 👀 **You cannot see what is going on.** Now one web page shows what needs attention. [How](docs/05-discovery.md#dashboard)
 
 ## The bus
 
@@ -26,10 +47,10 @@
 
 *The problem:* AI sessions, scripts and people cannot find or reach each other, and nobody controls who may use what.
 
-- **Connect:** reach anyone by name, on this machine or another.
-- **Discover:** see who is there and ask each one what it can do.
-- **Control:** for each person and each agent, you decide who may call it, who may read it and who manages it.
-- **One place for settings and shared passwords:** kept with each name on the bus, readable only by its owner, its managers and the agent itself.
+- 🔗 **Connect:** reach anyone by name, on this machine or another.
+- 🔍 **Discover:** see who is there and ask each one what it can do.
+- 🛡️ **Control:** for each person and each agent, decide who may call it, read it and manage it.
+- 🗂️ **One place for settings and shared passwords:** kept with each name, readable only by its owner, its managers and the agent itself.
 
 More: [access](docs/02-access.md#acl).
 
@@ -37,13 +58,78 @@ More: [access](docs/02-access.md#acl).
 
 *systemd on steroids, for AI-era tools.* The problem: a useful script is unsafe to share, or a pain to run as a service.
 
-- **Confined:** by default it sees only its own folder, has memory and process caps, and cannot touch its neighbours; a host that cannot confine it refuses to run it.
-- **Its own passwords:** kept in a file on its host; the bus never shows them, and set on the host they never cross it.
-- **Kept running:** start, stop and restart it from a web page that shows each one's state and why it stopped; a helper that stays running is restarted when it fails, and a script run per message starts fresh each time.
+- 📦 **Confined:** by default it sees only its own folder and cannot touch its neighbours.
+- 📏 **Capped:** memory and processes are limited; a host that cannot confine it refuses to run it.
+- 🔑 **Its own passwords:** kept in a file on its host; the bus never shows them, and set on the host they never cross it.
+- 🎛️ **Controlled from a web page:** start, stop and restart it, and see its state and why it stopped.
+- 🔁 **Kept running:** a helper that stays running is restarted when it fails; a script run per message starts fresh each time.
 
 Under the hood: cgroups, a namespace sandbox with a system-call filter, and the runner's own unprivileged account. More: [isolation](docs/runner/security.md#isolation-today).
 
-**Passwords in two places:** the ones several people or machines share live on the bus; a script's own stay with its runner, on its host. [Two stores](docs/runner/security.md#secrets)
+🔐 **Passwords in two places:** the ones several people or machines share live on the bus; a script's own stay with its runner, on its host. [Two stores](docs/runner/security.md#secrets)
+
+## Helpers are building blocks
+
+🧱 **Our agents are building blocks, like lego: they make it possible to assemble complex systems easily, without sacrificing security.**
+
+- 💬 **Chat:** Slack and Telegram.
+- ✉️ **Mail:** read a mailbox; send mail.
+- 📱 **Phone:** a text message.
+- ⏰ **Schedule:** at a time, on a rhythm, or later.
+- 🖥️ **Servers:** logs, disks, services, code.
+- 🗄️ **Data:** read-only database questions; stored documents.
+- 🌐 **Web:** read a page.
+- 🤖 **AI:** ask a model.
+- 🪟 **Sessions:** your terminal sessions back after a reboot.
+
+A mail help desk, snapped together from four blocks:
+
+```mermaid
+flowchart LR
+  C[Customer mail] --> I[Mail reader]
+  I --> A[AI session]
+  G[Help pages in Git] --> A
+  A --> S[Mail sender]
+  S --> R[Reply to customer]
+```
+
+🔒 **Why it stays safe:** each block gets only the access you grant, and a block that holds a password keeps it: your AI uses the block and never sees that password. [Help desk](docs/agents/README.md#example-a-mail-help-desk)
+
+## From one laptop to many hosts
+
+- 💻 **Start small:** bus, runner and AI sessions on one laptop.
+- 🖧 **Add servers:** each runs its own runner and helpers against the same bus.
+- 👥 **Add people and teams:** users, groups, and who may use what.
+- 🔐 **Between hosts:** HTTPS with a pinned certificate, or SSH. [Remote access](docs/02-access-remote.md#choosing-a-way)
+- ⚠️ **Not built:** data on disk is not encrypted; buses that link to each other and pools of runner processes are coming.
+
+```mermaid
+flowchart LR
+  subgraph M[Main host]
+    B((Bus))
+  end
+  subgraph S[Other servers]
+    R[Runners and helpers]
+  end
+  subgraph L[Laptops]
+    A[AI sessions and people]
+  end
+  R -- HTTPS or SSH --> B
+  A -- HTTPS or SSH --> B
+```
+
+## One real flow: a server error reaches your phone
+
+```mermaid
+flowchart LR
+  E[Server log] --> W[Log watcher]
+  W --> A[Your AI session]
+  A --> I[Server checks]
+  A --> T[Telegram or SMS]
+  T --> P[Your phone]
+```
+
+- 🧩 **Each step works today;** the whole chain has not yet been run end to end on a live server. [Log watcher](docs/agents/logwatch.md#what-it-does)
 
 ## Start here
 
