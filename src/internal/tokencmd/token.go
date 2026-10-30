@@ -33,9 +33,10 @@ const usageText = `USAGE
   agent-bus token [<name>]
 
 DESCRIPTION
-  <name> is an optional User or #agent, with an optional realm. Without it,
-  use the login socket principal. Asking again reads the existing credential;
-  --rotate creates a new one. --key proves possession with a private SSH key.
+  Get a credential to use the bus, or the TLS pin to trust this node. <name>
+  is an optional User or #agent, with an optional realm; without it, use the
+  login socket principal. Asking again reads the existing credential; --rotate
+  creates a new one. --key proves possession with a private SSH key.
   --fingerprint prints the public TLS certificate pin instead of a credential.
 
 OPTIONS

@@ -101,7 +101,7 @@ func main() {
 func setup() (err error) {
 	fs := flag.CommandLine
 	fs.Usage = func() {
-		fmt.Fprintf(fs.Output(), "agent-bus-setup %s\n\nUsage of agent-bus-setup:\n", version.String)
+		fmt.Fprintf(fs.Output(), "agent-bus-setup %s — install, upgrade and maintain this node\n\nUsage of agent-bus-setup:\n", version.String)
 		display.PrintFlagDefaults(fs)
 	}
 	// Asked for help, it answers on stdout and succeeds, as every agent-bus
@@ -119,7 +119,7 @@ func setup() (err error) {
 	dry := fs.Bool("dry-run", false, "say what would be done and change nothing")
 	upgrade := fs.Bool("upgrade", false, "upgrade an existing packaged installation, preserving configuration and state")
 	recover := fs.Bool("recover", false, "roll back an interrupted packaged upgrade")
-	reinstall := fs.Bool("reinstall", false, "stop the daemon, set its whole state and TLS aside, and install fresh: the 0.7 cutover")
+	reinstall := fs.Bool("reinstall", false, "stop the daemon, set its whole state and TLS aside, and install fresh")
 	samples := fs.Bool("samples", false, "add sample users, agents, services, queues, pubsub channels and groups (Star Wars and Spaceballs) to the running node")
 	removeSamplesF := fs.Bool("remove-samples", false, "take the sample data away again: unregister its records, empty its groups, deactivate its users")
 	runnerV := fs.String("runner", "", "a person's runner: `install`, uninstall, enable or disable (docs/07-setup.md#a-persons-runner)")

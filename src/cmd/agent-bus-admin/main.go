@@ -74,13 +74,14 @@ USAGE
   agent-bus-admin -h, --help | --version
 
 DESCRIPTION
-  Manage the files owned by the daemon account. Keys added here reach only
-  a forced command: token retrieval, or administration with --admin, no shell.
+  Run this node: enrol people and their SSH keys, map local accounts, hand
+  out credentials and back up records. Keys added here reach only a forced
+  command: token retrieval, or administration with --admin, no shell.
 
 MAIN COMMANDS
   user add <name> <key.pub|-> [--admin] — add an SSH key
-  user import-local <name> <account> — add a key from a local account
-  user add-local <name> <account> — add a keyless socket user
+  user import-local <name> <account> — copy a person name from a local account
+  user add-local <name> <account> — add a keyless user with a login socket
   user list — list enrolled users
   user remove <name> — remove SSH access
   account list — show local account mappings

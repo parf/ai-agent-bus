@@ -47,14 +47,14 @@ USAGE
   agent-bus-runner -h, --help | --version
 
 DESCRIPTION
-  --host is the runner account's private directory; --agents contains shared
-  packages. Read agent.d/*/agent.json and runner/agents.json, serving installed
-  agents for the runner's person. The token belongs to that person's runner
-  agent, #runner/<person>@<realm>, never to the person. Status reports what is
-  served; reload rereads packages and settings. Start, stop and restart last
-  until the next reload; enable and disable persist in runner/agents.json.
-  Read and write manage host files by relative path; create and delete take an
-  <agent>/<instance> name.
+  Run a person's installed agents on the bus. --host is the runner
+  account's private directory; --agents holds shared packages. The runner reads
+  agent.d/*/agent.json and runner/agents.json. Its token belongs to that
+  person's runner agent, #runner/<person>@<realm>, never to the person.
+  Control it over the bus: status reports what is served; reload rereads
+  packages and settings. Start, stop and restart last until the next reload;
+  enable and disable persist in runner/agents.json. Read and write manage host
+  files by relative path; create and delete take an <agent>/<instance> name.
 
 OPTIONS
   --host=directory — runner account's private directory (required)
