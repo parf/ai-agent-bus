@@ -48,6 +48,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -417,6 +418,59 @@ public final class BusTest {
                 check("so does consume(), and goes on waiting", taken.isEmpty() && out.get() instanceof Outcome.Answer, taken + " " + out.get());
                 caller.pollReplies = true;
             }
+        });
+
+        section("shared send and call cases", () -> {
+            // The shared cases, with their fixture names mapped to this daemon's.
+            Function<String, List<?>> load = file -> {
+                try {
+                    Path cases = Path.of(env("AB_CLIENT_CONFORMANCE_CASES"), file + ".json");
+                    List<?> all = (List<?>) Json.parse(Files.readString(cases).replace("#caller@fixture", OWNER).replace("#worker@fixture", "#j-svc@localhost"));
+                    check("the shared " + file + " cases are not empty", !all.isEmpty(), cases);
+                    return all;
+                } catch (java.io.IOException e) {
+                    throw new java.io.UncheckedIOException(e);
+                }
+            };
+            Bus svc = client("#j-svc@localhost");
+            for (Object c : load.apply("send")) {
+                Map<?, ?> k = (Map<?, ?>) c, req = (Map<?, ?>) k.get("request"), want = (Map<?, ?>) k.get("expected");
+                Send options = Send.none();
+                if (req.get("topic") != null) options = options.withTopic((String) req.get("topic"));
+                if (req.get("tag") != null) options = options.tag((String) req.get("tag"));
+                if (req.get("ask") != null) options = options.ask((String) req.get("ask"));
+                String id = me.send((String) req.get("to"), (String) req.get("body"), options);
+                Optional<Message> got = svc.consume(Consume.waiting(ms(2000)));
+                check("send " + k.get("id") + ": arrives field for field under the returned ID", got.isPresent()
+                        && got.get().id().equals(id) && got.get().from().equals(want.get("from")) && got.get().to().equals(want.get("to"))
+                        && got.get().body().equals(want.get("body")) && got.get().topic().orElse("").equals(want.getOrDefault("topic", ""))
+                        && got.get().tag().orElse("").equals(want.getOrDefault("tag", ""))
+                        && got.get().ask().orElse("").equals(want.getOrDefault("ask", "")), got);
+            }
+            List<?> calls = load.apply("call");
+            List<String> handled = new java.util.concurrent.CopyOnWriteArrayList<>();
+            try (Server s = svc.serve((m, ctx) -> {
+                for (Object c : calls) {
+                    Map<?, ?> k = (Map<?, ?>) c;
+                    if (((Map<?, ?>) k.get("request")).get("body").equals(m.body())) {
+                        handled.add(m.id() + " " + m.body());
+                        return Response.reply((String) k.get("answer"));
+                    }
+                }
+                return Response.reply("no case for " + m.body());
+            }, Serve.workers(1).poll(ms(300)))) {
+                for (Object c : calls) {
+                    Map<?, ?> k = (Map<?, ?>) c, req = (Map<?, ?>) k.get("request"), want = (Map<?, ?>) k.get("expected");
+                    Outcome o = me.call((String) req.get("to"), (String) req.get("body"),
+                            Call.within(Duration.ofSeconds(5)).topic((String) req.get("topic")));
+                    check("call " + k.get("id") + ": the handler's answer", o instanceof Outcome.Answer a
+                            && a.message().body().equals(want.get("body")) && a.message().from().equals(want.get("from"))
+                            && a.message().to().equals(want.get("to")) && a.message().topic().orElse("").equals(want.get("topic")), o);
+                    check("call " + k.get("id") + ": the handler ran once on the request it answers", o instanceof Outcome.Answer a
+                            && handled.stream().filter(h -> h.equals(a.message().re().orElse("") + " " + req.get("body"))).count() == 1, handled + " " + o);
+                }
+            }
+            check("each call ran its handler once", handled.size() == calls.size(), handled);
         });
 
         section("self call", () -> {
