@@ -46,6 +46,12 @@ class Selection(unittest.TestCase):
         p = self.plan(['CHANGELOG.0.9.md', 'src/agents/telegram/config.ts'])
         self.assertEqual(p['checks']['agent_slack'], 'fast')
 
+    def test_container_image_is_its_own_subsystem(self):
+        p = self.plan(['src/container/Containerfile'])
+        self.assertEqual({c for c, m in p['modes'].items() if m != 'fast'}, {'Q'})
+        self.assertEqual({c for c, l in p['checks'].items() if l == 'normal'}, {'container_image'})
+        self.assertEqual(self.plan([], 'normal', 'Q')['checks']['container_image'], 'normal')
+
     def test_shared_or_unknown_fails_closed(self):
         for path in ['src/smoke.sh', 'src/go.mod', 'src/web/bun.lock', 'new-unknown-file']:
             p = self.plan([path])

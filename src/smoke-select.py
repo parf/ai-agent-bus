@@ -7,13 +7,13 @@ import re
 import subprocess
 
 ROOT = Path(__file__).resolve().parent.parent
-ALL = 'ABCDEFGHIJKLMNOP'
+ALL = 'ABCDEFGHIJKLMNOPQ'
 
 
 def prefixes(root):
     rows = []
     for line in (root/'Plans/subsystems.md').read_text().splitlines():
-        match = re.match(r'\| ([A-P]) \| ([^|]+)\|', line)
+        match = re.match(r'\| ([A-Q]) \| ([^|]+)\|', line)
         if match:
             rows.extend((prefix, match[1]) for prefix in re.findall(r'`([^`]+)`', match[2]))
     return rows
@@ -41,8 +41,8 @@ def plan(root, mode, targets='', paths=None):
     direct, why, fallback = {}, {}, ''
     if targets:
         letters = ALL if targets == 'all' else targets.replace(',', '')
-        if targets != 'all' and re.fullmatch(r'[A-P](?:,[A-P])*', targets) is None:
-            raise ValueError('subsystems must be comma-separated letters A–P or all')
+        if targets != 'all' and re.fullmatch(r'[A-Q](?:,[A-Q])*', targets) is None:
+            raise ValueError('subsystems must be comma-separated letters A–Q or all')
         direct = {c: [] for c in letters}
         why = {c: 'explicit override' for c in letters}
     elif paths is None:
