@@ -104,7 +104,7 @@ Acceptance, each failing on a missing implementation or by a named mutant:
 - Ids rise by one per entry across levels, survive a restart and a `clean`, and are never reused.
 - `pull <log> notice 2` on 5 notices returns the oldest 2 and leaves 3; a `read` after it shows only those 3; a second caller's `pull` never gets the 2 again.
 - `pull` by a `read`-only caller is refused and removes nothing.
-- `sub add <queue> deploys alert` gets exactly one message per new alert in `deploys` and none for its notices or other logs; a subscriber without may-send to the target is refused at add; a subscription's target losing the grant later stops sends with nothing delivered.
+- `sub add <queue> deploys alert` gets a signal naming `deploys`, `alert` and the newest id for a new alert, none for its notices or other logs, and no entry text; ten alerts within a second give one signal with count 10; a `pull` after the signal returns those ten; a subscriber without may-send to the target is refused at add; a subscription's target losing the grant later stops sends with nothing delivered.
 - `clean <log> warning` empties only warnings; `clean` by a `read`-only caller is refused and changes nothing.
 - The web shows an alert mark only for logs with an alert within its window, and a reader without the role gets no page.
 
