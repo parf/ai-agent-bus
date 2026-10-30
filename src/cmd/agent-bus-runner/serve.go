@@ -525,6 +525,9 @@ func (r *runner) claim(in installed, name string) (string, error) {
 		if err := refreshManagedTags(r.bus.as(tok), in, name); err != nil {
 			return "", err
 		}
+		if err := clearStaleScript(r.bus.as(tok), name); err != nil {
+			return "", err
+		}
 		return tok, nil
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		return "", err

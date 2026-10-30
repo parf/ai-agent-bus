@@ -1460,10 +1460,17 @@ lacks "an agent installed after the start is not seen before reload" \
 has "reload rereads what is installed" "$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s reload)" '\\"name\\":\\"#later@srv1\\",\\"enabled\\":true,\\"state\\":\\"idle\\"'
 ab launcher@srv1 manage '#later@srv1' --add-allow '*' >/dev/null
 has "and serves it" "$(ab greeter@srv1 call '#later@srv1' --wait 15s x)" '"body":"later"'
-# Its Owner hands the existing agent over once, and it is served.
+# Its Owner hands the existing agent over once, and it is served. The script
+# an earlier `agent-bus run` left on it no longer says what serves it, so it goes.
+post_body launcher@srv1 /register '{"kind":"agent","name":"#held@srv1","script":"exec /old/standalone.sh","descr":"held before"}' >/dev/null
+has "a handed-over agent carries the old run's script" "$(ab launcher@srv1 ls '#held@srv1')" '"script":"exec /old/standalone.sh"'
 tok '#held@srv1' >"$RH/runner/tokens/%23held@srv1"
 ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s reload >/dev/null
 has "an agent handed over is served" "$(ab greeter@srv1 call '#held@srv1' --wait 15s x)" '"body":"held"'
+held=$(ab launcher@srv1 ls '#held@srv1')
+has "and its listing names the record" "$held" '"name":"#held@srv1"'
+lacks "and no longer names the old run's script" "$held" '"script"'
+has "and keeps its description" "$held" '"descr":"held before"'
 # Transferred to somebody else, it is no longer this runner's to serve: the
 # next reload drops it, by name, and its new person's runner may read it.
 ab launcher@srv1 manage '#held@srv1' --owner greeter@srv1 >/dev/null

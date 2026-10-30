@@ -97,6 +97,9 @@ agent-bus token '#hello@host' | sudo -u you-ab-runner tee /var/lib/agent-bus/you
 agent-bus call '#runner/you@host' reload
 ```
 
+Taking it over, the runner clears the `script` an earlier `agent-bus run` left on
+the record, so listings no longer name a program that does not serve it.
+
 Author settings (`agent.json` and `env.dist`), including their packaged help,
 are read only from regular files; a final symlink is refused by filename.
 

@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.155 — 2026-10-29
+
+A runner taking over an existing agent clears the `script` an earlier `agent-bus run` left on its record, so listings stop saying `runs exec …`.
+
 ## 0.9.154 — 2026-10-29
 
 IMAP list/search show live read status and list can filter unread mail; read marks Seen by default with a no-mark option, and mark sets or clears only Seen. Background subscriptions and publication remain PEEK/read-only.
