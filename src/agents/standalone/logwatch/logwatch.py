@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Long-lived standalone log history, served by the shared Python bus client."""
-from collections import OrderedDict
 import json
 import os
 from pathlib import Path
@@ -11,17 +10,17 @@ import signal
 import sys
 import threading
 import time
-import uuid
 
 # The shared starter runs the installed script in the checkout, not a copy.
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / 'clients/python'))
 from agent_bus import Bus
 from agent_bus._version import VERSION
-from agent_bus.errors import BusError, Refusal, UnexpectedAnswer
+from agent_bus.errors import BusError
 from filters import match
 from watcher import Monitor, Ring, configuration
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "shared"))
 from metadata import answer as metadata_answer, ASKS, dispatch
+import subscriptions as shared_subscriptions
 PACKAGE = Path(__file__).resolve().parent
 
 FIELDS = {'tail': {'n'}, 'grep': {'query', 'n'}, 'since': {'age', 'n'}, 'mark': {'label'},
@@ -65,23 +64,28 @@ def parse(body):
     return call
 
 
+def selector(value):
+    if value != {}: raise ValueError('logwatch has no selector argument')
+    return {}
+
+
 def display(line):
     return f"[{line['source']}] {line['text']}"
 
 
 class Agent:
-    def __init__(self, bus, config, log=lambda text: print('logwatch: ' + text, file=sys.stderr), clock=time.time):
+    def __init__(self, bus, config, log=lambda text: print('logwatch: ' + text, file=sys.stderr), clock=time.time, *, delivery=None):
         self.bus, self.config, self.log, self.clock = bus, config, log, clock
         self.ring = Ring(config['ring_size'], clock, config['line_bytes'], config['ring_bytes'])
         self.monitor = Monitor(config, self.ring, log)
         self.started = clock()
         self.stop = threading.Event()
-        self.subs = {}
-        self.fold = {}
+        self.subscriptions = shared_subscriptions.Subscriptions(
+            bus, bus.name, validate_selector=selector, selector_matches=lambda _selector, _event: True,
+            warning=lambda code: self.log('subscription: ' + code), clock=lambda: self.clock(), delivery=delivery)
         self.lock = threading.RLock()
         self.queue = queue.Queue(maxsize=1000)
         self.forward_dropped = 0
-        self.check_down = False
         self.ring.on_line = self.enqueue
         self.threads = []
 
@@ -92,54 +96,45 @@ class Agent:
             self.log('forward queue full; line dropped')
 
     def load(self):
-        for entry in self.bus.kv.list().get('json', []):
-            if entry['name'].startswith('sub.'):
-                value = self.bus.kv.get(entry['name'], kind='json')
-                self.subs[value['id']] = value | {'forwarded': 0}
+        """Map legacy definitions once; malformed state stays for manager repair.
 
-    def authorized(self, message, target):
-        if message.original_to in (None, '', self.bus.name) and {'owner', 'maintainer'} & set(message.roles): return
-        if self.bus._request('GET', '/manages', query={'who': getattr(message, 'from'), 'name': target}).get('manages') is not True:
-            raise ValueError('subscription changes require management of destination ' + target)
-
-    def author_may_send(self, who, target):
-        """The daemon's yes or no for who; a refused destination is a ValueError, anything else that is not an answer is BusError."""
-        try: yes = self.bus.may_send(who, target)
-        except Refusal as error:
-            if error.status == 404: raise ValueError('no such destination ' + target) from error
-            raise
-        except UnexpectedAnswer as error:
-            raise ValueError('cannot check that ' + who + ' may send to ' + target + ': the daemon does not answer may-send for another name; nothing stored') from error
-        if not yes: raise ValueError(who + ' may not send to ' + target)
-
-    def pause(self, sub, reason):
-        """A subscription whose author may no longer send stops, visibly, until it is deleted."""
-        sub['paused'] = reason
-        self.log('subscription ' + sub['id'] + ' paused: ' + reason)
-        stored = {k: v for k, v in sub.items() if k in ('id', 'target', 'filter', 'created_by', 'paused')}
-        try: self.bus.kv.set('sub.' + sub['id'], stored, kind='json', mode='replace')
-        except (BusError, OSError) as error: self.log('subscription ' + sub['id'] + ': pause not stored (' + type(error).__name__ + ')')
+        Old definitions have no creation time: their shared row is created at
+        migration. Keep any valid durable counts and unsupported filter text;
+        the engine lists such filters as inert rather than making them match all.
+        """
+        kv = self.subscriptions.kv
+        legacy = {'id', 'target', 'filter', 'created_by', 'created_at', 'forwarded',
+                  'sent', 'dropped', 'paused', 'disabled', 'last_error'}
+        for entry in kv.list().get('json', []):
+            if not isinstance(entry, dict): continue
+            key = entry.get('name', '')
+            if not isinstance(key, str) or not key.startswith('sub.'): continue
+            value = kv.get(key, kind='json')
+            if not isinstance(value, dict) or 'selector' in value or set(value) - legacy: continue
+            try:
+                query = value['filter']
+                if isinstance(query, str) and query and not query.startswith('/'):
+                    # Legacy bare text was a case-insensitive literal, not a regex.
+                    query = '/' + ''.join('\\'+c if c in r'\./-^$|?*+(){}[]' else c for c in query) + '/iu'
+                target = shared_subscriptions.target_text(value['target'])
+                if '@' not in target: target = shared_subscriptions.destination(self.bus, target)
+                row = {'id': value['id'], 'target': target,
+                       'selector': {}, 'filter': query,
+                       'created_by': shared_subscriptions.identity(value['created_by']),
+                       'created_at': value.get('created_at', shared_subscriptions.stamp(self.clock)),
+                       'sent': value.get('sent', value.get('forwarded', 0)), 'dropped': value.get('dropped', 0)}
+                row = self.subscriptions._row(row, key[4:])
+            except (KeyError, ValueError, TypeError, UnicodeError, BusError, OSError): continue
+            kv.set(key, row, kind='json', mode='replace')
 
     def subscription(self, call, message):
-        with self.lock:
-            method = call['method']
-            if method == 'sub.list': return {'subs': [dict(s) for s in self.subs.values()]}
-            if method == 'sub.add':
-                self.authorized(message, call['target'])
-                self.author_may_send(getattr(message, 'from'), call['target'])
-                query = call.get('filter', '')
-                match(query, [])
-                sub = {'id': uuid.uuid4().hex[:12], 'target': call['target'], 'filter': query,
-                       'created_by': getattr(message, 'from')}
-                self.bus.kv.set('sub.' + sub['id'], sub, kind='json', mode='add')
-                self.subs[sub['id']] = sub | {'forwarded': 0}
-                return {'id': sub['id']}
-            sub = self.subs.get(call['id'])
-            if not sub: raise ValueError('unknown subscription ' + call['id'])
-            self.authorized(message, sub['target'])
-            self.bus.kv.delete('sub.' + sub['id'], kind='json')
-            del self.subs[sub['id']]; self.fold.pop(sub['id'], None)
-            return {'deleted': sub['id']}
+        if call['method'] == 'sub.list':
+            return {'subs': self.subscriptions.list(message)}
+        if call['method'] == 'sub.add':
+            row = self.subscriptions.add(message, call['target'], {}, call.get('filter', ''))
+            return {'id': row['id']}
+        self.subscriptions.delete(message, call['id'])
+        return {'deleted': call['id']}
 
     def handle(self, message):
         try:
@@ -170,60 +165,17 @@ class Agent:
         except (ValueError, BusError, OSError) as error:
             return 'error: ' + str(error)
 
-    def send(self, sub, line, count=1):
-        if sub.get('paused'): return
-        # The author's own right to send to the target, asked again before every
-        # send; a check that cannot be answered sends nothing, and is not asked
-        # again for the rest of this batch.
-        who = sub.get('created_by')
-        if not isinstance(who, str) or not who: self.pause(sub, 'author unknown'); return
-        allowed = None
-        if not self.check_down:
-            try: allowed = self.bus.may_send(who, sub['target'])
-            except Refusal as error:
-                if error.status == 404: self.pause(sub, 'destination gone'); return
-                self.check_down = True
-            except (BusError, OSError): self.check_down = True
-        if allowed is None:
-            if sub.get('last_error') != 'unavailable': self.log('subscription ' + sub['id'] + ': may-send check unavailable; not sending')
-            sub['last_error'] = 'unavailable'
-            return
-        if not allowed: self.pause(sub, 'denied'); return
-        if sub.get('last_error') == 'unavailable': sub.pop('last_error')
-        body = display(line)
-        if count > 1: body += f'\n×{count} in 5 min'
-        try:
-            self.bus.send(sub['target'], body, topic='logwatch', tag=line['source'])
-            sub['forwarded'] += 1
-        except BusError as error:
-            if sub.get('last_error') != type(error).__name__:
-                self.log('subscription ' + sub['id'] + ': send failed (' + type(error).__name__ + ')')
-            sub['last_error'] = type(error).__name__
-
     def forward(self, lines):
+        # Each arrival is a fresh match, including repeated source/text pairs.
+        # The engine alone owns admission, filtering, send attempts and counts.
         with self.lock:
-            self.check_down = False
-            for sub in self.subs.values():
-                if sub.get('disabled') or sub.get('paused'): continue
-                try: selected = match(sub['filter'], [line['text'] for line in lines]) if lines else []
-                except ValueError as error:
-                    sub['disabled'] = True; sub['last_error'] = str(error); self.log('subscription ' + sub['id'] + ': ' + str(error)); continue
-                folded = self.fold.setdefault(sub['id'], OrderedDict())
-                for line, yes in zip(lines, selected):
-                    if not yes: continue
-                    key = (line['source'], line['text'])
-                    old = folded.get(key)
-                    if old and self.clock() - old['at'] < 300: old['count'] += 1; continue
-                    if old and old['count'] > 1: self.send(sub, old['line'], old['count'])
-                    self.send(sub, line)
-                    folded[key] = {'at': self.clock(), 'count': 1, 'line': line}
-                    while len(folded) > self.config['ring_size']:
-                        _, old = folded.popitem(last=False)
-                        if old['count'] > 1: self.send(sub, old['line'], old['count'])
-                for key, old in list(folded.items()):
-                    if self.clock() - old['at'] >= 300:
-                        if old['count'] > 1: self.send(sub, old['line'], old['count'])
-                        del folded[key]
+            for line in lines:
+                if self.stop.is_set(): break
+                try:
+                    self.subscriptions.deliver({}, line['text'], display(line), topic='logwatch',
+                                               tag=line['source'], deadline=time.monotonic()+5)
+                except (shared_subscriptions.SubscriptionError, BusError, OSError) as error:
+                    self.log('subscription: ' + (error.code if isinstance(error, shared_subscriptions.SubscriptionError) else 'store_unknown'))
 
     def start(self):
         # Initial history is queried, not forwarded as new subscription traffic.
@@ -247,6 +199,7 @@ class Agent:
 
     def close(self):
         self.stop.set()
+        self.subscriptions.close()
         for thread in self.threads: thread.join(timeout=5)
         self.monitor.close()
 

@@ -8,19 +8,27 @@ or stop the existing rd-tail-log service.
 
 `logwatch.py` serves through the Python client for the lifetime of the process.
 The shared starter's `--serves-itself` mode supplies only its own agent token
-and name. Configuration is read at startup. The ring, marks and delivery counters
-are in memory; subscription definitions are in the agent's JSON KV namespace.
-There are no application roles. Destination management uses the daemon's
-`/manages` check, with the same direct Owner/Maintainer exception as Slack. The author must also be allowed to send to the destination (`/may-send?who=`), asked at add and before every send: a refusal or a vanished destination pauses the subscription visibly until it is deleted, and an unanswered check sends nothing.
+and name. Configuration is read at startup. The ring and marks are in memory;
+subscription definitions and sent/dropped counts are in the agent's JSON KV.
+`src/agents/shared/subscriptions.py` owns filtering, authority, management,
+storage and once-only delivery. Each matched arrival gets its own copy; no
+repeat folding, pause, retry or local subscription implementation remains.
+
+At startup the adapter maps legacy definitions into shared rows, preserves
+creators and valid durable counts, and removes obsolete pause/disabled fields.
+A definition without a creation time gets its migration time. Legacy bare
+literal filters are escaped into case-insensitive shared patterns; unsupported
+filters remain visible and inert. Malformed rows remain for direct managers to
+repair. Re-loading shared rows does not rewrite them or replay history.
 
 `watcher.py` follows regular files, detects truncation/rotation, and discovers
 new files on a bounded interval. It follows one journalctl JSON stream with
 repeated `-u` arguments, or none for all. `_SYSTEMD_UNIT` names a journal source;
 `SYSLOG_IDENTIFIER` is the fallback for entries without a unit. Journal failures
 are shown in `sources`, rather than silently treating unreadable logs as empty.
-Filters use an isolated, time-bounded Python regex worker. Forwarding has a
-bounded queue and per-subscription bounded repeat state; it never blocks file
-collection on a destination.
+History grep keeps its isolated regex worker. Subscription matching and sends
+use the shared bounded helpers and inherited TLS pin. Forwarding has a bounded
+queue and does not block file collection on a destination.
 
 ## Provenance
 
@@ -41,9 +49,9 @@ src/smoke.sh --shard agent_logwatch
 
 Unit checks cover bounded unfiltered history, exact marks, cleaning, discovery,
 rotation, exclusions, syslog selection, journal attribution/read failures,
-filters and repeat folding. The disposable-daemon fixture uses the real Python
+history filters and shared subscription delivery. The disposable-daemon fixture uses the real Python
 serve loop and shared installer: own-token identity, idempotent install,
-restart, ACL refusal, destination management, forwarding and removal. It never
+restart, ACL refusal, creator/manager visibility, forwarding and removal. It never
 changes a live unit. The starter policy test also pins direct ExecStart and
 own-name environment for `--serves-itself`, while existing per-call mode stays
 the default.

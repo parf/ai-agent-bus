@@ -10,7 +10,7 @@
 - 🔑 **Troubleshooting needs a login on the server.** Now you ask the helper; nobody logs in.
 - 🔍 **The clue is one line in thousands.** Now you ask for lines containing "error", or for the last five minutes.
 - 🧪 **After a deploy you cannot tell what it changed.** Now you set a mark, restart, and read only what came after.
-- 🔔 **You must watch a screen to catch errors.** Now new errors arrive in an inbox, repeats counted.
+- 🔔 **You must watch a screen to catch errors.** Now each matching error arrives in an inbox.
 - 🛡️ **Logs hold private data.** Now only the people you allow can ask, and it only reads.
 
 ## What it does
@@ -18,7 +18,7 @@
 - ✅ **Recent lines on request:** the latest lines, or only those matching a word or pattern.
 - ✅ **"What happened since…":** lines from the last minutes or hours.
 - ✅ **Before and after:** mark a point, change something, then see only what the change logged.
-- ✅ **Alerts:** new matching lines go to an inbox; the first is sent at once and repeats are counted in one summary.
+- ✅ **Alerts:** each new matching line goes to an inbox once, including repeated lines.
 - ✅ **Honest memory:** it keeps the latest lines in memory; after a restart or a full history it says so rather than show an incomplete story.
 - ✅ **Read only:** it never changes a program or its logs.
 - 🚫 **Not for:** long-term storage or search over weeks, or editing and rotating logs.
@@ -34,8 +34,8 @@ The calls, last:
 | `sources`, `stats` | What it watches; how full its memory is |
 | `sub add`, `sub list`, `sub delete` | Send new matching lines to an inbox |
 
-- Subscriptions survive restarts; a failed alert is reported by `sub list` and never resent.
-- How its subscriptions differ from the shared rules is in [what each helper does today](subscriptions.md#what-each-helper-does-today).
+- Subscription definitions and delivery counts survive restarts; a failed copy is counted and never resent.
+- Subscriptions follow [the shared behaviour](subscriptions.md#the-shared-behaviour).
 
 ## You'll need
 
@@ -99,7 +99,7 @@ agent-bus call '#logwatch@parf.us' --wait 15s stats | jq -r .body | jq 'del(.ver
 | Site shows errors | Ask for recent lines containing "error" | The matching lines, with their file or service |
 | A deploy just failed | Ask for the last five minutes | Everything logged since |
 | Check a repair | Set a mark, restart, ask what came after | Only the lines the restart produced |
-| On-call alerts | Subscribe an AI session to `ERROR` | New errors arrive in its inbox, repeats counted |
+| On-call alerts | Subscribe an AI session to `ERROR` | Each matching new error arrives in its inbox |
 | A log seems ignored | Ask which sources it watches | Watched, skipped and unreadable files |
 
 - The repair itself is another helper's call, such as a [systemd](systemd.md#who-may-use-it) restart, which needs its own permission.
@@ -170,8 +170,8 @@ None.
 ## Who may use it
 
 - Only people on its access list; start at `@owner` and add sessions by name (`agent-bus manage '#logwatch@node.example' --add-allow '#claude/oncall@node.example'`).
-- Changing a subscription also needs the right to manage its destination.
-- The logwatch Owner and Maintainers may change subscriptions calling it directly.
+- Each caller lists and deletes their own subscriptions; direct Owners and Maintainers manage all, under [the shared management rule](subscriptions.md#the-shared-behaviour).
+- The author must be allowed to send to both logwatch and the destination; each forwarded copy checks those rights again.
 
 ## Warnings and alerts
 
@@ -182,7 +182,7 @@ None.
 | alert | A configured source cannot be read (file permission, or a journal the account may not read) | Give the service account read access; restart after group changes |
 | alert | `journalctl` cannot start, or exits | Run `journalctl -u <unit>` as that account and fix what it reports |
 | warning | Lines were dropped because a queue was full | Narrow `sources` or the subscription filters |
-| warning | A subscription paused: its author may no longer send, or the target is gone | Delete it and add it again |
+| warning | A copy was dropped because its author may no longer send, or its target is gone | Restore the required access or destination; the subscription stays active for future matches |
 | warning | A subscription's send failed, or its send check was unavailable | Nothing if it clears; if it repeats, check the destination |
 
 ## Troubleshooting
@@ -195,9 +195,10 @@ None.
 | A new file missing | Wait for `rescan_interval`; only lines appended after discovery are read |
 | Unknown or expired mark | Set a new mark; marks do not survive restart or a full history |
 | Refused call | Ask the administrator to check the access list |
-| Refused subscription | Check who manages the destination, that the author may send to it, and that it accepts logwatch |
-| A subscription shows `paused` | Its author may no longer send to the target, or the target is gone; delete it and add it again |
-| Filter error | Try plain text; patterns are `/pattern/i`; long-running ones are refused |
+| Refused subscription | Check that the author may send to both logwatch and the destination, and that the destination accepts logwatch |
+| A subscription's `dropped` count rises | Check destination capacity and send rights; that copy is not retried, and later matches are checked afresh |
+| `invalid_filter` at `sub add` | Use the [shared filter grammar](subscriptions.md#the-shared-behaviour); nothing is stored |
+| A grep filter error | Try plain text or `/pattern/i`; long-running patterns are refused |
 
 ## Technical details
 
@@ -205,7 +206,8 @@ None.
 <summary>Calls and how lines are kept</summary>
 
 - `tail [n]` (1–100000, default 20) never filters. `grep <query> [n]` takes plain case-insensitive text or `/regex/imsu`; long-running patterns are refused.
-- `since <age> [n]` takes `30s`, `5m`, `1h`, `1d`. `mark [label]` generates a label when omitted; `after <label>` refuses an expired mark. `sub add <target> [filter]`, `sub delete <id>`.
+- `since <age> [n]` takes `30s`, `5m`, `1h`, `1d`. `mark [label]` generates a label when omitted; `after <label>` refuses an expired mark.
+- `sub add <target> [filter]` uses a portable regex, checked before storing; `sub list` shows sent and dropped counts, and `sub delete <id>` stops forwarding. Each matching arrival is sent once; identical lines are separate arrivals.
 - "Received" means when logwatch read the line, not a date in its text. Each line names its source, such as `[/var/log/syslog]` or `[journal:agent-bus-web.service]`.
 - At start each nonempty file contributes its last ten complete lines from the final `startup_bytes`; a newly found file starts at its end, so old content is never sent as a new alert. Empty files wait for content. New files are found every `rescan_interval`.
 - An oversized line keeps its head and ends with `…[truncated N bytes]`, counted in `line_bytes`. A poll reads at most 64 KiB per file.

@@ -1,3 +1,4 @@
+import copy
 import json
 import os
 from pathlib import Path
@@ -10,6 +11,7 @@ from unittest.mock import patch
 
 from cleaning import clean_line
 from filters import match
+import logwatch
 from logwatch import Agent, parse
 from agent_bus.errors import BusError, Refusal, UnexpectedAnswer
 from watcher import Monitor, Ring, configuration
@@ -18,26 +20,42 @@ from watcher import Monitor, Ring, configuration
 class FakeKV:
     def __init__(self): self.values = {}
     def list(self): return {'json': [{'name': key} for key in self.values]}
-    def get(self, key, **_): return self.values[key]
+    def get(self, key, **_): return copy.deepcopy(self.values[key])
     def set(self, key, value, mode='set', **_):
         if mode == 'replace' and key not in self.values: raise Refusal(404, 'absent')
-        self.values[key] = dict(value)
-    def delete(self, key, **_): self.values.pop(key); return True
+        if mode == 'add' and key in self.values: raise Refusal(412, 'exists')
+        self.values[key] = copy.deepcopy(value)
+    def delete(self, key, **_): return self.values.pop(key, None) is not None
+    def json(self, key, *operations):
+        for op in operations:
+            assert op['op'] == 'set'
+            self.values[key][op['key']] = op['value']
 
 
 class FakeBus:
     name = '#logwatch@t'
-    def __init__(self): self.kv = FakeKV(); self.sent = []; self.manages = True; self.may = True; self.asked = []
+    def __init__(self):
+        self.kv = FakeKV(); self.sent = []; self.attempts = []; self.manages = True
+        self.may = True; self.asked = []; self.send_failures = []; self.kinds = {}; self.canonical = {}
     def may_send(self, who, name):
         self.asked.append((who, name))
-        if isinstance(self.may, Exception): raise self.may
-        return self.may
-    def send(self, target, body, **options): self.sent.append((target, body, options))
+        value = self.may.get((who, name), True) if isinstance(self.may, dict) else self.may
+        if isinstance(value, Exception): raise value
+        return value
+    def record(self, name):
+        return SimpleNamespace(kv=self.kv, lookup=lambda: {'name':self.canonical.get(name,name), 'kind':self.kinds.get(name, 'agent')})
+    def send(self, target, body, **options):
+        self.attempts.append((target, body, options))
+        if self.send_failures:
+            failure = self.send_failures.pop(0)
+            if failure: raise failure
+        self.sent.append((target, body, options))
     def _request(self, *_args, **_kwargs): return {'manages': self.manages}
 
 
-def message(body, roles=(), original_to=None):
-    return SimpleNamespace(body=body, roles=roles, original_to=original_to, ask=None, **{'from':'#caller@t'})
+def message(body, roles=(), original_to=None, who='#caller@t'):
+    return SimpleNamespace(body=body, roles=roles, original_to=original_to, ask=None,
+        envelope={'from':who, 'roles':list(roles), 'original_to':original_to}, **{'from':who})
 
 
 class WatcherTests(unittest.TestCase):
@@ -103,7 +121,18 @@ class WatcherTests(unittest.TestCase):
         self.assertIn('…[truncated ',line['text'])
 
     def agent(self, **overrides):
-        return Agent(FakeBus(), configuration({'sources': [], 'excludes': [], **overrides}), log=lambda _:None)
+        bus = FakeBus()
+        def delivery(rows, body, topic, tag, deadline):
+            cache = {}
+            return {r['id']: logwatch.shared_subscriptions.deliver_one(bus, bus.name, r, body, topic, tag, deadline, cache) for r in rows}
+        agent = Agent(bus, configuration({'sources': [], 'excludes': [], **overrides}), log=lambda _:None, delivery=delivery)
+        self.addCleanup(agent.close)
+        return agent
+
+    def test_j21_invalid_filter_is_refused_at_add_without_storing(self):
+        agent = self.agent()
+        self.assertEqual(agent.handle(message('sub add #target@t /(/')), 'error: invalid_filter')
+        self.assertEqual(agent.bus.kv.values, {})
 
     def test_tail_is_unfiltered_oldest_first_and_ring_is_bounded(self):
         agent = self.agent(ring_size=7)
@@ -191,96 +220,128 @@ time.sleep(30)
                             self.assertIn('journal:kernel',[line['source'] for line in ring.snapshot()])
                     finally:watch.close()
 
-    def test_subscriptions_match_fold_persist_and_enforce_destination_authority(self):
-        now=[1000.];agent=self.agent();agent.clock=lambda:now[0]
-        caller=message('sub add #target@t /error/i')
-        added=json.loads(agent.handle(caller));self.assertIn('id',added)
-        lines=[agent.ring.add('file','ERROR repeated') for _ in range(37)] + [agent.ring.add('file','ordinary')]
-        agent.forward(lines)
-        self.assertEqual(len(agent.bus.sent),1);self.assertIn('ERROR repeated',agent.bus.sent[0][1])
-        now[0]+=300;agent.forward([])
-        self.assertEqual(len(agent.bus.sent),2);self.assertIn('×37 in 5 min',agent.bus.sent[1][1])
-        restored=Agent(agent.bus,agent.config,log=lambda _:None);restored.load();self.assertIn(added['id'],restored.subs)
-        agent.bus.manages=False
-        self.assertIn('management of destination',agent.handle(message('sub add #other@t')))
-        self.assertIn('management of destination',agent.handle(message('sub delete '+added['id'])))
-        self.assertIn('management of destination',agent.handle(message('sub add #other@t',roles=('owner',),original_to='#forwarder@t')))
-        self.assertIn('id',json.loads(agent.handle(message('sub add #other@t',roles=('maintainer',)))))
-        self.assertIn('deleted',agent.handle(message('sub delete '+added['id'],roles=('owner',))))
+    def test_shared_subscription_engine_is_not_a_local_shadow(self):
+        self.assertEqual(Path(logwatch.shared_subscriptions.__file__).resolve(),
+                         Path(__file__).resolve().parents[2] / 'shared/subscriptions.py')
+        self.assertIs(type(self.agent().subscriptions), logwatch.shared_subscriptions.Subscriptions)
 
-    def test_author_may_send_is_checked_at_add_and_before_every_send_and_fails_closed(self):
+    def test_subscriptions_send_every_repeated_match_and_persist_counts(self):
         agent = self.agent()
-        agent.bus.may = False
-        self.assertIn('may not send', agent.handle(message('sub add #target@t /error/i')))
-        self.assertEqual(agent.bus.kv.values, {})  # nothing stored
-        agent.bus.may = Refusal(404, 'no such name')
-        self.assertIn('no such destination', agent.handle(message('sub add #target@t /error/i')))
+        added = json.loads(agent.handle(message('sub add #target@t /error/i')))
+        lines = [agent.ring.add('file', 'ERROR repeated') for _ in range(37)] + [agent.ring.add('file', 'ordinary')]
+        agent.forward(lines)
+        self.assertEqual(len(agent.bus.sent), 37)
+        self.assertTrue(all(body == '[file] ERROR repeated' for _, body, _ in agent.bus.sent))
+        self.assertTrue(all('wait' not in options for _, _, options in agent.bus.sent))
+        agent.forward([])
+        self.assertEqual(len(agent.bus.sent), 37)
+        restored = Agent(agent.bus, agent.config, log=lambda _:None)
+        self.addCleanup(restored.close); restored.load()
+        rows = json.loads(restored.handle(message('sub list')))['subs']
+        self.assertEqual([(r['id'], r['sent'], r['dropped']) for r in rows], [(added['id'], 37, 0)])
+        self.assertEqual(set(rows[0]), logwatch.shared_subscriptions.FIELDS)
+
+    def test_refused_copy_warns_once_and_the_next_identical_match_is_delivered(self):
+        agent = self.agent(); warnings = []; agent.log = warnings.append
+        agent.handle(message('sub add #target@t /error/i'))
+        agent.bus.send_failures = [Refusal(429, 'full'), None]
+        agent.forward([agent.ring.add('file', 'ERROR repeat'), agent.ring.add('file', 'ERROR repeat')])
+        self.assertEqual(len(agent.bus.attempts), 2)
+        self.assertEqual([body for _, body, _ in agent.bus.sent], ['[file] ERROR repeat'])
+        self.assertEqual(warnings, ['subscription: send_refused'])
+        row = json.loads(agent.handle(message('sub list')))['subs'][0]
+        self.assertEqual((row['sent'], row['dropped']), (1, 1))
+        self.assertNotIn('paused', row)
+
+    def test_author_is_checked_for_target_and_source_at_add_and_each_copy(self):
+        agent = self.agent(); warnings = []; agent.log = warnings.append
+        for target in ('#target@t', agent.bus.name):
+            agent.bus.may = {('#caller@t', target):False}
+            self.assertEqual(agent.handle(message('sub add #target@t')), 'error: admission_refused')
+            self.assertEqual(agent.bus.kv.values, {})
+        agent.bus.may = True
+        agent.handle(message('sub add #target@t /error/i'))
+        for target in ('#target@t', agent.bus.name):
+            agent.bus.may = {('#caller@t', target):False}
+            before = len(agent.bus.sent)
+            agent.forward([agent.ring.add('file', 'ERROR revoked')])
+            self.assertEqual(len(agent.bus.sent), before)
+            self.assertEqual(warnings[-1], 'subscription: admission_refused')
+            agent.bus.may = True
+            agent.forward([agent.ring.add('file', 'ERROR recovered')])
+            self.assertEqual(len(agent.bus.sent), before + 1)
         for failure in (BusError('down'), UnexpectedAnswer('old daemon'), OSError('socket')):
             agent.bus.may = failure
-            self.assertIn('error:', agent.handle(message('sub add #target@t /error/i')))
-        self.assertEqual(agent.bus.kv.values, {})
+            before = len(agent.bus.sent)
+            agent.forward([agent.ring.add('file', 'ERROR unavailable')])
+            self.assertEqual(len(agent.bus.sent), before)
+            self.assertEqual(warnings[-1], 'subscription: admission_unavailable')
+            self.assertEqual(agent.handle(message('sub add #other@t')), 'error: admission_unavailable')
         agent.bus.may = True
-        added = json.loads(agent.handle(message('sub add #target@t /error/i')))
-        self.assertEqual(agent.bus.asked[-1], ('#caller@t', '#target@t'))
-        agent.forward([agent.ring.add('file', 'ERROR one')])
-        self.assertEqual(len(agent.bus.sent), 1)
-        # An unanswerable check sends nothing, and recovers when it answers.
-        agent.bus.may = BusError('down')
-        agent.forward([agent.ring.add('file', 'ERROR two')])
-        self.assertEqual(len(agent.bus.sent), 1)
-        self.assertNotIn('paused', agent.subs[added['id']])
-        agent.bus.may = True
-        agent.forward([agent.ring.add('file', 'ERROR three')])
-        self.assertEqual(len(agent.bus.sent), 2)
-        # The author's right revoked: the next send is the last, and the entry stops visibly.
-        agent.bus.may = False
-        agent.forward([agent.ring.add('file', 'ERROR four')])
-        self.assertEqual(len(agent.bus.sent), 2)
-        self.assertEqual(agent.subs[added['id']]['paused'], 'denied')
-        self.assertIn('"paused": "denied"', agent.handle(message('sub list')))
-        agent.bus.may = True
-        agent.forward([agent.ring.add('file', 'ERROR five')])
-        self.assertEqual(len(agent.bus.sent), 2)  # paused until deleted
-        restored = Agent(agent.bus, agent.config, log=lambda _: None); restored.load()
-        self.assertEqual(restored.subs[added['id']]['paused'], 'denied')
-        # A subscription deleted by another thread meanwhile is not written back by its pause.
-        gone = json.loads(agent.handle(message('sub add #target@t /error/i')))
-        agent.bus.kv.values.pop('sub.' + gone['id'])
-        agent.bus.may = False
-        agent.forward([agent.ring.add('file', 'ERROR seven')])
-        self.assertNotIn('sub.' + gone['id'], agent.bus.kv.values)
-        agent.bus.may = True
-        # A destination that is gone pauses it too.
-        other = json.loads(agent.handle(message('sub add #target@t /error/i')))
-        agent.bus.may = Refusal(404, 'no such name')
-        agent.forward([agent.ring.add('file', 'ERROR six')])
-        self.assertEqual(agent.subs[other['id']]['paused'], 'destination gone')
+        agent.forward([agent.ring.add('file', 'ERROR recovered')])
+        row = json.loads(agent.handle(message('sub list')))['subs'][0]
+        self.assertEqual((row['sent'], row['dropped']), (3, 5))
+        self.assertNotIn('paused', row)
 
-    def test_outage_asks_once_per_batch_and_a_subscription_without_an_author_is_paused(self):
-        agent = self.agent()
-        for n in range(6):
-            agent.bus.kv.set('sub.s%d' % n, {'id': 's%d' % n, 'target': '#t@t', 'filter': 'ERROR', 'created_by': '#caller@t'})
-        agent.bus.kv.set('sub.orphan', {'id': 'orphan', 'target': '#t@t', 'filter': 'ERROR'})
+    def test_creators_manage_only_their_rows_and_forwarded_manager_roles_do_not_expand_visibility(self):
+        agent = self.agent(); agent.bus.manages = False
+        mine = json.loads(agent.handle(message('sub add #target@t')))['id']
+        other = json.loads(agent.handle(message('sub add #other@t', who='#other-author@t')))['id']
+        self.assertEqual([r['id'] for r in json.loads(agent.handle(message('sub list')))['subs']], [mine])
+        self.assertEqual(agent.handle(message('sub delete '+other)), 'error: not_author')
+        forwarded = message('sub list', roles=('owner',), original_to='#forwarder@t')
+        self.assertEqual([r['id'] for r in json.loads(agent.handle(forwarded))['subs']], [mine])
+        self.assertEqual(len(json.loads(agent.handle(message('sub list', roles=('maintainer',))))['subs']), 2)
+        self.assertEqual(json.loads(agent.handle(message('sub delete '+other, roles=('owner',))))['deleted'], other)
+
+    def test_legacy_definitions_keep_author_counts_and_inert_filters_without_pauses(self):
+        agent = self.agent(); agent.clock = lambda:1000.
+        base = {'target':'#target@t', 'filter':'/error/i', 'created_by':'#caller@t'}
+        agent.bus.kv.set('sub.000000000001', dict(base, id='000000000001', forwarded=7, dropped=2, paused='denied'))
+        agent.bus.kv.set('sub.000000000002', dict(base, id='000000000002', filter='/(/', disabled=True))
+        agent.bus.kv.set('sub.000000000003', {'id':'000000000003', 'target':'#target@t', 'filter':''})
+        agent.load(); once = copy.deepcopy(agent.bus.kv.values); agent.load()
+        self.assertEqual(agent.bus.kv.values, once, 'migration rewrote a shared row')
+        rows = json.loads(agent.handle(message('sub list')))['subs']
+        self.assertEqual([r['id'] for r in rows], ['000000000001','000000000002'])
+        self.assertEqual((rows[0]['created_by'], rows[0]['created_at'], rows[0]['sent'], rows[0]['dropped']),
+                         ('#caller@t','1970-01-01T00:16:40.000Z',7,2))
+        self.assertEqual(rows[1]['reason'], 'invalid_filter')
+        managers = json.loads(agent.handle(message('sub list', roles=('owner',))))['subs']
+        self.assertEqual(managers[-1], {'id':'000000000003','reason':'invalid_state'})
+        warnings = []; agent.log = warnings.append
+        agent.forward([agent.ring.add('file', 'ERROR arrival')])
+        self.assertEqual(len(agent.bus.sent), 1)
+        self.assertEqual(warnings, ['subscription: filter_invalid'])
+        rows = json.loads(agent.handle(message('sub list')))['subs']
+        self.assertEqual((rows[0]['sent'], rows[0]['dropped'], rows[1]['dropped']), (8,2,1))
+        self.assertFalse(any('paused' in r or 'disabled' in r for r in rows))
+
+    def test_legacy_unqualified_destination_uses_the_registry_canonical_name(self):
+        agent = self.agent(); agent.bus.canonical['events'] = 'events@t'
+        agent.bus.kv.set('sub.000000000001', {'id':'000000000001','target':'events',
+                        'filter':'','created_by':'#caller@t'})
         agent.load()
-        agent.bus.may = BusError('down')
-        logged = []; agent.log = logged.append
-        agent.forward([agent.ring.add('file', 'ERROR a'), agent.ring.add('file', 'ERROR b')])
-        self.assertEqual(agent.bus.sent, [])
-        self.assertEqual(len(agent.bus.asked), 1)  # one failing call for the whole batch
-        self.assertEqual(agent.subs['orphan'].get('paused'), 'author unknown')
-        self.assertEqual(len([l for l in logged if 'unavailable' in l]), 6)  # once per subscription, not per line
-        agent.forward([agent.ring.add('file', 'ERROR c')])
-        self.assertEqual(len([l for l in logged if 'unavailable' in l]), 6)  # not again while it stays down
-        self.assertEqual(len(agent.bus.asked), 2)  # one more call: a new batch asks afresh
-        agent.bus.may = UnexpectedAnswer('old')
-        self.assertIn('does not answer may-send', agent.handle(message('sub add #target@t /error/i')))
+        row = json.loads(agent.handle(message('sub list')))['subs'][0]
+        self.assertEqual(row['target'], 'events@t')
+        agent.forward([agent.ring.add('file', 'arrival')])
+        self.assertEqual(agent.bus.sent[0][0], 'events@t')
+
+    def test_legacy_literal_filter_is_escaped_in_the_shared_grammar(self):
+        agent = self.agent()
+        agent.bus.kv.set('sub.000000000001', {'id':'000000000001','target':'#target@t',
+                        'filter':'error.dot','created_by':'#caller@t'})
+        agent.load()
+        row = json.loads(agent.handle(message('sub list')))['subs'][0]
+        self.assertEqual(row['filter'], r'/error\.dot/iu')
+        agent.forward([agent.ring.add('file', 'errorXdot'), agent.ring.add('file', 'ERROR.dot')])
+        self.assertEqual([body for _, body, _ in agent.bus.sent], ['[file] ERROR.dot'])
 
     def test_idle_subscription_does_not_launch_a_regex_worker(self):
-        agent = self.agent()
-        agent.handle(message('sub add #target@t /error/i'))
-        with patch('logwatch.match', side_effect=AssertionError('idle subscription matched')):
+        agent = self.agent(); agent.handle(message('sub add #target@t /error/i'))
+        with patch.object(agent.subscriptions, '_helper', side_effect=AssertionError('idle subscription matched')):
             agent.forward([])
-        with patch('filters.subprocess.run', side_effect=AssertionError('empty match started a worker')):
+        with patch('filters.subprocess.run', side_effect=AssertionError('empty grep match started a worker')):
             self.assertEqual(match('/error/i', []), [])
 
     def test_parser_config_and_filters_refuse_unknowns_and_bound_regex(self):

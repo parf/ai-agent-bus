@@ -4,8 +4,7 @@
 log lines or chat messages, into a queue or an agent's inbox. Every helper is
 meant to share one behaviour: one copy per match, the author's send right
 checked at `sub add` and before every send, a refused copy dropped and counted
-while the subscription stays active. Coming: today each helper still runs its
-own subscription code ([today](#what-each-helper-does-today)).
+while the subscription stays active. Logwatch uses the shared implementation; the other helpers retain their own subscription code ([today](#what-each-helper-does-today)).
 
 What stays per helper is only the selector, what a subscription watches: a
 mailbox for [IMAP](imap.md#what-it-does), a source for
@@ -15,8 +14,7 @@ a schedule, not a match, and keeps its own calls.
 
 ## The shared behaviour
 
-The rules every helper moves to. Coming: a helper follows them once it moves
-to the shared code; until then, see [what each helper does today](#what-each-helper-does-today).
+Logwatch follows these rules. For other helpers, see [what each helper does today](#what-each-helper-does-today).
 
 | Rule | Every subscription |
 |---|---|
@@ -32,20 +30,19 @@ to the shared code; until then, see [what each helper does today](#what-each-hel
 
 ## What each helper does today
 
-Each helper still runs its own subscription code. A cell says where it
-already follows the rule, otherwise what it does instead. Telegram shares Slack's subscription code.
+Logwatch runs the shared engine. The other helpers retain their own implementations; Telegram shares Slack's code.
 
 | Rule | [IMAP](imap.md#what-it-does) | [Logwatch](logwatch.md#what-it-does) | [Slack](slack.md#what-it-does), [Telegram](telegram.md#reply-routing) |
 |---|---|---|---|
-| Calls | `sub add <target> [/regex/]` over sender and subject; queue or agent checked | `sub add <target> [filter]`; target kind not checked | `sub add <channel or chat> <target> [filter]` and `sub edit`; Slack also `from=`; target kind not checked |
-| Authority | at add and before every send; not toward the helper itself | at add and before every send; not toward the helper | at add, on a moved target and before every send; not toward the helper |
-| Delivery | a durable outbox that retries | one send; repeats within five minutes fold into one later "×N" message | one send, never replayed |
-| Refused send | retries, then a counted skip; a denial or an unconfirmed send pauses it; copies are held | the error is logged, nothing counted; a denial or a missing target pauses it | the last error is kept, nothing counted; a denial, a missing target or an unknown author disables it |
+| Calls | `sub add <target> [/regex/]` over sender and subject; queue or agent checked | `sub add <target> [filter]`; queue or agent checked | `sub add <channel or chat> <target> [filter]` and `sub edit`; Slack also `from=`; target kind not checked |
+| Authority | at add and before every send; not toward the helper itself | at add and before every send, toward target and logwatch | at add, on a moved target and before every send; not toward the helper |
+| Delivery | a durable outbox that retries | one send for every matching arrival, including repeated lines | one send, never replayed |
+| Refused send | retries, then a counted skip; a denial or an unconfirmed send pauses it; copies are held | a refused or unknown copy is dropped, counted and warned; the subscription stays active | the last error is kept, nothing counted; a denial, a missing target or an unknown author disables it |
 | Start | from the mailbox's next message at add | from now; history read at start is not sent | from now; Telegram after a restart still sends what arrived while it was down |
-| Limits | 100 per instance, 20 per author, filter 200 characters, 50 ms per filter | no count limit; filter 200 characters; one second per batch | no count limit; filter 200 characters; 50 ms per test, then the subscription is disabled |
-| Listing | id, target, author, time, filter, sent, held and skipped copies, pause | id, target, filter, author, forwarded count, paused, last error; no time | id, channel, target, filter, author, time, forwarded count, disabled, last error |
-| Management | anyone admitted lists all; the author or the Owner and Maintainers delete | anyone lists; adding and deleting need Owner or Maintainer, or management of the target | as logwatch, for add, edit and delete |
-| Invalid stored state | a damaged entry is listed as disabled and only the Owner and Maintainers delete it; a bad stored filter disables intake | not checked at load | not checked at load; a bad stored filter stops that event for the subscriptions after it |
+| Limits | 100 per instance, 20 per author, filter 200 characters, 50 ms per filter | shared per-instance/per-author limits and bounded portable filters | no count limit; filter 200 characters; 50 ms per test, then the subscription is disabled |
+| Listing | id, target, author, time, filter, sent, held and skipped copies, pause | shared row: id, target, selector, filter, author, time, sent and dropped counts | id, channel, target, filter, author, time, forwarded count, disabled, last error |
+| Management | anyone admitted lists all; the author or the Owner and Maintainers delete | creator lists/deletes own; direct Owner/Maintainers manage all | anyone lists; add/edit/delete require destination management or direct Owner/Maintainer |
+| Invalid stored state | a damaged entry is listed as disabled and only the Owner and Maintainers delete it; a bad stored filter disables intake | invalid filters stay inert and visible; damaged rows are manager-only repair | not checked at load; a bad stored filter stops that event for the subscriptions after it |
 
 <details>
 <summary>Filters</summary>

@@ -1,5 +1,5 @@
 {
-  "text": "Find useful events without reading every host log. Review retained lines, search them or forward new matches. Start with sources and tail; marks and retained history are lost on restart.\ntail [n]: Review the latest retained lines, oldest first. No search filter is applied.\n  n (int): 1..100000; default 20\ngrep <query> [n]: Find matching lines in retained history. Searching happens only when requested.\n  query (string): Plain case-insensitive text or /regex/imsu\n  n (int): Maximum lines; default 20\nsince <age> [n]: Review lines received during a recent interval. Age is based on receipt time, not dates inside the log text.\n  age (string): Positive duration such as 30s, 5m, 1h or 1d\n  n (int): Maximum lines; default 20\nmark [label]: Save the current place in history for a later after call. Marks and history do not survive restart.; returns: Mark label\n  label (string): Unique name; generated when omitted\nafter <label>: Review retained lines strictly after a saved mark. A mark that has expired is refused.\n  label (string): Mark label\nsources: Find watched files and journal units, exclusions, counts, last lines and errors.\nstats: Check how much history is retained and how many lines were seen or dropped. The reply also includes uptime and version.\nsub add <target> [filter]: Forward new matching lines to a destination. Repeated lines are folded together for five minutes.; returns: Subscription ID\n  target (string): Bus destination; you must manage it, or be this agent’s direct Owner/Maintainer\n  filter (string): Plain text or /regex/imsu; omitted matches all\nsub list: Review subscriptions, delivery counts and errors.\n[destructive] sub delete <id>: Stop forwarding a subscription's matching lines.\n  id (string): Subscription ID\n\nExamples\nagent-bus call '#logwatch@parf.us' 'tail 5'\nagent-bus call '#logwatch@parf.us' 'grep error 5'\nagent-bus call '#logwatch@parf.us' 'since 5m 5'\nagent-bus call '#logwatch@parf.us' 'sources'\nagent-bus call '#logwatch@parf.us' 'stats'\nagent-bus call '#logwatch@parf.us' 'sub list'\n\nv<version> · PolyForm-NC · parf.dev/agent-bus/\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/logwatch.md\nMore: agent-bus help <name> config | secret | json",
+  "text": "Find useful events without reading every host log. Review retained lines, search them or forward new matches. Start with sources and tail; marks and retained history are lost on restart.\ntail [n]: Review the latest retained lines, oldest first. No search filter is applied.\n  n (int): 1..100000; default 20\ngrep <query> [n]: Find matching lines in retained history. Searching happens only when requested.\n  query (string): Plain case-insensitive text or /regex/imsu\n  n (int): Maximum lines; default 20\nsince <age> [n]: Review lines received during a recent interval. Age is based on receipt time, not dates inside the log text.\n  age (string): Positive duration such as 30s, 5m, 1h or 1d\n  n (int): Maximum lines; default 20\nmark [label]: Save the current place in history for a later after call. Marks and history do not survive restart.; returns: Mark label\n  label (string): Unique name; generated when omitted\nafter <label>: Review retained lines strictly after a saved mark. A mark that has expired is refused.\n  label (string): Mark label\nsources: Find watched files and journal units, exclusions, counts, last lines and errors.\nstats: Check how much history is retained and how many lines were seen or dropped. The reply also includes uptime and version.\nsub add <target> [filter]: Receive each matching new line once, including repeated lines. The author must be allowed to send to this helper and the destination.; returns: Subscription ID\n  target (string): Destination queue or agent; author send rights are checked at add and for every copy\n  filter (string): Optional shared portable regex, bare or /pattern/imsu; empty matches every new line\nsub list: Review your subscriptions, creation times, sent and dropped counts. Direct Owners and Maintainers see all, including inert damaged rows.\n[destructive] sub delete <id>: Stop your subscription. Direct Owners and Maintainers may delete any subscription, including damaged rows.\n  id (string): Subscription ID\n\nExamples\nagent-bus call '#logwatch@parf.us' 'tail 5'\nagent-bus call '#logwatch@parf.us' 'grep error 5'\nagent-bus call '#logwatch@parf.us' 'since 5m 5'\nagent-bus call '#logwatch@parf.us' 'sources'\nagent-bus call '#logwatch@parf.us' 'stats'\nagent-bus call '#logwatch@parf.us' 'sub list'\n\nv<version> · PolyForm-NC · parf.dev/agent-bus/\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/logwatch.md\nMore: agent-bus help <name> config | secret | json",
   "json": {
     "description": "Find useful events without reading every host log. Review retained lines, search them or forward new matches. Start with sources and tail; marks and retained history are lost on restart.",
     "license": "PolyForm-Noncommercial-1.0.0",
@@ -95,17 +95,17 @@
       },
       "sub.add": {
         "type": "string",
-        "help": "Forward new matching lines to a destination. Repeated lines are folded together for five minutes.",
+        "help": "Receive each matching new line once, including repeated lines. The author must be allowed to send to this helper and the destination.",
         "args": [
           {
             "type": "string",
             "name": "target",
-            "help": "Bus destination; you must manage it, or be this agent’s direct Owner/Maintainer"
+            "help": "Destination queue or agent; author send rights are checked at add and for every copy"
           },
           {
             "type": "string",
             "name": "filter",
-            "help": "Plain text or /regex/imsu; omitted matches all",
+            "help": "Optional shared portable regex, bare or /pattern/imsu; empty matches every new line",
             "optional": true,
             "rest": true
           }
@@ -115,14 +115,14 @@
       },
       "sub.list": {
         "type": "string",
-        "help": "Review subscriptions, delivery counts and errors.",
+        "help": "Review your subscriptions, creation times, sent and dropped counts. Direct Owners and Maintainers see all, including inert damaged rows.",
         "args": [],
         "text": "sub list",
         "example": "agent-bus call '#logwatch@parf.us' 'sub list'"
       },
       "sub.delete": {
         "type": "string",
-        "help": "Stop forwarding a subscription's matching lines.",
+        "help": "Stop your subscription. Direct Owners and Maintainers may delete any subscription, including damaged rows.",
         "args": [
           {
             "type": "string",

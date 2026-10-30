@@ -72,8 +72,10 @@ with Bus(addr=ENV['AGENT_BUS_ADDR'],token=ENV['AGENT_BUS_TOKEN']) as owner:
             else:raise AssertionError('ACL outsider was accepted')
         with Bus(addr=ENV['AGENT_BUS_ADDR'],token=tokens[manager]) as person,Bus(addr=ENV['AGENT_BUS_ADDR'],token=tokens[target]) as destination:
             before=json.loads(call('{"method":"sub.list"}'))['subs']
-            assert 'management of destination' in call('sub add '+outside,bus=person)
+            assert 'admission_refused' in call('sub add '+outside,bus=person)
             assert json.loads(call('{"method":"sub.list"}'))['subs']==before
+            assert call('sub add '+target+' /(/',bus=person)=='error: invalid_filter'
+            assert json.loads(call('{"method":"sub.list"}',bus=person))['subs']==[], 'bad filter was stored'
             sub=json.loads(call('sub add '+target+' /ERROR/i',bus=person))['id']
             with source.open('a') as file:file.write('ordinary nonmatch\nERROR matching\n')
             received=destination.consume(wait=3)

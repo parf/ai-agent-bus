@@ -87,17 +87,17 @@
       "example": "agent-bus call '#logwatch@parf.us' 'stats'"
     },
     "sub.add": {
-      "help": "Forward new matching lines to a destination. Repeated lines are folded together for five minutes.",
+      "help": "Receive each matching new line once, including repeated lines. The author must be allowed to send to this helper and the destination.",
       "args": [
         {
           "name": "target",
           "type": "string",
-          "help": "Bus destination; you must manage it, or be this agent’s direct Owner/Maintainer"
+          "help": "Destination queue or agent; author send rights are checked at add and for every copy"
         },
         {
           "name": "filter",
           "type": "string",
-          "help": "Plain text or /regex/imsu; omitted matches all",
+          "help": "Optional shared portable regex, bare or /pattern/imsu; empty matches every new line",
           "optional": true,
           "rest": true
         }
@@ -106,13 +106,13 @@
       "text": "sub add <target> [filter]"
     },
     "sub.list": {
-      "help": "Review subscriptions, delivery counts and errors.",
+      "help": "Review your subscriptions, creation times, sent and dropped counts. Direct Owners and Maintainers see all, including inert damaged rows.",
       "args": [],
       "text": "sub list",
       "example": "agent-bus call '#logwatch@parf.us' 'sub list'"
     },
     "sub.delete": {
-      "help": "Stop forwarding a subscription's matching lines.",
+      "help": "Stop your subscription. Direct Owners and Maintainers may delete any subscription, including damaged rows.",
       "args": [
         {
           "name": "id",
