@@ -6,19 +6,13 @@ The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
 ## 0.9.198 — 2026-10-30
 
-The installer refuses an incomplete client archive, and an update provably keeps the node's configuration
+Ninth published 0.9 changeset: 0.9.195–0.9.198, squashed.
 
-## 0.9.197 — 2026-10-30
-
-An empty --tag value is refused instead of dropping the filter
-
-## 0.9.196 — 2026-10-30
-
-Paginate the Account and Owner user pages with search, as the other listings do
-
-## 0.9.195 — 2026-10-30
-
-Repeated --tag options on ls and call --tagged select records carrying every tag
+| Area | Changes |
+|---|---|
+| CLI | Repeated `--tag` options on `ls` and `call --tagged` select records carrying every tag; an empty `--tag` value is refused instead of dropping the filter. |
+| Web | The Account and Owner user pages are paginated with search, as the other listings are. |
+| Install | The installer refuses an incomplete client archive before writing anything, and an update provably keeps the node's configuration. |
 
 ## 0.9.194 — 2026-10-30
 
