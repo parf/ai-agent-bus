@@ -1,5 +1,5 @@
 {
-  "text": "Search and manage a Qdrant vector store without holding its key. Call the Qdrant API within your read, write or admin role. Start with request GET /collections.\n[destructive] request <verb> <path> [body...]: Call the Qdrant API and get its JSON answer. Calls run as write by default; ask for read explicitly, and admin is needed for collection and service changes.\n  verb (GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS): Case-sensitive HTTP method\n  path (string): API path and optional encoded query, starting with /\n  body (string): Raw JSON bytes; no body for GET, HEAD or OPTIONS\n\nExamples\nagent-bus call '#qdrant@node.example' 'request GET /collections'\n\nv<version> · PolyForm-NC · parf.dev/agent-bus/\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/qdrant.md\nMore: agent-bus help <name> config | secret | json",
+  "text": "Search and manage a Qdrant vector store without holding its key. Call the Qdrant API within your read, write or admin role. Start with request GET /collections.\n[destructive] request <verb> <path> [body...]: Call the Qdrant API and get its JSON or text answer. Calls run as write by default; ask for read explicitly, and admin is needed for collection and service changes.\n  verb (GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS): Case-sensitive HTTP method\n  path (string): API path and optional encoded query, starting with /\n  body (string): Raw JSON bytes; no body for GET, HEAD or OPTIONS\n\nExamples\nagent-bus call '#qdrant@node.example' 'request GET /collections'\n\nv<version> · PolyForm-NC · parf.dev/agent-bus/\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/qdrant.md\nMore: agent-bus help <name> config | secret | json",
   "json": {
     "description": "Search and manage a Qdrant vector store without holding its key. Call the Qdrant API within your read, write or admin role. Start with request GET /collections.",
     "license": "PolyForm-Noncommercial-1.0.0",
@@ -10,7 +10,7 @@
     "methods": {
       "request": {
         "type": "string",
-        "help": "Call the Qdrant API and get its JSON answer. Calls run as write by default; ask for read explicitly, and admin is needed for collection and service changes.",
+        "help": "Call the Qdrant API and get its JSON or text answer. Calls run as write by default; ask for read explicitly, and admin is needed for collection and service changes.",
         "destructive": true,
         "args": [
           {

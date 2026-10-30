@@ -20,7 +20,7 @@
   ],
   "methods": {
     "request": {
-      "help": "Call the Qdrant API and get its JSON answer. Calls run as write by default; ask for read explicitly, and admin is needed for collection and service changes.",
+      "help": "Call the Qdrant API and get its JSON or text answer. Calls run as write by default; ask for read explicitly, and admin is needed for collection and service changes.",
       "destructive": true,
       "args": [
         {
