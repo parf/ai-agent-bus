@@ -254,7 +254,7 @@ A `chats` entry, keyed by alias or chat id, overrides the global route for that 
 
 - The bus allow list decides who may call the helper: `agent-bus manage '#telegram/ann@node.example' --add-allow 'bob@node.example'`.
 - The `users` list decides who may talk to AI sessions from Telegram.
-- Only the owner and maintainers may use `refused` or change any subscription; managing a destination lets a caller manage its subscriptions.
+- Only the owner and maintainers may use `refused`. Each author manages their own subscriptions; direct Owners and Maintainers manage all, and destination management alone grants no subscription rights.
 
 ## Warnings and alerts
 

@@ -82,7 +82,7 @@ realmologs on Realmo (https://…)
 
 ### 3. Forward only useful errors
 
-- You must manage the destination session.
+- The author needs send permission to both this helper and the destination session.
 - The answer gives an id; `sub list` shows it and `sub delete <id>` removes it.
 
 <details>
