@@ -1,207 +1,217 @@
-# 🏃 Running an agent
+# Running an agent: put your script on the bus with one command
 
-📌 **TL;DR:** `agent-bus run` serves messages through your script — or your
-agent session, or anything else that answers. One command registers the name,
-obtains its credential, reads the queue and runs your script per message.
-The `ab-*` launchers do the same for a Claude Code, Codex or opencode session.
+📌 **TL;DR:**
+- **Problem:** a handy script on your machine helps only you; letting others or an AI call it means writing message-handling code.
+- **Outcome:** `agent-bus run` gives your script a name and answers every message with what the script prints; the `ab-*` launchers do the same for an AI session.
+- **Start:** see the command's own guide with `agent-bus run --help` ([Try this first](#try-this-first)).
 
-This page covers the `agent-bus run` command, part of the ordinary
-[`agent-bus`](cli.md) tool. For installed scripts managed by the separate
-`agent-bus-runner` program, use the [runner guide](../runner/README.md).
+## Why you'd want it
 
-ℹ️ An agent's name begins with `#`. `run` adds it for you: `hi@demo` and
-`'#hi@demo'` publish the same agent.
+- 🙋 **Nobody else can call your script.** Now it has a name anyone allowed can call, from any host on the bus.
+- 🧑‍💻 **Message code is a chore.** Now your script reads its input and prints its answer; nothing else.
+- 🔌 **Links drop and servers restart.** Now it waits and reconnects by itself, and answers once the bus is back.
+- 🧠 **Your AI session is stuck in one terminal.** Now peers can message the live Claude Code, Codex or opencode session.
+
+## What you get
+
+- ✅ **One command:** registers the name, gets its own credential, reads its inbox, runs your script once per message.
+- ✅ **Two input shapes:** the message as `$1`, or the whole envelope as JSON on stdin.
+- ✅ **Parallel work:** up to N copies at once with `-N`.
+- ✅ **Logs and a polite stop** from any terminal of yours.
+- ✅ **Optional sandbox:** read-only system, private `/tmp`, no network unless you allow it.
+- ⚠️ **No retry:** a failed script is logged, not run again; the caller asks again if it wants.
+- 🚫 **Runs as you, in the foreground:** for installed scripts that keep running without you, use the [runner](../runner/README.md).
+
+## Try this first
+
+- Read the command's own guide; it changes nothing:
+
+```sh
+agent-bus run --help
+```
+
+```text
+USAGE
+  agent-bus run <name> <script>
+  agent-bus run [-N] -
+
+DESCRIPTION
+  <name> is the agent to register; <script> is one quoted shell command. The
+  default input form is args. A lone - reads the agent declaration as JSON from
+  stdin; -N overrides its parallel worker count (default 1). Confinement is off
+  unless --sandbox=on; a confined script has no network unless --network is
+  given. ...
+
+OPTIONS
+  --algo=<args|json>        Script input form (default args)
+  -N                        Run up to N messages concurrently (e.g. -4)
+  --descr=<text>            Description
+  --allow=<names|*|@owner>  Comma-separated access terms (comma-separated, * or @owner)
+  ...
+```
+
+- The output is shortened (`...`) and is from the development node on 2026-10-30.
+- Then serve your script: [the one-liner](#-the-one-liner).
 
 ## ⚡ The one-liner
 
-```sh
-agent-bus run '#hi@demo' /full/path/to/hi.sh --descr "greets"
-```
+- `agent-bus run '#hi@demo' /full/path/to/hi.sh --descr=greets` puts `/full/path/to/hi.sh` on the bus as `#hi@demo`.
+- An agent's name begins with `#`; `run` adds it, so `hi@demo` names the same agent.
 
-That single command does four things for you:
+That single command:
 
 | | |
 |---|---|
 | 1️⃣ | registers `#hi@demo` so everyone can see it |
 | 2️⃣ | gets the agent its own credential |
-| 3️⃣ | reads its inbox until stopped. When the daemon restarts or the link drops, it waits and reconnects by itself |
+| 3️⃣ | reads its inbox until stopped; when the bus restarts or the link drops, it waits and reconnects |
 | 4️⃣ | runs your script **once per message**, and sends back what it printed |
 
-It stays in the **foreground**. Ctrl-c stops it and, with nothing queued, unregisters the name. 🛑
+- 🖥️ **It stays in the foreground.** Ctrl-c stops it and, with nothing waiting, unregisters the name.
+- 🧪 **A tiny agent:** a `hi.sh` that runs `echo "you said: $1"`, made executable; a caller sending `ping` gets `you said: ping`.
 
-## 📨 How your script hears the message
+## How your script hears the message
 
-Two shapes — pick the one that suits you:
-
-| | Your script gets | Good for |
+| Shape | Your script gets | Good for |
 |---|---|---|
-| Default (`args`) | the body as **argument `$1`** | simple scripts. `hi.sh "ping"` |
+| Default (`--algo=args`) | the body as **argument `$1`** | simple scripts |
 | `--algo=json` | the whole envelope as **JSON on stdin** | when you care who sent it, or the topic |
 
-Either way, a handful of environment variables come along:
+- 🧾 **Either way, the envelope is in the environment:** `AGENT_BUS_MESSAGE_ID`, `AGENT_BUS_FROM`, `AGENT_BUS_TO`, `AGENT_BUS_TOPIC`, `AGENT_BUS_TAG`, `AGENT_BUS_WORK`, `AGENT_BUS_ASK`.
+- 🎫 **Roles:** one `AB_ROLE_<NAME>=1` per role granted to this caller.
+- ⚙️ **Settings:** `AGENT_BUS_CONFIG` holds compact Configuration at the next start, or is unset; see the [`jq` example](../03-records-agent.md#configuring-a-template).
+- 📂 **A scratch directory of its own:** `AGENT_BUS_WORK`; the script starts there.
+- ⚠️ **`FROM` is a label, not proof.** The bus enforces `--allow`; for single methods check the granted `AB_ROLE_<NAME>=1`, such as `AB_ROLE_OPERATE=1`, never a string match on `$AGENT_BUS_FROM` ([roles](../03-records-agent.md#roles)).
 
-```
-AGENT_BUS_MESSAGE_ID  AGENT_BUS_FROM  AGENT_BUS_TO
-AGENT_BUS_TOPIC       AGENT_BUS_TAG   AGENT_BUS_WORK
-AGENT_BUS_ASK         AGENT_BUS_CONFIG
-AB_ROLE_<NAME>=1      # one per role granted to this caller
-```
+<details>
+<summary>Asks: <code>help</code>, <code>status</code>, <code>mcp</code> and friends</summary>
 
-`AGENT_BUS_CONFIG` holds compact Configuration at the next start, or is unset;
-see the [`jq` example](../03-records-agent.md#configuring-a-template).
+- **Every ask not answered by package metadata** reaches the script as `AGENT_BUS_ASK` with an empty body: `help`, `help-config`, `help-secret`, `help-json`, `mcp` or `status`.
+- **With no ask,** the variable is empty.
+- **`--no-asks`** (package `"asks":"none"`) answers unsupported without starting the script.
+- **An unpackaged script has no MCP tools,** so `mcp` is answered `{"tools":[]}`; offering tools needs a package with `help: native`.
+- 📖 Native help and observed runner status: [package help](../runner/configuration.md#package-help).
 
-Every ask not answered by package metadata reaches the script as
-`AGENT_BUS_ASK` with an empty body: `help`, `help-config`, `help-secret`,
-`help-json`, `mcp` or `status`. With no ask, the variable is empty.
-`--no-asks` (package `"asks":"none"`) instead answers unsupported without
-starting the script. See [package help](../runner/configuration.md#package-help)
-for native help and observed runner status. An unpackaged script has no MCP tools, so its runner answers `mcp` with `{"tools":[]}`; offering tools requires a package with `help: native`.
+</details>
 
-⚠️ **Identity labels do not grant permission.** `FROM` is a
-label, not proof. The bus enforces `--allow`; for individual methods, check
-the granted `AB_ROLE_<NAME>=1` variables, such as `AB_ROLE_OPERATE=1`,
-not a string comparison on `$AGENT_BUS_FROM` ([roles](../03-records-agent.md#roles)).
-
-`AGENT_BUS_WORK` is a scratch directory of your own — the script starts there.
-
-A tiny agent, end to end:
-
-```sh
-cat > ~/hi.sh <<'SH'
-#!/bin/sh
-echo "you said: $1"
-SH
-chmod +x ~/hi.sh
-agent-bus run '#hi@demo' ~/hi.sh --descr "greets"
-```
-
-```sh
-agent-bus call '#hi@demo' --wait 10s "ping"
-```
-```
-{"from":"#hi@demo","body":"you said: ping", …}
-```
-🎉
-
-## 📤 What the caller gets back
+## What the caller gets back
 
 | Your script | The caller sees |
 |---|---|
 | printed something, exit 0 | that output, as the answer ✅ |
-| printed nothing, exit 0 | `done` — so they stop waiting |
-| exited nonzero | nothing. It is logged as a failure, and **not retried** ❌ |
+| printed nothing, exit 0 | `done`, so they stop waiting |
+| exited nonzero | nothing. It is logged as a failure and **not retried** ❌ |
 | the caller's deadline already passed | the script is not run at all |
 
-There is no retry on purpose: the bus cannot know whether running your script
-twice is safe. If you want a retry, the caller asks again.
+- 🔁 **No retry, on purpose:** the bus cannot know whether running your script twice is safe. The caller asks again if it wants.
 
-## 🔢 More than one at a time
+## More than one at a time
 
-```sh
-agent-bus run '#busy@demo' -5 --algo=json /full/path/to/worker.sh
-```
-
-`-5` means at most five copies of the script at once. One by default.
-
-💡 A message is only taken from the bus when a script slot is **free**. So if
-the agent dies, only the work already in flight is lost — the rest is still
-queued, waiting for whatever reads that inbox next. Nothing evaporates.
+- `agent-bus run '#busy@demo' -5 --algo=json /full/path/to/worker.sh` runs at most five copies at once; one by default.
+- 📥 **A message is taken only when a slot is free.** If the agent dies, only work already in flight is lost; the rest waits for the next reader.
 
 ## 👀 Watching and stopping it
 
-From any terminal of yours, not just the one it is running in:
+From any terminal of yours, not only the one it runs in:
 
-```sh
-agent-bus logs '#hi@demo' --lines 50
-agent-bus logs '#hi@demo' --follow
-agent-bus stop '#hi@demo'
-```
-
-| | |
+| To | Run |
 |---|---|
-| **`stop`** | polite: it stops taking new work, **waits** for scripts still running, then exits. It does not report a stop that has not finished |
-| **the logs** | outlive the run on purpose — what a run said is most wanted after it has ended |
-| **only you can stop it** | a running agent leaves a note in **your own** state directory, and that is what `stop` and `logs` read. Nobody else can see it, so nobody else can touch it 🔒 |
+| Read its last 50 lines | `agent-bus logs '#hi@demo' --lines=50` |
+| Follow its output | `agent-bus logs '#hi@demo' --follow` |
+| Stop it politely | `agent-bus stop '#hi@demo'` |
 
-A deliberate exit takes the **registration** with it: when nothing is waiting
-in the queue, the agent unregisters itself, so a name nobody serves answers
-"no such name" instead of quietly collecting messages. A **crash** or an error
-exit is not a deliberate exit — the name and its queue stay, so the agent can be started
-again and picks up where the queue left off. If messages were still waiting
-when a stopped agent tried to leave, it stays registered for the same reason.
+- 🛑 **`stop` is polite:** it takes no new work, **waits** for running scripts, then exits. It never reports a stop that has not finished.
+- 📜 **Logs outlive the run:** what a run said is most wanted after it ended.
+- 🔒 **Only you can stop it:** the note `stop` and `logs` read sits in **your own** state directory.
+- 🧹 **A deliberate exit unregisters the name** when nothing is waiting, so an unserved name answers "no such name" instead of collecting messages.
+- 📌 **`--stay-registered` keeps the name** and credential after a clean stop, for an outside supervisor.
+- 💥 **A crash or an error exit keeps the name** and its waiting messages, so a restart picks up where it left off; so does a stop with messages still waiting.
+- 🔌 **The bus going away is not an exit.** The runner says `daemon away`, shows `away` in `ps`, retries every second at first, then every 30 s, and says `reconnected` when back.
+- 📨 **An answer worked out meanwhile** is sent once the bus is back, while the caller still waits. Only a refusal, such as a revoked token, ends the run.
+- 🚫 **Starting a name already running here is refused:** that is a duplicate, not a second worker.
 
-A daemon that goes away is not an exit at all. The runner says `daemon away`,
-shows `; away` in `ps`, and keeps trying — every second at first, then every
-30 s — until the daemon is back, then says `reconnected`. An answer your script
-worked out meanwhile is sent once the daemon is back, while the caller still
-waits. Only a refusal, such as a revoked token, ends it.
-
-Starting a name that is already running **here** is refused — that is a
-duplicate, not a second worker.
-
-## 🧯 Common trip-ups
+## Common trip-ups
 
 | Symptom | Cause |
 |---|---|
-| `use an absolute script path` | ⚠️ `run` refuses any relative path, such as `./hi.sh` or `bin/hi.sh`: the child runs in its *own* work directory. Use an absolute path |
+| `use an absolute script path` | ⚠️ `run` refuses a relative path such as `./hi.sh` or `bin/hi.sh`: the script runs in its *own* work directory |
 | `exit status 127` in the logs | ⚠️ a bare command that is not on `PATH` |
-| script runs but the caller times out | it printed nothing **and** exited nonzero. Check `agent-bus logs` |
-| `already running` | you started this name in another terminal |
-| foreground messages pile up, nothing happens | `agent-bus ls --table --kind agent` — `READERS` `0` means no dedicated runner reads it. Managed agents are different: see [managed troubleshooting](../runner/operations.md#when-a-call-does-not-come-back) |
+| the script runs but the caller times out | it printed nothing **and** exited nonzero. Check `agent-bus logs` |
+| `already running here` | you started this name in another terminal |
+| messages pile up, nothing happens | `agent-bus ls --table --kind=agent`: `READERS` `0` means nothing reads it. Runner-managed agents differ: see [managed troubleshooting](../runner/operations.md#when-a-call-does-not-come-back) |
 
-## 🛡️ Sandboxing
+## Sandboxing
 
-Off unless you ask. `--sandbox on` sandboxes the script with
-`systemd-run --user`:
+- 🔓 **Off unless you ask.** `--sandbox=on` confines the script with `systemd-run --user`:
 
 | | |
 |---|---|
 | 📁 | system read-only, your home read-only, a private `/tmp` |
 | 📂 | the work directory writable; the script's own directory read-only |
 | 🌐 | **no network** unless you add `--network` |
-| 🔻 | no new privileges, and process/memory limits |
+| 🔻 | no new privileges, and process and memory limits |
 
-Asking for a sandbox on a machine with no working user manager **fails
-loudly** rather than quietly running your script unsandboxed. Startup tells you
-which backend it chose.
+- 🚨 **No silent fallback:** asking for a sandbox on a host with no working user manager fails rather than running unconfined.
+- 🗣️ Startup says which sandbox it chose.
 
-## 🤝 Who it runs as
+## Who it runs as
 
-As **you** — the person who typed `agent-bus run`. It is not a child of the
-daemon, and the daemon never execs anything. That is deliberate: the thing
-that holds the secrets is not the thing that runs your code.
+- 🙋 **As you,** the person who typed `agent-bus run`.
+- 🔐 **Not a child of the bus:** the bus never runs your code, so what holds the secrets is not what runs your script.
 
-## 🧠 Putting an AI session on the bus
+## Putting an AI session on the bus
 
-Three launchers ship with agent-bus and do the whole arrangement for you:
+Four launchers ship with agent-bus:
 
-```sh
-ab-claude          # a Claude Code session, on the bus
-ab-codex           # a Codex session, on the bus
-ab-opencode        # an opencode session, on the bus
-ab-opencode1       # the same, on a host still running opencode 1.x
-```
+| Launcher | Starts |
+|---|---|
+| `ab-claude` | a Claude Code session, on the bus |
+| `ab-codex` | a Codex session, on the bus |
+| `ab-opencode` | an opencode session, on the bus |
+| `ab-opencode1` | the same, on a host still running opencode 1.x |
 
-They find your socket, register the session under a name, load the bus tools
-into it, and wire up message delivery so peers can talk to your **live**
-session. Bun and the runtime itself must be installed.
+- 🔎 **They do the wiring:** find your socket, register the session under a name, load the bus tools, and deliver messages to the **live** session.
+- 💬 **Talk to it from any terminal:** see [Claude Code, Codex and opencode](ai-cli.md).
+- ▶️ **They continue** the last session in the current directory when there is one, and always start in automatic execution, so the session is not waiting on a prompt when a message arrives.
+- ⚠️ **A message cannot change the session's permissions or mode:** those are fixed at launch, and messages are data, not orders.
+- 📦 Bun and the runtime itself must be installed. `ab-claude --help` (and the others) says the rest.
 
 | Environment | |
 |---|---|
 | `AGENT_BUS_ADDR` | skip discovery, use this address |
 | `AGENT_BUS_TOKEN` | a token, when the socket is not enough |
 | `AGENT_BUS_TLS_FINGERPRINT` | the pin for an `https://` address ([over HTTPS](../02-access-remote.md#over-https)) |
-| `AGENT_BUS_NAME` | the bus name you want, beginning with `#`. Otherwise `#<runtime>/<session title or directory>@<host>` is derived |
+| `AGENT_BUS_NAME` | the bus name you want, beginning with `#`; otherwise `#<runtime>/<session title or directory>@<host>` |
 
-👉 The interesting part is that you can then **talk to that running session**
-from any terminal — see [Claude Code, Codex and opencode](ai-cli.md).
+## Technical details
 
-`ab-claude --help` (and the same for the other two) says the rest. They always continue the
-last session in the current directory, and they enforce automatic execution —
-so the session is not waiting on a prompt when a message arrives.
+<details>
+<summary>Every <code>agent-bus run</code> option</summary>
 
-⚠️ An incoming message can never change the session's permissions or mode.
-That is fixed when the launcher starts, and messages are data, not orders.
+| Option | |
+|---|---|
+| `--algo=<args\|json>` | script input form, `args` by default |
+| `-N` | run up to N messages at once, e.g. `-4` |
+| `--descr=<text>` | description |
+| `--allow=<names\|*\|@owner>` | who may call it, comma-separated |
+| `--personal` | a personal agent |
+| `--tags=<tags>` | comma-separated tags |
+| `--sandbox=<on\|off>` | confinement, off by default |
+| `--network` | allow network inside the sandbox |
+| `--package-dir=<path>` | package metadata for asks; an absolute path |
+| `--roles=<roles>` | roles the script understands |
+| `--stay-registered` | keep the record and credential at a clean stop |
+| `--no-asks` | answer unsupported asks without starting the script |
 
-📖 The design behind all of this: [runner § what the runner
-does](../06-dedicated-runner.md#what-it-does).
+- **From a declaration:** `agent-bus run -4 - < agent.json` reads the agent as JSON from stdin; `-N` overrides its worker count.
+
+</details>
+
+<details>
+<summary>Where this sits</summary>
+
+- **Part of the ordinary [`agent-bus`](cli.md) tool;** installed scripts managed by the separate `agent-bus-runner` program are in the [runner guide](../runner/README.md).
+- **Outside the bus:** the dedicated runner is your own process; nothing the bus runs may start user programs.
+- 📖 The design: [runner § what the runner does](../06-dedicated-runner.md#what-it-does).
+
+</details>
