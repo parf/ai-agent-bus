@@ -195,11 +195,23 @@ export class Bus {
 // The rule is docs/01-identity-and-authority.md#names — a-z0-9._- either side, 64 total,
 // and an Agent's name begins with "#", which counts toward the 64.
 export function defaultName(env: NodeJS.ProcessEnv = process.env, separator: "." | "/" = "."): string {
-  const realm = slug(env.AGENT_BUS_REALM || hostname());
+  return build(slug(env.AGENT_BUS_REALM || hostname()), env, separator);
+}
+
+// The same name in a realm kept exactly as given (a realm the daemon has
+// already validated: slug would turn `team_` into `team`, a different realm).
+// It refuses, rather than return a name the bus would reject, when the runtime
+// and the realm leave no room for any instance.
+export function defaultNameIn(realm: string, env: NodeJS.ProcessEnv, separator: "." | "/" = "."): string {
+  return build(realm, env, separator, true);
+}
+
+function build(realm: string, env: NodeJS.ProcessEnv, separator: "." | "/", strict = false): string {
   const runtime = slug(env.AGENT_BUS_RUNTIME || "agent");
   const where = slug(env.AGENT_BUS_CWD || process.cwd());
   // Trim from the front: the tail of a path is the part that identifies it.
   const room = MAX_NAME - AGENT_PREFIX.length - realm.length - 1 - runtime.length - 1;
+  if (strict && room < 1) throw new Error(`the realm ${realm} leaves no room in a ${MAX_NAME}-character name for ${AGENT_PREFIX}${runtime}${separator}<session>@${realm}; automatic naming is refused`);
   const tail = where.length > room ? where.slice(where.length - room) : where;
   return `${AGENT_PREFIX}${runtime}${separator}${trimEdges(tail)}@${realm}`;
 }

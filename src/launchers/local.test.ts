@@ -573,6 +573,24 @@ test("an automatic name takes the realm the bus reports, never the host's", asyn
   await expect(automaticBase(realmBus(""), env, "claude", "Billing")).rejects.toThrow("reports no realm");
 });
 
+test("the bus's realm is used exactly as the daemon holds it", async () => {
+  // slug() would trim these edges and register the session in a different realm
+  for (const realm of ["tenant.", "team_", "team-", "a..b"])
+    expect(await automaticBase(realmBus(realm), {}, "claude", "Billing")).toBe(`#claude/billing@${realm}`);
+  // an explicit AGENT_BUS_REALM keeps its normalization
+  expect(await automaticBase(realmBus("x"), { AGENT_BUS_REALM: "Team_" }, "claude", "Billing")).toBe("#claude/billing@team");
+});
+
+test("a realm that leaves no room for a session in the 64 characters refuses automatic naming", async () => {
+  const widest = "r".repeat(62);
+  await expect(automaticBase(realmBus(widest), {}, "claude", "Billing")).rejects.toThrow("leaves no room");
+  // the longest realm that still fits #claude/x@<realm> is named, within the limit
+  const fits = "r".repeat(64 - "#claude/x@".length);
+  const name = await automaticBase(realmBus(fits), {}, "claude", "Billing");
+  expect(name.length).toBe(64);
+  expect(name).toBe(`#claude/g@${fits}`);
+});
+
 test("a changed bus realm moves only names not yet bound", async () => {
   const env = {} as NodeJS.ProcessEnv;
   const bound = (name: string, base?: string) => ({ name, base: base ?? name });

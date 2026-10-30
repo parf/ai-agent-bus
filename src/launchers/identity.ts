@@ -1,4 +1,4 @@
-import { Bus, BusError, defaultName, withOwnerACL, runtimeTags } from "../mcp/bus.ts";
+import { Bus, BusError, defaultName, defaultNameIn, withOwnerACL, runtimeTags } from "../mcp/bus.ts";
 import { normalizeTags } from "../mcp/tags.ts";
 import { sleep } from "../mcp/push.ts";
 import { Bindings, numberedName, sameBase, type Session } from "./sessions.ts";
@@ -12,14 +12,19 @@ import { Bindings, numberedName, sameBase, type Session } from "./sessions.ts";
 // name, and a bus that names no realm is not answered with the host's: it is
 // refused.
 export async function automaticBase(owner: Bus, env: NodeJS.ProcessEnv, runtime: string, where: string, bound?: { name: string; base?: string }): Promise<string> {
-  const make = (realm: string) => defaultName({ ...env, AGENT_BUS_REALM: realm, AGENT_BUS_RUNTIME: runtime, AGENT_BUS_CWD: where }, "/");
+  const given = { ...env, AGENT_BUS_RUNTIME: runtime, AGENT_BUS_CWD: where };
+  // An explicit AGENT_BUS_REALM keeps its long-standing normalization; the
+  // bus's own realm is used exactly as the daemon holds it.
+  const make = (realm: string) => env.AGENT_BUS_REALM ? defaultName({ ...given, AGENT_BUS_REALM: realm }, "/") : defaultNameIn(realm, given, "/");
   let realm = env.AGENT_BUS_REALM;
   if (!realm && bound) {
     const old = bound.base ?? bound.name;
     const at = old.lastIndexOf("@");
     if (at >= 0) {
-      const same = make(old.slice(at + 1));
-      if (sameBase(bound, same)) return same;
+      try {
+        const same = make(old.slice(at + 1));
+        if (sameBase(bound, same)) return same;
+      } catch { /* a bound name always fits; anything else is a new name below */ }
     }
   }
   if (!realm) {
