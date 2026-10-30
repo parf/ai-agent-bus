@@ -87,6 +87,18 @@ while True: time.sleep(.1)
                 self.fail('stub did not publish ' + name)
             time.sleep(.01)
 
+    def published(self, name):
+        # The stub writes its file in place, so it can exist before it is
+        # whole: wait, bounded, until it parses.
+        until = time.monotonic() + 3
+        while True:
+            try:
+                return json.loads((self.root/name).read_text())
+            except (FileNotFoundError, ValueError):
+                if time.monotonic() >= until:
+                    self.fail('stub did not publish ' + name)
+                time.sleep(.01)
+
     def row(self, name='Main', **updates):
         return {'name':name,'cwd':str(self.root),'command':'exec fixture '+name,**updates}
 
@@ -112,8 +124,8 @@ while True: time.sleep(.1)
         self.assertEqual(agent.environment(text),agent.environment(obj))
         config=self.config([self.row('One',env=text,command='exec '+shlex.quote(str(self.bin/'fixture'))+' One'),self.row('Two',env=obj,command='exec '+shlex.quote(str(self.bin/'fixture'))+' Two')])
         self.assertIn('Two: started',agent.start(config))
-        first=json.loads((self.root/'env-One.json').read_text())['env']
-        second=json.loads((self.root/'env-Two.json').read_text())['env']
+        first=self.published('env-One.json')['env']
+        second=self.published('env-Two.json')['env']
         self.assertEqual(first,second)
         for env in [{'AGENT_BUS_TOKEN':'x'},{'AB_ROLE_OWNER':'1'},{'A':'x\0y'},{'A':'é'*2049},
                     {'bad-key':'x'},{'A':2},[],3,{f'A{i}':'x' for i in range(65)}]:
@@ -136,7 +148,7 @@ while True: time.sleep(.1)
         self.script('systemctl','#!/usr/bin/python3\nprint('+repr('PATH='+person_path)+')\n')
         row=self.row(command='exec fixture Main "two words" "$HOME"',env={'VISIBLE':'yes','AGENT_BUS_NAME':'#worker/billing'})
         self.assertEqual(agent.start(self.config([row])),'Main: started')
-        saved=json.loads((self.root/'env-Main.json').read_text())
+        saved=self.published('env-Main.json')
         self.assertEqual(saved['args'],['Main','two words',str(Path.home())])
         self.assertEqual(saved['env']['PATH'],person_path)
         self.assertEqual(saved['env']['VISIBLE'],'yes')
@@ -165,8 +177,8 @@ while True: time.sleep(.1)
                 with self.subTest(bad=bad),self.assertRaisesRegex(ValueError,'state_home'):self.config(state_home=bad)
             # the window gets it over the inherited value; its own env still overrides
             self.assertEqual(agent.start(self.config([self.row('One'),self.row('Two',env={'XDG_STATE_HOME':'/own'})])),'One: started\nTwo: started')
-            self.assertEqual(json.loads((self.root/'env-One.json').read_text())['env'].get('XDG_STATE_HOME'),str(old))
-            self.assertEqual(json.loads((self.root/'env-Two.json').read_text())['env'].get('XDG_STATE_HOME'),'/own')
+            self.assertEqual(self.published('env-One.json')['env'].get('XDG_STATE_HOME'),str(old))
+            self.assertEqual(self.published('env-Two.json')['env'].get('XDG_STATE_HOME'),'/own')
             # not a real directory owned by this uid: no default, the inherited value stays
             old.rmdir(); old.symlink_to(mine)
             self.assertIsNone(self.config()['windows'][0].get('state_home'))
@@ -270,7 +282,7 @@ while True: time.sleep(.1)
         until=time.monotonic()+5
         while time.monotonic()<until and not started.exists():time.sleep(.02)
         self.assertTrue(started.exists())
-        saved=json.loads((self.root/'env-Main.json').read_text())
+        saved=self.published('env-Main.json')
         self.assertIn('/user.slice/',saved['cgroup']);self.assertNotIn(unit,saved['cgroup'])
         restarted=subprocess.run(['sudo','-n','systemctl','restart',unit],capture_output=True,text=True)
         self.assertEqual(restarted.returncode,0,restarted.stderr)
