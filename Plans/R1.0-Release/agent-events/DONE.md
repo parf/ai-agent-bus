@@ -188,3 +188,20 @@ The first gate attempt also caught an unrelated `agent_sessions` failure:
 `test_immediate_exit_failure_preserves_sibling_and_allows_retry` expected
 `: failed:` but received `Bad: started`. That failure was reported separately;
 the second attempt repeated only the two integration failures above.
+
+## Empty Configuration defaults
+
+A newly registered record returns null Configuration. The eventlog startup
+precheck rejected it before opening state, despite the documented defaults.
+`config()` and `config(None)` now resolve to the same defaults as `{}`; explicit
+malformed non-null values remain refused. Rings uses this same normalization.
+
+`Pure.test_null_or_absent_configuration_uses_documented_defaults` fails on
+0.9.184, passes after the fix, checks each default and starts an Agent with null
+Configuration to write an entry. Removing null normalization compiles and fails
+its named `null Configuration must use defaults` and `absent Configuration must
+use defaults` assertions. The one-mutant smoke-lock batch was restored/released.
+
+Final checks: 12 ring tests, 11 pure/package tests, five guide checks; fast
+agent_eventlog shard 1.85 seconds. Deployment remains frozen; this branch makes
+no registration, credential, inventory or reload change.

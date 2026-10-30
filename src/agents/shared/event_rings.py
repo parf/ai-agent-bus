@@ -63,7 +63,8 @@ def seconds(value):
     return result
 
 
-def config(value):
+def config(value=None):
+    if value is None: value = {}
     if not isinstance(value, dict) or set(value)-{'rings', 'logs', 'max_logs'}:
         raise RingError('invalid_config')
     maximum = integer(value.get('max_logs', 100), 1, 100, 'invalid_config')
@@ -121,7 +122,7 @@ def epoch(value):
 
 class Rings:
     def __init__(self, directory, configuration=None, *, clock=time.time, lock_timeout=2):
-        self.maximum, self.defaults, self.overrides = config({} if configuration is None else configuration)
+        self.maximum, self.defaults, self.overrides = config(configuration)
         self.clock = clock
         self.directory = Path(directory)
         self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)

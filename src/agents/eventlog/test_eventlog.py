@@ -49,6 +49,20 @@ class Pure(unittest.TestCase):
         self.agent=e.Agent(self.bus,{},self.temp.name,warning=self.warnings.append)
     def tearDown(self):self.agent.close();self.temp.cleanup()
     def ask(self,body,roles=('write',),**values):return json.loads(self.agent.handle(envelope(body,roles,**values)))
+    def test_null_or_absent_configuration_uses_documented_defaults(self):
+        expected=(100,{'notice':{'size':200,'ttl':86400},'warning':{'size':200,'ttl':604800},'alert':{'size':50,'ttl':2592000}}, {})
+        for label,load in (('null',lambda:e.rings.config(None)),('absent',e.rings.config)):
+            with self.subTest(configuration=label):
+                try:actual=load()
+                except (e.rings.RingError,TypeError) as failure:
+                    self.fail(label+' Configuration must use defaults: '+str(failure))
+                self.assertEqual(actual,expected)
+        self.agent.close()
+        self.agent=e.Agent(self.bus,None,self.temp.name,warning=self.warnings.append)
+        self.assertEqual(self.ask('write defaults notice ready')['entry']['text'],'ready')
+        self.assertEqual(self.agent.rings.maximum,100)
+        self.assertEqual(self.agent.rings.defaults,expected[1])
+
     def test_source_kv_budget_shares_deadline_and_restores_client(self):
         from unittest.mock import Mock
         request=Mock(return_value='ok')

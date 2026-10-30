@@ -93,6 +93,8 @@ The agent is bus-only, kept and sandboxed.
 
 ## Configuration
 
+An absent or null Configuration uses the defaults below.
+
 | Key | Meaning |
 |---|---|
 | `rings` | level → optional `size` and `ttl` duration overrides |

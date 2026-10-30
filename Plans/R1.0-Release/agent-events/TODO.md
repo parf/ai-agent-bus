@@ -91,7 +91,7 @@ web page AB (after RT22's page), review `#claude/ab2-review`.
 |---|---|
 | 1a | Shared Python subscriptions and vectors landed in 0.9.171 (`7fcbadc9`); [evidence](DONE.md#shared-subscriptions). B.29 TypeScript twin and consumer migrations remain pending |
 | 1 | Shared ring module/vectors complete on `ab-w1c/T-2`, awaiting QA/landing; [evidence](DONE.md#shared-rings) |
-| 2 | Python runner agent complete on `ab-w1c/T-2`, awaiting QA/landing; [evidence](DONE.md#eventlog-agent) |
+| 2 | Python runner agent landed in 0.9.184; null/absent Configuration defaults repaired on `ab-w1c/T-2-cfg`, awaiting acceptance; [evidence](DONE.md#empty-configuration-defaults) |
 | 3 | Guide, index, smoke shard, package/runtime inventories complete on `ab-w1c/T-2`; manager enabled deployment/check-deploy pending after landing |
 | 4 | Web: instance page with logs, alert marks and the shared rings view |
 

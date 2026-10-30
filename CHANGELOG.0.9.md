@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.186 — 2026-10-30
+
+the eventlog agent starts on its documented defaults when its record has no Configuration
+
 ## 0.9.185 — 2026-10-30
 
 lock waiters are served in arrival order, and a waiter that gives up or cancels leaves the queue (live after the next daemon restart)
