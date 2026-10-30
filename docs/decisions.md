@@ -28,6 +28,7 @@ owning documentation, not in this index.
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| With TLS on, one port serves both HTTP and HTTPS; the client chooses, and across a network it should use HTTPS or SSH (J24) | [one port, both](02-access-remote.md#one-port-serves-both-http-and-https) | 2026-10-30 owner decision: by design, "you want http, you got it" |
 | Qdrant uses application tiers, with a write default for admitted callers (RD133) | [Qdrant roles](agents/qdrant.md#who-may-use-it) | 2026-10-28 owner decision; make the complete API available with explicit per-call authority |
 | Operators choose the Qdrant store location and transport (RD131, RD133) | [store setup](agents/qdrant.md#run-a-store), [proxy endpoint](agents/qdrant.md#configuration) | 2026-10-28 owner decision; deployment belongs to the operator, with a notice for remote cleartext HTTP |
 | An Administrator maps only their own User identity or an Agent they own; the daemon Owner may map any principal (A13) | [administering the account map](07-setup.md#administering-the-account-map) | 2026-10-19 owner clarification; the administration gate remains, and mapping a foreign User is not Agent ownership |
