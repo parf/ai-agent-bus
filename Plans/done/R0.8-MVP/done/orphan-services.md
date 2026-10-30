@@ -20,14 +20,14 @@ between the two sweeps and one answer.
 
 | | |
 |---|---|
-| [`core.Orphans`](../../../../src/internal/core/orphans.go) | deletes every record that `wreckage` names, to a fixed point, returns what it took, and collects the waits those names left on inboxes that survived |
+| [`core.Orphans`](https://github.com/parf/ai-agent-bus/blob/d129cf68e99f03ea8a463e18d97453e6b2faa3e1/src/internal/core/orphans.go) | deletes every record that `wreckage` names, to a fixed point, returns what it took, and collects the waits those names left on inboxes that survived |
 | `core.wreckage` | the owner has neither a profile nor a record — **and the record is not a registered user's own** |
 | `core.orphan` | releases the readers blocked on a name before it goes |
 | `core.forgetName` | one place for what a name leaves behind: record, inbox, subscriptions, **group membership** |
 | [`core.UnregisterAnd`](../../../../src/internal/core/unregister.go) | a non-person now goes through `forgetName`; a registered user keeps their standing, so only their record and inbox go |
 | [`core.ownerless`](../../../../src/internal/core/users.go) | the interim guard is gone |
 | [`agent-busd`](../../../../src/cmd/agent-busd/bus.go) | the sweep runs at start, **after `api.New` and before the credential sweep**, and the snapshot is written again after both |
-| [`agent-bus-web`](../../../../src/cmd/agent-bus-web/users.go), [`core.RemoveOwnerless`](../../../../src/internal/core/users.go), [pages](../web-handoff/pages.md#user-username) | the copy describing the interim guard, in three places, for a state no longer reachable |
+| [`agent-bus-web`](https://github.com/parf/ai-agent-bus/blob/9f5e69aabb817429d5d4e8ee60f1bb0b342a4ad1/src/cmd/agent-bus-web/users.go), [`core.RemoveOwnerless`](../../../../src/internal/core/users.go), [pages](../web-handoff/pages.md#user-username) | the copy describing the interim guard, in three places, for a state no longer reachable |
 
 **A registered user's own record is never wreckage, whoever the store says owns
 it.** The rule rests on there being no principal behind the name, and a person

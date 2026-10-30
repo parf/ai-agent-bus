@@ -35,7 +35,7 @@ test saves Configuration through the client's private request method.
 ## Scripts 0.9.162
 
 Step 6: **`666671da`**, fast-forward and main ancestry independently verified,
-VERSION **0.9.162**. The current [script guide](../../../docs/agents/git.md#after-an-attempt)
+VERSION **0.9.162**. The current [script guide](../../../docs/agents/git.md#autopull)
 owns the accepted behaviour; no new runtime bundle paths were needed.
 
 | Evidence | Result |

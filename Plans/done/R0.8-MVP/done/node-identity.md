@@ -75,7 +75,7 @@ Settled against source, and stated on the page rather than only here:
 ## What proves it
 
 [`node_test.go`](../../../../src/internal/api/node_test.go) over the real HTTP API,
-[`frame_test.go`](../../../../src/cmd/agent-bus-web/frame_test.go) over the rendered
+[`frame_test.go`](https://github.com/parf/ai-agent-bus/blob/9f5e69aabb817429d5d4e8ee60f1bb0b342a4ad1/src/cmd/agent-bus-web/frame_test.go) over the rendered
 shell, and core coverage of the aggregate itself.
 
 `src/smoke.sh --slow`: **578 passed, 0 failed**, exit 0, vet and race green,

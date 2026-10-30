@@ -120,7 +120,7 @@ because that is not a thing this status answer can establish.
 ### F6. The directory row mixes daemon truth with face-computed truth
 
 `PeopleCount` and `OtherCount` are fields of `peopleView` in
-[cmd/agent-bus-web/users.go:21](../../../../../src/cmd/agent-bus-web/users.go#L21) —
+[cmd/agent-bus-web/users.go:21](https://github.com/parf/ai-agent-bus/blob/9f5e69aabb817429d5d4e8ee60f1bb0b342a4ad1/src/cmd/agent-bus-web/users.go#L21) —
 the web child counts them while walking the directory. They sit in the
 dictionary's Directory table beside `Services` and `Groups`, which are daemon
 answers, with nothing to say which is which.

@@ -20,16 +20,16 @@ it adds, `api.Reasons`, reports a table the daemon already had.
 
 | | |
 |---|---|
-| [services listing](../../../../src/cmd/agent-bus-web/admin.go) | one Status column became **Delivery** (declared), **Reader** (observed) and **Reached** (a caller's hint); the caption says the rows are what the caller may see, not a count of the node |
-| [service detail](../../../../src/cmd/agent-bus-web/admin.go) | split under *What the record declares* and *What the daemon observed*; an unset bound or TTL says what it inherits instead of showing a guessed number; `Full` says drop-the-oldest or refuse |
-| [diagnostics](../../../../src/cmd/agent-bus-web/main.go) | node totals are labelled node-wide and every list below them says it is the caller's; the refusals table draws every reason; the backlog and registry tables use the same three words as the listings |
-| [refusals](../../../../src/cmd/agent-bus-web/views.go), [`api.Reasons`](../../../../src/internal/api/server.go) | a supported reason absent from a status answer is a **measured zero** and is drawn as one; a reason the face does not recognise is still shown |
-| [directory](../../../../src/cmd/agent-bus-web/users.go) | three identity kinds named rather than guessed, and the two counts on the page say the face computed them over what the caller may see |
+| [services listing](https://github.com/parf/ai-agent-bus/blob/9f5e69aabb817429d5d4e8ee60f1bb0b342a4ad1/src/cmd/agent-bus-web/admin.go) | one Status column became **Delivery** (declared), **Reader** (observed) and **Reached** (a caller's hint); the caption says the rows are what the caller may see, not a count of the node |
+| [service detail](https://github.com/parf/ai-agent-bus/blob/9f5e69aabb817429d5d4e8ee60f1bb0b342a4ad1/src/cmd/agent-bus-web/admin.go) | split under *What the record declares* and *What the daemon observed*; an unset bound or TTL says what it inherits instead of showing a guessed number; `Full` says drop-the-oldest or refuse |
+| [diagnostics](https://github.com/parf/ai-agent-bus/blob/9f5e69aabb817429d5d4e8ee60f1bb0b342a4ad1/src/cmd/agent-bus-web/main.go) | node totals are labelled node-wide and every list below them says it is the caller's; the refusals table draws every reason; the backlog and registry tables use the same three words as the listings |
+| [refusals](https://github.com/parf/ai-agent-bus/blob/9f5e69aabb817429d5d4e8ee60f1bb0b342a4ad1/src/cmd/agent-bus-web/views.go), [`api.Reasons`](../../../../src/internal/api/server.go) | a supported reason absent from a status answer is a **measured zero** and is drawn as one; a reason the face does not recognise is still shown |
+| [directory](https://github.com/parf/ai-agent-bus/blob/9f5e69aabb817429d5d4e8ee60f1bb0b342a4ad1/src/cmd/agent-bus-web/users.go) | three identity kinds named rather than guessed, and the two counts on the page say the face computed them over what the caller may see |
 | [smoke](../../../../src/smoke.sh) | two checks matched wording this task replaced |
 
 ## What proves it
 
-[`meanings_test.go`](../../../../src/cmd/agent-bus-web/meanings_test.go). Every test
+[`meanings_test.go`](https://github.com/parf/ai-agent-bus/blob/9f5e69aabb817429d5d4e8ee60f1bb0b342a4ad1/src/cmd/agent-bus-web/meanings_test.go). Every test
 puts the shapes it distinguishes on **one page at once**, because a label is only
 wrong beside the thing it should have said instead.
 

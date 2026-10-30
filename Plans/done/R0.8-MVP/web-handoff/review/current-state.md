@@ -22,9 +22,9 @@ actual user habits or exhaustive permission correctness.
 
 ## Routes and templates
 
-All signed-in HTML templates use the [shared shell](../../../../../src/cmd/agent-bus-web/main.go#L372):
+All signed-in HTML templates use the [shared shell](https://github.com/parf/ai-agent-bus/blob/9f5e69aabb817429d5d4e8ee60f1bb0b342a4ad1/src/cmd/agent-bus-web/main.go#L372):
 document title, signed-in `.You`, sign-out form, navigation and main landmark.
-Navigation destinations are declared once in [navItems](../../../../../src/cmd/agent-bus-web/main.go#L359).
+Navigation destinations are declared once in [navItems](https://github.com/parf/ai-agent-bus/blob/9f5e69aabb817429d5d4e8ee60f1bb0b342a4ad1/src/cmd/agent-bus-web/main.go#L359).
 Sign out already appears on every signed-in page; the earlier audit's missing
 sign-out finding is historical.
 

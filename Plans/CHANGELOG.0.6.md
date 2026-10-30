@@ -65,7 +65,7 @@ naming the node's daemon owner carries `🔱` and the authority rather than
 
 ## 0.6.9 — 2026-09-19
 
-The daemon's own words follow the [glossary](docs/glossary.md#terms): a
+The daemon's own words follow the [glossary](../docs/glossary.md#terms): a
 configuration is private to the **record** it belongs to, an allow list is a
 **record's**, a personal **agent** names **agent** identities, delivery to a
 name is **turned off** rather than a service being disabled, and the start

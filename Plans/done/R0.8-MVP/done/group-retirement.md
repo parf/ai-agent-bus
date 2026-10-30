@@ -20,7 +20,7 @@ it tomorrow would find nothing there.
 |---|---|
 | [`core.SetGroup`](../../../../src/internal/core/manage.go) | the `remove` parameter and the deletion branch are gone, with the two `ErrBusy` guards that existed only for it |
 | [`api` group handler](../../../../src/internal/api/manage.go) | still reads `Remove`, and refuses it — `ErrNoRemoval`, `400`, counted `malformed` |
-| [`agent-bus-web` `POST /groups`](../../../../src/cmd/agent-bus-web/admin.go) | the `delete` action is refused; the forwarding struct no longer carries `Remove` |
+| [`agent-bus-web` `POST /groups`](https://github.com/parf/ai-agent-bus/blob/9f5e69aabb817429d5d4e8ee60f1bb0b342a4ad1/src/cmd/agent-bus-web/admin.go) | the `delete` action is refused; the forwarding struct no longer carries `Remove` |
 
 **The field is read in order to be refused, and that is the point.** Dropping
 it would have been the obvious cut and the wrong one: `encoding/json` ignores

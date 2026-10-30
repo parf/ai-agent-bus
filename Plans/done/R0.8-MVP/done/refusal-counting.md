@@ -25,7 +25,7 @@ to bound what the dashboard could claim while this was open.
 | `Server.read` | a method now, so a body it cannot decode counts like any other refusal. The largest of the four, since every JSON request-body endpoint goes through it — not every writing one: starting and ending a session decode nothing |
 | `reply` | counts through the same call rather than counting and then answering separately |
 | the authentication gate | counted and then answered; now does both in one call, which is where a second counting layer would otherwise show up |
-| [the dashboard](../../../../src/cmd/agent-bus-web/main.go), [the contract](../../../../docs/05-discovery.md#refusals) | both carried a caveat written while this was open; both now state the coverage and both exclusions |
+| [the dashboard](https://github.com/parf/ai-agent-bus/blob/9f5e69aabb817429d5d4e8ee60f1bb0b342a4ad1/src/cmd/agent-bus-web/main.go), [the contract](../../../../docs/05-discovery.md#refusals) | both carried a caveat written while this was open; both now state the coverage and both exclusions |
 
 ## The rule the exclusions follow
 
