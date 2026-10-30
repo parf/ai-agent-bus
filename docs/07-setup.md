@@ -1005,7 +1005,7 @@ browser's trust entry before signing in again.
 
 ### The daemon
 
-On macOS `sudo agent-bus-setup` does a reduced install ([macOS plan](../Plans/R1.0-Release/macos.md#mac2-daemon-with-a-reduced-setup)). Built; its acceptance on a Mac is pending.
+On macOS `sudo agent-bus-setup` installs the daemon under its own account and keeps it running through launchd.
 
 | Part | macOS |
 |---|---|

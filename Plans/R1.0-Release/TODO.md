@@ -648,21 +648,12 @@ Implement the [release artifacts](distribution.md#release-artifacts) and [contai
 
 ## macOS
 
-Plan and acceptance in [macOS](macos.md#tasks); decided in [RD166](DECISIONS.md#recorded-decisions). Placed after the distribution tasks; code waits for the owner's go.
-
-- ☐ MAC.1 Client and runner on macOS without a sandbox: [client and runner](macos.md#mac1-client-and-runner-on-macos); shares `src/cmd/agent-bus-runner/`, `src/internal/cgroup/` and `src/internal/sandbox/` with team 2's M.5 and DR.1
-  - State 2026-10-30, branch `ab-w1b/MAC1`: built and rebased on main; on the Mac (arm64, macOS 26.5.2) the throwaway release passes I2 install, I3 version and build stamp, I4 already current, I5 tampered archive refused with nothing written, I6 full node refused, and R1 `--sandbox=on` is refused with exit 1 and no output from the script. Left: R2 and R3 (a script agent's account) need the owner's bus address, fingerprint and token ([Mac run list](mac-run-list.md#d-client-install-and-runner-on-macos-mac1)); the Mac holds 53M under `~/agent-bus-dev`, nothing of this run
-- ☐ MAC.2 Daemon with a reduced setup: [daemon](macos.md#mac2-daemon-with-a-reduced-setup); after MAC.1
-- ☐ MAC.3 Sandbox: [sandbox](macos.md#mac3-sandbox); deferred, built only if the owner asks
-
-## macOS
-
 Plan and acceptance in [macOS](macos.md#tasks); decided in [RD166](DECISIONS.md#recorded-decisions). The owner approved starting the cheaper path on 2026-10-30 (Q221).
 
 - ☐ MAC.1 Client and runner on macOS without a sandbox: [client and runner](macos.md#mac1-client-and-runner-on-macos); shares `src/cmd/agent-bus-runner/`, `src/internal/cgroup/` and `src/internal/sandbox/` with team 2's M.5 and DR.1
-- ⏳ MAC.2 Daemon with a reduced setup: [daemon](macos.md#mac2-daemon-with-a-reduced-setup)
-  - Built: [setup § macOS](../../docs/07-setup.md#the-daemon); `agent-bus-setup` cross-builds for darwin-arm64, `agent-busd` once MAC.1's `proctitle` change is in; seven setup mutants fail on this node (job as root or without its account, storage 0755, socket directory closed, database made as root, the account given a shell, Linux options accepted)
-  - Pending: the full darwin-arm64 archive from `package.sh` (with MAC.1), then the Mac acceptance and its three mutants ([Mac run list](mac-run-list.md#c-darwin-arm64-daemon))
+  - State 2026-10-30, branch `ab-w1b/MAC1`: built and rebased on main; on the Mac (arm64, macOS 26.5.2) the throwaway release passes I2 install, I3 version and build stamp, I4 already current, I5 tampered archive refused with nothing written, I6 full node refused, and R1 `--sandbox=on` is refused with exit 1 and no output from the script. Left: R2 and R3 (a script agent's account) need the owner's bus address, fingerprint and token ([Mac run list](mac-run-list.md#d-client-install-and-runner-on-macos-mac1)); the Mac holds 53M under `~/agent-bus-dev`, nothing of this run
+- ⏳ MAC.2 Daemon with a reduced setup: code and native daemon/setup/admin acceptance verified ([result](done/mac2.md#checks-and-results)); [current setup](../../docs/07-setup.md#the-daemon).
+  - Remaining: full darwin archive validation with MAC.1/distribution; the owner handles the test role's SSH deletion refusal ([cleanup](done/mac2.md#owner-cleanup-still-open)). No more worker sudo on the Mac.
 - ☐ MAC.3 Sandbox: [sandbox](macos.md#mac3-sandbox); deferred, built only if the owner asks
 
 ## Web scale follow-up from MVP

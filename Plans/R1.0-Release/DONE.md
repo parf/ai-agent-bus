@@ -200,3 +200,9 @@ Owner, 2026-10-30: every doc leads with why, then what you get, then real exampl
 
 - Result: normal and slow drivers refuse before starting work unless their original caller holds `smoke-gate@parf.us`'s `slow` lock; the gate's `parf` identity remains accepted. Hand-run normal/slow shards require the lock; only marked children inherit a checked driver run, and their marker is consumed.
 - Evidence: the actual driver's mode and lock checks run against a fake CLI, including missing and mismatched holders and failed authority reads; guard removal, checking after session clearing, exempting a hand-run shard and dropping the driver launch stamp each fail assertions. Restored `go_checks` fast passes in 4.628 s; see [J47](../issues/2026-10/2026-10-30.md#gate).
+
+## MAC.2 daemon and reduced setup
+
+- Native daemon/setup/admin build, launchd identity, private storage, pinned TLS request/reply, registry restart and orphan checks passed on the owner's Apple Silicon Mac. [Evidence and every sudo invocation](done/mac2.md#checks-and-results).
+- The fresh-parent permission HIGH is fixed and assertion-proven; first-user administration explicitly stays in the Darwin role's home and socket. Node setup mutants fail on assertions.
+- The release archive check remains with MAC.1; deleting the test role over SSH was refused and is an owner item. Runtime files and build caches were removed, the clone is clean on main, and the Mac was handed back.

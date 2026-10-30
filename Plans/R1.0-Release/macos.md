@@ -53,6 +53,8 @@ Team 2's runner work ([M.5](TODO.md#runner-waves), [DR.1](TODO.md#runner-waves))
 
 ### MAC.2 daemon with a reduced setup
 
+Native code and focused setup acceptance are [verified](done/mac2.md#checks-and-results). Full archive validation remains with MAC.1/distribution; the test role’s deletion refusal is [with the owner](done/mac2.md#owner-cleanup-still-open).
+
 - Reduced setup: one dedicated account, a launchd job for the daemon, the storage directory private to that account, TLS as on Linux; no per-role accounts, no cgroup limits, no web unit until asked
 - Acceptance, on the Mac: install the darwin archive, the daemon runs under launchd as the dedicated account and not root, a registered agent completes a request and a reply, a restart of the job keeps the registry, and the installing user cannot read the storage directory
 - Mutants: run the job as root and the account check fails; make the storage directory world-readable and the privacy check fails; lose the registry across a restart and the persistence check fails
