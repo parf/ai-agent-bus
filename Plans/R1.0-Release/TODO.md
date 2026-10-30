@@ -266,8 +266,8 @@ configuration written under `runner/` on the host, then a `reload` call.
   - Builds: install, configure and remove as calls to the runner ([reaching the runner](runner-implementation.md#reaching-the-runner)); configuration write-only
   - Code sources settled by owner, 2026-10-30 15:25, A+B: a bundled agent name, or a git URL pinned to a full commit id; a branch, tag or abbreviated revision is refused. The host needs git and a route; a private repository uses a host key, never one sent in the call. Options C and D come later. The calls' bodies remain the implementation contract ([reaching the runner](runner-implementation.md#reaching-the-runner)).
   - Acceptance: an agent is installed and served with no shell on the host; reading a configuration back is refused; a caller outside the runner's ACL is refused
-  - Mutant: Not recorded in the source.
-  - In progress on `ab-w1c/M8`: the settled replacement/removal/layout/write-root contract is recorded. Source selection accepts a bundled name or an HTTPS/SSH repository with a full 40/64-hex commit; names cannot escape package roots, and URL credentials are refused without echoing them. Focused selectors and three owning mutants pass; dispatch, Git fetching, checked whole-tree publication, removal and end-to-end acceptance remain unbuilt ([partial evidence](DONE.md#m8-source-selection)).
+  - Mutants: shortened pins, URL credentials, wrong fetched HEAD, implicit replacement, old-file overlay, token loss, subdirectory layout, changing a read-only root, escaping symlinks, bundled-name removal and missing management checks each fail an owning assertion.
+  - Built on `ab-w1c/M8`, awaiting review and gate: management-gated install/remove, exact pinned Git fetch with isolated credentials, checked root packages, whole-tree replacement, bundled-name removal refusal and preserved work/tokens/records. Focused, real-bus and real-Git fixtures plus assertion-red mutants are in [the evidence](DONE.md#m8-deploy-over-the-bus).
 
 ## Bundled agents
 

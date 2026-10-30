@@ -88,6 +88,8 @@ A stale or emptied shared package directory still shadows its bundled copy as `r
 - Each status row's `agent_dir` names the selected package directory.
 - A bundled agent without an explicit enable is `available`, with no reader or process. Explicitly disabling it shows `disabled`.
 
+Deployment calls use only a host-provisioned writable shared directory; read-only roots are refused ([deploying an agent](operations.md#deploying-an-agent)). The host provisions private Git access under `runner/.deploy/`, outside the file-call namespace.
+
 Commands, default env values and read-only author files come from the selected package. Host settings and overrides keep their paths under `runner/<agent>[/<instance>]/`.
 
 Only git-node bundled agents also read these checkout support roots, mounted read-only in their sandbox: `src/agents/shared`, `src/clients/python`, `src/clients/typescript` and `src/internal/version`.

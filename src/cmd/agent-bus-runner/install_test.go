@@ -156,3 +156,99 @@ func TestDeployCallsRequireDirectManagementAndNeverReturnSecrets(t *testing.T) {
 		}
 	}
 }
+
+func TestDeployFreshBundleAndFailedChecksKeepHostState(t *testing.T) {
+	r, _, script := configurationFixture(t, "", "printf old")
+	r.bundled = t.TempDir()
+	directoryAgent(t, r.bundled, "fixture", "fresh")
+	if err := os.RemoveAll(filepath.Dir(script)); err != nil {
+		t.Fatal(err)
+	}
+	r.reload()
+	if err := r.installPackage(context.Background(), "install fixture"); err != nil {
+		t.Fatal(err)
+	}
+	if got := directoryRow(t, r, "fixture"); !got.Enabled || got.State != "idle" || got.AgentDir != filepath.Join(r.agents, "fixture") {
+		t.Fatalf("fresh bundle not deployed and served: %+v", got)
+	}
+	before, err := packageDigest(filepath.Join(r.agents, "fixture"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// An invalid inventory must be refused without changing the live tree.
+	inventory := filepath.Join(r.host, "agents.json")
+	saved := filepath.Join(r.host, "saved-inventory")
+	if err := os.Rename(inventory, saved); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(saved, inventory); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(r.bundled, "fixture", "env.dist"), "FLAVOUR=changed\n")
+	// Reading the inventory itself refuses links before publication. An invalid
+	// existing host override likewise must never replace a valid live package.
+	if err := r.installPackage(context.Background(), "install --replace fixture"); err == nil {
+		t.Fatal("install accepted linked inventory")
+	}
+	if err := os.Remove(inventory); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(saved, inventory); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(r.host, "fixture", "agent.json"), `{"processes":0}`)
+	if err := r.installPackage(context.Background(), "install --replace fixture"); err == nil || !strings.Contains(err.Error(), "staged package refused") {
+		t.Fatalf("invalid host override accepted: %v", err)
+	}
+	after, err := packageDigest(filepath.Join(r.agents, "fixture"))
+	if err != nil || before != after {
+		t.Fatalf("failed install changed live package: %s %s %v", before, after, err)
+	}
+}
+
+func TestDeployOutsideTheRunnerACLIsRefusedBeforeDelivery(t *testing.T) {
+	r, b, _ := configurationFixture(t, "", "printf old")
+	if _, err := b.Register(protocol.Record{Name: "#outsider@h", Kind: protocol.KindAgent, Owner: "owner@h"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, body := range []string{"install --replace fixture", "remove fixture"} {
+		if _, err := b.Send(protocol.Envelope{From: "#outsider@h", To: r.name, Body: body}); err == nil {
+			t.Fatalf("outside-ACL deploy admitted: %s", body)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(r.agents, "fixture", "agent.json")); err != nil {
+		t.Fatal("outside-ACL call changed code")
+	}
+}
+
+func TestDeployInventoryFailureRestoresThePreviousWholeTree(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("permission fixture requires an unprivileged account")
+	}
+	r, _, _ := configurationFixture(t, "", "printf old")
+	r.bundled = t.TempDir()
+	directoryAgent(t, r.bundled, "fixture", "changed")
+	before, err := packageDigest(filepath.Join(r.agents, "fixture"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	inventory := filepath.Join(r.host, "agents.json")
+	previous, err := os.ReadFile(inventory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(r.host, 0555); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chmod(r.host, 0700)
+	if err := r.installPackage(context.Background(), "install --replace fixture"); err == nil {
+		t.Fatal("inventory write failure was hidden")
+	}
+	after, err := packageDigest(filepath.Join(r.agents, "fixture"))
+	if err != nil || before != after {
+		t.Fatalf("inventory failure did not restore old tree: %s %s %v", before, after, err)
+	}
+	if got, err := os.ReadFile(inventory); err != nil || string(got) != string(previous) {
+		t.Fatalf("failed inventory write changed settings: %s %v", got, err)
+	}
+}

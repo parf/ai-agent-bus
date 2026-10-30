@@ -45,7 +45,7 @@ func (r *runner) fetchDeploy(ctx context.Context, in installRequest, dest string
 	defer os.RemoveAll(home)
 	env := deployGitEnv(home, filepath.Join(r.host, ".deploy"))
 	run := func(args ...string) (string, error) {
-		cmd := exec.CommandContext(ctx, "git", append([]string{"-c", "core.hooksPath=/dev/null", "-c", "credential.helper=", "-c", "init.templateDir=", "-C", dest}, args...)...)
+		cmd := exec.CommandContext(ctx, "git", append([]string{"-c", "core.hooksPath=/dev/null", "-c", "credential.helper=", "-c", "http.followRedirects=false", "-c", "init.templateDir=", "-C", dest}, args...)...)
 		cmd.Env = env
 		// Stderr can contain remote URLs and host credentials. It is not returned,
 		// logged, or copied to the bus. Only rev-parse produces captured output.

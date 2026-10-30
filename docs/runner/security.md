@@ -160,12 +160,12 @@ agent-bus manage '#hello@host' --add-allow alice@host
 
 `#runner/<you>@<realm>` is yours, under the ACL you give it.
 
-- **It answers** the calls of [operations](operations.md#controlling-one-agent): status, reload, the controls, and reading and writing the host's files. Anything else is refused by name.
+- **It answers** the calls of [operations](operations.md#controlling-one-agent): status, reload, the controls, deployment, and reading and writing the host's files. Anything else is refused by name.
 - **`status` is for whoever that ACL admits.**
-- **Reload, controls and the host's files are only for the runner's Owner and Maintainers,** as the daemon works the sender's roles out toward the runner itself ([roles](../03-records-agent.md#roles)).
+- **Reload, controls, deployment and the host's files are only for the runner's Owner and Maintainers,** as the daemon works the sender's roles out toward the runner itself ([roles](../03-records-agent.md#roles)).
 - **A Maintainer can replace host env files** but reads only their digest and variable names through the runner. Grant Maintainer only to someone trusted to change how its agents run.
 - **The calls never name** the kept tokens or an agent's work.
-- **Installing an agent's code** is a host file change, never a call.
+- **Deployment calls** select bundled code or a fully pinned repository and write only a host-provisioned writable package directory ([deploying an agent](operations.md#deploying-an-agent)). They grant no host privilege or bus identity.
 
 ## Secrets
 

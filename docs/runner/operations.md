@@ -23,7 +23,7 @@
 - ✅ **Safe reloads:** `reload` rereads the files; an unchanged agent keeps running.
 - ⚠️ **A new agent refuses outsiders** until you widen its ACL, however healthy `status` looks.
 - ⚠️ **Secret values never come back:** reading an env file returns its variable names and digest only.
-- 🚫 **No code install over the bus:** you put an agent's code on the host, then call `reload`.
+- ✅ **Deploy over the bus:** install a bundled package or a repository pinned to a full commit; remove its code and settings while keeping data and names.
 
 ## Try this first
 
@@ -70,7 +70,7 @@ The output is from the development node on 2026-10-30; names differ on yours.
 | what it and its agents said | `journalctl -u agent-bus-runner@<you>` |
 
 - **Your runner is your agent,** `#runner/<you>@<realm>`.
-- **It answers** `status`, `reload`, the [controls](#controlling-one-agent) and the [file calls](#the-hosts-files-over-the-bus).
+- **It answers** `status`, `reload`, the [controls](#controlling-one-agent) the [file calls](#the-hosts-files-over-the-bus), and [deploy calls](#deploying-an-agent).
 - **`status` is for anyone its ACL admits.** Everything else is for its Owner and Maintainers only, since it can replace your host env files ([who may manage the runner](security.md#who-may-manage-the-runner)).
 - **`--status`** gives the one-line verdict; plain `status` gives the full JSON the runner page and scripts use.
 
@@ -110,6 +110,44 @@ The output is from the development node on 2026-10-30; names differ on yours.
 
 - **Each control rereads the host's files** as `reload` does, so its answer is what is on disk.
 - **Only `reload` itself** forgets what `stop` calls took down.
+
+## Deploying an agent
+
+- **Who:** the runner's Owner and Maintainers, through its ordinary ACL; forwarded roles do not grant deployment access.
+- **Where:** a host-provisioned writable `--agents` directory. A read-only directory is refused; the runner creates no privileged deployment root.
+- **Source:** a bundled name, or an HTTPS/SSH repository and a full commit id. The host needs Git and a route to the repository.
+
+| Call | Result |
+|---|---|
+| `install <agent>` | Builds or copies the bundled package, checks it and serves it |
+| `install <agent> git <url> <full-commit>` | Fetches the exact 40- or 64-hex commit, verifies its identity, checks and serves it |
+| `install --replace <agent> …` | Replaces an existing writable package as a whole tree; stale files disappear and host settings stay |
+| `remove <agent>` | Removes the writable package, its inventory entries, env and overrides; answers what it kept: work data, tokens and bus records |
+
+- **Existing packages need `--replace`.** A failed fetch or package check leaves the installed tree and inventory unchanged.
+- **Bundled names cannot be removed,** including a writable package shadowing a bundle: disable the agent instead.
+- **Repository rule:** a self-contained package with a regular `agent.json` at its root. Subdirectory layouts, special files and symbolic links escaping the package are refused.
+- **Pins only:** branches, tags, shortened commits and floating `HEAD` are refused. URLs carry no username, password, query or fragment; no credential or source bytes belong in the call.
+- **Configuration stays write-only** through the [file calls](#the-hosts-files-over-the-bus); installing code does not grant another identity or an ACL.
+
+<details>
+<summary>Host-provisioned private Git access</summary>
+
+| Host file | Use |
+|---|---|
+| `runner/.deploy/id` | SSH private key |
+| `runner/.deploy/known_hosts` | Trusted SSH host keys |
+| `runner/.deploy/ssh_config` | Optional host configuration, including the SSH user for a host alias |
+
+- These private files are outside the runner's read/write namespace.
+- A deployment call never supplies or returns them.
+
+- Git uses an isolated home and configuration; no ambient credential helper or SSH agent, and no interactive prompt.
+- Hooks are disabled; transports are HTTPS/SSH only, with strict SSH host-key checking.
+- A failed fetch reports the operation without returning Git's remote output.
+- HTTPS access uses no call-supplied credentials.
+
+</details>
 
 ## The host's files over the bus
 
