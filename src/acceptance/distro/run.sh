@@ -71,7 +71,9 @@ next=$(echo "$version" | awk -F. '{print $1 "." $2 "." $3 + 1}')
 if [ -z "$next_dist" ]; then
   next_dist=$run/next-dist
   mkdir "$run/next"
-  (cd "$src/.." && git ls-files -co --exclude-standard src LICENSE.md NOTICE.md THIRD-PARTY-NOTICES.md | tar -cf - -T -) | tar -xf - -C "$run/next"
+  # A worktree's node_modules links are not ignored as directories are: left out, linked below.
+  (cd "$src/.." && git ls-files -co --exclude-standard src LICENSE.md NOTICE.md THIRD-PARTY-NOTICES.md |
+    grep -v '/node_modules$' | tar -cf - -T -) | tar -xf - -C "$run/next"
   for m in mcp web clients/typescript; do ln -s "$(realpath "$src/$m/node_modules")" "$run/next/src/$m/node_modules"; done
   echo "$next" >"$run/next/src/internal/version/VERSION"
   "$run/next/src/package.sh" "$next_dist" >"$run/package-next.log" 2>&1 || { cat "$run/package-next.log" >&2; exit 1; }

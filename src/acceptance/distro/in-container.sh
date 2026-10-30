@@ -61,7 +61,7 @@ refused() { # variant, words install.sh must say
 }
 # The archive changed, its signed hash did not. Without bubblewrap install.sh
 # warns, and installs nothing here either way.
-bwrap=$(command -v bwrap)
+bwrap=$(command -v bwrap) || fail "the image has no bubblewrap"
 mv "$bwrap" /root/bwrap.aside
 refused tampered "does not match its signed hash"
 mv /root/bwrap.aside "$bwrap"
@@ -80,7 +80,7 @@ for _ in $(seq 1 100); do curl -fsS -o /dev/null http://127.0.0.1:6780/healthz 2
 curl -fsS http://127.0.0.1:6780/healthz >/evidence/web-healthz.out || fail "the compiled web face does not answer"
 pass "curl | sh installed $version with sudo: daemon and compiled web face running"
 
-you=$(as_alice agent-bus status | python3 -c 'import json,sys; print(json.load(sys.stdin)["you"])')
+you=$(as_alice agent-bus status | python3 -c 'import json,sys; print(json.load(sys.stdin)["you"])') || fail "alice cannot ask the bus who she is"
 [ "$you" = alice ] || fail "alice is $you on the bus"
 # The node's realm is its host name, as check-deploy.sh falls back to.
 realm=$(hostname -f)
@@ -146,7 +146,7 @@ release_of() { cat "/usr/local/lib/agent-bus/$(readlink /usr/local/lib/agent-bus
 as_alice sh -c "curl -fsSL https://releases.test/next/install.sh | sh" >/evidence/update.log 2>&1 || { tail -30 /evidence/update.log >&2; fail "install.sh did not update to $next"; }
 /usr/local/bin/agent-busd --version | grep -qx "$next" || fail "agent-busd is not $next after the update"
 [ "$(release_of)" = "$next" ] || fail "current is not $next after the update"
-kept=$(grep -lx "$version" /usr/local/lib/agent-bus/releases/*/internal/version/VERSION 2>/dev/null | wc -l)
+kept=$({ grep -lx "$version" /usr/local/lib/agent-bus/releases/*/internal/version/VERSION 2>/dev/null || true; } | wc -l)
 [ "$kept" = 1 ] || fail "the update kept $kept copies of $version for rollback, not one"
 deploy_checked "after the update"
 pass "the same command updated the node to $next: registrations, tokens and $version for rollback kept"
