@@ -61,9 +61,10 @@ no test membership; the separate trim must bring the normal gate below 60 s.
 
 `smoke.sh` needs `bun` for the MCP and web shards. It builds once and runs its shards in
 parallel, each with a temporary socket, token and daemon of its own, so it never
-touches a daemon you are running. `PORT=` moves its loopback base; a run owns
-fifteen ports per shard from there, so two runs at once need bases a few
-hundred apart.
+touches a daemon you are running. A run owns fifteen loopback ports per shard
+from its base. Without `PORT` it claims a free block of 1000 from 10000 and
+holds its lock for the run (`smoke-port.sh`), so runs started at once never
+meet; `PORT=` pins the base, and two pinned runs need bases a thousand apart.
 
 A check here is not believed until it has been seen to fail —
 [working rules § verification](../CLAUDE.md#verification).
