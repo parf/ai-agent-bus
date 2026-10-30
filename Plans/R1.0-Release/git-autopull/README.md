@@ -171,9 +171,16 @@ times out, or writes anything to stderr, even with exit 0 (owner: "check STDERR
 from scripts — the same fail"). A failed script adds one record to the log: `action: script`, `result: fail`, `error.code: script`,
 its [`script`](#result-record) outcome, and the attempt's `id`, `from` and `to`
 (owner: "like success post-deploy script failed"). A failed success script also
-runs the fail script. Exit 0 adds nothing. ⚠️ A script is code run on the server, so
-only the record's Owner may set it, the path is absolute, and a file writable by
-anyone but root or `#git`'s user is refused.
+runs the fail script. Exit 0 adds nothing.
+
+⚠️ A script is code run on the server. Configuration is written by the record's
+Owner and Maintainers alike and records no setter, so it only **chooses** a
+script; the server decides which exist. Each key holds a bare file name inside
+`autopull.d/` in `#git`'s state directory, put there by whoever administers the
+host. A path, `..`, a symlink out of that directory, or a file or directory
+writable by anyone but root or `#git`'s user is refused at configuration time
+and again before each run. A script there may call the repository's own test
+script, as realty's does.
 
 ## Log size
 

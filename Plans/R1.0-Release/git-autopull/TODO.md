@@ -21,7 +21,7 @@ xAB's landed core; the owner's-flow end-to-end check AB, after B.26; review
 | 3 | `ff` and `mirror` runs under the repository's lock; `mirror` counts what it discards |
 | 4 | Triggers: `autopull-cmd` events, one check per repository at start, `autopull <repo> now`, `deploy <repo> <branch> [<rev>]`; `deploy <repo>` keeps working |
 | 5 | Publish one [result record](README.md#result-record) per attempt to the configured log channel, topic `<repo>@<host>`, tag = result; no log name, no publish |
-| 6 | `autopull-success-script` / `autopull-fail-script` per repository: Owner-only, absolute path, writable only by root or the agent user, record on stdin after it is published, time limit; a non-zero exit, time-out or any stderr publishes one `action: script` fail record |
+| 6 | `autopull-success-script` / `autopull-fail-script` per repository: a bare name inside `autopull.d/` in the agent's state directory, file and directory writable only by root or the agent user, checked at configuration and before each run, record on stdin after it is published, time limit; a non-zero exit, time-out or any stderr publishes one `action: script` fail record |
 | 7 | Remove the install-time `--autopull` timer; reinstall removes an existing timer unit |
 | 8 | Update [the git guide](../../../docs/agents/git.md#autopull) and decisions; bump, changelog |
 
@@ -42,7 +42,7 @@ Acceptance, each failing on the old code or by a named mutant:
 - A success script exiting 1 adds exactly one `action: script` record with `result: fail`, `error.code: script`, the attempt's `id` and `to`, and the fail script runs once; a fail script exiting 1 adds one more; a script past its time limit is killed and records `exit: null`.
 - A success script that exits 0 but writes one stderr line adds one `action: script` fail record whose `script.stderr` is that line, and the fail script runs; one writing only to stdout adds nothing.
 - With no log channel configured, an attempt and a failed script publish nothing and still run.
-- A script path that is relative, group-writable or set by a non-Owner is refused at configuration time and nothing runs.
+- A script key holding a path, `..`, a name that is a symlink out of `autopull.d/`, or a group-writable file is refused at configuration time; a file made group-writable after configuration is refused before the run, and nothing runs.
 - The owner's flow end to end on two scratch checkouts: one `push` event from a pipeline name gives each `mirror` copy the commit, each runs its success script once, and `autopull-log` holds one `ok` record per host; with a dirty `ff` third copy, that copy is unchanged and its fail script runs.
 - After reinstall, no `--autopull` timer unit exists; `--autopull` is refused with a pointer to the new Configuration.
 
