@@ -611,7 +611,7 @@ asks for the API shape; then runner, daemon and web parts are split.
 
 ## RT33 May-send for another name
 
-- ✅ RT33 The daemon, clients and cron, at, IMAP, Slack, Telegram and logwatch paths satisfy the author-admission contract ([RD141](DECISIONS.md#recorded-decisions)); B.29 supplies the shared send paths. Acceptance maps to existing checks; unavailable-authority gaps are covered by three adapter checks and six assertion-red mutants. No agent code changed; [result and file:test mapping](done/rt33-may-send.md#acceptance-mapping).
+- ✅ RT33 The daemon, clients and cron, at, IMAP, Slack, Telegram and logwatch paths satisfy the author-admission contract ([RD141](DECISIONS.md#recorded-decisions)); B.29 supplies the shared send paths. Acceptance maps to existing checks; unavailable-authority gaps are covered by three adapter checks, two handler checks and eight assertion-red mutants. No agent code changed; [result and file:test mapping](done/rt33-may-send.md#acceptance-mapping).
 
 ## Distribution acceptance
 
@@ -630,6 +630,7 @@ Implement the [release artifacts](distribution.md#release-artifacts) and [contai
   - **Release verifier without signing:** remove `src/release-verify.sh --signers` and its `ssh-keygen -Y` signature-verification branch; replace `src/release-verify.real.test.sh`’s throwaway-key signing cases with unsigned checksum/manifest cases. Acceptance: `--signers` is rejected as unsupported; a valid unsigned release with `SHA256SUMS` and manifests verifies without invoking `ssh-keygen`; an altered archive, wrong version, unstamped binary, missing license or incomplete manifest fails its named check. Mutant: bypass the checksum comparison and the altered-archive check fails on an assertion. Remove obsolete signing assertions from the owning Go/workflow tests too; enrolment key proofs stay unchanged.
   - Acceptance: install the local `npm pack` tarballs in a clean supported container with npm but no checkout, Go or bun; resolve dependencies only from those tarballs (a private loopback registry is allowed). Start the installed bus and an installed agent, complete a request/reply and an MCP tool call. Install the client-only package as a second account and prove it joins without a daemon or writes outside its prefix. Compare installed executables and MCP assets to the release manifest.
   - Mutants: omit a required executable, then an MCP runtime asset, repack and reinstall; each must fail the corresponding runtime assertion. A corrupt archive checksum and an incomplete manifest are refused before unchecked files are installed. Keep update/configuration/data and rollback checks.
+  - First real publication: both `ai-agent-bus` and `ai-agent-bus-client` are reserved under `parf73` as README-only 0.0.1 placeholders (2026-10-30); publish a version above 0.0.1. The shared `VERSION` already exceeds it; the owner’s go is still required.
   - No npm publish or npm login by any worker. Publication waits for the owner’s explicit go; no live publication is needed for acceptance.
 
 - ✅ P.2 Ready-to-use container image: [result](DONE.md#done--r1) and [container guide](../../src/container/README.md#container-image); npm does not replace this separate artifact.

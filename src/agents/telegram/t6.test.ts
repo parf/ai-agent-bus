@@ -222,3 +222,21 @@ t("removed editing cannot retarget a subscription", async () => {
  const list=JSON.parse(await t6call('{"method":"sub.list"}',ownerToken));
  expect(list.subs.find((s:any)=>s.id===created.id).target).toBe(target);
 });
+
+
+t("RT33 a caller refused by the target cannot subscribe through the Telegram handler", async () => {
+  const blocked = `#rt33-telegram-target-${process.pid}@t`, caller = `#plain-t6-${process.pid}@t`;
+  await fx.call(ownerToken, "POST", "/register", { name: blocked, kind: "agent", allow: [t6name] });
+  const rows = async () => ((await fx.call(ownerToken, "GET", `/kv/list?record=${encodeURIComponent(t6name)}`)).json ?? [])
+    .filter((row: { name: string }) => row.name.startsWith("sub."));
+  const before = await rows();
+  expect(await t6call(`sub add #dev ${blocked}`, plainToken)).toContain("admission_refused");
+  expect(await rows()).toEqual(before);
+  expect(await t6call("sub list", plainToken)).not.toContain(blocked);
+  await fx.call(ownerToken, "POST", "/manage", { name: blocked, allow: [t6name, caller] });
+  const added = JSON.parse(await t6call(`sub add #dev ${blocked}`, plainToken));
+  expect(added.id).toMatch(/^[0-9a-f]{12}$/);
+  const stored = await fx.call(ownerToken, "GET", `/kv?record=${encodeURIComponent(t6name)}&kind=json&name=sub.${added.id}`);
+  expect(stored.value.created_by).toBe(caller);
+  expect(await t6call(`sub delete ${added.id}`, plainToken)).toContain("deleted");
+});

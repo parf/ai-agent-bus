@@ -121,3 +121,18 @@ t("help exposes add/list/delete and explains creator visibility", async () => {
   expect(help).toContain("sub add"); expect(help).toContain("sub delete");
   expect(help).toContain("Owner and Maintainers see all");
 });
+
+
+t("RT33 a caller refused by the target cannot subscribe through the Slack handler", async () => {
+  const blocked = `#rt33-slack-target-${process.pid}@t`, caller = `#plain-${process.pid}@t`;
+  await fx.call(ownerToken, "POST", "/register", { name: blocked, kind: "agent", allow: [name] });
+  const count = await subCount();
+  expect(await call(`sub add C1 ${blocked}`, plainToken)).toContain("admission_refused");
+  expect(await subCount()).toBe(count);
+  expect(await call("sub list", plainToken)).not.toContain(blocked);
+  await fx.call(ownerToken, "POST", "/manage", { name: blocked, allow: [name, caller] });
+  const added = JSON.parse(await call(`sub add C1 ${blocked}`, plainToken));
+  expect(added.id).toMatch(/^[0-9a-f]{12}$/);
+  expect((await stored(added.id)).value.created_by).toBe(caller);
+  expect(await call(`sub delete ${added.id}`, plainToken)).toBe("deleted");
+});
