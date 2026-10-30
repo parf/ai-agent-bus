@@ -23,6 +23,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -689,17 +690,31 @@ func (ag agent) secretEnv(ctx context.Context) ([]string, error) {
 
 // redacting hides each secret value from what a script writes to the log. A
 // write is held to its line end so a value split across two writes is still
-// found; values under four bytes would mangle ordinary text and are left.
+// found; values under four bytes would mangle ordinary text and are left. The
+// log is masked line by line, so a value of several lines is masked by each of
+// its lines too, and the longest is replaced first so a value holding another
+// is not left half showing.
 func redacting(out io.Writer, secret []string) io.Writer {
 	w := &redactWriter{out: out}
+	seen := map[string]bool{}
+	add := func(v string) {
+		if len(v) >= 4 && !seen[v] {
+			seen[v] = true
+			w.values = append(w.values, v)
+		}
+	}
 	for _, kv := range secret {
-		if _, value, ok := strings.Cut(kv, "="); ok && len(value) >= 4 {
-			w.values = append(w.values, value)
+		if _, value, ok := strings.Cut(kv, "="); ok {
+			add(value)
+			for _, piece := range strings.Split(strings.ReplaceAll(value, "\r\n", "\n"), "\n") {
+				add(piece)
+			}
 		}
 	}
 	if len(w.values) == 0 {
 		return out
 	}
+	sort.SliceStable(w.values, func(i, j int) bool { return len(w.values[i]) > len(w.values[j]) })
 	return w
 }
 

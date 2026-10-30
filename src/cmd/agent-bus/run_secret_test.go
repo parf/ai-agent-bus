@@ -153,3 +153,23 @@ func TestRunSandboxedJobCarriesTheSecretWithoutItsValueInArgv(t *testing.T) {
 		t.Fatalf("sandbox command line: %s", line)
 	}
 }
+
+// The log is masked line by line, so a value of several lines (a key) is
+// masked by each line, and a value holding a shorter secret is masked whole.
+func TestRunScriptSecretOfSeveralLinesOrHoldingAnotherNeverReachesTheLog(t *testing.T) {
+	bus := newSecretBus(t, "#sec@h")
+	bus.secret.Store("SHORT=abcd\nLONG=abcdEFGHsecret\nKEY=\"-----BEGIN KEY-----\\nMIIEsecretbody\\n-----END KEY-----\"\n")
+	dir := t.TempDir()
+	log := &bytes.Buffer{}
+	ag := agent{Name: "#sec@h", Algo: algoArgs, box: sandbox.Off{}, work: dir, say: log,
+		Script: `echo "long $LONG" >&2; printf 'key %s\n' "$KEY" >&2`}
+	handle(ag, protocol.Envelope{ID: "m1", From: "alice@h", To: ag.Name})
+	for _, leak := range []string{"EFGHsecret", "MIIEsecretbody", "BEGIN KEY"} {
+		if strings.Contains(log.String(), leak) {
+			t.Fatalf("the log shows %q: %q", leak, log)
+		}
+	}
+	if !strings.Contains(log.String(), "long ***") {
+		t.Fatalf("the longer value was not masked whole: %q", log)
+	}
+}
