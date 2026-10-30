@@ -98,7 +98,8 @@ Containers log to capped files in the run directory, never the host journal.
 | `install.sh` creates `/usr/local/lib/agent-bus` before verifying | the refused release changed the host |
 | `agent-bus-ts` in the archive replaced by a stub | the compiled web face does not answer |
 | `agent-bus-ts` dropped from the full archive, manifest remade (2026-10-30) | setup refuses it: `package is incomplete: agent-bus-ts is not in MANIFEST.sha256`; the good release did not install |
-| `agent-bus-ts` dropped from the client archive only, manifest remade | the MCP tool call failed: no `agent-bus-mcp` |
+| `agent-bus-ts` dropped from the client archive only, manifest remade | refused before anything is written: `is incomplete: agent-bus-ts is missing`; before that fix, the MCP tool call failed |
+| the client completeness loop emptied | the incomplete client archive installed (`TestInstallShRefusesAnIncompleteClientArchive`, three cases) |
 | setup's upgrade appends to `runner.env` (next release from a copy) | the update changed the node's configuration files |
 | the next daemon reads every Configuration as `{}` | the update changed `#kept`'s Configuration |
 | `install.sh` without its bubblewrap warning | install.sh did not warn that bubblewrap is missing |
@@ -117,7 +118,7 @@ Findings from the first runs, 2026-10-30:
 | the system runner's default sandbox needs `bubblewrap` | every distribution: debug is refused until it is installed; the install Needs now list it and install.sh warns |
 | RHEL's sudo `secure_path` omits `/usr/local/bin` | AlmaLinux: a bare `sudo agent-bus-setup` is not found; the docs and setup's hints now give the path |
 | debug serves itself, so its Owner registers it and hands the runner its token; [debug § installing it](../../docs/agents/debug.md#installing-it) said a reload grants it | any node following that page; corrected |
-| `install.sh --client` installs a client archive without `agent-bus-ts`: unlike setup, it has no completeness check (2026-10-30) | a mispackaged client release installs and only its MCP face and launchers fail; the signed hash still binds what the owner signed |
+| `install.sh --client` installed a client archive without `agent-bus-ts`: unlike setup, it had no completeness check (2026-10-30) | fixed: the client edition requires every command it links, in the release and its manifest, before writing anything (`TestInstallShRefusesAnIncompleteClientArchive`) |
 | `GOARCH=arm64 src/package.sh` fails on x86_64 (`gspt` needs cgo) | aarch64 archives come only from a native runner; the Mac run list builds one |
 
 </details>
