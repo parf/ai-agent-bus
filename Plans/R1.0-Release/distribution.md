@@ -36,7 +36,7 @@ wrapper over the same binaries ([RD162](DECISIONS.md#recorded-decisions)).
 | `--client` | the client-only edition without root, into `~/.local`: CLI, runner, MCP face and launchers, to join an existing bus |
 | Update | the same command again, keeping configuration and data; the previous version kept for rollback |
 | Runtimes | Go programs as they are; web face, MCP face and launchers built with `bun build --compile` into self-contained binaries, so no bun or Node is needed; `python3` from the host for bundled agents |
-| npm | `npm i -g agent-bus` and `npx agent-bus`: the client-only edition, the same binaries as per-platform optional packages |
+| npm | two packages published together, the client and the bus, each with per-platform optional packages of the same binaries; see [npm](#npm) |
 | Later | `.deb` and `.rpm` packages with their repositories; macOS through the same script once the [Mac test host](TODO.md#objective) settles the macOS questions |
 
 Settled with the owner, 2026-10-29 ([RD163](DECISIONS.md#recorded-decisions)):
@@ -113,6 +113,15 @@ Owner, 2026-10-30 ([RD164](DECISIONS.md#recorded-decisions), [RD165](DECISIONS.m
 | Test host | a Claude session runs on the owner's Mac, on the same LAN; this node has no ssh to it. The session does what the Mac run list says and reports back over the bus |
 | Signing | macOS binaries are unsigned: no paid Apple Developer account, no notarization |
 | Parts | the full set in three steps, cheapest first, without a sandbox at first ([RD166](DECISIONS.md#recorded-decisions), [macOS plan](macos.md#order)) |
+
+## npm
+
+Owner, 2026-10-30 ([RD167](DECISIONS.md#recorded-decisions), [RD168](DECISIONS.md#recorded-decisions)); the package names are [Q224](QUESTIONS.md#distribution):
+
+| Choice | Decision |
+|---|---|
+| Two packages | the **client** package is the client edition (CLI, runner, MCP face, launchers); the **bus** package adds the daemon and its setup, and requires the client package at the exact same version. Both are published together, never one alone; no client-first release |
+| Trust | the npm channel relies on the registry's integrity; the signed GitHub release archives stay the path that verifies before unpacking ([simple install](#simple-install)) |
 
 ## Container runtime
 
