@@ -94,3 +94,67 @@ func TestMessageHandedToAPollCancelledMeanwhileGoesBackToTheFront(t *testing.T) 
 		t.Fatalf("read %q, want the later one next", e.Body)
 	}
 }
+
+// A call's reply taken by its caller's filtered read and then returned unread
+// is held for that caller again: the unfiltered reader (a push adapter) must
+// not get the caller's answer.
+func TestRequeuedReplyKeepsItsReservationForTheCaller(t *testing.T) {
+	f := newHeld(t)
+	f.call(t, "#agent@h", "t1", "30s")
+	f.reply(t, "#agent@h", "t1", "")
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	e, err := f.b.ConsumeAddressed(ctx, "#caller@h", "#caller@h", "call", "t1", "", true, false)
+	if err != nil || e.Body != "answer" {
+		t.Fatalf("the caller's filtered read: %+v %v", e, err)
+	}
+	f.b.Requeue("#caller@h", e) // the connection it was written to had closed
+	short, cancelShort := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancelShort()
+	if got, err := f.b.Consume(short, "#caller@h", "", "", false, false); err == nil {
+		t.Fatalf("the unfiltered reader took the caller's answer %q", got.Body)
+	}
+	again, err := f.b.ConsumeAddressed(ctx, "#caller@h", "#caller@h", "call", "t1", "", true, false)
+	if err != nil || again.Body != "answer" {
+		t.Fatalf("the caller's next filtered read: %+v %v", again, err)
+	}
+}
+
+// What a filtered read skipped over stays ahead of the message it took when
+// that goes back: arrival order is kept.
+func TestRequeuePutsAMessageBackInArrivalOrder(t *testing.T) {
+	b := newBusWith(t, "#svc@h", "#peer@h")
+	for _, m := range []struct{ body, topic string }{{"a", "x"}, {"b", "y"}, {"c", "x"}} {
+		if _, err := b.Send(protocol.Envelope{From: "#peer@h", To: "#svc@h", Body: m.body, Topic: m.topic}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	taken, err := b.ConsumeAddressed(ctx, "#svc@h", "#svc@h", "y", "", "", true, false)
+	if err != nil || taken.Body != "b" {
+		t.Fatalf("filtered read: %+v %v", taken, err)
+	}
+	b.Requeue("#svc@h", taken)
+	for _, want := range []string{"a", "b", "c"} {
+		if got := readOne(t, b, "#svc@h"); got.Body != want {
+			t.Fatalf("read %q, want %q", got.Body, want)
+		}
+	}
+}
+
+// A poll whose transport says its reader is gone is not handed a message even
+// though its context has not heard yet, and does not take a queued one.
+func TestPollWhoseReaderIsGoneTakesNothing(t *testing.T) {
+	b := newBusWith(t, "#svc@h", "#peer@h")
+	if _, err := b.Send(protocol.Envelope{From: "#peer@h", To: "#svc@h", Body: "queued"}); err != nil {
+		t.Fatal(err)
+	}
+	gone := WithAlive(context.Background(), func() bool { return false })
+	if e, err := b.Consume(gone, "#svc@h", "", "", false, false); err == nil {
+		t.Fatalf("a gone reader took %q from the queue", e.Body)
+	}
+	if e := readOne(t, b, "#svc@h"); e.Body != "queued" {
+		t.Fatalf("read %q, want the message still queued", e.Body)
+	}
+}

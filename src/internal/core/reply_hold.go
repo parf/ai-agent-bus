@@ -126,9 +126,39 @@ func (in *inbox) served(e protocol.Envelope, now time.Time) {
 		if h.holds(e, now) {
 			h.timer.Stop()
 			in.holds = append(in.holds[:i], in.holds[i+1:]...)
+			// Kept for the one case the reply does not reach its reader: a
+			// requeue puts the reservation back (restore).
+			for id, t := range in.taken {
+				if !now.Before(t.until) {
+					delete(in.taken, id)
+				}
+			}
+			if in.taken == nil {
+				in.taken = map[string]*hold{}
+			}
+			if len(in.taken) < maxHolds {
+				in.taken[e.ID] = h
+			}
 			return
 		}
 	}
+}
+
+// restore puts back the reservation a filtered read ended by taking e, when e
+// goes back to the inbox unread: otherwise the caller's answer would go to the
+// unfiltered reader. Caller holds b.mu.
+func (b *Bus) restore(name string, in *inbox, e protocol.Envelope, now time.Time) {
+	h := in.taken[e.ID]
+	if h == nil {
+		return
+	}
+	delete(in.taken, e.ID)
+	in.holds = liveHolds(in.holds, now)
+	if !now.Before(h.until) || len(in.holds) >= maxHolds {
+		return
+	}
+	h.timer = time.AfterFunc(h.until.Sub(now), func() { b.release(name, h) })
+	in.holds = append(in.holds, h)
 }
 
 // release ends a reservation at its moment and offers what it kept back to an

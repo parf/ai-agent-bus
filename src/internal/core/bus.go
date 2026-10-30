@@ -106,11 +106,25 @@ type waiter struct {
 	// ctx is the poll that waits: once it is cancelled — the reader went
 	// away — the waiter takes nothing, and what it was handed goes back.
 	ctx context.Context
+	// alive, when the poll carries one (WithAlive), says the reader is still
+	// there before the context has heard that it is not.
+	alive func() bool
+}
+
+type aliveKey struct{}
+
+// WithAlive gives a poll a way to ask whether its reader is still connected,
+// which a transport knows a moment before the request's context does. A
+// message is not handed to a reader that says it is gone.
+func WithAlive(ctx context.Context, alive func() bool) context.Context {
+	return context.WithValue(ctx, aliveKey{}, alive)
 }
 
 // gone is a waiter whose reader cancelled its poll. A wait that merely ran
 // out is not gone: its reader is still there to be handed a message.
-func (w *waiter) gone() bool { return errors.Is(w.ctx.Err(), context.Canceled) }
+func (w *waiter) gone() bool {
+	return errors.Is(w.ctx.Err(), context.Canceled) || (w.alive != nil && !w.alive())
+}
 
 // purgeGone drops the waiters whose readers cancelled, so a message is never
 // handed to one.
@@ -139,6 +153,8 @@ type inbox struct {
 	waiters []*waiter
 	// holds are the replies it keeps for its own filtered reader (reply_hold.go).
 	holds []*hold
+	// taken are the reservations a filtered read ended, by the reply it took.
+	taken map[string]*hold
 	// days is its durable days in progress, today and yesterday
 	// (activity_days.go).
 	days activity.Ledger
@@ -1839,6 +1855,11 @@ func (b *Bus) ConsumeAddressed(ctx context.Context, caller, name, topic, tag, ad
 		return protocol.Envelope{}, fmt.Errorf("%w: %s is external and has no queue here to read", ErrKind, name)
 	}
 	in := b.ensure(name)
+	// A reader that is already gone takes nothing, not even what is queued.
+	if alive, _ := ctx.Value(aliveKey{}).(func() bool); alive != nil && !alive() {
+		b.unlock()
+		return protocol.Envelope{}, context.Canceled
+	}
 	// Never handed to a consumer: the check is here, where the message would
 	// otherwise be handed over. See docs/04-messaging.md#message-ttl.
 	b.prune(in, time.Now())
@@ -1878,6 +1899,7 @@ func (b *Bus) ConsumeAddressed(ctx context.Context, caller, name, topic, tag, ad
 		}
 	}
 	w := &waiter{topic: topic, tag: tag, addressed: addressed, filtered: filtered, share: share, ch: make(chan protocol.Envelope, 1), ctx: ctx}
+	w.alive, _ = ctx.Value(aliveKey{}).(func() bool)
 	in.waiters = append(in.waiters, w)
 	b.unlock()
 
@@ -1926,6 +1948,7 @@ func (b *Bus) requeue(name string, e protocol.Envelope) {
 	}
 	in.out--
 	now := time.Now()
+	b.restore(name, in, e, now)
 	in.purgeGone()
 	held := in.held(e, now)
 	for _, filteredPass := range []bool{true, false} {
@@ -1939,7 +1962,13 @@ func (b *Bus) requeue(name string, e protocol.Envelope) {
 			return
 		}
 	}
-	in.queue = slices.Insert(in.queue, 0, e)
+	// Back where its arrival puts it, so what a filtered read skipped over is
+	// not jumped.
+	at := 0
+	for at < len(in.queue) && !in.queue[at].At.After(e.At) {
+		at++
+	}
+	in.queue = slices.Insert(in.queue, at, e)
 }
 
 // selects says whether a filtered read takes e. Each filter names one field

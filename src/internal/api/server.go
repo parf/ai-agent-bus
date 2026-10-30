@@ -923,6 +923,9 @@ func (s *Server) consume(w http.ResponseWriter, r *http.Request, caller protocol
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), wait)
 	defer cancel()
+	// The bus asks before it hands this poll a message: a caller that has
+	// closed its end takes nothing.
+	ctx = core.WithAlive(ctx, func() bool { return !peerGone(r) })
 
 	e, err := s.bus.ConsumeAddressed(ctx, caller.String(), inbox, topic, tag, q.Get("original_to"), filtered, q.Has("share"))
 	if err == nil && peerGone(r) {

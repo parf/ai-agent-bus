@@ -2,13 +2,16 @@ package api
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/parf/ai-agent-bus/internal/duallisten"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
@@ -17,19 +20,53 @@ import (
 // handed goes back. Each of the messages sent right after the cancel is
 // delivered to the replacement once, never twice and never not at all.
 func TestReplacingAReaderLosesNoMessage(t *testing.T) {
+	for _, transport := range []string{"plain", "tls", "dual-plain", "dual-tls"} {
+		t.Run(transport, func(t *testing.T) { replacingAReader(t, transport) })
+	}
+}
+
+// pollServer serves c over the transport: a plain listener, a TLS one, or the
+// daemon's dual listener answering either, which wraps each connection.
+func pollServer(t *testing.T, handler http.Handler, transport string) (*httptest.Server, *http.Client) {
+	t.Helper()
+	server := httptest.NewUnstartedServer(handler)
+	server.Config.ConnContext = ConnContext
+	client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}
+	switch transport {
+	case "plain":
+		server.Start()
+	case "tls":
+		server.StartTLS()
+	default:
+		seed := httptest.NewUnstartedServer(nil)
+		seed.StartTLS()
+		cfg := &tls.Config{Certificates: seed.TLS.Certificates}
+		seed.Close()
+		inner, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		server.Listener = duallisten.New(inner, cfg)
+		server.Start()
+		if transport == "dual-tls" {
+			server.URL = "https" + server.URL[len("http"):]
+		}
+	}
+	t.Cleanup(func() { client.CloseIdleConnections(); server.Close() })
+	return server, client
+}
+
+func replacingAReader(t *testing.T, transport string) {
 	c := refusalFixture(t)
 	if _, err := c.bus.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#reader@h", Owner: "admin@h", Allow: []string{"admin@h"}}); err != nil {
 		t.Fatal(err)
 	}
 	token := c.as("#reader@h")
-	server := httptest.NewUnstartedServer(c.srv)
-	server.Config.ConnContext = ConnContext
-	server.Start()
-	defer server.Close()
+	server, client := pollServer(t, c.srv, transport)
 	poll := func(ctx context.Context, wait string) (string, int) {
 		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/consume?wait="+wait, nil)
 		req.Header.Set(HeaderToken, token)
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := client.Do(req)
 		if err != nil {
 			return "", 0
 		}

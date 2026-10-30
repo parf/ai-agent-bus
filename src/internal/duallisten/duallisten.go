@@ -31,6 +31,10 @@ type peekedConn struct {
 
 func (c *peekedConn) Read(p []byte) (int, error) { return c.r.Read(p) }
 
+// NetConn is the connection under the replay, for a caller that must reach its
+// socket (embedding net.Conn promotes none of the socket's own methods).
+func (c *peekedConn) NetConn() net.Conn { return c.Conn }
+
 type listener struct {
 	net.Listener
 	cfg   *tls.Config
