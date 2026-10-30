@@ -371,6 +371,12 @@
       {
         "argv": [
           "bash",
+          "smoke-port.test.sh"
+        ]
+      },
+      {
+        "argv": [
+          "bash",
           "release-verify.test.sh"
         ]
       },

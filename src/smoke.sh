@@ -45,10 +45,6 @@ slow() { [ "$(level)" = slow ]; }
 # made every run recompile the world — 2.7s of "go vet" that is 0.1s warm,
 # and four times that under -race. Keep Go's cache where it was.
 export GOCACHE=${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/go-build}
-# Shard k owns PORT+15k .. PORT+15k+14, so a whole run owns fifteen ports per
-# shard from PORT, and two runs need bases at least 15 × ${#SHARDS[@]} apart —
-# closer and one finds the other's daemon, which reads as "bad token".
-PORT=${PORT:-7911}
 # In file order of their first section. `core` is the serial run the fast mode
 # always was, in one process against one daemon; every other shard is a
 # section that is slow or keeps a daemon of its own, moved out of it.
@@ -64,6 +60,13 @@ if [ -n "$SHARD" ]; then
     *) echo "no shard [$SHARD]; the shards are: ${SHARDS[*]}" >&2; exit 2 ;;
   esac
 fi
+
+# Shard k owns PORT+15k .. PORT+15k+14, so a whole run owns fifteen ports per
+# shard from PORT. Unset, the run claims a free block under a lock held until
+# every shard has exited (smoke-port.sh): a run started at the same moment
+# takes the next, where a shared default found the other's daemon ("bad token").
+source ./smoke-port.sh
+smoke_port $((15 * ${#SHARDS[@]})) || exit 2
 
 if [ -n "${SMOKE_TEST_PATTERN:-}" ]; then
   case "$SHARD" in
@@ -91,7 +94,7 @@ if [ -z "$SHARD" ]; then
   done
   SHARDS=("${selected[@]}")
   [ "${#SHARDS[@]}" -gt 0 ] || { echo "FAIL empty selection"; exit 1; }
-  echo "Selected ${#SHARDS[@]} shards: ${SHARDS[*]}"
+  echo "Selected ${#SHARDS[@]} shards: ${SHARDS[*]}; ports from $PORT"
   export BUILD_STARTED=$(date +%s)
   mkdir -p "$B/bin"
   if printf '%s\n' "${LEVELS[@]}" | grep -Eq '^(normal|slow)$'; then
@@ -330,6 +333,9 @@ ok_exit "smoke mode contract" "$rc"
 [ "$rc" = 0 ] || echo "$out"
 out=$(bash ./release-verify.real.test.sh 2>&1); rc=$?
 ok_exit "release evidence passes the signed archives package.sh builds and fails each bad release" "$rc"
+[ "$rc" = 0 ] || echo "$out"
+out=$(bash ./smoke-port.test.sh 2>&1); rc=$?
+ok_exit "smoke port claim contract" "$rc"
 [ "$rc" = 0 ] || echo "$out"
 out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents -p agent_docs_test.py -v 2>&1); rc=$?
 ok_exit "every bundled agent has its page, index entry and docs link" "$rc"
