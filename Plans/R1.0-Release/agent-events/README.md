@@ -16,6 +16,10 @@ Tasks: [RT34](../TODO.md#rt34-agent-events), [per-agent events](TODO.md#per-agen
 | warning | usual warnings, never a failure: a line on the agent's stderr; a warning the agent reports; a daemon warning about the record (a dropped copy, a refused forward) | its own | daemon memory |
 | alert | the agent's script failed: a non-zero exit nobody asked for, a kill by signal, memory or process limit, a start that fails, a restart loop, a sandbox refusal; or the script reports an alert itself | its own | disk, survives a daemon restart |
 
+stderr is for problems only: an agent never writes routine lines there; what
+is worth keeping it writes as an explicit notice (owner, 2026-10-29: "just
+writing to stderr is bad design").
+
 One ring per level, so a stream of stderr warnings never pushes an alert out
 (owner, 2026-10-29). Each ring is fixed-size; when full, the oldest entry is
 lost. Every entry also expires after its level's TTL, so nobody sees that an

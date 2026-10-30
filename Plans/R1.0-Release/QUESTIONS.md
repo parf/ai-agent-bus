@@ -33,12 +33,6 @@ Choices for the [shorter prompts plan](short-prompts.md#proposal), to discuss wi
   - Settled by the owner, 2026-10-26 ([RD116](DECISIONS.md#recorded-decisions)): the runner answers from metadata what it can; any other ask, `status` included, reaches the script as `AGENT_BUS_ASK=<ask>` with empty input. A script that knows nothing of asks runs with `--no-asks` ([RD117](DECISIONS.md#recorded-decisions)). The runner answers `status` itself when it can ([RD118](DECISIONS.md#recorded-decisions))
   - Impact: the help line keeps the daemon out of describing agents (constitution § agent self-description) and needs no new wire field, at the cost of one `help` round trip before any further ask; a record field saves that trip but makes the daemon carry agent self-description
 
-## Agent events
-
-- ❓ Q214 How routine stderr lines stop being [warnings](agent-events/README.md#levels): ai, db, fetch, qdrant, rag, sms, smtp, voyage, imap and webhook log one status line per call on stderr, cron and `#at` one per firing, Slack each socket connect
-  - Options: a syslog-like prefix on each stderr line, `notice:` / `warning:` / `alert:`, an unprefixed line staying a warning, and routine lines relabelled `notice:` (recommended: also how a script reports an alert, with no new API); or agents stop writing routine lines to stderr; or stderr is never a warning and only explicit reports count
-  - Impact: the prefix touches every agent's logging once and keeps today's lines readable; silence loses the per-call trail; dropping the rule misses the warnings agents print today
-
 ## RAG service
 
 - ❓ Q194 Which keyword half of [RAG](rag/README.md#rules) hybrid search wins the trial on the owner's real Russian and English texts: Qdrant's built-in BM25 or the agent's own sparse vectors with stemming

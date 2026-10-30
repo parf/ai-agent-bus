@@ -54,7 +54,7 @@ agent writes its own rows; it has no runner to write the common ones.
 | Blocks | What |
 |---|---|
 | every agent | The API shape for writing an entry (RT34) |
-| the stderr warning | ⚠️ ai, db, fetch, qdrant, rag, sms, smtp, voyage, imap and webhook write one status line per call on stderr; cron and `#at` one outcome line per firing; Slack logs each socket connect. Under the stderr rule each becomes a warning, contradicting the acceptance below. Open: [Q214](../QUESTIONS.md#agent-events) |
+| the stderr warning | ⚠️ ai, db, fetch, qdrant, rag, sms, smtp, voyage, imap and webhook write one status line per call on stderr; cron and `#at` one outcome line per firing; Slack logs each socket connect. Under the stderr rule each becomes a warning, contradicting the acceptance below. Settled ([RD159](../DECISIONS.md#recorded-decisions)): those agents stop writing routine lines to stderr; what is worth keeping becomes an explicit notice; stderr stays a warning |
 | standalone agents | Their start, stop and crash have no runner to write them; today they are only in the host's service log |
 
 ### Failures the code hides today
