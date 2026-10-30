@@ -8,6 +8,9 @@ import (
 	"strings"
 )
 
+// maxName is the longest a name may be, the # and the realm included.
+const maxName = 64
+
 // realmBus is the part of the Owner's connection the automatic runner names
 // need.
 type realmBus interface {
@@ -55,7 +58,16 @@ func automaticRealm(bus realmBus, person, suffix string) (string, error) {
 	}
 	switch len(found) {
 	case 0:
-		return busRealm(bus)
+		realm, err := busRealm(bus)
+		if err != nil {
+			return "", err
+		}
+		// A name is at most 64 characters (docs/01-identity-and-authority.md#names):
+		// the realm is never cut to fit, so a realm that leaves no room refuses.
+		if n := len(prefix) + len(realm); n > maxName {
+			return "", fmt.Errorf("%s%s is %d characters, over the %d a name may have; the bus realm leaves no room for this runner's name, and it is not shortened", prefix, realm, n, maxName)
+		}
+		return realm, nil
 	case 1:
 		return strings.TrimPrefix(found[0], prefix), nil
 	}
