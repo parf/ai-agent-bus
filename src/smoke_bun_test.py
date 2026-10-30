@@ -32,7 +32,7 @@ class BunOutput(unittest.TestCase):
         cls.log.write_text(cls.output)
         cls.source = (ROOT / 'smoke.sh').read_text()
 
-    def wrapper(self, name):
+    def wrapper(self, name, shared_only=False):
         match = re.search(r'^' + name + r'\(\) \{\n.*?^\}', self.source, re.M | re.S)
         self.assertIsNotNone(match, name)
         # Only the expensive command is replayed; the shard's actual output
@@ -43,10 +43,13 @@ normal() { return 0; }
 level() { echo normal; }
 sec() { :; }
 ok_exit() { [ "$2" = 0 ] || fail=$((fail+1)); }
-timeout() { cat "$BUN_LOG"; return 1; }
+timeout() {
+  if [ "$SHARED_ONLY" = 1 ] && [ "$1" = 240 ]; then printf " 1 pass\n 0 fail\n"; return 0; fi
+  cat "$BUN_LOG"; return 1;
+}
 SELF="$PWD/smoke.sh"; D="$PWD"; pass=0; fail=0; skipped=0
 ''' + match.group() + '\n' + name + '\nprintf "SHARD_FAILURES=%s\\n" "$fail"\n'
-        env = dict(os.environ, BUN_LOG=str(self.log))
+        env = dict(os.environ, BUN_LOG=str(self.log), SHARED_ONLY=str(int(shared_only)))
         result = subprocess.run(['bash', '-c', script], cwd=ROOT, env=env,
                                 text=True, stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, timeout=10)
@@ -63,6 +66,13 @@ SELF="$PWD/smoke.sh"; D="$PWD"; pass=0; fail=0; skipped=0
                 self.assertRegex(log, r'failure\.test\.ts:3:\d+')
                 self.assertIn('(fail) deliberate diff', log)
                 self.assertRegex(log, r'SHARD_FAILURES=[1-9]')
+
+    def test_shared_subscription_failure_keeps_its_own_diff(self):
+        log = self.wrapper("agent_slack", shared_only=True)
+        self.assertRegex(log, r'(?m)^  \+\s+"answer": "actual-value",$')
+        self.assertRegex(log, r'(?m)^  -\s+"answer": "expected-value",$')
+        self.assertRegex(log, r"failure\.test\.ts:3:\d+")
+        self.assertIn("SHARD_FAILURES=1", log)
 
     def test_failure_output_is_not_truncated(self):
         self.log.write_text(self.output + '\n' + '\n'.join(f'context {i}' for i in range(100)) + '\nlast detail\n')
