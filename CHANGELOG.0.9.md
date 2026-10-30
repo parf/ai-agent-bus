@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.189 — 2026-10-30
+
+third-party notices move to licenses/NOTICE.md, shipped beside LICENSE.md in every archive, agent package and npm package
+
 ## 0.9.188 — 2026-10-30
 
 Restart sandboxed agents when the daemon replaces the bus socket, so they reconnect after a daemon restart

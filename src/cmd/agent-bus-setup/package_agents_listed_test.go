@@ -49,6 +49,25 @@ func TestEveryFileTheAgentPackagerWritesIsInTheBundleContract(t *testing.T) {
 	if len(unlisted) > 0 {
 		t.Fatalf("agents/package.sh writes %d files setup's bundleFiles does not list, so setup would refuse the archive: %s", len(unlisted), strings.Join(unlisted[:min(len(unlisted), 8)], ", "))
 	}
+	// One rule for every package: wherever a LICENSE.md ships, the notices its
+	// dependencies require ship beside it (licenses/NOTICE.md, T-10).
+	var bare []string
+	err = filepath.WalkDir(filepath.Join(dest, "agents"), func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || d.Name() != "LICENSE.md" || filepath.Base(filepath.Dir(path)) == "clients" {
+			return err
+		}
+		if _, err := os.Stat(filepath.Join(filepath.Dir(path), "licenses", "NOTICE.md")); err != nil {
+			rel, _ := filepath.Rel(dest, filepath.Dir(path))
+			bare = append(bare, filepath.ToSlash(rel))
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(bare) > 0 {
+		t.Fatalf("packages ship LICENSE.md without licenses/NOTICE.md beside it: %s", strings.Join(bare, ", "))
+	}
 	if _, err := os.Stat(filepath.Join(dest, "agents/db")); err == nil {
 		t.Fatal("agents/db is in the release: its native libraries are copied from the host, so it ships from a checkout until the owner decides (Q)")
 	}
