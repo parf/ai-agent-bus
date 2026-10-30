@@ -4,6 +4,19 @@ set -euo pipefail
 export PATH=/usr/local/bin:/usr/bin:/usr/sbin
 fail() { echo "FAIL $*" >&2; exit 1; }
 pass() { echo "PASS $*"; }
+# Each setup run that changes the daemon restarts it, and systemd refuses a
+# start after StartLimitBurst starts inside StartLimitIntervalUSec (J59). Wait
+# until the window has room for one more start, reading both limits from the
+# unit: the failed state is never cleared to get past it, which would also hide a unit that really failed.
+daemon_window() {
+  local interval burst recent
+  interval=$(systemd-analyze timespan "$(systemctl show -P StartLimitIntervalUSec agent-busd)" | awk '/μs:/ {print int(($2 + 999999) / 1000000)}')
+  burst=$(systemctl show -P StartLimitBurst agent-busd)
+  [ "${interval:-0}" -gt 0 ] || return 0
+  while recent=$(journalctl -u agent-busd --since "-${interval}s" -o cat --no-pager | grep -c '^Started agent-busd'); [ "$recent" -ge $((burst - 1)) ]; do
+    sleep 1
+  done
+}
 
 cp /package/agent-bus-*.tar.gz /root/release.tar.gz
 cp /package/agent-bus-*.tar.gz.sha256 /root/release.tar.gz.sha256.original
@@ -168,6 +181,7 @@ code=$(curl -sS --max-time 4 --unix-socket /run/agent-bus/bus.sock -H "X-Agent-B
 curl -fsS http://127.0.0.1:6767/identity >/evidence/identity-transferred.json
 [ "$(identity_field /evidence/identity-transferred.json owner)" = alice@fresh ] || fail "transfer positive control: owner is not alice@fresh"
 before_pid=$(systemctl show agent-busd -p MainPID --value)
+daemon_window
 ./agent-bus-setup --owner owner@fresh --addr 127.0.0.1:6768 >/evidence/setup-changed-unit.log 2>&1 ||
   { cat /evidence/setup-changed-unit.log >&2; fail "setup over the running node with a changed unit failed"; }
 # One look, no retry: setup has already waited.
@@ -184,6 +198,7 @@ pass "setup over a running node applies a changed unit, waits for the release, a
 code=$(curl -sS --max-time 4 --unix-socket /run/agent-bus/bus.sock -H "X-Agent-Bus-Token: $(cat /root/alice.token)" \
   -H 'Content-Type: application/json' --data '{"name":"owner@fresh"}' -o /evidence/owner-transfer-back.json -w '%{http_code}' http://bus/owner)
 [ "$code" = 200 ] || fail "daemon ownership transfer back got $code"
+daemon_window
 ./agent-bus-setup --owner owner@fresh >/evidence/setup-unit-restored.log 2>&1 ||
   { cat /evidence/setup-unit-restored.log >&2; fail "setup restoring the default unit failed"; }
 grep -qF 'owned by owner@fresh,' /evidence/setup-unit-restored.log || fail "setup did not report the transferred-back Owner"
@@ -283,6 +298,7 @@ python3 /fixture/agent-runtime.py /usr/local/lib/agent-bus/current
 pass "bundled agents and their helpers load outside the checkout"
 
 before=$(readlink /usr/local/lib/agent-bus/current)
+daemon_window
 ./agent-bus-setup --owner owner@fresh >/evidence/reinstall.log 2>&1 ||
   { cat /evidence/reinstall.log >&2; fail "identical package reinstall failed"; }
 after=$(readlink /usr/local/lib/agent-bus/current)
@@ -312,6 +328,7 @@ pass "setup adds the sample node, the web face shows it, and removal takes exact
 # TLS on the daemon's port (docs/07-setup.md#tls): setup generates the
 # certificate, the unit names it, the port answers TLS beside plain HTTP, and
 # a client reaches it by the fingerprint the forced SSH command hands out.
+daemon_window
 ./agent-bus-setup --owner owner@fresh --tls self-signed >/evidence/setup-tls.log 2>&1 || { cat /evidence/setup-tls.log >&2; fail "setup --tls self-signed failed"; }
 grep -q -- ' --tls-dir /etc/agent-bus/tls' /etc/systemd/system/agent-busd.service || fail "the unit does not name the TLS directory"
 [ "$(stat -c '%U:%G %a' /etc/agent-bus/tls/key.pem)" = "root:agent-busd 640" ] || fail "the TLS key is $(stat -c '%U:%G %a' /etc/agent-bus/tls/key.pem), not root:agent-busd 640"
@@ -326,6 +343,7 @@ AGENT_BUS_ADDR=https://127.0.0.1:6767 AGENT_BUS_TOKEN="$(cat /root/owner.token)"
 if AGENT_BUS_ADDR=https://127.0.0.1:6767 AGENT_BUS_TOKEN="$(cat /root/owner.token)" AGENT_BUS_TLS_FINGERPRINT=sha256:$(printf '0%.0s' $(seq 64)) agent-bus status >/dev/null 2>&1; then
   fail "a wrong pin reached the port"
 fi
+daemon_window
 ./agent-bus-setup --owner owner@fresh >/evidence/setup-tls-kept.log 2>&1 || fail "setup over a TLS node failed"
 grep -q -- ' --tls-dir /etc/agent-bus/tls' /etc/systemd/system/agent-busd.service || fail "a setup run without --tls dropped TLS"
 pass "setup turns TLS on with a self-signed certificate; the port answers both; the pinned CLI and the forced command agree, and a re-run keeps it"
@@ -343,6 +361,7 @@ curl -fsS --cacert /etc/agent-bus/web-tls/cert.pem -c "$wjar" -D /evidence/web-t
   --data-urlencode "token=$(cat /root/owner.token)" https://127.0.0.1:6780/signin || fail "sign-in over https failed"
 grep -qi '^set-cookie: agent_bus_session=.*; Secure' /evidence/web-tls-signin.txt || fail "the session cookie over https is not Secure"
 curl -fsS --cacert /etc/agent-bus/web-tls/cert.pem -b "$wjar" https://127.0.0.1:6780/ | grep -q 'Overview' || fail "the signed-in Overview over https"
+daemon_window
 ./agent-bus-setup --owner owner@fresh --tls off >/evidence/setup-tls-off.log 2>&1 || fail "setup --tls off failed"
 [ ! -e /etc/systemd/system/agent-bus-web.service.d/tls.conf ] || fail "--tls off left the web face's TLS drop-in"
 curl -fsS http://127.0.0.1:6780/healthz >/dev/null || fail "after --tls off the web face does not answer plain HTTP"

@@ -25,3 +25,7 @@ Deferred by the owner on 2026-10-30; use the [manual macOS uninstall steps](../.
 - **Deferred P.4:** the owner chose simple npm install commands on 2026-10-30 ([RD178](DECISIONS.md#recorded-decisions)). `curl … | sh`, `install.sh` distribution and its installer-specific acceptance are outside R1.
 - **To start it:** the owner asks for a shell installer. Reuse HTTPS downloads, `SHA256SUMS`, manifests and untouched-host refusal checks; release signing, keys and attestations are not requirements.
 - **History:** [earlier installer acceptance](done/installer-acceptance.md#checks). Existing scripts and throwaway-key fixtures remain unchanged until the P.1 migration; they do not require a real owner key or a public signed release.
+
+## Setup waits out the daemon's start limit
+
+- Setup restarts `agent-busd` once per run that changes it, and systemd refuses a start after `StartLimitBurst` starts inside `StartLimitIntervalUSec`: a script that runs setup many times within the window fails on the later runs, loudly and with the wait named ([J59](../issues/2026-10/2026-10-30.md)). **To start it:** setup reads the unit's two limits, counts its recent starts and waits for the window before a restart it must make, as the fresh-install fixture does. Not raising `StartLimit*` and not clearing the failed state are settled.

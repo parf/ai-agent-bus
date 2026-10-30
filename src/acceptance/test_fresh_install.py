@@ -56,5 +56,57 @@ class FreshInstall(unittest.TestCase):
                     self.assertTrue((out / 'fixture/agent-runtime.py').is_file())
 
 
+class DaemonWindow(unittest.TestCase):
+    """J59: the fixture spaces its daemon-changing setup runs by the unit's own start limit."""
+    script = (HERE / 'fresh-install-container.sh').read_text()
+
+    def function(self):
+        start = self.script.index('daemon_window() {')
+        return self.script[start:self.script.index('\n}\n', start) + 3]
+
+    def run_window(self, work, interval, starts, burst='5'):
+        tools = work / 'bin'
+        tools.mkdir()
+        log = work / 'calls'
+        # The journal answers `starts` lines at first, one fewer on every sleep.
+        (tools / 'journalctl').write_text('#!/bin/sh\necho "$*" >> "$LOG"\nn=$(cat "$COUNT")\n'
+            'i=0; while [ $i -lt $n ]; do echo "Started agent-busd.service - x"; i=$((i+1)); done\n'
+            'echo "Stopped agent-busd.service - x"\n')
+        (tools / 'sleep').write_text('#!/bin/sh\necho sleep >> "$LOG"\nn=$(cat "$COUNT"); [ $n -gt 0 ] && echo $((n-1)) > "$COUNT"; exit 0\n')
+        (tools / 'systemctl').write_text('#!/bin/sh\ncase "$3" in\n  StartLimitIntervalUSec) echo "$INTERVAL" ;;\n  *) echo "$BURST" ;;\nesac\n'
+)
+        (tools / 'systemd-analyze').write_text('#!/bin/sh\nsecs=$(echo "$2" | sed "s/s$//")\n'
+            'echo "Original: $2"; echo "       μs: $((secs * 1000000))"; echo "   Human: $2"\n')
+        for p in tools.iterdir():
+            p.chmod(0o755)
+        (work / 'count').write_text(str(starts))
+        env = dict(os.environ, PATH=str(tools) + ':' + os.environ['PATH'], LOG=str(log), COUNT=str(work / 'count'),
+                   INTERVAL=interval, BURST=burst)
+        r = subprocess.run(['bash', '-c', 'set -euo pipefail\n' + self.function() + '\ndaemon_window'],
+                           env=env, capture_output=True, text=True, timeout=20)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        return log.read_text().splitlines() if log.exists() else []
+
+    def test_waits_while_the_window_is_full_and_reads_the_interval_from_the_unit(self):
+        with tempfile.TemporaryDirectory(dir=ROOT / 'tmp') as tmp:
+            calls = self.run_window(Path(tmp), '20s', 4)
+        self.assertEqual(calls.count('sleep'), 1)  # 4 starts fill burst-1; one wait empties it
+        self.assertTrue(all('--since -20s' in c for c in calls if c != 'sleep'), calls)
+
+    def test_does_not_wait_when_the_window_has_room_or_the_limit_is_off(self):
+        with tempfile.TemporaryDirectory(dir=ROOT / 'tmp') as tmp:
+            self.assertEqual(self.run_window(Path(tmp), '10s', 3).count('sleep'), 0)
+        with tempfile.TemporaryDirectory(dir=ROOT / 'tmp') as tmp:
+            self.assertEqual(self.run_window(Path(tmp), '0s', 9), [])
+
+    def test_every_daemon_changing_setup_run_waits_and_nothing_resets_the_unit(self):
+        lines = self.script.splitlines()
+        runs = [i for i, l in enumerate(lines) if l.startswith('./agent-bus-setup --owner owner@fresh') and '--key' not in l]
+        self.assertEqual(len(runs), 6, runs)
+        for i in runs:
+            self.assertEqual(lines[i - 1], 'daemon_window', lines[i])
+        self.assertNotIn('reset-failed', self.script)
+
+
 if __name__ == '__main__':
     unittest.main()
