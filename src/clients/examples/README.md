@@ -1,23 +1,17 @@
 # Client examples
 
-📌 **TL;DR:** Working agents in all six client languages (Python, TypeScript,
-Go, Rust, Java and PHP), one example per directory, each with its own idea. `run.sh` starts
-them all on one throwaway daemon. Every agent can call every other, so a
-request written in one language is answered in another.
+📌 **TL;DR:**
+- **Problem:** to trust a client library you want to see agents in several languages work together, not read an API.
+- **Outcome:** working agents in all six client languages (Python, TypeScript, Go, Rust, Java and PHP), one example per directory; a request written in one language is answered in another.
+- **Start:** run [one example](#try-this-first) on a throwaway bus.
 
-```sh
-src/clients/examples/run.sh              # every example, on a throwaway daemon
-src/clients/examples/run.sh codestats    # just one
-src/clients/examples/run.sh --live       # on this node's daemon, serving until Ctrl-C
-```
+## Why you'd want it
 
-By default nothing reaches the node: the daemon, its agents and their records
-are gone when the run ends, so they never show in `agent-bus ls --all` or the
-web face. `--live` registers the agents on the node itself, as the account
-running it, through its own socket, so none of the account's credentials is
-minted or rotated. It runs the demos, then keeps the workers serving until
-Ctrl-C. Their records stay afterwards; `--live --clean` unregisters them on the
-way out.
+- 👀 **See it work.** Every agent can call every other, across languages.
+- 🧹 **Nothing is left behind.** By default the daemon, its agents and their records are gone when the run ends.
+- 📚 **Patterns to copy.** Locks, key-value, calls between agents and a relay ring, each in one small directory.
+
+## What you get
 
 | Example | Language | Agent | What it does | Calls |
 |---|---|---|---|---|
@@ -27,12 +21,27 @@ way out.
 | [go](go/README.md) | Go | `#stats-go` | Fingerprints a file (lines, blank lines, longest line, TODOs). A per-file lock refuses duplicate work | Rust, for the digest |
 | [rust](rust/README.md) | Rust | `#stats-rust` | Computes a content digest and caches it in KV under a record lock | Java, to verify it |
 
-Every agent also answers `stats` and `relay`, so all six languages take part
-in the crawl and in the relay ring. One request can cross several languages:
-TypeScript, Python, PHP; or Go, Rust, Java. Agent names are `@localhost`.
+- Every agent also answers `stats` and `relay`, so all six languages take part in the crawl and in the relay ring.
+- One request can cross several languages: TypeScript, Python, PHP; or Go, Rust, Java.
+- Agent names are `@localhost`.
 
-<details>
-<summary>What an example provides, and what the harness gives it</summary>
+## Try this first
+
+Run one example on a throwaway daemon:
+
+```sh
+src/clients/examples/run.sh codestats
+```
+
+- Run them all with `src/clients/examples/run.sh`.
+- Nothing reaches the node, so the agents never show in `agent-bus ls --all` or the web face.
+
+## Technical details
+
+- `--live` registers the agents on the node itself, as the account running it, through its own socket, so none of the account's credentials is minted or rotated: `src/clients/examples/run.sh --live`.
+- It runs the demos, then keeps the workers serving until Ctrl-C. Their records stay afterwards; `--live --clean` unregisters them on the way out.
+
+### What an example provides, and what the harness gives it
 
 | File | Holds |
 |---|---|
@@ -40,10 +49,10 @@ TypeScript, Python, PHP; or Go, Rust, Java. Agent names are `@localhost`.
 | `run.sh` | starts the agents, in the foreground until SIGTERM |
 | `demo.sh` | optional: drives the example and prints the result |
 
-The harness registers every listed agent, open to every caller, and mints each
-one a token. It starts each `run.sh` and waits until every agent is reading
-(`READY_SECONDS`, default 90), failing at once if a `run.sh` exits. Then it runs
-each `demo.sh` as `#demo@localhost` and stops everything. Each script gets:
+- The harness registers every listed agent, open to every caller, and mints each one a token.
+- It starts each `run.sh` and waits until every agent is reading (`READY_SECONDS`, default 90), failing at once if a `run.sh` exits.
+- Then it runs each `demo.sh` as `#demo@localhost` and stops everything.
+- Each script gets these variables:
 
 | Variable | Is |
 |---|---|
@@ -54,7 +63,4 @@ each `demo.sh` as `#demo@localhost` and stops everything. Each script gets:
 | `SAMPLES`, `DEMO_FILE` | a directory of sample files, and its `sample.json` |
 | `EXAMPLES_OWNER`, `EXAMPLES_OWNER_TOKEN` | the daemon's owner, for setup only |
 
-The daemon is the client tests' fixture: its own socket, port and database
-under `tmp/`, never the node's.
-
-</details>
+- The daemon is the client tests' fixture: its own socket, port and database under `tmp/`, never the node's.
