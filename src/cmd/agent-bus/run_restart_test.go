@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"os/exec"
@@ -51,9 +52,9 @@ func TestRunRestartCLIHelper(t *testing.T) {
 func TestRunKeepsItsNameAndSerialReaderAfterDaemonRestart(t *testing.T) {
 	dir := t.TempDir()
 	binary := filepath.Join(dir, "agent-busd")
-	buildCtx, buildCancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer buildCancel()
-	build := exec.CommandContext(buildCtx, "go", "build", "-o", binary, "./cmd/agent-busd")
+	// Compile before the runtime deadline: a cold Go cache is not an outage.
+	// The owning go test timeout still bounds a wedged build.
+	build := exec.Command("go", "build", "-o", binary, "./cmd/agent-busd")
 	build.Dir = "../.."
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build disposable daemon: %v\n%s", err, out)
@@ -232,5 +233,42 @@ func TestRunKeepsItsNameAndSerialReaderAfterDaemonRestart(t *testing.T) {
 	wait("one idle reader after both answers", time.Second, reader)
 	if _, err := os.Stat(overlap); !os.IsNotExist(err) {
 		t.Fatal("run started overlapping script handlers")
+	}
+}
+
+// A shared or stale reader can prevent a lookup from confirming one reader.
+// Recovery must back off instead of making ten lookups a second all poll long.
+func TestRecoveryReaderProbeBacksOff(t *testing.T) {
+	var lookups atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/lookup" || r.URL.Query().Get("name") != "#recover@fixture" {
+			t.Errorf("unexpected recovery request: %s", r.URL)
+		}
+		lookups.Add(1)
+		readers := 2
+		json.NewEncoder(w).Encode(protocol.Record{Name: "#recover@fixture", Readers: &readers})
+	}))
+	defer server.Close()
+	t.Setenv("AGENT_BUS_TOKEN", "fixture-token")
+	saved := transport
+	transport = func() (*http.Client, string) { return server.Client(), server.URL }
+	defer func() { transport = saved }()
+	l := &link{name: "#recover@fixture", say: io.Discard}
+	l.watchReader(context.Background())() // healthy readers never probe
+	if n := lookups.Load(); n != 0 {
+		t.Fatalf("healthy poll made %d lookups", n)
+	}
+	l.since = time.Now()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	stop := l.watchReader(ctx)
+	<-ctx.Done()
+	stop()
+	// 100, 200, 400, 800 ms: at most four requests before this deadline.
+	if n := lookups.Load(); n < 1 || n > 4 {
+		t.Fatalf("recovery probe made %d lookups in two seconds; want 1..4 with backoff", n)
+	}
+	if l.registered {
+		t.Fatal("two readers were accepted as one")
 	}
 }

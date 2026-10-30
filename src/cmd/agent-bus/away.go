@@ -135,7 +135,9 @@ func (l *link) watchReader(ctx context.Context) func() {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		for sleep(ctx, 100*time.Millisecond) {
+		delay := 100 * time.Millisecond
+		for sleep(ctx, delay) {
+			delay = min(delay*2, 2*time.Second)
 			probe, end := context.WithTimeout(ctx, time.Second)
 			body, code, err := callCtx(probe, "GET", "/lookup", url.Values{"name": {l.name}}, nil)
 			end()
