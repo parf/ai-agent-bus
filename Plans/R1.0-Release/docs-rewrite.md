@@ -3,21 +3,13 @@
 📌 **TL;DR:**
 - **Problem:** the docs explain parts (daemon, queues, records) before they say why anyone cares, and few pages show something you can run.
 - **Outcome:** every doc answers, in this order, why it exists, what you get, how to use it with a real working example, and only then the technical details.
-- **How:** one rule in [CLAUDE.md](../../CLAUDE.md#writing-conventions), a per-page check, and batches on disjoint paths that both teams can work in parallel.
+- **How:** one standard, [WRITING.md](../../WRITING.md#how-we-write-docs), pointed to from [CLAUDE.md](../../CLAUDE.md#writing-conventions), a per-page check, and batches on disjoint paths that both teams can work in parallel.
 - **Size:** about 130 working hours over 11 batches, no version bump. Status: approved 2026-10-30 by the owner; the rule lands in CLAUDE.md, then `docs/runner/README.md` is written first for the owner's review.
 
 ## The rule
 
-- **One order for every page:**
-  1. **Why:** the problem solved and for whom, in plain words.
-  2. **What you get:** the outcome.
-  3. **How to use it:** real working examples, commands or messages that ran on a real node today, copied from the run, in a closed `<details>` when long.
-  4. **Technical details:** internals, formats, limits, last, in `<details>` when long.
-- **First 10-20% rule:** by length, the first fifth of a page holds why, what you get and the one way to start. A reader who stops there knows enough.
-- **Bullets over prose:** short bullets, one simple idea each; a paragraph longer than about three lines becomes bullets or a table.
-- **No invented examples:** an example that was not run is deleted, not guessed.
-- **No jargon leads:** broker, registry, daemon, queue, wire and storage terms appear only in step 4 or after a plain-word lead.
-- **Applies to:** every page under `docs/` (except the three contract pages below), agent and runner guides, client READMEs, each `agent.json` description and method help, the CLI help pages, and the intro text of each web page.
+- **Owner:** [WRITING.md](../../WRITING.md#how-we-write-docs) holds the whole standard: order, voice, form, examples and the page checklist.
+- **Applies to:** every page under `docs/` (except the pages below), agent and runner guides, client READMEs, each `agent.json` description and method help, the CLI help pages, and the intro text of each web page.
 
 ## Not rewritten
 
@@ -74,6 +66,7 @@ Each batch is one worktree and one landing through `#ab-gate`, no bump; manifest
 
 ## Acceptance
 
+- **Standard:** every page meets [the checklist in WRITING.md](../../WRITING.md#-checklist-for-a-page); the rest of this list says how each point is checked.
 - **Per page, checked by the checker where it can be, by a reviewer where it cannot:**
   - Order: the four parts appear in order (why, what you get, how, technical); the technical part is last.
   - First 10-20%: why, what you get and one way to start sit within the first fifth of the page by length.
