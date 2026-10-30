@@ -372,6 +372,11 @@ ok_exit "this tree leaves no Markdown link to nothing, and none to a file it mov
 out=$(./package.sh "$D/dist" 2>&1); rc=$?
 ok_exit "package.sh builds the host's archives" "$rc"
 [ "$rc" = 0 ] || echo "$out"
+# macOS is built from the Linux node without cgo: the programs that already
+# build for it (docs: Plans/R1.0-Release/macos.md) must keep doing so.
+out=$(for goarch in arm64 amd64; do GOOS=darwin GOARCH=$goarch CGO_ENABLED=0 go build -o /dev/null ./cmd/agent-bus || exit 1; done 2>&1); rc=$?
+ok_exit "the CLI builds for macOS, Apple Silicon and Intel" "$rc"
+[ "$rc" = 0 ] || echo "$out"
 out=$(RELEASE_DIST=$D/dist bash ./release-verify.real.test.sh 2>&1); rc=$?
 ok_exit "release evidence passes the signed archives package.sh builds and fails each bad release" "$rc"
 [ "$rc" = 0 ] || echo "$out"
