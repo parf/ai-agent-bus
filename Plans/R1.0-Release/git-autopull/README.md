@@ -73,7 +73,7 @@ mode and scripts. All must work:
 
 | Case | Publisher | Mode | After |
 |---|---|---|---|
-| **Owner's flow (realty today)**: push → GitLab CI → on success CI publishes `push` → every server on the branch pulls | the pipeline, directly or through `#webhook` | `mirror` on servers | each server's success script (reload, tests); fail script alerts |
+| **Owner's flow (realty today)**: push → GitLab CI → on success CI publishes `push` → every server on the branch pulls | the pipeline, directly or through `#webhook` | `mirror` on production, `ff` on a development server | each server's success script (reload, tests); fail script alerts |
 | Every push, no CI | a hosting webhook through `#webhook` ([B.26](TODO.md#b26-webhook-publishes-to-a-pubsub-channel)) | `ff` | none, or a script |
 | A developer copy that follows its branch | as above | `ff`: never discards local work, reports `dirty` | none |
 | Roll out or roll back one revision everywhere | a pipeline or operator publishes `deploy` with a commit | per repository | scripts as usual |
