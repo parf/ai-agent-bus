@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/parf/ai-agent-bus/internal/protocol"
@@ -75,6 +76,8 @@ func TestDarwinInstallKeepsStoragePrivateToTheAccount(t *testing.T) {
 	cur := u.Username
 	l.account = cur
 	job := l.launchdJob("/x/agent-busd", "127.0.0.1:6767", "alice", "")
+	// As strict a umask as a root shell may have: the modes are set, not asked.
+	defer syscall.Umask(syscall.Umask(0o077))
 	if err := l.install("/x/agent-busd", mustName(t, "alice"), &tlsChoice{mode: "off", dir: filepath.Join(t.TempDir(), "tls")}, job); err != nil {
 		t.Fatal(err)
 	}
@@ -85,6 +88,18 @@ func TestDarwinInstallKeepsStoragePrivateToTheAccount(t *testing.T) {
 		}
 		if st.Mode().Perm() != want {
 			t.Fatalf("%s is %#o, want %#o", path, st.Mode().Perm(), want)
+		}
+	}
+	// The account is not their owner, so it reaches its home and its sockets
+	// only if every directory setup made on the way lets others pass.
+	top := filepath.Dir(filepath.Dir(filepath.Dir(l.home)))
+	for _, p := range []string{filepath.Join(top, "var"), filepath.Dir(l.home), filepath.Dir(l.run)} {
+		st, err := os.Stat(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if st.Mode().Perm() != 0o755 {
+			t.Fatalf("%s, made on the way to the account's directories, is %#o: the account cannot pass through it", p, st.Mode().Perm())
 		}
 	}
 	got, _ := os.ReadFile(l.plist)

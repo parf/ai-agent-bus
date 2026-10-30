@@ -219,6 +219,14 @@ func (l darwinLayout) install(exe string, me protocol.Name, tlsC *tlsChoice, job
 	if err := l.ensureAccount(); err != nil {
 		return err
 	}
+	// The account walks from / to its home and its sockets, so every
+	// directory setup makes on the way there is root's and 0755; one that
+	// already exists is left as it is.
+	for _, d := range []string{l.home, l.run} {
+		if err := walkableParents(d); err != nil {
+			return err
+		}
+	}
 	for _, d := range []struct {
 		path string
 		mode os.FileMode
@@ -252,6 +260,32 @@ func (l darwinLayout) install(exe string, me protocol.Name, tlsC *tlsChoice, job
 	// is the first install, so that refusal is not an error.
 	_ = darwinCommand(nil, "launchctl", "bootout", "system/"+l.label)
 	return darwinCommand(nil, "launchctl", "bootstrap", "system", l.plist)
+}
+
+// walkableParents makes the missing directories above dir, each 0755 whatever
+// the umask, so another account can pass through them.
+func walkableParents(dir string) error {
+	var missing []string
+	for p := filepath.Dir(dir); ; p = filepath.Dir(p) {
+		if _, err := os.Stat(p); err == nil {
+			break
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		missing = append(missing, p)
+		if p == filepath.Dir(p) {
+			break
+		}
+	}
+	for i := len(missing) - 1; i >= 0; i-- {
+		if err := os.Mkdir(missing[i], 0o755); err != nil && !errors.Is(err, os.ErrExist) {
+			return err
+		}
+		if err := os.Chmod(missing[i], 0o755); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ensureAccount creates the hidden role account and its group, under the
