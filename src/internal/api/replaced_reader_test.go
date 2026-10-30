@@ -15,6 +15,10 @@ import (
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
+// This count alone does not kill a mutant in one layer: the waiter purge, the
+// requeue and the socket peek each cover for the others here. A mutant of one
+// of them must also run the owning unit tests in internal/core
+// (cancelled_waiter_test.go, alive_handoff_test.go) to be seen failing.
 // A reader replaced while messages arrive loses none of them: the poll it
 // cancelled has no reader, so nothing is handed to it, and what it was
 // handed goes back. Each of the messages sent right after the cancel is
