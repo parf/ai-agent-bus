@@ -131,7 +131,12 @@ grep -q answered_at /evidence/bob-ping.log || { cat /evidence/bob-ping.log >&2; 
 pass "client edition installed by bob without root; it calls #debug@$realm and gets the reply"
 
 # An MCP tool call through the client's compiled face.
-as_bob python3 /fixture/mcp-call.py ab_ls '{}' /home/bob/.local/bin/agent-bus-mcp >/evidence/mcp-ls.out 2>&1 || { cat /evidence/mcp-ls.out >&2; fail "the MCP tool call failed"; }
+# ab_ls lists agents with a reader now; debug's reader can be between two waits, so ask again, a few times.
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  as_bob python3 /fixture/mcp-call.py ab_ls '{}' /home/bob/.local/bin/agent-bus-mcp >/evidence/mcp-ls.out 2>&1 || { cat /evidence/mcp-ls.out >&2; fail "the MCP tool call failed"; }
+  ! grep -q "^#debug@$realm " /evidence/mcp-ls.out || break
+  sleep 1
+done
 grep -q "^#debug@$realm " /evidence/mcp-ls.out || { cat /evidence/mcp-ls.out >&2; fail "the MCP listing does not show #debug@$realm"; }
 pass "MCP tool call ab_ls through the compiled agent-bus-mcp lists #debug@$realm"
 
@@ -143,10 +148,10 @@ deploy_checked() { # label
   [ "$(as_bob agent-bus status | python3 -c 'import json,sys; print(json.load(sys.stdin)["you"])')" = bob ] || fail "bob's credential stopped working $1"
 }
 release_of() { cat "/usr/local/lib/agent-bus/$(readlink /usr/local/lib/agent-bus/current)/internal/version/VERSION"; }
-# Configuration the update must keep: setup's files under /etc/agent-bus, the runner's runner.env, and a record's
-# Configuration in the daemon. A listing that misses runner.env compares nothing that matters, so it fails.
+# Configuration the update must keep: setup's files under /etc/agent-bus (absent without TLS), the runner's
+# runner.env, and a record's Configuration in the daemon. A listing that misses runner.env compares nothing, so it fails.
 config_sums() {
-  { find /etc/agent-bus -type f; echo /var/lib/agent-bus/alice-ab-runner/runner.env; } | sort | xargs sha256sum
+  { [ ! -d /etc/agent-bus ] || find /etc/agent-bus -type f; echo /var/lib/agent-bus/alice-ab-runner/runner.env; } | sort | xargs sha256sum
 }
 as_alice agent-bus register "#kept@$realm" >/evidence/kept.log 2>&1 &&
   as_alice agent-bus config "#kept@$realm" '{"kept":"set before the update"}' >>/evidence/kept.log 2>&1 ||
@@ -161,7 +166,7 @@ as_alice sh -c "curl -fsSL https://releases.test/next/install.sh | sh" >/evidenc
 kept=$({ grep -lx "$version" /usr/local/lib/agent-bus/releases/*/internal/version/VERSION 2>/dev/null || true; } | wc -l)
 [ "$kept" = 1 ] || fail "the update kept $kept copies of $version for rollback, not one"
 deploy_checked "after the update"
-[ "$(config_sums)" = "$config_before" ] || { diff <(echo "$config_before") <(config_sums) >&2; fail "the update changed the node's configuration files"; }
+[ "$(config_sums)" = "$config_before" ] || { diff <(echo "$config_before") <(config_sums) >&2 || true; fail "the update changed the node's configuration files"; }
 [ "$(as_alice agent-bus config "#kept@$realm")" = "$record_before" ] || fail "the update changed #kept@$realm's Configuration"
 pass "the same command updated the node to $next: configuration, registrations, tokens and $version for rollback kept"
 
