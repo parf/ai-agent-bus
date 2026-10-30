@@ -288,7 +288,13 @@ type values []string
 func (m *values) String() string     { return strings.Join(*m, ",") }
 func (m *values) Set(v string) error { *m = append(*m, v); return nil }
 
+// defaultDB is where the database lives unless --db or AGENT_BUS_DB says: the
+// XDG state directory, as the CLI's own state is, so a run that sets
+// XDG_STATE_HOME for a private tree stays inside it.
 func defaultDB() string {
+	if d := os.Getenv("XDG_STATE_HOME"); d != "" {
+		return filepath.Join(d, "agent-bus", "agent-bus.db")
+	}
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".local", "state", "agent-bus", "agent-bus.db")
 }

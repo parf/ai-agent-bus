@@ -213,7 +213,7 @@ From the bus's own account:
 | `--directory=realm=github` | a realm and what vouches for enrolment; `realm=/path/to/keys` for a directory of key files. Public GitHub profile metadata does not need this flag |
 | `--addr` · `--socket` | the network address, any interface, default `127.0.0.1:6767`, never taken from `AGENT_BUS_ADDR`; and the Unix socket path |
 | `--tls-dir=dir` | `cert.pem`, `key.pem` and optional `chain.pem`: the network port answers TLS beside plain HTTP ([setup § TLS](../07-setup.md#tls)) |
-| `--db=path` | the one SQLite database. Held exclusively; a missing one refuses the start |
+| `--db=path` | the one SQLite database, by default `$XDG_STATE_HOME/agent-bus/agent-bus.db`, else `~/.local/state/agent-bus/agent-bus.db`. Held exclusively; a missing one refuses the start |
 | `--init` · `--create` | make the database: `--init` alone and exit, `--create` then serve. Only an explicit act creates one |
 | `--flush-every` | how often waiting messages and counters are saved, in one batch; `0` saves only at a clean stop |
 | `--syslog` | copy warnings, errors and alerts to host syslog; off by default, on in installed units |
@@ -233,7 +233,7 @@ Explicit flags override these:
 |---|---|---|
 | `AGENT_BUS_OWNER` | `--owner` | the initial owner must be supplied |
 | `AGENT_BUS_SOCKET` | `--socket` | the program's default Unix socket |
-| `AGENT_BUS_DB` | `--db` | the program's default SQLite database |
+| `AGENT_BUS_DB` | `--db` | `$XDG_STATE_HOME/agent-bus/agent-bus.db`, else `~/.local/state/agent-bus/agent-bus.db` |
 | `AGENT_BUS_LOG_DIR` | `--log-dir` | `logs/` beside the database |
 | `AGENT_BUS_DASHBOARD` | `--dashboard` | the default dashboard URL |
 
