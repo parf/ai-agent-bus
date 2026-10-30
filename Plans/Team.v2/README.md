@@ -10,7 +10,7 @@ heavy work runs below it on ordinary models.
 
 Idea from the owner, 2026-10-29; partly running from 2026-10-30 with two teams
 ([decision](DECISIONS.md#recorded-decisions)). Node-local, not in Git, under
-`local/team-v2/`: the role prompts, `start-ceo.sh` for the `#ceo` kitty window,
+`local/`: the role prompts, `start-ceo.sh` for the `#ceo` kitty window,
 `gate.sh` behind `#gate`, and the `#tmux-sessions/ab-dvp@parf.us`
 Configuration that starts `DIR`, `LEAD1..2`, `W1A..C`, `W2A..C`, `QA1..2` and `GATE`. The
 team before it is in [today's team](#today). Open choices are in
@@ -22,13 +22,13 @@ Two teams run ([TD3](DECISIONS.md#recorded-decisions)): `#ab-lead1` leads team 1
 `#ab-lead2` team 2, each with three workers and a QA. Names carry the project
 prefix `ab-` ([TD2](DECISIONS.md#recorded-decisions)). Account 1 workers, leads and QA run in the repository root and account 2
 workers in `Plans/`; `#ab-ceo` and `#ab-dir` have their own directories under
-`local/team-v2/`. Each name resumes its own conversation.
+`local/`. Each name resumes its own conversation.
 
 ```mermaid
 flowchart TD
   parf(["parf — owner"]) <-->|talks only to| ceo
-  ceo["#ab-ceo<br/>kitty window CEO · Claude /fast<br/>local/team-v2/ceo/"]
-  dir["#ab-dir<br/>tmux DIR · Claude /fast<br/>local/team-v2/dir/"]
+  ceo["#ab-ceo<br/>kitty window CEO · Claude /fast<br/>local/ceo/"]
+  dir["#ab-dir<br/>tmux DIR · Claude /fast<br/>local/dir/"]
   subgraph team1 ["team 1"]
     lead1["#ab-lead1<br/>tmux LEAD1 · Claude /fast<br/>decides bump"]
     w1a["#ab-w1a<br/>Claude, account 1"]
