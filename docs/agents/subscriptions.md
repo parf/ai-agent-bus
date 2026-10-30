@@ -1,22 +1,54 @@
-# Subscriptions
+# Subscriptions: what a helper sees, sent to an inbox
 
-📌 **TL;DR:** A subscription asks a helper to forward what it sees, such as mail,
-log lines or chat messages, into a queue or an agent's inbox. Every helper is
-meant to share one behaviour: one copy per match, the author's send right
-checked at `sub add` and before every send, a refused copy dropped and counted
-while the subscription stays active. Coming: today each helper still runs its
-own subscription code ([today](#what-each-helper-does-today)).
+📌 **TL;DR:**
+- **Problem:** new mail, a log error or a chat message matters only if someone notices it, and watching each source by hand does not scale.
+- **Outcome:** you ask a helper to forward every match to a queue or an agent's inbox: one copy per match, only while you may send there.
+- **Start:** `agent-bus call '#logwatch@node.example' 'sub add #claude/oncall@node.example ERROR'` ([how to use it](#how-to-use-it)).
 
-What stays per helper is only the selector, what a subscription watches: a
-mailbox for [IMAP](imap.md#what-it-does), a source for
-[logwatch](logwatch.md#what-it-does), a channel for [Slack](slack.md#what-it-does)
-and [Telegram](telegram.md#reply-routing). [Cron](cron.md#what-it-does) fires on
-a schedule, not a match, and keeps its own calls.
+## Why you'd want it
 
-## The shared behaviour
+- 👀 **Nobody watches every source.** Now each match arrives in an inbox you or your AI already read.
+- 🔀 **Each source would need its own rules.** Now IMAP, logwatch, Slack and Telegram share one set.
+- 🔒 **A forward can outlive the right to send.** Now the right is checked when you add it and again before every copy.
+- 🧯 **One bad target should not stop the rest.** Now a refused copy is dropped and counted, and the subscription keeps working.
 
-The rules every helper moves to. Coming: a helper follows them once it moves
-to the shared code; until then, see [what each helper does today](#what-each-helper-does-today).
+## What you get
+
+- ✅ **One copy per match,** sent once into the target's own inbox and never retried.
+- ✅ **From now on:** a new subscription starts at the moment you add it; nothing earlier is replayed.
+- ✅ **Counts you can read:** `sub list` shows how many copies each subscription sent and dropped.
+- ✅ **Your own list:** each author sees and deletes their own; the helper's Owner and Maintainers manage all.
+- ✅ **Safe filters:** a filter is a small regular expression that every helper reads the same way, checked when you add it.
+- 🚫 **Not for:** schedules (that is [cron](cron.md#what-it-does)), replaying history, or editing a subscription in place: delete it and add it again.
+
+Each helper decides only what a subscription watches:
+
+| Helper | Watches |
+|---|---|
+| [IMAP](imap.md#what-it-does) | new mail in one mailbox, matched on sender and subject |
+| [Logwatch](logwatch.md#what-it-does) | new lines from its log sources |
+| [Slack](slack.md#what-it-does) | messages in one channel, optionally from chosen authors |
+| [Telegram](telegram.md#reply-routing) | messages in one chat |
+
+## How to use it
+
+| I want to… | Command |
+|---|---|
+| Get new log errors in my inbox | `agent-bus call '#logwatch@node.example' 'sub add #claude/oncall@node.example ERROR'` |
+| Get future invoices into a queue | `agent-bus call '#imap/work@node.example' 'sub add #invoices@node.example /invoice/i'` |
+| Forward Slack errors to my session | `agent-bus call '#slack@node.example' 'sub add #alerts #claude/main@node.example /error/i'` |
+| Forward a Telegram group's errors | `agent-bus call '#telegram/ann@node.example' 'sub add #dev #claude/main@node.example /error/i'` |
+| See mine and their counts | `agent-bus call '#logwatch@node.example' 'sub list'` |
+| Stop one | `agent-bus call '#logwatch@node.example' 'sub delete <id from sub list>'` |
+
+- You must be allowed to send to the target and to the helper itself.
+- The target is a queue or an agent; anything else is refused at `sub add`.
+- The answer to `sub add` gives the id that `sub list` shows and `sub delete` takes.
+- To change a subscription, delete it and add it again; there is no `sub edit`.
+
+## Technical details
+
+### The shared behaviour
 
 | Rule | Every subscription |
 |---|---|
@@ -30,33 +62,26 @@ to the shared code; until then, see [what each helper does today](#what-each-hel
 | Management | Each author lists and deletes only their own; the helper record's Owner and Maintainers list and delete all. A role reached through a forward does not count. The helper's own roles decide who may subscribe at all |
 | Invalid stored state | A stored filter the grammar no longer accepts stays listed with `reason: invalid_filter`, matches nothing and warns, never becoming match-all. A stored entry that is not a subscription at all is listed only to the Owner and Maintainers, as its id with `reason: invalid_state`; it counts toward the limit and only they can delete it |
 
-## What each helper does today
+### What each helper does today
 
-Each helper still runs its own subscription code. A cell says where it
-already follows the rule, otherwise what it does instead. Telegram shares Slack's subscription code.
+Every helper follows the shared behaviour and differs only where this table
+says. Telegram works like Slack.
 
 | Rule | [IMAP](imap.md#what-it-does) | [Logwatch](logwatch.md#what-it-does) | [Slack](slack.md#what-it-does), [Telegram](telegram.md#reply-routing) |
 |---|---|---|---|
-| Calls | `sub add <target> [/regex/]` over sender and subject; queue or agent checked; edit is refused (delete and add again) | `sub add <target> [filter]`; queue or agent checked; edit is refused (delete and add again) | `sub add <channel or chat> <target> [filter]`, `sub list`, `sub delete <id>`; Slack also `from=`; queue or agent checked |
-| Authority | at add and before every send, toward target and imap | at add and before every send, toward target and logwatch | the shared behaviour: both author grants at add and before every send |
-| Delivery | one send per matching subscription, tagged with its id; the mail body is fetched once | one send for every matching arrival, including repeated lines | the shared behaviour: one send per match, never retried |
-| Refused send | a refused or unknown copy is dropped, counted and warned; the subscription stays active | a refused or unknown copy is dropped, counted and warned; the subscription stays active | the shared behaviour: one counted drop and warning; the next match stays active |
-| Start | from the mailbox's next message at add | from now; history read at start is not sent | from now; Telegram after a restart still sends what arrived while it was down |
-| Limits | shared per-instance/per-author limits and bounded portable filters | shared per-instance/per-author limits and bounded portable filters | the shared limits; filter failure drops only its own copy |
-| Listing | shared row: id, target, first UID, filter, author, time, sent and dropped counts | shared row: id, target, selector, filter, author, time, sent and dropped counts | id, channel, target, filter, author, time, sent and dropped counts; invalid-filter reason |
-| Management | creator lists/deletes own; direct Owner/Maintainers manage all | creator lists/deletes own; direct Owner/Maintainers manage all | the shared author/direct-staff visibility and deletion rules; no `sub edit` |
-| Invalid stored state | invalid filters stay inert and visible; damaged rows, an unreadable old one included, are manager-only repair | invalid filters stay inert and visible; damaged rows are manager-only repair | the shared behaviour: invalid filters stay visible and inert; damaged rows are staff-only; one bad filter cannot stop later subscriptions |
+| Calls | `sub add <target> [/regex/]`, matched on sender and subject | `sub add <target> [filter]` | `sub add <channel or chat> <target> [filter]`; Slack also takes `from=` authors before the filter |
+| Delivery | each copy is tagged with its subscription id; the mail body is fetched once for all of them | every matching arrival is sent, repeated lines included | one copy per match |
+| Start | from the mailbox's next message at `sub add` | from now; history read at start is not sent | from now; Telegram after a restart still sends what arrived while it was down |
+| Listing | shows the first UID in place of a selector | the shared row | adds the channel, and the reason for an invalid filter |
 
 <details>
 <summary>Filters</summary>
 
-A filter is a bare pattern or `/pattern/flags`, with flags `i`, `m`, `s` and `u`.
-It is the regular-expression subset JavaScript and Python agree on: groups,
-alternation, anchors, ASCII classes, `\d \w \s`, and quantifiers up to 100,
-at most 20 of them. Lookaround, backreferences, named groups, inline flags,
-nested quantified groups and non-ASCII classes are refused at `sub add`. A
-filter is tested against at most 8192 bytes of text. An empty filter matches
-everything the selector does. The common vectors are `src/testdata/subscriptions.json`.
+- A filter is a bare pattern or `/pattern/flags`, with flags `i`, `m`, `s` and `u`.
+- It is the regular-expression subset JavaScript and Python agree on: groups, alternation, anchors, ASCII classes, `\d \w \s`, and quantifiers up to 100, at most 20 of them.
+- Lookaround, backreferences, named groups, inline flags, nested quantified groups and non-ASCII classes are refused at `sub add`.
+- A filter is tested against at most 8192 bytes of text. An empty filter matches everything the selector does.
+- The common vectors are `src/testdata/subscriptions.json`.
 
 </details>
 
