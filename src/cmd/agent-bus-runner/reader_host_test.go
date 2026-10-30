@@ -153,3 +153,21 @@ func TestTwoRunnersServeOneNameTakingTurnsAndTheListingShowsBothHosts(t *testing
 		t.Fatalf("the listing shows hosts %v, want host-one and host-two", hosts)
 	}
 }
+
+// An agent that does not say share reads as one reader: a second plain read of
+// its name is refused, whatever else the runner states on it.
+func TestRunnerReadsOfAnAgentWithoutShareAreOneReader(t *testing.T) {
+	r, b, _ := configurationFixture(t, "", "")
+	r.readHost = "solo-host"
+	r.reload()
+	for end := time.Now().Add(5 * time.Second); b.Status().Waiting == 0; time.Sleep(5 * time.Millisecond) {
+		if time.Now().After(end) {
+			t.Fatal("the runner's read never started waiting")
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+	defer cancel()
+	if _, err := b.ConsumeAs(ctx, "owner@h", "#fixture@h", "", "", false, false); !errors.Is(err, core.ErrTwoReads) {
+		t.Fatalf("a second plain read beside an agent that does not share: %v, want it refused as a second reader", err)
+	}
+}
