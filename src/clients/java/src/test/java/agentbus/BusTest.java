@@ -251,7 +251,7 @@ public final class BusTest {
         for (String n : AGENTS) {
             me.register(Map.of("kind", "agent", "name", n, "allow", List.of("*")));
         }
-        me.register(Map.of("kind", "queue", "name", "j-replies@localhost", "allow", List.of(OWNER, "#j-svc@localhost")));
+        me.register(Map.of("kind", "queue", "name", "j-replies@localhost", "allow", List.of(OWNER, "#j-svc@localhost", "#j-caller@localhost")));
         me.register(Map.of("kind", "pubsub", "name", "j-news@localhost", "allow", List.of("*"), "subs", List.of("#j-other@localhost")));
 
         section("identity", () -> {
@@ -416,6 +416,38 @@ public final class BusTest {
                 t.join(5000);
                 check("so does consume(), and goes on waiting", taken.isEmpty() && out.get() instanceof Outcome.Answer, taken + " " + out.get());
                 caller.pollReplies = true;
+            }
+        });
+
+        section("self call", () -> {
+            // The shared cases, with their fixture names mapped to this daemon's.
+            Path cases = Path.of(env("AB_CLIENT_CONFORMANCE_CASES"), "self-call.json");
+            List<?> all = (List<?>) Json.parse(Files.readString(cases).replace("#caller@fixture", "#j-caller@localhost"));
+            check("the shared self-call cases are not empty", !all.isEmpty(), cases);
+            for (Object c : all) {
+                Map<?, ?> k = (Map<?, ?>) c, req = (Map<?, ?>) k.get("request"), want = (Map<?, ?>) k.get("expected");
+                String to = (String) req.get("to"), topic = (String) req.get("topic");
+                for (String replyTo : new String[] {null, "j-replies@localhost"}) {
+                    Bus self = client(to);
+                    List<String> handled = new java.util.concurrent.CopyOnWriteArrayList<>();
+                    Outcome o;
+                    try (Server s = self.serve((m, ctx) -> {
+                        handled.add(m.id() + " " + m.body());
+                        return Response.reply((String) k.get("answer"));
+                    }, Serve.workers(2).poll(ms(300)))) {
+                        Call call = Call.within(Duration.ofSeconds(5)).topic(topic);
+                        o = self.call(to, (String) req.get("body"), replyTo == null ? call : call.replyTo(replyTo));
+                    }
+                    String what = k.get("id") + (replyTo == null ? "" : " via " + replyTo);
+                    check(what + ": the handler's answer, not the request", o instanceof Outcome.Answer a
+                            && a.message().body().equals(want.get("body")) && a.message().from().equals(want.get("from"))
+                            && a.message().to().equals(replyTo == null ? want.get("to") : replyTo)
+                            && a.message().topic().orElse("").equals(want.get("topic")), o);
+                    check(what + ": the handler ran once on the request it answers", handled.size() == 1 && o instanceof Outcome.Answer a
+                            && handled.get(0).equals(a.message().re().orElse("") + " " + req.get("body")), handled + " " + o);
+                    self.close();
+                    awaitReaderRelease(to);
+                }
             }
         });
 

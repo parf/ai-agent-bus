@@ -137,16 +137,44 @@ public final class Server implements AutoCloseable {
                 permits.release();
                 continue;
             }
-            try {
-                bus.ack(m);
-            } catch (RuntimeException e) {
-                Bus.LOG.log(WARNING, "agent-bus serve: could not ack " + m.id() + ": " + e.getClass().getSimpleName());
-            }
-            served.incrementAndGet();
-            Context ctx = new Context(m);
-            running.add(ctx);
-            pool.submit(() -> handle(m, ctx));
+            run(m);
         }
+    }
+
+    /**
+     * Runs a self-call's own request, which the call's wait took instead of this
+     * reader, as ordinary work once a handler is free. False when it cannot run:
+     * stopping, not a request, or no handler free within {@code within}.
+     */
+    boolean work(Message m, Duration within) throws InterruptedException {
+        if (stopping.get() || !request(m)) return false;
+        if (!permits.tryAcquire(within.toMillis(), TimeUnit.MILLISECONDS)) return false;
+        try {
+            if (!stopping.get()) return run(m);
+        } catch (java.util.concurrent.RejectedExecutionException e) {
+            // Stopped between the check and the submit: the drain no longer takes work.
+        }
+        permits.release();
+        return false;
+    }
+
+    // Acks a request and hands it to a handler; the caller holds its permit.
+    private boolean run(Message m) {
+        try {
+            bus.ack(m);
+        } catch (RuntimeException e) {
+            Bus.LOG.log(WARNING, "agent-bus serve: could not ack " + m.id() + ": " + e.getClass().getSimpleName());
+        }
+        Context ctx = new Context(m);
+        running.add(ctx);
+        try {
+            pool.submit(() -> handle(m, ctx));
+        } catch (RuntimeException e) {
+            running.remove(ctx);
+            throw e;
+        }
+        served.incrementAndGet();
+        return true;
     }
 
     /** Whether to run it: not a receipt, not an answer to somebody's call, not too late. */

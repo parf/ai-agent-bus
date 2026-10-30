@@ -26,4 +26,6 @@ javac() { java -m jdk.compiler/com.sun.tools.javac.Main "$@"; }
 # API surface is not enforced here (README § Build).
 javac -source 21 -target 21 -Xlint:all,-options,-serial -Werror -cp "$jar" -d "$out/main" $(find "$java_dir/src/main" -name '*.java')
 javac -source 21 -target 21 -Xlint:all,-options,-serial,-unchecked -cp "$out/main:$jar" -d "$out/test" $(find "$java_dir/src/test" -name '*.java')
+# The shared protocol cases every client adapter reads.
+export AB_CLIENT_CONFORMANCE_CASES=${AB_CLIENT_CONFORMANCE_CASES:-$root/src/testdata/client-conformance}
 TLS=1 "$here/daemon.sh" java -cp "$out/main:$out/test:$jar" agentbus.BusTest "$@"

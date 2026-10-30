@@ -168,6 +168,13 @@ public final class Bus implements AutoCloseable {
                     Message m = p.queue.poll(left, TimeUnit.MILLISECONDS);
                     if (m == null) return new Outcome.TimedOut(acked);
                     if (m == POISON) throw p.failure.get();
+                    // Our own request, taken by this call's wait or routed here by the
+                    // serve reader: it is work for our handler, never the answer.
+                    if (!m.isReceipt() && m.re().isEmpty() && m.id().equals(p.id)) {
+                        Server server = serving.get();
+                        if (server != null) server.work(m, Duration.ofMillis(left));
+                        continue;
+                    }
                     // A receipt is this call's only when it names this call's message.
                     if (m.isReceipt() && !m.re().orElse("").equals(p.id)) continue;
                     if (m.receipt().orElse(null) == Message.Receipt.ACK) { acked = true; continue; }
