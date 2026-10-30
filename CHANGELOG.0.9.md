@@ -6,15 +6,13 @@ The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
 ## 0.9.194 — 2026-10-30
 
-The release run verifies every archive before upload, and a failed verify stops the draft release
+Eighth published 0.9 changeset: 0.9.192–0.9.194, squashed.
 
-## 0.9.193 — 2026-10-30
-
-Container fixtures refuse to start, before any podman call, unless the smoke-gate lock is held
-
-## 0.9.192 — 2026-10-30
-
-A listing with several tags returns only records carrying every tag
+| Area | Changes |
+|---|---|
+| Listing | A listing with several tags returns only records carrying every tag. |
+| Release | The release run verifies every archive in both native builds before upload, and a failed verify stops the draft release. |
+| Test fixtures | Container fixtures refuse to start, before any podman call, unless the smoke-gate lock is held. |
 
 ## 0.9.191 — 2026-10-30
 
