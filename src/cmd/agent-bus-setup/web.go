@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"os"
 	"os/exec"
@@ -158,7 +159,6 @@ func installWeb(web string, tlsOn bool, daemonTLSDir string) error {
 	// once, at the end, and only when something it reads has changed or it is
 	// not running: a setup run that changes nothing leaves a healthy face
 	// alone, and a burst of runs cannot hit systemd's start limit.
-	before := webState()
 	moved, err := ensureWebAccount(web)
 	if err != nil {
 		return err
@@ -170,7 +170,16 @@ func installWeb(web string, tlsOn bool, daemonTLSDir string) error {
 	if err := os.WriteFile(webUnitPath, unit, 0o644); err != nil {
 		return err
 	}
-	changed := moved || webState() != before
+	// What the running face was last started from is on record: the unit, the
+	// TLS files and the code and runtime they name. A release switch changes
+	// the code behind an unchanged unit, so the record is of the resolved code,
+	// not of the stable path.
+	want, err := webState(web, runtime)
+	if err != nil {
+		return err
+	}
+	applied, _ := os.ReadFile(webAppliedPath)
+	changed := moved || string(applied) != want
 	if changed {
 		if err := run("systemctl", "daemon-reload"); err != nil {
 			return err
@@ -197,6 +206,14 @@ func installWeb(web string, tlsOn bool, daemonTLSDir string) error {
 	}
 	if err != nil {
 		return err
+	}
+	if changed {
+		if err := os.MkdirAll(filepath.Dir(webAppliedPath), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(webAppliedPath, []byte(want), 0o644); err != nil {
+			return err
+		}
 	}
 	// Only remove the obsolete symlink, after the replacement unit starts.
 	// A real directory at the old path is the operator's and stays.
@@ -226,10 +243,15 @@ var ensureWebAccount = func(web string) (bool, error) {
 	return true, run("usermod", "--home", web, webAccount)
 }
 
-// webState is a digest of the files a restart of the face would apply: its
-// unit, the TLS drop-in and its copy of the certificate. A missing file counts
-// as a state of its own.
-func webState() string {
+// webAppliedPath records what the face was last started from, written after
+// it answered; a test names its own.
+var webAppliedPath = "/etc/agent-bus/web.applied"
+
+// webState is a digest of everything a start of the face applies: its unit,
+// the TLS drop-in and its copy of the certificate (a missing file counts as a
+// state of its own), the runtime it executes, and the web code, each resolved
+// to the files they are now, so a switched `current` link is a change.
+func webState(web, runtime string) (string, error) {
 	h := sha256.New()
 	files := []string{webUnitPath, webTLSDropIn,
 		filepath.Join(webTLSDir, tlsdir.CertFile), filepath.Join(webTLSDir, tlsdir.ChainFile), filepath.Join(webTLSDir, tlsdir.KeyFile)}
@@ -238,7 +260,39 @@ func webState() string {
 		fmt.Fprintf(h, "%s %v %d\n", f, err == nil, len(b))
 		h.Write(b)
 	}
-	return fmt.Sprintf("%x", h.Sum(nil))
+	exe, err := filepath.EvalSymlinks(runtime)
+	if err != nil {
+		return "", err
+	}
+	info, err := os.Stat(exe)
+	if err != nil {
+		return "", err
+	}
+	fmt.Fprintf(h, "runtime %s %d %d\n", exe, info.Size(), info.ModTime().UnixNano())
+	code, err := filepath.EvalSymlinks(web)
+	if err != nil {
+		return "", err
+	}
+	fmt.Fprintf(h, "code %s\n", code)
+	err = filepath.WalkDir(code, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() && d.Name() == "node_modules" {
+			return fs.SkipDir
+		}
+		fi, err := d.Info()
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(code, path)
+		fmt.Fprintf(h, "%s %v %d %d\n", rel, fi.Mode(), fi.Size(), fi.ModTime().UnixNano())
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
 func waitHealthz(url string, timeout time.Duration, pin string) error {

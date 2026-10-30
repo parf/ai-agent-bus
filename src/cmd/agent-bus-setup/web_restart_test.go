@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/parf/ai-agent-bus/internal/tlsdir"
 )
@@ -47,6 +48,7 @@ func newWebRig(t *testing.T) *webRig {
 	set(&webTLSDir, filepath.Join(dir, "web-tls"))
 	set(&webTLSDropIn, filepath.Join(dir, "web.service.d", "tls.conf"))
 	set(&webTLSAccount, account)
+	set(&webAppliedPath, filepath.Join(dir, "web.applied"))
 	old := ensureWebAccount
 	ensureWebAccount = func(string) (bool, error) { return r.moved, nil }
 	t.Cleanup(func() { ensureWebAccount = old })
@@ -155,5 +157,87 @@ func TestSetupChangingOnlyTheWebTLSCertificateRestartsOnce(t *testing.T) {
 	r.unit(plain, "tls")
 	if n := r.run(false); n != 1 {
 		t.Fatalf("TLS turned off: %d restarts, want 1", n)
+	}
+}
+
+// A release switch, forward or back, changes the code behind an unchanged
+// unit through the stable `current` link: the running face is the old release
+// and must be restarted (found in review of the first J59 fix).
+func TestSetupRestartsTheWebFaceWhenCurrentSwitchesToAnotherRelease(t *testing.T) {
+	r := newWebRig(t)
+	root := t.TempDir()
+	plain := healthServer(t, nil)
+	sh, err := os.ReadFile("/bin/sh")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, id := range []string{"release-1", "release-2"} {
+		dir := filepath.Join(root, "releases", id)
+		if err := os.MkdirAll(filepath.Join(dir, "web"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		// Distinct executables, one byte apart: only what the link resolves to differs.
+		if err := os.WriteFile(filepath.Join(dir, "agent-bus-ts"), append(append([]byte{}, sh...), byte(i)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		unit := "[Service]\nExecStart=@ROOT@/agent-bus-ts web\nEnvironment=AGENT_BUS_WEB_ADDR=" + plain + "\nExecPaths=/usr/bin/bun\n"
+		if err := os.WriteFile(filepath.Join(dir, "web", webUnitName), []byte(unit), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		// The same modification times everywhere: only the executable's bytes differ.
+		same := time.Unix(1_700_000_000, 0)
+		for _, p := range []string{dir, filepath.Join(dir, "web"), filepath.Join(dir, "web", webUnitName), filepath.Join(dir, "agent-bus-ts")} {
+			if err := os.Chtimes(p, same, same); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	current := filepath.Join(root, "current")
+	switchTo := func(id string) {
+		t.Helper()
+		_ = os.Remove(current)
+		if err := os.Symlink(filepath.Join("releases", id), current); err != nil {
+			t.Fatal(err)
+		}
+	}
+	r.web = filepath.Join(current, "web")
+	for _, step := range []struct {
+		release string
+		want    int
+		why     string
+	}{
+		{"release-1", 1, "first install"},
+		{"release-1", 0, "the same release again"},
+		{"release-2", 1, "an upgrade: current now resolves to other bytes under an identical unit"},
+		{"release-2", 0, "the upgraded release again"},
+		{"release-1", 1, "a rollback"},
+	} {
+		switchTo(step.release)
+		if n := r.run(false); n != step.want {
+			t.Fatalf("%s: %d restarts, want %d", step.why, n, step.want)
+		}
+	}
+}
+
+// A checkout runs its sources: changing a file under the web directory is a
+// change, though the unit and the path are the same.
+func TestSetupRestartsTheWebFaceWhenItsSourcesChange(t *testing.T) {
+	r := newWebRig(t)
+	plain := healthServer(t, nil)
+	r.unit(plain, "checkout")
+	if err := os.WriteFile(filepath.Join(r.web, "server.ts"), []byte("one\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if n := r.run(false); n != 1 {
+		t.Fatalf("first install: %d restarts, want 1", n)
+	}
+	if n := r.run(false); n != 0 {
+		t.Fatalf("unchanged sources: %d restarts, want 0", n)
+	}
+	if err := os.WriteFile(filepath.Join(r.web, "server.ts"), []byte("two, longer\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if n := r.run(false); n != 1 {
+		t.Fatalf("changed sources: %d restarts, want 1", n)
 	}
 }

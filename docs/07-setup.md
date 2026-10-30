@@ -916,7 +916,7 @@ it on rollback. The port answers TLS beside plain HTTP
     (`AGENT_BUS_WEB_TLS_DIR`).
   - Its port then serves TLS and redirects plain HTTP there to `https://`.
   - Setup waits for its health over `https://`, pinned to the copy.
-  - Setup starts the face once, at the end, and only when something it reads changed or it is not running: a run that changes nothing leaves a healthy face alone, so a quick series of runs cannot hit systemd's start limit.
+  - Setup starts the face once, at the end, and only when something it reads changed (its unit, TLS files, runtime or code, so a release switch counts) or it is not running: a run that changes nothing leaves a healthy face alone, so a quick series of runs cannot hit systemd's start limit.
   - `--tls off` removes the drop-in, and a re-run or `--upgrade` keeps what
     the node has.
 
