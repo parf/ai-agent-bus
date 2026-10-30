@@ -103,9 +103,9 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
   - Home: [RAG rules](rag/README.md#rules), [R.3](rag/TODO.md#steps)
 
 - ✅ RD129 One live session per bus name: a second session under a name with a live reader fails at start with a visible error, unless it explicitly takes the name over; a forked or background session gets a derived name of its own
-  - Why: owner, 2026-10-27: "yes - 1+2, give it to AB", after J14, where a background manager session shared its parent's name and silently received nothing; the one-reader rule held, but the second session started deaf
+  - Why: owner, 2026-10-27: "yes - 1+2, give it to AB", after [J14](../issues/done/2026-10/2026-10-27.md#mcp-face-and-launchers), where a background manager session shared its parent's name and silently received nothing; the one-reader rule held, but the second session started deaf
   - Date: 2026-10-27
-  - Home: [J14](../issues/done/2026-10/2026-10-27.md#mcp-face-and-launchers); its substance moves to the launcher and face docs when built
+  - Home: [one live session per name](../../docs/06-launchers.md#one-live-session-per-name)
 
 - ✅ RD128 The RAG app keeps its own SemVer, bumped automatically per step; xAB controls the RAG plan's execution, marks done items and has meaningful progress reviewed
   - Why: owner, 2026-10-27: "tell xAB that it should control plan execution, mark done items, and do review after meaningful progress; auto bump RAG's subproject own semver"
