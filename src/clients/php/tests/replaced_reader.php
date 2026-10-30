@@ -4,18 +4,19 @@
 // with curl.cainfo naming the test certificate and reads the counts it prints.
 // Env: AB_TEST_HTTPS, AB_TEST_ADDR (the socket, for the sender and the
 // watcher), AB_TEST_OWNER, AB_TEST_OWNER_TOKEN, AB_REPLACED_READER and its
-// token AB_REPLACED_TOKEN, AB_REPLACED_RUNS.
+// token AB_REPLACED_TOKEN, AB_REPLACED_RUNS. AB_REPLACED_STATUS_ADDR, a probe's,
+// points only the reader's own status reads elsewhere, so they fail.
 declare(strict_types=1);
 
 require __DIR__ . '/../src/autoload.php';
 
 use AgentBus\{Bus, Http, UncertainOutcome};
 
-/** The daemon's count of waiting reads, asked over the socket as the owner. */
-function waiting(): int
+/** The daemon's count of waiting reads, asked over $socket as the owner; -1 when unreadable. */
+function waiting(string $socket): int
 {
     $c = curl_init('http://localhost/status');
-    curl_setopt_array($c, [CURLOPT_UNIX_SOCKET_PATH => getenv('AB_TEST_ADDR'), CURLOPT_RETURNTRANSFER => true,
+    curl_setopt_array($c, [CURLOPT_UNIX_SOCKET_PATH => $socket, CURLOPT_RETURNTRANSFER => true,
         CURLOPT_HTTPHEADER => ['X-Agent-Bus-Token: ' . getenv('AB_TEST_OWNER_TOKEN')], CURLOPT_TIMEOUT => 5]);
     $s = json_decode((string) curl_exec($c), true);
     return is_array($s) && is_int($s['waiting'] ?? null) ? $s['waiting'] : -1;
@@ -23,13 +24,15 @@ function waiting(): int
 
 // The watcher: for each line, a count of waiting reads, answers "seen" once the
 // daemon holds more than that, or "missed" when none came within 5 s. The reader cannot ask
-// itself: it is blocked in the very poll being watched.
+// itself: it is blocked in the very poll being watched. An unreadable count, as
+// baseline or reading, is never seen: any count would exceed it.
 if (($argv[1] ?? '') === 'watch') {
     while (($line = fgets(STDIN)) !== false) {
         $before = (int) $line;
         $until = microtime(true) + 5;
-        while (waiting() <= $before && microtime(true) < $until) { usleep(1000); }
-        echo waiting() > $before ? "seen\n" : "missed\n";
+        $now = waiting(getenv('AB_TEST_ADDR'));
+        while ($before >= 0 && $now <= $before && microtime(true) < $until) { usleep(1000); $now = waiting(getenv('AB_TEST_ADDR')); }
+        echo $before >= 0 && $now > $before ? "seen\n" : "missed\n";
         fflush(STDOUT);
     }
     exit(0);
@@ -43,11 +46,14 @@ $watcher = proc_open([PHP_BINARY, __FILE__, 'watch'], [0 => ['pipe', 'r'], 1 => 
 
 $http->json('GET', '/identity');
 $other = $http->version();
+$status = getenv('AB_REPLACED_STATUS_ADDR') ?: getenv('AB_TEST_ADDR');
 $polls = [];
 $lost = 0; $doubled = 0; $abandoned = 0; $admitted = 0; $errors = [];
 for ($run = 0; $run < $runs; $run++) {
     // The daemon's own agents hold reads too: the old poll is one more.
-    fwrite($pipes[0], waiting() . "\n");
+    $before = waiting($status);
+    if ($before < 0) { $errors[] = "run $run: the daemon's count of waiting reads is unreadable"; break; }
+    fwrite($pipes[0], "$before\n");
     // The old reader: a 30 s wait that curl abandons after 300 ms, leaving the
     // daemon a waiter whose caller is gone. Only curl's own timeout (28) is
     // that; any other failure means no poll was abandoned.

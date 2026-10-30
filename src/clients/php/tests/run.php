@@ -295,15 +295,24 @@ section('replacing a reader over https', function () use ($me, $owner, $ownerTok
     // daemon offering HTTP/2. A poll over HTTP/2 is a stream reset the daemon
     // reads late, and the message handed to it meanwhile is lost.
     $me->register(['kind' => 'agent', 'name' => '#php-replaced@localhost', 'allow' => [$owner]]);
+    $harness = function (int $runs, array $extra = []) use ($owner): array {
+        $env = $extra + getenv() + ['AB_REPLACED_READER' => '#php-replaced@localhost',
+            'AB_REPLACED_TOKEN' => tokenFor('#php-replaced@localhost'), 'AB_REPLACED_RUNS' => (string) $runs];
+        $p = proc_open([PHP_BINARY, '-d', 'curl.cainfo=' . getenv('AB_TEST_CA'), __DIR__ . '/replaced_reader.php'],
+            [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, null, $env);
+        $out = stream_get_contents($pipes[1]); $err = stream_get_contents($pipes[2]);
+        $code = proc_close($p);
+        return [$code, json_decode((string) $out, true), "exit $code: $out $err"];
+    };
+    // A probe first: an unreadable count of waiting reads admits no run. Taken
+    // as a baseline of -1, any later count of 0 or more would read as "seen".
+    [$code, $r, $why] = $harness(1, ['AB_REPLACED_STATUS_ADDR' => getenv('AB_TEST_DIR') . '/no-such.sock']);
+    check('an unreadable count of waiting reads admits no run',
+        $code === 0 && is_array($r) && $r['admitted'] === 0 && count($r['errors']) === 1
+        && str_contains($r['errors'][0], 'unreadable'), $why);
     $runs = 40;
-    $env = getenv() + ['AB_REPLACED_READER' => '#php-replaced@localhost',
-        'AB_REPLACED_TOKEN' => tokenFor('#php-replaced@localhost'), 'AB_REPLACED_RUNS' => (string) $runs];
-    $p = proc_open([PHP_BINARY, '-d', 'curl.cainfo=' . getenv('AB_TEST_CA'), __DIR__ . '/replaced_reader.php'],
-        [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, null, $env);
-    $out = stream_get_contents($pipes[1]); $err = stream_get_contents($pipes[2]);
-    $code = proc_close($p);
-    $r = json_decode((string) $out, true);
-    check('the harness ran', $code === 0 && is_array($r), "exit $code: $out $err");
+    [$code, $r, $why] = $harness($runs);
+    check('the harness ran', $code === 0 && is_array($r), $why);
     if (!is_array($r)) { return; }
     check('a call other than a poll goes over HTTP/2', $r['other'] === CURL_HTTP_VERSION_2_0, json_encode($r));
     check('every poll goes over HTTP/1.1', $r['polls'] === [CURL_HTTP_VERSION_1_1], json_encode($r));
