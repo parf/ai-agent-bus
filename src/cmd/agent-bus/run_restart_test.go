@@ -254,7 +254,13 @@ func TestRecoveryReaderProbeBacksOff(t *testing.T) {
 	transport = func() (*http.Client, string) { return server.Client(), server.URL }
 	defer func() { transport = saved }()
 	l := &link{name: "#recover@fixture", say: io.Discard}
-	l.watchReader(context.Background())() // healthy readers never probe
+	// Keep the healthy watcher alive beyond its first probe delay: stopping it
+	// immediately would also hide an unwanted watcher behind that delay.
+	healthy, endHealthy := context.WithTimeout(context.Background(), 350*time.Millisecond)
+	defer endHealthy()
+	stopHealthy := l.watchReader(healthy)
+	<-healthy.Done()
+	stopHealthy()
 	if n := lookups.Load(); n != 0 {
 		t.Fatalf("healthy poll made %d lookups", n)
 	}
