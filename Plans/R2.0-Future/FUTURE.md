@@ -13,6 +13,7 @@
 | The bus's dotenv grammar in the PHP and Java clients | A PHP or Java agent that needs multi-line or commented secrets; then port `envfile` and run its `common.json` in both suites ([issue K7](../issues/done/2026-10/2026-10-17.md), deferred 2026-10-17) |
 
 | Forced launcher restarts, background servers included | A crash that `--restart` cannot survive because the Codex app-server or `opencode serve` died too; then a `--restart=force` that also rebuilds the owned server, with the t13 ownership check on each rebuild (owner, 2026-10-19: "if needed, later we add force restarts, with bg restarts"). Today `--restart` restarts only a TUI that crashed ([launchers](../../docs/06-launchers.md#smart-launchers)) |
+| The container runner's token out of its environment | A container runtime where `podman inspect` or `docker inspect` readers are not trusted: `-e AGENT_BUS_TOKEN` shows the runner's token there; read it from a file or a `podman --secret` instead ([container image](../../src/container/README.md#run)) |
 The stable proposals are indexed in [topics](README.md#topics). Assign a release only when the owner does; generic ideas remain here.
 
 ## Plugin namespace
