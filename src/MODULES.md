@@ -1,77 +1,19 @@
 # Layers and modules
 
-📌 **TL;DR:** Core decides; ports isolate dependencies; faces translate
-requests. Protocol and ports sit inward, storage, directory, signature, journal
-and sandbox implementations sit behind their ports, and command entry points
-assemble them. Core never imports an adapter.
+📌 **TL;DR:**
+- **Problem:** a change in the wrong layer breaks authority or pulls a dependency into the part that decides.
+- **Outcome:** core decides, ports isolate dependencies, faces translate requests, and command entry points assemble them; core never imports an adapter.
+- **Start:** [see it hold](#try-this-first) with one command, then read the [module table](#what-you-get).
 
-## Status
+## Why you'd want it
 
-The table below describes built code.
+- 🧭 **One place for each decision.** Authority, validation and lifecycle rules live in core, shared by every face and backend.
+- 🔌 **Swappable parts.** A storage or directory implementation can be replaced behind its port.
+- 🛡️ **Checked, not promised.** Smoke checks both the prohibited inward imports and actual adapter assembly.
 
-## The rule
+## What you get
 
-Protocol and ports sit inward; core owns registry, queues and access decisions.
-Storage, directory, signature, journal and sandbox implementations sit behind
-their ports. Command entry points assemble them. HTTP faces translate requests and
-clients may compose operations without deciding registry authority.
-
-Core never imports an adapter. External I/O needed by core goes through a port.
-ACL term syntax and role-name validation live in protocol so the daemon and
-runner use the same grammar. Authority stays in core. `Record.ParsedAllow` is
-an immutable, derived in-memory exception to the wire shape (`json:"-"`): core
-rebuilds it on ACL writes/restore and clears it from public and stored values.
-It rides the staged record value so failed commits undo it atomically.
-
-Process startup and listener management belong to the command that assembles
-the runtime, not to the domain core.
-
-## 0.7 implementation requirements
-
-Standing implementation requirements, first set for the
-[0.7 work](../Plans/done/R0.8-MVP/0.7.0-TODO.md#verification):
-
-- Keep authority, validation and lifecycle rules in core, shared by every face
-  and backend. Share list mechanics without merging distinct permission rules.
-- Evolve small, consumer-driven persistence ports for actual operations.
-  Adapters own SQL, driver errors and database locking; commands select them.
-  Add abstractions for shared behavior or replaceable dependencies, not one
-  interface per type or a generic CRUD framework.
-- Management writes persist affected state rather than rewriting the registry
-  and queue backlog. Ownership transfer is one ordinary committed record update,
-  followed by atomic publication of the new complete in-memory view; it neither
-  reloads storage nor rewrites unrelated durable records. Agent/record removal
-  is the explicit multi-record exception because it clears every stored
-  reference to the removed name in one transaction.
-- Serve registry and authority reads from the loaded memory view. Maintain
-  indexes where measured access patterns justify them; keep invalidation with
-  the corresponding state change.
-- Measure latency, allocations, write volume and lock contention before and
-  after storage changes. Use evidence to choose optimizations while preserving
-  authorization and commit-before-publication guarantees.
-
-### Statistics persistence
-
-Counters and last-use timestamps update in memory, without a database write
-per request, message or increment, and are coalesced into one batch every
-minute, skipping unchanged values and empty batches. Built for queue counters
-in 0.7.1, credential last use in 0.7.6 and the PubSub routing counters in
-0.7.12. Runtime-only metrics
-stay in memory. Persisted statistics flush on graceful shutdown; a crash may
-lose updates since the last successful flush. Retain dirty updates after failed
-flushes and preserve increments arriving during a flush. Retry on the next
-scheduled flush without double-counting already committed values.
-
-Data changes persist immediately through write-through persistence. Queue
-contents and their `in`, `out`, `dropped`, and `expired` counters form queue
-state: they flush together every minute and on graceful shutdown, preserving
-the [durability boundary](../docs/04-messaging.md#durability) and the distinction
-between a drained queue and a never-used one without a write per message.
-Other statistics batches persist [PubSub router counters](../docs/constitution.md#pubsub-routing)
-and may update last-use timestamps; routing counters do not create a PubSub queue. Neither batch may
-rewrite policy or credential material.
-
-## Modules
+The table describes built code.
 
 | Built area | Responsibility |
 |---|---|
@@ -96,40 +38,71 @@ rewrite policy or credential material.
 | `internal/baseline` | Performance baseline tests only |
 | `cmd/`, `mcp/`, `web/` | Program entry points and client faces |
 
-## Languages
+## Try this first
 
-Go implements the daemon, CLI and administrative programs. TypeScript on bun
-implements the MCP face, its push adapters and the [web face](../docs/08-processes.md#the-web-face). The process-title helper needs cgo;
-[setup § build information](../docs/07-setup.md#build-information) owns build requirements.
-This is not a claim that the executable has no native dependencies.
+See that core imports no adapter:
 
-## External tools
+```sh
+cd src && go list -deps ./internal/core | grep -E 'internal/(store|directory|signature|sandbox|journal)'
+```
 
-Record export/import uses `age` for the [encrypted archive](../docs/07-setup.md#encrypted-record-backups); a missing executable is an error, never a plaintext fallback.
+- No output means core reaches no storage, directory, signature, sandbox or journal code; the daemon's own entry point is where the SQLite store is assembled.
 
-Sessions uses `tmux` for [detached session sets](../docs/agents/tmux-sessions.md#installing-it); a missing executable is reported as an error.
+## Technical details
 
-Server-info uses `openssl x509` for [public TLS certificate facts](../docs/agents/server-info.md#tls-certificate); absence is reported as unavailable.
+### The rule
 
-The database proxy bundles two libraries, because it needs a database client in-process: `pymysql` (MIT) and `psycopg` 3 (LGPL-3.0-only, [psycopg.org](https://psycopg.org)), copied into the package with their licenses and a notice ([database agent](../docs/agents/db.md#installing-it)). A missing driver is reported by name, never replaced by another protocol.
+- Protocol and ports sit inward; core owns registry, queues and access decisions.
+- Storage, directory, signature, journal and sandbox implementations sit behind their ports, and command entry points assemble them.
+- HTTP faces translate requests, and clients may compose operations without deciding registry authority.
+- Core never imports an adapter; external I/O needed by core goes through a port.
+- ACL term syntax and role-name validation live in protocol so the daemon and runner use the same grammar. Authority stays in core.
+- `Record.ParsedAllow` is an immutable, derived in-memory exception to the wire shape (`json:"-"`): core rebuilds it on ACL writes and restore and clears it from public and stored values. It rides the staged record value so failed commits undo it atomically.
+- Process startup and listener management belong to the command that assembles the runtime, not to the domain core.
 
-Prefer the language's built-in, then an existing system tool for occasional
-work, then an established library for work that must stay in-process. Never
-write custom cryptographic primitives or invent a new protocol for convenience.
+### 0.7 implementation requirements
 
-### Our own small module
+Standing implementation requirements, first set for the [0.7 work](../Plans/done/R0.8-MVP/0.7.0-TODO.md#verification):
 
-Small shared plumbing belongs in an internal module when repeated code has
-established a common responsibility. A dependency is not needed for a line
-reader or a pending-request map. This exception does not extend to crypto or
-wire-format invention.
+- Keep authority, validation and lifecycle rules in core, shared by every face and backend. Share list mechanics without merging distinct permission rules.
+- Evolve small, consumer-driven persistence ports for actual operations. Adapters own SQL, driver errors and database locking; commands select them. Add abstractions for shared behavior or replaceable dependencies, not one interface per type or a generic CRUD framework.
+- Management writes persist affected state rather than rewriting the registry and queue backlog. Ownership transfer is one ordinary committed record update, followed by atomic publication of the new complete in-memory view; it neither reloads storage nor rewrites unrelated durable records. Agent and record removal is the explicit multi-record exception because it clears every stored reference to the removed name in one transaction.
+- Serve registry and authority reads from the loaded memory view. Maintain indexes where measured access patterns justify them; keep invalidation with the corresponding state change.
+- Measure latency, allocations, write volume and lock contention before and after storage changes. Use evidence to choose optimizations while preserving authorization and commit-before-publication guarantees.
 
-### HTTP is built in
+#### Statistics persistence
 
-Use the built-in HTTP client for API and public-key requests. A shell script
-behind an agent may use `curl`, because that is its ordinary client.
+- Counters and last-use timestamps update in memory, without a database write per request, message or increment, and are coalesced into one batch every minute, skipping unchanged values and empty batches. Built for queue counters in 0.7.1, credential last use in 0.7.6 and the PubSub routing counters in 0.7.12. Runtime-only metrics stay in memory.
+- Persisted statistics flush on graceful shutdown; a crash may lose updates since the last successful flush. Dirty updates are retained after failed flushes, increments arriving during a flush are preserved, and the next scheduled flush retries without double-counting committed values.
+- Data changes persist immediately through write-through persistence. Queue contents and their `in`, `out`, `dropped` and `expired` counters form queue state: they flush together every minute and on graceful shutdown, preserving the [durability boundary](../docs/04-messaging.md#durability) and the distinction between a drained queue and a never-used one without a write per message.
+- Other statistics batches persist [PubSub router counters](../docs/constitution.md#pubsub-routing) and may update last-use timestamps; routing counters do not create a PubSub queue. Neither batch may rewrite policy or credential material.
 
-### In-process libraries
+### Languages
+
+- Go implements the daemon, CLI and administrative programs.
+- TypeScript on bun implements the MCP face, its push adapters and the [web face](../docs/08-processes.md#the-web-face).
+- The process-title helper needs cgo; [setup § build information](../docs/07-setup.md#build-information) owns build requirements. This is not a claim that the executable has no native dependencies.
+
+### External tools
+
+- Record export and import use `age` for the [encrypted archive](../docs/07-setup.md#encrypted-record-backups); a missing executable is an error, never a plaintext fallback.
+- Sessions uses `tmux` for [detached session sets](../docs/agents/tmux-sessions.md#installing-it); a missing executable is reported as an error.
+- Server-info uses `openssl x509` for [public TLS certificate facts](../docs/agents/server-info.md#tls-certificate); absence is reported as unavailable.
+- The database proxy bundles two libraries, because it needs a database client in-process: `pymysql` (MIT) and `psycopg` 3 (LGPL-3.0-only, [psycopg.org](https://psycopg.org)), copied into the package with their licenses and a notice ([database agent](../docs/agents/db.md#installing-it)). A missing driver is reported by name, never replaced by another protocol.
+- Prefer the language's built-in, then an existing system tool for occasional work, then an established library for work that must stay in-process. Never write custom cryptographic primitives or invent a new protocol for convenience.
+
+#### Our own small module
+
+- Small shared plumbing belongs in an internal module when repeated code has established a common responsibility.
+- A dependency is not needed for a line reader or a pending-request map.
+- This exception does not extend to crypto or wire-format invention.
+
+#### HTTP is built in
+
+- Use the built-in HTTP client for API and public-key requests.
+- A shell script behind an agent may use `curl`, because that is its ordinary client.
+
+#### In-process libraries
 
 | Work | Library |
 |---|---|
@@ -137,7 +110,7 @@ behind an agent may use `curl`, because that is its ordinary client.
 | Stored activity days, compressed | `github.com/klauspost/compress/zstd`, pure Go ([activity history](../docs/05-discovery.md#activity-history)) |
 | The runner's system-call filter, compiled for bubblewrap | `github.com/elastic/go-seccomp-bpf`, pure Go, Apache-2.0 ([notices](../licenses/NOTICE.md)) |
 
-### What we do shell out to
+#### What we do shell out to
 
 | Built operation | System tool |
 |---|---|
@@ -147,18 +120,7 @@ behind an agent may use `curl`, because that is its ordinary client.
 | Install accounts, daemon and web units | Host account tools and systemd; `ldd` for the web unit's exec paths |
 | Switch to the admin account | `sudo` |
 
-## What this buys
+### Seams
 
-A storage or directory implementation can be replaced behind its port; smoke checks
-both the prohibited inward imports and actual adapter assembly.
-
-Credential retrieval and key-proof transport for `agent-bus token` live in `internal/tokencmd`; the SSH wrapper reaches that verb only.
-
-
-### Encrypted archives
-
-`internal/backup` owns the versioned tar.gz manifest and age envelope shared by
-record export and runner backup. It performs no registry policy. Core selects
-and validates records through persistence ports; the API encrypts only to the
-original caller's enrolled keys. The admin command decrypts locally, keeping
-private keys off the daemon.
+- Credential retrieval and key-proof transport for `agent-bus token` live in `internal/tokencmd`; the SSH wrapper reaches that verb only.
+- `internal/backup` owns the versioned tar.gz manifest and age envelope shared by record export and runner backup. It performs no registry policy: core selects and validates records through persistence ports, and the API encrypts only to the original caller's enrolled keys. The admin command decrypts locally, keeping private keys off the daemon.
