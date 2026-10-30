@@ -8,5 +8,5 @@
   - Home: [status](README.md#status)
 - ✅ TD2 `#ceo` replaces the manager, and the team uses simple names
   - Date: 2026-10-30
-  - Why: the manager `#claude/ab-dvp-b` lost its reader ([J17](../issues/2026-10/2026-10-30.md)) and the owner stopped the old team; answers Q219. Names are `#ceo`, `#dir`, `#lead1`, `#w1-1..3`, `#qa1`, `#gate`
+  - Why: the manager `#claude/ab-dvp-b` lost its reader ([J17](../issues/2026-10/2026-10-30.md)) and the owner stopped the old team; answers Q219. Names carry the project prefix `ab-`: `#ab-ceo`, `#ab-dir`, `#ab-lead1`, workers `#ab-w1a`, `#ab-w1b`, `#ab-w1c`, `#ab-qa1`, `#ab-gate`
   - Home: [status](README.md#status)
