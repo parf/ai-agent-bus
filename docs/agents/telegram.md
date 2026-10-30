@@ -1,40 +1,28 @@
 # Telegram: talk to your AI from your phone
 
-📌 **TL;DR:** A Telegram bot that carries messages between you and your AI
-assistants. The AI can tell you something or ask you a question; you answer
-from your phone and it carries on. An administrator sets the bot up once.
+📌 **TL;DR:**
+- **Problem:** your AI is working on your computer, gets stuck on a question ("deploy now?"), and waits until you are back at your desk.
+- **Outcome:** it sends you the question on Telegram; you tap **Reply** and your answer goes back to the same AI conversation.
+- **Start:** ask it what it can do: `agent-bus help '#telegram/ann@node.example'` ([Try this first](#try-this-first)).
 
 ## Why you'd want it
 
-**The problem.** Your AI is working on your computer and gets stuck on a
-question ("deploy now?"). It waits until you come back to your desk.
-
-**The idea.** Give the AI a Telegram bot. It sends you the question, you tap
-**Reply**, and your answer goes back to the same AI conversation. The bot's
-password stays on the server; the AI never sees it.
-
-**When to use it**
-
-- You want updates or questions from your AI while away from your desk.
-- Several services should send alerts into one Telegram chat.
-- A group chat should be able to talk to one chosen AI session.
-
-**When not to:** your team lives in Slack (use [Slack](slack.md)), you need a
-plain text message to someone without Telegram (use [SMS](sms.md)), or the
-content must not pass through Telegram's servers.
-
-**Possible use cases**
-
-| Use case | What you do | What you get |
-|---|---|---|
-| Deploy report | AI posts when a deploy ends | A message on your phone |
-| "Should I proceed?" | AI asks; you tap Reply | The AI continues with your answer |
-| Quick instruction | Send `#b please check the logs` | That AI session does it and answers |
-| Group alerts | Forward group messages matching "error" | The AI session sees only the errors |
-| Catch up on a group | Ask for the last five messages | What the bot saw there |
-| Quiet a noisy chat | Tell the bot to ignore that chat | Nothing from it reaches the AI |
+- ⏳ **The AI waits for you at your desk.** Now it asks on your phone and carries on when you answer.
+- 📣 **Alerts come from many services.** Now several of them can send into one Telegram chat.
+- 👥 **A group wants to talk to an AI.** Now a group chat can reach one chosen AI session.
+- 🔑 **The bot's password would be in the AI's hands.** Now the token stays on the server; the AI never sees it.
 
 ## What it does
+
+- ✅ **Messages to your phone:** the AI posts an update or asks a question.
+- ✅ **Answers back to the right conversation:** replying to its message, or starting yours with its tag such as `#b`, reaches that session.
+- ✅ **Read a chat:** the recent messages the bot has seen there.
+- ✅ **Forward alerts:** matching group messages go to an AI session.
+- ✅ **Quiet a noisy chat:** tell the bot to ignore a chat and nothing from it reaches the AI.
+- ✅ **Control:** only people you list may pick sessions; an open group can be limited to one session.
+- 🚫 **Not for:** teams that live in Slack (use [Slack](slack.md)), a plain text message to someone without Telegram (use [SMS](sms.md)), or content that must not pass through Telegram's servers.
+
+The abilities, last:
 
 | Ability | In plain words |
 |---|---|
@@ -45,21 +33,8 @@ content must not pass through Telegram's servers.
 | `whoami` | Name the bot |
 | Edits, reactions, deletion | Change or react to messages |
 
-Every helper is moving to [one shared subscription behaviour](subscriptions.md#the-shared-behaviour); [what Telegram does today](subscriptions.md#what-each-helper-does-today), the same as Slack, lists the differences.
-
-Each AI session gets a short tag such as `#b`. Replying to its message, or
-starting yours with its tag, reaches that session. Only people you list may pick
-sessions; an open group can be limited to one session.
-Slack uses the same router; this page owns the [shared routing rules](#reply-routing).
-
-<details><summary>Technical details: reading history</summary>
-
-`read` returns only messages the bot has seen, oldest first; it does not search
-Telegram's history. Each chat keeps at most 200 messages and 64 KiB of UTF-8
-JSON. A failed history write is logged and retried on a later flush, without
-holding up other chats.
-
-</details>
+- Slack uses the same router; this page owns the [shared routing rules](#reply-routing).
+- How its subscriptions differ from the shared rules is in [what each helper does today](subscriptions.md#what-each-helper-does-today), the same as Slack.
 
 ## You'll need
 
@@ -69,11 +44,29 @@ holding up other chats.
 
 ## Try this first
 
+- Ask it what it can do (read-only):
+
 ```sh
 agent-bus help '#telegram/ann@node.example'
 ```
 
-It lists every call and setting; see [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do).
+- It lists every call and setting; see [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do).
+
+<details>
+<summary>See it on a real node (ran today)</summary>
+
+```sh
+agent-bus call '#telegram/parf@parf.us' --wait 15s whoami | jq -r .body
+```
+
+```text
+@parf_claude_bot (id …)
+```
+
+- It names the bot, which shows the token works. The numeric id is shortened here.
+- The output is from the development node on 2026-10-30; nothing was sent.
+
+</details>
 
 ## Use examples
 
@@ -85,39 +78,45 @@ It lists every call and setting; see [asking an agent what it can do](../user/cl
 | Forward group errors to a session | `agent-bus call '#telegram/ann@node.example' 'sub add #dev #claude/main@node.example /error/i'` |
 | List or remove forwards | `… 'sub list'`, `… 'sub delete <id>'` |
 
-<details><summary>Rules for these calls</summary>
+<details>
+<summary>Rules for these calls, and more use cases</summary>
 
 - `read` also accepts JSON: `{"method":"read","channel":"#dev","limit":5}`.
-- Adding a subscription needs permission to manage the destination session.
+- Adding a subscription needs permission to manage the destination session. Matching messages from listed users are forwarded.
 - The author must also be allowed to send to the destination, checked at add, at an edit that moves the target and before every forward ([may-send for another name](../09-daemon-api.md#checking-permission-to-send)); a refusal or a vanished target disables the subscription, and a check the daemon cannot answer sends nothing.
-  Matching messages from listed users are forwarded.
 - To silence a chat, set its `chats` entry to `{"handler":"drop"}` ([per-chat routing](#per-chat-routing)).
+
+| Use case | What you do | What you get |
+|---|---|---|
+| Deploy report | AI posts when a deploy ends | A message on your phone |
+| "Should I proceed?" | AI asks; you tap Reply | The AI continues with your answer |
+| Quick instruction | Send `#b please check the logs` | That AI session does it and answers |
+| Group alerts | Forward group messages matching "error" | The AI session sees only the errors |
+| Catch up on a group | Ask for the last five messages | What the bot saw there |
+| Quiet a noisy chat | Tell the bot to ignore that chat | Nothing from it reaches the AI |
 
 </details>
 
 ## Installing it
 
-An administrator does this once: create a bot in Telegram, store its token on
-the bus, install the helper on the runner, then list the people allowed to use it.
+- An administrator does this once: create a bot in Telegram, store its token on the bus, install the helper on the runner, then list the people allowed to use it.
 
 ### Create the bot
 
-<details><summary>Step by step in Telegram</summary>
+<details>
+<summary>Step by step in Telegram</summary>
 
-1. Open the verified **@BotFather**, send `/newbot` and answer its questions.
-   You receive the bot token.
+1. Open the verified **@BotFather**, send `/newbot` and answer its questions. You receive the bot token.
 2. Open the bot's direct chat and press **Start**, so it may message you.
-3. For a group: add the bot. With BotFather `/setprivacy` on, it sees only some
-   group messages; turn it off to read ordinary conversation. Bot admins see
-   everything ([Telegram privacy](https://core.telegram.org/bots/features#privacy-mode)).
-4. For a channel: make the bot a channel administrator allowed to post. A linked
-   discussion group is a separate group with its own settings.
+3. For a group: add the bot. With BotFather `/setprivacy` on, it sees only some group messages; turn it off to read ordinary conversation. Bot admins see everything ([Telegram privacy](https://core.telegram.org/bots/features#privacy-mode)).
+4. For a channel: make the bot a channel administrator allowed to post. A linked discussion group is a separate group with its own settings.
 
 </details>
 
 ### Connect it to the bus
 
-<details><summary>Step by step on the server (runner account <code>ann-ab-runner</code>)</summary>
+<details>
+<summary>Step by step on the server (runner account <code>ann-ab-runner</code>)</summary>
 
 Paths follow [runner helpers](README.md#runner-helpers).
 
@@ -130,8 +129,7 @@ Paths follow [runner helpers](README.md#runner-helpers).
    unset BOT_TOKEN
    ```
 
-2. Package it and add an [inventory](../runner/configuration.md#inventory) entry
-   to `/var/lib/agent-bus/ann-ab-runner/agents.json`, keeping other entries:
+2. Package it and add an [inventory](../runner/configuration.md#inventory) entry to `/var/lib/agent-bus/ann-ab-runner/agents.json`, keeping other entries:
 
    ```sh
    sudo src/agents/telegram/package.sh /var/lib/agent-bus/agent.d/telegram
@@ -148,28 +146,26 @@ Paths follow [runner helpers](README.md#runner-helpers).
      sudo -u ann-ab-runner sh -c 'umask 077; cat > /var/lib/agent-bus/ann-ab-runner/tokens/%23telegram%2Fann@node.example'
    ```
 
-4. Reload and check; `whoami` names your bot. “not configured” means the
-   Secret is missing: fix it and reload.
+4. Reload and check; `whoami` names your bot. “not configured” means the Secret is missing: fix it and reload.
 
    ```sh
    agent-bus call '#runner/ann@node.example' reload
    agent-bus call '#telegram/ann@node.example' whoami
    ```
 
-5. Message the bot. It answers “we do not know you”. As owner, `refused` and
-   `channels` show the user and chat ids it has seen; put them in Configuration.
+5. Message the bot. It answers “we do not know you”. As owner, `refused` and `channels` show the user and chat ids it has seen; put them in Configuration.
 
 </details>
 
 ## Configuration
 
-Configuration says who you are on Telegram, which chats have names, and which
-AI session gets incoming messages. Changes apply on the next message.
+- Configuration says who you are on Telegram, which chats have names, and which AI session gets incoming messages.
+- Changes apply on the next message.
 
-<details><summary>Keys and a full example</summary>
+<details>
+<summary>Keys and a full example</summary>
 
-Chat and user ids are decimal **strings**; a group or channel id is often
-negative. Remove the comments before saving in the web panel's **Configuration**:
+Chat and user ids are decimal **strings**; a group or channel id is often negative. Remove the comments before saving in the web panel's **Configuration**:
 
 ```jsonc
 {
@@ -192,16 +188,17 @@ negative. Remove the comments before saving in the web panel's **Configuration**
 agent-bus config '#telegram/ann@node.example' '{"default":"@ann","aliases":{"@ann":"123456789"},"users":{"123456789":"ann"},"route":"#claude/main@node.example"}'
 ```
 
-Each session must exist and allow this agent.
+- Each session must exist and allow this agent.
 
 </details>
 
 ### Reply routing
 
-Telegram and Slack share this router. A message goes to the session you replied
-to, else the one whose tag you used, else the chat's or global default.
+- Telegram and Slack share this router.
+- A message goes to the session you replied to, else the one whose tag you used, else the chat's or global default.
 
-<details><summary>Technical details: routing order, tags and limits</summary>
+<details>
+<summary>Technical details: routing order, tags and limits</summary>
 
 An incoming message goes to the first match:
 
@@ -212,15 +209,11 @@ An incoming message goes to the first match:
 
 - No match: the bot says “not understood” and lists known tags.
 - Only the expected session's answer returns, as a reply in the same place.
-- A tag stays assigned once used: removing a pin does not free it, and moving it
-  to another session is refused.
+- A tag stays assigned once used: removing a pin does not free it, and moving it to another session is refused.
 - Reply links last seven days and survive restarts.
-- The listed person's name is shown; their bus permissions are never given to the
-  bot or the receiving session.
-- Answers split into at most eight messages of 4096 UTF-16 units; longer ones end
-  with “… (truncated)”. A posting failure is reported to the session.
-- A stored malformed route is logged and skipped; a delivered message stays
-  successful if saving its reply route fails.
+- The listed person's name is shown; their bus permissions are never given to the bot or the receiving session.
+- Answers split into at most eight messages of 4096 UTF-16 units; longer ones end with “… (truncated)”. A posting failure is reported to the session.
+- A stored malformed route is logged and skipped; a delivered message stays successful if saving its reply route fails.
 - Handling failures are tried three times, then logged and skipped.
 - The “we do not know you” notice is sent at most once per hour.
 
@@ -228,10 +221,10 @@ An incoming message goes to the first match:
 
 ### Per-chat routing
 
-Each chat can have its own AI session, can be opened to everyone for that
-session only, or can be ignored entirely.
+- Each chat can have its own AI session, can be opened to everyone for that session only, or can be ignored entirely.
 
-<details><summary>Technical details: chat settings and channels</summary>
+<details>
+<summary>Technical details: chat settings and channels</summary>
 
 A `chats` entry, keyed by alias or chat id, overrides the global route for that chat.
 
@@ -242,16 +235,15 @@ A `chats` entry, keyed by alias or chat id, overrides the global route for that 
 | `anyone: true` | Unlisted people may use only this chat's route, or Reply to a session post in this chat; never other sessions or the global route. Without a local route they get “not understood” |
 | `handler: "drop"` | Discard all incoming messages: no routing, replies, refusal records or seen history; `post` still works. The only handler; cannot combine with `route`, `anyone` or `tags` |
 
-Channels: an administrator's posts stay confined to that channel's route and its
-existing reply links, even when Telegram names no sender. A session may post via
-the channel alias; its own posts are not sent back to the bus. Readers reply in the
-linked discussion group, configured separately.
+- Channels: an administrator's posts stay confined to that channel's route and its existing reply links, even when Telegram names no sender.
+- A session may post via the channel alias; its own posts are not sent back to the bus.
+- Readers reply in the linked discussion group, configured separately.
 
 </details>
 
 ## Secret keys
 
-The bot token lives in the bus **Secret**, never in Configuration.
+- The bot token lives in the bus **Secret**, never in Configuration.
 
 | Key | Meaning |
 |---|---|
@@ -260,15 +252,13 @@ The bot token lives in the bus **Secret**, never in Configuration.
 
 ## Who may use it
 
-- The bus allow list decides who may call the helper:
-  `agent-bus manage '#telegram/ann@node.example' --add-allow 'bob@node.example'`.
+- The bus allow list decides who may call the helper: `agent-bus manage '#telegram/ann@node.example' --add-allow 'bob@node.example'`.
 - The `users` list decides who may talk to AI sessions from Telegram.
-- Only the owner and maintainers may use `refused` or change any subscription;
-  managing a destination lets a caller manage its subscriptions.
+- Only the owner and maintainers may use `refused` or change any subscription; managing a destination lets a caller manage its subscriptions.
 
 ## Warnings and alerts
 
-Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#telegram` reports these. The page that shows them is in work.
+Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#telegram` reports these.
 
 | Level | When | What to do |
 |---|---|---|
@@ -292,4 +282,15 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 | Can read a channel but not post | Give it channel-admin posting permission |
 | Repeated handling failures | Administrator checks the runner journal |
 
-`agent-bus call '#telegram/ann@node.example' --help` lists every call.
+- `agent-bus help '#telegram/ann@node.example'` lists every call.
+
+## Technical details
+
+<details>
+<summary>Reading history</summary>
+
+- `read` returns only messages the bot has seen, oldest first; it does not search Telegram's history.
+- Each chat keeps at most 200 messages and 64 KiB of UTF-8 JSON.
+- A failed history write is logged and retried on a later flush, without holding up other chats.
+
+</details>
