@@ -1,17 +1,31 @@
 # Install agent-bus
 
-📌 **TL;DR:** For now agent-bus installs from git. Clone it under
-`/usr/local/src`, build it, run setup once, and link the programs into
-`/usr/local/bin` with `git-install.sh`. After that, an update is a pull, a
-build and a restart.
+📌 **TL;DR:**
+- **Problem:** you want a working bus on a Linux host without hand-building accounts, units and a database.
+- **Outcome:** clone it under `/usr/local/src`, build it, run setup once and link the programs with `git-install.sh`; after that, an update is a pull, a build and a restart.
+- **Start:** follow [How to start](#how-to-start).
 
-## Prerequisites
+## Why you'd want it
+
+- 🚀 **A node in minutes.** Setup creates the accounts, tree, services and web panel for you.
+- 🔁 **Updates are small.** Pull, build, restart.
+- 🧰 **Your first agent right away.** The [Try it](#try-it) step runs a two-line script as an agent.
+
+## What you get
+
+- ✅ **A running daemon and the web panel** at <http://127.0.0.1:6780/>.
+- ✅ **The CLI** (`agent-bus`) linked into `/usr/local/bin`.
+- ✅ **Your SSH key as the first user's key**, so you can reach the bus from your own account.
+
+## How to start
+
+Prerequisites:
 
 - Linux with systemd, and `sudo`
 - git, Go with gcc, and Bun at `/usr/bin/bun`
 - Python 3 for native bundled agents; see the [agent guides](../docs/agents/README.md#choose-an-agent) for their other tools
 
-## Install
+### Install
 
 ```sh
 sudo mkdir -p /usr/local/src/ai-agent-bus && sudo chown "$USER" /usr/local/src/ai-agent-bus
@@ -23,27 +37,35 @@ sudo src/agent-bus-setup --exec "$PWD/src/agent-busd"
 sudo src/git-install.sh --no-build
 ```
 
-The checkout must live outside `/home`: the daemon runs as its own account and
-cannot see a home directory.
+- The checkout must live outside `/home`: the daemon runs as its own account and cannot see a home directory.
 
-## Check
+### Check
 
 ```sh
 agent-bus status
 systemctl is-active agent-busd agent-bus-web
 ```
 
-The web panel is at <http://127.0.0.1:6780/>.
+### Try it
 
-## Try it
+Turn a two-line script into an agent:
 
 ```sh
 printf '#!/bin/sh\necho "hi: $1"\n' > ~/hi.sh && chmod +x ~/hi.sh
-agent-bus run hi ~/hi.sh      # in one terminal
-agent-bus call '#hi' --wait 10s ping        # in another: hi: ping
+agent-bus run hi ~/hi.sh
 ```
 
-## Update
+In another terminal, call it:
+
+```sh
+agent-bus call '#hi' --wait 10s ping
+```
+
+```text
+{"message_id":"…","from":"#hi","to":"you","topic":"call","tag":"…","body":"hi: ping",…}
+```
+
+### Update
 
 ```sh
 cd /usr/local/src/ai-agent-bus
@@ -51,8 +73,9 @@ git pull && bun install --cwd src/mcp && src/build.sh
 sudo systemctl restart agent-busd agent-bus-web
 ```
 
-<details>
-<summary>More setup options</summary>
+## Technical details
+
+### More setup options
 
 | | |
 |---|---|
@@ -61,12 +84,7 @@ sudo systemctl restart agent-busd agent-bus-web
 | Sample data | `sudo /usr/local/bin/agent-bus-setup --samples` adds sample users, agents, services, queues, pubsub channels and groups; `--remove-samples` takes them away |
 | Preview | `--dry-run` says what setup would do; `--print-unit` prints the daemon unit. Neither changes anything |
 
-</details>
-
-## From a release archive
-
-<details>
-<summary>Install and upgrade from a packaged release</summary>
+### From a release archive
 
 ```sh
 sha256sum -c agent-bus-*.tar.gz.sha256
@@ -75,15 +93,7 @@ tar -xzf agent-bus-*.tar.gz -C agent-bus-install --strip-components=1
 sudo ./agent-bus-install/agent-bus-setup --owner "$USER@$(hostname -s)"
 ```
 
-The installed release includes `agents/` and its shared Python helpers/client.
-Native agents need Python 3. Their installers live under
-`/usr/local/lib/agent-bus/current/agents/standalone/`; Slack and Telegram are
-already bundled under `agents/slack/` and `agents/telegram/`.
-
-To upgrade, unpack the new archive the same way and run its
-`agent-bus-setup --upgrade`. It keeps the node's configuration and TLS, backs up
-the state, and rolls back by itself if the new release fails to start. After an
-interrupted upgrade, run `--recover`, then `--upgrade` again
-([setup § install](../docs/07-setup.md#install)).
-
-</details>
+- The installed release includes `agents/` and its shared Python helpers and client.
+- Native agents need Python 3. Their installers live under `/usr/local/lib/agent-bus/current/agents/standalone/`; Slack and Telegram are already bundled under `agents/slack/` and `agents/telegram/`.
+- To upgrade, unpack the new archive the same way and run its `agent-bus-setup --upgrade`. It keeps the node's configuration and TLS, backs up the state, and rolls back by itself if the new release fails to start.
+- After an interrupted upgrade, run `--recover`, then `--upgrade` again ([setup § install](../docs/07-setup.md#install)).
