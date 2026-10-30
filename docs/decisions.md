@@ -95,6 +95,7 @@ owning documentation, not in this index.
 | One active daemon per database | [constitution persistence](constitution.md#persistence-and-loading); [work](../Plans/done/R0.8-MVP/0.7.0-TODO.md#storage-and-identity) | 2026-09-19 owner decision after review, narrowed 2026-09-22: take SQLite's exclusive lock before serving; detecting a lost lock is not required |
 | An acknowledged ban, group removal or ACL restriction holds until explicitly lifted | [administrative crash recovery](04-messaging.md#administrative-crash-recovery) | 2026-09-15 — Acknowledging is a promise, and a crash is not a way out of one; if the durability cannot be promised the acknowledgement must not be given |
 | The daemon may run `ssh-keygen`; the boundary is no user services, not no exec | [nothing the daemon runs may exec](08-processes.md#nothing-the-daemon-runs-may-exec) | 2026-09-15 — A fixed verifier the daemon ships and calls with its own arguments is not a stranger's program, and what a user supplied is what the rule is about |
+| A send with a wait of zero is a send without one, in every client library; the daemon refuses a zero wait | [a send's wait](../src/clients/README.md#a-sends-wait) | 2026-10-30 owner instruction (T-2 send bug) |
 
 ### Runner and execution
 

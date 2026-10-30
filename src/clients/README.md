@@ -26,6 +26,14 @@ Consumption is at most once. Clients never automatically repeat an uncertain
 write. Lock helpers have no fencing token. Cached private copies outlive server
 revocation; refresh invalidates the client's cache.
 
+## A send's wait
+
+A send's `wait` states how long the sender will wait for an answer; the daemon
+turns it into the message's deadline and refuses a zero one. Every client
+therefore treats a wait of nothing (`0`, `"0s"` or `"0ms"` where it takes a
+string, a zero duration where it takes one) as no wait and leaves the field out
+of the request, so `send(wait=0)` delivers like a send without one.
+
 ## Checks
 
 `bash src/smoke.sh` runs the client checks with the daemon and faces.
