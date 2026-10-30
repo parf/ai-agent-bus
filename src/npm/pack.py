@@ -43,12 +43,24 @@ def manifest(path):
     return result
 
 
+# Shipped in the full archive for the guides to point at, never installed or run:
+# the one file the release manifest is allowed not to list.
+UNCHECKED = {'launchers/review-settings.json.dist'}
+
+
 def verify(root):
     entries = manifest(root / 'MANIFEST.sha256')
     for name, checksum in entries.items():
         path = root / name
         if path.is_symlink() or not path.is_file() or digest(path) != checksum:
             raise ValueError('release manifest mismatch: ' + name)
+    # A regular file the manifest does not list was never checked, so nothing is
+    # built from a release that has one (links are not copied into a package).
+    unlisted = sorted(rel for rel in (str(Path(directory, name).relative_to(root)) for directory, _, files in os.walk(root) for name in files
+                                      if not Path(directory, name).is_symlink())
+                      if rel not in entries and rel not in UNCHECKED | {'MANIFEST.sha256'})
+    if unlisted:
+        raise ValueError('release has files its manifest does not check: ' + ', '.join(unlisted[:5]))
     return entries
 
 
