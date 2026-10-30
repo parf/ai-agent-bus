@@ -29,7 +29,7 @@ for a in "$@"; do case $a in
                 echo
                 echo "  $0 [--no-build]   symlink this checkout into $bindir"
                 echo "  $0 --revert       copy the real binaries back"
-                echo "  $0 --reinstall    link, then set the daemon's state aside and install fresh (the 0.7 cutover)"
+                echo "  $0 --reinstall    link, then set the daemon's state aside and install fresh"
                 exit 0 ;;
     *) echo "unknown option: $a" >&2; exit 2 ;;
 esac; done
