@@ -238,4 +238,3 @@ function fromText(body: string): Call {
       return helpCall;
   }
 }
-

@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { dispatchAsk } from "../shared/metadata.ts";
 import manifest from "./agent.json";
+import { SubscriptionError } from "../shared/subscriptions.ts";
 // The Slack agent (Plans/R1.2/done/slack/README.md#slack-agent): one process that
 // serves itself over the bus, reads its tokens from the record's bus secret,
 // and puts a Slack workspace behind #slack@<realm>.
@@ -436,7 +437,7 @@ async function handle(e: Message): Promise<string | null> {
   try {
     return render(json, await run(ctx, e, call), ctx);
   } catch (err) {
-    const why = err instanceof DeadlinePassed ? "the caller's deadline passed" : err instanceof Error ? err.message : "the call failed";
+    const why = err instanceof SubscriptionError ? err.code : err instanceof DeadlinePassed ? "the caller's deadline passed" : err instanceof Error ? err.message : "the call failed";
     return render(json, fail(why), ctx);
   }
 }
