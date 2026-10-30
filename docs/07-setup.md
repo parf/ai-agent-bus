@@ -1032,6 +1032,12 @@ Packagers at `src/agents/<name>/package.sh` replace their public code directory 
 
 Keep cursors, caches and other runtime state in the runner’s work directory, outside `agent.d`. A failed build leaves the previous code tree intact.
 
+Reload the runner after packaging an enabled agent. A running process may otherwise fail when it imports a file from the replaced tree.
+
+A forced kill or power loss between the two directory moves can leave the installed directory missing. The previous tree remains in a sibling `<name>.old.XXXXXX/previous` directory; restore it to the agent’s installed path before reloading.
+
+The next packaging run does not sweep leftover `<name>.new.XXXXXX` or `<name>.old.XXXXXX` directories. Once the installed tree is verified and no packager is running, remove those leftovers; keep any `previous` tree needed for recovery.
+
 The separate standalone tmux-sessions packager still overlays its directory.
 
 The [build stamp](#build-information) is required for shipped Go binaries.
