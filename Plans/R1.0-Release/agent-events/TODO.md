@@ -81,3 +81,25 @@ Each needs its entry where it happens; found while writing the guides.
 - `#debug` `crash` yields the runner's kill alert; `#debug` `fail` yields one warning.
 - No entry contains a secret, a token, a password, a message body, a prompt, an SQL statement or a mail; a fixture planting each in the failure path finds none in the rings.
 - Every guide in `docs/agents/` has a `## Warnings and alerts` section whose rows match this table.
+
+## B.28 Eventlog agent
+
+⏳ Owner, 2026-10-29: [design](eventlog.md#what-it-does). Assigned: agent xAB,
+web page AB (after RT22's page), review `#claude/ab2-review`.
+
+| Step | Work |
+|---|---|
+| 1 | Shared ring module: levels, size, TTL, repeat folding, alerts on disk, used by this agent and later by RT34 |
+| 2 | `#eventlog` runner agent: `write`, `read`, `list`, Configuration defaults and per-log overrides, `read`/`write` roles, help and help-config |
+| 3 | Guide `docs/agents/eventlog.md` (end-user), index row, smoke shard, package, deploy enabled |
+| 4 | Web: instance page with logs, alert marks and the shared rings view |
+
+Acceptance, each failing on a missing implementation or by a named mutant:
+
+- 201 notices into a log with size 200 keep the newest 200; a notice older than its TTL is gone on the next read.
+- 300 warnings never remove an alert; alerts survive an agent restart, notices do not.
+- The same line twice within a minute is one entry with count 2; after a minute it is a new entry.
+- A caller with only `read` is refused on `write` and the log is unchanged; a caller with neither sees nothing; a 201-character line is stored cut at 200.
+- A log name with `/`, a space or over the length bound is refused; the log count bound refuses a new log and keeps the old ones.
+- The web shows an alert mark only for logs with an alert within its window, and a reader without the role gets no page.
+
