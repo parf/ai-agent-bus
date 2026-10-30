@@ -55,7 +55,9 @@ def private():
     return PRIVATE[0]
 
 
-WATCH = 'while kill -0 "$1" 2>/dev/null; do sleep 1; done; shift; exec "$@"'
+# The cleanup runs again every 2 s for a minute: a `podman run` still starting when its test is killed creates the
+# container after the first removal, and only a later one catches it.
+WATCH = 'while kill -0 "$1" 2>/dev/null; do sleep 1; done; shift; for i in $(seq 30); do "$@"; sleep 2; done'
 
 
 def watch(*cleanup):
@@ -91,7 +93,7 @@ def mariadb():
                                '--innodb-buffer-pool-size=16M', '--performance-schema=OFF', f'--pid-file={root}/pid'],
                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     STOP.append(lambda: (server.terminate(), server.wait(20), shutil.rmtree(root, ignore_errors=True)))
-    watch('sh', '-c', 'kill "$1" 2>/dev/null; sleep 3; rm -rf "$2"', 'sh', str(server.pid), root)
+    watch('sh', '-c', 'kill "$1" 2>/dev/null; sleep 1; rm -rf "$2"', 'sh', str(server.pid), root)
     import pymysql
 
     def admin():
@@ -220,9 +222,11 @@ LOGGING = """<clickhouse><logger><level>warning</level><console>1</console><log 
 
 def leaked():
     """Names of fixture containers whose test process is gone: what a run that was killed left behind."""
-    names = podman('ps', '-a', '--filter', 'label=ab-db-fixture', '--format', '{{.Names}} {{.Labels}}', check=False).stdout
+    listing = podman('ps', '-a', '--filter', 'label=ab-db-fixture', '--format', '{{.Names}} {{.Labels}}', check=False)
+    if listing.returncode:   # a store that cannot be listed is not a store with nothing in it
+        raise RuntimeError(f'podman ps failed (exit {listing.returncode}): {listing.stderr.strip()}')
     out = []
-    for line in names.splitlines():
+    for line in listing.stdout.splitlines():
         name = line.split()[0]
         pid = name.split('-')[3] if name.count('-') >= 4 else '0'
         if not os.path.exists(f'/proc/{pid}'):
@@ -256,4 +260,8 @@ def clickhouse():
 
 
 if __name__ == '__main__' and sys.argv[1:] == ['leaked']:
-    print('\n'.join(leaked()))
+    try:
+        print('\n'.join(leaked()))
+    except RuntimeError as error:
+        print(f'cannot tell: {error}')
+        sys.exit(1)

@@ -238,6 +238,12 @@ class Leaks(Patched):
             fixtures.STOP[:] = saved
         self.assertIn(('rm', '-f', '-t', '1', 'ab-db-fixture-999999999-2'), fake.calls)
 
+    def test_a_store_that_cannot_be_listed_is_not_an_empty_one(self):
+        fixtures.podman = lambda *a, check=True: subprocess.CompletedProcess(a, 125, '', 'storage broke')
+        with self.assertRaises(RuntimeError) as caught:
+            fixtures.leaked()
+        self.assertIn('storage broke', str(caught.exception))
+
     def test_leaked_names_only_containers_whose_test_is_gone(self):
         mine = 'ab-db-fixture-%d-1' % os.getpid()
         fixtures.podman = lambda *a, check=True: subprocess.CompletedProcess(
@@ -267,6 +273,36 @@ class KilledRun(unittest.TestCase):
         left = fixtures.podman('ps', '-a', '--filter', 'name=' + name, '-q').stdout.strip()
         self.assertEqual(left, '', 'the container outlived its killed test')
         self.assertEqual([n for n in fixtures.leaked() if n.startswith('ab-db-fixture-%d-' % child.pid)], [])   # a neighbour's is not this test's
+
+    SLOW_START = ('import sys, subprocess; sys.path.insert(0, %r); import fixtures, time\n'
+                  'real = fixtures.podman\n'
+                  'def slow(*args, check=True):\n'
+                  '    if args[0] == "run":   # the client is still starting when the test is killed\n'
+                  '        return subprocess.run(["sh", "-c", "sleep 4; exec \\"$@\\"", "sh", "podman", *args], check=check, capture_output=True, text=True)\n'
+                  '    return real(*args, check=check)\n'
+                  'fixtures.podman = slow\n'
+                  'print(1, flush=True); fixtures.container(fixtures.POSTGRES, 5432, {"POSTGRES_PASSWORD": "x"})\n') % str(Path(__file__).resolve().parent)
+
+    def test_a_kill_during_startup_leaves_no_container(self):
+        child = subprocess.Popen([sys.executable, '-c', self.SLOW_START], stdout=subprocess.PIPE, text=True)
+        self.addCleanup(child.wait)
+        child.stdout.readline()
+        mine = 'name=ab-db-fixture-%d-' % child.pid
+        self.addCleanup(lambda: [fixtures.podman('rm', '-f', '-t', '1', n, check=False)
+                                 for n in fixtures.podman('ps', '-a', '--filter', mine, '--format', '{{.Names}}').stdout.split()])
+        __import__('time').sleep(1)
+        os.kill(child.pid, signal.SIGKILL)   # the first removal fires now, before `podman run` has made the container
+        child.wait(30)
+        end = __import__('time').time() + 40
+        seen = False
+        while __import__('time').time() < end:
+            if fixtures.podman('ps', '-a', '--filter', mine, '-q').stdout.strip():
+                seen = True   # created late, after the first removal
+            elif seen:
+                break
+            __import__('time').sleep(0.5)
+        self.assertTrue(seen, 'the slow start never made its container: the test measured nothing')
+        self.assertEqual(fixtures.podman('ps', '-a', '--filter', mine, '-q').stdout.strip(), '', 'a late container survived')
 
     def test_sigterm_leaves_no_container(self):
         self.run_and_kill(signal.SIGTERM)
