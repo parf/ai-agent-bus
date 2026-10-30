@@ -24,6 +24,15 @@ Other proposed work needs scope confirmation and resolution of
 
 Name implementation waves and falsifiable acceptance after those choices. Crypto acceptance must test what the daemon cannot decrypt; peer-registry acceptance must exercise distinct nodes.
 
+## Windows CLI client
+
+Owner, 2026-10-30; plan in [Windows CLI client](windows-cli.md#steps-and-estimate), pending [Q261–Q264](QUESTIONS.md#open-questions). Starts after [MAC.1](../R1.0-Release/TODO.md) lands.
+
+| ID | Deliverable | Acceptance and mutation |
+|---|---|---|
+| ☐ WIN.1 | The `agent-bus` CLI builds for Windows amd64 and reaches a remote daemon over pinned HTTPS ([plan](windows-cli.md#what-you-get)); daemon, runner, sandbox and launchers stay out | `GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build ./cmd/agent-bus` succeeds in the normal `go_checks` shard, and untagging one Linux-only file fails it. On a `windows-latest` CI job: `agent-bus --version` prints the version and a `build_info:` stamp; a request and a reply complete against a daemon over pinned HTTPS; a wrong fingerprint is refused with nothing sent; a missing `AGENT_BUS_ADDR` says it is required; a left-out subcommand exits non-zero naming itself. The Linux and macOS builds and their normal checks are unchanged. Mutants: drop the pin check and the wrong-fingerprint check fails; let the Windows lock return success without locking and the contention test fails |
+| ☐ WIN.2 | `package.sh` writes `agent-bus-client-<version>-windows-x86_64.zip`; `release-verify` and `release-sign` take it | the archive holds `agent-bus.exe` and no node program; `release-verify` passes it with the build stamp read from the binary, and fails an unstamped one; `release-sign` signs it with the other archives, all or none |
+
 ## Storage acceptance
 
 Owner-assigned, pending. Preserve the task ID carried from 0.7.
