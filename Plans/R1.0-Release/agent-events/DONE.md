@@ -205,3 +205,27 @@ use defaults` assertions. The one-mutant smoke-lock batch was restored/released.
 Final checks: 12 ring tests, 11 pure/package tests, five guide checks; fast
 agent_eventlog shard 1.85 seconds. Deployment remains frozen; this branch makes
 no registration, credential, inventory or reload change.
+
+## Clean shutdown during response construction
+
+The gate's finalizer diagnostic is reproducible without timing luck: SIGTERM
+raised `Shutdown` while `HTTPResponse.__init__` had allocated its IOBase but had
+not initialized `fp`. Its finalizer then raised `AttributeError: ... fp`.
+There was no completed response for the agent to close at that point.
+
+Termination now sets a stop flag. The current bounded SDK operation finishes
+its constructors and cleanup; the loop exits and closes the bus and agent.
+The SDK's existing connection cleanup remains responsible for HTTP resources.
+The original empty-stdout/stderr shutdown assertion is unchanged.
+
+`Daemon.test_sigterm_during_http_response_construction_closes_cleanly` sends a
+real SIGTERM inside the real HTTPResponse constructor before `fp` is assigned.
+It checks empty stderr and that every completed response is closed. It fails
+on the pre-fix code with the exact gate diagnostic and passes with the fix.
+Restoring the raising handler under the smoke lock compiles and fails that
+assertion again; restored and released immediately.
+
+Final checks: all 29 eventlog tests pass; both forced-constructor and ordinary
+kept-process shutdown tests pass five additional repetitions each. Five guide
+checks pass. Deployment stays frozen; no live registration, credential,
+inventory or reload actions were taken for this fix.

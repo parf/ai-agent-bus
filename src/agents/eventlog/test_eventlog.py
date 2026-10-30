@@ -269,6 +269,35 @@ class Daemon(unittest.TestCase):
         self.assertEqual(message.original_to,'jobs@fixture');self.assertIn('owner',message.roles)
         self.assertEqual(json.loads(self.agent.handle(message)).get('error',{}).get('code'),'forbidden')
         self.assertEqual(self.ask('read deploys')['counts']['alert'],1)
+    def test_sigterm_during_http_response_construction_closes_cleanly(self):
+        self.agent.close()
+        env={key:value for key,value in os.environ.items() if not key.startswith(('AGENT_BUS_','AB_ROLE_','PYTHON'))}
+        env.update(AGENT_BUS_ADDR=self.info['addr'],AGENT_BUS_NAME=self.worker.name,AGENT_BUS_TOKEN=self.info['tokens'][self.worker.name],AGENT_BUS_WORK=self.temp.name)
+        # Force the real signal at the exact point seen in the gate: IOBase has
+        # allocated the response, but HTTPResponse.__init__ has not set fp yet.
+        shim="""import http.client, os, signal, sys
+sys.path.insert(0,sys.argv[1])
+import eventlog
+original=http.client.HTTPResponse.__init__
+fired=False
+responses=[]
+def interrupted(self,*args,**kwargs):
+    global fired
+    if not fired:
+        fired=True
+        os.kill(os.getpid(),signal.SIGTERM)
+    original(self,*args,**kwargs)
+    responses.append(self)
+http.client.HTTPResponse.__init__=interrupted
+result=eventlog.run()
+assert fired, 'signal injection did not run'
+assert all(response.isclosed() for response in responses), 'HTTP response left open'
+sys.exit(result)
+"""
+        result=subprocess.run([sys.executable,'-B','-c',shim,str(HERE)],env=env,cwd=self.temp.name,capture_output=True,text=True,timeout=5)
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertEqual((result.stdout,result.stderr),('',''))
+
     def test_kept_entry_uses_bus_config_work_directory_and_clean_shutdown(self):
         self.agent.close()
         env={key:value for key,value in os.environ.items() if not key.startswith(('AGENT_BUS_','AB_ROLE_','PYTHON'))}

@@ -248,9 +248,6 @@ class Agent:
         finally:self.rings.close()
 
 
-class Shutdown(BaseException): pass
-
-
 def run():
     # Offline metadata is authored data, not permission to read the instance.
     ask = os.environ.get('AGENT_BUS_ASK')
@@ -258,14 +255,19 @@ def run():
         if ask=='status':print(error('forbidden'));return 0
         print(dispatch(HERE,ask,roles=set()))
         return 0
-    def stop(*_): raise Shutdown()
+    stopping = False
+    def stop(*_):
+        # Let the bounded SDK request finish its constructors and finally blocks.
+        # Raising here can strand a partially initialized HTTPResponse (no fp).
+        nonlocal stopping
+        stopping = True
     signal.signal(signal.SIGTERM,stop);signal.signal(signal.SIGINT,stop)
     agent = None
     try:
         with Bus(timeout=2) as bus:
             cfg = bus.record(bus.name).config
             agent = Agent(bus,cfg,os.environ.get('AGENT_BUS_WORK') or os.getcwd())
-            while True:
+            while not stopping:
                 try: message = bus.consume(wait=1)
                 except BusError:
                     print('eventlog: bus unavailable',file=sys.stderr);time.sleep(.2);continue
@@ -273,7 +275,7 @@ def run():
                 answer = agent.handle(message)
                 try: message.reply(answer)
                 except BusError: print('eventlog: answer delivery failed',file=sys.stderr)
-    except Shutdown: return 0
+            return 0
     except (rings.RingError,BusError):
         print('eventlog: startup refused',file=sys.stderr);return 78
     finally:

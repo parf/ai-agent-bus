@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.187 — 2026-10-30
+
+the eventlog agent shuts down cleanly when stopped mid-request, with no stray error on stderr
+
 ## 0.9.186 — 2026-10-30
 
 Sixth published 0.9 changeset: 0.9.163–0.9.186, squashed.

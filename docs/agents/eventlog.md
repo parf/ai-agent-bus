@@ -89,7 +89,8 @@ no source checkout is needed. Register it with `agent.json`, grant callers the
 appropriate roles, then enable it through your runner inventory. Keep each
 instance's work directory separate; `AGENT_BUS_WORK` selects it, otherwise the
 runner's working directory is used. State is never written into the package.
-The agent is bus-only, kept and sandboxed.
+The agent is bus-only, kept and sandboxed. On termination it finishes the current
+bounded bus operation, closes its resources and exits cleanly.
 
 ## Configuration
 
