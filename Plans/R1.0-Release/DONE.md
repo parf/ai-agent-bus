@@ -1,5 +1,10 @@
 # DONE — R1
 
+## Docs rewrite DW11
+
+- Rewrite complete across all 16 pages: three `src/*.md` guides, the client hub, six language READMEs, the examples hub and its five example pages. `d4de8959` enforced the initial batch; PHP joined in `300cc54a` and its final two-identity example landed in `d4b4833c`. The close-out rechecked all 16 against the order/first-fifth checker and ENFORCED list; links and anchors resolve.
+- Acceptance remains pending under DW11b (#ab-w2b): run the exact checkout install/update blocks from `src/INSTALL.md` in a disposable container and record the final PHP serve/call output. The original batch explicitly did not run the root checkout steps. `fresh-install-container.sh` checks extracted archive setup, the distro fixture checks `install.sh`, and the npm container fixture checks installed npm tarballs; none executes those checkout blocks. No host root action or new runtime proof is claimed here.
+
 ## Docs rewrite DW7
 
 - Landed `dd56e796`, after distribution: setup follows why, what you get, how to start and technical detail, with real read-only CLI examples. npm publication and macOS distribution limits remain explicit; SHA256SUMS, secondary archive installation, checkout deployment, MAC.2 cleanup, J49 replacement and P.3 queries are retained.
