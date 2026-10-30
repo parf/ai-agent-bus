@@ -1,6 +1,6 @@
 # Deploy over the bus
 
-📌 **TL;DR:** Landed as `e952c374` (0.9.228), with M.8b `20769d8f` (0.9.233) and M.8c `44497ffe` (no bump).
+📌 **TL;DR:** Implementation `6945c1a2`; final gate/bump commit `e952c374` (0.9.228), with M.8b `20769d8f` (0.9.233) and M.8c `44497ffe` (no bump).
 This records the acceptance on main on 2026-10-30; it is completion evidence.
 
 ## Acceptance map
@@ -19,6 +19,8 @@ Bare Go filenames below are in `src/cmd/agent-bus-runner/`.
 | Named refusal mutants and management tests | Original [M.8 evidence](../DONE.md#m8-deploy-over-the-bus); M.8b exact-read-only/guard mutants and M.8c hook fixture are in the landed commits above. All required refusal categories map to the preceding tests. |
 
 ## Verification
+
+`e952c374` is the actual final landing/bump commit even though its subject names the smoke-refusal fix: it raises VERSION from 0.9.227 to 0.9.228 and includes the changelog. The final gate log `tmp/gate-logs/20261030-184453-ab-w1c_M8.log` reports 1262 passed, 0 failed. The deployment implementation itself is `6945c1a2`.
 
 Each named check and its assertions were inspected on main. This close-out changes no code and adds no test result or mutant claim; the owning implementation evidence records its runs. Changed links and whitespace are checked for this edit.
 

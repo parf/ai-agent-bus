@@ -262,7 +262,7 @@ configuration written under `runner/` on the host, then a `reload` call.
   - Mutant: restart on 78, keep reading the inbox, drop the reason, or answer nothing, and a check must fail
   - Built: de0a205 (0.8.193) by Codex; OpenCode reviewed it with no P1/P2, the stderr-capture hardening followed in b514fc7 and was independently reviewed
 
-- ✅ M.8 Deploy over the bus: Landed as `e952c374` (0.9.228), with M.8b `20769d8f` (0.9.233) and M.8c `44497ffe` (no bump). [Acceptance and original task detail](done/m8-deploy-close-out.md#acceptance-map); [current contract](../../docs/runner/operations.md#deploying-an-agent).
+- ✅ M.8 Deploy over the bus: Implementation `6945c1a2`, landed through final gate/bump commit `e952c374` (0.9.228), with M.8b `20769d8f` (0.9.233) and M.8c `44497ffe` (no bump). [Acceptance and original task detail](done/m8-deploy-close-out.md#acceptance-map); [current contract](../../docs/runner/operations.md#deploying-an-agent).
 
 ## Bundled agents
 
@@ -472,7 +472,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Acceptance: the web record page and doctor send no ask an agent did not declare; an agent that answers only `help` costs one round trip and never a timeout
   - Status: needs thinking through first (owner, 2026-10-26: "this question needs to be thought through"); decide Q191, then document it (constitution § agent self-description, authoring checklist, create-agent prompt) and update every bundled and standalone agent and the MCP face to the chosen form
 
-- ✅ RT24 The bus on the bus: Landed as `bfeb5f58` (0.9.224): the settled read-only help/status/version/ls set is complete; management methods remain future scope. [Acceptance and original task detail](done/rt24-bus-close-out.md#acceptance-map); [current contract](../../docs/agents/bus.md#what-it-does).
+- ✅ RT24 The bus on the bus: Landed as `bfeb5f58` (0.9.224): the settled read-only help/status/version/ls set is complete; AI CLI `ab_send` with ask `help` has component coverage only, with no end-to-end test. Management methods remain future scope. [Acceptance and original task detail](done/rt24-bus-close-out.md#acceptance-map); [current contract](../../docs/agents/bus.md#what-it-does).
 
 - ✅ RT25 Ask-first dispatch and initialization: Initial ask-first dispatch (0.9.101), RT25a `7b03df8b` (0.9.236) and RT25b `0430a095` (0.9.237) are landed. [Acceptance and original task detail](done/rt25-asks-close-out.md#acceptance-map); [current contract](../../docs/agents/authoring.md#checklist-writing-an-agents-description-and-help).
 
