@@ -1,0 +1,222 @@
+{
+  "description": "Named notice, warning and alert logs with independent rings and once-only subscriptions",
+  "command": "./eventlog.py",
+  "form": "args",
+  "serves": "itself",
+  "processes": 1,
+  "deadline": "30s",
+  "tags": [
+    "ops"
+  ],
+  "roles": [
+    "read",
+    "write"
+  ],
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "Serg Parf",
+  "homepage": "https://parf.dev/agent-bus/",
+  "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/eventlog.md",
+  "body_formats": [
+    "text",
+    "json"
+  ],
+  "methods": {
+    "write": {
+      "help": "Store one entry, then synchronously forward each matching subscription before answering",
+      "role": "write",
+      "text": "write <log> <level> <text>",
+      "args": [
+        {
+          "name": "log",
+          "type": "string",
+          "help": "Case-sensitive log name: ASCII letters/digits, dot, underscore or hyphen; 1..64 characters"
+        },
+        {
+          "name": "level",
+          "type": "string",
+          "help": "notice, warning or alert"
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "help": "One line, cleaned of controls and cut to 200 characters",
+          "rest": true
+        }
+      ],
+      "returns": "{entry:{id,level,text,at,last_at,count},deliveries:{matched,sent,dropped}}",
+      "example": "agent-bus call '#eventlog@node.example' 'list'"
+    },
+    "read": {
+      "help": "Read live entries newest first; with no level, rings ordered alert, warning, notice",
+      "role": [
+        "read",
+        "write"
+      ],
+      "text": "read <log> [level]",
+      "args": [
+        {
+          "name": "log",
+          "type": "string",
+          "help": "Case-sensitive log name: ASCII letters/digits, dot, underscore or hyphen; 1..64 characters"
+        },
+        {
+          "name": "level",
+          "type": "string",
+          "help": "notice, warning or alert",
+          "optional": true
+        }
+      ],
+      "returns": "{log,rings:{alert:[],warning:[],notice:[]},counts:{alert:n,warning:n,notice:n},latest_alert_at,now}; selected rings only, counts all levels; latest_alert_at null when no live alert",
+      "example": "agent-bus call '#eventlog@node.example' 'list'"
+    },
+    "list": {
+      "help": "List active logs sorted by name, counts and latest live alert time",
+      "role": [
+        "read",
+        "write"
+      ],
+      "args": [],
+      "returns": "{logs:[{log,counts:{alert:n,warning:n,notice:n},latest_alert_at}],now}",
+      "example": "agent-bus call '#eventlog@node.example' 'list'"
+    },
+    "pull": {
+      "help": "Remove and return oldest entries; subscription inbox copies are unaffected",
+      "role": "write",
+      "destructive": true,
+      "text": "pull <log> [level] [count]",
+      "args": [
+        {
+          "name": "log",
+          "type": "string",
+          "help": "Case-sensitive log name: ASCII letters/digits, dot, underscore or hyphen; 1..64 characters"
+        },
+        {
+          "name": "level",
+          "type": "string",
+          "help": "notice, warning or alert",
+          "optional": true
+        },
+        {
+          "name": "count",
+          "type": "integer",
+          "help": "Oldest entries to remove, 1..500; default 100",
+          "optional": true,
+          "default": 100
+        }
+      ],
+      "returns": "{log,entries:[],remaining,now}; oldest id first; removal durable before reply",
+      "example": "agent-bus call '#eventlog@node.example' 'list'"
+    },
+    "clean": {
+      "help": "Remove entries up to id, or all entries; only an unbounded all-level clean retires the log",
+      "role": "write",
+      "destructive": true,
+      "text": "clean <log> [level] [id]",
+      "args": [
+        {
+          "name": "log",
+          "type": "string",
+          "help": "Case-sensitive log name: ASCII letters/digits, dot, underscore or hyphen; 1..64 characters"
+        },
+        {
+          "name": "level",
+          "type": "string",
+          "help": "notice, warning or alert",
+          "optional": true
+        },
+        {
+          "name": "id",
+          "type": "integer",
+          "help": "Entry upper id boundary, or subscription id for sub.delete",
+          "optional": true
+        }
+      ],
+      "returns": "{log,removed,counts:{alert:n,warning:n,notice:n}}",
+      "example": "agent-bus call '#eventlog@node.example' 'list'"
+    },
+    "sub.add": {
+      "help": "Subscribe from now. One text selector always names a log, including alert; JSON can select only a level",
+      "role": [
+        "read",
+        "write"
+      ],
+      "text": "sub add <target> [log] [level] [/regex/]",
+      "args": [
+        {
+          "name": "target",
+          "type": "string",
+          "help": "Destination queue or agent; creator grants checked at add and every send"
+        },
+        {
+          "name": "log",
+          "type": "string",
+          "help": "Case-sensitive log name: ASCII letters/digits, dot, underscore or hyphen; 1..64 characters",
+          "optional": true
+        },
+        {
+          "name": "level",
+          "type": "string",
+          "help": "notice, warning or alert",
+          "optional": true
+        },
+        {
+          "name": "filter",
+          "type": "string",
+          "help": "Portable bare or /pattern/imsu regex, at most 200 scalar characters",
+          "optional": true
+        }
+      ],
+      "returns": "{id,target,selector,filter,created_by,created_at,sent,dropped}",
+      "example": "agent-bus call '#eventlog@node.example' 'list'"
+    },
+    "sub.list": {
+      "help": "List creator subscriptions; direct Owner/Maintainers see all, including invalid_state repair rows",
+      "role": [
+        "read",
+        "write"
+      ],
+      "text": "sub list",
+      "args": [],
+      "returns": "{subscriptions:[]}",
+      "example": "agent-bus call '#eventlog@node.example' 'list'"
+    },
+    "sub.delete": {
+      "help": "Delete your subscription; direct Owner/Maintainers may repair/delete any",
+      "role": [
+        "read",
+        "write"
+      ],
+      "destructive": true,
+      "text": "sub delete <id>",
+      "args": [
+        {
+          "name": "id",
+          "type": "string",
+          "help": "Entry upper id boundary, or subscription id for sub.delete"
+        }
+      ],
+      "returns": "{deleted:true}",
+      "example": "agent-bus call '#eventlog@node.example' 'list'"
+    },
+    "help": {
+      "help": "Describe methods and limits",
+      "args": [],
+      "example": "agent-bus call '#eventlog@node.example' 'list'"
+    }
+  },
+  "config": {
+    "rings": {
+      "type": "object",
+      "help": "Level \u2192 optional size and ttl duration; defaults notice 200/1d, warning 200/7d, alert 50/30d; combined size <=500"
+    },
+    "logs": {
+      "type": "object",
+      "help": "Log name \u2192 per-level ring overrides, same shape as rings"
+    },
+    "max_logs": {
+      "type": "integer",
+      "help": "Maximum active logs, 1..100",
+      "default": 100
+    }
+  }
+}
