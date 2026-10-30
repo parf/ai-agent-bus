@@ -13,6 +13,9 @@
 - **Ask-only consume filter** — owner, 2026-10-30 15:25, Q260 option (1).
   - Home: [RT25](TODO.md#bundled-agents).
 
+- **Bus JSON results and node status counts** — settled by `#ab-dir`, 2026-10-30.
+  - Home: [RT24, the bus on the bus](TODO.md#bundled-agents). Text by default; explicit `--json` on status/version/ls returns the existing API result without a new schema. Counts remain caller-authorized `StatusFor` node totals, and `ok` means the request was served; no `degraded` branch without a named existing fault.
+
 - Eventlog readers manage their own subscriptions — owner, 2026-10-30.
   - Home: [shared subscription behavior](../../docs/agents/subscriptions.md#the-shared-behaviour).
 
