@@ -13,7 +13,6 @@ goroot=$(go env GOROOT)
 gomod=$(go env GOMODCACHE)
 bunbin=$(command -v bun)
 buncache=${BUN_INSTALL_CACHE_DIR:-$HOME/.bun/install/cache}
-gocache=$(go env GOCACHE)
 base="$common/tmp/install-md-acceptance"
 mkdir -p "$base"
 run=$(mktemp -d "$base/run.XXXXXX")
@@ -35,8 +34,8 @@ cp "$doc" "$run/fixture/INSTALL.md"
 "${podman[@]}" run -d --rm --pull=never --privileged --systemd=always --network=none \
   --security-opt label=disable --hostname install-md.test --name "$name" --label "agent-bus-run=$guard_run" \
   --log-driver k8s-file --log-opt "path=$run/container.ctr.log" --log-opt max-size=10mb \
-  -v "$run/source.git:/source.git:ro" -v "$run/fixture:/fixture:ro" \
-  -v "$goroot:/opt/go:ro" -v "$gomod:/gomod:ro" -v "$gocache:/gocache:O" \
+  -v "$run/source.git:/source.git:rw" -v "$run/fixture:/fixture:ro" \
+  -v "$goroot:/opt/go:ro" -v "$gomod:/gomod:ro" \
   -v "$bunbin:/opt/bun/bun:ro" -v "$buncache:/bun-cache:O" \
   localhost/agent-bus-install-md:debian13 >/dev/null
 for _ in $(seq 1 150); do

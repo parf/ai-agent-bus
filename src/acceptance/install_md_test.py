@@ -17,7 +17,7 @@ DOC = Path('/fixture/INSTALL.md')
 CHECKOUT = Path('/usr/local/src/ai-agent-bus')
 USER = 'dev'
 ENV = {'PATH': '/opt/go/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin', 'HOME': f'/home/{USER}', 'USER': USER,
-       'GOFLAGS': '-mod=mod', 'GOPROXY': 'off', 'GOMODCACHE': '/gomod', 'GOCACHE': '/gocache', 'GOTOOLCHAIN': 'local',
+       'GOFLAGS': '-mod=mod', 'GOPROXY': 'off', 'GOMODCACHE': '/gomod', 'GOCACHE': '/tmp/gocache', 'GOTOOLCHAIN': 'local',
        'BUN_INSTALL_CACHE_DIR': '/bun-cache', 'CGO_ENABLED': '1', 'LANG': 'C.UTF-8'}
 
 
