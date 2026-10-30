@@ -202,7 +202,8 @@ configuration written under `runner/` on the host, then a `reload` call.
   - Acceptance: a call to `#hello@h` is answered by `#hello@h` through the runner; a message for an unserved name gets an error back, holding it fails; an instance missing a required variable is refused at `reload`; a script's output beyond a bound is cut and said, never buffered whole in the runner; each agent registered with its deploying User as a Maintainer ([who it runs as](runner-implementation.md#who-it-runs-as)); answers are sent off the read loop, so a slow send never leaves the runner without a reader; a template shows in `status` as one, not as a stopped agent
   - Mutant: Not recorded in the source.
 
-- ⏳ M.3 Processes
+- ⏳ M.3 Processes (audit 2026-10-30: `processes` is only a concurrency cap for per-message agents; `idle` and `in_flight` are validated and never used; `jsonl` is refused at load; SIGHUP nowhere)
+  - M.3a `jsonl` kept form with `in_flight` (L); M.3b pool growth and idle shrink (M); M.3c `SIGHUP` and restart/report of a killed kept script agent (S, shared with M.5)
   - Builds: `processes` counts and ranges; the `jsonl` kept form with `in_flight`; `SIGTERM`/`SIGHUP`, the 5-minute idle, the deadline, restart with backoff
   - Format: the `jsonl` frame, carrying each message's bus ID ([№Q160](DECISIONS.md#recorded-decisions))
   - Acceptance: a pool grows under load and shrinks after idle; a killed child is restarted and reported; an unhandled `SIGHUP` restarts it; removing the idle stop fails a bounded check; `in_flight` 2 holds two messages at once and answers both in any order
@@ -228,7 +229,8 @@ configuration written under `runner/` on the host, then a `reload` call.
   - Acceptance: a script started by `agent-bus run` sees `KEY=value` from its record's secret, sandboxed and not; a changed secret reaches the next message; no secret value appears in its log or title; the debug agent's `env` names no secret value
   - Mutant: skip the secret layer, read it only at start, or leave it out of the sandboxed job's env, and a check must fail
 
-- ⏳ M.5 The host's controls
+- ⏳ M.5 The host's controls (audit 2026-10-30: `depends` is validated and read by nothing; reload sends no `SIGHUP` and does not drain; only `agent.json` is overridable; `backup` moved to R1.1)
+  - M.5a `depends` ordering and cycle refusal at reload (S-M); M.5b reload semantics: `SIGHUP`, restart after drain (M, after M.3c); M.5c overrides of other shipped JSON files, mounted (M)
   - Built in 0.8.207: `enable`/`disable`/`start`/`stop`/`restart` calls ([controlling one agent](../../docs/runner/operations.md#controlling-one-agent), [№Q181](DECISIONS.md#recorded-decisions))
   - Built in 0.8.210: reading and writing the host's files, instance create and delete ([the host's files](../../docs/runner/operations.md#the-hosts-files-over-the-bus)); the override of `agent.json`, read by the runner ([overriding](../../docs/runner/configuration.md#overriding-the-authors-options))
   - Builds: overrides of an agent's other shipped JSON files (JSON Merge Patch, mounted); `depends` ordering; the `backup` verb; a configuration change applied at `reload` ([№Q19](runner.md#stop-and-reload))
@@ -236,13 +238,15 @@ configuration written under `runner/` on the host, then a `reload` call.
   - Acceptance: an override changes the agent's view of its file and a refused key is named; a cycle in `depends` is refused; `backup` restores with the intended key only; at `reload` a changed agent's kept processes get `SIGHUP` and an untouched sibling gets none; a changed env file or bus secret restarts its kept processes after their work drains ([№Q161](DECISIONS.md#recorded-decisions))
   - Mutant: Not recorded in the source.
 
-- ⏳ M.6 Pools and edges
+- ⏳ M.6 Pools and edges (audit 2026-10-30: the daemon already lets two readers share an inbox; `share` in `agents.json` is parsed and read by nothing; no member hostname field)
+  - M.6a wire `share` to the consume call and add the member hostname field with the listing (L, daemon change, owner restarts); M.6b edge runners as `#runner/<edge>@<realm>` (M, after Q165)
   - Builds: `share`; the member hostname field (daemon change); edge runners under the bus's realm
   - Format: the hostname field; pool members read the pool's own inbox ([№Q159](DECISIONS.md#recorded-decisions))
   - Acceptance: two runners serve one name taking turns and a listing shows both hosts; an edge runner registers as `#runner/<edge>@<realm>`
   - Mutant: Not recorded in the source.
 
-- ⏳ M.7 Named hosts
+- ⏳ M.7 Named hosts (audit 2026-10-30: the network is on or off, nothing filters hosts)
+  - M.7a the mechanism is chosen and its format approved (owner question); M.7b the proxy and the no-route bypass check (L)
   - Builds: the filtering proxy for `needs` hosts
   - Acceptance: a named host is reached and another refused; bypassing the proxy has no route
   - Mutant: Not recorded in the source.
@@ -458,7 +462,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
 
 - ✅ B.23 scoped curl and per-instance fetch allowlists — **0.9.153**, `3b6e6669`; final normal **1218/0, 47.513 s**, **59** assertion-red mutants, **79** focused checks; manager deployed disabled and implementer independently verified package/state plus check-deploy **6/6**. [Current guide](../../docs/agents/fetch.md#what-it-does), [result/review/plan history](done/fetch-curl.md#result). Real private scopes remain the owner's choice.
 
-- ⏳ B.25 `#git` autopull from bus channels: `autopull-cmd` events, start check and operator force, `ff`/`mirror` modes, revision deploy, JSON results on `autopull-log`, success/fail scripts; the timer is removed — [design](git-autopull/README.md#two-channels), [tasks](git-autopull/TODO.md#b25-channel-driven-autopull-in-git) (owner, 2026-10-29)
+- ✅ B.25 `#git` autopull from bus channels (built 0.9.160 core `7ea886eb`, scripts 0.9.162 `666671da`, owner's-flow check in [DONE](git-autopull/DONE.md#owners-flow-end-to-end); pending, the owner's: the own-reader reinstall, the node's `autopull-cmd`/`autopull-log` records and the realty servers' switch from Redis autopull): `autopull-cmd` events, start check and operator force, `ff`/`mirror` modes, revision deploy, JSON results on `autopull-log`, success/fail scripts; the timer is removed — [design](git-autopull/README.md#two-channels), [tasks](git-autopull/TODO.md#b25-channel-driven-autopull-in-git) (owner, 2026-10-29)
 
 - ⏳ B.26 `#webhook` publishes a hosting service's push to `autopull-cmd` — [tasks](git-autopull/TODO.md#b26-webhook-publishes-to-a-pubsub-channel)
 
@@ -584,7 +588,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
       - Added mutants: root reads through a planted link; `--for root` accepted; package.sh run as root into the home; removal as root; a user-manager restart emitted; `-M` failure leaves partial state; dry-run runs the helper; template without RestartSec/StartLimit; enumeration by scanning /home; user-manager `daemon-reload` killing scopes (proven harmless in the container)
     - Mutants: tmux started without `--scope` (pids change on stop); the template without `Delegate=yes` or with `KillMode=control-group` reaching the scopes (pids change); root writing into the home (a planted symlink to a root-owned file is followed); install not idempotent; a shared agent.d package visible to the user runner
 
-- ☐ RT32 Every bundled agent has its own doc page in one structure, listed on one index page, and returns the page's link (owner, 2026-10-28: "make sure to have good doc page with a list of bundled agents; every agent must have its own doc page; return this page from agent (use github link); check how we do these pages (structure)")
+- ✅ RT32 (landed 0.9.131; pending, the owner's: `#bus` Docs needs a daemon restart; optional step 6, a Docs row in the agent page's About card, is not built) Every bundled agent has its own doc page in one structure, listed on one index page, and returns the page's link (owner, 2026-10-28: "make sure to have good doc page with a list of bundled agents; every agent must have its own doc page; return this page from agent (use github link); check how we do these pages (structure)")
   - Index: [docs/agents/README.md](../../docs/agents/README.md#choose-an-agent) lists every bundled agent, one row each, linking its page
   - One structure, the one most pages already use (git, slack, telegram, systemd, server-info): Why you'd want it · What it does · You'll need · Try this first · Use examples · Installing it · Configuration · Secret keys · Who may use it (roles) · Troubleshooting; a section an agent has nothing for says so in one line rather than vanishing
   - Brought up to it: `voyage`, `tmux-sessions`, `debug`, `bus`, `qdrant`; every new agent (`#qdrant` proxy, `#rag`, the database proxy, mail, webhook, cron, fetch) lands with its page
@@ -615,9 +619,9 @@ asks for the API shape; then runner, daemon and web parts are split.
 
 ## RT33 May-send for another name
 
-- ⏳ RT33 `GET /may-send?who=<name>&name=<target>` and its use by every agent that sends for someone else (daemon and clients ✅ 0.9.141 `2889a06b`/`f5442b9a`, deployed, 14 mutants, reviewed; Slack, Telegram and logwatch `sub` ✅ 0.9.145 `a54afe01`/`ba3b9c82`, 20 mutants, gate 233/0, reviewed, not yet deployed; IMAP `sub` (xAB2) open) ([RD141](DECISIONS.md#recorded-decisions))
+- ⏳ RT33 `GET /may-send?who=<name>&name=<target>` and its use by every agent that sends for someone else (daemon and clients ✅ 0.9.141 `2889a06b`/`f5442b9a`, deployed, 14 mutants, reviewed; Slack, Telegram and logwatch `sub` ✅ 0.9.145 `a54afe01`/`ba3b9c82`, 20 mutants, gate 233/0, reviewed, not yet deployed; IMAP `sub` ✅ in B.21, 0.9.150: author's may-send checked at add and at every send; all `sub` code moves to the shared module under [B.29](#bundled-agents)) ([RD141](DECISIONS.md#recorded-decisions))
   - Daemon (AB): `who` is optional; without it the answer is for the caller, as today. With it, the daemon answers by Send's own admission rule for `who`, only for a target the caller can see, exactly as `/manages?who=` limits disclosure; a hidden target answers as not found. No refusal counter or activity is recorded. Docs: [daemon API § checking permission to send](../../docs/09-daemon-api.md#checking-permission-to-send). Clients: Python and TypeScript `may_send(who, name)`. Daemon restart with the owner's OK
-  - Agents, after the daemon lands: cron and `#at` (AB2, ✅ 0.9.144, commit 7114ba9a: one creator verdict before every firing and retry, per-pass circuit breaker, 85 mutants, gate green, deployed disabled), IMAP `sub` (xAB2), Slack, Telegram and logwatch `sub` (whoever is free). Add and each send check the author; a refusal at add stores nothing, a refusal at send pauses the entry visibly (as an ACL refusal under RD140); an unavailable check refuses rather than sends
+  - Agents, after the daemon lands: cron and `#at` (AB2, ✅ 0.9.144, commit 7114ba9a: one creator verdict before every firing and retry, per-pass circuit breaker, 85 mutants, gate green, deployed disabled), IMAP `sub` (xAB2), Slack, Telegram and logwatch `sub` (whoever is free). Add and each send check the author; a refusal at add stores nothing, a refusal at send drops that one message with one warning and the next match is delivered (B.29, owner 2026-10-29; the pause of RD140 is superseded); an unavailable check refuses rather than sends
   - Acceptance: a caller who may not send to X cannot schedule, defer or subscribe to X through any of these agents; revoking the author's access stops the next send; the caller-only form is unchanged
   - Mutants: answer for the caller instead of `who`; disclose a hidden target; skip the check at add; skip it before a send; send when the check is unavailable — each fails a check
   - Plan for the daemon and clients (AB, 2026-10-28), for review before code
