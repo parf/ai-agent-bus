@@ -40,7 +40,7 @@ export class App {
   }
   async config():Promise<Config>{return configuration(await this.rawConfig());}
   async initialize(){await this.config();await this.api.credentials();await this.identity();await this.router.load();try{const raw=(await this.bus.record(this.name).kv.get('json','router.parts')).value;if(raw&&typeof raw==='object'&&!Array.isArray(raw))for(const [key,v]of Object.entries(raw)){const p=v as any;if(typeof p?.root==='string'&&snowflake(p.root)&&Number.isFinite(p.until)&&p.until>Date.now())this.parts[key]=p;}}catch(e){if(!(e instanceof KVNotFound))throw e;}await this.subscriptions.reload();}
-  private turn<T>(run:()=>Promise<T>):Promise<T>{const p=this.tail.then(async()=>{if(this.stopped)throw Error('agent is stopping');this.store.deadline=Date.now()+15000;this.api.deadline=this.store.deadline;await this.subscriptions.reload();return run();});this.tail=p.catch(()=>{});return p;}
+  private turn<T>(run:()=>Promise<T>,deadline=Date.now()+15000):Promise<T>{const p=this.tail.then(async()=>{if(this.stopped)throw Error('agent is stopping');this.store.deadline=Math.min(Date.now()+15000,deadline);this.api.deadline=this.store.deadline;if(this.store.deadline<=Date.now())throw Error('the caller deadline passed');await this.subscriptions.reload();return run();});this.tail=p.catch(()=>{});return p;}
   private async identity(){if(!this.bot){const bot=await this.api.call('GET','/users/@me');if(!snowflake(bot?.id))throw Error('Discord returned no bot identity');this.bot={id:bot.id,username:bot.username};}return this.bot;}
   private async available(cfg:Config){const rows:any[]=[];for(const guild of cfg.guilds){const result=await this.api.call('GET',`/guilds/${guild}/channels`);if(!Array.isArray(result))throw Error('Discord returned no channel list');rows.push(...result.filter(c=>c.guild_id===guild&&[0,5,10,11,12].includes(c.type)));}return rows;}
   async channel(value:string|undefined,cfg:Config):Promise<any>{
@@ -56,7 +56,7 @@ export class App {
     return channel;
   }
   private async post(channel:string,text:string,reply_to?:string,deadline=Date.now()+15000){const ids:string[]=[];for(const content of chunks(text)){const r=await this.api.call('POST',`/channels/${channel}/messages`,{content,allowed_mentions:{parse:[],replied_user:false},...(reply_to?{message_reference:{message_id:reply_to,fail_if_not_exists:true}}:{})},deadline);if(!snowflake(r?.id))throw Error('Discord returned no message id');ids.push(r.id);}return ids;}
-  call(body:string,caller:CallerMessage):Promise<unknown>{return this.turn(async()=>{
+  call(body:string,caller:CallerMessage,deadline?:number):Promise<unknown>{return this.turn(async()=>{
     const cfg=await this.config(),c=parse(body,Object.keys(cfg.channels));
     if(c.method==='help')return {help:'Use help-json for declared methods.'};
     if(c.method==='whoami'){const bot=await this.identity();const all=await this.api.call('GET','/users/@me/guilds');if(!Array.isArray(all))throw Error('Discord returned no guild list');return {...bot,guilds:all.filter(g=>cfg.guilds.includes(g.id)).map(g=>({id:g.id,name:g.name}))};}
@@ -82,9 +82,9 @@ export class App {
     }
     if(c.method==='thread'){const r=await this.api.call('POST',`/channels/${id}/messages/${c.id}/threads`,{name:c.name});return {id:r?.id,name:r?.name};}
     throw Error('unknown method');
-  });}
+  },deadline);}
   event(kind:string,m:any):Promise<void>{return this.turn(async()=>{
-    if(kind==='READY'&&snowflake(m?.user?.id)){this.bot={id:m.user.id,username:m.user.username};return;}
+    if(kind==='READY'&&snowflake(m?.user?.id)){this.bot={id:m.user.id,username:m.user.username??(this.bot?.id===m.user.id?this.bot.username:undefined)};return;}
     if(kind!=='MESSAGE_CREATE'||!snowflake(m?.id)||!snowflake(m?.channel_id)||!snowflake(m?.author?.id))return;
     const cfg=await this.config();if(m.guild_id!==undefined&&!cfg.guilds.includes(m.guild_id))return;
     if(m.author.id===(await this.identity()).id)return;

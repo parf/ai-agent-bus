@@ -24,6 +24,10 @@ test('packaged self-serving agent reads its own record Secret and Configuration 
  expect(frames.find(m=>m.op===2).d.token).toBe('fake-secret-do-not-print');
  client=Bus.connect({addr:fx.socket,token:fx.ownerToken});
  const who=await client.call(name,'whoami',{timeout:3000});expect(who.kind).toBe('answer');if(who.kind!=='answer')throw Error('missing whoami');expect(JSON.parse(who.message.body)).toEqual({ok:true,result:{id:'9',username:'fixture-bot',guilds:[{id:'1',name:'allowed'}]}});
+ const bin=process.env.SMOKE_BIN??fx.dir;
+ if(!existsSync(join(bin,'agent-bus'))){const build=Bun.spawnSync(['go','build','-o',join(bin,'agent-bus'),'./cmd/agent-bus'],{cwd:join(import.meta.dir,'../..')});expect(build.exitCode).toBe(0);}
+ const cli=spawn(['bash','-o','pipefail','-c',`agent-bus call "$DISCORD_AGENT" --wait 3s whoami | jq '.body | fromjson | .result'`],{env:{...process.env,PATH:bin+':'+process.env.PATH,DISCORD_AGENT:name,AGENT_BUS_ADDR:fx.socket,AGENT_BUS_TOKEN:fx.ownerToken,AGENT_BUS_NAME:fx.owner},stdout:'pipe',stderr:'pipe'});
+ const cliOut=await new Response(cli.stdout).text(),cliErr=await new Response(cli.stderr).text();expect(await cli.exited,cliErr).toBe(0);expect(JSON.parse(cliOut)).toEqual({id:'9',username:'fixture-bot',guilds:[{id:'1',name:'allowed'}]});
  const help=await client.call(name,'',{ask:'help-json',timeout:3000});expect(help.kind).toBe('answer');if(help.kind!=='answer')throw Error('missing help');const data=JSON.parse(help.message.body);expect(data.methods['sub.edit']).toBeUndefined();expect(data.methods['sub.add']).toBeDefined();expect(JSON.stringify(data)).not.toContain('fake-secret');
  const edit=await client.call(name,'sub edit abc',{timeout:3000});expect(edit.kind).toBe('answer');if(edit.kind==='answer')expect(edit.message.body).toContain('delete it and add it again');
  child.kill('SIGTERM');expect(await Promise.race([child.exited,Bun.sleep(7000).then(()=>-999)])).toBe(0);

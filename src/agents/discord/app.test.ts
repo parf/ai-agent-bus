@@ -68,3 +68,6 @@ test('replies, tags, direct messages and default routes reach the right session;
  delete f.config.route;await f.app.event('MESSAGE_CREATE',event('5','<@9> where'));expect(f.requests.filter(r=>r.method==='POST').at(-1)?.body.content).toContain('did not understand');
  }finally{await f.close();}
 });
+test('an expired caller deadline refuses before any provider action or subscription write',async()=>{
+ const f=fixture();try{await f.app.initialize();const n=f.requests.length;await expect(f.app.call('post no',caller,Date.now()-1)).rejects.toThrow('deadline');expect(f.requests).toHaveLength(n);expect(f.sent).toEqual([]);}finally{await f.close();}
+});
