@@ -55,6 +55,16 @@ test('429 retries once after retry_after; an invalid token stops subsequent requ
   const bad=rest(()=>Response.json({message:'fixture-record-token'},{status:401}));
   try {await expect(bad.api.call('GET','/users/@me')).rejects.toThrow('(401)');await expect(bad.api.call('GET','/users/@me')).rejects.toThrow('stopped');expect(bad.requests).toHaveLength(1);bad.api.reload();await expect(bad.api.call('GET','/users/@me')).rejects.toThrow('(401)');expect(bad.requests).toHaveLength(2);}finally{bad.stop();}
 });
+for(const status of [401,403,500]) test(`provider refusals never expose the record token in error text (${status})`,async()=>{
+    const f=rest(()=>Response.json({message:'fixture-record-token provider-private-detail'},{status}));
+    try{
+      const error=await f.api.call('GET','/refusal').then(()=>undefined,e=>e);
+      expect(error).toBeInstanceOf(Error);
+      expect(error.message).toContain(`(${status})`);
+      expect(String(error)).not.toContain('fixture-record-token');
+      expect(f.requests).toHaveLength(1);
+    }finally{f.stop();}
+});
 test('REST failures never retry an uncertain write and never follow redirects with the token', async () => {
   for (const response of [()=>new Response('',{status:500}),()=>new Response('',{status:302,headers:{location:'https://example.invalid'}})]) {
     const f=rest(response);try{await expect(f.api.call('POST','/channels/1/messages',{content:'hello'})).rejects.toThrow();expect(f.requests).toHaveLength(1);}finally{f.stop();}

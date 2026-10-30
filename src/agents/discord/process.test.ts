@@ -8,8 +8,8 @@ import { fixture } from './fixture.ts';
 
 test('packaged self-serving agent reads its own record Secret and Configuration and answers real read-only bus calls',async()=>{
  const fx=await startFixture(),f=fixture();let child:ReturnType<typeof spawn>|undefined,client:Bus|undefined;
- const frames:any[]=[];
- const gateway=Bun.serve({hostname:'127.0.0.1',port:0,fetch(r,s){return s.upgrade(r)?undefined:new Response(null,{status:400});},websocket:{open(ws){ws.send(JSON.stringify({op:10,d:{heartbeat_interval:100}}));},message(ws,data){const m=JSON.parse(String(data));frames.push(m);if(m.op===1)ws.send(JSON.stringify({op:11,d:null}));if(m.op===2)ws.send(JSON.stringify({op:0,s:1,t:'READY',d:{session_id:'private-test',resume_gateway_url:`ws://127.0.0.1:${gateway.port}`,user:{id:'9'}}}));}}});
+ const frames:any[]=[];let socket:any;
+ const gateway=Bun.serve({hostname:'127.0.0.1',port:0,fetch(r,s){return s.upgrade(r)?undefined:new Response(null,{status:400});},websocket:{open(ws){socket=ws;ws.send(JSON.stringify({op:10,d:{heartbeat_interval:100}}));},message(ws,data){const m=JSON.parse(String(data));frames.push(m);if(m.op===1)ws.send(JSON.stringify({op:11,d:null}));if(m.op===2)ws.send(JSON.stringify({op:0,s:1,t:'READY',d:{session_id:'private-test',resume_gateway_url:`ws://127.0.0.1:${gateway.port}`,user:{id:'9'}}}));}}});
  try{
  const name='#discord/fixture@'+fx.owner.split('@')[1],token=await identity(fx,name);
  await fx.call(fx.ownerToken,'POST','/configure',{name,config:f.config});
@@ -30,8 +30,25 @@ test('packaged self-serving agent reads its own record Secret and Configuration 
  const cliOut=await new Response(cli.stdout).text(),cliErr=await new Response(cli.stderr).text();expect(await cli.exited,cliErr).toBe(0);expect(JSON.parse(cliOut)).toEqual({id:'9',username:'fixture-bot',guilds:[{id:'1',name:'allowed'}]});
  const help=await client.call(name,'',{ask:'help-json',timeout:3000});expect(help.kind).toBe('answer');if(help.kind!=='answer')throw Error('missing help');const data=JSON.parse(help.message.body);expect(data.methods['sub.edit']).toBeUndefined();expect(data.methods['sub.add']).toBeDefined();expect(JSON.stringify(data)).not.toContain('fake-secret');
  const edit=await client.call(name,'sub edit abc',{timeout:3000});expect(edit.kind).toBe('answer');if(edit.kind==='answer')expect(edit.message.body).toContain('delete it and add it again');
+ // Exercise an actual provider refusal after packaging, not merely help or validation.
+ f.state.failPath='/channels/10/messages';f.state.failMethod='GET';f.state.failStatus=403;
+ const beforeRefusal=f.requests.length;
+ const refused=await client.call(name,'read alerts',{timeout:3000});
+ expect(refused.kind).toBe('answer');if(refused.kind!=='answer')throw Error('missing refused read reply');
+ expect(refused.message.body).toContain('error: Discord refused the request (403)');
+ expect(refused.message.body).not.toContain('fake-secret-do-not-print');
+ expect(f.requests.slice(beforeRefusal).some(r=>r.path.startsWith('/channels/10/messages')&&r.method==='GET')).toBe(true);
+ // A gateway action takes the asynchronous stderr error path in the installed bundle.
+ f.state.failPath='/channels/11';
+ socket.send(JSON.stringify({op:0,s:2,t:'MESSAGE_CREATE',d:{id:'200',channel_id:'11',guild_id:'1',author:{id:'7'},content:'fixture'}}));
+ const gatewayEnd=Date.now()+3000;
+ while(!f.requests.some(r=>r.path==='/channels/11')&&Date.now()<gatewayEnd)await Bun.sleep(10);
+ expect(f.requests.some(r=>r.path==='/channels/11')).toBe(true);
+ const barrier=await client.call(name,'whoami',{timeout:3000});expect(barrier.kind).toBe('answer');
  child.kill('SIGTERM');expect(await Promise.race([child.exited,Bun.sleep(7000).then(()=>-999)])).toBe(0);
- expect(await new Response(child.stderr).text()).toBe('');expect(f.requests.every(r=>r.auth==='Bot fake-secret-do-not-print')).toBe(true);
+ const stderr=await new Response(child.stderr).text();
+ expect(stderr).not.toContain('fake-secret-do-not-print');
+ expect(stderr).toBe('discord: gateway event failed; it is not replayed\n');expect(f.requests.every(r=>r.auth==='Bot fake-secret-do-not-print')).toBe(true);
  }finally{child?.kill('SIGKILL');await child?.exited;await client?.close();gateway.stop(true);await f.close();await fx.stop();}
 },20000);
 
