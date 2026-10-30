@@ -468,7 +468,7 @@ Package assembly and local checks are described in
 
 ## macOS
 
-📌 **TL;DR:** The client archive builds for macOS; the runner starts agents without a sandbox. Native installer checks have recorded results, while npm platform packaging and a script agent’s account checks remain separate acceptance. The [macOS plan](../Plans/R1.0-Release/macos.md#order) owns the supported parts and test order.
+📌 **TL;DR:** The client archive builds for macOS; the runner starts agents without a sandbox. Native installer checks have recorded results, and a script agent ran on a Mac under the account that started the runner; npm platform packaging remains separate acceptance. The [macOS plan](../Plans/R1.0-Release/macos.md#order) owns the supported parts and test order.
 
 ### The client and runner
 
