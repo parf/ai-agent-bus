@@ -47,17 +47,21 @@ test("two launchers at once change the plugin one after the other", async () => 
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("a lock its holder left behind is taken over once stale", async () => {
-  const { mkdtempSync, writeFileSync, utimesSync, existsSync, rmSync } = await import("node:fs");
+test("a lock whose holder has exited is taken over; a live holder's is not", async () => {
+  const { mkdtempSync, writeFileSync, existsSync, readFileSync, rmSync } = await import("node:fs");
   const { join } = await import("node:path");
   const { withPluginLock } = await import("./plugin-steps.ts");
   const dir = mkdtempSync(join((await import("node:os")).tmpdir(), "agent-bus-plugin-lock-"));
   try {
     const lock = join(dir, ".agent-bus-plugin.lock");
-    writeFileSync(lock, "");
-    expect(() => withPluginLock(dir, () => 1, 150, 60_000)).toThrow(/another launcher holds/);
-    utimesSync(lock, new Date(Date.now() - 120_000), new Date(Date.now() - 120_000));
-    expect(withPluginLock(dir, () => 7, 2_000, 60_000)).toBe(7);
+    // A live holder (this test's own pid) is waited for, never taken over.
+    writeFileSync(lock, `${process.pid} live`);
+    expect(() => withPluginLock(dir, () => 1, 150)).toThrow(/another launcher holds/);
+    expect(readFileSync(lock, "utf8")).toBe(`${process.pid} live`);
+    // An exited holder's lock is taken over, and ours is removed after.
+    const gone = Bun.spawnSync([process.execPath, "-e", "console.log(process.pid)"]);
+    writeFileSync(lock, `${String(gone.stdout).trim()} gone`);
+    expect(withPluginLock(dir, () => 7, 2_000)).toBe(7);
     expect(existsSync(lock)).toBe(false);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
