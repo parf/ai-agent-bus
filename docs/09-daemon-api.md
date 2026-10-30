@@ -1,8 +1,46 @@
 # Daemon API
 
-📌 **TL;DR:** One HTTP surface, grouped below. This page names the routes and
-says how a call is made: where it goes, what identifies the caller, and what
-comes back. What each route means stays in the topic that owns it.
+📌 **TL;DR:**
+- **Problem:** to build a client you need to know which routes exist and how every call is made.
+- **Outcome:** one HTTP surface, grouped below. This page names the routes and says how a call is made: where it goes, what identifies the caller, and what comes back. What each route means stays in the topic that owns it.
+- **Start:** make one call through the command line and see the answer: `agent-bus status` ([Try this first](#try-this-first)).
+
+## Why you'd want it
+
+- 🔌 **A client needs the routes.** Now they are grouped by what they do.
+- 🪪 **A call must say who it is.** Now each call carries a credential, checked before anything else.
+- 📖 **The meaning of a route is elsewhere.** Now each group points to the topic that owns it.
+
+## What you get
+
+- ✅ **How a call is made:** where it goes, who is calling and what returns.
+- ✅ **Routes in groups:** node, credentials, registry, messaging, channels, private data, locks, people.
+- ✅ **A closed list:** the page says what else does not exist.
+- 🚫 **Not for:** the meaning of a route; each topic owns that.
+
+## Try this first
+
+- Ask the bus for its status through the same API (read-only):
+
+```sh
+agent-bus status | jq -c '{realm,you}'
+```
+
+<details>
+<summary>See it on a real node (ran today)</summary>
+
+```json
+{"realm":"parf.us","you":"#ab-w1b"}
+```
+
+- The command line makes the HTTP call for you and prints the answer.
+- The output is from the development node on 2026-10-30.
+
+</details>
+
+## Technical details
+
+The reference below keeps every section as it was; other pages link to these sections.
 
 ## How a call is made
 
@@ -57,18 +95,14 @@ A reply and a receipt are ordinary sends ([request and reply](04-messaging.md#re
 
 ### Checking permission to send
 
-`GET /may-send?name=%23systemd%40node.example` checks the authenticated
-caller's permission and answers `{"may_send":true}` when allowed. A refusal
-has the same HTTP status and error reason as `/send`'s target check. An ACL
-refusal stays `403`, including a name hidden from that caller; an inactive
-or absent target answers `404`.
+- `GET /may-send?name=%23systemd%40node.example` checks the authenticated caller's permission and answers `{"may_send":true}` when allowed.
+- A refusal has the same HTTP status and error reason as `/send`'s target check.
+- An ACL refusal stays `403`, including a name hidden from that caller; an inactive or absent target answers `404`.
 
-Both operations use one target-admission function: active name, destination
-ACL (including Personal), User-inbox rules and whether the record receives
-bus messages. There is no `from` option and no request body.
-The dry run queues no message and changes no message, refusal or activity
-counter. It checks permission now; it reserves nothing and does not validate
-a future message's fields, queue capacity or onward delivery.
+- Both operations use one target-admission function: active name, destination ACL (including Personal), User-inbox rules and whether the record receives bus messages.
+- There is no `from` option and no request body.
+- The dry run queues no message and changes no message, refusal or activity counter.
+- It checks permission now; it reserves nothing and does not validate a future message's fields, queue capacity or onward delivery.
 
 **For another name.** `GET /may-send?who=<name>&name=<target>` answers by Send's
 own rule for `who` instead of the caller, for an agent that sends for someone
@@ -82,19 +116,11 @@ without it the caller's own form above is unchanged, and any other key is `400`.
 | the caller cannot see the target (hidden, absent or inactive) | `404` `no such name`, the same for each, as [`/manages?who=`](#registry) |
 | a malformed name, an empty or repeated `who` | `400` |
 
-The `who` echo is how a client knows the daemon read `who`: a daemon older than
-this form ignores it and answers for the caller, so a client refuses an answer
-whose `who` is missing or is not the one it asked about. A refusal is not an
-error and records no refusal counter, queue entry or activity. A `true` means a
-plain message to that name would be admitted now, nothing about queue capacity,
-TTL or what the receiver does, and it goes stale at once: ask again before each
-send, and still handle a refusal from the send. It is an answer about ACL
-membership that the caller could already read from the record's allow list,
-the same disclosure as `/manages?who=`; pass only the authenticated sender
-(the envelope's `from`), never a name taken from a message body. The clients
-are `Bus.may_send(who, name)` (Python) and `bus.maySend(who, name)`
-(TypeScript): a boolean, a `404` raised as the daemon's refusal, and everything
-else (transport, timeout, a foreign answer) raised, never `false`.
+- The `who` echo is how a client knows the daemon read `who`: a daemon older than this form ignores it and answers for the caller, so a client refuses an answer whose `who` is missing or is not the one it asked about.
+- A refusal is not an error and records no refusal counter, queue entry or activity.
+- A `true` means a plain message to that name would be admitted now, nothing about queue capacity, TTL or what the receiver does, and it goes stale at once: ask again before each send, and still handle a refusal from the send.
+- It is an answer about ACL membership that the caller could already read from the record's allow list, the same disclosure as `/manages?who=`; pass only the authenticated sender (the envelope's `from`), never a name taken from a message body.
+- The clients are `Bus.may_send(who, name)` (Python) and `bus.maySend(who, name)` (TypeScript): a boolean, a `404` raised as the daemon's refusal, and everything else (transport, timeout, a foreign answer) raised, never `false`.
 
 ## Channels
 
@@ -149,13 +175,9 @@ most need daemon administration.
 
 ## Nothing else
 
-The CLI, the MCP face and the web face are clients of exactly these routes and
-have no private channel into the daemon ([faces](05-discovery.md#faces)). The
-web face's pages are served by a separate process
-([processes](08-processes.md#the-web-face)). The API's own root has no page: where a
-web-face address is configured, `GET /` permanently redirects to it, and
-nothing below the root redirects at all, so a mistyped route stays a 404
-([where it listens](05-discovery.md#where-it-listens)).
+- The CLI, the MCP face and the web face are clients of exactly these routes and have no private channel into the daemon ([faces](05-discovery.md#faces)).
+- The web face's pages are served by a separate process ([processes](08-processes.md#the-web-face)).
+- The API's own root has no page: where a web-face address is configured, `GET /` permanently redirects to it, and nothing below the root redirects at all, so a mistyped route stays a 404 ([where it listens](05-discovery.md#where-it-listens)).
 
 ## Status
 
