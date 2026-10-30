@@ -90,7 +90,7 @@ web page AB (after RT22's page), review `#claude/ab2-review`.
 | Step | Work |
 |---|---|
 | 1 | Shared ring module: levels, size, TTL, repeat folding, alerts on disk, used by this agent and later by RT34 |
-| 2 | `#eventlog` runner agent: `write`, `read`, `pull`, `clean`, `list`, Configuration defaults and per-log overrides, `read`/`write` roles, help and help-config |
+| 2 | `#eventlog` runner agent: `write`, `read`, `pull`, `clean`, `list`, `sub add/list/delete`, Configuration defaults and per-log overrides, `read`/`write` roles, help and help-config |
 | 3 | Guide `docs/agents/eventlog.md` (end-user), index row, smoke shard, package, deploy enabled |
 | 4 | Web: instance page with logs, alert marks and the shared rings view |
 
@@ -104,6 +104,7 @@ Acceptance, each failing on a missing implementation or by a named mutant:
 - Ids rise by one per entry across levels, survive a restart and a `clean`, and are never reused.
 - `pull <log> notice 2` on 5 notices returns the oldest 2 and leaves 3; a `read` after it shows only those 3; a second caller's `pull` never gets the 2 again.
 - `pull` by a `read`-only caller is refused and removes nothing.
+- `sub add <queue> deploys alert` gets exactly one message per new alert in `deploys` and none for its notices or other logs; a subscriber without may-send to the target is refused at add; a subscription's target losing the grant later stops sends with nothing delivered.
 - `clean <log> warning` empties only warnings; `clean` by a `read`-only caller is refused and changes nothing.
 - The web shows an alert mark only for logs with an alert within its window, and a reader without the role gets no page.
 
