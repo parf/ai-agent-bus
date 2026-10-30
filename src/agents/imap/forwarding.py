@@ -26,6 +26,12 @@ BLOCK = 'imap.progress_error'
 LEGACY = {'id', 'target', 'created_by', 'created_at', 'filter', 'ledger'}
 FETCH_TRIES = 3
 MIGRATE_TRIES = 16
+JOURNAL = 'imap.migrate.'
+LEDGER = {'version', 'identity', 'validity', 'start', 'floor', 'pause', 'entries', 'intake', 'intake_cleared',
+          'last_reset_pause', 'sent', 'skipped', 'skipped_first', 'skipped_last', 'skips', 'discarded', 'resets'}
+ENTRY = {'state', 'bytes', 'attempts', 'due', 'reason'}
+STATES = {'pending', 'sending', 'retrying', 'sent', 'skipped', 'paused'}
+COUNTER = 2**63 - 1
 MESSAGES = {
     'invalid_target': 'target must be one queue or agent name of at most 64 ASCII characters',
     'invalid_selector': 'invalid subscription selector',
@@ -61,6 +67,25 @@ def selector(value):
 def selected(value, event):
     # A new UIDVALIDITY is a new mailbox: its mail is all after the subscription.
     return event['validity'] != value['validity'] or event['uid'] >= value['from_uid']
+
+
+def legacy_ledger(value):
+    """The pre-B.29 ledger invariants the migration counts on; anything else stays invalid_state."""
+    if not isinstance(value, dict) or set(value) != LEDGER or value['version'] != 1:
+        raise ValueError('unsupported legacy ledger')
+    progress.integer(value['validity'], 1)
+    progress.integer(value['start'], 1, progress.MAX_UID + 1)
+    for field in ('sent', 'skipped', 'discarded'):
+        progress.integer(value[field], 0, COUNTER)
+    entries, skips = value['entries'], value['skips']
+    if not isinstance(entries, dict) or not isinstance(skips, dict):
+        raise ValueError('invalid legacy ledger')
+    for uid, entry in entries.items():
+        if not uid.isdigit() or not isinstance(entry, dict) or set(entry) != ENTRY or entry['state'] not in STATES:
+            raise ValueError('invalid legacy delivery entry')
+    if sum(counter['count'] for counter in skips.values()) != value['skipped']:
+        raise ValueError('legacy skip totals do not agree')
+    return value
 
 
 class Forwarder:
@@ -107,30 +132,36 @@ class Forwarder:
         """Move pre-B.29 rows onto the shared shape before anything is served; held copies are dropped and counted.
 
         A row keeps its target, author, filter and start; its 8-hex id gains the first suffix
-        "0000", "0001", ... whose key is free or already holds this very row, so a stop between
-        the add and the delete is finished on the next start and never yields two rows. One that
+        "0000", "0001", ... whose key is free. The journal names that key before the row is
+        created, so the next start finishes an interrupted move into it and an occupied key is
+        never taken for one of ours. The old key goes only after the new row is stored. One that
         cannot be read is kept as it was under the new id, for the Owner and Maintainers to delete.
         """
         listing = self.kv.list()
         names = [row.get('name') for row in listing.get('json', []) if isinstance(row, dict)]
-        for key in [n for n in names if isinstance(n, str) and n.startswith('sub.') and len(n) == 12]:
+        legacy = [n for n in names if isinstance(n, str) and n.startswith('sub.') and len(n) == 12]
+        for key in legacy:
             value = self.get(key)
             if value is None:
                 continue
-            for suffix in range(MIGRATE_TRIES):
-                new = f'sub.{key[4:]}{suffix:04x}'
-                row = self.migrated(value, new[4:])
-                try:
-                    self.kv.set(new, row, kind='json', mode='add')
-                    break
-                except Refusal as error:
-                    if error.status != 412:
-                        raise
-                if self.get(new) == row:
-                    break   # an earlier start stored it and stopped before the delete below
-            else:
-                raise ValueError(f'no free subscription id for {key[4:]}')
+            journal = JOURNAL + key[4:]
+            mark = self.get(journal)
+            new = mark.get('to') if isinstance(mark, dict) else None
+            if not (isinstance(new, str) and len(new) == 16 and new.startswith(key) and all(c in '0123456789abcdef' for c in new[12:])):
+                new = next((f'{key}{suffix:04x}' for suffix in range(MIGRATE_TRIES) if self.get(f'{key}{suffix:04x}') is None), None)
+                if new is None:
+                    raise ValueError(f'no free subscription id for {key[4:]}')
+                self.kv.set(journal, {'to': new}, kind='json', mode='set')
+            try:
+                self.kv.set(new, self.migrated(value, new[4:]), kind='json', mode='add')
+            except Refusal as error:
+                if error.status != 412:
+                    raise   # 412: the journal reserved this key, so it is our create from before a stop
             self.kv.delete(key, kind='json')
+            self.kv.delete(journal, kind='json')
+        for name in names:
+            if isinstance(name, str) and name.startswith(JOURNAL) and 'sub.' + name[len(JOURNAL):] not in legacy:
+                self.kv.delete(name, kind='json')   # stopped after the old key went
         if SCAN in names:
             self.kv.delete(SCAN, kind='json')
         self.generation.sweep(set())   # the held copies of before B.29
@@ -139,13 +170,15 @@ class Forwarder:
         try:
             if not isinstance(value, dict) or set(value) != LEGACY:
                 raise ValueError()
-            state = value['ledger']
-            held = sum(1 for entry in state['entries'].values() if entry.get('state') != 'sent')
+            state = legacy_ledger(value['ledger'])
+            # As the old mailbox reset counted its losses: earlier discards, counted skips
+            # (compacted entries included) and the copies still held; unmatched mail is no loss.
+            held = sum(1 for entry in state['entries'].values() if entry['state'] not in ('sent', 'skipped'))
             row = {'id': sub_id, 'target': shared.target_text(value['target']),
                    'selector': selector({'validity': state['validity'], 'from_uid': state['start']}),
                    'filter': value['filter'], 'created_by': shared.identity(value['created_by']),
                    'created_at': shared.stamp(lambda: datetime.datetime.fromisoformat(value['created_at']).timestamp()),
-                   'sent': state['sent'], 'dropped': state['discarded'] + held}
+                   'sent': state['sent'], 'dropped': state['discarded'] + state['skipped'] + held}
             return self.subs._row(row, sub_id)
         except (KeyError, ValueError, TypeError, AttributeError, shared.SubscriptionError, progress.ProgressError):
             return value
