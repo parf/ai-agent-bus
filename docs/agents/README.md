@@ -121,7 +121,7 @@ An **agent** is a small helper with a name, such as `#systemd@node.example`. The
 | Agent | How it runs | Who sets it up / who uses it |
 |---|---|---|
 | [Bus](bus.md) | Inside the daemon; nothing to install | Any bus caller, with their own authority |
-| [Discord](discord.md) | Runner; Discord bot and token | Owner installs; people and AIs use it |
+| [Discord](discord.md) | Runner; Discord bot and token (R1.1, not in the first release) | Owner installs; people and AIs use it |
 | [Slack](slack.md) | Runner; Slack app and tokens | Admin installs; people and AIs use it |
 | [Telegram](telegram.md) | Runner; a Telegram bot token | Admin installs; listed people and AIs use it |
 | [Systemd](systemd.md) | Own service; root to manage units | Admin installs, or a [dedicated instance](systemd.md#dedicated-instances) per team; permitted operators and AIs |
