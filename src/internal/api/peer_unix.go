@@ -22,18 +22,17 @@ func ConnContext(ctx context.Context, c net.Conn) context.Context {
 // a long poll's handler learns from the request context only once the server
 // has read the close: a moment too late for a message that was handed to it in
 // between. A peek at the socket sees the close at once and consumes nothing.
-// Under TLS the close is the alert the client sends before it: a record of
-// type 21. An HTTP/2 stream is cancelled by a frame, not a close, and is
-// noticed only when the server reads it.
+// Through a TLS conn or the dual listener's replay it peeks the socket under
+// them. An HTTP/2 stream is cancelled by a frame, not a close, and is noticed
+// only when the server reads it.
 func peerGone(r *http.Request) bool {
 	c, ok := r.Context().Value(peerKey{}).(net.Conn)
 	if !ok {
 		return false
 	}
-	secure := false
 	for {
 		if t, ok := c.(*tls.Conn); ok {
-			c, secure = t.NetConn(), true
+			c = t.NetConn()
 			continue
 		}
 		if w, ok := c.(interface{ NetConn() net.Conn }); ok {
@@ -58,7 +57,7 @@ func peerGone(r *http.Request) bool {
 		if err != nil {
 			return // nothing to read yet, or an error that says nothing of the peer
 		}
-		gone = n == 0 || (secure && one[0] == 21) // end of stream, or a TLS alert
+		gone = n == 0 // an end of stream, not "nothing to read yet"
 	})
 	return gone
 }
