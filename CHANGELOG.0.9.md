@@ -6,6 +6,10 @@ The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
 
 
+## 0.9.162 — 2026-10-29
+
+Git autopull can run admin-installed success/failure scripts after its result publication attempt, with trusted allowlist selection, bounded processes and separate correlated script-failure records. Stderr alone fails a script; optional-log delivery failures never suppress the hooks.
+
 ## 0.9.161 — 2026-10-29
 
 The web has a Bus setup page, the `#bus` Configuration on the edit page, linked in the left navigation for the daemon Owner alone.
