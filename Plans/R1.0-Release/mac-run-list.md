@@ -50,3 +50,41 @@ Owner, 2026-10-30 ([RD164](DECISIONS.md#recorded-decisions)): the run list is ca
 | What runs | `package.sh` refuses non-Linux hosts today, so the first step is code, not a Mac run: a client edition build for darwin-arm64 (`GOOS=darwin GOARCH=arm64` for `agent-bus` and `agent-bus-runner`, `bun build --compile --target=bun-darwin-arm64` for `agent-bus-ts`). The Mac then runs `agent-bus --version`, `agent-bus-runner --version` (first line the release version, second `build_info:`), the client `install.sh --client` against a throwaway bus reached over HTTPS, and one request/reply; Gatekeeper's verdict on the unsigned binaries is recorded as evidence |
 
 Exact commands and times for darwin are set when [MAC.1](macos.md#mac1-client-and-runner-on-macos) is built.
+
+## d) client install and runner on macOS (MAC.1)
+
+What the Mac checks of [MAC.1](macos.md#mac1-client-and-runner-on-macos) beyond the CLI and the MCP face ([Mac run: CLI and MCP face](mac-cli-run.md#mac-run-cli-and-mcp-face)): the installer, then the runner. The release is signed with a throwaway key made on the development node, so nothing here touches the real key or a real release.
+
+### Make the throwaway release (on the development node, before the Mac run)
+
+| Step | Command | Expected |
+|---|---|---|
+| 1 archives | `GOOS=darwin GOARCH=arm64 src/package.sh <dir>`, then the same with `GOARCH=amd64` | the two `agent-bus-client-<version>-darwin-<aarch64\|x86_64>.tar.gz` and their `.sha256` in `<dir>` |
+| 2 release | `src/acceptance/mac-throwaway-release.sh <dir> <out> [port]` | `<out>/serve/download/v<version>/` with the two macOS archives, four Linux stand-ins, `SHA256SUMS` and its signature; `<out>/install-throwaway.sh`, a copy of `install.sh` that trusts only that key and fetches from `http://127.0.0.1:<port>`; the private half of the key is deleted |
+
+The owner copies `<out>` to the Mac. For the run of 2026-10-30 it is `tmp/mac-out/throwaway/` beside `tmp/mac-out/archives/` in the worktree `tmp/ab-w1b-mac1` on the development node.
+
+### On the Mac
+
+Needs `python3`, `curl`, `tar`, `ssh-keygen` and `shasum`, all in the system or the Xcode command line tools. Work in a home of its own so nothing touches the real one: `export HOME=~/ab-mac-home; mkdir -p $HOME` in every shell below. Report what you see; do not repair.
+
+| Step | Command | Expected |
+|---|---|---|
+| I1 serve | `cd <out>/serve && python3 -m http.server 8787 --bind 127.0.0.1 &` | listens on 8787; leave it running |
+| I2 install | `sh <out>/install-throwaway.sh --client --version <version>` | the release key's fingerprint, then `client edition <version> is in $HOME/.local/lib/agent-bus; commands are linked into $HOME/.local/bin`; exit 0 |
+| I3 version | `export PATH=$HOME/.local/bin:$PATH; agent-bus --version; agent-bus-runner --version` | each: first line `<version>`, second `build_info: …`; neither says `cannot execute`, `killed` or `bad CPU type` |
+| I4 update keeps one old | run I2 again with the same version | `client edition <version> is already current`; nothing changes |
+| I5 tampered refused | copy `<out>` to `<out>-bad`, flip one byte in its `agent-bus-client-<version>-darwin-*.tar.gz` for your CPU (`printf '\x00' \| dd of=<file> bs=1 seek=100 conv=notrunc`), serve that copy on port 8788 after editing the port in a copy of `install-throwaway.sh`, install into a second `HOME` | `does not match its signed hash: nothing installed`; the second `HOME` holds no `.local` |
+| I6 full node refused | `sh <out>/install-throwaway.sh --version <version>` (no `--client`) | `on macOS only the client edition installs: use --client`; nothing written |
+
+Needs the bus from [the Mac session](mac-run-list.md#the-mac-session): `AGENT_BUS_ADDR`, `AGENT_BUS_TLS_FINGERPRINT`, one token and `AGENT_BUS_NAME`, with a name the token may register agents under (the owner says which).
+
+| Step | Command | Expected |
+|---|---|---|
+| R1 sandbox refused | `perl -e 'alarm 20; exec @ARGV' agent-bus run '<name>-sbx' 'echo hi' --sandbox=on; echo exit=$?` | non-zero exit with a message that a sandbox is not available; it must not print `hi` and must not stay running (an alarm kill is a failure) |
+| R2 a script agent runs | `perl -e 'alarm 60; exec @ARGV' agent-bus run '<name>-echo' 'id -un' --allow='*' &`, then `agent-bus call '<name>-echo' go` | the reply is the account that started the runner; stop it with `kill %1` |
+| R3 not the owner's login | optional, the owner decides: repeat R2 as a standard, non-administrator account (`sudo -u <account> …`) | the reply is that account, not yours: the runner's scripts hold only that account's rights |
+
+### Evidence back
+
+As in [the CLI run](mac-cli-run.md#evidence-back): one bus message to `#ab-lead1`, topic `mac-run`, with `uname -m`, `sw_vers -productVersion`, every step's number with its exit status, and the output of I2, I3, I5, I6, R1 and R2. Never the token.
