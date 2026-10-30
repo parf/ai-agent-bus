@@ -26,6 +26,17 @@ type held struct {
 	expires time.Time
 }
 
+// A waiter is one take in a lock's queue. It is handed the lock in its turn,
+// granted is set under s.mu, and ch is closed once it is decided: granted, or
+// its record gone.
+type waiter struct {
+	ch      chan struct{}
+	holder  string
+	ttl     time.Duration
+	a       *attempt
+	granted bool
+}
+
 // sweepEvery is a var so a test can all but stop the sweep and measure
 // Take's own expiry check, which a slow holder must not outwait.
 var sweepEvery = 100 * time.Millisecond
@@ -36,7 +47,7 @@ type Store struct {
 	mu      sync.Mutex
 	held    map[key]*held
 	per     map[string]int
-	waiters map[key][]chan struct{}
+	waiters map[key][]*waiter
 	taking  map[string]map[*attempt]struct{}
 	stop    chan struct{}
 	done    chan struct{}
@@ -46,7 +57,7 @@ func New() *Store {
 	s := &Store{
 		held:    map[key]*held{},
 		per:     map[string]int{},
-		waiters: map[key][]chan struct{}{},
+		waiters: map[key][]*waiter{},
 		taking:  map[string]map[*attempt]struct{}{},
 		stop:    make(chan struct{}),
 		done:    make(chan struct{}),
@@ -81,7 +92,8 @@ func (s *Store) sweep() {
 	}
 }
 
-// expire removes a hold and wakes its waiters. Caller holds s.mu.
+// expire removes a hold and hands the lock to the oldest waiter. Caller
+// holds s.mu.
 func (s *Store) expire(k key) {
 	if _, ok := s.held[k]; ok {
 		delete(s.held, k)
@@ -89,14 +101,30 @@ func (s *Store) expire(k key) {
 			delete(s.per, k.record)
 		}
 	}
-	s.wake(k)
+	s.handOff(k)
 }
 
-func (s *Store) wake(k key) {
-	for _, ch := range s.waiters[k] {
-		close(ch)
+// handOff grants a free lock to the head of its queue, so waiters are served
+// in arrival order and a take that arrives at the moment of release cannot
+// overtake them. A waiter whose record went is told so and skipped. Caller
+// holds s.mu.
+func (s *Store) handOff(k key) {
+	for len(s.waiters[k]) > 0 {
+		w := s.waiters[k][0]
+		s.waiters[k] = s.waiters[k][1:]
+		if !w.a.removed {
+			w.granted = true
+			s.held[k] = &held{holder: w.holder, expires: time.Now().Add(w.ttl)}
+			s.per[k.record]++
+		}
+		close(w.ch)
+		if w.granted {
+			break
+		}
 	}
-	delete(s.waiters, k)
+	if len(s.waiters[k]) == 0 {
+		delete(s.waiters, k)
+	}
 }
 
 // Take is try-lock and lock in one: with no wait it answers now, with one it
@@ -159,19 +187,23 @@ func (s *Store) Acquire(ctx context.Context, record, name, holder string, ttl, w
 				s.mu.Unlock()
 				return false, who, nil
 			}
-			ch := make(chan struct{})
-			s.waiters[k] = append(s.waiters[k], ch)
+			w := &waiter{ch: make(chan struct{}), holder: holder, ttl: ttl, a: a}
+			s.waiters[k] = append(s.waiters[k], w)
 			s.mu.Unlock()
+			cancelled := false
 			select {
-			case <-ch:
+			case <-w.ch:
 			case <-ctx.Done():
-				s.dropWaiter(k, ch)
-				return false, who, nil
+				cancelled = true
 			case <-time.After(left):
-				s.dropWaiter(k, ch)
-				return false, who, nil
 			}
-			continue
+			if s.leave(k, w, cancelled) {
+				return true, "", nil
+			}
+			if !w.granted && isClosed(w.ch) {
+				continue // its record went: the loop says so
+			}
+			return false, who, nil
 		}
 		if s.per[record] >= MaxHeld {
 			s.mu.Unlock()
@@ -191,19 +223,39 @@ type SelfTake struct{}
 func (*SelfTake) Error() string        { return "you already hold it; use extend" }
 func (*SelfTake) Is(target error) bool { _, ok := target.(*SelfTake); return ok }
 
-// dropWaiter removes a waiter that gave up. A wake may have closed the
-// channel between the deadline and here; then nothing is left to remove.
-func (s *Store) dropWaiter(k key, ch chan struct{}) {
+// leave settles a waiter that stopped waiting, and says whether it holds the
+// lock. One that gave up leaves the queue. One handed the lock just as its own
+// wait ran out keeps it; one whose caller went away gives it to the next.
+func (s *Store) leave(k key, w *waiter, cancelled bool) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for i, w := range s.waiters[k] {
-		if w == ch {
+	if w.granted {
+		if !cancelled {
+			return true
+		}
+		if e, ok := s.held[k]; ok && e.holder == w.holder {
+			s.expire(k)
+		}
+		return false
+	}
+	for i, q := range s.waiters[k] {
+		if q == w {
 			s.waiters[k] = append(s.waiters[k][:i:i], s.waiters[k][i+1:]...)
 			if len(s.waiters[k]) == 0 {
 				delete(s.waiters, k)
 			}
-			return
+			break
 		}
+	}
+	return false
+}
+
+func isClosed(ch chan struct{}) bool {
+	select {
+	case <-ch:
+		return true
+	default:
+		return false
 	}
 }
 
