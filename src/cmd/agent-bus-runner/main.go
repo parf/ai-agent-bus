@@ -123,6 +123,12 @@ func main() {
 		r.addr = api.ClientSocket()
 	}
 	r.bus = newClient(r.addr)
+	// Every read states where this runner is, so a pool's listing shows each
+	// host that serves the name; a value the daemon would refuse is not sent.
+	var why string
+	if r.readHost, why = api.ReaderHost(); why != "" {
+		fmt.Fprintln(os.Stderr, "agent-bus-runner:", why)
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	if err := r.run(ctx); err != nil {
@@ -134,6 +140,7 @@ func main() {
 type runner struct {
 	startedAt time.Time // immutable process start observation, not a deployment timestamp
 	name      string    // the runner's own agent, whoever its token is
+	readHost  string    // the hostname its reads state; empty states none
 	person    string    // the User that agent is — and so every agent it serves — owned by
 	realm     string
 	agents    string // shared agent.d
@@ -175,7 +182,7 @@ func (r *runner) run(ctx context.Context) error {
 	const poll = 55 * time.Second
 	for {
 		// The runner's own inbox: each agent's is read as that agent (serve.go).
-		e, got, err := r.bus.next(ctx, poll)
+		e, got, err := r.bus.next(ctx, poll, r.readHost, false)
 		if ctx.Err() != nil {
 			fmt.Fprintf(r.say, "%s: stopping\n", r.name)
 			r.stopKept()
@@ -681,12 +688,21 @@ func (c *client) ownerOf(name string) (string, error) {
 	return rec.Owner, nil
 }
 
-// next waits up to poll for one message on the client's own inbox.
-func (c *client) next(ctx context.Context, poll time.Duration) (protocol.Envelope, bool, error) {
+// next waits up to poll for one message on the client's own inbox. host states
+// where the reader is, and share says it is one of a pool (a second unfiltered
+// reader of the same name is then meant, not a mistake).
+func (c *client) next(ctx context.Context, poll time.Duration, host string, share bool) (protocol.Envelope, bool, error) {
 	var e protocol.Envelope
 	read, cancel := context.WithTimeout(ctx, poll+15*time.Second)
 	defer cancel()
-	out, code, err := c.do(read, "GET", "/consume", url.Values{"wait": {poll.String()}}, nil)
+	q := url.Values{"wait": {poll.String()}}
+	if host != "" {
+		q.Set("host", host)
+	}
+	if share {
+		q.Set("share", "1")
+	}
+	out, code, err := c.do(read, "GET", "/consume", q, nil)
 	switch {
 	case err != nil:
 		return e, false, err

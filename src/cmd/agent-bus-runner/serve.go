@@ -746,7 +746,7 @@ func (r *runner) read(ctx context.Context, s *served) {
 		case <-ctx.Done():
 			return
 		}
-		e, got, err := s.bus.next(ctx, poll)
+		e, got, err := s.bus.next(ctx, poll, r.readHost, s.in.Host.Share)
 		if ctx.Err() != nil {
 			// Taken just as serving stopped: it is off the bus, so it is run
 			// and answered rather than lost.

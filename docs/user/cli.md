@@ -21,7 +21,7 @@
 - ✅ **Run a script as an agent:** `agent-bus run`, in the foreground, with optional confinement.
 - ✅ **Share state:** stored values and named locks on a record you manage.
 - ⚠️ **Agent names begin with `#`:** quote them (`'#echo@demo'`) or write `--agent echo@demo`.
-- ⚠️ **One reader per inbox:** a second `consume` on the same name is refused unless you ask for `--share`.
+- ⚠️ **One reader per inbox:** a second `consume` on the same name is refused unless you ask for `--share`; `--host=name` says where this reader runs, for a pool's listing.
 - 🚫 **Not for:** installing the node (`agent-bus-setup`) or adding people (`agent-bus-admin`); see [the tools](#-the-command-line-tools).
 
 ## Try this first

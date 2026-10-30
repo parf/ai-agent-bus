@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/parf/ai-agent-bus/internal/agentmeta"
+	"github.com/parf/ai-agent-bus/internal/api"
 	"io"
 	"net/http"
 	"net/url"
@@ -391,6 +392,13 @@ func serve(ag agent) error {
 
 	const poll = 55 * time.Second
 	q := url.Values{"wait": {poll.String()}}
+	// Where this agent runs, stated on every read so a listing of the name
+	// shows its hosts; one the daemon would refuse is left out, with a note.
+	if host, why := api.ReaderHost(); host != "" {
+		q.Set("host", host)
+	} else if why != "" {
+		fmt.Fprintf(ag.say, "%s: %s\n", ag.Name, why)
+	}
 	for {
 		// The slot is taken *before* the consume, so a message is only ever
 		// taken off the daemon when there is a worker free to run it. Taking

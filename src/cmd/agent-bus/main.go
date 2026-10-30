@@ -687,7 +687,7 @@ func unsubscribe(args []string) error {
 
 func consume(args []string) error {
 	_, flags, err := split(args)
-	if err := only(flags, err, "inbox", "topic", "tag", "wait", "follow", "share"); err != nil {
+	if err := only(flags, err, "inbox", "topic", "tag", "wait", "follow", "share", "host"); err != nil {
 		return err
 	}
 	q := url.Values{}
@@ -700,6 +700,11 @@ func consume(args []string) error {
 		if v := flags[k]; v != "" {
 			q.Set(k, v)
 		}
+	}
+	// Where this reader is, as it states itself: a label a pool's listing
+	// shows. The daemon refuses one that is not a hostname, by name.
+	if has(flags, "host") {
+		q.Set("host", flags["host"])
 	}
 	// One of a pool, so a second reader waiting on the same empty inbox is
 	// meant rather than a mistake (docs/04-messaging.md#one-reader-per-inbox).
