@@ -103,7 +103,7 @@ def private():
 WATCH = r"""alive() { set -- "$2" $(sed 's/.*) //' "/proc/$1/stat" 2>/dev/null); [ "$2" != Z ] && [ "${21}" = "$1" ]; }
 pid=${1%%-*}; start=${1#*-}
 while alive "$pid" "$start"; do sleep 1; done
-if [ -n "$2" ]; then while pgrep -f -- "$2" >/dev/null; do sleep 1; done; fi
+if [ -n "$2" ]; then until pgrep -f -- "$2" >/dev/null; [ $? = 1 ]; do sleep 1; done; fi   # an error is not "none"
 shift 2
 for i in 1 2 3 4 5; do "$@" && break; sleep 2; done   # a store busy with a neighbour's run refuses for a moment
 """

@@ -14,7 +14,7 @@ cat >"$work/bin/journalctl" <<'EOF'
 #!/bin/bash
 case " $* " in
   *" --show-cursor "*) [ -n "${STUB_NO_CURSOR:-}" ] || echo '-- cursor: s=stub' ;;
-  *" --after-cursor "*) cat "$STUB_JOURNAL" 2>/dev/null ;;
+  *" --after-cursor "*) [ -z "${STUB_READ_FAILS:-}" ] || { echo 'Failed to seek to cursor' >&2; exit 125; }; cat "$STUB_JOURNAL" 2>/dev/null ;;
 esac
 EOF
 chmod +x "$work/bin/journalctl"
@@ -31,4 +31,6 @@ q ab-db-fixture true
 [ "$rc" = 0 ] || bad "a silent run failed: rc $rc $out"
 STUB_NO_CURSOR=1 q ab-db-fixture true
 [ "$rc" = 2 ] || bad "an unreadable journal passed: rc $rc $out"
+STUB_READ_FAILS=1 q ab-db-fixture true
+[ "$rc" = 2 ] && grep -q 'after the run failed' <<<"$out" || bad "a journal that cannot be read after the run passed: rc $rc $out"
 exit $fail

@@ -24,12 +24,14 @@ guard_run=$$-$(guard_started $$)
 
 # The watcher: wait until the run is over, then until no `podman run` of it is in flight (an image pull can take
 # minutes, and a container made after a removal would survive it), then remove its containers and, unless kept, its
-# directory. Arguments: run, directory, keep, then the podman command with its store options.
+# directory. A failing pgrep or podman ps is not an empty answer: it is asked again. Arguments: run, directory, keep,
+# then the podman command with its store options.
 GUARD_WATCH='alive() { set -- "$2" $(sed "s/.*) //" "/proc/$1/stat" 2>/dev/null); [ "$2" != Z ] && [ "${21}" = "$1" ]; }
 run=$1 dir=$2 keep=$3; shift 3
 while alive "${run%%-*}" "${run#*-}"; do sleep 1; done
-while pgrep -f -- "^podman .* run .*--label agent-bus-run=$run( |\$)" >/dev/null; do sleep 1; done
-for n in $("$@" ps -a --filter "label=agent-bus-run=$run" --format "{{.Names}}"); do "$@" rm -f -t 1 "$n" >/dev/null 2>&1; done
+until pgrep -f -- "^podman .* run .*--label agent-bus-run=$run( |\$)" >/dev/null; [ $? = 1 ]; do sleep 1; done
+for i in 1 2 3 4 5; do names=$("$@" ps -a --filter "label=agent-bus-run=$run" --format "{{.Names}}") && break; sleep 2; done
+for n in $names; do "$@" rm -f -t 1 "$n" >/dev/null 2>&1; done
 [ -n "$keep" ] || podman unshare rm -rf "$dir"'
 
 guard() { # guard <run dir> [keep]
