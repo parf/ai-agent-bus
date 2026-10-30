@@ -257,6 +257,8 @@ struct Serving {
 }
 struct Work {
     message: Message,
+    // A self-call's own request: its tag carries our call prefix, yet it is work.
+    own: bool,
     _permit: OwnedSemaphorePermit,
 }
 #[derive(Default)]
@@ -669,6 +671,27 @@ impl Bus {
                 if !msg.receipt().is_empty() && msg.re() != sent.id() {
                     continue;
                 }
+                if msg.receipt().is_empty() && msg.re().is_empty() && msg.id() == sent.id() {
+                    // Our own request, taken by this call's filtered read: it is
+                    // work for our handler, never the answer. It waits for a free
+                    // worker; without serve() nothing here can answer it.
+                    let serving = {
+                        let s = self.inner.reader.lock().unwrap();
+                        s.serving.as_ref().map(|s| (s.slots.clone(), s.tx.clone()))
+                    };
+                    if let Some((slots, tx)) = serving {
+                        if let Ok(permit) = slots.acquire_owned().await {
+                            let _ = tx
+                                .send(Ok(Work {
+                                    message: msg,
+                                    own: true,
+                                    _permit: permit,
+                                }))
+                                .await;
+                        }
+                    }
+                    continue;
+                }
                 match msg.receipt() {
                     "ack" => {
                         acked = true;
@@ -827,7 +850,7 @@ where
         let message = work.message;
         if !message.receipt.is_empty()
             || !message.re.is_empty()
-            || message.tag.starts_with(&bus.inner.call_prefix)
+            || (!work.own && message.tag.starts_with(&bus.inner.call_prefix))
         {
             return Ok(());
         }
@@ -932,23 +955,32 @@ async fn dispatcher(weak: Weak<Inner>) {
                 .await;
             match result {
                 Ok(Some(message)) => {
-                    let matched = {
+                    let (own, matched) = {
                         let s = inner.reader.lock().unwrap();
-                        s.pending
+                        // A pending call's own request matches its key too, and
+                        // reaches here on any reply inbox; it is work, not the answer.
+                        let own = message.receipt.is_empty()
+                            && message.re.is_empty()
+                            && message.from == inner.name
+                            && s.pending.contains_key(&message.tag);
+                        let matched = s
+                            .pending
                             .values()
                             .find(|p| {
                                 p.topic == message.topic
                                     && p.tag == message.tag
                                     && p.inbox == message.to
                             })
-                            .map(|p| p.tx.clone())
+                            .map(|p| p.tx.clone());
+                        (own, matched)
                     };
-                    if let Some(p) = matched {
+                    if let (false, Some(p)) = (own, matched) {
                         let _ = p.send(Ok(message));
                     } else {
                         let _ = tx
                             .send(Ok(Work {
                                 message,
+                                own,
                                 _permit: permit,
                             }))
                             .await;
