@@ -4124,7 +4124,14 @@ agent_subscriptions() {
 container_image() {
   if normal; then
     sec "container image: both roles, delivery, persistence, sandbox refusal"
-    local out rc dist="$D/container-dist"
+    local out rc dist="$D/container-dist" base
+    # The build never pulls: a host without the pinned base cannot build it,
+    # and a selected check that cannot run fails rather than passing unrun.
+    base=$(sed -n 's/^FROM //p' container/Containerfile | head -1)
+    if [ -z "$base" ] || ! podman image exists "$base" 2>/dev/null; then
+      echo "  the base image '$base' is not in the local store, or podman is unavailable; podman pull it once"
+      ok_exit "container image prerequisites: podman and the pinned base image" 1; return
+    fi
     out=$(timeout 240 ./package.sh "$dist" 2>&1 >/dev/null); rc=$?
     [ "$rc" != 0 ] || { out=$(timeout 240 ./container/acceptance.sh "$dist" 2>&1); rc=$?; }
     echo "$out" | sed 's/^/  /'

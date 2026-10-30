@@ -93,3 +93,9 @@ a recreated daemon on its volume keeps a registered service and the issued
 tokens; an agent that asks for a sandbox is refused and gets no answer. It
 removes everything it made. `MUTANT=daemon-entry|runner-entry|storage-outside|sandbox-downgrade`
 breaks the entry point, and each must fail a check.
+
+The build uses `--pull=never` and needs the pinned base image in the local
+store: `podman pull` the `FROM` reference in the `Containerfile` once. Without
+it, or without podman, the smoke check fails with that reason. Its package install reaches the
+AlmaLinux mirrors, so an offline host with no cached layers fails the build.
+The check takes about 45 seconds in a normal gate.
