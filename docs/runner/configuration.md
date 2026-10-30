@@ -229,7 +229,7 @@ Shared packages and release bundles get no extra roots; neither the checkout roo
 | `enabled` | `false` keeps the entry installed but unserved; default `true` for shared packages and `false` for bundled packages. The runner's `enable` and `disable` [calls](operations.md#controlling-one-agent) write it |
 | `name` | A complete bus name, taken as written; default `#<key>@<realm>` |
 | `tags` | Labels added to the package's own |
-| `share` | `true` makes this agent's reads say they are one of a pool, so a second runner may read the same name beside it; default `false`. Each read also states the runner's host, `AGENT_BUS_HOST` or else the machine's hostname, which the listing shows ([where a pool member says it is](../05-discovery.md#where-a-pool-member-says-it-is)) |
+| `share` | `true` makes this agent's reads say they are one of a pool, so a second runner may read the same name beside it; default `false`. Each read also states the runner's host, the machine's hostname, which the listing shows; a hostname the daemon would refuse is left out, never failing the read ([where a pool member says it is](../05-discovery.md#where-a-pool-member-says-it-is)) |
 | `sandbox` | `on` (default) or `off` for this entry only; read [security](security.md#isolation-today) first |
 | `limits` | The whole agent's [limits](#limits) |
 | `version`, `origin`, `first_started`, `last_started` | Reserved for the runner; never set by hand |
