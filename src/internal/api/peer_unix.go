@@ -4,7 +4,7 @@ package api
 
 import (
 	"context"
-	"crypto/tls"
+	"errors"
 	"net"
 	"net/http"
 	"syscall"
@@ -22,19 +22,17 @@ func ConnContext(ctx context.Context, c net.Conn) context.Context {
 // a long poll's handler learns from the request context only once the server
 // has read the close: a moment too late for a message that was handed to it in
 // between. A peek at the socket sees the close at once and consumes nothing.
-// Through a TLS conn or the dual listener's replay it peeks the socket under
-// them. An HTTP/2 stream is cancelled by a frame, not a close, and is noticed
-// only when the server reads it.
+// It peeks the socket under the dual listener's replay of a plain connection.
+// Over TLS it cannot see the close: the client's close_notify is an encrypted
+// record the peek reads as data, with the end of stream behind it, so a TLS
+// connection (and an HTTP/2 stream, cancelled by a frame) is noticed only when
+// the server reads it.
 func peerGone(r *http.Request) bool {
 	c, ok := r.Context().Value(peerKey{}).(net.Conn)
 	if !ok {
 		return false
 	}
 	for {
-		if t, ok := c.(*tls.Conn); ok {
-			c = t.NetConn()
-			continue
-		}
 		if w, ok := c.(interface{ NetConn() net.Conn }); ok {
 			c = w.NetConn()
 			continue
@@ -54,10 +52,20 @@ func peerGone(r *http.Request) bool {
 	raw.Control(func(fd uintptr) {
 		var one [1]byte
 		n, _, err := syscall.Recvfrom(int(fd), one[:], syscall.MSG_PEEK|syscall.MSG_DONTWAIT)
-		if err != nil {
-			return // nothing to read yet, or an error that says nothing of the peer
-		}
-		gone = n == 0 // an end of stream, not "nothing to read yet"
+		gone = peerClosed(n, err)
 	})
 	return gone
+}
+
+// peerClosed reads a peek's answer: an end of stream, or a connection that was
+// reset or is no longer connected, says the caller is gone; nothing to read
+// yet (EAGAIN) and every other answer say it is not.
+func peerClosed(n int, err error) bool {
+	switch {
+	case err == nil:
+		return n == 0
+	case errors.Is(err, syscall.ECONNRESET), errors.Is(err, syscall.EPIPE), errors.Is(err, syscall.ENOTCONN):
+		return true
+	}
+	return false
 }
