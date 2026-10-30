@@ -100,9 +100,11 @@ rule](04-messaging.md#one-reader-per-inbox).
 - It is the [listing observation](#what-a-listing-answers), not a health check.
 - An empty result says `No matching records.`; lookup errors remain errors.
 
-Record [tags](03-records.md#tags) can narrow the CLI listing with `ls --tag t`, or with several, `ls --tag a,b`, which keeps the records carrying both,
-including idle records; [calling many agents](user/cli.md#calling-many-agents-at-once)
-uses the same caller-visible filter to select agents for one question.
+Record [tags](03-records.md#tags) narrow the CLI listing, including idle records:
+
+- `ls --tag t` keeps the records carrying that tag.
+- `ls --tag a,b` keeps the records carrying both.
+- [Calling many agents](user/cli.md#calling-many-agents-at-once) uses the same caller-visible filter to select agents for one question.
 
 ## Faces
 
