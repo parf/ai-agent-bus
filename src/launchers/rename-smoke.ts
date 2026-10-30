@@ -10,7 +10,13 @@ const root = resolve(import.meta.dir, "../../tmp/rename-smoke");
 mkdirSync(root, { recursive: true });
 const dir = mkdtempSync(join(root, "run-"));
 const owner = new Bus();
-const me = (await owner.status()).you;
+const first = await owner.status();
+const me = first.you;
+// The launchers take the realm the bus reports, so give this daemon one that
+// is not the host's, and move it once more before the resume.
+const setRealm = (realm: string) => owner.post("/configure", { name: "#bus", config: { realm } });
+const realm = `rename-${process.pid}.test`, later = `later-${process.pid}.test`;
+await setRealm(realm);
 const peerName = `#rename-peer-${process.pid}@srv1`;
 await owner.register({ name: peerName, kind: "agent", allow: ["*"] });
 const peer = await owner.as(peerName);
@@ -121,7 +127,8 @@ try {
     const after = rows.find(r => r.kind === "after-rename").data.name;
     const renamed = rows.find(r => r.kind === "renamed").data;
     if (code || renamed.isError) console.log(diagnostic, JSON.stringify(renamed));
-    const expected = defaultName({ ...env, AGENT_BUS_RUNTIME: runtime, AGENT_BUS_CWD: title }, "/");
+    const expected = defaultName({ ...env, AGENT_BUS_REALM: realm, AGENT_BUS_RUNTIME: runtime, AGENT_BUS_CWD: title }, "/");
+    check(`${runtime} names its session in the bus realm`, before.endsWith(`@${realm}`) && after.endsWith(`@${realm}`));
     check(`${runtime} concurrent rename claims one address`, rows.filter(r => r.kind === "renamed").length === 2 && rows.filter(r => r.kind === "renamed").every(r => !r.data.isError) && after === expected);
     check(`${runtime} reads the runtime title immediately on a no-argument repeat`, rows.some(r => r.kind === "rename-repeat" && !r.data.isError && JSON.stringify(r.data).includes(after)));
     check(`${runtime} refuses unauthenticated launcher control`, rows.some(r => r.kind === "control-denied" && r.data === 401));
@@ -136,15 +143,19 @@ try {
     const binding = JSON.parse(readFileSync(join(state, "agent-bus/sessions", `${hash(`${runtime}:${id}`)}.json`), "utf8"));
     check(`${runtime} rename saves the resumed session binding`, binding.name === after && binding.base === expected && after !== before);
     for (const suffix of ["", ".delivered", ".tui-ready"]) rmSync(events + suffix, { force: true });
+    await setRealm(later);
     const resumed = Bun.spawn([launcher], { cwd, env: { ...env, TEST_RENAME: "" }, stdout: "pipe", stderr: "pipe" });
     const resumedErr = new Response(resumed.stderr).text();
     const resumedCode = await resumed.exited;
     const diagnostic2 = await resumedErr;
     const resumedRows = readFileSync(events, "utf8").trim().split("\n").map(s => JSON.parse(s));
     if (resumedCode) console.log(diagnostic2);
+    check(`${runtime} keeps its bound name when the bus realm changes`, resumedRows.some(r => r.kind === "identity" && r.data.name.endsWith(`@${realm}`)));
+    await setRealm(realm);
     check(`${runtime} resumes the renamed address without creating a duplicate`, resumedCode === 0 && resumedRows.some(r => r.kind === "identity" && r.data.name === after && r.data.label === `${runtime === "opencode1" ? "opencode" : runtime} ${cwd}`));
   }
 } finally {
+  if (first.realm) await setRealm(first.realm);
   abort.abort(); await serve;
   rmSync(dir, { recursive: true, force: true });
 }
