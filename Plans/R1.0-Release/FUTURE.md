@@ -5,7 +5,7 @@
 ## Deb and rpm packages
 
 - **What:** `.deb` and `.rpm` packages and the repositories that serve them, so a host installs with its own package manager.
-- **Deferred:** not in R1 ([RD171](DECISIONS.md#recorded-decisions), owner, 2026-10-30). The Linux install is the signed archive through [simple install](distribution.md#simple-install), with `npm` as the other channel.
+- **Deferred:** not in R1 ([RD171](DECISIONS.md#recorded-decisions), owner, 2026-10-30). The install path is [npm](distribution.md#simple-install).
 - **To start it:** the owner asks for it, and names where the package repositories are hosted; nothing is built for it before that.
 
 ## Logwatch subscription start boundary
@@ -19,3 +19,9 @@
 ## macOS uninstall command
 
 Deferred by the owner on 2026-10-30; use the [manual macOS uninstall steps](../../docs/07-setup.md#uninstall-the-macos-test-daemon).
+
+## Shell installer
+
+- **Deferred P.4:** the owner chose simple npm install commands on 2026-10-30 ([RD178](DECISIONS.md#recorded-decisions)). `curl … | sh`, `install.sh` distribution and its installer-specific acceptance are outside R1.
+- **To start it:** the owner asks for a shell installer. Reuse HTTPS downloads, `SHA256SUMS`, manifests and untouched-host refusal checks; release signing, keys and attestations are not requirements.
+- **History:** [earlier installer acceptance](done/installer-acceptance.md#checks). Existing scripts and throwaway-key fixtures remain unchanged until the P.1 migration; they do not require a real owner key or a public signed release.

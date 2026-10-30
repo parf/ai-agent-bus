@@ -60,12 +60,9 @@ the 0.8 line; no release wave is committed yet. Item glyphs follow
   - Accepted on disposable daemons: real age/CLI/SQLite rebuild, old runner and standalone token clients after restart, wrong key and sidecar refusal, whole-transaction rollback, Owner doors and explicit conflicts; sixteen owning mutants and normal1187/0. No live export/import run.
 
 - ⏳ RT14 [Installable distribution](distribution.md#release-artifacts): P.1–P.3
-  - Built part: bundled agent runtime packages, Python client and shared helpers ship in build/package output and its verified manifest; fresh-install acceptance exercises the installed tree outside the checkout (0.9.35).
-  - Format: publication names and platforms
-  - Editions: [full and client-only](distribution.md#two-editions), the latter the runner and the basic CLI (owner, 2026-10-19)
-  - Platforms (owner, 2026-10-19: "setup PC/Mac builds"): builds for macOS (Apple Silicon and Intel) besides Linux, at least the client-only edition; no Windows in R1 (owner, 2026-10-19: "no windows, mac/linux"); reversed for a client-only CLI build in R1.1 (owner, 2026-10-30: [Windows CLI client](../R1.1/windows-cli.md#windows-cli-client)). To decide for macOS: which parts run there (CLI, runner, launchers; the daemon and sandbox are Linux-only today), the sandbox and process-boundary equivalent, the install method (Homebrew or an archive) and code signing
-  - macOS test host: the owner provides a Mac for tests and preparation (owner, 2026-10-29); the macOS questions above are settled on it
-  - Install for everyone: one `install.sh` command, full node by default, `--client` without root; npm a thin client wrapper; TypeScript parts compiled with bun ([simple install](distribution.md#simple-install), RD162)
+  - Built: runtime packages and verified manifests ship in build/package output; the installed-tree checks run outside the checkout.
+  - Install: [npm full and client-only packages](distribution.md#simple-install), per the owner’s replacement decision RD178. No release signing; the shell installer is deferred.
+  - Platforms and native evidence: [distribution](distribution.md#simple-install) and the [Mac run list](mac-run-list.md#a-linux-aarch64).
 
 - ✅ RT15 Federation moved to R1.2
   - Moved: owner, 2026-10-17 (№Q137); [R1.2 task](../R1.2/TODO.md#federation)
@@ -628,24 +625,27 @@ asks for the API shape; then runner, daemon and web parts are split.
 Implement the [release artifacts](distribution.md#release-artifacts) and [container contract](distribution.md#container-runtime).
 
 - ✅ T-10 One notice file, `licenses/NOTICE.md` — **0.9.189**, `0e7868ee` ([result](DONE.md#t-10-one-notice-file))
-- ⏳ P.4 Simple install: `install.sh` and self-contained TypeScript binaries ([simple install](distribution.md#simple-install))
-  - Acceptance: on a clean Linux host with no Go, bun or Node, the one command installs a full node that completes an agent request/reply and an MCP tool call; `--client` without root joins it from another account; a tampered archive or checksum stops the install before any file is written; running it again updates and keeps configuration, data and one rollback version
-  - Acceptance: owner, 2026-10-30: a clean install from the built distribution passes `src/check-deploy.sh` inside rootless podman on AlmaLinux 10, Ubuntu 26.04 LTS and Debian 13; containers live under `tmp/` and are removed after
-  - Mutant: skip the signature check and the tampered-archive case must fail; drop a compiled TypeScript binary from the archive and the MCP or web check must fail
-  - Built: all of the above on x86_64 in rootless podman on the three distributions, both mutants failing, as slow check `distro_install`; [result](DONE.md#p4-simple-install)
-  - Remaining, owner: the RD170 release keys embedded in `install.sh`; native aarch64 on the Mac: build and release evidence passed 2026-10-30 ([result](done/p3-aarch64-mac-run.md#steps)); the clean install there waits on a harness change (`realpath -m`, an arm64 base image)
+- Deferred P.4 Shell installer: moved to [FUTURE](FUTURE.md#shell-installer) by RD178. Earlier acceptance is [history](done/installer-acceptance.md#checks), not a remaining key or publication prerequisite.
+  - Native aarch64 build and release evidence passed 2026-10-30 ([result](done/p3-aarch64-mac-run.md#steps)); the earlier shell clean-install run waits on its harness (`realpath -m`, an arm64 base image). This is retained evidence, not an npm publication blocker.
 
 - ⏳ P.1 npm package
-  - Acceptance: On a clean supported host without the checkout or Go toolchain, install the published package, start the bus, complete an agent request/reply and an MCP tool call. Omit a required executable or MCP runtime asset from the package and the corresponding exercise fails
-  - Mutant: Omit a required executable or MCP runtime asset from the package and the corresponding exercise fails
+  - Contract: [npm packaging and local acceptance](distribution.md#npm). Full and client editions carry the release executables, compiled MCP runtime and its required assets, launchers, bundled runtime files, license and notices. Build stamped release archives on the tag, verify `SHA256SUMS` and manifests, then wrap them with `src/npm/pack.py` and `npm pack`.
+  - Manifest inventory: the builder’s generated command `package.json` names are `agent-bus` and `agent-bus-client`; generated platform names are `agent-bus-{linux-x64,linux-arm64}` and `agent-bus-client-{linux-x64,linux-arm64}`. Audit the `name`, dependency and platform-name references together and drop any published `@agent-bus/` variants; these defaults are already unscoped today. Add macOS platform names only with built and tested assets. No manifest edits in this plan change.
+  - The tracked `src/clients/typescript/package.json` (`@agent-bus/client`), `src/mcp/package.json` (`@agent-bus/mcp`) and `src/web/package.json` (`@agent-bus/web`) are private development manifests. Keep them unpublished; if any becomes a published artifact, rename it to an unscoped name and update its references first. There is no npm org; publishing uses the owner’s account, per the [decision](distribution.md#npm).
+  - Pending migration: retire release-signing steps and signed-draft expectations in `.github/workflows/release.yml`, `src/release-sign.sh`, release verification and the installer-dependent fixtures; publish unsigned GitHub build artifacts with checksums. Adapt the clean-install harness to npm and add the macOS npm platform support. Runtime scripts are unchanged by this docs-only decision.
+  - Acceptance: install the local `npm pack` tarballs in a clean supported container with npm but no checkout, Go or bun; resolve dependencies only from those tarballs (a private loopback registry is allowed). Start the installed bus and an installed agent, complete a request/reply and an MCP tool call. Install the client-only package as a second account and prove it joins without a daemon or writes outside its prefix. Compare installed executables and MCP assets to the release manifest.
+  - Mutants: omit a required executable, then an MCP runtime asset, repack and reinstall; each must fail the corresponding runtime assertion. A corrupt archive checksum and an incomplete manifest are refused before unchecked files are installed. Keep update/configuration/data and rollback checks.
+  - No npm publish or npm login by any worker. Publication waits for the owner’s explicit go; no live publication is needed for acceptance.
+
+- ✅ P.2 Ready-to-use container image: [result](DONE.md#done--r1) and [container guide](../../src/container/README.md#container-image); npm does not replace this separate artifact.
 
 - ✅ P.5 Homepage: live 2026-10-30 from parf.dev `8b0e411`, flowcharts fixed in live `d65e4af`; [result and archived acceptance](done/homepage.md#result)
 
 - ⏳ P.3 Release evidence
   - Acceptance: Query every shipped program's version in both distributions and compare with the release source; require stamped Go build information and packaged license. Substitute an unstamped binary, alter one version or omit the license: each fails its corresponding check
   - Mutant: Substitute an unstamped binary, alter one version or omit the license: each fails its corresponding check
-  - Built: each native build in `.github/workflows/release.yml` runs `src/release-verify.sh` on every full/client archive before upload; the draft job requires both builds to succeed. The owning test executes that exact workflow command and refuses unstamped, wrong-version and license-free artifacts, including a bad client beside a valid full archive; [result](DONE.md#p3-release-run-evidence), [release evidence](../../docs/07-setup.md#release-evidence).
-  - Remaining: native aarch64 evidence stays the owner's Mac check. This wiring change pushes no tag and creates no live release.
+  - Built: each native build in `.github/workflows/release.yml` runs `src/release-verify.sh` on every full/client archive before upload; the current draft job requires both builds to succeed; its draft/signing expectations are pending replacement under P.1. The owning test executes that exact workflow command and refuses unstamped, wrong-version and license-free artifacts, including a bad client beside a valid full archive; [result](DONE.md#p3-release-run-evidence), [release evidence](../../docs/07-setup.md#release-evidence).
+  - Remaining: native aarch64 evidence stays the owner's Mac check. Require both native builds and checksum/manifest verification before the GitHub build release or npm wrapping; no signature, owner key or signing wait. This docs-only change pushes no tag and publishes nothing.
 
 ## macOS
 

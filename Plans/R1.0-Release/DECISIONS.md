@@ -2,6 +2,8 @@
 
 ## Recorded decisions
 
+- ✅ RD178 npm is the installation path: unscoped `agent-bus`, published from the owner’s only npm account `parf73`, no npm org or published `@agent-bus/` scope; release signing is dropped and the shell installer deferred ([distribution](distribution.md#npm); owner, 2026-10-30; replaces RD162, RD163, RD168, RD170 and RD176)
+
 - **Kept jsonl answer line** — owner, 2026-10-30 15:25, option (a).
   - Home: [M.3 long-lived agents](runner-implementation.md#long-lived-agents).
 - **Pool host labels on consume** — owner, 2026-10-30 15:25, M.6a option A.
@@ -41,22 +43,17 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 - ✅ RD147 `#git` autopull is driven by the `autopull-cmd` pubsub channel, a check at start and an operator command, never a timer; each repository is `ff` (default) or `mirror`, with no release filter ([git guide](../../docs/agents/git-autopull.md#how-it-works); owner, 2026-10-29)
 - ✅ RD148 `#git` deploy is `deploy <repo> <branch> [<rev>]`, or a `deploy` event: the branch tip or a revision reachable from it, as realty's revision pull; a pinned branch refuses others ([git guide](../../docs/agents/git-autopull.md#how-it-works); owner, 2026-10-29)
 - ✅ RD150 Every autopull attempt is one versioned JSON record, host first, on `autopull-log`; acting on it is optional ([git guide](../../docs/agents/git-autopull.md#how-it-works); owner, 2026-10-29; replaces RD149)
-- ✅ RD162 Linux installs with one `install.sh` command, the full node by default and `--client` without root; npm is a thin client wrapper over the same binaries; TypeScript parts ship as `bun build --compile` binaries ([simple install](distribution.md#simple-install); owner, 2026-10-29; settles Q215)
-- ✅ RD176 The repository is public from the start and the release is a draft that the Actions build makes on a version tag, published after the owner's signature ([release path](distribution.md#simple-install); owner and `#ab-ceo`, 2026-10-30; settles Q226)
 - ✅ RD177 Account and User owned-record cards use the existing listing search and pagination ([web scale follow-up](TODO.md#web-scale-follow-up-from-mvp); settled by `#ab-dir`, 2026-10-30)
 - ✅ RD175 The container image is published as `docker.io/parf/agent-bus`, tagged with the release's VERSION and `latest` ([container runtime](distribution.md#container-runtime); owner, 2026-10-30; settles Q225)
 - ✅ RD174 No public HTTPS exposure in R1; only Discord and Google Chat are planned for build, and Teams, WhatsApp and Messenger wait in R2.0 ([messaging](messaging/README.md#plans); #ab-ceo, 2026-10-30; settles Q250, Q255 and Q259)
 - ✅ RD173 Google Chat receives through a Pub/Sub pull and sees only direct messages and @mentions ([plan](messaging/google-chat.md#decided); #ab-dir, 2026-10-30; settles Q245 and Q246)
 - ✅ RD172 Discord uses the gateway with the message-content intent on, and has no `users` or `user` methods ([plan](messaging/discord.md#decided); #ab-dir, 2026-10-30; settles Q241, Q242 and Q243)
 - ✅ RD171 No `.deb` or `.rpm` packages in R1; they wait in the future list ([future](FUTURE.md#deb-and-rpm-packages); owner, 2026-10-30; settles Q227)
-- ✅ RD170 The release namespace stays `agent-bus-release` and `install.sh` embeds a spare second public key, both keys generated off this node by the owner; the embed waits for his public keys ([signing](distribution.md#simple-install); owner, 2026-10-30; settles Q223)
 - ✅ RD169 npm names: `agent-bus` for the bus, `agent-bus-client` for the client, per-platform packages on the client stem, matching the commands ([npm](distribution.md#npm); owner, 2026-10-30; settles Q224)
-- ✅ RD168 The npm channel relies on the registry; only the signed GitHub archives verify before unpacking ([npm](distribution.md#npm); owner, 2026-10-30)
 - ✅ RD167 npm ships two packages published together, the client and the bus, the bus requiring the client at the exact same version ([npm](distribution.md#npm); owner, 2026-10-30)
 - ✅ RD166 macOS in three steps: the client and runner without a sandbox, then the daemon with a reduced setup, the sandbox last or never; a sandbox request is refused ([order](macos.md#order); owner, 2026-10-30; settles Q221)
 - ✅ RD165 macOS binaries ship unsigned, with no paid Apple signing ([macOS](distribution.md#macos); owner, 2026-10-30; settles Q222)
 - ✅ RD164 The macOS tests run in a Claude session on the owner's Mac on the same LAN, reporting over the bus; this node has no ssh to it ([macOS](distribution.md#macos); owner, 2026-10-30; settles Q220)
-- ✅ RD163 Simple install publishes from the public repository, signs with an owner-held `ssh-keygen -Y` release key, builds in GitHub Actions with a local fallback, and keeps the `agent-bus-setup` layout ([simple install](distribution.md#simple-install); owner, 2026-10-29)
 - ✅ RD161 Every agent's subscriptions run on one shared implementation with one behaviour; a refused send is dropped with a warning and the subscription never pauses ([unified subscriptions](subscriptions.md#one-behaviour); owner, 2026-10-29)
 - ✅ RD160 A new `#eventlog` agent keeps named logs with the same notice/warning/alert rings, rules and web view as agent events ([eventlog](agent-events/eventlog.md#what-it-does); owner, 2026-10-29)
 - ✅ RD159 An agent writes nothing routine to stderr: stderr stays a warning, and routine information is an explicit notice; agents that log per call or per connect today are changed ([levels](agent-events/README.md#levels); owner, 2026-10-29; settles Q214)

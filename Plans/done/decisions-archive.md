@@ -181,3 +181,13 @@ History only; these rows are never a current contract. See [current decisions](.
 |---|---|---|
 | A subscription forward whose delivery cannot be confirmed pauses that subscription with a visible error; a definite refusal retries with backoff (RD138, Q207) | [the shared behaviour](../../docs/agents/subscriptions.md#the-shared-behaviour), [cron](../../docs/agents/cron.md#what-it-does) | 2026-10-28 owner decision, replaced by RD161 (2026-10-29): a refused copy, or one whose acceptance is unknown, is dropped with one warning and the subscription stays active; a one-shot is dropped and removed; nothing is held, retried or paused. A confirmed delivery is still never resent |
 
+
+## Earlier release installation and signing
+
+Superseded by the owner on 2026-10-30: [RD178](../R1.0-Release/DECISIONS.md#recorded-decisions). These rows preserve earlier decisions, not requirements.
+
+- ✅ RD162 Linux installs with one `install.sh` command, the full node by default and `--client` without root; npm is a thin client wrapper over the same binaries; TypeScript parts ship as `bun build --compile` binaries ([simple install](../R1.0-Release/distribution.md#simple-install); owner, 2026-10-29; settles Q215)
+- ✅ RD176 The repository is public from the start and the release is a draft that the Actions build makes on a version tag, published after the owner's signature ([release path](../R1.0-Release/distribution.md#simple-install); owner and `#ab-ceo`, 2026-10-30; settles Q226)
+- ✅ RD170 The release namespace stays `agent-bus-release` and `install.sh` embeds a spare second public key, both keys generated off this node by the owner; the embed waits for his public keys ([signing](../R1.0-Release/distribution.md#simple-install); owner, 2026-10-30; settles Q223)
+- ✅ RD168 The npm channel relies on the registry; only the signed GitHub archives verify before unpacking ([npm](../R1.0-Release/distribution.md#npm); owner, 2026-10-30)
+- ✅ RD163 Simple install publishes from the public repository, signs with an owner-held `ssh-keygen -Y` release key, builds in GitHub Actions with a local fallback, and keeps the `agent-bus-setup` layout ([simple install](../R1.0-Release/distribution.md#simple-install); owner, 2026-10-29)
