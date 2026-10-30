@@ -387,7 +387,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 
 - ✅ RD36 A backup is a runner verb, `backup` (№Q33)
   - Earlier rows: 2026-10-16 owner decision
-  - Home: [backing it up](runner-implementation.md#backing-it-up)
+  - Home: [backing it up](../R1.1/backups.md#backing-it-up)
 
 - ✅ RD37 A pool member's stated hostname moves from R1.1 to R1 with pools (№Q139)
   - Earlier rows: 2026-10-16 owner decision
@@ -631,7 +631,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 
 - ✅ RD62 Backing it up
   - Earlier rows: [№D136](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D137](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D144](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
-  - Home: [definition](runner-implementation.md#backing-it-up)
+  - Home: [definition](../R1.1/backups.md#backing-it-up)
 
 - ✅ RD89 Chaining uses the realm as its namespace; template identity keeps `/` (№Q20)
   - Why: owner selected option 1 and confirmed it
@@ -756,7 +756,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 - ✅ RD65 User-key backup encryption
   - Why: Reuse the user's existing key and an established tool; owner instruction
   - Date: 2026-09-13
-  - Home: [runner § backing it up](runner-implementation.md#backing-it-up)
+  - Home: [runner § backing it up](../R1.1/backups.md#backing-it-up)
 
 ## Distribution choice
 
