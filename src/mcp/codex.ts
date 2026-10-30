@@ -52,8 +52,15 @@ export class AppServerError extends Error {
  *  cannot take one: a manual /compact or /review (`activeTurnNotSteerable` in
  *  its protocol). The turn ends by itself, so the message waits for it. */
 export function notSteerable(err: unknown): boolean {
-  if (!(err instanceof AppServerError)) return false;
-  return /active_?turn_?not_?steerable|not steerable|same-turn steering/i.test(`${err.message} ${JSON.stringify(err.data ?? "")}`);
+  return err instanceof AppServerError && carries(err.data, "activeTurnNotSteerable", 4);
+}
+
+// The structured discriminator, wherever the App Server nests it: a key of that
+// name, never wording in a message.
+function carries(value: unknown, key: string, depth: number): boolean {
+  if (depth < 0 || typeof value !== "object" || value === null) return false;
+  if (Object.hasOwn(value, key)) return true;
+  return Object.values(value).some((inner) => carries(inner, key, depth - 1));
 }
 
 export type CodexTiming = { steerWaitMs: number; retryMs: number };

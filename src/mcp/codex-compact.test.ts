@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { Codex } from "./codex.ts";
+import { AppServerError, Codex, notSteerable } from "./codex.ts";
 import { startPush } from "./push.ts";
 
 // J60: a manual /compact (or /review) runs as a turn that takes no steering, and
@@ -115,4 +115,12 @@ test("a session that compacts still receives the next pushed message", async () 
     expect(push.ended()).toBeUndefined();
     expect(said.join("\n")).not.toContain("push: stopping");
   } finally { push.stop(); await push.done; c.stop(); f.stop(); }
+});
+
+test("only the structured discriminator is not-steerable, never wording or other errors", () => {
+  expect(notSteerable(new AppServerError(-32600, "x", { codexErrorInfo: { activeTurnNotSteerable: { turnKind: "compact" } } }))).toBe(true);
+  expect(notSteerable(new AppServerError(-32600, "x", { activeTurnNotSteerable: { turnKind: "review" } }))).toBe(true);
+  expect(notSteerable(new AppServerError(-32001, "upstream says not steerable", { httpStatusCode: 503 }))).toBe(false);
+  expect(notSteerable(new AppServerError(-32600, "the active turn cannot accept same-turn steering"))).toBe(false);
+  expect(notSteerable(new Error("activeTurnNotSteerable"))).toBe(false);
 });

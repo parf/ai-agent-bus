@@ -11,7 +11,7 @@ test("a push that stopped after a failed delivery is restarted three times, then
   let t = 0;
   const check = superviseDelivery(() => current, () => { restarts.push(t); current = fakePush("delivery"); }, { note: (s) => said.push({ kind: "note", s }), warn: (s) => said.push({ kind: "warn", s }) }, { delays: [2_000, 10_000, 30_000], now: () => t });
   for (t = 0; t < 120_000; t += 2_000) await check();
-  expect(restarts).toEqual([0, 2_000, 12_000]); // a growing wait between tries
+  expect(restarts).toEqual([2_000, 12_000, 42_000]); // the 2 s, 10 s and 30 s waits, each from the restart before
   expect(said.filter((x) => x.kind === "note")).toHaveLength(3);
   const warns = said.filter((x) => x.kind === "warn");
   expect(warns).toHaveLength(1); // one final line, no 2-second loop
@@ -51,4 +51,17 @@ test("a push says why it ended: a failed delivery, a refusal, its own stop", asy
   own.stop();
   await own.done;
   expect(own.ended()).toBe("stopped");
+});
+
+// Each wait is the delay after the stop is seen or after the restart before it: no early retry.
+test("no retry comes before its delay", async () => {
+  let current: Push = fakePush("delivery");
+  const restartedAt: number[] = [];
+  let t = 0;
+  const check = superviseDelivery(() => current, () => { restartedAt.push(t); current = fakePush("delivery"); }, { note: () => {}, warn: () => {} }, { delays: [2_000, 10_000, 30_000], now: () => t });
+  for (t = 0; t <= 60_000; t += 500) await check();
+  expect(restartedAt).toHaveLength(3);
+  expect(restartedAt[0]!).toBeGreaterThanOrEqual(2_000);
+  expect(restartedAt[1]! - restartedAt[0]!).toBeGreaterThanOrEqual(10_000);
+  expect(restartedAt[2]! - restartedAt[1]!).toBeGreaterThanOrEqual(30_000);
 });

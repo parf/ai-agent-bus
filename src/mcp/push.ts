@@ -147,13 +147,14 @@ export function superviseDelivery(
   const delays = opts.delays ?? [2_000, 10_000, 30_000];
   const settledMs = opts.settledMs ?? 60_000;
   const now = opts.now ?? Date.now;
-  let tries = 0, due = 0, gaveUp = false, since = 0;
+  let tries = 0, gaveUp = false, since = 0;
+  let due: number | undefined;
   return async () => {
     const push = current();
     if (!push) return;
     if (push.running()) {
       // Healthy for a while: a later failure gets its own tries.
-      if (tries > 0 && now() - since >= settledMs) { tries = 0; gaveUp = false; }
+      if (tries > 0 && now() - since >= settledMs) { tries = 0; gaveUp = false; due = undefined; }
       return;
     }
     if (push.ended() !== "delivery") return;
@@ -164,14 +165,14 @@ export function superviseDelivery(
       }
       return;
     }
+    due ??= now() + delays[tries]!; // the first wait starts when the stop is seen, the next ones at each restart
     if (now() < due) return;
     tries++;
-    due = now() + delays[tries - 1]!;
-    since = now();
     say.note(`bus push stopped after a failed delivery; restarting it (${tries} of ${delays.length})`);
     await push.done;
     await restart();
     since = now();
+    due = tries < delays.length ? now() + delays[tries]! : undefined;
   };
 }
 
