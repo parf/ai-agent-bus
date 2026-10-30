@@ -66,6 +66,7 @@ fi
 # every shard has exited (smoke-port.sh): a run started at the same moment
 # takes the next, where a shared default found the other's daemon ("bad token").
 source ./smoke-port.sh
+source ./smoke-gofail.sh
 smoke_port $((15 * ${#SHARDS[@]})) || exit 2
 
 if [ -n "${SMOKE_TEST_PATTERN:-}" ]; then
@@ -331,6 +332,9 @@ ok_exit "fast allowlist refuses empty matches" "$rc"
 out=$(bash ./smoke-options.test.sh 2>&1); rc=$?
 ok_exit "smoke mode contract" "$rc"
 [ "$rc" = 0 ] || echo "$out"
+out=$(bash ./smoke-gofail.test.sh 2>&1); rc=$?
+ok_exit "a failed go run says why: setup failures print go's error, test failures stay terse" "$rc"
+[ "$rc" = 0 ] || echo "$out"
 out=$(bash ./release-verify.real.test.sh 2>&1); rc=$?
 ok_exit "release evidence passes the signed archives package.sh builds and fails each bad release" "$rc"
 [ "$rc" = 0 ] || echo "$out"
@@ -358,14 +362,8 @@ normal && checks=("vet:go vet ./..." "race:go test -race -timeout 200s ./...")
 for c in "${checks[@]}"; do
   out=$(eval "${c#*:}" 2>&1); rc=$?
   ok_exit "go ${c%%:*}" $rc
-  # What failed, wherever it sits: a tail shows the packages that ran last,
-  # which passed. Each failing test and package, its file:line lines, a
-  # panic or timeout, and the first race report whole.
-  [ $rc -eq 0 ] || echo "$out" | awk '
-    /^WARNING: DATA RACE/ { race = (races++ == 0) }
-    race { print; if (/^==================/) race = 0; next }
-    /^[[:space:]]*--- FAIL|^FAIL|^panic:|_test\.go:[0-9]+:|race detected|^running tests:|^[[:space:]]+Test[[:alnum:]_\/]* \(/ { print }' |
-    head -80 | sed 's/^/    /'
+  # What failed, wherever it sits: see smoke-gofail.sh.
+  [ $rc -eq 0 ] || echo "$out" | go_failure_text
 done
 
 # A layer rule nobody checks is a comment. These are the two directions that

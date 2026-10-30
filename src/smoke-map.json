@@ -383,6 +383,12 @@
       {
         "argv": [
           "bash",
+          "smoke-gofail.test.sh"
+        ]
+      },
+      {
+        "argv": [
+          "bash",
           "smoke-port.test.sh"
         ]
       },
