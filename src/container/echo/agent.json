@@ -1,0 +1,7 @@
+{
+  "description": "Answers each message with its own text: the container image's delivery example",
+  "command": "./echo.sh",
+  "form": "args",
+  "processes": 1,
+  "deadline": "10s"
+}

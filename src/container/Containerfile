@@ -1,0 +1,55 @@
+# The agent-bus container image: one image, two roles in two containers —
+# the daemon and a runner (README.md). Built from a release archive made by
+# src/package.sh, never from a checkout:
+#   podman build --build-context release=<directory holding the archive and its .sha256> src/container
+# (docker buildx build takes the same --build-context). Pick the archive with
+# --build-arg ARCHIVE=agent-bus-<version>-linux-<arch>.tar.gz when the
+# directory holds more than one release.
+FROM docker.io/library/debian:trixie-slim@sha256:1e1a22175fbf1b32157ddaf0219e1db4e5401fab2b94ed285add64d18587cd2d
+
+# python3 runs the bundled agents; ca-certificates lets agents reach HTTPS.
+# No bubblewrap: the container is the boundary, and an agent that asks the
+# runner for a sandbox is refused rather than run unconfined.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends python3 ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+# Fixed ids so a volume keeps its owner when the container is replaced.
+RUN groupadd --system --gid 990 agent-busd \
+ && useradd --system --uid 990 --gid 990 --home-dir /var/lib/agent-bus/daemon --shell /usr/sbin/nologin agent-busd \
+ && groupadd --system --gid 991 agent-bus-runner \
+ && useradd --system --uid 991 --gid 991 --home-dir /var/lib/agent-bus/runner --shell /usr/sbin/nologin agent-bus-runner
+
+ARG ARCHIVE=
+COPY --from=release agent-bus-*-linux-*.tar.gz agent-bus-*-linux-*.tar.gz.sha256 /tmp/release/
+COPY agent-bus-container /usr/local/sbin/agent-bus-container
+COPY echo /var/lib/agent-bus/agent.d/echo
+# The archive's own checksum and manifest are checked before anything is
+# installed; the release keeps the layout agent-bus-setup gives it.
+RUN set -eu; cd /tmp/release; \
+    rm -f agent-bus-client-*; \
+    if [ -n "$ARCHIVE" ]; then archive=$ARCHIVE; else \
+      set -- agent-bus-*-linux-*.tar.gz; [ $# = 1 ] || { echo "more than one release archive: pass --build-arg ARCHIVE=" >&2; exit 1; }; archive=$1; fi; \
+    sha256sum -c "$archive.sha256"; \
+    mkdir unpacked; tar -xzf "$archive" -C unpacked --strip-components=1; \
+    (cd unpacked && sha256sum -c --quiet MANIFEST.sha256); \
+    version=$(tr -d '[:space:]' < unpacked/internal/version/VERSION); \
+    mkdir -p /usr/local/lib/agent-bus/releases; \
+    mv unpacked "/usr/local/lib/agent-bus/releases/$version"; \
+    ln -s "releases/$version" /usr/local/lib/agent-bus/current; \
+    for p in agent-bus agent-busd agent-bus-admin agent-bus-runner agent-bus-token agent-bus-ts; do \
+      ln -s "/usr/local/lib/agent-bus/current/$p" "/usr/local/bin/$p"; done; \
+    rm -rf /tmp/release; \
+    install -d -m 0700 -o agent-busd -g agent-busd /var/lib/agent-bus/daemon; \
+    install -d -m 0700 -o agent-bus-runner -g agent-bus-runner /var/lib/agent-bus/runner; \
+    install -d -m 0755 /var/lib/agent-bus/agent.d; \
+    install -d -m 0711 -o agent-busd -g agent-busd /run/agent-bus; \
+    chmod -R a+rX,go-w /var/lib/agent-bus/agent.d; \
+    chmod 0755 /usr/local/sbin/agent-bus-container
+
+# The daemon's storage and the runner's private directory: mount each on a
+# persistent volume. Shared agent code is the image's, or a bind mount.
+VOLUME ["/var/lib/agent-bus/daemon", "/var/lib/agent-bus/runner"]
+EXPOSE 6767
+ENTRYPOINT ["/usr/local/sbin/agent-bus-container"]
+CMD ["help"]

@@ -1,0 +1,67 @@
+#!/bin/bash
+# The image's entry point: one role per container (README.md).
+#   daemon   agent-busd on its storage volume, serving the port
+#   runner   agent-bus-runner for one person, reaching the daemon's port
+# Anything else runs as given. Each role runs as its own account, so the
+# daemon's and the runner's secrets stay in separate containers and accounts.
+set -euo pipefail
+
+daemon_home=/var/lib/agent-bus/daemon
+runner_home=/var/lib/agent-bus/runner
+agents=/var/lib/agent-bus/agent.d
+
+fail() { echo "agent-bus-container: $*" >&2; exit 1; }
+
+# A fresh volume is root's: give it to the role's account, never anything
+# under it, so a volume from another image is not silently rewritten.
+own() { # own DIR ACCOUNT
+  [ "$(id -u)" = 0 ] || return 0
+  [ "$(stat -c %U "$1")" = "$2" ] || chown "$2:$2" "$1"
+  chmod 0700 "$1"
+}
+
+as() { # as ACCOUNT COMMAND...
+  local who=$1; shift
+  if [ "$(id -u)" = 0 ]; then
+    exec setpriv --reuid="$who" --regid="$who" --init-groups --inh-caps=-all -- "$@"
+  fi
+  [ "$(id -un)" = "$who" ] || fail "run as root or as $who, not $(id -un)"
+  exec "$@"
+}
+
+case ${1:-help} in
+  daemon)
+    shift
+    own "$daemon_home" agent-busd
+    owner=${AGENT_BUS_OWNER:-}
+    [ -n "$owner" ] || fail "AGENT_BUS_OWNER names the daemon's Owner, as user@realm"
+    db=$daemon_home/agent-bus.db
+    # The socket serves this container's own processes, as on an installed node.
+    if [ "$(id -u)" = 0 ]; then install -d -m 0711 -o agent-busd -g agent-busd /run/agent-bus; fi
+    flags=(--db "$db" --owner "$owner" --addr "${AGENT_BUS_LISTEN:-0.0.0.0:6767}" --socket /run/agent-bus/bus.sock)
+    [ ! -d "$daemon_home/tls" ] || flags+=(--tls-dir "$daemon_home/tls")
+    if [ ! -e "$db" ]; then
+      (as agent-busd agent-busd --init --db "$db" --owner "$owner") || fail "could not create $db"
+    fi
+    as agent-busd agent-busd "${flags[@]}" "$@"
+    ;;
+  runner)
+    shift
+    own "$runner_home" agent-bus-runner
+    [ -n "${AGENT_BUS_ADDR:-}" ] || fail "AGENT_BUS_ADDR is the daemon's address, such as http://agent-busd:6767"
+    [ -n "${AGENT_BUS_TOKEN:-}" ] || fail "AGENT_BUS_TOKEN is the token of #runner/<person>@<realm>"
+    # The container is the boundary and has no sandbox: the image's example
+    # runs with it off, said in the inventory a person can read and change.
+    if [ ! -e "$runner_home/agents.json" ]; then
+      printf '{\n  "echo": {"sandbox": "off"}\n}\n' >"$runner_home/agents.json"
+      [ "$(id -u)" != 0 ] || chown agent-bus-runner:agent-bus-runner "$runner_home/agents.json"
+    fi
+    as agent-bus-runner agent-bus-runner --host="$runner_home" --agents="$agents" "$@"
+    ;;
+  help | --help | -h)
+    sed -n '2,6s/^# \{0,1\}//p' "$0"
+    ;;
+  *)
+    exec "$@"
+    ;;
+esac
