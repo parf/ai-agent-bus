@@ -38,12 +38,17 @@ func streamFixture(t *testing.T, body string, inFlight int) (*stream, string) {
 
 func poolFixture(t *testing.T, body string, inFlight int, sp span, idle string) (*stream, string) {
 	t.Helper()
+	return poolFixtureOutput(t, body, inFlight, sp, idle, io.Discard)
+}
+
+func poolFixtureOutput(t *testing.T, body string, inFlight int, sp span, idle string, output io.Writer) (*stream, string) {
+	t.Helper()
 	dir := t.TempDir()
 	scriptPath := filepath.Join(dir, "agent.sh")
 	if err := os.WriteFile(scriptPath, []byte(idOf+"printf s >> starts\n"+body), 0600); err != nil {
 		t.Fatal(err)
 	}
-	r := &runner{ctx: context.Background(), say: io.Discard, served: map[string]*served{}}
+	r := &runner{ctx: context.Background(), say: output, served: map[string]*served{}}
 	s := &served{bus: unconfiguredClient(), name: "#fixture@h", cmd: "/bin/sh " + strconv.Quote(scriptPath), work: dir, dir: dir, box: sandbox.Off{}, jail: &jail{},
 		in: installed{Key: "fixture", Agent: agentFile{Form: "jsonl", InFlight: inFlight, Deadline: "100ms", Idle: idle}, Span: sp}}
 	r.installed = []installed{s.in}
