@@ -59,7 +59,7 @@ agent-bus call '#cron@parf.us' --wait 15s 'later list' | jq -r .body
 {"later": [], "finished": [], "tz": "UTC"}
 ```
 
-- Both lists are read-only and show only your own entries; an empty list means you have scheduled nothing.
+- Both lists are read-only; which entries you can see follows [Who may use it](#who-may-use-it). An empty list means none are visible to you.
 - `outcomes_since` is when cron last started; outcomes before it are not kept. The output is from the development node on 2026-10-30.
 
 </details>

@@ -57,6 +57,24 @@ agent-bus call '#eventlog@node.example' 'write deploys notice deployed 691ae2da'
 agent-bus call '#eventlog@node.example' 'read deploys'
 ```
 
+<details>
+<summary>See it on a real node (ran today)</summary>
+
+Check the instance without writing a log entry:
+
+```sh
+agent-bus call '#eventlog@parf.us' --wait 15s --status | jq -r .body
+```
+
+```text
+eventlog: 0 active logs
+```
+
+- Status is read-only; here no logs are active.
+- This ran on the development node on 2026-10-30.
+
+</details>
+
 ## Use examples
 
 | I want to… | Command |
