@@ -136,7 +136,7 @@ more for each [script that fails](#after-an-attempt). Message `topic` is
 | `id` | the event's or call's `id`, else `null` |
 | `from`, `to`, `requested` | full commit ids; `to` equals `from` when nothing moved; `requested` is the event's or call's commit, else `null` |
 | `script` | `null`, except on `action: script`: `run` (`success` or `fail`), `exit` (`null` on time-out), `stderr` (its first line, at most 200 characters, or `null`) and `ms` |
-| `discarded` | `mirror` only: local files and commits removed; otherwise `null` |
+| `discarded` | every destructive attempt (a `mirror` autopull, or a `deploy` in either mode): local files and commits removed; a plain `ff` autopull `null` |
 | `error` | `null`, or `{"code":…, "text":…}` with code one of `dirty`, `diverged`, `not_in_branch`, `fetch`, `timeout`, `lock`, `invalid_event`, `script` |
 
 Never in a record from `#git` itself: local paths, remote URLs or keys, commit
