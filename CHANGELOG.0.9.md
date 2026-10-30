@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.177 — 2026-10-30
+
+group walks for ACL, directory and delivery are iterative, so a deep or cyclic group chain no longer exhausts the stack
+
 ## 0.9.176 — 2026-10-30
 
 release-verify.sh checks release evidence on signed archives; x86_64 verified, aarch64 not built here

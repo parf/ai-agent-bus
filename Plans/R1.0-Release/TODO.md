@@ -166,9 +166,14 @@ implemented UI selects one label.
 Settled as [№RD87](DECISIONS.md#recorded-decisions). `RGW…` labels this
 section's rows.
 
-- ⏳ RGW1 Every group-membership walk is iterative, as role assignment's already is
-  - State: role assignment built (`assigned_roles.go:62-91`); the ACL check,
-    directory index and publication expansion recurse
+- ✅ RGW1 Every group-membership walk is iterative
+  - State: ACL membership, directory indexing and publication expansion use
+    explicit work lists; role assignment keeps its existing iterative walk.
+  - Checks: `TestGroupWalksUseBoundedStack` resolves a cyclic 1024-group chain
+    through all four walks under a 128 KiB goroutine stack; positive/negative
+    membership and publication order/deduplication are asserted.
+  - Evidence: full core suite green; four compiling recursion mutants fail
+    the owning stack assertion (ACL, directory, publication, roles), restored.
   - Details: each keeps its processed-group marking and the direct-only
     Administrator boundary; no membership result changes
   - Acceptance: a chain of nested groups deep enough to exceed a deliberately
