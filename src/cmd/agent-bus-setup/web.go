@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -25,8 +26,12 @@ import (
 const (
 	webAccount  = "agent-bus-web"
 	oldWebLink  = stateRoot + "/web"
-	webUnitPath = "/etc/systemd/system/agent-bus-web.service"
 	webUnitName = "agent-bus-web.service"
+)
+
+// Where the unit and its runtime live; a test names its own.
+var (
+	webUnitPath = "/etc/systemd/system/agent-bus-web.service"
 	bunPath     = "/usr/bin/bun"
 )
 
@@ -149,19 +154,14 @@ func installWeb(web string, tlsOn bool, daemonTLSDir string) error {
 		return err
 	}
 	unit = execPaths.ReplaceAll(webUnit(unit, web), []byte(paths))
-	// Its home is its code: it owns nothing and writes nowhere.
-	if u, err := user.Lookup(webAccount); err != nil {
-		if err := run("useradd", "--system", "--no-create-home", "--home-dir", web,
-			"--shell", "/usr/sbin/nologin", webAccount); err != nil {
-			return err
-		}
-	} else if u.HomeDir != web {
-		// An account in use cannot be changed: the unit stops first, and is
-		// restarted below.
-		_ = exec.Command("systemctl", "stop", webUnitName).Run()
-		if err := run("usermod", "--home", web, webAccount); err != nil {
-			return err
-		}
+	// Everything the face reads is written first, and the unit is started
+	// once, at the end, and only when something it reads has changed or it is
+	// not running: a setup run that changes nothing leaves a healthy face
+	// alone, and a burst of runs cannot hit systemd's start limit.
+	before := webState()
+	moved, err := ensureWebAccount(web)
+	if err != nil {
+		return err
 	}
 	fingerprint, err := webTLS(tlsOn, daemonTLSDir)
 	if err != nil {
@@ -170,14 +170,19 @@ func installWeb(web string, tlsOn bool, daemonTLSDir string) error {
 	if err := os.WriteFile(webUnitPath, unit, 0o644); err != nil {
 		return err
 	}
-	if err := run("systemctl", "daemon-reload"); err != nil {
-		return err
+	changed := moved || webState() != before
+	if changed {
+		if err := run("systemctl", "daemon-reload"); err != nil {
+			return err
+		}
 	}
 	if err := run("systemctl", "enable", webUnitName); err != nil {
 		return err
 	}
-	if err := run("systemctl", "restart", webUnitName); err != nil {
-		return err
+	if changed || exec.Command("systemctl", "is-active", "--quiet", webUnitName).Run() != nil {
+		if err := run("systemctl", "restart", webUnitName); err != nil {
+			return err
+		}
 	}
 	addr := "127.0.0.1:6780"
 	if m := webAddr.FindSubmatch(unit); m != nil {
@@ -201,6 +206,39 @@ func installWeb(web string, tlsOn bool, daemonTLSDir string) error {
 		}
 	}
 	return nil
+}
+
+// ensureWebAccount creates the face's account, or points an existing one at
+// the code, and says whether it had to: its home is its code, it owns nothing
+// and writes nowhere. A test replaces it.
+var ensureWebAccount = func(web string) (bool, error) {
+	u, err := user.Lookup(webAccount)
+	if err != nil {
+		return true, run("useradd", "--system", "--no-create-home", "--home-dir", web,
+			"--shell", "/usr/sbin/nologin", webAccount)
+	}
+	if u.HomeDir == web {
+		return false, nil
+	}
+	// An account in use cannot be changed: the unit stops first, and the
+	// start at the end of installWeb brings it back.
+	_ = exec.Command("systemctl", "stop", webUnitName).Run()
+	return true, run("usermod", "--home", web, webAccount)
+}
+
+// webState is a digest of the files a restart of the face would apply: its
+// unit, the TLS drop-in and its copy of the certificate. A missing file counts
+// as a state of its own.
+func webState() string {
+	h := sha256.New()
+	files := []string{webUnitPath, webTLSDropIn,
+		filepath.Join(webTLSDir, tlsdir.CertFile), filepath.Join(webTLSDir, tlsdir.ChainFile), filepath.Join(webTLSDir, tlsdir.KeyFile)}
+	for _, f := range files {
+		b, err := os.ReadFile(f)
+		fmt.Fprintf(h, "%s %v %d\n", f, err == nil, len(b))
+		h.Write(b)
+	}
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
 func waitHealthz(url string, timeout time.Duration, pin string) error {
