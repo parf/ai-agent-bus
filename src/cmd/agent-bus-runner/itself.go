@@ -38,6 +38,9 @@ var (
 // killed whole, unless agent.json gives a deadline.
 const stopWait = 10 * time.Second
 
+// socketCheck is how often a kept sandboxed process's bus socket is looked at.
+var socketCheck = 2 * time.Second
+
 // keeper keeps one self-serving agent's processes running.
 type keeper struct {
 	r      *runner
@@ -96,7 +99,9 @@ func (k *keeper) loop() {
 	for k.ctx.Err() == nil {
 		began := time.Now()
 		cmd, j, err := k.command()
+		var sock *boundSocket
 		if err == nil {
+			sock = k.socketToWatch()
 			k.mu.Lock()
 			if k.ctx.Err() != nil {
 				err = k.ctx.Err()
@@ -116,7 +121,15 @@ func (k *keeper) loop() {
 			}
 		}
 		if err == nil {
+			var exited chan struct{}
+			if sock != nil {
+				exited = make(chan struct{})
+				go k.watchSocket(cmd, j, sock, exited)
+			}
 			err = cmd.Wait()
+			if exited != nil {
+				close(exited)
+			}
 			k.mu.Lock()
 			delete(k.running, cmd)
 			k.mu.Unlock()
@@ -218,11 +231,7 @@ func (k *keeper) command() (*exec.Cmd, *jail, error) {
 // the deadline, the whole cgroup killed. It returns when every loop is done.
 func (k *keeper) stop() {
 	k.cancel()
-	wait := stopWait
-	launch := k.r.launchSettings(k.s)
-	if d, err := time.ParseDuration(launch.agent.Deadline); err == nil && d > 0 {
-		wait = d
-	}
+	wait := k.deadline()
 	k.signal(syscall.SIGTERM)
 	done := make(chan struct{})
 	go func() { k.wg.Wait(); close(done) }()
@@ -233,6 +242,89 @@ func (k *keeper) stop() {
 		<-done
 	}
 	fmt.Fprintf(k.r.say, "%s: %s stopped\n", k.r.name, k.s.name)
+}
+
+// deadline is how long a process asked to stop has before it is killed.
+func (k *keeper) deadline() time.Duration {
+	if d, err := time.ParseDuration(k.r.launchSettings(k.s).agent.Deadline); err == nil && d > 0 {
+		return d
+	}
+	return stopWait
+}
+
+// A sandbox mounts the bus socket as a file, and the mount keeps the inode it
+// found. A daemon that restarts makes a new socket at the same path, which a
+// running process cannot see: it would retry the dead one forever (J30). So a
+// kept sandboxed process is restarted when the socket at that path is replaced.
+// The socket's directory is not mounted instead: it also holds the account
+// sockets, and the runner account's would hand the agent the runner's identity.
+type boundSocket struct {
+	path     string
+	dev, ino uint64
+}
+
+func socketIdentity(path string) (dev, ino uint64, ok bool) {
+	var st syscall.Stat_t
+	if err := syscall.Stat(path, &st); err != nil || st.Mode&syscall.S_IFMT != syscall.S_IFSOCK {
+		return 0, 0, false
+	}
+	return uint64(st.Dev), st.Ino, true
+}
+
+// socketToWatch is the bus socket a process about to start gets mounted, or
+// nil: no socket path, or no sandbox, whose process opens the path afresh.
+func (k *keeper) socketToWatch() *boundSocket {
+	addr := k.r.addr
+	if !strings.HasPrefix(addr, "/") || k.r.launchSettings(k.s).box.Name() == "off" {
+		return nil
+	}
+	dev, ino, ok := socketIdentity(addr)
+	if !ok {
+		return nil
+	}
+	return &boundSocket{path: addr, dev: dev, ino: ino}
+}
+
+// watchSocket stops one process, as stop does, once another socket is at the
+// path it was given; the loop then starts it again with the live one. A path
+// with no socket yet is a daemon still starting, and is waited out.
+func (k *keeper) watchSocket(cmd *exec.Cmd, j *jail, sock *boundSocket, exited <-chan struct{}) {
+	tick := time.NewTicker(socketCheck)
+	defer tick.Stop()
+	for {
+		select {
+		case <-exited:
+			return
+		case <-k.ctx.Done():
+			return
+		case <-tick.C:
+		}
+		dev, ino, ok := socketIdentity(sock.path)
+		if !ok || (dev == sock.dev && ino == sock.ino) {
+			continue
+		}
+		fmt.Fprintf(k.r.say, "%s: %s: the bus socket was replaced; restarting it\n", k.r.name, k.s.name)
+		k.signalOne(cmd, j, syscall.SIGTERM)
+		select {
+		case <-exited:
+		case <-k.ctx.Done():
+		case <-time.After(k.deadline()):
+			k.signalOne(cmd, j, syscall.SIGKILL)
+		}
+		return
+	}
+}
+
+// signalOne sends sig to one process: its cgroup's own processes, or with no
+// cgroup the process group it started.
+func (k *keeper) signalOne(cmd *exec.Cmd, j *jail, sig syscall.Signal) {
+	if j != nil && j.group != nil {
+		signalGroup(j.group, sig)
+		return
+	}
+	if cmd.Process != nil {
+		syscall.Kill(-cmd.Process.Pid, sig)
+	}
 }
 
 // signal sends sig to the agent's own processes: those in its cgroup that are
