@@ -24,7 +24,7 @@
 | B.27b | Google Chat | [google-chat.md](google-chat.md) |
 | B.27c | Microsoft Teams | [teams.md](teams.md) |
 | B.27d | WhatsApp | [whatsapp.md](whatsapp.md) |
-| B.27e | Facebook Messenger | planned next |
+| B.27e | Facebook Messenger | [messenger.md](messenger.md) |
 
 ## How each plan is written
 
