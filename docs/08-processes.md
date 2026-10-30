@@ -1,9 +1,47 @@
 # Processes and privileges
 
-📌 **TL;DR:** The supervisor owns listeners and child lifetime, the bus owns
-state and serves requests, and the web face, under its own account and unit,
-asks the bus for the visitor's own view. Passing a listener is a runtime
-boundary, separate from the module rules. Nothing the daemon runs may exec.
+📌 **TL;DR:**
+- **Problem:** a bus that serves requests, holds listeners and shows a web page must keep their powers apart, or one flaw reaches everything.
+- **Outcome:** the supervisor owns listeners and child lifetime, the bus owns state and serves requests, and the web page, under its own account and unit, asks the bus for the visitor's own view. Passing a listener is a runtime boundary, separate from the module rules. Nothing the daemon runs may exec.
+- **Start:** see the running processes by their titles: `ps -ww -eo args | grep '^agent-busd'` ([Try this first](#try-this-first)).
+
+## Why you'd want it
+
+- 🧱 **One process with every power is one flaw from disaster.** Now each process has only what it needs.
+- 🔎 **You must tell the processes apart.** Now each sets a title that names its role and call count.
+- 🚫 **A daemon that can start programs can be turned on you.** Now nothing it runs may exec.
+
+## What you get
+
+- ✅ **Three roles:** the supervisor, the bus and the web page.
+- ✅ **Stated privileges:** why the supervisor holds what it holds, and what is shared.
+- ✅ **Process titles:** a role and a call count you can read with `ps`.
+- 🚫 **Not for:** code dependency rules (see [modules](../src/MODULES.md#the-rule)).
+
+## Try this first
+
+- See the supervisor and bus titles, without the version (read-only):
+
+```sh
+ps -ww -eo args | grep '^agent-busd' | tail -2 | cut -d';' -f2-
+```
+
+<details>
+<summary>See it on a real node (ran today)</summary>
+
+```text
+ supervisor
+ Calls: 2887424 ; bus
+```
+
+- The bus title counts the requests it received; the supervisor serves none.
+- The output is from the development node on 2026-10-30.
+
+</details>
+
+## Technical details
+
+The reference below keeps every section as it was; other pages link to these sections.
 
 ## The rule
 
@@ -26,13 +64,9 @@ The bus is the supervisor's only child. An AUTH role is
 
 ## Process titles
 
-All programs use the shared [working rules § versioning](../CLAUDE.md#versioning).
-Every Go program accepts `--version` and prints the version
-and [setup § build information](07-setup.md#build-information) before doing
-any work; its `--help` opens with the program and version
-([build information](07-setup.md#build-information)). The MCP and web entry
-points accept the same flag, compiled or via
-`bun run server.ts`; the MCP handshake and the Codex adapter report that version too.
+- All programs use the shared [working rules § versioning](../CLAUDE.md#versioning).
+- Every Go program accepts `--version` and prints the version and [setup § build information](07-setup.md#build-information) before doing any work; its `--help` opens with the program and version ([build information](07-setup.md#build-information)).
+- The MCP and web entry points accept the same flag, compiled or via `bun run server.ts`; the MCP handshake and the Codex adapter report that version too.
 
 | Process | Title in `ps -ww -o args` | Calls |
 |---|---|---|
@@ -41,11 +75,11 @@ points accept the same flag, compiled or via
 | Dedicated runner | `agent-bus run <version> ; Calls: <count> ; <name>` | Inbox messages taken, including work that later fails or is skipped |
 | Web face | `agent-bus-web <version> ; Calls: <count>` | HTTP requests received, refusals, assets and `/healthz` included; written over bun's own argv, so a title longer than the unit's command line is cut |
 
-Counts are cumulative for the process lifetime, start at zero, and reset on
-restart. Titles are set at start and refreshed once a second; the request path
-only increments an atomic counter. Idle polling does not count as runner work.
-Scripts, arguments, credentials and message bodies are never added to titles.
-The executable's short `comm` name stays unchanged.
+- Counts are cumulative for the process lifetime, start at zero, and reset on restart.
+- Titles are set at start and refreshed once a second; the request path only increments an atomic counter.
+- Idle polling does not count as runner work.
+- Scripts, arguments, credentials and message bodies are never added to titles.
+- The executable's short `comm` name stays unchanged.
 
 The Go helper wraps `gspt`, as in the reference Go API: it rewrites the OS
 argument area while preserving Go's arguments and environment for child exec;
@@ -59,11 +93,9 @@ unit can execute nothing but its runtime. User scripts run in the separate dedic
 runner.
 
 **`ssh-keygen` is allowed, and the boundary is about user programs.** The bus
-runs it to check a signature at enrolment, and that stays. What the rule forbids
-is executing **what a user supplied** — a script behind an agent, anything whose
-contents somebody else chose. A fixed verifier the daemon ships and invokes with
-arguments it built is a different thing from running a stranger's program, and
-collapsing the two would have bought nothing but a literal claim.
+- runs it to check a signature at enrolment, and that stays.
+- What the rule forbids is executing **what a user supplied** — a script behind an agent, anything whose contents somebody else chose.
+- A fixed verifier the daemon ships and invokes with arguments it built is a different thing from running a stranger's program, and collapsing the two would have bought nothing but a literal claim.
 
 So the boundary is not *no exec*, it is **no user programs**, and the check is
 what decides the argument rather than how the code is reached. An unavailable
@@ -71,23 +103,20 @@ future AUTH child is not what settles this; the distinction is.
 
 ## Why the supervisor holds CAP_CHOWN
 
-Per-account socket ownership needs this capability. The installed unit grants
-it only to the supervisor; the supervisor clears ambient capabilities before
-starting its children. A developer run without the capability cannot prove
-that boundary. The [installed checks](../Plans/done/R0.8-MVP/done/installed-shared-host.md#checks)
-exercise two actual account sockets and mutations that remove the grant or let
-the bus inherit it.
+- Per-account socket ownership needs this capability.
+- The installed unit grants it only to the supervisor; the supervisor clears ambient capabilities before starting its children.
+- A developer run without the capability cannot prove that boundary.
+- The [installed checks](../Plans/done/R0.8-MVP/done/installed-shared-host.md#checks) exercise two actual account sockets and mutations that remove the grant or let the bus inherit it.
 
 The supervisor reports a failed ownership change. That does not certify that
 another account can use the intended socket.
 
 ## The TCP listener
 
-The supervisor binds the TCP address; the bus child serves it. With a TLS
-directory (`--tls-dir`, [setup § TLS](07-setup.md#tls)), every connection on
-that port is sniffed: a first byte of `0x16`, a TLS handshake, is answered
-over TLS with HTTP/2 or HTTP/1.1, and anything else as plain HTTP. Without
-one, the port is plain HTTP alone. The unix sockets never answer TLS.
+- The supervisor binds the TCP address; the bus child serves it.
+- With a TLS directory (`--tls-dir`, [setup § TLS](07-setup.md#tls)), every connection on that port is sniffed: a first byte of `0x16`, a TLS handshake, is answered over TLS with HTTP/2 or HTTP/1.1, and anything else as plain HTTP.
+- Without one, the port is plain HTTP alone.
+- The unix sockets never answer TLS.
 
 <details>
 <summary>Limits</summary>
@@ -110,13 +139,10 @@ visitor's credentials and then uses their browser session.
 
 ## The web face
 
-The web face is TypeScript in `src/web`: in a release, part of the compiled
-`agent-bus-ts`; on a checkout, run from source by the system bun. Either way
-it runs under its own system account and its own systemd unit. It is not a daemon
-child: the supervisor starts nothing for it. It reaches the daemon only over
-the shared socket, with each visitor's session, and holds no bus credential
-or state; with TLS on, it holds its own certificate copy and a socket in its
-`RuntimeDirectory`.
+- The web face is TypeScript in `src/web`: in a release, part of the compiled `agent-bus-ts`; on a checkout, run from source by the system bun.
+- Either way it runs under its own system account and its own systemd unit.
+- It is not a daemon child: the supervisor starts nothing for it.
+- It reaches the daemon only over the shared socket, with each visitor's session, and holds no bus credential or state; with TLS on, it holds its own certificate copy and a socket in its `RuntimeDirectory`.
 
 | | |
 |---|---|
