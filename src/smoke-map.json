@@ -448,7 +448,8 @@
           "test",
           "agents/slack/parse.test.ts",
           "agents/slack/routing.test.ts",
-          "agents/slack/metadata.test.ts"
+          "agents/slack/metadata.test.ts",
+          "agents/shared/subscriptions.test.ts"
         ]
       },
       {

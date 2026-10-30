@@ -3984,6 +3984,9 @@ agent_slack() {
     out=$(SMOKE_TEST_SET="$(level)" SMOKE_BIN="$D" timeout 240 python3 ./smoke-agent-pool.py ./agents/slack "${pattern[@]}" 2>&1); rc=$?
     echo "$out" | grep -E '^\(fail\)| pass$| fail$|^error:|^FILE_TIMING' | sed 's/^/  /'
     ok_exit "slack agent tests" "$rc"
+    out=$(timeout 60 bun test "${pattern[@]}" ./agents/shared/subscriptions.test.ts 2>&1); rc=$?
+    echo "$out" | grep -E '^\(fail\)| pass$| fail$|^error:' | sed 's/^/  /'
+    ok_exit "shared subscription engine tests" "$rc"
   else
     skipped=$((skipped+1))
   fi
