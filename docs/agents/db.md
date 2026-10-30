@@ -1,62 +1,42 @@
 # Database: let your AI run SQL without the password
 
-📌 **TL;DR:** Lets you or your AI ask a MySQL, PostgreSQL or ClickHouse database
-questions (in SQL, the database query language) without handing out its
-password. Best practice: one agent per real database account, such as
-`#mysql/billing-ro` (read only) and `#mysql/billing-rw` (read and write), so the
-database itself decides what each caller may do.
+📌 **TL;DR:**
+- **Problem:** your AI or a teammate needs numbers from a database that lives elsewhere, and sharing the password gives away everything that account can do, forever.
+- **Outcome:** they ask SQL questions through a door to one database account; the password stays on the server and the database itself decides what each caller may do.
+- **Start:** run one harmless statement: `agent-bus call '#mysql/billing-ro@node.example' 'query SELECT 1'` ([Try this first](#try-this-first)).
 
 ## Why you'd want it
 
-**The problem.** Your AI or a teammate needs numbers from a database that lives
-elsewhere. Sharing the password gives away everything that account can do, forever.
-
-**The idea.** The password stays on the server; callers get a door to one
-database account. **Prefer real SQL users with correct permissions**, one agent
-each. Use this agent's roles only when you cannot create such users.
-
-**When to use it**
-
-- An AI should answer questions from live data ("how many unpaid invoices?").
-- A script or report needs a few rows from a remote database.
-- A teammate needs read-only access without a database login.
-
-**When not to:** bulk export or big data moves (results are capped), long
-transactions over several calls (one statement per call), or searching texts by
-meaning (use [RAG](rag.md#what-it-does)).
-
-**Possible use cases**
-
-| Use case | What you do | What you get |
-|---|---|---|
-| AI answers a business question | Ask through `#mysql/billing-ro` | A count or a few rows |
-| Morning report | A script runs a fixed SELECT | Today's numbers |
-| Billing script marks an invoice paid | Call `#mysql/billing-rw` | The number of rows changed |
-| Analytics for the team | A ClickHouse instance with a read-only account | Report rows |
-| Safe exploration | A read-only agent | Any write is refused by the database |
+- 🔑 **Sharing a password gives everything away.** Now the password stays on the server; callers get a door to one account.
+- 🧱 **An AI must not change data by accident.** Now a read-only account refuses any write, and it is the database that refuses.
+- 📈 **Questions about live data wait for someone.** Now an AI answers "how many unpaid invoices?" itself.
+- 🧩 **MySQL, PostgreSQL and ClickHouse all differ.** Now one call works for all three.
 
 ## What it does
 
-| Call | Does |
-|---|---|
-| `query <SQL>` | Runs one statement; returns columns and rows, or how many rows changed |
-
-Long results are cut at `max_rows` and the answer says so. Who may read or
-write is set by [roles](#who-may-use-it).
+- ✅ **Run one statement:** you get columns and rows, or how many rows changed (`query <SQL>`).
+- ✅ **Answer business questions:** a count or a few rows, for an AI, a script or a teammate.
+- ✅ **Mark an invoice paid:** a read-write agent returns the number of rows changed.
+- ✅ **Safe exploration:** a read-only agent; any write is refused by the database.
+- ✅ **Capped results:** long results are cut at `max_rows` and the answer says so.
+- ✅ **Best practice:** one agent per real database account, such as `#mysql/billing-ro` (read only) and `#mysql/billing-rw` (read and write); who may read or write is set by [roles](#who-may-use-it).
+- 🚫 **Not for:** bulk export or big data moves (results are capped), long transactions over several calls (one statement per call), or searching texts by meaning (use [RAG](rag.md#what-it-does)).
 
 ## You'll need
 
 - A running database, and a database account for each access level you want to offer.
 - A runner with Python 3; the package brings its own drivers.
 
-<details><summary>Technical details: network</summary>
+<details>
+<summary>Network</summary>
 
-A nonempty `needs.network` in `agent.json` enables network access (it is not a host
-filter; replace `database` with your host). A unix socket needs none.
+A nonempty `needs.network` in `agent.json` enables network access (it is not a host filter; replace `database` with your host). A unix socket needs none.
 
 </details>
 
 ## Try this first
+
+- Run one harmless statement:
 
 ```sh
 agent-bus call '#mysql/billing-ro@node.example' 'query SELECT 1'
@@ -64,39 +44,33 @@ agent-bus call '#mysql/billing-ro@node.example' 'query SELECT 1'
 
 ## Use examples
 
-| I want to… | Command |
-|---|---|
-| Count unpaid invoices | `agent-bus call '#mysql/billing-ro@node.example' 'query SELECT count(*) FROM invoices WHERE paid = 0'` |
-| Peek at recent rows | `agent-bus call '#mysql/billing-ro@node.example' 'query SELECT id, total FROM invoices LIMIT 5'` |
-| Mark an invoice paid | `agent-bus call '#mysql/billing-rw@node.example' 'query UPDATE invoices SET paid = 1 WHERE id = 7'` |
-| Call from a script as JSON | `agent-bus call '#mysql/billing-ro@node.example' '{"method":"query","sql":"SELECT 1"}'` |
-
-The same UPDATE through the read-only agent is refused by the database. On a
-fallback instance, grant roles in its access list, e.g. `bob(write)`, `ops(admin)`.
+- **Count unpaid invoices:** `agent-bus call '#mysql/billing-ro@node.example' 'query SELECT count(*) FROM invoices WHERE paid = 0'`
+- **Peek at recent rows:** `agent-bus call '#mysql/billing-ro@node.example' 'query SELECT id, total FROM invoices LIMIT 5'`
+- **Mark an invoice paid:** `agent-bus call '#mysql/billing-rw@node.example' 'query UPDATE invoices SET paid = 1 WHERE id = 7'`
+- **Call from a script as JSON:** `agent-bus call '#mysql/billing-ro@node.example' '{"method":"query","sql":"SELECT 1"}'`
+- **The same UPDATE through the read-only agent** is refused by the database.
+- **On a fallback instance,** grant roles in its access list, for example `bob(write)`, `ops(admin)`.
 
 ## Installing it
 
-An administrator installs the package once per database account, sets where the
-database is and puts the account's password in the runner's private file. It is
-installed from a checkout, never from a release: the release archive does not
-ship its native drivers.
+- An administrator installs the package once per database account, sets where the database is and puts the account's password in the runner's private file.
+- It is installed from a checkout, never from a release: the release archive does not ship its native drivers.
 
-<details><summary>Step by step</summary>
+<details>
+<summary>Step by step</summary>
 
-Build with `src/agents/db/package.sh <agent.d/db>`. It copies `pymysql` (MIT) and
-`psycopg` 3 (LGPL-3.0-only, [psycopg.org](https://psycopg.org)) from the packaging
-host's Python into `support/lib`, with their licenses and a `NOTICE`; replace
-either by installing another build there. Enable it in the
-[runner inventory](../runner/configuration.md#inventory). One instance serves one
-database.
+- Build with `src/agents/db/package.sh <agent.d/db>`.
+- It copies `pymysql` (MIT) and `psycopg` 3 (LGPL-3.0-only, [psycopg.org](https://psycopg.org)) from the packaging host's Python into `support/lib`, with their licenses and a `NOTICE`; replace either by installing another build there.
+- Enable it in the [runner inventory](../runner/configuration.md#inventory); one instance serves one database.
 
 </details>
 
 ## Configuration
 
-Which kind of database, where it is, and how many rows to return at most.
+- **What:** which kind of database, where it is, and how many rows to return at most.
 
-<details><summary>Keys</summary>
+<details>
+<summary>Keys</summary>
 
 | Key | Meaning |
 |---|---|
@@ -111,11 +85,10 @@ Which kind of database, where it is, and how many rows to return at most.
 
 ## Secret keys
 
-Database logins live only in the private host `db/env` file
-([environment files](../runner/configuration.md#environment-files)), never in
-Configuration or a call.
+- **Database logins live only** in the private host `db/env` file ([environment files](../runner/configuration.md#environment-files)), never in Configuration or a call.
 
-<details><summary>Keys</summary>
+<details>
+<summary>Keys</summary>
 
 | Key | Meaning |
 |---|---|
@@ -126,16 +99,10 @@ Configuration or a call.
 
 ## Who may use it
 
-**Preferred: one agent per real SQL user.** Create database accounts with the
-rights you want (read-only, read-write) and run one agent per account, named for
-it. The access list says who may call each; the database enforces what each may do.
-
-**Fallback: roles on one agent**, only when you cannot create normal SQL users
-with correct permissions. Give `read` its own read-only account (`DB_READ_*`) if
-you can. A caller with no role can only read (the opposite of
-[`#qdrant`](qdrant.md#who-may-use-it), where no role means write).
-
-The caller's role picks a tier ([roles](../03-records-agent.md#roles)); the highest held wins:
+- **Preferred: one agent per real SQL user.** Create database accounts with the rights you want and run one agent per account, named for it; the access list says who may call each, the database enforces what each may do.
+- **Fallback: roles on one agent,** only when you cannot create normal SQL users with correct permissions; give `read` its own read-only account (`DB_READ_*`) if you can.
+- **No role means read only:** the opposite of [`#qdrant`](qdrant.md#who-may-use-it), where no role means write.
+- **The highest role held picks the tier** ([roles](../03-records-agent.md#roles)):
 
 | Role on the message | Tier | May run |
 |---|---|---|
@@ -143,40 +110,20 @@ The caller's role picks a tier ([roles](../03-records-agent.md#roles)); the high
 | `write` | write | also INSERT, UPDATE, DELETE |
 | `admin`, `owner`, `maintainer` | admin | DDL and everything else the account may do |
 
-The database itself refuses a write from `read`; the agent never parses SQL.
+- **The database refuses a write from `read`;** the agent never parses SQL.
+- **`write` and `admin` are separated only by accounts:** with one account both run with its full authority, and the roles limit what the agent tries, not what the database allows.
+- **A reader can read whatever its account can,** including system tables: never point `read` at a superuser account for an untrusted caller.
 
-**`write` and `admin` are separated only by accounts**: with one account both run
-with its full authority, and the roles limit what the agent tries, not what the
-database allows.
+## Troubleshooting
 
-**A reader can read whatever its account can**, including system tables. Never
-point `read` at a superuser account for an untrusted caller.
-
-<details><summary>Technical details: how read-only is enforced, and what it does not stop</summary>
-
-The agent never parses the SQL to decide. `read` is enforced by the database,
-which returns its own error for a write:
-
-| Engine | `read` is enforced by |
+| If you see… | Means |
 |---|---|
-| MySQL, MariaDB | `START TRANSACTION READ ONLY` plus a read-only session, always rolled back; multi-statements are off |
-| PostgreSQL | a read-only transaction plus a read-only session default; the extended protocol, so a second statement is refused by the server |
-| ClickHouse | `readonly=1` sent with every request, which also stops a statement changing it |
+| `error: no <tier> account is configured on this instance` | Per-tier accounts are in use and that tier has none; add its keys or use one account |
+| `error: database connection or authentication failed` | Host, port or password is wrong; the answer never says which or names the account |
+| `error: database request timed out` | The deadline passed; a write may have happened, check before retrying; the database also stops the statement on its own limit |
+| A database error | Returned unchanged, minus the password |
 
-Each call opens and closes its own connection. One statement per call is part of
-the guarantee: do not replace the PostgreSQL extended protocol or enable MySQL
-multi-statements. Fixture checks show each refused statement succeeding under
-`admin`, so a refusal is the database's. MySQL itself is not in the fixture:
-checks run against MariaDB (same protocol and read-only transaction), PostgreSQL
-and ClickHouse. Run them against your MySQL version before relying on it.
-
-A read-only transaction does not stop what a privileged account may do on its
-own connection: PostgreSQL `dblink_exec`, `COPY … TO`, file functions; MySQL
-`SELECT … INTO OUTFILE` with the FILE privilege; ClickHouse `url()`, `file()`,
-`remote()` with those grants. It can also read tables such as `mysql.user`. The
-fixture checks show the limit.
-
-</details>
+- Logs hold only the engine, tier, byte count and status, never the SQL or password.
 
 ## Warnings and alerts
 
@@ -189,13 +136,24 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 | warning | A statement reached its deadline | Check the database load; a write may have happened |
 | warning | A caller was refused because their tier has no account on this instance | Add that tier's keys, or stop granting that role |
 
-## Troubleshooting
+## Technical details
 
-| If you see… | Means |
+<details>
+<summary>How read-only is enforced, and what it does not stop</summary>
+
+The agent never parses the SQL to decide. `read` is enforced by the database, which returns its own error for a write:
+
+| Engine | `read` is enforced by |
 |---|---|
-| `error: no <tier> account is configured on this instance` | Per-tier accounts are in use and that tier has none; add its keys or use one account |
-| `error: database connection or authentication failed` | Host, port or password is wrong; the answer never says which or names the account |
-| `error: database request timed out` | The deadline passed; a write may have happened, check before retrying. The database also stops the statement on its own limit |
-| A database error | Returned unchanged, minus the password |
+| MySQL, MariaDB | `START TRANSACTION READ ONLY` plus a read-only session, always rolled back; multi-statements are off |
+| PostgreSQL | a read-only transaction plus a read-only session default; the extended protocol, so a second statement is refused by the server |
+| ClickHouse | `readonly=1` sent with every request, which also stops a statement changing it |
 
-Logs hold only the engine, tier, byte count and status, never the SQL or password.
+- Each call opens and closes its own connection.
+- One statement per call is part of the guarantee: do not replace the PostgreSQL extended protocol or enable MySQL multi-statements.
+- Fixture checks show each refused statement succeeding under `admin`, so a refusal is the database's.
+- MySQL itself is not in the fixture: checks run against MariaDB (same protocol and read-only transaction), PostgreSQL and ClickHouse; run them against your MySQL version before relying on it.
+- A read-only transaction does not stop what a privileged account may do on its own connection: PostgreSQL `dblink_exec`, `COPY … TO`, file functions; MySQL `SELECT … INTO OUTFILE` with the FILE privilege; ClickHouse `url()`, `file()`, `remote()` with those grants.
+- It can also read tables such as `mysql.user`; the fixture checks show the limit.
+
+</details>
