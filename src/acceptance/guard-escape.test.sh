@@ -2,6 +2,9 @@
 # guard.test.sh killed as the smoke driver bounds a shard (timeout -k: TERM to its process group, KILL 3 s later)
 # while a guarded run's watcher waits: its EXIT trap removes the fake podman, the watcher in its own session outlives
 # the kill, and it must still never reach a podman on PATH (J36). A decoy podman on PATH records any call.
+# What this pins is the harness's command: with the fake gone, a watcher given a podman by name would find the decoy
+# here, one given it by path fails and stops at its first listing. guard.sh's own calls past that listing (unshare)
+# are not reached in this scenario; guard.test.sh's live decoy pins them.
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 mkdir -p "$here/../../tmp"
