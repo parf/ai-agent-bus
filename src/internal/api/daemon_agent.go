@@ -77,7 +77,7 @@ func (s *Server) daemonAnswer(e protocol.Envelope) (string, error) {
 	if e.Ask != "" {
 		body, _, err := agentmeta.DispatchAsk(e.Ask, map[string]agentmeta.AskHandler{
 			"help-json": func() (string, error) {
-				data, err := json.Marshal(map[string]any{"description": display.BusDescription, "version": version.String, "license": display.License, "author": display.Author, "homepage": display.Homepage, "docs": display.BusDocs, "methods": methods, "config": map[string]any{}, "secrets": []any{}, "asks": []string{"help", "help-json", "help-config", "help-secret", "mcp", "status"}, "body_formats": []string{"text"}})
+				data, err := json.Marshal(map[string]any{"description": display.BusDescription, "version": version.String, "license": display.License, "author": display.Author, "homepage": display.Homepage, "docs": display.BusDocs, "methods": methods, "config": busConfigDeclared(), "secrets": []any{}, "asks": []string{"help", "help-json", "help-config", "help-secret", "mcp", "status"}, "body_formats": []string{"text"}})
 				return string(data), err
 			},
 			"help": func() (string, error) {
@@ -86,7 +86,9 @@ func (s *Server) daemonAnswer(e protocol.Envelope) (string, error) {
 			"status": func() (string, error) {
 				return s.daemonAnswer(protocol.Envelope{From: e.From, Body: "status", Deadline: e.Deadline})
 			},
-			"help-config": func() (string, error) { return "none", nil },
+			"help-config": func() (string, error) {
+				return agentmeta.Manifest{Config: busConfigDeclared()}.Answer("", "help-config", nil, false)
+			},
 			"help-secret": func() (string, error) { return "none", nil },
 			"mcp":         func() (string, error) { return `{"tools":[]}`, nil },
 		})
@@ -115,6 +117,23 @@ func (s *Server) daemonAnswer(e protocol.Envelope) (string, error) {
 	default:
 		return "", fmt.Errorf("unknown method; ask help")
 	}
+}
+
+// busConfigDeclared is the bus setup's keys as any agent declares its
+// Configuration, so the ordinary edit page renders them.
+func busConfigDeclared() map[string]agentmeta.Config {
+	out := map[string]agentmeta.Config{}
+	for _, k := range core.BusSettings {
+		c := agentmeta.Config{Help: k.Help, Type: agentmeta.Type(`"string"`), Example: json.RawMessage(`"node.example"`)}
+		if k.Max > 0 {
+			c.Type = agentmeta.Type(`"int"`)
+			c.Help += fmt.Sprintf(", 1 to %d", k.Max)
+			c.Example = nil
+			c.Default, _ = json.Marshal(k.Default)
+		}
+		out[k.Key] = c
+	}
+	return out
 }
 
 func (s *Server) daemonList(caller protocol.Name, args []string) (string, error) {

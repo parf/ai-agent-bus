@@ -129,7 +129,7 @@ func TestDaemonAgentReservationAcrossRegisteredAPIRoutes(t *testing.T) {
 				if err := b.SetGroup("owner@h", core.AdministratorsGroup, []string{"owner@h", "administrator@h"}); err != nil {
 					t.Fatal(err)
 				}
-				if err := b.EstablishDaemonAgent(); err != nil {
+				if err := b.EstablishDaemonAgent("node.example"); err != nil {
 					t.Fatal(err)
 				}
 				s.LocalAccounts("protected", func(string) error { return nil })
@@ -143,6 +143,13 @@ func TestDaemonAgentReservationAcrossRegisteredAPIRoutes(t *testing.T) {
 				r.Header.Set(HeaderToken, token(who))
 				w := httptest.NewRecorder()
 				s.Handler().ServeHTTP(w, r)
+				if who == "owner@h" && route == "GET /config" {
+					// The bus setup is the daemon Owner's to read (TestBusSetupOverHTTP).
+					if w.Code != 200 {
+						t.Fatalf("daemon Owner cannot read the bus setup: %d %s", w.Code, w.Body.String())
+					}
+					return
+				}
 				if w.Code < 400 || w.Code >= 500 {
 					t.Fatalf("#bus not refused: %s as %s: %d %s", route, who, w.Code, w.Body.String())
 				}

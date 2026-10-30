@@ -201,6 +201,20 @@ func ParseName(s string) (Name, error) {
 	return Name{Agent: agent, Template: template, Local: local, Realm: realm}, nil
 }
 
+// ValidRealm checks a realm exactly as written: the name grammar's realm
+// characters, which are lower case, and short enough to leave room for a name
+// before it. It never trims or lowers, so a caller cannot store one spelling
+// and mean another.
+func ValidRealm(s string) error {
+	if !part(s, false) {
+		return fmt.Errorf("bad realm %q: a-z 0-9 . _ - only, starting alphanumeric", s)
+	}
+	if len(s) > MaxName-2 {
+		return fmt.Errorf("realm %q is %d characters: at most %d", s, len(s), MaxName-2)
+	}
+	return nil
+}
+
 func isASCII(s string) bool {
 	for i := 0; i < len(s); i++ {
 		if s[i] > 0x7f {

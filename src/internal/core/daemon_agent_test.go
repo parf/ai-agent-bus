@@ -14,10 +14,10 @@ func TestDaemonAgentIsReservedAndUncredentialed(t *testing.T) {
 	if _, err := b.Register(protocol.Record{Name: DaemonAgent, Kind: protocol.KindAgent, Owner: "owner@h"}); !errors.Is(err, ErrNotOwner) {
 		t.Fatalf("pre-start registration: %v", err)
 	}
-	if _, err := b.Configure(DaemonAgent, "owner@h", []byte(`{"x":1}`)); !errors.Is(err, ErrNotOwner) {
+	if _, err := b.Configure(DaemonAgent, "owner@h", []byte(`{"realm":"early"}`)); !errors.Is(err, ErrUnknown) {
 		t.Fatalf("pre-start configuration: %v", err)
 	}
-	if err := b.EstablishDaemonAgent(); err != nil {
+	if err := b.EstablishDaemonAgent("node.example"); err != nil {
 		t.Fatal(err)
 	}
 	r, ok := b.Lookup("alice@h", DaemonAgent)
@@ -35,7 +35,7 @@ func TestDaemonAgentIsReservedAndUncredentialed(t *testing.T) {
 		if err := b.Unregister(DaemonAgent, who); !errors.Is(err, ErrNotOwner) {
 			t.Fatalf("unregister %s: %v", who, err)
 		}
-		if _, err := b.Configure(DaemonAgent, who, []byte(`{"stolen":true}`)); !errors.Is(err, ErrNotOwner) {
+		if _, err := b.Configure(DaemonAgent, who, []byte(`{"stolen":true}`)); !errors.Is(err, ErrNotOwner) && !(who == "owner@h" && errors.Is(err, ErrConfig)) {
 			t.Fatalf("configure %s: %v", who, err)
 		}
 		if _, err := b.SetSecret(DaemonAgent, who, "TOKEN=stolen"); !errors.Is(err, ErrNotOwner) {
@@ -70,7 +70,7 @@ func TestDaemonAgentIsReservedAndUncredentialed(t *testing.T) {
 
 func TestDaemonAgentRestoreKeepsQueueButRejectsStoredTakeover(t *testing.T) {
 	b := ownerFixture(t)
-	if err := b.EstablishDaemonAgent(); err != nil {
+	if err := b.EstablishDaemonAgent("node.example"); err != nil {
 		t.Fatal(err)
 	}
 	e, err := b.Send(protocol.Envelope{From: "alice@h", To: DaemonAgent, Body: "status"})
@@ -101,7 +101,7 @@ func TestDaemonAgentRestoreKeepsQueueButRejectsStoredTakeover(t *testing.T) {
 	if r, ok := restored.Lookup("alice@h", DaemonAgent); !ok || r.Owner != "owner@h" || len(r.Subs) != 0 {
 		t.Fatalf("restore exposed takeover before startup: %+v", r)
 	}
-	if err := restored.EstablishDaemonAgent(); err != nil {
+	if err := restored.EstablishDaemonAgent("node.example"); err != nil {
 		t.Fatal(err)
 	}
 	r, ok := restored.Lookup("alice@h", DaemonAgent)

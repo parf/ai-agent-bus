@@ -96,7 +96,8 @@ func runBus(c config) {
 	} else {
 		log.Printf("legacy no-tags migration: %d records", count)
 	}
-	if err := bus.EstablishDaemonAgent(); err != nil {
+	host, _ := os.Hostname()
+	if err := bus.EstablishDaemonAgent(host); err != nil {
 		fatal("bus agent: %v", err)
 	}
 	bus.ReportKVOrphans()

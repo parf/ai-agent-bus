@@ -2,7 +2,8 @@
 
 📌 **TL;DR:** `#bus` is built into the bus. Anyone with a bus account can ask
 it whether the bus is up, which version runs, and which helpers they may use.
-Nothing to install, no extra password.
+Nothing to install, no extra password. Its Configuration is the bus setup:
+the bus's default realm, which only the daemon Owner changes.
 
 ## Why you'd want it
 
@@ -19,7 +20,7 @@ are already allowed to see.
 - When looking for a helper: what may I use?
 
 **When not to:** checking whether a particular helper works (call that helper,
-or use [debug](debug.md#check-the-bus-in-a-minute)), or changing anything (it is read-only).
+or use [debug](debug.md#check-the-bus-in-a-minute)), or changing anything (its calls are read-only).
 
 **Possible use cases**
 
@@ -52,8 +53,9 @@ replace, disable, transfer or remove it, get its token or read its queue.
   read now; `--all` everything visible; `--kind` or `--tag` filters; a name looks
   up that record.
 - Description asks use the envelope's `ask` field: `help`, `help-json`,
-  `help-config`, `help-secret` and `mcp`. Configuration and Secret declarations
-  are empty; `mcp` returns `{"tools":[]}`. A plain body names a method; body text
+  `help-config`, `help-secret` and `mcp`. `help-config` lists the
+  [bus setup](#configuration) keys; there are no Secret keys; `mcp` returns
+  `{"tools":[]}`. A plain body names a method; body text
   `--help` is ordinary unsupported input.
 
 </details>
@@ -86,7 +88,37 @@ Nothing to install: the daemon creates `#bus` itself.
 
 ## Configuration
 
-None.
+The Configuration of `#bus` is the bus setup. Only the daemon Owner reads or
+saves it; an Administrator, an Agent of the Owner or anybody else is refused.
+A save applies at once, with no restart, and is kept in backups.
+
+| Key | Meaning |
+|---|---|
+| `realm` | Required. The bus's default realm for new automatic names. The first start saves the host name; a saved realm is never replaced by the host's |
+| `notice_entries`, `notice_days` | Agent-event notices kept per agent, and for how many days; default 200 and 1 |
+| `warning_entries`, `warning_days` | The same for warnings; default 200 and 7 |
+| `alert_entries`, `alert_days` | The same for alerts; default 50 and 30 |
+
+```sh
+echo '{"realm":"parf.us"}' | agent-bus config '#bus' -
+```
+
+Changing the realm is not a rename: every existing name, token, ACL entry,
+route and saved session keeps its old spelling and keeps working. Only new
+automatic names use the new realm. `agent-bus status` shows the realm in
+effect. Agent events are in work; their keys are checked and kept now.
+
+<details><summary>Technical details: validation and audit</summary>
+
+- The whole value is one JSON object of the keys above; an unknown key, a
+  missing realm or a value out of range refuses the save and changes nothing.
+- The realm is checked as written: lower case `a-z 0-9 . _ -`, starting with a
+  letter or digit, at most 62 characters. Nothing is trimmed, lowered or cut.
+- Numbers are whole: entries 1–10000, days 1–3650.
+- A realm change writes one audit-log line naming the Owner and the old and
+  new realm.
+
+</details>
 
 ## Secret keys
 
@@ -96,7 +128,7 @@ None.
 
 Anyone with a bus account. Every request runs with the caller's own authority;
 `#bus` never lists as the daemon Owner on someone else's behalf and offers no
-management calls.
+management calls. Its [Configuration](#configuration) is the daemon Owner's.
 
 <details><summary>Technical details: replies to private agents</summary>
 

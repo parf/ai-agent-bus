@@ -819,9 +819,6 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 	if err != nil {
 		return protocol.Record{}, err
 	}
-	if n == DaemonAgent {
-		return protocol.Record{}, fmt.Errorf("%w: #bus is daemon-owned", ErrNotOwner)
-	}
 	who, err := canon(caller)
 	if err != nil {
 		return protocol.Record{}, err
@@ -847,6 +844,9 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 	}
 	b.mu.Lock()
 	defer b.unlock()
+	if n == DaemonAgent {
+		return b.configureBus(who, cfg)
+	}
 	r, known := b.record(n)
 	// An inactive record is no such name to configure, and its name stays
 	// reserved, so this is no way to create over it either.
@@ -915,7 +915,8 @@ func (b *Bus) Config(name, caller string) (json.RawMessage, error) {
 	if !holdsPrivate(r.Kind) {
 		return nil, fmt.Errorf("%w: a %s holds no configuration", ErrConfig, r.Kind)
 	}
-	if !b.mayReadPrivate(who, r) {
+	// The bus setup is the daemon Owner's to read, as to write (configureBus).
+	if !b.mayReadPrivate(who, r) && !(n == DaemonAgent && who == b.admin) {
 		return nil, fmt.Errorf("%w: only %s may read it", ErrPrivate, n)
 	}
 	return r.Config, nil
@@ -1910,7 +1911,10 @@ func (b *Bus) settle(name string, w *waiter) (protocol.Envelope, bool) {
 }
 
 type Status struct {
-	Up      string `json:"up"`
+	Up string `json:"up"`
+	// Realm is the bus setup's default realm for new automatic names, absent
+	// when none is saved (Plans/R1.0-Release/daemon-configuration.md).
+	Realm   string `json:"realm,omitempty"`
 	Records int    `json:"records"` // live records on the node
 	// Services is Records under its name before 0.8.108, kept one release
 	// for clients that read it; it is not a count of 📡 services.
@@ -1989,6 +1993,7 @@ func (b *Bus) ownerInactive() *OwnerInactive {
 func (b *Bus) status() Status {
 	s := Status{
 		Up:    b.Uptime(),
+		Realm: busRealm(b.records[DaemonAgent].Config),
 		Kinds: map[string]int{},
 	}
 	for _, kind := range protocol.Kinds {

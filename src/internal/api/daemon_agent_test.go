@@ -26,7 +26,7 @@ func TestDaemonAgentListsOnlyTheOriginalCallersRecords(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := b.EstablishDaemonAgent(); err != nil {
+	if err := b.EstablishDaemonAgent("node.example"); err != nil {
 		t.Fatal(err)
 	}
 	for _, r := range []protocol.Record{
@@ -101,7 +101,7 @@ func TestDaemonAgentListsOnlyTheOriginalCallersRecords(t *testing.T) {
 func TestDaemonAgentReadOnlyMethodsAndAsks(t *testing.T) {
 	b := core.New()
 	s, _ := serverFor(t, b, "admin@h")
-	if err := b.EstablishDaemonAgent(); err != nil {
+	if err := b.EstablishDaemonAgent("node.example"); err != nil {
 		t.Fatal(err)
 	}
 	for _, body := range []string{"help", "status", "version", "ls --all", "--help", "manage #bus", "status extra"} {
@@ -167,7 +167,7 @@ func TestDaemonAgentReadOnlyMethodsAndAsks(t *testing.T) {
 func TestDaemonAgentReplyToAndLiteralAskBoundary(t *testing.T) {
 	b := core.New()
 	s, _ := serverFor(t, b, "admin@h")
-	if err := b.EstablishDaemonAgent(); err != nil {
+	if err := b.EstablishDaemonAgent("node.example"); err != nil {
 		t.Fatal(err)
 	}
 	_, err := b.Register(protocol.Record{Name: "answers@h", Kind: protocol.KindQueue, Owner: "admin@h", Allow: []string{"*"}})
@@ -199,7 +199,7 @@ func TestDaemonAgentReplyToAndLiteralAskBoundary(t *testing.T) {
 
 func TestDaemonAgentSurvivesSQLiteRestartWithoutCredentialOrSpuriousWarnings(t *testing.T) {
 	n := startNode(t, filepath.Join(t.TempDir(), "bus.db"))
-	if err := n.bus.EstablishDaemonAgent(); err != nil {
+	if err := n.bus.EstablishDaemonAgent("node.example"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := n.issue("admin@h", core.DaemonAgent); err == nil {
@@ -218,7 +218,7 @@ func TestDaemonAgentSurvivesSQLiteRestartWithoutCredentialOrSpuriousWarnings(t *
 	if n.log.has("stored #bus metadata conflicts") {
 		t.Fatal(n.log.all())
 	}
-	if err := n.bus.EstablishDaemonAgent(); err != nil {
+	if err := n.bus.EstablishDaemonAgent("node.example"); err != nil {
 		t.Fatal(err)
 	}
 	e, err := n.bus.Consume(context.Background(), core.DaemonAgent, "", "", false, false)
@@ -256,5 +256,75 @@ func TestDaemonAgentDescriptionUsesProjectMetadata(t *testing.T) {
 		if err != nil || !strings.Contains(help, want) {
 			t.Errorf("human help omits %s: %v", key, err)
 		}
+	}
+}
+
+func TestBusSetupOverHTTP(t *testing.T) {
+	b := core.New()
+	s, token := serverFor(t, b, "owner@h")
+	for _, who := range []string{"administrator@h", "ordinary@h"} {
+		if _, err := b.SetUser("owner@h", protocol.User{Name: who}, true); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := b.SetGroup("owner@h", core.AdministratorsGroup, []string{"owner@h", "administrator@h"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.EstablishDaemonAgent("node.example"); err != nil {
+		t.Fatal(err)
+	}
+	request := func(who, method, path, body string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(method, path, strings.NewReader(body))
+		r.Header.Set(HeaderToken, token(who))
+		w := httptest.NewRecorder()
+		s.Handler().ServeHTTP(w, r)
+		return w
+	}
+	realm := func() string {
+		var st struct{ Realm string }
+		if err := json.Unmarshal(request("ordinary@h", "GET", "/status", "").Body.Bytes(), &st); err != nil {
+			t.Fatal(err)
+		}
+		return st.Realm
+	}
+	if realm() != "node.example" {
+		t.Fatalf("status before: %q", realm())
+	}
+	for _, who := range []string{"administrator@h", "ordinary@h"} {
+		if w := request(who, "POST", "/configure", `{"name":"#bus","config":{"realm":"stolen"}}`); w.Code != 403 {
+			t.Fatalf("%s saved the bus setup: %d %s", who, w.Code, w.Body.String())
+		}
+		if w := request(who, "GET", "/config?name=%23bus", ""); w.Code < 400 {
+			t.Fatalf("%s read the bus setup: %d", who, w.Code)
+		}
+	}
+	if w := request("owner@h", "POST", "/configure", `{"name":"#bus","config":{"realm":"Short"}}`); w.Code != 400 {
+		t.Fatalf("uppercase realm: %d %s", w.Code, w.Body.String())
+	}
+	if w := request("owner@h", "POST", "/configure", `{"name":"#bus","config":{"realm":"short"}}`); w.Code != 200 {
+		t.Fatalf("owner save: %d %s", w.Code, w.Body.String())
+	}
+	if realm() != "short" {
+		t.Fatalf("status after: %q", realm())
+	}
+	if w := request("owner@h", "GET", "/config?name=%23bus", ""); w.Code != 200 || !strings.Contains(w.Body.String(), `"realm":"short"`) {
+		t.Fatalf("owner read: %d %s", w.Code, w.Body.String())
+	}
+	help, err := s.daemonAnswer(protocol.Envelope{From: "ordinary@h", Ask: protocol.AskHelpConfig})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"realm (string)", "notice_entries (int)", "alert_days (int)", "default: 30"} {
+		if !strings.Contains(help, key) {
+			t.Fatalf("help-config lacks %q:\n%s", key, help)
+		}
+	}
+	got, err := s.daemonAnswer(protocol.Envelope{From: "ordinary@h", Ask: protocol.AskHelpJSON})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var data struct{ Config map[string]any }
+	if json.Unmarshal([]byte(got), &data) != nil || len(data.Config) != len(core.BusSettings) || data.Config["realm"] == nil {
+		t.Fatalf("help-json config: %s", got)
 	}
 }
