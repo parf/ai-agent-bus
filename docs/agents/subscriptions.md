@@ -5,7 +5,7 @@ log lines or chat messages, into a queue or an agent's inbox. Every helper is
 meant to share one behaviour: one copy per match, the author's send right
 checked at `sub add` and before every send, a refused copy dropped and counted
 while the subscription stays active. The shared engine is built; the helpers
-still run their own until they move to it ([B.29](../../Plans/R1.0-Release/TODO.md#bundled-agents)).
+still run their own until they move to it ([status](#status)).
 
 What stays per helper is only the selector, what a subscription watches: a
 mailbox for [IMAP](imap.md#what-it-does), a source for
@@ -16,9 +16,9 @@ a schedule, not a match, and keeps its own calls.
 ## The shared behaviour
 
 The rules every helper moves to. The shared engine implements each of them
-(Python since 0.9.170, the TypeScript twin since 0.9.173); no helper runs on
-it yet, so for users each is pending [B.29](../../Plans/R1.0-Release/TODO.md#bundled-agents)
-until its helper moves ([today](#what-each-helper-does-today)).
+(Python since 0.9.171, the TypeScript twin since 0.9.173); no helper runs on
+it yet, so for users each is pending until its helper moves
+([today](#what-each-helper-does-today), [status](#status)).
 
 | Rule | Every subscription |
 |---|---|
@@ -72,6 +72,11 @@ everything the selector does. The common vectors are `src/testdata/subscriptions
 | TypeScript twin, for Slack and Telegram | `src/agents/shared/subscriptions.ts`, since 0.9.173 |
 | Shared vectors both pass | `src/testdata/subscriptions.json` |
 | Engine contract | `src/agents/shared/subscriptions.md` |
-| Moving each helper | [plan](../../Plans/R1.0-Release/subscriptions.md#moving-the-agents) |
 
 </details>
+
+## Status
+
+Moving each helper to the shared engine is pending
+[B.29](../../Plans/R1.0-Release/TODO.md#bundled-agents); the order is in
+[the plan](../../Plans/R1.0-Release/subscriptions.md#moving-the-agents).
