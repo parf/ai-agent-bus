@@ -276,18 +276,88 @@ or `fail`. `ok` means an update changed the copy; `skip` means already there.
  "requested":null,"discarded":{"files":2,"commits":0},"script":null,"error":null,"ms":1200}
 ```
 
-`action` is `autopull` or `deploy`; `trigger` is `event`, `start` or `operator`.
+`action` is `autopull`, `deploy` or a failed post-attempt `script`; `trigger` is `event`, `start` or `operator`.
 `from`, `to` and `requested` are resolved full commit ids, or null when unavailable;
 `to` is the actual final HEAD even after a failed write. Discard counts are present for every destructive attempt (deploy in either
 mode or mirror autopull), and null for plain ff autopull. Errors have a fixed `code` and safe `text`: `dirty`,
-`diverged`, `not_in_branch`, `fetch`, `timeout`, `lock` or `invalid_event`.
-Checkout paths, origin URLs, credentials and commit messages never appear in
-these records or update answers. Legacy `log` still returns requested commit titles.
+`diverged`, `not_in_branch`, `fetch`, `timeout`, `lock`, `invalid_event` or `script`.
+The Git component never adds checkout paths, origin URLs, credentials or commit
+messages to these records or update answers. A script-failure record includes
+the script's own first stderr line; that text may contain such details, so the
+script author must choose safe diagnostic output. Legacy `log` still returns requested commit titles.
 
 Log failure changes neither the Git result nor post-update work. It is never
 retried: acceptance may be uncertain. The direct answer remains pure record
 JSON; `autopull <repo>` and content-free agent stderr show the last publication
 failure. Without a log channel, no publication is attempted.
+
+</details>
+
+### After an attempt
+
+A host administrator may install scripts in `autopull.d` under the Git agent's
+state directory: `~/.local/state/agent-bus-git/autopull.d`, or
+`$XDG_STATE_HOME/agent-bus-git/autopull.d` when that variable is set. Configuration
+only chooses an installed bare name per repository:
+
+```json
+{"path":"/srv/site","access":"deploy","mode":"mirror","follow":true,
+ "autopull-success-script":"reload-site", "autopull-fail-script":"report-failure"}
+```
+
+| Setting | Runs after |
+|---|---|
+| `autopull-success-script` | An `ok` Git result |
+| `autopull-fail-script` | A `fail` Git result, or a failed success script |
+
+Neither runs on `skip`, or when no safe checkout lock/root was obtained. Owners
+and Maintainers can choose installed names through Configuration; they cannot
+supply a command line or a path. Names use 1–128 ASCII letters/digits, dots,
+underscores or hyphens, start with a letter/digit and contain no `..`.
+
+<details><summary>Installing scripts and understanding outcomes</summary>
+
+- The script file, its directory and all parents must be owned by root or the
+  Git account and not group/other-writable. Executables must not be setuid/setgid.
+  Use 0700 for an agent-owned script or 0755 for a root-owned one. Trusted aliases
+  are allowed only when their script target stays inside `autopull.d`. Interpreter
+  aliases and all their parent directories are checked too.
+- Scripts must be executable ELF programs or have an absolute shebang interpreter.
+  Strict Configuration validation checks the installed file. Every run rechecks
+  the open file and chosen name; a removed or newly unsafe script is refused with
+  one script-failure record. Such file drift does not stop the Git update or other
+  repositories from working.
+- The attempt record is JSON on stdin (at most 16 KiB), after its one log
+  publication attempt. Scripts still run when the log is unset, refused or its
+  acceptance is uncertain; nothing retries that publication. The checkout lock
+  stays held through scripts, so a later update cannot change the revision under
+  a running script. Other repositories can update independently.
+- Each script has 30 seconds; success plus fail share 60 seconds, separate from
+  the Git/lock budget. Non-zero exit, signal death, timeout or **any stderr byte**
+  counts as failure, including a newline with exit 0. Stdout is discarded and
+  cannot fill a pipe. Stderr is drained; only its first line, up to 200 characters
+  with ANSI/control characters removed, is retained. An empty first line remains
+  empty but still means failure.
+- Each failed script adds exactly one `action: script`, `result: fail` record,
+  preserving `id`, `from` and `to`. `error.code` is `script`; its `script` field
+  has `run` (`success`/`fail`), `exit` (null on timeout), `stderr` (or null) and
+  `ms`. A failed success script passes that failure record to the fail script
+  after its single publication attempt. A failing fail script adds one record
+  and stops; it never calls itself. The Git result and script results remain
+  separate records.
+- Scripts run as the Git account with the checkout as cwd, fixed umask 0077 and
+  PATH `/usr/bin:/bin`. Bus credentials, caller roles, Git settings and SSH-agent
+  variables are not inherited. Resource limits are inherited from the service;
+  the helper adds no extra rlimits.
+- A trusted script is executed through a held file descriptor. Shebang scripts
+  may see `$0` as `/proc/self/fd/N`; use the checkout cwd or absolute paths rather
+  than `dirname "$0"`. The script fd remains open/inheritable. The kernel resolves
+  the trusted interpreter at exec; a privileged interpreter swap remains outside
+  the script-file fd guarantee.
+- Remaining process-group children are killed on timeout **and normal exit**.
+  Do not start background work expecting it to survive. A child deliberately
+  changing session (or privileged descendants the account cannot kill) can escape
+  this group; these are admin-installed programs, not an untrusted-code sandbox.
 
 </details>
 
@@ -304,6 +374,7 @@ These are operational reports, not a separate formal agent-alert emitter.
 | A declared path is not a repository root | Fix the path or clone the copy there |
 | Update failed or the requested revision is not reachable | Check origin, SSH access and the branch/revision |
 | ff refused dirty or diverged history | Resolve the local work; deploy is destructive even on an ff copy |
+| A post-attempt script failed | Inspect its exit/stderr result; a timeout has null exit, and failure does not roll back the Git update |
 | Log publish failed or its acceptance is unknown | Inspect autopull status; no automatic resend is made |
 
 ## Troubleshooting

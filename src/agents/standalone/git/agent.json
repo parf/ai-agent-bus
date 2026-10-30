@@ -214,7 +214,7 @@
   "config": {
     "repos": {
       "type": "json",
-      "help": "Local name to path, access, optional branch, mode (ff default or mirror) and follow (false default); mirror/follow need deploy or commit access",
+      "help": "Local name to path, access, optional branch, mode (ff default or mirror) and follow (false default); mirror/follow need deploy or commit access; optional autopull-success-script/autopull-fail-script choose bare names installed by the host admin under the git state directory autopull.d, never paths",
       "example": {
         "ab": {
           "path": "/usr/local/src/ai-agent-bus",

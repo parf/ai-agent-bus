@@ -45,7 +45,7 @@ SCRIPT_INPUT_MAX = 16 * 1024
 
 def _kill_script(child):
     try: os.killpg(child.pid, signal.SIGKILL)
-    except ProcessLookupError: pass
+    except (ProcessLookupError, PermissionError): pass
 
 
 def script_environment():
@@ -87,15 +87,18 @@ def run_script(name, checkout, record, deadline):
                     stream.close()
                 while poll.get_map() or child.poll() is None:
                     now = time.monotonic()
-                    if now >= deadline:
+                    exited = child.poll() is not None
+                    if now >= deadline and not exited:
                         timed_out = True
                         _kill_script(child)
                         break
-                    if child.poll() is not None and not stopped:
+                    if exited and not stopped:
                         # A successful leader may leave pipe-holding children.
                         _kill_script(child); stopped = True
                         if not child.stdin.closed: close(child.stdin)
-                    for key, _ in poll.select(min(.05, max(0, deadline - now))):
+                    events = poll.select(0 if stopped else min(.05, max(0, deadline - now)))
+                    if stopped and not events: break  # EOF/EAGAIN, not an escaped child's lifetime.
+                    for key, _ in events:
                         stream = key.fileobj
                         if stream is child.stdin:
                             try: offset += os.write(stream.fileno(), payload[offset:offset + 4096])
@@ -111,6 +114,7 @@ def run_script(name, checkout, record, deadline):
                                 prefix = chunk[:min(ends)] if ends else chunk
                                 preview.extend(prefix[:max(0, 800 - len(preview))])
                                 line_done = bool(ends) or len(preview) >= 800
+                    if stopped and now >= deadline: break  # One bounded final drain, real leader exit.
                 _kill_script(child)
                 try: result = child.wait(timeout=.5)
                 except subprocess.TimeoutExpired: timed_out = True

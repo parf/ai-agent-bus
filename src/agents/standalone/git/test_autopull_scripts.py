@@ -52,7 +52,7 @@ class ScriptFixtures:
         return [json.loads(line) for line in self.journal.read_text().splitlines()]
 
     def install(self, name, *, exit_code=0, stderr=b'', stdout_size=0,
-                delay=0, ignore_term=False, child_delay=None, read_stdin=True, capture_head=False):
+                delay=0, ignore_term=False, child_delay=None, read_stdin=True, capture_head=False, child_session=False):
         """Create a real executable, never a shell-expanded command string."""
         assert name and Path(name).name == name and name not in ('.', '..')
         path = self.allowlist / name
@@ -65,7 +65,7 @@ class ScriptFixtures:
         if child_delay is not None:
             child = ('import pathlib,time; time.sleep(' + repr(child_delay) + '); '
                      'pathlib.Path(' + repr(str(self.child_effect)) + ').write_text("late effect")')
-            source += 'child = subprocess.Popen([' + repr(sys.executable) + ', "-c", ' + repr(child) + ']).pid\n'
+            source += 'child = subprocess.Popen([' + repr(sys.executable) + ', "-c", ' + repr(child) + '], start_new_session=' + repr(child_session) + ').pid\n'
         source += 'head = subprocess.check_output(["/usr/bin/git", "rev-parse", "HEAD"], text=True).strip()\n' if capture_head else 'head = None\n'
         source += (
             'entry = {"kind":"script", "name":' + repr(name)
@@ -184,6 +184,22 @@ class ScriptTests(unittest.TestCase):
         self.assertEqual([e['kind'] for e in events], ['published','script'])
         time.sleep(.3)
         self.assertFalse(self.f.child_effect.exists())
+
+    def test_clean_leader_with_escaped_stderr_holder_is_not_a_timeout(self):
+        import signal
+        self.f.install('success',child_delay=2,child_session=True)
+        self.f.install('fail')
+        child=None
+        try:
+            with patch.object(a,'SCRIPT_SECONDS',.5):
+                events=self.invoke({'autopull-success-script':'success','autopull-fail-script':'fail'})
+            child=next(e['child'] for e in events if e['kind']=='script')
+            self.assertEqual([e['kind'] for e in events],['published','script'])
+            self.assertIsNotNone(child)
+        finally:
+            if child is not None:
+                try:os.kill(child,signal.SIGKILL)
+                except ProcessLookupError:pass
 
     def test_skip_has_no_script_and_failed_attempt_runs_only_fail(self):
         self.f.install('success');self.f.install('fail')
