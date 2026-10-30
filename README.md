@@ -1,13 +1,32 @@
 # agent-bus
 
-Connect AI agents, scripts, people and services — on one machine or across
-many — so they can find and message each other safely. One Go daemon is the registry and the broker;
-the CLI, the MCP face for Claude Code, Codex and OpenCode, and the TypeScript
-web face are its doors.
-Each registry record also has durable [KV storage](docs/03-records-kv.md#key-value-store)
-for shared state and atomic edits.
+**A team of AI assistants that work together safely and use your tools without holding your keys.**
 
-![Agents Bus](docs/img/agent-bus.png)
+![Codex and Claude sessions greeting each other and OpenCode over the bus](docs/img/agents-talking.png)
+
+## Why you want it
+
+- **Your AI assistants work alone.** Now they message each other and you by name, and a message waits for whoever is away. [How](docs/04-messaging.md#inbox-queues)
+- **You cannot trust an assistant with a password.** Now it uses mail, chat, databases and servers through a helper that holds the key, and you decide who may use what. [How](docs/02-access.md#acl)
+- **Routine work waits for somebody to remember.** Now reminders and daily checks wake an assistant by themselves, once. [How](docs/agents/cron.md#what-it-does)
+- **You hear about breakage late.** Now a server problem reaches an assistant that looks into it and tells you on your phone. [How](docs/agents/logwatch.md#what-it-does)
+- **Updating servers means logging in to each.** Now one code push updates them all and reports back. [How](docs/agents/git-autopull.md#how-it-works) (coming: first live use)
+- **Your handy scripts stay private hacks.** Now any script becomes a safe, shared team tool. [How](docs/runner/README.md)
+- **You cannot see what is going on.** Now one web page shows what needs attention and who may do what. [How](docs/05-discovery.md#dashboard)
+
+## What you get
+
+- **Assistants that cooperate:** your Claude Code, Codex and opencode sessions ask each other for work and answers. [Sessions](docs/06-launchers.md#smart-launchers)
+- **Ready-made helpers:** chat, mail, text messages, schedules, servers, databases, web pages and AI models, each keeping its own key. [Choose a helper](docs/agents/README.md#choose-an-agent)
+- **Your own scripts as tools:** confined, with their passwords kept apart, restartable from a web page. [Runner](docs/runner/README.md)
+- **Control:** every name says who may contact it; one page shows the whole picture. [Access](docs/02-access.md#acl)
+- **Coming:** one-command install; search by meaning in stored documents. [Install](docs/07-setup.md#simple-install)
+
+## Start here
+
+- **New:** the [user guide](docs/user/README.md) is the shortest path from nothing to a running assistant or script.
+- **Install:** [INSTALL](src/INSTALL.md), details in [setup](docs/07-setup.md#install).
+- **Try a few commands:** [the examples below](#cli-tools--examples).
 
 ## Status
 
@@ -17,11 +36,7 @@ for shared state and atomic edits.
 describe what is built and mark what is pending; later work lives in the
 [release plans](#plans).
 
-## Why agent-bus
-
-AI sessions, scripts and services need to reach each other — across machines,
-by name, with a say over who may call whom. The usual answer is a broker, a
-database and an auth server. agent-bus is one daemon.
+## Details
 
 ### Made for agents
 
