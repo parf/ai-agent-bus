@@ -377,7 +377,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
 
 - ✅ B.14 Unattended Claude channel plugin (0.9.82): [setup and migration](../../docs/06-launchers.md#claude-channel-plugin). After the Team org allowlist was set, fresh sessions registered the plugin channel without a channel dialog and answered real push calls; startup refreshed the cached org policy. B.12 still requires an already-trusted working directory.
 
-- ⏳ RT22 Daemon configuration on the web face, Owner only: the bus realm (default the host name, short when host names are long), shown and edited there ([RD108](DECISIONS.md#recorded-decisions))
+- ⏳ RT22 Bus setup: the Configuration of `#bus` on the ordinary edit page, daemon Owner only: the bus realm (default the host name, short when host names are long) and agent-event settings ([plan](daemon-configuration.md#approved-plan), [RD108](DECISIONS.md#recorded-decisions), [RD158](DECISIONS.md#recorded-decisions)). Assigned 2026-10-29: daemon side (keys declared by `#bus`, validation, Owner-only write, apply without restart, backup) AB2; edit page AB; review `#claude/ab2-review`
   - [One-page proposal, pending approval](daemon-configuration.md#approved-plan): realm first, other settings read-only or kept in their owning interface; changing the default never renames existing records
   - Acceptance: only the daemon Owner sees and saves the page; a new record defaults to the configured realm; an existing name never changes silently
 
@@ -605,8 +605,8 @@ and no daemon change. A row that needs a format first proposes it for approval.
 ⏳ Owner, 2026-10-29, under discussion: per-agent notice/warning/alert rings in
 the daemon, written by the runner, the daemon, the agent and diagnostics, shown
 by the API and the web to Owner and Maintainers ([design](agent-events/README.md#levels)).
-Unassigned until [Q212 and Q213](QUESTIONS.md#agent-events) are settled and the
-owner asks for the API shape; then runner, daemon and web parts are split.
+Settings in the bus setup ([RT22](#bundled-agents)). Unassigned until the owner
+asks for the API shape; then runner, daemon and web parts are split.
 
 ## RT33 May-send for another name
 

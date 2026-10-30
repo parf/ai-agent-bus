@@ -4,8 +4,14 @@
 
 Approved by the owner on 2026-10-20 ("RT22 ok").
 
-One Owner-only web page holds the bus's default realm, following
-[RD108](DECISIONS.md#recorded-decisions). This is a plan, not built behaviour.
+The bus setup is the Configuration of the built-in [`#bus`](../../docs/agents/bus.md#what-it-does)
+record, edited on the ordinary agent edit page like any agent's (owner,
+2026-10-29: "this page is just the setup for the bus agent"). It holds the
+default realm, following [RD108](DECISIONS.md#recorded-decisions), and the
+[agent-event](agent-events/README.md#levels) ring sizes and TTLs. `#bus`
+declares its keys through `help-config`, and the daemon validates a save and
+applies it without a restart. Only the daemon Owner writes it; a Maintainer of
+`#bus` cannot. This is a plan, not built behaviour.
 An explicit realm remains valid; a realm-less name remains a complete identity
 under the [existing name rules](../../docs/01-identity-and-authority.md#names).
 
@@ -13,7 +19,8 @@ under the [existing name rules](../../docs/01-identity-and-authority.md#names).
 
 | Setting | Proposed behaviour |
 |---|---|
-| Realm | The only editable setting in RT22. Default to the daemon's host name on first initialization; persist the chosen value, including a shorter Owner-selected name on hosts with long names. Use the existing realm grammar; show validation before saving. Never silently truncate. |
+| Agent events | Ring size and TTL per level ([RD156](DECISIONS.md#recorded-decisions)); a change applies to new entries and trims rings at once. |
+| Realm | The first editable setting. Default to the daemon's host name on first initialization; persist the chosen value, including a shorter Owner-selected name on hosts with long names. Use the existing realm grammar; show validation before saving. Never silently truncate. |
 | Host, version and effective listeners | Read-only context from existing daemon facts, so the Owner knows which bus is being edited. The host is not the realm. |
 | Other settings | Keep network/socket addresses, database and TLS paths, account mappings, syslog and startup/resource options in their current owning interfaces. No general host-file editor or restart button. Link the existing debug-log control rather than duplicating it. |
 

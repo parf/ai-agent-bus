@@ -4,7 +4,7 @@
 rings: notice, warning and alert. Starts and stops are notices, stderr lines are
 warnings, unexpected failures are alerts. The API and the web show them to the
 agent's Owner and Maintainers, and the web makes alerts loud and warnings
-quieter. Owner, 2026-10-29; under discussion, [open choices](../QUESTIONS.md#agent-events).
+quieter. Owner, 2026-10-29; settings live in [the bus setup](../daemon-configuration.md#approved-plan).
 
 Tasks: [RT34](../TODO.md#rt34-agent-events).
 
@@ -19,8 +19,14 @@ Tasks: [RT34](../TODO.md#rt34-agent-events).
 One ring per level, so a stream of stderr warnings never pushes an alert out
 (owner, 2026-10-29). Each ring is fixed-size; when full, the oldest entry is
 lost. Every entry also expires after its level's TTL, so nobody sees that an
-agent failed 100 days ago (owner, 2026-10-29). Sizes and TTLs are
-[Q212](../QUESTIONS.md#agent-events).
+agent failed 100 days ago (owner, 2026-10-29). Defaults, changed in the bus
+setup:
+
+| Level | Entries per agent | TTL |
+|---|---|---|
+| notice | 200 | 1 day |
+| warning | 200 | 7 days |
+| alert | 50 | 30 days |
 
 ## Who writes
 
@@ -34,8 +40,9 @@ agent failed 100 days ago (owner, 2026-10-29). Sizes and TTLs are
 ## Who reads
 
 The agent's Owner and Maintainers, and the daemon Owner, through the API and
-the web (owner, 2026-10-29). Whether callers on the allow list see entries their
-own messages caused is [Q213](../QUESTIONS.md#agent-events).
+the web (owner, 2026-10-29). Callers on the allow list see none, not even
+entries their own messages caused: stderr is not tied to one message reliably
+and may carry other callers' data, and a caller already gets an error answer.
 
 An entry is one line, cut at 200 characters as `error.log` lines are; a line
 repeated within a minute is kept once with a count of those held back. stderr
