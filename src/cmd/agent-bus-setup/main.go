@@ -16,6 +16,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -745,7 +746,61 @@ func (c *tlsChoice) startDaemon(active, unitChanged bool, addr, wantVersion, wan
 	if active && (c.written || unitChanged || !serving(addr, wantVersion, wantBuild)) {
 		verb = "restart"
 	}
-	return run("systemctl", verb, "agent-busd")
+	if err := run("systemctl", verb, "agent-busd"); err != nil {
+		return startLimitHint(err)
+	}
+	return nil
+}
+
+// startLimitHint says what systemd's own refusal means when a start failed
+// because the unit was started too often: wait for the window and run setup
+// again. Any other failure is returned as it came.
+func startLimitHint(err error) error {
+	out, _ := exec.Command("systemctl", "show", "-p", "Result", "-p", "StartLimitIntervalUSec", "agent-busd").Output()
+	var result, interval string
+	for _, line := range strings.Split(string(out), "\n") {
+		if k, v, ok := strings.Cut(line, "="); ok {
+			switch k {
+			case "Result":
+				result = v
+			case "StartLimitIntervalUSec":
+				interval = v
+			}
+		}
+	}
+	if result != "start-limit-hit" {
+		return err
+	}
+	if wait, ok := systemdSeconds(interval); ok {
+		return fmt.Errorf("%w: agent-busd is in start-limit-hit, wait %ds and retry", err, wait)
+	}
+	return fmt.Errorf("%w: agent-busd is in start-limit-hit, wait for its start-limit window and retry", err)
+}
+
+// systemdSeconds reads systemd's timespan text ("10s", "1min 30s", "500ms"),
+// rounded up to whole seconds.
+func systemdSeconds(text string) (int, bool) {
+	var micros float64
+	fields := strings.Fields(text)
+	if len(fields) == 0 {
+		return 0, false
+	}
+	for _, f := range fields {
+		i := 0
+		for i < len(f) && (f[i] >= '0' && f[i] <= '9' || f[i] == '.') {
+			i++
+		}
+		n, err := strconv.ParseFloat(f[:i], 64)
+		if err != nil {
+			return 0, false
+		}
+		unit := map[string]float64{"us": 1, "ms": 1e3, "s": 1e6, "min": 60e6, "h": 3600e6}[f[i:]]
+		if unit == 0 {
+			return 0, false
+		}
+		micros += n * unit
+	}
+	return int((micros + 999999) / 1e6), true
 }
 
 // programVersion is what a program's --version reports: the release and its
