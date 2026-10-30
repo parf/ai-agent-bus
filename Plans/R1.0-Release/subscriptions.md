@@ -29,7 +29,7 @@ rules.
 | Agent | Change |
 |---|---|
 | `#eventlog` | built on the shared module from the start |
-| `#imap` | its pause-on-refusal and held-copy retry give way to drop and warning; crash safety keeps no duplicate sends |
+| `#imap` | ✅ moved: drop and warning replace pause and held-copy retry; progress passes a UID before its copies are sent, so a crash never sends twice; old rows migrate to 12-hex ids |
 | `#logwatch` | its own sub code replaced |
 | Slack, Telegram | the TypeScript twin replaces each agent's routing subs |
 | cron, `#at` | shared authority and delivery for their sends |

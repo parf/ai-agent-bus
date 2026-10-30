@@ -50,6 +50,43 @@ callers/forwarded managers, no delivery, limit accounting and manager-only
 repair. Changing the emitted reason to `other_reason` compiled and failed
 `Parity.test_operation_vectors` on its exact rows assertion; restored afterward.
 
+
+## IMAP on shared subscriptions
+
+2026-10-30, B.29, `ab-w1a/B29-imap`: `#imap` keeps its mailbox selector
+(`validity`, `from_uid`) and header-first match; add, list, delete, author
+checks, limits and drop-and-warn are the shared engine's. Its own ledger,
+delivery and subscription modules are gone; the outbox remains only as the
+one-generation lock. Each matched row gets its own provenance copy, tagged with
+its id; the body is fetched once, only when a filter matched. Progress passes a
+UID before its copies are sent: a crash loses them, never repeats them.
+`sub edit` is refused with "delete it and add it again".
+
+Old rows move at start to a deterministic 12-hex id: the 8-hex id plus the
+first suffix `0000`, `0001`, ... that is free or already holds the same row. The
+old key is deleted only after the new row is stored, so an interrupted move is
+finished on the next start before anything is served. Held copies count as
+dropped; an unreadable row is kept under the new id as `invalid_state`.
+
+Focused verification: 141 IMAP tests, including 20 in `test_forwarding.py` and
+the real bus fixture through the engine's own send helper, under the lock; help
+golden fixture regenerated. Setup's package inventory ships the engine in
+imap's support tree instead of the three removed modules. Compiling mutants failed on named assertions, then
+were restored:
+
+| Mutant | Owning test |
+|---|---|
+| Progress saved after the send | `ForwardingTests.test_a_stop_after_the_frontier_moves_never_sends_that_uid_again` |
+| One provenance for every row | `ForwardingTests.test_every_matching_subscription_gets_its_own_copy_and_the_body_is_fetched_once` |
+| Selector ignores `from_uid` | `ForwardingTests.test_a_later_subscription_starts_at_its_own_uidnext` |
+| Refused copy removes the row | `ForwardingTests.test_a_refused_copy_is_dropped_counted_and_the_subscription_stays_active` |
+| Any taken key taken as its own | `MigrationTests.test_a_taken_new_id_moves_the_row_to_the_next_free_suffix` |
+| Old key deleted before the add | `MigrationTests.test_a_stop_between_the_add_and_the_delete_serves_the_subscription_once` |
+| Legacy discovery key kept | `MigrationTests.test_a_legacy_row_keeps_target_author_filter_start_and_counts` |
+| `sub edit` accepted | `ControlTests.test_text_and_json_subscription_forms_and_verbatim_filter` |
+| A local `imap/subscriptions.py` shadows the engine | `EngineTests.test_forwarding_runs_on_the_shared_engine_not_a_local_copy` |
+| Setup inventory drops imap's packaged `subscriptions.py` | `TestPackagerOutputIsAcceptedBySetup`: packager and installer disagree |
+
 ## Subscription sends without a caller wait
 
 2026-10-30, T-2 urgent follow-up, `ab-w1c/T-2-wait`: remove explicit numeric
