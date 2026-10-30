@@ -120,3 +120,10 @@ Owner, 2026-10-30: every doc leads with why, then what you get, then real exampl
 
 - ✅ DW10 Web page intros and CLI help text
   - Result: built in 0.9.189 (`79f03e08`): help pages and page help open with what the command or page is for; owning tests unchanged and green
+
+## P.3 Release-run evidence
+
+- The release workflow verifies every archive in each native build before uploading it. The draft job requires both builds, so verification failure prevents draft creation.
+- `src/release-verify.test.sh` executes the actual workflow command against full/client fixtures. An unstamped binary, an altered version and an omitted license each stop that command on the corresponding diagnostic; a wrong-version client also fails beside a valid full archive. Existing notice and manifest checks remain.
+- Under the smoke-gate lock, suppressing the workflow command's failure with `|| true` failed the test assertion `unstamped: accepted a bad release`; restored wiring passed. The test also pins verification after packaging and before upload, without a conditional or `continue-on-error`, and the draft dependency on the builds.
+- No tag was pushed and no live release was created. Native aarch64 evidence remains the owner's Mac check.

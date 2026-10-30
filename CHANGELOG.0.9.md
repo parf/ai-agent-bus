@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.194 — 2026-10-30
+
+The release run verifies every archive before upload, and a failed verify stops the draft release
+
 ## 0.9.193 — 2026-10-30
 
 Container fixtures refuse to start, before any podman call, unless the smoke-gate lock is held

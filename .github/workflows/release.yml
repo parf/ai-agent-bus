@@ -42,6 +42,9 @@ jobs:
         env:
           BUILD_COMMIT: ${{ github.sha }}
         run: src/package.sh "$PWD/dist"
+      - name: Verify every archive before upload and draft creation
+        id: release-evidence
+        run: src/release-verify.sh dist/*.tar.gz
       - name: Archive hashes, for the owner to compare before signing
         run: (cd dist && sha256sum *.tar.gz) | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

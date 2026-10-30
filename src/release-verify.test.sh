@@ -13,6 +13,39 @@ v=1.2.3; arch=$(uname -m)
 src="$work/VERSION"; echo $v >"$src"
 export SOURCE_VERSION=$src
 
+# Exercise the command the release workflow actually runs, not a parallel test
+# invocation. This workflow intentionally uses an unconditional single-line
+# verification step; reject a missing/moved/conditional step or a draft that
+# no longer depends on both native builds.
+workflow_run=$(python3 - "$here/../.github/workflows/release.yml" <<'WORKFLOW'
+from pathlib import Path
+import re
+import sys
+text = Path(sys.argv[1]).read_text()
+build, separator, draft = text.partition('\n  draft:\n')
+assert separator, 'release workflow has no draft job'
+assert re.search(r'^    needs: build$', draft, re.M), 'draft does not require the verified builds'
+steps = re.split(r'(?=^      - )', build, flags=re.M)
+found = [i for i, step in enumerate(steps) if re.search(r'^        id: release-evidence$', step, re.M)]
+assert len(found) == 1, 'release workflow needs exactly one release-evidence step'
+i = found[0]
+assert any('run: src/package.sh ' in step for step in steps[:i]), 'verification must follow packaging'
+assert any('uses: actions/upload-artifact@' in step for step in steps[i+1:]), 'verification must precede artifact upload'
+assert not re.search(r'^        (if|continue-on-error):', steps[i], re.M), 'verification must be unconditional and stop on failure'
+run = re.search(r'^        run: (.+)$', steps[i], re.M)
+assert run, 'verification must have an executable command'
+print(run[1])
+WORKFLOW
+)
+wired_verify() {
+  local sandbox="$work/wired" archive
+  mkdir -p "$sandbox/src" "$sandbox/dist"
+  ln -sf "$here/release-verify.sh" "$sandbox/src/release-verify.sh"
+  rm -f "$sandbox/dist/"*.tar.gz
+  for archive in "$@"; do ln -s "$archive" "$sandbox/dist/$(basename "$archive")"; done
+  (cd "$sandbox" && bash -e -o pipefail -c "$workflow_run")
+}
+
 mk() { # mk <dir> : a good full archive tree under <dir>/<name>
   local name=agent-bus-$v-linux-$arch root="$1/agent-bus-$v-linux-$arch"
   mkdir -p "$root/internal/version"
@@ -35,13 +68,21 @@ case_() {
   (cd "$d/$name" && find . -type f ! -name MANIFEST.sha256 -printf '%P\n' | sort | xargs sha256sum >MANIFEST.sha256)
   pack "$d"
   local out rc=0
-  out=$("$here/release-verify.sh" "$d/$name.tar.gz" 2>&1) || rc=$?
+  out=$(wired_verify "$d/$name.tar.gz" "$client" 2>&1) || rc=$?
   [ $rc != 0 ] || { echo "$label: accepted a bad release"; exit 1; }
   echo $v >"$src" # a case may have moved the source version
   grep -qF "$want" <<<"$out" || { echo "$label: failed, but not on '$want': $out"; exit 1; }
+  echo "wired $label: refused on $want"
 }
 good="$work/good"; mkdir "$good"; mk "$good"; pack "$good"
-out=$("$here/release-verify.sh" "$good/$name.tar.gz") && grep -q ' ok (version 1.2.3' <<<"$out" || { echo "good release refused: $out"; exit 1; }
+client_name=agent-bus-client-$v-linux-$arch
+mkdir "$work/client"
+cp -a "$good/$name" "$work/client/$client_name"
+rm "$work/client/$client_name/agent-busd" "$work/client/$client_name/agent-bus-admin" "$work/client/$client_name/agent-bus-setup"
+(cd "$work/client/$client_name" && find . -type f ! -name MANIFEST.sha256 -printf '%P\n' | sort | xargs sha256sum >MANIFEST.sha256)
+client="$work/client/$client_name.tar.gz"
+tar -C "$work/client" -czf "$client" "$client_name"
+out=$(wired_verify "$good/$name.tar.gz" "$client") && grep -q ' ok (version 1.2.3' <<<"$out" || { echo "good release refused: $out"; exit 1; }
 case_ unstamped 'has no build stamp' 'printf "#!/bin/sh\nprintf \"1.2.3\\nbuild_info: development (unstamped)\\n\"\n" >agent-busd'
 case_ altered 'agent-bus-runner reports 9.9.9' 'sed -i s/1.2.3/9.9.9/ agent-bus-runner'
 case_ nolicence 'licence LICENSE.md missing' 'rm LICENSE.md'
@@ -50,6 +91,16 @@ case_ ts-stale 'agent-bus-ts does not carry version' 'echo "#!/bin/sh" >agent-bu
 case_ renamed 'named 1.2.3, source is 1.2.4' 'echo 1.2.4 >"$SOURCE_VERSION"'
 # A file changed after the manifest was written.
 d="$work/tamper"; mkdir "$d"; mk "$d"; echo x >>"$d/$name/agent-bus-ts"; pack "$d"
-out=$("$here/release-verify.sh" "$d/$name.tar.gz" 2>&1) && { echo "tampered file accepted"; exit 1; }
+out=$(wired_verify "$d/$name.tar.gz" "$client" 2>&1) && { echo "tampered file accepted"; exit 1; }
 grep -qF 'MANIFEST.sha256 does not match' <<<"$out" || { echo "tamper: wrong failure: $out"; exit 1; }
 echo 'release evidence: version, stamp, licence, notices, manifest each fail on their own message'
+
+# A good full archive must not hide a bad client archive in the same upload.
+mkdir "$work/client-bad"
+cp -a "$work/client/$client_name" "$work/client-bad/$client_name"
+sed -i s/1.2.3/9.9.9/ "$work/client-bad/$client_name/agent-bus-runner"
+(cd "$work/client-bad/$client_name" && find . -type f ! -name MANIFEST.sha256 -printf '%P\n' | sort | xargs sha256sum >MANIFEST.sha256)
+tar -C "$work/client-bad" -czf "$work/client-bad/$client_name.tar.gz" "$client_name"
+out=$(wired_verify "$good/$name.tar.gz" "$work/client-bad/$client_name.tar.gz" 2>&1) && { echo 'wired client version: accepted a bad client archive'; exit 1; }
+grep -qF 'agent-bus-runner reports 9.9.9' <<<"$out" || { echo "wired client version: wrong failure: $out"; exit 1; }
+echo 'wired client version: refused while the full archive remains valid'
