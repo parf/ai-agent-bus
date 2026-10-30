@@ -18,8 +18,8 @@ mode: mutants required.
 | 2 | Parse the [new-code event](README.md#new-code-event) strictly: `v`, known fields only, hex lengths, branch match, `remote` matched to `origin` |
 | 3 | `ff` and `mirror` runs under the repository's lock; `mirror` counts what it discards |
 | 4 | Triggers: `autopull-cmd` events, one check per repository at start, `autopull <repo> now`, `deploy <repo> <branch> [<rev>]`; `deploy <repo>` keeps working |
-| 5 | Publish one [result record](README.md#result-record) per attempt to `autopull-log`, topic `<repo>@<host>`, tag = result |
-| 6 | `autopull-success-script` / `autopull-fail-script` per repository: Owner-only, absolute path, writable only by root or the agent user, record on stdin, time limit, outcome in `script` |
+| 5 | Publish one [result record](README.md#result-record) per attempt to the configured log channel, topic `<repo>@<host>`, tag = result; no log name, no publish |
+| 6 | `autopull-success-script` / `autopull-fail-script` per repository: Owner-only, absolute path, writable only by root or the agent user, record on stdin after it is published, time limit; a non-zero exit or time-out publishes one `action: script` fail record |
 | 7 | Remove the install-time `--autopull` timer; reinstall removes an existing timer unit |
 | 8 | Update [the git guide](../../../docs/agents/git.md#autopull) and decisions; bump, changelog |
 
@@ -36,8 +36,9 @@ Acceptance, each failing on the old code or by a named mutant:
 - Two events for one repository at once give two records and one move; neither leaves the lock held.
 - No record and no answer contains the checkout path, the remote URL or a commit message (asserted on a fixture whose path, URL and message are unique strings).
 - A `deploy` event with `id` gives records carrying that `id` on every matching copy; a direct `deploy` call exits non-zero when the result is `fail`; an `id` outside its character set is `invalid_event`.
-- After an `ok` attempt the success script runs once in the checkout with the record on stdin, and the published record carries its exit code; on `skip` no script runs.
-- A success script exiting 1 gives one record with `result: fail`, `error.code: script`, and the fail script runs once; a script past its time limit is killed and records `exit: null`.
+- After an `ok` attempt the success script runs once in the checkout with the record on stdin, after that record is on the log; exit 0 adds no record; on `skip` no script runs.
+- A success script exiting 1 adds exactly one `action: script` record with `result: fail`, `error.code: script`, the attempt's `id` and `to`, and the fail script runs once; a fail script exiting 1 adds one more; a script past its time limit is killed and records `exit: null`.
+- With no log channel configured, an attempt and a failed script publish nothing and still run.
 - A script path that is relative, group-writable or set by a non-Owner is refused at configuration time and nothing runs.
 - The owner's flow end to end on two scratch checkouts: one `push` event from a pipeline name gives each `mirror` copy the commit, each runs its success script once, and `autopull-log` holds one `ok` record per host; with a dirty `ff` third copy, that copy is unchanged and its fail script runs.
 - After reinstall, no `--autopull` timer unit exists; `--autopull` is refused with a pointer to the new Configuration.

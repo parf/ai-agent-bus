@@ -109,7 +109,9 @@ without a record; one that names a served repository but is invalid gets a
 
 ## Result record
 
-One message per attempt on `autopull-log`. Message `topic` is
+Published only when Configuration names a log channel (owner: "if the channel
+name is set"). One message per attempt, sent as soon as git is done, and one
+more for each [script that fails](#after-an-attempt). Message `topic` is
 `<repo>@<host>`, `tag` is the `result`. Body, JSON:
 
 ```json
@@ -118,8 +120,7 @@ One message per attempt on `autopull-log`. Message `topic` is
  "at":"2026-10-30T19:23:42-04:00", "agent":"#git@parf.us",
  "remote":"realmo/realty", "requested_by":"#ci/realty@parf.us", "id":"pipeline-81234",
  "from":"<40 hex>", "to":"<40 hex>", "requested":"<40 hex>",
- "discarded":{"files":2,"commits":0}, "script":{"run":"success","exit":0,"ms":5210},
- "error":null, "ms":7050}
+ "discarded":{"files":2,"commits":0}, "script":null, "error":null, "ms":1840}
 ```
 
 | Field | Meaning |
@@ -127,14 +128,14 @@ One message per attempt on `autopull-log`. Message `topic` is
 | `host` | the machine's full name (`hostname -f`); first, so a server is easy to find |
 | `repo`, `branch`, `remote` | local repository name, its branch, its hosting path |
 | `result` | `ok` moved, `skip` already there, `fail` |
-| `action` | `autopull` (branch tip) or `deploy` (a requested revision) |
+| `action` | `autopull` (branch tip), `deploy` (a requested revision), or `script` (a script that failed after one of those) |
 | `trigger` | `event`, `start` or `operator` |
 | `mode` | `ff` or `mirror` |
 | `at`, `ms` | finish time (RFC 3339 with offset) and duration |
 | `agent`, `requested_by` | the `#git` name, and the bus sender of the event or call (`null` for `start`) |
 | `id` | the event's or call's `id`, else `null` |
 | `from`, `to`, `requested` | full commit ids; `to` equals `from` when nothing moved; `requested` is the event's or call's commit, else `null` |
-| `script` | `null` when none ran; else `run` (`success` or `fail`), `exit` (`null` on time-out) and `ms`; with both, the fail script's |
+| `script` | `null`, except on `action: script`: `run` (`success` or `fail`), `exit` (`null` on time-out) and `ms` |
 | `discarded` | `mirror` only: local files and commits removed; otherwise `null` |
 | `error` | `null`, or `{"code":…, "text":…}` with code one of `dirty`, `diverged`, `not_in_branch`, `fetch`, `timeout`, `lock`, `invalid_event`, `script` |
 
@@ -147,8 +148,9 @@ A one-line human form, used by `autopull <repo>` status:
 
 Per repository, in `#git`'s Configuration as usual (owner: "Configuration —
 yes, as usual"): its mode and whether it follows new-code events. The two
-channel names are agent-wide Configuration, defaulting to `autopull-cmd` and
-`autopull-log` (owner: "autopull-* names"). Changing them needs no reinstall.
+channel names are agent-wide Configuration, by convention `autopull-cmd` and
+`autopull-log` (owner: "autopull-* names"); without a log name nothing is
+published. Changing them needs no reinstall.
 The install-time `--autopull` timer option is removed.
 
 ## After an attempt
@@ -161,11 +163,13 @@ the attempt (owner: "autopull-success-script & autopull-fail-script"):
 | `autopull-success-script` | `result` is `ok`: reload php-fpm, run tests, warm caches |
 | `autopull-fail-script` | `result` is `fail`, including a failed success script: alert, roll back |
 
-Neither runs on `skip`. A script gets the result record on stdin, runs in the
-checkout as `#git`'s own user, with a time limit, and its exit code and duration
-go into the record's [`script`](#result-record) field; the record is published
-after it ends. A failed success script turns the result into `fail` with code
-`script`, then the fail script runs. ⚠️ A script is code run on the server, so
+Neither runs on `skip`. A script gets the result record on stdin and runs in the
+checkout as `#git`'s own user, with a time limit, after the record is published,
+so a long test run delays nobody. A script that exits non-zero or times out adds
+one record to the log: `action: script`, `result: fail`, `error.code: script`,
+its [`script`](#result-record) outcome, and the attempt's `id`, `from` and `to`
+(owner: "like success post-deploy script failed"). A failed success script also
+runs the fail script. Exit 0 adds nothing. ⚠️ A script is code run on the server, so
 only the record's Owner may set it, the path is absolute, and a file writable by
 anyone but root or `#git`'s user is refused.
 
