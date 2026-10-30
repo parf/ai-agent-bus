@@ -84,6 +84,10 @@ and `--clean` drops the store. A warm run with both releases built takes about 4
 | `install.sh` ignores the signed hash | the tampered release is refused only by the root re-check, not for its hash |
 | `install.sh` creates `/usr/local/lib/agent-bus` before verifying | the refused release changed the host |
 | `agent-bus-ts` in the archive replaced by a stub | the compiled web face does not answer |
+| `install.sh` without its bubblewrap warning | install.sh did not warn that bubblewrap is missing |
+| `install.sh --client --rollback` switches to the current release | the client edition is not the old version after its rollback |
+| setup's upgrade deletes the release it replaced | the update kept 0 copies of the old version for rollback |
+| setup's root hints keep the bare name (`TestSudoLineNamesSetupByItsPath`) | the hint lacks setup's path |
 
 Findings from the first runs, 2026-10-30:
 
