@@ -9,12 +9,6 @@ Only unresolved choices live here. Accepted answers and their threads are in
 
 Owner-only choices for the [Linux distribution](distribution.md#simple-install) ([RT14](TODO.md#objective)). None blocks the Linux work: each names what stays undone until it is answered.
 
-- ❓ Q223 The signing namespace and rotation key
-  - Context: the mechanism is settled: an owner-held ed25519 key and `ssh-keygen -Y`, the team getting only the public key ([RD163](DECISIONS.md#recorded-decisions))
-  - Options: for the namespace string, keep `agent-bus-release` as `release-sign.sh` and `install.sh` use it today or name another; for rotation, embed a spare second public key in `install.sh` now, or add it at the first rotation
-  - Impact: a namespace change touches both scripts and every signed release; without a spare key a rotation needs every host to fetch a new `install.sh` first
-  - Settled by: the owner
-
 - ❓ Q225 Container image registry and name
   - Options: `ghcr.io/parf/agent-bus` beside the repository; or Docker Hub; or both
   - Impact: P.2 is proven with local images until the registry and the account that pushes are chosen
