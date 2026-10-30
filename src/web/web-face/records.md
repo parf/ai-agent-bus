@@ -278,7 +278,7 @@ Hidden: `action=create`, `kind={agent|service|queue|pubsub}`,
 
 | `name` | Control | Kinds | Required | Prefill | Placeholder / values | Meaning |
 |---|---|---|---|---|---|---|
-| `name` | `<input id=create-name>` | all | yes | empty | `#name@realm` (agent, hint `An agent's name starts with #.`), else `name@realm` | routing identity; unchangeable. Help: `The routing identity callers use. It cannot be changed afterwards.` |
+| `name` | `<input id=create-name>` | all | yes | `#@<configured realm>` for agents, `@<configured realm>` for the other kinds; empty if no realm is available | `#name@realm` (agent, hint `An agent's name starts with #.`), else `name@realm` | Complete the name before `@`; change or remove the suggested realm for an explicit identity. A fresh form reads the current status realm; refused forms retain their submitted name, including an empty one. POST never expands or rewrites names. The saved identity is unchangeable. |
 | `descr` | input | all | no | empty | `What this {Noun} is for` | `Shown first in the registry.` |
 | `addr` | input | service | yes | empty | `host:port, a path, or a URL` | where a caller reaches it |
 | `protocol` | input | service | yes | empty | `https, postgresql, smtp` | a hint; the daemon checks nothing |

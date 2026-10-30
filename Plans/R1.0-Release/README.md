@@ -24,7 +24,7 @@ the tools stage is [R1.2](../R1.2/README.md#scope).
 | Agents for the runner | [What R1 adds](agents.md#what-moved-and-what-r1-adds); the shared shape stays in the [catalogue](../R1.2/services.md#rules-they-all-obey) |
 | RAG service | [RAG](rag/README.md#rag-service), built from agents as blocks; steps in [its TODO](rag/TODO.md#steps) |
 | Record-defined roles | [Roles](roles.md#record-defined-roles) |
-| Daemon configuration | [RT22 proposal, pending approval](daemon-configuration.md#approved-plan) |
+| Daemon configuration | [RT22 approved plan](daemon-configuration.md#approved-plan) |
 | Method metadata | [Method metadata](done/method-metadata.md#method-metadata) |
 | Client libraries | [Client libraries](done/client-libraries.md#scope) |
 

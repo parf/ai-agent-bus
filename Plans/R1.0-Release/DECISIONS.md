@@ -206,7 +206,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 - ✅ RD108 One realm per bus, with the host as a tag; an agent may still name another realm itself. The realm is set in a daemon configuration on the web face, Owner only, defaulting to the host name, and can be short when host names are long (settles №Q187)
   - Why: owner, 2026-10-20: "one per bus, host as a tag; they can replace it themselves if needed; add general daemon config to the web face (owner only), allow to specify the realm there; default = hostname; BUT some of our prod hosts have really long names"
   - Date: 2026-10-20
-  - Home: [RT22 proposal](daemon-configuration.md#approved-plan), pending plan approval; [task](TODO.md#bundled-agents)
+  - Home: [RT22 approved plan](daemon-configuration.md#approved-plan); [task](TODO.md#bundled-agents)
 
 - ✅ RD109 This node keeps the journal at 1 GB with a journald drop-in (settles №Q188)
   - Why: owner, 2026-10-20: "yes"

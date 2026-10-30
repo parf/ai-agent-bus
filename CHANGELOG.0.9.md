@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.234 — 2026-10-30
+
+New record forms on the web default to the configured bus realm, keeping typed and existing names exact
+
 ## 0.9.233 — 2026-10-30
 
 A runner deploy refuses a read-only agents directory by name, and its git fetch never runs repository hooks

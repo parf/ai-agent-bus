@@ -1,5 +1,18 @@
 # DONE — R1
 
+## RT22 Bus setup web acceptance
+
+- RT22 remains pending until RT22b lands. This web-form fix is on `ab-w1c/RT22`, awaiting two readers and the landing gate; it changes runtime code and needs a bump. Launcher/installer naming is #ab-w1b's RT22b, outside this branch.
+- Existing daemon and page work: `cc72fd15`, `bf251737`, `bf748e72`, `549180dd`. The audit found one real gap: web create forms never read the configured realm. They now suggest an editable realm suffix from the current status on each fresh form; submitted names are never expanded or rewritten. Current contract: [bus Configuration](../../docs/agents/bus.md#configuration).
+
+| Acceptance line | Owning checks and result |
+|---|---|
+| Only the daemon Owner sees and saves the page; a second non-Owner is refused on page and API | `src/web/test/contract.test.ts`, `bus setup`: Owner form and navigation, non-Owner `bob` GET/POST refusal, invalid/valid Owner saves. `src/internal/api/daemon_agent_test.go`, `TestBusSetupOverHTTP`: ordinary and Administrator credentials refused for config read/write; Owner succeeds. `src/internal/core/bus_settings_test.go`, `TestBusSetupDefaultsToTheHostAndOnlyTheDaemonOwnerWritesIt`: ordinary User, Administrator and Owner-owned Agent refused. All pass unchanged. |
+| A new record defaults to the configured realm | New contract test `new record forms use the live configured realm without rewriting typed or existing names`: all five record create forms suggest the configured realm, a subsequent save changes the next form's default, and completing the suggested Agent name creates that exact record. Assertion-red on main: expected `#@forms.one`, received empty. Restored fix green (38 assertions). User-realm mutant: expected `#@forms.one`, received `#@test`; one assertion failure, no build error. Launcher/installer paths remain RT22b. |
+| An existing name never changes silently | Existing core `TestBusSetupDefaultsToTheHostAndOnlyTheDaemonOwnerWritesIt` looks up the same old name after a realm save. The new web regression also keeps an existing Agent's name, explicit realm-less and foreign-realm registrations, and submitted names (including blank) after a refused form. All pass. |
+
+- Verification: six focused core/API bus-setup tests pass; the whole web suite passes 200/0 (34.24 s), TypeScript typecheck passes, fast smoke passes 1/0 (124 ms). The independent mutant ran only its owning test under the `slow` lock; source restored and lock released. No normal gate or live host change was run by the worker.
+
 ## M.8 deploy over the bus
 
 - Gate follow-up: the core unknown-call assertion still named the pre-deploy verbs, so both normal gate attempts failed on the correct new refusal. Updated that expectation and added `TestRunnerUnknownCallMatchesOwningSmokeAssertion`, which applies the owning shell grep expression to a real runner reply: assertion-red before the expectation fix, green afterward (0.009 s). No runtime behavior changed.

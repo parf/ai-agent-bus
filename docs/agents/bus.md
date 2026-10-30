@@ -88,6 +88,7 @@ agent-bus call '#bus' 'ls --kind agent --tag runner' | jq -r .body | head -3
 - **A save applies at once,** with no restart, and is kept in backups.
 - **The web has it as "Bus setup"** in the left navigation, for the daemon Owner only.
 - **Changing the realm is not a rename:** every existing name, token, ACL entry, route and saved session keeps its old spelling and keeps working; only new automatic names use the new realm.
+- **New web record forms suggest the current realm.** Complete the name before `@`; change or remove the suggested realm to choose an explicit identity. A refused form keeps what you typed.
 - **`agent-bus status` shows the realm in effect.**
 
 <details>
