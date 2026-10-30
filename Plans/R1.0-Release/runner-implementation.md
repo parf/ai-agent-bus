@@ -573,6 +573,8 @@ The director settled replacement, removal, layout and write access on 2026-10-30
 | Repository layout | `agent.json` at the repository root, a self-contained package; another layout is refused naming this rule |
 | Write root | Only a host-provisioned writable `--agents` directory. A read-only directory is refused with a message; deploy adds no privilege or new root |
 
+Removal of a bundled agent name, including a writable package shadowing it, is refused: disable it instead. No tombstone or new state is created.
+
 Monorepo subdirectories and a runner-owned deployment root remain in [future work](FUTURE.md#m8-deployment-follow-ups). Configuration uses the existing write-only file calls. Deploy calls are for the runner's Owner and Maintainers, with the existing direct-role check.
 
 What the grant is bounded by has not changed:

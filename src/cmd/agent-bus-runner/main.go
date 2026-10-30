@@ -73,6 +73,8 @@ BUS COMMANDS
   read <path> — read a host settings file
   write <path> — write a host file from the following body lines
   create|delete <agent>/<instance> — manage instances
+  install [--replace] <agent> [git <url> <full-commit>] — deploy code
+  remove <agent> — remove package and settings, keeping data and names
 
 NAMES
   The token belongs to #runner/<person>@<realm>, never to the person.
@@ -404,6 +406,13 @@ operations require its Owner or Maintainers.
   command, package content or environment changed; then answers as status does. It also serves
   again what a stop call took down.
 The calls below are for the runner's Owner and Maintainers only.
+- install [--replace] <agent> [git <url> <full-commit>]
+  Deploys a bundled package or a self-contained repository pinned to a full
+  commit. Writes only a host-provisioned writable --agents directory; an
+  existing package needs --replace. Private git access uses the host's key.
+- remove <agent>
+  Removes its package, inventory and host settings; keeps work data, tokens
+  and bus records. A bundled name is refused: disable it instead.
 - start <agent>, stop <agent>, restart <agent>
   Serves the agent, stops serving it, or both in turn, until the next reload
   or the runner's restart. The agent is its name or its agents.json key. A
@@ -475,6 +484,39 @@ func (r *runner) handle(e protocol.Envelope) {
 			r.answer(e, string(mustJSON(r.reloadStatus(parent, 15*time.Second))))
 		}()
 		return
+	case verbOf(body) == "install" || verbOf(body) == "remove":
+		go func() {
+			ctx := r.ctx
+			if ctx == nil {
+				ctx = context.Background()
+			}
+			if !e.Deadline.IsZero() {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithDeadline(ctx, e.Deadline)
+				defer cancel()
+			}
+			var err error
+			if verbOf(body) == "install" {
+				err = r.installPackage(ctx, body)
+			} else {
+				args := strings.Fields(body)
+				if len(args) != 2 {
+					err = fmt.Errorf("remove takes one package: remove <agent>")
+				} else {
+					err = r.removePackage(args[1])
+				}
+			}
+			if err != nil {
+				r.answer(e, "error: "+err.Error())
+				return
+			}
+			answer := string(mustJSON(r.status()))
+			if verbOf(body) == "remove" {
+				answer += "\nkept work data, tokens and bus records"
+			}
+			r.answer(e, answer)
+		}()
+		return
 	case verbOf(body) == "read":
 		if f, err := r.readFile(strings.TrimSpace(strings.TrimPrefix(body, "read"))); err != nil {
 			answer = "error: " + err.Error()
@@ -515,7 +557,7 @@ func (r *runner) handle(e protocol.Envelope) {
 			answer = string(mustJSON(r.status()))
 		}
 	default:
-		answer = fmt.Sprintf("error: %s answers status, reload, start, stop, restart, enable, disable, read, write, create and delete, not %q", r.name, strings.TrimSpace(e.Body))
+		answer = fmt.Sprintf("error: %s answers status, reload, start, stop, restart, enable, disable, read, write, create, delete, install and remove, not %q", r.name, strings.TrimSpace(e.Body))
 	}
 	r.answer(e, answer)
 }
@@ -537,7 +579,7 @@ var controls = map[string]bool{"start": true, "stop": true, "restart": true, "en
 // change what runs, or reach the host's files and the secrets in them. status
 // stays with whoever the runner's ACL admits.
 var managing = map[string]bool{"reload": true, "start": true, "stop": true, "restart": true, "enable": true, "disable": true,
-	"read": true, "write": true, "create": true, "delete": true}
+	"read": true, "write": true, "create": true, "delete": true, "install": true, "remove": true}
 
 // mayManage is whether the sender is the runner's Owner or one of its
 // Maintainers, as the daemon worked out at the send (docs/03-records-agent.md):

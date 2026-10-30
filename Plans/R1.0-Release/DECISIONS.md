@@ -4,7 +4,7 @@
 
 - ✅ RD178 npm is the installation path: unscoped `ai-agent-bus`, published from the owner’s only npm account `parf73`, no npm org or published `@agent-bus/` scope; release signing is dropped and the shell installer deferred ([distribution](distribution.md#npm); owner, 2026-10-30; replaces RD162, RD163, RD168, RD169, RD170 and RD176)
 
-- **Runner deploy: replace, remove, layout, write root** — #ab-dir, 2026-10-30, under M.8 A+B; [reaching the runner](runner-implementation.md#reaching-the-runner).
+- **Runner deploy: replace, remove, layout, write root (bundled names: disable instead)** — #ab-dir, 2026-10-30, under M.8 A+B; [reaching the runner](runner-implementation.md#reaching-the-runner).
 
 - **Kept jsonl answer line** — owner, 2026-10-30 15:25, option (a).
   - Home: [M.3 long-lived agents](runner-implementation.md#long-lived-agents).
