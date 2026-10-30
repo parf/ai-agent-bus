@@ -3,7 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** something outside the bus (a web service, a database host) must be findable and nameable like everything else, without pretending the bus runs it.
 - **Outcome:** a 📡 `service` is a card saying where something outside is and how to reach it; nothing on this bus answers for it. Its address and protocol are required. Like a 📚 resource card it has no queue here, and it refuses everything that would need one.
-- **Start:** look at the card: `agent-bus ls <service>` ([Try this first](#try-this-first)).
+- **Start:** read [what a service is](#what-a-service-is) ([Try this first](#try-this-first)).
 
 ## Why you'd want it
 
@@ -19,11 +19,7 @@
 
 ## Try this first
 
-- Look at a service card (read-only):
-
-```sh
-agent-bus ls <service-name>
-```
+- Read [what a service is](#what-a-service-is), then look at a card with `agent-bus ls` and its name once one is registered.
 
 ## Technical details
 

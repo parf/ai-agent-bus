@@ -3,7 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** an agent, a script or a person on another machine needs the bus without opening it to the world.
 - **Outcome:** four ways in, each answering the same API with the same permissions: plain HTTP on a trusted network, HTTPS anywhere, your own socket over SSH, or the shared socket over SSH. The rules behind them are in [access](02-access.md#what-a-call-carries).
-- **Start:** pick one in [choosing a way](#choosing-a-way), then point the command-line tool at the address: `agent-bus --addr=<address> status`.
+- **Start:** pick one in [choosing a way](#choosing-a-way), then give any command the `--addr` option ([Try this first](#try-this-first)).
 
 ## Why you'd want it
 
@@ -21,11 +21,7 @@
 
 ## Try this first
 
-- Read [choosing a way](#choosing-a-way), then check the connection with the read-only status call:
-
-```sh
-agent-bus --addr=<address> status
-```
+- Read [choosing a way](#choosing-a-way), pick the row that suits you, then give any command the `--addr` option for your address.
 
 ## Technical details
 

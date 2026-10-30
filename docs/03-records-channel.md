@@ -20,11 +20,7 @@
 
 ## Try this first
 
-- See the exact words for sending with a label (read-only):
-
-```sh
-agent-bus help send
-```
+- Read [channel, not topic](#channel-not-topic), then see [the two channel kinds](#the-two-channel-kinds); a label on one message is the `--topic` option of `send`.
 
 ## Technical details
 
