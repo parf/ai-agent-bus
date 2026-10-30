@@ -8,7 +8,7 @@ import { Codex } from "../mcp/codex.ts";
 import { Opencode } from "../mcp/opencode.ts";
 import { Opencode1 } from "../mcp/opencode1.ts";
 import { sidecarMessage } from "../mcp/messages.ts";
-import { startPush, sleep, RENAME_READER_RETRY_MS, type Push } from "../mcp/push.ts";
+import { startPush, superviseDelivery as superviseDeliveryOf, sleep, RENAME_READER_RETRY_MS, type Push } from "../mcp/push.ts";
 import { faceEvent, faceMarks } from "../mcp/face-mark.ts";
 import { version } from "../mcp/version.ts";
 import { Bindings, claudeSessions, claudeStart, claudeTitle, sameBase, type Session } from "./sessions.ts";
@@ -578,6 +578,7 @@ See docs/06-launchers.md#smart-launchers.`);
       warn(`the agent-bus MCP server is still down; ${runtime === "claude" ? "type /mcp and reconnect agent-bus, or " : ""}${resumeHint()}`);
     }
   };
+  const superviseDelivery = superviseDeliveryOf(() => push, () => codex ? bindThread({ id: session.id }) : bindSession(session.id), { note, warn });
   let refreshing = false;
   poll = setInterval(async () => {
     if (refreshing || stopping) return;
@@ -601,7 +602,10 @@ See docs/06-launchers.md#smart-launchers.`);
         saveEnv();
       }
       await watchFaces();
-      if (push && !push.running()) warn(`bus push is inactive; ${resumeHint()}`);
+      // A push that stopped because a delivery failed (Codex /compact, J60) is
+      // started again a few times; any other stop is only said.
+      if (push && !push.running() && push.ended() !== "delivery") warn(`bus push is inactive; ${resumeHint()}`);
+      await superviseDelivery();
     }); } catch (e) { warn(`session metadata refresh failed: ${e}`); }
     finally { refreshing = false; }
   }, 2000);

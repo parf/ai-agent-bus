@@ -35,10 +35,14 @@ export const RENAME_READER_RETRY_MS = 10_000;
 const SUSPENDED = "user access is suspended";
 const suspension = (err: unknown) => err instanceof BusError && err.status === 403 && err.message.includes(SUSPENDED);
 
-export type Push = { readonly running: () => boolean; stop: () => void; done: Promise<void> };
+/** Why a push ended: its own stop, a refusal that asking again cannot change, or
+ *  a message that was consumed and could not be delivered (J60). */
+export type PushEnd = "stopped" | "refused" | "delivery";
+export type Push = { readonly running: () => boolean; readonly ended: () => PushEnd | undefined; stop: () => void; done: Promise<void> };
 
 export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void, suspendedRetryMs = SUSPENDED_RETRY_MS, readerReleaseMs = 0, sessionEnv: NodeJS.ProcessEnv = process.env, onRefused?: (why: string) => void, onReading?: () => void): Push {
   let stopped = false;
+  let end: PushEnd | undefined;
   let suspended = false;
   const abort = new AbortController();
   const readerBudget = Math.min(readerReleaseMs, RENAME_READER_RETRY_MS);
@@ -47,6 +51,7 @@ export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void, 
   const stop = () => {
     if (stopped) return;
     stopped = true;
+    end ??= "stopped";
     abort.abort(); // let go of the inbox now, rather than at the deadline
   };
 
@@ -84,6 +89,7 @@ export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void, 
           // only in the runtime's MCP log (docs/06-launchers.md#one-live-session-per-name).
           if (err.status === 409) onRefused?.(`${bus.name} is already read by another session; this one receives nothing under that name`);
           stopped = true;
+          end = "refused";
           return;
         }
         // A daemon restart resets or refuses the socket for a moment: a quiet
@@ -119,12 +125,54 @@ export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void, 
         log(`push: message ${e.message_id} from ${e.from} was consumed but not delivered: ${err}`);
         log(`push: stopping; later messages stay in ${bus.name}'s inbox`);
         stopped = true;
+        end = "delivery";
         return;
       }
     }
   })();
 
-  return { running: () => !stopped, stop, done };
+  return { running: () => !stopped, ended: () => end, stop, done };
+}
+
+/** J60: a push that stopped because a delivery failed is started again, after a
+ *  growing wait, at most `delays.length` times; a refusal or its own stop is never
+ *  restarted. After the last try one line says so and nothing repeats. `check` is
+ *  called on a timer and holds no timer of its own. */
+export function superviseDelivery(
+  current: () => Push | undefined,
+  restart: () => Promise<void> | void,
+  say: { note: (s: string) => void; warn: (s: string) => void },
+  opts: { delays?: number[]; settledMs?: number; now?: () => number } = {},
+): () => Promise<void> {
+  const delays = opts.delays ?? [2_000, 10_000, 30_000];
+  const settledMs = opts.settledMs ?? 60_000;
+  const now = opts.now ?? Date.now;
+  let tries = 0, due = 0, gaveUp = false, since = 0;
+  return async () => {
+    const push = current();
+    if (!push) return;
+    if (push.running()) {
+      // Healthy for a while: a later failure gets its own tries.
+      if (tries > 0 && now() - since >= settledMs) { tries = 0; gaveUp = false; }
+      return;
+    }
+    if (push.ended() !== "delivery") return;
+    if (tries >= delays.length) {
+      if (!gaveUp) {
+        gaveUp = true;
+        say.warn(`bus push stopped after a failed delivery and was restarted ${tries} times; it stays off. Resume this session to reattach it`);
+      }
+      return;
+    }
+    if (now() < due) return;
+    tries++;
+    due = now() + delays[tries - 1]!;
+    since = now();
+    say.note(`bus push stopped after a failed delivery; restarting it (${tries} of ${delays.length})`);
+    await push.done;
+    await restart();
+    since = now();
+  };
 }
 
 // A stop ends the wait at once: a half-hour retry must not keep a stopped
