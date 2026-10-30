@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.181 — 2026-10-30
+
+subscription deliveries no longer send wait=0, which the daemon refused; every real subscription send was dropped
+
 ## 0.9.180 — 2026-10-30
 
 the runner starts agents in their depends order and refuses an unknown or cyclic dependency by name

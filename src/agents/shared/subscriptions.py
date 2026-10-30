@@ -102,7 +102,7 @@ def deliver_one(bus,source,row,body,topic,tag,deadline,cache,on_send=None):
     if time.monotonic()>=deadline:return 'dropped','deadline'
     try:
         if on_send:on_send()
-        bus.send(target,body,topic=topic,tag=tag,wait=0)
+        bus.send(target,body,topic=topic,tag=tag)
         return 'sent',None
     except Refusal:return 'dropped','send_refused'
     except Exception:return 'dropped','send_unknown'

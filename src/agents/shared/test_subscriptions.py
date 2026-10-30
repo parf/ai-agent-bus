@@ -239,7 +239,7 @@ class Delivery(unittest.TestCase):
         self.refuse=False;self.warnings.clear()
         self.assertEqual(self.deliver(),{'matched':1,'sent':1,'dropped':0})
         self.assertEqual(self.warnings,[])
-        self.assertEqual(self.accepted,[{'to':'dest@fixture.test','body':'payload','topic':'deploys','tag':'alert','wait':'0.000000000s'}])
+        self.assertEqual(self.accepted,[{'to':'dest@fixture.test','body':'payload','topic':'deploys','tag':'alert'}])
         self.assertEqual(sum(path=='/send' for path,_,_ in self.calls),2)
         row=self.engine.list(message({'author':'alice@fixture.test'}))[0]
         self.assertEqual((row['sent'],row['dropped']),(1,1))
@@ -263,3 +263,57 @@ class Delivery(unittest.TestCase):
         self.assertLess(time.monotonic()-start,1.5)
         self.assertEqual(self.warnings,['admission_unavailable']);self.assertEqual(self.accepted,[])
         self.assertFalse(self.engine.processes)
+
+
+class DaemonDelivery(unittest.TestCase):
+    def test_actual_daemon_accepts_refuses_and_delivers_next_match(self):
+        """Real daemon grammar and inbox copies, through the production child."""
+        import select
+        import subprocess
+        from agent_bus import Bus as Client
+        root=HERE.parents[2]
+        (root/'tmp').mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix='subscription-daemon-',dir=root/'tmp') as directory:
+            fixture=Path(directory)/'fixture'
+            built=subprocess.run(['go','build','-o',str(fixture),'./clients/fixture'],cwd=root/'src',capture_output=True,text=True,timeout=30)
+            self.assertEqual(built.returncode,0,built.stderr)
+            process=subprocess.Popen([str(fixture)],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True)
+            clients=[];engine=None
+            try:
+                self.assertTrue(select.select([process.stdout],[],[],5)[0],'fixture daemon did not start')
+                info=json.loads(process.stdout.readline())
+                def client(name):
+                    value=Client(name,addr=info['addr'],token=info['tokens'][name],timeout=2)
+                    clients.append(value);return value
+                owner,creator,source,target=[client(name) for name in ('owner@fixture','#caller@fixture','#worker@fixture','#helper@fixture')]
+                owner.record(target.name).manage(bound=1,overflow='strict',allow=[creator.name,source.name])
+                creator.send(source.name,'subscribe')
+                message=source.consume(wait=1)
+                self.assertIsNotNone(message);self.assertEqual(message.envelope['from'],creator.name)
+                warnings=[]
+                engine=s.Subscriptions(source,source.name,validate_selector=selector,selector_matches=selected,warning=warnings.append)
+                row=engine.add(message,target.name,{'log':'deploys'})
+                def deliver(body):
+                    return engine.deliver({'log':'deploys'},body,body,topic='deploys',tag='alert',deadline=time.monotonic()+5)
+                def take():
+                    return target.consume(wait=.01)
+                self.assertEqual(deliver('accepted'),{'matched':1,'sent':1,'dropped':0})
+                received=take();self.assertIsNotNone(received)
+                self.assertEqual((received.body,received.envelope['from'],received.topic,received.tag),('accepted',source.name,'deploys','alert'))
+                self.assertIsNone(take(),'first match was delivered twice')
+                self.assertEqual(warnings,[])
+                owner.send(target.name,'fill')
+                self.assertEqual(deliver('refused'),{'matched':1,'sent':0,'dropped':1})
+                self.assertEqual(warnings,['send_refused'])
+                received=take();self.assertIsNotNone(received);self.assertEqual(received.body,'fill')
+                self.assertIsNone(take(),'refused match reached the inbox')
+                self.assertEqual(deliver('next'),{'matched':1,'sent':1,'dropped':0})
+                received=take();self.assertIsNotNone(received);self.assertEqual(received.body,'next')
+                self.assertIsNone(take(),'next match was delivered twice')
+                stored=engine.list(message)
+                self.assertEqual([(entry['id'],entry['sent'],entry['dropped']) for entry in stored],[(row['id'],2,1)])
+                self.assertEqual(warnings,['send_refused']);self.assertFalse(engine.processes)
+            finally:
+                if engine is not None:engine.close()
+                for client in clients:client.close()
+                process.stdin.close();process.wait(timeout=5);process.stdout.close()

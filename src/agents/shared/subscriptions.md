@@ -71,7 +71,8 @@ or unavailable answer is unavailable, never true. Either failure counts one
 dropped copy and one warning, not two. Check destination kind at creation and
 before sending; it must still be queue or agent.
 
-One matched copy has one send attempt. Refusal, transport failure, unknown
+One matched copy has one send attempt. The send omits caller `wait` entirely:
+forwarding expects no reply; an explicit zero wait is refused by the daemon. Refusal, transport failure, unknown
 acceptance or deadline drops/counts that copy, warns and leaves the subscription
 active for the next entry. Dropped INCLUDES copies whose acceptance is unknown
 and which may have reached the inbox. No pause/retry/outbox/cursor/backlog.

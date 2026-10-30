@@ -49,3 +49,18 @@ pins exact `invalid_state` listing for direct managers, hidden state for other
 callers/forwarded managers, no delivery, limit accounting and manager-only
 repair. Changing the emitted reason to `other_reason` compiled and failed
 `Parity.test_operation_vectors` on its exact rows assertion; restored afterward.
+
+## Subscription sends without a caller wait
+
+2026-10-30, T-2 urgent follow-up, `ab-w1c/T-2-wait`: remove explicit numeric
+zero `wait` from the shared send helper. The daemon requires a positive caller
+wait when supplied; forwarding is fire-and-forget and leaves that field absent.
+The real-daemon engine check
+`DaemonDelivery.test_actual_daemon_accepts_refuses_and_delivers_next_match`
+proves an accepted copy reaches its inbox once, a full inbox refuses one copy
+with one warning, and the next entry reaches the inbox once after draining.
+Durable counts are sent=2/dropped=1. It runs inside the shared engine suite and
+therefore the existing subscription smoke shard, not only adapter checks.
+The original numeric-zero mutant compiles and fails the accepted-delivery
+assertion; restored afterward. The HTTP fixture also pins the absence of wait.
+Frozen subscription vectors are unchanged. No SDK or daemon change in this fix.
