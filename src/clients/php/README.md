@@ -23,24 +23,29 @@ Keep secrets in Secret and config in Configuration; see [configuration](../../..
 
 ## Try this first
 
-Serve one handler in a child process and call it (a disposable bus; `AGENT_BUS_ADDR`, `AGENT_BUS_TOKEN` and `AGENT_BUS_NAME` set for `#mailer@localhost`):
+Serve one handler under one name and call it from another (a disposable bus; both names registered, each process's `AGENT_BUS_ADDR`, `AGENT_BUS_TOKEN` and `AGENT_BUS_NAME` set for its own name):
 
 ```php
+// serve.php, as #mailer@localhost
 require 'src/clients/php/src/autoload.php';
-use AgentBus\{Bus, Message, ServeOptions, CallOptions, Answer};
+use AgentBus\{Bus, Message, ServeOptions};
 
 $bus = Bus::connect(as: '#mailer@localhost');
-$pid = pcntl_fork();
-if ($pid === 0) {
-    $bus->serve(fn(Message $m) => "sent to {$m->body}", new ServeOptions(topic: 'mail'));
-    exit(0);
-}
+$bus->serve(fn(Message $m) => "sent to {$m->body}", new ServeOptions(topic: 'mail'));
+```
+
+```php
+// call.php, as #caller@localhost
+require 'src/clients/php/src/autoload.php';
+use AgentBus\{Bus, CallOptions, Answer};
+
+$bus = Bus::connect(as: '#caller@localhost');
 $o = $bus->call('#mailer@localhost', 'bob@example.com', new CallOptions(timeout: 10, topic: 'mail'));
 if ($o instanceof Answer) { echo $o->message->body, "\n"; }
-echo $bus->record('#mailer@localhost')->kv->inc('sent', 1), "\n";
-posix_kill($pid, SIGTERM);
-pcntl_waitpid($pid, $status);
+echo $bus->record('#caller@localhost')->kv->inc('sent', 1), "\n";
 ```
+
+Run `php serve.php &`, then `php call.php`, then stop the server:
 
 ```text
 sent to bob@example.com
@@ -51,7 +56,7 @@ sent to bob@example.com
 
 ## Technical details
 
-- **Package:** PHP 8.1 or later (the example also needs ext-pcntl and ext-posix for its child process); the [PHP plan](../../../Plans/R1.0-Release/done/client-libraries/php.md) owns the interface; [authentication](../../../docs/02-access.md#what-a-call-carries) owns credentials; [MIT license](LICENSE.md).
+- **Package:** PHP 8.1 or later; the [PHP plan](../../../Plans/R1.0-Release/done/client-libraries/php.md) owns the interface; [authentication](../../../docs/02-access.md#what-a-call-carries) owns credentials; [MIT license](LICENSE.md).
 - **Identity:** the credential's name calls. `as:` only checks it, throwing `IdentityMismatch` on the first call.
 - **Secret:** `secret()` holds the bytes as delivered; `env()` is a single-line `NAME=value` reader, not the runner's dotenv grammar: a ` # note` stays in the value and a quoted value cannot span lines, so parse a PEM or multi-line value from `bytes()`.
 - **Serving:** one message at a time per process; parallelism is more processes.
