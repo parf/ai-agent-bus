@@ -1,0 +1,117 @@
+{
+  "text": "Organize long-running work in named terminal windows. Inspect configured windows and start, stop or restart them together or separately. Start with list; each window runs its configured command in one tmux session.\nstart [windows...]: Open configured windows that are missing, after checking live panes. A name already present reports already running.\n[destructive] stop [windows...]: Stop selected configured windows. Send SIGTERM to their process groups, allow ten seconds to save work, then close them.\n[destructive] restart [windows...]: Stop selected configured windows, then start them with the same live-pane checks.\nlist: See which configured windows exist and have live panes, with process ID, uptime and working directory. Extra windows are marked unmanaged.\nstatus: Check whether configured windows are alive. Report ok when all are alive, degraded when some are alive, and failed when none are alive or the session is absent.\n\nArguments\nwindows (string): Optional configured window names; none means all configured windows. Unknown names fail before any action.\n\nExamples\nagent-bus call '#tmux-sessions@parf.us' 'list'\nagent-bus call '#tmux-sessions@parf.us' '--status'\n\nv<version> · PolyForm-NC · parf.dev/agent-bus/\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/tmux-sessions.md\nMore: agent-bus help <name> config | secret | json",
+  "json": {
+    "description": "Organize long-running work in named terminal windows. Inspect configured windows and start, stop or restart them together or separately. Start with list; each window runs its configured command in one tmux session.",
+    "license": "PolyForm-Noncommercial-1.0.0",
+    "author": "Serg Parf",
+    "homepage": "https://parf.dev/agent-bus/",
+    "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/tmux-sessions.md",
+    "version": "<version>",
+    "methods": {
+      "start": {
+        "type": "string",
+        "help": "Open configured windows that are missing, after checking live panes. A name already present reports already running.",
+        "args": [
+          {
+            "type": "string",
+            "rest": true,
+            "help": "Optional configured window names; none means all configured windows. Unknown names fail before any action.",
+            "optional": true,
+            "name": "windows"
+          }
+        ]
+      },
+      "stop": {
+        "type": "string",
+        "help": "Stop selected configured windows. Send SIGTERM to their process groups, allow ten seconds to save work, then close them.",
+        "args": [
+          {
+            "type": "string",
+            "rest": true,
+            "help": "Optional configured window names; none means all configured windows. Unknown names fail before any action.",
+            "optional": true,
+            "name": "windows"
+          }
+        ],
+        "destructive": true
+      },
+      "restart": {
+        "type": "string",
+        "help": "Stop selected configured windows, then start them with the same live-pane checks.",
+        "args": [
+          {
+            "type": "string",
+            "rest": true,
+            "help": "Optional configured window names; none means all configured windows. Unknown names fail before any action.",
+            "optional": true,
+            "name": "windows"
+          }
+        ],
+        "destructive": true
+      },
+      "list": {
+        "type": "string",
+        "help": "See which configured windows exist and have live panes, with process ID, uptime and working directory. Extra windows are marked unmanaged.",
+        "args": [],
+        "example": "agent-bus call '#tmux-sessions@parf.us' 'list'"
+      },
+      "status": {
+        "type": "string",
+        "help": "Check whether configured windows are alive. Report ok when all are alive, degraded when some are alive, and failed when none are alive or the session is absent.",
+        "args": [],
+        "example": "agent-bus call '#tmux-sessions@parf.us' '--status'"
+      },
+      "help": {
+        "type": "string",
+        "help": "Find available calls and configuration. Every caller admitted by the record may use every method; there are no additional role or Owner checks.",
+        "args": []
+      }
+    },
+    "asks": [
+      "help",
+      "help-config",
+      "help-secret",
+      "help-json"
+    ],
+    "config": {
+      "session": {
+        "type": "string",
+        "help": "One tmux session name: 1..32 letters, digits, - or _. Default: instance component of this agent name, or tmux-sessions for the main record.",
+        "example": "work"
+      },
+      "state_home": {
+        "type": "string",
+        "help": "XDG_STATE_HOME for every window (an existing absolute directory); a window's env overrides it. Default: /var/lib/agent-bus-tmux-sessions[-<instance>] when that is a directory owned by the person (the old standalone unit's state), else inherited.",
+        "example": "/home/me/.local/state"
+      },
+      "windows": {
+        "type": "list",
+        "help": "Up to32 objects: required name (unique tmux window name,1..32 letters/digits/-/_), cwd (existing absolute directory), command (non-empty /bin/sh -c string,max4096 bytes,no NUL/newline), optional env (object or the shared env-file text). Base env is stripped; person’s manager PATH is applied, then env overrides it. At most64 env keys,max4096 bytes/value; AGENT_BUS_TOKEN and AB_ROLE_* are refused. Only Owner/Maintainers write Configuration. No runtime, args, tags, window or bus-name keys.",
+        "example": [
+          {
+            "name": "monitor",
+            "cwd": "/home/me/work",
+            "command": "htop"
+          },
+          {
+            "name": "claude",
+            "cwd": "/home/me/work",
+            "env": {
+              "AGENT_BUS_NAME": "#claude/work"
+            },
+            "command": "ab-claude --restart --tag work"
+          }
+        ]
+      }
+    },
+    "secrets": [],
+    "body_formats": [
+      "text",
+      "json"
+    ],
+    "hidden_methods": {
+      "count": 0,
+      "roles": []
+    }
+  }
+}

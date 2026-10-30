@@ -1,5 +1,5 @@
 {
-  "description": "Read and search host logs; mark a point and see what came after",
+  "description": "Find useful events without reading every host log. Review retained lines, search them or forward new matches. Start with sources and tail; marks and retained history are lost on restart.",
   "tags": [
     "ops"
   ],
@@ -9,7 +9,7 @@
   "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/logwatch.md",
   "methods": {
     "tail": {
-      "help": "Last N retained lines, oldest first, unfiltered",
+      "help": "Review the latest retained lines, oldest first. No search filter is applied.",
       "args": [
         {
           "name": "n",
@@ -18,10 +18,10 @@
           "optional": true
         }
       ],
-      "example": "agent-bus call '#logwatch@parf.us' 'tail 20'"
+      "example": "agent-bus call '#logwatch@parf.us' 'tail 5'"
     },
     "grep": {
-      "help": "Search retained lines only when asked",
+      "help": "Find matching lines in retained history. Searching happens only when requested.",
       "args": [
         {
           "name": "query",
@@ -35,10 +35,10 @@
           "optional": true
         }
       ],
-      "example": "agent-bus call '#logwatch@parf.us' 'grep error 20'"
+      "example": "agent-bus call '#logwatch@parf.us' 'grep error 5'"
     },
     "since": {
-      "help": "Lines received within an age, not the date inside their text",
+      "help": "Review lines received during a recent interval. Age is based on receipt time, not dates inside the log text.",
       "args": [
         {
           "name": "age",
@@ -55,7 +55,7 @@
       "example": "agent-bus call '#logwatch@parf.us' 'since 5m 5'"
     },
     "mark": {
-      "help": "Mark the current history position; ring and marks do not survive restart",
+      "help": "Save the current place in history for a later after call. Marks and history do not survive restart.",
       "args": [
         {
           "name": "label",
@@ -64,32 +64,30 @@
           "optional": true
         }
       ],
-      "returns": "Mark label",
-      "example": "agent-bus call '#logwatch@parf.us' 'mark deploy'"
+      "returns": "Mark label"
     },
     "after": {
-      "help": "Retained lines strictly after a mark; expired marks are refused",
+      "help": "Review retained lines strictly after a saved mark. A mark that has expired is refused.",
       "args": [
         {
           "name": "label",
           "type": "string",
           "help": "Mark label"
         }
-      ],
-      "example": "agent-bus call '#logwatch@parf.us' 'after deploy'"
+      ]
     },
     "sources": {
-      "help": "List watched files/journal units, exclusions, counts, last lines and errors",
+      "help": "Find watched files and journal units, exclusions, counts, last lines and errors.",
       "args": [],
-      "example": "agent-bus call '#logwatch@parf.us' sources"
+      "example": "agent-bus call '#logwatch@parf.us' 'sources'"
     },
     "stats": {
-      "help": "Version, uptime, history capacity/fill, lines seen and dropped",
+      "help": "Check how much history is retained and how many lines were seen or dropped. The reply also includes uptime and version.",
       "args": [],
-      "example": "agent-bus call '#logwatch@parf.us' stats"
+      "example": "agent-bus call '#logwatch@parf.us' 'stats'"
     },
     "sub.add": {
-      "help": "Forward new matching lines, fold repeats for five minutes",
+      "help": "Forward new matching lines to a destination. Repeated lines are folded together for five minutes.",
       "args": [
         {
           "name": "target",
@@ -105,17 +103,16 @@
         }
       ],
       "returns": "Subscription ID",
-      "text": "sub add <target> [filter]",
-      "example": "agent-bus call '#logwatch@parf.us' 'sub add #debug@parf.us /ERROR/i'"
+      "text": "sub add <target> [filter]"
     },
     "sub.list": {
-      "help": "Show subscriptions, runtime counts and errors",
+      "help": "Review subscriptions, delivery counts and errors.",
       "args": [],
       "text": "sub list",
       "example": "agent-bus call '#logwatch@parf.us' 'sub list'"
     },
     "sub.delete": {
-      "help": "Stop forwarding",
+      "help": "Stop forwarding a subscription's matching lines.",
       "args": [
         {
           "name": "id",
@@ -124,11 +121,10 @@
         }
       ],
       "destructive": true,
-      "text": "sub delete <id>",
-      "example": "agent-bus call '#logwatch@parf.us' 'sub delete s1'"
+      "text": "sub delete <id>"
     },
     "help": {
-      "help": "Describe this agent and the help-config and help-secret asks",
+      "help": "Find available calls. Use help-config for configuration and help-secret for environment key names.",
       "args": []
     }
   },

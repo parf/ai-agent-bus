@@ -97,18 +97,18 @@ One line each, from the description its `help` prints.
 - [`#debug`](debug.md) — Find out whether messages arrive and agents can work. Check replies, permissions and runner health with bounded probes. Start with ping; use doctor for a health summary and sandbox for observed restrictions.
 - [`#eventlog`](eventlog.md) — Review operational events without searching unrelated output. Keep named notice, warning and alert logs, and forward matching new entries. Start with list or read; each severity has its own bounded history.
 - [`#fetch`](fetch.md) — Read web pages and call allowed web services without a browser. Get readable text or make one bounded HTTP request. Start with get and a URL; every destination must satisfy this instance's access rules.
-- [`#git`](git.md) — Inspect, synchronize and deploy repositories within configured access levels
+- [`#git`](git.md) — Understand a shared checkout before updating or deploying it. Inspect changes and history, then synchronize or publish within configured access. Start with list and status; changes use this server's Git identity and each repository's access limit.
 - [`#imap`](imap.md) — Read a private mail cache, manage Seen status and subscribe to future mail
-- [`#logwatch`](logwatch.md) — Read and search host logs; mark a point and see what came after
+- [`#logwatch`](logwatch.md) — Find useful events without reading every host log. Review retained lines, search them or forward new matches. Start with sources and tail; marks and retained history are lost on restart.
 - [`#qdrant`](qdrant.md) — Call the configured store within your read, write or admin role
 - [`#rag`](rag.md) — Store, classify and embed records; manage their prompts
-- [`#server-info`](server-info.md) — Read host facts: network, memory, disks, load and TLS certificates
+- [`#server-info`](server-info.md) — Find host resource and service problems before choosing a fix. Read system, network, storage and certificate facts without changing the host. Start with load or disks; available sections depend on the Linux account running this agent.
 - [`#slack`](slack.md) — Post and read messages; route replies; forward selected conversations
 - [`#sms-telnyx`](sms.md) — Send one SMS through Telnyx; the body is {to,text} or \<to> \<text>; never retry unknown results
 - [`#smtp`](smtp.md) — Send mail once through a configured account with verified TLS
-- [`#systemd`](systemd.md) — Inspect units and logs; start, stop and restart units within configured scope
+- [`#systemd`](systemd.md) — Find service failures and control the services this instance permits. Inspect status and logs, then start, stop or reload a selected unit. Start with failed or status; changes stay within the configured scope and require the appropriate role.
 - [`#telegram`](telegram.md) — Post and read chats; route your replies to the right session
-- [`#tmux-sessions`](tmux-sessions.md) — Keep a tmux session of named windows running: start, stop, restart and list them
+- [`#tmux-sessions`](tmux-sessions.md) — Organize long-running work in named terminal windows. Inspect configured windows and start, stop or restart them together or separately. Start with list; each window runs its configured command in one tmux session.
 - [`#voyage`](voyage.md) — Embed text or pass a request through Voyage without sharing its provider key
 - [`#webhook`](webhook.md) — Connect outside events and services without sharing their credentials. Receive authenticated events or send a body to a configured destination. Start with routes to see available names; post sends once and returns the response.
 <!-- /bundled-agents -->

@@ -1,5 +1,5 @@
 {
-  "description": "Keep a tmux session of named windows running: start, stop, restart and list them",
+  "description": "Organize long-running work in named terminal windows. Inspect configured windows and start, stop or restart them together or separately. Start with list; each window runs its configured command in one tmux session.",
   "command": "./sessions.py",
   "form": "args",
   "tags": [],
@@ -13,49 +13,46 @@
   ],
   "methods": {
     "start": {
-      "help": "Start missing configured windows after observing live panes; present names answer already running.",
+      "help": "Open configured windows that are missing, after checking live panes. A name already present reports already running.",
       "args": [
         {
           "name": "windows",
           "optional": true
         }
-      ],
-      "example": "agent-bus call '#tmux-sessions@demo' 'start monitor'"
+      ]
     },
     "stop": {
-      "help": "Send SIGTERM to selected configured windows’ process groups, allow 10s to save, then close them.",
+      "help": "Stop selected configured windows. Send SIGTERM to their process groups, allow ten seconds to save work, then close them.",
       "args": [
         {
           "name": "windows",
           "optional": true
         }
       ],
-      "destructive": true,
-      "example": "agent-bus call '#tmux-sessions@demo' 'stop monitor'"
+      "destructive": true
     },
     "restart": {
-      "help": "Stop then start selected configured windows with the same liveness checks.",
+      "help": "Stop selected configured windows, then start them with the same live-pane checks.",
       "args": [
         {
           "name": "windows",
           "optional": true
         }
       ],
-      "destructive": true,
-      "example": "agent-bus call '#tmux-sessions@demo' 'restart monitor'"
+      "destructive": true
     },
     "list": {
-      "help": "Show every configured window’s real presence, pane liveness, pid, uptime and cwd; mark extra windows unmanaged.",
+      "help": "See which configured windows exist and have live panes, with process ID, uptime and working directory. Extra windows are marked unmanaged.",
       "args": [],
-      "example": "agent-bus call '#tmux-sessions@demo' list"
+      "example": "agent-bus call '#tmux-sessions@parf.us' 'list'"
     },
     "status": {
-      "help": "Status ask from real tmux checks: ok when all configured windows are alive, degraded when some are up, failed when none are up or the session is absent.",
+      "help": "Check whether configured windows are alive. Report ok when all are alive, degraded when some are alive, and failed when none are alive or the session is absent.",
       "args": [],
-      "example": "agent-bus call '#tmux-sessions@demo' --status"
+      "example": "agent-bus call '#tmux-sessions@parf.us' '--status'"
     },
     "help": {
-      "help": "Describe calls and Configuration; every method is available to callers admitted by the record ACL, with no extra role or Owner checks.",
+      "help": "Find available calls and configuration. Every caller admitted by the record may use every method; there are no additional role or Owner checks.",
       "args": []
     }
   },

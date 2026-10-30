@@ -1,5 +1,5 @@
 {
-  "description": "Inspect units and logs; start, stop and restart units within configured scope",
+  "description": "Find service failures and control the services this instance permits. Inspect status and logs, then start, stop or reload a selected unit. Start with failed or status; changes stay within the configured scope and require the appropriate role.",
   "tags": [
     "ops",
     "systemd"
@@ -14,7 +14,7 @@
   "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/systemd.md",
   "methods": {
     "list": {
-      "help": "List loaded units, including inactive units",
+      "help": "Find loaded units, including inactive ones. Optionally select a unit type.",
       "args": [
         {
           "name": "type",
@@ -38,17 +38,17 @@
       "example": "agent-bus call '#systemd@parf.us' 'list service'"
     },
     "timers": {
-      "help": "List timers with their last and next runs",
+      "help": "Check timers' last and next scheduled runs.",
       "args": [],
-      "example": "agent-bus call '#systemd@parf.us' timers"
+      "example": "agent-bus call '#systemd@parf.us' 'timers'"
     },
     "failed": {
-      "help": "List failed units",
+      "help": "Find failed units.",
       "args": [],
-      "example": "agent-bus call '#systemd@parf.us' failed"
+      "example": "agent-bus call '#systemd@parf.us' 'failed'"
     },
     "status": {
-      "help": "Show one unit’s status",
+      "help": "Inspect the status of one unit.",
       "args": [
         {
           "name": "unit"
@@ -57,7 +57,7 @@
       "example": "agent-bus call '#systemd@parf.us' 'status agent-bus-web.service'"
     },
     "logs": {
-      "help": "Read journal output, capped at 256 KiB; omitted unit respects instance units",
+      "help": "Read recent journal output, capped at 256 KiB. Without a unit, the call still respects this instance's configured unit scope.",
       "args": [
         {
           "name": "unit",
@@ -80,11 +80,11 @@
         "operate",
         "admin"
       ],
-      "example": "agent-bus call '#systemd@parf.us' 'logs agent-bus-web.service 100 since 1h'",
-      "text": "logs [unit] [lines] [since <age>]"
+      "text": "logs [unit] [lines] [since <age>]",
+      "example": "agent-bus call '#systemd@parf.us' 'logs agent-bus-web.service 5 since 1h'"
     },
     "start": {
-      "help": "Start a unit within this instance’s scope",
+      "help": "Start a unit allowed by this instance's configured scope.",
       "args": [
         {
           "name": "unit"
@@ -94,11 +94,10 @@
         "operate",
         "admin"
       ],
-      "destructive": true,
-      "example": "agent-bus call '#systemd@parf.us' 'start ab-systemd-probe.service'"
+      "destructive": true
     },
     "restart": {
-      "help": "Restart a unit within this instance’s scope",
+      "help": "Stop and start a unit allowed by this instance's configured scope.",
       "args": [
         {
           "name": "unit"
@@ -108,11 +107,10 @@
         "operate",
         "admin"
       ],
-      "destructive": true,
-      "example": "agent-bus call '#systemd@parf.us' 'restart ab-systemd-probe.service'"
+      "destructive": true
     },
     "reload": {
-      "help": "Reload a unit within this instance’s scope",
+      "help": "Ask a unit within this instance's configured scope to reload.",
       "args": [
         {
           "name": "unit"
@@ -122,44 +120,40 @@
         "operate",
         "admin"
       ],
-      "destructive": true,
-      "example": "agent-bus call '#systemd@parf.us' 'reload ab-systemd-probe.service'"
+      "destructive": true
     },
     "stop": {
-      "help": "Stop a unit within this instance’s scope",
+      "help": "Stop a unit allowed by this instance's configured scope.",
       "args": [
         {
           "name": "unit"
         }
       ],
       "role": "admin",
-      "destructive": true,
-      "example": "agent-bus call '#systemd@parf.us' 'stop ab-systemd-probe.service'"
+      "destructive": true
     },
     "enable": {
-      "help": "Enable a unit within this instance’s scope",
+      "help": "Enable a unit allowed by this instance's configured scope.",
       "args": [
         {
           "name": "unit"
         }
       ],
       "role": "admin",
-      "destructive": true,
-      "example": "agent-bus call '#systemd@parf.us' 'enable ab-systemd-probe.service'"
+      "destructive": true
     },
     "disable": {
-      "help": "Disable a unit within this instance’s scope",
+      "help": "Disable a unit allowed by this instance's configured scope.",
       "args": [
         {
           "name": "unit"
         }
       ],
       "role": "admin",
-      "destructive": true,
-      "example": "agent-bus call '#systemd@parf.us' 'disable ab-systemd-probe.service'"
+      "destructive": true
     },
     "help": {
-      "help": "Describe this agent and the help-config and help-secret asks",
+      "help": "Find available calls. Use help-config for configuration and help-secret for environment key names.",
       "args": []
     }
   },

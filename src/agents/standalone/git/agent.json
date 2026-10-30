@@ -1,5 +1,5 @@
 {
-  "description": "Inspect, synchronize and deploy repositories within configured access levels",
+  "description": "Understand a shared checkout before updating or deploying it. Inspect changes and history, then synchronize or publish within configured access. Start with list and status; changes use this server's Git identity and each repository's access limit.",
   "tags": [],
   "roles": [
     "deploy",
@@ -11,12 +11,12 @@
   "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/git.md",
   "methods": {
     "list": {
-      "help": "List configured repository names",
+      "help": "Find the repository names this instance is configured to use.",
       "args": [],
-      "example": "agent-bus call '#git@parf.us' list"
+      "example": "agent-bus call '#git@parf.us' 'list'"
     },
     "autopull": {
-      "help": "Show the last result; now runs one update in the configured mode (deploy role required)",
+      "help": "Review the last automatic update result. Add now to request one update in the configured mode; running it requires the deploy role.",
       "args": [
         {
           "name": "repo"
@@ -31,7 +31,7 @@
       "example": "agent-bus call '#git@parf.us' 'autopull ab'"
     },
     "status": {
-      "help": "Show branch, changed paths and untracked files",
+      "help": "See the current branch, changed paths and untracked files in a repository.",
       "args": [
         {
           "name": "repo"
@@ -40,7 +40,7 @@
       "example": "agent-bus call '#git@parf.us' 'status ab'"
     },
     "log": {
-      "help": "Show recent commits",
+      "help": "Review recent commits in a repository.",
       "args": [
         {
           "name": "repo"
@@ -55,7 +55,7 @@
       "example": "agent-bus call '#git@parf.us' 'log ab 5'"
     },
     "rev": {
-      "help": "Show HEAD and branch, or detached state",
+      "help": "Identify the checked-out commit and branch. A checkout without a branch is reported as detached.",
       "args": [
         {
           "name": "repo"
@@ -64,16 +64,15 @@
       "example": "agent-bus call '#git@parf.us' 'rev ab'"
     },
     "fetch": {
-      "help": "Fetch upstream; show ahead and behind counts",
+      "help": "Refresh upstream history and see how many commits are ahead or behind.",
       "args": [
         {
           "name": "repo"
         }
-      ],
-      "example": "agent-bus call '#git@parf.us' 'fetch ab'"
+      ]
     },
     "diff": {
-      "help": "Show local change statistics and untracked paths",
+      "help": "Review local change sizes and untracked paths before updating or committing.",
       "args": [
         {
           "name": "repo"
@@ -82,7 +81,7 @@
       "example": "agent-bus call '#git@parf.us' 'diff ab'"
     },
     "pull": {
-      "help": "Fast-forward only; with rev, detached checkout; with rev and file, restore that file",
+      "help": "Update a checkout by fast-forward only. A revision selects a detached checkout; a revision and file restore only that file.",
       "args": [
         {
           "name": "repo"
@@ -104,11 +103,10 @@
         "deploy",
         "commit"
       ],
-      "destructive": true,
-      "example": "agent-bus call '#git@parf.us' 'pull ab'"
+      "destructive": true
     },
     "deploy": {
-      "help": "Fetch and deploy the configured/current or named branch, optionally one reachable revision; answer the result record",
+      "help": "Deploy a repository and review the result record. Fetch first, then use the current or configured branch, or a named branch with an optional reachable revision.",
       "args": [
         {
           "name": "repo"
@@ -133,11 +131,10 @@
         "deploy",
         "commit"
       ],
-      "destructive": true,
-      "example": "agent-bus call '#git@parf.us' 'deploy ab'"
+      "destructive": true
     },
     "reset": {
-      "help": "Hard reset to the configured branch\u2019s upstream; discards changes",
+      "help": "Discard local changes and reset to the configured branch's upstream.",
       "args": [
         {
           "name": "repo"
@@ -147,11 +144,10 @@
         "deploy",
         "commit"
       ],
-      "destructive": true,
-      "example": "agent-bus call '#git@parf.us' 'reset ab'"
+      "destructive": true
     },
     "clean": {
-      "help": "Remove untracked files and directories",
+      "help": "Delete untracked files and directories from the checkout.",
       "args": [
         {
           "name": "repo"
@@ -161,11 +157,10 @@
         "deploy",
         "commit"
       ],
-      "destructive": true,
-      "example": "agent-bus call '#git@parf.us' 'clean ab'"
+      "destructive": true
     },
     "add": {
-      "help": "Stage literal relative paths",
+      "help": "Stage selected paths for a commit. Paths are literal and relative to the repository.",
       "args": [
         {
           "name": "repo"
@@ -177,11 +172,10 @@
           "rest": true
         }
       ],
-      "role": "commit",
-      "example": "agent-bus call '#git@parf.us' 'add ab README.md'"
+      "role": "commit"
     },
     "commit": {
-      "help": "Commit staged changes as this server\u2019s git identity",
+      "help": "Save staged changes as a commit using this server's Git identity.",
       "args": [
         {
           "name": "repo"
@@ -192,22 +186,20 @@
           "help": "Commit message; quote it in text calls"
         }
       ],
-      "role": "commit",
-      "example": "agent-bus call '#git@parf.us' 'commit ab \"Update README\"'"
+      "role": "commit"
     },
     "push": {
-      "help": "Push using this server\u2019s identity and SSH key",
+      "help": "Publish commits using this server's identity and SSH key.",
       "args": [
         {
           "name": "repo"
         }
       ],
       "role": "commit",
-      "destructive": true,
-      "example": "agent-bus call '#git@parf.us' 'push ab'"
+      "destructive": true
     },
     "help": {
-      "help": "Describe this agent and the help-config and help-secret asks",
+      "help": "Find available calls. Use help-config for configuration and help-secret for environment key names.",
       "args": []
     }
   },
@@ -225,7 +217,7 @@
     },
     "ssh_key": {
       "type": "string",
-      "help": "Absolute private-key file path, never key bytes; absent uses the service account\u2019s keys",
+      "help": "Absolute private-key file path, never key bytes; absent uses the service account’s keys",
       "example": "/home/deploy/.ssh/id_ed25519"
     },
     "autopull-cmd": {

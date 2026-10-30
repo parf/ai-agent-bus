@@ -1,0 +1,206 @@
+{
+  "text": "Find service failures and control the services this instance permits. Inspect status and logs, then start, stop or reload a selected unit. Start with failed or status; changes stay within the configured scope and require the appropriate role.\nlist [type]: Find loaded units, including inactive ones. Optionally select a unit type.\n  type (service|timer|socket|mount|path|target|slice|scope|automount|swap|device): Optional unit type\ntimers: Check timers' last and next scheduled runs.\nfailed: Find failed units.\nstatus <unit>: Inspect the status of one unit.\nlogs [unit] [lines] [since <age>]: Read recent journal output, capped at 256 KiB. Without a unit, the call still respects this instance's configured unit scope.; role: operate|admin\n  lines (int): 1..1000; default 100\n  since (string): Positive age, 1..99999 followed by m, h or d; text uses since <age>\n[destructive] start <unit>: Start a unit allowed by this instance's configured scope.; role: operate|admin\n[destructive] restart <unit>: Stop and start a unit allowed by this instance's configured scope.; role: operate|admin\n[destructive] reload <unit>: Ask a unit within this instance's configured scope to reload.; role: operate|admin\n[destructive] stop <unit>: Stop a unit allowed by this instance's configured scope.; role: admin\n[destructive] enable <unit>: Enable a unit allowed by this instance's configured scope.; role: admin\n[destructive] disable <unit>: Disable a unit allowed by this instance's configured scope.; role: admin\n\nArguments\nunit (string): Exact fully qualified Linux unit name, for example nginx.service\n\nExamples\nagent-bus call '#systemd@parf.us' 'list service'\nagent-bus call '#systemd@parf.us' 'timers'\nagent-bus call '#systemd@parf.us' 'failed'\nagent-bus call '#systemd@parf.us' 'status agent-bus-web.service'\nagent-bus call '#systemd@parf.us' 'logs agent-bus-web.service 5 since 1h'\n\nv<version> · PolyForm-NC · parf.dev/agent-bus/\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/systemd.md\nMore: agent-bus help <name> config | secret | json",
+  "json": {
+    "description": "Find service failures and control the services this instance permits. Inspect status and logs, then start, stop or reload a selected unit. Start with failed or status; changes stay within the configured scope and require the appropriate role.",
+    "license": "PolyForm-Noncommercial-1.0.0",
+    "author": "Serg Parf",
+    "homepage": "https://parf.dev/agent-bus/",
+    "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/systemd.md",
+    "version": "<version>",
+    "methods": {
+      "list": {
+        "type": "string",
+        "help": "Find loaded units, including inactive ones. Optionally select a unit type.",
+        "args": [
+          {
+            "type": [
+              "service",
+              "timer",
+              "socket",
+              "mount",
+              "path",
+              "target",
+              "slice",
+              "scope",
+              "automount",
+              "swap",
+              "device"
+            ],
+            "name": "type",
+            "help": "Optional unit type",
+            "optional": true
+          }
+        ],
+        "example": "agent-bus call '#systemd@parf.us' 'list service'"
+      },
+      "timers": {
+        "type": "string",
+        "help": "Check timers' last and next scheduled runs.",
+        "args": [],
+        "example": "agent-bus call '#systemd@parf.us' 'timers'"
+      },
+      "failed": {
+        "type": "string",
+        "help": "Find failed units.",
+        "args": [],
+        "example": "agent-bus call '#systemd@parf.us' 'failed'"
+      },
+      "status": {
+        "type": "string",
+        "help": "Inspect the status of one unit.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Exact fully qualified Linux unit name, for example nginx.service",
+            "name": "unit"
+          }
+        ],
+        "example": "agent-bus call '#systemd@parf.us' 'status agent-bus-web.service'"
+      },
+      "logs": {
+        "type": "string",
+        "help": "Read recent journal output, capped at 256 KiB. Without a unit, the call still respects this instance's configured unit scope.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Exact fully qualified Linux unit name, for example nginx.service",
+            "name": "unit",
+            "optional": true
+          },
+          {
+            "type": "int",
+            "name": "lines",
+            "help": "1..1000; default 100",
+            "optional": true
+          },
+          {
+            "type": "string",
+            "name": "since",
+            "help": "Positive age, 1..99999 followed by m, h or d; text uses since <age>",
+            "optional": true
+          }
+        ],
+        "role": [
+          "operate",
+          "admin"
+        ],
+        "text": "logs [unit] [lines] [since <age>]",
+        "example": "agent-bus call '#systemd@parf.us' 'logs agent-bus-web.service 5 since 1h'"
+      },
+      "start": {
+        "type": "string",
+        "help": "Start a unit allowed by this instance's configured scope.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Exact fully qualified Linux unit name, for example nginx.service",
+            "name": "unit"
+          }
+        ],
+        "role": [
+          "operate",
+          "admin"
+        ],
+        "destructive": true
+      },
+      "restart": {
+        "type": "string",
+        "help": "Stop and start a unit allowed by this instance's configured scope.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Exact fully qualified Linux unit name, for example nginx.service",
+            "name": "unit"
+          }
+        ],
+        "role": [
+          "operate",
+          "admin"
+        ],
+        "destructive": true
+      },
+      "reload": {
+        "type": "string",
+        "help": "Ask a unit within this instance's configured scope to reload.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Exact fully qualified Linux unit name, for example nginx.service",
+            "name": "unit"
+          }
+        ],
+        "role": [
+          "operate",
+          "admin"
+        ],
+        "destructive": true
+      },
+      "stop": {
+        "type": "string",
+        "help": "Stop a unit allowed by this instance's configured scope.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Exact fully qualified Linux unit name, for example nginx.service",
+            "name": "unit"
+          }
+        ],
+        "role": "admin",
+        "destructive": true
+      },
+      "enable": {
+        "type": "string",
+        "help": "Enable a unit allowed by this instance's configured scope.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Exact fully qualified Linux unit name, for example nginx.service",
+            "name": "unit"
+          }
+        ],
+        "role": "admin",
+        "destructive": true
+      },
+      "disable": {
+        "type": "string",
+        "help": "Disable a unit allowed by this instance's configured scope.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Exact fully qualified Linux unit name, for example nginx.service",
+            "name": "unit"
+          }
+        ],
+        "role": "admin",
+        "destructive": true
+      },
+      "help": {
+        "type": "string",
+        "help": "Find available calls. Use help-config for configuration and help-secret for environment key names.",
+        "args": []
+      }
+    },
+    "asks": [
+      "help",
+      "help-config",
+      "help-secret",
+      "help-json"
+    ],
+    "config": {
+      "units": {
+        "type": "string",
+        "help": "Comma-separated exact unit names; omitted allows every host unit",
+        "example": "nginx.service,backup.timer"
+      }
+    },
+    "secrets": [],
+    "body_formats": [
+      "text",
+      "json"
+    ],
+    "hidden_methods": {
+      "count": 0,
+      "roles": []
+    }
+  }
+}

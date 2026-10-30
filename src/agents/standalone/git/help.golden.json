@@ -1,0 +1,292 @@
+{
+  "text": "Understand a shared checkout before updating or deploying it. Inspect changes and history, then synchronize or publish within configured access. Start with list and status; changes use this server's Git identity and each repository's access limit.\nlist: Find the repository names this instance is configured to use.\nautopull <repo> [now]: Review the last automatic update result. Add now to request one update in the configured mode; running it requires the deploy role.\n  now (bool): true to run one update; text form: autopull <repo> now\nstatus <repo>: See the current branch, changed paths and untracked files in a repository.\nlog <repo> [lines]: Review recent commits in a repository.\n  lines (int): 1..1000; default 20\nrev <repo>: Identify the checked-out commit and branch. A checkout without a branch is reported as detached.\nfetch <repo>: Refresh upstream history and see how many commits are ahead or behind.\ndiff <repo>: Review local change sizes and untracked paths before updating or committing.\n[destructive] pull <repo> [rev] [file]: Update a checkout by fast-forward only. A revision selects a detached checkout; a revision and file restore only that file.; role: deploy|commit\n  rev (string): Revision to check out\n  file (string): Literal relative file path at that revision\n[destructive] deploy <repo> [branch] [rev] [id]: Deploy a repository and review the result record. Fetch first, then use the current or configured branch, or a named branch with an optional reachable revision.; role: deploy|commit\n  branch (string): Branch; a configured pin cannot be overridden\n  rev (string): 7..40 lower-case hex, reachable from the origin branch\n  id (string): Optional correlation id, 1..64 letters, digits, dot, underscore or hyphen (JSON form)\n[destructive] reset <repo>: Discard local changes and reset to the configured branch's upstream.; role: deploy|commit\n[destructive] clean <repo>: Delete untracked files and directories from the checkout.; role: deploy|commit\nadd <repo> <paths...>: Stage selected paths for a commit. Paths are literal and relative to the repository.; role: commit\n  paths (list): Paths to stage; JSON array, text has one or more words\ncommit <repo> <message>: Save staged changes as a commit using this server's Git identity.; role: commit\n  message (string): Commit message; quote it in text calls\n[destructive] push <repo>: Publish commits using this server's identity and SSH key.; role: commit\n\nArguments\nrepo (string): Repository name declared in Configuration.repos\n\nExamples\nagent-bus call '#git@parf.us' 'list'\nagent-bus call '#git@parf.us' 'autopull ab'\nagent-bus call '#git@parf.us' 'status ab'\nagent-bus call '#git@parf.us' 'log ab 5'\nagent-bus call '#git@parf.us' 'rev ab'\nagent-bus call '#git@parf.us' 'diff ab'\n\nv<version> · PolyForm-NC · parf.dev/agent-bus/\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/git.md\nMore: agent-bus help <name> config | secret | json",
+  "json": {
+    "description": "Understand a shared checkout before updating or deploying it. Inspect changes and history, then synchronize or publish within configured access. Start with list and status; changes use this server's Git identity and each repository's access limit.",
+    "license": "PolyForm-Noncommercial-1.0.0",
+    "author": "Serg Parf",
+    "homepage": "https://parf.dev/agent-bus/",
+    "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/git.md",
+    "version": "<version>",
+    "methods": {
+      "list": {
+        "type": "string",
+        "help": "Find the repository names this instance is configured to use.",
+        "args": [],
+        "example": "agent-bus call '#git@parf.us' 'list'"
+      },
+      "autopull": {
+        "type": "string",
+        "help": "Review the last automatic update result. Add now to request one update in the configured mode; running it requires the deploy role.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Repository name declared in Configuration.repos",
+            "name": "repo"
+          },
+          {
+            "type": "bool",
+            "name": "now",
+            "optional": true,
+            "help": "true to run one update; text form: autopull <repo> now"
+          }
+        ],
+        "example": "agent-bus call '#git@parf.us' 'autopull ab'"
+      },
+      "status": {
+        "type": "string",
+        "help": "See the current branch, changed paths and untracked files in a repository.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Repository name declared in Configuration.repos",
+            "name": "repo"
+          }
+        ],
+        "example": "agent-bus call '#git@parf.us' 'status ab'"
+      },
+      "log": {
+        "type": "string",
+        "help": "Review recent commits in a repository.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Repository name declared in Configuration.repos",
+            "name": "repo"
+          },
+          {
+            "type": "int",
+            "name": "lines",
+            "help": "1..1000; default 20",
+            "optional": true
+          }
+        ],
+        "example": "agent-bus call '#git@parf.us' 'log ab 5'"
+      },
+      "rev": {
+        "type": "string",
+        "help": "Identify the checked-out commit and branch. A checkout without a branch is reported as detached.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Repository name declared in Configuration.repos",
+            "name": "repo"
+          }
+        ],
+        "example": "agent-bus call '#git@parf.us' 'rev ab'"
+      },
+      "fetch": {
+        "type": "string",
+        "help": "Refresh upstream history and see how many commits are ahead or behind.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Repository name declared in Configuration.repos",
+            "name": "repo"
+          }
+        ]
+      },
+      "diff": {
+        "type": "string",
+        "help": "Review local change sizes and untracked paths before updating or committing.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Repository name declared in Configuration.repos",
+            "name": "repo"
+          }
+        ],
+        "example": "agent-bus call '#git@parf.us' 'diff ab'"
+      },
+      "pull": {
+        "type": "string",
+        "help": "Update a checkout by fast-forward only. A revision selects a detached checkout; a revision and file restore only that file.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Repository name declared in Configuration.repos",
+            "name": "repo"
+          },
+          {
+            "type": "string",
+            "name": "rev",
+            "help": "Revision to check out",
+            "optional": true
+          },
+          {
+            "type": "string",
+            "name": "file",
+            "help": "Literal relative file path at that revision",
+            "optional": true
+          }
+        ],
+        "role": [
+          "deploy",
+          "commit"
+        ],
+        "destructive": true
+      },
+      "deploy": {
+        "type": "string",
+        "help": "Deploy a repository and review the result record. Fetch first, then use the current or configured branch, or a named branch with an optional reachable revision.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Repository name declared in Configuration.repos",
+            "name": "repo"
+          },
+          {
+            "type": "string",
+            "name": "branch",
+            "optional": true,
+            "help": "Branch; a configured pin cannot be overridden"
+          },
+          {
+            "type": "string",
+            "name": "rev",
+            "optional": true,
+            "help": "7..40 lower-case hex, reachable from the origin branch"
+          },
+          {
+            "type": "string",
+            "name": "id",
+            "optional": true,
+            "help": "Optional correlation id, 1..64 letters, digits, dot, underscore or hyphen (JSON form)"
+          }
+        ],
+        "role": [
+          "deploy",
+          "commit"
+        ],
+        "destructive": true
+      },
+      "reset": {
+        "type": "string",
+        "help": "Discard local changes and reset to the configured branch's upstream.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Repository name declared in Configuration.repos",
+            "name": "repo"
+          }
+        ],
+        "role": [
+          "deploy",
+          "commit"
+        ],
+        "destructive": true
+      },
+      "clean": {
+        "type": "string",
+        "help": "Delete untracked files and directories from the checkout.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Repository name declared in Configuration.repos",
+            "name": "repo"
+          }
+        ],
+        "role": [
+          "deploy",
+          "commit"
+        ],
+        "destructive": true
+      },
+      "add": {
+        "type": "string",
+        "help": "Stage selected paths for a commit. Paths are literal and relative to the repository.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Repository name declared in Configuration.repos",
+            "name": "repo"
+          },
+          {
+            "type": "list",
+            "name": "paths",
+            "help": "Paths to stage; JSON array, text has one or more words",
+            "rest": true
+          }
+        ],
+        "role": "commit"
+      },
+      "commit": {
+        "type": "string",
+        "help": "Save staged changes as a commit using this server's Git identity.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Repository name declared in Configuration.repos",
+            "name": "repo"
+          },
+          {
+            "type": "string",
+            "name": "message",
+            "help": "Commit message; quote it in text calls"
+          }
+        ],
+        "role": "commit"
+      },
+      "push": {
+        "type": "string",
+        "help": "Publish commits using this server's identity and SSH key.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Repository name declared in Configuration.repos",
+            "name": "repo"
+          }
+        ],
+        "role": "commit",
+        "destructive": true
+      },
+      "help": {
+        "type": "string",
+        "help": "Find available calls. Use help-config for configuration and help-secret for environment key names.",
+        "args": []
+      }
+    },
+    "asks": [
+      "help",
+      "help-config",
+      "help-secret",
+      "help-json"
+    ],
+    "config": {
+      "repos": {
+        "type": "json",
+        "help": "Local name to path, access, optional branch, mode (ff default or mirror) and follow (false default); mirror/follow need deploy or commit access; optional autopull-success-script/autopull-fail-script choose bare names installed by the host admin under the git state directory autopull.d, never paths",
+        "example": {
+          "ab": {
+            "path": "/usr/local/src/ai-agent-bus",
+            "access": "read",
+            "branch": "main"
+          }
+        }
+      },
+      "ssh_key": {
+        "type": "string",
+        "help": "Absolute private-key file path, never key bytes; absent uses the service account’s keys",
+        "example": "/home/deploy/.ssh/id_ed25519"
+      },
+      "autopull-cmd": {
+        "type": "string",
+        "help": "Optional command pubsub channel; required for follow",
+        "example": "autopull-cmd"
+      },
+      "autopull-log": {
+        "type": "string",
+        "help": "Optional result pubsub channel; absent means no publication",
+        "example": "autopull-log"
+      }
+    },
+    "secrets": [],
+    "body_formats": [
+      "text",
+      "json"
+    ],
+    "hidden_methods": {
+      "count": 0,
+      "roles": []
+    }
+  }
+}

@@ -1,0 +1,209 @@
+{
+  "text": "Find useful events without reading every host log. Review retained lines, search them or forward new matches. Start with sources and tail; marks and retained history are lost on restart.\ntail [n]: Review the latest retained lines, oldest first. No search filter is applied.\n  n (int): 1..100000; default 20\ngrep <query> [n]: Find matching lines in retained history. Searching happens only when requested.\n  query (string): Plain case-insensitive text or /regex/imsu\n  n (int): Maximum lines; default 20\nsince <age> [n]: Review lines received during a recent interval. Age is based on receipt time, not dates inside the log text.\n  age (string): Positive duration such as 30s, 5m, 1h or 1d\n  n (int): Maximum lines; default 20\nmark [label]: Save the current place in history for a later after call. Marks and history do not survive restart.; returns: Mark label\n  label (string): Unique name; generated when omitted\nafter <label>: Review retained lines strictly after a saved mark. A mark that has expired is refused.\n  label (string): Mark label\nsources: Find watched files and journal units, exclusions, counts, last lines and errors.\nstats: Check how much history is retained and how many lines were seen or dropped. The reply also includes uptime and version.\nsub add <target> [filter]: Forward new matching lines to a destination. Repeated lines are folded together for five minutes.; returns: Subscription ID\n  target (string): Bus destination; you must manage it, or be this agent’s direct Owner/Maintainer\n  filter (string): Plain text or /regex/imsu; omitted matches all\nsub list: Review subscriptions, delivery counts and errors.\n[destructive] sub delete <id>: Stop forwarding a subscription's matching lines.\n  id (string): Subscription ID\n\nExamples\nagent-bus call '#logwatch@parf.us' 'tail 5'\nagent-bus call '#logwatch@parf.us' 'grep error 5'\nagent-bus call '#logwatch@parf.us' 'since 5m 5'\nagent-bus call '#logwatch@parf.us' 'sources'\nagent-bus call '#logwatch@parf.us' 'stats'\nagent-bus call '#logwatch@parf.us' 'sub list'\n\nv<version> · PolyForm-NC · parf.dev/agent-bus/\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/logwatch.md\nMore: agent-bus help <name> config | secret | json",
+  "json": {
+    "description": "Find useful events without reading every host log. Review retained lines, search them or forward new matches. Start with sources and tail; marks and retained history are lost on restart.",
+    "license": "PolyForm-Noncommercial-1.0.0",
+    "author": "Serg Parf",
+    "homepage": "https://parf.dev/agent-bus/",
+    "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/logwatch.md",
+    "version": "<version>",
+    "methods": {
+      "tail": {
+        "type": "string",
+        "help": "Review the latest retained lines, oldest first. No search filter is applied.",
+        "args": [
+          {
+            "type": "int",
+            "name": "n",
+            "help": "1..100000; default 20",
+            "optional": true
+          }
+        ],
+        "example": "agent-bus call '#logwatch@parf.us' 'tail 5'"
+      },
+      "grep": {
+        "type": "string",
+        "help": "Find matching lines in retained history. Searching happens only when requested.",
+        "args": [
+          {
+            "type": "string",
+            "name": "query",
+            "help": "Plain case-insensitive text or /regex/imsu"
+          },
+          {
+            "type": "int",
+            "name": "n",
+            "help": "Maximum lines; default 20",
+            "optional": true
+          }
+        ],
+        "example": "agent-bus call '#logwatch@parf.us' 'grep error 5'"
+      },
+      "since": {
+        "type": "string",
+        "help": "Review lines received during a recent interval. Age is based on receipt time, not dates inside the log text.",
+        "args": [
+          {
+            "type": "string",
+            "name": "age",
+            "help": "Positive duration such as 30s, 5m, 1h or 1d"
+          },
+          {
+            "type": "int",
+            "name": "n",
+            "help": "Maximum lines; default 20",
+            "optional": true
+          }
+        ],
+        "example": "agent-bus call '#logwatch@parf.us' 'since 5m 5'"
+      },
+      "mark": {
+        "type": "string",
+        "help": "Save the current place in history for a later after call. Marks and history do not survive restart.",
+        "args": [
+          {
+            "type": "string",
+            "name": "label",
+            "help": "Unique name; generated when omitted",
+            "optional": true
+          }
+        ],
+        "returns": "Mark label"
+      },
+      "after": {
+        "type": "string",
+        "help": "Review retained lines strictly after a saved mark. A mark that has expired is refused.",
+        "args": [
+          {
+            "type": "string",
+            "name": "label",
+            "help": "Mark label"
+          }
+        ]
+      },
+      "sources": {
+        "type": "string",
+        "help": "Find watched files and journal units, exclusions, counts, last lines and errors.",
+        "args": [],
+        "example": "agent-bus call '#logwatch@parf.us' 'sources'"
+      },
+      "stats": {
+        "type": "string",
+        "help": "Check how much history is retained and how many lines were seen or dropped. The reply also includes uptime and version.",
+        "args": [],
+        "example": "agent-bus call '#logwatch@parf.us' 'stats'"
+      },
+      "sub.add": {
+        "type": "string",
+        "help": "Forward new matching lines to a destination. Repeated lines are folded together for five minutes.",
+        "args": [
+          {
+            "type": "string",
+            "name": "target",
+            "help": "Bus destination; you must manage it, or be this agent’s direct Owner/Maintainer"
+          },
+          {
+            "type": "string",
+            "name": "filter",
+            "help": "Plain text or /regex/imsu; omitted matches all",
+            "optional": true,
+            "rest": true
+          }
+        ],
+        "returns": "Subscription ID",
+        "text": "sub add <target> [filter]"
+      },
+      "sub.list": {
+        "type": "string",
+        "help": "Review subscriptions, delivery counts and errors.",
+        "args": [],
+        "text": "sub list",
+        "example": "agent-bus call '#logwatch@parf.us' 'sub list'"
+      },
+      "sub.delete": {
+        "type": "string",
+        "help": "Stop forwarding a subscription's matching lines.",
+        "args": [
+          {
+            "type": "string",
+            "name": "id",
+            "help": "Subscription ID"
+          }
+        ],
+        "destructive": true,
+        "text": "sub delete <id>"
+      },
+      "help": {
+        "type": "string",
+        "help": "Find available calls. Use help-config for configuration and help-secret for environment key names.",
+        "args": []
+      }
+    },
+    "asks": [
+      "help",
+      "help-config",
+      "help-secret",
+      "help-json"
+    ],
+    "config": {
+      "sources": {
+        "type": "list",
+        "help": "Absolute file patterns and/or syslog; new files start at EOF",
+        "default": [
+          "/rd/var/log/**/*.log",
+          "syslog",
+          "/var/log/nginx/*error*log"
+        ]
+      },
+      "excludes": {
+        "type": "list",
+        "help": "Absolute excluded file patterns; see guide for tail-all defaults",
+        "example": [
+          "/var/log/nginx/paperhouses-error.log"
+        ]
+      },
+      "ring_size": {
+        "type": "int",
+        "help": "Retained line capacity, 1..100000",
+        "default": 2000
+      },
+      "rescan_interval": {
+        "type": "json",
+        "help": "Seconds between source rescans, a number from 0.05 to 86400",
+        "default": 600
+      },
+      "journal": {
+        "type": "json",
+        "help": "List of exact unit names, or all; account must have journal read access",
+        "default": [],
+        "example": [
+          "agent-bus-web.service"
+        ]
+      },
+      "line_bytes": {
+        "type": "int",
+        "help": "Maximum UTF-8 bytes per line including truncation marker, 128..1048576",
+        "default": 16384
+      },
+      "ring_bytes": {
+        "type": "int",
+        "help": "Maximum retained UTF-8 source/text bytes, oldest evicted first, 128..67108864",
+        "default": 8388608
+      },
+      "startup_bytes": {
+        "type": "int",
+        "help": "Maximum bytes read from each file at startup, 128..1048576",
+        "default": 65536
+      }
+    },
+    "secrets": [],
+    "body_formats": [
+      "text",
+      "json"
+    ],
+    "hidden_methods": {
+      "count": 0,
+      "roles": []
+    }
+  }
+}

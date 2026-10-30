@@ -1,112 +1,108 @@
 {
-  "description": "Read host facts: network, memory, disks, load and TLS certificates",
+  "description": "Find host resource and service problems before choosing a fix. Read system, network, storage and certificate facts without changing the host. Start with load or disks; available sections depend on the Linux account running this agent.",
   "license": "PolyForm-Noncommercial-1.0.0",
   "author": "Serg Parf",
   "homepage": "https://parf.dev/agent-bus/",
   "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/server-info.md",
   "methods": {
     "all": {
-      "help": "Return every section available to this Linux account; health and sensors require root",
-      "args": [],
-      "example": "agent-bus call '#server-info@parf.us' all"
+      "help": "Review every section available to the agent's Linux account. Disk health and hardware sensor sections require root.",
+      "args": []
     },
     "system": {
-      "help": "kernel and host identity",
+      "help": "Identify the host and its running kernel.",
       "args": [],
-      "example": "agent-bus call '#server-info@parf.us' system"
+      "example": "agent-bus call '#server-info@parf.us' 'system'"
     },
     "network": {
-      "help": "interfaces and routes",
-      "args": [],
-      "example": "agent-bus call '#server-info@parf.us' network"
+      "help": "Inspect network interfaces and routes.",
+      "args": []
     },
     "memory": {
-      "help": "memory and swap usage",
+      "help": "Check memory and swap usage.",
       "args": [],
-      "example": "agent-bus call '#server-info@parf.us' memory"
+      "example": "agent-bus call '#server-info@parf.us' 'memory'"
     },
     "disks": {
-      "help": "disks and free filesystem space",
+      "help": "Inspect disks and check free filesystem space.",
       "args": [],
-      "example": "agent-bus call '#server-info@parf.us' disks"
+      "example": "agent-bus call '#server-info@parf.us' 'disks'"
     },
     "load": {
-      "help": "load and process counts",
+      "help": "Check system load and process counts.",
       "args": [],
-      "example": "agent-bus call '#server-info@parf.us' load"
+      "example": "agent-bus call '#server-info@parf.us' 'load'"
     },
     "tls": {
-      "help": "public certificate pin, names, expiry and days left; compare the token helper pin",
+      "help": "Check the public TLS certificate's fingerprint, names and expiry, including days left. Compare its fingerprint with the token helper's pin.",
       "args": [],
-      "example": "agent-bus call '#server-info@parf.us' '{\"method\":\"tls\"}'"
+      "example": "agent-bus call '#server-info@parf.us' 'tls'"
     },
     "uptime": {
-      "help": "uptime and load averages",
+      "help": "Check how long the host has run and its load averages.",
       "args": [],
-      "example": "agent-bus call '#server-info@parf.us' uptime"
+      "example": "agent-bus call '#server-info@parf.us' 'uptime'"
     },
     "os": {
-      "help": "distribution identity",
+      "help": "Identify the operating system distribution.",
       "args": [],
-      "example": "agent-bus call '#server-info@parf.us' os"
+      "example": "agent-bus call '#server-info@parf.us' 'os'"
     },
     "cpu": {
-      "help": "CPU architecture and topology",
+      "help": "Inspect processor architecture and topology.",
       "args": [],
-      "example": "agent-bus call '#server-info@parf.us' cpu"
+      "example": "agent-bus call '#server-info@parf.us' 'cpu'"
     },
     "inodes": {
-      "help": "inode usage",
+      "help": "Check filesystem inode usage, which can prevent new files even when bytes remain free.",
       "args": [],
-      "example": "agent-bus call '#server-info@parf.us' inodes"
+      "example": "agent-bus call '#server-info@parf.us' 'inodes'"
     },
     "pressure": {
-      "help": "CPU, memory and I/O pressure",
+      "help": "Check how much CPU, memory and input/output contention delays work.",
       "args": [],
-      "example": "agent-bus call '#server-info@parf.us' pressure"
+      "example": "agent-bus call '#server-info@parf.us' 'pressure'"
     },
     "units": {
-      "help": "failed units",
+      "help": "Find failed services and other systemd units.",
       "args": [],
-      "example": "agent-bus call '#server-info@parf.us' units"
+      "example": "agent-bus call '#server-info@parf.us' 'units'"
     },
     "time": {
-      "help": "clock and synchronization state",
+      "help": "Check the clock and whether it is synchronized.",
       "args": [],
-      "example": "agent-bus call '#server-info@parf.us' time"
+      "example": "agent-bus call '#server-info@parf.us' 'time'"
     },
     "dns": {
-      "help": "resolver configuration",
+      "help": "Inspect the host's name-resolution configuration.",
       "args": [],
-      "example": "agent-bus call '#server-info@parf.us' dns"
+      "example": "agent-bus call '#server-info@parf.us' 'dns'"
     },
     "ports": {
-      "help": "listening TCP sockets",
+      "help": "Find listening TCP sockets.",
       "args": [],
-      "example": "agent-bus call '#server-info@parf.us' ports"
+      "example": "agent-bus call '#server-info@parf.us' 'ports'"
     },
     "users": {
-      "help": "logged-in users",
+      "help": "See which users are logged in.",
       "args": [],
-      "example": "agent-bus call '#server-info@parf.us' users"
+      "example": "agent-bus call '#server-info@parf.us' 'users'"
     },
     "virt": {
-      "help": "virtualization type; none on bare metal",
+      "help": "Identify the virtualization type. A bare-metal host reports none.",
       "args": [],
-      "example": "agent-bus call '#server-info@parf.us' virt"
+      "example": "agent-bus call '#server-info@parf.us' 'virt'"
     },
     "health": {
-      "help": "disk health (root only)",
-      "args": [],
-      "example": "agent-bus call '#server-info@parf.us' health"
+      "help": "Inspect disk health. This section requires the agent to run as root.",
+      "args": []
     },
     "sensors": {
-      "help": "hardware temperatures and readings (root only)",
-      "args": [],
-      "example": "agent-bus call '#server-info@parf.us' sensors"
+      "help": "Read hardware temperatures and other sensor values. This section requires the agent to run as root.",
+      "args": []
     },
     "help": {
-      "help": "Describe this agent and the help-config and help-secret asks",
+      "help": "Find available calls. Use help-config for configuration and help-secret for environment key names.",
       "args": []
     }
   },
