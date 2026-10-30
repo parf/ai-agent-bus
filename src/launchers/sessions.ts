@@ -89,6 +89,16 @@ export class Bindings {
     if (!this.lock(`${this.runtime}:${session.id}`)) throw new Error("cannot lock new session");
     return session;
   }
+  // Sessions to resume, newest first. An explicit bus name resumes the newest
+  // session bound to it, else the newest session if nothing is bound to it,
+  // else none, so a fresh session starts instead of refusing another's.
+  candidates(sessions: Session[], explicit?: string): Session[] {
+    if (!explicit) return sessions.slice(0, 1);
+    const bound = sessions.map(s => this.saved(s));
+    const mine = sessions.findIndex((_, i) => bound[i] && (bound[i]!.name === explicit || sameBase(bound[i]!, explicit)));
+    if (mine >= 0) return [sessions[mine]!];
+    return sessions.length && !bound[0] ? [sessions[0]!] : [];
+  }
   saved(s: Session, explicit?: string): Binding | undefined {
     const file = this.file(s.id);
     let saved: Binding | undefined;

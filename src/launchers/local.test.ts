@@ -278,6 +278,34 @@ for (const reservation of ["saved", "explicit"]) test(`${reservation} reservatio
   } finally { bindings.close(); rmSync(dir, { recursive: true, force: true }); }
 });
 
+test("an explicit bus name resumes its own session, never refuses another name's newer one", () => {
+  const root = resolve(import.meta.dir, "../../tmp/identity-check");
+  mkdirSync(root, { recursive: true });
+  const dir = mkdtempSync(join(root, "run-"));
+  // Two windows of one account share a directory: the newest session is the other window's.
+  const sessions = [{ id: "other-newest" }, { id: "plain" }, { id: "mine" }, { id: "older" }];
+  const setup = new Bindings(dir, "claude");
+  setup.save("other-newest", "#ab-w1a", "#ab-w1a");
+  setup.save("mine", "#ab-qa1", "#ab-qa1");
+  setup.save("older", "#ab-qa1", "#ab-qa1");
+  setup.close();
+  const launch = (list: typeof sessions, explicit?: string) => {
+    const b = new Bindings(dir, "claude");
+    try {
+      const session = b.select(b.candidates(list, explicit));
+      return { id: session.id, saved: b.saved(session, explicit)?.name };
+    } finally { b.close(); }
+  };
+  try {
+    expect(launch(sessions, "#ab-qa1")).toEqual({ id: "mine", saved: "#ab-qa1" });
+    const fresh = launch(sessions, "#ab-new");
+    expect(sessions.map(s => s.id)).not.toContain(fresh.id);
+    expect(fresh.saved).toBeUndefined();
+    expect(launch([{ id: "plain" }, ...sessions], "#ab-new")).toEqual({ id: "plain", saved: undefined });
+    expect(launch(sessions)).toEqual({ id: "other-newest", saved: "#ab-w1a" });
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test("a binding reader spanning publication sees one complete saved identity", async () => {
   const { openSync, readSync, closeSync, readFileSync, statSync } = await import("node:fs");
   const root = resolve(import.meta.dir, "../../tmp/binding-publication");

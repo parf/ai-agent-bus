@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.170 — 2026-10-30
+
+An explicit bus name resumes its own conversation, else an unbound one, else a fresh one, so two names sharing a directory never refuse each other.
+
 ## 0.9.169 — 2026-10-29
 
 `release-sign.sh` requires the CI hash list (or a loud `--no-ci-check`), a strict version and regular archive files.

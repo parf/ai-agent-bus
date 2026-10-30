@@ -217,6 +217,7 @@ See docs/06-launchers.md#smart-launchers.`);
   // How a runtime starts the MCP face: the release binary in its mcp role, or bun on the source.
   const faceCommand = compiled ? [process.execPath, "mcp"] : [process.execPath, face];
   let session: Session, fresh = false;
+  const explicit = process.env.AGENT_BUS_NAME?.trim().toLowerCase();
   let remote: string | undefined;
   const tuiEnv: Record<string, string> = {};
   let runtimeArgs = [...args];
@@ -234,7 +235,7 @@ See docs/06-launchers.md#smart-launchers.`);
       if (!bindings.lock(`${runtime}:${newID}`)) throw new Error("session already has a launcher");
       session = { id: newID };
     } else {
-      session = bindings.select(requested ? sessions : sessions.slice(0, 1), requested);
+      session = bindings.select(requested ? sessions : bindings.candidates(sessions, explicit), requested);
       if (!has("-r", "--resume", "-c", "--continue")) runtimeArgs = [...(session.file ? ["--continue"] : ["--session-id", session.id]), ...args];
       // Resolve continue ourselves so a simultaneous launch cannot select the same session.
       else if (has("-c", "--continue")) runtimeArgs = [...(session.file ? ["--continue"] : ["--session-id", session.id]), ...args.filter(a => a !== "-c" && a !== "--continue")];
@@ -292,7 +293,7 @@ See docs/06-launchers.md#smart-launchers.`);
     const sessions: Session[] = listed.map(o => ({ id: o.id, name: o.title }));
     const requested = option(["-s", "--session"]);
     if (has("--fork")) throw new Error("a forked session cannot be bound by the launcher; start or resume one");
-    session = bindings.select(requested ? sessions : sessions.slice(0, 1), requested);
+    session = bindings.select(requested ? sessions : bindings.candidates(sessions, explicit), requested);
     fresh = !sessions.some(s => s.id === session.id);
     if (fresh) {
       // OpenCode persists a new session before the first prompt, so attach
@@ -366,11 +367,10 @@ See docs/06-launchers.md#smart-launchers.`);
     const resumeIndex = tuiArgs.indexOf("resume");
     const requested = resumeIndex >= 0 && tuiArgs[resumeIndex + 1] && !tuiArgs[resumeIndex + 1]!.startsWith("-") ? tuiArgs[resumeIndex + 1] : undefined;
     if (tuiArgs.includes("fork") || tuiArgs.includes("exec")) throw new Error("the launcher supports interactive start and resume");
-    session = bindings.select(requested ? sessions : sessions.slice(0, 1), requested);
+    session = bindings.select(requested ? sessions : bindings.candidates(sessions, explicit), requested);
     fresh = !sessions.some(s => s.id === session.id);
     runtimeArgs = tuiArgs.filter((a, i) => a !== "--last" && i !== resumeIndex && !(requested && i === resumeIndex + 1));
   }
-  const explicit = process.env.AGENT_BUS_NAME?.trim().toLowerCase();
   const previous = bindings.saved(session, explicit);
   let base = explicit || defaultName({ ...process.env, AGENT_BUS_RUNTIME: runtime, AGENT_BUS_CWD: session.name || cwd }, "/");
   const saved = explicit || (previous && sameBase(previous, base) ? previous.name : undefined);
