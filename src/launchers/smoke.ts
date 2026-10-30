@@ -252,6 +252,20 @@ try {
     check(`${runtime} preserves the record purpose on resume`, (await owner.ls()).find(r => r.name === renamed)?.descr === "Review billing");
     await pinnedErr;
 
+    // J40: --fresh starts the name's session under a new ID and says nothing of itself to the runtime.
+    if (runtime === "claude") {
+      writeFileSync(events, "");
+      const freshRun = Bun.spawn([launcher, "--fresh"], { cwd, env: { ...env, TEST_TITLE: "Pinned title", AGENT_BUS_NAME: renamed }, stdout: "pipe", stderr: "pipe" });
+      processes.push(freshRun);
+      const freshErr = new Response(freshRun.stderr).text();
+      const freshExit = await freshRun.exited;
+      const freshArgs = rowsIn(events).filter(r => r.kind === "argv").map(r => r.data);
+      check("ab-claude --fresh starts a new session ID under the same name and keeps the old transcript",
+        freshExit === 17 && freshArgs.some(a => /^[0-9a-f-]{36}$/.test(a[a.indexOf("--session-id") + 1] ?? "") && a[a.indexOf("--session-id") + 1] !== id)
+        && freshArgs.every(a => !a.includes("--resume") && !a.includes("--fresh") && !a.includes("--continue")) && existsSync(join(proj, id + ".jsonl")));
+      await freshErr;
+    }
+
     // First session: continue must not prevent startup when nothing exists.
     rmSync(join(proj, id + ".jsonl"));
     writeFileSync(events, "");

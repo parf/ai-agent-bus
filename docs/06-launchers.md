@@ -213,6 +213,21 @@ described below; age and another session never rename it.
 - A holder that is told to let go can lose one message taken at that instant: reads are at-most-once ([durability](04-messaging.md#durability)).
 - The pid in a face mark is checked against its process start time before any signal, so a recycled pid is never signalled.
 
+## Start fresh
+
+- 📌 **TL;DR:** A start resumes the session bound to its name. `--fresh` starts that name in a new session instead.
+- The name stays; the conversation is new. The old transcript stays on disk, and later starts resume the new session.
+
+| Case | What happens |
+|---|---|
+| `AGENT_BUS_NAME=<name> ab-claude --fresh` | A new session ID is bound to the name and the runtime starts it as a new conversation; the runtime never sees `--fresh` |
+| The start after it | Resumes the new session: the newest session bound to the name. If the fresh one never wrote a transcript, the old one is still the newest |
+| `--fresh` with `--resume`, `-c`, `--session-id` (Codex `resume`, OpenCode `-s`) | Refused: it starts a new session and cannot also pick one |
+| `--fresh` with no bus configured | Refused: a plain runtime start binds no name |
+| `--fresh` against a live name | The same refusal as any start; `--take-over` is what takes a live name |
+
+Resume the old conversation by its ID with `--resume <id>` (or the runtime's own selector).
+
 ## Session tags
 
 - All four launchers accept repeatable `--tag a,b` options to group session records for `agent-bus ls --tag review` and `agent-bus call --tagged review 'check progress'`.

@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.218 — 2026-10-30
+
+Launchers take --fresh to start a named session with a new session ID instead of resuming the bound one
+
 ## 0.9.217 — 2026-10-30
 
 The agent-bus CLI builds and runs natively on macOS, and release verify checks Darwin archives

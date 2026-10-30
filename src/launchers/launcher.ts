@@ -30,6 +30,9 @@ const compiled = import.meta.dir.startsWith("/$bunfs");
 // The launcher's own flag, never the runtime's: take the bus name over from a
 // live session that holds it (docs/06-launchers.md#one-live-session-per-name).
 let takeOver = false;
+// Also the launcher's own: start the named session under a new ID instead of
+// resuming the one bound to the name (docs/06-launchers.md#start-fresh).
+let startFresh = false;
 let restartDelay: number | undefined;
 let description: string | undefined;
 let tags: string[] | undefined;
@@ -155,6 +158,7 @@ AGENT_BUS_NAME sets the preferred bus identity. Automatic execution and continua
 or the set CLAUDE_CONFIG_DIR with that digit appended. Each account keeps its own login, sessions and servers.` : ""}
 --descr <purpose> sets an optional record description; defaults to runtime and cwd; resumes refresh automatic descriptions and keep custom purposes.
 --tag <a,b> (repeatable) groups sessions for ls filtering and agent-bus call --tagged; --tag '' clears custom tags. Resumes keep tags unless set.
+--fresh starts the name's session under a new ID instead of resuming; the old transcript stays on disk and later starts resume the new one. Not with a resume selector.
 --take-over takes the bus name from a live session that holds it; that session is told and stops receiving. Without it a live name is refused.
 --restart[=<timeout>] restarts a crashed TUI after 30s (default), seconds (10), or minutes (2m). Clean exit quits. Ctrl-C during the wait stops.
 Other arguments are forwarded to the runtime. Session state: XDG_STATE_HOME/agent-bus/sessions.
@@ -189,6 +193,8 @@ See docs/06-launchers.md#smart-launchers.`);
   }
   const titleArgs = runtime === "codex" && terminal.active ? ["-c", "tui.terminal_title=[]"] : [];
   const configured = !!process.env.AGENT_BUS_TOKEN || !!process.env.AGENT_BUS_ADDR;
+  if (startFresh && (!configured || has(...(runtime === "claude" ? ["-r", "--resume", "-c", "--continue", "--session-id"] : runtime === "codex" ? ["resume"] : ["-c", "--continue", "-s", "--session"]))))
+    throw new Error(configured ? "--fresh starts a new session; it cannot be combined with a resume selector" : "--fresh starts a named session, and the bus is not configured");
   if (!configured) {
     warn("bus is not configured; starting a plain runtime session");
     if (runtime === "claude") {
@@ -235,7 +241,7 @@ See docs/06-launchers.md#smart-launchers.`);
       if (!bindings.lock(`${runtime}:${newID}`)) throw new Error("session already has a launcher");
       session = { id: newID };
     } else {
-      session = bindings.select(requested ? sessions : bindings.candidates(sessions, explicit), requested);
+      session = bindings.select(requested ? sessions : bindings.candidates(sessions, explicit, startFresh), requested);
       if (!has("-r", "--resume", "-c", "--continue")) runtimeArgs = [...claudeStart(session), ...args];
       // Resolve continue ourselves so a simultaneous launch cannot select the same session.
       else if (has("-c", "--continue")) runtimeArgs = [...claudeStart(session), ...args.filter(a => a !== "-c" && a !== "--continue")];
@@ -293,7 +299,7 @@ See docs/06-launchers.md#smart-launchers.`);
     const sessions: Session[] = listed.map(o => ({ id: o.id, name: o.title }));
     const requested = option(["-s", "--session"]);
     if (has("--fork")) throw new Error("a forked session cannot be bound by the launcher; start or resume one");
-    session = bindings.select(requested ? sessions : bindings.candidates(sessions, explicit), requested);
+    session = bindings.select(requested ? sessions : bindings.candidates(sessions, explicit, startFresh), requested);
     fresh = !sessions.some(s => s.id === session.id);
     if (fresh) {
       // OpenCode persists a new session before the first prompt, so attach
@@ -367,7 +373,7 @@ See docs/06-launchers.md#smart-launchers.`);
     const resumeIndex = tuiArgs.indexOf("resume");
     const requested = resumeIndex >= 0 && tuiArgs[resumeIndex + 1] && !tuiArgs[resumeIndex + 1]!.startsWith("-") ? tuiArgs[resumeIndex + 1] : undefined;
     if (tuiArgs.includes("fork") || tuiArgs.includes("exec")) throw new Error("the launcher supports interactive start and resume");
-    session = bindings.select(requested ? sessions : bindings.candidates(sessions, explicit), requested);
+    session = bindings.select(requested ? sessions : bindings.candidates(sessions, explicit, startFresh), requested);
     fresh = !sessions.some(s => s.id === session.id);
     runtimeArgs = tuiArgs.filter((a, i) => a !== "--last" && i !== resumeIndex && !(requested && i === resumeIndex + 1));
   }
@@ -661,7 +667,7 @@ function claudeArgs(input: string[]): string[] {
 }
 
 let code = 1;
-try { const tagged = tagOption(args); args = tagged.args; tags = tagged.tags; const purpose = descriptionOption(args); args = purpose.args; description = purpose.description; const parsed = restartOption(args); args = parsed.args; restartDelay = parsed.delay; takeOver = args.includes("--take-over"); args = args.filter(a => a !== "--take-over"); code = await main(); }
+try { const tagged = tagOption(args); args = tagged.args; tags = tagged.tags; const purpose = descriptionOption(args); args = purpose.args; description = purpose.description; const parsed = restartOption(args); args = parsed.args; restartDelay = parsed.delay; takeOver = args.includes("--take-over"); args = args.filter(a => a !== "--take-over"); startFresh = args.includes("--fresh"); args = args.filter(a => a !== "--fresh"); code = await main(); }
 catch (e) { log(e instanceof Error ? e.message : String(e)); }
 finally { await cleanup(); }
 process.exit(code);

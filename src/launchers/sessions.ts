@@ -99,7 +99,10 @@ export class Bindings {
   // Sessions to resume, newest first. An explicit bus name resumes the newest
   // session bound to it, else the newest session if nothing is bound to it,
   // else none, so a fresh session starts instead of refusing another's.
-  candidates(sessions: Session[], explicit?: string): Session[] {
+  // fresh: none, so select() makes a new session; the old transcripts stay, and
+  // the new session, once it has a transcript, is the newest one bound to the name.
+  candidates(sessions: Session[], explicit?: string, fresh = false): Session[] {
+    if (fresh) return [];
     if (!explicit) return sessions.slice(0, 1);
     const bound = sessions.map(s => this.saved(s));
     const mine = sessions.findIndex((_, i) => bound[i] && (bound[i]!.name === explicit || sameBase(bound[i]!, explicit)));
