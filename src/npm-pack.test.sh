@@ -59,10 +59,11 @@ reply=$(ab "$TA" '#asker@srv1' consume --topic npm-1 --tag q --wait 5s)
 grep -q 'pong from npm' <<<"$reply" || fail "the reply did not come back: $reply"
 
 # An MCP tool call through the installed agent-bus-mcp.
-mcp=$(printf '%s\n' \
+mcp=$( { printf '%s\n' \
   '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}' \
   '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
-  '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ab_ls","arguments":{"kind":"agent"}}}' |
+  '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ab_ls","arguments":{"kind":"agent"}}}'
+  sleep 3; } |
   timeout 15 env -i PATH="$PATH" HOME="$work" AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$TA" AGENT_BUS_NAME='#asker@srv1' "$bin/agent-bus-mcp" 2>/dev/null) || true
 grep -q '"id":2' <<<"$mcp" && grep -q '#fixer@srv1' <<<"$mcp" || fail "the MCP ab_ls call did not list #fixer@srv1: $mcp"
 

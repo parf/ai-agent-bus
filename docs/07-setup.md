@@ -259,8 +259,8 @@ refuses and prints the command to run. `--dry-run` and `--print-unit` are
 read-only and need no root.
 
 **The release ships its own install script and nothing else.** The tar archive is a
-transport for that script, not a second installer. There is no `npm install`
-path or package registry; other distribution is
+transport for that script, not a second installer. There is no package registry
+yet ([npm package](#npm-package) is built, unpublished); other distribution is
 [R1 work](../Plans/R1.0-Release/distribution.md#container-runtime). `INSTALL.md` leads with the git install; its release-archive section is the
 packaged path exercised by [installation acceptance](#installation-acceptance).
 
@@ -477,6 +477,22 @@ cannot run here, so its binaries are read instead of queried.
 with a throwaway key; this node has no aarch64 cross compiler, so that run
 covers the host's CPU (`--arches`). Pending: the
 release run is not yet wired to it ([distribution](../Plans/R1.0-Release/TODO.md#objective)).
+
+## npm package
+
+`src/npm-pack.sh <client archive> [out]` wraps the Linux x86_64 client
+edition from `package.sh` as two tarballs: a platform package holding the
+archive tree unchanged, and a thin package whose bins (`agent-bus`,
+`agent-bus-runner`, `agent-bus-mcp`, the `ab-*` launchers) start the matching
+program of that bundle, passing arguments, input, exit status and signals
+through. The thin package depends on the platform package at the same exact
+version, so npm installs only the one that matches the host. It needs Node 18
+or later and never creates accounts or units: it joins an existing bus with
+`AGENT_BUS_ADDR` and a token, as the `--client` edition does. The package
+names are [Q224](../Plans/R1.0-Release/QUESTIONS.md#distribution), and
+publishing is the owner's. Pending: other platforms and the full node.
+`src/npm-pack.test.sh` installs both tarballs offline and exercises them
+against a disposable daemon.
 
 ## Local users
 
