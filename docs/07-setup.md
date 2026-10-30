@@ -1038,7 +1038,7 @@ A forced kill or power loss between the two directory moves can leave the instal
 
 The next packaging run does not sweep leftover `<name>.new.XXXXXX` or `<name>.old.XXXXXX` directories. Once the installed tree is verified and no packager is running, remove those leftovers; keep any `previous` tree needed for recovery.
 
-The separate standalone tmux-sessions packager still overlays its directory.
+The standalone tmux-sessions packager uses the same replacement helper, shipped beside it in the release, so it also removes obsolete files when repackaging on an installed host.
 
 The [build stamp](#build-information) is required for shipped Go binaries.
 A live Git checkout is never a reset/clean/push/autopull test fixture.

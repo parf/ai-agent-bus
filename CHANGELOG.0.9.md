@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.230 — 2026-10-30
+
+The shipped tmux-sessions packager replaces its agent.d tree through the shared helper, which releases now ship
+
 ## 0.9.229 — 2026-10-30
 
 Bundled agent packagers build then replace agent.d/<name> as a whole tree instead of overlaying it, and a concurrent publisher is refused
