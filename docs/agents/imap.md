@@ -271,7 +271,7 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 - The inclusive 256 KiB bound includes this provenance; larger mail is dropped and counted. No automatic attachment extraction or remote fetch occurs.
 - Forwarding progress moves past a UID before its copies are sent: a stop mid-send loses those copies and never sends them twice. A refused or unknown send is dropped and counted, never retried; the subscription stays active.
 - A refused header fetch is retried on the next two polls, then the UID is skipped. Deleting the last subscription clears blocked forwarding progress; the next add explicitly rebaselines.
-- Subscriptions stored in the older format move to the shared shape at start: their id gains a four-digit hex suffix (`0000` unless taken), they keep target, author, filter and start, and held copies are dropped and counted. A row that cannot be read is listed to the Owner and Maintainers as invalid for deletion.
+- Subscriptions stored in the older format move to the shared shape at start: their id gains the first free four-digit hex suffix (`0000` unless taken), they keep target, author, filter and start, and held copies and earlier skips count as dropped. A row that cannot be read is listed to the Owner and Maintainers as invalid for deletion.
 - Each minute processes at most 100 arrivals. Headers are fetched first; unmatched mail needs no body. Authentication and throttle failures back off 15 min, doubling to 1 h, and appear in status. The poller is one process with one cache writer.
 
 </details>

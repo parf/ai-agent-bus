@@ -63,13 +63,19 @@ UID before its copies are sent: a crash loses them, never repeats them.
 `sub edit` is refused with "delete it and add it again".
 
 Old rows move at start to a deterministic 12-hex id: the 8-hex id plus the
-first suffix `0000`, `0001`, ... that is free or already holds the same row. The
-old key is deleted only after the new row is stored, so an interrupted move is
-finished on the next start before anything is served. Held copies count as
-dropped; an unreadable row is kept under the new id as `invalid_state`.
+first free suffix `0000`, `0001`, .... A journal key names that id before the
+row is created, so an occupied key is never taken for a moved row, even an
+identical one, and the next start finishes an interrupted move into it. The old
+key goes only after the new row is stored. The old ledger is validated first;
+`dropped` is its discards plus counted skips plus held copies, as its mailbox
+reset counted them, and unmatched mail is no loss. An unreadable row is kept
+under the new id as `invalid_state`.
 
-Focused verification: 141 IMAP tests, including 20 in `test_forwarding.py` and
-the real bus fixture through the engine's own send helper, under the lock; help
+Focused verification: 147 IMAP tests, including 25 in `test_forwarding.py` and
+two on the real bus fixture through the engine's own send helper, under the
+lock. One SIGKILLs a real migrating process between the create and the old
+key's delete; after the restart one mail gives exactly one counted delivery
+and `sub list` one row; help
 golden fixture regenerated. Setup's package inventory ships the engine in
 imap's support tree instead of the three removed modules. Compiling mutants failed on named assertions, then
 were restored:
@@ -80,7 +86,10 @@ were restored:
 | One provenance for every row | `ForwardingTests.test_every_matching_subscription_gets_its_own_copy_and_the_body_is_fetched_once` |
 | Selector ignores `from_uid` | `ForwardingTests.test_a_later_subscription_starts_at_its_own_uidnext` |
 | Refused copy removes the row | `ForwardingTests.test_a_refused_copy_is_dropped_counted_and_the_subscription_stays_active` |
-| Any taken key taken as its own | `MigrationTests.test_a_taken_new_id_moves_the_row_to_the_next_free_suffix` |
+| An equal occupant taken for the moved row | `MigrationTests.test_an_identical_row_already_at_the_new_id_is_not_taken_for_the_moved_one` |
+| Journal ignored after a stop | `MigrationTests.test_a_stop_between_the_add_and_the_delete_serves_the_subscription_once`, `SubscriptionBusTests.test_a_process_killed_between_the_add_and_the_delete_leaves_one_subscription_delivered_once` |
+| Counted skips left out; unmatched mail counted | `MigrationTests.test_compacted_skips_count_as_dropped_and_unmatched_mail_does_not` |
+| Legacy skip totals not checked | `MigrationTests.test_a_ledger_whose_skip_totals_disagree_is_kept_as_invalid_state` |
 | Old key deleted before the add | `MigrationTests.test_a_stop_between_the_add_and_the_delete_serves_the_subscription_once` |
 | Legacy discovery key kept | `MigrationTests.test_a_legacy_row_keeps_target_author_filter_start_and_counts` |
 | `sub edit` accepted | `ControlTests.test_text_and_json_subscription_forms_and_verbatim_filter` |
