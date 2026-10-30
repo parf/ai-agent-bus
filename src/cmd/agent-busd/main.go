@@ -290,11 +290,30 @@ func (m *values) Set(v string) error { *m = append(*m, v); return nil }
 
 // defaultDB is where the database lives unless --db or AGENT_BUS_DB says: the
 // XDG state directory, as the CLI's own state is, so a run that sets
-// XDG_STATE_HOME for a private tree stays inside it.
+// XDG_STATE_HOME for a private tree stays inside it. A relative
+// XDG_STATE_HOME is ignored, as the XDG specification says.
 func defaultDB() string {
-	if d := os.Getenv("XDG_STATE_HOME"); d != "" {
+	if d := os.Getenv("XDG_STATE_HOME"); filepath.IsAbs(d) {
 		return filepath.Join(d, "agent-bus", "agent-bus.db")
 	}
+	return homeDB()
+}
+
+// homeDB is the default before XDG_STATE_HOME was honoured.
+func homeDB() string {
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".local", "state", "agent-bus", "agent-bus.db")
+}
+
+// openDatabase is sqlite.Open that, when the database is missing at the XDG
+// default while one sits at the old home default, names that one: a daemon
+// started with XDG_STATE_HOME set and no --db must not be left to guess.
+func openDatabase(path string, create bool) (*sqlite.Store, error) {
+	st, err := sqlite.Open(path, create)
+	if err != nil && errors.Is(err, sqlite.ErrMissing) && path == defaultDB() && path != homeDB() {
+		if _, statErr := os.Stat(homeDB()); statErr == nil {
+			err = fmt.Errorf("%w; a database exists at the previous default %s: start with --db=%s to use it", err, homeDB(), homeDB())
+		}
+	}
+	return st, err
 }

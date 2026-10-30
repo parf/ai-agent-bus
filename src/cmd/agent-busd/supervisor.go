@@ -19,7 +19,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/parf/ai-agent-bus/internal/store/sqlite"
 	"github.com/parf/ai-agent-bus/internal/tlsdir"
 )
 
@@ -174,7 +173,7 @@ func supervisorAccounts(c config) (accounts, error) {
 			return accounts{}, err
 		}
 	}
-	st, err := sqlite.Open(c.db, c.create)
+	st, err := openDatabase(c.db, c.create)
 	if err != nil {
 		return accounts{}, err
 	}

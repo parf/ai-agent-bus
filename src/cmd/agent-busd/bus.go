@@ -34,7 +34,6 @@ import (
 	"github.com/parf/ai-agent-bus/internal/proctitle"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/signature/sshkeygen"
-	"github.com/parf/ai-agent-bus/internal/store/sqlite"
 	"github.com/parf/ai-agent-bus/internal/tlsdir"
 )
 
@@ -65,7 +64,7 @@ func runBus(c config) {
 	// Every durable entity is in the database, taken exclusively: a second
 	// daemon on the same file cannot serve (docs/constitution.md#persistence-and-loading).
 	// Queues live in memory between flushes. See docs/04-messaging.md#durability.
-	st, err := sqlite.Open(c.db, c.create)
+	st, err := openDatabase(c.db, c.create)
 	if err != nil {
 		fatal("database: %v", err)
 	}
