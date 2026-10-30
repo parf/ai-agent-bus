@@ -47,6 +47,7 @@ Settled with the owner, 2026-10-29 ([RD163](DECISIONS.md#recorded-decisions)):
 | Signature | `ssh-keygen -Y sign` / `verify` with one release ed25519 key, its own namespace; one signed `SHA256SUMS` per release; the public key embedded in `install.sh`, room for the next key; no `ssh-keygen -Y` on the host means no install |
 | Key | held by the owner off this node, passphrase-protected; never in the repository or CI; the owner signs before publishing |
 | Build | GitHub Actions builds linux x86_64 and aarch64 on a version tag into a draft release, unsigned; if that does not work out, a build script on this node (owner: "попробуем") |
+| Release path | the repository has been public from the start; Actions builds on a version tag into a draft release, `#ab-ceo` pushes the tags with main, and publishing the draft waits only for the owner's signature of `SHA256SUMS`; the signing keys stay with the owner |
 | Layout | as `agent-bus-setup` today: `/usr/local/lib/agent-bus/releases/<version>/`, an atomic `current` link, links in `/usr/local/bin`, rollback by switching the link; `--client` the same under `~/.local` |
 
 Owner, 2026-10-30 ([RD170](DECISIONS.md#recorded-decisions), [RD171](DECISIONS.md#recorded-decisions)):

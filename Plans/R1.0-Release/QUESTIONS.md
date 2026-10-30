@@ -9,11 +9,7 @@ Only unresolved choices live here. Accepted answers and their threads are in
 
 Owner-only choices for the [Linux distribution](distribution.md#simple-install) ([RT14](TODO.md#objective)). None blocks the Linux work: each names what stays undone until it is answered.
 
-- ❓ Q226 Who enables Actions and publishes the release
-  - Context: the build on a version tag into a draft release is settled ([RD163](DECISIONS.md#recorded-decisions))
-  - Options: the owner makes `parf/ai-agent-bus` public, enables Actions and presses publish after signing `SHA256SUMS`; or the build runs on this node and the owner uploads the assets
-  - Impact: the published `install.sh` URL and every download exist only after the owner publishes; the team never pushes, uploads or publishes
-  - Settled by: the owner
+None open.
 
 ## Messaging agents
 
