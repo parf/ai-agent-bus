@@ -254,6 +254,7 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 | “not understood” | Use a known tag, reply in the session's thread, or set a route |
 | Missing channel messages | Invite the bot; check scopes and event subscriptions |
 | Only some events arrive | Give this agent its own app connection; another client on the same app token may receive the other events |
+| `starting: loading …` as its status | It is reading a large workspace's users and channels; wait. Messages you send meanwhile are kept and answered when it is ready |
 | `not configured` | Store both tokens in Secret, then reload the runner |
 | Repeated send or settings failures | Check the runner journal; transient failures are tried three times, then logged and skipped |
 

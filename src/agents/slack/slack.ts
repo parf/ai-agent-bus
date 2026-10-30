@@ -559,6 +559,30 @@ async function ensureIdentity(): Promise<Identity | undefined> {
 }
 
 await bus.register({ name, kind: "agent", descr: manifest.description }, { createOnly: false });
+// While it initializes the agent answers asks and only asks (RT25): an
+// asks-only read takes `status` and the help asks, and ordinary messages stay
+// queued until the serve loop below. It stops between polls, so an ask it has
+// taken is always answered, and the serve loop starts after it.
+let phase = "starting: reading its configuration";
+let initializing = true;
+const earlyAsks = (async () => {
+  while (initializing) {
+    let m: Message | null;
+    try {
+      m = await bus.consume({ asks: "only", wait: "500ms" });
+    } catch {
+      await new Promise(done => setTimeout(done, 250));
+      continue;
+    }
+    if (!m?.ask) continue;
+    const ask = m.ask;
+    try {
+      await m.reply(dispatchAsk(ask, kind => describe(name, mayChangeSubscriptions(m, name), kind), { status: () => phase }) ?? `unsupported: ${ask}`);
+    } catch {
+      /* the caller gave up */
+    }
+  }
+})();
 // Not configured at start: say why on stderr and exit 78 (EX_CONFIG), which
 // the runner reads as "unconfigured" and does not restart until a reload
 // (Plans/R1.0-Release/TODO.md M.13). A secret that changes while it runs is
@@ -570,9 +594,11 @@ await bus.register({ name, kind: "agent", descr: manifest.description }, { creat
     process.exit(78);
   }
 }
+phase = "starting: reading routing and who the agent is in Slack";
 await routing();
 await router.load();
 await ensureIdentity();
+phase = "starting: loading the workspace's users and channels";
 // The directories, loaded once at start and kept in memory: names resolve
 // without a Slack call each time. A failure leaves them to the first use.
 try {
@@ -581,7 +607,10 @@ try {
 } catch {
   /* loaded on first use */
 }
+phase = "starting: loading subscriptions";
 await subscriptions.ready();
+initializing = false;
+await earlyAsks;
 void socket.start();
 const stop = new AbortController();
 const shutdown = () => stop.abort();
