@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.237 — 2026-10-30
+
+The TS client and the faces read asks-only; Slack answers once ready
+
 ## 0.9.236 — 2026-10-30
 
 consume takes asks=only: an ask-only read waits for asks, and a waiting unfiltered reader still wins the ask
