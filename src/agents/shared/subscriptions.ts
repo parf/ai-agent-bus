@@ -1,0 +1,305 @@
+// The TypeScript twin of the shared subscription engine. Its contract, and the
+// Python engine's, is src/agents/shared/subscriptions.md; both are held to the
+// same pure-operation vectors in src/testdata/subscriptions.json. An agent
+// supplies only its selector (validate, match) and the message it sends;
+// admission, storage, filtering, visibility and delivery accounting are here.
+
+/** A subscription as stored under `sub.<id>`, plus `reason` when listed invalid. */
+export type Row = {
+  id: string; target: string; selector: Record<string, unknown>; filter: string;
+  created_by: string; created_at: string; sent: number; dropped: number; reason?: "invalid_filter";
+};
+
+export type ErrorCode = "invalid_target" | "invalid_selector" | "invalid_filter" | "invalid_id" | "limit" | "not_found"
+  | "not_author" | "admission_refused" | "admission_unavailable" | "store_unknown";
+
+export type WarningCode = "admission_refused" | "admission_unavailable" | "filter_invalid" | "filter_timeout"
+  | "send_refused" | "send_unknown" | "deadline" | "store_unknown";
+
+/** The stable code is the contract; the message is prose for people. */
+export class SubscriptionError extends Error {
+  constructor(public readonly code: ErrorCode, message: string = code) { super(message); this.name = "SubscriptionError"; }
+}
+
+/** What an admission question can answer. A 404 is a refusal; anything that
+ *  is not a well-formed yes or no is unavailable, never a yes. */
+export type Admission = "yes" | "no" | "unavailable";
+export type SendOutcome = "ok" | "refused" | "unknown" | "deadline";
+export type Verdict = "hit" | "miss" | "slow";
+
+/** Everything the engine needs of the bus, as the source agent itself. */
+export type Port = {
+  admits(who: string, target: string): Promise<Admission>;
+  /** The destination's kind now, or undefined when it cannot be seen. */
+  kind(target: string): Promise<string | undefined>;
+  /** Stored rows by key `sub.<id>`; any failure but "none" throws. */
+  load(): Promise<Map<string, unknown>>;
+  /** Create with mode add: false when the key is taken. */
+  create(key: string, row: Row): Promise<boolean>;
+  /** Delete: false when it was not there. */
+  remove(key: string): Promise<boolean>;
+  /** Persist one row's counters, best effort. */
+  counts(key: string, sent: number, dropped: number): Promise<void>;
+  send(target: string, body: string, options: { topic?: string; tag?: string; deadline?: number }): Promise<SendOutcome>;
+};
+
+/** The authenticated message a call arrived on; bodies never supply these. */
+export type Caller = { from: string; roles: readonly string[]; original_to?: string };
+
+export type Options = {
+  validateSelector: (selector: Record<string, unknown>) => void;
+  selectorMatches: (selector: Record<string, unknown>, event: Record<string, unknown>) => boolean;
+  warning: (code: WarningCode, id?: string) => void;
+  clock?: () => Date;
+  idFactory?: () => string;
+  /** Tests one compiled filter against text within its own time bound. */
+  matcher?: (re: RegExp, text: string) => Promise<Verdict>;
+  maxSubscriptions?: number;
+  maxPerCreator?: number;
+};
+
+export const MAX_PATTERN = 200;
+export const MAX_TEXT = 8192;
+const ID = /^[0-9a-f]{12}$/;
+const NAME = /^#?[a-z0-9][a-z0-9._+@/-]*$/;
+const SAFE = (n: unknown): n is number => Number.isSafeInteger(n) && (n as number) >= 0;
+
+const randomId = () => [...crypto.getRandomValues(new Uint8Array(6))].map(b => b.toString(16).padStart(2, "0")).join("");
+
+/** The common JS/Python filter subset (contract § common filter grammar),
+ *  checked the way the IMAP agent's compile_filter checks it, then compiled
+ *  as a native RegExp: the subset is chosen so JS semantics are the answer.
+ *  Empty is match-all and compiles to undefined. */
+export function compileFilter(filter: string): RegExp | undefined {
+  const bad = (why: string): never => { throw new SubscriptionError("invalid_filter", why); };
+  if (typeof filter !== "string") bad("a filter is text");
+  if (filter === "") return undefined;
+  let pattern = filter, flags = "";
+  if (filter.startsWith("/")) {
+    const end = filter.lastIndexOf("/");
+    if (end < 1) bad("a /filter/ needs its closing slash");
+    pattern = filter.slice(1, end); flags = filter.slice(end + 1);
+  }
+  if ([...pattern].length > MAX_PATTERN || [...pattern].some(c => c.codePointAt(0)! < 32)) bad("a filter is at most 200 characters without controls");
+  if (new Set(flags).size !== flags.length || [...flags].some(f => !"imsu".includes(f))) bad("filter flags are i m s u, once each");
+  if (/(?<!\\)[+*?}]\)(?:[+*?]|\{)/.test(pattern)) bad("nested quantified groups are unsupported");
+  for (let i = 0; i < pattern.length; i++) {
+    const c = pattern[i];
+    if (c === "\\") {
+      i++;
+      if (i === pattern.length) bad("a filter ends with a backslash");
+      if (!"dDwWsSnrt\\.^$|?*+(){}[]/".includes(pattern[i])) bad("unsupported filter escape");
+    } else if (c === "[") {
+      const end = pattern.indexOf("]", i + 1);
+      const body = end >= 0 ? pattern.slice(i + 1, end) : "";
+      if (!body || !/^[\x00-\x7f]*$/.test(body) || body.includes("[") || body.includes("\\")) bad("filter classes are nonempty ASCII without escapes");
+      if (["&&", "--", "~~", "||"].some(op => body.includes(op))) bad("class set operations are unsupported");
+      i = end;
+    } else if (c === "(" && pattern[i + 1] === "?") {
+      if (pattern[i + 2] !== ":") bad("only ordinary and noncapturing groups are supported");
+      i += 2;
+    } else if (c === "{") {
+      const q = /^\{([0-9]+)(?:,([0-9]*))?\}/.exec(pattern.slice(i));
+      if (!q || [q[1], q[2]].some(n => n && Number(n) > 10000)) bad("invalid or excessive filter quantifier");
+      i += q![0].length - 1;
+    } else if (c === "}" || ("*+?".includes(c) && i > 0 && "*+?}".includes(pattern[i - 1]))) {
+      bad("unsupported filter quantifier");
+    }
+  }
+  try {
+    return new RegExp(pattern, flags);
+  } catch {
+    return bad("not a valid filter");
+  }
+}
+
+const nativeMatch = async (re: RegExp, text: string): Promise<Verdict> => (re.test(text) ? "hit" : "miss");
+
+export class Subscriptions {
+  private rows = new Map<string, Row>();
+  private readonly clock: () => Date;
+  private readonly idFactory: () => string;
+  private readonly matcher: (re: RegExp, text: string) => Promise<Verdict>;
+  private readonly maxSubscriptions: number;
+  private readonly maxPerCreator: number;
+
+  constructor(private readonly port: Port, readonly source: string, private readonly options: Options) {
+    this.clock = options.clock ?? (() => new Date());
+    this.idFactory = options.idFactory ?? randomId;
+    this.matcher = options.matcher ?? nativeMatch;
+    this.maxSubscriptions = options.maxSubscriptions ?? 100;
+    this.maxPerCreator = options.maxPerCreator ?? 20;
+  }
+
+  /** Reads every stored row. A damaged row stays listed to its managers,
+   *  inert; an unsupported filter stays visible with its reason. */
+  async reload(): Promise<void> {
+    const stored = await this.port.load().catch(() => { throw new SubscriptionError("store_unknown"); });
+    const rows = new Map<string, Row>();
+    for (const [key, value] of stored) {
+      const row = value as Row;
+      if (!key.startsWith("sub.") || typeof row !== "object" || row === null || row.id !== key.slice(4) || !ID.test(row.id)) continue;
+      rows.set(row.id, { ...row, sent: SAFE(row.sent) ? row.sent : 0, dropped: SAFE(row.dropped) ? row.dropped : 0 });
+    }
+    this.rows = rows;
+  }
+
+  /** Whether the caller manages this source: a daemon-asserted owner or
+   *  maintainer role on a message addressed here, never through a forward. */
+  manages(caller: Caller): boolean {
+    const to = caller.original_to ?? "";
+    if (to !== "" && to.toLowerCase() !== this.source.toLowerCase()) return false;
+    return caller.roles.includes("owner") || caller.roles.includes("maintainer");
+  }
+
+  async add(caller: Caller, target: string, selector: Record<string, unknown>, filter = ""): Promise<Row> {
+    // Everything that needs no network first.
+    const to = typeof target === "string" ? target.trim().toLowerCase() : "";
+    if (!NAME.test(to) || to.length > 64) throw new SubscriptionError("invalid_target");
+    try {
+      this.options.validateSelector(selector);
+    } catch {
+      throw new SubscriptionError("invalid_selector");
+    }
+    compileFilter(filter);
+    const creator = caller.from;
+    if (this.rows.size >= this.maxSubscriptions || [...this.rows.values()].filter(r => r.created_by === creator).length >= this.maxPerCreator) {
+      throw new SubscriptionError("limit");
+    }
+    for (const asked of [to, this.source]) {
+      const answer = await this.port.admits(creator, asked);
+      if (answer === "no") throw new SubscriptionError("admission_refused");
+      if (answer === "unavailable") throw new SubscriptionError("admission_unavailable");
+    }
+    const kind = await this.port.kind(to);
+    if (kind !== "queue" && kind !== "agent") throw new SubscriptionError("invalid_target");
+    const created_at = this.clock().toISOString();
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const id = this.idFactory();
+      if (!ID.test(id)) throw new SubscriptionError("invalid_id");
+      const row: Row = { id, target: to, selector, filter, created_by: creator, created_at, sent: 0, dropped: 0 };
+      let created: boolean;
+      try {
+        created = await this.port.create(`sub.${id}`, row);
+      } catch {
+        // Whether it was stored is unknown: read the store again, never guess.
+        await this.reload().catch(() => {});
+        throw new SubscriptionError("store_unknown");
+      }
+      if (created) {
+        this.rows.set(id, row);
+        return { ...row };
+      }
+    }
+    throw new SubscriptionError("store_unknown");
+  }
+
+  list(caller: Caller): Row[] {
+    const all = this.manages(caller);
+    return [...this.rows.values()]
+      .filter(r => all || r.created_by === caller.from)
+      .sort((a, b) => (a.id < b.id ? -1 : 1))
+      .map(r => (this.filterOf(r) === null ? { ...r, reason: "invalid_filter" as const } : { ...r }));
+  }
+
+  async delete(caller: Caller, id: string): Promise<boolean> {
+    if (typeof id !== "string" || !ID.test(id)) throw new SubscriptionError("invalid_id");
+    const row = this.rows.get(id);
+    if (!row) throw new SubscriptionError("not_found");
+    if (row.created_by !== caller.from && !this.manages(caller)) throw new SubscriptionError("not_author");
+    let gone: boolean;
+    try {
+      gone = await this.port.remove(`sub.${id}`); // storage first, then memory
+    } catch {
+      await this.reload().catch(() => {});
+      throw new SubscriptionError("store_unknown");
+    }
+    this.rows.delete(id);
+    if (!gone) throw new SubscriptionError("not_found");
+    return true;
+  }
+
+  /** One event: selector first, filter second, then one checked send per
+   *  match. A refused or uncertain copy is dropped, counted and warned; the
+   *  subscription stays active. Nothing is retried, held or replayed. */
+  async deliver(event: Record<string, unknown>, text: string, body: string, options: { topic?: string; tag?: string; deadline?: number } = {}): Promise<{ matched: number; sent: number; dropped: number }> {
+    const result = { matched: 0, sent: 0, dropped: 0 };
+    const admitted = new Map<string, Admission>();
+    const ask = async (who: string, target: string): Promise<Admission> => {
+      const key = who + "\n" + target;
+      if (!admitted.has(key)) admitted.set(key, await this.port.admits(who, target));
+      return admitted.get(key)!;
+    };
+    const sample = typeof text === "string" ? text : "";
+    for (const row of [...this.rows.values()].sort((a, b) => (a.id < b.id ? -1 : 1))) {
+      if (!this.options.selectorMatches(row.selector, event)) continue;
+      const re = this.filterOf(row);
+      if (re === null) {
+        this.options.warning("filter_invalid", row.id);
+        continue;
+      }
+      if (re) {
+        const verdict = await this.matcher(re, sample);
+        if (verdict === "slow") {
+          this.options.warning("filter_timeout", row.id);
+          continue;
+        }
+        if (verdict === "miss") continue;
+      }
+      result.matched++;
+      const drop = async (code: WarningCode) => {
+        result.dropped++;
+        this.options.warning(code, row.id);
+        await this.persist(row, 0, 1);
+      };
+      if (options.deadline !== undefined && Date.now() >= options.deadline) {
+        await drop("deadline");
+        continue;
+      }
+      // Target first; a failed first check never asks the second.
+      let refused: WarningCode | undefined;
+      for (const asked of [row.target, this.source]) {
+        const answer = await ask(row.created_by, asked);
+        if (answer !== "yes") {
+          refused = answer === "no" ? "admission_refused" : "admission_unavailable";
+          break;
+        }
+      }
+      if (!refused) {
+        const kind = await this.port.kind(row.target).catch(() => undefined);
+        if (kind !== "queue" && kind !== "agent") refused = "admission_refused";
+      }
+      if (refused) {
+        await drop(refused);
+        continue;
+      }
+      const outcome = await this.port.send(row.target, body, options).catch((): SendOutcome => "unknown");
+      if (outcome === "ok") {
+        result.sent++;
+        await this.persist(row, 1, 0);
+      } else {
+        await drop(outcome === "refused" ? "send_refused" : outcome === "deadline" ? "deadline" : "send_unknown");
+      }
+    }
+    return result;
+  }
+
+  /** The row's compiled filter, undefined for match-all, null when invalid. */
+  private filterOf(row: Row): RegExp | undefined | null {
+    try {
+      return compileFilter(row.filter ?? "");
+    } catch {
+      return null;
+    }
+  }
+
+  private async persist(row: Row, sent: number, dropped: number): Promise<void> {
+    row.sent += sent;
+    row.dropped += dropped;
+    try {
+      await this.port.counts(`sub.${row.id}`, row.sent, row.dropped);
+    } catch {
+      this.options.warning("store_unknown", row.id);
+    }
+  }
+}
