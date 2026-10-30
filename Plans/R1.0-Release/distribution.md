@@ -51,8 +51,9 @@ Settled with the owner, 2026-10-29 ([RD163](DECISIONS.md#recorded-decisions)):
 
 ### Install acceptance
 
-`src/acceptance/distro/run.sh [--dist <dir>] [almalinux10 ubuntu2604 debian13]`
-builds this host's CPU's archives (or takes them), signs `SHA256SUMS` with a
+`src/acceptance/distro/run.sh [--dist <dir>] [--next-dist <dir>] [almalinux10 ubuntu2604 debian13]`
+builds this host's CPU's archives (or takes them), and a "next" release from a
+copy of the tree with VERSION one patch up. It signs `SHA256SUMS` with a
 throwaway key and fills that key into a copy of `install.sh`. It serves the
 release over HTTPS as `releases.test` inside one rootless podman systemd
 container per distribution. In each, the person `alice` runs
@@ -61,14 +62,19 @@ container per distribution. In each, the person `alice` runs
 | Step | Must |
 |---|---|
 | clean host | no Go, bun or Node, nothing installed |
-| tampered archive, signed hash unchanged | refused, host untouched |
+| tampered archive, signed hash unchanged | refused, host untouched; without bubblewrap, a warning |
 | forged `SHA256SUMS` for that archive | refused by the signature, host untouched |
 | good release | daemon and compiled web face running at the release's version |
 | runner, debug registered and handed its token | `src/check-deploy.sh` passes |
+| `bob`, another account, `--client` without root | nothing outside his home changes; his `debug` call is refused until allowed, then answered |
+| bob's compiled `agent-bus-mcp`, tool `ab_ls` | lists debug |
+| the same command, next release out | updated, one copy of the old release kept; check-deploy and bob's token still work |
+| bob updates the client, then `--rollback` | next, then the old version again |
+| `--version <old>` | the node back on the old release, check-deploy passing |
 
 Containers and their image store live under the main checkout's
 `tmp/distro-acceptance`. Containers and each run's data are removed afterward,
-and `--clean` drops the store. A warm run takes about 25 s for all three.
+and `--clean` drops the store. A warm run with both releases built takes about 40 s for all three.
 
 <details><summary>Mutants seen to fail, and findings</summary>
 
