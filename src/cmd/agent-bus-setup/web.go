@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"net/http"
 	"os"
@@ -264,35 +265,53 @@ func webState(web, runtime string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	info, err := os.Stat(exe)
-	if err != nil {
+	fmt.Fprintf(h, "runtime %s\n", exe)
+	if err := hashFileContent(h, exe); err != nil {
 		return "", err
 	}
-	fmt.Fprintf(h, "runtime %s %d %d\n", exe, info.Size(), info.ModTime().UnixNano())
 	code, err := filepath.EvalSymlinks(web)
 	if err != nil {
 		return "", err
 	}
 	fmt.Fprintf(h, "code %s\n", code)
+	// Contents, not sizes and times: sources copied with their times kept
+	// (tar, rsync -t) can change without either moving.
 	err = filepath.WalkDir(code, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
-		}
-		if d.IsDir() && d.Name() == "node_modules" {
-			return fs.SkipDir
 		}
 		fi, err := d.Info()
 		if err != nil {
 			return err
 		}
 		rel, _ := filepath.Rel(code, path)
-		fmt.Fprintf(h, "%s %v %d %d\n", rel, fi.Mode(), fi.Size(), fi.ModTime().UnixNano())
+		fmt.Fprintf(h, "%s %v\n", rel, fi.Mode())
+		switch {
+		case fi.Mode().IsRegular():
+			return hashFileContent(h, path)
+		case fi.Mode()&fs.ModeSymlink != 0:
+			target, err := os.Readlink(path)
+			fmt.Fprintf(h, "-> %s\n", target)
+			return err
+		}
 		return nil
 	})
 	if err != nil {
 		return "", err
 	}
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
+}
+
+// hashFileContent feeds a regular file's bytes, and its length, to h.
+func hashFileContent(h io.Writer, path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	n, err := io.Copy(h, f)
+	fmt.Fprintf(h, "\n%d\n", n)
+	return err
 }
 
 func waitHealthz(url string, timeout time.Duration, pin string) error {

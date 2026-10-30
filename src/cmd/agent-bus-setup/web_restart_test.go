@@ -241,3 +241,60 @@ func TestSetupRestartsTheWebFaceWhenItsSourcesChange(t *testing.T) {
 		t.Fatalf("changed sources: %d restarts, want 1", n)
 	}
 }
+
+// Sources and executables copied with their times kept (tar, rsync -t) can
+// change without their size or time moving: the record is of the bytes.
+func TestSetupRestartsTheWebFaceWhenBytesChangeUnderTheSameSizeAndTime(t *testing.T) {
+	r := newWebRig(t)
+	plain := healthServer(t, nil)
+	r.unit(plain, "same size and time")
+	source := filepath.Join(r.web, "server.ts")
+	if err := os.WriteFile(source, []byte("one\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	when := time.Unix(1_700_000_000, 0)
+	set := func(path string, content string) {
+		t.Helper()
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(path, when, when); err != nil {
+			t.Fatal(err)
+		}
+	}
+	set(source, "one\n")
+	if n := r.run(false); n != 1 {
+		t.Fatalf("first install: %d restarts, want 1", n)
+	}
+	set(source, "two\n")
+	if n := r.run(false); n != 1 {
+		t.Fatalf("changed source bytes with the same size and time: %d restarts, want 1", n)
+	}
+	// The runtime, the same way: a copy of /bin/sh with one byte changed in place.
+	sh, err := os.ReadFile("/bin/sh")
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime := filepath.Join(t.TempDir(), "runtime")
+	old := bunPath
+	bunPath = runtime
+	t.Cleanup(func() { bunPath = old })
+	if err := os.WriteFile(runtime, sh, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(runtime, when, when); err != nil {
+		t.Fatal(err)
+	}
+	r.run(false) // a new runtime path: applied, and recorded
+	changed := append([]byte{}, sh...)
+	changed[len(changed)-1] ^= 0xff
+	if err := os.WriteFile(runtime, changed, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(runtime, when, when); err != nil {
+		t.Fatal(err)
+	}
+	if n := r.run(false); n != 1 {
+		t.Fatalf("changed runtime bytes with the same size and time: %d restarts, want 1", n)
+	}
+}
