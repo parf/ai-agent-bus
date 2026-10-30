@@ -38,6 +38,8 @@ test("S.10 standalone bundles route real bus replies to Slack threads and keep T
   await fx.call(fx.ownerToken,"POST","/secret",{name:tg,secret:`TELEGRAM_BOT_TOKEN=fixture\nTELEGRAM_API_URL=http://127.0.0.1:${api.port}\n`});
   const children: Subprocess[] = [];
   async function call(bus:Bus, target:string, body:string) { const r=await bus.call(target,body,{timeout:4000});expect(r.kind).toBe("answer");return r.kind==="answer"?r.message.body:""; }
+  // Keep the original 50 ms quiet window after the first copy; the exactly-once
+  // observation window is unchanged, not a promise about arbitrarily late duplicates.
   async function drain(bus:Bus) {const messages:Message[]=[];for(;;){const m=await bus.consume({wait:50});if(!m)break;if(!m.receipt)messages.push(m);}return messages;}
   function sendEvent(over:any) { const id=++eventId; for(const ws of sockets)ws.send(JSON.stringify({envelope_id:`env-${id}`,type:"events_api",payload:{event_id:`event-${id}`,event:{type:"message",channel:"C1",user:"U1",ts:`1750000000.${id}`,...over}}})); }
   // Slack ACKs before routing: wait for this event's observable effect, not its ACK.
@@ -61,6 +63,8 @@ test("S.10 standalone bundles route real bus replies to Slack threads and keep T
     await call(B,self,"post C1 second");expect(posts.at(-1).text).toBe("second\n\n#b");await drain(A);await drain(B);
     const received=await routed({thread_ts:first.ts,text:"reply to first"},A);expect(received.length).toBe(1);expect(await drain(B)).toEqual([]);expect(received[0]!.re).toBeDefined();expect(received[0]!.body).toBe("[parf (Slack)] reply to first");
     const count=posts.length;
+    // serve defaults to one worker. Reply classification/onReply occupies it until
+    // the awaited hook returns, so the later whoami cannot be dispatched first.
     await B.request("POST","/send",{to:self,re:received[0]!.message_id,topic:received[0]!.reply_to!.topic,tag:received[0]!.reply_to!.tag,body:"spoofed"});await call(owner,self,"whoami");expect(posts.length).toBe(count);
     await A.reply(received[0]!,"answer in thread");await waitFor(()=>posts.length>count);expect(posts.at(-1)).toMatchObject({channel:"C1",thread_ts:first.ts,text:"answer in thread\n\n#a"});
     // The next routed event is a FIFO barrier for self echoes and silent chatter.
