@@ -2,9 +2,9 @@
 
 🏢 **An enterprise platform that connects your AI agents, tools and people, governs every access, and runs each agent safely in its own box.**
 
-It runs on one laptop and grows to many machines, users and teams.
+💻 **Runs on Linux and macOS:** everything on Linux; on macOS the bus, the runner and the command line, with agents run outside a sandbox.
 
-💻 **Runs on Linux and macOS:** everything on Linux; on macOS the client, the runner and the daemon, with agents run outside a sandbox.
+Not a single tool but a whole platform: it runs on localhost and grows to many hosts, users and teams.
 
 ![Agents Bus](docs/img/agent-bus.png)
 
@@ -14,14 +14,14 @@ It runs on one laptop and grows to many machines, users and teams.
 - 🔍 **Discover:** see who is there and what each one can do.
 - 🛡️ **Access Control:** decide who may call, read and manage each name.
 - 🔑 **Secrets:** shared passwords on the bus; a script's own stay on its host.
-- 🔒 **Secure communications:** other machines can connect over HTTPS with a pinned certificate, or over SSH; on one host, a private socket only your account can reach.
+- 🔒 **Secure communications:** other machines can connect over HTTPS with a pinned certificate, or over SSH; one port serves HTTP and HTTPS; on one host, a private socket only your account can reach.
 - 📦 **Confinement:** scripts run walled off, with memory and process caps.
 - 🧱 **Ready helpers:** chat, mail, text messages, databases, server checks.
 - ⏰ **Scheduling:** wake an assistant at a time or on a rhythm.
 - 🚨 **Alerts:** a server error reaches an assistant, then you on Slack (or Telegram, SMS).
-- 🌐 **Clients:** Python, TypeScript, Go, Rust, Java and PHP.
+- 🌐 **Clients:** libraries for six common programming languages.
 - 🖥️ **Web console:** see and manage everything from one page.
-- 📥 **Install:** one command, a container image or an npm package.
+- 📥 **Install:** one command, a ready-made container or a package.
 - 🧠 **Search by meaning:** your AI finds and sorts your documents.
 
 ```mermaid
@@ -58,6 +58,8 @@ flowchart LR
 
 More: [access](docs/02-access.md#acl).
 
+🔐 **Passwords in two places:** the ones several people or machines share live on the bus; a script's own stay with its runner, on its host. [Two stores](docs/runner/security.md#secrets)
+
 ## The runner
 
 *systemd on steroids, for AI-era tools.* The problem: a useful script is unsafe to share, or a pain to run as a service.
@@ -70,8 +72,6 @@ More: [access](docs/02-access.md#acl).
 
 Under the hood: cgroups, a namespace sandbox with a system-call filter, and the runner's own unprivileged account. More: [isolation](docs/runner/security.md#isolation-today).
 
-🔐 **Passwords in two places:** the ones several people or machines share live on the bus; a script's own stay with its runner, on its host. [Two stores](docs/runner/security.md#secrets)
-
 ## Helpers are building blocks
 
 🧱 **Our agents are building blocks, like lego: they make it possible to assemble complex systems easily, without sacrificing security.**
@@ -82,7 +82,7 @@ Under the hood: cgroups, a namespace sandbox with a system-call filter, and the 
 - ⏰ **Schedule:** at a time, on a rhythm, or later.
 - 🖥️ **Servers:** logs, disks, services, code.
 - 🗄️ **Data:** read-only database questions; stored documents.
-- 🧠 **RAG:** semantic search and classification for your AI.
+- 🧠 **RAG:** a shared memory for your AI: it sorts your texts into your own topics and finds them by meaning.
 - 🌐 **Web:** AI reads web pages as text or Markdown and makes bounded HTTP requests; limit it to the sites you allow.
 - 🤖 **AI:** ask a model.
 - 🪟 **Sessions:** start whole fleets of your sessions with one call — AI chats, monitors, anything in a terminal — and bring them all back after a reboot the same way.
