@@ -113,8 +113,11 @@ The record's Secret (`KEY=value` lines, [env-file syntax](03-records-service.md#
 reaches each script as environment variables too, read again for every message,
 so `agent-bus secret` takes effect without a restart, sandboxed or not. It wins
 over the shell's value of the same name; the message's own `AGENT_BUS_*` fields
-win over it, and the credential is never set by it. A value never appears in
-`agent-bus logs` (a script line holding one is masked) or on any command line.
+win over it, and the credential is never set by it. A value never appears on
+any command line, and `agent-bus logs` masks a script line holding a value, or one
+line of a multi-line value, of four bytes or more. A value or line under four
+bytes (`PIN=123`, a trailing `w==`) is not masked, so keep such a secret out of
+what a script prints.
 
 Without `--package-dir`, asks reach the script as `AGENT_BUS_ASK`:
 `help`, `help-config`, `help-secret`, `help-json` or `status`, with an empty
