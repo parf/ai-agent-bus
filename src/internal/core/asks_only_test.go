@@ -83,14 +83,16 @@ func TestWaitingAsksOnlyReadIsHandedAsksOnly(t *testing.T) {
 }
 
 // An asks-only read and the unfiltered reader wait together: neither is refused
-// as a second reader, asks go to the asks-only read and work to the other.
-func TestAsksOnlyReadCoexistsWithTheUnfilteredReader(t *testing.T) {
+// as a second reader, and the ask goes to the unfiltered reader, since an agent
+// with a reader answers about itself. Once that reader is gone, the next ask
+// goes to the asks-only read.
+func TestAsksOnlyReadCoexistsWithTheUnfilteredReaderWhichGetsTheAsk(t *testing.T) {
 	b := newBusWith(t, "#svc@h", "#peer@h")
 	work, asks := make(chan protocol.Envelope, 1), make(chan protocol.Envelope, 1)
 	errs := make(chan error, 2)
+	ctx, stop := context.WithCancel(context.Background())
+	defer stop()
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
 		e, err := b.Consume(ctx, "#svc@h", "", "", false, false)
 		errs <- err
 		if err == nil {
@@ -112,12 +114,27 @@ func TestAsksOnlyReadCoexistsWithTheUnfilteredReader(t *testing.T) {
 	case <-time.After(30 * time.Millisecond):
 	}
 	sendAs(t, b, "", "help")
-	sendAs(t, b, "work", "")
-	if e := <-asks; e.Ask != "help" {
-		t.Fatalf("the asks-only read got %+v, want the help ask", e)
+	select {
+	case e := <-work:
+		if e.Ask != "help" {
+			t.Fatalf("the unfiltered reader got %+v, want the help ask", e)
+		}
+	case e := <-asks:
+		t.Fatalf("the asks-only read was preferred over the waiting unfiltered reader: %+v", e)
+	case <-time.After(time.Second):
+		t.Fatal("nobody got the ask")
 	}
-	if e := <-work; e.Body != "work" || e.Ask != "" {
-		t.Fatalf("the unfiltered reader got %+v, want the work", e)
+	// The unfiltered reader has its message and is gone: the asks-only read
+	// is now the only one waiting, and the next ask is its.
+	<-errs
+	sendAs(t, b, "", "status")
+	select {
+	case e := <-asks:
+		if e.Ask != "status" {
+			t.Fatalf("the asks-only read got %+v, want the status ask", e)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("with no unfiltered reader waiting the asks-only read never got the ask")
 	}
 }
 

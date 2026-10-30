@@ -13,7 +13,9 @@ import (
 // attached its reader yet, or is still loading, can answer `help` and `status`
 // without taking work. It is a filtered reader: it may wait beside the one
 // unfiltered reader, it is never the "second" one, and it needs exactly the
-// consume authority the caller already has.
+// consume authority the caller already has. While an unfiltered reader waits,
+// an arriving ask goes to it, since that agent answers about itself; the
+// asks-only read gets an ask only when no unfiltered reader is waiting.
 
 type asksOnlyKey struct{}
 

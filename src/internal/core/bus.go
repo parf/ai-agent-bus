@@ -1529,12 +1529,19 @@ func (b *Bus) deliver(rec protocol.Record, in *inbox, e protocol.Envelope) error
 	now := time.Now()
 	in.purgeGone()
 	held := in.held(e, now)
+	// An asks-only read is for an agent that has no reader: while an
+	// unfiltered one waits, the ask goes to it, since the agent answers about
+	// itself (asks_only.go).
+	ordinary := in.unfilteredWaiter() != nil
 	for _, filteredPass := range []bool{true, false} {
 		for i, w := range in.waiters {
 			if w.filtered != filteredPass {
 				continue
 			}
 			if w.filtered && !w.takes(e) {
+				continue
+			}
+			if w.asks && ordinary {
 				continue
 			}
 			if held && !w.filtered {
@@ -1980,9 +1987,10 @@ func (b *Bus) requeue(name string, e protocol.Envelope) {
 	b.restore(name, in, e, now)
 	in.purgeGone()
 	held := in.held(e, now)
+	ordinary := in.unfilteredWaiter() != nil
 	for _, filteredPass := range []bool{true, false} {
 		for i, w := range in.waiters {
-			if w.filtered != filteredPass || (w.filtered && !w.takes(e)) || (held && !w.filtered) {
+			if w.filtered != filteredPass || (w.filtered && !w.takes(e)) || (w.asks && ordinary) || (held && !w.filtered) {
 				continue
 			}
 			if w.filtered {
