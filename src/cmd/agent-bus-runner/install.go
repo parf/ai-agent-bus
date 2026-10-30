@@ -20,8 +20,11 @@ func (r *runner) deployRoot() error {
 		return err
 	}
 	fi, err := os.Stat(r.agents)
-	if err != nil || !fi.IsDir() || fi.Mode().Perm()&0222 == 0 {
-		return fmt.Errorf("install requires a host-provisioned writable --agents directory; this agents directory is read-only or unavailable")
+	if err != nil || !fi.IsDir() {
+		return fmt.Errorf("install requires a host-provisioned writable --agents directory: %s", r.agents)
+	}
+	if fi.Mode().Perm()&0222 == 0 {
+		return fmt.Errorf("the runner's agents directory is read-only: %s", r.agents)
 	}
 	return nil
 }
@@ -75,7 +78,7 @@ func (r *runner) installPackage(ctx context.Context, body string) error {
 	}
 	temp, err := os.MkdirTemp(r.agents, ".install-")
 	if err != nil {
-		return fmt.Errorf("install requires a writable --agents directory: %w", err)
+		return fmt.Errorf("create install staging directory: %w", err)
 	}
 	clean := true
 	defer func() {

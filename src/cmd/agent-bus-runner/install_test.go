@@ -108,8 +108,12 @@ func TestDeployRefusesReadOnlyAgentsDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.Chmod(r.agents, 0700)
-	if err := r.installPackage(context.Background(), "install --replace fixture"); err == nil || !strings.Contains(err.Error(), "writable --agents") {
-		t.Fatalf("read-only deploy accepted or unclear: %v", err)
+	want := "the runner's agents directory is read-only: " + r.agents
+	if err := r.deployRoot(); err == nil || err.Error() != want {
+		t.Fatalf("read-only preflight refusal = %v, want %q", err, want)
+	}
+	if err := r.installPackage(context.Background(), "install --replace fixture"); err == nil || err.Error() != want {
+		t.Fatalf("read-only deploy refusal = %v, want %q", err, want)
 	}
 }
 
