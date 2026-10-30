@@ -466,9 +466,15 @@ Release builds follow [working rules § versioning](../CLAUDE.md#versioning).
 that is not what the source says. Per archive: the name, the packed `VERSION`
 and every Go program's `--version` equal the source `VERSION`; each Go program
 carries a build stamp, not `development (unstamped)`; `LICENSE.md` is present;
-`MANIFEST.sha256` still matches. The compiled TypeScript binary has no version
+`MANIFEST.sha256` still matches. With `--signers <allowed_signers> <release-dir>` it
+checks a whole release: exactly the four archives, `SHA256SUMS` matching them
+and `SHA256SUMS.sig` verifying in the `agent-bus-release` namespace. The
+compiled TypeScript binary has no version
 query, so it is checked for carrying the version. An archive for another CPU
-cannot run here, so its binaries are read instead of queried. Pending: the
+cannot run here, so its binaries are read instead of queried.
+`src/release-verify.real.test.sh` runs it on what `package.sh` builds, signed
+with a throwaway key; this node has no aarch64 cross compiler, so that run
+covers the host's CPU (`--arches`). Pending: the
 release run is not yet wired to it ([distribution](../Plans/R1.0-Release/TODO.md#objective)).
 
 ## Local users

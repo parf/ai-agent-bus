@@ -6,16 +6,55 @@
 # internal/version/VERSION beside this script).
 #
 #   src/release-verify.sh <archive.tar.gz>...
+#   src/release-verify.sh --signers <allowed_signers> [--arches "x86_64 aarch64"] <release-dir>
+#
+# A release directory is the four archives (full and client, per arch in
+# --arches), SHA256SUMS and SHA256SUMS.sig: it must hold exactly those, the
+# sums must match the archives, the signature must verify against the signers
+# file in the agent-bus-release namespace, and each archive is checked as above.
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 src=${SOURCE_VERSION:-$here/internal/version/VERSION}
-[ $# -gt 0 ] || { echo "usage: release-verify.sh <archive.tar.gz>..." >&2; exit 2; }
+usage="usage: release-verify.sh <archive.tar.gz>... | --signers <allowed_signers> [--arches \"x86_64 aarch64\"] <release-dir>"
+signers="" arches="x86_64 aarch64"
+while [ $# -gt 0 ]; do
+  case $1 in
+    --signers) signers=${2:?$usage}; shift 2 ;;
+    --arches) arches=${2:?$usage}; shift 2 ;;
+    *) break ;;
+  esac
+done
+[ $# -gt 0 ] || { echo "$usage" >&2; exit 2; }
 want=$(tr -d '[:space:]' < "$src")
 mkdir -p "$here/../tmp"
 work=$(mktemp -d "$here/../tmp/verify.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 fail=0
 bad() { echo "release-verify: $name: $*" >&2; fail=1; }
+if [ -n "$signers" ]; then
+  [ $# = 1 ] && [ -d "$1" ] || { echo "$usage" >&2; exit 2; }
+  rel=$(cd "$1" && pwd); name=release
+  set --
+  for edition in agent-bus agent-bus-client; do
+    for a in $arches; do set -- "$@" "$rel/$edition-$want-linux-$a.tar.gz"; done
+  done
+  for f in "$@"; do [ -f "$f" ] || bad "$(basename "$f") is missing"; done
+  for f in "$rel"/*; do
+    case " $* $rel/SHA256SUMS $rel/SHA256SUMS.sig " in *" $f "*) ;; *) bad "$(basename "$f") is not part of this release" ;; esac
+  done
+  if [ -f "$rel/SHA256SUMS" ] && [ -f "$rel/SHA256SUMS.sig" ]; then
+    ssh-keygen -Y verify -f "$signers" -I agent-bus-release -n agent-bus-release -s "$rel/SHA256SUMS.sig" \
+      <"$rel/SHA256SUMS" >/dev/null 2>&1 || bad "SHA256SUMS.sig does not verify"
+    for f in "$@"; do
+      b=$(basename "$f")
+      [ -f "$f" ] && { grep -qx "$(cd "$rel" && sha256sum "$b")" "$rel/SHA256SUMS" || bad "$b does not match SHA256SUMS"; }
+    done
+    [ "$(wc -l <"$rel/SHA256SUMS")" = $# ] || bad "SHA256SUMS does not list exactly the $# archives"
+  else
+    bad "SHA256SUMS or SHA256SUMS.sig is missing"
+  fi
+  [ $fail = 0 ] || exit 1
+fi
 for archive in "$@"; do
   name=$(basename "$archive" .tar.gz)
   if ! echo "$name" | grep -Eq '^agent-bus(-client)?-[0-9]+\.[0-9]+\.[0-9]+-linux-(x86_64|aarch64)$'; then

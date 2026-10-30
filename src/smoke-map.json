@@ -367,6 +367,12 @@
       },
       {
         "argv": [
+          "bash",
+          "release-verify.real.test.sh"
+        ]
+      },
+      {
+        "argv": [
           "python3",
           "-B",
           "smoke_fast_test.py"
