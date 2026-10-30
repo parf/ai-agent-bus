@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.232 — 2026-10-30
+
+npm clean-install acceptance: local ai-agent-bus tarballs install on a clean host and serve a call and an MCP tool call; the client package joins without a daemon; pack refuses unchecked files
+
 ## 0.9.231 — 2026-10-30
 
 release-verify checks each shipped program's own version query and exit status, refusing a bad token or TypeScript stamp
