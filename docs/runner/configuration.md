@@ -143,6 +143,7 @@ rather than starting it per message:
 | what it is told | `AGENT_BUS_NAME`, `AGENT_BUS_TOKEN` — its own, by design, since it talks to the bus itself — `AGENT_BUS_ADDR`, with the bus socket mounted in; `AGENT_BUS_WORK`, its writable work directory; compact `AGENT_BUS_CONFIG` at start when configured (otherwise unset); and its env files; not the bus secret, which it reads as its record's |
 | a change | changed command, installed package files, Configuration, env values or private env-source classification restart it at `reload` |
 | stopping | `SIGTERM` to its own processes, then its cgroup killed after its `deadline`, 10 s by default |
+| a daemon restart | the sandbox mounts the bus socket alone, never its directory, whose account sockets would identify it as the runner. A restarted daemon makes a new socket the mount cannot show, so each sandboxed process is stopped as above and started again within about 2 s of the new socket appearing |
 An agent can report that it is [not configured](operations.md#not-configured);
 fix its settings and use `reload` before it is tried again.
 

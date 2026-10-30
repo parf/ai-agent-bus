@@ -165,6 +165,7 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 - A new entry must name an existing queue or agent that cron can see.
 - Another definite refusal (the destination is full) is retried after 10 s, doubling to 5 min, until the send's time to live ends; then the outcome is `refused`.
 - Each send carries a time to live so a destination that was away is not flooded: the time to the next slot, capped at 24 h; 24 h for a one-shot.
+- When cron cannot reach the bus 30 times in a row, 2 s apart, it exits and its runner starts it again. Until then, a slot that falls due is `missed`.
 
 </details>
 
