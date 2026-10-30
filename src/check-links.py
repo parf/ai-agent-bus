@@ -82,9 +82,9 @@ def target(root, source, path):
         return None
 
 
-def changes(root):
+def changes(root, base=None):
     """(markdown files changed or new, paths moved away or deleted) against where the tree branched from main."""
-    base = git(root, 'merge-base', 'main', 'HEAD').strip() or 'HEAD'
+    base = base or git(root, 'merge-base', 'main', 'HEAD').strip() or 'HEAD'
     changed, gone = set(), set()
     names = git(root, 'diff', '--name-status', '-z', '-M', '--no-ext-diff', base).split('\0')
     i = 0
@@ -114,9 +114,15 @@ def tracked_markdown(root):
 def check(root=ROOT, inbound=True):
     """Problems as (file, line, link, why), sorted."""
     root = Path(root)
-    changed, gone = changes(root)
-    scan = changed | (tracked_markdown(root) if inbound and gone else set())
-    problems, cache = set(), {}
+    base = git(root, 'merge-base', 'main', 'HEAD').strip() or 'HEAD'
+    changed, gone = changes(root, base)
+    cache = {name: anchors((root / name).read_text(errors='replace')) for name in changed}
+    # Archiving a section can leave its file in place. Check only anchors this
+    # change removed, so unrelated historical broken links stay out of scope.
+    lost = {name: missing for name in changed
+            if (missing := anchors(git(root, 'show', base + ':' + name)) - cache[name])}
+    scan = changed | (tracked_markdown(root) if inbound and (gone or lost) else set())
+    problems = set()
     for source in sorted(scan):
         for number, path, anchor in links((root / source).read_text(errors='replace')):
             if SCHEME.match(path) or path.startswith('/'):
@@ -127,6 +133,8 @@ def check(root=ROOT, inbound=True):
             link = path + ('#' + anchor if anchor else '')
             if there in gone and not (root / there).exists():
                 problems.add((source, number, link, 'moved or deleted by this change'))
+            elif anchor and anchor in lost.get(there, set()):
+                problems.add((source, number, link, 'no such anchor'))
             elif source in changed:
                 full = root / there
                 if not full.exists():
