@@ -26,24 +26,26 @@ See the [autopull guide](../../../../docs/agents/git.md#autopull).
 
 ## Implementation
 
-git_agent.py resolves revisions to commit ids and paths inside declared roots
-before fixed argv construction. Per-repository locks cover calls and timer
-updates. Commands run in a private process group, killed and waited on at
-timeout, including SSH children. Configured-key mode disables other identities
-and account SSH config; server host trust still applies. timers.py owns the
-oneshot/timer lifecycle and atomic state outside the repository.
+`git_agent.py` owns bounded parsing, repository caps and the legacy method
+vectors. The keeper serves its own bus identity; `autopull.Runtime` routes only
+authenticated command-channel deliveries to the event engine. Legacy calls run
+in isolated token-free children with delivered roles. Separate bounded pools
+keep Git work off the reader. `timers.py` only retires owned legacy units.
+
+`autopull.attempt` serializes through the existing checkout lock, publishes a
+safe result, then calls `after_attempt(repo, checkout, record, publish)` while
+still locked. `state_directory()` exposes the state root; the script extension
+owns an additional bounded budget. `publish` returns acceptance/no-op True or
+False on a single refused/uncertain delivery, persisting a local failure note;
+it never suppresses the hook. No hook runs without a lock and verified checkout.
 
 ## Verification
 
-
-The slow `agent_git` shard uses disposable local repositories, a private SSH
-server/upstream, and the shared starter's private unit controller. It checks
-actual delivered roles, install idempotence/removal, destructive-operation
-results, fixed identity, configured-key authentication and default-key fallback.
-Mutants remove option/scope/tier checks, trust body roles/author, ignore the key,
-or restore more than the named file. No live repository is reset, cleaned or
-pushed by the checks; live deployment verification uses list/status/log/rev/diff/autopull only.
-A real private systemd-user timer pulls a fixture upstream commit, reports dirty-tree refusal without discarding edits, and is removed afterwards.
+Disposable bare repositories and the private daemon/unit-controller fixture
+check real Git results, channel routing, delivered roles, startup, bounded
+concurrency, publication and timer retirement. SSH checks preserve configured-key
+and account-default behaviour. Named owning mutants must fail assertions;
+no live checkout is reset, cleaned or pushed by these checks.
 
 ## Authored help
 

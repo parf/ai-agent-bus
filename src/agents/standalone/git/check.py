@@ -39,6 +39,70 @@ def ready():
     raise AssertionError('installed git reader did not start')
 
 
+def autopull_check(tokens, ask):
+    sys.path.insert(0,str(HERE.parents[2]/'clients/python'))
+    from agent_bus import Bus
+    repo=ROOT/'repo';seed=ROOT/'seed'
+    run(['git','clone',str(ROOT/'remote.git'),str(seed)])
+    for k,v in [('user.name','Fixture'),('user.email','fixture@example.test')]:run(['git','-C',str(seed),'config',k,v])
+    def advance(text):
+        (seed/'file').write_text(text)
+        run(['git','-C',str(seed),'commit','-am','PRIVATE_COMMIT_MESSAGE_SENTINEL'])
+        run(['git','-C',str(seed),'push'])
+        return run(['git','-C',str(seed),'rev-parse','HEAD']).strip()
+    command='autopull-cmd@localhost';log='autopull-log@localhost';queue='autopull-results@localhost'
+    for name,kind in [(command,'pubsub'),(log,'pubsub'),(queue,'queue')]:cli('channel','create',name,'--kind',kind)
+    cli('manage',command,'--add-allow','#plain@localhost','--deliver-to',NAME)
+    cli('manage',log,'--add-allow',NAME,'--deliver-to',queue)
+    config={'repos':{'ab':{'path':str(repo),'access':'deploy','follow':True,'mode':'ff'}},'autopull-cmd':command,'autopull-log':log}
+    cli('agent-template',NAME,json.dumps(config))
+    wanted=advance('second')
+    body={'v':1,'type':'push','remote':'remote','branch':'main','commit':wanted,'id':'fixture-1'}
+    # Same sender/body: direct call has no channel authority.
+    direct=ask('plain',body)
+    assert direct['error']=='unknown method','direct event bypassed channel ACL'
+    assert run(['git','-C',str(repo),'rev-parse','HEAD']).strip()!=wanted
+    with Bus(addr=ENV['AGENT_BUS_ADDR'],token=ENV['AGENT_BUS_TOKEN'],timeout=3) as bus:
+        def record():
+            message=bus.consume(inbox=queue,wait=3)
+            assert message is not None,'expected exactly one result publication'
+            value=json.loads(message.body)
+            assert getattr(message,'from')==NAME,'publication did not use git identity'
+            assert message.topic=='ab@'+value['host'] and message.tag==value['result']
+            for secret in [str(repo),str(ROOT/'remote.git'),'PRIVATE_COMMIT_MESSAGE_SENTINEL']:
+                assert secret not in message.body,'result leaked checkout, origin or subject'
+            return value
+        cli('publish','--channel',command,json.dumps(body),token=tokens['plain'])
+        value=record()
+        assert value['result']=='ok' and value['to']==wanted and value['from']!=value['to']
+        assert value['id']=='fixture-1' and value['requested_by']=='#plain@localhost'
+        assert bus.consume(inbox=queue,wait=0) is None,'duplicate attempt publication'
+        (repo/'file').write_text('keep dirty')
+        cli('publish','--channel',command,json.dumps(body),token=tokens['plain'])
+        value=record();assert value['error']['code']=='dirty' and (repo/'file').read_text()=='keep dirty'
+        # Explicit mirror via current Configuration, no restart required.
+        config['repos']['ab']['mode']='mirror';cli('agent-template',NAME,json.dumps(config))
+        (repo/'untracked').write_text('discard')
+        cli('publish','--channel',command,json.dumps(body),token=tokens['plain'])
+        value=record();assert value['result']=='ok' and value['discarded']['files']==2
+        assert not (repo/'untracked').exists()
+        # Refused log delivery is not a Git failure; the direct answer is pure JSON.
+        cli('manage',log,'--remove-allow',NAME)
+        value=ask('owner',{'method':'deploy','repo':'ab','branch':'main','rev':wanted[:8],'id':'direct-1'})
+        assert value['result']=='skip' and value['id']=='direct-1'
+        status=ask('owner',{'method':'autopull','repo':'ab'})
+        assert 'log publish failed' in status['stdout']
+        assert bus.consume(inbox=queue,wait=0) is None,'refused publish was retried or delivered'
+        cli('manage',log,'--add-allow',NAME)
+        # A restart catches exactly one missed update without an event.
+        new=advance('third')
+        run([str(HERE.parent/'systemd/fixture-unit.py'),'restart',unit]);ready()
+        value=record();assert value['trigger']=='start' and value['to']==new and value['result']=='ok'
+        assert bus.consume(inbox=queue,wait=0) is None,'startup duplicated publication'
+        assert not list((ROOT/'units').glob('*-autopull-*')),'reinstall retained old timers'
+    print('private installed startup, channel authority, exact records, mirror and log failure verified')
+
+
 def main():
     assert os.geteuid()==0,'isolated unit fixture requires sudo'
     run(['git','init','--initial-branch=main',str(ROOT/'repo')])
@@ -67,7 +131,7 @@ def main():
         assert ask('operator',{'method':'add','repo':'ab','paths':['junk']})['status']==0
         assert ask('operator',{'method':'commit','repo':'ab','message':'delivered commit'})['status']==0
         assert 'error' in ask('plain',{'method':'status','repo':str(ROOT/'repo')})
-        run(['git','init','--bare',str(ROOT/'remote.git')])
+        run(['git','init','--bare','--initial-branch=main',str(ROOT/'remote.git')])
         run(['git','-C',str(ROOT/'repo'),'remote','add','origin',str(ROOT/'remote.git')])
         run(['git','-C',str(ROOT/'repo'),'push','-u','origin','main'])
         assert ask('owner',{'method':'push','repo':'ab'})['status']==0
@@ -75,6 +139,7 @@ def main():
         assert 'access cap read' in ask('owner',{'method':'push','repo':'ab'})['error']
         assert 'access cap read' in ask('operator',{'method':'clean','repo':'ab'})['error']
         assert ask('plain',{'method':'rev','repo':'ab'})['branch']=='main'
+        autopull_check(tokens,ask)
         cli('agent-template', NAME, json.dumps({'repos':{}}))
         assert 'undeclared repository' in ask('operator',{'method':'status','repo':'ab'})['error']
     finally:

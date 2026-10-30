@@ -51,7 +51,7 @@ application copy.
 
 <details><summary>Technical details: what each update does</summary>
 
-- `deploy` fetches, returns to the configured branch, resets hard to its upstream and runs `clean -fd`, then answers with the old and new commit ids.
+- `deploy` fetches, returns to the configured branch, resets hard to origin branch and runs `clean -fd`, then answers with a JSON result record.
 - `diff` returns a summary and untracked paths, not a full patch or a date-based report. `log ab 20` has no date filter.
 - Commits use the server account's Git name and email; `push` uses its remote and keys. It never pretends to be the person who asked.
 - Options and shell commands are never accepted. Restarting the application is a separate [systemd](systemd.md) call.
@@ -111,8 +111,8 @@ unset AGENT_BUS_TOKEN
 
 - First check that the `--user` account can read the project's history there.
 - The installer prints `agent-bus-git.service`; `list` should show `ab`. Calls are refused until Configuration declares projects; the installer takes no `--repo`.
-- Add `--autopull` for [automatic updates](#autopull).
-- Remove: same installer, `remove --name '#git@node.example'`, with current credentials; its timers go too.
+- Choose event-driven [automatic updates](#autopull) in Configuration. The removed `--autopull` timer flag is refused; reinstall retires owned old timer units.
+- Remove: same installer, `remove --name '#git@node.example'`, with current credentials; owned old timers go too.
 
 </details>
 
@@ -125,7 +125,9 @@ which SSH key to use. Changes apply on the next call.
 
 | Key | Meaning |
 |---|---|
-| `repos` | Name → `path` (absolute), `access` (`read`, `deploy`, `commit`), optional `branch` |
+| `repos` | Name → `path` (absolute), `access` (`read`, `deploy`, `commit`), optional `branch`, `mode` (`ff` default or `mirror`), `follow` (boolean, false default) |
+| `autopull-cmd` | Optional pubsub channel whose authenticated deliveries announce updates; required by `follow` |
+| `autopull-log` | Optional pubsub channel for result records; no name means no publication |
 | `ssh_key` | Optional absolute path to a private-key file the account already holds; never key contents |
 
 ```json
@@ -149,7 +151,7 @@ lower wins.
 <details><summary>Technical details: branches</summary>
 
 - `branch` sets the branch for deploy, reset and ahead/behind counts. Without it the current branch is used; a detached copy needs a usable remote default branch or an explicit `branch`.
-- The branch's upstream (the remote branch it follows) must be configured for pull and deploy.
+- Pull uses the branch upstream; event updates and deploy use `origin/<branch>`.
 
 </details>
 
@@ -181,14 +183,109 @@ Example: `agent-bus manage '#git@node.example' --add-allow '#claude/deploy@node.
 
 ## Autopull
 
-Optional automatic updates every few minutes, chosen at install time (not a
-Configuration key). It never throws away work: a copy with local edits is left
-alone and reported. Never enable it in a shared working copy.
+Follow a command channel to catch new code without a timer. `ff` refuses local
+changes or diverged history; `mirror` discards local changes in a dedicated
+application copy. Only repositories with `follow:true` handle events and check
+once at startup. Both following and mirror mode require access `deploy` or `commit`.
 
-<details><summary>Technical details: autopull</summary>
+<details><summary>Configure a following copy</summary>
 
-- Reinstall with `--autopull site=5m` added; without it no timer exists. Reinstall without it to remove the timer; an old result can remain.
-- Each attempt uses the current settings and keys, refuses local edits and only moves forward. It never resets, cleans, stashes, switches branches or restarts an application.
+```json
+{"autopull-cmd":"autopull-cmd@node.example", "autopull-log":"autopull-log@node.example",
+ "repos":{"site":{"path":"/srv/site","access":"deploy","branch":"main","mode":"ff","follow":true}}}
+```
+
+Both channels are ordinary [pubsub channels](../03-records-channel.md#the-two-channel-kinds).
+The command channel's ACL controls who may announce updates and rollbacks; its
+Deliver-To includes each git agent. The log channel permits the git agents to
+publish; listeners receive copies in their own inboxes. Pubsub retains no
+history. For a bounded listener inbox choose [ring overflow](../04-messaging.md#overflow).
+Settings apply to the next received message, with no reinstall.
+
+Only a delivery through the exact configured command channel is an event.
+Sending the same JSON directly to the agent grants no update authority.
+Channel names without a realm use the git agent's realm.
+
+```json
+{"v":1,"type":"push","remote":"team/site","branch":"main","commit":"0123456789abcdef0123456789abcdef01234567"}
+{"v":1,"type":"deploy","remote":"team/site","branch":"main","commit":"0123456","id":"pipeline-81234"}
+```
+
+`remote` is the hosting project path from `origin`, without its host, URL or
+`.git` suffix. Local upstreams use the bare directory's basename. Fields are
+strict: version must be integer 1, push commit exactly 40 lower-case hex,
+deploy commit 7–40 hex, optional id 1–64 letters, digits, dot, underscore or
+hyphen. Unknown fields are refused. Unknown remotes or another branch are ignored.
+An invalid event for a served remote produces `invalid_event`; ambiguous or
+malformed JSON cannot identify a repository and is ignored.
+
+A push always moves to the **fetched tip**; its commit must be visible and an
+ancestor of that tip. Replaying an old push never rolls back a mirror.
+Deploy may select any reachable older revision. A commit not visible after
+three bounded fetch attempts fails `not_in_branch` without changing the copy.
+
+</details>
+
+<details><summary>Run or inspect an update</summary>
+
+```sh
+agent-bus call '#git@node.example' 'autopull site'
+agent-bus call '#git@node.example' 'autopull site now'
+agent-bus call '#git@node.example' 'deploy site main'
+agent-bus call '#git@node.example' 'deploy site main 0123456' | jq -e '.result == "ok"'
+```
+
+Status is one line, for example `FAIL site@node.example main: diverged (ff)`.
+`now` needs the caller's deploy/commit role; the status form is read-only.
+Deploy returns one JSON record; the transport CLI exit code does not interpret
+its `result`. JSON calls use `method`, `repo`, optional `branch`, `rev`, `id`
+for deploy, or `now:true` for an explicit autopull attempt.
+A pinned branch cannot be overridden. Otherwise a deploy selects the effective
+branch, saved outside the checkout and used after restart or a detached read;
+a later Configuration pin takes precedence.
+
+`ff` treats tracked changes, untracked files and an in-progress merge/rebase as
+dirty. Mirror/deploy also refuse in-progress operations; resolve those first.
+Mirror resets the named local branch and cleans with `-fd`, leaving ignored
+files and nested repositories. `discarded.files` counts paths actually cleared;
+`discarded.commits` counts unique commits reachable from the old HEAD or local
+branch tip but not the target. No stash or implicit hold is created.
+
+Updates on one checkout are locked through publication and post-update work;
+different checkouts can proceed independently. Git and lock wait share a
+60-second budget; checkout hooks run as the server account and are killed with
+the Git process group on timeout. Two update workers admit at most eight jobs;
+a separate bounded read pool serves other calls. Excess work is refused before
+admission; channel publishers must not rely on an inbox as a durable job queue.
+
+</details>
+
+<details><summary>Result records and delivery failures</summary>
+
+Each admitted attempt saves its last result locally and, when `autopull-log` is
+set, makes one publication attempt. Topic is `<repo>@<host>`, tag is `ok`, `skip`
+or `fail`. `ok` means an update changed the copy; `skip` means already there.
+
+```json
+{"v":1,"host":"node.example","repo":"site","branch":"main","result":"ok",
+ "action":"autopull","trigger":"event","mode":"mirror","at":"2026-10-29T12:00:00+00:00",
+ "agent":"#git@node.example","remote":"team/site","requested_by":"#ci@node.example","id":"pipeline-81234",
+ "from":"0123456789abcdef0123456789abcdef01234567","to":"123456789abcdef0123456789abcdef012345678",
+ "requested":null,"discarded":{"files":2,"commits":0},"script":null,"error":null,"ms":1200}
+```
+
+`action` is `autopull` or `deploy`; `trigger` is `event`, `start` or `operator`.
+`from`, `to` and `requested` are resolved full commit ids, or null when unavailable;
+`to` is the actual final HEAD even after a failed write. Discard counts are null
+outside mirror mode. Errors have a fixed `code` and safe `text`: `dirty`,
+`diverged`, `not_in_branch`, `fetch`, `timeout`, `lock` or `invalid_event`.
+Checkout paths, origin URLs, credentials and commit messages never appear in
+these records or update answers. Legacy `log` still returns requested commit titles.
+
+Log failure changes neither the Git result nor post-update work. It is never
+retried: acceptance may be uncertain. The direct answer remains pure record
+JSON; `autopull <repo>` and content-free agent stderr show the last publication
+failure. Without a log channel, no publication is attempted.
 
 </details>
 
@@ -210,7 +307,7 @@ alone and reported. Never enable it in a shared working copy.
 |---|---|
 | Repository is not declared | Add its name and absolute path to `repos` |
 | Permission refused | Check both the caller's role and the project's `access` |
-| Dirty or non-fast-forward refusal | Resolve the local work; automatic updates never discard it |
+| Dirty or non-fast-forward refusal | Resolve the local work; ff never discards it; mirror is destructive |
 | SSH authentication failed | Check the account and key; a configured key never falls back to others |
-| Missing branch or upstream | Set the branch and its upstream on the server |
+| Missing branch or upstream | Set the branch; deploy and autopull require origin to serve it |
 | Commit identity unknown | Configure the account's Git name and email |

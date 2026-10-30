@@ -16,10 +16,16 @@
       "example": "agent-bus call '#git@parf.us' list"
     },
     "autopull": {
-      "help": "Show the installed timer’s last result or error; does not run a pull",
+      "help": "Show the last result; now runs one update in the configured mode (deploy role required)",
       "args": [
         {
           "name": "repo"
+        },
+        {
+          "name": "now",
+          "type": "bool",
+          "optional": true,
+          "help": "true to run one update; text form: autopull <repo> now"
         }
       ],
       "example": "agent-bus call '#git@parf.us' 'autopull ab'"
@@ -102,10 +108,25 @@
       "example": "agent-bus call '#git@parf.us' 'pull ab'"
     },
     "deploy": {
-      "help": "Fetch, return to configured branch, reset hard to upstream, clean -fd; return old/new HEAD",
+      "help": "Fetch and deploy the configured/current or named branch, optionally one reachable revision; answer the result record",
       "args": [
         {
           "name": "repo"
+        },
+        {
+          "name": "branch",
+          "optional": true,
+          "help": "Branch; a configured pin cannot be overridden"
+        },
+        {
+          "name": "rev",
+          "optional": true,
+          "help": "7..40 lower-case hex, reachable from the origin branch"
+        },
+        {
+          "name": "id",
+          "optional": true,
+          "help": "Optional correlation id, 1..64 letters, digits, dot, underscore or hyphen (JSON form)"
         }
       ],
       "role": [
@@ -116,7 +137,7 @@
       "example": "agent-bus call '#git@parf.us' 'deploy ab'"
     },
     "reset": {
-      "help": "Hard reset to the configured branch’s upstream; discards changes",
+      "help": "Hard reset to the configured branch\u2019s upstream; discards changes",
       "args": [
         {
           "name": "repo"
@@ -160,7 +181,7 @@
       "example": "agent-bus call '#git@parf.us' 'add ab README.md'"
     },
     "commit": {
-      "help": "Commit staged changes as this server’s git identity",
+      "help": "Commit staged changes as this server\u2019s git identity",
       "args": [
         {
           "name": "repo"
@@ -175,7 +196,7 @@
       "example": "agent-bus call '#git@parf.us' 'commit ab \"Update README\"'"
     },
     "push": {
-      "help": "Push using this server’s identity and SSH key",
+      "help": "Push using this server\u2019s identity and SSH key",
       "args": [
         {
           "name": "repo"
@@ -193,7 +214,7 @@
   "config": {
     "repos": {
       "type": "json",
-      "help": "Repo name → canonical path, access (read/deploy/commit), optional branch; caps apply even to Owners/Maintainers",
+      "help": "Local name to path, access, optional branch, mode (ff default or mirror) and follow (false default); mirror/follow need deploy or commit access",
       "example": {
         "ab": {
           "path": "/usr/local/src/ai-agent-bus",
@@ -204,8 +225,18 @@
     },
     "ssh_key": {
       "type": "string",
-      "help": "Absolute private-key file path, never key bytes; absent uses the service account’s keys",
+      "help": "Absolute private-key file path, never key bytes; absent uses the service account\u2019s keys",
       "example": "/home/deploy/.ssh/id_ed25519"
+    },
+    "autopull-cmd": {
+      "type": "string",
+      "help": "Optional command pubsub channel; required for follow",
+      "example": "autopull-cmd"
+    },
+    "autopull-log": {
+      "type": "string",
+      "help": "Optional result pubsub channel; absent means no publication",
+      "example": "autopull-log"
     }
   },
   "arguments": {

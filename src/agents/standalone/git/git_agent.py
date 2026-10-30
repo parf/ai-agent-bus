@@ -12,6 +12,8 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import time
+from contextlib import contextmanager
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'shared'))
 from metadata import answer as metadata_answer, ASKS, dispatch
@@ -19,7 +21,7 @@ PACKAGE = Path(__file__).resolve().parent
 
 TIERS = {'list': 0, 'autopull': 0, 'status': 0, 'log': 0, 'rev': 0, 'fetch': 0, 'diff': 0,
          'pull': 1, 'deploy': 1, 'add': 2, 'commit': 2, 'push': 2, 'reset': 1, 'clean': 1}
-FIELDS = {'log': {'lines'}, 'pull': {'rev', 'file'}, 'add': {'paths'}, 'commit': {'message'}}
+FIELDS = {'autopull': {'now'}, 'deploy': {'branch', 'rev', 'id'}, 'log': {'lines'}, 'pull': {'rev', 'file'}, 'add': {'paths'}, 'commit': {'message'}}
 LIMIT = 256 * 1024
 COMMAND_TIMEOUT = 60
 
@@ -38,7 +40,7 @@ def argument(value, what):
 
 def parse(body):
     if body.lstrip().startswith('{'):
-        value = json.loads(body)
+        value = load_json(body)
     else:
         words = shlex.split(body)
         if not words:
@@ -47,7 +49,11 @@ def parse(body):
         value = {'method': method}
         if words:
             value['repo'] = words.pop(0)
-        if method == 'pull' and len(words) <= 2:
+        if method == 'autopull' and words == ['now']:
+            value['now'] = True
+        elif method == 'deploy' and len(words) <= 2:
+            value.update(zip(('branch', 'rev'), words))
+        elif method == 'pull' and len(words) <= 2:
             value.update(zip(('rev', 'file'), words))
         elif method == 'log' and len(words) == 1 and words[0].isdigit():
             value['lines'] = int(words[0])
@@ -65,6 +71,14 @@ def parse(body):
         raise ValueError('unknown field; roles and identity come from the server, not the call')
     if method != 'list':
         argument(value.get('repo'), 'repository name')
+    if method == 'autopull' and 'now' in value and type(value['now']) is not bool:
+        raise ValueError('now must be a boolean')
+    if method == 'deploy':
+        if 'branch' in value: validate_branch(value['branch'])
+        if 'rev' in value and not isinstance(value['rev'], str) or 'rev' in value and not re.fullmatch(r'[0-9a-f]{7,40}', value['rev']):
+            raise ValueError('deploy revision must be 7..40 lower-case hex')
+        if 'id' in value and (not isinstance(value['id'], str) or not re.fullmatch(r'[A-Za-z0-9._-]{1,64}', value['id'])):
+            raise ValueError('invalid id')
     if method == 'log':
         n = value.get('lines', 20)
         if type(n) is not int or not 1 <= n <= 1000:
@@ -100,28 +114,66 @@ def relative_path(root, value):
 LEVELS = {'read': 0, 'deploy': 1, 'commit': 2}
 
 
-def configuration():
-    config = json.loads(os.environ.get('AGENT_BUS_CONFIG', '{}'))
-    if not isinstance(config, dict) or set(config) - {'repos', 'ssh_key'}:
-        raise ValueError('Configuration accepts repos and optional ssh_key')
+def load_json(raw, limit=LIMIT):
+    def pairs(items):
+        result = {}
+        for key, value in items:
+            if key in result: raise ValueError('duplicate JSON field')
+            result[key] = value
+        return result
+    def constant(_): raise ValueError('non-finite JSON value')
+    if not isinstance(raw, str) or len(raw.encode('utf-8')) > limit or '\x00' in raw:
+        raise ValueError('JSON exceeds bounds')
+    try:
+        value = json.loads(raw, object_pairs_hook=pairs, parse_constant=constant)
+    except (RecursionError, UnicodeError):
+        raise ValueError('invalid JSON') from None
+    work = [(value, 0)]
+    while work:
+        item, depth = work.pop()
+        if depth > 8: raise ValueError('JSON nesting exceeds bounds')
+        if isinstance(item, dict): work.extend((v, depth + 1) for v in item.values())
+        elif isinstance(item, list): work.extend((v, depth + 1) for v in item)
+    return value
+
+
+def validate_branch(branch):
+    if (not isinstance(branch, str) or len(branch.encode()) > 255 or
+        not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._/-]*', branch) or
+        '..' in branch or '//' in branch or branch.endswith(('/', '.')) or
+        any(part.startswith('.') or part.endswith('.lock') for part in branch.split('/'))):
+        raise ValueError('invalid branch')
+    return branch
+
+
+def configuration(raw=None):
+    config = load_json(os.environ.get('AGENT_BUS_CONFIG', '{}') if raw is None else raw)
+    if not isinstance(config, dict) or set(config) - {'repos', 'ssh_key', 'autopull-cmd', 'autopull-log'}:
+        raise ValueError('Configuration accepts repos, ssh_key, autopull-cmd and autopull-log')
+    for key in ('autopull-cmd', 'autopull-log'):
+        if key in config and (not isinstance(config[key], str) or not re.fullmatch(r'[a-z0-9][a-z0-9._/-]*(?:@[a-z0-9.-]+)?', config[key]) or len(config[key]) > 128):
+            raise ValueError('Configuration channel must be a canonical channel name')
     repos = config.get('repos')
-    if not isinstance(repos, dict):
-        raise ValueError('Configuration repos must be an object')
+    if not isinstance(repos, dict) or len(repos) > 64:
+        raise ValueError('Configuration repos must be an object of at most 64 repositories')
     for name, entry in repos.items():
         try:
-            if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]*', name):
+            if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]{0,63}', name):
                 raise ValueError('invalid name')
-            if not isinstance(entry, dict) or set(entry) - {'path','access','branch'}:
-                raise ValueError('expected path, access and optional branch')
+            if not isinstance(entry, dict) or set(entry) - {'path','access','branch','mode','follow'}:
+                raise ValueError('expected path, access and optional branch, mode, follow')
             path = entry.get('path')
-            if not isinstance(path, str) or not Path(path).is_absolute():
+            if not isinstance(path, str) or not Path(path).is_absolute() or '\x00' in path:
                 raise ValueError('path must be absolute')
             if entry.get('access') not in LEVELS:
                 raise ValueError('access must be read, deploy or commit')
-            if 'branch' in entry:
-                branch = argument(entry['branch'], 'branch')
-                if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._/-]*', branch) or '..' in branch or branch.endswith(('/', '.')):
-                    raise ValueError('invalid branch')
+            if 'branch' in entry: validate_branch(entry['branch'])
+            if entry.get('mode', 'ff') not in ('ff', 'mirror') or type(entry.get('follow', False)) is not bool:
+                raise ValueError('mode is ff or mirror; follow is boolean')
+            if (entry.get('mode') == 'mirror' or entry.get('follow')) and LEVELS[entry['access']] < 1:
+                raise ValueError('mirror/follow requires access deploy or commit')
+            if entry.get('follow') and not config.get('autopull-cmd'):
+                raise ValueError('follow requires autopull-cmd')
         except (ValueError, TypeError) as error:
             raise ValueError(f'Configuration repos {name!r}: {error}') from error
     return config
@@ -139,12 +191,10 @@ def repository_branch(root, declared, env):
     raise ValueError('Configuration repos: branch is required for this detached repository')
 
 
-def git_environment():
-    env = dict(os.environ)
+def git_environment(config=None, *, clean=False):
+    env = {k:v for k,v in os.environ.items() if not clean or not k.startswith(('AGENT_BUS_', 'AB_ROLE_', 'GIT_'))}
     env.update(GIT_TERMINAL_PROMPT='0', GIT_LITERAL_PATHSPECS='1')
-    config = json.loads(env.get('AGENT_BUS_CONFIG', '{}'))
-    if not isinstance(config, dict) or set(config) - {'ssh_key', 'repos'}:
-        raise ValueError('Configuration accepts repos and optional ssh_key')
+    config = configuration() if config is None else config
     if 'ssh_key' in config:
         key = argument(config['ssh_key'], 'ssh_key path')
         if not Path(key).is_absolute() or not Path(key).is_file() or not os.access(key, os.R_OK):
@@ -159,13 +209,19 @@ class GitError(Exception):
         self.result = result
 
 
-def git(root, args, env, check=True):
+def git(root, args, env, check=True, timeout=None):
     # File-backed capture bounds returned output without pipe deadlocks.
+    if timeout is None:
+        timeout = COMMAND_TIMEOUT
+        if 'GIT_AGENT_DEADLINE' in env:
+            timeout = min(timeout, float(env['GIT_AGENT_DEADLINE']) - time.monotonic())
+    if timeout <= 0:
+        raise GitError({'status':124, 'error':'git deadline exceeded', 'stdout':'', 'stderr':'', 'truncated':False})
     with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
         try:
             p = subprocess.Popen(['git', '-C', str(root), '--no-pager', *args], env=env,
                                  stdout=out, stderr=err, start_new_session=True)
-            code = p.wait(timeout=COMMAND_TIMEOUT)
+            code = p.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
             # Git's SSH/hook children share this private group. A timeout must
             # not leave a transport pushing after the caller was told it failed.
@@ -183,9 +239,28 @@ def git(root, args, env, check=True):
     return result
 
 
+def state_directory():
+    return Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state'))) / 'agent-bus-git'
+
+
 def autopull_file(root):
-    state = Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state'))) / 'agent-bus-git'
-    return state / ('autopull-' + hashlib.sha256(str(root).encode()).hexdigest() + '.json')
+    return state_directory() / ('autopull-' + hashlib.sha256(str(root).encode()).hexdigest() + '.json')
+
+
+@contextmanager
+def checkout_lock(root, deadline):
+    state_directory().mkdir(parents=True, exist_ok=True, mode=0o700)
+    path = state_directory() / (hashlib.sha256(str(root).encode()).hexdigest() + '.lock')
+    with path.open('a') as lock:
+        while True:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline: raise TimeoutError('checkout lock deadline') from None
+                time.sleep(min(.02, max(0, deadline - time.monotonic())))
+        try: yield
+        finally: fcntl.flock(lock, fcntl.LOCK_UN)
 
 
 def store_autopull(path, result):
@@ -211,8 +286,8 @@ def execute(repos, call, *, automatic=False):
         raise ValueError(f"repository {name}: access cap {declared['access']} refuses {method}")
     root = Path(declared['path']).resolve(strict=True)
     if method == 'autopull':
-        try: return json.loads(autopull_file(name).read_text())
-        except FileNotFoundError: return {'status': 0, 'stdout': 'no autopull attempt recorded'}
+        import autopull
+        return {'status': 0, 'stdout': autopull.last_status(name)}
     env = git_environment()
     if git(root, ['rev-parse', '--show-toplevel'], env)['stdout'].strip() != str(root):
         raise ValueError('declared path is not a repository root')
@@ -220,10 +295,7 @@ def execute(repos, call, *, automatic=False):
     file = relative_path(root, call['file']) if 'file' in call else None
     # Each invocation takes a lock outside the work tree; parallel calls from
     # this instance cannot interleave multi-command deploys.
-    state = Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state'))) / 'agent-bus-git'
-    state.mkdir(parents=True, exist_ok=True, mode=0o700)
-    with (state / (hashlib.sha256(str(root).encode()).hexdigest() + '.lock')).open('a') as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+    with checkout_lock(root, time.monotonic() + COMMAND_TIMEOUT):
         branch = repository_branch(root, declared, env) if method in ('fetch','reset','deploy') else None
         return operation(root, branch, call, paths, file, env, automatic=automatic)
 
@@ -297,6 +369,10 @@ def answer(body):
         if as_json and json.loads(body) == {'method':'help'}:
             return describe(repos, as_json=True)
         call = parse(body)
+        if call['method'] == 'deploy' or call['method'] == 'autopull' and call.get('now'):
+            import autopull
+            if tier() < 1: raise ValueError('requires deploy role')
+            return json.dumps(autopull.attempt(call['repo'], configuration(), action='deploy' if call['method'] == 'deploy' else 'autopull', branch=call.get('branch'), rev=call.get('rev'), event_id=call.get('id'), requested_by=os.environ.get('AGENT_BUS_FROM')))
         result = {'method': call['method'], **execute(repos, call)}
     except GitError as e:
         result = e.result
@@ -316,6 +392,9 @@ def main():
     if result is not None:
         print(result)
         return
+    if sys.argv[1:] == ['--serve']:
+        import autopull
+        return autopull.serve()
     p = argparse.ArgumentParser(add_help=False)
     p.add_argument('body', nargs='?', default='')
     print(answer(p.parse_args().body))
