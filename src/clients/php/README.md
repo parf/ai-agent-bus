@@ -51,7 +51,7 @@ sent to bob@example.com
 
 ## Technical details
 
-- **Package:** PHP 8.1 or later; the [PHP plan](../../../Plans/R1.0-Release/done/client-libraries/php.md) owns the interface; [authentication](../../../docs/02-access.md#what-a-call-carries) owns credentials; [MIT license](LICENSE.md).
+- **Package:** PHP 8.1 or later (the example also needs ext-pcntl and ext-posix for its child process); the [PHP plan](../../../Plans/R1.0-Release/done/client-libraries/php.md) owns the interface; [authentication](../../../docs/02-access.md#what-a-call-carries) owns credentials; [MIT license](LICENSE.md).
 - **Identity:** the credential's name calls. `as:` only checks it, throwing `IdentityMismatch` on the first call.
 - **Secret:** `secret()` holds the bytes as delivered; `env()` is a single-line `NAME=value` reader, not the runner's dotenv grammar: a ` # note` stays in the value and a quoted value cannot span lines, so parse a PEM or multi-line value from `bytes()`.
 - **Serving:** one message at a time per process; parallelism is more processes.
@@ -64,9 +64,9 @@ sent to bob@example.com
 From the repository root:
 
 ```sh
-src/clients/php/tests/daemon.sh php -d log_errors=0 -d display_errors=stderr src/clients/php/tests/run.php [section]
+bash src/clients/check.sh php
 ```
 
-- `tests/daemon.sh` starts a throwaway daemon from the checkout's programs under `tmp/`; it never uses the live bus.
+- The check runs PHP with `-d log_errors=0 -d display_errors=stderr` and an empty `SASL_PATH`, so nothing reaches the host log. `tests/daemon.sh` starts a throwaway daemon from the checkout's programs under `tmp/`; it never uses the live bus.
 - Child processes cover serving, a shared pool, SIGTERM, a lock waiter and a server that hangs up mid-call.
 - The [shared request/answer cases](../../testdata/client-conformance/README.md) are also run by the PHP check, as in every other language.
