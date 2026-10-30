@@ -1,9 +1,46 @@
 # Session launchers
 
-📌 **TL;DR:** `ab-claude`, `ab-codex` and `ab-opencode` put a live AI session
-behind a bus name with the bus tools loaded, and push each message into the
-running session through that runtime's adapter. A script behind a name is the
-[dedicated runner](06-dedicated-runner.md)'s instead.
+📌 **TL;DR:**
+- **Problem:** an AI session in your terminal cannot receive messages from the bus on its own.
+- **Outcome:** `ab-claude`, `ab-codex` and `ab-opencode` put a live AI session behind a bus name with the bus tools loaded, and push each message into the running session through that runtime's adapter. A script behind a name is the [dedicated runner](06-dedicated-runner.md)'s instead.
+- **Start:** see what a launcher offers: `ab-claude --help` ([Try this first](#try-this-first)). This page owns the runtime adapters and the session launchers.
+
+## Why you'd want it
+
+- 📥 **A session only hears you, not the bus.** Now each message is pushed into the running session.
+- 🏷️ **A session has no stable name.** Now it keeps a name across restarts, one live session per name.
+- 🔁 **A crash ends the conversation.** Now a launcher restarts the session after a crash.
+
+## What you get
+
+- ✅ **One launcher per runtime:** Claude, Codex and OpenCode, each with the bus tools loaded.
+- ✅ **Names and tags:** stable session names, tags for filtering, and an explicit rename.
+- ✅ **Recovery:** restart after a crash, and isolation between sessions.
+- 🚫 **Not for:** running a plain script behind a name (the [dedicated runner](06-dedicated-runner.md)).
+
+## Try this first
+
+- See what a launcher offers (read-only):
+
+```sh
+ab-claude --help
+```
+
+<details>
+<summary>See it on a real node (ran today)</summary>
+
+```text
+ab-claude: launch claude with agent-bus tools and messaging.
+```
+
+- The first line of the answer; the rest lists the options.
+- The output is from the development node on 2026-10-30.
+
+</details>
+
+## Technical details
+
+The reference below keeps every section as it was; other pages link to these sections.
 
 This page owns the runtime adapters and the session launchers.
 
@@ -21,26 +58,18 @@ pushes into the *running* session. Claude Code, Codex and opencode are proven he
 | ChatGPT | none — cannot be pushed; pull through the MCP inbox only | pull only |
 
 **Push stops rather than repeats a refusal about who is asking.** A credential
-the daemon does not know and an inbox somebody else already holds are answers
-that asking again cannot change, so the loop says so once and leaves the
-session running without a channel. A suspended principal is different: it can
-be reactivated, so push says so once and asks again every 30
-minutes, and resumes by itself after reactivation (owner, 2026-09-23). It is
-told by the daemon's own sentence for it, "user access is suspended"; any other
-403 stops push as before. A
-transient failure is retried after two seconds; a session that outlives its
-principal otherwise refuses its way through the daemon for as long as it lives.
+- the daemon does not know and an inbox somebody else already holds are answers that asking again cannot change, so the loop says so once and leaves the session running without a channel.
+- A suspended principal is different: it can be reactivated, so push says so once and asks again every 30 minutes, and resumes by itself after reactivation (owner, 2026-09-23).
+- It is told by the daemon's own sentence for it, "user access is suspended"; any other 403 stops push as before.
+- A transient failure is retried after two seconds; a session that outlives its principal otherwise refuses its way through the daemon for as long as it lives.
 
 Session [help asks](../src/mcp/README.md#push-and-the-one-reader) are answered by the adapter without interrupting the model; ordinary messages still push through.
 
 Follow the [receipt rules](04-messaging.md#receipts).
 
-The adapter acknowledges to the bus only after the runtime has *accepted* the
-message. **Acceptance is not processing** — Claude Channels expose no later
-"the model handled it" signal — so anything that needs to know the work was
-done waits for a correlated reply, never for the ack. It never lets an incoming message change the session's permissions or
-mode — that is the adapter's policy as a receiver
-([messaging § envelope](04-messaging.md#envelope)), not a rule of the bus.
+- The adapter acknowledges to the bus only after the runtime has *accepted* the message.
+- **Acceptance is not processing** — Claude Channels expose no later "the model handled it" signal — so anything that needs to know the work was done waits for a correlated reply, never for the ack.
+- It never lets an incoming message change the session's permissions or mode — that is the adapter's policy as a receiver ([messaging § envelope](04-messaging.md#envelope)), not a rule of the bus.
 
 
 ## Runtime integration delivery
@@ -112,89 +141,67 @@ captured at startup; a later working-directory change does not rename the sessio
 | Runtime-assigned session name | Preferred human-readable label and basis for a derived bus name when no explicit bus name was supplied; obtain it from the session being launched or resumed |
 | No assigned name available | Fall back to runtime and launch directory, in a human-readable form such as `claude(/rd/)` |
 
-Human-readable labels and [canonical bus names](01-identity-and-authority.md#names) serve
-different purposes: keep the title for the terminal, and derive a valid bus
-name for routing. Without `--descr`, the record description defaults to
-`<runtime> <absolute cwd>` (for example, `claude /usr/local/src/project`).
-Starting or resuming from another directory refreshes an empty or automatic
-runtime/path description. A custom purpose set with `--descr` or on the web
-survives resume. `--descr` explicitly replaces the description.
-Resuming keeps the saved address; changing a purpose changes only its description. A title is not a credential or a unique session identifier.
-The `ab-*` launchers derive `#runtime/instance@host` from 0.7, with `claude`, `codex`
-or `opencode` as the template, the normalized session title (or directory) as
-the instance and the host name as the realm, while the launching User stays
-realm-less. For example, a Codex session titled `home` on host `parf.us`
-becomes `#codex/home@parf.us`, owned by `parf`. They keep deriving a realm although
-[0.7 makes it optional](01-identity-and-authority.md#names): a bare `codex` or
-`runner` would be one name for every node and every user. From 0.7 they also
-register those agents as [Personal](03-records.md#personal-and-shared): a
-session record belongs to the launching user, not on the shared web pages. Saved dot-form addresses migrate on restart through the same address-change
-behavior below. Explicit bus names and other clients' naming remain unchanged.
-Canonical addresses use `.2`, `.3` before the realm, because `#` inside a name is not part of the
-grammar — from 0.7 it is the [agent prefix](01-identity-and-authority.md#names) and
-appears only at the front.
-Allocation checks the visible registry and holds local locks; normalization
-and truncation collisions are checked on the resulting canonical name.
-The daemon's [conditional registration](01-identity-and-authority.md#registration) arbitrates
-simultaneous new claims, including launchers with separate local state directories.
+- Human-readable labels and [canonical bus names](01-identity-and-authority.md#names) serve different purposes: keep the title for the terminal, and derive a valid bus name for routing.
+- Without `--descr`, the record description defaults to `<runtime> <absolute cwd>` (for example, `claude /usr/local/src/project`).
+- Starting or resuming from another directory refreshes an empty or automatic runtime/path description.
+- A custom purpose set with `--descr` or on the web survives resume.
+- `--descr` explicitly replaces the description.
+- Resuming keeps the saved address; changing a purpose changes only its description.
+- A title is not a credential or a unique session identifier.
+- The `ab-*` launchers derive `#runtime/instance@host` from 0.7, with `claude`, `codex` or `opencode` as the template, the normalized session title (or directory) as the instance and the host name as the realm, while the launching User stays realm-less.
+- For example, a Codex session titled `home` on host `parf.us` becomes `#codex/home@parf.us`, owned by `parf`.
+- They keep deriving a realm although [0.7 makes it optional](01-identity-and-authority.md#names): a bare `codex` or `runner` would be one name for every node and every user.
+- From 0.7 they also register those agents as [Personal](03-records.md#personal-and-shared): a session record belongs to the launching user, not on the shared web pages.
+- Saved dot-form addresses migrate on restart through the same address-change behavior below.
+- Explicit bus names and other clients' naming remain unchanged.
+- Canonical addresses use `.2`, `.3` before the realm, because `#` inside a name is not part of the grammar — from 0.7 it is the [agent prefix](01-identity-and-authority.md#names) and appears only at the front.
+- Allocation checks the visible registry and holds local locks; normalization and truncation collisions are checked on the resulting canonical name.
+- The daemon's [conditional registration](01-identity-and-authority.md#registration) arbitrates simultaneous new claims, including launchers with separate local state directories.
 
-Launcher names are persistent session reservations. A new session never
-reclaims an existing record, regardless of its age, readers or queued messages.
-To inspect dormant reservations use `agent-bus ls --kind agent --all`; after
-checking that a session is no longer needed, its owner can explicitly run
-`agent-bus unregister <name>` (the daemon refuses a busy record).
-It takes the first free address in order: the base, then `.2`, `.3` and so on
-regardless of their descriptions. Concurrent new sessions keep distinct names; another
-session cannot take a live session's name during startup or later.
+- Launcher names are persistent session reservations.
+- A new session never reclaims an existing record, regardless of its age, readers or queued messages.
+- To inspect dormant reservations use `agent-bus ls --kind agent --all`; after checking that a session is no longer needed, its owner can explicitly run `agent-bus unregister <name>` (the daemon refuses a busy record).
+- It takes the first free address in order: the base, then `.2`, `.3` and so on regardless of their descriptions.
+- Concurrent new sessions keep distinct names; another session cannot take a live session's name during startup or later.
 
 An explicit `AGENT_BUS_NAME` is itself a reservation: a fresh session uses
 that exact address, never a numbered alternative. A saved or explicit
 reservation with another attached reader is refused by name without updating
 the record; resume after that session has stopped.
 
-Known startup limits: two starts of the same saved or explicit address from
-different state directories can both register before either reader attaches;
-a reader recheck cannot arbitrate that gap. Avoid simultaneous starts of the
-same reserved session from different state directories. Local lock directories
-are published atomically with their owner PID already inside; stale cleanup
-cannot remove another claimant’s replacement lock.
+- Known startup limits: two starts of the same saved or explicit address from different state directories can both register before either reader attaches; a reader recheck cannot arbitrate that gap.
+- Avoid simultaneous starts of the same reserved session from different state directories.
+- Local lock directories are published atomically with their owner PID already inside; stale cleanup cannot remove another claimant’s replacement lock.
 
 A saved session with an unchanged title resumes exactly its saved address,
 including its collision suffix: after one second, after a crash with no reader,
 or after a long idle period. The exception is the person's own rename,
 described below; age and another session never rename it.
 
-Dormant identities therefore accumulate in the registry. Release an unwanted
-reservation explicitly with [unregister](01-identity-and-authority.md#unregistering).
-The existing [explicit rename](#explicit-session-rename) also releases only the
-renamed session's own old record when idle. Releasing a name makes it available
-to new sessions; keep reservations for sessions you intend to resume.
+- Dormant identities therefore accumulate in the registry.
+- Release an unwanted reservation explicitly with [unregister](01-identity-and-authority.md#unregistering).
+- The existing [explicit rename](#explicit-session-rename) also releases only the renamed session's own old record when idle.
+- Releasing a name makes it available to new sessions; keep reservations for sessions you intend to resume.
 
-Bind the selected identity to the runtime's actual session, consistently across
-the tools and pusher. A runtime UI title change updates only the terminal label, never the purpose, until
-an explicit bus rename or restart.
-On restart, `ab-claude` and `ab-codex` derive a new address if the session title
-has changed its normalized base; an explicit bus name stays fixed. Otherwise
-resume reuses the saved address, including any collision suffix. This restart
-behavior belongs only to these launchers, not other bus clients.
-After claiming the new address, the launcher [unregisters](01-identity-and-authority.md#unregistering)
-the old one if idle. If removal is refused, it reports the retained address;
-old queued messages stay there and are not moved to the new inbox.
-Claude's explicit name option and saved title metadata supply its label;
-Codex supplies it through App Server thread metadata. When unavailable, the
-fallback still works. Runtime session IDs key the saved bus-name binding;
-concurrent launches do not attach to the same session. The launcher state
-and credential files are private to the launching OS account. Saved bindings,
-lock PID files and palette counters are published by same-directory atomic
-rename with mode 0600, so readers see complete snapshots. This does not add
-power-loss durability or serialize simultaneous palette-counter increments.
+- Bind the selected identity to the runtime's actual session, consistently across the tools and pusher.
+- A runtime UI title change updates only the terminal label, never the purpose, until an explicit bus rename or restart.
+- On restart, `ab-claude` and `ab-codex` derive a new address if the session title has changed its normalized base; an explicit bus name stays fixed.
+- Otherwise resume reuses the saved address, including any collision suffix.
+- This restart behavior belongs only to these launchers, not other bus clients.
+- After claiming the new address, the launcher [unregisters](01-identity-and-authority.md#unregistering) the old one if idle.
+- If removal is refused, it reports the retained address; old queued messages stay there and are not moved to the new inbox.
+- Claude's explicit name option and saved title metadata supply its label; Codex supplies it through App Server thread metadata.
+- When unavailable, the fallback still works.
+- Runtime session IDs key the saved bus-name binding; concurrent launches do not attach to the same session.
+- The launcher state and credential files are private to the launching OS account.
+- Saved bindings, lock PID files and palette counters are published by same-directory atomic rename with mode 0600, so readers see complete snapshots.
+- This does not add power-loss durability or serialize simultaneous palette-counter increments.
 
 ## One live session per name
 
-📌 **TL;DR:** A bus name has one live reader ([one reader per inbox](04-messaging.md#one-reader-per-inbox)). A
-session whose name is already read does not start quietly deaf: every tool says so and names the holder. It
-takes the name only on an explicit `--take-over`, and a forked or background session gets a name of its own
-([RD129](../Plans/R1.0-Release/DECISIONS.md#recorded-decisions)).
+- 📌 **TL;DR:** A bus name has one live reader ([one reader per inbox](04-messaging.md#one-reader-per-inbox)).
+- A session whose name is already read does not start quietly deaf: every tool says so and names the holder.
+- It takes the name only on an explicit `--take-over`, and a forked or background session gets a name of its own ([RD129](../Plans/R1.0-Release/DECISIONS.md#recorded-decisions)).
 
 | Case | What happens |
 |---|---|
@@ -203,27 +210,24 @@ takes the name only on an explicit `--take-over`, and a forked or background ses
 | A fork or background session | A face whose runtime session id differs from the one its launcher bound, and whose name is held, asks the launcher for a name of its own: the parent's name with `.job` before the realm, numbered when two forks share a parent. The launcher registers it, writes the fork's credential beside its own and answers with the name only. The binding is keyed by the parent and fork ids, so a resumed fork gets its name back. The name stays registered when the fork ends; releasing it is explicit, as for every name |
 | A changed session id on a free name | Nothing: `/clear` and an MCP reconnect change the id and keep the name |
 
-A face never changes its parent's session file, and nothing sets takeover automatically. A holder that is
-told to let go can lose one message taken at that instant: reads are at-most-once
-([durability](04-messaging.md#durability)). The pid in a face mark is checked against its process start time
-before any signal, so a recycled pid is never signalled.
+- A face never changes its parent's session file, and nothing sets takeover automatically.
+- A holder that is told to let go can lose one message taken at that instant: reads are at-most-once ([durability](04-messaging.md#durability)).
+- The pid in a face mark is checked against its process start time before any signal, so a recycled pid is never signalled.
 
 ## Session tags
 
-All four launchers accept repeatable `--tag a,b` options to group session records
-for `agent-bus ls --tag review` and `agent-bus call --tagged review 'check progress'`.
-The [record tag grammar](03-records.md#tags) applies: invalid labels are refused,
-deduplicated and sorted; an empty or reserved label is refused by name.
+- All four launchers accept repeatable `--tag a,b` options to group session records for `agent-bus ls --tag review` and `agent-bus call --tagged review 'check progress'`.
+- The [record tag grammar](03-records.md#tags) applies: invalid labels are refused, deduplicated and sorted; an empty or reserved label is refused by name.
 
 ```sh
 ab-codex --tag review,billing --tag release-notes
 ```
 
-Without `--tag`, a resumed session keeps its stored tags, including web edits.
-An explicit option replaces the custom set; `--tag ''` alone clears custom tags.
-The `ai-cli` tag, runtime tag (`claude`, `codex` or `opencode`) and the record's Personal
-classification stay. Rename, crash restart and MCP re-registration keep tags.
-Options after `--` belong to the runtime and are not parsed by the launcher.
+- Without `--tag`, a resumed session keeps its stored tags, including web edits.
+- An explicit option replaces the custom set; `--tag ''` alone clears custom tags.
+- The `ai-cli` tag, runtime tag (`claude`, `codex` or `opencode`) and the record's Personal classification stay.
+- Rename, crash restart and MCP re-registration keep tags.
+- Options after `--` belong to the runtime and are not parsed by the launcher.
 
 ## Restart after a crash
 
@@ -233,16 +237,14 @@ Use a positive whole number; other timeout forms are refused. The flag belongs
 to the launcher and is not passed to the runtime. After `--`, it is a runtime
 argument and is left untouched.
 
-A nonzero exit or signal such as SIGSEGV restarts only the foreground TUI after
-the wait. The launcher prints `<name> exited (<code or signal>); restarting in
-30s (attempt 1/10) — Ctrl-C to stop` (with the current wait and attempt).
-Each short-lived failure doubles the wait, capped at five minutes, including
-the first requested delay. After ten consecutive runs that fail before staying
-alive for 60 seconds, the launcher stops with a named crash-loop error. A run
-lasting at least 60 seconds resets the count and backoff; waiting does not.
-The launcher preserves the original user arguments and resumes the same session. The bus name, record and local binding
-locks stay reserved during the wait; a conflicting live name is refused.
-Ctrl-C during the wait ends the launcher and releases its locks normally.
+- A nonzero exit or signal such as SIGSEGV restarts only the foreground TUI after the wait.
+- The launcher prints `<name> exited (<code or signal>); restarting in 30s (attempt 1/10) — Ctrl-C to stop` (with the current wait and attempt).
+- Each short-lived failure doubles the wait, capped at five minutes, including the first requested delay.
+- After ten consecutive runs that fail before staying alive for 60 seconds, the launcher stops with a named crash-loop error.
+- A run lasting at least 60 seconds resets the count and backoff; waiting does not.
+- The launcher preserves the original user arguments and resumes the same session.
+- The bus name, record and local binding locks stay reserved during the wait; a conflicting live name is refused.
+- Ctrl-C during the wait ends the launcher and releases its locks normally.
 
 Exit 0 means the user quit: it never restarts. Codex's App Server and OpenCode's
 server are reused, not restarted; a server exit still ends the launcher with
@@ -252,32 +254,24 @@ behaviour is unchanged.
 ## Explicit session rename
 
 **Built.** With an `ab-*` launcher, `ab_rename(name)` changes the runtime
-session title and bus address together. Codex and OpenCode use their own
-session APIs; Claude appends its existing title metadata. Without a name,
-the launcher reads the runtime's current title immediately. Without a
-launcher, a bare MCP face holding only its agent's credential refuses a
-named rename and changes nothing, because the new address is its User's
-record: renaming is for `ab-*` sessions only.
+- session title and bus address together.
+- Codex and OpenCode use their own session APIs; Claude appends its existing title metadata.
+- Without a name, the launcher reads the runtime's current title immediately.
+- Without a launcher, a bare MCP face holding only its agent's credential refuses a named rename and changes nothing, because the new address is its User's record: renaming is for `ab-*` sessions only.
 
-The launcher owns the transition: claim a unique address as the launching
-account, acquire its credential, update the runtime title, stop the old inbox
-reader, persist the new session binding and private environment, then read
-the new inbox. All MCP clients read that shared identity before tool calls.
-Concurrent rename and metadata refresh operations are serialized; repeated
-renames reuse the selected address. A now-unneeded collision suffix may be
-removed when the base address becomes available.
+- The launcher owns the transition: claim a unique address as the launching account, acquire its credential, update the runtime title, stop the old inbox reader, persist the new session binding and private environment, then read the new inbox.
+- All MCP clients read that shared identity before tool calls.
+- Concurrent rename and metadata refresh operations are serialized; repeated renames reuse the selected address.
+- A now-unneeded collision suffix may be removed when the base address becomes available.
 
-After a rename, the replacement pusher retries a still-held read with backoff
-for at most ten seconds, because client cancellation can finish before the
-daemon releases its waiter. If another reader still holds the address, push
-stops with a loud `push inactive` diagnostic naming it; it never takes over
-that reader. An ordinary startup still refuses a competing reader immediately.
+- After a rename, the replacement pusher retries a still-held read with backoff for at most ten seconds, because client cancellation can finish before the daemon releases its waiter.
+- If another reader still holds the address, push stops with a loud `push inactive` diagnostic naming it; it never takes over that reader.
+- An ordinary startup still refuses a competing reader immediately.
 
-The old address is removed only when idle; queued messages stay in a retained
-inbox and the tool reports it. A failed runtime rename releases the new claim
-and keeps the previous identity. An explicit `AGENT_BUS_NAME` pins the address
-and refuses this operation. Older running launchers must be restarted; their
-MCP face must not change addresses independently.
+- The old address is removed only when idle; queued messages stay in a retained inbox and the tool reports it.
+- A failed runtime rename releases the new claim and keeps the previous identity.
+- An explicit `AGENT_BUS_NAME` pins the address and refuses this operation.
+- Older running launchers must be restarted; their MCP face must not change addresses independently.
 
 The internal control listener binds loopback and requires a random credential
 kept in the private session file. It can rename only its own launcher; it does
@@ -290,28 +284,20 @@ OpenCode executable selection honors `OPENCODE_BIN`, then tries
 settings even when an interactive shell function hides a system executable.
 An explicit override that cannot run is an error, not a fallback.
 
-Use the [Claude entry point](../src/launchers/ab-claude),
-[Codex entry point](../src/launchers/ab-codex), the
-[opencode entry point](../src/launchers/ab-opencode) — or the archived
-[1.x one](../src/launchers/ab-opencode1) on a host whose opencode is older —
-or the relocatable output of
-[the build script](../src/README.md#build-and-check). Bun and the selected
-runtime must be installed. Local socket discovery needs no environment setup;
-explicit addresses and tokens use the [face environment](../src/mcp/README.md#environment).
+- Use the [Claude entry point](../src/launchers/ab-claude), [Codex entry point](../src/launchers/ab-codex), the [opencode entry point](../src/launchers/ab-opencode) — or the archived [1.x one](../src/launchers/ab-opencode1) on a host whose opencode is older — or the relocatable output of [the build script](../src/README.md#build-and-check).
+- Bun and the selected runtime must be installed.
+- Local socket discovery needs no environment setup; explicit addresses and tokens use the [face environment](../src/mcp/README.md#environment).
 
-The launcher registers the session as its owner, obtains the session's own
-token and passes only that credential to its tools. On a mapped user socket,
-it switches to the shared listener for session calls and verifies the resulting
-identity. Runtime configuration is temporary. Claude's channel uses the installed marketplace plugin; see [one-time setup](#claude-channel-plugin).
-A plain Claude session without launcher identity has no bus face to serve.
-Per-runtime executable overrides and state paths are described
-by each launcher's help output.
+- The launcher registers the session as its owner, obtains the session's own token and passes only that credential to its tools.
+- On a mapped user socket, it switches to the shared listener for session calls and verifies the resulting identity.
+- Runtime configuration is temporary.
+- Claude's channel uses the installed marketplace plugin; see [one-time setup](#claude-channel-plugin).
+- A plain Claude session without launcher identity has no bus face to serve.
+- Per-runtime executable overrides and state paths are described by each launcher's help output.
 
-The launcher owns its local App Server; attaching to another server and worktree
-creation are unsupported. After an uncatchable launcher kill, stale lock directories
-may need removal from its state directory after checking the recorded PID is dead.
-Resuming the same saved session binding from copied state on different hosts is
-not coordinated by the local session locks; default state stays on its launching host.
+- The launcher owns its local App Server; attaching to another server and worktree creation are unsupported.
+- After an uncatchable launcher kill, stale lock directories may need removal from its state directory after checking the recorded PID is dead.
+- Resuming the same saved session binding from copied state on different hosts is not coordinated by the local session locks; default state stays on its launching host.
 
 ## Claude channel plugin
 
@@ -324,19 +310,17 @@ claude plugin marketplace add /usr/local/src/ai-agent-bus/src
 claude plugin install agent-bus@agent-bus-local --scope user
 ```
 
-For a packaged release, use its installation's `current` directory instead of
-`/usr/local/src/ai-agent-bus/src`. Both contain `.claude-plugin/marketplace.json`.
-After updating the package, refresh it with `claude plugin update agent-bus@agent-bus-local`.
-If an older launcher registered a local MCP server named `agent-bus`, remove
-that old definition once from each affected launch directory:
-`claude mcp remove --scope local agent-bus`. Keep other servers and scopes.
-The plugin now provides that server; loading both would create competing readers.
+- For a packaged release, use its installation's `current` directory instead of `/usr/local/src/ai-agent-bus/src`.
+- Both contain `.claude-plugin/marketplace.json`.
+- After updating the package, refresh it with `claude plugin update agent-bus@agent-bus-local`.
+- If an older launcher registered a local MCP server named `agent-bus`, remove that old definition once from each affected launch directory: `claude mcp remove --scope local agent-bus`.
+- Keep other servers and scopes.
+- The plugin now provides that server; loading both would create competing readers.
 
-`ab-claude` always passes `--channels plugin:agent-bus@agent-bus-local`, with
-its namespaced tools allowed. It never uses or falls back to the development
-channel flag, and never answers a confirmation dialog. The plugin gets its
-face path and private session environment from the launcher; persistent plugin
-files contain no bus token, name or socket. Other runtimes are unchanged.
+- `ab-claude` always passes `--channels plugin:agent-bus@agent-bus-local`, with its namespaced tools allowed.
+- It never uses or falls back to the development channel flag, and never answers a confirmation dialog.
+- The plugin gets its face path and private session environment from the launcher; persistent plugin files contain no bus token, name or socket.
+- Other runtimes are unchanged.
 
 ### Team and Enterprise administration
 
@@ -355,20 +339,17 @@ On a Linux host without a higher managed source, use root-owned
 merge it. `allowedChannelPlugins` **replaces Anthropic's default channel list**;
 organizations using official channel plugins must include those entries too.
 
-Server-managed policy wins over the host file by default, even for keys it
-leaves unset. An org Owner must then merge the allowlist in **Organization
-settings → Claude Code → Managed settings** on claude.ai. Restart the session
-after the policy refresh. Do not edit the local remote-settings cache or use
-a development flag to bypass policy. See the official [channel controls](https://code.claude.com/docs/en/channels#enterprise-controls)
-and [managed-source order](https://code.claude.com/docs/en/managed-settings#how-claude-code-combines-managed-sources).
+- Server-managed policy wins over the host file by default, even for keys it leaves unset.
+- An org Owner must then merge the allowlist in **Organization settings → Claude Code → Managed settings** on claude.ai.
+- Restart the session after the policy refresh.
+- Do not edit the local remote-settings cache or use a development flag to bypass policy.
+- See the official [channel controls](https://code.claude.com/docs/en/channels#enterprise-controls) and [managed-source order](https://code.claude.com/docs/en/managed-settings#how-claude-code-combines-managed-sources).
 
-A visible channel warning means push is unavailable even if MCP tools connect.
-If the cached org policy is stale, start a fresh Claude session: startup
-refetches `~/.claude/remote-settings.json`. Confirm that it contains the
-allowlist; do not edit that cache. Enabling Channels alone is insufficient
-when the private plugin is not allowlisted. First-use workspace trust is
-separate from channel approval; trust the intended working directory before
-starting it unattended.
+- A visible channel warning means push is unavailable even if MCP tools connect.
+- If the cached org policy is stale, start a fresh Claude session: startup refetches `~/.claude/remote-settings.json`.
+- Confirm that it contains the allowlist; do not edit that cache.
+- Enabling Channels alone is insufficient when the private plugin is not allowlisted.
+- First-use workspace trust is separate from channel approval; trust the intended working directory before starting it unattended.
 
 ## Runtime isolation and recovery
 
@@ -380,33 +361,25 @@ boundary.
 <details>
 <summary>Credentials and measured scope</summary>
 
-Codex uses native capability-token authentication before WebSocket upgrade.
-Its token file is private inside the launcher's private run directory; the
-pusher supplies an Authorization header and the TUI reads its token from an
-environment variable. It requires a runtime supporting `--ws-auth capability-token`
-and `--remote-auth-token-env`; unsupported versions fail startup, with no
-unauthenticated fallback. OpenCode uses its native server password. Before sending
-either credential, the launcher verifies that the listening socket belongs to
-its spawned runtime or a descendant, using Linux `/proc` or `lsof` and `ps`
-on other systems. An unknown or foreign owner receives no authenticated probe;
-a collision gets one fresh-port restart, then a named startup error. Malformed
-session listings are refused by name rather than treated as empty history. Secrets
-never appear in launcher-supplied command-line arguments. Root and processes
-already running as the same OS account are outside this account boundary. If the runtime exits, an in-flight or immediate next request can reach a process that rebinds its freed port before the exit notification ends the session.
+- Codex uses native capability-token authentication before WebSocket upgrade.
+- Its token file is private inside the launcher's private run directory; the pusher supplies an Authorization header and the TUI reads its token from an environment variable.
+- It requires a runtime supporting `--ws-auth capability-token` and `--remote-auth-token-env`; unsupported versions fail startup, with no unauthenticated fallback.
+- OpenCode uses its native server password.
+- Before sending either credential, the launcher verifies that the listening socket belongs to its spawned runtime or a descendant, using Linux `/proc` or `lsof` and `ps` on other systems.
+- An unknown or foreign owner receives no authenticated probe; a collision gets one fresh-port restart, then a named startup error.
+- Malformed session listings are refused by name rather than treated as empty history.
+- Secrets never appear in launcher-supplied command-line arguments.
+- Root and processes already running as the same OS account are outside this account boundary.
+- If the runtime exits, an in-flight or immediate next request can reach a process that rebinds its freed port before the exit notification ends the session.
 
-The [endpoint evidence](../Plans/done/R0.8-MVP/done/runtime-endpoint-auth.md#checks) includes
-actual second-account reads and renames, positive controls with authentication
-removed, and separate launcher/MCP/pusher fixture checks. [H.9.5](../Plans/done/R0.8-MVP/DONE.md#done--mvp)
-passed for all three runtimes; Claude's channel needs a signed-in claude.ai
-login ([Claude channel checks](../Plans/done/R0.8-MVP/done/runtime-interactive.md#claude-channel-checks)).
+- The [endpoint evidence](../Plans/done/R0.8-MVP/done/runtime-endpoint-auth.md#checks) includes actual second-account reads and renames, positive controls with authentication removed, and separate launcher/MCP/pusher fixture checks.
+- [H.9.5](../Plans/done/R0.8-MVP/DONE.md#done--mvp) passed for all three runtimes; Claude's channel needs a signed-in claude.ai login ([Claude channel checks](../Plans/done/R0.8-MVP/done/runtime-interactive.md#claude-channel-checks)).
 
 </details>
 
-After a daemon restart or sidecar failure, an open interactive session must
-resume bus delivery or clearly report that integration is inactive and how
-to recover. Recovery instructions must lead to a successful correlated
-exchange in that session. It is accepted live for all three
-runtimes ([recovery evidence](../Plans/done/R0.8-MVP/done/runtime-recovery.md#checks)):
+- After a daemon restart or sidecar failure, an open interactive session must resume bus delivery or clearly report that integration is inactive and how to recover.
+- Recovery instructions must lead to a successful correlated exchange in that session.
+- It is accepted live for all three runtimes ([recovery evidence](../Plans/done/R0.8-MVP/done/runtime-recovery.md#checks)):
 
 | Failure | What the session does |
 |---|---|
@@ -419,19 +392,14 @@ runtimes ([recovery evidence](../Plans/done/R0.8-MVP/done/runtime-recovery.md#ch
 <details>
 <summary>How a lost face is noticed</summary>
 
-The face runs under the runtime, not the launcher, and no runtime reports its
-death or restarts it unasked. Each face leaves a mark in the launcher's private
-run directory and clears it when its runtime lets it go; a mark whose process
-is gone is a face that died. Codex restarts it on `config/mcpServer/reload`,
-OpenCode on an MCP disconnect and connect.
+- The face runs under the runtime, not the launcher, and no runtime reports its death or restarts it unasked.
+- Each face leaves a mark in the launcher's private run directory and clears it when its runtime lets it go; a mark whose process is gone is a face that died.
+- Codex restarts it on `config/mcpServer/reload`, OpenCode on an MCP disconnect and connect.
 
 </details>
 
-This adds no replay or exactly-once guarantee:
-[consumption](04-messaging.md#one-reader-per-inbox) and
-[queue checkpoints](04-messaging.md#durability) retain their loss boundaries. A message
-consumed at the moment of a failure may be lost, and after a crash one consumed
-since the last flush may arrive again under its own `message_id`.
+- This adds no replay or exactly-once guarantee: [consumption](04-messaging.md#one-reader-per-inbox) and [queue checkpoints](04-messaging.md#durability) retain their loss boundaries.
+- A message consumed at the moment of a failure may be lost, and after a crash one consumed since the last flush may arrive again under its own `message_id`.
 
 ## Status
 
