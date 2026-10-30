@@ -64,6 +64,9 @@ const ID = /^[0-9a-f]{12}$/;
 const NAME = /^#?[a-z0-9][a-z0-9._+@/-]*$/;
 const SAFE = (n: unknown): n is number => Number.isSafeInteger(n) && (n as number) >= 0;
 
+/** A counter saturates at the largest safe integer rather than losing precision. */
+const bump = (n: number) => Math.min(n + 1, Number.MAX_SAFE_INTEGER);
+
 const randomId = () => [...crypto.getRandomValues(new Uint8Array(6))].map(b => b.toString(16).padStart(2, "0")).join("");
 
 /** The common JS/Python filter subset (contract § common filter grammar),
@@ -80,7 +83,7 @@ export function compileFilter(filter: string): RegExp | undefined {
     if (end < 1) bad("a /filter/ needs its closing slash");
     pattern = filter.slice(1, end); flags = filter.slice(end + 1);
   }
-  if ([...pattern].length > MAX_PATTERN || [...pattern].some(c => c.codePointAt(0)! < 32)) bad("a filter is at most 200 characters without controls");
+  if ([...pattern].length > MAX_PATTERN || [...pattern].some(c => c.codePointAt(0)! < 32 || c === "\x7f")) bad("a filter is at most 200 characters without controls");
   if (new Set(flags).size !== flags.length || [...flags].some(f => !"imsu".includes(f))) bad("filter flags are i m s u, once each");
   if (/(?<!\\)[+*?}]\)(?:[+*?]|\{)/.test(pattern)) bad("nested quantified groups are unsupported");
   for (let i = 0; i < pattern.length; i++) {
@@ -231,6 +234,7 @@ export class Subscriptions {
       return admitted.get(key)!;
     };
     const sample = typeof text === "string" ? text : "";
+    const changed = new Set<Row>();
     for (const row of [...this.rows.values()].sort((a, b) => (a.id < b.id ? -1 : 1))) {
       if (!this.options.selectorMatches(row.selector, event)) continue;
       const re = this.filterOf(row);
@@ -247,13 +251,14 @@ export class Subscriptions {
         if (verdict === "miss") continue;
       }
       result.matched++;
-      const drop = async (code: WarningCode) => {
+      const drop = (code: WarningCode) => {
         result.dropped++;
         this.options.warning(code, row.id);
-        await this.persist(row, 0, 1);
+        row.dropped = bump(row.dropped);
+        changed.add(row);
       };
       if (options.deadline !== undefined && Date.now() >= options.deadline) {
-        await drop("deadline");
+        drop("deadline");
         continue;
       }
       // Target first; a failed first check never asks the second.
@@ -270,17 +275,29 @@ export class Subscriptions {
         if (kind !== "queue" && kind !== "agent") refused = "admission_refused";
       }
       if (refused) {
-        await drop(refused);
+        drop(refused);
         continue;
       }
       const outcome = await this.port.send(row.target, body, options).catch((): SendOutcome => "unknown");
       if (outcome === "ok") {
         result.sent++;
-        await this.persist(row, 1, 0);
+        row.sent = bump(row.sent);
+        changed.add(row);
       } else {
-        await drop(outcome === "refused" ? "send_refused" : outcome === "deadline" ? "deadline" : "send_unknown");
+        drop(outcome === "refused" ? "send_refused" : outcome === "deadline" ? "deadline" : "send_unknown");
       }
     }
+    // Counters are written once per row after the batch, best effort: a lost
+    // write leaves the durable count behind and never replays the entry.
+    let lost = false;
+    for (const row of changed) {
+      try {
+        await this.port.counts(`sub.${row.id}`, row.sent, row.dropped);
+      } catch {
+        lost = true;
+      }
+    }
+    if (lost) this.options.warning("store_unknown");
     return result;
   }
 
@@ -293,13 +310,4 @@ export class Subscriptions {
     }
   }
 
-  private async persist(row: Row, sent: number, dropped: number): Promise<void> {
-    row.sent += sent;
-    row.dropped += dropped;
-    try {
-      await this.port.counts(`sub.${row.id}`, row.sent, row.dropped);
-    } catch {
-      this.options.warning("store_unknown", row.id);
-    }
-  }
 }
