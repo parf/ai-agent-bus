@@ -333,6 +333,18 @@
         "src/testdata/subscriptions.json",
         "src/clients/python/"
       ]
+    },
+    "agent_eventlog": {
+      "tags": "L",
+      "paths": [
+        "src/agents/eventlog/",
+        "src/agents/shared/event_rings.py",
+        "src/agents/shared/subscriptions.py",
+        "src/agents/shared/subscription_filters.py",
+        "src/testdata/event-rings.json",
+        "src/testdata/subscriptions.json",
+        "src/clients/python/"
+      ]
     }
   },
   "fast": {
@@ -869,6 +881,38 @@
           "agents/shared",
           "-p",
           "test_subscriptions.py",
+          "-v"
+        ]
+      }
+    ],
+    "agent_eventlog": [
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "agents/eventlog",
+          "-p",
+          "test_rings.py",
+          "-v"
+        ]
+      },
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "agents/eventlog",
+          "-p",
+          "test_eventlog.py",
+          "-k",
+          "Pure",
           "-v"
         ]
       }

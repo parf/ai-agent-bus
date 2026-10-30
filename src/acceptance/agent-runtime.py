@@ -16,6 +16,9 @@ def check(root):
                      'agents/standalone/logwatch/logwatch.py'):
         if not (root / relative).is_file():
             raise ValueError('missing runtime artifact: ' + relative)
+    for relative in ('agents/eventlog/agent.json', 'agents/eventlog/eventlog.py', 'agents/eventlog/env.dist', 'agents/eventlog/config.json.dist', 'agents/eventlog/LICENSE.md', 'agents/eventlog/NOTICE.md', 'agents/eventlog/THIRD-PARTY-NOTICES.md', 'agents/eventlog/support/agents/shared/metadata.py', 'agents/eventlog/support/agents/shared/event_rings.py', 'agents/eventlog/support/agents/shared/subscriptions.py', 'agents/eventlog/support/agents/shared/subscription_filters.py', 'agents/eventlog/support/clients/LICENSE.md', 'agents/eventlog/support/internal/version/VERSION', 'agents/eventlog/support/clients/python/agent_bus/__init__.py', 'agents/eventlog/support/clients/python/agent_bus/_version.py', 'agents/eventlog/support/clients/python/agent_bus/client.py', 'agents/eventlog/support/clients/python/agent_bus/errors.py', 'agents/eventlog/support/clients/python/agent_bus/message.py', 'agents/eventlog/support/clients/python/agent_bus/storage.py', 'agents/eventlog/support/clients/python/agent_bus/transport.py', 'agents/shared/event_rings.py'):
+        if not (root / relative).is_file():
+            raise ValueError('missing runtime artifact: ' + relative)
     rag_files = ('agents/rag/rag.py', 'agents/rag/rules.py', 'agents/rag/core.py', 'agents/rag/chunks.py', 'agents/rag/prompts.py', 'agents/rag/blocks.py', 'agents/rag/support/agents/shared/metadata.py', 'agents/rag/support/clients/python/agent_bus/__init__.py', 'agents/rag/support/clients/python/agent_bus/_version.py', 'agents/rag/support/clients/python/agent_bus/client.py', 'agents/rag/support/clients/python/agent_bus/errors.py', 'agents/rag/support/clients/python/agent_bus/message.py', 'agents/rag/support/clients/python/agent_bus/storage.py', 'agents/rag/support/clients/python/agent_bus/transport.py')
     for relative in rag_files:
         if not (root / relative).is_file():
@@ -41,6 +44,19 @@ def check(root):
     code = "import sys; sys.path.insert(0,sys.argv[1]); import subscriptions,subscription_filters as f; assert f.matches(f.compile_filter('/^ok$/'), 'ok'); assert hasattr(subscriptions, 'Subscriptions')"
     run(['python3', '-I', '-c', code, str(root / 'agents/shared')], root)
     print('subscriptions: exported engine, regex helper and client imports loaded')
+
+    eventlog = root / 'agents/eventlog'
+    output, _ = run(['python3', str(eventlog / 'eventlog.py')], root,
+                    {'AGENT_BUS_ASK':'help-json', 'AGENT_BUS_CONFIG':'invalid'})
+    metadata = json.loads(output)
+    assert set(metadata['methods']) == {'help'}
+    assert metadata['hidden_methods']['count'] == 9
+    assert metadata['secrets'] == [] and metadata['body_formats'] == ['text', 'json']
+    assert metadata['docs'].endswith('/eventlog.md')
+    assert json.loads((eventlog / 'config.json.dist').read_text()) == {'rings':{},'logs':{},'max_logs':100}
+    for shared in ('event_rings.py','subscriptions.py','subscription_filters.py'):
+        assert (eventlog / 'support/agents/shared' / shared).read_bytes() == (root / 'agents/shared' / shared).read_bytes(), 'eventlog engine copy'
+    print('eventlog: offline metadata, private config example and shared engine copies loaded')
 
     for agent in ('systemd', 'server-info', 'git', 'logwatch', 'tmux-sessions'):
         directory = root / 'agents/standalone' / agent

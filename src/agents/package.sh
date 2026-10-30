@@ -15,6 +15,7 @@ dest=$(realpath "$dest")
 "$here/imap/package.sh" "$dest/agents/imap"
 "$here/cron/package.sh" "$dest/agents/cron"
 "$here/at/package.sh" "$dest/agents/at"
+"$here/eventlog/package.sh" "$dest/agents/eventlog"
 "$here/webhook/package.sh" "$dest/agents/webhook"
 "$here/fetch/package.sh" "$dest/agents/fetch"
 "$here/sms-telnyx/package.sh" "$dest/agents/sms-telnyx"
@@ -28,7 +29,7 @@ else
   done
 fi
 files=(
-  shared/metadata.py shared/envfile.py shared/provider_http.py shared/mail.py shared/mail_oauth.py shared/scheduler.py shared/cronexpr.py shared/subscriptions.py shared/subscription_filters.py
+  shared/metadata.py shared/envfile.py shared/provider_http.py shared/mail.py shared/mail_oauth.py shared/scheduler.py shared/cronexpr.py shared/subscriptions.py shared/subscription_filters.py shared/event_rings.py
   standalone/tmux-sessions/config.json.dist standalone/tmux-sessions/agent.json standalone/tmux-sessions/sessions.py standalone/tmux-sessions/install.py standalone/tmux-sessions/package.sh
   standalone/install.py
   standalone/systemd/agent.json standalone/systemd/env.dist standalone/systemd/systemd.py standalone/systemd/install.py
