@@ -70,6 +70,7 @@ for archive in "$@"; do
   [ "$named" = "$want" ] || bad "named $named, source is $want"
   [ "$(tr -d '[:space:]' < "$root/internal/version/VERSION" 2>/dev/null)" = "$want" ] || bad "VERSION file is not $want"
   [ -s "$root/LICENSE.md" ] || bad "licence LICENSE.md missing or empty"
+  [ -s "$root/licenses/NOTICE.md" ] || bad "notices licenses/NOTICE.md missing or empty"
   (cd "$root" && sha256sum -c MANIFEST.sha256 >/dev/null 2>&1) || bad "MANIFEST.sha256 does not match the files"
   progs=(agent-bus agent-bus-runner)
   [ $edition = full ] && progs+=(agent-busd agent-bus-admin agent-bus-setup)

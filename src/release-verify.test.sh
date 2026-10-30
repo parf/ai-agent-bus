@@ -18,6 +18,7 @@ mk() { # mk <dir> : a good full archive tree under <dir>/<name>
   mkdir -p "$root/internal/version"
   echo $v >"$root/internal/version/VERSION"
   echo licence >"$root/LICENSE.md"
+  mkdir -p "$root/licenses"; echo notices >"$root/licenses/NOTICE.md"
   for p in agent-bus agent-bus-runner agent-busd agent-bus-admin agent-bus-setup; do
     printf '#!/bin/sh\nprintf "%s\\nbuild_info: u@h 2026-01-01 00:00:00\\n"\n' $v >"$root/$p"; chmod +x "$root/$p"
   done
@@ -44,10 +45,11 @@ out=$("$here/release-verify.sh" "$good/$name.tar.gz") && grep -q ' ok (version 1
 case_ unstamped 'has no build stamp' 'printf "#!/bin/sh\nprintf \"1.2.3\\nbuild_info: development (unstamped)\\n\"\n" >agent-busd'
 case_ altered 'agent-bus-runner reports 9.9.9' 'sed -i s/1.2.3/9.9.9/ agent-bus-runner'
 case_ nolicence 'licence LICENSE.md missing' 'rm LICENSE.md'
+case_ nonotice 'notices licenses/NOTICE.md missing' 'rm licenses/NOTICE.md'
 case_ ts-stale 'agent-bus-ts does not carry version' 'echo "#!/bin/sh" >agent-bus-ts'
 case_ renamed 'named 1.2.3, source is 1.2.4' 'echo 1.2.4 >"$SOURCE_VERSION"'
 # A file changed after the manifest was written.
 d="$work/tamper"; mkdir "$d"; mk "$d"; echo x >>"$d/$name/agent-bus-ts"; pack "$d"
 out=$("$here/release-verify.sh" "$d/$name.tar.gz" 2>&1) && { echo "tampered file accepted"; exit 1; }
 grep -qF 'MANIFEST.sha256 does not match' <<<"$out" || { echo "tamper: wrong failure: $out"; exit 1; }
-echo 'release evidence: version, stamp, licence, manifest each fail on their own message'
+echo 'release evidence: version, stamp, licence, notices, manifest each fail on their own message'
