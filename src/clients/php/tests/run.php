@@ -225,6 +225,42 @@ section('call', function () use ($me, $addr, $dir) {
     reap($srv);
 });
 
+section('self call', function () {
+    // The shared cases, with their fixture name mapped to this daemon's.
+    $dir = getenv('AB_CLIENT_CONFORMANCE_CASES') ?: __DIR__ . '/../../../testdata/client-conformance';
+    $cases = json_decode(str_replace('#caller@fixture', '#php-svc@localhost',
+        (string) file_get_contents("$dir/self-call.json")), true);
+    check('the shared self-call cases are not empty', is_array($cases) && $cases !== []);
+    foreach ($cases as $k) {
+        ['to' => $to, 'body' => $body, 'topic' => $topic] = $k['request'];
+        $want = $k['expected'];
+        foreach ([null, 'php-replies@localhost'] as $replyTo) {
+            $what = $k['id'] . ($replyTo === null ? '' : " via $replyTo");
+            $svc = client($to);
+            $out = null; $handled = [];
+            // One message at a time: the self-call is made from inside a handler.
+            $svc->send($to, '', new SendOptions('self-trigger', 'self-trigger'));
+            $svc->serve(function (Message $m) use ($svc, $to, $body, $topic, $replyTo, $k, &$out, &$handled) {
+                if ($m->topic === 'self-trigger') {
+                    $out = $svc->call($to, $body, new CallOptions(5, $topic, replyTo: $replyTo));
+                    return null;
+                }
+                $handled[] = "{$m->id} {$m->body}";
+                return $k['answer'];
+            }, new ServeOptions(maxMessages: 1, poll: 1));
+            check("$what: the handler's answer, not the request", $out instanceof Answer
+                && $out->message->body === $want['body'] && $out->message->from === $want['from']
+                && $out->message->to === ($replyTo ?? $want['to']) && $out->message->topic === $want['topic'],
+                $out === null ? 'none' : json_encode($out));
+            check("$what: the handler ran once on the request it answers", count($handled) === 1 && $out instanceof Answer
+                && $handled[0] === "{$out->message->re} $body", json_encode($handled));
+        }
+        $e = thrown(fn() => $svc->call($to, $body, new CallOptions(2, $topic)));
+        check("{$k['id']} outside serve(): refused, never its own request as the answer",
+            $e instanceof AgentBus\BusException, $e === null ? 'returned' : get_class($e));
+    }
+});
+
 section('ask', function () use ($me) {
     $srv = child(function () {
         client('#php-svc@localhost')->serve(fn(Message $m) => 'ask=' . ($m->ask ?? '') . " body={$m->body}",

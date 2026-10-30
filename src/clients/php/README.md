@@ -26,6 +26,7 @@ if ($o instanceof Answer) { echo $o->message->body; }
 | A target | `$bus->record($name)`: `kv`, `locks`, `config()`, `secret()`, `lookup()`, `manage()`, `unregister()` |
 | Secret | `secret()` holds the bytes as delivered; `env()` is a single-line `NAME=value` reader, not the runner's dotenv grammar: a ` # note` stays in the value and a quoted value cannot span lines, so parse a PEM or multi-line value from `bytes()` |
 | Serving | one message at a time per process. Parallelism is more processes: `ServeOptions(share: true)` makes them a pool |
+| Calling yourself | from inside a handler: the call runs that handler on its own request and returns its answer. Outside `serve()` a call that takes its own request throws, since nothing here can answer it |
 | Errors | `Refusal` subclasses by HTTP status only; `Transport`, `Timeout`, `UncertainOutcome` (never retried) |
 | Not here | administration, minting tokens, writing config or secrets, resource content, a pinned `https://` daemon |
 

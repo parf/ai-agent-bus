@@ -11,6 +11,8 @@ final class Bus
     private ?string $name = null;
     private bool $stop = false;
     private bool $serving = false;
+    /** While serve() runs: hands one request to its handler. */
+    private ?\Closure $handle = null;
 
     private function __construct(private Http $t, private ?string $as) {}
 
@@ -111,12 +113,18 @@ final class Bus
         if ($this->as !== null) { $this->who(max(0.001, $until - microtime(true))); }
         $tag = 'call-' . bin2hex(random_bytes(8));
         $inbox = $o->replyTo;
-        $id = $this->post($to, $body, new SendOptions($o->topic, $tag, $o->ttl, $o->timeout,
+        $sent = $this->envelope($to, $body, new SendOptions($o->topic, $tag, $o->ttl, $o->timeout,
             $inbox !== null ? new ReplyTo($inbox, $o->topic, $tag) : null, $o->ask), null, null, max(0.001, $until - microtime(true)));
+        $id = (string) ($sent['message_id'] ?? '');
+        // A self-call from a handler answered in another inbox: this one thread
+        // must also read its own inbox, where the request waits, until it runs.
+        $own = $inbox !== null && $this->handle !== null && ($sent['to'] ?? '') === ($sent['from'] ?? null);
+        $flip = false;
         $acked = false;
         while (($left = $until - microtime(true)) > 0) {
+            $read = $own && ($flip = !$flip) ? null : $inbox;
             try {
-                $m = $this->take(new ConsumeOptions($inbox, $o->topic, $tag, min($left, 30.0)), $left);
+                $m = $this->take(new ConsumeOptions($read, $o->topic, $tag, min($left, $own ? 0.1 : 30.0)), $left);
             } catch (UncertainOutcome $e) {
                 // Only the budget running out inside the wait is a timeout;
                 // a connection lost sooner is a failure the caller must hear.
@@ -124,6 +132,16 @@ final class Bus
                 throw $e;
             }
             if ($m === null) { continue; }
+            if (!$m->isReceipt() && $m->re === null && $m->id === $id) {
+                // Our own request, taken by this call's read: work for our handler,
+                // never the answer. Run here, its answer is what we read next.
+                if ($this->handle === null) {
+                    throw new BusException('a call to this client itself took its own request: only serve() can answer it');
+                }
+                $own = false;
+                ($this->handle)($m);
+                continue;
+            }
             // A receipt is this call's only when it names this call's message.
             if ($m->isReceipt() && $m->re !== $id) { continue; }
             if ($m->receipt === 'ack') { $acked = true; continue; }
@@ -173,6 +191,7 @@ final class Bus
         $this->stop = false;
         $restore = $this->signals();
         $this->serving = true;
+        $this->handle = fn(Message $m) => $this->handle($m, $handler, $log);
         $served = 0;
         $idleSince = microtime(true);
         try {
@@ -189,24 +208,32 @@ final class Bus
                     $log("agent-bus: {$m->id} arrived after its caller gave up; not run");
                     continue;
                 }
-                $this->ack($m);
                 $served++;
-                try {
-                    $answer = $handler($m, $this);
-                } catch (\Throwable $e) {
-                    // The type only: a message may carry the request or a private value.
-                    $log("agent-bus: handler failed on {$m->id}: " . get_class($e));
-                    continue;
-                }
                 // Closed by the handler itself: nothing can be sent any more.
-                if ($this->t->closed()) { break; }
-                $answer === null ? $this->done($m) : $this->reply($m, (string) $answer);
+                if (!$this->handle($m, $handler, $log)) { break; }
             }
         } finally {
             $this->serving = false;
+            $this->handle = null;
             $restore();
         }
         return $served;
+    }
+
+    /** Acks one request, runs the handler and answers; false once the handler closed the client. */
+    private function handle(Message $m, callable $handler, callable $log): bool
+    {
+        $this->ack($m);
+        try {
+            $answer = $handler($m, $this);
+        } catch (\Throwable $e) {
+            // The type only: a message may carry the request or a private value.
+            $log("agent-bus: handler failed on {$m->id}: " . get_class($e));
+            return true;
+        }
+        if ($this->t->closed()) { return false; }
+        $answer === null ? $this->done($m) : $this->reply($m, (string) $answer);
+        return true;
     }
 
     /** Ends serve() after the current message. Safe from a signal handler. */
@@ -232,6 +259,13 @@ final class Bus
     private function post(string $to, string $body, SendOptions $o, ?string $receipt = null, ?string $re = null,
                           ?float $timeout = null): string
     {
+        return (string) ($this->envelope($to, $body, $o, $receipt, $re, $timeout)['message_id'] ?? '');
+    }
+
+    /** Sends; answers the accepted envelope as the daemon wrote it. */
+    private function envelope(string $to, string $body, SendOptions $o, ?string $receipt = null, ?string $re = null,
+                              ?float $timeout = null): array
+    {
         $e = ['to' => $to, 'body' => $body];
         if ($o->topic !== null) { $e['topic'] = $o->topic; }
         if ($o->tag !== null) { $e['tag'] = $o->tag; }
@@ -242,7 +276,8 @@ final class Bus
         if ($o->ask !== null) { $e['ask'] = $o->ask; }
         if ($receipt !== null) { $e['receipt'] = $receipt; }
         if ($re !== null) { $e['re'] = $re; }
-        return (string) ($this->t->json('POST', '/send', [], $e, true, $timeout)['message_id'] ?? '');
+        $sent = $this->t->json('POST', '/send', [], $e, true, $timeout);
+        return is_array($sent) ? $sent : [];
     }
 
     private function respond(Message $m, string $body, ?string $receipt): string
