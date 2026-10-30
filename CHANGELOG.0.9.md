@@ -6,83 +6,19 @@ The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
 ## 0.9.182 — 2026-10-30
 
-one shared masker hides each secret value and each line of a multi-line secret in runner and CLI output
+Sixth published 0.9 changeset: 0.9.163–0.9.182, squashed.
 
-## 0.9.181 — 2026-10-30
-
-subscription deliveries no longer send wait=0, which the daemon refused; every real subscription send was dropped
-
-## 0.9.180 — 2026-10-30
-
-the runner starts agents in their depends order and refuses an unknown or cyclic dependency by name
-
-## 0.9.179 — 2026-10-30
-
-release-verify matches the signed SHA256SUMS line literally, so a name differing at a dot is refused; Mac check dated 10-30
-
-## 0.9.178 — 2026-10-30
-
-three-distro rootless podman install acceptance; bubblewrap listed in install needs; full setup path in hints; install defences tested
-
-## 0.9.177 — 2026-10-30
-
-group walks for ACL, directory and delivery are iterative, so a deep or cyclic group chain no longer exhausts the stack
-
-## 0.9.176 — 2026-10-30
-
-release-verify.sh checks release evidence on signed archives; x86_64 verified, aarch64 not built here
-
-## 0.9.175 — 2026-10-30
-
-a container image on a digest-pinned AlmaLinux 10 base runs the daemon or a runner from the release archive, with its own acceptance as smoke subsystem Q
-
-## 0.9.174 — 2026-10-30
-
-a dedicated runner script reads its own bus secret on each message, which never sets its credential and never reaches logs or argv
-
-## 0.9.173 — 2026-10-30
-
-TypeScript twin of the unified subscriptions engine passes the shared vectors (B.29). Also: replace "TS twin ✅ (T-1)" in the B.29 row of Plans/R1.0-Release/TODO.md with "TS twin ✅ <the new version>".
-
-## 0.9.172 — 2026-10-30
-
-the debug agent env answer masks every bus-prefixed secret (AGENT_BUS_CONFIG, control token, record secret keys), showing only an allowlist
-
-## 0.9.171 — 2026-10-30
-
-Shared Python subscription engine and language-neutral vectors: filters, authority re-checked at delivery, refused-send and revoked-author handling, damaged rows as invalid_state.
-
-## 0.9.170 — 2026-10-30
-
-An explicit bus name resumes its own conversation, else an unbound one, else a fresh one, so two names sharing a directory never refuse each other.
-
-## 0.9.169 — 2026-10-29
-
-`release-sign.sh` requires the CI hash list (or a loud `--no-ci-check`), a strict version and regular archive files.
-
-## 0.9.168 — 2026-10-29
-
-`install.sh` verifies a full node again as root in a root-owned copy, refuses a quiet downgrade, pins the key with `--key-fingerprint` and never replaces a real file in `~/.local/bin`; `release-sign.sh` signs exactly one release's four archives matching the CI hashes; the workflow builds only tags on main with pinned actions.
-
-## 0.9.167 — 2026-10-29
-
-`install.sh` installs a signed release, the full node or `--client` under `~/.local`, verifying the `SHA256SUMS` signature and the archive before unpacking; `release-sign.sh` and a draft-release workflow produce one. The Claude plugin lock judges a pid only in its own namespace.
-
-## 0.9.166 — 2026-10-29
-
-The Claude plugin lock names its holder; only a lock whose holder has exited is taken over, by one waiter, and a holder removes only its own lock.
-
-## 0.9.165 — 2026-10-29
-
-Launchers starting together after an upgrade replace the Claude plugin one at a time under a lock; an unreadable marketplace record is left alone.
-
-## 0.9.164 — 2026-10-29
-
-A release launcher reinstalls the Claude channel plugin when another release installed it; the release build refuses a half-rewritten plugin manifest.
-
-## 0.9.163 — 2026-10-29
-
-A release carries the web face, the MCP face and the launchers as one compiled `agent-bus-ts` and needs no bun or Node; `package.sh` also builds the client edition archive.
+| Area | Changes |
+|---|---|
+| Release | One compiled `agent-bus-ts` carries the web face, the MCP face and the launchers, so a release needs no bun or Node; `package.sh` also builds the client edition archive. |
+| Install | `install.sh` installs a signed release, the full node or `--client` under `~/.local`: it verifies the `SHA256SUMS` signature and the archive, re-verifies as root in a root-owned copy, refuses a quiet downgrade, pins the key with `--key-fingerprint` and never replaces a real file in `~/.local/bin`. Acceptance on AlmaLinux 10, Ubuntu 26.04 and Debian 13 in rootless podman; bubblewrap is in the install needs. |
+| Signing | `release-sign.sh` signs exactly one release's four archives against the CI hash list (or a loud `--no-ci-check`); the workflow builds only tags on main with pinned actions. `release-verify.sh` checks the evidence of a signed release and matches a `SHA256SUMS` line literally. x86_64 verified; aarch64 waits for the owner's Mac. |
+| Container | One image on a digest-pinned AlmaLinux 10 base runs the daemon or a runner from the release archive, with its own acceptance as smoke subsystem Q. |
+| Launchers | A release launcher reinstalls the Claude channel plugin another release installed, one launcher at a time under a lock that names its holder. An explicit bus name resumes its own conversation, else an unbound one, else a fresh one. |
+| Subscriptions | One shared engine in Python and TypeScript passes the same language-neutral vectors: filters, authority re-checked at delivery, refused sends, revoked authors. Deliveries no longer send `wait=0`, which the daemon refused, so real subscription sends reach their target again. |
+| Runner | Agents start in their `depends` order; an unknown or cyclic dependency is refused by name. A dedicated runner script reads its bus secret on each message. One shared masker hides each secret value, and each line of a multi-line secret, in runner and CLI output. |
+| Debug | The `env` answer masks every bus-prefixed secret and shows only an allowlist. |
+| Daemon | Group walks for ACL, directory and delivery are iterative, so a deep or cyclic group chain no longer exhausts the stack. Needs a daemon restart. |
 
 ## 0.9.162 — 2026-10-29
 
