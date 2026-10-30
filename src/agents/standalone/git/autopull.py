@@ -118,8 +118,9 @@ def run_script(name, checkout, record, deadline):
                 _kill_script(child)
                 try: result = child.wait(timeout=.5)
                 except subprocess.TimeoutExpired: timed_out = True
-    except (OSError, ValueError, subprocess.SubprocessError):
-        diagnostic = 'script could not be started'
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        # Said with its reason, so a start that failed under load names itself (J51); no path is in it.
+        diagnostic = 'script could not be started: ' + g._why(error)
     finally:
         if child is not None:
             _kill_script(child)

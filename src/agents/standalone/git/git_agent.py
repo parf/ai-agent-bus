@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """B.8: fixed git operations over configured repositories."""
 import argparse
+import errno
 import fcntl
 import hashlib
 import json
@@ -315,6 +316,15 @@ def _resolve_trusted(path, *, directory=False):
     return current
 
 
+def _why(error):
+    """What made a script unusable, with no path in it: an errno name, or a fixed message of this module."""
+    if isinstance(error, OSError) and error.errno:
+        return errno.errorcode.get(error.errno, 'errno %d' % error.errno)
+    if isinstance(error, ValueError):
+        return str(error)
+    return type(error).__name__
+
+
 def _script_executable(fd, depth=0):
     if depth > 4:
         raise ValueError('post-attempt script interpreter chain is too deep')
@@ -360,9 +370,9 @@ def open_script(name):
             raise ValueError('post-attempt script directory changed')
         _script_executable(fd)
         return fd
-    except (OSError, ValueError, RuntimeError):
+    except (OSError, ValueError, RuntimeError) as error:
         if fd is not None: os.close(fd)
-        raise ValueError('post-attempt script is unavailable or untrusted') from None
+        raise ValueError('post-attempt script is unavailable or untrusted (' + _why(error) + ')') from None
     finally:
         if rootfd is not None: os.close(rootfd)
 

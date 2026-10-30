@@ -269,7 +269,19 @@ class ScriptTests(unittest.TestCase):
         self.assertEqual([e['kind'] for e in events],['published','published','script'])
         failure=events[1]['record']
         self.assertEqual(failure['script']['exit'],127)
+        self.assertEqual(failure['script']['stderr'],'script could not be started: post-attempt script is unavailable or untrusted (ENOENT)')
         self.assertNotIn(str(script),json.dumps(failure))
+
+    def test_a_start_that_the_system_refuses_says_why_without_a_path(self):
+        # J51: a script that could not be started once, under load, with nothing to say which of the causes it was.
+        self.f.install('success')
+        for error, reason in ((BlockingIOError(11,'Resource temporarily unavailable'),'EAGAIN'),
+                              (OSError(26,'Text file busy','/secret/path'),'ETXTBSY'),
+                              (OSError(12,'Cannot allocate memory'),'ENOMEM')):
+            with patch.object(a.subprocess,'Popen',side_effect=error):
+                result=a.run_script('success',self.f.checkout,attempt_record(),time.monotonic()+5)
+            self.assertEqual((result['exit'],result['stderr']),(127,'script could not be started: '+reason))
+            self.assertNotIn('/secret',json.dumps(result))
 
     def test_interpreter_alias_in_untrusted_directory_is_refused(self):
         directory = self.f.base / 'interpreter'
@@ -311,6 +323,7 @@ class ScriptTests(unittest.TestCase):
             events=self.invoke({'autopull-success-script':'success'})
         self.assertEqual([e['kind'] for e in events],['published','published'])
         self.assertEqual(events[1]['record']['script']['exit'],127)
+        self.assertEqual(events[1]['record']['script']['stderr'],'script could not be started: post-attempt script changed before execution')
 
     def test_failing_fail_script_does_not_fire_a_second_time(self):
         self.f.install('success',exit_code=7)
