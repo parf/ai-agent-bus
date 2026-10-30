@@ -116,11 +116,12 @@ Owner, 2026-10-30 ([RD164](DECISIONS.md#recorded-decisions), [RD165](DECISIONS.m
 
 ## npm
 
-Owner, 2026-10-30 ([RD167](DECISIONS.md#recorded-decisions), [RD168](DECISIONS.md#recorded-decisions)); the package names are [Q224](QUESTIONS.md#distribution):
+Owner, 2026-10-30 ([RD167](DECISIONS.md#recorded-decisions), [RD168](DECISIONS.md#recorded-decisions)); the names are [RD169](DECISIONS.md#recorded-decisions):
 
 | Choice | Decision |
 |---|---|
 | Two packages | the **client** package is the client edition (CLI, runner, MCP face, launchers); the **bus** package adds the daemon and its setup, and requires the client package at the exact same version. Both are published together, never one alone; no client-first release |
+| Names | the bus package is `agent-bus`, the client package `agent-bus-client`, and the per-platform client packages share the `agent-bus-client` stem (for example `agent-bus-client-linux-x64`), matching the installed commands `agent-bus` and the rest |
 | Trust | the npm channel relies on the registry's integrity; the signed GitHub release archives stay the path that verifies before unpacking ([simple install](#simple-install)) |
 
 ## Container runtime

@@ -15,11 +15,6 @@ Owner-only choices for the [Linux distribution](distribution.md#simple-install) 
   - Impact: a namespace change touches both scripts and every signed release; without a spare key a rotation needs every host to fetch a new `install.sh` first
   - Settled by: the owner
 
-- ❓ Q224 npm publication: package name and account
-  - Options: `agent-bus` if free, else a scope such as `@parf/agent-bus`; the account or organization that owns it; publish by the owner's own login with two-factor, never a token on this node
-  - Impact: the package, its per-platform optional packages and `npx agent-bus` use the name; P.1 can only be proven against a local registry until it is chosen
-  - Settled by: the owner
-
 - ❓ Q225 Container image registry and name
   - Options: `ghcr.io/parf/agent-bus` beside the repository; or Docker Hub; or both
   - Impact: P.2 is proven with local images until the registry and the account that pushes are chosen
