@@ -213,5 +213,66 @@ class ExplicitSetup(unittest.TestCase):
             process.stdout.close();process.stderr.close()
 
 
+    def alice_cli(self, *args, env=None):
+        return subprocess.run(['runuser', '-u', 'alice', '--', str(self.bin / 'agent-bus'), *args], env={**self.env, **(env or {})},
+                              capture_output=True, text=True, timeout=20)
+
+    def test_04_an_installed_agent_serves_a_request(self):
+        # The installed CLI puts a script behind a name; a call gets its answer.
+        script = Path('/home/alice/hello.sh')
+        script.write_text('#!/bin/sh\necho "hello $1"\n')
+        script.chmod(0o755)
+        shutil.chown(script, 'alice', 'alice')
+        name = '#npm-hello@npm-fixture.test'
+        agent = subprocess.Popen(['runuser', '-u', 'alice', '--', str(self.bin / 'agent-bus'), 'run', name, str(script), '--allow', '*'],
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        self.addCleanup(lambda: (agent.terminate(), agent.wait(timeout=10)))
+        for _ in range(100):
+            listed = self.alice_cli('ls', '--kind', 'agent')
+            if name in listed.stdout or agent.poll() is not None:
+                break
+            time.sleep(0.1)
+        self.assertIn(name, listed.stdout, 'the installed agent never registered: ' + (agent.stderr.read() if agent.poll() is not None else ''))
+        answer = self.alice_cli('call', name, 'world', '--timeout', '10s')
+        self.assertEqual(answer.returncode, 0, answer.stderr)
+        self.assertEqual(json.loads(answer.stdout)['body'].strip(), 'hello world')
+
+    def test_05_the_client_package_alone_joins_as_a_second_account_without_a_daemon(self):
+        subprocess.run(['useradd', '-m', '-s', '/bin/bash', 'bob'], check=True)
+        prefix, cache = Path('/home/bob/npm'), Path('/home/bob/.npm-cache')
+        marker = Path('/evidence/before-client-install')
+        marker.write_text('')
+        daemons = subprocess.run(['pgrep', '-c', 'agent-busd'], capture_output=True, text=True).stdout.strip()
+        env = {**os.environ, 'HOME': '/home/bob', 'npm_config_cache': str(cache), 'npm_config_update_notifier': 'false'}
+        installed = subprocess.run(['runuser', '-u', 'bob', '--', 'npm', 'install', '-g', '--prefix', str(prefix), '--ignore-scripts', '--no-audit',
+                                    '--no-fund', '--registry', f'http://127.0.0.1:{self.server.server_port}', 'ai-agent-bus-client'],
+                                   env=env, capture_output=True, text=True, timeout=120)
+        self.assertEqual(installed.returncode, 0, installed.stderr)
+        bin_dir = prefix / 'bin'
+        # No daemon, no setup, no admin: the client edition is the CLI, the runner, the MCP face and the launchers.
+        for absent in ('agent-busd', 'agent-bus-setup', 'agent-bus-admin'):
+            self.assertFalse((bin_dir / absent).exists(), 'the client package brought ' + absent)
+        for present in ('agent-bus', 'agent-bus-runner', 'agent-bus-mcp'):
+            self.assertTrue((bin_dir / present).is_file(), 'the client package lacks ' + present)
+        self.assertEqual(subprocess.run(['pgrep', '-c', 'agent-busd'], capture_output=True, text=True).stdout.strip(), daemons,
+                         'installing the client started a daemon')
+        # Nothing was written outside the account's own prefix and npm cache.
+        changed = subprocess.run(['find', '/', '-xdev', '-newer', str(marker), '(', '-path', '/proc', '-o', '-path', '/sys', '-o', '-path', '/dev',
+                                  '-o', '-path', '/run', '-o', '-path', '/evidence', '-o', '-path', '/tmp', '-o', '-path', '/home/bob/npm',
+                                  '-o', '-path', '/home/bob/.npm-cache', '-o', '-path', '/home/bob', ')', '-prune', '-o', '-print'],
+                                 capture_output=True, text=True).stdout.split()
+        self.assertEqual([path for path in changed if not path.startswith('/var/lib/systemd') and not path.startswith('/var/log')], [],
+                         'the client install wrote outside its prefix')
+        # It joins the running bus: bob's own token, a call to the installed agent.
+        self.alice_cli('register', '#bob-agent@npm-fixture.test', '--kind', 'agent', '--allow', '*')
+        token = self.alice_cli('token', '#bob-agent@npm-fixture.test')
+        self.assertEqual(token.returncode, 0, token.stderr)
+        joined = {**env, 'AGENT_BUS_ADDR': '/run/agent-bus/bus.sock', 'AGENT_BUS_TOKEN': token.stdout.strip(), 'AGENT_BUS_NAME': '#bob-agent@npm-fixture.test'}
+        answer = subprocess.run(['runuser', '-u', 'bob', '--', str(bin_dir / 'agent-bus'), 'call', '#npm-hello@npm-fixture.test', 'from bob', '--timeout', '10s'],
+                                env=joined, capture_output=True, text=True, timeout=30)
+        self.assertEqual(answer.returncode, 0, answer.stderr)
+        self.assertEqual(json.loads(answer.stdout)['body'].strip(), 'hello from bob')
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)
