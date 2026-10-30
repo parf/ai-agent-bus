@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 """Runs only inside the disposable npm systemd fixture."""
-import hashlib
 import json
 import os
 from pathlib import Path
-import pwd
 import shutil
 import subprocess
 import sys
-import tempfile
 import threading
 import time
 import unittest
@@ -98,6 +95,9 @@ class ExplicitSetup(unittest.TestCase):
         self.assertEqual(stage['mode'], 0o700)
         self.assertTrue(stage['root'].startswith('/run/agent-bus-npm-'))
         self.assertNotIn('/opt/npm', stage['root'])
+        self.assert_clean_stage()
+        failed = self.setup_command('--not-a-setup-option')
+        self.assertNotEqual(failed.returncode, 0, 'invalid setup arguments unexpectedly succeeded')
         self.assert_clean_stage()
 
     def test_03_clean_host_installs_starts_and_answers(self):

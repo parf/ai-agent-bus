@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 """Local-registry npm acceptance, without a host install or publish."""
-import base64
 import getpass
 import importlib.util
 import json
 import os
 from pathlib import Path
-import shutil
 import subprocess
 import tarfile
 import tempfile
@@ -39,6 +37,7 @@ class Packages(unittest.TestCase):
         client = dist / full.name.replace('agent-bus-', 'agent-bus-client-', 1)
         sums = cls.work / 'SHA256SUMS'
         sums.write_text(''.join(f'{pack.digest(p)}  {p.name}\n' for p in (full, client)))
+        cls.expected_sums = pack.digest(sums)
         cls.tarballs = cls.work / 'tarballs'
         pack.build(full, client, sums, cls.tarballs)
         cls.names = pack.names()
@@ -99,8 +98,9 @@ class Packages(unittest.TestCase):
         for archive in self.tarballs.glob('*.tgz'):
             with tarfile.open(archive) as tar:
                 meta = json.load(tar.extractfile('package/package.json'))
+                self.assertIn('package/LICENSE.md', tar.getnames(), 'package license missing')
                 self.assertGreater(tar.getmember('package/LICENSE.md').size, 0)
-                self.assertRegex(meta['agentBusRelease']['sha256sums'], '^[0-9a-f]{64}$')
+                self.assertEqual(meta['agentBusRelease']['sha256sums'], self.expected_sums)
                 if 'agentBus' not in meta:
                     platform_files[meta['name']] = {entry.name for entry in tar if entry.isfile() and entry.name.startswith('package/bundle/')}
         self.assertEqual(len(platform_files), 2)

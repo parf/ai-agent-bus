@@ -27,4 +27,4 @@ for _ in $(seq 1 150); do
   sleep .1
 done
 case $state in running|degraded) ;; *) echo 'FAIL fixture systemd did not boot' >&2; exit 1 ;; esac
-"${podman[@]}" exec "$name" python3 -B /fixture/container_test.py
+"${podman[@]}" exec "$name" python3 -B /fixture/container_test.py "${@:2}"
