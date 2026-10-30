@@ -724,6 +724,7 @@
           "agents.db.test_db.Redaction",
           "agents.db.test_db.Cells",
           "agents.db.test_db.MySQL",
+          "agents.db.test_fixtures",
           "-v"
         ]
       }

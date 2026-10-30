@@ -8,6 +8,7 @@ import os
 import shutil
 import socket
 import subprocess
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -16,6 +17,7 @@ POSTGRES = 'docker.io/library/postgres@sha256:ef257d85f76e48da1c64832459b59fcaba
 CLICKHOUSE = 'docker.io/clickhouse/clickhouse-server@sha256:87e0a5b72f5465b18eacca7c76850e7ff551c9795c50e451f5646299e5e24146'
 SENTINEL = 'sentinel-pw-7f3a91'   # the one password every fixture account uses
 STOP = []
+START_SECONDS = 45   # per attempt; two attempts make the 90 s a start used to be given
 
 
 @atexit.register
@@ -81,7 +83,8 @@ def container(image, port, env):
         s.bind(('127.0.0.1', 0))
         host_port = s.getsockname()[1]
     name = f'ab-db-fixture-{os.getpid()}-{host_port}'
-    args = ['run', '-d', '--rm', '--name', name, '-p', f'127.0.0.1:{host_port}:{port}']
+    # The label scopes this run's containers: diagnostics and cleanup name only these, never a neighbour's.
+    args = ['run', '-d', '--rm', '--name', name, '--label', f'ab-db-fixture={os.getpid()}', '-p', f'127.0.0.1:{host_port}:{port}']
     for key, value in env.items():
         args += ['-e', f'{key}={value}']
     podman(*args, image)
@@ -89,39 +92,89 @@ def container(image, port, env):
     return name, host_port
 
 
-def postgres():
-    name, port = container(POSTGRES, 5432, {'POSTGRES_PASSWORD': SENTINEL, 'POSTGRES_DB': 'app'})
+def speaks_postgres(port):
+    """True once something on the port answers PostgreSQL's SSL request with its one byte, S or N.
 
-    def psql(sql, user='postgres'):
-        return podman('exec', name, 'psql', '-U', user, '-d', 'app', '-v', 'ON_ERROR_STOP=1', '-c', sql)
-    wait(lambda: podman('exec', name, 'psql', '-U', 'postgres', '-d', 'app', '-c', 'select 1', check=False).returncode == 0
-         and podman('exec', name, 'pg_isready', '-h', '127.0.0.1', check=False).returncode == 0, 'PostgreSQL', 90)
-    for sql in ['CREATE TABLE t (id INT PRIMARY KEY, v TEXT)', "INSERT INTO t VALUES (1,'one'),(2,'two')",
-                f"CREATE ROLE ro LOGIN PASSWORD '{SENTINEL}'", f"CREATE ROLE rw LOGIN PASSWORD '{SENTINEL}'",
-                f"CREATE ROLE adm LOGIN PASSWORD '{SENTINEL}'", f"CREATE ROLE app LOGIN PASSWORD '{SENTINEL}'",
-                'GRANT ALL ON t TO app', 'GRANT ALL ON SCHEMA public TO app',
-                'GRANT SELECT ON t TO ro', 'GRANT SELECT,INSERT,UPDATE,DELETE ON t TO rw', 'GRANT ALL ON SCHEMA public TO adm',
-                'GRANT ALL ON t TO adm',
-                'CREATE FUNCTION sneaky() RETURNS int LANGUAGE sql AS $$ INSERT INTO t VALUES (99,\'sneaky\') RETURNING 1 $$',
-                'GRANT EXECUTE ON FUNCTION sneaky() TO ro, rw, adm, app',
-                'CREATE EXTENSION IF NOT EXISTS dblink']:
-        psql(sql)
+    The published port accepts connections the moment the container exists, so a connect proves nothing;
+    only the server's own answer does, and asking costs the container nothing, unlike podman exec.
+    """
+    with socket.create_connection(('127.0.0.1', port), timeout=2) as s:
+        s.sendall(bytes([0, 0, 0, 8, 4, 210, 22, 47]))
+        return s.recv(1) in (b'S', b'N')
+
+
+def diagnose(what):
+    """Say what this run's containers look like and what they last said, so a failed start explains itself."""
+    mine = f'label=ab-db-fixture={os.getpid()}'
+    print(f'fixture {what} failed; containers of this run:', file=sys.stderr)
+    print(podman('ps', '-a', '--filter', mine, '--format', '{{.Names}} {{.Status}}', check=False).stdout, file=sys.stderr)
+    for line in podman('ps', '-a', '--filter', mine, '--format', '{{.Names}}', check=False).stdout.split():
+        print(f'--- last lines of {line}', file=sys.stderr)
+        print(podman('logs', '--tail', '20', line, check=False).stdout, file=sys.stderr)
+
+
+def bring_up(what, make, ready, setup, seconds=None):
+    """Start a container, wait for it, set it up; from scratch once more if it never got there or vanished.
+
+    Two attempts of 45 s are the 90 s one used to be. A container another rootless podman user removed or
+    starved is the case this is for (J25): the second attempt starts a fresh one, and a second failure says
+    what the containers were doing.
+    """
+    last = None
+    seconds = START_SECONDS if seconds is None else seconds
+    for _ in (1, 2):
+        name, port = make()
+        try:
+            wait(lambda: ready(name, port), what, seconds)
+            setup(name, port)
+            return name, port
+        except (RuntimeError, subprocess.CalledProcessError) as error:
+            last = error
+            diagnose(what)
+            podman('rm', '-f', '-t', '1', name, check=False)
+    raise RuntimeError(f'{what} did not start in two attempts: {last!r}')
+
+
+def postgres():
+    def ready(name, port):
+        return speaks_postgres(port) and podman('exec', name, 'psql', '-U', 'postgres', '-d', 'app', '-c', 'select 1',
+                                               check=False).returncode == 0
+
+    def setup(name, port):
+        def psql(sql, user='postgres'):
+            return podman('exec', name, 'psql', '-U', user, '-d', 'app', '-v', 'ON_ERROR_STOP=1', '-c', sql)
+        for sql in ['CREATE TABLE t (id INT PRIMARY KEY, v TEXT)', "INSERT INTO t VALUES (1,'one'),(2,'two')",
+                    f"CREATE ROLE ro LOGIN PASSWORD '{SENTINEL}'", f"CREATE ROLE rw LOGIN PASSWORD '{SENTINEL}'",
+                    f"CREATE ROLE adm LOGIN PASSWORD '{SENTINEL}'", f"CREATE ROLE app LOGIN PASSWORD '{SENTINEL}'",
+                    'GRANT ALL ON t TO app', 'GRANT ALL ON SCHEMA public TO app',
+                    'GRANT SELECT ON t TO ro', 'GRANT SELECT,INSERT,UPDATE,DELETE ON t TO rw', 'GRANT ALL ON SCHEMA public TO adm',
+                    'GRANT ALL ON t TO adm',
+                    'CREATE FUNCTION sneaky() RETURNS int LANGUAGE sql AS $$ INSERT INTO t VALUES (99,\'sneaky\') RETURNING 1 $$',
+                    'GRANT EXECUTE ON FUNCTION sneaky() TO ro, rw, adm, app',
+                    'CREATE EXTENSION IF NOT EXISTS dblink']:
+            psql(sql)
+    _, port = bring_up('PostgreSQL', lambda: container(POSTGRES, 5432, {'POSTGRES_PASSWORD': SENTINEL, 'POSTGRES_DB': 'app'}),
+                       ready, setup)
     # 'postgres' is a superuser; it is the account the guide warns about.
     return {'engine': 'postgres', 'host': '127.0.0.1', 'port': port, 'database': 'app'}
 
 
 def clickhouse():
-    name, port = container(CLICKHOUSE, 8123, {'CLICKHOUSE_USER': 'app', 'CLICKHOUSE_PASSWORD': SENTINEL,
-                                              'CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT': '1', 'CLICKHOUSE_DB': 'app'})
-
-    def sql(text):
+    def sql(name, text):
         return podman('exec', name, 'clickhouse-client', '--user', 'app', '--password', SENTINEL, '-q', text)
-    wait(lambda: sql("SELECT count() FROM system.databases WHERE name = 'app'").stdout.strip() == '1', 'ClickHouse', 90)
-    time.sleep(2)   # the image's own bootstrap server restarts once
-    for text in ['CREATE TABLE app.t (id UInt32, v String) ENGINE = MergeTree ORDER BY id',
-                 "INSERT INTO app.t VALUES (1,'one'),(2,'two')",
-                 f"CREATE USER ro IDENTIFIED BY '{SENTINEL}' SETTINGS readonly = 1", 'GRANT SELECT ON app.* TO ro',
-                 f"CREATE USER rw IDENTIFIED BY '{SENTINEL}'", 'GRANT SELECT, INSERT, ALTER UPDATE, ALTER DELETE ON app.* TO rw',
-                 f"CREATE USER adm IDENTIFIED BY '{SENTINEL}'", 'GRANT ALL ON app.* TO adm']:
-        sql(text)
+
+    def ready(name, port):
+        return sql(name, "SELECT count() FROM system.databases WHERE name = 'app'").stdout.strip() == '1'
+
+    def setup(name, port):
+        time.sleep(2)   # the image's own bootstrap server restarts once
+        for text in ['CREATE TABLE app.t (id UInt32, v String) ENGINE = MergeTree ORDER BY id',
+                     "INSERT INTO app.t VALUES (1,'one'),(2,'two')",
+                     f"CREATE USER ro IDENTIFIED BY '{SENTINEL}' SETTINGS readonly = 1", 'GRANT SELECT ON app.* TO ro',
+                     f"CREATE USER rw IDENTIFIED BY '{SENTINEL}'", 'GRANT SELECT, INSERT, ALTER UPDATE, ALTER DELETE ON app.* TO rw',
+                     f"CREATE USER adm IDENTIFIED BY '{SENTINEL}'", 'GRANT ALL ON app.* TO adm']:
+            sql(name, text)
+    _, port = bring_up('ClickHouse', lambda: container(CLICKHOUSE, 8123, {'CLICKHOUSE_USER': 'app', 'CLICKHOUSE_PASSWORD': SENTINEL,
+                                                                         'CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT': '1', 'CLICKHOUSE_DB': 'app'}),
+                       ready, setup)
     return {'engine': 'clickhouse', 'host': '127.0.0.1', 'port': port, 'database': 'app'}
