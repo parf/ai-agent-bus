@@ -47,6 +47,16 @@ Settled with the owner, 2026-10-29 ([RD163](DECISIONS.md#recorded-decisions)):
 | Build | GitHub Actions builds linux x86_64 and aarch64 on a version tag into a draft release, unsigned; if that does not work out, a build script on this node (owner: "попробуем") |
 | Layout | as `agent-bus-setup` today: `/usr/local/lib/agent-bus/releases/<version>/`, an atomic `current` link, links in `/usr/local/bin`, rollback by switching the link; `--client` the same under `~/.local` |
 
+## macOS
+
+Owner, 2026-10-30 ([RD164](DECISIONS.md#recorded-decisions), [RD165](DECISIONS.md#recorded-decisions)):
+
+| Choice | Decision |
+|---|---|
+| Test host | a Claude session runs on the owner's Mac, on the same LAN; this node has no ssh to it. The session does what the Mac run list says and reports back over the bus |
+| Signing | macOS binaries are unsigned: no paid Apple Developer account, no notarization |
+| Parts | which parts run on macOS is [Q221](QUESTIONS.md#distribution); the owner's direction is the full set (daemon, CLI, agents), which widens scope and is not started |
+
 ## Container runtime
 
 Target runtimes: Docker and Podman.

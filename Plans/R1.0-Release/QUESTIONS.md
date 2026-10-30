@@ -9,19 +9,10 @@ Only unresolved choices live here. Accepted answers and their threads are in
 
 Owner-only choices for the [Linux distribution](distribution.md#simple-install) ([RT14](TODO.md#objective)). None blocks the Linux work: each names what stays undone until it is answered.
 
-- ❓ Q220 Which Mac the owner provides for macOS tests, and how the team reaches it
-  - Options: a machine reachable over ssh with a named account; or the owner runs the macOS checks by hand and reports; or no Mac until later
-  - Impact: without one, macOS stays unbuilt and unchecked; the macOS questions below cannot be settled ([macOS test host](TODO.md#objective))
-  - Settled by: the owner
-
 - ❓ Q221 Which macOS parts ship and how they install
-  - Options: client-only edition only (CLI, runner, launchers), as the Linux `--client`, through the same `install.sh`; or also a Homebrew formula; or an archive without a script
-  - Impact: the daemon and sandbox are Linux-only today, so the process-boundary equivalent on macOS is part of this choice; settled on the Mac of Q220
-  - Settled by: the owner
-
-- ❓ Q222 Apple Developer account for signing and notarizing macOS binaries
-  - Options: the owner's existing account; a new paid account; or unsigned binaries with the quarantine attribute cleared by the installer
-  - Impact: unsigned macOS binaries are refused by Gatekeeper unless the installer handles it
+  - Owner direction, 2026-10-30: the full set on macOS (daemon, CLI, agents). That widens scope beyond the client edition, so it is not started; a sizing of the Linux-only parts is with the manager
+  - Options: the full set; or the client edition only (CLI, runner, launchers), as the Linux `--client`, through the same `install.sh`; with either, how it installs (`install.sh`, a Homebrew formula or an archive)
+  - Impact: the daemon and sandbox are Linux-only today, so the process-boundary equivalent on macOS is part of this choice; settled on the Mac of [RD164](DECISIONS.md#recorded-decisions)
   - Settled by: the owner
 
 - ❓ Q223 The signing namespace and rotation key
