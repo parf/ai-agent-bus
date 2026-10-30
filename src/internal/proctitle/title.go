@@ -6,7 +6,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/erikdubbelboer/gspt"
 	"github.com/parf/ai-agent-bus/internal/version"
 )
 
@@ -32,7 +31,7 @@ func StartNoted(name, detail string, calls *atomic.Uint64, note func() string) f
 				title += " ; " + n
 			}
 		}
-		gspt.SetProcTitle(title)
+		setTitle(title)
 	}
 	show()
 	if calls == nil {
