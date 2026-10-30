@@ -9,8 +9,10 @@ can land after B.25, which is testable with `agent-bus send` alone.
 
 ### B.25 Channel-driven autopull in `#git`
 
-Unassigned. Code: `src/agents/standalone/git/`. ⚠️ parsers and a destructive
-mode: mutants required.
+Code: `src/agents/standalone/git/`. ⚠️ parsers and a destructive mode: mutants
+required. Assigned 2026-10-29: steps 1–5, 7, 8 xAB; step 6 xAB2, on top of
+xAB's landed core; the owner's-flow end-to-end check AB, after B.26; review
+`#claude/ab2-review`.
 
 | Step | Work |
 |---|---|
@@ -46,7 +48,7 @@ Acceptance, each failing on the old code or by a named mutant:
 
 ### B.26 `#webhook` publishes to a pubsub channel
 
-Unassigned. A webhook route may name a pubsub record as its target, so a GitLab
+Assigned 2026-10-29: AB2; review `#opencode/oab`. A webhook route may name a pubsub record as its target, so a GitLab
 or GitHub push reaches `autopull-cmd`. The route maps the hosting payload to the
 [new-code event](README.md#new-code-event); the payload stays untrusted.
 
