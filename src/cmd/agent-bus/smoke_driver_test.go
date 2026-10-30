@@ -25,12 +25,15 @@ func TestSmokeInterruptStopsItsTimeoutShard(t *testing.T) {
 	driver = strings.Replace(driver, `if [ -z "$SHARD" ]; then`, `if [ -n "$SHARD" ]; then echo "$$" >"$PROBE_PID"; exec sleep 30; fi`+"\n"+`if [ -z "$SHARD" ]; then`, 1)
 	dir := t.TempDir()
 	script, pidfile := filepath.Join(dir, "driver.sh"), filepath.Join(dir, "child.pid")
-	options, err := os.ReadFile("../../smoke-options.sh")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "smoke-options.sh"), options, 0600); err != nil {
-		t.Fatal(err)
+	// The driver sources these beside itself.
+	for _, name := range []string{"smoke-options.sh", "smoke-port.sh"} {
+		body, err := os.ReadFile("../../" + name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, name), body, 0600); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if err := os.WriteFile(script, []byte(driver), 0700); err != nil {
 		t.Fatal(err)
@@ -41,7 +44,8 @@ func TestSmokeInterruptStopsItsTimeoutShard(t *testing.T) {
 	}
 	defer out.Close()
 	cmd := exec.Command("bash", script)
-	cmd.Env = append(os.Environ(), "PROBE_PID="+pidfile, "TMPDIR="+dir)
+	// Its port claim locks in the test's own directory, never the host's.
+	cmd.Env = append(os.Environ(), "PROBE_PID="+pidfile, "TMPDIR="+dir, "SMOKE_PORT_LOCKS="+filepath.Join(dir, "ports"))
 	cmd.Stdout, cmd.Stderr = out, out
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := cmd.Start(); err != nil {
