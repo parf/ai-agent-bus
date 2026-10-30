@@ -17,7 +17,8 @@ Generated IDs, tags and deadlines are checked by adapters through their runtime
 relationships rather than copied into fixtures. Existing receipt, authority,
 transport and capacity tests remain independent.
 
-All six adapters run `self-call.json`, PHP from inside a handler since it
-serves one message at a time. Python, TypeScript and Go also run `send.json` and
-`call.json`; the common suite is complete only when all six run every file. Run the native
+All six adapters run every file: `send.json`, `call.json` and `self-call.json`
+(PHP makes its self-call from inside a handler, since it serves one message at
+a time). Each client's check changes independently of the others when its
+request or its reading of an answer changes. Run the native
 [client checks](../../clients/README.md#checks); do not use the live bus.
