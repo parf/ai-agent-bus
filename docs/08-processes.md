@@ -2,14 +2,14 @@
 
 📌 **TL;DR:**
 - **Problem:** a bus that serves requests, holds listeners and shows a web page must keep their powers apart, or one flaw reaches everything.
-- **Outcome:** the supervisor owns listeners and child lifetime, the bus owns state and serves requests, and the web page, under its own account and unit, asks the bus for the visitor's own view. Passing a listener is a runtime boundary, separate from the module rules. Nothing the daemon runs may exec.
-- **Start:** see the running processes by their titles: `ps -ww -eo args | grep '^agent-busd'` ([Try this first](#try-this-first)).
+- **Outcome:** the supervisor owns listeners and child lifetime, the bus owns state and serves requests, and the web page, under its own account and unit, asks the bus for the visitor's own view. Passing a listener is a runtime boundary, separate from the module rules. The daemon never runs a program a user supplied.
+- **Start:** see the running processes by their titles: `ps -ww -u agent-busd -o args | grep '^agent-busd'` ([Try this first](#try-this-first)).
 
 ## Why you'd want it
 
 - 🧱 **One process with every power is one flaw from disaster.** Now each process has only what it needs.
 - 🔎 **You must tell the processes apart.** Now each sets a title that names its role and call count.
-- 🚫 **A daemon that can start programs can be turned on you.** Now nothing it runs may exec.
+- 🚫 **A daemon that can start programs can be turned on you.** Now it never runs a program a user supplied.
 
 ## What you get
 
@@ -20,10 +20,10 @@
 
 ## Try this first
 
-- See the supervisor and bus titles, without the version (read-only):
+- See the live supervisor and bus titles, without the version (read-only; they belong to the `agent-busd` account):
 
 ```sh
-ps -ww -eo args | grep '^agent-busd' | tail -2 | cut -d';' -f2-
+ps -ww -u agent-busd -o args | grep '^agent-busd' | cut -d';' -f2-
 ```
 
 <details>
@@ -31,7 +31,7 @@ ps -ww -eo args | grep '^agent-busd' | tail -2 | cut -d';' -f2-
 
 ```text
  supervisor
- Calls: 2887424 ; bus
+ Calls: 2913263 ; bus
 ```
 
 - The bus title counts the requests it received; the supervisor serves none.
@@ -92,8 +92,7 @@ programs. The supervisor necessarily executes its children, and the web face's
 unit can execute nothing but its runtime. User scripts run in the separate dedicated
 runner.
 
-**`ssh-keygen` is allowed, and the boundary is about user programs.** The bus
-- runs it to check a signature at enrolment, and that stays.
+**`ssh-keygen` is allowed, and the boundary is about user programs.** The bus runs it to check a signature at enrolment, and that stays.
 - What the rule forbids is executing **what a user supplied** — a script behind an agent, anything whose contents somebody else chose.
 - A fixed verifier the daemon ships and invokes with arguments it built is a different thing from running a stranger's program, and collapsing the two would have bought nothing but a literal claim.
 

@@ -9,13 +9,13 @@
 
 - 📥 **A session only hears you, not the bus.** Now each message is pushed into the running session.
 - 🏷️ **A session has no stable name.** Now it keeps a name across restarts, one live session per name.
-- 🔁 **A crash ends the conversation.** Now a launcher restarts the session after a crash.
+- 🔁 **A crash ends the conversation.** Now a launcher can restart the session after a crash, with `--restart`.
 
 ## What you get
 
 - ✅ **One launcher per runtime:** Claude, Codex and OpenCode, each with the bus tools loaded.
 - ✅ **Names and tags:** stable session names, tags for filtering, and an explicit rename.
-- ✅ **Recovery:** restart after a crash, and isolation between sessions.
+- ✅ **Recovery:** an optional restart after a crash (`--restart`), and isolation between sessions.
 - 🚫 **Not for:** running a plain script behind a name (the [dedicated runner](06-dedicated-runner.md)).
 
 ## Try this first
@@ -57,8 +57,7 @@ pushes into the *running* session. Claude Code, Codex and opencode are proven he
 | opencode | HTTP. The launcher starts `opencode serve`, selects an existing session or creates one, and starts the TUI and pusher on that explicit session ID. `POST /api/session/{id}/prompt` with `delivery: "queue"` delivers into that session, waiting for an idle turn rather than steering one. Initial TUI startup need not emit a selection event. `ab-opencode1` speaks the 1.x API and its `attach` TUI for hosts still on it | built and smoke-tested here |
 | ChatGPT | none — cannot be pushed; pull through the MCP inbox only | pull only |
 
-**Push stops rather than repeats a refusal about who is asking.** A credential
-- the daemon does not know and an inbox somebody else already holds are answers that asking again cannot change, so the loop says so once and leaves the session running without a channel.
+**Push stops rather than repeats a refusal about who is asking.** A credential the daemon does not know and an inbox somebody else already holds are answers that asking again cannot change, so the loop says so once and leaves the session running without a channel.
 - A suspended principal is different: it can be reactivated, so push says so once and asks again every 30 minutes, and resumes by itself after reactivation (owner, 2026-09-23).
 - It is told by the daemon's own sentence for it, "user access is suspended"; any other 403 stops push as before.
 - A transient failure is retried after two seconds; a session that outlives its principal otherwise refuses its way through the daemon for as long as it lives.
@@ -253,8 +252,7 @@ behaviour is unchanged.
 
 ## Explicit session rename
 
-**Built.** With an `ab-*` launcher, `ab_rename(name)` changes the runtime
-- session title and bus address together.
+**Built.** With an `ab-*` launcher, `ab_rename(name)` changes the runtime session title and bus address together.
 - Codex and OpenCode use their own session APIs; Claude appends its existing title metadata.
 - Without a name, the launcher reads the runtime's current title immediately.
 - Without a launcher, a bare MCP face holding only its agent's credential refuses a named rename and changes nothing, because the new address is its User's record: renaming is for `ab-*` sessions only.
