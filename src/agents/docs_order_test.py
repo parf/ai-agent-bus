@@ -35,7 +35,9 @@ WALL = 300                # characters in one prose paragraph; about three wrapp
 EXEMPT = ('docs/constitution.md', 'docs/decisions.md', 'docs/glossary.md')
 
 # Pages that must pass. Each batch of the docs rewrite adds its pages here as it lands.
-ENFORCED = ['docs/runner/README.md'] + ['docs/agents/%s.md' % name for name in (
+ENFORCED = ['docs/runner/README.md'] + ['docs/%s.md' % name for name in (
+    '00-overview', '01-identity-and-authority', '02-access', '02-access-remote', '03-records', '03-records-agent',
+    '03-records-channel', '03-records-kv', '03-records-resource', '03-records-service', '04-messaging', '05-discovery')] + ['docs/agents/%s.md' % name for name in (
     'ai', 'db', 'fetch', 'git', 'git-autopull', 'qdrant', 'rag', 'server-info', 'systemd', 'voyage',
     'README', 'at', 'bus', 'sms', 'smtp', 'tmux-sessions', 'webhook',
     'cron', 'debug', 'eventlog', 'imap', 'logwatch', 'slack', 'telegram')]
