@@ -297,7 +297,7 @@ agent-bus kv json jobs@team batch '[{"op":"push","key":"todo","value":"img-1"}]'
 
 Available through the CLI, API and MCP; see the [KV contract](docs/03-records-kv.md#key-value-store)
 for operations and limits, the [KV plan](Plans/R1.0-Release/done/kv.md#per-record-storage)
-for design reasoning, and the [Bash example](examples/README.md#kv) for a runnable
+for design reasoning, and the [KV CLI checks](src/clients/tests/kv/README.md#kv) for a runnable
 test of every operation.
 
 ### Faces, logs & storage

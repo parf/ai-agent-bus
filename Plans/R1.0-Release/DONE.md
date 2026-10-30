@@ -42,3 +42,7 @@ is in [TODO](TODO.md).
 - ✅ P.2 [Container image](../../src/container/README.md#container-image)
   - Result: `docker.io/parf/agent-bus:0.9.179` and `:latest`, digest `sha256:b6b7ebc48d5a9dfad21f868288eac37f749723358b1743c7e28102d0b1a08089`, built from the stamped 0.9.179 release archive, 2026-10-30
   - Evidence: pulled by digest into an empty rootless podman store on this node, `acceptance.sh --image=` passed 10/10: both roles, a request/reply, a recreated daemon keeping the service and both credentials, sandbox refusal. Mutants daemon-entry, runner-entry, storage-outside and sandbox-downgrade each failed on assertions
+
+- ✅ T-11 KV CLI checks live under `src/clients/tests/kv/`, moved from root `examples/` with their README and script retained.
+  - Result: smoke invocation and ownership map select the new path; root-guide links and the archived Slack smoke comment are retargeted. No image or asset was removed.
+  - Evidence: the relocated check passes twice against a disposable real daemon (82 comparisons each, create then reuse). Under the smoke-gate lock, a compiling integer-increment mutant adds one too much and fails the check's `expected [1], got [2]` assertion; source restored. Link/anchor checks accompany the move; no version bump.

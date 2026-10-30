@@ -1,4 +1,4 @@
-# Examples
+# KV CLI checks
 
 📌 **TL;DR:** Run `kv.sh` against a running daemon to exercise every KV
 operation. It creates or reuses an Agent and holds its named lock across the
@@ -7,7 +7,7 @@ reset, commands and result comparisons.
 ## KV
 
 [`kv.sh`](kv.sh) is a runnable Bash example and test of the
-[key-value store](../docs/03-records-kv.md#key-value-store).
+[key-value store](../../../../docs/03-records-kv.md#key-value-store).
 It creates `#kv-example` if absent, resets its `example/*` test names, issues
 commands and compares both their answers and the stored values. A mismatch or
 unexpected refusal exits nonzero. A named lock covers reset and every section;
@@ -15,9 +15,9 @@ it is renewed before each section and released on normal exit, failure or
 termination. The TTL is a fallback if the process is killed without cleanup.
 
 ```bash
-./examples/kv.sh
-./examples/kv.sh '#my-kv-test'
-AGENT_BUS_ADDR=/path/to/user-your-account.sock ./examples/kv.sh
+./src/clients/tests/kv/kv.sh
+./src/clients/tests/kv/kv.sh '#my-kv-test'
+AGENT_BUS_ADDR=/path/to/user-your-account.sock ./src/clients/tests/kv/kv.sh
 ```
 
 Requires Bash, `agent-bus`, `od` and `tr`, and a running daemon. Normal CLI

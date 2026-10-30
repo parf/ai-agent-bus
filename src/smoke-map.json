@@ -32,7 +32,8 @@
         "src/internal/sandbox/",
         "src/internal/cgroup/",
         "src/internal/script/",
-        "src/agents/debug/"
+        "src/agents/debug/",
+        "src/clients/tests/kv/"
       ]
     },
     "core_4": {

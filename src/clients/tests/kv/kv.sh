@@ -5,7 +5,7 @@ set -euo pipefail
 
 CLI=${AGENT_BUS_CLI:-agent-bus}
 agent=${1:-'#kv-example'}
-[[ $# -le 1 && $agent == \#* ]] || { echo 'Usage: examples/kv.sh [#agent-name]' >&2; exit 2; }
+[[ $# -le 1 && $agent == \#* ]] || { echo 'Usage: src/clients/tests/kv/kv.sh [#agent-name]' >&2; exit 2; }
 command -v "$CLI" >/dev/null || { echo "Missing CLI: $CLI" >&2; exit 2; }
 passed=0
 

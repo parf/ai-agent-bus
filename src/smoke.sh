@@ -2025,7 +2025,7 @@ if normal; then
   sec "the runnable KV example: every operation and a repeat run"
   for example_run in 1 2; do
     AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok caller@srv1)" \
-      AGENT_BUS_CLI="$D/agent-bus" timeout 15 ../examples/kv.sh '#kv-example@srv1' \
+      AGENT_BUS_CLI="$D/agent-bus" timeout 15 clients/tests/kv/kv.sh '#kv-example@srv1' \
       >"$D/kv-example-$example_run.log" 2>&1
     rc=$?
     ok_exit "KV example run $example_run" "$rc"
@@ -2035,7 +2035,7 @@ if normal; then
   has "the second run reuses its Agent" "$(cat "$D/kv-example-2.log")" '^Using Agent #kv-example@srv1$'
   abt caller@srv1 try-lock '#kv-example@srv1' example/kv --ttl 2m >/dev/null
   AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok caller@srv1)" \
-    AGENT_BUS_CLI="$D/agent-bus" timeout 15 ../examples/kv.sh '#kv-example@srv1' \
+    AGENT_BUS_CLI="$D/agent-bus" timeout 15 clients/tests/kv/kv.sh '#kv-example@srv1' \
     >"$D/kv-example-overlap.log" 2>&1
   rc=$?
   bad_exit "an overlapping KV example is refused" "$rc"
@@ -3979,7 +3979,7 @@ client_go() { client_check go; }
 client_examples() { client_check examples; }
 # The Slack agent's own suite (src/agents/slack): a real daemon from this
 # build, the actual agent, a fake Slack with a Socket Mode websocket
-# (Plans/R1.2/slack/TODO.md S.7).
+# (Plans/R1.2/done/slack/TODO.md S.7).
 agent_telegram() {
   if normal; then
     sec "telegram agent"
