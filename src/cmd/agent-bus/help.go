@@ -101,7 +101,7 @@ func helpColour(out *os.File, disabled bool) bool {
 	if disabled || noColour {
 		return false
 	}
-	_, err := unix.IoctlGetTermios(int(out.Fd()), unix.TCGETS)
+	_, err := unix.IoctlGetTermios(int(out.Fd()), termiosGet)
 	return err == nil
 }
 
