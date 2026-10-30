@@ -84,7 +84,7 @@ Paths it refuses:
 **With `"sandbox": "off"` none of this applies.** That agent has the runner account's full reach:
 
 - It can read every other agent's `env` file under `runner/`.
-- It can read and change every checkout under `agent.d/`.
+- It can read every checkout under `agent.d/`, and write only where its runner account and the host's policy permit.
 - It can open the account socket that owns every managed agent.
 
 It is the right setting only for code you would run as that account anyway.
