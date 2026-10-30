@@ -412,6 +412,12 @@
       {
         "argv": [
           "bash",
+          "acceptance/guard.test.sh"
+        ]
+      },
+      {
+        "argv": [
+          "bash",
           "release-verify.test.sh"
         ]
       },

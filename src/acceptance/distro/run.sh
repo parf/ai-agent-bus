@@ -3,8 +3,9 @@
 # a throwaway key is installed by install.sh inside rootless podman on each
 # distribution, then must pass src/check-deploy.sh. Forged releases must be
 # refused first. Containers and their data live under the main checkout's
-# tmp/distro-acceptance and are removed after each run; the image store there
-# is kept as a cache (--clean removes it too).
+# tmp/distro-acceptance and are removed after each run, a killed one's at the
+# latest when the next starts (guard.sh); the image store there is kept as a
+# cache (--clean removes it too).
 #
 #   src/acceptance/distro/run.sh [--dist <dir>] [--next-dist <dir>] [--keep] [--clean] [almalinux10 ubuntu2604 debian13]
 #
@@ -50,6 +51,9 @@ podman=(podman --root "$base/storage" --runroot "${XDG_RUNTIME_DIR:?}/agent-bus-
   --storage-opt overlay.mount_program=/usr/bin/fuse-overlayfs)
 mkdir -p "$base"
 run=$(mktemp -d "$base/run.XXXXXX")
+# A run killed by any signal, SIGKILL included, leaves no container and no run directory: guard.sh (J32).
+. "$here/../guard.sh"
+guard "$run" "$keep"
 names=()
 cleanup() {
   for n in "${names[@]}"; do "${podman[@]}" rm -f -t 5 "$n" >/dev/null 2>&1 || true; done
@@ -145,7 +149,7 @@ start() { # distro
   local d=$1 name="agent-bus-distro-$1-$$" state=""
   mkdir -p "$run/evidence-$d"
   "${podman[@]}" run -d --rm --pull=never --privileged --systemd=always --network=none \
-    --security-opt label=disable --hostname "node-$d.test" --name "$name" \
+    --security-opt label=disable --hostname "node-$d.test" --name "$name" --label "agent-bus-run=$guard_run" \
     -v "$run/release:/release:ro" -v "$run/fixture:/fixture:ro" -v "$run/evidence-$d:/evidence:rw" \
     "localhost/agent-bus-distro:$d" >/dev/null
   for _ in $(seq 1 200); do

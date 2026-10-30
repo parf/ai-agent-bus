@@ -350,6 +350,9 @@ ok_exit "smoke port claim contract" "$rc"
 out=$(bash ./npm-pack.test.sh 2>&1); rc=$?
 ok_exit "the npm wrapper installs from its tarballs and runs a request, a reply and an MCP call" "$rc"
 [ "$rc" = 0 ] || echo "$out"
+out=$(bash ./acceptance/guard.test.sh 2>&1); rc=$?
+ok_exit "a private-store podman harness killed by any signal leaves no container and no run directory (J32)" "$rc"
+[ "$rc" = 0 ] || echo "$out"
 out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents -p agent_docs_test.py -v 2>&1); rc=$?
 ok_exit "every bundled agent has its page, index entry and docs link" "$rc"
 [ "$rc" = 0 ] || echo "$out"
