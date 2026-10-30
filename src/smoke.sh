@@ -4106,6 +4106,9 @@ agent_db() {
     out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/db -p 'test_*.py' -v 2>&1); rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "database proxy roles, read-only enforcement, bounds and password secrecy" "$rc"
+    # A fixture container whose test process is gone was leaked (J32); a neighbour's live run is not one.
+    out=$(PYTHONDONTWRITEBYTECODE=1 python3 agents/db/fixtures.py leaked 2>&1)
+    is_empty "no database fixture container outlives its test" "$out"
   else skipped=$((skipped+1)); fi
 }
 
