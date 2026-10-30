@@ -149,9 +149,9 @@ captured at startup; a later working-directory change does not rename the sessio
 - `--descr` explicitly replaces the description.
 - Resuming keeps the saved address; changing a purpose changes only its description.
 - A title is not a credential or a unique session identifier.
-- The `ab-*` launchers derive `#runtime/instance@host` from 0.7, with `claude`, `codex` or `opencode` as the template, the normalized session title (or directory) as the instance and the host name as the realm, while the launching User stays realm-less.
-- For example, a Codex session titled `home` on host `parf.us` becomes `#codex/home@parf.us`, owned by `parf`.
-- They keep deriving a realm although [0.7 makes it optional](01-identity-and-authority.md#names): a bare `codex` or `runner` would be one name for every node and every user.
+- The `ab-*` launchers derive `#runtime/instance@host` from 0.7, with `claude`, `codex` or `opencode` as the template, the normalized session title (or directory) as the instance and the realm the bus reports ([bus setup](agents/bus.md#configuration)) as the realm, while the launching User stays realm-less. A bus that reports no realm refuses an automatic name; a bound session resumes its exact name when the realm changes, and an explicit name or `AGENT_BUS_REALM` is unchanged.
+- For example, a Codex session titled `home` on a bus whose realm is `parf.us` becomes `#codex/home@parf.us`, owned by `parf`.
+- They keep a realm in the name although [0.7 makes it optional](01-identity-and-authority.md#names): a bare `codex` or `runner` would be one name for every node and every user.
 - From 0.7 they also register those agents as [Personal](03-records.md#personal-and-shared): a session record belongs to the launching user, not on the shared web pages.
 - Saved dot-form addresses migrate on restart through the same address-change behavior below.
 - Explicit bus names and other clients' naming remain unchanged.

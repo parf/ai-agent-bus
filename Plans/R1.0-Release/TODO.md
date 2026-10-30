@@ -368,7 +368,8 @@ and no daemon change. A row that needs a format first proposes it for approval.
 - ⏳ RT22 Bus setup: the Configuration of `#bus` on the ordinary edit page, daemon Owner only ([approved plan](daemon-configuration.md#approved-plan), [RD108](DECISIONS.md#recorded-decisions), [RD158](DECISIONS.md#recorded-decisions)). Daemon and edit page built; web-form realm fix: #ab-w1c, two readers. RT22 stays ⏳ until RT22b lands.
   - Approved by the owner on 2026-10-20; realm first, other settings read-only or kept in their owning interface; changing the default never renames existing records.
   - Acceptance: only the daemon Owner sees and saves the page; a new record defaults to the configured realm; an existing name never changes silently. [Acceptance map and web fix](DONE.md#rt22-bus-setup-web-acceptance).
-  - RT22b: launcher and installer automatic names take the configured `#bus` realm; existing bound names never change. Assigned #ab-w1b, due 2026-11-02 18:00; a test per path, red before, plus a mutant.
+  - RT22b: launchers (`ab-claude`, `ab-codex`, `ab-opencode`) and the runner installer (`#runner/<person>[-user]@<realm>`) take the realm from `status`; a bound session or already-registered runner keeps its name; a bus with no realm refuses an automatic name. Tests: `launchers/local.test.ts`, `rename-smoke.ts`, `cmd/agent-bus-setup/realm_test.go`
+
 
 - ✅ B.19 voyage — built as RAG R.1, 0.9.123; [result, gate and review](rag/DONE.md#r1-voyage-proxy). The manager/owner makes the first live provider call.
 
