@@ -46,15 +46,6 @@ agent-bus help '#systemd/web@node.example'
 - **See scheduled jobs:** ask for `timers`.
 - **See my team's services:** ask your team's helper for `list`.
 
-<details>
-<summary>Rules for these calls</summary>
-
-- Inspect the cause before restarting; check `status` afterwards.
-- With many servers, a missing reply or refusal fails the [multi-agent call](../user/cli.md#calling-many-agents-at-once).
-- Use the exact timer name from `timers`; reading it needs no extra permission.
-
-</details>
-
 ## Installing it
 
 - An administrator installs it once per team as root.
@@ -126,14 +117,6 @@ Names need their ending (`.service`, `.timer`); no wildcards or paths. An empty 
 - **Private data:** logs can hold it, so they need `operate` or `admin`.
 - **Scope:** without a service name they cover this helper's list, or the whole host if it has none.
 
-<details>
-<summary>Technical details: logs</summary>
-
-- 1–1000 lines, default 100. `since` is an age such as `30m`, `1h`, `2d`. Large answers say when they were shortened.
-- JSON form: `{"method":"logs","unit":"nginx.service","lines":100,"since":"1h"}`.
-
-</details>
-
 ### Many nodes
 
 - Find the helpers: `agent-bus ls --tag=systemd`.
@@ -159,3 +142,32 @@ Names need their ending (`.service`, `.timer`); no wildcards or paths. An empty 
 | alert | `units` Configuration is invalid: every call is refused | Fix `units` |
 | alert | `systemctl` or `journalctl` is missing, or the service manager does not answer | Check systemd on the host |
 | warning | A `systemctl` call timed out after 30 seconds | Check the unit; it may still be changing state |
+
+## Technical details
+
+<details>
+<summary>How it runs</summary>
+
+- It runs `systemctl` and `journalctl` as its service account, root for a helper that restarts services.
+- Unit names need their ending (`.service`, `.timer`); no wildcards or paths.
+- A `systemctl` call that takes longer than 30 seconds times out; the unit may still be changing state.
+- The list of services is read on every call, so a change applies at once.
+
+</details>
+
+<details>
+<summary>Rules for these calls</summary>
+
+- Inspect the cause before restarting; check `status` afterwards.
+- With many servers, a missing reply or refusal fails the [multi-agent call](../user/cli.md#calling-many-agents-at-once).
+- Use the exact timer name from `timers`; reading it needs no extra permission.
+
+</details>
+
+<details>
+<summary>Logs</summary>
+
+- 1–1000 lines, default 100. `since` is an age such as `30m`, `1h`, `2d`. Large answers say when they were shortened.
+- JSON form: `{"method":"logs","unit":"nginx.service","lines":100,"since":"1h"}`.
+
+</details>

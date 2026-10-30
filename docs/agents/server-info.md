@@ -46,15 +46,6 @@ agent-bus help '#server-info@node.example'
 - **Check the certificate:** ask for `tls`.
 - **Get everything:** ask for `all`.
 
-<details>
-<summary>Rules for calls</summary>
-
-- Text takes one section name; JSON takes exactly `{"method":"<section>"}`; extra arguments are refused.
-- Each command may run up to ten seconds; the answer carries its exit code.
-- `network` is the host's view, not a runner's private network.
-
-</details>
-
 ## Installing it
 
 - An administrator installs it once as a Linux service under a plain account.
@@ -141,3 +132,24 @@ unset AGENT_BUS_TOKEN
 | warning | A host tool a section needs is missing | Install it, or ignore that section |
 | warning | A section's command failed or timed out | Read its error in the answer |
 | warning | `tls` cannot read the bus certificate | Make `/etc/agent-bus/tls/cert.pem` readable by its account |
+
+## Technical details
+
+<details>
+<summary>How it runs</summary>
+
+- A fixed set of harmless read-only commands runs under a plain account (`ab-server-info`, or `nobody` if that account cannot be created).
+- It never runs a command taken from a question.
+- Disk-health and sensor sections need an explicit reinstall as root and their host tools.
+- A missing tool is reported with the section, never treated as healthy.
+
+</details>
+
+<details>
+<summary>Rules for calls</summary>
+
+- Text takes one section name; JSON takes exactly `{"method":"<section>"}`; extra arguments are refused.
+- Each command may run up to ten seconds; the answer carries its exit code.
+- `network` is the host's view, not a runner's private network.
+
+</details>
