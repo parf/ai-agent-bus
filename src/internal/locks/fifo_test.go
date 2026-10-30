@@ -198,3 +198,30 @@ func TestACancelledWaiterHandedTheLockPassesItOn(t *testing.T) {
 		t.Fatalf("a waiter handed the lock as its wait ran out lost it: %q", holderOf(s, "g", "x"))
 	}
 }
+
+// A caller that goes away just as the lock is handed to it never holds it:
+// the select may see the hand-off before the cancel, and a hold for a caller
+// nobody answers would wedge the lock until its ttl (review of J27).
+func TestALockHandedToAGoneCallerIsPassedOn(t *testing.T) {
+	s := quick(t)
+	for round := 0; round < 400; round++ {
+		s.Take(context.Background(), "g", "x", "alice@h", time.Minute, 0)
+		ctx, cancel := context.WithCancel(context.Background())
+		got := make(chan bool, 1)
+		go func() {
+			ok, _ := s.Take(ctx, "g", "x", "bob@h", time.Minute, 5*time.Second)
+			got <- ok
+		}()
+		waitQueued(t, s, "g", "x", 1)
+		cancel()
+		if err := s.Release("g", "x", "alice@h", false); err != nil {
+			t.Fatal(err)
+		}
+		if <-got {
+			t.Fatalf("round %d: a cancelled caller was granted the lock", round)
+		}
+		if h := holderOf(s, "g", "x"); h != "" {
+			t.Fatalf("round %d: %s still holds the lock for a caller that went away", round, h)
+		}
+	}
+}

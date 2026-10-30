@@ -197,7 +197,9 @@ func (s *Store) Acquire(ctx context.Context, record, name, holder string, ttl, w
 				cancelled = true
 			case <-time.After(left):
 			}
-			if s.leave(k, w, cancelled) {
+			// A caller already gone when the lock was handed to it may
+			// still see the hand-off first: it must not keep the lock.
+			if s.leave(k, w, cancelled || ctx.Err() != nil) {
 				return true, "", nil
 			}
 			if !w.granted && isClosed(w.ch) {
