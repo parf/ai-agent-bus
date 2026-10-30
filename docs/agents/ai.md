@@ -163,6 +163,18 @@ agent-bus manage '#ai@node.example' --remove-allow '*'
 
 </details>
 
+## Warnings and alerts
+
+Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#ai` reports these. The page that shows them is in work.
+
+| Level | When | What to do |
+|---|---|---|
+| alert | The provider refuses the key or the account (401, 402 or 403) | Ask the administrator to check `OPENROUTER_API_KEY` and the provider account |
+| alert | The provider cannot be reached (`provider connection failed`) | Check the runner's network and `base_url` |
+| warning | The provider rate-limits a call (429) or fails it (5xx) | Wait; if it repeats, check the provider's status and quota |
+| warning | A provider call timed out | Shorten requests; repeated timeouts point at the provider |
+| warning | A call names no model and Configuration has none | Set `model` in Configuration |
+
 ## Troubleshooting
 
 | If you see… | Do this |

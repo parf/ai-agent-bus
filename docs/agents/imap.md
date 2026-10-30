@@ -334,6 +334,21 @@ admitted caller can list every subscription.
 
 </details>
 
+## Warnings and alerts
+
+Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#imap` reports these. The page that shows them is in work.
+
+| Level | When | What to do |
+|---|---|---|
+| alert | The mail server refuses the sign-in, or the OAuth refresh is rejected (`invalid_grant`) | Check `IMAP_USERNAME`, the app password or the refresh token in the host file |
+| alert | The server cannot be reached, or its TLS certificate fails, poll after poll | Check `host`, `port`, `cafile` and the network |
+| alert | Forwarding state is invalid: subscriptions and `sync` are blocked | Delete all subscriptions, then add them again to rebaseline |
+| alert | Configuration or a required sign-in key is missing or invalid | Fix Configuration or the host file |
+| warning | One poll failed (connection, timeout, server throttling) and a later poll recovered | Nothing; if it repeats, check the server |
+| warning | A subscription paused (`acl` or `unconfirmed`) | Inspect it in `sub list`; delete it and add it again |
+| warning | New mail was skipped because held copies filled the outbox | Let the destination read; `sub list` shows the held range |
+| warning | A UID was skipped: oversized, malformed or refused repeatedly | `read` it to retry |
+
 ## Troubleshooting
 
 | If you see | Do this |

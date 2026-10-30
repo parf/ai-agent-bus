@@ -182,6 +182,17 @@ fetch files or URLs on the store's own host.
 
 </details>
 
+## Warnings and alerts
+
+Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#qdrant` reports these. The page that shows them is in work.
+
+| Level | When | What to do |
+|---|---|---|
+| alert | `QDRANT_API_KEY` is missing, or the store refuses it (401 or 403) | Set the key in the host `qdrant/env`; it must equal the store's key |
+| alert | The store cannot be reached at `url` | Check `url` and that the store is running |
+| warning | `url` is plain HTTP to a remote store: the key travels unencrypted | Use HTTPS or a loopback address |
+| warning | A write's outcome is unknown (lost or incomplete answer) | Check the store before the caller repeats it |
+
 ## Troubleshooting
 
 | If you see… | Do this |

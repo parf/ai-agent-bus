@@ -264,6 +264,19 @@ The bot token lives in the bus **Secret**, never in Configuration.
 - Only the owner and maintainers may use `refused` or change any subscription;
   managing a destination lets a caller manage its subscriptions.
 
+## Warnings and alerts
+
+Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#telegram` reports these. The page that shows them is in work.
+
+| Level | When | What to do |
+|---|---|---|
+| alert | `TELEGRAM_BOT_TOKEN` is missing, or Telegram rejects it | Store the token in Secret, then reload the runner |
+| alert | Another program receives for this bot (`409`): nothing arrives here | Stop the other receiver or webhook |
+| alert | Configuration is malformed at start, so it does not run | Fix the key the entry names |
+| warning | A receive poll failed and a later one recovered | Nothing; if it repeats, check the network |
+| warning | A routed message was refused, or failed after three tries | Check that the session exists and allows this agent |
+| warning | A subscription was disabled (author refused, target gone) | Fix the target; add it again |
+
 ## Troubleshooting
 
 | If you see this | Do this |

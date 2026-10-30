@@ -205,6 +205,18 @@ Only the owner at first. **Namespace and table are labels, not locks**: anyone
 admitted later can read and delete every namespace. RAG calls the blocks under
 its own name, not the caller's.
 
+## Warnings and alerts
+
+Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#rag` reports these. The page that shows them is in work.
+
+| Level | When | What to do |
+|---|---|---|
+| alert | Its collection is missing or unhealthy, or its vector size, model or indexes do not match Configuration | Create or fix the collection as in [Installing it](#installing-it) |
+| alert | A block (`#qdrant`, `#voyage`, `#ai`) refuses RAG's own grant | Grant RAG on that block |
+| alert | Configuration lacks the block names or the collection | Set them |
+| warning | The collection is optimizing (yellow) | Nothing; it clears by itself |
+| warning | A call's outcome is unknown, or a delete is incomplete | The caller repeats the same call; if it repeats, check that block's own entries |
+
 ## Troubleshooting
 
 | If you see… | Do this |

@@ -178,6 +178,17 @@ fixture checks show the limit.
 
 </details>
 
+## Warnings and alerts
+
+Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#db` reports these. The page that shows them is in work.
+
+| Level | When | What to do |
+|---|---|---|
+| alert | The database refuses the connection or the login | Check `host`, `port` or `socket`, and the account in the host `db/env` file |
+| alert | Configuration is invalid, or the engine's driver is missing from the package | Fix `engine` and the address; reinstall the package |
+| warning | A statement reached its deadline | Check the database load; a write may have happened |
+| warning | A caller was refused because their tier has no account on this instance | Add that tier's keys, or stop granting that role |
+
 ## Troubleshooting
 
 | If you see… | Means |

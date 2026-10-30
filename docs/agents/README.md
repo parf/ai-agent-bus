@@ -226,3 +226,18 @@ stores, bus Secret and the runner's private files, are compared in
 For [systemd](systemd.md#who-may-use-it) and [Git](git.md#who-may-use-it), the
 Owner and Maintainers can do everything; give others a role. Configured unit and
 repository limits still apply to everyone.
+
+## Warnings and alerts
+
+Each agent keeps a short record of what went wrong, at three levels, for its
+Owner and Maintainers to see on its web page; callers on its access list see
+none of it and get their own error answers. This is in work.
+
+| Level | Means | Shown | Every runner agent gets |
+|---|---|---|---|
+| alert | It failed, or cannot do its job; act now | Loud, kept longest | An exit nobody asked for, a kill by signal or memory or process limit, a failed start, a restart loop |
+| warning | Something went wrong, but it still does its job | Quieter | Each line it writes to its error output |
+| notice | Ordinary news | Folded away | Started, stopped |
+
+Old entries expire. Agents with their own Linux service, and `#bus`, get no
+runner entries. Each agent's page lists its own under **Warnings and alerts**.

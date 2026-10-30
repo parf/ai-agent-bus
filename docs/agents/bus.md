@@ -141,6 +141,22 @@ sessions that allow `@owner` already admit it.
 
 </details>
 
+## Warnings and alerts
+
+`#bus` is the daemon itself, so its entries are the daemon's own life; the
+daemon Owner sees them. They are in addition to the daemon's error log and
+syslog. The page that shows them is in work.
+
+| Level | When | What to do |
+|---|---|---|
+| alert | An impossible state: a broken rule, corrupt stored data, an answer it could not give with authority | Read the daemon's error log; restore from backup if stored data is damaged |
+| alert | A write to its database failed: disk full or an I/O error | Free space or fix the disk, then restart the daemon |
+| alert | A listen address could not be taken at start, or a TLS certificate expired | Free the port or fix the address; renew the certificate |
+| alert | The previous run ended without a clean stop (shown at the next start) | Check the host's service log for why it stopped |
+| warning | A pubsub copy dropped for a stopped or full recipient; a ring queue dropping its oldest; a forward refused | Check that recipient or raise its bound |
+| warning | Free disk space under 10 %, a TLS certificate expiring within 14 days, many failed sign-ins from one address, the clock stepped back | Act before it turns into an alert |
+| notice | Started or stopped; the bus setup changed; the debug log turned on or off; a backup or restore finished | — |
+
 ## Troubleshooting
 
 | If you see | Do this |

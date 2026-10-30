@@ -146,6 +146,17 @@ agent-bus manage '#sms-telnyx@node.example' --remove-allow '*'
 
 </details>
 
+## Warnings and alerts
+
+Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#sms-telnyx` reports these. The page that shows them is in work.
+
+| Level | When | What to do |
+|---|---|---|
+| alert | `TELNYX_API_KEY` is missing, or Telnyx rejects the key | Set the key in the host file, then reload the runner |
+| alert | `from` is missing or not a valid number | Set `from` in Configuration |
+| warning | A send's outcome is `unknown` (timeout, server error, redirect) | Check the provider portal before anyone sends again |
+| warning | Telnyx refused one message (`failed`) | Check the recipient and the provider account |
+
 ## Troubleshooting
 
 | If you see | Do this |

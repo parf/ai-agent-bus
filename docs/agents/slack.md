@@ -246,6 +246,19 @@ win; with no name set the default is `cli@{host}`. Needs `chat:write.customize`.
 - The author must also be allowed to send to the destination, checked at add, at an edit that moves the target and before every forward ([may-send for another name](../09-daemon-api.md#checking-permission-to-send)); a refusal or a vanished target disables the subscription, and a check the daemon cannot answer sends nothing.
 - Only the owner and maintainers may read `refused`.
 
+## Warnings and alerts
+
+Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#slack` reports these. The page that shows them is in work.
+
+| Level | When | What to do |
+|---|---|---|
+| alert | `SLACK_BOT_TOKEN` or `SLACK_APP_TOKEN` is missing, or Slack rejects it | Store valid tokens in Secret, then reload the runner |
+| alert | The live-event connection keeps failing: nothing is received | Check the app token, Socket Mode and the app's event subscriptions |
+| warning | The live-event connection dropped and reconnected | Nothing; if it repeats, check the network |
+| warning | Events were dropped because the forward queue was full | Narrow subscriptions or routes |
+| warning | A routed message was refused, or failed after three tries | Check that the session exists and allows this agent |
+| warning | A subscription was disabled (author refused, target gone), or a channel name did not resolve | Fix the target or invite the bot; add it again |
+
 ## Troubleshooting
 
 | If you see this | Do this |

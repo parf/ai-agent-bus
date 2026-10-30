@@ -129,6 +129,19 @@ needs its creator or cron's Owner and Maintainers. Lists show your own entries
 with their messages; cron's Owner and Maintainers also see the others' ids,
 targets and outcomes. Cron never schedules messages to itself.
 
+## Warnings and alerts
+
+Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#cron` reports these. The page that shows them is in work.
+
+| Level | When | What to do |
+|---|---|---|
+| alert | Configuration `tz` is not in the host's time zone data: nothing fires | Fix `tz`, or install tzdata on the runner host |
+| warning | An entry paused: `denied`, `unconfirmed` or `unknown destination` | Check the destination; then `sub delete` and `sub add` |
+| warning | An outcome is `refused`: the destination stayed full for the whole TTL | Make room in the destination's inbox |
+| warning | A slot was missed: the bus or its KV store was unavailable, or the pass was late | Nothing if it clears; if it repeats, check the daemon |
+| warning | More than 200 creator–destination pairs fell due in one minute (`deferred`) | Spread the schedules over more minutes |
+| warning | A stored entry is invalid and was set aside | Delete it and add it again |
+
 ## Troubleshooting
 
 | If you see | Do this |

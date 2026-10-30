@@ -138,6 +138,17 @@ Keep the access list at `@owner`: `crash` deliberately kills debug.
 | `selftest` and the other probes | The access list only, so a session agent can run the post-deploy check |
 | `doctor`, `doctor full`, `doctor disks` | A delivered Owner or Maintainer role for debug itself, even with a wider access list; a role carried from another forwarded record never counts |
 
+## Warnings and alerts
+
+Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#debug` reports these. The page that shows them is in work.
+
+| Level | When | What to do |
+|---|---|---|
+| alert | A `selftest` step fails (❌) | Read the step's line; the bus function it names is broken |
+| alert | `crash` was called: the runner records the kill | Expected after a deliberate `crash`; otherwise find who called it |
+| warning | `fail` was called: its fixed diagnostic line | Expected after a deliberate `fail` |
+| warning | `doctor` could not ask a helper (`not allowed`, `unavailable`) | Allow debug on that helper if the check matters |
+
 ## Troubleshooting
 
 | If you see | Do this |

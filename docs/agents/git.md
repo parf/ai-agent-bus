@@ -192,6 +192,18 @@ alone and reported. Never enable it in a shared working copy.
 
 </details>
 
+## Warnings and alerts
+
+`#git` has its own Linux service, so the [runner entries](README.md#warnings-and-alerts) do not apply; it reports these itself. The page that shows them is in work.
+
+| Level | When | What to do |
+|---|---|---|
+| alert | Configuration `repos` is missing or malformed, or `ssh_key` is not a readable file: every call is refused | Fix Configuration |
+| alert | A declared `path` is not a repository root | Fix `path`, or clone the copy there |
+| alert | Autopull fails: SSH sign-in refused, remote unreachable, upstream missing, or settings unreadable | Check the account's key, known hosts and the branch's upstream |
+| alert | A success or fail script run after an update failed, timed out or wrote to its error output | Read the script's line in the result; fix the script or what it checks |
+| warning | Autopull left a copy alone: local edits, or histories that differ | Resolve the local work; autopull never discards it |
+
 ## Troubleshooting
 
 | If you see | Do this |

@@ -6,7 +6,7 @@ warnings, unexpected failures are alerts. The API and the web show them to the
 agent's Owner and Maintainers, and the web makes alerts loud and warnings
 quieter. Owner, 2026-10-29; settings live in [the bus setup](../daemon-configuration.md#approved-plan).
 
-Tasks: [RT34](../TODO.md#rt34-agent-events).
+Tasks: [RT34](../TODO.md#rt34-agent-events), [per-agent events](TODO.md#per-agent-events).
 
 ## Levels
 
@@ -33,7 +33,7 @@ setup:
 | Writer | Writes |
 |---|---|
 | the runner | start, stop, stderr lines and unexpected failures of the agents it runs |
-| the daemon | its own warnings about the record, the ones `error.log` holds today |
+| the daemon | its own warnings about the record, the ones `error.log` holds today; its own life into [`#bus`](#the-buss-own-events) |
 | the agent itself | its own record's rings only |
 | diagnostics (`#debug`, doctor, `check-deploy`) | what they find about an agent, and they read the rings in their reports (owner: "diagnostic and alike should also do") |
 
@@ -48,6 +48,26 @@ An entry is one line, cut at 200 characters as `error.log` lines are; a line
 repeated within a minute is kept once with a count of those held back. stderr
 may carry anything an agent prints, which is why readers are Owner and
 Maintainers only. Bodies and secrets are never written by the runner or daemon.
+
+## The bus's own events
+
+`#bus` is the daemon's own record, so the daemon writes its own life into
+`#bus`'s rings (owner, 2026-10-29: "#bus itself must write there too"). Readers
+are the daemon Owner. `error.log` and syslog keep getting what they get today;
+the rings are an extra, readable view.
+
+| Level | When |
+|---|---|
+| notice | the daemon started (version, realm, listeners) or stopped cleanly; the bus setup changed (who, which key); `debug.log` turned on or off; a store migration ran at start; a backup or restore finished |
+| warning | what `error.log` holds as a warning today: a pubsub copy dropped for an inactive or full recipient, a ring queue dropping its oldest, a forward refused for crossing owners with roles; free space on the store's disk under 10 %; a burst of failed authentications from one address; a listener's TLS certificate expiring within 14 days; the clock stepped back; an unreadable stored activity day |
+| alert | a [conceptual error](../../../docs/constitution.md#errors-and-alerts): a violated invariant, corrupt stored state, a failure to answer with authority; a store write that failed (disk full, I/O error); a listener that cannot bind at start; an expired TLS certificate; the previous run ended without a clean stop, found at start |
+
+- The daemon cannot write while it is down: a crash shows as the start-time
+  alert of the next run, with the time of the last clean write.
+- Agents' own events stay in their own rings; `#bus` never copies them. The web
+  home sums alerts across `#bus` and the agents the viewer manages.
+- Thresholds (10 %, 14 days, the burst size) are bus setup keys with these
+  defaults.
 
 ## Web
 

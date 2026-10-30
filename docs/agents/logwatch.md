@@ -159,6 +159,18 @@ Only people on its access list; start at `@owner` and add sessions by name
 Changing a subscription also needs the right to manage its destination; the
 logwatch Owner and Maintainers may change subscriptions calling it directly.
 
+## Warnings and alerts
+
+`#logwatch` has its own Linux service, so the [runner entries](README.md#warnings-and-alerts) do not apply; it reports these itself. The page that shows them is in work.
+
+| Level | When | What to do |
+|---|---|---|
+| alert | A configured source cannot be read (file permission, or a journal the account may not read) | Give the service account read access; restart after group changes |
+| alert | `journalctl` cannot start, or exits | Run `journalctl -u <unit>` as that account and fix what it reports |
+| warning | Lines were dropped because a queue was full | Narrow `sources` or the subscription filters |
+| warning | A subscription paused: its author may no longer send, or the target is gone | Delete it and add it again |
+| warning | A subscription's send failed, or its send check was unavailable | Nothing if it clears; if it repeats, check the destination |
+
 ## Troubleshooting
 
 | If you see | Do this |

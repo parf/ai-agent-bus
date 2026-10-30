@@ -110,6 +110,17 @@ Configuration or bus Secret.
 Only the owner at first. Grant others explicitly: every caller spends the
 provider balance.
 
+## Warnings and alerts
+
+Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#voyage` reports these. The page that shows them is in work.
+
+| Level | When | What to do |
+|---|---|---|
+| alert | `VOYAGE_API_KEY` is missing, or Voyage rejects it (401 or 403) | Set the key in the host `voyage/env`, then reload the runner |
+| alert | Voyage cannot be reached | Check the runner's network |
+| warning | Voyage rate-limits a call (429) or fails it (5xx) | Wait; check the quota |
+| warning | A call timed out: its outcome is unknown | Do not repeat it automatically |
+
 ## Troubleshooting
 
 | If you see… | Do this |

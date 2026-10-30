@@ -188,6 +188,18 @@ Only the owner at first (`@owner`). A grant means "send as this mailbox", with
 no volume limit beyond the provider's quotas. Set `recipients` before granting
 it broadly.
 
+## Warnings and alerts
+
+Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#smtp` reports these. The page that shows them is in work.
+
+| Level | When | What to do |
+|---|---|---|
+| alert | The server refuses the sign-in, or the OAuth refresh is rejected (`invalid_grant`) | Check the host file; renew the consent and refresh token |
+| alert | The server cannot be reached, or TLS or STARTTLS fails | Check `host`, `port`, `mode` and `cafile` |
+| alert | `sender` or a required sign-in key is missing or invalid | Fix Configuration or the host file |
+| warning | A send's outcome is `unknown`: the connection was lost while sending | Check before anyone retries |
+| warning | Some recipients were refused (`partial`), or the server refused a send for a reason other than sign-in | Read the codes; check the recipients and the quota |
+
 ## Troubleshooting
 
 | Answer | Meaning and what to do |

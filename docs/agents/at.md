@@ -120,6 +120,19 @@ destination travels with every message; it gets none from its Owner's records.
 Cancelling needs the call's creator or `#at`'s Owner and Maintainers; lists
 show your own calls with their messages, and staff see the others' without.
 
+## Warnings and alerts
+
+Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#at` reports these. The page that shows them is in work.
+
+| Level | When | What to do |
+|---|---|---|
+| alert | Configuration `tz` is not in the host's time zone data: nothing is sent | Fix `tz`, or install tzdata on the runner host |
+| warning | A call paused: `denied`, `unconfirmed` or `unknown destination` | Check the destination; its creator schedules it again |
+| warning | A call ended `refused`: the destination stayed full for 24 h | Make room in the destination's inbox |
+| warning | The creator check or the bus was unavailable, so a send waited | Nothing if it clears; if it repeats, check the daemon |
+| warning | More than 200 creator–destination pairs fell due in one minute (`deferred`) | Spread the calls over more minutes |
+| warning | A stored call is invalid and was set aside | Cancel it and schedule it again |
+
 ## Troubleshooting
 
 | If you see | Do this |

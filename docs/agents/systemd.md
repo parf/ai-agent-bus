@@ -157,6 +157,17 @@ service name they cover this helper's list, or the whole host if it has none.
 Find the helpers with `agent-bus ls --tag=systemd`; `call --tagged=systemd`
 asks them all, and each server answers separately.
 
+## Warnings and alerts
+
+`#systemd` has its own Linux service, so the [runner entries](README.md#warnings-and-alerts) do not apply; it reports these itself. The page that shows them is in work.
+
+| Level | When | What to do |
+|---|---|---|
+| alert | `systemctl` refuses an action with permission denied | Reinstall with `--user root` |
+| alert | `units` Configuration is invalid: every call is refused | Fix `units` |
+| alert | `systemctl` or `journalctl` is missing, or the service manager does not answer | Check systemd on the host |
+| warning | A `systemctl` call timed out after 30 seconds | Check the unit; it may still be changing state |
+
 ## Troubleshooting
 
 | If you see | Do this |

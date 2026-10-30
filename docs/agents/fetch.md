@@ -219,6 +219,16 @@ can use the whole instance's allowed scope, including its exact private grants.
 The three-process pool bounds concurrency, not request rate. HTTP requests can
 have side effects; granting access to an instance is a trust decision.
 
+## Warnings and alerts
+
+Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#fetch` reports these. The page that shows them is in work.
+
+| Level | When | What to do |
+|---|---|---|
+| alert | Configuration `allow` is invalid: every call is refused | Fix the list; `[]` is the way to deny everything |
+| alert | The request helper cannot start (`helper startup refused`) | Check the runner sandbox; reinstall the package |
+| warning | A call reached its deadline or its helper failed mid-request (`unknown`) | Nothing for a read; a caller reconciles a mutation before repeating it |
+
 ## Troubleshooting
 
 A local error can mean a forbidden URL/address/port, allowlist mismatch,

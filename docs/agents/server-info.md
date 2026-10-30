@@ -139,6 +139,16 @@ fewer than 30 days or a mismatch.
 
 </details>
 
+## Warnings and alerts
+
+`#server-info` has its own Linux service, so the [runner entries](README.md#warnings-and-alerts) do not apply; it reports these itself. The page that shows them is in work. No alerts of its own: it reports facts and never judges them; [doctor](debug.md#what-it-does) does.
+
+| Level | When | What to do |
+|---|---|---|
+| warning | A host tool a section needs is missing | Install it, or ignore that section |
+| warning | A section's command failed or timed out | Read its error in the answer |
+| warning | `tls` cannot read the bus certificate | Make `/etc/agent-bus/tls/cert.pem` readable by its account |
+
 ## Troubleshooting
 
 | If you see | Do this |

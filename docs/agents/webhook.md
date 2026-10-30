@@ -218,6 +218,20 @@ there are no hidden per-route roles. Incoming HTTP authorization is the route's
 Basic/signature policy, independent of the bus caller ACL. Destinations grant
 the webhook name, not the original HTTP sender.
 
+## Warnings and alerts
+
+Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#webhook` reports these. The page that shows them is in work.
+
+| Level | When | What to do |
+|---|---|---|
+| alert | The listener stays closed: invalid Configuration, a missing Secret key, or a `publish` name it may not publish to | Fix the route `status` names, then reload the runner |
+| alert | Another program holds `WEBHOOK_LISTEN` | Free the address or choose another |
+| alert | A route's `target` refuses the webhook or no longer exists | Allow the webhook on the target, or fix the route |
+| warning | A send's outcome was unknown (HTTP 503) | Check the destination; the sender may repeat it |
+| warning | Requests were refused by the rate bucket (429) or dropped at the admission limit | Raise `rate` or `burst`, or look for a flood at the proxy |
+| warning | Repeated failed authentication on a route | Check the sender's credentials; it may be a probe |
+| warning | Basic credentials go to a plain-HTTP outbound URL outside loopback | Use HTTPS |
+
 ## Troubleshooting
 
 `status` reports actual listener/configuration state and accepted/refused/unknown

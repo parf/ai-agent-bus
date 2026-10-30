@@ -178,6 +178,18 @@ not a Secret. Do not put credentials in commands or `env`.
 Only the owner at first (`@owner`). Whoever the ACL admits may call every
 method, including stop and restart; there are no extra tiers.
 
+## Warnings and alerts
+
+`#tmux-sessions` has its own Linux service, so the [runner entries](README.md#warnings-and-alerts) do not apply; it reports these itself. The page that shows them is in work.
+
+| Level | When | What to do |
+|---|---|---|
+| alert | A window's command exited at start: `start` answers `failed` and removes the window | Fix its command or folder, then start it again |
+| alert | Configuration is invalid (not JSON, unknown keys, a missing folder) | Fix the key the entry names |
+| alert | `tmux` is missing, or the session cannot be created | Install tmux; check the person's user manager |
+| warning | A window could not be stopped (`failed: could not stop window`) | Look with `tmux attach`; stop it by hand |
+| warning | The status ask finds some windows down (`degraded`) | `list`, then `start` them |
+
 ## Troubleshooting
 
 | If you see | Do this |
