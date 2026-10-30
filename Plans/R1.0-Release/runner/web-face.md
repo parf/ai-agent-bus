@@ -81,8 +81,8 @@ flowchart TD
 
 ## What is available and what must precede it
 
-The [current operations guide](../../../docs/runner/operations.md#not-available-yet)
-owns built/pending behavior. At planning time the runner answers `status` and
+The [current operations guide](../../../docs/runner/operations.md)
+owns current behavior. At planning time the runner answers `status` and
 `reload`; agent lifecycle and remote installation/configuration are later
 [runner waves](../TODO.md#runner-waves).
 
