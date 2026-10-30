@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import stat
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -21,7 +22,9 @@ class Rings(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(dir=ROOT/'tmp')
         self.now = 1793318400.0
         self.directory = Path(self.temp.name)
-        self.rings = r.Rings(self.directory, clock=lambda: self.now)
+        mask = os.umask(0)
+        try:self.rings = r.Rings(self.directory, clock=lambda: self.now)
+        finally:os.umask(mask)
     def tearDown(self):
         self.rings.close();self.temp.cleanup()
     def restart(self, cfg=None):
@@ -61,6 +64,7 @@ class Rings(unittest.TestCase):
         self.assertEqual(entry['text'],'😀'*200)
         self.assertEqual(r.line('a\x1b]0;title\x07b\n\u200dc'),'abc')
     def test_shared_sequence_restart_gap_and_alert_fold_survive(self):
+        self.assertEqual(stat.S_IMODE((self.directory/'events.lock').stat().st_mode),0o600)
         ids=[self.rings.write('x',severity,severity)['id'] for severity in ('notice','warning','alert')]
         self.assertEqual(ids,[1,2,3]);self.restart()
         self.assertEqual(self.rings.read('x')['counts'],{'alert':1,'warning':0,'notice':0})
@@ -133,13 +137,32 @@ class Rings(unittest.TestCase):
         self.assertGreater(self.rings.write('x','notice','next')['id'],max(e['id'] for e in rows))
         self.assertEqual(list(self.directory.glob('.events-*')),[])
     def test_lifetime_lock_refuses_overlapping_generation(self):
-        with self.assertRaisesRegex(r.RingError,'storage_locked'):r.Rings(self.directory,lock_timeout=.03)
+        code = """import sys
+sys.path.insert(0,sys.argv[2])
+import event_rings as r
+try:
+    ring=r.Rings(sys.argv[1],lock_timeout=.03)
+except r.RingError as error:
+    print(error.code)
+else:
+    ring.close()
+    print('unsafe_success')
+"""
+        try:
+            result=subprocess.run([sys.executable,'-B','-c',code,str(self.directory),str(HERE.parent/'shared')],capture_output=True,text=True,timeout=3)
+        except subprocess.TimeoutExpired:self.fail('overlapping generation did not refuse within the test deadline')
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertEqual(result.stdout.strip(),'storage_locked')
         self.rings.close();self.rings=r.Rings(self.directory)
         self.assertEqual(self.rings.write('x','notice','one')['id'],1)
     def test_configuration_overrides_bounds_and_strict_types(self):
         for cfg in ([],{'oops':1},{'max_logs':True},{'max_logs':101},{'rings':{'alert':{'size':501}}},{'rings':{'alert':{'ttl':'0s'}}},{'rings':{'notice':{'size':500}}},{'logs':{'bad/name':{}}}):
             with self.assertRaises(r.RingError,msg=repr(cfg)):r.config(cfg)
-        self.restart({'rings':{'notice':{'size':2,'ttl':'2s'}},'logs':{'x':{'notice':{'size':1,'ttl':'1s'}}}})
+        for text in ('first','second','third'):self.rings.write('persisted','alert',text)
+        self.restart({'rings':{'alert':{'size':1},'notice':{'size':2,'ttl':'2s'}},'logs':{'x':{'notice':{'size':1,'ttl':'1s'}}}})
+        shrunk=self.rings.read('persisted')
+        self.assertEqual(shrunk['counts']['alert'],1)
+        self.assertEqual([entry['text'] for entry in shrunk['rings']['alert']],['third'])
         self.rings.write('x','notice','a');self.rings.write('x','notice','b');self.rings.write('y','notice','c')
         self.assertEqual(self.rings.read('x')['counts']['notice'],1)
         self.now+=1
