@@ -1,47 +1,96 @@
-"""Single-process 60-second polling; one UID's durable outcomes before O moves."""
-import copy
+"""Single-process 60-second polling of one mailbox into the shared subscriptions (B.29).
+
+One UID at a time: the forwarding frontier commits past a UID before its copies
+are sent, so a stop can lose that UID's copies but never sends them twice. Each
+copy is checked and sent once by the shared engine; a refused or unknown copy is
+dropped, counted and warned, and the subscription stays active.
+"""
+import datetime
 import json
 import sys
 import time
 
-from agent_bus.errors import BusError, Refusal, UnexpectedAnswer
-import delivery
-import ledger
-from matching import MatchError, RegexTimeout, match_text, matches
+from agent_bus.errors import BusError, Refusal
+from matching import MatchError, match_text
 from mailbox_session import SessionError
-from outbox import MissingBody, Outbox, OutboxError, filename
+from outbox import Outbox
 import progress
-from subscriptions import Subscriptions, SubscriptionError
+from publication import PublicationError, forwarded
 import wire
 
+import subscriptions as shared   # src/agents/shared, on the path imap.py sets
+
 PROGRESS = 'imap.progress'
-SCAN = 'imap.discovery'
+SCAN = 'imap.discovery'   # the per-subscription discovery snapshot of before B.29; removed at start
 BLOCK = 'imap.progress_error'
-SCAN_FIELDS = {'identity', 'validity', 'uid', 'required', 'fetch_tries'}
+LEGACY = {'id', 'target', 'created_by', 'created_at', 'filter', 'ledger'}
+FETCH_TRIES = 3
+MIGRATE_TRIES = 16
+MESSAGES = {
+    'invalid_target': 'target must be one queue or agent name of at most 64 ASCII characters',
+    'invalid_selector': 'invalid subscription selector',
+    'invalid_filter': 'filter is not a supported /regex/: at most 200 characters, flags imsu',
+    'invalid_id': 'subscription id must be 12 lower-case hex characters',
+    'limit': 'at most 100 subscriptions, 20 per author',
+    'not_found': 'no such subscription',
+    'not_author': 'only its author or this IMAP Owner/Maintainers may delete it',
+    'admission_refused': 'the author may not send to that target or to this IMAP agent',
+    'admission_unavailable': 'author admission unavailable; nothing stored',
+    'store_unknown': 'subscription store unavailable',
+}
 
 
 class RetryScan(ValueError):
     pass
 
 
+def message(error):
+    """A shared engine code as the sentence this agent answers with."""
+    return MESSAGES.get(getattr(error, 'code', ''), str(error))
+
+
+def selector(value):
+    """IMAP watches its one mailbox; the selector is where a subscription starts in it."""
+    if not isinstance(value, dict) or set(value) != {'validity', 'from_uid'}:
+        raise ValueError('selector is the mailbox validity and first UID')
+    progress.integer(value['validity'], 1)
+    progress.integer(value['from_uid'], 1, progress.MAX_UID + 1)
+    return value
+
+
+def selected(value, event):
+    # A new UIDVALIDITY is a new mailbox: its mail is all after the subscription.
+    return event['validity'] != value['validity'] or event['uid'] >= value['from_uid']
+
+
 class Forwarder:
-    def __init__(self, bus, name, work, source, clock=time.monotonic, wall=time.time):
+    def __init__(self, bus, name, work, source, clock=time.monotonic, wall=time.time, send_one=None):
         self.bus, self.name, self.source, self.clock, self.wall = bus, name, source, clock, wall
         # Held for this kept process's lifetime: another generation cannot
-        # inspect/update the same ledgers until this process has stopped.
-        self.bodies = Outbox(work, lock_wait=0)
-        self.subs = Subscriptions(bus, name, self.baseline, self.cleanup, wall)
+        # forward the same mailbox until this process has stopped.
+        self.generation = Outbox(work, lock_wait=0)
+        self.subs = shared.Subscriptions(bus, name, validate_selector=selector, selector_matches=selected,
+                                         warning=self.warn, clock=wall, delivery=self.send_rows)
+        self.send_one = send_one or self.send_shared
         self.kv = self.subs.kv
-        self.values, self.damaged = [], {}
-        self.references_known = False
+        self.count, self.damaged = 0, 0
         self.next_run, self.next_poll = 0, 0
-        self.period, self.arrivals, self.attempts = self.clock(), 0, 0
-        self.error, self.authority_errors, self.state_errors = None, 0, 0
-        self.outbox_failures = 0
-        self.notified = set()
+        self.period, self.arrivals = self.clock(), 0
+        self.error, self.state_errors = None, 0
+        self.sent = self.dropped = 0
+        self.warnings = {}
+        self.fetch_tries = {}
         self.view_at = None
-        self.missing_bodies, self.backlog = 0, 0
-        self.header_cache = None
+        self.backlog = 0
+        try:
+            self.migrate()
+        except BaseException:
+            self.generation.close()   # as a stopped process would release it
+            raise
+
+    def warn(self, code):
+        self.warnings[code] = self.warnings.get(code, 0) + 1
+        print(json.dumps({'method': 'forward', 'warning': code}), file=sys.stderr)
 
     def get(self, key):
         try:
@@ -54,272 +103,193 @@ class Forwarder:
     def set(self, key, value):
         self.kv.set(key, value, kind='json', mode='set')
 
-    def save_sub(self, sub, state):
-        updated = copy.deepcopy(sub)
-        updated['ledger'] = state
+    def migrate(self):
+        """Move pre-B.29 rows onto the shared shape before anything is served; held copies are dropped and counted.
+
+        A row keeps its target, author, filter and start; its 8-hex id gains the first suffix
+        "0000", "0001", ... whose key is free or already holds this very row, so a stop between
+        the add and the delete is finished on the next start and never yields two rows. One that
+        cannot be read is kept as it was under the new id, for the Owner and Maintainers to delete.
+        """
+        listing = self.kv.list()
+        names = [row.get('name') for row in listing.get('json', []) if isinstance(row, dict)]
+        for key in [n for n in names if isinstance(n, str) and n.startswith('sub.') and len(n) == 12]:
+            value = self.get(key)
+            if value is None:
+                continue
+            for suffix in range(MIGRATE_TRIES):
+                new = f'sub.{key[4:]}{suffix:04x}'
+                row = self.migrated(value, new[4:])
+                try:
+                    self.kv.set(new, row, kind='json', mode='add')
+                    break
+                except Refusal as error:
+                    if error.status != 412:
+                        raise
+                if self.get(new) == row:
+                    break   # an earlier start stored it and stopped before the delete below
+            else:
+                raise ValueError(f'no free subscription id for {key[4:]}')
+            self.kv.delete(key, kind='json')
+        if SCAN in names:
+            self.kv.delete(SCAN, kind='json')
+        self.generation.sweep(set())   # the held copies of before B.29
+
+    def migrated(self, value, sub_id):
         try:
-            self.subs.save(updated)
-        except BusError:
-            # The write may have committed. Don't sweep using a stale view.
-            self.references_known = False
-            raise
-        sub.clear()
-        sub.update(updated)
+            if not isinstance(value, dict) or set(value) != LEGACY:
+                raise ValueError()
+            state = value['ledger']
+            held = sum(1 for entry in state['entries'].values() if entry.get('state') != 'sent')
+            row = {'id': sub_id, 'target': shared.target_text(value['target']),
+                   'selector': selector({'validity': state['validity'], 'from_uid': state['start']}),
+                   'filter': value['filter'], 'created_by': shared.identity(value['created_by']),
+                   'created_at': shared.stamp(lambda: datetime.datetime.fromisoformat(value['created_at']).timestamp()),
+                   'sent': state['sent'], 'dropped': state['discarded'] + held}
+            return self.subs._row(row, sub_id)
+        except (KeyError, ValueError, TypeError, AttributeError, shared.SubscriptionError, progress.ProgressError):
+            return value
 
-    def load_subs(self):
-        self.references_known = False
-        self.values, self.damaged = self.subs.for_driver()
-        self.references_known = not self.damaged
+    def rows(self):
+        try:
+            rows, damaged = self.subs._load()
+        except shared.SubscriptionError as error:
+            raise ValueError(message(error)) from None
+        self.count, self.damaged = len(rows), len(damaged)
         self.view_at = self.clock()
-        for sub in self.values:
-            # At every pass, not just startup: failed commits may have left a
-            # sending marker in this same process. No send is active here.
-            state = ledger.recover(sub['ledger'])
-            state = ledger.refresh_intake(state)
-            if state != sub['ledger']:
-                self.save_sub(sub, state)
-
-    def sweep(self):
-        if not self.references_known:
-            return False
-        keep = {filename(sub['ledger']['identity'], sub['ledger']['validity'], uid)
-                for sub in self.values for uid in ledger.retained(sub['ledger'])}
-        self.bodies.sweep(keep)
-        self.missing_bodies = len(keep - self.bodies.listing().keys())
-        return True
-
-    def cleanup(self):
-        # Explicit delete commits before this callback. Reload the complete
-        # reference set, never sweep against a partially deleted snapshot.
-        self.values, self.damaged = self.subs.all()
-        self.references_known = not self.damaged
-        if not self.values and not self.damaged:
-            for key in (PROGRESS, SCAN, BLOCK):
-                self.kv.delete(key, kind='json')
-            self.source.close()
-            self.header_cache = None
-        self.next_run = 0
-        return self.sweep()
+        return rows, damaged
 
     def current_progress(self, snapshot, *, first_add=False):
         identity, validity, uidnext = snapshot
         previous = self.get(PROGRESS)
-        block = self.get(BLOCK)
-        if block is not None and not first_add:
+        if self.get(BLOCK) is not None and not first_add:
             raise progress.ProgressError('forwarding state invalid; delete all subscriptions then add to rebaseline')
         existing = previous
-        if first_add and (previous is None or block is not None):
+        if first_add and previous is None:
             previous = self.source.legacy()
-        elif previous is None and (self.values or self.damaged):
+        elif previous is None:
             raise progress.ProgressError('forwarding progress is missing; explicit rebaseline required')
         try:
-            value, reset = progress.load(previous, identity, validity, uidnext)
+            value, _reset = progress.load(previous, identity, validity, uidnext)
         except progress.ProgressError as error:
-            if first_add:
-                value, reset = progress.load(self.source.legacy(), identity, validity, uidnext)
-            else:
+            if not first_add:
                 self.set(BLOCK, {'reason': error.code})
                 raise
+            value, _reset = progress.load(self.source.legacy(), identity, validity, uidnext)
         if first_add:
             value = progress.fast_forward(value, uidnext, [], [])
         if first_add or value != existing:
-            # Commit the new namespace before resetting sub rows. A stop in
-            # the reset loop reuses this B and completes the remaining rows.
             self.set(PROGRESS, value)
         if first_add:
-            self.kv.delete(SCAN, kind='json')
             self.kv.delete(BLOCK, kind='json')
-        for sub in self.values:
-            state = sub['ledger']
-            if state['identity'] != identity or state['validity'] != validity:
-                self.save_sub(sub, ledger.mailbox_reset(state, identity, validity, value['baseline']))
-            elif state['floor'] > max(value['observe'], state['start']):
-                self.set(BLOCK, {'reason': 'rollback'})
-                raise progress.ProgressError('forwarding progress rolled back behind a compacted delivery')
-        scan = self.get(SCAN)
-        if scan is not None and not isinstance(scan, dict):
-            raise progress.ProgressError('invalid discovery state')
-        if scan is not None and (scan.get('identity') != identity or scan.get('validity') != validity):
-            self.kv.delete(SCAN, kind='json')
-            self.header_cache = None
         return value
 
-    def baseline(self):
-        self.values, self.damaged = self.subs.all()  # Read-only add preflight.
-        snapshot = self.source.snapshot()
-        self.current_progress(snapshot, first_add=not self.values and not self.damaged)
-        return snapshot
-
     def add(self, message, target, filter_text=''):
-        value = self.subs.add(message, target, filter_text)
-        self.next_run = 0
-        self.next_poll = 0
+        rows, damaged = self.rows()   # read-only add preflight
+        identity, validity, uidnext = self.source.snapshot()
+        state = self.current_progress((identity, validity, uidnext), first_add=not rows and not damaged)
+        start = {'validity': validity, 'from_uid': progress.subscription_start(state, uidnext)}
+        try:
+            value = self.subs.add(message, target, start, filter_text)
+        except shared.SubscriptionError as error:
+            raise shared.SubscriptionError(error.code) from None
+        self.next_run = self.next_poll = 0
         return value
 
     def delete(self, message, sub_id):
-        return self.subs.delete(message, sub_id)
+        self.subs.delete(message, sub_id)
+        rows, damaged = self.rows()
+        if not rows and not damaged:
+            for key in (PROGRESS, SCAN, BLOCK):
+                self.kv.delete(key, kind='json')
+            self.source.close()
+        self.next_run = 0
+        return True
 
-    def load_scan(self, state):
-        scan = self.get(SCAN)
-        if scan is None:
-            return None
-        if not isinstance(scan, dict) or set(scan) != SCAN_FIELDS:
-            raise progress.ProgressError('invalid discovery state')
-        progress.integer(scan['uid'], 1)
-        progress.integer(scan['fetch_tries'], 0, 4)
-        if not isinstance(scan['required'], list) or len(scan['required']) > 100 or any(not isinstance(sid, str) for sid in scan['required']) or len(set(scan['required'])) != len(scan['required']):
-            raise progress.ProgressError('invalid discovery subscription snapshot')
-        from publication import validate_id
-        for sub_id in scan['required']:
-            validate_id(sub_id)
-        if scan['identity'] != state['identity'] or scan['validity'] != state['validity'] or scan['uid'] < state['observe']:
-            self.kv.delete(SCAN, kind='json')
-            return None
-        if scan['uid'] != state['observe']:
-            raise progress.ProgressError('discovery would skip an unrecorded UID')
-        return scan
+    def text(self, message):
+        lines = []
+        for row in self.subs.list(message):
+            if row.get('reason') == 'invalid_state':
+                lines.append(f"{row['id']} invalid subscription state; only this IMAP Owner/Maintainers may delete it")
+                continue
+            lines.append(f"{row['id']} {row['target']} by={row['created_by']} at={row['created_at']} "
+                         f"filter={row['filter']!r} from_uid={row['selector']['from_uid']} "
+                         f"sent={row['sent']} dropped={row['dropped']}" +
+                         ('; filter no longer supported: matches nothing' if row.get('reason') == 'invalid_filter' else ''))
+        return '\n'.join(lines) if lines else '(no subscriptions you may see; manual cache only if none at all)'
 
-    def scan_for(self, state):
-        scan = self.load_scan(state)
-        if scan is None:
-            scan = {'identity': state['identity'], 'validity': state['validity'], 'uid': state['observe'],
-                    'required': [sub['id'] for sub in self.values if sub['ledger']['start'] <= state['observe']],
-                    'fetch_tries': 0}
-            self.set(SCAN, scan)
-            self.arrivals += 1
-        return scan
+    def send_rows(self, rows, body, topic, tag, deadline):
+        """Each row's copy names its own subscription and author, so it is sent on its own.
 
-    def retry_fetch(self, scan):
-        scan['fetch_tries'] += 1
-        self.set(SCAN, scan)
-        if scan['fetch_tries'] <= 3:
-            raise RetryScan('mail fetch will retry on the next poll')
-
-    def discover_uid(self, state, deadline=float('inf')):
-        scan = self.scan_for(state)
-        number = scan['uid']
-        by_id = {sub['id']: sub for sub in self.values}
-        # Deleted subs cancel their outstanding discovery; damaged rows send
-        # nothing and keep reference sets unknown rather than erase mail.
-        current = [by_id[sid] for sid in scan['required'] if sid in by_id]
-        todo = [sub for sub in current if str(number) not in sub['ledger']['entries']
-                and number >= sub['ledger']['floor']]
-        raw, text, body_error = None, None, None
-        header_error = 'fetch' if scan['fetch_tries'] >= 4 else None
-        if todo and header_error is None:
-            key = filename(state['identity'], state['validity'], number)
+        The body is fetched here, once, only when a filter matched; a fetch that fails drops these copies.
+        """
+        raw, skip = body()
+        if skip is not None:
+            print(json.dumps({'method': 'forward', 'skipped': skip}), file=sys.stderr)
+            return {row['id']: ('dropped', 'invalid_text') for row in rows}
+        result = {}
+        for row in rows:
             try:
-                raw = self.bodies.get(key)
-                header = raw.partition(b'\r\n\r\n')[0].partition(b'\n\n')[0] + b'\r\n\r\n'
-            except MissingBody:
-                try:
-                    header = self.source.headers(number)
-                except wire.Refused as error:
-                    if error.throttled:
-                        raise SessionError('authentication backoff') from None
-                    self.retry_fetch(scan)
-                    header_error = 'fetch'
-                except wire.LiteralTooLarge:
-                    header_error = 'oversize'
-                except wire.WireError:
-                    header_error = 'malformed'
-            if header_error is None:
+                body = forwarded(raw, row['created_by'], row['id'], self.source.masks)
+            except PublicationError:
+                result[row['id']] = ('dropped', 'invalid_text')
+                continue
+            result[row['id']] = self.send_one(row, body, deadline)
+        return result
+
+    def send_shared(self, row, body, deadline):
+        # The engine's private send helper: author checks to target and to this agent, then one send.
+        return self.subs._deliver([row], body, 'imap', row['id'], deadline)[row['id']]
+
+    def fetch(self, read, number):
+        """One fetch; a refusal is tried again on later polls, FETCH_TRIES times in all."""
+        try:
+            return read(number), None
+        except wire.Refused as error:
+            if error.throttled:
+                raise SessionError('authentication backoff') from None
+            self.fetch_tries[number] = self.fetch_tries.get(number, 0) + 1
+            if self.fetch_tries[number] < FETCH_TRIES:
+                raise RetryScan('mail fetch will retry on the next poll') from None
+            return None, 'fetch'
+        except (wire.LiteralTooLarge, wire.TooLarge):
+            return None, 'oversize'
+        except wire.WireError:
+            return None, 'malformed'
+
+    def discover_uid(self, state, number):
+        event = {'validity': state['validity'], 'uid': number}
+        text = skip = None
+        if self.subs.has_candidates(event):
+            self.arrivals += 1
+            header, skip = self.fetch(self.source.headers, number)
+            if skip is None:
                 try:
                     text = match_text(header)
                 except MatchError as error:
-                    header_error = error.code
-        spent = 0.0
-        for sub in todo:
-            if spent >= .2 or self.clock() >= deadline:
-                return state, False  # O stays here; deferral is NOT no-match.
-            value = ledger.compact(sub['ledger'], state['observe'])
-            skip = header_error
-            if skip is None:
-                if value['intake'] == 'regex':
-                    skip = 'regex'
-                else:
-                    pattern = self.subs.compiled[sub['id']][1]
-                    began = self.clock()
+                    skip = error.code
+        # Past this UID before any copy is sent: a stop now loses its copies, never repeats them.
+        state = progress.advance_observation(state, number, set(), set())
+        self.set(PROGRESS, state)
+        self.fetch_tries.pop(number, None)
+        if skip is not None:
+            self.warn('invalid_text')
+            print(json.dumps({'method': 'forward', 'uid': number, 'skipped': skip}), file=sys.stderr)
+        elif text is not None:
+            fetched = []
+            def body():
+                if not fetched:
                     try:
-                        selected = matches(pattern, text)
-                    except RegexTimeout:
-                        value = ledger.disable_filter(value)
-                        skip = 'regex'
-                    finally:
-                        spent += self.clock() - began
-                    if skip is None:
-                        skip = 'unmatched' if not selected else value['pause'] or value['intake']
-            if skip is not None:
-                self.save_sub(sub, ledger.record(value, number, skip=skip))
-                continue
-            if raw is None and body_error is None:
-                try:
-                    raw = self.source.body(number)
-                except wire.Refused as error:
-                    if error.throttled:
-                        raise SessionError('authentication backoff') from None
-                    self.retry_fetch(scan)
-                    body_error = 'fetch'
-                except wire.TooLarge:
-                    body_error = 'oversize'
-                except wire.WireError:
-                    body_error = 'fetch'
-            if body_error:
-                self.save_sub(sub, ledger.record(value, number, skip=body_error))
-                continue
-            delivery.queue(value, number, raw, self.bodies, sub['created_by'], sub['id'], self.source.masks,
-                           lambda updated, target=sub: self.save_sub(target, updated))
-        required = set(scan['required'])
-        recorded = {sub['id'] for sub in current if str(number) in sub['ledger']['entries'] or number < sub['ledger']['floor']}
-        recorded |= required - set(by_id)  # Explicit deletions/damaged entries.
-        advanced = progress.advance_observation(state, number, required, recorded)
-        self.set(PROGRESS, advanced)
-        self.kv.delete(SCAN, kind='json')
-        self.header_cache = None
-        return advanced, True
-
-    def deliver_ready(self, deadline):
-        # One ready item per sub per round, never let one dead target consume
-        # the whole pass. The loop is resumed next tick if its soft slice ends.
-        unavailable = set()
-        while self.attempts < 100 and self.clock() < deadline:
-            changed = False
-            for sub in self.values:
-                if sub['id'] in unavailable:
-                    continue
-                ready = ledger.ready(sub['ledger'], int(self.wall()))
-                if not ready or self.attempts >= 100 or self.clock() >= deadline:
-                    continue
-                self.attempts += 1
-                authority_failed = False
-                def authorize(who, target):
-                    nonlocal authority_failed
-                    try:
-                        return self.subs.author_allowed(who, target)
-                    except BusError:
-                        authority_failed = True
-                        raise
-                try:
-                    delivery.execute(sub['ledger'], ready[0], self.bodies, sub['created_by'], sub['id'], self.source.masks,
-                                     lambda value, target=sub: self.save_sub(target, value),
-                                     lambda body, target=sub: self.bus.send(target['target'], body, topic='imap', tag=target['id']),
-                                     int(self.wall()), target=sub['target'], authorize=authorize)
-                except BusError as error:
-                    if authority_failed:
-                        self.authority_errors += 1
-                        self.error = self.subs.last_authority_error
-                        if isinstance(error, UnexpectedAnswer) and 'daemon_too_old' not in self.notified:
-                            print(json.dumps({'method': 'forward', 'error_class': 'daemon_too_old'}), file=sys.stderr)
-                            self.notified.add('daemon_too_old')
-                        unavailable.add(sub['id'])
-                        continue
-                    self.state_errors += 1
-                    self.references_known = False
-                    raise
-                changed = True
-                self.sweep()
-            if not changed:
-                break
+                        fetched.append((self.source.body(number), None))
+                    except (wire.TooLarge, wire.LiteralTooLarge):
+                        fetched.append((None, 'oversize'))
+                    except (wire.WireError, SessionError, OSError):
+                        fetched.append((None, 'fetch'))
+                return fetched[0]
+            outcome = self.subs.deliver(event, text, body, topic='imap', tag='', deadline=time.monotonic() + 15)
+            self.sent += outcome['sent']
+            self.dropped += outcome['dropped']
+        return state
 
     def tick(self):
         now = self.clock()
@@ -327,98 +297,63 @@ class Forwarder:
             return
         self.next_run = now + 60
         if now - self.period >= 60:
-            self.period, self.arrivals, self.attempts = now, 0, 0
+            self.period, self.arrivals = now, 0
         deadline = self.clock() + 2  # Soft slice; each wire op has its own alarm.
         try:
-            self.load_subs()
-            if not self.values:
+            rows, damaged = self.rows()
+            self.error = 'invalid subscription state' if damaged else None
+            if not rows:
                 self.source.close()
-                self.sweep()
-                self.error = 'invalid subscription state' if self.damaged else None
                 return
-            snapshot = self.source.snapshot()
-            state = self.current_progress(snapshot)
-            self.sweep()
-            self.error = 'invalid subscription state' if self.damaged else None
-            self.deliver_ready(deadline)
-            if now < self.next_poll and self.load_scan(state) is None:
+            if now < self.next_poll:
                 return
             self.next_poll = now + 60
-            windows = 0
-            uidnext = snapshot[2]
-            if self.load_scan(state) is None:
-                earliest = min(sub['ledger']['start'] for sub in self.values)
-                if state['observe'] < min(earliest, uidnext):
-                    state = progress.fast_forward(state, min(earliest, uidnext),
-                                                  [sub['ledger']['start'] for sub in self.values], [])
-                    self.set(PROGRESS, state)
+            snapshot = self.source.snapshot()
+            state = self.current_progress(snapshot)
+            uidnext, windows = snapshot[2], 0
             while state['observe'] < uidnext and self.arrivals < 100 and windows < 10 and self.clock() < deadline:
-                scan = self.load_scan(state)
-                if scan is not None:
-                    state, complete = self.discover_uid(state, deadline)
-                    if not complete:
-                        self.next_run = self.clock() + 1
-                        break
-                    continue
                 start = state['observe']
                 end = min(start + wire.WINDOW - 1, uidnext - 1)
                 found = set(self.source.search(start, end))
                 windows += 1
-                while state['observe'] <= end and self.clock() < deadline:
+                while state['observe'] <= end and self.arrivals < 100 and self.clock() < deadline:
                     number = state['observe']
                     if number in found:
-                        if self.arrivals >= 100:
-                            break
-                        state, complete = self.discover_uid(state, deadline)
-                        if not complete:
-                            self.next_run = self.clock() + 1
-                            break
+                        state = self.discover_uid(state, number)
                     else:
-                        next_uid = min((uid for uid in found if uid > number), default=end + 1)
-                        state = progress.advance_absent(state, next_uid, start=start, end=end,
-                                                        uidnext=uidnext, found=found)
+                        upto = min((uid for uid in found if uid > number), default=end + 1)
+                        state = progress.advance_absent(state, upto, start=start, end=end, uidnext=uidnext, found=found)
                         self.set(PROGRESS, state)
-                if self.load_scan(state) is not None:
-                    break
             self.backlog = max(0, uidnext - state['observe'])
-            self.deliver_ready(deadline)
-            self.sweep()
             if self.backlog and self.arrivals < 100:
-                self.next_run = self.clock() + 1
-            due = [entry['due'] for sub in self.values if sub['ledger']['pause'] is None
-                   for entry in sub['ledger']['entries'].values() if entry['state'] == 'retrying']
-            if due and self.attempts < 100:
-                self.next_run = min(self.next_run, self.clock() + max(1, min(due) - self.wall()))
+                self.next_run = self.next_poll = self.clock() + 1
         except RetryScan:
             self.error = 'mail fetch retry pending'
+            self.next_poll = 0
         except (BusError, OSError, ValueError, KeyError, TypeError, AttributeError) as error:
-            if isinstance(error, OutboxError):
-                self.outbox_failures += 1
+            self.state_errors += 1
             self.error = ('forwarding state invalid' if isinstance(error, progress.ProgressError)
-                          else str(error) if isinstance(error, SubscriptionError)
                           else 'bus unavailable' if isinstance(error, BusError)
-                          else 'outbox unavailable' if isinstance(error, OutboxError)
                           else 'IMAP ' + error.code if isinstance(error, SessionError)
+                          else str(error) if isinstance(error, ValueError) and str(error) in MESSAGES.values()
                           else 'mailbox unavailable')
             self.source.close()
 
     def status(self):
-        values, damaged = self.values, self.damaged
-        paused = sum(bool(sub['ledger']['pause']) for sub in values)
-        held = sum(len(ledger.retained(sub['ledger'])) for sub in values)
-        skipped = sum(sub['ledger']['skipped'] for sub in values)
-        discarded = sum(sub['ledger']['discarded'] for sub in values)
-        word = 'degraded' if self.error or damaged or paused or self.subs.needs_disable or self.missing_bodies else 'ok'
-        return (f"{word}: {self.error or ('manual cache only' if not values else '60 s polling')}; "
-                f"subscriptions={len(values)} paused={paused} held={held} backlog={self.backlog} "
-                f"skipped={skipped} discarded={discarded} "
-                f"repaired={self.bodies.repaired} missing_bodies={self.missing_bodies} "
-                f"authority_unavailable={self.authority_errors} outbox_errors={self.outbox_failures} "
+        word = 'degraded' if self.error or self.damaged else 'ok'
+        warned = ' '.join(f'{code}={count}' for code, count in sorted(self.warnings.items())) or 'none'
+        return (f"{word}: {self.error or ('manual cache only' if not self.count else '60 s polling')}; "
+                f"subscriptions={self.count} damaged={self.damaged} backlog={self.backlog} "
+                f"sent={self.sent} dropped={self.dropped} warnings={warned} "
                 f"view_age_s={max(0, int(self.clock() - self.view_at)) if self.view_at is not None else 'unknown'}")
 
     def wait(self):
         return max(.05, min(10, self.next_run - self.clock()))
 
     def close(self):
+        try:
+            self.subs.close()
+        except shared.SubscriptionError:
+            pass
         self.source.close()
-        self.bodies.close()
+        self.generation.close()

@@ -28,8 +28,7 @@ from metadata import dispatch
 import wire
 import progress
 from publication import MAX_OUTPUT, WARNING, PublicationError, render
-from publication import validate_id
-from subscriptions import SubscriptionError, target_text
+from forwarding import message as subscription_message, shared
 from outbox import PreviousGeneration
 from mailbox_session import SessionError
 
@@ -144,13 +143,13 @@ def parse(body):
     if method in {'help', 'status', 'sub.list'}:
         return value
     if method == 'sub.add':
-        value['target'] = target_text(value.get('target'))
+        value['target'] = shared.target_text(value.get('target'))
         value.setdefault('filter', '')
         if not isinstance(value['filter'], str):
             raise MailError('subscription filter must be text')
         return value
     if method == 'sub.delete':
-        validate_id(value.get('id'))
+        shared.validate_id(value.get('id'))
         return value
     if 'unread' in value and type(value['unread']) is not bool:
         raise MailError('unread must be a boolean')
@@ -238,14 +237,14 @@ class Agent:
                 forwarder = self.forwarding()
                 if method == 'sub.add':
                     sub = forwarder.add(message, call['target'], call['filter'])
-                    result = f"added {sub['id']} -> {sub['target']}; by {sub['created_by']}; from UID {sub['ledger']['start']}; receiver must admit this instance"
+                    result = f"added {sub['id']} -> {sub['target']}; by {sub['created_by']}; from UID {sub['selector']['from_uid']}; receiver must admit this instance"
                     if not sub.get('filter', call['filter']):
                         result += '; matches ALL mail from this account'
                 elif method == 'sub.delete':
-                    clean = forwarder.delete(message, call['id'])
-                    result = 'deleted' + ('' if clean else '; outbox cleanup pending')
+                    forwarder.delete(message, call['id'])
+                    result = 'deleted'
                 else:
-                    result = forwarder.subs.text() + '\n\n' + forwarder.status()
+                    result = forwarder.text(message) + '\n\n' + forwarder.status()
                 status = 'ok'
                 return result
             if self.waiting_previous:
@@ -423,7 +422,10 @@ class Agent:
         except wire.FlagOutcomeUnknown as error:
             error_class = 'flag_unconfirmed'
             return 'error: ' + str(error)
-        except (MailError, PublicationError, SubscriptionError, CacheError, wire.WireError) as error:
+        except shared.SubscriptionError as error:
+            error_class = 'invalid'
+            return 'error: ' + subscription_message(error)
+        except (MailError, PublicationError, CacheError, wire.WireError) as error:
             error_class = 'cache' if isinstance(error, CacheError) else 'protocol' if isinstance(error, wire.WireError) else 'invalid'
             return 'error: ' + str(error)
         except progress.ProgressError as error:

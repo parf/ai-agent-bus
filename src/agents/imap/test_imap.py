@@ -172,7 +172,7 @@ class Server(socketserver.ThreadingTCPServer):
 
 class FakeBus:
     def __init__(self):
-        from test_subscriptions import KV
+        from test_forwarding import KV
         self.name, self.kv = '#imap@fixture', KV()
         self.sent = []
     def record(self, name):

@@ -18,10 +18,10 @@ class ControlTests(unittest.TestCase):
         self.assertEqual(proxy.parse('{"method":"sub.add","target":"#target@t","filter":"/^a  b$/i"}'),
                          proxy.parse('sub add #target@t /^a  b$/i'))
         self.assertEqual(proxy.parse('sub list'), {'method': 'sub.list'})
-        self.assertEqual(proxy.parse('sub delete aabbccdd'), {'method': 'sub.delete', 'id': 'aabbccdd'})
-        self.assertEqual(proxy.parse('{"method":"sub delete","id":"aabbccdd"}'), proxy.parse('sub delete aabbccdd'))
+        self.assertEqual(proxy.parse('sub delete aabbccdd0000'), {'method': 'sub.delete', 'id': 'aabbccdd0000'})
+        self.assertEqual(proxy.parse('{"method":"sub delete","id":"aabbccdd0000"}'), proxy.parse('sub delete aabbccdd0000'))
         self.assertEqual(proxy.parse('sub add #target@t')['filter'], '')
-        for body in ('sub add', 'sub delete', 'sub delete ../x', 'sub list extra',
+        for body in ('sub add', 'sub delete', 'sub delete ../x', 'sub delete aabbccdd', 'sub list extra',
                      '{"method":"sub.add","target":"#target@t","created_by":"owner@t"}',
                      '{"method":"sub.add","target":"#target@t","filter":true}',
                      '{"method":"sub.list","id":"aabbccdd"}', '{"method":{}}',
@@ -32,11 +32,11 @@ class ControlTests(unittest.TestCase):
     def test_add_reply_warns_match_all_and_uses_only_authenticated_envelope(self):
         agent = proxy.Agent(None, {'invalid': True}, {}, '.')
         agent.forwarder = Mock()
-        agent.forwarder.add.return_value = {'id': 'aabbccdd', 'target': '#target@t', 'created_by': '#author@t', 'ledger': {'start': 42}}
+        agent.forwarder.add.return_value = {'id': 'aabbccdd0000', 'target': '#target@t', 'created_by': '#author@t', 'selector': {'validity': 7, 'from_uid': 42}}
         message = SimpleNamespace(ask=None, body='sub add #target@t', envelope={'from': '#author@t'})
         with contextlib.redirect_stderr(io.StringIO()):
             answer = agent.handle(message)
-        self.assertEqual(answer, 'added aabbccdd -> #target@t; by #author@t; from UID 42; receiver must admit this instance; matches ALL mail from this account')
+        self.assertEqual(answer, 'added aabbccdd0000 -> #target@t; by #author@t; from UID 42; receiver must admit this instance; matches ALL mail from this account')
         agent.forwarder.add.assert_called_once_with(message, '#target@t', '')
 
     def test_subscription_errors_name_storage_or_baseline_without_publication_advice(self):
@@ -46,7 +46,7 @@ class ControlTests(unittest.TestCase):
             ('sub add #target@t', TransportError('private'), 'could not store'),
             ('sub add #target@t', UncertainOutcome('private'), 'outcome unknown; check sub list'),
             ('sub add #target@t', SessionError('authentication backoff'), 'IMAP authentication backoff; nothing was stored'),
-            ('sub delete aabbccdd', BusError('private'), 'could not store'),
+            ('sub delete aabbccdd0000', BusError('private'), 'could not store'),
         ]
         for body, error, expected in cases:
             with self.subTest(body=body, error=type(error).__name__):
@@ -87,7 +87,7 @@ class ControlTests(unittest.TestCase):
         agent = proxy.Agent(None, {'bad': True}, {}, '.')
         agent.forwarder = Mock()
         agent.forwarder.status.return_value = 'ok: manual cache only'
-        agent.forwarder.subs.text.return_value = '(no subscriptions; manual cache only)'
+        agent.forwarder.text.return_value = '(no subscriptions; manual cache only)'
         with contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(agent.handle(SimpleNamespace(ask=None, body='status', envelope={})), 'ok: manual cache only')
             answer = agent.handle(SimpleNamespace(ask=None, body='sub list', envelope={}))

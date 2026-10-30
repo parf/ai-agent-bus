@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import test_imap as fixture
 from forwarding import Forwarder
 from mailbox_session import Session
-from test_forwarding import Bus, Clock, raw
+from test_forwarding import Bus, Clock, deliver, raw
 
 
 class ForwardingTLS(unittest.TestCase):
@@ -15,7 +15,7 @@ class ForwardingTLS(unittest.TestCase):
         self.clock, self.forward_bus = Clock(), Bus()
         self.session = Session(lambda: fixture.proxy.config(self.cfg), self.env, self.work.name, self.clock)
         self.worker = Forwarder(self.forward_bus, self.forward_bus.name, self.work.name,
-                                self.session, self.clock, self.clock)
+                                self.session, self.clock, self.clock, send_one=deliver(self.forward_bus))
         self.addCleanup(lambda: self.worker.close())
         self.author = SimpleNamespace(envelope={'from': '#author@t', 'roles': [], 'original_to': self.forward_bus.name})
 
@@ -34,7 +34,7 @@ class ForwardingTLS(unittest.TestCase):
         self.worker.close()
         self.session = Session(lambda: fixture.proxy.config(self.cfg), self.env, self.work.name, self.clock)
         self.worker = Forwarder(self.forward_bus, self.forward_bus.name, self.work.name,
-                                self.session, self.clock, self.clock)
+                                self.session, self.clock, self.clock, send_one=deliver(self.forward_bus))
         self.clock.advance(60)
         self.worker.tick()
         self.assertEqual(len(self.forward_bus.sent), 1)
