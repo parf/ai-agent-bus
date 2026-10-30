@@ -151,3 +151,8 @@ Owner, 2026-10-30: every doc leads with why, then what you get, then real exampl
 - Result: both agents use the unchanged shared TypeScript engine, with one-shot delivery, creator/direct-staff management and sent/dropped counts. Journaled deterministic id migration finishes before serving; `sub edit` directs callers to delete/add. The shared engine and filter worker are bundled in each main artifact.
 - Evidence: Slack 135/0; Telegram 101/0; shared TypeScript 43/0 and Python/golden help 12/0. Real-daemon checks cover accepted/full/next delivery (2 sent, 1 dropped), revoked authors and a real SIGKILL between the migration writes, recovering one listed row and exactly one delivery. Both J22 checks failed before the migration and pass after.
 - Mutants: 14 focused, compiling assertion failures under the smoke-gate lock; full list and named checks in the commit bodies. Includes the Port's absent `wait` option before SDK normalization, both compiled engines, both package inventory entries and malformed legacy authors retained as damaged definitions. Review, normal gate and deployment remain pending.
+
+## RT25 ask follow-ups
+
+- The documentation follow-up is done: the constitution's self-description, the authoring checklist and the create-agent prompt carry the ask-first rule, and the runner guide holds the shell template (`case "$AGENT_BUS_ASK"`).
+- The two unpackaged-script examples (runner getting started, remote access) declare `"asks":"none"` / `--no-asks`, so every ask is answered as `unsupported: <ask>` and never starts the script. Checks: link and docs-order checkers only.

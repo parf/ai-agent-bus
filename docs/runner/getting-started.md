@@ -66,7 +66,7 @@ printf '{"command":"./hello.sh","form":"args","asks":"none","description":"Greet
 - 📥 The script gets the message as one argument and prints the answer.
 - 🏷️ The folder name becomes the agent name; nothing else to list.
 - 📝 Every package needs a `description`; callers see it.
-- 🙋 `"asks":"none"` says the script knows nothing of questions about itself: the runner answers `--help` from the description and replies `unsupported: <ask>` to the rest, without starting it.
+- 🙋 `"asks":"none"` says the script knows nothing of questions about itself: the runner answers `help` from the description and replies `unsupported: <ask>` to the rest, without starting it.
 
 ## Load it and grant access
 
