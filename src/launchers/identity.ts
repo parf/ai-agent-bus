@@ -1,7 +1,29 @@
-import { Bus, BusError, withOwnerACL, runtimeTags } from "../mcp/bus.ts";
+import { Bus, BusError, defaultName, withOwnerACL, runtimeTags } from "../mcp/bus.ts";
 import { normalizeTags } from "../mcp/tags.ts";
 import { sleep } from "../mcp/push.ts";
-import { Bindings, numberedName, type Session } from "./sessions.ts";
+import { Bindings, numberedName, sameBase, type Session } from "./sessions.ts";
+
+// A new automatic name takes the realm the bus itself reports (the #bus
+// setup, docs/agents/bus.md#configuration), read at each use. An explicit
+// AGENT_BUS_REALM stays the caller's choice. A bus that names no realm is not
+// answered with the host's: the automatic name is refused instead.
+export async function automaticBase(owner: Bus, env: NodeJS.ProcessEnv, runtime: string, where: string): Promise<string> {
+  let realm = env.AGENT_BUS_REALM;
+  if (!realm) {
+    realm = (await owner.status()).realm;
+    if (!realm) throw new Error("the bus reports no realm, so an automatic session name is refused; pass AGENT_BUS_NAME, or ask the bus Owner to save the #bus setup");
+  }
+  return defaultName({ ...env, AGENT_BUS_REALM: realm, AGENT_BUS_RUNTIME: runtime, AGENT_BUS_CWD: where }, "/");
+}
+
+// A saved session resumes its exact name: a changed bus realm moves only names
+// not yet bound. The fresh base keeps the bound realm when only the realm differs.
+export function keepBoundRealm(bound: { base?: string; name: string } | undefined, fresh: string): string {
+  const old = bound?.base ?? bound?.name;
+  if (!bound || !old || old.lastIndexOf("@") < 0 || fresh.lastIndexOf("@") < 0) return fresh;
+  const candidate = fresh.slice(0, fresh.lastIndexOf("@")) + old.slice(old.lastIndexOf("@"));
+  return sameBase(bound, candidate) ? candidate : fresh;
+}
 
 // Conditional registration arbitrates new names across launchers. Existing
 // records belong to their saved sessions until explicitly released.

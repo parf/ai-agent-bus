@@ -153,7 +153,7 @@ export class Bus {
 
   unregister(name: string): Promise<null> { return this.#call("POST", "/unregister", { name }); }
 
-  status(): Promise<{ you: string }> { return this.#call("GET", "/status"); }
+  status(): Promise<{ you: string; realm?: string }> { return this.#call("GET", "/status"); }
 
   /** One POST the face passes through, answered as the daemon said it. */
   async post(path: string, body?: unknown, signal?: AbortSignal): Promise<unknown> { return this.#call("POST", path, body, signal); }
