@@ -1018,6 +1018,22 @@ On macOS `sudo agent-bus-setup` installs the daemon under its own account and ke
 
 Not on macOS: per-role accounts, cgroup limits, the web job, logrotate, a person's runner, `--upgrade`; setup refuses those options. Without `CAP_CHOWN` the daemon cannot hand a socket to another account, so there are no per-user sockets: a person calls with a token (`sudo -u _agentbusd agent-bus token <name>`). Outside Linux the bus child stops itself when its supervisor is gone, where Linux has the kernel's death signal ([how a child is started](08-processes.md#how-a-child-is-started)).
 
+#### Uninstall the macOS test daemon
+
+The [MAC.2 acceptance harness](../src/acceptance/mac2-install-check.py) removes only its fresh fixture. It refuses an existing account, job or setup tree before installing; there is no product uninstall command.
+
+| Step | Cleanup |
+|---|---|
+| Stop | Boot out `system/agent-busd` with `launchctl`, then stop processes owned by `_agentbusd` |
+| Files | Remove the fixture plist, daemon home, socket directory and `mac2-check` binary tree; this deletes the fixture database |
+| User | `sudo /usr/sbin/sysadminctl -deleteUser _agentbusd` |
+| Group | `sudo /usr/sbin/dseditgroup -o delete _agentbusd` |
+| Verify | List `/Users` and `/Groups` with `dscl . -list`; `_agentbusd` must be absent from both. A failed lookup is not absence, and command exit status alone does not prove deletion |
+
+If deletion is refused (including `eDSPermissionError` / `-14120`), open **System Settings → Privacy & Security → Full Disk Access**, enable the terminal app used for cleanup, then quit and reopen that app. Run the user and group deletion commands there and verify both entries are absent. Use `sysadminctl` and `dseditgroup` for deletion; `dscl` is used only to inspect the directory.
+
+The harness attempts both role removals. A failed deletion, a remaining entry or an unreadable directory produces a named user/group leftover report, the Full Disk Access recovery steps and a nonzero exit; it never prints a clean uninstall result in those cases. Granting Full Disk Access and retrying the live cleanup remain owner actions.
+
 ## Config locations
 
 Current daemon configuration comes from command flags and environment; setup

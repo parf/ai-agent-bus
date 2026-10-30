@@ -38,13 +38,17 @@ A real private daemon on this node registers an entry, stops and restarts, and f
 
 `53ae56f4` selects `_agentbusd`, `/usr/local/var/agent-bus/daemon` and the platform's installed socket. The credential hint uses the local sudo/token form on macOS; Linux keeps its existing SSH hint and defaults. Native account/socket, home-default and hint checks pass without sudo, 11.942 s including cleanup. The full Linux admin test package also passes.
 
-These follow-up runs return the clone to clean `main`, `7c6555aa`; the workspace is now **54M** because of the additional Git objects. Build output and `.cache` were deleted, and `~/go` and `~/Library/Caches/go-build` remain absent. No sudo command was added after the owner took over role cleanup. The focused fast `go_checks` passes in 5.074 s. After the final main rebase it passes in 6.940 s; the full fast run is 25 passed, 1 failed because Telegram cannot find the linked `lossless-json` dependency.
+These follow-up runs return the clone to clean `main`, `7c6555aa`; the workspace is now **54M** because of the additional Git objects. Build output and `.cache` were deleted, and `~/go` and `~/Library/Caches/go-build` remain absent. No sudo command was added after the owner took over role cleanup. The focused fast `go_checks` passes in 5.074 s. After the final main rebase it passes in 6.940 s; the initial full fast run was 25 passed, 1 failed because this worktree lacked the TypeScript client dependency link. After linking all three dependency directories as required by the worker role, the complete fast run passes 26/0 in 7.844 s.
 
 ## Owner cleanup still open
 
 `sudo -n dscl . -delete /Users/_agentbusd` returned exit 40, `eDSPermissionError` / `-14120`. The owner is handling it; the CEO and director instructed the worker to run no more sudo on the Mac.
 
 Remaining state is the `_agentbusd` user and group, UID/GID **206**, plus empty setup parent directories. The job, plist, daemon home, socket directory and test binary tree are gone. This does not affect MAC.1's client/runner checks; W1B was told `mac free`.
+
+The owner also saw the same `dscl` refusal at the Mac console. The acceptance cleanup now deletes the user with `sysadminctl -deleteUser` and the group with `dseditgroup -o delete`, rather than `dscl`. It attempts both and verifies their absence with directory listings, including when a deletion command returns zero. A failed deletion, leftover entry or unreadable listing exits nonzero with the role names and [Full Disk Access recovery](../../../docs/07-setup.md#uninstall-the-macos-test-daemon). Live cleanup and the permission change remain with the owner; no worker sudo was run for this fix.
+
+`python3 src/acceptance/test_mac2_cleanup.py` runs only local subprocess stubs. Four checks cover successful removal, already absent entries, both deletion failures, a zero-status deletion leaving both entries, an unreadable directory and a group-only failure. On the old cleanup, five assertions fail, including the unreadable-directory case incorrectly printing `PASS uninstall`; all pass after the fix. The harness is now committed under `src/acceptance/`; the node-local copy is kept in sync. Under the `smoke-gate` lock, three independent cleanup mutants also fail assertions: restoring `dscl` user deletion, trusting a zero deletion status without checking directory presence, and skipping group deletion. Restored checks pass; the lock is released.
 
 Immediately after install teardown, the clone was clean on `main` and the workspace was **53M**; the later admin proof leaves it **54M** as recorded above. `~/go` and `~/Library/Caches/go-build` are absent. `df -h` reported 460 Gi total, 192 Gi used / 244 Gi available before, and 193 Gi used / 244 Gi available after; these are the filesystem's rounded readings, not a claim that global disk usage was unchanged.
 
@@ -140,4 +144,4 @@ SUDO: sudo -n /usr/bin/dscl . -delete /Users/_agentbusd
 
 ## Reproduction
 
-The focused install/uninstall harness is node-local `local/w1c/mac2-install-check.py`; the complete output is `tmp/ab-w1c-MAC2/tmp/mac-install.local.log`. Both were retained on this node, not on the Mac. Re-running while the owner cleanup is outstanding is forbidden; the harness also refuses an existing role, job or setup tree.
+The focused install/uninstall harness is [mac2-install-check.py](../../../src/acceptance/mac2-install-check.py), with a node-local copy at `local/w1c/mac2-install-check.py`; the historical complete output is `tmp/ab-w1c-MAC2/tmp/mac-install.local.log`. No harness or log is retained on the Mac. Re-running while the owner cleanup is outstanding is forbidden; the harness also refuses an existing role, job or setup tree.
