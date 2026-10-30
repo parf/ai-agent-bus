@@ -175,7 +175,10 @@ func (s *Server) daemonList(caller protocol.Name, args []string) (string, error)
 			}
 			value = args[i]
 		}
-		if key == "tag" && query.Get("tag") != "" && value != "" {
+		if key == "tag" && strings.Trim(value, " ,") == "" {
+			return "", fmt.Errorf("--tag wants a tag; an empty one would drop the filter")
+		}
+		if key == "tag" && query.Get("tag") != "" {
 			value = query.Get("tag") + "," + value // repeated --tag: the records carrying every one
 		}
 		query.Set(key, value)

@@ -1125,11 +1125,18 @@ func splitOptions(args []string, asks bool) ([]string, map[string]string, error)
 func splitOptionsJoined(args []string, asks bool, joined []string) ([]string, map[string]string, error) {
 	pos := []string{}
 	flags := map[string]string{}
-	set := func(k, v string) {
-		if old, again := flags[k]; again && slices.Contains(joined, k) && old != "" && v != "" {
-			v = old + "," + v
+	set := func(k, v string) error {
+		if slices.Contains(joined, k) {
+			// An empty tag would clear the filter, or drop the ones before it.
+			if strings.Trim(v, " ,") == "" {
+				return fmt.Errorf("--%s wants a tag; an empty one would drop the filter", k)
+			}
+			if old, again := flags[k]; again {
+				v = old + "," + v
+			}
 		}
 		flags[k] = v
+		return nil
 	}
 	for i := 0; i < len(args); i++ {
 		a := args[i]
@@ -1143,9 +1150,13 @@ func splitOptionsJoined(args []string, asks bool, joined []string) ([]string, ma
 		k, v, hasEq := strings.Cut(strings.TrimPrefix(a, "--"), "=")
 		switch {
 		case hasEq:
-			set(k, v)
+			if err := set(k, v); err != nil {
+				return pos, flags, err
+			}
 		case i+1 < len(args) && !strings.HasPrefix(args[i+1], "--") && !(onOff[k] || asks && k == "status"):
-			set(k, args[i+1])
+			if err := set(k, args[i+1]); err != nil {
+				return pos, flags, err
+			}
 			i++
 		case onOff[k] || asks && k == "status":
 			flags[k] = ""
