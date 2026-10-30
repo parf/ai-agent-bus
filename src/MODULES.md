@@ -15,6 +15,8 @@
 
 The table describes built code.
 
+### Modules
+
 | Built area | Responsibility |
 |---|---|
 | `internal/protocol` | Names, records, envelopes and JSON representation |

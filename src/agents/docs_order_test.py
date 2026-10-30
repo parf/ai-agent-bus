@@ -48,6 +48,12 @@ ENFORCED = ['docs/runner/%s.md' % name for name in (
 
 ENFORCED += ['docs/%s.md' % name for name in ('06-dedicated-runner', '06-launchers', '08-processes', '09-daemon-api')]
 
+# DW11: the client READMEs and src/*.md. The PHP client's README joins when its own follow-up lands.
+ENFORCED += ['src/%s.md' % name for name in ('README', 'INSTALL', 'MODULES')] + [
+    'src/clients/README.md', 'src/clients/examples/README.md'] + [
+    'src/clients/%s/README.md' % name for name in ('go', 'java', 'python', 'rust', 'typescript')] + [
+    'src/clients/examples/%s/README.md' % name for name in ('codestats', 'go', 'python', 'rust', 'ts')]
+
 KINDS = ('order', 'missing-part', 'first-fifth', 'empty-example', 'no-example', 'jargon-lead', 'wall')
 
 

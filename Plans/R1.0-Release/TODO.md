@@ -693,5 +693,6 @@ Owner, 2026-10-30: every doc leads with why, then what you get, then real workin
 - ✅ DW8 `docs/runner/*` and `docs/user/*` — **0.9.190**, `cded895b` ([result](DONE.md#docs-rewrite-dw8))
 - ⏳ DW9 Agent manifests: `agent.json` descriptions and method help, with golden fixtures and a normal gate
 - ✅ DW10 Web page intros and CLI help text — **0.9.189**, `79f03e08` ([result](DONE.md#docs-rewrite-dw10))
-- ⏳ DW11 Client READMEs and `src/*.md`; `src/clients/` is shared with RT8 (paused)
+- ⏳ DW11 Client READMEs and `src/*.md`; RT8 has landed
+  - State 2026-10-30, branch `ab-w2b/DW11`: `src/README.md`, `INSTALL.md`, `MODULES.md`, the client hub, the Go, Java, Python, Rust and TypeScript READMEs, the examples README and its five example pages follow the order and are in the checker's ENFORCED list. Examples ran on disposable nodes with private data directories: the six-language examples harness, one snippet per language client, the three-terminal sequence and the first-agent example; `INSTALL.md`'s install and update commands are root steps and were not run, only its read-only checks (`agent-bus status`, `systemctl is-active`). Left: `src/clients/php/README.md`, after J43 lands
   - Acceptance for all rows: each page passes the checker and the first-20% check, every example was run on a real node, links and anchors resolve, built/pending status is unchanged
