@@ -36,7 +36,7 @@ WALL = 300                # characters in one prose paragraph; about three wrapp
 EXEMPT = ('docs/constitution.md', 'docs/decisions.md', 'docs/glossary.md')
 
 # Pages that must pass. Each batch of the docs rewrite adds its pages here as it lands.
-ENFORCED = []
+ENFORCED = ['docs/runner/README.md']
 
 KINDS = ('order', 'missing-part', 'first-fifth', 'empty-example', 'no-example', 'jargon-lead', 'wall')
 
@@ -382,6 +382,11 @@ class Pages(unittest.TestCase):
         rows = report()
         self.assertGreater(len(rows), 40)
         self.assertTrue(all(isinstance(fails, list) for _, fails in rows))
+
+    def test_the_runner_guide_is_enforced_and_passes(self):
+        # The first page rewritten to the standard must pass; a checker that rejects it is the one that is wrong.
+        self.assertIn('docs/runner/README.md', ENFORCED)
+        self.assertEqual(check((ROOT / 'docs/runner/README.md').read_text()), [])
 
     def test_enforced_pages_pass(self):
         for name in ENFORCED:
