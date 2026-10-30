@@ -161,6 +161,7 @@ What takes effect when:
 | a code update that changes those files | `reload`; a process already handling a message is not replaced by editing its file |
 | a new directory, even one added while the runner runs | `reload` |
 | a kept agent's installed package files | `reload` restarts it; identical files leave it running, and `.git` is not compared |
+| a kept agent's inventory entry, with its package and env unchanged | `reload` sends its processes `SIGHUP` to reread their configuration; one that does not handle it exits and is started again at once |
 | per-message to self-serving, or back | `reload` stops the old mode and starts the new one |
 
 **Removing takes care,** because an agent with no entry is served by default:
@@ -271,7 +272,7 @@ Optional observations describe the runner and the admitted settings, without rea
 | Agent `sandbox` | `on` or `off` for an agent currently being served; absent when not served |
 | Agent `limits` | applied `memory_bytes`, `processes` (OS process limit), and soft `disk_bytes`; absent with sandbox off or when not served. These are limits, not usage measurements |
 | Agent `started_at` | earliest start among its currently live kept processes, RFC 3339 UTC; absent once none remain. Scripts report their current count in `processes.running`, without start times |
-| Agent `last_exit` | latest kept-process exit or nonzero script exit observed since this load: `code` (`-1` for a signal), `at` after the wait completed (RFC 3339 UTC), and `reason` (last stderr line, empty if none) |
+| Agent `last_exit` | latest kept-process exit or nonzero script exit observed since this load: `code` (`-1` for a signal), `at` after the wait completed (RFC 3339 UTC), `reason` (last stderr line, empty if none), and `signal` when one ended it, such as `killed` |
 
 - **A fresh load clears `last_exit`;** the next real exit replaces it.
 - **A failure to start a local process** does not invent an exit.
@@ -294,7 +295,7 @@ Optional observations describe the runner and the admitted settings, without rea
 <summary>Process lifecycle and the unit</summary>
 
 - **Per message:** the runner starts one process per message, up to the agent's `processes` maximum.
-- **Self-serving agents** ([agents that serve themselves](configuration.md#agents-that-serve-themselves)) are kept running: restarted with backoff when they exit, sent `SIGTERM` when they stop.
+- **Self-serving agents** ([agents that serve themselves](configuration.md#agents-that-serve-themselves)) are kept running: restarted with backoff when they exit, a killed one included, which `last_exit.signal` names; sent `SIGHUP` when their settings change and `SIGTERM` when they stop.
 - **A message leaves the bus only when a process slot is free,** so a busy agent holds nothing back from an idle one, and work not yet taken stays queued if the runner stops.
 - **The unit's first stop signal goes only to the runner** (`KillMode=mixed`), so it can drain agents itself.
 - **Systemd kills what is left after 30 seconds;** use a unit drop-in with a longer `TimeoutStopSec` when an agent needs a longer shutdown.
