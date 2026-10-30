@@ -377,6 +377,9 @@ ok_exit "package.sh builds the host's archives" "$rc"
 out=$(for goarch in arm64 amd64; do GOOS=darwin GOARCH=$goarch CGO_ENABLED=0 go build -o /dev/null ./cmd/agent-bus || exit 1; done 2>&1); rc=$?
 ok_exit "the CLI builds for macOS, Apple Silicon and Intel" "$rc"
 [ "$rc" = 0 ] || echo "$out"
+out=$(bash ./package-darwin.test.sh 2>&1); rc=$?
+ok_exit "the macOS client archive holds Mach-O client programs for its CPU and nothing of the node" "$rc"
+[ "$rc" = 0 ] || echo "$out"
 out=$(RELEASE_DIST=$D/dist bash ./release-verify.real.test.sh 2>&1); rc=$?
 ok_exit "release evidence passes the signed archives package.sh builds and fails each bad release" "$rc"
 [ "$rc" = 0 ] || echo "$out"

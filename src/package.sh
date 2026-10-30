@@ -14,17 +14,28 @@ trap 'rm -rf "$work"' EXIT
 
 version=$(tr -d '[:space:]' < internal/version/VERSION)
 os=$(go env GOOS)
-[ "$os" = linux ] || { echo "agent-bus package supports Linux systemd hosts, not $os" >&2; exit 1; }
+case $os in
+  linux|darwin) ;;
+  *) echo "agent-bus package supports Linux systemd hosts and the macOS client, not $os" >&2; exit 1 ;;
+esac
 case $(go env GOARCH) in
-  amd64) arch=x86_64; export BUN_TARGET=bun-linux-x64 ;;
-  arm64) arch=aarch64; export BUN_TARGET=bun-linux-arm64 ;;
+  amd64) arch=x86_64; bun_cpu=x64 ;;
+  arm64) arch=aarch64; bun_cpu=arm64 ;;
   *) echo "agent-bus package supports amd64 and arm64, not $(go env GOARCH)" >&2; exit 1 ;;
 esac
-name="agent-bus-$version-linux-$arch"
+export BUN_TARGET=bun-$os-$bun_cpu
+if [ "$os" = darwin ]; then
+  # The macOS client edition is cross-built here without cgo: only the
+  # programs that build for it, and no full node (the daemon is Linux's).
+  export CGO_ENABLED=0 PROGRAMS="./cmd/agent-bus ./cmd/agent-bus-runner"
+fi
+name="agent-bus-$version-$os-$arch"
 root="$work/$name"
 mkdir "$root"
 ./build.sh "$root" >&2
 
+archive=""
+if [ "$os" = linux ]; then
 required=(
   agent-bus agent-busd agent-bus-admin agent-bus-runner agent-bus-setup
   agent-bus-token # fixed SSH wrapper, copied by build.sh
@@ -47,10 +58,11 @@ required=(
 
 archive="$out/$name.tar.gz"
 tar -C "$work" -czf "$archive" "$name"
+fi
 
 # The client edition: what joins an existing bus without root — the CLI, the
 # runner and its agents, the compiled MCP face and launchers, the plugin.
-client="agent-bus-client-$version-linux-$arch"
+client="agent-bus-client-$version-$os-$arch"
 croot="$work/$client"
 mkdir "$croot"
 (
@@ -67,7 +79,8 @@ carchive="$out/$client.tar.gz"
 tar -C "$work" -czf "$carchive" "$client"
 (
   cd "$out"
-  sha256sum "$(basename "$archive")" > "$(basename "$archive").sha256"
+  if [ -n "$archive" ]; then sha256sum "$(basename "$archive")" > "$(basename "$archive").sha256"; fi
   sha256sum "$(basename "$carchive")" > "$(basename "$carchive").sha256"
 )
-printf '%s\n%s\n%s\n%s\n' "$archive" "$archive.sha256" "$carchive" "$carchive.sha256"
+if [ -n "$archive" ]; then printf '%s\n%s\n' "$archive" "$archive.sha256"; fi
+printf '%s\n%s\n' "$carchive" "$carchive.sha256"

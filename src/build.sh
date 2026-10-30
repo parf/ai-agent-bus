@@ -6,7 +6,9 @@ out=${1:-.}
 build_info="$(id -un)@$(hostname) $(date '+%Y-%m-%d %H:%M:%S')"
 # A release names the commit it was built from (release.sh passes it).
 [ -n "${BUILD_COMMIT:-}" ] && build_info="$build_info $BUILD_COMMIT"
-go build -ldflags "-X 'github.com/parf/ai-agent-bus/internal/version.Build=$build_info'" -o "$out/" ./cmd/...
+# PROGRAMS names the packages to build; every program unless a platform builds fewer.
+# shellcheck disable=SC2086 # a list of packages
+go build -ldflags "-X 'github.com/parf/ai-agent-bus/internal/version.Build=$build_info'" -o "$out/" ${PROGRAMS:-./cmd/...}
 # A self-contained runtime tree; npm publication remains an R1 deliverable.
 if [ "$out" != . ]; then
     install -m 0755 agent-bus-token "$out/agent-bus-token"
