@@ -1,7 +1,7 @@
 // The chat agents supply KV/transport and selectors; all subscription policy
 // and delivery accounting live in the shared TypeScript engine.
 import { Bus, BusError, KVNotFound } from "../../clients/typescript/src/index.js";
-import { Subscriptions, SubscriptionError, type Caller, type Port, type Row, type WarningCode } from "../shared/subscriptions.ts";
+import { Subscriptions, SubscriptionError, type Caller, type Port, type Row, type WarningCode } from "./subscriptions.ts";
 import { migrateSubscriptions, validAuthors } from "./subscription-migration.ts";
 
 export const staff = (e: Caller, source: string) => (!e.original_to || e.original_to.toLowerCase() === source.toLowerCase()) && e.roles.some(r => r === "owner" || r === "maintainer");

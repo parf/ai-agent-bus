@@ -1,7 +1,7 @@
 // In-memory transport fixture for both provider adapters; production still
 // goes through ChatPort and the shared engine, never a second test engine.
 import { Bus, BusError, KVNotFound } from "../../clients/typescript/src/index.js";
-import { ChatPort, ChatSubscriptions } from "./subscription-port.ts";
+import { ChatPort, ChatSubscriptions } from "../shared/subscription-port.ts";
 import type { Row } from "../shared/subscriptions.ts";
 export const source = "#chat@fixture";
 export const caller = { from: "author@fixture", roles: [] as string[] };

@@ -25,6 +25,15 @@ import (
 // The source agent, client and dependency must all be outside /usr: its
 // blanket system-program bind otherwise conceals a missing checkout read.
 func TestGitBundledBunAnswersWithTheDefaultSandbox(t *testing.T) {
+	checkoutBunAgent(t, "slack")
+}
+
+func TestGitBundledTelegramAnswersWithTheDefaultSandbox(t *testing.T) {
+	checkoutBunAgent(t, "telegram")
+}
+
+func checkoutBunAgent(t *testing.T, agent string) {
+	t.Helper()
 	if err := sandbox.ProbeBwrap(); err != nil {
 		t.Skipf("checkout Bun proof requires bubblewrap: %v", err)
 	}
@@ -35,7 +44,7 @@ func TestGitBundledBunAnswersWithTheDefaultSandbox(t *testing.T) {
 	src := filepath.Join(root, "src")
 	writeFile(t, filepath.Join(root, ".git"), "gitdir: fixture\n")
 	writeFile(t, filepath.Join(src, "go.mod"), "module fixture\n")
-	for _, path := range []string{"agents/slack", "agents/shared", "clients/typescript/src", "internal/version"} {
+	for _, path := range []string{"agents/slack", "agents/telegram", "agents/shared", "clients/typescript/src", "internal/version"} {
 		if err := os.CopyFS(filepath.Join(src, path), os.DirFS(filepath.Join("..", "..", path))); err != nil {
 			t.Fatal(err)
 		}
@@ -47,7 +56,7 @@ func TestGitBundledBunAnswersWithTheDefaultSandbox(t *testing.T) {
 		t.Fatal(err)
 	}
 	host := filepath.Join(root, "runner")
-	writeFile(t, filepath.Join(host, "agents.json"), `{"slack":{"enabled":true}}`)
+	writeFile(t, filepath.Join(host, "agents.json"), fmt.Sprintf(`{%q:{"enabled":true}}`, agent))
 	r := &runner{ctx: context.Background(), host: host, agents: filepath.Join(host, "agent.d"), bundled: filepath.Join(src, "agents"), say: io.Discard}
 	list, err := loadSources(r.sources(), host)
 	if err != nil {
@@ -55,12 +64,12 @@ func TestGitBundledBunAnswersWithTheDefaultSandbox(t *testing.T) {
 	}
 	var in installed
 	for _, candidate := range list {
-		if candidate.Key == "slack" {
+		if candidate.Key == agent {
 			in = candidate
 		}
 	}
-	if in.Key != "slack" || in.Refused != "" || !in.enabled() || in.Agent.Serves != "itself" {
-		t.Fatalf("enabled source Slack: %+v", in)
+	if in.Key != agent || in.Refused != "" || !in.enabled() || in.Agent.Serves != "itself" {
+		t.Fatalf("enabled source %s: %+v", agent, in)
 	}
 	box, why := r.sandboxFor(in)
 	if why != "" || box.Name() != "bwrap" {
@@ -77,7 +86,13 @@ func TestGitBundledBunAnswersWithTheDefaultSandbox(t *testing.T) {
 	if _, err := b.Register(protocol.Record{Name: name, Kind: protocol.KindAgent, Owner: "owner@h", Allow: []string{"@owner"}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.SetSecret(name, "owner@h", "SLACK_BOT_TOKEN=fixture\nSLACK_APP_TOKEN=fixture-app\nSLACK_API_URL="+provider+"\n"); err != nil {
+	secret := "SLACK_BOT_TOKEN=fixture\nSLACK_APP_TOKEN=fixture-app\nSLACK_API_URL=" + provider + "\n"
+	expected := "checkout_fixture on local_fixture (" + provider + ")"
+	if agent == "telegram" {
+		secret = "TELEGRAM_BOT_TOKEN=fixture\nTELEGRAM_API_URL=" + provider + "\n"
+		expected = "@checkout_fixture (id 123)"
+	}
+	if _, err := b.SetSecret(name, "owner@h", secret); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.Configure(name, "owner@h", []byte(`{}`)); err != nil {
@@ -106,7 +121,7 @@ func TestGitBundledBunAnswersWithTheDefaultSandbox(t *testing.T) {
 	}}
 	t.Cleanup(transport.CloseIdleConnections)
 	r.addr = socket
-	work := filepath.Join(host, "work", "slack")
+	work := filepath.Join(host, "work", agent)
 	if err := os.MkdirAll(work, 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -127,11 +142,16 @@ const fake = Bun.serve({hostname:"127.0.0.1", port:34567, async fetch(request) {
   if (path === "/users.list") return Response.json({ok:true,members:[]});
   if (path === "/conversations.list") return Response.json({ok:true,channels:[]});
   if (path === "/apps.connections.open") return Response.json({ok:false,error:"fixture_socket_disabled"});
+  if (path === "/botfixture/getMe") return Response.json({ok:true,result:{id:123,username:"checkout_fixture"}});
+  if (path === "/botfixture/getUpdates") {
+    await Bun.sleep(100);
+    return Response.json({ok:true,result:[]});
+  }
   console.error("unexpected local provider request"); process.exit(71);
 }});
 process.on("SIGTERM", () => fake.stop(true));
 await import(%q);
-`, filepath.Join(src, "agents", "slack", "slack.ts")))
+`, filepath.Join(src, "agents", agent, agent+".ts")))
 	// Only the fixture bootstrap changes the command: it imports the actual
 	// bundled source, with its unmodified imports and bus serve loop.
 	s := &served{in: in, name: name, bus: &client{http: &http.Client{Transport: transport}, base: "http://unix", token: token}, dir: r.codeDir(in), work: work, cmd: "bun " + bootstrap, box: box, net: false, jail: &jail{}}
@@ -187,7 +207,7 @@ await import(%q);
 		answer = message
 		break
 	}
-	if answers != 1 || acks != 1 || answer.From != name || answer.Re != sent.ID || !strings.Contains(answer.Body, "checkout_fixture on local_fixture ("+provider+")") {
+	if answers != 1 || acks != 1 || answer.From != name || answer.Re != sent.ID || !strings.Contains(answer.Body, expected) {
 		t.Fatalf("one real source-agent answer to its request: answers=%d acks=%d sent=%s answer=%+v", answers, acks, sent.ID, answer)
 	}
 	quiet, stop := context.WithTimeout(context.Background(), 100*time.Millisecond)

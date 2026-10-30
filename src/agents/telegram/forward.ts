@@ -1,6 +1,6 @@
 // Telegram-specific body and live selector mapping; shared subscriptions do
 // filtering, both author checks, sending and counters without pause or retry.
-import type { ChatSubscriptions } from "../slack/subscription-port.ts";
+import type { ChatSubscriptions } from "../shared/subscription-port.ts";
 import type { SeenMessage } from "./seen.ts";
 export type ForwardDeps = {
   subscriptions: Pick<ChatSubscriptions, "deliver" | "close">;

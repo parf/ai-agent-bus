@@ -1,6 +1,6 @@
 // Slack-specific intake, deduplication, routing and self-echo suppression.
 // Shared subscriptions own filtering, admission and one-shot send accounting.
-import type { ChatSubscriptions } from "./subscription-port.ts";
+import type { ChatSubscriptions } from "../shared/subscription-port.ts";
 const queueMax = Number(process.env.SLACK_AGENT_QUEUE ?? "1000");
 const dedupMax = 1000;
 const forwardedSubtypes = new Set([undefined, "thread_broadcast", "bot_message"]);

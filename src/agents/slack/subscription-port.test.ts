@@ -3,8 +3,8 @@ import { spawn } from "bun";
 import { join } from "node:path";
 import { Bus } from "../../clients/typescript/src/index.js";
 import { startFixture, identity, type Fixture } from "./daemon.ts";
-import { ChatPort, ChatSubscriptions } from "./subscription-port.ts";
-import { migrationId } from "./subscription-migration.ts";
+import { ChatPort, ChatSubscriptions } from "../shared/subscription-port.ts";
+import { migrationId } from "../shared/subscription-migration.ts";
 let fx: Fixture;
 beforeAll(async () => { fx = await startFixture(); }, 30000);
 afterAll(async () => { await fx?.stop(); }, 15000);
@@ -63,7 +63,7 @@ test("SIGKILL between new-row commit and old-key delete recovers one listed row 
   await kv.set("int", `stat.${oldId}.forwarded`, 6, { mode: "set" });
   const code = `
     import { Bus } from ${JSON.stringify(new URL("../../clients/typescript/src/index.ts", import.meta.url).pathname)};
-    import { ChatPort, ChatSubscriptions } from ${JSON.stringify(new URL("./subscription-port.ts", import.meta.url).pathname)};
+    import { ChatPort, ChatSubscriptions } from ${JSON.stringify(new URL("../shared/subscription-port.ts", import.meta.url).pathname)};
     const bus = Bus.connect({expectName: process.env.AGENT_BUS_NAME});
     const kv = bus.record(process.env.AGENT_BUS_NAME).kv, set = kv.set.bind(kv);
     kv.set = async (...args) => {

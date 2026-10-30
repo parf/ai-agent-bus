@@ -370,7 +370,6 @@
       "paths": [
         "src/agents/discord/",
         "src/agents/shared/",
-        "src/agents/slack/envfile.ts",
         "src/agents/slack/daemon.ts",
         "src/testdata/subscriptions.json"
       ]

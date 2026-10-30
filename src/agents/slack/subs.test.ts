@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { fixture, row, caller, owner, source } from "./b29-fixture.ts";
-import { migrationId } from "./subscription-migration.ts";
+import { migrationId } from "../shared/subscription-migration.ts";
 import { Subscriptions } from "../shared/subscriptions.ts";
 
 const legacy = (id = "deadbeef", changes = {}) => ({ id, channel: "C1", target: "#target", filter: "", created_by: caller.from, created_at: "2026-10-30T00:00:00.000Z", ...changes });

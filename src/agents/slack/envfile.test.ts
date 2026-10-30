@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseEnvList } from "./envfile.ts";
+import { parseEnvList } from "../shared/envfile.ts";
 import { endpoint, scrub } from "./slackapi.ts";
 
 import cases from "../../internal/envfile/testdata/common.json";
@@ -33,7 +33,7 @@ describe("the endpoint and scrubbing", () => {
 // Synchronous parsing cannot be interrupted by a timer on its own event loop.
 // Measure CPU in a child, and keep its watchdog in the parent test process.
 const parserCpuProbe = `
-  const { parseEnvList } = await import(${JSON.stringify(new URL("./envfile.ts", import.meta.url).href)});
+  const { parseEnvList } = await import(${JSON.stringify(new URL("../shared/envfile.ts", import.meta.url).href)});
   const { name, line } = JSON.parse(await Bun.stdin.text());
   const took = n => {
     const src = name === "unclosed line-start quotes" ? "A=" + line.repeat(n) + "y\\n" : line.repeat(n);

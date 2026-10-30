@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { Bus } from '../../clients/typescript/src/index.ts';
-import { parseEnvFile } from '../slack/envfile.ts';
+import { parseEnvFile } from '../shared/envfile.ts';
 import { dispatchAsk, helpAnswer } from '../shared/metadata.ts';
 import manifest from './agent.json';
 import { readFileSync } from 'node:fs';

@@ -12,7 +12,7 @@ import manifest from "./agent.json";
 // as Telegram's own {"ok": …} shape, and nothing of the agent's
 // credentials or of a stack escapes.
 import { Bus, type Message } from "../../clients/typescript/src/index.js";
-import { parseEnvFile } from "../slack/envfile.js";
+import { parseEnvFile } from "../shared/envfile.js";
 import { configFault, parseConfig, resolveDestination, secretFault, type Config } from "./config.js";
 import { parseCall } from "./parse.js";
 import { describe } from "./help.js";
@@ -22,7 +22,7 @@ import { Seen } from "./seen.ts";
 import { Receiver } from "./receive.ts";
 import { Router } from "./router.ts";
 import { Forwarder } from "./forward.ts";
-import { ChatPort, ChatSubscriptions, staff as mayChangeSubscriptions, subscriptionList } from "../slack/subscription-port.ts";
+import { ChatPort, ChatSubscriptions, staff as mayChangeSubscriptions, subscriptionList } from "../shared/subscription-port.ts";
 import { SubscriptionError } from "../shared/subscriptions.ts";
 
 const name = (process.env.AGENT_BUS_NAME ?? "").trim().toLowerCase();
