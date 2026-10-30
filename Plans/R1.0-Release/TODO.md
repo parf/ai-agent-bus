@@ -224,7 +224,7 @@ configuration written under `runner/` on the host, then a `reload` call.
 - ⏳ DR.1 The dedicated runner applies the agent's bus secret
   - Builds: `agent-bus run` reads its agent's own bus secret with the agent's token and puts it in the script's environment, as the runner does for a script agent, parsed by the shared [env-file parser](../../docs/03-records-service.md#env-file-syntax); stated in the sandbox job's environment, since a `--sandbox on` child starts from the user manager's, not the dedicated runner's; read per message, so `agent-bus secret` takes effect without a restart; never in `agent-bus logs`, the process title or an error
   - Precedence: the secret wins over the shell's value of the same name ([№Q174](DECISIONS.md#recorded-decisions)); the message stamps still win over both
-  - Also: the bundled debug agent's `env` answer leaves out the record's secret keys — today, under the runner, it hands the secret to any caller its ACL admits
+  - Also: ✅ the bundled debug agent's `env` answer no longer shows `AGENT_BUS_CONFIG` or any bus-prefixed secret key: only delivered fields and the bus address show a value (branch ab-w2b/T-7-leak)
   - Acceptance: a script started by `agent-bus run` sees `KEY=value` from its record's secret, sandboxed and not; a changed secret reaches the next message; no secret value appears in its log or title; the debug agent's `env` names no secret value
   - Mutant: skip the secret layer, read it only at start, or leave it out of the sandboxed job's env, and a check must fail
 

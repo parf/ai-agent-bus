@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.172 — 2026-10-30
+
+the debug agent env answer masks every bus-prefixed secret (AGENT_BUS_CONFIG, control token, record secret keys), showing only an allowlist
+
 ## 0.9.171 — 2026-10-30
 
 Shared Python subscription engine and language-neutral vectors: filters, authority re-checked at delivery, refused-send and revoked-author handling, damaged rows as invalid_state.
