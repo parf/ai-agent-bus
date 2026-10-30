@@ -44,7 +44,7 @@ already follows the rule, otherwise what it does instead. Telegram shares Slack'
 | Start | from the mailbox's next message at add | from now; history read at start is not sent | from now; Telegram after a restart still sends what arrived while it was down |
 | Limits | 100 per instance, 20 per author, filter 200 characters, 50 ms per filter | shared per-instance/per-author limits and bounded portable filters | no count limit; filter 200 characters; 50 ms per test, then the subscription is disabled |
 | Listing | id, target, author, time, filter, sent, held and skipped copies, pause | shared row: id, target, selector, filter, author, time, sent and dropped counts | id, channel, target, filter, author, time, forwarded count, disabled, last error |
-| Management | anyone admitted lists all; the author or the Owner and Maintainers delete | creator lists/deletes own; direct Owner/Maintainers manage all | anyone lists; add/edit/delete require destination management or direct Owner/Maintainer |
+| Management | anyone admitted lists all; the author or the Owner and Maintainers delete | creator lists/deletes own; direct Owner/Maintainers manage all | as logwatch, for add, edit and delete |
 | Invalid stored state | a damaged entry is listed as disabled and only the Owner and Maintainers delete it; a bad stored filter disables intake | invalid filters stay inert and visible; damaged rows are manager-only repair | not checked at load; a bad stored filter stops that event for the subscriptions after it |
 
 <details>
