@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { superviseDelivery, type Push } from "./push.ts";
+import { startPush, superviseDelivery, type Push } from "./push.ts";
 
 // J60: a push that stopped because a delivery failed is started again, a few times.
 const fakePush = (end: "delivery" | "refused" | "stopped" | undefined, running = false): Push => ({ running: () => running, ended: () => end, stop() {}, done: Promise.resolve() });
@@ -36,4 +36,19 @@ test("a restarted push that stays healthy gets its tries back", async () => {
   current = fakePush("delivery");
   t = 6_000; await check(); // restart again, as a new first try
   expect(restarts).toBe(2);
+});
+
+// The reason the real push reports is what the supervisor reads.
+test("a push says why it ended: a failed delivery, a refusal, its own stop", async () => {
+  const one = { message_id: "m1", from: "#a@x" };
+  const failing = startPush({ name: "#s@x", consume: async () => one } as any, async () => { throw new Error("no thread"); }, () => {});
+  await failing.done;
+  expect([failing.running(), failing.ended()]).toEqual([false, "delivery"]);
+  const refused = startPush({ name: "#s@x", consume: async () => { throw new (await import("./bus.ts")).BusError(409, "has a reader"); } } as any, async () => {}, () => {});
+  await refused.done;
+  expect(refused.ended()).toBe("refused");
+  const own = startPush({ name: "#s@x", consume: async () => { await Bun.sleep(30); return null; } } as any, async () => {}, () => {});
+  own.stop();
+  await own.done;
+  expect(own.ended()).toBe("stopped");
 });
