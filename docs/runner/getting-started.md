@@ -60,12 +60,13 @@ Install the code as root into the shared folder that every runner reads:
 sudo mkdir -p "$AGENTS/hello-guide"
 printf '#!/bin/sh\nprintf "hello, %%s\\n" "$1"\n' | sudo tee "$AGENTS/hello-guide/hello.sh" >/dev/null
 sudo chmod 755 "$AGENTS/hello-guide/hello.sh"
-printf '{"command":"./hello.sh","form":"args","description":"Greets the caller"}\n' | sudo tee "$AGENTS/hello-guide/agent.json" >/dev/null
+printf '{"command":"./hello.sh","form":"args","asks":"none","description":"Greets the caller"}\n' | sudo tee "$AGENTS/hello-guide/agent.json" >/dev/null
 ```
 
 - 📥 The script gets the message as one argument and prints the answer.
 - 🏷️ The folder name becomes the agent name; nothing else to list.
 - 📝 Every package needs a `description`; callers see it.
+- 🙋 `"asks":"none"` says the script knows nothing of questions about itself: the runner answers `--help` from the description and replies `unsupported: <ask>` to the rest, without starting it.
 
 ## Load it and grant access
 

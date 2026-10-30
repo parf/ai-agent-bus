@@ -176,12 +176,13 @@ own work directory; the plain name gains its `#` on its own:
 
 ```sh
 printf '#!/bin/sh\necho "hello $1"\n' > ~/hi.sh && chmod +x ~/hi.sh
-agent-bus run "sample-hello@$(hostname)" ~/hi.sh --allow '*' --descr greets
+agent-bus run "sample-hello@$(hostname)" ~/hi.sh --allow '*' --descr greets --no-asks
 agent-bus call "#sample-hello@$(hostname)" --wait 10s world    # call takes the # as written
 # hello world
 agent-bus stop "sample-hello@$(hostname)"      # a deliberate stop unregisters it
 ```
 
+- **`--no-asks`** is for a script that knows nothing of questions about itself: asks such as `--help` are answered from `--descr` or as `unsupported`, and never start the script.
 - **When done:** `ssh -S ~/.ssh/agent-bus-fwd -O exit rdvp` closes the forward.
   `-M` is what makes that control socket, since without it only a
   `ControlMaster` setting in your SSH config would. Stop a runner before you
