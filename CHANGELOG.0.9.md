@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.211 — 2026-10-30
+
+Runner pools take settings-file overlays under bwrap, refused without it
+
 ## 0.9.210 — 2026-10-30
 
 The runner serves a pool of jsonl children, answering each message by its echoed id

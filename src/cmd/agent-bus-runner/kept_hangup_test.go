@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/sandbox"
 )
 
@@ -137,4 +138,69 @@ func TestReloadRestartsAKeptAgentWhoseLimitsChanged(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(s.work, "hups")); err == nil {
 		t.Fatal("a limits change was sent SIGHUP instead of a restart")
 	}
+}
+
+// A reload that changes one kept agent's settings tells that agent and no
+// other: the sibling, whose package and entry are untouched, gets no SIGHUP.
+func TestReloadSendsNoSighupToAnUntouchedSiblingKeptAgent(t *testing.T) {
+	body := "trap 'printf h >> \"$AGENT_BUS_WORK/hups\"' HUP\nprintf s >> \"$AGENT_BUS_WORK/starts\"\nwhile :; do sleep .02; done\n"
+	r, b, _, tokens := configurationFixtureTokens(t, "itself", body, io.Discard)
+	work := func(name string) string {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		s := r.served[name]
+		if s == nil {
+			t.Fatalf("%s not served", name)
+		}
+		return s.work
+	}
+	// The fixture's keeper is running before its settings change, or no SIGHUP
+	// is owed to it for the first one.
+	fixture := work("#fixture@h")
+	await(t, filepath.Join(fixture, "starts"), "s", 3*time.Second)
+	if _, err := b.Register(protocol.Record{Name: "#sibling@h", Kind: protocol.KindAgent, Owner: "owner@h"}); err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(r.agents, "sibling")
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	script := filepath.Join(dir, "agent.sh")
+	if err := os.WriteFile(script, []byte(body), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "agent.json"), mustJSON(map[string]any{"description": "Second test agent", "command": "/bin/sh " + script, "serves": "itself", "processes": 1, "deadline": "100ms"}), 0600); err != nil {
+		t.Fatal(err)
+	}
+	host := func(tag string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(r.host, "agents.json"), mustJSON(map[string]any{
+			"fixture": map[string]any{"sandbox": "off", "tags": []string{tag}},
+			"sibling": map[string]any{"sandbox": "off"},
+		}), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	host("first")
+	tok, err := tokens.Issue("#sibling@h")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(r.tokenFile("#sibling@h"), []byte(tok), 0600); err != nil {
+		t.Fatal(err)
+	}
+	r.reload()
+	sibling := work("#sibling@h")
+	await(t, filepath.Join(sibling, "starts"), "s", 3*time.Second)
+	// Adding the sibling and the first tag was itself a change of the fixture's
+	// settings: its one SIGHUP is told before the change this check is about.
+	await(t, filepath.Join(fixture, "hups"), "h", 2*time.Second)
+	host("second")
+	r.reload()
+	await(t, filepath.Join(fixture, "hups"), "hh", 2*time.Second)
+	time.Sleep(150 * time.Millisecond)
+	if _, err := os.Stat(filepath.Join(sibling, "hups")); err == nil {
+		t.Fatal("an untouched sibling was sent SIGHUP")
+	}
+	await(t, filepath.Join(sibling, "starts"), "s", 0)
 }

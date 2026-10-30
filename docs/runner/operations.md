@@ -121,9 +121,9 @@ The output is from the development node on 2026-10-30; names differ on yours.
 | Call | Does |
 |---|---|
 | `read <file>` | Host env files answer `file`, `exists`, `sha256` (of the original bytes), `size` and variable `names`, never values. Other files answer `file`, `exists`, `content`. An absent file says `exists: false` |
-| `write <file>` + the content | the content is everything after the first line. It is checked as the runner will read it — env syntax, `agents.json` an object with valid limits, an override's keys — and refused with `error: …` and the file untouched, or replaces the file whole and applies it as `reload` does, answering as `status` |
+| `write <file>` + the content | the content is everything after the first line. It is checked as the runner will read it — env syntax, `agents.json` an object with valid limits, an override's keys, a settings override a JSON object naming a file the agent ships — and refused with `error: …` and the file untouched, or replaces the file whole and applies it as `reload` does, answering as `status` |
 | `create <agent>/<instance>` | adds its `agents.json` entry, enabled, and an empty `runner/<agent>/<instance>/env`; applied |
-| `delete <agent>/<instance>` | removes the entry, its `env` and its override; its work directory, kept token and bus record stay |
+| `delete <agent>/<instance>` | removes the entry, its `env` and its overrides; its work directory, kept token and bus record stay |
 
 | File | `read` | `write` |
 |---|---|---|
@@ -131,6 +131,7 @@ The output is from the development node on 2026-10-30; names differ on yours.
 | `runner/agents.json` | yes | yes |
 | `runner/<agent>/env`, `runner/<agent>/<instance>/env` | digest and variable names only | yes, whole replacement |
 | `runner/<agent>/agent.json`, `runner/<agent>/<instance>/agent.json` | yes | yes ([overrides](configuration.md#overriding-the-authors-options)) |
+| `runner/<agent>/<file>.json`, `runner/<agent>/<instance>/<file>.json` | yes | yes, for a file the agent ships ([settings overrides](configuration.md#overriding-a-settings-file)) |
 
 - **Example:** `create mail/home` adds an instance; `write runner/mail/home/env` with `IMAP_USER=carol` on the next line sets its variable.
 - **Each `status` row has a `key`,** the `<agent>` or `<agent>/<instance>` its files are named by.

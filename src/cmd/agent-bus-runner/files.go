@@ -56,13 +56,14 @@ const (
 	fileEnv      = "env"      // runner/<agent>[/<instance>]/env
 	fileOverride = "override" // runner/<agent>[/<instance>]/agent.json
 	fileAgents   = "agents"   // runner/agents.json
+	fileSettings = "settings" // runner/<agent>[/<instance>]/<file>.json, a merge patch of a file the agent ships
 )
 
 // hostFile is the path and kind of a file a call names, or why it may not
 // name it.
 func (r *runner) hostFile(name string) (string, string, error) {
 	parts := strings.Split(name, "/")
-	refuse := fmt.Errorf("%s is not a file the runner reads or writes: agent.d/<agent>/agent.json or env.dist, runner/agents.json, runner/<agent>[/<instance>]/env or agent.json", name)
+	refuse := fmt.Errorf("%s is not a file the runner reads or writes: agent.d/<agent>/agent.json or env.dist, runner/agents.json, runner/<agent>[/<instance>]/env, agent.json or <file>.json", name)
 	if len(parts) < 2 || len(parts) > 4 {
 		return "", "", refuse
 	}
@@ -89,6 +90,11 @@ func (r *runner) hostFile(name string) (string, string, error) {
 			kind = fileOverride
 		}
 		return filepath.Join(append([]string{r.host}, parts[1:]...)...), kind, r.noLinks(r.host, parts[1:]...)
+	case base == "runner" && len(parts) >= 3 && strings.HasSuffix(last, ".json") && segment.MatchString(last):
+		if err := r.hostDir(parts[1]); err != nil {
+			return "", "", err
+		}
+		return filepath.Join(append([]string{r.host}, parts[1:]...)...), fileSettings, r.noLinks(r.host, parts[1:]...)
 	}
 	return "", "", refuse
 }
@@ -193,6 +199,10 @@ func (r *runner) writeHostFile(name, content string) error {
 		}
 	case fileOverride:
 		if _, err := parseOverride(name, []byte(content)); err != nil {
+			return err
+		}
+	case fileSettings:
+		if err := r.checkSettingsOverride(name, []byte(content)); err != nil {
 			return err
 		}
 	}
@@ -326,7 +336,13 @@ func (r *runner) deleteInstance(key string) error {
 	// Its files first and its entry last: a failure between leaves an entry
 	// a retry still finds, never files no entry names.
 	home := filepath.Join(r.host, dir, instance)
-	for _, f := range []string{"env", "agent.json"} {
+	files := []string{"env"}
+	if list, _ := filepath.Glob(filepath.Join(home, "*.json")); len(list) > 0 {
+		for _, f := range list {
+			files = append(files, filepath.Base(f))
+		}
+	}
+	for _, f := range files {
 		if err := os.Remove(filepath.Join(home, f)); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
@@ -380,4 +396,31 @@ func readAgents(runnerDir string) (map[string]map[string]json.RawMessage, error)
 		}
 	}
 	return entries, nil
+}
+
+// checkSettingsOverride is what reload would refuse of an override of a
+// shipped settings file, said before it is written: a JSON object, naming a
+// file the agent ships.
+func (r *runner) checkSettingsOverride(name string, content []byte) error {
+	var patch map[string]json.RawMessage
+	if err := json.Unmarshal(content, &patch); err != nil {
+		return fmt.Errorf("%s: a JSON object naming only what changes: %w", name, err)
+	}
+	if patch == nil { // JSON null unmarshals to a nil map without an error
+		return fmt.Errorf("%s: a JSON object naming only what changes, not null", name)
+	}
+	parts := strings.Split(name, "/")
+	last := parts[len(parts)-1]
+	b, err := agentmeta.ReadFile(filepath.Join(r.agents, parts[1], last))
+	if errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("%s overrides a file agent.d/%s does not ship", name, parts[1])
+	}
+	if err != nil {
+		return err
+	}
+	var shipped any
+	if err := json.Unmarshal(b, &shipped); err != nil {
+		return fmt.Errorf("agent.d/%s/%s is not JSON, so it is not overridden", parts[1], last)
+	}
+	return nil
 }

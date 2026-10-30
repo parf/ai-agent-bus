@@ -243,7 +243,7 @@ func (st *stream) start() (*streamChild, error) {
 	}
 	argv := launch.box.Wrap(ports.Job{
 		Argv: []string{"/bin/sh", "-c", "exec " + launch.cmd},
-		Work: s.work, Read: []string{s.dir}, Net: launch.net, TmpSize: j.tmp, Seccomp: len(j.seccomp) > 0,
+		Work: s.work, Read: []string{s.dir}, Over: launch.over, Net: launch.net, TmpSize: j.tmp, Seccomp: len(j.seccomp) > 0,
 	})
 	if j.files > 0 {
 		argv = append([]string{"prlimit", fmt.Sprintf("--nofile=%d:%d", j.files, j.files), "--"}, argv...)

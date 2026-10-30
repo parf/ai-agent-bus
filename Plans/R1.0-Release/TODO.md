@@ -220,14 +220,11 @@ configuration written under `runner/` on the host, then a `reload` call.
 
 - ✅ DR.1 The dedicated runner applies the agent's bus secret — **0.9.174**, `70fcfa4a` ([result](DONE.md#dr1-the-dedicated-runner-applies-the-agents-bus-secret))
 
-- ⏳ M.5 The host's controls (audit 2026-10-30; `depends` is now applied, see M.5a; reload sends no `SIGHUP` and does not drain; only `agent.json` is overridable; `backup` moved to R1.1)
-  - ✅ M.5a `depends` ordering and cycle refusal at reload (branch ab-w2b/T-7-m5: starts in dependency order, an unknown name or a cycle refuses by name, seven mutants red); M.5b reload semantics: `SIGHUP`, restart after drain (M, after M.3c); M.5c overrides of other shipped JSON files, mounted (M)
-  - Built in 0.8.207: `enable`/`disable`/`start`/`stop`/`restart` calls ([controlling one agent](../../docs/runner/operations.md#controlling-one-agent), [№Q181](DECISIONS.md#recorded-decisions))
-  - Built in 0.8.210: reading and writing the host's files, instance create and delete ([the host's files](../../docs/runner/operations.md#the-hosts-files-over-the-bus)); the override of `agent.json`, read by the runner ([overriding](../../docs/runner/configuration.md#overriding-the-authors-options))
-  - Builds: overrides of an agent's other shipped JSON files (JSON Merge Patch, mounted); `depends` ordering; the `backup` verb; a configuration change applied at `reload` ([№Q19](runner.md#stop-and-reload))
-  - Format: how an archive larger than one answer travels
-  - Acceptance: an override changes the agent's view of its file and a refused key is named; a cycle in `depends` is refused; `backup` restores with the intended key only; at `reload` a changed agent's kept processes get `SIGHUP` and an untouched sibling gets none; a changed env file or bus secret restarts its kept processes after their work drains ([№Q161](DECISIONS.md#recorded-decisions))
-  - Mutant: Not recorded in the source.
+- ✅ M.5 The host's controls
+  - M.5a dependency order/cycle refusal was already built. M.5b reload SIGHUP and drain use M.3; the sibling test registers a second agent and proves the untouched keeper gets no signal. M.5c shipped JSON overrides and their bus read/write/delete calls are built on `ab-w2c/M5`, stacked after M.3.
+  - A settings patch is an object naming a file the agent ships; agent then instance JSON Merge Patches are mounted read-only by bubblewrap. Null patches, unshipped files and sandbox-off overrides are refused by file name. The digest includes the override so a changed kept agent restarts after drain; the author file stays intact.
+  - Existing enable/disable/start/stop/restart and host-file controls remain; backup moved to R1.1. The current contract is [runner operations](../../docs/runner/operations.md#the-hosts-files-over-the-bus) and [settings overrides](../../docs/runner/configuration.md#overriding-a-settings-file).
+  - Result: the combined runner/ports/sandbox runtime and tests are byte-identical to reviewed `e80f5143`; focused runner+sandbox `-race` 154/0, no skips, and guides3/0. [Evidence](DONE.md#m5-host-controls-and-settings-overrides). The inherited malformed/unknown answer-line test LOW is J50, a separate follow-up after landing.
 
 - ⏳ M.6 Pools and edges (audit 2026-10-30: the daemon already lets two readers share an inbox; `share` in `agents.json` is parsed and read by nothing; no member hostname field)
   - M.6a wire `share` to the consume call and add the member hostname field with the listing (L, daemon change, owner restarts); M.6b edge runners as `#runner/<edge>@<realm>` (M, after Q165)

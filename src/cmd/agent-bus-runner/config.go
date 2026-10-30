@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/agentmeta"
+	"github.com/parf/ai-agent-bus/internal/ports"
 )
 
 // What an agent's author ships in agent.d/<agent>/agent.json, and what the
@@ -64,6 +65,7 @@ type installed struct {
 	Agent        agentFile
 	Host         hostEntry
 	Span         span
+	Over         []ports.Overlay // the host's merged shipped JSON files, mounted read-only
 	Refused      string
 	LastExit     *exitStatus // latest actual exit observed since load
 	Unconfigured bool        // exit78, cleared only by a fresh load
@@ -228,6 +230,11 @@ func load(agentDir, runnerDir string) ([]installed, error) {
 					in.Refused = err.Error()
 				} else if ok {
 					in.Agent, in.Span = o, osp
+				}
+				if over, sum, err := shippedOverlays(runnerDir, agentDir, dir, k); err != nil {
+					in.Refused = err.Error()
+				} else if len(over) > 0 {
+					in.Over, in.Digest = over, in.Digest+sum
 				}
 			}
 			out = append(out, in)

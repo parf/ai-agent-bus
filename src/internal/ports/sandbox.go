@@ -41,4 +41,11 @@ type Job struct {
 	// Bind are paths mounted read-write at the same place, such as the bus
 	// socket an agent that serves itself talks to.
 	Bind []string
+	// Over are files mounted read-only over a path the child sees, such as a
+	// shipped settings file with the host's override merged in. A sandbox
+	// that cannot mount them must be refused one, as the runner does for "off".
+	Over []Overlay
 }
+
+// Overlay is the file Src seen at Dst.
+type Overlay struct{ Src, Dst string }

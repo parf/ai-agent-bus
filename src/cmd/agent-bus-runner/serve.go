@@ -74,13 +74,14 @@ type launchSettings struct {
 	box       ports.Sandbox
 	net       bool
 	jail      *jail
+	over      []ports.Overlay
 	stream    *stream // the pool this run was handed to, kept even if a reload retires it meanwhile
 }
 
 func (r *runner) launchSettings(s *served) launchSettings {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return launchSettings{key: s.in.Key, agent: s.in.Agent, cmd: s.cmd, env: s.env, secretEnv: s.secretEnv, box: s.box, net: s.net, jail: s.jail, stream: s.stream}
+	return launchSettings{key: s.in.Key, agent: s.in.Agent, cmd: s.cmd, env: s.env, secretEnv: s.secretEnv, box: s.box, net: s.net, jail: s.jail, over: s.in.Over, stream: s.stream}
 }
 
 // serveable says why an agent cannot be served by this wave, or "".
@@ -246,6 +247,10 @@ func (r *runner) serve(ctx context.Context) {
 		box, why := r.sandboxFor(*in)
 		if why != "" {
 			in.Refused = why
+			continue
+		}
+		if len(in.Over) > 0 && box.Name() != "bwrap" {
+			in.Refused = "runner/" + in.Dir + ": an override of a shipped file is mounted over it, which needs the bubblewrap sandbox; this agent runs in " + box.Name() + ", so there is nowhere to mount it"
 			continue
 		}
 		if in.Agent.Serves == "itself" && box.Name() != "off" {
@@ -863,7 +868,7 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	}
 	argv := launch.box.Wrap(ports.Job{
 		Argv: script.Argv(launch.cmd, launch.agent.Form == "args", e.Body, e.Roles),
-		Work: s.work, Read: []string{s.dir}, Net: launch.net, TmpSize: j.tmp, Seccomp: len(j.seccomp) > 0,
+		Work: s.work, Read: []string{s.dir}, Over: launch.over, Net: launch.net, TmpSize: j.tmp, Seccomp: len(j.seccomp) > 0,
 	})
 	// Open files are a limit of the process, not of the cgroup: prlimit sets
 	// it and then is the sandbox, so every process of the agent inherits it.

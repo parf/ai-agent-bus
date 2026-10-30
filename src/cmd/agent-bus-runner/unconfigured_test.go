@@ -27,6 +27,14 @@ func configurationFixture(t *testing.T, serves, body string, sandboxName ...stri
 
 func configurationFixtureOutput(t *testing.T, serves, body string, output io.Writer, sandboxName ...string) (*runner, *core.Bus, string) {
 	t.Helper()
+	r, b, script, _ := configurationFixtureTokens(t, serves, body, output, sandboxName...)
+	return r, b, script
+}
+
+// configurationFixtureTokens also returns the token store, for a test that
+// registers a second agent and hands it its token.
+func configurationFixtureTokens(t *testing.T, serves, body string, output io.Writer, sandboxName ...string) (*runner, *core.Bus, string, *auth.Tokens) {
+	t.Helper()
 	b := core.New()
 	tokens, err := auth.Load(memory.NewTokens(), "owner@h")
 	if err != nil {
@@ -39,7 +47,8 @@ func configurationFixtureOutput(t *testing.T, serves, body string, output io.Wri
 			t.Fatal(err)
 		}
 	}
-	// Match the daemon's J39 socket-close observation when replacing a reader.
+	// ConnContext lets the daemon see a reader's closed connection, so a replaced
+	// reader's cancelled poll is handed no message (J39).
 	httpServer := httptest.NewUnstartedServer(server.Handler())
 	httpServer.Config.ConnContext = api.ConnContext
 	httpServer.Start()
@@ -82,7 +91,7 @@ func configurationFixtureOutput(t *testing.T, serves, body string, output io.Wri
 	}
 	t.Cleanup(func() { cancel(); r.stopKept() })
 	r.reload()
-	return r, b, script
+	return r, b, script, tokens
 }
 
 func awaitConfigurationState(t *testing.T, r *runner, state string) agentStatus {

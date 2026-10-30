@@ -178,3 +178,10 @@ Owner, 2026-10-30: every doc leads with why, then what you get, then real exampl
 - M.3-only split omits M.5's settings-overlay type/fields, mount/refusal paths and guides. The ConnContext test fixture retains J39; the Waiting==0 workaround is absent. The M.5 test-helper refactor is deferred with its sibling test.
 - Focused runner package on this split: `go test -race ./cmd/agent-bus-runner -count=1 -timeout=120s -v`, 146 top-level passes, no skips, 29.7 s. Both changed runner guides pass docs-order.
 - Original owning mutants and reviews remain with the reviewed source; this split receives its own non-author read. The rebased combined runner/ports/sandbox source is byte-identical to `e80f5143`.
+
+## M.5 host controls and settings overrides
+
+- Stacked after M.3: sibling no-SIGHUP proof with a second registered agent/token; shipped JSON merge patches, read-only overlay mounts, digest/restart, and bus read/write/delete. Invalid/null patches, unknown files and unsupported sandbox modes fail closed by file name.
+- Combined runner, ports/sandbox runtime and tests are byte-identical to fully reviewed `e80f5143` after its rebase; no source fixes or new answer-line seam. Existing readers and owning mutants apply to that exact source.
+- Focused `go test -race ./cmd/agent-bus-runner ./internal/sandbox -count=1 -timeout=120s -v`: 154 top-level passes, no skips (runner29.758s; sandbox1.055s). All three runner guides pass docs-order. Lock released, no normal gate or bump by the worker.
+- Runner-level malformed and unknown-id line tests remain J50; they are deliberately not folded into this byte-identical landing.

@@ -43,6 +43,9 @@ func (Bwrap) Wrap(j ports.Job) []string {
 	for _, p := range j.Bind {
 		out = append(out, "--bind", p, p)
 	}
+	for _, o := range j.Over {
+		out = append(out, "--ro-bind", o.Src, o.Dst)
+	}
 	out = append(out, "--bind", j.Work, j.Work, "--chdir", j.Work)
 	if j.Seccomp {
 		out = append(out, "--seccomp", "3")

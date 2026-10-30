@@ -58,6 +58,7 @@ OPENROUTER_API_KEY (required): Provider API key, required. Set only in runner/ai
 | `runner/<agent>/env` | Host settings shared by every instance of the agent |
 | `runner/<agent>/<instance>/env` | Settings for one instance |
 | `runner/<agent>[/<instance>]/agent.json` | The host's [override](#overriding-the-authors-options) of run options |
+| `runner/<agent>[/<instance>]/<file>.json` | The host's [override](#overriding-a-settings-file) of another JSON file the agent ships |
 
 - 🧩 An agent-wide env file holding every required key makes the plain agent runnable without an instance.
 - 🛡️ The bus record owns its access list, Maintainers and Secret.
@@ -236,6 +237,23 @@ Give the agent three processes and two minutes per run:
 
 - 🚫 A key that may not be overridden refuses the agent at `reload`, naming the file and the key; the runner's `write` call refuses it before writing.
 - 🔗 `{"depends": []}` drops a dependency that runs elsewhere; the list replaces the author's whole list.
+
+## Overriding a settings file
+
+- 🛠️ An agent that ships its own settings in a JSON file reads them where it always did; the host changes them without editing the package.
+- 📄 `runner/<agent>/<file>.json` applies to the agent and every instance; `runner/<agent>/<instance>/<file>.json` to one instance, after it.
+- 🧩 Each is a JSON Merge Patch of the shipped file: nested objects merge, `null` removes a key, a list replaces the shipped list whole.
+- 🔒 The runner mounts the merged file read-only over the shipped path inside the sandbox; the file on disk stays the author's.
+
+Turn one nested setting off and keep the rest, in `runner/hello/settings.json`:
+
+```json
+{"retry": {"enabled": false}}
+```
+
+- 🚫 An override of a file the package does not ship refuses the agent at `reload`, naming the file.
+- 🛡️ An agent running with the sandbox off is refused too: there is nowhere to mount the file.
+- 🔄 A changed override restarts a kept agent at `reload`; a one-message agent reads it on its next run.
 
 ## Limits
 
