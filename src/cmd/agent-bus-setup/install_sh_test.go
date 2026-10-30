@@ -61,8 +61,8 @@ func (f *installFixture) render(keys string) string {
 	s := string(src)
 	for old, new := range map[string]string{
 		`RELEASES="https://github.com/parf/ai-agent-bus/releases"`: `RELEASES="` + f.server.URL + `"`,
-		`RELEASE_KEYS=""`:             `RELEASE_KEYS="` + keys + `"`,
-		` --proto '=https' --tlsv1.2`: "",
+		`RELEASE_KEYS=""`: `RELEASE_KEYS="` + keys + `"`,
+		` --proto '=https' --proto-redir '=https' --tlsv1.2`: "",
 	} {
 		if strings.Count(s, old) != 1 {
 			f.t.Fatalf("install.sh no longer holds %q once", old)
@@ -78,11 +78,20 @@ func (f *installFixture) render(keys string) string {
 
 // publish writes one client release, signed unless sign is false.
 func (f *installFixture) publish(version string, sign bool) string {
+	return f.publishEdition("agent-bus-client", version, sign, nil)
+}
+
+// publishEdition writes one edition's archive for this host, plus stand-ins
+// for the other three, and signs the four unless sign is false.
+func (f *installFixture) publishEdition(edition, version string, sign bool, extra map[string]string) string {
 	f.t.Helper()
-	name := "agent-bus-client-" + version + "-linux-" + map[string]string{"amd64": "x86_64", "arm64": "aarch64"}[goarchFromUname(f.t)]
+	name := edition + "-" + version + "-linux-" + map[string]string{"amd64": "x86_64", "arm64": "aarch64"}[goarchFromUname(f.t)]
 	files := map[string]string{"agent-bus": "#!/bin/sh\necho agent-bus " + version + "\n", "agent-bus-runner": "#!/bin/sh\n", "agent-bus-ts": "#!/bin/sh\necho ts \"$@\"\n",
 		"launchers/ab-claude": "#!/bin/sh\n", "launchers/ab-codex": "#!/bin/sh\n", "launchers/ab-opencode": "#!/bin/sh\n", "launchers/ab-opencode1": "#!/bin/sh\n",
 		"internal/version/VERSION": version + "\n"}
+	for p, body := range extra {
+		files[p] = body
+	}
 	var manifest strings.Builder
 	for _, p := range sortedKeys(files) {
 		sum := sha256.Sum256([]byte(files[p]))
@@ -108,8 +117,18 @@ func (f *installFixture) publish(version string, sign bool) string {
 	if err := os.WriteFile(filepath.Join(rel, name+".tar.gz"), buf.Bytes(), 0o644); err != nil {
 		f.t.Fatal(err)
 	}
+	// release-sign.sh signs exactly a release's four archives; the other
+	// three are stand-ins here.
+	for _, edition := range []string{"agent-bus", "agent-bus-client"} {
+		for _, arch := range []string{"x86_64", "aarch64"} {
+			other := filepath.Join(rel, edition+"-"+version+"-linux-"+arch+".tar.gz")
+			if _, err := os.Stat(other); os.IsNotExist(err) {
+				os.WriteFile(other, []byte("stand-in "+edition+" "+arch), 0o644)
+			}
+		}
+	}
 	if sign {
-		if out, err := exec.Command("../../release-sign.sh", rel, f.key).CombinedOutput(); err != nil {
+		if out, err := exec.Command("../../release-sign.sh", rel, f.key, version).CombinedOutput(); err != nil {
 			f.t.Fatalf("release-sign.sh: %v %s", err, out)
 		}
 	}
@@ -183,7 +202,8 @@ func TestInstallShClientInstallsUpdatesAndRollsBack(t *testing.T) {
 func TestInstallShRefusesBeforeWritingAnything(t *testing.T) {
 	cases := map[string]func(f *installFixture, rel string){
 		"tampered archive": func(f *installFixture, rel string) {
-			matches, _ := filepath.Glob(filepath.Join(rel, "*.tar.gz"))
+			arch := map[string]string{"amd64": "x86_64", "arm64": "aarch64"}[goarchFromUname(f.t)]
+			matches, _ := filepath.Glob(filepath.Join(rel, "agent-bus-client-*-linux-"+arch+".tar.gz"))
 			body, _ := os.ReadFile(matches[0])
 			body[len(body)/2] ^= 0xff
 			os.WriteFile(matches[0], body, 0o644)
@@ -230,5 +250,127 @@ func TestInstallShWithoutAKeyInstallsNothing(t *testing.T) {
 	f.script = f.render("")
 	if out, err := f.run("--client", "--version", "1.0.0"); err == nil || !strings.Contains(out, "carries no release key") {
 		t.Fatalf("an unkeyed script installed or said otherwise: %v %s", err, out)
+	}
+}
+
+func TestInstallShRefusesAQuietDowngradeButTakesANamedOne(t *testing.T) {
+	f := newInstallFixture(t)
+	f.publish("1.0.1", true)
+	f.publish("1.0.0", true)
+	if out, err := f.run("--client", "--version", "1.0.1"); err != nil {
+		t.Fatalf("install: %v %s", err, out)
+	}
+	// The older release served as the latest is refused.
+	latest := filepath.Join(f.dir, "latest", "download")
+	os.MkdirAll(filepath.Dir(latest), 0o755)
+	if err := os.Symlink(filepath.Join(f.dir, "download", "v1.0.0"), latest); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := f.run("--client"); err == nil || !strings.Contains(out, "older than the installed 1.0.1") || f.current() != "1.0.1" {
+		t.Fatalf("quiet downgrade: %v %s current=%s", err, out, f.current())
+	}
+	if out, err := f.run("--client", "--version", "1.0.0"); err != nil || f.current() != "1.0.0" {
+		t.Fatalf("named downgrade: %v %s current=%s", err, out, f.current())
+	}
+	// The same release again is not a failure.
+	if out, err := f.run("--client", "--version", "1.0.0"); err != nil || !strings.Contains(out, "already current") {
+		t.Fatalf("idempotent update: %v %s", err, out)
+	}
+}
+
+func TestInstallShKeyFingerprintAndForeignCommands(t *testing.T) {
+	f := newInstallFixture(t)
+	f.publish("1.0.0", true)
+	out, err := exec.Command("ssh-keygen", "-l", "-f", f.key+".pub").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	fp := strings.Fields(string(out))[1]
+	if out, err := f.run("--client", "--version", "1.0.0", "--key-fingerprint", "SHA256:not-this-one"); err == nil || !strings.Contains(out, "is not SHA256:not-this-one") {
+		t.Fatalf("a wrong pinned key installed: %v %s", err, out)
+	}
+	bin := filepath.Join(f.home, ".local/bin")
+	os.MkdirAll(bin, 0o755)
+	os.WriteFile(filepath.Join(bin, "ab-claude"), []byte("mine"), 0o755)
+	if out, err := f.run("--client", "--version", "1.0.0", "--key-fingerprint", fp); err == nil || !strings.Contains(out, "is not a link this installer made") || f.current() != "" {
+		t.Fatalf("a real file was replaced or the release switched: %v %s", err, out)
+	}
+	os.Remove(filepath.Join(bin, "ab-claude"))
+	if out, err := f.run("--client", "--version", "1.0.0", "--key-fingerprint", fp); err != nil || f.current() != "1.0.0" || !strings.Contains(out, fp) {
+		t.Fatalf("the pinned key did not install: %v %s", err, out)
+	}
+}
+
+func TestReleaseSignSignsExactlyOneReleaseMatchingCI(t *testing.T) {
+	f := newInstallFixture(t)
+	rel := f.publish("1.0.0", false)
+	sign := func(extra ...string) (string, error) {
+		out, err := exec.Command("../../release-sign.sh", append([]string{rel, f.key, "1.0.0"}, extra...)...).CombinedOutput()
+		return string(out), err
+	}
+	stray := filepath.Join(rel, "agent-bus-0.0.9-linux-x86_64.tar.gz")
+	os.WriteFile(stray, []byte("old"), 0o644)
+	if out, err := sign(); err == nil || !strings.Contains(out, "not one of this release's archives") {
+		t.Fatalf("a stray archive was signed: %v %s", err, out)
+	}
+	os.Remove(stray)
+	ci := filepath.Join(t.TempDir(), "ci-sums")
+	sums, _ := exec.Command("sh", "-c", "cd "+rel+" && sha256sum *.tar.gz").Output()
+	os.WriteFile(ci, sums, 0o644)
+	matches, _ := filepath.Glob(filepath.Join(rel, "agent-bus-client-*.tar.gz"))
+	body, _ := os.ReadFile(matches[0])
+	os.WriteFile(matches[0], append(body, 0), 0o644)
+	if out, err := sign(ci); err == nil || !strings.Contains(out, "does not match the CI hash list") {
+		t.Fatalf("a draft swapped after CI was signed: %v %s", err, out)
+	}
+	if _, err := os.Stat(filepath.Join(rel, "SHA256SUMS.sig")); err == nil {
+		t.Fatal("a refused release left a signature")
+	}
+	os.WriteFile(matches[0], body, 0o644)
+	if out, err := sign(ci); err != nil {
+		t.Fatalf("matching release refused: %v %s", err, out)
+	}
+}
+
+// The full node: setup runs, as "root", from the copy the root shell made and
+// checked, never from the user's download directory, with the options after --.
+func TestInstallShFullNodeRunsSetupFromTheRootCopy(t *testing.T) {
+	f := newInstallFixture(t)
+	record := filepath.Join(t.TempDir(), "setup-ran")
+	f.publishEdition("agent-bus", "1.0.0", true, map[string]string{
+		"agent-bus-setup": "#!/bin/sh\nprintf '%s\\n' \"$(cd \"$(dirname \"$0\")\" && pwd)\" \"$@\" > " + record + "\n"})
+	stage := t.TempDir()
+	src, _ := os.ReadFile(f.script)
+	s := strings.Replace(string(src), "mkdir -p /usr/local/lib\nstage=$(mktemp -d /usr/local/lib/.agent-bus-install.XXXXXX)", "stage=$(mktemp -d "+stage+"/s.XXXXXX)", 1)
+	if s == string(src) {
+		t.Fatal("install.sh no longer stages under /usr/local/lib")
+	}
+	os.WriteFile(f.script, []byte(s), 0o755)
+	// A sudo that runs its command: the test is not root.
+	shims := t.TempDir()
+	os.WriteFile(filepath.Join(shims, "sudo"), []byte("#!/bin/sh\nexec \"$@\"\n"), 0o755)
+	cmd := exec.Command("sh", f.script, "--version", "1.0.0", "--", "--owner", "alice@test")
+	cmd.Env = []string{"HOME=" + f.home, "PATH=" + shims + ":" + os.Getenv("PATH")}
+	if os.Geteuid() == 0 {
+		t.Skip("runs as a non-root user")
+	}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("full install: %v %s", err, out)
+	}
+	got, err := os.ReadFile(record)
+	if err != nil {
+		t.Fatalf("setup did not run: %s", out)
+	}
+	lines := strings.Split(strings.TrimSpace(string(got)), "\n")
+	// A host with an installed release is upgraded instead.
+	if _, err := os.Lstat("/usr/local/lib/agent-bus/current"); err == nil && len(lines) > 1 && lines[1] == "--upgrade" {
+		lines = append(lines[:1], lines[2:]...)
+	}
+	if len(lines) != 3 || !strings.HasPrefix(lines[0], stage+"/s.") || lines[1] != "--owner" || lines[2] != "alice@test" {
+		t.Fatalf("setup ran from %q with %q, want the root copy under %s and --owner alice@test", lines[0], lines[1:], stage)
+	}
+	if entries, _ := os.ReadDir(stage); len(entries) != 0 {
+		t.Fatalf("the root copy was left behind: %v", entries)
 	}
 }

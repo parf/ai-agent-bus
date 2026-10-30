@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.168 — 2026-10-29
+
+`install.sh` verifies a full node again as root in a root-owned copy, refuses a quiet downgrade, pins the key with `--key-fingerprint` and never replaces a real file in `~/.local/bin`; `release-sign.sh` signs exactly one release's four archives matching the CI hashes; the workflow builds only tags on main with pinned actions.
+
 ## 0.9.167 — 2026-10-29
 
 `install.sh` installs a signed release, the full node or `--client` under `~/.local`, verifying the `SHA256SUMS` signature and the archive before unpacking; `release-sign.sh` and a draft-release workflow produce one. The Claude plugin lock judges a pid only in its own namespace.
