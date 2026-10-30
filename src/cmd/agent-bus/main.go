@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -281,7 +282,7 @@ func ls(args []string) error {
 			options = false
 		}
 	}
-	pos, flags, err := split(filtered)
+	pos, flags, err := splitJoined(filtered, false, "tag")
 	if err := only(flags, err, "kind", "all", "tag"); err != nil {
 		return err
 	}
@@ -418,7 +419,7 @@ func send(args []string) error {
 // for this filtered read instead of the push adapter's
 // (docs/04-messaging.md#one-reader-per-inbox).
 func callVerb(args []string) error {
-	pos, flags, err := splitAsk(args)
+	pos, flags, err := splitJoined(args, true, "tagged")
 	if err := only(flags, err, "topic", "tag", "tagged", "wait", "help", "mcp", "help-config", "help-secret", "help-json", "status"); err != nil {
 		return err
 	}
@@ -1110,9 +1111,26 @@ func split(args []string) ([]string, map[string]string, error) { return splitOpt
 // Only send/call have a boolean --status; manage --status keeps its value.
 func splitAsk(args []string) ([]string, map[string]string, error) { return splitOptions(args, true) }
 
+// splitJoined is split for a listing whose repeated options add up: each
+// repeat of a named option joins the earlier values with a comma, so
+// `ls --tag=a --tag=b` asks for the records carrying both, as `--tag=a,b` does.
+func splitJoined(args []string, asks bool, joined ...string) ([]string, map[string]string, error) {
+	return splitOptionsJoined(args, asks, joined)
+}
+
 func splitOptions(args []string, asks bool) ([]string, map[string]string, error) {
+	return splitOptionsJoined(args, asks, nil)
+}
+
+func splitOptionsJoined(args []string, asks bool, joined []string) ([]string, map[string]string, error) {
 	pos := []string{}
 	flags := map[string]string{}
+	set := func(k, v string) {
+		if old, again := flags[k]; again && slices.Contains(joined, k) && old != "" && v != "" {
+			v = old + "," + v
+		}
+		flags[k] = v
+	}
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		if a == "--" {
@@ -1125,9 +1143,9 @@ func splitOptions(args []string, asks bool) ([]string, map[string]string, error)
 		k, v, hasEq := strings.Cut(strings.TrimPrefix(a, "--"), "=")
 		switch {
 		case hasEq:
-			flags[k] = v
+			set(k, v)
 		case i+1 < len(args) && !strings.HasPrefix(args[i+1], "--") && !(onOff[k] || asks && k == "status"):
-			flags[k] = args[i+1]
+			set(k, args[i+1])
 			i++
 		case onOff[k] || asks && k == "status":
 			flags[k] = ""

@@ -32,7 +32,8 @@ func TestDaemonAgentListsOnlyTheOriginalCallersRecords(t *testing.T) {
 	for _, r := range []protocol.Record{
 		{Name: "#private@h", Kind: protocol.KindAgent, Owner: "admin@h"},
 		{Name: "#personal@h", Kind: protocol.KindAgent, Owner: "alice@h", Personal: true},
-		{Name: "#worker@h", Kind: protocol.KindAgent, Owner: "alice@h", Tags: []string{"team"}, Allow: []string{"*"}},
+		{Name: "#worker@h", Kind: protocol.KindAgent, Owner: "alice@h", Tags: []string{"ops", "team"}, Allow: []string{"*"}},
+		{Name: "#opsonly@h", Kind: protocol.KindAgent, Owner: "alice@h", Tags: []string{"ops"}, Allow: []string{"*"}},
 		{Name: "#visitor@h", Kind: protocol.KindAgent, Owner: "bob@h", Allow: []string{"#bus"}},
 	} {
 		if _, err := b.Register(r); err != nil {
@@ -50,7 +51,7 @@ func TestDaemonAgentListsOnlyTheOriginalCallersRecords(t *testing.T) {
 			s.Handler().ServeHTTP(w, r)
 			return w
 		}
-		for _, tc := range []struct{ body, query string }{{"ls --all", ""}, {"ls --kind agent", "?kind=agent"}, {"ls --tag=team", "?tag=team"}} {
+		for _, tc := range []struct{ body, query string }{{"ls --all", ""}, {"ls --kind agent", "?kind=agent"}, {"ls --tag=team", "?tag=team"}, {"ls --tag=team --tag=ops", "?tag=team,ops"}} {
 			t.Run(who+tc.body, func(t *testing.T) {
 				listed := request("GET", "/ls"+tc.query, "")
 				if listed.Code != 200 {
