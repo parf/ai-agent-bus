@@ -43,14 +43,15 @@ describe("a large secret", () => {
       const src = name === "unclosed line-start quotes" ? `A=${line.repeat(n)}y\n` : line.repeat(n);
       let best = Infinity;
       for (let i = 0; i < 5; i++) {
-        const start = performance.now();
+        const start = process.cpuUsage();
         parseEnvList("bus secret", src);
-        best = Math.min(best, performance.now() - start);
+        const used = process.cpuUsage(start);
+        best = Math.min(best, used.user + used.system);
       }
       return best;
     };
     // Eight times the input: linear costs about 8×, quadratic about 64×. Inputs
-    // long enough that a loaded machine's jitter is not most of the small one.
+    // long enough for CPU sampling; descheduling by other shards is not parser work.
     const small = took(4 << 10), large = took(32 << 10);
     expect(large).toBeLessThan(24 * small);
   });

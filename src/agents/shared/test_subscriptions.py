@@ -198,6 +198,7 @@ class Delivery(unittest.TestCase):
     """Exercise the actual send-only child and Python HTTP client, not an injected sender."""
     def setUp(self):
         self.calls=[];self.accepted=[];self.refuse=True;self.revoked=None;self.slow=False
+        self.authority_seen=threading.Event();self.authority_release=threading.Event();self.authority_started=None
         fixture=self
         class Handler(BaseHTTPRequestHandler):
             def log_message(self,*_):pass
@@ -211,7 +212,10 @@ class Delivery(unittest.TestCase):
                 fixture.calls.append((path.path,q,self.headers.get('X-Agent-Bus-Token')))
                 if path.path=='/status':self.answer(200,{'you':'#eventlog@fixture.test'})
                 elif path.path=='/may-send':
-                    if fixture.slow:time.sleep(.4)
+                    if fixture.slow:
+                        if not fixture.authority_seen.is_set():
+                            fixture.authority_started=time.monotonic();fixture.authority_seen.set()
+                        fixture.authority_release.wait(5)
                     self.answer(200,{'who':q['who'][0],'may_send':q['name'][0]!=fixture.revoked})
                 elif path.path=='/lookup':self.answer(200,{'name':q['name'][0],'kind':'queue'})
                 else:self.answer(404,{'error':'unexpected request'})
@@ -230,7 +234,7 @@ class Delivery(unittest.TestCase):
         self.engine=s.Subscriptions(self.bus,self.bus.name,validate_selector=selector,selector_matches=selected,warning=self.warnings.append,id_factory=lambda:'000000000001')
         self.engine.add(message({'author':'alice@fixture.test'}),'dest@fixture.test',{})
     def tearDown(self):
-        self.engine.close();self.server.shutdown();self.server.server_close();self.thread.join()
+        self.authority_release.set();self.engine.close();self.server.shutdown();self.server.server_close();self.thread.join()
     def deliver(self):
         return self.engine.deliver({'log':'deploys'},'entry','payload',topic='deploys',tag='alert',deadline=time.monotonic()+2)
     def test_refused_copy_warns_once_then_next_entry_is_delivered_once(self):
@@ -260,9 +264,11 @@ class Delivery(unittest.TestCase):
                 self.assertFalse(any(path=='/send' for path,_,_ in self.calls))
     def test_stalled_authority_is_bounded_and_leaves_no_worker(self):
         self.slow=True;self.refuse=False
-        start=time.monotonic()
         self.assertEqual(self.deliver(),{'matched':1,'sent':0,'dropped':1})
-        self.assertLess(time.monotonic()-start,1.5)
+        # The real child reached the stalled authority; its interpreter/import
+        # startup is not part of the authority-response and cleanup bound.
+        self.assertTrue(self.authority_seen.is_set(),'the child never requested authority')
+        self.assertLess(time.monotonic()-self.authority_started,1.5)
         self.assertEqual(self.warnings,['admission_unavailable']);self.assertEqual(self.accepted,[])
         self.assertFalse(self.engine.processes)
 
