@@ -10,11 +10,7 @@ third-party notices move to licenses/NOTICE.md, shipped beside LICENSE.md in eve
 
 ## 0.9.188 — 2026-10-30
 
-Restart sandboxed agents when the daemon replaces the bus socket, so they reconnect after a daemon restart
-
-## 0.9.187 — 2026-10-30
-
-Sixth published 0.9 changeset: 0.9.163–0.9.187, squashed.
+Sixth published 0.9 changeset: 0.9.163–0.9.188, squashed.
 
 | Area | Changes |
 |---|---|
@@ -26,7 +22,7 @@ Sixth published 0.9 changeset: 0.9.163–0.9.187, squashed.
 | Subscriptions | One shared engine in Python and TypeScript passes the same language-neutral vectors: filters, authority re-checked at delivery, refused sends, revoked authors. Deliveries no longer send `wait=0`, which the daemon refused, so real subscription sends reach their target again. |
 | Events | New `#eventlog` keeps named logs with the same notice, warning and alert rings as agent events. A ring restarted smaller keeps only its newest entries, and `events.lock` is created 0600. It starts on its documented defaults when its record has no Configuration, and it shuts down cleanly when stopped mid-request, with no stray error on stderr. |
 | Clients | Every client library sends a zero or sub-millisecond wait as a plain send, and still refuses a negative wait. |
-| Runner | Agents start in their `depends` order; an unknown or cyclic dependency is refused by name. A dedicated runner script reads its bus secret on each message. One shared masker hides each secret value, and each line of a multi-line secret, in runner and CLI output. |
+| Runner | Agents start in their `depends` order; an unknown or cyclic dependency is refused by name. A dedicated runner script reads its bus secret on each message. One shared masker hides each secret value, and each line of a multi-line secret, in runner and CLI output. Kept sandboxed agents restart when the daemon replaces the bus socket. The scheduler exits after 30 consecutive bus errors so its runner restarts it. |
 | Debug | The `env` answer masks every bus-prefixed secret and shows only an allowlist. |
 | Daemon | Group walks for ACL, directory and delivery are iterative, so a deep or cyclic group chain no longer exhausts the stack. Needs a daemon restart. Lock waiters are served in arrival order, and a waiter that gives up or cancels leaves the queue; also live after the next daemon restart. |
 
