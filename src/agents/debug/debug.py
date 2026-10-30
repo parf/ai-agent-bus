@@ -58,7 +58,7 @@ class Budget:
 # Only names the runner or the delivery sets for every agent show a value; the bus prefix alone
 # proves nothing, since AGENT_BUS_CONFIG and a record's secret keys carry it too.
 SHOWN = {'AGENT_BUS_' + key for key in ('FROM', 'TO', 'TOPIC', 'TAG', 'ASK', 'DEADLINE', 'ORIGINAL_TO',
-                                       'NAME', 'ADDR', 'WORK', 'TLS_FINGERPRINT')}
+                                       'NAME', 'ADDR', 'WORK', 'TLS_FINGERPRINT', 'MESSAGE_ID')}
 
 
 def environment(envelope):

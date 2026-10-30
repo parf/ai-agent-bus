@@ -72,13 +72,14 @@ class Doctor(unittest.TestCase):
         self.assertEqual(json.loads(agent.answer('roles', {'roles':['reader']}))['roles'],['reader'])
     def test_env_masks_bus_prefixed_private_values(self):
         private = {'AGENT_BUS_TOKEN':'t-sentinel','AGENT_BUS_CONFIG':'{"k":"config-sentinel"}','AGENT_BUS_API_KEY':'key-sentinel',
-                   'AGENT_BUS_ADDR':'addr-visible'}
+                   'AGENT_BUS_ADDR':'addr-visible','AGENT_BUS_MESSAGE_ID':'id-visible'}
         with patch.dict(os.environ, private, clear=True):
             result = agent.answer('env', {'roles':['reader'],'from':'alice'})
         for sentinel in ('t-sentinel','config-sentinel','key-sentinel'): self.assertNotIn(sentinel,result)
         for key in ('AGENT_BUS_CONFIG','AGENT_BUS_API_KEY'): self.assertIn(key+'=***',result)
         self.assertIn('AGENT_BUS_ADDR=addr-visible',result)
         self.assertIn('AGENT_BUS_FROM=alice',result)
+        self.assertIn('AGENT_BUS_MESSAGE_ID=id-visible',result)
     def test_selftest_detects_failure(self):
         bus = Bus()
         self.assertEqual(agent.answer('selftest', {'roles':[], 'to':bus.name}, bus=bus).count('✅'),6)

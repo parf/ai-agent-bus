@@ -74,6 +74,10 @@ func (SystemdRun) Wrap(j ports.Job) []string {
 		// here — the envelope included.
 		out = append(out, "--setenv="+kv)
 	}
+	for _, kv := range j.Secret {
+		key, _, _ := strings.Cut(kv, "=")
+		out = append(out, "--setenv="+key)
+	}
 	if !hasConfig {
 		out = append(out, "-p", "UnsetEnvironment=AGENT_BUS_CONFIG")
 	}

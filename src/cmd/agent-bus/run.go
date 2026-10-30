@@ -10,6 +10,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -29,6 +30,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/parf/ai-agent-bus/internal/envfile"
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/proctitle"
 	"github.com/parf/ai-agent-bus/internal/protocol"
@@ -611,8 +613,17 @@ func handle(ag agent, e protocol.Envelope) {
 			fmt.Fprintf(ag.say, "%s: warning: %s\n", ag.Name, warning)
 		}
 	}
+	secret, err := ag.secretEnv(configCtx)
+	if err != nil {
+		fmt.Fprintf(ag.say, "%s: its bus secret: %v; not run\n", ag.Name, err)
+		finishAck()
+		if err := deliver(stop, until(), "/send", protocol.Envelope{To: back, Topic: topic, Tag: tag, Body: "error: bus secret unavailable"}); err != nil {
+			fmt.Fprintf(ag.say, "%s: secret failure answer: %v\n", ag.Name, err)
+		}
+		return
+	}
 	line := ag.box.Wrap(ports.Job{
-		Argv: argv, Work: ag.work, Read: ag.read, Env: env, Net: ag.Network,
+		Argv: argv, Work: ag.work, Read: ag.read, Env: env, Secret: secret, Net: ag.Network,
 	})
 	cmd := exec.Command(line[0], line[1:]...)
 	if ag.Algo != algoArgs {
@@ -622,10 +633,16 @@ func handle(ag agent, e protocol.Envelope) {
 	// The runner's environment, less what is the runner's alone: an AB_ROLE_*
 	// would be a role nobody holds, and the token is the agent's credential,
 	// which a script never holds (docs/06-dedicated-runner.md#script-agents).
-	cmd.Env = append(childEnv(os.Environ()), env...)
-	cmd.Stderr = ag.say
+	// The secret sits between the two: it wins over the shell's value of a
+	// name, and the message's own stamps win over it.
+	cmd.Env = append(append(childEnv(os.Environ()), secret...), env...)
+	errs := redacting(ag.say, secret)
+	cmd.Stderr = errs
 
 	out, err := cmd.Output()
+	if f, ok := errs.(*redactWriter); ok {
+		f.flush()
+	}
 	finishAck()
 	if err != nil {
 		fmt.Fprintf(ag.say, "%s: %s exited badly for %s: %v\n", ag.Name, ag.Script, e.ID, err)
@@ -642,6 +659,81 @@ func handle(ag agent, e protocol.Envelope) {
 		To: back, Topic: topic, Tag: tag, Body: answer,
 	}); err != nil {
 		fmt.Fprintf(ag.say, "%s: could not answer %s: %v\n", ag.Name, e.ID, err)
+	}
+}
+
+// secretEnv is the agent's own bus secret in env-file form, asked as the agent
+// at every message so `agent-bus secret` takes effect without a restart; none
+// while it has none. The credential and role names are the runner's alone, so
+// a secret cannot set them.
+func (ag agent) secretEnv(ctx context.Context) ([]string, error) {
+	out, code, err := callCtx(ctx, "GET", "/secret", url.Values{"name": {ag.Name}}, nil)
+	switch {
+	case err != nil:
+		return nil, err
+	case code == http.StatusNotFound:
+		return nil, nil
+	case code >= 400:
+		return nil, fmt.Errorf("read refused (%d)", code)
+	}
+	vars, err := envfile.Parse(out)
+	if err != nil {
+		return nil, err
+	}
+	var env []string
+	for _, v := range vars {
+		env = append(env, v.Key+"="+v.Value)
+	}
+	return childEnv(env), nil
+}
+
+// redacting hides each secret value from what a script writes to the log. A
+// write is held to its line end so a value split across two writes is still
+// found; values under four bytes would mangle ordinary text and are left.
+func redacting(out io.Writer, secret []string) io.Writer {
+	w := &redactWriter{out: out}
+	for _, kv := range secret {
+		if _, value, ok := strings.Cut(kv, "="); ok && len(value) >= 4 {
+			w.values = append(w.values, value)
+		}
+	}
+	if len(w.values) == 0 {
+		return out
+	}
+	return w
+}
+
+type redactWriter struct {
+	out     io.Writer
+	values  []string
+	pending []byte
+}
+
+func (w *redactWriter) flush() {
+	if len(w.pending) > 0 {
+		w.Write([]byte("\n"))
+	}
+}
+
+func (w *redactWriter) Write(p []byte) (int, error) {
+	w.pending = append(w.pending, p...)
+	for {
+		i := bytes.IndexByte(w.pending, '\n')
+		if i < 0 {
+			if len(w.pending) > 64<<10 { // a line that long is flushed rather than held
+				i = len(w.pending) - 1
+			} else {
+				return len(p), nil
+			}
+		}
+		line := string(w.pending[:i+1])
+		w.pending = w.pending[i+1:]
+		for _, v := range w.values {
+			line = strings.ReplaceAll(line, v, "***")
+		}
+		if _, err := io.WriteString(w.out, line); err != nil {
+			return len(p), err
+		}
 	}
 }
 

@@ -26,6 +26,10 @@ type Job struct {
 	// because a transient unit starts from the user manager's environment
 	// and not from the runner's.
 	Env []string
+	// Secret is `K=V` too, but a value is never put on the command line,
+	// where any process of the host could read it: the sandbox names the key
+	// and the child's environment, which the caller sets, carries the value.
+	Secret []string
 	// Net says the agent asked for a network. Off by default: a script
 	// that does not say it needs one does not get one.
 	Net bool
