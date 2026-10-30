@@ -83,8 +83,11 @@ container per distribution. In each, the person `alice` runs
 | `--version <old>` | the node back on the old release, check-deploy passing |
 
 Containers and their image store live under the main checkout's
-`tmp/distro-acceptance`. Containers and each run's data are removed afterward,
-and `--clean` drops the store. A warm run with both releases built takes about 40 s for all three.
+`tmp/distro-acceptance`. Containers and each run's data are removed afterward;
+a run killed by any signal, `SIGKILL` included, is cleaned up by its watcher or,
+at the latest, by the next run ([J32](../issues/2026-10/2026-10-30.md#fixtures)).
+Containers log to capped files in the run directory, never the host journal.
+`--clean` drops the store. A warm run with both releases built takes about 40 s for all three.
 
 <details><summary>Mutants seen to fail, and findings</summary>
 
