@@ -31,7 +31,7 @@ mkdir -p "$here/../../tmp"
 work=$(mktemp -d "$here/../../tmp/container-acceptance.XXXXXX")
 
 cleanup() {
-  podman rm -f -t 0 "$id-d" "$id-r" >/dev/null 2>&1
+  podman rm -f -v -t 0 "$id-d" "$id-r" >/dev/null 2>&1
   podman volume rm -f "$dvol" "$rvol" >/dev/null 2>&1
   podman network rm -f "$net" >/dev/null 2>&1
   podman image rm -f "$built" >/dev/null 2>&1
@@ -134,7 +134,7 @@ echo_within "$body" 30 && pass "a request to #echo through the port is answered 
 # ---- the daemon recreated on its volume keeps the registry and credentials -
 bus register svc-check --service-addr https://example.invalid --protocol http --descr "kept across containers" >/dev/null ||
   fail "register the service svc-check"
-podman rm -f -t 5 "$id-d" >/dev/null
+podman rm -f -v -t 5 "$id-d" >/dev/null
 daemon && pass "a new daemon container starts on the same volume" || fail "the recreated daemon did not start: $(podman logs "$id-d" 2>&1 | tail -3)"
 bus ls svc-check | python3 -c 'import json,sys
 r=json.loads(sys.stdin.read()); r=r[0] if isinstance(r,list) else r
