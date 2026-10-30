@@ -2,7 +2,7 @@
 
 ## RT22 Bus setup web acceptance
 
-- RT22 remains pending until RT22b lands. This web-form fix is on `ab-w1c/RT22`, awaiting two readers and the landing gate; it changes runtime code and needs a bump. Launcher/installer naming is #ab-w1b's RT22b, outside this branch.
+- The web-form fix landed as `dcf5e419` (0.9.234). The remaining launcher/installer naming acceptance is completed by [RT22b](#rt22b-automatic-names).
 - Existing daemon and page work: `cc72fd15`, `bf251737`, `bf748e72`, `549180dd`. The audit found one real gap: web create forms never read the configured realm. They now suggest an editable realm suffix from the current status on each fresh form; submitted names are never expanded or rewritten. Current contract: [bus Configuration](../../docs/agents/bus.md#configuration).
 
 | Acceptance line | Owning checks and result |
@@ -12,6 +12,13 @@
 | An existing name never changes silently | Existing core `TestBusSetupDefaultsToTheHostAndOnlyTheDaemonOwnerWritesIt` looks up the same old name after a realm save. The new web regression also keeps an existing Agent's name, explicit realm-less and foreign-realm registrations, and submitted names (including blank) after a refused form. All pass. |
 
 - Verification: six focused core/API bus-setup tests pass; the whole web suite passes 200/0 (34.24 s), TypeScript typecheck passes, fast smoke passes 1/0 (124 ms). The independent mutant ran only its owning test under the `slow` lock; source restored and lock released. No normal gate or live host change was run by the worker.
+
+## RT22b automatic names
+
+- RT22b completes RT22's remaining automatic naming paths. The reviewed source is `ab-w1b/RT22b` at `7c6018d6`, rebased without code changes onto current main as `ab-w1c/RT22b`; the landing gate remains required.
+- Launchers use the exact configured bus realm; explicit names and the existing `AGENT_BUS_REALM` normalization stay unchanged. Bound sessions rebuild their base in the saved realm, including long-title truncation, and resume without a new realm query. New names refuse a missing realm or one that leaves no room within 64 characters.
+- The installer reuses a person's one owned runner record under any realm, names and refuses multiple records, and otherwise uses the bus realm with a length refusal before allocation. System and user-account runners have separate checks.
+- Checks: `launchers/local.test.ts` covers exact realm spelling, missing/oversize realms, the longest fitting name, bound resume and title changes; `rename-smoke.ts` covers launch and rename call sites against a non-host realm. `cmd/agent-bus-setup/realm_test.go` covers both installer paths. Independent reader checks pass (48 launcher/MCP tests and two installer tests); exact-realm slugging, missing launcher length refusal and installer off-by-one mutants each fail owning assertions, then restored checks pass. Earlier independent call-site and record-reuse mutants also fail assertions. No live deployment.
 
 ## M.8 deploy over the bus
 
