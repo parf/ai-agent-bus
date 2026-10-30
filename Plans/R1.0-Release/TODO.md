@@ -29,7 +29,7 @@ the 0.8 line; no release wave is committed yet. Item glyphs follow
   - State: built in 0.8.110; [checks](done/assigned-roles.md#verification)
 
 - ✅ RT7 [Record tags](tags.md#classification-and-filtering)
-  - State: built 0.8.143; [verification](done/record-tags.md#verification); multiple-tag matching is settled and not built ([№RTA1](#record-tags-acceptance))
+  - State: built 0.8.143; [verification](done/record-tags.md#verification); multiple-tag matching is built ([№RTA1](#record-tags-acceptance))
 
 - ⏳ RT8 A shared executable protocol conformance suite for the clients
   - Details: start with the calls the six clients already support; explanatory prose may accompany executable examples, with no new schema or generator
@@ -152,16 +152,7 @@ implemented UI selects one label.
 
 `RTA…` labels this section's rows.
 
-- ⏳ RTA1 A multiple-tag query selects the records carrying every tag listed
-  - Details: comma-delimited, as `tag=a,b`. A single tag is the request that
-    exists today, so no page or client changes; an unknown tag gives an empty
-    result rather than an error, and `no-tags` cannot combine with a real tag,
-    since a record either has no tags or has that one
-  - Acceptance: two tags return only the records holding both, and one tag
-    returns what it returns today
-  - Mutant: match any of the listed tags instead of all, and the two-tag check
-    must fail
-  - Home: [record tags](../../docs/03-records.md#tags)
+- ✅ RTA1 A multiple-tag query selects the records carrying every tag listed ([record tags](../../docs/03-records.md#tags)): `ls --tag=a,b` and `/ls?tag=a,b` keep only records holding every label; one tag is unchanged, an unknown tag gives an empty result, `no-tags` beside a real tag is refused. Check `TestListingFiltersByEveryListedTag`; mutants (match any label; accept `no-tags` with a tag) each fail it on an assertion
 
 ## Group walk acceptance
 

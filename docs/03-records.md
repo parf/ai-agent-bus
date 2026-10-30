@@ -235,7 +235,7 @@ labels are separate from the envelope's message-correlation `tag`.
 - Counts never include inaccessible records.
 - Tags sort by count descending then label ascending; the first 25 and the selected tag stay visible, with the rest expandable.
 - One tag is selected at a time.
-- A multiple-tag query is comma-delimited and selects the records carrying every label listed; that is settled and [pending](../Plans/R1.0-Release/TODO.md#record-tags-acceptance).
+- A multiple-tag query is comma-delimited (`ls --tag=a,b`) and selects the records carrying every label listed, in any order; one label selects what it always did. An unknown label gives an empty listing, and `no-tags` beside another tag is refused, since a record has no tags or has that one. The web page still selects one tag at a time.
 
 </details>
 

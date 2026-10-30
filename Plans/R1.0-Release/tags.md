@@ -19,7 +19,7 @@ Tags are additive on registration and runner reload; explicit Manage edits
 remove them. See [the current update rules](../../docs/03-records.md#tags).
 
 Comma-only parsing, lowercase normalization and visibility-respecting counts
-follow the owner's 2026-10-17 instructions. Multiple-tag query matching is settled
-as [№RD85](DECISIONS.md#recorded-decisions) and not built
+follow the owner's 2026-10-17 instructions. Multiple-tag query matching is
+[№RD85](DECISIONS.md#recorded-decisions), built in the listing query
 ([№RTA1](TODO.md#record-tags-acceptance)); the built UI selects one tag at a
 time.
