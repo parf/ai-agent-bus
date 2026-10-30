@@ -256,7 +256,7 @@ Any signed-in caller gets the form; the caller becomes the Owner. Signed out:
 |---|---|
 | Title | `Register agent` · `Register service` · `Register queue` · `Register pub/sub channel` |
 | 1 | `Back to {Agents|Services|Queues|PubSub}` (`Back to Personal …`) → the list |
-| 2 | `<h1>` kind mark + title; sub line `You become its Owner.` and the kind blurb |
+| 2 | `<h1>` kind mark + title; sub line: the kind blurb, then `You become its Owner.` |
 | 3 | form error summary (after a refusal) |
 | 4 | `<form id=form-create method=post action=/service>`, button = the title, `Cancel` |
 | 5 | help popovers for the fields shown (below) |

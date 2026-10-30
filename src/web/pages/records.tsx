@@ -188,8 +188,9 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   const filtered = !!(q || tag || state === "inactive" || readers || work || sort);
   const clear = listUrl(path, { personal: pflag, scope, owner: owner0 ? ownerParam : undefined });
   const helpItems = [k.blurb, personal ? "Personal: records their Owner keeps out of the shared lists; delivery is unchanged. The sidebar keeps this choice from kind to kind." : "Personal records are under the Personal tab, not in these lists.",
-    "All and My keep Personal records out by default. A selected tag searches visible Personal records too. Counts respect the other selected filters, before pagination.", "Filter counts include the other selected filters, before pagination; zero-count choices are disabled.", "Status: Active by default, or Inactive — hidden from use and kept.",
-    ...(services ? [] : ["Readers: consumers waiting on this inbox now.", key === "agents" ? "Messages: accepted total, with waiting (held now) and lost (dropped plus expired) when non-zero. Zero counts and unused times are blank." : "Accepted and Dequeued: messages in and taken out, kept across restarts."])];
+    "Status: Active by default, or Inactive — hidden from use and kept.",
+    ...(services ? [] : ["Readers: consumers waiting on this inbox now.", key === "agents" ? "Messages: accepted total, with waiting (held now) and lost (dropped plus expired) when non-zero. Zero counts and unused times are blank." : "Accepted and Dequeued: messages in and taken out, kept across restarts."]),
+    "All and My keep Personal records out by default. A selected tag searches visible Personal records too.", "Filter counts include the other selected filters, before pagination; zero-count choices are disabled."];
 
   const body = <>
     <PageHead icon={<Icon name={personal ? "lock" : entity(kind)!.icon} />} title={title}
@@ -354,7 +355,7 @@ async function registerPage(ctx: Ctx, kind: Kind, st: FormState = { values: {} }
   const back = fromPersonal ? { href: `${k.list}?personal=1`, label: `Back to Personal ${kind === "pubsub" ? "PubSub" : k.noun + "s"}` } : { href: k.list, label: `Back to ${kind === "pubsub" ? "PubSub" : k.noun + "s"}` };
   const body = <>
     <PageHead back={back} icon={<Icon name={entity(kind)!.icon} />} title={`Register ${k.lower}`}
-      sub={<>You become its Owner. {k.blurb}</>} />
+      sub={<>{k.blurb} You become its Owner.</>} />
     <ErrorSummary id="create" error={st.error} />
     {kind === "resource" ? <p><a href="https://modelcontextprotocol.io/specification/latest/server/resources">Official MCP Resources specification</a></p> : null}
     <form id="form-create" class="card form-card editor-card task-card" method="post" action="/record">

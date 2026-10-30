@@ -23,7 +23,7 @@ export async function styleguide(ctx: Ctx): Promise<Response> {
   const err = { status: 404, message: "Line 2: no such name: group member nosuchuser", field: "members", line: 2 };
   const body = <>
     <PageHead icon={<Icon name="palette" />} title="Style guide" help={<Help label="About the style guide" tip="Every component, both themes: switch with the sun and moon above." />}
-      sub="Development only. Every component the pages are built from, in the current theme.">
+      sub="Every component the pages are built from, in the current theme. Development only.">
       <Button tone="ghost" type="button" icon="sun">Secondary</Button><LinkButton href="#" tone="primary" icon="plus">Primary action</LinkButton>
     </PageHead>
     <Card title="Colour tokens" icon="swatch-book"><div class="sg-swatches">{TOKENS.map(t => <div class={`sg-swatch sg-${t}`}><span></span><code>--{t}</code></div>)}</div></Card>

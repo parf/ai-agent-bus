@@ -215,8 +215,8 @@ Each tile is a label with its mark and a value. Zero is a muted `—`. Two rows.
 
 | Button | Tooltip | Popover |
 |---|---|---|
-| About Overview (`overview-help`) | Only enumerated observations appear. An empty list does not claim the node is healthy. | Overview scope: attention covers conditions over records visible to you, node-wide refusals, the previous-stop marker and, for Administrators, owner-inactive records · a backlog alone is ordinary work · node totals and your lists have different scopes |
-| About node totals (`node-help`) | Whole-node values. Caller-visible lists may show a smaller set. | Node totals: six points on scope, dash meaning none, kind counts, Readers, Calls and `collecting history`, Uptime |
+| About Overview (`overview-help`) | What needs your attention on this node. Only listed conditions appear; an empty list does not claim the node is healthy. | Overview scope: attention covers conditions over records visible to you, node-wide refusals, the previous-stop marker and, for Administrators, owner-inactive records · a backlog alone is ordinary work · node totals and your lists have different scopes |
+| About node totals (`node-help`) | Whole-node values. Caller-visible lists may show a smaller set. | Node totals: six points on scope, kind counts, Readers, Calls and `collecting history`, Uptime, dash meaning none |
 
 ### Controls by position
 
@@ -278,10 +278,10 @@ The rules behind these answers are [activity history](../../../docs/05-discovery
 
 Popover `activity-help`: Day shows the day on the node's clock, Week sums it per
 hour, Month per day · every day is kept for 400 days, and Prev and Next step
-through them · down time reads as zero, and today's last slot is still counting
-· unfiltered Refused is node-wide for the daemon Owner and covers visible
-records for others · Dequeued is not completion · the chooser lists records with
-hits in the chosen range.
+through them · the chooser lists records with hits in the chosen range · down
+time reads as zero, and today's last slot is still counting · unfiltered Refused
+is node-wide for the daemon Owner and covers visible records for others ·
+Dequeued is not completion.
 
 ### States
 
@@ -340,7 +340,7 @@ Links here: navigation entry 9; Overview refusal items (`#refusals`); `/users?ki
 
 | # | Section | Content |
 |---|---|---|
-| 1 | Title and heading | `Diagnostics · agent-bus`; `Diagnostics` + help "Caller-visible queues, loss and retained envelope evidence. Bodies are never shown."; a `Refresh` button → `/diagnostics` |
+| 1 | Title and heading | `Diagnostics · agent-bus`; `Diagnostics` + help "Find held inboxes, lost messages and retained envelope evidence on records you can see. Bodies are never shown."; a `Refresh` button → `/diagnostics` |
 | 2 | Jump links | `On this page`: Refusals · Held inboxes · Exchanges · Loss · Leftover names (when any) |
 | 3 | Refusals `#refusals` | Reason (`<code>`) · Count; caption `Refusals since this daemon started, by reason` |
 | 4 | Loss by name `#loss` | Name · Dropped · Expired |

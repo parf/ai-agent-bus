@@ -13,7 +13,7 @@ import { number } from "../format.ts";
 import { KV_KINDS, KV_TITLE, Preview, preview, storeHref, valueHref, type KVKind, type KVListing } from "../ui/kv.tsx";
 
 const RECORD_KINDS = ["agent", "service", "queue", "pubsub", "resource", "group", "user"];
-const HELP = ["A store of string, integer and JSON values on each registry record, durable across restarts.",
+const HELP = ["Each record keeps its own string, integer and JSON values; they survive a restart.",
   "Its Owner, Maintainers and own Agent may read and write it; nobody else sees it.",
   "Each kind is its own namespace: a string and an integer may share a name."];
 

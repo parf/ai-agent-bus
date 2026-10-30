@@ -443,7 +443,7 @@ async function groupsPage(ctx: Ctx): Promise<Response> {
   const body = <>
     <PageHead icon={<Icon name="kind:group" />} title="Groups"
       help={<Help label="About Groups" tip="Named sets of users, agents and other groups, used in allow lists and as Maintainers." title="Groups"
-        items={["A group is a named set of users, agents and nested groups.", "@owner is ACL syntax for a record's Owner, not a group.", "Anyone may register a group and becomes its Owner.", "Its Owner, its Maintainers and the daemon Administrators change its membership.", "You see a group's details when you are in it or manage it."]} />}>
+        items={["A group names a set of users, agents and nested groups for allow lists and Maintainers.", "Anyone may register a group and becomes its Owner.", "Its Owner, its Maintainers and the daemon Administrators change its membership.", "You see a group's details when you are in it or manage it.", "@owner is ACL syntax for a record's Owner, not a group."]} />}>
       <LinkButton href={personal ? "/groups/new?personal=1" : "/groups/new"} tone="primary" icon="plus">{personal ? "Register Personal group" : "Register group"}</LinkButton>
     </PageHead>
     <Tabs label="Group views" items={[{ href: "/groups", text: "All", count: all.length - personalNames.length, current: !personal },
@@ -513,7 +513,7 @@ async function groupPage(ctx: Ctx): Promise<Response> {
           <TagBadges rec={rec} />
         </> : <Muted>Owner and Maintainers are not visible to you.</Muted>}
       </div>}
-      help={protectedGroup ? <Help label="About @administrators" title="@administrators" items={["Direct users only, never empty; the daemon Owner is always a member.", "Adding a name creates a User profile for it.", "Nesting it inside another group grants no authority."]} /> : undefined}>
+      help={protectedGroup ? <Help label="About @administrators" title="@administrators" items={["Its members administer the daemon.", "Adding a name creates a User profile for it.", "Direct users only, never empty; the daemon Owner is always a member.", "Nesting it inside another group grants no authority."]} /> : undefined}>
       {editable ? <LinkButton href={`/group/edit?name=${encodeURIComponent(key)}`} icon="pencil" >Edit group</LinkButton> : null}
     </PageHead>
     {rec?.descr ? <p class="descr lead-descr group-description">{rec.descr}</p> : null}

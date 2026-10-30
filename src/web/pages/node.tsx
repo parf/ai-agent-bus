@@ -71,8 +71,8 @@ async function overview(ctx: Ctx): Promise<Response> {
   const kinds = st.kinds ?? {};
   const body = <>
     <PageHead icon={<Icon name="layout-dashboard" />} title="Overview"
-      help={<Help id="overview-help" label="About Overview" tip="Only enumerated observations appear. An empty list does not claim the node is healthy." title="Overview scope"
-        items={["Attention covers conditions over records visible to you, node-wide refusals, the previous-stop marker and, for Administrators, owner-inactive records.", "A backlog alone is ordinary work, so it is not an attention item.", "Node totals and your lists have different scopes; they never have to agree."]} />}
+      help={<Help id="overview-help" label="About Overview" tip="What needs your attention on this node. Only listed conditions appear; an empty list does not claim the node is healthy." title="Overview scope"
+        items={["Needs attention lists conditions on records visible to you, node-wide refusals, the previous-stop marker and, for Administrators, owner-inactive records.", "A backlog alone is ordinary work, so it is not an attention item.", "Node totals and your lists have different scopes; they never have to agree."]} />}
       sub={<>Signed in as <code>{st.you}</code>{st.daemon_owner ? <> · <span class="pill tone-accent"><Icon name="kind:owner" />Daemon owner</span></> : st.administrator ? <> · <span class="pill">Daemon administrator</span></> : null}</>} />
 
     {items.length ? <section class="attention" aria-labelledby="attention">
@@ -89,7 +89,7 @@ async function overview(ctx: Ctx): Promise<Response> {
     <section aria-labelledby="node" class="node-section">
       <div class="page-title"><h2 id="node" class="section-title"><Icon name="server" />This node</h2>
         <Help id="node-help" label="About node totals" tip="Whole-node values. Caller-visible lists may show a smaller set." title="Node totals"
-          items={["Whole-node values, not your view: your lists may show fewer records.", "A dash means none.", "Kind counts count registered records of that kind.", "Readers are consumers waiting on an inbox now.", "Calls are requests the daemon served; history fills in as the node runs, and says collecting history until it has.", "Uptime is this daemon process's."]} /></div>
+          items={["Whole-node values, not your view: your lists may show fewer records.", "Kind counts count registered records of that kind.", "Readers are consumers waiting on an inbox now.", "Calls are requests the daemon served; history fills in as the node runs, and says collecting history until it has.", "Uptime is this daemon process's.", "A dash means none."]} /></div>
       <div class="node-strip">
         <Tile label="Readers" icon="radio" value={<Figure n={st.waiting} />} />
         <Tile label="Queued" icon="layers" value={<Figure n={st.queued} />} spark={<Spark values={slots.map(s => s.in)} label="Accepted per ten minutes today" />} />
@@ -156,7 +156,7 @@ export async function activity(ctx: Ctx): Promise<Response> {
   const body = <>
     <PageHead icon={<Icon name="activity" />} title={<>Activity <span class="title-date">{rangeTitle(r)}</span></>}
       help={<Help id="activity-help" label="About activity history" title="Activity history"
-        items={["Day shows the day on the node's clock; Week sums it per hour, Month per day.", "Every day is kept for 400 days: ‹ Prev and Next › step through them.", "Time the daemon was down reads as zero, and today's last slot is still counting.", "Unfiltered Refused is node-wide for the daemon Owner and covers visible records for others.", "Dequeued is not completion: a message taken is not a message finished.", "The chooser lists records with hits in the chosen range, the count in brackets; a record with none has nothing to draw."]} />}
+        items={["Day shows the day on the node's clock; Week sums it per hour, Month per day.", "Every day is kept for 400 days: ‹ Prev and Next › step through them.", "The chooser lists records with hits in the chosen range, the count in brackets; a record with none has nothing to draw.", "Time the daemon was down reads as zero, and today's last slot is still counting.", "Unfiltered Refused is node-wide for the daemon Owner and covers visible records for others.", "Dequeued is not completion: a message taken is not a message finished."]} />}
       sub={<>{name ? <>Scope: <code>{name}</code></> : "Scope: visible records"} · Uptime {id?.up || st.up || "unavailable"}</>}>
       <form method="get" class="scope-form">
         {r.kind !== "day" ? <input type="hidden" name="range" value={r.kind} /> : null}
@@ -273,7 +273,7 @@ async function diagnostics(ctx: Ctx): Promise<Response> {
   const leftovers = "ok" in users ? users.ok.filter(u => u.kind !== "user") : [];
   const nameCell = (r: Rec) => <td data-label="Name"><a href={recordHref(r)} class="rec-link"><KindIcon kind={r.kind} /><code>{r.name}</code></a>{r.status === "inactive" ? <> <span class="badge">INACTIVE</span></> : null}</td>;
   const body = <>
-    <PageHead icon={<Icon name="scan-search" />} title="Diagnostics" help={<Help label="About Diagnostics" tip="Caller-visible queues, loss and retained envelope evidence. Bodies are never shown." />}>
+    <PageHead icon={<Icon name="scan-search" />} title="Diagnostics" help={<Help label="About Diagnostics" tip="Find held inboxes, lost messages and retained envelope evidence on records you can see. Bodies are never shown." />}>
       <a href="/diagnostics" class="btn btn-ghost btn-sm"><Icon name="rotate-cw" />Refresh</a>
     </PageHead>
     <nav class="jump" aria-label="On this page">
