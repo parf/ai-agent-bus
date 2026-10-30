@@ -115,7 +115,7 @@ class Archive(unittest.TestCase):
         self.work = Path(self.temp.name)
         self.cpu = {'arm64': 'aarch64', 'x86_64': 'x86_64'}[self.m.platform.machine()]
 
-    def bundle(self, unchecked=False):
+    def bundle(self, unchecked=False, badlink=False):
         name = 'agent-bus-1.2.3-darwin-' + self.cpu
         root = self.work / name
         root.mkdir()
@@ -130,6 +130,8 @@ class Archive(unittest.TestCase):
             for p in sorted(root.rglob('*')) if p.is_file()))
         if unchecked:
             (root / 'unchecked').write_text('not in manifest')
+        if badlink:
+            (root / 'ab-claude').symlink_to('../../outside')
         archive = self.work / (name + '.tar.gz')
         with tarfile.open(archive, 'w:gz') as tar:
             tar.add(root, arcname=name)
@@ -154,6 +156,11 @@ class Archive(unittest.TestCase):
     def test_unchecked_archive_member_refused(self):
         archive, output = self.bundle(unchecked=True)
         with self.assertRaisesRegex(AssertionError, 'unchecked files'):
+            self.m.archive_bundle(archive, output)
+
+    def test_archive_link_escape_refused_before_extract(self):
+        archive, output = self.bundle(badlink=True)
+        with self.assertRaisesRegex(AssertionError, 'unsafe archive link'):
             self.m.archive_bundle(archive, output)
 
     def test_client_archive_refused(self):

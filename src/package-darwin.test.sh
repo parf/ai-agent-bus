@@ -46,6 +46,20 @@ for goarch in ${DARWIN_TEST_ARCHES:-arm64 amd64}; do
     if [ "$edition" = full ]; then
       grep -aqF '/Library/LaunchDaemons/agent-busd.plist' "$root/agent-bus-setup" || fail "$goarch: full setup lacks the launchd path"
     fi
+    if [ "$edition" = full ]; then
+      python3 -B - "$archive" "$work" "$goarch" <<'PYTHON'
+import importlib.util
+from pathlib import Path
+import sys
+import tempfile
+spec = importlib.util.spec_from_file_location('mac2', 'acceptance/mac2-install-check.py')
+m = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)
+m.platform.machine = lambda: 'arm64' if sys.argv[3] == 'arm64' else 'x86_64'
+with tempfile.TemporaryDirectory(dir=sys.argv[2]) as directory:
+    m.archive_bundle(Path(sys.argv[1]), Path(directory))
+PYTHON
+    fi
     evidence=$(./release-verify.sh "$archive" 2>&1) && grep -q "darwin-$arch ok (version $version, $edition, read)" <<<"$evidence" || fail "$goarch $edition: release-verify: $evidence"
   done
 done

@@ -165,11 +165,14 @@ def archive_bundle(archive, work):
     destination.mkdir()
     with tarfile.open(archive, 'r:gz') as bundle:
         members = bundle.getmembers()
+        aliases = {name + '/' + launcher: 'launchers/' + launcher for launcher in
+                   ('ab-claude', 'ab-codex', 'ab-opencode', 'ab-opencode1')}
         for member in members:
             path = Path(member.name)
             assert not path.is_absolute() and '..' not in path.parts and path.parts[0] == name, 'unsafe archive path'
-            assert member.isfile() or member.isdir(), 'archive must contain regular files and directories only'
-        # Members were checked without extracting links or special files.
+            assert (member.isfile() or member.isdir() or
+                    member.issym() and aliases.get(member.name) == member.linkname), 'unsafe archive link or special file'
+        # Only the four known, inward-pointing launcher aliases may be links.
         bundle.extractall(destination, members=members)
     root = destination / name
     manifest = root / 'MANIFEST.sha256'
@@ -181,7 +184,7 @@ def archive_bundle(archive, work):
         assert relative not in checked, 'duplicate manifest entry'
         checked.add(relative)
         assert hashlib.sha256((root / path).read_bytes()).hexdigest() == digest, 'manifest mismatch: ' + relative
-    delivered = {str(p.relative_to(root)) for p in root.rglob('*') if p.is_file()}
+    delivered = {str(p.relative_to(root)) for p in root.rglob('*') if p.is_file() and not p.is_symlink()}
     assert delivered - checked == {'MANIFEST.sha256'}, 'archive contains unchecked files'
     version = match[1]
     assert (root / 'internal/version/VERSION').read_text().strip() == version

@@ -42,6 +42,7 @@ required=(
   mcp/commands/ls.md mcp/commands/send.md
   agent-bus-ts # the compiled MCP face, launcher and web face
   launchers/ab-claude launchers/ab-codex launchers/ab-opencode launchers/ab-opencode1
+  launchers/review-settings.json.dist
   internal/version/VERSION LICENSE.md licenses/NOTICE.md INSTALL.md
 )
 (
