@@ -27,7 +27,7 @@ export type Status = {
   up?: string; records?: number; services?: number; queued?: number; waiting?: number; dropped?: number; expired?: number;
   kinds?: Record<string, number>; refused?: Record<string, number>; unclean?: boolean;
   owner_inactive?: { records: number; messages: number };
-  you: string; administrator?: boolean; daemon_owner?: boolean;
+  you: string; realm?: string; administrator?: boolean; daemon_owner?: boolean;
   today?: number; activity_days_kept?: number;
 };
 

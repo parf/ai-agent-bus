@@ -1569,4 +1569,50 @@ describe("bus setup", () => {
     expect(good.headers.get("location")).toBe(edit);
     expect(await (await req(edit, { cookie: o })).text()).toMatch(/<textarea[^>]*name="config"[^>]*>[^<]*&quot;realm&quot;: &quot;web.test&quot;/);
   });
+  test("new record forms use the live configured realm without rewriting typed or existing names", async () => {
+    const nameInput = (html: string) => {
+      const input = /<input\b[^>]*id="create-name"[^>]*>/.exec(html)?.[0];
+      expect(input).toBeDefined();
+      return /\bvalue="([^"]*)"/.exec(input!)?.[1];
+    };
+    const formName = async (path: string) => {
+      const r = await req(path, { cookie: o });
+      expect(r.status).toBe(200);
+      return nameInput(await r.text());
+    };
+    // The visitor's own name is owner@test; the default must come from the
+    // daemon's current status, not that identity or a cached host name.
+    await api("/configure", { name: "#bus", config: { realm: "forms.one" } });
+    try {
+      for (const [path, prefix] of [["/agents/new", "#"], ["/queues/new", ""], ["/pubsub/new", ""], ["/services/new", ""], ["/resources/new", ""]]) {
+        expect(await formName(path!)).toBe(`${prefix}@forms.one`);
+      }
+      await api("/configure", { name: "#bus", config: { realm: "forms.two" } });
+      const initial = await formName("/agents/new");
+      expect(initial).toBe("#@forms.two");
+      // Complete the suggested name, then submit exactly what was shown.
+      const suggested = initial!.replace("#@", "#rt22-new@");
+      for (const name of [suggested, "#rt22-bare", "#rt22-explicit@foreign"]) {
+        const r = await req("/record", { cookie: o, form: { action: "create", kind: "agent", name } });
+        expect(r.status).toBe(303);
+        expect(r.headers.get("location")).toBe(`/agent?name=${encodeURIComponent(name)}`);
+        const kept = await req(`/agent/edit?name=${encodeURIComponent(name)}`, { cookie: o });
+        expect(kept.status).toBe(200);
+        expect(await kept.text()).toContain(`name="name" value="${name}"`);
+      }
+      // A refused form retains even an explicitly blank name, not a fresh default.
+      for (const name of ["#rt22-typed@foreign", ""]) {
+        const bad = await req("/record", { cookie: o, form: { action: "create", kind: "agent", name, bound: "not-a-number" } });
+        expect(bad.status).toBe(400);
+        expect(nameInput(await bad.text())).toBe(name);
+      }
+      // Saving the new default cannot rename old records or change their content.
+      const existing = await req("/agent/edit?name=%23helper%40test", { cookie: o });
+      expect(existing.status).toBe(200);
+      expect(await existing.text()).toContain('name="name" value="#helper@test"');
+    } finally {
+      await api("/configure", { name: "#bus", config: { realm: "web.test" } });
+    }
+  });
+
 });

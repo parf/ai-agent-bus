@@ -277,7 +277,7 @@ function RecordFields({ kind, st, mode, rec, errId, metadata = {} }: { metadata?
   return <div class="form-grid">
     {mode === "create"
       ? <TextField name="name" label="Name" st={st} errId={errId} required placeholder={kind === "agent" ? "#name@realm" : "name@realm"} id="create-name" besideLabel={<RecordPersonalField kind={kind} st={st} rec={rec} errId={errId} />}
-          help={{ label: "About the name", tip: "The routing identity callers use. It cannot be changed afterwards." }}
+          help={{ label: "About the name", tip: "The routing identity callers use. Complete the name before @; you can change or remove the suggested realm. It cannot be changed afterwards." }}
           hint={kind === "agent" ? "An agent's name starts with #." : undefined} />
       : <input type="hidden" name="name" value={rec!.name} />}
     <TextField name="descr" label="Description" st={st} errId={errId} value={v("descr", rec?.descr ?? "")} placeholder={`What this ${n} is for`} hint="Shown first in the registry." wide={mode !== "create"} />
@@ -348,6 +348,9 @@ function RecordFields({ kind, st, mode, rec, errId, metadata = {} }: { metadata?
 
 async function registerPage(ctx: Ctx, kind: Kind, st: FormState = { values: {} }, status = 200): Promise<Response> {
   const s = await ctx.status();
+  // Suggest only on a fresh form. Submitted names (including an empty one)
+  // remain explicit identities, never expanded or rewritten on POST.
+  if (st.values.name == null && s.realm) st = { ...st, values: { ...st.values, name: `${kind === "agent" ? "#" : ""}@${s.realm}` } };
   const k = KINDS[kind];
   // Arriving from a Personal list: the form starts Personal, and Back returns there.
   const fromPersonal = ctx.q("personal") === "1" || st.values.from_personal === "1";
