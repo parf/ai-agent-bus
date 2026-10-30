@@ -169,7 +169,7 @@
         {
           "name": "filter",
           "type": "string",
-          "help": "Regex /pattern/flags or plain regex; empty clears an edited filter",
+          "help": "Regex /pattern/flags or plain regex; empty matches all. To change a filter, delete the subscription and add it again.",
           "optional": true,
           "rest": true
         }
