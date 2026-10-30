@@ -2,7 +2,7 @@
 
 📌 **TL;DR:** An idea, not decided: a layered AI team for this repository. The
 owner talks only to `#ceo`. `#dir` splits tickets, two leads route work to
-workers, reviewers check every diff, and a script agent `#gate` alone lands on
+workers, QA checks every diff, and a script agent `#gate` alone lands on
 main. The coordinating layer runs on `/fast` and reads only short receipts. The
 heavy work runs below it on ordinary models.
 
@@ -26,7 +26,7 @@ parf ──► #ceo (kitty window, /fast)
      │             │
   #w1-1..3      #w2-1..3      (ordinary models: code, tests, mutants, docs, plans)
      │             │
-     ├─► #review1  ├─► #review2   (another vendor; runs while the worker takes the next task)
+     ├─► #qa1      ├─► #qa2       (another vendor; runs while the worker takes the next task)
      └─► #gate ◄───┘              (script, no model; one queue reader is the lock)
               │  rebase → --normal → version bump + changelog → ff-merge
               ▼
@@ -39,9 +39,9 @@ parf ──► #ceo (kitty window, /fast)
 |---|---|---|---|
 | `#ceo` | `/fast`, a kitty window rather than tmux | is the owner's single contact; answers at once from its board and status events; writes the ticket, queues it, acknowledges it with its ID; reports results; keeps the list of what waits on the owner | calls down, waits, executes |
 | `#dir` | `/fast`, tmux | takes tickets; splits large ones into tasks on disjoint paths; sets deadlines; balances leads; requeues timeouts; settles cross-team conflicts over shared files and order | code |
-| `#lead1`, `#lead2` | `/fast`, tmux | assigns a task to a worker by fit; sends the finished branch to review and to `#gate` together; reads receipts; marks done or failed; returns a red result to the same worker | gates, merges, code fixes, docs, reading logs or diffs |
+| `#lead1`, `#lead2` | `/fast`, tmux | assigns a task to a worker by fit; sends the finished branch to QA and to `#gate` together; reads receipts; marks done or failed; returns a red result to the same worker | gates, merges, code fixes, docs, reading logs or diffs |
 | `#w<team>-1..3` | ordinary models by task type: Claude for architecture and refactors, Codex for scoped fixes, z.ai for tests and boilerplate; tmux | one task at a time in its own worktree; done means commits, tests, a mutant where [verification](../../CLAUDE.md#mutation-first-then-belief) asks for one, docs, and the plan's TODO and DONE in the same change; runs fast checks only; sends a receipt on done or blocked | the version file, the changelog, merging to main |
-| `#review1`, `#review2` | a vendor other than the author's | reviews every diff of its team; findings carry file:line and a fix, reproduced first; doc drift is a standard finding; advisory, blocks a merge only at high severity | code |
+| `#qa1`, `#qa2` | a vendor other than the author's | checks every diff of its team; findings carry file:line and a fix, reproduced first; doc drift is a standard finding; advisory, blocks a merge only at high severity | code |
 | `#gate` | a script agent, no model | sole reader of the gate queue; rebases on main, runs the normal gate, bumps the version and adds the changelog line from the ticket, fast-forwards main only without a high finding; reruns once on a flake; sends a receipt | — |
 
 ## Principles
@@ -49,7 +49,7 @@ parf ──► #ceo (kitty window, /fast)
 | Principle | Why |
 |---|---|
 | The `/fast` layer reads receipts only | `/fast` costs more per token; logs, diffs and long reports belong below it |
-| Only `#gate` lands on main | removes review after merge, version slot races and gate lock contention in one place |
+| Only `#gate` lands on main | removes landing before QA, version slot races and gate lock contention in one place |
 | Teams own subsystems | team paths follow the letters in [the subsystem map](../subsystems.md), so tasks rarely collide; for example core, daemon, runner and install in one team, faces, web and agents in the other |
 | State lives on the bus | the tasks queue and the board hold it, not a model's context, so closing the `#ceo` window loses nothing |
 | Owner-only actions stay the owner's | push, live sends, a daemon restart and widening scope; `#ceo` shows them as a list instead of blocking silently |
