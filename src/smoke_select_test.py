@@ -52,6 +52,13 @@ class Selection(unittest.TestCase):
         self.assertEqual({c for c, l in p['checks'].items() if l == 'normal'}, {'container_image'})
         self.assertEqual(self.plan([], 'normal', 'Q')['checks']['container_image'], 'normal')
 
+    def test_distro_install_runs_only_in_the_slow_set_for_its_paths(self):
+        for path in ['install.sh', 'src/acceptance/distro/in-container.sh', 'src/cmd/agent-bus-setup/upgrade.go']:
+            self.assertEqual(self.plan([path], 'slow')['checks']['distro_install'], 'slow', path)
+            self.assertEqual(self.plan([path], 'fast')['checks']['distro_install'], 'skip', path)
+        self.assertEqual(self.plan(['src/agents/telegram/receive.ts'], 'slow')['checks']['distro_install'], 'skip')
+        self.assertEqual(self.plan([], 'slow', 'all')['checks']['distro_install'], 'slow')
+
     def test_shared_or_unknown_fails_closed(self):
         for path in ['src/smoke.sh', 'src/go.mod', 'src/web/bun.lock', 'new-unknown-file']:
             p = self.plan([path])

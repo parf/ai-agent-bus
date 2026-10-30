@@ -317,6 +317,18 @@
         "src/agents/shared/metadata.py"
       ]
     },
+    "distro_install": {
+      "tags": "GM",
+      "paths": [
+        "install.sh",
+        "src/acceptance/distro/",
+        "src/acceptance/guard.sh",
+        "src/package.sh",
+        "src/build.sh",
+        "src/cmd/agent-bus-setup/",
+        "src/check-deploy.sh"
+      ]
+    },
     "container_image": {
       "tags": "GQ",
       "paths": [

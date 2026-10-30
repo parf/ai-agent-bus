@@ -53,7 +53,7 @@ SHARDS=(core go_checks process_titles readers call_damage reply_to script_inbox
   orphans transfer corrupt_pair supervisor
   mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename web_ts samples tls_port
   client_python client_rust client_php client_typescript client_java client_go client_examples
-  agent_slack agent_telegram agent_server_info agent_systemd agent_git agent_logwatch agent_sessions agent_ai agent_sms agent_voyage agent_db agent_qdrant agent_rag agent_webhook agent_fetch agent_smtp agent_imap agent_cron agent_at agent_subscriptions container_image agent_eventlog)
+  agent_slack agent_telegram agent_server_info agent_systemd agent_git agent_logwatch agent_sessions agent_ai agent_sms agent_voyage agent_db agent_qdrant agent_rag agent_webhook agent_fetch agent_smtp agent_imap agent_cron agent_at agent_subscriptions container_image distro_install agent_eventlog)
 if [ -n "$SHARD" ]; then
   case " ${SHARDS[*]} " in
     *" $SHARD "*) ;;
@@ -4172,6 +4172,17 @@ container_image() {
     echo "$out" | sed 's/^/  /'
     ok_exit "container image acceptance from the release archive" "$rc"
     has "the container acceptance wrote nothing to the host journal" "$out" "^journal-quiet: no journal entry for agent-bus-acc-$"
+  else skipped=$((skipped+1)); fi
+}
+
+distro_install() {
+  if slow; then
+    sec "install from the release archive on AlmaLinux 10, Ubuntu 26.04 and Debian 13: check-deploy, tamper, update (P.4)"
+    local out rc
+    out=$(timeout 540 ./journal-quiet.sh agent-bus-distro- ./acceptance/distro/run.sh 2>&1); rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "curl | sh installs a node that passes check-deploy, refuses forged releases and updates keeping its configuration" "$rc"
+    has "the distro acceptance wrote nothing to the host journal" "$out" "^journal-quiet: no journal entry for agent-bus-distro-$"
   else skipped=$((skipped+1)); fi
 }
 
