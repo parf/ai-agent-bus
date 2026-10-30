@@ -4,7 +4,7 @@
 anyone allowed announces new code on the `autopull-cmd` pubsub channel, in one
 of two modes per repository: `ff` (safe, never discards work) or `mirror`
 (production deploy). A server may run its own success or fail script after an
-attempt. Every attempt is one JSON record on `autopull-log`, a fixed-size ring.
+attempt. Every attempt is one JSON record on `autopull-log`.
 No timers. The owner's realty flow is one [use case](#use-cases) that must work.
 
 Owner, 2026-10-29. Decisions: [RD147, RD148, RD150, RD151](../DECISIONS.md#recorded-decisions).
@@ -21,9 +21,9 @@ Both are ordinary pubsub records: their ACL says who may publish, their
 Deliver-To says who gets a copy of everything. Work after a deploy is usually
 the [server's own script](#after-an-attempt); a service that acts on
 `autopull-log` records still works, as an option (owner: "the old scheme with
-autopull-log works; just optional"). The bus has no per-subscriber
-filter, so for a filtered feed `#git` keeps [subscriptions](#subscriptions) of
-its own (owner: "autopull is like our subscriptions").
+autopull-log works; just optional"). Pubsub stays a stateless fan-out with no
+filters and no history: each receiver filters what it gets by message `topic`
+and `tag` (owner, 2026-10-29).
 
 ## Modes
 
@@ -79,7 +79,7 @@ mode and scripts. All must work:
 | Roll out or roll back one revision everywhere | a pipeline or operator publishes `deploy` with a commit | per repository | scripts as usual |
 | One known server, wait for the answer | none: `agent-bus call '#git@host' 'deploy site main <sha>'` | — | the answer is the result; the exit code says ok or fail |
 | A pipeline that waits for every server | publishes with an `id`, then reads records with that `id` from its own queue in the `autopull-log` Deliver-To until each expected host answered or it times out | per repository | — |
-| React elsewhere on success | any service in the `autopull-log` Deliver-To, or a [subscription](#subscriptions) | — | that service acts on `ok` (optional) |
+| React elsewhere on success | any service in the `autopull-log` Deliver-To | — | that service acts on `ok` (optional) |
 
 A pipeline or other publisher is an ordinary bus caller with its own name (for
 example `#ci/realty@parf.us`) on the channel's ACL. `#git` does not know which
@@ -143,20 +143,6 @@ Never in a record: local paths, remote URLs or keys, commit messages.
 A one-line human form, used by `autopull <repo>` status and chat relays:
 `FAIL site@realmo-parf.ny.7w7.us main: diverged (ff)`.
 
-## Subscriptions
-
-The same `sub` commands as [`#imap`](../../../docs/agents/imap.md#what-it-does)
-and [`#logwatch`](../../../docs/agents/logwatch.md#what-it-does):
-
-| Command | Does |
-|---|---|
-| `sub add <target> [/regex/]` | Sends each future result record to a queue or agent; the filter matches the one-line form, so `/^OK site@realmo-/` picks results by result, repo or host; no filter means all |
-| `sub list`, `sub delete <id>` | Shows or stops them |
-
-The target gets the JSON record, as on `autopull-log`. Adding one needs
-permission to send to the target, as for `#imap`. Subscriptions start from now:
-no backlog is replayed.
-
 ## Configuration
 
 Per repository, in `#git`'s Configuration as usual (owner: "Configuration —
@@ -185,14 +171,10 @@ anyone but root or `#git`'s user is refused.
 
 ## Log size
 
-`autopull-log` is a fixed-size ring: when full, the oldest record is lost
-(owner, 2026-10-29). A pubsub keeps nothing itself
-([channel kinds](../../../docs/03-records-channel.md#the-two-channel-kinds));
-each copy lives in its recipient's inbox, so the ring is the recipient's. The
-recommended setup: one 📮 queue in its Deliver-To, `autopull-history`, bounded
-(for example 1,000) with `--overflow ring`
-([overflow](../../../docs/04-messaging.md#overflow)), and ring inboxes for
-listeners. Reading a queue takes the message; a ring kept on the pubsub itself
-and readable without taking is [Q211](../QUESTIONS.md#git-autopull).
+Nothing new: pubsub keeps no state, and each copy lives in its receiver's inbox.
+A receiver that wants a bounded log sets its own inbox to **When full: drop
+oldest** (`--overflow ring`, [overflow](../../../docs/04-messaging.md#overflow))
+with a bound of its choice. A receiver added later or restarted gets only new
+records, no history (owner, 2026-10-29).
 
 A chat relay for these records is [Q210](../QUESTIONS.md#git-autopull).

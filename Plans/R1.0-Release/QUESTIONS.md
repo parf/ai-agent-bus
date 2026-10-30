@@ -35,13 +35,9 @@ Choices for the [shorter prompts plan](short-prompts.md#proposal), to discuss wi
 
 ## Git autopull
 
-- ❓ Q210 Who posts autopull results to chat: a [`#git` subscription](git-autopull/README.md#subscriptions) straight to `#slack`/`#telegram`, or a small relay agent that formats records for people
-  - Options: a subscription to the chat agent, sending the JSON record as is; or a relay that turns each record into the one-line form and posts it
+- ❓ Q210 Who posts autopull results to chat: `#slack`/`#telegram` in the [`autopull-log`](git-autopull/README.md#two-channels) Deliver-To, or a small relay agent that formats records for people
+  - Options: the chat agent receives the JSON record as is; or a relay that turns each record into the one-line form and posts it
   - Impact: the first needs no new agent but posts raw JSON; the second is readable but is one more agent to keep
-
-- ❓ Q211 Where the [`autopull-log` ring](git-autopull/README.md#log-size) lives
-  - Options: a bounded `--overflow ring` queue in its Deliver-To, no daemon change, but reading takes a record (recommended for B.25); or a new pubsub option that keeps the last N messages, readable by anyone allowed, without taking
-  - Impact: the second gives every reader the same history and replay at start, and is a daemon and wire change for every pubsub
 
 ## RAG service
 

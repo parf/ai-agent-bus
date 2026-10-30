@@ -19,8 +19,7 @@ mode: mutants required.
 | 3 | `ff` and `mirror` runs under the repository's lock; `mirror` counts what it discards |
 | 4 | Triggers: `autopull-cmd` events, one check per repository at start, `autopull <repo> now`, `deploy <repo> <branch> [<rev>]`; `deploy <repo>` keeps working |
 | 5 | Publish one [result record](README.md#result-record) per attempt to `autopull-log`, topic `<repo>@<host>`, tag = result |
-| 6 | `sub add/list/delete` with the [subscription](README.md#subscriptions) rules shared with `#imap` (may-send check at add and before each send) |
-| 6a | `autopull-success-script` / `autopull-fail-script` per repository: Owner-only, absolute path, writable only by root or the agent user, record on stdin, time limit, outcome in `script` |
+| 6 | `autopull-success-script` / `autopull-fail-script` per repository: Owner-only, absolute path, writable only by root or the agent user, record on stdin, time limit, outcome in `script` |
 | 7 | Remove the install-time `--autopull` timer; reinstall removes an existing timer unit |
 | 8 | Update [the git guide](../../../docs/agents/git.md#autopull) and decisions; bump, changelog |
 
@@ -35,7 +34,6 @@ Acceptance, each failing on the old code or by a named mutant:
 - An event with `v` 2, an unknown field, a 39-hex push commit or another branch moves nothing; the served-repository ones record `invalid_event` or are ignored, as the design says; one naming no served remote writes no record.
 - Restarting `#git` with the remote one commit ahead produces one `start` record and moves the copy.
 - Two events for one repository at once give two records and one move; neither leaves the lock held.
-- A subscription with `/^FAIL /` receives the fail record and not the ok one; a subscriber without may-send to its target is refused at add.
 - No record and no answer contains the checkout path, the remote URL or a commit message (asserted on a fixture whose path, URL and message are unique strings).
 - A `deploy` event with `id` gives records carrying that `id` on every matching copy; a direct `deploy` call exits non-zero when the result is `fail`; an `id` outside its character set is `invalid_event`.
 - After an `ok` attempt the success script runs once in the checkout with the record on stdin, and the published record carries its exit code; on `skip` no script runs.
@@ -59,6 +57,6 @@ Acceptance:
 
 ## Dependencies
 
-- B.25 needs nothing new from the daemon: pubsub records, Deliver-To, ring queues and the may-send query exist.
-- Setup on this node after B.25: `autopull-cmd`, `autopull-log`, and the `autopull-history` ring queue in its Deliver-To.
+- B.25 needs nothing new from the daemon: pubsub records, Deliver-To and ring inboxes exist.
+- Setup on this node after B.25: the `autopull-cmd` and `autopull-log` pubsub records; listeners set their inboxes to drop oldest.
 - The owner chooses the realty servers' switch from Redis autopull, after B.25 and B.26.

@@ -459,7 +459,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
 
 - ✅ B.23 scoped curl and per-instance fetch allowlists — **0.9.153**, `3b6e6669`; final normal **1218/0, 47.513 s**, **59** assertion-red mutants, **79** focused checks; manager deployed disabled and implementer independently verified package/state plus check-deploy **6/6**. [Current guide](../../docs/agents/fetch.md#what-it-does), [result/review/plan history](done/fetch-curl.md#result). Real private scopes remain the owner's choice.
 
-- ⏳ B.25 `#git` autopull from bus channels: `autopull-cmd` events, start check and operator force, `ff`/`mirror` modes, revision deploy, JSON results on `autopull-log` and filtered `sub`; the timer is removed — [design](git-autopull/README.md#two-channels), [tasks](git-autopull/TODO.md#b25-channel-driven-autopull-in-git) (owner, 2026-10-29)
+- ⏳ B.25 `#git` autopull from bus channels: `autopull-cmd` events, start check and operator force, `ff`/`mirror` modes, revision deploy, JSON results on `autopull-log`, success/fail scripts; the timer is removed — [design](git-autopull/README.md#two-channels), [tasks](git-autopull/TODO.md#b25-channel-driven-autopull-in-git) (owner, 2026-10-29)
 
 - ⏳ B.26 `#webhook` publishes a hosting service's push to `autopull-cmd` — [tasks](git-autopull/TODO.md#b26-webhook-publishes-to-a-pubsub-channel)
 
