@@ -44,7 +44,15 @@ jobs:
         run: src/package.sh "$PWD/dist"
       - name: Verify every archive before upload and draft creation
         id: release-evidence
-        run: src/release-verify.sh dist/*.tar.gz
+        shell: bash
+        run: |
+          arch=$(uname -m)
+          version=$(tr -d '[:space:]' < src/internal/version/VERSION)
+          for edition in agent-bus agent-bus-client; do
+            expected="dist/$edition-$version-linux-$arch.tar.gz"
+            test -f "$expected" || { echo "missing expected archive: $expected" >&2; exit 1; }
+          done
+          src/release-verify.sh dist/*.tar.gz
       - name: Archive hashes, for the owner to compare before signing
         run: (cd dist && sha256sum *.tar.gz) | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
