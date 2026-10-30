@@ -443,9 +443,9 @@ public final class BusTest {
                 Optional<Message> got = svc.consume(Consume.waiting(ms(2000)));
                 check("send " + k.get("id") + ": arrives field for field under the returned ID", got.isPresent()
                         && got.get().id().equals(id) && got.get().from().equals(want.get("from")) && got.get().to().equals(want.get("to"))
-                        && got.get().body().equals(want.get("body")) && got.get().topic().orElse("").equals(want.getOrDefault("topic", ""))
-                        && got.get().tag().orElse("").equals(want.getOrDefault("tag", ""))
-                        && got.get().ask().orElse("").equals(want.getOrDefault("ask", "")), got);
+                        && got.get().body().equals(want.get("body")) && got.get().topic().orElse("").equals(java.util.Objects.toString(want.get("topic"), ""))
+                        && got.get().tag().orElse("").equals(java.util.Objects.toString(want.get("tag"), ""))
+                        && got.get().ask().orElse("").equals(java.util.Objects.toString(want.get("ask"), "")), got);
             }
             List<?> calls = load.apply("call");
             List<String> handled = new java.util.concurrent.CopyOnWriteArrayList<>();
