@@ -13,7 +13,7 @@ export type Row = {
 export type ErrorCode = "invalid_target" | "invalid_selector" | "invalid_filter" | "invalid_text" | "invalid_id" | "limit" | "not_found"
   | "not_author" | "admission_refused" | "admission_unavailable" | "store_unknown";
 
-export type WarningCode = "admission_refused" | "admission_unavailable" | "filter_invalid" | "filter_timeout"
+export type WarningCode = "admission_refused" | "admission_unavailable" | "filter_invalid" | "filter_timeout" | "invalid_text"
   | "send_refused" | "send_unknown" | "deadline" | "store_unknown";
 
 /** The stable code is the contract; the message is prose for people. */
@@ -259,7 +259,8 @@ export class Subscriptions {
       if (!admitted.has(key)) admitted.set(key, await this.port.admits(who, target));
       return admitted.get(key)!;
     };
-    // Text that is not testable matches no filter; a match-all row still matches.
+    // Malformed text fails closed for every selector candidate, match-all
+    // included: dropped and warned, never asked about or sent.
     let sample: string | undefined;
     try {
       sample = checkText(text);
@@ -269,6 +270,14 @@ export class Subscriptions {
     const changed = new Set<Row>();
     for (const row of [...this.rows.values()].sort((a, b) => (a.id < b.id ? -1 : 1))) {
       if (!this.options.selectorMatches(row.selector, event)) continue;
+      if (sample === undefined) {
+        result.matched++;
+        result.dropped++;
+        this.options.warning("invalid_text", row.id);
+        row.dropped = bump(row.dropped);
+        changed.add(row);
+        continue;
+      }
       const re = this.filterOf(row);
       if (re === null) {
         // Inert, never match-all: the matched copy is dropped and warned.
@@ -280,7 +289,6 @@ export class Subscriptions {
         continue;
       }
       if (re) {
-        if (sample === undefined) continue;
         const verdict = await this.matcher(re, sample);
         if (verdict === "slow") {
           this.options.warning("filter_timeout", row.id);
