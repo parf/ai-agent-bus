@@ -645,7 +645,7 @@ Implement the [release artifacts](distribution.md#release-artifacts) and [contai
   - Acceptance: On a clean supported host without the checkout or Go toolchain, install the published package, start the bus, complete an agent request/reply and an MCP tool call. Omit a required executable or MCP runtime asset from the package and the corresponding exercise fails
   - Mutant: Omit a required executable or MCP runtime asset from the package and the corresponding exercise fails
 
-- ⏳ P.2 Container image
+- ⏳ P.2 Container image: built in [src/container](../../src/container/README.md#container-image), acceptance and mutants green locally (T-6d); remaining owner-only step: publish the image, then pull it on a clean host
   - Acceptance: Pull the published image on a clean host, start each role from the supplied instructions and complete an agent request/reply. Break either role's entry point and delivery fails. Recreate the daemon container with its volume and verify the registered service and issued credential still work; move storage outside the volume and recovery fails. Request unavailable sandboxing and require refusal; silently downgrading must fail the check
   - Mutant: Break either role's entry point and delivery fails. silently downgrading must fail the check
 
