@@ -188,7 +188,16 @@ func mustName(t *testing.T, s string) protocol.Name {
 // install: its explicit home and socket belong to the new macOS role account.
 func TestDarwinFirstUserUsesTheRoleAccountsHomeAndSocket(t *testing.T) {
 	l, ran := fakeDarwin(t)
-	short, err := os.MkdirTemp("../../../tmp", "m2-")
+	parent := "../../../tmp"
+	if _, err := os.Stat(parent); os.IsNotExist(err) {
+		if err := os.MkdirAll(parent, 0700); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = os.Remove(parent) })
+	} else if err != nil {
+		t.Fatal(err)
+	}
+	short, err := os.MkdirTemp(parent, "m2-")
 	if err != nil {
 		t.Fatal(err)
 	}
