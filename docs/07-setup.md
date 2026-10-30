@@ -279,7 +279,7 @@ capability.
 | `alice-ab-runner` | a system account of its own, `nologin`, so her runner's secrets are apart from everybody else's |
 | `/var/lib/agent-bus/agent.d/` | shared agents' code, root-owned, 755, readable by every runner account |
 | `/var/lib/agent-bus/alice-ab-runner/` | `alice-ab-runner`'s alone, 700: its token in `runner.env`, the tokens of the agents it created, their work directories |
-| `#runner/alice@<realm>` | her agent on the bus (the bus realm; a runner already registered at the host name keeps it), allowing `@owner`; the runner is started with its token, never with hers ([who it runs as](../Plans/R1.0-Release/runner-implementation.md#who-it-runs-as)) |
+| `#runner/alice@<realm>` | her agent on the bus (the bus realm; a runner already registered under any realm keeps that record, and two such records refuse the install), allowing `@owner`; the runner is started with its token, never with hers ([who it runs as](../Plans/R1.0-Release/runner-implementation.md#who-it-runs-as)) |
 | `agent-bus-runner@alice.service` | an instance of one template, `/etc/systemd/system/agent-bus-runner@.service`: her account, only its private directory writable, `Delegate=yes`, no capability, `Wants=`/`After=` the daemon, never `Requires=`, and no start while `runner.env` is missing |
 
 | Verb | Leaves the host with |
