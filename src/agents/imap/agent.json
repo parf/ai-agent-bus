@@ -111,11 +111,11 @@
     },
     "sub list": {
       "text": "sub list",
-      "help": "See every subscription, for every admitted caller: creator, held count and UID range, pause, intake state, skipped counts, reasons and ranges, and repair status. No mailbox connection. A blank line separates the cached poll-status line at the end."
+      "help": "Review your subscriptions: target, creator, filter, first UID and sent and dropped counts. Direct Owners and Maintainers see all, including damaged rows marked invalid_state for repair. No mailbox connection. A blank line separates the cached poll-status line at the end."
     },
     "sub delete": {
       "text": "sub delete <id>",
-      "help": "Stop a subscription and discard its held copies; the creator or this IMAP's Owner and Maintainers may. Delete and add again starts at the current UIDNEXT and skips mail received while paused.",
+      "help": "Stop your subscription. Direct Owners and Maintainers may delete any subscription, including damaged rows. To change one, delete it and add it again; the new one starts at the current UIDNEXT.",
       "destructive": true,
       "args": [
         {
@@ -124,7 +124,7 @@
       ]
     },
     "status": {
-      "help": "See the last poll and its age, and the pause, held, backlog, loss and repair counts. No mailbox connection."
+      "help": "See the last poll and its age, and the subscription, backlog, sent, dropped and warning counts. No mailbox connection."
     },
     "mark": {
       "text": "mark <uid> read|unread",
