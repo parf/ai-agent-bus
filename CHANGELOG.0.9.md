@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.202 — 2026-10-30
+
+Logwatch uses the shared subscriptions module: one copy per match, refused sends warn once, invalid filters are refused, and sub edit is gone
+
 ## 0.9.201 — 2026-10-30
 
 Client libraries answer a self-call made from inside a running handler, and refuse it outside serve
