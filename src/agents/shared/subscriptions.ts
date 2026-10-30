@@ -322,22 +322,25 @@ export class Subscriptions {
     const changed = new Set<Row>();
     for (const row of [...this.rows.values()].sort((a, b) => (a.id < b.id ? -1 : 1))) {
       if (!this.options.selectorMatches(row.selector, event)) continue;
-      if (sample === undefined) {
-        result.matched++;
+      const drop = (code: WarningCode) => {
         result.dropped++;
-        this.options.warning("invalid_text", row.id);
+        this.options.warning(code, row.id);
         row.dropped = bump(row.dropped);
         changed.add(row);
+      };
+      const expired = () => options.deadline !== undefined && Date.now() >= options.deadline;
+      // An expired deadline, malformed text or an inert filter drops every
+      // selector candidate before any matching or admission question.
+      const late = expired();
+      if (late || sample === undefined) {
+        result.matched++;
+        drop(late ? "deadline" : "invalid_text");
         continue;
       }
       const re = this.filterOf(row);
       if (re === null) {
-        // Inert, never match-all: the matched copy is dropped and warned.
         result.matched++;
-        result.dropped++;
-        this.options.warning("filter_invalid", row.id);
-        row.dropped = bump(row.dropped);
-        changed.add(row);
+        drop("filter_invalid");
         continue;
       }
       if (re) {
@@ -349,13 +352,7 @@ export class Subscriptions {
         if (verdict === "miss") continue;
       }
       result.matched++;
-      const drop = (code: WarningCode) => {
-        result.dropped++;
-        this.options.warning(code, row.id);
-        row.dropped = bump(row.dropped);
-        changed.add(row);
-      };
-      if (options.deadline !== undefined && Date.now() >= options.deadline) {
+      if (expired()) {
         drop("deadline");
         continue;
       }

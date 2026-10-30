@@ -174,3 +174,11 @@ test("a damaged row still takes a place under the subscription limit", async () 
   const { subs } = await engine({ "sub.000000000001": good, "sub.000000000002": "text" }, { maxSubscriptions: 2 });
   expect(await subs.add(writer, "events@fixture.test", {}).catch(e => e.code)).toBe("limit");
 });
+
+test("an expired deadline drops each selector candidate before its filter is tested", async () => {
+  let tested = 0;
+  const { subs, state, warnings } = await engine({ "sub.000000000001": { ...good, filter: "/nomatch/" } },
+    { matcher: async () => { tested++; return "miss"; } });
+  expect(await subs.deliver({}, "x", "x", { deadline: Date.now() - 1 })).toEqual({ matched: 1, sent: 0, dropped: 1 });
+  expect({ tested, warnings, queries: state.queries, attempts: state.attempts }).toEqual({ tested: 0, warnings: ["deadline"], queries: [], attempts: 0 });
+});
