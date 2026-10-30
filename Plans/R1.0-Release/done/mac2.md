@@ -28,9 +28,17 @@ The native install and teardown run took **34.075 s**. It used `--exec` with the
 
 ## Node mutation evidence
 
-Under confirmed 15-minute `smoke-gate` holds, twelve setup mutants compiled and failed an owning assertion: job as root, missing job account, public storage, closed socket directory, database initialization as root, a login shell, a usable password field, visible account, open umask, missing TLS, accepted Linux-only flags, and omitted walkable parents. Restored `TestDarwin` checks pass.
+Under confirmed 15-minute `smoke-gate` holds, twelve setup mutants compiled and failed an owning assertion: job as root, missing job account, public storage, closed socket directory, database initialization as root, a login shell, a password field other than `*`, visible account, open umask, missing TLS, accepted Linux-only flags, and omitted walkable parents. Restored `TestDarwin` checks pass.
 
 A real private daemon on this node registers an entry, stops and restarts, and finds the entry intact. Deleting only that fixture database before restart gives the named assertion `registry lost across restart`. It uses the same registry/store path as the native Mac daemon; no mutation ran on the Mac. The first-user handoff check also failed on the old call and passes with the explicit home and socket.
+
+## Admin defaults follow-up
+
+`fe9d8728` adds `TestInstalledAdminDefaultsAreForThisOS` before the fix. On the Mac it fails an assertion: the account is `agent-busd` and the socket `/run/agent-bus/bus.sock`, rather than the Darwin defaults. That focused run took 11.802 s including cleanup.
+
+`53ae56f4` selects `_agentbusd`, `/usr/local/var/agent-bus/daemon` and the platform's installed socket. The credential hint uses the local sudo/token form on macOS; Linux keeps its existing SSH hint and defaults. Native account/socket, home-default and hint checks pass without sudo, 11.942 s including cleanup. The full Linux admin test package also passes.
+
+These follow-up runs return the clone to clean `main`, `7c6555aa`; the workspace is now **54M** because of the additional Git objects. Build output and `.cache` were deleted, and `~/go` and `~/Library/Caches/go-build` remain absent. No sudo command was added after the owner took over role cleanup. The final focused fast `go_checks` passes in 5.074 s.
 
 ## Owner cleanup still open
 
