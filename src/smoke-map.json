@@ -179,7 +179,8 @@
       "tags": "L",
       "paths": [
         "src/agents/slack/",
-        "src/agents/shared/"
+        "src/agents/shared/",
+        "src/testdata/subscriptions.json"
       ]
     },
     "agent_telegram": {
