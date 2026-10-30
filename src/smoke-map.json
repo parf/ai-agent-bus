@@ -755,7 +755,12 @@
           "agents.db.test_db.Redaction",
           "agents.db.test_db.Cells",
           "agents.db.test_db.MySQL",
-          "agents.db.test_fixtures",
+          "agents.db.test_fixtures.StartUp",
+          "agents.db.test_fixtures.Leaks",
+          "agents.db.test_fixtures.Identity",
+          "agents.db.test_fixtures.Watcher",
+          "agents.db.test_fixtures.SignalExit",
+          "agents.db.test_fixtures.Wire",
           "-v"
         ]
       }
