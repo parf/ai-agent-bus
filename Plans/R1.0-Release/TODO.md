@@ -678,3 +678,22 @@ Plan and acceptance in [macOS](macos.md#tasks); decided in [RD166](DECISIONS.md#
   - Origin: the released MVP's [measured findings](../done/R0.8-MVP/done/web-acceptance.md#findings), carried forward when R0.8 was archived; the original acceptance is complete.
   - Work: decide pagination for Groups, Account, the Owner's User page and Activity, and bound directory bytes fetched for a listing. These were deferred page-design choices, not failed MVP acceptance; remeasure the TypeScript face before choosing changes.
   - Acceptance: record HTML and bus response sizes as directory size grows; any chosen bound gets a check that fails when the bound is removed. No pagination or API design is settled by this carry-forward.
+
+## Docs rewrite
+
+Owner, 2026-10-30: every doc leads with why, then what you get, then real working examples, then technical details ([plan, rule, inventory and acceptance](docs-rewrite.md#the-rule)). `DW…` labels this section's rows; each batch is its own worktree and landing, no bump.
+
+- ⏳ DW0 The docs-order checker with mutants (fast list, `src/agents/docs_order_test.py`): order, first 10-20%, bullets, no lead jargon
+  - Acceptance: it fails when a page puts details first, drops why from the first fifth, has an empty example block or opens with a jargon term; each mutant fails on an assertion
+- ⏳ DW1 Agent guides, first batch for the owner's review: ai, db, fetch, git, git-autopull, rag, qdrant, voyage, server-info, systemd
+- ⏳ DW2 Agent guides: smtp, sms, webhook, tmux-sessions, bus, at, README
+- ⏳ DW3 Held agent guides: imap, logwatch, slack, telegram, cron; starts after the subscription docs (T-2) land
+- ⏳ DW4 Held: debug and eventlog guides; start after team 1's P.4 and T-2 land
+- ⏳ DW5 `docs/00`-`05`
+- ⏳ DW6 `docs/06`-`09` except setup
+- ⏳ DW7 `docs/07-setup.md`; starts after distribution (T-6) lands
+- ⏳ DW8 `docs/runner/*` and `docs/user/*`
+- ⏳ DW9 Agent manifests: `agent.json` descriptions and method help, with golden fixtures and a normal gate
+- ⏳ DW10 Web page intros and CLI help text
+- ⏳ DW11 Client READMEs and `src/*.md`; `src/clients/` is shared with RT8 (paused)
+  - Acceptance for all rows: each page passes the checker and the first-20% check, every example was run on a real node, links and anchors resolve, built/pending status is unchanged
