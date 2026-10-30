@@ -6,15 +6,12 @@ The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
 ## 0.9.189 — 2026-10-30
 
-third-party notices move to licenses/NOTICE.md, shipped beside LICENSE.md in every archive, agent package and npm package
-
-## 0.9.188 — 2026-10-30
-
-Sixth published 0.9 changeset: 0.9.163–0.9.188, squashed.
+Sixth published 0.9 changeset: 0.9.163–0.9.189, squashed.
 
 | Area | Changes |
 |---|---|
 | Release | One compiled `agent-bus-ts` carries the web face, the MCP face and the launchers, so a release needs no bun or Node; `package.sh` also builds the client edition archive. |
+| Licensing/packaging | Third-party notices are in `licenses/NOTICE.md`, shipped beside `LICENSE.md` in every archive, agent package and npm package. |
 | Install | `install.sh` installs a signed release, the full node or `--client` under `~/.local`: it verifies the `SHA256SUMS` signature and the archive, re-verifies as root in a root-owned copy, refuses a quiet downgrade, pins the key with `--key-fingerprint` and never replaces a real file in `~/.local/bin`. Acceptance on AlmaLinux 10, Ubuntu 26.04 and Debian 13 in rootless podman; bubblewrap is in the install needs. |
 | Signing | `release-sign.sh` signs exactly one release's four archives against the CI hash list (or a loud `--no-ci-check`); the workflow builds only tags on main with pinned actions. `release-verify.sh` checks the evidence of a signed release and matches a `SHA256SUMS` line literally. x86_64 verified; aarch64 waits for the owner's Mac. |
 | Container | One image on a digest-pinned AlmaLinux 10 base runs the daemon or a runner from the release archive, with its own acceptance as smoke subsystem Q. |
