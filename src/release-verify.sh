@@ -6,21 +6,23 @@
 # internal/version/VERSION beside this script).
 #
 #   src/release-verify.sh <archive.tar.gz>...
-#   src/release-verify.sh --signers <allowed_signers> [--arches "x86_64 aarch64"] <release-dir>
+#   src/release-verify.sh --signers <allowed_signers> [--arches "x86_64 aarch64"] [--os "linux darwin"] <release-dir>
 #
-# A release directory is the four archives (full and client, per arch in
-# --arches), SHA256SUMS and SHA256SUMS.sig: it must hold exactly those, the
+# A release directory is the archives (the full node and the client for linux,
+# the client alone for darwin, per arch in --arches and os in --os, linux by
+# default), SHA256SUMS and SHA256SUMS.sig: it must hold exactly those, the
 # sums must match the archives, the signature must verify against the signers
 # file in the agent-bus-release namespace, and each archive is checked as above.
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 src=${SOURCE_VERSION:-$here/internal/version/VERSION}
-usage="usage: release-verify.sh <archive.tar.gz>... | --signers <allowed_signers> [--arches \"x86_64 aarch64\"] <release-dir>"
-signers="" arches="x86_64 aarch64"
+usage="usage: release-verify.sh <archive.tar.gz>... | --signers <allowed_signers> [--arches \"x86_64 aarch64\"] [--os \"linux darwin\"] <release-dir>"
+signers="" arches="x86_64 aarch64" oses=linux
 while [ $# -gt 0 ]; do
   case $1 in
     --signers) signers=${2:?$usage}; shift 2 ;;
     --arches) arches=${2:?$usage}; shift 2 ;;
+    --os) oses=${2:?$usage}; shift 2 ;;
     *) break ;;
   esac
 done
@@ -35,8 +37,11 @@ if [ -n "$signers" ]; then
   [ $# = 1 ] && [ -d "$1" ] || { echo "$usage" >&2; exit 2; }
   rel=$(cd "$1" && pwd); name=release
   set --
-  for edition in agent-bus agent-bus-client; do
-    for a in $arches; do set -- "$@" "$rel/$edition-$want-linux-$a.tar.gz"; done
+  for o in $oses; do
+    for edition in agent-bus agent-bus-client; do
+      [ "$o $edition" = "darwin agent-bus" ] && continue # macOS has the client edition only
+      for a in $arches; do set -- "$@" "$rel/$edition-$want-$o-$a.tar.gz"; done
+    done
   done
   for f in "$@"; do [ -f "$f" ] || bad "$(basename "$f") is missing"; done
   for f in "$rel"/*; do
@@ -57,16 +62,17 @@ if [ -n "$signers" ]; then
 fi
 for archive in "$@"; do
   name=$(basename "$archive" .tar.gz)
-  if ! echo "$name" | grep -Eq '^agent-bus(-client)?-[0-9]+\.[0-9]+\.[0-9]+-linux-(x86_64|aarch64)$'; then
+  if ! echo "$name" | grep -Eq '^agent-bus(-client)?-[0-9]+\.[0-9]+\.[0-9]+-(linux|darwin)-(x86_64|aarch64)$'; then
     bad "not a release archive name"; continue
   fi
   edition=full; [[ $name == agent-bus-client-* ]] && edition=client
-  arch=${name##*-}
+  arch=${name##*-}; rest=${name%-"$arch"}; os=${rest##*-}
+  if [ "$os" = darwin ] && [ "$edition" = full ]; then bad "there is no full node for darwin"; continue; fi
   dir="$work/$name"; mkdir "$dir"
   tar -C "$dir" -xzf "$archive" || { bad "cannot unpack"; continue; }
   root="$dir/$name"
   [ -d "$root" ] || { bad "no top directory $name"; continue; }
-  named=${name#agent-bus-}; named=${named#client-}; named=${named%-linux-*}
+  named=${name#agent-bus-}; named=${named#client-}; named=${named%-"$os"-"$arch"}
   [ "$named" = "$want" ] || bad "named $named, source is $want"
   [ "$(tr -d '[:space:]' < "$root/internal/version/VERSION" 2>/dev/null)" = "$want" ] || bad "VERSION file is not $want"
   [ -s "$root/LICENSE.md" ] || bad "licence LICENSE.md missing or empty"
@@ -74,7 +80,9 @@ for archive in "$@"; do
   (cd "$root" && sha256sum -c MANIFEST.sha256 >/dev/null 2>&1) || bad "MANIFEST.sha256 does not match the files"
   progs=(agent-bus agent-bus-runner)
   [ $edition = full ] && progs+=(agent-busd agent-bus-admin agent-bus-setup)
-  native=no; [ "$(uname -m)" = "$arch" ] && native=yes
+  # Runs here only when this host is that OS and CPU (a Mac calls arm64 what the archive calls aarch64).
+  hostarch=$(uname -m); [ "$hostarch" = arm64 ] && hostarch=aarch64
+  native=no; [ "$(uname -s | tr '[:upper:]' '[:lower:]')" = "$os" ] && [ "$hostarch" = "$arch" ] && native=yes
   for p in "${progs[@]}"; do
     f="$root/$p"
     [ -x "$f" ] || { bad "$p missing or not executable"; continue; }
@@ -84,8 +92,10 @@ for archive in "$@"; do
       stamp=$(sed -n 2p <<<"$out")
       [[ $stamp == "build_info: "?* && $stamp != *unstamped* ]] || bad "$p has no build stamp ($stamp)"
     else
-      # Another CPU: it cannot run here, so read the stamp and version out of it.
-      ! grep -aqF 'development (unstamped)' "$f" || bad "$p is an unstamped build"
+      # Another OS or CPU: it cannot run here, so read the stamp and version out
+      # of it. A stamp is "user@host date time"; "development (unstamped)" also
+      # sits in every binary as help text, so its absence proves nothing.
+      grep -aqE '[A-Za-z0-9._-]+@[A-Za-z0-9._-]+ [0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}' "$f" || bad "$p carries no build stamp"
       grep -aqF "$want" "$f" || bad "$p does not carry version $want"
     fi
   done

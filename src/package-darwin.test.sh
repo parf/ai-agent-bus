@@ -31,6 +31,8 @@ for goarch in arm64 amd64; do
   for p in agent-busd agent-bus-setup agent-bus-admin; do
     [ ! -e "$root/$p" ] || fail "$goarch: the client archive holds $p"
   done
+  # The evidence check reads the same archive: it cannot run a Mach-O here.
+  out=$(./release-verify.sh "$out/agent-bus-client-$version-darwin-$arch.tar.gz" 2>&1) && grep -q "darwin-$arch ok (version $version, client, read)" <<<"$out" || fail "$goarch: release-verify does not pass it: $out"
   grep -aq "$version" "$root/agent-bus" || fail "$goarch: agent-bus does not carry $version"
   # The stamp is "user@host date time": a build that was never stamped has none
   # ("development (unstamped)" also sits in the binary as help text, so its

@@ -113,6 +113,23 @@ case_ nolicence 'licence LICENSE.md missing' 'rm LICENSE.md'
 case_ nonotice 'notices licenses/NOTICE.md missing' 'rm licenses/NOTICE.md'
 case_ ts-stale 'agent-bus-ts does not carry version' 'echo "#!/bin/sh" >agent-bus-ts'
 case_ renamed 'missing expected archive: dist/agent-bus-1.2.4-linux-' 'echo 1.2.4 >"$SOURCE_VERSION"'
+# A macOS archive cannot run here even for this host's own CPU, so its binaries
+# are read: the version and a build stamp must be in them.
+mkdarwin() { # dir edition stamp-text
+  local n=$2-$v-darwin-$arch root="$1/$2-$v-darwin-$arch"
+  mkdir -p "$root/internal/version"; echo $v >"$root/internal/version/VERSION"; echo licence >"$root/LICENSE.md"
+  for p in agent-bus agent-bus-runner agent-bus-ts; do printf '\000%s %s\000' $v "$3" >"$root/$p"; chmod +x "$root/$p"; done
+  (cd "$root" && find . -type f ! -name MANIFEST.sha256 -printf '%P\n' | sort | xargs sha256sum >MANIFEST.sha256)
+  tar -C "$1" -czf "$1/$n.tar.gz" "$n"
+}
+d="$work/darwin"; mkdir "$d"; mkdarwin "$d" agent-bus-client 'u@h 2026-01-01 00:00:00'
+out=$("$here/release-verify.sh" "$d/agent-bus-client-$v-darwin-$arch.tar.gz") && grep -q "darwin-$arch ok (version 1.2.3, client, read)" <<<"$out" || { echo "good darwin client refused: $out"; exit 1; }
+d="$work/darwin-unstamped"; mkdir "$d"; mkdarwin "$d" agent-bus-client 'development (unstamped)'
+out=$("$here/release-verify.sh" "$d/agent-bus-client-$v-darwin-$arch.tar.gz" 2>&1) && { echo "unstamped darwin accepted"; exit 1; }
+grep -qF 'carries no build stamp' <<<"$out" || { echo "unstamped darwin: wrong failure: $out"; exit 1; }
+d="$work/darwin-full"; mkdir "$d"; mkdarwin "$d" agent-bus 'u@h 2026-01-01 00:00:00'
+out=$("$here/release-verify.sh" "$d/agent-bus-$v-darwin-$arch.tar.gz" 2>&1) && { echo "a full node for darwin accepted"; exit 1; }
+grep -qF 'there is no full node for darwin' <<<"$out" || { echo "darwin full: wrong failure: $out"; exit 1; }
 # A file changed after the manifest was written.
 d="$work/tamper"; mkdir "$d"; mk "$d"; echo x >>"$d/$name/agent-bus-ts"; pack "$d"
 out=$(wired_verify "$d/$name.tar.gz" "$client" 2>&1) && { echo "tampered file accepted"; exit 1; }
