@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.156 — 2026-10-29
+
+The Secret and Configuration key tables on the agent pages break a key name only after an underscore, never inside a word.
+
 ## 0.9.155 — 2026-10-29
 
 A runner taking over an existing agent clears the `script` an earlier `agent-bus run` left on its record, so listings stop saying `runs exec …`.

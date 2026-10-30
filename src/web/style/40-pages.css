@@ -212,8 +212,10 @@ table.exchanges td { vertical-align: top; }
 .method-example-head { display: flex; align-items: center; justify-content: space-between; padding: .3rem .6rem; background: var(--surface-2); font-size: .8rem; }
 .method-example pre { margin: 0; padding: .65rem; max-width: 100%; overflow-x: auto; white-space: pre; }
 .metadata-keys { margin: .4rem 0; }
-.metadata-keys > div { display: grid; grid-template-columns: minmax(7rem, 1fr) minmax(0, 3fr); gap: .5rem; border-top: 1px solid var(--border); padding: .45rem 0; }
-.metadata-keys dt, .metadata-keys dd { margin: 0; overflow-wrap: anywhere; }
+.metadata-keys > div { display: grid; grid-template-columns: minmax(11rem, 1fr) minmax(0, 3fr); gap: .5rem; border-top: 1px solid var(--border); padding: .45rem 0; }
+.metadata-keys dt, .metadata-keys dd { margin: 0; }
+.metadata-keys dt { overflow-wrap: break-word; }
+.metadata-keys dd { overflow-wrap: anywhere; }
 .metadata-keys dt .muted { display: block; font-size: .8rem; }
 @media (max-width: 640px) {
   .method-help { white-space: normal; }

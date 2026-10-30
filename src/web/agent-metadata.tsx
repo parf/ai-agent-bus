@@ -119,13 +119,17 @@ export function AgentDescription({ help, name = "#agent@node.example", filter = 
     </div></details>
   </>;
 }
+/** A key name that may wrap only after an underscore, never inside a word. */
+function KeyName({ name }: { name: string }) {
+  return <>{name.split("_").map((part, i, all) => <>{part}{i < all.length - 1 ? <>_<wbr /></> : null}</>)}</>;
+}
 export function ConfigurationHelp({ help, value }: { help: AgentHelp; value?: string }) {
   if (!help.data) return null;
   const keys = entries(help.data.config);
   let unknown: string[] = [];
   try { const config: unknown = JSON.parse(value || "null"); if (object(config)) unknown = Object.keys(config).filter(k => !keys.some(([name]) => name === k)); } catch {}
   return <div class="metadata-config"><h3>Configuration keys</h3>
-    {keys.length ? <dl class="metadata-keys">{keys.map(([name, field]) => <div><dt><code>{name}</code><span class="muted">{typeName(field.type)}</span></dt><dd>{text(field.help)}{field.example !== undefined || field.default !== undefined ? <details><summary>Example / default</summary>{field.example !== undefined ? <div>Example: <code><Json value={JSON.stringify(field.example)} /></code></div> : null}{field.default !== undefined ? <div>Default: <code><Json value={JSON.stringify(field.default)} /></code></div> : null}</details> : null}</dd></div>)}</dl> : <p>No Configuration keys declared.</p>}
+    {keys.length ? <dl class="metadata-keys">{keys.map(([name, field]) => <div><dt><code><KeyName name={name} /></code><span class="muted">{typeName(field.type)}</span></dt><dd>{text(field.help)}{field.example !== undefined || field.default !== undefined ? <details><summary>Example / default</summary>{field.example !== undefined ? <div>Example: <code><Json value={JSON.stringify(field.example)} /></code></div> : null}{field.default !== undefined ? <div>Default: <code><Json value={JSON.stringify(field.default)} /></code></div> : null}</details> : null}</dd></div>)}</dl> : <p>No Configuration keys declared.</p>}
     {unknown.length ? <p class="warn">Undocumented Configuration keys: {unknown.join(", ")}. They are allowed.</p> : null}
   </div>;
 }
@@ -133,6 +137,6 @@ export function SecretHelp({ help }: { help: AgentHelp }) {
   if (!help.data) return null;
   const declarations = (Array.isArray(help.data.secrets) ? help.data.secrets : []).filter(object);
   return <div class="metadata-secret"><h3>Expected Secret keys</h3><p>Names and descriptions only; stored values are never shown.</p>
-    {declarations.length ? <dl class="metadata-keys">{declarations.map(key => <div><dt><code>{text(key.name)}</code>{key.required === true ? <span class="muted">required</span> : null}</dt><dd>{text(key.help)}</dd></div>)}</dl> : <p>No Secret keys declared.</p>}
+    {declarations.length ? <dl class="metadata-keys">{declarations.map(key => <div><dt><code><KeyName name={text(key.name)} /></code>{key.required === true ? <span class="muted">required</span> : null}</dt><dd>{text(key.help)}</dd></div>)}</dl> : <p>No Secret keys declared.</p>}
   </div>;
 }

@@ -178,3 +178,18 @@ test("About shows the agent's docs page only when its help gives an https link",
     expect(render(AgentDescription({ help: await agentHelp(ctx(docs), { kind: "agent", name: "#g@h", readers: 1, at: "2" } as Rec) }))).not.toContain("<dt>Docs</dt>");
   }
 });
+
+test("a key name breaks only after an underscore, in the secret and configuration tables", async () => {
+  clearMetadataCache();
+  const body = JSON.stringify({
+    description: "fixture", methods: {},
+    secrets: [{ name: "IMAP_CLIENT_SECRET", required: true, help: "the client secret" }, { name: "TOKEN", help: "one word" }],
+    config: { allow_plaintext: { type: "boolean", help: "plain" } },
+  });
+  const ctx = { session: "keys", call: async () => ({ kind: "answer", body }) } as unknown as Ctx;
+  const help = await agentHelp(ctx, { kind: "agent", name: "#imap/gmail@h", owner: "owner", readers: 1, at: "keys" } as Rec);
+  const secrets = render(SecretHelp({ help }));
+  expect(secrets).toContain("<dt><code>IMAP_<wbr>CLIENT_<wbr>SECRET</code>");
+  expect(secrets).toContain("<dt><code>TOKEN</code>");
+  expect(render(ConfigurationHelp({ help }))).toContain("<dt><code>allow_<wbr>plaintext</code>");
+});
