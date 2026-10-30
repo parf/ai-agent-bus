@@ -175,8 +175,10 @@ func TestTwoRunnersServeOneNameSharingMessagesAndTheListingShowsBothHosts(t *tes
 	}
 }
 
-// An agent that does not say share reads as one reader: a second plain read of
-// its name is refused, whatever else the runner states on it.
+// An agent that does not say share reads as one reader: a second read of its
+// name is refused, plain or asking to share, whatever else the runner states on
+// it. The asking-to-share read is the one that tells a runner that wrongly says
+// share, which a plain second read cannot.
 func TestRunnerReadsOfAnAgentWithoutShareAreOneReader(t *testing.T) {
 	r, b, _ := configurationFixture(t, "", "")
 	r.readHost = "solo-host"
@@ -186,9 +188,12 @@ func TestRunnerReadsOfAnAgentWithoutShareAreOneReader(t *testing.T) {
 			t.Fatal("the runner's read never started waiting")
 		}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
-	defer cancel()
-	if _, err := b.ConsumeAs(ctx, "owner@h", "#fixture@h", "", "", false, false); !errors.Is(err, core.ErrTwoReads) {
-		t.Fatalf("a second plain read beside an agent that does not share: %v, want it refused as a second reader", err)
+	for _, share := range []bool{false, true} {
+		ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+		_, err := b.ConsumeAs(ctx, "owner@h", "#fixture@h", "", "", false, share)
+		cancel()
+		if !errors.Is(err, core.ErrTwoReads) {
+			t.Fatalf("a second read (share=%v) beside an agent that does not share: %v, want it refused as a second reader", share, err)
+		}
 	}
 }
