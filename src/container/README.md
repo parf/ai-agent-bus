@@ -79,6 +79,12 @@ changes it after. An agent left at the default, or set to `"on"`, is refused
 with "the sandbox is on and this host cannot give one", which
 `agent-bus call '#runner/<person>' status` shows.
 
+Every agent runs as the runner's own account, `agent-bus-runner` (uid 991). It
+can read whatever that account can: the runner's token in the runner's
+environment (`/proc/1/environ`), and every other agent's token and settings under
+`/var/lib/agent-bus/runner`. Run in this image only agents you would trust with
+the runner's identity.
+
 ## Acceptance
 
 `src/container/acceptance.sh <archive directory>` builds the image, runs both
