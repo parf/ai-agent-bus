@@ -179,6 +179,7 @@ class Scheduler:
             if kind not in self.KINDS or not name.partition('.')[2] or ID.fullmatch(key):
                 continue
             candidate = hashlib.sha256(name.encode()).hexdigest()[:12]
+            unread = False
             while True:
                 taken = f'{kind}.{candidate}'
                 if taken not in present:
@@ -186,9 +187,16 @@ class Scheduler:
                 try:
                     if self.bus.kv.get(taken, kind='json').get('migrated_from') == key:
                         break  # the write happened, the removal did not
-                except (BusError, AttributeError):
+                except BusError:
+                    unread = True  # not known to be someone else's: never hash onward on a failed read
+                    break
+                except AttributeError:
                     pass
                 candidate = hashlib.sha256(candidate.encode()).hexdigest()[:12]
+            if unread:
+                self.migrating |= {key, candidate}
+                self.log(f'stored {kind} {key} could not be checked for a move; skipped')
+                continue
             self.migrating |= {key, candidate}  # until the claims and the old key are done
             try:
                 if f'{kind}.{candidate}' not in present:

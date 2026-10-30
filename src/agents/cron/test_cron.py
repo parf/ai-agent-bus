@@ -886,6 +886,34 @@ class Migration(Fixture):
         self.assertEqual(self.received(), [])  # the claimed slot was dropped, never sent
         self.assertEqual(again.claims[f'fired.{new}.2026-10-28T12:01'], 'dropped')
 
+    def test_an_unreadable_candidate_defers_the_move_instead_of_taking_the_next_digest(self):
+        import hashlib
+        first = hashlib.sha256(b'sub.Legacy-1').hexdigest()[:12]
+        second = hashlib.sha256(first.encode()).hexdigest()[:12]
+        self.put('sub.Legacy-1', self.entry())
+        self.put('sub.' + first, self.entry() | {'migrated_from': 'Legacy-1'})  # the write happened, the removal did not
+        agent = cron.Agent(self.bus(WORKER), {}, clock=self.clock, log=self.logs.append)
+        real, failed = agent.bus.kv.get, []
+
+        def flaky(name, *args, **kw):
+            if name == 'sub.' + first and not failed:
+                failed.append(name)
+                raise TransportError('down')
+            return real(name, *args, **kw)
+        with patch.object(agent.bus.kv, 'get', side_effect=flaky):
+            agent.load()
+        self.assertEqual(failed, ['sub.' + first])
+        self.assertNotIn(second, [k.partition('.')[2] for k in self.keys()])  # no second row was made
+        self.assertEqual(sorted(agent.subs), [])  # neither row is served until the move is known
+        self.at(12, 1)
+        agent.tick()
+        self.assertEqual(self.received(), [])
+        self.die(agent)
+        again = self.agent()  # the next start finishes the move: one row, one send
+        self.assertEqual(self.keys(), ['sub.' + first])
+        again.tick()
+        self.assertEqual(self.received(), ['tick'])
+
     def test_a_taken_id_moves_the_entry_to_the_next_digest(self):
         import hashlib
         first = hashlib.sha256(b'sub.Legacy-2').hexdigest()[:12]

@@ -20,7 +20,7 @@
 - ✅ **Survives restarts:** your schedule is kept; a slot missed while cron was down is skipped, and a one-off that fell due is sent once when cron starts.
 - ✅ **Says who scheduled it:** the message arrives from cron with topic `cron` or `later` and the tag `by <creator>`.
 - ✅ **Control:** you list and stop your own entries; cron's Owner and Maintainers manage all of them.
-- 🚫 **Not for:** sub-minute timing, catching up on runs missed while it was down, or delivery that must succeed when a destination refuses for a day (it gives up when the send's time to live ends).
+- 🚫 **Not for:** sub-minute timing, catching up on runs missed while it was down, or delivery that must succeed when a destination refuses for a day (each copy is one attempt: a refused one is dropped, never retried).
 
 The calls, last:
 

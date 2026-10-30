@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.222 — 2026-10-30
+
+Cron and #at drop a refused send with one warning (RD161), use random ids with a crash-safe legacy-id migration, and refuse sub edit
+
 ## 0.9.221 — 2026-10-30
 
 The daemon, setup and admin run natively on macOS under launchd as a non-root role, and an orphaned child no longer keeps the listeners
