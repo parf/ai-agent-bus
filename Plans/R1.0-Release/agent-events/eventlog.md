@@ -13,6 +13,8 @@ model and the same web view as agent events, for anything (owner, 2026-10-29:
 |---|---|
 | `write <log> notice\|warning\|alert <text>` | adds one line; a log is created by its first write |
 | `read <log> [level]` | the log's entries, newest first, alerts first when no level is named |
+| `pull <log> [level]` | the entries written since this caller's previous `pull` of that log, oldest first, so a script or AI follows a log without repeats; others' reads are unaffected |
+| `clean <log> [level]` | empties the log, or one level of it; Owner, Maintainers and the `write` role (owner, 2026-10-29) |
 | `list` | logs with their counts per level and the time of the newest alert |
 
 Example: an autopull success script writes `write realty-prod notice deployed

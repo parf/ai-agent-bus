@@ -90,7 +90,7 @@ web page AB (after RT22's page), review `#claude/ab2-review`.
 | Step | Work |
 |---|---|
 | 1 | Shared ring module: levels, size, TTL, repeat folding, alerts on disk, used by this agent and later by RT34 |
-| 2 | `#eventlog` runner agent: `write`, `read`, `list`, Configuration defaults and per-log overrides, `read`/`write` roles, help and help-config |
+| 2 | `#eventlog` runner agent: `write`, `read`, `pull`, `clean`, `list`, Configuration defaults and per-log overrides, `read`/`write` roles, help and help-config |
 | 3 | Guide `docs/agents/eventlog.md` (end-user), index row, smoke shard, package, deploy enabled |
 | 4 | Web: instance page with logs, alert marks and the shared rings view |
 
@@ -101,5 +101,7 @@ Acceptance, each failing on a missing implementation or by a named mutant:
 - The same line twice within a minute is one entry with count 2; after a minute it is a new entry.
 - A caller with only `read` is refused on `write` and the log is unchanged; a caller with neither sees nothing; a 201-character line is stored cut at 200.
 - A log name with `/`, a space or over the length bound is refused; the log count bound refuses a new log and keeps the old ones.
+- Two `pull`s by one caller return each entry once, a second caller's first `pull` still gets them all; an entry expired or pushed out between pulls is counted as missed, not returned.
+- `clean <log> warning` empties only warnings; `clean` by a `read`-only caller is refused and changes nothing.
 - The web shows an alert mark only for logs with an alert within its window, and a reader without the role gets no page.
 
