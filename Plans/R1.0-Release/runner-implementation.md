@@ -76,7 +76,7 @@ the whole name, as a run option beside `-N` and `--share`. **Getting it wrong is
 silent**: a member that fell back to the default is a healthy agent nobody
 ever calls.
 
-Which is also why a member **states its hostname at registration**, in a field
+Which is also why a member **states its hostname on each consume**, in a field
 of its own: the name no longer carries one, and a listing still has to answer
 *where* ([where a member says it is](#where-a-member-says-it-is)). It ships
 in R1 with pools.
@@ -85,7 +85,8 @@ in R1 with pools.
 
 Moved from R1.1 with pools (owner decision, [№Q139](DECISIONS.md#recorded-decisions)).
 
-**An agent states its hostname at registration, as a field of its own.** It
+**The member states its hostname in the optional `host` parameter on each consume.**
+Settled by the owner, 2026-10-30 15:25 (M.6a, option A). It
 became necessary the moment a name stopped carrying one: a pool's realm claims
 membership rather than a location ([identity § names](../../docs/01-identity-and-authority.md#names)),
 which is right, and leaves *which box do I go and look at* unanswered.
@@ -94,8 +95,16 @@ which is right, and leaves *which box do I go and look at* unanswered.
 |---|---|
 | **stated, never observed** | the daemon cannot see it. A unix socket has no peer host at all, and a TCP peer address is the network's opinion rather than the machine's name. So the machine says |
 | **a label, and never an input** | nothing routes, authorises or decides on it, because nothing checked it. It is for the person reading a listing at three in the morning |
-| **one entry per member, not one per name** | a pool registers one name from several places, so what is kept is a set — refreshed by the runner's own heartbeat for each member ([what the runner does](#what-the-runner-does)), and gone when that member is; R1.1's [health checker](../R1.1/discovery.md#health-checker) generalizes it later |
+| **one entry per host per name** | the daemon keeps a bounded set in memory, refreshed whenever a consume begins or ends; each entry expires 2 minutes after its last read. It is a recent-presence label, not proof of health; R1.1's [health checker](../R1.1/discovery.md#health-checker) generalizes it later |
 | **not part of the identity** | the name is the identity ([identity § names](../../docs/01-identity-and-authority.md#names)); this is a fact about a process serving it. Keeping the two apart is the whole reason the realm stopped carrying a hostname |
+
+The approved consume-host contract:
+
+- `host` is optional: 1–64 ASCII letters, digits, `.` or `-`; another value is refused with 400, never silently ignored. A read without it remains a read and adds no host.
+- The runner uses its host name, overridable in its unit; the dedicated runner and client libraries may also supply it.
+- Keep at most 32 hosts per name. At the bound forget the oldest and say the listing was cut. Nothing is written to the database or included in backups.
+- A one-record CLI view shows a `Hosts` line with each host's last-read age; the `ls` table keeps its existing Readers column. The web shows the same host list under Readers.
+- Lookup JSON carries host names and last-read times only when nonempty, visible to whoever may see that record's `readers` today. The label never routes or authorizes a request.
 
 It is also where a **version** would go when an agent can say one
 ([runner § agent version reporting](#agent-version-reporting)) — same shape, same reason: per member,
@@ -217,6 +226,11 @@ needs an instance ([the three env layers](#the-three-env-layers)).
 | **`reload` is `SIGHUP`** | and an unhandled one is a restart ([stop and reload](runner.md#stop-and-reload)) |
 | **stopping is unchanged** | no further frame is written and every answer in flight is waited for, then `SIGTERM` — bounded by the same deadline, because a wedged child cannot be waited out |
 | **a crash still loses only what was taken** | a message leaves the daemon only when a hand is free for it, so the rest is still queued for whatever reads that inbox next; a child with K in flight loses those K |
+
+The owner settled the `jsonl` answer line on 2026-10-30 15:25 (M.3a, option (a)):
+`{"message_id":"<echoed>","body":"<answer>"}`. The id names a message held by that child;
+an empty or absent body means done. An unparseable line or unknown id is logged and
+dropped. A child exit logs its in-flight messages and restarts with backoff.
 
 ### On demand
 
@@ -546,6 +560,8 @@ deploy on a host is the ACL on that one agent
 ([identity § acl](../../docs/02-access.md#acl)) — the mechanism the bus already has
 rather than a new one beside it.
 
+The owner settled code arrival on 2026-10-30 15:25 (M.8, A+B): select a bundled agent by name, or a git URL pinned to a full commit id. A branch, tag, abbreviated id or floating HEAD is refused. The host needs git and a route. A private repository uses a host key, never one sent in the call. Options C and D come later.
+
 What the grant is bounded by has not changed:
 
 > deploying on a host lets you run code there. It does not let you impersonate
@@ -618,7 +634,7 @@ The dedicated runner's forms remain defined in [script agents](../../docs/06-ded
 | `jsonl` | An envelope line and an answer line per message, with the child kept alive |
 | `msgpack` | Envelope and binary body in a frame, with the child kept alive; `uint32` length prefix in network order |
 
-These are existing design choices, not a newly approved wire specification. Implementation remains blocked where [questions](QUESTIONS.md#open-questions) leave a contract unresolved.
+The `jsonl` answer line is approved above under [long-lived agents](#long-lived-agents). The other forms in this table gain no new wire approval from that decision.
 
 ## Sandboxing
 

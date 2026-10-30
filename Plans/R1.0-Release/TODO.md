@@ -203,7 +203,7 @@ configuration written under `runner/` on the host, then a `reload` call.
   - M.3a `jsonl` kept form with `in_flight` (L); M.3b pool growth and idle shrink (M); M.3c `SIGHUP` and restart/report of a killed kept script agent (S, shared with M.5)
   - State 2026-10-30: M.3c built on `ab-w2a/M3c` — `reload` restarts a kept agent whose sandbox, network or limits changed and sends `SIGHUP` for any other settings change, an unhandled one starts it again at once, a killed one restarts and `last_exit.signal` names it; six mutants red. M.3a and M.3b not started
   - Builds: `processes` counts and ranges; the `jsonl` kept form with `in_flight`; `SIGTERM`/`SIGHUP`, the 5-minute idle, the deadline, restart with backoff
-  - Format: the `jsonl` frame, carrying each message's bus ID ([№Q160](DECISIONS.md#recorded-decisions))
+  - Format settled by owner, 2026-10-30 15:25, option (a): the answer is `{"message_id":"<echoed>","body":"<answer>"}`. An absent or empty body means done. An unparseable line or an unknown id is logged and dropped; a child exit logs its in-flight messages and restarts with backoff ([kept form](runner-implementation.md#long-lived-agents)).
   - Acceptance: a pool grows under load and shrinks after idle; a killed child is restarted and reported; an unhandled `SIGHUP` restarts it; removing the idle stop fails a bounded check; `in_flight` 2 holds two messages at once and answers both in any order
   - Mutant: removing the idle stop fails a bounded check;
 
@@ -234,7 +234,7 @@ configuration written under `runner/` on the host, then a `reload` call.
 - ⏳ M.6 Pools and edges (audit 2026-10-30: the daemon already lets two readers share an inbox; `share` in `agents.json` is parsed and read by nothing; no member hostname field)
   - M.6a wire `share` to the consume call and add the member hostname field with the listing (L, daemon change, owner restarts); M.6b edge runners as `#runner/<edge>@<realm>` (M, after Q165)
   - Builds: `share`; the member hostname field (daemon change); edge runners under the bus's realm
-  - Format: the hostname field; pool members read the pool's own inbox ([№Q159](DECISIONS.md#recorded-decisions))
+  - Hostname settled by owner, 2026-10-30 15:25, option A: optional `host` on each consume, refreshed when the read begins or ends, held in memory for 2 minutes; bounded to 32 hosts per name, never routing/authority or durable state. Validation and listing substance: [where a member says it is](runner-implementation.md#where-a-member-says-it-is). Pool members still read the pool's own inbox ([№Q159](DECISIONS.md#recorded-decisions)).
   - Acceptance: two runners serve one name taking turns and a listing shows both hosts; an edge runner registers as `#runner/<edge>@<realm>`
   - Mutant: Not recorded in the source.
 
@@ -274,7 +274,7 @@ configuration written under `runner/` on the host, then a `reload` call.
 
 - ⏳ M.8 Deploy over the bus
   - Builds: install, configure and remove as calls to the runner ([reaching the runner](runner-implementation.md#reaching-the-runner)); configuration write-only
-  - Format: the calls' bodies; how code arrives
+  - Code sources settled by owner, 2026-10-30 15:25, A+B: a bundled agent name, or a git URL pinned to a full commit id; a branch, tag or abbreviated revision is refused. The host needs git and a route; a private repository uses a host key, never one sent in the call. Options C and D come later. The calls' bodies remain the implementation contract ([reaching the runner](runner-implementation.md#reaching-the-runner)).
   - Acceptance: an agent is installed and served with no shell on the host; reading a configuration back is refused; a caller outside the runner's ACL is refused
   - Mutant: Not recorded in the source.
 
@@ -507,7 +507,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - The runner answers `status` itself for `starting`, `stopping` and `failed`; a running agent's `status` goes to the script ([RD118](DECISIONS.md#recorded-decisions))
   - Long start-up (owner, 2026-10-26: "some of our existing agents need minutes to load/initialize; most simple agents do not need this"): such an agent takes its reader first and answers `help` and `status` (`starting: <what it is loading>`) while it initializes; ordinary messages stay queued until it is ready. A simple agent has no `starting` of its own
   - Deferred reader-less status: refused/unconfigured entries and a keeper before its reader attaches cannot answer without ask-only consumption. No fallback may take ordinary work. A follow-up would add an ask-only core/API/client read and authority/queue-retention tests, then use it for Slack's pre-serve workspace user/channel pagination (the actual potentially long initialization). Telegram's filter/KV warm-up and the other local startup paths do not need a separate slow-start phase.
-  - Open: the ask-only read for reader-less status; its call shape is [№Q260](QUESTIONS.md#agent-capabilities), and it is built after J39 lands
+  - Q260 settled by owner, 2026-10-30 15:25, option (1): a consume parameter selects only messages whose `ask` is set; ordinary messages stay queued, and the ask-only read may coexist with the unfiltered reader under the caller's existing authority. Build after J39; pin admission, both-reader behavior and ordinary-queue retention in tests. No separate endpoint or `#bus` proxy reader.
   - Acceptance: every agent kind, sent each known ask and one ask it does not handle, answers the known ones and `unsupported: <ask>` for the other, with its normal handler never called; with `--no-asks`, a script that writes a marker file on every run leaves none after each ask; removing one agent's default branch fails a check
 
 - ✅ RT26 One CLI: `agent-bus token` replaces the `agent-bus-token` program (owner, 2026-10-27: "B - use wrapper for token command; so no escalation; if needed we can make agent-bus-token as bash script") ([RD119](DECISIONS.md#recorded-decisions))

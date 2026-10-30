@@ -2,6 +2,15 @@
 
 ## Recorded decisions
 
+- **Kept jsonl answer line** — owner, 2026-10-30 15:25, option (a).
+  - Home: [M.3 long-lived agents](runner-implementation.md#long-lived-agents).
+- **Pool host labels on consume** — owner, 2026-10-30 15:25, M.6a option A.
+  - Home: [where a member says it is](runner-implementation.md#where-a-member-says-it-is).
+- **Runner deploy code sources** — owner, 2026-10-30 15:25, M.8 A+B.
+  - Home: [reaching the runner](runner-implementation.md#reaching-the-runner).
+- **Ask-only consume filter** — owner, 2026-10-30 15:25, Q260 option (1).
+  - Home: [RT25](TODO.md#bundled-agents).
+
 - Eventlog readers manage their own subscriptions — owner, 2026-10-30.
   - Home: [shared subscription behavior](../../docs/agents/subscriptions.md#the-shared-behaviour).
 
