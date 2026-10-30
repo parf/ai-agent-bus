@@ -29,7 +29,12 @@ def run(args, **kw):
             code = 0 if present[node] else 185
     elif args[0] in ('/usr/sbin/sysadminctl', '/usr/sbin/dseditgroup'):
         node = 'Users' if args[0].endswith('sysadminctl') else 'Groups'
-        if mode == 'fail' or mode == 'group-fail' and node == 'Groups':
+        if mode == 'user-removes-group' and node == 'Users':
+            present['Users'] = present['Groups'] = False
+        elif mode == 'group-disappears' and node == 'Groups':
+            present[node] = False
+            code, err = 64, 'group already absent'
+        elif mode == 'fail' or mode == 'group-fail' and node == 'Groups':
             code, err = 1, 'eDSPermissionError -14120'
         elif mode != 'false-success':
             present[node] = False
@@ -79,6 +84,19 @@ class Cleanup(unittest.TestCase):
         p = self.run_cleanup('absent')
         self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
         self.assertNotIn('STUB ["/usr/sbin/', p.stdout)
+
+    def test_user_deletion_also_removes_group(self):
+        p = self.run_cleanup('user-removes-group')
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        self.assertIn('["/usr/sbin/sysadminctl", "-deleteUser", "_agentbusd"]', p.stdout)
+        self.assertNotIn('STUB ["/usr/sbin/dseditgroup"', p.stdout)
+        self.assertIn('PASS uninstall', p.stdout)
+
+    def test_group_already_gone_after_nonzero_delete_is_success(self):
+        p = self.run_cleanup('group-disappears')
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        self.assertIn('STUB ["/usr/sbin/dseditgroup"', p.stdout)
+        self.assertIn('PASS uninstall', p.stdout)
 
 
 if __name__ == '__main__':

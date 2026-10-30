@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.221 — 2026-10-30
+
+The daemon, setup and admin run natively on macOS under launchd as a non-root role, and an orphaned child no longer keeps the listeners
+
 ## 0.9.220 — 2026-10-30
 
 Runners on different hosts can share one agent's messages: consume --host, AGENT_BUS_READER_HOST unit override, each message handled exactly once

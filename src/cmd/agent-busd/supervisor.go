@@ -14,6 +14,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -231,7 +232,13 @@ func clearRetiredUserSockets(dir string, keep map[string]bool) error {
 
 // environ is the child's environment: the supervisor's, and its own on top.
 func (k *child) environ(around []string) []string {
-	return append(append([]string{}, around...), k.env...)
+	var out []string
+	for _, entry := range append(append([]string{}, around...), k.env...) {
+		if !strings.HasPrefix(entry, supervisorPIDEnv+"=") {
+			out = append(out, entry)
+		}
+	}
+	return append(out, supervisorPIDEnv+"="+strconv.Itoa(os.Getpid()))
 }
 
 // child is one supervised process. A child dying is normal: it is contained,

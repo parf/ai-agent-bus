@@ -57,7 +57,7 @@ Exact commands and times for darwin are set when [MAC.1](macos.md#mac1-client-an
 The focused native MAC.2 run is recorded in [the evidence](done/mac2.md#checks-and-results), including the source, commands, timings and sudo list. It builds the daemon, setup and admin directly; it does not claim a full darwin archive install.
 
 
-Full archive validation follows MAC.1/distribution. All mutants stay on this node, under smoke-gate; never run them on the Mac. The [remaining role-account cleanup](done/mac2.md#owner-cleanup-still-open) is with the owner, and no further worker sudo is allowed until the owner resolves it.
+Full archive validation follows MAC.1/distribution. All mutants stay on this node, under smoke-gate; never run them on the Mac. The owner completed [role-account cleanup](done/mac2.md#owner-cleanup-verified), verified read-only by the CEO; no further worker sudo is authorized.
 
 ## d) client install and runner on macOS (MAC.1)
 

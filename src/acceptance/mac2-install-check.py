@@ -107,9 +107,10 @@ def remove_roles():
             if before.stderr:
                 raise RuntimeError(before.stderr)
             if ROLE in before.stdout.splitlines():
-                result = sudo(*command, check=False)
-                if result.returncode:
-                    problems.append('%s deletion exited %s' % (kind, result.returncode))
+                # sysadminctl may remove its group too. A later deletion can
+                # return nonzero because the entry is already gone; absence
+                # after the command decides success, never its exit status.
+                sudo(*command, check=False)
             after = run(['/usr/bin/dscl', '.', '-list', '/' + node], private=True)
             if after.stderr:
                 raise RuntimeError(after.stderr)
@@ -119,10 +120,13 @@ def remove_roles():
             problems.append('possible leftover %s %s (cannot verify removal: %s)' % (kind, ROLE, error))
     if problems:
         raise RuntimeError('uninstall incomplete: ' + '; '.join(problems) +
-                           '. To finish, open System Settings > Privacy & Security > Full Disk Access, '
+                           '. Retry sudo /usr/sbin/sysadminctl -deleteUser ' + ROLE +
+                           ' and, only if the group remains, sudo /usr/sbin/dseditgroup -o delete ' + ROLE +
+                           '. If deletion remains permission-denied, open '
+                           'System Settings > Privacy & Security > Full Disk Access, '
                            'enable the terminal app used for cleanup, quit and reopen it, then run '
                            'sudo /usr/sbin/sysadminctl -deleteUser ' + ROLE + ' and '
-                           'sudo /usr/sbin/dseditgroup -o delete ' + ROLE +
+                           '(only for a remaining group) sudo /usr/sbin/dseditgroup -o delete ' + ROLE +
                            '; verify both directory entries are absent. '
                            'See docs/07-setup.md#uninstall-the-macos-test-daemon')
 

@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"os/exec"
 	"os/user"
 	"path/filepath"
 	"strconv"
@@ -16,6 +17,13 @@ import (
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
+
+func TestDarwinAcceptanceCleanupStubs(t *testing.T) {
+	cmd := exec.Command("python3", "-B", "../../acceptance/test_mac2_cleanup.py")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("macOS acceptance cleanup: %v\n%s", err, out)
+	}
+}
 
 // fakeDarwin records the system commands the macOS setup would run, in a
 // layout under a test directory.

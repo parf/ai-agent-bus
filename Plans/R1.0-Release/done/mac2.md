@@ -1,6 +1,6 @@
 # MAC.2 native daemon and reduced setup
 
-📌 **TL;DR:** The daemon, setup and admin binaries build natively on Apple Silicon. The focused launchd, private-storage, TLS request/reply, restart and orphan checks passed on 2026-10-30. Removing the test role account over SSH was refused; that cleanup is with the owner. Full archive validation remains with MAC.1.
+📌 **TL;DR:** The daemon, setup and admin binaries build natively on Apple Silicon. The focused launchd, private-storage, TLS request/reply, restart and orphan checks passed on 2026-10-30. The initial `dscl` role deletion was refused; the owner later removed both roles with `sysadminctl`, and the CEO verified absence. Full archive validation remains with MAC.1.
 
 ## Source and limits
 
@@ -40,15 +40,29 @@ A real private daemon on this node registers an entry, stops and restarts, and f
 
 These follow-up runs return the clone to clean `main`, `7c6555aa`; the workspace is now **54M** because of the additional Git objects. Build output and `.cache` were deleted, and `~/go` and `~/Library/Caches/go-build` remain absent. No sudo command was added after the owner took over role cleanup. The focused fast `go_checks` passes in 5.074 s. After the final main rebase it passes in 6.940 s; the initial full fast run was 25 passed, 1 failed because this worktree lacked the TypeScript client dependency link. After linking all three dependency directories as required by the worker role, the complete fast run passes 26/0 in 7.844 s.
 
-## Owner cleanup still open
+## Owner cleanup
 
-`sudo -n dscl . -delete /Users/_agentbusd` returned exit 40, `eDSPermissionError` / `-14120`. The owner is handling it; the CEO and director instructed the worker to run no more sudo on the Mac.
+`sudo -n dscl . -delete /Users/_agentbusd` returned exit 40, `eDSPermissionError` / `-14120`. The owner took over; the CEO and director instructed the worker to run no more sudo on the Mac. The verified final result is below.
 
-Remaining state is the `_agentbusd` user and group, UID/GID **206**, plus empty setup parent directories. The job, plist, daemon home, socket directory and test binary tree are gone. This does not affect MAC.1's client/runner checks; W1B was told `mac free`.
+State at that handoff was the `_agentbusd` user and group, UID/GID **206**, plus empty setup parent directories. The job, plist, daemon home, socket directory and test binary tree are gone. This does not affect MAC.1's client/runner checks; W1B was told `mac free`.
 
-The owner also saw the same `dscl` refusal at the Mac console. The acceptance cleanup now deletes the user with `sysadminctl -deleteUser` and the group with `dseditgroup -o delete`, rather than `dscl`. It attempts both and verifies their absence with directory listings, including when a deletion command returns zero. A failed deletion, leftover entry or unreadable listing exits nonzero with the role names and [Full Disk Access recovery](../../../docs/07-setup.md#uninstall-the-macos-test-daemon). Live cleanup and the permission change remain with the owner; no worker sudo was run for this fix.
+The owner also saw the same `dscl` refusal at the Mac console. The acceptance cleanup now deletes the user with `sysadminctl -deleteUser` and the group with `dseditgroup -o delete`, rather than `dscl`. It checks both and verifies their absence with directory listings, including when a deletion command returns zero. A leftover entry or unreadable listing exits nonzero with the role names and [Full Disk Access recovery](../../../docs/07-setup.md#uninstall-the-macos-test-daemon). This records the initial handoff; the owner cleanup result is below; no worker sudo was run for this fix.
 
 `python3 src/acceptance/test_mac2_cleanup.py` runs only local subprocess stubs. Four checks cover successful removal, already absent entries, both deletion failures, a zero-status deletion leaving both entries, an unreadable directory and a group-only failure. On the old cleanup, five assertions fail, including the unreadable-directory case incorrectly printing `PASS uninstall`; all pass after the fix. The harness is now committed under `src/acceptance/`; the node-local copy is kept in sync. Under the `smoke-gate` lock, three independent cleanup mutants also fail assertions: restoring `dscl` user deletion, trusting a zero deletion status without checking directory presence, and skipping group deletion. Restored checks pass; the lock is released.
+
+### Owner cleanup verified
+
+At 17:23 on 2026-10-30 the owner ran `sudo sysadminctl -deleteUser _agentbusd` at the Mac console. It removed both the user and group without Full Disk Access. The CEO verified read-only: `dscl -read` on both `/Users/_agentbusd` and `/Groups/_agentbusd` returned `eDSRecordNotFound` (`-14136`), and `id _agentbusd` reported no such user. The earlier refusal therefore does not establish that Full Disk Access is required for `sysadminctl`.
+
+The cleanup treats a group already removed by user deletion as success and skips `dseditgroup`. If a group disappears between lookup and deletion, a nonzero `dseditgroup` status also succeeds after verified absence. The new disappearance stub fails on the prior code's exit-status check; all six stub checks pass with absence deciding success. No worker Mac command or sudo was run for this follow-up. Full Disk Access remains a conditional recovery step for a persistent permission refusal, not a prerequisite.
+
+### Supervisor startup review
+
+The second reader reproduced a HIGH in the non-Linux watcher: if the supervisor died before `watchParent` captured `Getppid`, the child watched its new parent and retained the inherited listeners. The spawning supervisor now supplies `AGENT_BUS_SUPERVISOR_PID`, replacing any inherited value. The child verifies that parent before startup and watches the same PID afterward; a missing or invalid expected PID refuses startup.
+
+`TestParentWatchReleasesListenersBeforeAndAfterStartup` exercises the actual fallback on Linux without a kernel parent-death signal. A launcher hands a TCP listener to its child; the check kills the launcher either before releasing the child's startup barrier or after the watcher is ready, and requires that a replacement can bind the listener. Both pass. Separate checks pin the supervisor's environment handoff and invalid-PID refusal. The full daemon and setup packages pass (1.222 s and 13.286 s); `TestDarwinAcceptanceCleanupStubs` now runs the six Python stub checks from the owning setup package, so normal Go smoke includes them. Under the smoke lock, restoring the old current-parent capture fails the early-orphan assertion, disabling parent monitoring fails the late-death assertion, and restoring deletion-exit-status failure fails the cleanup assertion. Restored focused checks pass (1.044 s and 0.392 s); the lock is released.
+
+Native no-sudo verification at `e6720401` also passes on the owner's darwin/arm64 Mac with Go 1.27.3: the actual parent watcher, PID handoff and listener-release fixture (1.476 s), plus all `TestDarwin` checks including cleanup stubs (0.566 s). This run used the existing clone and workspace-only Go caches and temporary files. It returned to clean `main` `7c6555aa`; all task output and `.cache` were removed, and `~/go` and `~/Library/Caches/go-build` remain absent. The workspace is 57M after importing Git objects (54M before); no profile, package or host-setting change was made. W1B received `mac free` for its next run. Final fast smoke passes 26/0 in 7.603 s; link and whitespace checks pass, including the deferred uninstall-command entry in FUTURE.
 
 Immediately after install teardown, the clone was clean on `main` and the workspace was **53M**; the later admin proof leaves it **54M** as recorded above. `~/go` and `~/Library/Caches/go-build` are absent. `df -h` reported 460 Gi total, 192 Gi used / 244 Gi available before, and 193 Gi used / 244 Gi available after; these are the filesystem's rounded readings, not a claim that global disk usage was unchanged.
 
