@@ -59,11 +59,10 @@ NAME                                          KIND     OWNER  READERS  QUEUED  L
 
 </details>
 
-- Each launcher:
-  - 🔌 finds your bus by itself, with no token to copy and no config to edit;
-  - 🏷️ registers the session under its name;
-  - 📨 delivers messages while the session runs;
-  - 🧰 loads the bus tools into it, so it can send too.
+- 🔌 Each launcher finds your bus by itself, with no token to copy and no config to edit.
+- 🏷️ It registers the session under its name.
+- 📨 It delivers messages while the session runs.
+- 🧰 It loads the bus tools into the session, so the session can send too.
 - Choose the name yourself:
 
 ```sh
