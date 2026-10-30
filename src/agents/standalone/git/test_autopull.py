@@ -109,6 +109,7 @@ class Core(unittest.TestCase):
         self.assertEqual(result['result'],'ok');self.assertEqual(result['to'],new)
         self.assertEqual(result['discarded'],{'files':2,'commits':0})
         self.assertFalse((self.repo/'untracked').exists());self.assertEqual((self.repo/'a').read_text(),'two\n')
+        self.assertTrue((self.repo/'ignored').is_file(),'mirror deleted an ignored file')
         self.assertEqual((self.repo/'ignored').read_text(),'keep ignored')
         self.run_git(self.repo,'commit','--allow-empty','-m','local-only')
         result=self.attempt(self.config(mode='mirror'));self.assertEqual(result['discarded']['commits'],1)
