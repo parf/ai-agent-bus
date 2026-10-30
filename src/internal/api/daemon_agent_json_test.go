@@ -229,7 +229,7 @@ func TestBusJSONOptionIsOnlyOnTheReadMethods(t *testing.T) {
 			t.Fatalf("help-json does not declare --json on %s: %+v", method, meta.Methods[method])
 		}
 	}
-	if !reflect.DeepEqual(meta.Formats, []string{"text", "json"}) {
+	if !reflect.DeepEqual(meta.Formats, []string{"text"}) { // accepted request bodies, which --json does not add to
 		t.Fatalf("body formats: %v", meta.Formats)
 	}
 	if help := busAnswer(t, s, "alice@h", "help"); !strings.Contains(help, "status [--json]") || !strings.Contains(help, "[--json]") {
@@ -244,4 +244,149 @@ func busAnswer2(t *testing.T, s *Server) string {
 		t.Fatal(err)
 	}
 	return got
+}
+
+// Every record kind is counted, a busy handler is not a reader, and queued is
+// the depth now while dropped and expired are totals since the start: draining
+// a queue lowers the first and never the others.
+func TestBusStatusJSONCountsKindsReadersAndCurrentVersusCumulative(t *testing.T) {
+	b, s, _ := jsonFixture(t)
+	for _, r := range []protocol.Record{
+		{Name: "#tool@h", Kind: protocol.KindAgent, Owner: "alice@h", Tags: []string{"mcp"}, Allow: []string{"*"}},
+		{Name: "feed@h", Kind: protocol.KindService, Owner: "alice@h", Allow: []string{"*"}, Addr: "127.0.0.1:9", Proto: "http"},
+		{Name: "doc@h", Kind: protocol.KindResource, Owner: "alice@h", Allow: []string{"*"}, Resource: &protocol.Resource{URI: "https://example.com/a.md"}},
+		{Name: "#ring@h", Kind: protocol.KindAgent, Owner: "alice@h", Allow: []string{"*"}, Bound: 1, Full: protocol.OverflowRing},
+		{Name: "#busy@h", Kind: protocol.KindAgent, Owner: "alice@h", Allow: []string{"*"}},
+	} {
+		if _, err := b.Register(r); err != nil {
+			t.Fatalf("%s: %v", r.Name, err)
+		}
+	}
+	status := func() map[string]any {
+		var got map[string]any
+		if err := json.Unmarshal([]byte(busAnswer(t, s, "bob@h", "status --json")), &got); err != nil {
+			t.Fatal(err)
+		}
+		return got
+	}
+	kinds := func(got map[string]any) map[string]float64 {
+		out := map[string]float64{}
+		for k, v := range got["kinds"].(map[string]any) {
+			out[k] = v.(float64)
+		}
+		return out
+	}
+	k := kinds(status())
+	for kind, atLeast := range map[string]float64{protocol.KindAgent: 5, protocol.KindQueue: 1, protocol.KindPubSub: 1, protocol.KindService: 1, protocol.KindResource: 1, protocol.KindGroup: 1, protocol.KindUser: 1} {
+		if k[kind] < atLeast {
+			t.Fatalf("kind %s counted %v, want at least %v: %v", kind, k[kind], atLeast, k)
+		}
+	}
+	if k[protocol.KindAgent] != 6 { // #worker, #hidden, #tool, #ring, #busy and the built-in #bus; #suspended's owner is inactive
+		t.Fatalf("agents: %v", k)
+	}
+	// A busy handler: its read returned with a message and has not polled again, so it is not a reader.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	got := make(chan error, 1)
+	go func() { _, err := b.ConsumeAs(ctx, "alice@h", "#busy@h", "", "", false, false); got <- err }()
+	for end := time.Now().Add(3 * time.Second); status()["waiting"] != float64(1); time.Sleep(5 * time.Millisecond) {
+		if time.Now().After(end) {
+			t.Fatalf("the poll never showed: %v", status()["waiting"])
+		}
+	}
+	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "#busy@h", Body: "work"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-got; err != nil {
+		t.Fatal(err)
+	}
+	if w := status()["waiting"]; w != float64(0) {
+		t.Fatalf("a busy handler is not an outstanding poll: %v", w)
+	}
+	// Queued now, dropped and expired since the start.
+	before := status()
+	for _, body := range []string{"one", "two"} { // the ring holds one: the second drops the first
+		if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "#ring@h", Body: body}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "jobs@h", Body: "late", TTL: "1ns"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "jobs@h", Body: "fresh"}); err != nil {
+		t.Fatal(err)
+	}
+	gone, stop := context.WithCancel(context.Background())
+	stop()
+	b.ConsumeAs(gone, "alice@h", "jobs@h", "zz", "", true, false) // a read that matches nothing still purges the expired one
+	mid := status()
+	if mid["dropped"] != before["dropped"].(float64)+1 || mid["expired"] != before["expired"].(float64)+1 {
+		t.Fatalf("dropped and expired since start: %v/%v, want one more each than %v/%v", mid["dropped"], mid["expired"], before["dropped"], before["expired"])
+	}
+	if mid["queued"] != before["queued"].(float64)+2 { // the ring's survivor and the fresh job
+		t.Fatalf("queued is the depth now: %v, was %v", mid["queued"], before["queued"])
+	}
+	for _, name := range []string{"#ring@h", "jobs@h"} {
+		c, done := context.WithTimeout(context.Background(), time.Second)
+		if _, err := b.ConsumeAs(c, "alice@h", name, "", "", false, false); err != nil {
+			t.Fatal(err)
+		}
+		done()
+	}
+	after := status()
+	if after["queued"] != before["queued"] || after["dropped"] != mid["dropped"] || after["expired"] != mid["expired"] {
+		t.Fatalf("draining lowers queued only: before %v, after %v", mid, after)
+	}
+}
+
+// Plain `ls --json` is what plain `ls` is: the agents that have a reader now.
+func TestBusLsJSONWithoutOptionsListsOnlyAgentsWithReaders(t *testing.T) {
+	b, s, _ := jsonFixture(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go b.ConsumeAs(ctx, "alice@h", "#worker@h", "", "", false, false)
+	for end := time.Now().Add(3 * time.Second); b.Status().Waiting < 1; time.Sleep(5 * time.Millisecond) {
+		if time.Now().After(end) {
+			t.Fatal("the reader never waited")
+		}
+	}
+	var live []protocol.Record
+	if err := json.Unmarshal([]byte(busAnswer(t, s, "alice@h", "ls --json")), &live); err != nil {
+		t.Fatal(err)
+	}
+	if len(live) != 1 || live[0].Name != "#worker@h" {
+		t.Fatalf("plain ls lists agents with a reader, and #hidden@h has none: %+v", live)
+	}
+	var all []protocol.Record
+	if err := json.Unmarshal([]byte(busAnswer(t, s, "alice@h", "ls --all --json")), &all); err != nil || len(all) <= 1 {
+		t.Fatalf("--all lifts the filter: %d %v", len(all), err)
+	}
+}
+
+// An active Administrator who is not the daemon Owner sees the owner-inactive
+// detail over #bus exactly as over HTTP; an ordinary caller does not.
+func TestBusStatusJSONForAnAdministratorWhoIsNotTheOwner(t *testing.T) {
+	b, s, token := jsonFixture(t)
+	if _, err := b.SetUser("admin@h", protocol.User{Name: "carol@h"}, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.SetGroup("admin@h", core.AdministratorsGroup, []string{"admin@h", "carol@h"}); err != nil {
+		t.Fatal(err)
+	}
+	var viaBus, direct map[string]any
+	if err := json.Unmarshal([]byte(busAnswer(t, s, "carol@h", "status --json")), &viaBus); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(httpJSON(t, s, token, "carol@h", "/status"), &direct); err != nil {
+		t.Fatal(err)
+	}
+	delete(viaBus, "up")
+	delete(direct, "up")
+	if !reflect.DeepEqual(viaBus, direct) {
+		t.Fatalf("an Administrator over #bus differs from /status:\n%v\n%v", viaBus, direct)
+	}
+	if viaBus["owner_inactive"] == nil || viaBus["administrator"] != true || viaBus["daemon_owner"] != nil {
+		t.Fatalf("an Administrator sees the detail and is not the Owner: %v", viaBus)
+	}
 }

@@ -77,7 +77,7 @@ func (s *Server) daemonAnswer(e protocol.Envelope) (string, error) {
 	if e.Ask != "" {
 		body, _, err := agentmeta.DispatchAsk(e.Ask, map[string]agentmeta.AskHandler{
 			"help-json": func() (string, error) {
-				data, err := json.Marshal(map[string]any{"description": display.BusDescription, "version": version.String, "license": display.License, "author": display.Author, "homepage": display.Homepage, "docs": display.BusDocs, "methods": methods, "config": busConfigDeclared(), "secrets": []any{}, "asks": []string{"help", "help-json", "help-config", "help-secret", "mcp", "status"}, "body_formats": []string{"text", "json"}})
+				data, err := json.Marshal(map[string]any{"description": display.BusDescription, "version": version.String, "license": display.License, "author": display.Author, "homepage": display.Homepage, "docs": display.BusDocs, "methods": methods, "config": busConfigDeclared(), "secrets": []any{}, "asks": []string{"help", "help-json", "help-config", "help-secret", "mcp", "status"}, "body_formats": []string{"text"}})
 				return string(data), err
 			},
 			"help": func() (string, error) {
