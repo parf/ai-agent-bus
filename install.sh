@@ -130,6 +130,10 @@ main() {
     if ssh-keygen -Y check-novalidate </dev/null 2>&1 | grep -qi 'unknown option\|illegal option'; then
         die "needs OpenSSH 8.1 or later (ssh-keygen -Y) to check the release signature"
     fi
+    # The runner sandboxes its agents with bubblewrap by default and refuses
+    # one it cannot sandbox; the install works without it, so only say so.
+    command -v bwrap >/dev/null 2>&1 ||
+        say "warning: bubblewrap (bwrap) is not installed: the runner will refuse sandboxed agents until it is"
     [ -n "$RELEASE_KEYS" ] || die "this install.sh carries no release key; use a published copy"
     case $version in
         "") ;;

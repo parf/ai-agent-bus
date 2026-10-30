@@ -332,7 +332,7 @@ curl -fsSL https://raw.githubusercontent.com/parf/ai-agent-bus/main/install.sh |
 | `--version 0.9.x` | that release instead of the latest; the only way to install an older one than is installed — a latest release older than the installed one is refused |
 | `--key-fingerprint SHA256:…` | refuse unless the key built into `install.sh` is that one; every run prints the key's fingerprint |
 | Verification | before anything is unpacked: `SHA256SUMS` must carry an `ssh-keygen` signature in the `agent-bus-release` namespace by a key built into `install.sh`, then the archive must match its line there, then its own `MANIFEST.sha256`. Any failure installs nothing |
-| Needs | `curl` or `wget`, `tar`, `sha256sum`, `ssh-keygen` (OpenSSH 8.1 or later); `python3` for the bundled agents. No bun, Node or Go |
+| Needs | `curl` or `wget`, `tar`, `sha256sum`, `ssh-keygen` (OpenSSH 8.1 or later); `python3` for the bundled agents; `bubblewrap` for the runner's agents, sandboxed by default ([runner sandbox](runner/security.md#isolation-today)), which install.sh warns about but does not install. No bun, Node or Go |
 | Trust | the release key is only as trustworthy as the `install.sh` that carries it: whoever can change that file can ship another key. Compare the printed fingerprint with the one the owner publishes elsewhere, and pin it with `--key-fingerprint` |
 
 <details><summary>Releasing</summary>
