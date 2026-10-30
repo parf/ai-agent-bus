@@ -69,6 +69,24 @@ class Package(unittest.TestCase):
         self.assertFalse(list(self.work.glob('upgrade.new.*')))
         self.assertFalse(list(self.work.glob('upgrade.old.*')))
 
+    def test_shipped_repackager_replaces_tree_from_release(self):
+        release = self.work / 'release'
+        export = subprocess.run([str(ROOT / 'src/agents/package.sh'), str(release)],
+                                capture_output=True, text=True, timeout=30)
+        self.assertEqual(export.returncode, 0, export.stderr)
+        script = release / 'agents/standalone/tmux-sessions/package.sh'
+        dest = self.work / 'installed'
+        first = subprocess.run([str(script), str(dest)], capture_output=True, text=True, timeout=10)
+        self.assertEqual(first.returncode, 0, 'shipped repackager failed: ' + first.stderr)
+        expected = self.snapshot(dest)
+        (dest / 'obsolete.py').write_text('stale root module\n')
+        (dest / 'support/agents/shared/obsolete.py').write_text('stale shared module\n')
+        (dest / 'sessions.py').write_text('old script\n')
+        second = subprocess.run([str(script), str(dest)], capture_output=True, text=True, timeout=10)
+        self.assertEqual(second.returncode, 0, second.stderr)
+        self.assertEqual(self.snapshot(dest), expected, 'shipped repackager retained stale files')
+        self.assertEqual(dest.stat().st_mode & 0o777, 0o755)
+
 
 if __name__ == '__main__':
     unittest.main()
