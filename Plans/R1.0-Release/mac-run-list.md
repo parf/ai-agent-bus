@@ -27,6 +27,8 @@ Step 5 is code first, a Mac run second: the run list is not complete until that 
 
 Evidence back to the repository: the step 2 output and `result.log` pasted into a plan `done/` file (not `tmp/`), the real times, and the Mac's `uname -m`, podman and Go versions. P.3 then drops its "aarch64 pending the owner's Mac" line.
 
+Build natively, never cross: `package.sh` cannot cross-build (a Go dependency needs cgo), so the aarch64 archives are built on the Mac, in the arm64 podman machine, and nowhere else. #ab-w1a's harness `src/acceptance/distro/run.sh` follows the host CPU, so on the Mac it runs on arm64. A CI build on a tag would publish a release, which only the owner does, so it stays a note, not a step.
+
 ## The Mac session
 
 Owner, 2026-10-30 ([RD164](DECISIONS.md#recorded-decisions)): the run list is carried out by a Claude session on the owner's Mac, on the same LAN as this node. This node has no ssh to the Mac; the session reaches the team over the bus.
