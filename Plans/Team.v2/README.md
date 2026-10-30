@@ -18,23 +18,51 @@ team before it is in [today's team](#today). Open choices are in
 
 ## Shape
 
+One team runs today ([TD1](DECISIONS.md#recorded-decisions)); a second adds
+`#ab-lead2`, `#ab-w2a..c` and `#ab-qa2` beside it. Names carry the project
+prefix `ab-` ([TD2](DECISIONS.md#recorded-decisions)). Two sessions of one
+account never share a directory, so each resumes its own conversation.
+
 ```
-parf ──► #ceo (kitty window, /fast)
-            │  tickets to the tasks queue; board; "waiting on owner" list
-            ▼
-          #dir (tmux, /fast)
-            │  splits tickets into tasks on disjoint paths; deadlines; load
-     ┌──────┴──────┐
-     ▼             ▼
-  #lead1        #lead2        (tmux, /fast: routing and receipts only)
-     │             │
-  #w1a..c        #w2a..c         (ordinary models: code, tests, mutants, docs, plans)
-     │             │
-     ├─► #qa1      ├─► #qa2       (another vendor; runs while the worker takes the next task)
-     └─► #gate ◄───┘              (script, no model; one queue reader is the lock)
-              │  rebase → --normal → version bump + changelog → ff-merge
-              ▼
-            main
+ parf (owner)
+   │  talks only to
+   ▼
+ #ab-ceo ─────────── kitty window "CEO" · Claude /fast · local/team-v2/
+   │  ticket T-n · "waiting on owner" list · results back to parf
+   ▼
+ #ab-dir ─────────── tmux DIR · Claude /fast · repo root
+   │  task: goal, plan item, paths, acceptance, deadline
+   ▼
+ #ab-lead1 ───────── tmux LEAD1 · Claude /fast · Plans/
+   │  assigns by fit · reads receipts only · decides "bump"
+   ├──────────────────┬──────────────────┐
+   ▼                  ▼                  ▼
+ #ab-w1a            #ab-w1b            #ab-w1c          one task each, own worktree tmp/<name>-T-n
+ tmux W1A           tmux W1B           tmux W1C
+ Claude (account 2) Codex              opencode / z.ai
+ repo root          repo root          repo root
+
+ #ab-qa1 ─────────── tmux QA1 · Claude (account 2) · Plans/ · read-only
+ #ab-gate ────────── tmux GATE · script local/team-v2/gate.sh · no model · sole lander on main
+
+ #tmux-sessions/ab-dvp@parf.us keeps every tmux window; #ab-ceo starts and restarts them through it
+```
+
+A task's path, each arrow one bus message:
+
+```
+ #ab-ceo ──T-n──► #ab-dir ──task──► #ab-lead1 ──task──► #ab-w1x
+                                        ▲                  │ "ready <branch> T-n"
+                                        └──────────────────┘
+ #ab-lead1 ──"check <branch> T-n"──► #ab-qa1 ──"no high" | "HIGH …"──► #ab-lead1
+      HIGH ──► back to the same worker
+
+ #ab-lead1 ──"<branch> T-n [bump] -- <line>"──► #ab-gate
+      #ab-gate: rebase on main → smoke-gate lock → src/smoke.sh --normal (one rerun)
+                → if bump: PATCH + CHANGELOG → ff-merge main → release lock
+      "landed: main <commit>, <version>" | "red: …" | "refused: …" ──► #ab-lead1
+      red/refused ──► back to the same worker
+      landed ──► worker removes worktree and branch; "done T-n" ──► #ab-dir ──► #ab-ceo ──► parf
 ```
 
 ## Roles
