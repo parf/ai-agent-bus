@@ -1,7 +1,7 @@
 {
-  "text": "Ask a database questions without holding its password. Run one SQL statement on a MySQL, PostgreSQL or ClickHouse database; the database itself enforces your read, write or admin tier. Start with query and a SELECT.\nquery <sql...>: Get rows back, or the affected row count, from one SQL statement run at your tier: read, write or admin.; returns: columns and rows, or the affected row count\n  sql (string): One SQL statement\n\nv<version> · PolyForm-NC · parf.dev/agent-bus/\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/db.md\nMore: agent-bus help <name> config | secret | json",
+  "text": "Ask a database questions without holding its password. Run one SQL statement on a MySQL, PostgreSQL or ClickHouse database. The database enforces read mode; separate accounts enforce the write and admin tiers. In single-account mode both use DB_USER. Start with query and a SELECT.\nquery <sql...>: Get rows back, or the affected row count, from one SQL statement using the configured database account.; returns: columns and rows, or the affected row count\n  sql (string): One SQL statement\n\nv<version> · PolyForm-NC · parf.dev/agent-bus/\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/db.md\nMore: agent-bus help <name> config | secret | json",
   "json": {
-    "description": "Ask a database questions without holding its password. Run one SQL statement on a MySQL, PostgreSQL or ClickHouse database; the database itself enforces your read, write or admin tier. Start with query and a SELECT.",
+    "description": "Ask a database questions without holding its password. Run one SQL statement on a MySQL, PostgreSQL or ClickHouse database. The database enforces read mode; separate accounts enforce the write and admin tiers. In single-account mode both use DB_USER. Start with query and a SELECT.",
     "license": "PolyForm-Noncommercial-1.0.0",
     "author": "Serg Parf",
     "homepage": "https://parf.dev/agent-bus/",
@@ -10,7 +10,7 @@
     "methods": {
       "query": {
         "type": "string",
-        "help": "Get rows back, or the affected row count, from one SQL statement run at your tier: read, write or admin.",
+        "help": "Get rows back, or the affected row count, from one SQL statement using the configured database account.",
         "returns": "columns and rows, or the affected row count",
         "args": [
           {
