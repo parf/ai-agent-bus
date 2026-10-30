@@ -375,6 +375,9 @@ ok_exit "the npm wrapper installs from its tarballs and runs a request, a reply 
 out=$(bash ./acceptance/guard-lock.test.sh 2>&1); rc=$?
 ok_exit "a private-store podman harness refuses to start a container nobody holds the smoke-gate lock for (J32)" "$rc"
 [ "$rc" = 0 ] || echo "$out"
+out=$(bash ./acceptance/guard-escape.test.sh 2>&1); rc=$?
+ok_exit "guard.test.sh killed mid-run never reaches a podman on PATH (J36)" "$rc"
+[ "$rc" = 0 ] || echo "$out"
 out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents -p agent_docs_test.py -v 2>&1); rc=$?
 ok_exit "every bundled agent has its page, index entry and docs link" "$rc"
 [ "$rc" = 0 ] || echo "$out"

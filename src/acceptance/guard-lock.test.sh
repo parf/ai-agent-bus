@@ -1,6 +1,7 @@
 #!/bin/bash
 # guard.sh refuses a run, before any podman call, unless someone holds the smoke-gate lock (J32): a stub agent-bus
-# answers holders, a fake podman records every call. No real podman, no lock.
+# answers holders, a fake podman records every call. No real podman, no lock. The fake is called by its path; a
+# podman on PATH is a decoy that fails the test if called (J36).
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 mkdir -p "$here/../../tmp"
@@ -8,17 +9,18 @@ work=$(mktemp -d "$here/../../tmp/guard-lock-test.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 fail=0
 bad() { echo "FAIL $*"; fail=1; }
-mkdir -p "$work/bin" "$work/base"
-printf '#!/bin/sh\necho "$*" >>"$CALLS"\n' >"$work/bin/podman"
+mkdir -p "$work/bin" "$work/base" "$work/fake"
+printf '#!/bin/sh\necho "$*" >>"$CALLS"\n' >"$work/fake/podman"
+printf '#!/bin/sh\necho "$*" >>"$DECOY"\nexit 125\n' >"$work/bin/podman"
 printf '#!/bin/sh\necho "$*" >>"$ASKED"\nprintf "%%s" "$SAY"\nexit "${RC:-0}"\n' >"$work/bin/agent-bus"
-chmod +x "$work/bin/podman" "$work/bin/agent-bus"
-export PATH=$work/bin:$PATH CALLS=$work/calls ASKED=$work/asked
+chmod +x "$work/fake/podman" "$work/bin/podman" "$work/bin/agent-bus"
+export PATH=$work/bin:$PATH CALLS=$work/calls ASKED=$work/asked FAKE=$work/fake/podman DECOY=$work/decoy
 
 # try <holders answer> [holders exit]: run guard as a harness does; print its exit, then what it said.
 try() {
   rm -f "$CALLS" "$ASKED"
   local run; run=$(mktemp -d "$work/base/run.XXXXXX")
-  SAY=$1 RC=${2:-0} timeout 20 bash -c 'podman=(podman --root x); . "$1"; guard "$2" keep; echo went-on' sh "$here/guard.sh" "$run" 2>&1
+  SAY=$1 RC=${2:-0} timeout 20 bash -c 'podman=("$FAKE" --root x); . "$1"; guard "$2" keep; echo went-on' sh "$here/guard.sh" "$run" 2>&1
   echo "exit $?"
 }
 refused() { # refused <case> <holders answer> [holders exit] <expected words>
@@ -45,6 +47,7 @@ grep -q '^--root x ps ' "$CALLS" 2>/dev/null || bad "held lock: guard never list
 for i in $(seq 1 40); do grep -q 'label=agent-bus-run=' "$CALLS" 2>/dev/null && break; sleep .25; done
 grep -q 'label=agent-bus-run=' "$CALLS" 2>/dev/null || bad "held lock: the watcher never listed the run"
 sleep .5
+[ ! -s "$DECOY" ] || bad "a podman on PATH was called instead of the fake: $(head -3 "$DECOY" | tr '\n' ';')"
 
 [ "$fail" = 0 ] && echo "PASS guard refuses a container run nobody holds the smoke-gate lock for"
 exit "$fail"
