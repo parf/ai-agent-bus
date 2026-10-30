@@ -6,31 +6,15 @@ The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
 ## 0.9.211 — 2026-10-30
 
-Runner pools take settings-file overlays under bwrap, refused without it
+Eleventh published 0.9 changeset: 0.9.205–0.9.211, squashed.
 
-## 0.9.210 — 2026-10-30
-
-The runner serves a pool of jsonl children, answering each message by its echoed id
-
-## 0.9.209 — 2026-10-30
-
-agent-busd's default database follows an absolute XDG_STATE_HOME and its refusal names the old home database
-
-## 0.9.208 — 2026-10-30
-
-Go client long polls use HTTP/1.1 over https so a replaced reader's cancelled poll no longer swallows messages
-
-## 0.9.207 — 2026-10-30
-
-Discord agent posts to and reads channels and receives gateway messages, never exposing its token
-
-## 0.9.206 — 2026-10-30
-
-Replacing an inbox reader loses no message: the daemon drops a cancelled waiter and requeues what it was handed, in arrival order
-
-## 0.9.205 — 2026-10-30
-
-Slack and Telegram subscriptions run on the shared engine: deterministic ids migrated once, delete-and-add instead of edit, drops counted and warned
+| Area | Changes |
+|---|---|
+| Subscriptions | Slack and Telegram subscriptions run on the shared engine: deterministic ids migrate once, `sub edit` becomes delete-and-add, and drops are counted and warned. |
+| Daemon | Replacing an inbox reader loses no message: the daemon drops a cancelled waiter and requeues what it was handed, in arrival order. `agent-busd`'s default database follows an absolute `XDG_STATE_HOME`, and its refusal names the old home database. |
+| Clients | Go client long polls use HTTP/1.1 over https, so a replaced reader's cancelled poll no longer swallows messages. |
+| Runner | The runner serves a pool of `jsonl` children and answers each message by its echoed id. Pools take settings-file overlays under bwrap and are refused without it. |
+| Agents | The Discord agent posts to and reads channels and receives gateway messages, never exposing its token. |
 
 ## 0.9.204 — 2026-10-30
 
