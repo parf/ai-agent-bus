@@ -166,6 +166,9 @@ section('send and consume', function () use ($me) {
         check('a zero wait (' . var_export($zero, true) . ') is a send without one', $e === null
             && $svc->consume(new ConsumeOptions(wait: 1))?->body === 'zero', $e ? get_class($e) . ': ' . $e->getMessage() : 'none');
     }
+    $e = thrown(fn() => $me->send('#php-svc@localhost', 'neg', new SendOptions(topic: 'z', wait: -1)));
+    check('a negative wait is still refused, not dropped', $e instanceof InvalidArgument, $e ? get_class($e) : 'none');
+    check('and nothing was delivered', $svc->consume(new ConsumeOptions(wait: 0)) === null);
     $e = thrown(fn() => $me->send('nobody@localhost', 'x'));
     check('a send to an unknown name is NotFound', $e instanceof NotFound, $e ? get_class($e) : 'none');
 });

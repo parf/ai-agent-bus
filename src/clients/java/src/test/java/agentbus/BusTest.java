@@ -290,6 +290,9 @@ public final class BusTest {
             Throwable subMs = thrown(() -> me.send("#j-svc@localhost", "sub", Send.topic("z").waitFor(Duration.ofNanos(400_000))));
             check("a wait under a millisecond is a send without one", subMs == null
                     && svc.consume(Consume.waiting(ms(1000))).map(Message::body).orElse("").equals("sub"), String.valueOf(subMs));
+            Throwable negWait = thrown(() -> me.send("#j-svc@localhost", "neg", Send.topic("z").waitFor(Duration.ofMillis(-1))));
+            check("a negative wait is still refused, not dropped", negWait instanceof BusException.Invalid, name(negWait));
+            check("and nothing was delivered", svc.consume(Consume.now()).isEmpty());
             check("roles cannot be changed", thrown(() -> svc.consume(Consume.now())) == null
                     && thrown(() -> new Message("i", "f", "t", Optional.empty(), Optional.empty(), "", java.time.Instant.EPOCH, Optional.empty(),
                     Optional.empty(), Optional.empty(), Optional.empty(), new ArrayList<>(List.of("x")), Optional.empty(), 0, Optional.empty(), Optional.empty()).roles().add("y")) != null);

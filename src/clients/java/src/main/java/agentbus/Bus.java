@@ -297,7 +297,7 @@ public final class Bus implements AutoCloseable {
         o.tag().ifPresent(v -> e.put("tag", v));
         o.ttl().ifPresent(v -> e.put("ttl", v.toMillis() + "ms"));
         // A wait of nothing is no wait: the daemon refuses a zero one.
-        o.waitFor().filter(v -> v.toMillis() > 0).ifPresent(v -> e.put("wait", v.toMillis() + "ms"));
+        o.waitFor().filter(v -> v.isNegative() || v.toMillis() > 0).ifPresent(v -> e.put("wait", v.toMillis() + "ms"));
         o.replyTo().ifPresent(v -> e.put("reply_to", v.toJson()));
         o.ask().ifPresent(v -> e.put("ask", v));
         if (receipt != null) e.put("receipt", receipt);

@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.183 — 2026-10-30
+
+every client library sends a zero or sub-millisecond wait as a plain send, and still refuses a negative wait
+
 ## 0.9.182 — 2026-10-30
 
 Sixth published 0.9 changeset: 0.9.163–0.9.182, squashed.
