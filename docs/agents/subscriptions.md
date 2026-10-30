@@ -34,7 +34,7 @@ Logwatch runs the shared engine. The other helpers retain their own implementati
 
 | Rule | [IMAP](imap.md#what-it-does) | [Logwatch](logwatch.md#what-it-does) | [Slack](slack.md#what-it-does), [Telegram](telegram.md#reply-routing) |
 |---|---|---|---|
-| Calls | `sub add <target> [/regex/]` over sender and subject; queue or agent checked | `sub add <target> [filter]`; queue or agent checked | `sub add <channel or chat> <target> [filter]` and `sub edit`; Slack also `from=`; target kind not checked |
+| Calls | `sub add <target> [/regex/]` over sender and subject; queue or agent checked | `sub add <target> [filter]`; queue or agent checked; edit is refused (delete and add again) | `sub add <channel or chat> <target> [filter]` and `sub edit`; Slack also `from=`; target kind not checked |
 | Authority | at add and before every send; not toward the helper itself | at add and before every send, toward target and logwatch | at add, on a moved target and before every send; not toward the helper |
 | Delivery | a durable outbox that retries | one send for every matching arrival, including repeated lines | one send, never replayed |
 | Refused send | retries, then a counted skip; a denial or an unconfirmed send pauses it; copies are held | a refused or unknown copy is dropped, counted and warned; the subscription stays active | the last error is kept, nothing counted; a denial, a missing target or an unknown author disables it |

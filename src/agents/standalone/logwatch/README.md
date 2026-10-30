@@ -19,7 +19,14 @@ creators and valid durable counts, and removes obsolete pause/disabled fields.
 A definition without a creation time gets its migration time. Legacy bare
 literal filters are escaped into case-insensitive shared patterns; unsupported
 filters remain visible and inert. Malformed rows remain for direct managers to
-repair. Re-loading shared rows does not rewrite them or replay history.
+repair. Non-12-hex IDs map to deterministic, collision-checked 12-hex IDs.
+A checkpoint in the source's KV outside `sub.*` records the reserved ID and
+exact old/new values; unreserved existing rows are collisions even with matching content.
+The new row commits and is confirmed before the old key is deleted. Startup
+finishes interrupted moves before serving or forwarding, so a kill between the
+writes cannot serve two copies or lose the subscription. Re-loading shared
+rows does not rewrite them or replay history. `sub edit` is refused with
+"delete it and add it again"; the manifest declares only add/list/delete.
 
 `watcher.py` follows regular files, detects truncation/rotation, and discovers
 new files on a bounded interval. It follows one journalctl JSON stream with

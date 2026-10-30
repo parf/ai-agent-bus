@@ -12,6 +12,7 @@ from unittest.mock import patch
 from cleaning import clean_line
 from filters import match
 import logwatch
+import subscription_migration as migration
 from logwatch import Agent, parse
 from agent_bus.errors import BusError, Refusal, UnexpectedAnswer
 from watcher import Monitor, Ring, configuration
@@ -20,7 +21,9 @@ from watcher import Monitor, Ring, configuration
 class FakeKV:
     def __init__(self): self.values = {}
     def list(self): return {'json': [{'name': key} for key in self.values]}
-    def get(self, key, **_): return copy.deepcopy(self.values[key])
+    def get(self, key, **_):
+        if key not in self.values: raise Refusal(404, 'absent')
+        return copy.deepcopy(self.values[key])
     def set(self, key, value, mode='set', **_):
         if mode == 'replace' and key not in self.values: raise Refusal(404, 'absent')
         if mode == 'add' and key in self.values: raise Refusal(412, 'exists')
@@ -344,6 +347,115 @@ time.sleep(30)
         self.assertEqual(row['filter'], r'/error\.dot/iu')
         agent.forward([agent.ring.add('file', 'errorXdot'), agent.ring.add('file', 'ERROR.dot')])
         self.assertEqual([body for _, body, _ in agent.bus.sent], ['[file] ERROR.dot'])
+
+    def test_non_hex_ids_are_deterministic_collision_checked_and_idempotent(self):
+        agent = self.agent(); agent.clock = lambda:1000.
+        key = 'sub.old-id'; legacy = {'id':'old-id','target':'#target@t','filter':'','created_by':'#caller@t'}
+        collision = migration.migration_id(agent.bus.name, key)
+        self.assertEqual(collision, migration.migration_id(agent.bus.name, key), 'legacy ID mapping is not deterministic')
+        native = migration.project(agent.subscriptions, key, legacy, collision, agent.clock)
+        agent.bus.kv.set('sub.'+collision, native)
+        agent.bus.kv.set(key, legacy)
+        agent.load()
+        self.assertNotIn(key, agent.bus.kv.values)
+        self.assertEqual(agent.bus.kv.get('sub.'+collision), native, 'migration overwrote/coalesced a real collision')
+        expected = migration.migration_id(agent.bus.name, key, 1)
+        rows = json.loads(agent.handle(message('sub list')))['subs']
+        self.assertEqual({r['id'] for r in rows}, {collision, expected})
+        self.assertFalse(any(k.startswith(migration.PREFIX) for k in agent.bus.kv.values))
+        once = copy.deepcopy(agent.bus.kv.values); agent.clock = lambda:2000.; agent.load()
+        self.assertEqual(agent.bus.kv.values, once)
+        agent.forward([agent.ring.add('file', 'one match')])
+        self.assertEqual(len(agent.bus.sent), 2, 'a real subscription was lost to an ID collision')
+
+    def test_non_hex_unconfirmed_new_commit_keeps_old_until_restart_deduplicates(self):
+        agent = self.agent(); agent.clock = lambda:1000.
+        key = 'sub.short'; legacy = {'id':'short','target':'#target@t','filter':'','created_by':'#caller@t'}
+        agent.bus.kv.set(key, legacy)
+        new_key = 'sub.'+migration.migration_id(agent.bus.name, key)
+        real_set = agent.bus.kv.set
+        def lost_reply(name, value, **options):
+            result = real_set(name, value, **options)
+            if name == new_key: raise BusError('commit reply lost')
+            return result
+        agent.bus.kv.set = lost_reply
+        try:
+            with self.assertRaises(BusError): agent.load()
+        finally: agent.bus.kv.set = real_set
+        self.assertIn(key, agent.bus.kv.values, 'legacy row disappeared before a confirmed new commit')
+        self.assertEqual(agent.bus.kv.get(key), legacy)
+        self.assertIn(new_key, agent.bus.kv.values)
+        first = agent.bus.kv.get(new_key)
+        agent.clock = lambda:2000.; agent.load()
+        self.assertNotIn(key, agent.bus.kv.values)
+        self.assertEqual(agent.bus.kv.get(new_key), first, 'restart recreated the committed row')
+        rows = json.loads(agent.handle(message('sub list')))['subs']
+        self.assertEqual(len(rows), 1)
+        agent.forward([agent.ring.add('file', 'after restart')])
+        self.assertEqual(len(agent.bus.sent), 1)
+
+    def test_non_hex_failed_new_write_does_not_delete_the_legacy_row(self):
+        agent = self.agent()
+        key = 'sub.short'; legacy = {'id':'short','target':'#target@t','filter':'','created_by':'#caller@t'}
+        agent.bus.kv.set(key, legacy)
+        new_key = 'sub.'+migration.migration_id(agent.bus.name, key)
+        real_set = agent.bus.kv.set
+        def failed_write(name, value, **options):
+            if name == new_key: raise BusError('write failed')
+            return real_set(name, value, **options)
+        agent.bus.kv.set = failed_write
+        try:
+            with self.assertRaises(BusError): agent.load()
+        finally: agent.bus.kv.set = real_set
+        self.assertIn(key, agent.bus.kv.values, 'legacy row disappeared before a confirmed new commit')
+        self.assertEqual(agent.bus.kv.get(key), legacy)
+        self.assertNotIn(new_key, agent.bus.kv.values)
+        agent.load()
+        self.assertNotIn(key, agent.bus.kv.values)
+        self.assertIn(new_key, agent.bus.kv.values)
+
+    def test_non_hex_delete_reply_lost_finishes_checkpoint_without_recreating_old_row(self):
+        agent = self.agent()
+        key = 'sub.short'; legacy = {'id':'short','target':'#target@t','filter':'','created_by':'#caller@t'}
+        agent.bus.kv.set(key, legacy)
+        real_delete = agent.bus.kv.delete
+        def lost_reply(name, **options):
+            result = real_delete(name, **options)
+            if name == key: raise BusError('delete reply lost')
+            return result
+        agent.bus.kv.delete = lost_reply
+        try:
+            with self.assertRaises(BusError): agent.load()
+        finally: agent.bus.kv.delete = real_delete
+        self.assertNotIn(key, agent.bus.kv.values)
+        self.assertTrue(any(k.startswith(migration.PREFIX) for k in agent.bus.kv.values))
+        agent.load()
+        rows = json.loads(agent.handle(message('sub list')))['subs']
+        self.assertEqual(len(rows), 1)
+        self.assertFalse(any(k.startswith(migration.PREFIX) for k in agent.bus.kv.values))
+
+    def test_non_hex_damaged_definition_stays_manager_only_repair(self):
+        agent = self.agent()
+        key = 'sub.orphan'
+        agent.bus.kv.set(key, {'id':'orphan','target':'#target@t','filter':''})
+        agent.load()
+        new_id = migration.migration_id(agent.bus.name, key)
+        self.assertNotIn(key, agent.bus.kv.values)
+        self.assertEqual(json.loads(agent.handle(message('sub list')))['subs'], [])
+        managers = json.loads(agent.handle(message('sub list', roles=('owner',))))['subs']
+        self.assertEqual(managers, [{'id':new_id, 'reason':'invalid_state'}])
+        self.assertEqual(agent.handle(message('sub delete '+new_id)), 'error: not_author')
+        self.assertEqual(json.loads(agent.handle(message('sub delete '+new_id, roles=('owner',))))['deleted'], new_id)
+
+    def test_sub_edit_is_refused_with_delete_and_add_guidance_without_mutation(self):
+        agent = self.agent()
+        agent.handle(message('sub add #target@t'))
+        before = copy.deepcopy(agent.bus.kv.values)
+        for body in ['sub edit old #other@t /error/', 'sub.edit old #other@t', '{"method":"sub.edit","id":"old","target":"#other@t"}']:
+            self.assertEqual(agent.handle(message(body)), 'error: delete it and add it again')
+            self.assertEqual(agent.bus.kv.values, before)
+        self.assertNotIn('sub.edit', logwatch.FIELDS)
+        self.assertIn('delete it and add it again', agent.handle(message('help')))
 
     def test_idle_subscription_does_not_launch_a_regex_worker(self):
         agent = self.agent(); agent.handle(message('sub add #target@t /error/i'))

@@ -35,7 +35,7 @@ files=(
   standalone/systemd/agent.json standalone/systemd/env.dist standalone/systemd/systemd.py standalone/systemd/install.py
   standalone/server-info/agent.json standalone/server-info/env.dist standalone/server-info/server-info.py standalone/server-info/install.sh
   standalone/git/agent.json standalone/git/env.dist standalone/git/git_agent.py standalone/git/install.py standalone/git/autopull.py standalone/git/timers.py
-  standalone/logwatch/agent.json standalone/logwatch/env.dist standalone/logwatch/logwatch.py standalone/logwatch/install.py standalone/logwatch/cleaning.py standalone/logwatch/filters.py standalone/logwatch/watcher.py
+  standalone/logwatch/agent.json standalone/logwatch/env.dist standalone/logwatch/logwatch.py standalone/logwatch/subscription_migration.py standalone/logwatch/install.py standalone/logwatch/cleaning.py standalone/logwatch/filters.py standalone/logwatch/watcher.py
 )
 for file in "${files[@]}"; do
   mode=0644

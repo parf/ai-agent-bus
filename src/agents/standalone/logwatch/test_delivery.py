@@ -16,6 +16,7 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[3]
 sys.path.insert(0, str(HERE))
 from logwatch import Agent
+import subscription_migration as migration
 from watcher import configuration
 from agent_bus import Bus
 
@@ -114,6 +115,55 @@ class SharedDelivery(unittest.TestCase):
         self.forward('revoked source')
         self.assertIsNone(self.take())
         self.assertEqual(self.warnings, ['subscription: admission_refused'] * 2)
+
+
+    def test_sigkill_between_new_commit_and_old_delete_finishes_before_serving(self):
+        old_key = 'sub.old-format'
+        legacy = {'id':'old-format','target':self.target.name,'filter':'','created_by':self.author.name}
+        kv = self.source.record(self.source.name).kv
+        kv.set(old_key, legacy, kind='json', mode='add')
+        code = (
+            'import os, sys, time; sys.path.insert(0, %r)\n'
+            'from logwatch import Agent\n'
+            'from watcher import configuration\n'
+            'from agent_bus import Bus\n'
+            'with Bus(os.environ["SOURCE_NAME"], addr=os.environ["SOURCE_ADDR"], token=os.environ["SOURCE_TOKEN"]) as bus:\n'
+            '    agent = Agent(bus, configuration({"sources":[],"excludes":[]}), log=lambda _:None)\n'
+            '    real = agent.subscriptions.kv.set\n'
+            '    def committed(key, value, **options):\n'
+            '        result = real(key, value, **options)\n'
+            '        if key.startswith("sub.") and key != %r and options.get("mode") == "add":\n'
+            '            print(key, flush=True); time.sleep(600)\n'
+            '        return result\n'
+            '    agent.subscriptions.kv.set = committed\n'
+            '    agent.load()\n'
+        ) % (str(HERE), old_key)
+        child = subprocess.Popen([sys.executable, '-B', '-c', code], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+             text=True, env={**os.environ, 'SOURCE_NAME':self.source.name, 'SOURCE_ADDR':self.source._transport.addr,
+                             'SOURCE_TOKEN':self.source._transport.token})
+        def close_child():
+            if child.poll() is None: child.kill()
+            child.wait(timeout=5); child.stdout.close(); child.stderr.close()
+        self.addCleanup(close_child)
+        self.assertTrue(select.select([child.stdout], [], [], 8)[0], 'migration never reached the committed-new-row barrier')
+        new_key = child.stdout.readline().strip()
+        self.assertEqual(new_key, 'sub.'+migration.migration_id(self.source.name, old_key))
+        self.assertIn(old_key, [r['name'] for r in kv.list().get('json', [])], 'old row was removed before the new commit barrier')
+        self.assertEqual(kv.get(old_key, kind='json'), legacy, 'old row was removed before the new commit barrier')
+        self.assertEqual(kv.get(new_key, kind='json')['id'], new_key[4:])
+        child.kill(); child.wait(timeout=5)
+        self.agent.load()   # restart: finish the checkpoint before any serve/forward
+        names = [r['name'] for r in kv.list().get('json', [])]
+        self.assertNotIn(old_key, names)
+        self.assertEqual([n for n in names if n.startswith('sub.')], [new_key])
+        self.assertFalse(any(n.startswith(migration.PREFIX) for n in names))
+        reply = self.command('sub list')
+        self.assertTrue(reply.startswith('{'), reply)
+        rows = json.loads(reply)['subs']; self.assertEqual(len(rows), 1)
+        self.agent.load(); self.forward('after migration restart')
+        self.expect_body('[fixture] after migration restart')
+        self.assertIsNone(self.take(), 'both old and new subscriptions forwarded the match')
+        self.assertEqual(self.counts(), (1, 0))
 
 
 if __name__ == '__main__': unittest.main()

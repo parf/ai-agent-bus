@@ -21,6 +21,7 @@ from watcher import Monitor, Ring, configuration
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "shared"))
 from metadata import answer as metadata_answer, ASKS, dispatch
 import subscriptions as shared_subscriptions
+from subscription_migration import migrate
 PACKAGE = Path(__file__).resolve().parent
 
 FIELDS = {'tail': {'n'}, 'grep': {'query', 'n'}, 'since': {'age', 'n'}, 'mark': {'label'},
@@ -39,6 +40,7 @@ def parse(body):
         if method == 'sub':
             if not words: raise ValueError('sub takes add, list or delete')
             method += '.' + words.pop(0)
+        if method == 'sub.edit': raise ValueError('delete it and add it again')
         call = {'method': method}
         if method in ('tail', 'grep', 'since') and words and words[-1].isdigit() and (method == 'tail' or len(words) > 1):
             call['n'] = int(words.pop())
@@ -49,6 +51,7 @@ def parse(body):
             if words: call['filter'] = ' '.join(words); words = []
         if method == 'sub.delete' and len(words) == 1: call['id'] = words.pop()
         if words: raise ValueError('unexpected arguments')
+    if isinstance(call, dict) and call.get('method') == 'sub.edit': raise ValueError('delete it and add it again')
     if not isinstance(call, dict) or not isinstance(call.get('method'), str) or call['method'] not in FIELDS:
         raise ValueError('unknown method; ask help')
     method = call['method']
@@ -96,36 +99,8 @@ class Agent:
             self.log('forward queue full; line dropped')
 
     def load(self):
-        """Map legacy definitions once; malformed state stays for manager repair.
-
-        Old definitions have no creation time: their shared row is created at
-        migration. Keep any valid durable counts and unsupported filter text;
-        the engine lists such filters as inert rather than making them match all.
-        """
-        kv = self.subscriptions.kv
-        legacy = {'id', 'target', 'filter', 'created_by', 'created_at', 'forwarded',
-                  'sent', 'dropped', 'paused', 'disabled', 'last_error'}
-        for entry in kv.list().get('json', []):
-            if not isinstance(entry, dict): continue
-            key = entry.get('name', '')
-            if not isinstance(key, str) or not key.startswith('sub.'): continue
-            value = kv.get(key, kind='json')
-            if not isinstance(value, dict) or 'selector' in value or set(value) - legacy: continue
-            try:
-                query = value['filter']
-                if isinstance(query, str) and query and not query.startswith('/'):
-                    # Legacy bare text was a case-insensitive literal, not a regex.
-                    query = '/' + ''.join('\\'+c if c in r'\./-^$|?*+(){}[]' else c for c in query) + '/iu'
-                target = shared_subscriptions.target_text(value['target'])
-                if '@' not in target: target = shared_subscriptions.destination(self.bus, target)
-                row = {'id': value['id'], 'target': target,
-                       'selector': {}, 'filter': query,
-                       'created_by': shared_subscriptions.identity(value['created_by']),
-                       'created_at': value.get('created_at', shared_subscriptions.stamp(self.clock)),
-                       'sent': value.get('sent', value.get('forwarded', 0)), 'dropped': value.get('dropped', 0)}
-                row = self.subscriptions._row(row, key[4:])
-            except (KeyError, ValueError, TypeError, UnicodeError, BusError, OSError): continue
-            kv.set(key, row, kind='json', mode='replace')
+        # No handler/forwarder starts until interrupted legacy moves are finished.
+        migrate(self.subscriptions, self.clock)
 
     def subscription(self, call, message):
         if call['method'] == 'sub.list':

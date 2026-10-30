@@ -112,12 +112,12 @@
       "example": "agent-bus call '#logwatch@parf.us' 'sub list'"
     },
     "sub.delete": {
-      "help": "Stop your subscription. Direct Owners and Maintainers may delete any subscription, including damaged rows.",
+      "help": "Stop your subscription. To change it, delete it and add it again. Direct Owners and Maintainers may delete any subscription, including damaged rows.",
       "args": [
         {
           "name": "id",
           "type": "string",
-          "help": "Subscription ID"
+          "help": "Subscription ID from sub list; exactly 12 lower-case hexadecimal characters"
         }
       ],
       "destructive": true,

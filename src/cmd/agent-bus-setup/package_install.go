@@ -240,6 +240,7 @@ var bundleFiles = []string{
 	"agents/standalone/logwatch/agent.json",
 	"agents/standalone/logwatch/env.dist",
 	"agents/standalone/logwatch/logwatch.py",
+	"agents/standalone/logwatch/subscription_migration.py",
 	"agents/standalone/logwatch/install.py",
 	"agents/standalone/logwatch/cleaning.py",
 	"agents/standalone/logwatch/filters.py",

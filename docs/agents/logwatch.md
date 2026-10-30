@@ -36,6 +36,7 @@ The calls, last:
 
 - Subscription definitions and delivery counts survive restarts; a failed copy is counted and never resent.
 - Subscriptions follow [the shared behaviour](subscriptions.md#the-shared-behaviour).
+- To change a subscription, delete it and add it again; `sub edit` is refused.
 
 ## You'll need
 
