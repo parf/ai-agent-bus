@@ -634,10 +634,12 @@ asks for the API shape; then runner, daemon and web parts are split.
 Implement the [release artifacts](distribution.md#release-artifacts) and [container contract](distribution.md#container-runtime).
 
 - ✅ T-10 One notice file, `licenses/NOTICE.md` — **0.9.189**, `0e7868ee` ([result](DONE.md#t-10-one-notice-file))
-- ⏳ P.4 Simple install: `install.sh` and self-contained TypeScript binaries ([simple install](distribution.md#simple-install)). Assigned 2026-10-29: AB2; review `#claude/ab2-review`
+- ⏳ P.4 Simple install: `install.sh` and self-contained TypeScript binaries ([simple install](distribution.md#simple-install))
   - Acceptance: on a clean Linux host with no Go, bun or Node, the one command installs a full node that completes an agent request/reply and an MCP tool call; `--client` without root joins it from another account; a tampered archive or checksum stops the install before any file is written; running it again updates and keeps configuration, data and one rollback version
   - Acceptance: owner, 2026-10-30: a clean install from the built distribution passes `src/check-deploy.sh` inside rootless podman on AlmaLinux 10, Ubuntu 26.04 LTS and Debian 13; containers live under `tmp/` and are removed after
   - Mutant: skip the signature check and the tampered-archive case must fail; drop a compiled TypeScript binary from the archive and the MCP or web check must fail
+  - Built: all of the above on x86_64 in rootless podman on the three distributions, both mutants failing, as slow check `distro_install`; [result](DONE.md#p4-simple-install)
+  - Remaining, owner: the RD171 release keys embedded in `install.sh`; the native aarch64 run on the Mac
 
 - ⏳ P.1 npm package
   - Acceptance: On a clean supported host without the checkout or Go toolchain, install the published package, start the bus, complete an agent request/reply and an MCP tool call. Omit a required executable or MCP runtime asset from the package and the corresponding exercise fails

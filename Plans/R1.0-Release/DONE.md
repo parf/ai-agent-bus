@@ -127,3 +127,10 @@ Owner, 2026-10-30: every doc leads with why, then what you get, then real exampl
 - `src/release-verify.test.sh` executes the actual workflow command against full/client fixtures. An unstamped binary, an altered version and an omitted license each stop that command on the corresponding diagnostic; a wrong-version client also fails beside a valid full archive. Existing notice and manifest checks remain.
 - Under the smoke-gate lock, suppressing the workflow command's failure with `|| true` failed the test assertion `unstamped: accepted a bad release`; restored wiring passed. The test also pins verification after packaging and before upload, without a conditional or `continue-on-error`, and the draft dependency on the builds.
 - No tag was pushed and no live release was created. Native aarch64 evidence remains the owner's Mac check.
+
+## P.4 Simple install
+
+- `src/acceptance/distro/run.sh` on main `f0064cc7` plus this branch, 2026-10-30: AlmaLinux 10.2, Ubuntu 26.04.1 LTS and Debian 13 each pass in rootless podman. A clean host refuses a tampered archive and a forged `SHA256SUMS` before any file is written; `curl | sh` installs a node that passes `src/check-deploy.sh` (6 checks); `bob` joins with `--client` without root and lists `#debug` through the compiled `agent-bus-mcp`; the same command updates to the next release keeping setup's configuration files, `runner.env`, a record's Configuration, registrations, tokens and one rollback copy; `--rollback` and `--version` go back. Containers and run data are removed afterwards; the journal stays quiet
+- Mutants, debian13 each, under the lock: signature check skipped → `the forged release installed`; `agent-bus-ts` dropped from the client archive → `the MCP tool call failed` (from the full archive, setup refuses the incomplete package first); upgrade rewriting `runner.env` and a daemon losing Configuration → their configuration assertions. [All mutants](distribution.md#install-acceptance)
+- Runs as smoke check `distro_install` in the slow set only
+- Owner-pending, not met: the RD171 release keys in `install.sh`, and the native aarch64 run on the owner's Mac
