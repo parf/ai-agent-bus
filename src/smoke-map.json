@@ -382,6 +382,22 @@
       },
       {
         "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "check_markers_test"
+        ]
+      },
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "check-markers.py"
+        ]
+      },
+      {
+        "argv": [
           "bash",
           "smoke-gofail.test.sh"
         ]

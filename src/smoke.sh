@@ -335,6 +335,12 @@ ok_exit "smoke mode contract" "$rc"
 out=$(bash ./smoke-gofail.test.sh 2>&1); rc=$?
 ok_exit "a failed go run says why: setup failures print go's error, test failures stay terse" "$rc"
 [ "$rc" = 0 ] || echo "$out"
+out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest check_markers_test 2>&1); rc=$?
+ok_exit "the conflict-marker check fails each marker and passes a setext heading" "$rc"
+[ "$rc" = 0 ] || echo "$out"
+out=$(PYTHONDONTWRITEBYTECODE=1 python3 ./check-markers.py 2>&1); rc=$?
+ok_exit "this tree adds no git conflict marker against main" "$rc"
+[ "$rc" = 0 ] || echo "$out"
 out=$(bash ./release-verify.real.test.sh 2>&1); rc=$?
 ok_exit "release evidence passes the signed archives package.sh builds and fails each bad release" "$rc"
 [ "$rc" = 0 ] || echo "$out"
