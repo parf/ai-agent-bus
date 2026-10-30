@@ -15,7 +15,8 @@
     "M": "ABCDEFGHIJKLM",
     "N": "",
     "O": "",
-    "P": ""
+    "P": "",
+    "Q": ""
   },
   "checks": {
     "core_1": {
@@ -313,6 +314,14 @@
       "paths": [
         "src/agents/fetch/",
         "src/agents/shared/metadata.py"
+      ]
+    },
+    "container_image": {
+      "tags": "Q",
+      "paths": [
+        "src/container/",
+        "src/package.sh",
+        "src/build.sh"
       ]
     },
     "agent_subscriptions": {

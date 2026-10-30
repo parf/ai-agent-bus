@@ -57,7 +57,7 @@ SHARDS=(core go_checks process_titles readers call_damage reply_to script_inbox
   orphans transfer corrupt_pair supervisor
   mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename web_ts samples tls_port
   client_python client_rust client_php client_typescript client_java client_go client_examples
-  agent_slack agent_telegram agent_server_info agent_systemd agent_git agent_logwatch agent_sessions agent_ai agent_sms agent_voyage agent_db agent_qdrant agent_rag agent_webhook agent_fetch agent_smtp agent_imap agent_cron agent_at agent_subscriptions)
+  agent_slack agent_telegram agent_server_info agent_systemd agent_git agent_logwatch agent_sessions agent_ai agent_sms agent_voyage agent_db agent_qdrant agent_rag agent_webhook agent_fetch agent_smtp agent_imap agent_cron agent_at agent_subscriptions container_image)
 if [ -n "$SHARD" ]; then
   case " ${SHARDS[*]} " in
     *" $SHARD "*) ;;
@@ -4107,6 +4107,20 @@ agent_subscriptions() {
   out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/shared -p test_subscriptions.py -v 2>&1); rc=$?
   echo "$out" | sed 's/^/  /'
   ok_exit "subscription parity, revoked creators, drop without pause, bounded helpers" "$rc"
+}
+
+# The container image from this tree's release archive, under rootless podman
+# (src/container/README.md#acceptance). The archive sits in the shard's own
+# directory, which its cleanup removes; the acceptance removes what it made.
+container_image() {
+  if normal; then
+    sec "container image: both roles, delivery, persistence, sandbox refusal"
+    local out rc dist="$D/container-dist"
+    out=$(timeout 240 ./package.sh "$dist" 2>&1 >/dev/null); rc=$?
+    [ "$rc" != 0 ] || { out=$(timeout 240 ./container/acceptance.sh "$dist" 2>&1); rc=$?; }
+    echo "$out" | sed 's/^/  /'
+    ok_exit "container image acceptance from the release archive" "$rc"
+  else skipped=$((skipped+1)); fi
 }
 
 agent_cron() {
