@@ -1567,7 +1567,7 @@ AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok '#nocg@srv1')" "$D/agent-bus
 NOCG=$!
 has "a runner with no cgroup of its own refuses a sandboxed agent" "$(ab launcher@srv1 call '#nocg@srv1' --wait 15s status)" '\\"name\\":\\"#lone@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"the sandbox is on and this host cannot give the agent a cgroup'
 kill $NOCG 2>/dev/null; wait $NOCG 2>/dev/null
-has "the runner refuses a call it does not answer" "$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s frobnicate)" 'answers status, reload, start, stop, restart, enable, disable, read, write, create and delete, not \\"frobnicate\\"'
+has "the runner refuses a call it does not answer" "$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s frobnicate)" 'answers status, reload, start, stop, restart, enable, disable, read, write, create, delete, install and remove, not \\"frobnicate\\"'
 # The host's controls (M.5): stop, start and restart last until a reload;
 # enable and disable are written to agents.json and last.
 RB='#runner/launcher@srv1'

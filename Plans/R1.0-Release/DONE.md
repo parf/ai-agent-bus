@@ -2,6 +2,8 @@
 
 ## M.8 deploy over the bus
 
+- Gate follow-up: the core unknown-call assertion still named the pre-deploy verbs, so both normal gate attempts failed on the correct new refusal. Updated that expectation and added `TestRunnerUnknownCallMatchesOwningSmokeAssertion`, which applies the owning shell grep expression to a real runner reply: assertion-red before the expectation fix, green afterward (0.009 s). No runtime behavior changed.
+
 - Built on `ab-w1c/M8`, pending two readers and the landing gate: `install [--replace] <agent> [git <url> <full-commit>]` and `remove <agent>`, with direct Owner/Maintainer roles. Current contract: [deployment calls](../../docs/runner/operations.md#deploying-an-agent).
 - Sources: only bundled roots or checked HTTPS/SSH URLs with full 40/64-hex pins. Git uses isolated configuration and host-provisioned `runner/.deploy/` credentials, verifies HEAD, removes Git metadata and never returns remote output. The real-Git fixture fetches an older reviewed commit while HEAD points to different code, serves the reviewed result, and refuses a subdirectory-only commit without changing the live tree or inventory pin.
 - Publication: private staging under writable `--agents`, root manifest and confinement checks, existing-name refusal without `--replace`, whole-tree swap with rollback on inventory failure. Removal keeps work, tokens and bus records; a bundled name is refused with “disable it instead”. Existing configuration calls remain write-only.

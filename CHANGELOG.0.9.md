@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.228 — 2026-10-30
+
+The runner deploys agents over the bus: install a bundled agent or a git repo pinned to a full commit, explicit replace, and remove that keeps data and tokens
+
 ## 0.9.227 — 2026-10-30
 
 Setup restarts the web face once, only when its unit, TLS or release bytes changed, so a fast host no longer hits systemd's start limit
