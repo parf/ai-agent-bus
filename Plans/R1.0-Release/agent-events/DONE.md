@@ -66,12 +66,13 @@ Old rows move at start to a deterministic 12-hex id: the 8-hex id plus the
 first free suffix `0000`, `0001`, .... A journal key names that id before the
 row is created, so an occupied key is never taken for a moved row, even an
 identical one, and the next start finishes an interrupted move into it. The old
-key goes only after the new row is stored. The old ledger is validated first;
+key goes only after the new row is stored. The old ledger first passes the
+removed ledger validator, kept verbatim, so a ledger it refused stays raw;
 `dropped` is its discards plus counted skips plus held copies, as its mailbox
 reset counted them, and unmatched mail is no loss. An unreadable row is kept
 under the new id as `invalid_state`.
 
-Focused verification: 147 IMAP tests, including 25 in `test_forwarding.py` and
+Focused verification: 148 IMAP tests, including 26 in `test_forwarding.py` and
 two on the real bus fixture through the engine's own send helper, under the
 lock. One SIGKILLs a real migrating process between the create and the old
 key's delete; after the restart one mail gives exactly one counted delivery
@@ -90,6 +91,7 @@ were restored:
 | Journal ignored after a stop | `MigrationTests.test_a_stop_between_the_add_and_the_delete_serves_the_subscription_once`, `SubscriptionBusTests.test_a_process_killed_between_the_add_and_the_delete_leaves_one_subscription_delivered_once` |
 | Counted skips left out; unmatched mail counted | `MigrationTests.test_compacted_skips_count_as_dropped_and_unmatched_mail_does_not` |
 | Legacy skip totals not checked | `MigrationTests.test_a_ledger_whose_skip_totals_disagree_is_kept_as_invalid_state` |
+| Old validator's entry bytes, unattempted-delivery or counter checks removed | `MigrationTests.test_a_ledger_the_old_validator_refused_stays_raw_and_inert` |
 | Old key deleted before the add | `MigrationTests.test_a_stop_between_the_add_and_the_delete_serves_the_subscription_once` |
 | Legacy discovery key kept | `MigrationTests.test_a_legacy_row_keeps_target_author_filter_start_and_counts` |
 | `sub edit` accepted | `ControlTests.test_text_and_json_subscription_forms_and_verbatim_filter` |
