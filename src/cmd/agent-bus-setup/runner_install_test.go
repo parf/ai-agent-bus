@@ -160,3 +160,17 @@ func TestTheRunnerTemplateIsEachPersonsOwn(t *testing.T) {
 		}
 	}
 }
+
+// A unit that is only enabled, or only running, is still stopped and disabled
+// by disable, and only then does a second disable plan nothing.
+func TestDisableActsOnAnEnabledOrActiveUnit(t *testing.T) {
+	p, _ := runnerFor("alice", "h")
+	unit := runnerTemplate("/usr/bin/agent-bus-runner")
+	for name, flags := range map[string][2]bool{"enabled only": {true, false}, "active only": {false, true}} {
+		st := installedState(p, unit)
+		st.enabled, st.active = flags[0], flags[1]
+		if got := says(t, mustPlan(t, "disable", p, st, unit, false)); !strings.HasPrefix(got, "stop and disable ") {
+			t.Errorf("disable of a unit %s planned %q", name, got)
+		}
+	}
+}
