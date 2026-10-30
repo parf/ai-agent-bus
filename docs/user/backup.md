@@ -88,13 +88,12 @@ agent-bus-admin export
 ## The `.info` file
 
 - 🏷️ **Every archive has one** beside it, open, so a file in central storage explains itself without the key.
-- It says:
-  - whether the backup is full or partial;
-  - the host and version it came from;
-  - when it was made, and by whom;
-  - the selection rules and the record names they matched;
-  - the key it is encrypted to;
-  - the archive's SHA-256.
+- It says whether the backup is full or partial.
+- It names the host and version it came from.
+- It says when it was made, and by whom.
+- It lists the selection rules and the record names they matched.
+- It names the key the archive is encrypted to.
+- It gives the archive's SHA-256.
 - 🔒 **It never holds** secret or token values.
 
 ### Moving to central storage
@@ -128,7 +127,8 @@ agent-bus-admin import full-<host>-<time>.tar.gz.age --dry-run
 - `<sel>` is `name:…`, `tag:…`, a list, or `all`.
 - Two choices that contradict each other on one record are refused.
 - Keep everything already here: `agent-bus-admin import ops.tar.gz.age --keep-existing=all`
-- Replace one tag, keep the rest: `agent-bus-admin import ops.tar.gz.age --replace=tag:ops --keep-existing=all`
+- Replace one tag and keep a named record: `agent-bus-admin import ops.tar.gz.age --replace=tag:ops --keep-existing=name:owner@demo`
+- Every other conflict the dry run lists needs its own choice; `all` on one side would also match the tag on the other, and is refused.
 
 ## Rebuilding a bus from an export
 
