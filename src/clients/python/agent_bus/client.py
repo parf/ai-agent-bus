@@ -331,6 +331,11 @@ class Bus:
         if not pending.sent_id:
             pending.early.append(message)
             return
+        if not message.receipt and not message.re and message.id == pending.sent_id:
+            # The accepted self request can arrive before send() returns, too.
+            # Classify it here so both early and ordinary delivery retain it.
+            pending.request = message
+            return
         if message.receipt and message.re != pending.sent_id:
             return
         if message.receipt == "ack":
@@ -348,12 +353,13 @@ class Bus:
                 if self._closed:
                     return
                 serving = self._serving
-                work = serving and serving.accepting and len(serving.futures) < serving.workers
+                capacity = serving and len(serving.futures) < serving.workers
+                work = capacity and serving.accepting
                 # A filtered self-call poll can take the request before the work
                 # poll. Retain at most that one request per live call, and only
                 # submit it when a serving worker is free, just like ordinary work.
                 deferred = next((p for p in self._pending.values()
-                                 if p.request is not None and p.key[0] == serving.inbox), None) if work else None
+                                 if p.request is not None and p.request.envelope.get("to") == serving.inbox), None) if capacity else None
                 if deferred is not None:
                     message, deferred.request = deferred.request, None
                     future = serving.executor.submit(self._handle, serving, message)
@@ -402,13 +408,13 @@ class Bus:
                 # A reply arriving in an unfiltered work read still belongs to its call.
                 key = (inbox, message.topic or "", message.tag or "")
                 routed = self._pending.get(key)
-                if (routed and not message.receipt and not message.re
-                        and message.id == routed.sent_id):
-                    # Matching topic/tag alone is not an answer: this is the
-                    # accepted request itself, with no reply/receipt marker.
-                    routed.request = message
-                elif routed:
-                    # Preserve legacy unmarked answers with a different ID.
+                if (routed is None and not message.receipt and not message.re
+                        and message.envelope.get("from") == self._name):
+                    # An alternate reply inbox/topic changes the reply key,
+                    # not the request's unique call tag on our serving inbox.
+                    routed = next((p for p in self._pending.values()
+                                   if p.key[2] == message.tag), None)
+                if routed:
                     self._deliver(routed, message)
                 elif (target is None and not (message.tag or "").startswith(self._call_prefix)
                       and not message.receipt and not message.re
@@ -462,7 +468,9 @@ class Bus:
             end = time.monotonic() + drain_timeout
             with self._condition:
                 serving.accepting = False
-                while serving.futures or serving.polling:
+                while (serving.futures or serving.polling or
+                       any(p.request is not None and p.request.envelope.get("to") == serving.inbox
+                           for p in self._pending.values())):
                     left = end - time.monotonic()
                     if left <= 0:
                         raise DrainTimeout(len(serving.futures))

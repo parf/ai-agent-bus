@@ -141,7 +141,8 @@
     "client_python": {
       "tags": "K",
       "paths": [
-        "src/clients/python/"
+        "src/clients/python/",
+        "src/testdata/client-conformance/"
       ]
     },
     "client_rust": {

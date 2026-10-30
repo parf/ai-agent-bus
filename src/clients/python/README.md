@@ -41,6 +41,13 @@ without retaining completed calls. Normal replies include their request's `re`.
 Lock helpers have no fencing token. Their expiry is a conservative estimate;
 an uncertain write or consumption is never replayed automatically.
 
+Self-calls use the same serving handler. The unmarked request is never its own
+answer, including when it arrives before the send response; it waits for a
+free handler slot. An already-taken self request is included in graceful drain.
+A handler making a blocking call to itself therefore needs
+another available worker. Existing legacy replies with a different message ID
+remain accepted.
+
 ## Checks
 
 From the repository root:
@@ -53,3 +60,6 @@ PYTHONPATH=src/clients/python python3 -m unittest discover -s src/clients/python
 Tests launch an isolated real daemon fixture, plus fault and TLS HTTP servers.
 They need Go and OpenSSL, and never use the live bus. Build a wheel locally with
 `TMPDIR="$PWD/tmp" python3 -m pip wheel --no-deps --no-build-isolation --wheel-dir tmp/python-wheels src/clients/python`.
+
+The [shared request/answer cases](../../testdata/client-conformance/README.md)
+are also run by the Python check; other language adapters follow separately.
