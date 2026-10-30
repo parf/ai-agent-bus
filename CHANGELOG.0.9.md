@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.215 — 2026-10-30
+
+The git agent names why an autopull script could not start, and its end-to-end check waits for each host's attempt
+
 ## 0.9.214 — 2026-10-30
 
 The runner loads shared agents first, then bundled ones from --bundled, which serve only when enabled explicitly
