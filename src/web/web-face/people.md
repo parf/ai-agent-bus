@@ -115,6 +115,7 @@ profile**, **Cancel**. Submit: [POST /user](#post-user).
 |---|---|
 | `name` | directory name |
 | `return` | Back target, see [shared rules](#shared-rules); default `/users`. Diagnostics links here with `return=/diagnostics` |
+| `q`, `page` | [Owned-record search and pagination](#owned-record-search-and-pagination); keep `name` and `return` in searches and pager links |
 
 | Access | |
 |---|---|
@@ -422,7 +423,7 @@ as a group reaches it.
 
 ## Account `/account`
 
-| Route | `GET /account`, no parameters; reached from the top bar's account link |
+| Route | `GET /account`; `q` and `page` search/page its owned records; reached from the top bar's account link |
 |---|---|
 | Access | any signed-in principal (User or Agent); stranger 401 sign-in |
 | Daemon calls | `/status`; `/users` (own row, if any); `/ls` and `/inactive` (own record, owned records); `/names` (held credentials). `/users` or `/ls` failure → problem page; `/names` failure → `Credentials unavailable: …` in that card only |
@@ -435,7 +436,20 @@ as a group reaches it.
 | Rotation | note **Rotate your identity credential**: `agent-bus token <you> --rotate`; “The replaced credential remains valid until the next rotation.” No button |
 | Owned records | visible records with owner = you, active and inactive, excluding your own record: link by kind, kind pill, `INACTIVE` when inactive. None: muted “None” |
 
-No forms. Links: group chips, profile link, owned-record links.
+Only a read-only GET search form. Links: group chips, profile link, owned-record links and pager.
+
+### Owned-record search and pagination
+
+Account and a User's Owned records card use the shared listing page size from
+`pagination.ts`. They filter their existing caller-visible owned records by
+case-insensitive `q` (name, description or owner), then slice the sorted matches.
+No extra daemon call or daemon-side pagination is used.
+
+The GET search form resets the page. Previous/Next links preserve `q` and, on
+User, `name` and the validated `return`; an out-of-range page is clamped to the
+available range. The card shows the matching count and page count. An empty
+search result offers **Clear the search**; no owned records still shows “None”.
+Active and inactive records keep their existing links and badges.
 
 ## Worth fixing in the rewrite
 

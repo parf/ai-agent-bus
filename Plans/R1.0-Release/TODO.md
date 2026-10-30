@@ -668,11 +668,12 @@ Plan and acceptance in [macOS](macos.md#tasks); decided in [RD166](DECISIONS.md#
 
 ## Web scale follow-up from MVP
 
-- ⏳ F.13.6 follow-up — growing pages and directory reads
+- ✅ F.13.6 follow-up — growing pages and directory reads
   - Origin: the released MVP's [measured findings](../done/R0.8-MVP/done/web-acceptance.md#findings), carried forward when R0.8 was archived; the original acceptance is complete.
-  - Work: decide pagination for Groups, Account, the Owner's User page and Activity, and bound directory bytes fetched for a listing. These were deferred page-design choices, not failed MVP acceptance; remeasure the TypeScript face before choosing changes.
-  - Acceptance: record HTML and bus response sizes as directory size grows; any chosen bound gets a check that fails when the bound is removed. No pagination or API design is settled by this carry-forward.
-  - Measured 2026-10-30 at 10 to 5,000 records: [table and recommendations](done/web-scale-measurements.md#recommendations); nothing built. Choice open: paginate Account and the Owner's User page; leave Groups, Activity and the directory read for now
+  - Decision 2026-10-30 (`#ab-dir`, [RD177](DECISIONS.md#recorded-decisions)): Account and the Owner's User page paginate their owned records with the existing shared `PAGE_SIZE` (100), `?q=` search and pager. Filtering precedes slicing the records already fetched; no new daemon API.
+  - Leave Groups, Activity and the `/ls` read unchanged. Revisit Groups at about 1,000 groups and the directory read at about 10,000 records; these thresholds follow the [measurements and recommendations](done/web-scale-measurements.md#recommendations).
+  - Acceptance: with 5,000 owned records both pages stay below 100 KB; a record past page one is reachable through a name-narrowed `?q=` query. Dropping the slice must fail the size checks on an assertion.
+  - Result: owned-record cards use the same search and pager, retain inactive records and preserve User navigation. Checks: [real-handler directory fixture](../../src/web/test/owned-records.test.ts) for both size bounds, page-two search, query/navigation preservation, inactive matches and ownership scope. Focused checks: 3/0, 79 assertions; removing the shared slice typechecks and fails both named 100 KB size assertions (about 1.53 MB each), restored green. TypeScript checking and the full web suite pass (198/0, 2,202 assertions); normal gate and non-author review remain the landing steps.
 
 ## Docs rewrite
 

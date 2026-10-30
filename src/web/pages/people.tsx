@@ -177,6 +177,36 @@ const OwnedList = ({ recs }: { recs: Rec[] }) => recs.length
       <span>{r.status === "inactive" ? <Badge>INACTIVE</Badge> : null} <KindPill kind={r.kind} /></span></li>)}</ul>
   : <p class="muted">None</p>;
 
+function OwnedRecords({ ctx, recs, params = {} }: { ctx: Ctx; recs: Rec[]; params?: Record<string, string> }) {
+  const q = ctx.q("q"), needle = lc(q);
+  const matched = recs.filter(r => !needle || [r.name, r.descr ?? "", r.owner].some(value => lc(value).includes(needle)));
+  const pages = Math.max(1, Math.ceil(matched.length / PAGE));
+  const pageNo = Math.min(pages, Math.max(1, Math.floor(Number(ctx.q("page"))) || 1));
+  const shown = matched.slice((pageNo - 1) * PAGE, pageNo * PAGE);
+  const url = (page?: number, search = q) => {
+    const query = new URLSearchParams(params);
+    if (search) query.set("q", search);
+    if (page && page > 1) query.set("page", String(page));
+    return ctx.path + (query.size ? `?${query}` : "");
+  };
+  return <>
+    <form class="toolbar" method="get" action={ctx.path}>
+      {Object.entries(params).map(([name, value]) => <input type="hidden" name={name} value={value} />)}
+      <div class="search"><Icon name="search" /><label for="owned-record-query" class="sr-only">Search owned records</label>
+        <input id="owned-record-query" type="search" name="q" value={q} placeholder="Search owned records by name or description" /></div>
+    </form>
+    {!matched.length ? q
+      ? <Empty icon="search-x" title="No owned record matches this search" action={<a class="btn" href={url(undefined, "")}>Clear the search</a>} />
+      : <OwnedList recs={[]} />
+      : <>
+        <div class="results-line"><span>Showing {(pageNo - 1) * PAGE + 1}–{Math.min(pageNo * PAGE, matched.length)} of {number(matched.length)} matching owned records.</span></div>
+        <OwnedList recs={shown} />
+        <Pager label="Owned record pages" prev={pageNo > 1 ? url(pageNo - 1) : undefined}
+          next={pageNo < pages ? url(pageNo + 1) : undefined}>Page {pageNo} of {pages}</Pager>
+      </>}
+  </>;
+}
+
 async function userPage(ctx: Ctx, stateOverride?: { st: FormState; status: number; section: string }, named?: string): Promise<Response> {
   const name = named || ctx.q("name") || ctx.f("name");
   const { st, users, records } = await load(ctx);
@@ -240,7 +270,7 @@ async function userPage(ctx: Ctx, stateOverride?: { st: FormState; status: numbe
             <FieldError id="email-error" error={emailSt.error} />
             <Button name="action" value="email" icon="mail">Save email</Button></form> : null}
         </Card>
-        <Card title="Owned records" icon="boxes"><OwnedList recs={ownedRecords(row, records)} /></Card>
+        <Card title="Owned records" icon="boxes"><OwnedRecords ctx={ctx} recs={ownedRecords(row, records)} params={{ name: row.name, return: ret }} /></Card>
         {kv ? <KVCard kv={kv} /> : null}
       </div>
       <div>
@@ -714,7 +744,7 @@ async function accountPage(ctx: Ctx): Promise<Response> {
         </Card>
       </div>
       <div>
-        <Card title="Owned records" icon="boxes"><OwnedList recs={owned} /></Card>
+        <Card title="Owned records" icon="boxes"><OwnedRecords ctx={ctx} recs={owned} /></Card>
       </div>
     </div>
   </>;
