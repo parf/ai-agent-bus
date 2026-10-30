@@ -38,7 +38,7 @@ A real private daemon on this node registers an entry, stops and restarts, and f
 
 `53ae56f4` selects `_agentbusd`, `/usr/local/var/agent-bus/daemon` and the platform's installed socket. The credential hint uses the local sudo/token form on macOS; Linux keeps its existing SSH hint and defaults. Native account/socket, home-default and hint checks pass without sudo, 11.942 s including cleanup. The full Linux admin test package also passes.
 
-These follow-up runs return the clone to clean `main`, `7c6555aa`; the workspace is now **54M** because of the additional Git objects. Build output and `.cache` were deleted, and `~/go` and `~/Library/Caches/go-build` remain absent. No sudo command was added after the owner took over role cleanup. The final focused fast `go_checks` passes in 5.074 s.
+These follow-up runs return the clone to clean `main`, `7c6555aa`; the workspace is now **54M** because of the additional Git objects. Build output and `.cache` were deleted, and `~/go` and `~/Library/Caches/go-build` remain absent. No sudo command was added after the owner took over role cleanup. The focused fast `go_checks` passes in 5.074 s. After the final main rebase it passes in 6.940 s; the full fast run is 25 passed, 1 failed because Telegram cannot find the linked `lossless-json` dependency.
 
 ## Owner cleanup still open
 
@@ -46,7 +46,7 @@ These follow-up runs return the clone to clean `main`, `7c6555aa`; the workspace
 
 Remaining state is the `_agentbusd` user and group, UID/GID **206**, plus empty setup parent directories. The job, plist, daemon home, socket directory and test binary tree are gone. This does not affect MAC.1's client/runner checks; W1B was told `mac free`.
 
-The clone is clean on `main`. Workspace size is **53M**. `~/go` and `~/Library/Caches/go-build` are absent. `df -h` reported 460 Gi total, 192 Gi used / 244 Gi available before, and 193 Gi used / 244 Gi available after; these are the filesystem's rounded readings, not a claim that global disk usage was unchanged.
+Immediately after install teardown, the clone was clean on `main` and the workspace was **53M**; the later admin proof leaves it **54M** as recorded above. `~/go` and `~/Library/Caches/go-build` are absent. `df -h` reported 460 Gi total, 192 Gi used / 244 Gi available before, and 193 Gi used / 244 Gi available after; these are the filesystem's rounded readings, not a claim that global disk usage was unchanged.
 
 ## Sudo commands actually run
 
