@@ -179,7 +179,39 @@ func TestDeployFetchNeverRunsRepositoryHooks(t *testing.T) {
 	command("-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "commit", "--quiet", "-m", "reviewed")
 	pin := command("rev-parse", "HEAD")
 	literal := func(s string) string { b, _ := json.Marshal(s); return string(b) }
-	for _, name := range []string{"reference-transaction", "post-checkout"} {
+	// All hook headings in Git 2.56 githooks(5), including hooks this
+	// fetch does not normally use. A newly triggered hook must leave evidence.
+	hookNames := []string{
+		"applypatch-msg",
+		"pre-applypatch",
+		"post-applypatch",
+		"pre-commit",
+		"pre-merge-commit",
+		"prepare-commit-msg",
+		"commit-msg",
+		"post-commit",
+		"pre-rebase",
+		"post-checkout",
+		"post-merge",
+		"pre-push",
+		"pre-receive",
+		"update",
+		"proc-receive",
+		"post-receive",
+		"post-update",
+		"reference-transaction",
+		"push-to-checkout",
+		"pre-auto-gc",
+		"post-rewrite",
+		"sendemail-validate",
+		"fsmonitor-watchman",
+		"p4-changelist",
+		"p4-prepare-changelist",
+		"p4-post-changelist",
+		"p4-pre-submit",
+		"post-index-change",
+	}
+	for _, name := range hookNames {
 		marker := filepath.Join(root, name+".ran")
 		script := "#!/usr/bin/python3\nopen(" + literal(marker) + ", 'a').write('hook ran\\n')\n"
 		if err := os.WriteFile(filepath.Join(hooks, name), []byte(script), 0700); err != nil {
@@ -213,7 +245,7 @@ func TestDeployFetchNeverRunsRepositoryHooks(t *testing.T) {
 	if got, err := os.ReadFile(filepath.Join(dest, "reviewed")); err != nil || string(got) != "pinned code" {
 		t.Fatalf("fetch did not publish the pinned fixture: %q %v", got, err)
 	}
-	for _, name := range []string{"reference-transaction", "post-checkout"} {
+	for _, name := range hookNames {
 		if _, err := os.Stat(filepath.Join(root, name+".ran")); !os.IsNotExist(err) {
 			t.Errorf("deploy ran repository hook %s: %v", name, err)
 		}
