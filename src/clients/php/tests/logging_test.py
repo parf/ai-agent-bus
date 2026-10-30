@@ -44,7 +44,17 @@ exit 0
         self.assertIn('journal gained 0 lines', p.stdout)
 
     def test_counts_native_syslog(self):
-        p = self.run_guard('bash', '-c', 'echo \'{"MESSAGE":"DIGEST-MD5 common mech free"}\' > "$PROBE/line"')
+        p = self.run_guard('bash', '-c', '''printf '{"SYSLOG_IDENTIFIER":"php","_CMDLINE":"php -d syslog.ident=%s","MESSAGE":"DIGEST-MD5 common mech free"}\n' "$AB_PHP_JOURNAL_ID" > "$PROBE/line"''')
+        self.assertEqual(p.returncode, 3, p.stdout + p.stderr)
+        self.assertIn('journal gained 1 lines', p.stderr)
+
+    def test_external_php_is_not_counted(self):
+        p = self.run_guard('bash', '-c', '''printf '%s\n' '{"SYSLOG_IDENTIFIER":"php","_CMDLINE":"php -d syslog.ident=another-shard","MESSAGE":"DIGEST-MD5 common mech free"}' > "$PROBE/line"''')
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        self.assertIn('journal gained 0 lines', p.stdout)
+
+    def test_php_identifier_is_counted(self):
+        p = self.run_guard('bash', '-c', '''printf '{"SYSLOG_IDENTIFIER":"%s","MESSAGE":"PHP error"}\n' "$AB_PHP_JOURNAL_ID" > "$PROBE/line"''')
         self.assertEqual(p.returncode, 3, p.stdout + p.stderr)
         self.assertIn('journal gained 1 lines', p.stderr)
 
@@ -66,13 +76,17 @@ exit 0
         # Execute the real runner, replacing only PHP. An unsafe launch emits
         # a fake journal entry, never a real syslog write, even in a mutant.
         self.script('php', '''#!/bin/bash
+case " $* " in
+  *" -d syslog.ident=$AB_PHP_JOURNAL_ID "*) ;;
+  *) echo 'FAIL PHP process lacks its shard journal marker' >&2; exit 1 ;;
+esac
 if [ -z "${SASL_PATH:-}" ] || [ ! -d "$SASL_PATH" ] ||
    [ -n "$(ls -A "$SASL_PATH")" ]; then
-  echo '{"MESSAGE":"DIGEST-MD5 common mech free"}' > "$PROBE/line"
+  printf '{"_CMDLINE":"php -d syslog.ident=%s","MESSAGE":"DIGEST-MD5 common mech free"}\n' "$AB_PHP_JOURNAL_ID" > "$PROBE/line"
 fi
 case " $* " in
   *' -d log_errors=0 -d display_errors=stderr '*) ;;
-  *) echo '{"MESSAGE":"PHP error logging enabled"}' > "$PROBE/line" ;;
+  *) printf '{"_CMDLINE":"php -d syslog.ident=%s","MESSAGE":"PHP error logging enabled"}\n' "$AB_PHP_JOURNAL_ID" > "$PROBE/line" ;;
 esac
 exit 0
 ''')
@@ -86,7 +100,7 @@ exit 0
     def test_example_suppresses_native_syslog(self):
         self.fake_php()
         self.script('java', '#!/bin/bash\nexit 0\n')
-        self.script('sha256sum', '#!/bin/bash\nexit 0\n')
+        self.script('sha256sum', '#!/bin/bash\ncat >/dev/null\nexit 0\n')
         jar = self.work / 'fake.jar'
         jar.write_text('compiler stub input')
         tokens = self.work / 'tokens'
@@ -95,6 +109,9 @@ exit 0
             (tokens / f'_stats-{language}_localhost').write_text('fixture-token')
         self.env.update(EXAMPLES_ROOT=str(ROOT), EXAMPLES_TOKENS=str(tokens),
                         JACKSON_CORE_JAR=str(jar))
+        # Reproduce the gate's scheduling: a checksum reader may run before
+        # its writer. The stub must consume stdin, as real sha256sum does.
+        self.env['BASH_FUNC_echo%%'] = '() { sleep 0.02; builtin echo "$@"; }'
         p = self.run_guard('bash', str(ROOT / 'src/clients/examples/codestats/run.sh'))
         self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
         self.assertIn('journal gained 0 lines', p.stdout)

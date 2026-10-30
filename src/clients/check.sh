@@ -31,7 +31,8 @@ case ${1:-} in
     # tests. Its DIGEST-MD5 plugin logs at shutdown, outside PHP's logging.
     export SASL_PATH=$work/empty-sasl
     mkdir "$SASL_PATH"
-    "$here/php/tests/daemon.sh" php -d log_errors=0 -d display_errors=stderr "${AB_PHP_CLIENT_PATH:-$here/php}/tests/run.php"
+    "$here/php/tests/daemon.sh" php -d log_errors=0 -d display_errors=stderr \
+      -d "syslog.ident=${AB_PHP_JOURNAL_ID:-php}" "${AB_PHP_CLIENT_PATH:-$here/php}/tests/run.php"
     ;;
   typescript)
     bash "$here/typescript/tests/check.sh"
