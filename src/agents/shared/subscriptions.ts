@@ -440,7 +440,9 @@ export class Subscriptions {
         if (!verdicts.has(row.filter)) verdicts.set(row.filter, this.matcher(re, sample, matchUntil).catch((): Verdict => "slow"));
         const verdict = await verdicts.get(row.filter)!;
         if (verdict === "slow") {
-          this.options.warning("filter_timeout", row.id);
+          // Out of time: only this copy is dropped, and counted.
+          result.matched++;
+          drop("filter_timeout");
           continue;
         }
         if (verdict === "miss") continue;

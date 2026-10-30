@@ -197,7 +197,8 @@ test("a pathological filter runs out of time in the worker; the next filter gets
   const started = Date.now();
   const got = await subs.deliver({}, slowText, "x");
   const took = Date.now() - started;
-  expect({ sent: got.sent, attempts: state.attempts, warnings }).toEqual({ sent: 1, attempts: 1, warnings: ["filter_timeout"] });
+  expect({ got, attempts: state.attempts, warnings }).toEqual({ got: { matched: 2, sent: 1, dropped: 1 }, attempts: 1, warnings: ["filter_timeout"] });
+  expect(subs.list(writer).map(r => [r.id, (r as Row).sent, (r as Row).dropped])).toEqual([["000000000001", 0, 1], ["000000000002", 1, 0]]);
   expect(took).toBeLessThan(MATCH_MS);
 });
 
