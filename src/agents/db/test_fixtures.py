@@ -321,6 +321,22 @@ class Watcher(unittest.TestCase):
         self.assertTrue(self.wait_for(removed, 15) or self.wait_for(Path(str(removed) + '.early'), 1), 'no cleanup at all')
         self.assertFalse(Path(str(removed) + '.early').exists(), 'the cleanup ran before the in-flight start had made its container')
 
+    def test_a_pgrep_error_is_not_none_in_flight(self):
+        # Review regression (#ab-w1c): pgrep exiting 2 must keep the watcher waiting; only 1 (none) lets it clean up.
+        fake, seen, allowed, cleaned = [self.dir / p for p in ('pgrep', 'seen', 'allowed', 'cleaned')]
+        fake.write_text('#!/bin/sh\ntouch "$SEEN"\n[ ! -f "$ALLOWED" ] || exit 1\nexit 2\n')
+        fake.chmod(0o755)
+        child = subprocess.Popen(['sh', '-c', fixtures.WATCH, 'sh', '999999999-0', 'fixture-probe', 'touch', str(cleaned)],
+                                 env={**os.environ, 'PATH': '%s:%s' % (self.dir, os.environ['PATH']), 'SEEN': str(seen),
+                                      'ALLOWED': str(allowed)}, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.addCleanup(lambda: child.poll() is None and child.kill())
+        self.assertTrue(self.wait_for(seen, 3), 'the fake pgrep never ran')
+        time.sleep(1.2)   # at least one more turn of the watcher's loop
+        self.assertFalse(cleaned.exists(), 'the watcher cleaned up after pgrep failed')
+        allowed.touch()
+        self.assertEqual(child.wait(10), 0)
+        self.assertTrue(cleaned.exists(), 'the watcher never cleaned up once pgrep said none')
+
     def test_the_cleanup_runs_after_a_sigkill(self):
         done = self.dir / 'done'
         child = subprocess.Popen([sys.executable, '-c', (

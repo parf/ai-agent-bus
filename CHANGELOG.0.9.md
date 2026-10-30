@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.191 — 2026-10-30
+
+Test fixtures and container checks keep the host journal quiet and clean up only their own containers
+
 ## 0.9.190 — 2026-10-30
 
 agent-bus-setup --help lists its options

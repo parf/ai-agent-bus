@@ -7,8 +7,10 @@
 set -uo pipefail   # a failing stage of any pipe below is a failure, never silence
 pattern=${1:?usage: journal-quiet.sh <name pattern> <command>...}
 shift
-cursor=$(journalctl --user -n0 --show-cursor 2>/dev/null) && cursor=$(sed -n 's/^-- cursor: //p' <<<"$cursor")
-[ -n "$cursor" ] || { echo "journal-quiet: the user journal cannot be read, so its silence would prove nothing"; exit 2; }
+head=$(journalctl --user -n0 --show-cursor 2>/dev/null) ||
+  { echo "journal-quiet: the user journal cannot be read, so its silence would prove nothing"; exit 2; }
+cursor=$(sed -n 's/^-- cursor: //p' <<<"$head")
+[ -n "$cursor" ] || { echo "journal-quiet: the user journal gave no cursor, so its silence would prove nothing"; exit 2; }
 "$@"
 rc=$?
 sleep 1   # journald takes what it is sent asynchronously

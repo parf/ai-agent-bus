@@ -30,7 +30,9 @@ GUARD_WATCH='alive() { set -- "$2" $(sed "s/.*) //" "/proc/$1/stat" 2>/dev/null)
 run=$1 dir=$2 keep=$3; shift 3
 while alive "${run%%-*}" "${run#*-}"; do sleep 1; done
 until pgrep -f -- "^podman .* run .*--label agent-bus-run=$run( |\$)" >/dev/null; [ $? = 1 ]; do sleep 1; done
-for i in 1 2 3 4 5; do names=$("$@" ps -a --filter "label=agent-bus-run=$run" --format "{{.Names}}") && break; sleep 2; done
+listed=
+for i in 1 2 3 4 5; do names=$("$@" ps -a --filter "label=agent-bus-run=$run" --format "{{.Names}}") && { listed=1; break; }; sleep 1; done
+[ -n "$listed" ] || exit 1   # never listed: the directory and its owner file stay, so the next start sweeps them
 for n in $names; do "$@" rm -f -t 1 "$n" >/dev/null 2>&1; done
 [ -n "$keep" ] || podman unshare rm -rf "$dir"'
 

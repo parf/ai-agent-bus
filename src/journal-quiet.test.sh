@@ -13,7 +13,7 @@ mkdir "$work/bin"
 cat >"$work/bin/journalctl" <<'EOF'
 #!/bin/bash
 case " $* " in
-  *" --show-cursor "*) [ -n "${STUB_NO_CURSOR:-}" ] || echo '-- cursor: s=stub' ;;
+  *" --show-cursor "*) [ -n "${STUB_NO_CURSOR:-}" ] || echo '-- cursor: s=stub'; [ -z "${STUB_CURSOR_FAILS:-}" ] || exit 125 ;;
   *" --after-cursor "*) [ -z "${STUB_READ_FAILS:-}" ] || { echo 'Failed to seek to cursor' >&2; exit 125; }; cat "$STUB_JOURNAL" 2>/dev/null ;;
 esac
 EOF
@@ -31,6 +31,8 @@ q ab-db-fixture true
 [ "$rc" = 0 ] || bad "a silent run failed: rc $rc $out"
 STUB_NO_CURSOR=1 q ab-db-fixture true
 [ "$rc" = 2 ] || bad "an unreadable journal passed: rc $rc $out"
+STUB_CURSOR_FAILS=1 q ab-db-fixture sh -c 'echo ran >"$STUB_JOURNAL.ran"'
+[ "$rc" = 2 ] && [ ! -e "$STUB_JOURNAL.ran" ] || bad "a cursor read that printed a cursor and failed passed: rc $rc $out"
 STUB_READ_FAILS=1 q ab-db-fixture true
 [ "$rc" = 2 ] && grep -q 'after the run failed' <<<"$out" || bad "a journal that cannot be read after the run passed: rc $rc $out"
 exit $fail

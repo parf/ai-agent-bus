@@ -19,7 +19,7 @@ while [ $# -gt 0 ]; do case $1 in --root|--runroot|--storage-opt) shift 2 ;; --*
 verb=$1; shift
 case $verb in
   ps)
-    [ -z "${FAKE_PS_FAIL:-}" ] || { echo 'storage broke' >&2; exit 125; }
+    [ -z "${FAKE_PS_FAIL:-}" ] && [ ! -e "$FAKE_STATE.psfail" ] || { echo 'storage broke' >&2; exit 125; }
     want=; for a in "$@"; do case $a in label=agent-bus-run=*) want=${a#label=agent-bus-run=} ;; esac; done
     for f in "$FAKE_STATE"/*; do
       [ -e "$f" ] || continue; l=$(cat "$f")
@@ -84,4 +84,33 @@ created=no
 for _ in $(seq 1 60); do [ -e "$state/agent-bus-distro-late" ] && { created=yes; break; }; grep -q 'rm agent-bus-distro-late' "$state.log" && break; sleep .1; done
 wait_gone "$state/agent-bus-distro-late" && wait_gone "$run" || bad "after SIGKILL the run's container or directory survived (created: $created)"
 [ "$created" = yes ] || bad "the watcher removed the container before its start finished, so it was never seen to be made"
+
+# 5. A watcher that can never list the store removes nothing and keeps the run directory and its owner for the sweep.
+run=$(mktemp -d "$base/run.XXXXXX")
+rm -f "$state"/*
+bash -c 'podman=(podman --root x); . "$1"; guard "$2"; "${podman[@]}" run -d --name agent-bus-distro-kept --label "agent-bus-run=$guard_run" image; touch "$3.psfail"; echo up; sleep 30' \
+  sh "$here/guard.sh" "$run" "$state" >"$work/psfail.out" 2>&1 &
+child=$!
+for _ in $(seq 1 40); do grep -q up "$work/psfail.out" && break; sleep .1; done
+kill -KILL "$child"; wait "$child" 2>/dev/null
+for _ in $(seq 1 40); do pgrep -f "agent-bus-run=$(cat "$run/owner" 2>/dev/null)" >/dev/null || pgrep -fa "^sh -c alive" | grep -qF "$run" || break; sleep .25; done
+[ -e "$run/owner" ] && [ -e "$state/agent-bus-distro-kept" ] || bad "a watcher that could not list the store removed the run directory or lost the container"
+rm -f "$state.psfail"
+
+# 6. The watcher alone, its run already over: a pgrep error (2) is not "none in flight" and a failed podman ps is asked
+# again; only after pgrep says none (1) and ps answers does it remove the container, once, and the directory.
+mkdir -p "$work/bin6"
+: >"$work/calls"
+printf '%s\n' '#!/bin/bash' 'echo pgrep >>"$CALLS"' '[ "$(grep -c "^pgrep" "$CALLS")" -ge 2 ] && exit 1 || exit 2' >"$work/bin6/pgrep"
+printf '%s\n' '#!/bin/bash' 'case " $* " in' \
+  '  *" ps "*) echo ps >>"$CALLS"; [ "$(grep -c "^ps" "$CALLS")" -ge 2 ] && { echo agent-bus-distro-six; exit 0; } || exit 125 ;;' \
+  '  *" unshare "*) shift; "$@" ;;' \
+  '  *" rm "*) echo "rm $*" >>"$CALLS" ;;' 'esac' >"$work/bin6/podman"
+chmod +x "$work/bin6/pgrep" "$work/bin6/podman"
+dir6=$(mktemp -d "$base/run.XXXXXX")
+watch=$(bash -c '. "$1"; printf %s "$GUARD_WATCH"' sh "$here/guard.sh")
+CALLS=$work/calls PATH=$work/bin6:$PATH timeout 30 sh -c "$watch" sh 999999999-5 "$dir6" "" podman --root x
+[ "$(grep -c '^pgrep' "$work/calls")" -ge 2 ] && [ "$(grep -c '^ps' "$work/calls")" -ge 2 ] &&
+  [ "$(grep -c '^rm .*agent-bus-distro-six' "$work/calls")" = 1 ] && [ ! -e "$dir6" ] ||
+  bad "the watcher took a pgrep or ps error for an answer: $(sort "$work/calls" | uniq -c | tr -s ' \n' ' ') dir $([ -e "$dir6" ] && echo kept || echo gone)"
 exit $fail
