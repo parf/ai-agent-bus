@@ -62,6 +62,16 @@ func tlsClient(pin string, h2 bool) *http.Transport {
 // can see at once (J39).
 type splitTransport struct{ poll, rest http.RoundTripper }
 
+// CloseIdleConnections reaches both transports, so http.Client's own call
+// closes the idle connections of the poll pool and the rest alike.
+func (s splitTransport) CloseIdleConnections() {
+	for _, t := range []http.RoundTripper{s.poll, s.rest} {
+		if c, ok := t.(interface{ CloseIdleConnections() }); ok {
+			c.CloseIdleConnections()
+		}
+	}
+}
+
 func (s splitTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	if r.URL.Path == "/consume" {
 		return s.poll.RoundTrip(r)
