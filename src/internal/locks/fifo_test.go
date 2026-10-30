@@ -2,7 +2,6 @@ package locks
 
 import (
 	"context"
-	"runtime"
 	"testing"
 	"time"
 )
@@ -164,7 +163,8 @@ func TestAWaiterThatGivesUpLeavesTheQueue(t *testing.T) {
 }
 
 // A waiter handed the lock just as its caller went away gives it to the next
-// waiter rather than holding it, unseen, until the ttl.
+// waiter rather than holding it, unseen, until the ttl, whichever its select
+// saw first.
 func TestACancelledWaiterHandedTheLockPassesItOn(t *testing.T) {
 	s := quick(t)
 	k := key{"g", "x"}
@@ -179,8 +179,12 @@ func TestACancelledWaiterHandedTheLockPassesItOn(t *testing.T) {
 	if !late.granted {
 		t.Fatal("the head was not handed the lock")
 	}
-	if s.leave(k, late, true) {
-		t.Fatal("a cancelled waiter kept the lock")
+	// Its select may have seen the hand-off first: its caller is gone all
+	// the same, so it must not keep the lock (review of J27).
+	gone, cancel := context.WithCancel(context.Background())
+	cancel()
+	if s.leave(k, late, gone) {
+		t.Fatal("a waiter whose caller went kept the lock handed to it")
 	}
 	if h := holderOf(s, "g", "x"); h != "next@h" || !next.granted {
 		t.Fatalf("holder %q, want next@h after the cancelled one passed it on", h)
@@ -195,39 +199,8 @@ func TestACancelledWaiterHandedTheLockPassesItOn(t *testing.T) {
 	s.waiters[k] = []*waiter{timely}
 	s.handOff(k)
 	s.mu.Unlock()
-	if !s.leave(k, timely, false) || holderOf(s, "g", "x") != "timely@h" {
+	if !s.leave(k, timely, context.Background()) || holderOf(s, "g", "x") != "timely@h" {
 		t.Fatalf("a waiter handed the lock as its wait ran out lost it: %q", holderOf(s, "g", "x"))
 	}
 }
 
-// A caller that goes away just as the lock is handed to it never holds it:
-// the select may see the hand-off before the cancel, and a hold for a caller
-// nobody answers would wedge the lock until its ttl (review of J27).
-func TestALockHandedToAGoneCallerIsPassedOn(t *testing.T) {
-	// One thread, so the waiter runs only after both the hand-off and the
-	// cancel: on more, it often takes the lock before its caller goes, which
-	// is a fair grant and not the case.
-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
-	s := quick(t)
-	for round := 0; round < 400; round++ {
-		s.Take(context.Background(), "g", "x", "alice@h", time.Minute, 0)
-		ctx, cancel := context.WithCancel(context.Background())
-		got := make(chan bool, 1)
-		go func() {
-			ok, _ := s.Take(ctx, "g", "x", "bob@h", time.Minute, 5*time.Second)
-			got <- ok
-		}()
-		waitQueued(t, s, "g", "x", 1)
-		// The hand-off wakes the waiter; its caller goes before it runs.
-		if err := s.Release("g", "x", "alice@h", false); err != nil {
-			t.Fatal(err)
-		}
-		cancel()
-		if <-got {
-			t.Fatalf("round %d: a cancelled caller was granted the lock", round)
-		}
-		if h := holderOf(s, "g", "x"); h != "" {
-			t.Fatalf("round %d: %s still holds the lock for a caller that went away", round, h)
-		}
-	}
-}

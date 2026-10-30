@@ -190,16 +190,12 @@ func (s *Store) Acquire(ctx context.Context, record, name, holder string, ttl, w
 			w := &waiter{ch: make(chan struct{}), holder: holder, ttl: ttl, a: a}
 			s.waiters[k] = append(s.waiters[k], w)
 			s.mu.Unlock()
-			cancelled := false
 			select {
 			case <-w.ch:
 			case <-ctx.Done():
-				cancelled = true
 			case <-time.After(left):
 			}
-			// A caller already gone when the lock was handed to it may
-			// still see the hand-off first: it must not keep the lock.
-			if s.leave(k, w, cancelled || ctx.Err() != nil) {
+			if s.leave(k, w, ctx) {
 				return true, "", nil
 			}
 			if !w.granted && isClosed(w.ch) {
@@ -227,12 +223,14 @@ func (*SelfTake) Is(target error) bool { _, ok := target.(*SelfTake); return ok 
 
 // leave settles a waiter that stopped waiting, and says whether it holds the
 // lock. One that gave up leaves the queue. One handed the lock just as its own
-// wait ran out keeps it; one whose caller went away gives it to the next.
-func (s *Store) leave(k key, w *waiter, cancelled bool) bool {
+// wait ran out keeps it; one whose caller is gone by now gives it to the next,
+// even when its select saw the hand-off first: a hold nobody will answer for
+// would wedge the lock until its ttl.
+func (s *Store) leave(k key, w *waiter, ctx context.Context) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if w.granted {
-		if !cancelled {
+		if ctx.Err() == nil {
 			return true
 		}
 		if e, ok := s.held[k]; ok && e.holder == w.holder {
