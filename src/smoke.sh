@@ -374,8 +374,8 @@ ok_exit "package.sh builds the host's archives" "$rc"
 [ "$rc" = 0 ] || echo "$out"
 # macOS is built from the Linux node without cgo: the programs that already
 # build for it (docs: Plans/R1.0-Release/macos.md) must keep doing so.
-out=$(for goarch in arm64 amd64; do GOOS=darwin GOARCH=$goarch CGO_ENABLED=0 go build -o /dev/null ./cmd/agent-bus || exit 1; done 2>&1); rc=$?
-ok_exit "the CLI builds for macOS, Apple Silicon and Intel" "$rc"
+out=$(for goarch in arm64 amd64; do GOOS=darwin GOARCH=$goarch CGO_ENABLED=0 go build -o /dev/null ./cmd/agent-bus ./cmd/agent-bus-runner || exit 1; done 2>&1); rc=$?
+ok_exit "the CLI and the runner build for macOS, Apple Silicon and Intel" "$rc"
 [ "$rc" = 0 ] || echo "$out"
 out=$(bash ./package-darwin.test.sh 2>&1); rc=$?
 ok_exit "the macOS client archive holds Mach-O client programs for its CPU and nothing of the node" "$rc"
