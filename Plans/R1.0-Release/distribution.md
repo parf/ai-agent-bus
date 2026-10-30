@@ -22,6 +22,24 @@ The client-only edition needs only `AGENT_BUS_ADDR`, a token and, for a self-sig
 
 Artifacts follow the shared [versioning and build evidence rules](../../CLAUDE.md#versioning) and [distribution licensing rules](../../CLAUDE.md#licensing). Package names, image registry and supported platforms are chosen during implementation.
 
+## Simple install
+
+Owner, 2026-10-29: one command is the main way onto Linux, with npm as a thin
+wrapper over the same binaries ([RD162](DECISIONS.md#recorded-decisions)).
+
+| Piece | Contract |
+|---|---|
+| `install.sh` | `curl -fsSL <published URL>/install.sh \| sh`; detects OS and CPU, downloads that platform's release archive from GitHub Releases, verifies its checksum and signature before anything is unpacked, installs it |
+| Default | the **full node**: needs root (it asks for sudo), installs every program, then runs `agent-bus-setup` for the accounts, systemd units and TLS |
+| `--client` | the client-only edition without root, into `~/.local`: CLI, runner, MCP face and launchers, to join an existing bus |
+| Update | the same command again, keeping configuration and data; the previous version kept for rollback |
+| Runtimes | Go programs as they are; web face, MCP face and launchers built with `bun build --compile` into self-contained binaries, so no bun or Node is needed; `python3` from the host for bundled agents |
+| npm | `npm i -g agent-bus` and `npx agent-bus`: the client-only edition, the same binaries as per-platform optional packages |
+| Later | `.deb` and `.rpm` packages with their repositories; macOS through the same script once the [Mac test host](TODO.md#objective) settles the macOS questions |
+
+To propose for approval before code: the signature tool and key handling, the
+published URL, and the archive layout.
+
 ## Container runtime
 
 Target runtimes: Docker and Podman.

@@ -71,7 +71,7 @@ the 0.8 line; no release wave is committed yet. Item glyphs follow
   - Editions: [full and client-only](distribution.md#two-editions), the latter the runner and the basic CLI (owner, 2026-10-19)
   - Platforms (owner, 2026-10-19: "setup PC/Mac builds"): builds for macOS (Apple Silicon and Intel) besides Linux, at least the client-only edition; no Windows (owner, 2026-10-19: "no windows, mac/linux"). To decide for macOS: which parts run there (CLI, runner, launchers; the daemon and sandbox are Linux-only today), the sandbox and process-boundary equivalent, the install method (Homebrew or an archive) and code signing
   - macOS test host: the owner provides a Mac for tests and preparation (owner, 2026-10-29); the macOS questions above are settled on it
-  - Install for everyone: npm or a binary install, or one fast and simple installer for every user, is [Q215](QUESTIONS.md#distribution), to discuss later (owner, 2026-10-29)
+  - Install for everyone: one `install.sh` command, full node by default, `--client` without root; npm a thin client wrapper; TypeScript parts compiled with bun ([simple install](distribution.md#simple-install), RD162)
 
 - ✅ RT15 Federation moved to R1.2
   - Moved: owner, 2026-10-17 (№Q137); [R1.2 task](../R1.2/TODO.md#federation)
@@ -639,6 +639,10 @@ asks for the API shape; then runner, daemon and web parts are split.
 ## Distribution acceptance
 
 Implement the [release artifacts](distribution.md#release-artifacts) and [container contract](distribution.md#container-runtime).
+
+- ⏳ P.4 Simple install: `install.sh` and self-contained TypeScript binaries ([simple install](distribution.md#simple-install)). Assigned 2026-10-29: AB2; review `#claude/ab2-review`
+  - Acceptance: on a clean Linux host with no Go, bun or Node, the one command installs a full node that completes an agent request/reply and an MCP tool call; `--client` without root joins it from another account; a tampered archive or checksum stops the install before any file is written; running it again updates and keeps configuration, data and one rollback version
+  - Mutant: skip the signature check and the tampered-archive case must fail; drop a compiled TypeScript binary from the archive and the MCP or web check must fail
 
 - ⏳ P.1 npm package
   - Acceptance: On a clean supported host without the checkout or Go toolchain, install the published package, start the bus, complete an agent request/reply and an MCP tool call. Omit a required executable or MCP runtime asset from the package and the corresponding exercise fails

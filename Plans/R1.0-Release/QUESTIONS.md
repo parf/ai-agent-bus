@@ -33,11 +33,6 @@ Choices for the [shorter prompts plan](short-prompts.md#proposal), to discuss wi
   - Settled by the owner, 2026-10-26 ([RD116](DECISIONS.md#recorded-decisions)): the runner answers from metadata what it can; any other ask, `status` included, reaches the script as `AGENT_BUS_ASK=<ask>` with empty input. A script that knows nothing of asks runs with `--no-asks` ([RD117](DECISIONS.md#recorded-decisions)). The runner answers `status` itself when it can ([RD118](DECISIONS.md#recorded-decisions))
   - Impact: the help line keeps the daemon out of describing agents (constitution § agent self-description) and needs no new wire field, at the cost of one `help` round trip before any further ask; a record field saves that trip but makes the daemon carry agent self-description
 
-## Distribution
-
-- ❓ Q215 How everyone installs the bus: the npm package and binary archives already planned ([release artifacts](distribution.md#release-artifacts)), or one fast and simple installer for every user, such as a single command that fetches the right edition
-  - Settled by: the owner, later (owner, 2026-10-29: "to be discussed later")
-
 ## RAG service
 
 - ❓ Q194 Which keyword half of [RAG](rag/README.md#rules) hybrid search wins the trial on the owner's real Russian and English texts: Qdrant's built-in BM25 or the agent's own sparse vectors with stemming
