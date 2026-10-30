@@ -2,7 +2,7 @@
 // the same file; a case that passes here and fails there is a parity bug.
 import { expect, test } from "bun:test";
 import vectors from "../../testdata/subscriptions.json";
-import { checkText, compileFilter, SubscriptionError, Subscriptions, type Admission, type Port, type Row, type SendOutcome, type WarningCode } from "./subscriptions.ts";
+import { checkText, compileFilter, SubscriptionError, Subscriptions, type Admission, type Options, type Port, type Row, type SendOutcome, type WarningCode } from "./subscriptions.ts";
 
 const code = (fn: () => unknown): string | undefined => {
   try {
@@ -113,3 +113,64 @@ for (const c of vectors.cases as Record<string, any>[]) {
     }
   });
 }
+
+const objectSelector: Options["validateSelector"] = s => { if (typeof s !== "object" || s === null || Array.isArray(s)) throw new Error("selector"); };
+
+/** An engine over raw stored values, for what the vectors cannot hold. */
+async function engine(stored: Record<string, unknown>, options: Partial<Options> = {}) {
+  const { port, state, store } = fake([]);
+  for (const [key, value] of Object.entries(stored)) store.set(key, structuredClone(value));
+  const warnings: WarningCode[] = [];
+  const subs = new Subscriptions(port, "#source@fixture.test", {
+    validateSelector: objectSelector,
+    selectorMatches: () => true,
+    warning: w => warnings.push(w),
+    idFactory: () => "0000000000ff",
+    ...options,
+  });
+  await subs.reload();
+  return { subs, state, store, warnings };
+}
+
+const good: Row = { id: "000000000001", target: "events@fixture.test", selector: {}, filter: "", created_by: "#writer@fixture.test",
+  created_at: "2026-10-29T00:00:00.000Z", sent: 0, dropped: 0 };
+const writer = { from: "#writer@fixture.test", roles: [] };
+const manager = { from: "#manager@fixture.test", roles: ["maintainer"] };
+
+test("damaged stored rows are listed to managers only, inert, and repaired only by a manager", async () => {
+  const shapes: Record<string, unknown> = {
+    "not an object": "text",
+    "an array": [good],
+    "a missing field": (({ dropped, ...r }) => r)(good),
+    "an extra field": { ...good, paused: true },
+    "a negative count": { ...good, sent: -1 },
+    "an unsafe count": { ...good, dropped: 2 ** 53 },
+    "a fractional count": { ...good, sent: 1.5 },
+    "a local creation time": { ...good, created_at: "2026-10-29T00:00:00.000+01:00" },
+    "an impossible creation time": { ...good, created_at: "2026-13-40T00:00:00.000Z" },
+    "a filter that is not text": { ...good, filter: 7 },
+    "a bad target": { ...good, target: "Events Queue" },
+    "a creator that is no name": { ...good, created_by: null },
+    "a refused selector": { ...good, selector: [] },
+  };
+  for (const [shape, value] of Object.entries(shapes)) {
+    const v = typeof value === "object" && value !== null && !Array.isArray(value) ? { ...value, id: "000000000002" } : value;
+    const { subs, state, warnings } = await engine({ "sub.000000000001": good, "sub.000000000002": v });
+    const ids = (rows: { id: string }[]) => rows.map(r => r.id);
+    expect({ shape, writer: ids(subs.list(writer)) }).toEqual({ shape, writer: ["000000000001"] });
+    expect({ shape, manager: subs.list(manager) }).toEqual({ shape, manager: [good, { id: "000000000002", reason: "invalid_state" }] });
+    // Delivery never reads it: only the good row asks and sends.
+    state.checks = [true, true];
+    state.send = "ok";
+    expect({ shape, got: await subs.deliver({}, "x", "x") }).toEqual({ shape, got: { matched: 1, sent: 1, dropped: 0 } });
+    expect({ shape, warnings, queries: state.queries.map(q => q.target) }).toEqual({ shape, warnings: [], queries: ["events@fixture.test", "#source@fixture.test"] });
+    expect({ shape, code: await subs.delete(writer, "000000000002").catch(e => e.code) }).toEqual({ shape, code: "not_author" });
+    expect({ shape, deleted: await subs.delete(manager, "000000000002") }).toEqual({ shape, deleted: true });
+    expect({ shape, after: ids(subs.list(manager)) }).toEqual({ shape, after: ["000000000001"] });
+  }
+});
+
+test("a damaged row still takes a place under the subscription limit", async () => {
+  const { subs } = await engine({ "sub.000000000001": good, "sub.000000000002": "text" }, { maxSubscriptions: 2 });
+  expect(await subs.add(writer, "events@fixture.test", {}).catch(e => e.code)).toBe("limit");
+});

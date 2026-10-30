@@ -10,6 +10,10 @@ export type Row = {
   created_by: string; created_at: string; sent: number; dropped: number; reason?: "invalid_filter";
 };
 
+/** A stored row that is not a subscription: listed to managers only, inert,
+ *  and repaired only by a manager's delete. */
+export type Damaged = { id: string; reason: "invalid_state" };
+
 export type ErrorCode = "invalid_target" | "invalid_selector" | "invalid_filter" | "invalid_text" | "invalid_id" | "limit" | "not_found"
   | "not_author" | "admission_refused" | "admission_unavailable" | "store_unknown";
 
@@ -73,6 +77,9 @@ export function checkText(text: string): string {
 const ID = /^[0-9a-f]{12}$/;
 const NAME = /^#?[a-z0-9][a-z0-9._+@/-]*$/;
 const SAFE = (n: unknown): n is number => Number.isSafeInteger(n) && (n as number) >= 0;
+const FIELDS = ["created_at", "created_by", "dropped", "filter", "id", "selector", "sent", "target"].join();
+const STAMP = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/;
+const named = (v: unknown): v is string => typeof v === "string" && v.length <= 64 && NAME.test(v);
 
 /** A counter saturates at the largest safe integer rather than losing precision. */
 const bump = (n: number) => Math.min(n + 1, Number.MAX_SAFE_INTEGER);
@@ -165,6 +172,7 @@ const nativeMatch = async (re: RegExp, text: string): Promise<Verdict> => (re.te
 
 export class Subscriptions {
   private rows = new Map<string, Row>();
+  private damaged = new Map<string, Damaged>();
   private readonly clock: () => Date;
   private readonly idFactory: () => string;
   private readonly matcher: (re: RegExp, text: string) => Promise<Verdict>;
@@ -184,12 +192,33 @@ export class Subscriptions {
   async reload(): Promise<void> {
     const stored = await this.port.load().catch(() => { throw new SubscriptionError("store_unknown"); });
     const rows = new Map<string, Row>();
+    const damaged = new Map<string, Damaged>();
     for (const [key, value] of stored) {
-      const row = value as Row;
-      if (!key.startsWith("sub.") || typeof row !== "object" || row === null || row.id !== key.slice(4) || !ID.test(row.id)) continue;
-      rows.set(row.id, { ...row, sent: SAFE(row.sent) ? row.sent : 0, dropped: SAFE(row.dropped) ? row.dropped : 0 });
+      const id = key.slice(4);
+      if (!key.startsWith("sub.") || !ID.test(id)) continue;
+      if (this.isRow(value, id)) rows.set(id, structuredClone(value));
+      else damaged.set(id, { id, reason: "invalid_state" });
     }
     this.rows = rows;
+    this.damaged = damaged;
+  }
+
+  /** A stored value is a row only whole: exact fields, each well-formed. */
+  private isRow(value: unknown, id: string): value is Row {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+    const row = value as Record<string, unknown>;
+    if (Object.keys(row).sort().join() !== FIELDS || row.id !== id) return false;
+    if (!named(row.target) || !named(row.created_by) || typeof row.filter !== "string") return false;
+    if (typeof row.created_at !== "string" || !STAMP.test(row.created_at) || Number.isNaN(Date.parse(row.created_at))) return false;
+    if (!SAFE(row.sent) || !SAFE(row.dropped)) return false;
+    const selector = row.selector;
+    if (typeof selector !== "object" || selector === null || Array.isArray(selector)) return false;
+    try {
+      this.options.validateSelector(selector as Record<string, unknown>);
+    } catch {
+      return false;
+    }
+    return true;
   }
 
   /** Whether the caller manages this source: a daemon-asserted owner or
@@ -211,7 +240,7 @@ export class Subscriptions {
     }
     compileFilter(filter);
     const creator = caller.from;
-    if (this.rows.size >= this.maxSubscriptions || [...this.rows.values()].filter(r => r.created_by === creator).length >= this.maxPerCreator) {
+    if (this.rows.size + this.damaged.size >= this.maxSubscriptions || [...this.rows.values()].filter(r => r.created_by === creator).length >= this.maxPerCreator) {
       throw new SubscriptionError("limit");
     }
     for (const asked of [to, this.source]) {
@@ -243,19 +272,21 @@ export class Subscriptions {
     throw new SubscriptionError("limit");
   }
 
-  list(caller: Caller): Row[] {
+  list(caller: Caller): (Row | Damaged)[] {
     const all = this.manages(caller);
-    return [...this.rows.values()]
+    const rows: (Row | Damaged)[] = [...this.rows.values()]
       .filter(r => all || r.created_by === caller.from)
-      .sort((a, b) => (a.id < b.id ? -1 : 1))
-      .map(r => (this.filterOf(r) === null ? { ...r, reason: "invalid_filter" as const } : { ...r }));
+      .map(r => (this.filterOf(r) === null ? { ...r, reason: "invalid_filter" as const } : structuredClone(r)));
+    if (all) rows.push(...[...this.damaged.values()].map(d => ({ ...d })));
+    return rows.sort((a, b) => (a.id < b.id ? -1 : 1));
   }
 
   async delete(caller: Caller, id: string): Promise<boolean> {
     if (typeof id !== "string" || !ID.test(id)) throw new SubscriptionError("invalid_id");
     const row = this.rows.get(id);
-    if (!row) throw new SubscriptionError("not_found");
-    if (row.created_by !== caller.from && !this.manages(caller)) throw new SubscriptionError("not_author");
+    if (!row && !this.damaged.has(id)) throw new SubscriptionError("not_found");
+    // A damaged row has no creator to trust: only a manager repairs it.
+    if (!this.manages(caller) && row?.created_by !== caller.from) throw new SubscriptionError("not_author");
     let gone: boolean;
     try {
       gone = await this.port.remove(`sub.${id}`); // storage first, then memory
@@ -264,6 +295,7 @@ export class Subscriptions {
       throw new SubscriptionError("store_unknown");
     }
     this.rows.delete(id);
+    this.damaged.delete(id);
     if (!gone) throw new SubscriptionError("not_found");
     return true;
   }
