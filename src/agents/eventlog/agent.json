@@ -44,7 +44,7 @@
         }
       ],
       "returns": "{entry:{id,level,text,at,last_at,count},deliveries:{matched,sent,dropped}}",
-      "example": "agent-bus call '#eventlog@node.example' 'list'"
+      "example": "agent-bus call '#eventlog@node.example' 'write realty-prod notice deployed 691ae2da'"
     },
     "read": {
       "help": "Read live entries newest first; with no level, rings ordered alert, warning, notice",
@@ -67,7 +67,7 @@
         }
       ],
       "returns": "{log,rings:{alert:[],warning:[],notice:[]},counts:{alert:n,warning:n,notice:n},latest_alert_at,now}; selected rings only, counts all levels; latest_alert_at null when no live alert",
-      "example": "agent-bus call '#eventlog@node.example' 'list'"
+      "example": "agent-bus call '#eventlog@node.example' 'read realty-prod alert'"
     },
     "list": {
       "help": "List active logs sorted by name, counts and latest live alert time",
@@ -105,7 +105,7 @@
         }
       ],
       "returns": "{log,entries:[],remaining,now}; oldest id first; removal durable before reply",
-      "example": "agent-bus call '#eventlog@node.example' 'list'"
+      "example": "agent-bus call '#eventlog@node.example' 'pull realty-prod alert 2'"
     },
     "clean": {
       "help": "Remove entries up to id, or all entries; only an unbounded all-level clean retires the log",
@@ -127,12 +127,12 @@
         {
           "name": "id",
           "type": "integer",
-          "help": "Entry upper id boundary, or subscription id for sub.delete",
+          "help": "Inclusive entry upper id boundary; positive integer",
           "optional": true
         }
       ],
       "returns": "{log,removed,counts:{alert:n,warning:n,notice:n}}",
-      "example": "agent-bus call '#eventlog@node.example' 'list'"
+      "example": "agent-bus call '#eventlog@node.example' 'clean realty-prod alert 7'"
     },
     "sub.add": {
       "help": "Subscribe from now. One text selector always names a log, including alert; JSON can select only a level",
@@ -167,7 +167,7 @@
         }
       ],
       "returns": "{id,target,selector,filter,created_by,created_at,sent,dropped}",
-      "example": "agent-bus call '#eventlog@node.example' 'list'"
+      "example": "agent-bus call '#eventlog@node.example' 'sub add ops@node.example realty-prod alert /failed/i'"
     },
     "sub.list": {
       "help": "List creator subscriptions; direct Owner/Maintainers see all, including invalid_state repair rows",
@@ -178,7 +178,7 @@
       "text": "sub list",
       "args": [],
       "returns": "{subscriptions:[]}",
-      "example": "agent-bus call '#eventlog@node.example' 'list'"
+      "example": "agent-bus call '#eventlog@node.example' 'sub list'"
     },
     "sub.delete": {
       "help": "Delete your subscription; direct Owner/Maintainers may repair/delete any",
@@ -192,16 +192,26 @@
         {
           "name": "id",
           "type": "string",
-          "help": "Entry upper id boundary, or subscription id for sub.delete"
+          "help": "Subscription id: exactly 12 lower-case hexadecimal characters"
         }
       ],
       "returns": "{deleted:true}",
-      "example": "agent-bus call '#eventlog@node.example' 'list'"
+      "example": "agent-bus call '#eventlog@node.example' 'sub delete 0123456789ab'"
     },
     "help": {
       "help": "Describe methods and limits",
       "args": [],
-      "example": "agent-bus call '#eventlog@node.example' 'list'"
+      "example": "agent-bus call '#eventlog@node.example' 'help'"
+    },
+    "status": {
+      "help": "One-line instance health and active-log count; only direct readers/writers or managers",
+      "role": [
+        "read",
+        "write"
+      ],
+      "args": [],
+      "returns": "A truthful one-line status",
+      "example": "agent-bus ask '#eventlog@node.example' status"
     }
   },
   "config": {
