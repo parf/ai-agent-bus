@@ -706,5 +706,52 @@ section('close', function () use ($me) {
     check('cloning a Secret is refused', thrown(fn() => clone (new Secret('x'))) instanceof LogicException);
 });
 
+// The README's "Try this first" is two scripts and their output. Run the scripts as the README prints them, one
+// process per identity, each with only its own AGENT_BUS_* set, and compare what the README says they print.
+section('the README example, run as written', function () use ($addr, $me) {
+    $readme = getenv('AB_PHP_README') ?: __DIR__ . '/../README.md';
+    $text = (string) file_get_contents($readme);
+    $try = substr($text, (int) strpos($text, "## Try this first"));
+    $try = substr($try, 0, (int) strpos($try, "\n## ", 3) ?: strlen($try));
+    preg_match_all('/```php\n(.*?)```/s', $try, $blocks);
+    preg_match('/```text\n(.*?)```/s', $try, $printed);
+    check('the README has the two scripts and the output they print', count($blocks[1]) === 2 && isset($printed[1]), 'blocks ' . count($blocks[1]));
+    if (count($blocks[1]) !== 2 || !isset($printed[1])) { return; }
+    $dir = sys_get_temp_dir() . '/php-readme-' . getmypid();
+    mkdir($dir);
+    $paths = [];
+    foreach (['serve', 'call'] as $i => $name) {
+        $paths[$name] = "$dir/$name.php";
+        file_put_contents($paths[$name], "<?php\n" . $blocks[1][$i]);
+    }
+    foreach (['#mailer@localhost', '#caller@localhost'] as $name) {
+        $me->register(['kind' => 'agent', 'name' => $name, 'allow' => ['*']]);
+    }
+    $run = function (string $name, string $as) use ($addr, $paths) {
+        $env = array_merge(getenv(), ['AGENT_BUS_ADDR' => $addr, 'AGENT_BUS_NAME' => $as, 'AGENT_BUS_TOKEN' => tokenFor($as)]);
+        $cmd = [PHP_BINARY, '-d', 'log_errors=0', '-d', 'display_errors=stderr', $paths[$name]];
+        $p = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, dirname(__DIR__, 3) . '/..', $env);
+        return [$p, $pipes];
+    };
+    $finish = function ($p, $pipes) {
+        $out = stream_get_contents($pipes[1]);
+        $err = stream_get_contents($pipes[2]);
+        return [proc_close($p), $out, $err];
+    };
+    [$server, $serverPipes] = $run('serve', '#mailer@localhost');
+    [$call, $callPipes] = $run('call', '#caller@localhost');
+    [$code, $out, $err] = $finish($call, $callPipes);
+    proc_terminate($server);
+    stream_set_blocking($serverPipes[2], false);
+    usleep(200000);
+    $serverErr = stream_get_contents($serverPipes[2]);
+    proc_close($server);
+    check('call.php exits 0 and says nothing on stderr', $code === 0 && $err === '', "exit $code, stderr [$err]");
+    check('the two identities print what the README says they print', $out === $printed[1], 'got [' . $out . '] want [' . $printed[1] . ']');
+    check('serve.php wrote nothing to stderr', $serverErr === '', $serverErr);
+    foreach ($paths as $path) { unlink($path); }
+    rmdir($dir);
+});
+
 echo "passed $pass, failed $fail\n";
 exit($fail === 0 ? 0 : 1);
