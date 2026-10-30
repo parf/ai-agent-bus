@@ -77,10 +77,20 @@ ssh-keygen -Y sign -q -f "$run/release-key" -n agent-bus-release "$good/SHA256SU
 signer="agent-bus-release $(cut -d' ' -f1-2 "$run/release-key.pub")"
 
 full=agent-bus-$version-linux-$arch.tar.gz
+# A well-formed release that differs: one file changed and its manifest
+# remade, so only the signed hash or the signature can tell.
+mkdir "$run/forge"
+tar -xzf "$good/$full" -C "$run/forge"
+(
+  cd "$run/forge/${full%.tar.gz}"
+  printf 'tampered\n' >>INSTALL.md
+  sha256sum $(cut -d' ' -f3- MANIFEST.sha256) >MANIFEST.sha256.new
+  mv MANIFEST.sha256.new MANIFEST.sha256
+  sha256sum -c --quiet MANIFEST.sha256
+)
 for variant in tampered forged; do
   cp -a "$run/release/good" "$run/release/$variant"
-  # Still a valid gzip stream, so only the hash can tell.
-  printf 'tampered\n' >>"$run/release/$variant/latest/download/$full"
+  tar -C "$run/forge" -czf "$run/release/$variant/latest/download/$full" "${full%.tar.gz}"
 done
 forged=$run/release/forged/latest/download
 sed -i "s|^[0-9a-f]\{64\}  $full\$|$(sha256sum "$forged/$full" | cut -d' ' -f1)  $full|" "$forged/SHA256SUMS"
