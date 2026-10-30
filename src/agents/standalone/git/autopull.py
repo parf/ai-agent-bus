@@ -389,7 +389,7 @@ class Runtime:
             for name, repo in config['repos'].items():
                 if repo.get('follow'):
                     try: attempt(name, config, trigger='start', bus=self.bus, agent=self.bus.name)
-                    except (ValueError, OSError): print('git: repository startup check failed', file=sys.stderr)
+                    except Exception: print('git: repository startup check failed', file=sys.stderr)
         self.submit(self.updates, self.update_slots, start)
 
     def dispatch(self, message):

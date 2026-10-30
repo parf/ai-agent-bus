@@ -263,7 +263,7 @@ class Core(unittest.TestCase):
         runtime=a.Runtime(bus);called=[]
         def attempt(name,*args,**kw):
             called.append(name)
-            if name=='ab':raise OSError('PRIVATE_PATH')
+            if name=='ab':raise RuntimeError('PRIVATE_PATH')
             return {}
         try:
             with patch.object(a,'attempt',side_effect=attempt):runtime.startup();runtime.close()

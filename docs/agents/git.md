@@ -248,7 +248,8 @@ a later Configuration pin takes precedence.
 `ff` treats tracked changes, untracked files and an in-progress merge/rebase as
 dirty. Mirror/deploy also refuse in-progress operations; resolve those first.
 Mirror resets the named local branch and cleans with `-fd`, leaving ignored
-files and nested repositories. `discarded.files` counts paths actually cleared;
+files and nested repositories. `discarded.files` counts dirty paths cleared from the snapshot immediately before the write;
+external writers that ignore the checkout lock can race that snapshot;
 `discarded.commits` counts unique commits reachable from the old HEAD or local
 branch tip but not the target. No stash or implicit hold is created.
 
