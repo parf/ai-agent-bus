@@ -709,5 +709,6 @@ Owner, 2026-10-30: every doc leads with why, then what you get, then real workin
 - ⏳ DW8 `docs/runner/*` and `docs/user/*`
 - ⏳ DW9 Agent manifests: `agent.json` descriptions and method help, with golden fixtures and a normal gate
 - ⏳ DW10 Web page intros and CLI help text
+  - Text only: help pages and page help open with what the command or page is for; owning tests unchanged and green
 - ⏳ DW11 Client READMEs and `src/*.md`; `src/clients/` is shared with RT8 (paused)
   - Acceptance for all rows: each page passes the checker and the first-20% check, every example was run on a real node, links and anchors resolve, built/pending status is unchanged
