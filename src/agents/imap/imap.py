@@ -124,6 +124,8 @@ def parse(body):
         value = {'method': 'sub.list'}
     elif body.startswith('sub delete '):
         value = {'method': 'sub.delete', 'id': body[len('sub delete '):].strip()}
+    elif body == 'sub edit' or body.startswith('sub edit '):
+        value = {'method': 'sub.edit'}
     else:
         method, _, rest = body.partition(' ')
         value = {'method': method}
@@ -134,8 +136,10 @@ def parse(body):
     method = value.get('method')
     if not isinstance(method, str):
         raise MailError('method must be text')
-    method = {'sub add': 'sub.add', 'sub list': 'sub.list', 'sub delete': 'sub.delete'}.get(method, method)
+    method = {'sub add': 'sub.add', 'sub list': 'sub.list', 'sub delete': 'sub.delete', 'sub edit': 'sub.edit'}.get(method, method)
     value['method'] = method
+    if method == 'sub.edit':
+        raise MailError('a subscription cannot be edited: delete it and add it again')
     fields = {'sync': {'limit'}, 'list': {'limit', 'unread'}, 'search': {'text'}, 'read': {'uid', 'mark_read'}, 'publish': {'uid'}, 'mark': {'uid', 'state'},
               'sub.add': {'target', 'filter'}, 'sub.list': set(), 'sub.delete': {'id'}, 'status': set(), 'help': set()}
     if method not in fields or set(value) - {'method'} - fields[method]:

@@ -28,6 +28,9 @@ class ControlTests(unittest.TestCase):
                      '{"method":"sub.list","method":"sub.list"}'):
             with self.subTest(body=body), self.assertRaises(ValueError):
                 proxy.parse(body)
+        for body in ('sub edit aabbccdd0000 target=#x@t', 'sub edit', '{"method":"sub.edit","id":"aabbccdd0000"}'):
+            with self.subTest(body=body), self.assertRaisesRegex(ValueError, 'delete it and add it again'):
+                proxy.parse(body)
 
     def test_add_reply_warns_match_all_and_uses_only_authenticated_envelope(self):
         agent = proxy.Agent(None, {'invalid': True}, {}, '.')
