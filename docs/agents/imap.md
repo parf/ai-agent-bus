@@ -142,6 +142,37 @@ server; sync/read/publish also connect.
 An administrator packages it once and enables one instance per mail account,
 only after its account and Configuration are ready.
 
+### Connect a Gmail account
+
+Gmail works with an **app password** (needs 2-Step Verification); your normal
+Google password is refused. Example: mailbox `your.name@gmail.com`, runner of `ann`.
+
+1. Create the app password at <https://myaccount.google.com/apppasswords> (16 letters; keep a copy).
+2. Register the instance and hand its token to the runner:
+
+   ```sh
+   agent-bus register '#imap/gmail@node.example' --kind=agent --allow='@owner'
+   agent-bus token '#imap/gmail@node.example' | sudo -u ann-ab-runner tee '/var/lib/agent-bus/ann-ab-runner/tokens/%23imap%2Fgmail@node.example' >/dev/null
+   echo '{"host":"imap.gmail.com","port":993,"mode":"tls","mailbox":"INBOX"}' | agent-bus config '#imap/gmail@node.example' -
+   ```
+
+3. Put the account in its private file `/var/lib/agent-bus/ann-ab-runner/imap/gmail/env`
+   (owned by `ann-ab-runner`, mode 0600). Quote the password; spaces may be dropped:
+
+   ```sh
+   IMAP_USERNAME='your.name@gmail.com'
+   IMAP_PASSWORD='abcdefghijklmnop'
+   ```
+
+4. Add `"imap/gmail": {"enabled": true, "sandbox": "on"}` to the
+   [runner inventory](../runner/configuration.md#inventory), then
+   `agent-bus call '#runner/ann@node.example' reload`.
+5. Check: `agent-bus call '#imap/gmail@node.example' 'sync 20'`, then `list 20`.
+
+Google mails a "Security alert" after the first sign-in; that is expected. For
+all labels rather than the inbox, run a second instance with mailbox
+`[Gmail]/All Mail`.
+
 <details><summary>Step by step</summary>
 
 1. Package with `src/agents/imap/package.sh <agent.d/imap>`; it includes its

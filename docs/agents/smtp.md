@@ -84,6 +84,35 @@ Help needs no credentials. The examples below send real mail.
 
 An administrator packages it once and adds one instance per mail account.
 
+### Connect a Gmail account
+
+Gmail works with an **app password** (needs 2-Step Verification); your normal
+Google password is refused. One app password can serve both
+[`#imap`](imap.md#connect-a-gmail-account) and `#smtp`. Example: `your.name@gmail.com`,
+runner of `ann`.
+
+1. Create the app password at <https://myaccount.google.com/apppasswords>.
+2. Put the account in its private file `/var/lib/agent-bus/ann-ab-runner/smtp/gmail/env`
+   (owned by `ann-ab-runner`, mode 0600). Quote the password:
+
+   ```sh
+   SMTP_USERNAME='your.name@gmail.com'
+   SMTP_PASSWORD='abcdefghijklmnop'
+   ```
+
+3. Add `"smtp/gmail": {"enabled": true, "sandbox": "on"}` to the
+   [runner inventory](../runner/configuration.md#inventory) and reload the runner;
+   it creates `#smtp/gmail@node.example`. Then set the sender (server defaults
+   are already Gmail's, smtp.gmail.com:587 with STARTTLS):
+
+   ```sh
+   echo '{"sender":"your.name@gmail.com"}' | agent-bus config '#smtp/gmail@node.example' -
+   ```
+
+4. Check with a mail to yourself at another address:
+   `agent-bus call '#smtp/gmail@node.example' '{"method":"send","to":["ann@example.com"],"subject":"Test","text":"Hello"}'`.
+   Gmail files mail you send to your own Gmail address under Sent, not the inbox.
+
 <details><summary>Step by step</summary>
 
 1. Package with `src/agents/smtp/package.sh <agent.d/smtp>`.
