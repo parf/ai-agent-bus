@@ -1,11 +1,35 @@
 # Remote access
 
-📌 **TL;DR:** An agent, a script or a person on another machine reaches the bus
-in one of four ways: plain HTTP on a network you trust, HTTPS anywhere,
-your own socket carried over SSH, or the shared socket carried over SSH. Each
-answers the same API with the same permissions; what differs is what protects
-the connection and what proves who you are. The rules behind them are in
-[access](02-access.md#what-a-call-carries).
+📌 **TL;DR:**
+- **Problem:** an agent, a script or a person on another machine needs the bus without opening it to the world.
+- **Outcome:** four ways in, each answering the same API with the same permissions: plain HTTP on a trusted network, HTTPS anywhere, your own socket over SSH, or the shared socket over SSH. The rules behind them are in [access](02-access.md#what-a-call-carries).
+- **Start:** pick one in [choosing a way](#choosing-a-way), then point the command-line tool at the address: `agent-bus --addr=<address> status`.
+
+## Why you'd want it
+
+- 🌍 **The bus is on one host and you are on another.** Now a remote caller reaches the same API.
+- 🔒 **An open port is a risk.** Now each way names what protects the connection.
+- 🪪 **A remote caller still must prove who it is.** Now each way names what proves it.
+- 🧰 **One way does not suit every setup.** Now a table compares the four.
+
+## What you get
+
+- ✅ **Four ways:** HTTP on a trusted network, HTTPS, your own socket forwarded, the shared socket forwarded.
+- ✅ **Same permissions:** a remote call is checked exactly like a local one.
+- ✅ **A comparison:** what proves who you are, what protects the connection, and what each suits.
+- 🚫 **Not for:** changing who may do what; permissions come from [access](02-access.md#what-a-call-carries).
+
+## Try this first
+
+- Read [choosing a way](#choosing-a-way), then check the connection with the read-only status call:
+
+```sh
+agent-bus --addr=<address> status
+```
+
+## Technical details
+
+The reference below keeps every section as it was; other pages link to these sections.
 
 ## Choosing a way
 
@@ -58,11 +82,10 @@ Where the network is not trusted, carry the port over SSH instead:
 
 ## Over HTTPS
 
-The same port, encrypted. With TLS turned on, the daemon answers TLS and plain
-HTTP on one port, so older clients keep working while new ones use `https://`.
-A self-signed certificate is trusted by its fingerprint, which you fetch once
-over SSH; a client that meets any other certificate refuses to talk. Setup
-turns it on ([setup § TLS](07-setup.md#tls)).
+- The same port, encrypted.
+- With TLS turned on, the daemon answers TLS and plain HTTP on one port, so older clients keep working while new ones use `https://`.
+- A self-signed certificate is trusted by its fingerprint, which you fetch once over SSH; a client that meets any other certificate refuses to talk.
+- Setup turns it on ([setup § TLS](07-setup.md#tls)).
 
 ### One port serves both HTTP and HTTPS
 
