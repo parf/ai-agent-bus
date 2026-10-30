@@ -400,7 +400,7 @@ test('RT21 self call supports an alternate reply inbox',async()=>{
 
 test('RT21 retained self work respects capacity and drains after stop',async()=>{
  const caller=bus('#caller@fixture'),owner=bus('owner@fixture'),row=conformanceCases('self-call')[0]!;
- const entered=barrier(),release=barrier(),progressed=barrier();
+ const entered=barrier(),release=barrier(),progressed=barrier(),readRelease=barrier();
  const seen:string[]=[];
  const running=await serve(caller,async message=>{
   seen.push(message.body);
@@ -413,7 +413,7 @@ test('RT21 retained self work respects capacity and drains after stop',async()=>
  (caller as any).read=async(options:any)=>{
   const active=(caller as any).serving?.active.size ?? 0;
   const retained=pendingCalls(caller).some(entry=>entry.request);
-  if(retained||active>1){activeAtProgress=active;retainedAtProgress=retained;progressed.resolve();}
+  if(retained||active>1){activeAtProgress=active;retainedAtProgress=retained;progressed.resolve();await readRelease.promise;}
   return original(options);
  };
  const {to,body,...options}=row.request;
@@ -423,8 +423,16 @@ test('RT21 retained self work respects capacity and drains after stop',async()=>
   expect(activeAtProgress).toBe(1);
   expect(retainedAtProgress).toBe(true);
   expect(seen).toEqual(['hold slot']);
-  caller.stop();
- } finally {release.resolve();}
+  const server=(caller as any).serving;
+  caller.stop();release.resolve();
+  const until=performance.now()+1000;
+  while(server.active.size&&performance.now()<until)await sleep(1);
+  expect(server.active.size).toBe(0);
+  // Keep the dispatch read blocked through a drain-loop turn. Only the
+  // already-taken self request can keep the serving generation alive now.
+  await sleep(20);
+  expect((caller as any).serving).toBe(server);
+ } finally {release.resolve();readRelease.resolve();}
  const outcome=await result;
  expect(outcome.kind).toBe('answer');
  if(outcome.kind==='answer')expectEnvelope(outcome.message,row.expected);
