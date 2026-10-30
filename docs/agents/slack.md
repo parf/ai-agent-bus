@@ -1,39 +1,28 @@
 # Slack: your AI in your team's chat
 
-📌 **TL;DR:** A Slack app that lets your AI post updates, read channels and
-talk with your team. Alerts can be passed to an AI, and people can answer an AI
-in a Slack thread. An administrator connects the app once.
+📌 **TL;DR:**
+- **Problem:** alerts land in Slack while your AI works elsewhere, so someone copies messages back and forth by hand.
+- **Outcome:** your AI gets a seat in Slack: it posts and reads like a team member, receives the alerts it cares about, and people answer it in a thread.
+- **Start:** ask it what it can do: `agent-bus help '#slack@node.example'` ([Try this first](#try-this-first)).
 
 ## Why you'd want it
 
-**The problem.** Alerts land in Slack, the AI works elsewhere, and someone has
-to copy messages back and forth by hand.
-
-**The idea.** Give the AI a seat in Slack. It posts and reads like a team
-member, gets the alerts it cares about, and people answer it in a thread.
-The Slack passwords stay on the server; the AI never sees them.
-
-**When to use it**
-
-- Your team already talks in Slack.
-- An AI should report to a channel or react to alerts there.
-- People should answer an AI without leaving Slack.
-
-**When not to:** you want messages on your own phone outside work chat (use
-[Telegram](telegram.md)), a plain text message (use [SMS](sms.md)), or the
-content must not pass through Slack.
-
-**Possible use cases**
-
-| Use case | What you do | What you get |
-|---|---|---|
-| Deploy report | AI posts in `#dev` | The team sees it at once |
-| Catch up on alerts | Ask for the last 10 messages in `#alerts` | A short list to act on |
-| Errors to an AI | Forward `#alerts` messages matching "error" | The AI session sees only errors |
-| Ask the team | AI posts a question; someone replies in the thread | The AI continues with the answer |
-| Direct request | DM the bot `#b please check the logs` | That AI session does it |
+- 🔁 **Messages are copied between Slack and the AI by hand.** Now the AI posts and reads in Slack itself.
+- 🚨 **The AI misses the alerts that matter.** Now matching channel messages are forwarded to its session.
+- 🙋 **People cannot answer the AI where they work.** Now a reply in the AI's thread, or a DM to the bot, reaches the right session.
+- 🔑 **Slack passwords end up in the AI's hands.** Now both tokens stay on the server; the AI never sees them.
 
 ## What it does
+
+- ✅ **Post and reply:** the AI sends a message to a channel or into a thread and gets the message's link back.
+- ✅ **Read a channel or a thread:** recent messages, oldest first.
+- ✅ **Forward alerts:** matching messages from a channel go to an AI session, optionally from chosen authors only.
+- ✅ **Talk to a session from Slack:** a DM, a mention of the bot, or a reply in a session's thread reaches that AI session; the answer comes back in the same thread.
+- ✅ **Look up people and channels:** names, ids and channel details.
+- ✅ **Control:** only listed people pick sessions with tags; one channel can be opened to everyone for that channel's session only.
+- 🚫 **Not for:** messages on your own phone outside work chat (use [Telegram](telegram.md)), a plain text message (use [SMS](sms.md)), or content that must not pass through Slack.
+
+The abilities, last:
 
 | Ability | In plain words |
 |---|---|
@@ -45,12 +34,8 @@ content must not pass through Slack.
 | `whoami` | Name the workspace |
 | Edits, reactions, channel details | Change or react to messages, inspect channels |
 
-Every helper is moving to [one shared subscription behaviour](subscriptions.md#the-shared-behaviour); [what Slack does today](subscriptions.md#what-each-helper-does-today) lists the differences.
-
-A DM, a mention of the bot, or a reply in a session's thread reaches an AI
-session. Only listed people pick sessions with tags; one channel can be opened
-to everyone for that channel's session only. The routing is shared with
-Telegram ([reply routing](telegram.md#reply-routing)).
+- The routing is shared with Telegram ([reply routing](telegram.md#reply-routing)).
+- How its subscriptions differ from the shared rules is in [what each helper does today](subscriptions.md#what-each-helper-does-today).
 
 ## You'll need
 
@@ -61,11 +46,29 @@ Telegram ([reply routing](telegram.md#reply-routing)).
 
 ## Try this first
 
+- Ask it what it can do (read-only):
+
 ```sh
 agent-bus help '#slack@node.example'
 ```
 
-It lists every call and setting; see [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do).
+- It lists every call and setting; see [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do).
+
+<details>
+<summary>See it on a real node (ran today)</summary>
+
+```sh
+agent-bus call '#slack@parf.us' --wait 15s whoami | jq -r .body
+```
+
+```text
+realmologs on Realmo (https://…)
+```
+
+- It names the bot and its workspace, which shows the tokens work. The workspace address is shortened here.
+- The output is from the development node on 2026-10-30; nothing was posted.
+
+</details>
 
 ## Use examples
 
@@ -79,51 +82,51 @@ It lists every call and setting; see [asking an agent what it can do](../user/cl
 
 ### 3. Forward only useful errors
 
-You must manage the destination session. The answer gives an id; `sub list`
-shows it and `sub delete <id>` removes it.
+- You must manage the destination session.
+- The answer gives an id; `sub list` shows it and `sub delete <id>` removes it.
 
-<details><summary>Rules for these calls</summary>
+<details>
+<summary>Rules for these calls, and more use cases</summary>
 
-- `read` also accepts JSON, `{"method":"read","channel":"#alerts","limit":10}`,
-  and then answers in JSON.
-- To select authors, put `from=@ann,U012AB3CDE4` before the filter; a bot is
-  named by its bot id or @name. Names are checked before saving.
-- An AI's posted question ends with its tag, such as `#b`. Your reply in that
-  thread reaches the session only if your user id is listed; the answer comes
-  back into the same thread.
+- `read` also accepts JSON, `{"method":"read","channel":"#alerts","limit":10}`, and then answers in JSON.
+- To select authors, put `from=@ann,U012AB3CDE4` before the filter; a bot is named by its bot id or @name. Names are checked before saving.
+- An AI's posted question ends with its tag, such as `#b`. Your reply in that thread reaches the session only if your user id is listed; the answer comes back into the same thread.
 - `refused` is for the owner and maintainers only.
+
+| Use case | What you do | What you get |
+|---|---|---|
+| Deploy report | AI posts in `#dev` | The team sees it at once |
+| Catch up on alerts | Ask for the last 10 messages in `#alerts` | A short list to act on |
+| Errors to an AI | Forward `#alerts` messages matching "error" | The AI session sees only errors |
+| Ask the team | AI posts a question; someone replies in the thread | The AI continues with the answer |
+| Direct request | DM the bot `#b please check the logs` | That AI session does it |
 
 </details>
 
 ## Installing it
 
-An administrator does this once: create a Slack app, store its two tokens on
-the bus, and install the helper on the runner.
+- An administrator does this once: create a Slack app, store its two tokens on the bus, and install the helper on the runner.
 
 ### Create the Slack app
 
-<details><summary>Step by step in Slack</summary>
+<details>
+<summary>Step by step in Slack</summary>
 
 Following [Slack's Socket Mode guide](https://docs.slack.dev/apis/events-api/using-socket-mode/):
 
 1. Create an app for your workspace at [Slack's app page](https://api.slack.com/apps).
-2. **OAuth & Permissions**, bot scopes: `chat:write`, `channels:history`,
-   `groups:history`, `im:history`, `mpim:history`, `channels:read`, `groups:read`,
-   `users:read`, `users:read.email`, `reactions:write`, `channels:join`.
-   Add `chat:write.customize` only for [custom post names or icons](#post-appearance).
-3. Turn on **Socket Mode**. Under **Basic Information → App-Level Tokens** create a
-   token with `connections:write`: the app token, `xapp-…`.
-4. **Event Subscriptions**, bot events: `message.channels`, `message.groups`,
-   `message.im`, `message.mpim`.
-5. Install to the workspace and copy the **Bot User OAuth Token**, `xoxb-…`.
-   Reinstall after adding scopes if Slack asks.
+2. **OAuth & Permissions**, bot scopes: `chat:write`, `channels:history`, `groups:history`, `im:history`, `mpim:history`, `channels:read`, `groups:read`, `users:read`, `users:read.email`, `reactions:write`, `channels:join`. Add `chat:write.customize` only for [custom post names or icons](#post-appearance).
+3. Turn on **Socket Mode**. Under **Basic Information → App-Level Tokens** create a token with `connections:write`: the app token, `xapp-…`.
+4. **Event Subscriptions**, bot events: `message.channels`, `message.groups`, `message.im`, `message.mpim`.
+5. Install to the workspace and copy the **Bot User OAuth Token**, `xoxb-…`. Reinstall after adding scopes if Slack asks.
 6. Invite the bot to each channel it needs; private channels always need it.
 
 </details>
 
 ### Connect it to the bus
 
-<details><summary>Step by step on the server (runner account <code>ann-ab-runner</code>)</summary>
+<details>
+<summary>Step by step on the server (runner account <code>ann-ab-runner</code>)</summary>
 
 Paths follow [runner helpers](README.md#runner-helpers).
 
@@ -162,13 +165,13 @@ Paths follow [runner helpers](README.md#runner-helpers).
 
 ## Configuration
 
-Posting, reading and forwarding need no Configuration. To let people talk to
-AI sessions from Slack, list them and choose which session gets their messages.
+- Posting, reading and forwarding need no Configuration.
+- To let people talk to AI sessions from Slack, list them and choose which session gets their messages.
 
-<details><summary>Keys and a full example</summary>
+<details>
+<summary>Keys and a full example</summary>
 
-Find Slack user ids with `users` or `user @ann`. Remove the comments before
-saving in the web panel's **Configuration**:
+Find Slack user ids with `users` or `user @ann`. Remove the comments before saving in the web panel's **Configuration**:
 
 ```jsonc
 {
@@ -189,29 +192,13 @@ saving in the web panel's **Configuration**:
 agent-bus config '#slack@node.example' '{"users":{"U012AB3CDE4":"ann"},"route":"#claude/main@node.example"}'
 ```
 
-Routing starts only once `users`, `tags`, `route` or `channels` is set. Each
-session must exist and allow this agent.
-
-</details>
-
-<details><summary>Technical details: how Slack differs from Telegram's routing</summary>
-
-Order, tags, seven-day thread links, `anyone` and `drop` follow
-[Telegram's reply routing](telegram.md#reply-routing) and
-[per-chat routing](telegram.md#per-chat-routing), with these differences:
-
-- Only DMs, mentions of the bot and mapped session threads enter routing;
-  ordinary channel chatter gets no reply.
-- Subscriptions keep their own filters, independent of `users` and routing.
-- `{"handler":"drop"}` on a channel also discards its subscriptions; `post` still works.
-- An unresolved channel name is logged and skipped, then looked up again after a
-  minute; other channels keep working.
+- Routing starts only once `users`, `tags`, `route` or `channels` is set. Each session must exist and allow this agent.
 
 </details>
 
 ## Secret keys
 
-Both tokens live in the bus **Secret**, never in Configuration.
+- Both tokens live in the bus **Secret**, never in Configuration.
 
 | Key | Meaning |
 |---|---|
@@ -221,28 +208,26 @@ Both tokens live in the bus **Secret**, never in Configuration.
 
 ### Post appearance
 
-Posts can show a custom name and icon.
+- Posts can show a custom name and icon.
 
-<details><summary>Technical details: <code>username</code>, <code>icon</code> and host defaults</summary>
+<details>
+<summary>Technical details: <code>username</code>, <code>icon</code> and host defaults</summary>
 
-A JSON post may set `username` and `icon` for that message. Host defaults go in
-the runner's non-secret `runner/slack/env`
-([where settings belong](../runner/configuration.md#where-settings-belong)), then reload:
+- A JSON post may set `username` and `icon` for that message.
+- Host defaults go in the runner's non-secret `runner/slack/env` ([where settings belong](../runner/configuration.md#where-settings-belong)), then reload:
 
 ```sh
 SLACK_USERNAME="agent-bus@{host}"
 SLACK_ICON=":robot_face:"
 ```
 
-`{host}` is the short host name; an empty name uses the bot's own. A call's values
-win; with no name set the default is `cli@{host}`. Needs `chat:write.customize`.
+- `{host}` is the short host name; an empty name uses the bot's own. A call's values win; with no name set the default is `cli@{host}`. Needs `chat:write.customize`.
 
 </details>
 
 ## Who may use it
 
-- The bus allow list decides who may call the helper:
-  `agent-bus manage '#slack@node.example' --add-allow 'bob@node.example'`.
+- The bus allow list decides who may call the helper: `agent-bus manage '#slack@node.example' --add-allow 'bob@node.example'`.
 - `users` in Configuration decides who may talk to AI sessions from Slack.
 - Managing a subscription also needs permission to manage its destination.
 - The author must also be allowed to send to the destination, checked at add, at an edit that moves the target and before every forward ([may-send for another name](../09-daemon-api.md#checking-permission-to-send)); a refusal or a vanished target disables the subscription, and a check the daemon cannot answer sends nothing.
@@ -250,7 +235,7 @@ win; with no name set the default is `cli@{host}`. Needs `chat:write.customize`.
 
 ## Warnings and alerts
 
-Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#slack` reports these. The page that shows them is in work.
+Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#slack` reports these.
 
 | Level | When | What to do |
 |---|---|---|
@@ -272,4 +257,18 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 | `not configured` | Store both tokens in Secret, then reload the runner |
 | Repeated send or settings failures | Check the runner journal; transient failures are tried three times, then logged and skipped |
 
-`agent-bus call '#slack@node.example' --help` lists every call.
+- `agent-bus help '#slack@node.example'` lists every call.
+
+## Technical details
+
+<details>
+<summary>How Slack differs from Telegram's routing</summary>
+
+Order, tags, seven-day thread links, `anyone` and `drop` follow [Telegram's reply routing](telegram.md#reply-routing) and [per-chat routing](telegram.md#per-chat-routing), with these differences:
+
+- Only DMs, mentions of the bot and mapped session threads enter routing; ordinary channel chatter gets no reply.
+- Subscriptions keep their own filters, independent of `users` and routing.
+- `{"handler":"drop"}` on a channel also discards its subscriptions; `post` still works.
+- An unresolved channel name is logged and skipped, then looked up again after a minute; other channels keep working.
+
+</details>
