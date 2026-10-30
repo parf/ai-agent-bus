@@ -138,7 +138,7 @@ flowchart LR
 
 - **New:** the [user guide](docs/user/README.md) is the shortest path from nothing to a running assistant or script.
 - **Install:** [INSTALL](src/INSTALL.md), details in [setup](docs/07-setup.md#install).
-- **Try a few commands:** [the examples below](#cli-tools--examples).
+- **Try a few commands:** [the examples below](#cli-tools-and-examples).
 
 ## Details
 
@@ -331,7 +331,9 @@ building from source is [source instructions](src/README.md#build-and-check).
 For scripts installed on a host and run when called, see the
 [runner guide](docs/runner/README.md).
 
-### [CLI tools](docs/user/cli.md#-the-command-line-tools) & examples
+### CLI tools and examples
+
+The [CLI guide](docs/user/cli.md#-the-command-line-tools) has every command.
 
 Everything you do with the bus from a terminal goes through one program, `agent-bus`: register records, send and read messages, call agents, take locks, keep KV values and run a script as an agent. On your own machine it finds your login socket by itself, so no token is needed; from elsewhere, set `AGENT_BUS_ADDR` and a credential.
 
