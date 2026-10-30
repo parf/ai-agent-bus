@@ -406,8 +406,10 @@ func serve(ag agent) error {
 		// A long poll with no answer well past its wait is a link that died
 		// without saying so — a dropped network, a half-open forward.
 		read, done := context.WithTimeout(ctx, poll+readGrace)
+		stopWatch := bus.watchReader(read)
 		e, _, got, err := next(read, q)
 		done()
+		stopWatch()
 		if err != nil || !got {
 			<-slots
 			if err == nil {

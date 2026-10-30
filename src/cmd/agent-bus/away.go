@@ -2,14 +2,18 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"math/rand/v2"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
 // A dedicated runner outlives the daemon going away: a restart, a socket
@@ -17,7 +21,7 @@ import (
 // backoff; only a refusal ends it. See docs/06-dedicated-runner.md#script-agents.
 var (
 	awayFirst  = time.Second      // the first wait after a failed read
-	awayMost   = 30 * time.Second // the longest wait between tries
+	awayMost   = 5 * time.Second  // at most 6.25 s between tries, including jitter
 	awayRemind = 5 * time.Minute  // how often a long absence is said again
 	answerFor  = 2 * time.Minute  // how long an answer is retried without a caller deadline
 	ackFor     = 2 * time.Second  // how long the one ack attempt may take
@@ -59,17 +63,18 @@ type link struct {
 	say  io.Writer
 	name string
 
-	mu    sync.Mutex
-	since time.Time // zero while up
-	told  time.Time
-	wait  time.Duration
+	mu         sync.Mutex
+	since      time.Time // zero while up
+	told       time.Time
+	wait       time.Duration
+	registered bool // admission was observed while consume is pending
 }
 
 // note is the process title's addition: "away" while the daemon is.
 func (l *link) note() string {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if l.since.IsZero() {
+	if l.since.IsZero() || l.registered {
 		return ""
 	}
 	return "away"
@@ -96,6 +101,7 @@ func (l *link) down(ctx context.Context, err error) bool {
 		l.told = now
 		fmt.Fprintf(l.say, "%s: daemon still away after %s: %v\n", l.name, now.Sub(l.since).Round(time.Second), err)
 	}
+	l.registered = false
 	wait := l.wait
 	l.wait = min(l.wait*2, awayMost)
 	l.mu.Unlock()
@@ -109,8 +115,46 @@ func (l *link) up() {
 	if l.since.IsZero() {
 		return
 	}
-	fmt.Fprintf(l.say, "%s: reconnected after %s\n", l.name, time.Since(l.since).Round(time.Second))
+	if !l.registered {
+		fmt.Fprintf(l.say, "%s: reconnected after %s\n", l.name, time.Since(l.since).Round(time.Second))
+	}
 	l.since = time.Time{}
+	l.registered = false
+}
+
+// watchReader confirms admission while the recovery consume is still pending.
+// A long poll sends no response until mail arrives or its wait expires; waiting
+// for that response used to report a healthy reader as away for another 55 s.
+// Only recovery polls need this probe. Each request and the watcher lifetime
+// are bounded by the consume context; stop joins it before the next iteration.
+func (l *link) watchReader(ctx context.Context) func() {
+	if l.note() == "" {
+		return func() {}
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for sleep(ctx, 100*time.Millisecond) {
+			probe, end := context.WithTimeout(ctx, time.Second)
+			body, code, err := callCtx(probe, "GET", "/lookup", url.Values{"name": {l.name}}, nil)
+			end()
+			var r protocol.Record
+			if err == nil && code == http.StatusOK && json.Unmarshal(body, &r) == nil &&
+				r.Name == l.name && r.Readers != nil && *r.Readers == 1 {
+				l.mu.Lock()
+				if !l.since.IsZero() && !l.registered {
+					fmt.Fprintf(l.say, "%s: reconnected after %s\n", l.name, time.Since(l.since).Round(time.Second))
+					l.registered = true
+				}
+				// Keep since until consume returns: an old abandoned poll may
+				// still own this reader, so its 409 needs the recovery grace.
+				l.mu.Unlock()
+				return
+			}
+		}
+	}()
+	return func() { cancel(); <-done }
 }
 
 // jitter spreads the tries of many runners after one restart: 75–125 %.
