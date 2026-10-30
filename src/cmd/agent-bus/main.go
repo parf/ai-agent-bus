@@ -370,12 +370,44 @@ func ls(args []string) error {
 	if err := w.Flush(); err != nil {
 		return err
 	}
+	if len(pos) == 1 {
+		if line := hostsLine(records[0], now); line != "" {
+			fmt.Println("\n" + line)
+		}
+	}
 	fmt.Println("\nREADERS  outstanding consume requests, filtered and unfiltered together; an observation, not health or completed work")
 	// The legend spells the cell it explains. The cells above print "-", and a
 	// legend naming a character the table never shows explains nothing.
 	fmt.Println("         -  for \U0001F4E1, which is external and has no queue here, for \U0001F465, a list of members, and for \U0001F4DA, resource content; unavailable means not measured, which is a different fact")
 	fmt.Println("LAST USED  when the name's credential last made a call; -  it never has, or holds none")
 	return nil
+}
+
+// hostsLine is the machines that read a name lately, each with how long ago,
+// as they stated themselves: `Hosts  srv1 (now), srv2 (40s)`. Empty when none
+// has, and the table above it is unchanged
+// (docs/05-discovery.md#where-a-pool-member-says-it-is).
+func hostsLine(r protocol.Record, now time.Time) string {
+	if len(r.Hosts) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(r.Hosts))
+	for _, h := range r.Hosts {
+		age := now.Sub(h.LastRead)
+		switch {
+		case age < 2*time.Second:
+			parts = append(parts, h.Name+" (now)")
+		case age < time.Minute:
+			parts = append(parts, fmt.Sprintf("%s (%ds)", h.Name, int(age.Seconds())))
+		default:
+			parts = append(parts, fmt.Sprintf("%s (%dm)", h.Name, int(age.Minutes())))
+		}
+	}
+	line := "Hosts  " + strings.Join(parts, ", ")
+	if r.HostsCut {
+		line += "  (more hosts read than are kept; the oldest were dropped)"
+	}
+	return line
 }
 
 func readerCount(readers *int) string {
