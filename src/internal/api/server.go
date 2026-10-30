@@ -921,8 +921,21 @@ func (s *Server) consume(w http.ResponseWriter, r *http.Request, caller protocol
 		}
 		wait = min(d, maxWait)
 	}
+	// `host` is where the reader says it is: a label for a listing, refused by
+	// name when it is not a hostname (docs/04-messaging.md#one-reader-per-inbox).
+	host := q.Get("host")
+	if q.Has("host") {
+		if err := core.CheckHost(host); err != nil {
+			s.bus.RecordRefusal(inbox)
+			s.reply(w, nil, err)
+			return
+		}
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), wait)
 	defer cancel()
+	if host != "" {
+		ctx = core.WithHost(ctx, host)
+	}
 	// The bus asks before it hands this poll a message: a caller that has
 	// closed its end takes nothing.
 	ctx = core.WithAlive(ctx, func() bool { return !peerGone(r) })
