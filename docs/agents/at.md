@@ -76,7 +76,7 @@ agent-bus help '#at@node.example'
 - **`#at` sends under its own name,** and the destination's ordinary access list decides: a name, a group or `*` that admits `#at` receives its messages.
 - **Anyone on `#at`'s own access list may schedule,** so **a destination that allows `#at` trusts everyone allowed to call `#at`**.
 - **Keep the default instance owner-only** and run one instance per trust group (`#at/team`).
-- **The creator must also be allowed to send to the destination themselves:** checked when the entry is added and again before every send; if that access is lost, the entry pauses without sending; when the check cannot be made nothing is stored or sent.
+- **The creator must also be allowed to send to the destination themselves:** checked when the entry is added and again before every send; if that access is lost, that call is dropped with a warning and removed; when the check cannot be made nothing is stored or sent.
 - **A role granted to `#at` itself on a destination** travels with every message; it gets none from its Owner's records.
 - **Cancelling needs** the call's creator or `#at`'s Owner and Maintainers.
 - **Lists show your own calls with their messages;** staff see the others' without.
@@ -86,15 +86,15 @@ agent-bus help '#at@node.example'
 | If you see | Do this |
 |---|---|
 | `you may not send to …, so at will not send there for you` | Ask the destination's Owner to allow you |
-| `paused: denied: the creator may no longer send to the target` | Restore the creator's access, then add it again |
+| `admission_refused` for a call whose creator lost access | Restore the creator's access, then schedule the call again |
 | `could not check that you may send to …`, or `author_check: unavailable` in a list | The daemon could not answer the creator check or is down; nothing is sent until it can, and missed slots are not replayed |
 | `deferred` in a list | More than 200 different creator–destination pairs were due in one minute; the rest wait for the next pass (a missed slot is not replayed) |
 | `unknown destination …, or it does not allow at` | Check the name, or ask its Owner to allow `#at` |
 | `… does not exist on <date>: the clocks skip it` | Pick another time; that minute is skipped by daylight saving |
 | An answer at an unexpected hour | The time is in the agent's `tz`, shown in the answer; use an instant with an offset |
-| `paused: denied` | Allow `#at` on the destination, then schedule the call again |
-| `paused: unconfirmed` | Check whether the destination received it before scheduling again |
-| Outcome `refused` | The destination stayed full for 24 h; make room in its inbox |
+| `admission_refused` | Allow `#at` on the destination, then schedule the call again |
+| `send_unknown` | The delivery could not be confirmed, so the call counts as dropped; check whether the destination received it before scheduling again |
+| `send_refused` | The destination refused the call, for example because its inbox was full; make room in it and schedule again. Nothing is retried |
 
 ## Warnings and alerts
 
@@ -103,8 +103,7 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 | Level | When | What to do |
 |---|---|---|
 | alert | Configuration `tz` is not in the host's time zone data: nothing is sent | Fix `tz`, or install tzdata on the runner host |
-| warning | A call paused: `denied`, `unconfirmed` or `unknown destination` | Check the destination; its creator schedules it again |
-| warning | A call ended `refused`: the destination stayed full for 24 h | Make room in the destination's inbox |
+| warning | A call was dropped: `admission_refused`, `target_gone`, `send_refused` or `send_unknown` (its acceptance is unknown, so it may have arrived) | Check the destination; its creator schedules it again |
 | warning | The creator check or the bus was unavailable, so a send waited | Nothing if it clears; if it repeats, check the daemon |
 | warning | More than 200 creator–destination pairs fell due in one minute (`deferred`) | Spread the calls over more minutes |
 | warning | A stored call is invalid and was set aside | Cancel it and schedule it again |
@@ -121,8 +120,7 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 - An empty message is refused.
 - JSON forms: `{"method":"in","in":"30m","target":"…","body":"…"}`, `{"method":"at","at":"09:30",…}`, `list`, `{"method":"cancel","id":"…"}`.
 - Delivery is the [cron engine's](cron.md#what-it-does): claimed in KV before the send, never sent twice.
-- An unconfirmed send pauses the call as `unconfirmed`; a 403 from the target's access list pauses it as `denied`, a vanished target as `unknown destination`, neither retried.
-- A full inbox is retried with backoff for 24 h from the due time, then `refused`.
+- An unconfirmed send drops the call as `send_unknown`; a 403 from the target's access list drops it as `admission_refused`, a vanished target as `target_gone`, and any other refusal, such as a full inbox, as `send_refused`. Nothing is retried, held or paused, and the call is removed; `list` shows it as finished `dropped`.
 - A call that fell due while `#at` was down is sent once when it starts, possibly late.
 - Cancelling a call whose send is in flight may still deliver it once.
 - Bounds: 1000 pending calls, 100 per creator, 16384 bytes per message.

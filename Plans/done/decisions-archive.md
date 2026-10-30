@@ -175,3 +175,9 @@ History only; these rows are never a current contract. See [current decisions](.
 | Current and future documentation ownership | [working rules](../../CLAUDE.md#working-rules) | 2026-09-13 owner instruction |
 | MVP installs by its own script only, with no npm path | [install](../../docs/07-setup.md#install) | 2026-09-15 — One supported way in is what installation acceptance can be run against; npm publication stays R1 |
 
+## Subscriptions and scheduled sends
+
+| Decision topic | Substance | Why |
+|---|---|---|
+| A subscription forward whose delivery cannot be confirmed pauses that subscription with a visible error; a definite refusal retries with backoff (RD138, Q207) | [the shared behaviour](../../docs/agents/subscriptions.md#the-shared-behaviour), [cron](../../docs/agents/cron.md#what-it-does) | 2026-10-28 owner decision, replaced by RD161 (2026-10-29): a refused copy, or one whose acceptance is unknown, is dropped with one warning and the subscription stays active; a one-shot is dropped and removed; nothing is held, retried or paused. A confirmed delivery is still never resent |
+

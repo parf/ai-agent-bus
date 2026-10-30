@@ -125,7 +125,7 @@ None.
 - Run one cron instance per trust group (`#cron/team`) and allow only that instance where it is needed.
 - A role granted to cron itself on a destination (say Maintainer) travels with every cron message, so every cron caller acts with it there; cron gets no role from its Owner's own records.
 - The creator must also be allowed to send to the destination themselves: checked when the entry is added and again before every send.
-- If that access is lost, the entry pauses without sending; when the check cannot be made, nothing is stored or sent.
+- If that access is lost, that copy is dropped with a warning and the subscription stays active for its next slot; when the check cannot be made, nothing is stored or sent.
 - Deleting or cancelling an entry needs its creator, or cron's Owner or Maintainers.
 - Lists show your own entries with their messages; cron's Owner and Maintainers also see the others' ids, targets and outcomes.
 - Cron never schedules messages to itself.
@@ -137,8 +137,7 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 | Level | When | What to do |
 |---|---|---|
 | alert | Configuration `tz` is not in the host's time zone data: nothing fires | Fix `tz`, or install tzdata on the runner host |
-| warning | An entry paused: `denied`, `unconfirmed` or `unknown destination` | Check the destination; then `sub delete` and `sub add` |
-| warning | An outcome is `refused`: the destination stayed full for the whole time to live | Make room in the destination's inbox |
+| warning | A copy was dropped: `admission_refused`, `target_gone`, `send_refused` or `send_unknown` (its acceptance is unknown, so it may have arrived) | Check the destination; the subscription stays active, and a one-shot is gone |
 | warning | A slot was missed: the bus or its KV store was unavailable, or the pass was late | Nothing if it clears; if it repeats, check the daemon |
 | warning | More than 200 creator–destination pairs fell due in one minute (`deferred`) | Spread the schedules over more minutes |
 | warning | A stored entry is invalid and was set aside | Delete it and add it again |
@@ -148,15 +147,16 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 | If you see | Do this |
 |---|---|
 | `you may not send to …, so cron will not send there for you` | Ask the destination's Owner to allow you |
-| `paused: denied: the creator may no longer send to the target` | Restore the creator's access, then add it again |
+| `admission_refused` for an entry whose creator lost access | Restore the creator's access; the next slot is delivered |
 | `could not check that you may send to …`, or `author_check: unavailable` in a list | The daemon could not answer the creator check, or is down; nothing is sent until it can, and missed slots are not replayed |
 | `deferred` in a list | More than 200 different creator–destination pairs were due in one minute; the rest wait for the next pass (a missed slot is not replayed) |
 | `only its creator or cron's Owner and Maintainers delete an entry` | Ask its creator, or cron's Owner |
-| `paused: unconfirmed` | Check the destination received it; then `sub delete` and `sub add` again |
-| `paused: denied` | The destination's access list does not allow cron: add cron there (`agent-bus manage <target> --add-allow '#cron@node.example'`), then `sub delete` and `sub add` again |
+| `send_unknown` | The delivery could not be confirmed, so that copy counts as dropped; check whether the destination received it. The subscription stays active |
+| `admission_refused` | The destination's access list does not allow cron: add cron there (`agent-bus manage <target> --add-allow '#cron@node.example'`); the next slot is delivered |
 | `unknown destination …, or it does not allow cron` when adding | Check the name, or ask its Owner to allow cron |
-| `paused: unknown destination` | The target was removed or no longer allows cron; delete the entry, or allow cron and add it again |
-| Outcome `refused` | The destination stayed full for the whole time to live: make room in its inbox |
+| `target_gone` | The target was removed or no longer allows cron; delete the entry, or allow cron again |
+| `send_refused` | The destination refused that copy, for example because its inbox was full; make room in it. Nothing is retried |
+| `sub edit …` | Not supported: delete it and add it again |
 | `Configuration: tz … is not in this host's time zone data` | Install tzdata on the runner host or use `UTC` |
 | A slot did not fire | Cron was down, the pass was late or the bus's KV store was unavailable; missed slots are skipped by design (`missed` in `sub list`) |
 
@@ -178,10 +178,11 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 
 - One process fires at a time (the record lock `scheduler`), and every firing is claimed in the agent's KV before its send.
 - A send whose delivery cannot be confirmed is never repeated: the connection failed after the request left, a server error, or cron stopped between sending and recording.
-- Then the subscription pauses with `unconfirmed` in `sub list` (a one-shot stays as `unconfirmed` in `later list`). Restart a paused subscription with `sub delete` and `sub add`.
-- A destination whose access list does not admit cron (403) pauses the entry as `denied`, and one that no longer exists (404) as `unknown destination`; neither is retried.
+- Then that copy is dropped with one warning, counted in `dropped` in `sub list`, and the subscription stays active for its next slot; a one-shot is dropped and removed, and `later list` shows it as finished `dropped`.
+- A destination whose access list does not admit cron (403) drops the copy as `admission_refused`, and one that no longer exists (404) as `target_gone`; neither is retried.
 - A new entry must name an existing queue or agent that cron can see.
-- Another definite refusal (the destination is full) is retried after 10 s, doubling to 5 min, until the send's time to live ends; then the outcome is `refused`.
+- Any other definite refusal (the destination is full) drops the copy as `send_refused`. Nothing is retried, held or paused.
+- An entry a release before this rule paused is active again when cron starts, and a paused one-shot is dropped. A stored id that is not 12 hex moves once, to the first 12 hex of the SHA-256 of its old key (of that digest again while the id is taken), and the new entry is written before the old one is removed.
 - Each send carries a time to live so a destination that was away is not flooded: the time to the next slot, capped at 24 h; 24 h for a one-shot.
 - When cron cannot reach the bus 30 times in a row, 2 s apart, it exits and its runner starts it again. Until then, a slot that falls due is `missed`.
 
@@ -192,6 +193,6 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 
 - Forms: `{"method":"sub.add","cron":"0 9 * * 1-5","target":"…","body":"…"}`, `{"method":"later","in":"+15m"|"at":"…","target":"…","body":"…"}`, `sub.list`, `sub.delete`, `later.list`, `later.cancel` with `id`. Use JSON for a multi-line message.
 - Bounds: 100 subscriptions (20 per creator), 1000 pending one-shots (100 per creator), 16384 bytes per message.
-- Outcomes other than pauses are kept in memory and reset on restart.
+- Outcomes and the `sent` and `dropped` counts are kept in memory and reset on restart; a one-shot's finished record is kept.
 
 </details>

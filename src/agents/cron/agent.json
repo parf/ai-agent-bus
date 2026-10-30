@@ -41,13 +41,13 @@
       "text": "sub add <m> <h> <dom> <mon> <dow> <target> <message>"
     },
     "sub.list": {
-      "help": "Review your repeating messages, next delivery times, outcomes and pauses. The Owner and Maintainers also see other creators' schedules without their message bodies.",
+      "help": "Review your repeating messages, next delivery times, outcomes and sent and dropped counts. The Owner and Maintainers also see other creators' schedules without their message bodies.",
       "args": [],
       "text": "sub list",
       "example": "agent-bus call '#cron@parf.us' 'sub list'"
     },
     "sub.delete": {
-      "help": "Stop a repeating message. To restart a paused schedule, delete it and add it again.",
+      "help": "Stop a repeating message. To change a schedule, delete it and add it again.",
       "args": [
         {
           "name": "id",
