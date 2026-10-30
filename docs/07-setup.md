@@ -1,20 +1,81 @@
 # Setup and operation
 
-📌 **TL;DR:** Build, install, provision users and operate the node. Privilege
-is what separates the programs and nothing else does: root is needed once for
-installation and never again, each account's files are that account's own, and
-ordinary use needs neither.
+📌 **TL;DR:**
+- **Why:** give your tools a shared bus, on one laptop or across a team's hosts, without running everyday work as root.
+- **What you get:** a client for an existing bus, or a node with separate service accounts, a web panel and optional agent runners.
+- **Start:** choose [an installation path](#install); the npm command is `npm install -g ai-agent-bus`, but installable npm releases are not published yet.
 
-For a release installation, start with the [npm package](#npm-package).
+## Why you'd want it
 
-## The programs
+- Your tools need a common place to reach each other, whether they share one computer or work across many hosts.
+- Setup keeps service state separate from your login and from agents' private files.
+- You can check the installed version and the running node before changing anything.
+
+## What you get
+
+- **Join an existing bus:** the client supplies `agent-bus`, MCP and the AI CLI launchers.
+- **Run a Linux node:** setup creates the service accounts, private state, sockets and service units.
+- **Run agents separately:** install a [person's runner](#a-persons-runner) only when needed; use the [runner guide](runner/README.md) for its operations.
+- **Use macOS deliberately:** the client and unsandboxed runner, plus reduced launchd setup, have distinct [platform limits](#macos).
+
+## How to use it
+
+### Install
+
+| Need | Path | Availability |
+|---|---|---|
+| Full Linux node from npm | `npm install -g ai-agent-bus`, then explicit setup | Chosen release path; installable npm publication is pending |
+| Client from npm | `npm install -g ai-agent-bus-client` | Chosen client path; publication is pending; macOS npm platforms need their own packaging acceptance |
+| Working checkout | `sudo src/git-install.sh` from a checkout outside `/home` | Built; this is how the development node runs |
+| Checked release archive | Verify, unpack and run its `agent-bus-setup` | Built; see [release installation details](#release-installation-details) |
+
+- The npm names are reserved as README-only placeholders; they do not yet deliver a working installation.
+- The installed command remains **`agent-bus`**, regardless of the npm package name.
+- For the current checkout procedure and its prerequisites, use [Install from a checkout](../src/INSTALL.md#how-to-start).
+- Setup changes the host and needs root. Ordinary client use does not; remote access uses your own credential ([access](02-access-remote.md#remote-access)).
+
+### Simple install
+
+- npm is the chosen release installation path, subject to the publication status above.
+- The repository's `install.sh` remains a secondary shell installer, not the npm path or an extra publication prerequisite.
+- It checks `SHA256SUMS` and the inner manifest; full-node setup checks its root-owned copy again. It requires no release signature or owner key.
+
+### Check an existing installation
+
+Print the installed command's version and build stamp:
+
+```sh
+agent-bus --version
+```
+
+Ask the running bus for its status:
+
+```sh
+agent-bus status
+```
+
+- These are read-only checks, run on the development node for this rewrite.
+- The installed command and the running node can differ until the changed component is deployed. Use [build information](#build-information) and the [post-deploy check](#post-deploy-check) to verify a deployment.
+- Back up state before replacing a node; [backup and restore](#backup-and-restore) distinguishes record exports from a whole stopped-node backup.
+
+### npm package
+
+- **Publication pending:** `ai-agent-bus` and `ai-agent-bus-client` are reserved names, not yet published with installable release binaries. Local package assembly exists; clean installed-tree acceptance and macOS npm platforms remain distribution work.
+- The wrapper selects the matching Linux x64 or arm64 platform binaries. Node 18 or later runs the npm wrapper; a packaged release needs neither Go nor Bun.
+- The full package depends on the exact matching client version. Installing either npm package creates no service accounts or service units.
+- The client can use a user-owned prefix. Full-node setup requires a root-owned Node executable and global prefix, including its packages, shims and every parent, with no group/other write access.
+- Never run sudo setup through a user-owned Node installation such as nvm or `~/.npm-global`; its verifier could be changed before root starts it.
+- After publication, an administrator installs the full package into that root-owned prefix, then explicitly runs its `agent-bus-setup --owner <user>` with sudo. Setup assembles the matching packages into a private root-owned tree outside the npm prefix, verifies the complete manifest and removes the staging tree afterward.
+- Package assembly checks release `SHA256SUMS` and manifests. There is no release signing key; the installation path trusts npm's registry integrity. See [local packaging checks](../src/npm/README.md#local-checks).
+
+## Technical details
+
+### The programs
 
 For installing and operating scripts under the runner, use its
 [dedicated guide](runner/README.md).
 
-Privilege is what separates them, and nothing else does: root is needed once
-and never again, each account's own files are that account's, and what an
-ordinary user needs is neither. The count is deliberately not in the heading.
+Each service account owns its private state. Setup and host changes require root; ordinary bus calls do not.
 
 | Program | Runs as | What it is for |
 |---|---|---|
@@ -25,309 +86,406 @@ ordinary user needs is neither. The count is deliberately not in the heading.
 | `agent-busd` | the **`agent-busd` account**, started by its unit | the daemon: a supervisor and its children ([processes](08-processes.md#processes-and-privileges)) |
 | `agent-bus-web` | its own **`agent-bus-web` account**, started by its own unit; a release runs the compiled `agent-bus-ts`, a checkout its TypeScript with `/usr/bin/bun` | the web face, speaking the API with each visitor's session and holding no write path of its own ([processes § the web face](08-processes.md#the-web-face)) |
 
-## SSH admin
+### Release installation details
 
-Setup adds the installer's public key through the admin program. Each entry
-in the daemon account's `authorized_keys` is restricted to a forced command:
-the fixed `agent-bus-token <principal>` wrapper for an ordinary key, or
-`agent-bus-admin <principal>` for a bus operator. The wrapper executes only the sibling CLI’s `token` verb, never a verb from the SSH request. Existing forced-command paths remain valid. The entitlement is the principal
-in that entry; `SSH_ORIGINAL_COMMAND` is parsed as a request, not executed as
-shell text. The forced command names the program as it was invoked
-(`/usr/local/bin/…`), which follows the live release, never the release
-directory a later deploy prunes. For host administration, `agent-bus-admin` becomes the daemon account
-through sudo, which drops `AGENT_BUS_ADDR`, so with an `AGENT_BUS_ADDR` naming
-another daemon and no `AGENT_BUS_HOME` it refuses rather than edit the
-installed one.
+- A release carries its TypeScript parts — the web face, the MCP face and the launchers — as one compiled binary, `agent-bus-ts`, and needs no bun or Node.
+- The web unit executes that binary and the libraries `ldd` reports for it, nothing else ([processes § the web face](08-processes.md#the-web-face)).
+- A checkout's web face needs **bun at `/usr/bin/bun`** instead; a missing one is reported and the daemon still installs, without its web face.
+- No setuid helper or capability is granted; the face's listener keeps the host's unprivileged port rules.
 
-**`user add` creates the user it adds.** A credential is only issued to a name
-the daemon already holds a profile or a record for
-([getting a token](02-access.md#getting-a-token)), so writing the
-`authorized_keys` line alone would leave a key whose forced command is refused
-— which is no way in at all. The verb writes the line and creates the user, and
-`--admin` additionally grants [Administrator membership](01-identity-and-authority.md#groups). Authority is granted
-only where it was asked for: Administrator standing is membership, derived by the
-daemon, never a field a caller may claim.
+- **The web face.** Setup creates the `agent-bus-web` account with the real code directory as its home, and fills that directory into the release's unit: `/usr/local/lib/agent-bus/current/web` for a release, or the checkout's `src/web` for development.
+- `WorkingDirectory`, `ExecStart` and `HOME` name it directly; there is no `/var/lib/agent-bus/web` link.
+- Setup computes `ExecPaths` for this host, enables the unit, applies any changed runtime or code and waits for `/healthz`.
+- `--upgrade` refreshes it; `release.sh` restarts it after a switch.
+- Development uses `sudo src/web/install-dev.sh`.
 
-The two halves are kept together. The key line is written first because it is
-the half that can be taken back — a user is never deleted
-([user lifecycle](01-identity-and-authority.md#user-states)) — and it is removed again if
-the daemon refuses. **The daemon has to be running**: with no way to create the
-name, `user add` refuses rather than leaving a key that works before the name
-exists. Start the daemon and run it again.
+- **Archive build:** `src/package.sh [output-directory]` creates one version/platform/ architecture archive and a portable SHA-256 file.
+- The archive contains all six Go programs, the MCP face, the web face's sources and unit, four runtime launchers, their shared adapter, bundled agent runtimes, license, exact artifact manifest and standalone `INSTALL.md`.
+- Build it, verify and unpack it, then run `sudo ./agent-bus-setup`.
+- Setup validates the complete manifest before changing the host, installs a digest-addressed release under `/usr/local/lib/agent-bus`, creates stable commands under `/usr/local/bin`, creates the accounts and tree, writes/enables the daemon and web units, and installs the first user's key through the admin program.
+- The manifest names every file under `web/`, `agents/` and `clients/`, each checked and installed.
+- The agent tree includes Slack/Telegram bundles, native agent scripts and installers, their shared Python metadata helper, and the Python client with its MIT license.
+- They keep their relative paths under the installed release, so no source checkout is needed.
+- Native agents require Python 3; their external tools are listed in the [agent guides](agents/README.md#choose-an-agent).
+- To build an archive, install the MCP and TypeScript client dependencies first (`bun install --cwd src/mcp` and `bun install --cwd src/clients/typescript`).
+- `--upgrade` holds the release it replaces to that release's own manifest, so one from before 0.8.50, with the Go web binary and no `web/` tree, remains a rollback target.
+- A release's launcher replaces the Claude channel plugin another release installed; one from before 0.9.163 does not, so after rolling back past it run `claude plugin uninstall agent-bus@agent-bus-local` once and start `ab-claude` again.
+- Without root it refuses and prints the command to run.
+- `--dry-run` and `--print-unit` are read-only and need no root.
 
-**From the web face.** Whoever may edit a User — the daemon Owner,
-or an Administrator for an ordinary User — may paste that User's
-`ssh-ed25519` public key on Add user or the User's page. The daemon writes the
-same line `user add` writes, forced to the credential wrapper, under a
-file lock both writers take; setup's unit passes `--ssh-keys` (the account's
-`authorized_keys`) and `--ssh-token` (the program beside the installed daemon),
-and without them the call answers that keys are added on the host. Only the
-key itself reaches the file — the daemon parses the one line and rebuilds it,
-so no option or comment is copied. A second key replaces the first; other key
-types and operator keys stay host-side, and a bus operator's line is never
-replaced from the web.
+- **Release archives remain supported.** Their checked setup program is also the installer used after npm assembly; the client-only package never installs a node.
+- `INSTALL.md` describes the checkout and archive paths.
+- The [npm package](#npm-package) is the chosen distribution path, with publication still pending.
 
-`user import-local <user[@realm]> <account>` fills a blank person name from the
-OS account database. It accepts an account name rather than profile text and
-preserves an existing name. Setup runs it when it installs the first user's
-key; a bus operator may run it later when setup found no key.
+- **Development install — how the development node runs.** `sudo src/git-install.sh` builds the checkout and symlinks its programs and launchers into `/usr/local/bin`; the web face's unit and account name the checkout's `src/web` directly.
+- The CLI and every tool are then always the checkout's.
+- Commit a change first, then deploy only [the changed component](#deploy-only-the-changed-component).
+- A daemon change needs a backup before its restart; a documentation change needs neither a build nor a restart. - **Checkout location:** it must live outside `/home`, since the daemon runs   behind `ProtectHome=yes` and cannot exec a binary in a home directory.
+- The   script refuses one that does and says where to move it. - **Undoing it:** `--revert` copies real binaries back. - **State:** daemon state under `/var/lib/agent-bus` is untouched, except by   `--reinstall`.
 
-`user add-local <user[@realm]> <account>` creates a User with no key and maps
-that local account's socket to it, so the socket is its only way in; the
-account must exist on the host, and a User or mapping already in place is not
-a failure. Setup no longer runs it for a runner: since 0.8.149 a person's runner
-holds its own token ([a person's runner](#a-persons-runner)).
+- **Deploying a fixed release.** `sudo src/release.sh [commit]` is for a node that runs a release copy rather than the checkout. - **How it builds:** from that commit (HEAD by default) through `git archive`,   never the working tree, into   `/usr/local/lib/agent-bus/releases/<version>-<sha>`. - **How it switches:** it moves `/usr/local/lib/agent-bus/current` to that   release with one rename, points `/usr/local/bin` through `current`, restarts   the daemon and checks it reports that version.
+- The last five releases are   kept, and `--rollback` switches to the previous one. - **Not on the development node:** there it would replace the checkout's links   with a release copy.
+- `src/git-install.sh` puts them back.
 
-The implemented admin verbs are `user add`, `user add-local`, `user import-local`, `user list`,
-`user remove`, `account list`, `account set`, `account remove`, `token` and
-`tls`, plus Owner-only local `export` and `import`. A forced command answers `token --fingerprint` with no name or credential.
-The token operation is delegated to the token helper with the key entitlement
-and original request kept separate: `token --rotate` rotates that identity;
-asking for another identity is refused. Console and SSH use the same program. Bundle administration and regeneration of keys are not
-part of this grammar.
+- **Reinstall.** `agent-bus-setup --reinstall` (and, on a checkout, `src/git-install.sh --reinstall`) is the one explicit way to start a node over: it stops the daemon, moves its whole home and the unit's drop-ins into a root-only `daemon.before-0.7-<time>` directory that nothing reads again, and installs fresh — new database, generated unit, the installer as Owner.
+- Every old credential stops working.
+- It replaces whichever release is installed, 0.6 included; the [reinstall procedure](../Plans/done/R0.8-MVP/0.7-cutover.md#procedure) owns the steps.
+- It refuses while any process outside systemd holds a file in the daemon home, and a failure after the set-aside puts the home, drop-ins, unit and release back and restarts a node that was running.
 
-## Administrator name migration
+- **Setup over a running node.** Plain setup restarts a running daemon when the unit it writes differs or the running release and `build_info` are not the installed program's, then waits, as `--upgrade` does, until `/identity` reports that release and build.
+- It prints the node's durable Owner, which `--owner` only seeded ([daemon ownership](#daemon-ownership-upgrade)).
 
-Upgrading from the old administrative name migrates membership to the
-[protected Administrator group](01-identity-and-authority.md#groups).
-Existing record Maintainer assignments and ACL references follow the rename.
+- The current link changes by one atomic rename after the complete release and all stable command links exist.
+- A failed first install is recovered by running the same setup again; an identical release is reused.
+- Plain setup refuses to replace a different release.
+- The standalone package instructions define the `--upgrade` and interrupted `--recover` paths; their populated-node behavior is accepted under [H.1.1](../Plans/done/R0.8-MVP/done/upgrade-recovery.md#checks).
 
-If an ordinary group already uses the destination name, it is preserved as
-`@administrators-legacy` (with a numeric suffix when necessary), and its existing
-references follow it. Neither existing groups nor unresolved record references
-are reused for that preserved name. Its members do not become Administrators.
-The former administrative name cannot be recreated; subsequent starts leave
-the migrated groups unchanged.
+### Build information
 
-Upgrade the daemon and its clients together: the user directory's administrative
-flag is now `administrator`, replacing `maintainer`. Record Maintainer
-assignments retain their meaning.
+Building the daemon and CLI needs cgo and a C compiler for
+[processes § process titles](08-processes.md#process-titles).
 
-**Downgrade:** an older daemon does not recognize the renamed group as granting
-non-owner administrative standing. Its members still retain the access and
-record maintenance granted through ordinary group references. Downgrading does
-not restore the old name automatically.
+- `src/build.sh [output-directory]` builds all Go programs with one stamp; the output directory is relative to `src/` and defaults to that directory.
+- The build supplies `build_info` as `user@hostname YYYY-MM-DD HH:MM:SS`, using the builder's local time, through Go linker flags; `release.sh` appends the commit's short SHA.
+- It never rewrites source.
+- Every Go program's `--version` prints the shared SemVer on the first line and `build_info: <stamp>` on the second; no daemon connection or privileges are needed.
+- `--help` on each Go program opens with `<program> <version>`, on stdout, exit 0; bare `agent-bus` prints the same text on stderr and exits 1.
 
-## Record kind upgrade
+A direct `go build` reports `development (unstamped)` instead of inventing a
+build date. The interpreted MCP and web faces report the shared SemVer only,
+read from `VERSION`.
+Release builds follow [working rules § versioning](../CLAUDE.md#versioning).
 
-From 0.6.0 `kind` is a closed set ([records](03-records.md#record-kinds)).
-`generic`, `topic` and the `mode` field are gone, and **a stored record holding
-any of them is ignored at start and reported** by name, never converted
-([what refuses the start](constitution.md#what-refuses-the-start)). There is no
-compatibility obligation before 1.2, so nothing is migrated at load time.
+#### Release evidence
 
-Upgrading a node that has run an earlier line therefore means editing its
-snapshot while the daemon is stopped: the procedure, the mapping and what it
-was verified against are in the
-[cutover runbook](../Plans/done/R0.8-MVP/cutover.md#the-procedure). Two things to expect
-even where the kinds look right: a record that becomes 📡 must lose the queue
-settings every old record carried, and its inbox must be empty.
+- `src/release-verify.sh <archive>...` checks release archives against the source: the archive name, packed `VERSION` and Go programs’ versions agree, build stamps and `LICENSE.md` are present, and `MANIFEST.sha256` matches.
+- Foreign-CPU binaries are read rather than run.
+- The compiled TypeScript binary answers `mcp --version` and `launcher claude --version` with the release version where it can run, and carries a build stamp; the `agent-bus-token` wrapper answers its version too.
 
-## GitHub profile snapshot upgrade
+- The release build supplies `SHA256SUMS`; npm assembly checks each downloaded archive against it and then checks the archive’s manifest.
+- Release signatures and signing keys are not part of installation or publication.
+- Both native Linux builds verify their archives before upload.
+- The release job verifies the complete unsigned set before publishing archives and `SHA256SUMS`; `--signers` is refused.
+- No signing step, owner key or signed-draft wait remains. npm publication is still separate work.
 
-From 0.5.71, User profiles may retain public provider metadata and one bounded
-local PNG thumbnail. An older daemon ignores those unknown snapshot fields and
-drops them on its next snapshot write. Imported Person name and Email remain
-because they use the existing profile fields. The packaged rollback restores
-the matching earlier snapshot; do not run an older binary directly against a
-0.5.71 snapshot if retaining the optional provider fields matters.
+### macOS
 
-## Maintainers-list upgrade
+- **Client and runner:** native checks are recorded; the runner has no sandbox or cgroup limits.
+- **Reduced daemon setup:** launchd runs it as `_agentbusd`; the Linux service layout is not available on macOS.
+- **Distribution limit:** no full-node macOS release archive or accepted macOS npm platform package is supplied. Earlier installer and native runs do not establish npm support.
 
-From 0.5.62, a resource stores a list of Maintainers rather than one group.
-Existing string values load as a one-entry list; an empty string becomes an
-empty list. Every non-empty later answer and snapshot writes the array form;
-an empty list is omitted. Legacy noncanonical terms are preserved but remain
-inert until the Owner replaces the list. Registration never imports this
-authority from caller-supplied metadata.
+#### The client and runner
 
-Upgrade daemon and clients together. The new daemon accepts the legacy string
-input during migration, but an older daemon cannot read the array form written
-by 0.5.62 and fails to restore that snapshot rather than guessing authority.
+| | |
+|---|---|
+| Build | `GOOS=darwin GOARCH=arm64 src/package.sh` (or `amd64`) cross-builds `agent-bus-client-<version>-darwin-<aarch64\|x86_64>.tar.gz` on a Linux host, without cgo, so the process title is not set; there is no full-node archive for macOS |
+| Install | npm is the chosen client install path; macOS platform packages still need packaging and installed-tree acceptance. Earlier shell-installer runs are fixture evidence, not the current distribution procedure. The launchers use `readlink -f`, which macOS has from 12.3 |
+| Signing | the macOS binaries are unsigned and not notarized, so Gatekeeper warns on a download; a binary built on the Mac itself carries no quarantine flag |
+| Release | `src/release-verify.sh --os "linux darwin"` checks the archives, reading foreign binaries rather than running them; npm platform packaging must retain the same build and manifest checks |
+| Runner | starts agents under the account that runs it, with no cgroup limits and no sandbox: a sandbox request is refused, and agent scripts hold that account's rights. Run it as a dedicated unprivileged account, never an administrator; this suits one owner's own Mac, not a shared one |
 
-## Nested group upgrade
+#### The daemon
 
-From 0.5.57, an `@group` entry inside an ordinary group is a membership edge.
-Earlier snapshots may contain such entries as inert strings. Review existing
-group lists for stray `@`-names before upgrading: a group that exists now,
-or is populated later, grants its effective members every ACL and Maintainer
-permission carried by the containing group.
+On macOS `sudo agent-bus-setup` installs the daemon under its own account and keeps it running through launchd.
 
-Cycles terminate without granting anybody unless another path reaches them;
-unknown groups remain inert. `@administrators` stays direct-only and a snapshot
-that nests a group inside it is refused at startup. Personal agents still
-reject group ACL entries and Maintainer assignments, so this upgrade does not
-widen their assignment rules; 0.7 revises them through
-[Personal](03-records.md#personal-and-shared).
+| Part | macOS |
+|---|---|
+| Account | `_agentbusd`, a hidden role account: an id from 200 free as both user and group, no login shell, no password |
+| Storage | `/usr/local/var/agent-bus/daemon`, 0700, the database and `logs/` |
+| Sockets | `/usr/local/var/run/agent-bus`, 0711; the shared `bus.sock` and the account's own socket only |
+| Job | `/Library/LaunchDaemons/agent-busd.plist`: `agent-busd` as `_agentbusd`, umask 077, kept alive; setup reloads it with `launchctl` |
+| TLS | as on Linux ([TLS](#tls)) |
+| First user | the installer, from their key, through `agent-bus-admin` on the account's socket |
 
-## Empty ACL upgrade
+- Not on macOS: per-role accounts, cgroup limits, the web job, logrotate, a person's runner, `--upgrade`; setup refuses those options.
+- Without `CAP_CHOWN` the daemon cannot hand a socket to another account, so there are no per-user sockets: a person calls with a token (`sudo -u _agentbusd agent-bus token <name>`).
+- Outside Linux the bus child stops itself when its supervisor is gone, where Linux has the kernel's death signal ([how a child is started](08-processes.md#how-a-child-is-started)).
 
-From 0.5.44, existing empty ACLs adopt the [restricted default](02-access.md#acl);
-there is no grandfathered open access. Unrelated callers lose both delivery
-access and visibility: listings omit the record and lookup answers as hidden.
+##### Uninstall the macOS test daemon
 
-Before upgrading, record Owners should explicitly grant any intended peer
-access, including access to reply inboxes. `*` opts into broad sharing; do not
-add it merely to silence a refusal. This release also stops implicit master
-access to empty-ACL resources. The daemon Owner can discover and manage those
-resources through separate [node-wide authority](01-identity-and-authority.md#daemon-owner),
-but still cannot use their message interface without an ACL grant.
+The [MAC.2 acceptance harness](../src/acceptance/mac2-install-check.py) removes only its fresh fixture. It refuses an existing account, job or setup tree before installing; there is no product uninstall command.
 
-Fresh automatic registrations by faces and launchers also follow the default;
-configured sharing survives [metadata re-registration](01-identity-and-authority.md#registration).
-The dedicated runner states grants with [its options](06-dedicated-runner.md#script-agents).
+| Step | Cleanup |
+|---|---|
+| Stop | Boot out `system/agent-busd` with `launchctl`, then stop processes owned by `_agentbusd` |
+| Files | Remove the fixture plist, daemon home, socket directory and `mac2-check` binary tree; this deletes the fixture database |
+| User | `sudo /usr/sbin/sysadminctl -deleteUser _agentbusd` |
+| Group | If `_agentbusd` remains in `/Groups`, `sudo /usr/sbin/dseditgroup -o delete _agentbusd`; `sysadminctl` may already have removed it, which is success |
+| Verify | List `/Users` and `/Groups` with `dscl . -list`; `_agentbusd` must be absent from both. A failed lookup is not absence, and command exit status alone does not prove deletion |
 
-## Owner ACL and master removal
+- `sysadminctl` removed both the test user and group from the owner's console without Full Disk Access.
+- If deletion is still permission-denied, the recovery step is **System Settings → Privacy & Security → Full Disk Access**: enable the terminal app used for cleanup, then quit and reopen it.
+- Retry user deletion and delete the group only if it remains; verify both entries are absent.
+- Use `sysadminctl` and `dseditgroup` for deletion; `dscl` is used only to inspect the directory.
 
-From 0.5.74, `@owner` in an ACL means the record's direct Owner and the agents
-directly owned by that Owner. It is evaluated from current
-registry ownership and is never stored as a group. The `ab-claude`, `ab-codex`,
-`ab-opencode` and `ab-opencode1` launchers add it while preserving existing
-explicit grants; already-running launcher sessions acquire it when next
-restarted.
+- The harness checks both entries, skips an already absent group and verifies absence after deletion even when `dseditgroup` returns nonzero.
+- A remaining entry or an unreadable directory produces a named user/group leftover report, recovery steps and a nonzero exit; it never prints a clean uninstall result in those cases.
+- Granting Full Disk Access and retrying live cleanup remain owner actions.
 
-`@owner` has no stored-group form. Creating or nesting it is refused, and a
-snapshot containing a group with that reserved name fails closed.
+### The two accounts
 
-The same release removes `--master`, `no_master` and the implicit master ACL
-grant. A daemon Owner still
-discovers and manages every resource through
-[node-wide authority](01-identity-and-authority.md#daemon-owner), but message access
-now comes only from record authority or the record's ACL.
+The installer creates two system accounts, the daemon's and the web face's,
+each running its own program under its own unit. A person's runner gets an
+account of its own when it is installed, never by default
+([a person's runner](#a-persons-runner)).
 
-## Daemon ownership upgrade
+| Account | Home | Shell | Runs |
+|---|---|---|---|
+| `agent-busd` | `/var/lib/agent-bus/daemon` | `/bin/sh`, for forced commands | the daemon |
+| `agent-bus-web` | the [web code directory](#install), read only | `nologin` | the [web face](08-processes.md#the-web-face); owns nothing on disk |
 
-`--owner user[@realm]` (or `AGENT_BUS_OWNER`) is required; the daemon no longer
-derives authority from the OS account name. On the first 0.5.55 start it seeds
-legacy state and is written into the snapshot. Later starts trust the stored
-Owner, so changing the flag does not transfer authority. Use the daemon-owner
-transfer API instead.
+| Directory under `/var/lib/agent-bus` | Owner | Mode | Current purpose |
+|---|---|---|---|
+| `daemon/` | `agent-busd` | 700 | Daemon home and its database |
+| `agent.d/` | root | 755 | Shared public agent code, readable by every runner account |
+| `<person>-ab-runner/` | that runner account | 700 | Its inventory, overrides, env files, tokens and work directories |
 
-The daemon OS account's private socket answers as the current daemon Owner,
-not the configured value: a transfer moves it at once, without a restart
-([local socket](02-access.md#local-socket)). A current snapshot whose stored
-Owner is damaged fails startup.
+- The daemon account uses `/bin/sh` because sshd runs even forced commands through the account shell; each issued key is restricted to its named helper, without PTY or forwarding.
+- A runner's account has `nologin` and receives no SSH keys.
+- Setup repairs the daemon account’s former `nologin` default while preserving custom shells; a bus operator choosing one must ensure it can execute the forced helpers.
+- Runtime sockets live at the [access location](02-access.md#local-socket), not under any home.
 
-**Downgrade:** an older daemon ignores the durable Owner fields and derives
-authority from its configured `--owner` again. Resource ACLs and Administrator
-membership remain stored, but daemon ownership reverts to that seed until the
-current version returns.
+#### The two units
 
-## Install
+- **Built:** `/etc/systemd/system/agent-busd.service` for the daemon and `/etc/systemd/system/agent-bus-web.service` for the web face, whose settings [processes § the web face](08-processes.md#the-web-face) owns.
+- The daemon unit no longer passes `--web` or delegates cgroup controllers.
 
-A release carries its TypeScript parts — the web face, the MCP face and the
-launchers — as one compiled binary, `agent-bus-ts`, and needs no bun or Node.
-The web unit executes that binary and the libraries `ldd` reports for it,
-nothing else ([processes § the web face](08-processes.md#the-web-face)). A
-checkout's web face needs **bun at `/usr/bin/bun`** instead; a missing one is
-reported and the daemon still installs, without its web face. No setuid helper
-or capability is granted; the face's listener keeps the host's unprivileged
-port rules.
+| Daemon unit setting | Purpose |
+|---|---|
+| `User=agent-busd` | Run as the service account |
+| Working/state directories and explicit state mode | Keep state under its own home |
+| `RuntimeDirectory=agent-bus` | Recreate the runtime socket directory |
+| `Restart=on-failure` | Restart a failed daemon |
+| `AmbientCapabilities=CAP_CHOWN`, bounded to that capability | Own the per-user sockets without running the daemon as root |
 
-**The web face.** Setup creates the `agent-bus-web` account with the real
-code directory as its home, and fills that directory into the release's unit:
-`/usr/local/lib/agent-bus/current/web` for a release, or the checkout's `src/web`
-for development. `WorkingDirectory`, `ExecStart` and `HOME` name it directly;
-there is no `/var/lib/agent-bus/web` link. Setup computes `ExecPaths` for this
-host, enables and restarts the unit and waits for `/healthz`. `--upgrade`
-refreshes it; `release.sh` restarts it after a switch. Development uses
-`sudo src/web/install-dev.sh`.
+The packaged [installed shared-host checks](../Plans/done/R0.8-MVP/done/installed-shared-host.md#checks)
+run two actual mapped accounts through their own sockets, refuse both cross-
+account attempts, and verify from `/proc` that only the supervisor retains the
+capability.
 
-**Built:** `src/package.sh [output-directory]` creates one version/platform/
-architecture archive and a portable SHA-256 file. The archive contains all six
-Go programs, the MCP face, the web face's sources and unit, four runtime
-launchers, their shared adapter, bundled agent runtimes, license, exact artifact manifest and
-standalone `INSTALL.md`. Build it, verify
-and unpack it, then run `sudo ./agent-bus-setup`. Setup validates the complete
-manifest before changing the host, installs a digest-addressed release under
-`/usr/local/lib/agent-bus`, creates stable commands under `/usr/local/bin`,
-creates the accounts and tree, writes/enables the daemon and web units,
-and installs the first user's key through the admin program. The manifest names
-every file under `web/`, `agents/` and `clients/`, each checked and installed.
-The agent tree includes Slack/Telegram bundles, native agent scripts and installers,
-their shared Python metadata helper, and the Python client with its MIT license.
-They keep their relative paths under the installed release, so no source checkout
-is needed. Native agents require Python 3; their external tools are listed in the
-[agent guides](agents/README.md#choose-an-agent). To build an archive, install the
-MCP and TypeScript client dependencies first (`bun install --cwd src/mcp` and
-`bun install --cwd src/clients/typescript`). `--upgrade` holds the
-release it replaces to that release's own manifest, so one from before 0.8.50,
-with the Go web binary and no `web/` tree, remains a rollback target. A release's
-launcher replaces the Claude channel plugin another release installed; one from
-before 0.9.163 does not, so after rolling back past it run
-`claude plugin uninstall agent-bus@agent-bus-local` once and start `ab-claude`
-again. Without root it
-refuses and prints the command to run. `--dry-run` and `--print-unit` are
-read-only and need no root.
+#### A person's runner
 
-**The release ships its own install script and nothing else.** The tar archive is a
-transport for that script, not a second installer. There is no package registry
-yet ([npm package](#npm-package) is built, unpublished); other distribution is
-[R1 work](../Plans/R1.0-Release/distribution.md#container-runtime). `INSTALL.md` leads with the git install; its release-archive section is the
-packaged path exercised by [installation acceptance](#installation-acceptance).
+- 📌 A [runner](../Plans/R1.0-Release/runner.md#runner) is a person's, and setup installs one only when asked, for one person at a time: `sudo /usr/local/bin/agent-bus-setup --runner install|uninstall|enable|disable [--for <person>]`.
+- Every verb looks first and does only what is missing, so a second run changes nothing, and `--dry-run` prints the plan.
 
-**Development install — how the development node runs.** `sudo src/git-install.sh`
-builds the checkout and symlinks its programs and launchers into
-`/usr/local/bin`; the web face's unit and account name the checkout's
-`src/web` directly. The CLI and every tool are then always the checkout's. A change goes
-live by committing it, then running `src/build.sh && sudo systemctl restart
-agent-busd`, and `agent-bus-web` too after a web edit; back up the database
-first when the daemon changes.
-- **Checkout location:** it must live outside `/home`, since the daemon runs
-  behind `ProtectHome=yes` and cannot exec a binary in a home directory. The
-  script refuses one that does and says where to move it.
-- **Undoing it:** `--revert` copies real binaries back.
-- **State:** daemon state under `/var/lib/agent-bus` is untouched, except by
-  `--reinstall`.
+| For person `alice` | What it is |
+|---|---|
+| `alice-ab-runner` | a system account of its own, `nologin`, so her runner's secrets are apart from everybody else's |
+| `/var/lib/agent-bus/agent.d/` | shared agents' code, root-owned, 755, readable by every runner account |
+| `/var/lib/agent-bus/alice-ab-runner/` | `alice-ab-runner`'s alone, 700: its token in `runner.env`, the tokens of the agents it created, their work directories |
+| `#runner/alice@<host>` | her agent on the bus, allowing `@owner`; the runner is started with its token, never with hers ([who it runs as](../Plans/R1.0-Release/runner-implementation.md#who-it-runs-as)) |
+| `agent-bus-runner@alice.service` | an instance of one template, `/etc/systemd/system/agent-bus-runner@.service`: her account, only its private directory writable, `Delegate=yes`, no capability, `Wants=`/`After=` the daemon, never `Requires=`, and no start while `runner.env` is missing |
 
-**Deploying a fixed release.** `sudo src/release.sh [commit]` is for a node
-that runs a release copy rather than the checkout.
-- **How it builds:** from that commit (HEAD by default) through `git archive`,
-  never the working tree, into
-  `/usr/local/lib/agent-bus/releases/<version>-<sha>`.
-- **How it switches:** it moves `/usr/local/lib/agent-bus/current` to that
-  release with one rename, points `/usr/local/bin` through `current`, restarts
-  the daemon and checks it reports that version. The last five releases are
-  kept, and `--rollback` switches to the previous one.
-- **Not on the development node:** there it would replace the checkout's links
-  with a release copy. `src/git-install.sh` puts them back.
+| Verb | Leaves the host with |
+|---|---|
+| `install` | everything above, started; `--for` defaults to whoever ran `sudo`, and must be an active bus User |
+| `disable` | the unit stopped and disabled, every file kept |
+| `enable` | the unit enabled and started; refused when nothing is installed |
+| `uninstall` | no account, unit instance, `/var/lib/agent-bus/alice-ab-runner/` or `#runner/alice@<host>`, and no template once the last runner goes; shared `agent.d/` always stays, even with `--purge`, and the agents it created stay hers |
 
-**Reinstall.** `agent-bus-setup --reinstall` (and, on a checkout,
-`src/git-install.sh --reinstall`) is the one explicit way to start a node over:
-it stops the daemon, moves its whole home and the unit's drop-ins into a
-root-only `daemon.before-0.7-<time>` directory that nothing reads again, and
-installs fresh — new database, generated unit, the installer as Owner. Every
-old credential stops working. It replaces whichever release is installed,
-0.6 included; the [reinstall procedure](../Plans/done/R0.8-MVP/0.7-cutover.md#procedure)
-owns the steps. It refuses while any process outside systemd
-holds a file in the daemon home, and a failure after the set-aside puts the
-home, drop-ins, unit and release back and restarts a node that was running.
+The runner accepts `--agents <dir>` (default `/var/lib/agent-bus/agent.d`)
+and required `--host <dir>` for its private directory; `--home` is removed.
+There is no `runners/` directory or per-person agent code tree.
 
-**Setup over a running node.** Plain setup restarts a running
-daemon when the unit it writes differs or the running release and
-`build_info` are not the installed program's, then waits, as `--upgrade`
-does, until `/identity` reports that release and build. It prints the node's
-durable Owner, which `--owner` only seeded
-([daemon ownership](#daemon-ownership-upgrade)).
+- **Unreleased development migration:** setup refuses an existing `/var/lib/agent-bus/runners/` before doing anything.
+- Stop the old runner, keep a root-private tar of that tree, then move its `agent.d` to the shared path and its `runner/` to the account-named path.
+- Refuse any destination or code-name clash; do not merge or overwrite it.
+- A clash after an interrupted move may be a partial migration: restore the old layout from the private tar and set aside partial destinations before retrying.
+- Make shared code root-owned and readable, keep private state owned by the runner account at 0700, update the account's home, remove the empty old directories, and run `--runner install --for <person>` to refresh the unit.
+- Start and verify before removing any backup.
 
-The current link changes by one atomic rename after the complete release and
-all stable command links exist. A failed first install is recovered by running
-the same setup again; an identical release is reused. Plain setup refuses to
-replace a different release. The standalone package instructions define the
-`--upgrade` and interrupted `--recover` paths; their populated-node behavior is
-accepted under [H.1.1](../Plans/done/R0.8-MVP/done/upgrade-recovery.md#checks).
+Install and enable refuse an existing runner record unless it is an Agent
+owned by the intended person. A lookup failure other than a missing record
+aborts the plan, including uninstall, before local recovery files are removed.
 
-## Simple install
+- The runner reaches the bus through the shared socket with its token, so no account is mapped for it.
+- `runner.env` is setup's alone to write and holds one line, `AGENT_BUS_TOKEN=<token>`, a token being hex digits: systemd reads it as the unit's `EnvironmentFile`, setup reads it with the bus's [env-file parser](03-records-service.md#env-file-syntax), and that one line means the same to both, so it is no second syntax to keep in step.
+- A node with no runner still serves every face.
 
-Install the full node or client through the [npm package](#npm-package), then explicitly set up the node if needed. The shell installer is not the release installation path.
+#### A person's user-account runner
 
-## Administering the account map
+- 📌 Some agents must act **as the person**: start their tmux sessions, use their logins, their user manager and their files.
+- The system runner above deliberately cannot, since it runs under its own account.
+- For those few agents a person gets a second runner, `#runner/<person>-user@<host>`, running as them under their own systemd user manager.
+- Install it only through setup; everything else stays in the system runner.
 
-**Built.** The durable local-account map is administered by the daemon Owner or
-an Administrator with credentials that already exist: an **operator SSH key**,
-whose forced command is `agent-bus-admin <principal>` ([SSH admin](#ssh-admin)),
-or that principal's **user token** against the API
-([getting a token](02-access.md#getting-a-token)).
+| Use | When the agent |
+|---|---|
+| the system runner, `#runner/<person>@<host>` | only needs the bus and what its package declares; the default for every agent |
+| the user-account runner, `#runner/<person>-user@<host>` | must act as the person: tmux sessions ([`#tmux-sessions`](agents/tmux-sessions.md#installing-it)), their CLI logins, their home |
+
+- `sudo /usr/local/bin/agent-bus-setup --runner install|uninstall|enable|disable --user-runner [--for <person>] [--dry-run]`, and `--runner refresh --user-runner` for every installed one.
+- `--for` defaults to whoever ran `sudo`.
+- Like the system runner, every verb looks first and does only what is missing, so a second run changes nothing.
+
+| For person `alice` | What it is |
+|---|---|
+| `alice` | her own Linux login account (uid at least `UID_MIN`, a login shell); root, system and `nologin` accounts are refused. The bus keeps no uid, so the same name is the whole binding, and root runs the install |
+| `/etc/systemd/user/agent-bus-runner.service` | one template for every person, root-owned: `ExecStart=/usr/local/bin/agent-bus-runner`, `Delegate=yes`, `KillMode=mixed`, a bounded restart, and no sandbox directives, because its agents act in her whole context; each agent's own sandbox stays the control |
+| `~/.local/state/agent-bus/runner/` | hers, 0700: `runner.env` with the runner agent's token (never hers), the inventory, the agents' tokens |
+| `~/.local/share/agent-bus/agent.d/` | hers, 0700: only the packages she puts there; the shared `agent.d` is never visible to it |
+| `#runner/alice-user@<host>` | her agent on the bus, allowing `@owner` |
+| linger | enabled, so the runner starts at boot without a login; uninstall leaves it as found |
+
+- Root never opens a path under her home: every observation and change there is made by setup re-executed as her (`setpriv`, no new privileges, no inherited environment), so a link she plants leads only where she can already go.
+- Setup asks her user manager only about `agent-bus-runner.service`; it never stops her user manager or a session scope.
+
+**Her secrets are readable by her own processes**, her AI sessions included:
+the runner's token and its agents' tokens and env files live in her home.
+Give it only agents she would trust with her login.
+
+- `git-install.sh` and `--upgrade` refresh every installed user-account runner one by one: the template is rewritten when it differs and each runner restarts.
+- She sees her runner's agents restart (a call in flight to one of them fails once); her tmux sessions do not.
+- The template goes with the last runner the registry knows of, so a unit enabled by hand without a record loses it then.
+- Her tmux sessions are untouched: each lives in its own `ab-session-<name>.scope` beside the runner in her user manager, outside the runner's cgroup, so a reload, a stop, a crash or a refresh leaves every window and pid as it was ([acceptance](../src/acceptance/user-runner-container.sh)).
+
+<details><summary>Add an agent to it</summary>
+
+As the person, package the agent into the user-account runner's code tree and
+name it in the inventory; then reload the runner:
+
+```sh
+/usr/local/lib/agent-bus/current/agents/standalone/tmux-sessions/package.sh ~/.local/share/agent-bus/agent.d/tmux-sessions
+printf '%s\n' '{"tmux-sessions":{"enabled":true,"sandbox":"off"}}' > ~/.local/state/agent-bus/runner/agents.json
+agent-bus call '#runner/alice-user@node.example' reload
+```
+
+- On a node running from a checkout, the package script is under `src/agents/standalone/`.
+- An existing record (an earlier standalone `#tmux-sessions/<instance>`) keeps its name, Configuration, ACL, owner and tags: give the inventory entry its `name` and hand its token over as for any [existing agent](runner/security.md#what-runs-as-what); then stop the old standalone unit.
+- Its windows keep running, and later starts keep the old unit's `XDG_STATE_HOME` ([`state_home`](agents/tmux-sessions.md#configuration)).
+
+- A base record and an instance together (`#tmux-sessions` and `#tmux-sessions/ab-dvp`) cannot use the keys `tmux-sessions` and `tmux-sessions/ab-dvp`: the base key's work directory holds the instance's, so the runner refuses both.
+- Disable the base key — an absent key counts as enabled — and give the base record a sibling key with its `name`:
+
+```json
+{"tmux-sessions": {"enabled": false},
+ "tmux-sessions/main": {"name": "#tmux-sessions@node.example", "sandbox": "off"},
+ "tmux-sessions/ab-dvp": {"sandbox": "off"}}
+```
+
+</details>
+
+### TLS
+
+- Setup asks, at a terminal, whether to enable SSL on the daemon's port, but only when the node has neither TLS nor an earlier `--tls off`, and never with `--upgrade`, `--recover`, `--dry-run` or `--print-unit`.
+- Yes means a certificate it generates or one you provide, chain included.
+- Otherwise the flags decide, and without flags a node keeps what it has.
+- An unreadable TLS directory fails with its permission error; setup never infers TLS-off from it or widens its modes.
+- Writing TLS files restarts a running daemon even when its unit and release are unchanged.
+- Reinstall sets the TLS directory aside with the old state and restores it on rollback.
+- The port answers TLS beside plain HTTP ([remote access § over HTTPS](02-access-remote.md#over-https)).
+
+| Flag | |
+|---|---|
+| `--tls self-signed` | generate an ECDSA P-256 certificate, valid ten years, for `localhost`, `127.0.0.1`, `::1`, the host's names and addresses, and each `--tls-name`; run again, it generates a new one, so clients fetch the fingerprint again |
+| `--tls files --tls-cert c --tls-key k [--tls-chain ch]` | check that the key is the certificate's, that the chain parses and that the certificate has not expired, then copy them |
+| `--tls off` | plain HTTP only, recorded as a `disabled` file in the directory, so later runs keep it so until `--tls` turns it on again; the files stay where they are |
+| no `--tls` | keep what the node has: a re-run and `--upgrade` never drop TLS; `--tls` itself is refused with `--upgrade` or `--recover` |
+
+<details>
+<summary>Files, modes and what setup prints</summary>
+
+- **Where:** `/etc/agent-bus/tls/`, `root:agent-busd 0755`, so any user can read the public certificate. Setup and upgrade repair older directory modes without rotating the certificate.
+- **Files:** `cert.pem` and `chain.pem` `0644`; `key.pem` `root:agent-busd 0640`. Each is written aside and renamed into place. A choice without a chain removes an old `chain.pem`, which would otherwise be appended to the new certificate.
+- **Unit:** it carries `--tls-dir /etc/agent-bus/tls` exactly while TLS is on. A present directory that does not load stops setup before the unit is written.
+- **Output:** setup ends with the fingerprint and the client settings, `AGENT_BUS_ADDR=https://<host>:<port>` and `AGENT_BUS_TLS_FINGERPRINT=sha256:…`.
+- **The web face:** it gets its own copy in `/etc/agent-bus/web-tls/`, `root:agent-bus-web 0755`, with the key `0640`, so neither account reads the other's key.
+  - A drop-in, `agent-bus-web.service.d/tls.conf`, names that copy (`AGENT_BUS_WEB_TLS_DIR`).
+  - Its port then serves TLS and redirects plain HTTP there to `https://`.
+  - Setup waits for its health over `https://`, pinned to the copy.
+- Setup starts the face once at the end, when its unit, TLS files, runtime or code bytes changed, or when it is not running. The applied record is written after health answers; a release switch counts as a change. Identical runs leave a healthy face alone.
+  - `--tls off` removes the drop-in, and a re-run or `--upgrade` keeps what the node has.
+
+</details>
+
+#### Trust the web certificate in your browser
+
+A self-signed web certificate must also be trusted by the browser. Without
+trust, the browser shows **Not secure** and will not offer to save the token
+as a password. Trusting it for the CLI does not change browser trust.
+
+First, on the node (or over a trusted SSH connection), check the public web
+certificate's SHA-256 fingerprint:
+
+```sh
+openssl x509 -in /etc/agent-bus/web-tls/cert.pem -noout -fingerprint -sha256
+```
+
+Compare it with the SHA-256 fingerprint in the browser's certificate viewer
+before trusting or importing it. Use the public `cert.pem`, never `key.pem`.
+If the browser is on another computer, copy only that public certificate over
+SSH and check the same fingerprint there.
+
+- **Chrome or Chromium on Linux:** with `certutil` installed, run this as the browser's user, without `sudo`:
+
+  ```sh
+  certutil -d "sql:$HOME/.pki/nssdb" -A -t "P,," -n agent-busd-web -i /etc/agent-bus/web-tls/cert.pem
+  ```
+
+-   Fully exit Chrome/Chromium, including background processes, then reopen it. - **Firefox:** import the public certificate under **Settings → Certificates   → Servers**, or open `about:certificate`.
+- Confirm that its fingerprint   matches before keeping the certificate exception for the web address. - **macOS:** import the public certificate in **Keychain Access**, open its   **Trust** settings and choose **Always Trust** after checking the fingerprint.
+
+Reopen the HTTPS web page and check that the certificate warning is gone.
+If setup replaces the certificate, verify its new fingerprint and update the
+browser's trust entry before signing in again.
+
+### Local users
+
+Setup asks for two things per user, and they are **configuration, not
+credentials**:
+
+| Config field | Purpose |
+|---|---|
+| local account | the OS account on this host; resolved to its uid |
+| bus username | the principal it *is* — `parf@localhost`, `parf@github`, `parf@realmo` ([identity § names](01-identity-and-authority.md#names)) |
+
+From that the daemon opens one socket per user
+([access § local socket](02-access.md#local-socket)) and knows who is calling
+on every request.
+
+- Result: a bus that **serves every user on the host at once**, so record ACLs apply per user with nothing for anyone to configure.
+- Setup's initial principal is the first daemon Owner; after transfer, the stored current Owner holds node-wide management authority ([identity § daemon owner](01-identity-and-authority.md#daemon-owner)).
+
+### SSH admin
+
+- Setup adds the installer's public key through the admin program.
+- Each entry in the daemon account's `authorized_keys` is restricted to a forced command: the fixed `agent-bus-token <principal>` wrapper for an ordinary key, or `agent-bus-admin <principal>` for a bus operator.
+- The wrapper executes only the sibling CLI’s `token` verb, never a verb from the SSH request.
+- Existing forced-command paths remain valid.
+- The entitlement is the principal in that entry; `SSH_ORIGINAL_COMMAND` is parsed as a request, not executed as shell text.
+- The forced command names the program as it was invoked (`/usr/local/bin/…`), which follows the live release, never the release directory a later deploy prunes.
+- For host administration, `agent-bus-admin` becomes the daemon account through sudo, which drops `AGENT_BUS_ADDR`, so with an `AGENT_BUS_ADDR` naming another daemon and no `AGENT_BUS_HOME` it refuses rather than edit the installed one.
+
+- **`user add` creates the user it adds.** A credential is only issued to a name the daemon already holds a profile or a record for ([getting a token](02-access.md#getting-a-token)), so writing the `authorized_keys` line alone would leave a key whose forced command is refused — which is no way in at all.
+- The verb writes the line and creates the user, and `--admin` additionally grants [Administrator membership](01-identity-and-authority.md#groups).
+- Authority is granted only where it was asked for: Administrator standing is membership, derived by the daemon, never a field a caller may claim.
+
+- The two halves are kept together.
+- The key line is written first because it is the half that can be taken back — a user is never deleted ([user lifecycle](01-identity-and-authority.md#user-states)) — and it is removed again if the daemon refuses.
+- **The daemon has to be running**: with no way to create the name, `user add` refuses rather than leaving a key that works before the name exists.
+- Start the daemon and run it again.
+
+- **From the web face.** Whoever may edit a User — the daemon Owner, or an Administrator for an ordinary User — may paste that User's `ssh-ed25519` public key on Add user or the User's page.
+- The daemon writes the same line `user add` writes, forced to the credential wrapper, under a file lock both writers take; setup's unit passes `--ssh-keys` (the account's `authorized_keys`) and `--ssh-token` (the program beside the installed daemon), and without them the call answers that keys are added on the host.
+- Only the key itself reaches the file — the daemon parses the one line and rebuilds it, so no option or comment is copied.
+- A second key replaces the first; other key types and operator keys stay host-side, and a bus operator's line is never replaced from the web.
+
+- `user import-local <user[@realm]> <account>` fills a blank person name from the OS account database.
+- It accepts an account name rather than profile text and preserves an existing name.
+- Setup runs it when it installs the first user's key; a bus operator may run it later when setup found no key.
+
+- `user add-local <user[@realm]> <account>` creates a User with no key and maps that local account's socket to it, so the socket is its only way in; the account must exist on the host, and a User or mapping already in place is not a failure.
+- Setup no longer runs it for a runner: since 0.8.149 a person's runner holds its own token ([a person's runner](#a-persons-runner)).
+
+- The implemented admin verbs are `user add`, `user add-local`, `user import-local`, `user list`, `user remove`, `account list`, `account set`, `account remove`, `token` and `tls`, plus Owner-only local `export` and `import`.
+- A forced command answers `token --fingerprint` with no name or credential.
+- The token operation is delegated to the token helper with the key entitlement and original request kept separate: `token --rotate` rotates that identity; asking for another identity is refused.
+- Console and SSH use the same program.
+- Bundle administration and regeneration of keys are not part of this grammar.
+
+### Administering the account map
+
+- **Built.** The durable local-account map is administered by the daemon Owner or an Administrator with credentials that already exist: an **operator SSH key**, whose forced command is `agent-bus-admin <principal>` ([SSH admin](#ssh-admin)), or that principal's **user token** against the API ([getting a token](02-access.md#getting-a-token)).
 
 Nothing new is minted for it and no separate administrative password exists.
 The entitlement is the principal in the key's entry, exactly as it is for every
@@ -341,43 +499,212 @@ agent-bus-admin account remove <local-account>
 sudo systemctl restart agent-busd
 ```
 
-The mapped principal must already be known and active, and the local OS account
-must exist. The daemon Owner may map any principal. An Administrator may map only their own User identity or an Agent they own; they may not map another User. The daemon account's own socket is implicit and cannot be reassigned
-or removed. A successful edit is in the database before it is acknowledged,
-but listeners belong to the supervisor: the command reports `restart required`
-until a full daemon restart applies the desired map. A bus-child restart alone
-keeps the existing listeners.
+- The mapped principal must already be known and active, and the local OS account must exist.
+- The daemon Owner may map any principal.
+- An Administrator may map only their own User identity or an Agent they own; they may not map another User.
+- The daemon account's own socket is implicit and cannot be reassigned or removed.
+- A successful edit is in the database before it is acknowledged, but listeners belong to the supervisor: the command reports `restart required` until a full daemon restart applies the desired map.
+- A bus-child restart alone keeps the existing listeners.
 
-The first current start seeds this map from setup's `--user` flags. Once the
-database carries the establishment marker, the stored map is authoritative;
-changing or retaining an old flag cannot restore a removed mapping. Startup
-rejects malformed mappings, duplicate accounts, missing OS accounts and any
-attempt to put the implicit daemon account into the editable map. Retired socket
-paths are removed when the new supervisor starts.
+- The first current start seeds this map from setup's `--user` flags.
+- Once the database carries the establishment marker, the stored map is authoritative; changing or retaining an old flag cannot restore a removed mapping.
+- Startup rejects malformed mappings, duplicate accounts, missing OS accounts and any attempt to put the implicit daemon account into the editable map.
+- Retired socket paths are removed when the new supervisor starts.
 
 **Downgrade:** an older daemon ignores the durable map and returns to its
 configured `--user` flags until the current version returns. Review those flags
 before rollback; they may describe an earlier identity assignment.
 
-## Installation acceptance
+### Storage
 
-**Fresh installation is built and accepted.** A disposable host with real
-systemd and the system bun installs from only the archive and standalone
-instructions, starts the generated daemon and web units and completes a real
-call over the bus. Removing a daemon binary, MCP face, web face or launcher face separately
-fails before accounts, state, unit or current release exist. The retained
-[H.1 evidence](../Plans/done/R0.8-MVP/done/fresh-install.md#checks) records the host and
-claim limits.
+| Built store | Holds |
+|---|---|
+| SQLite database `agent-bus.db`, mode 0600, held exclusively | Daemon Owner, local-account map, users, registry, groups, credentials and issued times, queue contents, counters, each record's [key-value store](03-records-kv.md#key-value-store), its [activity history](05-discovery.md#activity-history) by day, and the clean-stop marker; an older schema is migrated forward at open |
+| Memory only | Browser sessions, outstanding readers, [locks](01-identity-and-authority.md#shared-locks), uptime and recent envelope feed |
 
-**Upgrade/recovery is built and accepted.** The installer verifies and stages
-the next release while the old daemon serves, then stops cleanly, backs up the
-whole daemon home, switches `current`, starts and checks both public identity
-and the unit's real process tree. The existing unit and drop-ins remain byte
-identical. A failed start restores the prior release with its matching database,
-credentials and SSH authorization; an interrupted transaction leaves a durable
-marker for the documented `--recover` command. The retained
-[H.1.1 evidence](../Plans/done/R0.8-MVP/done/upgrade-recovery.md#checks) covers credentials,
-registry, queued state, ACLs, local mappings and operator configuration.
+- It is reached through `modernc.org/sqlite` behind the store ports.
+- The daemon is told where the database is with `--db`; setup runs `agent-busd --init` once, as the daemon account, to create it, and the unit never passes `--create`.
+- An empty file a create left behind is finished by the next create, and refused as empty without one; a file holding anything else is never taken for one.
+- Every record and user carries an internal ID: stable, persisted, never on an answer, and never handed out twice, because the database keeps each high-water mark rather than deriving it from what is left.
+- Other database backends are [R1.1 work](../Plans/R1.1/storage.md#backends).
+- Durability is defined in [messaging § durability](04-messaging.md#durability).
+- SQLite state and backups retain the daemon account's private directory and file boundary.
+- History: the [0.7 transition](../Plans/done/R0.8-MVP/0.7-cutover.md#scope) was a clean reinstall, reading no earlier store.
+
+### Backup and restore
+
+#### Encrypted record backups
+
+- The daemon Owner exports permanent record content online, encrypted by `age` to their enrolled Ed25519 SSH public keys.
+- Install `age` on the daemon and restore host.
+- Run as your own login user, without sudo: export and import use your local login socket, never an administrative account handover.
+
+```sh
+agent-bus-admin export
+agent-bus-admin export --include=tag:ops --exclude=name:#retired@demo --out=ops.tar.gz.age
+agent-bus-admin import ops.tar.gz.age --dry-run --keep-existing=all
+agent-bus-admin import ops.tar.gz.age --keep-existing=all
+```
+
+- Setup and upgrade create `/var/lib/agent-bus/record-backups/`, owned by `agent-busd`, mode 0700.
+- A managed `record-backups.conf` unit drop-in grants the daemon's strict mount namespace write access to that directory.
+- Default filenames are `<full|partial>-<host>-<UTC>.tar.gz.age`; the command prints the archive and adjacent `.info` paths.
+- This directory is separate from root's stopped-daemon backups in `/var/lib/agent-bus/daemon.backup/`.
+
+<details>
+<summary>Selection, sidecars, conflict choices and realm mapping</summary>
+
+- No selectors means full. `--include` and `--exclude` accept names or tags, repeatable or comma-separated; exclusion wins. Users and groups are included by default. Write `name:<name>` or `tag:<tag>` explicitly when needed: a bare selector matching both, or matching nothing, is refused. `all` is reserved for import conflict options.
+- Archives hold records, ACLs, Maintainers, roles, tags, group membership, Configuration, Secret, typed KV and current/previous persistent credentials. They omit messages, locks, transient sessions, readers and the daemon's reserved `#bus` record. They do not transfer SSH enrollment or local account mappings; enroll the restoring Owner on the destination first.
+- Every file export has an open `.info` with kind, source host, version, time, caller, selection rules and resolved names, recipient fingerprints and the ciphertext SHA-256. It contains no Secret or token values. The encrypted manifest holds the same immutable info; its ciphertext hash belongs only outside the ciphertext.
+- `--out=<path>` writes on the caller's machine with an adjacent sidecar. `--out=- --info=<path>` streams only ciphertext to stdout and writes the sidecar separately. Without `--info`, streaming writes no sidecar and says so on stderr. `--info` is invalid without `--out=-`.
+- Import decrypts locally with `--key=<file>` (default `$HOME/.ssh/id_ed25519`). A missing sidecar is allowed and reported as "no sidecar"; a present mismatched hash or info is refused. Wrong keys fail before contacting the daemon.
+- Every existing record or user needs `--keep-existing`, `--replace` (records) or `--replace-users`. These and `--replace-tokens` accept the same selectors or `all`. Conflicting choices fail. Existing credential bytes stay unless `--replace-tokens` names their principal, and the report names every principal whose archived token was not retained. New principals retain their archived credentials, rebound to the destination's internal IDs.
+- Import validates the whole archive and reports every name conflict before applying one transaction. `--dry-run` makes no changes. Keep-existing applies only to names already present, so `--keep-existing=all` still imports new records. An imported private agent may need its ACL dependencies present.
+- Names keep their realm exactly. Repeat `--rename-realm=<from>=<to>` for an explicit mapping, or use `--rename-realm==<to>` for realm-less identities. Only typed names and ACL/group references change; Configuration, Secret and KV content stays opaque. Each identity mapping is reported.
+
+</details>
+
+#### Stopped-daemon backup
+
+- **A stopped-daemon backup is the whole daemon home.** The daemon holds its database exclusively, so no online copy exists: `sqlite3 .backup` and every other reader get `database is locked`.
+- A graceful stop flushes queues and counters and checkpoints the WAL into `agent-bus.db`, so the stopped home is complete and consistent.
+- The pause is the stop plus the start.
+
+| Step | As root |
+|---|---|
+| Back up | `systemctl stop agent-busd`, then `tar -C /var/lib/agent-bus -cpf <backup>.tar daemon`, `chmod 600 <backup>.tar`, `systemctl start agent-busd` |
+| Restore | Install the same release (on a new host, `agent-bus-setup` as in [install](#install)), `systemctl stop agent-busd`, `rm -rf /var/lib/agent-bus/daemon`, `tar -C /var/lib/agent-bus -xpf <backup>.tar`, `systemctl start agent-busd` |
+
+<details>
+<summary>What it covers and what to keep in mind</summary>
+
+- The home holds the database (users, records, groups, configurations, secrets, credentials, ownership, queue contents and counters) and `.ssh/authorized_keys`; together they are the node. The archive holds live credentials and secrets: keep it root-only.
+- Restore **replaces the whole home**. Copying only `agent-bus.db` over a home that still has an `agent-bus.db-wal` from the state being replaced — left by any unclean stop — lets SQLite replay that newer WAL onto the older database.
+- A restore is exactly the backed-up state: later users, keys, records, rotations and traffic are gone, and credentials issued after the backup stop authenticating.
+- The local-account map is restored with the database; a new host needs the same OS accounts for their sockets. Logs, the unit and the runner's `agent.d` are not part of the backup.
+- A backup taken without the stop is not supported: the database file lacks what is still in the WAL and in memory.
+
+- **Accepted** by `src/acceptance/backup-restore.sh`: a populated disposable host is backed up twice, an older backup restored over newer uncleanly stopped state returns exactly that older state, and a fresh host restored from the newer one matches its listings, owners, `config_sha`, `secret_sha`, queued and in/out/dropped counts and credentials, then keeps unflushed traffic over a graceful restart and loses only post-flush traffic in a bus-child crash ([durability](04-messaging.md#durability)).
+
+</details>
+
+### Logs
+
+The daemon writes the [three logs](constitution.md#logs)
+under `--log-dir`, which setup makes `/var/log/agent-bus/`: owned by
+`agent-busd`, group `adm`, mode `2750`, so every log the daemon creates there is
+readable by `adm` and by nobody else. The files are `0640`.
+
+| File | Written |
+|---|---|
+| `audit.log` | always: one line per administrative action or entity edit — actor, operation, target, result and, over TCP, the client address |
+| `error.log` | always: warnings, errors and alerts; managed units also enable the [syslog copy](user/daemon.md#environment-defaults) |
+| `debug.log` | only when asked for, by `--debug-log` at start or by the daemon Owner with `POST /debug {"on": true}` at run time |
+
+Without `--log-dir` a development daemon writes them to `logs/` beside its
+database. Setup installs `/etc/logrotate.d/agent-bus`: weekly, eight kept,
+compressed, by copy and truncate so the daemon never reopens a file.
+
+### Config locations
+
+- Current daemon configuration comes from command flags and environment; setup writes the flags into its unit.
+- The per-program defaults are in [daemon source](../src/cmd/agent-busd/main.go).
+- A general configuration-file format is not implemented.
+- Per-record ACL editing is available through the [web face](../src/web/web-face/records.md#settings).
+
+### Sample data
+
+- `sudo /usr/local/bin/agent-bus-setup --samples` fills a running node with something to look at, from a galaxy far, far away and from Spaceballs, each name in its own realm; `sudo /usr/local/bin/agent-bus-setup --remove-samples` takes exactly that away again.
+- Both write as the daemon Owner on the daemon account's socket; with `AGENT_BUS_ADDR` set to a development daemon's owner socket they need no root.
+
+| Kind | Samples |
+|---|---|
+| Users | `luke@tatooine`, `leia@alderaan`, `han@corellia`, `yoda@dagobah`, `vader@empire`, `lone-starr@druidia`, `vespa@druidia`, `dark-helmet@spaceball`, `yogurt@vega` |
+| Agents | `#r2d2@naboo` (Maintainer, configuration), `#c3po@tatooine`, `#k2so@scarif`, `#dot-matrix@druidia` (Personal), `#barf@druidia` |
+| Services | `death-star@empire` (Maintainers, secret, configuration), `death-star-ii@endor` (inactive), `jedi-archives@coruscant`, `spaceball-one@spaceball`, `schwartz@vega` (secret) |
+| Queues | `rebel-alerts@hoth`, `jabba-debts@tatooine`, `air-supply@druidia`, `falcon-repairs@corellia` (Personal), `droid-inbox@tatooine` (Deliver-To route to `#r2d2@naboo`) |
+| PubSub | `imperial-news@empire`, `spaceballs-merch@spaceball`, `jedi-journal@dagobah` (Personal) |
+| Groups | `@rebels`, `@jedi`, `@empire`, `@spaceballs` |
+
+| Rule | |
+|---|---|
+| Idempotent | a second `--samples` changes nothing and sends no message twice |
+| Real data | a name that exists without its sample description — or a user with another person name — is left alone, on adding and on removing, and named |
+| Removal | sample records are drained and unregistered; sample groups are emptied, which is how a group retires; sample users are deactivated, since the daemon never removes a user. `--samples` again brings them back |
+
+### Development node cleanup
+
+The development node has two weekly timers. Their root-owned script is
+`/usr/local/libexec/agent-bus-node-cleanup.py`, installed from
+`src/maintenance/node-cleanup.py`. Both take the shared gate lock; a busy gate
+makes maintenance skip that run. They never delete session records.
+
+| Scope | Bound | Job |
+|---|---|---|
+| parf's Go build cache | clean above 10 GiB | user `agent-bus-cache-cleanup.timer`, Sunday 04:00 |
+| checkout `tmp/cargo-target` | clean above 5 GiB | same user timer |
+| release directories | current plus one newest other release | root `agent-bus-node-cleanup.timer`, Sunday 05:00 |
+| stopped-daemon backup archives | newest three; matching unit sidecars follow their archive | same root timer |
+| record export archives in `/var/lib/agent-bus/record-backups/` | newest five full and ten partial; each `.info` follows its archive | same root timer |
+| our ABRT entries | 100 MiB total; oldest removed first | same root timer; other applications untouched |
+| attributable test `/tmp` directories | older than one day, not referenced by a live process | same root timer |
+| daemon log files | daily rotation, 10 MiB early rotation, three archives | `/etc/logrotate.d/agent-bus` |
+
+- `/tmp` attribution requires parf ownership plus a bus executable, a Go import of this module, or a test function name from this checkout.
+- Symlinks are not followed.
+- Unrelated caches, crash dumps and temporary files stay untouched.
+- Runner and standalone agents use the shared system journal, not private log files; its host retention policy remains in force.
+- Maintenance does not vacuum other applications' journal entries.
+
+- Install or refresh the root-owned script and unit files from `src/maintenance/`.
+- Enable the cache timer with `systemctl --user enable --now agent-bus-cache-cleanup.timer` and the root timer with `sudo systemctl enable --now agent-bus-node-cleanup.timer`.
+- Inspect them with `systemctl --user list-timers` and `sudo systemctl list-timers`.
+- Caches rebuild on demand.
+- The thresholds are weekly high-water checks, not hard quotas between runs; logrotate checks its size bound on its daily run.
+
+### Post-deploy check
+
+- Run `src/check-deploy.sh` after each deploy; its optional target overrides the default `#debug@<realm>` derived from `agent-bus status` (or the host name if no realm can be read).
+- For a specific instance, use `src/check-deploy.sh '#debug@<node>'`, as a caller allowed by debug’s `@owner` ACL.
+- A failed or missing selftest fails the check; see [the bus doctor](agents/debug.md#check-the-bus-in-a-minute).
+
+### Deploy only the changed component
+
+Commit before deployment. A shared version bump alone does not require
+rebuilding or restarting unrelated components. Keep existing ACLs,
+Configuration and Secrets; use read-only probes unless the task asks for a post
+or an operation.
+
+| Changed component | Minimum deployment | Verify |
+|---|---|---|
+| Web TypeScript | Restart `agent-bus-web`; no Go build or daemon restart | The affected signed-in page and handler |
+| Runner | Stamped `src/build.sh`, restart its `agent-bus-runner@<person>` unit | Runner status, the affected agent and `src/check-deploy.sh` |
+| Slack, Telegram or debug | Run that agent's `package.sh` into its installed `agent.d` directory, then call its runner's `reload`; a shared helper changes each bundle that includes it | The affected agent's `whoami` or `ping`, its new behaviour and process restart |
+| Standalone Python | Restart its unit; reinstall only when its unit arguments or installer changed | A read-only method and preserved ACL |
+| Daemon | Back up the stopped daemon home, stamped `src/build.sh`, restart `agent-busd` | Reconnection, the changed API/authority path and `src/check-deploy.sh` |
+| Documentation | Link and accuracy checks, then commit | No version bump, mutant, build or restart |
+
+- Packagers at `src/agents/<name>/package.sh` replace their public code directory as a whole, removing files the package no longer ships.
+- Keep cursors, caches and other runtime state in the runner’s work directory, outside `agent.d`. A failed build leaves the previous code tree intact.
+- Reload the runner after packaging an enabled agent. A running process may otherwise fail when it imports a file from the replaced tree.
+- A forced kill or power loss between the two directory moves can leave the installed directory missing. The previous tree remains in a sibling `<name>.old.XXXXXX/previous` directory; restore it to the agent’s installed path before reloading.
+- The next packaging run does not sweep leftover `<name>.new.XXXXXX` or `<name>.old.XXXXXX` directories. Once the installed tree is verified and no packager is running, remove those leftovers; keep any `previous` tree needed for recovery.
+- The standalone tmux-sessions packager uses the same replacement helper, shipped beside it in the release, so it also removes obsolete files when repackaging on an installed host.
+
+The [build stamp](#build-information) is required for shipped Go binaries.
+A live Git checkout is never a reset/clean/push/autopull test fixture.
+
+### Installation acceptance
+
+- **Fresh installation is built and accepted.** A disposable host with real systemd and the system bun installs from only the archive and standalone instructions, starts the generated daemon and web units and completes a real call over the bus.
+- Removing a daemon binary, MCP face, web face or launcher face separately fails before accounts, state, unit or current release exist.
+- The retained [H.1 evidence](../Plans/done/R0.8-MVP/done/fresh-install.md#checks) records the host and claim limits.
+
+- **Upgrade/recovery is built and accepted.** The installer verifies and stages the next release while the old daemon serves, then stops cleanly, backs up the whole daemon home, switches `current`, starts and checks both public identity and the unit's real process tree.
+- The existing unit and drop-ins remain byte identical.
+- A failed start restores the prior release with its matching database, credentials and SSH authorization; an interrupted transaction leaves a durable marker for the documented `--recover` command.
+- The retained [H.1.1 evidence](../Plans/done/R0.8-MVP/done/upgrade-recovery.md#checks) covers credentials, registry, queued state, ACLs, local mappings and operator configuration.
 
 The fresh-install and reinstall gates compare every installed command's and
 the running node's `build_info` with the archive's own, not only VERSION; the
@@ -399,646 +726,134 @@ The real-browser gate has a `TLS=1` variant ([browser acceptance](05-discovery.m
 
 </details>
 
-SSH onboarding is accepted through an actual sshd installation for both
-ordinary and operator keys, including the documented token command,
-entitlement enforcement and restricted access. Checking generated
-`authorized_keys` text alone is insufficient. The [SSH onboarding evidence](../Plans/done/R0.8-MVP/done/ssh-onboarding.md#checks) records the real-sshd exercise and its environment limits; its [0.7 re-run](../Plans/done/R0.8-MVP/done/ssh-onboarding.md#07-re-run) adds realm-less names, two-token rotation and credentials surviving a restart.
+- SSH onboarding is accepted through an actual sshd installation for both ordinary and operator keys, including the documented token command, entitlement enforcement and restricted access.
+- Checking generated `authorized_keys` text alone is insufficient.
+- The [SSH onboarding evidence](../Plans/done/R0.8-MVP/done/ssh-onboarding.md#checks) records the real-sshd exercise and its environment limits; its [0.7 re-run](../Plans/done/R0.8-MVP/done/ssh-onboarding.md#07-re-run) adds realm-less names, two-token rotation and credentials surviving a restart.
 
 [Backup and restore](#backup-and-restore) is accepted on packaged hosts.
 
 [H.1.1](../Plans/done/R0.8-MVP/done/upgrade-recovery.md#checks) records completed upgrade/recovery acceptance;
 [H.5.2](../Plans/done/R0.8-MVP/done/ssh-onboarding.md#checks) records the completed SSH exercise.
 
-## Build information
+### Status
 
-Building the daemon and CLI needs cgo and a C compiler for
-[processes § process titles](08-processes.md#process-titles).
-
-`src/build.sh [output-directory]` builds all Go programs with one stamp;
-the output directory is relative to `src/` and defaults to that directory.
-The build supplies `build_info` as `user@hostname YYYY-MM-DD HH:MM:SS`, using
-the builder's local time, through Go linker flags; `release.sh` appends the
-commit's short SHA. It never rewrites source.
-Every Go program's `--version` prints the shared SemVer on the first line
-and `build_info: <stamp>` on the second; no daemon connection or privileges
-are needed. `--help` on each Go program opens with `<program> <version>`, on
-stdout, exit 0; bare `agent-bus` prints the same text on stderr and exits 1.
-
-A direct `go build` reports `development (unstamped)` instead of inventing a
-build date. The interpreted MCP and web faces report the shared SemVer only,
-read from `VERSION`.
-Release builds follow [working rules § versioning](../CLAUDE.md#versioning).
-
-### Release evidence
-
-`src/release-verify.sh <archive>...` checks release archives against the source: the archive name, packed `VERSION` and Go programs’ versions agree, build stamps and `LICENSE.md` are present, and `MANIFEST.sha256` matches. Foreign-CPU binaries are read rather than run. The compiled TypeScript binary answers `mcp --version` and `launcher claude --version` with the release version where it can run, and carries a build stamp; the `agent-bus-token` wrapper answers its version too.
-
-The release build supplies `SHA256SUMS`; npm assembly checks each downloaded archive against it and then checks the archive’s manifest. Release signatures and signing keys are not part of installation or publication. The release workflow and legacy verifier’s signing modes are pending migration under the [distribution work](../Plans/R1.0-Release/TODO.md#distribution-acceptance); archive verification remains required. Earlier throwaway-key fixtures are historical coverage, not a need for an owner key.
-
-## npm package
-
-Choose `npm install -g ai-agent-bus-client` to join an existing bus, or
-`npm install -g ai-agent-bus` for a full node. The bus package pulls the client
-at exactly its own version. Both use the same release binaries, with only the
-matching Linux x64 or arm64 platform packages downloaded. Node 18 or later is
-required; Go and Bun are not needed. Commands retain their `agent-bus` and
-`ab-*` names.
-
-An npm install creates no service accounts or systemd units. To start a full
-node, use a root-owned Node executable and global npm prefix: its packages, command shims and every
-parent directory must be owned by root and not writable by group or others.
-A user-owned prefix (such as nvm or `~/.npm-global`) is suitable for the client,
-not for sudo setup. Never run a sudo command from such a prefix: its verifier
-could be replaced before it starts. Install the bus into the administrator's
-root-owned global prefix, then explicitly run its setup command with sudo:
-
-```sh
-sudo "$(npm prefix -g)/bin/agent-bus-setup" --owner alice
-```
-
-Setup requires matching client/bus versions. It assembles their files in a
-root-owned private directory outside the npm prefix, verifies the complete
-release manifest, then runs the ordinary installer. The temporary tree is
-removed afterward, including on failure. The client package alone never
-installs a daemon.
-
-This path trusts the npm registry’s integrity. The package builder checks the release archives against `SHA256SUMS` and their manifests; no release signature or signing key is required.
-Package assembly and local checks are described in
-[the packaging guide](../src/npm/README.md).
-
-## macOS
-
-📌 **TL;DR:** The client archive builds for macOS; the runner starts agents without a sandbox. Native installer checks have recorded results, and a script agent ran on a Mac under the account that started the runner; npm platform packaging remains separate acceptance. The [macOS plan](../Plans/R1.0-Release/macos.md#order) owns the supported parts and test order.
-
-### The client and runner
-
-| | |
+| Area | Status |
 |---|---|
-| Build | `GOOS=darwin GOARCH=arm64 src/package.sh` (or `amd64`) cross-builds `agent-bus-client-<version>-darwin-<aarch64\|x86_64>.tar.gz` on a Linux host, without cgo, so the process title is not set; there is no full-node archive for macOS |
-| Install | npm is the chosen client install path; macOS platform packages still need packaging and installed-tree acceptance. Earlier shell-installer runs are fixture evidence, not the current distribution procedure. The launchers use `readlink -f`, which macOS has from 12.3 |
-| Signing | the macOS binaries are unsigned and not notarized, so Gatekeeper warns on a download; a binary built on the Mac itself carries no quarantine flag |
-| Release | `src/release-verify.sh --os "linux darwin"` checks the archives, reading foreign binaries rather than running them; npm platform packaging must retain the same build and manifest checks |
-| Runner | starts agents under the account that runs it, with no cgroup limits and no sandbox: a sandbox request is refused, and agent scripts hold that account's rights. Run it as a dedicated unprivileged account, never an administrator; this suits one owner's own Mac, not a shared one |
+| Linux archive installation | Built: checked manifest, service accounts, units, upgrade/recovery and rollback |
+| npm assembly | Built for local Linux checks; installable npm publication, clean npm installation acceptance and macOS npm platforms remain pending |
+| macOS client and runner | Native checks recorded; no sandbox, and a sandbox request is refused |
+| macOS daemon | Reduced launchd setup verified; manual cleanup only, no product uninstall command |
+| Release evidence | Built: stamps, version, license, notices, manifests and unsigned checksums; no release signature required |
 
-## Local users
+[Installation acceptance](#installation-acceptance) identifies the archived exercises and their limits.
 
-Setup asks for two things per user, and they are **configuration, not
-credentials**:
-
-| Config field | Purpose |
-|---|---|
-| local account | the OS account on this host; resolved to its uid |
-| bus username | the principal it *is* — `parf@localhost`, `parf@github`, `parf@realmo` ([identity § names](01-identity-and-authority.md#names)) |
-
-From that the daemon opens one socket per user
-([access § local socket](02-access.md#local-socket)) and knows who is calling
-on every request.
-
-Result: a bus that **serves every user on the host at once**, so
-record ACLs apply per user with nothing for anyone to configure. Setup's
-initial principal is the first daemon Owner; after transfer, the stored current
-Owner holds node-wide management authority
-([identity § daemon owner](01-identity-and-authority.md#daemon-owner)).
-## Storage
-
-| Built store | Holds |
-|---|---|
-| SQLite database `agent-bus.db`, mode 0600, held exclusively | Daemon Owner, local-account map, users, registry, groups, credentials and issued times, queue contents, counters, each record's [key-value store](03-records-kv.md#key-value-store), its [activity history](05-discovery.md#activity-history) by day, and the clean-stop marker; an older schema is migrated forward at open |
-| Memory only | Browser sessions, outstanding readers, [locks](01-identity-and-authority.md#shared-locks), uptime and recent envelope feed |
-
-It is reached through `modernc.org/sqlite` behind the store ports. The
-daemon is told where the database is with `--db`; setup runs `agent-busd --init`
-once, as the daemon account, to create it, and the unit never passes `--create`.
-An empty file a create left behind is finished by the next create, and
-refused as empty without one; a file holding anything else is never taken for one.
-Every record and user carries an internal ID: stable, persisted,
-never on an answer, and never handed out twice, because the database keeps each
-high-water mark rather than deriving it from what is left.
-Other database backends are [R1.1 work](../Plans/R1.1/storage.md#backends).
-Durability is defined in [messaging § durability](04-messaging.md#durability).
-SQLite state and backups retain the daemon account's private directory and file
-boundary. History: the [0.7 transition](../Plans/done/R0.8-MVP/0.7-cutover.md#scope) was a
-clean reinstall, reading no earlier store.
-
-## Development node cleanup
-
-The development node has two weekly timers. Their root-owned script is
-`/usr/local/libexec/agent-bus-node-cleanup.py`, installed from
-`src/maintenance/node-cleanup.py`. Both take the shared gate lock; a busy gate
-makes maintenance skip that run. They never delete session records.
-
-| Scope | Bound | Job |
-|---|---|---|
-| parf's Go build cache | clean above 10 GiB | user `agent-bus-cache-cleanup.timer`, Sunday 04:00 |
-| checkout `tmp/cargo-target` | clean above 5 GiB | same user timer |
-| release directories | current plus one newest other release | root `agent-bus-node-cleanup.timer`, Sunday 05:00 |
-| stopped-daemon backup archives | newest three; matching unit sidecars follow their archive | same root timer |
-| record export archives in `/var/lib/agent-bus/record-backups/` | newest five full and ten partial; each `.info` follows its archive | same root timer |
-| our ABRT entries | 100 MiB total; oldest removed first | same root timer; other applications untouched |
-| attributable test `/tmp` directories | older than one day, not referenced by a live process | same root timer |
-| daemon log files | daily rotation, 10 MiB early rotation, three archives | `/etc/logrotate.d/agent-bus` |
-
-`/tmp` attribution requires parf ownership plus a bus executable, a Go import
-of this module, or a test function name from this checkout. Symlinks are not
-followed. Unrelated caches, crash dumps and temporary files stay untouched.
-Runner and standalone agents use the shared system journal, not private log
-files; its host retention policy remains in force. Maintenance does not vacuum
-other applications' journal entries.
-
-Install or refresh the root-owned script and unit files from `src/maintenance/`.
-Enable the cache timer with `systemctl --user enable --now agent-bus-cache-cleanup.timer`
-and the root timer with `sudo systemctl enable --now agent-bus-node-cleanup.timer`.
-Inspect them with `systemctl --user list-timers` and `sudo systemctl list-timers`.
-Caches rebuild on demand. The thresholds are weekly high-water checks, not
-hard quotas between runs; logrotate checks its size bound on its daily run.
-
-## Backup and restore
-
-### Encrypted record backups
-
-The daemon Owner exports permanent record content online, encrypted by `age`
-to their enrolled Ed25519 SSH public keys. Install `age` on the daemon and
-restore host. Run as your own login user, without sudo: export and import use
-your local login socket, never an administrative account handover.
-
-```sh
-agent-bus-admin export
-agent-bus-admin export --include=tag:ops --exclude=name:#retired@demo --out=ops.tar.gz.age
-agent-bus-admin import ops.tar.gz.age --dry-run --keep-existing=all
-agent-bus-admin import ops.tar.gz.age --keep-existing=all
-```
-
-Setup and upgrade create `/var/lib/agent-bus/record-backups/`, owned by
-`agent-busd`, mode 0700. A managed `record-backups.conf` unit drop-in grants the daemon's
-strict mount namespace write access to that directory. Default filenames are
-`<full|partial>-<host>-<UTC>.tar.gz.age`; the command prints the archive and
-adjacent `.info` paths. This directory is separate from root's stopped-daemon
-backups in `/var/lib/agent-bus/daemon.backup/`.
+### Earlier upgrade notes
 
 <details>
-<summary>Selection, sidecars, conflict choices and realm mapping</summary>
+<summary>History and compatibility cautions for older installations</summary>
 
-- No selectors means full. `--include` and `--exclude` accept names or tags,
-  repeatable or comma-separated; exclusion wins. Users and groups are included
-  by default. Write `name:<name>` or `tag:<tag>` explicitly when needed: a bare
-  selector matching both, or matching nothing, is refused. `all` is reserved
-  for import conflict options.
-- Archives hold records, ACLs, Maintainers, roles, tags, group membership,
-  Configuration, Secret, typed KV and current/previous persistent credentials.
-  They omit messages, locks, transient sessions, readers and the daemon's
-  reserved `#bus` record. They do not transfer SSH enrollment or local account
-  mappings; enroll the restoring Owner on the destination first.
-- Every file export has an open `.info` with kind, source host, version, time,
-  caller, selection rules and resolved names, recipient fingerprints and the
-  ciphertext SHA-256. It contains no Secret or token values. The encrypted
-  manifest holds the same immutable info; its ciphertext hash belongs only
-  outside the ciphertext.
-- `--out=<path>` writes on the caller's machine with an adjacent sidecar.
-  `--out=- --info=<path>` streams only ciphertext to stdout and writes the
-  sidecar separately. Without `--info`, streaming writes no sidecar and says
-  so on stderr. `--info` is invalid without `--out=-`.
-- Import decrypts locally with `--key=<file>` (default
-  `$HOME/.ssh/id_ed25519`). A missing sidecar is allowed and reported as
-  "no sidecar"; a present mismatched hash or info is refused. Wrong keys fail
-  before contacting the daemon.
-- Every existing record or user needs `--keep-existing`, `--replace` (records)
-  or `--replace-users`. These and `--replace-tokens` accept the same selectors
-  or `all`. Conflicting choices fail. Existing credential bytes stay unless
-  `--replace-tokens` names their principal, and the report names every
-  principal whose archived token was not retained. New principals retain
-  their archived credentials, rebound to the destination's internal IDs.
-- Import validates the whole archive and reports every name conflict before
-  applying one transaction. `--dry-run` makes no changes. Keep-existing applies
-  only to names already present, so `--keep-existing=all` still imports new
-  records. An imported private agent may need its ACL dependencies present.
-- Names keep their realm exactly. Repeat `--rename-realm=<from>=<to>` for an
-  explicit mapping, or use `--rename-realm==<to>` for realm-less identities.
-  Only typed names and ACL/group references change; Configuration, Secret and
-  KV content stays opaque. Each identity mapping is reported.
+These notes describe earlier release transitions, not a promise that the current daemon converts their old snapshots. Check the cited historical runbooks before restoring old state; current state validation remains authoritative.
 
-</details>
+#### Administrator name migration
 
-### Stopped-daemon backup
+Upgrading from the old administrative name migrates membership to the
+[protected Administrator group](01-identity-and-authority.md#groups).
+Existing record Maintainer assignments and ACL references follow the rename.
 
-**A stopped-daemon backup is the whole daemon home.** The daemon holds its database
-exclusively, so no online copy exists: `sqlite3 .backup` and every other reader
-get `database is locked`. A graceful stop flushes queues and counters and
-checkpoints the WAL into `agent-bus.db`, so the stopped home is complete and
-consistent. The pause is the stop plus the start.
+- If an ordinary group already uses the destination name, it is preserved as `@administrators-legacy` (with a numeric suffix when necessary), and its existing references follow it.
+- Neither existing groups nor unresolved record references are reused for that preserved name.
+- Its members do not become Administrators.
+- The former administrative name cannot be recreated; subsequent starts leave the migrated groups unchanged.
 
-| Step | As root |
-|---|---|
-| Back up | `systemctl stop agent-busd`, then `tar -C /var/lib/agent-bus -cpf <backup>.tar daemon`, `chmod 600 <backup>.tar`, `systemctl start agent-busd` |
-| Restore | Install the same release (on a new host, `agent-bus-setup` as in [install](#install)), `systemctl stop agent-busd`, `rm -rf /var/lib/agent-bus/daemon`, `tar -C /var/lib/agent-bus -xpf <backup>.tar`, `systemctl start agent-busd` |
+Upgrade the daemon and its clients together: the user directory's administrative
+flag is now `administrator`, replacing `maintainer`. Record Maintainer
+assignments retain their meaning.
 
-<details>
-<summary>What it covers and what to keep in mind</summary>
+**Downgrade:** an older daemon does not recognize the renamed group as granting
+non-owner administrative standing. Its members still retain the access and
+record maintenance granted through ordinary group references. Downgrading does
+not restore the old name automatically.
 
-- The home holds the database (users, records, groups, configurations,
-  secrets, credentials, ownership, queue contents and counters) and
-  `.ssh/authorized_keys`; together they are the node. The archive holds live
-  credentials and secrets: keep it root-only.
-- Restore **replaces the whole home**. Copying only `agent-bus.db` over a
-  home that still has an `agent-bus.db-wal` from the state being replaced —
-  left by any unclean stop — lets SQLite replay that newer WAL onto the older
-  database.
-- A restore is exactly the backed-up state: later users, keys, records,
-  rotations and traffic are gone, and credentials issued after the backup
-  stop authenticating.
-- The local-account map is restored with the database; a new host needs the
-  same OS accounts for their sockets. Logs, the unit and the runner's
-  `agent.d` are not part of the backup.
-- A backup taken without the stop is not supported: the database file lacks
-  what is still in the WAL and in memory.
+#### Record kind upgrade
 
-**Accepted** by `src/acceptance/backup-restore.sh`: a
-populated disposable host is backed up twice, an older backup restored over
-newer uncleanly stopped state returns exactly that older state, and a fresh
-host restored from the newer one matches its listings, owners, `config_sha`,
-`secret_sha`, queued and in/out/dropped counts and credentials, then keeps
-unflushed traffic over a graceful restart and loses only post-flush traffic
-in a bus-child crash ([durability](04-messaging.md#durability)).
+- From 0.6.0 `kind` is a closed set ([records](03-records.md#record-kinds)).
+- `generic`, `topic` and the `mode` field are gone, and **a stored record holding any of them is ignored at start and reported** by name, never converted ([what refuses the start](constitution.md#what-refuses-the-start)).
+- There is no compatibility obligation before 1.2, so nothing is migrated at load time.
 
-</details>
+- Upgrading a node that has run an earlier line therefore means editing its snapshot while the daemon is stopped: the procedure, the mapping and what it was verified against are in the [cutover runbook](../Plans/done/R0.8-MVP/cutover.md#the-procedure).
+- Two things to expect even where the kinds look right: a record that becomes 📡 must lose the queue settings every old record carried, and its inbox must be empty.
 
-## Logs
+#### GitHub profile snapshot upgrade
 
-The daemon writes the [three logs](constitution.md#logs)
-under `--log-dir`, which setup makes `/var/log/agent-bus/`: owned by
-`agent-busd`, group `adm`, mode `2750`, so every log the daemon creates there is
-readable by `adm` and by nobody else. The files are `0640`.
+- From 0.5.71, User profiles may retain public provider metadata and one bounded local PNG thumbnail.
+- An older daemon ignores those unknown snapshot fields and drops them on its next snapshot write.
+- Imported Person name and Email remain because they use the existing profile fields.
+- The packaged rollback restores the matching earlier snapshot; do not run an older binary directly against a 0.5.71 snapshot if retaining the optional provider fields matters.
 
-| File | Written |
-|---|---|
-| `audit.log` | always: one line per administrative action or entity edit — actor, operation, target, result and, over TCP, the client address |
-| `error.log` | always: warnings, errors and alerts; managed units also enable the [syslog copy](user/daemon.md#environment-defaults) |
-| `debug.log` | only when asked for, by `--debug-log` at start or by the daemon Owner with `POST /debug {"on": true}` at run time |
+#### Maintainers-list upgrade
 
-Without `--log-dir` a development daemon writes them to `logs/` beside its
-database. Setup installs `/etc/logrotate.d/agent-bus`: weekly, eight kept,
-compressed, by copy and truncate so the daemon never reopens a file.
+- From 0.5.62, a resource stores a list of Maintainers rather than one group.
+- Existing string values load as a one-entry list; an empty string becomes an empty list.
+- Every non-empty later answer and snapshot writes the array form; an empty list is omitted.
+- Legacy noncanonical terms are preserved but remain inert until the Owner replaces the list.
+- Registration never imports this authority from caller-supplied metadata.
 
-## The two accounts
+Upgrade daemon and clients together. The new daemon accepts the legacy string
+input during migration, but an older daemon cannot read the array form written
+by 0.5.62 and fails to restore that snapshot rather than guessing authority.
 
-The installer creates two system accounts, the daemon's and the web face's,
-each running its own program under its own unit. A person's runner gets an
-account of its own when it is installed, never by default
-([a person's runner](#a-persons-runner)). The heading keeps its name for existing links.
+#### Nested group upgrade
 
-| Account | Home | Shell | Runs |
-|---|---|---|---|
-| `agent-busd` | `/var/lib/agent-bus/daemon` | `/bin/sh`, for forced commands | the daemon |
-| `agent-bus-web` | the [web code directory](#install), read only | `nologin` | the [web face](08-processes.md#the-web-face); owns nothing on disk |
+- From 0.5.57, an `@group` entry inside an ordinary group is a membership edge.
+- Earlier snapshots may contain such entries as inert strings.
+- Review existing group lists for stray `@`-names before upgrading: a group that exists now, or is populated later, grants its effective members every ACL and Maintainer permission carried by the containing group.
 
-| Directory under `/var/lib/agent-bus` | Owner | Mode | Current purpose |
-|---|---|---|---|
-| `daemon/` | `agent-busd` | 700 | Daemon home and its database |
-| `agent.d/` | root | 755 | Shared public agent code, readable by every runner account |
-| `<person>-ab-runner/` | that runner account | 700 | Its inventory, overrides, env files, tokens and work directories |
+- Cycles terminate without granting anybody unless another path reaches them; unknown groups remain inert.
+- `@administrators` stays direct-only and a snapshot that nests a group inside it is refused at startup.
+- Personal agents still reject group ACL entries and Maintainer assignments, so this upgrade does not widen their assignment rules; 0.7 revises them through [Personal](03-records.md#personal-and-shared).
 
-The daemon account uses `/bin/sh` because sshd runs even forced commands through
-the account shell; each issued key is restricted to its named helper, without
-PTY or forwarding. A runner's account has `nologin` and receives no SSH keys. Setup
-repairs the daemon account’s former `nologin` default while preserving custom
-shells; a bus operator choosing one must ensure it can execute the forced helpers.
-Runtime sockets live at the [access location](02-access.md#local-socket),
-not under any home.
+#### Empty ACL upgrade
 
-### The two units
+From 0.5.44, existing empty ACLs adopt the [restricted default](02-access.md#acl);
+there is no grandfathered open access. Unrelated callers lose both delivery
+access and visibility: listings omit the record and lookup answers as hidden.
 
-**Built:** `/etc/systemd/system/agent-busd.service` for the daemon and
-`/etc/systemd/system/agent-bus-web.service` for the web face, whose
-settings [processes § the web face](08-processes.md#the-web-face) owns. The
-daemon unit no longer passes `--web` or delegates cgroup controllers.
+- Before upgrading, record Owners should explicitly grant any intended peer access, including access to reply inboxes.
+- `*` opts into broad sharing; do not add it merely to silence a refusal.
+- This release also stops implicit master access to empty-ACL resources.
+- The daemon Owner can discover and manage those resources through separate [node-wide authority](01-identity-and-authority.md#daemon-owner), but still cannot use their message interface without an ACL grant.
 
-| Daemon unit setting | Purpose |
-|---|---|
-| `User=agent-busd` | Run as the service account |
-| Working/state directories and explicit state mode | Keep state under its own home |
-| `RuntimeDirectory=agent-bus` | Recreate the runtime socket directory |
-| `Restart=on-failure` | Restart a failed daemon |
-| `AmbientCapabilities=CAP_CHOWN`, bounded to that capability | Own the per-user sockets without running the daemon as root |
+Fresh automatic registrations by faces and launchers also follow the default;
+configured sharing survives [metadata re-registration](01-identity-and-authority.md#registration).
+The dedicated runner states grants with [its options](06-dedicated-runner.md#script-agents).
 
-The packaged [installed shared-host checks](../Plans/done/R0.8-MVP/done/installed-shared-host.md#checks)
-run two actual mapped accounts through their own sockets, refuse both cross-
-account attempts, and verify from `/proc` that only the supervisor retains the
-capability.
+#### Owner ACL and master removal
 
-### A person's runner
+- From 0.5.74, `@owner` in an ACL means the record's direct Owner and the agents directly owned by that Owner.
+- It is evaluated from current registry ownership and is never stored as a group.
+- The `ab-claude`, `ab-codex`, `ab-opencode` and `ab-opencode1` launchers add it while preserving existing explicit grants; already-running launcher sessions acquire it when next restarted.
 
-📌 A [runner](../Plans/R1.0-Release/runner.md#runner) is a person's, and
-setup installs one only when asked, for one person at a time:
-`sudo /usr/local/bin/agent-bus-setup --runner install|uninstall|enable|disable [--for <person>]`.
-Every verb looks first and does only what is missing, so a second run changes
-nothing, and `--dry-run` prints the plan.
+`@owner` has no stored-group form. Creating or nesting it is refused, and a
+snapshot containing a group with that reserved name fails closed.
 
-| For person `alice` | What it is |
-|---|---|
-| `alice-ab-runner` | a system account of its own, `nologin`, so her runner's secrets are apart from everybody else's |
-| `/var/lib/agent-bus/agent.d/` | shared agents' code, root-owned, 755, readable by every runner account |
-| `/var/lib/agent-bus/alice-ab-runner/` | `alice-ab-runner`'s alone, 700: its token in `runner.env`, the tokens of the agents it created, their work directories |
-| `#runner/alice@<host>` | her agent on the bus, allowing `@owner`; the runner is started with its token, never with hers ([who it runs as](../Plans/R1.0-Release/runner-implementation.md#who-it-runs-as)) |
-| `agent-bus-runner@alice.service` | an instance of one template, `/etc/systemd/system/agent-bus-runner@.service`: her account, only its private directory writable, `Delegate=yes`, no capability, `Wants=`/`After=` the daemon, never `Requires=`, and no start while `runner.env` is missing |
+- The same release removes `--master`, `no_master` and the implicit master ACL grant.
+- A daemon Owner still discovers and manages every resource through [node-wide authority](01-identity-and-authority.md#daemon-owner), but message access now comes only from record authority or the record's ACL.
 
-| Verb | Leaves the host with |
-|---|---|
-| `install` | everything above, started; `--for` defaults to whoever ran `sudo`, and must be an active bus User |
-| `disable` | the unit stopped and disabled, every file kept |
-| `enable` | the unit enabled and started; refused when nothing is installed |
-| `uninstall` | no account, unit instance, `/var/lib/agent-bus/alice-ab-runner/` or `#runner/alice@<host>`, and no template once the last runner goes; shared `agent.d/` always stays, even with `--purge`, and the agents it created stay hers |
+#### Daemon ownership upgrade
 
-The runner accepts `--agents <dir>` (default `/var/lib/agent-bus/agent.d`)
-and required `--host <dir>` for its private directory; `--home` is removed.
-There is no `runners/` directory or per-person agent code tree.
+- `--owner user[@realm]` (or `AGENT_BUS_OWNER`) is required; the daemon no longer derives authority from the OS account name.
+- On the first 0.5.55 start it seeds legacy state and is written into the snapshot.
+- Later starts trust the stored Owner, so changing the flag does not transfer authority.
+- Use the daemon-owner transfer API instead.
 
-**Unreleased development migration:** setup refuses an existing
-`/var/lib/agent-bus/runners/` before doing anything. Stop the old runner, keep
-a root-private tar of that tree, then move its `agent.d` to the shared path
-and its `runner/` to the account-named path. Refuse any destination or code-name
-clash; do not merge or overwrite it. A clash after an interrupted move may be
-a partial migration: restore the old layout from the private tar and set aside
-partial destinations before retrying. Make shared code root-owned and readable,
-keep private state owned by the runner account at 0700, update the account's
-home, remove the empty old directories, and run `--runner install --for <person>`
-to refresh the unit. Start and verify before removing any backup.
+The daemon OS account's private socket answers as the current daemon Owner,
+not the configured value: a transfer moves it at once, without a restart
+([local socket](02-access.md#local-socket)). A current snapshot whose stored
+Owner is damaged fails startup.
 
-Install and enable refuse an existing runner record unless it is an Agent
-owned by the intended person. A lookup failure other than a missing record
-aborts the plan, including uninstall, before local recovery files are removed.
-
-The runner reaches the bus through the shared socket with its token, so no
-account is mapped for it. `runner.env` is setup's alone to write and holds one
-line, `AGENT_BUS_TOKEN=<token>`, a token being hex digits: systemd reads it as
-the unit's `EnvironmentFile`, setup reads it with the bus's
-[env-file parser](03-records-service.md#env-file-syntax), and that one line
-means the same to both, so it is no second syntax to keep in step. A node with no runner still serves every face.
-
-### A person's user-account runner
-
-📌 Some agents must act **as the person**: start their tmux sessions, use their
-logins, their user manager and their files. The system runner above
-deliberately cannot, since it runs under its own account. For those few agents
-a person gets a second runner, `#runner/<person>-user@<host>`, running as them
-under their own systemd user manager. Install it only through setup; everything
-else stays in the system runner.
-
-| Use | When the agent |
-|---|---|
-| the system runner, `#runner/<person>@<host>` | only needs the bus and what its package declares; the default for every agent |
-| the user-account runner, `#runner/<person>-user@<host>` | must act as the person: tmux sessions ([`#tmux-sessions`](agents/tmux-sessions.md#installing-it)), their CLI logins, their home |
-
-`sudo /usr/local/bin/agent-bus-setup --runner install|uninstall|enable|disable --user-runner [--for <person>] [--dry-run]`,
-and `--runner refresh --user-runner` for every installed one. `--for` defaults
-to whoever ran `sudo`. Like the system runner, every verb looks first and does
-only what is missing, so a second run changes nothing.
-
-| For person `alice` | What it is |
-|---|---|
-| `alice` | her own Linux login account (uid at least `UID_MIN`, a login shell); root, system and `nologin` accounts are refused. The bus keeps no uid, so the same name is the whole binding, and root runs the install |
-| `/etc/systemd/user/agent-bus-runner.service` | one template for every person, root-owned: `ExecStart=/usr/local/bin/agent-bus-runner`, `Delegate=yes`, `KillMode=mixed`, a bounded restart, and no sandbox directives, because its agents act in her whole context; each agent's own sandbox stays the control |
-| `~/.local/state/agent-bus/runner/` | hers, 0700: `runner.env` with the runner agent's token (never hers), the inventory, the agents' tokens |
-| `~/.local/share/agent-bus/agent.d/` | hers, 0700: only the packages she puts there; the shared `agent.d` is never visible to it |
-| `#runner/alice-user@<host>` | her agent on the bus, allowing `@owner` |
-| linger | enabled, so the runner starts at boot without a login; uninstall leaves it as found |
-
-Root never opens a path under her home: every observation and change there is
-made by setup re-executed as her (`setpriv`, no new privileges, no inherited
-environment), so a link she plants leads only where she can already go.
-Setup asks her user manager only about `agent-bus-runner.service`; it never
-stops her user manager or a session scope.
-
-**Her secrets are readable by her own processes**, her AI sessions included:
-the runner's token and its agents' tokens and env files live in her home.
-Give it only agents she would trust with her login.
-
-`git-install.sh` and `--upgrade` refresh every installed user-account runner
-one by one: the template is rewritten when it differs and each runner restarts. She sees her runner's agents restart (a call in flight to one of them fails once); her tmux sessions do not. The template goes with the last runner the registry knows of, so a unit enabled by hand without a record loses it then.
-Her tmux sessions are untouched: each lives in its own `ab-session-<name>.scope`
-beside the runner in her user manager, outside the runner's cgroup, so a reload,
-a stop, a crash or a refresh leaves every window and pid as it was
-([acceptance](../src/acceptance/user-runner-container.sh)).
-
-<details><summary>Add an agent to it</summary>
-
-As the person, package the agent into the user-account runner's code tree and
-name it in the inventory; then reload the runner:
-
-```sh
-/usr/local/lib/agent-bus/current/agents/standalone/tmux-sessions/package.sh ~/.local/share/agent-bus/agent.d/tmux-sessions
-printf '%s\n' '{"tmux-sessions":{"enabled":true,"sandbox":"off"}}' > ~/.local/state/agent-bus/runner/agents.json
-agent-bus call '#runner/alice-user@node.example' reload
-```
-
-On a node running from a checkout, the package script is under
-`src/agents/standalone/`. An existing record (an earlier standalone
-`#tmux-sessions/<instance>`) keeps its name, Configuration, ACL, owner and tags:
-give the inventory entry its `name` and hand its token over as for any
-[existing agent](runner/security.md#what-runs-as-what); then stop the old
-standalone unit.
-Its windows keep running, and later starts keep the old unit's
-`XDG_STATE_HOME` ([`state_home`](agents/tmux-sessions.md#configuration)).
-
-A base record and an instance together (`#tmux-sessions` and
-`#tmux-sessions/ab-dvp`) cannot use the keys `tmux-sessions` and
-`tmux-sessions/ab-dvp`: the base key's work directory holds the instance's, so
-the runner refuses both. Disable the base key — an absent key counts as
-enabled — and give the base record a sibling key with its `name`:
-
-```json
-{"tmux-sessions": {"enabled": false},
- "tmux-sessions/main": {"name": "#tmux-sessions@node.example", "sandbox": "off"},
- "tmux-sessions/ab-dvp": {"sandbox": "off"}}
-```
+**Downgrade:** an older daemon ignores the durable Owner fields and derives
+authority from its configured `--owner` again. Resource ACLs and Administrator
+membership remain stored, but daemon ownership reverts to that seed until the
+current version returns.
 
 </details>
-
-## Sample data
-
-`sudo /usr/local/bin/agent-bus-setup --samples` fills a running node with something to look
-at, from a galaxy far, far away and from Spaceballs, each name in its own
-realm; `sudo /usr/local/bin/agent-bus-setup --remove-samples` takes exactly that away again.
-Both write as the daemon Owner on the daemon account's socket; with
-`AGENT_BUS_ADDR` set to a development daemon's owner socket they need no root.
-
-| Kind | Samples |
-|---|---|
-| Users | `luke@tatooine`, `leia@alderaan`, `han@corellia`, `yoda@dagobah`, `vader@empire`, `lone-starr@druidia`, `vespa@druidia`, `dark-helmet@spaceball`, `yogurt@vega` |
-| Agents | `#r2d2@naboo` (Maintainer, configuration), `#c3po@tatooine`, `#k2so@scarif`, `#dot-matrix@druidia` (Personal), `#barf@druidia` |
-| Services | `death-star@empire` (Maintainers, secret, configuration), `death-star-ii@endor` (inactive), `jedi-archives@coruscant`, `spaceball-one@spaceball`, `schwartz@vega` (secret) |
-| Queues | `rebel-alerts@hoth`, `jabba-debts@tatooine`, `air-supply@druidia`, `falcon-repairs@corellia` (Personal), `droid-inbox@tatooine` (Deliver-To route to `#r2d2@naboo`) |
-| PubSub | `imperial-news@empire`, `spaceballs-merch@spaceball`, `jedi-journal@dagobah` (Personal) |
-| Groups | `@rebels`, `@jedi`, `@empire`, `@spaceballs` |
-
-| Rule | |
-|---|---|
-| Idempotent | a second `--samples` changes nothing and sends no message twice |
-| Real data | a name that exists without its sample description — or a user with another person name — is left alone, on adding and on removing, and named |
-| Removal | sample records are drained and unregistered; sample groups are emptied, which is how a group retires; sample users are deactivated, since the daemon never removes a user. `--samples` again brings them back |
-
-## TLS
-
-Setup asks, at a terminal, whether to enable SSL on the daemon's port, but
-only when the node has neither TLS nor an earlier `--tls off`, and never with
-`--upgrade`, `--recover`, `--dry-run` or `--print-unit`. Yes means a certificate
-it generates or one you provide, chain included. Otherwise the flags decide,
-and without flags a node keeps what it has. An unreadable TLS directory fails
-with its permission error; setup never infers TLS-off from it or widens its modes.
-Writing TLS files restarts a running daemon even when its unit and release are
-unchanged. Reinstall sets the TLS directory aside with the old state and restores
-it on rollback. The port answers TLS beside plain HTTP
-([remote access § over HTTPS](02-access-remote.md#over-https)).
-
-| Flag | |
-|---|---|
-| `--tls self-signed` | generate an ECDSA P-256 certificate, valid ten years, for `localhost`, `127.0.0.1`, `::1`, the host's names and addresses, and each `--tls-name`; run again, it generates a new one, so clients fetch the fingerprint again |
-| `--tls files --tls-cert c --tls-key k [--tls-chain ch]` | check that the key is the certificate's, that the chain parses and that the certificate has not expired, then copy them |
-| `--tls off` | plain HTTP only, recorded as a `disabled` file in the directory, so later runs keep it so until `--tls` turns it on again; the files stay where they are |
-| no `--tls` | keep what the node has: a re-run and `--upgrade` never drop TLS; `--tls` itself is refused with `--upgrade` or `--recover` |
-
-<details>
-<summary>Files, modes and what setup prints</summary>
-
-- **Where:** `/etc/agent-bus/tls/`, `root:agent-busd 0755`, so any user can read the public certificate.
-  Setup and upgrade repair older directory modes without rotating the certificate.
-- **Files:** `cert.pem` and `chain.pem` `0644`; `key.pem` `root:agent-busd 0640`.
-  Each is written aside and renamed into place. A choice without a chain
-  removes an old `chain.pem`, which would otherwise be appended to the new
-  certificate.
-- **Unit:** it carries `--tls-dir /etc/agent-bus/tls` exactly while TLS is on.
-  A present directory that does not load stops setup before the unit is
-  written.
-- **Output:** setup ends with the fingerprint and the client settings,
-  `AGENT_BUS_ADDR=https://<host>:<port>` and `AGENT_BUS_TLS_FINGERPRINT=sha256:…`.
-- **The web face:** it gets its own copy in `/etc/agent-bus/web-tls/`,
-  `root:agent-bus-web 0755`, with the key `0640`, so neither account reads the
-  other's key.
-  - A drop-in, `agent-bus-web.service.d/tls.conf`, names that copy
-    (`AGENT_BUS_WEB_TLS_DIR`).
-  - Its port then serves TLS and redirects plain HTTP there to `https://`.
-  - Setup waits for its health over `https://`, pinned to the copy.
-  - Setup starts the face once, at the end, and only when something it reads changed (its unit, TLS files, runtime or code, so a release switch counts) or it is not running: a run that changes nothing leaves a healthy face alone, so a quick series of runs cannot hit systemd's start limit.
-  - `--tls off` removes the drop-in, and a re-run or `--upgrade` keeps what
-    the node has.
-
-</details>
-
-### Trust the web certificate in your browser
-
-A self-signed web certificate must also be trusted by the browser. Without
-trust, the browser shows **Not secure** and will not offer to save the token
-as a password. Trusting it for the CLI does not change browser trust.
-
-First, on the node (or over a trusted SSH connection), check the public web
-certificate's SHA-256 fingerprint:
-
-```sh
-openssl x509 -in /etc/agent-bus/web-tls/cert.pem -noout -fingerprint -sha256
-```
-
-Compare it with the SHA-256 fingerprint in the browser's certificate viewer
-before trusting or importing it. Use the public `cert.pem`, never `key.pem`.
-If the browser is on another computer, copy only that public certificate over
-SSH and check the same fingerprint there.
-
-- **Chrome or Chromium on Linux:** with `certutil` installed, run this as the
-  browser's user, without `sudo`:
-
-  ```sh
-  certutil -d "sql:$HOME/.pki/nssdb" -A -t "P,," -n agent-busd-web -i /etc/agent-bus/web-tls/cert.pem
-  ```
-
-  Fully exit Chrome/Chromium, including background processes, then reopen it.
-- **Firefox:** import the public certificate under **Settings → Certificates
-  → Servers**, or open `about:certificate`. Confirm that its fingerprint
-  matches before keeping the certificate exception for the web address.
-- **macOS:** import the public certificate in **Keychain Access**, open its
-  **Trust** settings and choose **Always Trust** after checking the fingerprint.
-
-Reopen the HTTPS web page and check that the certificate warning is gone.
-If setup replaces the certificate, verify its new fingerprint and update the
-browser's trust entry before signing in again.
-
-## macOS
-
-### The daemon
-
-On macOS `sudo agent-bus-setup` installs the daemon under its own account and keeps it running through launchd.
-
-| Part | macOS |
-|---|---|
-| Account | `_agentbusd`, a hidden role account: an id from 200 free as both user and group, no login shell, no password |
-| Storage | `/usr/local/var/agent-bus/daemon`, 0700, the database and `logs/` |
-| Sockets | `/usr/local/var/run/agent-bus`, 0711; the shared `bus.sock` and the account's own socket only |
-| Job | `/Library/LaunchDaemons/agent-busd.plist`: `agent-busd` as `_agentbusd`, umask 077, kept alive; setup reloads it with `launchctl` |
-| TLS | as on Linux ([TLS](#tls)) |
-| First user | the installer, from their key, through `agent-bus-admin` on the account's socket |
-
-Not on macOS: per-role accounts, cgroup limits, the web job, logrotate, a person's runner, `--upgrade`; setup refuses those options. Without `CAP_CHOWN` the daemon cannot hand a socket to another account, so there are no per-user sockets: a person calls with a token (`sudo -u _agentbusd agent-bus token <name>`). Outside Linux the bus child stops itself when its supervisor is gone, where Linux has the kernel's death signal ([how a child is started](08-processes.md#how-a-child-is-started)).
-
-#### Uninstall the macOS test daemon
-
-The [MAC.2 acceptance harness](../src/acceptance/mac2-install-check.py) removes only its fresh fixture. It refuses an existing account, job or setup tree before installing; there is no product uninstall command.
-
-| Step | Cleanup |
-|---|---|
-| Stop | Boot out `system/agent-busd` with `launchctl`, then stop processes owned by `_agentbusd` |
-| Files | Remove the fixture plist, daemon home, socket directory and `mac2-check` binary tree; this deletes the fixture database |
-| User | `sudo /usr/sbin/sysadminctl -deleteUser _agentbusd` |
-| Group | If `_agentbusd` remains in `/Groups`, `sudo /usr/sbin/dseditgroup -o delete _agentbusd`; `sysadminctl` may already have removed it, which is success |
-| Verify | List `/Users` and `/Groups` with `dscl . -list`; `_agentbusd` must be absent from both. A failed lookup is not absence, and command exit status alone does not prove deletion |
-
-`sysadminctl` removed both the test user and group from the owner's console without Full Disk Access. If deletion is still permission-denied, the recovery step is **System Settings → Privacy & Security → Full Disk Access**: enable the terminal app used for cleanup, then quit and reopen it. Retry user deletion and delete the group only if it remains; verify both entries are absent. Use `sysadminctl` and `dseditgroup` for deletion; `dscl` is used only to inspect the directory.
-
-The harness checks both entries, skips an already absent group and verifies absence after deletion even when `dseditgroup` returns nonzero. A remaining entry or an unreadable directory produces a named user/group leftover report, recovery steps and a nonzero exit; it never prints a clean uninstall result in those cases. Granting Full Disk Access and retrying live cleanup remain owner actions.
-
-## Config locations
-
-Current daemon configuration comes from command flags and environment; setup
-writes the flags into its unit. The per-program defaults are in
-[daemon source](../src/cmd/agent-busd/main.go). A general configuration-file
-format is not implemented. Per-record ACL editing is available through the
-[web face](../src/web/web-face/records.md#settings).
-
-## Status
-
-| MVP | Scope |
-|---|---|
-| Built | Distributable archive, installer, administration, token helper, accounts, daemon and web units and stamped builds; fresh-host installation, populated upgrade/recovery, [backup/restore](#backup-and-restore) and installed [runtime](../Plans/done/R0.8-MVP/done/fresh-host-runtime.md#checks) acceptance; optional [TLS](#tls) on the daemon port and the web port. The TypeScript face passed installed [browser acceptance](05-discovery.md#browser-acceptance); `TLS=1` walks it over `https://`. |
-
-## Post-deploy check
-
-Run `src/check-deploy.sh` after each deploy; its optional target overrides the
-default `#debug@<realm>` derived from `agent-bus status` (or the host name if no
-realm can be read). For a specific instance, use `src/check-deploy.sh '#debug@<node>'`, as a caller allowed by debug’s `@owner` ACL. A failed or missing selftest fails the check; see [the bus doctor](agents/debug.md#check-the-bus-in-a-minute).
-
-
-## Deploy only the changed component
-
-Commit before deployment. A shared version bump alone does not require
-rebuilding or restarting unrelated components. Keep existing ACLs,
-Configuration and Secrets; use read-only probes unless the task asks for a post
-or an operation.
-
-| Changed component | Minimum deployment | Verify |
-|---|---|---|
-| Web TypeScript | Restart `agent-bus-web`; no Go build or daemon restart | The affected signed-in page and handler |
-| Runner | Stamped `src/build.sh`, restart its `agent-bus-runner@<person>` unit | Runner status, the affected agent and `src/check-deploy.sh` |
-| Slack, Telegram or debug | Run that agent's `package.sh` into its installed `agent.d` directory, then call its runner's `reload`; a shared helper changes each bundle that includes it | The affected agent's `whoami` or `ping`, its new behaviour and process restart |
-| Standalone Python | Restart its unit; reinstall only when its unit arguments or installer changed | A read-only method and preserved ACL |
-| Daemon | Back up the stopped daemon home, stamped `src/build.sh`, restart `agent-busd` | Reconnection, the changed API/authority path and `src/check-deploy.sh` |
-| Documentation | Link and accuracy checks, then commit | No version bump, mutant, build or restart |
-
-Packagers at `src/agents/<name>/package.sh` replace their public code directory as a whole, removing files the package no longer ships.
-
-Keep cursors, caches and other runtime state in the runner’s work directory, outside `agent.d`. A failed build leaves the previous code tree intact.
-
-Reload the runner after packaging an enabled agent. A running process may otherwise fail when it imports a file from the replaced tree.
-
-A forced kill or power loss between the two directory moves can leave the installed directory missing. The previous tree remains in a sibling `<name>.old.XXXXXX/previous` directory; restore it to the agent’s installed path before reloading.
-
-The next packaging run does not sweep leftover `<name>.new.XXXXXX` or `<name>.old.XXXXXX` directories. Once the installed tree is verified and no packager is running, remove those leftovers; keep any `previous` tree needed for recovery.
-
-The standalone tmux-sessions packager uses the same replacement helper, shipped beside it in the release, so it also removes obsolete files when repackaging on an installed host.
-
-The [build stamp](#build-information) is required for shipped Go binaries.
-A live Git checkout is never a reset/clean/push/autopull test fixture.
