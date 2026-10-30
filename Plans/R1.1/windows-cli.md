@@ -32,7 +32,7 @@ Measured on this node, 2026-10-30, `GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go b
 | File modes | `0o700` and `0o600` on keys, state and tokens | accepted and ignored on NTFS | state under `%LOCALAPPDATA%\agent-bus`, protected by the user profile's ACL; tokens stay in the environment ([Q261](QUESTIONS.md#open-questions)) |
 | Paths and home | `$HOME/.local/state`, `.ssh/id_ed25519` | `UserHomeDir` works; the XDG layout is Linux | the state directory above; the key proof keeps `.ssh\id_ed25519` and calls `ssh-keygen`, which Windows 10 1809 and later ship as the OpenSSH client |
 | Child processes | `agent-bus run` (`exec.Command`) | compiles | refused or kept as a plain command ([Q262](QUESTIONS.md#open-questions)) |
-| Names with `@`, `#`, `/` as file names | `agent.go` segment function | `#` is legal; `<>:"|?*` are not and `/` becomes a segment | covered by the same segment function; a test names each reserved character |
+| Names with `@`, `#`, `/` as file names | `agent.go` segment function | `#` is legal; `<>:"|?*` are not and `/` becomes a segment | the segment function (today it replaces only `/`) gains an encoding for the reserved characters, the device names (`CON`, `NUL`, `COM1` and the rest) and a trailing dot or space; it matters only for what Windows keeps by name, which is nothing while the keeper is left out ([Q262](QUESTIONS.md#open-questions)). A test names each case |
 
 ## Reaching a remote daemon
 
@@ -56,19 +56,20 @@ Measured on this node, 2026-10-30, `GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go b
 |---|---|---|---|
 | Cross-build in the gate (`GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build`, as the darwin build in `go_checks`) | every build tag and stub compiles, on every landing | about 10 s | do it |
 | wine on this node | a PE binary starts | a root-installed package, ~200 MB, NTFS and ACL behaviour wrong, needs the gate lock | no |
-| GitHub Actions `windows-latest` job on the release workflow | the zip runs: `--version` with its build stamp, a request and reply against a daemon the job starts on its Linux runner, state directory and lock file behaviour | one job, a few minutes, only on a tag the owner pushes | do it, plus once by hand on the owner's Windows machine if there is one ([Q263](QUESTIONS.md#open-questions)) |
+| GitHub Actions `windows-latest` job on the release workflow | the zip runs: `--version` with its build stamp; `go test` of the CLI on Windows against an in-process pinned-TLS test daemon (the handler the CLI's own tests already use): a request and a reply, a wrong fingerprint refused, the state directory and the lock file | one Windows job, a few minutes, only on a tag the owner pushes | do it |
+| A real daemon, reached from Windows | the same against the real daemon | needs a reachable, isolated daemon with TLS, a token and teardown, which a GitHub-hosted job cannot give a Windows job; it is a prerequisite, not a step ([Q263](QUESTIONS.md#open-questions)) | by hand on the owner's Windows machine against a daemon the owner names; not counted in the estimate |
 
-Recommended: the first and third rows. Behaviour that only Windows can show (lock contention, ACL, console detection) is tested with `go test` in that CI job, never in the gate.
+Recommended: the first and third rows; the fourth is the owner's, once. Behaviour that only Windows can show (lock contention, ACL, console detection) is tested with `go test` in that CI job, never in the gate.
 
 ## Steps and estimate
 
 | Step | Work | Days |
 |---|---|---|
 | 1 Build | tag the Linux-only files, add the per-OS lock, open, terminal and process-title files, a refusal for the left-out subcommands, `AGENT_BUS_ADDR` required; the gate cross-build | 2 |
-| 2 Behaviour | state directory and file-name rules, key proof through `ssh-keygen`, Windows unit tests, a request and reply against a Linux daemon from CI | 1.5 |
+| 2 Behaviour | state directory and the file-name encoding, key proof through `ssh-keygen`, Windows unit tests, the in-process TLS test daemon for the Windows CI job | 1.5 |
 | 3 Package | `package.sh` writes the zip, `release-verify` reads it as it reads macOS archives, `release-sign` takes it with the others | 1.5 |
 | 4 Docs | the setup guide's Windows page, the CLI guide's differences, the CI job | 1 |
-| Total | | 6, range 5 to 8 if `ssh-keygen` proofs or the zip layout surprise |
+| Total | | 6, range 5 to 8 if `ssh-keygen` proofs or the zip layout surprise; the real-daemon run is not in it |
 
 ## Release
 
