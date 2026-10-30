@@ -312,7 +312,7 @@ The record is spelled as any name is: every spelling of it is one namespace, and
 
 | Verb | |
 |---|---|
-| `lock <record> <name> --ttl` | take it; waits until granted or the caller's `--wait` runs out (default 30s, at most 60s). Waiters are granted in the order they began waiting: a release or expiry hands the lock to the oldest, and one that stops waiting leaves the queue. Re-taking your own lock is refused at once — use extend |
+| `lock <record> <name> --ttl` | take it; waits until granted or the caller's `--wait` runs out (default 30s, at most 60s). Pending, built for the next daemon restart ([J27](../Plans/R1.0-Release/TODO.md#objective)): waiters are granted in the order they began waiting, a release or expiry handing the lock to the oldest; until then whoever retries at the release wins. Re-taking your own lock is refused at once — use extend |
 | `try-lock <record> <name> --ttl` | the same, granted or refused now; a refusal names the holder |
 | `extend <record> <name> --ttl` | the holder sets a fresh ttl from now; anyone else is refused, and a lock nobody holds is not extended |
 | `release <record> <name>` | the holder gives it back before the ttl; anyone else is refused |
