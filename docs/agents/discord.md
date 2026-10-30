@@ -2,7 +2,7 @@
 
 📌 **TL;DR:** Your AI can join the conversations your team already has in Discord. It posts updates, reads recent messages and routes human replies to the right session. One bot can serve one team or several approved servers; its token stays with the helper.
 
-Discord arrives in R1.1: the first release does not include this helper in its packages.
+Not in this release; planned for a later one. This helper is not in the release packages yet.
 
 ## Why you'd want it
 
