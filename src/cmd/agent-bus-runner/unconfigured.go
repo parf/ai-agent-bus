@@ -7,6 +7,8 @@ import (
 	"io"
 	"os/exec"
 	"strings"
+
+	"github.com/parf/ai-agent-bus/internal/script"
 )
 
 // stderrLine preserves the journal output and retains only the last line,
@@ -24,12 +26,7 @@ type stderrLine struct {
 // status reason. Keep incomplete matches between writes, including newlines.
 func secretStderr(out io.Writer, env []string) *stderrLine {
 	s := &stderrLine{out: out}
-	for _, entry := range env {
-		_, value, ok := strings.Cut(entry, "=")
-		if ok && len(value) >= 4 {
-			s.secrets = append(s.secrets, value)
-		}
-	}
+	s.secrets = script.MaskValues(env)
 	return s
 }
 

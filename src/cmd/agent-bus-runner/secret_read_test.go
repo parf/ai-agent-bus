@@ -183,3 +183,32 @@ func TestShortPrivateValuesWarnByKeyWithoutMutilatingDiagnostics(t *testing.T) {
 		t.Fatal("short secret mutilated ordinary diagnostics")
 	}
 }
+
+// A value of several lines is hidden by each of its lines, since a script may
+// log them one at a time, behind a prefix or escaped; a value holding a
+// shorter secret is hidden whole. A real child writes them, and the reason a
+// status keeps is the masked last line.
+func TestChildStderrMasksEachLineOfAMultiLineValueAndTheLongestOfNestedOnes(t *testing.T) {
+	private := []string{"SHORT=abcd", "LONG=abcdEFGHsecret", "KEY=-----BEGIN KEY-----\nMIIEsecretbody\n-----END KEY-----"}
+	var journal strings.Builder
+	stderr := secretStderr(&journal, private)
+	script := `printf 'k1: -----BEGIN KEY-----\nk2: MIIEsecretbody\n' >&2
+printf 'escaped %s\n' "$(printf '%s' "$KEY" | sed ':a;N;$!ba;s/\n/\\n/g')" >&2
+printf 'long %s\n' "$LONG" >&2
+printf 'last %s' "$LONG" >&2; exit 78`
+	cmd := exec.Command("sh", "-c", script)
+	cmd.Env = []string{"KEY=" + private[2][4:], "LONG=abcdEFGHsecret"}
+	cmd.Stderr = stderr
+	if err := cmd.Run(); err == nil {
+		t.Fatal("expected configuration exit")
+	}
+	stderr.flush()
+	for _, leak := range []string{"MIIEsecretbody", "BEGIN KEY", "EFGHsecret"} {
+		if strings.Contains(journal.String(), leak) || strings.Contains(stderr.reason(), leak) {
+			t.Fatalf("%q reached the journal or the status reason: %q", leak, journal.String())
+		}
+	}
+	if !strings.Contains(journal.String(), "long ***\n") || stderr.reason() != "last ***" {
+		t.Fatalf("the longer value was not hidden whole: %q reason %q", journal.String(), stderr.reason())
+	}
+}
