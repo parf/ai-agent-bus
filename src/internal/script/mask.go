@@ -6,7 +6,9 @@ import (
 )
 
 // minMasked is the shortest value masked in a log: a shorter one would mangle
-// ordinary text, so a key holding one is warned about instead. It is a floor
+// ordinary text. Only the runner warns, by key, about a whole value under it
+// (warnShortSecrets); a short line inside a longer value is warned about
+// nowhere, and `agent-bus run` warns about none. It is a floor
 // on purpose: a short common line of a longer value (a PEM header) is masked
 // too, and over-masking is the safe side, so nobody should raise it.
 const minMasked = 4

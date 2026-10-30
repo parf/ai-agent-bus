@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.182 — 2026-10-30
+
+one shared masker hides each secret value and each line of a multi-line secret in runner and CLI output
+
 ## 0.9.181 — 2026-10-30
 
 subscription deliveries no longer send wait=0, which the daemon refused; every real subscription send was dropped
