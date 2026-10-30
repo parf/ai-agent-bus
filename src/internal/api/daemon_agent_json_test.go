@@ -82,8 +82,8 @@ func TestBusStatusJSONIsTheDaemonsStatusForTheCaller(t *testing.T) {
 			t.Fatalf("only %d readers waiting", b.Status().Waiting)
 		}
 	}
-	var admin, alice map[string]any
-	for who, into := range map[string]*map[string]any{"admin@h": &admin, "alice@h": &alice} {
+	var admin, alice, bob map[string]any
+	for who, into := range map[string]*map[string]any{"admin@h": &admin, "alice@h": &alice, "bob@h": &bob} {
 		body := busAnswer(t, s, who, "status --json")
 		if !strings.HasPrefix(body, "{") || !strings.HasSuffix(body, "}") || strings.Contains(body, "```") {
 			t.Fatalf("not bare JSON: %q", body)
@@ -105,7 +105,7 @@ func TestBusStatusJSONIsTheDaemonsStatusForTheCaller(t *testing.T) {
 	}
 	// Node totals, not the caller's view: live records of every kind (the
 	// suspended owner's agent is out), and readers as outstanding polls.
-	for _, got := range []map[string]any{admin, alice} {
+	for _, got := range []map[string]any{admin, alice, bob} {
 		if got["waiting"] != float64(3) {
 			t.Fatalf("readers are outstanding polls, filtered ones included: %v", got["waiting"])
 		}
@@ -124,11 +124,18 @@ func TestBusStatusJSONIsTheDaemonsStatusForTheCaller(t *testing.T) {
 			t.Fatal("no caller named")
 		}
 	}
-	if admin["records"] != alice["records"] {
-		t.Fatalf("callers with different views must see the same node totals: %v vs %v", admin["records"], alice["records"])
+	// Alice sees #hidden@h and bob does not, yet both get the same node totals.
+	if a, b := busAnswer(t, s, "alice@h", "ls --all --json"), busAnswer(t, s, "bob@h", "ls --all --json"); a == b || !strings.Contains(a, "#hidden@h") || strings.Contains(b, "#hidden@h") {
+		t.Fatal("the callers' listing visibility must differ for this to mean anything")
+	}
+	if admin["records"] != alice["records"] || alice["records"] != bob["records"] {
+		t.Fatalf("callers with different views must see the same node totals: %v, %v, %v", admin["records"], alice["records"], bob["records"])
 	}
 	if _, has := admin["owner_inactive"]; !has {
 		t.Fatalf("the daemon Owner sees the owner-inactive detail: %v", admin)
+	}
+	if _, has := bob["owner_inactive"]; has {
+		t.Fatalf("nor may another ordinary caller: %v", bob["owner_inactive"])
 	}
 	if _, has := alice["owner_inactive"]; has {
 		t.Fatalf("an ordinary caller must not see it, not even as zero: %v", alice["owner_inactive"])
