@@ -147,8 +147,8 @@ Federation's distinct-node acceptance moved with [its task](../R1.2/TODO.md#fede
 
 Built 0.8.143. [Current contract](../../docs/03-records.md#tags),
 [verification](done/record-tags.md#verification). Multiple-tag matching is
-settled — [№RD85](DECISIONS.md#recorded-decisions) — and not built; the
-implemented UI selects one label.
+settled — [№RD85](DECISIONS.md#recorded-decisions) — and built in the listing
+query; the web UI selects one label.
 
 `RTA…` labels this section's rows.
 
