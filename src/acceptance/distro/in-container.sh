@@ -143,13 +143,27 @@ deploy_checked() { # label
   [ "$(as_bob agent-bus status | python3 -c 'import json,sys; print(json.load(sys.stdin)["you"])')" = bob ] || fail "bob's credential stopped working $1"
 }
 release_of() { cat "/usr/local/lib/agent-bus/$(readlink /usr/local/lib/agent-bus/current)/internal/version/VERSION"; }
+# Configuration the update must keep: setup's files under /etc/agent-bus, the runner's runner.env, and a record's
+# Configuration in the daemon. A listing that misses runner.env compares nothing that matters, so it fails.
+config_sums() {
+  { find /etc/agent-bus -type f; echo /var/lib/agent-bus/alice-ab-runner/runner.env; } | sort | xargs sha256sum
+}
+as_alice agent-bus register "#kept@$realm" >/evidence/kept.log 2>&1 &&
+  as_alice agent-bus config "#kept@$realm" '{"kept":"set before the update"}' >>/evidence/kept.log 2>&1 ||
+  { cat /evidence/kept.log >&2; fail "alice could not set #kept@$realm's Configuration"; }
+config_before=$(config_sums) || fail "the node's configuration files cannot be read before the update"
+grep -q ' /var/lib/agent-bus/alice-ab-runner/runner.env$' <<<"$config_before" || fail "no runner.env to compare"
+record_before=$(as_alice agent-bus config "#kept@$realm")
+grep -q 'set before the update' <<<"$record_before" || fail "#kept@$realm's Configuration did not read back: $record_before"
 as_alice sh -c "curl -fsSL https://releases.test/next/install.sh | sh" >/evidence/update.log 2>&1 || { tail -30 /evidence/update.log >&2; fail "install.sh did not update to $next"; }
 /usr/local/bin/agent-busd --version | grep -qx "$next" || fail "agent-busd is not $next after the update"
 [ "$(release_of)" = "$next" ] || fail "current is not $next after the update"
 kept=$({ grep -lx "$version" /usr/local/lib/agent-bus/releases/*/internal/version/VERSION 2>/dev/null || true; } | wc -l)
 [ "$kept" = 1 ] || fail "the update kept $kept copies of $version for rollback, not one"
 deploy_checked "after the update"
-pass "the same command updated the node to $next: registrations, tokens and $version for rollback kept"
+[ "$(config_sums)" = "$config_before" ] || { diff <(echo "$config_before") <(config_sums) >&2; fail "the update changed the node's configuration files"; }
+[ "$(as_alice agent-bus config "#kept@$realm")" = "$record_before" ] || fail "the update changed #kept@$realm's Configuration"
+pass "the same command updated the node to $next: configuration, registrations, tokens and $version for rollback kept"
 
 as_bob sh -c "curl -fsSL https://releases.test/next/install.sh | sh -s -- --client" >/evidence/client-update.log 2>&1 || { cat /evidence/client-update.log >&2; fail "the client edition did not update"; }
 as_bob agent-bus --version | grep -qx "$next" || fail "the client edition is not $next after its update"
