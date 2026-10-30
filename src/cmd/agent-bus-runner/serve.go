@@ -880,7 +880,8 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	// Cloned straight into the agent's cgroup: no process of it ever runs
 	// outside its limits, not even for the moment a move would take.
 	if j.group != nil {
-		cmd.SysProcAttr = &syscall.SysProcAttr{UseCgroupFD: true, CgroupFD: j.group.FD()}
+		cmd.SysProcAttr = &syscall.SysProcAttr{}
+		useCgroup(cmd.SysProcAttr, j.group)
 	}
 	// The filter is read by bubblewrap from its fd 3, a pipe written whole
 	// before the start: a few hundred bytes, well inside a pipe's buffer.
