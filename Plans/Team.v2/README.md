@@ -20,26 +20,26 @@ team before it is in [today's team](#today). Open choices are in
 
 Two teams run ([TD3](DECISIONS.md#recorded-decisions)): `#ab-lead1` leads team 1 and
 `#ab-lead2` team 2, each with three workers and a QA. Names carry the project
-prefix `ab-` ([TD2](DECISIONS.md#recorded-decisions)). Account 1 workers, leads and QA run in the repository root and account 2
-workers in `Plans/`; `#ab-ceo` and `#ab-dir` have their own directories under
-`local/`. Each name resumes its own conversation.
+prefix `ab-` ([TD2](DECISIONS.md#recorded-decisions)). Team 1 runs in the repository root and team 2 in `Plans/`; `#ab-ceo` and
+`#ab-dir` have their own directories, `local/ceo/` and `local/dir/`. Each name
+resumes its own conversation.
 
 ```mermaid
 flowchart TD
   parf(["parf — owner"]) <-->|talks only to| ceo
   ceo["#ab-ceo<br/>kitty window CEO · Claude /fast<br/>local/ceo/"]
   dir["#ab-dir<br/>tmux DIR · Claude /fast<br/>local/dir/"]
-  subgraph team1 ["team 1"]
+  subgraph team1 ["team 1 · repository root"]
     lead1["#ab-lead1<br/>tmux LEAD1 · Claude /fast<br/>decides bump"]
     w1a["#ab-w1a<br/>Claude, account 1"]
-    w1b["#ab-w1b<br/>Claude, account 2 · Plans/"]
+    w1b["#ab-w1b<br/>Claude, account 2"]
     w1c["#ab-w1c<br/>Codex"]
     qa1["#ab-qa1<br/>opencode on z.ai · read-only"]
   end
-  subgraph team2 ["team 2"]
+  subgraph team2 ["team 2 · Plans/"]
     lead2["#ab-lead2<br/>tmux LEAD2 · Claude /fast<br/>decides bump"]
     w2a["#ab-w2a<br/>Claude, account 1"]
-    w2b["#ab-w2b<br/>Claude, account 2 · Plans/"]
+    w2b["#ab-w2b<br/>Claude, account 2"]
     w2c["#ab-w2c<br/>Codex"]
     qa2["#ab-qa2<br/>opencode on z.ai · read-only"]
   end
