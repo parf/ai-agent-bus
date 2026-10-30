@@ -132,6 +132,27 @@ class Packages(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('explicit sudo', result.stderr)
 
+    def test_setup_informational_flag_alone_needs_no_sudo(self):
+        for flag in ('--version', '-version', '--help', '-h'):
+            with self.subTest(flag=flag):
+                result = self.run_command([str(self.bin / 'agent-bus-setup'), flag])
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertNotIn('explicit sudo', result.stderr)
+                self.assertTrue(result.stdout or result.stderr, 'informational request produced no output')
+
+    def test_setup_help_after_positional_still_requires_install_guards(self):
+        if os.geteuid() == 0:
+            self.skipTest('ordinary-user refusal belongs to the host test')
+        setup = str(self.bin / 'agent-bus-setup')
+        options = ['--dry-run', '--owner', 'fixture', '--tls', 'off',
+                   '--exec', str(self.bin / 'agent-busd'), 'ignored-positional']
+        for flag in ('--help', '-h', '--version', '-version'):
+            with self.subTest(flag=flag):
+                result = self.run_command([setup, *options, flag])
+                self.assertNotEqual(result.returncode, 0, 'trailing help/version bypassed sudo guards')
+                self.assertIn('explicit sudo', result.stderr)
+                self.assertNotIn('would', result.stdout.lower(), 'setup ran despite its install guards')
+
     def test_request_reply_and_mcp_through_installed_commands(self):
         directory = self.work / 'daemon'
         directory.mkdir()

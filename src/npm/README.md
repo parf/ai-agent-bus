@@ -39,6 +39,8 @@ must be root-owned and not group/other-writable; unsafe paths are named in the
 refusal. Do not sudo a command from nvm or another user-owned npm prefix: a
 replacement verifier could bypass its own checks. The administrator must
 install into the trusted prefix before invoking sudo setup.
+Only a sole help or version argument is informational; combining it with setup
+arguments still requires all installation guards and manifest staging.
 It checks client/bus package and
 platform versions, creates a root-owned 0700 temporary directory under `/run`
 outside the npm prefix, and copies the split files according to the full

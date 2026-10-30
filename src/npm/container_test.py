@@ -110,6 +110,12 @@ class ExplicitSetup(unittest.TestCase):
             self.assertNotIn('Would', refused.stdout, 'setup ran before verifying all files')
             self.assertFalse(Path('/var/lib/agent-bus').exists())
             self.assert_clean_stage()
+            trailing = self.setup_command('--dry-run', '--owner', 'alice', '--tls', 'off',
+                                          '--exec', '/unused/daemon', 'ignored-positional', '--help')
+            self.assertNotEqual(trailing.returncode, 0, 'trailing help bypassed manifest staging')
+            self.assertIn('manifest mismatch', trailing.stderr)
+            self.assertNotIn('would', trailing.stdout.lower())
+            self.assert_clean_stage()
         finally:
             target.write_bytes(original)
         original = self.client_meta.read_text()

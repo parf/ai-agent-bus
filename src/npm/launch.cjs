@@ -33,7 +33,7 @@ function child(file, args, cleanup = () => {}, detachSignals = () => {}) {
 
 module.exports = function launch(program, args) {
   try {
-    const installing = program === "agent-bus-setup" && !args.some(arg => ["--version", "-version", "--help", "-h"].includes(arg));
+    const installing = program === "agent-bus-setup" && !(args.length === 1 && ["--version", "-version", "--help", "-h"].includes(args[0]));
     if (installing) {
       if (process.getuid?.() !== 0) throw new Error("setup requires explicit sudo; npm install never creates accounts or units");
       const trusted = require("./root-trust.cjs");
