@@ -43,11 +43,25 @@ fetch() { # url file
 # Whether version $1 is older than $2.
 older() { [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -n 1)" = "$1" ]; }
 
+# macOS has shasum, not sha256sum, and neither find -printf nor mv -T: the
+# helpers say what they mean with tools both systems have.
+sha256() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$@"; else shasum -a 256 "$@"; fi; }
+sha256_ok() { sha256 -c "$@" >/dev/null 2>&1; } # sha256_ok <list>: every file in it matches
+
+# The names of the release directories in $1 other than $2 and $3.
+other_releases() {
+    for d in "$1"/releases/*/; do
+        [ -d "$d" ] || continue
+        b=$(basename "$d")
+        [ "$b" = "$2" ] || [ "$b" = "$3" ] || printf '%s\n' "$b"
+    done
+}
+
 # The client keeps two releases: current, and the one it replaced.
 client_rollback() { # root bin
     current=$(readlink "$1/current" 2>/dev/null) || die "no client edition is installed in $1"
     current=$(basename "$current")
-    previous=$(find "$1/releases" -mindepth 1 -maxdepth 1 -type d ! -name "$current" -printf '%f\n')
+    previous=$(other_releases "$1" "$current" "$current")
     [ -n "$previous" ] && [ "$(printf '%s\n' "$previous" | wc -l)" -eq 1 ] || die "no single previous release is kept in $1/releases"
     client_switch "$1" "$2" "$previous"
     say "rolled back from $current to $previous"
@@ -68,7 +82,8 @@ client_preflight() { # bin
 
 client_switch() { # root bin release
     ln -sfn "releases/$3" "$1/current.new"
-    mv -T "$1/current.new" "$1/current"
+    # Atomic where mv -T exists; where it does not (macOS), the link is replaced in place.
+    mv -T "$1/current.new" "$1/current" 2>/dev/null || { ln -sfn "releases/$3" "$1/current"; rm -f "$1/current.new"; }
     mkdir -p "$2"
     for p in agent-bus agent-bus-runner; do ln -sfn "$1/current/$p" "$2/$p"; done
     # The Claude plugin starts the compiled MCP face by this name on PATH.
@@ -119,15 +134,21 @@ main() {
         return
     fi
 
-    [ "$(uname -s)" = Linux ] || die "Linux only for now, not $(uname -s)"
+    case $(uname -s) in
+        Linux) os=linux ;;
+        Darwin) os=darwin ;;
+        *) die "Linux and macOS only, not $(uname -s)" ;;
+    esac
+    [ "$os" = linux ] || [ "$edition" = client ] || die "on macOS only the client edition installs: use --client"
     case $(uname -m) in
         x86_64|amd64) arch=x86_64 ;;
         aarch64|arm64) arch=aarch64 ;;
         *) die "no release for CPU $(uname -m)" ;;
     esac
-    for tool in tar sha256sum ssh-keygen sort; do
+    for tool in tar ssh-keygen sort; do
         command -v "$tool" >/dev/null 2>&1 || die "needs $tool"
     done
+    command -v sha256sum >/dev/null 2>&1 || command -v shasum >/dev/null 2>&1 || die "needs sha256sum or shasum"
     # ssh-keygen -Y arrived in OpenSSH 8.1; an older one cannot check a signature.
     if ssh-keygen -Y check-novalidate </dev/null 2>&1 | grep -qi 'unknown option\|illegal option'; then
         die "needs OpenSSH 8.1 or later (ssh-keygen -Y) to check the release signature"
@@ -165,12 +186,12 @@ main() {
     [ "$edition" = client ] && prefix=agent-bus-client
     # Only lines of the exact form "<64 hex>  <prefix>-<version>-linux-<arch>.tar.gz";
     # the version is signed through that name.
-    line=$(grep -E "^[0-9a-f]{64}  $prefix-[0-9]+\.[0-9]+\.[0-9]+-linux-$arch\.tar\.gz\$" "$work/SHA256SUMS" || true)
-    [ -n "$line" ] && [ "$(printf '%s\n' "$line" | wc -l)" -eq 1 ] || die "the signed list names no single $prefix archive for linux-$arch"
+    line=$(grep -E "^[0-9a-f]{64}  $prefix-[0-9]+\.[0-9]+\.[0-9]+-$os-$arch\.tar\.gz\$" "$work/SHA256SUMS" || true)
+    [ -n "$line" ] && [ "$(printf '%s\n' "$line" | wc -l)" -eq 1 ] || die "the signed list names no single $prefix archive for $os-$arch"
     want=${line%% *}
     archive=${line##* }
     name=${archive%.tar.gz}
-    release=${name#"$prefix"-}; release=${release%-linux-"$arch"}
+    release=${name#"$prefix"-}; release=${release%-"$os"-"$arch"}
     [ -z "$version" ] || [ "$release" = "$version" ] || die "the signed list is for $release, not $version"
 
     # An older signed release served as the latest is a downgrade nobody asked for.
@@ -190,7 +211,7 @@ main() {
     fi
 
     fetch "$base/$archive" "$work/$archive" || die "cannot download $archive"
-    got=$(sha256sum "$work/$archive" | cut -d' ' -f1)
+    got=$(sha256 "$work/$archive" | cut -d' ' -f1)
     [ "$got" = "$want" ] || die "$archive does not match its signed hash: nothing installed"
 
     if [ "$edition" = full ]; then
@@ -209,7 +230,7 @@ main() {
     mkdir "$work/x"
     tar -xzf "$work/$archive" -C "$work/x" --no-same-owner
     [ "$(ls -A "$work/x")" = "$name" ] || die "$archive does not hold exactly $name"
-    (cd "$work/x/$name" && sha256sum -c --quiet MANIFEST.sha256) || die "$archive does not match its own manifest"
+    (cd "$work/x/$name" && sha256_ok MANIFEST.sha256) || die "$archive does not match its own manifest"
     # Every command client_switch links must be in the release and its manifest, as setup requires of the full node.
     for p in $client_files; do
         grep -qxE "[0-9a-f]{64}  $p" "$work/x/$name/MANIFEST.sha256" && [ -f "$work/x/$name/$p" ] && [ -x "$work/x/$name/$p" ] ||
@@ -221,7 +242,7 @@ main() {
     mv "$work/x/$name" "$croot/releases/$release"
     client_switch "$croot" "$cbin" "$release"
     # Keep the release now current and the one it replaced.
-    find "$croot/releases" -mindepth 1 -maxdepth 1 -type d ! -name "$release" ! -name "${installed:-none}" -exec rm -rf {} +
+    for old in $(other_releases "$croot" "$release" "${installed:-none}"); do rm -rf "${croot:?}/releases/$old"; done
     say "client edition $release is in $croot; commands are linked into $cbin"
     case :$PATH: in *":$cbin:"*) ;; *) say "add $cbin to PATH" ;; esac
 }

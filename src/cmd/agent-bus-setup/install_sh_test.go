@@ -28,6 +28,10 @@ type installFixture struct {
 	server  *httptest.Server
 	release string
 	record  string // where a recording setup writes how it ran
+	os      string // the OS the published archive is for: "" is linux
+	arch    string // its CPU as the archive names it: "" is this host's
+
+	findCalled string // set by runMac: a file that exists once install.sh ran find
 }
 
 func newInstallFixture(t *testing.T) *installFixture {
@@ -94,7 +98,14 @@ func (f *installFixture) publishEdition(edition, version string, sign bool, extr
 // leaves that file out of the archive and its manifest.
 func (f *installFixture) publishForged(edition, version string, sign bool, extra map[string]string, forge string) string {
 	f.t.Helper()
-	name := edition + "-" + version + "-linux-" + map[string]string{"amd64": "x86_64", "arm64": "aarch64"}[goarchFromUname(f.t)]
+	osName, arch := f.os, f.arch
+	if osName == "" {
+		osName = "linux"
+	}
+	if arch == "" {
+		arch = map[string]string{"amd64": "x86_64", "arm64": "aarch64"}[goarchFromUname(f.t)]
+	}
+	name := edition + "-" + version + "-" + osName + "-" + arch
 	files := map[string]string{"agent-bus": "#!/bin/sh\necho agent-bus " + version + "\n", "agent-bus-runner": "#!/bin/sh\n", "agent-bus-ts": "#!/bin/sh\necho ts \"$@\"\n",
 		"launchers/ab-claude": "#!/bin/sh\n", "launchers/ab-codex": "#!/bin/sh\n", "launchers/ab-opencode": "#!/bin/sh\n", "launchers/ab-opencode1": "#!/bin/sh\n",
 		"internal/version/VERSION": version + "\n"}
@@ -139,12 +150,15 @@ func (f *installFixture) publishForged(edition, version string, sign bool, extra
 	}
 	// release-sign.sh signs exactly a release's four archives; the other
 	// three are stand-ins here.
-	for _, edition := range []string{"agent-bus", "agent-bus-client"} {
-		for _, arch := range []string{"x86_64", "aarch64"} {
-			other := filepath.Join(rel, edition+"-"+version+"-linux-"+arch+".tar.gz")
-			if _, err := os.Stat(other); os.IsNotExist(err) {
-				os.WriteFile(other, []byte("stand-in "+edition+" "+arch), 0o644)
-			}
+	others := []string{"linux/agent-bus/x86_64", "linux/agent-bus/aarch64", "linux/agent-bus-client/x86_64", "linux/agent-bus-client/aarch64"}
+	if osName == "darwin" {
+		others = append(others, "darwin/agent-bus-client/x86_64", "darwin/agent-bus-client/aarch64")
+	}
+	for _, o := range others {
+		p := strings.Split(o, "/")
+		other := filepath.Join(rel, p[1]+"-"+version+"-"+p[0]+"-"+p[2]+".tar.gz")
+		if _, err := os.Stat(other); os.IsNotExist(err) {
+			os.WriteFile(other, []byte("stand-in "+o), 0o644)
 		}
 	}
 	if sign {
@@ -525,5 +539,112 @@ func TestInstallShRefusesASignedArchiveOfTheWrongShape(t *testing.T) {
 				t.Fatalf("the root copy was left behind: %v", entries)
 			}
 		})
+	}
+}
+
+// macOS has no sha256sum, find -printf or mv -T. This PATH holds the tools
+// install.sh may use, a uname that says Darwin on Apple Silicon, shasum, an mv
+// that refuses -T as macOS's does, and a find that records being called: the
+// client edition must install, update and roll back with only those.
+func macPath(t *testing.T) (path, findCalled string) {
+	t.Helper()
+	bin := t.TempDir()
+	for _, tool := range []string{"mktemp", "tar", "ssh-keygen", "sort", "curl", "grep", "sed", "cut", "head", "tr", "wc",
+		"basename", "dirname", "readlink", "ln", "rm", "mkdir", "ls", "id", "cat", "awk", "date", "sh", "gzip", "chmod", "cp"} {
+		p, err := exec.LookPath(tool)
+		if err != nil {
+			continue
+		}
+		os.Symlink(p, filepath.Join(bin, tool))
+	}
+	real := func(name string) string {
+		p, err := exec.LookPath(name)
+		if err != nil {
+			t.Skipf("needs %s", name)
+		}
+		return p
+	}
+	findCalled = filepath.Join(t.TempDir(), "find-called")
+	shims := map[string]string{
+		"uname":  "#!/bin/sh\ncase \"$1\" in -s) echo Darwin ;; -m) echo arm64 ;; *) echo Darwin ;; esac\n",
+		"shasum": "#!/bin/sh\n[ \"$1\" = -a ] && [ \"$2\" = 256 ] || exit 2\nshift 2\nexec " + real("sha256sum") + " \"$@\"\n",
+		"mv":     "#!/bin/sh\nfor a in \"$@\"; do [ \"$a\" = -T ] && { echo \"mv: illegal option -- T\" >&2; exit 64; }; done\nexec " + real("mv") + " \"$@\"\n",
+		"find":   "#!/bin/sh\necho called > " + findCalled + "\nexit 1\n",
+	}
+	for name, body := range shims {
+		if err := os.WriteFile(filepath.Join(bin, name), []byte(body), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return bin, findCalled
+}
+
+func (f *installFixture) runMac(args ...string) (string, error) {
+	path, called := macPath(f.t)
+	f.findCalled = called
+	cmd := exec.Command(filepath.Join(path, "sh"), append([]string{f.script}, args...)...)
+	cmd.Env = []string{"HOME=" + f.home, "PATH=" + path}
+	out, err := cmd.CombinedOutput()
+	return string(out), err
+}
+
+func TestInstallShClientInstallsUpdatesAndRollsBackOnMacOS(t *testing.T) {
+	f := newInstallFixture(t)
+	f.os, f.arch = "darwin", "aarch64"
+	for _, v := range []string{"1.0.0", "1.0.1", "1.0.2"} {
+		f.publish(v, true)
+	}
+	if out, err := f.runMac("--client", "--version", "1.0.0"); err != nil || f.current() != "1.0.0" {
+		t.Fatalf("first install: %v %s current=%s", err, out, f.current())
+	}
+	f.runMac("--client", "--version", "1.0.1")
+	if out, err := f.runMac("--client", "--version", "1.0.2"); err != nil || f.current() != "1.0.2" {
+		t.Fatalf("update: %v %s current=%s", err, out, f.current())
+	}
+	if kept, _ := os.ReadDir(filepath.Join(f.home, ".local/lib/agent-bus/releases")); len(kept) != 2 || kept[0].Name() != "1.0.1" || kept[1].Name() != "1.0.2" {
+		t.Fatalf("kept releases: %v, want the current and the one it replaced", kept)
+	}
+	if out, err := f.runMac("--client", "--rollback"); err != nil || f.current() != "1.0.1" {
+		t.Fatalf("rollback: %v %s current=%s", err, out, f.current())
+	}
+	if _, err := os.Stat(f.findCalled); err == nil {
+		t.Fatal("install.sh called find, whose -printf macOS lacks")
+	}
+}
+
+// The full node is Linux's: on macOS it is refused before anything is written.
+func TestInstallShFullNodeIsRefusedOnMacOS(t *testing.T) {
+	f := newInstallFixture(t)
+	f.os, f.arch = "darwin", "aarch64"
+	f.publishEdition("agent-bus-client", "1.0.0", true, nil)
+	out, err := f.runMac("--version", "1.0.0")
+	if err == nil || !strings.Contains(out, "on macOS only the client edition installs") {
+		t.Fatalf("the full node was not refused: %v %s", err, out)
+	}
+	if entries, _ := os.ReadDir(f.home); len(entries) != 0 {
+		t.Fatalf("the refusal wrote into HOME: %v", entries)
+	}
+}
+
+// release-sign signs the macOS client edition with the four, both CPUs or neither.
+func TestReleaseSignTakesTheMacOSClientBothOrNone(t *testing.T) {
+	f := newInstallFixture(t)
+	rel := f.publish("1.0.0", false)
+	sign := func() (string, error) {
+		out, err := exec.Command("../../release-sign.sh", rel, f.key, "1.0.0", "--no-ci-check").CombinedOutput()
+		return string(out), err
+	}
+	one := filepath.Join(rel, "agent-bus-client-1.0.0-darwin-aarch64.tar.gz")
+	os.WriteFile(one, []byte("mac"), 0o644)
+	if out, err := sign(); err == nil || !strings.Contains(out, "agent-bus-client-1.0.0-darwin-x86_64.tar.gz is missing") {
+		t.Fatalf("one macOS archive was signed: %v %s", err, out)
+	}
+	os.WriteFile(filepath.Join(rel, "agent-bus-client-1.0.0-darwin-x86_64.tar.gz"), []byte("mac"), 0o644)
+	if out, err := sign(); err != nil {
+		t.Fatalf("both macOS archives refused: %v %s", err, out)
+	}
+	sums, _ := os.ReadFile(filepath.Join(rel, "SHA256SUMS"))
+	if n := strings.Count(string(sums), "\n"); n != 6 || !strings.Contains(string(sums), "-darwin-aarch64.tar.gz") {
+		t.Fatalf("the signed list holds %d lines:\n%s", n, sums)
 	}
 }
