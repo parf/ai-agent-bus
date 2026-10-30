@@ -57,6 +57,11 @@ final class Http
             CURLOPT_HTTPGET => $method === 'GET',
         ];
         if ($this->socket !== null) { $opts[CURLOPT_UNIX_SOCKET_PATH] = $this->socket; }
+        // A long poll never goes over HTTP/2: one curl gives up on is a stream
+        // reset the daemon reads late, on a connection that stays open, and a
+        // message handed to the poll meanwhile is lost. Over HTTP/1.1 giving up
+        // closes the connection, which the daemon sees at once.
+        if ($path === '/consume') { $opts[CURLOPT_HTTP_VERSION] = CURL_HTTP_VERSION_1_1; }
         if ($body !== null) {
             $opts[CURLOPT_POSTFIELDS] = Json::encode($body);
             $opts[CURLOPT_HTTPHEADER][] = 'Content-Type: application/json';
@@ -105,6 +110,9 @@ final class Http
     }
 
     public function closed(): bool { return $this->closed; }
+
+    /** The HTTP version the last request went over, as CURLINFO_HTTP_VERSION says it. */
+    public function version(): int { return (int) curl_getinfo($this->curl, CURLINFO_HTTP_VERSION); }
 }
 
 /** @internal JSON as the library sends and reads it. */
