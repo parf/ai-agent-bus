@@ -1,6 +1,11 @@
 package main
 
 import (
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -26,5 +31,39 @@ func TestHostsLineShowsEachHostAndHowLongAgo(t *testing.T) {
 	}
 	if got := hostsLine(protocol.Record{Name: "#pool@h"}, now); got != "" {
 		t.Fatalf("a name with no hosts has a line %q", got)
+	}
+}
+
+// `ls --table <name>` itself prints the Hosts line after the table, as the
+// real command does: a formatter nobody calls would pass the test above.
+func TestLsTableOnOneNamePrintsTheHostsLine(t *testing.T) {
+	zero := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(protocol.Record{Name: "#pool@h", Kind: "agent", Readers: &zero,
+			Hosts: []protocol.ReaderHost{{Name: "srv1", LastRead: time.Now()}}})
+	}))
+	defer server.Close()
+	oldTransport, oldStdout := transport, os.Stdout
+	defer func() { transport, os.Stdout = oldTransport, oldStdout }()
+	transport = func() (*http.Client, string) { return server.Client(), server.URL }
+	t.Setenv("AGENT_BUS_TOKEN", "fixture")
+	read, write, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer read.Close()
+	os.Stdout = write
+	err = ls([]string{"--table", "#pool@h"})
+	write.Close()
+	os.Stdout = oldStdout
+	out, _ := io.ReadAll(read)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(out), "Hosts  srv1 (now)") {
+		t.Fatalf("ls --table on one name omitted the Hosts line:\n%s", out)
+	}
+	if !strings.Contains(string(out), "#pool@h") {
+		t.Fatalf("the table is gone:\n%s", out)
 	}
 }
