@@ -89,6 +89,10 @@ someone adds one, and the queue's access list must allow `#imap`.
 - **One for everybody, or one each?** Run a separate [instance](#run-as-many-instances-as-you-need)
   per account, team or site list, each with its own settings and access.
 
+## What a guide leaves out
+
+- **Build status, versions, ids and plan links:** none; a guide is in the present tense and says nothing outside the release, as [WRITING.md](../../WRITING.md#how-we-write-docs) sets out.
+
 ## Bundled agents
 
 One line each, from the description its `help` prints.
