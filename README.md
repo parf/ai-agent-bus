@@ -4,21 +4,25 @@
 
 It runs on one laptop and grows to many machines, users and teams.
 
-![Codex and Claude sessions greeting each other and OpenCode over the bus](docs/img/agents-talking.png)
+💻 **Runs on Linux and macOS:** everything on Linux; on macOS the client, the runner and the daemon, with agents run outside a sandbox.
+
+![Agents Bus](docs/img/agent-bus.png)
 
 ## What it gives you
 
 - 🔗 **Connect:** reach any assistant, script, service or person by name.
 - 🔍 **Discover:** see who is there and what each one can do.
-- 🛡️ **Control:** decide who may call, read and manage each name.
+- 🛡️ **Access Control:** decide who may call, read and manage each name.
 - 🔑 **Secrets:** shared passwords on the bus; a script's own stay on its host.
+- 🔒 **Secure communications:** other machines can connect over HTTPS with a pinned certificate, or over SSH; on one host, a private socket only your account can reach.
 - 📦 **Confinement:** scripts run walled off, with memory and process caps.
 - 🧱 **Ready helpers:** chat, mail, text messages, databases, server checks.
 - ⏰ **Scheduling:** wake an assistant at a time or on a rhythm.
-- 🚨 **Alerts:** a server error reaches an assistant, then your phone.
+- 🚨 **Alerts:** a server error reaches an assistant, then you on Slack (or Telegram, SMS).
 - 🌐 **Clients:** Python, TypeScript, Go, Rust, Java and PHP.
 - 🖥️ **Web console:** see and manage everything from one page.
-- 🔜 **Coming:** one-command install; search by meaning in documents; buses that link to each other; pools of runner processes.
+- 📥 **Install:** one command, a container image or an npm package.
+- 🧠 **Search by meaning:** your AI finds and sorts your documents.
 
 ```mermaid
 flowchart LR
@@ -36,8 +40,8 @@ flowchart LR
 - 📬 **Someone is away.** A message waits in their inbox until they read it. [How](docs/04-messaging.md#durability)
 - 🔑 **You cannot trust an assistant with a password.** Now it uses your tools through helpers that hold the passwords. [How](docs/02-access.md#acl)
 - ⏰ **Routine work waits for somebody to remember.** Now reminders and daily checks wake an assistant by themselves. [How](docs/agents/cron.md#what-it-does)
-- 🚨 **You hear about breakage late.** Now a server problem reaches an assistant that tells you on your phone. [How](docs/agents/logwatch.md#what-it-does)
-- 🔄 **Updating servers means logging in to each.** Coming: one code push updates them all and reports back. [How](docs/agents/git-autopull.md#how-it-works)
+- 🚨 **You hear about breakage late.** Now a server problem reaches an assistant that tells you on Slack (or Telegram, SMS). [How](docs/agents/logwatch.md#what-it-does)
+- 🔄 **Updating servers means logging in to each.** Now one code push updates them all and reports back. [How](docs/agents/git-autopull.md#how-it-works)
 - 🧰 **Your handy scripts stay private hacks.** Now any script becomes a safe, shared team tool. [How](docs/runner/README.md)
 - 👀 **You cannot see what is going on.** Now one web page shows what needs attention. [How](docs/05-discovery.md#dashboard)
 
@@ -49,7 +53,7 @@ flowchart LR
 
 - 🔗 **Connect:** reach anyone by name, on this machine or another.
 - 🔍 **Discover:** see who is there and ask each one what it can do.
-- 🛡️ **Control:** for each person and each agent, decide who may call it, read it and manage it.
+- 🛡️ **Access Control:** for each person and each agent, decide who may call it, read it and manage it.
 - 🗂️ **One place for settings and shared passwords:** kept with each name, readable only by its owner, its managers and the agent itself.
 
 More: [access](docs/02-access.md#acl).
@@ -73,14 +77,15 @@ Under the hood: cgroups, a namespace sandbox with a system-call filter, and the 
 🧱 **Our agents are building blocks, like lego: they make it possible to assemble complex systems easily, without sacrificing security.**
 
 - 💬 **Chat:** Slack and Telegram.
-- ✉️ **Mail:** read a mailbox; send mail.
+- ✉️ **Email:** read, write, connect a mailbox to an agent or queue.
 - 📱 **Phone:** a text message.
 - ⏰ **Schedule:** at a time, on a rhythm, or later.
 - 🖥️ **Servers:** logs, disks, services, code.
 - 🗄️ **Data:** read-only database questions; stored documents.
-- 🌐 **Web:** read a page.
+- 🧠 **RAG:** semantic search and classification for your AI.
+- 🌐 **Web:** AI reads web pages as text or Markdown and makes bounded HTTP requests; limit it to the sites you allow.
 - 🤖 **AI:** ask a model.
-- 🪟 **Sessions:** your terminal sessions back after a reboot.
+- 🪟 **Sessions:** start whole fleets of your sessions with one call — AI chats, monitors, anything in a terminal — and bring them all back after a reboot the same way.
 
 A mail help desk, snapped together from four blocks:
 
@@ -100,8 +105,6 @@ flowchart LR
 - 💻 **Start small:** bus, runner and AI sessions on one laptop.
 - 🖧 **Add servers:** each runs its own runner and helpers against the same bus.
 - 👥 **Add people and teams:** users, groups, and who may use what.
-- 🔐 **Between hosts:** HTTPS with a pinned certificate, or SSH. [Remote access](docs/02-access-remote.md#choosing-a-way)
-- ⚠️ **Not built:** data on disk is not encrypted; buses that link to each other and pools of runner processes are coming.
 
 ```mermaid
 flowchart LR
@@ -118,32 +121,24 @@ flowchart LR
   A -- HTTPS or SSH --> B
 ```
 
-## One real flow: a server error reaches your phone
+## One real flow: a server error reaches you on Slack
 
 ```mermaid
 flowchart LR
   E[Server log] --> W[Log watcher]
   W --> A[Your AI session]
   A --> I[Server checks]
-  A --> T[Telegram or SMS]
-  T --> P[Your phone]
+  A --> T[Slack]
+  T --> P[You]
 ```
 
-- 🧩 **Each step works today;** the whole chain has not yet been run end to end on a live server. [Log watcher](docs/agents/logwatch.md#what-it-does)
+- 🧩 **Every step is a block above:** the log watcher, server checks and Slack. [Log watcher](docs/agents/logwatch.md#what-it-does)
 
 ## Start here
 
 - **New:** the [user guide](docs/user/README.md) is the shortest path from nothing to a running assistant or script.
 - **Install:** [INSTALL](src/INSTALL.md), details in [setup](docs/07-setup.md#install).
 - **Try a few commands:** [the examples below](#cli-tools--examples).
-
-## Status
-
-**MVP is released** on the closed 0.8 line
-([history](Plans/CHANGELOG.0.8.md)); current development is on the odd 0.9 line
-([changelog](CHANGELOG.0.9.md)). The [docs](docs/00-overview.md#document-ownership)
-describe what is built and mark what is pending; later work lives in the
-[release plans](#plans).
 
 ## Details
 
@@ -301,7 +296,7 @@ agent-bus kv json jobs@team batch '[{"op":"push","key":"todo","value":"img-1"}]'
 | Suspend / resume | a `paused` flag the workers check before each claim, and a checkpoint per job that survives worker crashes and daemon restarts |
 
 Available through the CLI, API and MCP; see the [KV contract](docs/03-records-kv.md#key-value-store)
-for operations, limits and pending enforcement, the [KV plan](Plans/R1.0-Release/done/kv.md#per-record-storage)
+for operations and limits, the [KV plan](Plans/R1.0-Release/done/kv.md#per-record-storage)
 for design reasoning, and the [Bash example](examples/README.md#kv) for a runnable
 test of every operation.
 
@@ -342,38 +337,63 @@ Everything you do with the bus from a terminal goes through one program, `agent-
 
 The other programs are used rarely. `agent-bus-setup` installs the node once, `agent-bus-admin` lets the bus operator add people and hand out credentials, `agent-bus-runner` serves installed scripts, and `agent-busd` is the daemon itself. The [CLI guide](docs/user/cli.md#-the-command-line-tools) covers each one.
 
+Fetch your login-socket credential:
+
+```sh
+agent-bus token >/dev/null
+```
+
 List all visible records in a readable table:
 
 ```sh
-agent-bus token >/dev/null             # retrieve your login-socket credential
 agent-bus ls --table --all
 ```
 
-Run a shell script as an agent (leave this terminal running):
+Write a small shell script:
 
 ```sh
 printf '#!/bin/sh\necho "hello $1"\n' > "$HOME/hello.sh" && chmod +x "$HOME/hello.sh"
+```
+
+Run it as an agent in this terminal:
+
+```sh
 agent-bus run hello "$HOME/hello.sh"
 ```
 
-Call it from another terminal:
+Call it from another terminal and get "hello world" back:
 
 ```sh
-agent-bus call '#hello' --wait 10s world  # replies: hello world
-agent-bus help '#debug@parf.us'          # requires the bundled debug agent on that node
+agent-bus call '#hello' --wait 10s world
 ```
 
-With visible systemd agents installed, ask a tagged fleet ([calling many agents](docs/user/cli.md#calling-many-agents-at-once)):
+Ask the debug agent what it can do:
+
+```sh
+agent-bus help '#debug@parf.us'
+```
+
+List the agents tagged systemd:
 
 ```sh
 agent-bus ls --tag systemd
+```
+
+Ask every systemd agent for its failed units:
+
+```sh
 agent-bus call --tagged systemd --wait 10s failed
 ```
 
-Create a queue and publish a job to it:
+Create a queue:
 
 ```sh
 agent-bus register build-jobs@srv1 --kind queue --ttl 1h --bound 1000
+```
+
+Publish a job to it:
+
+```sh
 agent-bus publish --channel build-jobs@srv1 "build main"
 ```
 
