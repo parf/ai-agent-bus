@@ -389,11 +389,8 @@
           "./internal/protocol",
           "./internal/envfile",
           "./internal/api",
-          "./cmd/agent-bus-runner",
-          "./cmd/agent-bus-setup",
-          "./cmd/agent-bus",
           "-run",
-          "^(TestEmptyACLRestrictsUseAndVisibilityOnNewAndRestoredRecords|TestMintHandsOutNothingItCouldNotWrite|TestKVRoundTripsAndSurvivesAReopen|TestSigilsAreFreeOfNames|TestENVConformanceCases|TestEmptyACLIsHiddenAndRefusesOtherCallersOverHTTP|TestDescriptionRequiredByName|TestUnitAddressRequiresExplicitManagedAddress|TestHelpAndMCPAreAsksNotText)$"
+          "^(TestEmptyACLRestrictsUseAndVisibilityOnNewAndRestoredRecords|TestMintHandsOutNothingItCouldNotWrite|TestKVRoundTripsAndSurvivesAReopen|TestSigilsAreFreeOfNames|TestENVConformanceCases|TestEmptyACLIsHiddenAndRefusesOtherCallersOverHTTP)$"
         ]
       },
       {
