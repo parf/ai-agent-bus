@@ -348,7 +348,7 @@ func userRunnerVerb(verb, person string, purge, dry bool) error {
 		return err
 	}
 	if !dry && os.Geteuid() != 0 {
-		return fmt.Errorf("a user-account runner is root's to install; run sudo %s", strings.Join(os.Args, " "))
+		return fmt.Errorf("a user-account runner is root's to install; run %s", sudoLine())
 	}
 	if err := userManagerAvailable(); err != nil {
 		return err

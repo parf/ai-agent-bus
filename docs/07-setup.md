@@ -333,6 +333,7 @@ curl -fsSL https://raw.githubusercontent.com/parf/ai-agent-bus/main/install.sh |
 | `--key-fingerprint SHA256:…` | refuse unless the key built into `install.sh` is that one; every run prints the key's fingerprint |
 | Verification | before anything is unpacked: `SHA256SUMS` must carry an `ssh-keygen` signature in the `agent-bus-release` namespace by a key built into `install.sh`, then the archive must match its line there, then its own `MANIFEST.sha256`. Any failure installs nothing |
 | Needs | `curl` or `wget`, `tar`, `sha256sum`, `ssh-keygen` (OpenSSH 8.1 or later); `python3` for the bundled agents; `bubblewrap` for the runner's agents, sandboxed by default ([runner sandbox](runner/security.md#isolation-today)), which install.sh warns about but does not install. No bun, Node or Go |
+| `sudo` | name setup by its path, `sudo /usr/local/bin/agent-bus-setup`: the RHEL family's sudo `secure_path` leaves `/usr/local/bin` out, so a bare `sudo agent-bus-setup` is not found there; setup's own hints print the path it was run from |
 | Trust | the release key is only as trustworthy as the `install.sh` that carries it: whoever can change that file can ship another key. Compare the printed fingerprint with the one the owner publishes elsewhere, and pin it with `--key-fingerprint` |
 
 <details><summary>Releasing</summary>
@@ -725,7 +726,7 @@ capability.
 
 📌 A [runner](../Plans/R1.0-Release/runner.md#runner) is a person's, and
 setup installs one only when asked, for one person at a time:
-`sudo agent-bus-setup --runner install|uninstall|enable|disable [--for <person>]`.
+`sudo /usr/local/bin/agent-bus-setup --runner install|uninstall|enable|disable [--for <person>]`.
 Every verb looks first and does only what is missing, so a second run changes
 nothing, and `--dry-run` prints the plan.
 
@@ -784,7 +785,7 @@ else stays in the system runner.
 | the system runner, `#runner/<person>@<host>` | only needs the bus and what its package declares; the default for every agent |
 | the user-account runner, `#runner/<person>-user@<host>` | must act as the person: tmux sessions ([`#tmux-sessions`](agents/tmux-sessions.md#installing-it)), their CLI logins, their home |
 
-`sudo agent-bus-setup --runner install|uninstall|enable|disable --user-runner [--for <person>] [--dry-run]`,
+`sudo /usr/local/bin/agent-bus-setup --runner install|uninstall|enable|disable --user-runner [--for <person>] [--dry-run]`,
 and `--runner refresh --user-runner` for every installed one. `--for` defaults
 to whoever ran `sudo`. Like the system runner, every verb looks first and does
 only what is missing, so a second run changes nothing.
@@ -851,9 +852,9 @@ enabled — and give the base record a sibling key with its `name`:
 
 ## Sample data
 
-`sudo agent-bus-setup --samples` fills a running node with something to look
+`sudo /usr/local/bin/agent-bus-setup --samples` fills a running node with something to look
 at, from a galaxy far, far away and from Spaceballs, each name in its own
-realm; `sudo agent-bus-setup --remove-samples` takes exactly that away again.
+realm; `sudo /usr/local/bin/agent-bus-setup --remove-samples` takes exactly that away again.
 Both write as the daemon Owner on the daemon account's socket; with
 `AGENT_BUS_ADDR` set to a development daemon's owner socket they need no root.
 

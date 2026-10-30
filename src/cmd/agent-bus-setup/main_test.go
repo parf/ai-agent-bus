@@ -155,3 +155,23 @@ func TestExecPathsComeFromTheLibrariesBunLinks(t *testing.T) {
 		}
 	}
 }
+
+// A root hint names setup by the path it was found on: RHEL's sudo
+// secure_path leaves /usr/local/bin out, so a bare name would not be found.
+func TestSudoLineNamesSetupByItsPath(t *testing.T) {
+	bin := t.TempDir()
+	if err := os.WriteFile(filepath.Join(bin, "agent-bus-setup"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin)
+	saved := os.Args
+	defer func() { os.Args = saved }()
+	os.Args = []string{"agent-bus-setup", "--runner", "install"}
+	if got, want := sudoLine(), "sudo "+filepath.Join(bin, "agent-bus-setup")+" --runner install"; got != want {
+		t.Fatalf("sudoLine() = %q, want %q", got, want)
+	}
+	os.Args = []string{"./agent-bus-setup", "--upgrade"}
+	if got, want := sudoLine(), "sudo ./agent-bus-setup --upgrade"; got != want {
+		t.Fatalf("a path as given changed: sudoLine() = %q, want %q", got, want)
+	}
+}

@@ -281,7 +281,7 @@ if the runner stops.
 
 ## Stopping and restarting
 
-`sudo agent-bus-setup --runner disable --for <you>` stops and disables it, keeping every file ([a person's runner](../07-setup.md#a-persons-runner)); `systemctl stop agent-bus-runner@<you>` only stops it. Messages already taken are
+`sudo /usr/local/bin/agent-bus-setup --runner disable --for <you>` stops and disables it, keeping every file ([a person's runner](../07-setup.md#a-persons-runner)); `systemctl stop agent-bus-runner@<you>` only stops it. Messages already taken are
 lost in the ordinary way ([durability](../04-messaging.md#durability));
 everything still queued waits for the runner to come back. The agents stay
 registered, their messages wait in their own inboxes, and the runner keeps

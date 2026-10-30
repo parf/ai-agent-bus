@@ -35,7 +35,7 @@ on the daemon). Off loopback, the daemon warns at start that this is plain
 HTTP.
 
 ```sh
-sudo agent-bus-setup --addr 100.121.175.32:6767        # on the node
+sudo /usr/local/bin/agent-bus-setup --addr 100.121.175.32:6767        # on the node
 ```
 
 On the other host:
@@ -72,7 +72,7 @@ For the web face, separately [trust the web certificate in your browser](07-setu
 On the node, once:
 
 ```sh
-sudo agent-bus-setup --tls self-signed
+sudo /usr/local/bin/agent-bus-setup --tls self-signed
 ```
 
 On the other host:

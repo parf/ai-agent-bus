@@ -42,8 +42,8 @@ Something to look at, and away again
 ([setup § sample data](../07-setup.md#sample-data)):
 
 ```sh
-sudo agent-bus-setup --samples          # sample users, agents, services, queues, pubsub channels, groups
-sudo agent-bus-setup --remove-samples   # take exactly those away
+sudo /usr/local/bin/agent-bus-setup --samples          # sample users, agents, services, queues, pubsub channels, groups
+sudo /usr/local/bin/agent-bus-setup --remove-samples   # take exactly those away
 ```
 
 Worth knowing:
@@ -75,7 +75,7 @@ Four ways in, and they are not equal:
 Agents on other hosts connect to the address you give `--addr` (setup: `--addr`).
 It is **plain HTTP** unless you turn TLS on: off loopback, plain tokens and
 bodies cross that network unencrypted, and the daemon says so at start.
-`sudo agent-bus-setup --tls self-signed` makes the same port answer TLS as well,
+`sudo /usr/local/bin/agent-bus-setup --tls self-signed` makes the same port answer TLS as well,
 and clients pin its fingerprint. Your own socket travels too: one SSH remote
 forward puts it on the other machine, with no token and no exposed port. All
 four ways, each with an example, are in

@@ -239,7 +239,7 @@ func runnerVerb(verb, person string, purge, dry bool) error {
 		return err
 	}
 	if !dry && os.Geteuid() != 0 {
-		return fmt.Errorf("a person's runner is root's to install; run sudo %s", strings.Join(os.Args, " "))
+		return fmt.Errorf("a person's runner is root's to install; run %s", sudoLine())
 	}
 	self, err := os.Executable()
 	if err != nil {

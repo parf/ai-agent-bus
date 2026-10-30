@@ -84,8 +84,8 @@ you=$(as_alice agent-bus status | python3 -c 'import json,sys; print(json.load(s
 [ "$you" = alice ] || fail "alice is $you on the bus"
 # The node's realm is its host name, as check-deploy.sh falls back to.
 realm=$(hostname -f)
-# By its path: RHEL's sudo secure_path leaves /usr/local/bin out, so the
-# documented "sudo agent-bus-setup" is not found on AlmaLinux.
+# By its path, as the docs give it: RHEL's sudo secure_path leaves
+# /usr/local/bin out, so a bare "sudo agent-bus-setup" is not found on AlmaLinux.
 as_alice sudo /usr/local/bin/agent-bus-setup --runner install >/evidence/runner.log 2>&1 || { tail -20 /evidence/runner.log >&2; fail "the runner did not install"; }
 cp -a /usr/local/lib/agent-bus/current/agents/debug /var/lib/agent-bus/agent.d/debug
 # debug serves itself: its Owner registers it and hands its token to the

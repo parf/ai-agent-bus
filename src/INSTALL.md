@@ -58,7 +58,7 @@ sudo systemctl restart agent-busd agent-bus-web
 |---|---|
 | SSH key | Setup makes your `~/.ssh/id_ed25519.pub` the first user's key. Without one, run `ssh-keygen -t ed25519` first, or add it later with `agent-bus-admin user add` |
 | TLS | `sudo src/agent-bus-setup --exec "$PWD/src/agent-busd" --tls self-signed`, or `--tls files --tls-cert … --tls-key …` ([setup § TLS](../docs/07-setup.md#tls)) |
-| Sample data | `sudo agent-bus-setup --samples` adds sample users, agents, services, queues, pubsub channels and groups; `--remove-samples` takes them away |
+| Sample data | `sudo /usr/local/bin/agent-bus-setup --samples` adds sample users, agents, services, queues, pubsub channels and groups; `--remove-samples` takes them away |
 | Preview | `--dry-run` says what setup would do; `--print-unit` prints the daemon unit. Neither changes anything |
 
 </details>

@@ -156,7 +156,7 @@ func setup() (err error) {
 			return fmt.Errorf("--samples and --remove-samples take no other option")
 		}
 		if _, root := ownerSocket(); root && os.Geteuid() != 0 {
-			return fmt.Errorf("the samples are written as the daemon Owner, on the daemon account's socket; run sudo %s", strings.Join(os.Args, " "))
+			return fmt.Errorf("the samples are written as the daemon Owner, on the daemon account's socket; run %s", sudoLine())
 		}
 		if *samples {
 			return addSamples()
@@ -186,7 +186,7 @@ func setup() (err error) {
 			return fmt.Errorf("%s cannot be combined with %s", map[bool]string{true: "--upgrade", false: "--recover"}[*upgrade], strings.Join(contrary, ", "))
 		}
 		if os.Geteuid() != 0 {
-			return fmt.Errorf("%s needs root; run sudo %s", map[bool]string{true: "--upgrade", false: "--recover"}[*upgrade], strings.Join(os.Args, " "))
+			return fmt.Errorf("%s needs root; run %s", map[bool]string{true: "--upgrade", false: "--recover"}[*upgrade], sudoLine())
 		}
 		if *recover {
 			return recoverUpgrade()
@@ -314,10 +314,10 @@ func setup() (err error) {
 	// to write, and a setup that created neither is easier to recover from
 	// than one that created one.
 	if os.Geteuid() != 0 {
-		return fmt.Errorf("this needs root once, to %s and %s. Run:\n\n    sudo %s\n\n"+
+		return fmt.Errorf("this needs root once, to %s and %s. Run:\n\n    %s\n\n"+
 			"Nothing after this step does: the daemon runs as %s.\n"+
 			"Use --dry-run to see the steps, or --print-unit for the unit alone",
-			steps[0], unitPath, strings.Join(os.Args, " "), svcAccount)
+			steps[0], unitPath, sudoLine(), svcAccount)
 	}
 	// What the node was before this run: a reinstall that fails midway puts it
 	// back, and setup over a running node restarts it only when that is what
@@ -871,6 +871,19 @@ func invoker() string {
 // defaultInstaller is the installer's account name alone: a User's name
 // defaults to it, with no realm appended (docs/01-identity-and-authority.md#names).
 func defaultInstaller() string { return invoker() }
+
+// sudoLine is this same command for root to run. sudo's secure_path can
+// leave /usr/local/bin out (the RHEL family), so a bare name found on PATH is
+// given by its path.
+func sudoLine() string {
+	args := append([]string(nil), os.Args...)
+	if !strings.Contains(args[0], "/") {
+		if p, err := exec.LookPath(args[0]); err == nil {
+			args[0] = p
+		}
+	}
+	return "sudo " + strings.Join(args, " ")
+}
 
 func run(name string, args ...string) error {
 	return runIn(nil, name, args...)
