@@ -89,8 +89,8 @@ web page AB (after RT22's page), review `#claude/ab2-review`.
 
 | Step | Work |
 |---|---|
-| 1a | Shared Python subscriptions and vectors complete on `task/eventlog`, awaiting QA/landing; [evidence](DONE.md#shared-subscriptions). B.29 TypeScript twin and consumer migrations remain pending |
-| 1 | Shared ring module: levels, size, TTL, repeat folding, alerts on disk, used by this agent and later by RT34 |
+| 1a | Shared Python subscriptions and vectors landed in 0.9.171 (`7fcbadc9`); [evidence](DONE.md#shared-subscriptions). B.29 TypeScript twin and consumer migrations remain pending |
+| 1 | Shared ring module/vectors complete on `ab-w1c/T-2`, awaiting QA/landing; [evidence](DONE.md#shared-rings) |
 | 2 | `#eventlog` runner agent: `write`, `read`, `pull`, `clean`, `list`, `sub add/list/delete`, Configuration defaults and per-log overrides, `read`/`write` roles, help and help-config |
 | 3 | Guide `docs/agents/eventlog.md` (end-user), index row, smoke shard, package, deploy enabled |
 | 4 | Web: instance page with logs, alert marks and the shared rings view |

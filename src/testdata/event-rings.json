@@ -1,0 +1,452 @@
+{
+  "v": 1,
+  "cases": [
+    {
+      "name": "fold-fixed-window",
+      "now": 1793318400,
+      "steps": [
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "notice",
+            "A"
+          ],
+          "expect": {
+            "id": 1,
+            "count": 1
+          }
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "notice",
+            "B"
+          ],
+          "expect": {
+            "id": 2
+          }
+        },
+        {
+          "op": "advance",
+          "seconds": 59
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "notice",
+            "A"
+          ],
+          "expect": {
+            "id": 1,
+            "count": 2
+          }
+        },
+        {
+          "op": "advance",
+          "seconds": 1
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "notice",
+            "A"
+          ],
+          "expect": {
+            "id": 3,
+            "count": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "restart-pull-durable-removal",
+      "now": 1793318400,
+      "steps": [
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "notice",
+            "volatile"
+          ],
+          "expect": {
+            "id": 1
+          }
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "alert",
+            "kept"
+          ],
+          "expect": {
+            "id": 2
+          }
+        },
+        {
+          "op": "restart"
+        },
+        {
+          "op": "read",
+          "args": [
+            "x"
+          ],
+          "expect": {
+            "counts": {
+              "alert": 1,
+              "warning": 0,
+              "notice": 0
+            },
+            "rings.alert.0.id": 2
+          }
+        },
+        {
+          "op": "pull",
+          "args": [
+            "x",
+            "alert",
+            1
+          ],
+          "expect": {
+            "entries.0.id": 2,
+            "remaining": 0
+          }
+        },
+        {
+          "op": "restart"
+        },
+        {
+          "op": "read",
+          "args": [
+            "x"
+          ],
+          "expect": {
+            "counts.alert": 0
+          }
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "new"
+          ],
+          "expect": {
+            "id": 65
+          }
+        }
+      ]
+    },
+    {
+      "name": "ttl-and-clean-tombstone",
+      "now": 1793318400,
+      "config": {
+        "rings": {
+          "notice": {
+            "size": 2,
+            "ttl": "2s"
+          }
+        }
+      },
+      "steps": [
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "notice",
+            "a"
+          ],
+          "expect": {
+            "id": 1
+          }
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "notice",
+            "b"
+          ],
+          "expect": {
+            "id": 2
+          }
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "notice",
+            "c"
+          ],
+          "expect": {
+            "id": 3
+          }
+        },
+        {
+          "op": "read",
+          "args": [
+            "x"
+          ],
+          "expect": {
+            "counts.notice": 2,
+            "rings.notice.0.text": "c",
+            "rings.notice.1.text": "b"
+          }
+        },
+        {
+          "op": "advance",
+          "seconds": 2
+        },
+        {
+          "op": "read",
+          "args": [
+            "x"
+          ],
+          "expect": {
+            "counts.notice": 0
+          }
+        },
+        {
+          "op": "clean",
+          "args": [
+            "x"
+          ],
+          "expect": {
+            "removed": 0
+          }
+        },
+        {
+          "op": "restart"
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "notice",
+            "again"
+          ],
+          "expect": {
+            "id": 65
+          }
+        },
+        {
+          "op": "write",
+          "args": [
+            "bad/name",
+            "notice",
+            "x"
+          ],
+          "expect": {
+            "error": "invalid_log"
+          }
+        }
+      ]
+    },
+    {
+      "name": "severity-order-inclusive-clean",
+      "now": 1793318400,
+      "steps": [
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "alert",
+            "old"
+          ],
+          "expect": {
+            "id": 1
+          }
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "warning"
+          ],
+          "expect": {
+            "id": 2
+          }
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "alert",
+            "new"
+          ],
+          "expect": {
+            "id": 3
+          }
+        },
+        {
+          "op": "clean",
+          "args": [
+            "x",
+            "alert",
+            1
+          ],
+          "expect": {
+            "removed": 1,
+            "counts": {
+              "alert": 1,
+              "warning": 1,
+              "notice": 0
+            }
+          }
+        },
+        {
+          "op": "read",
+          "args": [
+            "x"
+          ],
+          "expect": {
+            "rings.alert.0.id": 3,
+            "rings.warning.0.id": 2,
+            "latest_alert_at": "2026-10-30T00:00:00.000Z"
+          }
+        },
+        {
+          "op": "pull",
+          "args": [
+            "x",
+            null,
+            1
+          ],
+          "expect": {
+            "entries.0.id": 2,
+            "remaining": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "active-and-lifetime-name",
+      "now": 1793318400,
+      "config": {
+        "max_logs": 1
+      },
+      "steps": [
+        {
+          "op": "write",
+          "args": [
+            "A",
+            "notice",
+            "one"
+          ],
+          "expect": {
+            "id": 1
+          }
+        },
+        {
+          "op": "write",
+          "args": [
+            "B",
+            "notice",
+            "two"
+          ],
+          "expect": {
+            "error": "log_limit"
+          }
+        },
+        {
+          "op": "clean",
+          "args": [
+            "A"
+          ],
+          "expect": {
+            "removed": 1
+          }
+        },
+        {
+          "op": "list",
+          "expect": {
+            "logs": []
+          }
+        },
+        {
+          "op": "write",
+          "args": [
+            "B",
+            "notice",
+            "two"
+          ],
+          "expect": {
+            "id": 1
+          }
+        },
+        {
+          "op": "clean",
+          "args": [
+            "B"
+          ],
+          "expect": {
+            "removed": 1
+          }
+        },
+        {
+          "op": "write",
+          "args": [
+            "A",
+            "notice",
+            "three"
+          ],
+          "expect": {
+            "id": 2
+          }
+        }
+      ]
+    },
+    {
+      "name": "sanitize-and-backwards-fold",
+      "now": 1793318400,
+      "steps": [
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "notice",
+            "\u001b[31mA\u001b[0m\n\u202eB"
+          ],
+          "expect": {
+            "text": "AB",
+            "id": 1
+          }
+        },
+        {
+          "op": "advance",
+          "seconds": -1
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "notice",
+            "AB"
+          ],
+          "expect": {
+            "id": 2,
+            "count": 1
+          }
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00"
+          ],
+          "expect": {
+            "id": 3,
+            "text": "\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00"
+          }
+        }
+      ]
+    }
+  ]
+}

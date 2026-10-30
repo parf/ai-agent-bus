@@ -64,3 +64,31 @@ therefore the existing subscription smoke shard, not only adapter checks.
 The original numeric-zero mutant compiles and fails the accepted-delivery
 assertion; restored afterward. The HTTP fixture also pins the absence of wait.
 Frozen subscription vectors are unchanged. No SDK or daemon change in this fix.
+
+## Shared rings
+
+2026-10-30, T-2 step 2, `ab-w1c/T-2` (pending QA/landing): shared
+`event_rings.py`, six language-neutral JSON operation cases, 12 deterministic
+checks. Independent size/TTL/severity; fixed first-instant folding; sanitized
+scalar truncation; one ID sequence per log; durable block reservations and
+alert snapshots; oldest-first destructive pull; inclusive partial clean;
+full-clean slot retirement with permanent tombstones; strict state/config
+validation, lifetime generation lock and poisoned uncertain mutations.
+
+20 compiling mutants failed on assertions and were restored. Owning ring tests:
+`test_sizes_ttl_and_severity_are_independent` (size, TTL),
+`test_fold_uses_first_instant_and_latest_live_matching_text` (window, count,
+backward clock), `test_single_line_sanitization_precedes_scalar_truncation`,
+`test_shared_sequence_restart_gap_and_alert_fold_survive`,
+`test_pull_oldest_once_closes_fold_and_persists_alert_removal`,
+`test_partial_clean_id_boundary_and_full_clean_tombstone` (boundary, retirement),
+`test_invalid_names_log_and_lifetime_caps_preserve_existing` (syntax, active
+cap, lifetime cap), `test_corrupt_oversize_and_symlink_state_fail_closed`,
+`test_atomic_failures_poison_until_reopen_and_never_reuse_ids` (fsync, poison),
+`test_lifetime_lock_refuses_overlapping_generation`,
+`test_configuration_overrides_bounds_and_strict_types`, `test_json_ring_vectors`.
+The size mutant initially survived because read swept the overflow away; the
+check now asserts capacity immediately after write, before a second operation.
+`PureSupport.test_manager_identity_is_case_insensitive_but_not_forwarded`
+failed when original_to normalization was removed. Mutant batch used the smoke
+lock, released immediately afterward. No normal gate run by the worker.
