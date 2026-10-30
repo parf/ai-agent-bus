@@ -8,8 +8,8 @@ export function parse(body: string, aliases: string[] = []): Call {
     if (method === 'sub') method += '.' + (words.shift() ?? '');
     if(method==='sub.edit')throw Error('delete it and add it again');
     call = { method };
-    const channelLike = (s?: string) => !!s && (s.startsWith('#') || aliases.includes(s) || /^[0-9]{1,20}$/.test(s));
-    if (method === 'post') { if (words.length > 1 && channelLike(words[0])) call.channel = words.shift(); call.text = words.join(' '); }
+    const channelLike = (s?: string) => !!s && (s.startsWith('#') || aliases.includes(s) || /^id:[0-9]{1,20}$/.test(s));
+    if (method === 'post') { if (words.length > 1 && channelLike(words[0])) call.channel = words.shift()!.replace(/^id:/,''); call.text = words.join(' '); }
     else if (method === 'read') {
       if (words.length && (words[0]!.startsWith('#') || aliases.includes(words[0]!) || words.length > 1 || Number(words[0]) > 100)) call.channel = words.shift();
       if (words.length) call.limit = Number(words.shift());

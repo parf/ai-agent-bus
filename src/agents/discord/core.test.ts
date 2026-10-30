@@ -18,6 +18,10 @@ test('channel aliases need ids and duplicates name both keys before serving', ()
 test('text and JSON calls enforce fields, ids, bounds and delete/add instead of editing a subscription', () => {
   expect(parse('post alerts hello team',['alerts'])).toEqual({method:'post',channel:'alerts',text:'hello team'});
   expect(parse('post hello team')).toEqual({method:'post',text:'hello team'});
+  expect(parse('post 3 servers are down')).toEqual({method:'post',text:'3 servers are down'});
+  expect(parse('post id:10 hello')).toEqual({method:'post',channel:'10',text:'hello'});
+  expect(parse('post 3 hello',['3'])).toEqual({method:'post',channel:'3',text:'hello'});
+  expect(parse('{"method":"post","channel":"10","text":"hello"}')).toEqual({method:'post',channel:'10',text:'hello'});
   expect(parse('read #alerts 100')).toEqual({method:'read',channel:'#alerts',limit:100});
   expect(parse('read 10')).toEqual({method:'read',limit:10});
   expect(parse('sub add #alerts #ai@t /error/i')).toEqual({method:'sub.add',channel:'#alerts',target:'#ai@t',filter:'/error/i'});

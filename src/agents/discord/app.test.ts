@@ -16,6 +16,16 @@ test('every method uses the fake API with exact request data and oldest-first hi
  expect(f.requests.every(r=>r.auth==='Bot fake-secret-do-not-print')).toBe(true);
  }finally{await f.close();}
 });
+test('a numeric-leading post uses the default while aliases and explicit ids choose channels',async()=>{
+ const f=fixture();try{await f.app.initialize();
+ await expect(f.app.call('post 3 servers are down',caller)).resolves.toMatchObject({channel:'10'});
+ await f.app.call('post alerts alias message',caller);
+ await f.app.call('post id:11 explicit message',caller);
+ const writes=f.requests.filter(r=>r.method==='POST');
+ expect(writes.map(r=>r.path)).toEqual(['/channels/10/messages','/channels/10/messages','/channels/11/messages']);
+ expect(writes.map(r=>r.body.content)).toEqual(['3 servers are down\n\n#a','alias message\n\n#a','explicit message\n\n#a']);
+ }finally{await f.close();}
+});
 test('an action in a guild outside guilds is refused before any write or forward',async()=>{
  const f=fixture();try{await f.app.initialize();for(const method of ['post','read','channel','react','edit','delete','thread','sub.add']){
  const c:any={method,channel:'20',text:'x',id:'100',emoji:'x',name:'x',target:'#destination@fixture'};

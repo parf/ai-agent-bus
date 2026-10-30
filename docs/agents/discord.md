@@ -97,6 +97,7 @@ An alias without `id` is refused at load. Two keys resolving to the same id are 
 
 
 - The bus allow list decides who may call the helper. Discord’s bot permissions decide what it can do there. `guilds` narrows those permissions: a channel in another server is refused, and incoming messages from that server are ignored.
+- In a text `post`, select a channel with a configured alias, `#name` or `id:<number>`; a leading number stays in the message text. JSON uses the channel field directly.
 - A channel is a configured alias, a `#name` in an allowed server, or a numeric id. A name must resolve exactly once. A `post` or `read` with no channel needs `default`; the helper never chooses the first channel for you.
 - Posts are split at 2,000 characters, at most eight parts. The eighth ends with `… (truncated)` if needed. Posts do not ping users or roles automatically. Editing text is limited to the bot’s own messages; Discord requires manage-messages permission to delete someone else’s message.
 - Read returns up to 100 messages, default 50, oldest first. Message Content Intent makes other people’s text available. Voice, stage and forum channels, uploads, embeds, components and slash commands are outside this helper’s methods.

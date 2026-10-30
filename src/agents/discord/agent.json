@@ -20,7 +20,7 @@
   "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/discord.md",
   "methods": {
     "post": {
-      "help": "Tell a Discord channel what your assistant did; without a channel, use Configuration default. Answers with channel and message ids.",
+      "help": "Tell a Discord channel what your assistant did; without a channel, use Configuration default. Answers with channel and message ids. In text, select a channel with an alias, #name or id:<number>; a leading number stays in the message.",
       "args": [
         {
           "name": "channel",
