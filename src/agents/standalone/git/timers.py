@@ -22,4 +22,4 @@ def retire(unit_file, name, ctl):
         starter.command([ctl, 'disable', '--now', path.name])
         starter.command([ctl, 'reset-failed', path.name], optional=True)
         path.unlink()
-    starter.command([ctl, 'daemon-reload'])
+    if old: starter.command([ctl, 'daemon-reload'])

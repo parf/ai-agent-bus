@@ -212,7 +212,8 @@ Channel names without a realm use the git agent's realm.
 ```
 
 `remote` is the hosting project path from `origin`, without its host, URL or
-`.git` suffix. Local upstreams use the bare directory's basename. Fields are
+`.git` suffix. Local upstreams use the bare directory's basename. The command and log channels must differ. The agent ignores its own forwarded
+records to prevent feedback loops. Fields are
 strict: version must be integer 1, push commit exactly 40 lower-case hex,
 deploy commit 7–40 hex, optional id 1–64 letters, digits, dot, underscore or
 hyphen. Unknown fields are refused. Unknown remotes or another branch are ignored.
@@ -256,7 +257,7 @@ different checkouts can proceed independently. Git and lock wait share a
 60-second budget; checkout hooks run as the server account and are killed with
 the Git process group on timeout. Two update workers admit at most eight jobs;
 a separate bounded read pool serves other calls. Excess work is refused before
-admission; channel publishers must not rely on an inbox as a durable job queue.
+admission; those events and events dropped on invalid Configuration leave no result record; channel publishers must not rely on an inbox as a durable job queue.
 
 </details>
 
@@ -276,8 +277,8 @@ or `fail`. `ok` means an update changed the copy; `skip` means already there.
 
 `action` is `autopull` or `deploy`; `trigger` is `event`, `start` or `operator`.
 `from`, `to` and `requested` are resolved full commit ids, or null when unavailable;
-`to` is the actual final HEAD even after a failed write. Discard counts are null
-outside mirror mode. Errors have a fixed `code` and safe `text`: `dirty`,
+`to` is the actual final HEAD even after a failed write. Discard counts are present for every destructive attempt (deploy in either
+mode or mirror autopull), and null for plain ff autopull. Errors have a fixed `code` and safe `text`: `dirty`,
 `diverged`, `not_in_branch`, `fetch`, `timeout`, `lock` or `invalid_event`.
 Checkout paths, origin URLs, credentials and commit messages never appear in
 these records or update answers. Legacy `log` still returns requested commit titles.

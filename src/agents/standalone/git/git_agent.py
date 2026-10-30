@@ -146,13 +146,20 @@ def validate_branch(branch):
     return branch
 
 
-def configuration(raw=None):
+def channel_name(name, identity):
+    return name if '@' in name or '@' not in identity else name + '@' + identity.rsplit('@', 1)[1]
+
+
+def configuration(raw=None, *, identity=None):
     config = load_json(os.environ.get('AGENT_BUS_CONFIG', '{}') if raw is None else raw)
     if not isinstance(config, dict) or set(config) - {'repos', 'ssh_key', 'autopull-cmd', 'autopull-log'}:
         raise ValueError('Configuration accepts repos, ssh_key, autopull-cmd and autopull-log')
     for key in ('autopull-cmd', 'autopull-log'):
         if key in config and (not isinstance(config[key], str) or not re.fullmatch(r'[a-z0-9][a-z0-9._/-]*(?:@[a-z0-9.-]+)?', config[key]) or len(config[key]) > 128):
             raise ValueError('Configuration channel must be a canonical channel name')
+    identity = identity or os.environ.get('AGENT_BUS_NAME', '')
+    if config.get('autopull-cmd') and config.get('autopull-log') and channel_name(config['autopull-cmd'], identity) == channel_name(config['autopull-log'], identity):
+        raise ValueError('Configuration command and log channels must differ')
     repos = config.get('repos')
     if not isinstance(repos, dict) or len(repos) > 64:
         raise ValueError('Configuration repos must be an object of at most 64 repositories')

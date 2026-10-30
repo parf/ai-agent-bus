@@ -187,7 +187,7 @@ def attempt(name, config, *, action='autopull', trigger='operator', branch=None,
               'result':'fail', 'action':action, 'trigger':trigger, 'mode':repo.get('mode','ff'),
               'at':None, 'agent':agent or os.environ.get('AGENT_BUS_NAME'), 'remote':None,
               'requested_by':requested_by, 'id':event_id, 'from':None, 'to':None, 'requested':None,
-              'discarded':{'files':0,'commits':0} if repo.get('mode') == 'mirror' else None,
+              'discarded':{'files':0,'commits':0} if action == 'deploy' or repo.get('mode') == 'mirror' else None,
               'script':None, 'error':None, 'ms':0}
     root = Path(repo['path']).resolve()
     publish_raw = publisher(config, bus); failed = False
@@ -233,9 +233,11 @@ def attempt(name, config, *, action='autopull', trigger='operator', branch=None,
                     target = cmd.text('rev-parse', '--verify', '--end-of-options', 'refs/remotes/origin/' + chosen + '^{commit}')
                     if not re.fullmatch(r'[0-9a-f]{40}', target): raise Failure('fetch')
                     if rev is None: break
-                    resolved = cmd.run('rev-parse', '--verify', '--end-of-options', rev + '^{commit}', check=False)
-                    requested = resolved['stdout'].strip()
-                    if resolved['status'] == 0 and re.fullmatch(r'[0-9a-f]{40}', requested) and ancestry(cmd, requested, target):
+                    resolved = cmd.run('rev-parse', '--disambiguate=' + rev, check=False)
+                    matches = resolved['stdout'].splitlines()
+                    requested = matches[0] if len(matches) == 1 else ''
+                    is_commit = bool(re.fullmatch(r'[0-9a-f]{40}', requested)) and cmd.text('cat-file', '-t', requested) == 'commit'
+                    if resolved['status'] == 0 and is_commit and ancestry(cmd, requested, target):
                         record['requested'] = requested
                         break
                     if index == FETCH_ATTEMPTS - 1: raise Failure('not_in_branch')
@@ -246,6 +248,8 @@ def attempt(name, config, *, action='autopull', trigger='operator', branch=None,
                     if actual != chosen or not ancestry(cmd, record['from'], target): raise Failure('diverged')
                     cmd.run('merge', '--ff-only', '--no-edit', target, '--')
                 else:
+                    if in_operation(cmd): raise Failure('dirty')
+                    before = dirty_paths(cmd)  # Snapshot after fetch, immediately before destructive work.
                     actual = cmd.run('symbolic-ref', '--quiet', '--short', 'HEAD', check=False)['stdout'].strip()
                     if record['discarded'] is not None:
                         tips = {record['from']}
@@ -275,7 +279,7 @@ def attempt(name, config, *, action='autopull', trigger='operator', branch=None,
 
 
 def canonical_channel(name, identity):
-    return name if '@' in name or '@' not in identity else name + '@' + identity.rsplit('@', 1)[1]
+    return g.channel_name(name, identity)
 
 
 def event_repositories(config, body):
@@ -305,7 +309,7 @@ class Runtime:
 
     def config(self):
         self.bus.refresh('config')
-        return g.configuration(json.dumps(self.bus.config))
+        return g.configuration(json.dumps(self.bus.config), identity=self.bus.name)
 
     def child(self, config, message):
         env = {k:v for k,v in os.environ.items() if not k.startswith(('AB_ROLE_', 'AGENT_BUS_'))}
@@ -384,15 +388,18 @@ class Runtime:
         def start():
             for name, repo in config['repos'].items():
                 if repo.get('follow'):
-                    attempt(name, config, trigger='start', bus=self.bus, agent=self.bus.name)
+                    try: attempt(name, config, trigger='start', bus=self.bus, agent=self.bus.name)
+                    except (ValueError, OSError): print('git: repository startup check failed', file=sys.stderr)
         self.submit(self.updates, self.update_slots, start)
 
     def dispatch(self, message):
         if message.receipt or message.re: return
+        if message.original_to and getattr(message, 'from') == self.bus.name: return
         try: config = self.config()
         except Exception:
             # Help still describes how to configure an unconfigured installation.
             config = {'repos':{}}
+            print('git: Configuration unavailable or invalid; forwarded events dropped', file=sys.stderr)
         channel = config.get('autopull-cmd')
         if message.original_to:
             if channel and message.original_to == canonical_channel(channel, self.bus.name):

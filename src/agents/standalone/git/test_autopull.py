@@ -58,7 +58,7 @@ class Core(unittest.TestCase):
         self.assertEqual(a.event(self.event())['commit'],self.first)
         for kw in ({'v':2},{'v':True},{'v':1.0},{'extra':1},{'commit':'a'*39},{'commit':'A'*40},{'branch':'--evil'},{'branch':'a..b'},{'id':'x/y'},{'id':''},{'remote':'../bad'},{'type':'clean'}):
             with self.subTest(kw=kw), self.assertRaises(ValueError): a.event(self.event(**kw))
-        for raw in ('{"v":1,"v":1}', '{"v":NaN}', '{"x":'+ '['*10+'0'+']'*10+'}', 'x'*(a.EVENT_MAX+1)):
+        for raw in (self.event().replace('"v": 1', '"v": 1, "v": 1'), '{"v":NaN}', '{"x":'+ '['*10+'0'+']'*10+'}', 'x'*(a.EVENT_MAX+1)):
             with self.subTest(raw=raw[:30]), self.assertRaises(ValueError): a.event(raw)
         self.assertEqual(a.event(self.event(type='deploy',commit=self.first[:7],id='p.1_-'))['id'],'p.1_-')
 
@@ -88,11 +88,11 @@ class Core(unittest.TestCase):
 
     def test_dirty_ff_preserves_all_files_and_diverged_preserves_head(self):
         self.advance();(self.repo/'a').write_text('SENTINEL_EDIT');(self.repo/'untracked').write_text('SENTINEL_UNTRACKED')
-        result=self.attempt();self.assertEqual(result['error']['code'],'dirty')
+        result=self.attempt();self.assertIsInstance(result.get('error'),dict,result);self.assertEqual(result['error']['code'],'dirty')
         self.assertEqual((self.repo/'a').read_text(),'SENTINEL_EDIT');self.assertEqual((self.repo/'untracked').read_text(),'SENTINEL_UNTRACKED')
         (self.repo/'untracked').unlink();self.run_git(self.repo,'commit','-am','local-only-secret-subject')
         before=self.run_git(self.repo,'rev-parse','HEAD').strip()
-        result=self.attempt();self.assertEqual(result['error']['code'],'diverged')
+        result=self.attempt();self.assertIsInstance(result.get('error'),dict,result);self.assertEqual(result['error']['code'],'diverged')
         self.assertEqual(result['to'],before);self.assertEqual(self.run_git(self.repo,'rev-parse','HEAD').strip(),before)
 
     def test_untracked_only_and_operation_state_are_dirty(self):
@@ -122,16 +122,17 @@ class Core(unittest.TestCase):
         self.run_git(self.repo,'checkout','--detach',self.first)
         result=self.attempt(self.config(mode='mirror'));self.assertEqual((result['branch'],result['to']),('other',other))
         result=self.attempt(self.config(branch='main'),action='deploy',branch='other')
-        self.assertEqual(result['error']['code'],'invalid_event');self.assertEqual(result['from'],result['to'])
-        result=self.attempt(action='deploy',branch='main',rev=other[:7]);self.assertEqual(result['error']['code'],'not_in_branch')
+        self.assertIsInstance(result.get('error'),dict,result);self.assertEqual(result['error']['code'],'invalid_event');self.assertEqual(result['from'],result['to'])
+        result=self.attempt(action='deploy',branch='main',rev=other[:7]);self.assertIsInstance(result.get('error'),dict,result);self.assertEqual(result['error']['code'],'not_in_branch')
         self.assertEqual(self.run_git(self.repo,'branch','--show-current').strip(),'other')
+        self.run_git(self.seed,'checkout','main');self.advance()
         result=self.attempt(action='deploy',branch='main',rev=self.first[:7]);self.assertEqual(result['to'],self.first)
         self.assertEqual(result['requested'],self.first)
 
     def test_force_pushed_announced_commit_not_reachable_is_refused(self):
         self.advance();self.run_git(self.seed,'checkout','--orphan','replacement');self.run_git(self.seed,'commit','-m','new root');self.run_git(self.seed,'push','--force','origin','replacement:main')
         result=self.attempt(self.config(mode='mirror'),rev=self.first)
-        self.assertEqual(result['error']['code'],'not_in_branch');self.assertEqual(result['from'],result['to'])
+        self.assertIsInstance(result.get('error'),dict,result);self.assertEqual(result['error']['code'],'not_in_branch');self.assertEqual(result['from'],result['to'])
 
     def test_records_and_answers_do_not_leak_checkout_url_or_subject(self):
         self.advance()
@@ -142,7 +143,7 @@ class Core(unittest.TestCase):
         self.assertEqual(record['result'],'ok')
         with patch.object(a.Commands,'run',side_effect=OSError('UNIQUE_SECRET_URL_PATH_MESSAGE')):
             result=self.attempt()
-        self.assertNotIn('UNIQUE_SECRET',json.dumps(result));self.assertEqual(result['error']['code'],'fetch')
+        self.assertNotIn(str(self.repo),json.dumps(result));self.assertNotIn(str(self.up),json.dumps(result));self.assertNotIn('UNIQUE_SECRET',json.dumps(result));self.assertIsInstance(result.get('error'),dict,result);self.assertEqual(result['error']['code'],'fetch')
 
     def test_optional_log_failure_does_not_suppress_hook_or_corrupt_json(self):
         self.advance();seen=[]
@@ -170,7 +171,7 @@ class Core(unittest.TestCase):
         with patch.object(a,'after_attempt',side_effect=hook):a.attempt('ab',self.config(),bus=bus)
         self.assertEqual(len(seen),1)
         with g.checkout_lock(self.repo.resolve(),time.monotonic()+1),patch.object(a,'BUDGET',.03),patch.object(a,'after_attempt') as hook:
-            result=self.attempt();self.assertEqual(result['error']['code'],'lock');hook.assert_not_called()
+            result=self.attempt();self.assertIsInstance(result.get('error'),dict,result);self.assertEqual(result['error']['code'],'lock');hook.assert_not_called()
         with g.checkout_lock(self.repo.resolve(),time.monotonic()+.1):pass
 
     def test_two_concurrent_events_two_records_one_move_and_lock_released(self):
@@ -198,6 +199,7 @@ class Core(unittest.TestCase):
             self.assertIn('unknown method',direct.answers[0]);self.assertEqual(bus.messages,[])
             for original in ('autopull-cmd2@fixture.test','autopull-cmd@other.test'):
                 runtime.dispatch(self.message(self.event(),channel=original))
+                runtime.close();runtime=a.Runtime(bus)
             self.assertEqual(bus.messages,[])
             runtime.dispatch(self.message(self.event(),channel='autopull-cmd@fixture.test'))
             self.wait(lambda:len(bus.messages)==1);self.assertEqual(bus.messages[0][1]['to'],new)
@@ -226,6 +228,55 @@ class Core(unittest.TestCase):
             self.assertNotIn('AGENT_BUS_TOKEN',captured[0]);self.assertFalse(any(k.startswith('AB_ROLE_') for k in captured[0]))
         finally:runtime.close()
 
+    def test_every_destructive_deploy_reports_discarded_files_and_commits(self):
+        self.advance();(self.repo/'a').write_text('local-committed')
+        self.run_git(self.repo,'commit','-am','local-only')
+        (self.repo/'b').write_text('local-uncommitted')
+        result=self.attempt(self.config(mode='ff'),action='deploy')
+        self.assertEqual(result['result'],'ok');self.assertEqual(result['discarded'],{'files':1,'commits':1})
+        self.assertEqual((self.repo/'b').read_text(),'two\n')
+
+    def test_discard_snapshot_taken_after_fetch(self):
+        self.advance();real=a.Commands.run;modified=False
+        def run(cmd,*args,**kw):
+            nonlocal modified
+            value=real(cmd,*args,**kw)
+            if args[0]=='fetch' and not modified:
+                (self.repo/'late-file').write_text('created while fetching');modified=True
+            return value
+        with patch.object(a.Commands,'run',run):result=self.attempt(self.config(mode='mirror'))
+        self.assertEqual(result['discarded']['files'],1);self.assertFalse((self.repo/'late-file').exists())
+
+    def test_equal_channels_and_self_delivered_results_are_refused(self):
+        for command,log in [('same','same'),('same','same@fixture.test'),('same@fixture.test','same')]:
+            config=self.config(follow=True);config.update({'autopull-cmd':command,'autopull-log':log})
+            with self.assertRaises(ValueError):g.configuration(json.dumps(config),identity=Bus.name)
+        self.advance();bus=Bus(self.config(follow=True));runtime=a.Runtime(bus)
+        try:
+            message=self.message(self.event(),channel='autopull-cmd@fixture.test');setattr(message,'from',bus.name)
+            runtime.dispatch(message);runtime.close()
+            self.assertEqual(bus.messages,[]);self.assertEqual(self.run_git(self.repo,'rev-parse','HEAD').strip(),self.first)
+        finally:runtime.close()
+
+    def test_startup_failure_does_not_abort_remaining_repositories(self):
+        bus=Bus(self.config(follow=True));bus.config['repos']['second']={**self.repos['ab'],'follow':True}
+        runtime=a.Runtime(bus);called=[]
+        def attempt(name,*args,**kw):
+            called.append(name)
+            if name=='ab':raise OSError('PRIVATE_PATH')
+            return {}
+        try:
+            with patch.object(a,'attempt',side_effect=attempt):runtime.startup();runtime.close()
+            self.assertEqual(called,['ab','second'])
+        finally:runtime.close()
+
+    def test_hex_named_ref_does_not_override_revision_object(self):
+        wanted=self.advance();self.run_git(self.repo,'fetch','origin')
+        self.run_git(self.repo,'branch',self.first[:7],wanted)
+        result=self.attempt(action='deploy',branch='main',rev=self.first[:7])
+        self.assertEqual(result['to'],self.first);self.assertEqual(result['requested'],self.first)
+
+
 
 class Retirement(unittest.TestCase):
     def test_reinstall_retires_only_owned_timer_units_idempotently(self):
@@ -242,7 +293,7 @@ class Retirement(unittest.TestCase):
                 self.assertEqual(command.call_args_list[0].args[0],['fixture-systemctl','disable','--now','agent-bus-git-autopull-ab.timer'])
                 self.assertEqual(command.call_args_list[2].args[0],['fixture-systemctl','disable','--now','agent-bus-git-autopull-ab.service'])
                 count=command.call_count;timers.retire(unit,'#git@fixture.test','fixture-systemctl')
-                self.assertEqual(command.call_count,count+1)
+                self.assertEqual(command.call_count,count)
             self.assertTrue(unit.exists());self.assertEqual(unrelated.read_text(),'keep')
             self.assertTrue(all(not path.exists() for path in old))
             foreign=root/'agent-bus-git-autopull-outside.timer';foreign.write_text('foreign')

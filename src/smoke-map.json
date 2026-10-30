@@ -544,7 +544,12 @@
           "-v",
           "test_git.GitAgent.test_refuses_options_unknown_revisions_and_outside_paths_without_changes",
           "test_git.GitAgent.test_repository_cap_and_role_are_both_required",
-          "test_git.GitAgent.test_automatic_roles_push_only_with_commit_cap"
+          "test_git.GitAgent.test_automatic_roles_push_only_with_commit_cap",
+          "test_autopull.Core.test_config_mode_follow_caps_and_channels",
+          "test_autopull.Core.test_event_parser_strict_fields_types_and_hex",
+          "test_autopull.Core.test_dirty_ff_preserves_all_files_and_diverged_preserves_head",
+          "test_autopull.Core.test_mirror_discards_two_files_counts_commits_and_keeps_ignored",
+          "test_autopull.Core.test_runtime_channel_authority_both_directions_and_roles"
         ],
         "cwd": "agents/standalone/git"
       }
