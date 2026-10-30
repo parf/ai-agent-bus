@@ -348,5 +348,9 @@ func (l darwinLayout) firstUser(exe string, me protocol.Name, keyFile string) er
 	}
 	admin := filepath.Join(filepath.Dir(exe), "agent-bus-admin")
 	// As that account with no token, the admin program finds this socket.
-	return darwinCommand(key, "sudo", "-u", l.account, admin, "user", "add", me.String(), "-", "--admin")
+	// The admin program's installed-account default is Linux's agent-busd.
+	// Here sudo already chose the reduced install's account; the explicit
+	// home avoids switching again, and the socket is that account's own.
+	return darwinCommand(key, "sudo", "-u", l.account, "env", "AGENT_BUS_HOME="+l.home,
+		"AGENT_BUS_ADDR="+sock, admin, "user", "add", me.String(), "-", "--admin")
 }

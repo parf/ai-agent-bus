@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"flag"
 	"io"
+	"net"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
@@ -180,4 +182,35 @@ func mustName(t *testing.T, s string) protocol.Name {
 		t.Fatal(err)
 	}
 	return n
+}
+
+// The admin helper's Linux account default must not redirect the reduced
+// install: its explicit home and socket belong to the new macOS role account.
+func TestDarwinFirstUserUsesTheRoleAccountsHomeAndSocket(t *testing.T) {
+	l, ran := fakeDarwin(t)
+	short, err := os.MkdirTemp("../../../tmp", "m2-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(short)
+	l.run, err = filepath.Abs(short)
+	if err != nil {
+		t.Fatal(err)
+	}
+	listener, err := net.Listen("unix", api.UserSocket(l.run, l.account))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	key := filepath.Join(t.TempDir(), "key.pub")
+	if err := os.WriteFile(key, []byte("ssh-ed25519 fixture-public-key\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := l.firstUser("/package/agent-busd", mustName(t, "alice"), key); err != nil {
+		t.Fatal(err)
+	}
+	want := "sudo -u " + l.account + " env AGENT_BUS_HOME=" + l.home + " AGENT_BUS_ADDR=" + api.UserSocket(l.run, l.account) + " /package/agent-bus-admin user add alice - --admin"
+	if len(*ran) != 1 || (*ran)[0] != want {
+		t.Fatalf("first-user admin must stay in the macOS role account: got %v, want %s", *ran, want)
+	}
 }
