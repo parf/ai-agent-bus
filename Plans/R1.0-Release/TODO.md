@@ -619,7 +619,7 @@ Implement the [release artifacts](distribution.md#release-artifacts) and [contai
 
 - ✅ T-10 One notice file, `licenses/NOTICE.md` — **0.9.189**, `0e7868ee` ([result](DONE.md#t-10-one-notice-file))
 - Deferred P.4 Shell installer: moved to [FUTURE](FUTURE.md#shell-installer) by RD178. Earlier acceptance is [history](done/installer-acceptance.md#checks), not a remaining key or publication prerequisite.
-  - Native aarch64 build and release evidence passed 2026-10-30 ([result](done/p3-aarch64-mac-run.md#steps)); the earlier shell clean-install run on the Mac ran after J58 and failed on 4 of 4 runs at the web face's TLS check, setup restarting the web unit faster than systemd's start limit ([why](done/p3-aarch64-mac-run.md#why-step-4-fails); fixed by J59). This is retained evidence, not an npm publication blocker.
+  - Native aarch64 build and release evidence passed 2026-10-30 ([result](done/p3-aarch64-mac-run.md#steps)); the clean install there passed on 0.9.223 (21 checks) after J59, once setup stopped restarting units faster than systemd's start limit ([result](done/p3-aarch64-mac-run.md#steps)). This is retained evidence, not an npm publication blocker.
 
 - ⏳ P.1 npm package
   - Contract: [npm packaging and local acceptance](distribution.md#npm). Full and client editions carry the release executables, compiled MCP runtime and its required assets, launchers, bundled runtime files, license and notices. Build stamped release archives on the tag, verify `SHA256SUMS` and manifests, then wrap them with `src/npm/pack.py` and `npm pack`.
