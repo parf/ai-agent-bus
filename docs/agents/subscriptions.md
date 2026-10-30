@@ -37,15 +37,15 @@ already follows the rule, otherwise what it does instead. Telegram shares Slack'
 
 | Rule | [IMAP](imap.md#what-it-does) | [Logwatch](logwatch.md#what-it-does) | [Slack](slack.md#what-it-does), [Telegram](telegram.md#reply-routing) |
 |---|---|---|---|
-| Calls | `sub add <target> [/regex/]` over sender and subject; queue or agent checked; edit is refused (delete and add again) | `sub add <target> [filter]`; queue or agent checked; edit is refused (delete and add again) | `sub add <channel or chat> <target> [filter]` and `sub edit`; Slack also `from=`; target kind not checked |
-| Authority | at add and before every send, toward target and imap | at add and before every send, toward target and logwatch | at add, on a moved target and before every send; not toward the helper |
-| Delivery | one send per matching subscription, tagged with its id; the mail body is fetched once | one send for every matching arrival, including repeated lines | one send, never replayed |
-| Refused send | a refused or unknown copy is dropped, counted and warned; the subscription stays active | a refused or unknown copy is dropped, counted and warned; the subscription stays active | the last error is kept, nothing counted; a denial, a missing target or an unknown author disables it |
+| Calls | `sub add <target> [/regex/]` over sender and subject; queue or agent checked; edit is refused (delete and add again) | `sub add <target> [filter]`; queue or agent checked; edit is refused (delete and add again) | `sub add <channel or chat> <target> [filter]`, `sub list`, `sub delete <id>`; Slack also `from=`; queue or agent checked |
+| Authority | at add and before every send, toward target and imap | at add and before every send, toward target and logwatch | the shared behaviour: both author grants at add and before every send |
+| Delivery | one send per matching subscription, tagged with its id; the mail body is fetched once | one send for every matching arrival, including repeated lines | the shared behaviour: one send per match, never retried |
+| Refused send | a refused or unknown copy is dropped, counted and warned; the subscription stays active | a refused or unknown copy is dropped, counted and warned; the subscription stays active | the shared behaviour: one counted drop and warning; the next match stays active |
 | Start | from the mailbox's next message at add | from now; history read at start is not sent | from now; Telegram after a restart still sends what arrived while it was down |
-| Limits | shared per-instance/per-author limits and bounded portable filters | shared per-instance/per-author limits and bounded portable filters | no count limit; filter 200 characters; 50 ms per test, then the subscription is disabled |
-| Listing | shared row: id, target, first UID, filter, author, time, sent and dropped counts | shared row: id, target, selector, filter, author, time, sent and dropped counts | id, channel, target, filter, author, time, forwarded count, disabled, last error |
-| Management | creator lists/deletes own; direct Owner/Maintainers manage all | creator lists/deletes own; direct Owner/Maintainers manage all | anyone lists; add/edit/delete require destination management or direct Owner/Maintainer |
-| Invalid stored state | invalid filters stay inert and visible; damaged rows, an unreadable old one included, are manager-only repair | invalid filters stay inert and visible; damaged rows are manager-only repair | not checked at load; a bad stored filter stops that event for the subscriptions after it |
+| Limits | shared per-instance/per-author limits and bounded portable filters | shared per-instance/per-author limits and bounded portable filters | the shared limits; filter failure drops only its own copy |
+| Listing | shared row: id, target, first UID, filter, author, time, sent and dropped counts | shared row: id, target, selector, filter, author, time, sent and dropped counts | id, channel, target, filter, author, time, sent and dropped counts; invalid-filter reason |
+| Management | creator lists/deletes own; direct Owner/Maintainers manage all | creator lists/deletes own; direct Owner/Maintainers manage all | the shared author/direct-staff visibility and deletion rules; no `sub edit` |
+| Invalid stored state | invalid filters stay inert and visible; damaged rows, an unreadable old one included, are manager-only repair | invalid filters stay inert and visible; damaged rows are manager-only repair | the shared behaviour: invalid filters stay visible and inert; damaged rows are staff-only; one bad filter cannot stop later subscriptions |
 
 <details>
 <summary>Filters</summary>
