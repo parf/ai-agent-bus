@@ -37,8 +37,8 @@ the 0.8 line; no release wave is committed yet. Item glyphs follow
   - Mutant: change one client's emitted request or interpretation of an answer and the common case must fail
   - Home: [protocol conformance](modules.md#protocol-conformance), [№RD90](DECISIONS.md#recorded-decisions)
 
-- ✅ RT9 [Agent method metadata](method-metadata.md#method-metadata)
-  - Format: settled with the owner on 2026-10-19 ([settled so far](method-metadata.md#settled-so-far)): typed fields in `agent.json`, commented `env.dist`, and the `help`, `help-config`, `help-secret` and `help-json` asks; MCP generation is [R1.2](../R1.2/TODO.md#dependencies)
+- ✅ RT9 [Agent method metadata](done/method-metadata.md#method-metadata)
+  - Format: settled with the owner on 2026-10-19 ([settled so far](done/method-metadata.md#settled-so-far)): typed fields in `agent.json`, commented `env.dist`, and the `help`, `help-config`, `help-secret` and `help-json` asks; MCP generation is [R1.2](../R1.2/TODO.md#dependencies)
   - ✅ RT9.1 The runner and `agent-bus run` read the new `agent.json` fields strictly and answer `help`, `help-config`, `help-secret` and `help-json` themselves for packaged agents, without running the script; the CLI and MCP face send the three new asks (`agent-bus call <to> --help-config`, `--help-secret`, `--help-json`). Acceptance: a packaged fixture with no help code answers all four from its files; `help-secret` names keys and comments and never a value (sentinel); an unknown field is refused by name; an enum value outside the list is shown. Mutants: the script run for a help ask; a secret value in `help-secret`
   - ✅ RT9.3 The web face shows it all (owner, 2026-10-19: "once done, the web must show all this data"): an agent's record page gets an "About this agent" card (description, version, license, author, homepage), a Methods table (name, arguments with types and enums, returns, role, destructive), and the Configuration editor shows each documented key's type, help and example beside the JSON, warning about undocumented keys. The Secret field lists the expected keys from `env.dist` with their comments and which are required, never a value. The web gets it through the same asks, or from the runner for its packaged agents. Acceptance: a fixture agent's page shows every field; a secret sentinel never appears; an agent answering only `--help` shows that text and no tables. Mutants: the secret value rendered; an enum dropped
   - ✅ RT9.2 Every bundled agent's `agent.json` and `env.dist` carry the metadata (methods, args, Configuration keys, description, license, author, homepage) and their hand-written help code is removed where RT9.1 covers it; the guides link `--help-config`, `--help-secret` and `--help-json`. Acceptance: each agent's `--help` matches its real methods (a parser check per agent); removing a method from the code without its entry fails the check
@@ -47,7 +47,7 @@ the 0.8 line; no release wave is committed yet. Item glyphs follow
 - ⚠️ RT10 [Runner](runner.md#runner)
   - Details: decided; [waves](#runner-waves) proposed
   - State: one-message serving built 0.8.123; full evidence remains in [runner waves](#runner-waves)
-  - Depends: [method metadata](method-metadata.md#method-metadata); the pool hostname field, now R1 ([where a member says it is](runner-implementation.md#where-a-member-says-it-is))
+  - Depends: [method metadata](done/method-metadata.md#method-metadata); the pool hostname field, now R1 ([where a member says it is](runner-implementation.md#where-a-member-says-it-is))
 
 - ⚠️ RT11 [Runners section in the web face](runner/web-face.md#goal) — status, per-agent controls, host files and instances are built; remaining acceptance is tracked in the checklist
   - State: the information page and per-agent management page are separate; denied management shows Access denied
@@ -132,7 +132,7 @@ cells retained there. Distinctly named work keeps its own item here:
 - [№RT15](#objective) — Federation moved to [R1.2](../R1.2/TODO.md#federation)
 - [№RT10](#objective) — Runner
 - [№RT12](#objective) — [Agents for the runner](agents.md#dependencies)
-- [№RT9](#objective) — [Agent method metadata](method-metadata.md#method-metadata)
+- [№RT9](#objective) — [Agent method metadata](done/method-metadata.md#method-metadata)
 - [№RT5](#objective) — [Client libraries](done/client-libraries.md#scope)
 
 - ⛔ RT17 Release distributions
@@ -299,9 +299,9 @@ stands alone ([agents for the runner](agents.md#what-moved-and-what-r1-adds)).
 The catalogue's own rules hold — the daemon applying the ACL before delivery,
 and no daemon change. A row that needs a format first proposes it for approval.
 
-- ✅ B.1 telegram — [plan and tasks](telegram/README.md#telegram-agent), TG.1–TG.7: built as [the Telegram agent](../../src/agents/telegram/README.md#the-telegram-agent) (src/agents/telegram), the tests in smoke's agent_telegram shard
+- ✅ B.1 telegram — [plan and tasks](done/telegram/README.md#telegram-agent), TG.1–TG.7: built as [the Telegram agent](../../src/agents/telegram/README.md#the-telegram-agent) (src/agents/telegram), the tests in smoke's agent_telegram shard
   - Builds: `#telegram/<account>@<realm>`: calls out, and a subscription forwarding a chat to an agent, 📮 queue or 📣 pubsub; the bot token read from the record's bus secret and nowhere else; `#group` and `@user` resolved to a chat id; a default channel declared in the instance's configuration ([telegram](agents.md#telegram))
-  - Format: settled 2026-10-18 as the Slack agent's methods where Telegram allows ([methods](telegram/README.md#methods)); the configuration's fields are proposed in TG.1
+  - Format: settled 2026-10-18 as the Slack agent's methods where Telegram allows ([methods](done/telegram/README.md#methods)); the configuration's fields are proposed in TG.1
   - Acceptance: a post reaches its chat and answers what identifies it; a call with no destination goes to the instance's declared default, and the same call against an instance that declares none is refused; an unknown alias is refused rather than resolved to anything; an upstream refusal comes back as an answer; a subscription's match reaches its target and a non-match does not. Mutants: the token read from the process env or from `telegram.toml` at run time; the declared default replaced by the script's first-configured-chat fallback, which must fail the no-default refusal; the alias miss falling back instead of refusing
   - Mutant: the token read from the process env or from `telegram.toml` at run time; the declared default replaced by the script's first-configured-chat fallback, which must fail the no-default refusal; the alias miss falling back instead of refusing
 

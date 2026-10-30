@@ -9,7 +9,7 @@ Moved to R1 with pools (Q139, 2026-10-16): [where a member says it is](../R1.0-R
 ## Method metadata
 
 Method metadata stayed with the release's own scope: see
-[method metadata](../R1.0-Release/method-metadata.md#method-metadata).
+[method metadata](../R1.0-Release/done/method-metadata.md#method-metadata).
 
 ## Health checker
 

@@ -37,7 +37,7 @@ and a subscription forwarding a chat to an agent, 📮 queue or 📣 pubsub.
 | Where the token lives | the record's bus secret, the one source it reads, as Slack's does ([rules](../R1.2/services.md#rules-they-all-obey)). `/rd/bin/telegram-post` and its `~/.codex/telegram.toml` are where a person **copies the working token from, once**, when seeding the first instance. Nothing in the agent reads that file and nothing may come to depend on it — the alias tables it holds today belong in the instance's configuration beside the default channel (owner decision, 2026-10-17) |
 | The default channel is declared, not inferred | the instance's configuration names one, and a call without a destination goes there (owner decision, 2026-10-17). What does **not** survive is the existing script's implicit default — the first configured direct chat, which moves when the file is edited. A declared default is one decision per instance, visible at `reload`; an inferred one picks a person when a group was meant |
 | Aliases resolve, they do not authorise | `#group` and `@user` are lookup keys onto a chat id, the same rule the locator answers to ([people](../R1.2/people.md#how-to-reach-a-person)). An unknown alias is a refusal, never a fallback |
-| More methods | the Slack agent's set and keywords wherever Telegram allows (owner instruction, 2026-10-18): [the Telegram plan](telegram/README.md#methods) |
+| More methods | the Slack agent's set and keywords wherever Telegram allows (owner instruction, 2026-10-18): [the Telegram plan](done/telegram/README.md#methods) |
 
 ## Systemd
 
@@ -137,7 +137,7 @@ is left after taking those out, in the order worth building:
 | **cron** | proposed, catalogue | *send this message later, or on a schedule.* Nothing on this bus starts anything on time: every agent is woken by a caller, and the runner has no clock either. It makes every other entry more useful and costs the daemon nothing. Listed under *acting on the box*, which is a misfiling — it acts on nothing and sends a message |
 | **health** | owner, catalogue | `df`, `free`, `uptime` — the cheapest possible proof that the runner keeps an ordinary agent end to end, and worth building first for that alone rather than for what it reports |
 | **files** | proposed, catalogue | read, write and list under one declared root. Almost everything else needs it, and the declared root is the grant |
-| **probe** | proposed here | calls each agent a runner serves with its declared no-op and answers which replied. `status` says what is **installed**; after a `reload` nothing yet says what **answers**. With cron it is the check that a deploy worked, and it needs no new mechanism — only a no-op every agent already has to have ([method metadata](method-metadata.md#method-metadata)) |
+| **probe** | proposed here | calls each agent a runner serves with its declared no-op and answers which replied. `status` says what is **installed**; after a `reload` nothing yet says what **answers**. With cron it is the check that a deploy worked, and it needs no new mechanism — only a no-op every agent already has to have ([method metadata](done/method-metadata.md#method-metadata)) |
 
 ## Open choices
 

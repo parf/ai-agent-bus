@@ -243,7 +243,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 - ✅ RD98 The Telegram agent is the Slack agent's twin: its methods, keywords, forms and subscriptions wherever Telegram allows
   - Why: owner instruction, built by OpenCode with Claude B answering its questions
   - Date: 2026-10-18
-  - Home: [Telegram agent](telegram/README.md#telegram-agent)
+  - Home: [Telegram agent](done/telegram/README.md#telegram-agent)
 
 - ✅ RD97 IMAP and SMTP clients are included in R1
   - Why: owner instruction to add both clients to the agents plan
@@ -751,11 +751,11 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 
 - ✅ RD63 Prepare a checkbox plan and peer review, with efficient handling when no roles are assigned
   - Date: 2026-10-16
-  - Home: [implementation checklist](roles-implementation.md#assigned-roles-implementation)
+  - Home: [implementation checklist](done/roles-implementation.md#assigned-roles-implementation)
 
 - ✅ RD64 Include role descriptions and usage in agent-edit mouseover help
   - Date: 2026-10-16
-  - Home: [face checklist](roles-implementation.md#faces-and-persistence)
+  - Home: [face checklist](done/roles-implementation.md#faces-and-persistence)
 
 ## Backup encryption choice
 

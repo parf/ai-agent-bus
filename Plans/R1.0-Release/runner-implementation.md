@@ -667,5 +667,5 @@ remain release design work after scope confirmation.
 
 A registry record reports the version registered; a standard `version` call
 reports what is running. The runner answers from the agent's description for
-simple scripts. This depends on [method metadata](method-metadata.md#method-metadata); it does
+simple scripts. This depends on [method metadata](done/method-metadata.md#method-metadata); it does
 not create an independently versioned program in this repository.

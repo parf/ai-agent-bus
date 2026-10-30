@@ -25,7 +25,7 @@ the tools stage is [R1.2](../R1.2/README.md#scope).
 | RAG service | [RAG](rag/README.md#rag-service), built from agents as blocks; steps in [its TODO](rag/TODO.md#steps) |
 | Record-defined roles | [Roles](roles.md#record-defined-roles) |
 | Daemon configuration | [RT22 proposal, pending approval](daemon-configuration.md#approved-plan) |
-| Method metadata | [Method metadata](method-metadata.md#method-metadata) |
+| Method metadata | [Method metadata](done/method-metadata.md#method-metadata) |
 | Client libraries | [Client libraries](done/client-libraries.md#scope) |
 
 Open choices are in [questions](QUESTIONS.md#open-questions); recorded choices

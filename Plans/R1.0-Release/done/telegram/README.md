@@ -1,13 +1,15 @@
 # Telegram agent
 
+History: completed Telegram design, including superseded subscription rules. Use the [current Telegram guide](../../../../docs/agents/telegram.md).
+
 📌 **TL;DR:** `#telegram/<account>@<realm>` puts one Telegram bot on the bus,
-built as the [Slack agent](../../R1.2/slack/README.md#slack-agent)'s twin: the
+built as the [Slack agent](../../../R1.2/done/slack/README.md#slack-agent)'s twin: the
 same method names, text and JSON forms, answers, subscriptions and authority
 wherever Telegram allows. What differs is Telegram's: no history API, so `read`
 answers what the bot has received; a declared default chat and alias table in
 the instance's configuration; updates by long polling.
 
-Status: planned 2026-10-18 for [№B.1](../TODO.md#bundled-agents); the owner's
+Status: planned 2026-10-18 for [№B.1](../../TODO.md#bundled-agents); the owner's
 instruction is "do it like Slack, the same methods and keywords where possible".
 Built by OpenCode, reviewed by Claude B and Codex ([TODO](TODO.md#tasks)). Code
 goes in `src/agents/telegram/`.
@@ -19,14 +21,14 @@ goes in `src/agents/telegram/`.
 | Process | one bun process, `serves: itself`, packaged by its own `package.sh`; exits 78 when it starts unconfigured, naming what is missing |
 | Forms | a text line or the same call as JSON; the JSON destination key is `channel`, the same keyword Slack takes — a JSON call answered `{"ok": true, …}` / `{"ok": false, "error": "…"}`, a text call as text, a failure `error: <why>` |
 | Upstream errors | Telegram's `ok:false` is an answer: `error: <description>`; a 429 waits `parameters.retry_after`, at most 30 s, retries once; a write is never retried otherwise, a read once on 5xx |
-| Subscriptions | `sub list/add/edit/delete`, the same filters, KV storage, counters, worker-bounded regex, and authority by the destination through `GET /manages` ([Slack § subscriptions](../../R1.2/slack/README.md#subscriptions-authority-errors), [pinned behaviour](../../R1.2/slack/README.md#behaviour-pinned-by-the-review)) |
+| Subscriptions | `sub list/add/edit/delete`, the same filters, KV storage, counters, worker-bounded regex, and authority by the destination through `GET /manages` ([Slack § subscriptions](../../../R1.2/done/slack/README.md#subscriptions-authority-errors), [pinned behaviour](../../../R1.2/done/slack/README.md#behaviour-pinned-by-the-review)) |
 | Shared code | imported from `src/agents/slack/` (filters, filter worker, subscriptions, env file, `/manages`), never copied; the bundle makes that safe. A move to a common directory only if both agents' tests stay green |
 
 ## Where things live
 
 | | |
 |---|---|
-| Bot token | the record's bus secret, the one source it reads: `TELEGRAM_BOT_TOKEN`; `TELEGRAM_API_URL`, optional, for tests. Never the process env, never `~/.codex/telegram.toml` ([agents § telegram](../agents.md#telegram)) |
+| Bot token | the record's bus secret, the one source it reads: `TELEGRAM_BOT_TOKEN`; `TELEGRAM_API_URL`, optional, for tests. Never the process env, never `~/.codex/telegram.toml` ([agents § telegram](../../agents.md#telegram)) |
 | Default chat and aliases | the record's configuration, read as that record (`record.config()`): accepted as proposed (telegram-build, 2026-10-18): `{"default": "#dev", "aliases": {"#dev": "-1001234567890", "@alice": "12345678"}}` — `default` is a string, an alias with its sigil or a numeric chat id; `aliases` maps sigil-carrying keys (so `#dev` and `dev` differ, and no key collides with a numeric id) to chat ids as decimal strings, exact for any id Telegram issues. A malformed configuration is refused at start, exit 78 naming the bad key: an alias key without its sigil, a value that is not a decimal integer string, a default naming an alias that does not exist, and an unknown configuration key (accepted: it matches agent.json's strict loading and the H1 rule — refuse unknown flags, fail loudly). No configuration is none, not malformed: the agent runs |
 | Subscriptions, counters, update offset, recent messages | the agent's own KV |
 
@@ -72,10 +74,10 @@ file upload, and formatting modes; `post` sends plain text.
 
 ## Reply routing
 
-Built in [TG.9](TODO.md#tasks); the [agent's reply-routing contract](../../../docs/agents/telegram.md#reply-routing)
+Built in [TG.9](TODO.md#tasks); the [agent's reply-routing contract](../../../../docs/agents/telegram.md#reply-routing)
 owns session tags, listed users, both reply directions, the default route and refusal diagnostics.
 
 ## Per-chat routing
 
-Built in [TG.10](TODO.md#tasks); the [agent's per-chat routing contract](../../../docs/agents/telegram.md#per-chat-routing)
+Built in [TG.10](TODO.md#tasks); the [agent's per-chat routing contract](../../../../docs/agents/telegram.md#per-chat-routing)
 owns chat routes, switches, channel announcements and discussion-group behaviour.

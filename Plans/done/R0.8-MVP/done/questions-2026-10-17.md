@@ -8,7 +8,7 @@ and the docs it links; this file is not a current contract.
 
 - ✅ Q180 How the Slack agent learns whether a sender controls a subscription's destination (№S.8): no API answers "may this sender manage that record" today
   - Settled by: owner, 2026-10-17 ([decision](../../../../docs/decisions.md#settled), [route](../../../../docs/09-daemon-api.md#registry))
-  - Home: [Slack authority](../../../R1.2/slack/README.md#subscriptions-authority-errors)
+  - Home: [Slack authority](../../../R1.2/done/slack/README.md#subscriptions-authority-errors)
   - (x) The daemon answers it: `GET /manages?who=<name>&name=<record>`, yes or no, by the same rule `/manage` applies, to a caller who may see the record 🌟
   - ( ) The message carries it: the daemon adds the sender's roles toward a record the body names — the daemon would have to read bodies, which it never does
   - ( ) The agent works it out from `/lookup` and the groups — a second copy of the daemon's authority rules, wrong the day those change

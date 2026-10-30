@@ -36,6 +36,6 @@ reads. Both cover only what the caller may do.
 |---|---|
 | **The `mcp` tag** | added automatically to an agent whose `--mcp` answer is a valid tools result with at least one tool — `{"tools": []}` is what an agent with none answers ([constitution](../../docs/constitution.md#agent-self-description)) — like the launchers' `claude` and the runner's `runner` ([tags](../../docs/03-records.md#tags)); who probes and when is [Q178](QUESTIONS.md#open-questions) |
 | **Tags are not only the user's** | already true: `personal` and the launcher and runner labels are added by the bus. This adds one more label set by what an agent does, not by what someone typed |
-| **Method metadata** | this is a candidate for R1's [method metadata](../R1.0-Release/method-metadata.md#method-metadata) representation (RT9). If accepted there, RT9 takes this shape and R1.1 keeps only the tag |
+| **Method metadata** | this is a candidate for R1's [method metadata](../R1.0-Release/done/method-metadata.md#method-metadata) representation (RT9). If accepted there, RT9 takes this shape and R1.1 keeps only the tag |
 
 </details>

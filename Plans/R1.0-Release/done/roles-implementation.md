@@ -1,17 +1,19 @@
 # Assigned roles implementation
 
-Implementation checklist for [R1 roles](roles.md#role-syntax), 2026-10-16.
-Built on the 0.8 line; [verification](done/assigned-roles.md#verification).
+History: completed implementation checklist. The [current role contract](../../../docs/03-records-agent.md#roles) owns behavior.
+
+Implementation checklist for [R1 roles](../roles.md#role-syntax), 2026-10-16.
+Built on the 0.8 line; [verification](assigned-roles.md#verification).
 
 ## Boundaries
 
 `RA` labels the original assigned-role implementation checklist entries.
 
 - ✅ RA1 Implement using the existing allow-list representation and nested-group
-  - Details: behavior; [contract](../../docs/03-records-agent.md#roles). No endpoint or schema change.
+  - Details: behavior; [contract](../../../docs/03-records-agent.md#roles). No endpoint or schema change.
 
 - ✅ RA2 Obtain owner confirmation of assigned-role applicability
-  - State: confirmed 2026-10-17 — representation and duplicate grants as [№RD92](DECISIONS.md#recorded-decisions), applicability as [№RD95](DECISIONS.md#recorded-decisions), nested groups as [№RD87](DECISIONS.md#recorded-decisions)
+  - State: confirmed 2026-10-17 — representation and duplicate grants as [№RD92](../DECISIONS.md#recorded-decisions), applicability as [№RD95](../DECISIONS.md#recorded-decisions), nested groups as [№RD87](../DECISIONS.md#recorded-decisions)
 
 - ✅ RA3 Preserve existing plain ACLs, empty-ACL access, Personal restrictions,
   - Details: caller standing, management authority and generated roles. `admin` is an application role, not node administration. `owner` and `maintainer` remain generated-only; assigning either as an ACL role rejects the entire save.
@@ -32,7 +34,7 @@ Built on the 0.8 line; [verification](done/assigned-roles.md#verification).
   - Details: `@dev(deploy, read_only)` as one entry; reject unbalanced/nested parentheses, empty roles and trailing junk. Refuse ACL assignments of `owner` or `maintainer`.
 
 - ✅ RA8 Update the shared role-name validator to the
-  - Details: [naming policy](roles.md#roles-are-for-agents), including supported-role lists. Normalize actor names as today; reject invalid role spelling rather than rewriting it. Keep lowercase letters, digits and `_`; refuse hyphens. Do not impose application vocabulary, supported-list membership or a role-specific length cap. Unify core `roleName` and runner `validRole`, updating diagnostics in the same change. Test a valid role over 64 characters through `Send` into the spawned child's environment: `roleEnv` must not silently skip a daemon-accepted role.
+  - Details: [naming policy](../roles.md#roles-are-for-agents), including supported-role lists. Normalize actor names as today; reject invalid role spelling rather than rewriting it. Keep lowercase letters, digits and `_`; refuse hyphens. Do not impose application vocabulary, supported-list membership or a role-specific length cap. Unify core `roleName` and runner `validRole`, updating diagnostics in the same change. Test a valid role over 64 characters through `Send` into the spawned child's environment: `roleEnv` must not silently skip a daemon-accepted role.
 
 - ✅ RA9 Retain the existing uppercase `AB_ROLE_<NAME>` mapping and inherited-role
   - Details: stripping. Verify names are shell-safe before constructing exports.

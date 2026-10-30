@@ -2,7 +2,7 @@
 
 Built in 0.8.110, 2026-10-16. The
 [current contract](../../../docs/03-records-agent.md#roles) owns behavior;
-the [checklist](../roles-implementation.md#assigned-roles-implementation) owns scope.
+the [checklist](roles-implementation.md#assigned-roles-implementation) owns scope.
 
 ## Verification
 

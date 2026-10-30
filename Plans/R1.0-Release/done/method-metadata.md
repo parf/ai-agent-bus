@@ -1,7 +1,9 @@
 # Method metadata
 
-Status: **built** in 0.9.32–0.9.34 (RT9.1 loader and runner-answered asks, RT9.2 bundled metadata, RT9.3 web display). The current contract is [agent self-description](../../docs/constitution.md#agent-self-description) and [package help](../../docs/runner/configuration.md#package-help); this page keeps the design discussion as history. MCP tool generation remains
-[R1.2](../R1.2/TODO.md#dependencies). The record description remains the short
+History: completed metadata design. Current behavior belongs to [agent self-description](../../../docs/constitution.md#agent-self-description) and [package help](../../../docs/runner/configuration.md#package-help).
+
+Status: **built** in 0.9.32–0.9.34 (RT9.1 loader and runner-answered asks, RT9.2 bundled metadata, RT9.3 web display). The current contract is [agent self-description](../../../docs/constitution.md#agent-self-description) and [package help](../../../docs/runner/configuration.md#package-help); this page keeps the design discussion as history. MCP tool generation remains
+[R1.2](../../R1.2/TODO.md#dependencies). The record description remains the short
 listing summary; the daemon carries asks and never interprets package metadata.
 
 ## Settled so far
@@ -70,7 +72,7 @@ The agent as a whole carries two more fields (owner, 2026-10-19):
 |---|---|
 | `description` | what the agent is for, in a sentence or two; already required in every `agent.json` and registered as the record's description |
 | `license` | the agent's license as an SPDX identifier, e.g. `MIT` or `PolyForm-Noncommercial-1.0.0`; shown by `--help` |
-| `version` | the agent's own version; a bundled agent leaves it out and shows the bus's shared version, since [every program shares one version](../../CLAUDE.md#versioning); a third-party agent sets its own |
+| `version` | the agent's own version; a bundled agent leaves it out and shows the bus's shared version, since [every program shares one version](../../../CLAUDE.md#versioning); a third-party agent sets its own |
 | `author` | who wrote it: a name, optionally with an email |
 | `homepage` | where its docs or code live, a URL |
 
@@ -93,7 +95,7 @@ The daemon only carries the ask, as it does `--help` today. Who answers
 | a package with `agent.json` / `env.dist`, served by the runner or by `agent-bus run` | **the runner itself**, generated from those files, without running the script; the author writes no help code |
 | only its own program (a standalone process with no package the runner reads) | the agent, which must answer **at least `--help`**; `--help-config`, `--help-secret` and `--help-json` are optional, and its `--help` says whether it answers them |
 
-The new asks are `help-config`, `help-secret` and `help-json` on the wire, beside `help` and `mcp` ([agent self-description](../../docs/constitution.md#agent-self-description)), as the CLI flags are named (owner, 2026-10-19).
+The new asks are `help-config`, `help-secret` and `help-json` on the wire, beside `help` and `mcp` ([agent self-description](../../../docs/constitution.md#agent-self-description)), as the CLI flags are named (owner, 2026-10-19).
 
 Still to decide: whether MCP `tools/list` is generated from this now or later.
 

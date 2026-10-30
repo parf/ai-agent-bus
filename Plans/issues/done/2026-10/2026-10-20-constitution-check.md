@@ -1,4 +1,4 @@
-📌 **TL;DR:** History: the closed items of the October 20 review, moved from the [open file](../../2026-10/2026-10-20-constitution-check.md) with their records; not current contracts.
+📌 **TL;DR:** History: the closed items of the October 20 review, preserved here with their closure records; not current contracts.
 
 # Constitution check — Oct 20, 2026 · 978f0278..473e6fc3
 

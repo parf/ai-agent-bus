@@ -1,5 +1,7 @@
 # Runner documentation plan
 
+History: completed guide-writing work. Use the [current runner guide](../../../docs/runner/README.md).
+
 The runner needs its own guide: it is an external program that uses
 AgentBus, not a daemon subsystem. Explain why someone would use it, what they
 can do today, and how to get an answer from their first agent before describing

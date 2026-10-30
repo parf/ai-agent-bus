@@ -1,20 +1,22 @@
 # Slack agent
 
+History: completed Slack design, including superseded subscription rules. Use the [current Slack guide](../../../../docs/agents/slack.md).
+
 📌 **TL;DR:** `#slack@<realm>` puts a Slack workspace on the bus: it posts,
 reads, looks up channels and users, and forwards a Slack channel's messages to
 a bus agent, 📮 queue or 📣 pubsub, filtered by optional authors and a regex. Its
 subscriptions live in its own KV store. It is one TypeScript process on bun,
-serving itself through the [TypeScript client](../../../src/clients/typescript/README.md).
+serving itself through the [TypeScript client](../../../../src/clients/typescript/README.md).
 
 Status: **built 2026-10-17 at 0.8.137** (S.1–S.4 by OpenCode, review fixes and
 S.5–S.7 by Claude, every task reviewed by Codex); deployed on the dev node under
 the runner since 0.8.156, 2026-10-17. Running it:
-[the agent's README](../../../src/agents/slack/README.md#running-it) ([TODO](TODO.md#tasks)). Code goes in `src/agents/slack/`.
+[the agent's README](../../../../src/agents/slack/README.md#running-it) ([TODO](TODO.md#tasks)). Code goes in `src/agents/slack/`.
 
 ## One agent, both ways
 
 The owner asked for one agent with post, read and subscribe. That revises, for
-Slack, two [catalogue rules](../services.md#rules-they-all-obey):
+Slack, two [catalogue rules](../../services.md#rules-they-all-obey):
 - "inbound is a publisher, outbound is a call" becomes one agent doing both;
 - "none of them enforces access" becomes one check on subscriptions: a
   subscription is added, changed and deleted by whoever controls its
@@ -32,7 +34,7 @@ The other catalogue rules hold:
   `/rd/bin/slack-tail` (`connectOnce`: backoff, a 15-minute watchdog, each
   envelope acked at once).
 - `agent.json` says `serves: itself`: the runner keeps it running and restarts it
-  ([№M.9](../../R1.0-Release/TODO.md#runner-waves)), packaged by `package.sh`.
+  ([№M.9](../../../R1.0-Release/TODO.md#runner-waves)), packaged by `package.sh`.
 - Secrets live in the record's bus secret, dotenv form, read with `record.secret()`:
   - `SLACK_BOT_TOKEN` (xoxb);
   - `SLACK_APP_TOKEN` (xapp, Socket Mode);
@@ -133,7 +135,7 @@ Channel and user resolution:
   - Control is checked when a subscription is added, edited or deleted, never again: one whose creator loses control of the destination keeps forwarding. Forwarding still needs the destination's ACL to admit `#slack`.
   - `#slack`'s own Owner and Maintainers may add, edit and delete any subscription (Q177), by the generated `owner` and `maintainer` roles on the message.
   - Those roles count only on a message addressed to `#slack` itself: its `original_to` is empty or `#slack`'s own name. Roles are worked out at the record first addressed and carried unchanged through a forward, so a Maintainer of another record of the same Owner that forwards to `#slack` would otherwise arrive as `#slack`'s Maintainer.
-  - Control is the sender's, as the daemon delivered the message, never a role the body claims; the agent asks the daemon's `GET /manages` ([Q180](../../done/R0.8-MVP/done/questions-2026-10-17.md#settled-on-2026-10-17)). Built: [S.8](TODO.md#tasks).
+  - Control is the sender's, as the daemon delivered the message, never a role the body claims; the agent asks the daemon's `GET /manages` ([Q180](../../../done/R0.8-MVP/done/questions-2026-10-17.md#settled-on-2026-10-17)). Built: [S.8](TODO.md#tasks).
   - Owner-facing tip: `@owner` in `#slack`'s ACL admits its Owner and the agents that Owner owns; any other `@name` is a stored group and needs membership.
 - **Upstream errors are answers**, per the catalogue contract: a Slack `ok:false` comes back as `error: <slack error>`. Only the agent itself being broken produces no answer.
 - **Socket Mode:**

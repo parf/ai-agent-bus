@@ -20,4 +20,4 @@ in the existing allow list; there is no new endpoint or storage schema.
 The [current contract](../../docs/03-records-agent.md#roles) describes what an
 Agent receives and how it uses roles. Application labels grant no bus authority.
 
-Execution and review: [implementation checklist](roles-implementation.md#assigned-roles-implementation).
+Execution and review: [implementation checklist](done/roles-implementation.md#assigned-roles-implementation).
