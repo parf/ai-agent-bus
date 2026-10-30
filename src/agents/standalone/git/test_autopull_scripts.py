@@ -52,7 +52,7 @@ class ScriptFixtures:
         return [json.loads(line) for line in self.journal.read_text().splitlines()]
 
     def install(self, name, *, exit_code=0, stderr=b'', stdout_size=0,
-                delay=0, ignore_term=False, child_delay=None, read_stdin=True, capture_head=False, child_session=False):
+                delay=0, ignore_term=False, child_delay=None, read_stdin=True, capture_head=False, child_session=False, self_signal=None):
         """Create a real executable, never a shell-expanded command string."""
         assert name and Path(name).name == name and name not in ('.', '..')
         path = self.allowlist / name
@@ -80,6 +80,8 @@ class ScriptFixtures:
             source += 'os.write(2, ' + repr(stderr) + ')\n'
         if delay:
             source += 'time.sleep(' + repr(delay) + ')\n'
+        if self_signal is not None:
+            source += 'os.kill(os.getpid(), ' + repr(int(self_signal)) + ')\n'
         source += 'sys.exit(' + repr(exit_code) + ')\n'
         path.write_text(source, encoding='utf-8')
         path.chmod(0o700)
@@ -168,14 +170,14 @@ class ScriptTests(unittest.TestCase):
         self.assertIsNone(events[1]['record'])
 
     def test_timeout_kills_group_and_fires_fail_script_with_null_exit(self):
-        self.f.install('success', delay=.4, child_delay=.25, ignore_term=True)
+        self.f.install('success', delay=2, child_delay=1.2, ignore_term=True)
         self.f.install('fail')
-        with patch.object(a,'SCRIPT_SECONDS',.12):
+        with patch.object(a,'SCRIPT_SECONDS',.5):
             events = self.invoke({'autopull-success-script':'success','autopull-fail-script':'fail'})
         self.assertEqual([e['kind'] for e in events], ['published','script','published','script'])
         self.assertIsNone(events[2]['record']['script']['exit'])
         self.assertIsNotNone(events[1]['child'])  # Capture descendant before cleanup.
-        time.sleep(.3)
+        time.sleep(.8)
         self.assertFalse(self.f.child_effect.exists())
 
     def test_normal_exit_also_cleans_background_pipe_holders(self):
@@ -191,11 +193,13 @@ class ScriptTests(unittest.TestCase):
         self.f.install('fail')
         child=None
         try:
-            with patch.object(a,'SCRIPT_SECONDS',.5):
+            started=time.monotonic()
+            with patch.object(a,'SCRIPT_SECONDS',1):
                 events=self.invoke({'autopull-success-script':'success','autopull-fail-script':'fail'})
             child=next(e['child'] for e in events if e['kind']=='script')
             self.assertEqual([e['kind'] for e in events],['published','script'])
             self.assertIsNotNone(child)
+            self.assertLess(time.monotonic()-started,.75, 'clean exit waited for an escaped pipe holder')
         finally:
             if child is not None:
                 try:os.kill(child,signal.SIGKILL)
@@ -292,6 +296,50 @@ class ScriptTests(unittest.TestCase):
             fd=g.open_script('success');os.close(fd)
             events=self.invoke({'autopull-success-script':'success'})
         self.assertEqual(events[2]['record']['script']['stderr'],'ERROR')
+
+    def test_script_fd_survives_name_swap_after_final_recheck(self):
+        self.f.install('success');replacement=self.f.install('replacement')
+        original=g.recheck_script
+        def swap(fd,name):
+            original(fd,name)
+            replacement.replace(self.f.allowlist/name)
+        with patch.object(g,'recheck_script',side_effect=swap):
+            events=self.invoke({'autopull-success-script':'success'})
+        self.assertEqual([e['kind'] for e in events],['published','script'])
+        self.assertEqual(events[1]['name'],'success')
+
+    def test_signal_failure_and_buffered_stderr_of_already_exited_leader(self):
+        import signal
+        self.f.install('signal',self_signal=signal.SIGTERM)
+        events=self.invoke({'autopull-success-script':'signal'})
+        self.assertEqual(events[2]['record']['script']['exit'],-signal.SIGTERM)
+        self.f.install('late',stderr=b'last line\n',read_stdin=False)
+        original=a.subprocess.Popen
+        def completed(*args,**kwargs):
+            child=original(*args,**kwargs)
+            child.wait(timeout=2)
+            return child
+        with patch.object(a.subprocess,'Popen',side_effect=completed):
+            outcome=a.run_script('late',self.f.checkout,attempt_record(),time.monotonic()+2)
+        self.assertEqual(outcome['exit'],0)
+        self.assertEqual(outcome['stderr'],'last line')
+
+    def test_foreign_owner_special_file_and_dotdot_name_are_refused(self):
+        import stat
+        from types import SimpleNamespace
+        with self.assertRaises(ValueError):
+            g._trusted(SimpleNamespace(st_mode=stat.S_IFREG|0o700,st_uid=os.geteuid()+1001))
+        self.f.install('a..b')
+        with self.assertRaises(ValueError):g.open_script('a..b')
+        os.mkfifo(self.f.allowlist/'pipe',0o600)
+        with self.assertRaises(ValueError):g.open_script('pipe')
+
+    def test_two_script_deadlines_share_one_hook_budget(self):
+        outcome={'exit':7,'stderr':None,'ms':1}
+        with patch.object(a,'run_script',return_value=outcome) as run, patch.object(a.time,'monotonic',side_effect=[100,100,135]):
+            a.after_attempt({'autopull-success-script':'success','autopull-fail-script':'fail'},self.f.checkout,attempt_record(),self.f.publish)
+        self.assertEqual([call.args[3] for call in run.call_args_list],[130,160])
+        self.assertEqual([call.args[0] for call in run.call_args_list],['success','fail'])
 
     def test_native_elf_and_large_input_bounds(self):
         import shutil
