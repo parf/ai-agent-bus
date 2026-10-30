@@ -185,7 +185,7 @@
       ]
     },
     "whoami": {
-      "help": "See which bot you are talking to, its workspace and whether it is connected.",
+      "help": "See which bot you are talking to and its workspace.",
       "args": [],
       "example": "agent-bus call '#slack@parf.us' whoami"
     },
