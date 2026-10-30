@@ -234,8 +234,8 @@ configuration written under `runner/` on the host, then a `reload` call.
   - Acceptance: a script started by `agent-bus run` sees `KEY=value` from its record's secret, sandboxed and not; a changed secret reaches the next message; no secret value appears in its log or title; the debug agent's `env` names no secret value
   - Mutant: skip the secret layer, read it only at start, or leave it out of the sandboxed job's env, and a check must fail
 
-- ⏳ M.5 The host's controls (audit 2026-10-30: `depends` is validated and read by nothing; reload sends no `SIGHUP` and does not drain; only `agent.json` is overridable; `backup` moved to R1.1)
-  - M.5a `depends` ordering and cycle refusal at reload (S-M); M.5b reload semantics: `SIGHUP`, restart after drain (M, after M.3c); M.5c overrides of other shipped JSON files, mounted (M)
+- ⏳ M.5 The host's controls (audit 2026-10-30; `depends` is now applied, see M.5a; reload sends no `SIGHUP` and does not drain; only `agent.json` is overridable; `backup` moved to R1.1)
+  - ✅ M.5a `depends` ordering and cycle refusal at reload (branch ab-w2b/T-7-m5: starts in dependency order, an unknown name or a cycle refuses by name, seven mutants red); M.5b reload semantics: `SIGHUP`, restart after drain (M, after M.3c); M.5c overrides of other shipped JSON files, mounted (M)
   - Built in 0.8.207: `enable`/`disable`/`start`/`stop`/`restart` calls ([controlling one agent](../../docs/runner/operations.md#controlling-one-agent), [№Q181](DECISIONS.md#recorded-decisions))
   - Built in 0.8.210: reading and writing the host's files, instance create and delete ([the host's files](../../docs/runner/operations.md#the-hosts-files-over-the-bus)); the override of `agent.json`, read by the runner ([overriding](../../docs/runner/configuration.md#overriding-the-authors-options))
   - Builds: overrides of an agent's other shipped JSON files (JSON Merge Patch, mounted); `depends` ordering; the `backup` verb; a configuration change applied at `reload` ([№Q19](runner.md#stop-and-reload))

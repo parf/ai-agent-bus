@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.180 — 2026-10-30
+
+the runner starts agents in their depends order and refuses an unknown or cyclic dependency by name
+
 ## 0.9.179 — 2026-10-30
 
 release-verify matches the signed SHA256SUMS line literally, so a name differing at a dot is refused; Mac check dated 10-30
