@@ -93,7 +93,7 @@ rule](04-messaging.md#one-reader-per-inbox).
 A pool is one name read by several machines, so the name no longer says which one serves it. A read can state its own host, and the listing then answers *which machines are reading this name*.
 
 - **Stated, never observed:** a read carries `host=<name>`, 1 to 64 characters of letters, digits, `.` and `-`; anything else is refused with a 400 that names it.
-- **Who states it:** the runner and `agent-bus run` on every read, from the machine's hostname (one the daemon would refuse is left out, with a note, and the read goes on), and `agent-bus consume --host=name` by hand, which takes the same 1 to 64 characters of letters, digits, `.` and `-`.
+- **Who states it:** the runner and `agent-bus run` on every read, from `AGENT_BUS_READER_HOST` when the unit sets it, else the machine's hostname (a value the daemon would refuse is left out, with a note, and the read goes on), and `agent-bus consume --host=name` by hand, which takes the same 1 to 64 characters of letters, digits, `.` and `-`.
 - **A label only:** it is not an identity, a route or an ACL input, and it is never written to the database or a backup.
 - **Short-lived:** a host stays listed for 2 minutes after its last read began or ended, so a member whose places are all busy keeps its entry.
 - **Bounded:** at most 32 hosts per name; beyond that the oldest is forgotten and the listing says it is cut.
