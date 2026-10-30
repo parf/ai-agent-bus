@@ -29,6 +29,7 @@ class Pending:
     error: object = None
     sent_id: str = ""
     early: list = field(default_factory=list)
+    request: object = None
 
 
 @dataclass
@@ -348,6 +349,17 @@ class Bus:
                     return
                 serving = self._serving
                 work = serving and serving.accepting and len(serving.futures) < serving.workers
+                # A filtered self-call poll can take the request before the work
+                # poll. Retain at most that one request per live call, and only
+                # submit it when a serving worker is free, just like ordinary work.
+                deferred = next((p for p in self._pending.values()
+                                 if p.request is not None and p.key[0] == serving.inbox), None) if work else None
+                if deferred is not None:
+                    message, deferred.request = deferred.request, None
+                    future = serving.executor.submit(self._handle, serving, message)
+                    serving.futures.add(future)
+                    future.add_done_callback(lambda done, owner=serving: self._finished(owner, done))
+                    continue
                 pending = [p for p in self._pending.values() if p.sent_id and not p.result and not p.error]
                 choices = len(pending) + int(bool(work))
                 if not choices:
@@ -390,7 +402,13 @@ class Bus:
                 # A reply arriving in an unfiltered work read still belongs to its call.
                 key = (inbox, message.topic or "", message.tag or "")
                 routed = self._pending.get(key)
-                if routed:
+                if (routed and not message.receipt and not message.re
+                        and message.id == routed.sent_id):
+                    # Matching topic/tag alone is not an answer: this is the
+                    # accepted request itself, with no reply/receipt marker.
+                    routed.request = message
+                elif routed:
+                    # Preserve legacy unmarked answers with a different ID.
                     self._deliver(routed, message)
                 elif (target is None and not (message.tag or "").startswith(self._call_prefix)
                       and not message.receipt and not message.re

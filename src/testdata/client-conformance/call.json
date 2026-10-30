@@ -1,0 +1,4 @@
+[
+  {"id":"handler-reply","request":{"to":"#worker@fixture","body":"question","topic":"conformance-call"},"answer":"handler answer","expected":{"from":"#worker@fixture","to":"#caller@fixture","body":"handler answer","topic":"conformance-call"}},
+  {"id":"empty-reply","request":{"to":"#worker@fixture","body":"empty question","topic":"conformance-empty"},"answer":"","expected":{"from":"#worker@fixture","to":"#caller@fixture","body":"","topic":"conformance-empty"}}
+]

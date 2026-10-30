@@ -1,0 +1,3 @@
+[
+  {"id":"self-handler-reply","request":{"to":"#caller@fixture","body":"own request is not the answer","topic":"conformance-self"},"answer":"self handler answer","expected":{"from":"#caller@fixture","to":"#caller@fixture","body":"self handler answer","topic":"conformance-self"}}
+]

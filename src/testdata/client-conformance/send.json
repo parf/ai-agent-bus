@@ -1,0 +1,6 @@
+[
+  {"id":"text-route","request":{"to":"#worker@fixture","body":"request text","topic":"conformance","tag":"one"},"expected":{"from":"#caller@fixture","to":"#worker@fixture","body":"request text","topic":"conformance","tag":"one"}},
+  {"id":"unicode","request":{"to":"#worker@fixture","body":"Привет, 世界 🌍","topic":"unicode","tag":"two"},"expected":{"from":"#caller@fixture","to":"#worker@fixture","body":"Привет, 世界 🌍","topic":"unicode","tag":"two"}},
+  {"id":"empty-body","request":{"to":"#worker@fixture","body":"","topic":"empty","tag":"three"},"expected":{"from":"#caller@fixture","to":"#worker@fixture","body":"","topic":"empty","tag":"three"}},
+  {"id":"help-ask","request":{"to":"#worker@fixture","body":"","ask":"help","topic":"ask","tag":"four"},"expected":{"from":"#caller@fixture","to":"#worker@fixture","body":"","ask":"help","topic":"ask","tag":"four"}}
+]
