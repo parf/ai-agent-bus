@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.207 — 2026-10-30
+
+Discord agent posts to and reads channels and receives gateway messages, never exposing its token
+
 ## 0.9.206 — 2026-10-30
 
 Replacing an inbox reader loses no message: the daemon drops a cancelled waiter and requeues what it was handed, in arrival order

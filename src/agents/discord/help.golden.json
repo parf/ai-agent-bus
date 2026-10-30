@@ -217,11 +217,11 @@
         "help": "Distinct server ids in which this bot may act; other guilds are refused"
       },
       "users": {
-        "type": "object",
+        "type": "json",
         "help": "Discord user id to bus person; authorizes choosing sessions by tag"
       },
       "tags": {
-        "type": "object",
+        "type": "json",
         "help": "Short permanent tag to session"
       },
       "route": {
@@ -229,7 +229,7 @@
         "help": "Default bus session for addressed messages"
       },
       "channels": {
-        "type": "object",
+        "type": "json",
         "help": "Alias, #name or numeric id to {id, route?, tags?, anyone?}; numeric keys may omit id. Duplicate ids are refused."
       },
       "default": {
