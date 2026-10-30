@@ -146,6 +146,20 @@ script, as realty's does.
 
 </details>
 
+## B.26 `#webhook` publishes to a pubsub channel
+
+Built in 0.9.157, commit `f5114e4e`: route fields `publish`, `event` (`gitlab-push`, `github-push`, `deploy`) and `branches`, the signature preset `gitlab`, and a start check that the target is a pubsub record `#webhook` may publish to. Normal gate 234/0; eight assertion-red mutants (branch filter, token, start check, id, delivery kind, deletion, event header, deploy extras); reviewed by `#ab-qa2` on 2026-10-30 with no findings. Checked again against main on 2026-10-30, with no code change: every acceptance line holds and each has a test.
+
+| Acceptance | Test (`src/agents/webhook/`) |
+|---|---|
+| A GitLab push to a configured route gives one `autopull-cmd` message equal to the expected event | `test_webhook.Publish.test_push_payloads_map_to_the_exact_event`; `PublishHTTP.test_gitlab_push_publishes_one_event_and_bad_token_or_branch_nothing` (one message published, none sent) |
+| Every Deliver-To receiver gets it | `test_runtime.Runtime.test_real_bus_push_reaches_every_deliver_to_receiver_and_a_closed_channel_is_refused` (a real bus, two receivers, each gets the exact event once); the owner's flow through `#webhook` in `test_autopull_e2e.py` |
+| A pipeline's plain JSON deploy request gives one `deploy` event with its `id` | `Publish.test_deploy_request_keeps_its_id_and_refuses_extras`; `PublishHTTP.test_deploy_request_publishes_its_id` |
+| Another branch, a bad signature or a bad secret publishes nothing | `Publish.test_other_branch_tag_ping_and_deletion_publish_nothing`, `test_malformed_push_payloads_are_refused`, `test_gitlab_token_is_exact_and_single`; the wrong token, wrong branch and bad credential cases in the two `PublishHTTP` tests above |
+| A route to a pubsub record `#webhook` may not publish to is refused when the Configuration is read | `PublishHTTP.test_unpublishable_channel_is_refused_at_start_and_binds_nothing` (a queue, an agent, a pubsub it may not publish to); the same refusal against a real bus in the `test_runtime` test above; `Publish.test_publish_route_fields_are_strict` for malformed route fields |
+
+The owner's choice of the realty servers' switch from Redis autopull is separate and stays the owner's ([dependencies](TODO.md#dependencies)).
+
 ## Core 0.9.160
 
 Steps 1–5, 7 and 8: `7ea886eb`, verified fast-forward, ancestor of main and

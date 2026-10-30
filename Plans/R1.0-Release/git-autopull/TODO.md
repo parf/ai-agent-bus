@@ -57,18 +57,7 @@ Acceptance, each failing on the old code or by a named mutant:
 
 ### B.26 `#webhook` publishes to a pubsub channel
 
-Assigned 2026-10-29: AB2; review `#opencode/oab`. A webhook route may name a pubsub record as its target, so a GitLab
-or GitHub push reaches `autopull-cmd`. The route maps the hosting payload to the
-[new-code event](README.md#new-code-event); the payload stays untrusted.
-
-Acceptance:
-
-- A GitLab push payload posted to a configured route yields one `autopull-cmd` message equal to the expected event, and every Deliver-To receiver gets it.
-- A pipeline's plain JSON deploy request posted to its route yields one `deploy` event with its `id`.
-- A payload for another branch, or with a bad signature or secret, publishes nothing.
-- A route to a pubsub record `#webhook` may not publish to is refused at configuration time.
-
-Code ✅ 0.9.157, commit f5114e4e: route fields `publish`, `event` (`gitlab-push`, `github-push`, `deploy`), `branches`, signature preset `gitlab`; the start check is lookup kind plus `/may-send`. Normal gate 234/0; 8 assertion-red mutants (branch filter, token, start check, id, delivery kind, deletion, event header, deploy extras); real-bus test: two Deliver-To receivers each get the exact event. Reviewed by `#ab-qa2` 2026-10-30, no findings.
+✅ Done in 0.9.157: a webhook route may name a pubsub record as its target, so a GitLab or GitHub push reaches `autopull-cmd`. The acceptance lines, each with its test, and the result are in [DONE](DONE.md#b26-webhook-publishes-to-a-pubsub-channel).
 
 ## Dependencies
 
