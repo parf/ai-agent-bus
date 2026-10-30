@@ -92,7 +92,7 @@ class Release:
         with (self.full / relative).open('ab') as stream:
             stream.write(b'\0altered')
 
-    def repack(self, out, *, corrupt_full_after_sums=False):
+    def repack(self, out, *, swap_full_after_sums=False):
         """Archives and a SHA256SUMS for them, under out; the sums are taken before any corruption."""
         out.mkdir(parents=True, exist_ok=True)
         archives = []
@@ -103,12 +103,19 @@ class Release:
             archives.append(archive)
         sums = out / 'SHA256SUMS'
         sums.write_text(''.join(f'{pack.digest(a)}  {a.name}\n' for a in archives))
-        if corrupt_full_after_sums:
-            with archives[0].open('r+b') as stream:
-                stream.seek(100)
-                byte = stream.read(1)
-                stream.seek(100)
-                stream.write(bytes([byte[0] ^ 1]))
+        if swap_full_after_sums:
+            # Another, perfectly valid archive under the same name: one full-only
+            # file changed with its manifest line remade, so the archive reads and
+            # checks out on its own and only the SHA256SUMS comparison can refuse it.
+            target = 'agent-busd'
+            with (self.full / target).open('ab') as stream:
+                stream.write(b'\0swapped')
+            self._rewrite_full_manifest(lambda name: True)
+            manifest = self.full / 'MANIFEST.sha256'
+            manifest.write_text(''.join((f'{pack.digest(self.full / target)}  {target}' if line.split(maxsplit=1)[1] == target else line) + '\n'
+                                        for line in manifest.read_text().splitlines()))
+            with tarfile.open(archives[0], 'w:gz') as tar:
+                tar.add(self.full, arcname=self.full.name)
         return archives[0], archives[1], sums
 
 
@@ -164,8 +171,8 @@ def assert_binaries(installed):
             raise AssertionError(f'{program} --version failed ({result.returncode}): {result.stderr.strip()[:200]}')
 
 
-def assert_mcp_tool_call(installed):
-    """A started installed daemon answers an MCP tool call through the installed agent-bus-mcp."""
+def assert_mcp_tool_call(installed, expect='#worker@fixture'):
+    """A started installed daemon answers an MCP tool call through the installed agent-bus-mcp, listing `expect`."""
     # A unix socket path is short: the daemon's directory sits right under tmp/.
     directory = Path(tempfile.mkdtemp(prefix='d-', dir=ROOT / 'tmp'))
     log = (directory / 'log').open('w')
@@ -224,7 +231,7 @@ def assert_mcp_tool_call(installed):
             error = process.stderr.read()
             process.stdout.close()
             process.stderr.close()
-        if answer is None or 'error' in answer or answer.get('result', {}).get('isError') or '#worker@fixture' not in json.dumps(answer):
+        if answer is None or 'error' in answer or answer.get('result', {}).get('isError') or expect not in json.dumps(answer):
             raise AssertionError('the installed MCP gave no tool answer: ' + (error or json.dumps(answer))[-300:])
     finally:
         daemon.terminate()
@@ -288,6 +295,12 @@ class Acceptance(unittest.TestCase):
         listed = pack.manifest(release.full / 'MANIFEST.sha256')
         client_listed = pack.manifest(release.client / 'MANIFEST.sha256')
         self.assertTrue({'agent-bus', 'agent-bus-runner', 'agent-bus-ts', 'agent-busd'} <= set(listed), 'the manifest names the executables')
+        # The tool call must really list agents: one that is not registered is not in the answer.
+        with self.assertRaises(AssertionError):
+            assert_mcp_tool_call(installed, expect='#nobody@fixture')
+        # And the bundles hold nothing the manifest does not list.
+        held = {str(p.relative_to(b)) for b in (client_bundle, bus_bundle) for p in b.rglob('*') if p.is_file() or p.is_symlink()} - {'MANIFEST.sha256'}
+        self.assertEqual(sorted(held - set(listed) - set(client_listed)), [], 'the installed bundles hold files neither release manifest lists')
         for name, checksum in listed.items():
             where = client_bundle if name in client_listed else bus_bundle
             self.assertTrue((where / name).is_file(), 'not installed: ' + name)
@@ -324,7 +337,7 @@ class Acceptance(unittest.TestCase):
 
     def test_03_a_corrupt_archive_is_refused_before_anything_is_built(self):
         release, directory = self.release('corrupt')
-        self.refused(release, directory, 'does not match SHA256SUMS', corrupt_full_after_sums=True)
+        self.refused(release, directory, 'does not match SHA256SUMS', swap_full_after_sums=True)
 
     def test_04_an_altered_file_is_refused_against_its_manifest(self):
         release, directory = self.release('altered')
