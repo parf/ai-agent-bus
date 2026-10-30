@@ -22,6 +22,6 @@ reused; a subsystem whose paths are gone loses its row. Built from
 | L | `src/agents/` | Bundled agents | Slack, Telegram, debug and the standalone agents: secrets, parsing, reconnects, root installs and what Configuration may widen |
 | Q | `src/container/` | ⚠️ Container image | runs as root until it drops to each role's account: volume ownership, archive verification, a sandbox refused never downgraded |
 | M | `src/acceptance/`, `src/smoke.sh`, `src/smoke-process.sh`, `src/` | Tests and harness | checks that cannot fail, the mutation-first shapes, shard isolation, scratch in tracked paths |
-| N | `docs/`, `README.md`, `CHANGELOG`, `LICENSE.md`, `NOTICE.md` | Current docs | built against pending, canonical homes, links and anchors, docs against code |
+| N | `docs/`, `README.md`, `CHANGELOG`, `LICENSE.md`, `licenses/NOTICE.md` | Current docs | built against pending, canonical homes, links and anchors, docs against code |
 | O | `Plans/` | Plans | lifecycle, question and decision migration, IDs, item markup, stale status |
 | P | `.claude/`, `CLAUDE.md`, `AGENTS.md`, `.gitignore` | Agent configuration | skills and repo rules against how the repo actually works |

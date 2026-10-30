@@ -72,7 +72,7 @@ if [ -z "$next_dist" ]; then
   next_dist=$run/next-dist
   mkdir "$run/next"
   # A worktree's node_modules links are not ignored as directories are: left out, linked below.
-  (cd "$src/.." && git ls-files -co --exclude-standard src LICENSE.md NOTICE.md THIRD-PARTY-NOTICES.md |
+  (cd "$src/.." && git ls-files -co --exclude-standard src LICENSE.md licenses |
     grep -v '/node_modules$' | tar -cf - -T -) | tar -xf - -C "$run/next"
   for m in mcp web clients/typescript; do ln -s "$(realpath "$src/$m/node_modules")" "$run/next/src/$m/node_modules"; done
   echo "$next" >"$run/next/src/internal/version/VERSION"

@@ -41,7 +41,7 @@ class Runtime(unittest.TestCase):
             manifest=json.loads((dest/'agent.json').read_text());self.assertEqual(manifest['serves'],'itself')
             self.assertEqual(manifest['processes'],1);self.assertTrue(manifest['needs']['network'])
             self.assertTrue((dest/'support/agents/shared/envfile.py').is_file())
-            for name in ('LICENSE.md','NOTICE.md','THIRD-PARTY-NOTICES.md','support/clients/LICENSE.md'):self.assertTrue((dest/name).is_file())
+            for name in ('LICENSE.md','licenses/NOTICE.md','support/clients/LICENSE.md'):self.assertTrue((dest/name).is_file())
     def test_asks_do_not_spend_outbound_slot_and_unsolicited_replies_stop(self):
         from rules import configuration
         bus=FakeBus();agent=Agent(bus,[{'name':'out','url':'http://127.0.0.1:1/fixed'}])

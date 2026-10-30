@@ -1,6 +1,6 @@
 """Direct port of internal/envfile: dotenv bytes, without evaluation.
 
-Adapted from motdotla/dotenv; copyright Scott Motte, BSD-2-Clause (NOTICE.md).
+Adapted from motdotla/dotenv; copyright Scott Motte, BSD-2-Clause (licenses/NOTICE.md).
 The Go/Python suites share internal/envfile/testdata/common.json.
 """
 import re

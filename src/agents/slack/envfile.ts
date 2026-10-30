@@ -1,4 +1,4 @@
-// Adapted from motdotla/dotenv; copyright Scott Motte, BSD-2-Clause (NOTICE.md).
+// Adapted from motdotla/dotenv; copyright Scott Motte, BSD-2-Clause (licenses/NOTICE.md).
 // Official motdotla/dotenv parseRegex grammar, without evaluation. The shared
 // conformance table lives in internal/envfile/testdata/common.json.
 export type EnvValue = { key: string; value: string };

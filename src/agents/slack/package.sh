@@ -19,8 +19,8 @@ AGENT_BUS_BUILD_VERSION=$(cat "$here/../../internal/version/VERSION") \
 head -c 2 "$tmp/slack.js" | grep -q '#!' || { echo '#!/usr/bin/env bun'; cat "$tmp/slack.js"; } >"$tmp/slack.js.x"
 [ -e "$tmp/slack.js.x" ] && mv "$tmp/slack.js.x" "$tmp/slack.js"
 # The runner's account reads it: the code holds no secret.
-cp "$here/../../../THIRD-PARTY-NOTICES.md" "$tmp/THIRD-PARTY-NOTICES.md"
-chmod 644 "$tmp/THIRD-PARTY-NOTICES.md"
+install -d -m 0755 "$tmp/licenses"
+install -m 0644 "$here/../../../licenses/NOTICE.md" "$tmp/licenses/NOTICE.md"
 chmod 755 "$tmp" "$tmp/slack.js"; chmod 644 "$tmp/filter-worker.js"
 sed 's|"command": "./slack.ts"|"command": "./slack.js"|' "$here/agent.json" >"$tmp/agent.json"
 cp "$here/env.dist" "$tmp/env.dist"

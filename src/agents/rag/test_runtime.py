@@ -48,7 +48,7 @@ class Runtime(unittest.TestCase):
             self.assertEqual(json.loads((package/'agent.json').read_text())['version'],json.loads((HERE/'agent.json').read_text())['version'])
             self.assertTrue((package/'support/clients/python/agent_bus/client.py').is_file())
             self.assertTrue((package/'LICENSE.md').is_file())
-            self.assertTrue((package/'NOTICE.md').is_file())
+            self.assertTrue((package/'licenses/NOTICE.md').is_file())
             self.assertTrue((package/'support/clients/LICENSE.md').is_file())
     def test_logs_never_include_source_or_invalid_method_text(self):
         from core import Core

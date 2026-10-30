@@ -23,8 +23,8 @@ bun build "$here/../slack/filter-worker.ts" --target=bun --outfile "$tmp/filter-
 head -c 2 "$tmp/telegram.js" | grep -q '#!' || { echo '#!/usr/bin/env bun'; cat "$tmp/telegram.js"; } >"$tmp/telegram.js.x"
 [ -e "$tmp/telegram.js.x" ] && mv "$tmp/telegram.js.x" "$tmp/telegram.js"
 # The runner's account reads it: the code holds no secret.
-cp "$here/../../../THIRD-PARTY-NOTICES.md" "$tmp/THIRD-PARTY-NOTICES.md"
-chmod 644 "$tmp/THIRD-PARTY-NOTICES.md"
+install -d -m 0755 "$tmp/licenses"
+install -m 0644 "$here/../../../licenses/NOTICE.md" "$tmp/licenses/NOTICE.md"
 chmod 755 "$tmp" "$tmp/telegram.js"; chmod 644 "$tmp/filter-worker.js"
 sed 's|"command": "./telegram.ts"|"command": "./telegram.js"|' "$here/agent.json" >"$tmp/agent.json"
 cp "$here/env.dist" "$tmp/env.dist"

@@ -1,5 +1,5 @@
 // Vendored, version-pinned assets: every browser resource is same-origin.
-// License texts live in THIRD-PARTY-NOTICES.md.
+// License texts live in licenses/NOTICE.md.
 import { readFileSync, readdirSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { createHash } from "node:crypto";

@@ -16,7 +16,7 @@ def check(root):
                      'agents/standalone/logwatch/logwatch.py'):
         if not (root / relative).is_file():
             raise ValueError('missing runtime artifact: ' + relative)
-    for relative in ('agents/eventlog/agent.json', 'agents/eventlog/eventlog.py', 'agents/eventlog/env.dist', 'agents/eventlog/config.json.dist', 'agents/eventlog/LICENSE.md', 'agents/eventlog/NOTICE.md', 'agents/eventlog/THIRD-PARTY-NOTICES.md', 'agents/eventlog/support/agents/shared/metadata.py', 'agents/eventlog/support/agents/shared/event_rings.py', 'agents/eventlog/support/agents/shared/subscriptions.py', 'agents/eventlog/support/agents/shared/subscription_filters.py', 'agents/eventlog/support/clients/LICENSE.md', 'agents/eventlog/support/internal/version/VERSION', 'agents/eventlog/support/clients/python/agent_bus/__init__.py', 'agents/eventlog/support/clients/python/agent_bus/_version.py', 'agents/eventlog/support/clients/python/agent_bus/client.py', 'agents/eventlog/support/clients/python/agent_bus/errors.py', 'agents/eventlog/support/clients/python/agent_bus/message.py', 'agents/eventlog/support/clients/python/agent_bus/storage.py', 'agents/eventlog/support/clients/python/agent_bus/transport.py', 'agents/shared/event_rings.py'):
+    for relative in ('agents/eventlog/agent.json', 'agents/eventlog/eventlog.py', 'agents/eventlog/env.dist', 'agents/eventlog/config.json.dist', 'agents/eventlog/LICENSE.md', 'agents/eventlog/licenses/NOTICE.md', 'agents/eventlog/support/agents/shared/metadata.py', 'agents/eventlog/support/agents/shared/event_rings.py', 'agents/eventlog/support/agents/shared/subscriptions.py', 'agents/eventlog/support/agents/shared/subscription_filters.py', 'agents/eventlog/support/clients/LICENSE.md', 'agents/eventlog/support/internal/version/VERSION', 'agents/eventlog/support/clients/python/agent_bus/__init__.py', 'agents/eventlog/support/clients/python/agent_bus/_version.py', 'agents/eventlog/support/clients/python/agent_bus/client.py', 'agents/eventlog/support/clients/python/agent_bus/errors.py', 'agents/eventlog/support/clients/python/agent_bus/message.py', 'agents/eventlog/support/clients/python/agent_bus/storage.py', 'agents/eventlog/support/clients/python/agent_bus/transport.py', 'agents/shared/event_rings.py'):
         if not (root / relative).is_file():
             raise ValueError('missing runtime artifact: ' + relative)
     rag_files = ('agents/rag/rag.py', 'agents/rag/rules.py', 'agents/rag/core.py', 'agents/rag/chunks.py', 'agents/rag/prompts.py', 'agents/rag/blocks.py', 'agents/rag/support/agents/shared/metadata.py', 'agents/rag/support/clients/python/agent_bus/__init__.py', 'agents/rag/support/clients/python/agent_bus/_version.py', 'agents/rag/support/clients/python/agent_bus/client.py', 'agents/rag/support/clients/python/agent_bus/errors.py', 'agents/rag/support/clients/python/agent_bus/message.py', 'agents/rag/support/clients/python/agent_bus/storage.py', 'agents/rag/support/clients/python/agent_bus/transport.py')
@@ -34,7 +34,7 @@ def check(root):
     version = (root / 'internal/version/VERSION').read_text().strip()
     assert 'PolyForm Noncommercial License 1.0.0' in (root / 'agents/LICENSE.md').read_text()
     assert 'MIT License' in (root / 'clients/LICENSE.md').read_text()
-    assert (root / 'agents/NOTICE.md').is_file()
+    assert (root / 'agents/licenses/NOTICE.md').is_file()
 
     def run(argv, cwd, extra=None, status=0):
         p = subprocess.run(argv, cwd=cwd, env=env | (extra or {}), capture_output=True, text=True, timeout=15)

@@ -11,4 +11,6 @@ install -m 0644 "$here/../../shared/metadata.py" "$here/../../shared/envfile.py"
 install -m 0644 "$here/../../../internal/version/VERSION" "$dest/support/internal/version/"
 # Licenses sit in agents/ of a release and at the root of a checkout.
 for legal in "$here/../.." "$here/../../../.."; do [ -f "$legal/LICENSE.md" ] && break; done
-install -m 0644 "$legal/LICENSE.md" "$legal/NOTICE.md" "$legal/THIRD-PARTY-NOTICES.md" "$dest/"
+install -m 0644 "$legal/LICENSE.md" "$dest/"
+install -d -m 0755 "$dest/licenses"
+install -m 0644 "$legal/licenses/NOTICE.md" "$dest/licenses/NOTICE.md"

@@ -33,7 +33,7 @@ required=(
   mcp/commands/ls.md mcp/commands/send.md
   agent-bus-ts # the compiled MCP face, launcher and web face
   launchers/ab-claude launchers/ab-codex launchers/ab-opencode launchers/ab-opencode1
-  internal/version/VERSION LICENSE.md NOTICE.md THIRD-PARTY-NOTICES.md INSTALL.md
+  internal/version/VERSION LICENSE.md licenses/NOTICE.md INSTALL.md
 )
 (
   cd "$root"
@@ -56,7 +56,7 @@ mkdir "$croot"
 (
   cd "$root"
   tar -cf - agent-bus agent-bus-runner agent-bus-ts launchers .claude-plugin mcp/.claude-plugin mcp/commands \
-    agents clients internal/version/VERSION LICENSE.md NOTICE.md THIRD-PARTY-NOTICES.md | tar -xf - -C "$croot"
+    agents clients internal/version/VERSION LICENSE.md licenses/NOTICE.md | tar -xf - -C "$croot"
 )
 (
   cd "$croot"

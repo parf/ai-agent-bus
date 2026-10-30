@@ -48,6 +48,5 @@ install -m 0644 "$here/../clients/LICENSE.md" "$dest/clients/LICENSE.md"
 install -m 0644 "$here/../internal/version/VERSION" "$dest/internal/version/VERSION"
 
 install -m 0644 "$here/../../LICENSE.md" "$dest/agents/LICENSE.md"
-install -m 0644 "$here/../../NOTICE.md" "$dest/agents/NOTICE.md"
-
-install -m 0644 "$here/../../THIRD-PARTY-NOTICES.md" "$dest/agents/THIRD-PARTY-NOTICES.md"
+install -d -m 0755 "$dest/agents/licenses"
+install -m 0644 "$here/../../licenses/NOTICE.md" "$dest/agents/licenses/NOTICE.md"

@@ -263,7 +263,7 @@ form, with the refusal's status code.
 | `/agent-bus.<hash>.webp` | `image/webp` | the landing picture; immutable |
 | `/favicon.svg` | `image/svg+xml; charset=utf-8` | a bus on a dark rounded square; `no-store`, linked with `?v=<hash>` |
 | `/favicon.ico` | `404 text/plain` | so the catch-all does not answer it with a page |
-| Local vendor files | `font/woff2` or `text/javascript; charset=utf-8` | content-hashed Geist/JetBrains Mono fonts, Lucide and uPlot; immutable, no source-map references. Version-pinned sources and license texts ship in [third-party notices](../../../THIRD-PARTY-NOTICES.md) |
+| Local vendor files | `font/woff2` or `text/javascript; charset=utf-8` | content-hashed Geist/JetBrains Mono fonts, Lucide and uPlot; immutable, no source-map references. Version-pinned sources and license texts ship in [third-party notices](../../../licenses/NOTICE.md#appendix-bundled-javascript) |
 
 Assets answer `GET` and `HEAD` without a daemon call; another method gets the
 framed `405`. User photos are inline `data:` URLs.

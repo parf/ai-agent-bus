@@ -1,10 +1,61 @@
-# Third-party licenses in bundled JavaScript
+# Notices
+
+📌 **TL;DR:** The notices that dependencies' licenses require AgentBus to pass
+on, shipped with every distribution beside the [license](../LICENSE.md). Each
+dependency keeps its own license; this file only carries the notices. The Go
+and adapted-source notices come first, then the license texts of the bundled
+JavaScript, verbatim, in [the appendix](#appendix-bundled-javascript).
+
+## github.com/elastic/go-seccomp-bpf
+
+Apache License 2.0; it compiles the runner's system-call filter.
+
+```text
+Elastic go-seccomp-bpf
+Copyright 2022 Elasticsearch B.V.
+
+This product includes software developed at
+Elasticsearch, B.V. (https://www.elastic.co/).
+```
+
+## motdotla/dotenv
+
+The shared ENV parser and conformance fixture adapt dotenv's parser and tests
+(BSD-2-Clause).
+
+```text
+Copyright (c) 2015, Scott Motte
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+```
+
+## Appendix: bundled JavaScript
 
 The Slack, Telegram and MCP bundles and self-hosted web assets include the packages below. Their license
 texts and copyright notices are reproduced verbatim. These notices also ship
 beside the bundled agents, including debug, for one distribution-wide reference.
 
-## @modelcontextprotocol/sdk 1.29.0
+### @modelcontextprotocol/sdk 1.29.0
 
 ```text
 MIT License
@@ -30,7 +81,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## ajv 8.20.0
+### ajv 8.20.0
 
 ```text
 The MIT License (MIT)
@@ -56,7 +107,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## ajv-formats 3.0.1
+### ajv-formats 3.0.1
 
 ```text
 MIT License
@@ -82,7 +133,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## eventsource-parser 3.1.1
+### eventsource-parser 3.1.1
 
 ```text
 MIT License
@@ -108,7 +159,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## fast-deep-equal 3.1.3
+### fast-deep-equal 3.1.3
 
 ```text
 MIT License
@@ -134,7 +185,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## fast-uri 3.1.7
+### fast-uri 3.1.7
 
 ```text
 Copyright (c) 2011-2021, Gary Court until https://github.com/garycourt/uri-js/commit/a1acf730b4bba3f1097c9f52e7d9d3aba8cdcaae
@@ -169,7 +220,7 @@ The complete list of contributors can be found at:
 - https://github.com/garycourt/uri-js/graphs/contributors
 ```
 
-## json-schema-traverse 1.0.0
+### json-schema-traverse 1.0.0
 
 ```text
 MIT License
@@ -195,7 +246,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## lossless-json 4.3.0
+### lossless-json 4.3.0
 
 ```text
 The MIT License (MIT)
@@ -209,7 +260,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-## pkce-challenge 5.0.1
+### pkce-challenge 5.0.1
 
 ```text
 MIT License
@@ -235,7 +286,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## zod 4.6.1
+### zod 4.6.1
 
 ```text
 MIT License
@@ -261,7 +312,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## zod-to-json-schema 3.25.2
+### zod-to-json-schema 3.25.2
 
 ```text
 ISC License
@@ -282,7 +333,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ```
 
 
-## lucide 1.47.0
+### lucide 1.47.0
 
 ```text
 ISC License
@@ -330,7 +381,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## @fontsource-variable/geist@5.3.0
+### @fontsource-variable/geist@5.3.0
 
 ```text
 Copyright 2024 The Geist Project Authors (https://github.com/vercel/geist-font) Geist-Italic[wght].ttf: Copyright 2024 The Geist Project Authors (https://github.com/vercel/geist-font)
@@ -428,7 +479,7 @@ FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
 OTHER DEALINGS IN THE FONT SOFTWARE.
 ```
 
-## @fontsource-variable/jetbrains-mono@5.3.0
+### @fontsource-variable/jetbrains-mono@5.3.0
 
 ```text
 Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono) JetBrainsMono-Italic[wght].ttf: Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono)
@@ -526,7 +577,7 @@ FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
 OTHER DEALINGS IN THE FONT SOFTWARE.
 ```
 
-## uPlot 1.6.32
+### uPlot 1.6.32
 
 ```text
 The MIT License (MIT)

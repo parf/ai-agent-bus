@@ -1,4 +1,4 @@
-// Adapted from motdotla/dotenv; copyright Scott Motte, BSD-2-Clause (NOTICE.md).
+// Adapted from motdotla/dotenv; copyright Scott Motte, BSD-2-Clause (licenses/NOTICE.md).
 // Package envfile parses the official dotenv format without evaluating values.
 // Unreadable non-comment lines are refused without repeating private bytes.
 package envfile

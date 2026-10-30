@@ -26,15 +26,15 @@ func TestPackagerOutputIsAcceptedBySetup(t *testing.T) {
 		t.Fatal(err)
 	}
 	files := []string{"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-runner", "agent-bus-setup", "agent-bus-token", "web/server.ts", "web/agent-bus-web.service", ".claude-plugin/marketplace.json", "mcp/.claude-plugin/plugin.json", "mcp/channel.ts", "mcp/tags.ts", "mcp/commands/ls.md", "mcp/commands/send.md",
-		"agent-bus-ts", "launchers/ab-claude", "launchers/ab-codex", "launchers/ab-opencode", "launchers/ab-opencode1", "LICENSE.md", "NOTICE.md", "THIRD-PARTY-NOTICES.md", "INSTALL.md"}
+		"agent-bus-ts", "launchers/ab-claude", "launchers/ab-codex", "launchers/ab-opencode", "launchers/ab-opencode1", "LICENSE.md", "licenses/NOTICE.md", "INSTALL.md"}
 	files = append(files, []string{
 		"agents/slack/agent.json",
-		"agents/slack/THIRD-PARTY-NOTICES.md",
+		"agents/slack/licenses/NOTICE.md",
 		"agents/slack/env.dist",
 		"agents/slack/slack.js",
 		"agents/slack/filter-worker.js",
 		"agents/telegram/agent.json",
-		"agents/telegram/THIRD-PARTY-NOTICES.md",
+		"agents/telegram/licenses/NOTICE.md",
 		"agents/telegram/env.dist",
 		"agents/telegram/telegram.js",
 		"agents/telegram/filter-worker.js",
@@ -58,8 +58,7 @@ func TestPackagerOutputIsAcceptedBySetup(t *testing.T) {
 		"agents/rag/CHANGELOG.md",
 		"agents/rag/config.json.dist",
 		"agents/rag/LICENSE.md",
-		"agents/rag/NOTICE.md",
-		"agents/rag/THIRD-PARTY-NOTICES.md",
+		"agents/rag/licenses/NOTICE.md",
 		"agents/rag/support/agents/shared/metadata.py",
 		"agents/rag/support/clients/LICENSE.md",
 		"agents/rag/support/internal/version/VERSION",
@@ -83,8 +82,7 @@ func TestPackagerOutputIsAcceptedBySetup(t *testing.T) {
 		"agents/fetch/support/agents/shared/metadata.py",
 		"agents/fetch/support/internal/version/VERSION",
 		"agents/webhook/LICENSE.md",
-		"agents/webhook/NOTICE.md",
-		"agents/webhook/THIRD-PARTY-NOTICES.md",
+		"agents/webhook/licenses/NOTICE.md",
 		"agents/webhook/agent.json",
 		"agents/webhook/config.json.dist",
 		"agents/webhook/env.dist",
@@ -119,8 +117,7 @@ func TestPackagerOutputIsAcceptedBySetup(t *testing.T) {
 		"agents/imap/agent.json",
 		"agents/imap/env.dist",
 		"agents/imap/LICENSE.md",
-		"agents/imap/NOTICE.md",
-		"agents/imap/THIRD-PARTY-NOTICES.md",
+		"agents/imap/licenses/NOTICE.md",
 		"agents/imap/support/agents/shared/metadata.py",
 		"agents/imap/support/agents/shared/mail.py",
 		"agents/imap/support/agents/shared/mail_oauth.py",
@@ -136,8 +133,7 @@ func TestPackagerOutputIsAcceptedBySetup(t *testing.T) {
 		"agents/cron/cron.py",
 		"agents/cron/agent.json",
 		"agents/cron/LICENSE.md",
-		"agents/cron/NOTICE.md",
-		"agents/cron/THIRD-PARTY-NOTICES.md",
+		"agents/cron/licenses/NOTICE.md",
 		"agents/cron/support/agents/shared/metadata.py",
 		"agents/cron/support/agents/shared/scheduler.py",
 		"agents/cron/support/agents/shared/cronexpr.py",
@@ -153,8 +149,7 @@ func TestPackagerOutputIsAcceptedBySetup(t *testing.T) {
 		"agents/at/at.py",
 		"agents/at/agent.json",
 		"agents/at/LICENSE.md",
-		"agents/at/NOTICE.md",
-		"agents/at/THIRD-PARTY-NOTICES.md",
+		"agents/at/licenses/NOTICE.md",
 		"agents/at/support/agents/shared/metadata.py",
 		"agents/at/support/agents/shared/scheduler.py",
 		"agents/at/support/agents/shared/cronexpr.py",
@@ -174,8 +169,7 @@ func TestPackagerOutputIsAcceptedBySetup(t *testing.T) {
 		"agents/eventlog/env.dist",
 		"agents/eventlog/config.json.dist",
 		"agents/eventlog/LICENSE.md",
-		"agents/eventlog/NOTICE.md",
-		"agents/eventlog/THIRD-PARTY-NOTICES.md",
+		"agents/eventlog/licenses/NOTICE.md",
 		"agents/eventlog/support/agents/shared/metadata.py",
 		"agents/eventlog/support/agents/shared/event_rings.py",
 		"agents/eventlog/support/agents/shared/subscriptions.py",
@@ -215,13 +209,12 @@ func TestPackagerOutputIsAcceptedBySetup(t *testing.T) {
 		"agents/sms-telnyx/support/agents/shared/metadata.py", "agents/sms-telnyx/support/internal/version/VERSION",
 		"agents/sms-telnyx/agent.json", "agents/sms-telnyx/env.dist", "agents/sms-telnyx/sms.py", "agents/sms-telnyx/LICENSE.md",
 		"agents/debug/agent.json",
-		"agents/debug/THIRD-PARTY-NOTICES.md",
+		"agents/debug/licenses/NOTICE.md",
 		"agents/debug/env.dist",
 		"agents/debug/debug.py",
 		"agents/shared/metadata.py", "agents/shared/envfile.py",
 		"agents/LICENSE.md",
-		"agents/NOTICE.md",
-		"agents/THIRD-PARTY-NOTICES.md",
+		"agents/licenses/NOTICE.md",
 		"agents/standalone/install.py",
 		"agents/standalone/systemd/agent.json",
 		"agents/standalone/systemd/env.dist",
@@ -311,15 +304,17 @@ func TestReleaseArchiveIncludesTheBuildNotice(t *testing.T) {
 				return out
 			}
 			run("init", "-q")
-			if err := os.Mkdir(filepath.Join(root, "src"), 0700); err != nil {
-				t.Fatal(err)
+			for _, dir := range []string{"src", "licenses"} {
+				if err := os.Mkdir(filepath.Join(root, dir), 0700); err != nil {
+					t.Fatal(err)
+				}
 			}
-			for _, name := range []string{"src/build.sh", "LICENSE.md", "NOTICE.md"} {
+			for _, name := range []string{"src/build.sh", "LICENSE.md", "licenses/NOTICE.md"} {
 				if err := os.WriteFile(filepath.Join(root, name), []byte("fixture"), 0600); err != nil {
 					t.Fatal(err)
 				}
 			}
-			run("add", "src", "LICENSE.md", "NOTICE.md")
+			run("add", "src", "LICENSE.md", "licenses/NOTICE.md")
 			run("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "fixture")
 			archiveArgs := append([]string{"archive", "HEAD"}, strings.Fields(args)...)
 			reader := tar.NewReader(bytes.NewReader(run(archiveArgs...)))
@@ -328,11 +323,11 @@ func TestReleaseArchiveIncludesTheBuildNotice(t *testing.T) {
 				if err != nil {
 					break
 				}
-				if header.Name == "NOTICE.md" {
+				if header.Name == "licenses/NOTICE.md" {
 					return
 				}
 			}
-			t.Fatal("release archive omits NOTICE.md required by build.sh")
+			t.Fatal("release archive omits licenses/NOTICE.md required by build.sh")
 			return
 		}
 	}
