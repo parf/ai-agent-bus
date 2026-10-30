@@ -145,6 +145,7 @@ Get your credential:
 - A name with `#` is an agent; a name without `#` and without `--kind` is a 📡 service, which needs `--service-addr` and `--protocol`.
 - **Register an agent:** `agent-bus register '#echo@demo' --descr "says it back"`
 - **List everything you may see:** `agent-bus ls --table --all`
+- **See where a pool's members are:** `agent-bus ls --table '#name@realm'` adds a `Hosts` line, such as `srv1 (now), srv2 (40s)`.
 - **Remove the entry:** `agent-bus unregister '#echo@demo'`
 - ℹ️ `unregister` removes the entry, not the process; something still serving the name registers it again.
 

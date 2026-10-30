@@ -88,6 +88,16 @@ The compatibility `reading` flag cannot provide this count and is not rendered
 by WEB, CLI or MCP. Ordinary reading follows the [full-inbox reading
 rule](04-messaging.md#one-reader-per-inbox).
 
+## Where a pool member says it is
+
+A pool is one name read by several machines, so the name no longer says which one serves it. A read can state its own host, and the listing then answers *which machines are reading this name*.
+
+- **Stated, never observed:** a read carries `host=<name>`, 1 to 64 characters of letters, digits, `.` and `-`; anything else is refused with a 400 that names it.
+- **A label only:** it is not an identity, a route or an ACL input, and it is never written to the database or a backup.
+- **Short-lived:** a host stays listed for 2 minutes after its last read began or ended, so a member whose places are all busy keeps its entry.
+- **Bounded:** at most 32 hosts per name; beyond that the oldest is forgotten and the listing says it is cut.
+- **Shown:** the lookup lists each host with its name and last-read time (only when there is one), to whoever may see the record's `readers`; `agent-bus ls --table <name>` adds a `Hosts` line such as `srv1 (now), srv2 (40s)`, and the web record page lists them under its counters. The `ls` table is unchanged.
+
 ## CLI listing
 
 **Built:** `agent-bus ls --table` renders a table; plain `ls` retains JSON.
