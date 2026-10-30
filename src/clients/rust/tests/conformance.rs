@@ -48,6 +48,133 @@ fn text<'a>(v: &'a Value, key: &str) -> &'a str {
     v[key].as_str().unwrap_or("")
 }
 
+async fn connect(v: &Value, name: &str) -> Bus {
+    Bus::builder(name)
+        .transport(v["addr"].as_str().unwrap())
+        .credential(v["tokens"][name].as_str().unwrap())
+        .timeout(Duration::from_secs(2))
+        .connect()
+        .await
+        .unwrap()
+}
+
+fn same_envelope(m: &Message, expected: &Value, id: &str) {
+    for (key, value) in expected.as_object().unwrap() {
+        let got = match key.as_str() {
+            "from" => m.from(),
+            "to" => m.to(),
+            "body" => m.body(),
+            "topic" => m.topic(),
+            "tag" => m.tag(),
+            "ask" => m.ask(),
+            other => panic!("{id}: no adapter for expected field {other}"),
+        };
+        assert_eq!(got, value.as_str().unwrap(), "{id}: {key}");
+    }
+}
+
+// Each send is received once, field for field, under the ID the send returned.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn shared_send_cases_arrive_as_sent() {
+    let (_fixture, v) = fixture();
+    let caller = connect(&v, "#caller@fixture").await;
+    let worker = connect(&v, "#worker@fixture").await;
+    for case in cases("send") {
+        let request = &case["request"];
+        let id = text(&case, "id");
+        let sent = caller
+            .send(
+                text(request, "to"),
+                text(request, "body"),
+                SendOptions {
+                    topic: request["topic"].as_str().map(Into::into),
+                    tag: request["tag"].as_str().map(Into::into),
+                    ask: request["ask"].as_str().map(Into::into),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap_or_else(|e| panic!("{id}: {e:?}"));
+        let got = worker
+            .consume(ConsumeOptions {
+                wait: Duration::from_secs(2),
+                ..Default::default()
+            })
+            .await
+            .unwrap()
+            .unwrap_or_else(|| panic!("{id}: nothing arrived"));
+        same_envelope(&got, &case["expected"], id);
+        assert_eq!(got.id(), sent.id(), "{id}: the accepted ID");
+    }
+}
+
+// The worker's handler runs once per call, and the caller gets its answer,
+// empty ones included, naming the request.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn shared_call_cases_return_the_handler_answer() {
+    let (_fixture, v) = fixture();
+    let caller = connect(&v, "#caller@fixture").await;
+    let worker = connect(&v, "#worker@fixture").await;
+    let rows = cases("call");
+    let handled = Arc::new(Mutex::new(Vec::<(String, String)>::new()));
+    let cancel = CancellationToken::new();
+    let server = {
+        let (b, c, handled, rows) = (worker.clone(), cancel.clone(), handled.clone(), rows.clone());
+        tokio::spawn(async move {
+            b.serve(
+                move |m| {
+                    let (handled, rows) = (handled.clone(), rows.clone());
+                    async move {
+                        let row = rows
+                            .iter()
+                            .find(|r| text(&r["request"], "body") == m.body())
+                            .unwrap_or_else(|| panic!("no case for {:?}", m.body()));
+                        handled
+                            .lock()
+                            .unwrap()
+                            .push((m.body().to_string(), m.id().to_string()));
+                        Ok(HandlerReply::Body(text(row, "answer").to_string()))
+                    }
+                },
+                ServeOptions {
+                    workers: 2,
+                    ..Default::default()
+                },
+                c,
+            )
+            .await
+            .unwrap()
+        })
+    };
+    for case in &rows {
+        let request = &case["request"];
+        let id = text(case, "id");
+        let outcome = caller
+            .call(
+                text(request, "to"),
+                text(request, "body"),
+                CallOptions {
+                    timeout: Duration::from_secs(5),
+                    topic: request["topic"].as_str().map(Into::into),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap_or_else(|e| panic!("{id}: {e:?}"));
+        let CallOutcome::Reply(m) = outcome else {
+            panic!("{id}: done instead of an answer");
+        };
+        same_envelope(&m, &case["expected"], id);
+        let seen = handled.lock().unwrap().clone();
+        let mine: Vec<_> = seen.iter().filter(|(b, _)| b == text(request, "body")).collect();
+        assert_eq!(mine.len(), 1, "{id}: the handler runs once");
+        assert_eq!(m.re(), mine[0].1, "{id}: the answer names its request");
+    }
+    cancel.cancel();
+    assert_eq!(server.await.unwrap().failed, 0);
+    assert_eq!(handled.lock().unwrap().len(), rows.len());
+}
+
 // A self-call is answered by the caller's own handler; the request it sent,
 // carrying the same inbox, topic and tag, is work and never the answer.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
