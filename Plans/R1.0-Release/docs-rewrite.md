@@ -74,6 +74,9 @@ Each batch is one worktree and one landing through `#ab-gate`, no bump; manifest
 - Discord shipped with B.27a in 0.9.206 (`4e74e3b6`): its manifest leads with outcomes, carries no examples and owns its `help.golden.json`. The manifest inventory is 22 agents and 174 methods, every one pinned.
 - 9a landed at `07065bcf` and 9b at `9005e89a` (0.9.190), 9c at `99b1f94f` (0.9.191), each after its normal gate. 9b's method-help-only mutant fails `GoldenHelp.test_authored_help_matches_reviewed_fixtures` on an assertion, and the restored fixture passes. The golden check is `python3 -B -m unittest discover -s src/agents/shared -p test_help_golden.py -v` from the checkout root.
 
+- Source check, 2026-10-30: reviewed all 22 descriptions and 174 method declarations, including argument and Configuration help, against the handlers and shared engines. Corrected seven text mismatches: database account tiers, IMAP sync progress, Slack user search, identity and permalink fallback, Telegram filter replacement, and Qdrant text replies. No handler behaviour changed; B.29's current cron wording is retained.
+- The golden check pins reviewed text, not code semantics. A description-only mutant claiming that AI returns the provider key fails `GoldenHelp.test_authored_help_matches_reviewed_fixtures` on an assertion; restoring it passes. Source review is still required when behaviour changes.
+
 ## Acceptance
 
 - **Standard:** every page meets [the checklist in WRITING.md](../../WRITING.md#-checklist-for-a-page); the rest of this list says how each point is checked.
