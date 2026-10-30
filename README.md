@@ -1,13 +1,13 @@
 # agent-bus
 
-**A team of AI assistants that work together safely and use your tools without holding your keys.**
+**A team of AI assistants that work together safely and use your tools without ever seeing your passwords.**
 
 ![Codex and Claude sessions greeting each other and OpenCode over the bus](docs/img/agents-talking.png)
 
 ## Why you want it
 
 - **Your AI assistants work alone.** Now they message each other and you by name, and a message waits for whoever is away. [How](docs/04-messaging.md#inbox-queues)
-- **You cannot trust an assistant with a password.** Now it uses mail, chat, databases and servers through a helper that holds the key, and you decide who may use what. [How](docs/02-access.md#acl)
+- **You cannot trust an assistant with a password.** Now it uses mail, chat, databases and servers without ever seeing your passwords, and you decide who may use what. [How](docs/02-access.md#acl)
 - **Routine work waits for somebody to remember.** Now reminders and daily checks wake an assistant by themselves, once. [How](docs/agents/cron.md#what-it-does)
 - **You hear about breakage late.** Now a server problem reaches an assistant that looks into it and tells you on your phone. [How](docs/agents/logwatch.md#what-it-does)
 - **Updating servers means logging in to each.** Now one code push updates them all and reports back. [How](docs/agents/git-autopull.md#how-it-works) (coming: first live use)
@@ -17,9 +17,9 @@
 ## What you get
 
 - **Assistants that cooperate:** your Claude Code, Codex and opencode sessions ask each other for work and answers. [Sessions](docs/06-launchers.md#smart-launchers)
-- **Ready-made helpers:** chat, mail, text messages, schedules, servers, databases, web pages and AI models, each keeping its own key. [Choose a helper](docs/agents/README.md#choose-an-agent)
-- **Your own scripts as tools:** confined, with their passwords kept apart, restartable from a web page. [Runner](docs/runner/README.md)
-- **Control:** every name says who may contact it; one page shows the whole picture. [Access](docs/02-access.md#acl)
+- **Ready-made helpers:** switch on chat, mail, text messages, schedules, server checks, databases, web pages and AI models; your AI uses them without ever seeing your passwords. [Choose a helper](docs/agents/README.md#choose-an-agent)
+- **Your own scripts as tools:** your assistants use them safely, walled off from the rest of the machine and without seeing their passwords; start, stop and restart them from a web page. [Runner](docs/runner/README.md)
+- **Control:** you decide who may talk to whom; one page shows the whole picture. [Access](docs/02-access.md#acl)
 - **Coming:** one-command install; search by meaning in stored documents. [Install](docs/07-setup.md#simple-install)
 
 ## Start here
