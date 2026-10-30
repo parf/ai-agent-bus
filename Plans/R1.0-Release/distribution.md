@@ -88,6 +88,10 @@ and `--clean` drops the store. A warm run with both releases built takes about 4
 | `install.sh --client --rollback` switches to the current release | the client edition is not the old version after its rollback |
 | setup's upgrade deletes the release it replaced | the update kept 0 copies of the old version for rollback |
 | setup's root hints keep the bare name (`TestSudoLineNamesSetupByItsPath`) | the hint lacks setup's path |
+| root's re-hash of its copy removed | an archive swapped after the user's check reaches root (`TestInstallShFullNodeRefusesAnArchiveSwappedBeforeRootCopiesIt`) |
+| root's manifest or top-directory check removed | a signed archive of the wrong shape reaches setup (`TestInstallShRefusesASignedArchiveOfTheWrongShape`, root cases) |
+| the client's manifest or top-directory check removed | the same archive installs as the client edition (its client cases) |
+| `--rollback` without the command-name preflight | a person's own `~/.local/bin/agent-bus` is replaced (`TestInstallShClientInstallsUpdatesAndRollsBack`) |
 
 Findings from the first runs, 2026-10-30:
 
