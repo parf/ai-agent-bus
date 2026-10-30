@@ -79,7 +79,16 @@ def ship_legal(release, root):
         shutil.copy2(release / name, root / name)
 
 
-def build(full, client, checksums, output):
+DARWIN_CPU = {'x86_64': 'x64', 'arm64': 'arm64'}
+
+
+def build(full, client, checksums, output, darwin=()):
+    """Wrap the Linux full and client archives, and any macOS client archives, as npm packages.
+
+    macOS has the client edition only (MAC.1; the daemon's archive is not built for it), so a
+    darwin archive becomes a client platform package, listed beside the Linux ones in both command
+    packages; the bus platform packages stay Linux, and a daemon command on macOS refuses by name.
+    """
     package_names = names()
     matched = re.fullmatch(r'agent-bus-(\d+\.\d+\.\d+)-linux-(x86_64|aarch64)\.tar\.gz', full.name)
     if not matched:
@@ -89,7 +98,13 @@ def build(full, client, checksums, output):
     if client.name != f'agent-bus-client-{version}-linux-{release_arch}.tar.gz':
         raise ValueError('full and client archives must have exactly the same version/platform')
     sums = manifest(checksums)
-    for archive in (full, client):
+    darwin_cpus = {}
+    for archive in darwin:
+        found = re.fullmatch(rf'agent-bus-client-{re.escape(version)}-darwin-(x86_64|arm64)\.tar\.gz', archive.name)
+        if not found or DARWIN_CPU[found.group(1)] in darwin_cpus:
+            raise ValueError('expected one macOS client archive per CPU, of the same version: ' + archive.name)
+        darwin_cpus[DARWIN_CPU[found.group(1)]] = archive
+    for archive in (full, client, *darwin_cpus.values()):
         if sums.get(archive.name) != digest(archive):
             raise ValueError('archive does not match SHA256SUMS: ' + archive.name)
     output.mkdir(parents=True, exist_ok=True)
@@ -117,10 +132,31 @@ def build(full, client, checksums, output):
         for name, checksum in client_files.items():
             if not (full_root / name).is_file() or digest(full_root / name) != checksum:
                 raise ValueError('client file differs from full release: ' + name)
+        darwin_roots = {}
+        for number, (mac_cpu, archive) in enumerate(sorted(darwin_cpus.items())):
+            target = work / f'darwin-{number}'
+            target.mkdir()
+            with tarfile.open(archive) as tar:
+                if any(not (entry.isfile() or entry.isdir() or entry.issym()) for entry in tar.getmembers()):
+                    raise ValueError('release archive contains unsupported special files')
+                tar.extractall(target, filter='data')
+            children = list(target.iterdir())
+            if len(children) != 1 or not children[0].is_dir():
+                raise ValueError('archive must contain one release directory')
+            mac_files = verify(children[0])
+            if (children[0] / 'internal/version/VERSION').read_text().strip() != version:
+                raise ValueError('archive contents have a different release version')
+            if set(mac_files) != set(client_files):
+                raise ValueError('the macOS client archive differs from the Linux client in files: ' + ', '.join(sorted(set(mac_files) ^ set(client_files))[:5]))
+            darwin_roots[mac_cpu] = (children[0], mac_files)
         platform_sets = {key: {arch: name + '-' + arch for arch in ('linux-x64', 'linux-arm64')}
                          for key, name in package_names.items()}
+        for mac_cpu in darwin_roots:
+            platform_sets['client']['darwin-' + mac_cpu] = f"{package_names['client']}-darwin-{mac_cpu}"
         platforms = {key: values['linux-' + cpu] for key, values in platform_sets.items()}
         provenance = {'sha256sums': digest(checksums), 'fullArchive': digest(full), 'clientArchive': digest(client)}
+        if darwin_cpus:
+            provenance['darwinClientArchives'] = {mac_cpu: digest(path) for mac_cpu, path in sorted(darwin_cpus.items())}
         packages = []
         for kind in ('client', 'bus'):
             root = work / (kind + '-platform')
@@ -141,6 +177,20 @@ def build(full, client, checksums, output):
                 'license': 'SEE LICENSE IN LICENSE.md', 'os': ['linux'], 'cpu': [cpu],
                 'files': ['bundle', *LEGAL], 'agentBusRelease': provenance})
             packages.append(root)
+        for mac_cpu, (mac_root, mac_files) in sorted(darwin_roots.items()):
+            root = work / f'client-platform-darwin-{mac_cpu}'
+            bundle = root / 'bundle'
+            bundle.mkdir(parents=True)
+            for name in mac_files:
+                destination = bundle / name
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(mac_root / name, destination)
+            ship_legal(mac_root, root)
+            write_json(root / 'package.json', {'name': platform_sets['client']['darwin-' + mac_cpu], 'version': version,
+                'description': f'agent-bus client files for macOS {mac_cpu}',
+                'license': 'SEE LICENSE IN LICENSE.md', 'os': ['darwin'], 'cpu': [mac_cpu],
+                'files': ['bundle', *LEGAL], 'agentBusRelease': provenance})
+            packages.append(root)
         for kind in ('client', 'bus'):
             root = work / kind
             (root / 'bin').mkdir(parents=True)
@@ -159,8 +209,8 @@ def build(full, client, checksums, output):
                      'license': 'SEE LICENSE IN LICENSE.md', 'description': f'agent-bus {kind} commands',
                      'bin': {program: 'bin/' + program for program in bins},
                      'files': ['bin', 'launch.cjs', *LEGAL], 'engines': {'node': '>=18'},
-                     'optionalDependencies': {name: version for name in platform_sets[kind].values()},
-                     'os': ['linux'], 'cpu': ['x64', 'arm64'],
+                     'optionalDependencies': {name: version for name in {**platform_sets[kind], **{k: v for k, v in platform_sets['client'].items() if k.startswith('darwin-')}}.values()},
+                     'os': ['linux', *(['darwin'] if darwin_roots else [])], 'cpu': ['x64', 'arm64'],
                      'agentBus': {'kind': kind, 'platforms': platform_sets[kind],
                                   'client': package_names['client'], 'clientPlatforms': platform_sets['client']},
                      'agentBusRelease': {'sha256sums': digest(checksums)}}
@@ -185,8 +235,11 @@ def main():
     parser.add_argument('client', type=Path)
     parser.add_argument('checksums', type=Path, help='SHA256SUMS from the verified release')
     parser.add_argument('output', type=Path)
+    parser.add_argument('--darwin-client', type=Path, action='append', default=[], metavar='ARCHIVE',
+                        help='a macOS client archive (agent-bus-client-<version>-darwin-<cpu>.tar.gz); one per CPU')
     args = parser.parse_args()
-    build(*(path.resolve() for path in (args.full, args.client, args.checksums, args.output)))
+    build(*(path.resolve() for path in (args.full, args.client, args.checksums, args.output)),
+          darwin=[path.resolve() for path in args.darwin_client])
 
 
 if __name__ == '__main__':
