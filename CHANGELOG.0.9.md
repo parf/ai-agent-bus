@@ -6,11 +6,7 @@ The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
 ## 0.9.183 — 2026-10-30
 
-every client library sends a zero or sub-millisecond wait as a plain send, and still refuses a negative wait
-
-## 0.9.182 — 2026-10-30
-
-Sixth published 0.9 changeset: 0.9.163–0.9.182, squashed.
+Sixth published 0.9 changeset: 0.9.163–0.9.183, squashed.
 
 | Area | Changes |
 |---|---|
@@ -20,6 +16,7 @@ Sixth published 0.9 changeset: 0.9.163–0.9.182, squashed.
 | Container | One image on a digest-pinned AlmaLinux 10 base runs the daemon or a runner from the release archive, with its own acceptance as smoke subsystem Q. |
 | Launchers | A release launcher reinstalls the Claude channel plugin another release installed, one launcher at a time under a lock that names its holder. An explicit bus name resumes its own conversation, else an unbound one, else a fresh one. |
 | Subscriptions | One shared engine in Python and TypeScript passes the same language-neutral vectors: filters, authority re-checked at delivery, refused sends, revoked authors. Deliveries no longer send `wait=0`, which the daemon refused, so real subscription sends reach their target again. |
+| Clients | Every client library sends a zero or sub-millisecond wait as a plain send, and still refuses a negative wait. |
 | Runner | Agents start in their `depends` order; an unknown or cyclic dependency is refused by name. A dedicated runner script reads its bus secret on each message. One shared masker hides each secret value, and each line of a multi-line secret, in runner and CLI output. |
 | Debug | The `env` answer masks every bus-prefixed secret and shows only an allowlist. |
 | Daemon | Group walks for ACL, directory and delivery are iterative, so a deep or cyclic group chain no longer exhausts the stack. Needs a daemon restart. |
