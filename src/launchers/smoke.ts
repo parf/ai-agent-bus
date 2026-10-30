@@ -168,7 +168,7 @@ try {
     if (runtime === "opencode") check("opencode resolves its directory once and hands the TUI a server, not a flag", allArgs.some(a => a.includes("--server")) && allArgs.every(a => !a.includes("--dir"))
       && rows.some(r => r.kind === "http" && r.data.method === "GET" && r.data.path === "/api/session" && r.data.query?.includes(encodeURIComponent(cwd))));
     check(`${runtime} enforces automatic execution`, runtime === "claude" ? allArgs.some(a => a.includes("--enable-auto-mode") && !a.includes("--permission-mode")) : runtime !== "codex" ? rows.filter(r => r.kind === "permission").at(-1)?.data === "allow" : rows.filter(r => r.kind === "approval").at(-1)?.data === "never" && rows.filter(r => r.kind === "sandbox").at(-1)?.data === "danger-full-access" && !rows.some(r => /^(thread|turn)\//.test(r.kind) && r.data?.approvalPolicy === "on-request"));
-    check(`${runtime} continues its session`, runtime === "claude" ? allArgs.some(a => a.includes("--continue"))
+    check(`${runtime} continues its session`, runtime === "claude" ? allArgs.some(a => a[a.indexOf("--resume") + 1] === id) && allArgs.every(a => !a.includes("--continue"))
       : runtime === "opencode" ? allArgs.some(a => a.includes("--server") && a.includes("--session") && a.includes("opencode-session"))
       : runtime === "opencode1" ? allArgs.some(a => a.includes("attach") && a.includes("--session") && a.includes("opencode-session"))
       : allArgs.some(a => a.includes("resume") && a.includes("codex-session")));
@@ -295,7 +295,7 @@ try {
       const firstErr = new Response(first.stderr).text();
       check("ab-claude without a flag keeps the default account", await first.exited === 17
         && rowsIn(events).some(r => r.kind === "config-dir" && r.data === home)
-        && rowsIn(events).filter(r => r.kind === "argv").some(a => a.data.includes("--continue")));
+        && rowsIn(events).filter(r => r.kind === "argv").some(a => a.data[a.data.indexOf("--resume") + 1] === id));
       await firstErr;
       rmSync(join(proj, id + ".jsonl"), { force: true });
     }

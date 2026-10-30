@@ -11,7 +11,7 @@ import { sidecarMessage } from "../mcp/messages.ts";
 import { startPush, sleep, RENAME_READER_RETRY_MS, type Push } from "../mcp/push.ts";
 import { faceEvent, faceMarks } from "../mcp/face-mark.ts";
 import { version } from "../mcp/version.ts";
-import { Bindings, claudeSessions, claudeTitle, sameBase, type Session } from "./sessions.ts";
+import { Bindings, claudeSessions, claudeStart, claudeTitle, sameBase, type Session } from "./sessions.ts";
 import { localAddress, runtimeBinary } from "./local.ts";
 import { Terminal } from "./terminal.ts";
 import { claimFork, claimIdentity, releaseIdle } from "./identity.ts";
@@ -236,9 +236,9 @@ See docs/06-launchers.md#smart-launchers.`);
       session = { id: newID };
     } else {
       session = bindings.select(requested ? sessions : bindings.candidates(sessions, explicit), requested);
-      if (!has("-r", "--resume", "-c", "--continue")) runtimeArgs = [...(session.file ? ["--continue"] : ["--session-id", session.id]), ...args];
+      if (!has("-r", "--resume", "-c", "--continue")) runtimeArgs = [...claudeStart(session), ...args];
       // Resolve continue ourselves so a simultaneous launch cannot select the same session.
-      else if (has("-c", "--continue")) runtimeArgs = [...(session.file ? ["--continue"] : ["--session-id", session.id]), ...args.filter(a => a !== "-c" && a !== "--continue")];
+      else if (has("-c", "--continue")) runtimeArgs = [...claudeStart(session), ...args.filter(a => a !== "-c" && a !== "--continue")];
     }
     runtimeArgs = [...claudeArgs(runtimeArgs), "--enable-auto-mode"];
     session.name = option(["-n", "--name"]) || session.name;

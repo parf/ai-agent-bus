@@ -1,6 +1,6 @@
 import { writeState } from "./state.ts";
 import { createHash, randomUUID } from "node:crypto";
-import { chmodSync, createReadStream, mkdirSync, readFileSync, readdirSync, statSync, rmSync, mkdtempSync, renameSync, writeFileSync, unlinkSync, rmdirSync } from "node:fs";
+import { chmodSync, createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, statSync, rmSync, mkdtempSync, renameSync, writeFileSync, unlinkSync, rmdirSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { join } from "node:path";
 
@@ -50,6 +50,13 @@ export async function claudeSessions(home: string, cwd: string): Promise<Session
   catch (e: any) { if (e.code === "ENOENT") return []; throw e; }
   files.sort((a, b) => statSync(join(dir, b)).mtimeMs - statSync(join(dir, a)).mtimeMs);
   return Promise.all(files.map(async f => ({ id: f.slice(0, -6), name: await claudeTitle(join(dir, f)), file: join(dir, f) })));
+}
+
+// How a named Claude session starts: its own transcript by ID, or a fresh one
+// under that ID. Never --continue: that reopens the newest transcript in the
+// directory, which may be another name's (J34).
+export function claudeStart(session: Session): string[] {
+  return session.file && existsSync(session.file) ? ["--resume", session.id] : ["--session-id", session.id];
 }
 
 export class Bindings {

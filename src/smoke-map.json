@@ -503,6 +503,7 @@
           "bun",
           "test",
           "launchers/restart.test.ts",
+          "launchers/sessions.test.ts",
           "mcp/rpc.test.ts",
           "launchers/local.test.ts"
         ]
