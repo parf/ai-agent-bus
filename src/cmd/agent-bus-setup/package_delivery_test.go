@@ -239,7 +239,7 @@ func TestPackagerOutputIsAcceptedBySetup(t *testing.T) {
 		"agents/standalone/git/timers.py",
 		"agents/standalone/tmux-sessions/agent.json", "agents/standalone/tmux-sessions/config.json.dist",
 		"agents/standalone/tmux-sessions/sessions.py",
-		"agents/standalone/tmux-sessions/install.py", "agents/standalone/tmux-sessions/package.sh",
+		"agents/standalone/tmux-sessions/install.py", "agents/standalone/tmux-sessions/package.sh", "agents/package-tree.sh",
 		"agents/standalone/logwatch/agent.json",
 		"agents/standalone/logwatch/env.dist",
 		"agents/standalone/logwatch/logwatch.py",

@@ -112,6 +112,19 @@ class PackageTrees(unittest.TestCase):
         self.assertEqual((target / 'keep').read_text(), 'keep')
         self.assertEqual(sorted(p.name for p in target.iterdir()), ['keep'])
 
+    def test_release_exports_the_shared_packaging_helper(self):
+        dest = self.work / 'release'
+        result = subprocess.run([str(HERE / 'package.sh'), str(dest)],
+                                capture_output=True, text=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        helper = dest / 'agents/package-tree.sh'
+        self.assertTrue(helper.is_file(), 'release omitted the shared packaging helper')
+        self.assertEqual(helper.read_bytes(), (HERE / 'package-tree.sh').read_bytes())
+        # The build-time native scripts are not runtime repackagers; the
+        # standalone one is, and must be delivered alongside its dependency.
+        self.assertEqual(sorted(str(p.relative_to(dest)) for p in dest.rglob('package.sh')),
+                         ['agents/standalone/tmux-sessions/package.sh'])
+
 
 if __name__ == '__main__':
     unittest.main()
