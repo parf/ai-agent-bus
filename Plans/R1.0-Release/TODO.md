@@ -481,7 +481,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
 - ⏳ B.27 Messaging agents, the [Slack and Telegram shape](../R1.2/services.md#people-and-the-world-outside): post and read, replies routed to the asking session, `sub` forwarding a conversation; one instance per account, the provider token as the record's Secret (owner, 2026-10-29). Unassigned; each needs a plan of its own, with methods and Configuration proposed for approval, before code ([plans](messaging/README.md#plans))
   - B.27a Discord: [plan, proposal for approval](messaging/discord.md#proposed-methods-for-approval)
   - B.27b Google Chat: [plan, proposal for approval](messaging/google-chat.md#proposed-methods-for-approval)
-  - B.27c Microsoft Teams
+  - B.27c Microsoft Teams: [plan, proposal for approval](messaging/teams.md#proposed-methods-for-approval)
   - B.27d WhatsApp
   - B.27e Facebook Messenger
 
