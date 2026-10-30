@@ -706,6 +706,7 @@ Owner, 2026-10-30: every doc leads with why, then what you get, then real workin
 - ⏳ DW6 `docs/06`-`09` except setup
 - ⏳ DW7 `docs/07-setup.md`; starts after distribution (T-6) lands
 - ⏳ DW8 `docs/runner/*` and `docs/user/*`
+  - Docs-order checker: all twelve pass and are enforced
 - ⏳ DW9 Agent manifests: `agent.json` descriptions and method help, with golden fixtures and a normal gate
 - ⏳ DW10 Web page intros and CLI help text
   - Text only: help pages and page help open with what the command or page is for; owning tests unchanged and green
