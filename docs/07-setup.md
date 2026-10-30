@@ -512,7 +512,7 @@ Package assembly and local checks are described in
 
 ## macOS
 
-📌 **TL;DR:** The client edition builds for macOS and `install.sh --client` installs it there; the runner starts agents without a sandbox, and the daemon is not on macOS yet. Pending: a first run on a Mac, and a signed release carrying the archives. Why and in what order: [macOS plan](../Plans/R1.0-Release/macos.md#order).
+📌 **TL;DR:** The client edition builds for macOS and `install.sh --client` installs it there; the runner starts agents without a sandbox, and the daemon is not on macOS yet. Run on a Mac: install, version, tampered and full-node refusals, and the refused sandbox. Pending: a script agent's account on the Mac (R2, R3 of the [Mac run list](../Plans/R1.0-Release/mac-run-list.md#d-client-install-and-runner-on-macos-mac1)), and a signed release carrying the archives. Why and in what order: [macOS plan](../Plans/R1.0-Release/macos.md#order).
 
 ### The client and runner
 

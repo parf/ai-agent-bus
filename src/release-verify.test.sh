@@ -57,7 +57,8 @@ wired_verify() {
   local sandbox="$work/wired" archive
   mkdir -p "$sandbox/src/internal/version" "$sandbox/dist" "$sandbox/bin"
   ln -sf "$SOURCE_VERSION" "$sandbox/src/internal/version/VERSION"
-  printf '#!/bin/sh\nprintf "%%s\\n" "$WIRED_ARCH"\n' >"$sandbox/bin/uname"
+  # -s is the OS (Linux, so the fixtures take the native read), anything else the CPU.
+  printf '#!/bin/sh\ncase "$1" in -s) echo Linux ;; *) printf "%%s\\n" "$WIRED_ARCH" ;; esac\n' >"$sandbox/bin/uname"
   chmod +x "$sandbox/bin/uname"
   ln -sf "$here/release-verify.sh" "$sandbox/src/release-verify.sh"
   rm -f "$sandbox/dist/"*.tar.gz
@@ -117,7 +118,7 @@ case_ renamed 'missing expected archive: dist/agent-bus-1.2.4-linux-' 'echo 1.2.
 # are read: the version and a build stamp must be in them.
 mkdarwin() { # dir edition stamp-text
   local n=$2-$v-darwin-$arch root="$1/$2-$v-darwin-$arch"
-  mkdir -p "$root/internal/version"; echo $v >"$root/internal/version/VERSION"; echo licence >"$root/LICENSE.md"
+  mkdir -p "$root/internal/version"; echo $v >"$root/internal/version/VERSION"; echo licence >"$root/LICENSE.md"; mkdir -p "$root/licenses"; echo notice >"$root/licenses/NOTICE.md"
   for p in agent-bus agent-bus-runner agent-bus-ts; do printf '\000%s %s\000' $v "$3" >"$root/$p"; chmod +x "$root/$p"; done
   (cd "$root" && find . -type f ! -name MANIFEST.sha256 -printf '%P\n' | sort | xargs sha256sum >MANIFEST.sha256)
   tar -C "$1" -czf "$1/$n.tar.gz" "$n"
