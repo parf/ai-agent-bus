@@ -27,6 +27,7 @@ type installFixture struct {
 	script  string
 	server  *httptest.Server
 	release string
+	record  string // where a recording setup writes how it ran
 }
 
 func newInstallFixture(t *testing.T) *installFixture {
@@ -84,6 +85,13 @@ func (f *installFixture) publish(version string, sign bool) string {
 // publishEdition writes one edition's archive for this host, plus stand-ins
 // for the other three, and signs the four unless sign is false.
 func (f *installFixture) publishEdition(edition, version string, sign bool, extra map[string]string) string {
+	return f.publishForged(edition, version, sign, extra, "")
+}
+
+// publishForged is publishEdition with the archive itself wrong but signed:
+// forge "manifest" changes a file after its manifest line was written, "top"
+// adds a second top directory beside the release's own.
+func (f *installFixture) publishForged(edition, version string, sign bool, extra map[string]string, forge string) string {
 	f.t.Helper()
 	name := edition + "-" + version + "-linux-" + map[string]string{"amd64": "x86_64", "arm64": "aarch64"}[goarchFromUname(f.t)]
 	files := map[string]string{"agent-bus": "#!/bin/sh\necho agent-bus " + version + "\n", "agent-bus-runner": "#!/bin/sh\n", "agent-bus-ts": "#!/bin/sh\necho ts \"$@\"\n",
@@ -98,6 +106,9 @@ func (f *installFixture) publishEdition(edition, version string, sign bool, extr
 		manifest.WriteString(hex.EncodeToString(sum[:]) + "  " + p + "\n")
 	}
 	files["MANIFEST.sha256"] = manifest.String()
+	if forge == "manifest" {
+		files["agent-bus"] += "# changed after the manifest\n"
+	}
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(gz)
@@ -106,6 +117,11 @@ func (f *installFixture) publishEdition(edition, version string, sign bool, extr
 		if err := tw.WriteHeader(&tar.Header{Name: name + "/" + p, Mode: 0o755, Size: int64(len(body)), Typeflag: tar.TypeReg}); err != nil {
 			f.t.Fatal(err)
 		}
+		tw.Write([]byte(body))
+	}
+	if forge == "top" {
+		body := "#!/bin/sh\n"
+		tw.WriteHeader(&tar.Header{Name: "beside/run", Mode: 0o755, Size: int64(len(body)), Typeflag: tar.TypeReg})
 		tw.Write([]byte(body))
 	}
 	tw.Close()
@@ -194,6 +210,18 @@ func TestInstallShClientInstallsUpdatesAndRollsBack(t *testing.T) {
 	if len(kept) != 2 || kept[0].Name() != "1.0.1" || kept[1].Name() != "1.0.2" {
 		t.Fatalf("kept releases: %v, want the current and the one it replaced", kept)
 	}
+	// A command name that is a real file stops a rollback too, before it
+	// switches anything.
+	mine := filepath.Join(f.home, ".local/bin/agent-bus")
+	os.Remove(mine)
+	os.WriteFile(mine, []byte("mine"), 0o755)
+	if out, err := f.run("--client", "--rollback"); err == nil || !strings.Contains(out, "is not a link this installer made") || f.current() != "1.0.2" {
+		t.Fatalf("rollback over a real file: %v %s current=%s", err, out, f.current())
+	}
+	if body, _ := os.ReadFile(mine); string(body) != "mine" {
+		t.Fatalf("the person's own agent-bus was replaced: %q", body)
+	}
+	os.Remove(mine)
 	if out, err := f.run("--client", "--rollback"); err != nil || f.current() != "1.0.1" {
 		t.Fatalf("rollback: %v %s current=%s", err, out, f.current())
 	}
@@ -347,29 +375,47 @@ func TestReleaseSignSignsExactlyOneReleaseMatchingCI(t *testing.T) {
 	}
 }
 
-// The full node: setup runs, as "root", from the copy the root shell made and
-// checked, never from the user's download directory, with the options after --.
-func TestInstallShFullNodeRunsSetupFromTheRootCopy(t *testing.T) {
-	f := newInstallFixture(t)
-	record := filepath.Join(t.TempDir(), "setup-ran")
-	f.publishEdition("agent-bus", "1.0.0", true, map[string]string{
-		"agent-bus-setup": "#!/bin/sh\nprintf '%s\\n' \"$(cd \"$(dirname \"$0\")\" && pwd)\" \"$@\" > " + record + "\n"})
-	stage := t.TempDir()
+// runFull runs install.sh for the full node as a non-root user whose sudo is
+// the shim given (it runs its command), with the root copy staged under a
+// test directory instead of /usr/local/lib. It returns the output,
+// where setup records how it ran, the stage directory and the run's error.
+func (f *installFixture) runFull(sudo string, setupArgs ...string) (out, record, stage string, err error) {
+	t := f.t
+	t.Helper()
+	if os.Geteuid() == 0 {
+		t.Skip("runs as a non-root user")
+	}
+	stage = t.TempDir()
 	src, _ := os.ReadFile(f.script)
 	s := strings.Replace(string(src), "mkdir -p /usr/local/lib\nstage=$(mktemp -d /usr/local/lib/.agent-bus-install.XXXXXX)", "stage=$(mktemp -d "+stage+"/s.XXXXXX)", 1)
 	if s == string(src) {
 		t.Fatal("install.sh no longer stages under /usr/local/lib")
 	}
 	os.WriteFile(f.script, []byte(s), 0o755)
-	// A sudo that runs its command: the test is not root.
 	shims := t.TempDir()
-	os.WriteFile(filepath.Join(shims, "sudo"), []byte("#!/bin/sh\nexec \"$@\"\n"), 0o755)
-	cmd := exec.Command("sh", f.script, "--version", "1.0.0", "--", "--owner", "alice@test")
+	os.WriteFile(filepath.Join(shims, "sudo"), []byte(sudo), 0o755)
+	cmd := exec.Command("sh", append([]string{f.script, "--version", "1.0.0", "--"}, setupArgs...)...)
 	cmd.Env = []string{"HOME=" + f.home, "PATH=" + shims + ":" + os.Getenv("PATH")}
-	if os.Geteuid() == 0 {
-		t.Skip("runs as a non-root user")
-	}
-	out, err := cmd.CombinedOutput()
+	got, err := cmd.CombinedOutput()
+	return string(got), f.record, stage, err
+}
+
+// setupRecording is an agent-bus-setup that writes where it ran from and its
+// arguments to f.record.
+func (f *installFixture) setupRecording() map[string]string {
+	f.record = filepath.Join(f.t.TempDir(), "setup-ran")
+	return map[string]string{"agent-bus-setup": "#!/bin/sh\nprintf '%s\\n' \"$(cd \"$(dirname \"$0\")\" && pwd)\" \"$@\" > " + f.record + "\n"}
+}
+
+// A sudo that runs its command: the test is not root.
+const sudoRuns = "#!/bin/sh\nexec \"$@\"\n"
+
+// The full node: setup runs, as "root", from the copy the root shell made and
+// checked, never from the user's download directory, with the options after --.
+func TestInstallShFullNodeRunsSetupFromTheRootCopy(t *testing.T) {
+	f := newInstallFixture(t)
+	f.publishEdition("agent-bus", "1.0.0", true, f.setupRecording())
+	out, record, stage, err := f.runFull(sudoRuns, "--owner", "alice@test")
 	if err != nil {
 		t.Fatalf("full install: %v %s", err, out)
 	}
@@ -387,5 +433,75 @@ func TestInstallShFullNodeRunsSetupFromTheRootCopy(t *testing.T) {
 	}
 	if entries, _ := os.ReadDir(stage); len(entries) != 0 {
 		t.Fatalf("the root copy was left behind: %v", entries)
+	}
+}
+
+// The user's verified download sits in a directory the user owns, so it can
+// be swapped before root copies it: root hashes its own copy again and runs
+// nothing from an archive that is not the one verified.
+func TestInstallShFullNodeRefusesAnArchiveSwappedBeforeRootCopiesIt(t *testing.T) {
+	f := newInstallFixture(t)
+	f.publishEdition("agent-bus", "1.0.0", true, f.setupRecording())
+	// Another archive of the same name whose setup would run, as a swap
+	// that is well formed and passes the manifest check would be.
+	other := newInstallFixture(t)
+	evil := other.publishEdition("agent-bus", "1.0.0", false, other.setupRecording())
+	matches, _ := filepath.Glob(filepath.Join(evil, "agent-bus-1.0.0-linux-*.tar.gz"))
+	var swapped string
+	for _, m := range matches {
+		if body, _ := os.ReadFile(m); !bytes.HasPrefix(body, []byte("stand-in")) {
+			swapped = m
+		}
+	}
+	// $5 is the archive: sudo sh -c <root script> sh <archive> ...
+	out, record, stage, err := f.runFull("#!/bin/sh\ncp '"+swapped+"' \"$5\"\nexec \"$@\"\n", "--owner", "alice@test")
+	if err == nil || !strings.Contains(out, "the archive changed after verification: nothing installed") {
+		t.Fatalf("a swapped archive was not refused as changed: %v %s", err, out)
+	}
+	for _, r := range []string{record, other.record} {
+		if _, err := os.Stat(r); err == nil {
+			t.Fatalf("setup ran from a swapped archive: %s", out)
+		}
+	}
+	if entries, _ := os.ReadDir(stage); len(entries) != 0 {
+		t.Fatalf("the root copy was left behind: %v", entries)
+	}
+}
+
+// A signed archive whose content is wrong is refused before anything runs or
+// moves: one that does not match its own manifest, and one that holds more
+// than the release's top directory. The client checks its download, root its
+// own copy.
+func TestInstallShRefusesASignedArchiveOfTheWrongShape(t *testing.T) {
+	for _, c := range []struct{ forge, client, root string }{
+		{"manifest", "agent-bus-client-1.0.0-linux-", "the archive does not match its own manifest"},
+		{"top", "agent-bus-client-1.0.0-linux-", "the archive does not hold exactly agent-bus-1.0.0-linux-"},
+	} {
+		t.Run(c.forge+" client", func(t *testing.T) {
+			f := newInstallFixture(t)
+			f.publishForged("agent-bus-client", "1.0.0", true, nil, c.forge)
+			want := map[string]string{"manifest": "does not match its own manifest", "top": "does not hold exactly agent-bus-client-1.0.0-linux-"}[c.forge]
+			out, err := f.run("--client", "--version", "1.0.0")
+			if err == nil || !strings.Contains(out, c.client) || !strings.Contains(out, want) {
+				t.Fatalf("installed, or refused for another reason: %v %s", err, out)
+			}
+			if entries, _ := os.ReadDir(f.home); len(entries) != 0 {
+				t.Fatalf("the refused install wrote into HOME: %v", entries)
+			}
+		})
+		t.Run(c.forge+" root", func(t *testing.T) {
+			f := newInstallFixture(t)
+			f.publishForged("agent-bus", "1.0.0", true, f.setupRecording(), c.forge)
+			out, record, stage, err := f.runFull(sudoRuns)
+			if err == nil || !strings.Contains(out, c.root) {
+				t.Fatalf("root ran it, or refused for another reason: %v %s", err, out)
+			}
+			if _, err := os.Stat(record); err == nil {
+				t.Fatalf("setup ran from a wrong archive: %s", out)
+			}
+			if entries, _ := os.ReadDir(stage); len(entries) != 0 {
+				t.Fatalf("the root copy was left behind: %v", entries)
+			}
+		})
 	}
 }
