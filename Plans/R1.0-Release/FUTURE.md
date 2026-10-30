@@ -11,3 +11,7 @@
 ## Logwatch subscription start boundary
 
 - Deferred from B.29 by lead1 (2026-10-30): enqueue a line, add a subscription, then drain the forward queue; the pre-add line is forwarded. Pin the subscription-start boundary before changing this existing queue behavior.
+
+## Concurrent chat subscription migration
+
+- B.29 runs with one process per Slack/Telegram instance. Two processes migrating the same legacy key can race the journal's add: the second gets 412 and stops serving until reload. If multiple processes are enabled, re-read and finish the winning journal before serving; test simultaneous startup. The existing journal keeps old/new rows from both being served after recovery.

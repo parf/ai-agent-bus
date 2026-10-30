@@ -91,6 +91,7 @@ test("SIGKILL between new-row commit and old-key delete recovers one listed row 
     expect(await s.list(f.caller)).toEqual(listed); // a second pass is unchanged
     await s.deliver("C1", "U1", "one", "one", "chat");
     const copies = [(await f.receiver.consume({ wait: 100 }))?.body];
+    // deliver() waits for all sends; this short probe cannot race a later delivery.
     const extra = await f.receiver.consume({ wait: 100 }); if (extra) copies.push(extra.body);
     expect(copies).toEqual(["one"]);
   } finally { child.kill(); await child.exited; await reader.cancel(); s.close(); await f.bus.close(); await f.receiver.close(); }

@@ -99,3 +99,18 @@ test("counter failure never retries a send or resurrects a deleted row", async (
   await s.deliver("C1", "U1", "next", "next", "chat");
   expect(f.sent).toHaveLength(1); expect(f.values.has("json:sub.000000000001")).toBe(false); s.close();
 });
+
+test("malformed legacy authors remain manager-only damaged definitions, never canonical selector rows", async () => {
+  for (const from_users of ["U1", [""], ["u1"], ["U1", null], Array(101).fill("U1")]) {
+    const f = fixture({ "json:sub.deadbeef": legacy("deadbeef", { from_users }) }), s = f.make();
+    try {
+      expect(await s.list(caller)).toEqual([]);
+      expect(await s.list(owner)).toEqual([{ id: migrationId("sub.deadbeef"), reason: "invalid_state" }]);
+      const retained = f.values.get(`json:sub.${migrationId("sub.deadbeef")}`);
+      expect(retained).toMatchObject({ invalid_legacy: true, from_users });
+      expect(retained).not.toHaveProperty("selector");
+      await s.deliver("C1", "U1", "one", "one", "chat");
+      expect(f.sent).toEqual([]);
+    } finally { s.close(); }
+  }
+});

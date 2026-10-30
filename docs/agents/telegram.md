@@ -82,8 +82,8 @@ agent-bus call '#telegram/parf@parf.us' --wait 15s whoami | jq -r .body
 <summary>Rules for these calls, and more use cases</summary>
 
 - `read` also accepts JSON: `{"method":"read","channel":"#dev","limit":5}`.
-- Adding a subscription needs permission to manage the destination session. Matching messages from listed users are forwarded.
-- The author must also be allowed to send to the destination, checked at add, at an edit that moves the target and before every forward ([may-send for another name](../09-daemon-api.md#checking-permission-to-send)); a refusal or a vanished target disables the subscription, and a check the daemon cannot answer sends nothing.
+- Each author lists and deletes their own subscriptions; direct Owners and Maintainers manage all. To change one, use `sub delete` and `sub add` (there is no `sub edit`). Matching messages are forwarded.
+- The author must be allowed to send to both this helper and the destination, checked at add and before every forward ([may-send for another name](../09-daemon-api.md#checking-permission-to-send)); a refused or uncertain copy is dropped, counted and warned, and the next match stays active. An unavailable permission check sends nothing.
 - To silence a chat, set its `chats` entry to `{"handler":"drop"}` ([per-chat routing](#per-chat-routing)).
 
 | Use case | What you do | What you get |
@@ -267,7 +267,7 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 | alert | Configuration is malformed at start, so it does not run | Fix the key the entry names |
 | warning | A receive poll failed and a later one recovered | Nothing; if it repeats, check the network |
 | warning | A routed message was refused, or failed after three tries | Check that the session exists and allows this agent |
-| warning | A subscription was disabled (author refused, target gone) | Fix the target; add it again |
+| warning | A subscription copy was dropped (author refused, target gone) | Restore access or fix the target; the next match stays active |
 
 ## Troubleshooting
 

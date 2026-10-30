@@ -2,7 +2,7 @@
 // and delivery accounting live in the shared TypeScript engine.
 import { Bus, BusError, KVNotFound } from "../../clients/typescript/src/index.js";
 import { Subscriptions, SubscriptionError, type Caller, type Port, type Row, type WarningCode } from "../shared/subscriptions.ts";
-import { migrateSubscriptions } from "./subscription-migration.ts";
+import { migrateSubscriptions, validAuthors } from "./subscription-migration.ts";
 
 export const staff = (e: Caller, source: string) => (!e.original_to || e.original_to.toLowerCase() === source.toLowerCase()) && e.roles.some(r => r === "owner" || r === "maintainer");
 
@@ -10,7 +10,7 @@ export function validateSelector(selector: Record<string, unknown>): void {
   const keys = Object.keys(selector).sort().join();
   if (keys !== "channel" && keys !== "channel,from_users") throw Error("invalid selector");
   if (typeof selector.channel !== "string" || !selector.channel || selector.channel.length > 256 || /[\x00-\x20\x7f]/.test(selector.channel)) throw Error("invalid channel");
-  if (selector.from_users !== undefined && (!Array.isArray(selector.from_users) || selector.from_users.length > 100 || selector.from_users.some(u => typeof u !== "string" || !/^[A-Z][A-Z0-9]*$/.test(u)))) throw Error("invalid authors");
+  if (selector.from_users !== undefined && !validAuthors(selector.from_users)) throw Error("invalid authors");
 }
 
 export class ChatPort implements Port {

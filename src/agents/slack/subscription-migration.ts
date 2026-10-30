@@ -12,6 +12,7 @@ type Journal = { oldKey: string; nextKey: string; oldHash: string; value: Record
 const digest = (value: unknown): string => createHash("sha256").update(JSON.stringify(value, (_k, v) => v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b))) : v)).digest("hex");
 export const migrationId = (key: string, collision = 0) => createHash("sha256").update(`chat-subscription-v1:${key}:${collision}`).digest("hex").slice(0, 12);
 const M = "migration.sub.";
+export const validAuthors = (value: unknown): value is string[] => Array.isArray(value) && value.length <= 100 && value.every(u => typeof u === "string" && /^[A-Z][A-Z0-9]*$/.test(u));
 
 async function maybe(kv: KV, kind: "json" | "int", key: string, op: Op): Promise<any | undefined> {
   try { return (await kv.get(kind, key, op())).value; }
@@ -77,7 +78,7 @@ export async function migrateSubscriptions(kv: KV, op: Op): Promise<void> {
     const legacyFields = ["id", "channel", "target", "filter", "from_users", "created_by", "created_at", "disabled", "forwarded", "last_error"];
     const valid = raw && typeof raw === "object" && !Array.isArray(raw) && raw.id === id && Object.keys(raw).every(k => legacyFields.includes(k)) &&
       typeof raw.channel === "string" && typeof raw.target === "string" && typeof raw.created_by === "string" && typeof raw.created_at === "string" &&
-      (raw.filter === undefined || typeof raw.filter === "string") && (typeof count === "bigint" || typeof count === "number") && Number.isSafeInteger(sent) && sent >= 0;
+      (raw.filter === undefined || typeof raw.filter === "string") && (raw.from_users === undefined || validAuthors(raw.from_users)) && (typeof count === "bigint" || typeof count === "number") && Number.isSafeInteger(sent) && sent >= 0;
     const value = valid ? {
       id: nextId, target: raw.target.trim().toLowerCase(), selector: { channel: raw.channel, ...(raw.from_users !== undefined ? { from_users: raw.from_users } : {}) },
       filter: raw.filter ?? "", created_by: raw.created_by, created_at: raw.created_at, sent, dropped: 0,

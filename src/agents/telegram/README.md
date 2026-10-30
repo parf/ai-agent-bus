@@ -24,7 +24,7 @@ handler success, definitive refusal or bounded retry exhaustion. Dirty keys
 flush before the durable offset advances; a failed flush does not redeliver
 a successfully handled message. Full cache snapshots are written periodically.
 Bot-authored messages remain in history but do not enter routing/forwarding.
-The shared filter worker bounds subscription evaluation and disables slow filters.
+The shared filter worker bounds subscription evaluation; a slow filter drops and counts only its own copy with a warning, and the next match stays active.
 
 ## Reply routing
 

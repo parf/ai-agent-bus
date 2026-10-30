@@ -229,8 +229,8 @@ SLACK_ICON=":robot_face:"
 
 - The bus allow list decides who may call the helper: `agent-bus manage '#slack@node.example' --add-allow 'bob@node.example'`.
 - `users` in Configuration decides who may talk to AI sessions from Slack.
-- Managing a subscription also needs permission to manage its destination.
-- The author must also be allowed to send to the destination, checked at add, at an edit that moves the target and before every forward ([may-send for another name](../09-daemon-api.md#checking-permission-to-send)); a refusal or a vanished target disables the subscription, and a check the daemon cannot answer sends nothing.
+- Each author lists and deletes their own subscriptions; direct Owners and Maintainers manage all. To change one, use `sub delete` and `sub add` (there is no `sub edit`).
+- The author must be allowed to send to both this helper and the destination, checked at add and before every forward ([may-send for another name](../09-daemon-api.md#checking-permission-to-send)); a refused or uncertain copy is dropped, counted and warned, and the next match stays active. An unavailable permission check sends nothing.
 - Only the owner and maintainers may read `refused`.
 
 ## Warnings and alerts
@@ -244,7 +244,7 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 | warning | The live-event connection dropped and reconnected | Nothing; if it repeats, check the network |
 | warning | Events were dropped because the forward queue was full | Narrow subscriptions or routes |
 | warning | A routed message was refused, or failed after three tries | Check that the session exists and allows this agent |
-| warning | A subscription was disabled (author refused, target gone), or a channel name did not resolve | Fix the target or invite the bot; add it again |
+| warning | A subscription copy was dropped (author refused, target gone), or a channel name did not resolve | Restore access, fix the target or invite the bot; the next match stays active |
 
 ## Troubleshooting
 
