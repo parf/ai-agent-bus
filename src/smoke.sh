@@ -4019,7 +4019,8 @@ agent_git() {
   if normal; then
     sec "git declared repositories, roles and SSH identity"
     local out rc
-    out=$(SMOKE_TEST_SET="$(level)" PYTHONDONTWRITEBYTECODE=1 AGENT_BUS_TMP="$D" python3 -m unittest discover -s agents/standalone/git -p 'test_*.py' -v 2>&1); rc=$?
+    go build -o "$D/autopull-client-fixture" ./clients/fixture || { ok_exit "autopull bus fixture builds" 1; return; }
+    out=$(AUTOPULL_BUS_FIXTURE="$D/autopull-client-fixture" SMOKE_TEST_SET="$(level)" PYTHONDONTWRITEBYTECODE=1 AGENT_BUS_TMP="$D" python3 -m unittest discover -s agents/standalone/git -p 'test_*.py' -v 2>&1); rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "git operations and refusal boundaries" "$rc"
     out=$(sudo -n env AB_TEST_DIR="$D" PYTHONDONTWRITEBYTECODE=1 python3 ./agents/standalone/git/ssh_check.py 2>&1); rc=$?

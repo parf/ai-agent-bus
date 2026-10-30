@@ -1,8 +1,25 @@
 # Git autopull results
 
-📌 **TL;DR:** the channel-driven core and post-attempt scripts are source-landed; the
-owner's end-to-end rollout remains separate. The [git guide](../../../docs/agents/git.md#autopull)
+📌 **TL;DR:** the channel-driven core, post-attempt scripts and the owner's-flow end-to-end
+check are source-landed; the rollout on the realty servers remains separate. The [git guide](../../../docs/agents/git.md#autopull)
 owns the shipped interface.
+
+## Owner's flow end to end
+
+`test_autopull_e2e.py` (git shard of `src/smoke.sh --normal`): a disposable bus, three real `#git`
+processes on scratch clones of one scratch remote, each reporting its own host name (the process's
+`socket.getfqdn` is replaced in a wrapper, production code untouched), the Configuration saved on the
+agent record by the owner. Two `mirror` copies (one holding a modified and an untracked file) and one
+dirty `ff` copy; a pipeline name publishes one `push` to `autopull-cmd`, then `#webhook` does the same
+from a GitLab payload. Per push, the `autopull-log` inbox is read and counted: exactly two `ok` records
+with distinct hosts and `to` = the pushed commit, `discarded.files` 2 and 0, one `fail` / `dirty` for the
+`ff` host; both mirror trees equal the commit, the `ff` tree is byte-identical to before; each success
+script ran once per `ok`, the `ff` host's fail script once, no other script ran.
+
+Mutants, each compiled and red on an assertion: skip `clean -fd` (discard count 1 ≠ 2), run the success
+script twice (run counts), skip the dirty refusal (`fetch` ≠ `dirty`). Skipping `reset --hard` survives and
+is equivalent: `checkout --force -B` already resets tracked files. Both publishers send as `#caller`, because
+the disposable bus has a fixed set of names.
 
 ## Scripts 0.9.162
 
