@@ -475,6 +475,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - B.27e Facebook Messenger
 
 - ⏳ B.15 Node cleanup with a lasting bound ([RD110](DECISIONS.md#recorded-decisions))
+  - Observation: [report-only script](../../src/maintenance/OBSERVATION.md), run manually as an ordinary user; timestamped samples stay in ignored `tmp/b15/`. First sample captured 2026-10-30; growth and bound choices await repeated observations. No new timer, install or deletion.
   - Remove stale session records from a list the owner sees first; back up the daemon before.
   - Clean and bound: the Go build cache, the shared Rust target, abrt crash dumps, old release versions, logs and backups, `/tmp` leftovers from our tests.
   - Acceptance: after one week of normal work, none of them has grown past its stated bound, and the disk report shows it.
