@@ -35,7 +35,7 @@ export function configuration(raw: unknown): Config {
     ids.set(id,key);
     if (value.route !== undefined && !parseBusName(value.route)) throw Error(`Configuration channels: ${key}.route is not a bus name`);
     for (const f of ['tags','anyone']) if (value[f] !== undefined && typeof value[f] !== 'boolean') throw Error(`Configuration channels: ${key}.${f} must be boolean`);
-    const entry = { ...value, id, ...(value.route === undefined ? {} : {route:parseBusName(value.route)!}) };
+    const entry: Channel = { ...value, id, ...(value.route === undefined ? {} : {route:parseBusName(value.route)!}) };
     cfg.channels[key] = entry; cfg.chats![id] = { ...(entry.route === undefined ? {} : {route:entry.route}), ...(entry.tags === undefined ? {} : {tags:entry.tags}), ...(entry.anyone === undefined ? {} : {anyone:entry.anyone}) };
   }
   return cfg;

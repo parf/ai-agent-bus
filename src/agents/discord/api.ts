@@ -11,7 +11,12 @@ export function fixtureURL(raw: string | undefined, fallback: string, socket = f
 }
 export class ProviderError extends Error { constructor(readonly status: number) { super(`Discord refused the request (${status})`); } }
 export class Api {
+  deadline = Infinity;
+  private stop = new AbortController();
+  close(){this.stop.abort();}
+  private sleep(ms:number){return new Promise<void>((resolve,reject)=>{const abort=()=>{clearTimeout(timer);reject(Error('Discord agent is stopping'));};const timer=setTimeout(()=>{this.stop.signal.removeEventListener('abort',abort);resolve();},ms);this.stop.signal.addEventListener('abort',abort,{once:true});if(this.stop.signal.aborted)abort();});}
   private token = '';
+  private tail: Promise<unknown> = Promise.resolve();
   private invalid = 0;
   private invalidSince = 0;
   private blocked = new Map<string, number>();
@@ -23,8 +28,13 @@ export class Api {
     if (s.DISCORD_BOT_TOKEN !== this.token) { this.token = s.DISCORD_BOT_TOKEN; this.invalid = 0; this.blocked.clear(); }
     return { token: this.token, api: fixtureURL(s.DISCORD_API_URL, DEFAULT_API), gateway: fixtureURL(s.DISCORD_GATEWAY_URL, DEFAULT_GATEWAY, true) };
   }
-  async call(method: string, path: string, body?: unknown, deadline = Date.now() + 15000): Promise<any> {
+  call(method: string, path: string, body?: unknown, deadline = Math.min(this.deadline, Date.now() + 15000)): Promise<any> {
+    const run = this.tail.then(() => this.request(method,path,body,deadline));this.tail=run.catch(()=>{});return run;
+  }
+  private async request(method: string, path: string, body: unknown, deadline: number): Promise<any> {
+    if(this.stop.signal.aborted)throw Error('Discord agent is stopping');
     const { token, api } = await this.credentials();
+    if(this.stop.signal.aborted)throw Error('Discord agent is stopping');
     if (!path.startsWith('/') || path.includes('://')) throw Error('invalid Discord API path');
     const route = method + path.split('?')[0];
     if (Date.now() - this.invalidSince > 600000) { this.invalid = 0; this.invalidSince = Date.now(); }
@@ -32,7 +42,7 @@ export class Api {
     for (let attempt = 0; attempt < 2; attempt++) {
       const wait = Math.max(0, this.next - Date.now());
       if (Date.now() + wait >= deadline) throw Error('the caller deadline passed');
-      if (wait) await Bun.sleep(wait);
+      if (wait) await this.sleep(wait);
       // One bot: stay below the global 50/s even before rate-limit headers arrive.
       this.next = Date.now() + 25;
       const left = deadline - Date.now();
@@ -40,7 +50,7 @@ export class Api {
       let response: Response;
       try {
         response = await fetch(api + path, { method, headers: { authorization: `Bot ${token}`, 'content-type': 'application/json' },
-          ...(body === undefined ? {} : { body: JSON.stringify(body) }), redirect: 'error', signal: AbortSignal.timeout(Math.min(left, 15000)) });
+          ...(body === undefined ? {} : { body: JSON.stringify(body) }), redirect: 'error', signal: AbortSignal.any([this.stop.signal,AbortSignal.timeout(Math.min(left, 15000))]) });
       } catch { throw Error('Discord did not answer; this request was not retried'); }
       const reader = response.body?.getReader(); let size = 0; const chunks: Uint8Array[] = [];
       if (reader) try { for (;;) { const { done, value } = await reader.read(); if (done) break; size += value.length; if (size > 1024 * 1024) throw Error('Discord response is too large'); chunks.push(value); } } finally { await reader.cancel().catch(() => {}); }

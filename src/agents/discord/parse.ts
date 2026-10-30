@@ -6,6 +6,7 @@ export function parse(body: string, aliases: string[] = []): Call {
   else {
     const words = body.trim().split(/\s+/); let method = words.shift() ?? '';
     if (method === 'sub') method += '.' + (words.shift() ?? '');
+    if(method==='sub.edit')throw Error('delete it and add it again');
     call = { method };
     const channelLike = (s?: string) => !!s && (s.startsWith('#') || aliases.includes(s) || /^[0-9]{1,20}$/.test(s));
     if (method === 'post') { if (words.length > 1 && channelLike(words[0])) call.channel = words.shift(); call.text = words.join(' '); }
