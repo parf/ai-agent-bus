@@ -125,8 +125,8 @@ owning documentation, not in this index.
 | Per-chat drop handlers discard incoming Telegram and Slack messages while outgoing posts remain available | [Telegram per-chat routing](agents/telegram.md#per-chat-routing), [Slack configuration](agents/slack.md#configuration) | 2026-10-20 owner request; quiet selected chats without changing others |
 | Telegram per-chat routing and channel announcements | [Per-chat routing](agents/telegram.md#per-chat-routing) | 2026-10-19 owner instructions |
 | Slack subscriptions may select resolved user and bot authors | [subscription authors](agents/slack.md#3-forward-only-useful-errors) | 2026-10-19 owner decision, S.9 |
-| Git updates follow bus channels with explicit ff/mirror modes | [autopull](agents/git.md#autopull) | 2026-10-29 owner decisions replace install-time polling |
-| Post-attempt scripts choose host-installed allowlist names | [git scripts](agents/git.md#after-an-attempt) | 2026-10-29 owner decisions; bounded execution and separate script-failure records |
+| Git updates follow bus channels with explicit ff/mirror modes | [autopull](agents/git-autopull.md#how-it-works) | 2026-10-29 owner decisions replace install-time polling |
+| Post-attempt scripts choose host-installed allowlist names | [git scripts](agents/git-autopull.md#after-an-update) | 2026-10-29 owner decisions; bounded execution and separate script-failure records |
 | Git synchronization uses server identity | [git agent](agents/git.md#what-it-does), [roles and boundaries](agents/git.md#who-may-use-it) | 2026-10-19 owner decision, B.8 |
 | Git repositories and their access caps live in the agent's Configuration; a caller's role never exceeds the cap | [repositories and access levels](agents/git.md#repositories-and-access-levels) | 2026-10-19 owner request |
 | A systemd instance may be limited to the units its Configuration lists, so an ordinary user gets a dedicated status and restart agent | [dedicated instances](agents/systemd.md#dedicated-instances) | 2026-10-19 owner request; the default instance still sees every unit |

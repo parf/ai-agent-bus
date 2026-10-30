@@ -157,7 +157,7 @@ The install-time `--autopull` timer option is removed.
 ## After an attempt
 
 The accepted script-selection, process and failure-record rules live in the
-[Git guide](../../../docs/agents/git.md#after-an-attempt).
+[Git guide](../../../docs/agents/git-autopull.md#after-an-update).
 [Step-6 verification and design history](DONE.md#scripts-09162) distinguish
 local fixture proof from the pending host rollout.
 
