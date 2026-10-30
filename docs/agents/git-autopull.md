@@ -1,37 +1,52 @@
 # Git autopull: update every server when new code is ready
 
-📌 **TL;DR:** when your CI finishes a green build, it announces the new code on
-the `autopull-cmd` pubsub channel, and every server that runs [`#git`](git.md#what-it-does) for
-that project updates itself, runs its own after-update script and reports one
-result line to the `autopull-log` pubsub channel. No timers, no logins on the servers, no deploy
-scripts in CI that know every host.
+📌 **TL;DR:**
+- **Problem:** shipping code to many servers means logins, deploy scripts that know every host, or timers that guess.
+- **Outcome:** when your build finishes green, it announces the new code once, and every server that follows the project updates itself, runs its own after-update script and reports one result line.
+- **Start:** check the last automatic update on a server: `agent-bus call '#git@node.example' 'autopull site'` ([See it on a real node](#see-it-on-a-real-node)).
 
-## Executive summary
+## Why you'd want it
 
-| | |
-|---|---|
-| **What** | Event-driven deployment: one announcement on the `autopull-cmd` pubsub channel updates every server that follows that project and branch |
-| **Why** | CI stops needing SSH to each host; servers pull only what they are allowed to; adding a server is a Configuration change on that server, not a CI change |
-| **Safe by default** | `ff` mode only moves forward and never discards local work; `mirror` (production copies) is chosen per project, and only where the project allows deploy |
-| **After the update** | each server runs its own success or fail script from a host-approved list: reload the application, run tests, post to chat |
-| **Visibility** | every attempt and every failed script is one JSON record, host first, on the `autopull-log` pubsub channel; `autopull <project>` shows the last one on that server |
-| **Control** | the `autopull-cmd` pubsub channel's access list says who may announce code; `deploy <project> <branch> [<rev>]` moves one server, a `deploy` event moves all of them to one revision, for roll-out or roll-back |
-| **What it is not** | not a CI system, not a build step, not a scheduler: it reacts to announcements, catches up once at start, and does what an operator asks |
+- 🔑 **Your build system needs SSH to every host.** Now it only announces new code; servers pull what they are allowed to.
+- 🕒 **Timers guess when to update.** Now an update starts on an event, once at start to catch up, or when an operator asks.
+- ➕ **A new server means changing the pipeline.** Now adding a server is a Configuration change on that server.
+- 👀 **You cannot see what happened.** Now every attempt is one result record, host first.
+- ↩️ **A bad release needs a fast way back.** Now one `deploy` event moves every server to one exact revision.
+
+## What you get
+
+- ✅ **One announcement updates every server** that follows that project and branch ([how it works](#how-it-works)).
+- ✅ **Safe by default:** `ff` mode only moves forward and never discards local work; `mirror` (production copies) is chosen per project, and only where the project allows deploy ([two modes](#two-modes)).
+- ✅ **After the update,** each server runs its own success or fail script from a host-approved list: reload the application, run tests, post to chat ([after an update](#after-an-update)).
+- ✅ **Visibility:** every attempt and every failed script is one JSON record, host first, on the log channel; `autopull <project>` shows the last one on that server.
+- ✅ **Control:** the announcement channel's access list says who may announce code; `deploy <project> <branch> [<rev>]` moves one server, a `deploy` event moves all of them to one revision, for roll-out or roll-back.
+- 🚫 **Not a CI system,** not a build step, not a scheduler: it reacts to announcements, catches up once at start, and does what an operator asks.
 
 ## How it works
-
 
 | Step | What happens |
 |---|---|
 | 1 | You push; CI runs; on success it publishes a `push` event to the `autopull-cmd` pubsub channel |
-| 2 | Every `#git` whose repository follows that remote and branch receives it |
+| 2 | Every [`#git`](git.md#what-it-does) whose repository follows that remote and branch receives it |
 | 3 | Each updates its copy: `ff` only moves forward, `mirror` makes the copy equal to the remote |
 | 4 | Each runs its own success or fail script, for example reload the application and run tests |
 | 5 | Each publishes one JSON result, with its host first, to the `autopull-log` pubsub channel, for people, dashboards and waiting pipelines |
 
-No timers: an update starts on an event, once at the agent's start to catch up,
-or when an operator asks (`autopull site now`, `deploy site main <rev>`).
+- **No timers:** an update starts on an event, once at the agent's start to catch up, or when an operator asks (`autopull site now`, `deploy site main <rev>`).
 
+## See it on a real node
+
+- Ask about the last automatic update (read-only; ran on the development node on 2026-10-30):
+
+```sh
+agent-bus call '#git@parf.us' 'autopull ab'
+```
+
+```text
+no autopull attempt recorded
+```
+
+- That node has no announcement channel wired yet, so no attempt has happened; on yours the answer is the last result line, for example `FAIL site@node.example main: diverged (ff)`.
 
 ## Two modes
 
