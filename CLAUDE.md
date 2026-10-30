@@ -43,7 +43,7 @@ Selection uses the worktree diff against main, including staged and untracked fi
 
 Normal and fast runs write nothing to the host journal or syslog. Normal and fast fixtures must not provoke kernel OOM kills or PID-controller rejections. Read the configured limits from a live agent’s cgroup in normal; deliberate over-limit enforcement belongs only to slow.
 
-Prove each behavioural fix can fail ([below](#mutation-first-then-belief)); reproduce review findings before accepting them. Documentation-only changes need path/anchor and scope/status checks, without a version bump or runtime gate solely for prose.
+Prove each behavioural fix can fail ([below](#mutation-first-then-belief)); reproduce review findings before accepting them. Documentation-only changes need path/anchor and scope/status checks (`src/check-links.py` reads every link in the changed files and every link, in any file, to a path the change moved or deleted), without a version bump or runtime gate solely for prose.
 
 Before any normal, `--slow`, or mutant gate, take the `slow` bus lock on `smoke-gate@parf.us` with a 15-minute ttl, extend before expiry if needed, and release it afterward; focused non-mutant checks need no lock. This resource record (`lock://smoke-gate`) is owned by `parf`; `#ab-gate` takes it as `parf` for every landing, and its Maintainers are the workers `#ab-w1a..c` and `#ab-w2a..c` for their mutant runs ([Team v2](Plans/Team.v2/README.md#roles)). If absent, its Owner registers it and grants those Maintainers before gates run.
 
