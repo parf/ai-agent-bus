@@ -28,7 +28,9 @@ xAB's landed core; the owner's-flow end-to-end check AB, after B.26; review
 
 Core steps 1–5, 7 and 8 landed as 0.9.160, commit `7ea886eb`;
 [verification and reviewed plan history](DONE.md#core-09160).
-Step 6 (xAB2) and the owner's-flow end-to-end check (AB) remain open.
+Step 6 landed in **0.9.162**, `666671da`: normal **241/0**, **35** assertion-red mutants,
+[review and fixture evidence](DONE.md#scripts-09162). The owner's-flow end-to-end
+check (AB, after the webhook change) remains open.
 The own-reader reinstall is held for the owner after scripts and channel setup.
 
 Acceptance, each failing on the old code or by a named mutant:

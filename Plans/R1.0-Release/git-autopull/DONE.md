@@ -1,8 +1,122 @@
 # Git autopull results
 
-📌 **TL;DR:** the channel-driven core is source-landed; scripts and the owner's
-end-to-end rollout remain separate. The [git guide](../../../docs/agents/git.md#autopull)
+📌 **TL;DR:** the channel-driven core and post-attempt scripts are source-landed; the
+owner's end-to-end rollout remains separate. The [git guide](../../../docs/agents/git.md#autopull)
 owns the shipped interface.
+
+## Scripts 0.9.162
+
+Step 6: **`666671da`**, fast-forward and main ancestry independently verified,
+VERSION **0.9.162**. The current [script guide](../../../docs/agents/git.md#after-an-attempt)
+owns the accepted behaviour; no new runtime bundle paths were needed.
+
+| Evidence | Result |
+|---|---|
+| Final normal under slow | **241 passed, 0 failed, 44.059 s**; lock released before any deployment |
+| Restored complete Git suite | **66/0, 11.000 s** |
+| Focused script/core fixtures | **25/0, 3.218 s**, including real local Git attempts and publication/checkout-lock ordering |
+| Owning mutants | **35** compiled, assertion-red, production restored; no test/build-error or tool-timeout credit |
+| Docs structure/index and changed links | **5/0**, **bad 0** |
+
+Real scripts proved exact JSON stdin, cwd/euid/umask and environment isolation;
+ELF and shebang fd execution; rename replacement before/after recheck; trust,
+alias and interpreter checks; stdout/stderr floods; signal/timeout/group cleanup;
+escaped stderr holders; empty first stderr line and 200-character sanitisation;
+optional/refused logs; correlated success/fail chaining without recursion; and
+per-script/shared budgets. A drifted script in repository A still permits its Git
+update and emits a script failure, while repository B updates and runs its good
+script. Strict explicit Configuration validation rejects that unsafe file;
+runtime consumers defer file revalidation to the selected hook so all repositories
+are not disabled by one drifted file. Script names remain syntactically strict.
+
+The obsolete deploy/automatic branch was removed. The role/cap regression now
+uses the real native-answer/core deploy entry, rather than a mock of that dead
+operation path. Test corrections before acceptance included explicit private
+parent modes, a real third upstream revision, and rendering a signal enum as its
+integer value; those earlier error/failure runs were not credited as green.
+
+Review: `#claude/ab2-review` closed on **`666671da`**, no open finding, checking
+main ancestry, VERSION and production byte-identity against the reviewed
+`16757231` (initial `84e64a1d`, intermediate `f2a80bb9`). Scope: static runtime
+hunks in autopull.py and git_agent.py only; tests, guide/metadata and mutant runs
+were not reviewed/run. All check numbers above are implementer evidence.
+
+Deployment remains the manager's held own-reader reinstall/channel setup; AB's
+owner-flow check after the webhook change remains open. No real host script,
+service/unit, live checkout update or push was performed by xAB2. Actual scripts
+under the unit, systemd resource behaviour and a live traffic flood are unproven.
+The process-group boundary does not confine admin code that deliberately changes
+session or gains privileges. The guide records inherited limits and fd/interpreter
+residuals. This source landing does not claim the rollout is complete.
+
+<details><summary>Named owning mutation checks</summary>
+
+All owners are in test_autopull_scripts.py. Labels grouped on a row ran that
+individual test, never the whole suite.
+
+| Mutations | Assertion owner |
+|---|---|
+| stderr ignored, empty line ignored, unbounded line | `ScriptTests.test_any_stderr_including_empty_line_fails_and_first_line_is_200_characters` |
+| stdout captured in an undrained pipe | `ScriptTests.test_stdout_flood_and_stdin_never_read_do_not_block_or_fail` |
+| group kill omitted, no new session | `ScriptTests.test_normal_exit_also_cleans_background_pipe_holders` |
+| deadline ignored | `ScriptTests.test_timeout_kills_group_and_fires_fail_script_with_null_exit` |
+| wait for escaped holder's EOF | `ScriptTests.test_clean_leader_with_escaped_stderr_holder_is_not_a_timeout` |
+| queued stderr not drained | `ScriptTests.test_signal_failure_and_buffered_stderr_of_already_exited_leader` |
+| clean exit treated as timeout, inherited env, wrong cwd, wide umask | `ScriptTests.test_success_runs_after_publication_with_exact_record_cwd_uid_and_no_tokens` |
+| recheck omitted | `ScriptTests.test_swap_after_open_is_refused_by_runtime_recheck` |
+| name exec replaces fd exec | `ScriptTests.test_script_fd_survives_name_swap_after_final_recheck` |
+| file/parent write bits, privilege bits, containment or strict config ignored | `ScriptTests.test_configuration_rejects_paths_escape_permissions_and_privilege_bits` |
+| foreign owner, special file or dotdot name accepted | `ScriptTests.test_foreign_owner_special_file_and_dotdot_name_are_refused` |
+| interpreter alias namespace unchecked | `ScriptTests.test_interpreter_alias_in_untrusted_directory_is_refused` |
+| one drifted file rejects all runtime config | `CoreScriptFlow.test_drifted_script_does_not_block_git_or_another_repository` |
+| skip runs success | `ScriptTests.test_skip_has_no_script_and_failed_attempt_runs_only_fail` |
+| fail recursively fires again | `ScriptTests.test_failing_fail_script_does_not_fire_a_second_time` |
+| fail stdin, published record or correlation wrong | `ScriptTests.test_both_failed_scripts_publish_once_each_and_preserve_correlation` |
+| refused log suppresses fail | `ScriptTests.test_no_log_or_refused_log_never_suppresses_scripts` |
+| shared limit ignored or per-script budget doubled | `ScriptTests.test_two_script_deadlines_share_one_hook_budget` |
+| stdin limit ignored | `ScriptTests.test_native_elf_and_large_input_bounds` |
+| script before attempt publication | `CoreScriptFlow.test_real_attempt_publishes_then_runs_script_under_locked_checkout` |
+
+</details>
+
+### Script design history
+
+<details><summary>Owner-approved script design before implementation</summary>
+
+Historical wording below predates the optional-log delivery clarification;
+the current guide owns the rule that one refused/uncertain publication does not
+suppress a script.
+
+#### After an attempt
+
+Each repository's Configuration may name two scripts, run on that server after
+the attempt (owner: "autopull-success-script & autopull-fail-script"):
+
+| Key | Runs when |
+|---|---|
+| `autopull-success-script` | `result` is `ok`: reload php-fpm, run tests, warm caches |
+| `autopull-fail-script` | `result` is `fail`, including a failed success script: alert, roll back |
+
+Neither runs on `skip`. A script gets the result record on stdin and runs in the
+checkout as `#git`'s own user, with a time limit, after the record is published,
+so a long test run delays nobody. A script **fails** when it exits non-zero,
+times out, or writes anything to stderr, even with exit 0 (owner: "check STDERR
+from scripts — the same fail"). A failed script adds one record to the log: `action: script`, `result: fail`, `error.code: script`,
+its [`script`](README.md#result-record) outcome, and the attempt's `id`, `from` and `to`
+(owner: "like success post-deploy script failed"). A failed success script also
+runs the fail script. Exit 0 adds nothing.
+
+⚠️ A script is code run on the server. Configuration is written by the record's
+Owner and Maintainers alike and records no setter, so it only **chooses** a
+script; the server decides which exist. Each key holds a bare file name inside
+`autopull.d/` in `#git`'s state directory, put there by whoever administers the
+host. A path, `..`, a symlink out of that directory, or a file or directory
+writable by anyone but root or `#git`'s user is refused at configuration time
+and again before each run. A script there may call the repository's own test
+script, as realty's does.
+
+
+</details>
 
 ## Core 0.9.160
 
@@ -41,7 +155,7 @@ host reinstall until scripts land and the owner configures channels. No live
 autopull, actual hosting-service origin, real host timer retirement, script
 execution or flood test is claimed; the owner's flow remains AB's check.
 No live checkout was reset/cleaned/pushed by xAB, and no host unit was changed
-by xAB. The core's no-op `after_attempt` remains xAB2's extension point.
+by xAB. At the core landing, `after_attempt` was still the step-6 no-op extension point.
 
 ### Named owning mutants
 

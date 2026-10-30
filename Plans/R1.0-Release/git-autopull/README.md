@@ -156,31 +156,10 @@ The install-time `--autopull` timer option is removed.
 
 ## After an attempt
 
-Each repository's Configuration may name two scripts, run on that server after
-the attempt (owner: "autopull-success-script & autopull-fail-script"):
-
-| Key | Runs when |
-|---|---|
-| `autopull-success-script` | `result` is `ok`: reload php-fpm, run tests, warm caches |
-| `autopull-fail-script` | `result` is `fail`, including a failed success script: alert, roll back |
-
-Neither runs on `skip`. A script gets the result record on stdin and runs in the
-checkout as `#git`'s own user, with a time limit, after the record is published,
-so a long test run delays nobody. A script **fails** when it exits non-zero,
-times out, or writes anything to stderr, even with exit 0 (owner: "check STDERR
-from scripts — the same fail"). A failed script adds one record to the log: `action: script`, `result: fail`, `error.code: script`,
-its [`script`](#result-record) outcome, and the attempt's `id`, `from` and `to`
-(owner: "like success post-deploy script failed"). A failed success script also
-runs the fail script. Exit 0 adds nothing.
-
-⚠️ A script is code run on the server. Configuration is written by the record's
-Owner and Maintainers alike and records no setter, so it only **chooses** a
-script; the server decides which exist. Each key holds a bare file name inside
-`autopull.d/` in `#git`'s state directory, put there by whoever administers the
-host. A path, `..`, a symlink out of that directory, or a file or directory
-writable by anyone but root or `#git`'s user is refused at configuration time
-and again before each run. A script there may call the repository's own test
-script, as realty's does.
+The accepted script-selection, process and failure-record rules live in the
+[Git guide](../../../docs/agents/git.md#after-an-attempt).
+[Step-6 verification and design history](DONE.md#scripts-09162) distinguish
+local fixture proof from the pending host rollout.
 
 ## Log size
 
