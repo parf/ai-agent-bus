@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.231 — 2026-10-30
+
+release-verify checks each shipped program's own version query and exit status, refusing a bad token or TypeScript stamp
+
 ## 0.9.230 — 2026-10-30
 
 The shipped tmux-sessions packager replaces its agent.d tree through the shared helper, which releases now ship

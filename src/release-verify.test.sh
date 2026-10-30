@@ -125,6 +125,9 @@ case_ ts-comment-only 'agent-bus-ts mcp reports nothing, source is 1.2.3' 'print
 case_ ts-wrong-answer 'agent-bus-ts mcp reports 9.9.9, source is 1.2.3' 'printf "#!/bin/sh\n# 1.2.3 u@h 2026-01-01 00:00:00\nprintf \"9.9.9\\n\"\n" >agent-bus-ts'
 case_ ts-unstamped 'agent-bus-ts carries no build stamp' 'printf "#!/bin/sh\nprintf \"1.2.3\\n\"\n" >agent-bus-ts'
 case_ ts-launcher-wrong 'agent-bus-ts launcher claude reports 9.9.9, source is 1.2.3' 'printf "#!/bin/sh\n# u@h 2026-01-01 00:00:00\ncase \"$1\" in mcp) echo 1.2.3;; *) echo 9.9.9;; esac\n" >agent-bus-ts'
+# Right stdout, failing exit: the answer of a program that crashed after printing.
+case_ ts-failed 'agent-bus-ts mcp --version failed' 'printf "#!/bin/sh\n# u@h 2026-01-01 00:00:00\nprintf \"1.2.3\\n\"\nexit 1\n" >agent-bus-ts'
+case_ token-failed 'agent-bus-token --version failed' 'printf "#!/bin/sh\nprintf \"1.2.3\\n\"\nexit 1\n" >agent-bus-token'
 case_ no-token 'agent-bus-token missing or not executable' 'rm agent-bus-token'
 case_ token-stale 'agent-bus-token does not report version 1.2.3' 'printf "#!/bin/sh\necho 9.9.9\n" >agent-bus-token'
 case_ renamed 'missing expected archive: dist/agent-bus-1.2.4-linux-' 'echo 1.2.4 >"$SOURCE_VERSION"'

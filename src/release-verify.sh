@@ -104,9 +104,14 @@ for archive in "$@"; do
   else
     if [ $native = yes ]; then
       for ask in "mcp" "launcher claude"; do
+        # The exit status is the program's own, not a pipe's: a failed query is a failure whatever it printed.
         # shellcheck disable=SC2086
-        got=$("$ts" $ask --version 2>/dev/null | sed -n 1p) || got=""
-        [ "$got" = "$want" ] || bad "agent-bus-ts $ask reports ${got:-nothing}, source is $want"
+        if out=$("$ts" $ask --version 2>/dev/null); then
+          got=$(sed -n 1p <<<"$out")
+          [ "$got" = "$want" ] || bad "agent-bus-ts $ask reports ${got:-nothing}, source is $want"
+        else
+          bad "agent-bus-ts $ask --version failed"
+        fi
       done
     else
       grep -aqF "$want" "$ts" 2>/dev/null || bad "agent-bus-ts does not carry version $want"
@@ -117,7 +122,11 @@ for archive in "$@"; do
   if [ $edition = full ]; then
     [ -x "$root/agent-bus-token" ] || bad "agent-bus-token missing or not executable"
     if [ $native = yes ] && [ -x "$root/agent-bus-token" ]; then
-      [ "$("$root/agent-bus-token" --version 2>/dev/null | sed -n 1p)" = "$want" ] || bad "agent-bus-token does not report version $want"
+      if out=$("$root/agent-bus-token" --version 2>/dev/null); then
+        [ "$(sed -n 1p <<<"$out")" = "$want" ] || bad "agent-bus-token does not report version $want"
+      else
+        bad "agent-bus-token --version failed"
+      fi
     fi
   fi
   [ $fail = 0 ] && echo "release-verify: $name ok (version $want, $edition, $([ $native = yes ] && echo queried || echo read))"
