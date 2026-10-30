@@ -141,3 +141,81 @@ func TestDeployFromGitInstallsOnlyTheReviewedRootPackage(t *testing.T) {
 	}
 
 }
+
+// Arm the private staging repository after init, as a compromised local Git
+// configuration could. Real fetch/checkout would run these hooks without the
+// command-line core.hooksPath override. The URL shim permits only local objects;
+// this check cannot contact a provider or use host Git configuration.
+func TestDeployFetchNeverRunsRepositoryHooks(t *testing.T) {
+	git, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	repo := filepath.Join(root, "repo")
+	dest := filepath.Join(root, "stage")
+	bin := filepath.Join(root, "bin")
+	hooks := filepath.Join(root, "hooks")
+	for _, p := range []string{repo, dest, bin, hooks} {
+		if err := os.Mkdir(p, 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	gitEnv := []string{"PATH=" + os.Getenv("PATH"), "HOME=" + root,
+		"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null"}
+	command := func(args ...string) string {
+		t.Helper()
+		c := exec.Command(git, append([]string{"-c", "core.hooksPath=/dev/null", "-c", "init.templateDir=", "-C", repo}, args...)...)
+		c.Env = gitEnv
+		out, err := c.CombinedOutput()
+		if err != nil {
+			t.Fatalf("fixture git %v: %s %v", args, out, err)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	command("init", "--quiet")
+	writeFile(t, filepath.Join(repo, "reviewed"), "pinned code")
+	command("add", "reviewed")
+	command("-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "commit", "--quiet", "-m", "reviewed")
+	pin := command("rev-parse", "HEAD")
+	literal := func(s string) string { b, _ := json.Marshal(s); return string(b) }
+	for _, name := range []string{"reference-transaction", "post-checkout"} {
+		marker := filepath.Join(root, name+".ran")
+		script := "#!/usr/bin/python3\nopen(" + literal(marker) + ", 'a').write('hook ran\\n')\n"
+		if err := os.WriteFile(filepath.Join(hooks, name), []byte(script), 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	armed := filepath.Join(root, "armed")
+	script := "#!/usr/bin/python3\nimport os,sys,subprocess\n" +
+		"a=sys.argv[1:]; commands=('init','fetch','checkout','rev-parse')\n" +
+		"verb=next(x for x in a if x in commands)\n" +
+		"if verb=='fetch':\n" +
+		"    assert a[-2]=='https://fixture.invalid/repo'\n" +
+		"    a[-2]=" + literal(repo) + "\n" +
+		"e=dict(os.environ); e['GIT_ALLOW_PROTOCOL']='file'\n" +
+		"rc=subprocess.run([" + literal(git) + "]+a,env=e).returncode\n" +
+		"if verb=='init' and rc==0:\n" +
+		"    subprocess.run([" + literal(git) + ",'--git-dir'," + literal(filepath.Join(dest, ".git")) + ",'config','core.hooksPath'," + literal(hooks) + "],env=e,check=True)\n" +
+		"    open(" + literal(armed) + ",'w').write('armed')\n" +
+		"sys.exit(rc)\n"
+	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	r := &runner{host: filepath.Join(root, "host")}
+	if err := r.fetchDeploy(context.Background(), installRequest{remote: "https://fixture.invalid/repo", commit: pin}, dest); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := os.ReadFile(armed); err != nil || string(got) != "armed" {
+		t.Fatalf("fixture never armed the repository hooks: %q %v", got, err)
+	}
+	if got, err := os.ReadFile(filepath.Join(dest, "reviewed")); err != nil || string(got) != "pinned code" {
+		t.Fatalf("fetch did not publish the pinned fixture: %q %v", got, err)
+	}
+	for _, name := range []string{"reference-transaction", "post-checkout"} {
+		if _, err := os.Stat(filepath.Join(root, name+".ran")); !os.IsNotExist(err) {
+			t.Errorf("deploy ran repository hook %s: %v", name, err)
+		}
+	}
+}
