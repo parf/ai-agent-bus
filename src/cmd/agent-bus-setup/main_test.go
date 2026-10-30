@@ -82,6 +82,22 @@ func TestTheWebUnitIsLockedDown(t *testing.T) {
 	}
 }
 
+// A release's unit (build.sh rewrites it) runs the compiled face from the
+// release root, the directory that holds web/.
+func TestTheReleaseWebUnitRunsTheCompiledFace(t *testing.T) {
+	template := []byte("ExecStart=@ROOT@/agent-bus-ts web\nWorkingDirectory=@WEB_DIR@\nExecPaths=@ROOT@/agent-bus-ts /usr/lib64/libc.so.6\n")
+	unit := string(webUnit(template, "/usr/local/lib/agent-bus/current/web"))
+	for _, want := range []string{"ExecStart=/usr/local/lib/agent-bus/current/agent-bus-ts web\n",
+		"WorkingDirectory=/usr/local/lib/agent-bus/current/web\n", "ExecPaths=/usr/local/lib/agent-bus/current/agent-bus-ts "} {
+		if !strings.Contains(unit, want) {
+			t.Errorf("release web unit lacks %q:\n%s", want, unit)
+		}
+	}
+	if strings.Contains(unit, "@") {
+		t.Errorf("a placeholder survived:\n%s", unit)
+	}
+}
+
 func TestWebDirFollowsTheCurrentRelease(t *testing.T) {
 	withInstallPaths(t)
 	if got := webDirFor(filepath.Join(installRoot, "releases", "0.8.50-abc", "agent-busd")); got != filepath.Join(installRoot, "current", "web") {

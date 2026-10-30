@@ -18,7 +18,7 @@ var requiredBundleContract = []string{
 	"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-runner", "agent-bus-setup", "agent-bus-token",
 	"web/server.ts", "web/agent-bus-web.service",
 	".claude-plugin/marketplace.json", "mcp/.claude-plugin/plugin.json", "mcp/channel.ts", "mcp/tags.ts", "mcp/commands/ls.md", "mcp/commands/send.md",
-	"mcp/server.js", "launchers/launcher.js",
+	"agent-bus-ts", // the compiled MCP face, launcher and web face (src/ts-main.ts)
 	"launchers/ab-claude", "launchers/ab-codex", "launchers/ab-opencode", "launchers/ab-opencode1",
 	"internal/version/VERSION", "LICENSE.md", "NOTICE.md", "THIRD-PARTY-NOTICES.md", "INSTALL.md",
 	"agents/slack/agent.json",
@@ -288,17 +288,17 @@ func TestBundleMustBeCompleteBeforeInstallation(t *testing.T) {
 		t.Fatalf("bundle contract=%q, want %q", bundleFiles, requiredBundleContract)
 	}
 	root := fixtureBundle(t, "complete")
-	if err := os.Remove(filepath.Join(root, "mcp/server.js")); err != nil {
+	if err := os.Remove(filepath.Join(root, "agent-bus-ts")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := checkBundle(root); err == nil || !strings.Contains(err.Error(), "mcp/server.js") {
-		t.Fatalf("missing MCP face: %v", err)
+	if _, err := checkBundle(root); err == nil || !strings.Contains(err.Error(), "agent-bus-ts") {
+		t.Fatalf("missing compiled MCP face: %v", err)
 	}
 }
 
 func TestBundleRejectsDamagedAndNonExecutableArtifacts(t *testing.T) {
 	root := fixtureBundle(t, "damage")
-	if err := os.WriteFile(filepath.Join(root, "mcp/server.js"), []byte("changed"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "agent-bus-ts"), []byte("changed"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := checkBundle(root); err == nil || !strings.Contains(err.Error(), "does not match") {
@@ -454,7 +454,7 @@ func TestDamagedExistingReleaseIsNeverSelectedAgain(t *testing.T) {
 	if _, err := installBundle(b); err != nil {
 		t.Fatal(err)
 	}
-	damaged := filepath.Join(root, "releases", b.releaseID, "mcp/server.js")
+	damaged := filepath.Join(root, "releases", b.releaseID, "agent-bus-ts")
 	if err := os.WriteFile(damaged, []byte("damaged\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}

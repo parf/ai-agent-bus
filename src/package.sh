@@ -25,7 +25,7 @@ required=(
   web/server.ts web/agent-bus-web.service
   .claude-plugin/marketplace.json mcp/.claude-plugin/plugin.json mcp/channel.ts mcp/tags.ts
   mcp/commands/ls.md mcp/commands/send.md
-  mcp/server.js launchers/launcher.js
+  agent-bus-ts # the compiled MCP face, launcher and web face
   launchers/ab-claude launchers/ab-codex launchers/ab-opencode launchers/ab-opencode1
   internal/version/VERSION LICENSE.md NOTICE.md THIRD-PARTY-NOTICES.md INSTALL.md
 )

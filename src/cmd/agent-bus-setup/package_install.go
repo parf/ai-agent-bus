@@ -24,7 +24,7 @@ var bundleFiles = []string{
 	"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-runner", "agent-bus-setup", "agent-bus-token", // includes the fixed SSH script, not another Go binary
 	"web/server.ts", "web/agent-bus-web.service",
 	".claude-plugin/marketplace.json", "mcp/.claude-plugin/plugin.json", "mcp/channel.ts", "mcp/tags.ts", "mcp/commands/ls.md", "mcp/commands/send.md",
-	"mcp/server.js", "launchers/launcher.js",
+	"agent-bus-ts", // the compiled MCP face, launcher and web face (src/ts-main.ts)
 	"launchers/ab-claude", "launchers/ab-codex", "launchers/ab-opencode", "launchers/ab-opencode1",
 	"internal/version/VERSION", "LICENSE.md", "NOTICE.md", "THIRD-PARTY-NOTICES.md", "INSTALL.md",
 	"agents/slack/agent.json",
@@ -243,6 +243,10 @@ var rollbackFiles = []string{
 
 var legacyFiles = map[string]bool{"agent-bus-web": true}
 
+// Before the compiled agent-bus-ts (0.9.163) the MCP face and the launcher
+// were bun bundles, not executables; such a release is still rolled back to.
+var legacyBundles = map[string]bool{"mcp/server.js": true, "launchers/launcher.js": true}
+
 var executableFiles = map[string]bool{
 	"agents/fetch/fetch.py":                        true,
 	"agents/sms-telnyx/sms.py":                     true,
@@ -273,6 +277,7 @@ var executableFiles = map[string]bool{
 	"agent-bus":                                    true, "agent-busd": true, "agent-bus-admin": true, "agent-bus-runner": true,
 	"agent-bus-setup":     true,
 	"agent-bus-token":     true, // fixed SSH shell entry; the sibling CLI carries build evidence
+	"agent-bus-ts":        true, // the compiled TypeScript faces
 	"launchers/ab-claude": true, "launchers/ab-codex": true, "launchers/ab-opencode": true, "launchers/ab-opencode1": true,
 }
 
@@ -335,6 +340,9 @@ func checkBundleVersion(root, expectedVersion string) (checkedBundle, error) {
 			allowed[name] = true
 		}
 		for name := range legacyFiles {
+			allowed[name] = true
+		}
+		for name := range legacyBundles {
 			allowed[name] = true
 		}
 	}
@@ -622,6 +630,9 @@ func commandLinks() map[string]string {
 	for _, name := range []string{"ab-claude", "ab-codex", "ab-opencode", "ab-opencode1"} {
 		links[name] = filepath.Join(installRoot, "current", "launchers", name)
 	}
+	// The Claude plugin starts the MCP face by this name on PATH; the
+	// compiled binary takes its part from the name it is run under.
+	links["agent-bus-mcp"] = filepath.Join(installRoot, "current", "agent-bus-ts")
 	return links
 }
 

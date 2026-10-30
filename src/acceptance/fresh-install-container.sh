@@ -34,8 +34,7 @@ mutate_missing() {
   pass "$label missing artifact fails before host mutation"
 }
 mutate_missing web web/server.ts
-mutate_missing mcp mcp/server.js
-mutate_missing launcher launchers/launcher.js
+mutate_missing compiled agent-bus-ts
 mutate_missing agent-helper agents/shared/metadata.py
 
 cd /root/valid
@@ -266,8 +265,9 @@ for command in ab-claude ab-codex ab-opencode ab-opencode1; do
   target=$(readlink "/usr/local/bin/$command")
   [ "$target" = "/usr/local/lib/agent-bus/current/launchers/$command" ] || fail "$command targets $target"
 done
-[ -f /usr/local/lib/agent-bus/current/mcp/server.js ] || fail "MCP face was not installed"
-[ -f /usr/local/lib/agent-bus/current/launchers/launcher.js ] || fail "launcher face was not installed"
+[ -x /usr/local/lib/agent-bus/current/agent-bus-ts ] || fail "compiled TypeScript faces were not installed"
+[ "$(readlink /usr/local/bin/agent-bus-mcp)" = /usr/local/lib/agent-bus/current/agent-bus-ts ] || fail "agent-bus-mcp does not name the compiled face"
+grep -q "^ExecStart=/usr/local/lib/agent-bus/current/agent-bus-ts web$" /etc/systemd/system/agent-bus-web.service || fail "web unit does not run the compiled face"
 (cd /usr/local/lib/agent-bus/current && sha256sum -c MANIFEST.sha256 >/dev/null)
 unit=$(cat /etc/systemd/system/agent-busd.service)
 if grep -qE -- ' --web([[:space:]]|$)' <<<"$unit"; then fail "the daemon unit still runs a web child"; fi

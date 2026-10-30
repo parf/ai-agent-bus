@@ -232,7 +232,9 @@ func webDirFor(exe string) string {
 	return filepath.Join(filepath.Dir(exe), "web")
 }
 
-// The release ships one unit template; both installers fill the code path.
+// The release ships one unit template; both installers fill the code path
+// and, for a release's compiled face, the release root that holds it.
 func webUnit(template []byte, web string) []byte {
-	return []byte(strings.ReplaceAll(string(template), "@WEB_DIR@", web))
+	unit := strings.ReplaceAll(string(template), "@WEB_DIR@", web)
+	return []byte(strings.ReplaceAll(unit, "@ROOT@", filepath.Dir(web)))
 }
