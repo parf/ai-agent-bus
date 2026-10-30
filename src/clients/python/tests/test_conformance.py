@@ -14,7 +14,10 @@ CASES = Path(__file__).resolve().parents[3] / 'testdata/client-conformance'
 
 
 def cases(name):
-    return json.loads((CASES / (name + '.json')).read_text())
+    rows = json.loads((CASES / (name + '.json')).read_text())
+    if not isinstance(rows, list) or not rows:
+        raise AssertionError('shared case file must contain concrete examples: ' + name)
+    return rows
 
 
 class SharedConformance(unittest.TestCase):
