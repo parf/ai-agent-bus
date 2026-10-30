@@ -1,6 +1,6 @@
 # Mac run list
 
-📌 **TL;DR:** What the owner's Mac must run on 2026-10-31 to close the aarch64 half of [P.3](TODO.md#distribution-acceptance): build the Linux aarch64 archives there, run the release evidence check on them, then a clean install and `check-deploy` in a Linux arm64 container. The darwin-arm64 client and runner follow [RD166](DECISIONS.md#recorded-decisions) as [MAC.1](macos.md#mac1-client-and-runner-on-macos), after their code exists. Everything here is a plan; nothing has run yet.
+📌 **TL;DR:** What the owner's Mac must run on 2026-10-30 to close the aarch64 half of [P.3](TODO.md#distribution-acceptance): build the Linux aarch64 archives there, run the release evidence check on them, then a clean install and `check-deploy` in a Linux arm64 container. The darwin-arm64 client and runner follow [RD166](DECISIONS.md#recorded-decisions) as [MAC.1](macos.md#mac1-client-and-runner-on-macos), after their code exists. Everything here is a plan; nothing has run yet.
 
 ## Prerequisites
 

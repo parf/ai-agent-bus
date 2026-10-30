@@ -662,7 +662,7 @@ Implement the [release artifacts](distribution.md#release-artifacts) and [contai
 - ⏳ P.3 Release evidence
   - Acceptance: Query every shipped program's version in both distributions and compare with the release source; require stamped Go build information and packaged license. Substitute an unstamped binary, alter one version or omit the license: each fails its corresponding check
   - Mutant: Substitute an unstamped binary, alter one version or omit the license: each fails its corresponding check
-  - Built: `src/release-verify.sh` and its two tests ([release evidence](../../docs/07-setup.md#release-evidence)); the release-run wiring stays pending. x86_64 verified, aarch64 not built here: checked on the owner's Mac 10-31 (the Mac run list)
+  - Built: `src/release-verify.sh` and its two tests ([release evidence](../../docs/07-setup.md#release-evidence)); the release-run wiring stays pending. x86_64 verified, aarch64 not built here: checked on the owner's Mac 10-30 (the Mac run list)
 
 ## macOS
 
