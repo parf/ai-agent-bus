@@ -41,9 +41,33 @@ def darwin_archive(client_archive, version, mac_cpu, out):
     name = f'agent-bus-client-{version}-darwin-{MAC[mac_cpu]}'
     old.rename(work / name)
     archive = out / (name + '.tar.gz')
-    with tarfile.open(archive, 'w:gz') as tar:
+    with tarfile.open(archive, 'w:gz', compresslevel=1) as tar:
         tar.add(work / name, arcname=name)
     return archive
+
+
+def slim(archive, out, version):
+    """The release archive with every large file replaced by a small stand-in, its manifest and checksum kept
+    consistent. The packing and wiring under test do not care what the programs are; agent-bus answers --version."""
+    work = out / ('slim-' + archive.name.split('.tar')[0])
+    work.mkdir(parents=True)
+    with tarfile.open(archive) as tar:
+        tar.extractall(work, filter='data')
+    root = next(work.iterdir())
+    lines = []
+    for line in (root / 'MANIFEST.sha256').read_text().splitlines():
+        name = line.split('  ', 1)[1]
+        path = root / name
+        if path.stat().st_size > 1 << 20:
+            path.write_text(f'#!/bin/sh\necho {version}\n' if name == 'agent-bus' else '#!/bin/sh\nexit 0\n')
+            line = f'{pack.digest(path)}  {name}'
+        lines.append(line + '\n')
+    (root / 'MANIFEST.sha256').write_text(''.join(lines))
+    slimmed = out / archive.name
+    with tarfile.open(slimmed, 'w:gz', compresslevel=1) as tar:
+        tar.add(root, arcname=root.name)
+    shutil.rmtree(work)
+    return slimmed
 
 
 class DarwinPackages(unittest.TestCase):
@@ -60,17 +84,30 @@ class DarwinPackages(unittest.TestCase):
             built = subprocess.run([str(ROOT / 'src/package.sh'), str(dist)], capture_output=True, text=True)
             if built.returncode:
                 raise AssertionError('release build failed: ' + built.stderr[-1500:])
-        cls.full = next(p for p in dist.glob(f'agent-bus-*-linux-{ARCH}.tar.gz') if '-client-' not in p.name)
-        cls.client = dist / cls.full.name.replace('agent-bus-', 'agent-bus-client-', 1)
-        cls.version = cls.full.name.removeprefix('agent-bus-').split('-linux-')[0]
+        full = next(p for p in dist.glob(f'agent-bus-*-linux-{ARCH}.tar.gz') if '-client-' not in p.name)
+        cls.version = full.name.removeprefix('agent-bus-').split('-linux-')[0]
+        (cls.work / 'slim').mkdir()
+        cls.full = slim(full, cls.work / 'slim', cls.version)
+        cls.client = slim(dist / full.name.replace('agent-bus-', 'agent-bus-client-', 1), cls.work / 'slim', cls.version)
         cls.names = pack.names()
         (cls.work / 'mac').mkdir()
         cls.mac = {cpu: darwin_archive(cls.client, cls.version, cpu, cls.work / 'mac') for cpu in MAC}
+        # The release packed once with both macOS archives; the checks that read the result share it.
+        cls.packed = cls.work / 'packed'
+        cls.packed.mkdir()
+        cls.sums_of([cls.full, cls.client, *cls.mac.values()], cls.packed)
+        with contextlib.redirect_stdout(None):
+            pack.build(cls.full, cls.client, cls.packed / 'SHA256SUMS', cls.packed / 'tarballs', darwin=list(cls.mac.values()))
+        cls.tarballs = cls.packed / 'tarballs'
 
-    def sums(self, archives, directory):
+    @staticmethod
+    def sums_of(archives, directory):
         path = directory / 'SHA256SUMS'
         path.write_text(''.join(f'{pack.digest(a)}  {a.name}\n' for a in archives))
         return path
+
+    def sums(self, archives, directory):
+        return self.sums_of(archives, directory)
 
     def build(self, name, *, darwin=None, full=None):
         directory = self.work / name
@@ -93,7 +130,7 @@ class DarwinPackages(unittest.TestCase):
         return cls.metadata(found[0]) if found else (None, [])
 
     def test_darwin_platform_packages_exist_with_names_os_cpu_and_files(self):
-        tarballs = self.build('names')
+        tarballs = self.tarballs
         for cpu in ('arm64', 'x64'):
             meta, files = self.package(tarballs, f"{self.names['client']}-darwin-{cpu}")
             self.assertIsNotNone(meta, f'no macOS {cpu} platform package')
@@ -104,7 +141,7 @@ class DarwinPackages(unittest.TestCase):
         self.assertIsNone(self.package(tarballs, f"{self.names['bus']}-darwin-arm64")[0], 'no macOS bus platform package exists')
 
     def test_both_command_packages_wire_the_macos_platforms(self):
-        tarballs = self.build('wiring')
+        tarballs = self.tarballs
         for kind in ('client', 'bus'):
             meta, _ = self.package(tarballs, self.names[kind])
             self.assertIn('darwin', meta['os'])
@@ -135,19 +172,17 @@ class DarwinPackages(unittest.TestCase):
         return subprocess.run(['node', '-e', script], env=env, capture_output=True, text=True, timeout=30)
 
     def test_the_agent_bus_command_resolves_on_macos(self):
-        tarballs = self.build('resolve')
-        for kind in ('client', 'bus'):
-            prefix = self.work / f'prefix-{kind}' / 'p'
-            prefix.parent.mkdir()
-            env = self.install(tarballs, self.names[kind], prefix, 'darwin', 'arm64')
-            self.assertTrue((prefix / 'lib/node_modules' / f"{self.names['client']}-darwin-arm64").is_dir() or
-                            any(self.names['client'] + '-darwin-arm64' in str(p) for p in (prefix / 'lib/node_modules').rglob('package.json')),
-                            'the macOS client package was not installed')
-            result = self.as_mac(prefix, env, self.names[kind], 'agent-bus', '--version')
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(result.stdout.splitlines()[0], self.version)
+        # One install serves both: the bus package pulls the macOS client package in for its agent-bus command.
+        prefix = self.work / 'prefix' / 'p'
+        prefix.parent.mkdir()
+        env = self.install(self.tarballs, self.names['bus'], prefix, 'darwin', 'arm64')
+        self.assertTrue(any(self.names['client'] + '-darwin-arm64' in str(p) for p in (prefix / 'lib/node_modules').rglob('package.json')),
+                        'the macOS client package was not installed')
+        result = self.as_mac(prefix, env, self.names['bus'], 'agent-bus', '--version')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.splitlines()[0], self.version)
         # The daemon is Linux's: on macOS its command says so instead of running anything.
-        refused = self.as_mac(self.work / 'prefix-bus' / 'p', env, self.names['bus'], 'agent-busd', '--version')
+        refused = self.as_mac(prefix, env, self.names['bus'], 'agent-busd', '--version')
         self.assertNotEqual(refused.returncode, 0)
         self.assertIn('unsupported platform darwin-arm64', refused.stderr)
 
@@ -174,7 +209,7 @@ class DarwinPackages(unittest.TestCase):
         (release / 'launchers/ab-claude').unlink()
         lines = (release / 'MANIFEST.sha256').read_text().splitlines()
         (release / 'MANIFEST.sha256').write_text(''.join(line + '\n' for line in lines if not line.endswith('  launchers/ab-claude')))
-        with tarfile.open(short, 'w:gz') as tar:
+        with tarfile.open(short, 'w:gz', compresslevel=1) as tar:
             tar.add(release, arcname=release.name)
         directory = self.work / 'lacking-out'
         directory.mkdir()
