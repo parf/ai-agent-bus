@@ -196,6 +196,9 @@ class OwnersFlow(unittest.TestCase):
         for r in events:  # who asked, what moved, whether anything was discarded
             self.assertEqual((r['requested_by'], r['id'], r['trigger']), ('#caller@fixture', None, 'event'), r)
         self.assertEqual((fail[0]['to'], fail[0]['from'], fail[0]['discarded']), (head_c, head_c, None))
+        # An announced commit is looked up once the copy is cleared to move: the moved copies carry it, the
+        # dirty refusal (made before the lookup) does not.
+        self.assertEqual([r['requested'] for r in ok], [new, new])
         self.assertEqual(self.sh(self.copies['host-c.test'], 'rev-parse', 'HEAD'), head_c)
         self.assertEqual(snapshot(self.copies['host-c.test']), dirty_c, 'the dirty ff copy changed')
         for host in ('host-a.test', 'host-b.test'):
