@@ -4,6 +4,8 @@
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 dest=${1:?usage: package.sh <agent.d/tmux-sessions>}
+. "$here/../../package-tree.sh"
+package_begin "$dest"
 mkdir -p "$dest/support/agents/shared" "$dest/support/internal/version"
 install -m 0755 "$here/sessions.py" "$dest/sessions.py"
 install -m 0644 "$here/agent.json" "$here/config.json.dist" "$dest/"
@@ -14,3 +16,4 @@ for legal in "$here/../.." "$here/../../../.."; do [ -f "$legal/LICENSE.md" ] &&
 install -m 0644 "$legal/LICENSE.md" "$dest/"
 install -d -m 0755 "$dest/licenses"
 install -m 0644 "$legal/licenses/NOTICE.md" "$dest/licenses/NOTICE.md"
+package_commit
