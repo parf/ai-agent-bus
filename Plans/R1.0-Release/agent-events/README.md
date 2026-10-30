@@ -18,7 +18,9 @@ Tasks: [RT34](../TODO.md#rt34-agent-events).
 
 One ring per level, so a stream of stderr warnings never pushes an alert out
 (owner, 2026-10-29). Each ring is fixed-size; when full, the oldest entry is
-lost. Sizes are [Q212](../QUESTIONS.md#agent-events).
+lost. Every entry also expires after its level's TTL, so nobody sees that an
+agent failed 100 days ago (owner, 2026-10-29). Sizes and TTLs are
+[Q212](../QUESTIONS.md#agent-events).
 
 ## Who writes
 

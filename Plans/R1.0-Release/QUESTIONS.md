@@ -35,8 +35,8 @@ Choices for the [shorter prompts plan](short-prompts.md#proposal), to discuss wi
 
 ## Agent events
 
-- ❓ Q212 How big each [agent-event](agent-events/README.md#levels) ring is
-  - Proposal: per agent 200 notices, 200 warnings, 50 alerts; one node-wide setting, no per-agent override at first
+- ❓ Q212 How big each [agent-event](agent-events/README.md#levels) ring is, and how long an entry lives
+  - Proposal: per agent 200 notices, 200 warnings, 50 alerts; TTL 1 day for notices, 7 days for warnings, 30 days for alerts; one node-wide setting, no per-agent override at first
   - Impact: 200 short lines per ring is about 40 KB an agent in memory; alerts on disk stay small
 
 - ❓ Q213 Do allow-list callers see the events their own messages caused
