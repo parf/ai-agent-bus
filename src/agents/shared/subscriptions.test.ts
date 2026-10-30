@@ -50,8 +50,10 @@ function fake(initial: Row[]) {
       if (state.store === "unknown_after") throw new Error("outcome unknown");
       return true;
     },
-    async remove(key) { state.writes++; return store.delete(key); },
+    // A write is a stored row or a counter write, as the Python harness counts.
+    async remove(key) { return store.delete(key); },
     async counts(key, sent, dropped) {
+      state.writes++;
       if (state.counterStore === "unknown") throw new Error("outcome unknown");
       Object.assign(store.get(key) as Row, { sent, dropped });
     },
@@ -99,14 +101,14 @@ for (const c of vectors.cases as Record<string, any>[]) {
         else if (step.op === "delete") got.deleted = await subs.delete(caller, step.id);
         else if (step.op === "deliver") {
           const deadline = step.deadline === "expired" ? Date.now() - 1000 : undefined;
-          got = { ...(await subs.deliver(step.event, step.event.text, step.event.text, deadline === undefined ? {} : { deadline })), warnings: [...warnings], attempts: state.attempts };
+          got = await subs.deliver(step.event, step.event.text, step.event.text, deadline === undefined ? {} : { deadline });
         } else throw new Error(`unknown op ${step.op}`);
       } catch (err) {
         if (!(err instanceof SubscriptionError)) throw err;
         got = { error: err.code };
       }
-      if ("queries" in want) got.queries = state.queries;
-      if ("writes" in want) got.writes = state.writes;
+      const seen: Record<string, unknown> = { queries: state.queries, attempts: state.attempts, warnings: [...warnings], writes: state.writes };
+      for (const field of Object.keys(seen)) if (field in want) got[field] = seen[field];
       expect({ where, ...got }).toEqual({ where, ...want });
       // Every scripted admission answer was asked for: none left over.
       expect({ where, unasked: state.checks }).toEqual({ where, unasked: [] });
