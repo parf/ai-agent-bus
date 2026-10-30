@@ -89,13 +89,50 @@ func TestReaderlessEntryWithABadManifestAnswersStatusOnly(t *testing.T) {
 	}
 }
 
+// The runner's asks-only reader is an outstanding consume request, so a listing counts it in
+// readers; it takes no ordinary message, so reading (an unfiltered read) stays false.
+func TestAsksOnlyReaderCountsInReadersAndIsNotReading(t *testing.T) {
+	r, b, _ := configurationFixture(t, "itself", "printf 'missing token' >&2\nexit 78\n")
+	awaitConfigurationState(t, r, "unconfigured")
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		rec, _ := b.Lookup("owner@h", "#fixture@h")
+		if rec.Readers != nil && *rec.Readers == 1 {
+			if rec.Reading {
+				t.Fatalf("an asks-only reader is reading: %+v", rec)
+			}
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("the asks-only reader never showed in readers: %+v", rec)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
 // A kept agent with no process answers status until its process starts; then
 // the runner's reader is gone and the ask reaches the process.
 func TestKeeperAnswersAsksOnlyUntilItsProcessRuns(t *testing.T) {
 	r, b, script := configurationFixture(t, "itself", "exit 3\n")
+	// The asks reader attaches a moment after the entry exists, and under load later than a fixed wait:
+	// ask again whenever a second passes without a reply, and read until the deadline.
 	var got string
-	for end := time.Now().Add(4 * time.Second); !strings.HasPrefix(got, "failed: kept process exited") && time.Now().Before(end); time.Sleep(20 * time.Millisecond) {
-		got = askAnswer(t, b, protocol.AskStatus)
+	sendAsk(t, b, protocol.AskStatus)
+	deadline := time.Now().Add(8 * time.Second)
+	for !strings.HasPrefix(got, "failed: kept process exited") && time.Now().Before(deadline) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		e, err := b.Consume(ctx, "owner@h", "", "", false, false)
+		cancel()
+		if err != nil {
+			sendAsk(t, b, protocol.AskStatus)
+			continue
+		}
+		if e.Receipt != "" {
+			continue
+		}
+		if got = e.Body; !strings.HasPrefix(got, "failed: kept process exited") {
+			sendAsk(t, b, protocol.AskStatus)
+		}
 	}
 	if !strings.HasPrefix(got, "failed: kept process exited") {
 		t.Fatalf("a keeper whose process is not running answers status: %q", got)
