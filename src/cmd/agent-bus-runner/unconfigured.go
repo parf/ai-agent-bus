@@ -138,5 +138,6 @@ func (r *runner) notConfigured(s *served, k *keeper, reason string) {
 			r.installed[i].Refused = reason
 		}
 	}
+	r.syncAskersNow()
 	fmt.Fprintf(r.say, "%s: %s is not configured: %s\n", r.name, s.name, reason)
 }

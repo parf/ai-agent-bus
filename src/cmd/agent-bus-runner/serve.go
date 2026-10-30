@@ -433,6 +433,7 @@ func (r *runner) serve(ctx context.Context) {
 			fmt.Fprintf(r.say, "%s: no longer serving %s\n", r.name, name)
 		}
 	}
+	r.syncAskers(ctx)
 }
 
 // stop ends serving an agent: its reader stops and its cgroup is given up
@@ -1092,6 +1093,7 @@ func (r *runner) checkDisk(s *served, j *jail) {
 			r.installed[i].Refused = why
 		}
 	}
+	r.syncAskersNow()
 	fmt.Fprintf(r.say, "%s: %s is stopped: %s\n", r.name, s.name, why)
 }
 
@@ -1252,14 +1254,7 @@ func (r *runner) observedStatus(s *served) string {
 	}
 	for _, in := range r.installed {
 		if in.Key == s.in.Key && (in.Refused != "" || in.Unconfigured) {
-			reason := strings.TrimSpace(in.Refused)
-			if reason == "" && in.LastExit != nil {
-				reason = strings.TrimSpace(in.LastExit.Reason)
-			}
-			if reason == "" {
-				reason = "agent is not configured"
-			}
-			return "failed: " + reason
+			return failedStatus(in)
 		}
 	}
 	if r.retiring[s.in.Key] != nil {
@@ -1276,6 +1271,18 @@ func (r *runner) observedStatus(s *served) string {
 		}
 	}
 	return ""
+}
+
+// failedStatus is the `failed:` line of an entry that is refused or unconfigured.
+func failedStatus(in installed) string {
+	reason := strings.TrimSpace(in.Refused)
+	if reason == "" && in.LastExit != nil {
+		reason = strings.TrimSpace(in.LastExit.Reason)
+	}
+	if reason == "" {
+		reason = "agent is not configured"
+	}
+	return "failed: " + reason
 }
 
 // settingsChanged is whether an agent's effective agent.json, its host entry or

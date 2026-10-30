@@ -160,7 +160,8 @@ type runner struct {
 	installed    []installed
 	loadErr      string // a load that failed as a whole: agents.json unreadable
 	served       map[string]*served
-	stopped      map[string]bool // installed keys a stop call took down; guarded by reloadMu
+	stopped      map[string]bool   // installed keys a stop call took down; guarded by reloadMu
+	askers       map[string]*asker // names answered asks-only without an ordinary reader; guarded by mu
 
 	probe     sync.Once // whether this host can sandbox, asked once
 	noSandbox error
@@ -734,9 +735,6 @@ func (c *client) ownerOf(name string) (string, error) {
 // where the reader is, and share says it is one of a pool (a second unfiltered
 // reader of the same name is then meant, not a mistake).
 func (c *client) next(ctx context.Context, poll time.Duration, host string, share bool) (protocol.Envelope, bool, error) {
-	var e protocol.Envelope
-	read, cancel := context.WithTimeout(ctx, poll+15*time.Second)
-	defer cancel()
 	q := url.Values{"wait": {poll.String()}}
 	if host != "" {
 		q.Set("host", host)
@@ -744,6 +742,20 @@ func (c *client) next(ctx context.Context, poll time.Duration, host string, shar
 	if share {
 		q.Set("share", "1")
 	}
+	return c.consume(ctx, poll, q)
+}
+
+// nextAsks is next for the asks-only read: only a message that carries an ask
+// is taken, ordinary ones stay queued, and it may wait beside the agent's own
+// unfiltered reader (RT25).
+func (c *client) nextAsks(ctx context.Context, poll time.Duration) (protocol.Envelope, bool, error) {
+	return c.consume(ctx, poll, url.Values{"wait": {poll.String()}, "asks": {"only"}})
+}
+
+func (c *client) consume(ctx context.Context, poll time.Duration, q url.Values) (protocol.Envelope, bool, error) {
+	var e protocol.Envelope
+	read, cancel := context.WithTimeout(ctx, poll+15*time.Second)
+	defer cancel()
 	out, code, err := c.do(read, "GET", "/consume", q, nil)
 	switch {
 	case err != nil:

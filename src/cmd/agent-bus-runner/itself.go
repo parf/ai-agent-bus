@@ -120,6 +120,9 @@ func (k *keeper) loop() {
 				}
 			}
 			k.mu.Unlock()
+			if err == nil {
+				k.r.askersAgain() // the process is the reader now: the runner's asks-only read ends
+			}
 		}
 		if cmd != nil {
 			// The filter's pipe is the child's now, or nobody's.
@@ -175,6 +178,7 @@ func (k *keeper) loop() {
 			continue
 		}
 		fmt.Fprintf(k.r.say, "%s: %s exited (%v); restarting in %s\n", k.r.name, k.s.name, err, wait)
+		k.r.askersAgain()
 		select {
 		case <-time.After(wait):
 		case <-k.ctx.Done():
