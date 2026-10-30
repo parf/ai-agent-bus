@@ -1,8 +1,33 @@
 # External services
 
-📌 **TL;DR:** A 📡 `service` is a card saying where something outside is and how
-to reach it; nothing on this bus answers for it. Like a 📚 resource card it
-has no queue here, and it refuses everything that would need one. Its address and protocol are required.
+📌 **TL;DR:**
+- **Problem:** something outside the bus (a web service, a database host) must be findable and nameable like everything else, without pretending the bus runs it.
+- **Outcome:** a 📡 `service` is a card saying where something outside is and how to reach it; nothing on this bus answers for it. Its address and protocol are required. Like a 📚 resource card it has no queue here, and it refuses everything that would need one.
+- **Start:** look at the card: `agent-bus ls <service>` ([Try this first](#try-this-first)).
+
+## Why you'd want it
+
+- 📡 **An outside service has no name on the bus.** Now a card gives it one, with where it is and how to reach it.
+- 🙅 **A message to it would go nowhere.** Now the card refuses what needs a queue it does not have.
+- 🔐 **Its secrets must not sit in the card.** Now they are kept apart ([secrets](#secrets)).
+
+## What you get
+
+- ✅ **A card:** address, protocol and owner for something external.
+- ✅ **Honest refusals:** it has no queue here, and says so.
+- 🚫 **Not for:** running a program on the bus; that is an [agent](03-records.md#record-kinds).
+
+## Try this first
+
+- Look at a service card (read-only):
+
+```sh
+agent-bus ls <service-name>
+```
+
+## Technical details
+
+The reference below keeps every section as it was; other pages link to these sections.
 
 ## What a service is
 
@@ -37,17 +62,13 @@ agent-bus register mysql-prod@srv1 --service-addr host:3306 --protocol mysql
 at all; the four kinds that have a queue are reached by sending to the name
 instead ([records § record kinds](03-records.md#record-kinds)).
 
-A service's `addr` and `protocol` are the registration's own words, stored raw
-and **never interpreted**. The daemon does not implement a second protocol and
-does not proxy. They are facts in the registry for whoever is choosing what to
-call ([discovery § what a listing answers](05-discovery.md#what-a-listing-answers)).
+- A service's `addr` and `protocol` are the registration's own words, stored raw and **never interpreted**.
+- The daemon does not implement a second protocol and does not proxy.
+- They are facts in the registry for whoever is choosing what to call ([discovery § what a listing answers](05-discovery.md#what-a-listing-answers)).
 
 **`/etc/services` is the suggested vocabulary for `protocol`, and only a
-suggestion.** Use the name from it where there is one, so two people registering
-the same kind of thing write the same word. It is not a checked set and cannot
-become one: the file is outdated and incomplete — half of what anyone registers
-here (`mcp`, `grpc`, an in-house protocol) is not in it, and refusing those would
-make the field useless to the people who need it most.
+- suggestion.** Use the name from it where there is one, so two people registering the same kind of thing write the same word.
+- It is not a checked set and cannot become one: the file is outdated and incomplete — half of what anyone registers here (`mcp`, `grpc`, an in-house protocol) is not in it, and refusing those would make the field useless to the people who need it most.
 
 A thing outside that somebody wants reachable **over** the bus is not this case:
 register an 👾 for whatever reads its queue, and let that agent call the outside
@@ -85,12 +106,9 @@ Maintainers ([private values](constitution.md#-private-values)); its
 | `agent-bus secret <name> 'TOKEN=abc'` | the same, inline |
 | the web face's [service registration](../src/web/web-face/records.md#register) | set it once, as the record is created |
 
-One verb, and the direction is whether a secret was handed to it — the shape
-[config](03-records-agent.md#configuring-a-template) uses. The read writes
-the bytes to stdout exactly as stored, with no trailing newline: a credential
-goes into a shell or an environment, and every byte added on the way is one
-whatever uses it has to strip off again. Setting one answers with the record,
-so what comes back is the digest and never what was just sent.
+- One verb, and the direction is whether a secret was handed to it — the shape [config](03-records-agent.md#configuring-a-template) uses.
+- The read writes the bytes to stdout exactly as stored, with no trailing newline: a credential goes into a shell or an environment, and every byte added on the way is one whatever uses it has to strip off again.
+- Setting one answers with the record, so what comes back is the digest and never what was just sent.
 
 | Rule | |
 |---|---|
@@ -127,13 +145,8 @@ See [configuration](03-records-agent.md#configuring-a-template) for access and t
 
 ### Env file syntax
 
-One syntax for every `KEY=value` list the bus and the runner read — a record's
-secret, the runner's `env.dist`, an agent's and an instance's `env` — and one
-parser for all of them, so a secret the daemon accepts is one the runner can
-deliver. The syntax is the official [dotenv](https://github.com/motdotla/dotenv#what-rules-does-the-parsing-engine-follow) format, read as its own
-parser reads it, with nothing evaluated (owner decisions Q171–Q173, 2026-10-17),
-and fast and simple: a reference fails at once rather than being carried as text
-(owner rule, 2026-10-18).
+- One syntax for every `KEY=value` list the bus and the runner read — a record's secret, the runner's `env.dist`, an agent's and an instance's `env` — and one parser for all of them, so a secret the daemon accepts is one the runner can deliver.
+- The syntax is the official [dotenv](https://github.com/motdotla/dotenv#what-rules-does-the-parsing-engine-follow) format, read as its own parser reads it, with nothing evaluated (owner decisions Q171–Q173, 2026-10-17), and fast and simple: a reference fails at once rather than being carried as text (owner rule, 2026-10-18).
 
 | A line | Means |
 |---|---|

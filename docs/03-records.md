@@ -1,10 +1,46 @@
 # Records
 
-📌 **TL;DR:** Every registered name is one of seven kinds: 👤 `user`, 👥 `group`,
-👾 `agent`, 📮 `queue`, 📣 `pubsub`, 📡 `service` and 📚 `resource`. Three have an
-inbox here (👤, 👾, 📮), a 📣 copies each message on, a group is a named list of actors, a service says where something
-external is, and a resource is a card for data an MCP client may read. `kind` is a closed set the daemon answers for, never inferred from
-which fields are filled in.
+📌 **TL;DR:**
+- **Problem:** a bus holds very different things (people, programs, queues, outside services, data cards) and mixing them up leads to messages sent nowhere.
+- **Outcome:** every registered name is one of seven kinds: 👤 `user`, 👥 `group`, 👾 `agent`, 📮 `queue`, 📣 `pubsub`, 📡 `service` and 📚 `resource`. Three have an inbox here (👤, 👾, 📮), a 📣 copies each message on, a group is a named list of actors, a service says where something external is, and a resource is a card for data an MCP client may read.
+- **Start:** count the kinds on your bus: `agent-bus status | jq .kinds` ([Try this first](#try-this-first)). `kind` is a closed set the daemon answers for, never inferred from which fields are filled in.
+
+## Why you'd want it
+
+- 🧩 **Different things need different rules.** Now each kind says what it can receive, carry and refuse.
+- 📍 **A name should say what it is.** Now the kind is part of the record, fixed at registration.
+- 🔎 **Listings are hard to read when everything looks alike.** Now each kind has its own glyph and its own page.
+
+## What you get
+
+- ✅ **Seven kinds:** a closed set, each with its own page ([pages for each kind](#pages-for-each-kind)).
+- ✅ **Common fields and tags:** what every record carries, and how tags group them.
+- ✅ **Personal and shared:** who a record belongs to.
+- 🚫 **Not for:** inventing a new kind; the set is closed.
+
+## Try this first
+
+- Count the records by kind (read-only):
+
+```sh
+agent-bus status | jq -c .kinds
+```
+
+<details>
+<summary>See it on a real node (ran today)</summary>
+
+```json
+{"agent":114,"group":2,"pubsub":0,"queue":0,"resource":1,"service":1,"user":8}
+```
+
+- Each number is how many records of that kind the bus holds.
+- The output is from the development node on 2026-10-30.
+
+</details>
+
+## Technical details
+
+The reference below keeps every section as it was; other pages link to these sections.
 
 ## What a record is
 
@@ -160,11 +196,10 @@ named in lists and a 📚 is read through MCP.
 any record editor, or filter the registry with `GET /ls?tag=<label>`. These
 labels are separate from the envelope's message-correlation `tag`.
 
-A tag names a role, a group, or a shared method set for fan-out (like
-`systemd`); never just the agent's own name. Bundled messaging agents share
-`messaging`. Systemd, logwatch and server-info share `ops` for listing; their
-methods differ, so do not broadcast a method to that category. Runtime tags,
-`ai-cli`, `runner` and host/group labels retain their meaning.
+- A tag names a role, a group, or a shared method set for fan-out (like `systemd`); never just the agent's own name.
+- Bundled messaging agents share `messaging`.
+- Systemd, logwatch and server-info share `ops` for listing; their methods differ, so do not broadcast a method to that category.
+- Runtime tags, `ai-cli`, `runner` and host/group labels retain their meaning.
 
 - Commas separate labels. Input becomes lowercase; tags contain only `a-z`,
   `0-9`, `-` and `_`. Spaces and all other characters are refused with an error
@@ -180,31 +215,27 @@ methods differ, so do not broadcast a method to that category. Runtime tags,
 <details>
 <summary>Updates, automatic labels and browse counts</summary>
 
-Registration adds tags to the existing set; it cannot change the Owner's
-Personal classification. Manage replaces the stated set; `--remove-tags`
-removes labels, and `--add-to-set-tags` adds without removing others. Changing
-`personal` needs the same Owner authority and audience validation as before.
-At creation, a legacy Personal flag or a `personal` label enables it. An edit
-that supplies conflicting flag and label values is refused.
+- Registration adds tags to the existing set; it cannot change the Owner's Personal classification.
+- Manage replaces the stated set; `--remove-tags` removes labels, and `--add-to-set-tags` adds without removing others.
+- Changing `personal` needs the same Owner authority and audience validation as before.
+- At creation, a legacy Personal flag or a `personal` label enables it.
+- An edit that supplies conflicting flag and label values is refused.
 
-Launchers add `claude`, `codex` or `opencode`. The runner adds `runner`; the
-dedicated runner (`agent-bus run`) adds no automatic tag, but accepts explicit
-`--tags` or the `tags` array in JSON passed to `agent-bus run -`. The runner combines package and
-host-inventory tags and adds them again on reload without replacing manual
-labels. Removing a configured label does not remove its stored tag: use Manage.
-Brackets in descriptions, such as `[stats]`, remain ordinary text, not tags.
+- Launchers add `claude`, `codex` or `opencode`.
+- The runner adds `runner`; the dedicated runner (`agent-bus run`) adds no automatic tag, but accepts explicit `--tags` or the `tags` array in JSON passed to `agent-bus run -`.
+- The runner combines package and host-inventory tags and adds them again on reload without replacing manual labels.
+- Removing a configured label does not remove its stored tag: use Manage.
+- Brackets in descriptions, such as `[stats]`, remain ordinary text, not tags.
 
-The web's top row is All, My and tag counts; My filters ownership and is not a
-tag. All/My hide Personal records by default; selecting a tag includes every
-caller-visible record carrying it, including Personal records. Counts respect
-search, state, readers and queue filters, before pagination. Tag counts respect
-My when selected, but ignore the currently selected tag. All/My counts ignore
-their own scope and tag choice. Counts never include inaccessible records.
-Tags sort by count descending then label ascending; the first 25 and the
-selected tag stay visible, with the rest expandable. One tag is selected at a
-time. A multiple-tag query is comma-delimited and selects the records carrying
-every label listed; that is settled and
-[pending](../Plans/R1.0-Release/TODO.md#record-tags-acceptance).
+- The web's top row is All, My and tag counts; My filters ownership and is not a tag.
+- All/My hide Personal records by default; selecting a tag includes every caller-visible record carrying it, including Personal records.
+- Counts respect search, state, readers and queue filters, before pagination.
+- Tag counts respect My when selected, but ignore the currently selected tag.
+- All/My counts ignore their own scope and tag choice.
+- Counts never include inaccessible records.
+- Tags sort by count descending then label ascending; the first 25 and the selected tag stay visible, with the rest expandable.
+- One tag is selected at a time.
+- A multiple-tag query is comma-delimited and selects the records carrying every label listed; that is settled and [pending](../Plans/R1.0-Release/TODO.md#record-tags-acceptance).
 
 </details>
 
@@ -233,18 +264,11 @@ nothing from those already allowed.
 <details>
 <summary>How the stored classification changes</summary>
 
-Only the owner changes Personal. A new registration may state it; an agent
-refreshing its metadata preserves the owner's stored choice. A stored record
-whose lists reach outside its cohort is
-[ignored and reported](constitution.md#persistence-and-loading) at load. A request that
-changes Personal and its assignments is checked as one final record, so an
-owner can remove sharing while enabling Personal, or disable Personal while
-adding sharing, in one operation.
+- Only the owner changes Personal.
+- A new registration may state it; an agent refreshing its metadata preserves the owner's stored choice.
+- A stored record whose lists reach outside its cohort is [ignored and reported](constitution.md#persistence-and-loading) at load.
+- A request that changes Personal and its assignments is checked as one final record, so an owner can remove sharing while enabling Personal, or disable Personal while adding sharing, in one operation.
 
-Assignment validity is checked when a record is written, and kept true after
-it: removing an allowed agent takes every reference to it in the removal's
-commit ([unregistering](01-identity-and-authority.md#unregistering)), and
-transferring one to another User takes it off its old Owner's Personal
-records in the transfer's commit, since it has left that cohort.
+- Assignment validity is checked when a record is written, and kept true after it: removing an allowed agent takes every reference to it in the removal's commit ([unregistering](01-identity-and-authority.md#unregistering)), and transferring one to another User takes it off its old Owner's Personal records in the transfer's commit, since it has left that cohort.
 
 </details>

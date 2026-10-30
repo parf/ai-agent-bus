@@ -1,9 +1,34 @@
 # Channels
 
-📌 **TL;DR:** Two of the seven record kinds are channels: 📮 hands each message
-to one consumer, 📣 copies each publication to every name on its Deliver-To list. A channel is
-the record; a topic is only a label carried on one message. What a channel
-declares and what publishing puts on the message are owned here.
+📌 **TL;DR:**
+- **Problem:** messages sometimes go to a place, not to a person, and a "topic" word used for both the place and a label causes confusion.
+- **Outcome:** two of the seven record kinds are channels: 📮 hands each message to one consumer, 📣 copies each publication to every name on its Deliver-To list. A channel is the record; a topic is only a label carried on one message.
+- **Start:** read [channel, not topic](#channel-not-topic) first. What a channel declares and what publishing puts on the message are owned here.
+
+## Why you'd want it
+
+- 🏷️ **"Topic" means two things.** Now a channel is the record, and a topic is only a label on one message.
+- 📮 **Several workers must share a stream of jobs.** Now a 📮 queue gives each message to exactly one consumer.
+- 📣 **Many readers must all see an announcement.** Now a 📣 pubsub copies each publication to every name on its list.
+
+## What you get
+
+- ✅ **Two channel kinds:** a queue for one consumer, a pubsub for every subscriber.
+- ✅ **A declared shape:** what a channel states about itself.
+- ✅ **A stamped message:** what publishing adds to a message.
+- 🚫 **Not for:** labelling one exchange; that is a topic on a message.
+
+## Try this first
+
+- See the exact words for sending with a label (read-only):
+
+```sh
+agent-bus help send
+```
+
+## Technical details
+
+The reference below keeps every section as it was; other pages link to these sections.
 
 ## Channel, not topic
 

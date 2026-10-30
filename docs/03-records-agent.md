@@ -1,10 +1,46 @@
 # Agents
 
-📌 **TL;DR:** A 👾 Agent is the bus's working entity: a name beginning with
-`#`, owned by a User, that acts under its own credential and reads its own
-inbox. It is how a script, a long-running program or an AI session takes part — sending,
-answering and coordinating — and every other kind exists to route to one,
-describe something outside, or group actors.
+📌 **TL;DR:**
+- **Problem:** a script, a long-running program or an AI session needs a name of its own on the bus, with its own credential and inbox.
+- **Outcome:** a 👾 Agent is the bus's working entity: a name beginning with `#`, owned by a User, that acts under its own credential and reads its own inbox. Every other kind exists to route to one, describe something outside, or group actors.
+- **Start:** look at an agent's record: `agent-bus ls '#name'` ([Try this first](#try-this-first)).
+
+## Why you'd want it
+
+- 🪪 **A program has no identity of its own.** Now it has a name, an owner and a credential.
+- 📬 **Work is lost when the program is busy or away.** Now its inbox holds the messages until it reads them.
+- 🔧 **One program, many copies.** Now a template makes instances, each with its own name and configuration.
+
+## What you get
+
+- ✅ **A named working entity:** sending, answering and coordinating under its own credential.
+- ✅ **Roles and fields:** what an Agent carries and what is shown about it.
+- ✅ **Templates and instances:** one template, several configured instances.
+- 🚫 **Not for:** something outside the bus (that is a [service](03-records-service.md#what-a-service-is)).
+
+## Try this first
+
+- Look at an agent's record (read-only):
+
+```sh
+agent-bus ls '#ab-w1b' | jq -c 'if type=="array" then .[0] else . end | {name,kind,owner,status}'
+```
+
+<details>
+<summary>See it on a real node (ran today)</summary>
+
+```json
+{"name":"#ab-w1b","kind":"agent","owner":"parf","status":"active"}
+```
+
+- The record shows the name, its kind, its Owner and whether it is active.
+- The output is from the development node on 2026-10-30.
+
+</details>
+
+## Technical details
+
+The reference below keeps every section as it was; other pages link to these sections.
 
 ## What an Agent is
 
@@ -42,16 +78,15 @@ It shows the description, version, license, author and homepage, plus methods
 with arguments, enum choices, returns, roles and destructive markers. These are
 agent-written descriptions; the agent still checks every call.
 
-Configuration and Secret fields show their declared keys. Configuration includes
-types, help and examples, and warns about undocumented settings without refusing
-them. Secret shows only names, comments and required status; no stored value is
-read or displayed. See [package help](runner/configuration.md#package-help).
+- Configuration and Secret fields show their declared keys.
+- Configuration includes types, help and examples, and warns about undocumented settings without refusing them.
+- Secret shows only names, comments and required status; no stored value is read or displayed.
+- See [package help](runner/configuration.md#package-help).
 
-An agent without machine-readable help falls back to its `help` text, without
-invented tables. The query has one two-second deadline; a timeout says
-“description unavailable (timed out)”. Answers are cached for 60 seconds per
-visitor session, agent name and record update time. Offline agents receive no
-help request on page visits.
+- An agent without machine-readable help falls back to its `help` text, without invented tables.
+- The query has one two-second deadline; a timeout says “description unavailable (timed out)”.
+- Answers are cached for 60 seconds per visitor session, agent name and record update time.
+- Offline agents receive no help request on page visits.
 
 ## Roles
 
@@ -73,15 +108,14 @@ ignores them.
 | What it understands | the Agent's `roles` list, set by `agent-bus run --roles a,b`, `manage --roles`, registration or the web settings; informational, never checked against what a message carries |
 | Stated by a sender | a message carrying `roles` fails loudly: it is refused, and the error log names the sender and the record, and counts the roles claimed. Roles are the daemon's, like `original_to` |
 
-ACL assignments use the existing `allow` list, not a new field. Actor names are
-canonicalized as usual; role spellings are preserved. `bob(deploy)` and
-`bob(read_only)` may both appear and combine their roles. Repeated identical
-terms are stored once. Different role orders can remain separate terms on
-addition; delivery deduplicates their labels and removal matches role sets.
-An undecorated term still grants access without assigning
-a role. Nested groups resolve against live membership, including cycles; the
-protected Administrator group remains direct-only. Changing an assignment or
-membership affects the next send, not messages already queued.
+- ACL assignments use the existing `allow` list, not a new field.
+- Actor names are canonicalized as usual; role spellings are preserved.
+- `bob(deploy)` and `bob(read_only)` may both appear and combine their roles.
+- Repeated identical terms are stored once.
+- Different role orders can remain separate terms on addition; delivery deduplicates their labels and removal matches role sets.
+- An undecorated term still grants access without assigning a role.
+- Nested groups resolve against live membership, including cycles; the protected Administrator group remains direct-only.
+- Changing an assignment or membership affects the next send, not messages already queued.
 
 CLI examples (quote parentheses):
 
@@ -114,20 +148,14 @@ roles and never restricts which application labels may be assigned.
 
 ## Agent Templates
 
-`name@realm` stands alone; `template/instance@realm` says which **agent
-template** that instance was configured from. The prefix is naming, not a group
-and not an instruction to fan out: the parser accepts it for a name of any
-[kind](03-records.md#record-kinds) and reads no meaning out of it. Each complete name is
-a record of its own, with its own configuration and — for the four kinds that
-have one — its own queue. Nothing parses configuration out of an instance's
-name.
+- `name@realm` stands alone; `template/instance@realm` says which **agent template** that instance was configured from.
+- The prefix is naming, not a group and not an instruction to fan out: the parser accepts it for a name of any [kind](03-records.md#record-kinds) and reads no meaning out of it.
+- Each complete name is a record of its own, with its own configuration and — for the four kinds that have one — its own queue.
+- Nothing parses configuration out of an instance's name.
 
 **A record's method information is its description, and nothing else.** The
-record's one free-text field is what `ls` and the MCP catalog show, so anything
-whose callers need to know its verbs writes them into that sentence. The release has
-no method list, no per-method destructive hint and nothing generated from one; a
-better representation is proposed in
-[R1 method metadata](../Plans/R1.0-Release/done/method-metadata.md#method-metadata).
+- record's one free-text field is what `ls` and the MCP catalog show, so anything whose callers need to know its verbs writes them into that sentence.
+- The release has no method list, no per-method destructive hint and nothing generated from one; a better representation is proposed in [R1 method metadata](../Plans/R1.0-Release/done/method-metadata.md#method-metadata).
 
 ## Configuring a template
 
@@ -144,19 +172,12 @@ does it, and reads it back:
 | `agent-bus config <template/instance@realm> '{"k":"v"}'` | the same, inline |
 | `agent-bus config <template/instance@realm>` | print that configuration |
 
-The direction is decided by whether a configuration was handed to it, and
-setting one answers with its digest rather than with what was set. The verb
-is **one hyphenated word** so that it stays a single verb in every face,
-including as an MCP tool name
-([glossary § names that are enforced](glossary.md#names)).
+- The direction is decided by whether a configuration was handed to it, and setting one answers with its digest rather than with what was set.
+- The verb is **one hyphenated word** so that it stays a single verb in every face, including as an MCP tool name ([glossary § names that are enforced](glossary.md#names)).
 
-The record is created if it does not exist, with the defaults a bare
-registration gets — configuring is not a second way to describe a record, only
-the way to give it a configuration. What it creates is an 👾 `agent`: a 📡
-`service` could not be created here, having no address to be registered with
-([record kinds](03-records.md#record-kinds)). A standalone `name@realm` takes a
-configuration the same way; the template prefix is not what makes one
-configurable.
+- The record is created if it does not exist, with the defaults a bare registration gets — configuring is not a second way to describe a record, only the way to give it a configuration.
+- What it creates is an 👾 `agent`: a 📡 `service` could not be created here, having no address to be registered with ([record kinds](03-records.md#record-kinds)).
+- A standalone `name@realm` takes a configuration the same way; the template prefix is not what makes one configurable.
 
 | | |
 |---|---|

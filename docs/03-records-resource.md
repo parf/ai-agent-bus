@@ -1,9 +1,45 @@
 # Resources
 
-📌 **TL;DR:** A 📚 Resource is a card for data an MCP client may read: its URI
-(or a URI template, 🧩), what it is, and who answers a read — an Agent, an MCP
-Service, or the web for a plain `https://` card. The card holds no content, and
-the daemon serves none.
+📌 **TL;DR:**
+- **Problem:** an AI client wants to read data some source holds, and the bus should point to it without copying or serving it.
+- **Outcome:** a 📚 Resource is a card for data an MCP client may read: its URI (or a URI template, 🧩), what it is, and who answers a read: an Agent, an MCP Service, or the web for a plain `https://` card. The card holds no content, and the daemon serves none.
+- **Start:** look at a resource card: `agent-bus ls <name>` ([Try this first](#try-this-first)).
+
+## Why you'd want it
+
+- 📚 **An AI should find readable data.** Now a card lists it where the AI already looks.
+- 🧭 **The bus is not a file server.** Now the card points to the source, and the source answers the read.
+- 🧩 **Data comes in families.** Now one card can carry a URI template.
+
+## What you get
+
+- ✅ **A card:** a URI, what it is and who answers a read.
+- ✅ **Listing and reading through MCP:** passed one to one to the MCP face.
+- 🚫 **Not for:** storing content; the daemon serves none.
+
+## Try this first
+
+- Look at a resource card (read-only):
+
+```sh
+agent-bus ls smoke-gate@parf.us | jq -c 'if type=="array" then .[0] else . end | {name,kind,owner}'
+```
+
+<details>
+<summary>See it on a real node (ran today)</summary>
+
+```json
+{"name":"smoke-gate@parf.us","kind":"resource","owner":"parf"}
+```
+
+- It is a 📚 resource owned by `parf`.
+- The output is from the development node on 2026-10-30.
+
+</details>
+
+## Technical details
+
+The reference below keeps every section as it was; other pages link to these sections.
 
 ## What a resource is
 
@@ -27,16 +63,11 @@ must admit whoever its cards admit.
 <details>
 <summary>Trust: a card's source is fetched from the reader's host</summary>
 
-The face follows an `https://` card wherever it points, loopback and private
-addresses included (Q141, [decision](decisions.md#settled)). That is a
-server-side request made from the reader's machine on the card author's word.
-It is accepted on a trusted bus: the answer goes only to the reader, who could
-fetch it anyway, and plain `http://` is refused without a source. When users
-other than the Owner register cards, the face should refuse loopback, private
-and link-local addresses — checked after name resolution and after every
-redirect, with an allowlist for intranet sources. No choice here stops what a
-card's content says to a model that reads it; content from any source is
-untrusted.
+- The face follows an `https://` card wherever it points, loopback and private addresses included (Q141, [decision](decisions.md#settled)).
+- That is a server-side request made from the reader's machine on the card author's word.
+- It is accepted on a trusted bus: the answer goes only to the reader, who could fetch it anyway, and plain `http://` is refused without a source.
+- When users other than the Owner register cards, the face should refuse loopback, private and link-local addresses — checked after name resolution and after every redirect, with an allowlist for intranet sources.
+- No choice here stops what a card's content says to a model that reads it; content from any source is untrusted.
 
 </details>
 

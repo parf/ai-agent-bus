@@ -1,10 +1,46 @@
 # Key-value store
 
-📌 **TL;DR:** Every record has its own durable store of named values (strings,
-ints and JSON objects), edited atomically and committed before an answer. Its
-Owner, Maintainers and own Agent use it, the same authority as the record's
-[shared locks](01-identity-and-authority.md#shared-locks). It coordinates a pool of workers
-without a database beside the bus.
+📌 **TL;DR:**
+- **Problem:** a pool of workers needs a shared counter, a flag or a small setting, and running a database beside the bus is too much.
+- **Outcome:** every record has its own durable store of named values (strings, ints and JSON objects), edited atomically and committed before an answer. Its Owner, Maintainers and own Agent use it, under the same authority as the record's [shared locks](01-identity-and-authority.md#shared-locks).
+- **Start:** read one value: `agent-bus kv get '#name' key` ([Try this first](#try-this-first)).
+
+## Why you'd want it
+
+- 🔢 **Workers need a shared counter.** Now `kv inc` adds to an integer atomically.
+- 🚩 **A flag must survive a restart.** Now a value is committed before the answer.
+- ⚛️ **Several changes must land together.** Now a JSON operation list applies all or none.
+
+## What you get
+
+- ✅ **Three kinds of value:** a string, an int and a JSON object, each in its own namespace.
+- ✅ **Atomic edits:** all or none, committed before the call answers.
+- ✅ **One store per record:** the same key on two records is two values.
+- 🚫 **Not for:** granting use of the record (the allow list never reaches the store), or large data.
+
+## Try this first
+
+- Read one value (read-only):
+
+```sh
+agent-bus kv get '#your-name' some-key
+```
+
+<details>
+<summary>See it on a real node (ran today)</summary>
+
+```json
+{"error":"no value is stored under that name"}
+```
+
+- The key did not exist, so the answer says so; nothing was written.
+- The output is from the development node on 2026-10-30.
+
+</details>
+
+## Technical details
+
+The reference below keeps every section as it was; other pages link to these sections.
 
 - **Three kinds, three namespaces:** a **string** (any bytes, the default), an **int** (signed 64-bit today; the accepted narrower range is pending) and a **json** object.
 - **Not the allow list:** the allow list grants use of the record, never of its store.
@@ -44,12 +80,10 @@ without a database beside the bus.
 | Faces | the API's `GET /kv` and `POST /kv/set`, `/kv/delete`, `/kv/inc`, `/kv/json` take `record`, `kind` and `name`; a string travels as a JSON string, or `value_base64` when its bytes are not UTF-8, an int as a number and a JSON value as the object. `GET /kv/list` answers a record's names with sizes and previews, or with no record every store the caller may use. The MCP face has `ab_kv_get`, `ab_kv_set`, `ab_kv_delete`, `ab_kv_inc` and `ab_kv_json`; the web face shows a record's store on its page, and on the **KV** page and its own pages ([web face](../src/web/web-face/records.md#key-value-stores)) |
 
 **Current implementation:** a value may be at most 512 KiB; the API body
-bound accommodates JSON escaping at that size. The accepted 128 KiB cap above
-is still pending for both string and JSON writes.
-The narrowed integer range also awaits enforcement; the implementation still
-uses signed 64-bit bounds. MCP must preserve integers exactly across its
-JavaScript boundary: the MCP face already preserves large integer values;
-narrowing to 63 bits alone would not prevent rounding.
+- bound accommodates JSON escaping at that size.
+- The accepted 128 KiB cap above is still pending for both string and JSON writes.
+- The narrowed integer range also awaits enforcement; the implementation still uses signed 64-bit bounds.
+- MCP must preserve integers exactly across its JavaScript boundary: the MCP face already preserves large integer values; narrowing to 63 bits alone would not prevent rounding.
 
 ## JSON operations
 
@@ -68,14 +102,10 @@ A list of them is applied whole or not at all; an absent name starts as `{}`.
 | `add_to_set key value` | appends `value` unless an equal one is present |
 | `remove_from_set key value` | removes every element equal to `value`; answers nothing |
 
-A key holding the wrong type, or an unknown or malformed operation, refuses
-the whole list and names it. `inc`, `push`, `unshift` and `add_to_set` create
-a missing key, as `0` or a one-element array; `shift`, `pop`,
-`remove_from_set` and `unset` on one change nothing and say so, as does an
-empty array's `shift` or `pop`. Each operation answers `{op, key, changed}`,
-with `value` for what `shift` or `pop` took and the number `inc` left.
-Equality compares JSON values, so key order and number spelling do not
-matter; a value is stored compact with its keys sorted.
+- A key holding the wrong type, or an unknown or malformed operation, refuses the whole list and names it.
+- `inc`, `push`, `unshift` and `add_to_set` create a missing key, as `0` or a one-element array; `shift`, `pop`, `remove_from_set` and `unset` on one change nothing and say so, as does an empty array's `shift` or `pop`.
+- Each operation answers `{op, key, changed}`, with `value` for what `shift` or `pop` took and the number `inc` left.
+- Equality compares JSON values, so key order and number spelling do not matter; a value is stored compact with its keys sorted.
 
 ```sh
 agent-bus kv json jobs@team batch '[{"op":"push","key":"todo","value":"a"},{"op":"push","key":"todo","value":"b"}]'
@@ -86,14 +116,9 @@ Why it is shaped this way is the [plan's reasoning](../Plans/R1.0-Release/done/k
 
 ## Suggested use
 
-The store coordinates a pool without a database beside the bus. Put it on the
-record the work belongs to — a 📮 queue or the pool's 👾 Agent — so the
-workers reach it as that Agent, or as its Maintainers. Three rules make every
-pattern below safe: **claim with an atomic op** (`shift`, `pop`,
-`set --add`), **make results idempotent** (`--add` on a result name, so a
-retried item writes once), and **pair a store with a [lock](01-identity-and-authority.md#shared-locks)
-when liveness matters** — the lock's ttl says who is alive, the store says how
-far they got, and survives them.
+- The store coordinates a pool without a database beside the bus.
+- Put it on the record the work belongs to — a 📮 queue or the pool's 👾 Agent — so the workers reach it as that Agent, or as its Maintainers.
+- Three rules make every pattern below safe: **claim with an atomic op** (`shift`, `pop`, `set --add`), **make results idempotent** (`--add` on a result name, so a retried item writes once), and **pair a store with a [lock](01-identity-and-authority.md#shared-locks) when liveness matters** — the lock's ttl says who is alive, the store says how far they got, and survives them.
 
 Below, `batch.todo` is the key `todo` of the JSON value `batch`, edited with
 `kv json`; `batch/total` is a name of its own.
@@ -124,7 +149,5 @@ agent-bus kv set --add jobs@team result/img-1 "done:42"                   # a re
 
 </details>
 
-What the store is not: a message queue — nothing wakes a waiting worker, so a
-worker that finds `todo` empty waits for a message, not a tight loop — and not
-a database: no queries, only names and top-level keys. A value is small (see
-the [limits](#rules)), so large results go elsewhere and the store keeps where.
+- What the store is not: a message queue — nothing wakes a waiting worker, so a worker that finds `todo` empty waits for a message, not a tight loop — and not a database: no queries, only names and top-level keys.
+- A value is small (see the [limits](#rules)), so large results go elsewhere and the store keeps where.
