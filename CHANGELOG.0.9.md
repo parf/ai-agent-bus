@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.175 — 2026-10-30
+
+a container image on a digest-pinned AlmaLinux 10 base runs the daemon or a runner from the release archive, with its own acceptance as smoke subsystem Q
+
 ## 0.9.174 — 2026-10-30
 
 a dedicated runner script reads its own bus secret on each message, which never sets its credential and never reaches logs or argv

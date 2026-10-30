@@ -9,7 +9,7 @@ runner for a sandbox is refused, never run unconfined. This implements the
 
 | File | What it is |
 |---|---|
-| `Containerfile` | the image: Debian slim, `python3`, the release under `/usr/local/lib/agent-bus` as setup lays it out |
+| `Containerfile` | the image: AlmaLinux 10 minimal, `python3`, the release under `/usr/local/lib/agent-bus` as setup lays it out |
 | `agent-bus-container` | the entry point: `daemon`, `runner`, or any command |
 | `echo/` | the delivery example, a runner-served agent that answers with the message text |
 | `acceptance.sh` | the image's acceptance check, rootless podman |

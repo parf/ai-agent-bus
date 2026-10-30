@@ -5,14 +5,14 @@
 # (docker buildx build takes the same --build-context). Pick the archive with
 # --build-arg ARCHIVE=agent-bus-<version>-linux-<arch>.tar.gz when the
 # directory holds more than one release.
-FROM docker.io/library/debian:trixie-slim@sha256:1e1a22175fbf1b32157ddaf0219e1db4e5401fab2b94ed285add64d18587cd2d
+FROM docker.io/library/almalinux:10-minimal@sha256:350ccb15938e7dcabdbc296f38c0cab9c5828ae30f4297d8cb2f82b2119fac4a
 
-# python3 runs the bundled agents; ca-certificates lets agents reach HTTPS.
-# No bubblewrap: the container is the boundary, and an agent that asks the
-# runner for a sandbox is refused rather than run unconfined.
-RUN apt-get update \
- && apt-get install -y --no-install-recommends python3 ca-certificates \
- && rm -rf /var/lib/apt/lists/*
+# python3 runs the bundled agents; ca-certificates lets agents reach HTTPS;
+# util-linux gives setpriv, shadow-utils the accounts, tar and gzip unpack
+# the archive. No bubblewrap: the container is the boundary, and an agent
+# that asks the runner for a sandbox is refused rather than run unconfined.
+RUN microdnf -y install --setopt=install_weak_deps=0 python3 ca-certificates util-linux shadow-utils tar gzip \
+ && microdnf clean all
 
 # Fixed ids so a volume keeps its owner when the container is replaced.
 RUN groupadd --system --gid 990 agent-busd \
