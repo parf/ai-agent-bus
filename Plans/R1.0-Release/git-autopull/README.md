@@ -77,7 +77,7 @@ mode and scripts. All must work:
 | Every push, no CI | a hosting webhook through `#webhook` ([B.26](TODO.md#b26-webhook-publishes-to-a-pubsub-channel)) | `ff` | none, or a script |
 | A developer copy that follows its branch | as above | `ff`: never discards local work, reports `dirty` | none |
 | Roll out or roll back one revision everywhere | a pipeline or operator publishes `deploy` with a commit | per repository | scripts as usual |
-| One known server, wait for the answer | none: `agent-bus call '#git@host' 'deploy site main <sha>'` | — | the answer is the result; the exit code says ok or fail |
+| One known server, wait for the answer | none: `agent-bus call '#git@host' 'deploy site main <sha>'` | — | the answer is the result record; the pipeline checks it, e.g. `… \| jq -e '.result == "ok"'` (`agent-bus call` exits 0 for any answer) |
 | A pipeline that waits for every server | publishes with an `id`, then reads records with that `id` from its own queue in the `autopull-log` Deliver-To until each expected host answered or it times out | per repository | — |
 | React elsewhere on success | any service in the `autopull-log` Deliver-To | — | that service acts on `ok` (optional) |
 

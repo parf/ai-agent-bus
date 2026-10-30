@@ -37,7 +37,7 @@ Acceptance, each failing on the old code or by a named mutant:
 - Restarting `#git` with the remote one commit ahead produces one `start` record and moves the copy.
 - Two events for one repository at once give two records and one move; neither leaves the lock held.
 - No record and no answer contains the checkout path, the remote URL or a commit message (asserted on a fixture whose path, URL and message are unique strings).
-- A `deploy` event with `id` gives records carrying that `id` on every matching copy; a direct `deploy` call exits non-zero when the result is `fail`; an `id` outside its character set is `invalid_event`.
+- A `deploy` event with `id` gives records carrying that `id` on every matching copy; a direct `deploy` call answers the result record, whose `result` is `fail` on a failed deploy (no bus CLI change); an `id` outside its character set is `invalid_event`.
 - After an `ok` attempt the success script runs once in the checkout with the record on stdin, after that record is on the log; exit 0 adds no record; on `skip` no script runs.
 - A success script exiting 1 adds exactly one `action: script` record with `result: fail`, `error.code: script`, the attempt's `id` and `to`, and the fail script runs once; a fail script exiting 1 adds one more; a script past its time limit is killed and records `exit: null`.
 - A success script that exits 0 but writes one stderr line adds one `action: script` fail record whose `script.stderr` is that line, and the fail script runs; one writing only to stdout adds nothing.
