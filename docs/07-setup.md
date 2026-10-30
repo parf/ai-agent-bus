@@ -5,6 +5,8 @@ is what separates the programs and nothing else does: root is needed once for
 installation and never again, each account's files are that account's own, and
 ordinary use needs neither.
 
+For a release installation, start with the [npm package](#npm-package).
+
 ## The programs
 
 For installing and operating scripts under the runner, use its
@@ -317,41 +319,7 @@ accepted under [H.1.1](../Plans/done/R0.8-MVP/done/upgrade-recovery.md#checks).
 
 ## Simple install
 
-One command installs a release on Linux, x86_64 or aarch64. It is pending its
-first signed release: until the owner publishes one, use the archive above.
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/parf/ai-agent-bus/main/install.sh | sh                 # full node, asks for sudo
-curl -fsSL https://raw.githubusercontent.com/parf/ai-agent-bus/main/install.sh | sh -s -- --client  # client edition, no root
-```
-
-| | |
-|---|---|
-| Full node | downloads the release archive; as root, copies it into a root-owned directory, checks it again there and runs its `agent-bus-setup` (`--upgrade` when one is installed); options after `--` go to setup |
-| `--client` | the CLI, runner and its agents, MCP face and launchers into `~/.local/lib/agent-bus/releases/<version>`, linked into `~/.local/bin`; keeps the current release and the one it replaced; `--rollback` switches back |
-| `--version 0.9.x` | that release instead of the latest; the only way to install an older one than is installed — a latest release older than the installed one is refused |
-| `--key-fingerprint SHA256:…` | refuse unless the key built into `install.sh` is that one; every run prints the key's fingerprint |
-| Verification | before anything is unpacked: `SHA256SUMS` must carry an `ssh-keygen` signature in the `agent-bus-release` namespace by a key built into `install.sh`, then the archive must match its line there, then its own `MANIFEST.sha256`. Any failure installs nothing |
-| Needs | `curl` or `wget`, `tar`, `sha256sum`, `ssh-keygen` (OpenSSH 8.1 or later); `python3` for the bundled agents; `bubblewrap` for the runner's agents, sandboxed by default ([runner sandbox](runner/security.md#isolation-today)), which install.sh warns about but does not install. No bun, Node or Go |
-| `sudo` | name setup by its path, `sudo /usr/local/bin/agent-bus-setup`: the RHEL family's sudo `secure_path` leaves `/usr/local/bin` out, so a bare `sudo agent-bus-setup` is not found there; setup's own hints print the path it was run from |
-| Trust | the release key is only as trustworthy as the `install.sh` that carries it: whoever can change that file can ship another key. Compare the printed fingerprint with the one the owner publishes elsewhere, and pin it with `--key-fingerprint` |
-
-<details><summary>Releasing</summary>
-
-A version tag runs `.github/workflows/release.yml`: both archives are built on
-native runners and attached, unsigned, to a draft release. The owner downloads
-them, runs `src/release-sign.sh <dir> <key> <version> <ci-sums>` on the
-machine that holds the release key — never this repository's machines or CI.
-It signs exactly that version's four archives, and only when they match the
-hashes the two build jobs printed in their summaries, copied unedited into one
-file (`--no-ci-check` instead skips that, with a warning). That comparison
-catches a draft changed after CI, not a compromised build: the hashes come
-from the runners that built the archives. The owner uploads `SHA256SUMS` and
-`SHA256SUMS.sig` and publishes. The workflow builds only a tag on `main`. The public key lives between the
-`release-keys` markers in `install.sh`; a rotation adds the next key there
-first.
-
-</details>
+Install the full node or client through the [npm package](#npm-package), then explicitly set up the node if needed. The shell installer is not the release installation path.
 
 ## Administering the account map
 
@@ -463,20 +431,9 @@ Release builds follow [working rules § versioning](../CLAUDE.md#versioning).
 
 ### Release evidence
 
-`src/release-verify.sh <archive>...` reads release archives and refuses any
-that is not what the source says. Per archive: the name, the packed `VERSION`
-and every Go program's `--version` equal the source `VERSION`; each Go program
-carries a build stamp, not `development (unstamped)`; `LICENSE.md` is present;
-`MANIFEST.sha256` still matches. With `--signers <allowed_signers> <release-dir>` it
-checks a whole release: exactly the four archives, `SHA256SUMS` matching them
-and `SHA256SUMS.sig` verifying in the `agent-bus-release` namespace. The
-compiled TypeScript binary has no version
-query, so it is checked for carrying the version. An archive for another CPU
-cannot run here, so its binaries are read instead of queried.
-`src/release-verify.real.test.sh` runs it on what `package.sh` builds, signed
-with a throwaway key; this node has no aarch64 cross compiler, so that run
-covers the host's CPU (`--arches`). Pending: the
-release run is not yet wired to it ([distribution](../Plans/R1.0-Release/TODO.md#objective)).
+`src/release-verify.sh <archive>...` checks release archives against the source: the archive name, packed `VERSION` and Go programs’ versions agree, build stamps and `LICENSE.md` are present, and `MANIFEST.sha256` matches. Foreign-CPU binaries are read rather than run. The compiled TypeScript binary is checked for carrying the version.
+
+The release build supplies `SHA256SUMS`; npm assembly checks each downloaded archive against it and then checks the archive’s manifest. Release signatures and signing keys are not part of installation or publication. The release workflow and legacy verifier’s signing modes are pending migration under the [distribution work](../Plans/R1.0-Release/TODO.md#distribution-acceptance); archive verification remains required. Earlier throwaway-key fixtures are historical coverage, not a need for an owner key.
 
 ## npm package
 
@@ -505,23 +462,22 @@ release manifest, then runs the ordinary installer. The temporary tree is
 removed afterward, including on failure. The client package alone never
 installs a daemon.
 
-This path trusts the npm registry. The [signed release installer](../install.sh)
-remains the path that verifies a release signature before unpacking it.
+This path trusts the npm registry’s integrity. The package builder checks the release archives against `SHA256SUMS` and their manifests; no release signature or signing key is required.
 Package assembly and local checks are described in
 [the packaging guide](../src/npm/README.md).
 
 ## macOS
 
-📌 **TL;DR:** The client edition builds for macOS and `install.sh --client` installs it there; the runner starts agents without a sandbox, and the daemon is not on macOS yet. Run on a Mac: install, version, tampered and full-node refusals, and the refused sandbox. Pending: a script agent's account on the Mac (R2, R3 of the [Mac run list](../Plans/R1.0-Release/mac-run-list.md#d-client-install-and-runner-on-macos-mac1)), and a signed release carrying the archives. Why and in what order: [macOS plan](../Plans/R1.0-Release/macos.md#order).
+📌 **TL;DR:** The client archive builds for macOS; the runner starts agents without a sandbox. Native installer checks have recorded results, while npm platform packaging and a script agent’s account checks remain separate acceptance. The [macOS plan](../Plans/R1.0-Release/macos.md#order) owns the supported parts and test order.
 
 ### The client and runner
 
 | | |
 |---|---|
 | Build | `GOOS=darwin GOARCH=arm64 src/package.sh` (or `amd64`) cross-builds `agent-bus-client-<version>-darwin-<aarch64\|x86_64>.tar.gz` on a Linux host, without cgo, so the process title is not set; there is no full-node archive for macOS |
-| Install | `install.sh --client`, the same command as on Linux; a full node on macOS is refused. It needs `shasum` (not `sha256sum`), `tar`, `ssh-keygen` and `curl`, and checks the signed list exactly as on Linux; the launchers use `readlink -f`, which macOS has from 12.3 |
+| Install | npm is the chosen client install path; macOS platform packages still need packaging and installed-tree acceptance. Earlier shell-installer runs are fixture evidence, not the current distribution procedure. The launchers use `readlink -f`, which macOS has from 12.3 |
 | Signing | the macOS binaries are unsigned and not notarized, so Gatekeeper warns on a download; a binary built on the Mac itself carries no quarantine flag |
-| Release | `src/release-sign.sh` signs the two macOS archives with the four Linux ones when they are in the directory, both CPUs or neither; `src/release-verify.sh --os "linux darwin"` checks them, reading the binaries rather than running them |
+| Release | `src/release-verify.sh --os "linux darwin"` checks the archives, reading foreign binaries rather than running them; npm platform packaging must retain the same build and manifest checks |
 | Runner | starts agents under the account that runs it, with no cgroup limits and no sandbox: a sandbox request is refused, and agent scripts hold that account's rights. Run it as a dedicated unprivileged account, never an administrator; this suits one owner's own Mac, not a shared one |
 
 ## Local users

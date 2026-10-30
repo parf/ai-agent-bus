@@ -1,4 +1,4 @@
-# Install agent-bus
+# Install from a checkout
 
 📌 **TL;DR:**
 - **Problem:** you want a working bus on a Linux host without hand-building accounts, units and a database.
@@ -18,6 +18,8 @@
 - ✅ **Your SSH key as the first user's key**, so you can reach the bus from your own account.
 
 ## How to start
+
+For a release installation, use the [npm packages](../docs/07-setup.md#npm-package). The commands below are for developing from a checkout.
 
 Prerequisites:
 

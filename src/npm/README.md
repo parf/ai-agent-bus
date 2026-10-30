@@ -1,13 +1,14 @@
 # npm packaging
 
+📌 **TL;DR:** Install the full bus with `npm install -g agent-bus`, or join an existing bus with `npm install -g agent-bus-client`. Build the packages from checked release archives and test local tarballs without publication. Only the owner authorizes a public npm release.
+
 The client package contains the CLI, runner, MCP face and launchers. The bus
 package adds the daemon, setup and admin, and depends on the client at the exact
-same version. Publish both together; this tooling never publishes. Package
+same version. They ship together after the owner’s go; workers run neither npm publish nor npm login. This tooling never publishes. Package
 names have one default map in `pack.py`, with `NPM_BUS_NAME` and
 `NPM_CLIENT_NAME` overrides. Platform package names derive from those names.
 
-Build the ordinary full and client archives first. Verify the release's signed
-`SHA256SUMS` through the release process before wrapping it:
+Use the ordinary stamped full and client archives from the GitHub build release, downloaded over HTTPS with its `SHA256SUMS`. Verify those checksums and the manifests before wrapping; release signatures and signing keys are not required. The wrapping command is:
 
 ```sh
 src/npm-pack.sh FULL.tar.gz CLIENT.tar.gz SHA256SUMS OUTPUT
@@ -16,8 +17,7 @@ src/npm-pack.sh FULL.tar.gz CLIENT.tar.gz SHA256SUMS OUTPUT
 The builder checks the archive hashes and each archive's manifest, and records
 the `SHA256SUMS` hash in every npm package. It emits a client platform package,
 a bus platform package, and two thin command packages. Both thin packages pin
-their platform dependencies. Linux x64 and arm64 are declared; publish the
-matching platform artifacts for both before publishing the command packages.
+their platform dependencies. Linux x64 and arm64 are declared; the release set must include matching platform artifacts for both before the owner authorizes publication of the command packages.
 No Darwin package is declared before it is built. Thin packages built from the
 same complete `SHA256SUMS` have the same content on either architecture.
 
@@ -26,9 +26,7 @@ plus its full manifest. The large client binaries are stored only once. Bus
 command shims expose the transitive client's commands because npm does not put
 transitive dependencies' bins in a global install's bin directory.
 
-Installation trusts npm's registry integrity. The checksum provenance is not a
-replacement for release signature verification; the signed GitHub archives
-remain the verify-before-unpack route.
+Installation trusts npm’s registry integrity. The wrapper builder verifies the release checksums and manifests; there is no release-signing stage. The owner chose the unscoped names and the account `parf73`, without an npm organisation. Private development `@agent-bus/` projects remain unpublished.
 
 ## Explicit setup
 
@@ -55,5 +53,4 @@ from a private loopback fixture registry. `NPM_DIST` reuses an existing director
 of archives. Test reports cover the exact pins, installed commands, build
 stamps, license/provenance, request/reply, MCP and clear missing-platform
 refusal. All prefixes and registry state are temporary; nothing is published.
-The systemd-container check separately exercises explicit setup on a clean
-host with npm but without Go or Bun.
+`src/npm/container-check.sh <tarball-directory>` exercises explicit setup on a clean systemd host with npm but without Go or bun, using only local `npm pack` tarballs. The [P.1 acceptance](../../Plans/R1.0-Release/distribution.md#install-acceptance) requires request/reply, an MCP tool call and assertion-red omitted-executable and MCP-asset mutants. The fixtures do not require npm publication or login.

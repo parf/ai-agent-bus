@@ -19,7 +19,7 @@ Run the machine's commands in a shell inside it (`podman machine ssh`), with the
 |---|---|---|---|
 | 1 Build | `src/package.sh tmp/dist` | prints four paths: `agent-bus-<ver>-linux-aarch64.tar.gz` and `agent-bus-client-<ver>-linux-aarch64.tar.gz`, each with `.sha256` | x86_64 took 17 s here; allow 1-3 min emulated or native |
 | 2 Evidence, archives | `src/release-verify.sh tmp/dist/agent-bus-*-linux-aarch64.tar.gz` | one `release-verify: <name> ok (version <ver>, full\|client, queried)` per archive, exit 0; `queried` proves the binaries ran | seconds |
-| 3 Evidence, signed set | none yet: a signed four-archive set needs the x86_64 archives from CI or this node beside these, and the owner's signing ([RD163](DECISIONS.md#recorded-decisions)). Until then step 2 is the aarch64 evidence | | |
+| 3 Evidence, release set | Combine native build artifacts with `SHA256SUMS` and verify the complete set before npm wrapping; no owner signing step ([RD178](DECISIONS.md#recorded-decisions)). Step 2 remains the native aarch64 evidence | | |
 | 4 Clean install | `src/acceptance/fresh-install.sh tmp/dist/agent-bus-<ver>-linux-aarch64.tar.gz tmp/mac-fresh` (needs a new output directory; it builds its own real-systemd container) | `PASS` lines ending the run, exit 0; `tmp/mac-fresh/evidence/result.log` holds them | several minutes, mostly the image build |
 | 5 Deploy check | `fresh-install.sh` stops its container when it ends, so `src/check-deploy.sh` cannot run in it as it is. It needs the harness to keep the container, or run `check-deploy` before exit (a change in `src/acceptance/`, team 1 with the podman distro harness). Then: `podman exec <container> check-deploy` as an allowed caller | exit 0, no failed or missing selftest | seconds |
 
@@ -60,6 +60,8 @@ The focused native MAC.2 run is recorded in [the evidence](done/mac2.md#checks-a
 Full archive validation follows MAC.1/distribution. All mutants stay on this node, under smoke-gate; never run them on the Mac. The owner completed [role-account cleanup](done/mac2.md#owner-cleanup-verified), verified read-only by the CEO; no further worker sudo is authorized.
 
 ## d) client install and runner on macOS (MAC.1)
+
+Historical shell-installer fixture procedure below, retained to interpret the native results. Its key is disposable; it does not require an owner release key or a signed public release. The owner replaced this install path with [npm](distribution.md#simple-install); npm platform acceptance is [P.1](TODO.md#distribution-acceptance). Runner-account checks remain relevant.
 
 What the Mac checks of [MAC.1](macos.md#mac1-client-and-runner-on-macos) beyond the CLI and the MCP face ([Mac run: CLI and MCP face](mac-cli-run.md#mac-run-cli-and-mcp-face)): the installer, then the runner. The release is signed with a throwaway key made on the development node, so nothing here touches the real key or a real release.
 

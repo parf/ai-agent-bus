@@ -138,7 +138,7 @@ Recommended: the first and third rows; the fourth is the owner's, once. Behaviou
 |---|---|---|
 | 1 Build (WIN.1) | tag the Linux-only files, the per-OS stubs and open, the terminal test, a refusal for the left-out subcommands, `AGENT_BUS_ADDR` required; the gate cross-build | 2 |
 | 2 Behaviour (WIN.1) | the cache directory, key proof through `ssh-keygen`, Windows unit tests, the in-process TLS test daemon for the Windows CI job | 1 |
-| 3 Package (WIN.2) | `package.sh` writes the zip, `release-verify` reads it as it reads macOS archives, `release-sign` takes it with the others | 1.5 |
+| 3 Package (WIN.2) | `package.sh` writes the zip, `release-verify` reads it as it reads macOS archives, the npm wrapper takes the checked archive with the others | 1.5 |
 | 4 CLI docs | the setup guide's Windows page, the CLI guide's differences, the CI job | 0.5 |
 | 5 Go launchers and face (WIN.3) | [what it costs](#what-it-costs) | 38 |
 | Total | | 43 (range 36 to 55). The real-server run (WIN.1b) is not in it |
