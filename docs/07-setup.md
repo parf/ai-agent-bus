@@ -315,6 +315,36 @@ replace a different release. The standalone package instructions define the
 `--upgrade` and interrupted `--recover` paths; their populated-node behavior is
 accepted under [H.1.1](../Plans/done/R0.8-MVP/done/upgrade-recovery.md#checks).
 
+## Simple install
+
+One command installs a release on Linux, x86_64 or aarch64. It is pending its
+first signed release: until the owner publishes one, use the archive above.
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/parf/ai-agent-bus/main/install.sh | sh                 # full node, asks for sudo
+curl -fsSL https://raw.githubusercontent.com/parf/ai-agent-bus/main/install.sh | sh -s -- --client  # client edition, no root
+```
+
+| | |
+|---|---|
+| Full node | downloads the release archive, then runs its `agent-bus-setup` as root (`--upgrade` when one is installed); options after `--` go to setup |
+| `--client` | the CLI, runner and its agents, MCP face and launchers into `~/.local/lib/agent-bus/releases/<version>`, linked into `~/.local/bin`; keeps the current release and the one it replaced; `--rollback` switches back |
+| `--version 0.9.x` | that release instead of the latest |
+| Verification | before anything is unpacked: `SHA256SUMS` must carry an `ssh-keygen` signature in the `agent-bus-release` namespace by a key built into `install.sh`, then the archive must match its line there, then its own `MANIFEST.sha256`. Any failure installs nothing |
+| Needs | `curl` or `wget`, `tar`, `sha256sum`, `ssh-keygen` (OpenSSH 8.1 or later); `python3` for the bundled agents. No bun, Node or Go |
+
+<details><summary>Releasing</summary>
+
+A version tag runs `.github/workflows/release.yml`: both archives are built on
+native runners and attached, unsigned, to a draft release. The owner downloads
+them, runs `src/release-sign.sh <dir> <key>` on the machine that holds the
+release key — never this repository's machines or CI — uploads `SHA256SUMS`
+and `SHA256SUMS.sig`, and publishes. The public key lives between the
+`release-keys` markers in `install.sh`; a rotation adds the next key there
+first.
+
+</details>
+
 ## Administering the account map
 
 **Built.** The durable local-account map is administered by the daemon Owner or

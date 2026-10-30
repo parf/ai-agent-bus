@@ -1,0 +1,60 @@
+# A version tag (v0.9.x) builds both Linux release archives on native x86_64
+# and arm64 runners and attaches them, with install.sh, to a DRAFT release.
+# Nothing is signed here: the owner downloads the archives, runs
+# src/release-sign.sh with the release key on their own machine, uploads
+# SHA256SUMS and SHA256SUMS.sig, and publishes (docs/07-setup.md#simple-install).
+name: release
+on:
+  push:
+    tags: ["v*.*.*"]
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: src/go.mod
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+      - name: The tag names the checked-in version
+        run: test "v$(cat src/internal/version/VERSION)" = "${GITHUB_REF_NAME}"
+      - name: Dependencies
+        run: |
+          bun install --frozen-lockfile --cwd src/mcp
+          bun install --frozen-lockfile --cwd src/clients/typescript
+          bun install --frozen-lockfile --cwd src/web
+      - name: Archives
+        env:
+          BUILD_COMMIT: ${{ github.sha }}
+        run: src/package.sh "$PWD/dist"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: archives-${{ matrix.runner }}
+          path: dist/*.tar.gz
+  draft:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Draft release, unsigned
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -l dist
+          gh release create "${GITHUB_REF_NAME}" --draft --verify-tag \
+            --title "agent-bus ${GITHUB_REF_NAME#v}" \
+            --notes "Unsigned draft: the owner signs SHA256SUMS before publishing." \
+            dist/*.tar.gz install.sh
