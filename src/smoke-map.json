@@ -777,7 +777,6 @@
           "agents.db.test_fixtures.StartUp",
           "agents.db.test_fixtures.Leaks",
           "agents.db.test_fixtures.Identity",
-          "agents.db.test_fixtures.Watcher",
           "agents.db.test_fixtures.SignalExit",
           "agents.db.test_fixtures.Wire",
           "-v"
