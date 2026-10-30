@@ -202,8 +202,10 @@ The bus child inherits the supervisor's environment.
 
 A child that dies is restarted with backoff, and the listeners are passed to
 the replacement — the socket a client holds is the same file across a restart.
-A supervisor that is killed outright takes its children with it
-(`PR_SET_PDEATHSIG`), so nothing orphaned keeps a port.
+A supervisor that is killed outright takes its children with it, so nothing
+orphaned keeps a port: on Linux by the kernel (`PR_SET_PDEATHSIG`), elsewhere
+by the bus child, which stops itself as on SIGTERM once its parent is gone
+([macOS](07-setup.md#the-daemon)).
 
 ## Status
 

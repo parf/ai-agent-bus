@@ -316,6 +316,8 @@ never performs cleanup.
 | `/run/agent-bus/bus.sock` | Shared, mode `666`; does not supply an identity |
 | `/run/agent-bus/` | Mode `711`: traversable, not listable by other users |
 
+That directory is `/run/agent-bus` on Linux and `/usr/local/var/run/agent-bus` on macOS, where only the daemon account’s own socket exists ([macOS](07-setup.md#the-daemon)).
+
 - The CLI chooses global `--addr`, then `AGENT_BUS_ADDR`, then discovery.
 - Discovery checks the login runtime directory before the installed directory; without a token it chooses the account socket, with one the shared socket.
 - An explicit address failure never falls back to another bus.

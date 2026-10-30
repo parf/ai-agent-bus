@@ -1001,6 +1001,23 @@ Reopen the HTTPS web page and check that the certificate warning is gone.
 If setup replaces the certificate, verify its new fingerprint and update the
 browser's trust entry before signing in again.
 
+## macOS
+
+### The daemon
+
+On macOS `sudo agent-bus-setup` does a reduced install ([macOS plan](../Plans/R1.0-Release/macos.md#mac2-daemon-with-a-reduced-setup)). Built; its acceptance on a Mac is pending.
+
+| Part | macOS |
+|---|---|
+| Account | `_agentbusd`, a hidden role account: an id from 200 free as both user and group, no login shell, no password |
+| Storage | `/usr/local/var/agent-bus/daemon`, 0700, the database and `logs/` |
+| Sockets | `/usr/local/var/run/agent-bus`, 0711; the shared `bus.sock` and the account's own socket only |
+| Job | `/Library/LaunchDaemons/agent-busd.plist`: `agent-busd` as `_agentbusd`, umask 077, kept alive; setup reloads it with `launchctl` |
+| TLS | as on Linux ([TLS](#tls)) |
+| First user | the installer, from their key, through `agent-bus-admin` on the account's socket |
+
+Not on macOS: per-role accounts, cgroup limits, the web job, logrotate, a person's runner, `--upgrade`; setup refuses those options. Without `CAP_CHOWN` the daemon cannot hand a socket to another account, so there are no per-user sockets: a person calls with a token (`sudo -u _agentbusd agent-bus token <name>`). Outside Linux the bus child stops itself when its supervisor is gone, where Linux has the kernel's death signal ([how a child is started](08-processes.md#how-a-child-is-started)).
+
 ## Config locations
 
 Current daemon configuration comes from command flags and environment; setup
