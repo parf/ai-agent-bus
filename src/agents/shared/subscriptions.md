@@ -116,7 +116,7 @@ pattern/text; it never applies re.IGNORECASE to a caller pattern.
 Split a delimited filter after the LAST UNESCAPED slash; /a/b/ means pattern
 a/b. A bare pattern can contain slash. Supported escapes: d D w W s S, n r t,
 and escaped punctuation `\ . / - ^ $ | ? * + ( ) { } [ ]`. b/B, 0, x/u/c/k/Z
-and every other escape are refused. NUL, DEL and C0/C1 controls in patterns are
+and every other escape are refused. Escaped hyphen is normalized to a literal hyphen outside a class, including u mode; // and //i mean match-all. NUL, DEL and C0/C1 controls in patterns are
 refused; escaped n/r/t remain valid. Spaces are literal, not stripped. Quantifier
 bounds are at most100, at most20 quantifiers; lazy, possessive and stacked forms
 are refused. Empty alternation is allowed. Nested quantified groups are refused;
@@ -128,3 +128,5 @@ Pure vectors check exact queries (who,target), not just a queue of booleans.
 Deadline already expired means no admission query, one deadline drop per selector
 candidate. A kind that changed to pubsub gives admission_refused and no send.
 Per-batch cache keys include both creator and target and expire with that batch.
+
+Invalid delivery match-text (non-string, >8192 UTF-8 bytes or lone surrogate) drops every selector candidate with invalid_text, including match-all rows; no query/send is attempted. The empty filter never bypasses UTF-8/size checks.
