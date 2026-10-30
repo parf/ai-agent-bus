@@ -190,6 +190,11 @@ class Scheduler:
                     if not isinstance(value, dict):
                         raise ValueError('not an object')
                     self.bus.kv.set(f'{kind}.{candidate}', value | {'migrated_from': key}, kind='json', mode='add')
+                for claim in sorted(entry['name'] for entry in names.get('string', []) if entry['name'].startswith(f'fired.{key}.')):
+                    # the claims follow the entry, so a copy already claimed under the old id is not sent again
+                    moved_to = f'fired.{candidate}.' + claim.split('.', 2)[2]
+                    self.bus.kv.set(moved_to, self.bus.kv.get(claim), mode='set')
+                    self.bus.kv.delete(claim)
                 self.bus.kv.delete(name, kind='json')
                 self.log(f'{kind} {key} moved to {candidate}')
                 moved = True
@@ -228,9 +233,9 @@ class Scheduler:
             if value == 'sending':
                 self.drop(key, name, 'send_unknown')
             elif value in ('unconfirmed', 'denied', 'gone') or value.startswith('retrying '):
-                # What a release before RD161 left: that copy is over, and nothing is held for it.
-                self.claims[name] = 'done'
-                self.drop_claim(name)
+                # What a release before RD161 left: that copy is over and is dropped, never sent, and
+                # its claim becomes the settled `dropped` so the slot or one-shot is not fired again.
+                self.drop(key, name, {'denied': 'admission_refused', 'gone': 'target_gone'}.get(value, 'send_unknown'))
             elif value in ('sent', 'refused', 'dropped') and key in self.later:
                 self.finish(key, value)  # the removal after its outcome did not happen
             elif key in self.subs:
@@ -396,6 +401,16 @@ class Scheduler:
 
     def fire(self, key, entry, name, now, until, cache):
         verdict = self.author_verdict(cache, entry)
+        if verdict in ('lost', 'vanished'):
+            try:  # the slot is settled as dropped, so a later pass of it, or a restored ACL, cannot send it
+                self.claim(name, 'dropped', 'add')
+            except Refusal as e:
+                if e.status == 412:
+                    self.taken.add(name)
+                    return
+                return self.count(key, 'missed')
+            except BusError:
+                return self.count(key, 'missed')
         if verdict != 'ok':
             return self.not_author(key, verdict)
         try:

@@ -140,7 +140,26 @@ class Authority(Fixture):
         self.assertEqual(agent.state[sub]['dropped'], 1)
         self.assertNotIn('paused', agent.subs[sub])
         self.assertNotIn(shot, agent.later)
-        self.assertEqual([n for n in agent.claims if n.startswith('fired.')], [])  # no attempt was made
+        self.assertEqual({n: v for n, v in agent.claims.items() if n.startswith('fired.')},
+                         {f'fired.{sub}.2026-10-28T12:01': 'dropped'})  # no attempt was made; the subscription's slot is settled
+
+    def test_a_dropped_slot_is_dropped_once_and_stays_dropped_when_the_creator_is_restored(self):
+        agent = self.agent()
+        sub = self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')['id']
+        self.owner.record(TARGET).manage(allow=[WORKER, OUTSIDER])
+        self.at(12, 1)
+        agent.tick()
+        self.clock.now += 20
+        agent.tick()  # the same minute again
+        self.assertEqual(agent.state[sub]['dropped'], 1)
+        self.owner.record(TARGET).manage(allow=[CALLER, WORKER])  # restored within the minute
+        self.clock.now += 20
+        agent.tick()
+        self.assertEqual(self.received(), [])  # the dropped slot is never delivered
+        self.assertEqual(agent.state[sub]['dropped'], 1)
+        self.at(12, 2)
+        agent.tick()
+        self.assertEqual(self.received(), ['tick'])  # the next slot is
 
     def test_a_refused_one_shot_is_dropped_and_never_retried(self):
         agent = self.agent()
@@ -567,6 +586,30 @@ class Delivery(Fixture):
         self.assertEqual(self.received(), ['tick'])
         self.assertNotIn('paused', restarted.subs[key])
 
+    def test_a_legacy_unconfirmed_claim_of_the_current_slot_is_dropped_and_not_sent_on_restart(self):
+        agent = self.agent()
+        key = self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')['id']
+        self.owner.record(WORKER).kv.set(f'fired.{key}.2026-10-28T12:01', 'unconfirmed')
+        self.die(agent)
+        restarted = self.agent()
+        self.at(12, 1)
+        restarted.tick()
+        restarted.tick()
+        self.assertEqual(self.received(), [])
+        self.assertEqual(restarted.claims[f'fired.{key}.2026-10-28T12:01'], 'dropped')
+        self.assertEqual(restarted.state[key]['dropped'], 1)
+
+    def test_a_legacy_retrying_one_shot_is_dropped_on_restart_instead_of_sent(self):
+        agent = self.agent()
+        key = self.ask(agent, 'later +1s ' + TARGET + ' once')['id']
+        self.owner.record(WORKER).kv.set(f'fired.{key}.once', 'retrying 1 ' + str(int(T0) + 60))
+        self.die(agent)
+        self.at(12, 1)
+        restarted = self.agent()
+        restarted.tick()
+        self.assertEqual(self.received(), [])
+        self.assertNotIn(key, restarted.later)
+
     def test_an_orphan_in_flight_claim_is_swept(self):
         name = 'fired.0123456789ab.2026-10-28T12:00'
         self.owner.record(WORKER).kv.set(name, 'sending')
@@ -789,6 +832,21 @@ class Migration(Fixture):
         self.assertEqual(self.received(), ['tick'])
         self.die(agent)
         self.assertEqual(self.keys(), ['sub.' + new])  # a restart changes nothing
+
+    def test_a_claim_under_the_old_id_moves_with_its_entry_and_the_slot_is_not_sent_again(self):
+        import hashlib
+        new = hashlib.sha256(b'sub.Legacy-1').hexdigest()[:12]
+        self.put('sub.Legacy-1', self.entry())
+        kv = self.owner.record(WORKER).kv
+        kv.set('fired.Legacy-1.2026-10-28T12:01', 'sending')
+        agent = self.agent()
+        names = {e['name'] for e in kv.list().get('string', [])}
+        self.assertEqual({n for n in names if n.startswith('fired.')} - {f'fired.{new}.2026-10-28T12:01'}, set())
+        self.at(12, 1)
+        agent.tick()
+        agent.tick()
+        self.assertEqual(self.received(), [])  # the claimed copy of that slot was dropped, not sent again
+        self.assertEqual(agent.claims[f'fired.{new}.2026-10-28T12:01'], 'dropped')
 
     def test_a_taken_id_moves_the_entry_to_the_next_digest(self):
         import hashlib
