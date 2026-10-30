@@ -66,6 +66,26 @@ class Links(unittest.TestCase):
         self.write('Plans/a.md', '# A\n\n[b](b.md#nope) [e](e.md) [ok](b.md#part) [self](#a)\n')
         self.assertEqual(self.problems(), [('Plans/a.md', 'b.md#nope', 'no such anchor'), ('Plans/a.md', 'e.md', 'no such file')])
 
+    def test_a_section_moved_out_of_a_retained_file_fails_untouched_inbound_links(self):
+        self.write('Plans/b.md', '# B\n\nThe section moved.\n')
+        self.write('Plans/done/b.md', '# B\n\n## Part\n\narchived\n')
+        self.git('add', 'Plans/b.md', 'Plans/done/b.md')
+        self.git('commit', '-qm', 'archive the section, retain the day file')
+        self.assertEqual(self.problems(), [('Plans/a.md', 'b.md#part', 'no such anchor')])
+        self.assertEqual(self.problems(inbound=False), [])
+        self.write('Plans/a.md', '# A\n\nSee [history](done/b.md#part).\n')
+        self.assertEqual(self.problems(), [])
+
+    def test_a_lost_anchor_sweep_does_not_claim_an_old_missing_anchor(self):
+        self.write('Plans/old.md', '[old](b.md#never-existed)\n')
+        self.git('add', 'Plans/old.md')
+        self.git('commit', '-qm', 'old broken anchor')
+        self.git('checkout', '-q', 'main')
+        self.git('merge', '-q', '--ff-only', 'work')
+        self.git('checkout', '-qb', 'next')
+        self.write('Plans/b.md', '# B\n')
+        self.assertEqual(self.problems(), [('Plans/a.md', 'b.md#part', 'no such anchor')])
+
     def test_an_untouched_file_with_an_old_broken_link_is_not_this_changes_problem(self):
         self.write('Plans/old.md', '[gone](gone.md)\n')
         self.git('add', '.')
