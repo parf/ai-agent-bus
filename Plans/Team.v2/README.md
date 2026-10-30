@@ -25,47 +25,67 @@ prefix `ab-` ([TD2](DECISIONS.md#recorded-decisions)). Team 1 runs in the reposi
 resumes its own conversation.
 
 ```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 420}}}%%
 flowchart TD
   parf(["parf — owner"]) <-->|talks only to| ceo
-  ceo["<b>#ab-ceo</b><br/>kitty window CEO · Claude /fast · local/ceo/<br/>• owner's single contact, answers at once<br/>• writes tickets T-n, hands them to #ab-dir<br/>• keeps the waiting-on-owner list<br/>• reports results · never executes or waits"]
-  dir["<b>#ab-dir</b><br/>tmux DIR · Claude /fast · local/dir/<br/>• splits tickets into tasks on disjoint paths<br/>• picks the team by subsystem, balances load<br/>• sets deadlines, requeues overdue tasks<br/>• settles cross-team conflicts · no code"]
-  subgraph team1 ["team 1 · repository root"]
-    lead1["#ab-lead1<br/>tmux LEAD1 · Claude /fast<br/>decides bump"]
-    w1a["#ab-w1a<br/>Claude, account 1"]
-    w1b["#ab-w1b<br/>Claude, account 2"]
-    w1c["#ab-w1c<br/>Codex"]
-    qa1["#ab-qa1<br/>opencode on z.ai · read-only"]
-  end
-  subgraph team2 ["team 2 · Plans/"]
-    lead2["#ab-lead2<br/>tmux LEAD2 · Claude /fast<br/>decides bump"]
-    w2a["#ab-w2a<br/>Claude, account 1"]
-    w2b["#ab-w2b<br/>Claude, account 2"]
-    w2c["#ab-w2c<br/>Codex"]
-    qa2["#ab-qa2<br/>opencode on z.ai · read-only"]
-  end
-  gate[["#ab-gate<br/>tmux GATE · script gate.sh<br/>no model · sole lander"]]
+  ceo["`**#ab-ceo** · kitty · Claude /fast · local/ceo/
+  owner's single contact, answers at once
+  writes tickets, hands them to #ab-dir
+  keeps the waiting-on-owner list
+  reports results; never executes or waits`"]
+  dir["`**#ab-dir** · tmux DIR · Claude /fast · local/dir/
+  splits tickets into tasks on disjoint paths
+  picks the team by subsystem, balances load
+  sets deadlines, requeues overdue tasks
+  settles cross-team conflicts; no code`"]
+  lead1["`**#ab-lead1** · team 1
+  repository root`"]
+  lead2["`**#ab-lead2** · team 2
+  Plans/`"]
+  gate[["`**#ab-gate** · script, no model
+  sole lander on main`"]]
   main[("main")]
-
-  ceo -->|ticket T-n| dir
+  ceo -->|ticket| dir
   dir -->|task| lead1 & lead2
-  lead1 --> w1a & w1b & w1c
-  lead1 -->|check| qa1
-  lead2 --> w2a & w2b & w2c
-  lead2 -->|check| qa2
   lead1 & lead2 -->|land| gate
   gate -->|ff-merge| main
+```
+
+Inside team N (1 or 2), every session runs in the team's directory:
+
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 420}}}%%
+flowchart TD
+  lead["`**#ab-leadN** · tmux LEADN · Claude /fast
+  assigns tasks by fit, reads receipts only
+  sends to QA, then to #ab-gate; decides bump`"]
+  wa["`**#ab-wNa**
+  Claude
+  account 1`"]
+  wb["`**#ab-wNb**
+  Claude
+  account 2`"]
+  wc["`**#ab-wNc**
+  Codex`"]
+  qa["`**#ab-qaN**
+  opencode, z.ai
+  read-only`"]
+  gate[["#ab-gate"]]
+  lead -->|task| wa & wb & wc
+  lead -->|check| qa
+  lead -->|land| gate
 ```
 
 A task's path, each arrow one bus message:
 
 ```mermaid
 sequenceDiagram
-  participant ceo as #ab-ceo
-  participant dir as #ab-dir
-  participant lead as #ab-leadN
-  participant w as #ab-wNx
-  participant qa as #ab-qaN
-  participant gate as #ab-gate
+  participant ceo as ab-ceo
+  participant dir as ab-dir
+  participant lead as ab-leadN
+  participant w as ab-wNx
+  participant qa as ab-qaN
+  participant gate as ab-gate
   ceo->>dir: ticket T-n
   dir->>lead: task: goal, plan item, paths, acceptance, deadline
   lead->>w: task T-n
