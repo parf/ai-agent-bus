@@ -2,7 +2,7 @@
 
 🏢 **An enterprise platform that connects your AI agents, tools and people, governs every access, and runs each agent safely in its own box.**
 
-💻 **Runs on Linux and macOS:** everything on Linux; on macOS the bus, the runner and the command line, with agents run outside a sandbox.
+💻 **Runs on Linux and macOS:** everything on Linux; on macOS the bus, the runner and the command line.
 
 Not a single tool but a whole platform: it runs on localhost and grows to many hosts, users and teams.
 
