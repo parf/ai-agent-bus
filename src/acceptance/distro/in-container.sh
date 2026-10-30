@@ -59,16 +59,16 @@ refused() { # variant, words install.sh must say
   pristine || fail "the refused $1 release changed the host"
   pass "$1 release refused before any file was written: $2"
 }
-# The archive changed, its signed hash did not. Without bubblewrap install.sh
+# The archive changed, its published checksum did not. Without bubblewrap install.sh
 # warns, and installs nothing here either way.
 bwrap=$(command -v bwrap) || fail "the image has no bubblewrap"
 mv "$bwrap" /root/bwrap.aside
-refused tampered "does not match its signed hash"
+refused tampered "does not match its SHA256SUMS checksum"
 mv /root/bwrap.aside "$bwrap"
 grep -q 'bubblewrap (bwrap) is not installed' /evidence/tampered.log || fail "install.sh did not warn that bubblewrap is missing"
 pass "install.sh warns when bubblewrap is missing"
-# The archive changed and so did SHA256SUMS: only the signature is left to say no.
-refused forged "SHA256SUMS is not signed by a release key"
+# The outer checksum matches, but the payload no longer matches its manifest.
+refused forged "does not match its own manifest"
 
 install_from good >/evidence/install.log 2>&1 || { tail -40 /evidence/install.log >&2; fail "install.sh did not install the good release"; }
 ! grep -q 'bubblewrap' /evidence/install.log || fail "install.sh warned about bubblewrap on a host that has it"

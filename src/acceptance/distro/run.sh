@@ -1,7 +1,7 @@
 #!/bin/bash
-# Three-distro install acceptance (P.4): a release built and signed here with
-# a throwaway key is installed by install.sh inside rootless podman on each
-# distribution, then must pass src/check-deploy.sh. Forged releases must be
+# Three-distro install acceptance (P.4): a release built here with SHA256SUMS
+# is installed by install.sh inside rootless podman on each
+# distribution, then must pass src/check-deploy.sh. Checksum and manifest mismatches must be
 # refused first. Containers and their data live under the main checkout's
 # tmp/distro-acceptance and are removed after each run, a killed one's at the
 # latest when the next starts (guard.sh); the image store there is kept as a
@@ -10,8 +10,8 @@
 #   src/acceptance/distro/run.sh [--dist <dir>] [--next-dist <dir>] [--keep] [--clean] [almalinux10 ubuntu2604 debian13]
 #
 # --dist takes the archives src/package.sh built for this host's CPU; without
-# it they are built. The other CPU needs cgo and its own runner, so a run signs
-# only what it installs, with the same ssh-keygen step release-sign.sh ends with.
+# it they are built. The other CPU needs cgo and its own runner, so a run
+# checksums only the host CPU archives it installs.
 # The update is to a "next" release: this tree with VERSION one patch up,
 # built from a copy (--next-dist takes one built before).
 # --keep leaves the run directory for a look; nothing else is kept.
@@ -84,28 +84,22 @@ if [ -z "$next_dist" ]; then
   "$run/next/src/package.sh" "$next_dist" >"$run/package-next.log" 2>&1 || { cat "$run/package-next.log" >&2; exit 1; }
 fi
 
-# The release, signed as the owner would, but with a key made for this run.
+# The unsigned release and its published checksums.
 good=$run/release/good/latest/download
 mkdir -p "$good"
 for edition in agent-bus agent-bus-client; do
   cp "$dist/$edition-$version-linux-$arch.tar.gz" "$good/"
 done
 (cd "$good" && sha256sum ./*.tar.gz | sed 's|  \./|  |' >SHA256SUMS)
-ssh-keygen -q -t ed25519 -N '' -C agent-bus-release-acceptance -f "$run/release-key"
-ssh-keygen -Y sign -q -f "$run/release-key" -n agent-bus-release "$good/SHA256SUMS"
-signer="agent-bus-release $(cut -d' ' -f1-2 "$run/release-key.pub")"
 
 full=agent-bus-$version-linux-$arch.tar.gz
-# A well-formed release that differs: one file changed and its manifest
-# remade, so only the signed hash or the signature can tell.
+# Change a payload but leave its manifest stale. The tampered variant keeps
+# the old outer checksum; forged updates that checksum to reach the manifest check.
 mkdir "$run/forge"
 tar -xzf "$good/$full" -C "$run/forge"
 (
   cd "$run/forge/${full%.tar.gz}"
   printf 'tampered\n' >>INSTALL.md
-  cut -d' ' -f3- MANIFEST.sha256 | xargs -d '\n' sha256sum >MANIFEST.sha256.new
-  mv MANIFEST.sha256.new MANIFEST.sha256
-  sha256sum -c --quiet MANIFEST.sha256
 )
 for variant in tampered forged; do
   cp -a "$run/release/good" "$run/release/$variant"
@@ -122,16 +116,14 @@ for edition in agent-bus agent-bus-client; do
   cp "$next_dist/$edition-$next-linux-$arch.tar.gz" "$nextdl/"
 done
 (cd "$nextdl" && sha256sum ./*.tar.gz | sed 's|  \./|  |' >SHA256SUMS)
-ssh-keygen -Y sign -q -f "$run/release-key" -n agent-bus-release "$nextdl/SHA256SUMS"
 cp -a "$nextdl" "$run/release/next/download/v$next"
 cp -a "$good" "$run/release/next/download/v$version"
 
-# Each variant's install.sh: the shipped one, its release URL and key block filled in.
+# Each variant's install.sh: only the release URL changes.
 for variant in good tampered forged next; do
-  sed -e "s|^RELEASES=\"https://github.com/parf/ai-agent-bus/releases\"\$|RELEASES=\"https://releases.test/$variant\"|" \
-      -e "s|^RELEASE_KEYS=\"\"\$|RELEASE_KEYS=\"$signer\"|" "$src/../install.sh" >"$run/release/$variant/install.sh"
-  [ "$(grep -c "^RELEASES=\"https://releases.test/$variant\"\$\|^RELEASE_KEYS=\"$signer\"\$" "$run/release/$variant/install.sh")" = 2 ] ||
-    { echo "install.sh no longer has the RELEASES and RELEASE_KEYS lines this harness fills" >&2; exit 1; }
+  sed -e "s|^RELEASES=\"https://github.com/parf/ai-agent-bus/releases\"\$|RELEASES=\"https://releases.test/$variant\"|" "$src/../install.sh" >"$run/release/$variant/install.sh"
+  [ "$(grep -cFx "RELEASES=\"https://releases.test/$variant\"" "$run/release/$variant/install.sh")" = 1 ] ||
+    { echo "install.sh no longer has the RELEASES line this harness fills" >&2; exit 1; }
 done
 
 mkdir -p "$run/fixture"

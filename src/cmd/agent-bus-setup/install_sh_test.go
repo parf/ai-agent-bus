@@ -621,7 +621,7 @@ func TestInstallShFullNodeIsRefusedOnMacOS(t *testing.T) {
 	}
 }
 
-// release-checksums checksums the macOS client edition with the four, both CPUs or neither.
+// release-sign.sh checksums the macOS client edition with the four, both CPUs or neither.
 func TestReleaseSumsTakesTheMacOSClientBothOrNone(t *testing.T) {
 	f := newInstallFixture(t)
 	rel := f.publish("1.0.0", false)
@@ -641,5 +641,40 @@ func TestReleaseSumsTakesTheMacOSClientBothOrNone(t *testing.T) {
 	sums, _ := os.ReadFile(filepath.Join(rel, "SHA256SUMS"))
 	if n := strings.Count(string(sums), "\n"); n != 6 || !strings.Contains(string(sums), "-darwin-aarch64.tar.gz") {
 		t.Fatalf("the checksummed list holds %d lines:\n%s", n, sums)
+	}
+}
+
+// The Linux-side Mac fixture needs no release key and writes an exact checksum list.
+func TestReleaseSumsThrowawayMac(t *testing.T) {
+	in := t.TempDir()
+	for _, arch := range []string{"x86_64", "aarch64"} {
+		if err := os.WriteFile(filepath.Join(in, "agent-bus-client-1.0.0-darwin-"+arch+".tar.gz"), []byte("mac archive"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	out := filepath.Join(t.TempDir(), "release")
+	result, err := exec.Command("../../acceptance/mac-throwaway-release.sh", in, out, "8789").CombinedOutput()
+	if err != nil {
+		t.Fatalf("throwaway fixture: %v %s", err, result)
+	}
+	rel := filepath.Join(out, "serve/download/v1.0.0")
+	check := exec.Command("sha256sum", "-c", "SHA256SUMS")
+	check.Dir = rel
+	if result, err := check.CombinedOutput(); err != nil {
+		t.Fatalf("throwaway sums: %v %s", err, result)
+	}
+	entries, _ := os.ReadDir(rel)
+	if len(entries) != 7 {
+		t.Fatalf("release has %d files, want six archives and SHA256SUMS", len(entries))
+	}
+	if _, err := os.Stat(filepath.Join(out, "key")); !os.IsNotExist(err) {
+		t.Fatal("throwaway fixture left release keys")
+	}
+	script, err := os.ReadFile(filepath.Join(out, "install-throwaway.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(script), `RELEASES="http://127.0.0.1:8789"`) || strings.Contains(string(script), "RELEASE_KEYS=") {
+		t.Fatal("throwaway installer did not use loopback without signing keys")
 	}
 }

@@ -381,7 +381,7 @@ out=$(bash ./package-darwin.test.sh 2>&1); rc=$?
 ok_exit "the macOS client archive holds Mach-O client programs for its CPU and nothing of the node" "$rc"
 [ "$rc" = 0 ] || echo "$out"
 out=$(RELEASE_DIST=$D/dist bash ./release-verify.real.test.sh 2>&1); rc=$?
-ok_exit "release evidence passes the signed archives package.sh builds and fails each bad release" "$rc"
+ok_exit "release evidence passes the checksummed archives package.sh builds and fails each bad release" "$rc"
 [ "$rc" = 0 ] || echo "$out"
 out=$(bash ./smoke-port.test.sh 2>&1); rc=$?
 ok_exit "smoke port claim contract" "$rc"
@@ -4239,7 +4239,7 @@ distro_install() {
     local out rc
     out=$(timeout 540 ./journal-quiet.sh agent-bus-distro- ./acceptance/distro/run.sh 2>&1); rc=$?
     echo "$out" | sed 's/^/  /'
-    ok_exit "curl | sh installs a node that passes check-deploy, refuses forged releases and updates keeping its configuration" "$rc"
+    ok_exit "curl | sh installs a node that passes check-deploy, refuses checksum and manifest mismatches and updates keeping its configuration" "$rc"
     has "the distro acceptance wrote nothing to the host journal" "$out" "^journal-quiet: no journal entry for agent-bus-distro-$"
   else skipped=$((skipped+1)); fi
 }

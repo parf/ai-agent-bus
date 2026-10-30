@@ -1,10 +1,7 @@
 #!/bin/bash
-# A signed throwaway release for trying install.sh --client on a Mac, made on
-# a Linux node. It takes the two macOS client archives package.sh built,
-# adds stand-ins for the four Linux archives release-sign.sh insists on,
-# signs everything with a key made here and thrown away (only its public half
-# is kept, inside the copy of install.sh), and writes a copy of install.sh
-# that trusts that key and fetches from a local HTTP server.
+# An unsigned throwaway release for trying install.sh --client on a Mac,
+# made on Linux from package.sh's two macOS client archives and Linux stand-ins.
+# It generates SHA256SUMS and a copy of install.sh fetching from loopback HTTP.
 #
 #   src/acceptance/mac-throwaway-release.sh <dir with the darwin archives> <out dir> [port]
 #
@@ -21,22 +18,18 @@ mapfile -t archives < <(ls "$in"/agent-bus-client-*-darwin-*.tar.gz)
 [ ${#archives[@]} = 2 ] || { echo "want the two macOS client archives in $in, found ${#archives[@]}" >&2; exit 1; }
 version=$(basename "${archives[0]}" | sed -E 's/^agent-bus-client-([0-9.]+)-darwin-.*/\1/')
 rel=$out/serve/download/v$version
-mkdir -p "$rel" "$out/key"
+mkdir -p "$rel"
 cp "${archives[@]}" "$rel/"
 for p in agent-bus/x86_64 agent-bus/aarch64 agent-bus-client/x86_64 agent-bus-client/aarch64; do
   printf 'stand-in %s\n' "$p" >"$rel/${p%%/*}-$version-linux-${p##*/}.tar.gz"
 done
-ssh-keygen -q -t ed25519 -N '' -C throwaway -f "$out/key/release"
-"$src/release-sign.sh" "$rel" "$out/key/release" "$version" --no-ci-check >/dev/null
-pub=$(cut -d' ' -f1,2 "$out/key/release.pub")
-rm -f "$out/key/release"  # the private half is gone; nothing here can sign again
-python3 - "$src/../install.sh" "$out/install-throwaway.sh" "$port" "$pub" <<'P'
+"$src/release-sign.sh" "$rel" "$version" >/dev/null
+python3 - "$src/../install.sh" "$out/install-throwaway.sh" "$port" <<'P'
 import sys
-src, dst, port, pub = sys.argv[1:5]
+src, dst, port = sys.argv[1:4]
 s = open(src).read()
 for old, new in {
     'RELEASES="https://github.com/parf/ai-agent-bus/releases"': 'RELEASES="http://127.0.0.1:%s"' % port,
-    'RELEASE_KEYS=""': 'RELEASE_KEYS="agent-bus-release %s"' % pub,
     " --proto '=https' --proto-redir '=https' --tlsv1.2": "",
 }.items():
     assert s.count(old) == 1, old
