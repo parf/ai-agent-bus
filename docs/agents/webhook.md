@@ -7,7 +7,7 @@
 
 ## Why you'd want it
 
-- 📥 **An event source speaks HTTP.** Now each post lands in a queue or reaches an assistant.
+- 📥 **An event source speaks HTTP.** Now each post lands in an inbox or reaches an assistant.
 - 🚀 **A push must update many servers.** Now a GitLab or GitHub push becomes one new-code event for every server that follows the branch.
 - 🔑 **A caller must not hold another service's credentials.** Now it posts to a named route and the Basic credential stays in the helper.
 - 🛡️ **Anyone could post.** Now each inbound route can require Basic or a signature check.
