@@ -10,7 +10,8 @@
 # session that cleans up after a SIGKILL. It sets no signal trap: bash already runs the caller's EXIT trap on INT,
 # TERM and HUP at once, while a trap of its own for them waits for the foreground command (a long `podman exec`) to
 # finish first. A run is its pid and start time, so a reused pid is a dead run. A store that cannot be listed fails
-# the run: it is not a store with nothing in it. The image cache is never touched.
+# the run: it is not a store with nothing in it. The image cache is never touched. Every podman call, unshare
+# included, goes through the caller's command, never a podman found on PATH (J36).
 
 # guard_lock: refuse the run, before any podman call, unless someone holds the smoke-gate lock. A container run belongs
 # to a gate or a mutant, which hold it; a run outside one is the stray that leaked (J32). A holders answer that
@@ -46,7 +47,7 @@ listed=
 for i in 1 2 3 4 5; do names=$("$@" ps -a --filter "label=agent-bus-run=$run" --format "{{.Names}}") && { listed=1; break; }; sleep 1; done
 [ -n "$listed" ] || exit 1   # never listed: the directory and its owner file stay, so the next start sweeps them
 for n in $names; do "$@" rm -f -t 1 "$n" >/dev/null 2>&1; done
-[ -n "$keep" ] || podman unshare rm -rf "$dir"'
+[ -n "$keep" ] || "$@" unshare rm -rf "$dir"'
 
 guard() { # guard <run dir> [keep]
   local run=$1 keep=${2:-} listing n r d
@@ -57,7 +58,7 @@ guard() { # guard <run dir> [keep]
     [ -n "$n" ] && guard_dead "$r" && "${podman[@]}" rm -f -t 1 "$n" >/dev/null 2>&1
   done <<<"$listing"
   for d in "$(dirname "$run")"/run.*; do
-    [ -f "$d/owner" ] && guard_dead "$(cat "$d/owner")" && podman unshare rm -rf "$d"
+    [ -f "$d/owner" ] && guard_dead "$(cat "$d/owner")" && "${podman[@]}" unshare rm -rf "$d"
   done
   [ -n "$keep" ] || echo "$guard_run" >"$run/owner"   # a kept directory is not swept
   setsid sh -c "$GUARD_WATCH" sh "$guard_run" "$run" "$keep" "${podman[@]}" </dev/null >/dev/null 2>&1 &
