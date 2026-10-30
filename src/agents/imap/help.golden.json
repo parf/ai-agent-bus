@@ -1,0 +1,243 @@
+{
+  "text": "Read your mail from a private cache without giving callers the mailbox password. Sync, list, search and read mail, set Seen status, and subscribe an agent to new mail. Start with sync, then list.\nsync [limit]: Fetch mail not yet cached, newest first; default 100. The reply lists that history newest first and says whether more remains. A forwarding-state error blocks sync until rebaseline; read, list and search keep working.\nlist [limit] [--unread]: See what is cached: Date, From and Subject with live read or unread status, newest UID first; default 20. --unread filters before the limit. JSON unread is a boolean. Date is as sent, unverified.\nsearch <text...>: Find cached mail by text: up to 100 Date, From and Subject summaries whose raw mail matches, with live read or unread status. The match runs locally; the server does no text search.\n  text (string): Nonempty local case-insensitive text, at most 4096 UTF-8 bytes; no controls\n[destructive] read <uid> [--no-mark]: Get one raw mail and mark it Seen by default, cached or not. --no-mark (JSON mark_read:false) leaves it unchanged. Every read needs a live server; a lost reply may leave the mail marked. No delete, move or other flags.\n[destructive] publish <uid>: Copy one raw mail, with an external-content warning, to the Configuration target. Each explicit repeat copies again.\nsub add <target> [/regex/]: Forward mail that arrives after this add to a destination; the old backlog is never forwarded. A missing or empty filter matches ALL mail from this account. The author's permission to send is checked at add and on each forward, and the receiver must also admit this IMAP instance. At most 20 subscriptions per creator, 100 in total.\n  filter (string): Match sender addr-spec plus decoded subject; common regex subset, at most 200 characters, optional /imsu flags; no g/y\nsub list: See every subscription, for every admitted caller: creator, held count and UID range, pause, intake state, skipped counts, reasons and ranges, and repair status. No mailbox connection. A blank line separates the cached poll-status line at the end.\n[destructive] sub delete <id>: Stop a subscription and discard its held copies; the creator or this IMAP's Owner and Maintainers may. Delete and add again starts at the current UIDNEXT and skips mail received while paused.\nstatus: See the last poll and its age, and the pause, held, backlog, loss and repair counts. No mailbox connection.\n[destructive] mark <uid> read|unread: Set or clear Seen on the server and get the observed read or unread state. Ordinary IMAP admission permits this. An unknown write outcome is not retried.\n  state (read|unread): Only read or unread\n\nArguments\nid (string): Subscription id returned by sub add\nlimit (int): Maximum items, 1..100; defaults are stated per method\ntarget (string): A queue or agent whose ACL admits this IMAP instance; the author must also be admitted\nuid (int): Mailbox UID, 1..4294967295, never an IMAP command or sequence number\n\nv<version> · PolyForm-NC · parf.dev/agent-bus/\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/imap.md\nMore: agent-bus help <name> config | secret | json",
+  "json": {
+    "description": "Read your mail from a private cache without giving callers the mailbox password. Sync, list, search and read mail, set Seen status, and subscribe an agent to new mail. Start with sync, then list.",
+    "license": "PolyForm-Noncommercial-1.0.0",
+    "author": "Serg Parf",
+    "homepage": "https://parf.dev/agent-bus/",
+    "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/imap.md",
+    "version": "<version>",
+    "methods": {
+      "sync": {
+        "type": "string",
+        "help": "Fetch mail not yet cached, newest first; default 100. The reply lists that history newest first and says whether more remains. A forwarding-state error blocks sync until rebaseline; read, list and search keep working.",
+        "args": [
+          {
+            "type": "int",
+            "help": "Maximum items, 1..100; defaults are stated per method",
+            "name": "limit",
+            "optional": true
+          }
+        ]
+      },
+      "list": {
+        "type": "string",
+        "help": "See what is cached: Date, From and Subject with live read or unread status, newest UID first; default 20. --unread filters before the limit. JSON unread is a boolean. Date is as sent, unverified.",
+        "args": [
+          {
+            "type": "int",
+            "help": "Maximum items, 1..100; defaults are stated per method",
+            "name": "limit",
+            "optional": true
+          }
+        ],
+        "text": "list [limit] [--unread]"
+      },
+      "search": {
+        "type": "string",
+        "help": "Find cached mail by text: up to 100 Date, From and Subject summaries whose raw mail matches, with live read or unread status. The match runs locally; the server does no text search.",
+        "args": [
+          {
+            "type": "string",
+            "name": "text",
+            "rest": true,
+            "help": "Nonempty local case-insensitive text, at most 4096 UTF-8 bytes; no controls"
+          }
+        ]
+      },
+      "read": {
+        "type": "string",
+        "help": "Get one raw mail and mark it Seen by default, cached or not. --no-mark (JSON mark_read:false) leaves it unchanged. Every read needs a live server; a lost reply may leave the mail marked. No delete, move or other flags.",
+        "args": [
+          {
+            "type": "int",
+            "help": "Mailbox UID, 1..4294967295, never an IMAP command or sequence number",
+            "name": "uid"
+          }
+        ],
+        "text": "read <uid> [--no-mark]",
+        "destructive": true
+      },
+      "publish": {
+        "type": "string",
+        "help": "Copy one raw mail, with an external-content warning, to the Configuration target. Each explicit repeat copies again.",
+        "destructive": true,
+        "args": [
+          {
+            "type": "int",
+            "help": "Mailbox UID, 1..4294967295, never an IMAP command or sequence number",
+            "name": "uid"
+          }
+        ]
+      },
+      "help": {
+        "type": "string",
+        "help": "Show the calls and their limits.",
+        "args": []
+      },
+      "sub add": {
+        "type": "string",
+        "text": "sub add <target> [/regex/]",
+        "help": "Forward mail that arrives after this add to a destination; the old backlog is never forwarded. A missing or empty filter matches ALL mail from this account. The author's permission to send is checked at add and on each forward, and the receiver must also admit this IMAP instance. At most 20 subscriptions per creator, 100 in total.",
+        "args": [
+          {
+            "type": "string",
+            "help": "A queue or agent whose ACL admits this IMAP instance; the author must also be admitted",
+            "name": "target"
+          },
+          {
+            "type": "string",
+            "name": "filter",
+            "optional": true,
+            "rest": true,
+            "help": "Match sender addr-spec plus decoded subject; common regex subset, at most 200 characters, optional /imsu flags; no g/y"
+          }
+        ]
+      },
+      "sub list": {
+        "type": "string",
+        "text": "sub list",
+        "help": "See every subscription, for every admitted caller: creator, held count and UID range, pause, intake state, skipped counts, reasons and ranges, and repair status. No mailbox connection. A blank line separates the cached poll-status line at the end.",
+        "args": []
+      },
+      "sub delete": {
+        "type": "string",
+        "text": "sub delete <id>",
+        "help": "Stop a subscription and discard its held copies; the creator or this IMAP's Owner and Maintainers may. Delete and add again starts at the current UIDNEXT and skips mail received while paused.",
+        "destructive": true,
+        "args": [
+          {
+            "type": "string",
+            "help": "Subscription id returned by sub add",
+            "name": "id"
+          }
+        ]
+      },
+      "status": {
+        "type": "string",
+        "help": "See the last poll and its age, and the pause, held, backlog, loss and repair counts. No mailbox connection.",
+        "args": []
+      },
+      "mark": {
+        "type": "string",
+        "text": "mark <uid> read|unread",
+        "help": "Set or clear Seen on the server and get the observed read or unread state. Ordinary IMAP admission permits this. An unknown write outcome is not retried.",
+        "destructive": true,
+        "args": [
+          {
+            "type": "int",
+            "help": "Mailbox UID, 1..4294967295, never an IMAP command or sequence number",
+            "name": "uid"
+          },
+          {
+            "type": [
+              "read",
+              "unread"
+            ],
+            "name": "state",
+            "help": "Only read or unread"
+          }
+        ]
+      }
+    },
+    "asks": [
+      "help",
+      "help-config",
+      "help-secret",
+      "help-json"
+    ],
+    "config": {
+      "host": {
+        "type": "string",
+        "help": "IMAP hostname; default imap.gmail.com",
+        "example": "imap.gmail.com"
+      },
+      "port": {
+        "type": "int",
+        "help": "Port 1..65535; default 993",
+        "example": 993
+      },
+      "mode": {
+        "type": [
+          "tls",
+          "plain"
+        ],
+        "help": "Implicit verified TLS by default; plain requires explicit loopback opt-out",
+        "example": "tls"
+      },
+      "auth": {
+        "type": [
+          "password",
+          "xoauth2"
+        ],
+        "help": "App password (default) or Google XOAUTH2; no fallback",
+        "example": "password"
+      },
+      "mailbox": {
+        "type": "string",
+        "help": "Mailbox or Gmail label, Unicode accepted; default INBOX",
+        "example": "INBOX"
+      },
+      "target": {
+        "type": "string",
+        "help": "Optional fixed publication destination; required only for publish",
+        "example": "#mail-reports@node.example"
+      },
+      "cache_bytes": {
+        "type": "int",
+        "help": "Logical cache byte budget including state/temporary writes; default 67108864, range 4194304..536870912",
+        "example": 67108864
+      },
+      "cafile": {
+        "type": "string",
+        "help": "Optional existing public CA trust file visible inside the sandbox",
+        "example": "/etc/ssl/certs/ca-certificates.crt"
+      },
+      "allow_plaintext": {
+        "type": "bool",
+        "help": "Explicit opt-out permitting plain mode only to loopback; default false",
+        "example": false
+      }
+    },
+    "secrets": [
+      {
+        "name": "IMAP_USERNAME",
+        "help": "Account name from its provider, in imap/<instance>/env. Keep package-wide\nimap/env free of account credentials when instances use different accounts.",
+        "required": true,
+        "has_default": false
+      },
+      {
+        "name": "IMAP_PASSWORD",
+        "help": "Required with auth=password: app password from the account's security settings.",
+        "required": false,
+        "has_default": false
+      },
+      {
+        "name": "IMAP_CLIENT_ID",
+        "help": "Required with auth=xoauth2: Google's OAuth client ID and secret for your consent app.",
+        "required": false,
+        "has_default": false
+      },
+      {
+        "name": "IMAP_CLIENT_SECRET",
+        "help": "",
+        "required": false,
+        "has_default": false
+      },
+      {
+        "name": "IMAP_REFRESH_TOKEN",
+        "help": "Required with auth=xoauth2: obtain through Google's OAuth consent flow with\nhttps://mail.google.com/ scope and offline access. No browser flow in this agent.",
+        "required": false,
+        "has_default": false
+      }
+    ],
+    "body_formats": [
+      "text",
+      "json"
+    ],
+    "hidden_methods": {
+      "count": 0,
+      "roles": []
+    }
+  }
+}

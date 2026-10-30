@@ -93,23 +93,23 @@ One line each, from the description its `help` prints.
 - [`#at`](at.md) — Deliver a reminder or follow-up without staying connected. Schedule one message and review its outcome. Start with in for a delay or at for a time; delivery uses this agent's identity and needs the destination's permission.
 - [`#bus`](bus.md) — The daemon on the bus; read-only methods use your authority
 - [`#cron`](cron.md) — Keep recurring work and follow-ups on time without staying connected. Schedule repeated or one-time messages and review their outcomes. Start with sub add or later; delivery uses this agent's identity and needs the destination's permission.
-- [`#db`](db.md) — Run one SQL statement against a MySQL, PostgreSQL or ClickHouse database; read is enforced by the database
+- [`#db`](db.md) — Ask a database questions without holding its password. Run one SQL statement on a MySQL, PostgreSQL or ClickHouse database; the database itself enforces your read, write or admin tier. Start with query and a SELECT.
 - [`#debug`](debug.md) — Find out whether messages arrive and agents can work. Check replies, permissions and runner health with bounded probes. Start with ping; use doctor for a health summary and sandbox for observed restrictions.
 - [`#eventlog`](eventlog.md) — Review operational events without searching unrelated output. Keep named notice, warning and alert logs, and forward matching new entries. Start with list or read; each severity has its own bounded history.
 - [`#fetch`](fetch.md) — Read web pages and call allowed web services without a browser. Get readable text or make one bounded HTTP request. Start with get and a URL; every destination must satisfy this instance's access rules.
 - [`#git`](git.md) — Understand a shared checkout before updating or deploying it. Inspect changes and history, then synchronize or publish within configured access. Start with list and status; changes use this server's Git identity and each repository's access limit.
-- [`#imap`](imap.md) — Read a private mail cache, manage Seen status and subscribe to future mail
+- [`#imap`](imap.md) — Read your mail from a private cache without giving callers the mailbox password. Sync, list, search and read mail, set Seen status, and subscribe an agent to new mail. Start with sync, then list.
 - [`#logwatch`](logwatch.md) — Find useful events without reading every host log. Review retained lines, search them or forward new matches. Start with sources and tail; marks and retained history are lost on restart.
-- [`#qdrant`](qdrant.md) — Call the configured store within your read, write or admin role
-- [`#rag`](rag.md) — Store, classify and embed records; manage their prompts
+- [`#qdrant`](qdrant.md) — Search and manage a Qdrant vector store without holding its key. Call the Qdrant API within your read, write or admin role. Start with request GET /collections.
+- [`#rag`](rag.md) — Store documents with embeddings and topic labels, ready for search by meaning. Save, read, list and delete records, and set each table's classification prompts. Start with upsert and a namespace.
 - [`#server-info`](server-info.md) — Find host resource and service problems before choosing a fix. Read system, network, storage and certificate facts without changing the host. Start with load or disks; available sections depend on the Linux account running this agent.
-- [`#slack`](slack.md) — Post and read messages; route replies; forward selected conversations
-- [`#sms-telnyx`](sms.md) — Send one SMS through Telnyx; the body is {to,text} or \<to> \<text>; never retry unknown results
-- [`#smtp`](smtp.md) — Send mail once through a configured account with verified TLS
+- [`#slack`](slack.md) — Put your AI in your team's Slack. Post and read messages, reply in threads, route replies to the right session and forward chosen conversations. Start with whoami, then post.
+- [`#sms-telnyx`](sms.md) — Send one text message without handing callers the Telnyx key. The body is {to,text} or \<to> \<text>. An unknown result is never retried; start with send.
+- [`#smtp`](smtp.md) — Send an email through a configured account without handing callers its password. Submit one message and learn whether it was accepted, partly accepted, refused or unknown; TLS is verified. Start with send.
 - [`#systemd`](systemd.md) — Find service failures and control the services this instance permits. Inspect status and logs, then start, stop or reload a selected unit. Start with failed or status; changes stay within the configured scope and require the appropriate role.
-- [`#telegram`](telegram.md) — Post and read chats; route your replies to the right session
+- [`#telegram`](telegram.md) — Put your AI in your Telegram chats. Post and read messages, and route replies to the right session. Start with whoami, then post.
 - [`#tmux-sessions`](tmux-sessions.md) — Organize long-running work in named terminal windows. Inspect configured windows and start, stop or restart them together or separately. Start with list; each window runs its configured command in one tmux session.
-- [`#voyage`](voyage.md) — Embed text or pass a request through Voyage without sharing its provider key
+- [`#voyage`](voyage.md) — Turn text into embeddings without giving callers the Voyage key. Embed text, or pass one JSON request to a Voyage endpoint. Start with embed and your text.
 - [`#webhook`](webhook.md) — Connect outside events and services without sharing their credentials. Receive authenticated events or send a body to a configured destination. Start with routes to see available names; post sends once and returns the response.
 <!-- /bundled-agents -->
 

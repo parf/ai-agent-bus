@@ -1,5 +1,5 @@
 {
-  "description": "Store, classify and embed records; manage their prompts",
+  "description": "Store documents with embeddings and topic labels, ready for search by meaning. Save, read, list and delete records, and set each table's classification prompts. Start with upsert and a namespace.",
   "version": "0.1.0",
   "command": "./rag.py",
   "form": "args",
@@ -91,7 +91,7 @@
   },
   "methods": {
     "upsert": {
-      "help": "Fully replace one record after classification and embedding succeed",
+      "help": "Store one record, replacing any record with the same id, once it is classified and embedded; nothing is saved if either step fails.",
       "text": "upsert (JSON only)",
       "args": [
         {
@@ -127,7 +127,7 @@
       "example": "agent-bus call '#rag@node.example' '{\"method\":\"upsert\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\",\"data\":\"Tea is a drink.\"}'"
     },
     "get": {
-      "help": "Read one canonical record, or null when absent",
+      "help": "Get one record as stored, or null when it does not exist.",
       "text": "get (JSON only)",
       "args": [
         {
@@ -143,7 +143,7 @@
       "example": "agent-bus call '#rag@node.example' '{\"method\":\"get\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\"}'"
     },
     "list": {
-      "help": "List record summaries in stable point-ID order with a continuation token",
+      "help": "Browse record summaries in stable order, up to 16 per call; send the returned cursor for the next page.",
       "text": "list (JSON only)",
       "args": [
         {
@@ -174,7 +174,7 @@
       "example": "agent-bus call '#rag@node.example' '{\"method\":\"list\",\"namespace\":\"team\",\"tableName\":\"notes\",\"limit\":2}'"
     },
     "delete": {
-      "help": "Delete one record or the exact namespace-scoped selection",
+      "help": "Remove one record, or exactly the namespace-scoped selection you name.",
       "text": "delete (JSON only)",
       "args": [
         {
@@ -206,7 +206,7 @@
       "example": "agent-bus call '#rag@node.example' '{\"method\":\"delete\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\"}'"
     },
     "prompts": {
-      "help": "Read, replace or delete one table’s prompt settings; existing records are unchanged",
+      "help": "Read, replace or delete one table's classification prompts; existing records stay as they are.",
       "text": "prompts (JSON only)",
       "args": [
         {

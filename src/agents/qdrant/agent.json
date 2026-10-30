@@ -1,5 +1,5 @@
 {
-  "description": "Call the configured store within your read, write or admin role",
+  "description": "Search and manage a Qdrant vector store without holding its key. Call the Qdrant API within your read, write or admin role. Start with request GET /collections.",
   "command": "./qdrant.py",
   "form": "json",
   "processes": "0..3",
@@ -20,7 +20,7 @@
   ],
   "methods": {
     "request": {
-      "help": "Call the Qdrant API; default write, explicit read, admin for collection and service changes",
+      "help": "Call the Qdrant API and get its JSON answer. Calls run as write by default; ask for read explicitly, and admin is needed for collection and service changes.",
       "destructive": true,
       "args": [
         {

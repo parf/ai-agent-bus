@@ -1,5 +1,5 @@
 {
-  "description": "Read a private mail cache, manage Seen status and subscribe to future mail",
+  "description": "Read your mail from a private cache without giving callers the mailbox password. Sync, list, search and read mail, set Seen status, and subscribe an agent to new mail. Start with sync, then list.",
   "command": "./imap.py",
   "form": "args",
   "serves": "itself",
@@ -41,17 +41,16 @@
   },
   "methods": {
     "sync": {
-      "help": "Fetch uncached history newest first; default 100; return descending history and more flag. A forwarding-state error blocks sync until rebaseline; read/list/search remain available.",
+      "help": "Fetch mail not yet cached, newest first; default 100. The reply lists that history newest first and says whether more remains. A forwarding-state error blocks sync until rebaseline; read, list and search keep working.",
       "args": [
         {
           "name": "limit",
           "optional": true
         }
-      ],
-      "example": "agent-bus call '#imap/work@node.example' 'sync 10'"
+      ]
     },
     "list": {
-      "help": "Return cached Date/From/Subject with live server read/unread, newest UID first; default 20. --unread filters before limit. JSON unread is a boolean. Date is as sent, unverified.",
+      "help": "See what is cached: Date, From and Subject with live read or unread status, newest UID first; default 20. --unread filters before the limit. JSON unread is a boolean. Date is as sent, unverified.",
       "args": [
         {
           "name": "limit",
@@ -61,7 +60,7 @@
       "text": "list [limit] [--unread]"
     },
     "search": {
-      "help": "Return up to 100 cached Date/From/Subject summaries matching local raw-mail text, with live server read/unread; no server text criteria.",
+      "help": "Find cached mail by text: up to 100 Date, From and Subject summaries whose raw mail matches, with live read or unread status. The match runs locally; the server does no text search.",
       "args": [
         {
           "name": "text",
@@ -69,37 +68,34 @@
           "rest": true,
           "help": "Nonempty local case-insensitive text, at most 4096 UTF-8 bytes; no controls"
         }
-      ],
-      "example": "agent-bus call '#imap/work@node.example' 'search invoice'"
+      ]
     },
     "read": {
-      "help": "Return raw mail and mark Seen by default, including cached reads. --no-mark (JSON mark_read:false) keeps it unchanged. All reads require a live server; a lost reply may leave mail marked. No delete, move or other flags.",
+      "help": "Get one raw mail and mark it Seen by default, cached or not. --no-mark (JSON mark_read:false) leaves it unchanged. Every read needs a live server; a lost reply may leave the mail marked. No delete, move or other flags.",
       "args": [
         {
           "name": "uid"
         }
       ],
-      "example": "agent-bus call '#imap/work@node.example' 'read 7'",
       "text": "read <uid> [--no-mark]",
       "destructive": true
     },
     "publish": {
-      "help": "Send one external-content warning and raw mail to Configuration target; explicit repeats copy again",
+      "help": "Copy one raw mail, with an external-content warning, to the Configuration target. Each explicit repeat copies again.",
       "destructive": true,
       "args": [
         {
           "name": "uid"
         }
-      ],
-      "example": "agent-bus call '#imap/work@node.example' 'publish 7'"
+      ]
     },
     "help": {
-      "help": "Describe calls and their limits",
+      "help": "Show the calls and their limits.",
       "args": []
     },
     "sub add": {
       "text": "sub add <target> [/regex/]",
-      "help": "Subscribe to mail arriving after this add, never the old backlog. Missing or empty filter matches ALL mail from this account. Author may-send is checked at add and each forward; the receiver must also admit this IMAP instance. At most 20 subscriptions per creator, 100 total.",
+      "help": "Forward mail that arrives after this add to a destination; the old backlog is never forwarded. A missing or empty filter matches ALL mail from this account. The author's permission to send is checked at add and on each forward, and the receiver must also admit this IMAP instance. At most 20 subscriptions per creator, 100 in total.",
       "args": [
         {
           "name": "target"
@@ -111,16 +107,15 @@
           "rest": true,
           "help": "Match sender addr-spec plus decoded subject; common regex subset, at most 200 characters, optional /imsu flags; no g/y"
         }
-      ],
-      "example": "agent-bus call '#imap/work@node.example' 'sub add helpdesk@node.example /invoice/i'"
+      ]
     },
     "sub list": {
       "text": "sub list",
-      "help": "List every subscription for every admitted caller, including creator, held count and UID range, pause, intake state, skipped counts/reasons/ranges and repair status. No mailbox connection. A blank line separates the final cached poll-status line."
+      "help": "See every subscription, for every admitted caller: creator, held count and UID range, pause, intake state, skipped counts, reasons and ranges, and repair status. No mailbox connection. A blank line separates the cached poll-status line at the end."
     },
     "sub delete": {
       "text": "sub delete <id>",
-      "help": "Creator or this IMAP Owner/Maintainers may delete; held copies are discarded. Delete+add starts at current UIDNEXT and skips mail received while paused.",
+      "help": "Stop a subscription and discard its held copies; the creator or this IMAP's Owner and Maintainers may. Delete and add again starts at the current UIDNEXT and skips mail received while paused.",
       "destructive": true,
       "args": [
         {
@@ -129,11 +124,11 @@
       ]
     },
     "status": {
-      "help": "Return the last poll view and its age, pause/held/backlog/loss/repair counts; no mailbox connection."
+      "help": "See the last poll and its age, and the pause, held, backlog, loss and repair counts. No mailbox connection."
     },
     "mark": {
       "text": "mark <uid> read|unread",
-      "help": "Set or clear only server Seen; return observed read/unread. Ordinary IMAP admission permits this. No automatic retry after unknown write outcome.",
+      "help": "Set or clear Seen on the server and get the observed read or unread state. Ordinary IMAP admission permits this. An unknown write outcome is not retried.",
       "destructive": true,
       "args": [
         {

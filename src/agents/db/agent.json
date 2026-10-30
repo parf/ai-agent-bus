@@ -1,5 +1,5 @@
 {
-  "description": "Run one SQL statement against a MySQL, PostgreSQL or ClickHouse database; read is enforced by the database",
+  "description": "Ask a database questions without holding its password. Run one SQL statement on a MySQL, PostgreSQL or ClickHouse database; the database itself enforces your read, write or admin tier. Start with query and a SELECT.",
   "command": "./db.py",
   "form": "json",
   "processes": "0..3",
@@ -25,7 +25,7 @@
   ],
   "methods": {
     "query": {
-      "help": "Run one SQL statement as the caller's tier: read, write or admin",
+      "help": "Get rows back, or the affected row count, from one SQL statement run at your tier: read, write or admin.",
       "returns": "columns and rows, or the affected row count",
       "args": [
         {
@@ -34,8 +34,7 @@
           "rest": true,
           "help": "One SQL statement"
         }
-      ],
-      "example": "agent-bus call '#mysql/billing-ro@node.example' 'query SELECT id, total FROM invoices LIMIT 5'"
+      ]
     }
   },
   "config": {

@@ -1,0 +1,298 @@
+{
+  "text": "Store documents with embeddings and topic labels, ready for search by meaning. Save, read, list and delete records, and set each table's classification prompts. Start with upsert and a namespace.\nupsert (JSON only): Store one record, replacing any record with the same id, once it is classified and embedded; nothing is saved if either step fails.; returns: Full record JSON, <=256 KiB with reconstructed embeddings and derived classification_ids(label->probability). Omitting key1/key2 clears them. Worst-case escaped-source, label and float32-vector budgets are refused before any paid call.\nget (JSON only): Get one record as stored, or null when it does not exist.\nlist (JSON only): Browse record summaries in stable order, up to 16 per call; send the returned cursor for the next page.; returns: JSON {records:[summaries],cursor:string|null}; <=16 summaries, excluding data and embeddings, each <=32 KiB. Filters do not grant access; no snapshot guarantee across calls.\n[destructive] delete (JSON only): Remove one record, or exactly the namespace-scoped selection you name.; returns: JSON {status:\"ok\"}, without a count. id requires tableName and forbids key1/key2/all; otherwise all:true is required. Deletes all revisions matching the compiled namespace filter, never prompt KV. Unknown outcomes explicitly say unknown; repeating is safe.\n[destructive] prompts (JSON only): Read, replace or delete one table's classification prompts; existing records stay as they are.\n\nExamples\nagent-bus call '#rag@node.example' '{\"method\":\"upsert\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\",\"data\":\"Tea is a drink.\"}'\nagent-bus call '#rag@node.example' '{\"method\":\"get\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\"}'\nagent-bus call '#rag@node.example' '{\"method\":\"list\",\"namespace\":\"team\",\"tableName\":\"notes\",\"limit\":2}'\nagent-bus call '#rag@node.example' '{\"method\":\"delete\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\"}'\nagent-bus call '#rag@node.example' '{\"method\":\"prompts\",\"action\":\"set\",\"namespace\":\"team\",\"tableName\":\"notes\",\"data\":{\"labels\":{\"drink\":\"Beverages\",\"other\":\"Other topics\"},\"instructions\":\"Choose the topic.\"}}'\n\nv0.1.0 · PolyForm-NC · parf.dev/agent-bus/\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/rag.md\nMore: agent-bus help <name> config | secret | json",
+  "json": {
+    "description": "Store documents with embeddings and topic labels, ready for search by meaning. Save, read, list and delete records, and set each table's classification prompts. Start with upsert and a namespace.",
+    "license": "PolyForm-Noncommercial-1.0.0",
+    "author": "Serg Parf",
+    "homepage": "https://parf.dev/agent-bus/",
+    "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/rag.md",
+    "version": "0.1.0",
+    "methods": {
+      "upsert": {
+        "type": "string",
+        "help": "Store one record, replacing any record with the same id, once it is classified and embedded; nothing is saved if either step fails.",
+        "text": "upsert (JSON only)",
+        "args": [
+          {
+            "type": "string",
+            "help": "Required non-blank UTF-8 string, 1..128 bytes; no BOM, NUL or newline. Never optional for record operations. All identity/filter strings must already be NFC; no aliases or silent normalization.",
+            "json_only": true,
+            "name": "namespace"
+          },
+          {
+            "type": "string",
+            "help": "UTF-8 table name, 1..128 bytes; required for upsert/get/prompts, optional filter for list/delete. A table alone is never sufficient. All identity/filter strings must already be NFC; no aliases or silent normalization. Same byte, BOM/NUL/newline and non-blank rules as namespace.",
+            "json_only": true,
+            "name": "tableName"
+          },
+          {
+            "type": "string",
+            "help": "Exact record ID, 1..128 UTF-8 bytes; strings only, no numeric coercion. All identity/filter strings must already be NFC; no aliases or silent normalization.",
+            "json_only": true,
+            "name": "id"
+          },
+          {
+            "type": "string",
+            "help": "UTF-8 source, at most 32768 bytes; no BOM, NUL or invalid encoding. For application/json, supply JSON text. The source cap is an upper bound: whitespace break points can require more than 8 chunks and refuse early.",
+            "json_only": true,
+            "name": "data"
+          },
+          {
+            "type": "string",
+            "help": "Optional exact filter value, at most 256 UTF-8 bytes; null is refused and never silently omitted. All identity/filter strings must already be NFC; no aliases or silent normalization. Empty string is valid; omission in upsert clears it.",
+            "json_only": true,
+            "name": "key1",
+            "optional": true
+          },
+          {
+            "type": "string",
+            "help": "Optional exact filter value, at most 256 UTF-8 bytes; null is refused and never silently omitted. All identity/filter strings must already be NFC; no aliases or silent normalization. Empty string is valid; omission in upsert clears it.",
+            "json_only": true,
+            "name": "key2",
+            "optional": true
+          },
+          {
+            "type": [
+              "text/plain",
+              "text/markdown",
+              "text/html",
+              "application/json"
+            ],
+            "help": "Content type; HTML excludes script/style, Markdown keeps its source, JSON is canonicalized for chunking.",
+            "json_only": true,
+            "optional": true,
+            "default": "text/plain",
+            "name": "mime-type"
+          },
+          {
+            "type": "json",
+            "help": "Optional array of vectors aligned with deterministic chunks, <=8 vectors and <=8192 total scalars. Each has configured dimensions; finite float32-range numbers only, no booleans. Storage round-trips float32; omission calls Voyage. Get returns reconstructed vectors; list omits them.",
+            "json_only": true,
+            "name": "embeddings",
+            "optional": true
+          }
+        ],
+        "returns": "Full record JSON, <=256 KiB with reconstructed embeddings and derived classification_ids(label->probability). Omitting key1/key2 clears them. Worst-case escaped-source, label and float32-vector budgets are refused before any paid call.",
+        "example": "agent-bus call '#rag@node.example' '{\"method\":\"upsert\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\",\"data\":\"Tea is a drink.\"}'"
+      },
+      "get": {
+        "type": "string",
+        "help": "Get one record as stored, or null when it does not exist.",
+        "text": "get (JSON only)",
+        "args": [
+          {
+            "type": "string",
+            "help": "Required non-blank UTF-8 string, 1..128 bytes; no BOM, NUL or newline. Never optional for record operations. All identity/filter strings must already be NFC; no aliases or silent normalization.",
+            "json_only": true,
+            "name": "namespace"
+          },
+          {
+            "type": "string",
+            "help": "UTF-8 table name, 1..128 bytes; required for upsert/get/prompts, optional filter for list/delete. A table alone is never sufficient. All identity/filter strings must already be NFC; no aliases or silent normalization. Same byte, BOM/NUL/newline and non-blank rules as namespace.",
+            "json_only": true,
+            "name": "tableName"
+          },
+          {
+            "type": "string",
+            "help": "Exact record ID, 1..128 UTF-8 bytes; strings only, no numeric coercion. All identity/filter strings must already be NFC; no aliases or silent normalization.",
+            "json_only": true,
+            "name": "id"
+          }
+        ],
+        "example": "agent-bus call '#rag@node.example' '{\"method\":\"get\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\"}'"
+      },
+      "list": {
+        "type": "string",
+        "help": "Browse record summaries in stable order, up to 16 per call; send the returned cursor for the next page.",
+        "text": "list (JSON only)",
+        "args": [
+          {
+            "type": "string",
+            "help": "Required non-blank UTF-8 string, 1..128 bytes; no BOM, NUL or newline. Never optional for record operations. All identity/filter strings must already be NFC; no aliases or silent normalization.",
+            "json_only": true,
+            "name": "namespace"
+          },
+          {
+            "type": "string",
+            "help": "UTF-8 table name, 1..128 bytes; required for upsert/get/prompts, optional filter for list/delete. A table alone is never sufficient. All identity/filter strings must already be NFC; no aliases or silent normalization. Same byte, BOM/NUL/newline and non-blank rules as namespace.",
+            "json_only": true,
+            "name": "tableName",
+            "optional": true
+          },
+          {
+            "type": "string",
+            "help": "Optional exact filter value, at most 256 UTF-8 bytes; null is refused and never silently omitted. All identity/filter strings must already be NFC; no aliases or silent normalization. Empty string is valid; omission in upsert clears it.",
+            "json_only": true,
+            "name": "key1",
+            "optional": true
+          },
+          {
+            "type": "string",
+            "help": "Optional exact filter value, at most 256 UTF-8 bytes; null is refused and never silently omitted. All identity/filter strings must already be NFC; no aliases or silent normalization. Empty string is valid; omission in upsert clears it.",
+            "json_only": true,
+            "name": "key2",
+            "optional": true
+          },
+          {
+            "type": "int",
+            "help": "Page size 1..16; summaries omit data and embeddings and are each <=32 KiB, leaving proxy reply headroom.",
+            "json_only": true,
+            "optional": true,
+            "default": 16,
+            "name": "limit"
+          },
+          {
+            "type": "string",
+            "help": "Opaque token from a prior list reply with the same filters/limit; expires after 10 minutes and on restart. At most 128 outstanding tokens; no raw backend offset accepted. Tokens bind the expected UUID offset shape and filters; when full, oldest token is evicted and later use returns an explicit stale-cursor error.",
+            "json_only": true,
+            "name": "cursor",
+            "optional": true
+          }
+        ],
+        "returns": "JSON {records:[summaries],cursor:string|null}; <=16 summaries, excluding data and embeddings, each <=32 KiB. Filters do not grant access; no snapshot guarantee across calls.",
+        "example": "agent-bus call '#rag@node.example' '{\"method\":\"list\",\"namespace\":\"team\",\"tableName\":\"notes\",\"limit\":2}'"
+      },
+      "delete": {
+        "type": "string",
+        "help": "Remove one record, or exactly the namespace-scoped selection you name.",
+        "text": "delete (JSON only)",
+        "args": [
+          {
+            "type": "string",
+            "help": "Required non-blank UTF-8 string, 1..128 bytes; no BOM, NUL or newline. Never optional for record operations. All identity/filter strings must already be NFC; no aliases or silent normalization.",
+            "json_only": true,
+            "name": "namespace"
+          },
+          {
+            "type": "string",
+            "help": "UTF-8 table name, 1..128 bytes; required for upsert/get/prompts, optional filter for list/delete. A table alone is never sufficient. All identity/filter strings must already be NFC; no aliases or silent normalization. Same byte, BOM/NUL/newline and non-blank rules as namespace.",
+            "json_only": true,
+            "name": "tableName",
+            "optional": true
+          },
+          {
+            "type": "string",
+            "help": "Exact record ID, 1..128 UTF-8 bytes; strings only, no numeric coercion. All identity/filter strings must already be NFC; no aliases or silent normalization.",
+            "json_only": true,
+            "name": "id",
+            "optional": true
+          },
+          {
+            "type": "string",
+            "help": "Optional exact filter value, at most 256 UTF-8 bytes; null is refused and never silently omitted. All identity/filter strings must already be NFC; no aliases or silent normalization. Empty string is valid; omission in upsert clears it.",
+            "json_only": true,
+            "name": "key1",
+            "optional": true
+          },
+          {
+            "type": "string",
+            "help": "Optional exact filter value, at most 256 UTF-8 bytes; null is refused and never silently omitted. All identity/filter strings must already be NFC; no aliases or silent normalization. Empty string is valid; omission in upsert clears it.",
+            "json_only": true,
+            "name": "key2",
+            "optional": true
+          },
+          {
+            "type": "bool",
+            "optional": true,
+            "json_only": true,
+            "default": false,
+            "help": "Required true for any delete without id; a method confirmation flag, never a stored record field. Forbid with id.",
+            "name": "all"
+          }
+        ],
+        "destructive": true,
+        "returns": "JSON {status:\"ok\"}, without a count. id requires tableName and forbids key1/key2/all; otherwise all:true is required. Deletes all revisions matching the compiled namespace filter, never prompt KV. Unknown outcomes explicitly say unknown; repeating is safe.",
+        "example": "agent-bus call '#rag@node.example' '{\"method\":\"delete\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\"}'"
+      },
+      "prompts": {
+        "type": "string",
+        "help": "Read, replace or delete one table's classification prompts; existing records stay as they are.",
+        "text": "prompts (JSON only)",
+        "args": [
+          {
+            "type": [
+              "get",
+              "set",
+              "delete"
+            ],
+            "help": "Prompt operation. Requires namespace and tableName. set requires data; get/delete forbid data.",
+            "json_only": true,
+            "name": "action"
+          },
+          {
+            "type": "string",
+            "help": "Required non-blank UTF-8 string, 1..128 bytes; no BOM, NUL or newline. Never optional for record operations. All identity/filter strings must already be NFC; no aliases or silent normalization.",
+            "json_only": true,
+            "name": "namespace"
+          },
+          {
+            "type": "string",
+            "help": "UTF-8 table name, 1..128 bytes; required for upsert/get/prompts, optional filter for list/delete. A table alone is never sufficient. All identity/filter strings must already be NFC; no aliases or silent normalization. Same byte, BOM/NUL/newline and non-blank rules as namespace.",
+            "json_only": true,
+            "name": "tableName"
+          },
+          {
+            "type": "json",
+            "name": "data",
+            "optional": true,
+            "json_only": true,
+            "help": "For set only: object with labels (1..64 IDs, at most 128 bytes each, mapped to descriptions <=512 bytes), instructions (1..4096 UTF-8 bytes), optional threshold (finite 0..1, default 0.5), top_k (integer 1..64, default 5), summary (<=4096 UTF-8 bytes, stored for R.9). No extra keys; booleans are not numbers."
+          }
+        ],
+        "example": "agent-bus call '#rag@node.example' '{\"method\":\"prompts\",\"action\":\"set\",\"namespace\":\"team\",\"tableName\":\"notes\",\"data\":{\"labels\":{\"drink\":\"Beverages\",\"other\":\"Other topics\"},\"instructions\":\"Choose the topic.\"}}'",
+        "destructive": true
+      }
+    },
+    "asks": [
+      "help",
+      "help-config",
+      "help-secret",
+      "help-json"
+    ],
+    "config": {
+      "qdrant": {
+        "type": "string",
+        "help": "Complete Qdrant proxy bus name; this app needs its own write grant",
+        "example": "#qdrant@node.example"
+      },
+      "voyage": {
+        "type": "string",
+        "help": "Complete embedding proxy bus name; this app needs its own allow grant",
+        "example": "#voyage@node.example"
+      },
+      "ai": {
+        "type": "string",
+        "help": "Complete Decisions proxy bus name; this app needs its own allow grant",
+        "example": "#ai@node.example"
+      },
+      "collection": {
+        "type": "string",
+        "help": "Owner-created dedicated collection, 1..64 ASCII letters, digits, underscore or hyphen; never auto-created",
+        "example": "notes"
+      },
+      "embedding_model": {
+        "type": "string",
+        "help": "Fixed embedding model ID, verified against collection metadata.embedding_model",
+        "example": "voyage-3.5"
+      },
+      "dimensions": {
+        "type": "int",
+        "help": "Fixed unnamed Cosine vector size, 1..8192; chunks times dimensions must not exceed 8192 Must also be an output dimension the chosen Voyage model supports; its refusal is not bypassed.",
+        "example": 1024
+      },
+      "decision_model": {
+        "type": "string",
+        "help": "Model for one Jev Choice call per record",
+        "default": "typesafe/jev-1.14"
+      }
+    },
+    "secrets": [],
+    "body_formats": [
+      "json"
+    ],
+    "hidden_methods": {
+      "count": 0,
+      "roles": []
+    }
+  }
+}

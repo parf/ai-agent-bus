@@ -1,0 +1,75 @@
+{
+  "text": "Search and manage a Qdrant vector store without holding its key. Call the Qdrant API within your read, write or admin role. Start with request GET /collections.\n[destructive] request <verb> <path> [body...]: Call the Qdrant API and get its JSON answer. Calls run as write by default; ask for read explicitly, and admin is needed for collection and service changes.\n  verb (GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS): Case-sensitive HTTP method\n  path (string): API path and optional encoded query, starting with /\n  body (string): Raw JSON bytes; no body for GET, HEAD or OPTIONS\n\nExamples\nagent-bus call '#qdrant@node.example' 'request GET /collections'\n\nv<version> · PolyForm-NC · parf.dev/agent-bus/\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/qdrant.md\nMore: agent-bus help <name> config | secret | json",
+  "json": {
+    "description": "Search and manage a Qdrant vector store without holding its key. Call the Qdrant API within your read, write or admin role. Start with request GET /collections.",
+    "license": "PolyForm-Noncommercial-1.0.0",
+    "author": "Serg Parf",
+    "homepage": "https://parf.dev/agent-bus/",
+    "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/qdrant.md",
+    "version": "<version>",
+    "methods": {
+      "request": {
+        "type": "string",
+        "help": "Call the Qdrant API and get its JSON answer. Calls run as write by default; ask for read explicitly, and admin is needed for collection and service changes.",
+        "destructive": true,
+        "args": [
+          {
+            "type": [
+              "GET",
+              "POST",
+              "PUT",
+              "PATCH",
+              "DELETE",
+              "HEAD",
+              "OPTIONS"
+            ],
+            "name": "verb",
+            "help": "Case-sensitive HTTP method"
+          },
+          {
+            "type": "string",
+            "name": "path",
+            "help": "API path and optional encoded query, starting with /"
+          },
+          {
+            "type": "string",
+            "name": "body",
+            "optional": true,
+            "rest": true,
+            "help": "Raw JSON bytes; no body for GET, HEAD or OPTIONS"
+          }
+        ],
+        "example": "agent-bus call '#qdrant@node.example' 'request GET /collections'"
+      }
+    },
+    "asks": [
+      "help",
+      "help-config",
+      "help-secret",
+      "help-json"
+    ],
+    "config": {
+      "url": {
+        "type": "string",
+        "help": "Required Qdrant HTTP(S) base URL; no default; remote HTTP sends the key unencrypted",
+        "example": "https://store.example/qdrant"
+      }
+    },
+    "secrets": [
+      {
+        "name": "QDRANT_API_KEY",
+        "help": "Qdrant API key matching the operator-run store; obtain it from that store's operator.",
+        "required": true,
+        "has_default": false
+      }
+    ],
+    "body_formats": [
+      "text",
+      "json"
+    ],
+    "hidden_methods": {
+      "count": 0,
+      "roles": []
+    }
+  }
+}

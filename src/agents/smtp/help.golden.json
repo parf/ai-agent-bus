@@ -1,0 +1,154 @@
+{
+  "text": "Send an email through a configured account without handing callers its password. Submit one message and learn whether it was accepted, partly accepted, refused or unknown; TLS is verified. Start with send.\n[destructive] send <to> <subject> <text> [cc] [bcc] [html]: Send one email once and get the outcome: accepted, partial, refused or unknown.\n  to (json): Nonempty array of bare ASCII addresses; at most 20 unique across to/cc/bcc\n  subject (string): Single line, at most 998 UTF-8 bytes\n  text (string): Plain text; total encoded mail at most 1 MiB\n  cc (json): Additional visible recipients\n  bcc (json): Envelope recipients, omitted from headers\n  html (string): HTML alternative; never fetched or rendered here\n\nv<version> · PolyForm-NC · parf.dev/agent-bus/\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/smtp.md\nMore: agent-bus help <name> config | secret | json",
+  "json": {
+    "description": "Send an email through a configured account without handing callers its password. Submit one message and learn whether it was accepted, partly accepted, refused or unknown; TLS is verified. Start with send.",
+    "license": "PolyForm-Noncommercial-1.0.0",
+    "author": "Serg Parf",
+    "homepage": "https://parf.dev/agent-bus/",
+    "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/smtp.md",
+    "version": "<version>",
+    "methods": {
+      "send": {
+        "type": "string",
+        "help": "Send one email once and get the outcome: accepted, partial, refused or unknown.",
+        "destructive": true,
+        "args": [
+          {
+            "type": "json",
+            "name": "to",
+            "help": "Nonempty array of bare ASCII addresses; at most 20 unique across to/cc/bcc"
+          },
+          {
+            "type": "string",
+            "name": "subject",
+            "help": "Single line, at most 998 UTF-8 bytes"
+          },
+          {
+            "type": "string",
+            "name": "text",
+            "help": "Plain text; total encoded mail at most 1 MiB"
+          },
+          {
+            "type": "json",
+            "name": "cc",
+            "optional": true,
+            "help": "Additional visible recipients"
+          },
+          {
+            "type": "json",
+            "name": "bcc",
+            "optional": true,
+            "help": "Envelope recipients, omitted from headers"
+          },
+          {
+            "type": "string",
+            "name": "html",
+            "optional": true,
+            "help": "HTML alternative; never fetched or rendered here"
+          }
+        ]
+      },
+      "help": {
+        "type": "string",
+        "help": "Show the calls and their limits.",
+        "args": []
+      }
+    },
+    "asks": [
+      "help",
+      "help-config",
+      "help-secret",
+      "help-json"
+    ],
+    "config": {
+      "sender": {
+        "type": "string",
+        "help": "Required bare ASCII From/envelope sender; caller cannot override",
+        "example": "sender@example.com"
+      },
+      "host": {
+        "type": "string",
+        "help": "SMTP hostname; default smtp.gmail.com",
+        "example": "smtp.gmail.com"
+      },
+      "port": {
+        "type": "int",
+        "help": "Port 1..65535; default 587, use 465 with mode tls",
+        "example": 587
+      },
+      "mode": {
+        "type": [
+          "starttls",
+          "tls",
+          "plain"
+        ],
+        "help": "Explicit mode; default starttls; plain requires local opt-out",
+        "example": "starttls"
+      },
+      "auth": {
+        "type": [
+          "password",
+          "xoauth2"
+        ],
+        "help": "password (AUTH PLAIN, default) or Google XOAUTH2; no fallback",
+        "example": "password"
+      },
+      "recipients": {
+        "type": "json",
+        "help": "Optional exact addresses/domains; [] means all for admitted callers",
+        "example": [
+          "example.com"
+        ]
+      },
+      "cafile": {
+        "type": "string",
+        "help": "Optional public CA trust file visible in sandbox; default system trust",
+        "example": "/etc/ssl/certs/ca-certificates.crt"
+      },
+      "allow_plaintext": {
+        "type": "bool",
+        "help": "Explicit loopback-only plain/port-25 opt-out; default false",
+        "example": false
+      }
+    },
+    "secrets": [
+      {
+        "name": "SMTP_USERNAME",
+        "help": "Account name from the provider, in this instance's private smtp/<instance>/env.\nKeep package-wide smtp/env free of account credentials when instances differ.",
+        "required": true,
+        "has_default": false
+      },
+      {
+        "name": "SMTP_PASSWORD",
+        "help": "Required with auth=password: app password from the account's security settings.",
+        "required": false,
+        "has_default": false
+      },
+      {
+        "name": "SMTP_CLIENT_ID",
+        "help": "Required with auth=xoauth2: Google's OAuth client ID and secret for your consent app.",
+        "required": false,
+        "has_default": false
+      },
+      {
+        "name": "SMTP_CLIENT_SECRET",
+        "help": "",
+        "required": false,
+        "has_default": false
+      },
+      {
+        "name": "SMTP_REFRESH_TOKEN",
+        "help": "Required with auth=xoauth2: obtain through Google's OAuth consent flow with\nhttps://mail.google.com/ scope and offline access. This agent does not open a browser.",
+        "required": false,
+        "has_default": false
+      }
+    ],
+    "body_formats": [
+      "json"
+    ],
+    "hidden_methods": {
+      "count": 0,
+      "roles": []
+    }
+  }
+}

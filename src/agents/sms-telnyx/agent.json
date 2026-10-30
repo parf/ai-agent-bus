@@ -1,5 +1,5 @@
 {
-  "description": "Send one SMS through Telnyx; the body is {to,text} or <to> <text>; never retry unknown results",
+  "description": "Send one text message without handing callers the Telnyx key. The body is {to,text} or <to> <text>. An unknown result is never retried; start with send.",
   "command": "./sms.py",
   "form": "json",
   "processes": "0..3",
@@ -22,7 +22,7 @@
   ],
   "methods": {
     "send": {
-      "help": "Send one SMS; accepted means provider acceptance; never retry an unknown result",
+      "help": "Send one SMS. Accepted means the provider accepted it, not that it arrived; never retry an unknown result.",
       "args": [
         {
           "name": "to",
@@ -35,8 +35,7 @@
           "rest": true,
           "help": "Message, 1 to 1600 characters"
         }
-      ],
-      "example": "agent-bus call '#sms-telnyx@node.example' 'send +12025550142 Hello'"
+      ]
     }
   },
   "config": {

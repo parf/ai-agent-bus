@@ -1,5 +1,5 @@
 {
-  "description": "Send mail once through a configured account with verified TLS",
+  "description": "Send an email through a configured account without handing callers its password. Submit one message and learn whether it was accepted, partly accepted, refused or unknown; TLS is verified. Start with send.",
   "command": "./smtp.py",
   "form": "json",
   "processes": "0..3",
@@ -12,7 +12,7 @@
   "body_formats": ["json"],
   "methods": {
     "send": {
-      "help": "Submit once; return accepted, partial, refused or unknown delivery outcome",
+      "help": "Send one email once and get the outcome: accepted, partial, refused or unknown.",
       "destructive": true,
       "args": [
         {"name": "to", "type": "json", "help": "Nonempty array of bare ASCII addresses; at most 20 unique across to/cc/bcc"},
@@ -21,10 +21,9 @@
         {"name": "cc", "type": "json", "optional": true, "help": "Additional visible recipients"},
         {"name": "bcc", "type": "json", "optional": true, "help": "Envelope recipients, omitted from headers"},
         {"name": "html", "type": "string", "optional": true, "help": "HTML alternative; never fetched or rendered here"}
-      ],
-      "example": "agent-bus call '#smtp/work@node.example' '{\"method\":\"send\",\"to\":[\"reader@example.com\"],\"subject\":\"Build report\",\"text\":\"Build passed.\"}'"
+      ]
     },
-    "help": {"help": "Describe calls and their limits", "args": []}
+    "help": {"help": "Show the calls and their limits.", "args": []}
   },
   "config": {
     "sender": {"type": "string", "help": "Required bare ASCII From/envelope sender; caller cannot override", "example": "sender@example.com"},

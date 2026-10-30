@@ -1,0 +1,72 @@
+{
+  "text": "Send one text message without handing callers the Telnyx key. The body is {to,text} or <to> <text>. An unknown result is never retried; start with send.\nsend <to> <text...>: Send one SMS. Accepted means the provider accepted it, not that it arrived; never retry an unknown result.\n  to (string): E.164 destination or configured alias\n  text (string): Message, 1 to 1600 characters\n\nv<version> · PolyForm-NC · parf.dev/agent-bus/\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/sms.md\nMore: agent-bus help <name> config | secret | json",
+  "json": {
+    "description": "Send one text message without handing callers the Telnyx key. The body is {to,text} or <to> <text>. An unknown result is never retried; start with send.",
+    "license": "PolyForm-Noncommercial-1.0.0",
+    "author": "Serg Parf",
+    "homepage": "https://parf.dev/agent-bus/",
+    "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/sms.md",
+    "version": "<version>",
+    "methods": {
+      "send": {
+        "type": "string",
+        "help": "Send one SMS. Accepted means the provider accepted it, not that it arrived; never retry an unknown result.",
+        "args": [
+          {
+            "type": "string",
+            "name": "to",
+            "help": "E.164 destination or configured alias"
+          },
+          {
+            "type": "string",
+            "name": "text",
+            "rest": true,
+            "help": "Message, 1 to 1600 characters"
+          }
+        ]
+      }
+    },
+    "asks": [
+      "help",
+      "help-config",
+      "help-secret",
+      "help-json"
+    ],
+    "config": {
+      "from": {
+        "type": "string",
+        "help": "Public sender phone number in E.164",
+        "example": "+12025550100"
+      },
+      "aliases": {
+        "type": "json",
+        "help": "Recipient aliases mapped to E.164 numbers",
+        "example": {
+          "oncall": "+12025550142"
+        }
+      }
+    },
+    "secrets": [
+      {
+        "name": "TELNYX_API_URL",
+        "help": "Telnyx Messages API endpoint. The live agent accepts only this provider host.",
+        "required": false,
+        "has_default": true
+      },
+      {
+        "name": "TELNYX_API_KEY",
+        "help": "Private Telnyx bearer key. Set only in the runner's host sms-telnyx/env file.",
+        "required": true,
+        "has_default": false
+      }
+    ],
+    "body_formats": [
+      "text",
+      "json"
+    ],
+    "hidden_methods": {
+      "count": 0,
+      "roles": []
+    }
+  }
+}

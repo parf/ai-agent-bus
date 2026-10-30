@@ -1,0 +1,71 @@
+{
+  "text": "Turn text into embeddings without giving callers the Voyage key. Embed text, or pass one JSON request to a Voyage endpoint. Start with embed and your text.\nembed <text...>: Get an embedding for text. Send the text, or JSON that also names a model and input_type.\n  text (string): Text to embed; JSON also accepts model and input_type\nrequest <path> <body...>: Call a Voyage /v1/ endpoint, such as rerank, with a JSON body that is sent unchanged.\n  path (string): Voyage endpoint path beginning /v1/\n  body (string): Raw JSON request bytes\n\nv<version> · PolyForm-NC · parf.dev/agent-bus/\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/voyage.md\nMore: agent-bus help <name> config | secret | json",
+  "json": {
+    "description": "Turn text into embeddings without giving callers the Voyage key. Embed text, or pass one JSON request to a Voyage endpoint. Start with embed and your text.",
+    "license": "PolyForm-Noncommercial-1.0.0",
+    "author": "Serg Parf",
+    "homepage": "https://parf.dev/agent-bus/",
+    "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/voyage.md",
+    "version": "<version>",
+    "methods": {
+      "embed": {
+        "type": "string",
+        "help": "Get an embedding for text. Send the text, or JSON that also names a model and input_type.",
+        "args": [
+          {
+            "type": "string",
+            "name": "text",
+            "rest": true,
+            "help": "Text to embed; JSON also accepts model and input_type"
+          }
+        ]
+      },
+      "request": {
+        "type": "string",
+        "help": "Call a Voyage /v1/ endpoint, such as rerank, with a JSON body that is sent unchanged.",
+        "args": [
+          {
+            "type": "string",
+            "name": "path",
+            "help": "Voyage endpoint path beginning /v1/"
+          },
+          {
+            "type": "string",
+            "name": "body",
+            "rest": true,
+            "help": "Raw JSON request bytes"
+          }
+        ]
+      }
+    },
+    "asks": [
+      "help",
+      "help-config",
+      "help-secret",
+      "help-json"
+    ],
+    "config": {
+      "model": {
+        "type": "string",
+        "help": "Default embedding model",
+        "default": "voyage-3.5"
+      }
+    },
+    "secrets": [
+      {
+        "name": "VOYAGE_API_KEY",
+        "help": "",
+        "required": true,
+        "has_default": false
+      }
+    ],
+    "body_formats": [
+      "text",
+      "json"
+    ],
+    "hidden_methods": {
+      "count": 0,
+      "roles": []
+    }
+  }
+}

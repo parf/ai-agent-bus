@@ -1,5 +1,5 @@
 {
-  "description": "Embed text or pass a request through Voyage without sharing its provider key",
+  "description": "Turn text into embeddings without giving callers the Voyage key. Embed text, or pass one JSON request to a Voyage endpoint. Start with embed and your text.",
   "command": "./voyage.py",
   "form": "json",
   "processes": "0..3",
@@ -20,7 +20,7 @@
   ],
   "methods": {
     "embed": {
-      "help": "Embed text with Voyage",
+      "help": "Get an embedding for text. Send the text, or JSON that also names a model and input_type.",
       "args": [
         {
           "name": "text",
@@ -28,11 +28,10 @@
           "rest": true,
           "help": "Text to embed; JSON also accepts model and input_type"
         }
-      ],
-      "example": "agent-bus call '#voyage@node.example' 'embed A short document'"
+      ]
     },
     "request": {
-      "help": "POST an unchanged JSON body to a Voyage /v1/ path",
+      "help": "Call a Voyage /v1/ endpoint, such as rerank, with a JSON body that is sent unchanged.",
       "args": [
         {
           "name": "path",
@@ -45,8 +44,7 @@
           "rest": true,
           "help": "Raw JSON request bytes"
         }
-      ],
-      "example": "agent-bus call '#voyage@node.example' 'request /v1/rerank {\"model\":\"rerank-2.5\",\"query\":\"tea\",\"documents\":[\"tea\"]}'"
+      ]
     }
   },
   "config": {

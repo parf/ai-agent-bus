@@ -1,0 +1,121 @@
+{
+  "text": "Ask a database questions without holding its password. Run one SQL statement on a MySQL, PostgreSQL or ClickHouse database; the database itself enforces your read, write or admin tier. Start with query and a SELECT.\nquery <sql...>: Get rows back, or the affected row count, from one SQL statement run at your tier: read, write or admin.; returns: columns and rows, or the affected row count\n  sql (string): One SQL statement\n\nv<version> · PolyForm-NC · parf.dev/agent-bus/\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/db.md\nMore: agent-bus help <name> config | secret | json",
+  "json": {
+    "description": "Ask a database questions without holding its password. Run one SQL statement on a MySQL, PostgreSQL or ClickHouse database; the database itself enforces your read, write or admin tier. Start with query and a SELECT.",
+    "license": "PolyForm-Noncommercial-1.0.0",
+    "author": "Serg Parf",
+    "homepage": "https://parf.dev/agent-bus/",
+    "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/db.md",
+    "version": "<version>",
+    "methods": {
+      "query": {
+        "type": "string",
+        "help": "Get rows back, or the affected row count, from one SQL statement run at your tier: read, write or admin.",
+        "returns": "columns and rows, or the affected row count",
+        "args": [
+          {
+            "type": "string",
+            "name": "sql",
+            "rest": true,
+            "help": "One SQL statement"
+          }
+        ]
+      }
+    },
+    "asks": [
+      "help",
+      "help-config",
+      "help-secret",
+      "help-json"
+    ],
+    "config": {
+      "engine": {
+        "type": "string",
+        "help": "mysql (also MariaDB), postgres or clickhouse"
+      },
+      "host": {
+        "type": "string",
+        "help": "Database host"
+      },
+      "port": {
+        "type": "int",
+        "help": "Database port; the engine's usual one when absent"
+      },
+      "socket": {
+        "type": "string",
+        "help": "Unix socket path (MySQL and PostgreSQL) instead of host"
+      },
+      "database": {
+        "type": "string",
+        "help": "Database name"
+      },
+      "secure": {
+        "type": "bool",
+        "help": "ClickHouse over HTTPS"
+      },
+      "max_rows": {
+        "type": "int",
+        "help": "Rows returned at most, 1 to 10000",
+        "default": 1000
+      }
+    },
+    "secrets": [
+      {
+        "name": "DB_USER",
+        "help": "One account for every caller (only read is then enforced by the database); not needed when per-tier accounts are set",
+        "required": false,
+        "has_default": false
+      },
+      {
+        "name": "DB_PASSWORD",
+        "help": "",
+        "required": false,
+        "has_default": false
+      },
+      {
+        "name": "DB_READ_USER",
+        "help": "Per-tier accounts: set any, and a tier without one is refused",
+        "required": false,
+        "has_default": false
+      },
+      {
+        "name": "DB_READ_PASSWORD",
+        "help": "",
+        "required": false,
+        "has_default": false
+      },
+      {
+        "name": "DB_WRITE_USER",
+        "help": "",
+        "required": false,
+        "has_default": false
+      },
+      {
+        "name": "DB_WRITE_PASSWORD",
+        "help": "",
+        "required": false,
+        "has_default": false
+      },
+      {
+        "name": "DB_ADMIN_USER",
+        "help": "",
+        "required": false,
+        "has_default": false
+      },
+      {
+        "name": "DB_ADMIN_PASSWORD",
+        "help": "",
+        "required": false,
+        "has_default": false
+      }
+    ],
+    "body_formats": [
+      "text",
+      "json"
+    ],
+    "hidden_methods": {
+      "count": 0,
+      "roles": []
+    }
+  }
+}

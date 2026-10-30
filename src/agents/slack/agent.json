@@ -1,5 +1,5 @@
 {
-  "description": "Post and read messages; route replies; forward selected conversations",
+  "description": "Put your AI in your team's Slack. Post and read messages, reply in threads, route replies to the right session and forward chosen conversations. Start with whoami, then post.",
   "command": "./slack.ts",
   "form": "args",
   "serves": "itself",
@@ -19,7 +19,7 @@
   "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/slack.md",
   "methods": {
     "post": {
-      "help": "Post a message or reply in a thread",
+      "help": "Send a message to a channel, or reply in a thread; the answer is the message link.",
       "args": [
         {
           "name": "channel"
@@ -52,11 +52,10 @@
           "rest": true
         }
       ],
-      "returns": "the message permalink",
-      "example": "agent-bus call '#slack@parf.us' 'post #general Hello team'"
+      "returns": "the message permalink"
     },
     "read": {
-      "help": "Read messages oldest first",
+      "help": "Read recent messages in a channel, oldest first.",
       "args": [
         {
           "name": "channel"
@@ -66,11 +65,10 @@
           "optional": true
         }
       ],
-      "returns": "Messages with timestamp, user and text",
-      "example": "agent-bus call '#slack@parf.us' 'read #general 10'"
+      "returns": "Messages with timestamp, user and text"
     },
     "thread": {
-      "help": "Read one thread oldest first",
+      "help": "Read one thread, oldest first.",
       "args": [
         {
           "name": "channel"
@@ -82,11 +80,10 @@
           "name": "limit",
           "optional": true
         }
-      ],
-      "example": "agent-bus call '#slack@parf.us' 'thread #alerts 1710000000.000001 5'"
+      ]
     },
     "channels": {
-      "help": "List channels; optional name substring filter",
+      "help": "Find channels, optionally by part of the name.",
       "args": [
         {
           "name": "filter",
@@ -105,16 +102,15 @@
       "example": "agent-bus call '#slack@parf.us' 'channels alerts'"
     },
     "channel": {
-      "help": "Describe one channel",
+      "help": "See one channel's details.",
       "args": [
         {
           "name": "channel"
         }
-      ],
-      "example": "agent-bus call '#slack@parf.us' 'channel #alerts'"
+      ]
     },
     "users": {
-      "help": "List people; excludes bots and deleted accounts",
+      "help": "Find people by name, email or ID; bots and deleted accounts are left out.",
       "args": [
         {
           "name": "filter",
@@ -122,22 +118,20 @@
           "help": "Match name, email or ID",
           "optional": true
         }
-      ],
-      "example": "agent-bus call '#slack@parf.us' 'users Alice'"
+      ]
     },
     "user": {
-      "help": "Describe a person or bot",
+      "help": "See one person or bot.",
       "args": [
         {
           "name": "who",
           "type": "string",
           "help": "User ID, email or @name"
         }
-      ],
-      "example": "agent-bus call '#slack@parf.us' 'user @alice'"
+      ]
     },
     "react": {
-      "help": "Add a reaction",
+      "help": "Add a reaction to a message.",
       "args": [
         {
           "name": "channel"
@@ -150,11 +144,10 @@
           "type": "string",
           "help": "Slack emoji name, for example white_check_mark"
         }
-      ],
-      "example": "agent-bus call '#slack@parf.us' 'react #alerts 1710000000.000001 thumbsup'"
+      ]
     },
     "edit": {
-      "help": "Edit the bot’s own message",
+      "help": "Change one of the bot's own messages.",
       "args": [
         {
           "name": "channel"
@@ -169,11 +162,10 @@
           "rest": true
         }
       ],
-      "destructive": true,
-      "example": "agent-bus call '#slack@parf.us' 'edit #alerts 1710000000.000001 Deploy finished'"
+      "destructive": true
     },
     "delete": {
-      "help": "Delete the bot’s own message",
+      "help": "Remove one of the bot's own messages.",
       "args": [
         {
           "name": "channel"
@@ -182,31 +174,28 @@
           "name": "ts"
         }
       ],
-      "destructive": true,
-      "example": "agent-bus call '#slack@parf.us' 'delete #alerts 1710000000.000001'"
+      "destructive": true
     },
     "join": {
-      "help": "Join a public Slack channel",
+      "help": "Make the bot join a public channel.",
       "args": [
         {
           "name": "channel"
         }
-      ],
-      "example": "agent-bus call '#slack@parf.us' 'join #alerts'"
+      ]
     },
     "whoami": {
-      "help": "Show bot identity, workspace and connection state",
+      "help": "See which bot you are talking to, its workspace and whether it is connected.",
       "args": [],
       "example": "agent-bus call '#slack@parf.us' whoami"
     },
     "refused": {
-      "help": "List the last 20 unlisted routing senders; direct Owner/Maintainers only",
+      "help": "See the last 20 senders turned away by routing and not on the list; direct Owner and Maintainers only.",
       "args": [],
-      "role": "maintainer",
-      "example": "agent-bus call '#slack@parf.us' refused"
+      "role": "maintainer"
     },
     "sub.add": {
-      "help": "Forward matching messages to a destination",
+      "help": "Forward matching channel messages to a destination; the answer is the subscription ID.",
       "args": [
         {
           "name": "channel"
@@ -225,17 +214,16 @@
         }
       ],
       "returns": "Subscription ID",
-      "text": "sub add <channel> <target> [from=user,…] [filter]",
-      "example": "agent-bus call '#slack@parf.us' 'sub add #alerts #debug@parf.us /error/i'"
+      "text": "sub add <channel> <target> [from=user,…] [filter]"
     },
     "sub.list": {
-      "help": "Show subscriptions, authors, filters and delivery counters",
+      "help": "See each subscription with its authors, filters and delivery counters.",
       "args": [],
       "text": "sub list",
       "example": "agent-bus call '#slack@parf.us' 'sub list'"
     },
     "sub.edit": {
-      "help": "Update a subscription; empty filter= clears its filter",
+      "help": "Change a subscription; an empty filter= clears its filter.",
       "args": [
         {
           "name": "id"
@@ -258,22 +246,20 @@
           "rest": true
         }
       ],
-      "text": "sub edit <id> [channel=…] [target=…] [from=…] [filter=…]",
-      "example": "agent-bus call '#slack@parf.us' 'sub edit s1 filter=/error/i'"
+      "text": "sub edit <id> [channel=…] [target=…] [from=…] [filter=…]"
     },
     "sub.delete": {
-      "help": "Stop forwarding",
+      "help": "Stop forwarding.",
       "args": [
         {
           "name": "id"
         }
       ],
       "destructive": true,
-      "text": "sub delete <id>",
-      "example": "agent-bus call '#slack@parf.us' 'sub delete s1'"
+      "text": "sub delete <id>"
     },
     "help": {
-      "help": "Describe this agent and the help-config and help-secret asks",
+      "help": "Show this agent's description and the help-config and help-secret asks.",
       "args": []
     }
   },
