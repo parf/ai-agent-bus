@@ -181,7 +181,6 @@ func TestTwoRunnersServeOneNameSharingMessagesAndTheListingShowsBothHosts(t *tes
 // share, which a plain second read cannot.
 func TestRunnerReadsOfAnAgentWithoutShareAreOneReader(t *testing.T) {
 	r, b, _ := configurationFixture(t, "", "")
-	r.readHost = "solo-host"
 	r.reload()
 	for end := time.Now().Add(5 * time.Second); b.Status().Waiting == 0; time.Sleep(5 * time.Millisecond) {
 		if time.Now().After(end) {
