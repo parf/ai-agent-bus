@@ -20,14 +20,15 @@ team before it is in [today's team](#today). Open choices are in
 
 Two teams run ([TD3](DECISIONS.md#recorded-decisions)): `#ab-lead1` leads team 1 and
 `#ab-lead2` team 2, each with three workers and a QA. Names carry the project
-prefix `ab-` ([TD2](DECISIONS.md#recorded-decisions)). Account 1 sessions run in the repository root and account 2 sessions in
-`Plans/`; each name resumes its own conversation.
+prefix `ab-` ([TD2](DECISIONS.md#recorded-decisions)). Account 1 workers, leads and QA run in the repository root and account 2
+workers in `Plans/`; `#ab-ceo` and `#ab-dir` have their own directories under
+`local/team-v2/`. Each name resumes its own conversation.
 
 ```mermaid
 flowchart TD
   parf(["parf — owner"]) <-->|talks only to| ceo
-  ceo["#ab-ceo<br/>kitty window CEO · Claude /fast<br/>repo root"]
-  dir["#ab-dir<br/>tmux DIR · Claude /fast<br/>repo root"]
+  ceo["#ab-ceo<br/>kitty window CEO · Claude /fast<br/>local/team-v2/ceo/"]
+  dir["#ab-dir<br/>tmux DIR · Claude /fast<br/>local/team-v2/dir/"]
   subgraph team1 ["team 1"]
     lead1["#ab-lead1<br/>tmux LEAD1 · Claude /fast<br/>decides bump"]
     w1a["#ab-w1a<br/>Claude, account 1"]
