@@ -110,3 +110,18 @@ func TestACycleIsRefusedAndNamed(t *testing.T) {
 		t.Errorf("a cycle must not drop agents: %s", keysOf(list))
 	}
 }
+
+// An agent already refused for another reason keeps that reason: its depends
+// is not read, so a bad one cannot overwrite what is actually wrong.
+func TestARefusedAgentKeepsItsReasonWhateverItDependsOn(t *testing.T) {
+	home := t.TempDir()
+	agents, host := filepath.Join(home, "agent.d"), filepath.Join(home, "runner")
+	writeFile(t, filepath.Join(agents, "nodescr", "agent.json"), `{"command":"./x.sh","depends":["#ghost"]}`)
+	list, err := load(agents, host)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r := refusals(list)["nodescr"]; !strings.Contains(r, "description is required") || strings.Contains(r, "ghost") {
+		t.Fatalf("nodescr: %q, want its own reason kept", r)
+	}
+}
