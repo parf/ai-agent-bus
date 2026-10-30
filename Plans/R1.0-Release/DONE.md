@@ -1,5 +1,10 @@
 # DONE — R1
 
+## Docs rewrite DW7
+
+- Landed `dd56e796`, after distribution: setup follows why, what you get, how to start and technical detail, with real read-only CLI examples. npm publication and macOS distribution limits remain explicit; SHA256SUMS, secondary archive installation, checkout deployment, MAC.2 cleanup, J49 replacement and P.3 queries are retained.
+- Close-out audit against main: the page passes the order, first-fifth, example and paragraph checks; changed and inbound links resolve. The original rewrite checked 216 inbound Markdown/HTML references. No pending release feature is promoted to built by this status change; no runtime or host change.
+
 ## RT22 Bus setup web acceptance
 
 - The web-form fix landed as `dcf5e419` (0.9.234). The remaining launcher/installer naming acceptance is completed by [RT22b](#rt22b-automatic-names).

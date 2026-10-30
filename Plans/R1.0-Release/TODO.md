@@ -680,7 +680,7 @@ Owner, 2026-10-30: every doc leads with why, then what you get, then real workin
 - ✅ DW4 Agent guides: debug and eventlog — **0.9.187**, `41b313eb` ([result](DONE.md#docs-rewrite-dw4))
 - ✅ DW5 `docs/00`-`05` — **0.9.189**, `74bc3646` ([result](DONE.md#docs-rewrite-dw5))
 - ✅ DW6 `docs/06`-`09` except setup — **0.9.189**, `d3f2ab22` ([result](DONE.md#docs-rewrite-dw6))
-- ⏳ DW7 `docs/07-setup.md`; starts after distribution (T-6) lands
+- ✅ DW7 `docs/07-setup.md` — `dd56e796`; setup rewrite landed after distribution, with current release evidence and replacement packaging wording ([result](DONE.md#docs-rewrite-dw7))
 - ✅ DW8 `docs/runner/*` and `docs/user/*` — **0.9.190**, `cded895b` ([result](DONE.md#docs-rewrite-dw8))
 - ✅ DW9 Agent manifests — **0.9.191**, `99b1f94f`; Discord **0.9.206**, `4e74e3b6` ([result](DONE.md#docs-rewrite-dw9))
 - ✅ DW10 Web page intros and CLI help text — **0.9.189**, `79f03e08` ([result](DONE.md#docs-rewrite-dw10))
