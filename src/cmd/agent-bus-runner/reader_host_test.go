@@ -66,10 +66,15 @@ func TestRunnerReadsStateTheirHostAndShare(t *testing.T) {
 
 // Two runners serve one name, as a pool: the second runner is handed the
 // name's token once, each says it shares and states its own host, and the
-// messages go to both in turn, each exactly once, while the listing shows both
-// hosts (M.6 acceptance).
-func TestTwoRunnersServeOneNameTakingTurnsAndTheListingShowsBothHosts(t *testing.T) {
-	body := "sleep 0.04\nprintf x >> \"$AGENT_BUS_WORK/handled\"\necho done\n"
+// messages are shared between them, each exactly once, while the listing shows
+// both hosts (M.6 acceptance). A handler holds until a second handler has
+// started (bounded), so the split does not depend on timing: one runner serves
+// one message at a time, so the next must go to the other.
+func TestTwoRunnersServeOneNameSharingMessagesAndTheListingShowsBothHosts(t *testing.T) {
+	started := t.TempDir()
+	body := "touch \"" + started + "/$$\"\n" +
+		"for i in $(seq 1 100); do [ \"$(ls \"" + started + "\" | wc -l)\" -ge 2 ] && break; sleep 0.05; done\n" +
+		"printf x >> \"$AGENT_BUS_WORK/handled\"\necho done\n"
 	r1, b, _, tokens := configurationFixtureTokens(t, "", body, io.Discard)
 	write := func(r *runner, entry map[string]any) {
 		t.Helper()
@@ -127,7 +132,6 @@ func TestTwoRunnersServeOneNameTakingTurnsAndTheListingShowsBothHosts(t *testing
 		if _, err := b.Send(protocol.Envelope{From: "owner@h", To: "#fixture@h", Body: "job"}); err != nil {
 			t.Fatal(err)
 		}
-		time.Sleep(25 * time.Millisecond)
 	}
 	handled := func(r *runner) int {
 		r.mu.Lock()
@@ -142,7 +146,7 @@ func TestTwoRunnersServeOneNameTakingTurnsAndTheListingShowsBothHosts(t *testing
 	waitFor("every message handled", func() bool { return handled(r1)+handled(r2) >= sent })
 	time.Sleep(200 * time.Millisecond)
 	if one, two := handled(r1), handled(r2); one+two != sent || one == 0 || two == 0 {
-		t.Fatalf("runner one handled %d, runner two %d of %d: want both in turn and each message once", one, two, sent)
+		t.Fatalf("runner one handled %d, runner two %d of %d: want both to serve and each message once", one, two, sent)
 	}
 	rec, _ := b.Lookup("owner@h", "#fixture@h")
 	var hosts []string

@@ -168,7 +168,7 @@ It is the **dual of a pool**, and the two are worth reading together:
 
 | | Names | Inboxes | Readers |
 |---|---|---|---|
-| Pool (`--share`) | one | one | many, taking turns ([one name on many hosts](#one-name-on-many-hosts)) |
+| Pool (`--share`) | one | one | many, shared between them ([one name on many hosts](#one-name-on-many-hosts)) |
 | Forward to the runner | many | one, the runner's | one |
 
 A pool hides *where* a worker runs. A forward hides *how many* inboxes a
