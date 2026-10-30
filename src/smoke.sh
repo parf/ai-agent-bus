@@ -385,6 +385,13 @@ ok_exit "the docs-order checker fails each way a page can break the rule, and th
 out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s . -p smoke_agent_pool_test.py -v 2>&1); rc=$?
 ok_exit "agent file pool accounts for every assertion" "$rc"
 [ "$rc" = 0 ] || echo "$out"
+# These two ran only in the fast allowlist, so a normal go_checks never ran them (J44).
+out=$(bash ./release-verify.test.sh 2>&1); rc=$?
+ok_exit "release-verify.sh fails an unstamped binary, an altered version, a missing licence and a changed file" "$rc"
+[ "$rc" = 0 ] || echo "$out"
+out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/shared -p test_help_golden.py -v 2>&1); rc=$?
+ok_exit "every bundled agent's help matches its golden" "$rc"
+[ "$rc" = 0 ] || echo "$out"
 sec "the Go checks"
 # Run here, not only by hand: a mutation of anything the unit tests cover was
 # invisible to this script while they lived outside. CLAUDE.md asks for all
