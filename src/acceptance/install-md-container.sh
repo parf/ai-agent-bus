@@ -44,4 +44,5 @@ for _ in $(seq 1 150); do
   sleep .1
 done
 case $state in running|degraded) ;; *) echo 'FAIL fixture systemd did not boot' >&2; exit 1 ;; esac
-"${podman[@]}" exec "$name" python3 -B /fixture/install_md_test.py "${@:2}"
+# A hang fails the run: the whole check is bounded, whatever it is waiting for.
+timeout --kill-after=20 1200 "${podman[@]}" exec "$name" python3 -B /fixture/install_md_test.py "${@:2}"

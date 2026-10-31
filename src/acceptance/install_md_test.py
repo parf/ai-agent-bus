@@ -37,10 +37,19 @@ def blocks(heading):
 
 
 def as_user(script, timeout=900):
-    """The block through `bash -e`, as the unprivileged user: a failing command ends it, as at a terminal with set -e."""
-    return subprocess.run(['runuser', '-u', USER, '--', 'env', '-i', *[f'{k}={v}' for k, v in ENV.items()],
-                           'bash', '-euo', 'pipefail', '-c', script],
-                          capture_output=True, text=True, timeout=timeout, cwd=f'/home/{USER}')
+    """The block through `bash -e`, as the unprivileged user: a failing command ends it, as at a terminal with set -e.
+    A block that outlasts `timeout` fails the check: its whole process group is killed, since a grandchild holding the
+    output pipe would otherwise keep the run waiting after the child was killed."""
+    proc = subprocess.Popen(['runuser', '-u', USER, '--', 'env', '-i', *[f'{k}={v}' for k, v in ENV.items()],
+                             'bash', '-euo', 'pipefail', '-c', script],
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=f'/home/{USER}', start_new_session=True)
+    try:
+        out, err = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        os.killpg(proc.pid, 9)
+        out, err = proc.communicate()
+        raise AssertionError(f'a block ran longer than {timeout}s and was killed:\n{script}\n--- stdout\n{out[-1500:]}\n--- stderr\n{err[-1500:]}')
+    return subprocess.CompletedProcess(proc.args, proc.returncode, out, err)
 
 
 class InstallFromACheckout(unittest.TestCase):
