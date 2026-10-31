@@ -3,7 +3,7 @@
 ## Docs rewrite DW11
 
 - Rewrite complete across all 16 pages: three `src/*.md` guides, the client hub, six language READMEs, the examples hub and its five example pages. `d4de8959` enforced the initial batch; PHP joined in `300cc54a` and its final two-identity example landed in `d4b4833c`. The close-out rechecked all 16 against the order/first-fifth checker and ENFORCED list; links and anchors resolve.
-- Acceptance remains pending under DW11b (#ab-w2b): run the exact checkout install/update blocks from `src/INSTALL.md` in a disposable container and record the final PHP serve/call output. The original batch explicitly did not run the root checkout steps. `fresh-install-container.sh` checks extracted archive setup, the distro fixture checks `install.sh`, and the npm container fixture checks installed npm tarballs; none executes those checkout blocks. No host root action or new runtime proof is claimed here.
+- DW11b closes the remaining checkout install/update and final PHP example acceptance; [verified result](#docs-rewrite-dw11b). The original rewrite did not itself run the checkout root commands.
 
 ## Docs rewrite DW7
 
@@ -289,3 +289,7 @@ Both full and client Darwin archives build for arm64 and x64; per-edition servic
 ## MAC.2c archive revision and release set checks
 
 The native archive harness compares every program’s stamped commit with the release-source revision; the build-node command supplies that stamp. Directory verification preserves Darwin client-only sets and requires the complete selected full set when present, matching the checksum collector. [Checks and mutants](done/mac2c.md#checks). MAC.2’s native archive run remains pending.
+
+## Docs rewrite DW11b
+
+The checker extracts INSTALL.md's checkout shell blocks and runs them verbatim in a clean systemd container: install, both services, a real update and restart, then the installed CLI version/build stamp and `hi: ping` call pass (4/0, 27.109 s). Replacing only the document's `git pull` with `true` keeps compilation working and fails the update-marker assertion (one failure/no error, 23.390 s). Every phase is bounded. The PHP README's two identities and exact printed output pass in the normal owning PHP suite (141/0), with T-14 flags and zero journal entries. [Evidence and acceptance map](done/dw11b-examples.md#checkout-container-acceptance). All 16 DW11 pages are complete; runtime/docs commands unchanged, no host root action or bump. J62 stays with #ab-w1b.
