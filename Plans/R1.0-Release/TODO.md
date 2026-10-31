@@ -401,6 +401,12 @@ and no daemon change. A row that needs a format first proposes it for approval.
 
 - ✅ B.24 IMAP live read status — **0.9.154**, `cedba648`; normal **1214/0**, **26** assertion-red mutants, reviewer verified landed runtime; three configured instances enabled, manager read-only list checks and check-deploy **6/6**. [Current guide](../../docs/agents/imap.md#what-it-does), [evidence and plan history](done/imap-read-status.md#result). Live Seen writes remain untested.
 
+- ⏳ B.30 IMAP folders — **plan only, awaiting the owner**; no code until approved. [Plan](imap-folders.md#scope); questions [Q269](QUESTIONS.md#imap-folders)–Q274.
+  - Builds: `folders`, per-call `--folder` on sync, list, search, read, mark and publish, destructive `move` and `delete` (to Trash), optionally a folder on `sub add`; code in `src/agents/imap`, guide `docs/agents/imap.md`
+  - Depends: B.5, B.21, B.24
+  - Acceptance: [the plan's acceptance](imap-folders.md#acceptance-for-the-todo-item)
+  - Mutants: [the plan's list](imap-folders.md#acceptance-for-the-todo-item)
+
 - ✅ B.16 webhook — built in **0.9.143**, `61ae2338`; normal **1217/0**, **45** assertion-red mutants; deployed disabled, check-deploy **6/6**. [Current guide](../../docs/agents/webhook.md#what-it-does), [completion and plan history](done/webhook.md#result). No public listener or real sender check; owner approval required before exposure.
 
 - ✅ B.17 cron, built in 0.9.139 (commit 3305d54e; gate --normal 1215/0; 48 tests on the fixture daemon; 51 mutants each failing its owning test on an assertion; deployed to `agent.d/cron`, disabled in the runner inventory; check-deploy 6/6; [guide](../../docs/agents/cron.md#what-it-does)) — [defaults](agents.md#next-set); AB2
