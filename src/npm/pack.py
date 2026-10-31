@@ -85,8 +85,8 @@ DARWIN_CPU = {'x86_64': 'x64', 'aarch64': 'arm64'}  # package.sh's names for the
 def build(full, client, checksums, output, darwin=()):
     """Wrap the Linux full and client archives, and any macOS client archives, as npm packages.
 
-    macOS has the client edition only (MAC.1; the daemon's archive is not built for it), so a
-    darwin archive becomes a client platform package, listed beside the Linux ones in both command
+    macOS npm packages remain client-only; the full Darwin archive uses reduced setup separately.
+    A Darwin client archive becomes a client platform package, listed beside the Linux ones in both command
     packages; the bus platform packages stay Linux, and a daemon command on macOS refuses by name.
     """
     package_names = names()

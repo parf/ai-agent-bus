@@ -18,7 +18,7 @@ The builder checks the archive hashes and each archive's manifest, and records
 the `SHA256SUMS` hash in every npm package. It emits a client platform package,
 a bus platform package, and two thin command packages. Both thin packages pin
 their platform dependencies. Linux x64 and arm64 are declared; the release set must include matching platform artifacts for both before the owner authorizes publication of the command packages.
-macOS has the client edition only: `pack.py ... --darwin-client agent-bus-client-<version>-darwin-x86_64|aarch64.tar.gz` (one per CPU, checked against `SHA256SUMS`, the same version and the Linux client's file list) adds `<client>-darwin-arm64` and `<client>-darwin-x64` platform packages and lists them in both command packages, so `agent-bus` resolves on a Mac; the daemon commands there refuse with `unsupported platform darwin-<cpu>`. No Darwin package is declared before its archive is built. Thin packages built from the
+macOS npm packaging has the client edition only: `pack.py ... --darwin-client agent-bus-client-<version>-darwin-x86_64|aarch64.tar.gz` (one per CPU, checked against `SHA256SUMS`, the same version and the Linux client's file list) adds `<client>-darwin-arm64` and `<client>-darwin-x64` platform packages and lists them in both command packages, so `agent-bus` resolves on a Mac; the daemon commands there refuse with `unsupported platform darwin-<cpu>`. No Darwin package is declared before its archive is built. Thin packages built from the
 same complete `SHA256SUMS` have the same content on either architecture.
 
 The bus platform contains the full release's files absent from the client,
