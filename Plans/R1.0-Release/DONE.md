@@ -20,7 +20,7 @@
 
 ## B.29 status close-out
 
-- All planned adapters are landed, including cron and `#at` in `823e17c0` (0.9.222). B.29 remains pending only for the legacy `gone` claim restart regression/mutant. Every task acceptance line is mapped to its owning test in [the close-out](done/b29-subscriptions-close-out.md#acceptance-map); the original task detail is retained there. No code changes.
+- All planned adapters are landed, including cron and `#at` in `823e17c0` (0.9.222). B.29b `9ca154bd` (no bump) closes the last legacy `gone` claim regression: cron and `#at` drop it at restart, warn once and never replay it. Every task acceptance line is mapped to its owning test in [the close-out](done/b29-subscriptions-close-out.md#acceptance-map); the original task detail is retained there. No code changes.
 
 ## M.8 status close-out
 

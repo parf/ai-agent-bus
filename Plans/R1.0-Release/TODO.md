@@ -447,7 +447,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
 
 - ✅ B.26 `#webhook` publishes a hosting service's push to `autopull-cmd` (built 0.9.157 `f5114e4e`; eight assertion-red mutants; `#ab-qa2` no findings; acceptance and tests in [DONE](git-autopull/DONE.md#b26-webhook-publishes-to-a-pubsub-channel))
 
-- ⏳ B.29 Unified subscriptions: All planned adapters are landed, including cron and `#at` in `823e17c0` (0.9.222); remaining: a regression and mutant for restarting a legacy `gone` fired claim as dropped without replay. [Acceptance and original task detail](done/b29-subscriptions-close-out.md#acceptance-map); [current contract](../../docs/agents/subscriptions.md#the-shared-behaviour).
+- ✅ B.29 Unified subscriptions: All planned adapters are landed, including cron and `#at` in `823e17c0` (0.9.222); B.29b `9ca154bd` (no bump) completes legacy `gone` claim restart/drop/no-replay coverage. [Acceptance and original task detail](done/b29-subscriptions-close-out.md#acceptance-map); [current contract](../../docs/agents/subscriptions.md#the-shared-behaviour).
 
 - ✅ B.28 `#eventlog` agent — **0.9.183–0.9.187**, `0d60d4ff`; deployed 2026-10-30 ([result](DONE.md#b28-eventlog-agent); [design](agent-events/eventlog.md#what-it-does), [tasks](agent-events/TODO.md#b28-eventlog-agent) (owner, 2026-10-29)). The web page is not built
 

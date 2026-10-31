@@ -1,7 +1,7 @@
 # Unified subscriptions
 
 📌 **TL;DR:** All planned adapters are landed, including cron and `#at` in `823e17c0` (0.9.222).
-One acceptance case remains unpinned: restoring a legacy `gone` fired claim. This records the acceptance on main on 2026-10-30; it is completion evidence.
+The last acceptance case, restoring a legacy `gone` fired claim, is pinned by B.29b `9ca154bd` (no bump). This records the acceptance on main on 2026-10-30; it is completion evidence.
 
 ## Acceptance map
 
@@ -18,12 +18,12 @@ IMAP names refer to `src/agents/imap/`; logwatch names to `src/agents/standalone
 | Logwatch legacy IDs are deterministic, collision-checked, committed before old deletion and restart-safe; edit refuses | `WatcherTests.test_non_hex_ids_are_deterministic_collision_checked_and_idempotent`, `test_non_hex_failed_new_write_does_not_delete_the_legacy_row`, `test_non_hex_delete_reply_lost_finishes_checkpoint_without_recreating_old_row`, `test_sub_edit_is_refused_with_delete_and_add_guidance_without_mutation`; `SharedDelivery.test_sigkill_between_new_commit_and_old_delete_finishes_before_serving` counts delivery after restart. |
 | Cron/at claim denied or vanished slots dropped once; recurring entries survive, one-shots disappear, no retry or pause | `src/agents/cron/test_cron.py:Authority.test_a_dropped_slot_is_dropped_once_and_stays_dropped_when_the_creator_is_restored`, `test_a_refused_one_shot_is_dropped_and_never_retried`, `test_a_vanished_target_drops_the_copy_instead_of_retrying`, `test_a_vanished_target_removes_a_one_shot_for_good`; `Delivery.test_a_refusal_drops_one_copy_per_slot_with_no_backoff`. |
 | Legacy fired claims move by exact prefix; unsettled migration serves nothing and resumes before serving | `Migration.test_a_claim_under_the_old_id_moves_with_its_entry_and_the_slot_is_not_sent_again`, `test_a_dotted_legacy_id_moves_its_claims_by_the_exact_prefix`, `test_a_move_whose_claims_cannot_move_serves_nothing_until_it_finishes`, `test_a_move_interrupted_after_the_write_is_finished_on_restart`; `test_cron.py:test_the_claim_cleanup_keeps_an_in_flight_claim_as_evidence`. |
-| Legacy unconfirmed, denied, gone or retrying outcomes are dropped, never deleted and replayed | `test_cron.py:test_a_legacy_denied_claim_is_settled_and_the_subscription_stays_active`, `test_a_legacy_unconfirmed_claim_of_the_current_slot_is_dropped_and_not_sent_on_restart`, `test_a_legacy_retrying_one_shot_is_dropped_on_restart_instead_of_sent`; no fixture seeds a legacy `gone` claim. The code handles it in `src/agents/shared/scheduler.py:Scheduler.load`, but a restart/drop/no-replay assertion and its mutant are still needed. |
+| Legacy unconfirmed, denied, gone or retrying outcomes are settled as dropped and never replayed | `test_cron.py:test_a_legacy_denied_claim_is_settled_and_the_subscription_stays_active`, `test_a_legacy_unconfirmed_claim_of_the_current_slot_is_dropped_and_not_sent_on_restart`, `test_a_legacy_retrying_one_shot_is_dropped_on_restart_instead_of_sent`; B.29b adds `src/agents/cron/test_cron.py:Delivery.test_a_legacy_gone_claim_is_dropped_once_at_restart_without_replaying_its_slot` and `src/agents/at/test_at.py:Firing.test_a_legacy_gone_one_shot_is_dropped_once_at_restart_and_never_sent`. Both exercise the same `Scheduler.load` conversion and assert exactly one `target_gone` warning across two restarts. |
 | A bad stored chat filter affects only its copy, warns once and lets the good subscription deliver | Both `src/agents/slack/b29.test.ts` and `src/agents/telegram/b29.test.ts:J22 a malformed stored filter drops only its own copy`; chat `subs.test.ts:migration collisions preserve both distinct subscriptions and invalid filters stay inert`. |
 
-## What remains
+## Final legacy claim check
 
-B.29 stays pending for the explicit legacy `gone` claim restart case: seed that fired state, restart in the same slot, assert a durable dropped claim and zero deliveries, then show that removing `gone` from the legacy conversion fails the assertion. No code fix is authorized by this close-out.
+B.29b `9ca154bd` closes the final gap without a runtime change. The cron fixture seeds `gone`, restarts in the same slot and asserts a durable dropped claim, zero replay across two restarts, one warning and delivery in the next slot. The `#at` fixture asserts removal of the one-shot, its durable dropped outcome, one warning and no delivery across two restarts. Removing `gone` from the legacy conversion fails both tests on assertions (`gone != dropped`; the one-shot unexpectedly remains). Restored owning suites pass: cron 63 tests, `#at` 25. No acceptance remains pending in B.29.
 
 ## Verification
 
