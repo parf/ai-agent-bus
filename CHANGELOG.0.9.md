@@ -6,15 +6,12 @@ The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
 ## 0.9.245 — 2026-10-31
 
-Fix the IMAP manifest so the runner accepts search with --folder
+Thirteenth published 0.9 changeset: 0.9.243–0.9.245, squashed.
 
-## 0.9.244 — 2026-10-31
-
-IMAP agent lists folders and takes --folder on sync, list, search, read, mark and publish, with a cache per folder
-
-## 0.9.243 — 2026-10-30
-
-Launcher reports resumed status once a held message is accepted, clearing the stale "waits for it to end" line
+| Area | Changes |
+|---|---|
+| Agents | The IMAP agent lists folders (`folders [--counts]`) and takes `--folder` on sync, list, search, read, mark and publish, with a separate cache per folder; its manifest keeps search's text argument last so the runner accepts it. |
+| Launchers | The launcher reports resumed status once a held message is accepted, clearing the stale "waits for it to end" line. |
 
 ## 0.9.242 — 2026-10-30
 
