@@ -104,6 +104,8 @@ func TestPackagerOutputIsAcceptedBySetup(t *testing.T) {
 		"agents/imap/imap.py",
 		"agents/imap/cache.py",
 		"agents/imap/folders.py",
+		"agents/imap/operations.py",
+		"agents/imap/mime_parts.py",
 		"agents/imap/wire.py",
 		"agents/imap/budget.py",
 		"agents/imap/matching.py",
