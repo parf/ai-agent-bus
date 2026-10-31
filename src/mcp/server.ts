@@ -14,7 +14,7 @@ import { normalizeTags } from "./tags.ts";
 import { Bus, BusError, defaultName, type Envelope, type Record_, withOwnerACL, runtimeTags } from "./bus.ts";
 import { beingRead, catalogue, listing } from "./catalogue.ts";
 import { answerSessionAsk } from "./session-help.ts";
-import { startPush, RENAME_READER_RETRY_MS, type Push } from "./push.ts";
+import { startPush, RENAME_READER_RETRY_MS, type Held, type Push } from "./push.ts";
 import { Codex } from "./codex.ts";
 import { version } from "./version.ts";
 import { describe, sidecarMessage, codexMessage } from "./messages.ts";
@@ -669,12 +669,15 @@ function setRefusal(why: string, found: ReturnType<typeof holders>): void {
   recheck ??= setInterval(() => { if (refusal && !takenOver) readInbox(); }, RECHECK_MS);
 }
 
+// A message the push consumed and could not deliver, kept for the push that starts next (J60b).
+const held: Held = {};
+
 function readInbox(afterRename = false): void {
   if (!deliver || takenOver || push?.running()) return;
   push = startPush(bus, deliver, log, undefined, afterRename ? RENAME_READER_RETRY_MS : 0, process.env, refuse, () => {
     if (refusal) log(`push: ${bus.name} is readable again`);
     refusal = undefined;
-  });
+  }, held);
 }
 
 // An explicit takeover elsewhere asks this face to let go. A face started with

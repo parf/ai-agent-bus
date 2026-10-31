@@ -40,7 +40,11 @@ const suspension = (err: unknown) => err instanceof BusError && err.status === 4
 export type PushEnd = "stopped" | "refused" | "delivery";
 export type Push = { readonly running: () => boolean; readonly ended: () => PushEnd | undefined; stop: () => void; done: Promise<void> };
 
-export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void, suspendedRetryMs = SUSPENDED_RETRY_MS, readerReleaseMs = 0, sessionEnv: NodeJS.ProcessEnv = process.env, onRefused?: (why: string) => void, onReading?: () => void): Push {
+/** The message a push took from the inbox and could not deliver. It outlives that push: the next one delivers it
+ *  before it reads again, so a consumed message is lost only if the process dies (J60b). */
+export type Held = { message?: Envelope };
+
+export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void, suspendedRetryMs = SUSPENDED_RETRY_MS, readerReleaseMs = 0, sessionEnv: NodeJS.ProcessEnv = process.env, onRefused?: (why: string) => void, onReading?: () => void, held: Held = {}): Push {
   let stopped = false;
   let end: PushEnd | undefined;
   let suspended = false;
@@ -55,8 +59,31 @@ export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void, 
     abort.abort(); // let go of the inbox now, rather than at the deadline
   };
 
+  // Delivers one message, or keeps it for the next push and ends this one: the daemon has already handed it over,
+  // so dropping it would lose it; the rest stays queued for whoever reads next.
+  const hand = async (e: Envelope): Promise<boolean> => {
+    try {
+      if (!await answerSessionAsk(bus, e, sessionEnv)) await deliver(e);
+      return true;
+    } catch (err) {
+      held.message = e;
+      log(`push: message ${e.message_id} from ${e.from} was consumed but not delivered, and is kept to be delivered first: ${err}`);
+      log(`push: stopping; later messages stay in ${bus.name}'s inbox`);
+      stopped = true;
+      end = "delivery";
+      return false;
+    }
+  };
+
   const done = (async () => {
     while (!stopped) {
+      if (held.message) {
+        const kept = held.message;
+        held.message = undefined;
+        if (!await hand(kept)) return;
+        log(`push: message ${kept.message_id} from ${kept.from}, kept after a failed delivery, was delivered`);
+        continue;
+      }
       let e: Envelope | null = null;
       try {
         e = await bus.consume({ wait: WAIT }, abort.signal);
@@ -115,19 +142,7 @@ export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void, 
         log(`push: ${bus.name} reads its inbox again`);
       }
       if (!e) continue; // deadline, no message
-      try {
-        if (!await answerSessionAsk(bus, e, sessionEnv)) await deliver(e);
-      } catch (err) {
-        // At-most-once: the daemon has already handed this message over, so a
-        // failed delivery loses it. Stop rather than keep draining an inbox
-        // into a delivery path that is not working — the rest stays queued
-        // for whoever reads next.
-        log(`push: message ${e.message_id} from ${e.from} was consumed but not delivered: ${err}`);
-        log(`push: stopping; later messages stay in ${bus.name}'s inbox`);
-        stopped = true;
-        end = "delivery";
-        return;
-      }
+      if (!await hand(e)) return;
     }
   })();
 

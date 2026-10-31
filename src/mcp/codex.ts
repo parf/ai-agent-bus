@@ -52,11 +52,15 @@ export class AppServerError extends Error {
  *  cannot take one: a manual /compact or /review (`activeTurnNotSteerable` in
  *  its protocol). The turn ends by itself, so the message waits for it. */
 export function notSteerable(err: unknown): boolean {
-  return err instanceof AppServerError && carries(err.data, "activeTurnNotSteerable", 4);
+  return err instanceof AppServerError && (carries(err.data, "activeTurnNotSteerable", 4) || REAL_TEXT.test(err.message));
 }
 
-// The structured discriminator, wherever the App Server nests it: a key of that
-// name, never wording in a message.
+// A live /compact answered with no structured data: the Rust variant's name in the error text,
+// `failed to submit turn input: ActiveTurnNotSteerable { turn_kind: ... }`, whatever its turn_kind
+// (J60b, seen on 0.9.239). Only an App Server error carries it, so a plain Error that says so is not one.
+const REAL_TEXT = /\bActiveTurnNotSteerable\b/;
+
+// The structured discriminator, wherever the App Server nests it: a key of that name.
 function carries(value: unknown, key: string, depth: number): boolean {
   if (depth < 0 || typeof value !== "object" || value === null) return false;
   if (Object.hasOwn(value, key)) return true;
