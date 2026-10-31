@@ -24,12 +24,28 @@ guard_lock() {
     { echo "FAIL refused to start a container: nobody holds the slow lock on smoke-gate@parf.us; a container run belongs to a gate or a mutant (agent-bus lock smoke-gate@parf.us slow --ttl=900s)" >&2; exit 1; }
 }
 
+# A failed stat lookup is not proof of absence. Ask the kernel for ESRCH;
+# permission failures and any other error remain unknown.
+guard_pid_gone() {
+  python3 - "$1" <<'PY_GONE'
+import os
+import sys
+try:
+    os.kill(int(sys.argv[1]), 0)
+except ProcessLookupError:
+    sys.exit(0)
+except (OSError, ValueError, OverflowError):
+    pass
+sys.exit(1)
+PY_GONE
+}
+
 # guard_started <pid>: start time, or empty only when the PID is gone/zombie.
 # A failed or incomplete stat read for an existing PID is unknown (status 1).
 guard_started() {
   local stat
   if ! stat=$(sed 's/.*) //' "/proc/$1/stat" 2>/dev/null); then
-    [ ! -d "/proc/$1" ] && return 0
+    guard_pid_gone "$1" && return 0
     return 1
   fi
   set -- $stat
@@ -54,11 +70,13 @@ fi
 # minutes, and a container made after a removal would survive it), then remove its containers and, unless kept, its
 # directory. A failing pgrep or podman ps is not an empty answer: it is asked again. Arguments: run, directory, keep,
 # then the podman command with its store options.
-GUARD_WATCH='alive() {
+GUARD_WATCH="$(declare -f guard_pid_gone)"'
+alive() {
   pid=$1 expected=$2
   if ! stat=$(sed "s/.*) //" "/proc/$pid/stat" 2>/dev/null); then
     # Keep watching on an unknown read; only a gone PID is dead.
-    [ -d "/proc/$pid" ]; return
+    guard_pid_gone "$pid" && return 1
+    return 0
   fi
   set -- $stat
   [ "$#" -ge 20 ] || return 0
