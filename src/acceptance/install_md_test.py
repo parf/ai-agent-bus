@@ -37,6 +37,21 @@ def blocks(heading):
     return found
 
 
+def try_blocks(found):
+    commands = [block for block in found if 'agent-bus' in block]
+    assert len(commands) == 2, f'INSTALL.md "### Try it" needs exactly two agent-bus sh blocks (serve, call); found {len(commands)}'
+    return commands
+
+
+class DocumentBlocks(unittest.TestCase):
+    def test_try_it_accepts_the_serve_and_call_blocks(self):
+        self.assertEqual(try_blocks(['agent-bus serve', 'echo prerequisite', 'agent-bus call']), ['agent-bus serve', 'agent-bus call'])
+
+    def test_third_agent_bus_block_names_the_document_problem(self):
+        with self.assertRaisesRegex(AssertionError, 'Try it.*exactly two agent-bus sh blocks.*found 3'):
+            try_blocks(['agent-bus serve', 'agent-bus call', 'agent-bus status'])
+
+
 def as_user(script, timeout=300):
     """The block through `bash -e`, as the unprivileged user: a failing command ends it, as at a terminal with set -e.
     A block that outlasts `timeout` fails the check: its whole process group is killed, since a grandchild holding the
@@ -73,7 +88,7 @@ class InstallFromACheckout(unittest.TestCase):
         print('INSTALL.md sha256=' + hashlib.sha256(DOC.read_bytes()).hexdigest(), flush=True)
         cls.install, = blocks('Install')
         cls.check, = blocks('Check')
-        cls.try_serve, cls.try_call = [b for b in blocks('Try it') if 'agent-bus' in b]
+        cls.try_serve, cls.try_call = try_blocks(blocks('Try it'))
         cls.update, = blocks('Update')
 
     def sh(self, script, **kw):
@@ -93,7 +108,10 @@ class InstallFromACheckout(unittest.TestCase):
         self.assertEqual(done.returncode, 0, done.stdout[-800:] + done.stderr[-800:])
         self.assertEqual(done.stdout.split()[-2:], ['active', 'active'], done.stdout[-400:])
 
-    def test_4_the_try_it_blocks_serve_a_script_and_answer_a_call(self):
+    def test_3_the_try_it_blocks_serve_a_script_and_answer_a_call(self):
+        self.assert_documented_call()
+
+    def assert_documented_call(self):
         version = self.sh('agent-bus --version')
         self.assertEqual(version.returncode, 0, version.stderr)
         want = (CHECKOUT / 'src/internal/version/VERSION').read_text().strip()
@@ -128,11 +146,20 @@ class InstallFromACheckout(unittest.TestCase):
         body = json.loads(reply.strip().splitlines()[-1])
         self.assertEqual((body['from'], body['body']), ('#hi', 'hi: ping'))
 
-    def test_3_the_update_block_pulls_builds_and_restarts(self):
+    def test_4_the_update_block_pulls_builds_and_restarts(self):
         marker = 'UPDATED-BY-THE-FIXTURE'
         # A newer commit in the served repository, so that an update that does not pull cannot pass.
         work = Path('/tmp/source-work')
-        subprocess.run(['git', 'clone', '-q', '/source.git', str(work)], check=True, timeout=20)
+        # Capture the mounted repository's state at the operation that once failed.
+        # No retry: a missing live mount is a fixture failure, not a transient success.
+        diagnostics = []
+        for command in (['ls', '-ld', '/source.git'], ['git', '-C', '/source.git', 'rev-parse', 'HEAD']):
+            result = subprocess.run(command, capture_output=True, text=True, timeout=20)
+            diagnostics.append(f'{command!r} rc={result.returncode}\n{result.stdout}{result.stderr}')
+        state = '\n'.join(diagnostics)
+        print('Update source preflight:\n' + state, flush=True)
+        clone = subprocess.run(['git', 'clone', '-q', '/source.git', str(work)], capture_output=True, text=True, timeout=20)
+        self.assertEqual(clone.returncode, 0, 'fixture source clone failed (no retry):\n' + state + '\n' + clone.stdout + clone.stderr)
         (work / 'UPDATE_MARKER').write_text(marker + '\n')
         subprocess.run(['git', '-C', str(work), 'add', 'UPDATE_MARKER'], check=True, timeout=20)
         subprocess.run(['git', '-C', str(work), 'commit', '-q', '-m', 'a newer commit'], check=True, timeout=20)
@@ -158,6 +185,8 @@ class InstallFromACheckout(unittest.TestCase):
             time.sleep(0.1)
             status = self.sh('agent-bus status', timeout=3)
         self.assertEqual(status.returncode, 0, 'updated CLI did not become ready: ' + status.stderr)
+        # Keep the final version and call proof after Update too.
+        self.assert_documented_call()
 
 
 if __name__ == '__main__':
