@@ -297,3 +297,7 @@ The checker extracts INSTALL.md's checkout shell blocks and runs them verbatim i
 ## MAC.2d account-only teardown reporting
 
 The archive harness reports a verified `-14120` account-only cleanup partial with exit 3 and the exact owner local-terminal removal/absence check. Other teardown failures remain strict. [Native failed run and local checks](done/mac2d.md#native-run); [owner recovery](mac2b-run-list.md#account-removal-blocked-over-ssh). MAC.2 remains pending the revised run and CEO account-absence confirmation.
+
+## P.1c macOS npm platform acceptance
+
+The CEO’s arm64 run on 2026-10-31 passed local npm client/full-wrapper installation, the stamped installed CLI version, one correlated bus call and the expected unsupported-daemon refusal; cleanup was confirmed at 122M. [Acceptance and native log](done/p1c-macos-npm.md#native-acceptance). P.1c is complete; publication and the parent P.1 remain separate.

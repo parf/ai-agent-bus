@@ -178,14 +178,14 @@ Release builds follow [working rules § versioning](../CLAUDE.md#versioning).
 
 - **Client and runner:** native checks are recorded; the runner has no sandbox or cgroup limits.
 - **Reduced daemon setup:** launchd runs it as `_agentbusd`; the Linux service layout is not available on macOS.
-- **Archive build:** the builder supplies full and client Darwin archives for both CPUs. The full archive's native install acceptance remains pending; macOS npm packages remain client-only, with their native run separate.
+- **Archive build:** the builder supplies full and client Darwin archives for both CPUs. The full archive's native install acceptance remains pending; macOS npm packages remain client-only; local-tarball installation and a bus call are verified on Apple Silicon.
 
 #### The client and runner
 
 | | |
 |---|---|
 | Build | `GOOS=darwin GOARCH=arm64 src/package.sh` (or `amd64`) cross-builds full `agent-bus-<version>-darwin-<aarch64\|x86_64>.tar.gz` and client `agent-bus-client-<version>-darwin-<aarch64\|x86_64>.tar.gz` archives on a Linux host without cgo, so the process title is not set |
-| Install | npm is the chosen client install path; Darwin npm platform packages are assembled from client archives; their native installed-tree acceptance remains pending. Earlier shell-installer runs are fixture evidence, not the current distribution procedure. The launchers use `readlink -f`, which macOS has from 12.3 |
+| Install | npm is the chosen client install path; Darwin npm platform packages are assembled from client archives; local-tarball installation and a bus call are verified on Apple Silicon. npm publication remains pending. Earlier shell-installer runs are fixture evidence, not the current distribution procedure. The launchers use `readlink -f`, which macOS has from 12.3 |
 | Signing | the macOS binaries are unsigned and not notarized, so Gatekeeper warns on a download; a binary built on the Mac itself carries no quarantine flag |
 | Release | `src/release-verify.sh --os "linux darwin"` checks the archives, reading foreign binaries rather than running them; npm platform packaging must retain the same build and manifest checks |
 | Runner | starts agents under the account that runs it, with no cgroup limits and no sandbox: a sandbox request is refused, and agent scripts hold that account's rights. Run it as a dedicated unprivileged account, never an administrator; this suits one owner's own Mac, not a shared one |
@@ -748,7 +748,7 @@ The real-browser gate has a `TLS=1` variant ([browser acceptance](05-discovery.m
 | Area | Status |
 |---|---|
 | Linux archive installation | Built: checked manifest, service accounts, units, upgrade/recovery and rollback |
-| npm assembly | Built for local Linux checks; installable npm publication, clean npm installation acceptance and macOS npm platforms remain pending |
+| npm assembly | Built for local Linux checks; local macOS client installation is verified on Apple Silicon; installable npm publication and remaining clean npm acceptance stay pending |
 | macOS client and runner | Native checks recorded; no sandbox, and a sandbox request is refused |
 | macOS daemon | Reduced launchd setup verified with focused binaries; full archive builds and checks pass, native archive-install acceptance pending; manual cleanup only |
 | Release evidence | Built: stamps, version, license, notices, manifests and unsigned checksums; no release signature required |

@@ -1,0 +1,27 @@
+CPU=arm64 date=02:18:59
+main_sha=2214ba4e1d4697592018065595ffba9b92da318e
+version=0.9.242
+real package.sh Linux x86_64 and Darwin arm64/amd64 client archives, BUILD_COMMIT=2214ba4e1d4697592018065595ffba9b92da318e
+No publication or npm login.
+tarballs/ai-agent-bus-0.9.242.tgz: OK
+tarballs/ai-agent-bus-client-0.9.242.tgz: OK
+tarballs/ai-agent-bus-client-darwin-arm64-0.9.242.tgz: OK
+tarballs/ai-agent-bus-client-darwin-x64-0.9.242.tgz: OK
+tarballs/ai-agent-bus-client-linux-x64-0.9.242.tgz: OK
+tarballs/ai-agent-bus-linux-x64-0.9.242.tgz: OK
+
+added 2 packages in 508ms
+rc_install_client=0
+0.9.242
+build_info: parf@parf.us 2026-10-30 21:49:49 2214ba4e1d4697592018065595ffba9b92da318e
+rc_version=0
+/Users/parf/agent-bus-dev/p1c-prefix/lib/node_modules/ai-agent-bus-client
+ack from #debug@parf.us
+{"message_id":"f422b7e95ca856c2","from":"#debug@parf.us","to":"parf","topic":"call","tag":"4111888a07cf","body":"{\"received_at\":1793427543.601921,\"answered_at\":1793427543.6019394,\"version\":\"0.9.172\"}","at":"2026-10-31T02:19:03.602175214-04:00","re":"789458b0e70206c5","expires":"0001-01-01T00:00:00Z","deadline":"0001-01-01T00:00:00Z"}
+rc_call=0
+
+added 3 packages in 410ms
+rc_install_full=0
+agent-bus: unsupported platform darwin-arm64
+rc_agentbusd=1
+du=280M	/Users/parf/agent-bus-dev

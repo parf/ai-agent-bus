@@ -72,7 +72,7 @@ Artifacts follow the shared [versioning and build evidence](../../CLAUDE.md#vers
 
 ## macOS
 
-The owner’s Mac is the test host ([RD164](DECISIONS.md#recorded-decisions)); Apple code signing and notarization are not required ([RD165](DECISIONS.md#recorded-decisions)). The [macOS plan](macos.md#order) owns the supported parts. Native checks already recorded do not establish npm platform support: P.1 must package and exercise it.
+The owner’s Mac is the test host ([RD164](DECISIONS.md#recorded-decisions)); Apple code signing and notarization are not required ([RD165](DECISIONS.md#recorded-decisions)). The [macOS plan](macos.md#order) owns the supported parts. macOS client npm packages are built for both CPUs; local-tarball installation and a bus call passed on arm64 ([P.1c evidence](done/p1c-macos-npm.md#native-acceptance)). No native Intel run or npm publication is claimed.
 
 ## Container runtime
 
