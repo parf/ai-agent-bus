@@ -7,7 +7,8 @@
 #
 #   src/release-verify.sh <archive.tar.gz>...
 #   src/release-verify.sh [--arches "x86_64 aarch64"] [--os "linux darwin"] <release-dir>
-# A directory holds exactly the expected full/client archives and SHA256SUMS.
+# A directory holds the selected full/client archives and SHA256SUMS;
+# Darwin full archives are optional, but complete for the selected CPUs if present.
 # Checksums and manifests are required; release signatures are not used.
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
@@ -35,6 +36,15 @@ if [ "$#" = 1 ] && [ -d "$1" ]; then
   set --
   for o in $oses; do
     for edition in agent-bus agent-bus-client; do
+      # Preserve the collector's client-only Darwin set. Once any full
+      # archive is present, require the complete selected CPU pair too.
+      if [ "$o $edition" = "darwin agent-bus" ]; then
+        full=no
+        for a in $arches; do
+          [ ! -e "$rel/agent-bus-$want-darwin-$a.tar.gz" ] || full=yes
+        done
+        [ "$full" = yes ] || continue
+      fi
       for a in $arches; do set -- "$@" "$rel/$edition-$want-$o-$a.tar.gz"; done
     done
   done

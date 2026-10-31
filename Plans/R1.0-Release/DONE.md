@@ -285,3 +285,7 @@ The workflow publishes checked archives and SHA256SUMS without signing; release 
 ## MAC.2b full Darwin archive build
 
 Both full and client Darwin archives build for arm64 and x64; per-edition service-program checks, release manifests, stamps/version and Mach-O CPU checks pass. The acceptance harness can install the checked archive without `--exec` and clean the fresh release plus its command links. npm Darwin stays client-only. [Build evidence](done/mac2b.md#checks); [CEO steps](mac2b-run-list.md#run-the-archive-check). **MAC.2 stays pending** until the CEO's archive-based native acceptance and verified uninstall pass.
+
+## MAC.2c archive revision and release set checks
+
+The native archive harness compares every program’s stamped commit with the release-source revision; the build-node command supplies that stamp. Directory verification preserves Darwin client-only sets and requires the complete selected full set when present, matching the checksum collector. [Checks and mutants](done/mac2c.md#checks). MAC.2’s native archive run remains pending.

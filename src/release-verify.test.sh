@@ -218,3 +218,26 @@ cp "$work/sums.good" "$work/set/SHA256SUMS"
 out=$("$here/release-verify.sh" --signers ignored "$work/set" 2>&1) && { echo 'obsolete --signers accepted'; exit 1; }
 grep -qF 'unsupported option --signers' <<<"$out" || { echo "wrong obsolete-option refusal: $out"; exit 1; }
 echo 'unsigned release set: checksums required; obsolete --signers refused'
+
+# The collector and directory verifier agree on Darwin client-only and full sets.
+mkdir "$work/darwin-set" "$work/darwin-fixtures"
+for cpu in x86_64 aarch64; do cp "$work/matrix-$cpu/"*.tar.gz "$work/darwin-set/"; done
+native_arch=$arch
+for arch in x86_64 aarch64; do mkdarwin "$work/darwin-fixtures" agent-bus-client 'u@h 2026-01-01 00:00:00'; done
+arch=$native_arch
+cp "$work/darwin-fixtures/"*.tar.gz "$work/darwin-set/"
+"$here/release-sign.sh" "$work/darwin-set" "$v" >/dev/null
+out=$("$here/release-verify.sh" --os "linux darwin" "$work/darwin-set" 2>&1) || { echo "checksummed Darwin client-only set refused: $out"; exit 1; }
+for arch in x86_64 aarch64; do mkdarwin "$work/darwin-fixtures" agent-bus 'u@h 2026-01-01 00:00:00'; done
+arch=$native_arch
+cp "$work/darwin-fixtures/"*.tar.gz "$work/darwin-set/"
+"$here/release-sign.sh" "$work/darwin-set" "$v" >/dev/null
+"$here/release-verify.sh" --os "linux darwin" "$work/darwin-set" >/dev/null || { echo 'checksummed Darwin full/client set refused'; exit 1; }
+rm "$work/darwin-set/agent-bus-$v-darwin-aarch64.tar.gz"
+for tool in release-sign release-verify; do
+  args=("$work/darwin-set" "$v")
+  [ "$tool" != release-verify ] || args=(--os "linux darwin" "$work/darwin-set")
+  out=$("$here/$tool.sh" "${args[@]}" 2>&1) && { echo "$tool accepted a partial Darwin full pair"; exit 1; }
+  grep -qF "agent-bus-$v-darwin-aarch64.tar.gz is missing" <<<"$out" || { echo "$tool partial Darwin pair: wrong refusal: $out"; exit 1; }
+done
+echo 'Darwin sets: client-only and full pairs accepted by both tools; partial full pair refused'
