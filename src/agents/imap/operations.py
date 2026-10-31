@@ -7,7 +7,7 @@ from cache import uid
 from mail import MailError
 import wire
 
-METHODS = {'mark', 'flag', 'headers', 'parts', 'part', 'list', 'search'}
+METHODS = {'mark', 'flag', 'headers', 'parts', 'part', 'list', 'search', 'copy', 'move', 'trash', 'delete', 'compact_trash'}
 CRITERIA = {'from', 'to', 'subject', 'header', 'since', 'before', 'flag', 'no_flag', 'larger', 'smaller'}
 SYSTEM = {name: '\\' + name.title() for name in ('flagged', 'answered', 'draft', 'seen', 'deleted')}
 
@@ -28,7 +28,7 @@ def uid_set(value):
         ends = item.split(':')
         first, last = uid(ends[0]), uid(ends[-1])
         if last < first or last - first + 1 + len(result) > 1000:
-            raise MailError('uids must be ascending ranges, at most 1000 UIDs')
+            raise MailError('each UID range must run low:high; at most 1000 UIDs')
         result.extend(range(first, last + 1))
     if len(set(result)) != len(result):
         raise MailError('duplicate UIDs')
@@ -92,14 +92,17 @@ def parse_call(body):
                 value[key] = arg
             else:
                 positional.append(word)
-        if method in {'mark', 'flag', 'headers', 'parts', 'part'}:
-            count = {'mark': 2, 'headers': 1, 'parts': 1, 'part': 2}.get(method)
+        if method in {'mark', 'flag', 'headers', 'parts', 'part', 'copy', 'move', 'trash', 'delete'}:
+            count = {'mark': 2, 'headers': 1, 'parts': 1, 'part': 2, 'copy': 2, 'move': 2, 'trash': 1, 'delete': 1}.get(method)
             if (count is not None and len(positional) != count) or (method == 'flag' and len(positional) < 3):
                 raise MailError('invalid arguments for ' + method)
-            value['uids' if method in {'mark', 'flag', 'headers'} else 'uid'] = positional[0]
+            value['uids' if method in {'mark', 'flag', 'headers', 'copy', 'move', 'trash', 'delete'} else 'uid'] = positional[0]
             if method == 'mark': value['state'] = positional[1]
             if method == 'flag': value.update(action=positional[1], flags=positional[2:])
             if method == 'part': value['part_id'] = positional[1]
+            if method in {'copy', 'move'}: value['dest'] = positional[1]
+        elif method == 'compact_trash':
+            if positional: raise MailError('use compact_trash [--older <days>]')
         elif method == 'list':
             if len(positional) > 1 or ('limit' in value and positional):
                 raise MailError('use list [limit] [--flag <f>]')
@@ -109,14 +112,23 @@ def parse_call(body):
     method = value['method']
     allowed = {'mark': {'uids', 'uid', 'state'}, 'flag': {'uids', 'action', 'flags'},
                'headers': {'uids'}, 'parts': {'uid'}, 'part': {'uid', 'part_id'},
-               'list': {'limit', 'unread', 'flag'}, 'search': CRITERIA | {'limit', 'text'}}[method]
+               'list': {'limit', 'unread', 'flag'}, 'search': CRITERIA | {'limit', 'text'},
+               'copy': {'uids', 'dest'}, 'move': {'uids', 'dest'}, 'trash': {'uids'},
+               'delete': {'uids'}, 'compact_trash': {'older'}}[method]
     if set(value) - allowed - {'method', 'folder'}:
         raise MailError('unknown argument for ' + method)
     if 'folder' in value: wire.mailbox(value['folder'])
-    if method in {'mark', 'flag', 'headers'}:
+    if method in {'mark', 'flag', 'headers', 'copy', 'move', 'trash', 'delete'}:
         if 'uid' in value and 'uids' in value:
             raise MailError('use uids, not both uid and uids')
         value['uids'] = uid_set(value.pop('uid', value.get('uids')))
+    if method in {'copy', 'move'}: wire.mailbox(value.get('dest'))
+    if method == 'compact_trash' and 'older' in value:
+        days = value['older']
+        if isinstance(days, str) and re.fullmatch(r'[0-9]{1,6}', days): days = int(days)
+        if type(days) is not int or not 0 <= days <= 365000:
+            raise MailError('older must be days in 0..365000')
+        value['older'] = days
     if method in {'parts', 'part'}: value['uid'] = uid(value.get('uid'))
     if method == 'part' and (not isinstance(value.get('part_id'), str) or not re.fullmatch(r'[1-9][0-9]{0,3}(?:\.[1-9][0-9]{0,3}){0,30}', value['part_id'])):
         raise MailError('part-id must be a MIME part id from parts')

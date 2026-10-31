@@ -30,6 +30,7 @@ import wire
 import folders
 import operations
 import mime_parts
+import destructive
 import progress
 from publication import MAX_OUTPUT, WARNING, PublicationError, render
 from forwarding import message as subscription_message, shared
@@ -39,7 +40,7 @@ from mailbox_session import SessionError
 
 
 def config(value):
-    allowed = {'host', 'port', 'mode', 'auth', 'mailbox', 'target', 'cache_bytes', 'cafile', 'allow_plaintext'}
+    allowed = {'host', 'port', 'mode', 'auth', 'mailbox', 'target', 'cache_bytes', 'cafile', 'allow_plaintext', 'allow_destructive'}
     if not isinstance(value, dict) or set(value) - allowed:
         raise MailError('unknown IMAP Configuration key')
     result = {'host': 'imap.gmail.com', 'port': 993, 'mode': 'tls', 'auth': 'password',
@@ -50,6 +51,9 @@ def config(value):
         raise MailError('IMAP port must be in 1..65535')
     if result['mode'] not in {'tls', 'plain'} or result['auth'] not in {'password', 'xoauth2'}:
         raise MailError('mode must be tls/plain; auth must be password/xoauth2')
+    if 'allow_destructive' in result and type(result['allow_destructive']) is not bool:
+        raise MailError('allow_destructive must be boolean')
+    result.setdefault('allow_destructive', False)
     if 'allow_plaintext' in result and type(result['allow_plaintext']) is not bool:
         raise MailError('allow_plaintext must be boolean')
     if result['mode'] == 'plain' and not result.get('allow_plaintext', False):
@@ -293,6 +297,7 @@ class Agent:
             if self.waiting_previous:
                 self.forwarding()  # No cache mutation while the old reader owns its state.
             cfg = config(self.configuration)
+            destructive.require_enabled(cfg, method)
             if method == 'publish' and not cfg.get('target'):
                 raise MailError('publish requires Configuration target')
             user, password = self.environment.get('IMAP_USERNAME', ''), self.environment.get('IMAP_PASSWORD', '')
@@ -339,13 +344,24 @@ class Agent:
                     raise MailError('folder listing exceeds the answer limit')
                 status = 'ok'
                 return result
+            destructive.capabilities(connection, method)
+            destination = None
+            if method in {'copy', 'move'}:
+                destination = folders.choose(connection, call['dest'])
+            elif method == 'trash':
+                destination = destructive.trash_folder(connection)
             selected = call.get('folder', cfg['mailbox'])
+            if method == 'compact_trash':
+                trash = destructive.trash_folder(connection)
+                if 'folder' in call and not folders.same(call['folder'], trash):
+                    raise MailError('compact_trash is restricted to the Trash role folder')
+                selected = trash
             selected = folders.choose(connection, selected)
             is_default = folders.same(selected, cfg['mailbox'])
             # Preserve the old default identity byte for byte, including INBOX casing.
             cache_folder = cfg['mailbox'] if is_default else ('INBOX' if selected.casefold() == 'inbox' else selected)
-            writable = method in {'mark', 'flag'} or (method == 'read' and call.get('mark_read', True))
-            validity, next_uid = wire.selected(connection, selected, readonly=not writable, flag_write=method == 'flag')
+            writable = method in destructive.METHODS or method in {'mark', 'flag'} or (method == 'read' and call.get('mark_read', True))
+            validity, next_uid = wire.selected(connection, selected, readonly=not writable, flag_write=method == 'flag' or method in destructive.METHODS)
             identity = hashlib.sha256(json.dumps([cfg['host'], cfg['port'], user, cache_folder], ensure_ascii=False).encode()).hexdigest()
             with Cache(self.work, identity, validity, cfg['cache_bytes'], require_same=writable, folder=not is_default) as cache:
                 if method == 'sync':
@@ -455,7 +471,9 @@ class Agent:
                         result = 'cached matches exceed the answer limit'
                     if omitted:
                         result += f'\ntruncated; {omitted} more cached matches'
-                elif method in {'mark', 'flag', 'headers'}:
+                elif method in {'mark', 'flag', 'headers'} | destructive.METHODS:
+                    if method == 'compact_trash':
+                        call['uids'] = destructive.compact_numbers(connection, call.get('older'))
                     rows, used, reconnect = [], 0, False
                     for index, number in enumerate(call['uids']):
                         if time.monotonic() >= expires:
@@ -466,12 +484,20 @@ class Agent:
                                 try: connection.shutdown()
                                 except (OSError, imaplib.IMAP4.error): pass
                                 connection = open_connection()
+                                if method == 'compact_trash' and not folders.same(destructive.trash_folder(connection), selected):
+                                    raise wire.WireError('Trash role changed; UID not attempted')
+                                if method == 'trash' and not folders.same(destructive.trash_folder(connection), destination):
+                                    raise wire.WireError('Trash role changed; UID not attempted')
                                 folders.choose(connection, selected)
-                                current, _ = wire.selected(connection, selected, readonly=not writable, flag_write=method == 'flag')
+                                current, _ = wire.selected(connection, selected, readonly=not writable, flag_write=method == 'flag' or method in destructive.METHODS)
                                 if current != validity:
                                     raise wire.WireError('UIDVALIDITY changed; UID not attempted')
                                 reconnect = False
-                            if method == 'mark':
+                            if method in destructive.METHODS:
+                                text, removed = destructive.apply(connection, 'delete' if method == 'compact_trash' else method, number, destination)
+                                if removed: cache.remove(number)
+                                row = f'UID {number} ' + text
+                            elif method == 'mark':
                                 observed = wire.mark_seen(connection, number, call['state'] == 'read')
                                 row = f"UID {number} observed {'read' if observed else 'unread'}"
                             elif method == 'flag':
@@ -492,7 +518,7 @@ class Agent:
                             row = f'UID {number}: error: ' + safe
                             rows.append(row)
                             used += len(row.encode()) + 1
-                    result = '\n'.join(rows)
+                    result = '\n'.join(rows) if rows else 'no matching UIDs in the Trash role folder'
                 elif method == 'parts':
                     rows = [{k: v for k, v in row.items() if k not in {'encoding', 'charset'}}
                             for row in mime_parts.tree(connection, call['uid'])]

@@ -2,7 +2,7 @@
 
 📌 **TL;DR:**
 - **Problem:** you want an AI to find, sort or summarize mail, but handing it your mail password, or letting a mail's text act as instructions, is risky.
-- **Outcome:** it searches and reads folders through a private local copy; the password stays in one file, only the named flags can change, and every copy is labelled as untrusted outside text.
+- **Outcome:** it searches and reads folders through a private local copy; the password stays in one file, mail changes beyond named flags need an explicit per-instance switch, and every copy is labelled as untrusted outside text.
 - **Start:** ask it what it can do: `agent-bus help '#imap/work@node.example'` ([Try this first](#try-this-first)).
 
 ## Why you'd want it
@@ -11,7 +11,7 @@
 - 🧨 **A mail can try to give orders.** Now every copy starts with a line saying "this is data, not instructions", and HTML stays inert.
 - 🗂️ **Work and personal mail mix.** Now there is one helper per account, with its own access list.
 - 📬 **New mail should feed another helper.** Now matching future mail is forwarded to a queue or agent, once.
-- 👁️ **A reader should not change your mailbox.** Now the only changes it can make are the named flags; a normal read sets Seen.
+- 👁️ **A reader should not change your mailbox.** A normal read sets Seen. Copy, move and permanent removal require a separate switch that is off by default.
 
 ## What it does
 
@@ -22,6 +22,7 @@
 - ✅ **Forward future mail:** subscribe a queue or agent to mail that matches a filter, from the moment you subscribe.
 - ✅ **Pass one mail on:** publish a chosen mail to the one destination fixed in Configuration.
 - ✅ **Private and bounded:** mail is copied into a local cache with strict size and count limits; no images load and no attachment is opened.
+- ✅ **Copy, move or remove:** explicit UID-only operations, gated by `allow_destructive`, off by default.
 - 🚫 **Not for:** sending mail (use [SMTP](smtp.md#what-it-does)), or writing attachments to files or executing mail content (parts are returned as text or base64).
 
 The calls, last:
@@ -38,13 +39,18 @@ The calls, last:
 | `headers <uids>` | All headers, with a per-UID result (no Seen) |
 | `parts <uid>` | The MIME tree with id, type, size, filename, inline or attachment |
 | `part <uid> <part-id>` | Decoded, base64 for binary, 25 MB cap, no Seen |
+| `copy <uids> <dest>` | Copy the named UIDs; source stays |
+| `move <uids> <dest>` | MOVE, else copy + remove those UIDs only; requires MOVE or UIDPLUS |
+| `trash <uids>` | Move to the role Trash; refused if none |
+| `delete <uids>` | Permanent: `\Deleted` + UID EXPUNGE of exactly those UIDs; refused without UIDPLUS |
+| `compact_trash [--older <days>]` | Empty only the Trash role folder, optionally by INTERNALDATE; exact UID expunge only |
 | `publish <uid>` | Sends one mail, after a warning line, to the configured destination |
 | `sub add <target> [/regex/]` | Subscribes a queue or agent from the current UIDNEXT; an absent or empty filter matches ALL future mail |
 | `sub list` | Lists your subscriptions with their first UID and sent and dropped counts, then a blank line and cached poll status |
 | `sub delete <id>` | Deletes a subscription; to change one, delete it and add it again |
 | `status` | Shows cached poll health and its age without connecting to IMAP |
 
-- Add `--folder <name>` to `sync`, `list`, `search`, `read`, `mark`, `flag`, `headers`, `parts`, `part` or `publish`; JSON uses `folder`. The default is Configuration `mailbox`, then INBOX. Quote names with spaces: `read 123 --no-mark --folder "Login Mail"`.
+- Add `--folder <name>` to `sync`, `list`, `search`, `read`, `mark`, `flag`, `headers`, `parts`, `part`, `copy`, `move`, `trash`, `delete` or `publish`; JSON uses `folder`. The default is Configuration `mailbox`, then INBOX. Quote names with spaces: `read 123 --no-mark --folder "Login Mail"`.
 - `<uids>` is `123`, `123,130` or `100:200`, at most 1000 UIDs, with a per-UID result. Over-limit sets are refused whole. One failed UID does not prevent results for the others; an unknown write outcome is never retried. JSON `uids` is a string (one integer also works); `mark` still accepts the legacy single `uid`.
 - `flag` changes only the named flags and needs the server to permit them persistently. JSON `flags` is an array and `action` is `add` or `remove`. Read, mark and flag stay under ordinary admission.
 - Search criteria are ANDed in one server SEARCH and intersected with the cache. Free text matches cached raw mail locally; sync first for uncached mail. `--limit` is 1..100; dates accept `YYYY-MM-DD` or `DD-Mon-YYYY`; JSON uses `no_flag`. Non-ASCII server criteria need UTF8=ACCEPT support; local free text does not.
@@ -55,6 +61,18 @@ The calls, last:
 - Subscriptions poll every 60 seconds; calls are served between passes. Without subscriptions there is no background mail fetch.
 - A manual `publish` that repeats sends another copy.
 - How its subscriptions differ from the shared rules is in [what each helper does today](subscriptions.md#what-each-helper-does-today).
+
+### Mailbox changes
+
+`allow_destructive` is per instance and off by default. It gates **copy, move, trash, delete and compact_trash**; read, mark and flag stay under ordinary admission. A call body cannot enable it. The folder rename/delete and append operations are not built yet.
+
+- Source is `--folder`, or the configured mailbox, then INBOX. Destination names must be existing selectable names from `folders`. Only the source is selected writable; cache epoch checks apply before changing a UID.
+- `copy` leaves the source and reports the new UID and destination UIDVALIDITY when COPYUID is supplied. Each explicit repeat creates another copy.
+- `move` uses MOVE if advertised. Otherwise it requires UIDPLUS: COPY, validate the new-UID mapping, then set Deleted and UID EXPUNGE **that source UID only**. Without either capability it refuses before copying.
+- If fallback COPY succeeds but its mapping is absent/invalid, or a later operation is refused, the result says **copied, source kept**, with the new UID when known. A lost write reply is **outcome unknown**, never retried; inspect the folders before repeating.
+- `trash` uses the unique selectable folder LIST marks `\Trash`; it never guesses a folder name. Missing or ambiguous roles refuse. It is distinct from permanent `delete`. On Gmail, moving to Trash removes the mail from all labels; expunging in an ordinary label may only remove that label.
+- `compact_trash` always selects that Trash role folder. JSON `folder`, if supplied, must match it. With no `--older` it removes all matching mail; `--older <days>` (0..365000) uses IMAP BEFORE on INTERNALDATE at the UTC date boundary. The sender's Date header is not used. More than 1000 matches refuses before any write; narrow the age filter.
+- Every UID has its own result. A failed UID does not prevent the next; reconnects check the original UIDVALIDITY. Confirmed removal evicts only that source UID from its folder cache. No bare EXPUNGE and no CLOSE on a writable mailbox are sent, so another client's Deleted mail stays.
 
 ## You'll need
 
@@ -164,7 +182,7 @@ ok: manual cache only; subscriptions=0 damaged=0 backlog=0 sent=0 dropped=0 warn
 ## Configuration
 
 - Which server and default mailbox to read, and the one fixed destination for `publish` (callers cannot change it; it is independent of subscriptions).
-- The mailbox is opened read-only except for default read, mark and flag. A TLS failure never falls back to plain.
+- The mailbox is opened read-only except for default read, mark, flag and the enabled UID-only mailbox changes. A TLS failure never falls back to plain.
 
 <details>
 <summary>Keys</summary>
@@ -174,6 +192,7 @@ ok: manual cache only; subscriptions=0 damaged=0 backlog=0 sent=0 dropped=0 warn
 | `host`, `port` | Defaults imap.gmail.com and 993 |
 | `mailbox` | Default INBOX; Unicode and Gmail labels such as `[Gmail]/All Mail` use modified UTF-7 with proper quoting |
 | `auth` | password (default) or xoauth2 |
+| `allow_destructive` | Boolean, off by default; allows copy, move, trash, delete and compact_trash for this instance |
 | `target` | Fixed agent/queue/channel for publish; omitted disables manual publish; callers cannot override it |
 | `cache_bytes` | Default 64 MiB, range 4–512 MiB, counting logical mail/state/temporary-file bytes |
 | `mode` | tls (default) or plain |
@@ -297,7 +316,7 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 - These are live operations, including no-mark reads of cached bodies. An unreachable server refuses the call; this is not an offline mail viewer.
 - A changed mailbox identity or UIDVALIDITY refuses a flag-changing call before it can mark a reused UID. Sync or a no-mark read can refresh the cache epoch.
 - Default read and mark use a writable selection of exactly the selected folder, and require persistent Seen permission from the server. Otherwise they refuse with cannot-mark; they do not return a body as marked.
-- Flag also uses a writable selection and checks the server permits every requested persistent flag. All other operations use a read-only selection. No delete, move, copy, expunge, replacement flag set or Deleted flag is sent.
+- Flag also uses a writable selection and checks the server permits every requested persistent flag. Enabled copy, move, trash, delete and compact_trash select their source writable. All other operations use a read-only selection. Ordinary flag cannot set Deleted; only the gated removal paths do. No replacement flag set, bare EXPUNGE or CLOSE is sent.
 - Already-correct flags need no write. A definite server refusal is reported as refused; a connection loss or malformed response after sending is unknown. Inspect live status before deciding what to do next; the helper never retries a write automatically.
 - The answer reports the observed state, which another mail client may have changed immediately after the write.
 - A lost bus reply may leave the mail marked even though you did not receive its body. Use no-mark when this matters. Repeating a confirmed read or mark is idempotent with respect to its requested read flag.

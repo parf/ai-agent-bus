@@ -45,6 +45,10 @@
     "uids": {
       "type": "string",
       "help": "123, 123,130 or 100:200, at most 1000 UIDs, with a per-UID result; duplicate UIDs refused"
+    },
+    "dest": {
+      "type": "string",
+      "help": "Decoded existing selectable destination folder name from folders; never guessed"
     }
   },
   "methods": {
@@ -333,6 +337,85 @@
           "optional": true
         }
       ]
+    },
+    "copy": {
+      "text": "copy <uids> <dest> [--folder <name>]",
+      "help": "Copy the named UIDs to the destination and report new UIDs when supplied by the server. Source mail stays. Requires allow_destructive; each explicit repeat copies again.",
+      "destructive": true,
+      "args": [
+        {
+          "name": "uids"
+        },
+        {
+          "name": "dest"
+        },
+        {
+          "name": "folder",
+          "optional": true
+        }
+      ]
+    },
+    "move": {
+      "text": "move <uids> <dest> [--folder <name>]",
+      "help": "MOVE, else copy + remove those UIDs only. Without MOVE or UIDPLUS it is refused before copying. A partial fallback reports copied, source kept and its new UID; unknown outcomes are never retried.",
+      "destructive": true,
+      "args": [
+        {
+          "name": "uids"
+        },
+        {
+          "name": "dest"
+        },
+        {
+          "name": "folder",
+          "optional": true
+        }
+      ]
+    },
+    "trash": {
+      "text": "trash <uids> [--folder <name>]",
+      "help": "Move to the role Trash; refused if none. Names are never guessed. Requires allow_destructive.",
+      "destructive": true,
+      "args": [
+        {
+          "name": "uids"
+        },
+        {
+          "name": "folder",
+          "optional": true
+        }
+      ]
+    },
+    "delete": {
+      "text": "delete <uids> [--folder <name>]",
+      "help": "Permanent: \\Deleted + UID EXPUNGE of exactly those UIDs; refused without UIDPLUS. Requires allow_destructive. Gmail expunge in a label removes the label, not necessarily the message.",
+      "destructive": true,
+      "args": [
+        {
+          "name": "uids"
+        },
+        {
+          "name": "folder",
+          "optional": true
+        }
+      ]
+    },
+    "compact_trash": {
+      "text": "compact_trash [--older <days>]",
+      "help": "Empty only the Trash role folder, or its mail older than the UTC date boundary by INTERNALDATE. Exact UID expunge only; requires UIDPLUS and allow_destructive. At most 1000 matches; narrow older if more. JSON folder, if supplied, must be that Trash folder.",
+      "destructive": true,
+      "args": [
+        {
+          "name": "older",
+          "type": "int",
+          "optional": true,
+          "help": "Days, 0..365000; filter before today minus this many days"
+        },
+        {
+          "name": "folder",
+          "optional": true
+        }
+      ]
     }
   },
   "config": {
@@ -385,6 +468,11 @@
     "allow_plaintext": {
       "type": "bool",
       "help": "Explicit opt-out permitting plain mode only to loopback; default false",
+      "example": false
+    },
+    "allow_destructive": {
+      "type": "bool",
+      "help": "Per instance, off by default. Gates copy, move, trash, delete and compact_trash. Read, mark and flag stay under ordinary admission.",
       "example": false
     }
   }
