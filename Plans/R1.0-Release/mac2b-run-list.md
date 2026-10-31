@@ -51,7 +51,7 @@ PY
 
 ## Expected checks and cleanup
 
-The [harness](../../src/acceptance/mac2-install-check.py) refuses existing `_agentbusd` user or group, launchd job, storage, sockets, release root, command links or old web link. It verifies the archive hash with Python, every manifest entry, the packed version, executable bits and native version/build answers before setup. GNU `sha256sum` is not required on the Mac.
+The [harness](../../src/acceptance/mac2-install-check.py) refuses existing `_agentbusd` user or group, launchd job, storage, sockets, release root, command links or old web link. It verifies the archive hash with Python, every manifest entry (the review-settings example is the existing non-runtime exception), the packed version, executable bits and native version/build answers before setup. GNU `sha256sum` is not required on the Mac.
 
 | Check | Required result |
 |---|---|

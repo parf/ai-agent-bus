@@ -136,7 +136,7 @@ class Archive(unittest.TestCase):
         self.work = Path(self.temp.name)
         self.cpu = {'arm64': 'aarch64', 'x86_64': 'x86_64'}[self.m.platform.machine()]
 
-    def bundle(self, unchecked=False, badlink=False):
+    def bundle(self, unchecked=False, badlink=False, example=False):
         name = 'agent-bus-1.2.3-darwin-' + self.cpu
         root = self.work / name
         root.mkdir()
@@ -151,6 +151,9 @@ class Archive(unittest.TestCase):
             for p in sorted(root.rglob('*')) if p.is_file()))
         if unchecked:
             (root / 'unchecked').write_text('not in manifest')
+        if example:
+            (root / 'launchers').mkdir()
+            (root / 'launchers/review-settings.json.dist').write_text('non-runtime example')
         if badlink:
             (root / 'ab-claude').symlink_to('../../outside')
         archive = self.work / (name + '.tar.gz')
@@ -166,6 +169,12 @@ class Archive(unittest.TestCase):
         root, version = self.m.archive_bundle(archive, output)
         self.assertEqual(version, '1.2.3')
         self.assertTrue((root / 'agent-busd').is_file())
+
+    def test_existing_nonruntime_example_is_allowed(self):
+        archive, output = self.bundle(example=True)
+        root, version = self.m.archive_bundle(archive, output)
+        self.assertEqual(version, '1.2.3')
+        self.assertTrue((root / 'launchers/review-settings.json.dist').is_file())
 
     def test_corrupt_archive_refused_before_extract(self):
         archive, output = self.bundle()

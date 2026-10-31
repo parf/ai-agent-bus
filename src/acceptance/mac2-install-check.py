@@ -185,7 +185,9 @@ def archive_bundle(archive, work):
         checked.add(relative)
         assert hashlib.sha256((root / path).read_bytes()).hexdigest() == digest, 'manifest mismatch: ' + relative
     delivered = {str(p.relative_to(root)) for p in root.rglob('*') if p.is_file() and not p.is_symlink()}
-    assert delivered - checked == {'MANIFEST.sha256'}, 'archive contains unchecked files'
+    # Same non-runtime example exception as npm's release reader. Setup's
+    # artifact allowlist intentionally does not install this example.
+    assert delivered - checked <= {'MANIFEST.sha256', 'launchers/review-settings.json.dist'}, 'archive contains unchecked files'
     version = match[1]
     assert (root / 'internal/version/VERSION').read_text().strip() == version
     for program in ('agent-bus', 'agent-busd', 'agent-bus-admin', 'agent-bus-runner', 'agent-bus-setup', 'agent-bus-ts'):

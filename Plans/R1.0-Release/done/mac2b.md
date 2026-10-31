@@ -15,10 +15,10 @@
 |---|---|
 | New archive test before packaging fix | Assertion-red: `output must contain both full and client archives and their hashes` |
 | Real Darwin artifacts | `package-darwin.test.sh` passes full/client builds for both CPUs, daemon inclusion/exclusion, manifest/checksum, Mach-O CPU, stamp/version and launchd setup-path checks |
-| Same archive reader as the owner run | Both actual full archives pass `archive_bundle`; every regular file is in the manifest, and only the four exact inward launcher aliases may be links |
+| Same archive reader as the owner run | Both actual full archives pass `archive_bundle`; runtime files are checked by the manifest, with the existing non-runtime review-settings example exception; only the four exact inward launcher aliases may be links |
 | Verifier refusals | Full Darwin fixture accepted; corrupted daemon header with otherwise valid version/stamp/manifest refused; existing release refusal checks pass |
 | Checksum collection | Four `TestReleaseSums*` tests pass, including incomplete/full CPU-pair refusal and complete eight-archive set |
-| Acceptance fixture | Thirteen local stub/archive checks pass through existing `TestDarwinAcceptanceCleanupStubs`; no Mac or sudo invoked |
+| Acceptance fixture | Fourteen local stub/archive checks pass through existing `TestDarwinAcceptanceCleanupStubs`; no Mac or sudo invoked |
 
 ## Native acceptance remains pending
 
