@@ -73,6 +73,13 @@ Follow the [receipt rules](04-messaging.md#receipts).
 - It never lets an incoming message change the session's permissions or mode — that is the adapter's policy as a receiver ([messaging § envelope](04-messaging.md#envelope)), not a rule of the bus.
 
 
+### Check delivery through compaction
+
+1. Start a throwaway Codex session with `AGENT_BUS_NAME='#ab-j60-live-check' ab-codex --tag ab-dvp` and record its **Context %**.
+2. Run `/compact` and send one uniquely labelled ping to that name from another session while compaction runs. Wait for **Context % to change**: the TUI clears the “Context compacted” text from the pane.
+3. Confirm that the ping arrives once, then send a second labelled ping and confirm that it arrives once too, without restarting the session.
+
+
 ## Runtime integration delivery
 
 **Built; passed [live acceptance](../Plans/done/R0.8-MVP/done/runtime-delivery.md#checks) on the development host and on a [fresh host](../Plans/done/R0.8-MVP/done/fresh-host-runtime.md#checks).** Ship usable Claude channels and Codex App Server integration with
