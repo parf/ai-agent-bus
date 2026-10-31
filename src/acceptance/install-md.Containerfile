@@ -3,7 +3,7 @@
 ARG BASE=docker.io/library/debian:13
 FROM ${BASE}
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    systemd systemd-sysv sudo git gcc libc6-dev python3 unzip curl ca-certificates openssh-client \
+    systemd systemd-sysv dbus sudo git gcc libc6-dev python3 unzip curl ca-certificates openssh-client \
     procps util-linux findutils passwd \
     && rm -rf /var/lib/apt/lists/*
 STOPSIGNAL SIGRTMIN+3
