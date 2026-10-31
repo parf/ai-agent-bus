@@ -6,19 +6,12 @@ The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
 ## 0.9.249 — 2026-10-31
 
-IMAP agent subscribes per folder with IDLE or polling, shows a folder column and per-folder status, and refuses renaming or deleting watched folders
+Fourteenth published 0.9 changeset: 0.9.246–0.9.249, squashed.
 
-## 0.9.248 — 2026-10-31
-
-IMAP agent creates, renames and deletes folders and appends raw mail, with rename, delete and append behind allow_destructive and INBOX, role and configured folders protected
-
-## 0.9.247 — 2026-10-31
-
-IMAP agent copies, moves, trashes, permanently deletes exact UIDs and compacts Trash behind an allow_destructive switch that is off by default
-
-## 0.9.246 — 2026-10-31
-
-IMAP agent marks and flags uid sets, filters list and search by server criteria, and reads headers and MIME parts without marking Seen
+| Area | Changes |
+|---|---|
+| Agents | The IMAP agent covers mail automation without a mail client: it marks and flags UID sets; filters list and search by server criteria; reads headers and MIME parts without marking Seen; copies, moves, trashes, permanently deletes exact UIDs and compacts Trash; creates, renames and deletes folders and appends raw mail. Every write that removes or rewrites mail sits behind `allow_destructive`, off by default, and INBOX, role, configured and watched folders are protected. Subscriptions take `--folder` and use IDLE where the server supports it, else polling; status reports per folder. |
+| Gate | Every bundled agent manifest passes the runner's reload validator before landing. |
 
 ## 0.9.245 — 2026-10-31
 
