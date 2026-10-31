@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import re
 import signal
+import shlex
 import sys
 import time
 
@@ -26,6 +27,7 @@ from mail import MailError, deadline, tls_context
 from mail_oauth import google_access_token
 from metadata import dispatch
 import wire
+import folders
 import progress
 from publication import MAX_OUTPUT, WARNING, PublicationError, render
 from forwarding import message as subscription_message, shared
@@ -93,7 +95,26 @@ def summary(raw, masks):
 def parse(body):
     if not isinstance(body, str) or len(body.encode()) > 8192:
         raise MailError('call must be text or JSON of at most 8192 bytes')
-    if body.startswith('{'):
+    folder = None
+    if not body.startswith('{') and re.match(r'^(sync|list|search|read|mark|publish)(?: |$)', body) and '--folder' in body:
+        if any(ord(c) < 32 or ord(c) == 127 for c in body):
+            raise MailError('call must not contain controls')
+        words = shlex.split(body)
+        positions = [i for i, word in enumerate(words) if word == '--folder' or word.startswith('--folder=')]
+        if len(positions) != 1:
+            raise MailError('use one --folder <name>')
+        i = positions[0]
+        if words[i] == '--folder':
+            if i + 1 == len(words) or words[i + 1].startswith('--'):
+                raise MailError('--folder requires a name')
+            folder = words[i + 1]
+            del words[i:i + 2]
+        else:
+            folder = words.pop(i).split('=', 1)[1]
+        body = ' '.join(words)
+    if body == 'folders' or body == 'folders --counts':
+        value = {'method': 'folders', 'counts': body.endswith(' --counts')}
+    elif body.startswith('{'):
         value = json.loads(body, object_pairs_hook=object_pairs)
     elif body.startswith('read '):
         words = body.split(' ')
@@ -131,6 +152,8 @@ def parse(body):
         value = {'method': method}
         if rest:
             value['text' if method == 'search' else 'uid' if method in {'read', 'publish'} else 'limit'] = rest
+    if folder is not None:
+        value['folder'] = folder
     if not isinstance(value, dict):
         raise MailError('expected an IMAP call')
     method = value.get('method')
@@ -142,8 +165,17 @@ def parse(body):
         raise MailError('a subscription cannot be edited: delete it and add it again')
     fields = {'sync': {'limit'}, 'list': {'limit', 'unread'}, 'search': {'text'}, 'read': {'uid', 'mark_read'}, 'publish': {'uid'}, 'mark': {'uid', 'state'},
               'sub.add': {'target', 'filter'}, 'sub.list': set(), 'sub.delete': {'id'}, 'status': set(), 'help': set()}
+    fields['folders'] = {'counts'}
+    for name in ('sync', 'list', 'search', 'read', 'publish', 'mark'):
+        fields[name].add('folder')
+    if 'folder' in value:
+        wire.mailbox(value['folder'])
     if method not in fields or set(value) - {'method'} - fields[method]:
-        raise MailError('use help, status, sync, list, search, read, publish or sub add/list/delete')
+        raise MailError('use help, status, folders, sync, list, search, read, mark, publish or sub add/list/delete')
+    if method == 'folders':
+        if type(value.get('counts', False)) is not bool:
+            raise MailError('counts must be a boolean')
+        return value
     if method in {'help', 'status', 'sub.list'}:
         return value
     if method == 'sub.add':
@@ -287,14 +319,26 @@ class Agent:
                 connection.authenticate('XOAUTH2', authenticate)
             else:
                 connection.login('"' + user.replace('\\', '\\\\').replace('"', '\\"') + '"', password)
+            if method == 'folders':
+                result = folders.describe(connection, call.get('counts', False))
+                if len(result.encode()) > MAX_OUTPUT:
+                    raise MailError('folder listing exceeds the answer limit')
+                status = 'ok'
+                return result
+            selected = call.get('folder', cfg['mailbox'])
+            selected = folders.choose(connection, selected)
+            is_default = folders.same(selected, cfg['mailbox'])
+            # Preserve the old default identity byte for byte, including INBOX casing.
+            cache_folder = cfg['mailbox'] if is_default else ('INBOX' if selected.casefold() == 'inbox' else selected)
             writable = method == 'mark' or (method == 'read' and call.get('mark_read', True))
-            validity, next_uid = wire.selected(connection, cfg['mailbox'], readonly=not writable)
-            identity = hashlib.sha256(json.dumps([cfg['host'], cfg['port'], user, cfg['mailbox']], ensure_ascii=False).encode()).hexdigest()
-            with Cache(self.work, identity, validity, cfg['cache_bytes'], require_same=writable) as cache:
+            validity, next_uid = wire.selected(connection, selected, readonly=not writable)
+            identity = hashlib.sha256(json.dumps([cfg['host'], cfg['port'], user, cache_folder], ensure_ascii=False).encode()).hexdigest()
+            with Cache(self.work, identity, validity, cfg['cache_bytes'], require_same=writable, folder=not is_default) as cache:
                 if method == 'sync':
                     kv = self.bus.record(self.bus.name).kv
+                    progress_key = 'imap.progress' if is_default else 'imap.progress.' + identity
                     try:
-                        block = kv.get('imap.progress_error', kind='json')
+                        block = kv.get('imap.progress_error', kind='json') if is_default else None
                     except Refusal as error:
                         if error.status != 404:
                             raise
@@ -302,11 +346,11 @@ class Agent:
                     if block is not None:
                         raise progress.ProgressError('forwarding state invalid; delete all subscriptions then add to rebaseline')
                     try:
-                        previous = kv.get('imap.progress', kind='json')
+                        previous = kv.get(progress_key, kind='json')
                     except Refusal as error:
                         if error.status != 404:
                             raise
-                        listing = kv.list()
+                        listing = kv.list() if is_default else {'json': []}
                         if not isinstance(listing, dict) or not isinstance(listing.get('json', []), list):
                             raise progress.ProgressError('invalid subscription listing')
                         if any(isinstance(row, dict) and str(row.get('name', '')).startswith('sub.')
@@ -352,9 +396,9 @@ class Agent:
                                 break
                         # Bodies commit first. A failed progress commit may repeat SEARCH,
                         # but the durable cache prevents another body FETCH after restart.
-                        kv.set('imap.progress', state, kind='json', mode='set')
+                        kv.set(progress_key, state, kind='json', mode='set')
                     # Even an empty mailbox persists the migration and baseline.
-                    kv.set('imap.progress', state, kind='json', mode='set')
+                    kv.set(progress_key, state, kind='json', mode='set')
                     result = f"fetched {fetched}; history {state['history']}; UIDNEXT {next_uid}; more {'yes' if state['history'] else 'no'}; skipped {skipped}"
                     if details:
                         result += '\n' + '\n'.join(details)

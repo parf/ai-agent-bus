@@ -39,6 +39,7 @@ class Handler(socketserver.BaseRequestHandler):
             def send(raw):
                 sock.sendall(raw + b'\r\n')
             writable = False
+            messages, flags = self.server.messages, self.server.flags
             send(b'* OK fixture ready')
             while True:
                 line = reader.readline(32769)
@@ -48,7 +49,7 @@ class Handler(socketserver.BaseRequestHandler):
                 tag, command, *args = line.strip().split(b' ', 2)
                 rest = args[0] if args else b''
                 if command == b'CAPABILITY':
-                    send(b'* CAPABILITY IMAP4rev1 AUTH=XOAUTH2')
+                    send(b'* CAPABILITY IMAP4rev1 AUTH=XOAUTH2' + (b' LIST-STATUS SPECIAL-USE' if self.server.list_status else b''))
                 elif command == b'LOGIN':
                     self.server.logins.append(rest)
                     fields = shlex.split(rest.decode())
@@ -64,7 +65,21 @@ class Handler(socketserver.BaseRequestHandler):
                         self.server.oauth_empty = reader.readline(32769)
                         send(tag + b' NO ' + TOKEN.encode())
                         continue
+                elif command == b'LIST':
+                    for name, special in self.server.folder_rows:
+                        send(b'* LIST (' + special + b') "/" ' + proxy.wire.mailbox(name).encode())
+                        if b'STATUS' in rest and b'\\Noselect' not in special:
+                            data = self.server.folders.get(name)
+                            current = data['messages'] if data else self.server.messages
+                            seen = data['flags'] if data else self.server.flags
+                            send(b'* STATUS ' + proxy.wire.mailbox(name).encode() + b' (MESSAGES ' + str(len(current)).encode() + b' UNSEEN ' + str(sum(b'\\Seen' not in seen.get(n, set()) for n in current)).encode() + b')')
                 elif command in (b'EXAMINE', b'SELECT'):
+                    name = proxy.folders.decode(proxy.folders.token(rest)[0])
+                    data = self.server.folders.get(name)
+                    messages = data['messages'] if data else self.server.messages
+                    flags = data['flags'] if data else self.server.flags
+                    validity = data['validity'] if data else self.server.validity
+                    next_value = data.get('next_uid') if data else self.server.next_uid
                     writable = command == b'SELECT'
                     if writable and self.server.select_refused:
                         send(tag + b' NO read-only account')
@@ -73,14 +88,21 @@ class Handler(socketserver.BaseRequestHandler):
                     if writable and self.server.permanent is not None:
                         send(b'* OK [PERMANENTFLAGS (' + b' '.join(self.server.permanent) + b')] flags')
                     send(b'* FLAGS (\\Seen)')
-                    send(b'* ' + str(len(self.server.messages)).encode() + b' EXISTS')
-                    send(b'* OK [UIDVALIDITY ' + str(self.server.validity).encode() + b'] valid')
-                    next_uid = self.server.next_uid or max(self.server.messages, default=0) + 1
+                    send(b'* ' + str(len(messages)).encode() + b' EXISTS')
+                    send(b'* OK [UIDVALIDITY ' + str(validity).encode() + b'] valid')
+                    next_uid = next_value or max(messages, default=0) + 1
                     if not self.server.omit_uidnext:
                         send(b'* OK [UIDNEXT ' + str(next_uid).encode() + b'] next')
                 elif command == b'STATUS':
-                    next_uid = self.server.next_uid or max(self.server.messages, default=0) + 1
-                    send(b'* STATUS INBOX (UIDNEXT ' + str(next_uid).encode() + b')')
+                    raw_name, _ = proxy.folders.token(rest)
+                    name = proxy.folders.decode(raw_name)
+                    data = self.server.folders.get(name)
+                    current = data['messages'] if data else self.server.messages
+                    seen = data['flags'] if data else self.server.flags
+                    next_uid = (data.get('next_uid') if data else self.server.next_uid) or max(current, default=0) + 1
+                    values = (b'MESSAGES ' + str(len(current)).encode() + b' UNSEEN ' + str(sum(b'\\Seen' not in seen.get(n, set()) for n in current)).encode()
+                              if b'MESSAGES' in rest else b'UIDNEXT ' + str(next_uid).encode())
+                    send(b'* STATUS ' + proxy.wire.mailbox(name).encode() + b' (' + values + b')')
                 elif command == b'UID':
                     sub, number, arguments = rest.split(b' ', 2)
                     if self.server.refuse:
@@ -90,7 +112,7 @@ class Handler(socketserver.BaseRequestHandler):
                         # 'UID SEARCH UID n:m' -- no user search expression reaches this wire.
                         interval = arguments.decode()
                         start, end = map(int, interval.split(':'))
-                        numbers = [n for n in self.server.messages if start <= n <= end]
+                        numbers = [n for n in messages if start <= n <= end]
                         send(b'* SEARCH ' + b' '.join(str(n).encode() for n in numbers))
                     elif sub == b'STORE':
                         if not writable:
@@ -99,27 +121,27 @@ class Handler(socketserver.BaseRequestHandler):
                         if self.server.store_refused:
                             send(tag + (b' BAD' if self.server.store_refused == 'BAD' else b' NO') + b' flag refused')
                             continue
-                        if number not in [str(n).encode() for n in self.server.messages]:
+                        if number not in [str(n).encode() for n in messages]:
                             send(tag + b' NO missing')
                             continue
                         self.server.stores.append((int(number), arguments))
                         if arguments == b'+FLAGS.SILENT (\\Seen)':
-                            self.server.flags.setdefault(int(number), set()).add(b'\\Seen')
+                            flags.setdefault(int(number), set()).add(b'\\Seen')
                         elif arguments == b'-FLAGS.SILENT (\\Seen)':
-                            self.server.flags.setdefault(int(number), set()).discard(b'\\Seen')
+                            flags.setdefault(int(number), set()).discard(b'\\Seen')
                         else:
                             send(tag + b' BAD forbidden flag operation')
                             continue
                         if self.server.drop_after_store:
                             return
                         if self.server.external_after_store:
-                            self.server.flags[int(number)].discard(b'\\Seen')
+                            flags[int(number)].discard(b'\\Seen')
                     elif sub == b'FETCH' and arguments == b'(UID FLAGS)':
                         numbers = [int(n) for n in number.split(b',')]
                         self.server.flag_fetches.append(numbers)
                         for n in numbers:
-                            if n in self.server.messages:
-                                send(b'* 1 FETCH (UID ' + str(n).encode() + b' FLAGS (' + b' '.join(sorted(self.server.flags.get(n, set()))) + b'))')
+                            if n in messages:
+                                send(b'* 1 FETCH (UID ' + str(n).encode() + b' FLAGS (' + b' '.join(sorted(flags.get(n, set()))) + b'))')
                     elif sub == b'FETCH':
                         uid = int(number)
                         self.server.fetches.append((uid, arguments))
@@ -130,7 +152,7 @@ class Handler(socketserver.BaseRequestHandler):
                             self.server.refuse_once.remove(uid)
                             send(tag + b' NO [UNAVAILABLE] temporary fixture refusal')
                             continue
-                        raw = self.server.messages.get(uid)
+                        raw = messages.get(uid)
                         if raw is None:
                             send(tag + b' NO missing')
                             continue
@@ -139,7 +161,7 @@ class Handler(socketserver.BaseRequestHandler):
                             send(b'* 1 FETCH (UID ' + metadata_uid + b' RFC822.SIZE ' + str(len(raw) + self.server.size_delta.get(uid, 0)).encode() + b')')
                         else:
                             if writable and b'BODY[' in arguments and b'PEEK' not in arguments:
-                                self.server.flags.setdefault(uid, set()).add(b'\\Seen')
+                                flags.setdefault(uid, set()).add(b'\\Seen')
                             if b'HEADER.FIELDS' in arguments:
                                 raw = raw.partition(b'\r\n\r\n')[0].partition(b'\n\n')[0] + b'\r\n\r\n'
                             if self.server.delay:
@@ -203,6 +225,9 @@ class IMAPTests(unittest.TestCase):
         self.server.tls, self.server.auth_ok = True, True
         self.server.credentials = {USER: PASSWORD}
         self.server.messages = {7: RAW}
+        self.server.folders = {}
+        self.server.list_status = False
+        self.server.folder_rows = [('INBOX', b'')]
         self.server.validity, self.server.next_uid = 1, None
         self.server.delay, self.server.literal_override, self.server.refuse = 0, None, False
         self.server.omit_uidnext = False
@@ -305,7 +330,7 @@ class IMAPTests(unittest.TestCase):
         self.assertIn('(fetched)', self.call('read 7 --no-mark'))
         for line in self.server.commands:
             command = line.strip().split(b' ', 2)[1]
-            self.assertIn(command, {b'CAPABILITY', b'LOGIN', b'AUTHENTICATE', b'EXAMINE', b'UID', b'STATUS', b'LOGOUT'})
+            self.assertIn(command, {b'CAPABILITY', b'LOGIN', b'AUTHENTICATE', b'LIST', b'EXAMINE', b'UID', b'STATUS', b'LOGOUT'})
         self.assertTrue(all(b'RFC822.SIZE' in fields or b'BODY.PEEK[]' in fields for _, fields in self.server.fetches))
 
     def test_list_compacts_long_headers_and_mail_secret_is_masked(self):
@@ -563,6 +588,7 @@ class IMAPTests(unittest.TestCase):
         self.assertTrue(self.call('read 7').startswith('error:'))
         self.assertEqual(self.server.commands, [])
         self.cfg['mailbox'] = '[Gmail]/Черновики & "drafts"'
+        self.server.folder_rows.append((self.cfg['mailbox'], b''))
         self.assertIn('(fetched)', self.call('read 7'))
         encoded = self.server.mailboxes[-1]
         self.assertEqual(encoded, proxy.wire.mailbox(self.cfg['mailbox']).encode())

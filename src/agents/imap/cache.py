@@ -28,17 +28,27 @@ def uid(value):
 
 
 class Cache:
-    def __init__(self, work, identity, validity, budget=64 * MiB, *, require_same=False):
+    def __init__(self, work, identity, validity, budget=64 * MiB, *, require_same=False, folder=False):
         if type(budget) is not int or not 4 * MiB <= budget <= 512 * MiB:
             raise CacheError('cache_bytes must be in 4194304..536870912')
         self.budget, self.directory, self.lock = budget, None, None
+        self.root_lock = None
+        self.work = Path(work)
+        if folder and not re.fullmatch(r'[0-9a-f]{64}', identity):
+            raise CacheError('invalid folder cache identity')
         self.repaired = 0
-        path = Path(work) / 'mail-cache'
+        path = self.work / ('mail-cache-' + identity if folder else 'mail-cache')
         try:
             os.mkdir(path, 0o700)
         except FileExistsError:
             pass
         try:
+            # Every cache user, including the poller, serializes global eviction.
+            self.root_lock = os.open(self.work / '.mail-cache.lock', os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+            if not stat.S_ISREG(os.fstat(self.root_lock).st_mode):
+                raise CacheError('cache lock is not a regular file')
+            os.fchmod(self.root_lock, 0o600)
+            fcntl.flock(self.root_lock, fcntl.LOCK_EX)
             self.directory = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
             os.fchmod(self.directory, 0o700)
             self.repair_special('.lock', None)
@@ -132,14 +142,33 @@ class Cache:
         return found
 
     def trim(self, incoming):
-        entries = sorted(self.files(), key=lambda item: (item[2], item[0]))
-        total = sum(item[1] for item in entries)
-        while entries and (total + incoming > self.budget - META_RESERVE or len(entries) + bool(incoming) > MAX_ENTRIES):
-            name, size, _ = entries.pop(0)
-            os.unlink(name, dir_fd=self.directory)
-            total -= size
-        if total + incoming > self.budget - META_RESERVE:
-            raise CacheError('mail exceeds cache byte budget')
+        self.files()  # Repair this cache before accounting for all folder bodies.
+        directories, entries = [], []
+        try:
+            for path in self.work.iterdir():
+                if not re.fullmatch(r'mail-cache(?:-[0-9a-f]{64})?', path.name):
+                    continue
+                try:
+                    handle = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+                except OSError:
+                    continue  # Never traverse a foreign symlink or non-directory.
+                directories.append(handle)
+                with os.scandir(handle) as files:
+                    for entry in files:
+                        info = entry.stat(follow_symlinks=False)
+                        if UID_FILE.fullmatch(entry.name) and stat.S_ISREG(info.st_mode):
+                            entries.append((info.st_mtime_ns, path.name, entry.name, info.st_size, handle))
+            entries.sort(key=lambda item: item[:3])
+            total = sum(item[3] for item in entries)
+            while entries and (total + incoming > self.budget - META_RESERVE or len(entries) + bool(incoming) > MAX_ENTRIES):
+                _, _, name, size, handle = entries.pop(0)
+                os.unlink(name, dir_fd=handle)
+                total -= size
+            if total + incoming > self.budget - META_RESERVE:
+                raise CacheError('mail exceeds cache byte budget')
+        finally:
+            for handle in directories:
+                os.close(handle)
 
     def atomic(self, name, raw, prefix):
         temporary = '.' + prefix + '-' + uuid.uuid4().hex
@@ -217,6 +246,9 @@ class Cache:
         if self.directory is not None:
             os.close(self.directory)
             self.directory = None
+        if self.root_lock is not None:
+            os.close(self.root_lock)
+            self.root_lock = None
 
     def __enter__(self):
         return self
