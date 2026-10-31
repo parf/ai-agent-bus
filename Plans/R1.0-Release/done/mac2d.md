@@ -21,3 +21,5 @@ The [owner run list](../mac2b-run-list.md#account-removal-blocked-over-ssh) name
 - Disabling TCC recognition fails the named partial-exit assertion (1 != 3, one failure/no ERROR, 0.059 s).
 - Relaxing the setup-path assertion for a partial fails the strict teardown check (3 != 1, one failure/no ERROR, 0.206 s).
 - Restored cleanup/archive tests: 20/0 in 1.191 s. Both mutants ran only owning checks under the slow lock; sources restored and lock released immediately.
+
+Owning `go test ./cmd/agent-bus-setup -run TestDarwinAcceptanceCleanupStubs -count=1` passes (0.943 s). Final fast smoke passes 28/0, 8.071 s wall; Go fast shards 4.872 / 2.613 / 5.321 s, below 15 s. Changed/inbound links and whitespace checks pass. No worker normal gate or native Mac operation was run. Only acceptance tooling and its documentation change; no shipped program behavior or bump.
