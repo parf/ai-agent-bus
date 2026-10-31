@@ -16,23 +16,15 @@ sync [limit] [--folder <name>]: Fetch mail not yet cached, newest first; default
 list [limit] [--unread] [--folder <name>]: See what is cached: Date, From and Subject with live read or unread status, newest UID first; default 20. --unread filters before the limit. --folder picks the folder; default is the configured mailbox, then INBOX. JSON unread is a boolean. Date is as sent, unverified.
 search <text...> [--folder <name>]: Find cached mail by text: up to 100 Date, From and Subject summaries whose raw mail matches, with live read or unread status. --folder picks the folder; default is the configured mailbox, then INBOX. The match runs locally; the server does no text search.
 [destructive] read <uid> [--no-mark] [--folder <name>]: Get one raw mail and mark it Seen by default, cached or not. --no-mark (JSON mark_read:false) leaves it unchanged. --folder names the folder the uid is in; default is the configured mailbox, then INBOX. Every read needs a live server; a lost reply may leave the mail marked. No other flags.
-[destructive] mark <uid> read|unread [--folder <name>]: Set or clear Seen on the server and get the observed read or unread state. --folder names the folder the uid is in; default is the configured mailbox, then INBOX. An unknown write outcome is not retried.
+[destructive] mark <uid> read|unread [--folder <name>]: Set or clear Seen on the server and get the observed read or unread state. Ordinary IMAP admission permits this. --folder names the folder the uid is in; default is the configured mailbox, then INBOX. An unknown write outcome is not retried.
 [destructive] move <uid> <dest> [--folder <src>]: Move one mail from --folder (default: the configured mailbox, then INBOX) to the folder dest, which must exist. The uid is then gone from the source; the answer gives its new uid when the server says it. Refused unless the instance allows moving. Nothing else in the folder is removed.
 [destructive] delete <uid> [--folder <name>]: Move one mail from --folder (default: the configured mailbox, then INBOX) to the Trash folder. It is not erased; empty Trash from your mail client. Refused unless the instance allows moving, or inside Trash itself.
-sub add <target> [/regex/] [--folder <name>]: (optional) Forward mail that arrives in --folder after this add; default is the configured mailbox, then INBOX. Everything else as today.
+sub add <target> [/regex/] [--folder <name>]: Forward mail that arrives after this add to a destination; the old backlog is never forwarded. --folder picks the folder to watch; default is the configured mailbox, then INBOX. A missing or empty filter matches ALL mail from this account. The author's permission to send is checked at add and on each forward, and the receiver must also admit this IMAP instance. At most 20 subscriptions per creator, 100 in total.
 ```
 
+The `sub add` folder is optional (step 4, [Q274](QUESTIONS.md#imap-folders)); the other lines ship in steps 1–3.
+
 JSON spellings: `{"method":"move","uid":7,"dest":"Archive","folder":"INBOX"}`, `{"method":"delete","uid":7,"folder":"INBOX"}`, `folder` on the others; `folders` takes `"counts":true`.
-
-### Open: what `delete` does underneath
-
-- Choices: a move to the Trash folder; or flag `\Deleted` and expunge that one UID.
-- **Recommendation: move to Trash** ([Q272](QUESTIONS.md#imap-folders)). Recoverable, and no `\Deleted` flag is left for other clients to purge. Gmail needs it: flag-and-expunge only removes a label there.
-
-### Open: the destructive-call switch
-
-- Choices: the access list alone; or a Configuration switch, off by default, that `move` and `delete` also need.
-- **Recommendation: the switch** ([Q273](QUESTIONS.md#imap-folders)). Today a grant can change only Seen; a caller given read access must not gain the power to remove mail.
 
 ## Scope
 
@@ -89,6 +81,8 @@ Not in scope: creating, renaming or deleting folders, `copy` as its own call, ha
 
 ### Trash and `delete`
 
+- **Recommendation: `delete` moves to Trash** ([Q272](QUESTIONS.md#imap-folders)), not flag-and-expunge: recoverable, no `\Deleted` flag left for other clients to purge, and Gmail needs it (flag-and-expunge only removes a label there).
+
 - The Trash folder is the one LIST marks `\Trash` (SPECIAL-USE, RFC 6154).
 - Fallback when no folder carries it: a new optional Configuration key naming the Trash folder (Q272). With neither, `delete` is refused, saying to set it. Folder-name guessing is not done.
 - Gmail: `[Gmail]/Trash` carries `\Trash`; moving a mail out of a label folder into Trash removes it from all labels, and in `[Gmail]/All Mail` it is the same move. The guide says this once.
@@ -96,6 +90,8 @@ Not in scope: creating, renaming or deleting folders, `copy` as its own call, ha
 - A server that auto-purges Trash is the owner's server policy, not this agent's.
 
 ### Authority
+
+- **Recommendation: a Configuration switch, off by default** ([Q273](QUESTIONS.md#imap-folders)): a caller given read access must not gain the power to remove mail.
 
 - Today a grant lets a caller read mail and change Seen only ([who may use it](../../docs/agents/imap.md#who-may-use-it)). `move` and `delete` lose mail from a folder, so they need a stronger gate than the access list alone: a Configuration switch, off by default, with `move` and `delete` refused by name while it is off (Q273). The name of the key is chosen at build time.
 - The web and `help` mark both calls `[destructive]`. Mail text never grants this: a body is data.
