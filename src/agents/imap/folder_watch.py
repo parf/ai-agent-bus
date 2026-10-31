@@ -8,6 +8,7 @@ from agent_bus.errors import Refusal, BusError
 import folders
 import progress
 from forwarding import Forwarder, PROGRESS, SCAN, BLOCK, selected
+from publication import MAX_OUTPUT
 
 REGISTRY = 'imap.folder.'
 FIELDS = ('count', 'damaged', 'next_run', 'next_poll', 'period', 'arrivals', 'error',
@@ -31,7 +32,8 @@ def recover(bus, name, connection, cfg, user):
             except Refusal as error:
                 if error.status == 404: continue
                 raise
-            if isinstance(entry, dict): pending.discard(entry.get('identity'))
+            if isinstance(entry, dict) and isinstance(entry.get('identity'), str):
+                pending.discard(entry['identity'])
     if not pending: return
     for row in folders.listing(connection):
         if not row['selectable']: continue
@@ -230,7 +232,10 @@ class FolderForwarder(Forwarder):
             with self.using(name):
                 mode = 'IDLE' if self.source.idle_tag is not None else 'polling'
                 lines.append('folder=' + json.dumps(name, ensure_ascii=False) + ' ' + super().status() + '; ' + mode)
-        return '\n'.join(lines)
+        answer = '\n'.join(lines)
+        if len(answer.encode()) > MAX_OUTPUT:
+            return 'degraded: folder status exceeds the 262144-byte answer cap'
+        return answer
 
     def wait(self):
         if not self.watching: return 10

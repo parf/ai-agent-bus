@@ -87,6 +87,24 @@ class Calls(unittest.TestCase):
         self.assertEqual(len(self.bus.sent),1)
         self.assertIn('default pending',self.bus.sent[0][1])
 
+    def test_stop_after_nondefault_claim_before_send_never_replays_it(self):
+        self.add('Other Box')
+        self.arrive(folder='Other Box',subject='lost before send')
+        def killed(*_args):raise old.Stop()
+        self.watch.send_one=killed
+        with self.assertRaises(old.Stop):self.watch.tick()
+        self.watch.close()
+        source=Session(lambda:fixture.proxy.config(self.cfg),self.env,self.work.name,self.clock)
+        self.watch=FolderForwarder(self.bus,self.bus.name,self.work.name,source,self.clock,self.clock,send_one=old.deliver(self.bus))
+        self.agent.forwarder=self.watch
+        self.watch.tick()
+        self.assertEqual(self.bus.sent,[])
+        self.arrive(uid=101,folder='Other Box',subject='next arrival')
+        self.clock.advance(60);self.watch.tick()
+        self.assertEqual(len(self.bus.sent),1)
+        self.assertIn('next arrival',self.bus.sent[0][1])
+        self.assertNotIn('lost before send',self.bus.sent[0][1])
+
     def test_manual_cache_survives_nondefault_subscription_and_status_is_provider_free(self):
         self.assertIn('fetched',self.call('sync'))
         before=Path(self.work.name,'mail-cache/7.eml').stat().st_ino
@@ -126,6 +144,14 @@ class Calls(unittest.TestCase):
         self.clock.advance(60);self.watch.tick()
         self.assertEqual([(to,'new epoch' in body) for to,body,_ in self.bus.sent],[('#other@t',True)])
         self.assertEqual(self.bus.kv.data[PROGRESS],before)
+
+    def test_invalid_descriptor_identity_does_not_break_readonly_recovery(self):
+        self.assertIn('fetched',self.call('sync --folder "Other Box"'))
+        for key,value in self.bus.kv.data.items():
+            if key.startswith(REGISTRY):value['identity']=[]
+        self.assertEqual(self.agent.status(),'degraded: folder state unavailable')
+        self.assertFalse(self.call('folders').startswith('error:'))
+        self.assertIn('folder="Other Box"',self.agent.status())
 
     def test_renaming_and_deleting_nondefault_subscribed_folder_and_ancestor_refused(self):
         self.cfg['allow_destructive']=True
@@ -229,6 +255,17 @@ class Calls(unittest.TestCase):
         with patch.object(self.bus.kv,'list',side_effect=TransportError('private')):
             self.assertEqual(self.agent.status(),'degraded: folder state unavailable')
 
+    def test_damaged_subscription_state_refuses_folder_changes(self):
+        self.cfg['allow_destructive']=True
+        self.bus.kv.data['sub.0123456789ab']={}
+        for text in ['folder rename "Other Box" New','folder delete "Other Box" --force']:
+            self.assertTrue(self.call(text).startswith('error:'))
+        self.assertFalse(any(c.split()[1] in (b'RENAME',b'DELETE') for c in self.server.commands))
+
+    def test_folder_status_retains_existing_answer_cap(self):
+        with patch('folder_watch.MAX_OUTPUT',50):
+            self.assertEqual(self.agent.status(),'degraded: folder status exceeds the 262144-byte answer cap')
+
 
 class RealBus(unittest.TestCase):
     setUpClass = classmethod(fixture.IMAPTests.setUpClass.__func__)
@@ -283,3 +320,5 @@ class Arguments(unittest.TestCase):
                      'sub add #target@t --folder "bad\r\nfolder"']:
             with self.assertRaises(ValueError):fixture.proxy.parse(body)
         self.assertEqual(selector({'validity':1,'from_uid':2}),{'validity':1,'from_uid':2})
+        for folder in ['',[], 'bad\r\nfolder']:
+            with self.assertRaises(ValueError):selector({'validity':1,'from_uid':2,'folder':folder})

@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.249 — 2026-10-31
+
+IMAP agent subscribes per folder with IDLE or polling, shows a folder column and per-folder status, and refuses renaming or deleting watched folders
+
 ## 0.9.248 — 2026-10-31
 
 IMAP agent creates, renames and deletes folders and appends raw mail, with rename, delete and append behind allow_destructive and INBOX, role and configured folders protected
