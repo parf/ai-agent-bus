@@ -229,6 +229,7 @@ ok: manual cache only; subscriptions=0 damaged=0 backlog=0 sent=0 dropped=0 warn
 
 - Only the owner at first (`@owner`).
 - A grant exposes this account's cached mail, lets the caller set or clear this account's read flag and add/remove the other named flags, and lets them publish to the configured destination, whose access list must admit the IMAP agent itself.
+- The same grant permits the [enabled mailbox changes](#mailbox-changes); the per-instance switch is off by default.
 - Mail content never grants bus authority.
 - Subscriptions require the authenticated author's may-send permission at add and again immediately before each forward. No Owner or Maintainer bypass applies.
 - The destination must be a queue or agent, and its ordinary access list must also admit this IMAP instance. An unavailable author check never falls back to the agent's own authority.

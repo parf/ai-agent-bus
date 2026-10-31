@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.247 — 2026-10-31
+
+IMAP agent copies, moves, trashes, permanently deletes exact UIDs and compacts Trash behind an allow_destructive switch that is off by default
+
 ## 0.9.246 — 2026-10-31
 
 IMAP agent marks and flags uid sets, filters list and search by server criteria, and reads headers and MIME parts without marking Seen
