@@ -30,8 +30,10 @@ class Liveness(unittest.TestCase):
         (self.live / 'owner').write_text(self.owner)
         self.calls = self.work / 'calls'
         self.calls.touch()
+        self.faults = self.work / 'faults'
+        self.faults.touch()
         real_sed = shlex.quote(shutil.which('sed'))
-        self.script('sed', '#!/bin/sh\ncase "$*" in *"/proc/$FAULT_PID/stat"*) exit 1;; esac\nexec ' + real_sed + ' "$@"\n')
+        self.script('sed', '#!/bin/sh\ncase "$*" in *"/proc/$FAULT_PID/stat"*) echo failed >>"$FAULTS"; exit 1;; esac\nexec ' + real_sed + ' "$@"\n')
         self.script('agent-bus', '#!/bin/sh\necho "smoke-gate@parf.us slow fixture 14m left"\n')
         self.script('podman', '''#!/usr/bin/env python3
 import os, pathlib, shutil, sys
@@ -43,7 +45,7 @@ if sys.argv[1] == 'unshare':
     shutil.rmtree(path, ignore_errors=True)
 ''')
         self.env = dict(os.environ, PATH=str(self.bin) + ':' + os.environ['PATH'],
-                        FAULT_PID=str(os.getpid()), CALLS=str(self.calls), WORK=str(self.work))
+                        FAULT_PID=str(os.getpid()), FAULTS=str(self.faults), CALLS=str(self.calls), WORK=str(self.work))
 
     def script(self, name, text):
         path = self.bin / name
@@ -73,11 +75,13 @@ if sys.argv[1] == 'unshare':
                                     str(self.live), '', str(self.bin / 'podman')],
                                    env=self.env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         try:
-            # Old watcher exits and deletes the repo; correct watcher stays watching.
-            try:
-                watcher.wait(timeout=.3)
-            except subprocess.TimeoutExpired:
-                pass
+            # Wait for a classification: old code exits after cleanup; correct
+            # code reaches a second failed read while the same owner stays live.
+            deadline = time.monotonic() + 5
+            while watcher.poll() is None and self.faults.read_text().count('failed\n') < 2 and time.monotonic() < deadline:
+                time.sleep(.02)
+            self.assertTrue(watcher.poll() is not None or self.faults.read_text().count('failed\n') >= 2,
+                            'watcher never classified the injected stat failure')
             self.assertTrue((self.live / 'source.git/HEAD').is_file(),
                             'watcher deleted a live mounted repository after /proc stat read failed')
             self.assertIsNone(watcher.poll(), 'watcher stopped treating the live owner as live')
