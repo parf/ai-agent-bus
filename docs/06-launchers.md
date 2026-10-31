@@ -62,7 +62,7 @@ pushes into the *running* session. Claude Code, Codex and opencode are proven he
 - It is told by the daemon's own sentence for it, "user access is suspended"; any other 403 stops push as before.
 - A transient failure is retried after two seconds; a session that outlives its principal otherwise refuses its way through the daemon for as long as it lives.
 
-**A Codex `/compact` or `/review` no longer detaches it.** While such a turn runs, the App Server takes no new message; the push waits for the turn to end (up to five minutes) and delivers. If a delivery still fails, the launcher restarts the push after 2, 10 and 30 seconds, at most three times, and then says once that it stays off; a refusal is never restarted.
+**A Codex `/compact` or `/review` no longer detaches it.** While such a turn runs, the App Server takes no new message; the push waits for the turn to end (up to five minutes) and delivers. If a delivery still fails, the message is kept and the push the launcher restarts after 2, 10 and 30 seconds, at most three times, delivers it first; after the last try it says once that the push stays off. A refusal is never restarted. The App Server's `ActiveTurnNotSteerable` counts whether it comes as structured data or only as error text, and a message the push took is lost only if the process dies.
 
 Session [help asks](../src/mcp/README.md#push-and-the-one-reader) are answered by the adapter without interrupting the model; ordinary messages still push through.
 
