@@ -52,15 +52,15 @@
         "args": [
           {
             "type": "string",
-            "name": "text",
-            "rest": true,
-            "help": "Nonempty local case-insensitive text, at most 4096 UTF-8 bytes; no controls"
-          },
-          {
-            "type": "string",
             "help": "Decoded folder name from folders; default is Configuration mailbox, then INBOX. INBOX is case-insensitive; other names are exact.",
             "name": "folder",
             "optional": true
+          },
+          {
+            "type": "string",
+            "name": "text",
+            "rest": true,
+            "help": "Nonempty local case-insensitive text, at most 4096 UTF-8 bytes; no controls"
           }
         ],
         "text": "search <text...> [--folder <name>]"
