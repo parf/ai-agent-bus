@@ -108,6 +108,24 @@ class Calls(unittest.TestCase):
         self.assertIn('UID 1: error: missing UID', answer)
         self.assertIn('UID 500: result exceeds remaining', answer)
 
+    def test_utf8_search_is_enabled_before_selection(self):
+        self.server.utf8 = True
+        self.server.messages[7] = b'Subject: ' + 'Письмо'.encode() + b'\r\n\r\nbody'
+        self.call('sync')
+        self.server.commands.clear()
+        answer = self.call('search --subject "Письмо"')
+        self.assertIn('UID 7 ', answer)
+        commands = self.server.commands
+        enable = next(i for i, c in enumerate(commands) if b' ENABLE ' in c)
+        select = next(i for i, c in enumerate(commands) if b' EXAMINE ' in c)
+        self.assertLess(enable, select)
+        self.assertTrue(any(b'UID SEARCH SUBJECT' in c and 'Письмо'.encode() in c for c in commands))
+        self.server.utf8 = False
+        self.server.commands.clear()
+        self.assertIn('UTF8=ACCEPT', self.call('search --subject "Письмо"'))
+        self.assertFalse(any(b' EXAMINE ' in c for c in self.server.commands))
+        self.assertIn('UID 7 ', self.call('search Письмо'))
+
     def test_headers_and_part_never_seen(self):
         self.server.messages[8] = fixture.RAW
         self.server.part_bodies = {'1': b'hello'}
@@ -173,9 +191,14 @@ class Protocol(unittest.TestCase):
     def test_utf8_server_search_and_literal_filename(self):
         call = operations.parse_call('search --subject "Письмо"')
         c = Mock()
+        c.capabilities = ('UTF8=ACCEPT', 'ENABLE')
+        c.enable.return_value = ('OK', [b'enabled'])
+        wire.prepare_search(c, operations.search_args(call))
+        c.enable.assert_called_once_with('UTF8=ACCEPT')
+        c.utf8_enabled = True
         c.uid.return_value = ('OK', [b'7'])
         self.assertEqual(wire.criteria_search(c, operations.search_args(call)), {7})
-        self.assertEqual(c.uid.call_args.args[:4], ('SEARCH', None, 'CHARSET', 'UTF-8'))
+        self.assertEqual(c.uid.call_args.args[:3], ('SEARCH', None, b'SUBJECT'))
         self.assertIn('Письмо'.encode(), c.uid.call_args.args[-1])
         c.uid.return_value = ('OK', [(b'1 (UID 7 BODYSTRUCTURE ("APPLICATION" "PDF" NIL NIL NIL "BASE64" 4 NIL ("ATTACHMENT" ("FILENAME" {5}', b'a.pdf'), b'))))'])
         self.assertEqual(mime_parts.tree(c, 7)[0]['filename'], 'a.pdf')

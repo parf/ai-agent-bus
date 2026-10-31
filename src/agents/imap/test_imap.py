@@ -39,6 +39,7 @@ class Handler(socketserver.BaseRequestHandler):
             def send(raw):
                 sock.sendall(raw + b'\r\n')
             writable = False
+            selected = False
             messages, flags = self.server.messages, self.server.flags
             send(b'* OK fixture ready')
             while True:
@@ -49,7 +50,7 @@ class Handler(socketserver.BaseRequestHandler):
                 tag, command, *args = line.strip().split(b' ', 2)
                 rest = args[0] if args else b''
                 if command == b'CAPABILITY':
-                    send(b'* CAPABILITY IMAP4rev1 AUTH=XOAUTH2' + (b' LIST-STATUS SPECIAL-USE' if self.server.list_status else b''))
+                    send(b'* CAPABILITY IMAP4rev1 AUTH=XOAUTH2' + (b' LIST-STATUS SPECIAL-USE' if self.server.list_status else b'') + (b' ENABLE UTF8=ACCEPT' if getattr(self.server, 'utf8', False) else b''))
                 elif command == b'LOGIN':
                     self.server.logins.append(rest)
                     fields = shlex.split(rest.decode())
@@ -65,6 +66,11 @@ class Handler(socketserver.BaseRequestHandler):
                         self.server.oauth_empty = reader.readline(32769)
                         send(tag + b' NO ' + TOKEN.encode())
                         continue
+                elif command == b'ENABLE':
+                    if selected or rest != b'UTF8=ACCEPT' or not getattr(self.server, 'utf8', False):
+                        send(tag + b' BAD enable must precede selection')
+                        continue
+                    send(b'* ENABLED UTF8=ACCEPT')
                 elif command == b'LIST':
                     for name, special in self.server.folder_rows:
                         send(b'* LIST (' + special + b') "/" ' + proxy.wire.mailbox(name).encode())
@@ -74,6 +80,7 @@ class Handler(socketserver.BaseRequestHandler):
                             seen = data['flags'] if data else self.server.flags
                             send(b'* STATUS ' + proxy.wire.mailbox(name).encode() + b' (MESSAGES ' + str(len(current)).encode() + b' UNSEEN ' + str(sum(b'\\Seen' not in seen.get(n, set()) for n in current)).encode() + b')')
                 elif command in (b'EXAMINE', b'SELECT'):
+                    selected = True
                     name = proxy.folders.decode(proxy.folders.token(rest)[0])
                     data = self.server.folders.get(name)
                     messages = data['messages'] if data else self.server.messages

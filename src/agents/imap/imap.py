@@ -329,6 +329,8 @@ class Agent:
                     connection.authenticate('XOAUTH2', authenticate)
                 else:
                     connection.login('"' + user.replace('\\', '\\\\').replace('"', '\\"') + '"', password)
+                if method == 'search':
+                    wire.prepare_search(connection, operations.search_args(call))
                 return connection
             connection = open_connection()
             if method == 'folders':

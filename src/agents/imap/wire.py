@@ -325,9 +325,20 @@ def change_flags(connection, number, values, add):
         connection.seen_store_active = False
 
 
+def prepare_search(connection, arguments):
+    # ENABLE is legal after login and before SELECT. UTF-8 quoted strings need
+    # UTF8=ACCEPT; never send raw 8-bit quoted values to an IMAP4rev1 server.
+    if any(not arg.isascii() for arg in arguments):
+        if 'UTF8=ACCEPT' not in connection.capabilities:
+            raise WireError('non-ASCII search criteria require server UTF8=ACCEPT support')
+        ok(connection.enable('UTF8=ACCEPT'))
+
+
 def criteria_search(connection, arguments):
     if any(not arg.isascii() for arg in arguments):
-        arguments = ['CHARSET', 'UTF-8', *[arg.encode('utf-8') for arg in arguments]]
+        if getattr(connection, 'utf8_enabled', False) is not True:
+            raise WireError('UTF-8 search was not enabled before selecting the folder')
+        arguments = [arg.encode('utf-8') for arg in arguments]
     raw = ok(connection.uid('SEARCH', None, *arguments))
     if len(raw) != 1 or not isinstance(raw[0], bytes) or len(raw[0]) > MAX_LINE:
         raise WireError('IMAP SEARCH result exceeds its byte limit; narrow the criteria')
