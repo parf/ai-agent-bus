@@ -36,7 +36,7 @@ def blocks(heading):
     return found
 
 
-def as_user(script, timeout=900):
+def as_user(script, timeout=300):
     """The block through `bash -e`, as the unprivileged user: a failing command ends it, as at a terminal with set -e.
     A block that outlasts `timeout` fails the check: its whole process group is killed, since a grandchild holding the
     output pipe would otherwise keep the run waiting after the child was killed."""
@@ -47,7 +47,7 @@ def as_user(script, timeout=900):
         out, err = proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
         os.killpg(proc.pid, 9)
-        out, err = proc.communicate()
+        out, err = proc.communicate(timeout=5)
         raise AssertionError(f'a block ran longer than {timeout}s and was killed:\n{script}\n--- stdout\n{out[-1500:]}\n--- stderr\n{err[-1500:]}')
     return subprocess.CompletedProcess(proc.args, proc.returncode, out, err)
 
@@ -57,7 +57,7 @@ class InstallFromACheckout(unittest.TestCase):
     def setUpClass(cls):
         if not Path('/run/.containerenv').exists() or os.geteuid() != 0:
             raise AssertionError('refusing outside the rootless disposable container')
-        run = lambda *a: subprocess.run(a, check=True, capture_output=True, text=True)
+        run = lambda *a: subprocess.run(a, check=True, capture_output=True, text=True, timeout=20)
         run('useradd', '-m', '-s', '/bin/bash', USER)
         Path(f'/etc/sudoers.d/{USER}').write_text(f'{USER} ALL=(ALL) NOPASSWD: ALL\n')
         Path(f'/etc/sudoers.d/{USER}').chmod(0o440)
@@ -100,17 +100,27 @@ class InstallFromACheckout(unittest.TestCase):
         server = subprocess.Popen(['runuser', '-u', USER, '--', 'env', '-i', *[f'{k}={v}' for k, v in ENV.items()],
                                    'bash', '-euo', 'pipefail', '-c', self.try_serve],
                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=f'/home/{USER}', start_new_session=True)
-        self.addCleanup(lambda: (os.killpg(server.pid, 15), server.wait(10)))
+        def stop_server():
+            if server.poll() is None:
+                os.killpg(server.pid, 15)
+            try:
+                return server.communicate(timeout=5)
+            except subprocess.TimeoutExpired:
+                os.killpg(server.pid, 9)
+                return server.communicate(timeout=5)
+        self.addCleanup(stop_server)
         reply = None
         for _ in range(6):
             done = self.sh(self.try_call, timeout=40)
             if done.returncode == 0 and done.stdout.strip():
                 reply = done.stdout
                 break
-            self.assertIsNone(server.poll(), f'the served script exited: {server.stderr.read()}')
+            if server.poll() is not None:
+                out, err = stop_server()
+                self.fail(f'the served script exited: {out} {err}')
             time.sleep(1)
-        server.poll() is None and os.killpg(server.pid, 15)
-        self.assertIsNotNone(reply, f'the call block never got an answer: [{done.stdout}] [{done.stderr}] server: {server.communicate(timeout=10)}')
+        out, err = stop_server()
+        self.assertIsNotNone(reply, f'the call block never got an answer: [{done.stdout}] [{done.stderr}] server: {out} {err}')
         body = json.loads(reply.strip().splitlines()[-1])
         self.assertEqual((body['from'], body['body']), ('#hi', 'hi: ping'))
 
@@ -118,19 +128,19 @@ class InstallFromACheckout(unittest.TestCase):
         marker = 'UPDATED-BY-THE-FIXTURE'
         # A newer commit in the served repository, so that an update that does not pull cannot pass.
         work = Path('/tmp/source-work')
-        subprocess.run(['git', 'clone', '-q', '/source.git', str(work)], check=True)
+        subprocess.run(['git', 'clone', '-q', '/source.git', str(work)], check=True, timeout=20)
         (work / 'UPDATE_MARKER').write_text(marker + '\n')
-        subprocess.run(['git', '-C', str(work), 'add', 'UPDATE_MARKER'], check=True)
-        subprocess.run(['git', '-C', str(work), 'commit', '-q', '-m', 'a newer commit'], check=True)
-        subprocess.run(['git', '-C', str(work), 'push', '-q', 'origin', 'HEAD'], check=True)
-        before = subprocess.run(['systemctl', 'show', '-P', 'ActiveEnterTimestampMonotonic', 'agent-busd'], capture_output=True, text=True).stdout
+        subprocess.run(['git', '-C', str(work), 'add', 'UPDATE_MARKER'], check=True, timeout=20)
+        subprocess.run(['git', '-C', str(work), 'commit', '-q', '-m', 'a newer commit'], check=True, timeout=20)
+        subprocess.run(['git', '-C', str(work), 'push', '-q', 'origin', 'HEAD'], check=True, timeout=20)
+        before = subprocess.run(['systemctl', 'show', '-P', 'ActiveEnterTimestampMonotonic', 'agent-busd'], capture_output=True, text=True, timeout=10).stdout
         done = self.sh(self.update)
         self.assertEqual(done.returncode, 0, f'the Update block failed:\n{done.stdout[-1000:]}\n{done.stderr[-2500:]}')
         self.assertEqual((CHECKOUT / 'UPDATE_MARKER').read_text().strip(), marker, 'the update did not pull the newer commit')
-        after = subprocess.run(['systemctl', 'show', '-P', 'ActiveEnterTimestampMonotonic', 'agent-busd'], capture_output=True, text=True).stdout
+        after = subprocess.run(['systemctl', 'show', '-P', 'ActiveEnterTimestampMonotonic', 'agent-busd'], capture_output=True, text=True, timeout=10).stdout
         self.assertNotEqual(before, after, 'agent-busd was not restarted')
         for _ in range(100):
-            if subprocess.run(['systemctl', 'is-active', '--quiet', 'agent-busd', 'agent-bus-web']).returncode == 0:
+            if subprocess.run(['systemctl', 'is-active', '--quiet', 'agent-busd', 'agent-bus-web'], timeout=10).returncode == 0:
                 break
             time.sleep(0.2)
         status = self.sh('agent-bus status')

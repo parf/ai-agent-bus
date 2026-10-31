@@ -5,6 +5,10 @@
 # The container has no network. The checkout it clones is this commit, served to the document's own `git clone` URL
 # through git's url.<base>.insteadOf; Go modules and Bun packages come from the host's caches, mounted read-only.
 set -euo pipefail
+# Bound image setup, boot, checks and teardown too, not only the final exec.
+if [ "${INSTALL_MD_BOUNDED:-}" != 1 ]; then
+  exec timeout --kill-after=20 900 env INSTALL_MD_BOUNDED=1 bash "$0" "$@"
+fi
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/../.." && pwd)
 common=$(cd "$root" && cd "$(git rev-parse --git-common-dir)/.." && pwd)
@@ -45,4 +49,4 @@ for _ in $(seq 1 150); do
 done
 case $state in running|degraded) ;; *) echo 'FAIL fixture systemd did not boot' >&2; exit 1 ;; esac
 # A hang fails the run: the whole check is bounded, whatever it is waiting for.
-timeout --kill-after=20 1200 "${podman[@]}" exec "$name" python3 -B /fixture/install_md_test.py "${@:2}"
+timeout --kill-after=10 800 "${podman[@]}" exec "$name" python3 -B /fixture/install_md_test.py "${@:2}"
