@@ -15,7 +15,7 @@ import { Bus, BusError, defaultName, type Envelope, type Record_, withOwnerACL, 
 import { beingRead, catalogue, listing } from "./catalogue.ts";
 import { answerSessionAsk } from "./session-help.ts";
 import { startPush, RENAME_READER_RETRY_MS, type Held, type Push } from "./push.ts";
-import { Codex } from "./codex.ts";
+import { Codex, transientDelivery } from "./codex.ts";
 import { version } from "./version.ts";
 import { describe, sidecarMessage, codexMessage } from "./messages.ts";
 import { readFileSync } from "node:fs";
@@ -671,6 +671,8 @@ function setRefusal(why: string, found: ReturnType<typeof holders>): void {
 
 // A message the push consumed and could not deliver, kept for the push that starts next (J60b).
 const held: Held = {};
+held.transient = transientDelivery;
+held.notice = (s) => { void tell(s).catch(() => {}); };
 
 function readInbox(afterRename = false): void {
   if (!deliver || takenOver || push?.running()) return;

@@ -58,6 +58,13 @@ export function notSteerable(err: unknown): boolean {
 // A live /compact answered with no structured data: the Rust variant's name in the error text,
 // `failed to submit turn input: ActiveTurnNotSteerable { turn_kind: ... }`, whatever its turn_kind
 // (J60b, seen on 0.9.239). Only an App Server error carries it, so a plain Error that says so is not one.
+/** Whether a failed delivery to the thread may succeed later: a turn that ends (`notSteerable`), an overloaded
+ *  server, or no answer at all (a timeout, a connection that dropped). An App Server error that rejects the input
+ *  itself is permanent: asking again cannot change it (J60b). */
+export function transientDelivery(err: unknown): boolean {
+  return !(err instanceof AppServerError) || notSteerable(err) || err.code === -32001;
+}
+
 const REAL_TEXT = /\bActiveTurnNotSteerable\b/;
 
 // The structured discriminator, wherever the App Server nests it: a key of that name.

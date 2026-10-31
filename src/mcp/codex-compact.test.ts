@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { AppServerError, Codex, notSteerable } from "./codex.ts";
+import { AppServerError, Codex, notSteerable, transientDelivery } from "./codex.ts";
 import { startPush, type Held } from "./push.ts";
 
 // J60: a manual /compact (or /review) runs as a turn that takes no steering, and
@@ -170,4 +170,117 @@ test("not-steerable is the structured discriminator or the live error text, neve
   expect(notSteerable(new AppServerError(-32603, "failed to submit turn input: ActiveTurnNotSteerable { turn_kind: Review }"))).toBe(true);
   expect(notSteerable(new AppServerError(-32603, "failed to submit turn input: ActiveTurnNotSteerableXyz"))).toBe(false);
   expect(notSteerable(new Error("failed to submit turn input: ActiveTurnNotSteerable { turn_kind: Compact }"))).toBe(false);
+});
+
+// A push for another name (a fork) never gets the parent's kept message, and one stopped while a message
+// was being handed over keeps it (J60b, readers' LOW 2 and LOW 1).
+test("a kept message is delivered only into the inbox it came from", async () => {
+  const held: Held = { message: { message_id: "m1", from: "#a@x", body: "parent's" } as any, name: "#parent@x" };
+  const got: string[] = [];
+  const bus = { name: "#fork@x", consume: async () => { await Bun.sleep(20); return null; } } as any;
+  const push = startPush(bus, async (e) => { got.push(e.message_id); }, () => {}, undefined, 0, process.env, undefined, undefined, held);
+  await Bun.sleep(150);
+  push.stop(); await push.done;
+  expect(got).toEqual([]);
+  expect(held.message?.message_id).toBe("m1");
+});
+
+test("a message handed over as the push is stopped is kept for the next one", async () => {
+  const held: Held = {};
+  let push: ReturnType<typeof startPush>;
+  const bus = { name: "#s@x", consume: async () => { push.stop(); return { message_id: "m7", from: "#a@x", body: "late" }; } } as any;
+  push = startPush(bus, async () => {}, () => {}, undefined, 0, process.env, undefined, undefined, held);
+  await push.done;
+  expect(held.message?.message_id).toBe("m7");
+  expect(held.name).toBe("#s@x");
+});
+
+// J60b's ruling: a failure that may clear is kept and tried again, at most three times; an app-server refusal of
+// the input itself is dropped at once; either drop is one log line and one notice with the id, the sender and the
+// error, never the body; and the inbox keeps flowing. Only the delivery into the session is retried.
+function inbox(messages: any[], held: Held) {
+  const said: string[] = [], notices: string[] = [], got: string[] = [];
+  held.transient = transientDelivery;
+  held.notice = (s) => notices.push(s);
+  const bus = { name: "#s@x", consume: async () => { const next = messages.shift(); if (next) return next; await Bun.sleep(20); return null; } } as any;
+  const run = (deliver: (e: any) => Promise<void>) => startPush(bus, async (e) => { await deliver(e); got.push(e.message_id); }, (s) => said.push(s), undefined, 0, process.env, undefined, undefined, held);
+  return { said, notices, got, bus, run };
+}
+const waitFor = async (f: () => boolean) => { for (let i = 0; i < 150 && !f(); i++) await Bun.sleep(20); };
+const mail = (id: string, body: string) => ({ message_id: id, from: "#a@x", to: "#s@x", body });
+
+test("a poison message the app-server refuses is dropped at once and the next one is delivered", async () => {
+  const held: Held = {};
+  const { said, notices, got, run } = inbox([mail("bad", "SECRET-BODY"), mail("good", "fine")], held);
+  const push = run(async (e) => { if (e.message_id === "bad") throw new AppServerError(-32600, "invalid input item"); });
+  try {
+    await waitFor(() => got.includes("good"));
+    expect(got).toEqual(["good"]);
+    expect(push.running()).toBe(true); // reading on, not stopped
+    expect(held.message).toBeUndefined();
+    for (const line of [said.join("\n"), notices.join("\n")]) {
+      expect(line).toContain("bad");
+      expect(line).toContain("#a@x");
+      expect(line).toContain("invalid input item");
+      expect(line).not.toContain("SECRET-BODY");
+    }
+    expect(notices).toHaveLength(1);
+  } finally { push.stop(); await push.done; }
+});
+
+test("a transient failure that never clears is dropped after three tries, with one line and one notice", async () => {
+  const held: Held = {};
+  const { said, notices, got, run } = inbox([mail("slow", "SECRET-BODY"), mail("next", "fine")], held);
+  const deliver = async (e: any) => { if (e.message_id === "slow") throw new Error("codex: turn/start timed out after 30000ms"); };
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const p = run(deliver);
+    await p.done;
+    expect(p.ended()).toBe("delivery");
+    expect(held.message?.message_id).toBe("slow");
+    expect(held.tries).toBe(attempt);
+  }
+  expect(notices).toEqual([]); // kept twice, nothing dropped yet
+  const last = run(deliver);
+  try {
+    await waitFor(() => got.includes("next"));
+    expect(held.message).toBeUndefined();
+    expect(got).toEqual(["next"]); // dropped on the third failure; the push read on
+    expect(notices).toHaveLength(1);
+    for (const line of [said.filter((l) => l.includes("dropped")).join("\n"), notices[0]!]) {
+      expect(line).toContain("slow");
+      expect(line).toContain("#a@x");
+      expect(line).toContain("3 tries");
+      expect(line).toContain("timed out");
+      expect(line).not.toContain("SECRET-BODY");
+    }
+  } finally { last.stop(); await last.done; }
+});
+
+test("an answer to a session ask whose reply was lost is dropped, never sent twice", async () => {
+  const held: Held = {};
+  const sent: string[] = [];
+  const bus = {
+    name: "#s@x", get: async () => null,
+    send: async (m: any) => { sent.push(m.re); throw new Error("connection reset"); }, // accepted by the daemon, the reply lost
+    consume: async () => { const next = asks.shift(); if (next) return next; await Bun.sleep(20); return null; },
+  } as any;
+  const asks = [{ message_id: "ask1", from: "#a@x", to: "#s@x", ask: "help" }];
+  const said: string[] = [];
+  held.transient = transientDelivery;
+  const push = startPush(bus, async () => {}, (s) => said.push(s), undefined, 0, process.env, undefined, undefined, held);
+  try {
+    await Bun.sleep(300);
+    expect(sent).toEqual(["ask1"]); // exactly one answer was sent
+    expect(held.message).toBeUndefined();
+    expect(said.join("\n")).toContain("its answer may already have been sent");
+    expect(push.running()).toBe(true);
+  } finally { push.stop(); await push.done; }
+});
+
+test("which failures may clear", () => {
+  expect(transientDelivery(new Error("codex: turn/start timed out after 30000ms"))).toBe(true);
+  expect(transientDelivery(new Error("codex: closed"))).toBe(true);
+  expect(transientDelivery(new AppServerError(-32603, "failed to submit turn input: ActiveTurnNotSteerable { turn_kind: Compact }"))).toBe(true);
+  expect(transientDelivery(new AppServerError(-32001, "overloaded"))).toBe(true);
+  expect(transientDelivery(new AppServerError(-32600, "invalid input item"))).toBe(false);
 });
