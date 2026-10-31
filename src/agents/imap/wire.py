@@ -326,6 +326,8 @@ def change_flags(connection, number, values, add):
 
 
 def criteria_search(connection, arguments):
+    if any(not arg.isascii() for arg in arguments):
+        arguments = ['CHARSET', 'UTF-8', *[arg.encode('utf-8') for arg in arguments]]
     raw = ok(connection.uid('SEARCH', None, *arguments))
     if len(raw) != 1 or not isinstance(raw[0], bytes) or len(raw[0]) > MAX_LINE:
         raise WireError('IMAP SEARCH result exceeds its byte limit; narrow the criteria')

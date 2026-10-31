@@ -173,7 +173,7 @@ class Handler(socketserver.BaseRequestHandler):
                         else:
                             if writable and b'BODY[' in arguments and b'PEEK' not in arguments:
                                 flags.setdefault(uid, set()).add(b'\\Seen')
-                            if b'BODY.PEEK[' in arguments and arguments not in (b'(UID BODY.PEEK[])', b'(UID BODY.PEEK[HEADER])') and b'HEADER.FIELDS' not in arguments:
+                            if (b'BODY.PEEK[' in arguments or b'BODY[' in arguments) and arguments not in (b'(UID BODY.PEEK[])', b'(UID BODY[])', b'(UID BODY.PEEK[HEADER])', b'(UID BODY[HEADER])') and b'HEADER.FIELDS' not in arguments:
                                 section = arguments.split(b'[', 1)[1].split(b']', 1)[0].decode()
                                 raw = getattr(self.server, 'part_bodies', {}).get(section, raw)
                             if b'HEADER' in arguments:

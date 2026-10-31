@@ -120,10 +120,10 @@ def parse_call(body):
     if method in {'parts', 'part'}: value['uid'] = uid(value.get('uid'))
     if method == 'part' and (not isinstance(value.get('part_id'), str) or not re.fullmatch(r'[1-9][0-9]{0,3}(?:\.[1-9][0-9]{0,3}){0,30}', value['part_id'])):
         raise MailError('part-id must be a MIME part id from parts')
-    if method == 'mark' and value.get('state') not in {'read', 'unread'}:
+    if method == 'mark' and value.get('state') not in ('read', 'unread'):
         raise MailError('mark state must be read or unread')
     if method == 'flag':
-        if value.get('action') not in {'add', 'remove'} or not isinstance(value.get('flags'), list) or not 1 <= len(value['flags']) <= 100:
+        if value.get('action') not in ('add', 'remove') or not isinstance(value.get('flags'), list) or not 1 <= len(value['flags']) <= 100:
             raise MailError('use flag <uids> add|remove <flag...>')
         value['flags'] = list(dict.fromkeys(flag(f) for f in value['flags']))
     if method in {'list', 'search'}:
@@ -145,8 +145,8 @@ def parse_call(body):
                 if isinstance(arg, str) and re.fullmatch(r'[0-9]{1,10}', arg): arg = int(arg)
                 if type(arg) is not int or not 0 <= arg <= 4294967295: raise MailError(key + ' must be 0..4294967295')
             else:
-                if not isinstance(arg, str) or not arg or len(arg.encode()) > 1024 or any(ord(c) < 32 or ord(c) > 126 for c in arg):
-                    raise MailError(key + ' must be nonempty ASCII without controls')
+                if not isinstance(arg, str) or not arg or len(arg.encode()) > 1024 or any(ord(c) < 32 or ord(c) == 127 for c in arg):
+                    raise MailError(key + ' must be nonempty text without controls')
                 if key in {'flag', 'no_flag'}: arg = flag(arg)
                 if key == 'header' and not re.fullmatch(r'[A-Za-z0-9-]+:.+', arg): raise MailError('header must be Name:value')
                 if key in {'since', 'before'}:

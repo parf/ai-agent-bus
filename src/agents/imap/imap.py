@@ -95,11 +95,13 @@ def summary(raw, masks):
 
 
 def parse(body):
-    if not isinstance(body, str) or len(body.encode()) > 8192:
-        raise MailError('call must be text or JSON of at most 8192 bytes')
+    if not isinstance(body, str) or len(body.encode()) > 32768:
+        raise MailError('call must be text or JSON of at most 32768 bytes')
     extended = operations.parse_call(body)
     if extended is not None:
         return extended
+    if len(body.encode()) > 8192:
+        raise MailError('call must be text or JSON of at most 8192 bytes')
     folder = None
     if not body.startswith('{') and re.match(r'^(sync|list|search|read|mark|publish)(?: |$)', body) and '--folder' in body:
         if any(ord(c) < 32 or ord(c) == 127 for c in body):
@@ -301,29 +303,34 @@ class Agent:
             secrets = [self.environment.get(name, '') for name in ('IMAP_PASSWORD', 'IMAP_CLIENT_SECRET', 'IMAP_REFRESH_TOKEN')]
             phase = 'deadline'
             timer, remaining = deadline(message.envelope)
+            expires = time.monotonic() + remaining
             phase = 'operation'
             token = google_access_token(self.environment, remaining, prefix='IMAP') if cfg['auth'] == 'xoauth2' else None
             if token:
                 secrets.extend([token, base64.b64encode(token.encode()).decode()])
-            if cfg['mode'] == 'tls':
-                connection = wire.TLS(cfg['host'], cfg['port'], ssl_context=tls_context(cfg.get('cafile')), timeout=remaining)
-            else:
-                connection = wire.Plain(wire.local_host(cfg['host'], cfg['port']), cfg['port'], timeout=remaining)
-            if token:
-                if 'AUTH=XOAUTH2' not in connection.capabilities:
-                    raise MailError('IMAP server does not offer selected XOAUTH2')
-                initial = ('user=' + user + '\x01auth=Bearer ' + token + '\x01\x01').encode()
-                secrets.append(base64.b64encode(initial).decode())
-                sent = False
-                def authenticate(_challenge):
-                    nonlocal sent
-                    if sent:
-                        return b''
-                    sent = True
-                    return initial
-                connection.authenticate('XOAUTH2', authenticate)
-            else:
-                connection.login('"' + user.replace('\\', '\\\\').replace('"', '\\"') + '"', password)
+            def open_connection():
+                nonlocal connection
+                if cfg['mode'] == 'tls':
+                    connection = wire.TLS(cfg['host'], cfg['port'], ssl_context=tls_context(cfg.get('cafile')), timeout=max(.001, expires - time.monotonic()))
+                else:
+                    connection = wire.Plain(wire.local_host(cfg['host'], cfg['port']), cfg['port'], timeout=max(.001, expires - time.monotonic()))
+                if token:
+                    if 'AUTH=XOAUTH2' not in connection.capabilities:
+                        raise MailError('IMAP server does not offer selected XOAUTH2')
+                    initial = ('user=' + user + '\x01auth=Bearer ' + token + '\x01\x01').encode()
+                    secrets.append(base64.b64encode(initial).decode())
+                    sent = False
+                    def authenticate(_challenge):
+                        nonlocal sent
+                        if sent:
+                            return b''
+                        sent = True
+                        return initial
+                    connection.authenticate('XOAUTH2', authenticate)
+                else:
+                    connection.login('"' + user.replace('\\', '\\\\').replace('"', '\\"') + '"', password)
+                return connection
+            connection = open_connection()
             if method == 'folders':
                 result = folders.describe(connection, call.get('counts', False))
                 if len(result.encode()) > MAX_OUTPUT:
@@ -447,9 +454,21 @@ class Agent:
                     if omitted:
                         result += f'\ntruncated; {omitted} more cached matches'
                 elif method in {'mark', 'flag', 'headers'}:
-                    rows, used = [], 0
+                    rows, used, reconnect = [], 0, False
                     for index, number in enumerate(call['uids']):
+                        if time.monotonic() >= expires:
+                            rows.append(f'UID {number}: error: deadline elapsed; not attempted')
+                            continue
                         try:
+                            if reconnect:
+                                try: connection.shutdown()
+                                except (OSError, imaplib.IMAP4.error): pass
+                                connection = open_connection()
+                                folders.choose(connection, selected)
+                                current, _ = wire.selected(connection, selected, readonly=not writable, flag_write=method == 'flag')
+                                if current != validity:
+                                    raise wire.WireError('UIDVALIDITY changed; UID not attempted')
+                                reconnect = False
                             if method == 'mark':
                                 observed = wire.mark_seen(connection, number, call['state'] == 'read')
                                 row = f"UID {number} observed {'read' if observed else 'unread'}"
@@ -466,8 +485,11 @@ class Agent:
                             rows.append(row)
                         except (wire.WireError, PublicationError, OSError, imaplib.IMAP4.error):
                             error = sys.exc_info()[1]
+                            reconnect = reconnect or isinstance(error, (wire.Tainted, wire.FlagOutcomeUnknown, OSError, imaplib.IMAP4.error))
                             safe = str(error) if isinstance(error, (wire.WireError, PublicationError)) else 'connection failed; not retried'
-                            rows.append(f'UID {number}: error: ' + safe)
+                            row = f'UID {number}: error: ' + safe
+                            rows.append(row)
+                            used += len(row.encode()) + 1
                     result = '\n'.join(rows)
                 elif method == 'parts':
                     rows = [{k: v for k, v in row.items() if k not in {'encoding', 'charset'}}
@@ -478,11 +500,13 @@ class Agent:
                     prefix = f"UID {call['uid']} part {call['part_id']} {row['type']}; {'base64' if binary else 'text'}; not marked\n"
                     # Keep the bus answer limit unchanged. Binary truncation keeps complete base64 quanta.
                     available = MAX_OUTPUT - len(WARNING.encode()) - len(prefix.encode()) - 512
+                    for secret in secrets:
+                        if secret: text = text.replace(secret, '***')
                     encoded = text.encode('utf-8')
                     truncated = len(encoded) > available
                     if binary: available -= available % 4
                     text = encoded[:available].decode('utf-8', 'ignore')
-                    result = prefix + render(text.encode(), secrets)
+                    result = prefix + WARNING + text
                     if truncated: result += '\ntruncated at the 262144-byte answer cap'
                 else:
                     number = call['uid']

@@ -25,9 +25,9 @@ def structure(raw):
             return result
         if token == b')': raise wire.WireError('unexpected BODYSTRUCTURE close')
         if token == b'NIL': return None
-        if token.startswith(b'"'): return re.sub(rb'\\(.)', rb'\1', token[1:-1]).decode('ascii', 'replace')
+        if token.startswith(b'"'): return re.sub(rb'\\(.)', rb'\1', token[1:-1]).decode('utf-8', 'replace')
         if token.isdigit(): return int(token)
-        return token.decode('ascii', 'replace')
+        return token.decode('utf-8', 'replace')
     result = read()
     if at != len(tokens): raise wire.WireError('extra BODYSTRUCTURE values')
     return result
@@ -35,9 +35,19 @@ def structure(raw):
 
 def tree(connection, number):
     raw = wire.ok(connection.uid('FETCH', str(number), '(UID BODYSTRUCTURE)'))
-    if len(raw) != 1 or not isinstance(raw[0], bytes) or len(raw[0]) > wire.MAX_LINE:
-        raise wire.WireError('invalid BODYSTRUCTURE response')
-    match = re.fullmatch(rb'[0-9]+ (\(.*\))', raw[0])
+    chunks = []
+    for item in raw:
+        if item is None: continue
+        if isinstance(item, tuple) and len(item) == 2 and all(isinstance(v, bytes) for v in item):
+            header, literal = item
+            count = re.search(rb'\{([0-9]+)\}\Z', header)
+            if not count or int(count[1]) != len(literal): raise wire.WireError('invalid BODYSTRUCTURE literal')
+            chunks.append(header[:count.start()] + b'"' + literal.replace(b'\\', b'\\\\').replace(b'"', b'\\"') + b'"')
+        elif isinstance(item, bytes): chunks.append(item)
+        else: raise wire.WireError('invalid BODYSTRUCTURE response')
+    joined = b''.join(chunks)
+    if len(joined) > wire.MAX_LINE: raise wire.WireError('BODYSTRUCTURE exceeds metadata limit')
+    match = re.fullmatch(rb'[0-9]+ (\(.*\))', joined)
     if not match: raise wire.WireError('invalid BODYSTRUCTURE FETCH')
     fields = structure(match[1])
     if not isinstance(fields, list) or len(fields) != 4:
@@ -85,7 +95,10 @@ def payload(connection, number, part_id):
     row = next((r for r in rows if r['id'] == part_id and r['size'] is not None), None)
     if row is None: raise wire.WireError('part-id is not a MIME leaf; use parts')
     if row['size'] > PART_CAP: raise wire.TooLarge('part exceeds the 25 MB (26214400-byte) cap before decoding')
-    raw = wire.peek(connection, number, part_id, PART_CAP)
+    try:
+        raw = wire.peek(connection, number, part_id, PART_CAP)
+    except wire.LiteralTooLarge:
+        raise wire.LiteralTooLarge('part exceeds the 25 MB (26214400-byte) cap before decoding') from None
     if len(raw) > PART_CAP: raise wire.TooLarge('part exceeds the 25 MB (26214400-byte) cap before decoding')
     encoding = row['encoding']
     if encoding == 'base64':

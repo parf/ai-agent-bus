@@ -17,6 +17,14 @@ class Arguments(unittest.TestCase):
         for value in ('1:1001', '1:4294967295', '9:1', '1,1', '0', '*', '1:*', '1 EXPUNGE', True):
             with self.subTest(value=value), self.assertRaises(ValueError): operations.uid_set(value)
 
+    def test_thousand_large_uids_fit_the_call_bound(self):
+        numbers = list(range(1000000000, 1000001000))
+        body = 'headers ' + ','.join(map(str, numbers))
+        try: call = fixture.proxy.parse(body)
+        except ValueError as error: self.fail('valid 1000-UID call refused: ' + str(error))
+        self.assertEqual(call['uids'], numbers)
+        with self.assertRaises(ValueError): fixture.proxy.parse(body + ' ' * 32768)
+
     def test_deleted_refused_before_connect(self):
         for flag in ('deleted', '\\Deleted', '\\deleted', 'DELETED'):
             with self.subTest(flag=flag), self.assertRaisesRegex(MailError, 'Deleted'):
@@ -31,6 +39,7 @@ class Arguments(unittest.TestCase):
         self.assertEqual(call['limit'], 7)
         self.assertEqual(operations.search_args(call), ['FROM', '"a@example.com"', 'TO', '"b@example.com"', 'SUBJECT', '"a b"', 'HEADER', '"X-Tag"', '"blue"', 'SINCE', '"01-Oct-2026"', 'BEFORE', '"01-Nov-2026"', 'SEEN', 'UNFLAGGED', 'LARGER', '20', 'SMALLER', '500'])
         self.assertNotIn('local words', operations.search_args(call))
+        self.assertEqual(operations.parse_call('search --since 2026-10-01')['since'], '01-Oct-2026')
         for body in ('flag 7 add "\\Deleted"', 'list --flag "a) STORE"', 'headers 7 --unknown x', 'part 7 1] ', 'search --from "x\r\ny"', 'search --since invalid', 'search --larger -1', 'list 101', 'headers 1:1001'):
             with self.subTest(body=body), self.assertRaises(ValueError): operations.parse_call(body)
         self.assertEqual(operations.parse_call('{"method":"mark","uid":7,"state":"read"}')['uids'], [7])
@@ -62,6 +71,15 @@ class Calls(unittest.TestCase):
         self.assertIn('outcome unknown', self.call('flag 7 add flagged'))
         self.assertEqual(len(self.server.stores), 1)
 
+    def test_unknown_uid_write_does_not_stop_later_uid_or_repeat_it(self):
+        self.server.messages[8] = fixture.RAW
+        self.server.permanent = [b'\\Seen', b'\\Flagged']
+        self.server.drop_after_store = True
+        answer = self.call('flag 7,8 add flagged')
+        self.assertIn('UID 7: error: flag outcome unknown', answer)
+        self.assertIn('UID 8: error: flag outcome unknown', answer)
+        self.assertEqual([n for n, _ in self.server.stores], [7, 8])
+
     def test_search_and_list_live_flags_and_folder(self):
         self.server.messages[8] = fixture.RAW.replace(b'Subject:', b'Subject: LocalNeedle ')
         self.call('sync')
@@ -78,6 +96,17 @@ class Calls(unittest.TestCase):
         self.assertIn(b'"a@example.com"', search)
         self.assertNotIn(b'LocalNeedle', search)
         self.assertIn('UID 8 ', self.call('{"method":"search","from":"a@example.com"}'))
+
+    def test_per_uid_errors_count_toward_answer_budget(self):
+        def peek(_connection, number, _section, _cap):
+            if number != 500: raise wire.WireError('missing UID')
+            return b'Subject: ' + b'x' * 256000
+        with patch.object(wire, 'peek', side_effect=peek):
+            answer = self.call('headers 1:500')
+        self.assertFalse(answer.startswith('error:'), answer[:100])
+        self.assertLessEqual(len(answer.encode()), 262144)
+        self.assertIn('UID 1: error: missing UID', answer)
+        self.assertIn('UID 500: result exceeds remaining', answer)
 
     def test_headers_and_part_never_seen(self):
         self.server.messages[8] = fixture.RAW
@@ -129,10 +158,28 @@ class Calls(unittest.TestCase):
         self.assertFalse(answer.startswith('error:'), answer[:100])
         self.assertLessEqual(len(answer.encode()), 262144)
         self.assertIn('truncated', answer)
+        self.env['IMAP_CLIENT_SECRET'] = 'a'
+        answer = self.call('part 7 1')
+        self.assertFalse(answer.startswith('error:'), answer[:100])
+        self.assertLessEqual(len(answer.encode()), 262144)
+        self.assertIn('***', answer)
+        self.assertIn('truncated', answer)
         self.assertEqual(self.server.stores, [])
+        self.server.literal_override = 26214401
+        self.assertIn('25 MB', self.call('part 7 1'))
 
 
 class Protocol(unittest.TestCase):
+    def test_utf8_server_search_and_literal_filename(self):
+        call = operations.parse_call('search --subject "Письмо"')
+        c = Mock()
+        c.uid.return_value = ('OK', [b'7'])
+        self.assertEqual(wire.criteria_search(c, operations.search_args(call)), {7})
+        self.assertEqual(c.uid.call_args.args[:4], ('SEARCH', None, 'CHARSET', 'UTF-8'))
+        self.assertIn('Письмо'.encode(), c.uid.call_args.args[-1])
+        c.uid.return_value = ('OK', [(b'1 (UID 7 BODYSTRUCTURE ("APPLICATION" "PDF" NIL NIL NIL "BASE64" 4 NIL ("ATTACHMENT" ("FILENAME" {5}', b'a.pdf'), b'))))'])
+        self.assertEqual(mime_parts.tree(c, 7)[0]['filename'], 'a.pdf')
+
     def test_multipart_tree_binary_and_predecode_cap(self):
         raw = b'1 (UID 7 BODYSTRUCTURE (("TEXT" "PLAIN" ("CHARSET" "utf-8") NIL NIL "7BIT" 5 1)("APPLICATION" "OCTET-STREAM" NIL NIL NIL "BASE64" 4 NIL ("ATTACHMENT" ("FILENAME" "a.bin"))) "MIXED"))'
         c = Mock()
@@ -160,7 +207,8 @@ class Protocol(unittest.TestCase):
         c.literal_limit = 25 * 1024 * 1024
         c.response_limit = c.literal_limit + 65536
         c._file = io.BytesIO(b'not read')
-        with self.assertRaises(wire.LiteralTooLarge): c.read(c.literal_limit + 1)
+        with self.assertRaises(wire.WireError) as caught: c.read(c.literal_limit + 1)
+        self.assertIsInstance(caught.exception, wire.LiteralTooLarge)
         self.assertEqual(c._file.tell(), 0)
         c = Mock(literal_limit=123, response_limit=456)
         c.uid.return_value = ('NO', [b'no'])
@@ -169,6 +217,7 @@ class Protocol(unittest.TestCase):
 
     def test_flag_permission_and_unknown_outcome(self):
         c = Mock(seen_writable=True, permanent_flags={'\\seen'})
+        c.uid.return_value = ('OK', [b'1 (UID 7 FLAGS (\\Flagged))'])
         with self.assertRaises(wire.WireError): wire.change_flags(c, 7, ['\\Flagged'], True)
         c.uid.assert_not_called()
         c.permanent_flags = {'\\flagged'}
