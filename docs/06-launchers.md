@@ -75,8 +75,8 @@ Follow the [receipt rules](04-messaging.md#receipts).
 
 ### Check delivery through compaction
 
-1. Start a throwaway Codex session with `AGENT_BUS_NAME='#ab-j60-live-check' ab-codex --tag ab-dvp` and record its **Context %**.
-2. Run `/compact` and send one uniquely labelled ping to that name from another session while compaction runs. Wait for **Context % to change**: the TUI clears the “Context compacted” text from the pane.
+1. Start a throwaway Codex session with `AGENT_BUS_NAME='#ab-j60-live-check' ab-codex --tag ab-dvp`.
+2. Run `/compact` and send one uniquely labelled ping to that name from another session while compaction runs. Wait until the **“Compacting context” line disappears from the pane**. The Context percentage can jump to 100% when compaction starts.
 3. Confirm that the ping arrives once, then send a second labelled ping and confirm that it arrives once too, without restarting the session.
 
 
