@@ -104,15 +104,19 @@ class Handler(socketserver.BaseRequestHandler):
                               if b'MESSAGES' in rest else b'UIDNEXT ' + str(next_uid).encode())
                     send(b'* STATUS ' + proxy.wire.mailbox(name).encode() + b' (' + values + b')')
                 elif command == b'UID':
-                    sub, number, arguments = rest.split(b' ', 2)
+                    pieces = rest.split(b' ', 2)
+                    sub, number = pieces[:2]
+                    arguments = pieces[2] if len(pieces) > 2 else b''
                     if self.server.refuse:
                         send(tag + b' NO ' + PASSWORD.encode())
                         continue
                     if sub == b'SEARCH':
                         # 'UID SEARCH UID n:m' -- no user search expression reaches this wire.
-                        interval = arguments.decode()
-                        start, end = map(int, interval.split(':'))
-                        numbers = [n for n in messages if start <= n <= end]
+                        if number == b'UID':
+                            start, end = map(int, arguments.decode().split(':'))
+                            numbers = [n for n in messages if start <= n <= end]
+                        else:
+                            numbers = list(self.server.criteria_matches) if hasattr(self.server, 'criteria_matches') else list(messages)
                         send(b'* SEARCH ' + b' '.join(str(n).encode() for n in numbers))
                     elif sub == b'STORE':
                         if not writable:
@@ -129,6 +133,10 @@ class Handler(socketserver.BaseRequestHandler):
                             flags.setdefault(int(number), set()).add(b'\\Seen')
                         elif arguments == b'-FLAGS.SILENT (\\Seen)':
                             flags.setdefault(int(number), set()).discard(b'\\Seen')
+                        elif arguments.startswith((b'+FLAGS.SILENT (', b'-FLAGS.SILENT (')):
+                            values = set(arguments.split(b'(', 1)[1][:-1].split())
+                            if arguments.startswith(b'+'): flags.setdefault(int(number), set()).update(values)
+                            else: flags.setdefault(int(number), set()).difference_update(values)
                         else:
                             send(tag + b' BAD forbidden flag operation')
                             continue
@@ -156,13 +164,19 @@ class Handler(socketserver.BaseRequestHandler):
                         if raw is None:
                             send(tag + b' NO missing')
                             continue
-                        if b'RFC822.SIZE' in arguments:
+                        if b'BODYSTRUCTURE' in arguments:
+                            structure = getattr(self.server, 'bodystructure', b'("TEXT" "PLAIN" ("CHARSET" "utf-8") NIL NIL "7BIT" 5 1)')
+                            send(b'* 1 FETCH (UID ' + number + b' BODYSTRUCTURE ' + structure + b')')
+                        elif b'RFC822.SIZE' in arguments:
                             metadata_uid = str(uid + 1).encode() if uid in self.server.bad_uid else number
                             send(b'* 1 FETCH (UID ' + metadata_uid + b' RFC822.SIZE ' + str(len(raw) + self.server.size_delta.get(uid, 0)).encode() + b')')
                         else:
                             if writable and b'BODY[' in arguments and b'PEEK' not in arguments:
                                 flags.setdefault(uid, set()).add(b'\\Seen')
-                            if b'HEADER.FIELDS' in arguments:
+                            if b'BODY.PEEK[' in arguments and arguments not in (b'(UID BODY.PEEK[])', b'(UID BODY.PEEK[HEADER])') and b'HEADER.FIELDS' not in arguments:
+                                section = arguments.split(b'[', 1)[1].split(b']', 1)[0].decode()
+                                raw = getattr(self.server, 'part_bodies', {}).get(section, raw)
+                            if b'HEADER' in arguments:
                                 raw = raw.partition(b'\r\n\r\n')[0].partition(b'\n\n')[0] + b'\r\n\r\n'
                             if self.server.delay:
                                 time.sleep(self.server.delay)

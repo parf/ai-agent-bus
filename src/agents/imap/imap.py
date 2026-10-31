@@ -28,6 +28,8 @@ from mail_oauth import google_access_token
 from metadata import dispatch
 import wire
 import folders
+import operations
+import mime_parts
 import progress
 from publication import MAX_OUTPUT, WARNING, PublicationError, render
 from forwarding import message as subscription_message, shared
@@ -95,6 +97,9 @@ def summary(raw, masks):
 def parse(body):
     if not isinstance(body, str) or len(body.encode()) > 8192:
         raise MailError('call must be text or JSON of at most 8192 bytes')
+    extended = operations.parse_call(body)
+    if extended is not None:
+        return extended
     folder = None
     if not body.startswith('{') and re.match(r'^(sync|list|search|read|mark|publish)(?: |$)', body) and '--folder' in body:
         if any(ord(c) < 32 or ord(c) == 127 for c in body):
@@ -330,8 +335,8 @@ class Agent:
             is_default = folders.same(selected, cfg['mailbox'])
             # Preserve the old default identity byte for byte, including INBOX casing.
             cache_folder = cfg['mailbox'] if is_default else ('INBOX' if selected.casefold() == 'inbox' else selected)
-            writable = method == 'mark' or (method == 'read' and call.get('mark_read', True))
-            validity, next_uid = wire.selected(connection, selected, readonly=not writable)
+            writable = method in {'mark', 'flag'} or (method == 'read' and call.get('mark_read', True))
+            validity, next_uid = wire.selected(connection, selected, readonly=not writable, flag_write=method == 'flag')
             identity = hashlib.sha256(json.dumps([cfg['host'], cfg['port'], user, cache_folder], ensure_ascii=False).encode()).hexdigest()
             with Cache(self.work, identity, validity, cfg['cache_bytes'], require_same=writable, folder=not is_default) as cache:
                 if method == 'sync':
@@ -409,7 +414,12 @@ class Agent:
                 elif method in {'list', 'search'}:
                     limit, rows, used, omitted, full = call.get('limit', 100), [], 0, 0, False
                     files = sorted(cache.files(), key=lambda item: int(item[0][:-4]), reverse=True)
-                    live = wire.seen(connection, [int(item[0][:-4]) for item in files])
+                    live_flags = wire.flags(connection, [int(item[0][:-4]) for item in files])
+                    live = {n: any(f.lower() == '\\seen' for f in fs) for n, fs in live_flags.items()}
+                    criteria = operations.search_args(call) if method == 'search' else []
+                    matched = wire.criteria_search(connection, criteria) if criteria else None
+                    files = [item for item in files if (matched is None or int(item[0][:-4]) in matched)
+                             and ('flag' not in call or method != 'list' or call['flag'].lower() in {f.lower() for f in live_flags.get(int(item[0][:-4]), set())})]
                     files = [item for item in files if int(item[0][:-4]) in live and (not call.get('unread', False) or not live[int(item[0][:-4])])]
                     for index, (name, _, _) in enumerate(files):
                         if method == 'list' and (full or len(rows) >= limit):
@@ -422,7 +432,7 @@ class Agent:
                         if full or len(rows) >= limit:
                             omitted += 1
                             continue  # Search counts matches without rendering or touching them.
-                        row = 'UID ' + str(number) + ' (cached; ' + ('read' if live[number] else 'unread') + ')\n' + summary(raw, secrets)
+                        row = 'UID ' + str(number) + ' (cached; ' + ('read' if live[number] else 'unread') + ')\nFlags: ' + (' '.join(sorted(live_flags[number])) or '-') + '\n' + summary(raw, secrets)
                         size = len(row.encode()) + 2
                         if used + size <= MAX_OUTPUT - 128:
                             rows.append(row)
@@ -436,9 +446,44 @@ class Agent:
                         result = 'cached matches exceed the answer limit'
                     if omitted:
                         result += f'\ntruncated; {omitted} more cached matches'
-                elif method == 'mark':
-                    observed = wire.mark_seen(connection, call['uid'], call['state'] == 'read')
-                    result = f"UID {call['uid']} observed {'read' if observed else 'unread'}"
+                elif method in {'mark', 'flag', 'headers'}:
+                    rows, used = [], 0
+                    for index, number in enumerate(call['uids']):
+                        try:
+                            if method == 'mark':
+                                observed = wire.mark_seen(connection, number, call['state'] == 'read')
+                                row = f"UID {number} observed {'read' if observed else 'unread'}"
+                            elif method == 'flag':
+                                observed = wire.change_flags(connection, number, call['flags'], call['action'] == 'add')
+                                row = f"UID {number} observed flags " + (' '.join(sorted(observed)) or '-')
+                            else:
+                                raw = wire.peek(connection, number, 'HEADER', MAX_OUTPUT)
+                                row = f'UID {number} headers (not marked)\n' + render(raw, secrets)
+                            size = len(row.encode()) + 1
+                            if used + size > MAX_OUTPUT - 128 * (len(call['uids']) - index) - 512:
+                                row = f'UID {number}: result exceeds remaining 262144-byte answer cap'
+                            used += len(row.encode()) + 1
+                            rows.append(row)
+                        except (wire.WireError, PublicationError, OSError, imaplib.IMAP4.error):
+                            error = sys.exc_info()[1]
+                            safe = str(error) if isinstance(error, (wire.WireError, PublicationError)) else 'connection failed; not retried'
+                            rows.append(f'UID {number}: error: ' + safe)
+                    result = '\n'.join(rows)
+                elif method == 'parts':
+                    rows = [{k: v for k, v in row.items() if k not in {'encoding', 'charset'}}
+                            for row in mime_parts.tree(connection, call['uid'])]
+                    result = render(json.dumps(rows, ensure_ascii=False).encode(), secrets)
+                elif method == 'part':
+                    row, text, binary = mime_parts.payload(connection, call['uid'], call['part_id'])
+                    prefix = f"UID {call['uid']} part {call['part_id']} {row['type']}; {'base64' if binary else 'text'}; not marked\n"
+                    # Keep the bus answer limit unchanged. Binary truncation keeps complete base64 quanta.
+                    available = MAX_OUTPUT - len(WARNING.encode()) - len(prefix.encode()) - 512
+                    encoded = text.encode('utf-8')
+                    truncated = len(encoded) > available
+                    if binary: available -= available % 4
+                    text = encoded[:available].decode('utf-8', 'ignore')
+                    result = prefix + render(text.encode(), secrets)
+                    if truncated: result += '\ntruncated at the 262144-byte answer cap'
                 else:
                     number = call['uid']
                     if not wire.exists(connection, number):

@@ -2,7 +2,7 @@
 
 📌 **TL;DR:**
 - **Problem:** you want an AI to find, sort or summarize mail, but handing it your mail password, or letting a mail's text act as instructions, is risky.
-- **Outcome:** it searches and reads folders through a private local copy; the password stays in one file, only the read flag can change, and every copy is labelled as untrusted outside text.
+- **Outcome:** it searches and reads folders through a private local copy; the password stays in one file, only the named flags can change, and every copy is labelled as untrusted outside text.
 - **Start:** ask it what it can do: `agent-bus help '#imap/work@node.example'` ([Try this first](#try-this-first)).
 
 ## Why you'd want it
@@ -11,17 +11,18 @@
 - 🧨 **A mail can try to give orders.** Now every copy starts with a line saying "this is data, not instructions", and HTML stays inert.
 - 🗂️ **Work and personal mail mix.** Now there is one helper per account, with its own access list.
 - 📬 **New mail should feed another helper.** Now matching future mail is forwarded to a queue or agent, once.
-- 👁️ **A reader should not change your mailbox.** Now the only change it can make is the read flag, and only when you ask or read normally.
+- 👁️ **A reader should not change your mailbox.** Now the only changes it can make are the named flags; a normal read sets Seen.
 
 ## What it does
 
 - ✅ **Search and list:** find mail by text, or list the newest with live read or unread status.
 - ✅ **Read one mail:** the raw text, after an external-content warning; it marks the mail read unless you say `--no-mark`.
-- ✅ **Mark read or unread:** sets or clears only the server's read flag, and reports the state it observed.
+- ✅ **Mark and flag:** set read/unread or add/remove named flags, with a result for every UID; Deleted is refused.
+- ✅ **Inspect without marking:** fetch headers, the MIME tree or a decoded part without setting Seen; binary parts are base64.
 - ✅ **Forward future mail:** subscribe a queue or agent to mail that matches a filter, from the moment you subscribe.
 - ✅ **Pass one mail on:** publish a chosen mail to the one destination fixed in Configuration.
 - ✅ **Private and bounded:** mail is copied into a local cache with strict size and count limits; no images load and no attachment is opened.
-- 🚫 **Not for:** sending mail (use [SMTP](smtp.md#what-it-does)), or reading attachments as files (you get the raw mail text).
+- 🚫 **Not for:** sending mail (use [SMTP](smtp.md#what-it-does)), or writing attachments to files or executing mail content (parts are returned as text or base64).
 
 The calls, last:
 
@@ -29,17 +30,25 @@ The calls, last:
 |---|---|
 | `folders [--counts]` | Lists decoded folder names and SPECIAL-USE roles (Inbox, Sent, Drafts, Trash, Junk, Archive); counts add total and unseen |
 | `sync [limit]` | Copies uncached history into the cache, newest UID first (default 100); reports the descending history frontier and whether more remains |
-| `list [limit] [--unread]` | Shows decoded Date/From/Subject with live read/unread, newest UID first (default 20); optionally unread only |
-| `search <text…>` | Up to 100 Date/From/Subject summaries whose raw mail contains the text, with live read/unread |
+| `list [limit] [--unread] [--flag <f>]` | Shows decoded Date/From/Subject with live read/unread and flags, newest UID first (default 20); optionally unread only |
+| `search [text…] [criteria…]` | Server-side IMAP SEARCH: `--from --to --subject --header Name:value --since --before --flag --no-flag --larger --smaller --limit`, combined with AND. Free text stays local |
 | `read <uid> [--no-mark]` | Shows one raw mail after the external-content warning; marks it read by default |
-| `mark <uid> read\|unread` | Sets or clears only the server read flag and reports the observed state |
+| `mark <uids> read\|unread` | Sets or clears Seen, with a per-UID observed result |
+| `flag <uids> add\|remove <flag…>` | flagged, answered, draft, seen, a custom keyword; `\Deleted` refused |
+| `headers <uids>` | All headers, with a per-UID result (no Seen) |
+| `parts <uid>` | The MIME tree with id, type, size, filename, inline or attachment |
+| `part <uid> <part-id>` | Decoded, base64 for binary, 25 MB cap, no Seen |
 | `publish <uid>` | Sends one mail, after a warning line, to the configured destination |
 | `sub add <target> [/regex/]` | Subscribes a queue or agent from the current UIDNEXT; an absent or empty filter matches ALL future mail |
 | `sub list` | Lists your subscriptions with their first UID and sent and dropped counts, then a blank line and cached poll status |
 | `sub delete <id>` | Deletes a subscription; to change one, delete it and add it again |
 | `status` | Shows cached poll health and its age without connecting to IMAP |
 
-- Add `--folder <name>` to `sync`, `list`, `search`, `read`, `mark` or `publish`; JSON uses `folder`. The default is Configuration `mailbox`, then INBOX. Quote names with spaces: `read 123 --no-mark --folder "Login Mail"`.
+- Add `--folder <name>` to `sync`, `list`, `search`, `read`, `mark`, `flag`, `headers`, `parts`, `part` or `publish`; JSON uses `folder`. The default is Configuration `mailbox`, then INBOX. Quote names with spaces: `read 123 --no-mark --folder "Login Mail"`.
+- `<uids>` is `123`, `123,130` or `100:200`, at most 1000 UIDs, with a per-UID result. Over-limit sets are refused whole. One failed UID does not prevent results for the others; an unknown write outcome is never retried. JSON `uids` is a string (one integer also works); `mark` still accepts the legacy single `uid`.
+- `flag` changes only the named flags and needs the server to permit them persistently. JSON `flags` is an array and `action` is `add` or `remove`. Read, mark and flag stay under ordinary admission.
+- Search criteria are ANDed in one server SEARCH and intersected with the cache. Free text matches cached raw mail locally; sync first for uncached mail. `--limit` is 1..100; dates accept `YYYY-MM-DD` or `DD-Mon-YYYY`; JSON uses `no_flag`.
+- MIME sizes are encoded bytes. `part` refuses above the 25 MB (26214400-byte) cap before decoding or allocating its literal. The bus answer cap remains 256 KiB: a part returns what fits, labelled truncated; binary output uses complete base64 groups. It does not enter the raw-mail cache. Headers and parts use EXAMINE and BODY.PEEK, never Seen.
 - Use the decoded names from `folders`. INBOX matches case-insensitively; other names match exactly. Missing and non-selectable folders are refused before selection.
 - A mail is named by its folder and UID; the same UID in two folders identifies different mail.
 - `folders` does not select or fetch mail. Without `--counts` it sends no STATUS. Counts use LIST-STATUS when offered, otherwise STATUS for at most 50 selectable folders within the call deadline; remaining counts are labelled skipped.
@@ -155,7 +164,7 @@ ok: manual cache only; subscriptions=0 damaged=0 backlog=0 sent=0 dropped=0 warn
 ## Configuration
 
 - Which server and default mailbox to read, and the one fixed destination for `publish` (callers cannot change it; it is independent of subscriptions).
-- The mailbox is opened read-only except when a call explicitly changes the read flag. A TLS failure never falls back to plain.
+- The mailbox is opened read-only except for default read, mark and flag. A TLS failure never falls back to plain.
 
 <details>
 <summary>Keys</summary>
@@ -172,7 +181,7 @@ ok: manual cache only; subscriptions=0 damaged=0 backlog=0 sent=0 dropped=0 warn
 | `cafile` | Optional existing public CA file visible inside the sandbox; otherwise system trust |
 
 - TLS verifies certificates and hostnames with TLS 1.2 or newer.
-- Bodies are fetched with PEEK, including default reads. Only a separate Seen-only STORE changes the read flag; sync, subscriptions and publish never mark it.
+- Bodies are fetched with PEEK, including default reads. A default read or mark uses a separate Seen-only STORE; flag adds or removes only the requested flags. Sync, headers, MIME parts, subscriptions and publish never mark it.
 
 </details>
 
@@ -288,7 +297,7 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 - These are live operations, including no-mark reads of cached bodies. An unreachable server refuses the call; this is not an offline mail viewer.
 - A changed mailbox identity or UIDVALIDITY refuses a flag-changing call before it can mark a reused UID. Sync or a no-mark read can refresh the cache epoch.
 - Default read and mark use a writable selection of exactly the selected folder, and require persistent Seen permission from the server. Otherwise they refuse with cannot-mark; they do not return a body as marked.
-- All other operations use a read-only selection. No delete, move, copy, expunge, replacement flag set, or flag other than Seen is sent.
+- Flag also uses a writable selection and checks the server permits every requested persistent flag. All other operations use a read-only selection. No delete, move, copy, expunge, replacement flag set or Deleted flag is sent.
 - Already-correct flags need no write. A definite server refusal is reported as refused; a connection loss or malformed response after sending is unknown. Inspect live status before deciding what to do next; the helper never retries a write automatically.
 - The answer reports the observed state, which another mail client may have changed immediately after the write.
 - A lost bus reply may leave the mail marked even though you did not receive its body. Use no-mark when this matters. Repeating a confirmed read or mark is idempotent with respect to its requested read flag.

@@ -85,14 +85,14 @@ class Bounded:
     def readline(self):
         raw = self.buffer().readline(MAX_LINE + 1)
         self.response_bytes += len(raw)
-        if len(raw) > MAX_LINE or self.response_bytes > MAX_RESPONSE:
+        if len(raw) > MAX_LINE or self.response_bytes > getattr(self, 'response_limit', MAX_RESPONSE):
             raise Tainted('IMAP response exceeds its line or aggregate byte limit')
         return raw
 
     def read(self, size):
         if type(size) is not int or size < 0 or size > getattr(self, 'literal_limit', MAX_MAIL):
             raise LiteralTooLarge('IMAP literal exceeds its byte limit before allocation')
-        if self.response_bytes + size > MAX_RESPONSE:
+        if self.response_bytes + size > getattr(self, 'response_limit', MAX_RESPONSE):
             raise Tainted('IMAP literal exceeds its byte limit before allocation')
         self.response_bytes += size
         raw = self.buffer().read(size)
@@ -125,7 +125,7 @@ def ok(result):
     return data
 
 
-def selected(connection, name, *, readonly=True):
+def selected(connection, name, *, readonly=True, flag_write=False):
     connection.seen_writable = False
     ok(connection.select(mailbox(name), readonly=readonly))
     if not readonly:
@@ -133,7 +133,8 @@ def selected(connection, name, *, readonly=True):
         if not permanent or len(permanent) != 1 or not isinstance(permanent[0], bytes):
             raise WireError('cannot mark: server omitted PERMANENTFLAGS')
         flags = imaplib.ParseFlags(b'FLAGS ' + permanent[0])
-        if not any(flag.lower() in (b'\\seen', b'\\*') for flag in flags):
+        connection.permanent_flags = {f.decode('ascii').lower() for f in flags}
+        if not flag_write and not any(flag.lower() in (b'\\seen', b'\\*') for flag in flags):
             raise WireError('cannot mark: server does not permit persistent Seen')
         connection.seen_writable = True
     values = []
@@ -222,7 +223,7 @@ class FlagOutcomeUnknown(WireError):
     pass
 
 
-def seen(connection, numbers):
+def flags(connection, numbers):
     """Live Seen bits by UID; never cache flags or trust sequence numbers."""
     if not isinstance(numbers, (list, tuple)) or len(numbers) > 1000:
         raise WireError('live flag query is limited to 1000 cached UIDs')
@@ -252,8 +253,12 @@ def seen(connection, numbers):
             atoms = flags[0].split()
             if any(not atom or any(c < 33 or c > 126 or c in b'(){}%*"' for c in atom) for atom in atoms):
                 raise WireError('IMAP flag response has invalid flag atoms')
-            result[number] = any(atom.lower() == b'\\seen' for atom in atoms)
+            result[number] = {atom.decode('ascii') for atom in atoms}
     return result
+
+
+def seen(connection, numbers):
+    return {n: any(f.lower() == '\\seen' for f in fs) for n, fs in flags(connection, numbers).items()}
 
 
 def mark_seen(connection, number, value):
@@ -287,3 +292,64 @@ def mark_seen(connection, number, value):
         raise FlagOutcomeUnknown('Seen flag outcome unknown; inspect live status before repeating') from None
     finally:
         connection.seen_store_active = False
+
+
+def change_flags(connection, number, values, add):
+    """One STORE, then observe; never repeat an uncertain write."""
+    permitted = getattr(connection, 'permanent_flags', set())
+    if not getattr(connection, 'seen_writable', False) or any(
+            f.lower() not in permitted and not ('\\*' in permitted and not f.startswith('\\')) for f in values):
+        raise WireError('server does not permit these persistent flags')
+    before = flags(connection, [number])
+    if number not in before: raise WireError('UID is no longer present in the mailbox')
+    wanted = {f.lower() for f in values}
+    current = {f.lower() for f in before[number]}
+    if (wanted <= current if add else not wanted & current): return before[number]
+    accepted = False
+    connection.seen_store_active = True
+    try:
+        response = connection.uid('STORE', str(number), '+FLAGS.SILENT' if add else '-FLAGS.SILENT', '(' + ' '.join(values) + ')')
+        if not isinstance(response, tuple) or response[0] not in ('OK', 'NO', 'BAD'):
+            raise FlagOutcomeUnknown('flag outcome unknown; inspect live flags before repeating')
+        ok(response)
+        accepted = True
+        after = flags(connection, [number])
+        if number not in after: raise WireError('UID vanished after STORE')
+        return after[number]
+    except Refused:
+        if not accepted: raise
+        raise FlagOutcomeUnknown('flag outcome unknown; inspect live flags before repeating') from None
+    except (OSError, TimeoutError, imaplib.IMAP4.error, WireError):
+        raise FlagOutcomeUnknown('flag outcome unknown; inspect live flags before repeating') from None
+    finally:
+        connection.seen_store_active = False
+
+
+def criteria_search(connection, arguments):
+    raw = ok(connection.uid('SEARCH', None, *arguments))
+    if len(raw) != 1 or not isinstance(raw[0], bytes) or len(raw[0]) > MAX_LINE:
+        raise WireError('IMAP SEARCH result exceeds its byte limit; narrow the criteria')
+    words = raw[0].split()
+    if len(words) > 1000: raise WireError('IMAP SEARCH exceeds 1000 UIDs; narrow the criteria')
+    result = [uid(word.decode('ascii')) for word in words]
+    if len(set(result)) != len(result): raise WireError('duplicate SEARCH UIDs')
+    return set(result)
+
+
+def peek(connection, number, section, cap):
+    """Literal cap is checked by Bounded before allocation; always PEEK."""
+    previous = getattr(connection, 'literal_limit', MAX_MAIL), getattr(connection, 'response_limit', MAX_RESPONSE)
+    connection.literal_limit, connection.response_limit = cap, cap + 65536
+    try:
+        raw = ok(connection.uid('FETCH', str(number), '(UID BODY.PEEK[' + section + '])'))
+    finally:
+        connection.literal_limit, connection.response_limit = previous
+    parts = [item for item in raw if isinstance(item, tuple)]
+    if len(parts) != 1 or len(parts[0]) != 2: raise WireError('invalid MIME literal response')
+    metadata, body = parts[0]
+    if not isinstance(metadata, bytes) or not isinstance(body, bytes): raise WireError('invalid MIME literal response')
+    match = re.search(rb'\bUID ([1-9][0-9]*)\b', metadata)
+    size = re.search(rb'\{([0-9]+)\}\Z', metadata)
+    if not match or int(match[1]) != number or not size or int(size[1]) != len(body) or len(body) > cap:
+        raise WireError('MIME literal UID or length mismatch')
+    return body

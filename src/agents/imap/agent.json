@@ -40,7 +40,11 @@
     },
     "folder": {
       "type": "string",
-      "help": "--folder <name> (JSON folder) on every per-mail call; default is the configured mailbox, then INBOX. --folder on sync, list, search, read, mark and publish."
+      "help": "--folder <name> (JSON folder) on every per-mail call; default is the configured mailbox, then INBOX."
+    },
+    "uids": {
+      "type": "string",
+      "help": "123, 123,130 or 100:200, at most 1000 UIDs, with a per-UID result; duplicate UIDs refused"
     }
   },
   "methods": {
@@ -59,34 +63,105 @@
       "text": "sync [limit] [--folder <name>]"
     },
     "list": {
-      "help": "See what is cached: Date, From and Subject with live read or unread status, newest UID first; default 20. --unread filters before the limit. JSON unread is a boolean. Date is as sent, unverified.",
+      "help": "See cached Date, From and Subject with live read/unread and a flags column, newest UID first; default 20. --unread and --flag <f> filter before the limit. Date is as sent, unverified.",
       "args": [
         {
           "name": "limit",
           "optional": true
         },
         {
+          "name": "flag",
+          "type": "string",
+          "optional": true,
+          "help": "Require this live flag; JSON flag is a string"
+        },
+        {
           "name": "folder",
           "optional": true
         }
       ],
-      "text": "list [limit] [--unread] [--folder <name>]"
+      "text": "list [limit] [--unread] [--flag <f>] [--folder <name>]"
     },
     "search": {
-      "help": "Find cached mail by text: up to 100 Date, From and Subject summaries whose raw mail matches, with live read or unread status. The match runs locally; the server does no text search.",
+      "help": "Server-side IMAP SEARCH: --from --to --subject --header Name:value --since --before --flag --no-flag --larger --smaller --limit, combined with AND. Free text stays local. Return cached matches, default 100; sync first to discover mail. Dates accept YYYY-MM-DD or DD-Mon-YYYY; JSON uses no_flag.",
       "args": [
         {
           "name": "folder",
           "optional": true
         },
         {
+          "name": "from",
+          "type": "string",
+          "optional": true,
+          "help": "Sender"
+        },
+        {
+          "name": "to",
+          "type": "string",
+          "optional": true,
+          "help": "Recipient"
+        },
+        {
+          "name": "subject",
+          "type": "string",
+          "optional": true,
+          "help": "Subject"
+        },
+        {
+          "name": "header",
+          "type": "string",
+          "optional": true,
+          "help": "Name:value"
+        },
+        {
+          "name": "since",
+          "type": "string",
+          "optional": true,
+          "help": "YYYY-MM-DD or DD-Mon-YYYY"
+        },
+        {
+          "name": "before",
+          "type": "string",
+          "optional": true,
+          "help": "YYYY-MM-DD or DD-Mon-YYYY"
+        },
+        {
+          "name": "flag",
+          "type": "string",
+          "optional": true,
+          "help": "Required flag"
+        },
+        {
+          "name": "no_flag",
+          "type": "string",
+          "optional": true,
+          "help": "Excluded flag"
+        },
+        {
+          "name": "larger",
+          "type": "string",
+          "optional": true,
+          "help": "Minimum raw size in bytes"
+        },
+        {
+          "name": "smaller",
+          "type": "string",
+          "optional": true,
+          "help": "Maximum raw size in bytes"
+        },
+        {
+          "name": "limit",
+          "optional": true
+        },
+        {
           "name": "text",
           "type": "string",
+          "optional": true,
           "rest": true,
-          "help": "Nonempty local case-insensitive text, at most 4096 UTF-8 bytes; no controls"
+          "help": "Local case-insensitive cache match, at most 4096 UTF-8 bytes, no controls"
         }
       ],
-      "text": "search <text...> [--folder <name>]"
+      "text": "search [text...] [--from <value>] [--to <value>] [--subject <value>] [--header Name:value] [--since <date>] [--before <date>] [--flag <f>] [--no-flag <f>] [--larger <bytes>] [--smaller <bytes>] [--limit <n>] [--folder <name>]"
     },
     "read": {
       "help": "Get one raw mail and mark it Seen by default, cached or not. --no-mark (JSON mark_read:false) leaves it unchanged. Every read needs a live server; a lost reply may leave the mail marked. No other flags.",
@@ -154,12 +229,12 @@
       "help": "See the last poll and its age, and the subscription, backlog, sent, dropped and warning counts. No mailbox connection."
     },
     "mark": {
-      "text": "mark <uid> read|unread [--folder <name>]",
-      "help": "Set or clear Seen on the server and get the observed read or unread state. Ordinary IMAP admission permits this. An unknown write outcome is not retried.",
+      "text": "mark <uids> read|unread [--folder <name>]",
+      "help": "Set or clear Seen on the named UIDs and return a per-UID result. Ordinary IMAP admission permits this. An unknown write outcome is not retried.",
       "destructive": true,
       "args": [
         {
-          "name": "uid"
+          "name": "uids"
         },
         {
           "name": "state",
@@ -184,6 +259,78 @@
           "type": "bool",
           "optional": true,
           "help": "Add total and unseen counts; JSON counts is a boolean"
+        }
+      ]
+    },
+    "flag": {
+      "text": "flag <uids> add|remove <flag...> [--folder <name>]",
+      "help": "flagged, answered, draft, seen, a custom keyword; \\Deleted refused. Ordinary admission; change only the named flags and return a per-UID observed result. Unknown writes are not retried.",
+      "destructive": true,
+      "args": [
+        {
+          "name": "uids"
+        },
+        {
+          "name": "action",
+          "type": [
+            "add",
+            "remove"
+          ],
+          "help": "Add or remove only the named flags"
+        },
+        {
+          "name": "folder",
+          "optional": true
+        },
+        {
+          "name": "flags",
+          "type": "string",
+          "rest": true,
+          "help": "One or more flags: flagged, answered, draft, seen or a custom keyword; JSON flags is an array"
+        }
+      ]
+    },
+    "headers": {
+      "text": "headers <uids> [--folder <name>]",
+      "help": "All headers, with a per-UID result (no Seen). External content is untrusted; answer limited to 256 KiB.",
+      "args": [
+        {
+          "name": "uids"
+        },
+        {
+          "name": "folder",
+          "optional": true
+        }
+      ]
+    },
+    "parts": {
+      "text": "parts <uid> [--folder <name>]",
+      "help": "The MIME tree with id, type, size, filename, inline or attachment. Sizes are encoded bytes; no Seen.",
+      "args": [
+        {
+          "name": "uid"
+        },
+        {
+          "name": "folder",
+          "optional": true
+        }
+      ]
+    },
+    "part": {
+      "text": "part <uid> <part-id> [--folder <name>]",
+      "help": "Decoded, base64 for binary, 25 MB cap, no Seen. Refuse above 26214400 encoded bytes before decoding. Return what fits in the 256 KiB answer cap and label truncation.",
+      "args": [
+        {
+          "name": "uid"
+        },
+        {
+          "name": "part_id",
+          "type": "string",
+          "help": "MIME leaf id from parts, e.g. 1 or 2.1"
+        },
+        {
+          "name": "folder",
+          "optional": true
         }
       ]
     }

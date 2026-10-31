@@ -161,7 +161,7 @@ class SeenTests(unittest.TestCase):
 
     def test_strict_call_shapes_and_flags_bounds_before_io(self):
         self.assertEqual(proxy.parse('read 7 --no-mark'), {'method': 'read', 'uid': 7, 'mark_read': False})
-        self.assertEqual(proxy.parse('mark 7 unread'), {'method': 'mark', 'uid': 7, 'state': 'unread'})
+        self.assertEqual(proxy.parse('mark 7 unread'), {'method': 'mark', 'uids': [7], 'state': 'unread'})
         self.assertEqual(proxy.parse('list --unread 2'), {'method': 'list', 'unread': True, 'limit': 2})
         for body in ('read 07', 'mark +7 read', 'mark 7 deleted', 'read 7 extra', 'list --unread --unread', '{"method":"read","uid":7,"mark_read":1}', '{"method":"list","unread":"true"}'):
             with self.subTest(body=body), self.assertRaises(ValueError):
