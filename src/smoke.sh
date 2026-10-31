@@ -49,7 +49,7 @@ export GOCACHE=${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/go-build}
 # In file order of their first section. `core` is the serial run the fast mode
 # always was, in one process against one daemon; every other shard is a
 # section that is slow or keeps a daemon of its own, moved out of it.
-SHARDS=(core go_checks agent_packages process_titles readers call_damage reply_to script_inbox
+SHARDS=(core go_checks go_unit go_release agent_packages process_titles readers call_damage reply_to script_inbox
   script_done script_confined listing backlog ttl full_queue enrolment restart
   orphans transfer corrupt_pair supervisor
   mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename web_ts samples tls_port
@@ -147,6 +147,10 @@ if [ -z "$SHARD" ]; then
   echo
   echo "slowest sections (ms):"
   cat "$SMOKE_OUT"/*.timing 2>/dev/null | sort -rn | { [ "${SMOKE_TIMES:-0}" = 1 ] && cat || head -14; } | sed 's/^/  /'
+  echo "Go check shards (ms):"
+  for name in go_checks go_unit go_release; do
+    [ ! -f "$SMOKE_OUT/$name.wall" ] || sed 's/^/  /' "$SMOKE_OUT/$name.wall"
+  done
   echo "shards by wall-clock (ms), whole run $wall:"
   cat "$SMOKE_OUT"/*.wall | sort -rn | { [ "${SMOKE_TIMES:-0}" = 1 ] && cat || head -6; } | sed 's/^/  /'
   if [ "$skipped" -gt 0 ]; then
@@ -378,10 +382,6 @@ ok_exit "the link check fails a moved or deleted file that a file nobody edited 
 out=$(PYTHONDONTWRITEBYTECODE=1 python3 ./check-links.py 2>&1); rc=$?
 ok_exit "this tree leaves no Markdown link to nothing, and none to a file it moved or deleted" "$rc"
 [ "$rc" = 0 ] || echo "$out"
-# One package.sh build serves both archive checks; each built its own, the shard's largest CPU cost (J35).
-out=$(./package.sh "$D/dist" 2>&1); rc=$?
-ok_exit "package.sh builds the host's archives" "$rc"
-[ "$rc" = 0 ] || echo "$out"
 # macOS is built from the Linux node without cgo: the programs that already
 # build for it (docs: Plans/R1.0-Release/macos.md) must keep doing so.
 out=$(for goarch in arm64 amd64; do GOOS=darwin GOARCH=$goarch CGO_ENABLED=0 go build -o /dev/null ./cmd/agent-bus ./cmd/agent-bus-runner || exit 1; done 2>&1); rc=$?
@@ -390,14 +390,8 @@ ok_exit "the CLI and the runner build for macOS, Apple Silicon and Intel" "$rc"
 out=$(bash ./package-darwin.test.sh 2>&1); rc=$?
 ok_exit "the macOS client archive holds Mach-O client programs for its CPU and nothing of the node" "$rc"
 [ "$rc" = 0 ] || echo "$out"
-out=$(RELEASE_DIST=$D/dist bash ./release-verify.real.test.sh 2>&1); rc=$?
-ok_exit "release evidence passes the checksummed archives package.sh builds and fails each bad release" "$rc"
-[ "$rc" = 0 ] || echo "$out"
 out=$(bash ./smoke-port.test.sh 2>&1); rc=$?
 ok_exit "smoke port claim contract" "$rc"
-[ "$rc" = 0 ] || echo "$out"
-out=$(NPM_DIST=$D/dist bash ./npm-pack.test.sh 2>&1); rc=$?
-ok_exit "the npm wrapper installs from its tarballs and runs a request, a reply and an MCP call, and the macOS platform packages are built and wired" "$rc"
 [ "$rc" = 0 ] || echo "$out"
 out=$(bash ./acceptance/guard-lock.test.sh 2>&1); rc=$?
 ok_exit "a private-store podman harness refuses to start a container nobody holds the smoke-gate lock for (J32)" "$rc"
@@ -418,22 +412,6 @@ ok_exit "release-verify.sh fails an unstamped binary, an altered version, a miss
 out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/shared -p test_help_golden.py -v 2>&1); rc=$?
 ok_exit "every bundled agent's help matches its golden" "$rc"
 [ "$rc" = 0 ] || echo "$out"
-sec "the Go checks"
-# Run here, not only by hand: a mutation of anything the unit tests cover was
-# invisible to this script while they lived outside. CLAUDE.md asks for all
-# three to be green.
-checks=("vet:go vet ./..." "test:go test ./...")
-# The race run's own deadline is under the shard's 240 s, so a test that
-# hangs is named by go test (its package and the test still running) rather
-# than the shard being killed with nothing said.
-normal && checks=("vet:go vet ./..." "race:go test -race -timeout 200s ./...")
-for c in "${checks[@]}"; do
-  out=$(eval "${c#*:}" 2>&1); rc=$?
-  ok_exit "go ${c%%:*}" $rc
-  # What failed, wherever it sits: see smoke-gofail.sh.
-  [ $rc -eq 0 ] || echo "$out" | go_failure_text
-done
-
 # A layer rule nobody checks is a comment. These are the two directions that
 # matter: nothing inward may name an adapter, and the adapter must actually
 # be reached from somewhere, or the first check passes because the seam is
@@ -452,6 +430,40 @@ has "and core is what asks for it" \
 sec "the fixture harness checks"
 bg_report
 }
+
+go_unit() {
+sec "the Go checks"
+# Run here, not only by hand: a mutation of anything the unit tests cover was
+# invisible to this script while they lived outside. CLAUDE.md asks for all
+# three to be green.
+checks=("vet:go vet ./..." "test:go test ./...")
+# The race run's own deadline is under the shard's 240 s, so a test that
+# hangs is named by go test (its package and the test still running) rather
+# than the shard being killed with nothing said.
+normal && checks=("vet:go vet ./..." "race:go test -race -timeout 200s ./...")
+for c in "${checks[@]}"; do
+  out=$(eval "${c#*:}" 2>&1); rc=$?
+  ok_exit "go ${c%%:*}" $rc
+  # What failed, wherever it sits: see smoke-gofail.sh.
+  [ $rc -eq 0 ] || echo "$out" | go_failure_text
+done
+
+}
+
+go_release() {
+sec "the host release and npm checks"
+# One package.sh build serves both archive checks; each built its own, the shard's largest CPU cost (J35).
+out=$(./package.sh "$D/dist" 2>&1); rc=$?
+ok_exit "package.sh builds the host's archives" "$rc"
+[ "$rc" = 0 ] || echo "$out"
+out=$(RELEASE_DIST=$D/dist bash ./release-verify.real.test.sh 2>&1); rc=$?
+ok_exit "release evidence passes the checksummed archives package.sh builds and fails each bad release" "$rc"
+[ "$rc" = 0 ] || echo "$out"
+out=$(NPM_DIST=$D/dist bash ./npm-pack.test.sh 2>&1); rc=$?
+ok_exit "the npm wrapper installs from its tarballs and runs a request, a reply and an MCP call, and the macOS platform packages are built and wired" "$rc"
+[ "$rc" = 0 ] || echo "$out"
+}
+
 process_titles() {
 if normal; then
   sec "shared version and live process titles"

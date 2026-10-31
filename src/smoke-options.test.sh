@@ -109,13 +109,17 @@ import pathlib,re,sys
 out=pathlib.Path(sys.argv[sys.argv.index('--out')+1])
 source=pathlib.Path('smoke.sh').read_text()
 names=re.search(r'SHARDS=\((.*?)\)',source,re.S)[1].split()
-out.write_text(''.join(f'{n}\t'+('normal' if n=='go_checks' else 'skip')+'\n' for n in names+[f'core_{i}' for i in range(1,11)]))
+out.write_text(''.join(f'{n}\t'+('normal' if n in ('go_checks','go_unit','go_release') else 'skip')+'\n' for n in names+[f'core_{i}' for i in range(1,11)]))
 SELECT
 printf '%s\n' '#!/bin/bash' 'exit 0' >"$d/src/build.sh"
 rm -f "$PROBE_MARKER"
 rc=0
 output=$(TMPDIR="$d" PROBE_HOLDER='#worker@test' bash "$d/src/smoke.sh" --normal 2>&1) || rc=$?
-[ "$rc" = 0 ] && [ "$(cat "$PROBE_MARKER" 2>/dev/null)" = marked-child ] && [[ $output == *'passed 1, failed 0'* ]] || {
+[ "$rc" = 0 ] && [ "$(wc -l <"$PROBE_MARKER")" = 3 ] && [ "$(sort -u "$PROBE_MARKER")" = marked-child ] && [[ $output == *'passed 3, failed 0'* ]] || {
   echo "actual driver did not pass its child marker: rc $rc: $output"; exit 1;
 }
-echo 'actual normal driver passes its marker to its one selected child: green'
+times=$(printf '%s\n' "$output" | sed -n '/^Go check shards (ms):$/,/^shards by wall-clock/p')
+for name in go_checks go_unit go_release; do
+  grep -Eq "^[[:space:]]+[0-9]+ $name$" <<<"$times" || { echo "missing split-shard time for $name: $output"; exit 1; }
+done
+echo 'actual normal driver marks all three split Go children and reports each time: green'

@@ -114,6 +114,17 @@ class Selection(unittest.TestCase):
         p = self.plan(['src/smoke.sh'])
         self.assertEqual(set(p['checks'].values()),{'normal'})
 
+    def test_split_go_checks_keep_the_original_selection_for_every_subsystem(self):
+        for mode in ('fast', 'normal', 'slow'):
+            for target in selector.ALL:
+                with self.subTest(mode=mode, target=target):
+                    selected = self.plan([], mode, target)['checks']
+                    self.assertEqual(selected['go_unit'], selected['go_checks'])
+                    self.assertEqual(selected['go_release'], selected['go_checks'])
+        for paths in (['src/npm/pack.py'], ['src/internal/core/core.go'], ['src/smoke.sh']):
+            selected = self.plan(paths)['checks']
+            self.assertEqual([selected[n] for n in ('go_checks', 'go_unit', 'go_release')], ['normal'] * 3)
+
     def test_map_covers_every_shard_and_core_section(self):
         script = (ROOT/'src/smoke.sh').read_text()
         names = re.search(r'SHARDS=\((.*?)\)', script, re.S)[1].split()

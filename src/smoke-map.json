@@ -60,6 +60,12 @@
     "go_checks": {
       "tags": "ABCDEFGHKM"
     },
+    "go_unit": {
+      "tags": "ABCDEFGHKM"
+    },
+    "go_release": {
+      "tags": "ABCDEFGHKM"
+    },
     "process_titles": {
       "tags": "GHM"
     },
@@ -403,21 +409,6 @@
     "go_checks": [
       {
         "argv": [
-          "go",
-          "test",
-          "-count=1",
-          "./internal/core",
-          "./internal/auth",
-          "./internal/store/sqlite",
-          "./internal/protocol",
-          "./internal/envfile",
-          "./internal/api",
-          "-run",
-          "^(TestEmptyACLRestrictsUseAndVisibilityOnNewAndRestoredRecords|TestMintHandsOutNothingItCouldNotWrite|TestKVRoundTripsAndSurvivesAReopen|TestSigilsAreFreeOfNames|TestENVConformanceCases|TestEmptyACLIsHiddenAndRefusesOtherCallersOverHTTP)$"
-        ]
-      },
-      {
-        "argv": [
           "python3",
           "-B",
           "smoke_select_test.py"
@@ -471,12 +462,6 @@
         "argv": [
           "bash",
           "smoke-port.test.sh"
-        ]
-      },
-      {
-        "argv": [
-          "bash",
-          "release-verify.test.sh"
         ]
       },
       {
@@ -1030,6 +1015,31 @@
           "bun",
           "test",
           "agents/discord/fast.test.ts"
+        ]
+      }
+    ],
+    "go_unit": [
+      {
+        "argv": [
+          "go",
+          "test",
+          "-count=1",
+          "./internal/core",
+          "./internal/auth",
+          "./internal/store/sqlite",
+          "./internal/protocol",
+          "./internal/envfile",
+          "./internal/api",
+          "-run",
+          "^(TestEmptyACLRestrictsUseAndVisibilityOnNewAndRestoredRecords|TestMintHandsOutNothingItCouldNotWrite|TestKVRoundTripsAndSurvivesAReopen|TestSigilsAreFreeOfNames|TestENVConformanceCases|TestEmptyACLIsHiddenAndRefusesOtherCallersOverHTTP)$"
+        ]
+      }
+    ],
+    "go_release": [
+      {
+        "argv": [
+          "bash",
+          "release-verify.test.sh"
         ]
       }
     ]
