@@ -5,6 +5,7 @@ The Install, Check, Try it and Update commands are the fenced blocks of INSTALL.
 ordinary user with sudo; the only things this fixture adds are the prerequisites the document lists (git, Go with
 gcc, Bun at /usr/bin/bun, an SSH key) and the redirection of the document's GitHub URL to this commit.
 """
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -69,6 +70,7 @@ class InstallFromACheckout(unittest.TestCase):
         run('git', 'config', '--system', '--add', 'safe.directory', '*')
         run('git', 'config', '--system', 'user.name', 'fixture')
         run('git', 'config', '--system', 'user.email', 'fixture@install-md.test')
+        print('INSTALL.md sha256=' + hashlib.sha256(DOC.read_bytes()).hexdigest(), flush=True)
         cls.install, = blocks('Install')
         cls.check, = blocks('Check')
         cls.try_serve, cls.try_call = [b for b in blocks('Try it') if 'agent-bus' in b]
@@ -97,6 +99,7 @@ class InstallFromACheckout(unittest.TestCase):
         want = (CHECKOUT / 'src/internal/version/VERSION').read_text().strip()
         self.assertEqual(version.stdout.splitlines()[0], want, 'the installed agent-bus is not this checkout\'s version')
         self.assertRegex(version.stdout, r'build_info: dev@', 'the build carries no stamp from the build.sh the document runs')
+        print('Installed CLI: ' + version.stdout.strip(), flush=True)
         server = subprocess.Popen(['runuser', '-u', USER, '--', 'env', '-i', *[f'{k}={v}' for k, v in ENV.items()],
                                    'bash', '-euo', 'pipefail', '-c', self.try_serve],
                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=f'/home/{USER}', start_new_session=True)
@@ -121,6 +124,7 @@ class InstallFromACheckout(unittest.TestCase):
             time.sleep(1)
         out, err = stop_server()
         self.assertIsNotNone(reply, f'the call block never got an answer: [{done.stdout}] [{done.stderr}] server: {out} {err}')
+        print('Documented call: ' + reply.strip(), flush=True)
         body = json.loads(reply.strip().splitlines()[-1])
         self.assertEqual((body['from'], body['body']), ('#hi', 'hi: ping'))
 

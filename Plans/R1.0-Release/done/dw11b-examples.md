@@ -31,6 +31,8 @@ passed 4, failed 0
 ok PHP journal gained 0 lines
 ```
 
+The complete owning PHP entry point also passed: `CLIENT_BIN="$PWD/tmp/php-bin" timeout --kill-after=5 120 bash src/clients/php/tests/journal-quiet.sh bash src/clients/check.sh php`, **141 passed, 0 failed**, `ok PHP journal gained 0 lines`. This includes the new example through the same hook used by normal checks.
+
 W2B's handoff records three output-assertion mutants at `6a79f6db`: omitted call topic, altered expected text and altered server answer. The example lives in the existing PHP conformance suite, so normal client checks run it too.
 
 ## Checkout container work
