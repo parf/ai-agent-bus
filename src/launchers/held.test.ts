@@ -12,6 +12,7 @@ const REAL_COMPACT = { code: -32603, message: "failed to submit turn input: Acti
 
 function fakeAppServer(decide: (method: string, params: any) => { result?: unknown; error?: unknown }) {
   const seen: { method: string; params: any }[] = [];
+  const accepted: string[] = []; // the turn inputs the server took, not the ones it refused
   const server = Bun.serve({
     port: 0, hostname: "127.0.0.1",
     fetch: (req, s) => (s.upgrade(req) ? undefined : new Response("no", { status: 400 })),
@@ -19,10 +20,12 @@ function fakeAppServer(decide: (method: string, params: any) => { result?: unkno
       const m = JSON.parse(String(raw));
       if (m.id === undefined) return;
       seen.push({ method: m.method, params: m.params });
-      ws.send(JSON.stringify({ jsonrpc: "2.0", id: m.id, ...decide(m.method, m.params) }));
+      const answer = decide(m.method, m.params);
+      if (m.method.startsWith("turn/") && !answer.error) accepted.push(m.params.clientUserMessageId);
+      ws.send(JSON.stringify({ jsonrpc: "2.0", id: m.id, ...answer }));
     } },
   });
-  return { url: `ws://127.0.0.1:${server.port}`, seen, stop: () => server.stop(true) };
+  return { url: `ws://127.0.0.1:${server.port}`, seen, accepted, stop: () => server.stop(true) };
 }
 
 function inbox(...ids: string[]) {
@@ -58,9 +61,9 @@ test("the launcher's bindThread delivers a message consumed during a compaction 
     expect(push!.ended()).toBe("delivery"); // the compaction outlasted the wait
     compacting = false;
     await restartAfterFailure(() => push, () => bindThread({ id: "thread-1" }));
-    const sent = () => app.seen.filter((x) => x.method.startsWith("turn/")).map((x) => x.params.clientUserMessageId);
-    for (let i = 0; i < 100 && !sent().includes("agent-bus:m2"); i++) await Bun.sleep(20);
-    expect(sent().lastIndexOf("agent-bus:m1")).toBeLessThan(sent().indexOf("agent-bus:m2")); // m1 was not lost, and came first
+    for (let i = 0; i < 100 && !app.accepted.includes("agent-bus:m2"); i++) await Bun.sleep(20);
+    // What the server accepted, in order: refused attempts at m1 during the compaction do not count.
+    expect(app.accepted).toEqual(["agent-bus:m1", "agent-bus:m2"]);
   } finally { push?.stop(); await push?.done; codex.stop(); app.stop(); }
 });
 

@@ -12,9 +12,10 @@ const NOT_STEERABLE = { code: -32600, message: "the active turn cannot accept sa
 // turn_kind, none of the structured data the fake above sends.
 const REAL_COMPACT = { code: -32603, message: "failed to submit turn input: ActiveTurnNotSteerable { turn_kind: Compact }" };
 
-type Fake = { url: string; seen: { method: string; params: any }[]; stop: () => void };
+type Fake = { url: string; seen: { method: string; params: any }[]; accepted: string[]; stop: () => void };
 function fakeServer(decide: (method: string, params: any, n: number) => { result?: unknown; error?: unknown }): Fake {
   const seen: Fake["seen"] = [];
+  const accepted: string[] = []; // the turn inputs the server took, not the ones it refused
   const counts = new Map<string, number>();
   const server = Bun.serve({
     port: 0, hostname: "127.0.0.1",
@@ -25,10 +26,12 @@ function fakeServer(decide: (method: string, params: any, n: number) => { result
       seen.push({ method: m.method, params: m.params });
       const n = (counts.get(m.method) ?? 0) + 1;
       counts.set(m.method, n);
-      ws.send(JSON.stringify({ jsonrpc: "2.0", id: m.id, ...decide(m.method, m.params, n) }));
+      const answer = decide(m.method, m.params, n);
+      if (m.method.startsWith("turn/") && !("error" in answer)) accepted.push(m.params.clientUserMessageId);
+      ws.send(JSON.stringify({ jsonrpc: "2.0", id: m.id, ...answer }));
     } },
   });
-  return { url: `ws://127.0.0.1:${server.port}`, seen, stop: () => server.stop(true) };
+  return { url: `ws://127.0.0.1:${server.port}`, seen, accepted, stop: () => server.stop(true) };
 }
 // The message kept for an inbox name, if any.
 const slot = (h: Held, name = "#s@x") => h.kept?.get(name);
@@ -83,10 +86,9 @@ test("a message consumed while a compaction outlasts the wait is delivered first
     queue.push({ message_id: "m2", from: "#a@x", body: "second" });
     const second = startPush(bus, deliver, (s) => said.push(s), undefined, 0, process.env, undefined, undefined, held);
     try {
-      const sent = () => f.seen.filter((x) => x.method.startsWith("turn/")).map((x) => x.params.clientUserMessageId);
-      for (let i = 0; i < 100 && !sent().includes("agent-bus:m2"); i++) await Bun.sleep(20);
-      const order = sent();
-      expect(order.lastIndexOf("agent-bus:m1")).toBeLessThan(order.indexOf("agent-bus:m2")); // the kept one first
+      for (let i = 0; i < 100 && !f.accepted.includes("agent-bus:m2"); i++) await Bun.sleep(20);
+      // What the server accepted, in order: the refused attempts at m1 during the compaction do not count.
+      expect(f.accepted).toEqual(["agent-bus:m1", "agent-bus:m2"]); // the kept one first, each once
       expect(slot(held)).toBeUndefined();
       expect(said.join("\n")).toContain("kept after a failed delivery, was delivered");
     } finally { second.stop(); await second.done; }
