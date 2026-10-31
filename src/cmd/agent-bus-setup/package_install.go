@@ -102,6 +102,7 @@ var bundleFiles = []string{
 	"agents/webhook/webhook.py",
 	"agents/imap/imap.py",
 	"agents/imap/cache.py",
+	"agents/imap/folders.py",
 	"agents/imap/wire.py",
 	"agents/imap/budget.py",
 	"agents/imap/matching.py",

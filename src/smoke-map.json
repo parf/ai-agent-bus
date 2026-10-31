@@ -58,13 +58,13 @@
       "tags": "M"
     },
     "go_checks": {
-      "tags": "ABCDEFGHKM"
+      "tags": "ABCDEFGHKLM"
     },
     "go_unit": {
-      "tags": "ABCDEFGHKM"
+      "tags": "ABCDEFGHKLM"
     },
     "go_release": {
-      "tags": "ABCDEFGHKM"
+      "tags": "ABCDEFGHKLM"
     },
     "process_titles": {
       "tags": "GHM"

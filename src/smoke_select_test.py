@@ -20,6 +20,14 @@ class Selection(unittest.TestCase):
         self.assertEqual(p['modes']['A'], 'fast')
         self.assertEqual(self.plan(['src/agents/telegram/receive.ts'], 'fast')['checks']['agent_slack'], 'skip')
 
+    def test_imap_changes_include_bundle_and_runtime_contract_checks(self):
+        for path in ('imap.py', 'agent.json', 'folders.py', 'package.sh'):
+            with self.subTest(path=path):
+                plan = self.plan(['src/agents/imap/' + path])
+                for shard in ('go_checks', 'go_unit', 'go_release'):
+                    self.assertEqual(plan['checks'][shard], 'normal', shard)
+                self.assertEqual(plan['checks']['agent_slack'], 'fast')
+
     def test_shared_router_selects_both_platforms(self):
         p = self.plan(['src/agents/shared/router.ts'])
         self.assertEqual(p['checks']['agent_telegram'], 'normal')
