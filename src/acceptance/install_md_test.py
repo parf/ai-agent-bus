@@ -91,7 +91,7 @@ class InstallFromACheckout(unittest.TestCase):
         self.assertEqual(done.returncode, 0, done.stdout[-800:] + done.stderr[-800:])
         self.assertEqual(done.stdout.split()[-2:], ['active', 'active'], done.stdout[-400:])
 
-    def test_3_the_try_it_blocks_serve_a_script_and_answer_a_call(self):
+    def test_4_the_try_it_blocks_serve_a_script_and_answer_a_call(self):
         version = self.sh('agent-bus --version')
         self.assertEqual(version.returncode, 0, version.stderr)
         want = (CHECKOUT / 'src/internal/version/VERSION').read_text().strip()
@@ -124,7 +124,7 @@ class InstallFromACheckout(unittest.TestCase):
         body = json.loads(reply.strip().splitlines()[-1])
         self.assertEqual((body['from'], body['body']), ('#hi', 'hi: ping'))
 
-    def test_4_the_update_block_pulls_builds_and_restarts(self):
+    def test_3_the_update_block_pulls_builds_and_restarts(self):
         marker = 'UPDATED-BY-THE-FIXTURE'
         # A newer commit in the served repository, so that an update that does not pull cannot pass.
         work = Path('/tmp/source-work')
@@ -140,9 +140,11 @@ class InstallFromACheckout(unittest.TestCase):
         after = subprocess.run(['systemctl', 'show', '-P', 'ActiveEnterTimestampMonotonic', 'agent-busd'], capture_output=True, text=True, timeout=10).stdout
         self.assertNotEqual(before, after, 'agent-busd was not restarted')
         for _ in range(100):
-            if subprocess.run(['systemctl', 'is-active', '--quiet', 'agent-busd', 'agent-bus-web'], timeout=10).returncode == 0:
+            services = subprocess.run(['systemctl', 'is-active', '--quiet', 'agent-busd', 'agent-bus-web'], timeout=10)
+            if services.returncode == 0:
                 break
             time.sleep(0.2)
+        self.assertEqual(services.returncode, 0, 'updated services did not both become active')
         status = self.sh('agent-bus status')
         self.assertEqual(status.returncode, 0, status.stderr)
 
