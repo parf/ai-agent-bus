@@ -146,8 +146,14 @@ class InstallFromACheckout(unittest.TestCase):
                 break
             time.sleep(0.2)
         self.assertEqual(services.returncode, 0, 'updated services did not both become active')
-        status = self.sh('agent-bus status')
-        self.assertEqual(status.returncode, 0, status.stderr)
+        # systemd's active state precedes the child's restored per-user sockets.
+        # Poll the real CLI with a deadline instead of assuming it is ready now.
+        deadline = time.monotonic() + 15
+        status = self.sh('agent-bus status', timeout=3)
+        while status.returncode != 0 and time.monotonic() < deadline:
+            time.sleep(0.1)
+            status = self.sh('agent-bus status', timeout=3)
+        self.assertEqual(status.returncode, 0, 'updated CLI did not become ready: ' + status.stderr)
 
 
 if __name__ == '__main__':
