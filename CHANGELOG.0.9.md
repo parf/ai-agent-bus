@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.243 — 2026-10-30
+
+Launcher reports resumed status once a held message is accepted, clearing the stale "waits for it to end" line
+
 ## 0.9.242 — 2026-10-30
 
 Twelfth published 0.9 changeset: 0.9.212–0.9.242, squashed.

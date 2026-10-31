@@ -289,6 +289,7 @@ export class Codex {
       try {
         const r = await this.#request<{ turn: Turn }>("turn/start", { ...common, ...this.#policy });
         this.#setActiveTurn(r.turn.id, epoch);
+        this.#log(`codex: message ${id} delivered after waiting; bus push resumed`, true);
         return "turn/start";
       } catch (err) {
         if (!notSteerable(err)) throw err;

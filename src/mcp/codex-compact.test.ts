@@ -68,6 +68,34 @@ test("the error text of a live /compact is waited out like the structured one", 
   } finally { c.stop(); f.stop(); }
 });
 
+test("a delivered compaction message replaces the launcher's waiting status with success", async () => {
+  const f = fakeServer((method, _p, n) => method === "turn/start" ? (n <= 2 ? { error: REAL_COMPACT } : { result: { turn: { id: "t2" } } }) : base(method));
+  const status: { text: string; ok?: boolean }[] = [];
+  const c = new Codex("/tmp", (text, ok) => status.push({ text, ok }), f.url, "t", quick);
+  try {
+    await c.start(); await c.openThread();
+    await c.deliver("private body", "status-m1");
+    expect(status.some(s => s.text.includes("message status-m1 waits for it to end"))).toBe(true);
+    expect(status.at(-1)).toEqual({ text: "codex: message status-m1 delivered after waiting; bus push resumed", ok: true });
+    expect(status.filter(s => s.text.includes("delivered after waiting"))).toHaveLength(1);
+    expect(status.at(-1)!.text).not.toContain("private body");
+    expect(f.accepted).toEqual(["agent-bus:status-m1"]);
+  } finally { c.stop(); f.stop(); }
+});
+
+test("a compaction timeout never reports that the waiting message was delivered", async () => {
+  const f = fakeServer((method) => method === "turn/start" ? { error: REAL_COMPACT } : base(method));
+  const status: { text: string; ok?: boolean }[] = [];
+  const c = new Codex("/tmp", (text, ok) => status.push({ text, ok }), f.url, "t", { steerWaitMs: 50, retryMs: 10 });
+  try {
+    await c.start(); await c.openThread();
+    await expect(c.deliver("private body", "status-failed")).rejects.toThrow("ActiveTurnNotSteerable");
+    expect(status.filter(s => s.text.includes("delivered after waiting"))).toHaveLength(0);
+    expect(status.at(-1)!.text).toContain("message status-failed was not delivered");
+    expect(f.accepted).toEqual([]);
+  } finally { c.stop(); f.stop(); }
+});
+
 test("a message consumed while a compaction outlasts the wait is delivered first by the push that starts next", async () => {
   let compacting = true;
   const f = fakeServer((method, _p, n) => method === "turn/start" ? (compacting ? { error: REAL_COMPACT } : { result: { turn: { id: `t${n}` } } }) : base(method));
