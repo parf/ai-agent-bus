@@ -4,6 +4,7 @@
 # container and directory, waiting for a start still in flight. No real podman; a stub says the lock is held. The
 # fake is called by its path, never found on PATH: a podman on PATH is a decoy that fails the test if called (J36).
 set -u
+python3 -B "$(dirname "$0")/guard_liveness_test.py" || exit 1
 here=$(cd "$(dirname "$0")" && pwd)
 mkdir -p "$here/../../tmp"
 tmp=${GUARD_TEST_TMP:-$here/../../tmp}   # guard-escape.test.sh gives its own

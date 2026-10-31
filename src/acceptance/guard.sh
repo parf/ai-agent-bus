@@ -24,22 +24,47 @@ guard_lock() {
     { echo "FAIL refused to start a container: nobody holds the slow lock on smoke-gate@parf.us; a container run belongs to a gate or a mutant (agent-bus lock smoke-gate@parf.us slow --ttl=900s)" >&2; exit 1; }
 }
 
-# guard_started <pid>: the process's start time, or nothing once it is gone (a zombie is gone).
+# guard_started <pid>: start time, or empty only when the PID is gone/zombie.
+# A failed or incomplete stat read for an existing PID is unknown (status 1).
 guard_started() {
   local stat
-  stat=$(sed 's/.*) //' "/proc/$1/stat" 2>/dev/null) || return 0
+  if ! stat=$(sed 's/.*) //' "/proc/$1/stat" 2>/dev/null); then
+    [ ! -d "/proc/$1" ] && return 0
+    return 1
+  fi
   set -- $stat
+  [ "$#" -ge 20 ] || return 1
+  case ${20} in ''|*[!0-9]*) return 1 ;; esac
   [ "$1" = Z ] || echo "${20}"
 }
-# guard_dead <pid-start>: true when that run is over.
-guard_dead() { [ "$(guard_started "${1%%-*}")" != "${1#*-}" ]; }
-guard_run=$$-$(guard_started $$)
+# guard_dead needs positive death evidence, never an unreadable live PID.
+guard_dead() {
+  local start pid=${1%%-*} expected=${1#*-}
+  case $pid in ''|*[!0-9]*) return 1 ;; esac
+  case $expected in ''|*[!0-9]*) return 1 ;; esac
+  start=$(guard_started "$pid") || return 1
+  [ "$start" != "$expected" ]
+}
+guard_run=
+if guard_start=$(guard_started $$) && [ -n "$guard_start" ]; then
+  guard_run=$$-$guard_start
+fi
 
 # The watcher: wait until the run is over, then until no `podman run` of it is in flight (an image pull can take
 # minutes, and a container made after a removal would survive it), then remove its containers and, unless kept, its
 # directory. A failing pgrep or podman ps is not an empty answer: it is asked again. Arguments: run, directory, keep,
 # then the podman command with its store options.
-GUARD_WATCH='alive() { set -- "$2" $(sed "s/.*) //" "/proc/$1/stat" 2>/dev/null); [ "$2" != Z ] && [ "${21}" = "$1" ]; }
+GUARD_WATCH='alive() {
+  pid=$1 expected=$2
+  if ! stat=$(sed "s/.*) //" "/proc/$pid/stat" 2>/dev/null); then
+    # Keep watching on an unknown read; only a gone PID is dead.
+    [ -d "/proc/$pid" ]; return
+  fi
+  set -- $stat
+  [ "$#" -ge 20 ] || return 0
+  case ${20} in ""|*[!0-9]*) return 0 ;; esac
+  [ "$1" != Z ] && [ "${20}" = "$expected" ]
+}
 run=$1 dir=$2 keep=$3; shift 3
 while alive "${run%%-*}" "${run#*-}"; do sleep 1; done
 until pgrep -f -- "^podman .* run .*--label agent-bus-run=$run( |\$)" >/dev/null; [ $? = 1 ]; do sleep 1; done
@@ -52,6 +77,7 @@ for n in $names; do "$@" rm -f -t 1 "$n" >/dev/null 2>&1; done
 guard() { # guard <run dir> [keep]
   local run=$1 keep=${2:-} listing n r d
   guard_lock
+  [ -n "$guard_run" ] || { echo "FAIL cannot establish the live guard owner" >&2; exit 1; }
   listing=$("${podman[@]}" ps -a --filter label=agent-bus-run --format '{{.Names}} {{index .Labels "agent-bus-run"}}') ||
     { echo "FAIL podman ps on the private store failed, so what an earlier run left cannot be told" >&2; exit 1; }
   while read -r n r; do
