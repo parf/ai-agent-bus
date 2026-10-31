@@ -118,9 +118,9 @@ for archive in "$@"; do
   done
   # The compiled TypeScript parts are one program, run under its first argument:
   # `mcp --version` and `launcher <runtime> --version` answer the release version
-  # alone (the web part has no version query and would start a server). Where it
-  # cannot run, its bytes are read as the Go programs' are. Either way the build
-  # stamp is in the binary.
+  # alone; `web --version` also includes the build stamp. Where the program
+  # cannot run, its bytes are read as the Go programs' are. Either way this
+  # verifier checks the build stamp in the binary.
   ts="$root/agent-bus-ts"
   if [ ! -x "$ts" ]; then
     bad "agent-bus-ts missing or not executable"

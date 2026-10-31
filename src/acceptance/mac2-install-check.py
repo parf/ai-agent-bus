@@ -199,11 +199,15 @@ def check_archive_build(bundle, version, revision):
     for program, args in [('agent-bus', ['--version']), ('agent-busd', ['--version']),
                           ('agent-bus-admin', ['--version']), ('agent-bus-runner', ['--version']),
                           ('agent-bus-setup', ['--version']), ('agent-bus-ts', ['mcp', '--version']),
-                          ('agent-bus-ts', ['launcher', 'claude', '--version'])]:
+                          ('agent-bus-ts', ['launcher', 'claude', '--version']),
+                          ('agent-bus-ts', ['web', '--version'])]:
         answer = run([bundle / program, *args]).stdout
-        assert answer.splitlines()[0] == version and 'build_info: ' in answer and 'unstamped' not in answer
-        stamp = re.search(r'^build_info: .* ([0-9a-f]{40})$', answer, re.M)
-        assert stamp and stamp[1] == revision, 'archive revision differs from source: ' + program
+        assert answer.splitlines()[0] == version, 'archive version differs from source: ' + program
+        # MCP and launcher queries report only the version. The same compiled
+        # TS binary exposes its build stamp through the web part's version query.
+        if program != 'agent-bus-ts' or args[0] == 'web':
+            stamp = re.search(r'^build_info: .* ([0-9a-f]{40})$', answer, re.M)
+            assert stamp and stamp[1] == revision, 'archive revision differs from source: ' + program
 
 
 def command_links():

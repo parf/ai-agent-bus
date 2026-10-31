@@ -2,6 +2,7 @@
 import hashlib
 import importlib.util
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -169,21 +170,42 @@ class Archive(unittest.TestCase):
         queries = []
         def run(args, **kw):
             queries.append((args[0].name, args[1:]))
-            return subprocess.CompletedProcess(args, 0, '1.2.3\nbuild_info: u@h 2026-01-01 00:00:00 ' + revision + '\n', '')
+            return subprocess.CompletedProcess(args, 0, '1.2.3\n' if args[0].name == 'agent-bus-ts' and args[1] != 'web' else '1.2.3\nbuild_info: u@h 2026-01-01 00:00:00 ' + revision + '\n', '')
         self.m.run = run
         self.m.check_archive_build(self.work, '1.2.3', revision)
-        self.assertEqual(len(queries), 7)
+        self.assertEqual(len(queries), 8)
         self.assertIn(('agent-bus-ts', ['mcp', '--version']), queries)
         self.assertIn(('agent-bus-ts', ['launcher', 'claude', '--version']), queries)
 
+    def test_real_typescript_version_answers_are_accepted(self):
+        revision = 'a' * 40
+        source = Path(__file__).resolve().parents[1] / 'ts-main.ts'
+        env = {key: value for key, value in os.environ.items() if not key.startswith('AGENT_BUS_')}
+        env.update(AGENT_BUS_BUILD_VERSION='1.2.3',
+                   AGENT_BUS_BUILD_INFO='fixture@host 2026-01-01 00:00:00 ' + revision)
+        answers = {}
+        def run(args, **kw):
+            if args[0].name == 'agent-bus-ts':
+                result = subprocess.run(['bun', '--tsconfig-override', str(source.parent / 'web/tsconfig.json'), str(source), *args[1:]], env=env,
+                                        capture_output=True, text=True, timeout=10, check=True)
+                answers[args[1]] = result.stdout
+                return result
+            return subprocess.CompletedProcess(args, 0,
+                '1.2.3\nbuild_info: fixture@host 2026-01-01 00:00:00 ' + revision + '\n', '')
+        self.m.run = run
+        self.m.check_archive_build(self.work, '1.2.3', revision)
+        self.assertEqual(answers['mcp'], '1.2.3\n')
+        self.assertEqual(answers['launcher'], '1.2.3\n')
+        self.assertIn('build_info: fixture@host 2026-01-01 00:00:00 ' + revision, answers['web'])
+
     def test_native_archive_of_the_same_version_from_another_revision_is_refused(self):
         revision = 'a' * 40
-        for wrong in ('agent-bus', 'agent-busd', 'agent-bus-admin', 'agent-bus-runner', 'agent-bus-setup', 'mcp', 'launcher'):
+        for wrong in ('agent-bus', 'agent-busd', 'agent-bus-admin', 'agent-bus-runner', 'agent-bus-setup', 'web'):
             with self.subTest(program=wrong):
                 def run(args, **kw):
                     program = args[1] if args[0].name == 'agent-bus-ts' else args[0].name
                     stamp = 'b' * 40 if program == wrong else revision
-                    return subprocess.CompletedProcess(args, 0, '1.2.3\nbuild_info: u@h 2026-01-01 00:00:00 ' + stamp + '\n', '')
+                    return subprocess.CompletedProcess(args, 0, '1.2.3\n' if args[0].name == 'agent-bus-ts' and args[1] != 'web' else '1.2.3\nbuild_info: u@h 2026-01-01 00:00:00 ' + stamp + '\n', '')
                 self.m.run = run
                 with self.assertRaisesRegex(AssertionError, 'archive revision differs from source'):
                     self.m.check_archive_build(self.work, '1.2.3', revision)

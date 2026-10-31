@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.242 — 2026-10-30
+
+Release verify accepts a Darwin client-only set and checks each native archive's stamped commit against the release source
+
 ## 0.9.241 — 2026-10-30
 
 The Codex and OpenCode push keeps a message it could not deliver during a compaction and delivers it first after restart; other failures drop it with a log line
