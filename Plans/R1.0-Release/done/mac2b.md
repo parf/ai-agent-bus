@@ -18,7 +18,7 @@
 | Same archive reader as the owner run | Both actual full archives pass `archive_bundle`; every regular file is in the manifest, and only the four exact inward launcher aliases may be links |
 | Verifier refusals | Full Darwin fixture accepted; corrupted daemon header with otherwise valid version/stamp/manifest refused; existing release refusal checks pass |
 | Checksum collection | Four `TestReleaseSums*` tests pass, including incomplete/full CPU-pair refusal and complete eight-archive set |
-| Acceptance fixture | Eleven local stub/archive checks pass through existing `TestDarwinAcceptanceCleanupStubs`; no Mac or sudo invoked |
+| Acceptance fixture | Thirteen local stub/archive checks pass through existing `TestDarwinAcceptanceCleanupStubs`; no Mac or sudo invoked |
 
 ## Native acceptance remains pending
 

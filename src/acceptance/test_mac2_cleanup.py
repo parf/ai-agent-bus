@@ -49,6 +49,14 @@ def run(args, **kw):
 m.run = run
 m.sudo = lambda *args, **kw: run(list(args), **kw)
 m.root_exists = lambda path: False
+if mode.startswith('links-'):
+    class Link:
+        def __str__(self): return '/usr/local/bin/agent-bus'
+        def is_symlink(self): return True
+    link = Link()
+    m.COMMAND_LINKS = {link: '/fresh/current/agent-bus'}
+    m.root_exists = lambda path: path is link
+    m.os.readlink = lambda path: '/other/agent-bus' if mode == 'links-other-target' else '/fresh/current/agent-bus'
 m.uninstall([])
 '''
 
@@ -58,6 +66,19 @@ class Cleanup(unittest.TestCase):
         return subprocess.run([sys.executable, '-c', STUB,
                                str(Path(__file__).with_name('mac2-install-check.py')), mode],
                               capture_output=True, text=True, timeout=5)
+
+    def test_fresh_full_archive_command_link_is_removed(self):
+        p = self.run_cleanup('links-success')
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        self.assertIn('["/bin/rm", "-f", "/usr/local/bin/agent-bus"]', p.stdout)
+        self.assertIn('PASS uninstall', p.stdout)
+
+    def test_different_command_target_refuses_cleanup(self):
+        p = self.run_cleanup('links-other-target')
+        self.assertNotEqual(p.returncode, 0, p.stdout)
+        self.assertIn('unexpected command link; refusing removal', p.stderr)
+        self.assertNotIn('["/bin/rm", "-f", "/usr/local/bin/agent-bus"]', p.stdout)
+        self.assertNotIn('PASS uninstall', p.stdout)
 
     def test_removes_user_and_group_with_supported_tools(self):
         p = self.run_cleanup('success')
