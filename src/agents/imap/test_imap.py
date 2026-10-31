@@ -41,6 +41,8 @@ def fixture_uid_set(raw, messages):
 class Handler(socketserver.BaseRequestHandler):
     def handle(self):
         sock = self.request
+        # The fake tests protocol effects, not TCP delayed ACKs between tiny replies.
+        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         sock.settimeout(2)
         try:
             if self.server.tls:

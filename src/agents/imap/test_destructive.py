@@ -123,6 +123,10 @@ class Calls(unittest.TestCase):
         for body in ('trash 7', 'compact_trash'):
             self.assertIn('no selectable Trash role folder', self.call(body))
             self.assertEqual(self.writes(), [])
+        self.server.folder_rows.append(('BlockedTrash', b'\\Trash \\Noselect'))
+        self.assertIn('no selectable Trash role folder', self.call('trash 7'))
+        self.assertEqual(self.writes(), [])
+        self.server.folder_rows = [row for row in self.server.folder_rows if row[0] != 'BlockedTrash']
         self.server.folder_rows.append(('Bin', b'\\Trash'))
         self.folder('Second Bin', '\\Trash')
         self.assertIn('ambiguous Trash role', self.call('trash 7'))
@@ -181,6 +185,7 @@ class Calls(unittest.TestCase):
         self.assert_exact(b'EXPUNGE', [7, 8])
         self.trash['messages'].update({n: fixture.RAW for n in range(1, 1002)})
         self.server.commands.clear()
+        self.envelope = {'deadline': (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=5)).isoformat()}
         self.assertIn('1000 UIDs', self.call('compact_trash'))
         self.assertEqual(self.writes(), [])
         self.assertEqual(len(self.trash['messages']), 1001)
@@ -301,5 +306,5 @@ class Arguments(unittest.TestCase):
         self.assertEqual(operations.parse_call('compact_trash --older 5')['older'], 5)
         with self.assertRaisesRegex(ValueError, 'each UID range must run low:high'): operations.uid_set('130:123')
         for body in ('copy 7 "Bad\r\nfolder"', 'delete 1:1001', 'compact_trash --older -1', 'compact_trash --older 365001',
-                     '{"method":"compact_trash","older":true}', 'compact_trash 7', 'trash 7 Trash', 'copy 7 X --allow-destructive true'):
+                     '{"method":"compact_trash","older":true}', 'compact_trash 7', 'trash 7 Trash', 'copy 7 X --allow-destructive true', '{"method":"copy","uids":"7","dest":"bad\\r\\nfolder"}'):
             with self.subTest(body=body), self.assertRaises(ValueError): fixture.proxy.parse(body)
