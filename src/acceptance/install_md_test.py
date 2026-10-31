@@ -136,6 +136,7 @@ class InstallFromACheckout(unittest.TestCase):
         before = subprocess.run(['systemctl', 'show', '-P', 'ActiveEnterTimestampMonotonic', 'agent-busd'], capture_output=True, text=True, timeout=10).stdout
         done = self.sh(self.update)
         self.assertEqual(done.returncode, 0, f'the Update block failed:\n{done.stdout[-1000:]}\n{done.stderr[-2500:]}')
+        self.assertTrue((CHECKOUT / 'UPDATE_MARKER').is_file(), 'the update did not pull the newer commit')
         self.assertEqual((CHECKOUT / 'UPDATE_MARKER').read_text().strip(), marker, 'the update did not pull the newer commit')
         after = subprocess.run(['systemctl', 'show', '-P', 'ActiveEnterTimestampMonotonic', 'agent-busd'], capture_output=True, text=True, timeout=10).stdout
         self.assertNotEqual(before, after, 'agent-busd was not restarted')
