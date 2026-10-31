@@ -6,127 +6,18 @@ The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
 ## 0.9.242 — 2026-10-30
 
-Release verify accepts a Darwin client-only set and checks each native archive's stamped commit against the release source
+Twelfth published 0.9 changeset: 0.9.212–0.9.242, squashed.
 
-## 0.9.241 — 2026-10-30
-
-The Codex and OpenCode push keeps a message it could not deliver during a compaction and delivers it first after restart; other failures drop it with a log line
-
-## 0.9.240 — 2026-10-30
-
-Package a full macOS archive with the daemon and setup for arm64 and x64, verified by release-verify
-
-## 0.9.239 — 2026-10-30
-
-The npm package gate installs and resolves the macOS arm64 and x64 platform packages
-
-## 0.9.238 — 2026-10-30
-
-Launchers and the installer name new agents and runners in the configured bus realm, keep existing names, and refuse a name that would not fit
-
-## 0.9.237 — 2026-10-30
-
-The TS client and the faces read asks-only; Slack answers once ready
-
-## 0.9.236 — 2026-10-30
-
-consume takes asks=only: an ask-only read waits for asks, and a waiting unfiltered reader still wins the ask
-
-## 0.9.235 — 2026-10-30
-
-Discord leaves the R1 release: the exporter, setup and packager drop it and refuse a discord tree; its code stays for R1.1
-
-## 0.9.234 — 2026-10-30
-
-New record forms on the web default to the configured bus realm, keeping typed and existing names exact
-
-## 0.9.233 — 2026-10-30
-
-A runner deploy refuses a read-only agents directory by name, and its git fetch never runs repository hooks
-
-## 0.9.232 — 2026-10-30
-
-npm clean-install acceptance: local ai-agent-bus tarballs install on a clean host and serve a call and an MCP tool call; the client package joins without a daemon; pack refuses unchecked files
-
-## 0.9.231 — 2026-10-30
-
-release-verify checks each shipped program's own version query and exit status, refusing a bad token or TypeScript stamp
-
-## 0.9.230 — 2026-10-30
-
-The shipped tmux-sessions packager replaces its agent.d tree through the shared helper, which releases now ship
-
-## 0.9.229 — 2026-10-30
-
-Bundled agent packagers build then replace agent.d/<name> as a whole tree instead of overlaying it, and a concurrent publisher is refused
-
-## 0.9.228 — 2026-10-30
-
-The runner deploys agents over the bus: install a bundled agent or a git repo pinned to a full commit, explicit replace, and remove that keeps data and tokens
-
-## 0.9.227 — 2026-10-30
-
-Setup restarts the web face once, only when its unit, TLS or release bytes changed, so a fast host no longer hits systemd's start limit
-
-## 0.9.226 — 2026-10-30
-
-Releases are unsigned: the workflow, release-verify and install.sh check SHA256SUMS and manifests only, with no signing step or owner key
-
-## 0.9.225 — 2026-10-30
-
-A Codex session keeps its bus push across /compact: delivery waits out a non-steerable turn, and a failed push restarts up to three times
-
-## 0.9.224 — 2026-10-30
-
-The daemon answers as #bus: status, version and ls take --json and return what /status, /identity, /ls and /lookup give that caller
-
-## 0.9.223 — 2026-10-30
-
-Release without signing keys: npm install -g ai-agent-bus (command agent-bus); builder defaults to ai-agent-bus and ai-agent-bus-client
-
-## 0.9.222 — 2026-10-30
-
-Cron and #at drop a refused send with one warning (RD161), use random ids with a crash-safe legacy-id migration, and refuse sub edit
-
-## 0.9.221 — 2026-10-30
-
-The daemon, setup and admin run natively on macOS under launchd as a non-root role, and an orphaned child no longer keeps the listeners
-
-## 0.9.220 — 2026-10-30
-
-Runners on different hosts can share one agent's messages: consume --host, AGENT_BUS_READER_HOST unit override, each message handled exactly once
-
-## 0.9.219 — 2026-10-30
-
-The bundled Telegram agent starts in the checkout sandbox: shared envfile and subscription code moved to src/agents/shared
-
-## 0.9.218 — 2026-10-30
-
-Launchers take --fresh to start a named session with a new session ID instead of resuming the bound one
-
-## 0.9.217 — 2026-10-30
-
-The agent-bus CLI builds and runs natively on macOS, and release verify checks Darwin archives
-
-## 0.9.216 — 2026-10-30
-
-The runner skips metadata-only standalone services instead of listing them as refused
-
-## 0.9.215 — 2026-10-30
-
-The git agent names why an autopull script could not start, and its end-to-end check waits for each host's attempt
-
-## 0.9.214 — 2026-10-30
-
-The runner loads shared agents first, then bundled ones from --bundled, which serve only when enabled explicitly
-
-## 0.9.213 — 2026-10-30
-
-PHP client long polls use HTTP/1.1 so a replaced reader's cancelled poll no longer swallows messages
-
-## 0.9.212 — 2026-10-30
-
-A consume may state its host; the daemon lists each name's recent reader hosts for two minutes, in memory only
+| Area | Changes |
+|---|---|
+| Daemon | A consume may state its host and the daemon lists each name's recent reader hosts for two minutes, in memory only; consume takes `asks=only`, an ask-only read that waits beside the unfiltered reader, which still wins an ask. The daemon answers as `#bus`: `status`, `version` and `ls` take `--json`. |
+| Runner | Shared agents load first, then bundled ones from `--bundled`, which serve only when enabled; metadata-only standalone services are skipped. Runners on different hosts share one agent's messages (`consume --host`, the `AGENT_BUS_READER_HOST` unit override), each handled exactly once. The runner deploys agents over the bus: a bundled agent or a git repo pinned to a full commit, explicit replace, and a remove that keeps data and tokens; a read-only agents directory is refused by name and the git fetch never runs repository hooks. |
+| Clients | PHP long polls use HTTP/1.1, so a replaced reader's cancelled poll no longer swallows messages. The TypeScript client and the faces read asks-only. |
+| Launchers | `--fresh` starts a named session with a new session ID. A Codex session keeps its bus push across `/compact`: delivery waits out a non-steerable turn and a failed push restarts up to three times. The Codex and OpenCode push also keeps a message it consumed but could not deliver during a compaction and delivers it first after the restart; other failures drop it with a log line. Launchers and the installer name new agents and runners in the configured bus realm, keep existing names and refuse a name that would not fit. |
+| Agents | Telegram starts in the checkout sandbox with shared envfile and subscription code; the git agent names why an autopull script could not start. Cron and `#at` drop a refused send with one warning (RD161), use random ids with a crash-safe legacy-id migration and refuse `sub edit`. Slack answers `starting` while it loads, then `ok`. Bundled agent packagers build then replace `agent.d/<name>` as a whole tree and refuse a concurrent publisher; the standalone tmux-sessions packager does the same through the shared helper, which releases now ship. Discord leaves the R1 release: the exporter, setup and packager drop it and refuse a discord tree, and its code stays for R1.1. |
+| macOS | The CLI builds and runs natively, and release verify checks Darwin archives; the daemon, setup and admin run natively under launchd as a non-root role, and an orphaned child no longer keeps the listeners. Full macOS archives for arm64 and x64 carry the daemon and setup beside the client archives, and release verify checks each program's Mach-O CPU and stamped commit against the release source; a client-only Darwin set stays accepted. The npm package gate installs and resolves the macOS arm64 and x64 platform packages, which stay client-only. |
+| Release and install | Releases are unsigned: the workflow, release verify and `install.sh` check `SHA256SUMS` and manifests only, with no signing step or owner key. `npm install -g ai-agent-bus` installs the `agent-bus` command; the builder defaults to `ai-agent-bus` and `ai-agent-bus-client`. A clean-install acceptance installs the local tarballs on a clean host and serves a call and an MCP tool call, the client package joins without a daemon, and pack refuses files its manifest does not check. Release verify queries each shipped program's own version and exit status, refusing a bad token wrapper or TypeScript stamp. Setup restarts the web face once, only when its unit, TLS or release bytes changed, so a fast host no longer hits systemd's start limit. |
+| Web | New record forms default to the configured bus realm, keeping typed and existing names exact. |
 
 ## 0.9.211 — 2026-10-30
 
