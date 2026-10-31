@@ -93,7 +93,7 @@ The [IMAP guide](../../docs/agents/imap.md#what-it-does) owns today's calls; one
 |---|---|
 | `MOVE` (RFC 6851) | `UID MOVE <uids> <dest>`; the server removes the source copies |
 | no `MOVE`, with `UIDPLUS` (RFC 4315) | `UID COPY`, check the answer names the new UIDs, `UID STORE +FLAGS.SILENT (\Deleted)` on those UIDs only, then `UID EXPUNGE` of exactly those UIDs |
-| neither | refused before any command that changes the mailbox ([Q271](QUESTIONS.md#imap-folders) stays open) |
+| neither | `move` is refused before any command that changes the mailbox ([Q271](DECISIONS.md#recorded-decisions), `#ab-dir`): it must remove only the named UIDs, which needs `UID EXPUNGE` |
 
 - **Never a bare `EXPUNGE`, and never `CLOSE` on a writable selection**: both drop every `\Deleted` mail in the folder, including mail another client flagged.
 - A failed COPY changes nothing; a COPY that succeeded and a flag or expunge that failed is reported per UID as "copied, source kept" with the new UID, never retried.

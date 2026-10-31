@@ -6,6 +6,8 @@
   - Home: [call list](imap-folders.md#help-text).
 - **IMAP `delete` is permanent, `trash` separate** (Q272) — owner, 2026-10-31 12:05: `\Deleted` plus `UID EXPUNGE` of exactly the named UIDs; `trash` moves to the Trash-role folder; `compact_trash` expunges Trash.
   - Home: [trash and permanent delete](imap-folders.md#trash-and-permanent-delete).
+- **IMAP `move` refused without MOVE or UIDPLUS** (Q271) — `#ab-dir`, 2026-10-31, in-plan settle of the owner's list: `move` must remove only the named UIDs and `delete` is refused without UIDPLUS, so that guarantee cannot be kept on such a server.
+  - Home: [order of operations for `move`](imap-folders.md#order-of-operations-for-move).
 - **IMAP `allow_destructive` per-instance switch, off by default** (Q273) — owner, 2026-10-31 12:05.
   - Home: [authority](imap-folders.md#authority).
 - **IMAP `sub add --folder`** (Q274) — owner, 2026-10-31 12:05.

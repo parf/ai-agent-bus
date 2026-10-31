@@ -29,17 +29,12 @@ Owner-only choices for the messaging agent planned for R1 ([B.27](TODO.md#bundle
 
 ## IMAP folders
 
-Choices for the [IMAP folders plan](imap-folders.md#scope) ([B.30](TODO.md#bundled-agents)). Q270 is not blocking; Q271 blocks step 3. Q269, Q272–Q275 are [settled](DECISIONS.md#recorded-decisions).
+Choices for the [IMAP folders plan](imap-folders.md#scope) ([B.30](TODO.md#bundled-agents)). Q270 is not blocking. Q269 and Q271–Q275 are [settled](DECISIONS.md#recorded-decisions).
 
 - ❓ Q270 One cache budget for all folders, or one per folder
   - Options: the one `cache_bytes` shared with LRU eviction across folders; or `cache_bytes` per folder
   - Recommendation: shared; memory and disk stay bounded as today
   - Impact: per-folder multiplies the bound by the folder count
-
-- ❓ Q271 A server with neither MOVE nor UIDPLUS
-  - Options: refuse `move` (the copy fallback); or COPY then flag `\Deleted` and leave the expunge to the user
-  - Recommendation: refuse before any change; a flagged-but-present mail surprises other clients
-  - Impact: very old servers cannot move
 
 ## Short prompts
 
