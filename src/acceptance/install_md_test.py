@@ -153,7 +153,7 @@ class InstallFromACheckout(unittest.TestCase):
         # Capture the mounted repository's state at the operation that once failed.
         # No retry: a missing live mount is a fixture failure, not a transient success.
         diagnostics = []
-        for command in (['ls', '-ld', '/source.git'], ['git', '-C', '/source.git', 'rev-parse', 'HEAD']):
+        for command in (['ls', '-ld', '/source.git'], ['git', '-C', '/source.git', 'rev-parse', 'HEAD'], ['findmnt', '/source.git'], ['id', '-u']):
             result = subprocess.run(command, capture_output=True, text=True, timeout=20)
             diagnostics.append(f'{command!r} rc={result.returncode}\n{result.stdout}{result.stderr}')
         state = '\n'.join(diagnostics)
