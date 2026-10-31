@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.241 — 2026-10-30
+
+The Codex and OpenCode push keeps a message it could not deliver during a compaction and delivers it first after restart; other failures drop it with a log line
+
 ## 0.9.240 — 2026-10-30
 
 Package a full macOS archive with the daemon and setup for arm64 and x64, verified by release-verify
