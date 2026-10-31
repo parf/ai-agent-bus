@@ -1,10 +1,38 @@
 # IMAP folders
 
 📌 **TL;DR:**
-- **Plan only; no code until the owner approves** ([B.30](TODO.md#bundled-agents), questions Q269–Q274).
+- **Plan only; no code until the owner approves** ([B.30](TODO.md#bundled-agents), questions Q269–Q275).
 - **Scope:** `folders`, a per-call `--folder` on sync, list, search, read and mark, a destructive `move`, `delete` as a move to Trash, and optionally a folder on `sub add`.
 - **Safety:** the agent today never deletes, moves or expunges. `move` is the first destructive call, so it ships behind its own switch, off by default.
 - **Order:** read-only first (`folders`, `--folder`), then `move`/`delete`, then subscriptions.
+
+## Help text
+
+What `help` prints for the new and changed calls, line for line, in the format of today's [help](../../docs/agents/imap.md#what-it-does). Lines not shown are unchanged except that "No delete, move or other flags" in `read` becomes "No other flags".
+
+```text
+folders [--counts]: List the account's folders: name, role such as Trash or Sent, and with --counts the message and unseen counts. Names are the ones every --folder takes. No mail is read.
+sync [limit] [--folder <name>]: Fetch mail not yet cached, newest first; default 100. Return progress and whether more remains; use list to see cached mail. --folder picks the folder; default is the configured mailbox, then INBOX. A forwarding-state error blocks sync until rebaseline; read, list and search keep working.
+list [limit] [--unread] [--folder <name>]: See what is cached: Date, From and Subject with live read or unread status, newest UID first; default 20. --unread filters before the limit. --folder picks the folder; default is the configured mailbox, then INBOX. JSON unread is a boolean. Date is as sent, unverified.
+search <text...> [--folder <name>]: Find cached mail by text: up to 100 Date, From and Subject summaries whose raw mail matches, with live read or unread status. --folder picks the folder; default is the configured mailbox, then INBOX. The match runs locally; the server does no text search.
+[destructive] read <uid> [--no-mark] [--folder <name>]: Get one raw mail and mark it Seen by default, cached or not. --no-mark (JSON mark_read:false) leaves it unchanged. --folder names the folder the uid is in; default is the configured mailbox, then INBOX. Every read needs a live server; a lost reply may leave the mail marked. No other flags.
+[destructive] mark <uid> read|unread [--folder <name>]: Set or clear Seen on the server and get the observed read or unread state. --folder names the folder the uid is in; default is the configured mailbox, then INBOX. An unknown write outcome is not retried.
+[destructive] move <uid> <dest> [--folder <src>]: Move one mail from --folder (default: the configured mailbox, then INBOX) to the folder dest, which must exist. The uid is then gone from the source; the answer gives its new uid when the server says it. Refused unless the instance allows moving. Nothing else in the folder is removed.
+[destructive] delete <uid> [--folder <name>]: Move one mail from --folder (default: the configured mailbox, then INBOX) to the Trash folder. It is not erased; empty Trash from your mail client. Refused unless the instance allows moving, or inside Trash itself.
+sub add <target> [/regex/] [--folder <name>]: (optional) Forward mail that arrives in --folder after this add; default is the configured mailbox, then INBOX. Everything else as today.
+```
+
+JSON spellings: `{"method":"move","uid":7,"dest":"Archive","folder":"INBOX"}`, `{"method":"delete","uid":7,"folder":"INBOX"}`, `folder` on the others; `folders` takes `"counts":true`.
+
+### Open: what `delete` does underneath
+
+- Choices: a move to the Trash folder; or flag `\Deleted` and expunge that one UID.
+- **Recommendation: move to Trash** ([Q272](QUESTIONS.md#imap-folders)). Recoverable, and no `\Deleted` flag is left for other clients to purge. Gmail needs it: flag-and-expunge only removes a label there.
+
+### Open: the destructive-call switch
+
+- Choices: the access list alone; or a Configuration switch, off by default, that `move` and `delete` also need.
+- **Recommendation: the switch** ([Q273](QUESTIONS.md#imap-folders)). Today a grant can change only Seen; a caller given read access must not gain the power to remove mail.
 
 ## Scope
 
@@ -13,9 +41,9 @@ The [IMAP guide](../../docs/agents/imap.md#what-it-does) owns today's calls; one
 | Part | Ships | Notes |
 |---|---|---|
 | `folders` | read-only | names, flags, hierarchy delimiter, counts when cheap |
-| `--folder <name>` (JSON `folder`) | read-only | on `sync`, `list`, `search`, `read`, `mark` |
+| `--folder <name>` (JSON `folder`) | read-only | on `sync`, `list`, `search`, `read`, `mark`, `delete`, `move` |
 | `move <uid> <dest> [--folder <src>]` | **destructive** | the source mail leaves the source folder |
-| `delete <uid> [--folder <src>]` | **destructive** | a move to Trash, never a hard expunge |
+| `delete <uid> [--folder <name>]` | **destructive** | a move to Trash, never a hard expunge |
 | `sub add <target> [/regex/] [--folder <name>]` | optional, last | see [order of work](#order-of-work) |
 
 Not in scope: creating, renaming or deleting folders, `copy` as its own call, hard expunge, flags other than Seen (and `\Deleted` inside the COPY fallback).
@@ -41,7 +69,7 @@ Not in scope: creating, renaming or deleting folders, `copy` as its own call, ha
 - One byte budget (`cache_bytes`) covers all folders together; eviction stays least-recently-used across them (Q270).
 - A UID is only meaningful with its folder: read, mark and move check UIDVALIDITY of that folder before using a cached copy, as today.
 - Subscriptions and forwarding progress stay on the configured `mailbox` unless the last step ships; a per-call `--folder` never moves the poller.
-- `publish <uid>` takes `--folder` too, with the same rules; the destination stays the one fixed in Configuration.
+- `publish` stays on the configured mailbox; the owner did not list it ([Q275](QUESTIONS.md#imap-folders)).
 - Mail copied or moved into a folder gets a new UID there; it is a new arrival for a subscription on that folder, as the guide already says for the configured mailbox.
 
 ## Move and delete
@@ -86,7 +114,7 @@ Not in scope: creating, renaming or deleting folders, `copy` as its own call, ha
 | Step | Does | Who | ETA after approval |
 |---|---|---|---|
 | 1 | wire `LIST` (+ `LIST-STATUS`, `STATUS` cap, SPECIAL-USE), `folders`, name validation | Team 2 worker | half a day |
-| 2 | `--folder` on sync, list, search, read, mark, publish; per-folder cache adoption and migration check | same worker | half a day |
+| 2 | `--folder` on sync, list, search, read, mark; per-folder cache adoption and migration check | same worker | half a day |
 | 3 | `move`, `delete`, the switch; the fixture models MOVE, no MOVE, UIDPLUS, no UIDPLUS, no `\Trash`, a foreign `\Deleted` mail | same worker; QA2 reviews | one day, mutants take the `slow` lock |
 | 4 | folder on `sub add` (optional): the poller watches more than one folder | later, only if the owner asks (Q274) | one day |
 

@@ -60,6 +60,10 @@ Choices for the [IMAP folders plan](imap-folders.md#scope) ([B.30](TODO.md#bundl
   - Options: not now; or a later step where the poller watches each subscribed folder
   - Recommendation: not now; subscriptions stay on the configured mailbox, and a second instance with another `mailbox` already covers it
   - Impact: more folders means more polling and per-folder forwarding progress
+- ❓ Q275 Does `publish` take a folder
+  - Options: no, it stays on the configured mailbox; or `--folder` like read
+  - Recommendation: no; the owner did not list it
+  - Impact: publishing from another folder needs a second instance until then
 
 ## Short prompts
 
