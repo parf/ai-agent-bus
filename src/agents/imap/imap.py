@@ -31,6 +31,7 @@ import folders
 import operations
 import mime_parts
 import destructive
+import folder_admin
 import progress
 from publication import MAX_OUTPUT, WARNING, PublicationError, render
 from forwarding import message as subscription_message, shared
@@ -99,6 +100,9 @@ def summary(raw, masks):
 
 
 def parse(body):
+    admin = folder_admin.parse(body)
+    if admin is not None:
+        return admin
     if not isinstance(body, str) or len(body.encode()) > 32768:
         raise MailError('call must be text or JSON of at most 32768 bytes')
     extended = operations.parse_call(body)
@@ -298,6 +302,8 @@ class Agent:
                 self.forwarding()  # No cache mutation while the old reader owns its state.
             cfg = config(self.configuration)
             destructive.require_enabled(cfg, method)
+            if method in folder_admin.GATED and not cfg['allow_destructive']:
+                raise MailError(method + ' requires Configuration allow_destructive=true')
             if method == 'publish' and not cfg.get('target'):
                 raise MailError('publish requires Configuration target')
             user, password = self.environment.get('IMAP_USERNAME', ''), self.environment.get('IMAP_PASSWORD', '')
@@ -338,6 +344,10 @@ class Agent:
                     wire.prepare_search(connection, operations.search_args(call))
                 return connection
             connection = open_connection()
+            if method in folder_admin.METHODS:
+                result = folder_admin.perform(connection, call, cfg)
+                status = 'ok'
+                return result
             if method == 'folders':
                 result = folders.describe(connection, call.get('counts', False))
                 if len(result.encode()) > MAX_OUTPUT:

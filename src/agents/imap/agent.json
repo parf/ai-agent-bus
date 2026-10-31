@@ -416,6 +416,81 @@
           "optional": true
         }
       ]
+    },
+    "folder create": {
+      "text": "folder create <name>",
+      "help": "Create a folder. Ordinary admission; not gated by allow_destructive.",
+      "args": [
+        {
+          "name": "name",
+          "type": "string",
+          "help": "Decoded folder name, modified UTF-7 quoted on the wire"
+        }
+      ]
+    },
+    "folder rename": {
+      "text": "folder rename <name> <new>",
+      "help": "Rename a folder. Refuse INBOX, the configured mailbox and its ancestors (including subscribed mail). Requires allow_destructive.",
+      "args": [
+        {
+          "name": "name",
+          "type": "string",
+          "help": "Existing folder name"
+        },
+        {
+          "name": "new",
+          "type": "string",
+          "help": "New folder name; INBOX refused"
+        }
+      ],
+      "destructive": true
+    },
+    "folder delete": {
+      "text": "folder delete <name> [--force]",
+      "help": "Delete a folder. Refuse INBOX, SPECIAL-USE role folders and their ancestors, and the configured mailbox and its ancestors. A non-empty folder requires --force; it never overrides these protections. Requires allow_destructive.",
+      "args": [
+        {
+          "name": "name",
+          "type": "string",
+          "help": "Existing folder name"
+        },
+        {
+          "name": "force",
+          "type": "bool",
+          "optional": true,
+          "help": "Permit deleting a non-empty unprotected folder"
+        }
+      ],
+      "destructive": true
+    },
+    "append": {
+      "text": "append <folder> [--flags f,..] [--date rfc3339]\\n<raw RFC 5322 body>",
+      "help": "Append raw RFC 5322 text after the first newline (JSON raw). Report APPENDUID when supplied; otherwise explicitly report UID unavailable. Mail cap 25 MB; the existing 1048576-byte bus request cap including encoded JSON and envelope is lower. Requires allow_destructive; never retry an unknown write.",
+      "args": [
+        {
+          "name": "folder"
+        },
+        {
+          "name": "flags",
+          "type": "string",
+          "optional": true,
+          "help": "Comma-separated flags; JSON also accepts an array. Deleted refused"
+        },
+        {
+          "name": "date",
+          "type": "string",
+          "optional": true,
+          "help": "RFC3339 date with a timezone"
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "json_only": true,
+          "optional": true,
+          "help": "Raw RFC 5322 UTF-8 mail text"
+        }
+      ],
+      "destructive": true
     }
   },
   "config": {
@@ -472,7 +547,7 @@
     },
     "allow_destructive": {
       "type": "bool",
-      "help": "Per instance, off by default. Gates copy, move, trash, delete and compact_trash. Read, mark and flag stay under ordinary admission.",
+      "help": "Per instance, off by default. Gates copy, move, trash, delete, compact_trash, folder rename/delete and append. Folder create, read, mark and flag stay under ordinary admission.",
       "example": false
     }
   }

@@ -73,7 +73,13 @@ def row(item):
     if not match:
         raise wire.WireError('malformed LIST flags')
     flags = match[1].lower().split()
-    _delimiter, rest = token(item[match.end():])
+    delimiter, rest = token(item[match.end():])
+    if delimiter == b'NIL':
+        delimiter = ''
+    else:
+        delimiter = delimiter.decode('ascii')
+        if len(delimiter) != 1:
+            raise wire.WireError('invalid folder hierarchy delimiter')
     if literal is not None:
         if not isinstance(literal, bytes) or rest.strip() != b'{' + str(len(literal)).encode() + b'}':
             raise wire.WireError('malformed LIST literal')
@@ -83,7 +89,9 @@ def row(item):
         if rest.strip():
             raise wire.WireError('malformed LIST name')
         name = decode(raw)
-    return {'name': name, 'role': 'Inbox' if name.casefold() == 'inbox' else next((v for k, v in ROLES.items() if k in flags), ''),
+    return {'name': name, 'delimiter': delimiter,
+            'special_use': bool(set(flags) & (set(ROLES) | {b'\\all', b'\\flagged', b'\\important'})),
+            'role': 'Inbox' if name.casefold() == 'inbox' else next((v for k, v in ROLES.items() if k in flags), ''),
             'selectable': b'\\noselect' not in flags}
 
 

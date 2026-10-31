@@ -84,9 +84,63 @@ class Handler(socketserver.BaseRequestHandler):
                         send(tag + b' BAD enable must precede selection')
                         continue
                     send(b'* ENABLED UTF8=ACCEPT')
+                elif command in (b'CREATE', b'RENAME', b'DELETE'):
+                    raw_name, tail = proxy.folders.token(rest)
+                    name = proxy.folders.decode(raw_name)
+                    if getattr(self.server, 'admin_refused', False):
+                        send(tag + b' NO folder operation refused')
+                        continue
+                    if command == b'CREATE':
+                        if name in self.server.folders or name == 'INBOX':
+                            send(tag + b' NO already exists')
+                            continue
+                        self.server.folders[name] = {'messages': {}, 'flags': {}, 'validity': 77, 'next_uid': 1}
+                        self.server.folder_rows.append((name, b''))
+                    elif command == b'DELETE':
+                        self.server.folders.pop(name, None)
+                        self.server.folder_rows = [(n, role) for n, role in self.server.folder_rows if n != name]
+                    else:
+                        new = proxy.folders.decode(proxy.folders.token(tail)[0])
+                        moved = {n: new + n[len(name):] for n in self.server.folders if n == name or n.startswith(name + '/')}
+                        for old, new_name in moved.items(): self.server.folders[new_name] = self.server.folders.pop(old)
+                        self.server.folder_rows = [(moved.get(n, n), role) for n, role in self.server.folder_rows]
+                    if getattr(self.server, 'drop_after_admin', False): return
+                elif command == b'APPEND':
+                    raw_name, tail = proxy.folders.token(rest)
+                    name = proxy.folders.decode(raw_name)
+                    match = re.fullmatch(rb'\s+(\([^()]*\))(?: "([^"]*)")? \{([0-9]+)\}', tail)
+                    if match is None:
+                        send(tag + b' BAD invalid append')
+                        continue
+                    if getattr(self.server, 'admin_refused', False):
+                        send(tag + b' NO append refused')
+                        continue
+                    send(b'+ literal follows')
+                    raw = reader.read(int(match[3]))
+                    if reader.read(2) != b'\r\n': return
+                    data = self.server.folders.get(name)
+                    current = data['messages'] if data else self.server.messages
+                    seen = data['flags'] if data else self.server.flags
+                    number = (data.get('next_uid') if data else self.server.next_uid) or max(current, default=0) + 1
+                    validity = data['validity'] if data else self.server.validity
+                    current[number] = raw
+                    seen[number] = set(match[1][1:-1].split())
+                    if data: data['next_uid'] = number + 1
+                    else: self.server.next_uid = number + 1
+                    if not hasattr(self.server, 'appended'): self.server.appended = []
+                    self.server.appended.append((name, raw, match[1], match[2]))
+                    if getattr(self.server, 'drop_after_admin', False): return
+                    mode = getattr(self.server, 'appenduid_mode', 'valid')
+                    if mode == 'missing': send(tag + b' OK appended')
+                    elif mode == 'bad': send(tag + b' OK [APPENDUID 0 1:2] appended')
+                    elif mode == 'overflow': send(tag + b' OK [APPENDUID 4294967296 100] appended')
+                    else: send(tag + b' OK [APPENDUID ' + str(validity).encode() + b' ' + str(number).encode() + b'] appended')
+                    continue
                 elif command == b'LIST':
                     for name, special in self.server.folder_rows:
-                        send(b'* LIST (' + special + b') "/" ' + proxy.wire.mailbox(name).encode())
+                        delimiter = getattr(self.server, 'delimiter', '/')
+                        encoded = b'NIL' if delimiter is None else proxy.operations.quote(delimiter).encode()
+                        send(b'* LIST (' + special + b') ' + encoded + b' ' + proxy.wire.mailbox(name).encode())
                         if b'STATUS' in rest and b'\\Noselect' not in special:
                             data = self.server.folders.get(name)
                             current = data['messages'] if data else self.server.messages

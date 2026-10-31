@@ -44,6 +44,10 @@ The calls, last:
 | `trash <uids>` | Move to the role Trash; refused if none |
 | `delete <uids>` | Permanent: `\Deleted` + UID EXPUNGE of exactly those UIDs; refused without UIDPLUS |
 | `compact_trash [--older <days>]` | Empty only the Trash role folder, optionally by INTERNALDATE; exact UID expunge only |
+| `folder create <name>` | Create a folder under ordinary admission |
+| `folder rename <name> <new>` | Rename an unprotected folder; requires allow_destructive |
+| `folder delete <name> [--force]` | Delete an unprotected folder; non-empty needs force; requires allow_destructive |
+| `append <folder> [--flags f,..] [--date rfc3339]` | Append raw mail after a newline; return APPENDUID when supplied; requires allow_destructive |
 | `publish <uid>` | Sends one mail, after a warning line, to the configured destination |
 | `sub add <target> [/regex/]` | Subscribes a queue or agent from the current UIDNEXT; an absent or empty filter matches ALL future mail |
 | `sub list` | Lists your subscriptions with their first UID and sent and dropped counts, then a blank line and cached poll status |
@@ -64,7 +68,7 @@ The calls, last:
 
 ### Mailbox changes
 
-`allow_destructive` is per instance and off by default. It gates **copy, move, trash, delete and compact_trash**; read, mark and flag stay under ordinary admission. A call body cannot enable it. The folder rename/delete and append operations are not built yet.
+`allow_destructive` is per instance and off by default. It gates **copy, move, trash, delete, compact_trash, folder rename/delete and append**; folder create, read, mark and flag stay under ordinary admission. A call body cannot enable it.
 
 - Source is `--folder`, or the configured mailbox, then INBOX. Destination names must be existing selectable names from `folders`. Only the source is selected writable; cache epoch checks apply before changing a UID.
 - `copy` leaves the source and reports the new UID and destination UIDVALIDITY when COPYUID is supplied. Each explicit repeat creates another copy.
@@ -73,6 +77,15 @@ The calls, last:
 - `trash` uses the unique selectable folder LIST marks `\Trash`; it never guesses a folder name. Missing or ambiguous roles refuse. It is distinct from permanent `delete`. On Gmail, moving to Trash removes the mail from all labels; expunging in an ordinary label may only remove that label.
 - `compact_trash` always selects that Trash role folder. JSON `folder`, if supplied, must match it. With no `--older` it removes all matching mail; `--older <days>` (0..365000) uses IMAP BEFORE on INTERNALDATE at the UTC date boundary. The sender's Date header is not used. More than 1000 matches refuses before any write; narrow the age filter.
 - Every UID has its own result. A failed UID does not prevent the next; reconnects check the original UIDVALIDITY. Confirmed removal evicts only that source UID from its folder cache. No bare EXPUNGE and no CLOSE on a writable mailbox are sent, so another client's Deleted mail stays.
+
+### Folder management and append
+
+- `folder create <name>` creates a folder under ordinary admission. Folder names, including Unicode, quotes and ampersands, are modified-UTF-7 encoded and quoted; they are never IMAP commands.
+- `folder rename <name> <new>` refuses INBOX (also as the destination) and an existing destination. `folder delete <name> [--force]` refuses INBOX and SPECIAL-USE role folders; roles come from LIST, never folder-name guesses. Role-folder ancestors are also protected from delete.
+- Rename and delete refuse the configured mailbox and its ancestors. Every current subscription watches that mailbox, so this also protects subscription progress. Per-folder subscriptions are not built yet. A non-empty unprotected folder needs `--force`; it does not bypass protected-folder checks. STATUS counts are a preflight, not a lock against another mail client delivering mail before DELETE.
+- `append <folder> [--flags f,..] [--date rfc3339]` takes raw RFC 5322 UTF-8 text after the first newline. JSON uses `{"method":"append","folder":"Drafts","raw":"Subject: Example\r\n\r\nBody","flags":["draft"]}`. Flags use the same names as `flag`; Deleted is refused. Date requires a timezone and controls INTERNALDATE, not the sender's Date header.
+- The raw-mail cap is 25 MB (26,214,400 bytes), but the existing **1,048,576-byte bus JSON request cap**, including JSON escapes and envelope overhead, is lower. Oversized calls refuse before any APPEND command; the bus can refuse the encoded request before the agent receives it. No bus limit is changed.
+- APPEND reports the server's APPENDUID (new UID and UIDVALIDITY). Without a valid APPENDUID it explicitly says the UID is unavailable; it does not search for a guessed match. A refused write is not retried; a lost reply says outcome unknown. Inspect folders before repeating. Folder management and append do not select a mailbox and never send CLOSE or bare EXPUNGE.
 
 ## You'll need
 
@@ -192,7 +205,7 @@ ok: manual cache only; subscriptions=0 damaged=0 backlog=0 sent=0 dropped=0 warn
 | `host`, `port` | Defaults imap.gmail.com and 993 |
 | `mailbox` | Default INBOX; Unicode and Gmail labels such as `[Gmail]/All Mail` use modified UTF-7 with proper quoting |
 | `auth` | password (default) or xoauth2 |
-| `allow_destructive` | Boolean, off by default; allows copy, move, trash, delete and compact_trash for this instance |
+| `allow_destructive` | Boolean, off by default; enables the gated [mailbox changes](#mailbox-changes) for this instance |
 | `target` | Fixed agent/queue/channel for publish; omitted disables manual publish; callers cannot override it |
 | `cache_bytes` | Default 64 MiB, range 4–512 MiB, counting logical mail/state/temporary-file bytes |
 | `mode` | tls (default) or plain |
