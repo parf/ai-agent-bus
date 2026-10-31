@@ -1,5 +1,5 @@
 {
-  "description": "Read your mail from a private per-folder cache without giving callers the mailbox password. Discover folders, sync, list, search and read mail, set Seen status, and subscribe an agent to new mail. Start with folders, then sync and list.",
+  "description": "Read your mail from a private cache without giving callers the mailbox password. Sync, list, search and read mail, set Seen status, and subscribe an agent to new mail. Start with sync, then list.",
   "command": "./imap.py",
   "form": "args",
   "serves": "itself",
