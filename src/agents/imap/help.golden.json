@@ -1,5 +1,5 @@
 {
-  "text": "Read your mail from a private cache without giving callers the mailbox password. Sync, list, search and read mail, set Seen status, and subscribe an agent to new mail. Start with sync, then list.\nsync [limit] [--folder <name>]: Fetch mail not yet cached, newest first; default 100. Return progress and whether more remains; use list to see cached mail. A forwarding-state error blocks default-folder sync until rebaseline; read, list and search keep working. --folder (JSON folder) selects that folder only; default is Configuration mailbox, then INBOX.\nlist [limit] [--unread] [--folder <name>]: See what is cached: Date, From and Subject with live read or unread status, newest UID first; default 20. --unread filters before the limit. JSON unread is a boolean. Date is as sent, unverified. --folder (JSON folder) selects that folder only; default is Configuration mailbox, then INBOX.\nsearch <text...> [--folder <name>]: Find cached mail by text: up to 100 Date, From and Subject summaries whose raw mail matches, with live read or unread status. The match runs locally; the server does no text search. --folder (JSON folder) selects that folder only; default is Configuration mailbox, then INBOX.\n  text (string): Nonempty local case-insensitive text, at most 4096 UTF-8 bytes; no controls\n[destructive] read <uid> [--no-mark] [--folder <name>]: Get one raw mail and mark it Seen by default, cached or not. --no-mark (JSON mark_read:false) leaves it unchanged. Every read needs a live server; a lost reply may leave the mail marked. No delete, move or other flags. --folder (JSON folder) selects that folder only; default is Configuration mailbox, then INBOX.\n[destructive] publish <uid> [--folder <name>]: Copy one raw mail, with an external-content warning, to the Configuration target. Each explicit repeat copies again. --folder (JSON folder) selects that folder only; default is Configuration mailbox, then INBOX.\nsub add <target> [/regex/]: Forward mail that arrives after this add to a destination; the old backlog is never forwarded. A missing or empty filter matches ALL mail from this account. The author's permission to send is checked at add and on each forward, and the receiver must also admit this IMAP instance. At most 20 subscriptions per creator, 100 in total.\n  filter (string): Match sender addr-spec plus decoded subject; common regex subset, at most 200 characters, optional /imsu flags; no g/y\nsub list: Review your subscriptions: target, creator, filter, first UID and sent and dropped counts. Direct Owners and Maintainers see all, including damaged rows marked invalid_state for repair. No mailbox connection. A blank line separates the cached poll-status line at the end.\n[destructive] sub delete <id>: Stop your subscription. Direct Owners and Maintainers may delete any subscription, including damaged rows. To change one, delete it and add it again; the new one starts at the current UIDNEXT.\nstatus: See the last poll and its age, and the subscription, backlog, sent, dropped and warning counts. No mailbox connection.\n[destructive] mark <uid> read|unread [--folder <name>]: Set or clear Seen on the server and get the observed read or unread state. Ordinary IMAP admission permits this. An unknown write outcome is not retried. --folder (JSON folder) selects that folder only; default is Configuration mailbox, then INBOX.\n  state (read|unread): Only read or unread\nfolders [--counts]: List folder names and SPECIAL-USE roles: Inbox, Sent, Drafts, Trash, Junk, Archive. --counts (JSON counts:true) adds total and unseen via STATUS. Without LIST-STATUS, at most 50 folders get counts per call; skipped counts are labelled. No mail is selected or fetched.\n  counts (bool): Add total and unseen counts; JSON counts is a boolean\n\nArguments\nfolder (string): Decoded folder name from folders; default is Configuration mailbox, then INBOX. INBOX is case-insensitive; other names are exact.\nid (string): Subscription id returned by sub add\nlimit (int): Maximum items, 1..100; defaults are stated per method\ntarget (string): A queue or agent whose ACL admits this IMAP instance; the author must also be admitted\nuid (int): Mailbox UID, 1..4294967295, never an IMAP command or sequence number\n\nv<version> · PolyForm-NC · parf.dev/agent-bus/\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/imap.md\nMore: agent-bus help <name> config | secret | json",
+  "text": "Read your mail from a private cache without giving callers the mailbox password. Sync, list, search and read mail, set Seen status, and subscribe an agent to new mail. Start with sync, then list.\nsync [limit] [--folder <name>]: Fetch mail not yet cached, newest first; default 100. Return progress and whether more remains; use list to see cached mail. A forwarding-state error blocks default-folder sync until rebaseline; read, list and search keep working. Per-folder cache keyed by folder and UIDVALIDITY; the existing single-mailbox cache becomes the default folder's cache with no re-sync.\nlist [limit] [--unread] [--folder <name>]: See what is cached: Date, From and Subject with live read or unread status, newest UID first; default 20. --unread filters before the limit. JSON unread is a boolean. Date is as sent, unverified.\nsearch <text...> [--folder <name>]: Find cached mail by text: up to 100 Date, From and Subject summaries whose raw mail matches, with live read or unread status. The match runs locally; the server does no text search.\n  text (string): Nonempty local case-insensitive text, at most 4096 UTF-8 bytes; no controls\n[destructive] read <uid> [--no-mark] [--folder <name>]: Get one raw mail and mark it Seen by default, cached or not. --no-mark (JSON mark_read:false) leaves it unchanged. Every read needs a live server; a lost reply may leave the mail marked. No other flags.\n[destructive] publish <uid> [--folder <name>]: Copy one raw mail, with an external-content warning, to the Configuration target. Each explicit repeat copies again.\nsub add <target> [/regex/]: Forward mail that arrives after this add to a destination; the old backlog is never forwarded. A missing or empty filter matches ALL mail from this account. The author's permission to send is checked at add and on each forward, and the receiver must also admit this IMAP instance. At most 20 subscriptions per creator, 100 in total.\n  filter (string): Match sender addr-spec plus decoded subject; common regex subset, at most 200 characters, optional /imsu flags; no g/y\nsub list: Review your subscriptions: target, creator, filter, first UID and sent and dropped counts. Direct Owners and Maintainers see all, including damaged rows marked invalid_state for repair. No mailbox connection. A blank line separates the cached poll-status line at the end.\n[destructive] sub delete <id>: Stop your subscription. Direct Owners and Maintainers may delete any subscription, including damaged rows. To change one, delete it and add it again; the new one starts at the current UIDNEXT.\nstatus: See the last poll and its age, and the subscription, backlog, sent, dropped and warning counts. No mailbox connection.\n[destructive] mark <uid> read|unread [--folder <name>]: Set or clear Seen on the server and get the observed read or unread state. Ordinary IMAP admission permits this. An unknown write outcome is not retried.\n  state (read|unread): Only read or unread\nfolders [--counts]: name and role (Inbox, Sent, Drafts, Trash, Junk, Archive); --counts adds total and unseen via STATUS.\n  counts (bool): Add total and unseen counts; JSON counts is a boolean\n\nArguments\nfolder (string): --folder <name> (JSON folder) on every per-mail call; default is the configured mailbox, then INBOX. --folder on sync, list, search, read, mark and publish.\nid (string): Subscription id returned by sub add\nlimit (int): Maximum items, 1..100; defaults are stated per method\ntarget (string): A queue or agent whose ACL admits this IMAP instance; the author must also be admitted\nuid (int): Mailbox UID, 1..4294967295, never an IMAP command or sequence number\n\nv<version> · PolyForm-NC · parf.dev/agent-bus/\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/imap.md\nMore: agent-bus help <name> config | secret | json",
   "json": {
     "description": "Read your mail from a private cache without giving callers the mailbox password. Sync, list, search and read mail, set Seen status, and subscribe an agent to new mail. Start with sync, then list.",
     "license": "PolyForm-Noncommercial-1.0.0",
@@ -10,7 +10,7 @@
     "methods": {
       "sync": {
         "type": "string",
-        "help": "Fetch mail not yet cached, newest first; default 100. Return progress and whether more remains; use list to see cached mail. A forwarding-state error blocks default-folder sync until rebaseline; read, list and search keep working. --folder (JSON folder) selects that folder only; default is Configuration mailbox, then INBOX.",
+        "help": "Fetch mail not yet cached, newest first; default 100. Return progress and whether more remains; use list to see cached mail. A forwarding-state error blocks default-folder sync until rebaseline; read, list and search keep working. Per-folder cache keyed by folder and UIDVALIDITY; the existing single-mailbox cache becomes the default folder's cache with no re-sync.",
         "args": [
           {
             "type": "int",
@@ -20,7 +20,7 @@
           },
           {
             "type": "string",
-            "help": "Decoded folder name from folders; default is Configuration mailbox, then INBOX. INBOX is case-insensitive; other names are exact.",
+            "help": "--folder <name> (JSON folder) on every per-mail call; default is the configured mailbox, then INBOX. --folder on sync, list, search, read, mark and publish.",
             "name": "folder",
             "optional": true
           }
@@ -29,7 +29,7 @@
       },
       "list": {
         "type": "string",
-        "help": "See what is cached: Date, From and Subject with live read or unread status, newest UID first; default 20. --unread filters before the limit. JSON unread is a boolean. Date is as sent, unverified. --folder (JSON folder) selects that folder only; default is Configuration mailbox, then INBOX.",
+        "help": "See what is cached: Date, From and Subject with live read or unread status, newest UID first; default 20. --unread filters before the limit. JSON unread is a boolean. Date is as sent, unverified.",
         "args": [
           {
             "type": "int",
@@ -39,7 +39,7 @@
           },
           {
             "type": "string",
-            "help": "Decoded folder name from folders; default is Configuration mailbox, then INBOX. INBOX is case-insensitive; other names are exact.",
+            "help": "--folder <name> (JSON folder) on every per-mail call; default is the configured mailbox, then INBOX. --folder on sync, list, search, read, mark and publish.",
             "name": "folder",
             "optional": true
           }
@@ -48,11 +48,11 @@
       },
       "search": {
         "type": "string",
-        "help": "Find cached mail by text: up to 100 Date, From and Subject summaries whose raw mail matches, with live read or unread status. The match runs locally; the server does no text search. --folder (JSON folder) selects that folder only; default is Configuration mailbox, then INBOX.",
+        "help": "Find cached mail by text: up to 100 Date, From and Subject summaries whose raw mail matches, with live read or unread status. The match runs locally; the server does no text search.",
         "args": [
           {
             "type": "string",
-            "help": "Decoded folder name from folders; default is Configuration mailbox, then INBOX. INBOX is case-insensitive; other names are exact.",
+            "help": "--folder <name> (JSON folder) on every per-mail call; default is the configured mailbox, then INBOX. --folder on sync, list, search, read, mark and publish.",
             "name": "folder",
             "optional": true
           },
@@ -67,7 +67,7 @@
       },
       "read": {
         "type": "string",
-        "help": "Get one raw mail and mark it Seen by default, cached or not. --no-mark (JSON mark_read:false) leaves it unchanged. Every read needs a live server; a lost reply may leave the mail marked. No delete, move or other flags. --folder (JSON folder) selects that folder only; default is Configuration mailbox, then INBOX.",
+        "help": "Get one raw mail and mark it Seen by default, cached or not. --no-mark (JSON mark_read:false) leaves it unchanged. Every read needs a live server; a lost reply may leave the mail marked. No other flags.",
         "args": [
           {
             "type": "int",
@@ -76,7 +76,7 @@
           },
           {
             "type": "string",
-            "help": "Decoded folder name from folders; default is Configuration mailbox, then INBOX. INBOX is case-insensitive; other names are exact.",
+            "help": "--folder <name> (JSON folder) on every per-mail call; default is the configured mailbox, then INBOX. --folder on sync, list, search, read, mark and publish.",
             "name": "folder",
             "optional": true
           }
@@ -86,7 +86,7 @@
       },
       "publish": {
         "type": "string",
-        "help": "Copy one raw mail, with an external-content warning, to the Configuration target. Each explicit repeat copies again. --folder (JSON folder) selects that folder only; default is Configuration mailbox, then INBOX.",
+        "help": "Copy one raw mail, with an external-content warning, to the Configuration target. Each explicit repeat copies again.",
         "destructive": true,
         "args": [
           {
@@ -96,7 +96,7 @@
           },
           {
             "type": "string",
-            "help": "Decoded folder name from folders; default is Configuration mailbox, then INBOX. INBOX is case-insensitive; other names are exact.",
+            "help": "--folder <name> (JSON folder) on every per-mail call; default is the configured mailbox, then INBOX. --folder on sync, list, search, read, mark and publish.",
             "name": "folder",
             "optional": true
           }
@@ -154,7 +154,7 @@
       "mark": {
         "type": "string",
         "text": "mark <uid> read|unread [--folder <name>]",
-        "help": "Set or clear Seen on the server and get the observed read or unread state. Ordinary IMAP admission permits this. An unknown write outcome is not retried. --folder (JSON folder) selects that folder only; default is Configuration mailbox, then INBOX.",
+        "help": "Set or clear Seen on the server and get the observed read or unread state. Ordinary IMAP admission permits this. An unknown write outcome is not retried.",
         "destructive": true,
         "args": [
           {
@@ -172,7 +172,7 @@
           },
           {
             "type": "string",
-            "help": "Decoded folder name from folders; default is Configuration mailbox, then INBOX. INBOX is case-insensitive; other names are exact.",
+            "help": "--folder <name> (JSON folder) on every per-mail call; default is the configured mailbox, then INBOX. --folder on sync, list, search, read, mark and publish.",
             "name": "folder",
             "optional": true
           }
@@ -181,7 +181,7 @@
       "folders": {
         "type": "string",
         "text": "folders [--counts]",
-        "help": "List folder names and SPECIAL-USE roles: Inbox, Sent, Drafts, Trash, Junk, Archive. --counts (JSON counts:true) adds total and unseen via STATUS. Without LIST-STATUS, at most 50 folders get counts per call; skipped counts are labelled. No mail is selected or fetched.",
+        "help": "name and role (Inbox, Sent, Drafts, Trash, Junk, Archive); --counts adds total and unseen via STATUS.",
         "args": [
           {
             "type": "bool",

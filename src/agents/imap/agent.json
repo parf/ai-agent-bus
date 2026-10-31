@@ -40,12 +40,12 @@
     },
     "folder": {
       "type": "string",
-      "help": "Decoded folder name from folders; default is Configuration mailbox, then INBOX. INBOX is case-insensitive; other names are exact."
+      "help": "--folder <name> (JSON folder) on every per-mail call; default is the configured mailbox, then INBOX. --folder on sync, list, search, read, mark and publish."
     }
   },
   "methods": {
     "sync": {
-      "help": "Fetch mail not yet cached, newest first; default 100. Return progress and whether more remains; use list to see cached mail. A forwarding-state error blocks default-folder sync until rebaseline; read, list and search keep working. --folder (JSON folder) selects that folder only; default is Configuration mailbox, then INBOX.",
+      "help": "Fetch mail not yet cached, newest first; default 100. Return progress and whether more remains; use list to see cached mail. A forwarding-state error blocks default-folder sync until rebaseline; read, list and search keep working. Per-folder cache keyed by folder and UIDVALIDITY; the existing single-mailbox cache becomes the default folder's cache with no re-sync.",
       "args": [
         {
           "name": "limit",
@@ -59,7 +59,7 @@
       "text": "sync [limit] [--folder <name>]"
     },
     "list": {
-      "help": "See what is cached: Date, From and Subject with live read or unread status, newest UID first; default 20. --unread filters before the limit. JSON unread is a boolean. Date is as sent, unverified. --folder (JSON folder) selects that folder only; default is Configuration mailbox, then INBOX.",
+      "help": "See what is cached: Date, From and Subject with live read or unread status, newest UID first; default 20. --unread filters before the limit. JSON unread is a boolean. Date is as sent, unverified.",
       "args": [
         {
           "name": "limit",
@@ -73,7 +73,7 @@
       "text": "list [limit] [--unread] [--folder <name>]"
     },
     "search": {
-      "help": "Find cached mail by text: up to 100 Date, From and Subject summaries whose raw mail matches, with live read or unread status. The match runs locally; the server does no text search. --folder (JSON folder) selects that folder only; default is Configuration mailbox, then INBOX.",
+      "help": "Find cached mail by text: up to 100 Date, From and Subject summaries whose raw mail matches, with live read or unread status. The match runs locally; the server does no text search.",
       "args": [
         {
           "name": "folder",
@@ -89,7 +89,7 @@
       "text": "search <text...> [--folder <name>]"
     },
     "read": {
-      "help": "Get one raw mail and mark it Seen by default, cached or not. --no-mark (JSON mark_read:false) leaves it unchanged. Every read needs a live server; a lost reply may leave the mail marked. No delete, move or other flags. --folder (JSON folder) selects that folder only; default is Configuration mailbox, then INBOX.",
+      "help": "Get one raw mail and mark it Seen by default, cached or not. --no-mark (JSON mark_read:false) leaves it unchanged. Every read needs a live server; a lost reply may leave the mail marked. No other flags.",
       "args": [
         {
           "name": "uid"
@@ -103,7 +103,7 @@
       "destructive": true
     },
     "publish": {
-      "help": "Copy one raw mail, with an external-content warning, to the Configuration target. Each explicit repeat copies again. --folder (JSON folder) selects that folder only; default is Configuration mailbox, then INBOX.",
+      "help": "Copy one raw mail, with an external-content warning, to the Configuration target. Each explicit repeat copies again.",
       "destructive": true,
       "args": [
         {
@@ -155,7 +155,7 @@
     },
     "mark": {
       "text": "mark <uid> read|unread [--folder <name>]",
-      "help": "Set or clear Seen on the server and get the observed read or unread state. Ordinary IMAP admission permits this. An unknown write outcome is not retried. --folder (JSON folder) selects that folder only; default is Configuration mailbox, then INBOX.",
+      "help": "Set or clear Seen on the server and get the observed read or unread state. Ordinary IMAP admission permits this. An unknown write outcome is not retried.",
       "destructive": true,
       "args": [
         {
@@ -177,7 +177,7 @@
     },
     "folders": {
       "text": "folders [--counts]",
-      "help": "List folder names and SPECIAL-USE roles: Inbox, Sent, Drafts, Trash, Junk, Archive. --counts (JSON counts:true) adds total and unseen via STATUS. Without LIST-STATUS, at most 50 folders get counts per call; skipped counts are labelled. No mail is selected or fetched.",
+      "help": "name and role (Inbox, Sent, Drafts, Trash, Junk, Archive); --counts adds total and unseen via STATUS.",
       "args": [
         {
           "name": "counts",
