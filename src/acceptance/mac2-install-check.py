@@ -173,6 +173,18 @@ def uninstall(missing_parents):
     print('PASS uninstall removed the fixture role, job and setup files', flush=True)
 
 
+
+def uninstall_after_checks(missing_parents):
+    # Called from the acceptance body's finally, while its error is still active.
+    already_failed = sys.exc_info()[0] is not None
+    try:
+        uninstall(missing_parents)
+    except PartialAccountRemoval as error:
+        if not already_failed:
+            raise
+        print(str(error), file=sys.stderr, flush=True)
+
+
 def archive_bundle(archive, work):
     """Check the delivered bytes before executing any archive program."""
     archive = archive.resolve(strict=True)
@@ -401,14 +413,7 @@ def main():
                 bus.close()
         try:
             if armed:
-                # A partial teardown must never hide an earlier acceptance failure.
-                already_failed = sys.exc_info()[0] is not None
-                try:
-                    uninstall(missing_parents)
-                except PartialAccountRemoval as error:
-                    if not already_failed:
-                        raise
-                    print(str(error), file=sys.stderr, flush=True)
+                uninstall_after_checks(missing_parents)
         finally:
             if not options.archive and Path(ENV['GOMODCACHE']).is_dir():
                 run(['go', 'clean', '-modcache'], cwd=REPO / 'src', timeout=30)

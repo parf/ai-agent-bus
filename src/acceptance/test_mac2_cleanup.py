@@ -66,7 +66,13 @@ if mode.startswith('links-'):
     m.os.readlink = lambda path: '/other/agent-bus' if mode == 'links-other-target' else '/fresh/current/agent-bus'
 if mode == 'tcc-path-leftover':
     m.root_exists = lambda path: path == m.HOME
-m.main = lambda: m.uninstall([])
+def acceptance():
+    try:
+        if mode == 'tcc-prior-failure':
+            raise AssertionError('earlier acceptance failed')
+    finally:
+        m.uninstall_after_checks([])
+m.main = acceptance
 m.cli()
 '''
 
@@ -142,6 +148,13 @@ class Cleanup(unittest.TestCase):
             self.assertIn(text, p.stderr)
         self.assertNotIn('PASS uninstall', p.stdout)
         self.assertIn('"-list", "/Groups"', p.stdout)
+
+    def test_tcc_partial_never_masks_an_earlier_acceptance_failure(self):
+        p = self.run_cleanup('tcc-prior-failure')
+        self.assertEqual(p.returncode, 1, p.stdout + p.stderr)
+        self.assertIn('AssertionError: earlier acceptance failed', p.stderr)
+        self.assertIn('PARTIAL: account _agentbusd', p.stderr)
+        self.assertNotIn('PASS uninstall', p.stdout)
 
     def test_tcc_does_not_relax_other_teardown_failures(self):
         for mode in ('tcc-group-fail', 'tcc-path-leftover', 'tcc-lookup-fail', 'false-success'):

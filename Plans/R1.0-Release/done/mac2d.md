@@ -23,3 +23,11 @@ The [owner run list](../mac2b-run-list.md#account-removal-blocked-over-ssh) name
 - Restored cleanup/archive tests: 20/0 in 1.191 s. Both mutants ran only owning checks under the slow lock; sources restored and lock released immediately.
 
 Owning `go test ./cmd/agent-bus-setup -run TestDarwinAcceptanceCleanupStubs -count=1` passes (0.943 s). Final fast smoke passes 28/0, 8.071 s wall; Go fast shards 4.872 / 2.613 / 5.321 s, below 15 s. Changed/inbound links and whitespace checks pass. No worker normal gate or native Mac operation was run. Only acceptance tooling and its documentation change; no shipped program behavior or bump.
+
+## Review coverage of an earlier failure
+
+The production finally-handler is factored into `uninstall_after_checks`, called by `main` and by the stub's real failing-body/finally flow. The new check raises an acceptance assertion, runs partial teardown from its finally, and requires ordinary exit 1 with the original failure intact (while still reporting the leftover account). The no-prior-error path continues to require exit 3.
+
+Making that helper always rethrow the partial masks the original failure and fails the new check on `3 != 1` (one assertion failure/no ERROR, 0.044 s). Making it swallow every partial fails the existing no-prior-error check on `0 != 3` (one assertion failure/no ERROR, 0.041 s). Restored: all 21 tests pass in 0.925 s. The slow lock was released immediately after the owning mutants. No native operation or new deletion command is introduced.
+
+Delta owning Go wrapper: 0.976 s. Delta fast smoke: 28/0, 7.660 s wall, Go shards 4.545 / 1.269 / 4.897 s. Links and whitespace remain clean.
