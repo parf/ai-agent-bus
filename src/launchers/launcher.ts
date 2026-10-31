@@ -4,11 +4,11 @@ import { appendFileSync, chmodSync, closeSync, existsSync, mkdirSync, mkdtempSyn
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { Bus, BusError } from "../mcp/bus.ts";
-import { Codex } from "../mcp/codex.ts";
+import { Codex, transientDelivery } from "../mcp/codex.ts";
 import { Opencode } from "../mcp/opencode.ts";
 import { Opencode1 } from "../mcp/opencode1.ts";
 import { sidecarMessage } from "../mcp/messages.ts";
-import { startPush, superviseDelivery as superviseDeliveryOf, sleep, RENAME_READER_RETRY_MS, type Push } from "../mcp/push.ts";
+import { startPush, superviseDelivery as superviseDeliveryOf, sleep, RENAME_READER_RETRY_MS, type Deliver, type Held, type Push } from "../mcp/push.ts";
 import { faceEvent, faceMarks } from "../mcp/face-mark.ts";
 import { version } from "../mcp/version.ts";
 import { Bindings, claudeSessions, claudeStart, claudeTitle, sameBase, type Session } from "./sessions.ts";
@@ -422,15 +422,21 @@ See docs/06-launchers.md#smart-launchers.`);
     renameSync(envFile + ".new", envFile);
   };
   saveEnv();
+  // The one place a push starts. The supervisor restarts a push that stopped after a failed delivery, and `held`
+  // outlives each one: the message it could not deliver goes in first when the next starts, and a drop reaches the
+  // session as a notice (J60b). Every restart goes through here, so none gets a holder of its own.
+  const held: Held = { transient: transientDelivery, notice: (s) => warn(s) };
+  const pushInto = (deliver: Deliver, readerReleaseMs: number): Push =>
+    startPush(bus, deliver, log, undefined, readerReleaseMs, env, undefined, undefined, held);
   const bindThread = (thread: { id: string }, readerReleaseMs = 0) => {
     if (thread.id !== session.id) {
       if (!bindings!.lock(`${runtime}:${thread.id}`)) throw new Error("runtime selected an already launched session");
       bindings!.save(thread.id, name, base);
       session.id = thread.id;
     }
-    push = startPush(bus, async e => {
+    push = pushInto(async e => {
       await codex!.deliver(sidecarMessage(e), e.message_id);
-    }, log, undefined, readerReleaseMs, env);
+    }, readerReleaseMs);
   };
   const bindSession = (id: string, readerReleaseMs = 0) => {
     if (id !== session.id) {
@@ -439,9 +445,9 @@ See docs/06-launchers.md#smart-launchers.`);
       session.id = id;
     }
     opencode!.bind(id);
-    push = startPush(bus, async e => {
+    push = pushInto(async e => {
       await opencode!.deliver(sidecarMessage(e), e.message_id);
-    }, log, undefined, readerReleaseMs, env);
+    }, readerReleaseMs);
   };
   if (codex) {
     const thread = fresh ? undefined : await codex.openThread(session.id);
