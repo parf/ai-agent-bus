@@ -16,7 +16,7 @@
 - ✅ **One script, one name:** each message runs the script once and its output is the answer.
 - ✅ **What the script is told:** the message arrives as the script's argument, or as JSON on stdin.
 - ✅ **Who it runs as:** the account that started it.
-- ✅ **Optional sandbox:** confinement for the child.
+- ✅ **Optional sandbox:** see the [dedicated-runner network and filesystem boundaries](runner/security.md#isolation-today).
 - 🚫 **Not for:** installed or pooled agents, reloads and restarts (the [runner](runner/README.md)).
 
 ## Try this first
@@ -174,22 +174,9 @@ unit only on request ([a person's runner](07-setup.md#a-persons-runner)).
 
 ## Sandboxing
 
-- The dedicated runner's sandbox is off by default; `--sandbox on|off` selects it explicitly.
-- The built backend is `systemd-run --user` behind the sandbox port.
-- Asking for a sandbox without a working user manager and support for `--expand-environment=no` fails rather than silently running unsandboxed.
-- Startup reports the selected backend or the probe's failure diagnostic.
+The [isolation reference](runner/security.md#isolation-today) defines the optional `agent-bus run` sandbox, including network reach, readable files, writable paths and host requirements.
 
-| Profile | Behavior |
-|---|---|
-| Filesystem | `ProtectSystem=strict`, home read-only, private temporary directory |
-| Work | Work directory bound in and writable; script directory bound read-only |
-| Network | Private network unless explicitly requested |
-| Privilege and resources | No new privileges; process and memory limits |
-
-The exact invocation is in [sandbox source](../src/internal/sandbox/sandbox.go).
-The built backend is tested with positive and negative controls: a script can
-write inside its work directory and cannot write outside it or use an ungranted
-network.
+Use `--sandbox=on` to request it and `--network` to request network access; startup reports the selected backend or its refusal.
 
 ## Status
 

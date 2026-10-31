@@ -39,7 +39,7 @@ agent-bus run -5 - < hello.json     # the same, five at a time
 | `instances` | number | `1` | at most this many script processes at once | `-N` |
 | `allow` | array of names | the [restricted default](../02-access.md#acl) | who may send to it, e.g. `["@owner"]` or `["*"]` | `--allow` |
 | `personal` | boolean | `false` | register the record as [Personal](../03-records.md#personal-and-shared) | `--personal` |
-| `sandbox` | `"on"` or `"off"` | off | confine each run ([sandboxing](../06-dedicated-runner.md#sandboxing)) | `--sandbox` |
+| `sandbox` | `"on"` or `"off"` | off | apply the [dedicated isolation rules](../runner/security.md#isolation-today) | `--sandbox` |
 | `network` | boolean | `false` | a sandboxed script that needs the network says so | `--network` |
 | `roles` | array of strings | none | the [roles](../03-records-agent.md#roles) the script understands, registered on the agent, informational | `--roles` |
 | `tags` | array of strings | none | explicit [record labels](../03-records.md#tags); `run` adds none of its own | `--tags` |

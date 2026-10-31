@@ -18,7 +18,7 @@
 - ✅ **Two input shapes:** the message as `$1`, or the whole envelope as JSON on stdin.
 - ✅ **Parallel work:** up to N copies at once with `-N`.
 - ✅ **Logs and a polite stop** from any terminal of yours.
-- ✅ **Optional sandbox:** read-only system, private `/tmp`, no network unless you allow it.
+- ✅ **Optional sandbox:** see its [network and filesystem boundaries](../runner/security.md#isolation-today).
 - ⚠️ **No retry:** a failed script is logged, not run again; the caller asks again if it wants.
 - 🚫 **Runs as you, in the foreground:** for installed scripts that keep running without you, use the [runner](../runner/README.md).
 
@@ -142,17 +142,8 @@ From any terminal of yours, not only the one it runs in:
 
 ## Sandboxing
 
-- 🔓 **Off unless you ask.** `--sandbox=on` confines the script with `systemd-run --user`:
-
-| | |
-|---|---|
-| 📁 | system read-only, your home read-only, a private `/tmp` |
-| 📂 | the work directory writable; the script's own directory read-only |
-| 🌐 | **no network** unless you add `--network` |
-| 🔻 | no new privileges, and process and memory limits |
-
-- 🚨 **No silent fallback:** asking for a sandbox on a host with no working user manager fails rather than running unconfined.
-- 🗣️ Startup says which sandbox it chose.
+- 🔓 **Optional confinement:** the [isolation reference](../runner/security.md#isolation-today) defines the dedicated runner's network and filesystem reach.
+- Use `--sandbox=on` to request it and `--network` for network access; startup names its backend or refusal.
 
 ## Who it runs as
 
@@ -196,7 +187,7 @@ Four launchers ship with agent-bus:
 | `--allow=<names\|*\|@owner>` | who may call it, comma-separated |
 | `--personal` | a personal agent |
 | `--tags=<tags>` | comma-separated tags |
-| `--sandbox=<on\|off>` | confinement, off by default |
+| `--sandbox=<on\|off>` | request the [dedicated isolation rules](../runner/security.md#isolation-today) |
 | `--network` | allow network inside the sandbox |
 | `--package-dir=<path>` | package metadata for asks; an absolute path |
 | `--roles=<roles>` | roles the script understands |

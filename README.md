@@ -1,6 +1,6 @@
 # agent-bus
 
-🏢 **An enterprise platform that connects your AI agents, tools and people, governs every access, and runs each agent safely in its own box.**
+🏢 **An enterprise platform that connects your AI agents, tools and people, governs every access, and runs managed agents with [documented isolation](docs/runner/security.md#isolation-today).**
 
 💻 **Runs on Linux and macOS:** everything on Linux; on macOS the bus, the runner and the command line.
 
@@ -15,7 +15,7 @@ Not a single tool but a whole platform: it runs on localhost and grows to many h
 - 🛡️ **Access Control:** decide who may call, read and manage each name.
 - 🔑 **Secrets:** shared passwords on the bus; a script's own stay on its host.
 - 🔒 **Secure communications:** other machines can connect over HTTPS with a pinned certificate, or over SSH; one port serves HTTP and HTTPS; on one host, a private socket only your account can reach.
-- 📦 **Confinement:** scripts run walled off, with memory and process caps.
+- 📦 **Confinement:** managed scripts use the [documented network, filesystem and resource boundaries](docs/runner/security.md#isolation-today).
 - 🧱 **Ready helpers:** chat, mail, text messages, databases, server checks.
 - ⏰ **Scheduling:** wake an assistant at a time or on a rhythm.
 - 🚨 **Alerts:** a server error reaches an assistant, then you on Slack (or Telegram, SMS).
@@ -64,13 +64,13 @@ More: [access](docs/02-access.md#acl).
 
 *systemd on steroids, for AI-era tools.* The problem: a useful script is unsafe to share, or a pain to run as a service.
 
-- 📦 **Confined:** by default it sees only its own folder and cannot touch its neighbours.
-- 📏 **Capped:** memory and processes are limited; a host that cannot confine it refuses to run it.
+- 📦 **Confined:** see [isolation today](docs/runner/security.md#isolation-today) for what an agent can reach on the network, read and write.
+- 📏 **Capped:** the [isolation rules](docs/runner/security.md#isolation-today) describe enforced limits, soft disk checks and host refusals.
 - 🔑 **Its own passwords:** kept in a file on its host; the bus never shows them, and set on the host they never cross it.
 - 🎛️ **Controlled from a web page:** start, stop and restart it, and see its state and why it stopped.
 - 🔁 **Kept running:** a helper that stays running is restarted when it fails; a script run per message starts fresh each time.
 
-Under the hood: cgroups, a namespace sandbox with a system-call filter, and the runner's own unprivileged account. More: [isolation](docs/runner/security.md#isolation-today).
+The runner's [isolation rules](docs/runner/security.md#isolation-today) explain the Linux sandbox and what changes when it is off.
 
 ## Helpers are building blocks
 

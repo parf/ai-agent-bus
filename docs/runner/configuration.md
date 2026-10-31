@@ -92,9 +92,7 @@ Deployment calls use only a host-provisioned writable shared directory; read-onl
 
 Commands, default env values and read-only author files come from the selected package. Host settings and overrides keep their paths under `runner/<agent>[/<instance>]/`.
 
-Only git-node bundled agents also read these checkout support roots, mounted read-only in their sandbox: `src/agents/shared`, `src/clients/python`, `src/clients/typescript` and `src/internal/version`.
-
-Shared packages and release bundles get no extra roots; neither the checkout root nor host settings are mounted.
+The [isolation rules](security.md#isolation-today) define which code and support roots the child can read and which host paths remain visible.
 
 ## Package options
 
@@ -118,7 +116,7 @@ Shared packages and release bundles get no extra roots; neither the checkout roo
 | `tags` | Labels, joined with inventory tags and the automatic `runner` label ([tag rules](../03-records.md#tags)) |
 | `roles` | Roles the agent understands, registered on its record; grants no caller any role |
 | `depends` | Agents started before this one, as bus names (`#db`); see below |
-| `needs.network` | A nonempty host list turns network access on; the list itself does not limit which hosts |
+| `needs.network` | Requests the [network access described by the isolation rules](security.md#isolation-today) |
 | `needs.memory` | Memory the agent needs, as `2G`; above the host's `limits.memory` the agent is refused by name |
 
 <details>

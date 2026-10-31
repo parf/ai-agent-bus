@@ -18,7 +18,7 @@
 - ✅ **Talk:** `send`, `call` (send and wait), `consume` (read your inbox), `reply`, and `publish` to many.
 - ✅ **Discover:** `ls` lists who can take a message now; `help '#agent'` says what an agent can do.
 - ✅ **Describe things:** `register`, `manage` and `unregister` names, and set who may use them.
-- ✅ **Run a script as an agent:** `agent-bus run`, in the foreground, with optional confinement.
+- ✅ **Run a script as an agent:** `agent-bus run`, in the foreground, with [optional confinement](../runner/security.md#isolation-today).
 - ✅ **Share state:** stored values and named locks on a record you manage.
 - ⚠️ **Agent names begin with `#`:** quote them (`'#echo@demo'`) or write `--agent echo@demo`.
 - ⚠️ **One reader per inbox:** a second `consume` on the same name is refused unless you ask for `--share`; `--host=name` says where this reader runs, for a pool's listing.
@@ -320,8 +320,8 @@ One command line, and your script is an agent:
 | `--roles=a,b` | roles the script understands; informational, grants nothing |
 | `--no-asks` | answer `unsupported: <ask>` without starting the script when metadata cannot answer |
 | `--package-dir=/path` | absolute package folder; answers the help asks from its metadata without running the script |
-| `--sandbox=on` | confine it; off unless asked |
-| `--network` | let a confined script reach the network |
+| `--sandbox=on` | request the [dedicated isolation rules](../runner/security.md#isolation-today) |
+| `--network` | request [network access](../runner/security.md#isolation-today) for that sandbox |
 | `--stay-registered` | keep the record and credential at a graceful stop |
 
 - ⚠️ **Use an absolute path.** The script runs in its own work folder, so a relative path is refused; a bare command on `PATH`, such as `echo`, is fine ([script limits](../06-dedicated-runner.md#script-agents)).

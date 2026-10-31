@@ -267,7 +267,7 @@ journalctl -u agent-bus-runner@<you> -f
 ```
 
 - **`agent-bus logs` and `agent-bus stop`** belong to the dedicated `agent-bus run`, which [leaves a note](../06-dedicated-runner.md#stopping-it-and-reading-what-it-said) in the launching user's state directory. The runner leaves none, so they cannot see it.
-- **`serving #hello@host, 3 at a time, sandbox bwrap`** when an agent is taken up: this is how you confirm what confined it; `sandbox off` is said just as plainly.
+- **`serving #hello@host, 3 at a time, sandbox bwrap`** when an agent is taken up: this names the backend; read its [isolation boundaries](security.md#isolation-today), including `sandbox off`.
 - **`no longer serving …`** when it is dropped, and each refusal by name.
 - **Everything the agents write on stderr,** each line prefixed with the agent's name.
 - **A per-message script's stdout is its answer** and is not logged; a self-serving agent's stdout goes to the journal too.
