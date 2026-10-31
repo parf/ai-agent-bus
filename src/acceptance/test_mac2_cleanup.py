@@ -164,6 +164,37 @@ class Archive(unittest.TestCase):
         output.mkdir()
         return archive, output
 
+    def test_native_archive_builds_match_the_source_revision(self):
+        revision = 'a' * 40
+        queries = []
+        def run(args, **kw):
+            queries.append((args[0].name, args[1:]))
+            return subprocess.CompletedProcess(args, 0, '1.2.3\nbuild_info: u@h 2026-01-01 00:00:00 ' + revision + '\n', '')
+        self.m.run = run
+        self.m.check_archive_build(self.work, '1.2.3', revision)
+        self.assertEqual(len(queries), 7)
+        self.assertIn(('agent-bus-ts', ['mcp', '--version']), queries)
+        self.assertIn(('agent-bus-ts', ['launcher', 'claude', '--version']), queries)
+
+    def test_native_archive_of_the_same_version_from_another_revision_is_refused(self):
+        revision = 'a' * 40
+        for wrong in ('agent-bus', 'agent-busd', 'agent-bus-admin', 'agent-bus-runner', 'agent-bus-setup', 'mcp', 'launcher'):
+            with self.subTest(program=wrong):
+                def run(args, **kw):
+                    program = args[1] if args[0].name == 'agent-bus-ts' else args[0].name
+                    stamp = 'b' * 40 if program == wrong else revision
+                    return subprocess.CompletedProcess(args, 0, '1.2.3\nbuild_info: u@h 2026-01-01 00:00:00 ' + stamp + '\n', '')
+                self.m.run = run
+                with self.assertRaisesRegex(AssertionError, 'archive revision differs from source'):
+                    self.m.check_archive_build(self.work, '1.2.3', revision)
+
+    def test_native_archive_without_a_full_revision_stamp_is_refused(self):
+        for stamp in ('', 'a' * 8, 'b' * 40 + ' ' + 'a' * 40 + 'extra'):
+            with self.subTest(stamp=stamp):
+                self.m.run = lambda args, **kw: subprocess.CompletedProcess(args, 0, '1.2.3\nbuild_info: u@h 2026-01-01 00:00:00 ' + stamp + '\n', '')
+                with self.assertRaisesRegex(AssertionError, 'archive revision differs from source'):
+                    self.m.check_archive_build(self.work, '1.2.3', 'a' * 40)
+
     def test_full_archive_checks_all_delivered_bytes_before_install(self):
         archive, output = self.bundle()
         root, version = self.m.archive_bundle(archive, output)

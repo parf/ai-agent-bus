@@ -195,6 +195,17 @@ def archive_bundle(archive, work):
     return root, version
 
 
+def check_archive_build(bundle, version, revision):
+    for program, args in [('agent-bus', ['--version']), ('agent-busd', ['--version']),
+                          ('agent-bus-admin', ['--version']), ('agent-bus-runner', ['--version']),
+                          ('agent-bus-setup', ['--version']), ('agent-bus-ts', ['mcp', '--version']),
+                          ('agent-bus-ts', ['launcher', 'claude', '--version'])]:
+        answer = run([bundle / program, *args]).stdout
+        assert answer.splitlines()[0] == version and 'build_info: ' in answer and 'unstamped' not in answer
+        stamp = re.search(r'^build_info: .* ([0-9a-f]{40})$', answer, re.M)
+        assert stamp and stamp[1] == revision, 'archive revision differs from source: ' + program
+
+
 def command_links():
     root = PREFIX / 'current'
     links = {Path('/usr/local/bin') / name: root / name for name in
@@ -247,14 +258,8 @@ def main():
             run(['go', 'build', '-ldflags', stamp, '-o', str(work / 'bin') + '/',
                  './cmd/agent-busd', './cmd/agent-bus-setup', './cmd/agent-bus-admin'], cwd=REPO / 'src', timeout=180)
         else:
-            assert run(['git', 'rev-parse', 'HEAD'], cwd=REPO, private=True).stdout.strip() == revision
             assert (REPO / 'src/internal/version/VERSION').read_text().strip() == version, 'archive and acceptance revision versions differ'
-            for program, args in [('agent-bus', ['--version']), ('agent-busd', ['--version']),
-                                  ('agent-bus-admin', ['--version']), ('agent-bus-runner', ['--version']),
-                                  ('agent-bus-setup', ['--version']), ('agent-bus-ts', ['mcp', '--version']),
-                                  ('agent-bus-ts', ['launcher', 'claude', '--version'])]:
-                answer = run([bundle / program, *args]).stdout
-                assert answer.splitlines()[0] == version and 'build_info: ' in answer and 'unstamped' not in answer
+            check_archive_build(bundle, version, revision)
             print('PASS native full archive checksum, manifest, versions and build stamps', flush=True)
         run(['/usr/bin/ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-f', work / 'fixture-key'])
         with socket.socket() as probe:

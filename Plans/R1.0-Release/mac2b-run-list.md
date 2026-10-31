@@ -10,9 +10,9 @@
 
 ## Prepare the owner session
 
-These are **unrun owner steps**, not native acceptance evidence. Use the existing `~/agent-bus-dev/ai-agent-bus` checkout, clean on `main`, at the landed MAC.2b revision. No extra clone, package installation, profile or system setting change is needed. Python 3 and the existing native command-line tools are required; no Go or Bun build runs on the Mac.
+These are **unrun owner steps**, not native acceptance evidence. Use the existing `~/agent-bus-dev/ai-agent-bus` checkout, clean on `main`, at the landed MAC.2c revision, including its archive-revision check. No extra clone, package installation, profile or system setting change is needed. Python 3 and the existing native command-line tools are required; no Go or Bun build runs on the Mac.
 
-1. On the build node, the CEO builds from the exact landed revision: `GOOS=darwin GOARCH=arm64 src/package.sh tmp/mac2b-dist` for Apple Silicon, or `GOARCH=amd64` for Intel. Retain the full archive and its `.sha256` beside it. The client archive is not this test's input.
+1. On the build node, the CEO builds from the exact landed revision: `BUILD_COMMIT="$(git rev-parse HEAD)" GOOS=darwin GOARCH=arm64 src/package.sh tmp/mac2b-dist` for Apple Silicon, or set `GOARCH=amd64` in the same command for Intel. The full 40-character commit is stamped into both Go and TypeScript `build_info`; the harness requires it to match the release-source revision on the Mac. Retain the full archive and its `.sha256` beside it. The client archive is not this test's input.
 2. Transfer the native full archive and `.sha256` to `~/agent-bus-dev/mac2b-input/` on the Mac. Transfer missing Git objects through the owner's existing process; do not publish or push a release for this check.
 3. In the Mac console, authorize the bounded fixture with `sudo -v`. Run the harness as the installing user, never as root. The harness uses `sudo -n` for each printed privileged invocation. Refusal for existing state is a stop, not permission to delete it.
 
@@ -51,7 +51,7 @@ PY
 
 ## Expected checks and cleanup
 
-The [harness](../../src/acceptance/mac2-install-check.py) refuses existing `_agentbusd` user or group, launchd job, storage, sockets, release root, command links or old web link. It verifies the archive hash with Python, every manifest entry (the review-settings example is the existing non-runtime exception), the packed version, executable bits and native version/build answers before setup. GNU `sha256sum` is not required on the Mac.
+The [harness](../../src/acceptance/mac2-install-check.py) refuses existing `_agentbusd` user or group, launchd job, storage, sockets, release root, command links or old web link. It verifies the archive hash with Python, every manifest entry (the review-settings example is the existing non-runtime exception), the packed version, executable bits and native version/build answers before setup, including every program’s stamped commit against the release-source revision. GNU `sha256sum` is not required on the Mac.
 
 | Check | Required result |
 |---|---|
