@@ -40,11 +40,12 @@ const suspension = (err: unknown) => err instanceof BusError && err.status === 4
 export type PushEnd = "stopped" | "refused" | "delivery";
 export type Push = { readonly running: () => boolean; readonly ended: () => PushEnd | undefined; stop: () => void; done: Promise<void> };
 
-/** The message a push took from the inbox and could not deliver. It outlives that push: the next one delivers it
- *  before it reads again, so a consumed message is lost only if the process dies (J60b). It is kept for the inbox it
- *  came from: a push reading another name (a fork) leaves it alone. */
+/** Messages a push took from an inbox and could not deliver, one per inbox name. They outlive the push: the next one
+ *  for that name delivers its message before it reads again, so a consumed message is lost only if the process dies
+ *  (J60b). A push reading another name (a fork, a rename) leaves them alone, and its own failure never overwrites
+ *  another name's. */
 export type Held = {
-  message?: Envelope; name?: string; tries?: number;
+  kept?: Map<string, { message: Envelope; tries: number }>;
   /** Whether a failed delivery may succeed later (a turn that ends, a connection that returns). Any other
    *  failure is the app-server refusing the input itself, and asking again cannot change it. Default: yes. */
   transient?: (err: unknown) => boolean;
@@ -72,13 +73,17 @@ export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void, 
   // Delivers one message. A failure that may clear is kept for the next push, which delivers it first, and ends
   // this one; the third failure of it, or any failure asking again cannot change, drops it with one line to the log
   // and one to the session naming its id, sender and error (never its body), and the inbox keeps flowing.
+  const slots = () => (held.kept ??= new Map());
+  const release = (e: Envelope) => { if (slots().get(bus.name)?.message.message_id === e.message_id) slots().delete(bus.name); };
   const hand = async (e: Envelope): Promise<"delivered" | "dropped" | "kept"> => {
     // The answer to a session ask is a send on the bus: if its reply is lost it may have gone, so it is never
-    // replayed. Only the delivery into the session is held and tried again.
+    // replayed, and an ask held from before is let go with it. Only the delivery into the session is held and
+    // tried again.
     let asked: boolean;
     try {
       asked = await answerSessionAsk(bus, e, sessionEnv);
     } catch (err) {
+      release(e);
       const why = `push: message ${e.message_id} from ${e.from} was consumed and dropped: its answer may already have been sent: ${err}`;
       log(why);
       held.notice?.(why.replace(/^push: /, ""));
@@ -86,20 +91,20 @@ export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void, 
     }
     try {
       if (!asked) await deliver(e);
-      if (held.message?.message_id === e.message_id) held.message = undefined;
+      release(e);
       return "delivered";
     } catch (err) {
-      const tries = (held.name === bus.name && held.message?.message_id === e.message_id ? held.tries ?? 0 : 0) + 1;
-      if (!(held.transient?.(err) ?? true) || tries >= DELIVERY_TRIES) {
-        held.message = undefined;
-        const why = `push: message ${e.message_id} from ${e.from} was consumed and dropped: ${tries >= DELIVERY_TRIES && (held.transient?.(err) ?? true) ? `not delivered after ${tries} tries` : "the app-server refused it"}: ${err}`;
+      const before = slots().get(bus.name);
+      const tries = (before?.message.message_id === e.message_id ? before.tries : 0) + 1;
+      const transient = held.transient?.(err) ?? true;
+      if (!transient || tries >= DELIVERY_TRIES) {
+        release(e);
+        const why = `push: message ${e.message_id} from ${e.from} was consumed and dropped: ${transient ? `not delivered after ${tries} tries` : "the app-server refused it"}: ${err}`;
         log(why);
         held.notice?.(why.replace(/^push: /, ""));
         return "dropped";
       }
-      held.message = e;
-      held.name = bus.name;
-      held.tries = tries;
+      slots().set(bus.name, { message: e, tries });
       log(`push: message ${e.message_id} from ${e.from} was consumed but not delivered (try ${tries} of ${DELIVERY_TRIES}), and is kept to be delivered first: ${err}`);
       log(`push: stopping; later messages stay in ${bus.name}'s inbox`);
       stopped = true;
@@ -110,8 +115,9 @@ export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void, 
 
   const done = (async () => {
     while (!stopped) {
-      if (held.message && held.name === bus.name) {
-        const kept = held.message;
+      const keptHere = slots().get(bus.name);
+      if (keptHere) {
+        const kept = keptHere.message;
         const result = await hand(kept);
         if (result === "kept") return;
         if (result === "delivered") log(`push: message ${kept.message_id} from ${kept.from}, kept after a failed delivery, was delivered`);
@@ -163,7 +169,7 @@ export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void, 
         continue;
       }
       if (stopped) { // stopped while the daemon was handing it over: kept for the next push, not lost
-        if (e) { held.message = e; held.name = bus.name; }
+        if (e) slots().set(bus.name, { message: e, tries: 0 });
         return;
       }
       handoff = false; // the first successful consume proves the old waiter is gone

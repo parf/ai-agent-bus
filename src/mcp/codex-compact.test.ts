@@ -30,6 +30,8 @@ function fakeServer(decide: (method: string, params: any, n: number) => { result
   });
   return { url: `ws://127.0.0.1:${server.port}`, seen, stop: () => server.stop(true) };
 }
+// The message kept for an inbox name, if any.
+const slot = (h: Held, name = "#s@x") => h.kept?.get(name);
 const base = (method: string) => method === "thread/start" ? { result: { thread: { id: "t1", turns: [] } } } : { result: {} };
 const quick = { steerWaitMs: 2_000, retryMs: 20 };
 const attempts = (f: Fake, method: string) => f.seen.filter((c) => c.method === method);
@@ -76,7 +78,7 @@ test("a message consumed while a compaction outlasts the wait is delivered first
   try {
     await first.done;
     expect(first.ended()).toBe("delivery"); // the wait ran out: this push stops, as before
-    expect(held.message?.message_id).toBe("m1"); // and the message is kept, not dropped
+    expect(slot(held)?.message.message_id).toBe("m1"); // and the message is kept, not dropped
     compacting = false;
     queue.push({ message_id: "m2", from: "#a@x", body: "second" });
     const second = startPush(bus, deliver, (s) => said.push(s), undefined, 0, process.env, undefined, undefined, held);
@@ -85,7 +87,7 @@ test("a message consumed while a compaction outlasts the wait is delivered first
       for (let i = 0; i < 100 && !sent().includes("agent-bus:m2"); i++) await Bun.sleep(20);
       const order = sent();
       expect(order.lastIndexOf("agent-bus:m1")).toBeLessThan(order.indexOf("agent-bus:m2")); // the kept one first
-      expect(held.message).toBeUndefined();
+      expect(slot(held)).toBeUndefined();
       expect(said.join("\n")).toContain("kept after a failed delivery, was delivered");
     } finally { second.stop(); await second.done; }
   } finally { first.stop(); c.stop(); f.stop(); }
@@ -175,14 +177,14 @@ test("not-steerable is the structured discriminator or the live error text, neve
 // A push for another name (a fork) never gets the parent's kept message, and one stopped while a message
 // was being handed over keeps it (J60b, readers' LOW 2 and LOW 1).
 test("a kept message is delivered only into the inbox it came from", async () => {
-  const held: Held = { message: { message_id: "m1", from: "#a@x", body: "parent's" } as any, name: "#parent@x" };
+  const held: Held = { kept: new Map([["#parent@x", { message: { message_id: "m1", from: "#a@x", body: "parent's" } as any, tries: 1 }]]) };
   const got: string[] = [];
   const bus = { name: "#fork@x", consume: async () => { await Bun.sleep(20); return null; } } as any;
   const push = startPush(bus, async (e) => { got.push(e.message_id); }, () => {}, undefined, 0, process.env, undefined, undefined, held);
   await Bun.sleep(150);
   push.stop(); await push.done;
   expect(got).toEqual([]);
-  expect(held.message?.message_id).toBe("m1");
+  expect(slot(held, "#parent@x")?.message.message_id).toBe("m1");
 });
 
 test("a message handed over as the push is stopped is kept for the next one", async () => {
@@ -191,8 +193,7 @@ test("a message handed over as the push is stopped is kept for the next one", as
   const bus = { name: "#s@x", consume: async () => { push.stop(); return { message_id: "m7", from: "#a@x", body: "late" }; } } as any;
   push = startPush(bus, async () => {}, () => {}, undefined, 0, process.env, undefined, undefined, held);
   await push.done;
-  expect(held.message?.message_id).toBe("m7");
-  expect(held.name).toBe("#s@x");
+  expect(slot(held)?.message.message_id).toBe("m7");
 });
 
 // J60b's ruling: a failure that may clear is kept and tried again, at most three times; an app-server refusal of
@@ -217,7 +218,7 @@ test("a poison message the app-server refuses is dropped at once and the next on
     await waitFor(() => got.includes("good"));
     expect(got).toEqual(["good"]);
     expect(push.running()).toBe(true); // reading on, not stopped
-    expect(held.message).toBeUndefined();
+    expect(slot(held)).toBeUndefined();
     for (const line of [said.join("\n"), notices.join("\n")]) {
       expect(line).toContain("bad");
       expect(line).toContain("#a@x");
@@ -236,14 +237,14 @@ test("a transient failure that never clears is dropped after three tries, with o
     const p = run(deliver);
     await p.done;
     expect(p.ended()).toBe("delivery");
-    expect(held.message?.message_id).toBe("slow");
-    expect(held.tries).toBe(attempt);
+    expect(slot(held)?.message.message_id).toBe("slow");
+    expect(slot(held)?.tries).toBe(attempt);
   }
   expect(notices).toEqual([]); // kept twice, nothing dropped yet
   const last = run(deliver);
   try {
     await waitFor(() => got.includes("next"));
-    expect(held.message).toBeUndefined();
+    expect(slot(held)).toBeUndefined();
     expect(got).toEqual(["next"]); // dropped on the third failure; the push read on
     expect(notices).toHaveLength(1);
     for (const line of [said.filter((l) => l.includes("dropped")).join("\n"), notices[0]!]) {
@@ -271,7 +272,7 @@ test("an answer to a session ask whose reply was lost is dropped, never sent twi
   try {
     await Bun.sleep(300);
     expect(sent).toEqual(["ask1"]); // exactly one answer was sent
-    expect(held.message).toBeUndefined();
+    expect(slot(held)).toBeUndefined();
     expect(said.join("\n")).toContain("its answer may already have been sent");
     expect(push.running()).toBe(true);
   } finally { push.stop(); await push.done; }
@@ -283,4 +284,41 @@ test("which failures may clear", () => {
   expect(transientDelivery(new AppServerError(-32603, "failed to submit turn input: ActiveTurnNotSteerable { turn_kind: Compact }"))).toBe(true);
   expect(transientDelivery(new AppServerError(-32001, "overloaded"))).toBe(true);
   expect(transientDelivery(new AppServerError(-32600, "invalid input item"))).toBe(false);
+});
+
+test("a failure on one inbox never overwrites the message kept for another", async () => {
+  const held: Held = {};
+  const a = { name: "#old@x", consume: async () => { const m = qa.shift(); if (m) return m; await Bun.sleep(20); return null; } } as any;
+  const b = { name: "#new@x", consume: async () => { const m = qb.shift(); if (m) return m; await Bun.sleep(20); return null; } } as any;
+  const qa = [{ message_id: "m1", from: "#a@x", body: "one" }], qb = [{ message_id: "m2", from: "#a@x", body: "two" }];
+  const fail = async () => { throw new Error("codex: closed"); };
+  const first = startPush(a, fail, () => {}, undefined, 0, process.env, undefined, undefined, held);
+  await first.done;
+  const second = startPush(b, fail, () => {}, undefined, 0, process.env, undefined, undefined, held);
+  await second.done;
+  expect(slot(held, "#old@x")?.message.message_id).toBe("m1"); // still kept for the inbox it came from
+  expect(slot(held, "#new@x")?.message.message_id).toBe("m2");
+});
+
+test("an ask kept from a stop race whose answer may have gone is answered once, then let go", async () => {
+  const held: Held = {};
+  const sent: string[] = [];
+  const asks = [{ message_id: "ask1", from: "#a@x", to: "#s@x", ask: "help" }];
+  let push: ReturnType<typeof startPush>;
+  const bus = {
+    name: "#s@x", get: async () => null,
+    send: async (m: any) => { sent.push(m.re); throw new Error("connection reset"); },
+    consume: async () => { await Bun.sleep(5); const next = asks.shift(); if (next) { push.stop(); return next; } await Bun.sleep(20); return null; },
+  } as any;
+  push = startPush(bus, async () => {}, () => {}, undefined, 0, process.env, undefined, undefined, held);
+  await push.done;
+  expect(slot(held)?.message.message_id).toBe("ask1"); // kept: stopped as the daemon handed it over
+  const next = startPush(bus, async () => {}, () => {}, undefined, 0, process.env, undefined, undefined, held);
+  await Bun.sleep(200);
+  next.stop(); await next.done;
+  const again = startPush(bus, async () => {}, () => {}, undefined, 0, process.env, undefined, undefined, held);
+  await Bun.sleep(200);
+  again.stop(); await again.done;
+  expect(sent).toEqual(["ask1"]); // one answer, however many pushes follow
+  expect(slot(held)).toBeUndefined();
 });

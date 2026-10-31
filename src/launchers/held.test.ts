@@ -130,7 +130,7 @@ test("a message whose every try outlasts the supervisor's settle time is still t
   expect(tries).toBe(3);
   expect(starts).toBe(3);
   expect(delivered).toEqual(["m2"]);
-  expect(held.message).toBeUndefined();
+  expect(held.kept?.get("#s@x")).toBeUndefined();
   expect(notices).toHaveLength(1);
   expect(notices[0]).not.toContain("SECRET");
   current!.stop(); await current!.done;
