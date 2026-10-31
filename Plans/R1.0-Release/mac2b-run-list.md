@@ -60,10 +60,25 @@ The [harness](../../src/acceptance/mac2-install-check.py) refuses existing `_age
 | Request and reply | One pinned-TLS request consumed once; `pong` comes from the registered fixture agent |
 | Restart | `launchctl kickstart -k` changes the supervisor PID; the registry record remains |
 | Abrupt supervisor exit | Its recorded child exits, a replacement returns and the registry remains |
-| Teardown | Job, plist, storage, sockets, fresh release root and exact created links removed; account and group verified absent |
+| Teardown | Job, plist, storage, sockets, fresh release root and exact created links removed; account and group verified absent. Exit 3 is the named account-only partial described below, never a pass |
 | Workspace | Clean `main` restored; throwaway key/extraction/temp data removed; `du -sh ~/agent-bus-dev` and cache absence reported |
 
 Cleanup runs in `finally` after failed assertions too. It bootouts the fixture job, kills only `_agentbusd` processes, removes only preflight-absent fixture paths, then runs `sudo -n /usr/sbin/sysadminctl -deleteUser _agentbusd`. If the group remains, it runs `sudo -n /usr/sbin/dseditgroup -o delete _agentbusd`; a group already gone is success. Directory lookup failure is not absence. A remaining role raises a named error, returns nonzero and points to the [manual recovery](../../docs/07-setup.md#uninstall-the-macos-test-daemon), including Full Disk Access only for persistent permission denial.
+
+## Account removal blocked over SSH
+
+The archive run on 2026-10-31 passed installation, identity, private storage, pinned-TLS request/reply, restart and abrupt-supervisor-exit checks, but `sysadminctl` returned `-14120` over SSH and the role account remained ([unaltered run log](done/mac2d-native-2026-10-31.log)). SSH's terminal context may lack Full Disk Access; this does not make teardown clean.
+
+The harness returns **3** only when the account remains after that specific permission error and every other teardown check passed. It prints `account _agentbusd needs removal from a Full Disk Access terminal`. Other failures retain the ordinary nonzero failure result. It neither grants sshd Full Disk Access nor tries another deletion route.
+
+The owner finishes from a local terminal already allowed Full Disk Access:
+
+```sh
+sudo sysadminctl -deleteUser _agentbusd
+dscl . -read /Users/_agentbusd
+```
+
+The second command **must fail with `eDSRecordNotFound`**, not a permission or lookup error. A visible account or an unreadable directory is not proof of removal. If the terminal needs authorization, the owner follows the [manual recovery steps](../../docs/07-setup.md#uninstall-the-macos-test-daemon). No harness changes that setting. MAC.2 stays ⏳ until the revised rerun log and the CEO's explicit confirmation establish account absence; an account-only partial is not completed acceptance.
 
 ## Return evidence
 

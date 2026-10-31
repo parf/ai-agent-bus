@@ -18,6 +18,7 @@ m = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(m)
 mode = sys.argv[2]
 present = {'Users': mode != 'absent', 'Groups': mode != 'absent'}
+first_user_read = [True]
 def run(args, **kw):
     args = list(map(str, args))
     print('STUB ' + json.dumps(args), flush=True)
@@ -26,15 +27,20 @@ def run(args, **kw):
         node = args[-1].strip('/').split('/')[0]
         if '-delete' in args:
             code, err = 40, 'eDSPermissionError -14120'
-        elif mode == 'unreadable':
+        elif mode == 'unreadable' or mode == 'tcc-lookup-fail' and node == 'Users' and not first_user_read[0]:
             code, err = 40, 'directory unavailable'
         elif '-list' in args:
+            if node == 'Users': first_user_read[0] = False
             out = m.ROLE + '\n' if present[node] else ''
         else:
             code = 0 if present[node] else 185
     elif args[0] in ('/usr/sbin/sysadminctl', '/usr/sbin/dseditgroup'):
         node = 'Users' if args[0].endswith('sysadminctl') else 'Groups'
-        if mode == 'user-removes-group' and node == 'Users':
+        if mode.startswith('tcc') and node == 'Users':
+            err = '### Error:-14120 File:DSRecord.m Line:563'
+        elif mode == 'tcc-group-fail' and node == 'Groups':
+            code, err = 1, 'group deletion failed'
+        elif mode == 'user-removes-group' and node == 'Users':
             present['Users'] = present['Groups'] = False
         elif mode == 'group-disappears' and node == 'Groups':
             present[node] = False
@@ -58,7 +64,10 @@ if mode.startswith('links-'):
     m.COMMAND_LINKS = {link: '/fresh/current/agent-bus'}
     m.root_exists = lambda path: path is link
     m.os.readlink = lambda path: '/other/agent-bus' if mode == 'links-other-target' else '/fresh/current/agent-bus'
-m.uninstall([])
+if mode == 'tcc-path-leftover':
+    m.root_exists = lambda path: path == m.HOME
+m.main = lambda: m.uninstall([])
+m.cli()
 '''
 
 
@@ -123,6 +132,24 @@ class Cleanup(unittest.TestCase):
         self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
         self.assertIn('STUB ["/usr/sbin/dseditgroup"', p.stdout)
         self.assertIn('PASS uninstall', p.stdout)
+
+    def test_tcc_account_leftover_has_a_distinct_partial_exit_and_local_recovery(self):
+        p = self.run_cleanup('tcc')
+        self.assertEqual(p.returncode, 3, p.stdout + p.stderr)
+        for text in ('PARTIAL: account _agentbusd needs removal from a Full Disk Access terminal',
+                     'sudo sysadminctl -deleteUser _agentbusd',
+                     'dscl . -read /Users/_agentbusd must fail with eDSRecordNotFound', 'MAC.2 remains pending'):
+            self.assertIn(text, p.stderr)
+        self.assertNotIn('PASS uninstall', p.stdout)
+        self.assertIn('"-list", "/Groups"', p.stdout)
+
+    def test_tcc_does_not_relax_other_teardown_failures(self):
+        for mode in ('tcc-group-fail', 'tcc-path-leftover', 'tcc-lookup-fail', 'false-success'):
+            with self.subTest(mode=mode):
+                p = self.run_cleanup(mode)
+                self.assertEqual(p.returncode, 1, p.stdout + p.stderr)
+                self.assertNotIn('PARTIAL:', p.stderr)
+                self.assertNotIn('PASS uninstall', p.stdout)
 
 
 class Archive(unittest.TestCase):

@@ -293,3 +293,7 @@ The native archive harness compares every program’s stamped commit with the re
 ## Docs rewrite DW11b
 
 The checker extracts INSTALL.md's checkout shell blocks and runs them verbatim in a clean systemd container: install, both services, a real update and restart, then the installed CLI version/build stamp and `hi: ping` call pass (4/0, 27.109 s). Replacing only the document's `git pull` with `true` keeps compilation working and fails the update-marker assertion (one failure/no error, 23.390 s). Every phase is bounded. The PHP README's two identities and exact printed output pass in the normal owning PHP suite (141/0), with T-14 flags and zero journal entries. [Evidence and acceptance map](done/dw11b-examples.md#checkout-container-acceptance). All 16 DW11 pages are complete; runtime/docs commands unchanged, no host root action or bump. J62 stays with #ab-w1b.
+
+## MAC.2d account-only teardown reporting
+
+The archive harness reports a verified `-14120` account-only cleanup partial with exit 3 and the exact owner local-terminal removal/absence check. Other teardown failures remain strict. [Native failed run and local checks](done/mac2d.md#native-run); [owner recovery](mac2b-run-list.md#account-removal-blocked-over-ssh). MAC.2 remains pending the revised run and CEO account-absence confirmation.

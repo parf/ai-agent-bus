@@ -98,10 +98,18 @@ def disk(label):
         print('absent: ' + str(p), flush=True)
 
 
+class PartialAccountRemoval(RuntimeError):
+    """All checked teardown completed except the TCC-protected role account."""
+
+
+PARTIAL_ACCOUNT_EXIT = 3
+
+
 def remove_roles():
     # sysadminctl can report an error without a failing status. Verify absence
     # independently; a failed directory lookup is never proof of absence.
     problems = []
+    account_tcc_denied = False
     for node, kind, command in (
             ('Users', 'user', ('/usr/sbin/sysadminctl', '-deleteUser', ROLE)),
             ('Groups', 'group', ('/usr/sbin/dseditgroup', '-o', 'delete', ROLE))):
@@ -113,7 +121,9 @@ def remove_roles():
                 # sysadminctl may remove its group too. A later deletion can
                 # return nonzero because the entry is already gone; absence
                 # after the command decides success, never its exit status.
-                sudo(*command, check=False)
+                deleted = sudo(*command, check=False)
+                if node == 'Users':
+                    account_tcc_denied = bool(re.search(r'(?<!\d)-14120(?!\d)', deleted.stdout + deleted.stderr))
             after = run(['/usr/bin/dscl', '.', '-list', '/' + node], private=True)
             if after.stderr:
                 raise RuntimeError(after.stderr)
@@ -121,6 +131,12 @@ def remove_roles():
                 problems.append('leftover %s %s' % (kind, ROLE))
         except Exception as error:
             problems.append('possible leftover %s %s (cannot verify removal: %s)' % (kind, ROLE, error))
+    if account_tcc_denied and problems == ['leftover user ' + ROLE]:
+        raise PartialAccountRemoval(
+            'PARTIAL: account ' + ROLE + ' needs removal from a Full Disk Access terminal. '
+            'The owner must run locally: sudo sysadminctl -deleteUser ' + ROLE +
+            '; then verify: dscl . -read /Users/' + ROLE + ' must fail with eDSRecordNotFound. '
+            'MAC.2 remains pending; this is not clean teardown.')
     if problems:
         raise RuntimeError('uninstall incomplete: ' + '; '.join(problems) +
                            '. Retry sudo /usr/sbin/sysadminctl -deleteUser ' + ROLE +
@@ -144,10 +160,16 @@ def uninstall(missing_parents):
             assert link.is_symlink() and os.readlink(link) == str(target), 'unexpected command link; refusing removal: ' + str(link)
             sudo('/bin/rm', '-f', link)
     sudo('/bin/rm', '-rf', HOME, RUN, PREFIX)
-    remove_roles()
+    partial = None
+    try:
+        remove_roles()
+    except PartialAccountRemoval as error:
+        partial = error
     for parent in sorted(missing_parents, key=lambda p: len(p.parts), reverse=True):
         sudo('/bin/rmdir', parent)
     assert not root_exists(HOME) and not root_exists(RUN) and not root_exists(PREFIX) and not root_exists(PLIST)
+    if partial:
+        raise partial
     print('PASS uninstall removed the fixture role, job and setup files', flush=True)
 
 
@@ -379,7 +401,14 @@ def main():
                 bus.close()
         try:
             if armed:
-                uninstall(missing_parents)
+                # A partial teardown must never hide an earlier acceptance failure.
+                already_failed = sys.exc_info()[0] is not None
+                try:
+                    uninstall(missing_parents)
+                except PartialAccountRemoval as error:
+                    if not already_failed:
+                        raise
+                    print(str(error), file=sys.stderr, flush=True)
         finally:
             if not options.archive and Path(ENV['GOMODCACHE']).is_dir():
                 run(['go', 'clean', '-modcache'], cwd=REPO / 'src', timeout=30)
@@ -391,7 +420,15 @@ def main():
             disk('AFTER')
 
 
+def cli():
+    try:
+        main()
+    except PartialAccountRemoval as error:
+        print(str(error), file=sys.stderr, flush=True)
+        raise SystemExit(PARTIAL_ACCOUNT_EXIT)
+
+
 if __name__ == '__main__':
     for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
         signal.signal(sig, lambda number, frame: sys.exit(128 + number))
-    main()
+    cli()

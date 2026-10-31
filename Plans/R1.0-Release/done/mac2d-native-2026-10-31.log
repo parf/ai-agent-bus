@@ -1,0 +1,207 @@
+revision=2214ba4e1d4697592018065595ffba9b92da318e
+CPU=arm64
+RUN: git status --porcelain
+RUN: git branch --show-current
+BEFORE
+RUN: /bin/df -h /Users/parf/agent-bus-dev
+Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on
+/dev/disk3s5   460Gi   200Gi   236Gi    46%    1.5M  2.5G    0%   /System/Volumes/Data
+RUN: /usr/bin/du -sh /Users/parf/agent-bus-dev
+122M	/Users/parf/agent-bus-dev
+absent: /Users/parf/go
+absent: /Users/parf/Library/Caches/go-build
+SUDO: sudo -n /usr/bin/true
+RUN: /usr/bin/dscl . -list /Users
+RUN: /usr/bin/dscl . -list /Groups
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+Bad request.
+Could not find service "agent-busd" in domain for system
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/var/agent-bus/daemon
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/var/run/agent-bus
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/lib/agent-bus
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /Library/LaunchDaemons/agent-busd.plist
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/bin/agent-bus
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/bin/agent-busd
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/bin/agent-bus-admin
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/bin/agent-bus-runner
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/bin/agent-bus-setup
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/bin/agent-bus-token
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/bin/ab-claude
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/bin/ab-codex
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/bin/ab-opencode
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/bin/ab-opencode1
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/bin/agent-bus-mcp
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/bin/agent-bus-web
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /Library/LaunchDaemons
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/bin
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/var
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/lib
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/var/agent-bus
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/var/run
+RUN: git switch --detach 2214ba4e1d4697592018065595ffba9b92da318e
+HEAD is now at 2214ba4e Check TypeScript archive stamps through the supported web version query
+RUN: /Users/parf/agent-bus-dev/mac2-install-trqn_rel/archive/agent-bus-0.9.242-darwin-aarch64/agent-bus --version
+0.9.242
+build_info: parf@parf.us 2026-10-30 22:57:23 2214ba4e1d4697592018065595ffba9b92da318e
+RUN: /Users/parf/agent-bus-dev/mac2-install-trqn_rel/archive/agent-bus-0.9.242-darwin-aarch64/agent-busd --version
+0.9.242
+build_info: parf@parf.us 2026-10-30 22:57:23 2214ba4e1d4697592018065595ffba9b92da318e
+RUN: /Users/parf/agent-bus-dev/mac2-install-trqn_rel/archive/agent-bus-0.9.242-darwin-aarch64/agent-bus-admin --version
+0.9.242
+build_info: parf@parf.us 2026-10-30 22:57:23 2214ba4e1d4697592018065595ffba9b92da318e
+RUN: /Users/parf/agent-bus-dev/mac2-install-trqn_rel/archive/agent-bus-0.9.242-darwin-aarch64/agent-bus-runner --version
+0.9.242
+build_info: parf@parf.us 2026-10-30 22:57:23 2214ba4e1d4697592018065595ffba9b92da318e
+RUN: /Users/parf/agent-bus-dev/mac2-install-trqn_rel/archive/agent-bus-0.9.242-darwin-aarch64/agent-bus-setup --version
+0.9.242
+build_info: parf@parf.us 2026-10-30 22:57:23 2214ba4e1d4697592018065595ffba9b92da318e
+RUN: /Users/parf/agent-bus-dev/mac2-install-trqn_rel/archive/agent-bus-0.9.242-darwin-aarch64/agent-bus-ts mcp --version
+0.9.242
+RUN: /Users/parf/agent-bus-dev/mac2-install-trqn_rel/archive/agent-bus-0.9.242-darwin-aarch64/agent-bus-ts launcher claude --version
+0.9.242
+RUN: /Users/parf/agent-bus-dev/mac2-install-trqn_rel/archive/agent-bus-0.9.242-darwin-aarch64/agent-bus-ts web --version
+0.9.242
+build_info: parf@parf.us 2026-10-30 22:57:23 2214ba4e1d4697592018065595ffba9b92da318e
+PASS native full archive checksum, manifest, versions and build stamps
+RUN: /usr/bin/ssh-keygen -q -t ed25519 -N '' -f /Users/parf/agent-bus-dev/mac2-install-trqn_rel/fixture-key
+SUDO: sudo -n /usr/bin/env AGENT_BUS_TLS_DIR=/usr/local/var/agent-bus/daemon/tls /Users/parf/agent-bus-dev/mac2-install-trqn_rel/archive/agent-bus-0.9.242-darwin-aarch64/agent-bus-setup --owner mac2-check@localhost --addr 127.0.0.1:56762 --key /Users/parf/agent-bus-dev/mac2-install-trqn_rel/fixture-key.pub --tls self-signed
+database ready: /usr/local/var/agent-bus/daemon/agent-bus.db
+mac2-check@localhost may get its credential with sudo -u _agentbusd agent-bus token mac2-check@localhost
+mac2-check@localhost is a administrator
+agent-busd 0.9.242 (parf@parf.us 2026-10-30 22:57:23 2214ba4e1d4697592018065595ffba9b92da318e) runs under launchd as _agentbusd, owned by mac2-check@localhost, state in /usr/local/var/agent-bus/daemon
+Your token: sudo -u _agentbusd /usr/local/lib/agent-bus/current/agent-bus token mac2-check@localhost; then AGENT_BUS_TOKEN=<it> agent-bus status
+TLS is on for 127.0.0.1:56762 beside plain HTTP, certificate sha256:5bad4a40487edfec4d3a7a44a342f1d5678962734392128c67c9cfa8254b6b6c. A client elsewhere sets:
+    AGENT_BUS_ADDR=https://<this host>:56762 AGENT_BUS_TLS_FINGERPRINT=sha256:5bad4a40487edfec4d3a7a44a342f1d5678962734392128c67c9cfa8254b6b6c
+Boot-out failed: 3: No such process
+RUN: /usr/local/lib/agent-bus/current/agent-bus-token --version
+0.9.242
+build_info: parf@parf.us 2026-10-30 22:57:23 2214ba4e1d4697592018065595ffba9b92da318e
+PASS full archive installed by reduced setup without --exec, token wrapper version
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+RUN: /bin/ps -p 52025 -o user=
+RUN: /usr/bin/dscl . -read /Users/_agentbusd
+SUDO: sudo -n /usr/bin/stat -f %Lp /usr/local/var/agent-bus/daemon
+PASS role account, launchd identity and private storage
+SUDO: sudo -n -u _agentbusd /usr/bin/openssl x509 -in /usr/local/var/agent-bus/daemon/tls/cert.pem -noout -sha256 -fingerprint
+SUDO: sudo -n -u _agentbusd /usr/bin/curl --fail --silent --show-error --max-time 3 --unix-socket /usr/local/var/run/agent-bus/user-_agentbusd.sock -H 'Content-Type: application/json' --data '{"name": "mac2-check@localhost"}' http://localhost/token
+SUDO: sudo -n -u _agentbusd /usr/bin/curl --fail --silent --show-error --max-time 3 --unix-socket /usr/local/var/run/agent-bus/user-_agentbusd.sock -H 'Content-Type: application/json' --data '{"name": "#mac2-check@localhost"}' http://localhost/token
+PASS pinned TLS request/reply, exactly once, agent identity
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl kickstart -k system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+PASS registry survives launchd restart
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+RUN: /usr/bin/pgrep -P 52096
+SUDO: sudo -n /bin/kill -KILL 52096
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+RUN: /bin/ps -p 52099 -o pid=
+RUN: /bin/ps -p 52099 -o pid=
+SUDO: sudo -n /bin/launchctl print system/agent-busd
+PASS supervisor kill leaves no old bus child and registry survives
+UNINSTALL
+SUDO: sudo -n /bin/launchctl bootout system/agent-busd
+SUDO: sudo -n /usr/bin/pkill -KILL -u _agentbusd
+SUDO: sudo -n /bin/rm -f /Library/LaunchDaemons/agent-busd.plist
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/bin/agent-bus
+SUDO: sudo -n /bin/rm -f /usr/local/bin/agent-bus
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/bin/agent-busd
+SUDO: sudo -n /bin/rm -f /usr/local/bin/agent-busd
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/bin/agent-bus-admin
+SUDO: sudo -n /bin/rm -f /usr/local/bin/agent-bus-admin
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/bin/agent-bus-runner
+SUDO: sudo -n /bin/rm -f /usr/local/bin/agent-bus-runner
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/bin/agent-bus-setup
+SUDO: sudo -n /bin/rm -f /usr/local/bin/agent-bus-setup
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/bin/agent-bus-token
+SUDO: sudo -n /bin/rm -f /usr/local/bin/agent-bus-token
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/bin/ab-claude
+SUDO: sudo -n /bin/rm -f /usr/local/bin/ab-claude
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/bin/ab-codex
+SUDO: sudo -n /bin/rm -f /usr/local/bin/ab-codex
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/bin/ab-opencode
+SUDO: sudo -n /bin/rm -f /usr/local/bin/ab-opencode
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/bin/ab-opencode1
+SUDO: sudo -n /bin/rm -f /usr/local/bin/ab-opencode1
+SUDO: sudo -n /bin/sh -c 'test -e "$1" || test -L "$1"' mac2-check /usr/local/bin/agent-bus-mcp
+SUDO: sudo -n /bin/rm -f /usr/local/bin/agent-bus-mcp
+SUDO: sudo -n /bin/rm -rf /usr/local/var/agent-bus/daemon /usr/local/var/run/agent-bus /usr/local/lib/agent-bus
+RUN: /usr/bin/dscl . -list /Users
+SUDO: sudo -n /usr/sbin/sysadminctl -deleteUser _agentbusd
+2026-10-31 01:09:44.423 sysadminctl[52284:395130] ----------------------------
+2026-10-31 01:09:44.423 sysadminctl[52284:395130] No clear text password or interactive option was specified (adduser, change/reset password will not allow user to use FDE) !
+2026-10-31 01:09:44.423 sysadminctl[52284:395130] ----------------------------
+2026-10-31 01:09:44.478 sysadminctl[52284:395130] Killing all processes for UID 206
+2026-10-31 01:09:44.478 sysadminctl[52284:395130] _agentbusd's home (/usr/local/var/agent-bus/daemon) will not be deleted.
+2026-10-31 01:09:44.478 sysadminctl[52284:395130] Deleting Public share point for _agentbusd
+2026-10-31 01:09:44.480 sysadminctl[52284:395130] Deleting record for _agentbusd
+2026-10-31 01:09:44.516 sysadminctl[52284:395130] ### Error:-14120 File:/AppleInternal/Library/BuildRoots/4~CNqkugBhcZYxCpFyKBY9cTeFR0o3wl3GtaQxQk0/Library/Caches/com.apple.xbs/TemporaryDirectory.duXmje/Sources/Admin/DSRecord.m Line:563
+RUN: /usr/bin/dscl . -list /Users
+RUN: /usr/bin/dscl . -list /Groups
+RUN: /usr/bin/dscl . -list /Groups
+RUN: git switch main
+Your branch is behind 'origin/main' by 20 commits, and can be fast-forwarded.
+  (use "git pull" to update your local branch)
+Switched to branch 'main'
+RUN: git status --porcelain
+AFTER
+RUN: /bin/df -h /Users/parf/agent-bus-dev
+Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on
+/dev/disk3s5   460Gi   200Gi   236Gi    46%    1.5M  2.5G    0%   /System/Volumes/Data
+RUN: /usr/bin/du -sh /Users/parf/agent-bus-dev
+122M	/Users/parf/agent-bus-dev
+absent: /Users/parf/go
+absent: /Users/parf/Library/Caches/go-build
+Traceback (most recent call last):
+  File "/Users/parf/agent-bus-dev/ai-agent-bus/src/acceptance/mac2-install-check.py", line 397, in <module>
+    main()
+  File "/Users/parf/agent-bus-dev/ai-agent-bus/src/acceptance/mac2-install-check.py", line 382, in main
+    uninstall(missing_parents)
+  File "/Users/parf/agent-bus-dev/ai-agent-bus/src/acceptance/mac2-install-check.py", line 147, in uninstall
+    remove_roles()
+  File "/Users/parf/agent-bus-dev/ai-agent-bus/src/acceptance/mac2-install-check.py", line 125, in remove_roles
+    raise RuntimeError('uninstall incomplete: ' + '; '.join(problems) +
+RuntimeError: uninstall incomplete: leftover user _agentbusd. Retry sudo /usr/sbin/sysadminctl -deleteUser _agentbusd and, only if the group remains, sudo /usr/sbin/dseditgroup -o delete _agentbusd. If deletion remains permission-denied, open System Settings > Privacy & Security > Full Disk Access, enable the terminal app used for cleanup, quit and reopen it, then run sudo /usr/sbin/sysadminctl -deleteUser _agentbusd and (only for a remaining group) sudo /usr/sbin/dseditgroup -o delete _agentbusd; verify both directory entries are absent. See docs/07-setup.md#uninstall-the-macos-test-daemon
+rc=1 seconds=26.662
