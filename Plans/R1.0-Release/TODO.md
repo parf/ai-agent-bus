@@ -401,8 +401,9 @@ and no daemon change. A row that needs a format first proposes it for approval.
 
 - ✅ B.24 IMAP live read status — **0.9.154**, `cedba648`; normal **1214/0**, **26** assertion-red mutants, reviewer verified landed runtime; three configured instances enabled, manager read-only list checks and check-deploy **6/6**. [Current guide](../../docs/agents/imap.md#what-it-does), [evidence and plan history](done/imap-read-status.md#result). Live Seen writes remain untested.
 
-- ⏳ B.30 IMAP folders — **plan only, awaiting the owner**; no code until approved. [Plan](imap-folders.md#scope); questions [Q269](QUESTIONS.md#imap-folders)–Q275.
-  - Builds: `folders`, per-call `--folder` on sync, list, search, read and mark, destructive `move` and `delete` (to Trash), optionally a folder on `sub add`; code in `src/agents/imap`, guide `docs/agents/imap.md`
+- ⏳ B.30 IMAP full mail automation — **approved 2026-10-31 12:05**, five steps, step 1 urgent, team 2. [Call list](imap-folders.md#help-text); open: [Q270](QUESTIONS.md#imap-folders), Q271 (blocks step 3); the rest settled ([decisions](DECISIONS.md#recorded-decisions)).
+  - Steps: (1) `folders`, `--folder`, per-folder cache; (2) mark/flag, server-side search, headers, parts; (3) copy, move, trash, delete, compact_trash, `allow_destructive`; (4) folder create/rename/delete, append; (5) `sub add --folder`, per-folder status, IDLE
+  - Builds: code in `src/agents/imap`, guide `docs/agents/imap.md`
   - Depends: B.5, B.21, B.24
   - Acceptance: [the plan's acceptance](imap-folders.md#acceptance-for-the-todo-item)
   - Mutants: [the plan's list](imap-folders.md#acceptance-for-the-todo-item)
