@@ -180,7 +180,9 @@ test("a kept message is delivered only into the inbox it came from", async () =>
   const held: Held = { kept: new Map([["#parent@x", { message: { message_id: "m1", from: "#a@x", body: "parent's" } as any, tries: 1 }]]) };
   const got: string[] = [];
   const bus = { name: "#fork@x", consume: async () => { await Bun.sleep(20); return null; } } as any;
-  const push = startPush(bus, async (e) => { got.push(e.message_id); }, () => {}, undefined, 0, process.env, undefined, undefined, held);
+  // The fakes yield to timers, so a wrong implementation that repeats a step fails the assertions below instead
+  // of spinning on microtasks for ever.
+  const push = startPush(bus, async (e) => { await Bun.sleep(1); got.push(e.message_id); }, () => {}, undefined, 0, process.env, undefined, undefined, held);
   await Bun.sleep(150);
   push.stop(); await push.done;
   expect(got).toEqual([]);
@@ -262,7 +264,7 @@ test("an answer to a session ask whose reply was lost is dropped, never sent twi
   const sent: string[] = [];
   const bus = {
     name: "#s@x", get: async () => null,
-    send: async (m: any) => { sent.push(m.re); throw new Error("connection reset"); }, // accepted by the daemon, the reply lost
+    send: async (m: any) => { sent.push(m.re); await Bun.sleep(1); throw new Error("connection reset"); }, // accepted by the daemon, the reply lost
     consume: async () => { const next = asks.shift(); if (next) return next; await Bun.sleep(20); return null; },
   } as any;
   const asks = [{ message_id: "ask1", from: "#a@x", to: "#s@x", ask: "help" }];
@@ -307,7 +309,7 @@ test("an ask kept from a stop race whose answer may have gone is answered once, 
   let push: ReturnType<typeof startPush>;
   const bus = {
     name: "#s@x", get: async () => null,
-    send: async (m: any) => { sent.push(m.re); throw new Error("connection reset"); },
+    send: async (m: any) => { sent.push(m.re); await Bun.sleep(1); throw new Error("connection reset"); },
     consume: async () => { await Bun.sleep(5); const next = asks.shift(); if (next) { push.stop(); return next; } await Bun.sleep(20); return null; },
   } as any;
   push = startPush(bus, async () => {}, () => {}, undefined, 0, process.env, undefined, undefined, held);
