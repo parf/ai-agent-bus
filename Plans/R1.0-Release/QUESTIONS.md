@@ -29,12 +29,7 @@ Owner-only choices for the messaging agent planned for R1 ([B.27](TODO.md#bundle
 
 ## IMAP folders
 
-Choices for the [IMAP folders plan](imap-folders.md#scope) ([B.30](TODO.md#bundled-agents)). None blocks step 1 or 2; Q271–Q273 block `move`.
-
-- ❓ Q269 Do `folders` counts need an option
-  - Options: names only by default and counts with `--counts`; or counts always
-  - Recommendation: `--counts`; without `LIST-STATUS` it costs one STATUS per folder
-  - Impact: a large account lists slowly if counts are always on
+Choices for the [IMAP folders plan](imap-folders.md#scope) ([B.30](TODO.md#bundled-agents)). Q270 is not blocking; Q271 blocks step 3. Q269, Q272–Q275 are [settled](DECISIONS.md#recorded-decisions).
 
 - ❓ Q270 One cache budget for all folders, or one per folder
   - Options: the one `cache_bytes` shared with LRU eviction across folders; or `cache_bytes` per folder
@@ -42,28 +37,9 @@ Choices for the [IMAP folders plan](imap-folders.md#scope) ([B.30](TODO.md#bundl
   - Impact: per-folder multiplies the bound by the folder count
 
 - ❓ Q271 A server with neither MOVE nor UIDPLUS
-  - Options: refuse `move` and `delete`; or COPY then flag `\Deleted` and leave the expunge to the user
+  - Options: refuse `move` (the copy fallback); or COPY then flag `\Deleted` and leave the expunge to the user
   - Recommendation: refuse before any change; a flagged-but-present mail surprises other clients
   - Impact: very old servers cannot move
-
-- ❓ Q272 Trash when the server marks none
-  - Options: refuse `delete` until a Configuration key names the Trash folder; or guess `Trash`, `[Gmail]/Trash`, `Deleted Items`
-  - Recommendation: the key, no guessing
-  - Impact: a wrong guess would file mail in a user folder named like Trash
-
-- ❓ Q273 What gates `move` and `delete`
-  - Options: the access list alone; or a Configuration switch off by default on top of it
-  - Recommendation: the switch; the guide promises today that only Seen can change
-  - Impact: a grant meant for reading would otherwise let a caller remove mail
-
-- ❓ Q274 Is a folder on `sub add` wanted
-  - Options: not now; or a later step where the poller watches each subscribed folder
-  - Recommendation: not now; subscriptions stay on the configured mailbox, and a second instance with another `mailbox` already covers it
-  - Impact: more folders means more polling and per-folder forwarding progress
-- ❓ Q275 Does `publish` take a folder
-  - Options: no, it stays on the configured mailbox; or `--folder` like read
-  - Recommendation: no; the owner did not list it
-  - Impact: publishing from another folder needs a second instance until then
 
 ## Short prompts
 
