@@ -136,6 +136,25 @@ class Handler(socketserver.BaseRequestHandler):
                     elif mode == 'overflow': send(tag + b' OK [APPENDUID 4294967296 100] appended')
                     else: send(tag + b' OK [APPENDUID ' + str(validity).encode() + b' ' + str(number).encode() + b'] appended')
                     continue
+                elif command == b'IDLE':
+                    if 'IDLE' not in getattr(self.server, 'extra_capabilities', []):
+                        send(tag + b' BAD unsupported IDLE')
+                        continue
+                    if getattr(self.server, 'idle_silent', False):
+                        reader.readline(32769)
+                        return
+                    if getattr(self.server, 'idle_refused', False):
+                        send(tag + b' NO IDLE refused')
+                        continue
+                    before = len(messages)
+                    send(b'+ idling')
+                    for event in getattr(self.server, 'idle_events', []): send(event)
+                    done = reader.readline(32769)
+                    self.server.commands.append(done)
+                    if done != b'DONE\r\n': return
+                    if before != len(messages): send(b'* ' + str(len(messages)).encode() + b' EXISTS')
+                    send(tag + b' OK IDLE complete')
+                    continue
                 elif command == b'LIST':
                     for name, special in self.server.folder_rows:
                         delimiter = getattr(self.server, 'delimiter', '/')
@@ -413,6 +432,7 @@ class IMAPTests(unittest.TestCase):
         self.env = {'IMAP_USERNAME': USER, 'IMAP_PASSWORD': PASSWORD}
         self.bus = FakeBus()
         self.agent = proxy.Agent(self.bus, self.cfg, self.env, self.work.name)
+        self.addCleanup(self.agent.close)
         self.envelope = {}
 
     def call(self, body):

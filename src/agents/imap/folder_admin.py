@@ -103,7 +103,7 @@ def under(name, parent, delimiter):
     return folders.same(name, parent) or bool(delimiter and name.startswith(parent + delimiter))
 
 
-def perform(connection, call, cfg):
+def perform(connection, call, cfg, *, watched=()):
     method = call['method']
     rows = folders.listing(connection)
     if method == 'append':
@@ -135,6 +135,8 @@ def perform(connection, call, cfg):
         # relocate that mailbox too; never silently move its cache or progress.
         if under(cfg['mailbox'], name, row['delimiter']):
             raise wire.WireError('configured mailbox or its ancestor cannot be renamed or deleted; subscriptions stay bound')
+        if any(under(folder, name, row['delimiter']) for folder in watched):
+            raise wire.WireError('a subscribed folder or its ancestor cannot be renamed or deleted')
         if method == 'folder.rename':
             if call['new'].casefold() == 'inbox': raise wire.WireError('INBOX cannot be a rename destination')
             if any(folders.same(r['name'], call['new']) for r in rows):

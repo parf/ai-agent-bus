@@ -105,7 +105,7 @@ var bundleFiles = []string{
 	"agents/imap/folders.py",
 	"agents/imap/operations.py",
 	"agents/imap/mime_parts.py",
-	"agents/imap/folder_admin.py", "agents/imap/destructive.py",
+	"agents/imap/folder_watch.py", "agents/imap/folder_admin.py", "agents/imap/destructive.py",
 	"agents/imap/wire.py",
 	"agents/imap/budget.py",
 	"agents/imap/matching.py",

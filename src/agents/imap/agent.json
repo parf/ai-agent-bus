@@ -200,11 +200,15 @@
       "args": []
     },
     "sub add": {
-      "text": "sub add <target> [/regex/]",
-      "help": "Forward mail that arrives after this add to a destination; the old backlog is never forwarded. A missing or empty filter matches ALL mail from this account. The author's permission to send is checked at add and on each forward, and the receiver must also admit this IMAP instance. At most 20 subscriptions per creator, 100 in total.",
+      "text": "sub add <target> [/regex/] [--folder]",
+      "help": "Forward mail that arrives after this add to a destination; the old backlog is never forwarded. A missing or empty filter matches ALL new mail in the selected folder. The author's permission to send is checked at add and on each forward, and the receiver must also admit this IMAP instance. At most 20 subscriptions per creator, 100 in total. --folder <name> (JSON folder) selects the subscription mailbox; omitted keeps the configured mailbox. Per-folder baseline and UIDVALIDITY; other folders never feed this subscription.",
       "args": [
         {
           "name": "target"
+        },
+        {
+          "name": "folder",
+          "optional": true
         },
         {
           "name": "filter",
@@ -217,7 +221,7 @@
     },
     "sub list": {
       "text": "sub list",
-      "help": "Review your subscriptions: target, creator, filter, first UID and sent and dropped counts. Direct Owners and Maintainers see all, including damaged rows marked invalid_state for repair. No mailbox connection. A blank line separates the cached poll-status line at the end."
+      "help": "Review your subscriptions: folder, target, creator, filter, first UID and sent and dropped counts. Direct Owners and Maintainers see all, including damaged rows marked invalid_state for repair. No mailbox connection. A blank line separates the cached per-folder status lines at the end."
     },
     "sub delete": {
       "text": "sub delete <id>",
@@ -230,7 +234,7 @@
       ]
     },
     "status": {
-      "help": "See the last poll and its age, and the subscription, backlog, sent, dropped and warning counts. No mailbox connection."
+      "help": "Cached health, counts and one line per synced or subscribed folder, with IDLE or polling mode. No provider connection for status. Pre-step-5 synced folder names are recovered by a read-only LIST during the next normal mailbox connection."
     },
     "mark": {
       "text": "mark <uids> read|unread [--folder <name>]",

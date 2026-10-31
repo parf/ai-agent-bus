@@ -61,14 +61,17 @@ def message(error):
 
 def selector(value):
     """IMAP watches its one mailbox; the selector is where a subscription starts in it."""
-    if not isinstance(value, dict) or set(value) != {'validity', 'from_uid'}:
+    if not isinstance(value, dict) or set(value) not in ({'validity', 'from_uid'}, {'validity', 'from_uid', 'folder'}):
         raise ValueError('selector is the mailbox validity and first UID')
+    if 'folder' in value: wire.mailbox(value['folder'])
     progress.integer(value['validity'], 1)
     progress.integer(value['from_uid'], 1, progress.MAX_UID + 1)
     return value
 
 
 def selected(value, event):
+    if 'folder' in value and value['folder'] != event.get('folder'):
+        return False
     # A new UIDVALIDITY is a new mailbox: its mail is all after the subscription.
     return event['validity'] != value['validity'] or event['uid'] >= value['from_uid']
 

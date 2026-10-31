@@ -79,7 +79,7 @@ class Bounded:
 
     def buffer(self):
         # Python 3.14 changed imaplib.read to a separate socket buffer. Use one
-        # stream for both lines and literals; failed operations close it, no IDLE.
+        # stream for lines, literals and manual IDLE; failed operations close it.
         return self.__dict__.get('_file', self.__dict__.get('file'))
 
     def readline(self):

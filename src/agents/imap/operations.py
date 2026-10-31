@@ -57,6 +57,27 @@ def pairs(rows):
     return result
 
 
+def subscription(body):
+    """Keep regex bytes verbatim; split --folder only outside a closed regex."""
+    target, _, pattern = body[len('sub add '):].partition(' ')
+    value = {'method': 'sub.add', 'target': target, 'filter': pattern}
+    from subscription_filters import split, FilterError
+    for match in re.finditer(r'(?:^| )--folder(?==| |$)', pattern):
+        prefix = pattern[:match.start()].rstrip(' ')
+        if prefix.startswith('/'):
+            try: split(prefix)
+            except FilterError: continue  # A --folder inside the pattern.
+        words = shlex.split(pattern[match.start():].strip())
+        if len(words) == 1 and words[0].startswith('--folder='):
+            name = words[0].split('=', 1)[1]
+        elif len(words) == 2 and words[0] == '--folder': name = words[1]
+        else: raise MailError('use one --folder <name> after the optional filter')
+        wire.mailbox(name)
+        value.update(filter=prefix, folder=name)
+        break
+    return value
+
+
 def parse_call(body):
     if body.startswith('{'):
         value = json.loads(body, object_pairs_hook=pairs)

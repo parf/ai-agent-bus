@@ -154,8 +154,7 @@ def parse(body):
         elif len(words) != 1:
             raise MailError('use list [limit] [--unread]')
     elif body.startswith('sub add '):
-        target, _, pattern = body[len('sub add '):].partition(' ')
-        value = {'method': 'sub.add', 'target': target, 'filter': pattern}
+        value = operations.subscription(body)
     elif body.rstrip() == 'sub list':
         value = {'method': 'sub.list'}
     elif body.startswith('sub delete '):
@@ -179,7 +178,7 @@ def parse(body):
     if method == 'sub.edit':
         raise MailError('a subscription cannot be edited: delete it and add it again')
     fields = {'sync': {'limit'}, 'list': {'limit', 'unread'}, 'search': {'text'}, 'read': {'uid', 'mark_read'}, 'publish': {'uid'}, 'mark': {'uid', 'state'},
-              'sub.add': {'target', 'filter'}, 'sub.list': set(), 'sub.delete': {'id'}, 'status': set(), 'help': set()}
+              'sub.add': {'target', 'filter', 'folder'}, 'sub.list': set(), 'sub.delete': {'id'}, 'status': set(), 'help': set()}
     fields['folders'] = {'counts'}
     for name in ('sync', 'list', 'search', 'read', 'publish', 'mark'):
         fields[name].add('folder')
@@ -234,7 +233,7 @@ class Agent:
         if self.forwarder is None:
             if time.monotonic() < self.retry_construct:
                 raise PreviousGeneration('waiting for the previous IMAP generation')
-            from forwarding import Forwarder
+            from folder_watch import FolderForwarder as Forwarder
             from mailbox_session import Session
             source = Session(lambda: config(self.configuration), self.environment, self.work)
             try:
@@ -287,10 +286,12 @@ class Agent:
                 phase = 'operation'
                 forwarder = self.forwarding()
                 if method == 'sub.add':
-                    sub = forwarder.add(message, call['target'], call['filter'])
+                    sub = forwarder.add(message, call['target'], call['filter'], folder=call['folder']) if 'folder' in call else forwarder.add(message, call['target'], call['filter'])
                     result = f"added {sub['id']} -> {sub['target']}; by {sub['created_by']}; from UID {sub['selector']['from_uid']}; receiver must admit this instance"
                     if not sub.get('filter', call['filter']):
-                        result += '; matches ALL mail from this account'
+                        result += '; matches ALL mail from this folder' if 'folder' in sub['selector'] else '; matches ALL mail from this account'
+                    if 'folder' in sub['selector']:
+                        result += '; folder=' + json.dumps(sub['selector']['folder'], ensure_ascii=False)
                 elif method == 'sub.delete':
                     forwarder.delete(message, call['id'])
                     result = 'deleted'
@@ -344,8 +345,11 @@ class Agent:
                     wire.prepare_search(connection, operations.search_args(call))
                 return connection
             connection = open_connection()
+            from folder_watch import recover
+            recover(self.bus, self.bus.name, connection, cfg, user)
             if method in folder_admin.METHODS:
-                result = folder_admin.perform(connection, call, cfg)
+                watched = self.forwarding().watched() if method in {'folder.rename', 'folder.delete'} else ()
+                result = folder_admin.perform(connection, call, cfg, watched=watched)
                 status = 'ok'
                 return result
             if method == 'folders':
@@ -569,6 +573,9 @@ class Agent:
                     result = f'cache repairs: {cache.repaired}\n' + result
                 if len(result.encode()) > MAX_OUTPUT:
                     raise MailError('answer exceeds the 262144-byte limit; narrow the result')
+                if method == 'sync':
+                    from folder_watch import remember
+                    remember(self.bus, self.bus.name, selected, identity)
                 status = 'ok'
                 return result
         except PreviousGeneration:
