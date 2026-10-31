@@ -68,7 +68,9 @@ Network isolation does not restrict what the agent writes in an answer or sends 
 | Other host files | Host home directories, runner settings, credentials and other work directories are not mounted as whole trees. Files outside the mounts above are unavailable by path; this is not a promise to hide a file placed inside `/usr`, the selected package, a mounted support root or the work directory. Ordinary account permissions still apply to visible files |
 | Local interfaces | A private `/proc` shows the sandbox's processes and `/dev` supplies basic devices. With network enabled, existing resolver and certificate paths under `/etc` are mounted read-only; the rest of the host's `/etc` is not mounted. The self-serving socket exception is described above |
 
-Host env files are read by the runner and their merged values are injected into the agent's environment; hiding their file paths does **not** hide values supplied to that agent. Keep secrets outside public code roots. A work path containing a symlink is refused, and keys with overlapping work paths cannot be served together.
+- **Environment values:** the runner reads host env files and injects their merged values; hiding file paths does **not** hide values supplied to that agent.
+- **Secret files:** keep them outside public code roots.
+- **Work paths:** a path containing a symlink is refused, and overlapping keys cannot be served together.
 
 ### Processes and limits
 
@@ -79,7 +81,9 @@ Host env files are read by the runner and their merged values are injected into 
 
 ### With the managed sandbox off
 
-`"sandbox": "off"` uses neither the bubblewrap mounts/network namespace nor the managed cgroup, file, tmpfs and disk limits above. The child has the runner account's filesystem and network reach, subject to host permissions and policy: it can read other agent env files and code that account can read, write wherever that account may write, and open reachable account sockets. Message deadlines and runner control still apply. Use this setting only for code you would run as that account.
+- **Isolation removed:** `"sandbox": "off"` uses neither bubblewrap mounts/network namespace nor the managed cgroup, file, tmpfs and disk limits above.
+- **Account reach:** the child can read other env files and code, write files, open account sockets and use the network wherever the runner account's permissions and host policy allow.
+- **Still controlled:** message deadlines and runner control apply; use this setting only for code you would run as that account.
 
 ### The separate `agent-bus run` sandbox
 
