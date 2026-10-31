@@ -28,6 +28,20 @@ class Selection(unittest.TestCase):
                     self.assertEqual(plan['checks'][shard], 'normal', shard)
                 self.assertEqual(plan['checks']['agent_slack'], 'fast')
 
+    def test_every_bundled_manifest_selects_the_runner_reload_gate(self):
+        import json
+        manifests = list((ROOT / 'src/agents').rglob('agent.json'))
+        manifests = [path for path in manifests if 'node_modules' not in path.parts]
+        self.assertTrue(manifests, 'no bundled manifest was checked')
+        for path in manifests:
+            rel = path.relative_to(ROOT).as_posix()
+            with self.subTest(path=rel):
+                self.assertEqual(self.plan([rel], 'fast')['checks']['go_unit'], 'fast')
+                self.assertEqual(self.plan([rel], 'normal')['checks']['go_unit'], 'normal')
+        commands = json.loads((ROOT / 'src/smoke-map.json').read_text())['fast']['go_unit']
+        self.assertIn({'argv': ['go', 'test', '-count=1', './cmd/agent-bus-runner',
+                               '-run', '^TestEveryBundledManifestPassesRunnerReload$']}, commands)
+
     def test_shared_router_selects_both_platforms(self):
         p = self.plan(['src/agents/shared/router.ts'])
         self.assertEqual(p['checks']['agent_telegram'], 'normal')

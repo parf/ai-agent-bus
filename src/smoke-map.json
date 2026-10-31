@@ -1033,6 +1033,16 @@
           "-run",
           "^(TestEmptyACLRestrictsUseAndVisibilityOnNewAndRestoredRecords|TestMintHandsOutNothingItCouldNotWrite|TestKVRoundTripsAndSurvivesAReopen|TestSigilsAreFreeOfNames|TestENVConformanceCases|TestEmptyACLIsHiddenAndRefusesOtherCallersOverHTTP)$"
         ]
+      },
+      {
+        "argv": [
+          "go",
+          "test",
+          "-count=1",
+          "./cmd/agent-bus-runner",
+          "-run",
+          "^TestEveryBundledManifestPassesRunnerReload$"
+        ]
       }
     ],
     "go_release": [
