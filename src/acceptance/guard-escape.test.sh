@@ -34,7 +34,7 @@ rm -f "$fake"
 [ ! -e "$fake" ] || bad "the fake podman could not be removed"
 watchers=
 for _ in $(seq 1 50); do
-  watchers=$(pgrep -f -- "^sh -c alive.*$outer/guard-test" | tr '\n' ' ')
+  watchers=$(pgrep -f -- "^sh -c .*alive\(\).*$outer/guard-test" | tr '\n' ' ')
   [ -n "$watchers" ] && break
   sleep .1
 done
