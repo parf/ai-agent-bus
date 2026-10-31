@@ -47,3 +47,34 @@ test("a restart delivers the message the failed push consumed before the next on
   expect(delivered).toEqual(["m1", "m2"]);
   current!.stop(); await current!.done;
 });
+
+// The supervisor gives its own retry budget back after a push has run for settledMs; a delivery that outlasts that
+// (Codex's five-minute wait) crosses it on every try. The cap is therefore the held message's own count, not the
+// supervisor's: with a clock that crosses the reset on every check, the message is tried three times, dropped, and
+// the next one flows.
+test("a message whose every try outlasts the supervisor's settle time is still tried three times, then dropped", async () => {
+  const notices: string[] = [];
+  const held: Held = { transient: transientDelivery, notice: (s) => notices.push(s) };
+  const queue = [{ message_id: "m1", from: "#a@x", body: "SECRET" }, { message_id: "m2", from: "#a@x", body: "two" }];
+  const bus = { name: "#s@x", consume: async () => { const next = queue.shift(); if (next) return next; await Bun.sleep(20); return null; } } as any;
+  let tries = 0;
+  const delivered: string[] = [];
+  const deliver = async (e: any) => {
+    if (e.message_id === "m1") { tries++; await Bun.sleep(25); throw new Error("codex: turn/start timed out after 30000ms"); }
+    delivered.push(e.message_id);
+  };
+  let current: Push | undefined;
+  let starts = 0;
+  const start = () => { starts++; current = startPush(bus, deliver, () => {}, undefined, 0, process.env, undefined, undefined, held); };
+  start();
+  let t = 0;
+  const check = superviseDelivery(() => current, start, { note: () => {}, warn: () => {} }, { delays: [10, 10, 10], settledMs: 60_000, now: () => t });
+  for (let i = 0; i < 300 && !delivered.includes("m2"); i++) { t += 61_000; await check(); await Bun.sleep(10); }
+  expect(tries).toBe(3);
+  expect(starts).toBe(3);
+  expect(delivered).toEqual(["m2"]);
+  expect(held.message).toBeUndefined();
+  expect(notices).toHaveLength(1);
+  expect(notices[0]).not.toContain("SECRET");
+  current!.stop(); await current!.done;
+});
