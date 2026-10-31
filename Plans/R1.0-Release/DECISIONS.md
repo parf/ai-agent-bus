@@ -2,7 +2,7 @@
 
 ## Recorded decisions
 
-- **IMAP full mail automation approved** — owner, 2026-10-31 12:05, five steps built by team 2, step 1 urgent; the call list settles Q269 (`folders --counts`) and Q275 (`--folder` on `publish`).
+- **IMAP full mail automation approved** — owner, 2026-10-31 12:05, five steps built by team 2, step 1 urgent; the call list settles Q269 (`folders --counts`) and Q275 (`publish` takes `--folder` in step 1).
   - Home: [call list](imap-folders.md#help-text).
 - **IMAP `delete` is permanent, `trash` separate** (Q272) — owner, 2026-10-31 12:05: `\Deleted` plus `UID EXPUNGE` of exactly the named UIDs; `trash` moves to the Trash-role folder; `compact_trash` expunges Trash.
   - Home: [trash and permanent delete](imap-folders.md#trash-and-permanent-delete).

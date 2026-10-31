@@ -61,7 +61,7 @@ The [IMAP guide](../../docs/agents/imap.md#what-it-does) owns today's calls; one
 
 | Step | Ships | Class |
 |---|---|---|
-| 1 | `folders`, `--folder`, per-folder cache | read-only; **urgent** |
+| 1 | `folders`, `--folder` on sync, list, search, read, mark and publish, per-folder cache | read-only; **urgent** |
 | 2 | `mark`, `flag`, flags in `list`, server-side `search`, `headers`, `parts`, `part` | read and ordinary-admission writes |
 | 3 | `copy`, `move`, `trash`, `delete`, `compact_trash`, the switch | **destructive** |
 | 4 | `folder create/rename/delete`, `append` | rename, delete and append **destructive**; create ungated |
