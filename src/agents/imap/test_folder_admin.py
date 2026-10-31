@@ -63,6 +63,20 @@ class Calls(unittest.TestCase):
         self.assertEqual(self.writes(), [])
         self.assertIn('Other', self.server.folders)
 
+    def test_inbox_delete_guard_independent_of_configuration_and_role_metadata(self):
+        self.enable()
+        self.cfg['mailbox'] = 'Other'
+        # row() normally synthesizes Inbox even without a SPECIAL-USE flag.
+        # With that independent protection absent, the explicit guard must
+        # still refuse before STATUS/DELETE, including when --force is true.
+        rows = [{'name':'INBOX', 'role':'', 'special_use':False,
+                 'delimiter':'/', 'selectable':True}]
+        with patch.object(folder_admin.folders, 'listing', return_value=rows):
+            self.assertIn('INBOX cannot be renamed or deleted', self.call('folder delete INBOX --force'))
+        self.assertEqual(self.writes(), [])
+        self.assertFalse(any(b' STATUS ' in c for c in self.server.commands))
+        self.assertEqual(self.server.messages, {7: fixture.RAW})
+
     def test_configured_mailbox_and_ancestor_protect_current_subscriptions(self):
         self.enable()
         self.folder('Other/Live', '')
@@ -187,6 +201,24 @@ class Calls(unittest.TestCase):
 
 
 class Arguments(unittest.TestCase):
+    def test_folder_subcalls_keep_ordinary_32768_byte_cap(self):
+        for action, fields in [('create', {'name':'Other'}),
+                               ('rename', {'name':'Other','new':'New'}),
+                               ('delete', {'name':'Other'})]:
+            text = 'folder ' + action + ' Other' + (' New' if action == 'rename' else '')
+            encoded = json.dumps({'method':'folder ' + action, **fields})
+            for body in [text, encoded[:-1]]:
+                # Exactly the ordinary byte cap remains valid, with whitespace
+                # before the JSON brace so method/name themselves stay small.
+                suffix = '}' if body.startswith('{') else ''
+                boundary = body + ' ' * (32768 - len((body + suffix).encode())) + suffix
+                self.assertEqual(fixture.proxy.parse(boundary)['method'], 'folder.' + action)
+                for oversized in [boundary[:-len(suffix)] + ' ' + suffix if suffix else boundary + ' ',
+                                  body + ' ' * 40000 + suffix]:
+                    with self.subTest(action=action, json=bool(suffix), size=len(oversized.encode())):
+                        with self.assertRaisesRegex(ValueError, '32768'):
+                            fixture.proxy.parse(oversized)
+
     def test_list_delimiter_and_role_metadata(self):
         import folders
         self.assertEqual(folders.row(b'() NIL "Box"')['delimiter'], '')

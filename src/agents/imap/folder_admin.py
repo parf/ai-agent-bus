@@ -69,6 +69,8 @@ def parse(body):
         elif separator:
             raise MailError('folder calls must be one line')
     method = value['method']
+    if method != 'append' and len(body.encode()) > 32768:
+        raise MailError('folder call must be text or JSON of at most 32768 bytes')
     allowed = {'folder.create': {'name'}, 'folder.rename': {'name', 'new'},
                'folder.delete': {'name', 'force'}, 'append': {'folder', 'raw', 'flags', 'date'}}[method]
     if set(value) - allowed - {'method'}: raise MailError('unknown argument for ' + method)
