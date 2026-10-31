@@ -93,14 +93,15 @@ class InstallFromACheckout(unittest.TestCase):
                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=f'/home/{USER}', start_new_session=True)
         self.addCleanup(lambda: (os.killpg(server.pid, 15), server.wait(10)))
         reply = None
-        for _ in range(30):
-            done = self.sh(self.try_call, timeout=60)
+        for _ in range(6):
+            done = self.sh(self.try_call, timeout=40)
             if done.returncode == 0 and done.stdout.strip():
                 reply = done.stdout
                 break
             self.assertIsNone(server.poll(), f'the served script exited: {server.stderr.read()}')
             time.sleep(1)
-        self.assertIsNotNone(reply, f'the call block never got an answer: {done.stdout} {done.stderr}')
+        server.poll() is None and os.killpg(server.pid, 15)
+        self.assertIsNotNone(reply, f'the call block never got an answer: [{done.stdout}] [{done.stderr}] server: {server.communicate(timeout=10)}')
         body = json.loads(reply.strip().splitlines()[-1])
         self.assertEqual((body['from'], body['body']), ('#hi', 'hi: ping'))
 
