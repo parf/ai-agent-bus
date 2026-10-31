@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import { startPush, superviseDelivery, type Held, type Push } from "../mcp/push.ts";
 import { Codex, transientDelivery } from "../mcp/codex.ts";
 import { pushBinders } from "./push-binding.ts";
@@ -137,4 +138,16 @@ test("a message whose every try outlasts the supervisor's settle time is still t
   expect(notices).toHaveLength(1);
   expect(notices[0]).not.toContain("SECRET");
   current!.stop(); await current!.done;
+});
+
+// launcher.ts is a script nothing can import, so its one call to pushBinders is read: it must hand over the live
+// bus, environment, name and base (read each time, since a rename replaces them), the runtime clients, and a
+// setPush that keeps the push the supervisor and the rename path stop and restart. The types already refuse a
+// missing field; this refuses a wrong value, and a second way to start a push.
+test("launcher.ts starts its pushes through its one pushBinders call with its own live values", () => {
+  const source = readFileSync(new URL("./launcher.ts", import.meta.url), "utf8");
+  expect(source.match(/\bpushBinders\(/g)).toHaveLength(1);
+  expect(source.match(/\bstartPush\(/g)).toBeNull();
+  const call = source.match(/pushBinders\(\{[\s\S]*?\n  \}\);/)![0].replace(/\s+/g, " ");
+  expect(call).toBe("pushBinders({ runtime, session, bindings: bindings!, bus: () => bus, env: () => env, name: () => name, base: () => base, log, warn, codex, opencode, setPush: (p) => { push = p; }, });");
 });
