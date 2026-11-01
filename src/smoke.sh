@@ -3815,6 +3815,9 @@ mcp_names() {
     done
 }
 mcp_rpc_body() {
+    out=$(cd mcp && timeout 30 bun run typecheck 2>&1); rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "MCP standalone typecheck" "$rc"
     # The shared JSON-RPC plumbing, driven directly: the harnesses below only
     # ever have one request in flight and never split a line across chunks, so
     # they leave most of rpc.ts unwatched (mcp/rpc.test.ts says why).
@@ -4008,6 +4011,9 @@ samples() {
 web_ts() {
   sec "TypeScript web face (src/web): unit and contract tests"
   local out rc p f
+  out=$(cd "$(dirname "$SELF")/web" && timeout 30 bun run typecheck 2>&1); rc=$?
+  echo "$out" | sed 's/^/  /'
+  ok_exit "web standalone typecheck" "$rc"
   out=$(cd "$(dirname "$SELF")/web" && AGENT_BUS_BIN_DIR="$D" AGENT_BUS_TMP="$D" timeout 180 bun test 2>&1); rc=$?
   p=$(sed -n 's/^ *\([0-9][0-9]*\) pass$/\1/p' <<<"$out" | tail -1); f=$(sed -n 's/^ *\([0-9][0-9]*\) fail$/\1/p' <<<"$out" | tail -1)
   p=${p:-0}; f=${f:-0}
