@@ -60,3 +60,21 @@ not the agent's parsed output ID.
 Per the narrowed review direction, duplicate-ID handling is unchanged: the
 oversized prefix uses the first top-level `message_id`, while normal complete
 JSON unmarshalling uses the last. The source comment states that distinction.
+
+## Framing allowance restored
+
+`2c1130cd` restores the old Scanner's extra 4096 bytes as `maxAnswerLine`:
+JSON envelope overhead must not turn an otherwise permitted body into an
+oversized line. `readAnswerLine` retains this framed limit; the body-limit
+error text is unchanged. The old framing-boundary unit test now uses that
+constant, and the log-safety fixture remains above the framed limit.
+
+`TestJsonlAnswerLineSlackDeliversBodyBelowLimitAndStillRefusesOverlongLine`
+passes a complete answer with a body one byte below 1 MiB and a line above
+1 MiB, and separately checks that a line above the framing allowance is
+refused. On main, the first case fails the `body under limit not delivered`
+assertion (0.014 s). Under a separately acquired CLI slow lock, dropping
+`+ 4096` compiles and fails the same assertion (0.014 s); restore passes
+(0.016 s). The full JSONL/retired-pool race checks pass (8.090 s), and vet
+passes. Sources are restored and the lock released. This is a shipped
+regression fix and needs a bump.
