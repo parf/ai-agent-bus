@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.262 — 2026-11-01
+
+Big keys are now bigfiles everywhere a user sees them: agent-bus bigfile, /bigfile, the clients, MCP, the web card and IMAP --bigfile; the store dir moves to bigfile/ at start
+
 ## 0.9.261 — 2026-11-01
 
 Subscription filters are timed by CPU, not wall clock, so a loaded host no longer drops events as filter timeouts
