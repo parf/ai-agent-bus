@@ -285,7 +285,10 @@ class Keyword(unittest.TestCase):
             for n in range(2):   # chunks another writer (an older build, a restore) stored without the vector
                 pid=f'00000000-0000-0000-0000-0000000000a{n}'
                 self.store.points[pid]={'id':pid,'vector':[.5,.5],'payload':{'namespace':'team','tableName':'notes','id':f'late{n}','_rag_kind':'chunk','_rag_text':'late'}}
-            now[0]+=30;self.find('tea');self.assertEqual(counts(),first)   # within the minute: not counted again
+            now[0]+=30
+            try:self.find('tea')
+            except RagError as error:self.fail(f'search recounted within the minute: {error}')
+            self.assertEqual(counts(),first)   # within the minute: not counted again
             now[0]+=31
             with self.assertRaisesRegex(RagError,r'keyword index incomplete \(2 chunks left\)'):self.find('tea')
             self.assertEqual(counts(),first+1)
