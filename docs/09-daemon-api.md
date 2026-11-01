@@ -51,7 +51,7 @@ The reference below keeps every section as it was; other pages link to these sec
 | Who is calling | the `X-Agent-Bus-Token` header, or the account socket in its place; on the account socket, an owned Agent's token makes the call that Agent's ([what a call carries](02-access.md#what-a-call-carries), [local socket](02-access.md#local-socket)) |
 | Body | JSON on a `POST`, which has 30 s to arrive or is answered `408`; raw bytes on a bigfile `PUT`, which has 30 s of silence and a [total budget](03-records-kv.md#bigfiles) instead; query parameters on a `GET` |
 | Answer | JSON, and a refusal is `{"error": "...", "kind": "..."}` with the status code and the `kind` that [refusals](05-discovery.md#refusals) owns; a router rejection is a refusal too: `404` or `405` with kind `no_route` (`405` carries an `Allow` header) |
-| Unknown fields | an unknown JSON member or query key is ignored on every route; a known one is validated, and a duplicate or invalid value is `malformed` |
+| Unknown fields | an unknown JSON member or query key is ignored on every route; a known one is validated, and a duplicate or invalid value is `malformed`; a body is exactly one JSON document, anything after it is `malformed` |
 
 One exception: `GET /secret` answers the stored bytes as `text/plain`, because
 a credential goes into a shell or an environment and re-quoting it is a chance
@@ -109,7 +109,7 @@ A reply and a receipt are ordinary sends ([request and reply](04-messaging.md#re
 **For another name.** `GET /may-send?who=<name>&name=<target>` answers by Send's
 own rule for `who` instead of the caller, for an agent that sends for someone
 else (cron, `#at`, a subscription). `who` is optional, given once and nonempty;
-without it the caller's own form above is unchanged, and any other key is `400`.
+without it the caller's own form above is unchanged; an unknown key is ignored, as on every route, and a repeated `name` or `who` is `400`.
 
 | Case | Answer |
 |---|---|
@@ -327,4 +327,5 @@ A bigfile is a named value up to 32 MiB held for a limited time. The bytes are a
 
 | MVP | Scope |
 |---|---|
-| Built | Every route above. |
+| Built | Every route above, and the frozen client contract: refusal `kind`, `protocol` 1 and `protocol_min` 1 in `/identity`, `no_route` for unknown routes, unknown fields ignored and duplicates refused, the retired aliases removed (0.9.264). |
+| Pending | The shared conformance vectors that pin each contract section in the six client libraries, and a check that every route is covered by a section here. |

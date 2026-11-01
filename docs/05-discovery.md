@@ -448,6 +448,7 @@ or unfinished work, and a failed load is shown separately from an empty feed.
 ### Refusals
 
 - A bus that is quiet and one that is refusing every call look identical from outside.
+- Every refusal body is `{"error": "<text>", "kind": "<reason>"}`: the `kind` is the reason below, so a client acts on it and shows the text. A `500` is ours, carries no `kind`, and is not counted; clients say "internal daemon error".
 - `status` carries **how many calls were turned away and for what**, counted where a refusal becomes a status code so that the reason and the code cannot drift apart.
 - Every refusing path calls one shared counter, which is what keeps the figures whole — a fact about the paths there are, not a guarantee that a future one cannot answer around it.
 
@@ -464,10 +465,13 @@ handler runs, and a failure of ours, which is a `500`.
 | `enrolment` | `403` | a challenge that did not hold ([identity § proving possession](02-access.md#proving-possession)) |
 | `unknown` | `404` | no such name — absent, or inactive and so [no such entity](constitution.md#common-record-fields) ([messaging § verbs](04-messaging.md#verbs)) |
 | `busy` | `409` | removal conflicts with current state: an inbox has queued messages or a waiting reader ([unregistering](01-identity-and-authority.md#unregistering)), or a credential is backed by a user or a retained record ([cleanup](02-access.md#ownerless-credentials)) |
+| `authority` | `403` | the call needs a standing the caller's route cannot give: a record import must come over the caller's own login socket ([setup § encrypted record backups](07-setup.md#encrypted-record-backups)) |
 | `second-reader` | `409` | an inbox has an incompatible outstanding reader; sharing requires both readers to ask ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox)) |
 | `name-taken` | `412` | a registration that asked for an unheld name found it held ([registration](01-identity-and-authority.md#registration)) |
 | `full` | `429` | the receiver's queue is at its bound and refuses rather than loses ([messaging § overflow](04-messaging.md#overflow)) |
-| `malformed` | `400`; `413` for a key-value name or value past its [limit](03-records-kv.md#rules); `501` for SSH keys on a node with none configured | the caller got the request wrong. One reason, not eight: *"you sent nonsense"* is a single answer however many ways there are to send it |
+| `malformed` | `400`; `408` when a request body does not arrive in 30 s; `413` for a key-value value, a bigfile or a lock count past its [limit](03-records-kv.md#rules); `501` for SSH keys on a node with none configured | the caller got the request wrong. One reason, not eight: *"you sent nonsense"* is a single answer however many ways there are to send it |
+| `unavailable` | `503` | an optional part of the daemon cannot serve now and says why in `error`: the bigfile store when its directory cannot be opened ([bigfiles](03-records-kv.md#bigfiles)); a client may retry later |
+| `no_route` | `404`; `405` with an `Allow` header | no such route, or the route does not take that method; not counted, and a client built for a newer protocol reads it as "daemon too old for <operation>" ([stability](09-daemon-api.md#stability-and-compatibility)) |
 
 **Two answers a caller must never confuse.** `401` is *who are you* — the
 credential is missing or is not one. `403` is *I know who you are and you may
