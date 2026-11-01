@@ -368,3 +368,9 @@ Inbox polls snapshot the shared-reader setting without locking a blocking consum
 - The per-person bigfile-directory sentence in `src/mcp/README.md` is a separate commit, without plan IDs or setup-completion claims. C1-mcp (`912b5016`) is retained by rebase.
 
 - Gate follow-up: the first normal runs still queried the bare shell reason `count unknown` in `smoke.sh`, missed by the quoted-literal sweep. The core counter block failed 5 passed / 1 failed on a disposable daemon; replacing both queries with `count not_found` and its label passes 6/0. No production change; the follow-up sweep includes unquoted shell counter names.
+
+## F3 oversized JSONL answers
+
+Oversized JSONL lines are drained and answered only to the named request;
+unidentifiable output kills its child and explicitly fails that child's pending
+calls. Concurrent and later requests remain usable. [Regression and mutants](done/f3-jsonl-answers.md#proof).
