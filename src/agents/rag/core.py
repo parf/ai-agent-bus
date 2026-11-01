@@ -6,21 +6,24 @@ import time
 import uuid
 from chunks import extract
 from prompts import Cache
-from rules import (RagError,Unknown,Refused,Deadline,Incomplete,RECORD_MAX,SUMMARY_MAX,SCALARS_MAX,INDEXES,SUMMARY_FIELDS,
-                   config,dumps,identity,match,point_id,revision,scope,number,vector,summary,text,DATA_MAX)
+from rules import (RagError,Unknown,Refused,Deadline,Incomplete,RECORD_MAX,SUMMARY_MAX,SCALARS_MAX,INDEXES,SUMMARY_FIELDS,BM25_VECTOR,
+                   config,dumps,identity,match,point_id,revision,scope,number,sparse,vector,summary,text,DATA_MAX)
 from blocks import Budget
 
 
 class Core:
     def __init__(self,cfg,backend,kv,keyword=None):
         self.cfg=config(cfg);self.backend=backend;self.cache=Cache(kv);self.keyword=keyword
-        self.budget=Budget();self.cursors=OrderedDict();self.health='unknown: collection not verified'
+        self.budget=Budget();self.cursors=OrderedDict();self.health='unknown: collection not verified';self.bm25=False
     def verify(self):
         try:
             info=self.backend.qdrant('GET','')
             if info.get('status') not in ('green','yellow'):raise RagError('collection is not healthy')
             params=info['config']['params']; vectors=params['vectors']
             if type(vectors.get('size')) is not int or vectors.get('size')!=self.cfg['dimensions'] or vectors.get('distance')!='Cosine' or vectors.get('on_disk',False) or info['config'].get('quantization_config') is not None:raise RagError('collection vector settings mismatch')
+            # The owner creates the collection; keyword search needs its sparse vector, and a collection without one still serves everything else.
+            word=(params.get('sparse_vectors') or {}).get(BM25_VECTOR)
+            self.bm25=self.cfg['keyword_search']=='builtin' and isinstance(word,dict) and word.get('modifier')=='idf'
             metadata=info['config'].get('metadata',{})
             if metadata.get('embedding_model')!=self.cfg['embedding_model']:raise RagError('collection embedding model mismatch')
             indexes=info['payload_schema']
@@ -44,6 +47,7 @@ class Core:
         if method=='upsert':return self.upsert(request)
         if method=='get':return self.get(request)
         if method=='list':return self.list(request)
+        if method=='search':return self.search(request)
         if method=='delete':return self.delete(request)
         raise RagError('unknown method')
     def prepare(self,v):
@@ -96,7 +100,7 @@ class Core:
         rev=revision(v,vectors,self.cfg['embedding_model'],full['classification_ids'])
         fields={k:full[k] for k in ('namespace','tableName','id','key1','key2') if k in full}
         ids=[point_id(v,rev,i) for i in range(len(chunks))]
-        points=[{'id':pid,'vector':vec,'payload':{**fields,'_rag_kind':'chunk','_rag_rev':rev,'_rag_labels':list(full['classification_ids']),'_rag_text':chunk}}
+        points=[{'id':pid,'vector':{'':vec,BM25_VECTOR:sparse(chunk)} if self.bm25 else vec,'payload':{**fields,'_rag_kind':'chunk','_rag_rev':rev,'_rag_labels':list(full['classification_ids']),'_rag_text':chunk}}
                 for pid,vec,chunk in zip(ids,vectors,chunks)]
         head={k:value for k,value in full.items() if k!='embeddings'}
         head.update(_rag_kind='head',_rag_rev=rev,_rag_chunks=ids,_rag_labels=list(full['classification_ids']))
@@ -129,7 +133,8 @@ class Core:
                 if not isinstance(ids,list) or not 1<=len(ids)<=8 or len(ids)*self.cfg['dimensions']>SCALARS_MAX or len(set(ids))!=len(ids):raise RagError('invalid chunk references')
                 if any(pid!=point_id(v,payload['_rag_rev'],i) for i,pid in enumerate(ids)):raise RagError('chunk identity mismatch')
                 rows=self.backend.qdrant('POST','/points',{'ids':ids,'with_payload':False,'with_vector':True})
-                found={row['id']:row['vector'] for row in rows}
+                # A collection with a sparse vector answers each point's vectors by name; the dense one is the unnamed one.
+                found={row['id']:row['vector'].get('') if isinstance(row['vector'],dict) else row['vector'] for row in rows}
                 if set(found)!=set(ids) or len(rows)!=len(ids):
                     if attempt==0:continue
                     raise RagError('record changed or is incomplete; retry the read')
@@ -170,6 +175,36 @@ class Core:
             token=secrets.token_urlsafe(24);self.cursors[token]=(time.monotonic()+600,signature,following)
             while len(self.cursors)>128:self.cursors.popitem(last=False)
         return {'records':records,'cursor':token}
+    def search(self,v):
+        """Records whose stored text best matches the query's words, best first, one row per record."""
+        if self.cfg['keyword_search']=='external':
+            if self.keyword is None:raise RagError('keyword_search is external and no external keyword engine is connected')
+            found=self.keyword(deepcopy(v))
+            if not isinstance(found,dict) or not isinstance(found.get('records'),list):raise RagError('invalid external keyword answer')
+            return found
+        if not self.bm25:raise RagError('the collection has no BM25 sparse vector named "text" with the idf modifier; create it with one')
+        # Several chunks of one record can match; fetch enough to fill a page of distinct records.
+        want=min(64,v['limit']*4)
+        query={'query':sparse(v['query'],query=True),'using':BM25_VECTOR,'filter':scope(v,kind='chunk'),'limit':want,
+               'with_payload':{'include':[*SUMMARY_FIELDS[:5],'_rag_text']},'with_vector':False}
+        answer=self.backend.qdrant('POST','/points/query',query)
+        try:
+            rows=answer['points']
+            if not isinstance(rows,list) or len(rows)>want:raise RagError('invalid query size')
+            best={}
+            for row in rows:
+                payload=row['payload'];score=row['score']
+                number(score,0,float('inf'),'score')
+                if payload.get('namespace')!=v['namespace']:raise RagError('invalid query payload projection')
+                if any(payload.get(k)!=v[k] for k in ('tableName','key1','key2') if k in v):raise RagError('query filter mismatch')
+                key=identity(payload)
+                if key not in best or score>best[key]['score']:
+                    record={k:payload[k] for k in SUMMARY_FIELDS[:5] if k in payload}
+                    record['score']=score;record['text']=text(payload.get('_rag_text'),'stored text',DATA_MAX,empty=True)
+                    best[key]=record
+        except (KeyError,TypeError,AttributeError):raise RagError('invalid query response') from None
+        ordered=sorted(best.values(),key=lambda r:(-r['score'],r['id']))[:v['limit']]
+        return {'records':ordered}
     def delete(self,v):
         try:return self._delete(v)
         except Deadline:raise Incomplete('repeat the same delete to continue') from None

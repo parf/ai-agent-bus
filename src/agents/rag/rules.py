@@ -18,6 +18,14 @@ INDEXES = ('namespace','tableName','id','key1','key2','_rag_kind','_rag_labels',
 SUMMARY_FIELDS = ('namespace','tableName','id','key1','key2','mime-type','classification_ids')
 ID_NAMESPACE = uuid.UUID('14c03739-20d3-5372-b739-a919d36eeb4f')
 CHUNK_FORMAT = 'utf8-ws4096-half-v1'
+KEYWORD_MODES = ('builtin','external')
+QUERY_MAX = 1024
+BM25_VECTOR = 'text'
+# Qdrant's own BM25: the client sends term weights, the collection's idf modifier supplies the rest.
+BM25_K1 = 1.2
+BM25_B = 0.75
+BM25_AVG_TOKENS = 128
+TOKEN_MAX = 64
 
 
 class RagError(ValueError):
@@ -109,6 +117,7 @@ def parse(raw):
     method=v.get('method')
     allowed={'upsert':{'namespace','tableName','id','data','mime-type','key1','key2','embeddings'},
              'get':{'namespace','tableName','id'},'list':{'namespace','tableName','key1','key2','limit','cursor'},
+             'search':{'namespace','tableName','key1','key2','query','limit'},
              'delete':{'namespace','tableName','id','key1','key2','all'},'prompts':{'namespace','tableName','action','data'}}
     if not isinstance(method,str) or method not in allowed: raise RagError('unknown method')
     if set(v)-allowed[method]-{'method'}: raise RagError('unknown method field')
@@ -126,6 +135,10 @@ def parse(raw):
     if method=='list':
         integer(v.setdefault('limit',16),1,16,'limit')
         if 'cursor' in v: text(v['cursor'],'cursor',128)
+    if method=='search':
+        text(v.get('query'),'query',QUERY_MAX)
+        if not tokens(v['query']): raise RagError('query has no searchable words')
+        integer(v.setdefault('limit',16),1,16,'limit')
     if method=='delete':
         if 'all' in v and type(v['all']) is not bool: raise RagError('all must be boolean')
         if 'id' in v:
@@ -139,8 +152,9 @@ def parse(raw):
 
 def config(v):
     required={'qdrant','voyage','ai','collection','embedding_model','dimensions'}
-    if not isinstance(v,dict) or set(v)-required-{'decision_model'} or not required<=set(v): raise RagError('configure block names, collection, embedding_model and dimensions')
+    if not isinstance(v,dict) or set(v)-required-{'decision_model','keyword_search'} or not required<=set(v): raise RagError('configure block names, collection, embedding_model and dimensions')
     v=dict(v)
+    if v.setdefault('keyword_search','builtin') not in KEYWORD_MODES: raise RagError('keyword_search is builtin or external')
     for k in ('qdrant','voyage','ai'):
         text(v[k],k,256)
         if not v[k].startswith('#'): raise RagError(k+' must be a complete agent name')
@@ -150,6 +164,30 @@ def config(v):
         if not isinstance(v[k],str) or not re.fullmatch(r'[A-Za-z0-9._/~:@+-]{1,128}',v[k]): raise RagError('invalid model ID')
     integer(v['dimensions'],1,8192,'dimensions')
     return v
+
+
+def tokens(value):
+    """Lower-cased word tokens: Unicode letters, digits and underscore, each at most 64 characters."""
+    return [t for t in re.findall(r'\w+',unicodedata.normalize('NFKC',value).casefold()) if len(t)<=TOKEN_MAX]
+
+
+def term_index(token):
+    return int.from_bytes(hashlib.blake2s(token.encode(),digest_size=4).digest(),'big')
+
+
+def sparse(value,*,query=False):
+    """A Qdrant sparse vector {indices,values} of value's terms; indices ascend and never repeat.
+
+    A document term weighs its saturated BM25 term frequency; a query term weighs 1.
+    """
+    counts={}
+    words=tokens(value)
+    for word in words:
+        index=term_index(word);counts[index]=counts.get(index,0)+1
+    length=len(words) or 1
+    weights={i:1.0 if query else n*(BM25_K1+1)/(n+BM25_K1*(1-BM25_B+BM25_B*length/BM25_AVG_TOKENS)) for i,n in counts.items()}
+    order=sorted(weights)
+    return {'indices':order,'values':[round(weights[i],6) for i in order]}
 
 
 def identity(v):

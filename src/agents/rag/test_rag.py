@@ -38,7 +38,7 @@ class Store:
     def __init__(self,dimensions=2):
         self.points={};self.calls=[];self.paid=[];self.fail=None;self.fail_paid=None;self.fail_get=False
         self.enforce_projection=False
-        self.dimensions=dimensions;self.indexes={k:{'data_type':'keyword'} for k in INDEXES}
+        self.sparse=False;self.dimensions=dimensions;self.indexes={k:{'data_type':'keyword'} for k in INDEXES}
         self.model='voyage-3.5';self.probabilities={'drink':.8,'other':.2}
     def begin(self,budget):self.budget=budget
     def decide(self,request):
@@ -62,13 +62,29 @@ class Store:
         failure=self.fail(verb,path,body) if self.fail else False
         if isinstance(failure,Exception):raise failure
         if failure:raise Unknown('fake uncertain storage failure')
-        if path=='':return {'status':'green','config':{'params':{'vectors':{'size':self.dimensions,'distance':'Cosine'}},
-                            'metadata':{'embedding_model':self.model}},'payload_schema':deepcopy(self.indexes)}
+        if path=='':
+            params={'vectors':{'size':self.dimensions,'distance':'Cosine'}}
+            if self.sparse:params['sparse_vectors']={'text':{'modifier':'idf'}}
+            return {'status':'green','config':{'params':params,'metadata':{'embedding_model':self.model}},'payload_schema':deepcopy(self.indexes)}
         if path.startswith('/points/') and verb=='GET':
             point=self.points.get(path.split('?')[0].split('/')[-1])
             return deepcopy(point) if point else None
+        if verb=='POST' and path=='/points/query':
+            # A sparse dot product over the stored `text` vectors, as the idf-less core of Qdrant's own.
+            want=dict(zip(body['query']['indices'],body['query']['values']))
+            scored=[]
+            for p in self.points.values():
+                if not self.matches(p,body['filter']) or not isinstance(p['vector'],dict) or body['using'] not in p['vector']:continue
+                have=p['vector'][body['using']]
+                score=sum(want[i]*w for i,w in zip(have['indices'],have['values']) if i in want)
+                if score>0:scored.append((score,p))
+            scored.sort(key=lambda x:(-x[0],x[1]['id']))
+            keep=body['with_payload']['include']
+            return {'points':[{'id':p['id'],'score':s,'payload':{k:v for k,v in p['payload'].items() if k in keep}} for s,p in scored[:body['limit']]]}
         if verb=='PUT':
             if '?wait=true' not in path:raise AssertionError('wait=true required')
+            for point in body['points']:
+                if not self.sparse and isinstance(point['vector'],dict):raise AssertionError('no named vectors in a dense-only collection')
             self.points.update({p['id']:deepcopy(p) for p in body['points']})
         elif '/payload?' in path:
             for p in self.points.values():
@@ -95,6 +111,86 @@ class Store:
             return {'points':projected,'next_page_offset':following}
         else:raise AssertionError('unexpected fake Qdrant operation')
         return {'status':'completed'}
+
+
+class Keyword(unittest.TestCase):
+    """Built-in keyword search: Qdrant's idf sparse vector named text, filled at upsert and queried by word."""
+    def setUp(self):
+        self.store=Store();self.store.sparse=True;self.kv=KV();self.app=Core(CFG,self.store,self.kv)
+        self.app.cache.set('team','notes',PROMPT)
+    def put(self,id,data,**more):
+        v={'method':'upsert','namespace':'team','tableName':'notes','id':id,'data':data,**more}
+        return self.app.run(parse(dumps(v)))
+    def find(self,query,**more):
+        return self.app.run(parse(dumps({'method':'search','namespace':'team','query':query,**more})))
+    def test_the_setting_defaults_to_builtin_and_only_builtin_or_external_pass(self):
+        self.assertEqual(config(CFG)['keyword_search'],'builtin')
+        self.assertEqual(config({**CFG,'keyword_search':'external'})['keyword_search'],'external')
+        for bad in ('Builtin','bm25','',None,True,['builtin']):
+            with self.assertRaisesRegex(RagError,'builtin or external'):config({**CFG,'keyword_search':bad})
+    def test_a_chunk_is_stored_with_its_terms_beside_its_dense_vector(self):
+        self.put('tea','Tea is a drink. Tea!')
+        chunk=next(p for p in self.store.points.values() if p['payload']['_rag_kind']=='chunk')
+        self.assertEqual(set(chunk['vector']),{'','text'})
+        self.assertEqual(chunk['vector'][''],[.5,.5])
+        self.assertEqual(chunk['vector']['text'],sparse('Tea is a drink. Tea!'))
+        indices=chunk['vector']['text']['indices']
+        self.assertEqual(indices,sorted(set(indices)))
+    def test_a_collection_without_the_sparse_vector_keeps_plain_vectors_and_refuses_search(self):
+        self.store.sparse=False
+        self.put('tea','Tea is a drink.')
+        chunk=next(p for p in self.store.points.values() if p['payload']['_rag_kind']=='chunk')
+        self.assertEqual(chunk['vector'],[.5,.5])
+        with self.assertRaisesRegex(RagError,'no BM25 sparse vector'):self.find('tea')
+    def test_get_still_returns_the_dense_vectors_of_a_collection_with_named_ones(self):
+        self.put('tea','Tea is a drink.')
+        got=self.app.run(parse(dumps({'method':'get','namespace':'team','tableName':'notes','id':'tea'})))
+        self.assertEqual(got['embeddings'],[[.5,.5]])
+    def test_search_ranks_by_the_words_and_returns_one_row_per_record(self):
+        self.put('tea','Tea is a drink made from leaves.')
+        self.put('cats','Cats sleep. Tea is not for cats.')
+        self.put('long','tea '*1500+'x'*100)   # more than one chunk, all matching
+        answer=self.find('tea leaves')
+        ids=[r['id'] for r in answer['records']]
+        self.assertEqual(ids[0],'tea')
+        self.assertEqual(sorted(ids),['cats','long','tea'])
+        self.assertEqual(len(ids),len(set(ids)))
+        self.assertTrue(all(set(r)>={'namespace','tableName','id','score','text'} for r in answer['records']))
+        self.assertEqual(answer['records'][0]['text'],'Tea is a drink made from leaves.')
+        self.assertEqual(self.find('tea leaves',limit=1)['records'][0]['id'],'tea')
+        self.assertEqual(self.find('zebra')['records'],[])
+    def test_the_query_is_sent_as_query_terms_over_chunks_in_the_callers_scope(self):
+        self.put('tea','Tea is a drink.',key1='hot');self.store.calls.clear()
+        self.find('Tea, TEA drink',tableName='notes',key1='hot',limit=3)
+        verb,path,body,write=next(c for c in self.store.calls if c[1]=='/points/query')
+        self.assertEqual((verb,path,write),('POST','/points/query',False))
+        self.assertEqual(body['using'],'text');self.assertEqual(body['limit'],12)
+        self.assertEqual(body['query'],sparse('tea drink',query=True))
+        self.assertEqual(body['filter'],scope({'namespace':'team','tableName':'notes','key1':'hot'},kind='chunk'))
+        self.assertEqual(self.find('tea',key1='other')['records'],[])
+    def test_another_namespace_never_matches(self):
+        self.put('tea','Tea is a drink.')
+        self.assertEqual(self.app.run(parse(dumps({'method':'search','namespace':'other','query':'tea'})))['records'],[])
+    def test_search_requests_are_parsed_strictly(self):
+        base={'method':'search','namespace':'team','query':'tea'}
+        parse(dumps(base))
+        for change in ({'query':''},{'query':'  !!! '},{'query':'x'*1025},{'query':5},{'limit':0},{'limit':17},{'limit':True},{'id':'tea'},{'data':'x'}):
+            with self.assertRaises(RagError):parse(dumps({**base,**change}))
+        del base['query']
+        with self.assertRaises(RagError):parse(dumps(base))
+    def test_external_mode_asks_the_connected_engine_and_never_builtin(self):
+        self.app=Core({**CFG,'keyword_search':'external'},self.store,self.kv)
+        self.app.cache.set('team','notes',PROMPT);self.put('tea','Tea is a drink.')
+        chunk=next(p for p in self.store.points.values() if p['payload']['_rag_kind']=='chunk')
+        self.assertEqual(chunk['vector'],[.5,.5])   # nothing built-in is written
+        with self.assertRaisesRegex(RagError,'no external keyword engine'):self.find('tea')
+        self.assertFalse(any(c[1]=='/points/query' for c in self.store.calls))
+        seen=[]
+        self.app.keyword=lambda request:seen.append(request) or {'records':[{'id':'x'}]}
+        self.assertEqual(self.find('tea')['records'],[{'id':'x'}])
+        self.assertEqual(seen[0]['query'],'tea')
+        self.app.keyword=lambda request:'nonsense'
+        with self.assertRaisesRegex(RagError,'invalid external'):self.find('tea')
 
 
 class Rag(unittest.TestCase):
