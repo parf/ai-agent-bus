@@ -69,6 +69,10 @@ Choices for the [large transfer plan](imap-large-transfer.md#the-three-options) 
   - Options: optional, checked when given; or required
   - Recommendation: optional; `part` always reports the hash of the whole part
   - Impact: required makes every upload verifiable but forces callers to hash first
+- ❓ Q287 Do windowed `part` answers use base64 for text too
+  - Options: base64 for every type when `--offset` or `--limit` is given, and a plain `part` unchanged; or decoded text for text parts in windows as well
+  - Recommendation: base64 in windows; exact reassembly and the hash, and a split character never shows escapes
+  - Impact: the other choice cannot promise the whole-part hash for text parts
 
 ## Runner hardening
 

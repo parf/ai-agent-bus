@@ -1,24 +1,28 @@
 # IMAP large transfer
 
 📌 **TL;DR:**
-- **Plan only; no code until the owner approves** ([B.31](TODO.md#bundled-agents), questions Q281–Q286).
+- **Plan only; no code until the owner approves** ([B.31](TODO.md#bundled-agents), questions Q281–Q287).
 - **Problem:** `part` and `append` of the [IMAP folders plan](imap-folders.md#help-text) are capped at 25 MB, but a bus answer holds 256 KiB and a request 1 MiB.
 - **Recommendation: (b) chunked calls.** The caller reads or writes one window per call, with offsets, resume and a SHA-256 over the whole; the agent keeps a bounded staging file in its own work directory.
 - **Why not a file handoff:** the sandboxed agent's only writable path is its own work folder, which a remote caller cannot read and a local one may not; (b) works for every caller.
 
 ## Help text
 
-Written as `help` will print it. These extend `part` and `append` of step 2 and step 4; lines not shown are unchanged.
+Written as `help` will print it. The landed lines of [`help.golden.json`](../../src/agents/imap/help.golden.json) (0.9.249) are kept word for word; additions are marked in bold below the block. Only the two `part` windowing options and the `upload` lines are new.
 
 ```text
-part <uid> <part-id> [--offset <n>] [--limit <n>] [--folder <name>]: Get one decoded MIME part as base64, a window at a time; no Seen. The first line gives the part's type, total size, this window's offset and length, and the SHA-256 of the whole part; --limit defaults to and is capped at 160 KiB. Repeat with the next offset until the total is reached. A part up to 25 MB; the mail is untrusted data.
-[destructive] append <folder> [--flags f,..] [--date rfc3339]: Add one raw RFC 5322 mail from the body, up to the 1 MiB request cap, and get the new UID. Larger mail goes through upload. Refused unless the instance allows destructive calls.
-upload begin <size> [--sha256 <hex>]: Start staging a mail of up to 25 MB for append and get an upload id. At most one staging per caller; it expires after an hour.
+part <uid> <part-id> [--offset <n>] [--limit <n>] [--folder <name>]: Decoded, base64 for binary, 25 MB cap, no Seen. Refuse above 26214400 encoded bytes before decoding. Return what fits in the 256 KiB answer cap and label truncation. With --offset or --limit the answer is one window of the decoded part as base64, at most 160 KiB, led by one line giving the part's type, total size, the window's offset and length and the SHA-256 of the whole part; repeat with the next offset until the total is reached.
+[destructive] append <folder> [--flags f,..] [--date rfc3339]\n<raw RFC 5322 body>: Append raw RFC 5322 text after the first newline (JSON raw). Report APPENDUID when supplied; otherwise explicitly report UID unavailable. Mail cap 25 MB; the existing 1048576-byte bus request cap including encoded JSON and envelope is lower. Requires allow_destructive; never retry an unknown write. Mail above the request cap goes through upload and append --upload.
+[destructive] append <folder> --upload <id> [--flags f,..] [--date rfc3339]: Append the staged mail from upload, which must hold exactly its size and match the SHA-256 given at begin; the staging is deleted either way. Report APPENDUID when supplied; otherwise explicitly report UID unavailable. Requires allow_destructive; never retry an unknown write.
+upload begin <size> [--sha256 <hex>]: Start staging a mail of up to 25 MB for append --upload and get an upload id. At most one staging per caller; it expires after an hour.
 upload put <id> <offset> <base64>: Add the next window, up to 512 KiB. The offset must equal the bytes already held; repeating the last window with the same bytes is accepted, so a lost reply is safe to retry.
 upload status <id>: Get the bytes held, the size and the time left. Read it to resume after an interruption.
 upload abort <id>: Delete the staging.
-[destructive] append <folder> --upload <id> [--flags f,..] [--date rfc3339]: Add the staged mail and get the new UID. Refused if the bytes held differ from the size or the SHA-256 given at begin; the staging is deleted either way.
 ```
+
+**Added to `part`:** the last sentence only. **Added to `append`:** the last sentence of the body form, and the `--upload` form, whose closing clauses are the landed ones.
+
+**Behaviour change, windowed `part` only:** a window is base64 for every type, so reassembled windows are byte-exact and match the hash; a text part cut in the middle of a character would otherwise show hex escapes at the edge. A plain `part` without `--offset` or `--limit` stays as landed: decoded text for text, base64 for binary, truncated with a label. Recommendation: this split ([Q287](QUESTIONS.md#imap-large-transfer)).
 
 JSON spellings: `folder` as everywhere; `{"method":"upload.put","id":"…","offset":0,"data":"<base64>"}`; `{"method":"part","uid":7,"part":"2","offset":0,"limit":163840}`. `upload` is the only new method name; `begin`, `put`, `status` and `abort` follow it as `sub` has `add`, `list` and `delete`.
 
