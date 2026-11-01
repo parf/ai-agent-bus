@@ -2,7 +2,7 @@
 
 📌 **TL;DR:**
 - **Problem:** an agent or service in another language should reach the bus without hand-written HTTP, retries or reply matching.
-- **Outcome:** six native client libraries (Python, Rust, PHP, Java, Go, TypeScript) behave the same way: send, call, serve, key-value, locks and read-only settings.
+- **Outcome:** six native client libraries (Python, Rust, PHP, Java, Go, TypeScript) share send, call, serve, key-value, locks and settings; bigfiles and may-send only in some, see the [capability matrix](../../docs/09-daemon-api.md#client-capability-matrix).
 - **Start:** pick your language in [the table](#what-you-get), then run its example ([Try this first](#try-this-first)).
 
 ## Why you'd want it
