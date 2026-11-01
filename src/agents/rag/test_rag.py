@@ -38,7 +38,7 @@ class Store:
     def __init__(self,dimensions=2):
         self.points={};self.calls=[];self.paid=[];self.fail=None;self.fail_paid=None;self.fail_get=False
         self.enforce_projection=False
-        self.sparse=False;self.dimensions=dimensions;self.indexes={k:{'data_type':'keyword'} for k in INDEXES}
+        self.sparse=False;self.modifier='idf';self.dimensions=dimensions;self.indexes={k:{'data_type':'keyword'} for k in INDEXES}
         self.model='voyage-3.5';self.probabilities={'drink':.8,'other':.2}
     def begin(self,budget):self.budget=budget
     def decide(self,request):
@@ -64,7 +64,7 @@ class Store:
         if failure:raise Unknown('fake uncertain storage failure')
         if path=='':
             params={'vectors':{'size':self.dimensions,'distance':'Cosine'}}
-            if self.sparse:params['sparse_vectors']={'text':{'modifier':'idf'}}
+            if self.sparse:params['sparse_vectors']={'text':{'modifier':self.modifier} if self.modifier else {}}
             return {'status':'green','config':{'params':params,'metadata':{'embedding_model':self.model}},'payload_schema':deepcopy(self.indexes)}
         if path.startswith('/points/') and verb=='GET':
             point=self.points.get(path.split('?')[0].split('/')[-1])
@@ -146,6 +146,41 @@ class Keyword(unittest.TestCase):
         self.put('tea','Tea is a drink.')
         got=self.app.run(parse(dumps({'method':'get','namespace':'team','tableName':'notes','id':'tea'})))
         self.assertEqual(got['embeddings'],[[.5,.5]])
+    def test_the_terms_are_lower_cased_words_hashed_to_ascending_unique_indices(self):
+        a,b=term_index('tea'),term_index('drink')
+        self.assertEqual(tokens('Tea, TEA! drink_2 x'),['tea','tea','drink_2','x'])
+        self.assertEqual(term_index('tea'),term_index('TEA'.casefold()))
+        query=sparse('Tea, TEA drink',query=True)
+        self.assertEqual(query,{'indices':sorted([a,b]),'values':[1.0,1.0]})
+        doc=sparse('tea tea')   # tf 2, two tokens: 2*2.2/(2+1.2*(0.25+0.75*2/128))
+        self.assertEqual(doc['indices'],[a]);self.assertAlmostEqual(doc["values"][0],1.901418,places=5)
+        mixed=sparse('tea drink tea')
+        self.assertEqual(dict(zip(mixed['indices'],mixed['values'])).keys(),{a,b})
+        self.assertGreater(dict(zip(mixed['indices'],mixed['values']))[a],dict(zip(mixed['indices'],mixed['values']))[b])
+        self.assertEqual(sparse('',query=True),{'indices':[],'values':[]})
+    def test_a_sparse_vector_without_the_idf_modifier_is_not_bm25(self):
+        for modifier in (None,'none'):
+            self.store.modifier=modifier
+            self.app=Core(CFG,self.store,self.kv);self.app.cache.set('team','notes',PROMPT)
+            self.put('tea','Tea is a drink.')
+            chunk=next(p for p in self.store.points.values() if p['payload']['_rag_kind']=='chunk')
+            self.assertEqual(chunk['vector'],[.5,.5])
+            with self.assertRaisesRegex(RagError,'no BM25 sparse vector'):self.find('tea')
+    def test_an_answer_outside_the_asked_scope_or_shape_is_refused(self):
+        self.put('tea','Tea is a drink.')
+        real=self.store.qdrant
+        def lying(change):
+            def qdrant(verb,path,body=None,write=False):
+                answer=real(verb,path,body,write)
+                if path=='/points/query':
+                    for row in answer['points']:row['payload'].update(change)
+                return answer
+            return qdrant
+        self.put('keyed','Tea with a key.',key1='y')
+        for change,more in (({'namespace':'other'},{}),({'tableName':'elsewhere'},{'tableName':'notes'}),({'key1':'x'},{'key1':'y'})):
+            self.store.qdrant=lying(change)
+            with self.assertRaisesRegex(RagError,'projection|filter mismatch'):self.find('tea',**more)
+        self.store.qdrant=real
     def test_search_ranks_by_the_words_and_returns_one_row_per_record(self):
         self.put('tea','Tea is a drink made from leaves.')
         self.put('cats','Cats sleep. Tea is not for cats.')
