@@ -362,3 +362,30 @@ func TestAnImportReplaceKeepsTheRecordIDAndItsBigKeys(t *testing.T) {
 		t.Fatalf("the start prune removed a live record's key: %d left", n)
 	}
 }
+
+func TestBigKeysRefusedNamingTheCauseAndRecoveredByALaterCall(t *testing.T) {
+	b, _ := kvFixture(t)
+	now := time.Now()
+	b.clock = func() time.Time { return now }
+	broken := true
+	b.BigUnavailable(errors.New("planted file"), func() (ports.BigStore, error) {
+		if broken {
+			return nil, errors.New("still planted")
+		}
+		return bigmem.New(), nil
+	})
+	if err := put(b, "alice@h", "k", "x"); !errors.Is(err, ErrBigNoStore) || !strings.Contains(err.Error(), "planted file") {
+		t.Fatalf("refusal = %v, want the unavailable error naming the cause", err)
+	}
+	broken = false
+	if err := put(b, "alice@h", "k", "x"); !errors.Is(err, ErrBigNoStore) {
+		t.Fatalf("a retry inside the minute = %v, want still refused", err)
+	}
+	now = now.Add(time.Minute)
+	if err := put(b, "alice@h", "k", "x"); err != nil {
+		t.Fatalf("after the fix and a minute = %v", err)
+	}
+	if got := read(t, b, "alice@h", "k"); got != "x" {
+		t.Fatalf("got %q", got)
+	}
+}

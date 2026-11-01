@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -121,5 +122,34 @@ func TestBigKeyRoundTripAnswersAndRefusals(t *testing.T) {
 	}
 	if w = bigReq(s, tok("alice@h"), "POST", "/big/delete", []byte(`{"record":"#svc@h","name":"file"}`), ""); !strings.Contains(w.Body.String(), `"deleted":false`) {
 		t.Fatalf("a second delete = %s", w.Body)
+	}
+}
+
+// A directory that could not be prepared leaves the bus up: every big-key
+// route answers 503 and names the cause.
+func TestBigKeyRoutesAnswer503NamingTheCauseWhenTheStoreIsUnavailable(t *testing.T) {
+	b := core.New()
+	b.Persistence(memory.NewState())
+	b.BigUnavailable(errors.New("big-keys is a plain file"), nil)
+	s, tok := serverFor(t, b, "admin@h")
+	if _, err := b.SetUser("admin@h", protocol.User{Name: "alice@h"}, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "alice@h"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct{ method, path, body string }{
+		{"PUT", "/big?record=%23svc@h&name=k", "x"},
+		{"GET", "/big?record=%23svc@h&name=k", ""},
+		{"GET", "/big/list?record=%23svc@h", ""},
+		{"POST", "/big/delete", `{"record":"#svc@h","name":"k"}`},
+	} {
+		w := bigReq(s, tok("alice@h"), c.method, c.path, []byte(c.body), "")
+		if w.Code != http.StatusServiceUnavailable || !strings.Contains(w.Body.String(), "big-keys is a plain file") {
+			t.Errorf("%s %s = %d %s, want 503 naming the cause", c.method, c.path, w.Code, w.Body)
+		}
+	}
+	if w := bigReq(s, tok("alice@h"), "GET", "/ls", nil, ""); w.Code != http.StatusOK {
+		t.Fatalf("the rest of the bus answered %d", w.Code)
 	}
 }

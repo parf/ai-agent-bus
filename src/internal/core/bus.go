@@ -173,6 +173,11 @@ type Bus struct {
 	store           ports.Store
 	// big holds big keys, bound at start (big.go).
 	big ports.BigStore
+	// bigCause, bigReopen and bigTried are why big keys are refused and how
+	// to try again (big.go).
+	bigCause  error
+	bigReopen func() (ports.BigStore, error)
+	bigTried  time.Time
 	// journal is where conceptual errors and warnings are reported
 	// (docs/constitution.md#errors-and-alerts).
 	journal ports.Journal

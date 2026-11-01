@@ -38,6 +38,17 @@ func (b *Bus) SetBigStore(s ports.BigStore) {
 	b.unlock()
 }
 
+// BigUnavailable says big keys cannot be held, and why: the daemon stays up,
+// reports it as an error and refuses the four big-key calls, naming the cause.
+// reopen, when not nil, is tried again at most once a minute by a call that
+// arrives, so a repaired directory recovers without a restart.
+func (b *Bus) BigUnavailable(cause error, reopen func() (ports.BigStore, error)) {
+	b.mu.Lock()
+	b.big, b.bigCause, b.bigReopen, b.bigTried = nil, cause, reopen, b.clock()
+	b.unlock()
+	b.report(ports.Error, "big-key directory could not be prepared; big-key calls are refused: %s", cause)
+}
+
 // bigStore finds the holder and the record's ID. write asks for the authority
 // to upload and delete; reading also takes the record's allow list.
 func (b *Bus) bigStore(caller, record, name string, write bool) (ports.BigStore, uint32, error) {
@@ -53,13 +64,22 @@ func (b *Bus) bigStore(caller, record, name string, write bool) (ports.BigStore,
 		// grant to its big keys, as it is none to its key-value store.
 		may = r.Name != DaemonAgent && b.may(caller, r)
 	}
-	store := b.big
+	if b.big == nil && b.bigReopen != nil && b.clock().Sub(b.bigTried) >= time.Minute {
+		b.bigTried = b.clock()
+		if s, err := b.bigReopen(); err == nil {
+			b.big, b.bigCause, b.bigReopen = s, nil, nil
+			b.report(ports.Warning, "big-key directory is usable again; big-key calls are served")
+		}
+	}
+	store, cause := b.big, b.bigCause
 	b.unlock()
 	switch {
 	case !live:
 		return nil, 0, ErrUnknown
 	case !may:
 		return nil, 0, ErrNotOwner
+	case store == nil && cause != nil:
+		return nil, 0, fmt.Errorf("%w: the big-key directory could not be prepared: %s", ErrBigNoStore, cause)
 	case store == nil:
 		return nil, 0, ErrBigNoStore
 	}

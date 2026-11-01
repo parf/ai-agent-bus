@@ -100,11 +100,7 @@ func runBus(c config) {
 		fatal("bus agent: %v", err)
 	}
 	bus.ReportKVOrphans()
-	big, err := openBigKeys(filepath.Dir(c.db))
-	if err != nil {
-		fatal("big keys: %v", err)
-	}
-	bus.SetBigStore(big)
+	bindBigKeys(bus, filepath.Dir(c.db))
 	bus.PruneBigOrphans()
 	activeAccounts := map[string]string{}
 	if raw := os.Getenv(accountsEnv); raw == "" {

@@ -1041,7 +1041,7 @@ var codes = []struct {
 	{core.ErrKVLimit, http.StatusRequestEntityTooLarge, "malformed"},
 	{core.ErrBigAbsent, http.StatusNotFound, "unknown"},
 	{core.ErrBigValue, http.StatusBadRequest, "malformed"},
-	{core.ErrBigNoStore, http.StatusNotImplemented, "unknown"},
+	{core.ErrBigNoStore, http.StatusServiceUnavailable, "unavailable"},
 	{ports.ErrBigTooLarge, http.StatusRequestEntityTooLarge, "malformed"},
 	{ports.ErrBigFull, http.StatusRequestEntityTooLarge, "malformed"},
 	{core.ErrUnknown, http.StatusNotFound, "unknown"},
