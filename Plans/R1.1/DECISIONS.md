@@ -38,12 +38,12 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30; the R1 rows are in 
 | Topology | [definition](auth.md#topology) | D104 |
 | Ssh admin | [definition](auth.md#ssh-admin) | D106 |
 | Dashboard extensions | [definition](discovery.md#dashboard-extensions) | D243 |
-| Filescan contents inline: file text goes inline in the body by default; a bigfile is only the fallback for a file over the inline limit, sized as one put and a name | [what a message carries](filescan.md#what-a-message-carries) | Owner, 2026-11-01 |
-| Filescan state: one JSON file in the agent's work directory, written to a temporary file, flushed and renamed; no key-value use, no hash buckets; at its cap the scan is refused and the file untouched | [state](filescan.md#state) | Owner, 2026-11-01 |
-| Filescan runs one scan at a time, enforced by a lock file in the work directory | [how it works](filescan.md#how-it-works) | Owner, 2026-11-01 |
-| Filescan notification: Linux inotify through the foreign-function interface, completion events only, no debounce by default (`settle` optional), renames paired by cookie, recursive watches with a polling fallback at the limit, overflow triggers a rescan | [finding changes](filescan.md#finding-changes) | Owner, 2026-11-01 |
-| Filescan `mode` is `poll`, `watch` or `both`, default `both`; watch alone guarantees nothing, poll alone is never instant; macOS starts as poll only | [modes](filescan.md#modes) | Owner, 2026-11-01 |
-| Filescan hosts on the person's user-account runner with a read-only bind of exactly `dir`; subscriptions follow IMAP's authority model; a mass-delete guard holds deletes on both paths until `scan confirm:true` | [host](filescan.md#host-and-sandbox), [who may use it](filescan.md#who-may-use-it), [guard](filescan.md#the-mass-delete-guard) | Owner, 2026-11-01 |
+| Filescan: file contents go inline, bigfile only as the fallback | [what a message carries](filescan.md#what-a-message-carries) | Owner, 2026-11-01 |
+| Filescan: state is one atomically written file in the work directory | [state](filescan.md#state) | Owner, 2026-11-01 |
+| Filescan: one scan at a time | [how it works](filescan.md#how-it-works) | Owner, 2026-11-01 |
+| Filescan: change notification | [finding changes](filescan.md#finding-changes) | Owner, 2026-11-01 |
+| Filescan: the `mode` setting | [modes](filescan.md#modes) | Owner, 2026-11-01 |
+| Filescan: host, authority and the mass-delete guard | [host](filescan.md#host-and-sandbox), [who may use it](filescan.md#who-may-use-it), [guard](filescan.md#the-mass-delete-guard) | Owner, 2026-11-01 |
 
 ## Open
 
