@@ -37,7 +37,7 @@ pub enum BusError {
     /// second-reader, suspended, unavailable, unknown, no_route).
     #[error("HTTP {status}: {message}")]
     Refusal { status: u16, kind: Option<String>, message: String },
-    #[error("daemon too new for this client: it serves protocol {protocol_min} and later, this client speaks {client}")]
+    #[error("daemon too new for this client")]
     DaemonTooNew { protocol_min: u64, client: u64 },
     #[error("{operation} outcome is unknown; do not replay: {message}")]
     UncertainOutcome { operation: String, message: String },
@@ -58,11 +58,14 @@ pub const CLIENT_PROTOCOL: u64 = 1;
 /// `protocol_min` above `protocol`, is a protocol error naming the member; a
 /// client older than `protocol_min` is refused as too new.
 fn check_protocol(identity: &Value) -> Result<(u64, Option<String>)> {
+    if !identity.is_object() {
+        return Err(BusError::Protocol("protocol error: identity must be an object".into()));
+    }
     let member = |name: &str| -> Result<u64> {
         match identity.get(name) {
             None => Ok(0),
             Some(v) => v.as_u64().ok_or_else(|| {
-                BusError::Protocol(format!("identity {name} is not a non-negative integer"))
+                BusError::Protocol(format!("protocol error: {name} must be a nonnegative integer"))
             }),
         }
     };
@@ -70,7 +73,7 @@ fn check_protocol(identity: &Value) -> Result<(u64, Option<String>)> {
     let protocol_min = member("protocol_min")?;
     if protocol_min > protocol {
         return Err(BusError::Protocol(
-            "identity protocol_min is greater than protocol".into(),
+            "protocol error: protocol_min exceeds protocol".into(),
         ));
     }
     if CLIENT_PROTOCOL < protocol_min {
@@ -80,9 +83,7 @@ fn check_protocol(identity: &Value) -> Result<(u64, Option<String>)> {
         });
     }
     let warning = (protocol < CLIENT_PROTOCOL).then(|| {
-        format!(
-            "daemon too old for this client: it speaks protocol {protocol}, this client speaks {CLIENT_PROTOCOL}"
-        )
+        "daemon too old: protocol is older than this client".to_string()
     });
     Ok((protocol, warning))
 }
@@ -577,7 +578,7 @@ impl Bus {
                 msg = format!("daemon too old for {operation}");
             }
             // A server error that names no kind is the daemon failing, not refusing.
-            if kind.is_none() && status.as_u16() >= 500 {
+            if status.as_u16() == 500 {
                 msg = "internal daemon error".into();
             }
             return Err(BusError::Refusal {

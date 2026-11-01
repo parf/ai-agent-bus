@@ -837,7 +837,7 @@ section('protocol rule and refusal kind', function () use ($dir) {
     // A server error that names no kind.
     $pid = $serve('{"protocol":1,"protocol_min":1}', 500, '{"error":"boom: secret path /var/x"}');
     $e = thrown(fn() => Bus::connect($sock, 't')->list());
-    check('a 500 without a kind is an internal daemon error', $e instanceof Refusal && $e->kind() === null && $e->getMessage() === 'internal daemon error', $e ? $e->getMessage() : 'none');
+    check('a 500 is an internal daemon error', $e instanceof Refusal && $e->kind() === null && $e->getMessage() === 'internal daemon error', $e ? $e->getMessage() : 'none');
     unfake($pid);
     $pid = $serve('{"protocol":1,"protocol_min":1}', 503, '{"error":"store down","kind":"unavailable"}');
     $e = thrown(fn() => Bus::connect($sock, 't')->list());

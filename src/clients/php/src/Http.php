@@ -98,7 +98,7 @@ final class Http
             // client, is that age, said for the operation that met it.
             if ($kind === 'no_route' && $this->daemonProtocol < Bus::PROTOCOL) { $msg = "daemon too old for $method $path"; }
             // A server error that names no kind is the daemon failing, not refusing.
-            if ($kind === null && $status >= 500) { $msg = 'internal daemon error'; }
+            if ($status === 500) { $msg = 'internal daemon error'; }
             throw Refusal::of($status, $msg, $kind);
         }
         return [$status, (string) $out];

@@ -980,8 +980,7 @@ public final class BusTest {
                 f.identity = new Answer(0, 200, "{\"protocol\":2,\"protocol_min\":2}");
                 Throwable e = thrown(() -> Bus.connect(Connect.of(sock.toString(), "x")).status());
                 check("a daemon whose protocol_min is above the client is too new",
-                        e instanceof BusException.DaemonTooNewException && e.getMessage().contains("daemon too new for this client")
-                                && e.getMessage().contains("serves protocol 2 and later"), name(e));
+                        e instanceof BusException.DaemonTooNewException && e.getMessage().equals("daemon too new for this client"), name(e));
             }
             try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 200, "{}"))) {
                 f.identity = null;
@@ -993,14 +992,14 @@ public final class BusTest {
                 Bus b = Bus.connect(Connect.of(sock.toString(), "x"));
                 b.status();
                 check("an identity without the members warns the daemon is too old",
-                        b.warnings().size() == 1 && b.warnings().get(0).contains("daemon too old for this client: it speaks protocol 0"), b.warnings());
+                        b.warnings().size() == 1 && b.warnings().get(0).equals("daemon too old: protocol is older than this client"), b.warnings());
             }
             for (String[] bad : new String[][] {
-                    {"{\"protocol\":\"1\",\"protocol_min\":1}", "identity protocol is not a non-negative integer"},
-                    {"{\"protocol\":-1,\"protocol_min\":0}", "identity protocol is not a non-negative integer"},
-                    {"{\"protocol\":1.5,\"protocol_min\":1}", "identity protocol is not a non-negative integer"},
-                    {"{\"protocol\":2,\"protocol_min\":\"x\"}", "identity protocol_min is not a non-negative integer"},
-                    {"{\"protocol\":1,\"protocol_min\":2}", "identity protocol_min is greater than protocol"}}) {
+                    {"{\"protocol\":\"1\",\"protocol_min\":1}", "protocol error: protocol must be a nonnegative integer"},
+                    {"{\"protocol\":-1,\"protocol_min\":0}", "protocol error: protocol must be a nonnegative integer"},
+                    {"{\"protocol\":1.5,\"protocol_min\":1}", "protocol error: protocol must be a nonnegative integer"},
+                    {"{\"protocol\":2,\"protocol_min\":\"x\"}", "protocol error: protocol_min must be a nonnegative integer"},
+                    {"{\"protocol\":1,\"protocol_min\":2}", "protocol error: protocol_min exceeds protocol"}}) {
                 try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 200, "{}"))) {
                     f.identity = new Answer(0, 200, bad[0]);
                     Throwable e = thrown(() -> Bus.connect(Connect.of(sock.toString(), "x")).status());
@@ -1032,7 +1031,7 @@ public final class BusTest {
             }
             try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 500, "{\"error\":\"sqlite: disk I/O\"}"))) {
                 Throwable e = thrown(() -> Bus.connect(Connect.of(sock.toString(), "x")).list(Optional.empty()));
-                check("a 5xx without a kind is an internal daemon error, its text not passed on",
+                check("a 500 is an internal daemon error, its text not passed on",
                         e instanceof BusException.RefusalException r && r.kind() == null && e.getMessage().equals("internal daemon error"), name(e));
             }
             try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 503, "{\"error\":\"store unavailable\",\"kind\":\"unavailable\"}"))) {

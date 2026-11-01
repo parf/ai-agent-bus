@@ -67,20 +67,21 @@ final class Bus
     {
         if ($this->negotiated) { return; }
         $identity = $this->t->json('GET', '/identity', [], null, false, $timeout);
+        if (!is_array($identity)) { throw new ProtocolError('protocol error: identity must be an object'); }
         $member = function (string $name) use ($identity): int {
-            if (!is_array($identity) || !array_key_exists($name, $identity)) { return 0; }
+            if (!array_key_exists($name, $identity)) { return 0; }
             $v = $identity[$name];
-            if (!is_int($v) || $v < 0) { throw new ProtocolError("identity $name is not a non-negative integer"); }
+            if (!is_int($v) || $v < 0) { throw new ProtocolError("protocol error: $name must be a nonnegative integer"); }
             return $v;
         };
         $protocol = $member('protocol');
         $min = $member('protocol_min');
-        if ($min > $protocol) { throw new ProtocolError('identity protocol_min is greater than protocol'); }
+        if ($min > $protocol) { throw new ProtocolError('protocol error: protocol_min exceeds protocol'); }
         if (self::PROTOCOL < $min) {
-            throw new DaemonTooNew("daemon too new for this client: it serves protocol $min and later, this client speaks " . self::PROTOCOL);
+            throw new DaemonTooNew('daemon too new for this client');
         }
         if ($protocol < self::PROTOCOL) {
-            $this->warnings[] = "daemon too old for this client: it speaks protocol $protocol, this client speaks " . self::PROTOCOL;
+            $this->warnings[] = 'daemon too old: protocol is older than this client';
         }
         $this->t->daemonProtocol($protocol);
         $this->negotiated = true;

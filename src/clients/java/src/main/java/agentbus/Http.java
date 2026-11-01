@@ -156,7 +156,7 @@ final class Http {
             // said for the operation that met it.
             if ("no_route".equals(kind) && daemonProtocol < Bus.CLIENT_PROTOCOL) msg = "daemon too old for " + method + " " + path;
             // A server error that names no kind is the daemon failing, not refusing.
-            if (kind == null && r.status >= 500) msg = "internal daemon error";
+            if (r.status == 500) msg = "internal daemon error";
             throw RefusalException.of(r.status, msg, kind);
         }
         return r;
@@ -178,23 +178,23 @@ final class Http {
     private synchronized void negotiate(Duration limit) {
         if (negotiated) return;
         Object answer = json("GET", "/identity", null, null, false, limit);
+        if (!(answer instanceof Map<?, ?>)) throw new BusException.ProtocolErrorException("protocol error: identity must be an object");
         long[] member = new long[2];
         String[] names = {"protocol", "protocol_min"};
         for (int i = 0; i < 2; i++) {
-            Object v = answer instanceof Map<?, ?> m && m.containsKey(names[i]) ? m.get(names[i]) : Long.valueOf(0);
+            Object v = ((Map<?, ?>) answer).containsKey(names[i]) ? ((Map<?, ?>) answer).get(names[i]) : Long.valueOf(0);
             if (!(v instanceof Long n) || n < 0) {
-                throw new BusException.ProtocolErrorException("identity " + names[i] + " is not a non-negative integer");
+                throw new BusException.ProtocolErrorException("protocol error: " + names[i] + " must be a nonnegative integer");
             }
             member[i] = n;
         }
         long protocol = member[0], min = member[1];
-        if (min > protocol) throw new BusException.ProtocolErrorException("identity protocol_min is greater than protocol");
+        if (min > protocol) throw new BusException.ProtocolErrorException("protocol error: protocol_min exceeds protocol");
         if (Bus.CLIENT_PROTOCOL < min) {
-            throw new BusException.DaemonTooNewException("daemon too new for this client: it serves protocol " + min
-                    + " and later, this client speaks " + Bus.CLIENT_PROTOCOL);
+            throw new BusException.DaemonTooNewException("daemon too new for this client");
         }
         if (protocol < Bus.CLIENT_PROTOCOL) {
-            warnings.add("daemon too old for this client: it speaks protocol " + protocol + ", this client speaks " + Bus.CLIENT_PROTOCOL);
+            warnings.add("daemon too old: protocol is older than this client");
         }
         daemonProtocol = protocol;
         negotiated = true;

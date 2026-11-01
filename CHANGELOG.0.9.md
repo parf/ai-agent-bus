@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.269 — 2026-11-01
+
+Rust, PHP and Java clients check the daemon protocol version and report its refusal kinds
+
 ## 0.9.268 — 2026-11-01
 
 MCP bigfile tools work only inside AGENT_BUS_BIGFILE_DIR (refused when unset) and are no longer pre-approved in any launcher

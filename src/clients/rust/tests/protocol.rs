@@ -73,7 +73,7 @@ async fn a_client_older_than_the_daemons_minimum_is_refused_at_connect() {
     let address = daemon(r#"{"protocol":3,"protocol_min":2}"#, (200, "{}")).await;
     let error = connect(&address).await.unwrap_err();
     assert!(matches!(error, BusError::DaemonTooNew { protocol_min: 2, client: 1 }), "{error:?}");
-    assert!(error.to_string().starts_with("daemon too new for this client"), "{error}");
+    assert_eq!(error.to_string(), "daemon too new for this client");
 }
 
 #[tokio::test]
