@@ -138,7 +138,8 @@ func (st *stream) shrink() {
 		case <-tick.C:
 		}
 		// The runner's lock is never taken under the pool's.
-		j := st.r.launchSettings(st.s).jail
+		launch := st.r.launchSettings(st.s)
+		j, deadline := launch.jail, deadlineOf(launch.agent)
 		st.mu.Lock()
 		over := st.loops - st.min
 		for c := range st.children {
@@ -156,7 +157,7 @@ func (st *stream) shrink() {
 				go func(c *streamChild) {
 					select {
 					case <-c.gone:
-					case <-time.After(deadlineOf(st.s.in.Agent)):
+					case <-time.After(deadline):
 						(*keeper)(nil).signalOne(c.cmd, j, syscall.SIGKILL)
 					case <-st.ctx.Done():
 					}

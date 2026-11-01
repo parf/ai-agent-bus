@@ -43,6 +43,11 @@ const maxOutput = 1 << 20
 
 // served is one agent the runner is serving now.
 type served struct {
+	// Reload writes settings while holding both r.mu and settingsMu (in that
+	// order). Most readers use r.mu; the inbox reader uses settingsMu alone so
+	// stop can join it under r.mu. Never hold settingsMu across a consume.
+	settingsMu sync.RWMutex
+
 	readDone chan struct{} // reader has stopped consuming before a mode replacement
 
 	in        installed
@@ -382,7 +387,9 @@ func (r *runner) serve(ctx context.Context) {
 				}
 			} else {
 				hangup := settingsChanged(s.in, *in)
+				s.settingsMu.Lock()
 				s.in, s.jail = *in, j
+				s.settingsMu.Unlock()
 				if hangup {
 					s.stream.signal(syscall.SIGHUP, j)
 				}
@@ -401,8 +408,10 @@ func (r *runner) serve(ctx context.Context) {
 			// Any other change of its settings, the host's overrides included,
 			// is told to the running processes by SIGHUP.
 			hangup := s.kept != nil && !changed && settingsChanged(s.in, *in)
+			s.settingsMu.Lock()
 			s.in, s.env, s.secretEnv, s.box, s.net, s.jail = *in, env, p.secretEnv, box, wantsNet(*in), j
 			s.cmd = cmd
+			s.settingsMu.Unlock()
 			if changed {
 				old := s.kept
 				s.kept = nil
@@ -452,7 +461,8 @@ func (r *runner) stop(name string, s *served) {
 		// one-message form.
 		st.cancel()
 		current := s.jail
-		r.retireWith(s.in.Key, func() { st.stop(deadlineOf(s.in.Agent), current) }, func() {
+		deadline := deadlineOf(s.in.Agent)
+		r.retireWith(s.in.Key, func() { st.stop(deadline, current) }, func() {
 			if current.group != nil {
 				current.group.Remove()
 			}
@@ -525,7 +535,12 @@ func (r *runner) retireWith(key string, stop func(), finish func()) {
 func (r *runner) stopKept() {
 	r.mu.Lock()
 	var ks []*keeper
-	var streams []*served
+	type stoppingStream struct {
+		pool     *stream
+		deadline time.Duration
+		jail     *jail
+	}
+	var streams []stoppingStream
 	var retiring []chan struct{}
 	for _, done := range r.retiring {
 		retiring = append(retiring, done)
@@ -535,14 +550,14 @@ func (r *runner) stopKept() {
 			ks = append(ks, s.kept)
 		}
 		if s.stream != nil {
-			streams = append(streams, s)
+			streams = append(streams, stoppingStream{s.stream, deadlineOf(s.in.Agent), s.jail})
 		}
 	}
 	r.mu.Unlock()
 	var wg sync.WaitGroup
 	for _, s := range streams {
 		wg.Add(1)
-		go func(st *stream, d time.Duration, j *jail) { defer wg.Done(); st.stop(d, j) }(s.stream, deadlineOf(s.in.Agent), s.jail)
+		go func(st *stream, d time.Duration, j *jail) { defer wg.Done(); st.stop(d, j) }(s.pool, s.deadline, s.jail)
 	}
 	for _, k := range ks {
 		wg.Add(1)
@@ -739,6 +754,12 @@ func (r *runner) adopt(ctx context.Context, in installed, name string, as *clien
 // read takes this agent's messages off its own inbox, one per free process:
 // the slot is taken before the read, so nothing is taken that no process is
 // free to run.
+func (s *served) sharedPoll() bool {
+	s.settingsMu.RLock()
+	defer s.settingsMu.RUnlock()
+	return s.in.Host.Share
+}
+
 func (r *runner) read(ctx context.Context, s *served) {
 	const poll = 55 * time.Second
 	for {
@@ -747,7 +768,7 @@ func (r *runner) read(ctx context.Context, s *served) {
 		case <-ctx.Done():
 			return
 		}
-		e, got, err := s.bus.next(ctx, poll, r.readHost, s.in.Host.Share)
+		e, got, err := s.bus.next(ctx, poll, r.readHost, s.sharedPoll())
 		if ctx.Err() != nil {
 			// Taken just as serving stopped: it is off the bus, so it is run
 			// and answered rather than lost.
