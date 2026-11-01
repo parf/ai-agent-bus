@@ -2,6 +2,8 @@
 
 ## Recorded decisions
 
+- **R1 releases as 1.0.0** — owner, 2026-11-01 13:20.
+  - Home: [versioning](../../CLAUDE.md#versioning), its Stable row.
 - **RAG keyword search ships in R1** (Q301) — owner, 2026-11-01: "do it in R1 - its EZ and keyword search is essential". A setting chooses Qdrant's built-in BM25 or an external engine, default built-in (Q194), with a working built-in BM25 search checked against real Qdrant; an external engine itself is not built.
   - Home: [RAG rules](rag/README.md#rules).
 - **The owner removes the macOS test account at the Mac for MAC.2** (Q298) — owner, 2026-11-01: "i'll run handoff file"; `sudo sysadminctl -deleteUser _agentbusd` from a Terminal on the Mac, as `~/agent-bus-dev/agent-bus-handoff.md` says, before the rerun and after it. No Full Disk Access grant to sshd.
