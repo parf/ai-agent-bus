@@ -52,7 +52,7 @@ func TestBigTTLReadsHoursMinutesSecondsAndDaysWithinBounds(t *testing.T) {
 			t.Errorf("%s: %v %v", in, got, e)
 		}
 	}
-	for _, in := range []string{"", "0", "0s", "-1h", "31d", "721h", "0d", "-2d", "1.5d", "d", "abc"} {
+	for _, in := range []string{"500ms", "999ms", "1ns", "", "0", "0s", "-1h", "31d", "721h", "0d", "-2d", "1.5d", "d", "abc"} {
 		if _, e := parseBigTTL(in); e == nil {
 			t.Errorf("%q was accepted", in)
 		}
@@ -166,4 +166,32 @@ func TestBigRefusalIsPrintedAsTheDaemonsText(t *testing.T) {
 	if e == nil || !strings.Contains(e.Error(), "acl: not a Maintainer") {
 		t.Fatal(e)
 	}
+}
+
+func TestBigPutRefusesOversizedStdinWithoutReadingItAll(t *testing.T) {
+	n := bigDaemon(t, func(w http.ResponseWriter, r *http.Request) {})
+	r, w, _ := os.Pipe()
+	go func() { w.Write(make([]byte, bigMaxBytes+1)); w.Close() }()
+	old := os.Stdin
+	os.Stdin = r
+	defer func() { os.Stdin = old }()
+	_, e := captureStdout(t, func() error { return bigPutVerb([]string{"#r", "k", "-"}) })
+	if e == nil || !strings.Contains(e.Error(), "at most") || n.Load() != 0 {
+		t.Fatal(e, n.Load())
+	}
+	// A reader that never ends is stopped at the cap, not drained.
+	p := bigPutPlan{Record: "#r", Name: "k"}
+	if _, _, e := bigSource(p, &endless{}); e == nil || !strings.Contains(e.Error(), "at most") {
+		t.Fatal(e)
+	}
+}
+
+type endless struct{ read int }
+
+func (e *endless) Read(p []byte) (int, error) {
+	e.read += len(p)
+	if e.read > 4*bigMaxBytes {
+		return 0, io.ErrUnexpectedEOF
+	}
+	return len(p), nil
 }

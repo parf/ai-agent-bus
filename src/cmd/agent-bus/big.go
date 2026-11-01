@@ -51,9 +51,12 @@ func parseBigTTL(s string) (time.Duration, error) {
 		d = time.Duration(n) * 24 * time.Hour
 	} else {
 		var err error
-		if d, err = time.ParseDuration(s); err != nil || d <= 0 {
+		if d, err = time.ParseDuration(s); err != nil || d < time.Second {
 			return 0, fmt.Errorf("--ttl is a duration such as 90m, 24h or 30d, not %q", s)
 		}
+	}
+	if d < time.Second {
+		return 0, fmt.Errorf("--ttl is at least 1s, not %q", s)
 	}
 	if d > bigMaxTTL {
 		return 0, fmt.Errorf("--ttl is at most 30d, not %q", s)
@@ -124,12 +127,16 @@ func planBigGet(args []string) (bigGetPlan, error) {
 // empty stdin are refused alike, before any request.
 func bigSource(p bigPutPlan, stdin io.Reader) (io.Reader, int64, error) {
 	if p.Source == "" {
-		b, err := io.ReadAll(stdin)
+		// One byte past the cap tells an oversized value without reading all of it.
+		b, err := io.ReadAll(io.LimitReader(stdin, bigMaxBytes+1))
 		if err != nil {
 			return nil, 0, err
 		}
 		if len(b) == 0 {
 			return nil, 0, bigEmpty
+		}
+		if len(b) > bigMaxBytes {
+			return nil, 0, fmt.Errorf("a big value is at most %d bytes; stdin held more", bigMaxBytes)
 		}
 		return strings.NewReader(string(b)), int64(len(b)), nil
 	}
