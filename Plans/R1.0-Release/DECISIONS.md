@@ -2,6 +2,10 @@
 
 ## Recorded decisions
 
+- **The wire protocol is frozen before 1.0** (Q296) — owner, 2026-11-01: "agree". In R1: the wire contract for the client surface (send/consume, kv, locks, bigfile, status, config) in [daemon API](../../docs/09-daemon-api.md); a `protocol` number with "daemon too old/new" in the CLI, clients and MCP, and a written compatibility policy; a refusal `kind` and a 404 route-or-data split; shared conformance cases for kv, locks, status, refusals and bigfile in all six clients, with a check that fails when a documented route or field disappears; the one-release aliases removed or frozen. Admin-only routes are marked unstable; bigfile stays Go, Python and TypeScript. R1 about Nov 9–10.
+  - Home: [R1 TODO](TODO.md#objective).
+- **Key-value limits are what ships: signed 64-bit integers and 512 KiB values** (Q297) — owner, 2026-11-01: "agree"; the docs were corrected, behaviour untouched. The earlier unenforced 2^62 and 128 KiB targets are dropped.
+  - Home: [key-value rules](../../docs/03-records-kv.md#rules).
 - **Agent status is seen on the agent's own page; no mass polling** (Q191) — owner, 2026-11-01: "go to agent own page to see status, = no mass polling". `ab_ls` shows no status; the web offers restart on `failed` only. RT23 itself moved to R1.1 (Q299).
   - Home: [agent capabilities](TODO.md#bundled-agents).
 - **The protocol card lives in both places** (Q183) — owner, 2026-11-01: "agree"; the MCP instructions hold the minimum, which cannot be skipped, and a short doc holds the rest, read when needed.

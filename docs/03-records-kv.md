@@ -73,16 +73,14 @@ The reference below keeps every section as it was; other pages link to these sec
 |---|---|
 | Durable | a write is committed before it is answered, never left to the queue checkpoint |
 | Atomic | every edit — a mode, an increment, a list of JSON operations — is one transaction on the value it replaces |
-| Accepted integer range (pending enforcement) | −2^62 through 2^62−1, inclusive; integer values, increment operands and results, and JSON `inc` use this range; overflow refuses the complete edit |
+| Integer range | signed 64-bit, −2^63 through 2^63−1; integer values, increment operands and results, and JSON `inc` use this range; overflow refuses the complete edit |
 | The record's life | an inactive record's store is [no such entity](constitution.md#common-record-fields) and comes back with it; removing the record deletes its store in the same transaction, and a name registered again starts empty. Values are keyed by the record's internal ID, so a transfer keeps them |
-| Limits | a name is 1 to 256 bytes of UTF-8; an accepted value cap of 128 KiB (pending enforcement); a record holds at most 10,000 names of one kind; a JSON list at most 100 operations |
+| Limits | a name is 1 to 256 bytes of UTF-8; a value is at most 512 KiB; a record holds at most 10,000 names of one kind; a JSON list at most 100 operations |
 | At start | a stored value whose record is not stored is ignored and reported, never reattached |
 | Faces | the API's `GET /kv` and `POST /kv/set`, `/kv/delete`, `/kv/inc`, `/kv/json` take `record`, `kind` and `name`; a string travels as a JSON string, or `value_base64` when its bytes are not UTF-8, an int as a number and a JSON value as the object. `GET /kv/list` answers a record's names with sizes and previews, or with no record every store the caller may use. The MCP face has `ab_kv_get`, `ab_kv_set`, `ab_kv_delete`, `ab_kv_inc` and `ab_kv_json`; the web face shows a record's store on its page, and on the **KV** page and its own pages ([web face](../src/web/web-face/records.md#key-value-stores)) |
 
-**Current implementation:** a value may be at most 512 KiB; the API body bound accommodates JSON escaping at that size.
-- The accepted 128 KiB cap above is still pending for both string and JSON writes.
-- The narrowed integer range also awaits enforcement; the implementation still uses signed 64-bit bounds.
-- MCP must preserve integers exactly across its JavaScript boundary: the MCP face already preserves large integer values; narrowing to 63 bits alone would not prevent rounding.
+- The API body bound accommodates JSON escaping of a 512 KiB value.
+- The MCP face preserves 64-bit integers exactly across its JavaScript boundary.
 
 ## JSON operations
 
