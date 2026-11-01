@@ -81,6 +81,37 @@ public final class BusTest {
         return null;
     }
 
+    /**
+     * The Go fixture daemon, memory-backed like the other clients' state vectors use: one per case, so no case depends
+     * on another and a 10,000-name fill costs memory, not SQLite. close() ends it.
+     */
+    static final class VectorDaemon implements AutoCloseable {
+        final Process process;
+        final String addr;
+        final Map<?, ?> tokens;
+
+        VectorDaemon() throws Exception {
+            String binary = System.getenv("AB_CLIENT_FIXTURE");
+            ProcessBuilder pb = binary != null && !binary.isEmpty() ? new ProcessBuilder(binary)
+                    : new ProcessBuilder("go", "run", "./clients/fixture").directory(Path.of(env("AB_TEST_DIR")).getParent().getParent().resolve("src").toFile());
+            pb.redirectError(ProcessBuilder.Redirect.INHERIT);
+            process = pb.start();
+            String line = new java.io.BufferedReader(new java.io.InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8)).readLine();
+            Map<?, ?> info = (Map<?, ?>) Json.parse(line);
+            addr = (String) info.get("addr");
+            tokens = (Map<?, ?>) info.get("tokens");
+        }
+
+        Bus as(String name) {
+            return Bus.connect(Connect.of(addr, (String) tokens.get(name)).expectName(name).timeout(Duration.ofSeconds(10)));
+        }
+
+        @Override public void close() throws Exception {
+            process.getOutputStream().close();
+            process.waitFor();
+        }
+    }
+
     static Object or(Map<?, ?> m, String key, Object fallback) { Object v = m.get(key); return v == null ? fallback : v; }
 
     static String name(Throwable e) { return e == null ? "none" : e.getClass().getSimpleName() + " " + e.getMessage(); }
@@ -1114,7 +1145,7 @@ public final class BusTest {
         Function<String, List<?>> vectors = file -> {
             try {
                 Path cases = Path.of(env("AB_CLIENT_CONFORMANCE_CASES"), file + ".json");
-                List<?> all = (List<?>) Json.parse(Files.readString(cases).replace("owner@fixture", OWNER).replace("#worker@fixture", "#j-vec-worker@localhost"));
+                List<?> all = (List<?>) Json.parse(Files.readString(cases));
                 check("the shared " + file + " vectors are not empty", !all.isEmpty(), cases);
                 return all;
             } catch (java.io.IOException e) {
@@ -1151,12 +1182,11 @@ public final class BusTest {
             }
         }
         section("shared kv vectors", () -> {
-            int n = 0;
             for (Object c : vectors.apply("kv")) {
                 Map<?, ?> k = (Map<?, ?>) c;
-                String rec = "#j-vec-kv" + n++ + "@localhost";
-                me.register(Map.of("kind", "agent", "name", rec, "allow", List.of("*")));
-                KV kv = me.record(rec).kv();
+                VectorDaemon daemon = new VectorDaemon();
+                String rec = "jobs@fixture";
+                KV kv = daemon.as("owner@fixture").record(rec).kv();
                 int i = 0;
                 for (Object so : (List<?>) k.get("steps")) {
                     Map<?, ?> step = (Map<?, ?>) so;
@@ -1231,22 +1261,21 @@ public final class BusTest {
                         default -> check(at + ": known op", false, op);
                     }
                 }
-                me.record(rec).unregister();
+                daemon.close();
             }
         });
 
         section("shared lock vectors", () -> {
-            String worker = "#j-vec-worker@localhost";
-            me.register(Map.of("kind", "agent", "name", worker, "allow", List.of("*")));
-            Map<String, Bus> buses = Map.of("owner", me, "worker", client(worker));
-            int n = 0;
             for (Object c : vectors.apply("locks")) {
                 Map<?, ?> k = (Map<?, ?>) c;
-                String rec = "#j-vec-lock" + n++ + "@localhost";
-                me.register(Map.of("kind", "agent", "name", rec, "allow", List.of("*")));
+                VectorDaemon daemon = new VectorDaemon();
+                String worker = "#worker@fixture";
+                Bus owner = daemon.as("owner@fixture");
+                Map<String, Bus> buses = Map.of("owner", owner, "worker", daemon.as(worker));
+                String rec = "jobs@fixture";
                 for (Object setup : k.get("setup") instanceof List<?> l ? l : List.of()) {
                     check("setup " + setup + " is known", "worker-maintains-jobs".equals(setup));
-                    me.record(rec).manage(Map.of("maintainers", List.of(worker)));
+                    owner.record(rec).manage(Map.of("maintainers", List.of(worker)));
                 }
                 Map<String, Locks.Lease> held = new java.util.LinkedHashMap<>();
                 int i = 0;
@@ -1288,7 +1317,7 @@ public final class BusTest {
                 }
                 // The vector held some on purpose; a release here is housekeeping, not part of the case.
                 for (Locks.Lease lease : held.values()) thrown(lease::release);
-                me.record(rec).unregister();
+                daemon.close();
             }
         });
 
