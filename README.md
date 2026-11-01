@@ -22,7 +22,7 @@ Not a single tool but a whole platform: it runs on localhost and grows to many h
 - 🌐 **Clients:** libraries for six common programming languages.
 - 🖥️ **Web console:** see and manage everything from one page.
 - 📥 **Install:** one command, a ready-made container or a package.
-- 🧠 **Search by meaning:** your AI finds and sorts your documents.
+- 🧠 **Keyword search:** your AI finds documents by their words and sorts them into topics.
 
 ```mermaid
 flowchart LR
@@ -82,7 +82,7 @@ The runner's [isolation rules](docs/runner/security.md#isolation-today) explain 
 - ⏰ **Schedule:** at a time, on a rhythm, or later.
 - 🖥️ **Servers:** logs, disks, services, code.
 - 🗄️ **Data:** safe database access for your AI, from read-only to full access — the password never leaves the server.
-- 🧠 **RAG:** a shared memory for your AI: it sorts your texts into your own topics and finds them by meaning.
+- 🧠 **RAG:** a shared memory for your AI: it sorts your texts into your own topics and finds them by keyword.
 - 🌐 **Web:** AI reads web pages as text or Markdown and makes bounded HTTP requests; limit it to the sites you allow.
 - 🤖 **AI:** ask a model.
 - 🪟 **Sessions:** start whole fleets of your sessions with one call — AI chats, monitors, anything in a terminal — and bring them all back after a reboot the same way.

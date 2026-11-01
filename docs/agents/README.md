@@ -63,7 +63,7 @@ Questions from customers come in by mail. A help system written as an Obsidian v
 | Step | Helper |
 |---|---|
 | 1. Fetch new mail | [`#imap`](imap.md#what-it-does) subscription to the `support` queue |
-| 2. Find the answer in the help pages | The vault in Git, read through [`#git`](git.md#what-it-does), or stored in [`#rag`](rag.md#what-it-does) to search by meaning |
+| 2. Find the answer in the help pages | The vault in Git, read through [`#git`](git.md#what-it-does), or stored in [`#rag`](rag.md#what-it-does) for keyword search |
 | 3. Decide: answer, route or escalate | A sandboxed AI session that has only these grants, or an [`#ai` typed decision](ai.md#typed-decisions) |
 | 4. Reply to the customer | [`#smtp`](smtp.md#what-it-does) `send`, with a recipient allowlist if wanted |
 | 5. Alert a person when it matters | [`#slack`](slack.md#what-it-does) `post` or [`#sms-telnyx`](sms.md#what-it-does) |
@@ -102,7 +102,7 @@ One line each, from the description its `help` prints.
 - [`#imap`](imap.md) — Read your mail from a private cache without giving callers the mailbox password. Sync, list, search and read mail, set Seen status, and subscribe an agent to new mail. Start with sync, then list.
 - [`#logwatch`](logwatch.md) — Find useful events without reading every host log. Review retained lines, search them or forward new matches. Start with sources and tail; marks and retained history are lost on restart.
 - [`#qdrant`](qdrant.md) — Search and manage a Qdrant vector store without holding its key. Call the Qdrant API within your read, write or admin role. Start with request GET /collections.
-- [`#rag`](rag.md) — Store documents with embeddings and topic labels, ready for search by meaning. Find records by word. Save, read, list and delete records, and set each table's classification prompts. Start with upsert and a namespace.
+- [`#rag`](rag.md) — Store documents with embeddings and topic labels, ready for keyword search. Find records by word. Save, read, list and delete records, and set each table's classification prompts. Start with upsert and a namespace.
 - [`#server-info`](server-info.md) — Find host resource and service problems before choosing a fix. Read system, network, storage and certificate facts without changing the host. Start with load or disks; available sections depend on the Linux account running this agent.
 - [`#slack`](slack.md) — Put your AI in your team's Slack. Post and read messages, reply in threads, route replies to the right session and forward chosen conversations. Start with whoami, then post.
 - [`#sms-telnyx`](sms.md) — Send one text message without handing callers the Telnyx key. The body is {to,text} or \<to> \<text>. An unknown result is never retried; start with send.

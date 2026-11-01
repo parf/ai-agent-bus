@@ -146,7 +146,7 @@ agent-bus-admin import full-<host>-<time>.tar.gz.age --dry-run
 <summary>What an archive holds, and the rest of the options</summary>
 
 - **Holds:** records, access lists, Maintainers, roles, tags, group membership, Configuration, Secret, stored key-values, and current and previous persistent credentials.
-- **Leaves out:** messages, locks, login sessions, readers and the bus's own `#bus` record.
+- **Leaves out:** messages, locks, the bigfile store (its index and bytes), login sessions, readers and the bus's own `#bus` record.
 - **Encryption:** `age`, to your enrolled Ed25519 SSH public key.
 - **Import key:** `--key=<file>`, default `$HOME/.ssh/id_ed25519`.
 - **To stdout:** `--out=-`, with `--info=<path>` for the `.info` file.

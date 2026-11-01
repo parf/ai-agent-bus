@@ -315,7 +315,7 @@ cd /srv/project && touch Plans/ro-probe
 | `AGENT_BUS_TOKEN` | a credential, when the local socket is not enough |
 | `AGENT_BUS_TLS_FINGERPRINT` | the pin for an `https://` address ([over HTTPS](../02-access-remote.md#over-https)) |
 | `AGENT_BUS_DESCR` | what `ls` shows for this session |
-| `AGENT_BUS_BIGFILE_DIR` | the one directory the session's `ab_bigfile_put` and `ab_bigfile_get` may use ([bigfiles](../03-records-kv.md#bigfiles)); unset, they refuse; setup makes `/var/lib/agent-bus/users/<you>/files` for you, a folder to name here |
+| `AGENT_BUS_BIGFILE_DIR` | the one directory the session's `ab_bigfile_put` and `ab_bigfile_get` may use ([bigfiles](../03-records-kv.md#bigfiles)); unset, they refuse; on Linux, setting up your user-account runner creates `/var/lib/agent-bus/users/<you>/files`; otherwise, create your own private directory. Set this variable explicitly; macOS setup does not create that folder |
 
 </details>
 

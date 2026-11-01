@@ -25,7 +25,7 @@
 | Need | Path | Availability |
 |---|---|---|
 | Full Linux node from npm | `npm install -g ai-agent-bus`, then explicit setup | Chosen release path; installable npm publication is pending |
-| Client from npm | `npm install -g ai-agent-bus-client` | Chosen client path; publication is pending; macOS npm platforms need their own packaging acceptance |
+| Client from npm | `npm install -g ai-agent-bus-client` | Built and accepted on Linux and macOS; publishing is pending |
 | Working checkout | `sudo src/git-install.sh` from a checkout outside `/home` | Built; this is how the development node runs |
 | Checked release archive | Verify, unpack and run its `agent-bus-setup` | Built; see [release installation details](#release-installation-details) |
 
