@@ -8,6 +8,7 @@ import struct
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from unittest.mock import Mock
 
 HERE=Path(__file__).resolve().parent
@@ -254,7 +255,7 @@ class Keyword(unittest.TestCase):
         self.drafts(15)   # the live chunk is the 16th of the 16 rows the four pages read
         self.assertEqual([r['id'] for r in self.find('tea',limit=1)['records']],['live'])
         self.drafts(16)   # now it is the 17th: beyond the window
-        with self.assertRaisesRegex(Incomplete,'search window exhausted'):self.find('tea',limit=1)
+        with self.assertRaisesRegex(Incomplete,'search window exhausted before enough records were found'):self.find('tea',limit=1)
         self.assertEqual(self.find('zebra')['records'],[])   # a real "no match" is still an empty answer
     def test_a_half_built_index_is_refused_until_it_is_whole(self):
         self.store.sparse=False
@@ -274,6 +275,20 @@ class Keyword(unittest.TestCase):
         self.assertEqual(len(self.find('tea',limit=16)['records']),16)
         counts=len([c for c in self.store.calls if c[1]=='/points/count']);self.find('tea');self.find('number')
         self.assertEqual(len([c for c in self.store.calls if c[1]=='/points/count']),counts)   # a whole index is not counted again
+    def test_a_zero_count_is_trusted_for_a_minute_and_then_counted_again(self):
+        self.put('tea','Tea is a drink.')
+        now=[1000.0]
+        with unittest.mock.patch('core.time.monotonic',lambda:now[0]):
+            self.assertEqual(len(self.find('tea')['records']),1)
+            counts=lambda:len([c for c in self.store.calls if c[1]=='/points/count'])
+            first=counts()
+            for n in range(2):   # chunks another writer (an older build, a restore) stored without the vector
+                pid=f'00000000-0000-0000-0000-0000000000a{n}'
+                self.store.points[pid]={'id':pid,'vector':[.5,.5],'payload':{'namespace':'team','tableName':'notes','id':f'late{n}','_rag_kind':'chunk','_rag_text':'late'}}
+            now[0]+=30;self.find('tea');self.assertEqual(counts(),first)   # within the minute: not counted again
+            now[0]+=31
+            with self.assertRaisesRegex(RagError,r'keyword index incomplete \(2 chunks left\)'):self.find('tea')
+            self.assertEqual(counts(),first+1)
     def test_keyword_index_adds_the_vector_and_gives_every_chunk_its_words_and_is_safe_to_repeat(self):
         self.store.sparse=False
         self.app=Core(CFG,self.store,self.kv);self.app.cache.set('team','notes',PROMPT)

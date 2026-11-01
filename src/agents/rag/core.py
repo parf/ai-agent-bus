@@ -6,7 +6,7 @@ import time
 import uuid
 from chunks import extract
 from prompts import Cache
-from rules import (RagError,Unknown,Refused,Deadline,Incomplete,RECORD_MAX,SUMMARY_MAX,SCALARS_MAX,INDEXES,SUMMARY_FIELDS,BM25_VECTOR,NO_VECTOR,NO_IDF,INDEX_BYTES,
+from rules import (RagError,Unknown,Refused,Deadline,Incomplete,RECORD_MAX,SUMMARY_MAX,SCALARS_MAX,INDEXES,SUMMARY_FIELDS,BM25_VECTOR,NO_VECTOR,NO_IDF,INDEX_BYTES,INDEX_RECHECK,
                    config,dumps,identity,match,point_id,revision,scope,number,sparse,vector,summary,text,DATA_MAX)
 from blocks import Budget
 
@@ -14,7 +14,7 @@ from blocks import Budget
 class Core:
     def __init__(self,cfg,backend,kv,keyword=None):
         self.cfg=config(cfg);self.backend=backend;self.cache=Cache(kv);self.keyword=keyword
-        self.budget=Budget();self.cursors=OrderedDict();self.health='unknown: collection not verified';self.bm25=False;self.keyword_state=NO_VECTOR;self.indexed=False
+        self.budget=Budget();self.cursors=OrderedDict();self.health='unknown: collection not verified';self.bm25=False;self.keyword_state=NO_VECTOR;self.indexed=False;self.checked=0.0
     def verify(self):
         try:
             info=self.backend.qdrant('GET','')
@@ -215,16 +215,17 @@ class Core:
             if len(best)>=v['limit'] or len(rows)<want:break
             exhausted=page==3
         # An empty answer must mean no match, never a window that dead chunks filled.
-        if exhausted and len(best)<v['limit']:raise Incomplete('search window exhausted by chunks no record head lists; narrow the query, add filters or run cleanup')
+        if exhausted and len(best)<v['limit']:raise Incomplete('search window exhausted before enough records were found; narrow the query, add filters or run cleanup')
         return {'records':sorted(best.values(),key=lambda r:(-r['score'],r['id']))[:v['limit']]}
     def _unindexed(self):
         """How many chunks still lack the text vector; known complete once it was counted as none."""
-        if self.indexed:return 0
+        # Another writer, an older build or a restore can add chunks without the vector, so a zero holds for a minute only.
+        if self.indexed and time.monotonic()-self.checked<INDEX_RECHECK:return 0
         found=self.backend.qdrant('POST','/points/count',{'filter':{'must':[match('_rag_kind','chunk')],'must_not':[{'has_vector':BM25_VECTOR}]},'exact':True})
         try:n=found['count']
         except (KeyError,TypeError):raise RagError('invalid count response') from None
         if type(n) is not int or n<0:raise RagError('invalid count response')
-        self.indexed=n==0
+        self.indexed=n==0;self.checked=time.monotonic()
         return n
     def _live(self,rows):
         """Head id -> the chunk ids its live head lists, for the records the rows belong to; a missing or deleted head lists none."""
@@ -262,7 +263,7 @@ class Core:
                 rows=page['points']
                 if not isinstance(rows,list) or len(rows)>64:raise RagError('invalid scroll size')
                 if not rows:
-                    self.indexed=True;return {'status':'ok','indexed':done}
+                    self.indexed=True;self.checked=time.monotonic();return {'status':'ok','indexed':done}
                 if seen&{row['id'] for row in rows}:raise RagError('the chunks just indexed still lack the vector; stopping')
                 update=[];size=0
                 for row in rows:
