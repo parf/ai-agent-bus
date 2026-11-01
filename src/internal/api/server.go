@@ -301,6 +301,13 @@ func (s *Server) routes(g guard) http.Handler {
 		})
 	}
 	return s.logged(bodyDeadline(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// ServeMux hands HEAD to every GET route, but a consume takes a message
+		// that a HEAD answer cannot carry: a probe must not cost one.
+		if r.Method == http.MethodHead && r.URL.Path == "/consume" {
+			w.Header().Set("Allow", http.MethodGet)
+			answer(w, http.StatusMethodNotAllowed, "no_route", http.StatusText(http.StatusMethodNotAllowed))
+			return
+		}
 		_, pattern := mux.Handler(r)
 		if pattern == "" {
 			// ServeMux retains method detection and Allow; only its error body changes.
