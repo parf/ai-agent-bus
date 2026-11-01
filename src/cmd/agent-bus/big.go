@@ -5,13 +5,23 @@
 package main
 
 import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/parf/ai-agent-bus/internal/api"
 )
 
 const (
@@ -135,4 +145,234 @@ func bigSource(p bigPutPlan, stdin io.Reader) (io.Reader, int64, error) {
 	}
 	f, err := os.Open(p.Source)
 	return f, st.Size(), err
+}
+
+const bigMaxBytes = 32 << 20
+
+// bigDo sends one streamed request; a refusal comes back as its text, as call's does.
+func bigDo(method, path string, q url.Values, body io.Reader, size int64, header map[string]string) (*http.Response, error) {
+	token := os.Getenv("AGENT_BUS_TOKEN")
+	if token == "" && !onOwnSocket() {
+		return nil, fmt.Errorf("set AGENT_BUS_TOKEN")
+	}
+	client, base := transport()
+	u := base + path
+	if len(q) > 0 {
+		u += "?" + q.Encode()
+	}
+	req, err := http.NewRequestWithContext(context.Background(), method, u, body)
+	if err != nil {
+		return nil, err
+	}
+	if body != nil {
+		req.ContentLength = size
+	}
+	if token != "" {
+		req.Header.Set(api.HeaderToken, token)
+	}
+	for k, v := range header {
+		req.Header.Set(k, v)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, away{err}
+	}
+	if resp.StatusCode >= 400 {
+		defer resp.Body.Close()
+		out, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		return nil, fmt.Errorf("%s", strings.TrimSpace(string(out)))
+	}
+	return resp, nil
+}
+
+func bigVerb(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("big wants put, get, ls or rm")
+	}
+	verb, rest := args[0], args[1:]
+	switch verb {
+	case "put":
+		return bigPutVerb(rest)
+	case "get":
+		return bigGetVerb(rest)
+	case "ls":
+		return bigLsVerb(rest)
+	case "rm":
+		return bigRmVerb(rest)
+	}
+	return fmt.Errorf("big wants put, get, ls or rm, not %q", verb)
+}
+
+type bigAnswer struct {
+	Record   string `json:"record"`
+	Name     string `json:"name"`
+	Size     int64  `json:"size"`
+	SHA256   string `json:"sha256"`
+	Held     string `json:"held"`
+	Expires  string `json:"expires"`
+	Replaced bool   `json:"replaced"`
+}
+
+func bigPutVerb(args []string) error {
+	plan, _, err := planBigPut(args, os.Stdin)
+	if err != nil {
+		return err
+	}
+	src, size, err := bigSource(plan, os.Stdin)
+	if err != nil {
+		return err
+	}
+	if c, ok := src.(io.Closer); ok {
+		defer c.Close()
+	}
+	if size > bigMaxBytes {
+		return fmt.Errorf("a big value is at most %d bytes, not %d", bigMaxBytes, size)
+	}
+	// Hash first so the daemon refuses a mismatch before it stores anything.
+	var data []byte
+	h := sha256.New()
+	if f, ok := src.(*os.File); ok {
+		if _, err := io.Copy(h, f); err != nil {
+			return err
+		}
+		if _, err := f.Seek(0, io.SeekStart); err != nil {
+			return err
+		}
+	} else {
+		data, _ = io.ReadAll(src)
+		h.Write(data)
+		src = bytes.NewReader(data)
+	}
+	local := hex.EncodeToString(h.Sum(nil))
+	q := url.Values{"record": {plan.Record}, "name": {plan.Name},
+		"ttl": {strconv.FormatInt(int64(plan.TTL/time.Second), 10)}, "memory": {strconv.FormatBool(plan.Memory)}}
+	resp, err := bigDo("PUT", "/big", q, src, size, map[string]string{"Content-Type": "application/octet-stream", "X-Big-Sha256": local})
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	var a bigAnswer
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&a); err != nil {
+		return fmt.Errorf("the put was sent but its answer was unreadable, so it may be stored: %v", err)
+	}
+	if a.SHA256 != local {
+		return fmt.Errorf("the daemon stored SHA-256 %s, this client sent %s", a.SHA256, local)
+	}
+	note := ""
+	if a.Replaced {
+		note = " (replaced)"
+	}
+	fmt.Printf("%s %s stored: %d bytes, SHA-256 %s, held in %s, expires %s%s\n", plan.Record, plan.Name, a.Size, a.SHA256, a.Held, a.Expires, note)
+	return nil
+}
+
+func bigGetVerb(args []string) error {
+	plan, err := planBigGet(args)
+	if err != nil {
+		return err
+	}
+	resp, err := bigDo("GET", "/big", url.Values{"record": {plan.Record}, "name": {plan.Name}}, nil, 0, nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	want := strings.ToLower(resp.Header.Get("X-Big-Sha256"))
+	if want == "" {
+		return fmt.Errorf("the daemon sent the value without its SHA-256")
+	}
+	h := sha256.New()
+	// Nothing reaches stdout or the named file until the whole value is verified.
+	var dst io.Writer
+	var tmp *os.File
+	var buf bytes.Buffer
+	if plan.Out != "" {
+		if tmp, err = os.CreateTemp(filepath.Dir(plan.Out), ".big-get-*"); err != nil {
+			return err
+		}
+		defer os.Remove(tmp.Name())
+		dst = tmp
+	} else {
+		dst = &buf
+	}
+	n, err := io.Copy(io.MultiWriter(dst, h), io.LimitReader(resp.Body, bigMaxBytes+1))
+	if err != nil {
+		return away{err}
+	}
+	if resp.ContentLength >= 0 && n != resp.ContentLength {
+		return away{fmt.Errorf("the value ended after %d of %d bytes", n, resp.ContentLength)}
+	}
+	if got := hex.EncodeToString(h.Sum(nil)); got != want {
+		return fmt.Errorf("the value's SHA-256 is %s, the daemon said %s; nothing was written", got, want)
+	}
+	if tmp == nil {
+		_, err = os.Stdout.Write(buf.Bytes())
+		return err
+	}
+	if err := tmp.Chmod(0o600); err != nil {
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmp.Name(), plan.Out)
+}
+
+func bigLsVerb(args []string) error {
+	pos, f, err := split(args)
+	if err := only(f, err); err != nil {
+		return err
+	}
+	if len(pos) != 1 {
+		return fmt.Errorf("big ls wants <record>")
+	}
+	out, code, err := call("GET", "/big/list", url.Values{"record": {pos[0]}}, nil)
+	if err != nil || code >= 400 {
+		return show(out, code, err)
+	}
+	var res struct {
+		Keys []struct {
+			Name    string `json:"name"`
+			Size    int64  `json:"size"`
+			SHA256  string `json:"sha256"`
+			Held    string `json:"held"`
+			Expires string `json:"expires"`
+		} `json:"keys"`
+	}
+	if err := json.Unmarshal(out, &res); err != nil {
+		return err
+	}
+	for _, k := range res.Keys {
+		left := k.Expires
+		if t, e := time.Parse(time.RFC3339, k.Expires); e == nil {
+			left = time.Until(t).Round(time.Second).String()
+		}
+		fmt.Printf("%s\t%d\t%s\t%s\t%s\n", k.Name, k.Size, k.SHA256, k.Held, left)
+	}
+	return nil
+}
+
+func bigRmVerb(args []string) error {
+	pos, f, err := split(args)
+	if err := only(f, err); err != nil {
+		return err
+	}
+	if len(pos) != 2 {
+		return fmt.Errorf("big rm wants <record> <name>")
+	}
+	out, code, err := call("POST", "/big/delete", nil, map[string]string{"record": pos[0], "name": pos[1]})
+	if err != nil || code >= 400 {
+		return show(out, code, err)
+	}
+	var res struct {
+		Deleted bool `json:"deleted"`
+	}
+	if err := json.Unmarshal(out, &res); err != nil {
+		return err
+	}
+	if res.Deleted {
+		fmt.Printf("%s %s deleted\n", pos[0], pos[1])
+	} else {
+		fmt.Printf("%s %s held no big key\n", pos[0], pos[1])
+	}
+	return nil
 }

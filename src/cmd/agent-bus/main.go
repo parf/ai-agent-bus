@@ -113,6 +113,8 @@ func main() {
 		err = lockHolders(rest)
 	case "kv":
 		err = kvVerb(rest)
+	case "big":
+		err = bigVerb(rest)
 	case "ls":
 		err = ls(rest)
 	case "may-send":
@@ -1094,7 +1096,7 @@ func warn(format string, a ...any) {
 // Flags that are on or off. Without this the word after one is taken as its
 // value, and `--follow consume` reads as follow="consume".
 var onOff = map[string]bool{"follow": true, "personal": true, "share": true, "network": true,
-	"int": true, "json": true, "add": true, "replace": true, "help": true, "help-config": true, "help-secret": true, "help-json": true, "mcp": true, "force": true, "all": true, "template": true, "stay-registered": true, "no-color": true, "no-asks": true}
+	"int": true, "json": true, "memory": true, "add": true, "replace": true, "help": true, "help-config": true, "help-secret": true, "help-json": true, "mcp": true, "force": true, "all": true, "template": true, "stay-registered": true, "no-color": true, "no-asks": true}
 
 // askOf is what --help or --mcp asks: it travels as the envelope's ask with
 // no body, never as text, so text beside it is refused
