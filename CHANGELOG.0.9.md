@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.268 — 2026-11-01
+
+MCP bigfile tools work only inside AGENT_BUS_BIGFILE_DIR (refused when unset) and are no longer pre-approved in any launcher
+
 ## 0.9.267 — 2026-11-01
 
 macOS setup recreates a missing role group at the existing account's group ID, refuses a clash or any lookup error, and never changes the account

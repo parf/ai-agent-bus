@@ -8,6 +8,7 @@ import { allowedTools, CLAUDE_TOOL_PREFIX, codexPrompted, FILE_TOOLS } from "./t
 async function served(): Promise<{ name: string; inputSchema: { properties?: Record<string, unknown> } }[]> {
   const daemon = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: (req) => {
     const path = new URL(req.url).pathname;
+    if (path === "/identity") return Response.json({ protocol: 1, protocol_min: 1 });
     if (path === "/ls") return Response.json([]);
     if (path === "/register") return Response.json({ name: "#face@test", kind: "agent", owner: "o" });
     return new Response("no", { status: 404 });
