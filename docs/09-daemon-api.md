@@ -2,7 +2,7 @@
 
 📌 **TL;DR:**
 - **Problem:** to build a client you need to know which routes exist and how every call is made.
-- **Outcome:** one HTTP surface, grouped below. This page names the routes and says how a call is made: where it goes, what identifies the caller, and what comes back. What each route means stays in the topic that owns it.
+- **Outcome:** one HTTP surface and the wire contract of its client part: the routes, how a call is made, and for the routes every client uses (send and consume, key-value, locks, bigfiles, status and identity, configuration) the fields, defaults, status codes and shapes. What a route means stays in the topic that owns it.
 - **Start:** make one call through the command line and see the answer: `agent-bus status` ([Try this first](#try-this-first)).
 
 ## Why you'd want it
@@ -15,6 +15,7 @@
 
 - ✅ **How a call is made:** where it goes, who is calling and what returns.
 - ✅ **Routes in groups:** node, credentials, registry, messaging, channels, private data, locks, people.
+- ✅ **A contract for the client routes:** fields, defaults, status codes and answer shapes, with [what is stable](#stability-and-compatibility) and what is not.
 - ✅ **A closed list:** the page says what else does not exist.
 - 🚫 **Not for:** the meaning of a route; each topic owns that.
 
@@ -49,7 +50,8 @@ The reference below keeps every section as it was; other pages link to these sec
 | Where | the shared socket, a mapped account's own socket, or the [TCP listener](08-processes.md#the-tcp-listener), TLS once on ([remote access](02-access-remote.md#choosing-a-way)) |
 | Who is calling | the `X-Agent-Bus-Token` header, or the account socket in its place; on the account socket, an owned Agent's token makes the call that Agent's ([what a call carries](02-access.md#what-a-call-carries), [local socket](02-access.md#local-socket)) |
 | Body | JSON on a `POST`, which has 30 s to arrive or is answered `408`; raw bytes on a bigfile `PUT`, which has 30 s of silence and a [total budget](03-records-kv.md#bigfiles) instead; query parameters on a `GET` |
-| Answer | JSON, and a refusal is `{"error": "..."}` with the status code and the counted reason that [refusals](05-discovery.md#refusals) owns; a route the router rejects (`404`, `405`) is plain text |
+| Answer | JSON, and a refusal is `{"error": "...", "kind": "..."}` with the status code and the `kind` that [refusals](05-discovery.md#refusals) owns; a router rejection is a refusal too: `404` or `405` with kind `no_route` (`405` carries an `Allow` header) |
+| Unknown fields | an unknown JSON member or query key is ignored on every route; a known one is validated, and a duplicate or invalid value is `malformed` |
 
 One exception: `GET /secret` answers the stored bytes as `text/plain`, because
 a credential goes into a shell or an environment and re-quoting it is a chance
@@ -172,6 +174,148 @@ most need daemon administration.
 | `GET /accounts` · `POST /account` | the local account map, which needs a restart to take effect ([local socket](02-access.md#local-socket)) |
 | `POST /owner` | transfer daemon ownership ([daemon owner](01-identity-and-authority.md#daemon-owner)) |
 | `GET /debug` · `POST /debug` | read or switch the debug log, `{"on": true}`; daemon Owner only ([logs](07-setup.md#logs)) |
+
+## Stability and compatibility
+
+| Class | Routes | Promise |
+|---|---|---|
+| **Stable** | the [client contract](#the-client-contract) below: `/send`, `/consume`, `/may-send`, `/kv*`, the lock routes, `/bigfile*`, `/status`, `/identity`, `/config`, `/lookup`, `/ls` | a change that breaks a conforming client is a MAJOR version |
+| **Unstable, admin-only** | users, groups, accounts, profiles, keys, `/owner`, `/enrol`, `/token`, `/session`, `/names`, `/debug`, `/activity*`, `/recent`, `/records/export`, `/records/import`, `/register`, `/manage` and the other registry and credential routes | may change in any release; for the CLI, the web face and `agent-bus-admin`, not for third-party clients |
+
+- **Version rule.** `GET /identity` carries `protocol`, an integer starting at 1 that rises with any wire change, and `protocol_min`, the oldest client protocol the daemon serves (1 now). A breaking change raises `protocol_min`, and so the MAJOR version.
+- **What a client does.** A client built for protocol P:
+  - P below `protocol_min`: "daemon too new for this client", fatal at connect;
+  - daemon `protocol` below P: a "daemon too old" warning at connect, not fatal, and a later refusal of kind `no_route` reports "daemon too old for <operation>";
+  - otherwise it stays silent.
+- **Missing or malformed.** An `/identity` with neither field is an old daemon: protocol 0, minimum 0, the warning above. Fields that are present but not integers, negative, or with `protocol_min` above `protocol` are a fatal protocol error naming the field.
+- **Compatible changes** keep the protocol number's meaning: a new route, a new optional request field, a new answer field a client may ignore, a new value in an open list. A client must ignore answer fields it does not know.
+- **Refusal kinds are a closed set:** `acl`, `authority`, `busy`, `credential`, `enrolment`, `full`, `malformed`, `name-taken`, `second-reader`, `suspended`, `unavailable`, `unknown`, `no_route`. A new kind is a breaking change. A `500` has no kind and a client says "internal daemon error".
+- **Deprecation.** A route, field or kind is first documented as deprecated for at least one released MINOR version, and removed only in a MAJOR version. The removals made at the freeze, with no notice because nothing stable depended on them: `POST /subscriber/remove` and the `subscriber` fallback on `/deliver-to/remove` (use `recipient`), the `services` count in `/status` and the `services` list on a user (use `records`), and the web face's `/pubsub/topic*` and `/service-*` aliases. No CLI alias is removed.
+
+## The client contract
+
+Common to every route below:
+
+- **Credential** in `X-Agent-Bus-Token`, or the account socket in its place; none is `401`.
+- **Names** are canonical: a record name in a request is the name as [registered](01-identity-and-authority.md#names); an answer names the caller as `you` or `from`.
+- **Bodies** are JSON on a `POST` of at most 1 MiB, with the one exception of a key-value write, which allows a 512 KiB value escaped; a body that does not arrive in 30 s is `408`; `GET` carries query parameters.
+- **Times** are RFC 3339 in UTC; **durations** are Go durations (`30s`, `5m`) except where a field says whole seconds.
+
+### Send and consume
+
+`POST /send` puts one message in a name's queue and answers the accepted envelope, `200`.
+
+| Field | Who sets it | Meaning |
+|---|---|---|
+| `to`, `body` | the caller | destination name and text; `body` is empty for an `ask` |
+| `topic`, `tag` | the caller | labels a receiver or a waiting reader filters on; both optional |
+| `receipt` | the caller | `ack` or `done`, only from the receiver of the message `re` names; any other value is `400` |
+| `re` | the caller | the `message_id` a receipt is about |
+| `ask` | the caller | `help`, `help-config`, `help-secret`, `help-json`, `mcp` or `status`; the body must be empty and no receipt may accompany it |
+| `reply_to` | the caller | `{name, topic?, tag?}`: where an answer goes when it is not the sender; `name` must be registered |
+| `ttl` | the caller | how long the message is worth delivering, a duration; the receiver's bound caps it; invalid is `400` |
+| `wait` | the caller | how long the caller will wait for an answer, a duration; travels as `deadline`; invalid is `400` |
+| `message_id`, `from`, `at`, `roles`, `original_to`, `forwards`, `expires`, `deadline` | the daemon | `from` is the authenticated caller and replaces any value sent; `roles` are what the caller holds toward `to` and a caller stating any is refused; the rest are set at accept |
+
+- **Refusals:** `400 malformed` (bad name, `ttl`, `wait`, `receipt` or `ask`), `401 credential`, `403 acl` or `suspended`, `404 unknown`, `429 full` when the receiver's queue is at its bound.
+- **No other message routes:** an ack, a done and a reply are sends; there is no `/ack`, `/receipt` or `/call`.
+
+`GET /consume` takes the next message and waits for one.
+
+| Query | Default | Meaning |
+|---|---|---|
+| `inbox` | the caller | the queue to read; present but empty reads that name |
+| `topic`, `tag`, `original_to` | none | select which message in the queue |
+| `wait` | `30s`, at most `60s` | how long to wait; not a duration is `400` |
+| `share` | absent | present, even `share=false`, says this reader is one of a pool; two readers of one inbox need both to say so |
+| `host` | none | where the reader is, a hostname for the listing; not a hostname is `400` |
+| `asks` | none | `only` takes only messages that carry an `ask`; any other value is `400` |
+
+- **Answers:** `200` with the envelope; `204` with no body when nothing arrived in time, or the caller went away (the message goes back); `409 second-reader` for an incompatible reader; the refusals of send for the rest.
+- **Delivery** is at most once: a message handed to a caller that then vanishes is requeued only if the connection closed first.
+
+### Key-value
+
+A record's store has three kinds, `string`, `int` and `json`; `kind` defaults to `string`; each kind is its own namespace.
+
+| Route | Request | Answer |
+|---|---|---|
+| `GET /kv` | query `record`, `name`, `kind` | `{record, kind, name, value}`; a string that is not UTF-8 comes as `value_base64`; an `int` is a JSON number; `404 unknown` if absent |
+| `POST /kv/set` | `{record, kind?, name, value \| value_base64, how?}`; `how` is `set` (default), `add` (only if absent) or `replace` (only if present) | `{record, kind, name}`; `add` on a held name is `412 name-taken`, `replace` on an absent one `404 unknown` |
+| `POST /kv/delete` | `{record, kind?, name}` | `{record, kind, name, deleted}` |
+| `POST /kv/inc` | `{record, name, n?}`, `n` a signed 64-bit integer, default 1 | `{record, kind:"int", name, value}` |
+| `POST /kv/json` | `{record, name, ops}`, at most 100 operations applied all or none | `{record, name, results:[{changed, value?}]}` |
+| `GET /kv/list` | query `record`, or none | with `record`: `{record, kind, values:{string,int,json}}`, each a list of `{name, size, preview \| preview_base64}`; without it, an array of `{record, kind, string, int, json}` counts |
+
+- **Limits:** a name is 1 to 256 bytes of UTF-8, a value at most 512 KiB, a record at most 10,000 names of one kind; a limit is `413 malformed`. An `int` is a signed 64-bit integer, sent as its digits (never rounded); one that does not fit, or a value of the wrong type, is `400 malformed`.
+- **Absent versus null:** an absent field is not a stored `null`; a JSON value may be `null` and is stored as such.
+- **Authority:** the record's Owner, Maintainers and own Agent; anyone else is `403 acl`; an unknown record is `404 unknown`. Meaning and the JSON operations: [key-value store](03-records-kv.md#key-value-store).
+
+### Locks
+
+| Route | Request | Answer |
+|---|---|---|
+| `POST /lock` | `{record, name, ttl}` and query `wait` (0 to `60s`, default 0) | `{record, name, holder}` once granted; a lock held by another is `409 busy` naming the holder in `error`; one the caller already holds is `409 busy` ("use extend") |
+| `POST /try-lock` | `{record, name, ttl}` | as `/lock` with no wait |
+| `POST /extend` | `{record, name, ttl}` | `{record, name, holder}`; not the holder is `409 busy`, no lock is `404 unknown` |
+| `POST /release` | `{record, name}` | `{record, name}`; held by another is `409 busy`; nobody holds it `404 unknown` |
+| `POST /release-force` | `{record, name}` | `{record, name, holder}` naming the displaced holder; audited |
+| `GET /holders` | query `record` | `{record, locks:{<name>:{holder, expires}}}`; with no `record`, an array of `{record, kind, name, holder, expires}` for every lock the caller may use |
+
+- **Fields:** `ttl` is a Go duration above 0 and at most 24 h; a lock name is 1 to 256 bytes of UTF-8; a `wait` past `60s` or not a duration is `400`. The daemon's `wait` is immediate when omitted; the CLI defaults to `30s`.
+- **Order:** waiters are granted in arrival order. A lock lives in memory and ends at its `expires`, with its record, or at a restart.
+- **Authority:** a record's management authority, as for key-value. [Shared locks](01-identity-and-authority.md#shared-locks).
+
+### Bigfiles
+
+A bigfile is a named value up to 32 MiB held for a limited time. The bytes are a raw body, not JSON.
+
+| Route | Request | Answer |
+|---|---|---|
+| `PUT /bigfile` | query `record`, `name`, `ttl` (whole seconds, 1 to 2,592,000, default 86,400), `memory` (`true` or `false`, default `false`); body the raw bytes; optional header `X-Bigfile-Sha256`, 64 lowercase hex digits | `200` `{record, name, size, sha256, held, expires, replaced}`; a hash that does not match the bytes is refused before anything is stored |
+| `GET /bigfile` | query `record`, `name` | `200` the raw bytes as `application/octet-stream` with `Content-Length` and headers `X-Bigfile-Sha256`, `X-Bigfile-Held` (`file` or `memory`) and `X-Bigfile-Expires` |
+| `GET /bigfile/list` | query `record` | `{record, keys:[{name, size, sha256, held, expires}]}` sorted by name, with no expired key and no uploader |
+| `POST /bigfile/delete` | `{record, name}` | `{record, name, deleted}` |
+
+- **Limits:** a name is 1 to 256 bytes of UTF-8; 32 MiB per key, 256 MiB and 100 keys per record, 1 GiB in the daemon; a put of no bytes is `400`; over a limit is `413 malformed`.
+- **Refusals:** `403 acl` (put and delete need the Owner, a Maintainer or the record's own Agent; get and list also admit the allow list), `404 unknown` (absent or expired key, unknown record), `400 malformed` (bad `ttl`, `memory`, name or hash, an empty body), `503 unavailable` with the cause in `error` when the bigfile store cannot be opened.
+- **Early refusal:** a refusal that comes before the body is read is sent after the daemon has read and discarded the declared bytes for at most two seconds, so a client still writing sees the status and its cause; a client may send `Expect: 100-continue` to see it before sending the body, and the connection is closed after such an answer.
+- **A replace** is a `200` with `replaced: true`, never a `412`. A put never retries; a lost reply may leave the key stored, and the client reads the list to see.
+- **Integrity:** the answer's `sha256` is that of the bytes stored, and a get's header is that of the bytes sent; a client checks both.
+
+### Status and identity
+
+| Route | Credential | Answer |
+|---|---|---|
+| `GET /identity` | none | `{version, build_info, owner, up, host, calls, protocol, protocol_min}`; `calls` is `{total, windows:[{window, observed, available, count}]}`; nothing else, and `Cache-Control: no-store` |
+| `GET /status` | required | `{up, realm?, records, queued, waiting, dropped, expired, unclean?, refused?, kinds, owner_inactive?, you, administrator?, daemon_owner?, today, activity_days_kept}`; `refused` is a count per kind, only for kinds that happened |
+
+- **`records`** counts live records; the older `services` count is removed.
+- **A client** reads `you` for who the daemon says it is, and compares it with the name it expected.
+
+### Configuration
+
+| Route | Request | Answer |
+|---|---|---|
+| `GET /config` | query `name` | the record's stored Configuration as compact JSON, `null` when none; its Owner and Maintainers, or an Agent for itself; anyone else `403 acl` |
+| `POST /configure` | `{name, config}`, `config` any JSON value | the redacted record; stored compact, with the same `config_sha` whatever its spacing |
+
+- **Not a secret:** Configuration is public to those who may read it; a secret is a separate route and is not part of this contract. [Configuring a template](03-records-agent.md#configuring-a-template).
+
+## Client capability matrix
+
+| Capability | Python | TypeScript | Go | Rust | Java | PHP |
+|---|---|---|---|---|---|---|
+| send, consume, call | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| key-value | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| locks and holders | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| bigfiles | ✅ | ✅ | ✅ | — | — | — |
+| may-send | ✅ | ✅ | — | — | — | — |
+| `asks` on consume | — | ✅ | ✅ | ✅ | ✅ | ✅ |
+| status, identity, configuration | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+- A dash is a capability the library does not have; the route still works for any HTTP caller.
+- The six libraries share one conformance suite; its coverage is [protocol conformance](../Plans/R1.0-Release/modules.md#protocol-conformance).
 
 ## Nothing else
 
