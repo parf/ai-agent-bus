@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -290,5 +291,23 @@ func TestDeployReleaseStandaloneUsesItsPackagerForSelfContainedCode(t *testing.T
 	cmd := exec.Command("python3", "-B", "-c", "import runpy,sys; runpy.run_path(sys.argv[1], run_name='package_probe')", script)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("deployed standalone is not self-contained: %v %s", err, out)
+	}
+}
+
+func TestBundledPackageBuildNeverReceivesTheRunnerToken(t *testing.T) {
+	r, _, _ := configurationFixture(t, "", "printf old")
+	r.bundled = t.TempDir()
+	directoryAgent(t, r.bundled, "fixture", "fresh")
+	source := filepath.Join(r.bundled, "fixture")
+	log := filepath.Join(t.TempDir(), "package-token")
+	script := fmt.Sprintf("#!/bin/sh\nset -eu\nprintf '%%s' \"${AGENT_BUS_TOKEN-unset}\" > %q\nmkdir -p \"$1\"\ncp %q %q \"$1/\"\n", log, filepath.Join(source, "agent.json"), filepath.Join(source, "answer.sh"))
+	writeFile(t, filepath.Join(source, "package.sh"), script)
+	t.Setenv("AGENT_BUS_TOKEN", "fixture-runner-credential")
+	if err := r.installPackage(context.Background(), "install --replace fixture"); err != nil {
+		t.Fatal(err)
+	}
+	token, err := os.ReadFile(log)
+	if err != nil || string(token) != "unset" {
+		t.Fatalf("package.sh inherited AGENT_BUS_TOKEN: present=%v read-error=%v", string(token) != "unset", err)
 	}
 }

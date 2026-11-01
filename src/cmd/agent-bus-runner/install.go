@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	scriptEnv "github.com/parf/ai-agent-bus/internal/script"
 )
 
 // Deploy adds no privilege: the host must have provisioned this directory.
@@ -107,6 +109,7 @@ func (r *runner) installPackage(ctx context.Context, body string) error {
 			}
 			buildCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 			cmd := exec.CommandContext(buildCtx, "/bin/sh", script, staged)
+			cmd.Env = scriptEnv.ChildEnv(os.Environ())
 			// Only the host's trusted bundled packager is executed. Never a script
 			// from a fetched repository. Its output is not a secret-return channel.
 			err = cmd.Run()
