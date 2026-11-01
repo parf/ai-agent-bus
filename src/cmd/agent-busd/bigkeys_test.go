@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -220,5 +221,34 @@ func TestBigfilesSurviveARestartThroughTheDatabaseAndARestoreDropsOrphanRows(t *
 	}
 	if _, _, err := third.BigGet("alice@h", "#svc@h", "k"); !errors.Is(err, core.ErrBigAbsent) {
 		t.Fatalf("a bigfile whose file is gone = %v", err)
+	}
+}
+
+// A start that removed anything says how many, by count, in the daemon's log.
+func TestAStartThatRemovedRowlessFilesLogsTheCounts(t *testing.T) {
+	home := t.TempDir()
+	idx := bigfile.NewMemoryIndex()
+	b, _ := bigBus(t)
+	bindBigKeys(b, home, idx)
+	if err := putOne(t, b, "kept"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(home, bigDir, "1"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"left-a", "left-b"} { // files no row names, as an upgrade leaves
+		os.WriteFile(filepath.Join(home, bigDir, "1", name), []byte("x"), 0o600)
+	}
+	var out strings.Builder
+	was := log.Writer()
+	log.SetOutput(&out)
+	defer log.SetOutput(was)
+	again, _ := bigBus(t)
+	bindBigKeys(again, home, idx)
+	if !strings.Contains(out.String(), "bigfile start: removed 0 rows without files, 2 files without rows, 0 temporary files") {
+		t.Fatalf("log = %q", out.String())
+	}
+	if got := getOne(t, again); got != "kept" {
+		t.Fatalf("a row's own file was removed: %q", got)
 	}
 }

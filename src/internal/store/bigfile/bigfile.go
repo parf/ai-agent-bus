@@ -62,12 +62,22 @@ type footer struct {
 	Expires string `json:"expires"`
 }
 
+// Reconciled counts what the last start removed to make the files agree with
+// the index: the daemon logs it, so a loss is never silent.
+type Reconciled struct {
+	RowsWithoutFiles int // rows removed: expired, file missing, or not the file described
+	FilesWithoutRows int // files removed that no row named
+	Temporary        int // leftover temporary files removed
+}
+
 // Store is safe for concurrent use.
 type Store struct {
 	dir string
 	idx ports.BigIndex
 	mu  sync.Mutex
 	mem map[key]memEntry
+	// Start is what the start that opened this store removed.
+	Start Reconciled
 }
 
 // Open prepares dir and reconciles it with the index: temporary files, rows
@@ -84,6 +94,14 @@ func Open(dir string, idx ports.BigIndex, now time.Time) (*Store, error) {
 		return nil, err
 	}
 	s := &Store{dir: dir, idx: idx, mem: map[key]memEntry{}}
+	// Nothing under the root may be a link, and nothing is touched before that
+	// is known: a link there is refused loudly, never followed.
+	if err := refuseLinks(dir); err != nil {
+		return nil, err
+	}
+	if left, err := os.ReadDir(filepath.Join(dir, tmpDir)); err == nil {
+		s.Start.Temporary = len(left)
+	}
 	if err := os.RemoveAll(filepath.Join(dir, tmpDir)); err != nil {
 		return nil, err
 	}
@@ -94,6 +112,22 @@ func Open(dir string, idx ports.BigIndex, now time.Time) (*Store, error) {
 		return nil, err
 	}
 	return s, nil
+}
+
+// refuseLinks refuses a root whose entries include a link, and a record
+// directory that is not a directory: either could carry a read or a removal
+// outside the root.
+func refuseLinks(dir string) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		if e.Type()&os.ModeSymlink != 0 {
+			return fmt.Errorf("%s is a link; bigfile refuses to start until it is removed by hand", filepath.Join(dir, e.Name()))
+		}
+	}
+	return nil
 }
 
 func (s *Store) rowPath(r ports.BigRow) string {
@@ -128,6 +162,7 @@ func (s *Store) reconcile(now time.Time) error {
 		if _, _, err := s.idx.BigRowDelete(r.Record, r.Name); err != nil {
 			return err
 		}
+		s.Start.RowsWithoutFiles++
 		s.unlink(r)
 	}
 	entries, err := os.ReadDir(s.dir)
@@ -154,6 +189,7 @@ func (s *Store) reconcile(now time.Time) error {
 				// between a row's delete and its file's unlink. A FIFO or link
 				// is removed untouched.
 				os.RemoveAll(fp)
+				s.Start.FilesWithoutRows++
 			}
 		}
 	}

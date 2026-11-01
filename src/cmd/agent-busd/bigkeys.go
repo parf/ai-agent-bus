@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -68,6 +69,11 @@ func openBigKeys(home string, idx ports.BigIndex) (ports.BigStore, error) {
 	s, err := bigfile.Open(filepath.Join(home, bigDir), idx, time.Now())
 	if err != nil {
 		return nil, err
+	}
+	// A start that removed anything says how much, by count, so a loss on the
+	// way up from an older layout or after a crash is never silent.
+	if r := s.Start; r != (bigfile.Reconciled{}) {
+		log.Printf("bigfile start: removed %d rows without files, %d files without rows, %d temporary files", r.RowsWithoutFiles, r.FilesWithoutRows, r.Temporary)
 	}
 	go func() {
 		for range time.Tick(bigSweepEvery) {

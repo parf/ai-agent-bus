@@ -616,13 +616,14 @@ func TestStartDoesNotBlockOnAFifoOrOpenAnyNonRegularEntry(t *testing.T) {
 	}
 }
 
-// Start never removes or reads through a linked record directory: the row goes
-// and the file behind the link stays, expired or not.
-func TestStartNeverRemovesThroughALinkedRecordDirectory(t *testing.T) {
+// Start refuses, loudly and before touching anything, a root that holds a
+// link: nothing behind it is read or removed, and no row is dropped on its word.
+func TestStartRefusesALinkedRecordDirectoryAndTouchesNothing(t *testing.T) {
 	for _, expired := range []bool{true, false} {
 		s, dir, idx := open(t)
 		now := time.Now()
 		put(s, 7, "k", "outside bytes", false, now)
+		put(s, 8, "other", "other bytes", false, now)
 		row := rowOf(t, idx, 7, "k")
 		outside := filepath.Join(t.TempDir(), "outside")
 		if err := os.Rename(filepath.Join(dir, "7"), outside); err != nil {
@@ -635,14 +636,51 @@ func TestStartNeverRemovesThroughALinkedRecordDirectory(t *testing.T) {
 		if expired {
 			at = now.Add(2 * time.Hour)
 		}
-		again := reopen(t, dir, idx, at)
+		_, err := Open(dir, idx, at)
+		if err == nil || !strings.Contains(err.Error(), "is a link") || !strings.Contains(err.Error(), filepath.Join(dir, "7")) {
+			t.Fatalf("expired=%v: start = %v, want a refusal naming the link", expired, err)
+		}
 		if _, err := os.Stat(filepath.Join(outside, row.File)); err != nil {
 			t.Fatalf("expired=%v: the file behind the link was removed: %v", expired, err)
 		}
-		if _, found, _ := idx.BigRowGet(7, "k"); found {
-			t.Fatalf("expired=%v: the row behind a linked directory was kept", expired)
+		if rows, _ := idx.BigRows(); len(rows) != 2 {
+			t.Fatalf("expired=%v: a refused start changed the index: %+v", expired, rows)
 		}
-		absent(t, again, 7, "k", at)
+		if _, err := os.Stat(filepath.Join(dir, "8", rowOf(t, idx, 8, "other").File)); err != nil {
+			t.Fatalf("expired=%v: a refused start removed another record's file: %v", expired, err)
+		}
+	}
+}
+
+func TestStartRefusesALinkedTemporaryDirectory(t *testing.T) {
+	_, dir, idx := open(t)
+	outside := t.TempDir()
+	os.WriteFile(filepath.Join(outside, "precious"), []byte("x"), 0o600)
+	os.RemoveAll(filepath.Join(dir, tmpDir))
+	os.Symlink(outside, filepath.Join(dir, tmpDir))
+	if _, err := Open(dir, idx, time.Now()); err == nil || !strings.Contains(err.Error(), "is a link") {
+		t.Fatalf("start = %v, want a refusal", err)
+	}
+	if _, err := os.Stat(filepath.Join(outside, "precious")); err != nil {
+		t.Fatalf("a refused start removed what the link points at: %v", err)
+	}
+}
+
+// What a start removes is counted, so the daemon can say how much it took.
+func TestStartCountsWhatItRemoves(t *testing.T) {
+	s, dir, idx := open(t)
+	now := time.Now()
+	put(s, 1, "gone", "bytes", false, now)
+	put(s, 1, "short", "bytes", false, now)
+	put(s, 1, "kept", "bytes", false, now)
+	s.BigPut(1, "short", strings.NewReader("short"), "", false, now.Add(time.Second), now, lim)
+	os.Remove(filepath.Join(dir, "1", rowOf(t, idx, 1, "gone").File))      // a row without its file
+	os.WriteFile(filepath.Join(dir, "1", "rowless-a"), []byte("x"), 0o600) // two files no row names
+	os.WriteFile(filepath.Join(dir, "1", "rowless-b"), []byte("x"), 0o600)
+	os.WriteFile(filepath.Join(dir, tmpDir, "half"), []byte("x"), 0o600)
+	again := reopen(t, dir, idx, now.Add(2*time.Second))
+	if got := again.Start; got != (Reconciled{RowsWithoutFiles: 2, FilesWithoutRows: 2, Temporary: 1}) {
+		t.Fatalf("counts = %+v, want 2 rows (gone, expired), 2 rowless files, 1 temporary", got)
 	}
 }
 
