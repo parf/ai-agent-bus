@@ -605,10 +605,8 @@ test("RW21 a visitor who may see the runner but not manage it cannot start, stop
   // The positive control: the same posts as the Owner do reach the verb.
   const owned = await signIn(owner);
   await (await req("/runner-reload", owned, { name: A })).text();
-  await (await req("/runner-control", owned, { name: A, verb: "stop", agent: "hello" })).text();
+  for (const verb of ["stop", "start", "restart", "enable", "disable"]) await (await req("/runner-control", owned, { name: A, verb, agent: "hello" })).text();
   // (The pages after them read the host's files as the Owner, which also counts as carried out.)
   const ownerRan = ran.slice(ranBefore.length);
-  expect(ownerRan).toContain("reload");
-  expect(ownerRan).toContain("stop");
-  for (const forgedVerb of ["start", "restart", "enable", "disable"]) expect(ownerRan).not.toContain(forgedVerb);
+  for (const verb of ["reload", "stop", "start", "restart", "enable", "disable"]) expect(ownerRan, `the Owner's ${verb} reaches the runner`).toContain(verb);
 }, 20_000);

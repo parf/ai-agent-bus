@@ -138,7 +138,7 @@ RT11 RW10–RW17 moved to [R1.1](../../R1.1/runner-web.md#useful-additions) by o
   - Evidence: `runners.test.ts` "RW21 a visitor who may see the runner…" posts start, stop, restart, enable, disable and reload directly as a visitor: each reaches the runner once as the visitor, the page says it was not carried out with the runner's refusal and never says it worked, the fake runner carried out nothing, and the runner's page still lists its agents; the same posts as the Owner do reach the verb. That test's refusal is the fake runner's copy of the rule, so "the fake runner's managing verbs are the real runner's" fails if the two lists drift. At the real runner, the smoke runner section has a caller the ACL admits (not a Maintainer) send `reload`, `start` and `restart`: each is refused, the agent the Owner stopped stays stopped (a reload would serve it again) and answers nothing, and the Owner's own `start` still works.
 
 - ✅ RW22 (0.8.198) Runner access alone cannot reveal another agent's private ENV/config.
-  - Details: the record's bus Secret and configuration. The host's env files are the runner's own, readable to whoever its ACL admits ([№RD101](../DECISIONS.md#recorded-decisions)).
+  - Details: the record's bus Secret and configuration. The host's env files are the runner's own: only its Owner and Maintainers may read them (`read` is one of the runner's managing verbs, and it refuses everyone else, so an ACL admission alone shows no env file) ([№RD101](../DECISIONS.md#recorded-decisions)).
 
 - ✅ RW23 (0.8.198) A refused/timed-out action is not shown as success; an offline runner is
   - Details: not shown as having zero agents. An uncertain write is not blindly repeated.

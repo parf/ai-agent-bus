@@ -1626,12 +1626,16 @@ has "and writes none" "$(ab greeter@srv1 call "$RB" --wait 15s "$(printf 'write 
 has "nor stops an agent" "$(ab greeter@srv1 call "$RB" --wait 15s stop '#fast@srv1')" "error: stop is for the runner's Owner and Maintainers"
 # A forged reload, start or restart from the same caller changes nothing (RW21): the Owner stops one agent, and a
 # refused reload or start leaves it stopped, which a reload would not (a reload serves it again).
+has "the same caller is answered by the agent before any stop" "$(ab greeter@srv1 call '#fast@srv1' --wait 15s x)" '"body":"fast"'
 ab launcher@srv1 call "$RB" --wait 15s stop '#fast@srv1' >/dev/null
 has "a caller the ACL admits cannot reload" "$(ab greeter@srv1 call "$RB" --wait 15s reload)" "error: reload is for the runner's Owner and Maintainers"
 has "nor start" "$(ab greeter@srv1 call "$RB" --wait 15s start fast)" "error: start is for the runner's Owner and Maintainers"
 has "nor restart" "$(ab greeter@srv1 call "$RB" --wait 15s restart fast)" "error: restart is for the runner's Owner and Maintainers"
 has "so the stopped agent is still stopped" "$(ab launcher@srv1 call "$RB" --wait 15s status)" '\\"name\\":\\"#fast@srv1\\",\\"enabled\\":true,\\"state\\":\\"stopped\\"'
-lacks "and still answers nothing" "$(ab greeter@srv1 call '#fast@srv1' --wait 3s x 2>&1)" '"body":"fast"'
+silent=$(ab greeter@srv1 call '#fast@srv1' --wait 3s x 2>&1); silent_rc=$?
+bad_exit "and a call to it still fails" "$silent_rc"
+has "with the named timeout, not another failure" "$silent" 'no answer within 3s'
+lacks "and no answer arrived" "$silent" '"body":"fast"'
 has "the Owner's start still serves it" "$(ab launcher@srv1 call "$RB" --wait 15s start fast)" '\\"name\\":\\"#fast@srv1\\",\\"enabled\\":true,\\"state\\":\\"idle\\"'
 ab launcher@srv1 manage "$RB" --add-maintainers greeter@srv1 >/dev/null
 has "a Maintainer reads env names, not values" "$(ab greeter@srv1 call "$RB" --wait 15s read runner/mail/work/env)" 'IMAP_USER'
