@@ -85,6 +85,9 @@ func TestDarwinInstallKeepsStoragePrivateToTheAccount(t *testing.T) {
 	}
 	cur := u.Username
 	l.account = cur
+	oldLookup := darwinLookupGroup
+	darwinLookupGroup = func(name string) (*user.Group, error) { return &user.Group{Name: name, Gid: u.Gid}, nil }
+	t.Cleanup(func() { darwinLookupGroup = oldLookup })
 	job := l.launchdJob("/x/agent-busd", "127.0.0.1:6767", "alice", "")
 	// As strict a umask as a root shell may have: the modes are set, not asked.
 	defer syscall.Umask(syscall.Umask(0o077))

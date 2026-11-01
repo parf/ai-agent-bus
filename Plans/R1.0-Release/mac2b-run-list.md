@@ -10,7 +10,7 @@
 
 ## Prepare the owner session
 
-These are **unrun owner steps**, not native acceptance evidence. Use the existing `~/agent-bus-dev/ai-agent-bus` checkout, clean on `main`, at the landed MAC.2e revision, including its archive-revision and account-reuse checks. No extra clone, package installation, profile or system setting change is needed. Python 3 and the existing native command-line tools are required; no Go or Bun build runs on the Mac.
+These are **unrun owner steps**, not native acceptance evidence. Use the existing `~/agent-bus-dev/ai-agent-bus` checkout, clean on `main`, at the landed MAC.2g revision, including its archive-revision and account-reuse checks. No extra clone, package installation, profile or system setting change is needed. Python 3 and the existing native command-line tools are required; no Go or Bun build runs on the Mac.
 
 1. On the build node, the CEO builds from the exact landed revision: `BUILD_COMMIT="$(git rev-parse HEAD)" GOOS=darwin GOARCH=arm64 src/package.sh tmp/mac2b-dist` for Apple Silicon, or set `GOARCH=amd64` in the same command for Intel. The full 40-character commit is stamped into both Go and TypeScript `build_info`; the harness requires it to match the release-source revision on the Mac. Retain the full archive and its `.sha256` beside it. The client archive is not this test's input.
 2. Transfer the native full archive and `.sha256` to `~/agent-bus-dev/mac2b-input/` on the Mac. Transfer missing Git objects through the owner's existing process; do not publish or push a release for this check.
@@ -51,7 +51,7 @@ PY
 
 ## Expected checks and cleanup
 
-The [harness](../../src/acceptance/mac2-install-check.py) accepts an absent role pair or an existing `_agentbusd` user and group only after the [role checks](#role-account-reuse); it still refuses an existing launchd job, storage, sockets, release root, command links or old web link. It verifies the archive hash with Python, every manifest entry (the review-settings example is the existing non-runtime exception), the packed version, executable bits and native version/build answers before setup, including every program’s stamped commit against the release-source revision. GNU `sha256sum` is not required on the Mac.
+The [harness](../../src/acceptance/mac2-install-check.py) accepts an absent role pair, an existing pair or a user whose missing group setup can restore, only after the [role checks](#role-account-reuse); it still refuses an existing launchd job, storage, sockets, release root, command links or old web link. It verifies the archive hash with Python, every manifest entry (the review-settings example is the existing non-runtime exception), the packed version, executable bits and native version/build answers before setup, including every program’s stamped commit against the release-source revision. GNU `sha256sum` is not required on the Mac.
 
 | Check | Required result |
 |---|---|
@@ -67,13 +67,13 @@ Cleanup runs in `finally` after failed assertions too. It bootouts the fixture j
 
 ## Role account reuse
 
-Owner, 2026-11-01 13:58 ([decision](DECISIONS.md#recorded-decisions)): the acceptance keeps the role account instead of deleting and recreating it on every run. Preflight accepts either an absent user/group pair or the expected existing pair:
+Owner, 2026-11-01 13:58 ([decision](DECISIONS.md#recorded-decisions)): the acceptance keeps the role account instead of deleting and recreating it on every run. Preflight accepts an absent user/group pair, the expected existing pair, or the safe user alone when its primary GID is unused:
 
 - user shell `/usr/bin/false`, `IsHidden: 1`, home `/usr/local/var/agent-bus/daemon`;
-- user UID and primary GID in 200–399, matching each other and the role group's GID;
+- user UID and primary GID in 200–399, matching each other and the role group's GID when that group exists; no different group owns the primary GID;
 - no direct membership in the privileged `admin` or `wheel` group.
 
-A login-capable or visible account, unexpected home or IDs, incomplete pair or unreadable lookup refuses the run. All other existing fixture state is still refused. Setup already reuses an existing account; the run still checks the launchd daemon's `_agentbusd` identity (never root) and `0700` storage.
+A login-capable or visible account, unexpected home or IDs, a group without its user, a primary GID owned by another group, or an unreadable lookup refuses the run. Privileged-group reads must succeed without stderr and include `GroupMembership`. All other existing fixture state is still refused. Setup leaves an existing user unchanged; if its group is missing and its primary GID is unused, it creates only that group with `dseditgroup` at the existing PrimaryGroupID and verifies the result. A named group at a different GID refuses setup. After setup, the complete pair must pass the role checks; the run still checks the launchd daemon's `_agentbusd` identity (never root) and `0700` storage.
 
 After teardown rechecks the kept account’s safety, the harness prints `role account kept (by design)` and exits 0 after successful acceptance and strict teardown. The MAC.2d account-removal partial exit 3 is retired. Deleting the account is an optional owner step for a [real uninstall](../../docs/07-setup.md#uninstall-the-macos-test-daemon), not acceptance cleanup.
 

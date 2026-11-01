@@ -204,6 +204,8 @@ The full Darwin archive carries `agent-bus-setup` with the reduced launchd path:
 | First user | the installer, from their key, through `agent-bus-admin` on the account's socket |
 
 - Not on macOS: per-role accounts, cgroup limits, the web job, logrotate, a person's runner, `--upgrade`; setup refuses those options.
+An existing role user is kept unchanged. Setup reuses its matching group, or restores a missing group at the user's PrimaryGroupID with `dseditgroup` when that GID is unused. A different group owning that GID, a named group at another GID, or a failed lookup refuses setup.
+
 - Without `CAP_CHOWN` the daemon cannot hand a socket to another account, so there are no per-user sockets: a person calls with a token (`sudo -u _agentbusd agent-bus token <name>`).
 - Outside Linux the bus child stops itself when its supervisor is gone, where Linux has the kernel's death signal ([how a child is started](08-processes.md#how-a-child-is-started)).
 

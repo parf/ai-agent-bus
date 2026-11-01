@@ -42,6 +42,12 @@ var darwinInstall = darwinLayout{
 // them instead.
 var darwinCommand = runIn
 
+// Directory lookups are injectable alongside the command runner: tests never
+// read or modify a real role account.
+var darwinLookupUser = user.Lookup
+var darwinLookupGroup = user.LookupGroup
+var darwinLookupGroupID = user.LookupGroupId
+
 // The flags the reduced setup takes; anything else is Linux-only.
 var darwinFlags = map[string]bool{"owner": true, "addr": true, "exec": true, "key": true, "print-unit": true, "dry-run": true,
 	"tls": true, "tls-cert": true, "tls-key": true, "tls-chain": true, "tls-name": true}
@@ -291,8 +297,8 @@ func walkableParents(dir string) error {
 // ensureAccount creates the hidden role account and its group, under the
 // first id from 200 that neither a user nor a group holds.
 func (l darwinLayout) ensureAccount() error {
-	if _, err := user.Lookup(l.account); err == nil {
-		return nil
+	if existing, err := darwinLookupUser(l.account); err == nil {
+		return l.ensureExistingRoleGroup(existing)
 	}
 	id, err := freeRoleID()
 	if err != nil {
@@ -317,6 +323,45 @@ func (l darwinLayout) ensureAccount() error {
 		if err := darwinCommand(nil, "dscl", append([]string{"."}, c...)...); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// An earlier acceptance teardown could remove the group while macOS refused
+// to remove its user. Restore only that user's unused primary group ID.
+func (l darwinLayout) ensureExistingRoleGroup(existing *user.User) error {
+	gid := existing.Gid
+	if _, err := strconv.ParseUint(gid, 10, 32); err != nil {
+		return fmt.Errorf("user %s has invalid PrimaryGroupID %q", l.account, gid)
+	}
+	group, err := darwinLookupGroup(l.account)
+	if err == nil {
+		if group.Gid != gid {
+			return fmt.Errorf("group %s has gid %s, but user %s has PrimaryGroupID %s", group.Name, group.Gid, l.account, gid)
+		}
+		return nil
+	}
+	var unknown user.UnknownGroupError
+	if !errors.As(err, &unknown) {
+		return fmt.Errorf("cannot inspect group %s: %w", l.account, err)
+	}
+	owner, err := darwinLookupGroupID(gid)
+	if err == nil {
+		return fmt.Errorf("user %s needs group %s with gid %s, already owned by group %s", l.account, l.account, gid, owner.Name)
+	}
+	var unknownID user.UnknownGroupIdError
+	if !errors.As(err, &unknownID) {
+		return fmt.Errorf("cannot inspect gid %s for user %s: %w", gid, l.account, err)
+	}
+	if err := darwinCommand(nil, "dseditgroup", "-o", "create", "-i", gid, l.account); err != nil {
+		return err
+	}
+	group, err = darwinLookupGroup(l.account)
+	if err != nil {
+		return fmt.Errorf("group %s was not created with gid %s: %w", l.account, gid, err)
+	}
+	if group.Gid != gid {
+		return fmt.Errorf("created group %s has gid %s, but user %s has PrimaryGroupID %s", group.Name, group.Gid, l.account, gid)
 	}
 	return nil
 }

@@ -34,12 +34,17 @@ def run(args, **kw):
     if args[0]=='/usr/bin/dscl':
         node=args[-1].strip('/').split('/')[0]
         if mode=='unreadable': code,err=40,'directory unavailable'
+        elif '-search' in args:
+            out = ('other-group' if mode=='gid-clash' else m.ROLE)+' PrimaryGroupID: '+id_value+'\n' if mode!='missing-group' else ''
         elif 'GroupMembership' in args:
             privileged = args[-2].split('/')[-1]
             member = m.ROLE if mode == privileged+'-member' else 'root'
             out = 'GroupMembership: '+member+'\n'
+            if mode==privileged+'-read-error': code=40
+            if mode==privileged+'-stderr': err='directory warning'
+            if mode==privileged+'-no-membership': out='RecordName: '+privileged+'\n'
         elif '-list' in args:
-            exists=present and not (mode=='missing-group' and node=='Groups')
+            exists=present and not (mode in ('missing-group','gid-clash') and node=='Groups') and not (mode=='group-only' and node=='Users')
             out=m.ROLE+'\n' if exists else ''
         elif node=='Users':
             fields={'UserShell':'/usr/bin/false','IsHidden':'1','UniqueID':id_value,'PrimaryGroupID':id_value,'NFSHomeDirectory':str(m.HOME)}
@@ -100,10 +105,42 @@ class Cleanup(unittest.TestCase):
                 self.assertIn(field,p.stderr)
 
     def test_preflight_refuses_wrong_ids_home_or_partial_pair(self):
-        for mode in ('uid','uid-zero','uid-199','uid-400','gid','bad-id','home','wrong-group','missing-group','unreadable'):
+        for mode in ('uid','uid-zero','uid-199','uid-400','gid','bad-id','home','wrong-group','unreadable'):
             with self.subTest(mode=mode):
                 p=self.stub(mode,'preflight')
                 self.assertNotEqual(p.returncode,0,p.stdout)
+
+    def test_preflight_accepts_safe_user_without_group(self):
+        p=self.stub('missing-group','preflight')
+        self.assertEqual(p.returncode,0,p.stdout+p.stderr)
+        self.assertIn('safe to reuse',p.stdout)
+        self.assertIn('"-search", "/Groups", "PrimaryGroupID", "200"',p.stdout)
+
+    def test_preflight_refuses_group_without_user(self):
+        p=self.stub('group-only','preflight')
+        self.assertNotEqual(p.returncode,0,p.stdout)
+        self.assertIn('group without role user',p.stderr)
+
+    def test_preflight_refuses_primary_gid_owned_by_another_group(self):
+        p=self.stub('gid-clash','preflight')
+        self.assertNotEqual(p.returncode,0,p.stdout)
+        self.assertIn('different group: other-group',p.stderr)
+
+    def test_privileged_group_read_error_is_refused(self):
+        self.assert_privileged_inspection_refused('read-error')
+
+    def test_privileged_group_stderr_is_refused(self):
+        self.assert_privileged_inspection_refused('stderr')
+
+    def test_privileged_group_missing_membership_is_refused(self):
+        self.assert_privileged_inspection_refused('no-membership')
+
+    def assert_privileged_inspection_refused(self, failure):
+        for group in ('admin','wheel'):
+            with self.subTest(group=group):
+                p=self.stub(group+'-'+failure,'preflight')
+                self.assertNotEqual(p.returncode,0,p.stdout)
+                self.assertNotIn('safe to reuse',p.stdout)
 
     def test_preflight_refuses_privileged_group_membership(self):
         for group in ('admin','wheel'):

@@ -99,28 +99,39 @@ def disk(label):
         print('absent: ' + str(p), flush=True)
 
 
-def role_account():
-    """Allow only setup's hidden, non-login role pair, or a fresh absent pair."""
+def role_account(allow_missing_group=False):
+    """Check the role user; preflight may let setup restore its missing group."""
     present = []
     for node in ('Users', 'Groups'):
         found = run(['/usr/bin/dscl', '.', '-list', '/' + node], private=True)
         assert not found.stderr, 'cannot inspect role ' + node
         present.append(ROLE in found.stdout.splitlines())
-    assert present[0] == present[1], 'incomplete role account/group pair: ' + ROLE
+    assert not present[1] or present[0], 'group without role user: ' + ROLE
+    assert allow_missing_group or present[0] == present[1], 'incomplete role account/group pair: ' + ROLE
     if not present[0]:
         return False
     def fields(node):
         result = run(['/usr/bin/dscl', '.', '-read', '/' + node + '/' + ROLE], private=True)
         assert not result.stderr, 'cannot inspect role ' + node
         return {key: value.strip() for key, value in re.findall(r'^([A-Za-z]+): (.*)$', result.stdout, re.M)}
-    user, group = fields('Users'), fields('Groups')
+    user = fields('Users')
+    group = fields('Groups') if present[1] else None
     assert user.get('UserShell') == '/usr/bin/false', 'unsafe role UserShell: ' + ROLE
     assert user.get('IsHidden') == '1', 'unsafe role IsHidden: ' + ROLE
     assert user.get('NFSHomeDirectory') == str(HOME), 'unsafe role NFSHomeDirectory: ' + ROLE
     for field in ('UniqueID', 'PrimaryGroupID'):
         assert re.fullmatch(r'[0-9]+', user.get(field, '')), 'invalid role ' + field
         assert 200 <= int(user[field]) < 400, 'unsafe role ' + field
-    assert group.get('PrimaryGroupID') == user['PrimaryGroupID'] == user['UniqueID'], 'unsafe role group id: ' + ROLE
+    assert user['PrimaryGroupID'] == user['UniqueID'], 'unsafe role group id: ' + ROLE
+    if group is not None:
+        assert group.get('PrimaryGroupID') == user['PrimaryGroupID'], 'unsafe role group id: ' + ROLE
+    owners = run(['/usr/bin/dscl', '.', '-search', '/Groups', 'PrimaryGroupID', user['PrimaryGroupID']], private=True)
+    assert not owners.stderr, 'cannot inspect role primary gid owners'
+    for line in owners.stdout.splitlines():
+        match = re.fullmatch(r'(\S+)\s+PrimaryGroupID:\s*([0-9]+)\s*', line)
+        assert match is not None, 'cannot inspect role primary gid owner: ' + line
+        assert match[1] == ROLE, 'role primary gid belongs to different group: ' + match[1]
+
     for privileged in ('admin', 'wheel'):
         result = run(['/usr/bin/dscl', '.', '-read', '/Groups/' + privileged, 'GroupMembership'], private=True)
         assert not result.stderr, 'cannot inspect privileged group ' + privileged
@@ -132,7 +143,7 @@ def role_account():
 
 
 def preflight(archive=False):
-    role_account()
+    role_account(allow_missing_group=True)
     assert sudo('/bin/launchctl', 'print', JOB, check=False, private=True).returncode != 0, 'existing launchd job'
     for path in (HOME, RUN, PREFIX, PLIST, *COMMAND_LINKS, *([Path('/usr/local/bin/agent-bus-web')] if archive else [])):
         assert not root_exists(path), 'refusing to replace existing setup path: ' + str(path)
