@@ -17,6 +17,11 @@
       <url>https://opensource.org/license/mit</url>
     </license>
   </licenses>
+  <developers>
+    <developer>
+      <name>Sergey Porfiriev</name>
+    </developer>
+  </developers>
   <properties>
     <revision>0-SNAPSHOT</revision>
     <maven.compiler.release>21</maven.compiler.release>
