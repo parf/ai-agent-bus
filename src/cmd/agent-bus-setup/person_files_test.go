@@ -1,6 +1,7 @@
 package main
 
 import (
+	"golang.org/x/sys/unix"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -377,5 +378,24 @@ func TestPersonFilesLeavesAnExistingFoldersGroupAndSaysSo(t *testing.T) {
 	}
 	if got := int(mustStat(t, personFilesDir(root, "parf")).Gid); got != gid {
 		t.Fatalf("an existing folder's group was changed to %d", got)
+	}
+}
+
+func TestPersonFilesNeverChownsADirectoryThatWasThere(t *testing.T) {
+	root, uid, gid := personFilesFixture(t)
+	if _, err := ensurePersonFiles(root, "parf", uid, gid); err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	fchown = func(fd, u, g int) error { calls++; return unix.Fchown(fd, u, g) }
+	t.Cleanup(func() { fchown = unix.Fchown })
+	if err := os.Chmod(personFilesDir(root, "parf"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ensurePersonFiles(root, "parf", uid, gid+4242); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 0 {
+		t.Fatalf("an existing directory was chowned %d times", calls)
 	}
 }

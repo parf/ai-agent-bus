@@ -49,6 +49,9 @@ var personFilesRootUID, personFilesRootGID = 0, 0
 // person could race by making the name themselves.
 var beforePublish = func(stage int, tmp string, parent int, name string) {}
 
+// fchown is the one place an owner is changed, a variable so a test can see it is never used on a directory that was there.
+var fchown = unix.Fchown
+
 // afterStage is a test hook that sees the directory a new one was made in.
 var afterStage = func(stage int, name string) {}
 
@@ -166,7 +169,7 @@ func makeAndPublish(parent, stage int, path, name string, uid, gid int, mode uin
 		return -1, false, fmt.Errorf("open the new %s: %w", path, err)
 	}
 	drop := func() { unix.Close(fd); unix.Unlinkat(stage, tmp, unix.AT_REMOVEDIR) }
-	if err := unix.Fchown(fd, uid, gid); err != nil {
+	if err := fchown(fd, uid, gid); err != nil {
 		drop()
 		return -1, false, fmt.Errorf("give %s to uid %d: %w", path, uid, err)
 	}
