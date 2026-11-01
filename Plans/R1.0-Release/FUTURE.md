@@ -49,3 +49,9 @@ Deferred by the owner on 2026-10-30; use the [manual macOS uninstall steps](../.
 - **What:** two checks the M.11 real-host run did not make: a real agent served by an installed system runner, and the same verbs on a Debian host (the run used an Arch container on this x86_64 node); also `enable` before install, whose refusal is in the unit tests only. See [the result](done/m11.md#findings).
 - **To start it:** the next system-runner or distribution change that needs the evidence, or the owner asks; M.11 stays ✅ meanwhile ([result](done/m11.md#what-each-verb-left)).
 
+## CLI hint for a plain-text help call
+
+- **What:** when `agent-bus call <name> help` is refused, the CLI suggests `agent-bus help <name>`: the word `help` in a body is data, and the ask is how help is requested.
+- **Deferred:** found on `#rag` (2026-11-01, `#ab-dir`); the refusal is the same as every other agent's, and the guide states the difference ([RAG guide](../../docs/agents/rag.md#installing-it)).
+- **To start it:** a user is caught by it again, or the owner asks; nothing is built before that.
+
