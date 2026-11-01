@@ -2,6 +2,12 @@
 
 📌 **TL;DR:** Follow-up the owner has decided is not part of R1. Each entry names the decision that deferred it and what would start it.
 
+## Smoke lock check accepts a worker's own bus identity
+
+- **What:** smoke's holder check should accept the worker's own bus identity (`#ab-w1x`, a Maintainer of the gate record per CLAUDE.md's lock section), so workers stop sharing `parf` with `#ab-gate` and a Codex worker can run an authentic slow run ([J79](../issues/2026-11/2026-11-01.md#gate)).
+- **Deferred:** after the release, by `#ab-dir`, 2026-11-01; the shared identity works today.
+- **To start it:** change the check in `src/smoke-options.sh` to compare the holder with the caller or with a named Maintainer's identity, with a test of each, and a mutant that accepts a stranger.
+
 ## Race-free open of an MCP bigfile path
 
 - **What:** `fencedInput` in `src/mcp/bigfile-fence.ts` checks the real path and then opens it, a window in which a same-account local process could swap a link. Opening with `O_NOFOLLOW` on the real path would close it.
