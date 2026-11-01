@@ -60,7 +60,7 @@ type account struct {
 
 // passwd looks an account up through NSS (getent), so directory users count.
 var passwd = func(name string) (account, bool, error) {
-	out, err := exec.Command("getent", "passwd", name).Output()
+	out, err := exec.Command(tool("getent"), "passwd", name).Output()
 	if err != nil {
 		var exit *exec.ExitError
 		if errors.As(err, &exit) && exit.ExitCode() == 2 {
@@ -203,6 +203,32 @@ type userOps interface {
 	token(u userRunner) (string, error)
 }
 
+// toolDirs are the only places setup, running as root, looks for the programs
+// it runs on a person's behalf: the system's own directories. The installer's
+// PATH is never consulted, so a directory it names cannot stand in for setpriv
+// or systemctl.
+var toolDirs = []string{"/usr/bin", "/bin", "/usr/sbin", "/sbin"}
+
+// toolPath is name's absolute path in toolDirs.
+func toolPath(name string) (string, error) {
+	for _, d := range toolDirs {
+		p := filepath.Join(d, name)
+		if fi, err := os.Stat(p); err == nil && fi.Mode().IsRegular() && fi.Mode()&0o111 != 0 {
+			return p, nil
+		}
+	}
+	return "", fmt.Errorf("%s is not in %s", name, strings.Join(toolDirs, ", "))
+}
+
+// tool is toolPath, or the first directory's path when it is not found, so
+// that running it fails by an absolute name rather than by a search.
+func tool(name string) string {
+	if p, err := toolPath(name); err == nil {
+		return p
+	}
+	return filepath.Join(toolDirs[0], name)
+}
+
 // userCtlVerbs are the only things setup asks of a person's user manager,
 // and only about this unit: never a stop or restart of user@<uid>.service,
 // a terminate or kill of the user, a stop of a session scope or a re-exec.
@@ -223,13 +249,13 @@ func userCtlArgv(args ...string) ([]string, error) {
 	if args[0] != "daemon-reload" && args[len(args)-1] != userUnit {
 		return nil, fmt.Errorf("refusing systemctl --user %q: only %s", args, userUnit)
 	}
-	return append([]string{"systemctl", "--user"}, args...), nil
+	return append([]string{tool("systemctl"), "--user"}, args...), nil
 }
 
 // helperArgv runs this program as the person: their uid, gid and groups,
 // no new privileges, no inherited environment.
 func helperArgv(self string, u userRunner, op string, args ...string) []string {
-	return append([]string{"setpriv", "--reuid=" + strconv.Itoa(u.uid), "--regid=" + strconv.Itoa(u.gid),
+	return append([]string{tool("setpriv"), "--reuid=" + strconv.Itoa(u.uid), "--regid=" + strconv.Itoa(u.gid),
 		"--init-groups", "--no-new-privs", "--", self, helperFlag, op}, args...)
 }
 
@@ -369,7 +395,7 @@ func userRunnerVerb(verb, person string, purge, dry bool) error {
 	if err := reachableByAll(self); err != nil {
 		return fmt.Errorf("the person must be able to run %s: %w; install the node first", self, err)
 	}
-	if _, err := exec.LookPath("setpriv"); err != nil {
+	if _, err := toolPath("setpriv"); err != nil {
 		return fmt.Errorf("setpriv (util-linux) is needed to act as the person: %w", err)
 	}
 	// The person runs it, so it must be the installed program every account can
@@ -469,18 +495,22 @@ func reachableByAll(path string) error {
 	}
 }
 
-// userManagerAvailable retains the installer's supported systemd floor.
+// userManagerAvailable checks what the setpriv path needs of systemd: a
+// systemctl that answers. setup reaches the person's own user manager through
+// its bus (XDG_RUNTIME_DIR and DBUS_SESSION_BUS_ADDRESS), not through
+// systemctl -M, so there is no version floor; a manager that is not there is
+// reported by enableLinger, which waits for the person's bus and says which.
 var userManagerAvailable = func() error {
-	out, err := exec.Command("systemctl", "--version").Output()
+	ctl, err := toolPath("systemctl")
+	if err != nil {
+		return err
+	}
+	out, err := exec.Command(ctl, "--version").Output()
 	if err != nil {
 		return fmt.Errorf("systemctl --version: %w", err)
 	}
-	m := regexp.MustCompile(`^systemd (\d+)`).FindSubmatch(out)
-	if m == nil {
+	if !regexp.MustCompile(`^systemd \d+`).Match(out) {
 		return fmt.Errorf("systemctl --version: unexpected answer")
-	}
-	if n, _ := strconv.Atoi(string(m[1])); n < 248 {
-		return fmt.Errorf("systemd %d is too old for user-account runners (248 or later)", n)
 	}
 	return nil
 }
@@ -671,7 +701,7 @@ func (o hostUserOps) removeTemplate() error {
 // enableLinger starts the person's user manager without a login and waits,
 // bounded, for its bus.
 func (o hostUserOps) enableLinger(u userRunner) error {
-	if err := run("loginctl", "enable-linger", u.person); err != nil {
+	if err := run(tool("loginctl"), "enable-linger", u.person); err != nil {
 		return err
 	}
 	bus := filepath.Join(runUser, strconv.Itoa(u.uid), "bus")
@@ -688,7 +718,11 @@ func (o hostUserOps) userctl(u userRunner, args ...string) error {
 	if err != nil {
 		return err
 	}
-	ctl, err := exec.LookPath(argv[0])
+	ctl, err := toolPath("systemctl")
+	if err != nil {
+		return err
+	}
+	setpriv, err := toolPath("setpriv")
 	if err != nil {
 		return err
 	}
@@ -696,7 +730,7 @@ func (o hostUserOps) userctl(u userRunner, args ...string) error {
 		"--init-groups", "--no-new-privs", "--", ctl}, argv[1:]...)
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "setpriv", argv...)
+	cmd := exec.CommandContext(ctx, setpriv, argv...)
 	runtime := filepath.Join(runUser, strconv.Itoa(u.uid))
 	cmd.Env = append(helperEnv(u), "XDG_RUNTIME_DIR="+runtime, "DBUS_SESSION_BUS_ADDRESS=unix:path="+filepath.Join(runtime, "bus"))
 	cmd.Dir = "/"

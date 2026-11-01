@@ -32,7 +32,9 @@ assert os.environ.get('XDG_RUNTIME_DIR') == '/run/user/1001', 'wrong target runt
 assert os.environ.get('DBUS_SESSION_BUS_ADDRESS') == 'unix:path=/run/user/1001/bus', 'wrong target bus'
 with open(%q, 'a') as f: f.write(json.dumps({'args': sys.argv[1:]})+'\n')
 `, log))
-	t.Setenv("PATH", dir+":"+os.Getenv("PATH"))
+	was := toolDirs
+	toolDirs = []string{dir}
+	t.Cleanup(func() { toolDirs = was })
 	for key, value := range map[string]string{"HOME": "/root-fixture", "XDG_RUNTIME_DIR": "/run/user/0",
 		"DBUS_SESSION_BUS_ADDRESS": "unix:path=/root/wrong-bus", "AGENT_BUS_TOKEN": "root-fixture-secret", "SUDO_USER": "root"} {
 		t.Setenv(key, value)
@@ -150,7 +152,7 @@ func TestUserRunnerPersonIsAnOrdinaryLoginAccount(t *testing.T) {
 
 func TestUserManagerIsOnlyAskedAboutTheRunnerUnit(t *testing.T) {
 	argv, err := userCtlArgv("enable", "--now", userUnit)
-	if err != nil || strings.Join(argv, " ") != "systemctl --user enable --now agent-bus-runner.service" {
+	if err != nil || strings.Join(argv, " ") != tool("systemctl")+" --user enable --now agent-bus-runner.service" {
 		t.Fatalf("%q %v", argv, err)
 	}
 	if _, err := userCtlArgv("daemon-reload"); err != nil {
@@ -202,7 +204,7 @@ func TestUserTemplateKeepsSessionsAndBoundsCrashes(t *testing.T) {
 func TestHelperRunsAsThePersonWithNothingInherited(t *testing.T) {
 	u := userRunner{person: "alice", uid: 1001, gid: 1002, home: "/home/alice"}
 	argv := strings.Join(helperArgv("/usr/local/bin/agent-bus-setup", u, "observe"), " ")
-	if argv != "setpriv --reuid=1001 --regid=1002 --init-groups --no-new-privs -- /usr/local/bin/agent-bus-setup --user-runner-helper observe" {
+	if argv != tool("setpriv")+" --reuid=1001 --regid=1002 --init-groups --no-new-privs -- /usr/local/bin/agent-bus-setup --user-runner-helper observe" {
 		t.Fatal(argv)
 	}
 	if env := strings.Join(helperEnv(u), " "); env != "HOME=/home/alice PATH=/usr/local/bin:/usr/bin:/bin LANG=C.UTF-8" {
@@ -426,5 +428,66 @@ func TestTheHelperRefusesRoot(t *testing.T) {
 	}
 	if err := userHelper([]string{"observe"}); err == nil {
 		t.Fatal("helper ran as root")
+	}
+}
+
+// The installer's PATH has no say in which setpriv or systemctl root runs on a
+// person's behalf: a directory it names that holds look-alikes is never run.
+func TestUserCommandsIgnoreTheInstallersPATH(t *testing.T) {
+	trusted, planted := t.TempDir(), t.TempDir()
+	marker := filepath.Join(planted, "ran")
+	write := func(dir, name, text string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\n"+text), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, name := range []string{"setpriv", "systemctl", "loginctl", "getent"} {
+		write(planted, name, "echo "+name+" >>"+marker+"\nexit 7\n")
+	}
+	write(trusted, "setpriv", "shift 5; exec \"$@\"\n")
+	write(trusted, "systemctl", "[ \"$1\" = --version ] && echo 'systemd 245 (245)'\nexit 0\n")
+	was := toolDirs
+	toolDirs = []string{trusted}
+	t.Cleanup(func() { toolDirs = was })
+	t.Setenv("PATH", planted+":/usr/bin:/bin")
+	u := userRunner{person: "alice", uid: 1001, gid: 1002, home: "/home/alice"}
+	if err := (hostUserOps{}).userctl(u, "daemon-reload"); err != nil {
+		t.Fatalf("the trusted tools were not the ones run: %v", err)
+	}
+	if argv := helperArgv("/usr/local/bin/agent-bus-setup", u, "observe"); argv[0] != filepath.Join(trusted, "setpriv") {
+		t.Fatalf("the helper runs %q, want the trusted setpriv by absolute path", argv[0])
+	}
+	if err := userManagerAvailable(); err != nil {
+		t.Fatalf("the availability check did not use the trusted systemctl: %v", err)
+	}
+	if got, err := os.ReadFile(marker); err == nil {
+		t.Fatalf("PATH look-alikes ran: %q", got)
+	}
+}
+
+// userManagerAvailable asks for a systemctl that answers and nothing more: no
+// systemd version floor, since the person's manager is reached over its bus.
+func TestUserManagerAvailableNeedsASystemctlThatAnswersAndNoVersion(t *testing.T) {
+	dir := t.TempDir()
+	was := toolDirs
+	toolDirs = []string{dir}
+	t.Cleanup(func() { toolDirs = was })
+	if err := userManagerAvailable(); err == nil {
+		t.Fatal("no systemctl was accepted")
+	}
+	for _, c := range []struct {
+		say  string
+		want bool
+	}{
+		{"systemd 219 (219)", true}, {"systemd 245 (245.4-4ubuntu3)", true}, {"systemd 257 (257.1)", true},
+		{"upstart 1.13", false}, {"", false},
+	} {
+		if err := os.WriteFile(filepath.Join(dir, "systemctl"), []byte("#!/bin/sh\necho '"+c.say+"'\n"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := userManagerAvailable(); (err == nil) != c.want {
+			t.Errorf("systemctl saying %q: error %v, want ok=%v", c.say, err, c.want)
+		}
 	}
 }
