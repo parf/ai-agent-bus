@@ -188,7 +188,7 @@ Both live on a record and answer to its management authority.
 - **Version rule.** `GET /identity` carries `protocol`, an integer starting at 1 that rises with any wire change, and `protocol_min`, the oldest client protocol the daemon serves (1 now). A breaking change raises `protocol_min`, and so the MAJOR version.
 - **What a client does.** A client built for protocol P:
   - P below `protocol_min`: "daemon too new for this client", fatal at connect;
-  - daemon `protocol` below P: a "daemon too old" warning at connect, not fatal, and a later refusal of kind `no_route` reports "daemon too old for <operation>";
+  - daemon `protocol` below P: a "daemon too old" warning at connect, not fatal (the MCP face also adds one note to its first tool result, so the model sees it), and a later refusal of kind `no_route` reports "daemon too old for <operation>";
   - otherwise it stays silent.
 - **Missing or malformed.** An `/identity` with neither field is an old daemon: protocol 0, minimum 0, the warning above. Fields that are present but not integers, negative, or with `protocol_min` above `protocol` are a fatal protocol error naming the field.
 - **Compatible changes** keep the protocol number's meaning: a new route, a new optional request field, a new answer field a client may ignore, a new value in an open list. A client must ignore answer fields it does not know.
