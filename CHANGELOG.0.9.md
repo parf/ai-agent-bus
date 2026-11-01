@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.264 — 2026-11-01
+
+Wire protocol 1: /identity gives protocol and protocol_min, refusals carry a kind, unknown routes answer no_route, unknown fields are ignored; removed POST /subscriber/remove, the subscriber fallback on /deliver-to/remove, status.services, user.services, and web /pubsub/topic, /pubsub/topic/edit, /service-deactivate, /service-danger, POST /service, /service-confirm
+
 ## 0.9.263 — 2026-11-01
 
 Bigfile index moves into the daemon's database (schema 9); the first start after upgrading removes bigfile files written before it (no row) and logs the count, nothing is imported

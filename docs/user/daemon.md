@@ -34,7 +34,7 @@ agent-bus status
 ```
 
 ```json
-{"up":"6h44m21s","realm":"parf.us","records":126,"services":126,"queued":88,"waiting":49,"dropped":0,"expired":0,"refused":{"acl":6,"busy":295,"credential":5,"malformed":20,"second-reader":171,"unknown":64},"kinds":{"agent":114,...},"you":"#ab-w2a",...}
+{"up":"6h44m21s","realm":"parf.us","records":126,"queued":88,"waiting":49,"dropped":0,"expired":0,"refused":{"acl":6,"busy":295,"credential":5,"malformed":20,"second-reader":171,"unknown":64},"kinds":{"agent":114,...},"you":"#ab-w2a",...}
 ```
 
 - The output is shortened (`...`) and is from the development node on 2026-10-30; yours differs.
