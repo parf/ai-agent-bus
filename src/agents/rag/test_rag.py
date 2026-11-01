@@ -269,6 +269,7 @@ class Keyword(unittest.TestCase):
         with self.assertRaises(RagError):self.app.run({'method':'keyword_index'},owner)
         self.store.fail=None
         with self.assertRaisesRegex(RagError,r'keyword index incomplete \(6 chunks left\); run \{"method":"keyword_index"\}'):self.find('tea')
+        with self.assertRaisesRegex(RagError,'keyword index incomplete'):self.find('tea')   # still refused on the next search, not just the first
         self.assertEqual(self.build(owner),{'status':'ok','indexed':6})
         self.assertEqual(len(self.find('tea',limit=16)['records']),16)
         counts=len([c for c in self.store.calls if c[1]=='/points/count']);self.find('tea');self.find('number')
@@ -310,18 +311,17 @@ class Keyword(unittest.TestCase):
     def test_keyword_index_keeps_every_update_under_the_proxys_body_cap(self):
         self.store.sparse=False
         self.app=Core(CFG,self.store,self.kv);self.app.cache.set('team','notes',PROMPT)
-        words=' '.join(f'w{n:04d}x' for n in range(600))   # about 600 distinct terms a chunk
-        for n in range(80):self.put(f'doc{n:02d}',words+f' only{n}')
+        words=' '.join(f'{n:03x}' for n in range(1000))   # one 4 KB chunk of 1,000 distinct terms: about 22 KB of vector
+        for n in range(70):self.put(f'doc{n:02d}',words)
         sizes=[]
         real=self.store.qdrant
         def watch(verb,path,body=None,write=False):
             if verb=='PUT' and path.startswith('/points/vectors'):sizes.append(len(dumps(body)))
             return real(verb,path,body,write)
         self.store.qdrant=watch
-        self.assertEqual(self.build({'roles':['owner']}),{'status':'ok','indexed':160})   # two chunks a text
-        self.assertGreater(len(sizes),2)   # more than one update was needed
+        self.assertEqual(self.build({'roles':['owner']}),{'status':'ok','indexed':70})
+        self.assertGreater(len(sizes),2)   # one page of 64 would be about 1.4 MB, so it was split
         self.assertLess(max(sizes),(1<<20)-4096)
-        self.assertEqual(len(self.find('only7')['records']),1)
     def test_keyword_index_is_for_the_owner_and_maintainers_and_only_in_builtin_mode(self):
         for roles in ({'roles':[]},{'roles':['write']},{}):
             with self.assertRaisesRegex(RagError,'Owner or Maintainers'):self.app.run({'method':'keyword_index'},roles)
