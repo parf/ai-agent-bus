@@ -171,6 +171,8 @@ type inbox struct {
 type Bus struct {
 	legacyEmptyTags []string // pending startup persistence of removed no-tags sentinels
 	store           ports.Store
+	// big holds big keys, bound at start (big.go).
+	big ports.BigStore
 	// journal is where conceptual errors and warnings are reported
 	// (docs/constitution.md#errors-and-alerts).
 	journal ports.Journal
