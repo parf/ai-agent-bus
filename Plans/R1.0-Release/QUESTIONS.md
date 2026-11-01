@@ -8,23 +8,7 @@ suggestion with `✅ 💡` or `🚫 💡`.
 
 ## R1 release decisions
 
-Q296 to Q302 are [settled](DECISIONS.md#recorded-decisions).
-
-- ❓ Q303 Set an allowed bigfile directory for AI sessions on this node
-  - Context: after J1 (~16:00) the MCP bigfile tools work only inside `AGENT_BUS_BIGFILE_DIR` and refuse when it is unset (your rule, 14:53). Anything in that folder can be uploaded, even by a turn a bus message started, so it must be a dedicated exchange folder, never the home or a project tree
-  - ( ) Leave it unset: AI sessions have no bigfile tools; people still use the `agent-bus bigfile` CLI 🌟
-  - (x) Set it to a new empty `/home/parf/agent-bus-files` (0700) for every AB-DVP and `work` window ⭐
-  > ✅ 💡👾 Leave it unset until a session needs it: nothing uses the MCP bigfile tools today.
-  >
-  > 💬 👤parf agree
-  >
-  > 💬👾 The picked option sets `/home/parf/agent-bus-files`, but the ✅ is on "leave it unset". Which one?
-
-- ❓ Q304 Name of the refusal kind for "no such data" before the protocol freezes
-  - Context: T-24 froze a closed set of refusal kinds ([daemon API](../../docs/09-daemon-api.md#stability-and-compatibility)). A missing record, key or value answers 404 with kind `unknown`; a missing endpoint answers `no_route`. `unknown` reads like "unknown error". After 1.0 renaming it is a breaking change; before 1.0 it is a quick change in the daemon, the six clients and the shared tests
-  - ( ) Rename it to `not_found` before 1.0 🌟
-  - ( ) Keep `unknown`
-  > 💡👾 Rename to `not_found`: a client author reads the kind name without the docs, and this is the last free chance.
+None open: Q296 to Q304 are [settled](DECISIONS.md#recorded-decisions).
 
 ## Messaging agents
 

@@ -2,6 +2,10 @@
 
 ## Recorded decisions
 
+- **The "no such data" refusal kind is `not_found`, renamed from `unknown` before 1.0** (Q304) — owner, 2026-11-01; a missing endpoint stays `no_route`. Renaming after 1.0 would be a breaking change.
+  - Home: [daemon API stability](../../docs/09-daemon-api.md#stability-and-compatibility).
+- **AI sessions on this node get a bigfile folder in the person's own directory under `/var/lib/agent-bus`** (Q303) — owner, 2026-11-01: "do we have users own dir in /var/lib/agent-bus? - setup files dir there". `/var/lib/agent-bus/users/parf/files` (parf, 0700) is `AGENT_BUS_BIGFILE_DIR` for every AB-DVP and `work` window; setup is to create `users/<person>/files` for each person.
+  - Home: [bigfiles](bigfile.md#what-it-is-and-is-not).
 - **RAG is set up on this node** (Q302) — owner, 2026-11-01: "agree"; done by `#ab-ceo` 14:58: Qdrant collection `notes` (voyage-3.5, 1024 dimensions, Cosine, keyword vector `text` with `idf`, the eight keyword payload indexes), `#rag` granted `#qdrant` (write), `#voyage` and `#ai`, Configuration from the example with `keyword_search: builtin`; `keyword_index` answers `indexed: 0, status: ok`.
   - Home: [RAG installing it](../../docs/agents/rag.md#installing-it).
 - **R1 releases as 1.0.0** — owner, 2026-11-01 13:20.
