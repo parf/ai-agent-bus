@@ -45,3 +45,18 @@ The full owning runner package passes under `-race` (33.411 s); `go vet` and
 changed-document links pass. Initial package runs exposed missing worktree
 Node dependency links; after linking the shared dependencies, the three affected
 packaging checks pass (1.996 s) and the complete race run is green.
+
+## Review follow-up
+
+`5ae703f5` quotes the agent-chosen ID with `%q` and limits it to its first
+128 bytes before logging. `TestJsonlOversizedAnswerLogsOnlyAQuotedCappedID`
+uses an ID with a newline and more than 128 bytes; independently removing
+quoting or the cap compiles and fails its exact-log assertion (0.010 s each).
+The restored test passes (0.010 s), and all six focused tests pass under race
+checking (1.764 s). The worker-held lock was released after restoring sources.
+Other ID logs in this path use pending/request envelope IDs from the daemon,
+not the agent's parsed output ID.
+
+Per the narrowed review direction, duplicate-ID handling is unchanged: the
+oversized prefix uses the first top-level `message_id`, while normal complete
+JSON unmarshalling uses the last. The source comment states that distinction.
