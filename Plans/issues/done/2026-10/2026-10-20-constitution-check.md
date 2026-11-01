@@ -25,7 +25,7 @@
   >
   > 💬👾 confirmed at 9424f07b: the consent `return` at deliverto.go:167 is silent, and `manages` lets the daemon Owner through (manage.go:226). Simplest fix: `warnRepeated` before the return and `resourceManages` instead of `manages`; no `dropped` count, because a skipped leaf is "no recipient", as for User leaves (Q126)
   >
-  > 💬 👤parf то что надо править точно - правь
+  > 💬 👤parf fix whatever definitely needs fixing
   >
   > 💬👾 → Codex #2: code, the simplest fix above
   >
@@ -38,7 +38,7 @@
   >
   > 💬👾 partly at 9424f07b: the packaged agents answer `mcp` themselves; telegram answers it with help prose, and a third-party script under the runner or `agent-bus run` is run with AGENT_BUS_ASK=mcp. Simplest fix: serve.go and run.go answer `{"tools":[]}` for `mcp` unless help is "native", plus one line in telegram
   >
-  > 💬 👤parf то что надо править точно - правь
+  > 💬 👤parf fix whatever definitely needs fixing
   >
   > 💬👾 → Codex #2: code, the simplest fix above
   >
@@ -53,7 +53,7 @@
   >
   > 💬👾 confirmed at 9424f07b: `field(r.Method)` trims it. For "report error": `field()` already marks the line as cut, and the line carries the error status the caller got. An error-log line would let an unauthenticated caller write the error log (§ Errors and alerts), so the cut marker is the report
   >
-  > 💬 👤parf то что надо править точно - правь
+  > 💬 👤parf fix whatever definitely needs fixing
   >
   > 💬👾 → Codex #2: code, the simplest fix above
   >
@@ -68,7 +68,7 @@
   >
   > 💬👾 confirmed at 9424f07b; following the owner, change the constitution, not the code: "the eleventh is a Deliver-To loop and is reported: the send answers an error with an error-log entry, and copies already delivered on earlier branches stay; the limit reports a loop, it does not undo one" (constitution.md:679-681)
   >
-  > 💬 👤parf то что надо править точно - правь
+  > 💬 👤parf fix whatever definitely needs fixing
   >
   > 💬👾 → Codex #3: docs, after its .61–.63, the simplest fix above
   >
@@ -80,7 +80,7 @@
   - ( ) make the runner write non-durable, or refuse it while the runner is not reading
   > 💬👾 confirmed at 9424f07b: reword as chosen, adding that SQLite free pages may keep the bytes until they are reused
   >
-  > 💬 👤parf то что надо править точно - правь
+  > 💬 👤parf fix whatever definitely needs fixing
   >
   > 💬👾 → Codex #3: docs, after its .61–.63, the simplest fix above
   >
@@ -92,7 +92,7 @@
   - ( ) narrow the constitution to "CLI and web" 🌟
   > 💬👾 confirmed at 9424f07b: narrow constitution.md:749-750 to "CLI and web", and fix the same sentence in src/mcp/README.md:209
   >
-  > 💬 👤parf то что надо править точно - правь
+  > 💬 👤parf fix whatever definitely needs fixing
   >
   > 💬👾 → Codex #3: docs, after its .61–.63, the simplest fix above
   >
@@ -111,7 +111,7 @@
   >
   > 💬👾 confirmed at 9424f07b: archive rows :34 (Q125), :61 (env-file references), :62 (tags), :64 (Q123), :82 (Q126), :83 (Q127) and :131 (RD102) are live. Move them back into decisions.md; that also settles D4's archive half and RD102 in E3
   >
-  > 💬 👤parf то что надо править точно - правь
+  > 💬 👤parf fix whatever definitely needs fixing
   >
   > 💬👾 → Codex #3: docs, after its .61–.63, the simplest fix above
   >
@@ -122,7 +122,7 @@
   >
   > 💬👾 confirmed at 9424f07b: RD100, RD104 and RD105 are built, so they are current scope. Add five decisions.md rows (RD100, RD104, RD105, A13, A5), each linking to its home; A6 is D3
   >
-  > 💬 👤parf то что надо править точно - правь
+  > 💬 👤parf fix whatever definitely needs fixing
   >
   > 💬👾 → Codex #3: docs, after its .61–.63, the simplest fix above
   >
@@ -133,7 +133,7 @@
   >
   > 💬👾 confirmed at 9424f07b: delete the settled paragraphs in R1.0-Release/QUESTIONS.md (only Q183 and Q184 are open) and point decisions.md "Open" at Plans/README.md#stages, since R1.1, R1.2, R1.3 and R2.0 also hold open questions
   >
-  > 💬 👤parf то что надо править точно - правь
+  > 💬 👤parf fix whatever definitely needs fixing
   >
   > 💬👾 → Codex #3: docs, after its .61–.63, the simplest fix above
   >
@@ -144,7 +144,7 @@
   - ( ) drop the `warnRepeated` call so the constitution holds strictly
   > 💬👾 confirmed at 9424f07b: take the first option, one line at 03-records-agent.md:74 ("counts the roles claimed"); A7 already bounds the warning
   >
-  > 💬 👤parf то что надо править точно - правь
+  > 💬 👤parf fix whatever definitely needs fixing
   >
   > 💬👾 → Codex #3: docs, after its .61–.63, the simplest fix above
   >
@@ -159,7 +159,7 @@
   >
   > 💬👾 confirmed at 9424f07b: in § Channels after :628, add "a 👥 term is the exception: each record it expands to receives a copy only while that record's Owner manages the channel, checked at every publication"; in § Authority at the door after :207, add "a check of the records' own routing state (a forward's destination ACL, a group recipient's Owner consent) is not caller authority". Scope "never again" at 04-messaging.md:389 to the caller adding the term
   >
-  > 💬 👤parf то что надо править точно - правь
+  > 💬 👤parf fix whatever definitely needs fixing
   >
   > 💬👾 → Codex #3: docs, after its .61–.63, the simplest fix above
   >
@@ -172,7 +172,7 @@
   >
   > 💬👾 confirmed and wider at 9424f07b: three load drops (Q123 📣 settings, stray addr/proto, oversized Configuration). Add one "What startup drops" table after constitution.md:86, reword :15 to "never repairs a record", and change 03-records-service.md:162 to "ignored and reported"
   >
-  > 💬 👤parf то что надо править точно - правь
+  > 💬 👤parf fix whatever definitely needs fixing
   >
   > 💬👾 → Codex #3: docs, after its .61–.63, the simplest fix above
   >
@@ -184,7 +184,7 @@
   - ( ) restore Maintainer-level edits for Administrators, minus reactivation
   > 💬👾 confirmed at 9424f07b: the owner decided "membership only" on 2026-10-18 (issue A6, e182ebf0). Edit constitution.md:579 and :792-794, and extend the Why of decisions.md row 21
   >
-  > 💬 👤parf то что надо править точно - правь
+  > 💬 👤parf fix whatever definitely needs fixing
   >
   > 💬👾 → Codex #3: docs, after its .61–.63, the simplest fix above
   >
@@ -194,7 +194,7 @@
   >
   > 💬👾 confirmed at 9424f07b: reword the row to the full Q125 rule, as the item says
   >
-  > 💬 👤parf то что надо править точно - правь
+  > 💬 👤parf fix whatever definitely needs fixing
   >
   > 💬👾 → Codex #3: docs, after its .61–.63, the simplest fix above
   >
