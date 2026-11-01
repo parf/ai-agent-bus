@@ -224,6 +224,26 @@ func TestStartRemovesARowWhoseFileDoesNotMatchIt(t *testing.T) {
 	}
 }
 
+// The same name, other bytes: the footer names the right key but not the row's
+// size or hash, so the row still goes, whether the size differs or only the
+// bytes do.
+func TestStartRemovesARowWhoseFooterNamesTheKeyButNotItsBytes(t *testing.T) {
+	for _, other := range []string{"same key, other bytes", "wrong bytes"} { // the row's own value is "right bytes", 11 bytes
+		s, dir, idx := open(t)
+		now := time.Now()
+		put(s, 1, "k", "right bytes", false, now)
+		elsewhere, otherDir, otherIdx := open(t)
+		put(elsewhere, 1, "k", other, false, now)
+		raw, _ := os.ReadFile(filepath.Join(otherDir, "1", rowOf(t, otherIdx, 1, "k").File))
+		os.WriteFile(filepath.Join(dir, "1", rowOf(t, idx, 1, "k").File), raw, 0o600)
+		again := reopen(t, dir, idx, now)
+		if _, found, _ := idx.BigRowGet(1, "k"); found {
+			t.Fatalf("a row whose file holds %q was kept", other)
+		}
+		absent(t, again, 1, "k", now)
+	}
+}
+
 // A restore brings back rows from a backup of the database while the files
 // are not there: the rows are dropped at start.
 func TestARestoredIndexDropsRowsWhoseFilesAreNotPresent(t *testing.T) {
