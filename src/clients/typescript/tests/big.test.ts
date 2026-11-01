@@ -95,3 +95,36 @@ test('big large puts wait for Continue and retain early 403 413 503 causes',asyn
   }finally{await bus.close();server.closeAllConnections();await new Promise<void>(resolve=>server.close(()=>resolve()));}
  }
 });
+
+// A bigfile put or get runs on its own total budget, not the Bus timeout (E1b).
+async function slowFixture(delay:number,run:(big:any)=>Promise<void>){
+ const server=createServer((req,res)=>{
+  if(req.url==='/identity'){res.end('{"protocol":1,"protocol_min":1}');return;}
+  if(req.url==='/status'){res.end('{"you":"owner@fixture"}');return;}
+  const data=Buffer.from('x');
+  req.resume();req.on('end',()=>setTimeout(()=>{
+   if(req.method==='PUT'){res.end(JSON.stringify({size:1,sha256:sha(data),replaced:false}));return;}
+   res.setHeader('Content-Length',1);res.setHeader('X-Bigfile-Sha256',sha(data));res.setHeader('X-Bigfile-Held','memory');res.end(data);
+  },delay));
+ });
+ await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));
+ const bus=Bus.connect({addr:`http://127.0.0.1:${(server.address() as any).port}`,token:'fixture-only',timeout:300});
+ try{await run((bus.record('owner@fixture') as any).bigfile);}
+ finally{await bus.close();server.closeAllConnections();await new Promise<void>(r=>server.close(()=>r()));}
+}
+test('big put and get outlast the Bus timeout within their budget',()=>slowFixture(600,async big=>{
+ await expect(big.put('k',Buffer.from('x'),{ttl:60_000})).resolves.toMatchObject({size:1});
+ await expect(big.get('k').then((r:any)=>r.data.toString())).resolves.toBe('x');
+}));
+test('a big transfer past its budget still ends',async()=>{
+ const {bigLimits}=await import(resolve(process.env.AB_TYPESCRIPT_CLIENT_PATH??join(import.meta.dir,'..'),'src/big.ts'));
+ const was={...bigLimits};bigLimits.idle=200;bigLimits.rate=2**30;
+ try{await slowFixture(800,async big=>{
+  await expect(big.get('k')).rejects.toBeDefined();
+  await expect(big.put('k',Buffer.from('x'),{ttl:60_000})).rejects.toBeDefined();
+ });}finally{Object.assign(bigLimits,was);}
+});
+test('big budget is the stall allowance plus the time at the slowest rate',async()=>{
+ const {bigBudget,MAX_BIG}=await import(resolve(process.env.AB_TYPESCRIPT_CLIENT_PATH??join(import.meta.dir,'..'),'src/big.ts'));
+ expect(bigBudget(64*1024)).toBe(31_000);expect(bigBudget(MAX_BIG)).toBe(542_000);expect(bigBudget(10*MAX_BIG)).toBe(542_000);
+});

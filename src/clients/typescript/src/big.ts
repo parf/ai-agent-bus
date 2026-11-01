@@ -2,6 +2,10 @@ import {createHash} from 'node:crypto';
 import type {RecordHandle} from './record.js';
 import type {Operation} from './transport.js';
 export const MAX_BIG=32*1024*1024;
+/** The daemon's bigfile body allowance: milliseconds of stall, and the bytes a second it promises to finish at. */
+export const bigLimits={idle:30_000,rate:64*1024};
+/** Whole time a bigfile put or get may take, in milliseconds: the stall allowance plus the slowest promised rate for size bytes. */
+export const bigBudget=(size:number)=>bigLimits.idle+Math.min(Math.max(size,0),MAX_BIG)*1000/bigLimits.rate;
 export class BigfileHashMismatch extends Error {constructor(message='bigfile size or SHA-256 mismatch; discard the download'){super(message);this.name='BigfileHashMismatch';}}
 export interface BigfileKey {name:string;size:number;sha256:string;held:'file'|'memory';expires:string}
 export interface BigfileInfo extends BigfileKey {record:string;replaced?:boolean}
@@ -30,11 +34,11 @@ export class RecordBigfile {
   const digest=createHash('sha256');
   const chunks=async function*(){let step:IteratorResult<Uint8Array>=first,total=0;try{while(!step.done){const part=step.value;if(!(part instanceof Uint8Array)||total+part.length>size!)throw new TypeError('size differs from input bytes');total+=part.length;digest.update(part);yield part;step=await iterator.next();}if(total!==size)throw new TypeError('size differs from input bytes');}finally{await iterator.return?.();}};
   const headers:Record<string,string>={};if(options.sha256)headers['X-Bigfile-Sha256']=options.sha256.toLowerCase();
-  const result=await this.record.bus.request('PUT','/bigfile',undefined,{...options,query:{record:this.record.name,name,ttl,memory},headers,upload:{source:chunks(),size:size!}});
+  const result=await this.record.bus.request('PUT','/bigfile',undefined,{...options,timeout:options.timeout??bigBudget(size!),query:{record:this.record.name,name,ttl,memory},headers,upload:{source:chunks(),size:size!}});
   if(result.sha256!==digest.digest('hex')||result.size!==size)throw new BigfileHashMismatch('bigfile put size or SHA-256 mismatch; upload may have completed');return result;
  }
  async get(name:string,options:Operation={}):Promise<{data:Buffer;info:BigfileInfo}>{
-  key(name);const {data,headers}=await this.record.bus.request('GET','/bigfile',undefined,{...options,query:{record:this.record.name,name},bigResponse:true});
+  key(name);const {data,headers}=await this.record.bus.request('GET','/bigfile',undefined,{...options,timeout:options.timeout??bigBudget(MAX_BIG),query:{record:this.record.name,name},bigResponse:true});
   const sha256=createHash('sha256').update(data).digest('hex');
   if(!data.length||data.length>MAX_BIG||headers['content-length']!==String(data.length)||headers['x-bigfile-sha256']!==sha256)throw new BigfileHashMismatch();
   return {data,info:{record:this.record.name,name,size:data.length,sha256,held:headers['x-bigfile-held'],expires:headers['x-bigfile-expires']}};
