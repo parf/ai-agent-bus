@@ -1,7 +1,10 @@
 package api
 
 import (
+	"bufio"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -81,28 +84,13 @@ func TestBigPutDrainsAnEarlyRefusalByItsDeclaredLengthAndNoMore(t *testing.T) {
 	}
 }
 
-// paced is a body written a chunk at a time, as a client on a real link does,
-// so the server decides its refusal while the client is still writing.
-type paced struct{ left int }
-
-func (p *paced) Read(b []byte) (int, error) {
-	if p.left == 0 {
-		return 0, io.EOF
-	}
-	time.Sleep(time.Millisecond)
-	n := len(b)
-	if n > 32<<10 {
-		n = 32 << 10
-	}
-	if n > p.left {
-		n = p.left
-	}
-	p.left -= n
-	return n, nil
-}
-
 // Over a real connection, a client still writing 3 MiB when the refusal is
-// decided receives its status and cause instead of a reset.
+// decided receives its status and cause instead of a reset. The client is a
+// bare socket: it writes until the server stops it, then reads the answer.
+// This is the behaviour check, not the proof of the drain: Go's own server
+// already holds a closing connection open for 500 ms on loopback, so this
+// passes without the drain too; the drain's bound is proved by the counting
+// test above.
 func TestBigPutRefusalReachesAClientStillWriting(t *testing.T) {
 	s, tok := bigServer(t)
 	srv := httptest.NewServer(s.Handler())
@@ -118,22 +106,29 @@ func TestBigPutRefusalReachesAClientStillWriting(t *testing.T) {
 		{"alice@h", "/big?record=%23nobody@h&name=k", http.StatusNotFound, "no such name"},
 		{"alice@h", "/big?record=%23svc@h&name=k&ttl=0", http.StatusBadRequest, "ttl"},
 	} {
-		req, err := http.NewRequest("PUT", srv.URL+c.path, &paced{left: size})
+		conn, err := net.Dial("tcp", srv.Listener.Addr().String())
 		if err != nil {
 			t.Fatal(err)
 		}
-		req.ContentLength = size
-		req.Header.Set(HeaderToken, tok(c.who))
-		client := &http.Client{Transport: &http.Transport{DisableKeepAlives: true}, Timeout: 15 * time.Second}
-		resp, err := client.Do(req)
+		conn.SetDeadline(time.Now().Add(15 * time.Second))
+		fmt.Fprintf(conn, "PUT %s HTTP/1.1\r\nHost: x\r\n%s: %s\r\nContent-Length: %d\r\nContent-Type: application/octet-stream\r\n\r\n", c.path, HeaderToken, tok(c.who), size)
+		chunk := make([]byte, 32<<10)
+		for sent := 0; sent < size; sent += len(chunk) {
+			if _, err := conn.Write(chunk); err != nil {
+				break // the server has stopped listening
+			}
+			time.Sleep(time.Millisecond)
+		}
+		resp, err := http.ReadResponse(bufio.NewReader(conn), nil)
 		if err != nil {
 			t.Errorf("%s: the client saw %v instead of the refusal", c.path, err)
+			conn.Close()
 			continue
 		}
 		raw, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
 		if resp.StatusCode != c.code || !strings.Contains(strings.ToLower(string(raw)), c.want) {
 			t.Errorf("%s = %d %s, want %d naming %q", c.path, resp.StatusCode, raw, c.code, c.want)
 		}
+		conn.Close()
 	}
 }
