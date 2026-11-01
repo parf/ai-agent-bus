@@ -144,7 +144,8 @@ class Keyword(unittest.TestCase):
         with self.assertRaisesRegex(RagError,'no BM25 sparse vector'):self.find('tea')
     def test_get_still_returns_the_dense_vectors_of_a_collection_with_named_ones(self):
         self.put('tea','Tea is a drink.')
-        got=self.app.run(parse(dumps({'method':'get','namespace':'team','tableName':'notes','id':'tea'})))
+        try:got=self.app.run(parse(dumps({'method':'get','namespace':'team','tableName':'notes','id':'tea'})))
+        except RagError as error:self.fail(f'get refused a collection whose vectors come back by name: {error}')
         self.assertEqual(got['embeddings'],[[.5,.5]])
     def test_the_terms_are_lower_cased_words_hashed_to_ascending_unique_indices(self):
         a,b=term_index('tea'),term_index('drink')
@@ -192,7 +193,9 @@ class Keyword(unittest.TestCase):
         self.assertEqual(len(ids),len(set(ids)))
         self.assertTrue(all(set(r)>={'namespace','tableName','id','score','text'} for r in answer['records']))
         self.assertEqual(answer['records'][0]['text'],'Tea is a drink made from leaves.')
-        self.assertEqual(self.find('tea leaves',limit=1)['records'][0]['id'],'tea')
+        one=self.find('tea leaves',limit=1)['records']
+        self.assertEqual([r['id'] for r in one],['tea'])
+        self.assertEqual(len(self.find('tea leaves',limit=2)['records']),2)
         self.assertEqual(self.find('zebra')['records'],[])
     def test_the_query_is_sent_as_query_terms_over_chunks_in_the_callers_scope(self):
         self.put('tea','Tea is a drink.',key1='hot');self.store.calls.clear()
