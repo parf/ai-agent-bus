@@ -48,7 +48,13 @@ func TestSelfProfileRouteCarriesOnlyEmail(t *testing.T) {
 		`"github_user":"forged"`,
 		`"status":"inactive"`,
 	} {
-		call("alice@h", "/profile", `{"email":"other@example.com",`+field+`}`, 400)
+		var current protocol.User
+		if err := json.Unmarshal([]byte(call("alice@h", "/profile", `{"email":"other@example.com",`+field+`}`, 200)), &current); err != nil {
+			t.Fatal(err)
+		}
+		if current.Name != "alice@h" || current.PersonName != "Alice" || current.GithubUser != "alice-gh" || current.Status != "active" {
+			t.Fatalf("unknown field changed authority/profile: %+v", current)
+		}
 	}
 	// The full administrative operation does not become a second self-edit
 	// door when the narrow capability is attached.

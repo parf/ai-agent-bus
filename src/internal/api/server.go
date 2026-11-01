@@ -203,6 +203,16 @@ func (s *Server) HandlerForOwner() http.Handler {
 }
 
 func (s *Server) routes(g guard) http.Handler {
+	// Authenticate before validating private request fields, as for JSON bodies.
+	authenticated := g
+	g = func(next func(http.ResponseWriter, *http.Request, protocol.Name)) http.HandlerFunc {
+		return authenticated(func(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+			if !s.query(w, r) {
+				return
+			}
+			next(w, r, caller)
+		})
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /identity", s.identity)
 	mux.HandleFunc("GET /status", g(s.status))
@@ -249,7 +259,6 @@ func (s *Server) routes(g guard) http.Handler {
 	mux.HandleFunc("GET /names", g(s.names))
 	mux.HandleFunc("POST /subscribe", g(s.audited("subscribe", s.subscribe)))
 	mux.HandleFunc("POST /deliver-to/remove", g(s.audited("remove-recipient", s.removeRecipient)))
-	mux.HandleFunc("POST /subscriber/remove", g(s.audited("remove-recipient", s.removeRecipient))) // its name before 0.8.109, one release
 	mux.HandleFunc("POST /configure", g(s.audited("configure", s.configure)))
 	mux.HandleFunc("GET /config", g(s.config))
 	mux.HandleFunc("POST /secret", g(s.audited("set-secret", s.setSecret)))
@@ -268,7 +277,9 @@ func (s *Server) routes(g guard) http.Handler {
 	// realm somebody vouches for can be enrolled into at all.
 	// See docs/02-access.md#proving-possession.
 	mux.HandleFunc("POST /enrol", func(w http.ResponseWriter, r *http.Request) {
-		s.audited("enrol", s.enrol)(w, r, protocol.Name{})
+		if s.query(w, r) {
+			s.audited("enrol", s.enrol)(w, r, protocol.Name{})
+		}
 	})
 	// The API has no page, and a person who typed its address into a browser
 	// wants the dashboard. `{$}` is the exact root and nothing below it: a
@@ -284,7 +295,15 @@ func (s *Server) routes(g guard) http.Handler {
 			http.Redirect(w, r, s.dash, http.StatusMovedPermanently)
 		})
 	}
-	return s.logged(bodyDeadline(mux))
+	return s.logged(bodyDeadline(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, pattern := mux.Handler(r)
+		if pattern == "" {
+			// ServeMux retains method detection and Allow; only its error body changes.
+			mux.ServeHTTP(&routeFailure{ResponseWriter: w}, r)
+			return
+		}
+		mux.ServeHTTP(w, r)
+	})))
 }
 
 // bodyWait is how long a caller has to send a request's body. The server's
@@ -790,7 +809,7 @@ func (s *Server) names(w http.ResponseWriter, r *http.Request, caller protocol.N
 func (s *Server) ls(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	recs, err := s.listRecords(caller, r.URL.Query())
 	if err != nil {
-		answer(w, http.StatusBadRequest, err.Error())
+		answer(w, http.StatusBadRequest, "malformed", err.Error())
 		return
 	}
 	ok(w, recs)
@@ -852,13 +871,9 @@ func (s *Server) inactive(w http.ResponseWriter, r *http.Request, caller protoco
 func (s *Server) maySend(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	q, err := url.ParseQuery(r.URL.RawQuery)
 	_, forWho := q["who"]
-	keys := 1
-	if forWho {
-		keys = 2
-	}
-	if err != nil || len(q["name"]) != 1 || len(q) != keys || r.ContentLength != 0 || len(r.TransferEncoding) != 0 ||
+	if err != nil || len(q["name"]) != 1 || r.ContentLength != 0 || len(r.TransferEncoding) != 0 ||
 		forWho && (len(q["who"]) != 1 || q.Get("who") == "") {
-		answer(w, http.StatusBadRequest, "may-send wants one name query, an optional who, and no body")
+		answer(w, http.StatusBadRequest, "malformed", "may-send wants one name query, an optional who, and no body")
 		return
 	}
 	if forWho {
@@ -887,7 +902,7 @@ func (s *Server) maySend(w http.ResponseWriter, r *http.Request, caller protocol
 func dryRefusal(w http.ResponseWriter, err error) {
 	for _, c := range codes {
 		if errors.Is(err, c.err) {
-			answer(w, c.code, err.Error())
+			answer(w, c.code, c.kind, err.Error())
 			return
 		}
 	}
@@ -1058,9 +1073,10 @@ var codes = []struct {
 // draw: a supported reason absent from a successful status is a measured zero,
 // not a gap in observation. Derived from the table above so the two cannot
 // drift — a reason added there appears here without being named twice.
+// authority is issued directly by local-socket checks, outside that table.
 func Reasons() []string {
-	seen := map[string]bool{}
-	out := []string{}
+	seen := map[string]bool{"authority": true}
+	out := []string{"authority"}
 	for _, c := range codes {
 		if !seen[c.kind] {
 			seen[c.kind] = true
@@ -1089,28 +1105,19 @@ func (s *Server) reply(w http.ResponseWriter, v any, err error) {
 	oops(w, err)
 }
 
-// read decodes a request body, and a body it cannot decode is a refusal like
-// any other — the caller asked for something and was turned away. This is the
-// shared decoding path for JSON request bodies.
+// read applies the shared request schema policy: unknown members ignored,
+// duplicate known members and invalid types refused.
 func (s *Server) read(w http.ResponseWriter, r *http.Request, v any) bool {
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(v); err != nil {
+	if err := decodeRequest(http.MaxBytesReader(w, r.Body, 1<<20), v); err != nil {
 		s.badBody(w, err)
 		return false
 	}
 	return true
 }
 
-// readStrict is for narrow operations whose body is also an authority
-// boundary. Ignoring a protected field there would make a request appear to
-// change something the operation can never change.
+// Kept as a call-site name for narrow operations; their field policy is shared.
 func (s *Server) readStrict(w http.ResponseWriter, r *http.Request, v any) bool {
-	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(v); err != nil {
-		s.badBody(w, err)
-		return false
-	}
-	return true
+	return s.read(w, r, v)
 }
 
 func ok(w http.ResponseWriter, v any) {
@@ -1125,18 +1132,45 @@ func ok(w http.ResponseWriter, v any) {
 // several distinct reasons.
 func (s *Server) refuse(w http.ResponseWriter, code int, reason, msg string) {
 	s.bus.Refuse(reason)
-	answer(w, code, msg)
+	answer(w, code, reason, msg)
 }
 
 // oops is the other half: ours rather than the caller's, always 500, never
 // counted. Refusing a caller and failing them are different things to be told
 // about.
 func oops(w http.ResponseWriter, err error) {
-	answer(w, http.StatusInternalServerError, err.Error())
+	answer(w, http.StatusInternalServerError, "", err.Error())
 }
 
-func answer(w http.ResponseWriter, code int, msg string) {
+func answer(w http.ResponseWriter, code int, kind, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+	body := map[string]string{"error": msg}
+	if kind != "" {
+		body["kind"] = kind
+	}
+	json.NewEncoder(w).Encode(body)
+}
+
+// routeFailure changes only ServeMux's unmatched-path/method errors, without
+// counting them as endpoint refusals or changing its Allow header.
+type routeFailure struct {
+	http.ResponseWriter
+	failed bool
+}
+
+func (w *routeFailure) WriteHeader(code int) {
+	if code != http.StatusNotFound && code != http.StatusMethodNotAllowed {
+		w.ResponseWriter.WriteHeader(code)
+		return
+	}
+	w.failed = true
+	w.Header().Del("Content-Length")
+	answer(w.ResponseWriter, code, "no_route", http.StatusText(code))
+}
+func (w *routeFailure) Write(p []byte) (int, error) {
+	if w.failed {
+		return len(p), nil
+	}
+	return w.ResponseWriter.Write(p)
 }

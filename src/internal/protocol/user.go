@@ -47,6 +47,4 @@ type User struct {
 	CanActivate   bool     `json:"can_activate,omitempty"`
 	Groups        []string `json:"groups,omitempty"`
 	Records       []string `json:"records,omitempty"` // the live records this User owns
-	// Services is Records under its name before 0.8.108, kept one release.
-	Services []string `json:"services,omitempty"`
 }

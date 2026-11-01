@@ -11,9 +11,8 @@ import (
 )
 
 // A manager takes a recipient off a 📣's Deliver-To list at POST
-// /deliver-to/remove; POST /subscriber/remove with `subscriber`, the names
-// before 0.8.109, still does it for one release.
-func TestARecipientIsTakenOffByItsNameAndByTheOldOne(t *testing.T) {
+// /deliver-to/remove. The one-release route and field are retired.
+func TestARecipientIsTakenOffByItsCanonicalName(t *testing.T) {
 	bus := core.New()
 	s, token := serverFor(t, bus, "admin@h")
 	if _, err := bus.SetUser("admin@h", protocol.User{Name: "alice@h"}, true); err != nil {
@@ -43,8 +42,8 @@ func TestARecipientIsTakenOffByItsNameAndByTheOldOne(t *testing.T) {
 	if slices.Contains(subs(), "#a@h") {
 		t.Fatalf("POST /deliver-to/remove left the recipient: %v", subs())
 	}
-	post("/subscriber/remove", `{"channel":"news@h","subscriber":"#b@h"}`)
+	post("/deliver-to/remove", `{"channel":"news@h","recipient":"#b@h"}`)
 	if slices.Contains(subs(), "#b@h") {
-		t.Fatalf("the old route left the recipient: %v", subs())
+		t.Fatalf("the canonical route left the recipient: %v", subs())
 	}
 }

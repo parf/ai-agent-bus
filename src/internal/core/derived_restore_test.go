@@ -27,7 +27,7 @@ func forged() protocol.User {
 
 		Kind: "forged", Administrator: true, DaemonOwner: true,
 		CanEdit: true, CanSetEmail: true, CanActivate: true, CanRemove: true,
-		Groups: []string{"@administrators"}, Services: []string{"#svc@h"},
+		Groups: []string{"@administrators"}, Records: []string{"#svc@h"},
 	}
 }
 
@@ -38,7 +38,7 @@ func derivedClaims(u protocol.User) []string {
 		"DaemonOwner": u.DaemonOwner, "CanEdit": u.CanEdit,
 		"CanSetEmail": u.CanSetEmail, "CanActivate": u.CanActivate,
 		"CanRemove": u.CanRemove, "Groups": len(u.Groups) > 0,
-		"Services": len(u.Records) > 0,
+		"Records": len(u.Records) > 0,
 	} {
 		if set {
 			claimed = append(claimed, label)

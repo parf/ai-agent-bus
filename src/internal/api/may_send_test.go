@@ -106,7 +106,6 @@ func TestMaySendNeverAcceptsAnOnBehalfOfCaller(t *testing.T) {
 	b := core.New()
 	s, token := serverFor(t, b, "admin@h")
 	for _, path := range []string{
-		"/may-send?name=a@h&from=admin@h",
 		"/may-send?name=a@h&name=b@h", "/may-send", "/may-send?caller=admin@h",
 	} {
 		r := httptest.NewRequest("GET", path, nil)
@@ -240,7 +239,7 @@ func TestMaySendForAnotherNameFollowsSendAndLimitsDisclosure(t *testing.T) {
 	// Bad arguments.
 	for _, path := range []string{
 		"/may-send?name=%23peer@h&who=", "/may-send?name=%23peer@h&who=a@h&who=b@h",
-		"/may-send?name=%23peer@h&who=bob@h&from=bob@h", "/may-send?who=bob@h", "/may-send?name=%23peer@h&who=bad%20name",
+		"/may-send?who=bob@h", "/may-send?name=%23peer@h&who=bad%20name",
 	} {
 		r := httptest.NewRequest("GET", path, nil)
 		r.Header.Set(HeaderToken, token("alice@h"))

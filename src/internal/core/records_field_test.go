@@ -8,9 +8,8 @@ import (
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
-// The node's count of records and a User's owned records are named "records";
-// "services", their name before 0.8.108, carries the same value one release.
-func TestRecordsAreCalledRecordsWithTheOldNameKeptBeside(t *testing.T) {
+// Node counts and owned-record lists use only their canonical field.
+func TestRecordsNoLongerCarryTheOneReleaseServicesAlias(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
 	if _, err := b.SetUser("admin@h", protocol.User{Name: "alice@h"}, true); err != nil {
@@ -23,7 +22,7 @@ func TestRecordsAreCalledRecordsWithTheOldNameKeptBeside(t *testing.T) {
 	var m map[string]any
 	raw, _ := json.Marshal(st)
 	_ = json.Unmarshal(raw, &m)
-	if m["records"] == nil || m["records"] != m["services"] || st.Records == 0 {
+	if m["records"] == nil || m["services"] != nil || st.Records == 0 {
 		t.Fatalf("status names its count wrong: %s", raw)
 	}
 	var u protocol.User
@@ -32,7 +31,13 @@ func TestRecordsAreCalledRecordsWithTheOldNameKeptBeside(t *testing.T) {
 			u = x
 		}
 	}
-	if !slices.Contains(u.Records, "jobs@h") || !slices.Equal(u.Records, u.Services) {
-		t.Fatalf("a User's owned records: records %v, services %v", u.Records, u.Services)
+	if !slices.Contains(u.Records, "jobs@h") {
+		t.Fatalf("a User's owned records: records %v", u.Records)
+	}
+	raw, _ = json.Marshal(u)
+	m = nil
+	_ = json.Unmarshal(raw, &m)
+	if _, present := m["services"]; present {
+		t.Fatalf("User kept services alias: %s", raw)
 	}
 }

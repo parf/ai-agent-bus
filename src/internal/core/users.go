@@ -441,7 +441,7 @@ func clearDerivedUser(u *protocol.User) {
 	u.Kind = ""
 	u.Administrator, u.DaemonOwner = false, false
 	u.CanEdit, u.CanSetEmail, u.CanActivate, u.CanRemove = false, false, false, false
-	u.Groups, u.Records, u.Services = nil, nil, nil
+	u.Groups, u.Records = nil, nil
 }
 
 func copyGithubDecoration(dst *protocol.User, src protocol.User) {
@@ -840,7 +840,6 @@ func (b *Bus) userViewFrom(caller, name string, ix *directoryIndex) protocol.Use
 	}
 	sort.Strings(u.Groups)
 	sort.Strings(u.Records)
-	u.Services = u.Records
 	return u
 }
 

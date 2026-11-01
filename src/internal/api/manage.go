@@ -96,15 +96,11 @@ func (s *Server) group(w http.ResponseWriter, r *http.Request, caller protocol.N
 
 // removeRecipient takes a name off a 📣's Deliver-To list. `channel` is the
 // record; an envelope's `topic` is a message label and a different thing.
-// POST /subscriber/remove with `subscriber` is its name before 0.8.109, kept
-// one release. See docs/03-records-channel.md.
+// See docs/03-records-channel.md.
 func (s *Server) removeRecipient(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
-	var in struct{ Channel, Recipient, Subscriber string }
+	var in struct{ Channel, Recipient string }
 	if s.read(w, r, &in) {
 		name := in.Recipient
-		if name == "" {
-			name = in.Subscriber
-		}
 		rec, err := s.bus.RemoveRecipient(caller.String(), in.Channel, name)
 		s.reply(w, rec, err)
 	}

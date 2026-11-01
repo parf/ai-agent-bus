@@ -568,24 +568,19 @@ describe("pages as the daemon owner", () => {
     const r = await req("/user", { cookie: s, form: { action: "active", name: "bob", return: "/user?a\r\nb" } });
     expect(r.status).toBe(303);
   });
-  test("an address from before 0.8.108 still answers: a moved page 301s to its new one, an old form still posts", async () => {
-    for (const [from, to] of [["/pubsub/topic?name=news@test", "/pubsub/channel?name=news@test"], ["/pubsub/topic/edit?name=news@test", "/pubsub/channel/edit?name=news@test"],
-                              ["/service-danger?name=jobs@test", "/record-danger?name=jobs@test"], ["/service-deactivate?name=jobs@test", "/record-deactivate?name=jobs@test"]]) {
-      const r = await req(from, { cookie: s });
-      expect(r.status).toBe(301);
-      expect(r.headers.get("location")).toBe(to);
+  test("one-release record and topic aliases are no longer routes", async () => {
+    for (const path of ["/pubsub/topic", "/pubsub/topic/edit", "/service-danger", "/service-deactivate"]) {
+      const r=await req(`${path}?name=news@test`,{cookie:s});
+      expect(r.status).toBe(404);
+      expect(r.headers.get("location")).toBeNull();
     }
-    const old = await req("/service", { cookie: s, form: { action: "save", name: "jobs@test", descr: "Jobs", bound: "abc" } });
-    expect(old.status).toBe(400); // answered by the record form, as /record answers it
-    expect(await old.text()).toContain('id="form-save"');
-    const look = async (name: string) => (await fetch(`http://unix/lookup?name=${encodeURIComponent(name)}`, { headers: { "X-Agent-Bus-Token": owner }, unix: join(dir, "bus.sock") } as RequestInit)).json();
-    await api("/register", { name: "bridged@test", kind: "queue", descr: "before", allow: ["*"] });
-    const saved = await req("/service", { cookie: s, form: { action: "save", name: "bridged@test", descr: "after" } });
-    expect(saved.status).toBe(303);
-    expect((await look("bridged@test")).descr).toBe("after");
-    const confirm = await req("/service-confirm", { cookie: s, form: { action: "delete", name: "bridged@test" } });
-    expect(confirm.status).toBe(200);
-    expect(await confirm.text()).toContain('action="/record"');
+    for (const path of ["/service", "/service-confirm"]) {
+      const r=await req(path,{cookie:s,form:{action:"save",name:"jobs@test",descr:"must not apply"}});
+      expect(r.status).toBe(path === "/service" ? 405 : 404); // GET /service remains canonical
+    }
+    const r=await req("/record",{cookie:s,form:{action:"save",name:"jobs@test",bound:"abc"}});
+    expect(r.status).toBe(400); // canonical form is still served and validates input
+    expect(await r.text()).toContain('id="form-save"');
   });
   test("only a non-manager recipient gets the pubsub unsubscribe notice", async () => {
     const name="layout-fanout@test", path=`/pubsub/channel?name=${name}`, recipient="#layout-recipient@test";

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"os"
 	"sort"
@@ -166,25 +165,21 @@ func (s *Server) importRecords(w http.ResponseWriter, r *http.Request, caller pr
 		return
 	}
 	var in ImportRequest
-	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, backup.MaxBytes*2))
-	dec.DisallowUnknownFields()
-	if e := dec.Decode(&in); e != nil {
+	if e := decodeRequest(http.MaxBytesReader(w, r.Body, backup.MaxBytes*2), &in); e != nil {
 		s.badBody(w, e)
-		return
-	}
-	if dec.Decode(new(any)) != io.EOF {
-		s.badBody(w, errors.New("expected one import body"))
 		return
 	}
 	report, e := s.bus.ImportRecords(caller.String(), in.Data, in.Choices)
 	if e != nil {
 		// All preflight conflicts are public names, never payloads or credentials.
 		if len(report.Conflicts) > 0 {
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusConflict)
 			ok(w, struct {
+				Kind   string            `json:"kind"`
 				Error  string            `json:"error"`
 				Report core.ImportReport `json:"report"`
-			}{e.Error(), report})
+			}{"busy", e.Error(), report})
 			return
 		}
 		s.reply(w, nil, e)

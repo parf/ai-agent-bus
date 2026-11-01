@@ -4,11 +4,17 @@ import "time"
 
 // NodeIdentity is the public description of a daemon. Private status, caller
 // identity, per-record data and credentials do not belong in this response.
+// Protocol rises on every wire change; ProtocolMin rises when older clients stop being served.
+const Protocol = 1
+const ProtocolMin = 1
+
 type NodeIdentity struct {
-	Version string `json:"version"`
-	Build   string `json:"build_info"`
-	Owner   string `json:"owner"`
-	Up      string `json:"up"`
+	Protocol    int    `json:"protocol"`
+	ProtocolMin int    `json:"protocol_min"`
+	Version     string `json:"version"`
+	Build       string `json:"build_info"`
+	Owner       string `json:"owner"`
+	Up          string `json:"up"`
 	// Empty Host means the OS did not provide a hostname.
 	Host  string     `json:"host"`
 	Calls *CallStats `json:"calls"`

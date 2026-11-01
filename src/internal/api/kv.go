@@ -35,9 +35,7 @@ const kvBody = 6*core.KVMaxValue + 64<<10
 // readStrictUpTo is readStrict for a body larger than 1 MiB: a key-value
 // write carries a value up to its limit, escaped.
 func (s *Server) readStrictUpTo(w http.ResponseWriter, r *http.Request, v any, limit int64) bool {
-	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, limit))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(v); err != nil {
+	if err := decodeRequest(http.MaxBytesReader(w, r.Body, limit), v); err != nil {
 		s.refuse(w, http.StatusBadRequest, "malformed", "bad json: "+err.Error())
 		return false
 	}

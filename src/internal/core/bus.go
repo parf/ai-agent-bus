@@ -2063,13 +2063,10 @@ type Status struct {
 	// when none is saved (Plans/R1.0-Release/daemon-configuration.md).
 	Realm   string `json:"realm,omitempty"`
 	Records int    `json:"records"` // live records on the node
-	// Services is Records under its name before 0.8.108, kept one release
-	// for clients that read it; it is not a count of 📡 services.
-	Services int `json:"services"`
-	Queued   int `json:"queued"`
-	Waiting  int `json:"waiting"`
-	Dropped  int `json:"dropped"` // lost to overflow since start
-	Expired  int `json:"expired"` // outlived their TTL since start
+	Queued  int    `json:"queued"`
+	Waiting int    `json:"waiting"`
+	Dropped int    `json:"dropped"` // lost to overflow since start
+	Expired int    `json:"expired"` // outlived their TTL since start
 	// Absent unless it has something to say: a first start has no previous
 	// stop to have been clean or otherwise.
 	Unclean bool `json:"unclean,omitempty"` // the last run did not stop cleanly
@@ -2168,7 +2165,6 @@ func (b *Bus) status() Status {
 			s.Refused[k] = n
 		}
 	}
-	s.Services = s.Records
 	return s
 }
 

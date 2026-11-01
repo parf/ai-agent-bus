@@ -30,10 +30,6 @@ route("GET", "/record-deactivate", rec.deactivate);
 route("GET", "/record-danger", rec.danger);
 route("POST", "/record", rec.post);
 route("POST", "/record-confirm", rec.confirm);
-// Their names before 0.8.108, kept one release: a page moved, a form still posts.
-for (const [from, to] of [["/pubsub/topic", "/pubsub/channel"], ["/pubsub/topic/edit", "/pubsub/channel/edit"], ["/service-deactivate", "/record-deactivate"], ["/service-danger", "/record-danger"]]) route("GET", from, rec.moved(to), false);
-route("POST", "/service", rec.post);
-route("POST", "/service-confirm", rec.confirm);
 route("GET", "/channels", rec.channels, false);
 route("GET", "/channels/new", rec.channelsNew, false);
 route("GET", "/channel", rec.channel);

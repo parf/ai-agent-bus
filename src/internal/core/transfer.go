@@ -44,7 +44,6 @@ func cleanBackupUser(u protocol.User) protocol.User {
 	u.CanActivate = false
 	u.Groups = nil
 	u.Records = nil
-	u.Services = nil
 	return u
 }
 

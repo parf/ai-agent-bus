@@ -56,7 +56,7 @@ func TestPublicNodeIdentityIsOnlyThePublishedFacts(t *testing.T) {
 		if _, ok := fields["messages"]; ok {
 			t.Fatal("message counters still published")
 		}
-		if len(fields) != 6 || got.Owner != "owner@h" || got.Version != version.String || got.Build != version.Build || got.Host != host || got.Calls == nil || len(got.Calls.Windows) != 2 || got.Calls.Total != 7 {
+		if len(fields) != 8 || got.Protocol != 1 || got.ProtocolMin != 1 || got.Owner != "owner@h" || got.Version != version.String || got.Build != version.Build || got.Host != host || got.Calls == nil || len(got.Calls.Windows) != 2 || got.Calls.Total != 7 {
 			t.Fatalf("public projection differs: %v", got)
 		}
 		for _, window := range got.Calls.Windows {
