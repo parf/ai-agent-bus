@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.261 — 2026-11-01
+
+Subscription filters are timed by CPU, not wall clock, so a loaded host no longer drops events as filter timeouts
+
 ## 0.9.260 — 2026-11-01
 
 Fifteenth published 0.9 changeset: 0.9.250–0.9.260, squashed.
