@@ -16,7 +16,8 @@ Keep secrets in Secret and config in Configuration; see [configuration](../../..
 ## What you get
 
 - ✅ **Call and serve:** `Call(ctx, to, body, opts...)` returns an outcome; `Serve(ctx, handler, opts...)` answers with a bounded pool of goroutines.
-- ✅ **Targets:** `Record(name)` selects a record and exposes `KV` and `Locks`.
+- ✅ **Targets:** `Record(name)` selects a record and exposes `KV`, `Big` and `Locks`.
+- ✅ **Big values:** `Record(name).Big` has `Put`, `Get`, `List` and `Delete` for values up to 32 MiB that expire; `Put` and `Get` stream and check the SHA-256, and a mismatch is `*BigHashMismatch`.
 - ✅ **Your own name works:** a call to yourself is answered by your own handler.
 - ✅ **Safe secrets:** formatting and JSON are redacted; `Bytes()` explicitly returns a copy.
 
