@@ -170,6 +170,12 @@ sequenceDiagram
     B-->>C: Identity and token on successful proof
 ```
 
+The client signs only what is fixed:
+
+- The nonce, in the `agent-bus` signature namespace and no other, and only when the answer names the name it asked for and a 32-hex-digit nonce.
+- A node that asks for another namespace or message is refused before the key is used.
+- `agent-bus token --key=<file> --rotate` proves possession and then rotates with the credential the proof returned.
+
 The proof needs no prior token; the signature establishes entitlement. Unanswered
 challenges expire, and successful ones are spent. Registration cannot create a
 new name in a directory-backed realm; realms without directories use the

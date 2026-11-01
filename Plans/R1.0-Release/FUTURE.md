@@ -2,6 +2,12 @@
 
 📌 **TL;DR:** Follow-up the owner has decided is not part of R1. Each entry names the decision that deferred it and what would start it.
 
+## Key proof bound to the node it was made for
+
+- **What:** the signed message names the name and the daemon's address (for example `agent-bus enrol\n<name>\n<nonce>`), so a node in the middle cannot relay a real daemon's challenge to a user who does not pin it. The daemon would accept both forms for a release.
+- **Deferred:** it changes the frozen wire ([Q296](DECISIONS.md#recorded-decisions)); the client now signs only the `agent-bus` namespace and a 32-hex nonce (J1 sweep B1, 2026-11-01). TLS pinning and the local socket cover the relay today.
+- **To start it:** the owner asks for it before 1.0, or a node-in-the-middle case is reported.
+
 ## Deb and rpm packages
 
 - **What:** `.deb` and `.rpm` packages and the repositories that serve them, so a host installs with its own package manager.

@@ -1,5 +1,10 @@
 # DONE — R1
 
+## B1/B2/B3 key proof signs only the bus's namespace, rotates and parses `--key`
+
+- 🟠 B1 `agent-bus token --key` and `agent-bus enrol` signed the namespace and message a node sent back. Result: `keyproof.Sign` has no namespace parameter and always signs the nonce in `agent-bus`; both callers refuse an answer with another namespace, name or a nonce that is not 32 hex digits, naming the member and never echoing it ([proof](../../docs/02-access.md#proving-possession)).
+- 🟠 B2 `--rotate` with `--key` was dropped. Result: the proof's credential is used to rotate, and the new one is printed. 🟠 B3 `--key <word>` took the word as the file: now only `--key=<file>` or a bare `--key`, and a word that is an existing file is refused with "--key takes its file as --key=<file>". Mutants are named in the ready note; the node-in-the-middle relay is in [FUTURE](FUTURE.md#key-proof-bound-to-the-node-it-was-made-for).
+
 ## J1 MCP bigfile tools fenced and never pre-approved
 
 - 🔴 J1 of the 2026-11-01 range review: `mcp__plugin_agent-bus_agent-bus__*` was pre-approved in `ab-claude`, so `ab_bigfile_put/get` read and wrote model-chosen paths with no prompt. Result: the Claude allow list names every safe tool and omits the two file-touching ones; Codex asks for them by tool; the launcher passes `AGENT_BUS_BIGFILE_DIR` to the face; and [the face works only inside that directory](../../docs/03-records-kv.md#bigfiles) and refuses when it is unset (owner, 2026-11-01, [decision](DECISIONS.md#recorded-decisions)).
