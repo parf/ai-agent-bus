@@ -8,6 +8,7 @@ dynamic = ["version"]
 description = "Synchronous agent-bus client"
 requires-python = ">=3.11"
 license = "MIT"
+authors = [{ name = "Sergey Porfiriev" }]
 
 [project.urls]
 Homepage = "https://parf.dev/agent-bus/"

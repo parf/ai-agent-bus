@@ -71,6 +71,7 @@ def write_json(path, value):
 # Every package carries the license and the notices its dependencies require,
 # at the paths a release archive has them (licenses/NOTICE.md).
 LEGAL = ('LICENSE.md', 'licenses/NOTICE.md')
+AUTHOR = 'Sergey Porfiriev'
 
 
 def ship_legal(release, root):
@@ -174,7 +175,7 @@ def build(full, client, checksums, output, darwin=()):
             ship_legal(full_root, root)
             write_json(root / 'package.json', {'name': platforms[kind], 'version': version,
                 'description': f'agent-bus {kind} files for Linux {cpu}',
-                'license': 'SEE LICENSE IN LICENSE.md', 'os': ['linux'], 'cpu': [cpu],
+                'author': AUTHOR, 'license': 'SEE LICENSE IN LICENSE.md', 'os': ['linux'], 'cpu': [cpu],
                 'files': ['bundle', *LEGAL], 'agentBusRelease': provenance})
             packages.append(root)
         for mac_cpu, (mac_root, mac_files) in sorted(darwin_roots.items()):
@@ -188,7 +189,7 @@ def build(full, client, checksums, output, darwin=()):
             ship_legal(mac_root, root)
             write_json(root / 'package.json', {'name': platform_sets['client']['darwin-' + mac_cpu], 'version': version,
                 'description': f'agent-bus client files for macOS {mac_cpu}',
-                'license': 'SEE LICENSE IN LICENSE.md', 'os': ['darwin'], 'cpu': [mac_cpu],
+                'author': AUTHOR, 'license': 'SEE LICENSE IN LICENSE.md', 'os': ['darwin'], 'cpu': [mac_cpu],
                 'files': ['bundle', *LEGAL], 'agentBusRelease': provenance})
             packages.append(root)
         for kind in ('client', 'bus'):
@@ -206,7 +207,7 @@ def build(full, client, checksums, output, darwin=()):
                 script.write_text('#!/usr/bin/env node\nrequire("../launch.cjs")(' + json.dumps(program) + ', process.argv.slice(2));\n')
                 script.chmod(0o755)
             value = {'name': package_names[kind], 'version': version,
-                     'license': 'SEE LICENSE IN LICENSE.md', 'description': f'agent-bus {kind} commands',
+                     'author': AUTHOR, 'license': 'SEE LICENSE IN LICENSE.md', 'description': f'agent-bus {kind} commands',
                      'bin': {program: 'bin/' + program for program in bins},
                      'files': ['bin', 'launch.cjs', *LEGAL], 'engines': {'node': '>=18'},
                      'optionalDependencies': {name: version for name in {**platform_sets[kind], **{k: v for k, v in platform_sets['client'].items() if k.startswith('darwin-')}}.values()},

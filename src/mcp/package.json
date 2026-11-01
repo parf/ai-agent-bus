@@ -1,5 +1,6 @@
 {
   "name": "@agent-bus/mcp",
+  "author": "Sergey Porfiriev",
   "license": "PolyForm-Noncommercial-1.0.0",
   "private": true,
   "type": "module",

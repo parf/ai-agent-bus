@@ -3,6 +3,7 @@ name = "agent-bus"
 version = "0.0.0"
 edition = "2024"
 license = "MIT"
+authors = ["Sergey Porfiriev"]
 description = "Async Rust client for agent-bus"
 homepage = "https://parf.dev/agent-bus/"
 repository = "https://github.com/parf/ai-agent-bus"
