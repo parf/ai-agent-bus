@@ -20,6 +20,12 @@ Q296 to Q302 are [settled](DECISIONS.md#recorded-decisions).
   >
   > 💬👾 The picked option sets `/home/parf/agent-bus-files`, but the ✅ is on "leave it unset". Which one?
 
+- ❓ Q304 Name of the refusal kind for "no such data" before the protocol freezes
+  - Context: T-24 froze a closed set of refusal kinds ([daemon API](../../docs/09-daemon-api.md#stability-and-compatibility)). A missing record, key or value answers 404 with kind `unknown`; a missing endpoint answers `no_route`. `unknown` reads like "unknown error". After 1.0 renaming it is a breaking change; before 1.0 it is a quick change in the daemon, the six clients and the shared tests
+  - ( ) Rename it to `not_found` before 1.0 🌟
+  - ( ) Keep `unknown`
+  > 💡👾 Rename to `not_found`: a client author reads the kind name without the docs, and this is the last free chance.
+
 ## Messaging agents
 
 Q247 and Q248 (Google Chat) moved to [R1.2](../R1.2/QUESTIONS.md#open-questions) with B.27b: the owner, 2026-11-01, "we need corp acct. cant use personal".
