@@ -67,6 +67,7 @@ type installed struct {
 	Agent        agentFile
 	Host         hostEntry
 	Span         span
+	overlayFiles []overlayFile
 	Over         []ports.Overlay // the host's merged shipped JSON files, mounted read-only
 	Refused      string
 	LastExit     *exitStatus // latest actual exit observed since load
@@ -256,10 +257,10 @@ func loadSources(sources []agentSource, runnerDir string) ([]installed, error) {
 					} else if ok {
 						in.Agent, in.Span = o, osp
 					}
-					if over, sum, err := shippedOverlays(runnerDir, agentDir, dir, k); err != nil {
+					if over, sum, files, err := shippedOverlays(runnerDir, agentDir, dir, k); err != nil {
 						in.Refused = err.Error()
 					} else if len(over) > 0 {
-						in.Over, in.Digest = over, in.Digest+sum
+						in.Over, in.Digest, in.overlayFiles = over, in.Digest+sum, files
 					}
 				}
 				out = append(out, in)

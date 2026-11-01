@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"io"
 	"os"
@@ -46,12 +47,15 @@ func TestSandboxedAgentReadsItsSettingsFileWithTheHostsOverridesMerged(t *testin
 		"hello/settings.json":     `{"drop":null,"nest":{"b":3},"list":[9]}`,
 		"hello/one/settings.json": `{"nest":{"c":4}}`,
 	})
-	over, sum, err := shippedOverlays(host, agents, "hello", "hello/one")
+	over, sum, files, err := shippedOverlays(host, agents, "hello", "hello/one")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(over) != 1 || sum == "" || over[0].Dst != filepath.Join(agents, "hello", "settings.json") {
 		t.Fatalf("overlays %+v digest %q, want only settings.json", over, sum)
+	}
+	if err := publishOverlays(host, "hello/one", files); err != nil {
+		t.Fatal(err)
 	}
 	work := filepath.Join(root, "work")
 	if err := os.Mkdir(work, 0700); err != nil {
@@ -176,5 +180,144 @@ func TestWritingAnOverrideOfASettingsFileOverTheBusReachesTheMountedFile(t *test
 	json.Unmarshal(raw, &got)
 	if g := string(mustJSON(got)); g != `{"a":1,"c":3}` {
 		t.Fatalf("the file the agent is given holds %s, want {\"a\":1,\"c\":3}", g)
+	}
+}
+
+func TestStagedInstallCannotChangeLiveMergedOverrides(t *testing.T) {
+	r, _, _ := configurationFixture(t, "", "printf old")
+	writeTree(t, r.agents, map[string]string{"fixture/settings.json": `{"value":"live"}`})
+	writeTree(t, r.host, map[string]string{"fixture/settings.json": `{"host":true}`})
+	r.reload()
+	if len(r.installed[0].Over) != 1 {
+		t.Fatal("live overlay was not published")
+	}
+	src := r.installed[0].Over[0].Src
+	before, err := os.ReadFile(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	beforeHash := sha256.Sum256(before)
+	// A valid staging load computes a different digest, but writes nothing.
+	staged := t.TempDir()
+	directoryAgent(t, staged, "fixture", "new")
+	writeTree(t, staged, map[string]string{"fixture/settings.json": `{"value":"staged"}`})
+	list, err := loadSources([]agentSource{{path: staged}}, r.host)
+	if err != nil || len(list) != 1 || list[0].Refused != "" {
+		t.Fatalf("staging load: %+v %v", list, err)
+	}
+	after, err := os.ReadFile(src)
+	if err != nil || sha256.Sum256(after) != beforeHash {
+		t.Fatalf("valid staging changed live merge: %s %v", after, err)
+	}
+	if list[0].Digest == r.installed[0].Digest {
+		t.Fatal("staging did not compute its own digest")
+	}
+	// The real install staging path rejects a package dropping the shipped file.
+	r.bundled = t.TempDir()
+	directoryAgent(t, r.bundled, "fixture", "new")
+	if err := r.installPackage(context.Background(), "install --replace fixture"); err == nil || !strings.Contains(err.Error(), "does not ship") {
+		t.Fatalf("package dropping an overridden file was not refused: %v", err)
+	}
+	after, err = os.ReadFile(src)
+	if err != nil || sha256.Sum256(after) != beforeHash {
+		t.Fatalf("refused install destroyed live merged file or changed digest: %s %v", after, err)
+	}
+}
+
+func TestOverlayValidationWritesNothingAndApplyReplacesCompleteMerge(t *testing.T) {
+	r, _, _ := configurationFixture(t, "", "printf old")
+	writeTree(t, r.agents, map[string]string{"fixture/settings.json": `{"value":1}`, "fixture/old.json": `{}`})
+	writeTree(t, r.host, map[string]string{"fixture/settings.json": `{"host":true}`, "fixture/old.json": `{}`})
+	list, err := load(r.agents, r.host)
+	if err != nil || len(list) != 1 || len(list[0].Over) != 2 {
+		t.Fatalf("load: %+v %v", list, err)
+	}
+	if _, err := os.Lstat(filepath.Join(r.host, ".merged")); !os.IsNotExist(err) {
+		t.Fatalf("validation wrote .merged: %v", err)
+	}
+	r.reload()
+	src := r.installed[0].Over[1].Src
+	if filepath.Base(src) != "settings.json" {
+		t.Fatalf("unexpected overlay order: %s", src)
+	}
+	writeTree(t, r.agents, map[string]string{"fixture/settings.json": `{"value":2}`})
+	if err := os.Remove(filepath.Join(r.host, "fixture", "old.json")); err != nil {
+		t.Fatal(err)
+	}
+	r.reload()
+	data, err := os.ReadFile(src)
+	if err != nil || !strings.Contains(string(data), `"value": 2`) {
+		t.Fatalf("replacement not published: %s %v", data, err)
+	}
+	if _, err := os.Stat(filepath.Join(filepath.Dir(src), "old.json")); !os.IsNotExist(err) {
+		t.Fatalf("replacement retained obsolete merged file: %v", err)
+	}
+}
+
+func TestOverlayApplyDiscardsInterruptedOutputAndRecoversPreviousMerge(t *testing.T) {
+	r, _, _ := configurationFixture(t, "", "printf old")
+	writeTree(t, r.agents, map[string]string{"fixture/settings.json": `{"value":1}`})
+	writeTree(t, r.host, map[string]string{"fixture/settings.json": `{}`})
+	r.reload()
+	src := r.installed[0].Over[0].Src
+	target := filepath.Dir(src)
+	before, err := os.ReadFile(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parent := filepath.Dir(target)
+	stage := filepath.Join(parent, ".files.merge-interrupted")
+	writeTree(t, stage, map[string]string{"settings.json": `{"partial":true}`})
+	if err := os.Rename(target, filepath.Join(parent, ".files.previous")); err != nil {
+		t.Fatal(err)
+	}
+	// Even a newly refused key must recover its old files and discard stale output.
+	writeTree(t, r.host, map[string]string{"fixture/missing.json": `{}`})
+	r.reload()
+	if !strings.Contains(r.installed[0].Refused, "does not ship") {
+		t.Fatalf("expected refused merge: %+v", r.installed[0])
+	}
+	got, err := os.ReadFile(src)
+	if err != nil || string(got) != string(before) {
+		t.Fatalf("interrupted publication lost previous merge: %s %v", got, err)
+	}
+	if _, err := os.Lstat(stage); !os.IsNotExist(err) {
+		t.Fatalf("stale merge output retained: %v", err)
+	}
+}
+
+func TestFailedOverlayBuildLeavesPreviousMergeUntouched(t *testing.T) {
+	host := t.TempDir()
+	if err := publishOverlays(host, "hello", []overlayFile{{name: "settings.json", body: []byte("old")}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := publishOverlays(host, "hello", []overlayFile{{name: "settings.json", body: []byte("new")}, {name: "absent/file.json", body: []byte("fail")}}); err == nil {
+		t.Fatal("failed merge unexpectedly published")
+	}
+	data, err := os.ReadFile(filepath.Join(host, ".merged", "hello", ".files", "settings.json"))
+	if err != nil || string(data) != "old" {
+		t.Fatalf("failed merge changed previous files: %s %v", data, err)
+	}
+	entries, err := os.ReadDir(filepath.Join(host, ".merged", "hello"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != ".files" {
+		t.Fatalf("failed build left temporary output: %v", entries)
+	}
+}
+
+func TestAgentAndInstanceOverlayPublicationStayIndependent(t *testing.T) {
+	host := t.TempDir()
+	for _, key := range []string{"hello/files", "hello"} {
+		if err := publishOverlays(host, key, []overlayFile{{name: "settings.json", body: []byte(key)}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, key := range []string{"hello", "hello/files"} {
+		data, err := os.ReadFile(filepath.Join(host, ".merged", filepath.FromSlash(key), ".files", "settings.json"))
+		if err != nil || string(data) != key {
+			t.Fatalf("publishing another key changed %s: %s %v", key, data, err)
+		}
 	}
 }

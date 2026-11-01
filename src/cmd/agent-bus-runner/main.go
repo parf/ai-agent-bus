@@ -246,8 +246,19 @@ func (r *runner) reload() {
 // down stopped. It holds reloadMu.
 func (r *runner) apply() {
 	list, err := loadSources(r.sources(), r.host)
+	if recoveryErr := recoverOverlays(r.host); recoveryErr != nil {
+		err = recoveryErr
+	}
+	if err != nil {
+		list = nil
+	}
 	for i := range list {
 		list[i].Stopped = r.stopped[list[i].Key]
+		if list[i].Refused == "" {
+			if err := publishOverlays(r.host, list[i].Key, list[i].overlayFiles); err != nil {
+				list[i].Refused = fmt.Sprintf("publish merged overrides: %v", err)
+			}
+		}
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()

@@ -160,6 +160,10 @@ func TestBundledInstancesAndOverridesKeepTheirHostPaths(t *testing.T) {
 			if len(in.Over) != 1 {
 				t.Fatalf("missing shipped override: %+v", in)
 			}
+			// Loading validates only; apply owns publication.
+			if err := publishOverlays(host, in.Key, in.overlayFiles); err != nil {
+				t.Fatal(err)
+			}
 			data, err := os.ReadFile(in.Over[0].Src)
 			var got map[string]int
 			if err != nil || json.Unmarshal(data, &got) != nil || got["a"] != 2 {
