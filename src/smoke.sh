@@ -4310,12 +4310,16 @@ agent_qdrant() {
 
 agent_rag() {
   if normal; then
-    sec "RAG core, prompt cache and disposable bus block identities"
+    sec "RAG core, prompt cache, disposable bus block identities and keyword search on a real Qdrant"
     local out rc
     go build -o "$D/rag-client-fixture" ./clients/fixture || { ok_exit "RAG bus fixture builds" 1; return; }
-    out=$(RAG_BUS_FIXTURE="$D/rag-client-fixture" PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/rag -p 'test_*.py' -v 2>&1); rc=$?
+    # The real-Qdrant check starts a container like the database proxy's fixtures: under the same journal-quiet wrapper (J32),
+    # bounded so a missing podman fails instead of hanging, and its own run's containers are counted by label at the end.
+    out=$(RAG_BUS_FIXTURE="$D/rag-client-fixture" PYTHONDONTWRITEBYTECODE=1 timeout 300 ./journal-quiet.sh ab-db-fixture python3 -m unittest discover -s agents/rag -p 'test_*.py' -v 2>&1); rc=$?
     echo "$out" | sed 's/^/  /'
-    ok_exit "RAG scoped storage, provider preparation, cache and identity" "$rc"
+    ok_exit "RAG scoped storage, provider preparation, cache, identity and BM25 keyword search" "$rc"
+    has "the RAG fixtures wrote nothing to the host journal" "$out" "^journal-quiet: no journal entry for ab-db-fixture$"
+    has "and no container of the RAG run remains" "$out" "RAG fixture containers left: 0"
   else skipped=$((skipped+1)); fi
 }
 
