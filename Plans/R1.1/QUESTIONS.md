@@ -110,3 +110,16 @@ None open: Q191 is [settled](DECISIONS.md#recorded-decisions); [RT23](TODO.md#ag
 
 - M.7: choose the named-host filtering mechanism and approve its format before implementation ([proposal](runner.md#named-hosts)).
 - RT19: decide whether the root runner replaces the standalone starter or sits beside it, the sandbox under each account, and how one person’s agents stay isolated from another’s ([proposal](runner.md#root-runner)).
+
+## Filescan
+
+Open choices for [filescan](filescan.md#questions); each carries a recommendation (💡👾).
+
+| ID | Question | Settled by |
+|---|---|---|
+| Q305 | How a subscriber is fed to RAG, and what a rename is: `sub add … as rag <namespace> <table>` sends rag's own upsert and delete (no bridge agent), and a rename is a delete of the old id plus an upsert of the new. 💡👾 Recommend exactly that: rag has no rename and no other agent would translate. | owner |
+| Q306 | A file over the inline limit (32 KiB, rag's text cap). Skip it and say so in `status`, or send it by bigfile reference. 💡👾 Recommend skip-and-report for `as rag` (rag cannot take a reference), and bigfile by hash only for a generic subscriber that opts in; separately ask whether rag should accept a bigfile reference, as its own item, if big notes matter. | owner |
+| Q307 | A subscriber added later: start from now, or replay the existing files. 💡👾 Recommend from now by default, and `replay:true` capped by `max_per_scan`, because a replay into RAG is paid. | owner |
+| Q308 | May the system runner serve a path outside any person's home. 💡👾 Recommend no in this item: the user-account runner only, so a vault is read as its owner; a system path is a later, separate decision. | owner |
+| Q309 | Is the read-only bind of one directory (F0) part of this item, as a general runner feature (an agent setting `dir`), or a filescan-only special case. 💡👾 Recommend the general feature, small, with the checks the plan lists (real path, no symlink out, refuse `/`, the home root and the runner state directory). | owner |
+| Q310 | The shared subscription rule sends once and never retries; filescan keeps a change pending and sends it again until confirmed. 💡👾 Recommend the difference, with retries on the next tick and an alert after a configured number of failures, because a file index that drops a change is wrong silently. | owner |

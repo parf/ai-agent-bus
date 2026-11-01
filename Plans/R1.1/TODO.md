@@ -164,3 +164,23 @@ Proposals to prioritize after the minimum. RT11 RW10–RW17 only, moved by Q299;
 
 - ☐ MAC.3 Sandbox: [proposal](macos.md#mac3-sandbox); deferred, built only if the owner asks.
   - Acceptance: mirrors the Linux profiles; a mutant that lets a denied access through fails the owning assertion.
+
+## Filescan
+
+Owner, 2026-11-01; plan in [filescan](filescan.md#steps-and-estimate), owner choices in [decisions](DECISIONS.md#recorded-decisions), open [Q305–Q310](QUESTIONS.md#filescan). Plan only: no code until the owner approves the plan.
+
+- ☐ FS.1 `#filescan/<name>`: a runner agent that tracks new, changed, deleted and renamed files in one directory and hands them to subscribed agents, by polling, by inotify, or both ([modes](filescan.md#modes)); steps F0–F4 with an estimate of four to six hours of agent time
+  - Depends: RT31 (user-account runner, landed); F0 adds a read-only bind of one directory to the runner
+  - Acceptance, each against a fixture directory and a fake subscriber, never the live bus:
+    - **Poll:** a created, changed, renamed and deleted file are each sent once; a `touch` with the same content sends nothing; a file made and removed between two scans sends nothing
+    - **Watch:** a file written and closed is sent within one second of the close; a rename inside the tree is one `renamed` change; an overflow (forced by a tiny queue) triggers a rescan that finds the missed file; with the watch limit set to one, the agent watches that directory, polls the rest, and `status` says so
+    - **Both:** the same file arriving by watch and by poll is sent once
+    - **Confirm:** a subscriber that never replies keeps its changes pending and receives them again; a second subscriber is not held up; a file is marked tracked only after the ok reply
+    - **State:** killed between the temporary file and the rename, the old state loads and no truncated file exists; at `state_max` the scan is refused with the `state full` text and the file is byte-identical
+    - **One scan:** a second scan started during a walk is refused by the lock
+    - **Mass delete:** with `dir` unmounted, missing, or emptied past `delete_pct`, no delete is sent on either path, `status` names the guard, and `scan confirm:true` releases it
+    - **Authority:** `sub add` and each forward need the author's may-send, a target that does not admit `#filescan` is refused, and the per-creator and total caps hold, as in [IMAP](../../docs/agents/imap.md#who-may-use-it)
+    - **Host:** `dir` through a symlink leading out, `/`, the home root and the runner state directory are refused; the agent cannot write inside `dir`; inotify events arrive for a path bound read-only into the sandbox
+    - **RAG form:** `as rag` sends upsert and delete with the path as id (hash over 128 characters), a rename is delete then upsert, and nothing is tracked on a refusal
+    - **First run:** `baseline:true` sends nothing for existing files; `max_per_scan` caps one scan and `status` shows the backlog
+  - Mutants (each must compile and fail on an assertion): send deletes while the guard is held; skip the `dir` symlink and root refusals; write the state in place instead of rename; mark tracked before the reply; drop the cookie pairing; ignore the overflow; drop the lock; ignore `state_max`
