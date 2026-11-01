@@ -205,7 +205,9 @@ func TestBigUnavailableStoreIsABusErrorCarryingTheCause(t *testing.T) {
 
 func TestBigPutOfALargeBodyReportsAnEarlyRefusalNotAResetConnection(t *testing.T) {
 	for _, status := range []int{403, 413, 503} {
+		var expect atomic.Value
 		b := bigServer(t, func(w http.ResponseWriter, r *http.Request) {
+			expect.Store(r.Header.Get("Expect"))
 			// Refuse without reading the body, as the daemon does for a record or limit.
 			w.WriteHeader(status)
 			fmt.Fprintf(w, `{"error":"refused early: %d"}`, status)
@@ -216,6 +218,9 @@ func TestBigPutOfALargeBodyReportsAnEarlyRefusalNotAResetConnection(t *testing.T
 			var be *BusError
 			if !errors.As(e, &be) || be.Status != status || !strings.Contains(be.Message, "refused early") {
 				t.Fatalf("%d try %d: %v", status, try, e)
+			}
+			if expect.Load() != "100-continue" {
+				t.Fatalf("a large put did not ask to be told to continue: %v", expect.Load())
 			}
 		}
 	}
