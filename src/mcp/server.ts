@@ -325,7 +325,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (req, extra) => {
   return (await read(bus, req.params.uri, extra.signal)) as never;
 });
 
-server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
+const callTool = async (req: { params: { name: string; arguments?: Record<string, unknown> } }, extra: { signal: AbortSignal }): Promise<any> => {
   const args = (req.params.arguments ?? {}) as Record<string, unknown>;
   try {
     await refreshSession();
@@ -525,6 +525,19 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
     const msg = err instanceof BusError ? `bus said ${err.status}${err.kind ? " (" + err.kind + ")" : ""}: ${err.message}` : String(err);
     return text(msg, true);
   }
+};
+
+// A daemon older than this face is told to the model once, where it reads: the first tool result after the
+// version check found it. stderr already has the warning, which the model never sees.
+const tooOldNote = "note: the bus daemon is older than this tool's protocol; some calls may be refused as 'daemon too old for ...'.";
+let toldTooOld = false;
+server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
+  const result = await callTool(req, extra);
+  if (bus.daemonOld && !toldTooOld) {
+    toldTooOld = true;
+    return { ...result, content: [...result.content, { type: "text" as const, text: tooOldNote }] };
+  }
+  return result;
 });
 
 // The low-level Server does not enforce the schema it advertises, so a

@@ -12,10 +12,10 @@ type Handler = (req: Request, url: URL) => Response | Promise<Response>;
 const cleanup: (() => unknown)[] = [];
 afterEach(async () => { for (const f of cleanup.splice(0).reverse()) await f(); });
 
-async function face(route: Handler, env: Record<string, string> = {}, more?: (port: number) => Record<string, string>) {
+async function face(route: Handler, env: Record<string, string> = {}, more?: (port: number) => Record<string, string>, identity: object = {protocol:1,protocol_min:1}) {
   const daemon = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: (req) => {
     const url = new URL(req.url);
-    if (url.pathname === "/identity") return Response.json({protocol:1,protocol_min:1});
+    if (url.pathname === "/identity") return Response.json(identity);
     if (url.pathname === "/ls") return Response.json([]);
     if (url.pathname === "/register") return Response.json({ name: "#face@test", kind: "agent", owner: "o" });
     return route(req, url);
@@ -488,4 +488,27 @@ test('MCP tool errors surface refusal kind and cause',async()=>{
  const {call}=await face((_req,url)=>url.pathname==='/send'?Response.json({error:'store unavailable',kind:'unavailable'},{status:503}):new Response(null,{status:204}));
  const got=await call('ab_send',{to:'#peer@test',text:'fixture'});
  expect(got.isError).toBe(true);expect(got.text).toContain('unavailable');expect(got.text).toContain('store unavailable');expect(got.text).toContain('503');
+});
+
+// A daemon older than this face (C1's version check) says so where the model reads it: once, in a tool
+// result; stderr keeps the warning, and a compatible daemon adds nothing.
+const tooOld = "bus daemon is older than this tool";
+const warned = "daemon too old: protocol is older than this client";
+const queued: Handler = () => Response.json(message);
+
+test("a too-old daemon's warning reaches the model once, in a tool result, and stderr keeps it", async () => {
+  const { call, stderr } = await face(queued, {}, undefined, {});
+  const first = await call("ab_consume", { wait: "0s" });
+  expect(first.text).toContain("queued-body");
+  expect(first.text).toContain(tooOld);
+  const second = await call("ab_consume", { wait: "0s" });
+  expect(second.text).not.toContain(tooOld);
+  expect(stderr.join("")).toContain(warned);
+});
+
+test("a compatible daemon adds nothing to a tool result", async () => {
+  const { call, stderr } = await face(queued);
+  const got = await call("ab_consume", { wait: "0s" });
+  expect(got.text).not.toContain(tooOld);
+  expect(stderr.join("")).not.toContain(warned);
 });

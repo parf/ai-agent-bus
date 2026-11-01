@@ -91,6 +91,8 @@ export class Bus {
   #ca?: Promise<string>;
   #protocolFlight?: Promise<void>;
   #daemonOld = false;
+  /** True once the daemon's identity said its protocol is older than this client's. */
+  get daemonOld(): boolean { return this.#daemonOld; }
 
   constructor(env = process.env, allowLocal = false) {
     this.name = (env.AGENT_BUS_NAME || defaultName(env)).trim().toLowerCase();
