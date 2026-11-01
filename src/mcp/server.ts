@@ -529,7 +529,7 @@ const callTool = async (req: { params: { name: string; arguments?: Record<string
 
 // A daemon older than this face is told to the model once, where it reads: the first tool result after the
 // version check found it. stderr already has the warning, which the model never sees.
-const tooOldNote = "note: the bus daemon is older than this tool's protocol; some calls may be refused as 'daemon too old for ...'.";
+const tooOldNote = "[agent-bus MCP face, not part of any message] the bus daemon is older than this tool's protocol; some calls may be refused as 'daemon too old for ...'.";
 let toldTooOld = false;
 server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
   const result = await callTool(req, extra);

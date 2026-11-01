@@ -34,7 +34,7 @@ async function face(route: Handler, env: Record<string, string> = {}, more?: (po
   cleanup.push(() => client.close());
   const call = async (name: string, args: Record<string, unknown>, signal?: AbortSignal) => {
     const r = await client.callTool({ name, arguments: args }, undefined, signal ? { signal } : undefined) as { content: { text: string }[]; isError?: boolean };
-    return { text: r.content.map((c) => c.text).join("\n"), isError: !!r.isError };
+    return { text: r.content.map((c) => c.text).join("\n"), blocks: r.content.map((c) => c.text), isError: !!r.isError };
   };
   return { call, stderr, notifications, pid: transport.pid };
 }
@@ -501,6 +501,13 @@ test("a too-old daemon's warning reaches the model once, in a tool result, and s
   const first = await call("ab_consume", { wait: "0s" });
   expect(first.text).toContain("queued-body");
   expect(first.text).toContain(tooOld);
+  // The note is the face's own, in a block of its own, after the peer's body and labelled as not part of it.
+  expect(first.blocks.length).toBeGreaterThan(1);
+  const note = first.blocks[first.blocks.length - 1]!;
+  expect(note.startsWith("[agent-bus MCP face, not part of any message]")).toBe(true);
+  expect(note).toContain(tooOld);
+  expect(first.blocks.slice(0, -1).join("\n")).toContain("queued-body");
+  expect(first.blocks.slice(0, -1).join("\n")).not.toContain(tooOld);
   const second = await call("ab_consume", { wait: "0s" });
   expect(second.text).not.toContain(tooOld);
   expect(stderr.join("")).toContain(warned);

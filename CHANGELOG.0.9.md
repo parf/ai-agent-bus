@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.277 — 2026-11-01
+
+The MCP face tells the model once, in a labeled note on the first tool result, when the bus daemon is older than its protocol
+
 ## 0.9.276 — 2026-11-01
 
 Agent installs publish merged overrides from a read-only stage by an atomic directory exchange, with per-key crash recovery
