@@ -150,3 +150,23 @@ agent-bus kv set --add jobs@team result/img-1 "done:42"                   # a re
 
 - What the store is not: a message queue — nothing wakes a waiting worker, so a worker that finds `todo` empty waits for a message, not a tight loop — and not a database: no queries, only names and top-level keys.
 - A value is small (see the [limits](#rules)), so large results go elsewhere and the store keeps where.
+
+## Big keys
+
+A big key is a named value of up to 32 MiB that is passed by name instead of inside a message. It is not a fourth kind of the store above: it is held in a private file (or, on request, in daemon memory), never in a queue or the database, and always expires.
+
+| Rule | |
+|---|---|
+| Who may put, replace and delete | the record's Owner, Maintainers and own Agent, as for the store |
+| Who may get and list | the same, and whoever the record's allow list admits. The daemon's own `#bus` record admits nobody |
+| Limits | a name is 1 to 256 bytes of UTF-8; at most 32 MiB per key, 256 MiB and 100 keys per record, 1 GiB in the daemon; a put of no bytes is refused |
+| Lifetime | every key expires: 24 hours by default, 1 second to 30 days by `ttl`; expired keys are never returned and their files are removed within a minute |
+| Held | in a file by default, written whole, synced and renamed into place, so a crash leaves a key whole or absent; `memory=true` keeps it in memory, lost at a restart |
+| The record's life | removing the record removes its big keys; a transfer keeps them; keys of a record removed while the daemon was down are removed at start |
+| Backups | the files live in `big-keys/` beside the database; a database backup and a record export never include them, and a restore starts with none |
+| Integrity | a put answers the size and SHA-256 of what was stored, and refuses bytes that do not match an `X-Big-Sha256` header; a get carries the hash in `X-Big-Sha256` |
+
+The API: `PUT /big?record=<name>&name=<key>&ttl=<seconds>&memory=<true|false>` with the raw bytes as the body; `GET /big?record=&name=` streams the bytes; `GET /big/list?record=` answers each key's name, size, sha256, held and expires; `POST /big/delete` takes `record` and `name`. An existing name is replaced and the answer says `replaced`. Over a limit is 413, a refusal by authority 403, an absent key or record 404.
+
+Bytes are readable by the daemon and are not encrypted at rest ([trust boundary](02-access.md#trust-boundary)); the file mode is 0600 in a 0700 directory. The plan is [big keys](../Plans/R1.0-Release/big-keys.md#help-text).
+

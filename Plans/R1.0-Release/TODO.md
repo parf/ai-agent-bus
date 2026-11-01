@@ -416,7 +416,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Acceptance: [the plan's acceptance](imap-large-transfer.md#acceptance-for-the-todo-item)
   - Mutants: [the plan's list](imap-large-transfer.md#acceptance-for-the-todo-item)
 
-- ⏳ B.32 Big keys — **approved 2026-11-01 11:05**; stage 2a (API and memory holder) in progress, 2b the file holder. [Plan](big-keys.md#help-text); [decision](DECISIONS.md#recorded-decisions)
+- ⏳ B.32 Big keys — **approved 2026-11-01 11:05**; API and file/memory holders built (stage 2); CLI, clients, MCP, web and IMAP in progress. [Plan](big-keys.md#help-text); [decision](DECISIONS.md#recorded-decisions)
   - Builds: a bus store of named big values in memory or a file, with `big put|get|ls|rm`; Maintainers upload and download, allow-list principals download only; IMAP `part --big` and `append --big` use it
   - Depends: the key-value store; B.30 steps 2 and 4 for the IMAP part
   - Acceptance: [the plan's acceptance](big-keys.md#acceptance-for-the-todo-item)

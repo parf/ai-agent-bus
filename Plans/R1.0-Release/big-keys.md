@@ -1,7 +1,7 @@
 # Big keys
 
 📌 **TL;DR:**
-- **Approved 2026-11-01 11:05, all recommendations accepted** ([B.32](TODO.md#bundled-agents), [decision](DECISIONS.md#recorded-decisions)). Stage 2a (API and a memory holder) is built; the file holder follows in 2b.
+- **Approved 2026-11-01 11:05, all recommendations accepted** ([B.32](TODO.md#bundled-agents), [decision](DECISIONS.md#recorded-decisions)). Built: the API and the file and memory holders ([guide](../../docs/03-records-kv.md#big-keys)); the CLI, clients, MCP and web follow.
 - **Idea (owner, 2026-11-01):** a named value too big for a message lives in the bus, in memory or in a file. Agents pass the key name instead of the body.
 - **Access:** the record's Maintainers upload, download and delete; principals its allow list admits download only.
 - **Release:** R1. It extends the R1 [key-value store](done/kv.md#per-record-storage), a shared extension of the same release, and the [IMAP agent](imap-folders.md#help-text) needs it now; R1.1 storage backends and encryption are separate work this does not wait for.
