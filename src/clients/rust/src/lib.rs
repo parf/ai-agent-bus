@@ -458,7 +458,7 @@ impl Bus {
     pub fn name(&self) -> &str {
         &self.inner.name
     }
-    /// Warnings raised at connect, such as "daemon too old for this client".
+    /// Warnings raised at connect, such as "daemon too old: protocol is older than this client".
     pub fn warnings(&self) -> Vec<String> {
         self.inner.warnings.lock().unwrap().clone()
     }

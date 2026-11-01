@@ -67,7 +67,7 @@ public final class Bus implements AutoCloseable {
     }
 
     /**
-     * What the client warned about at its first call, such as "daemon too old for this client". A
+     * What the client warned about at its first call, such as "daemon too old: protocol is older than this client". A
      * daemon older than the client still serves; a client older than the daemon's protocol_min is
      * refused with {@link BusException.DaemonTooNewException}.
      */

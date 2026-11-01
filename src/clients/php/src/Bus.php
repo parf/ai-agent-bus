@@ -48,8 +48,8 @@ final class Bus
     }
 
     /**
-     * What the client warned about at its first call, such as "daemon too old
-     * for this client". A daemon older than the client still serves; a client
+     * What the client warned about at its first call, such as "daemon too old:
+     * protocol is older than this client". A daemon older than the client still serves; a client
      * older than the daemon's protocol_min is refused with DaemonTooNew.
      *
      * @return list<string>
