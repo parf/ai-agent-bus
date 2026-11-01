@@ -25,3 +25,18 @@ Each of the five too-new guards was independently removed under the slow lock. A
 - MCP: exact normal rpc-unit command list, 177/0 in 17.65 s; it includes the face protocol tests and launcher endpoint diagnostic update. A standalone MCP typecheck still reports the same two `rename-smoke.ts:176–177` possibly-undefined errors on untouched main; no new type errors were introduced. It is not the normal rpc-unit command.
 
 The first added identity request changes fake-daemon expectations: old fixtures now answer protocol 1 before their scenario, certificate tests count both identity and caller-status requests, and the unavailable-socket diagnostic names `/identity`. These fixture updates do not skip application assertions.
+
+## Gate integration repair
+
+The first gate (log `tmp/gate-logs/20261101-145056-T-24.log`) failed four owning checks twice. Each was reproduced before the repair:
+
+| Check | Red cause | Repair and full owning shard |
+|---|---|---|
+| `go_unit` | `TestEveryFileTheAgentPackagerWritesIsInTheBundleContract` named seven unlisted Python `protocol.py` copies | All independent bundle/runtime inventories include the module; vet and race pass, 37.372 s |
+| `process_titles` | Before + 5 expected, before + 7 observed | Three refused curl requests, then two distinct CLI processes each making one identity probe and one status request; shard passes, 7.872 s |
+| `client_examples` | Go example fake reported `unexpected request /identity` | Fake supplies current protocol before the inventory operation; full examples shard passes, 19.838 s, PHP journal unchanged |
+| `agent_subscriptions` | Admission fake refused identity, producing four failed delivery assertions | Fake supplies current protocol and permits the read-only identity route in its request inventory; full subscription shard passes, 4.464 s |
+
+The two status client processes in the passing process-title run were the ordinary shared-socket `agent-bus status` (PID 129827) and `AGENT_BUS_ADDR=<fixture user socket> AGENT_BUS_TOKEN= agent-bus status` (PID 130166). Intermediate title counts isolate each one's two requests; the replacement-daemon status process likewise has an identity request plus status. These are fixture PIDs, not live-node actions.
+
+`TestCLIProtocolHandshake` now makes two application calls through one client and asserts one `/identity` probe. Disabling the cache fails three assertions with `one process probed identity 2 times` and paths `/identity /status /identity /status`; restored check passes. The changed process counts do not hide per-call probing. All four full owning shards ran under the slow lock, then it was released. No whole normal gate was run by the worker.

@@ -244,7 +244,8 @@ class Delivery(unittest.TestCase):
             def do_GET(self):
                 path=urlsplit(self.path);q=parse_qs(path.query)
                 fixture.calls.append((path.path,q,self.headers.get('X-Agent-Bus-Token')))
-                if path.path=='/status':self.answer(200,{'you':'#eventlog@fixture.test'})
+                if path.path=='/identity':self.answer(200,{'protocol':1,'protocol_min':1})
+                elif path.path=='/status':self.answer(200,{'you':'#eventlog@fixture.test'})
                 elif path.path=='/may-send':
                     if fixture.slow:
                         if not fixture.authority_seen.is_set():
@@ -285,7 +286,7 @@ class Delivery(unittest.TestCase):
         self.assertEqual((row['sent'],row['dropped']),(1,1))
         self.assertFalse(self.engine.processes)
         self.assertTrue(all(token=='fixture-secret' for _,_,token in self.calls))
-        self.assertTrue(all(path in ('/status','/may-send','/lookup','/send') for path,_,_ in self.calls),'helper must not register, unregister or consume')
+        self.assertTrue(all(path in ('/identity','/status','/may-send','/lookup','/send') for path,_,_ in self.calls),'helper must not register, unregister or consume')
     def test_revoked_creator_to_target_or_source_prevents_delivery(self):
         self.refuse=False
         for target in ('dest@fixture.test','#eventlog@fixture.test'):

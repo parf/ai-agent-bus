@@ -59,6 +59,11 @@ func TestCLIProtocolHandshake(t *testing.T) {
 			previous := os.Stderr
 			os.Stderr = write
 			_, _, err := callCtx(context.Background(), "GET", "/status", nil, nil)
+			if c.want == "" {
+				if _, _, again := callCtx(context.Background(), "GET", "/status", nil, nil); again != nil {
+					t.Fatal(again)
+				}
+			}
 			write.Close()
 			os.Stderr = previous
 			warning, _ := io.ReadAll(read)
@@ -74,6 +79,15 @@ func TestCLIProtocolHandshake(t *testing.T) {
 				}
 			} else if err != nil {
 				t.Fatal(err)
+			}
+			probes := 0
+			for _, path := range paths {
+				if path == "/identity" {
+					probes++
+				}
+			}
+			if probes != 1 {
+				t.Fatalf("one process probed identity %d times for paths %v", probes, paths)
 			}
 			if paths[0] != "/identity" {
 				t.Fatalf("handshake omitted: %v", paths)

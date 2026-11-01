@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.266 — 2026-11-01
+
+Clients, CLI and MCP check the daemon protocol through /identity: a too-new daemon fails, a too-old daemon warns, and removed routes report no_route
+
 ## 0.9.265 — 2026-11-01
 
 RAG keyword search: BM25 `search` that returns only live record revisions, and `keyword_index` to add and backfill the keyword index in place

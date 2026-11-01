@@ -64,11 +64,20 @@ for _ in {1..3}; do
   same "refused request reaches the bus" \
     "$(curl -s --max-time 2 --unix-socket "$D/bus.sock" -o /dev/null -w '%{http_code}' http://unix/status)" 401
 done
-"$BIN/agent-bus" status >/dev/null
-AGENT_BUS_ADDR="$D/user-$(id -un).sock" AGENT_BUS_TOKEN= "$BIN/agent-bus" status >/dev/null
-await_title "bus counts accepted and refused requests on both socket kinds" "$BUS" "agent-busd $VERSION ; Calls: $((before+5)) ; bus"
+# Each status command below is a distinct process: one public /identity
+# handshake and one /status, in addition to the three refused curl requests.
+"$BIN/agent-bus" status >/dev/null &
+SHARED_STATUS_CLIENT=$!
+wait "$SHARED_STATUS_CLIENT"
+await_title "shared-socket CLI probes identity once then asks status" "$BUS" "agent-busd $VERSION ; Calls: $((before+5)) ; bus"
+AGENT_BUS_ADDR="$D/user-$(id -un).sock" AGENT_BUS_TOKEN= "$BIN/agent-bus" status >/dev/null &
+USER_STATUS_CLIENT=$!
+wait "$USER_STATUS_CLIENT"
+[ "$SHARED_STATUS_CLIENT" != "$USER_STATUS_CLIENT" ] || fail "status clients are distinct processes"
+echo "  ok   separate status client pids: shared=$SHARED_STATUS_CLIENT user=$USER_STATUS_CLIENT"
+await_title "user-socket CLI probes identity once then asks status" "$BUS" "agent-busd $VERSION ; Calls: $((before+7)) ; bus"
 sleep 1.1
-same "idle bus does not invent calls" "$(title "$BUS")" "agent-busd $VERSION ; Calls: $((before+5)) ; bus"
+same "idle bus does not invent calls" "$(title "$BUS")" "agent-busd $VERSION ; Calls: $((before+7)) ; bus"
 
 # Title rewriting must preserve both the command flags and inherited env
 # when the supervisor replaces its child. A process lifetime starts at zero.
@@ -82,7 +91,7 @@ done
 [ -n "$NEW" ] && [ "$NEW" != "$BUS" ] || fail "supervisor replaces its bus"
 await_title "replacement bus resets its calls" "$NEW" "agent-busd $VERSION ; Calls: 0 ; bus"
 timeout 5 "$BIN/agent-bus" status >/dev/null
-await_title "replacement bus still serves the inherited socket" "$NEW" "agent-busd $VERSION ; Calls: 1 ; bus"
+await_title "replacement bus serves one identity probe and status on the inherited socket" "$NEW" "agent-busd $VERSION ; Calls: 2 ; bus"
 
 # The owner is a User; the agent's own ACL admitting it is what lets the reply in.
 "$BIN/agent-bus" run '#title@test' --allow owner@test --algo args 'printf "%s"' -4 >"$D/runner.log" 2>&1 &

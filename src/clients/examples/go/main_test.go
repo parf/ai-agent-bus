@@ -18,6 +18,8 @@ func testWorker(t *testing.T) *worker {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case "/identity":
+			fmt.Fprint(w, `{"protocol":1,"protocol_min":1}`)
 		case "/status":
 			fmt.Fprint(w, `{"you":"#go"}`)
 		case "/kv/inc":
