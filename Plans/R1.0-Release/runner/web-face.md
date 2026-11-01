@@ -126,15 +126,16 @@ RT11 RW10–RW17 moved to [R1.1](../../R1.1/runner-web.md#useful-additions) by o
 - ✅ RW18 (0.8.198) Zero, one and multiple accessible runners exercise distinct pages; one
   - Details: produces 301, including when other runners exist but are inaccessible.
 
-- ⚠️ RW19 Revocation, another signed-in user and a newly added second runner cannot
+- ✅ RW19 Revocation, another signed-in user and a newly added second runner cannot
   - Details: reuse a cached private redirect or expose a runner's name/count. Check both the final 301's `no-store` header and navigation after each change in the same browser; each navigation must consult the current caller's accessible set.
-  - Built: the 301 is decided from the visitor's set on each request and is `no-store`. Partial: no same-browser revocation sequence test.
+  - Built: the 301 is decided from the visitor's set on each request and is `no-store`. `src/web/test/runners.test.ts` "RW19 current caller set…" (`a2ee21cc`) keeps one cookie jar through: bob gets the 301, revocation (no redirect, no runner name in the page), restore, sign-out, carol (no access: no name, no redirect, 404 on the runner's own page), bob again, a second runner (the chooser lists exactly the two rows), and the second removed (the 301 again); every response is `no-store` and each body is checked. Mutants: a cacheable 301, and the runner count taken from every record, both red on that test.
 
 - ✅ RW20 (0.8.198) A `runner`-tagged ordinary task never appears as a runner by itself.
 
-- ⚠️ RW21 Read-only callers can observe permitted status but forged action posts
+- ✅ RW21 Read-only callers can observe permitted status but forged action posts
   - Details: cannot start/stop work or change metadata, secrets or configuration.
-  - Built: the face adds no action beyond the runner's own verbs, each called as the visitor under the runner's ACL. Partial: who may reload is the runner's ACL, not a read-only role.
+  - Built: the face adds no action beyond the runner's own verbs, each called as the visitor. Read-only means see-without-use, and there is no new role: anyone the daemon lets send to the runner can read its status, but only the runner's Owner and Maintainers may use the managing verbs (`reload`, `start`, `stop`, `restart`, `enable`, `disable`, `read`, `write`, `create`, `delete`, `install`, `remove`), and the runner refuses everyone else (`agent-bus-runner` `main.go`, the `managing` map).
+  - Evidence: `runners.test.ts` "RW21 a visitor who may see the runner…" posts start, stop, restart, enable, disable and reload directly as a visitor: each reaches the runner once as the visitor, the page says it was not carried out with the runner's refusal and never says it worked, the fake runner carried out nothing, and the runner's page still lists its agents; the same posts as the Owner do reach the verb. That test's refusal is the fake runner's copy of the rule, so "the fake runner's managing verbs are the real runner's" fails if the two lists drift. At the real runner, the smoke runner section has a caller the ACL admits (not a Maintainer) send `reload`, `start` and `restart`: each is refused, the agent the Owner stopped stays stopped (a reload would serve it again) and answers nothing, and the Owner's own `start` still works.
 
 - ✅ RW22 (0.8.198) Runner access alone cannot reveal another agent's private ENV/config.
   - Details: the record's bus Secret and configuration. The host's env files are the runner's own, readable to whoever its ACL admits ([№RD101](../DECISIONS.md#recorded-decisions)).
@@ -146,12 +147,12 @@ RT11 RW10–RW17 moved to [R1.1](../../R1.1/runner-web.md#useful-additions) by o
   - Details: behavior; toggling registry status alone cannot satisfy the check.
   - Built: smoke checks a stopped agent answers nothing while its sibling does, a restart replaces a kept agent's processes, and a stop lasts only until reload.
 
-- ⚠️ RW25 Agent links reach the existing detail/edit flow and return to the runner.
+- ✅ RW25 Agent links reach the existing detail/edit flow and return to the runner.
   - Details: Verify return navigation through detail, edit, save and validation failure; a forged external return destination must still use the safe fallback. Runner pages introduce no duplicate metadata, ENV or JSON editor and do not fetch private values merely to display inventory.
-  - Built: the detail page returns to the runner and a forged return falls back. Partial: edit, save and validation-failure returns are admitted by the same allowlist but not each tested.
+  - Built: the detail page returns to the runner and a forged return falls back. `runners.test.ts` "RW25 runner return survives detail, edit, save and validation failure" and "RW25 forged external return stays out of edit, validation and save" (`a2ee21cc`) follow the rendered Edit link and its hidden return through a validation failure, a successful save and the final detail page, check the daemon's state, and send a forged external return at each step. Mutants: the edit return dropped from the allowlist, and a forged return accepted, both red.
 
 - ✅ RW26 (0.8.198) Unsupported actions cannot silently fall through to host-level commands.
 
-- ⚠️ RW27 Add compiling mutants for access bypass, unfiltered runner counts, false
+- ✅ RW27 Add compiling mutants for access bypass, unfiltered runner counts, false
   - Details: action success and tag-only runner discovery; each must fail its named assertion. Run the full slow gate before implementation ships.
-  - Built: seven mutants (tag or look-alike discovery, no 301, timeout as an empty answer, reload always success, no runner return, hidden agents linked, any record a runner), each failing an assertion in `src/web/test/runners.test.ts`.
+  - Built: seven mutants (tag or look-alike discovery, no 301, timeout as an empty answer, reload always success, no runner return, hidden agents linked, any record a runner), each failing an assertion in `src/web/test/runners.test.ts`.; and, for the access checks, seven more in `runners.test.ts`, each failing an assertion: a cacheable 301 and a runner count taken from every record (RW19), a control's refusal and a reload's refusal shown as success (RW21), the edit return dropped from the allowlist and a forged return accepted (RW25), and the fake runner's verb list drifting from the real one. At the real runner, a production mutant that stops refusing `reload` for a caller who is not a Maintainer fails three smoke checks (the refusal, the agent still stopped, and still silent).

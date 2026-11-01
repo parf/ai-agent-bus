@@ -46,7 +46,7 @@ the 0.8 line; R1 releases as 1.0.0 ([decision](DECISIONS.md#recorded-decisions))
   - State: one-message serving built 0.8.123; M.1, M.2, M.4, M.6a and M.9–M.13 are ✅ in [runner waves](#runner-waves)
   - Depends: [method metadata](done/method-metadata.md#method-metadata); the pool hostname field, now R1 ([where a member says it is](runner-implementation.md#where-a-member-says-it-is))
 
-- ⚠️ RT11 [Runners section in the web face](runner/web-face.md#goal) — status, per-agent controls, host files and instances are built; R1 acceptance stays in the checklist, while [RW10–RW13 and RW15–RW17 move to R1.1; RW14 is built, 0.8.211](../R1.1/TODO.md#runner-web-additions) (Q299)
+- ✅ RT11 [Runners section in the web face](runner/web-face.md#goal) — status, per-agent controls, host files and instances are built, and its R1 acceptance (RW18–RW27) is [met](runner/web-face.md#acceptance-checklist); while [RW10–RW13 and RW15–RW17 move to R1.1; RW14 is built, 0.8.211](../R1.1/TODO.md#runner-web-additions) (Q299)
   - State: the information page and per-agent management page are separate; denied management shows Access denied
   - Home: [Minimum and acceptance checklist](runner/web-face.md#minimum-checklist)
 
