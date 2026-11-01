@@ -27,6 +27,25 @@ Current behaviour: [settings overrides](../../../docs/runner/configuration.md#ov
 | `TestOverlayValidationWritesNothingAndApplyReplacesCompleteMerge` | Validation creates no cache; reload publishes changed contents and removes obsolete merged files |
 | `TestOverlayApplyDiscardsInterruptedOutputAndRecoversPreviousMerge` | Interrupted temporary output is removed, never served; the previous complete merge is restored even when the new key is refused |
 | `TestFailedOverlayBuildLeavesPreviousMergeUntouched` | A failure while building the temporary tree leaves old bytes intact and removes temporary output |
+| `TestFailedOverlayPublicationRestoresPreviousMerge` | A refused publication rename restores the old tree and removes temporary output |
+| `TestOverlayRecoveryDoesNotSweepPublishedFileNames` | Recovery leaves published settings intact even when the filename resembles temporary output |
 | `TestAgentAndInstanceOverlayPublicationStayIndependent` | Publishing the base agent leaves the instance's merged files intact |
 
-Mutation and final runner-suite results are recorded after the locked proof.
+Five production mutants ran under the slow lock, each compiling and failing
+on its owning assertion (no build failures):
+
+| Mutant | Named assertion |
+|---|---|
+| Restore `RemoveAll` in staging validation | `TestStagedInstallCannotChangeLiveMergedOverrides`: `valid staging changed live merge` |
+| Skip apply's interrupted-output recovery | `TestOverlayApplyDiscardsInterruptedOutputAndRecoversPreviousMerge`: `interrupted publication lost previous merge` |
+| Delete live output before building temporary files | `TestFailedOverlayBuildLeavesPreviousMergeUntouched`: `failed merge changed previous files` |
+| Sweep inside published output | `TestOverlayRecoveryDoesNotSweepPublishedFileNames`: `recovery swept published settings` |
+| Skip rollback after a refused publish rename | `TestFailedOverlayPublicationRestoresPreviousMerge`: `failed publication did not restore previous merge` |
+
+All five sources were restored; all seven focused regression tests passed
+(0.017 s), then the lock was released. The final full runner suite passes
+with the race detector (`go test -race ./cmd/agent-bus-runner -count=1
+-timeout 90s`, 33.902 s). The existing real-sandbox settings
+mount test remains in the full runner suite. `go vet` and the Darwin arm64
+cross-build pass. No host deployment was performed; this shipped behaviour
+fix needs a bump at landing.

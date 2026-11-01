@@ -110,6 +110,10 @@ func recoverOverlays(runnerDir string) error {
 			return err
 		}
 		name := entry.Name()
+		// Published files may themselves have names resembling temporary output.
+		if name == ".files" && entry.IsDir() {
+			return filepath.SkipDir
+		}
 		if strings.HasPrefix(name, ".files.merge-") {
 			if err := os.RemoveAll(path); err != nil {
 				return err

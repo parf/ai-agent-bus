@@ -357,3 +357,18 @@ func TestFailedOverlayPublicationRestoresPreviousMerge(t *testing.T) {
 		t.Fatalf("failed publication retained temporary/backup output: %v", entries)
 	}
 }
+
+func TestOverlayRecoveryDoesNotSweepPublishedFileNames(t *testing.T) {
+	host := t.TempDir()
+	name := ".files.merge-author.json"
+	if err := publishOverlays(host, "hello", []overlayFile{{name: name, body: []byte("kept")}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := recoverOverlays(host); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(host, ".merged", "hello", ".files", name))
+	if err != nil || string(data) != "kept" {
+		t.Fatalf("recovery swept published settings: %s %v", data, err)
+	}
+}
