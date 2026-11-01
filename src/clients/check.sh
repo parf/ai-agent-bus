@@ -14,7 +14,7 @@ export TMPDIR=$work
 export GOCACHE=${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/go-build}
 export XDG_CACHE_HOME=$work/cache
 case ${1:-} in
-  python|rust|typescript|go)
+  python|rust|typescript|go|php|java)
     (cd "$root/src" && go build -o "$work/fixture" ./clients/fixture)
     export AB_CLIENT_FIXTURE=$work/fixture AGENT_BUS_FIXTURE_BINARY=$work/fixture
     ;;

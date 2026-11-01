@@ -22,6 +22,31 @@ function vectorBytes(array $step): string
     return $step['value'] ?? '';
 }
 
+/**
+ * The Go fixture daemon (memory-backed, like the other clients' state vectors use), one per case so no case depends on
+ * another and a 10,000-name fill costs memory, not SQLite. [process, pipes, info] with info = {addr, tokens}.
+ */
+function vectorFixture(): array
+{
+    $binary = getenv('AB_CLIENT_FIXTURE') ?: '';
+    $cwd = null;
+    $cmd = [$binary];
+    if ($binary === '') { $cmd = ['go', 'run', './clients/fixture']; $cwd = __DIR__ . '/../../..'; }
+    $proc = proc_open($cmd, [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => STDERR], $pipes, $cwd);
+    check('the Go fixture daemon starts', is_resource($proc));
+    $info = json_decode((string) fgets($pipes[1]), true);
+    check('the fixture daemon announced its address and tokens', is_array($info) && isset($info['addr'], $info['tokens']));
+    return [$proc, $pipes, $info];
+}
+
+function vectorFixtureStop(array $fixture): void
+{
+    [$proc, $pipes] = $fixture;
+    fclose($pipes[0]);
+    fclose($pipes[1]);
+    proc_close($proc);
+}
+
 /** Runs $call under the step's expected refusal. [true, result] when it was meant to succeed; [false, null] after a matched refusal. */
 function vectorStep(string $at, array $step, callable $call): array
 {
@@ -41,10 +66,12 @@ function vectorStep(string $at, array $step, callable $call): array
     return [false, null];
 }
 
-section('shared kv vectors', function () use ($me) {
+section('shared kv vectors', function () {
     foreach (vectorRows('kv') as $n => $case) {
-        $record = "#php-vec-kv$n@localhost";
-        $me->register(['kind' => 'agent', 'name' => $record, 'allow' => ['*']]);
+        $fixture = vectorFixture();
+        $info = $fixture[2];
+        $me = Bus::connect($info['addr'], $info['tokens']['owner@fixture'], 'owner@fixture', 10.0);
+        $record = 'jobs@fixture';
         $kv = $me->record($record)->kv;
         foreach ($case['steps'] as $i => $step) {
             $at = "{$case['id']} step $i {$step['op']} " . ($step['name'] ?? '');
@@ -105,17 +132,18 @@ section('shared kv vectors', function () use ($me) {
                     check("$at: known op", false, $step['op']);
             }
         }
-        $me->record($record)->unregister();
+        vectorFixtureStop($fixture);
     }
 });
 
-section('shared lock vectors', function () use ($me, $owner) {
-    $worker = '#php-vec-worker@localhost';
-    $me->register(['kind' => 'agent', 'name' => $worker, 'allow' => ['*']]);
-    $buses = ['owner' => $me, 'worker' => client($worker)];
-    foreach (vectorRows('locks', ['owner@fixture' => $owner, '#worker@fixture' => $worker]) as $n => $case) {
-        $record = "#php-vec-lock$n@localhost";
-        $me->register(['kind' => 'agent', 'name' => $record, 'allow' => ['*']]);
+section('shared lock vectors', function () {
+    foreach (vectorRows('locks') as $n => $case) {
+        $fixture = vectorFixture();
+        $info = $fixture[2];
+        $worker = '#worker@fixture';
+        $me = Bus::connect($info['addr'], $info['tokens']['owner@fixture'], 'owner@fixture', 10.0);
+        $buses = ['owner' => $me, 'worker' => Bus::connect($info['addr'], $info['tokens'][$worker], $worker, 10.0)];
+        $record = 'jobs@fixture';
         foreach ($case['setup'] ?? [] as $setup) {
             check("setup {$setup} is known", $setup === 'worker-maintains-jobs');
             $me->record($record)->manage(['maintainers' => [$worker]]);
@@ -157,7 +185,7 @@ section('shared lock vectors', function () use ($me, $owner) {
         }
         // The vector held these on purpose; the library only logs a lease left held, and that is not this test's noise.
         foreach ($leases as $lease) { try { $lease->release(); } catch (Throwable) {} }
-        $me->record($record)->unregister();
+        vectorFixtureStop($fixture);
     }
 });
 
