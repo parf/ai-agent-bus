@@ -162,7 +162,7 @@ func TestBigListAndDelete(t *testing.T) {
 			if r.Method != "GET" || r.URL.Query().Get("record") != "#r" {
 				t.Errorf("%s %s", r.Method, r.URL.String())
 			}
-			io.WriteString(w, `{"record":"#r","kind":"big","keys":[{"name":"a","size":1,"sha256":"aa","held":"memory","expires":"2026-11-02T00:00:00Z"},{"name":"b","size":2,"sha256":"bb","held":"file","expires":"2026-11-03T00:00:00Z"}]}`)
+			io.WriteString(w, `{"record":"#r","keys":[{"name":"a","size":1,"sha256":"aa","held":"memory","expires":"2026-11-02T00:00:00Z"},{"name":"b","size":2,"sha256":"bb","held":"file","expires":"2026-11-03T00:00:00Z"}]}`)
 		case "/big/delete":
 			body, _ := io.ReadAll(r.Body)
 			if r.Method != "POST" || !strings.Contains(string(body), `"name":"a"`) || !strings.Contains(string(body), `"record":"#r"`) {
