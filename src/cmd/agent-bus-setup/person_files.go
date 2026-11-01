@@ -178,7 +178,7 @@ func makeAndPublish(parent, stage int, path, name string, uid, gid int, mode uin
 		return -1, false, fmt.Errorf("set the mode of %s: %w", path, err)
 	}
 	beforePublish(stage, tmp, parent, name)
-	switch err := unix.Renameat2(stage, tmp, parent, name, unix.RENAME_NOREPLACE); {
+	switch err := renameNoReplace(stage, tmp, parent, name); {
 	case err == nil:
 		return fd, true, nil
 	case errors.Is(err, unix.EEXIST) || errors.Is(err, unix.ENOTEMPTY):
@@ -210,12 +210,12 @@ func openExisting(parent int, path, name string, uid, gid int, mode uint32) (int
 	if int(st.Gid) != gid {
 		notes = append(notes, fmt.Sprintf("%s has group %d, not %d; left as it is", path, st.Gid, gid))
 	}
-	if st.Mode&0o7777 != mode {
+	if uint32(st.Mode)&0o7777 != mode {
 		if err := unix.Fchmod(fd, mode); err != nil {
 			unix.Close(fd)
 			return -1, nil, fmt.Errorf("set the mode of %s: %w", path, err)
 		}
-		notes = append(notes, fmt.Sprintf("set the mode of %s from %#o to %#o", path, st.Mode&0o7777, mode))
+		notes = append(notes, fmt.Sprintf("set the mode of %s from %#o to %#o", path, uint32(st.Mode)&0o7777, mode))
 	}
 	return fd, notes, nil
 }
@@ -239,10 +239,12 @@ func sweepStale(usersFd int) {
 			continue
 		}
 		var st unix.Stat_t
-		if unix.Fstatat(usersFd, name, &st, unix.AT_SYMLINK_NOFOLLOW) != nil || st.Mode&unix.S_IFMT != unix.S_IFDIR ||
-			int(st.Uid) != personFilesRootUID || time.Since(time.Unix(st.Mtim.Sec, st.Mtim.Nsec)) < staleAfter {
+		if unix.Fstatat(usersFd, name, &st, unix.AT_SYMLINK_NOFOLLOW) != nil || uint32(st.Mode)&unix.S_IFMT != unix.S_IFDIR ||
+			int(st.Uid) != personFilesRootUID || time.Since(modTime(&st)) < staleAfter {
 			continue
 		}
 		unix.Unlinkat(usersFd, name, unix.AT_REMOVEDIR) // only an empty one goes
 	}
 }
+
+func modTime(st *unix.Stat_t) time.Time { return time.Unix(st.Mtim.Sec, st.Mtim.Nsec) }
