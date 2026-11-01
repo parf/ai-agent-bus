@@ -71,6 +71,11 @@ func TestBigKeyRoundTripAnswersAndRefusals(t *testing.T) {
 	if w = bigReq(s, tok("alice@h"), "PUT", put, data, ""); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"replaced":true`) {
 		t.Fatalf("a replace = %d %s", w.Code, w.Body)
 	}
+	// The replace sets a new expiry, a second later when the two puts straddle a second boundary.
+	up.Expires = ""
+	if json.Unmarshal(w.Body.Bytes(), &up) != nil || up.Expires == "" {
+		t.Fatalf("a replace answered no expiry: %s", w.Body)
+	}
 	// An admitted caller downloads the bytes and sees the hash in headers.
 	w = bigReq(s, tok("bob@h"), "GET", "/bigfile?record=%23svc@h&name=file", nil, "")
 	if w.Code != http.StatusOK || !bytes.Equal(w.Body.Bytes(), data) || w.Header().Get("X-Bigfile-Sha256") != hexsum ||
