@@ -54,14 +54,19 @@ class RealKeyword(unittest.TestCase):
     def tearDownClass(cls):
         # Removed here, by name, and then asked for by this run's label: the gate reads the count from the output.
         fixtures.podman('rm','-f','-t','1',cls.name,check=False)
-        left=fixtures.podman('ps','-aq','--filter',f'label=ab-db-fixture={fixtures.RUN}',check=False).stdout.split()
+        listed=fixtures.podman('ps','-aq','--filter',f'label=ab-db-fixture={fixtures.RUN}',check=False)
+        # A failed listing is not "none left": it would print the same zero.
+        if listed.returncode!=0:raise AssertionError(f'podman ps failed ({listed.returncode}): {listed.stderr.strip()[:200]}')
+        left=listed.stdout.split()
         print(f'RAG fixture containers left: {len(left)}')
         if left:raise AssertionError(f'containers of this run remain: {left}')
+    SPARSE=True
     def setUp(self):
         self.collection='rag_'+secrets.token_hex(4)
         self.wire=Wire(self.port,self.collection)
-        self.wire.http('PUT','/collections/'+self.collection,{'vectors':{'size':DIM,'distance':'Cosine'},
-            'sparse_vectors':{'text':{'modifier':'idf'}},'metadata':{'embedding_model':'voyage-3.5'}})
+        body={'vectors':{'size':DIM,'distance':'Cosine'},'metadata':{'embedding_model':'voyage-3.5'}}
+        if self.SPARSE:body['sparse_vectors']={'text':{'modifier':'idf'}}
+        self.wire.http('PUT','/collections/'+self.collection,body)
         for field in INDEXES:
             self.wire.http('PUT',f'/collections/{self.collection}/index?wait=true',{'field_name':field,'field_schema':'keyword'})
         self.app=Core({**CFG,'collection':self.collection,'dimensions':DIM},self.wire,KV())
@@ -95,6 +100,38 @@ class RealKeyword(unittest.TestCase):
         self.assertEqual([r['id'] for r in self.find('coffee')['records']],['tea'])
         self.app.run(parse(dumps({'method':'delete','namespace':'team','tableName':'notes','id':'tea'})))
         self.assertEqual(self.find('coffee')['records'],[])
+
+    def test_a_draft_without_a_head_is_not_returned_by_the_real_server(self):
+        self.put('tea','Tea is a drink.')
+        draft=next(p for p in self.wire.http('POST',f'/collections/{self.collection}/points/scroll',{'filter':{'must':[{'key':'_rag_kind','match':{'value':'chunk'}}]},'limit':5,'with_payload':True,'with_vector':True})['result']['points'])
+        orphan='00000000-0000-0000-0000-0000000000aa'
+        self.wire.http('PUT',f'/collections/{self.collection}/points?wait=true',{'points':[{'id':orphan,'vector':{'':[.5]*DIM,'text':sparse('saffron spice')},
+            'payload':{'namespace':'team','tableName':'notes','id':'draft','_rag_kind':'chunk','_rag_rev':'x','_rag_text':'saffron spice'}}]})
+        self.assertEqual(self.find('saffron')['records'],[])
+        self.assertEqual([r['id'] for r in self.find('tea')['records']],['tea'])
+
+
+class RealKeywordIndex(RealKeyword):
+    """A collection made before the text vector existed: search says the index is not built, one command builds it."""
+    SPARSE=False
+    test_ingest_search_get_and_delete_against_the_real_server=None
+    test_a_draft_without_a_head_is_not_returned_by_the_real_server=None
+    def test_the_index_is_built_in_place_over_existing_points_and_can_be_repeated(self):
+        self.put('tea','Tea is a drink made from leaves.')
+        self.put('saffron','Saffron is a rare spice.')
+        self.put('cats','Cats sleep all day. Tea is not for cats.')
+        with self.assertRaisesRegex(RagError,'keyword index not built yet'):
+            self.app.run(parse(dumps({'method':'search','namespace':'team','query':'tea'})))
+        try:first=self.app.run({'method':'keyword_index'},{'roles':['owner']})
+        except RagError as error:self.fail(f'the real server refused the build: {error}')
+        self.assertEqual(first,{'status':'ok','indexed':3})
+        self.assertEqual({r['id'] for r in self.find('tea')['records']},{'tea','cats'})
+        self.assertEqual(self.find('tea saffron')['records'][0]['id'],'saffron')
+        self.assertEqual(self.app.run({'method':'keyword_index'},{'roles':['owner']}),{'status':'ok','indexed':0})
+        got=self.app.run(parse(dumps({'method':'get','namespace':'team','tableName':'notes','id':'tea'})))
+        self.assertEqual(got['embeddings'],[[.5]*DIM])   # the dense vector survived the update
+        self.put('tea','Coffee is a drink.')   # a new upsert after the build carries its words
+        self.assertEqual([r['id'] for r in self.find('coffee')['records']],['tea'])
 
 
 if __name__=='__main__':unittest.main()
