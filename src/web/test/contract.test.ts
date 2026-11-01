@@ -1308,27 +1308,36 @@ test("agent metadata pages show every declaration but never Secret values", asyn
   await api("/secret", { Name: name, Secret: `TOKEN=${sentinel}` });
   const token = (await api("/token", { name })).token;
   let serving = true;
+  const stop = new AbortController();
   const asks: string[] = [];
   let bare = false;
   const loop = (async () => {
     while (serving) {
-      const response = await fetch("http://unix/consume?wait=100ms", { headers: { "X-Agent-Bus-Token": token }, unix: join(dir, "bus.sock") } as RequestInit);
+      // Publish a reader for the test lifetime; finally aborts the long poll.
+      const response = await fetch("http://unix/consume?wait=60s", { headers: { "X-Agent-Bus-Token": token }, signal: stop.signal, unix: join(dir, "bus.sock") } as RequestInit);
       const raw = await response.text();
       const e = raw ? JSON.parse(raw) : null;
       if (!e) continue;
       asks.push(e.ask);
       const body = JSON.stringify({ body_formats: ["text", "json"], description: "Metadata fixture purpose", version: "1.2.3", license: "MIT", author: "Fixture author", homepage: "https://example.com/agent", methods: { help: { help: "Fixture help entry", args: [] }, destroy: { help: "Delete fixture", args: [{ name: "mode", help: "Choose format", type: ["text", "json"], optional: true, rest: true }], returns: "Deletion result", role: ["operate", "admin"], destructive: true } }, config: { mode: { type: ["text", "json"], help: "Formatting mode", example: "text", default: "json" } }, secrets: [{ name: "TOKEN", help: "API token purpose", required: true, value: sentinel }] });
       await api("/send", { to: e.from, topic: e.topic, tag: e.tag, re: e.id, body: e.ask === "status" ? "unsupported: status" : bare ? (e.ask === "help" ? "Bare fixture help" : "unknown ask") : body }, token);
+      // Keep the reproduced reply-to-next-consume gap in the regression.
+      if (e.ask === "status") await Bun.sleep(150);
     }
-  })();
-  try {
-    const c = await signIn(owner);
-    // The outstanding consume publishes the fixture's readiness.
-    for (let i = 0; i < 100; i++) {
-      const r = await fetch(`http://unix/lookup?name=${encodeURIComponent(name)}`, { headers: { "X-Agent-Bus-Token": owner }, unix: join(dir, "bus.sock") } as RequestInit);
-      if ((await r.json() as any).readers) break;
+  })().catch(error => { if (!stop.signal.aborted) throw error; });
+  async function ready() {
+    const until = Date.now() + 5000;
+    while (Date.now() < until) {
+      const r = await fetch(`http://unix/lookup?name=${encodeURIComponent(name)}`, { headers: { "X-Agent-Bus-Token": owner }, signal: AbortSignal.timeout(Math.max(1, until - Date.now())), unix: join(dir, "bus.sock") } as RequestInit);
+      if (!r.ok) throw new Error(`metadata fixture lookup failed: ${r.status}`);
+      if ((await r.json() as any).readers > 0) return;
       await Bun.sleep(5);
     }
+    throw new Error("metadata fixture did not publish its ready reader");
+  }
+  try {
+    const c = await signIn(owner);
+    await ready();
     const page = await (await req(`/agent?name=${encodeURIComponent(name)}`, { cookie: c })).text();
     for (const item of ["About this agent", "Metadata fixture purpose", "1.2.3", "MIT", "Fixture author", "https://example.com/agent", "Methods", "destroy", "Choose format", "text | json", "optional", "Deletion result", "operate or admin", "⚠ destructive", "API token purpose", "required"]) expect(page).toContain(item);
     expect(page).toContain('<p class="agent-description">Metadata fixture purpose</p>');
@@ -1342,6 +1351,7 @@ test("agent metadata pages show every declaration but never Secret values", asyn
     expect(page).toContain("Formatting mode");
     expect(page).not.toContain("No configuration is stored.");
     await api("/configure", { Name: name, Config: { mode: "text", extra: true } });
+    await ready();
     const filtered = await (await req(`/agent?name=${encodeURIComponent(name)}&m=not-matching`, { cookie: c })).text();
     expect(filtered).toContain('0 of 1 methods match.');
     expect(filtered).not.toContain('id="method-destroy"');
@@ -1350,16 +1360,18 @@ test("agent metadata pages show every declaration but never Secret values", asyn
     for (const item of ["Formatting mode", "Example:", "Default:", "text | json", "Undocumented Configuration keys: extra", "Expected Secret keys", "TOKEN", "API token purpose"]) expect(edit).toContain(item);
     expect(edit).not.toContain(sentinel);
     expect(asks).toEqual(["help-json", "help-json"]);
+    await ready();
     expect(await (await req(`/agent-status?name=${encodeURIComponent(name)}`, {cookie:c})).text()).toBe("");
     expect(asks.at(-1)).toBe("status");
     bare = true;
     await api("/register", { name, kind: "agent", descr: "changed metadata" });
+    await ready();
     const fallback = await (await req(`/agent?name=${encodeURIComponent(name)}`, { cookie: c })).text();
     expect(fallback).toContain("Bare fixture help");
     expect(fallback).not.toContain("<th>Method</th>");
     expect(fallback).not.toContain("Expected Secret keys");
     expect(asks.slice(-2)).toEqual(["help-json", "help"]);
-  } finally { serving = false; await loop; }
+  } finally { serving = false; stop.abort(); await loop; }
 }, 15000);
 
 test("shared tag badges and self owners hide empty tags on every record view", async () => {
