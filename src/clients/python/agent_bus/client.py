@@ -96,7 +96,7 @@ class Bus:
             self._identity_lock.release()
 
     def _request(self, method, path, body=None, *, query=None, timeout=None, raw=False,
-                 headers=None, destructive=False, wait=0):
+                 headers=None, destructive=False, wait=0, upload=None, big_response=False, max_size=32*1024*1024):
         self._check()
         budget = self.timeout if timeout is None else min(self.timeout, seconds(timeout, positive=True))
         # A request the daemon holds open (consume, lock) gets its wait on top of the budget.
@@ -110,7 +110,7 @@ class Bus:
         if query:
             path += "?" + urlencode({key: value for key, value in query.items() if value is not None})
         return self._transport.request(method, path, body, timeout=left, raw=raw,
-                                       headers=headers, destructive=destructive)
+                                       headers=headers, destructive=destructive, upload=upload, big_response=big_response, max_size=max_size)
 
     @property
     def name(self):

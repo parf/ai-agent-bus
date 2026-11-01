@@ -60,6 +60,7 @@ class Record:
         self.name = name.strip().lower()
         self.bus = bus
         self.kv = RecordKV(self)
+        self.big = RecordBig(self)
         self.locks = RecordLocks(self)
         self._config, self._secret = LazyValue(), LazyValue()
 
@@ -237,3 +238,74 @@ class Lease:
     def __exit__(self, *_):
         if not self._released and time.monotonic() < self.deadline:
             self.release()
+
+
+import hashlib
+import io
+import re
+
+MAX_BIG = 32 * 1024 * 1024
+
+class BigHashMismatch(ValueError):
+    """Discard a download whose size or SHA-256 did not verify."""
+
+def ttl_seconds(value):
+    if isinstance(value,str):
+        total=0; rest=value
+        while rest:
+            match=re.match(r'([0-9]+)([dhms])',rest)
+            if not match:raise InvalidArgument('ttl must use whole s/m/h/d')
+            total+=int(match[1])*{'d':86400,'h':3600,'m':60,'s':1}[match[2]]
+            rest=rest[match.end():]
+        value=total
+    if type(value) not in (int,float) or not 1 <= value <= 2592000 or int(value)!=value:
+        raise InvalidArgument('ttl must be whole seconds in 1s..30d')
+    return int(value)
+
+def key(name):
+    if not isinstance(name,str) or not 1<=len(name.encode())<=256:raise InvalidArgument('big name must be 1..256 UTF-8 bytes')
+
+class RecordBig:
+    def __init__(self,record):self.record=record
+    def put(self,name,source,*,size=None,ttl=86400,memory=False,sha256=None):
+        key(name); ttl=ttl_seconds(ttl)
+        if type(memory) is not bool:raise InvalidArgument('memory must be boolean')
+        if sha256 is not None and (not isinstance(sha256,str) or not re.fullmatch('[a-fA-F0-9]{64}',sha256)):
+            raise InvalidArgument('sha256 must be 64 hex characters')
+        if isinstance(source,(bytes,bytearray,memoryview)):
+            if size is None:size=len(source)
+            if size!=len(source):raise InvalidArgument('size differs from input bytes')
+            source=io.BytesIO(source)
+        if type(size) is not int or not 1<=size<=MAX_BIG:raise InvalidArgument('big input size must be 1..33554432 bytes')
+        if not callable(getattr(source,'read',None)):raise InvalidArgument('big input must be bytes or a binary reader with size')
+        first=source.read(min(65536,size+1))
+        if not isinstance(first,bytes) or not first:raise InvalidArgument('big input must not be empty')
+        if len(first)>size:raise InvalidArgument('size differs from input bytes')
+        digest=hashlib.sha256()
+        def chunks():
+            part=first; total=0
+            while part:
+                if not isinstance(part,bytes) or total+len(part)>size:raise InvalidArgument('size differs from input bytes')
+                total+=len(part);digest.update(part);yield part
+                part=source.read(min(65536,size-total+1))
+            if total!=size:raise InvalidArgument('size differs from input bytes')
+        headers={'Content-Type':'application/octet-stream','Content-Length':str(size)}
+        if sha256 is not None:headers['X-Big-Sha256']=sha256.lower()
+        result=self.record.bus._request('PUT','/big',query={'record':self.record.name,'name':name,'ttl':ttl,'memory':str(memory).lower()},headers=headers,upload=chunks())
+        if result.get('sha256')!=digest.hexdigest() or result.get('size')!=size:
+            raise BigHashMismatch('big put size or SHA-256 mismatch; upload may have completed')
+        return result
+    def get(self,name,*,max_size=MAX_BIG):
+        if type(max_size) is not int or not 1<=max_size<=MAX_BIG:raise InvalidArgument("max_size must be 1..33554432 bytes")
+        key(name)
+        data,headers=self.record.bus._request('GET','/big',query={'record':self.record.name,'name':name},big_response=True,max_size=max_size)
+        digest=hashlib.sha256(data).hexdigest()
+        if not data or len(data)>MAX_BIG or headers.get('content-length')!=str(len(data)) or headers.get('x-big-sha256')!=digest:
+            raise BigHashMismatch('big get size or SHA-256 mismatch; discard the download')
+        return data,{'record':self.record.name,'name':name,'size':len(data),'sha256':digest,'held':headers.get('x-big-held'),'expires':headers.get('x-big-expires')}
+    def list(self):
+        result=self.record.bus._request('GET','/big/list',query={'record':self.record.name})
+        return sorted(result['keys'],key=lambda row:row['name'])
+    def delete(self,name):
+        key(name)
+        return self.record.bus._request('POST','/big/delete',{'record':self.record.name,'name':name})['deleted']

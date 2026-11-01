@@ -81,7 +81,7 @@ class Transport:
         self._lock = threading.Lock()
         self._closed = False
 
-    def request(self, method, path, body=None, *, timeout=None, raw=False, headers=None, destructive=False):
+    def request(self, method, path, body=None, *, timeout=None, raw=False, headers=None, destructive=False, upload=None, big_response=False, max_size=32*1024*1024):
         # The Bus bounds a given timeout; one held open for a wait may exceed the default.
         timeout = seconds(timeout, positive=True) if timeout is not None else self.timeout
         deadline = time.monotonic() + timeout
@@ -100,7 +100,7 @@ class Transport:
             path = u.path.rstrip("/") + path
         else:
             connection = UnixConnection(self.addr, timeout)
-        encoded = None if body is None else json.dumps(body, ensure_ascii=False, allow_nan=False).encode()
+        encoded = upload if upload is not None else None if body is None else json.dumps(body, ensure_ascii=False, allow_nan=False).encode()
         sent = False
         timer = None
         with self._lock:
@@ -133,7 +133,11 @@ class Transport:
             connection.request(method, path, body=encoded, headers={
                 "X-Agent-Bus-Token": self.token, "Content-Type": "application/json", **(headers or {})})
             response = connection.getresponse()
-            data = response.read()
+            if big_response and 200 <= response.status < 300:
+                length = response.getheader('Content-Length')
+                if not length or not length.isdigit() or not 1 <= int(length) <= max_size:
+                    raise InvalidArgument('big download exceeds max_size or has invalid Content-Length')
+            data = response.read(max_size + 1) if big_response else response.read()
             if time.monotonic() >= deadline:
                 if destructive or method != "GET":
                     raise UncertainOutcome("operation exceeded its deadline after sending")
@@ -146,6 +150,8 @@ class Transport:
                 except (ValueError, AttributeError):
                     message = response.reason
                 raise Refusal(response.status, message)
+            if big_response:
+                return data, {k.lower():v for k,v in response.getheaders()}
             if raw:
                 return data
             try:
@@ -154,6 +160,10 @@ class Transport:
                 if destructive or method != "GET":
                     raise UncertainOutcome("operation answered with an invalid response") from exc
                 raise TransportError("daemon returned invalid JSON") from exc
+        except InvalidArgument as exc:
+            if sent and upload is not None:
+                raise UncertainOutcome("input changed after sending; operation may have completed remotely") from exc
+            raise
         except (OSError, http.client.HTTPException) as exc:
             if sent and (destructive or method != "GET"):
                 raise UncertainOutcome("operation may have completed remotely") from exc
