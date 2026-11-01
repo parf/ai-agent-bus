@@ -38,12 +38,18 @@ export class RecordKV {
   jsonApply(name:string,ops:ReadonlyArray<{op:string;key:string;value?:Json}>,options:Operation = {}): Promise<any> { if (ops.length < 1 || ops.length > 100) throw new TypeError('1 to 100 JSON ops required'); return this.record.bus.request('POST','/kv/json',{record:this.record.name,name,ops},options); }
   async list(options:Operation = {}): Promise<any> { return (await this.record.bus.request('GET','/kv/list',undefined,{...options,query:{record:this.record.name}})).values; }
 }
+// A numeric lock time is milliseconds: a ttl is at most 24 h and a wait at most 60 s. Refused here, as the other clients do;
+// a string duration is left to the daemon, which holds the same bounds.
+function lockBounds(ttl:string|number,wait?:string|number) {
+  if (typeof ttl === 'number' && ttl > 86400000) throw new TypeError('lock ttl is at most 24h');
+  if (typeof wait === 'number' && wait > 60000) throw new TypeError('lock wait is at most 60s');
+}
 export class RecordLocks {
   constructor(private record:RecordHandle) {}
   private body(name:string): {[key:string]:string} { return {record:this.record.name,name}; }
-  acquire(name:string,options:Operation & {ttl:string|number;wait?:string|number}): Promise<any> { return this.record.bus.request('POST','/lock',{...this.body(name),ttl:duration(options.ttl)},{...options,query:{wait:duration(options.wait ?? 0)}}); }
-  tryAcquire(name:string,options:Operation & {ttl:string|number}): Promise<any> { return this.record.bus.request('POST','/try-lock',{...this.body(name),ttl:duration(options.ttl)},options); }
-  extend(name:string,ttl:string|number,options:Operation = {}): Promise<any> { return this.record.bus.request('POST','/extend',{...this.body(name),ttl:duration(ttl)},options); }
+  acquire(name:string,options:Operation & {ttl:string|number;wait?:string|number}): Promise<any> { lockBounds(options.ttl,options.wait); return this.record.bus.request('POST','/lock',{...this.body(name),ttl:duration(options.ttl)},{...options,query:{wait:duration(options.wait ?? 0)}}); }
+  tryAcquire(name:string,options:Operation & {ttl:string|number}): Promise<any> { lockBounds(options.ttl); return this.record.bus.request('POST','/try-lock',{...this.body(name),ttl:duration(options.ttl)},options); }
+  extend(name:string,ttl:string|number,options:Operation = {}): Promise<any> { lockBounds(ttl); return this.record.bus.request('POST','/extend',{...this.body(name),ttl:duration(ttl)},options); }
   release(name:string,options:Operation = {}): Promise<any> { return this.record.bus.request('POST','/release',this.body(name),options); }
   async forceRelease(name:string,options:Operation = {}): Promise<string|undefined> { return (await this.record.bus.request('POST','/release-force',this.body(name),options)).holder; }
   async holders(options:Operation = {}): Promise<Array<{name:string;holder:string;expires:string}>> { const result = await this.record.bus.request('GET','/holders',undefined,{...options,query:{record:this.record.name}}); return Object.entries(result.locks).map(([name,value]) => ({name,...value as {holder:string;expires:string}})); }
