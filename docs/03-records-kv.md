@@ -159,10 +159,11 @@ A bigfile is a named value of up to 32 MiB that is passed by name instead of ins
 | Who may get and list | the same, and whoever the record's allow list admits. The daemon's own `#bus` record admits nobody |
 | Limits | a name is 1 to 256 bytes of UTF-8; at most 32 MiB per key, 256 MiB and 100 keys per record, 1 GiB in the daemon; a put of no bytes is refused |
 | Lifetime | every key expires: 24 hours by default, 1 second to 30 days by `ttl`; expired keys are never returned and their files are removed within a minute |
-| Held | in a file by default, written whole, synced and renamed into place, so a crash leaves a key whole or absent; `memory=true` keeps it in memory, lost at a restart |
+| Held | in a file by default, written whole, synced and renamed into place, and only then entered in the index, a table of the daemon's database that says which bigfiles exist (it is the source of truth; each file also ends with a footer naming its key, kept for recovery by hand and never read to decide anything). A crash leaves a key whole or absent. `memory=true` keeps it in memory with no row, lost at a restart, and still lists, reads and expires with the rest |
+| At start | the files are made to agree with the index: a row whose file is missing or is not the file it describes is removed, a file no row names is removed, and so is every temporary file |
 | The record's life | removing the record removes its bigfiles; a transfer keeps them; keys of a record removed while the daemon was down are removed at start |
 | Unavailable | bigfiles are optional: if `bigfile/` cannot be prepared at start (a planted file, a mode change) the daemon still starts, reports an error, and answers the four bigfile calls with 503 naming the cause; a later call retries the directory at most once a minute, so a repaired directory recovers without a restart. Keys are never quietly held in memory instead |
-| Backups | the files live in `bigfile/` beside the database; a database backup and a record export never include them, and a restore starts with none |
+| Backups | the files live in `bigfile/` beside the database. A database backup holds the index rows but never the files, and a record export holds neither. After a restore, start drops every row whose file is not present, so a restore has no bigfiles unless their files are restored with it |
 | Integrity | a put answers the size and SHA-256 of what was stored, and refuses bytes that do not match an `X-Bigfile-Sha256` header; a get carries the hash in `X-Bigfile-Sha256` |
 
 The API:

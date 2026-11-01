@@ -55,8 +55,8 @@ part <uid> <part-id> --bigfile <name> [--folder <name>]: Store the decoded part 
 ### Trust and durability
 
 - **[Trust boundary](../../docs/02-access.md#trust-boundary):** the daemon can read every byte; nothing is encrypted at rest or between peers. Files are `0600` in a `0700` directory; off loopback use TLS or SSH.
-- **[Durability](../../docs/04-messaging.md#durability):** an upload is written to a temporary file, synced, and committed with its index entry before the call answers; a crash leaves no key, and temporary files are removed at start. A memory key is explicitly not durable. A full disk refuses the upload.
-- **Backup:** bigfiles are transient and left out of the database backup; a restore starts with none (settled).
+- **[Durability](../../docs/04-messaging.md#durability):** an upload is written to a temporary file, synced and renamed into place, and only then does its row commit in the database's `bigfiles` table, which is the source of truth; a delete removes the row first and the file after. A crash between any two steps leaves a file with no row or a row with no file, and start removes either, along with temporary files. The footer at the end of each file is kept for recovery by hand and never read to decide what exists. A memory key has no row, is explicitly not durable, and still lists, reads and expires with the rest. A full disk refuses the upload.
+- **Backup:** the files are left out of every backup; the database backup holds the index rows, and after a restore start drops each row whose file is not present, so a restore starts with none unless the files come back too ([decision](DECISIONS.md#recorded-decisions)).
 - **[Process boundary](../../docs/08-processes.md#the-rule):** the bus role owns it; no new process, no new listener. The upload and download paths stream and are not bus messages, so they are not bound by the 1 MiB request cap.
 
 ## Order of work
