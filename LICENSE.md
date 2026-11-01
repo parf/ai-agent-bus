@@ -2,6 +2,8 @@
 
 <https://polyformproject.org/licenses/noncommercial/1.0.0>
 
+Required Notice: Copyright (C) Sergey Porfiriev
+
 ## Acceptance
 
 In order to get any license under these terms, you must agree
