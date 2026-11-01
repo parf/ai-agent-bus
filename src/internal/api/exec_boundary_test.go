@@ -161,7 +161,7 @@ func TestSignedEnrolmentUsesTheShippedVerifier(t *testing.T) {
 	}
 	sign := func(path string) string {
 		t.Helper()
-		sig, err := keyproof.Sign(path, challenge.Namespace, challenge.Nonce)
+		sig, err := keyproof.Sign(path, challenge.Nonce)
 		if err != nil {
 			t.Fatal(err)
 		}

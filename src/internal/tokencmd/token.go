@@ -226,11 +226,14 @@ func prove(name, key string) (string, error) {
 	if code >= 400 {
 		return "", fmt.Errorf("%s", strings.TrimSpace(string(out)))
 	}
-	var ask struct{ Name, Nonce, Namespace string }
+	var ask keyproof.Challenge
 	if err := json.Unmarshal(out, &ask); err != nil {
 		return "", err
 	}
-	sig, err := keyproof.Sign(key, ask.Namespace, ask.Nonce)
+	if err := ask.Check(name); err != nil {
+		return "", err
+	}
+	sig, err := keyproof.Sign(key, ask.Nonce)
 	if err != nil {
 		return "", err
 	}
