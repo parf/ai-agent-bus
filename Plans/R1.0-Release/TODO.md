@@ -413,6 +413,10 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Acceptance: [the plan's acceptance](bigfile.md#acceptance-for-the-todo-item)
   - Mutants: [the plan's list](bigfile.md#acceptance-for-the-todo-item)
 
+- ✅ T-27 Per-person files folder (Q303) — setup makes `/var/lib/agent-bus/users/<person>/files` for each person's user-account runner: theirs, 0700, `users/` root 0755; idempotent; a link, a non-directory or another owner is refused, a looser mode is set to 0700 and said; contents untouched. [Setup guide](../../docs/07-setup.md#a-persons-user-account-runner), [bigfiles](../../docs/03-records-kv.md#bigfiles); launchers do not default to it
+  - Evidence: `TestPersonFiles*` in `src/cmd/agent-bus-setup/person_files_test.go` (create, rerun, hand-made folder, tighten, link at each level, file in place, wrong owner, link at the state root); four mutants (follow links, no owner check, no tighten, link at the root followed) each failed on an assertion; the whole `agent-bus-setup` package passes; macOS has no per-person runner, so none there
+
+
 - ✅ B.16 webhook — built in **0.9.143**, `61ae2338`; normal **1217/0**, **45** assertion-red mutants; deployed disabled, check-deploy **6/6**. [Current guide](../../docs/agents/webhook.md#what-it-does), [completion and plan history](done/webhook.md#result). No public listener or real sender check; owner approval required before exposure.
 
 - ✅ B.17 cron, built in 0.9.139 (commit 3305d54e; gate --normal 1215/0; 48 tests on the fixture daemon; 51 mutants each failing its owning test on an assertion; deployed to `agent.d/cron`, disabled in the runner inventory; check-deploy 6/6; [guide](../../docs/agents/cron.md#what-it-does)) — [defaults](agents.md#next-set); AB2

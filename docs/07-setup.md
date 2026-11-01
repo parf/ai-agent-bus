@@ -332,9 +332,11 @@ aborts the plan, including uninstall, before local recovery files are removed.
 | `/etc/systemd/user/agent-bus-runner.service` | one template for every person, root-owned: `ExecStart=/usr/local/bin/agent-bus-runner`, `Delegate=yes`, `KillMode=mixed`, a bounded restart, and no sandbox directives, because its agents act in her whole context; each agent's own sandbox stays the control |
 | `~/.local/state/agent-bus/runner/` | hers, 0700: `runner.env` with the runner agent's token (never hers), the inventory, the agents' tokens |
 | `~/.local/share/agent-bus/agent.d/` | hers, 0700: only the packages she puts there; the shared `agent.d` is never visible to it |
+| `/var/lib/agent-bus/users/alice/files` | hers, 0700: the place to point `AGENT_BUS_BIGFILE_DIR` for her sessions ([bigfiles](03-records-kv.md#bigfiles)); `users/` stays root's, 0755 |
 | `#runner/alice-user@<host>` | her agent on the bus, allowing `@owner` |
 | linger | enabled, so the runner starts at boot without a login; uninstall leaves it as found |
 
+- Her files folder is the one place under `/var/lib/agent-bus` that is hers. Setup opens each step from its parent without following a link and sets owner and mode on the open directory, so a link she plants is refused and nothing is changed through it. A folder that is already hers with another mode is set to 0700 and setup says so; a folder of another owner, a link or a file in its place is refused; the contents are never touched. Nothing sets `AGENT_BUS_BIGFILE_DIR` for her: that stays unset until she (or a launcher she configures) names it. This is Linux only; the macOS setup has no per-person runner, so it makes no such folder.
 - Root never opens a path under her home: every observation and change there is made by setup re-executed as her (`setpriv`, no new privileges, no inherited environment), so a link she plants leads only where she can already go.
 - Setup asks her user manager only about `agent-bus-runner.service`; it never stops her user manager or a session scope.
 
