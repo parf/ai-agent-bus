@@ -188,7 +188,8 @@ type userState struct {
 	linger      bool
 	enabled     bool
 	active      bool
-	others      int // other persons' user-account runner records
+	others      int  // other persons' user-account runner records
+	files       bool // users/<person>/files is as personFilesReady wants
 }
 
 // userOps is everything a verb does outside this process.
@@ -201,6 +202,7 @@ type userOps interface {
 	createRecord(u userRunner) error
 	removeRecord(u userRunner) error
 	token(u userRunner) (string, error)
+	personFiles(u userRunner) error
 }
 
 // toolDirs are the only places setup, running as root, looks for the programs
@@ -291,6 +293,9 @@ func userPlan(verb string, u userRunner, st userState, want string, purge bool, 
 				_, err := ops.helper(u, "mkdirs", nil)
 				return err
 			})
+		}
+		if !st.files {
+			add("make "+personFilesDir(stateRoot, u.person)+" as "+u.person+", 0700", func() error { return ops.personFiles(u) })
 		}
 		if !st.record {
 			add("create "+u.name+", "+u.person+"'s agent, allowing @owner", func() error { return ops.createRecord(u) })
@@ -628,6 +633,7 @@ func observeUser(u userRunner, ops hostUserOps, dry bool) (userState, error) {
 		var s struct{ You string }
 		st.tokenValid = err == nil && code == 200 && json.Unmarshal(out, &s) == nil && s.You == u.name
 	}
+	st.files = personFilesReady(stateRoot, u.person, u.uid, u.gid)
 	st.linger = lingerReady(u)
 	if st.linger {
 		st.enabled = ops.userctl(u, "is-enabled", "--quiet", userUnit) == nil
@@ -746,6 +752,16 @@ func (o hostUserOps) createRecord(u userRunner) error {
 		"name": u.name, "kind": "agent", "allow": []string{"@owner"},
 		"descr": u.person + "'s user-account runner: status, reload, start, stop, restart, enable, disable, read, write, create, delete",
 	})
+}
+
+// personFiles makes the person's files folder; what it changed on one that
+// existed is said, so a tightened mode is never silent.
+func (o hostUserOps) personFiles(u userRunner) error {
+	notes, err := ensurePersonFiles(stateRoot, u.person, u.uid, u.gid)
+	for _, n := range notes {
+		fmt.Println("  " + n)
+	}
+	return err
 }
 
 func (o hostUserOps) removeRecord(u userRunner) error {

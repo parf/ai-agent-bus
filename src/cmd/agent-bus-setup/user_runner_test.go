@@ -228,6 +228,7 @@ func (f *fakeUserOps) userctl(u userRunner, args ...string) error {
 }
 func (f *fakeUserOps) createRecord(userRunner) error { f.did = append(f.did, "record"); return nil }
 func (f *fakeUserOps) removeRecord(userRunner) error { f.did = append(f.did, "unregister"); return nil }
+func (f *fakeUserOps) personFiles(userRunner) error  { f.did = append(f.did, "files"); return nil }
 func (f *fakeUserOps) token(userRunner) (string, error) {
 	f.did = append(f.did, "token")
 	return "t0k", nil
@@ -252,12 +253,12 @@ func runPlan(t *testing.T, verb string, st userState, purge bool) []string {
 func TestUserPlanInstallsOnceAndUninstallsTheRest(t *testing.T) {
 	fresh := userState{user: true, seen: userSeen{State: "missing", Agents: "missing"}}
 	got := strings.Join(runPlan(t, "install", fresh, false), "; ")
-	want := "template; helper mkdirs ; record; token; helper write-env ; linger; userctl daemon-reload; userctl enable --now agent-bus-runner.service"
+	want := "template; helper mkdirs ; files; record; token; helper write-env ; linger; userctl daemon-reload; userctl enable --now agent-bus-runner.service"
 	if got != want {
 		t.Fatalf("install:\n got %s\nwant %s", got, want)
 	}
 	done := userState{user: true, seen: userSeen{State: "dir", Agents: "dir", Token: "t"}, unit: userTemplate("/r"),
-		record: true, recordKind: "agent", recordOwner: "alice", tokenValid: true, linger: true, enabled: true, active: true}
+		record: true, recordKind: "agent", recordOwner: "alice", tokenValid: true, linger: true, enabled: true, active: true, files: true}
 	if got := runPlan(t, "install", done, false); len(got) != 0 {
 		t.Fatalf("second install: %q", got)
 	}
