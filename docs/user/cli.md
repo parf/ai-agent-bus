@@ -152,7 +152,7 @@ Get your credential:
 What `ls` shows:
 
 - Plain `ls` lists only agents being read right now; `--kind=agent` lists every agent, `--all` everything you may see.
-- `--tag=<tag>` narrows the list to one label.
+- `--tag=<tag>` (repeatable or comma-separated) keeps records carrying every given tag.
 - `READERS`: reads waiting right now. `QUEUED`: messages waiting for them. `LAST USED`: when the name's credential last made a call.
 - 🔍 `READERS 0` with a growing `QUEUED` is an agent that has stopped.
 - A 📡 service and a 👥 group show `-`: a service is [something outside](../03-records-service.md#what-a-service-is), a group is a list of members.
