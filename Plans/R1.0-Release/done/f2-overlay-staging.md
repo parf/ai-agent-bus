@@ -86,6 +86,14 @@ likewise retained but no longer mounted.
 The exchange and EINVAL tests also assert that the old tree remains readable
 through the current apply, then disappears at the next recovery. The final
 full runner race suite passes (33.384 s); vet, Darwin arm64 compile and links
-pass. Two additional mutants removing that retention are prepared but not
-run: the daemon deployment HOLD arrived before their lock was granted.
+pass. After the deployment release, the slow lock was acquired separately and
+both retention mutants compiled and failed on their owning assertion:
+
+| Mutant | Red test and assertion |
+|---|---|
+| Delete the exchanged-out tree at the end of publication | `TestOverlayPublicationExchangesDirectoriesWithoutRemovingTheBindSource`: `exchange deleted old tree before retirement` (0.004 s) |
+| Delete the fallback backup at the end of publication | `TestOverlayPublicationFallsBackOnlyWhenExchangeIsUnsupported/EINVAL`: `fallback deleted old tree before retirement` (0.005 s) |
+
+Each mutant ran only its owning test. Each source was restored immediately;
+both owning tests then passed (0.004 s and 0.005 s). The lock was released.
 No lock is held or pending.
