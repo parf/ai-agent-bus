@@ -227,7 +227,7 @@ Common to every route below:
 
 | Query | Default | Meaning |
 |---|---|---|
-| `inbox` | the caller | the queue to read; present but empty reads that name |
+| `inbox` | the caller, only when the key is absent | the queue to read; a key that is present is taken as the name, even when empty |
 | `topic`, `tag`, `original_to` | none | select which message in the queue |
 | `wait` | `30s`, at most `60s` | how long to wait; not a duration is `400` |
 | `share` | absent | present, even `share=false`, says this reader is one of a pool; two readers of one inbox need both to say so |
