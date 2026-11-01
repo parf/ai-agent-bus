@@ -208,7 +208,7 @@ configuration written under `runner/` on the host, then a `reload` call.
   - State: built: bubblewrap namespaces, the filesystem and network rules and a clean environment, 0.8.126; a cgroup per agent with `CLONE_INTO_CGROUP`, `limits`, `needs.memory`, sized `/tmp` and failing closed without a delegated subtree, 0.8.150; the system-call filter and the soft disk limit, 0.8.151
   - Builds: one cgroup per agent in the delegated subtree, `CLONE_INTO_CGROUP`; bubblewrap with a PID and network namespace; the system-call filter; `limits` and `needs`; sized `/tmp`; the soft work-directory limit; fail closed
   - Format: the filter's library ([modules](../../src/MODULES.md#external-tools))
-  - Acceptance: an agent cannot see a sibling's processes, read a sibling's files or env, connect to the runner's or another account's socket, write outside its work directory, or exceed its memory; on a host without `bwrap` it is refused; each removed limit fails its check
+  - Acceptance: an agent cannot see a sibling's processes, read a sibling's work directory or env, connect to the runner's or another account's socket, write outside its work directory, or exceed its memory; on a host without `bwrap` it is refused; each removed limit fails its check. What is installed under `/usr`, a sibling's package under `/usr/local` included, is bound read-only and stays readable ([isolation today](../../docs/runner/security.md#isolation-today)); narrowing that is [M.14](../R1.1/TODO.md#runner-hardening)
   - Mutant: each removed limit fails its check
 
 - ✅ DR.1 The dedicated runner applies the agent's bus secret — **0.9.174**, `70fcfa4a` ([result](DONE.md#dr1-the-dedicated-runner-applies-the-agents-bus-secret))
