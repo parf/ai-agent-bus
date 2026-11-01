@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"sync"
 	"testing"
 )
@@ -10,7 +9,7 @@ import (
 func TestConsumeCarriesIndependentInboxAndFilters(t *testing.T) {
 	t.Setenv("AGENT_BUS_TOKEN", "fixture-token")
 	var got *http.Request
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		got = r.Clone(r.Context())
 		w.WriteHeader(http.StatusNoContent)
 	}))
@@ -34,7 +33,7 @@ func TestConsumeCarriesIndependentInboxAndFilters(t *testing.T) {
 
 func TestConsumeAddressAndFiltersRequireValues(t *testing.T) {
 	t.Setenv("AGENT_BUS_TOKEN", "fixture-token")
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	srv := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
 	defer srv.Close()

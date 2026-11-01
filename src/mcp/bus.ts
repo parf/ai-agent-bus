@@ -1,3 +1,4 @@
+import { checkProtocol } from "./protocol.ts";
 import { PIN_ENV, pinnedCertificate } from "./pin.ts";
 import os from "node:os";
 import {createHash} from "node:crypto";
@@ -76,8 +77,8 @@ export function isTCP(addr: string): boolean {
 }
 
 export class BusError extends Error {
-  constructor(readonly status: number, message: string) {
-    super(message);
+  constructor(readonly status: number, message: string, readonly kind?: string) {
+    super(status === 500 ? "internal daemon error" : message);
   }
 }
 
@@ -87,6 +88,8 @@ export class Bus {
   readonly #addr: string;
   readonly #env: Record<string, string | undefined>;
   #ca?: Promise<string>;
+  #protocolFlight?: Promise<void>;
+  #daemonOld = false;
 
   constructor(env = process.env, allowLocal = false) {
     this.name = (env.AGENT_BUS_NAME || defaultName(env)).trim().toLowerCase();
@@ -112,6 +115,24 @@ export class Bus {
   }
 
   async #call(method: string, path: string, body?: unknown, signal?: AbortSignal, headers: Record<string, string> = {}, raw = false, binaryBody?: ReturnType<typeof Bun.file>, binaryReply = false): Promise<any> {
+    const protocolSignal = signal ?? AbortSignal.timeout(30000);
+    if (path.split('?')[0] !== '/identity') {
+      if (!this.#protocolFlight) {
+        const flight = this.#call('GET','/identity',undefined,AbortSignal.timeout(30000)).then(identity => {
+          this.#daemonOld = checkProtocol(identity);
+          if (this.#daemonOld) console.warn('daemon too old: protocol is older than this client');
+        });
+        this.#protocolFlight = flight;
+        flight.catch(() => { if (this.#protocolFlight === flight) this.#protocolFlight = undefined; });
+      }
+      await new Promise<void>((resolve,reject) => {
+        const aborted = () => reject(protocolSignal.reason);
+        protocolSignal.addEventListener('abort',aborted,{once:true});
+        this.#protocolFlight!.then(resolve,reject).finally(()=>protocolSignal.removeEventListener('abort',aborted));
+        if(protocolSignal.aborted)aborted();
+      });
+      protocolSignal.throwIfAborted();
+    }
     const overTCP = isTCP(this.#addr);
     const url = (overTCP ? this.#addr.replace(/\/$/, "") : "http://localhost") + path;
     // A pinned https:// daemon: its certificate, once checked against the
@@ -143,7 +164,12 @@ export class Bus {
 
     if (binaryReply && res.ok) return res;
     const text = await res.text();
-    if (!res.ok) throw new BusError(res.status, text.trim() || res.statusText);
+    if (!res.ok) {
+      let message = text.trim() || res.statusText, kind: string | undefined;
+      try { const refusal = JSON.parse(text); if (typeof refusal.error === 'string') message = refusal.error; if (typeof refusal.kind === 'string') kind = refusal.kind; } catch {}
+      if (this.#daemonOld && kind === 'no_route') message = `daemon too old for ${method} ${path.split('?')[0]}`;
+      throw new BusError(res.status, message, kind);
+    }
     return raw ? text : text ? JSON.parse(text, exact) : null;
   }
 

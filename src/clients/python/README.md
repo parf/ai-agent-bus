@@ -49,6 +49,9 @@ pong hello
 
 ## Technical details
 
+At first use, the client checks HTTP `/identity` for [wire compatibility](../../../docs/09-daemon-api.md#how-a-call-is-made); daemon refusals expose `kind` alongside status and message.
+
+
 - **Package:** Python 3.11 or later, standard library only; the [API plan](../../../Plans/R1.0-Release/done/client-libraries/python.md#surface) owns the interface; [authentication](../../../docs/02-access.md#what-a-call-carries) owns credentials; the version follows the repository VERSION; [MIT license](LICENSE.md).
 - **Connecting:** `Bus(name)` verifies the credential at the first authenticated operation; constructing it neither connects nor registers. Unix sockets, HTTP and HTTPS work, and `AGENT_BUS_TLS_FINGERPRINT` pins the peer certificate before credentials are sent.
 - **Private values:** cached until `refresh()`; copies already returned survive revocation; no setters; secret representations are redacted, and `reveal()` returns bytes (do not log them).

@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -14,7 +13,7 @@ import (
 func TestStoppedRunnerWaitsForItsCancelledReader(t *testing.T) {
 	t.Setenv("AGENT_BUS_TOKEN", "fixture-token")
 	var posts, lookups atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/unregister" {
 			if posts.Add(1) == 1 {
 				http.Error(w, "reader still releasing", http.StatusConflict)
@@ -49,7 +48,7 @@ func TestStoppedRunnerKeepsBacklogRefusalsAndUncertainRemoval(t *testing.T) {
 		t.Run(mode, func(t *testing.T) {
 			t.Setenv("AGENT_BUS_TOKEN", "fixture-token")
 			var posts, lookups atomic.Int32
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path == "/unregister" {
 					posts.Add(1)
 					switch mode {

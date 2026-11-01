@@ -124,14 +124,7 @@ func (b *Bigfile) bigRequest(ctx context.Context, method, path string, q url.Val
 	if resp.StatusCode >= 300 {
 		defer resp.Body.Close()
 		data, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-		var v struct {
-			Error string `json:"error"`
-		}
-		_ = json.Unmarshal(data, &v)
-		if v.Error == "" {
-			v.Error = string(data)
-		}
-		return nil, &BusError{resp.StatusCode, v.Error}
+		return nil, b.bus.refusal(resp.StatusCode, data, method+" "+path)
 	}
 	return resp, nil
 }

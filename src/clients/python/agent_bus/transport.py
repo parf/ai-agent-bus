@@ -157,10 +157,12 @@ class Transport:
                 return None
             if not 200 <= response.status < 300:
                 try:
-                    message = json.loads(data).get("error", response.reason)
+                    refusal = json.loads(data)
+                    message = refusal.get("error", response.reason)
+                    kind = refusal.get("kind")
                 except (ValueError, AttributeError):
-                    message = response.reason
-                raise Refusal(response.status, message)
+                    message, kind = response.reason, None
+                raise Refusal(response.status, message, kind)
             if big_response:
                 return data, {k.lower():v for k,v in response.getheaders()}
             if raw:

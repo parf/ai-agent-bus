@@ -2,14 +2,13 @@ package main
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 )
 
 func TestHumanResourceListDoesNotInventAQueue(t *testing.T) {
 	t.Setenv("AGENT_BUS_TOKEN", "fixture-token")
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte(`[{"name":"manual@h","kind":"resource","owner":"owner@h"},{"name":"jobs@h","kind":"queue","owner":"owner@h","readers":0,"queued":0}]`))
 	}))
 	defer server.Close()

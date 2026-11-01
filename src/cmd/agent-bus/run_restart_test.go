@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"os"
 	"os/exec"
@@ -240,7 +239,7 @@ func TestRunKeepsItsNameAndSerialReaderAfterDaemonRestart(t *testing.T) {
 // Recovery must back off instead of making ten lookups a second all poll long.
 func TestRecoveryReaderProbeBacksOff(t *testing.T) {
 	var lookups atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/lookup" || r.URL.Query().Get("name") != "#recover@fixture" {
 			t.Errorf("unexpected recovery request: %s", r.URL)
 		}

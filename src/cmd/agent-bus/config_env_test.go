@@ -5,7 +5,6 @@ import (
 	"github.com/parf/ai-agent-bus/internal/sandbox"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"sync/atomic"
@@ -15,7 +14,7 @@ import (
 func TestRunScriptConfigurationAtEveryStart(t *testing.T) {
 	var raw atomic.Value
 	raw.Store("null")
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/secret" { // an agent with no bus secret
 			http.NotFound(w, r)
 			return

@@ -10,7 +10,8 @@ import uuid
 from urllib.parse import urlencode
 
 from .errors import (BusClosed, BusError, BusTimeout, DrainTimeout, IdentityMismatch,
-                     InvalidArgument, ReaderInUse, UnexpectedAnswer)
+                     InvalidArgument, ReaderInUse, UnexpectedAnswer, Refusal)
+from .protocol import check_identity
 from .message import CallDone, CallReply, Message
 from .storage import Record
 from .transport import Transport, discover_socket, duration, no_wait, seconds
@@ -57,6 +58,8 @@ class Bus:
             fingerprint if fingerprint is not None else os.environ.get("AGENT_BUS_TLS_FINGERPRINT"))
         self._pid = os.getpid()
         self._name = None
+        self._daemon_old = False
+        self._protocol_warned = False
         self._identity_lock = threading.Lock()
         self._condition = threading.Condition()
         self._closed = False
@@ -87,6 +90,10 @@ class Bus:
                 left = deadline - time.monotonic()
                 if left <= 0:
                     raise BusTimeout("identity check timed out")
+                self._check_protocol(self._transport.request("GET", "/identity", timeout=left))
+                left = deadline - time.monotonic()
+                if left <= 0:
+                    raise BusTimeout("identity check timed out")
                 status = self._transport.request("GET", "/status", timeout=left)
                 actual = status["you"]
                 if self._expected and actual != self._expected:
@@ -109,16 +116,28 @@ class Bus:
             raise BusTimeout()
         if query:
             path += "?" + urlencode({key: value for key, value in query.items() if value is not None})
-        return self._transport.request(method, path, body, timeout=left, raw=raw,
-                                       headers=headers, destructive=destructive, upload=upload, big_response=big_response, max_size=max_size)
+        try:
+            return self._transport.request(method, path, body, timeout=left, raw=raw,
+                                           headers=headers, destructive=destructive, upload=upload, big_response=big_response, max_size=max_size)
+        except Refusal as exc:
+            if self._daemon_old and exc.kind == 'no_route':
+                raise Refusal(exc.status, 'daemon too old for ' + method + ' ' + path.split('?')[0], exc.kind) from exc
+            raise
 
     @property
     def name(self):
         self._ensure_identity(time.monotonic() + self.timeout)
         return self._name
 
+    def _check_protocol(self, identity):
+        self._daemon_old = check_identity(identity)
+        if self._daemon_old and not self._protocol_warned:
+            _log.warning('daemon too old: protocol is older than this client')
+            self._protocol_warned = True
+        return identity
+
     def identity(self):
-        return self._request("GET", "/identity")
+        return self._check_protocol(self._request("GET", "/identity"))
 
     def status(self):
         return self._request("GET", "/status")

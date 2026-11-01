@@ -9,6 +9,7 @@ async function fixture(run:(big:any,state:any)=>Promise<void>){
  const server=createServer(async(req,res)=>{
   state.calls.push(req.method+' '+req.url);
   expect(req.headers['x-agent-bus-token']).toBe('fixture-only');
+  if(req.url==='/identity'){res.end('{"protocol":1,"protocol_min":1}');return;}
   if(req.url==='/status'){res.end('{"you":"owner@fixture"}');return;}
   if(state.unavailable){res.statusCode=503;res.end('{"error":"disk path blocked"}');return;}
   if(req.url?.startsWith('/bigfile/list')){res.end('{"keys":[{"name":"z"},{"name":"a"}]}');return;}
@@ -29,7 +30,7 @@ test('big streamed binary roundtrip verifies metadata, names and ttl',()=>fixtur
  const data=Buffer.alloc(1048577,255);const stream=async function*(){yield data.subarray(0,100);yield data.subarray(100);};
  const info=await big.put('a/b',stream(),{size:data.length,ttl:'30d',memory:true,sha256:sha(data)});
  expect(info.replaced).toBe(true);const got=await big.get('a/b');expect(got.data).toEqual(data);expect(got.info.sha256).toBe(sha(data));expect(got.info.size).toBe(data.length);
- expect(s.calls[1]).toContain('ttl=2592000');expect(s.calls[1]).toContain('name=a%2Fb');expect(s.calls[1]).toContain('memory=true');
+ expect(s.calls[2]).toContain('ttl=2592000');expect(s.calls[2]).toContain('name=a%2Fb');expect(s.calls[2]).toContain('memory=true');
  expect((await big.list()).map((k:any)=>k.name)).toEqual(['a','z']);expect(await big.delete('a/b')).toBe(true);
 }));
 test('big invalid or empty input refuses before even the identity request',()=>fixture(async(big,s)=>{
@@ -82,7 +83,8 @@ test('big large puts wait for Continue and retain early 403 413 503 causes',asyn
    puts++;expected=req.headers.expect==='100-continue';req.on('data',chunk=>{received+=chunk.length;});
    res.writeHead(status,{'Content-Type':'application/json','Connection':'close'});res.end('{"error":"early real refusal"}');
   };
-  const server=createServer((req,res)=>{if(req.url==='/status'){res.end('{"you":"owner@fixture"}');return;}refuse(req,res);});
+  const server=createServer((req,res)=>{if(req.url==='/identity'){res.end('{"protocol":1,"protocol_min":1}');return;}
+  if(req.url==='/status'){res.end('{"you":"owner@fixture"}');return;}refuse(req,res);});
   server.on('checkContinue',refuse);
   await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));
   const bus=Bus.connect({addr:`http://127.0.0.1:${(server.address() as any).port}`,token:'fixture-only'});

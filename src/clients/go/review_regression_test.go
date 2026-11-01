@@ -117,6 +117,10 @@ func TestServeDrainsKnownTakenWorkOnStop(t *testing.T) {
 }
 func TestCallIdentityDeadlineReturnsCallTimeout(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/identity" {
+			fmt.Fprint(w, `{"protocol":1,"protocol_min":1}`)
+			return
+		}
 		time.Sleep(60 * time.Millisecond)
 		fmt.Fprint(w, `{"you":"#me"}`)
 	}))
@@ -136,6 +140,10 @@ func TestServeFinishesSentConsumeDuringDrain(t *testing.T) {
 			started := make(chan struct{}, 1)
 			var takes, handled atomic.Int32
 			s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/identity" {
+					fmt.Fprint(w, `{"protocol":1,"protocol_min":1}`)
+					return
+				}
 				switch r.URL.Path {
 				case "/status":
 					fmt.Fprint(w, `{"you":"#me"}`)

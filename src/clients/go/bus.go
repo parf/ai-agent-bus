@@ -34,10 +34,13 @@ var ErrKVNotFound = errors.New("KV value or record not found")
 type BusError struct {
 	Status  int
 	Message string
+	Kind    string
 }
 
-func (e *BusError) Error() string        { return fmt.Sprintf("daemon refused (%d): %s", e.Status, e.Message) }
-func (e *BusError) Is(target error) bool { return target == ErrKVNotFound && e.Status == 404 }
+func (e *BusError) Error() string { return fmt.Sprintf("daemon refused (%d): %s", e.Status, e.Message) }
+func (e *BusError) Is(target error) bool {
+	return target == ErrKVNotFound && e.Status == 404 && (e.Kind == "" || e.Kind == "unknown")
+}
 
 type UncertainOutcome struct {
 	Operation string
@@ -209,6 +212,8 @@ type Bus struct {
 	mu                            sync.Mutex
 	you                           string
 	verified                      bool
+	daemonOld                     bool
+	protocolWarned                bool
 	verifying                     chan struct{}
 	pending                       map[string]*pending
 	raw                           bool
@@ -345,7 +350,13 @@ func (b *Bus) ensure(ctx context.Context) error {
 		b.verifying = ch
 		b.mu.Unlock()
 		var s Status
-		data, e := b.request(ctx, "GET", "/status", nil, nil)
+		data, e := b.request(ctx, "GET", "/identity", nil, nil)
+		if e == nil {
+			e = b.checkProtocol(data)
+		}
+		if e == nil {
+			data, e = b.request(ctx, "GET", "/status", nil, nil)
+		}
 		if e == nil {
 			e = json.Unmarshal(data, &s)
 		}
@@ -422,14 +433,7 @@ func (b *Bus) request(ctx context.Context, method, path string, q url.Values, bo
 	defer resp.Body.Close()
 	data, err = io.ReadAll(io.LimitReader(resp.Body, 16<<20))
 	if resp.StatusCode >= 300 {
-		var v struct {
-			Error string `json:"error"`
-		}
-		_ = json.Unmarshal(data, &v)
-		if v.Error == "" {
-			v.Error = string(data)
-		}
-		return nil, &BusError{resp.StatusCode, v.Error}
+		return nil, b.refusal(resp.StatusCode, data, method+" "+path)
 	}
 	if err != nil {
 		return nil, failure(err)
@@ -460,6 +464,9 @@ func (b *Bus) Status(ctx context.Context) (Status, error) {
 func (b *Bus) Identity(ctx context.Context) (json.RawMessage, error) {
 	var v json.RawMessage
 	data, e := b.request(ctx, "GET", "/identity", nil, nil)
+	if e == nil {
+		e = b.checkProtocol(data)
+	}
 	if e == nil {
 		e = json.Unmarshal(data, &v)
 	}

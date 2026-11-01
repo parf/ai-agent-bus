@@ -522,7 +522,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
     }
   } catch (err) {
     if (err instanceof BadArgs) return text(String(err.message), true);
-    const msg = err instanceof BusError ? `bus said ${err.status}: ${err.message}` : String(err);
+    const msg = err instanceof BusError ? `bus said ${err.status}${err.kind ? " (" + err.kind + ")" : ""}: ${err.message}` : String(err);
     return text(msg, true);
   }
 });

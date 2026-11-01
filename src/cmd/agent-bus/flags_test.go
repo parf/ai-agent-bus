@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"os/exec"
 	"strings"
@@ -31,7 +30,7 @@ func TestFlagCLIHelper(t *testing.T) {
 
 func TestEveryVerbRefusesUnknownFlagsBeforeRequests(t *testing.T) {
 	var requests atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests.Add(1)
 		http.Error(w, "fixture boundary reached", 403)
 	}))
@@ -98,7 +97,7 @@ func TestDelimiterSendsLiteralOptions(t *testing.T) {
 	for _, verb := range []string{"send", "call", "reply", "publish"} {
 		t.Run(verb, func(t *testing.T) {
 			body := make(chan string, 1)
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path == "/status" {
 					fmt.Fprint(w, `{"you":"fixture@h"}`)
 					return
@@ -157,7 +156,7 @@ func TestDelimiterSendsLiteralOptions(t *testing.T) {
 
 func TestMissingValuedFlagsFailBeforeRequests(t *testing.T) {
 	var requests atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { requests.Add(1); http.Error(w, "fixture boundary", 403) }))
+	server := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { requests.Add(1); http.Error(w, "fixture boundary", 403) }))
 	defer server.Close()
 	for _, line := range []string{"send fixture text --topic", "send fixture text --tag --help", "call fixture text --wait", "register fixture --descr", "ls --kind", "consume --inbox", "logs fixture --lines", "enrol fixture --key", "run fixture /bin/true --algo"} {
 		t.Run(line, func(t *testing.T) {

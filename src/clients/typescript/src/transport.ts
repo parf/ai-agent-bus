@@ -7,7 +7,7 @@ import { existsSync } from 'node:fs';
 import { userInfo } from 'node:os';
 import { parse, stringify } from 'lossless-json';
 
-export class BusError extends Error { constructor(public readonly status: number, message: string) { super(message); this.name = 'BusError'; } }
+export class BusError extends Error { constructor(public readonly status: number, message: string, public readonly kind?: string) { super(status === 500 ? 'internal daemon error' : message); this.name = 'BusError'; } }
 export class BusUnreachable extends Error { constructor(message: string, options?: ErrorOptions) { super(message, options); this.name = 'BusUnreachable'; } }
 export class UncertainOutcome extends BusUnreachable { constructor(message: string, options?: ErrorOptions) { super(message, options); this.name = 'UncertainOutcome'; } }
 export class UnexpectedAnswer extends BusError { constructor(message: string) { super(0, message); this.name = 'UnexpectedAnswer'; } }
@@ -93,7 +93,7 @@ export class Transport {
           response.on('end', () => {
             const bytes = Buffer.concat(chunks); const status = response.statusCode ?? 0;
             if (performance.now() >= deadline) { finish(write && left ? new UncertainOutcome('request exceeded deadline') : new BusTimeout()); return; }
-            if (status < 200 || status >= 300) { let text = bytes.toString('utf8').trim(); try { const parsed = decodeJson(text) as {error?:unknown}; if (typeof parsed.error === 'string') text = parsed.error; } catch {} finish(new BusError(status, text)); return; }
+            if (status < 200 || status >= 300) { let text = bytes.toString('utf8').trim(), kind: string | undefined; try { const parsed = decodeJson(text) as {error?:unknown;kind?:unknown}; if (typeof parsed.error === 'string') text = parsed.error; if (typeof parsed.kind === 'string') kind = parsed.kind; } catch {} finish(new BusError(status, text, kind)); return; }
             try { finish(undefined, status === 204 ? null : options.bigResponse ? {data:bytes,headers:response.headers} : options.raw ? bytes : decodeJson(bytes.toString('utf8'))); } catch (e) { finish(write && left ? new UncertainOutcome('operation returned an invalid response', { cause: e }) : new BusUnreachable('invalid daemon response', { cause: e })); }
           });
         });

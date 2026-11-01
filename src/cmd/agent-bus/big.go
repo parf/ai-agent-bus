@@ -162,6 +162,10 @@ func bigDo(method, path string, q url.Values, body io.Reader, size int64, header
 	if token == "" && !onOwnSocket() {
 		return nil, fmt.Errorf("set AGENT_BUS_TOKEN")
 	}
+	old, err := ensureDaemonProtocol(context.Background())
+	if err != nil {
+		return nil, err
+	}
 	client, base := transport()
 	u := base + path
 	if len(q) > 0 {
@@ -198,7 +202,7 @@ func bigDo(method, path string, q url.Values, body io.Reader, size int64, header
 	if resp.StatusCode >= 400 {
 		defer resp.Body.Close()
 		out, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-		return nil, fmt.Errorf("%s", strings.TrimSpace(string(out)))
+		return nil, fmt.Errorf("%s", strings.TrimSpace(string(protocolRefusal(out, resp.StatusCode, old, method+" "+path))))
 	}
 	return resp, nil
 }

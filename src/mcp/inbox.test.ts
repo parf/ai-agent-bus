@@ -6,6 +6,7 @@ test("consume forwards inbox separately from topic and tag", async () => {
   const server = Bun.serve({
     port: 0,
     fetch(request) {
+      if(new URL(request.url).pathname==='/identity')return Response.json({protocol:1,protocol_min:1});
       query = new URL(request.url).searchParams;
       return new Response(null, { status: 204 });
     },

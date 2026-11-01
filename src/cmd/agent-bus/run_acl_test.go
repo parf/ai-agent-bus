@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
@@ -70,7 +69,7 @@ func TestRunnerRegistrationCarriesExplicitSharing(t *testing.T) {
 		t.Run(map[bool]string{false: "flags", true: "json"}[jsonInput], func(t *testing.T) {
 			var got protocol.Record
 			seen := 0
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				seen++
 				if r.URL.Path != "/register" || r.Method != "POST" {
 					t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
@@ -140,7 +139,7 @@ func TestRegisterCarriesPersonal(t *testing.T) {
 	savedTransport := transport
 	defer func() { transport = savedTransport }()
 	var got protocol.Record
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/register" || r.Method != "POST" {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}

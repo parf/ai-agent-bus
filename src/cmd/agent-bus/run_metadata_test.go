@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,7 +19,7 @@ func TestRunAnswersPackageAsksWithoutScript(t *testing.T) {
 	defer func() { transport = saved }()
 	t.Setenv("AGENT_BUS_TOKEN", "fixture")
 	posts := make(chan protocol.Envelope, 8)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/secret" { // an agent with no bus secret
 			http.NotFound(w, r)
 			return
@@ -100,7 +99,7 @@ func TestRunForwardsNativeHelpAsks(t *testing.T) {
 	defer func() { transport = saved }()
 	t.Setenv("AGENT_BUS_TOKEN", "fixture")
 	posts := make(chan protocol.Envelope, 8)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/secret" { // an agent with no bus secret
 			http.NotFound(w, r)
 			return

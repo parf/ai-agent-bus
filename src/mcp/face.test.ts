@@ -15,6 +15,7 @@ afterEach(async () => { for (const f of cleanup.splice(0).reverse()) await f(); 
 async function face(route: Handler, env: Record<string, string> = {}, more?: (port: number) => Record<string, string>) {
   const daemon = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: (req) => {
     const url = new URL(req.url);
+    if (url.pathname === "/identity") return Response.json({protocol:1,protocol_min:1});
     if (url.pathname === "/ls") return Response.json([]);
     if (url.pathname === "/register") return Response.json({ name: "#face@test", kind: "agent", owner: "o" });
     return route(req, url);
@@ -135,6 +136,7 @@ test("MCP registration keeps the record purpose instead of stale inherited metad
   const registered: Record<string, unknown>[] = [];
   const daemon = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: async (req) => {
     const path = new URL(req.url).pathname;
+    if (path === "/identity") return Response.json({protocol:1,protocol_min:1});
     if (path === "/ls") return Response.json([{ name: "#face@test", kind: "agent", descr: "Web-edited purpose", tags: ["review", "billing"], allow: ["@owner"] }]);
     if (path === "/register") { const body = await req.json() as Record<string, unknown>; registered.push(body); return Response.json(body); }
     return new Response("no", { status: 404 });
@@ -365,7 +367,7 @@ test("a face started with --take-over ignores the let-go signal", async () => {
   expect((await got.call("ab_ls", {})).isError).toBe(false);
 });
 
-import { Bus } from './bus.ts';
+import { Bus, BusError } from './bus.ts';
 import {mkdir,mkdtemp,writeFile,readFile,rm} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 test('MCP big files stay out of context and corrupt downloads never replace output',async()=>{
@@ -374,7 +376,7 @@ test('MCP big files stay out of context and corrupt downloads never replace outp
  const scratch=await mkdtemp(join(import.meta.dir,'../../tmp/mcp-big-'));
  let data=Buffer.from([0,255,1]),bad=false,calls=0;
  const sha=()=>createHash('sha256').update(data).digest('hex');
- const server=Bun.serve({port:0,hostname:'127.0.0.1',async fetch(req){calls++;const url=new URL(req.url);
+ const server=Bun.serve({port:0,hostname:'127.0.0.1',async fetch(req){const url=new URL(req.url);if(url.pathname==='/identity')return Response.json({protocol:1,protocol_min:1});calls++;
   expect(req.headers.get('x-agent-bus-token')).toBe('fixture-only');
   if(req.method==='PUT'){data=Buffer.from(await req.arrayBuffer());expect(req.headers.get('x-bigfile-sha256')).toBe(sha());return Response.json({size:data.length,sha256:sha(),replaced:false});}
   if(url.pathname==='/bigfile/list')return Response.json({record:'owner@fixture',keys:[]});
@@ -452,7 +454,7 @@ test('MCP large file puts preserve early refusal status and cause',async()=>{
  const scratch=await mkdtemp(resolve(import.meta.dir,'../../tmp/mcp-early-big-'));
  const input=join(scratch,'input');await writeFile(input,Buffer.alloc(24*1024*1024,255));
  let status=403,calls=0;
- const daemon=Bun.serve({port:0,hostname:'127.0.0.1',fetch:()=>{calls++;return Response.json({error:'early file refusal cause'},{status});}});
+ const daemon=Bun.serve({port:0,hostname:'127.0.0.1',fetch:(req)=>{if(new URL(req.url).pathname==='/identity')return Response.json({protocol:1,protocol_min:1});calls++;return Response.json({error:'early file refusal cause'},{status});}});
  const bus=new Bus({AGENT_BUS_NAME:'#mcp@fixture',AGENT_BUS_ADDR:`http://127.0.0.1:${daemon.port}`,AGENT_BUS_TOKEN:'fixture-only'});
  try{
   for(status of [403,413,503]){
@@ -461,4 +463,20 @@ test('MCP large file puts preserve early refusal status and cause',async()=>{
   }
   expect(calls).toBe(3);
  }finally{daemon.stop(true);await rm(scratch,{recursive:true,force:true});}
+});
+
+async function protocolFixture(identity:unknown,run:(bus:Bus,calls:string[])=>Promise<void>,refusal?:[number,string|undefined]){
+ const calls:string[]=[];
+ const server=Bun.serve({port:0,hostname:'127.0.0.1',fetch(req){const path=new URL(req.url).pathname;calls.push(path);if(path==='/identity')return Response.json(identity);if(refusal)return Response.json({error:'cause',kind:refusal[1]},{status:refusal[0]});return Response.json({you:'owner@test'});}});
+ try{await run(new Bus({AGENT_BUS_ADDR:`http://127.0.0.1:${server.port}`,AGENT_BUS_TOKEN:'fixture',AGENT_BUS_NAME:'owner@test'}),calls);}finally{server.stop(true);}
+}
+test('MCP protocol handshake refuses too-new and malformed before application requests',async()=>{
+ for(const [identity,error] of [[{protocol:2,protocol_min:2},'daemon too new'],[{protocol:1.5},'protocol'],[{protocol:-1},'protocol'],[{protocol:null},'protocol'],[{protocol:true},'protocol'],[{protocol:1,protocol_min:2},'protocol_min']] as const){await protocolFixture(identity,async(bus,calls)=>{await expect(bus.status()).rejects.toThrow(error);expect(calls).toEqual(['/identity']);});}
+});
+test('MCP protocol compatibility warns once only for old or absent',async()=>{
+ const original=console.warn,warnings:string[]=[];console.warn=(...a)=>{warnings.push(a.join(' '));};
+ try{for(const [identity,old] of [[{protocol:1,protocol_min:1},false],[{protocol:2,protocol_min:1},false],[{},true],[{protocol:0,protocol_min:0},true]] as const){warnings.length=0;await protocolFixture(identity,async(bus,calls)=>{await bus.status();await bus.status();expect(calls[0]).toBe('/identity');expect(warnings.length).toBe(old?1:0);});}}finally{console.warn=original;}
+});
+test('MCP protocol refusal kinds and 500 do not lose the daemon cause',async()=>{
+ for(const identity of [{},{protocol:1,protocol_min:1}])for(const [code,kind] of [[404,'unknown'],[404,'no_route'],[503,'unavailable'],[500,undefined]] as const){await protocolFixture(identity,async bus=>{try{await bus.status();throw new Error('refusal accepted');}catch(e){expect(e).toBeInstanceOf(BusError);const err=e as BusError;expect(err.status).toBe(code);expect(err.kind).toBe(kind);expect(err.message).toBe(code===500?'internal daemon error':!('protocol'in identity)&&kind==='no_route'?'daemon too old for GET /status':'cause');}},[code,kind]);}
 });

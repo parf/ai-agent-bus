@@ -19,6 +19,8 @@ class BigClient(unittest.TestCase):
                 for k,v in headers.items():self.send_header(k.replace('_','-'),str(v))
                 self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body)
             def do_GET(self):
+                if self.path == '/identity':
+                    self.send_response(200); self.end_headers(); self.wfile.write(b'{"protocol":1,"protocol_min":1}'); return
                 owner.calls.append((self.command,self.path,self.headers.get('X-Agent-Bus-Token')))
                 if self.path=='/status':return self.reply(b'{"you":"owner@fixture"}')
                 if owner.unavailable:return self.reply(b'{"error":"disk path blocked"}',503)

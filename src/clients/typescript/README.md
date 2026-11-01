@@ -46,6 +46,9 @@ pong hello
 
 ## Technical details
 
+At first use, the client checks HTTP `/identity` for [wire compatibility](../../../docs/09-daemon-api.md#how-a-call-is-made); daemon refusals expose `kind` alongside status and message.
+
+
 - **Runtime:** an ESM client for Node 22+ and Bun 1.3+. All network I/O uses Node's built-in HTTP and HTTPS interfaces, including Unix sockets. Browsers are unsupported.
 - **Connecting:** `Bus.connect()` does no I/O. The first authenticated operation verifies `/status.you` against `expectName` when supplied, and `record(name)` selects a target, never a different caller.
 - **TLS:** an HTTPS pin is the SHA256 of the actual peer certificate, checked before any HTTP credential is sent. Without a pin, HTTPS uses normal certificate validation.

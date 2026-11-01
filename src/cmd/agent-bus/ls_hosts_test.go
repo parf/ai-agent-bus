@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -38,7 +37,7 @@ func TestHostsLineShowsEachHostAndHowLongAgo(t *testing.T) {
 // real command does: a formatter nobody calls would pass the test above.
 func TestLsTableOnOneNamePrintsTheHostsLine(t *testing.T) {
 	zero := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(protocol.Record{Name: "#pool@h", Kind: "agent", Readers: &zero,
 			Hosts: []protocol.ReaderHost{{Name: "srv1", LastRead: time.Now()}}})
 	}))

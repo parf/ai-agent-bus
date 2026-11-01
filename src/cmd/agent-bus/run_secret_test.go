@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,7 +27,7 @@ func newSecretBus(t *testing.T, name string) *secretBus {
 	b := &secretBus{name: name}
 	b.secret.Store("")
 	b.status.Store(200)
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/secret":
 			if r.URL.Query().Get("name") != b.name {

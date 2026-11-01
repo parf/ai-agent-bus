@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -40,7 +39,7 @@ func TestOneNameIsStartedOnceAtATime(t *testing.T) {
 func TestALockFreeAgentWithANoteIsStillRunning(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	// No daemon: a run that got past the note would fail reaching it.
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "fixture: no daemon here", http.StatusServiceUnavailable)
 	}))
 	defer server.Close()

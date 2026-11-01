@@ -9,7 +9,6 @@ import (
 	"go/token"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -81,7 +80,7 @@ func TestParserFlagsMatchCommandHelp(t *testing.T) {
 			candidates[op+"-"+field] = true
 		}
 	}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Error(w, "fixture refuses", 403) }))
+	server := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Error(w, "fixture refuses", 403) }))
 	defer server.Close()
 	old := transport
 	defer func() { transport = old }()
@@ -190,7 +189,7 @@ func TestManHelpDispatchAndExitCodes(t *testing.T) {
 func TestLegacyAliasesReachSameDaemonCalls(t *testing.T) {
 	var paths []string
 	var bodies []string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		paths = append(paths, r.URL.RequestURI())
 		b, _ := io.ReadAll(r.Body)
 		bodies = append(bodies, string(b))

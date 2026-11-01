@@ -4,9 +4,10 @@ class BusError(Exception):
     pass
 
 class Refusal(BusError):
-    def __init__(self, status, message):
-        super().__init__(message)
+    def __init__(self, status, message, kind=None):
+        super().__init__("internal daemon error" if status == 500 else message)
         self.status = status
+        self.kind = kind
 
 class TransportError(BusError):
     pass

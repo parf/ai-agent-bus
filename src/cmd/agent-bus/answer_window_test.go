@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -30,7 +29,7 @@ func TestSlowScriptStartsItsDeliveryWindowWhenOutputIsReady(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			posts := make(chan protocol.Envelope, 4)
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path == "/secret" { // an agent with no bus secret
 					http.NotFound(w, r)
 					return

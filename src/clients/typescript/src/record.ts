@@ -20,7 +20,7 @@ export class RecordKV {
   constructor(private record:RecordHandle) {}
   private body(kind:KVKind,name:string): {[key:string]:unknown} { kindCheck(kind); return {record:this.record.name,name,kind}; }
   async get(kind:KVKind,name:string,options:Operation = {}): Promise<KVValue> {
-    let answer:any; try { answer = await this.record.bus.request('GET','/kv',undefined,{...options,query:this.body(kind,name)}); } catch(e) { if (e instanceof BusError && e.status === 404) throw new KVNotFound(e.message); throw e; }
+    let answer:any; try { answer = await this.record.bus.request('GET','/kv',undefined,{...options,query:this.body(kind,name)}); } catch(e) { if (e instanceof BusError && e.status === 404 && (!e.kind || e.kind === 'unknown')) throw new KVNotFound(e.message); throw e; }
     if (kind === 'int') return {kind,value:int64(answer.value)};
     if (kind === 'string') return {kind,value:answer.value_base64 === undefined ? answer.value : Uint8Array.from(Buffer.from(answer.value_base64,'base64'))};
     return {kind,value:answer.value};

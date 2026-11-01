@@ -76,6 +76,9 @@ pong hello
 
 ## Technical details
 
+At first use, the client checks HTTP `/identity` for [wire compatibility](../../../docs/09-daemon-api.md#how-a-call-is-made); daemon refusals expose `kind` alongside status and message.
+
+
 - **Module:** the [reviewed Go API](../../../Plans/R1.0-Release/done/client-libraries/go.md) is implemented; the import is `github.com/parf/ai-agent-bus/src/clients/go`, which is not published.
 - **Connecting:** `Dial(Options{})` makes a caller handle without network I/O. The first operation checks `/status.you`, and `ExpectedName` requires a match. The CLI's address, token and TLS fingerprint defaults apply; unix sockets, HTTP and HTTPS work.
 - **TLS and transport:** HTTPS validates normal certificates or an explicit SHA256 DER pin before sending credentials. HTTP/1 connections disable keep-alive and replay, and redirects are refused.

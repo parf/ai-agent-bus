@@ -1,5 +1,9 @@
 # DONE — R1
 
+## T-24 client compatibility
+
+- Go, Python and TypeScript clients, CLI and MCP check HTTP identity protocol compatibility and surface refusal kinds; [behavior and checks](done/t24-clients.md#checks). Five independent too-new mutants fail on assertions. The server, full contract documentation and shared conformance-vector work are separate T-24 slices.
+
 ## RT31 user-account runner close-out
 
 - Implementation and state handover were already accepted (`c952c241`, 0.9.149; `9905f3ff`, 0.9.151). The 2026-11-01 read-only close-out checks the live runner, both instance records, state paths and retained journal. CEO removed the two disabled standalone unit files; both system and user rechecks list zero.

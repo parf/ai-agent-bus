@@ -21,7 +21,7 @@ import (
 
 func fakeBus(t *testing.T, h http.HandlerFunc) *Bus {
 	t.Helper()
-	s := httptest.NewServer(h)
+	s := httptest.NewServer(protocolFixtureHandler(h))
 	t.Cleanup(s.Close)
 	return fixtureBus(t, s.URL, "fake-token", "#me")
 }
@@ -352,5 +352,15 @@ func TestTLSFingerprintRejectsBeforeCredentialsAndUnixHTTP(t *testing.T) {
 	defer b.Close()
 	if _, e = b.Status(context.Background()); e != nil {
 		t.Fatal(e)
+	}
+}
+
+func protocolFixtureHandler(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/identity" {
+			fmt.Fprint(w, `{"protocol":1,"protocol_min":1}`)
+			return
+		}
+		next(w, r)
 	}
 }

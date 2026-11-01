@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,7 +16,7 @@ func TestRunLocalRefusalsDoNotChangeTheRegistry(t *testing.T) {
 			t.Setenv("AGENT_BUS_TOKEN", "fixture-owner-token")
 			t.Setenv("AGENT_BUS_NAME", "owner@h")
 			var requests atomic.Int32
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				requests.Add(1)
 				if r.URL.Path == "/token" {
 					w.Write([]byte(`{"token":"fixture-agent-token"}`))

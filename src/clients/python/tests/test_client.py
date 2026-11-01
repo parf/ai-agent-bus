@@ -468,6 +468,8 @@ class TransportChecks(unittest.TestCase):
         class Handler(http.server.BaseHTTPRequestHandler):
             def log_message(self, *_): pass
             def do_GET(self):
+                if self.path == '/identity':
+                    self.send_response(200); self.end_headers(); self.wfile.write(b'{"protocol":1,"protocol_min":1}'); return
                 payload = b'{"you":"#worker@fixture"}'
                 self.send_response(200); self.send_header("Content-Length", str(len(payload))); self.end_headers()
                 for byte in payload:
@@ -500,6 +502,8 @@ class TransportChecks(unittest.TestCase):
         class Handler(http.server.BaseHTTPRequestHandler):
             def log_message(self, *_): pass
             def do_GET(self):
+                if self.path == '/identity':
+                    self.send_response(200); self.end_headers(); self.wfile.write(b'{"protocol":1,"protocol_min":1}'); return
                 payload = b'{"you":"#worker@fixture"}' if self.path in ("/identity", "/status") else answers.pop(0)
                 self.send_response(200); self.send_header("Content-Length", str(len(payload))); self.end_headers()
                 self.wfile.write(payload)
@@ -518,6 +522,8 @@ class TransportChecks(unittest.TestCase):
         class Handler(http.server.BaseHTTPRequestHandler):
             def log_message(self, *_): pass
             def do_GET(self):
+                if self.path == '/identity':
+                    self.send_response(200); self.end_headers(); self.wfile.write(b'{"protocol":1,"protocol_min":1}'); return
                 payload = b'{"you":"#worker@fixture"}'
                 self.send_response(200); self.send_header("Content-Length", str(len(payload))); self.end_headers()
                 self.wfile.write(payload)
@@ -545,6 +551,8 @@ class TransportChecks(unittest.TestCase):
         class Handler(http.server.BaseHTTPRequestHandler):
             def log_message(self, *_): pass
             def do_GET(self):
+                if self.path == '/identity':
+                    self.send_response(200); self.end_headers(); self.wfile.write(b'{"protocol":1,"protocol_min":1}'); return
                 requests.append(self.headers.get("X-Agent-Bus-Token"))
                 payload = b'{"you":"#worker@fixture"}'
                 self.send_response(200); self.send_header("Content-Length", str(len(payload))); self.end_headers()

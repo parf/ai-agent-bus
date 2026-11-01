@@ -3,7 +3,6 @@ package main
 import (
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,7 +17,7 @@ import (
 // environment. And a receipt sent to the agent is not work: it never runs the
 // script, which would answer it.
 func TestAScriptGetsNoTokenAndNoReceipts(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/secret" { // an agent with no bus secret
 			http.NotFound(w, r)
 			return
@@ -63,7 +62,7 @@ func TestAScriptGetsNoTokenAndNoReceipts(t *testing.T) {
 // deadline: the ack gives up when the caller does, and the script is not run
 // for a caller that stopped waiting meanwhile.
 func TestASlowAckDoesNotRunWorkPastItsDeadline(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/secret" { // an agent with no bus secret
 			http.NotFound(w, r)
 			return

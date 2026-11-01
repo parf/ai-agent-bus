@@ -800,6 +800,26 @@ func call(method, path string, q url.Values, body any) ([]byte, int, error) {
 // callCtx is the same with a deadline the caller owns: `run` gives it the
 // signal context so a long consume ends when the agent is asked to stop.
 func callCtx(ctx context.Context, method, path string, q url.Values, body any) ([]byte, int, error) {
+	if path == "/identity" {
+		data, code, err := callRawCtx(ctx, method, path, q, body)
+		if err == nil && code < 400 {
+			var old bool
+			old, err = checkClientProtocol(data)
+			if err == nil && old {
+				fmt.Fprintln(os.Stderr, "daemon too old: protocol is older than this client")
+			}
+		}
+		return data, code, err
+	}
+	old, err := ensureDaemonProtocol(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	data, code, err := callRawCtx(ctx, method, path, q, body)
+	return protocolRefusal(data, code, old, method+" "+path), code, err
+}
+
+func callRawCtx(ctx context.Context, method, path string, q url.Values, body any) ([]byte, int, error) {
 	// On your own socket there is nothing to set: the socket says who is
 	// calling. Everywhere else the token does, and it is the only thing sent.
 	// See docs/02-access.md#what-a-call-carries.
@@ -828,6 +848,11 @@ func callCtx(ctx context.Context, method, path string, q url.Values, body any) (
 		req.Header.Set(api.HeaderToken, token)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	// The new public probe must not prime an idle connection on which net/http
+	// can transparently replay the first application GET after a dropped read.
+	if path == "/identity" {
+		req.Close = true
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {

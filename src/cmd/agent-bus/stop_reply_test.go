@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -39,7 +38,7 @@ func TestStopStillDeliversCompletedRepliesWithinTheirBound(t *testing.T) {
 			stop, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			posts := make(chan protocol.Envelope, 128)
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path == "/secret" { // an agent with no bus secret
 					http.NotFound(w, r)
 					return

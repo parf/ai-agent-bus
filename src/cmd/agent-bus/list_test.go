@@ -3,7 +3,6 @@ package main
 import (
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"strings"
 	"sync"
@@ -53,7 +52,7 @@ func TestHumanListLabelsEntitiesWithoutChangingJSONKinds(t *testing.T) {
 	// "generic" is no longer a kind, so it stands in for one the daemon never
 	// stated: an unknown kind is printed as it came and never guessed at.
 	answer := `[{"name":"svc@h","kind":"service","owner":"owner@h","maintainers":["alice@h","@ops"],"readers":0},{"name":"bot@h","kind":"agent","owner":"owner@h","readers":0},{"name":"jobs@h","kind":"queue","owner":"owner@h","readers":0},{"name":"news@h","kind":"pubsub","owner":"owner@h","readers":0},{"name":"alice@h","kind":"user","owner":"owner@h","readers":0},{"name":"old@h","kind":"generic","owner":"owner@h","readers":0}]`
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	srv := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		io.WriteString(w, answer)
 	}))
@@ -86,7 +85,7 @@ func TestDefaultListIsTheAgentsBeingRead(t *testing.T) {
 	t.Setenv("AGENT_BUS_TOKEN", "fixture-token")
 	var asked string
 	answer := `[{"name":"#on@h","kind":"agent","owner":"o@h","readers":1,"descr":"kept as sent"},{"name":"#idle@h","kind":"agent","owner":"o@h","readers":0},{"name":"#old@h","kind":"agent","owner":"o@h"}]`
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		asked = r.URL.Query().Get("kind")
 		w.Header().Set("Content-Type", "application/json")
 		io.WriteString(w, answer)

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,7 +20,7 @@ func bigHex(b []byte) string { s := sha256.Sum256(b); return hex.EncodeToString(
 func bigDaemon(t *testing.T, h http.HandlerFunc) *atomic.Int32 {
 	t.Helper()
 	var n atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { n.Add(1); h(w, r) }))
+	server := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { n.Add(1); h(w, r) }))
 	t.Cleanup(server.Close)
 	old := transport
 	t.Cleanup(func() { transport = old })

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"sync"
 	"syscall"
@@ -54,7 +53,7 @@ func fastAway(t *testing.T) {
 func fixtureRunner(t *testing.T, handler http.HandlerFunc, bound time.Duration) (error, string) {
 	t.Helper()
 	t.Setenv("AGENT_BUS_TOKEN", "fixture-token")
-	server := httptest.NewServer(handler)
+	server := protocolTestServer(handler)
 	t.Cleanup(server.Close)
 	saved := transport
 	transport = func() (*http.Client, string) { return server.Client(), server.URL }

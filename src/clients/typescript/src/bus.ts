@@ -1,5 +1,6 @@
+import { checkProtocol } from './protocol.js';
 import { randomUUID } from 'node:crypto';
-import { Transport, type BinaryOptions, type Operation, budget, remaining, duration, noWait, discoverSocket, IdentityMismatch, UnexpectedAnswer, BusTimeout, BusClosed, ReaderInUse, DrainTimeout, abortError } from './transport.js';
+import { Transport, BusError, type BinaryOptions, type Operation, budget, remaining, duration, noWait, discoverSocket, IdentityMismatch, UnexpectedAnswer, BusTimeout, BusClosed, ReaderInUse, DrainTimeout, abortError } from './transport.js';
 import { Message, bindings, type Envelope } from './message.js';
 import { RecordHandle } from './record.js';
 export interface ConnectOptions { addr?: string | null; token?: string; expectName?: string; timeout?: number; fingerprint?: string }
@@ -25,6 +26,8 @@ export class Bus {
   private readonly timeout: number;
   private readonly expected?: string;
   private name?: string;
+  private daemonOld = false;
+  private protocolWarned = false;
   private identityFlight?: Promise<void>;
   private closed = false;
   private raw = false;
@@ -45,7 +48,10 @@ export class Bus {
   private async ensureIdentity(deadline: number, signal?: AbortSignal): Promise<void> {
     this.check(); signal?.throwIfAborted(); if (this.name) return;
     if (!this.identityFlight) {
-      const flight = this.transport.request('GET','/status',undefined,{ timeout: remaining(deadline) }).then(result => {
+      const flight = this.transport.request('GET','/identity',undefined,{ timeout: remaining(deadline) }).then(identity => {
+        this.checkProtocol(identity);
+        return this.transport.request('GET','/status',undefined,{ timeout: remaining(deadline) });
+      }).then(result => {
         if (typeof result?.you !== 'string') throw new TypeError('status has no caller identity');
         if (this.expected && result.you !== this.expected) throw new IdentityMismatch(result.you,this.expected);
         this.name = result.you;
@@ -69,11 +75,19 @@ export class Bus {
     if (path !== '/identity') await this.ensureIdentity(deadline,options.signal);
     this.check();
     if (options.query) { const query = new URLSearchParams(); for (const [key,value] of Object.entries(options.query)) if (value !== undefined && value !== null) query.set(key,String(value)); path += `?${query}`; }
-    return this.transport.request(method,path,body,{ ...options,timeout: remaining(deadline) });
+    try { return await this.transport.request(method,path,body,{ ...options,timeout: remaining(deadline) }); }
+    catch (error) {
+      if (this.daemonOld && error instanceof BusError && error.kind === 'no_route') throw new BusError(error.status,`daemon too old for ${method} ${path.split('?')[0]}`,error.kind);
+      throw error;
+    }
   }
   async whoami(options: Operation = {}): Promise<{you:string}> { const deadline = budget(options.timeout ?? this.timeout); await this.ensureIdentity(deadline,options.signal); return { you:this.name! }; }
   status(options: Operation = {}): Promise<any> { return this.request('GET','/status',undefined,options); }
-  identity(options: Operation = {}): Promise<any> { return this.request('GET','/identity',undefined,options); }
+  private checkProtocol(identity: unknown): void {
+    this.daemonOld = checkProtocol(identity);
+    if (this.daemonOld && !this.protocolWarned) { console.warn('daemon too old: protocol is older than this client'); this.protocolWarned = true; }
+  }
+  async identity(options: Operation = {}): Promise<any> { const identity = await this.request('GET','/identity',undefined,options); this.checkProtocol(identity); return identity; }
   records(filters: {kind?:string} = {},options:Operation = {}): Promise<any> { return this.request('GET','/ls',undefined,{ ...options,query:filters }); }
   /** Whether `who` may manage the record `name`, by the daemon's own rule; asked only about a record this caller may see. */
   async manages(who: string, name: string, options: Operation = {}): Promise<boolean> { return (await this.request('GET','/manages',undefined,{ ...options,query:{who,name} }))?.manages === true; }
