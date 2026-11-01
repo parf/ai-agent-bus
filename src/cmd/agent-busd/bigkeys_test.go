@@ -2,15 +2,18 @@ package main
 
 import (
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/store/bigfile"
 	"github.com/parf/ai-agent-bus/internal/store/memory"
 )
 
@@ -48,15 +51,15 @@ func bigBus(t *testing.T) (*core.Bus, *reports) {
 }
 
 // A plain file where the directory belongs must not stop the daemon: it
-// starts, reports an error, and refuses every big-key call naming the cause.
+// starts, reports an error, and refuses every bigfile call naming the cause.
 func TestAPlantedFileAtTheBigKeyPathRefusesCallsAndKeepsTheBusUp(t *testing.T) {
 	home := t.TempDir()
-	if err := os.WriteFile(filepath.Join(home, "big-keys"), []byte("planted"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(home, "bigfile"), []byte("planted"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	b, rep := bigBus(t)
 	bindBigKeys(b, home)
-	if got := rep.all(); !strings.Contains(got, "big-key directory could not be prepared; big-key calls are refused") || !strings.HasPrefix(got, "error") {
+	if got := rep.all(); !strings.Contains(got, "bigfile directory could not be prepared; bigfile calls are refused") || !strings.HasPrefix(got, "error") {
 		t.Fatalf("reports = %q, want an error-level report naming the refusal", got)
 	}
 	calls := map[string]func() error{
@@ -77,5 +80,92 @@ func TestAPlantedFileAtTheBigKeyPathRefusesCallsAndKeepsTheBusUp(t *testing.T) {
 	// The bus itself still works.
 	if _, ok := b.Lookup("alice@h", "#svc@h"); !ok {
 		t.Fatal("the bus does not serve its records")
+	}
+}
+
+func putOne(t *testing.T, b *core.Bus, data string) error {
+	t.Helper()
+	_, _, err := b.BigPut("alice@h", "#svc@h", "k", strings.NewReader(data), 0, false, "")
+	return err
+}
+
+func getOne(t *testing.T, b *core.Bus) string {
+	t.Helper()
+	rc, _, err := b.BigGet("alice@h", "#svc@h", "k")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer rc.Close()
+	raw, _ := io.ReadAll(rc)
+	return string(raw)
+}
+
+// A directory under the old name is renamed once, and its bigfiles are served.
+func TestTheOldBigKeysDirectoryIsRenamedAndItsFilesServed(t *testing.T) {
+	home := t.TempDir()
+	first, _ := bigBus(t)
+	s, err := bigfile.Open(filepath.Join(home, oldBigDir), time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	first.SetBigStore(s)
+	if err := putOne(t, first, "kept through the rename"); err != nil {
+		t.Fatal(err)
+	}
+	// The same record IDs, as after a daemon restart: a fresh bus, the same names.
+	second, rep := bigBus(t)
+	bindBigKeys(second, home)
+	if strings.Contains(rep.all(), "could not be prepared") {
+		t.Fatalf("the rename was refused: %s", rep.all())
+	}
+	if _, err := os.Lstat(filepath.Join(home, oldBigDir)); !os.IsNotExist(err) {
+		t.Fatalf("the old directory is still there: %v", err)
+	}
+	if got := getOne(t, second); got != "kept through the rename" {
+		t.Fatalf("after the rename: %q", got)
+	}
+}
+
+// Both directories at once are never guessed at: calls are refused with the
+// cause, and neither directory is touched.
+func TestBothBigDirectoriesRefuseCallsAndTouchNeither(t *testing.T) {
+	home := t.TempDir()
+	for _, d := range []string{oldBigDir, bigDir} {
+		if err := os.MkdirAll(filepath.Join(home, d), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(home, d, "marker"), []byte(d), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	b, rep := bigBus(t)
+	bindBigKeys(b, home)
+	err := putOne(t, b, "x")
+	if !errors.Is(err, core.ErrBigNoStore) || !strings.Contains(err.Error(), "both") || !strings.Contains(err.Error(), oldBigDir) || !strings.Contains(err.Error(), bigDir) {
+		t.Fatalf("a put with both directories = %v, want the unavailable refusal naming both", err)
+	}
+	if !strings.HasPrefix(rep.all(), "error") {
+		t.Fatalf("reports = %q, want an error", rep.all())
+	}
+	for _, d := range []string{oldBigDir, bigDir} {
+		if raw, err := os.ReadFile(filepath.Join(home, d, "marker")); err != nil || string(raw) != d {
+			t.Fatalf("%s was touched: %q %v", d, raw, err)
+		}
+	}
+}
+
+// Neither directory is the ordinary first start: the new one is created.
+func TestNeitherBigDirectoryStartsTheNewOne(t *testing.T) {
+	home := t.TempDir()
+	b, _ := bigBus(t)
+	bindBigKeys(b, home)
+	if err := putOne(t, b, "first"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(home, bigDir)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(filepath.Join(home, oldBigDir)); !os.IsNotExist(err) {
+		t.Fatalf("the old name appeared: %v", err)
 	}
 }
