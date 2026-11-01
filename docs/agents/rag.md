@@ -1,15 +1,15 @@
 # RAG: a memory your AI can search
 
 📌 **TL;DR:**
-- **Problem:** an AI only knows what is in front of it, and your notes, mails and documents are scattered; keyword search misses "car" when you typed "vehicle".
-- **Outcome:** a shared notebook that stores each text sorted into your own topics, with its meaning remembered, so you or your AI find it by meaning.
+- **Problem:** an AI only knows what is in front of it, and your notes, mails and documents are scattered, so it cannot look them up.
+- **Outcome:** a shared notebook that stores each text sorted into your own topics, so you or your AI find it by the words in it.
 - **Start:** give a table its topic list (no AI call yet): [Try this first](#try-this-first).
 
 ## Why you'd want it
 
 - 🧠 **An AI forgets.** Now texts live in one place and a session can recall them later.
 - 🗂️ **Texts are scattered.** Now each is sorted automatically into **your own** categories.
-- 🔎 **Keyword search misses meaning.** Now each text carries a "meaning fingerprint" (an *embedding*: numbers where texts about the same thing land close together).
+- 🔎 **Finding a note by hand is slow.** Now `search` finds stored texts by their words; each text also keeps an *embedding* (a "meaning fingerprint": numbers where texts about the same thing land close together) stored beside it.
 - 👥 **Knowledge stays in one head.** Now several people or AI sessions share the same texts.
 
 ## What it does

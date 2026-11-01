@@ -20,7 +20,7 @@
 - ✅ **Safe exploration:** a read-only agent; any write is refused by the database.
 - ✅ **Capped results:** long results are cut at `max_rows` and the answer says so.
 - ✅ **Best practice:** one agent per real database account, such as `#mysql/billing-ro` (read only) and `#mysql/billing-rw` (read and write); who may read or write is set by [roles](#who-may-use-it).
-- 🚫 **Not for:** bulk export or big data moves (results are capped), long transactions over several calls (one statement per call), or searching texts by meaning (use [RAG](rag.md#what-it-does)).
+- 🚫 **Not for:** bulk export or big data moves (results are capped), long transactions over several calls (one statement per call). For a shared notebook with keyword search, use [RAG](rag.md#what-it-does).
 
 ## You'll need
 
