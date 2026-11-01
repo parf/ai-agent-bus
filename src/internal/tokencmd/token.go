@@ -282,7 +282,9 @@ func post(path string, body any, token string) ([]byte, int, error) {
 	}
 	addr := os.Getenv("AGENT_BUS_ADDR")
 	if addr == "" {
-		addr = api.ClientSocket()
+		// The token presented here may not be the environment's (a rotation
+		// after a key proof presents the proof's): a user socket would ignore it.
+		addr = api.ClientSocketFor(token != "")
 	}
 	client, base := api.Dial(addr)
 	req, err := http.NewRequest("POST", base+path, bytes.NewReader(b))

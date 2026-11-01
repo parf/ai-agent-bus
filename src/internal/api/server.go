@@ -77,7 +77,12 @@ func DefaultSocket() string {
 
 // ClientSocket discovers a local listener without changing the daemon's
 // default bind path. A supplied token must use the shared listener.
-func ClientSocket() string {
+func ClientSocket() string { return ClientSocketFor(os.Getenv("AGENT_BUS_TOKEN") != "") }
+
+// ClientSocketFor is that discovery for a caller that does or does not hold a
+// token to present: a token is never presented on a user socket, which speaks
+// only for its login account and ignores the header.
+func ClientSocketFor(hasToken bool) string {
 	dirs := []string{}
 	if dir := os.Getenv("XDG_RUNTIME_DIR"); dir != "" {
 		dirs = append(dirs, filepath.Join(dir, "agent-bus"))
@@ -87,7 +92,7 @@ func ClientSocket() string {
 	if u, err := user.Current(); err == nil {
 		account = u.Username
 	}
-	return clientSocket(dirs, account, os.Getenv("AGENT_BUS_TOKEN") != "")
+	return clientSocket(dirs, account, hasToken)
 }
 
 // With no listener found it answers the installed directory's path, never a
