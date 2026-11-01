@@ -32,8 +32,13 @@ pub enum BusError {
     Closed,
     #[error("deadline exceeded (acknowledged: {acked})")]
     Timeout { acked: bool },
+    /// A refusal the daemon answered. `kind` is its `kind` member, when it sent one
+    /// (acl, authority, busy, credential, enrolment, full, malformed, name-taken,
+    /// second-reader, suspended, unavailable, unknown, no_route).
     #[error("HTTP {status}: {message}")]
-    Refusal { status: u16, message: String },
+    Refusal { status: u16, kind: Option<String>, message: String },
+    #[error("daemon too new for this client: it serves protocol {protocol_min} and later, this client speaks {client}")]
+    DaemonTooNew { protocol_min: u64, client: u64 },
     #[error("{operation} outcome is unknown; do not replay: {message}")]
     UncertainOutcome { operation: String, message: String },
     #[error("transport failed: {0}")]
@@ -42,6 +47,45 @@ pub enum BusError {
     Protocol(String),
 }
 pub type Result<T> = std::result::Result<T, BusError>;
+
+/// The wire protocol this client speaks. The daemon reports its own in
+/// `GET /identity` (`protocol`, and `protocol_min`, the oldest client it serves).
+pub const CLIENT_PROTOCOL: u64 = 1;
+
+/// Applies the version rule to a `GET /identity` answer and returns the
+/// daemon's protocol, with a warning when it is older than this client:
+/// absent members count as 0; a member that is not a non-negative integer, or
+/// `protocol_min` above `protocol`, is a protocol error naming the member; a
+/// client older than `protocol_min` is refused as too new.
+fn check_protocol(identity: &Value) -> Result<(u64, Option<String>)> {
+    let member = |name: &str| -> Result<u64> {
+        match identity.get(name) {
+            None => Ok(0),
+            Some(v) => v.as_u64().ok_or_else(|| {
+                BusError::Protocol(format!("identity {name} is not a non-negative integer"))
+            }),
+        }
+    };
+    let protocol = member("protocol")?;
+    let protocol_min = member("protocol_min")?;
+    if protocol_min > protocol {
+        return Err(BusError::Protocol(
+            "identity protocol_min is greater than protocol".into(),
+        ));
+    }
+    if CLIENT_PROTOCOL < protocol_min {
+        return Err(BusError::DaemonTooNew {
+            protocol_min,
+            client: CLIENT_PROTOCOL,
+        });
+    }
+    let warning = (protocol < CLIENT_PROTOCOL).then(|| {
+        format!(
+            "daemon too old for this client: it speaks protocol {protocol}, this client speaks {CLIENT_PROTOCOL}"
+        )
+    });
+    Ok((protocol, warning))
+}
 
 /// Received envelope. Fields remain private so server-stamped roles cannot be edited.
 #[derive(Debug, Clone, Deserialize)]
@@ -279,6 +323,9 @@ pub(crate) struct Inner {
     notify: Notify,
     close: CancellationToken,
     records: Mutex<HashMap<String, Arc<RecordInner>>>,
+    /// The daemon's protocol, read at connect, and what the client warned about it.
+    daemon_protocol: std::sync::atomic::AtomicU64,
+    warnings: Mutex<Vec<String>>,
 }
 impl fmt::Debug for Bus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -366,6 +413,8 @@ impl BusBuilder {
                 notify: Notify::new(),
                 close: CancellationToken::new(),
                 records: Mutex::new(HashMap::new()),
+                daemon_protocol: std::sync::atomic::AtomicU64::new(CLIENT_PROTOCOL),
+                warnings: Mutex::new(Vec::new()),
             }),
         };
         let status = bus.status().await?;
@@ -378,6 +427,13 @@ impl BusBuilder {
                 expected: bus.inner.name.clone(),
                 actual: actual.into(),
             });
+        }
+        let (protocol, warning) = check_protocol(&bus.identity().await?)?;
+        bus.inner
+            .daemon_protocol
+            .store(protocol, std::sync::atomic::Ordering::SeqCst);
+        if let Some(warning) = warning {
+            bus.inner.warnings.lock().unwrap().push(warning);
         }
         tokio::spawn(dispatcher(Arc::downgrade(&bus.inner)));
         Ok(bus)
@@ -399,6 +455,10 @@ impl Bus {
     }
     pub fn name(&self) -> &str {
         &self.inner.name
+    }
+    /// Warnings raised at connect, such as "daemon too old for this client".
+    pub fn warnings(&self) -> Vec<String> {
+        self.inner.warnings.lock().unwrap().clone()
     }
     pub async fn identity(&self) -> Result<Value> {
         self.json(Method::GET, "/identity", &[], None, None).await
@@ -496,17 +556,33 @@ impl Bus {
             } else { BusError::Closed }),
             result = response.bytes() => match result {
                 Ok(bytes) => bytes,
-                Err(error) if !status.is_success() => return Err(BusError::Refusal { status: status.as_u16(), message: error.to_string() }),
+                Err(error) if !status.is_success() => return Err(BusError::Refusal { status: status.as_u16(), kind: None, message: error.to_string() }),
                 Err(error) => return Err(transport_failure(error, uncertain, &operation)),
             },
         };
         if !status.is_success() {
-            let msg = serde_json::from_slice::<Value>(&bytes)
-                .ok()
+            let body = serde_json::from_slice::<Value>(&bytes).ok();
+            let kind = body
+                .as_ref()
+                .and_then(|v| v["kind"].as_str().map(str::to_owned));
+            let mut msg = body
+                .as_ref()
                 .and_then(|v| v["error"].as_str().map(str::to_owned))
                 .unwrap_or_else(|| String::from_utf8_lossy(&bytes).into_owned());
+            // A route or method this daemon lacks, from a daemon older than the
+            // client, is that age, said for the operation that met it.
+            if kind.as_deref() == Some("no_route")
+                && self.inner.daemon_protocol.load(std::sync::atomic::Ordering::SeqCst) < CLIENT_PROTOCOL
+            {
+                msg = format!("daemon too old for {operation}");
+            }
+            // A server error that names no kind is the daemon failing, not refusing.
+            if kind.is_none() && status.as_u16() >= 500 {
+                msg = "internal daemon error".into();
+            }
             return Err(BusError::Refusal {
                 status: status.as_u16(),
+                kind,
                 message: msg,
             });
         }

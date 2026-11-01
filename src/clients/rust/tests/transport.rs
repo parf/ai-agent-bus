@@ -19,7 +19,14 @@ async fn status<S: AsyncRead + AsyncWrite + Unpin>(mut socket: S, count: Arc<Ato
         let text = String::from_utf8_lossy(&buffer[..n]).to_lowercase();
         assert!(text.contains("x-agent-bus-token: token-secret"));
         count.fetch_add(1, Ordering::SeqCst);
-        socket.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 17\r\nConnection: close\r\n\r\n{\"you\":\"#worker\"}").await.unwrap();
+        let body: &[u8] = if text.starts_with("get /identity ") {
+            b"{\"protocol\":1,\"protocol_min\":1}"
+        } else {
+            b"{\"you\":\"#worker\"}"
+        };
+        let head = format!("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len());
+        socket.write_all(head.as_bytes()).await.unwrap();
+        socket.write_all(body).await.unwrap();
     }
 }
 #[tokio::test]
@@ -72,7 +79,7 @@ async fn pinned_tls_accepts_exact_certificate_and_rejects_before_credentials() {
         .connect()
         .await
         .unwrap();
-    assert_eq!(count.load(Ordering::SeqCst), 1);
+    assert_eq!(count.load(Ordering::SeqCst), 2, "status, then the identity that carries the protocol");
     bus.close().await.unwrap();
     let result = Bus::builder("#worker")
         .transport(&address)
@@ -83,7 +90,7 @@ async fn pinned_tls_accepts_exact_certificate_and_rejects_before_credentials() {
     assert!(matches!(result, Err(BusError::Transport(_))));
     assert_eq!(
         count.load(Ordering::SeqCst),
-        1,
+        2,
         "wrong pin transmitted HTTP credentials"
     );
     let result = Bus::builder("#other")
@@ -102,8 +109,10 @@ async fn unix_socket_uses_same_authenticated_http_contract() {
     let count = Arc::new(AtomicUsize::new(0));
     let received = count.clone();
     let server = tokio::spawn(async move {
-        let (socket, _) = listener.accept().await.unwrap();
-        status(socket, received).await;
+        for _ in 0..2 {
+            let (socket, _) = listener.accept().await.unwrap();
+            status(socket, received.clone()).await;
+        }
     });
     let bus = Bus::builder("#worker")
         .unix_socket(&path)
@@ -112,7 +121,7 @@ async fn unix_socket_uses_same_authenticated_http_contract() {
         .connect()
         .await
         .unwrap();
-    assert_eq!(count.load(Ordering::SeqCst), 1);
+    assert_eq!(count.load(Ordering::SeqCst), 2);
     bus.close().await.unwrap();
     server.await.unwrap();
 }
@@ -153,7 +162,11 @@ async fn loss_fixture() -> (Bus, Arc<AtomicUsize>, Arc<AtomicUsize>) {
                     }
                 }
                 let request = String::from_utf8_lossy(&buffer);
-                if request.starts_with("GET /status ") {
+                if request.starts_with("GET /identity ") {
+                    let body = b"{\"protocol\":1,\"protocol_min\":1}";
+                    socket.write_all(format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len()).as_bytes()).await.unwrap();
+                    socket.write_all(body).await.unwrap();
+                } else if request.starts_with("GET /status ") {
                     socket.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 17\r\nConnection: close\r\n\r\n{\"you\":\"#worker\"}").await.unwrap();
                 } else if request.starts_with("POST /try-lock") {
                     let body = b"{\"record\":\"jobs\",\"name\":\"build\",\"holder\":\"#worker\"}";
