@@ -35,7 +35,9 @@ def run(args, **kw):
         node=args[-1].strip('/').split('/')[0]
         if mode=='unreadable': code,err=40,'directory unavailable'
         elif '-search' in args:
-            out = ('other-group' if mode=='gid-clash' else m.ROLE)+' PrimaryGroupID: '+id_value+'\n' if mode!='missing-group' else ''
+            owner = 'other-group' if mode=='gid-clash' else m.ROLE
+            out = owner+'\t\tPrimaryGroupID = (\n    '+id_value+'\n)\n' if mode!='missing-group' else ''
+            if mode=='one-line-search': out=owner+' PrimaryGroupID: '+id_value+'\n'
         elif 'GroupMembership' in args:
             privileged = args[-2].split('/')[-1]
             member = m.ROLE if mode == privileged+'-member' else 'root'
@@ -52,7 +54,7 @@ def run(args, **kw):
             if mode=='teardown-unsafe' and booted_out[0]: fields['UserShell']='/bin/zsh'
             if mode in changes:
                 key,value=changes[mode];fields[key]=value
-            out=''.join(k+': '+v+'\n' for k,v in fields.items())
+            out=''.join(('dsAttrTypeNative:' if k=='IsHidden' else '')+k+': '+v+'\n' for k,v in fields.items())
         else: out='PrimaryGroupID: '+('201' if mode=='wrong-group' else id_value)+'\n'
     elif args[:2]==['/bin/launchctl','print']:
         code=0 if mode=='job' or mode=='job-remains' else 113
@@ -91,6 +93,10 @@ class Cleanup(unittest.TestCase):
         self.assertIn('safe to reuse',p.stdout)
         self.assertIn('"-read", "/Users/_agentbusd"',p.stdout)
         self.assertIn('"-read", "/Groups/_agentbusd"',p.stdout)
+
+    def test_preflight_accepts_one_line_search_output(self):
+        p=self.stub('one-line-search','preflight')
+        self.assertEqual(p.returncode,0,p.stdout+p.stderr)
 
     def test_preflight_accepts_absent_role_pair(self):
         p=self.stub('absent','preflight')
@@ -193,6 +199,21 @@ class Cleanup(unittest.TestCase):
         self.assertEqual(p.returncode,1,p.stdout+p.stderr)
         self.assertIn('earlier acceptance failed',p.stderr)
         self.assertIn('role account kept (by design)',p.stdout)
+
+
+class DsclOutput(unittest.TestCase):
+    def test_real_search_output_and_empty_unused_gid(self):
+        spec=importlib.util.spec_from_file_location('mac2_search',Path(__file__).with_name('mac2-install-check.py'))
+        m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+        # CEO's read-only Mac output, 2026-11-01, tabs and newlines preserved.
+        self.assertEqual(m.group_search_rows('staff\t\tPrimaryGroupID = (\n    20\n)\n'), [('staff','20')])
+        # CEO's selected user attributes, in dscl's alphabetical order.
+        self.assertEqual(m.directory_fields('dsAttrTypeNative:IsHidden: 1\nNFSHomeDirectory: /usr/local/var/agent-bus/daemon\nPrimaryGroupID: 206\nUserShell: /usr/bin/false\n'),
+                         {'IsHidden':'1','NFSHomeDirectory':'/usr/local/var/agent-bus/daemon','PrimaryGroupID':'206','UserShell':'/usr/bin/false'})
+        self.assertEqual(m.group_search_rows(''), [])
+        self.assertEqual(m.group_search_rows('staff PrimaryGroupID: 20\n'), [('staff','20')])
+        with self.assertRaisesRegex(AssertionError,'cannot inspect'):
+            m.group_search_rows('staff unexpected output\n')
 
 
 class Archive(unittest.TestCase):

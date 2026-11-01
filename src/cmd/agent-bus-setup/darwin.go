@@ -297,8 +297,13 @@ func walkableParents(dir string) error {
 // ensureAccount creates the hidden role account and its group, under the
 // first id from 200 that neither a user nor a group holds.
 func (l darwinLayout) ensureAccount() error {
-	if existing, err := darwinLookupUser(l.account); err == nil {
+	existing, lookupErr := darwinLookupUser(l.account)
+	if lookupErr == nil {
 		return l.ensureExistingRoleGroup(existing)
+	}
+	var unknownUser user.UnknownUserError
+	if !errors.As(lookupErr, &unknownUser) {
+		return fmt.Errorf("cannot inspect user %s: %w", l.account, lookupErr)
 	}
 	id, err := freeRoleID()
 	if err != nil {
@@ -354,7 +359,7 @@ func (l darwinLayout) ensureExistingRoleGroup(existing *user.User) error {
 		return fmt.Errorf("cannot inspect gid %s for user %s: %w", gid, l.account, err)
 	}
 	if err := darwinCommand(nil, "dseditgroup", "-o", "create", "-i", gid, l.account); err != nil {
-		return err
+		return fmt.Errorf("group %s was not created with gid %s: %w", l.account, gid, err)
 	}
 	group, err = darwinLookupGroup(l.account)
 	if err != nil {

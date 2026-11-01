@@ -25,3 +25,11 @@ All seven production mutants ran only the owning test under the slow lock, compi
 | Treat missing membership as empty | `Cleanup.test_privileged_group_missing_membership_is_refused`: admin and wheel unexpectedly exit 0 | 0.145 |
 
 Restored Python suite: 28/0; focused `TestDarwin` suite passes, including its normal owning Python wrapper. These are local stubs; native recovery is not claimed.
+
+## Native directory output and fail-closed review
+
+The CEO supplied read-only Mac directory output on 2026-11-01: a group search prints `staff` followed by two tabs and `PrimaryGroupID = (` on the first line, `    20` on the next and `)` on the last; a search for unused GID 99999 has empty stdout and exit 0. The user record prefixes `IsHidden` with `dsAttrTypeNative:`. The stubs retain these bytes verbatim, alongside the one-line scalar form. Preflight parses complete records and refuses unrecognised output rather than guessing an owner.
+
+Only `user.UnknownUserError` lets setup create a fresh user. Darwin's Go `os/user` uses `getpwnam_r` (also without cgo): ENOENT or a successful lookup without a result becomes that type; other errno values return an error. It does not return raw dscl `-14136`/`-14120` codes. A lookup failure therefore refuses setup instead of treating the existing account as absent.
+
+Additional command-stub checks cover a failed user lookup, failed GID lookup without creation, nonnumeric PrimaryGroupID, a created group at GID 999 instead of 201 (both named), and an explicit dseditgroup failure (the error names the uncreated group and preserves its cause). Readback failure still says `was not created`. These close the reader's surviving-mutant coverage gaps; revised mutation results follow after the locked run.

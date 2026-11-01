@@ -8,9 +8,14 @@ import (
 )
 
 type roleGroups struct {
-	groups    map[string]*user.Group
-	create    bool
-	lookupErr error
+	groups       map[string]*user.Group
+	create       bool
+	lookupErr    error
+	userErr      error
+	gidLookupErr error
+	commandErr   error
+	gid          string
+	createdGID   string
 }
 
 func fakeExistingDarwinRole(t *testing.T) (darwinLayout, *[]string, *roleGroups) {
@@ -21,7 +26,16 @@ func fakeExistingDarwinRole(t *testing.T) (darwinLayout, *[]string, *roleGroups)
 	t.Cleanup(func() {
 		darwinLookupUser, darwinLookupGroup, darwinLookupGroupID, darwinCommand = oldUser, oldGroup, oldID, oldCommand
 	})
-	darwinLookupUser = func(name string) (*user.User, error) { return &user.User{Username: name, Uid: "201", Gid: "201"}, nil }
+	darwinLookupUser = func(name string) (*user.User, error) {
+		if state.userErr != nil {
+			return nil, state.userErr
+		}
+		gid := state.gid
+		if gid == "" {
+			gid = "201"
+		}
+		return &user.User{Username: name, Uid: "201", Gid: gid}, nil
+	}
 	darwinLookupGroup = func(name string) (*user.Group, error) {
 		if state.lookupErr != nil {
 			return nil, state.lookupErr
@@ -32,6 +46,9 @@ func fakeExistingDarwinRole(t *testing.T) (darwinLayout, *[]string, *roleGroups)
 		return nil, user.UnknownGroupError(name)
 	}
 	darwinLookupGroupID = func(gid string) (*user.Group, error) {
+		if state.gidLookupErr != nil {
+			return nil, state.gidLookupErr
+		}
 		for _, group := range state.groups {
 			if group.Gid == gid {
 				return group, nil
@@ -43,8 +60,15 @@ func fakeExistingDarwinRole(t *testing.T) (darwinLayout, *[]string, *roleGroups)
 		if err := oldCommand(stdin, name, args...); err != nil {
 			return err
 		}
+		if name == "dseditgroup" && state.commandErr != nil {
+			return state.commandErr
+		}
 		if state.create && name == "dseditgroup" && len(args) == 5 && args[0] == "-o" && args[1] == "create" && args[2] == "-i" {
-			state.groups[args[4]] = &user.Group{Name: args[4], Gid: args[3]}
+			gid := args[3]
+			if state.createdGID != "" {
+				gid = state.createdGID
+			}
+			state.groups[args[4]] = &user.Group{Name: args[4], Gid: gid}
 		}
 		return nil
 	}
@@ -111,5 +135,50 @@ func TestDarwinExistingRoleLookupFailureDoesNotCreateGroup(t *testing.T) {
 	}
 	if len(*ran) != 0 {
 		t.Fatalf("lookup failure changed group: %v", *ran)
+	}
+}
+
+func TestDarwinExistingRoleRefusesUserLookupFailure(t *testing.T) {
+	l, ran, state := fakeExistingDarwinRole(t)
+	state.userErr = errors.New("permission denied")
+	if err := l.ensureAccount(); err == nil || !strings.Contains(err.Error(), "cannot inspect user") {
+		t.Fatalf("failed user lookup accepted: %v", err)
+	}
+	if len(*ran) != 0 {
+		t.Fatalf("failed lookup rewrote account: %v", *ran)
+	}
+}
+func TestDarwinExistingRoleRefusesGroupIDLookupFailure(t *testing.T) {
+	l, ran, state := fakeExistingDarwinRole(t)
+	state.gidLookupErr = errors.New("directory offline")
+	if err := l.ensureAccount(); err == nil || !strings.Contains(err.Error(), "cannot inspect gid") {
+		t.Fatalf("failed gid lookup accepted: %v", err)
+	}
+	if len(*ran) != 0 {
+		t.Fatalf("failed gid lookup created group: %v", *ran)
+	}
+}
+func TestDarwinExistingRoleRefusesInvalidPrimaryGroupID(t *testing.T) {
+	l, ran, state := fakeExistingDarwinRole(t)
+	state.gid = "not-numeric"
+	if err := l.ensureAccount(); err == nil || !strings.Contains(err.Error(), "invalid PrimaryGroupID") {
+		t.Fatalf("invalid gid accepted: %v", err)
+	}
+	if len(*ran) != 0 {
+		t.Fatalf("invalid gid created group: %v", *ran)
+	}
+}
+func TestDarwinExistingRoleRefusesWrongCreatedGroupID(t *testing.T) {
+	l, _, state := fakeExistingDarwinRole(t)
+	state.createdGID = "999"
+	if err := l.ensureAccount(); err == nil || !strings.Contains(err.Error(), "201") || !strings.Contains(err.Error(), "999") {
+		t.Fatalf("wrong created gid accepted or not named: %v", err)
+	}
+}
+func TestDarwinExistingRoleReportsGroupCreationFailure(t *testing.T) {
+	l, _, state := fakeExistingDarwinRole(t)
+	state.commandErr = errors.New("permission denied")
+	if err := l.ensureAccount(); err == nil || !strings.Contains(err.Error(), "was not created") || !strings.Contains(err.Error(), "permission denied") {
+		t.Fatalf("creation failure not named: %v", err)
 	}
 }

@@ -99,6 +99,22 @@ def disk(label):
         print('absent: ' + str(p), flush=True)
 
 
+def directory_fields(text):
+    return {key: value.strip() for key, value in re.findall(r'^(?:dsAttrTypeNative:|dsAttrTypeStandard:)?([A-Za-z]+): (.*)$', text, re.M)}
+
+
+def group_search_rows(text):
+    """dscl prints scalar attributes on one line or as a parenthesised array."""
+    pattern = r'(?m)^(\S+)[ \t]+PrimaryGroupID[ \t]*(?::[ \t]*([0-9]+)[ \t]*$|=[ \t]*\(\s*([0-9]+)\s*\)[ \t]*$)'
+    rows, end = [], 0
+    for match in re.finditer(pattern, text):
+        assert not text[end:match.start()].strip(), 'cannot inspect role primary gid owners'
+        rows.append((match[1], match[2] or match[3]))
+        end = match.end()
+    assert not text[end:].strip(), 'cannot inspect role primary gid owners'
+    return rows
+
+
 def role_account(allow_missing_group=False):
     """Check the role user; preflight may let setup restore its missing group."""
     present = []
@@ -113,7 +129,7 @@ def role_account(allow_missing_group=False):
     def fields(node):
         result = run(['/usr/bin/dscl', '.', '-read', '/' + node + '/' + ROLE], private=True)
         assert not result.stderr, 'cannot inspect role ' + node
-        return {key: value.strip() for key, value in re.findall(r'^([A-Za-z]+): (.*)$', result.stdout, re.M)}
+        return directory_fields(result.stdout)
     user = fields('Users')
     group = fields('Groups') if present[1] else None
     assert user.get('UserShell') == '/usr/bin/false', 'unsafe role UserShell: ' + ROLE
@@ -127,10 +143,9 @@ def role_account(allow_missing_group=False):
         assert group.get('PrimaryGroupID') == user['PrimaryGroupID'], 'unsafe role group id: ' + ROLE
     owners = run(['/usr/bin/dscl', '.', '-search', '/Groups', 'PrimaryGroupID', user['PrimaryGroupID']], private=True)
     assert not owners.stderr, 'cannot inspect role primary gid owners'
-    for line in owners.stdout.splitlines():
-        match = re.fullmatch(r'(\S+)\s+PrimaryGroupID:\s*([0-9]+)\s*', line)
-        assert match is not None, 'cannot inspect role primary gid owner: ' + line
-        assert match[1] == ROLE, 'role primary gid belongs to different group: ' + match[1]
+    for name, gid in group_search_rows(owners.stdout):
+        assert int(gid) == int(user['PrimaryGroupID']), 'unexpected role primary gid search result'
+        assert name == ROLE, 'role primary gid belongs to different group: ' + name
 
     for privileged in ('admin', 'wheel'):
         result = run(['/usr/bin/dscl', '.', '-read', '/Groups/' + privileged, 'GroupMembership'], private=True)
