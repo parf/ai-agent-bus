@@ -252,6 +252,13 @@ func TestOverlayValidationWritesNothingAndApplyReplacesCompleteMerge(t *testing.
 	if _, err := os.Stat(filepath.Join(filepath.Dir(src), "old.json")); !os.IsNotExist(err) {
 		t.Fatalf("replacement retained obsolete merged file: %v", err)
 	}
+	if err := os.Remove(filepath.Join(r.host, "fixture", "settings.json")); err != nil {
+		t.Fatal(err)
+	}
+	r.reload()
+	if _, err := os.Stat(filepath.Dir(src)); !os.IsNotExist(err) {
+		t.Fatalf("removing all overrides retained merged output: %v", err)
+	}
 }
 
 func TestOverlayApplyDiscardsInterruptedOutputAndRecoversPreviousMerge(t *testing.T) {

@@ -278,6 +278,7 @@ Turn one nested setting off and keep the rest, in `runner/hello/settings.json`:
 - 🚫 An override of a file the package does not ship refuses the agent at `reload`, naming the file.
 - 🛡️ An agent running with the sandbox off is refused too: there is nowhere to mount the file.
 - 🔄 A changed override restarts a kept agent at `reload`; a one-message agent reads it on its next run.
+- Install validation leaves live merged files untouched; reload publishes complete merged files and discards interrupted temporary output.
 
 ## Limits
 

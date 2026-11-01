@@ -349,3 +349,7 @@ Every `agent-bus-setup --runner` verb (install, a second install, enable, disabl
 ## Agent runtime diagnostics and selection
 
 - Exact method-set mismatches now name the agent, expected/actual methods and missing/extra methods. All bundled manifest selections retain the existing general L rule and explicitly name their reason; [checks and scope](done/agent-runtime-check.md#proof). Both diagnostic and selection mutants fail on assertions. Test/harness only; no bump.
+
+## F2 install validation preserves live overrides
+
+Staging validation no longer changes the live merged files. Apply publishes complete merged output under the reload mutex and recovers interrupted replacements. [Checks and mutant](done/f2-overlay-staging.md#checks).

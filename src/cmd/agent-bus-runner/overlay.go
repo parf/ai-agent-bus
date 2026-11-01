@@ -147,7 +147,7 @@ func publishOverlays(runnerDir, key string, files []overlayFile) error {
 	parent := filepath.Dir(target)
 	backup := filepath.Join(parent, ".files.previous")
 	if len(files) == 0 {
-		return nil
+		return os.RemoveAll(target)
 	}
 	if err := os.MkdirAll(parent, 0700); err != nil {
 		return err
