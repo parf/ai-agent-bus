@@ -271,7 +271,7 @@ Common to every route below:
 
 - **Credential** in `X-Agent-Bus-Token`, or the account socket in its place; none is `401`.
 - **Names** are canonical: a record name in a request is the name as [registered](01-identity-and-authority.md#names); an answer names the caller as `you` or `from`.
-- **Bodies** are JSON on a `POST` of at most 1 MiB, with the one exception of a key-value write, which allows a 512 KiB value escaped; a body that does not arrive in 30 s is `408`; `GET` carries query parameters.
+- **Bodies** are JSON on a `POST` of at most 1 MiB, with the one exception of a key-value write, which allows a 512 KiB value escaped; a body that does not arrive in 30 s is `408` (a bigfile `PUT` has 30 s of silence and a [total budget](03-records-kv.md#bigfiles) instead); `GET` carries query parameters.
 - **Times** are RFC 3339 in UTC; **durations** are Go durations (`30s`, `5m`) except where a field says whole seconds.
 
 ### Send and consume
