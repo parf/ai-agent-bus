@@ -3,7 +3,7 @@
   "json": {
     "description": "Connect outside events and services without sharing their credentials. Receive authenticated events or send a body to a configured destination. Start with routes to see available names; post sends once and returns the response.",
     "license": "PolyForm-Noncommercial-1.0.0",
-    "author": "Serg Parf",
+    "author": "Sergey Porfiriev",
     "homepage": "https://parf.dev/agent-bus/",
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/webhook.md",
     "version": "<version>",

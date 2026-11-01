@@ -3,7 +3,7 @@
   "json": {
     "description": "Find service failures and control the services this instance permits. Inspect status and logs, then start, stop or reload a selected unit. Start with failed or status; changes stay within the configured scope and require the appropriate role.",
     "license": "PolyForm-Noncommercial-1.0.0",
-    "author": "Serg Parf",
+    "author": "Sergey Porfiriev",
     "homepage": "https://parf.dev/agent-bus/",
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/systemd.md",
     "version": "<version>",

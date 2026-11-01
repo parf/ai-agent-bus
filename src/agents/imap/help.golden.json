@@ -3,7 +3,7 @@
   "json": {
     "description": "Read your mail from a private cache without giving callers the mailbox password. Sync, list, search and read mail, set Seen status, and subscribe an agent to new mail. Start with sync, then list.",
     "license": "PolyForm-Noncommercial-1.0.0",
-    "author": "Serg Parf",
+    "author": "Sergey Porfiriev",
     "homepage": "https://parf.dev/agent-bus/",
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/imap.md",
     "version": "<version>",

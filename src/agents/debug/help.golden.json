@@ -3,7 +3,7 @@
   "json": {
     "description": "Find out whether messages arrive and agents can work. Check replies, permissions and runner health with bounded probes. Start with ping; use doctor for a health summary and sandbox for observed restrictions.",
     "license": "PolyForm-Noncommercial-1.0.0",
-    "author": "Serg Parf",
+    "author": "Sergey Porfiriev",
     "homepage": "https://parf.dev/agent-bus/",
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/debug.md",
     "version": "<version>",

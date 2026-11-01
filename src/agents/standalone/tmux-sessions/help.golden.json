@@ -3,7 +3,7 @@
   "json": {
     "description": "Organize long-running work in named terminal windows. Inspect configured windows and start, stop or restart them together or separately. Start with list; each window runs its configured command in one tmux session.",
     "license": "PolyForm-Noncommercial-1.0.0",
-    "author": "Serg Parf",
+    "author": "Sergey Porfiriev",
     "homepage": "https://parf.dev/agent-bus/",
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/tmux-sessions.md",
     "version": "<version>",

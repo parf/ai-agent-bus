@@ -3,7 +3,7 @@
   "json": {
     "description": "Bring your AI into your Discord servers. Post updates, catch up on messages and route human replies to the right session. Start with whoami, then configure a default channel.",
     "license": "PolyForm-Noncommercial-1.0.0",
-    "author": "Serg Parf",
+    "author": "Sergey Porfiriev",
     "homepage": "https://parf.dev/agent-bus/",
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/discord.md",
     "version": "<version>",

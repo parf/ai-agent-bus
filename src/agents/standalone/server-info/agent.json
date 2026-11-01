@@ -1,7 +1,7 @@
 {
   "description": "Find host resource and service problems before choosing a fix. Read system, network, storage and certificate facts without changing the host. Start with load or disks; available sections depend on the Linux account running this agent.",
   "license": "PolyForm-Noncommercial-1.0.0",
-  "author": "Serg Parf",
+  "author": "Sergey Porfiriev",
   "homepage": "https://parf.dev/agent-bus/",
   "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/server-info.md",
   "methods": {

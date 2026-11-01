@@ -6,7 +6,7 @@
   "serves": "itself",
   "processes": 1,
   "license": "PolyForm-Noncommercial-1.0.0",
-  "author": "Serg Parf",
+  "author": "Sergey Porfiriev",
   "homepage": "https://parf.dev/agent-bus/",
   "tags": [],
   "body_formats": [

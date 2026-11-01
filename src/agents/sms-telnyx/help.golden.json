@@ -3,7 +3,7 @@
   "json": {
     "description": "Send one text message without handing callers the Telnyx key. The body is {to,text} or <to> <text>. An unknown result is never retried; start with send.",
     "license": "PolyForm-Noncommercial-1.0.0",
-    "author": "Serg Parf",
+    "author": "Sergey Porfiriev",
     "homepage": "https://parf.dev/agent-bus/",
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/sms.md",
     "version": "<version>",

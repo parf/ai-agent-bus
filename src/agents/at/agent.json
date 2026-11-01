@@ -9,7 +9,7 @@
     "ops"
   ],
   "license": "PolyForm-Noncommercial-1.0.0",
-  "author": "Serg Parf",
+  "author": "Sergey Porfiriev",
   "homepage": "https://parf.dev/agent-bus/",
   "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/at.md",
   "body_formats": [
