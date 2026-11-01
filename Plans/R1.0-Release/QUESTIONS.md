@@ -18,6 +18,12 @@ Q296 to Q301 are [settled](DECISIONS.md#recorded-decisions).
   - ( ) Leave RAG unconfigured until there is data to store ⭐
   > 💡👾 Set it up now with `notes` and voyage-3.5: an empty collection costs nothing, and the keyword search is then tried live before 1.0.
 
+- ❓ Q303 Set an allowed bigfile directory for AI sessions on this node
+  - Context: after J1 (~16:00) the MCP bigfile tools work only inside `AGENT_BUS_BIGFILE_DIR` and refuse when it is unset (your rule, 14:53). Anything in that folder can be uploaded, even by a turn a bus message started, so it must be a dedicated exchange folder, never the home or a project tree
+  - ( ) Leave it unset: AI sessions have no bigfile tools; people still use the `agent-bus bigfile` CLI 🌟
+  - ( ) Set it to a new empty `/home/parf/agent-bus-files` (0700) for every AB-DVP and `work` window ⭐
+  > 💡👾 Leave it unset until a session needs it: nothing uses the MCP bigfile tools today.
+
 ## Messaging agents
 
 Q247 and Q248 (Google Chat) moved to [R1.2](../R1.2/QUESTIONS.md#open-questions) with B.27b: the owner, 2026-11-01, "we need corp acct. cant use personal".
