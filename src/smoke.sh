@@ -1624,6 +1624,15 @@ has "but not the host's files" "$(ab greeter@srv1 call "$RB" --wait 15s read run
 lacks "nor their secrets" "$(ab greeter@srv1 call "$RB" --wait 15s read runner/mail/work/env)" 'bob'
 has "and writes none" "$(ab greeter@srv1 call "$RB" --wait 15s "$(printf 'write runner/hello/env\nX=1')"; ls "$RH/runner/hello/env" 2>&1)" 'No such file'
 has "nor stops an agent" "$(ab greeter@srv1 call "$RB" --wait 15s stop '#fast@srv1')" "error: stop is for the runner's Owner and Maintainers"
+# A forged reload, start or restart from the same caller changes nothing (RW21): the Owner stops one agent, and a
+# refused reload or start leaves it stopped, which a reload would not (a reload serves it again).
+ab launcher@srv1 call "$RB" --wait 15s stop '#fast@srv1' >/dev/null
+has "a caller the ACL admits cannot reload" "$(ab greeter@srv1 call "$RB" --wait 15s reload)" "error: reload is for the runner's Owner and Maintainers"
+has "nor start" "$(ab greeter@srv1 call "$RB" --wait 15s start fast)" "error: start is for the runner's Owner and Maintainers"
+has "nor restart" "$(ab greeter@srv1 call "$RB" --wait 15s restart fast)" "error: restart is for the runner's Owner and Maintainers"
+has "so the stopped agent is still stopped" "$(ab launcher@srv1 call "$RB" --wait 15s status)" '\\"name\\":\\"#fast@srv1\\",\\"enabled\\":true,\\"state\\":\\"stopped\\"'
+lacks "and still answers nothing" "$(ab greeter@srv1 call '#fast@srv1' --wait 3s x 2>&1)" '"body":"fast"'
+has "the Owner's start still serves it" "$(ab launcher@srv1 call "$RB" --wait 15s start fast)" '\\"name\\":\\"#fast@srv1\\",\\"enabled\\":true,\\"state\\":\\"idle\\"'
 ab launcher@srv1 manage "$RB" --add-maintainers greeter@srv1 >/dev/null
 has "a Maintainer reads env names, not values" "$(ab greeter@srv1 call "$RB" --wait 15s read runner/mail/work/env)" 'IMAP_USER'
 ab launcher@srv1 manage "$RB" --remove-maintainers greeter@srv1 --remove-allow greeter@srv1 >/dev/null
