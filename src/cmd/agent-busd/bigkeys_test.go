@@ -15,6 +15,7 @@ import (
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/store/bigfile"
 	"github.com/parf/ai-agent-bus/internal/store/memory"
+	"github.com/parf/ai-agent-bus/internal/store/sqlite"
 )
 
 type reports struct {
@@ -58,7 +59,7 @@ func TestAPlantedFileAtTheBigKeyPathRefusesCallsAndKeepsTheBusUp(t *testing.T) {
 		t.Fatal(err)
 	}
 	b, rep := bigBus(t)
-	bindBigKeys(b, home)
+	bindBigKeys(b, home, bigfile.NewMemoryIndex())
 	if got := rep.all(); !strings.Contains(got, "bigfile directory could not be prepared; bigfile calls are refused") || !strings.HasPrefix(got, "error") {
 		t.Fatalf("reports = %q, want an error-level report naming the refusal", got)
 	}
@@ -104,7 +105,8 @@ func getOne(t *testing.T, b *core.Bus) string {
 func TestTheOldBigKeysDirectoryIsRenamedAndItsFilesServed(t *testing.T) {
 	home := t.TempDir()
 	first, _ := bigBus(t)
-	s, err := bigfile.Open(filepath.Join(home, oldBigDir), time.Now())
+	idx := bigfile.NewMemoryIndex()
+	s, err := bigfile.Open(filepath.Join(home, oldBigDir), idx, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +116,7 @@ func TestTheOldBigKeysDirectoryIsRenamedAndItsFilesServed(t *testing.T) {
 	}
 	// The same record IDs, as after a daemon restart: a fresh bus, the same names.
 	second, rep := bigBus(t)
-	bindBigKeys(second, home)
+	bindBigKeys(second, home, idx)
 	if strings.Contains(rep.all(), "could not be prepared") {
 		t.Fatalf("the rename was refused: %s", rep.all())
 	}
@@ -139,7 +141,7 @@ func TestBothBigDirectoriesRefuseCallsAndTouchNeither(t *testing.T) {
 		}
 	}
 	b, rep := bigBus(t)
-	bindBigKeys(b, home)
+	bindBigKeys(b, home, bigfile.NewMemoryIndex())
 	err := putOne(t, b, "x")
 	if !errors.Is(err, core.ErrBigNoStore) || !strings.Contains(err.Error(), "both") || !strings.Contains(err.Error(), oldBigDir) || !strings.Contains(err.Error(), bigDir) {
 		t.Fatalf("a put with both directories = %v, want the unavailable refusal naming both", err)
@@ -158,7 +160,7 @@ func TestBothBigDirectoriesRefuseCallsAndTouchNeither(t *testing.T) {
 func TestNeitherBigDirectoryStartsTheNewOne(t *testing.T) {
 	home := t.TempDir()
 	b, _ := bigBus(t)
-	bindBigKeys(b, home)
+	bindBigKeys(b, home, bigfile.NewMemoryIndex())
 	if err := putOne(t, b, "first"); err != nil {
 		t.Fatal(err)
 	}
@@ -167,5 +169,56 @@ func TestNeitherBigDirectoryStartsTheNewOne(t *testing.T) {
 	}
 	if _, err := os.Lstat(filepath.Join(home, oldBigDir)); !os.IsNotExist(err) {
 		t.Fatalf("the old name appeared: %v", err)
+	}
+}
+
+// The index lives in the daemon's database: a bigfile survives a restart that
+// rebuilds nothing from the files, and a restored database whose files are not
+// present loses those rows at start.
+func TestBigfilesSurviveARestartThroughTheDatabaseAndARestoreDropsOrphanRows(t *testing.T) {
+	home := t.TempDir()
+	dbPath := filepath.Join(home, "agent-bus.db")
+	db, err := sqlite.Open(dbPath, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, _ := bigBus(t)
+	bindBigKeys(first, home, db)
+	if err := putOne(t, first, "kept in the database"); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := db.BigRows()
+	if err != nil || len(rows) != 1 || rows[0].Name != "k" || rows[0].Size != int64(len("kept in the database")) {
+		t.Fatalf("rows = %+v %v", rows, err)
+	}
+	db.Close()
+
+	db, err = sqlite.Open(dbPath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, _ := bigBus(t)
+	bindBigKeys(second, home, db)
+	if got := getOne(t, second); got != "kept in the database" {
+		t.Fatalf("after a restart: %q", got)
+	}
+	db.Close()
+
+	// The database comes back from a backup while the files do not.
+	if err := os.RemoveAll(filepath.Join(home, bigDir)); err != nil {
+		t.Fatal(err)
+	}
+	db, err = sqlite.Open(dbPath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	third, _ := bigBus(t)
+	bindBigKeys(third, home, db)
+	if rows, _ := db.BigRows(); len(rows) != 0 {
+		t.Fatalf("orphan rows survived the restore: %+v", rows)
+	}
+	if _, _, err := third.BigGet("alice@h", "#svc@h", "k"); !errors.Is(err, core.ErrBigAbsent) {
+		t.Fatalf("a bigfile whose file is gone = %v", err)
 	}
 }

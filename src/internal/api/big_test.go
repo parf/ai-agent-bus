@@ -35,7 +35,7 @@ func bigServer(t *testing.T) (*Server, func(string) string) {
 	t.Helper()
 	b := core.New()
 	b.Persistence(memory.NewState())
-	store, err := bigfile.Open(filepath.Join(t.TempDir(), "big"), time.Now())
+	store, err := bigfile.Open(filepath.Join(t.TempDir(), "big"), bigfile.NewMemoryIndex(), time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}

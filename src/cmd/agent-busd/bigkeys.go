@@ -24,10 +24,10 @@ const bigSweepEvery = time.Minute
 // the directory again. Bigfiles are optional, so a planted file or a changed
 // mode there never takes the node down, and the keys are never quietly held in
 // memory instead.
-func bindBigKeys(bus *core.Bus, home string) {
-	s, err := openBigKeys(home)
+func bindBigKeys(bus *core.Bus, home string, idx ports.BigIndex) {
+	s, err := openBigKeys(home, idx)
 	if err != nil {
-		bus.BigUnavailable(err, func() (ports.BigStore, error) { return openBigKeys(home) })
+		bus.BigUnavailable(err, func() (ports.BigStore, error) { return openBigKeys(home, idx) })
 		return
 	}
 	bus.SetBigStore(s)
@@ -61,11 +61,11 @@ func migrateBigDir(home string) error {
 	return nil
 }
 
-func openBigKeys(home string) (ports.BigStore, error) {
+func openBigKeys(home string, idx ports.BigIndex) (ports.BigStore, error) {
 	if err := migrateBigDir(home); err != nil {
 		return nil, err
 	}
-	s, err := bigfile.Open(filepath.Join(home, bigDir), time.Now())
+	s, err := bigfile.Open(filepath.Join(home, bigDir), idx, time.Now())
 	if err != nil {
 		return nil, err
 	}

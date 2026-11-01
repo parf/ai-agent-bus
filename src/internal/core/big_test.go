@@ -295,7 +295,7 @@ func TestBigKeyUploadFinishingAfterTheRecordIsRemovedLeavesNothing(t *testing.T)
 func fileBigFixture(t *testing.T) (*Bus, *bigfile.Store) {
 	t.Helper()
 	b, _ := kvFixture(t)
-	s, err := bigfile.Open(filepath.Join(t.TempDir(), "big"), time.Now())
+	s, err := bigfile.Open(filepath.Join(t.TempDir(), "big"), bigfile.NewMemoryIndex(), time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -396,7 +396,7 @@ func TestBigKeyRecoveryPrunesOrphans(t *testing.T) {
 	b, _ := kvFixture(t)
 	now := time.Now()
 	b.clock = func() time.Time { return now }
-	s, err := bigfile.Open(filepath.Join(t.TempDir(), "big"), now)
+	s, err := bigfile.Open(filepath.Join(t.TempDir(), "big"), bigfile.NewMemoryIndex(), now)
 	if err != nil {
 		t.Fatal(err)
 	}

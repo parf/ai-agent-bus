@@ -1,10 +1,14 @@
 // Package bigfile holds bigfiles in a private directory, or in memory when a
 // put asks for it (Plans/R1.0-Release/bigfile.md#trust-and-durability).
 //
-// One file holds one key: the bytes, then a footer naming the key, its size,
-// its SHA-256 and its expiry, then the footer's length. A file is written to a
-// temporary name, synced and renamed into place, so a key exists whole or not
-// at all, and a crash leaves at most a temporary file that start removes. A
+// The daemon's database is the index and the source of truth: one row per
+// bigfile held in a file (ports.BigIndex). One file holds one key: the bytes,
+// then a footer naming the key, its size, its SHA-256 and its expiry, then the
+// footer's length; the footer is kept for recovery by hand and is never read
+// to decide what exists. A file is written to a temporary name, synced and
+// renamed into place, and only then does its row commit; a delete removes the
+// row first and the file after. A crash between any two steps leaves a file
+// with no row or a row with no file, and start removes either. A
 // name or a record never reaches a path: files are named by the record's ID
 // and the hash of the name. Files are 0600 in 0700 directories, and links are
 // never followed.
@@ -36,15 +40,19 @@ const (
 	tmpDir    = ".tmp"
 )
 
+// crashPoint is a seam for tests: it is called between the steps whose order
+// matters, and a test that panics there leaves the state a crash would.
+var crashPoint = func(string) {}
+
 type key struct {
 	record uint32
 	name   string
 }
 
-type entry struct {
+// memEntry is a bigfile held in memory: no file and no row.
+type memEntry struct {
 	info ports.BigInfo
-	data []byte // set for a memory key
-	path string // set for a file key
+	data []byte
 }
 
 type footer struct {
@@ -56,14 +64,16 @@ type footer struct {
 
 // Store is safe for concurrent use.
 type Store struct {
-	dir  string
-	mu   sync.Mutex
-	keys map[key]entry
+	dir string
+	idx ports.BigIndex
+	mu  sync.Mutex
+	mem map[key]memEntry
 }
 
-// Open prepares dir, removes what a crash left, and indexes the files that
-// are whole and not expired. Anything else in it is removed.
-func Open(dir string, now time.Time) (*Store, error) {
+// Open prepares dir and reconciles it with the index: temporary files, rows
+// without a whole file, expired rows, and files without a row are removed.
+// Memory bigfiles never survive a start.
+func Open(dir string, idx ports.BigIndex, now time.Time) (*Store, error) {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, err
 	}
@@ -73,47 +83,77 @@ func Open(dir string, now time.Time) (*Store, error) {
 	if err := os.Chmod(dir, 0o700); err != nil {
 		return nil, err
 	}
-	s := &Store{dir: dir, keys: map[key]entry{}}
+	s := &Store{dir: dir, idx: idx, mem: map[key]memEntry{}}
 	if err := os.RemoveAll(filepath.Join(dir, tmpDir)); err != nil {
 		return nil, err
 	}
 	if err := os.Mkdir(filepath.Join(dir, tmpDir), 0o700); err != nil {
 		return nil, err
 	}
-	entries, err := os.ReadDir(dir)
-	if err != nil {
+	if err := s.reconcile(now); err != nil {
 		return nil, err
+	}
+	return s, nil
+}
+
+func (s *Store) rowPath(r ports.BigRow) string {
+	return filepath.Join(s.dir, strconv.FormatUint(uint64(r.Record), 10), r.File)
+}
+
+// reconcile makes the files agree with the rows, the rows being the truth.
+func (s *Store) reconcile(now time.Time) error {
+	rows, err := s.idx.BigRows()
+	if err != nil {
+		return err
+	}
+	kept := map[string]bool{}
+	for _, r := range rows {
+		path := s.rowPath(r)
+		whole := false
+		if fi, err := os.Lstat(path); err == nil && fi.Mode().IsRegular() && now.Before(r.Expires) {
+			if info, err := readFooter(path); err == nil && info.Name == r.Name && info.Size == r.Size && info.SHA256 == r.SHA256 {
+				whole = true
+			}
+		}
+		if whole {
+			kept[path] = true
+			continue
+		}
+		// An expired row, a row without its file, or a file that is not the
+		// one the row names goes, row first, as a delete does.
+		if _, _, err := s.idx.BigRowDelete(r.Record, r.Name); err != nil {
+			return err
+		}
+		os.Remove(path)
+	}
+	entries, err := os.ReadDir(s.dir)
+	if err != nil {
+		return err
 	}
 	for _, e := range entries {
 		if e.Name() == tmpDir {
 			continue
 		}
-		id, perr := strconv.ParseUint(e.Name(), 10, 32)
-		path := filepath.Join(dir, e.Name())
-		if perr != nil || !e.IsDir() {
+		path := filepath.Join(s.dir, e.Name())
+		if _, perr := strconv.ParseUint(e.Name(), 10, 32); perr != nil || !e.IsDir() {
 			os.RemoveAll(path)
 			continue
 		}
 		files, err := os.ReadDir(path)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		for _, f := range files {
 			fp := filepath.Join(path, f.Name())
-			// A FIFO, device or link is removed untouched: opening one could block.
-			if !f.Type().IsRegular() {
-				os.Remove(fp)
-				continue
+			if !kept[fp] {
+				// A file no row names: a crash between rename and commit, or
+				// between a row's delete and its file's unlink. A FIFO or link
+				// is removed untouched.
+				os.RemoveAll(fp)
 			}
-			info, err := readFooter(fp)
-			if err != nil || f.Name() != fileName(info.Name) || !now.Before(info.Expires) {
-				os.Remove(fp)
-				continue
-			}
-			s.keys[key{uint32(id), info.Name}] = entry{info: info, path: fp}
 		}
 	}
-	return s, nil
+	return nil
 }
 
 // realDir refuses a path that is not a directory itself: a link in its place
@@ -186,28 +226,61 @@ func hexSum(s string) bool {
 	return err == nil && strings.ToLower(s) == s
 }
 
-// expire removes every expired key. Caller holds s.mu.
-func (s *Store) expire(now time.Time) {
-	for k, e := range s.keys {
+// unlink removes a row's file, if its directory is a real one.
+func (s *Store) unlink(r ports.BigRow) {
+	path := s.rowPath(r)
+	if s.parentOK(path) == nil {
+		os.Remove(path)
+	}
+}
+
+// expire removes what has expired: memory entries, and the rows the index
+// drops, whose files follow. Caller holds s.mu.
+func (s *Store) expire(now time.Time) error {
+	for k, e := range s.mem {
 		if !now.Before(e.info.Expires) {
-			s.remove(k, e)
+			delete(s.mem, k)
 		}
 	}
-}
-
-func (s *Store) remove(k key, e entry) {
-	if e.path != "" && s.parentOK(e.path) == nil {
-		os.Remove(e.path)
+	gone, err := s.idx.BigRowsDropExpired(now)
+	for _, r := range gone {
+		s.unlink(r)
 	}
-	delete(s.keys, k)
+	return err
 }
 
-// Sweep removes expired keys and their files; the daemon calls it on a timer,
-// and every read expires lazily too.
+// Sweep removes expired bigfiles and their files; the daemon calls it on a
+// timer, and every read expires lazily too.
 func (s *Store) Sweep(now time.Time) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.expire(now)
+}
+
+// usage is what the record holds and what the daemon holds, ignoring one name
+// that a put is about to replace. Caller holds s.mu.
+func (s *Store) usage(record uint32, name string) (inRecord, total int64, names int, err error) {
+	rows, err := s.idx.BigRows()
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	add := func(r uint32, n string, size int64) {
+		if r == record && n == name {
+			return
+		}
+		total += size
+		if r == record {
+			inRecord += size
+			names++
+		}
+	}
+	for _, r := range rows {
+		add(r.Record, r.Name, r.Size)
+	}
+	for k, e := range s.mem {
+		add(k.record, k.name, e.info.Size)
+	}
+	return
 }
 
 func (s *Store) BigPut(record uint32, name string, data io.Reader, sum string, memory bool, expires, now time.Time, lim ports.BigLimits) (ports.BigInfo, bool, error) {
@@ -215,9 +288,9 @@ func (s *Store) BigPut(record uint32, name string, data io.Reader, sum string, m
 		tmp  string
 		body []byte
 		size int64
-		hexs string
 	)
 	h := sha256.New()
+	file := fileName(name) + "-" + randomName()
 	if memory {
 		buf, err := io.ReadAll(io.LimitReader(data, lim.Value+1))
 		if err != nil {
@@ -265,24 +338,18 @@ func (s *Store) BigPut(record uint32, name string, data io.Reader, sum string, m
 	case size == 0:
 		return fail(ports.ErrBigEmpty)
 	}
-	hexs = hex.EncodeToString(h.Sum(nil))
+	hexs := hex.EncodeToString(h.Sum(nil))
 	if sum != "" && sum != hexs {
 		return fail(ports.ErrBigHash)
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.expire(now)
-	var inRecord, total int64
-	names := 0
-	for k, e := range s.keys {
-		if k.record == record && k.name == name {
-			continue
-		}
-		total += e.info.Size
-		if k.record == record {
-			inRecord += e.info.Size
-			names++
-		}
+	if err := s.expire(now); err != nil {
+		return fail(err)
+	}
+	inRecord, total, names, err := s.usage(record, name)
+	if err != nil {
+		return fail(err)
 	}
 	switch {
 	case names+1 > lim.Names:
@@ -292,33 +359,48 @@ func (s *Store) BigPut(record uint32, name string, data io.Reader, sum string, m
 	case total+size > lim.Total:
 		return fail(fmt.Errorf("%w: the daemon holds at most %d bytes of bigfiles", ports.ErrBigFull, lim.Total))
 	}
-	old, replaced := s.keys[key{record, name}]
-	info := ports.BigInfo{Name: name, Size: size, SHA256: hexs, Held: "memory", Expires: expires}
-	e := entry{info: info, data: body}
-	if !memory {
-		dir := filepath.Join(s.dir, strconv.FormatUint(uint64(record), 10))
-		if _, err := os.Lstat(dir); os.IsNotExist(err) {
-			if err := os.Mkdir(dir, 0o700); err != nil {
-				return fail(err)
-			}
+	k := key{record, name}
+	_, wasMem := s.mem[k]
+	if memory {
+		// A file under this name, if any, goes first: row, then file.
+		old, wasRow, err := s.idx.BigRowDelete(record, name)
+		if err != nil {
+			return ports.BigInfo{}, false, err
 		}
-		if err := realDir(dir); err != nil {
+		if wasRow {
+			s.unlink(old)
+		}
+		info := ports.BigInfo{Name: name, Size: size, SHA256: hexs, Held: "memory", Expires: expires}
+		s.mem[k] = memEntry{info: info, data: body}
+		return info, wasMem || wasRow, nil
+	}
+	dir := filepath.Join(s.dir, strconv.FormatUint(uint64(record), 10))
+	if _, err := os.Lstat(dir); os.IsNotExist(err) {
+		if err := os.Mkdir(dir, 0o700); err != nil {
 			return fail(err)
 		}
-		path := filepath.Join(dir, fileName(name))
-		if err := os.Rename(tmp, path); err != nil {
-			return fail(err)
-		}
-		syncDir(dir)
-		syncDir(s.dir)
-		info.Held = "file"
-		e = entry{info: info, path: path}
 	}
-	if replaced && old.path != "" && old.path != e.path {
-		os.Remove(old.path) // the same key moved from a file to memory
+	if err := realDir(dir); err != nil {
+		return fail(err)
 	}
-	s.keys[key{record, name}] = e
-	return info, replaced, nil
+	if err := os.Rename(tmp, filepath.Join(dir, file)); err != nil {
+		return fail(err)
+	}
+	syncDir(dir)
+	syncDir(s.dir)
+	crashPoint("renamed")
+	row := ports.BigRow{Record: record, Name: name, File: file, Size: size, SHA256: hexs, Held: "file", Expires: expires}
+	old, wasRow, err := s.idx.BigRowPut(row)
+	if err != nil {
+		os.Remove(filepath.Join(dir, file)) // the file never got its row
+		return ports.BigInfo{}, false, err
+	}
+	crashPoint("committed")
+	if wasRow && old.File != file {
+		s.unlink(old)
+	}
+	delete(s.mem, k)
+	return ports.BigInfo{Name: name, Size: size, SHA256: hexs, Held: "file", Expires: expires}, wasRow || wasMem, nil
 }
 
 func writeFooter(f *os.File, name string, size int64, sum []byte, expires time.Time) error {
@@ -352,33 +434,49 @@ type sectionCloser struct {
 
 func (c sectionCloser) Close() error { return c.f.Close() }
 
+func rowInfo(r ports.BigRow) ports.BigInfo {
+	return ports.BigInfo{Name: r.Name, Size: r.Size, SHA256: r.SHA256, Held: r.Held, Expires: r.Expires}
+}
+
 func (s *Store) BigGet(record uint32, name string, now time.Time) (io.ReadCloser, ports.BigInfo, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.expire(now)
-	e, ok := s.keys[key{record, name}]
-	if !ok {
-		return nil, ports.BigInfo{}, false, nil
-	}
-	if e.path == "" {
-		return io.NopCloser(bytes.NewReader(e.data)), e.info, true, nil
-	}
-	if err := s.parentOK(e.path); err != nil {
+	if err := s.expire(now); err != nil {
 		return nil, ports.BigInfo{}, false, err
 	}
-	f, err := os.OpenFile(e.path, os.O_RDONLY|nofollow|nonblock, 0)
+	if e, ok := s.mem[key{record, name}]; ok {
+		return io.NopCloser(bytes.NewReader(e.data)), e.info, true, nil
+	}
+	r, found, err := s.idx.BigRowGet(record, name)
+	if err != nil || !found {
+		return nil, ports.BigInfo{}, false, err
+	}
+	path := s.rowPath(r)
+	if err := s.parentOK(path); err != nil {
+		return nil, ports.BigInfo{}, false, err
+	}
+	f, err := os.OpenFile(path, os.O_RDONLY|nofollow|nonblock, 0)
 	if err != nil {
 		return nil, ports.BigInfo{}, false, err
 	}
-	return sectionCloser{io.NewSectionReader(f, 0, e.info.Size), f}, e.info, true, nil
+	return sectionCloser{io.NewSectionReader(f, 0, r.Size), f}, rowInfo(r), true, nil
 }
 
 func (s *Store) BigList(record uint32, now time.Time) ([]ports.BigInfo, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.expire(now)
+	if err := s.expire(now); err != nil {
+		return nil, err
+	}
+	rows, err := s.idx.BigRowsOf(record)
+	if err != nil {
+		return nil, err
+	}
 	out := []ports.BigInfo{}
-	for k, e := range s.keys {
+	for _, r := range rows {
+		out = append(out, rowInfo(r))
+	}
+	for k, e := range s.mem {
 		if k.record == record {
 			out = append(out, e.info)
 		}
@@ -387,36 +485,61 @@ func (s *Store) BigList(record uint32, now time.Time) ([]ports.BigInfo, error) {
 	return out, nil
 }
 
+// BigDelete removes the row first and the file after, so a crash between the
+// two leaves a file no row names, which start removes.
 func (s *Store) BigDelete(record uint32, name string, now time.Time) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.expire(now)
-	e, ok := s.keys[key{record, name}]
-	if ok {
-		s.remove(key{record, name}, e)
+	if err := s.expire(now); err != nil {
+		return false, err
 	}
-	return ok, nil
+	k := key{record, name}
+	_, wasMem := s.mem[k]
+	delete(s.mem, k)
+	old, wasRow, err := s.idx.BigRowDelete(record, name)
+	if err != nil {
+		return false, err
+	}
+	crashPoint("row-deleted")
+	if wasRow {
+		s.unlink(old)
+	}
+	return wasMem || wasRow, nil
 }
 
 func (s *Store) BigDrop(record uint32) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for k, e := range s.keys {
+	for k := range s.mem {
 		if k.record == record {
-			s.remove(k, e)
+			delete(s.mem, k)
 		}
+	}
+	rows, err := s.idx.BigRowsDropRecord(record)
+	if err != nil {
+		return err
+	}
+	for _, r := range rows {
+		s.unlink(r)
 	}
 	return os.RemoveAll(filepath.Join(s.dir, strconv.FormatUint(uint64(record), 10)))
 }
 
-// BigRecords is the IDs of every record holding a key, for the start-up check
-// against the registry.
+// BigRecords is the IDs of every record holding a bigfile, for the start-up
+// check against the registry.
 func (s *Store) BigRecords() []uint32 {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	seen := map[uint32]bool{}
 	var out []uint32
-	for k := range s.keys {
+	rows, _ := s.idx.BigRows()
+	for _, r := range rows {
+		if !seen[r.Record] {
+			seen[r.Record] = true
+			out = append(out, r.Record)
+		}
+	}
+	for k := range s.mem {
 		if !seen[k.record] {
 			seen[k.record] = true
 			out = append(out, k.record)
