@@ -576,7 +576,9 @@ section('locks', function () use ($me, $dir) {
     // A ttl or wait the daemon would refuse is refused here: positive and at most 24 h; a wait of at most 60 s.
     foreach ([['ttl 0', fn() => $locks->tryAcquire('edge', 0)], ['ttl over 24 h', fn() => $locks->tryAcquire('edge', 86401)],
               ['negative ttl', fn() => $locks->tryAcquire('edge', -1)], ['wait over 60 s', fn() => $locks->acquire('edge', 30, 61)],
-              ['extend ttl over 24 h', fn() => $locks->extend('taken', 86401)]] as [$what, $call]) {
+              ['extend ttl over 24 h', fn() => $locks->extend('taken', 86401)],
+              ['ttl NAN', fn() => $locks->tryAcquire('edge', NAN)], ['wait NAN', fn() => $locks->acquire('edge', 30, NAN)],
+              ['extend ttl NAN', fn() => $locks->extend('taken', NAN)]] as [$what, $call]) {
         $e = thrown($call);
         check("$what is InvalidArgument, not sent", $e instanceof InvalidArgument, $e ? get_class($e) : 'accepted');
     }

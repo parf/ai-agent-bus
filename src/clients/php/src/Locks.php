@@ -13,7 +13,7 @@ final class Locks
     private static function ttl(int|float|string $ttl): void
     {
         $s = Json::seconds($ttl);
-        if ($s <= 0 || $s > 86400) { throw new InvalidArgument('a lock ttl is positive and at most 24 h'); }
+        if (!is_finite($s) || $s <= 0 || $s > 86400) { throw new InvalidArgument('a lock ttl is positive and at most 24 h'); }
     }
 
     /** @internal */
@@ -27,7 +27,7 @@ final class Locks
     {
         self::ttl($ttl);
         $w = Json::seconds($wait);
-        if ($w < 0 || $w > 60) { throw new InvalidArgument('a lock wait is at most 60 s'); }
+        if (!is_finite($w) || $w < 0 || $w > 60) { throw new InvalidArgument('a lock wait is at most 60 s'); }
         $start = microtime(true);
         $this->t->request('POST', '/lock', ['wait' => Json::duration($w)],
             ['record' => $this->record, 'name' => $name, 'ttl' => Json::duration($ttl)], true,
