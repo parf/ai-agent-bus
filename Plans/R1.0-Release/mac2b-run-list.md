@@ -6,11 +6,11 @@
 
 - The delivered archive installs through its own `agent-bus-setup`, without `--exec` or a locally rebuilt binary.
 - The [MAC.2 acceptance](macos.md#mac2-daemon-with-a-reduced-setup) runs against that installed daemon, including private storage and registry persistence.
-- The fixture is removed with `sysadminctl`, with the group removed only if it remains. Named leftovers fail the run.
+- The fixture job and files are removed; the verified role account and group are kept for reuse ([account policy](#role-account-reuse)). Other named leftovers fail the run.
 
 ## Prepare the owner session
 
-These are **unrun owner steps**, not native acceptance evidence. Use the existing `~/agent-bus-dev/ai-agent-bus` checkout, clean on `main`, at the landed MAC.2c revision, including its archive-revision check. No extra clone, package installation, profile or system setting change is needed. Python 3 and the existing native command-line tools are required; no Go or Bun build runs on the Mac.
+These are **unrun owner steps**, not native acceptance evidence. Use the existing `~/agent-bus-dev/ai-agent-bus` checkout, clean on `main`, at the landed MAC.2e revision, including its archive-revision and account-reuse checks. No extra clone, package installation, profile or system setting change is needed. Python 3 and the existing native command-line tools are required; no Go or Bun build runs on the Mac.
 
 1. On the build node, the CEO builds from the exact landed revision: `BUILD_COMMIT="$(git rev-parse HEAD)" GOOS=darwin GOARCH=arm64 src/package.sh tmp/mac2b-dist` for Apple Silicon, or set `GOARCH=amd64` in the same command for Intel. The full 40-character commit is stamped into both Go and TypeScript `build_info`; the harness requires it to match the release-source revision on the Mac. Retain the full archive and its `.sha256` beside it. The client archive is not this test's input.
 2. Transfer the native full archive and `.sha256` to `~/agent-bus-dev/mac2b-input/` on the Mac. Transfer missing Git objects through the owner's existing process; do not publish or push a release for this check.
@@ -51,7 +51,7 @@ PY
 
 ## Expected checks and cleanup
 
-The [harness](../../src/acceptance/mac2-install-check.py) refuses existing `_agentbusd` user or group, launchd job, storage, sockets, release root, command links or old web link. It verifies the archive hash with Python, every manifest entry (the review-settings example is the existing non-runtime exception), the packed version, executable bits and native version/build answers before setup, including every program’s stamped commit against the release-source revision. GNU `sha256sum` is not required on the Mac.
+The [harness](../../src/acceptance/mac2-install-check.py) accepts an absent role pair or an existing `_agentbusd` user and group only after the [role checks](#role-account-reuse); it still refuses an existing launchd job, storage, sockets, release root, command links or old web link. It verifies the archive hash with Python, every manifest entry (the review-settings example is the existing non-runtime exception), the packed version, executable bits and native version/build answers before setup, including every program’s stamped commit against the release-source revision. GNU `sha256sum` is not required on the Mac.
 
 | Check | Required result |
 |---|---|
@@ -60,26 +60,24 @@ The [harness](../../src/acceptance/mac2-install-check.py) refuses existing `_age
 | Request and reply | One pinned-TLS request consumed once; `pong` comes from the registered fixture agent |
 | Restart | `launchctl kickstart -k` changes the supervisor PID; the registry record remains |
 | Abrupt supervisor exit | Its recorded child exits, a replacement returns and the registry remains |
-| Teardown | Job, plist, storage, sockets, fresh release root and exact created links removed; account and group verified absent. Exit 3 is the named account-only partial described below, never a pass |
+| Teardown | Job, plist, storage, sockets, fresh release root and exact created links removed; role account and group kept. Prints `role account kept (by design)` and exits 0 if all checks pass |
 | Workspace | Clean `main` restored; throwaway key/extraction/temp data removed; `du -sh ~/agent-bus-dev` and cache absence reported |
 
-Cleanup runs in `finally` after failed assertions too. It bootouts the fixture job, kills only `_agentbusd` processes, removes only preflight-absent fixture paths, then runs `sudo -n /usr/sbin/sysadminctl -deleteUser _agentbusd`. If the group remains, it runs `sudo -n /usr/sbin/dseditgroup -o delete _agentbusd`; a group already gone is success. Directory lookup failure is not absence. A remaining role raises a named error, returns nonzero and points to the [manual recovery](../../docs/07-setup.md#uninstall-the-macos-test-daemon), including Full Disk Access only for persistent permission denial.
+Cleanup runs in `finally` after failed assertions too. It bootouts the fixture job, kills only `_agentbusd` processes, and removes only preflight-absent fixture paths and exact created command links. It verifies job and path absence. No account or group deletion command runs; an earlier assertion or another teardown failure still exits nonzero.
+
+## Role account reuse
+
+Owner, 2026-11-01 13:58 ([decision](DECISIONS.md#recorded-decisions)): the acceptance keeps the role account instead of deleting and recreating it on every run. Preflight accepts either an absent user/group pair or the expected existing pair:
+
+- user shell `/usr/bin/false`, `IsHidden: 1`, home `/usr/local/var/agent-bus/daemon`;
+- user UID and primary GID in 200–399, matching each other and the role group's GID.
+
+A login-capable or visible account, unexpected home or IDs, incomplete pair or unreadable lookup refuses the run. All other existing fixture state is still refused. Setup already reuses an existing account; the run still checks the launchd daemon's `_agentbusd` identity (never root) and `0700` storage.
+
+The harness prints `role account kept (by design)` and exits 0 after successful acceptance and strict teardown. The MAC.2d account-removal partial exit 3 is retired. Deleting the account is an optional owner step for a [real uninstall](../../docs/07-setup.md#uninstall-the-macos-test-daemon), not acceptance cleanup.
+
+Fresh account creation was already proven by the 2026-10-31 run's `PASS role account, launchd identity and private storage` ([saved log](done/mac2d-native-2026-10-31.log), line 85). That run's SSH account-deletion failure remains history; it no longer blocks a rerun with the expected account kept. MAC.2 remains pending until the new archive-run log verifies the remaining acceptance and cleanup.
 
 ## Account removal blocked over SSH
 
-The archive run on 2026-10-31 passed installation, identity, private storage, pinned-TLS request/reply, restart and abrupt-supervisor-exit checks, but `sysadminctl` returned `-14120` over SSH and the role account remained ([unaltered run log](done/mac2d-native-2026-10-31.log)). SSH's terminal context may lack Full Disk Access; this does not make teardown clean.
-
-The harness returns **3** only when the account remains after that specific permission error and every other teardown check passed. It prints `account _agentbusd needs removal from a Full Disk Access terminal`. Other failures retain the ordinary nonzero failure result. It neither grants sshd Full Disk Access nor tries another deletion route.
-
-The owner finishes from a local terminal already allowed Full Disk Access:
-
-```sh
-sudo sysadminctl -deleteUser _agentbusd
-dscl . -read /Users/_agentbusd
-```
-
-The second command **must fail with `eDSRecordNotFound`**, not a permission or lookup error. A visible account or an unreadable directory is not proof of removal. If the terminal needs authorization, the owner follows the [manual recovery steps](../../docs/07-setup.md#uninstall-the-macos-test-daemon). No harness changes that setting. MAC.2 stays ⏳ until the revised rerun log and the CEO's explicit confirmation establish account absence; an account-only partial is not completed acceptance.
-
-## Return evidence
-
-Send the full log, actual revision/version, CPU, duration, exit status and final `du -sh` to `#ab-lead1` (topic `MAC`, tag `ab-dvp`). Do not include tokens or private keys. Preserve the log until its complete output is filed in `done/`; an excerpt does not establish missing checks. After that, remove only the transferred `mac2b-input` artifacts and `mac2b-evidence` directory and report the final workspace size. A failure leaves MAC.2 pending; do not substitute the older `--exec` run.
+Historical MAC.2d behavior: the 2026-10-31 run's SSH account deletion failed with `-14120` ([record](done/mac2d.md#native-run)). The [current account-reuse policy](#role-account-reuse) supersedes that cleanup requirement; no acceptance account deletion or partial exit is required now.

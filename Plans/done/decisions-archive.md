@@ -193,3 +193,10 @@ Superseded by the owner on 2026-10-30: [RD178](../R1.0-Release/DECISIONS.md#reco
 - ✅ RD168 The npm channel relies on the registry; only the signed GitHub archives verify before unpacking ([npm](../R1.0-Release/distribution.md#npm); owner, 2026-10-30)
 - ✅ RD163 Simple install publishes from the public repository, signs with an owner-held `ssh-keygen -Y` release key, builds in GitHub Actions with a local fallback, and keeps the `agent-bus-setup` layout ([simple install](../R1.0-Release/distribution.md#simple-install); owner, 2026-10-29)
 - ✅ RD169 npm names: `agent-bus` for the bus, `agent-bus-client` for the client, per-platform packages on the client stem, matching the commands ([npm](../R1.0-Release/distribution.md#npm); owner, 2026-10-30; settles Q224)
+
+## macOS acceptance account cleanup
+
+Superseded by the owner on 2026-11-01 13:58: the [acceptance keeps the role account](../R1.0-Release/mac2b-run-list.md#role-account-reuse). Manual deletion remains available for a real uninstall.
+
+- **The owner removes the macOS test account at the Mac for MAC.2** (Q298) — owner, 2026-11-01: "i'll run handoff file"; `sudo sysadminctl -deleteUser _agentbusd` from a Terminal on the Mac, as `~/agent-bus-dev/agent-bus-handoff.md` says, before the rerun and after it. No Full Disk Access grant to sshd.
+  - Home: [MAC.2 run list](../R1.0-Release/mac2b-run-list.md#expected-checks-and-cleanup).

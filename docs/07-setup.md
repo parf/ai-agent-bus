@@ -209,7 +209,9 @@ The full Darwin archive carries `agent-bus-setup` with the reduced launchd path:
 
 ##### Uninstall the macOS test daemon
 
-The [MAC.2 acceptance harness](../src/acceptance/mac2-install-check.py) removes only its fresh fixture. It refuses an existing account, job or setup tree before installing; there is no product uninstall command.
+These are manual steps for a real uninstall. The [MAC.2 acceptance](../Plans/R1.0-Release/mac2b-run-list.md#role-account-reuse) deliberately keeps its verified hidden non-login `_agentbusd` user and group for reuse; it removes the fixture job and files. Account deletion is not needed between acceptance runs.
+
+The [MAC.2 acceptance harness](../src/acceptance/mac2-install-check.py) removes only its fresh job and setup files, reusing a verified role account. It refuses any other existing job or setup tree before installing; there is no product uninstall command.
 
 | Step | Cleanup |
 |---|---|

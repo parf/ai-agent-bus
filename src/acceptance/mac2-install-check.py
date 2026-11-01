@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Focused MAC.2 install acceptance. Run only on the authorized Mac as its user.
 
-Every direct sudo invocation is printed. The fresh test role, launchd job and
-setup files are uninstalled in finally, including after a failed assertion.
-No existing daemon/account/tree is replaced; no profiles or packages change.
+Every direct sudo invocation is printed. The launchd job and setup files are
+removed in finally, including after a failed assertion; the checked hidden role
+account is kept for reuse. No existing daemon/tree is replaced; no profiles or
+packages change.
 """
 import argparse
 import contextlib
@@ -98,56 +99,37 @@ def disk(label):
         print('absent: ' + str(p), flush=True)
 
 
-class PartialAccountRemoval(RuntimeError):
-    """All checked teardown completed except the TCC-protected role account."""
+def role_account():
+    """Allow only setup's hidden, non-login role pair, or a fresh absent pair."""
+    present = []
+    for node in ('Users', 'Groups'):
+        found = run(['/usr/bin/dscl', '.', '-list', '/' + node], private=True)
+        assert not found.stderr, 'cannot inspect role ' + node
+        present.append(ROLE in found.stdout.splitlines())
+    assert present[0] == present[1], 'incomplete role account/group pair: ' + ROLE
+    if not present[0]:
+        return False
+    def fields(node):
+        result = run(['/usr/bin/dscl', '.', '-read', '/' + node + '/' + ROLE], private=True)
+        assert not result.stderr, 'cannot inspect role ' + node
+        return {key: value.strip() for key, value in re.findall(r'^([A-Za-z]+): (.*)$', result.stdout, re.M)}
+    user, group = fields('Users'), fields('Groups')
+    assert user.get('UserShell') == '/usr/bin/false', 'unsafe role UserShell: ' + ROLE
+    assert user.get('IsHidden') == '1', 'unsafe role IsHidden: ' + ROLE
+    assert user.get('NFSHomeDirectory') == str(HOME), 'unsafe role NFSHomeDirectory: ' + ROLE
+    for field in ('UniqueID', 'PrimaryGroupID'):
+        assert re.fullmatch(r'[0-9]+', user.get(field, '')), 'invalid role ' + field
+        assert 200 <= int(user[field]) < 400, 'unsafe role ' + field
+    assert group.get('PrimaryGroupID') == user['PrimaryGroupID'] == user['UniqueID'], 'unsafe role group id: ' + ROLE
+    print('PASS existing hidden non-login role account is safe to reuse', flush=True)
+    return True
 
 
-PARTIAL_ACCOUNT_EXIT = 3
-
-
-def remove_roles():
-    # sysadminctl can report an error without a failing status. Verify absence
-    # independently; a failed directory lookup is never proof of absence.
-    problems = []
-    account_tcc_denied = False
-    for node, kind, command in (
-            ('Users', 'user', ('/usr/sbin/sysadminctl', '-deleteUser', ROLE)),
-            ('Groups', 'group', ('/usr/sbin/dseditgroup', '-o', 'delete', ROLE))):
-        try:
-            before = run(['/usr/bin/dscl', '.', '-list', '/' + node], private=True)
-            if before.stderr:
-                raise RuntimeError(before.stderr)
-            if ROLE in before.stdout.splitlines():
-                # sysadminctl may remove its group too. A later deletion can
-                # return nonzero because the entry is already gone; absence
-                # after the command decides success, never its exit status.
-                deleted = sudo(*command, check=False)
-                if node == 'Users':
-                    account_tcc_denied = bool(re.search(r'(?<!\d)-14120(?!\d)', deleted.stdout + deleted.stderr))
-            after = run(['/usr/bin/dscl', '.', '-list', '/' + node], private=True)
-            if after.stderr:
-                raise RuntimeError(after.stderr)
-            if ROLE in after.stdout.splitlines():
-                problems.append('leftover %s %s' % (kind, ROLE))
-        except Exception as error:
-            problems.append('possible leftover %s %s (cannot verify removal: %s)' % (kind, ROLE, error))
-    if account_tcc_denied and problems == ['leftover user ' + ROLE]:
-        raise PartialAccountRemoval(
-            'PARTIAL: account ' + ROLE + ' needs removal from a Full Disk Access terminal. '
-            'The owner must run locally: sudo sysadminctl -deleteUser ' + ROLE +
-            '; then verify: dscl . -read /Users/' + ROLE + ' must fail with eDSRecordNotFound. '
-            'MAC.2 remains pending; this is not clean teardown.')
-    if problems:
-        raise RuntimeError('uninstall incomplete: ' + '; '.join(problems) +
-                           '. Retry sudo /usr/sbin/sysadminctl -deleteUser ' + ROLE +
-                           ' and, only if the group remains, sudo /usr/sbin/dseditgroup -o delete ' + ROLE +
-                           '. If deletion remains permission-denied, open '
-                           'System Settings > Privacy & Security > Full Disk Access, '
-                           'enable the terminal app used for cleanup, quit and reopen it, then run '
-                           'sudo /usr/sbin/sysadminctl -deleteUser ' + ROLE + ' and '
-                           '(only for a remaining group) sudo /usr/sbin/dseditgroup -o delete ' + ROLE +
-                           '; verify both directory entries are absent. '
-                           'See docs/07-setup.md#uninstall-the-macos-test-daemon')
+def preflight(archive=False):
+    role_account()
+    assert sudo('/bin/launchctl', 'print', JOB, check=False, private=True).returncode != 0, 'existing launchd job'
+    for path in (HOME, RUN, PREFIX, PLIST, *COMMAND_LINKS, *([Path('/usr/local/bin/agent-bus-web')] if archive else [])):
+        assert not root_exists(path), 'refusing to replace existing setup path: ' + str(path)
 
 
 def uninstall(missing_parents):
@@ -160,29 +142,19 @@ def uninstall(missing_parents):
             assert link.is_symlink() and os.readlink(link) == str(target), 'unexpected command link; refusing removal: ' + str(link)
             sudo('/bin/rm', '-f', link)
     sudo('/bin/rm', '-rf', HOME, RUN, PREFIX)
-    partial = None
-    try:
-        remove_roles()
-    except PartialAccountRemoval as error:
-        partial = error
     for parent in sorted(missing_parents, key=lambda p: len(p.parts), reverse=True):
         sudo('/bin/rmdir', parent)
     assert not root_exists(HOME) and not root_exists(RUN) and not root_exists(PREFIX) and not root_exists(PLIST)
-    if partial:
-        raise partial
-    print('PASS uninstall removed the fixture role, job and setup files', flush=True)
+    assert all(not root_exists(link) for link in COMMAND_LINKS), 'command link remains'
+    assert sudo('/bin/launchctl', 'print', JOB, check=False, private=True).returncode != 0, 'launchd job remains'
+    print('role account kept (by design)', flush=True)
+    print('PASS uninstall removed the fixture job and setup files', flush=True)
 
 
 
 def uninstall_after_checks(missing_parents):
-    # Called from the acceptance body's finally, while its error is still active.
-    already_failed = sys.exc_info()[0] is not None
-    try:
-        uninstall(missing_parents)
-    except PartialAccountRemoval as error:
-        if not already_failed:
-            raise
-        print(str(error), file=sys.stderr, flush=True)
+    # No partial account-removal exit: the role account is deliberately kept.
+    uninstall(missing_parents)
 
 
 def archive_bundle(archive, work):
@@ -278,12 +250,7 @@ def main():
     try:
         bundle, version = archive_bundle(options.archive, work) if options.archive else (None, None)
         sudo('/usr/bin/true')
-        for node in ('Users', 'Groups'):
-            found = run(['/usr/bin/dscl', '.', '-list', '/' + node], private=True)
-            assert ROLE not in found.stdout.splitlines(), 'refusing to touch an existing ' + node + '/' + ROLE
-        assert sudo('/bin/launchctl', 'print', JOB, check=False, private=True).returncode != 0, 'existing launchd job'
-        for path in (HOME, RUN, PREFIX, PLIST, *COMMAND_LINKS, *([Path('/usr/local/bin/agent-bus-web')] if options.archive else [])):
-            assert not root_exists(path), 'refusing to replace existing setup path: ' + str(path)
+        preflight(bool(options.archive))
         parents = {p for leaf in (HOME, RUN, PREFIX, PLIST, *COMMAND_LINKS) for p in leaf.parents if str(p) not in ('/', '/usr', '/Library')}
         for path in sorted(parents, key=lambda p: len(p.parts)):
             if not root_exists(path):
@@ -328,8 +295,7 @@ def main():
         pid = job_pid()
         user = run(['/bin/ps', '-p', str(pid), '-o', 'user='], private=True).stdout.strip()
         assert user == ROLE and user != 'root', 'daemon runs as wrong account: ' + user
-        role = run(['/usr/bin/dscl', '.', '-read', '/Users/' + ROLE], private=True).stdout
-        assert 'UserShell: /usr/bin/false' in role and 'IsHidden: 1' in role
+        assert role_account(), 'setup did not create or reuse the role account'
         assert not os.access(HOME, os.R_OK | os.X_OK), 'installing user can read private storage'
         permissions = sudo('/usr/bin/stat', '-f', '%Lp', HOME, private=True).stdout.strip()
         assert permissions == '700', permissions
@@ -426,11 +392,7 @@ def main():
 
 
 def cli():
-    try:
-        main()
-    except PartialAccountRemoval as error:
-        print(str(error), file=sys.stderr, flush=True)
-        raise SystemExit(PARTIAL_ACCOUNT_EXIT)
+    main()
 
 
 if __name__ == '__main__':

@@ -13,156 +13,130 @@ import unittest
 
 STUB = r'''
 import importlib.util, json, subprocess, sys
+from pathlib import Path
 spec = importlib.util.spec_from_file_location('mac2', sys.argv[1])
-m = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(m)
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 mode = sys.argv[2]
-present = {'Users': mode != 'absent', 'Groups': mode != 'absent'}
-first_user_read = [True]
+action, mode = mode.split(':', 1)
+present = mode != 'absent'
+paths = {str(p): False for p in (m.HOME, m.RUN, m.PREFIX, m.PLIST)}
+link = Path('/usr/local/bin/agent-bus')
+m.COMMAND_LINKS = {link: Path('/fresh/current/agent-bus')}
+if mode.startswith('leftover-'):
+    paths[str({'home':m.HOME,'run':m.RUN,'prefix':m.PREFIX,'plist':m.PLIST,'link':link,'web':Path('/usr/local/bin/agent-bus-web')}[mode[9:]])] = True
+if mode.startswith('links-'): paths[str(link)] = True
+if mode=='path-remains': paths[str(m.HOME)] = True
+booted_out = [False]
 def run(args, **kw):
-    args = list(map(str, args))
-    print('STUB ' + json.dumps(args), flush=True)
-    code, out, err = 0, '', ''
-    if args[0] == '/usr/bin/dscl':
-        node = args[-1].strip('/').split('/')[0]
-        if '-delete' in args:
-            code, err = 40, 'eDSPermissionError -14120'
-        elif mode == 'unreadable' or mode == 'tcc-lookup-fail' and node == 'Users' and not first_user_read[0]:
-            code, err = 40, 'directory unavailable'
+    args = list(map(str,args)); print('STUB ' + json.dumps(args),flush=True)
+    code,out,err = 0,'',''
+    if args[0]=='/usr/bin/dscl':
+        node=args[-1].strip('/').split('/')[0]
+        if mode=='unreadable': code,err=40,'directory unavailable'
         elif '-list' in args:
-            if node == 'Users': first_user_read[0] = False
-            out = m.ROLE + '\n' if present[node] else ''
-        else:
-            code = 0 if present[node] else 185
-    elif args[0] in ('/usr/sbin/sysadminctl', '/usr/sbin/dseditgroup'):
-        node = 'Users' if args[0].endswith('sysadminctl') else 'Groups'
-        if mode.startswith('tcc') and node == 'Users':
-            err = '### Error:-14120 File:DSRecord.m Line:563'
-        elif mode == 'tcc-group-fail' and node == 'Groups':
-            code, err = 1, 'group deletion failed'
-        elif mode == 'user-removes-group' and node == 'Users':
-            present['Users'] = present['Groups'] = False
-        elif mode == 'group-disappears' and node == 'Groups':
-            present[node] = False
-            code, err = 64, 'group already absent'
-        elif mode == 'fail' or mode == 'group-fail' and node == 'Groups':
-            code, err = 1, 'eDSPermissionError -14120'
-        elif mode != 'false-success':
-            present[node] = False
-    p = subprocess.CompletedProcess(args, code, out, err)
-    if kw.get('check', True) and code:
-        raise RuntimeError(err)
-    return p
-m.run = run
-m.sudo = lambda *args, **kw: run(list(args), **kw)
-m.root_exists = lambda path: False
-if mode.startswith('links-'):
-    class Link:
-        def __str__(self): return '/usr/local/bin/agent-bus'
-        def is_symlink(self): return True
-    link = Link()
-    m.COMMAND_LINKS = {link: '/fresh/current/agent-bus'}
-    m.root_exists = lambda path: path is link
-    m.os.readlink = lambda path: '/other/agent-bus' if mode == 'links-other-target' else '/fresh/current/agent-bus'
-if mode == 'tcc-path-leftover':
-    m.root_exists = lambda path: path == m.HOME
+            exists=present and not (mode=='missing-group' and node=='Groups')
+            out=m.ROLE+'\n' if exists else ''
+        elif node=='Users':
+            fields={'UserShell':'/usr/bin/false','IsHidden':'1','UniqueID':'200','PrimaryGroupID':'200','NFSHomeDirectory':str(m.HOME)}
+            changes={'login':('UserShell','/bin/zsh'),'visible':('IsHidden','0'),'uid':('UniqueID','501'),'gid':('PrimaryGroupID','501'),'home':('NFSHomeDirectory','/Users/parf'),'bad-id':('UniqueID','abc')}
+            if mode in changes:
+                key,value=changes[mode];fields[key]=value
+            out=''.join(k+': '+v+'\n' for k,v in fields.items())
+        else: out='PrimaryGroupID: '+('201' if mode=='wrong-group' else '200')+'\n'
+    elif args[:2]==['/bin/launchctl','print']:
+        code=0 if mode=='job' or mode=='job-remains' else 113
+    elif args[:2]==['/bin/launchctl','bootout']: booted_out[0]=True
+    elif args[0]=='/bin/rm':
+        for path in args[2:]:
+            if mode!='path-remains': paths[path]=False
+    elif args[0] in ('/usr/sbin/sysadminctl','/usr/sbin/dseditgroup'):
+        raise AssertionError('test must keep the role account')
+    result=subprocess.CompletedProcess(args,code,out,err)
+    if kw.get('check',True) and code:raise RuntimeError(err)
+    return result
+m.run=run
+m.sudo=lambda *args,**kw:run(list(args),**kw)
+m.root_exists=lambda path: paths.get(str(path),mode=='path-remains' and path==m.HOME)
+m.Path.is_symlink=lambda path:True
+m.os.readlink=lambda path:'/other/agent-bus' if mode=='links-other-target' else '/fresh/current/agent-bus'
 def acceptance():
     try:
-        if mode == 'tcc-prior-failure':
-            raise AssertionError('earlier acceptance failed')
-    finally:
-        m.uninstall_after_checks([])
-m.main = acceptance
-m.cli()
+        if mode=='prior-failure': raise AssertionError('earlier acceptance failed')
+    finally: m.uninstall_after_checks([])
+if action=='preflight':m.preflight(True)
+else:
+    m.main=acceptance
+    m.cli()
 '''
 
 
 class Cleanup(unittest.TestCase):
-    def run_cleanup(self, mode):
-        return subprocess.run([sys.executable, '-c', STUB,
-                               str(Path(__file__).with_name('mac2-install-check.py')), mode],
-                              capture_output=True, text=True, timeout=5)
+    def stub(self, mode, action='cleanup'):
+        return subprocess.run([sys.executable,'-B','-c',STUB,str(Path(__file__).with_name('mac2-install-check.py')),action+':'+mode],capture_output=True,text=True,timeout=5)
+
+    def test_preflight_accepts_expected_hidden_nonlogin_role(self):
+        p=self.stub('valid','preflight')
+        self.assertEqual(p.returncode,0,p.stdout+p.stderr)
+        self.assertIn('safe to reuse',p.stdout)
+        self.assertIn('"-read", "/Users/_agentbusd"',p.stdout)
+        self.assertIn('"-read", "/Groups/_agentbusd"',p.stdout)
+
+    def test_preflight_accepts_absent_role_pair(self):
+        p=self.stub('absent','preflight')
+        self.assertEqual(p.returncode,0,p.stdout+p.stderr)
+        self.assertNotIn('"-read"',p.stdout)
+
+    def test_preflight_refuses_login_or_visible_account(self):
+        for mode,field in [('login','UserShell'),('visible','IsHidden')]:
+            with self.subTest(mode=mode):
+                p=self.stub(mode,'preflight')
+                self.assertNotEqual(p.returncode,0,p.stdout)
+                self.assertIn(field,p.stderr)
+
+    def test_preflight_refuses_wrong_ids_home_or_partial_pair(self):
+        for mode in ('uid','gid','bad-id','home','wrong-group','missing-group','unreadable'):
+            with self.subTest(mode=mode):
+                p=self.stub(mode,'preflight')
+                self.assertNotEqual(p.returncode,0,p.stdout)
+
+    def test_preflight_refuses_every_other_leftover(self):
+        for mode in ('job',*[ 'leftover-'+key for key in ('home','run','prefix','plist','link','web')]):
+            with self.subTest(mode=mode):
+                p=self.stub(mode,'preflight')
+                self.assertNotEqual(p.returncode,0,p.stdout)
+                self.assertTrue('existing launchd job' in p.stderr or 'existing setup path' in p.stderr,p.stderr)
+
+    def test_teardown_keeps_roles_and_exits_zero(self):
+        p=self.stub('valid')
+        self.assertEqual(p.returncode,0,p.stdout+p.stderr)
+        self.assertIn('role account kept (by design)',p.stdout)
+        self.assertIn('PASS uninstall',p.stdout)
+        for removed in ('sysadminctl','dseditgroup','-delete','PARTIAL:'):
+            self.assertNotIn(removed,p.stdout+p.stderr)
 
     def test_fresh_full_archive_command_link_is_removed(self):
-        p = self.run_cleanup('links-success')
-        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
-        self.assertIn('["/bin/rm", "-f", "/usr/local/bin/agent-bus"]', p.stdout)
-        self.assertIn('PASS uninstall', p.stdout)
+        p=self.stub('links-success')
+        self.assertEqual(p.returncode,0,p.stdout+p.stderr)
+        self.assertIn('["/bin/rm", "-f", "/usr/local/bin/agent-bus"]',p.stdout)
 
     def test_different_command_target_refuses_cleanup(self):
-        p = self.run_cleanup('links-other-target')
-        self.assertNotEqual(p.returncode, 0, p.stdout)
-        self.assertIn('unexpected command link; refusing removal', p.stderr)
-        self.assertNotIn('["/bin/rm", "-f", "/usr/local/bin/agent-bus"]', p.stdout)
-        self.assertNotIn('PASS uninstall', p.stdout)
+        p=self.stub('links-other-target')
+        self.assertNotEqual(p.returncode,0,p.stdout)
+        self.assertIn('unexpected command link; refusing removal',p.stderr)
+        self.assertNotIn('PASS uninstall',p.stdout)
 
-    def test_removes_user_and_group_with_supported_tools(self):
-        p = self.run_cleanup('success')
-        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
-        self.assertIn('["/usr/sbin/sysadminctl", "-deleteUser", "_agentbusd"]', p.stdout)
-        self.assertIn('["/usr/sbin/dseditgroup", "-o", "delete", "_agentbusd"]', p.stdout)
-        self.assertNotIn('"-delete"', p.stdout)
-        self.assertIn('PASS uninstall', p.stdout)
-
-    def test_failure_names_both_leftovers_and_recovery_and_exits_nonzero(self):
-        for mode in ('fail', 'false-success', 'unreadable'):
+    def test_other_teardown_failures_stay_fatal(self):
+        for mode in ('path-remains','job-remains'):
             with self.subTest(mode=mode):
-                p = self.run_cleanup(mode)
-                self.assertNotEqual(p.returncode, 0, p.stdout)
-                self.assertNotIn('PASS uninstall', p.stdout)
-                for text in ('user _agentbusd', 'group _agentbusd', 'Full Disk Access',
-                             'System Settings', 'sysadminctl', 'dseditgroup'):
-                    self.assertIn(text, p.stdout + p.stderr)
+                p=self.stub(mode)
+                self.assertEqual(p.returncode,1,p.stdout+p.stderr)
+                self.assertNotIn('PASS uninstall',p.stdout)
 
-    def test_group_failure_does_not_claim_user_is_left(self):
-        p = self.run_cleanup('group-fail')
-        self.assertNotEqual(p.returncode, 0, p.stdout)
-        self.assertIn('leftover group _agentbusd', p.stderr)
-        self.assertNotIn('leftover user _agentbusd', p.stderr)
-        self.assertNotIn('PASS uninstall', p.stdout)
-
-    def test_already_absent_roles_need_no_delete(self):
-        p = self.run_cleanup('absent')
-        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
-        self.assertNotIn('STUB ["/usr/sbin/', p.stdout)
-
-    def test_user_deletion_also_removes_group(self):
-        p = self.run_cleanup('user-removes-group')
-        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
-        self.assertIn('["/usr/sbin/sysadminctl", "-deleteUser", "_agentbusd"]', p.stdout)
-        self.assertNotIn('STUB ["/usr/sbin/dseditgroup"', p.stdout)
-        self.assertIn('PASS uninstall', p.stdout)
-
-    def test_group_already_gone_after_nonzero_delete_is_success(self):
-        p = self.run_cleanup('group-disappears')
-        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
-        self.assertIn('STUB ["/usr/sbin/dseditgroup"', p.stdout)
-        self.assertIn('PASS uninstall', p.stdout)
-
-    def test_tcc_account_leftover_has_a_distinct_partial_exit_and_local_recovery(self):
-        p = self.run_cleanup('tcc')
-        self.assertEqual(p.returncode, 3, p.stdout + p.stderr)
-        for text in ('PARTIAL: account _agentbusd needs removal from a Full Disk Access terminal',
-                     'sudo sysadminctl -deleteUser _agentbusd',
-                     'dscl . -read /Users/_agentbusd must fail with eDSRecordNotFound', 'MAC.2 remains pending'):
-            self.assertIn(text, p.stderr)
-        self.assertNotIn('PASS uninstall', p.stdout)
-        self.assertIn('"-list", "/Groups"', p.stdout)
-
-    def test_tcc_partial_never_masks_an_earlier_acceptance_failure(self):
-        p = self.run_cleanup('tcc-prior-failure')
-        self.assertEqual(p.returncode, 1, p.stdout + p.stderr)
-        self.assertIn('AssertionError: earlier acceptance failed', p.stderr)
-        self.assertIn('PARTIAL: account _agentbusd', p.stderr)
-        self.assertNotIn('PASS uninstall', p.stdout)
-
-    def test_tcc_does_not_relax_other_teardown_failures(self):
-        for mode in ('tcc-group-fail', 'tcc-path-leftover', 'tcc-lookup-fail', 'false-success'):
-            with self.subTest(mode=mode):
-                p = self.run_cleanup(mode)
-                self.assertEqual(p.returncode, 1, p.stdout + p.stderr)
-                self.assertNotIn('PARTIAL:', p.stderr)
-                self.assertNotIn('PASS uninstall', p.stdout)
+    def test_kept_account_never_masks_earlier_failure(self):
+        p=self.stub('prior-failure')
+        self.assertEqual(p.returncode,1,p.stdout+p.stderr)
+        self.assertIn('earlier acceptance failed',p.stderr)
+        self.assertIn('role account kept (by design)',p.stdout)
 
 
 class Archive(unittest.TestCase):

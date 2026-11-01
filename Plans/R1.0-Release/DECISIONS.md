@@ -6,8 +6,9 @@
   - Home: [versioning](../../CLAUDE.md#versioning), its Stable row.
 - **RAG keyword search ships in R1** (Q301) — owner, 2026-11-01: "do it in R1 - its EZ and keyword search is essential". A setting chooses Qdrant's built-in BM25 or an external engine, default built-in (Q194), with a working built-in BM25 search checked against real Qdrant; an external engine itself is not built.
   - Home: [RAG rules](rag/README.md#rules).
-- **The owner removes the macOS test account at the Mac for MAC.2** (Q298) — owner, 2026-11-01: "i'll run handoff file"; `sudo sysadminctl -deleteUser _agentbusd` from a Terminal on the Mac, as `~/agent-bus-dev/agent-bus-handoff.md` says, before the rerun and after it. No Full Disk Access grant to sshd.
-  - Home: [MAC.2 run list](mac2b-run-list.md#expected-checks-and-cleanup).
+- **The MAC.2 test keeps the role account** — owner, 2026-11-01 13:58: reuse only the verified hidden, non-login `_agentbusd` user/group pair; no deletion between acceptance runs. Supersedes Q298's local-terminal deletion requirement.
+  - Home: [role account reuse](mac2b-run-list.md#role-account-reuse); [earlier decision](../done/decisions-archive.md#macos-acceptance-account-cleanup).
+
 - **The wire protocol is frozen before 1.0** (Q296) — owner, 2026-11-01: "agree". In R1: the wire contract for the client surface (send/consume, kv, locks, bigfile, status, config) in [daemon API](../../docs/09-daemon-api.md); a `protocol` number with "daemon too old/new" in the CLI, clients and MCP, and a written compatibility policy; a refusal `kind` and a 404 route-or-data split; shared conformance cases for kv, locks, status, refusals and bigfile in all six clients, with a check that fails when a documented route or field disappears; the one-release aliases removed or frozen. Admin-only routes are marked unstable; bigfile stays Go, Python and TypeScript. R1 about Nov 9–10.
   - Home: [R1 TODO](TODO.md#objective).
 - **Key-value limits are what ships: signed 64-bit integers and 512 KiB values** (Q297) — owner, 2026-11-01: "agree"; the docs were corrected, behaviour untouched. The earlier unenforced 2^62 and 128 KiB targets are dropped.
