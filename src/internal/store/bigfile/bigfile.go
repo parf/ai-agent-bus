@@ -100,8 +100,13 @@ func Open(dir string, now time.Time) (*Store, error) {
 		}
 		for _, f := range files {
 			fp := filepath.Join(path, f.Name())
+			// A FIFO, device or link is removed untouched: opening one could block.
+			if !f.Type().IsRegular() {
+				os.Remove(fp)
+				continue
+			}
 			info, err := readFooter(fp)
-			if err != nil || !f.Type().IsRegular() || f.Name() != fileName(info.Name) || !now.Before(info.Expires) {
+			if err != nil || f.Name() != fileName(info.Name) || !now.Before(info.Expires) {
 				os.Remove(fp)
 				continue
 			}
@@ -109,6 +114,28 @@ func Open(dir string, now time.Time) (*Store, error) {
 		}
 	}
 	return s, nil
+}
+
+// realDir refuses a path that is not a directory itself: a link in its place
+// would carry a write or a delete outside the root. The tree is the daemon
+// account's own, so this guards a planted link, not a race with that account.
+func realDir(path string) error {
+	fi, err := os.Lstat(path)
+	if err != nil {
+		return err
+	}
+	if !fi.IsDir() {
+		return fmt.Errorf("%s is not a directory", path)
+	}
+	return nil
+}
+
+// parentOK checks the directories above a key file before it is touched.
+func (s *Store) parentOK(path string) error {
+	if err := realDir(s.dir); err != nil {
+		return err
+	}
+	return realDir(filepath.Dir(path))
 }
 
 func fileName(name string) string {
@@ -119,7 +146,7 @@ func fileName(name string) string {
 // readFooter checks a file is whole: its footer parses and agrees with its
 // length.
 func readFooter(path string) (ports.BigInfo, error) {
-	f, err := os.OpenFile(path, os.O_RDONLY|nofollow, 0)
+	f, err := os.OpenFile(path, os.O_RDONLY|nofollow|nonblock, 0)
 	if err != nil {
 		return ports.BigInfo{}, err
 	}
@@ -169,7 +196,7 @@ func (s *Store) expire(now time.Time) {
 }
 
 func (s *Store) remove(k key, e entry) {
-	if e.path != "" {
+	if e.path != "" && s.parentOK(e.path) == nil {
 		os.Remove(e.path)
 	}
 	delete(s.keys, k)
@@ -199,6 +226,12 @@ func (s *Store) BigPut(record uint32, name string, data io.Reader, sum string, m
 		body, size = buf, int64(len(buf))
 		h.Write(buf)
 	} else {
+		if err := realDir(s.dir); err != nil {
+			return ports.BigInfo{}, false, err
+		}
+		if err := realDir(filepath.Join(s.dir, tmpDir)); err != nil {
+			return ports.BigInfo{}, false, err
+		}
 		f, err := os.OpenFile(filepath.Join(s.dir, tmpDir, randomName()), os.O_WRONLY|os.O_CREATE|os.O_EXCL|nofollow, 0o600)
 		if err != nil {
 			return ports.BigInfo{}, false, err
@@ -264,7 +297,12 @@ func (s *Store) BigPut(record uint32, name string, data io.Reader, sum string, m
 	e := entry{info: info, data: body}
 	if !memory {
 		dir := filepath.Join(s.dir, strconv.FormatUint(uint64(record), 10))
-		if err := os.MkdirAll(dir, 0o700); err != nil {
+		if _, err := os.Lstat(dir); os.IsNotExist(err) {
+			if err := os.Mkdir(dir, 0o700); err != nil {
+				return fail(err)
+			}
+		}
+		if err := realDir(dir); err != nil {
 			return fail(err)
 		}
 		path := filepath.Join(dir, fileName(name))
@@ -325,7 +363,10 @@ func (s *Store) BigGet(record uint32, name string, now time.Time) (io.ReadCloser
 	if e.path == "" {
 		return io.NopCloser(bytes.NewReader(e.data)), e.info, true, nil
 	}
-	f, err := os.OpenFile(e.path, os.O_RDONLY|nofollow, 0)
+	if err := s.parentOK(e.path); err != nil {
+		return nil, ports.BigInfo{}, false, err
+	}
+	f, err := os.OpenFile(e.path, os.O_RDONLY|nofollow|nonblock, 0)
 	if err != nil {
 		return nil, ports.BigInfo{}, false, err
 	}

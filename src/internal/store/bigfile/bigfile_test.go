@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -267,5 +268,88 @@ func TestALinkInPlaceOfAKeyFileIsNotFollowed(t *testing.T) {
 	again, _ := Open(dir, now)
 	if l, _ := again.BigList(1, now); len(l) != 0 {
 		t.Fatalf("a linked file was indexed: %+v", l)
+	}
+}
+
+func filesUnder(root string) []string {
+	var out []string
+	filepath.Walk(root, func(p string, fi os.FileInfo, err error) error {
+		if err == nil && fi.Mode().IsRegular() {
+			out = append(out, p)
+		}
+		return nil
+	})
+	return out
+}
+
+func TestARecordDirectoryLinkIsNotFollowedByAPutOrADelete(t *testing.T) {
+	s, dir := open(t)
+	now := time.Now()
+	outside := t.TempDir()
+	if err := os.Symlink(outside, filepath.Join(dir, "5")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := put(s, 5, "escaped", "payload", false, now); err == nil {
+		t.Fatal("a put went through a linked record directory")
+	}
+	if got := filesUnder(outside); len(got) != 0 {
+		t.Fatalf("a put wrote outside the root: %v", got)
+	}
+	if left, _ := os.ReadDir(filepath.Join(dir, tmpDir)); len(left) != 0 {
+		t.Fatalf("the refused put left temporary files: %v", left)
+	}
+	// A key whose record directory is swapped for a link afterwards is neither
+	// read nor deleted through it.
+	if _, err := put(s, 6, "k", "inside", false, now); err != nil {
+		t.Fatal(err)
+	}
+	moved := filepath.Join(t.TempDir(), "moved")
+	os.Rename(filepath.Join(dir, "6"), moved)
+	os.Symlink(moved, filepath.Join(dir, "6"))
+	if rc, _, _, err := s.BigGet(6, "k", now); err == nil {
+		rc.Close()
+		t.Fatal("a get went through a linked record directory")
+	}
+	if _, err := s.BigDelete(6, "k", now); err != nil {
+		t.Fatal(err)
+	}
+	if got := filesUnder(moved); len(got) != 1 {
+		t.Fatalf("a delete removed a file through the link: %v", got)
+	}
+}
+
+func TestALinkedTempOrRootDirectoryRefusesAPut(t *testing.T) {
+	s, dir := open(t)
+	outside := t.TempDir()
+	os.RemoveAll(filepath.Join(dir, tmpDir))
+	os.Symlink(outside, filepath.Join(dir, tmpDir))
+	if _, err := put(s, 1, "k", "payload", false, time.Now()); err == nil {
+		t.Fatal("a put went through a linked temporary directory")
+	}
+	if got := filesUnder(outside); len(got) != 0 {
+		t.Fatalf("a put wrote outside the root: %v", got)
+	}
+}
+
+func TestStartDoesNotBlockOnAFifoOrOpenAnyNonRegularEntry(t *testing.T) {
+	s, dir := open(t)
+	now := time.Now()
+	put(s, 3, "k", "bytes", false, now)
+	fifo := filepath.Join(dir, "3", fileName("fifo"))
+	if err := syscall.Mkfifo(fifo, 0o600); err != nil {
+		t.Skipf("no FIFOs here: %v", err)
+	}
+	done := make(chan error, 1)
+	go func() { _, err := Open(dir, now); done <- err }()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("start blocked on a FIFO in a record directory")
+	}
+	if _, err := os.Lstat(fifo); !os.IsNotExist(err) {
+		t.Fatal("the FIFO was kept")
 	}
 }

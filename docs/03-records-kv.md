@@ -163,10 +163,11 @@ A big key is a named value of up to 32 MiB that is passed by name instead of ins
 | Lifetime | every key expires: 24 hours by default, 1 second to 30 days by `ttl`; expired keys are never returned and their files are removed within a minute |
 | Held | in a file by default, written whole, synced and renamed into place, so a crash leaves a key whole or absent; `memory=true` keeps it in memory, lost at a restart |
 | The record's life | removing the record removes its big keys; a transfer keeps them; keys of a record removed while the daemon was down are removed at start |
+| Unavailable | big keys are optional: if `big-keys/` cannot be prepared at start (a planted file, a mode change) the daemon still starts, reports an error, and answers the four big-key calls with 503 naming the cause; a later call retries the directory at most once a minute, so a repaired directory recovers without a restart. Keys are never quietly held in memory instead |
 | Backups | the files live in `big-keys/` beside the database; a database backup and a record export never include them, and a restore starts with none |
 | Integrity | a put answers the size and SHA-256 of what was stored, and refuses bytes that do not match an `X-Big-Sha256` header; a get carries the hash in `X-Big-Sha256` |
 
-The API: `PUT /big?record=<name>&name=<key>&ttl=<seconds>&memory=<true|false>` with the raw bytes as the body; `GET /big?record=&name=` streams the bytes; `GET /big/list?record=` answers each key's name, size, sha256, held and expires; `POST /big/delete` takes `record` and `name`. An existing name is replaced and the answer says `replaced`. Over a limit is 413, a refusal by authority 403, an absent key or record 404.
+The API: `PUT /big?record=<name>&name=<key>&ttl=<seconds>&memory=<true|false>` with the raw bytes as the body; `GET /big?record=&name=` streams the bytes; `GET /big/list?record=` answers each key's name, size, sha256, held and expires; `POST /big/delete` takes `record` and `name`. An existing name is replaced and the answer says `replaced`. Over a limit is 413, a refusal by authority 403, an absent key or record 404, an unusable store 503.
 
 Bytes are readable by the daemon and are not encrypted at rest ([trust boundary](02-access.md#trust-boundary)); the file mode is 0600 in a 0700 directory. The plan is [big keys](../Plans/R1.0-Release/big-keys.md#help-text).
 
