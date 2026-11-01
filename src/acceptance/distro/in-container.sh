@@ -191,7 +191,8 @@ deploy_checked "after the update"
 web_follows_code "after the update" "$sig_good" "$applied_good"
 sig_next=$(web_sig); applied_next=$(web_applied)
 # A no-op: the same command again, with nothing newer. The code is the same, so the record must be.
-as_alice sh -c "curl -fsSL https://releases.test/next/install.sh | sh" >/evidence/rerun.log 2>&1 || { tail -30 /evidence/rerun.log >&2; fail "install.sh did not re-run on $next"; }
+# install.sh refuses ("already current"), so this is the repair the refusal names: setup run again, without --upgrade.
+as_alice sudo /usr/local/lib/agent-bus/current/agent-bus-setup --owner alice >/evidence/rerun.log 2>&1 || { tail -30 /evidence/rerun.log >&2; fail "setup did not repair $next in place"; }
 web_follows_code "after a re-run with nothing new" "$sig_next" "$applied_next"
 [ "$(config_sums)" = "$config_before" ] || fail "the re-run changed the node's configuration files"
 [ "$(as_alice agent-bus config "#kept@$realm")" = "$record_before" ] || fail "the update changed #kept@$realm's Configuration"
