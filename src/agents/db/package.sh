@@ -1,5 +1,5 @@
 #!/bin/sh
-# Needs pymysql and psycopg 3 (LGPL-3.0, psycopg.org) installed for python3; they are copied into the package with their licenses.
+# Installs the pinned pymysql and psycopg 3 (LGPL-3.0, psycopg.org) wheels of requirements.txt into the package with their licenses; needs pip and the index, or AB_DB_WHEELS.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 dest=${1:?usage: package.sh <agent.d/db>}
@@ -14,18 +14,13 @@ install -m 0644 "$here/../../../licenses/NOTICE.md" "$dest/licenses/NOTICE.md"
 mkdir -p "$dest/support/agents/shared" "$dest/support/internal/version" "$dest/support/lib"
 install -m 0644 "$here/../shared/metadata.py" "$here/../shared/provider_http.py" "$dest/support/agents/shared/"
 install -m 0644 "$here/../../internal/version/VERSION" "$dest/support/internal/version/"
-python3 - "$dest/support/lib" <<'PY'
-import importlib.metadata as m, pathlib, shutil, sys
-out = pathlib.Path(sys.argv[1])
-for dist in ('pymysql', 'psycopg', 'psycopg-binary'):
-    d = m.distribution(dist)
-    for f in d.files:
-        if f.parts[0].endswith('.dist-info') and f.name not in ('RECORD', 'INSTALLER', 'direct_url.json') or not f.parts[0].endswith('.dist-info'):
-            if f.suffix == '.pyc' or '__pycache__' in f.parts:
-                continue
-            target = out / f.as_posix()
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(d.locate_file(f), target)
-PY
+# The drivers come from the pinned wheels in requirements.txt, never from the host's
+# site-packages, whose metadata varies by machine (J67). AB_DB_WHEELS names a directory
+# of those wheels for an offline build; AB_DB_REQUIREMENTS replaces the pin file (tests).
+set -- --disable-pip-version-check --quiet --no-deps --no-compile --only-binary=:all: --require-hashes \
+  --target "$dest/support/lib" -r "${AB_DB_REQUIREMENTS:-$here/requirements.txt}"
+[ -z "${AB_DB_WHEELS:-}" ] || set -- --no-index --find-links "$AB_DB_WHEELS" "$@"
+python3 -m pip install "$@"
+find "$dest/support/lib" \( -name __pycache__ -o -name '*.pyc' -o -name RECORD -o -name INSTALLER -o -name direct_url.json -o -name REQUESTED \) -prune -exec rm -rf {} +
 cp "$here/NOTICE" "$dest/NOTICE"
 package_commit
