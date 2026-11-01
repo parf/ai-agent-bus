@@ -17,6 +17,10 @@ let owner = "", bob = "", carol = "", newerVersion = "";
 let serving = true;
 let refuseStop = false;
 const asked: { runner: string; body: string }[] = [];
+/** The verbs the fake actually carried out: only a managing verb from the runner's Owner. */
+const ran: string[] = [];
+/** The verbs only the runner's Owner and Maintainers may send: agent-bus-runner main.go:594, kept in step by a test below. */
+const MANAGING = ["reload", "start", "stop", "restart", "enable", "disable", "read", "write", "create", "delete", "install", "remove"];
 /** The host's files the fake runner holds; any other is absent. */
 const files: Record<string, string> = { "agent.d/hello/agent.json": '{"command":"./hello.sh"}', "agent.d/hello/env.dist": "GREETING=hi\nNAME=\n", "runner/hello/env": "NAME=rd105-file-sentinel\nBUS=rd105-bus-sentinel\n" };
 
@@ -38,7 +42,8 @@ async function fakeRunner(name: string, token: string, delay = 0) {
     const verb = String(e.body).split(/\s/)[0];
     const file = String(e.body).split("\n")[0]!.slice(verb.length + 1);
     // As the runner does: what reaches the host's files is for its Owner and Maintainers.
-    const managing = ["start", "stop", "restart", "enable", "disable", "read", "write", "create", "delete"].includes(verb);
+    const managing = MANAGING.includes(verb);
+    if (managing && e.from === "owner@test") ran.push(verb);
     const answer = managing && e.from !== "owner@test" ? `error: ${verb} is for the runner's Owner and Maintainers: it reaches the host's files and their secrets`
       : refuseStop && verb === "stop" ? "error: fixture refuses stop"
       : delay ? JSON.stringify({ runner: name, version: newerVersion, agents: [{ name: "#late@test", enabled: true, state: "idle" }] })
@@ -556,3 +561,54 @@ test("runner danger stays open after a refused action", async () => {
   expect(page).toContain('data-danger="stop"');
  } finally {refuseStop=false;}
 });
+
+// The fake above copies the real runner's rule; a verb added to one and not the other would let a test pass
+// against a runner that does not exist.
+test("the fake runner's managing verbs are the real runner's", () => {
+  const go = Bun.file(join(import.meta.dir, "../../cmd/agent-bus-runner/main.go"));
+  return go.text().then(src => {
+    const block = /var managing = map\[string\]bool\{([^}]*)\}/.exec(src);
+    expect(block).not.toBeNull();
+    const real = [...block![1]!.matchAll(/"([a-z]+)": true/g)].map(m => m[1]!).sort();
+    expect(real.length).toBeGreaterThan(5);
+    expect([...MANAGING].sort()).toEqual(real);
+  });
+});
+
+// RW21: bob may see alpha and send it status (the daemon admits him), but start, stop and reload are for the
+// runner's Owner and Maintainers, and the runner refuses everyone else. A forged post reaches the runner as bob,
+// is refused there, changes nothing, and the page never says it worked. The refusal here is the fake's copy of the
+// runner's rule; the real runner's is checked in smoke (the runner section, a non-Maintainer caller).
+test("RW21 a visitor who may see the runner but not manage it cannot start, stop or reload through forged posts", async () => {
+  const s = await signIn(bob);
+  const ranBefore = [...ran];
+  const forged: [string, Record<string, string>][] = [
+    ...["start", "stop", "restart", "enable", "disable"].map(verb => ["/runner-control", { name: A, verb, agent: "hello" }] as [string, Record<string, string>]),
+    ["/runner-reload", { name: A }], ["/runner-reload", { name: A, key: "hello" }],
+  ];
+  for (const [path, form] of forged) {
+    const sent = asked.length;
+    const page = await (await req(path, s, form)).text();
+    const what = `${path} ${form.verb ?? "reload"}`;
+    // The page around the refusal asks for more (status, files); the verb itself went once, to alpha, as the visitor.
+    const verbBody = form.verb ? `${form.verb} ${form.agent}` : "reload";
+    expect(asked.slice(sent).filter(a => a.runner === A && a.body === verbBody).length, `${what} reached the runner`).toBe(1);
+    expect(page, what).toContain("was not carried out");
+    expect(page, what).toContain("is for the runner&#39;s Owner and Maintainers");
+    expect(page, what).not.toContain("the runner answered");
+    expect(page, what).not.toContain("Reloaded:");
+  }
+  expect(ran, "a forged post made the runner do something").toEqual(ranBefore);
+  // The agent is still served: alpha still lists it, as before.
+  const list = await (await req(`/runner?name=${encodeURIComponent(A)}`, s)).text();
+  expect(rows(list, "agent")).toContain("#hello@test");
+  // The positive control: the same posts as the Owner do reach the verb.
+  const owned = await signIn(owner);
+  await (await req("/runner-reload", owned, { name: A })).text();
+  await (await req("/runner-control", owned, { name: A, verb: "stop", agent: "hello" })).text();
+  // (The pages after them read the host's files as the Owner, which also counts as carried out.)
+  const ownerRan = ran.slice(ranBefore.length);
+  expect(ownerRan).toContain("reload");
+  expect(ownerRan).toContain("stop");
+  for (const forgedVerb of ["start", "restart", "enable", "disable"]) expect(ownerRan).not.toContain(forgedVerb);
+}, 20_000);
