@@ -245,6 +245,12 @@ import io
 import re
 
 MAX_BIG = 32 * 1024 * 1024
+BIG_IDLE = 30        # seconds of stall the daemon allows a bigfile body
+BIG_RATE = 64 * 1024  # bytes a second it promises to finish at
+
+def big_budget(size):
+    """Whole time a bigfile put or get may take: the stall allowance plus the slowest promised rate for size bytes."""
+    return BIG_IDLE + min(max(size, 0), MAX_BIG) / BIG_RATE
 
 class BigfileHashMismatch(ValueError):
     """Discard a download whose size or SHA-256 did not verify."""
@@ -291,14 +297,14 @@ class RecordBigfile:
             if total!=size:raise InvalidArgument('size differs from input bytes')
         headers={'Content-Type':'application/octet-stream','Content-Length':str(size)}
         if sha256 is not None:headers['X-Bigfile-Sha256']=sha256.lower()
-        result=self.record.bus._request('PUT','/bigfile',query={'record':self.record.name,'name':name,'ttl':ttl,'memory':str(memory).lower()},headers=headers,upload=chunks())
+        result=self.record.bus._request('PUT','/bigfile',query={'record':self.record.name,'name':name,'ttl':ttl,'memory':str(memory).lower()},headers=headers,upload=chunks(),total=big_budget(size))
         if result.get('sha256')!=digest.hexdigest() or result.get('size')!=size:
             raise BigfileHashMismatch('bigfile put size or SHA-256 mismatch; upload may have completed')
         return result
     def get(self,name,*,max_size=MAX_BIG):
         if type(max_size) is not int or not 1<=max_size<=MAX_BIG:raise InvalidArgument("max_size must be 1..33554432 bytes")
         key(name)
-        data,headers=self.record.bus._request('GET','/bigfile',query={'record':self.record.name,'name':name},big_response=True,max_size=max_size)
+        data,headers=self.record.bus._request('GET','/bigfile',query={'record':self.record.name,'name':name},big_response=True,max_size=max_size,total=big_budget(max_size))
         digest=hashlib.sha256(data).hexdigest()
         if not data or len(data)>MAX_BIG or headers.get('content-length')!=str(len(data)) or headers.get('x-bigfile-sha256')!=digest:
             raise BigfileHashMismatch('bigfile get size or SHA-256 mismatch; discard the download')
