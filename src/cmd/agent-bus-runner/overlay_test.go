@@ -421,7 +421,8 @@ func TestOverlayPublicationFallsBackOnlyWhenExchangeIsUnsupported(t *testing.T) 
 		exchangeErr error
 		wantRenames int
 	}{
-		{"EINVAL", syscall.EINVAL, 2}, {"EIO", syscall.EIO, 0},
+		{"EINVAL", syscall.EINVAL, 2}, {"ENOSYS", syscall.ENOSYS, 2},
+		{"EOPNOTSUPP", syscall.EOPNOTSUPP, 2}, {"EPERM", syscall.EPERM, 2}, {"EIO", syscall.EIO, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			host := t.TempDir()
@@ -432,7 +433,7 @@ func TestOverlayPublicationFallsBackOnlyWhenExchangeIsUnsupported(t *testing.T) 
 			exchanges, renames := 0, 0
 			err := publishOverlayTree(target, []overlayFile{{name: "settings.json", body: []byte("new")}}, func(string, string) error { exchanges++; return tc.exchangeErr }, func(a, b string) error { renames++; return os.Rename(a, b) })
 			want := "old"
-			if tc.exchangeErr == syscall.EINVAL {
+			if tc.wantRenames > 0 {
 				want = "new"
 				if err != nil {
 					t.Fatalf("EINVAL exchange did not fall back: %v", err)
@@ -447,7 +448,7 @@ func TestOverlayPublicationFallsBackOnlyWhenExchangeIsUnsupported(t *testing.T) 
 			if readErr != nil || string(data) != want {
 				t.Fatalf("exchange/fallback contents: %s %v want%s", data, readErr, want)
 			}
-			if tc.exchangeErr == syscall.EINVAL {
+			if tc.wantRenames > 0 {
 				old, err := os.ReadFile(filepath.Join(filepath.Dir(target), ".files.previous", "settings.json"))
 				if err != nil || string(old) != "old" {
 					t.Fatalf("fallback deleted old tree before retirement: %s %v", old, err)

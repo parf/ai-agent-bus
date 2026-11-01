@@ -11,7 +11,8 @@ only apply publishes merged files.
   Linux `renameat2(RENAME_EXCHANGE)` swaps that directory with the live output
   without removing the bind source; the old tree at the temporary path is
   retained until the next apply, after affected agents have retired. If the
-  filesystem answers EINVAL, a two-rename fallback retains a backup through
+  kernel, filesystem or seccomp filter answers EINVAL, ENOSYS, EOPNOTSUPP
+  or EPERM, a two-rename fallback retains a backup through
   retirement and restores it on publication failure. The next apply
   recovers a crash in that fallback and removes interrupted temporary output.
 - Recovery logs errors by key, refuses only that key (and its instances if
@@ -64,7 +65,7 @@ The whole-runner recovery failure and the absent bind-source window are fixed.
 |---|---|
 | `TestOverlayRecoveryRefusesOnlyTheUnreadableKeyAndContinues` | A mode-000 key is refused by name; a healthy neighbour still loads, updates its merged output and removes stale temporary output |
 | `TestOverlayPublicationExchangesDirectoriesWithoutRemovingTheBindSource` | The real Linux exchange swaps both complete trees and never calls a rename that withdraws the live source |
-| `TestOverlayPublicationFallsBackOnlyWhenExchangeIsUnsupported` | Injected EINVAL falls back through both renames; EIO refuses and preserves the old tree |
+| `TestOverlayPublicationFallsBackOnlyWhenExchangeIsUnsupported` | Injected EINVAL, ENOSYS, EOPNOTSUPP and EPERM fall back through both renames; EIO refuses and preserves the old tree |
 
 Before the advisory fold, four locked delta mutants compiled and failed on assertions: restoring the
 whole-load `list=nil` error (`one recovery error stopped healthy agents`),
@@ -97,3 +98,11 @@ both retention mutants compiled and failed on their owning assertion:
 Each mutant ran only its owning test. Each source was restored immediately;
 both owning tests then passed (0.004 s and 0.005 s). The lock was released.
 No lock is held or pending.
+
+### Portability follow-up
+
+The fallback table also covers ENOSYS (kernel), EOPNOTSUPP (filesystem) and
+EPERM (a filtered exchange). Ordinary rename errors still refuse publication;
+no permission is bypassed. `golang.org/x/sys` is a direct module requirement,
+as the Linux runner imports `unix` directly. The focused publication and
+rollback race tests pass (1.021 s); link and diff checks pass.

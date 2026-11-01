@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.276 — 2026-11-01
+
+Agent installs publish merged overrides from a read-only stage by an atomic directory exchange, with per-key crash recovery
+
 ## 0.9.275 — 2026-11-01
 
 KV set accepts an empty value_base64 as empty bytes; a null value is now refused as malformed naming the member

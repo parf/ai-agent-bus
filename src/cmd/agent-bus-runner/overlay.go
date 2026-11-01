@@ -177,7 +177,7 @@ func recoverOverlays(runnerDir string) overlayRecoveryErrors {
 
 // publishOverlays is called only by apply under reloadMu. Build every file
 // before atomically exchanging it with the old directory on Linux. Filesystems
-// returning EINVAL use the recoverable sibling-backup fallback.
+// rejecting exchange use the recoverable sibling-backup fallback.
 func publishOverlays(runnerDir, key string, files []overlayFile) error {
 	target := filepath.Join(runnerDir, ".merged", filepath.FromSlash(key), ".files")
 	return publishOverlayTree(target, files, exchangeOverlayDirs, os.Rename)
@@ -217,10 +217,11 @@ func publishOverlayTree(target string, files []overlayFile, exchange, rename fun
 		if err := exchange(stage, target); err == nil {
 			discardStage = false
 			return nil
-		} else if !errors.Is(err, syscall.EINVAL) {
+		} else if !errors.Is(err, syscall.EINVAL) && !errors.Is(err, syscall.ENOSYS) && !errors.Is(err, syscall.EOPNOTSUPP) && !errors.Is(err, syscall.EPERM) {
 			return err
 		}
-		// A filesystem without exchange uses the recoverable two-rename fallback.
+		// An unsupported/filtered exchange uses the recoverable two-rename
+		// fallback. Real permission failures still fail its ordinary rename.
 		if err := rename(target, backup); err != nil {
 			return err
 		}
