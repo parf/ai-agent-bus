@@ -154,7 +154,7 @@ func TestCLIProtocolRefusalMessages(t *testing.T) {
 			t.Fatalf("500 leaked cause: %s", got)
 		}
 	}
-	for _, kind := range []string{"unknown", "no_route", "unavailable", "acl", "authority", "busy", "credential", "enrolment", "full", "malformed", "name-taken", "second-reader", "suspended"} {
+	for _, kind := range []string{"not_found", "no_route", "unavailable", "acl", "authority", "busy", "credential", "enrolment", "full", "malformed", "name-taken", "second-reader", "suspended"} {
 		input := []byte(`{"error":"cause","kind":"` + kind + `"}`)
 		got := protocolRefusal(input, 404, true, "GET /missing")
 		if !strings.Contains(string(got), `"kind":"`+kind+`"`) {

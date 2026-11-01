@@ -39,7 +39,7 @@ type BusError struct {
 
 func (e *BusError) Error() string { return fmt.Sprintf("daemon refused (%d): %s", e.Status, e.Message) }
 func (e *BusError) Is(target error) bool {
-	return target == ErrKVNotFound && e.Status == 404 && (e.Kind == "" || e.Kind == "unknown")
+	return target == ErrKVNotFound && e.Status == 404 && (e.Kind == "" || e.Kind == "not_found")
 }
 
 type UncertainOutcome struct {

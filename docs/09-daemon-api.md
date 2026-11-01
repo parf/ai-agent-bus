@@ -192,7 +192,7 @@ Both live on a record and answer to its management authority.
   - otherwise it stays silent.
 - **Missing or malformed.** An `/identity` with neither field is an old daemon: protocol 0, minimum 0, the warning above. Fields that are present but not integers, negative, or with `protocol_min` above `protocol` are a fatal protocol error naming the field.
 - **Compatible changes** keep the protocol number's meaning: a new route, a new optional request field, a new answer field a client may ignore, a new value in an open list. A client must ignore answer fields it does not know.
-- **Refusal kinds are a closed set:** `acl`, `authority`, `busy`, `credential`, `enrolment`, `full`, `malformed`, `name-taken`, `second-reader`, `suspended`, `unavailable`, `unknown`, `no_route`. A new kind is a breaking change. A `500` has no kind and a client says "internal daemon error".
+- **Refusal kinds are a closed set:** `acl`, `authority`, `busy`, `credential`, `enrolment`, `full`, `malformed`, `name-taken`, `second-reader`, `suspended`, `unavailable`, `not_found`, `no_route`. A new kind is a breaking change. A `500` has no kind and a client says "internal daemon error".
 - **Deprecation.** A route, field or kind is first documented as deprecated for at least one released MINOR version, and removed only in a MAJOR version. The removals made at the freeze, with no notice because nothing stable depended on them: `POST /subscriber/remove` and the `subscriber` fallback on `/deliver-to/remove` (use `recipient`), the `services` count in `/status` and the `services` list on a user (use `records`), and the web face's `/pubsub/topic*` and `/service-*` aliases. No CLI alias is removed.
 
 
@@ -290,7 +290,7 @@ Common to every route below:
 | `wait` | the caller | how long the caller will wait for an answer, a duration; travels as `deadline`; invalid is `400` |
 | `message_id`, `from`, `at`, `roles`, `original_to`, `forwards`, `expires`, `deadline` | the daemon | `from` is the authenticated caller and replaces any value sent; `roles` are what the caller holds toward `to` and a caller stating any is refused; the rest are set at accept |
 
-- **Refusals:** `400 malformed` (bad name, `ttl`, `wait`, `receipt` or `ask`), `401 credential`, `403 acl` or `suspended`, `404 unknown`, `429 full` when the receiver's queue is at its bound.
+- **Refusals:** `400 malformed` (bad name, `ttl`, `wait`, `receipt` or `ask`), `401 credential`, `403 acl` or `suspended`, `404 not_found`, `429 full` when the receiver's queue is at its bound.
 - **No other message routes:** an ack, a done and a reply are sends; there is no `/ack`, `/receipt` or `/call`.
 - **Dry run:** `GET /may-send?name=<target>` (and `who=<name>` for another sender) answers `{"may_send": true|false}` by send's own target rule and queues nothing; its cases and refusals are [checking permission to send](#checking-permission-to-send).
 
@@ -314,8 +314,8 @@ A record's store has three kinds, `string`, `int` and `json`; `kind` defaults to
 
 | Route | Request | Answer |
 |---|---|---|
-| `GET /kv` | query `record`, `name`, `kind` | `{record, kind, name, value}`; a string that is not UTF-8 comes as `value_base64`; an `int` is a JSON number; `404 unknown` if absent |
-| `POST /kv/set` | `{record, kind?, name, value \| value_base64, how?}`; `how` is `set` (default), `add` (only if absent) or `replace` (only if present) | `{record, kind, name}`; `add` on a held name is `412 name-taken`, `replace` on an absent one `404 unknown` |
+| `GET /kv` | query `record`, `name`, `kind` | `{record, kind, name, value}`; a string that is not UTF-8 comes as `value_base64`; an `int` is a JSON number; `404 not_found` if absent |
+| `POST /kv/set` | `{record, kind?, name, value \| value_base64, how?}`; `how` is `set` (default), `add` (only if absent) or `replace` (only if present) | `{record, kind, name}`; `add` on a held name is `412 name-taken`, `replace` on an absent one `404 not_found` |
 | `POST /kv/delete` | `{record, kind?, name}` | `{record, kind, name, deleted}` |
 | `POST /kv/inc` | `{record, name, n?}`, `n` a signed 64-bit integer, default 1 | `{record, kind:"int", name, value}` |
 | `POST /kv/json` | `{record, name, ops}`, at most 100 operations applied all or none | `{record, name, results:[{changed, value?}]}` |
@@ -323,7 +323,7 @@ A record's store has three kinds, `string`, `int` and `json`; `kind` defaults to
 
 - **Limits:** a name is 1 to 256 bytes of UTF-8, a value at most 512 KiB, a record at most 10,000 names of one kind; a limit is `413 malformed`. An `int` is a signed 64-bit integer, sent as its digits (never rounded); one that does not fit, or a value of the wrong type, is `400 malformed`.
 - **Absent versus null:** an absent field is not a stored `null`; a JSON value may be `null` and is stored as such.
-- **Authority:** the record's Owner, Maintainers and own Agent; anyone else is `403 acl`; an unknown record is `404 unknown`. Meaning and the JSON operations: [key-value store](03-records-kv.md#key-value-store).
+- **Authority:** the record's Owner, Maintainers and own Agent; anyone else is `403 acl`; an unknown record is `404 not_found`. Meaning and the JSON operations: [key-value store](03-records-kv.md#key-value-store).
 
 ### Locks
 
@@ -331,8 +331,8 @@ A record's store has three kinds, `string`, `int` and `json`; `kind` defaults to
 |---|---|---|
 | `POST /lock` | `{record, name, ttl}` and query `wait` (0 to `60s`, default 0) | `{record, name, holder}` once granted; a lock held by another is `409 busy` naming the holder in `error`; one the caller already holds is `409 busy` ("use extend") |
 | `POST /try-lock` | `{record, name, ttl}` | as `/lock` with no wait |
-| `POST /extend` | `{record, name, ttl}` | `{record, name, holder}`; not the holder is `409 busy`, no lock is `404 unknown` |
-| `POST /release` | `{record, name}` | `{record, name}`; held by another is `409 busy`; nobody holds it `404 unknown` |
+| `POST /extend` | `{record, name, ttl}` | `{record, name, holder}`; not the holder is `409 busy`, no lock is `404 not_found` |
+| `POST /release` | `{record, name}` | `{record, name}`; held by another is `409 busy`; nobody holds it `404 not_found` |
 | `POST /release-force` | `{record, name}` | `{record, name, holder}` naming the displaced holder; audited |
 | `GET /holders` | query `record` | `{record, locks:{<name>:{holder, expires}}}`; with no `record`, an array of `{record, kind, name, holder, expires}` for every lock the caller may use |
 
@@ -352,7 +352,7 @@ A bigfile is a named value up to 32 MiB held for a limited time. The bytes are a
 | `POST /bigfile/delete` | `{record, name}` | `{record, name, deleted}` |
 
 - **Limits:** a name is 1 to 256 bytes of UTF-8; 32 MiB per key, 256 MiB and 100 keys per record, 1 GiB in the daemon; a put of no bytes is `400`; over a limit is `413 malformed`.
-- **Refusals:** `403 acl` (put and delete need the Owner, a Maintainer or the record's own Agent; get and list also admit the allow list), `404 unknown` (absent or expired key, unknown record), `400 malformed` (bad `ttl`, `memory`, name or hash, an empty body), `503 unavailable` with the cause in `error` when the bigfile store cannot be opened.
+- **Refusals:** `403 acl` (put and delete need the Owner, a Maintainer or the record's own Agent; get and list also admit the allow list), `404 not_found` (absent or expired key, unknown record), `400 malformed` (bad `ttl`, `memory`, name or hash, an empty body), `503 unavailable` with the cause in `error` when the bigfile store cannot be opened.
 - **Early refusal:** a refusal that comes before the body is read is sent after the daemon has read and discarded the declared bytes for at most two seconds, so a client still writing sees the status and its cause; a client may send `Expect: 100-continue` to see it before sending the body, and the connection is closed after such an answer.
 - **A replace** is a `200` with `replaced: true`, never a `412`. A put never retries; a lost reply may leave the key stored, and the client reads the list to see.
 - **Integrity:** the answer's `sha256` is that of the bytes stored, and a get's header is that of the bytes sent; a client checks both.

@@ -1019,11 +1019,11 @@ public final class BusTest {
                 check("no_route from a daemon at the client's protocol keeps the daemon's own words",
                         e instanceof BusException.NotFound n && "no_route".equals(n.kind()) && e.getMessage().equals("no such route"), name(e));
             }
-            try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 404, "{\"error\":\"no such record\",\"kind\":\"unknown\"}"))) {
+            try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 404, "{\"error\":\"no such record\",\"kind\":\"not_found\"}"))) {
                 f.identity = new Answer(0, 200, "{\"protocol\":0,\"protocol_min\":0}");
                 Throwable e = thrown(() -> Bus.connect(Connect.of(sock.toString(), "x")).list(Optional.empty()));
-                check("unknown is missing data, not a missing route, even from an older daemon",
-                        e instanceof BusException.NotFound n && "unknown".equals(n.kind()) && e.getMessage().equals("no such record"), name(e));
+                check("not_found is missing data, not a missing route, even from an older daemon",
+                        e instanceof BusException.NotFound n && "not_found".equals(n.kind()) && e.getMessage().equals("no such record"), name(e));
             }
             try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 403, "{\"error\":\"not yours\",\"kind\":\"acl\"}"))) {
                 Throwable e = thrown(() -> Bus.connect(Connect.of(sock.toString(), "x")).list(Optional.empty()));

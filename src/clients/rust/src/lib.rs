@@ -34,7 +34,7 @@ pub enum BusError {
     Timeout { acked: bool },
     /// A refusal the daemon answered. `kind` is its `kind` member, when it sent one
     /// (acl, authority, busy, credential, enrolment, full, malformed, name-taken,
-    /// second-reader, suspended, unavailable, unknown, no_route).
+    /// second-reader, suspended, unavailable, not_found, no_route).
     #[error("HTTP {status}: {message}")]
     Refusal { status: u16, kind: Option<String>, message: String },
     #[error("daemon too new for this client")]

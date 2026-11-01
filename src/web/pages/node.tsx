@@ -186,7 +186,7 @@ function slotEnd(iso: string): string {
 
 // ---------------------------------------------------------------- Diagnostics
 
-export const REASONS = ["acl", "busy", "credential", "enrolment", "full", "malformed", "name-taken", "second-reader", "suspended", "unknown"];
+export const REASONS = ["acl", "busy", "credential", "enrolment", "full", "malformed", "name-taken", "second-reader", "suspended", "not_found"];
 
 export type Envelope = {
   message_id: string; from: string; to: string; topic?: string; tag?: string; at: string; deadline?: string;

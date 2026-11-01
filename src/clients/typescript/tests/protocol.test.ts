@@ -24,15 +24,15 @@ test('protocol current and compatible are silent, missing and old warn once',asy
  const original=console.warn,warnings:string[]=[];console.warn=(...a)=>{warnings.push(a.join(' '));};
  try{for(const [identity,old] of [[{protocol:1,protocol_min:1},false],[{protocol:2,protocol_min:1},false],[{},true],[{protocol:0,protocol_min:0},true]] as const){warnings.length=0;await fixture(identity,async(b,calls)=>{await b.status();await b.status();expect(calls[0]).toBe('/identity');expect(warnings.length).toBe(old?1:0);});}}finally{console.warn=original;}
 });
-test('protocol refusals expose kind, keep unknown separate, and name unavailable operation on old daemon',async()=>{
- for(const identity of [{},{protocol:1,protocol_min:1}])for(const [code,kind] of [[404,'unknown'],[404,'no_route'],[503,'unavailable'],[500,undefined]] as const){await fixture(identity,async b=>{
+test('protocol refusals expose kind, keep not_found separate, and name unavailable operation on old daemon',async()=>{
+ for(const identity of [{},{protocol:1,protocol_min:1}])for(const [code,kind] of [[404,'not_found'],[404,'no_route'],[503,'unavailable'],[500,undefined]] as const){await fixture(identity,async b=>{
   try{await b.records();throw new Error('refusal accepted');}catch(e){expect(e).toBeInstanceOf(BusError);const err=e as BusError;expect(err.status).toBe(code);expect(err.kind).toBe(kind);expect(err.message).toBe(code===500?'internal daemon error':!('protocol'in identity)&&kind==='no_route'?'daemon too old for GET /ls':'cause');}
  },[code,kind]);}
 });
 
-test('protocol no_route is never converted to a missing KV value and unknown keeps its kind',async()=>{
- for(const kind of ['unknown','no_route'])await fixture({protocol:1,protocol_min:1},async b=>{
-  try{await b.record('owner@test').kv.get('string','k');throw new Error('refused KV accepted');}catch(error){expect(error).toBeInstanceOf(BusError);expect((error as BusError).kind).toBe(kind);expect(error instanceof KVNotFound).toBe(kind==='unknown');}
+test('protocol no_route is never converted to a missing KV value and not_found keeps its kind',async()=>{
+ for(const kind of ['not_found','no_route'])await fixture({protocol:1,protocol_min:1},async b=>{
+  try{await b.record('owner@test').kv.get('string','k');throw new Error('refused KV accepted');}catch(error){expect(error).toBeInstanceOf(BusError);expect((error as BusError).kind).toBe(kind);expect(error instanceof KVNotFound).toBe(kind==='not_found');}
  },[404,kind]);
 });
 

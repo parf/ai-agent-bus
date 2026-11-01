@@ -88,7 +88,7 @@ func TestProtocolRefusalKinds(t *testing.T) {
 			}
 			code, kind := 404, "no_route"
 			if r.URL.Path == "/missing" {
-				kind = "unknown"
+				kind = "not_found"
 			}
 			if r.URL.Path == "/down" {
 				code, kind = 503, "unavailable"
@@ -115,7 +115,7 @@ func TestProtocolRefusalKinds(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			if path == "/missing" && (!errors.Is(err, ErrKVNotFound) || refusal.Kind != "unknown") {
+			if path == "/missing" && (!errors.Is(err, ErrKVNotFound) || refusal.Kind != "not_found") {
 				t.Fatal(err)
 			}
 			if path == "/down" && (refusal.Kind != "unavailable" || !strings.Contains(err.Error(), "cause")) {

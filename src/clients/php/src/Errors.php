@@ -21,7 +21,7 @@ class Refusal extends BusException
     /**
      * The refusal's `kind` as the daemon sent it, or null when it sent none:
      * acl, authority, busy, credential, enrolment, full, malformed, name-taken,
-     * second-reader, suspended, unavailable, unknown or no_route.
+     * second-reader, suspended, unavailable, not_found or no_route.
      */
     public function kind(): ?string { return $this->kind; }
 

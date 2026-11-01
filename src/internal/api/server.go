@@ -728,7 +728,7 @@ func (s *Server) lookup(w http.ResponseWriter, r *http.Request, caller protocol.
 	name := r.URL.Query().Get("name")
 	rec, known := s.lookupRecord(caller, name)
 	if !known {
-		s.refuse(w, http.StatusNotFound, "unknown", "no such name: "+name)
+		s.refuse(w, http.StatusNotFound, "not_found", "no such name: "+name)
 		return
 	}
 	ok(w, rec)
@@ -1068,7 +1068,7 @@ var codes = []struct {
 	{core.ErrConfig, http.StatusBadRequest, "malformed"},
 	{core.ErrSecret, http.StatusBadRequest, "malformed"},
 	{core.ErrEnv, http.StatusBadRequest, "malformed"},
-	{core.ErrNoSecret, http.StatusNotFound, "unknown"},
+	{core.ErrNoSecret, http.StatusNotFound, "not_found"},
 	{core.ErrReceipt, http.StatusBadRequest, "malformed"},
 	{core.ErrTTL, http.StatusBadRequest, "malformed"},
 	{core.ErrWait, http.StatusBadRequest, "malformed"},
@@ -1080,24 +1080,24 @@ var codes = []struct {
 	{core.ErrPrivate, http.StatusForbidden, "acl"},
 	{core.ErrNotAllow, http.StatusForbidden, "acl"},
 	{held, http.StatusConflict, "busy"},
-	{locks.ErrNotHeld, http.StatusNotFound, "unknown"},
+	{locks.ErrNotHeld, http.StatusNotFound, "not_found"},
 	{locks.ErrTooMany, http.StatusRequestEntityTooLarge, "malformed"},
 	{selfTake, http.StatusConflict, "busy"},
 	{core.ErrPersonal, http.StatusBadRequest, "malformed"},
 	{core.ErrEnrol, http.StatusForbidden, "enrolment"},
 	{core.ErrNoRemoval, http.StatusBadRequest, "malformed"},
 	{core.ErrRange, http.StatusBadRequest, "malformed"},
-	{core.ErrKVAbsent, http.StatusNotFound, "unknown"},
+	{core.ErrKVAbsent, http.StatusNotFound, "not_found"},
 	{core.ErrKVPresent, http.StatusPreconditionFailed, "name-taken"},
 	{core.ErrKVValue, http.StatusBadRequest, "malformed"},
 	{core.ErrKVType, http.StatusBadRequest, "malformed"},
 	{core.ErrKVLimit, http.StatusRequestEntityTooLarge, "malformed"},
-	{core.ErrBigAbsent, http.StatusNotFound, "unknown"},
+	{core.ErrBigAbsent, http.StatusNotFound, "not_found"},
 	{core.ErrBigValue, http.StatusBadRequest, "malformed"},
 	{core.ErrBigNoStore, http.StatusServiceUnavailable, "unavailable"},
 	{ports.ErrBigTooLarge, http.StatusRequestEntityTooLarge, "malformed"},
 	{ports.ErrBigFull, http.StatusRequestEntityTooLarge, "malformed"},
-	{core.ErrUnknown, http.StatusNotFound, "unknown"},
+	{core.ErrUnknown, http.StatusNotFound, "not_found"},
 	// Not 503: a full inbox is the sender outrunning the reader, not the
 	// service being unavailable — and 503 is the service's own answer for
 	// that (Plans/R1.2/records.md#coming-back-in-a-moment-is-not-one-of-them).

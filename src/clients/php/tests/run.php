@@ -814,7 +814,7 @@ section('protocol rule and refusal kind', function () use ($dir) {
         unfake($pid);
     }
     // The refusal carries the daemon's kind.
-    foreach (['acl', 'authority', 'busy', 'credential', 'enrolment', 'full', 'malformed', 'name-taken', 'second-reader', 'suspended', 'unavailable', 'unknown', 'no_route'] as $kind) {
+    foreach (['acl', 'authority', 'busy', 'credential', 'enrolment', 'full', 'malformed', 'name-taken', 'second-reader', 'suspended', 'unavailable', 'not_found', 'no_route'] as $kind) {
         $pid = $serve('{"protocol":1,"protocol_min":1}', 403, json_encode(['error' => 'no', 'kind' => $kind]));
         $e = thrown(fn() => Bus::connect($sock, 't')->list());
         check("a refusal surfaces kind $kind", $e instanceof Refusal && $e->kind() === $kind && $e->getMessage() === 'no', $e ? get_class($e) . ':' . $e->getMessage() : 'none');
@@ -830,9 +830,9 @@ section('protocol rule and refusal kind', function () use ($dir) {
     $e = thrown(fn() => Bus::connect($sock, 't')->list());
     check('no_route from a daemon at the client protocol keeps its words', $e instanceof Refusal && $e->kind() === 'no_route' && $e->getMessage() === 'Not Found', $e ? $e->getMessage() : 'none');
     unfake($pid);
-    $pid = $serve('{}', 404, '{"error":"no such name","kind":"unknown"}');
+    $pid = $serve('{}', 404, '{"error":"no such name","kind":"not_found"}');
     $e = thrown(fn() => Bus::connect($sock, 't')->list());
-    check('missing data (kind unknown) is not a missing route, whatever the daemon age', $e instanceof Refusal && $e->kind() === 'unknown' && $e->getMessage() === 'no such name', $e ? $e->getMessage() : 'none');
+    check('missing data (kind not_found) is not a missing route, whatever the daemon age', $e instanceof Refusal && $e->kind() === 'not_found' && $e->getMessage() === 'no such name', $e ? $e->getMessage() : 'none');
     unfake($pid);
     // A server error that names no kind.
     $pid = $serve('{"protocol":1,"protocol_min":1}', 500, '{"error":"boom: secret path /var/x"}');

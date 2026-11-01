@@ -4,7 +4,7 @@ import { Secret, type Json } from './message.js';
 import { type Operation, duration, BusError } from './transport.js';
 export type KVKind = 'string'|'int'|'json';
 export type KVValue = {kind:'string';value:string|Uint8Array} | {kind:'int';value:bigint} | {kind:'json';value:{[key:string]:Json}};
-export class KVNotFound extends BusError { constructor(message:string) { super(404,message,'unknown'); this.name = 'KVNotFound'; } }
+export class KVNotFound extends BusError { constructor(message:string) { super(404,message,'not_found'); this.name = 'KVNotFound'; } }
 const int64 = (n:bigint|number): bigint => { if (typeof n === 'number' && !Number.isSafeInteger(n)) throw new TypeError('use bigint for exact integers'); const value = BigInt(n); if (value < -(1n<<63n) || value >= (1n<<63n)) throw new TypeError('integer must fit int64'); return value; };
 const kindCheck = (kind:KVKind) => { if (!['string','int','json'].includes(kind)) throw new TypeError('kind is string, int or json'); };
 export class RecordHandle {
@@ -20,7 +20,7 @@ export class RecordKV {
   constructor(private record:RecordHandle) {}
   private body(kind:KVKind,name:string): {[key:string]:unknown} { kindCheck(kind); return {record:this.record.name,name,kind}; }
   async get(kind:KVKind,name:string,options:Operation = {}): Promise<KVValue> {
-    let answer:any; try { answer = await this.record.bus.request('GET','/kv',undefined,{...options,query:this.body(kind,name)}); } catch(e) { if (e instanceof BusError && e.status === 404 && (!e.kind || e.kind === 'unknown')) throw new KVNotFound(e.message); throw e; }
+    let answer:any; try { answer = await this.record.bus.request('GET','/kv',undefined,{...options,query:this.body(kind,name)}); } catch(e) { if (e instanceof BusError && e.status === 404 && (!e.kind || e.kind === 'not_found')) throw new KVNotFound(e.message); throw e; }
     if (kind === 'int') return {kind,value:int64(answer.value)};
     if (kind === 'string') return {kind,value:answer.value_base64 === undefined ? answer.value : Uint8Array.from(Buffer.from(answer.value_base64,'base64'))};
     return {kind,value:answer.value};

@@ -103,7 +103,7 @@ func TestARefusalDecidedBeforeTheErrorMapStillCounts(t *testing.T) {
 	}{
 		{"an unparseable body", "POST", "/send", "{", tok, 400, "malformed"},
 		{"an invalid name in a token request", "POST", "/token", `{"kind":"agent","name":"!"}`, tok, 400, "malformed"},
-		{"a lookup of a name the daemon does not hold", "GET", "/lookup?name=missing@h", "", tok, 404, "unknown"},
+		{"a lookup of a name the daemon does not hold", "GET", "/lookup?name=missing@h", "", tok, 404, "not_found"},
 		// Unauthenticated, and counted for that reason rather than despite it:
 		// an addressed endpoint's refusals count whatever the caller's
 		// standing, which is the same rule that counts a bad token.
@@ -130,7 +130,7 @@ func TestAlreadyCountedRefusalsAreNotCountedTwice(t *testing.T) {
 		code                    int
 	}{
 		{"a bad token", "/ls", "", "not-a-token", "credential", 401},
-		{"a send to a name nobody registered", "/send", `{"to":"missing@h","body":"x"}`, tok, "unknown", 404},
+		{"a send to a name nobody registered", "/send", `{"to":"missing@h","body":"x"}`, tok, "not_found", 404},
 	} {
 		method := "GET"
 		if call.body != "" {
@@ -160,8 +160,8 @@ func TestAHiddenNameCountsAsAMissingOneDoes(t *testing.T) {
 	outsider := c.as("stranger@h")
 	for _, name := range []string{"secret@h", "nothing@h"} {
 		code, moved := c.call("GET", "/lookup?name="+name, "", outsider)
-		if code != 404 || !maps.Equal(moved, one("unknown")) {
-			t.Errorf("lookup %s answered %d, counted %v; want 404 and unknown once", name, code, moved)
+		if code != 404 || !maps.Equal(moved, one("not_found")) {
+			t.Errorf("lookup %s answered %d, counted %v; want 404 and not_found once", name, code, moved)
 		}
 	}
 }
@@ -216,8 +216,8 @@ func TestWhatIsNotARefusalIsNotCounted(t *testing.T) {
 func TestACountedRefusalUsesAReasonTheTableNames(t *testing.T) {
 	c := refusalFixture(t)
 	code, moved := c.call("GET", "/lookup?name=missing@h", "", c.as("admin@h"))
-	if code != 404 || !maps.Equal(moved, one("unknown")) {
-		t.Fatalf("fixture answered %d, counted %v; want 404 and unknown once", code, moved)
+	if code != 404 || !maps.Equal(moved, one("not_found")) {
+		t.Fatalf("fixture answered %d, counted %v; want 404 and not_found once", code, moved)
 	}
 	known := map[string]bool{}
 	for _, reason := range Reasons() {

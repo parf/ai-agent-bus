@@ -111,7 +111,7 @@ func TestHTTPQueryPolicyAndRemovedRecipientField(t *testing.T) {
 		{"GET", "/ls?future=1&future=2", "", 200, ""},
 		{"GET", "/ls?kind=agent&kind=queue", "", 400, "malformed"},
 		{"GET", "/lookup?name=a@h&name=b@h", "", 400, "malformed"},
-		{"GET", "/may-send?name=missing@h&from=forged@h", "", 404, "unknown"},
+		{"GET", "/may-send?name=missing@h&from=forged@h", "", 404, "not_found"},
 		{"GET", "/may-send?name=missing@h&name=other@h", "", 400, "malformed"},
 		{"POST", "/register", `{"name":"#wire@h","kind":"agent","future":true}`, 200, ""},
 		{"POST", "/register", `{"name":"#one@h","name":"#two@h","kind":"agent"}`, 400, "malformed"},

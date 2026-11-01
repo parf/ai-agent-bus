@@ -463,7 +463,7 @@ handler runs, and a failure of ours, which is a `500`.
 | `acl` | `403` | the record's ACL, its owner, or configuration access said no ([identity § acl](02-access.md#acl)) |
 | `suspended` | `403` | the caller is inactive: an inactive User, or an agent inactive itself or through its User ([user states](01-identity-and-authority.md#user-states)) |
 | `enrolment` | `403` | a challenge that did not hold ([identity § proving possession](02-access.md#proving-possession)) |
-| `unknown` | `404` | no such name — absent, or inactive and so [no such entity](constitution.md#common-record-fields) ([messaging § verbs](04-messaging.md#verbs)) |
+| `not_found` | `404` | no such name — absent, or inactive and so [no such entity](constitution.md#common-record-fields) ([messaging § verbs](04-messaging.md#verbs)) |
 | `busy` | `409` | removal conflicts with current state: an inbox has queued messages or a waiting reader ([unregistering](01-identity-and-authority.md#unregistering)), or a credential is backed by a user or a retained record ([cleanup](02-access.md#ownerless-credentials)) |
 | `authority` | `403` | the call needs a standing the caller's route cannot give: a record import must come over the caller's own login socket ([setup § encrypted record backups](07-setup.md#encrypted-record-backups)) |
 | `second-reader` | `409` | an inbox has an incompatible outstanding reader; sharing requires both readers to ask ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox)) |
@@ -480,7 +480,7 @@ the same credential is a caller asking the same question twice; a `401` is
 worth presenting a credential for.
 
 **An inactive caller and an inactive target are different answers.** A caller that is inactive is told it is the one refused, `403 suspended`: it is somebody, and nothing it presents makes it active.
-- A target that is inactive, itself or through its User, is no such name, `404 unknown`, whoever asks — the daemon Owner included — because an inactive record is no entity at all.
+- A target that is inactive, itself or through its User, is no such name, `404 not_found`, whoever asks — the daemon Owner included — because an inactive record is no entity at all.
 - The dashboard follows it: a `suspended` refusal is a page saying the caller's access is suspended, not the permission page's "Not yours to see", and every problem page shows the daemon's sentence, never the envelope it arrived in.
 - Declared states beyond active and inactive are [R1.2 work](../Plans/R1.2/records.md#down-and-retired) and would each bring their own reason rather than borrow one.
 

@@ -29,7 +29,7 @@ public class BusException extends RuntimeException {
         /**
          * The refusal's {@code kind} as the daemon sent it, or null when it sent none: acl, authority,
          * busy, credential, enrolment, full, malformed, name-taken, second-reader, suspended,
-         * unavailable, unknown or no_route.
+         * unavailable, not_found or no_route.
          */
         public String kind() { return kind; }
 

@@ -23,7 +23,7 @@ func TestWireRouteAndDataRefusalsAreDistinct(t *testing.T) {
 		{"GET", "/not-a-route", "no_route", 404, false},
 		{"POST", "/identity", "no_route", 405, true},
 		{"POST", "/subscriber/remove", "no_route", 404, false},
-		{"GET", "/lookup?name=missing@h", "unknown", 404, false},
+		{"GET", "/lookup?name=missing@h", "not_found", 404, false},
 	} {
 		before := b.Status().Refused
 		r := httptest.NewRequest(tc.method, tc.path, nil)
@@ -69,7 +69,7 @@ func TestWireRefusalsCarryTheirReasonButInternalErrorsDoNot(t *testing.T) {
 	if w.Code != 500 || body["error"] != "internal" || len(body) != 1 {
 		t.Fatalf("internal error: %d %s", w.Code, w.Body.String())
 	}
-	want := []string{"acl", "authority", "busy", "credential", "enrolment", "full", "malformed", "name-taken", "second-reader", "suspended", "unavailable", "unknown"}
+	want := []string{"acl", "authority", "busy", "credential", "enrolment", "full", "malformed", "name-taken", "not_found", "second-reader", "suspended", "unavailable"}
 	if !slices.Equal(Reasons(), want) {
 		t.Fatalf("Reasons=%v", Reasons())
 	}

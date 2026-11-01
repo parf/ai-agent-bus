@@ -354,7 +354,7 @@ A name cell links to the record's detail and carries `INACTIVE` for an inactive 
 
 Rows: every reason the daemon defines (`acl`, `busy`, `credential`,
 `enrolment`, `full`, `malformed`, `name-taken`, `second-reader`, `suspended`,
-`unknown`), missing ones as a measured `0`, plus any reason the daemon reports
+`not_found`), missing ones as a measured `0`, plus any reason the daemon reports
 that the face does not know. Sorted by count descending, then reason; a
 non-zero row is highlighted. Help: whole-node handled API refusals since
 process start; zero is measured; router misses and internal failures excluded.

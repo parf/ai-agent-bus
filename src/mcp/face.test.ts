@@ -481,7 +481,7 @@ test('MCP protocol compatibility warns once only for old or absent',async()=>{
  try{for(const [identity,old] of [[{protocol:1,protocol_min:1},false],[{protocol:2,protocol_min:1},false],[{},true],[{protocol:0,protocol_min:0},true]] as const){warnings.length=0;await protocolFixture(identity,async(bus,calls)=>{await bus.status();await bus.status();expect(calls[0]).toBe('/identity');expect(warnings.length).toBe(old?1:0);});}}finally{console.warn=original;}
 });
 test('MCP protocol refusal kinds and 500 do not lose the daemon cause',async()=>{
- for(const identity of [{},{protocol:1,protocol_min:1}])for(const [code,kind] of [[404,'unknown'],[404,'no_route'],[503,'unavailable'],[500,undefined]] as const){await protocolFixture(identity,async bus=>{try{await bus.status();throw new Error('refusal accepted');}catch(e){expect(e).toBeInstanceOf(BusError);const err=e as BusError;expect(err.status).toBe(code);expect(err.kind).toBe(kind);expect(err.message).toBe(code===500?'internal daemon error':!('protocol'in identity)&&kind==='no_route'?'daemon too old for GET /status':'cause');}},[code,kind]);}
+ for(const identity of [{},{protocol:1,protocol_min:1}])for(const [code,kind] of [[404,'not_found'],[404,'no_route'],[503,'unavailable'],[500,undefined]] as const){await protocolFixture(identity,async bus=>{try{await bus.status();throw new Error('refusal accepted');}catch(e){expect(e).toBeInstanceOf(BusError);const err=e as BusError;expect(err.status).toBe(code);expect(err.kind).toBe(kind);expect(err.message).toBe(code===500?'internal daemon error':!('protocol'in identity)&&kind==='no_route'?'daemon too old for GET /status':'cause');}},[code,kind]);}
 });
 
 test('MCP tool errors surface refusal kind and cause',async()=>{

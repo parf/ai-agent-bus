@@ -256,7 +256,7 @@ func TestAnInactiveOwnersRefusalsAreCounted(t *testing.T) {
 		who, method, path, body, reason string
 		code                            int
 	}{
-		{"bystander@h", "POST", "/send", `{"to":"#svc@h","body":"counted"}`, "unknown", 404},
+		{"bystander@h", "POST", "/send", `{"to":"#svc@h","body":"counted"}`, "not_found", 404},
 		{"#svc@h", "GET", "/status", "", "suspended", 403},
 	} {
 		before := f.refusals()[c.reason]

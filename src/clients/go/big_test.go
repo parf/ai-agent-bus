@@ -142,7 +142,7 @@ func TestBigGetStreamsAndVerifiesTheDigestAndLength(t *testing.T) {
 }
 
 func TestBigRefusalsKeepTheDaemonsKindAndStatus(t *testing.T) {
-	for status, kind := range map[int]string{403: "acl", 404: "unknown", 413: "malformed", 400: "malformed"} {
+	for status, kind := range map[int]string{403: "acl", 404: "not_found", 413: "malformed", 400: "malformed"} {
 		b := bigServer(t, func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(status)
 			fmt.Fprintf(w, `{"error":%q}`, kind+": refused")

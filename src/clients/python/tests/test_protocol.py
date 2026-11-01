@@ -34,7 +34,7 @@ class Protocol(unittest.TestCase):
 
     def test_kinds_and_old_operation(self):
         for identity in ({},{'protocol':1,'protocol_min':1}):
-            for code,kind in [(404,'unknown'),(404,'no_route'),(503,'unavailable'),(500,None)]:
+            for code,kind in [(404,'not_found'),(404,'no_route'),(503,'unavailable'),(500,None)]:
                 bus,_=self.bus(identity,(code,{'error':'cause','kind':kind}))
                 with self.assertRaises(Refusal) as caught:bus._request('GET','/ls')
                 self.assertEqual(caught.exception.status,code);self.assertEqual(caught.exception.kind,kind)

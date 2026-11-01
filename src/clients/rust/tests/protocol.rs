@@ -96,7 +96,7 @@ async fn a_malformed_protocol_answer_is_fatal_and_names_the_member() {
 
 #[tokio::test]
 async fn a_refusal_carries_the_kind_the_daemon_sent() {
-    for kind in ["acl", "authority", "busy", "credential", "enrolment", "full", "malformed", "name-taken", "second-reader", "suspended", "unavailable", "unknown", "no_route"] {
+    for kind in ["acl", "authority", "busy", "credential", "enrolment", "full", "malformed", "name-taken", "second-reader", "suspended", "unavailable", "not_found", "no_route"] {
         let body = format!(r#"{{"error":"no","kind":"{kind}"}}"#);
         let bus = connect(&daemon(r#"{"protocol":1,"protocol_min":1}"#, (403, &body)).await)
             .await
@@ -132,11 +132,11 @@ async fn a_missing_route_from_an_older_daemon_says_it_is_too_old_for_the_operati
         other => panic!("{other:?}"),
     }
     // Missing data is not a missing route, whatever the daemon's age.
-    let data = r#"{"error":"no such name","kind":"unknown"}"#;
+    let data = r#"{"error":"no such name","kind":"not_found"}"#;
     let old = connect(&daemon(r#"{}"#, (404, data)).await).await.unwrap();
     match old.records(&[]).await {
         Err(BusError::Refusal { kind, message, .. }) => {
-            assert_eq!(kind.as_deref(), Some("unknown"));
+            assert_eq!(kind.as_deref(), Some("not_found"));
             assert_eq!(message, "no such name");
         }
         other => panic!("{other:?}"),

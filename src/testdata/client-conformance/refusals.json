@@ -52,15 +52,15 @@
   }
  },
  {
-  "id": "kind-unknown-404",
+  "id": "kind-not_found-404",
   "identity": "current",
   "daemon": {
    "status": 404,
-   "body": "{\"error\": \"cause\", \"kind\": \"unknown\"}"
+   "body": "{\"error\": \"cause\", \"kind\": \"not_found\"}"
   },
   "expect": {
    "status": 404,
-   "kind": "unknown",
+   "kind": "not_found",
    "message": "cause"
   }
  },
@@ -249,15 +249,15 @@
   }
  },
  {
-  "id": "old-daemon-unknown-stays-unknown",
+  "id": "old-daemon-not_found-stays-not_found",
   "identity": "old",
   "daemon": {
    "status": 404,
-   "body": "{\"error\": \"cause\", \"kind\": \"unknown\"}"
+   "body": "{\"error\": \"cause\", \"kind\": \"not_found\"}"
   },
   "expect": {
    "status": 404,
-   "kind": "unknown",
+   "kind": "not_found",
    "message": "cause"
   }
  },
