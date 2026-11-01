@@ -539,6 +539,12 @@ and no daemon change. A row that needs a format first proposes it for approval.
     | 6 Web (last, optional) | Docs row in the agent page's About |
     | Land | normal gate under `smoke-gate` per code commit; version slots from `#codex/xab` (R.4 keeps .128); deploy changed packages after the loader is live; `check-deploy`; live check `for a in $(agent-bus ls --kind=agent …); do agent-bus help "$a" \| grep '^Docs: '; done`. No push |
 
+## T-24 Protocol freeze
+
+- ☐ T-24 Protocol freeze — owner GO (Q296); team 1 owns the item, team 2 updates S2. Steps: S1 ✅ `0.9.264` (identity `protocol`/`protocol_min`, refusal `kind`, 404 `no_route`, aliases removed); C1 ✅ `0.9.266` `bb897701` (clients check the version and keep the kind); D1 ☐ ([contract and stability policy](../../docs/09-daemon-api.md#stability-and-compatibility)); V1 ☐ (shared vectors and the route coverage check); S2 ☐ (team 2)
+  - Depends: S1, C1
+  - Acceptance: V1's shared vectors in `src/testdata/client-conformance` are green on all six client adapters, and the route coverage check fails when a registered route has no row in [the route table](../../docs/09-daemon-api.md#every-route-and-its-class)
+
 ## RT34 Agent events
 
 ⏳ Owner, 2026-10-29, under discussion: per-agent notice/warning/alert rings in
