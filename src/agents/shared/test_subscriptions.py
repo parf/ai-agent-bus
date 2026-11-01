@@ -171,9 +171,15 @@ class Helpers(unittest.TestCase):
         self.assertEqual(result, ['timeout', True])
 
     def test_batch_cpu_budget_is_shared_by_all_patterns(self):
-        result = self.filter_worker({'text':'a' * 180 + 'b', 'filters':['/(a|aa)+$/', '/b$/']},
-                                    arguments='pattern_cpu_seconds=.1, batch_cpu_seconds=.01')
-        self.assertEqual(result, ['timeout', 'timeout'])
+        # A fake CPU clock, in the worker's own process: the first pattern "spends" a second of it, far
+        # past the batch budget, and the next must find the budget gone. The real clock and timer are
+        # not used, so a loaded host cannot change the answer (J76: the real ITIMER_PROF can fire a
+        # tick early and leave a sliver of budget that lets a cheap second pattern finish).
+        setup = ("fake = [0.0]\nfilters.time.process_time = lambda: fake[0]\n"
+                 "def spend(*args):\n    fake[0] += 1.0\n    return True\nfilters.matches = spend\n")
+        result = self.filter_worker({'text':'x', 'filters':['/x/', '/x/']}, setup,
+                                    'pattern_cpu_seconds=.1, batch_cpu_seconds=.01')
+        self.assertEqual(result, [True, 'timeout'])
 
     def test_js_whitespace_is_not_a_range_string_or_hyphen(self):
         for text,want in [('-',False),('\u2003',True),('\u200a',True),('\u180e',False)]:
