@@ -554,10 +554,7 @@ func (s *Store) Commit(c ports.Change) error {
 			if err != nil {
 				return err
 			}
-			var value any = entry.Value.Bytes
-			if entry.Kind == ports.KVInt {
-				value = entry.Value.Int
-			}
+			value := kvArg(entry.Kind, entry.Value)
 			if _, err := tx.Exec("INSERT INTO "+table+" (record_id,name,value) VALUES (?,?,?)", id, entry.Name, value); err != nil {
 				return err
 			}

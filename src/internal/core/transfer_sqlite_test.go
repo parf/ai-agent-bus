@@ -124,3 +124,63 @@ func TestRecordSQLiteImportFailureRollsBackEveryTable(t *testing.T) {
 	}
 
 }
+
+// An empty string is a stored value, including after the export's JSON encoding.
+func TestRecordSQLiteExportImportPreservesEmptyAndTypedKV(t *testing.T) {
+	cases := []struct {
+		name  string
+		kind  ports.KVKind
+		value ports.KVValue
+	}{
+		{"empty-string", ports.KVString, ports.KVValue{}},
+		{"empty-bytes", ports.KVString, ports.KVValue{Bytes: []byte{}}},
+		{"binary", ports.KVString, ports.KVValue{Bytes: []byte{0, 255, 42}}},
+		{"zero", ports.KVInt, ports.KVValue{Int: 0}},
+		{"minimum", ports.KVInt, ports.KVValue{Int: -1 << 63}},
+		{"maximum", ports.KVInt, ports.KVValue{Int: 1<<63 - 1}},
+		{"json-empty-string", ports.KVJSON, ports.KVValue{Bytes: []byte(`{"empty":""}`)}},
+		{"json-null", ports.KVJSON, ports.KVValue{Bytes: []byte(`{"null":null}`)}},
+		{"json-zero", ports.KVJSON, ports.KVValue{Bytes: []byte(`{"zero":0}`)}},
+		{"json-object", ports.KVJSON, ports.KVValue{Bytes: []byte(`{}`)}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			source, _, store := openTransferSQLite(t, filepath.Join(t.TempDir(), "source.db"), true)
+			defer store.Close()
+			const name = "#value@source"
+			if _, err := source.Register(protocol.Record{Name: name, Kind: protocol.KindAgent, Owner: "owner@source"}); err != nil {
+				t.Fatal(err)
+			}
+			if err := source.KVSet("owner@source", name, tc.kind, "kept", tc.value, KVSet); err != nil {
+				t.Fatal(err)
+			}
+			data, _, err := source.ExportRecords("owner@source", RecordSelection{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			wire, err := json.Marshal(data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var imported RecordBackup
+			if err = json.Unmarshal(wire, &imported); err != nil {
+				t.Fatal(err)
+			}
+			path := filepath.Join(t.TempDir(), "restored.db")
+			dest, _, target := openTransferSQLite(t, path, true)
+			if _, err = dest.ImportRecords("owner@source", imported, ImportChoices{KeepExisting: []string{"all"}}); err != nil {
+				target.Close()
+				t.Fatalf("import of exported %s failed: %v", tc.name, err)
+			}
+			if err = target.Close(); err != nil {
+				t.Fatal(err)
+			}
+			dest, _, target = openTransferSQLite(t, path, false)
+			defer target.Close()
+			got, err := dest.KVGet("owner@source", name, tc.kind, "kept")
+			if err != nil || got.Int != tc.value.Int || string(got.Bytes) != string(tc.value.Bytes) {
+				t.Fatalf("restored value = %+v, %v; want %+v", got, err, tc.value)
+			}
+		})
+	}
+}
