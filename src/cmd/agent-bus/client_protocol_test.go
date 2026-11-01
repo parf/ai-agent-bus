@@ -51,7 +51,20 @@ func TestCLIProtocolHandshake(t *testing.T) {
 			}))
 			defer server.Close()
 			cliProtocolTransport(t, server)
+			read, write, pipeErr := os.Pipe()
+			if pipeErr != nil {
+				t.Fatal(pipeErr)
+			}
+			defer read.Close()
+			previous := os.Stderr
+			os.Stderr = write
 			_, _, err := callCtx(context.Background(), "GET", "/status", nil, nil)
+			write.Close()
+			os.Stderr = previous
+			warning, _ := io.ReadAll(read)
+			if strings.Contains(string(warning), "daemon too old") != (c.identity == `{}`) {
+				t.Fatalf("warning=%q identity=%s", warning, c.identity)
+			}
 			if c.want != "" {
 				if err == nil || !strings.Contains(err.Error(), c.want) {
 					t.Fatalf("fatal handshake got %v want %s", err, c.want)
@@ -117,5 +130,24 @@ func TestCLIRealDaemonProtocolAndRemovedRoute(t *testing.T) {
 	warnings, _ := io.ReadAll(read)
 	if len(warnings) != 0 {
 		t.Fatalf("current daemon warned: %s", warnings)
+	}
+}
+
+func TestCLIProtocolRefusalMessages(t *testing.T) {
+	for _, data := range []string{`{"error":"stack"}`, "proxy failure"} {
+		got := protocolRefusal([]byte(data), 500, false, "GET /ls")
+		if string(got) != `{"error":"internal daemon error"}` {
+			t.Fatalf("500 leaked cause: %s", got)
+		}
+	}
+	for _, kind := range []string{"unknown", "no_route", "unavailable", "acl", "authority", "busy", "credential", "enrolment", "full", "malformed", "name-taken", "second-reader", "suspended"} {
+		input := []byte(`{"error":"cause","kind":"` + kind + `"}`)
+		got := protocolRefusal(input, 404, true, "GET /missing")
+		if !strings.Contains(string(got), `"kind":"`+kind+`"`) {
+			t.Fatalf("kind lost: %s", got)
+		}
+		if kind == "no_route" && !strings.Contains(string(got), "daemon too old for GET /missing") {
+			t.Fatalf("old operation not named: %s", got)
+		}
 	}
 }

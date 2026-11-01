@@ -4,7 +4,7 @@ import { Secret, type Json } from './message.js';
 import { type Operation, duration, BusError } from './transport.js';
 export type KVKind = 'string'|'int'|'json';
 export type KVValue = {kind:'string';value:string|Uint8Array} | {kind:'int';value:bigint} | {kind:'json';value:{[key:string]:Json}};
-export class KVNotFound extends BusError { constructor(message:string) { super(404,message); this.name = 'KVNotFound'; } }
+export class KVNotFound extends BusError { constructor(message:string) { super(404,message,'unknown'); this.name = 'KVNotFound'; } }
 const int64 = (n:bigint|number): bigint => { if (typeof n === 'number' && !Number.isSafeInteger(n)) throw new TypeError('use bigint for exact integers'); const value = BigInt(n); if (value < -(1n<<63n) || value >= (1n<<63n)) throw new TypeError('integer must fit int64'); return value; };
 const kindCheck = (kind:KVKind) => { if (!['string','int','json'].includes(kind)) throw new TypeError('kind is string, int or json'); };
 export class RecordHandle {

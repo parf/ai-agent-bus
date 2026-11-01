@@ -1,12 +1,13 @@
 import {test,expect} from 'bun:test';
 import {createServer} from 'node:http';
 import {Bus} from '../src/bus.js';
+import {KVNotFound} from '../src/record.js';
 import {BusError} from '../src/transport.js';
 async function fixture(identity:unknown,run:(b:Bus,calls:string[])=>Promise<void>,refusal?:[number,string|undefined]) {
  const calls:string[]=[];
  const server=createServer((req,res)=>{calls.push(req.url!);let answer:unknown={you:'owner@test'};
  if(req.url==='/identity')answer=identity;
- if(req.url==='/ls'&&refusal){res.statusCode=refusal[0];answer={error:'cause',kind:refusal[1]};}
+ if((req.url==='/ls'||req.url?.startsWith('/kv?'))&&refusal){res.statusCode=refusal[0];answer={error:'cause',kind:refusal[1]};}
  res.end(JSON.stringify(answer));});
  await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));
  const b=new Bus({addr:`http://127.0.0.1:${(server.address() as any).port}`,token:'fixture',timeout:2000});
@@ -25,4 +26,10 @@ test('protocol refusals expose kind, keep unknown separate, and name unavailable
  for(const identity of [{},{protocol:1,protocol_min:1}])for(const [code,kind] of [[404,'unknown'],[404,'no_route'],[503,'unavailable'],[500,undefined]] as const){await fixture(identity,async b=>{
   try{await b.records();throw new Error('refusal accepted');}catch(e){expect(e).toBeInstanceOf(BusError);const err=e as BusError;expect(err.status).toBe(code);expect(err.kind).toBe(kind);expect(err.message).toBe(code===500?'internal daemon error':!('protocol'in identity)&&kind==='no_route'?'daemon too old for GET /ls':'cause');}
  },[code,kind]);}
+});
+
+test('protocol no_route is never converted to a missing KV value and unknown keeps its kind',async()=>{
+ for(const kind of ['unknown','no_route'])await fixture({protocol:1,protocol_min:1},async b=>{
+  try{await b.record('owner@test').kv.get('string','k');throw new Error('refused KV accepted');}catch(error){expect(error).toBeInstanceOf(BusError);expect((error as BusError).kind).toBe(kind);expect(error instanceof KVNotFound).toBe(kind==='unknown');}
+ },[404,kind]);
 });

@@ -15,3 +15,13 @@ Fake HTTP servers test current and future-compatible daemons (silent), absent/ol
 `TestRealDaemonProtocolAndRemovedRoute` and `TestCLIRealDaemonProtocolAndRemovedRoute` use disposable real daemon fixtures, not the live daemon: `/identity` reports protocol 1/minimum 1 without warnings; `POST /subscriber/remove` is 404 `no_route` in the Go client's Kind and the CLI's displayed message.
 
 Each of the five too-new guards was independently removed under the slow lock. All five compiled and failed their named handshake assertion: Go 0.458 s; Python 5.085 s; TypeScript 0.040 s; CLI 0.887 s; MCP 0.067 s. Source restored and lock released immediately. No build failure or exception-only mutant is credited.
+
+## Owning suites
+
+- Go client: `clients/check.sh go` (vet and race), PASS, test body 4.049 s.
+- Python: 39/0, 18.053 s, including the real client fixture.
+- TypeScript: the owning check (typecheck, 46/0 Bun tests, packaged Node smoke) passes; Bun body 5.28 s.
+- CLI: whole owning package PASS, 23.988 s; real protocol/removed-route and refusal-message checks pass.
+- MCP: exact normal rpc-unit command list, 177/0 in 17.65 s; it includes the face protocol tests and launcher endpoint diagnostic update. A standalone MCP typecheck still reports the same two `rename-smoke.ts:176–177` possibly-undefined errors on untouched main; no new type errors were introduced. It is not the normal rpc-unit command.
+
+The first added identity request changes fake-daemon expectations: old fixtures now answer protocol 1 before their scenario, certificate tests count both identity and caller-status requests, and the unavailable-socket diagnostic names `/identity`. These fixture updates do not skip application assertions.

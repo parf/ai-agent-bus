@@ -85,7 +85,7 @@ test("connection errors identify the bus endpoint without disclosing the credent
     await new Bus({ AGENT_BUS_ADDR: path, AGENT_BUS_TOKEN: "private-token" }).status();
     throw new Error("unexpected connection");
   } catch (e) {
-    expect(String(e)).toContain(`GET /status no daemon found at ${path}`);
+    expect(String(e)).toContain(`GET /identity no daemon found at ${path}`);
     expect(String(e)).not.toContain("private-token");
   }
 });

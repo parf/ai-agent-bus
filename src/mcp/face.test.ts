@@ -480,3 +480,9 @@ test('MCP protocol compatibility warns once only for old or absent',async()=>{
 test('MCP protocol refusal kinds and 500 do not lose the daemon cause',async()=>{
  for(const identity of [{},{protocol:1,protocol_min:1}])for(const [code,kind] of [[404,'unknown'],[404,'no_route'],[503,'unavailable'],[500,undefined]] as const){await protocolFixture(identity,async bus=>{try{await bus.status();throw new Error('refusal accepted');}catch(e){expect(e).toBeInstanceOf(BusError);const err=e as BusError;expect(err.status).toBe(code);expect(err.kind).toBe(kind);expect(err.message).toBe(code===500?'internal daemon error':!('protocol'in identity)&&kind==='no_route'?'daemon too old for GET /status':'cause');}},[code,kind]);}
 });
+
+test('MCP tool errors surface refusal kind and cause',async()=>{
+ const {call}=await face((_req,url)=>url.pathname==='/send'?Response.json({error:'store unavailable',kind:'unavailable'},{status:503}):new Response(null,{status:204}));
+ const got=await call('ab_send',{to:'#peer@test',text:'fixture'});
+ expect(got.isError).toBe(true);expect(got.text).toContain('unavailable');expect(got.text).toContain('store unavailable');expect(got.text).toContain('503');
+});

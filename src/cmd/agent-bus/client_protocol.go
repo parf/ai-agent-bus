@@ -89,6 +89,9 @@ func protocolRefusal(data []byte, code int, old bool, operation string) []byte {
 	if code < 400 {
 		return data
 	}
+	if code == 500 {
+		return []byte(`{"error":"internal daemon error"}`)
+	}
 	var row map[string]any
 	if json.Unmarshal(data, &row) != nil {
 		return data
