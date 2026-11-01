@@ -1,6 +1,6 @@
 # MIT License
 
-Copyright (c) 2026 Serg Parf
+Copyright (c) 2026 Sergey Porfiriev
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

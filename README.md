@@ -410,3 +410,5 @@ All local conventions live in [CLAUDE.md](CLAUDE.md#working-rules).
 [PolyForm Noncommercial](LICENSE.md#polyform-noncommercial-license-100), except
 the client libraries and their examples under `src/clients/`, which are
 [MIT](src/clients/LICENSE.md#mit-license).
+
+Copyright (C) Sergey Porfiriev.
