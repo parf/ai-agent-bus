@@ -1,0 +1,88 @@
+[
+ {
+  "id": "current",
+  "identity": "{\"protocol\":1,\"protocol_min\":1}",
+  "expect": {
+   "ok": true
+  }
+ },
+ {
+  "id": "newer-daemon-still-compatible",
+  "identity": "{\"protocol\":2,\"protocol_min\":1}",
+  "expect": {
+   "ok": true
+  }
+ },
+ {
+  "id": "absent-fields-read-as-zero-and-warn",
+  "identity": "{}",
+  "expect": {
+   "ok": true,
+   "warns": "daemon too old"
+  }
+ },
+ {
+  "id": "older-daemon-warns",
+  "identity": "{\"protocol\":0,\"protocol_min\":0}",
+  "expect": {
+   "ok": true,
+   "warns": "daemon too old"
+  }
+ },
+ {
+  "id": "unknown-members-are-ignored",
+  "identity": "{\"protocol\":1,\"protocol_min\":1,\"future\":{\"x\":[1]}}",
+  "expect": {
+   "ok": true
+  }
+ },
+ {
+  "id": "daemon-too-new-is-fatal",
+  "identity": "{\"protocol\":2,\"protocol_min\":2}",
+  "expect": {
+   "fatal": "daemon too new for this client"
+  }
+ },
+ {
+  "id": "minimum-above-protocol-is-fatal",
+  "identity": "{\"protocol\":1,\"protocol_min\":2}",
+  "expect": {
+   "fatal": "protocol_min"
+  }
+ },
+ {
+  "id": "fraction-names-the-field",
+  "identity": "{\"protocol\":1.5}",
+  "expect": {
+   "fatal": "protocol"
+  }
+ },
+ {
+  "id": "negative-names-the-field",
+  "identity": "{\"protocol\":-1}",
+  "expect": {
+   "fatal": "protocol"
+  }
+ },
+ {
+  "id": "null-names-the-field",
+  "identity": "{\"protocol\":null}",
+  "expect": {
+   "fatal": "protocol"
+  }
+ },
+ {
+  "id": "boolean-names-the-field",
+  "identity": "{\"protocol\":true}",
+  "expect": {
+   "fatal": "protocol"
+  }
+ },
+ {
+  "id": "text-names-the-field",
+  "identity": "{\"protocol\":1,\"protocol_min\":\"1\"}",
+  "expect": {
+   "fatal": "protocol_min"
+  }
+ }
+]

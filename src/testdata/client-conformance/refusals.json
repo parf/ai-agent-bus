@@ -1,0 +1,264 @@
+[
+ {
+  "id": "kind-credential-401",
+  "identity": "current",
+  "daemon": {
+   "status": 401,
+   "body": "{\"error\": \"cause\", \"kind\": \"credential\"}"
+  },
+  "expect": {
+   "status": 401,
+   "kind": "credential",
+   "message": "cause"
+  }
+ },
+ {
+  "id": "kind-acl-403",
+  "identity": "current",
+  "daemon": {
+   "status": 403,
+   "body": "{\"error\": \"cause\", \"kind\": \"acl\"}"
+  },
+  "expect": {
+   "status": 403,
+   "kind": "acl",
+   "message": "cause"
+  }
+ },
+ {
+  "id": "kind-suspended-403",
+  "identity": "current",
+  "daemon": {
+   "status": 403,
+   "body": "{\"error\": \"cause\", \"kind\": \"suspended\"}"
+  },
+  "expect": {
+   "status": 403,
+   "kind": "suspended",
+   "message": "cause"
+  }
+ },
+ {
+  "id": "kind-enrolment-403",
+  "identity": "current",
+  "daemon": {
+   "status": 403,
+   "body": "{\"error\": \"cause\", \"kind\": \"enrolment\"}"
+  },
+  "expect": {
+   "status": 403,
+   "kind": "enrolment",
+   "message": "cause"
+  }
+ },
+ {
+  "id": "kind-unknown-404",
+  "identity": "current",
+  "daemon": {
+   "status": 404,
+   "body": "{\"error\": \"cause\", \"kind\": \"unknown\"}"
+  },
+  "expect": {
+   "status": 404,
+   "kind": "unknown",
+   "message": "cause"
+  }
+ },
+ {
+  "id": "kind-busy-409",
+  "identity": "current",
+  "daemon": {
+   "status": 409,
+   "body": "{\"error\": \"cause\", \"kind\": \"busy\"}"
+  },
+  "expect": {
+   "status": 409,
+   "kind": "busy",
+   "message": "cause"
+  }
+ },
+ {
+  "id": "kind-authority-403",
+  "identity": "current",
+  "daemon": {
+   "status": 403,
+   "body": "{\"error\": \"cause\", \"kind\": \"authority\"}"
+  },
+  "expect": {
+   "status": 403,
+   "kind": "authority",
+   "message": "cause"
+  }
+ },
+ {
+  "id": "kind-second-reader-409",
+  "identity": "current",
+  "daemon": {
+   "status": 409,
+   "body": "{\"error\": \"cause\", \"kind\": \"second-reader\"}"
+  },
+  "expect": {
+   "status": 409,
+   "kind": "second-reader",
+   "message": "cause"
+  }
+ },
+ {
+  "id": "kind-name-taken-412",
+  "identity": "current",
+  "daemon": {
+   "status": 412,
+   "body": "{\"error\": \"cause\", \"kind\": \"name-taken\"}"
+  },
+  "expect": {
+   "status": 412,
+   "kind": "name-taken",
+   "message": "cause"
+  }
+ },
+ {
+  "id": "kind-full-429",
+  "identity": "current",
+  "daemon": {
+   "status": 429,
+   "body": "{\"error\": \"cause\", \"kind\": \"full\"}"
+  },
+  "expect": {
+   "status": 429,
+   "kind": "full",
+   "message": "cause"
+  }
+ },
+ {
+  "id": "kind-malformed-400",
+  "identity": "current",
+  "daemon": {
+   "status": 400,
+   "body": "{\"error\": \"cause\", \"kind\": \"malformed\"}"
+  },
+  "expect": {
+   "status": 400,
+   "kind": "malformed",
+   "message": "cause"
+  }
+ },
+ {
+  "id": "kind-malformed-408",
+  "identity": "current",
+  "daemon": {
+   "status": 408,
+   "body": "{\"error\": \"cause\", \"kind\": \"malformed\"}"
+  },
+  "expect": {
+   "status": 408,
+   "kind": "malformed",
+   "message": "cause"
+  }
+ },
+ {
+  "id": "kind-malformed-413",
+  "identity": "current",
+  "daemon": {
+   "status": 413,
+   "body": "{\"error\": \"cause\", \"kind\": \"malformed\"}"
+  },
+  "expect": {
+   "status": 413,
+   "kind": "malformed",
+   "message": "cause"
+  }
+ },
+ {
+  "id": "kind-unavailable-503",
+  "identity": "current",
+  "daemon": {
+   "status": 503,
+   "body": "{\"error\": \"cause\", \"kind\": \"unavailable\"}"
+  },
+  "expect": {
+   "status": 503,
+   "kind": "unavailable",
+   "message": "cause"
+  }
+ },
+ {
+  "id": "kind-no_route-404",
+  "identity": "current",
+  "daemon": {
+   "status": 404,
+   "body": "{\"error\": \"cause\", \"kind\": \"no_route\"}"
+  },
+  "expect": {
+   "status": 404,
+   "kind": "no_route",
+   "message": "cause"
+  }
+ },
+ {
+  "id": "kind-no_route-405-with-allow",
+  "identity": "current",
+  "daemon": {
+   "status": 405,
+   "body": "{\"error\": \"cause\", \"kind\": \"no_route\"}",
+   "allow": "GET"
+  },
+  "expect": {
+   "status": 405,
+   "kind": "no_route",
+   "message": "cause"
+  }
+ },
+ {
+  "id": "500-hides-the-daemon-text",
+  "identity": "current",
+  "daemon": {
+   "status": 500,
+   "body": "{\"error\":\"stack trace and paths\"}"
+  },
+  "expect": {
+   "status": 500,
+   "kind": "",
+   "message": "internal daemon error"
+  }
+ },
+ {
+  "id": "old-daemon-names-the-missing-route-404",
+  "identity": "old",
+  "daemon": {
+   "status": 404,
+   "body": "{\"error\": \"cause\", \"kind\": \"no_route\"}"
+  },
+  "expect": {
+   "status": 404,
+   "kind": "no_route",
+   "message": "daemon too old for GET /ls"
+  }
+ },
+ {
+  "id": "old-daemon-names-the-missing-route-405",
+  "identity": "old",
+  "daemon": {
+   "status": 405,
+   "body": "{\"error\": \"cause\", \"kind\": \"no_route\"}",
+   "allow": "GET"
+  },
+  "expect": {
+   "status": 405,
+   "kind": "no_route",
+   "message": "daemon too old for GET /ls"
+  }
+ },
+ {
+  "id": "old-daemon-unknown-stays-unknown",
+  "identity": "old",
+  "daemon": {
+   "status": 404,
+   "body": "{\"error\": \"cause\", \"kind\": \"unknown\"}"
+  },
+  "expect": {
+   "status": 404,
+   "kind": "unknown",
+   "message": "cause"
+  }
+ }
+]

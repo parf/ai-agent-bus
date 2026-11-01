@@ -1,0 +1,192 @@
+[
+ {
+  "id": "take-contend-release",
+  "setup": [
+   "worker-maintains-jobs"
+  ],
+  "steps": [
+   {
+    "as": "owner",
+    "op": "try",
+    "name": "build",
+    "ttl_s": 30
+   },
+   {
+    "as": "worker",
+    "op": "try",
+    "name": "build",
+    "ttl_s": 30,
+    "expect": {
+     "refused": {
+      "status": 409,
+      "message_has": "owner@fixture"
+     }
+    }
+   },
+   {
+    "as": "owner",
+    "op": "try",
+    "name": "build",
+    "ttl_s": 30,
+    "expect": {
+     "refused": {
+      "status": 409,
+      "message_has": "extend"
+     }
+    }
+   },
+   {
+    "as": "worker",
+    "op": "extend",
+    "name": "build",
+    "ttl_s": 30,
+    "expect": {
+     "refused": {
+      "status": 409
+     }
+    }
+   },
+   {
+    "as": "owner",
+    "op": "extend",
+    "name": "build",
+    "ttl_s": 60
+   },
+   {
+    "as": "owner",
+    "op": "holders",
+    "expect": {
+     "holders": {
+      "build": "owner@fixture"
+     }
+    }
+   },
+   {
+    "as": "worker",
+    "op": "release",
+    "name": "build",
+    "expect": {
+     "refused": {
+      "status": 409
+     }
+    }
+   },
+   {
+    "as": "owner",
+    "op": "release",
+    "name": "build"
+   },
+   {
+    "as": "owner",
+    "op": "release",
+    "name": "build",
+    "expect": {
+     "refused": {
+      "status": 404
+     }
+    }
+   },
+   {
+    "as": "owner",
+    "op": "holders",
+    "expect": {
+     "holders": {}
+    }
+   }
+  ]
+ },
+ {
+  "id": "ttl-and-wait-bounds",
+  "steps": [
+   {
+    "as": "owner",
+    "op": "try",
+    "name": "negative",
+    "ttl_s": -1,
+    "expect": {
+     "refused": true
+    }
+   },
+   {
+    "as": "owner",
+    "op": "try",
+    "name": "over",
+    "ttl_s": 86401,
+    "expect": {
+     "refused": true
+    }
+   },
+   {
+    "as": "owner",
+    "op": "acquire",
+    "name": "patient",
+    "ttl_s": 30,
+    "wait_s": 61,
+    "expect": {
+     "refused": true
+    }
+   },
+   {
+    "as": "owner",
+    "op": "try",
+    "name": "day",
+    "ttl_s": 86400
+   },
+   {
+    "as": "owner",
+    "op": "extend",
+    "name": "day",
+    "ttl_s": -1,
+    "expect": {
+     "refused": true
+    }
+   },
+   {
+    "as": "owner",
+    "op": "release",
+    "name": "day"
+   },
+   {
+    "as": "owner",
+    "op": "acquire",
+    "name": "free",
+    "ttl_s": 30,
+    "wait_s": 60
+   },
+   {
+    "as": "owner",
+    "op": "release",
+    "name": "free"
+   }
+  ]
+ },
+ {
+  "id": "force-release-names-the-displaced-holder",
+  "setup": [
+   "worker-maintains-jobs"
+  ],
+  "steps": [
+   {
+    "as": "owner",
+    "op": "try",
+    "name": "deploy",
+    "ttl_s": 30
+   },
+   {
+    "as": "worker",
+    "op": "force",
+    "name": "deploy",
+    "expect": {
+     "displaced": "owner@fixture"
+    }
+   },
+   {
+    "as": "owner",
+    "op": "holders",
+    "expect": {
+     "holders": {}
+    }
+   }
+  ]
+ }
+]

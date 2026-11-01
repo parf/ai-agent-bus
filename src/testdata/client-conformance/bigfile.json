@@ -1,0 +1,168 @@
+[
+ {
+  "id": "put-get-list-delete",
+  "steps": [
+   {
+    "op": "put",
+    "name": "report",
+    "value": "hello bigfile",
+    "ttl_s": 3600,
+    "memory": true,
+    "expect": {
+     "size": 13,
+     "sha256": "52816b10dea362cef360c7cd75217545ef8f49b82375464a6c352793405f9d8e",
+     "held": "memory",
+     "replaced": false
+    }
+   },
+   {
+    "op": "get",
+    "name": "report",
+    "expect": {
+     "value": "hello bigfile",
+     "sha256": "52816b10dea362cef360c7cd75217545ef8f49b82375464a6c352793405f9d8e"
+    }
+   },
+   {
+    "op": "list",
+    "expect": {
+     "names": [
+      "report"
+     ]
+    }
+   },
+   {
+    "op": "delete",
+    "name": "report",
+    "expect": {
+     "deleted": true
+    }
+   },
+   {
+    "op": "get",
+    "name": "report",
+    "expect": {
+     "refused": {
+      "status": 404
+     }
+    }
+   },
+   {
+    "op": "delete",
+    "name": "report",
+    "expect": {
+     "deleted": false
+    }
+   }
+  ]
+ },
+ {
+  "id": "replace-says-so",
+  "steps": [
+   {
+    "op": "put",
+    "name": "doc",
+    "value": "hello bigfile",
+    "ttl_s": 3600,
+    "memory": true,
+    "expect": {
+     "replaced": false
+    }
+   },
+   {
+    "op": "put",
+    "name": "doc",
+    "value": "second value",
+    "ttl_s": 3600,
+    "memory": true,
+    "expect": {
+     "replaced": true,
+     "sha256": "3bc457ef6e502bf1360ad56dba3a64c48dbd2a145bb622215338256817df7031"
+    }
+   },
+   {
+    "op": "get",
+    "name": "doc",
+    "expect": {
+     "value": "second value"
+    }
+   }
+  ]
+ },
+ {
+  "id": "expected-digest-is-checked",
+  "steps": [
+   {
+    "op": "put",
+    "name": "doc",
+    "value": "hello bigfile",
+    "ttl_s": 3600,
+    "memory": true,
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "expect": {
+     "refused": {
+      "status": 400
+     }
+    }
+   },
+   {
+    "op": "list",
+    "expect": {
+     "names": []
+    }
+   },
+   {
+    "op": "put",
+    "name": "doc",
+    "value": "hello bigfile",
+    "ttl_s": 3600,
+    "memory": true,
+    "sha256": "52816b10dea362cef360c7cd75217545ef8f49b82375464a6c352793405f9d8e",
+    "expect": {
+     "size": 13
+    }
+   }
+  ]
+ },
+ {
+  "id": "size-and-lifetime-bounds",
+  "steps": [
+   {
+    "op": "put",
+    "name": "none",
+    "value": "",
+    "ttl_s": 3600,
+    "memory": true,
+    "expect": {
+     "refused": true
+    }
+   },
+   {
+    "op": "put",
+    "name": "brief",
+    "value": "x",
+    "ttl_s": 0,
+    "memory": true,
+    "expect": {
+     "refused": true
+    }
+   },
+   {
+    "op": "put",
+    "name": "long",
+    "value": "x",
+    "ttl_s": 2592001,
+    "memory": true,
+    "expect": {
+     "refused": true
+    }
+   },
+   {
+    "op": "list",
+    "expect": {
+     "names": []
+    }
+   }
+  ]
+ }
+]

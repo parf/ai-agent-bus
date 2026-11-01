@@ -1,0 +1,312 @@
+[
+ {
+  "id": "int64-digits",
+  "steps": [
+   {
+    "op": "set",
+    "kind": "int",
+    "name": "max",
+    "value": "9223372036854775807"
+   },
+   {
+    "op": "get",
+    "kind": "int",
+    "name": "max",
+    "expect": {
+     "value": "9223372036854775807"
+    }
+   },
+   {
+    "op": "set",
+    "kind": "int",
+    "name": "min",
+    "value": "-9223372036854775808"
+   },
+   {
+    "op": "get",
+    "kind": "int",
+    "name": "min",
+    "expect": {
+     "value": "-9223372036854775808"
+    }
+   },
+   {
+    "op": "inc",
+    "name": "max",
+    "by": "1",
+    "expect": {
+     "refused": {
+      "status": 413
+     }
+    }
+   },
+   {
+    "op": "get",
+    "kind": "int",
+    "name": "max",
+    "expect": {
+     "value": "9223372036854775807"
+    }
+   },
+   {
+    "op": "inc",
+    "name": "count",
+    "by": "41"
+   },
+   {
+    "op": "inc",
+    "name": "count",
+    "by": "1",
+    "expect": {
+     "value": "42"
+    }
+   }
+  ]
+ },
+ {
+  "id": "string-text-and-bytes",
+  "steps": [
+   {
+    "op": "set",
+    "kind": "string",
+    "name": "text",
+    "value": "Привет, 世界 🌍"
+   },
+   {
+    "op": "get",
+    "kind": "string",
+    "name": "text",
+    "expect": {
+     "value": "Привет, 世界 🌍"
+    }
+   },
+   {
+    "op": "set",
+    "kind": "string",
+    "name": "raw",
+    "value_b64": "AP8K"
+   },
+   {
+    "op": "get",
+    "kind": "string",
+    "name": "raw",
+    "expect": {
+     "value_b64": "AP8K"
+    }
+   },
+   {
+    "op": "get",
+    "kind": "string",
+    "name": "absent",
+    "expect": {
+     "refused": {
+      "status": 404
+     }
+    }
+   }
+  ]
+ },
+ {
+  "id": "modes",
+  "steps": [
+   {
+    "op": "set",
+    "kind": "string",
+    "name": "m",
+    "value": "one",
+    "how": "add"
+   },
+   {
+    "op": "set",
+    "kind": "string",
+    "name": "m",
+    "value": "two",
+    "how": "add",
+    "expect": {
+     "refused": {
+      "status": 412
+     }
+    }
+   },
+   {
+    "op": "get",
+    "kind": "string",
+    "name": "m",
+    "expect": {
+     "value": "one"
+    }
+   },
+   {
+    "op": "set",
+    "kind": "string",
+    "name": "absent",
+    "value": "x",
+    "how": "replace",
+    "expect": {
+     "refused": {
+      "status": 404
+     }
+    }
+   },
+   {
+    "op": "set",
+    "kind": "string",
+    "name": "m",
+    "value": "three",
+    "how": "replace"
+   },
+   {
+    "op": "get",
+    "kind": "string",
+    "name": "m",
+    "expect": {
+     "value": "three"
+    }
+   },
+   {
+    "op": "delete",
+    "kind": "string",
+    "name": "m",
+    "expect": {
+     "deleted": true
+    }
+   },
+   {
+    "op": "delete",
+    "kind": "string",
+    "name": "m",
+    "expect": {
+     "deleted": false
+    }
+   }
+  ]
+ },
+ {
+  "id": "value-512-kib-edge",
+  "steps": [
+   {
+    "op": "set",
+    "kind": "string",
+    "name": "big",
+    "repeat": {
+     "text": "a",
+     "count": 524288
+    }
+   },
+   {
+    "op": "get",
+    "kind": "string",
+    "name": "big",
+    "expect": {
+     "length": 524288
+    }
+   },
+   {
+    "op": "set",
+    "kind": "string",
+    "name": "over",
+    "repeat": {
+     "text": "a",
+     "count": 524289
+    },
+    "expect": {
+     "refused": {
+      "status": 413
+     }
+    }
+   },
+   {
+    "op": "get",
+    "kind": "string",
+    "name": "over",
+    "expect": {
+     "refused": {
+      "status": 404
+     }
+    }
+   }
+  ]
+ },
+ {
+  "id": "json-operations-all-or-none",
+  "steps": [
+   {
+    "op": "set",
+    "kind": "json",
+    "name": "doc",
+    "value": "{\"todo\":[]}"
+   },
+   {
+    "op": "json",
+    "name": "doc",
+    "ops": [
+     {
+      "op": "push",
+      "key": "todo",
+      "value": "a"
+     },
+     {
+      "op": "push",
+      "key": "todo",
+      "value": "b"
+     }
+    ],
+    "expect": {
+     "changed": [
+      true,
+      true
+     ]
+    }
+   },
+   {
+    "op": "get",
+    "kind": "json",
+    "name": "doc",
+    "expect": {
+     "json": {
+      "todo": [
+       "a",
+       "b"
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "id": "names-limit-10000-per-kind",
+  "steps": [
+   {
+    "op": "fill",
+    "kind": "string",
+    "prefix": "n",
+    "count": 10000
+   },
+   {
+    "op": "set",
+    "kind": "string",
+    "name": "one-too-many",
+    "value": "x",
+    "expect": {
+     "refused": {
+      "status": 413
+     }
+    }
+   },
+   {
+    "op": "set",
+    "kind": "string",
+    "name": "n0",
+    "value": "replaced",
+    "expect": {}
+   },
+   {
+    "op": "set",
+    "kind": "int",
+    "name": "other-kind-has-its-own-namespace",
+    "value": "1"
+   }
+  ],
+  "fresh": true
+ }
+]
