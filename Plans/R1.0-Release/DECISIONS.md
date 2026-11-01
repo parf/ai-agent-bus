@@ -2,6 +2,8 @@
 
 ## Recorded decisions
 
+- **RAG is set up on this node** (Q302) — owner, 2026-11-01: "agree"; done by `#ab-ceo` 14:58: Qdrant collection `notes` (voyage-3.5, 1024 dimensions, Cosine, keyword vector `text` with `idf`, the eight keyword payload indexes), `#rag` granted `#qdrant` (write), `#voyage` and `#ai`, Configuration from the example with `keyword_search: builtin`; `keyword_index` answers `indexed: 0, status: ok`.
+  - Home: [RAG installing it](../../docs/agents/rag.md#installing-it).
 - **R1 releases as 1.0.0** — owner, 2026-11-01 13:20.
   - Home: [versioning](../../CLAUDE.md#versioning), its Stable row.
 - **RAG keyword search ships in R1** (Q301) — owner, 2026-11-01: "do it in R1 - its EZ and keyword search is essential". A setting chooses Qdrant's built-in BM25 or an external engine, default built-in (Q194), with a working built-in BM25 search checked against real Qdrant; an external engine itself is not built.

@@ -8,21 +8,17 @@ suggestion with `✅ 💡` or `🚫 💡`.
 
 ## R1 release decisions
 
-Q296 to Q301 are [settled](DECISIONS.md#recorded-decisions).
-
-- ❓ Q302 Set up RAG on this node so keyword search can be used
-  - Context: RAG keyword search (Q301) lands about 14:55, but RAG is not configured here: `#rag@parf.us` answers "configure RAG block names and collection" and `#qdrant` has no collections. Setup is the owner's by design: create one Qdrant collection, grant `#rag` the `#qdrant`, `#voyage` and `#ai` blocks, set its Configuration ([installing it](../../docs/agents/rag.md#installing-it))
-  - Cost: embedding every stored record calls Voyage (paid); classification calls the `#ai` block (paid)
-  - ( ) Set it up now: collection `notes`, model voyage-3.5 (1024 dimensions), the three blocks granted; #ab-ceo runs it 🌟
-  - ( ) Set it up with another collection name or model (say which)
-  - ( ) Leave RAG unconfigured until there is data to store ⭐
-  > 💡👾 Set it up now with `notes` and voyage-3.5: an empty collection costs nothing, and the keyword search is then tried live before 1.0.
+Q296 to Q302 are [settled](DECISIONS.md#recorded-decisions).
 
 - ❓ Q303 Set an allowed bigfile directory for AI sessions on this node
   - Context: after J1 (~16:00) the MCP bigfile tools work only inside `AGENT_BUS_BIGFILE_DIR` and refuse when it is unset (your rule, 14:53). Anything in that folder can be uploaded, even by a turn a bus message started, so it must be a dedicated exchange folder, never the home or a project tree
   - ( ) Leave it unset: AI sessions have no bigfile tools; people still use the `agent-bus bigfile` CLI 🌟
-  - ( ) Set it to a new empty `/home/parf/agent-bus-files` (0700) for every AB-DVP and `work` window ⭐
-  > 💡👾 Leave it unset until a session needs it: nothing uses the MCP bigfile tools today.
+  - (x) Set it to a new empty `/home/parf/agent-bus-files` (0700) for every AB-DVP and `work` window ⭐
+  > ✅ 💡👾 Leave it unset until a session needs it: nothing uses the MCP bigfile tools today.
+  >
+  > 💬 👤parf agree
+  >
+  > 💬👾 The picked option sets `/home/parf/agent-bus-files`, but the ✅ is on "leave it unset". Which one?
 
 ## Messaging agents
 
