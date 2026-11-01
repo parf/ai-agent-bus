@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.284 — 2026-11-01
+
+Rust, PHP and Java run the shared conformance vectors; Rust asks identity first and PHP and Java refuse out-of-range lock times locally
+
 ## 0.9.283 — 2026-11-01
 
 The runner again accepts an agent answer whose body is under 1 MiB but whose line is slightly over it

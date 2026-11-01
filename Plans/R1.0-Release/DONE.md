@@ -1,5 +1,11 @@
 # DONE — R1
 
+## T-24 S2v the Rust, PHP and Java clients run the shared vectors
+
+- [The vectors](../../src/testdata/client-conformance/README.md#state-identity-and-refusal-vectors-t-24) for kv (int64 digits, the 512 KiB and 10,000-name edges), locks and holders, identity and refusals by kind run through each client's own calls: `rust/tests/conformance_state.rs`, `php/tests/vectors.php` (required by `run.php`) and a block of sections in `BusTest.java`. Bigfile is not in these three. Each case gets its own record or daemon.
+- The vectors found three real differences, each fixed with its own test that was red first: the Rust client asked the daemon `/status` before `/identity`, so a daemon it refused was still asked a request (it now reads `/identity` first); the PHP and Java clients sent a lock ttl over 24 h or a wait over 60 s to the daemon (they now refuse them locally, as Go, Python, TypeScript and Rust do); the Java client's local refusal of a name taking its own lock again did not say to extend it, as the daemon's text does.
+- Two things the vectors cannot say in Rust: a negative lock ttl cannot be written as a `Duration`, so the adapter asks for zero, the nearest value; `holders()` returns the daemon's `{record, locks}` object, which the adapter reads. The Rust, PHP and Java docs now quote the warning "daemon too old: protocol is older than this client" and the 500-only rule as the code emits them.
+
 ## Task review 2026-11-01
 
 - Applied from the pre-release sweep (`#ab-dir`): RT10, M.6 (M.6a `9871870d`) and B.27 (Slack `62d90c9e`, Telegram B.1) are ✅; RT17, the P.4 pointer and RT30 ([moved to done](done/rt30-tmux-in-the-runner.md)) leave the TODO; the Objective and Next step say what is built and what is left; P.1's remainder is the first publication; missing evidence is filled for RT16, RT21, B.9, B.10 and MAC.1 and B.4 is marked a planning row.
