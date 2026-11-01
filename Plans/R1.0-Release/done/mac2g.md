@@ -32,4 +32,18 @@ The CEO supplied read-only Mac directory output on 2026-11-01: a group search pr
 
 Only `user.UnknownUserError` lets setup create a fresh user. Darwin's Go `os/user` uses `getpwnam_r` (also without cgo): ENOENT or a successful lookup without a result becomes that type; other errno values return an error. It does not return raw dscl `-14136`/`-14120` codes. A lookup failure therefore refuses setup instead of treating the existing account as absent.
 
-Additional command-stub checks cover a failed user lookup, failed GID lookup without creation, nonnumeric PrimaryGroupID, a created group at GID 999 instead of 201 (both named), and an explicit dseditgroup failure (the error names the uncreated group and preserves its cause). Readback failure still says `was not created`. These close the reader's surviving-mutant coverage gaps; revised mutation results follow after the locked run.
+Additional command-stub checks cover a failed user lookup, failed GID lookup without creation, nonnumeric PrimaryGroupID, a created group at GID 999 instead of 201 (both named), and an explicit dseditgroup failure (the error names the uncreated group and preserves its cause). Readback failure still says `was not created`. These close the reader's surviving-mutant coverage gaps. In the revised locked batch **16/16 mutants failed on assertions; zero survived**, all compiled and none errored. The original seven were rerun and killed. Additional results:
+
+| Mutant | Owning assertion | Seconds |
+|---|---|---|
+| Ignore a non-unknown user lookup error | `TestDarwinExistingRoleRefusesUserLookupFailure`: failed lookup accepted | 0.708 |
+| (c) Ignore a non-unknown GID lookup error | `TestDarwinExistingRoleRefusesGroupIDLookupFailure`: failed GID lookup accepted | 0.698 |
+| (d) Ignore invalid PrimaryGroupID | `TestDarwinExistingRoleRefusesInvalidPrimaryGroupID`: invalid GID accepted | 0.736 |
+| (f) Accept wrong created GID | `TestDarwinExistingRoleRefusesWrongCreatedGroupID`: wrong created GID accepted or not named | 0.742 |
+| Ignore dseditgroup failure | `TestDarwinExistingRoleReportsGroupCreationFailure`: creation failure not named | 0.736 |
+| Restore one-line-only search parsing | `Cleanup.test_preflight_accepts_expected_hidden_nonlogin_role`: exit 1 instead of 0 on native output | 0.110 |
+| Ignore the native attribute prefix | Same valid-role assertion: exit 1 instead of 0 | 0.113 |
+| Bypass safety for a user-only record | `Cleanup.test_user_only_still_requires_all_role_safety_checks`: ten unexpected exit-0 assertions | 0.527 |
+| Permit the missing group at teardown | `Cleanup.test_teardown_requires_the_complete_role_pair`: exit 0 instead of 1 | 0.113 |
+
+The readback-not-created test retains its message assertion. Sources were restored after each mutant and the lock released immediately after the batch. Final baseline: Python 32/0; whole setup package PASS in 16.652 s; restored focused Darwin checks pass. No native acceptance is claimed.
