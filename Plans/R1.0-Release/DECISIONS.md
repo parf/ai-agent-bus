@@ -2,6 +2,12 @@
 
 ## Recorded decisions
 
+- **Cut to R1.1: RT23, M.7, M.6b, RT11 RW10–RW17, RT19, MAC.3, B.15** (Q299) — owner, 2026-11-01: "agree" to moving all; none blocks the release. Google Chat (B.27b) already moved to R1.2 with Q247/Q248.
+  - Home: [R1 TODO](TODO.md#objective); the items move to [R1.1](../R1.1/TODO.md#objective).
+- **npm publishes `ai-agent-bus` and `ai-agent-bus-client` first at the release** (Q300) — owner, 2026-11-01: "agree"; right after the STABLE commit, so the first public version is 1.0.0. The parf73 placeholders stay at 0.0.1 until then.
+  - Home: [P.1 npm package](TODO.md#distribution-acceptance).
+- **IMAP folders share one `cache_bytes` budget** (Q270) — owner, 2026-11-01: LRU eviction across folders, so memory and disk stay bounded as today.
+  - Home: [IMAP folders plan](imap-folders.md#scope).
 - **"Big keys" are called bigfiles everywhere a user sees them** — owner, 2026-11-01 (T-22): CLI `agent-bus bigfile put|get|ls|rm`, API `/bigfile`, client methods, MCP tools `ab_bigfile_*`, the web card "Big files", the IMAP `--bigfile` option and the `bigfile/` directory beside the database; an old `big-keys/` directory is renamed once at start, and both existing refuses with a 503 naming both. Earlier decisions below keep the words they were made in.
   - Home: [bigfiles](bigfile.md#what-it-is-and-is-not).
 - **Bigfiles: Q288–Q295 settled, every recommendation accepted** — owner GO via `#ab-lead2`, 2026-11-01 11:05: `bigfile put|get|ls|rm`; limits 32 MiB per key, 256 MiB per record, 1 GiB per daemon, 100 keys per record; every key expires (default 24 h, at most 30 days); file by default, memory on request; left out of backups; allow-list principals download and list; an IMAP upload is hosted on a record the caller maintains with the instance admitted; the web face lists and deletes only.

@@ -32,26 +32,13 @@ What stands between main (0.9.262) and the R1 release as 1.0.0 ([readiness](TODO
 - ❓ Q298 How the macOS test account is removed for MAC.2
   - Context: the rerun at 0.9.243 is built. macOS refuses to delete a user from any ssh session, root included (TCC, -14120), so the `_agentbusd` account left by the 10-31 run blocks the rerun, and the rerun leaves one again. Instructions on the Mac: `~/agent-bus-dev/agent-bus-handoff.md`
   - ( ) A one-time Full Disk Access grant to `/usr/libexec/sshd-keygen-wrapper`; #ab-ceo does the rest over ssh 🌟
-  - ( ) The owner runs `sudo sysadminctl -deleteUser _agentbusd` at the Mac, before the rerun and after it ⭐
+  - (x) The owner runs `sudo sysadminctl -deleteUser _agentbusd` at the Mac, before the rerun and after it ⭐
   - ( ) Take MAC.2 out of R1; the macOS client still ships through npm
-  > 💡👾 The one-time grant: every later Mac step then runs without the owner.
-
-- ❓ Q299 Move these to R1.1
-  - Context: none blocks the release; each waits on a choice, a sign-up or a design
-  - [ ] RT23 agent status line — Q191 open; callers work today
-  - [ ] M.7 named-host network rules — new capability, mechanism not approved
-  - [ ] M.6b edge runners — local and shared runners work
-  - [ ] RT11 RW10–RW17 runner web extras (search, logs, install/update) — the page is usable
-  - [ ] RT19 root runner — an idea, not designed
-  - [ ] MAC.3 macOS sandbox — deferred until asked
-  - [ ] B.15 node cleanup — node operations, not a release artifact
-  > 💡👾 Move all of them.
-
-- ❓ Q300 When npm publishes `ai-agent-bus` and `ai-agent-bus-client` for the first time
-  - Context: names reserved under parf73 (placeholders 0.0.1); publishing needs the owner's npm login
-  - ( ) At the release, right after the STABLE commit 🌟
-  - ( ) Now, as a 0.9 preview
-  > 💡👾 At the release: the first public version is 1.0.0.
+  > ✅ 💡👾 The one-time grant: every later Mac step then runs without the owner.
+  >
+  > 💬 👤parf agree
+  >
+  > 💬👾 The picked option is the second one (you run `sysadminctl` at the Mac), but the ✅ is on the one-time grant. Which one?
 
 ## Messaging agents
 
@@ -59,13 +46,7 @@ Q247 and Q248 (Google Chat) moved to [R1.2](../R1.2/QUESTIONS.md#open-questions)
 
 ## IMAP folders
 
-Choices for the [IMAP folders plan](imap-folders.md#scope) ([B.30](TODO.md#bundled-agents)). Q270 is not blocking. Q269 and Q271–Q275 are [settled](DECISIONS.md#recorded-decisions).
-
-- ❓ Q270 One cache budget for all folders, or one per folder
-  - Impact: per-folder multiplies the bound by the folder count
-  - ( ) One `cache_bytes` shared, with LRU eviction across folders 🌟
-  - ( ) `cache_bytes` per folder
-  > 💡👾 Shared: memory and disk stay bounded as today.
+None open: Q269 to Q275 are [settled](DECISIONS.md#recorded-decisions) for the [IMAP folders plan](imap-folders.md#scope).
 
 ## IMAP large transfer
 
@@ -79,8 +60,10 @@ Choices for the [shorter prompts plan](short-prompts.md#proposal), to discuss wi
   - Impact: inline costs its bytes on every session start, but cannot be skipped
   - ( ) Inline in the MCP instructions, read once at start
   - ( ) A short doc the instructions tell the session to read
-  - ( ) Both, with the instructions holding the minimum 🌟
-  > 💡👾 Both: the minimum cannot be skipped, the rest costs nothing until read.
+  - (x) Both, with the instructions holding the minimum 🌟
+  > ✅ 💡👾 Both: the minimum cannot be skipped, the rest costs nothing until read.
+  >
+  > 💬 👤parf agree
 
 - ❓ Q184 How strict the message style is
   - Impact: guidance alone is free but easy to ignore; a face check is code for a style rule
