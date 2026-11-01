@@ -73,3 +73,10 @@ test("Delete posts the record and name to the daemon and returns to the store wi
   expect(del?.method).toBe("POST");
   expect(JSON.parse(del!.body)).toEqual({ record, name: "report" });
 });
+
+test("a daemon whose big-key store is unavailable shows its cause instead of hiding the card", async () => {
+  listing = () => Response.json({ error: "the big-key store directory cannot be opened" }, { status: 503 });
+  const c = card(await store());
+  expect(c).toContain("Big keys");
+  expect(c).toContain('<p class="warn">the big-key store directory cannot be opened</p>');
+});

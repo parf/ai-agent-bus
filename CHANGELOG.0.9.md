@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.255 — 2026-11-01
+
+The web store page lists and deletes big keys, and the user guide documents them
+
 ## 0.9.254 — 2026-11-01
 
 agent-bus big put|get|ls|rm and the Go client store, fetch, list and delete big keys up to 32 MiB with SHA-256 checked both ways

@@ -162,7 +162,8 @@ async function storePage(ctx: Ctx, st: FormState = { values: {} }, status = 200)
         </table>
       </Card>;
     })}
-    {big.length ? <BigCard record={kv.record} keys={big} /> : null}
+    {big.unavailable !== undefined ? <Card title="Big keys" icon="file-down" id="kv-big"><p class="warn">{big.unavailable}</p></Card>
+      : big.keys.length ? <BigCard record={kv.record} keys={big.keys} /> : null}
     <Card title="Add value" icon="plus" id="kv-add"><AddForm record={kv.record} st={st} /></Card>
   </>;
   return respond(ctx, { title: `KV ${kv.record}`, section: "kv", signedIn: true, you }, body, status);
