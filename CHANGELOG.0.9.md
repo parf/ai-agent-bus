@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.254 — 2026-11-01
+
+agent-bus big put|get|ls|rm and the Go client store, fetch, list and delete big keys up to 32 MiB with SHA-256 checked both ways
+
 ## 0.9.253 — 2026-11-01
 
 Big keys survive restarts in private files, expire, and drop orphans; an unusable store answers 503 with the cause while the daemon stays up

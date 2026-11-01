@@ -220,7 +220,9 @@ func TestBigPutOfALargeFileReportsAnEarlyRefusalNotAResetConnection(t *testing.T
 	f.Truncate(24 << 20)
 	f.Close()
 	for _, status := range []int{403, 413, 503} {
+		var expect atomic.Value
 		bigDaemon(t, func(w http.ResponseWriter, r *http.Request) {
+			expect.Store(r.Header.Get("Expect"))
 			w.WriteHeader(status)
 			fmt.Fprintf(w, "refused early: %d", status)
 		})
@@ -228,6 +230,9 @@ func TestBigPutOfALargeFileReportsAnEarlyRefusalNotAResetConnection(t *testing.T
 			_, e := captureStdout(t, func() error { return bigPutVerb([]string{"#r", "k", file}) })
 			if e == nil || !strings.Contains(e.Error(), fmt.Sprintf("refused early: %d", status)) {
 				t.Fatalf("%d try %d: %v", status, try, e)
+			}
+			if expect.Load() != "100-continue" {
+				t.Fatalf("a large put did not ask to be told to continue: %v", expect.Load())
 			}
 		}
 	}
