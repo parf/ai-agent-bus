@@ -81,4 +81,8 @@ const keys = await big.list();
 const removed = await big.delete('mail');
 ```
 
-TTL accepts whole `s/m/h/d`; numeric values are milliseconds, as elsewhere in this client. It defaults to 24h, at most 30d. Options `memory` and `sha256` request volatile storage and an expected upload hash. Get returns verified bytes and metadata; `BigHashMismatch` means discard the download. Daemon refusals retain their status and cause, including 503. See [big keys](../../../docs/03-records-kv.md#big-keys) for authority and expiry.
+- TTL accepts whole `s/m/h/d`; numeric values are milliseconds, as elsewhere in this client. It defaults to 24h, at most 30d.
+- Options `memory` and `sha256` request volatile storage and an expected upload hash.
+- Get returns verified bytes and metadata; `BigHashMismatch` means discard the download.
+- Daemon refusals retain their status and cause, including 503.
+- See [big keys](../../../docs/03-records-kv.md#big-keys) for authority and expiry.
