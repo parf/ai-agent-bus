@@ -54,6 +54,7 @@ class Selection(unittest.TestCase):
 
     def test_rag_manifest_selection_output_names_the_reason(self):
         import shutil, subprocess, tempfile
+        (ROOT/'tmp').mkdir(exist_ok=True)
         with tempfile.TemporaryDirectory(dir=ROOT/'tmp') as directory:
             repo = Path(directory)
             for relative in ('src/smoke-select.py','src/smoke-map.json','Plans/subsystems.md'):
@@ -64,7 +65,7 @@ class Selection(unittest.TestCase):
             manifest.parent.mkdir(parents=True)
             manifest.write_text('{}\n')
             def git(*args):
-                subprocess.run(['git','-C',str(repo),*args],check=True,capture_output=True)
+                subprocess.run(['git','-C',str(repo),'-c','core.hooksPath=/dev/null','-c','commit.gpgSign=false',*args],check=True,capture_output=True,timeout=10)
             git('init','-q','-b','main')
             git('add','src/smoke-select.py','src/smoke-map.json','Plans/subsystems.md','src/agents/rag/agent.json')
             git('-c','user.name=Fixture','-c','user.email=fixture@example.test','commit','-qm','base')
