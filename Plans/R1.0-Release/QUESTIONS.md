@@ -8,7 +8,15 @@ suggestion with `✅ 💡` or `🚫 💡`.
 
 ## R1 release decisions
 
-None open: Q296 to Q301 are [settled](DECISIONS.md#recorded-decisions).
+Q296 to Q301 are [settled](DECISIONS.md#recorded-decisions).
+
+- ❓ Q302 Set up RAG on this node so keyword search can be used
+  - Context: RAG keyword search (Q301) lands about 14:55, but RAG is not configured here: `#rag@parf.us` answers "configure RAG block names and collection" and `#qdrant` has no collections. Setup is the owner's by design: create one Qdrant collection, grant `#rag` the `#qdrant`, `#voyage` and `#ai` blocks, set its Configuration ([installing it](../../docs/agents/rag.md#installing-it))
+  - Cost: embedding every stored record calls Voyage (paid); classification calls the `#ai` block (paid)
+  - ( ) Set it up now: collection `notes`, model voyage-3.5 (1024 dimensions), the three blocks granted; #ab-ceo runs it 🌟
+  - ( ) Set it up with another collection name or model (say which)
+  - ( ) Leave RAG unconfigured until there is data to store ⭐
+  > 💡👾 Set it up now with `notes` and voyage-3.5: an empty collection costs nothing, and the keyword search is then tried live before 1.0.
 
 ## Messaging agents
 
