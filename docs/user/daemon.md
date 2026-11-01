@@ -37,7 +37,7 @@ agent-bus status
 {"up":"6h44m21s","realm":"parf.us","records":126,"queued":88,"waiting":49,"dropped":0,"expired":0,"refused":{"acl":6,"busy":295,"credential":5,"malformed":20,"second-reader":171,"not_found":64},"kinds":{"agent":114,...},"you":"#ab-w2a",...}
 ```
 
-- The output is shortened (`...`) and is from the development node on 2026-10-30; yours differs.
+- The output is shortened (`...`) and adapted for the current contract from the development node's output of 2026-10-30 (its `not_found` count was named `unknown` then); yours differs.
 - What each counter means: [Is it healthy?](#is-it-healthy).
 
 ## 📦 Installing it, once
