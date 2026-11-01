@@ -2,6 +2,9 @@
 import json
 import hashlib
 import base64
+import socket
+import ipaddress
+from urllib.parse import urlparse
 import unittest
 from unittest.mock import patch, Mock
 import test_imap as fixture
@@ -10,6 +13,8 @@ import folder_admin
 import wire
 from agent_bus.errors import InvalidArgument, Refusal, UncertainOutcome
 from mail import MailError
+
+CONNECT = socket.create_connection
 
 
 class Calls(unittest.TestCase):
@@ -152,6 +157,63 @@ class Calls(unittest.TestCase):
         self.assertIn('outcome unknown', answer)
         self.assertEqual(len(self.server.appended), 1)
         self.assertEqual(len(self.writes()), 1)
+
+    def test_big_transfer_through_real_client_core_api_and_instance_admission(self):
+        from test_subscriptions_bus import Fixture
+        live = Fixture(self)
+        self.addCleanup(live.close)
+        address = urlparse(live.info['addr'])
+        self.assertTrue(ipaddress.ip_address(address.hostname).is_loopback)
+        allowed = {('127.0.0.1', self.server.server_address[1]), (address.hostname, address.port)}
+        def only_fixtures(address, *args, **kwargs):
+            if address not in allowed: raise AssertionError('external connection forbidden')
+            return CONNECT(address, *args, **kwargs)
+        patch('socket.create_connection', side_effect=only_fixtures).start()
+        owner, caller, imap, stranger = [live.client(name) for name in
+            ('owner@fixture', '#caller@fixture', '#worker@fixture', '#outsider@fixture')]
+        owner.record(imap.name).manage(allow=[caller.name])
+        owner.record(caller.name).manage(allow=[])
+        agent = fixture.proxy.Agent(imap, self.cfg, self.env, self.work.name)
+        self.addCleanup(agent.close)
+        def request(body):
+            caller.send(imap.name, body)
+            message = imap.consume(wait=.2)
+            self.assertIsNotNone(message)
+            self.assertEqual(message.envelope['from'], caller.name)
+            return agent.handle(message)
+        # Larger than a bus message, with binary and non-UTF-8 bytes throughout.
+        raw = b'Subject: real big transfer\r\n\r\n' + bytes(range(256)) * 4097
+        self.assertGreater(len(raw), 1048576)
+        self.server.bodystructure = ('("APPLICATION" "OCTET-STREAM" NIL NIL NIL "BINARY" ' + str(len(raw)) + ' NIL NIL)').encode()
+        self.server.part_bodies = {'1': raw}
+        answer = request('part 7 1 --big decoded')
+        self.assertIn('size ' + str(len(raw)), answer)
+        self.assertIn(hashlib.sha256(raw).hexdigest(), answer)
+        downloaded, info = caller.record(imap.name).big.get('decoded')
+        self.assertEqual(downloaded, raw)
+        self.assertEqual(info['sha256'], hashlib.sha256(raw).hexdigest())
+        self.assertEqual(self.server.stores, [])
+        with self.assertRaises(Refusal) as denied:
+            stranger.record(imap.name).big.get('decoded')
+        self.assertEqual(denied.exception.status, 403)
+        caller.record(caller.name).big.put('mail', raw)
+        self.folder('Other', '')
+        command = 'append Other --big ' + caller.name + '/mail'
+        before = list(self.server.commands)
+        self.assertIn('allow_destructive', request(command))
+        self.cfg['allow_destructive'] = True
+        self.assertIn('big key access refused', request(command))
+        self.assertEqual(self.server.commands, before)
+        owner.record(caller.name).manage(allow=[imap.name])
+        self.assertIn('destination UID', request(command))
+        self.assertEqual(len(self.server.appended), 1)
+        self.assertTrue(self.server.appended[0][1] == raw, 'APPEND changed verified big bytes')
+        self.assertEqual(self.server.mailboxes, [b'"INBOX"'])  # part EXAMINE only
+        owner.record(caller.name).manage(allow=[])
+        before = list(self.server.commands)
+        self.assertIn('big key access refused', request(command))
+        self.assertEqual(self.server.commands, before)
+        self.assertEqual(len(self.server.appended), 1)
 
     def test_create_ungated_and_utf7_quoted_without_selection(self):
         name = '邮件 & "box"'

@@ -121,8 +121,15 @@ def perform(connection, call, cfg, *, watched=(), raw=None):
         name = folders.choose(connection, call['folder'])
         connection.response('APPENDUID')  # No stale mapping from any earlier response.
         try:
-            wire.ok(connection.append(wire.mailbox(name), '(' + ' '.join(call['flags']) + ')',
-                                      call.get('date'), raw if raw is not None else call['raw'].encode('utf-8')))
+            flags = '(' + ' '.join(call['flags']) + ')'
+            if raw is None:
+                wire.ok(connection.append(wire.mailbox(name), flags, call.get('date'), call['raw'].encode('utf-8')))
+            else:
+                # IMAP4.append normalizes lone CR/LF. A verified big key must
+                # reach the server byte-for-byte, including binary MIME data.
+                connection.literal = raw
+                date = imaplib.Time2Internaldate(call['date']) if call.get('date') else None
+                wire.ok(connection._simple_command('APPEND', wire.mailbox(name), flags, date))
         except wire.Refused:
             raise wire.WireError('APPEND refused; no retry') from None
         except (OSError, imaplib.IMAP4.error, wire.WireError):

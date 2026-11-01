@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.260 — 2026-11-01
+
+IMAP part --big stores a decoded part as a big key on the instance, and append --big appends a big key byte for byte
+
 ## 0.9.259 — 2026-11-01
 
 The TypeScript client and MCP tools store, fetch, list and delete big keys; MCP moves content through local files, never model context
