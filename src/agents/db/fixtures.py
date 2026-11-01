@@ -171,9 +171,34 @@ def mariadb():
 # the run's private dir (the default for both is journald; J32's leaked container wrote 20,000 lines a minute there).
 PODMAN = ('podman', '--events-backend=none')
 
+# Podman's --syslog=false affects Podman, not conmon: it still passes --syslog
+# to the monitor. Disable that channel without redirecting its existing stderr.
+CONMON_WRAPPER = r"""#!/bin/bash
+args=()
+for arg; do
+  [[ "$arg" == --syslog ]] || args+=("$arg")
+done
+exec conmon "${args[@]}"
+"""
+
+
+def podman_command():
+    """One command for DB and real-Qdrant fixtures, including detached cleanup."""
+    helper = Path(private()) / 'conmon-no-syslog'
+    if not helper.exists():
+        fd, staged = tempfile.mkstemp(prefix='conmon.', dir=helper.parent)
+        try:
+            with os.fdopen(fd, 'w') as out:
+                out.write(CONMON_WRAPPER)
+            os.chmod(staged, 0o700)
+            os.replace(staged, helper)   # another fixture thread never executes a partial script
+        finally:
+            Path(staged).unlink(missing_ok=True)
+    return (*PODMAN, '--conmon', str(helper))
+
 
 def podman(*args, check=True):
-    return subprocess.run([*PODMAN, *args], check=check, capture_output=True, text=True)
+    return subprocess.run([*podman_command(), *args], check=check, capture_output=True, text=True)
 
 
 # A container run belongs to a gate or a mutant, which hold this lock; a run outside one is the stray that leaked (J32).
@@ -219,7 +244,7 @@ def container(image, port, env, files=()):
         args += ['-e', f'{key}={value}']
     # Registered before the run: a run that fails after creating the container still leaves one to remove.
     STOP.append(lambda: podman('rm', '-f', '-t', '1', name, check=False))
-    watch(f'^podman .* run .*--name {name}( |$)', *PODMAN, 'rm', '-f', '-t', '1', name)
+    watch(f'^podman .* run .*--name {name}( |$)', *podman_command(), 'rm', '-f', '-t', '1', name)
     podman(*args, image)
     return name, host_port
 

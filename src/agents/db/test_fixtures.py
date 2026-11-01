@@ -1,5 +1,6 @@
 """The fixture's start-up, without podman: a container that vanishes is started again once, a second failure explains itself."""
 import io
+import json
 import contextlib
 import os
 import signal
@@ -223,11 +224,11 @@ class Leaks(Patched):
         finally:
             fixtures.STOP[:] = saved
         starting, *cleanup = [w for w in self.watched if w[1] != 'rm'][0]
-        self.assertEqual(cleanup, ['podman', '--events-backend=none', 'rm', '-f', '-t', '1', name])
+        self.assertEqual(cleanup, [*fixtures.podman_command(), 'rm', '-f', '-t', '1', name])
         run = fake.verbs('run')[0]
         self.assertIn('max-size=10mb', run)
         self.assertIn('path=%s/%s.ctr.log' % (fixtures.private(), name), run)   # in the run's dir, never journald
-        command = ' '.join([*fixtures.PODMAN, *run, 'image'])
+        command = ' '.join([*fixtures.podman_command(), *run, 'image'])
         self.assertRegex(command, starting)   # the watcher recognises this start while it is in flight
         self.assertNotRegex(' '.join(['sh', '-c', fixtures.WATCH, 'sh', fixtures.RUN, starting, *cleanup]), starting)   # not itself
         self.assertNotRegex(command.replace(name, name + '9'), starting)   # nor a neighbour's start
@@ -502,6 +503,49 @@ class Journal(unittest.TestCase):
         out = subprocess.run(['journalctl', '--user', '-q', '-o', 'cat', *match], capture_output=True, text=True)
         return len(out.stdout.splitlines())
 
+    def test_conmon_cgroup_read_failure_stays_in_the_fixture_log(self):
+        # Fault only the native monitor's file read; the real PostgreSQL server,
+        # real conmon warning and the existing journal assertion remain intact.
+        common = subprocess.run(['git', '-C', str(Path(__file__).resolve().parents[3]), 'rev-parse',
+                                 '--path-format=absolute', '--git-common-dir'], capture_output=True, text=True)
+        self.assertEqual(common.returncode, 0, 'cannot locate shared test tmp: ' + common.stderr)
+        shared = Path(common.stdout.strip()).parent / 'tmp'
+        shared.mkdir(exist_ok=True)
+        import tempfile
+        work = Path(tempfile.mkdtemp(prefix='ab-db-conmon-' + fixtures.RUN + '-', dir=shared))
+        self.addCleanup(__import__('shutil').rmtree, work)
+        library = work / 'conmon-fault.so'
+        compiler = __import__('shutil').which('cc')
+        self.assertIsNotNone(compiler, 'native conmon fault check requires cc; refusing a silent skip')
+        build = subprocess.run([compiler, '-shared', '-fPIC', '-o', str(library),
+                                str(Path(__file__).with_name('conmon_fault.c')), '-ldl'],
+                               capture_output=True, text=True)
+        self.assertEqual(build.returncode, 0, build.stderr)
+        command = fixtures.podman_command
+        original = command()
+        quiet = original[original.index('--conmon') + 1]
+        fault = work / 'conmon-fault'
+        import shlex
+        fault.write_text('#!/bin/sh\nexport J74_FAULT_LOG=' + shlex.quote(str(work / 'fault.log')) +
+                         '\nexport LD_PRELOAD=' + shlex.quote(str(library)) +
+                         '\nexec ' + shlex.quote(quiet) + ' "$@"\n')
+        fault.chmod(0o700)
+        def injected():
+            args = list(command())
+            args[args.index('--conmon') + 1] = str(fault)
+            return tuple(args)
+        from unittest.mock import patch
+        with patch.object(fixtures, 'podman_command', injected):
+            self.test_a_fixture_container_writes_nothing_to_the_journal()
+        marker = work / 'fault.log'
+        self.assertTrue(marker.exists(), 'native conmon fault preload did not execute; refusing a silent skip')
+        self.assertIn('/memory.events', marker.read_text(), 'preload did not intercept the intended cgroup read')
+        # conmon's detached nwarn is syslog-only. Existing setup stderr must
+        # nevertheless remain observable through the wrapper, never /dev/null.
+        error = subprocess.run([quiet, '--j74-invalid-option'], capture_output=True, text=True)
+        self.assertNotEqual(error.returncode, 0)
+        self.assertTrue(error.stderr.strip(), 'the quiet wrapper discarded native conmon stderr')
+
     def test_a_fixture_container_writes_nothing_to_the_journal(self):
         probe = subprocess.run(['journalctl', '--user', '-n0', '--show-cursor'], capture_output=True, text=True)
         cursor = probe.stdout.rpartition('-- cursor: ')[2].strip()
@@ -519,11 +563,17 @@ class Journal(unittest.TestCase):
             fixtures.STOP[:] = saved
         time.sleep(1)   # journald takes what it is sent asynchronously
         after = (self.count('CONTAINER_NAME=' + name), self.count('PODMAN_NAME=' + name))
-        self.assertEqual(before, (0, 0))
-        self.assertEqual(after, before, 'the container or podman wrote to the host journal')
-        since = subprocess.run(['journalctl', '--user', '-q', '-o', 'verbose', '--after-cursor', cursor],
-                               capture_output=True, text=True).stdout
-        self.assertNotIn(name, since, 'something wrote this container to the journal')
+        journal = subprocess.run(['journalctl', '--user', '-q', '-o', 'json', '--after-cursor', cursor],
+                                 capture_output=True, text=True)
+        self.assertEqual(journal.returncode, 0, journal.stderr)
+        matching = [entry for line in journal.stdout.splitlines() if name in line
+                    for entry in [json.loads(line)]]
+        fields = ('MESSAGE', 'SYSLOG_IDENTIFIER', '_COMM', '_PID', '_CMDLINE', '_SYSTEMD_USER_UNIT',
+                  'UNIT', 'USER_UNIT', 'CONTAINER_NAME', 'PODMAN_NAME')
+        evidence = json.dumps([{k: entry[k] for k in fields if k in entry} for entry in matching], sort_keys=True)
+        self.assertEqual(before, (0, 0), evidence)
+        self.assertEqual(after, before, 'the container or podman wrote to the host journal: ' + evidence)
+        self.assertEqual(matching, [], 'something wrote this container to the journal: ' + evidence)
         self.assertGreater(said, 0, 'the container said nothing to its own log, so the silence above measured nothing')
 
 
