@@ -16,7 +16,8 @@
 
 - ✅ **Store a text:** it is sorted into your topics, fingerprinted and kept (`upsert`).
 - ✅ **Read it back:** one record, or a page of records in a namespace (`get`, `list`).
-- ✅ **Find by words:** `search` ranks stored text by the words you type, best first, one row per record, using Qdrant's own BM25 (`search`); search by meaning is not part of this call.
+- ✅ **Find by words:** `search` ranks stored text by the words you type, best first, one row per record, using Qdrant's own BM25; only records you can still read (`get`) are returned. Search by meaning is not part of this call.
+- ✅ **Build the keyword index:** `keyword_index` adds the vector search needs to a collection that lacks it and gives every stored text its words; safe to repeat.
 - ✅ **Delete:** one record, or a whole table when you confirm it (`delete`).
 - ✅ **Keep topic lists:** read or set a table's topics (`prompts`); changing a list affects only texts added afterwards.
 - ✅ **Safe to repeat:** a failure says plainly whether **nothing changed** or the outcome is **unknown**; repeating the same call is always safe; nothing retries by itself.
@@ -124,7 +125,9 @@ agent-bus manage '#ai@node.example' --add-to-set-allow '#rag@node.example'
 
 - At startup and on every operation the app reads collection information to verify model metadata, vector settings and indexes; missing or mismatched settings refuse use.
 - Changing the index list later is an owner or admin action.
-- `sparse_vectors.text` with the `idf` modifier is what `search` uses. Qdrant cannot add it to an existing collection, so a collection made without it keeps working for everything else and `search` says it is missing; records stored before the collection had it gain their words when they are upserted again.
+- `sparse_vectors.text` with the `idf` modifier is what `search` uses. A collection made without it keeps working for everything else, and `search` answers `keyword index not built yet; run {"method":"keyword_index"}`.
+- **Build it on an existing collection:** `agent-bus call '#rag@node.example' --wait=120s '{"method":"keyword_index"}'`, as the helper's Owner or a Maintainer. It adds the vector with the `idf` modifier and then gives each stored text its words in batches; run it again if it answers `incomplete`, or after an interruption, and it continues where it stopped. A second run on a finished collection changes nothing and answers `indexed: 0`.
+- **If the proxy refuses to add the vector,** the answer names one command to run as the Qdrant proxy's owner: `request PUT /collections/notes/vectors/text {"sparse":{"modifier":"idf"}}`, because adding a vector needs the proxy's admin role and the helper only has write. Then run `keyword_index` again.
 - The [collection API](https://api.qdrant.tech/api-reference/collections/create-collection) supports model metadata; [strict filtering](https://qdrant.tech/documentation/search/text-search/text-filtering/) requires payload indexes.
 - The index list above matches one constant used by startup verification, including `_rag_rev`.
 - [Collection information](https://api.qdrant.tech/api-reference/collections/get-collection) defines `config.metadata` and the keyword payload type; the [Decisions reference](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-request) defines string state, typed Choice questions and `answers.<name>.probabilities`; tests use these shapes, not invented APIs.
@@ -173,7 +176,8 @@ agent-bus manage '#ai@node.example' --add-to-set-allow '#rag@node.example'
 | The outcome is **unknown** | Repeat the same request; nothing retries automatically |
 | `incomplete: repeat the same delete to continue` | Repeat the delete |
 | A stale-cursor error | Start `list` again without a cursor |
-| `search` says the collection has no BM25 sparse vector | Create the collection with `sparse_vectors.text` and the `idf` modifier ([Installing it](#installing-it)), or set `keyword_search` to `external` |
+| `search` says `keyword index not built yet` | Run `keyword_index` ([Installing it](#installing-it)); or set `keyword_search` to `external` |
+| `search` says the text vector lacks the idf modifier | Recreate that vector with `{"sparse":{"modifier":"idf"}}`; Qdrant cannot change a modifier in place |
 | `search` says no external keyword engine is connected | Connect one, or set `keyword_search` back to `builtin` |
 
 ## Warnings and alerts
@@ -203,7 +207,7 @@ Input:
 Replacement and recovery:
 
 - Every chunk carries namespace, tableName, id and `_rag_rev`, a SHA-256 of canonical typed source, MIME, optional keys, selected label IDs, embedding model, chunk-format version and final float32 vector bytes.
-- With `keyword_search` builtin and a collection that has the `text` sparse vector, each chunk is also stored with its words: lower-cased Unicode words hashed to Qdrant sparse indices, weighted by saturated term frequency (BM25, k1 1.2, b 0.75); Qdrant's `idf` modifier adds the rarity weight, and `search` queries those chunks by the query's words. A search can briefly show a chunk of a record that is being replaced or deleted; it returns the best chunk per record and never grants access beyond the filters.
+- With `keyword_search` builtin and a collection that has the `text` sparse vector, each chunk is also stored with its words: lower-cased Unicode words hashed to Qdrant sparse indices, weighted by saturated term frequency (BM25, k1 1.2, b 0.75); Qdrant's `idf` modifier adds the rarity weight, and `search` queries those chunks by the query's words. `search` returns a chunk only while its record's current head lists it, so a text whose first upsert failed, an old revision awaiting cleanup and a record being deleted are never returned; it returns the best chunk per record and never grants access beyond the filters.
 - Chunk UUIDs contain identity, revision and chunk index; the head UUID is stable per identity; full probabilities stay in the head only.
 - Upsert writes new chunks (`wait=true`), publishes the head (`wait=true`), then deletes stale chunks by **identity and revision != new revision filter** (`wait=true`); cleanup never depends on a list saved in the head.
 - A failure before head publication keeps the previous head; a later failure can leave old and new chunks, which repeating upsert or delete repairs.

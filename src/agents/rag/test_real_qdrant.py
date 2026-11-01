@@ -15,6 +15,8 @@ from pathlib import Path
 HERE=Path(__file__).resolve().parent
 sys.path[:0]=[str(HERE),str(HERE.parent/'db'),str(HERE.parents[2]/'src/clients/python'),str(HERE.parents[2]/'src/agents/shared')]
 import fixtures
+# The default systemd cgroup manager makes the user manager log a scope per container, which breaks journal-quiet at random (J74).
+if '--cgroup-manager=cgroupfs' not in fixtures.PODMAN:fixtures.PODMAN=(*fixtures.PODMAN,'--cgroup-manager=cgroupfs')
 from rules import *
 from core import Core
 from test_rag import CFG,KV,PROMPT

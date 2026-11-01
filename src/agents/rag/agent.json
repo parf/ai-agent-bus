@@ -179,7 +179,7 @@
       "example": "agent-bus call '#rag@node.example' '{\"method\":\"list\",\"namespace\":\"team\",\"tableName\":\"notes\",\"limit\":2}'"
     },
     "search": {
-      "help": "Find records by keyword: the stored text ranked by Qdrant BM25, best first, one row per record, up to 16. Needs a collection created with the text sparse vector (idf modifier).",
+      "help": "Find records by keyword: the stored text ranked by Qdrant BM25, best first, one row per record, up to 16, only records that have a live head. Before the keyword index exists it says so; run keyword_index.",
       "text": "search (JSON only)",
       "args": [
         {
@@ -207,6 +207,13 @@
       ],
       "returns": "JSON {records:[{namespace,tableName,id,key1?,key2?,score,text}]}; text is the best matching chunk, <=4 KiB. Filters narrow the search and grant no access. With keyword_search external, the connected engine answers instead.",
       "example": "agent-bus call '#rag@node.example' '{\"method\":\"search\",\"namespace\":\"team\",\"query\":\"green tea\",\"limit\":5}'"
+    },
+    "keyword_index": {
+      "help": "Build the keyword index: add the text sparse vector when the collection lacks it, then give every stored chunk its words. Safe to repeat; a repeat continues where an interrupted run stopped. Owner or Maintainers only.",
+      "text": "keyword_index (JSON only)",
+      "args": [],
+      "returns": "JSON {status:\"ok\",indexed:n} when every chunk has its words (n counts this run), or \"incomplete: ...\" to repeat. If the Qdrant proxy refuses to add the vector, the answer names the owner's one-time command.",
+      "example": "agent-bus call '#rag@node.example' --wait=120s '{\"method\":\"keyword_index\"}'"
     },
     "delete": {
       "help": "Remove one record, or exactly the namespace-scoped selection you name.",
