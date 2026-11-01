@@ -150,13 +150,33 @@ deploy_checked() { # label
 release_of() { cat "/usr/local/lib/agent-bus/$(readlink /usr/local/lib/agent-bus/current)/internal/version/VERSION"; }
 # Configuration the update must keep: setup's files under /etc/agent-bus (absent without TLS), the runner's
 # runner.env, and a record's Configuration in the daemon. A listing that misses runner.env compares nothing, so it fails.
+# web.applied is setup's record of the code the web face was last started from, so it is NOT configuration: it
+# is left out here and held to its own rule below (web_follows_code).
 config_sums() {
-  { [ ! -d /etc/agent-bus ] || find /etc/agent-bus -type f; echo /var/lib/agent-bus/alice-ab-runner/runner.env; } | sort | xargs sha256sum
+  { [ ! -d /etc/agent-bus ] || find /etc/agent-bus -type f ! -name web.applied; echo /var/lib/agent-bus/alice-ab-runner/runner.env; } | sort | xargs sha256sum
+}
+# What web.applied records, seen from outside: the resolved release the web face runs from and the bytes of its
+# tree and compiled runtime. web.applied must change exactly when this does.
+web_sig() {
+  local r; r=$(readlink -f /usr/local/lib/agent-bus/current) || return 1
+  { echo "$r"; (cd "$r/web" && find . -type f | sort | xargs sha256sum | sha256sum); sha256sum <"$r/agent-bus-ts"; } | sha256sum | cut -d' ' -f1
+}
+web_applied() { cat /etc/agent-bus/web.applied; }
+# web_follows_code <label> <sig before> <applied before> -- compares now against them.
+web_follows_code() {
+  local now_sig now_applied; now_sig=$(web_sig) || fail "cannot read the web code signature $1"; now_applied=$(web_applied) || fail "no /etc/agent-bus/web.applied $1"
+  if [ "$now_sig" = "$2" ]; then
+    [ "$now_applied" = "$3" ] || fail "web.applied changed $1 although the web code did not"
+  else
+    [ "$now_applied" != "$3" ] || fail "web.applied did not change $1 although the web code did"
+  fi
 }
 as_alice agent-bus register "#kept@$realm" >/evidence/kept.log 2>&1 &&
   as_alice agent-bus config "#kept@$realm" '{"kept":"set before the update"}' >>/evidence/kept.log 2>&1 ||
   { cat /evidence/kept.log >&2; fail "alice could not set #kept@$realm's Configuration"; }
 config_before=$(config_sums) || fail "the node's configuration files cannot be read before the update"
+sig_good=$(web_sig) || fail "cannot read the web code signature before the update"
+applied_good=$(web_applied) || fail "setup wrote no /etc/agent-bus/web.applied for the installed release"
 grep -q ' /var/lib/agent-bus/alice-ab-runner/runner.env$' <<<"$config_before" || fail "no runner.env to compare"
 record_before=$(as_alice agent-bus config "#kept@$realm")
 grep -q 'set before the update' <<<"$record_before" || fail "#kept@$realm's Configuration did not read back: $record_before"
@@ -167,6 +187,13 @@ kept=$({ grep -lx "$version" /usr/local/lib/agent-bus/releases/*/internal/versio
 [ "$kept" = 1 ] || fail "the update kept $kept copies of $version for rollback, not one"
 deploy_checked "after the update"
 [ "$(config_sums)" = "$config_before" ] || { diff <(echo "$config_before") <(config_sums) >&2 || true; fail "the update changed the node's configuration files"; }
+[ "$(web_sig)" != "$sig_good" ] || fail "the update brought no new web code to compare web.applied against"
+web_follows_code "after the update" "$sig_good" "$applied_good"
+sig_next=$(web_sig); applied_next=$(web_applied)
+# A no-op: the same command again, with nothing newer. The code is the same, so the record must be.
+as_alice sh -c "curl -fsSL https://releases.test/next/install.sh | sh" >/evidence/rerun.log 2>&1 || { tail -30 /evidence/rerun.log >&2; fail "install.sh did not re-run on $next"; }
+web_follows_code "after a re-run with nothing new" "$sig_next" "$applied_next"
+[ "$(config_sums)" = "$config_before" ] || fail "the re-run changed the node's configuration files"
 [ "$(as_alice agent-bus config "#kept@$realm")" = "$record_before" ] || fail "the update changed #kept@$realm's Configuration"
 pass "the same command updated the node to $next: configuration, registrations, tokens and $version for rollback kept"
 
@@ -180,4 +207,6 @@ as_alice sh -c "curl -fsSL https://releases.test/next/install.sh | sh -s -- --ve
 /usr/local/bin/agent-busd --version | grep -qx "$version" || fail "agent-busd is not $version after the rollback"
 [ "$(release_of)" = "$version" ] || fail "current is not $version after the rollback"
 deploy_checked "after the rollback"
-pass "install.sh --version $version took the node back, data kept"
+web_follows_code "after the rollback" "$sig_next" "$applied_next"
+[ "$(web_sig)" = "$sig_good" ] && [ "$(web_applied)" = "$applied_good" ] || fail "the rollback did not return web.applied to the record of the code it returned to"
+pass "install.sh --version $version took the node back, data kept; web.applied changed exactly with the web code"
