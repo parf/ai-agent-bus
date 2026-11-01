@@ -83,4 +83,9 @@ keys = bus.record("owner@node").big.list()
 removed = bus.record("owner@node").big.delete("mail")
 ```
 
-`put(name, reader, size=n)` accepts a binary reader whose `read(n)` returns bytes. TTL is numeric seconds or whole `s/m/h/d`, default 24h, maximum 30d; `memory=True` requests volatile storage and `sha256=hex_digest` adds the expected upload hash. Get checks Content-Length against `max_size` before reading the body and verifies SHA-256 before returning `(bytes, info)`. `BigHashMismatch` means discard the download; daemon refusals retain their status and cause, including 503. See [big keys](../../../docs/03-records-kv.md#big-keys) for authority and expiry.
+- `put(name, reader, size=n)` accepts a binary reader whose `read(n)` returns bytes.
+- TTL is numeric seconds or whole `s/m/h/d`, default 24h, maximum 30d.
+- `memory=True` requests volatile storage; `sha256=hex_digest` adds the expected upload hash.
+- Get checks Content-Length against `max_size` before reading the body and verifies SHA-256 before returning `(bytes, info)`.
+- `BigHashMismatch` means discard the download. Daemon refusals retain their status and cause, including 503.
+- See [big keys](../../../docs/03-records-kv.md#big-keys) for authority and expiry.

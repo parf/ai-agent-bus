@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.256 — 2026-11-01
+
+The Python client stores, fetches, lists and deletes big keys, with a bounded get and SHA-256 checked both ways
+
 ## 0.9.255 — 2026-11-01
 
 The web store page lists and deletes big keys, and the user guide documents them
