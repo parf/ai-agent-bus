@@ -8,18 +8,7 @@ suggestion with `✅ 💡` or `🚫 💡`.
 
 ## R1 release decisions
 
-What stands between main (0.9.262) and the R1 release as 1.0.0 ([readiness](TODO.md#objective)).
-
-- ❓ Q298 How the macOS test account is removed for MAC.2
-  - Context: the rerun at 0.9.243 is built. macOS refuses to delete a user from any ssh session, root included (TCC, -14120), so the `_agentbusd` account left by the 10-31 run blocks the rerun, and the rerun leaves one again. Instructions on the Mac: `~/agent-bus-dev/agent-bus-handoff.md`
-  - ( ) A one-time Full Disk Access grant to `/usr/libexec/sshd-keygen-wrapper`; #ab-ceo does the rest over ssh 🌟
-  - (x) The owner runs `sudo sysadminctl -deleteUser _agentbusd` at the Mac, before the rerun and after it ⭐
-  - ( ) Take MAC.2 out of R1; the macOS client still ships through npm
-  > ✅ 💡👾 The one-time grant: every later Mac step then runs without the owner.
-  >
-  > 💬 👤parf agree
-  >
-  > 💬👾 The picked option is the second one (you run `sysadminctl` at the Mac), but the ✅ is on the one-time grant. Which one?
+None open: Q296 to Q300 are [settled](DECISIONS.md#recorded-decisions).
 
 ## Messaging agents
 
