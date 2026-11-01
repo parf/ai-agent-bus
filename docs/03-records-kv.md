@@ -79,6 +79,7 @@ The reference below keeps every section as it was; other pages link to these sec
 | At start | a stored value whose record is not stored is ignored and reported, never reattached |
 | Faces | the API's `GET /kv` and `POST /kv/set`, `/kv/delete`, `/kv/inc`, `/kv/json` take `record`, `kind` and `name`; a string travels as a JSON string, or `value_base64` when its bytes are not UTF-8, an int as a number and a JSON value as the object. `GET /kv/list` answers a record's names with sizes and previews, or with no record every store the caller may use. The MCP face has `ab_kv_get`, `ab_kv_set`, `ab_kv_delete`, `ab_kv_inc` and `ab_kv_json`; the web face shows a record's store on its page, and on the **KV** page and its own pages ([web face](../src/web/web-face/records.md#key-value-stores)) |
 
+- A string write carries exactly one of `value` (a JSON string) or `value_base64` (a base64 string). Both accept `""` as empty bytes; `null` is malformed and the refusal names the member.
 - The API body bound accommodates JSON escaping of a 512 KiB value.
 - The MCP face preserves 64-bit integers exactly across its JavaScript boundary.
 

@@ -80,12 +80,16 @@ func (s *Server) kvGet(w http.ResponseWriter, r *http.Request, caller protocol.N
 }
 
 // kvValue reads a set's value as its kind takes it.
-func kvValue(kind ports.KVKind, raw json.RawMessage, b64 string) (ports.KVValue, error) {
-	if b64 != "" {
+func kvValue(kind ports.KVKind, raw, b64 json.RawMessage) (ports.KVValue, error) {
+	if len(b64) != 0 {
 		if kind != ports.KVString || len(raw) != 0 {
 			return ports.KVValue{}, fmt.Errorf("%w: value_base64 is a string's bytes, instead of value", core.ErrKVValue)
 		}
-		b, err := base64.StdEncoding.DecodeString(b64)
+		var encoded *string
+		if err := json.Unmarshal(b64, &encoded); err != nil || encoded == nil {
+			return ports.KVValue{}, fmt.Errorf("%w: value_base64 is a JSON string", core.ErrKVValue)
+		}
+		b, err := base64.StdEncoding.DecodeString(*encoded)
 		if err != nil {
 			return ports.KVValue{}, fmt.Errorf("%w: value_base64 is not base64", core.ErrKVValue)
 		}
@@ -104,11 +108,11 @@ func kvValue(kind ports.KVKind, raw json.RawMessage, b64 string) (ports.KVValue,
 	case ports.KVJSON:
 		return ports.KVValue{Bytes: raw}, nil
 	}
-	var text string
-	if err := json.Unmarshal(raw, &text); err != nil {
-		return ports.KVValue{}, fmt.Errorf("%w: a string value is a JSON string, or value_base64", core.ErrKVValue)
+	var text *string
+	if err := json.Unmarshal(raw, &text); err != nil || text == nil {
+		return ports.KVValue{}, fmt.Errorf("%w: value is a JSON string, or use value_base64", core.ErrKVValue)
 	}
-	return ports.KVValue{Bytes: []byte(text)}, nil
+	return ports.KVValue{Bytes: []byte(*text)}, nil
 }
 
 func (s *Server) kvSet(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
@@ -117,7 +121,7 @@ func (s *Server) kvSet(w http.ResponseWriter, r *http.Request, caller protocol.N
 		Kind        string          `json:"kind"`
 		Name        string          `json:"name"`
 		Value       json.RawMessage `json:"value"`
-		ValueBase64 string          `json:"value_base64"`
+		ValueBase64 json.RawMessage `json:"value_base64"`
 		How         string          `json:"how"`
 	}
 	if !s.readStrictUpTo(w, r, &in, kvBody) {

@@ -141,7 +141,7 @@ class RecordKV:
         elif isinstance(value, str):
             body["value"] = value
         elif isinstance(value, bytes):
-            # An empty byte string is valid, but empty value_base64 is not a wire value.
+            # UTF-8 bytes, including empty bytes, travel as ordinary strings.
             try:
                 body["value"] = value.decode("utf-8")
             except UnicodeError:
