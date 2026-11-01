@@ -85,4 +85,4 @@
 
 - **Q247** Which Google account type hosts the app (Workspace or personal)?
 - **Q248** Who creates the Cloud project, the app and its service account, in which organisation?
-- See [questions](../QUESTIONS.md#messaging-agents).
+- See [questions](../../R1.2/QUESTIONS.md#messaging-agents); moved to R1.2 with B.27b (owner, 2026-11-01).

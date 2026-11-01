@@ -45,3 +45,9 @@ Owner, 2026-10-30: after the Windows launchers exist in Go ([WIN.3](../R1.1/TODO
   - Acceptance: exercise discovery and calls across distinct daemon nodes, including local shadowing and unresolved fallthrough; a single-node exercise does not satisfy this task
   - Mutant: disable the upstream lookup and the cross-node call must fail
   - Home: [chaining](federation.md#chaining), [scope and namespace decisions](../R1.0-Release/DECISIONS.md#recorded-decisions)
+
+## Messaging agents
+
+- ⏳ B.27b Google Chat, moved from [R1 B.27](../R1.0-Release/TODO.md#bundled-agents) (owner, 2026-11-01: "we need corp acct. cant use personal")
+  - Builds: the [Google Chat plan](../R1.0-Release/messaging/google-chat.md#proposed-methods-for-approval); technical choices decided
+  - Depends: a corporate Google account and project ([Q247, Q248](QUESTIONS.md#messaging-agents))
