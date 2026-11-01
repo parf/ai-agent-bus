@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.287 — 2026-11-01
+
+enrol refuses --key <file> and an empty --key= with the same words as token, before asking the daemon for a proof
+
 ## 0.9.286 — 2026-11-01
 
 Setup never deletes the shared template after a failed lookup, package builds get no runner token, the container release is root-owned, and the webhook retries a transient start error

@@ -37,6 +37,9 @@ func TestEnrolKeyFileRequiresEqualsBeforeRequestingAProof(t *testing.T) {
 			t.Errorf("enrol %q = %v; want the token command's spaced-file refusal", args, err)
 		}
 	}
+	if err := enrol([]string{"alice@test", "--key="}); err == nil || err.Error() != "--key= needs a file; a bare --key uses the default key" {
+		t.Errorf("empty --key= = %v; want the token command's empty-file refusal", err)
+	}
 	if calls.Load() != 0 {
 		t.Fatalf("refused key spelling asked the daemon for %d proofs", calls.Load())
 	}

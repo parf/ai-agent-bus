@@ -22,6 +22,9 @@ func enrol(args []string) error {
 		if arg == "--" {
 			break
 		}
+		if arg == "--key=" {
+			return fmt.Errorf("--key= needs a file; a bare --key uses the default key")
+		}
 		if arg == "--key" && i+1 < len(args) {
 			if _, err := os.Stat(args[i+1]); err == nil {
 				return fmt.Errorf("--key takes its file as --key=<file>")
