@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/parf/ai-agent-bus/internal/sandbox"
@@ -257,8 +258,11 @@ func TestOverlayValidationWritesNothingAndApplyReplacesCompleteMerge(t *testing.
 		t.Fatal(err)
 	}
 	r.reload()
-	if _, err := os.Stat(filepath.Dir(src)); !os.IsNotExist(err) {
-		t.Fatalf("removing all overrides retained merged output: %v", err)
+	if len(r.installed[0].Over) != 0 {
+		t.Fatal("removed overrides are still mounted")
+	}
+	if _, err := os.Stat(src); err != nil {
+		t.Fatalf("removing overrides deleted the prior source before retirement: %v", err)
 	}
 }
 
@@ -336,7 +340,7 @@ func TestFailedOverlayPublicationRestoresPreviousMerge(t *testing.T) {
 		t.Fatal(err)
 	}
 	target := filepath.Join(host, ".merged", "hello", ".files")
-	err := publishOverlayTree(target, []overlayFile{{name: "settings.json", body: []byte("new")}}, func(from, to string) error {
+	err := publishOverlayTree(target, []overlayFile{{name: "settings.json", body: []byte("new")}}, func(string, string) error { return syscall.EINVAL }, func(from, to string) error {
 		if strings.HasPrefix(filepath.Base(from), ".files.merge-") {
 			return errors.New("injected publication refusal")
 		}
@@ -364,11 +368,101 @@ func TestOverlayRecoveryDoesNotSweepPublishedFileNames(t *testing.T) {
 	if err := publishOverlays(host, "hello", []overlayFile{{name: name, body: []byte("kept")}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := recoverOverlays(host); err != nil {
-		t.Fatal(err)
+	if errs := recoverOverlays(host); len(errs) != 0 {
+		t.Fatal(errs)
 	}
 	data, err := os.ReadFile(filepath.Join(host, ".merged", "hello", ".files", name))
 	if err != nil || string(data) != "kept" {
 		t.Fatalf("recovery swept published settings: %s %v", data, err)
+	}
+}
+
+func TestOverlayRecoveryRefusesOnlyTheUnreadableKeyAndContinues(t *testing.T) {
+	r, _, _ := configurationFixture(t, "", "printf old")
+	directoryAgent(t, r.agents, "healthy", "healthy")
+	writeTree(t, r.agents, map[string]string{"fixture/settings.json": `{"value":1}`, "healthy/settings.json": `{"value":1}`})
+	writeTree(t, r.host, map[string]string{"agents.json": `{"fixture":{"enabled":false},"healthy":{"enabled":false}}`, "fixture/settings.json": `{}`, "healthy/settings.json": `{}`})
+	r.reload()
+	bad := filepath.Join(r.host, ".merged", "fixture")
+	if err := os.Chmod(bad, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chmod(bad, 0700) })
+	stage := filepath.Join(r.host, ".merged", "healthy", ".files.merge-interrupted")
+	writeTree(t, stage, map[string]string{"settings.json": "partial"})
+	writeTree(t, r.agents, map[string]string{"healthy/settings.json": `{"value":2}`})
+	r.reload()
+	if r.loadErr != "" || len(r.installed) != 2 {
+		t.Fatalf("one recovery error stopped healthy agents: loadErr=%q installed=%+v", r.loadErr, r.installed)
+	}
+	for _, in := range r.installed {
+		if in.Key == "fixture" {
+			if !strings.Contains(in.Refused, "recover merged overrides:") {
+				t.Fatalf("unreadable key not refused by name: %+v", in)
+			}
+		} else if in.Key == "healthy" {
+			if in.Refused != "" {
+				t.Fatalf("healthy agent refused after another key's recovery error: %+v", in)
+			}
+			data, err := os.ReadFile(in.Over[0].Src)
+			if err != nil || !strings.Contains(string(data), `"value": 2`) {
+				t.Fatalf("healthy merge not published: %s %v", data, err)
+			}
+		}
+	}
+	if _, err := os.Stat(stage); !os.IsNotExist(err) {
+		t.Fatalf("recovery stopped before the healthy key's temporary output: %v", err)
+	}
+}
+
+func TestOverlayPublicationFallsBackOnlyWhenExchangeIsUnsupported(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		exchangeErr error
+		wantRenames int
+	}{
+		{"EINVAL", syscall.EINVAL, 2}, {"EIO", syscall.EIO, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			host := t.TempDir()
+			if err := publishOverlays(host, "hello", []overlayFile{{name: "settings.json", body: []byte("old")}}); err != nil {
+				t.Fatal(err)
+			}
+			target := filepath.Join(host, ".merged", "hello", ".files")
+			exchanges, renames := 0, 0
+			err := publishOverlayTree(target, []overlayFile{{name: "settings.json", body: []byte("new")}}, func(string, string) error { exchanges++; return tc.exchangeErr }, func(a, b string) error { renames++; return os.Rename(a, b) })
+			want := "old"
+			if tc.exchangeErr == syscall.EINVAL {
+				want = "new"
+				if err != nil {
+					t.Fatalf("EINVAL exchange did not fall back: %v", err)
+				}
+			} else if !errors.Is(err, syscall.EIO) {
+				t.Fatalf("exchange failure was not refused: %v", err)
+			}
+			if exchanges != 1 || renames != tc.wantRenames {
+				t.Fatalf("exchange/fallback calls=%d/%d want1/%d", exchanges, renames, tc.wantRenames)
+			}
+			data, readErr := os.ReadFile(filepath.Join(target, "settings.json"))
+			if readErr != nil || string(data) != want {
+				t.Fatalf("exchange/fallback contents: %s %v want%s", data, readErr, want)
+			}
+			if tc.exchangeErr == syscall.EINVAL {
+				old, err := os.ReadFile(filepath.Join(filepath.Dir(target), ".files.previous", "settings.json"))
+				if err != nil || string(old) != "old" {
+					t.Fatalf("fallback deleted old tree before retirement: %s %v", old, err)
+				}
+			}
+			if errs := recoverOverlays(host); len(errs) != 0 {
+				t.Fatal(errs)
+			}
+			entries, err := os.ReadDir(filepath.Dir(target))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(entries) != 1 || entries[0].Name() != ".files" {
+				t.Fatalf("exchange/fallback left temporary output: %v", entries)
+			}
+		})
 	}
 }

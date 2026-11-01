@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 
 	"github.com/parf/ai-agent-bus/internal/agentmeta"
 	"github.com/parf/ai-agent-bus/internal/ports"
@@ -99,64 +100,97 @@ func shippedOverlays(runnerDir, agentDir, dir, key string) ([]ports.Overlay, str
 
 // recoverOverlays runs at real apply, never at install validation. Remove only
 // our private interrupted output; restore the old tree if publication stopped
-// between its two renames. This also covers keys now missing or refused.
-func recoverOverlays(runnerDir string) error {
+// between the fallback renames. This also covers keys now missing or refused;
+// failures belong to that key, never to the whole load.
+type overlayRecoveryErrors map[string]error
+
+func (errs overlayRecoveryErrors) forKey(key string) error {
+	for {
+		if err := errs[key]; err != nil {
+			return err
+		}
+		if key == "" {
+			return nil
+		}
+		if parent, _, ok := strings.Cut(key, "/"); ok {
+			key = parent
+		} else {
+			key = ""
+		}
+	}
+}
+
+func recoverOverlays(runnerDir string) overlayRecoveryErrors {
 	root := filepath.Join(runnerDir, ".merged")
-	return filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+	errs := overlayRecoveryErrors{}
+	failed := func(path string, err error) {
+		rel, _ := filepath.Rel(root, path)
+		if rel == "." {
+			rel = ""
+		}
+		errs[filepath.ToSlash(rel)] = err
+	}
+	walkErr := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil
 		}
 		if err != nil {
-			return err
+			failed(path, err)
+			if entry != nil && entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 		name := entry.Name()
 		// Published files may themselves have names resembling temporary output.
 		if name == ".files" && entry.IsDir() {
 			return filepath.SkipDir
 		}
-		if strings.HasPrefix(name, ".files.merge-") {
-			if err := os.RemoveAll(path); err != nil {
-				return err
-			}
-			if entry.IsDir() {
-				return filepath.SkipDir
-			}
+		temporary := strings.HasPrefix(name, ".files.merge-")
+		previous := name == ".files.previous"
+		if !temporary && !previous {
 			return nil
 		}
-		if name == ".files.previous" {
+		if previous {
 			target := filepath.Join(filepath.Dir(path), ".files")
-			if _, err := os.Lstat(target); errors.Is(err, os.ErrNotExist) {
-				if err := os.Rename(path, target); err != nil {
-					return err
-				}
-			} else if err != nil {
-				return err
-			} else if err := os.RemoveAll(path); err != nil {
-				return err
+			if _, err = os.Lstat(target); errors.Is(err, os.ErrNotExist) {
+				err = os.Rename(path, target)
+			} else if err == nil {
+				err = os.RemoveAll(path)
 			}
-			if entry.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
+		} else {
+			err = os.RemoveAll(path)
+		}
+		if err != nil {
+			failed(filepath.Dir(path), err)
+		}
+		if entry.IsDir() {
+			return filepath.SkipDir
 		}
 		return nil
 	})
+	if walkErr != nil {
+		errs[""] = walkErr
+	}
+	return errs
 }
 
 // publishOverlays is called only by apply under reloadMu. Build every file
-// before moving the old directory; a publication error restores the old tree.
-// The sibling backup also recovers an interrupted two-rename replacement.
+// before atomically exchanging it with the old directory on Linux. Filesystems
+// returning EINVAL use the recoverable sibling-backup fallback.
 func publishOverlays(runnerDir, key string, files []overlayFile) error {
 	target := filepath.Join(runnerDir, ".merged", filepath.FromSlash(key), ".files")
-	return publishOverlayTree(target, files, os.Rename)
+	return publishOverlayTree(target, files, exchangeOverlayDirs, os.Rename)
 }
 
 // The rename seam exercises rollback without relying on host permission errors.
-func publishOverlayTree(target string, files []overlayFile, rename func(string, string) error) error {
+func publishOverlayTree(target string, files []overlayFile, exchange, rename func(string, string) error) error {
 	parent := filepath.Dir(target)
 	backup := filepath.Join(parent, ".files.previous")
 	if len(files) == 0 {
-		return os.RemoveAll(target)
+		// Old processes may still be mounting this source until serve retires them.
+		// No new overlay refers to it; retaining this cache is harmless.
+		return nil
 	}
 	if err := os.MkdirAll(parent, 0700); err != nil {
 		return err
@@ -165,7 +199,12 @@ func publishOverlayTree(target string, files []overlayFile, rename func(string, 
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(stage)
+	discardStage := true
+	defer func() {
+		if discardStage {
+			os.RemoveAll(stage)
+		}
+	}()
 	for _, file := range files {
 		if err := os.WriteFile(filepath.Join(stage, file.name), file.body, 0600); err != nil {
 			return err
@@ -173,6 +212,15 @@ func publishOverlayTree(target string, files []overlayFile, rename func(string, 
 	}
 	hadOld := false
 	if _, err := os.Lstat(target); err == nil {
+		// Linux exchange keeps the bind source continuously present. The stage
+		// then contains the old output; the next apply removes it after retirement.
+		if err := exchange(stage, target); err == nil {
+			discardStage = false
+			return nil
+		} else if !errors.Is(err, syscall.EINVAL) {
+			return err
+		}
+		// A filesystem without exchange uses the recoverable two-rename fallback.
 		if err := rename(target, backup); err != nil {
 			return err
 		}
@@ -188,7 +236,9 @@ func publishOverlayTree(target string, files []overlayFile, rename func(string, 
 		}
 		return err
 	}
-	return os.RemoveAll(backup)
+	// Keep exchanged-out/backup files until the next apply, after serve has
+	// retired any affected agents. Recovery then removes the previous tree.
+	return nil
 }
 
 // mergePatch is RFC 7386: an object patch merges into an object, a null
