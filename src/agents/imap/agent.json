@@ -473,7 +473,7 @@
       "destructive": true
     },
     "append": {
-      "text": "append <folder> [--big <record>/<name>] [--flags f,..] [--date rfc3339]",
+      "text": "append <folder> [--flags f,..] [--date rfc3339]\\\\n<raw RFC 5322 body> | append <folder> --big <record>/<name> [--flags f,..] [--date rfc3339]",
       "help": "Append raw RFC 5322 text after the first newline (JSON raw). Report APPENDUID when supplied; otherwise explicitly report UID unavailable. Mail cap 25 MB; the existing 1048576-byte bus request cap including encoded JSON and envelope is lower. Requires allow_destructive; never retry an unknown write. Alternatively, --big appends the raw RFC 5322 mail held in that key, up to 25 MB, without an inline body; requires the instance admitted by that record's allow list. The key name after the last /; a name containing / can't be used here.",
       "args": [
         {
