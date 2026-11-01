@@ -66,7 +66,13 @@ func (b *Bus) Unregister(name, caller string) error {
 		b.setAccounts(next)
 	}
 	b.forgetName(n)
-	return b.commit()
+	if err := b.commit(); err != nil {
+		return err
+	}
+	// The record's big keys go with it; its ID is never reused, so nothing
+	// else could reach them, but their bytes are private mail.
+	b.dropBig(r.ID)
+	return nil
 }
 
 // forgetName takes every trace of a name that is no longer a principal: the

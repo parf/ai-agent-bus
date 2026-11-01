@@ -223,3 +223,69 @@ func TestBigKeysOfTheDaemonRecordAreNobodys(t *testing.T) {
 		}
 	}
 }
+
+func bigKeysOf(t *testing.T, b *Bus, store ports.BigStore, id uint32) int {
+	t.Helper()
+	l, err := store.BigList(id, b.clock())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return len(l)
+}
+
+func TestBigKeysGoWithTheirRecord(t *testing.T) {
+	b, _ := kvFixture(t)
+	store := bigmem.New()
+	b.SetBigStore(store)
+	id := b.records["#svc@h"].ID
+	if err := put(b, "alice@h", "k", "private bytes"); err != nil {
+		t.Fatal(err)
+	}
+	if bigKeysOf(t, b, store, id) != 1 {
+		t.Fatal("the key was not stored")
+	}
+	if err := b.Unregister("#svc@h", "alice@h"); err != nil {
+		t.Fatal(err)
+	}
+	if n := bigKeysOf(t, b, store, id); n != 0 {
+		t.Fatalf("the removed record retains %d big keys and their quota", n)
+	}
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "eve@h"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := b.BigGet("eve@h", "#svc@h", "k"); !errors.Is(err, ErrBigAbsent) {
+		t.Fatalf("the new holder of the name read the old key: %v", err)
+	}
+}
+
+// unregistering reads one byte, then removes the record, then lets the rest
+// of the upload through.
+type removing struct {
+	b    *Bus
+	done bool
+	r    io.Reader
+}
+
+func (r *removing) Read(p []byte) (int, error) {
+	if !r.done {
+		r.done = true
+		if err := r.b.Unregister("#svc@h", "alice@h"); err != nil {
+			panic(err)
+		}
+	}
+	return r.r.Read(p)
+}
+
+func TestBigKeyUploadFinishingAfterTheRecordIsRemovedLeavesNothing(t *testing.T) {
+	b, _ := kvFixture(t)
+	store := bigmem.New()
+	b.SetBigStore(store)
+	id := b.records["#svc@h"].ID
+	_, _, err := b.BigPut("alice@h", "#svc@h", "k", &removing{b: b, r: strings.NewReader("late bytes")}, 0, false, "")
+	if !errors.Is(err, ErrUnknown) {
+		t.Fatalf("an upload finishing after the removal = %v, want the record unknown", err)
+	}
+	if n := bigKeysOf(t, b, store, id); n != 0 {
+		t.Fatalf("the late upload left %d orphan keys", n)
+	}
+}

@@ -82,7 +82,22 @@ func (b *Bus) BigPut(caller, record, name string, data io.Reader, ttl time.Durat
 	now := b.clock()
 	info, replaced, err := store.BigPut(id, name, data, sum, memory, now.Add(ttl), now,
 		ports.BigLimits{Value: BigMaxValue, Record: BigMaxRecord, Total: BigMaxTotal, Names: BigMaxNames})
-	return info, replaced, bigErr(err)
+	if err != nil {
+		return info, replaced, bigErr(err)
+	}
+	// The record may have been removed while the bytes streamed in: its drop
+	// ran before this key existed, so it would be left behind. A record's ID
+	// is never reused, so an ID the registry no longer knows is a removed one.
+	b.mu.Lock()
+	_, known := b.recordByID[id]
+	if !known {
+		b.dropBig(id)
+	}
+	b.unlock()
+	if !known {
+		return ports.BigInfo{}, false, ErrUnknown
+	}
+	return info, replaced, nil
 }
 
 // BigGet opens one value. The caller closes it.
@@ -130,4 +145,14 @@ func bigErr(err error) error {
 		return fmt.Errorf("%w: %s", ErrBigValue, err)
 	}
 	return err
+}
+
+// dropBig removes every big key of one record. Caller holds b.mu.
+func (b *Bus) dropBig(id uint32) {
+	if b.big == nil {
+		return
+	}
+	if err := b.big.BigDrop(id); err != nil {
+		b.report(ports.Error, "the big keys of record ID %d could not be removed: %s", id, err)
+	}
 }
