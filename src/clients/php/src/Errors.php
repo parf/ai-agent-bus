@@ -11,26 +11,33 @@ class BusException extends \RuntimeException {}
 /** The daemon answered and turned the call away. */
 class Refusal extends BusException
 {
-    public function __construct(private int $status, string $message)
+    public function __construct(private int $status, string $message, private ?string $kind = null)
     {
         parent::__construct($message !== '' ? $message : "refused with $status", $status);
     }
 
     public function status(): int { return $this->status; }
 
+    /**
+     * The refusal's `kind` as the daemon sent it, or null when it sent none:
+     * acl, authority, busy, credential, enrolment, full, malformed, name-taken,
+     * second-reader, suspended, unavailable, unknown or no_route.
+     */
+    public function kind(): ?string { return $this->kind; }
+
     /** The subclass for a status; any other status is a plain Refusal. */
-    public static function of(int $status, string $message): self
+    public static function of(int $status, string $message, ?string $kind = null): self
     {
         return match ($status) {
-            400 => new Invalid($status, $message),
-            401 => new Unauthenticated($status, $message),
-            403 => new Forbidden($status, $message),
-            404 => new NotFound($status, $message),
-            409 => new Busy($status, $message),
-            412 => new Exists($status, $message),
-            413 => new TooLarge($status, $message),
-            429 => new Full($status, $message),
-            default => new self($status, $message),
+            400 => new Invalid($status, $message, $kind),
+            401 => new Unauthenticated($status, $message, $kind),
+            403 => new Forbidden($status, $message, $kind),
+            404 => new NotFound($status, $message, $kind),
+            409 => new Busy($status, $message, $kind),
+            412 => new Exists($status, $message, $kind),
+            413 => new TooLarge($status, $message, $kind),
+            429 => new Full($status, $message, $kind),
+            default => new self($status, $message, $kind),
         };
     }
 }
@@ -58,6 +65,12 @@ final class UncertainOutcome extends BusException {}
 
 /** The credential names somebody other than the name the client was told to expect. */
 final class IdentityMismatch extends BusException {}
+
+/** The daemon refuses clients as old as this one: its `protocol_min` is above the client's protocol. */
+final class DaemonTooNew extends BusException {}
+
+/** The daemon's `/identity` answer broke the protocol rule: a member that is not a non-negative integer, or `protocol_min` above `protocol`. */
+final class ProtocolError extends BusException {}
 
 /** Caught here, before any request. */
 final class InvalidArgument extends BusException {}

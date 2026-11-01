@@ -9,7 +9,7 @@ require __DIR__ . '/../src/autoload.php';
 
 use AgentBus\{Bus, Record, Message, SendOptions, ConsumeOptions, CallOptions, ServeOptions, ReplyTo,
     Answer, Done, TimedOut, Kind, How, Op, Secret, Refusal, NotFound, Forbidden, Busy, Exists, Invalid,
-    Unauthenticated, IdentityMismatch, InvalidArgument, UncertainOutcome, Transport, LeaseExpired};
+    Unauthenticated, IdentityMismatch, InvalidArgument, UncertainOutcome, Transport, LeaseExpired, DaemonTooNew, ProtocolError};
 
 $addr = getenv('AB_TEST_ADDR') ?: exit("run me through tests/daemon.sh\n");
 $owner = getenv('AB_TEST_OWNER');
@@ -91,14 +91,16 @@ function reap(int $pid, float $within = 10.0): ?int
 /**
  * A scripted daemon on a unix socket, in a child: each connection gets the
  * answer $script returns for its request line — [delay seconds, status, body].
- * Answers how many requests it saw through $count's file.
+ * Answers how many requests it saw through $count's file. With $identity, a
+ * GET /identity gets the current protocol answer, is not counted and never
+ * reaches $script: the client reads it once before its first call.
  */
-function fake(string $sock, callable $script, int $max = 200): int
+function fake(string $sock, callable $script, int $max = 200, bool $identity = true): int
 {
     @unlink($sock);
     @unlink("$sock.count");
     $srv = stream_socket_server("unix://$sock");
-    return child(function () use ($srv, $script, $max, $sock) {
+    return child(function () use ($srv, $script, $max, $sock, $identity) {
         pcntl_signal(SIGPIPE, SIG_IGN); // the client may hang up first: that is the point
         for ($i = 0; $i < $max; $i++) {
             $c = @stream_socket_accept($srv, 5);
@@ -115,6 +117,13 @@ function fake(string $sock, callable $script, int $max = 200): int
                 $chunk = fread($c, 65536);
                 if ($chunk === '' || $chunk === false) { fclose($c); continue 2; }
                 $req .= $chunk;
+            }
+            if ($identity && str_starts_with($req, 'GET /identity ')) {
+                $answer = '{"protocol":1,"protocol_min":1}';
+                @fwrite($c, "HTTP/1.1 200 X\r\nContent-Type: application/json\r\nContent-Length: " . strlen($answer) . "\r\nConnection: close\r\n\r\n$answer");
+                fclose($c);
+                $i--; // not a request of the case
+                continue;
             }
             file_put_contents("$sock.count", (string) ($i + 1));
             [$delay, $status, $body] = $script(strtok($req, "\r\n"), $i);
@@ -579,7 +588,16 @@ section('uncertain writes', function () use ($dir) {
     @unlink("$sock.count");
     $srv = stream_socket_server("unix://$sock");
     $pid = child(function () use ($srv) {
-        for ($i = 0; $i < 2; $i++) { $c = stream_socket_accept($srv, 5); fread($c, 65536); fclose($c); }
+        // The identity the client reads once is answered; every call after it is read and dropped.
+        for ($i = 0; $i < 3; $i++) {
+            $c = stream_socket_accept($srv, 5);
+            $req = fread($c, 65536);
+            if (str_starts_with($req, 'GET /identity ')) {
+                $answer = '{"protocol":1,"protocol_min":1}';
+                fwrite($c, "HTTP/1.1 200 X\r\nContent-Type: application/json\r\nContent-Length: " . strlen($answer) . "\r\nConnection: close\r\n\r\n$answer");
+            }
+            fclose($c);
+        }
     });
     $b = Bus::connect($sock, 'x', null, 2.0);
     $e = thrown(fn() => $b->send('#a@localhost', 'x'));
@@ -751,6 +769,80 @@ section('the README example, run as written', function () use ($addr, $me) {
     check('serve.php wrote nothing to stderr', $serverErr === '', $serverErr);
     foreach ($paths as $path) { unlink($path); }
     rmdir($dir);
+});
+
+section('protocol rule and refusal kind', function () use ($dir) {
+    $sock = "$dir/php-protocol.sock";
+    /** A daemon that answers /identity with $identity and every other call with [$code, $body]. */
+    $serve = fn(string $identity, int $code = 200, string $body = '{}') => fake($sock, function ($line) use ($identity, $code, $body) {
+        if (str_starts_with($line, 'GET /identity ')) { return [0, 200, $identity]; }
+        if (str_starts_with($line, 'GET /status ')) { return [0, 200, '{"you":"w@x"}']; }
+        return [0, $code, $body];
+    }, 200, false);
+    // At the client's protocol or newer: silent.
+    foreach (['{"protocol":1,"protocol_min":1}', '{"protocol":2,"protocol_min":1}', '{"protocol":7,"protocol_min":0,"extra":"ignored"}'] as $identity) {
+        $pid = $serve($identity);
+        $bus = Bus::connect($sock, 't');
+        $e = thrown(fn() => $bus->status());
+        check("protocol $identity is silent", $e === null && $bus->warnings() === [], $e ? $e->getMessage() : json_encode($bus->warnings()));
+        unfake($pid);
+    }
+    // Older than the client, or absent: one warning, and the call still works.
+    foreach (['{"protocol":0,"protocol_min":0}', '{}', '{"you":"x"}'] as $identity) {
+        $pid = $serve($identity);
+        $bus = Bus::connect($sock, 't');
+        $e = thrown(fn() => $bus->status());
+        $w = $bus->warnings();
+        check("an older daemon $identity warns once and serves", $e === null && count($w) === 1 && str_starts_with($w[0], 'daemon too old'), $e ? $e->getMessage() : json_encode($w));
+        $once = thrown(fn() => $bus->status());
+        check('and does not warn again on the next call', $once === null && count($bus->warnings()) === 1);
+        unfake($pid);
+    }
+    // A client older than the daemon's minimum: refused on the first call.
+    $pid = $serve('{"protocol":3,"protocol_min":2}');
+    $e = thrown(fn() => Bus::connect($sock, 't')->status());
+    check('a client below protocol_min is refused as too new', $e instanceof DaemonTooNew && str_starts_with($e->getMessage(), 'daemon too new for this client'), $e ? get_class($e) . ': ' . $e->getMessage() : 'none');
+    unfake($pid);
+    // Malformed members are fatal and named.
+    foreach ([['{"protocol":"1","protocol_min":1}', 'protocol'], ['{"protocol":1.5,"protocol_min":1}', 'protocol'],
+              ['{"protocol":-1,"protocol_min":0}', 'protocol'], ['{"protocol":true,"protocol_min":0}', 'protocol'],
+              ['{"protocol":null,"protocol_min":0}', 'protocol'], ['{"protocol":2,"protocol_min":"x"}', 'protocol_min'],
+              ['{"protocol":2,"protocol_min":-1}', 'protocol_min'], ['{"protocol":1,"protocol_min":2}', 'protocol_min']] as [$identity, $member]) {
+        $pid = $serve($identity);
+        $e = thrown(fn() => Bus::connect($sock, 't')->status());
+        check("malformed $identity is a ProtocolError naming $member", $e instanceof ProtocolError && str_contains($e->getMessage(), $member), $e ? get_class($e) . ': ' . $e->getMessage() : 'none');
+        unfake($pid);
+    }
+    // The refusal carries the daemon's kind.
+    foreach (['acl', 'authority', 'busy', 'credential', 'enrolment', 'full', 'malformed', 'name-taken', 'second-reader', 'suspended', 'unavailable', 'unknown', 'no_route'] as $kind) {
+        $pid = $serve('{"protocol":1,"protocol_min":1}', 403, json_encode(['error' => 'no', 'kind' => $kind]));
+        $e = thrown(fn() => Bus::connect($sock, 't')->list());
+        check("a refusal surfaces kind $kind", $e instanceof Refusal && $e->kind() === $kind && $e->getMessage() === 'no', $e ? get_class($e) . ':' . $e->getMessage() : 'none');
+        unfake($pid);
+    }
+    // A missing route: too old for the operation when the daemon is older; otherwise its own words.
+    $route = '{"error":"Not Found","kind":"no_route"}';
+    $pid = $serve('{"protocol":0,"protocol_min":0}', 404, $route);
+    $e = thrown(fn() => Bus::connect($sock, 't')->list());
+    check('no_route from an older daemon says too old for the operation', $e instanceof Refusal && $e->kind() === 'no_route' && $e->getMessage() === 'daemon too old for GET /ls', $e ? $e->getMessage() : 'none');
+    unfake($pid);
+    $pid = $serve('{"protocol":1,"protocol_min":1}', 404, $route);
+    $e = thrown(fn() => Bus::connect($sock, 't')->list());
+    check('no_route from a daemon at the client protocol keeps its words', $e instanceof Refusal && $e->kind() === 'no_route' && $e->getMessage() === 'Not Found', $e ? $e->getMessage() : 'none');
+    unfake($pid);
+    $pid = $serve('{}', 404, '{"error":"no such name","kind":"unknown"}');
+    $e = thrown(fn() => Bus::connect($sock, 't')->list());
+    check('missing data (kind unknown) is not a missing route, whatever the daemon age', $e instanceof Refusal && $e->kind() === 'unknown' && $e->getMessage() === 'no such name', $e ? $e->getMessage() : 'none');
+    unfake($pid);
+    // A server error that names no kind.
+    $pid = $serve('{"protocol":1,"protocol_min":1}', 500, '{"error":"boom: secret path /var/x"}');
+    $e = thrown(fn() => Bus::connect($sock, 't')->list());
+    check('a 500 without a kind is an internal daemon error', $e instanceof Refusal && $e->kind() === null && $e->getMessage() === 'internal daemon error', $e ? $e->getMessage() : 'none');
+    unfake($pid);
+    $pid = $serve('{"protocol":1,"protocol_min":1}', 503, '{"error":"store down","kind":"unavailable"}');
+    $e = thrown(fn() => Bus::connect($sock, 't')->list());
+    check('a 503 that names its kind keeps its words', $e instanceof Refusal && $e->kind() === 'unavailable' && $e->getMessage() === 'store down', $e ? $e->getMessage() : 'none');
+    unfake($pid);
 });
 
 echo "passed $pass, failed $fail\n";

@@ -12,6 +12,7 @@ final class Http
     private string $base;
     private ?string $socket = null;
     private bool $closed = false;
+    private int $daemonProtocol = Bus::PROTOCOL;
 
     public function __construct(private string $addr, private string $token, private float $timeout)
     {
@@ -30,6 +31,9 @@ final class Http
     }
 
     public function addr(): string { return $this->addr; }
+
+    /** Told once the daemon's protocol is known, so a missing route can be put down to its age. */
+    public function daemonProtocol(int $protocol): void { $this->daemonProtocol = $protocol; }
 
     public function timeout(): float { return $this->timeout; }
 
@@ -87,8 +91,15 @@ final class Http
         if ($status >= 400) {
             $msg = trim((string) $out);
             $j = json_decode($msg, true);
+            $kind = null;
             if (is_array($j) && isset($j['error']) && is_string($j['error'])) { $msg = $j['error']; }
-            throw Refusal::of($status, $msg);
+            if (is_array($j) && isset($j['kind']) && is_string($j['kind'])) { $kind = $j['kind']; }
+            // A route or method this daemon lacks, from a daemon older than the
+            // client, is that age, said for the operation that met it.
+            if ($kind === 'no_route' && $this->daemonProtocol < Bus::PROTOCOL) { $msg = "daemon too old for $method $path"; }
+            // A server error that names no kind is the daemon failing, not refusing.
+            if ($kind === null && $status >= 500) { $msg = 'internal daemon error'; }
+            throw Refusal::of($status, $msg, $kind);
         }
         return [$status, (string) $out];
     }

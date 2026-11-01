@@ -8,7 +8,13 @@ namespace AgentBus;
 
 final class Bus
 {
+    /** The wire protocol this client speaks; the daemon reports its own in GET /identity. */
+    public const PROTOCOL = 1;
+
     private ?string $name = null;
+    private bool $negotiated = false;
+    /** @var list<string> */
+    private array $warnings = [];
     private bool $stop = false;
     private bool $serving = false;
     /** While serve() runs: hands one request to its handler. */
@@ -41,9 +47,49 @@ final class Bus
         return $this->who(null);
     }
 
+    /**
+     * What the client warned about at its first call, such as "daemon too old
+     * for this client". A daemon older than the client still serves; a client
+     * older than the daemon's protocol_min is refused with DaemonTooNew.
+     *
+     * @return list<string>
+     */
+    public function warnings(): array { return $this->warnings; }
+
+    /**
+     * Reads protocol and protocol_min from GET /identity once, before the first
+     * call, and applies the rule: absent members count as 0; a member that is
+     * not a non-negative integer, or protocol_min above protocol, is a
+     * ProtocolError naming it; a client older than protocol_min is refused as
+     * too new; a daemon older than the client warns and still serves.
+     */
+    private function negotiate(?float $timeout = null): void
+    {
+        if ($this->negotiated) { return; }
+        $identity = $this->t->json('GET', '/identity', [], null, false, $timeout);
+        $member = function (string $name) use ($identity): int {
+            if (!is_array($identity) || !array_key_exists($name, $identity)) { return 0; }
+            $v = $identity[$name];
+            if (!is_int($v) || $v < 0) { throw new ProtocolError("identity $name is not a non-negative integer"); }
+            return $v;
+        };
+        $protocol = $member('protocol');
+        $min = $member('protocol_min');
+        if ($min > $protocol) { throw new ProtocolError('identity protocol_min is greater than protocol'); }
+        if (self::PROTOCOL < $min) {
+            throw new DaemonTooNew("daemon too new for this client: it serves protocol $min and later, this client speaks " . self::PROTOCOL);
+        }
+        if ($protocol < self::PROTOCOL) {
+            $this->warnings[] = "daemon too old for this client: it speaks protocol $protocol, this client speaks " . self::PROTOCOL;
+        }
+        $this->t->daemonProtocol($protocol);
+        $this->negotiated = true;
+    }
+
     /** name(), its request bounded by $timeout seconds when given. */
     private function who(?float $timeout): string
     {
+        $this->negotiate($timeout);
         if ($this->name === null) {
             $you = (string) ($this->t->json('GET', '/status', [], null, false, $timeout)['you'] ?? '');
             if ($this->as !== null && $you !== $this->as) {
@@ -248,6 +294,7 @@ final class Bus
     private function check(): void
     {
         $this->closedCheck();
+        $this->negotiate();
         if ($this->as !== null) { $this->name(); }
     }
 
