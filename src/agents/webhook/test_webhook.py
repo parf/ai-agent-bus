@@ -16,7 +16,7 @@ import sys
 import threading
 import time
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
@@ -24,6 +24,8 @@ sys.path[:0] = [str(HERE), str(ROOT/'src/clients/python'), str(ROOT/'src/agents/
 from rules import *
 from incoming import Listener
 from webhook import Agent
+import webhook
+from agent_bus.errors import BusError
 
 RAW = [{'name':'event','path':'/hook','target':'events@fixture','basic':{'user':'sender','password':'PASSWORD'}}]
 SECRET = b'PASSWORD=fixture-password-unique\nSIGNING=fixture-signing-unique\n'
@@ -329,6 +331,28 @@ class PublishHTTP(unittest.TestCase):
             with self.subTest(kind=kind,may=may):
                 self.assertIsNone(agent.listener);self.assertEqual(agent.status(),'failed: route lab may not publish to its pubsub record')
             agent.close()
+
+
+class Startup(unittest.TestCase):
+    def test_transient_configuration_or_secret_failure_exits_for_runner_restart(self):
+        for phase in ('configuration', 'secret'):
+            with self.subTest(phase=phase):
+                bus = Mock(name='fixture bus')
+                bus.name = '#webhook@fixture'
+                bus._request.return_value = json.dumps(RAW).encode()
+                if phase == 'configuration': bus._request.side_effect = BusError('transient fixture failure')
+                else: bus.secret.reveal.side_effect = BusError('transient fixture failure')
+                log = io.StringIO()
+                with patch.dict(os.environ, {'AGENT_BUS_ASK': ''}), \
+                     patch.object(webhook, 'Bus', return_value=contextlib.nullcontext(bus)), \
+                     patch.object(webhook, 'Agent') as agent, \
+                     patch.object(webhook, 'direct_help', return_value=None), \
+                     patch.object(webhook.signal, 'signal'), contextlib.redirect_stderr(log):
+                    result = webhook.main()
+                self.assertEqual(result, 1, 'a transient bus failure must exit 1 for the kept runner to restart it')
+                agent.assert_not_called()
+                bus.serve.assert_not_called()
+                self.assertIn('bus unavailable', log.getvalue())
 
 
 if __name__=='__main__':unittest.main()

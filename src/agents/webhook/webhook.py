@@ -155,7 +155,7 @@ def main():
                 cfg = loads(bus._request('GET', '/config', query={'name':bus.name}, raw=True).decode())
                 routes = configuration(cfg)
                 secret = bus.secret.reveal() if references(routes) else b''
-            except (BusError, Invalid, UnicodeError): cfg, secret = None, b''
+            except (Invalid, UnicodeError): cfg, secret = None, b''
             agent = Agent(bus, cfg, secret, os.environ.get('WEBHOOK_LISTEN', '127.0.0.1:8788'))
             if stop.is_set(): agent.begin_stop()
             try: bus.serve(agent.handle, workers=2, stop=stop, drain_timeout=12)
