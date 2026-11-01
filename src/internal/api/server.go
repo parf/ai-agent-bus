@@ -309,20 +309,42 @@ func (s *Server) routes(g guard) http.Handler {
 // bodyWait is how long a caller has to send a request's body. The server's
 // header deadline does not reach the body, so without one a caller — on the
 // TCP port before any credential — could dribble a body and hold the
-// connection forever.
+// connection forever. For a bigfile upload it is the longest the body may
+// stall between two reads instead (bigPutBudget).
 var bodyWait = 30 * time.Second
+
+// bigPutRate is the slowest steady upload, in bytes a second, that PUT
+// /bigfile promises to finish: a 32 MiB value on a 64 KiB/s link takes 512 s,
+// which no fixed 30 s deadline allows (Plans/issues/2026-11/2026-11-01.md E1).
+var bigPutRate int64 = 64 << 10
+
+// bigPutBudget is the whole time a bigfile upload of length bytes may take: the
+// stall allowance plus the time the slowest promised rate needs for its bytes.
+// A length that is not declared counts as the largest value.
+func bigPutBudget(length int64) time.Duration {
+	if length < 0 || length > core.BigMaxValue {
+		length = core.BigMaxValue
+	}
+	return bodyWait + time.Duration(length)*time.Second/time.Duration(bigPutRate)
+}
 
 // bodyDeadline bounds reads without reading before authentication. Each
 // handler retains its size limit; completing the body lifts the deadline so
-// a long poll or lock wait that follows is not cut short.
+// a long poll or lock wait that follows is not cut short. A bigfile upload
+// has an idle deadline that each read moves forward, inside a total budget.
 func bodyDeadline(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Body != nil && r.Body != http.NoBody {
 			rc := http.NewResponseController(w)
-			_ = rc.SetReadDeadline(time.Now().Add(bodyWait))
+			now := time.Now()
+			_ = rc.SetReadDeadline(now.Add(bodyWait))
 			// Do not read before authentication or impose the largest route's
 			// allocation on every request. Handlers retain their own limits.
-			r.Body = &deadlineBody{ReadCloser: r.Body, controller: rc, remaining: r.ContentLength}
+			body := &deadlineBody{ReadCloser: r.Body, controller: rc, remaining: r.ContentLength}
+			if r.Method == http.MethodPut && r.URL.Path == "/bigfile" {
+				body.idle, body.end = bodyWait, now.Add(bigPutBudget(r.ContentLength))
+			}
+			r.Body = body
 		}
 		next.ServeHTTP(w, r)
 	})
@@ -330,17 +352,28 @@ func bodyDeadline(next http.Handler) http.Handler {
 
 // Clear the connection deadline as soon as the body ends, before a handler
 // starts a long wait. Keep it for unread bodies so the server's drain is bounded.
+// With idle set, a read that brings bytes moves the deadline to idle from now,
+// never past end.
 type deadlineBody struct {
 	io.ReadCloser
 	controller *http.ResponseController
 	remaining  int64
+	idle       time.Duration
+	end        time.Time
 }
 
 func (b *deadlineBody) Read(p []byte) (int, error) {
 	n, err := b.ReadCloser.Read(p)
 	b.remaining -= int64(n)
-	if err == io.EOF || b.remaining == 0 {
+	switch {
+	case err == io.EOF || b.remaining == 0:
 		_ = b.controller.SetReadDeadline(time.Time{})
+	case b.idle > 0 && n > 0:
+		next := time.Now().Add(b.idle)
+		if next.After(b.end) {
+			next = b.end
+		}
+		_ = b.controller.SetReadDeadline(next)
 	}
 	return n, err
 }

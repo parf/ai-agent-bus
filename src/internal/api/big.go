@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -67,6 +68,11 @@ func (s *Server) bigPut(w http.ResponseWriter, r *http.Request, caller protocol.
 	}
 	info, replaced, err := s.bus.BigPut(caller.String(), q.Get("record"), q.Get("name"), r.Body, ttl, memory, sum)
 	if err != nil {
+		var timeout net.Error
+		if errors.As(err, &timeout) && timeout.Timeout() { // the body stalled or ran past its budget
+			s.badBody(w, err)
+			return
+		}
 		s.bigRefused(w, r, err)
 		return
 	}
@@ -93,6 +99,9 @@ func (s *Server) bigRefused(w http.ResponseWriter, r *http.Request, err error) {
 		n := r.ContentLength
 		if n < 0 || n > core.BigMaxValue {
 			n = core.BigMaxValue
+		}
+		if db, ok := r.Body.(*deadlineBody); ok {
+			db.idle = 0 // a read must not move the drain's deadline the way an upload's reads do
 		}
 		rc := http.NewResponseController(w)
 		rc.SetReadDeadline(time.Now().Add(bigDrain)) // the connection closes after the answer, so the deadline is never lifted; a recorder has none and the bound is the length
