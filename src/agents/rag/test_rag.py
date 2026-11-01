@@ -239,18 +239,21 @@ class Keyword(unittest.TestCase):
             self.store.points[f'00000000-0000-0000-0000-00000000000{n}']={'id':f'00000000-0000-0000-0000-00000000000{n}','vector':{'':[.5,.5],'text':sparse('tea tea tea tea')},
                 'payload':{'namespace':'team','tableName':'notes','id':f'draft{n}','_rag_kind':'chunk','_rag_text':'tea tea tea tea'}}
         self.assertEqual([r['id'] for r in self.find('tea',limit=1)['records']],['live'])
+    def build(self,roles):
+        try:return self.app.run({'method':'keyword_index'},roles)
+        except RagError as error:self.fail(f'keyword_index refused: {error}')
     def test_keyword_index_adds_the_vector_and_gives_every_chunk_its_words_and_is_safe_to_repeat(self):
         self.store.sparse=False
         self.app=Core(CFG,self.store,self.kv);self.app.cache.set('team','notes',PROMPT)
         for n in range(3):self.put(f'doc{n}',f'Tea number {n}. Saffron is a spice.' if n==1 else f'Tea number {n}.')
         with self.assertRaisesRegex(RagError,'keyword index not built yet; run \\{"method":"keyword_index"\\}'):self.find('tea')
         owner={'roles':['owner']}
-        first=self.app.run({'method':'keyword_index'},owner)
+        first=self.build(owner)
         self.assertEqual(first,{'status':'ok','indexed':3})
         self.assertTrue(self.store.sparse and self.store.modifier=='idf')
         self.assertEqual(sorted(r['id'] for r in self.find('tea')['records']),['doc0','doc1','doc2'])
         self.assertEqual([r['id'] for r in self.find('saffron')['records']],['doc1'])
-        self.assertEqual(self.app.run({'method':'keyword_index'},owner),{'status':'ok','indexed':0})
+        self.assertEqual(self.build(owner),{'status':'ok','indexed':0})
         # the dense vectors came through the update untouched
         chunk=next(p for p in self.store.points.values() if p['payload']['_rag_kind']=='chunk')
         self.assertEqual(chunk['vector'][''],[.5,.5])
@@ -270,7 +273,7 @@ class Keyword(unittest.TestCase):
         done=sum(1 for p in self.store.points.values() if isinstance(p['vector'],dict) and 'text' in p['vector'])
         self.assertEqual(done,64)   # the first batch stayed
         updates.clear()
-        again=self.app.run({'method':'keyword_index'},owner)
+        again=self.build(owner)
         self.assertEqual(again,{'status':'ok','indexed':6})   # only the chunks still without the vector
         self.assertEqual(len(self.find('tea',limit=16)['records']),16)
     def test_keyword_index_is_for_the_owner_and_maintainers_and_only_in_builtin_mode(self):
