@@ -672,6 +672,17 @@ public final class BusTest {
             Locks locks = me.record("#j-svc@localhost").locks();
             Lease first = locks.acquire("build", Duration.ofSeconds(30), Duration.ZERO);
             check("a held lock is listed", locks.holders().getOrDefault("build", new Locks.Hold("", null)).holder().equals(OWNER));
+            // A ttl or wait the daemon would refuse is refused here, before any request: ttl positive and at most 24 h, wait at most 60 s.
+            for (Object[] edge : new Object[][] {{"ttl 0", (java.util.concurrent.Callable<Object>) () -> locks.tryAcquire("edge", Duration.ZERO)},
+                    {"ttl over 24 h", (java.util.concurrent.Callable<Object>) () -> locks.tryAcquire("edge", Duration.ofSeconds(86401))},
+                    {"negative ttl", (java.util.concurrent.Callable<Object>) () -> locks.tryAcquire("edge", Duration.ofSeconds(-1))},
+                    {"wait over 60 s", (java.util.concurrent.Callable<Object>) () -> locks.acquire("edge", Duration.ofSeconds(30), Duration.ofSeconds(61))}}) {
+                Throwable e = thrown(() -> ((java.util.concurrent.Callable<Object>) edge[1]).call());
+                check(edge[0] + " is refused by the client", e instanceof IllegalArgumentException, name(e));
+            }
+            try (Lease edge = locks.tryAcquire("edge-ok", Duration.ofHours(24))) {
+                check("a ttl of exactly 24 h is accepted", edge.release());
+            }
             // A second thread of this Bus queues behind the first rather than being refused.
             AtomicReference<Throwable> got = new AtomicReference<>();
             AtomicBoolean had = new AtomicBoolean();
@@ -1083,6 +1094,7 @@ public final class BusTest {
             check("a blank pin matches nothing", thrown(() -> Bus.connect(Connect.of(https, TOKEN).pin(" "))) instanceof IllegalArgumentException);
             check("a pin is for https:// only", thrown(() -> Bus.connect(Connect.of(TCP, TOKEN).pin(pin))) instanceof IllegalArgumentException);
         });
+
 
         System.out.println("passed " + pass + ", failed " + fail);
         System.exit(fail == 0 ? 0 : 1);

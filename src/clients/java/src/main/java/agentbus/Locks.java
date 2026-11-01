@@ -44,6 +44,8 @@ public final class Locks {
      * the hold then ends by its ttl.
      */
     public Lease acquire(String name, Duration ttl, Duration wait) {
+        checkTtl(ttl);
+        if (wait.isNegative() || wait.compareTo(Duration.ofSeconds(60)) > 0) throw new IllegalArgumentException("a lock wait is at most 60 s");
         Instant until = Instant.now().plus(wait);
         Semaphore g = gate(name);
         try {
@@ -68,6 +70,7 @@ public final class Locks {
 
     /** acquire with no wait. A refusal propagates as {@link Busy}: held by somebody and held by this name are both 409. */
     public Lease tryAcquire(String name, Duration ttl) {
+        checkTtl(ttl);
         Semaphore g = gate(name);
         if (!g.tryAcquire()) throw new Busy(409, "lock " + name + " on " + record + " is held by another thread of this client");
         try {
@@ -102,8 +105,14 @@ public final class Locks {
         return out;
     }
 
-    private Map<String, Object> body(String name, Duration ttl) {
+    /** A ttl the daemon would refuse is refused here, before any request or wait: positive and at most 24 h. */
+    private static void checkTtl(Duration ttl) {
         if (ttl.isNegative() || ttl.isZero()) throw new IllegalArgumentException("a ttl is positive");
+        if (ttl.compareTo(Duration.ofHours(24)) > 0) throw new IllegalArgumentException("a ttl is at most 24 h");
+    }
+
+    private Map<String, Object> body(String name, Duration ttl) {
+        checkTtl(ttl);
         Map<String, Object> b = new LinkedHashMap<>();
         b.put("record", record);
         b.put("name", name);
