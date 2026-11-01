@@ -27,7 +27,7 @@ import (
 )
 
 // usage opens with the program and its version, like every agent-bus program.
-var usage = "agent-bus token " + version.String + "\n\n" + display.ManText(usageText)
+var usage = "agent-bus token " + version.String + "\n\n" + display.ManText(usageText) + "\n\n" + display.Footer()
 
 const usageText = `USAGE
   agent-bus token [<name>]
@@ -59,7 +59,7 @@ SEE ALSO
 // Run is the token command only: SSH input is never a CLI verb.
 func Run(args []string) error {
 	if len(args) == 1 && (args[0] == "--version" || args[0] == "-version") {
-		fmt.Printf("%s\nbuild_info: %s\n", version.String, version.Build)
+		fmt.Print(version.Text())
 		return nil
 	}
 	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {

@@ -234,8 +234,8 @@ class Archive(unittest.TestCase):
                 '1.2.3\nbuild_info: fixture@host 2026-01-01 00:00:00 ' + revision + '\n', '')
         self.m.run = run
         self.m.check_archive_build(self.work, '1.2.3', revision)
-        self.assertEqual(answers['mcp'], '1.2.3\n')
-        self.assertEqual(answers['launcher'], '1.2.3\n')
+        self.assertEqual(answers['mcp'].splitlines()[0], '1.2.3')
+        self.assertEqual(answers['launcher'].splitlines()[0], '1.2.3')
         self.assertIn('build_info: fixture@host 2026-01-01 00:00:00 ' + revision, answers['web'])
 
     def test_native_archive_of_the_same_version_from_another_revision_is_refused(self):

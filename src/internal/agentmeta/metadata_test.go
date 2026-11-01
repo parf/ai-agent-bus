@@ -143,7 +143,7 @@ func TestReadableHelpPreservesOrderAndSeparatesTextFromJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"post <channel> <text...>:", "[destructive] sub add <channel> <target>:", "Arguments\nchannel (string): Channel name", "Examples\nagent-bus call", "PolyForm-NC · example.test/repo\nDocs: https://example.test/docs/agents/chat.md\nMore: agent-bus help '#chat/work@t' config | secret | json"} {
+	for _, want := range []string{"post <channel> <text...>:", "[destructive] sub add <channel> <target>:", "Arguments\nchannel (string): Channel name", "Examples\nagent-bus call", "PolyForm-NC · example.test/repo · © Full author\nDocs: https://example.test/docs/agents/chat.md\nMore: agent-bus help '#chat/work@t' config | secret | json"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("missing %q: %s", want, body)
 		}

@@ -5,6 +5,7 @@ import type { Ctx, Identity } from "../ctx.ts";
 import type { buildLocal } from "../assets.ts";
 import { DocumentationLinks } from "./documentation.tsx";
 import { Icon, Logo, Avatar } from "./kit.tsx";
+import { COPYRIGHT } from "../version.ts";
 import { generated } from "../format.ts";
 
 export type Section = "overview" | "agents" | "services" | "queues" | "pubsub" | "resources" | "locks" | "kv" | "runners" | "kind:group" | "groups" | "activity" | "diagnostics" | "bus" | "account" | "";
@@ -95,6 +96,7 @@ const Footer = ({ id, at }: { id: Identity | null; at: Date }) => <footer class=
     <span>Uptime {id.up || "unavailable"}</span>
   </> : <span>Node information unavailable</span>}
   <span>Generated {generated(at)}</span>
+  <span>{COPYRIGHT}</span>
 </footer>;
 
 function head(o: PageOptions) {

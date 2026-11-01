@@ -10,7 +10,7 @@ import { Opencode1 } from "../mcp/opencode1.ts";
 import { superviseDelivery as superviseDeliveryOf, sleep, RENAME_READER_RETRY_MS, type Push } from "../mcp/push.ts";
 import { pushBinders } from "./push-binding.ts";
 import { faceEvent, faceMarks } from "../mcp/face-mark.ts";
-import { version } from "../mcp/version.ts";
+import { version, versionOutput, COPYRIGHT } from "../mcp/version.ts";
 import { Bindings, claudeSessions, claudeStart, claudeTitle, sameBase, type Session } from "./sessions.ts";
 import { localAddress, runtimeBinary } from "./local.ts";
 import { Terminal } from "./terminal.ts";
@@ -149,7 +149,7 @@ process.on("SIGINT", () => {
 
 async function main(): Promise<number> {
   if (runtime !== "claude" && runtime !== "codex" && runtime !== "opencode" && runtime !== "opencode1") throw new Error("expected claude, codex, opencode or opencode1");
-  if (has("--version", "-V")) { console.log(version); return 0; }
+  if (has("--version", "-V")) { console.log(versionOutput()); return 0; }
   if (has("--help", "-h")) {
     console.log(`ab-${runtime}: launch ${runtime === "opencode1" ? "opencode 1.x, the archived variant" : runtime} with agent-bus tools and messaging.
 Discovers your local socket; AGENT_BUS_ADDR overrides discovery. AGENT_BUS_TOKEN supplies a token when needed.
@@ -162,7 +162,8 @@ or the set CLAUDE_CONFIG_DIR with that digit appended. Each account keeps its ow
 --take-over takes the bus name from a live session that holds it; that session is told and stops receiving. Without it a live name is refused.
 --restart[=<timeout>] restarts a crashed TUI after 30s (default), seconds (10), or minutes (2m). Clean exit quits. Ctrl-C during the wait stops.
 Other arguments are forwarded to the runtime. Session state: XDG_STATE_HOME/agent-bus/sessions.
-See docs/06-launchers.md#smart-launchers.`);
+See docs/06-launchers.md#smart-launchers.
+${COPYRIGHT}`);
     return 0;
   }
   const chosen = [...new Set(args.filter(a => accounts.includes(a)))];

@@ -167,8 +167,8 @@ Services, Queues, PubSub, Resources and Groups entries keep `?personal=1` and sh
 
 | Case | Content |
 |---|---|
-| Identity answered | `Owner <code>{owner}</code>` (`unavailable` if empty) · `Uptime {up}` (`unavailable` if empty) · `Generated {time}` |
-| Identity failed | `Node information unavailable` · `Generated {time}` |
+| Identity answered | `Owner <code>{owner}</code>` (`unavailable` if empty) · `Uptime {up}` (`unavailable` if empty) · `Generated {time}` · `© Sergey Porfiriev` |
+| Identity failed | `Node information unavailable` · `Generated {time}` · `© Sergey Porfiriev` |
 
 `Generated` is the web process's local time when the request began, formatted
 `2006-01-02 15:04:05`, with no zone. No page refreshes itself.

@@ -55,7 +55,7 @@ var commandGroups = []struct {
 const globalOptions = "\n\nGLOBAL OPTIONS\n  --addr=<address>  Daemon address; place before the command\n  --agent=<name>  Expand a name to #name (name shorthand)\n  -h, --help  Overview when used alone; <command> --help shows its page\n  --version  Print version and build; use alone\n  Use -h before a command for overview help; ls -h requests its table."
 
 func commandPage(text string) string {
-	return display.ManText(strings.Replace(text, "\n\nEXAMPLES", globalOptions+"\n\nEXAMPLES", 1))
+	return display.ManText(strings.Replace(text, "\n\nEXAMPLES", globalOptions+"\n\nEXAMPLES", 1)) + "\n\n" + display.Footer()
 }
 
 var usage = generalHelp()
@@ -81,7 +81,7 @@ func generalHelp() string {
 	}
 	b.WriteString(globalOptions)
 	b.WriteString("\n\nNAMES\n  Quote #agent names: the shell treats # as a comment.\n  --agent <name> expands an agent name wherever a name is accepted.\n\nENVIRONMENT\n  AGENT_BUS_ADDR — daemon address (or automatic local socket discovery)\n  AGENT_BUS_TOKEN — caller credential; unnecessary on your login socket\n  AGENT_BUS_TLS_FINGERPRINT — HTTPS certificate pin\n  NO_COLOR — disable help colour\n\nEXIT STATUS\n  0 — success\n  1 — invalid input, refusal, transport failure or deadline exceeded\n\nSEE ALSO\n  " + display.SourceURL + "/docs/user/cli.md\n  " + display.Source)
-	return display.ManText(b.String())
+	return display.ManText(b.String()) + "\n\n" + display.Footer()
 }
 func verbUsage(verb string) string {
 	switch verb {

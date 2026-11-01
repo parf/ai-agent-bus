@@ -150,7 +150,7 @@ func TestHoldersNamesAProcessWithTheHomeOpen(t *testing.T) {
 
 func TestProgramVersionReadsTheBuildStamp(t *testing.T) {
 	prog := filepath.Join(t.TempDir(), "agent-busd")
-	stamped := "#!/bin/sh\nprintf '0.8.99\\nbuild_info: me@host 2026-09-23 10:00:00 abc1234\\n'\n"
+	stamped := "#!/bin/sh\nprintf '0.8.99\\nbuild_info: me@host 2026-09-23 10:00:00 abc1234\\n© Sergey Porfiriev\\n'\n"
 	if err := os.WriteFile(prog, []byte(stamped), 0o755); err != nil {
 		t.Fatal(err)
 	}

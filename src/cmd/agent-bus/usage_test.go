@@ -306,3 +306,11 @@ func TestHelpSeparatesHomepageAndSource(t *testing.T) {
 		}
 	}
 }
+
+func TestCopyrightOnGeneralAndCommandHelp(t *testing.T) {
+	for _, page := range []string{generalHelp(), verbUsage("call")} {
+		if !strings.Contains(page, "© Sergey Porfiriev") {
+			t.Fatalf("help lacks copyright: %s", page)
+		}
+	}
+}

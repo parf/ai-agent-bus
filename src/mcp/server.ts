@@ -16,7 +16,7 @@ import { beingRead, catalogue, listing } from "./catalogue.ts";
 import { answerSessionAsk } from "./session-help.ts";
 import { startPush, RENAME_READER_RETRY_MS, type Held, type Push } from "./push.ts";
 import { Codex, transientDelivery } from "./codex.ts";
-import { version } from "./version.ts";
+import { version, versionOutput } from "./version.ts";
 import { describe, sidecarMessage, codexMessage } from "./messages.ts";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -26,7 +26,7 @@ import descriptions from "./tools.yaml";
 import general from "./instructions.yaml";
 
 if (process.argv.length === 3 && ["--version", "-version"].includes(process.argv[2]!)) {
-  console.log(version);
+  console.log(versionOutput());
   process.exit(0);
 }
 

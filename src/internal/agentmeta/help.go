@@ -205,6 +205,9 @@ func (m Manifest) Answer(dir, ask string, roles []string, jsonForm bool, target 
 		if m.Homepage != "" {
 			footer = append(footer, strings.TrimPrefix(strings.TrimPrefix(m.Homepage, "https://"), "http://"))
 		}
+		if m.Author != "" {
+			footer = append(footer, "© "+m.Author)
+		}
 		name := "<name>"
 		if len(target) > 0 && target[0] != "" {
 			name = "'" + strings.ReplaceAll(target[0], "'", "'\"'\"'") + "'"

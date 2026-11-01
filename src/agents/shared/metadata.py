@@ -100,6 +100,7 @@ def answer(directory, ask='help', *, allowed=None, roles=None, as_json=False):
     footer = ['v' + value['version']]
     if value.get('license'): footer.append(value['license'].replace('PolyForm-Noncommercial-1.0.0', 'PolyForm-NC'))
     if value.get('homepage'): footer.append(value['homepage'].removeprefix('https://').removeprefix('http://'))
+    if value.get('author'): footer.append('© ' + value['author'])
     target = shlex.quote(os.environ['AGENT_BUS_NAME']) if os.environ.get('AGENT_BUS_NAME') else '<name>'
     lines += ['', ' · '.join(footer)] + (['Docs: ' + value['docs']] if value.get('docs') else []) + ['More: agent-bus help ' + target + ' config | secret | json']
     return '\n'.join(lines)

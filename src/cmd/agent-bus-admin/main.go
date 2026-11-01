@@ -62,7 +62,7 @@ func switchRefusal(addr string) error {
 }
 
 // usage opens with the program and its version, like every agent-bus program.
-var usage = "agent-bus-admin " + version.String + display.ManText(usageText)
+var usage = "agent-bus-admin " + version.String + display.ManText(usageText) + "\n\n" + display.Footer()
 
 const adminGlobals = "\n\nGLOBAL OPTIONS\n  -h, --help  Show program help; use alone\n  --version  Print version and build; use alone"
 

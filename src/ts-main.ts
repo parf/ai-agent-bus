@@ -3,6 +3,12 @@
 // the first argument. Built only for release archives; a checkout runs the
 // sources with bun.
 import { basename } from "node:path";
+import { versionOutput } from "./mcp/version.ts";
+
+if (process.argv.length === 3 && ["--version", "-version"].includes(process.argv[2]!)) {
+  console.log(versionOutput());
+  process.exit(0);
+}
 
 const parts: Record<string, () => Promise<unknown>> = {
   "agent-bus-mcp": () => import("./mcp/server.ts"),

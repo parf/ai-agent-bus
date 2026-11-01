@@ -76,6 +76,7 @@ func main() {
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "agent-busd %s — run the bus for this node\n\nUsage of agent-busd:\n", version.String)
 		display.PrintFlagDefaults(flag.CommandLine)
+		fmt.Fprintln(flag.CommandLine.Output(), "\n"+display.Footer())
 	}
 	// Asked for help, it answers on stdout and succeeds, as every agent-bus
 	// program does; the flag package would say it on stderr and exit 2.

@@ -4,3 +4,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 export const VERSION = process.env.AGENT_BUS_BUILD_VERSION ?? readFileSync(join(import.meta.dir, "../internal/version/VERSION"), "utf8").trim();
+
+export const COPYRIGHT = "© Sergey Porfiriev";
+export function versionOutput(): string {
+  return `${VERSION}\nbuild_info: ${process.env.AGENT_BUS_BUILD_INFO ?? "source"}\n${COPYRIGHT}`;
+}

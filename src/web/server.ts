@@ -4,7 +4,7 @@
 import { load, type Config } from "./config.ts";
 import { Daemon } from "./daemon.ts";
 import { Ctx, SignInRequired } from "./ctx.ts";
-import { VERSION } from "./version.ts";
+import { VERSION, versionOutput } from "./version.ts";
 import { buildLocal } from "./assets.ts";
 import { setAssets } from "./ui/frame.tsx";
 import { secure, text, html } from "./http.ts";
@@ -86,8 +86,7 @@ export function makeHandler(cfg: Config) {
 // imports this module and so is never import.meta.main here.
 export async function main(): Promise<void> {
   if (process.argv.includes("--version") || process.argv.includes("-version")) {
-    console.log(VERSION);
-    console.log(`build_info: ${process.env.AGENT_BUS_BUILD_INFO ?? "source"}`);
+    console.log(versionOutput());
     process.exit(0);
   }
   const cfg = load();

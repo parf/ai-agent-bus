@@ -105,6 +105,7 @@ func setup() (err error) {
 	fs.Usage = func() {
 		fmt.Fprintf(fs.Output(), "agent-bus-setup %s — install, upgrade and maintain this node\n\nUsage of agent-bus-setup:\n", version.String)
 		display.PrintFlagDefaults(fs)
+		fmt.Fprintln(fs.Output(), "\n"+display.Footer())
 	}
 	owner := fs.String("owner", defaultInstaller(), "the principal the daemon belongs to: a `name`, the installer's account name by default")
 	addr := fs.String("addr", "127.0.0.1:6767", "the daemon's TCP `address`; any interface, plain HTTP")
@@ -811,7 +812,7 @@ func programVersion(exe string) (string, string, error) {
 		return "", "", fmt.Errorf("%s --version: %w", exe, err)
 	}
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-	if len(lines) != 2 || !strings.HasPrefix(lines[1], "build_info: ") {
+	if (len(lines) != 2 && (len(lines) != 3 || lines[2] != version.Copyright)) || !strings.HasPrefix(lines[1], "build_info: ") {
 		return "", "", fmt.Errorf("%s --version did not report a release and its build_info", exe)
 	}
 	return strings.TrimSpace(lines[0]), strings.TrimPrefix(lines[1], "build_info: "), nil

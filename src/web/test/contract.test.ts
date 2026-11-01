@@ -1616,3 +1616,16 @@ describe("bus setup", () => {
   });
 
 });
+
+test("the visible page footer credits Sergey Porfiriev",async()=>{
+ const response=await handle(new Request(ORIGIN+"/signin"));
+ const html=await response.text();
+ const footer=/<footer\b[^>]*class="site-footer"[^>]*>([\s\S]*?)<\/footer>/.exec(html);
+ expect(footer).not.toBeNull();
+ expect(footer![1]).toContain("© Sergey Porfiriev");
+});
+
+test("the landing author uses the full owner name",async()=>{
+ const html=await(await handle(new Request(ORIGIN+"/"))).text();
+ expect(html).toContain('by <a href="https://parf.dev/">Sergey Porfiriev</a>');
+});
