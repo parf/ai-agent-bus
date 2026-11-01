@@ -42,7 +42,7 @@ DESCRIPTION
 OPTIONS
   -h, --help  Show this command help
   --rotate  Rotate the credential
-  --key=file  SSH private key (default $HOME/.ssh/id_ed25519)
+  --key=file  SSH private key (default $HOME/.ssh/id_ed25519; bare --key uses it)
   --fingerprint  Print the TLS certificate pin
 
 NAMES
@@ -80,14 +80,14 @@ func issue(args []string) error {
 	var rotate, sshRotate bool
 	var err error
 	if !fingerprint {
-		entitled, rotate, key, err = parse(protocol.ExpandAgentFlags(args))
+		entitled, rotate, key, err = parse(protocol.ExpandAgentFlags(args), true)
 		if err != nil {
 			return err
 		}
 	}
 	// Validate the entire SSH request before the public fingerprint branch too.
 	if !sshFingerprint {
-		asked, sshRotate, _, err = parse(request)
+		asked, sshRotate, _, err = parse(request, false)
 		if err != nil {
 			return err
 		}
@@ -184,17 +184,25 @@ func loginPrincipal() (string, error) {
 
 // parse reads a name and the two flags out of one argument list, whether it
 // came from argv or from what SSH was asked for.
-func parse(args []string) (name string, rotate bool, key string, err error) {
+//
+// --key is --key=<file>, or bare for the default key. A word after a bare
+// --key is never its file: it is the name. When that word is a file on this
+// machine the caller most likely meant it as the key, so that is refused
+// (argv only: the SSH request never reaches a file check, and an answer that
+// differs by file would tell the sender what exists here).
+func parse(args []string, argv bool) (name string, rotate bool, key string, err error) {
 	for i := 0; i < len(args); i++ {
 		switch a := args[i]; {
 		case a == "--rotate":
 			rotate = true
-		case a == "--key" && i+1 < len(args):
-			i++
-			key = args[i]
 		case strings.HasPrefix(a, "--key="):
 			key = strings.TrimPrefix(a, "--key=")
 		case a == "--key":
+			if argv && i+1 < len(args) {
+				if _, err := os.Stat(args[i+1]); err == nil {
+					return "", false, "", fmt.Errorf("--key takes its file as --key=<file>")
+				}
+			}
 			key = keyproof.Default()
 		case strings.HasPrefix(a, "-"):
 			return "", false, "", fmt.Errorf("no such option %q\n\n%s", a, usage)
