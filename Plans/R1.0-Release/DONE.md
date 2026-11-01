@@ -374,3 +374,10 @@ Inbox polls snapshot the shared-reader setting without locking a blocking consum
 Oversized JSONL lines are drained and answered only to the named request;
 unidentifiable output kills its child and explicitly fails that child's pending
 calls. Concurrent and later requests remain usable. [Regression and mutants](done/f3-jsonl-answers.md#proof).
+
+## J76 deterministic shared CPU-budget proof
+
+The subscription test uses a fake CPU clock instead of relying on the signal
+timer to exhaust an exact budget. Twenty runs under load pass; a fresh-budget
+per-pattern mutant fails the named assertion. Production timing is unchanged.
+[Cause and proof](../issues/done/2026-11/2026-11-01.md#subscription-filter-test-timing).
