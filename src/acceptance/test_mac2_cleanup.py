@@ -19,7 +19,9 @@ m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 mode = sys.argv[2]
 action, mode = mode.split(':', 1)
 present = mode != 'absent'
-id_value = {'uid-zero':'0','uid-199':'199','uid-400':'400'}.get(mode,'200')
+attribute_mode = mode.removeprefix('user-only-')
+user_only = mode == 'missing-group' or mode.startswith('user-only-')
+id_value = {'uid-zero':'0','uid-199':'199','uid-400':'400'}.get(attribute_mode,'200')
 paths = {str(p): False for p in (m.HOME, m.RUN, m.PREFIX, m.PLIST)}
 link = Path('/usr/local/bin/agent-bus')
 m.COMMAND_LINKS = {link: Path('/fresh/current/agent-bus')}
@@ -36,24 +38,24 @@ def run(args, **kw):
         if mode=='unreadable': code,err=40,'directory unavailable'
         elif '-search' in args:
             owner = 'other-group' if mode=='gid-clash' else m.ROLE
-            out = owner+'\t\tPrimaryGroupID = (\n    '+id_value+'\n)\n' if mode!='missing-group' else ''
+            out = owner+'\t\tPrimaryGroupID = (\n    '+id_value+'\n)\n' if not user_only else ''
             if mode=='one-line-search': out=owner+' PrimaryGroupID: '+id_value+'\n'
         elif 'GroupMembership' in args:
             privileged = args[-2].split('/')[-1]
-            member = m.ROLE if mode == privileged+'-member' else 'root'
+            member = m.ROLE if attribute_mode == privileged+'-member' else 'root'
             out = 'GroupMembership: '+member+'\n'
-            if mode==privileged+'-read-error': code=40
-            if mode==privileged+'-stderr': err='directory warning'
-            if mode==privileged+'-no-membership': out='RecordName: '+privileged+'\n'
+            if attribute_mode==privileged+'-read-error': code=40
+            if attribute_mode==privileged+'-stderr': err='directory warning'
+            if attribute_mode==privileged+'-no-membership': out='RecordName: '+privileged+'\n'
         elif '-list' in args:
-            exists=present and not (mode in ('missing-group','gid-clash') and node=='Groups') and not (mode=='group-only' and node=='Users')
+            exists=present and not ((user_only or mode=='gid-clash') and node=='Groups') and not (mode=='group-only' and node=='Users')
             out=m.ROLE+'\n' if exists else ''
         elif node=='Users':
             fields={'UserShell':'/usr/bin/false','IsHidden':'1','UniqueID':id_value,'PrimaryGroupID':id_value,'NFSHomeDirectory':str(m.HOME)}
             changes={'login':('UserShell','/bin/zsh'),'visible':('IsHidden','0'),'uid':('UniqueID','501'),'gid':('PrimaryGroupID','501'),'home':('NFSHomeDirectory','/Users/parf'),'bad-id':('UniqueID','abc')}
             if mode=='teardown-unsafe' and booted_out[0]: fields['UserShell']='/bin/zsh'
-            if mode in changes:
-                key,value=changes[mode];fields[key]=value
+            if attribute_mode in changes:
+                key,value=changes[attribute_mode];fields[key]=value
             out=''.join(('dsAttrTypeNative:' if k=='IsHidden' else '')+k+': '+v+'\n' for k,v in fields.items())
         else: out='PrimaryGroupID: '+('201' if mode=='wrong-group' else id_value)+'\n'
     elif args[:2]==['/bin/launchctl','print']:
@@ -121,6 +123,18 @@ class Cleanup(unittest.TestCase):
         self.assertEqual(p.returncode,0,p.stdout+p.stderr)
         self.assertIn('safe to reuse',p.stdout)
         self.assertIn('"-search", "/Groups", "PrimaryGroupID", "200"',p.stdout)
+
+    def test_user_only_still_requires_all_role_safety_checks(self):
+        for mode in ('login','visible','uid-zero','uid-199','uid-400','gid','bad-id','home','admin-member','wheel-member'):
+            with self.subTest(mode=mode):
+                p=self.stub('user-only-'+mode,'preflight')
+                self.assertNotEqual(p.returncode,0,p.stdout)
+
+    def test_teardown_requires_the_complete_role_pair(self):
+        p=self.stub('missing-group')
+        self.assertEqual(p.returncode,1,p.stdout+p.stderr)
+        self.assertIn('incomplete role account/group pair',p.stderr)
+        self.assertNotIn('role account kept (by design)',p.stdout)
 
     def test_preflight_refuses_group_without_user(self):
         p=self.stub('group-only','preflight')
