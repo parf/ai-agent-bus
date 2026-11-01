@@ -203,3 +203,42 @@ func mustMkdir(t *testing.T, path string, mode os.FileMode) {
 		t.Fatal(err)
 	}
 }
+
+func TestPersonFilesRefusesADirectorySwappedInAfterTheMake(t *testing.T) {
+	root, uid, gid := personFilesFixture(t)
+	// A directory that is not empty, put in the new one's place.
+	other := t.TempDir()
+	mustMkdir(t, filepath.Join(other, "inside"), 0o755)
+	if err := os.Chmod(other, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	afterMkdir = func(parent int, name string) {
+		if name != "files" {
+			return
+		}
+		dir := filepath.Join(root, "users", "parf")
+		if err := os.Remove(filepath.Join(dir, "files")); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Rename(other, filepath.Join(dir, "files")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Cleanup(func() { afterMkdir = func(int, string) {} })
+	if _, err := ensurePersonFiles(root, "parf", uid, gid); err == nil || !strings.Contains(err.Error(), "replaced while it was being made") {
+		t.Fatalf("a swapped directory: %v", err)
+	}
+	if modeOf(t, filepath.Join(root, "users", "parf", "files")).Perm() != 0o755 {
+		t.Fatal("the swapped-in directory was changed")
+	}
+}
+
+func TestPersonFilesRefusesANewDirectoryThatIsNotTheMakersOwn(t *testing.T) {
+	root, uid, gid := personFilesFixture(t)
+	was := personFilesMaker
+	personFilesMaker = func() int { return os.Geteuid() + 1 } // a stand-in root: the directory just made is someone else's
+	t.Cleanup(func() { personFilesMaker = was })
+	if _, err := ensurePersonFiles(root, "parf", uid, gid); err == nil || !strings.Contains(err.Error(), "replaced while it was being made") {
+		t.Fatalf("a directory of another owner: %v", err)
+	}
+}

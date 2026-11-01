@@ -27,6 +27,13 @@ const personFilesMode = 0o700
 // users/ belongs to root; a test, which cannot be root, names its own owner.
 var personFilesRootUID, personFilesRootGID = 0, 0
 
+// Who makes the directories (root; a test names its own), and a hook a test
+// uses to swap a directory for another between the mkdir and the open.
+var (
+	personFilesMaker = os.Geteuid
+	afterMkdir       = func(parent int, name string) {}
+)
+
 // personFilesDir is where a person's files folder is.
 func personFilesDir(root, person string) string {
 	return filepath.Join(root, "users", person, "files")
@@ -105,6 +112,9 @@ func ensureDirAt(parent int, path, name string, uid, gid int, mode uint32) (int,
 	case err != nil:
 		return -1, nil, fmt.Errorf("look at %s: %w", path, err)
 	}
+	if created {
+		afterMkdir(parent, name)
+	}
 	fd, err := unix.Openat(parent, name, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
 	if err != nil {
 		return -1, nil, fmt.Errorf("%s is a link or not a directory; move it away first: %w", path, err)
@@ -112,6 +122,13 @@ func ensureDirAt(parent int, path, name string, uid, gid int, mode uint32) (int,
 	if err := unix.Fstat(fd, &st); err != nil {
 		unix.Close(fd)
 		return -1, nil, fmt.Errorf("look at %s: %w", path, err)
+	}
+	// What was just made is empty and ours. The person owns the parent of their
+	// folders and could have swapped the new one for another directory between
+	// the make and the open; never hand that one over.
+	if created && (int(st.Uid) != personFilesMaker() || st.Nlink != 2) {
+		unix.Close(fd)
+		return -1, nil, fmt.Errorf("%s was replaced while it was being made (owner %d, %d links); nothing was changed", path, st.Uid, st.Nlink)
 	}
 	var notes []string
 	if created {
