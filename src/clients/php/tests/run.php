@@ -571,6 +571,15 @@ section('locks', function () use ($me, $dir) {
     $e = thrown(fn() => $locks->tryAcquire('taken', 30));
     check('held by somebody else: Busy', $e instanceof Busy, $e ? get_class($e) : 'none');
     check('force release answers the displaced holder', $locks->forceRelease('taken') === $svc);
+    // A ttl or wait the daemon would refuse is refused here: positive and at most 24 h; a wait of at most 60 s.
+    foreach ([['ttl 0', fn() => $locks->tryAcquire('edge', 0)], ['ttl over 24 h', fn() => $locks->tryAcquire('edge', 86401)],
+              ['negative ttl', fn() => $locks->tryAcquire('edge', -1)], ['wait over 60 s', fn() => $locks->acquire('edge', 30, 61)],
+              ['extend ttl over 24 h', fn() => $locks->extend('taken', 86401)]] as [$what, $call]) {
+        $e = thrown($call);
+        check("$what is InvalidArgument, not sent", $e instanceof InvalidArgument, $e ? get_class($e) : 'accepted');
+    }
+    $edge = $locks->tryAcquire('edge-ok', 86400);
+    check('a ttl of exactly 24 h is accepted', $edge->release());
     check('and nobody holds it now', !isset($locks->holders()['taken']));
     $e = thrown(fn() => $locks->release('never'));
     check('releasing what nobody holds is NotFound', $e instanceof NotFound, $e ? get_class($e) : 'none');

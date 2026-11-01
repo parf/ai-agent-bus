@@ -9,6 +9,13 @@ namespace AgentBus;
 
 final class Locks
 {
+    /** A ttl the daemon would refuse is refused here, before any request: positive and at most 24 h. */
+    private static function ttl(int|float|string $ttl): void
+    {
+        $s = Json::seconds($ttl);
+        if ($s <= 0 || $s > 86400) { throw new InvalidArgument('a lock ttl is positive and at most 24 h'); }
+    }
+
     /** @internal */
     public function __construct(private Http $t, private string $record) {}
 
@@ -18,7 +25,9 @@ final class Locks
      */
     public function acquire(string $name, int|float|string $ttl = 60, int|float|string $wait = 0): Lease
     {
+        self::ttl($ttl);
         $w = Json::seconds($wait);
+        if ($w < 0 || $w > 60) { throw new InvalidArgument('a lock wait is at most 60 s'); }
         $start = microtime(true);
         $this->t->request('POST', '/lock', ['wait' => Json::duration($w)],
             ['record' => $this->record, 'name' => $name, 'ttl' => Json::duration($ttl)], true,
@@ -29,6 +38,7 @@ final class Locks
     /** acquire with no wait. A refusal propagates as Busy; no null pretends to tell held from self-held. */
     public function tryAcquire(string $name, int|float|string $ttl = 60): Lease
     {
+        self::ttl($ttl);
         $start = microtime(true);
         $this->t->request('POST', '/try-lock', [], ['record' => $this->record, 'name' => $name, 'ttl' => Json::duration($ttl)], true);
         return new Lease($this, $name, $start + Json::seconds($ttl));
@@ -36,6 +46,7 @@ final class Locks
 
     public function extend(string $name, int|float|string $ttl): void
     {
+        self::ttl($ttl);
         $this->t->request('POST', '/extend', [], ['record' => $this->record, 'name' => $name, 'ttl' => Json::duration($ttl)], true);
     }
 
