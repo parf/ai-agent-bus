@@ -69,30 +69,6 @@ Choices for the [large transfer plan](imap-large-transfer.md#the-three-options) 
   - Recommendation: base64 in windows; exact reassembly and the hash, and a split character never shows escapes
   - Impact: the other choice cannot promise the whole-part hash for text parts
 
-## Runner hardening
-
-Policy choices for the [M.14 hardening proposal](runner.md#runner-hardening-proposal), separate from [current isolation](../../docs/runner/security.md#isolation-today). All await the owner; no mechanism or implementation is selected. Q279 and Q280 are **added from T-18 review, owner to confirm**, not part of the owner's original three boundaries.
-
-- ❓ Q276 Which runtime files and shared public code must remain visible after narrowing `/usr`
-  - Decide the supported agent/runtime compatibility set and any explicit exception for sibling public code; the goal is to exclude unrelated package contents.
-  - Impact: determines the positive and negative read fixtures, without choosing how the view is constructed.
-
-- ❓ Q277 Which bus operations may a managed self-serving agent perform
-  - Decide the required inbox/reply and supporting operations, any deliberately allowed broader authority, and whether the same boundary applies over IP as over a local socket.
-  - Impact: defines the allowed and denied calls; no transport, token or enforcement mechanism is chosen here.
-
-- ❓ Q278 Where the host's `share` policy must apply
-  - Decide whether it governs a self-serving agent's own consume calls as well as runner-issued reads, and what a changed setting means for active readers and in-flight messages on reload.
-  - Impact: preserves the approved exclusive/shared semantics while making the scope and transitions explicit; no consumer, daemon or protocol change is selected.
-
-- ❓ Q279 Whether to add live `jsonl` work-size control — **added from T-18 review, owner to confirm**
-  - First approve or decline this addition. If approved, choose the limit semantics, maximum response delay, over-limit action and treatment of in-flight work.
-  - Impact: supplies the measurable bound and expected outcome for the live-pool test, without selecting a checking or enforcement mechanism.
-
-- ❓ Q280 Whether to give agents a finite CPU default — **added from T-18 review, owner to confirm**
-  - First approve or decline this addition. If approved, choose the default aggregate CPU bound, measurement window/tolerance and permitted override/reload policy.
-  - Impact: defines a falsifiable busy-agent test and compatibility requirements; no new setting or scheduling mechanism is selected.
-
 ## Short prompts
 
 Choices for the [shorter prompts plan](short-prompts.md#proposal), to discuss with the owner.

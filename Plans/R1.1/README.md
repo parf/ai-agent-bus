@@ -18,6 +18,7 @@ stage is [R1.2](../R1.2/README.md#scope).
 | Encryption waves | [Encryption waves](encryption-wave.md#acceptance) |
 | Discovery and observability | [Discovery and observability](discovery.md#where-a-member-says-it-is) |
 | One front door (proposed) | [One front door](discovery.md#one-front-door) |
+| Runner hardening (M.14, moved from R1) | [Proposal](runner-hardening.md#runner-hardening-proposal); [acceptance](TODO.md#runner-hardening) |
 | Runner backups | [Backup contract](backups.md#backing-it-up); [RT13 and RBK1](TODO.md#backups) |
 | Operations | [Operations](operations.md#reload) |
 | Discord agent (moved from R1) | [Discord plan](discord.md#discord-agent-b27a); [task](TODO.md#discord) |

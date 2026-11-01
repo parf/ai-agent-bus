@@ -6,6 +6,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30; the R1 rows are in 
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
+| M.14 moved from R1 | [Runner hardening proposal](runner-hardening.md#runner-hardening-proposal), [task](TODO.md#runner-hardening), [Q276–Q280](QUESTIONS.md#runner-hardening) | 2026-11-01 owner decision: defer to R1.1 |
 | Windows CLI client: a client-only `agent-bus` build for Windows in R1.1; reverses the 2026-10-19 "no windows" for that build alone | [windows CLI](windows-cli.md#windows-cli-client), [WIN.1](TODO.md#windows-cli-client) | 2026-10-30 owner instruction; reverses 2026-10-19 "no windows, mac/linux" ([R1 platforms](../R1.0-Release/TODO.md#objective))
 | Windows client state: the CLI writes only its reply-context cache under the user's cache directory and needs no state directory or lock file; the keeper's file-name encoding is dropped | [files the client writes](windows-cli.md#files-the-client-writes-and-reads) | 2026-10-30 owner answer (was Q261: "what files? it is a simple client") |
 | Windows `agent` (keeper) and `run` left out of the build, with a refusal | [what stays out](windows-cli.md#what-stays-out) | 2026-10-30 owner answer (was Q262) |

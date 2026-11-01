@@ -237,7 +237,6 @@ configuration written under `runner/` on the host, then a `reload` call.
   - Acceptance: a named host is reached and another refused; bypassing the proxy has no route
   - Mutant: Not recorded in the source.
 
-- ☐ M.14 Runner hardening — T-18b, **plan only; owner approval required before code**. [Proposal and acceptance](runner.md#runner-hardening-proposal); [Q276–Q280](QUESTIONS.md#runner-hardening). The owner named runtime-file exposure, self-serving bus access and host sharing policy; live `jsonl` work-size checks and a finite CPU default are **added from T-18 review, owner to confirm**. No mechanism or implementation is selected.
 
 - ✅ M.10 The runner acts as its person
   - State: owner decisions 2026-10-17, moved from R1.1; built: `register` answers the token of an agent an Agent created, 0.8.141; the runner as `#runner/<person>`, creating its agents create-only, keeping their tokens and reading each one's own inbox, 0.8.142; the Linux account `<person>-ab-runner`, with №M.11, 0.8.149; a transferred or rotated agent dropped at reload, 0.8.153
