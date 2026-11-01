@@ -62,7 +62,7 @@ agent-bus help '#mysql/billing-ro@node.example'
 <summary>Step by step</summary>
 
 - Build with `src/agents/db/package.sh <agent.d/db>`.
-- It copies `pymysql` (MIT) and `psycopg` 3 (LGPL-3.0-only, [psycopg.org](https://psycopg.org)) from the packaging host's Python into `support/lib`, with their licenses and a `NOTICE`; replace either by installing another build there.
+- It installs the pinned `pymysql` (MIT) and `psycopg` 3 (LGPL-3.0-only, [psycopg.org](https://psycopg.org)) wheels of `requirements.txt`, hash-checked, into `support/lib`, with their licenses and a `NOTICE`; the host's own Python packages are never read. Packaging needs pip and the package index, or a directory of those wheels in `AB_DB_WHEELS`. Replace either driver by installing another build there.
 - Enable it in the [runner inventory](../runner/configuration.md#inventory); one instance serves one database.
 
 </details>
