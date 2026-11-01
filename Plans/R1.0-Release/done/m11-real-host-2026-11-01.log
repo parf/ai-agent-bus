@@ -1,0 +1,164 @@
+version: 0.9.262
+node: {"version":"0.9.262","build_info":"parf@parf.us 2026-11-01 13:10:36","owner":"owner@fresh","up":"1s","host":"8466bb99af04","calls":{"total":6,"windows":[{"window":"1m","observed":"1s","available":true,"count":6},{"window":"1h","observed":"1s","available":true,"count":6}]}}
+--- state after: daemon only (before any runner verb)
+    account:   
+    unit:      enabled=not-found active=inactive
+    template:  absent
+    private:   absent
+    runner.env: absent
+    record:    absent (404) #runner/alice@8466bb99af04
+    shared:    agent.d root:root 755, KEEP-ME present
+PASS no runner account before install
+$ /usr/local/bin/agent-bus-setup --runner install --for alice --dry-run
+    would create the system account alice-ab-runner with home /var/lib/agent-bus/alice-ab-runner
+    would make /var/lib/agent-bus/alice-ab-runner alice-ab-runner's own, 0700
+    would write /etc/systemd/system/agent-bus-runner@.service and reload systemd
+    would create #runner/alice@8466bb99af04, alice's agent, allowing @owner
+    would write /var/lib/agent-bus/alice-ab-runner/runner.env with #runner/alice@8466bb99af04's token, alice-ab-runner's alone
+    would enable and start agent-bus-runner@alice.service
+    (exit 0)
+PASS install --dry-run changed nothing
+$ /usr/local/bin/agent-bus-setup --runner install --for alice
+    create the system account alice-ab-runner with home /var/lib/agent-bus/alice-ab-runner
+    make /var/lib/agent-bus/alice-ab-runner alice-ab-runner's own, 0700
+    write /etc/systemd/system/agent-bus-runner@.service and reload systemd
+    create #runner/alice@8466bb99af04, alice's agent, allowing @owner
+    write /var/lib/agent-bus/alice-ab-runner/runner.env with #runner/alice@8466bb99af04's token, alice-ab-runner's alone
+    enable and start agent-bus-runner@alice.service
+    Created symlink '/etc/systemd/system/multi-user.target.wants/agent-bus-runner@alice.service' → '/etc/systemd/system/agent-bus-runner@.service'.
+    (exit 0)
+PASS install exit 0
+--- state after: install
+    account:   alice-ab-runner:/usr/sbin/nologin
+    unit:      enabled=enabled active=active
+    template:  present
+    private:   alice-ab-runner:alice-ab-runner 700
+    runner.env: alice-ab-runner:alice-ab-runner 600
+    record:    present #runner/alice@8466bb99af04
+    shared:    agent.d root:root 755, KEEP-ME present
+PASS account alice-ab-runner exists, nologin
+PASS private dir 700 owned by alice-ab-runner
+PASS runner.env present
+PASS template unit present
+PASS unit enabled
+PASS unit active
+PASS runner process runs as alice-ab-runner
+PASS template: user %i-ab-runner, private dir only writable path, no Requires=
+PASS template: Wants+After the daemon
+PASS shared agent.d kept
+runner.env after install: sha256 1fe9a7ab2d2d mtime 2026-11-01 18:14:43.231242646 +0000
+$ /usr/local/bin/agent-bus-setup --runner install --for alice
+    alice's runner: nothing to change
+    (exit 0)
+PASS second install exit 0
+$ /usr/local/bin/agent-bus-setup --runner install --for alice --dry-run
+    alice's runner: nothing to change
+    (exit 0)
+PASS second install --dry-run plans nothing
+--- state after: second install
+    account:   alice-ab-runner:/usr/sbin/nologin
+    unit:      enabled=enabled active=active
+    template:  present
+    private:   alice-ab-runner:alice-ab-runner 700
+    runner.env: alice-ab-runner:alice-ab-runner 600
+    record:    present #runner/alice@8466bb99af04
+    shared:    agent.d root:root 755, KEEP-ME present
+PASS second install: runner.env unchanged
+PASS second install: template untouched
+PASS second install: unit still active
+$ /usr/local/bin/agent-bus-setup --runner disable --for alice
+    stop and disable agent-bus-runner@alice.service, keeping its files
+    Removed '/etc/systemd/system/multi-user.target.wants/agent-bus-runner@alice.service'.
+    (exit 0)
+--- state after: disable
+    account:   alice-ab-runner:/usr/sbin/nologin
+    unit:      enabled=disabled active=inactive
+    template:  present
+    private:   alice-ab-runner:alice-ab-runner 700
+    runner.env: alice-ab-runner:alice-ab-runner 600
+    record:    present #runner/alice@8466bb99af04
+    shared:    agent.d root:root 755, KEEP-ME present
+PASS disabled: unit not enabled
+PASS disabled: unit not active
+PASS disabled: account kept
+PASS disabled: files kept
+PASS disabled: shared agent.d kept
+$ /usr/local/bin/agent-bus-setup --runner disable --for alice
+    alice's runner: nothing to change
+    (exit 0)
+PASS second disable exit 0
+$ /usr/local/bin/agent-bus-setup --runner enable --for alice
+    enable and start agent-bus-runner@alice.service
+    Created symlink '/etc/systemd/system/multi-user.target.wants/agent-bus-runner@alice.service' → '/etc/systemd/system/agent-bus-runner@.service'.
+    (exit 0)
+--- state after: enable
+    account:   alice-ab-runner:/usr/sbin/nologin
+    unit:      enabled=enabled active=active
+    template:  present
+    private:   alice-ab-runner:alice-ab-runner 700
+    runner.env: alice-ab-runner:alice-ab-runner 600
+    record:    present #runner/alice@8466bb99af04
+    shared:    agent.d root:root 755, KEEP-ME present
+PASS enabled: unit enabled
+PASS enabled: unit active
+$ /usr/local/bin/agent-bus-setup --runner uninstall --for alice
+    stop and disable agent-bus-runner@alice.service
+    Removed '/etc/systemd/system/multi-user.target.wants/agent-bus-runner@alice.service'.
+    remove #runner/alice@8466bb99af04 from the bus; the agents it created stay alice's
+    remove /var/lib/agent-bus/alice-ab-runner and keep /var/lib/agent-bus/agent.d
+    delete the system account alice-ab-runner
+    remove /etc/systemd/system/agent-bus-runner@.service, the last runner's
+    (exit 0)
+--- state after: uninstall
+    account:   
+    unit:      enabled=not-found active=inactive
+    template:  absent
+    private:   absent
+    runner.env: absent
+    record:    absent (404) #runner/alice@8466bb99af04
+    shared:    agent.d root:root 755, KEEP-ME present
+PASS uninstalled: no account
+PASS uninstalled: no private dir
+PASS uninstalled: no template once the last runner goes
+PASS uninstalled: unit not enabled
+PASS uninstalled: shared agent.d kept
+$ /usr/local/bin/agent-bus-setup --runner uninstall --for alice --dry-run
+    alice's runner: nothing to change
+    (exit 0)
+PASS second uninstall plans nothing
+$ /usr/local/bin/agent-bus-setup --runner install --for alice
+    create the system account alice-ab-runner with home /var/lib/agent-bus/alice-ab-runner
+    make /var/lib/agent-bus/alice-ab-runner alice-ab-runner's own, 0700
+    write /etc/systemd/system/agent-bus-runner@.service and reload systemd
+    create #runner/alice@8466bb99af04, alice's agent, allowing @owner
+    write /var/lib/agent-bus/alice-ab-runner/runner.env with #runner/alice@8466bb99af04's token, alice-ab-runner's alone
+    enable and start agent-bus-runner@alice.service
+    Created symlink '/etc/systemd/system/multi-user.target.wants/agent-bus-runner@alice.service' → '/etc/systemd/system/agent-bus-runner@.service'.
+    (exit 0)
+$ /usr/local/bin/agent-bus-setup --runner uninstall --for alice --purge
+    stop and disable agent-bus-runner@alice.service
+    Removed '/etc/systemd/system/multi-user.target.wants/agent-bus-runner@alice.service'.
+    remove #runner/alice@8466bb99af04 from the bus; the agents it created stay alice's
+    remove /var/lib/agent-bus/alice-ab-runner and keep /var/lib/agent-bus/agent.d
+    delete the system account alice-ab-runner
+    remove /etc/systemd/system/agent-bus-runner@.service, the last runner's
+    (exit 0)
+--- state after: uninstall --purge
+    account:   
+    unit:      enabled=not-found active=inactive
+    template:  absent
+    private:   absent
+    runner.env: absent
+    record:    absent (404) #runner/alice@8466bb99af04
+    shared:    agent.d root:root 755, KEEP-ME present
+PASS purged: no account
+PASS purged: no private dir
+PASS purged: no template
+PASS purged: shared agent.d still kept
+--- refusals
+$ /usr/local/bin/agent-bus-setup --runner install --for nosuchperson
+    nosuchperson is not an active bus User; a runner is a person's
+    (exit 1)
+PASS a person who is not a bus User is refused
+PASS refusal left no account
+RESULT: 0 failure(s)
