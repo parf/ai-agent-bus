@@ -639,11 +639,13 @@ func observeUser(u userRunner, ops hostUserOps, dry bool) (userState, error) {
 		st.enabled = ops.userctl(u, "is-enabled", "--quiet", userUnit) == nil
 		st.active = ops.userctl(u, "is-active", "--quiet", userUnit) == nil
 	}
-	if people, err := userRecords(ops.bus); err == nil {
-		for _, p := range people {
-			if p != u.person {
-				st.others++
-			}
+	people, err := userRecords(ops.bus)
+	if err != nil {
+		return st, err
+	}
+	for _, p := range people {
+		if p != u.person {
+			st.others++
 		}
 	}
 	return st, nil
