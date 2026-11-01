@@ -8,7 +8,16 @@ suggestion with `✅ 💡` or `🚫 💡`.
 
 ## R1 release decisions
 
-None open: Q296 to Q300 are [settled](DECISIONS.md#recorded-decisions).
+Q296 to Q300 are [settled](DECISIONS.md#recorded-decisions).
+
+- ❓ Q301 When RAG gets its keyword search (your Q194 answer)
+  - Context: main's RAG has no search handler yet; the keyword field is unused and the rules reject new settings
+  - Size: the setting alone (built-in BM25 or external, default built-in) 3–5 hours; a working built-in BM25 search with real Qdrant checks about 2–3 worker-days. RAG only, no daemon change; an external engine is not included
+  - Impact: in R1 it competes with the protocol freeze (T-24) for the same workers and puts the Nov 5–6 date at risk
+  - ( ) R1.1 🌟
+  - ( ) R1, after T-24
+  - ( ) R1, alongside T-24
+  > 💡👾 R1.1: RAG search is a new feature, not a release blocker, and the protocol freeze is what 1.0 must get right.
 
 ## Messaging agents
 
