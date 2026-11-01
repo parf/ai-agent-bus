@@ -401,3 +401,47 @@ func TestPersonFilesNeverChownsADirectoryThatWasThere(t *testing.T) {
 		t.Fatalf("an existing directory was chowned %d times", calls)
 	}
 }
+
+func TestPersonFilesSweepsStateRootStagingLeftBeforeUsersWasCreated(t *testing.T) {
+	root, uid, gid := personFilesFixture(t)
+	old := time.Now().Add(-time.Hour)
+	for _, name := range []string{".new-stale", ".new-full", "keep"} {
+		path := filepath.Join(root, name)
+		mustMkdir(t, path, 0700)
+		if err := os.Chtimes(path, old, old); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(root, ".new-full", "kept"), []byte("keep"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(filepath.Join(root, ".new-full"), old, old); err != nil {
+		t.Fatal(err)
+	}
+	mustMkdir(t, filepath.Join(root, ".new-fresh"), 0700)
+	outside := t.TempDir()
+	mustSymlink(t, outside, filepath.Join(root, ".new-link"))
+	if err := os.WriteFile(filepath.Join(root, ".new-file"), []byte("keep"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ensurePersonFiles(root, "parf", uid, gid); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, entry := range entries {
+		names = append(names, entry.Name())
+	}
+	if got := strings.Join(names, " "); got != ".new-file .new-fresh .new-full .new-link keep users" {
+		t.Fatalf("state root after recovery = %q; only stale empty staging must go", got)
+	}
+	if body, err := os.ReadFile(filepath.Join(root, ".new-full", "kept")); err != nil || string(body) != "keep" {
+		t.Fatalf("nonempty state-root staging changed: %q %v", body, err)
+	}
+	if _, err := os.Stat(outside); err != nil {
+		t.Fatalf("staging symlink target changed: %v", err)
+	}
+}

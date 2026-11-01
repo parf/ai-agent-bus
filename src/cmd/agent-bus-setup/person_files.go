@@ -104,6 +104,7 @@ func ensurePersonFiles(root, person string, uid, gid int) ([]string, error) {
 		return nil, fmt.Errorf("%s is not a directory I can open without following a link: %w", root, err)
 	}
 	defer unix.Close(rootFd)
+	sweepStale(rootFd)
 	var notes []string
 	usersFd, note, err := ensureDirAt(rootFd, rootFd, filepath.Join(root, "users"), "users", personFilesRootUID, personFilesRootGID, 0o755)
 	if err != nil {
