@@ -680,6 +680,10 @@ public final class BusTest {
                 Throwable e = thrown(() -> ((java.util.concurrent.Callable<Object>) edge[1]).call());
                 check(edge[0] + " is refused by the client", e instanceof IllegalArgumentException, name(e));
             }
+            try (Lease own = locks.tryAcquire("again", Duration.ofSeconds(30))) {
+                Throwable e = thrown(() -> locks.tryAcquire("again", Duration.ofSeconds(30)));
+                check("this name taking its own lock again is Busy and says to extend it", e instanceof Busy && e.getMessage().contains("extend"), name(e));
+            }
             try (Lease edge = locks.tryAcquire("edge-ok", Duration.ofHours(24))) {
                 check("a ttl of exactly 24 h is accepted", edge.release());
             }

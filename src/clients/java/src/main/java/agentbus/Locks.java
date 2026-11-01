@@ -50,7 +50,7 @@ public final class Locks {
         Semaphore g = gate(name);
         try {
             if (!g.tryAcquire(Math.max(0, wait.toMillis()), TimeUnit.MILLISECONDS)) {
-                throw new Busy(409, "lock " + name + " on " + record + " is held by another thread of this client");
+                throw new Busy(409, "lock " + name + " on " + record + " is held by another thread of this client (or by this name already: extend it, or release it first)");
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -72,7 +72,7 @@ public final class Locks {
     public Lease tryAcquire(String name, Duration ttl) {
         checkTtl(ttl);
         Semaphore g = gate(name);
-        if (!g.tryAcquire()) throw new Busy(409, "lock " + name + " on " + record + " is held by another thread of this client");
+        if (!g.tryAcquire()) throw new Busy(409, "lock " + name + " on " + record + " is held by another thread of this client (or by this name already: extend it, or release it first)");
         try {
             Instant start = Instant.now();
             t.json("POST", "/try-lock", null, body(name, ttl), true);
