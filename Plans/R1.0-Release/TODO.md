@@ -245,7 +245,7 @@ configuration written under `runner/` on the host, then a `reload` call.
   - Acceptance: a re-registration of an existing record answers no token; a register that created the record answers its token, which works; the runner never holds its person's token and serves no name it has no token for; removing the created-only guard lets a re-registration collect an existing agent's token, and the check fails
   - Mutant: removing the created-only guard lets a re-registration collect an existing agent's token, and the check fails
 
-- ✅ M.11 Runner install through setup (plan rules under test with six assertion-red mutants, branch ab-w2b/T-7-m11; real-host acceptance of every verb passed 2026-11-01 on 0.9.262, 38 checks/0 failures: [result](done/m11.md#what-each-verb-left))
+- ✅ M.11 Runner install through setup (plan rules under test with six assertion-red mutants, branch ab-w2b/T-7-m11; real-host acceptance of every verb passed 2026-11-01 on 0.9.262, 38 checks/0 failures, on an Arch container only, with no real agent served, no Debian host, the bus record and `runner.env` mode read back but not asserted, and `enable` before install not exercised: [result](done/m11.md#what-each-verb-left))
   - State: owner, 2026-10-17; built 0.8.149: `--runner install|uninstall|enable|disable --for <person> [--purge]`, the `<person>-ab-runner` account and `agent-bus-runner@.service` template, nothing installed by default; [a person's runner](../../docs/07-setup.md#a-persons-runner)
   - Builds: `agent-bus-setup` options that install, uninstall, enable and disable a person's runner: the Linux account, its home, the unit, and with №M.10 the person's `#runner/<person>`; nothing installed by default
   - Format: the option names
