@@ -109,10 +109,13 @@ Plan for discussion of the note above: [shorter prompts](short-prompts.md#propos
 
 Built on 0.9: assigned roles, method metadata, the runner waves, the bundled
 agents, distribution packaging and its acceptance, and the protocol freeze
-(T-24; its last step, S2v, is in review). What is left for R1 is the first npm publication at the release (P.1,
-[Q300](DECISIONS.md#recorded-decisions)) and the deferred IMAP transfer (B.31).
-Federation is [R1.2](../R1.2/federation.md#chaining); its R1.1 prerequisites no
-longer block this release.
+(T-24; its last step, S2v, is in review). Still open for R1, besides what the
+rows below say: the first npm publication at the release (P.1,
+[Q300](DECISIONS.md#recorded-decisions)), the deferred IMAP transfer (B.31),
+the Runners web acceptance rows still ⚠️ in
+[the checklist](runner/web-face.md#minimum-checklist) (RT11), and the agent
+events discussion (RT34). Federation is [R1.2](../R1.2/federation.md#chaining);
+its R1.1 prerequisites no longer block this release.
 
 ## Dependencies
 
@@ -222,7 +225,7 @@ configuration written under `runner/` on the host, then a `reload` call.
   - Builds: `share`; the member hostname field (daemon change)
   - Hostname settled by owner, 2026-10-30 15:25, option A: optional `host` on each consume, refreshed when the read begins or ends, held in memory for 2 minutes; bounded to 32 hosts per name, never routing/authority or durable state. Validation and listing substance: [where a member says it is](runner-implementation.md#where-a-member-says-it-is). Pool members still read the pool's own inbox ([№Q159](DECISIONS.md#recorded-decisions)).
   - Acceptance: two runners serve one name, shared between them, and a listing shows both hosts
-  - Mutant: Not recorded in the source.
+  - Mutant: built; mutant not recorded (the two-runner test pins the behaviour).
 
 - M.7 Moved to [R1.1](../R1.1/TODO.md#runner-extensions) by owner decision (Q299), 2026-11-01.
 
