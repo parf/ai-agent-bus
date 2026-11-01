@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.270 — 2026-11-01
+
+A slow bigfile upload is no longer cut at 30 s: PUT /bigfile gets an idle timeout within a total budget scaled to its size, answers 408 on a stall, and the CLI uses the same budget
+
 ## 0.9.269 — 2026-11-01
 
 Rust, PHP and Java clients check the daemon protocol version and report its refusal kinds

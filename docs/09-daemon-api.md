@@ -48,7 +48,7 @@ The reference below keeps every section as it was; other pages link to these sec
 |---|---|
 | Where | the shared socket, a mapped account's own socket, or the [TCP listener](08-processes.md#the-tcp-listener), TLS once on ([remote access](02-access-remote.md#choosing-a-way)) |
 | Who is calling | the `X-Agent-Bus-Token` header, or the account socket in its place; on the account socket, an owned Agent's token makes the call that Agent's ([what a call carries](02-access.md#what-a-call-carries), [local socket](02-access.md#local-socket)) |
-| Body | JSON on a `POST`, which has 30 s to arrive or is answered `408`; query parameters on a `GET` |
+| Body | JSON on a `POST`, which has 30 s to arrive or is answered `408`; raw bytes on a bigfile `PUT`, which has 30 s of silence and a [total budget](03-records-kv.md#bigfiles) instead; query parameters on a `GET` |
 | Answer | JSON, and a refusal is `{"error": "..."}` with the status code and the counted reason that [refusals](05-discovery.md#refusals) owns; a route the router rejects (`404`, `405`) is plain text |
 
 One exception: `GET /secret` answers the stored bytes as `text/plain`, because

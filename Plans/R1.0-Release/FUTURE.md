@@ -8,6 +8,12 @@
 - **Deferred:** not in R1 ([RD171](DECISIONS.md#recorded-decisions), owner, 2026-10-30). The install path is [npm](distribution.md#simple-install).
 - **To start it:** the owner asks for it, and names where the package repositories are hosted; nothing is built for it before that.
 
+## Large bigfile transfers in the Python and TypeScript clients
+
+- **What:** both clients bound a whole bigfile put or get by the Bus timeout (30 s by default), so a 32 MiB value on a slow link fails there although the daemon now allows it ([E1](DONE.md#b32-status-close-out)). Python also caps a per-call timeout at the Bus timeout. The Go library and the CLI have no such cap.
+- **Deferred:** E1 covered the daemon and the CLI; the lead decides whether to schedule the two clients.
+- **To start it:** give `bigfile.put` and `get` an idle timeout plus the same size budget the CLI uses, and a shared vector for a slow transfer.
+
 ## Logwatch subscription start boundary
 
 - Deferred from B.29 by lead1 (2026-10-30): enqueue a line, add a subscription, then drain the forward queue; the pre-add line is forwarded. Pin the subscription-start boundary before changing this existing queue behavior.
