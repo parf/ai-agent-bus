@@ -139,6 +139,17 @@ class RealKeywordIndex(RealKeyword):
         self.assertEqual(got['embeddings'],[[.5]*DIM])   # the dense vector survived the update
         self.put('tea','Coffee is a drink.')   # a new upsert after the build carries its words
         self.assertEqual([r['id'] for r in self.find('coffee')['records']],['tea'])
+        # A chunk without the vector (an interrupted build, or one written before it existed) makes search say so, counted by the real server.
+        stray='00000000-0000-0000-0000-0000000000bb'
+        self.wire.http('PUT',f'/collections/{self.collection}/points?wait=true',{'points':[{'id':stray,'vector':[.5]*DIM,
+            'payload':{'namespace':'team','tableName':'notes','id':'stray','_rag_kind':'chunk','_rag_rev':'x','_rag_text':'stray words'}}]})
+        fresh=Core({**CFG,'collection':self.collection,'dimensions':DIM},self.wire,KV())
+        fresh.cache.set('team','notes',PROMPT)
+        with self.assertRaisesRegex(RagError,r'keyword index incomplete \(1 chunks left\)'):
+            fresh.run(parse(dumps({'method':'search','namespace':'team','query':'tea'})))
+        try:self.assertEqual(fresh.run({'method':'keyword_index'},{'roles':['owner']}),{'status':'ok','indexed':1})
+        except RagError as error:self.fail(f'the real server refused the repair: {error}')
+        self.assertEqual([r['id'] for r in fresh.run(parse(dumps({'method':'search','namespace':'team','query':'coffee'})))['records']],['tea'])
 
 
 if __name__=='__main__':unittest.main()

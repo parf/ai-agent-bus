@@ -26,6 +26,7 @@ BM25_K1 = 1.2
 BM25_B = 0.75
 BM25_AVG_TOKENS = 128
 TOKEN_MAX = 64
+INDEX_BYTES = 512 << 10
 NO_VECTOR = 'keyword index not built yet; run {"method":"keyword_index"}'
 NO_IDF = 'the collection\'s text vector lacks the idf modifier, so search is unavailable; recreate that vector with {"sparse":{"modifier":"idf"}}'
 

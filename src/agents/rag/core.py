@@ -6,7 +6,7 @@ import time
 import uuid
 from chunks import extract
 from prompts import Cache
-from rules import (RagError,Unknown,Refused,Deadline,Incomplete,RECORD_MAX,SUMMARY_MAX,SCALARS_MAX,INDEXES,SUMMARY_FIELDS,BM25_VECTOR,NO_VECTOR,NO_IDF,
+from rules import (RagError,Unknown,Refused,Deadline,Incomplete,RECORD_MAX,SUMMARY_MAX,SCALARS_MAX,INDEXES,SUMMARY_FIELDS,BM25_VECTOR,NO_VECTOR,NO_IDF,INDEX_BYTES,
                    config,dumps,identity,match,point_id,revision,scope,number,sparse,vector,summary,text,DATA_MAX)
 from blocks import Budget
 
@@ -14,7 +14,7 @@ from blocks import Budget
 class Core:
     def __init__(self,cfg,backend,kv,keyword=None):
         self.cfg=config(cfg);self.backend=backend;self.cache=Cache(kv);self.keyword=keyword
-        self.budget=Budget();self.cursors=OrderedDict();self.health='unknown: collection not verified';self.bm25=False;self.keyword_state=NO_VECTOR
+        self.budget=Budget();self.cursors=OrderedDict();self.health='unknown: collection not verified';self.bm25=False;self.keyword_state=NO_VECTOR;self.indexed=False
     def verify(self):
         try:
             info=self.backend.qdrant('GET','')
@@ -25,6 +25,7 @@ class Core:
             word=(params.get('sparse_vectors') or {}).get(BM25_VECTOR)
             self.bm25=self.cfg['keyword_search']=='builtin' and isinstance(word,dict) and word.get('modifier')=='idf'
             self.keyword_state=NO_VECTOR if not isinstance(word,dict) else NO_IDF if word.get('modifier')!='idf' else None
+            if self.keyword_state is not None:self.indexed=False
             metadata=info['config'].get('metadata',{})
             if metadata.get('embedding_model')!=self.cfg['embedding_model']:raise RagError('collection embedding model mismatch')
             indexes=info['payload_schema']
@@ -189,7 +190,9 @@ class Core:
             if not isinstance(found,dict) or not isinstance(found.get('records'),list):raise RagError('invalid external keyword answer')
             return found
         if not self.bm25:raise RagError(self.keyword_state)
-        best={};want=min(64,v['limit']*4)
+        left=self._unindexed()
+        if left:raise RagError(f'keyword index incomplete ({left} chunks left); run {{"method":"keyword_index"}}')
+        best={};want=min(64,v['limit']*4);exhausted=False
         for page in range(4):
             query={'query':sparse(v['query'],query=True),'using':BM25_VECTOR,'filter':scope(v,kind='chunk'),'limit':want,'offset':page*want,
                    'with_payload':{'include':[*SUMMARY_FIELDS[:5],'_rag_text']},'with_vector':False}
@@ -210,7 +213,19 @@ class Core:
                     best[key]=record
             except (KeyError,TypeError,AttributeError):raise RagError('invalid query response') from None
             if len(best)>=v['limit'] or len(rows)<want:break
+            exhausted=page==3
+        # An empty answer must mean no match, never a window that dead chunks filled.
+        if exhausted and len(best)<v['limit']:raise Incomplete('search window exhausted by chunks no record head lists; narrow the query, add filters or run cleanup')
         return {'records':sorted(best.values(),key=lambda r:(-r['score'],r['id']))[:v['limit']]}
+    def _unindexed(self):
+        """How many chunks still lack the text vector; known complete once it was counted as none."""
+        if self.indexed:return 0
+        found=self.backend.qdrant('POST','/points/count',{'filter':{'must':[match('_rag_kind','chunk')],'must_not':[{'has_vector':BM25_VECTOR}]},'exact':True})
+        try:n=found['count']
+        except (KeyError,TypeError):raise RagError('invalid count response') from None
+        if type(n) is not int or n<0:raise RagError('invalid count response')
+        self.indexed=n==0
+        return n
     def _live(self,rows):
         """Head id -> the chunk ids its live head lists, for the records the rows belong to; a missing or deleted head lists none."""
         heads=sorted({point_id(row['payload']) for row in rows})
@@ -246,13 +261,19 @@ class Core:
             try:
                 rows=page['points']
                 if not isinstance(rows,list) or len(rows)>64:raise RagError('invalid scroll size')
-                if not rows:return {'status':'ok','indexed':done}
-                ids=[row['id'] for row in rows]
-                if seen&set(ids):raise RagError('the chunks just indexed still lack the vector; stopping')
-                update=[{'id':row['id'],'vector':{BM25_VECTOR:sparse(text(row['payload'].get('_rag_text'),'stored text',DATA_MAX,empty=True))}} for row in rows]
+                if not rows:
+                    self.indexed=True;return {'status':'ok','indexed':done}
+                if seen&{row['id'] for row in rows}:raise RagError('the chunks just indexed still lack the vector; stopping')
+                update=[];size=0
+                for row in rows:
+                    item={'id':row['id'],'vector':{BM25_VECTOR:sparse(text(row['payload'].get('_rag_text'),'stored text',DATA_MAX,empty=True))}}
+                    size+=len(dumps(item))
+                    # The proxy takes 1 MiB a call; what does not fit is listed again by the next page.
+                    if update and size>INDEX_BYTES:break
+                    update.append(item)
             except (KeyError,TypeError,AttributeError):raise RagError('invalid scroll response') from None
             self.backend.qdrant('PUT','/points/vectors?wait=true',{'points':update},write=True)
-            seen.update(ids);done+=len(ids)
+            seen.update(item['id'] for item in update);done+=len(update)
     def delete(self,v):
         try:return self._delete(v)
         except Deadline:raise Incomplete('repeat the same delete to continue') from None

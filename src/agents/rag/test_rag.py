@@ -83,6 +83,8 @@ class Store:
             keep=body['with_payload']['include']
             start=body.get('offset',0)
             return {'points':[{'id':p['id'],'score':s,'payload':{k:v for k,v in p['payload'].items() if k in keep}} for s,p in scored[start:start+body['limit']]]}
+        if verb=='POST' and path=='/points/count':
+            return {'count':sum(1 for p in self.points.values() if self.matches(p,body['filter']))}
         if verb=='PUT' and path=='/vectors/text':
             if self.refuse_vector:raise Refused('Qdrant grant missing: requires admin role')
             self.sparse=True;self.modifier=body['sparse']['modifier'];return {'status':'completed'}
@@ -242,6 +244,35 @@ class Keyword(unittest.TestCase):
     def build(self,roles):
         try:return self.app.run({'method':'keyword_index'},roles)
         except RagError as error:self.fail(f'keyword_index refused: {error}')
+    def drafts(self,count):
+        for n in range(count):   # chunks of records with no head, each scoring higher than a live 'tea' text
+            pid=f'00000000-0000-0000-0000-{n:012d}'
+            self.store.points[pid]={'id':pid,'vector':{'':[.5,.5],'text':sparse('tea tea tea tea')},
+                'payload':{'namespace':'team','tableName':'notes','id':f'draft{n}','_rag_kind':'chunk','_rag_text':'tea tea tea tea'}}
+    def test_a_window_filled_by_dead_chunks_is_an_incomplete_answer_never_an_empty_one(self):
+        self.put('live','tea')
+        self.drafts(15)   # the live chunk is the 16th of the 16 rows the four pages read
+        self.assertEqual([r['id'] for r in self.find('tea',limit=1)['records']],['live'])
+        self.drafts(16)   # now it is the 17th: beyond the window
+        with self.assertRaisesRegex(Incomplete,'search window exhausted'):self.find('tea',limit=1)
+        self.assertEqual(self.find('zebra')['records'],[])   # a real "no match" is still an empty answer
+    def test_a_half_built_index_is_refused_until_it_is_whole(self):
+        self.store.sparse=False
+        self.app=Core(CFG,self.store,self.kv);self.app.cache.set('team','notes',PROMPT)
+        for n in range(70):self.put(f'doc{n:02d}',f'Tea number {n}.')
+        owner={'roles':['owner']};updates=[]
+        def fail(verb,path,body):
+            if verb=='PUT' and path.startswith('/points/vectors'):
+                updates.append(1);return len(updates)==2
+            return False
+        self.store.fail=fail
+        with self.assertRaises(RagError):self.app.run({'method':'keyword_index'},owner)
+        self.store.fail=None
+        with self.assertRaisesRegex(RagError,r'keyword index incomplete \(6 chunks left\); run \{"method":"keyword_index"\}'):self.find('tea')
+        self.assertEqual(self.build(owner),{'status':'ok','indexed':6})
+        self.assertEqual(len(self.find('tea',limit=16)['records']),16)
+        counts=len([c for c in self.store.calls if c[1]=='/points/count']);self.find('tea');self.find('number')
+        self.assertEqual(len([c for c in self.store.calls if c[1]=='/points/count']),counts)   # a whole index is not counted again
     def test_keyword_index_adds_the_vector_and_gives_every_chunk_its_words_and_is_safe_to_repeat(self):
         self.store.sparse=False
         self.app=Core(CFG,self.store,self.kv);self.app.cache.set('team','notes',PROMPT)
@@ -276,6 +307,21 @@ class Keyword(unittest.TestCase):
         again=self.build(owner)
         self.assertEqual(again,{'status':'ok','indexed':6})   # only the chunks still without the vector
         self.assertEqual(len(self.find('tea',limit=16)['records']),16)
+    def test_keyword_index_keeps_every_update_under_the_proxys_body_cap(self):
+        self.store.sparse=False
+        self.app=Core(CFG,self.store,self.kv);self.app.cache.set('team','notes',PROMPT)
+        words=' '.join(f'w{n:04d}x' for n in range(600))   # about 600 distinct terms a chunk
+        for n in range(80):self.put(f'doc{n:02d}',words+f' only{n}')
+        sizes=[]
+        real=self.store.qdrant
+        def watch(verb,path,body=None,write=False):
+            if verb=='PUT' and path.startswith('/points/vectors'):sizes.append(len(dumps(body)))
+            return real(verb,path,body,write)
+        self.store.qdrant=watch
+        self.assertEqual(self.build({'roles':['owner']}),{'status':'ok','indexed':160})   # two chunks a text
+        self.assertGreater(len(sizes),2)   # more than one update was needed
+        self.assertLess(max(sizes),(1<<20)-4096)
+        self.assertEqual(len(self.find('only7')['records']),1)
     def test_keyword_index_is_for_the_owner_and_maintainers_and_only_in_builtin_mode(self):
         for roles in ({'roles':[]},{'roles':['write']},{}):
             with self.assertRaisesRegex(RagError,'Owner or Maintainers'):self.app.run({'method':'keyword_index'},roles)
