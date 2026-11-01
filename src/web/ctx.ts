@@ -127,6 +127,8 @@ export class Ctx {
   holders(record: string) { return this.get<{ record: string; locks: Record<string, { holder: string; expires: string }> }>("/holders", { record }); }
   /** One record's key-value store, and every store the visitor may use (docs/03-records-kv.md#key-value-store). */
   kvList(record: string) { return this.get<import("./ui/kv.tsx").KVListing>("/kv/list", { record }); }
+  /** One record's big keys (docs/03-records-kv.md#big-keys). */
+  bigList(record: string) { return this.get<import("./ui/kv.tsx").BigListing>("/big/list", { record }); }
   kvStores() { return this.get<import("./ui/kv.tsx").KVStoreRow[]>("/kv/list").then(r => r ?? []); }
   kvGet(record: string, kind: string, name: string) { return this.get<{ value?: unknown; value_base64?: string }>("/kv", { record, kind, name }); }
 

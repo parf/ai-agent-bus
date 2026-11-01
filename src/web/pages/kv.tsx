@@ -10,7 +10,7 @@ import { TextField, TextAreaField, FieldError, ErrorSummary, type FormState } fr
 import { formRefusal } from "../problem.tsx";
 import { entity } from "../glyphs.ts";
 import { number } from "../format.ts";
-import { KV_KINDS, KV_TITLE, Preview, preview, storeHref, valueHref, type KVKind, type KVListing } from "../ui/kv.tsx";
+import { KV_KINDS, KV_TITLE, Preview, preview, recordBig, storeHref, valueHref, type BigKey, type KVKind, type KVListing } from "../ui/kv.tsx";
 
 const RECORD_KINDS = ["agent", "service", "queue", "pubsub", "resource", "group", "user"];
 const HELP = ["Each record keeps its own string, integer and JSON values; they survive a restart.",
@@ -23,7 +23,13 @@ const isKind = (k: string): k is KVKind => (KV_KINDS as string[]).includes(k);
 const asWritten = (_k: string, v: unknown, c?: { source?: string }) =>
   typeof v === "number" && c?.source !== undefined && c.source !== String(v) ? (JSON as unknown as { rawJSON(s: string): unknown }).rawJSON(c.source) : v;
 const kindWord = (k: string) => k === "pubsub" ? "PubSub" : `${entity(k)?.word ?? k}s`;
-const size = (n: number) => n < 1024 ? `${n} B` : `${(n / 1024).toFixed(n < 10240 ? 1 : 0)} KiB`;
+const size = (n: number) => n < 1024 ? `${n} B` : n < 1 << 20 ? `${(n / 1024).toFixed(n < 10240 ? 1 : 0)} KiB` : `${(n / (1 << 20)).toFixed(1)} MiB`;
+/** Time left before a big key expires, as the nearest two units. */
+const left = (iso: string, now = Date.now()) => {
+  const s = Math.round((Date.parse(iso) - now) / 1000);
+  if (!(s > 0)) return "expired";
+  return s >= 86400 ? `${Math.floor(s / 86400)}d ${Math.floor(s % 86400 / 3600)}h` : s >= 3600 ? `${Math.floor(s / 3600)}h ${Math.floor(s % 3600 / 60)}m` : `${Math.max(1, Math.floor(s / 60))}m`;
+};
 
 function listUrl(p: Record<string, string | undefined>): string {
   const q = new URLSearchParams(Object.entries(p).filter(([, v]) => v) as [string, string][]);
@@ -104,11 +110,35 @@ const DeleteValue = ({ record, kind, name, back }: { record: string; kind: KVKin
     </form>
   </details>;
 
+/** Values too big for a message: listed and deleted here, uploaded and downloaded through the CLI or API. */
+const BigCard = ({ record, keys }: { record: string; keys: BigKey[] }) =>
+  <Card title="Big keys" icon="file-down" id="kv-big" actions={<span class="count">{keys.length}</span>}>
+    <table class="data stack kv-table">
+      <thead><tr><th>Name</th><th>Size</th><th>SHA-256</th><th>Held</th><th>Time left</th><th><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody>{keys.map(k => <tr>
+        <td data-label="Name"><code>{k.name}</code></td>
+        <td data-label="Size">{size(k.size)}</td>
+        <td data-label="SHA-256"><code title={k.sha256}>{k.sha256.slice(0, 12)}…</code></td>
+        <td data-label="Held">{k.held}</td>
+        <td data-label="Time left">{left(k.expires)}</td>
+        <td data-label="Actions" class="row-actions">
+          <details class="inline-confirm"><summary class="btn btn-sm btn-danger">Delete</summary>
+            <form method="post" action="/big-delete" class="inline-form">
+              <input type="hidden" name="record" value={record} /><input type="hidden" name="name" value={k.name} />
+              <button class="btn btn-sm btn-danger">Confirm delete of <code>{k.name}</code></button>
+            </form>
+          </details>
+        </td>
+      </tr>)}</tbody>
+    </table>
+    <p class="muted small">Upload and download with <code>agent-bus big put</code> and <code>big get</code>; the page never shows the contents.</p>
+  </Card>;
+
 async function storePage(ctx: Ctx, st: FormState = { values: {} }, status = 200): Promise<Response> {
   const record = ctx.q("name") || ctx.f("record");
   if (!record) throw new LocalProblem(400, "Name the record whose store to open.");
   // A record the visitor may not use is the daemon's refusal, on the problem page.
-  const [you, kv] = await Promise.all([ctx.you(), ctx.kvList(record)]);
+  const [you, kv, big] = await Promise.all([ctx.you(), ctx.kvList(record), recordBig(ctx, record)]);
   const body = <>
     <PageHead back={{ href: "/kv", label: "Back to KV" }} icon={<Icon name="database" />} title={<><KindIcon kind={kv.kind} /> <code>{kv.record}</code></>}
       sub={<a href={recordHref({ name: kv.record, kind: kv.kind })}>Open the record</a>}
@@ -132,6 +162,7 @@ async function storePage(ctx: Ctx, st: FormState = { values: {} }, status = 200)
         </table>
       </Card>;
     })}
+    {big.length ? <BigCard record={kv.record} keys={big} /> : null}
     <Card title="Add value" icon="plus" id="kv-add"><AddForm record={kv.record} st={st} /></Card>
   </>;
   return respond(ctx, { title: `KV ${kv.record}`, section: "kv", signedIn: true, you }, body, status);
@@ -216,5 +247,11 @@ async function postDelete(ctx: Ctx): Promise<Response> {
   return flashRedirect(ctx, storeHref(record), "kv-deleted");
 }
 
-export const handlers = { kv: kvPage, store: (ctx: Ctx) => storePage(ctx), value: (ctx: Ctx) => valuePage(ctx), postSet, postInc, postDelete };
+async function postBigDelete(ctx: Ctx): Promise<Response> {
+  const record = ctx.f("record"), name = ctx.f("name");
+  await ctx.bus("POST", "/big/delete", { body: { record, name } });
+  return flashRedirect(ctx, storeHref(record), "big-deleted");
+}
+
+export const handlers = { kv: kvPage, store: (ctx: Ctx) => storePage(ctx), value: (ctx: Ctx) => valuePage(ctx), postSet, postInc, postDelete, postBigDelete };
 export { preview };

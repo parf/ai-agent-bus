@@ -63,6 +63,7 @@ route("GET", "/kv/value", kv.value);
 route("POST", "/kv-set", kv.postSet);
 route("POST", "/kv-inc", kv.postInc);
 route("POST", "/kv-delete", kv.postDelete);
+route("POST", "/big-delete", kv.postBigDelete);
 route("GET", "/account", ppl.account);
 route("GET", "/palette.json", ppl.palette, false);
 
