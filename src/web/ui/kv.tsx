@@ -14,7 +14,7 @@ export const KV_TITLE: Record<KVKind, string> = { string: "Strings", int: "Integ
 export type KVEntry = { name: string; size: number; preview?: unknown; preview_base64?: string };
 export type KVListing = { record: string; kind: string; values: Record<KVKind, KVEntry[] | null> };
 export type BigKey = { name: string; size: number; sha256: string; held: string; expires: string };
-export type BigListing = { record: string; kind: string; keys: BigKey[] | null };
+export type BigListing = { record: string; keys: BigKey[] | null };
 export type KVStoreRow = { record: string; kind: string; string: number; int: number; json: number };
 
 /** The record's big keys, or none when the visitor may not list them. */

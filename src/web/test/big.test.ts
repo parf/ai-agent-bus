@@ -6,7 +6,7 @@ const you = "owner@fixture", record = "jobs@fixture";
 const hex = "ab".repeat(32);
 let daemon: ReturnType<typeof Bun.serve>;
 let handle: (req: Request) => Promise<Response>;
-let listing: () => Response = () => Response.json({ record, kind: "queue", keys: [] });
+let listing: () => Response = () => Response.json({ record, keys: [] });
 const calls: { method: string; path: string; body: string }[] = [];
 
 beforeAll(() => {
@@ -35,7 +35,7 @@ const store = async () => {
 const card = (html: string) => /<section[^>]*id="kv-big"[\s\S]*?<\/section>/.exec(html)?.[0] ?? "";
 
 test("the store page lists a record's big keys without their contents", async () => {
-  listing = () => Response.json({ record, kind: "queue", keys: [
+  listing = () => Response.json({ record, keys: [
     { name: "report", size: 3 << 20, sha256: hex, held: "memory", expires: new Date(Date.now() + 90 * 60_000).toISOString() },
     { name: "tiny", size: 12, sha256: "cd".repeat(32), held: "file", expires: new Date(Date.now() + 3 * 86400_000).toISOString() }] });
   const c = card(await store());
@@ -53,7 +53,7 @@ test("the store page lists a record's big keys without their contents", async ()
 });
 
 test("a record with no big keys, or one the visitor may not list, shows no card", async () => {
-  listing = () => Response.json({ record, kind: "queue", keys: [] });
+  listing = () => Response.json({ record, keys: [] });
   expect(card(await store())).toBe("");
   listing = () => new Response('acl: not admitted', { status: 403 });
   expect(card(await store())).toBe("");
