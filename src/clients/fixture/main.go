@@ -16,6 +16,7 @@ import (
 	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/store/bigmem"
 	"github.com/parf/ai-agent-bus/internal/store/memory"
 )
 
@@ -34,6 +35,7 @@ func main() {
 			Personal: true, Full: protocol.OverflowStrict, At: time.Now()}},
 	})
 	bus.Persistence(memory.NewState())
+	bus.SetBigStore(bigmem.New())
 	tokens, err := auth.Load(memory.NewTokens(), "owner@fixture")
 	must(err)
 	s := api.New(bus, tokens, "owner@fixture")

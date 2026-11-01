@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -237,5 +238,71 @@ func TestRealDaemonAskTravelsAsTheFieldWithNoBody(t *testing.T) {
 	wstop()
 	if e := <-wresult; e != nil {
 		t.Fatal(e)
+	}
+}
+
+func TestRealDaemonBigKeysRoundTripAndRefuseWhoMayNot(t *testing.T) {
+	addr, tokens := realFixture(t)
+	owner := fixtureBus(t, addr, tokens["owner@fixture"], "owner@fixture")
+	outsider := fixtureBus(t, addr, tokens["#outsider@fixture"], "#outsider@fixture")
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	// A queue only its Owner maintains; the outsider is not on its allow list.
+	if _, e := owner.Record("jobs@fixture").Manage(ctx, map[string]any{"allow": []string{"owner@fixture"}}); e != nil {
+		t.Fatal(e)
+	}
+	big := owner.Record("jobs@fixture").Big
+	value := bytes.Repeat([]byte("0123456789abcdef"), 1<<20/16*3) // 3 MiB
+	info, e := big.Put(ctx, "report", bytes.NewReader(value), int64(len(value)), BigTTL(time.Hour), BigMemory())
+	if e != nil || info.Size != int64(len(value)) || info.Held != "memory" || info.Replaced || info.SHA256 != hexOf(value) {
+		t.Fatalf("%+v %v", info, e)
+	}
+	var out bytes.Buffer
+	if got, e := big.Get(ctx, "report", &out); e != nil || !bytes.Equal(out.Bytes(), value) || got.SHA256 != info.SHA256 {
+		t.Fatalf("%+v %v", got, e)
+	}
+	again, e := big.Put(ctx, "report", bytes.NewReader(value), int64(len(value)))
+	if e != nil || !again.Replaced {
+		t.Fatalf("%+v %v", again, e)
+	}
+	keys, e := big.List(ctx)
+	if e != nil || len(keys) != 1 || keys[0].Name != "report" || keys[0].Size != int64(len(value)) {
+		t.Fatalf("%+v %v", keys, e)
+	}
+	var be *BusError
+	if _, e := outsider.Record("jobs@fixture").Big.Get(ctx, "report", io.Discard); !errors.As(e, &be) || be.Status != 403 {
+		t.Fatalf("a stranger downloaded: %v", e)
+	}
+	if _, e := outsider.Record("jobs@fixture").Big.Put(ctx, "mine", strings.NewReader("x"), 1); !errors.As(e, &be) || be.Status != 403 {
+		t.Fatalf("a stranger uploaded: %v", e)
+	}
+	if _, e := big.Get(ctx, "absent", io.Discard); !errors.As(e, &be) || be.Status != 404 {
+		t.Fatalf("absent key: %v", e)
+	}
+	if deleted, e := big.Delete(ctx, "report"); e != nil || !deleted {
+		t.Fatal(deleted, e)
+	}
+	if deleted, e := big.Delete(ctx, "report"); e != nil || deleted {
+		t.Fatal(deleted, e)
+	}
+}
+
+func TestRealDaemonBigKeyOf32MiBRoundTripsByteIdentical(t *testing.T) {
+	addr, tokens := realFixture(t)
+	owner := fixtureBus(t, addr, tokens["owner@fixture"], "owner@fixture")
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	big := owner.Record("jobs@fixture").Big
+	value := make([]byte, BigMaxBytes)
+	for i := range value {
+		value[i] = byte(i * 7)
+	}
+	info, e := big.Put(ctx, "max", bytes.NewReader(value), int64(len(value)), BigMemory())
+	if e != nil || info.Size != BigMaxBytes || info.SHA256 != hexOf(value) {
+		t.Fatalf("%+v %v", info, e)
+	}
+	var out bytes.Buffer
+	if got, e := big.Get(ctx, "max", &out); e != nil || got.SHA256 != info.SHA256 || !bytes.Equal(out.Bytes(), value) {
+		t.Fatalf("%+v %v", got, e)
 	}
 }
