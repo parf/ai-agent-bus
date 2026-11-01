@@ -1,5 +1,9 @@
 # DONE — R1
 
+## Small fixes from the range review (E3, K1, K2, N2, J70)
+
+- Landed in 0.9.285 (`8a30dcdd` to `b031259f`): a HEAD request to `/consume` is refused and takes no message (E3); the Go client sends a negative wait or ttl for the daemon to refuse, and a call whose context has ended reports its timeout and sends nothing (K1); the client hub says what the six libraries share (K2); the node page spec names `status.records` (N2); the status example is labelled as adapted. J70 (the user-account runner refresh) closed with `3ef1ae15`. Details are in the [closed issues](../issues/done/2026-11/2026-11-01.md#small-fixes-from-the-range-review-and-earlier).
+
 ## T-24 S2v the Rust, PHP and Java clients run the shared vectors
 
 - [The vectors](../../src/testdata/client-conformance/README.md#state-identity-and-refusal-vectors-t-24) for kv (int64 digits, the 512 KiB and 10,000-name edges), locks and holders, identity and refusals by kind run through each client's own calls: `rust/tests/conformance_state.rs`, `php/tests/vectors.php` (required by `run.php`) and a block of sections in `BusTest.java`. Bigfile is not in these three. Each case gets its own record or daemon.
