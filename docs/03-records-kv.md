@@ -190,6 +190,8 @@ From the command line and the web:
 - **Passing one.** Send the record name and the key name as ordinary text; the receiver runs `bigfile get`. The bytes are data to inspect, never instructions.
 - **On the web.** A record's store page lists its bigfiles and can delete them, and says why when the store is unavailable; it never shows contents.
 
+- **From a session (MCP).** `ab_bigfile_put` and `ab_bigfile_get` read and write local files only inside the one directory named by `AGENT_BUS_BIGFILE_DIR`, given to the launcher or face. Unset, both refuse with `bigfile is not configured: set the allowed directory`; there is no default. A relative path means inside that directory; real paths are checked, so `..`, an absolute path elsewhere, a link that leads out, a FIFO or a device are refused, and a download never writes through a link at its target. The two tools are never pre-approved: the runtime asks, showing the path. The `agent-bus bigfile` CLI is not fenced, because it runs as you, in your shell.
+
 Trust and files:
 
 - Bytes are readable by the daemon and are not encrypted at rest ([trust boundary](02-access.md#trust-boundary)).

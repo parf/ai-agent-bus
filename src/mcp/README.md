@@ -62,6 +62,7 @@ descriptions against YAML, including a description for every advertised tool.
 | `AGENT_BUS_TLS_FINGERPRINT` | the pin an `https://` address needs ([remote access § over HTTPS](../../docs/02-access-remote.md#over-https)) |
 | `AGENT_BUS_PUSH` | `claude`, `codex` or `off` (default) |
 | `AGENT_BUS_DESCR` | what `ls` shows for this session |
+| `AGENT_BUS_BIGFILE_DIR` | the one absolute directory `ab_bigfile_put` and `ab_bigfile_get` may read and write ([bigfiles § from a session](../../docs/03-records-kv.md#bigfiles)); unset, both refuse |
 | `AGENT_BUS_CWD` | the `<cwd>` in the default name, and the directory the Codex push mode attaches to. Defaults to the process's |
 | `AGENT_BUS_CODEX_WS` | the **shared** App Server, e.g. `ws://127.0.0.1:8421`. Without it the face drives its own, which cannot reach a live session — see below |
 | `AGENT_BUS_CODEX_AUTH_TOKEN` | bearer capability for the shared Codex App Server; the smart launcher provides it privately to its TUI and pusher, never in command-line arguments |
