@@ -63,7 +63,8 @@ pong hello
 | Serving | at most `workers` handlers on virtual threads, never a message taken ahead; a stop drains up to `drain`, then cancels and interrupts |
 | Calling yourself | answered by this client's own server: the call hands its own request to a free handler, never returns it as the answer; a handler waiting on such a call needs another worker |
 | Transport | HTTP/1.1 written here, one connection per request, never retried: a library that re-sends a request it thinks idempotent would repeat a consume |
-| Errors | `RefusalException` subclasses by HTTP status only; `TransportException`, `TimeoutException`, `UncertainOutcomeException` (never retried) |
+| Errors | `RefusalException` subclasses by HTTP status, with `kind()` the daemon's refusal kind; `TransportException`, `TimeoutException`, `UncertainOutcomeException` (never retried) |
+| Protocol | The first call reads `GET /identity`: a daemon older than the client adds a line to `warnings()`, a client older than the daemon's `protocol_min` gets `DaemonTooNewException`, a malformed answer `ProtocolErrorException` |
 | Not here | administration, minting tokens, writing config or secrets, resource content |
 
 ## Build and tests

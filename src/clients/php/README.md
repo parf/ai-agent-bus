@@ -20,6 +20,7 @@ Keep secrets in Secret and config in Configuration; see [configuration](../../..
 - ✅ **Your own name works:** a call to yourself from inside a handler is answered by that handler.
 - ✅ **Pools:** `ServeOptions(share: true)` makes several processes one serving pool.
 - ✅ **Typed errors:** `Refusal` subclasses by HTTP status; `Transport`, `Timeout` and `UncertainOutcome` otherwise.
+- ✅ **Protocol:** `Refusal::kind()` is the daemon's refusal kind. The first call reads `GET /identity`: a daemon older than the client adds a line to `Bus::warnings()`, a client older than the daemon's `protocol_min` gets `DaemonTooNew`, a malformed answer `ProtocolError`.
 
 ## Try this first
 
