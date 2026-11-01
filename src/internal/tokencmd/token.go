@@ -197,6 +197,9 @@ func parse(args []string, argv bool) (name string, rotate bool, key string, err 
 			rotate = true
 		case strings.HasPrefix(a, "--key="):
 			key = strings.TrimPrefix(a, "--key=")
+			if key == "" {
+				return "", false, "", fmt.Errorf("--key= needs a file; a bare --key uses the default key")
+			}
 		case a == "--key":
 			if argv && i+1 < len(args) {
 				if _, err := os.Stat(args[i+1]); err == nil {

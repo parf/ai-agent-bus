@@ -30,3 +30,11 @@ func TestKeyTakesItsFileOnlyAsKeyEquals(t *testing.T) {
 		t.Errorf("an SSH request was answered by what exists here: %v", err)
 	}
 }
+
+func TestAnEmptyKeyIsRefusedNotTreatedAsNoKey(t *testing.T) {
+	for _, argv := range []bool{true, false} {
+		if _, _, _, err := parse([]string{"alice@test", "--key="}, argv); err == nil || !strings.Contains(err.Error(), "--key=") {
+			t.Errorf("argv=%v: --key= = %v, want a refusal", argv, err)
+		}
+	}
+}
