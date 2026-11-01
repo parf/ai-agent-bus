@@ -113,13 +113,35 @@ None open: Q191 is [settled](DECISIONS.md#recorded-decisions); [RT23](TODO.md#ag
 
 ## Filescan
 
-Open choices for [filescan](filescan.md#questions); each carries a recommendation (💡👾).
+Open choices for [filescan](filescan.md#questions).
 
-| ID | Question | Settled by |
-|---|---|---|
-| Q305 | How a subscriber is fed to RAG, and what a rename is: `sub add … as rag <namespace> <table>` sends rag's own upsert and delete (no bridge agent), and a rename is a delete of the old id plus an upsert of the new. 💡👾 Recommend exactly that: rag has no rename and no other agent would translate. | owner |
-| Q306 | A file over the inline limit (32 KiB, rag's text cap). Skip it and say so in `status`, or send it by bigfile reference. 💡👾 Recommend skip-and-report for `as rag` (rag cannot take a reference), and bigfile by hash only for a generic subscriber that opts in; separately ask whether rag should accept a bigfile reference, as its own item, if big notes matter. | owner |
-| Q307 | A subscriber added later: start from now, or replay the existing files. 💡👾 Recommend from now by default, and `replay:true` capped by `max_per_scan`, because a replay into RAG is paid. | owner |
-| Q308 | May the system runner serve a path outside any person's home. 💡👾 Recommend no in this item: the user-account runner only, so a vault is read as its owner; a system path is a later, separate decision. | owner |
-| Q309 | Is the read-only bind of one directory (F0) part of this item, as a general runner feature (an agent setting `dir`), or a filescan-only special case. 💡👾 Recommend the general feature, small, with the checks the plan lists (real path, no symlink out, refuse `/`, the home root and the runner state directory). | owner |
-| Q310 | The shared subscription rule sends once and never retries; filescan keeps a change pending and sends it again until confirmed. 💡👾 Recommend the difference, with retries on the next tick and an alert after a configured number of failures, because a file index that drops a change is wrong silently. | owner |
+- ❓ Q305 How a subscriber feeds RAG, and what a rename is
+  - Context: `sub add … as rag <namespace> <table>` sends RAG's own upsert and delete, with no bridge agent; RAG has no rename
+  - ( ) A rename is a delete of the old id plus an upsert of the new 🌟
+  - ( ) Add a rename to RAG first
+  > 💡👾 Delete plus upsert: RAG has no rename and no other agent would translate.
+
+- ❓ Q306 A file over the inline limit (32 KiB, RAG's text cap)
+  - ( ) Skip it and say so in `status` for `as rag`; bigfile by hash only for a generic subscriber that opts in 🌟
+  - ( ) Teach RAG to accept a bigfile reference first, as its own item ⭐
+  > 💡👾 Skip and report for RAG (it cannot take a reference); a RAG bigfile item only if big notes matter.
+
+- ❓ Q307 A subscriber added later
+  - ( ) Start from now by default; `replay:true` optional, capped by `max_per_scan` 🌟
+  - ( ) Replay every existing file by default
+  > 💡👾 From now: a replay into RAG is paid.
+
+- ❓ Q308 May the system runner serve a path outside any person's home
+  - ( ) No, in this item: the user-account runner only, so a vault is read as its owner 🌟
+  - ( ) Yes, system paths too
+  > 💡👾 No for now; a system path is a later, separate decision.
+
+- ❓ Q309 The read-only bind of one directory (step F0)
+  - ( ) A general runner feature: an agent setting `dir`, with real-path checks, no symlink out, refusing `/`, the home root and the runner state directory 🌟
+  - ( ) A filescan-only special case
+  > 💡👾 The general feature: small, and other agents need the same bind.
+
+- ❓ Q310 Retry until confirmed, unlike the shared send-once subscription rule
+  - ( ) Keep a change pending and resend on the next tick until confirmed; alert after a configured number of failures 🌟
+  - ( ) Send once, like other subscriptions
+  > 💡👾 Resend: a file index that silently drops a change is wrong.
