@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -119,5 +120,47 @@ func TestMissingAgentHelperIsRefusedBeforeSetup(t *testing.T) {
 				t.Fatalf("missing helper %s accepted or unnamed: %v", name, err)
 			}
 		})
+	}
+}
+
+func TestAgentRuntimeMethodMismatchNamesAgentAndBothSets(t *testing.T) {
+	root := t.TempDir()
+	cmd := exec.Command("../../agents/package.sh", root)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("export runtime: %v: %s", err, out)
+	}
+	path := filepath.Join(root, "agents/rag/agent.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest map[string]any
+	if err = json.Unmarshal(data, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	methods := manifest["methods"].(map[string]any)
+	methods["unexpected_runtime_fixture"] = methods["get"]
+	delete(methods, "get")
+	data, err = json.Marshal(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(path, data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	check, err := filepath.Abs("../../acceptance/agent-runtime.py")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd = exec.Command("python3", check, root)
+	cmd.Dir = root
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("changed methods accepted: %s", out)
+	}
+	for _, want := range []string{"rag methods: expected=", "actual=", "missing=['get']", "extra=['unexpected_runtime_fixture']"} {
+		if !strings.Contains(string(out), want) {
+			t.Fatalf("method mismatch lacks %q: %s", want, out)
+		}
 	}
 }

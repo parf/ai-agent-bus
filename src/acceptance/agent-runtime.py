@@ -7,6 +7,12 @@ import subprocess
 import sys
 
 
+def assert_methods(agent, expected, actual):
+    expected, actual = set(expected), set(actual)
+    assert actual == expected, (f'{agent} methods: expected={sorted(expected)!r} actual={sorted(actual)!r} '
+                                f'missing={sorted(expected - actual)!r} extra={sorted(actual - expected)!r}')
+
+
 def check(root):
     root = Path(root).resolve()
     # Negative fixtures remove these imports on purpose. Refuse before a child
@@ -49,7 +55,7 @@ def check(root):
     output, _ = run(['python3', str(eventlog / 'eventlog.py')], root,
                     {'AGENT_BUS_ASK':'help-json', 'AGENT_BUS_CONFIG':'invalid'})
     metadata = json.loads(output)
-    assert set(metadata['methods']) == {'help'}
+    assert_methods('eventlog', {'help'}, metadata['methods'])
     assert metadata['hidden_methods']['count'] == 9
     assert metadata['secrets'] == [] and metadata['body_formats'] == ['text', 'json']
     assert metadata['docs'].endswith('/eventlog.md')
@@ -75,7 +81,7 @@ def check(root):
             output, _ = run(['python3', str(script)], directory, extra)
         data = json.loads(output)
         manifest = json.loads((directory / 'agent.json').read_text())
-        assert set(data['methods']) == set(manifest['methods']), agent + ' methods missing'
+        assert_methods(agent, manifest['methods'], data['methods'])
         assert data['version'] == version, agent + ' wrong version'
         assert 'config' in data and 'secrets' in data, agent + ' incomplete help'
         installer = directory / ('install.sh' if agent == 'server-info' else 'install.py')
@@ -87,7 +93,7 @@ def check(root):
     rag_help = json.loads(output)
     rag_manifest = json.loads((rag / 'agent.json').read_text())
     assert rag_help['version'] == rag_manifest['version'], 'RAG own app version lost'
-    assert set(rag_help['methods']) == {'upsert','get','list','search','keyword_index','delete','prompts'}
+    assert_methods('rag', {'upsert','get','list','search','keyword_index','delete','prompts'}, rag_help['methods'])
     assert (rag / 'config.json.dist').is_file() and (rag / 'CHANGELOG.md').is_file()
     print('rag: app version, client/helper imports and JSON methods loaded without live blocks')
 
@@ -101,12 +107,12 @@ def check(root):
     output, _ = run(['python3', str(voyage / 'voyage.py')], root, {'VOYAGE_API_KEY':''}, status=78)
     assert output.strip() == 'error: VOYAGE_API_KEY is not set', 'Voyage entry failed outside checkout'
     output, _ = run(['python3', str(voyage / 'voyage.py')], root, {'AGENT_BUS_ASK':'help-json'})
-    assert set(json.loads(output)['methods']) == {'embed', 'request'}
+    assert_methods('voyage', {'embed', 'request'}, json.loads(output)['methods'])
     print('voyage: packaged helper and metadata loaded without credentials')
     fetch = root / 'agents/fetch'
     output, _ = run(['python3', str(fetch / 'fetch.py')], root, {'AGENT_BUS_ASK':'help-json', 'AGENT_BUS_CONFIG':'invalid'})
     metadata = json.loads(output)
-    assert set(metadata['methods']) == {'get','curl'}
+    assert_methods('fetch', {'get','curl'}, metadata['methods'])
     assert metadata['version'] == version
     assert metadata['docs'].endswith('/fetch.md')
     assert set(metadata['config']) == {'allow'} and metadata['config']['allow']['type'] == 'list' and metadata['secrets'] == []
@@ -115,7 +121,7 @@ def check(root):
     webhook = root / 'agents/webhook'
     output, _ = run(['python3', str(webhook / 'webhook.py')], root, {'AGENT_BUS_ASK':'help-json', 'WEBHOOK_LISTEN':'invalid'})
     metadata = json.loads(output)
-    assert set(metadata['methods']) == {'post','routes'}
+    assert_methods('webhook', {'post','routes'}, metadata['methods'])
     assert metadata['config']['(root)']['type'] == 'list'
     assert metadata['version'] == version
     assert json.loads((webhook / 'agent.json').read_text())['serves'] == 'itself'
@@ -125,7 +131,7 @@ def check(root):
     output, _ = run(['python3', str(imap / 'imap.py')], root, {'AGENT_BUS_ASK':'help-json'})
     metadata = json.loads(output)
     assert metadata['body_formats'] == ['text', 'json']
-    assert set(metadata['methods']) == {'sync', 'list', 'search', 'read', 'publish', 'help', 'sub add', 'sub list', 'sub delete', 'status', 'mark', 'folders', 'flag', 'headers', 'parts', 'part', 'copy', 'move', 'trash', 'delete', 'compact_trash', 'folder create', 'folder rename', 'folder delete', 'append'}
+    assert_methods('imap', {'sync', 'list', 'search', 'read', 'publish', 'help', 'sub add', 'sub list', 'sub delete', 'status', 'mark', 'folders', 'flag', 'headers', 'parts', 'part', 'copy', 'move', 'trash', 'delete', 'compact_trash', 'folder create', 'folder rename', 'folder delete', 'append'}, metadata['methods'])
     assert metadata['docs'].endswith('/imap.md')
     assert all(not item.get('has_default') for item in metadata['secrets'])
     assert json.loads((imap / 'agent.json').read_text())['serves'] == 'itself'
@@ -145,7 +151,7 @@ def check(root):
         package = root / 'agents' / name
         output, _ = run(['python3', str(package / (name + '.py'))], root, {'AGENT_BUS_ASK':'help-json'})
         metadata = json.loads(output)
-        assert set(metadata['methods']) == methods, name + ' methods'
+        assert_methods(name, methods, metadata['methods'])
         assert metadata['docs'].endswith('/' + name + '.md')
         assert json.loads((package / 'agent.json').read_text())['serves'] == 'itself'
         for shared in ('scheduler.py', 'cronexpr.py'):
@@ -157,7 +163,8 @@ def check(root):
     assert output.strip() == 'error: QDRANT_API_KEY is not set', 'Qdrant entry failed outside checkout'
     output, _ = run(['python3', str(qdrant / 'qdrant.py')], root, {'AGENT_BUS_ASK':'help-json'})
     data = json.loads(output)
-    assert set(data['methods']) == {'request'} and set(data['config']) == {'url'}
+    assert_methods('qdrant', {'request'}, data['methods'])
+    assert set(data['config']) == {'url'}, 'qdrant config keys'
     assert 'default' not in data['config']['url'], 'Qdrant must have no localhost default'
     assert json.loads((qdrant / 'agent.json').read_text())['roles'] == ['read', 'write', 'admin']
     print('qdrant: packaged helper/metadata loaded without credentials or a default URL')

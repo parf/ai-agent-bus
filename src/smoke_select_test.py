@@ -42,6 +42,38 @@ class Selection(unittest.TestCase):
         self.assertIn({'argv': ['go', 'test', '-count=1', './cmd/agent-bus-runner',
                                '-run', '^TestEveryBundledManifestPassesRunnerReload$']}, commands)
 
+    def test_every_agent_manifest_selects_setup_runtime_checks_with_its_reason(self):
+        manifests = sorted((ROOT / 'src/agents').rglob('agent.json'))
+        manifests = [p.relative_to(ROOT).as_posix() for p in manifests if 'node_modules' not in p.parts]
+        self.assertIn('src/agents/rag/agent.json', manifests)
+        for path in manifests:
+            with self.subTest(path=path):
+                plan = self.plan([path], 'normal')
+                self.assertEqual(plan['checks']['go_unit'], 'normal', path + ': setup runtime tests omitted')
+                self.assertEqual(plan['reasons']['L'], 'changed: ' + path)
+
+    def test_rag_manifest_selection_output_names_the_reason(self):
+        import shutil, subprocess, tempfile
+        with tempfile.TemporaryDirectory(dir=ROOT/'tmp') as directory:
+            repo = Path(directory)
+            for relative in ('src/smoke-select.py','src/smoke-map.json','Plans/subsystems.md'):
+                target = repo/relative
+                target.parent.mkdir(parents=True,exist_ok=True)
+                shutil.copy(ROOT/relative,target)
+            manifest = repo/'src/agents/rag/agent.json'
+            manifest.parent.mkdir(parents=True)
+            manifest.write_text('{}\n')
+            def git(*args):
+                subprocess.run(['git','-C',str(repo),*args],check=True,capture_output=True)
+            git('init','-q','-b','main')
+            git('add','src/smoke-select.py','src/smoke-map.json','Plans/subsystems.md','src/agents/rag/agent.json')
+            git('-c','user.name=Fixture','-c','user.email=fixture@example.test','commit','-qm','base')
+            manifest.write_text('{}\n\n')
+            run = subprocess.run(['python3',str(repo/'src/smoke-select.py'),'--mode','normal','--out',str(repo/'plan')],capture_output=True,text=True,timeout=10)
+            self.assertEqual(run.returncode,0,run.stdout+run.stderr)
+            self.assertIn('L: normal — changed: src/agents/rag/agent.json',run.stdout)
+            self.assertIn('check go_unit: normal',run.stdout)
+
     def test_shared_router_selects_both_platforms(self):
         p = self.plan(['src/agents/shared/router.ts'])
         self.assertEqual(p['checks']['agent_telegram'], 'normal')
