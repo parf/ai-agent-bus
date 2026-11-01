@@ -357,3 +357,12 @@ Staging validation no longer changes the live merged files. Apply publishes comp
 ## J78 runner reload settings snapshots
 
 Inbox polls snapshot the shared-reader setting without locking a blocking consume; delayed JSONL retirement and shutdown capture their deadlines and jails before scheduling their goroutines. The reload/poll race reproduces on main; four compiling owning mutants fail on race reports or a bounded assertion. [Field sweep and proof](done/j78-runner-settings.md#proof).
+
+## Q304 missing-data refusal kind
+
+- Owner YES ([Q304 decision](DECISIONS.md#recorded-decisions)): the daemon emits `not_found` for missing data, including inactive records, missing KV/secrets, absent bigfiles and unheld locks. `Reasons()`, the web diagnostic reason list, CLI/MCP checks and all six clients' kind handling/fixtures use that name. `no_route` remains the separate 404/405 route refusal.
+- Protocol stays **1**: protocol 1 was never published. The release changelog must state that this is the pre-publication `unknown` → `not_found` rename, with `no_route` unchanged; a shared PATCH bump accompanies the shipped change.
+- Shared vectors now name `not_found`. `api.TestDaemonMissingDataAndRoutesMatchSharedRefusalVectors` compares real daemon lookup/router responses with those vectors. Under a confirmed smoke lock, a compiling mutant emitting `unknown` fails `kind-not_found-404`: `daemon = 404 kind "unknown", shared vector wants 404 kind "not_found"`. Restored, all three cases pass.
+- Focused native checks pass: Go protocol/shared refusal vectors; Python protocol/shared refusal tests (3); TypeScript protocol/shared vectors (6); Rust protocol (7); PHP protocol (36 checks); Java protocol (17 checks); full API/CLI Go packages; MCP typecheck and face tests (28), web typecheck and unit tests (34). Rust/PHP/Java adapter logic is unchanged; their in-progress shared-vector wiring remains separate.
+- The literal sweep of `docs/` and `src/` leaves no old refusal-kind use. Remaining `unknown` literals describe uncertain delivery outcomes, runtime/status labels, types or invalid-command fixtures. Current API/refusal tables and the captured daemon-status example use `not_found`.
+- The per-person bigfile-directory sentence in `src/mcp/README.md` is a separate commit, without plan IDs or setup-completion claims. C1-mcp (`912b5016`) is retained by rebase.
