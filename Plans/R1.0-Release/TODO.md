@@ -402,7 +402,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
 
 - ✅ B.24 IMAP live read status — **0.9.154**, `cedba648`; normal **1214/0**, **26** assertion-red mutants, reviewer verified landed runtime; three configured instances enabled, manager read-only list checks and check-deploy **6/6**. [Current guide](../../docs/agents/imap.md#what-it-does), [evidence and plan history](done/imap-read-status.md#result). Live Seen writes remain untested.
 
-- ⏳ B.30 IMAP full mail automation — **approved 2026-10-31 12:05**, five steps, step 1 urgent, team 2. [Call list](imap-folders.md#help-text); open: [Q270](QUESTIONS.md#imap-folders); the rest settled ([decisions](DECISIONS.md#recorded-decisions)).
+- ✅ B.30 IMAP full mail automation — **approved 2026-10-31 12:05**, all five steps landed on 2026-10-31: (1) `785fa93c` 0.9.244, completed by `871c71c3` 0.9.245; (2) `e2d01c52` 0.9.246; (3) `386d26f2` 0.9.247; (4) `569ca838` 0.9.248; (5) `ddbf2b61` 0.9.249. [Call list](imap-folders.md#help-text), [result and evidence](DONE.md#b30-status-close-out); [current guide](../../docs/agents/imap.md#what-it-does). Q270 settled (owner: one shared cache budget, [decision](DECISIONS.md#recorded-decisions)). The later `--big` → `--bigfile` rename came with [B.32](#bundled-agents) (T-20 2c, T-22).
   - Steps: (1) `folders`, `--folder` on sync, list, search, read, mark and publish, per-folder cache; (2) mark/flag, server-side search, headers, parts; (3) copy, move, trash, delete, compact_trash, `allow_destructive`; (4) folder create/rename/delete, append; (5) `sub add --folder`, per-folder status, IDLE
   - Builds: code in `src/agents/imap`, guide `docs/agents/imap.md`
   - Depends: B.5, B.21, B.24

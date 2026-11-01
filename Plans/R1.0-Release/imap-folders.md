@@ -80,7 +80,7 @@ The [IMAP guide](../../docs/agents/imap.md#what-it-does) owns today's calls; one
 
 - The cache identity already includes the mailbox and the epoch includes UIDVALIDITY. Per folder means one cache directory per folder and UIDVALIDITY, UIDs never shared between folders.
 - **Migration:** the existing single cache is exactly the cache of the configured `mailbox`. It is adopted in place as that folder's cache; no re-fetch and no rewrite. A check proves a pre-change cache directory is read as the default folder's and a second folder starts empty beside it.
-- One byte budget (`cache_bytes`) covers all folders together, least-recently-used across them ([Q270](QUESTIONS.md#imap-folders) stays open).
+- One byte budget (`cache_bytes`) covers all folders together, least-recently-used across them (settled by the owner on 2026-11-01, [decision](DECISIONS.md#recorded-decisions)).
 - A UID is only meaningful with its folder: read, mark, flag and move check that folder's UIDVALIDITY before using a cached copy.
 - Subscriptions and forwarding progress stay on the configured `mailbox` until step 5; a per-call `--folder` never moves the poller.
 - Mail copied, moved or appended into a folder gets a new UID there and is a new arrival for a subscription on that folder.

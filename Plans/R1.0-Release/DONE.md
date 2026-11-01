@@ -10,6 +10,12 @@
 - Landed `dd56e796`, after distribution: setup follows why, what you get, how to start and technical detail, with real read-only CLI examples. npm publication and macOS distribution limits remain explicit; SHA256SUMS, secondary archive installation, checkout deployment, MAC.2 cleanup, J49 replacement and P.3 queries are retained.
 - Close-out audit against main: the page passes the order, first-fifth, example and paragraph checks; changed and inbound links resolve. The original rewrite checked 216 inbound Markdown/HTML references. No pending release feature is promoted to built by this status change; no runtime or host change.
 
+## B.30 status close-out
+
+- All five steps of the approved call list landed on main on 2026-10-31, each its own gated landing: step 1 `785fa93c` (0.9.244, `folders`, `--folder` and a cache per folder), completed by `871c71c3` (0.9.245, the search argument and manifest reload fix), step 2 `e2d01c52` (0.9.246, flags, server-side search, headers, MIME parts), step 3 `386d26f2` (0.9.247, copy, move, trash, delete, `compact_trash` behind `allow_destructive`), step 4 `569ca838` (0.9.248, folder create, rename and delete, append), step 5 `ddbf2b61` (0.9.249, `sub add --folder`, per-folder forwarding frontiers and status, read-only IDLE).
+- Checked against main on 2026-11-01: the agent's `help.golden.json` lists `folders`, `--folder` on the per-mail calls, `flag`, `headers`, `parts`, `part`, `copy`, `move`, `trash`, `delete`, `compact_trash`, `folder create|rename|delete`, `append` and `sub add --folder`; `src/agents/imap` carries folder, destructive, folder-admin and folder-watch tests beside the earlier ones. Current behaviour is in the [IMAP guide](../../docs/agents/imap.md#what-it-does).
+- Q270 was answered by the owner as one shared `cache_bytes` budget, least recently used across folders ([decision](DECISIONS.md#recorded-decisions)). The option `--big` became `--bigfile` later, with [bigfiles](bigfile.md#what-it-is-and-is-not) (T-20 2c, T-22). No code changes in this close-out.
+
 ## RT25 status close-out
 
 - Initial ask-first dispatch (0.9.101), RT25a `7b03df8b` (0.9.236) and RT25b `0430a095` (0.9.237) are landed. Every task acceptance line is mapped to its owning test in [the close-out](done/rt25-asks-close-out.md#acceptance-map); the original task detail is retained there. No code changes.
