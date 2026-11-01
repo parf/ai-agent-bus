@@ -58,3 +58,8 @@ The full runner race suite passes (`go test -race ./cmd/agent-bus-runner
 -count=1 -timeout 90s`, 33.226 s), including the original shared/bundled
 regression. Vet, Darwin arm64 cross-build, link and diff checks pass. This is
 a shipped behaviour fix; the gate applies its bump. No host deployment ran.
+
+## Limits of the proof
+
+- `TestReloadDoesNotHoldSettingsLockAcrossBlockedConsume` names `settingsMu`, which main before the fix does not have, so it cannot compile there: its proof is its own mutant (the entry lock held across consume), not a red run on main. The other three tests fail on main with race reports.
+- A poll already in flight keeps the old `Host.Share` until it returns, up to 55 s, as before the fix; the next poll reads the new value, and a reload does not cancel the consume.
