@@ -119,6 +119,11 @@ func issue(args []string) error {
 		tok, err = ask(name, rotate)
 	} else {
 		tok, err = prove(name, key)
+		// Possession was just proved and the answer is the current credential,
+		// so rotating is asked with it: --rotate means the same with or without --key.
+		if err == nil && rotate {
+			tok, err = askAs(name, true, tok)
+		}
 	}
 	if err != nil {
 		return err
@@ -205,7 +210,12 @@ func parse(args []string) (name string, rotate bool, key string, err error) {
 // ask is the ordinary path: the socket says who you are, or a token you
 // already hold does. See docs/02-access.md#what-a-call-carries.
 func ask(name string, rotate bool) (string, error) {
-	out, code, err := post("/token", map[string]any{"name": name, "rotate": rotate})
+	return askAs(name, rotate, os.Getenv("AGENT_BUS_TOKEN"))
+}
+
+// askAs is ask with the credential to present, which is not always the environment's.
+func askAs(name string, rotate bool, token string) (string, error) {
+	out, code, err := post("/token", map[string]any{"name": name, "rotate": rotate}, token)
 	if err != nil {
 		return "", err
 	}
@@ -219,7 +229,7 @@ func ask(name string, rotate bool) (string, error) {
 // checks the answer against what the realm publishes, which is the same
 // challenge enrolment asks. See docs/02-access.md#proving-possession.
 func prove(name, key string) (string, error) {
-	out, code, err := post("/enrol", map[string]string{"name": name})
+	out, code, err := post("/enrol", map[string]string{"name": name}, os.Getenv("AGENT_BUS_TOKEN"))
 	if err != nil {
 		return "", err
 	}
@@ -237,7 +247,7 @@ func prove(name, key string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	out, code, err = post("/enrol", map[string]string{"nonce": ask.Nonce, "signature": sig})
+	out, code, err = post("/enrol", map[string]string{"nonce": ask.Nonce, "signature": sig}, os.Getenv("AGENT_BUS_TOKEN"))
 	if err != nil {
 		return "", err
 	}
@@ -257,7 +267,7 @@ func tokenIn(out []byte) (string, error) {
 	return got.Token, nil
 }
 
-func post(path string, body any) ([]byte, int, error) {
+func post(path string, body any, token string) ([]byte, int, error) {
 	b, err := json.Marshal(body)
 	if err != nil {
 		return nil, 0, err
@@ -273,8 +283,8 @@ func post(path string, body any) ([]byte, int, error) {
 	}
 	// Sent when it is there. On your own socket it is not needed, and the key
 	// path does not have one yet — that is what it is for.
-	if v := os.Getenv("AGENT_BUS_TOKEN"); v != "" {
-		req.Header.Set(api.HeaderToken, v)
+	if token != "" {
+		req.Header.Set(api.HeaderToken, token)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := client.Do(req)
