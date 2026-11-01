@@ -96,50 +96,13 @@
   ]
  },
  {
-  "id": "ttl-and-wait-bounds",
+  "id": "ttl-and-wait-edges-are-accepted",
   "steps": [
-   {
-    "as": "owner",
-    "op": "try",
-    "name": "negative",
-    "ttl_s": -1,
-    "expect": {
-     "refused": true
-    }
-   },
-   {
-    "as": "owner",
-    "op": "try",
-    "name": "over",
-    "ttl_s": 86401,
-    "expect": {
-     "refused": true
-    }
-   },
-   {
-    "as": "owner",
-    "op": "acquire",
-    "name": "patient",
-    "ttl_s": 30,
-    "wait_s": 61,
-    "expect": {
-     "refused": true
-    }
-   },
    {
     "as": "owner",
     "op": "try",
     "name": "day",
     "ttl_s": 86400
-   },
-   {
-    "as": "owner",
-    "op": "extend",
-    "name": "day",
-    "ttl_s": -1,
-    "expect": {
-     "refused": true
-    }
    },
    {
     "as": "owner",

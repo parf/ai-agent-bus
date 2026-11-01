@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -36,6 +37,7 @@ type vectorCase struct {
 		Body   string `json:"body"`
 		Allow  string `json:"allow"`
 	} `json:"daemon"`
+	Call   map[string]any `json:"call"` // refusals.json: an operation the client must refuse before sending anything
 	Expect map[string]any `json:"expect"`
 }
 
@@ -420,6 +422,10 @@ func TestSharedRefusalVectors(t *testing.T) {
 				w.WriteHeader(c.Daemon.Status)
 				fmt.Fprint(w, c.Daemon.Body)
 			})
+			if c.Call != nil {
+				clientRefusal(t, b, c, &requests)
+				return
+			}
 			_, err := b.Records(context.Background())
 			var be *BusError
 			if !errors.As(err, &be) {
@@ -430,5 +436,35 @@ func TestSharedRefusalVectors(t *testing.T) {
 				t.Fatalf("got %d %q %q, want %v", be.Status, be.Kind, be.Message, want)
 			}
 		})
+	}
+}
+
+// clientRefusal runs a vector's call, which the client must refuse itself: the daemon is never asked for it.
+func clientRefusal(t *testing.T, b *Bus, c vectorCase, requests *[]string) {
+	t.Helper()
+	locks := b.Record("jobs@fixture").Locks
+	seconds, _ := c.Call["ttl_s"].(float64)
+	ttl := time.Duration(int64(seconds)) * time.Second
+	var err error
+	switch str(c.Call, "op") {
+	case "acquire":
+		wait, _ := c.Call["wait_s"].(float64)
+		_, err = locks.Acquire(context.Background(), str(c.Call, "name"), WithTTL(ttl), WithWait(time.Duration(int64(wait))*time.Second))
+	case "try":
+		_, err = locks.TryAcquire(context.Background(), str(c.Call, "name"), ttl)
+	case "extend":
+		err = locks.Extend(context.Background(), str(c.Call, "name"), ttl)
+	default:
+		t.Fatalf("unknown vector call %v", c.Call)
+	}
+	if err == nil {
+		t.Fatalf("the client sent %v and was answered", c.Call)
+	}
+	var be *BusError
+	if errors.As(err, &be) {
+		t.Fatalf("the daemon refused %v, the client should have: %v", c.Call, err)
+	}
+	if slices.Contains(*requests, str(c.Expect, "not_requested")) {
+		t.Fatalf("the daemon saw %s: %v", str(c.Expect, "not_requested"), *requests)
 	}
 }

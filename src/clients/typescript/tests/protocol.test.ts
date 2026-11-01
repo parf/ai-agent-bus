@@ -65,7 +65,13 @@ test('shared identity vectors',async()=>{
 test('shared refusal vectors',async()=>{
  const original=console.warn;console.warn=()=>{};
  try{for(const row of vectors('refusals')){
-  await rawDaemon(row.identity==='current'?'{"protocol":1,"protocol_min":1}':'{}',async b=>{
+  await rawDaemon(row.identity==='current'?'{"protocol":1,"protocol_min":1}':'{}',async(b,calls)=>{
+   if(row.call){ // the client refuses the call itself: no daemon refusal, and the daemon never saw the path
+    const locks=b.record('jobs@fixture').locks,ttl=row.call.ttl_s*1000;let failure:unknown;
+    try{if(row.call.op==='acquire')await locks.acquire(row.call.name,{ttl,wait:row.call.wait_s*1000});else if(row.call.op==='try')await locks.tryAcquire(row.call.name,{ttl});else await locks.extend(row.call.name,ttl);}catch(e){failure=e;}
+    expect(failure,row.id).toBeDefined();expect(failure,row.id).not.toBeInstanceOf(BusError);
+    expect(calls.map(c=>c.split('?')[0]),row.id).not.toContain(row.expect.not_requested);return;
+   }
    let error:unknown;try{await b.records();}catch(e){error=e;}
    expect(error,row.id).toBeInstanceOf(BusError);const refusal=error as BusError;
    expect([refusal.status,refusal.kind??'',refusal.message],row.id).toEqual([row.expect.status,row.expect.kind,row.expect.message]);

@@ -260,5 +260,84 @@
    "kind": "unknown",
    "message": "cause"
   }
+ },
+ {
+  "id": "502-keeps-the-daemon-text",
+  "identity": "current",
+  "daemon": {
+   "status": 502,
+   "body": "{\"error\":\"upstream said no\"}"
+  },
+  "expect": {
+   "status": 502,
+   "kind": "",
+   "message": "upstream said no"
+  }
+ },
+ {
+  "id": "kind-outside-the-closed-set-passes-through",
+  "identity": "current",
+  "daemon": {
+   "status": 400,
+   "body": "{\"error\": \"cause\", \"kind\": \"future-kind\"}"
+  },
+  "expect": {
+   "status": 400,
+   "kind": "future-kind",
+   "message": "cause"
+  }
+ },
+ {
+  "id": "lock-wait-over-60s-never-reaches-the-daemon",
+  "identity": "current",
+  "call": {
+   "op": "acquire",
+   "name": "patient",
+   "ttl_s": 30,
+   "wait_s": 61
+  },
+  "expect": {
+   "client_refused": true,
+   "not_requested": "/lock"
+  }
+ },
+ {
+  "id": "lock-ttl-over-24h-never-reaches-the-daemon",
+  "identity": "current",
+  "call": {
+   "op": "try",
+   "name": "long",
+   "ttl_s": 86401
+  },
+  "expect": {
+   "client_refused": true,
+   "not_requested": "/try-lock"
+  }
+ },
+ {
+  "id": "lock-ttl-negative-never-reaches-the-daemon",
+  "identity": "current",
+  "call": {
+   "op": "try",
+   "name": "negative",
+   "ttl_s": -1
+  },
+  "expect": {
+   "client_refused": true,
+   "not_requested": "/try-lock"
+  }
+ },
+ {
+  "id": "lock-extend-ttl-negative-never-reaches-the-daemon",
+  "identity": "current",
+  "call": {
+   "op": "extend",
+   "name": "day",
+   "ttl_s": -1
+  },
+  "expect": {
+   "client_refused": true,
+   "not_requested": "/extend"
+  }
  }
 ]

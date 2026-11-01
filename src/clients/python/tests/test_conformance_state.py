@@ -209,9 +209,27 @@ class SharedState(unittest.TestCase):
                         bus.status()
                     self.assertEqual(calls[0], '/identity')
 
+    def refused_by_the_client(self, case):
+        """The client refuses the call itself: no Refusal from the daemon, and the daemon never saw the path."""
+        bus, calls = self.fake_daemon('{"protocol":1,"protocol_min":1}')
+        call, locks = case['call'], bus.record('jobs@fixture').locks
+        with self.assertRaises(BusError) as raised:
+            if call['op'] == 'acquire':
+                locks.acquire(call['name'], ttl=call['ttl_s'], wait=call['wait_s'])
+            elif call['op'] == 'try':
+                locks.try_acquire(call['name'], ttl=call['ttl_s'])
+            else:
+                self.assertEqual(call['op'], 'extend')
+                locks.extend(call['name'], ttl=call['ttl_s'])
+        self.assertNotIsInstance(raised.exception, Refusal, case['id'])
+        self.assertNotIn(case['expect']['not_requested'], [path.split('?')[0] for path in calls], case['id'])
+
     def test_shared_refusal_vectors(self):
         for case in cases('refusals'):
             with self.subTest(case=case['id']):
+                if 'call' in case:
+                    self.refused_by_the_client(case)
+                    continue
                 identity = '{"protocol":1,"protocol_min":1}' if case['identity'] == 'current' else '{}'
                 bus, _ = self.fake_daemon(identity, case['daemon'])
                 with self.assertRaises(Refusal) as raised:
