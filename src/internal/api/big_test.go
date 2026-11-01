@@ -7,12 +7,14 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/protocol"
-	"github.com/parf/ai-agent-bus/internal/store/bigmem"
+	"github.com/parf/ai-agent-bus/internal/store/bigfile"
 	"github.com/parf/ai-agent-bus/internal/store/memory"
 )
 
@@ -32,7 +34,11 @@ func bigServer(t *testing.T) (*Server, func(string) string) {
 	t.Helper()
 	b := core.New()
 	b.Persistence(memory.NewState())
-	b.SetBigStore(bigmem.New())
+	store, err := bigfile.Open(filepath.Join(t.TempDir(), "big"), time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	b.SetBigStore(store)
 	s, tok := serverFor(t, b, "admin@h")
 	for _, u := range []string{"alice@h", "bob@h", "eve@h"} {
 		if _, err := b.SetUser("admin@h", protocol.User{Name: u}, true); err != nil {
@@ -58,7 +64,7 @@ func TestBigKeyRoundTripAnswersAndRefusals(t *testing.T) {
 		Size                                int64
 		Replaced                            bool
 	}
-	if w.Code != http.StatusOK || json.Unmarshal(w.Body.Bytes(), &up) != nil || up.Size != int64(len(data)) || up.SHA256 != hexsum || up.Held != "memory" || up.Replaced || up.Expires == "" || up.Name != "file" {
+	if w.Code != http.StatusOK || json.Unmarshal(w.Body.Bytes(), &up) != nil || up.Size != int64(len(data)) || up.SHA256 != hexsum || up.Held != "file" || up.Replaced || up.Expires == "" || up.Name != "file" {
 		t.Fatalf("put = %d %s", w.Code, w.Body)
 	}
 	if w = bigReq(s, tok("alice@h"), "PUT", put, data, ""); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"replaced":true`) {
@@ -67,12 +73,19 @@ func TestBigKeyRoundTripAnswersAndRefusals(t *testing.T) {
 	// An admitted caller downloads the bytes and sees the hash in headers.
 	w = bigReq(s, tok("bob@h"), "GET", "/big?record=%23svc@h&name=file", nil, "")
 	if w.Code != http.StatusOK || !bytes.Equal(w.Body.Bytes(), data) || w.Header().Get("X-Big-Sha256") != hexsum ||
-		w.Header().Get("X-Big-Held") != "memory" || w.Header().Get("X-Big-Expires") != up.Expires || w.Header().Get("Content-Length") != "8000" {
+		w.Header().Get("X-Big-Held") != "file" || w.Header().Get("X-Big-Expires") != up.Expires || w.Header().Get("Content-Length") != "8000" {
 		t.Fatalf("get = %d, %d bytes, headers %v", w.Code, w.Body.Len(), w.Header())
 	}
 	if w = bigReq(s, tok("bob@h"), "GET", "/big/list?record=%23svc@h", nil, ""); w.Code != http.StatusOK ||
-		!strings.Contains(w.Body.String(), `"keys":[{"name":"file","size":8000,"sha256":"`+hexsum+`","held":"memory","expires":"`+up.Expires+`"}]`) {
+		!strings.Contains(w.Body.String(), `"keys":[{"name":"file","size":8000,"sha256":"`+hexsum+`","held":"file","expires":"`+up.Expires+`"}]`) {
 		t.Fatalf("list = %d %s", w.Code, w.Body)
+	}
+	// memory=true holds the key in memory and says so.
+	if w = bigReq(s, tok("alice@h"), "PUT", "/big?record=%23svc@h&name=mem&memory=true", []byte("ephemeral"), ""); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"held":"memory"`) {
+		t.Fatalf("a memory put = %d %s", w.Code, w.Body)
+	}
+	if w = bigReq(s, tok("bob@h"), "GET", "/big?record=%23svc@h&name=mem", nil, ""); w.Header().Get("X-Big-Held") != "memory" || w.Body.String() != "ephemeral" {
+		t.Fatalf("a memory get = %d %q %v", w.Code, w.Body, w.Header())
 	}
 	// Refusals: kind and status are what clients rely on.
 	cases := []struct {

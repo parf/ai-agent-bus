@@ -7,12 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/store/bigfile"
 	"github.com/parf/ai-agent-bus/internal/store/bigmem"
 )
 
@@ -287,5 +289,48 @@ func TestBigKeyUploadFinishingAfterTheRecordIsRemovedLeavesNothing(t *testing.T)
 	}
 	if n := bigKeysOf(t, b, store, id); n != 0 {
 		t.Fatalf("the late upload left %d orphan keys", n)
+	}
+}
+
+func fileBigFixture(t *testing.T) (*Bus, *bigfile.Store) {
+	t.Helper()
+	b, _ := kvFixture(t)
+	s, err := bigfile.Open(filepath.Join(t.TempDir(), "big"), time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	b.SetBigStore(s)
+	return b, s
+}
+
+func TestBigKeysOfARecordRemovedWhileDownArePrunedAtStart(t *testing.T) {
+	b, s := fileBigFixture(t)
+	if _, _, err := s.BigPut(4242, "orphan", strings.NewReader("x"), "", false, time.Now().Add(time.Hour), time.Now(),
+		ports.BigLimits{Value: 10, Record: 10, Total: 10, Names: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if err := put(b, "alice@h", "live", "kept"); err != nil {
+		t.Fatal(err)
+	}
+	b.PruneBigOrphans()
+	if got := s.BigRecords(); len(got) != 1 || got[0] == 4242 {
+		t.Fatalf("records after the prune = %v", got)
+	}
+	if got := read(t, b, "alice@h", "live"); got != "kept" {
+		t.Fatalf("the prune removed a live record's key: %q", got)
+	}
+}
+
+func TestBigKeysSurviveATransferOfTheirRecord(t *testing.T) {
+	b, _ := fileBigFixture(t)
+	if err := put(b, "alice@h", "k", "kept through a transfer"); err != nil {
+		t.Fatal(err)
+	}
+	next := "eve@h"
+	if _, err := b.Manage("alice@h", Management{Name: "#svc@h", Owner: &next}); err != nil {
+		t.Fatal(err)
+	}
+	if got := read(t, b, "eve@h", "k"); got != "kept through a transfer" {
+		t.Fatalf("after the transfer: %q", got)
 	}
 }

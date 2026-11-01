@@ -156,3 +156,21 @@ func (b *Bus) dropBig(id uint32) {
 		b.report(ports.Error, "the big keys of record ID %d could not be removed: %s", id, err)
 	}
 }
+
+// PruneBigOrphans removes big keys whose record is not stored, found at start:
+// a record removed while the daemon was down. They are nobody's, and unlike
+// key-value values they hold bytes that expire anyway, so they are deleted.
+func (b *Bus) PruneBigOrphans() {
+	lister, _ := b.big.(interface{ BigRecords() []uint32 })
+	if lister == nil {
+		return
+	}
+	b.mu.Lock()
+	defer b.unlock()
+	for _, id := range lister.BigRecords() {
+		if _, known := b.recordByID[id]; !known {
+			b.dropBig(id)
+			b.report(ports.Alert, "big keys of record ID %d named no stored record and were removed", id)
+		}
+	}
+}

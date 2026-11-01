@@ -34,7 +34,6 @@ import (
 	"github.com/parf/ai-agent-bus/internal/proctitle"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/signature/sshkeygen"
-	"github.com/parf/ai-agent-bus/internal/store/bigmem"
 	"github.com/parf/ai-agent-bus/internal/tlsdir"
 )
 
@@ -101,7 +100,8 @@ func runBus(c config) {
 		fatal("bus agent: %v", err)
 	}
 	bus.ReportKVOrphans()
-	bus.SetBigStore(bigmem.New())
+	bus.SetBigStore(openBigKeys(filepath.Dir(c.db)))
+	bus.PruneBigOrphans()
 	activeAccounts := map[string]string{}
 	if raw := os.Getenv(accountsEnv); raw == "" {
 		fatal("%s is empty: the bus is started by the supervisor, not by hand", accountsEnv)
