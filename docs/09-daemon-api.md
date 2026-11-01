@@ -289,6 +289,7 @@ Common to every route below:
 
 - **Refusals:** `400 malformed` (bad name, `ttl`, `wait`, `receipt` or `ask`), `401 credential`, `403 acl` or `suspended`, `404 unknown`, `429 full` when the receiver's queue is at its bound.
 - **No other message routes:** an ack, a done and a reply are sends; there is no `/ack`, `/receipt` or `/call`.
+- **Dry run:** `GET /may-send?name=<target>` (and `who=<name>` for another sender) answers `{"may_send": true|false}` by send's own target rule and queues nothing; its cases and refusals are [checking permission to send](#checking-permission-to-send).
 
 `GET /consume` takes the next message and waits for one.
 
