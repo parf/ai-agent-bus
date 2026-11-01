@@ -348,10 +348,8 @@ func (b *Bus) ImportRecords(caller string, data RecordBackup, choices ImportChoi
 		}
 	}
 
-	var ids []uint32
 	var principalNames []string
 	for n, r := range b.records {
-		ids = append(ids, r.ID)
 		if r.Kind == protocol.KindAgent {
 			principalNames = append(principalNames, n)
 		}
@@ -359,7 +357,8 @@ func (b *Bus) ImportRecords(caller string, data RecordBackup, choices ImportChoi
 	for n := range b.users {
 		principalNames = append(principalNames, n)
 	}
-	state, e := b.store.(ports.TransferStore).ExportState(ids, principalNames)
+	// Preflight needs credentials, never the existing records' private KV.
+	state, e := b.store.(ports.TransferStore).ExportState(nil, principalNames)
 	if e != nil {
 		return report, fmt.Errorf("import preflight read failed")
 	}
