@@ -208,6 +208,10 @@ const tools = [
       required: ["record", "name", "ttl"],
     },
   },
+  {name:"ab_big_put",description:descriptions.ab_big_put,inputSchema:{"type": "object", "properties": {"record": {"type": "string"}, "name": {"type": "string"}, "input_path": {"type": "string", "description": "local file to upload; contents never enter model context"}, "ttl": {"type": "string", "description": "whole s/m/h/d, default24h, max30d"}, "memory": {"type": "boolean"}}, "required": ["record", "name", "input_path"]}},
+  {name:"ab_big_get",description:descriptions.ab_big_get,inputSchema:{"type": "object", "properties": {"record": {"type": "string"}, "name": {"type": "string"}, "output_path": {"type": "string", "description": "required local download path; metadata only is returned"}}, "required": ["record", "name", "output_path"]}},
+  {name:"ab_big_ls",description:descriptions.ab_big_ls,inputSchema:{"type": "object", "properties": {"record": {"type": "string"}}, "required": ["record"]}},
+  {name:"ab_big_rm",description:descriptions.ab_big_rm,inputSchema:{"type": "object", "properties": {"record": {"type": "string"}, "name": {"type": "string"}}, "required": ["record", "name"]}},
   {
     name: "ab_kv_get",
     description: descriptions.ab_kv_get,
@@ -455,6 +459,13 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
         try { return text(JSON.stringify(await bus.post("/extend", { record: need(args, "record"), name: need(args, "name"), ttl: need(args, "ttl") }))); }
         catch (e) { return text(String(e), true); }
       }
+      case "ab_big_put": {
+        if(args.memory!==undefined&&typeof args.memory!=="boolean")throw new BadArgs("memory must be boolean");
+        return text(JSON.stringify(await bus.bigPut(need(args,"record"),need(args,"name"),need(args,"input_path"),{ttl:maybe(args,"ttl"),memory:args.memory as boolean|undefined})));
+      }
+      case "ab_big_get": return text(JSON.stringify(await bus.bigGet(need(args,"record"),need(args,"name"),need(args,"output_path"))));
+      case "ab_big_ls": return text(JSON.stringify(await bus.bigList(need(args,"record"))));
+      case "ab_big_rm": return text(JSON.stringify(await bus.bigDelete(need(args,"record"),need(args,"name"))));
       case "ab_kv_get": {
         const q = new URLSearchParams({ record: need(args, "record"), name: need(args, "name"), kind: maybe(args, "kind") ?? "string" });
         try { return text(JSON.stringify(await bus.get(`/kv?${q}`))); }

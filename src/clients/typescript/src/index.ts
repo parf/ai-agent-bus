@@ -7,3 +7,6 @@ export type { KVKind, KVValue } from './record.js';
 export { BusError, UnexpectedAnswer, BusUnreachable, UncertainOutcome, BusTimeout, BusClosed, IdentityMismatch, ReaderInUse, DrainTimeout } from './transport.js';
 export type { Operation } from './transport.js';
 export { VERSION } from './version.js';
+
+export {RecordBig,BigHashMismatch} from './big.js';
+export type {BigKey,BigInfo,BigPutOptions} from './big.js';

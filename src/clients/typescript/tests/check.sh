@@ -7,6 +7,6 @@ export AGENT_BUS_BUILD_VERSION=$(cat "$root/src/internal/version/VERSION")
 work=$(mktemp -d "$root/tmp/ts-check.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 (cd "$package" && bun install --frozen-lockfile && bun run check)
-(cd "$here" && bun test tests/client.test.ts)
+(cd "$here" && bun test tests/client.test.ts tests/big.test.ts)
 AB_CANONICAL_VERSION_FILE="$root/src/internal/version/VERSION" node "$package/build.mjs" "$work/package"
 node "$here/tests/node-smoke.mjs" "$work/package/index.js"

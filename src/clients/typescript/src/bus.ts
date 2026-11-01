@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { Transport, type Operation, budget, remaining, duration, noWait, discoverSocket, IdentityMismatch, UnexpectedAnswer, BusTimeout, BusClosed, ReaderInUse, DrainTimeout, abortError } from './transport.js';
+import { Transport, type BinaryOptions, type Operation, budget, remaining, duration, noWait, discoverSocket, IdentityMismatch, UnexpectedAnswer, BusTimeout, BusClosed, ReaderInUse, DrainTimeout, abortError } from './transport.js';
 import { Message, bindings, type Envelope } from './message.js';
 import { RecordHandle } from './record.js';
 export interface ConnectOptions { addr?: string | null; token?: string; expectName?: string; timeout?: number; fingerprint?: string }
@@ -64,7 +64,7 @@ export class Bus {
       signal?.addEventListener('abort',cancelled,{ once:true }); promise.then(value => finish(undefined,value),finish);
     });
   }
-  async request(method: string, path: string, body?: unknown, options: Operation & { query?: {[key:string]: unknown}; raw?: boolean; headers?: {[key:string]:string}; destructive?: boolean } = {}): Promise<any> {
+  async request(method: string, path: string, body?: unknown, options: Operation & BinaryOptions & { query?: {[key:string]: unknown}; raw?: boolean; headers?: {[key:string]:string}; destructive?: boolean } = {}): Promise<any> {
     this.check(); const deadline = budget(options.timeout ?? this.timeout) + held(path,options.query?.wait);
     if (path !== '/identity') await this.ensureIdentity(deadline,options.signal);
     this.check();

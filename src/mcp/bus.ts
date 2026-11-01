@@ -1,5 +1,8 @@
 import { PIN_ENV, pinnedCertificate } from "./pin.ts";
 import os from "node:os";
+import {createHash} from "node:crypto";
+import {open,mkdtemp,rename,rm,stat} from "node:fs/promises";
+import {dirname,join} from "node:path";
 import { statSync } from "node:fs";
 
 export const ownerACL = "@owner";
@@ -108,7 +111,7 @@ export class Bus {
     return new Bus({ ...this.#env, AGENT_BUS_NAME: name, AGENT_BUS_TOKEN: await this.token(name) });
   }
 
-  async #call(method: string, path: string, body?: unknown, signal?: AbortSignal, headers: Record<string, string> = {}, raw = false): Promise<any> {
+  async #call(method: string, path: string, body?: unknown, signal?: AbortSignal, headers: Record<string, string> = {}, raw = false, binaryBody?: ReturnType<typeof Bun.file>, binaryReply = false): Promise<any> {
     const overTCP = isTCP(this.#addr);
     const url = (overTCP ? this.#addr.replace(/\/$/, "") : "http://localhost") + path;
     // A pinned https:// daemon: its certificate, once checked against the
@@ -129,7 +132,7 @@ export class Bus {
         "Content-Type": "application/json",
         ...headers,
       },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      ...(binaryBody !== undefined ? {body:binaryBody} : body === undefined ? {} : { body: JSON.stringify(body) }),
     }).catch((err: Error) => {
       if (signal?.aborted) throw err;
       // Nothing listening at a unix path is said as the Go CLI says it.
@@ -138,10 +141,54 @@ export class Bus {
     });
     if (res.status === 204) return null; // nothing arrived before the deadline
 
+    if (binaryReply && res.ok) return res;
     const text = await res.text();
     if (!res.ok) throw new BusError(res.status, text.trim() || res.statusText);
     return raw ? text : text ? JSON.parse(text, exact) : null;
   }
+
+  /** Local-file big transfers never expose value bytes to model context. */
+  async bigPut(record:string,name:string,input_path:string,options:{ttl?:string;memory?:boolean}={}):Promise<any> {
+    if(typeof input_path!=="string"||!input_path.trim())throw new Error("input_path is required");
+    bigKey(name);
+    const ttl=bigSeconds(options.ttl??"24h");
+    if(options.memory!==undefined&&typeof options.memory!=="boolean")throw new Error("memory must be boolean");
+    const source=Bun.file(input_path), details=await stat(input_path);
+    if(!details.isFile()||details.size<1||details.size>BIG_CAP)throw new Error("input_path must name a nonempty file of at most 33554432 bytes");
+    const hash=createHash('sha256');let size=0;
+    for await(const chunk of source.stream()){size+=chunk.length;if(size>BIG_CAP)throw new Error("input_path exceeds 33554432 bytes");hash.update(chunk);}
+    if(size!==details.size)throw new Error("input_path changed while reading");
+    const sha256=hash.digest('hex');
+    const query=new URLSearchParams({record,name,ttl:String(ttl),memory:String(options.memory??false)});
+    const info=await this.#call('PUT','/big?'+query,undefined,AbortSignal.timeout(30000),{'Content-Type':'application/octet-stream','X-Big-Sha256':sha256},false,source);
+    if(info?.sha256!==sha256||info?.size!==size)throw new Error("big put size or SHA-256 mismatch; upload may have completed");
+    return {record,name,size,sha256,held:info.held,expires:info.expires,replaced:info.replaced};
+  }
+  async bigGet(record:string,name:string,output_path:string):Promise<any> {
+    if(typeof output_path!=="string"||!output_path.trim())throw new Error("output_path is required; MCP cannot download to stdout");
+    bigKey(name);
+    const query=new URLSearchParams({record,name});
+    const res:Response=await this.#call('GET','/big?'+query,undefined,AbortSignal.timeout(30000),{},false,undefined,true);
+    const expected=res.headers.get('Content-Length'),sum=res.headers.get('X-Big-Sha256');
+    if(!expected||!/^\d+$/.test(expected)||Number(expected)<1||Number(expected)>BIG_CAP||!sum||!/^[a-f0-9]{64}$/.test(sum)){
+      await res.body?.cancel();throw new Error("big download has invalid size or SHA-256 metadata");
+    }
+    let directory:string|undefined;
+    try {
+      directory=await mkdtemp(join(dirname(output_path),'.agent-bus-big-'));
+      const path=join(directory,'value'),file=await open(path,'wx',0o600),hash=createHash('sha256');let size=0;
+      try {
+        if(!res.body)throw new Error("big download has no body");
+        for await(const chunk of res.body){size+=chunk.length;if(size>Number(expected))throw new Error("big size or SHA-256 mismatch");hash.update(chunk);await file.writeFile(chunk);}
+        if(size!==Number(expected)||hash.digest('hex')!==sum)throw new Error("big size or SHA-256 mismatch; discard the download");
+        await file.sync();
+      }finally{await file.close();}
+      await rename(path,output_path);
+      return {record,name,size,sha256:sum,held:res.headers.get('X-Big-Held'),expires:res.headers.get('X-Big-Expires')};
+    }finally{if(directory)await rm(directory,{recursive:true,force:true});await res.body?.cancel().catch(()=>{});}
+  }
+  async bigList(record:string):Promise<any>{const result=await this.#call('GET','/big/list?'+new URLSearchParams({record}));return {record:result.record,keys:result.keys.map((k:any)=>({name:k.name,size:k.size,sha256:k.sha256,held:k.held,expires:k.expires}))};}
+  async bigDelete(record:string,name:string):Promise<any>{bigKey(name);const result=await this.#call('POST','/big/delete',{record,name});return {record,name,deleted:result.deleted};}
 
   register(rec: { name: string; kind?: string; addr?: string; descr?: string; allow?: string[]; personal?: boolean; tags?: string[] }, createOnly = false): Promise<Record_> {
     return this.#call("POST", "/register", rec, undefined, createOnly ? { "If-None-Match": "*" } : {});
@@ -267,4 +314,12 @@ export function defaultSocket(env: NodeJS.ProcessEnv): string {
 export function clientSocket(dirs: string[], account?: string): string {
   const paths = dirs.map(dir => `${dir}/${account ? `user-${account}.sock` : "bus.sock"}`);
   return paths.find(path => { try { return statSync(path).isSocket(); } catch { return false; } }) ?? paths.at(-1)!;
+}
+
+const BIG_CAP=32*1024*1024;
+function bigKey(name:string):void{if(typeof name!=="string"||Buffer.byteLength(name)<1||Buffer.byteLength(name)>256)throw new Error("big name must be 1..256 UTF-8 bytes");}
+function bigSeconds(value:string):number{
+ let rest=value,total=0;
+ while(rest){const m=/^(\d+)([dhms])/.exec(rest);if(!m)throw new Error("ttl must use whole s/m/h/d");total+=Number(m[1])*({d:86400,h:3600,m:60,s:1}[m[2] as 'd'|'h'|'m'|'s']);rest=rest.slice(m[0].length);}
+ if(!Number.isSafeInteger(total)||total<1||total>2592000)throw new Error("ttl must be whole seconds in 1s..30d");return total;
 }

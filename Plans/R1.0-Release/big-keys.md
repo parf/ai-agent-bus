@@ -19,6 +19,7 @@ big rm <record> <name>: Delete one big key at once; the answer says whether it w
 
 - `<record>` is any record that can hold a [key-value store](../../docs/03-records-kv.md#where-to-attach-it); `<name>` follows the key-value name rules.
 - The same four calls exist as API, client-library and MCP calls (`ab_big_put`, `ab_big_get`, `ab_big_ls`, `ab_big_rm`) and as the face-neutral names the [method metadata](done/method-metadata.md#method-metadata) lists; the web face lists and deletes only (settled).
+- MCP I/O settled by `#ab-dir`, 2026-11-01: put takes a local `input_path`, get requires a local `output_path` (no stdout); both return size and SHA-256 metadata only, and ls/rm return metadata only, never value content to model context.
 - A message that passes a key carries the record name and the key name as plain text; the receiver runs `big get`. No new message field.
 
 ## How the IMAP agent uses it

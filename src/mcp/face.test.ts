@@ -363,3 +363,97 @@ test("a face started with --take-over ignores the let-go signal", async () => {
   await Bun.sleep(400);
   expect((await got.call("ab_ls", {})).isError).toBe(false);
 });
+
+import { Bus } from './bus.ts';
+import {mkdir,mkdtemp,writeFile,readFile,rm} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+test('MCP big files stay out of context and corrupt downloads never replace output',async()=>{
+ expect(typeof (Bus.prototype as any).bigPut).toBe('function');
+ await mkdir(join(import.meta.dir,'../../tmp'),{recursive:true});
+ const scratch=await mkdtemp(join(import.meta.dir,'../../tmp/mcp-big-'));
+ let data=Buffer.from([0,255,1]),bad=false,calls=0;
+ const sha=()=>createHash('sha256').update(data).digest('hex');
+ const server=Bun.serve({port:0,hostname:'127.0.0.1',async fetch(req){calls++;const url=new URL(req.url);
+  expect(req.headers.get('x-agent-bus-token')).toBe('fixture-only');
+  if(req.method==='PUT'){data=Buffer.from(await req.arrayBuffer());expect(req.headers.get('x-big-sha256')).toBe(sha());return Response.json({size:data.length,sha256:sha(),replaced:false});}
+  if(url.pathname==='/big/list')return Response.json({record:'owner@fixture',keys:[]});
+  if(req.method==='POST')return Response.json({deleted:true});
+  return new Response(data,{headers:{'Content-Length':String(data.length),'X-Big-Sha256':bad?'0'.repeat(64):sha(),'X-Big-Held':'memory','X-Big-Expires':'2026-11-02T00:00:00Z'}});
+ }});
+ const bus:any=new Bus({AGENT_BUS_NAME:'#mcp@fixture',AGENT_BUS_ADDR:`http://127.0.0.1:${server.port}`,AGENT_BUS_TOKEN:'fixture-only'});
+ const input=join(scratch,'in'),output=join(scratch,'out');
+ try{
+  await expect(bus.bigPut('r','n',join(scratch,'missing'))).rejects.toThrow();await writeFile(input,'');await expect(bus.bigPut('r','n',input)).rejects.toThrow();await expect(bus.bigGet('r','n',undefined)).rejects.toThrow('output_path');expect(calls).toBe(0);
+  data=Buffer.alloc(1048577,255);await writeFile(input,data);const up=await bus.bigPut('r','n',input,{ttl:'30d'});expect(up.size).toBe(data.length);
+  const down=await bus.bigGet('r','n',output);expect(down.sha256).toBe(up.sha256);expect(await readFile(output)).toEqual(data);expect(JSON.stringify(down)).not.toContain('data');
+  bad=true;await writeFile(output,'keep old');await expect(bus.bigGet('r','n',output)).rejects.toThrow('SHA-256');expect(await readFile(output,'utf8')).toBe('keep old');
+ }finally{server.stop(true);await rm(scratch,{recursive:true,force:true});}
+});
+
+test('MCP big tools transfer files, require output_path and preserve unavailable causes',async()=>{
+ const root=mkdtempSync(join(resolve(import.meta.dir,'../../tmp'),'face-big-'));cleanup.push(()=>rmSync(root,{recursive:true,force:true}));
+ const input=join(root,'in'),output=join(root,'out');const payload=Buffer.from([0,255,1,2]);writeFileSync(input,payload);
+ const sum=createHash('sha256').update(payload).digest('hex');let unavailable=false;const seen:string[]=[];
+ const {call}=await face(async(req,url)=>{
+  seen.push(req.method+' '+url.pathname);
+  if(unavailable)return Response.json({error:'disk path blocked'},{status:503});
+  if(req.method==='PUT'){expect(Buffer.from(await req.arrayBuffer())).toEqual(payload);return Response.json({record:'r',name:'n',size:payload.length,sha256:sum,held:'memory',expires:'2026-11-02T00:00:00Z',replaced:false,content:'SHOULD_NOT_REACH_MODEL'});}
+  if(url.pathname==='/big/list')return Response.json({record:'r',keys:[]});
+  if(req.method==='POST')return Response.json({deleted:true});
+  return new Response(payload,{headers:{'Content-Length':String(payload.length),'X-Big-Sha256':sum,'X-Big-Held':'memory','X-Big-Expires':'2026-11-02T00:00:00Z'}});
+ });
+ const missing=await call('ab_big_get',{record:'r',name:'n'});expect(missing.isError).toBe(true);expect(missing.text).toContain('output_path');expect(seen).toEqual([]);
+ const uploaded=await call('ab_big_put',{record:'r',name:'n',input_path:input,ttl:'24h'});expect(uploaded.isError).toBe(false);expect(uploaded.text).toContain(sum);expect(uploaded.text).not.toContain('SHOULD_NOT_REACH_MODEL');
+ const downloaded=await call('ab_big_get',{record:'r',name:'n',output_path:output});expect(downloaded.isError).toBe(false);expect(await readFile(output)).toEqual(payload);
+ expect((await call('ab_big_ls',{record:'r'})).isError).toBe(false);expect((await call('ab_big_rm',{record:'r',name:'n'})).isError).toBe(false);
+ unavailable=true;
+ for(const [name,args] of [['ab_big_put',{record:'r',name:'n',input_path:input}],['ab_big_get',{record:'r',name:'n',output_path:output}],['ab_big_ls',{record:'r'}],['ab_big_rm',{record:'r',name:'n'}]] as const){const refusal=await call(name,args);expect(refusal.isError).toBe(true);expect(refusal.text).toContain('503');expect(refusal.text).toContain('disk path blocked');}
+});
+
+test('MCP big tools roundtrip local files through the real daemon without returning content',async()=>{
+ const fixture=process.env.AB_CLIENT_FIXTURE??resolve(import.meta.dir,'../../tmp/client-fixture');
+ const daemon=Bun.spawn([fixture],{stdin:'pipe',stdout:'pipe',stderr:'pipe'});
+ const scratch=await mkdtemp(resolve(import.meta.dir,'../../tmp/mcp-real-big-'));
+ let client:Client|undefined;
+ try{
+  const reader=daemon.stdout.getReader();let text='';
+  const ready=(async()=>{while(!text.includes('\n')){const chunk=await reader.read();if(chunk.done)throw new Error('real fixture closed before readiness');text+=new TextDecoder().decode(chunk.value);}return JSON.parse(text.split('\n')[0]!);})();
+  let timer:ReturnType<typeof setTimeout>|undefined;
+  const info=await Promise.race([ready,new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(new Error('real fixture readiness timed out')),3000);})]).finally(()=>clearTimeout(timer));
+  const name='#helper@fixture';
+  const transport=new StdioClientTransport({command:process.execPath,args:[join(import.meta.dir,'server.ts')],stderr:'pipe',env:{PATH:process.env.PATH??'',AGENT_BUS_NAME:name,AGENT_BUS_ADDR:info.addr,AGENT_BUS_TOKEN:info.tokens[name]}});
+  client=new Client({name:'big-real-test',version:'1'});await client.connect(transport);
+  const call=async(tool:string,args:Record<string,unknown>)=>{
+   const reply:any=await client!.callTool({name:tool,arguments:args});
+   expect(reply.isError??false).toBe(false);return JSON.parse(reply.content[0].text);
+  };
+  const input=join(scratch,'input'),output=join(scratch,'output'),bytes=Buffer.alloc(1048577,255);
+  await writeFile(input,bytes);const sha256=createHash('sha256').update(bytes).digest('hex');
+  const up=await call('ab_big_put',{record:name,name:'raw',input_path:input,ttl:'24h'});
+  expect(up.size).toBe(bytes.length);expect(up.sha256).toBe(sha256);expect(Object.keys(up).sort()).toEqual(['expires','held','name','record','replaced','sha256','size']);
+  const down=await call('ab_big_get',{record:name,name:'raw',output_path:output});
+  expect(down.sha256).toBe(sha256);expect(down.size).toBe(bytes.length);expect(await readFile(output)).toEqual(bytes);
+  expect((await call('ab_big_ls',{record:name})).keys.map((key:any)=>key.name)).toEqual(['raw']);
+  expect((await call('ab_big_rm',{record:name,name:'raw'})).deleted).toBe(true);
+ }finally{
+  await client?.close();daemon.stdin.end();
+  let timer:ReturnType<typeof setTimeout>|undefined;
+  await Promise.race([daemon.exited,new Promise<never>((_,reject)=>{timer=setTimeout(()=>{daemon.kill();reject(new Error('real fixture did not stop'));},3000);})]).finally(()=>clearTimeout(timer));
+  await rm(scratch,{recursive:true,force:true});
+ }
+});
+
+test('MCP large file puts preserve early refusal status and cause',async()=>{
+ const scratch=await mkdtemp(resolve(import.meta.dir,'../../tmp/mcp-early-big-'));
+ const input=join(scratch,'input');await writeFile(input,Buffer.alloc(24*1024*1024,255));
+ let status=403,calls=0;
+ const daemon=Bun.serve({port:0,hostname:'127.0.0.1',fetch:()=>{calls++;return Response.json({error:'early file refusal cause'},{status});}});
+ const bus=new Bus({AGENT_BUS_NAME:'#mcp@fixture',AGENT_BUS_ADDR:`http://127.0.0.1:${daemon.port}`,AGENT_BUS_TOKEN:'fixture-only'});
+ try{
+  for(status of [403,413,503]){
+   try{await bus.bigPut('r','n',input);throw new Error('refused file upload accepted');}
+   catch(error:any){expect(error.status).toBe(status);expect(error.message).toContain('early file refusal cause');}
+  }
+  expect(calls).toBe(3);
+ }finally{daemon.stop(true);await rm(scratch,{recursive:true,force:true});}
+});

@@ -1,4 +1,5 @@
 import http from 'node:http';
+import {once} from 'node:events';
 import https from 'node:https';
 import tls from 'node:tls';
 import { createHash, timingSafeEqual } from 'node:crypto';
@@ -16,6 +17,7 @@ export class IdentityMismatch extends Error { constructor(public readonly actual
 export class ReaderInUse extends Error { constructor() { super('consume conflicts with an active reader'); this.name = 'ReaderInUse'; } }
 export class DrainTimeout extends Error { constructor(public readonly unfinished: number) { super(`drain deadline reached with ${unfinished} unfinished handlers`); this.name = 'DrainTimeout'; } }
 export function abortError(): DOMException { return new DOMException('operation aborted', 'AbortError'); }
+export interface BinaryOptions { upload?: {source:AsyncIterable<Uint8Array>;size:number}; bigResponse?:boolean }
 export interface Operation { signal?: AbortSignal; timeout?: number }
 export function budget(timeout: number): number { if (!Number.isFinite(timeout) || timeout <= 0) throw new TypeError('timeout must be positive milliseconds'); return performance.now() + timeout; }
 export function remaining(deadline: number): number { const n = deadline - performance.now(); if (n <= 0) throw new BusTimeout(); return n; }
@@ -51,7 +53,7 @@ export class Transport {
   }
   check(): void { if (this.closed) throw new BusClosed(); }
   close(): void { this.closed = true; for (const socket of this.sockets) socket.destroy(); this.sockets.clear(); }
-  async request(method: string, path: string, body: unknown, options: Operation & { raw?: boolean; headers?: Record<string,string>; destructive?: boolean } = {}): Promise<any> {
+  async request(method: string, path: string, body: unknown, options: Operation & BinaryOptions & { raw?: boolean; headers?: Record<string,string>; destructive?: boolean } = {}): Promise<any> {
     this.check(); options.signal?.throwIfAborted();
     const deadline = budget(options.timeout ?? 30_000);
     const timeout = remaining(deadline);
@@ -61,10 +63,11 @@ export class Transport {
     const write = method !== 'GET' || !!options.destructive;
     return new Promise((resolve, reject) => {
       let req: http.ClientRequest | undefined;
+      let continueTimer: ReturnType<typeof setTimeout> | undefined;
       let socket: import('node:net').Socket | undefined;
-      let left = false, settled = false;
+      let left = false, settled = false, responseReceived = false;
       const finish = (error?: unknown, value?: unknown) => {
-        if (settled) return; settled = true; clearTimeout(timer); options.signal?.removeEventListener('abort', cancelled);
+        if (settled) return; settled = true; clearTimeout(timer); clearTimeout(continueTimer); options.signal?.removeEventListener('abort', cancelled);
         if (socket) { this.sockets.delete(socket); socket.destroy(); }
         if (error) reject(error); else resolve(value);
       };
@@ -77,24 +80,47 @@ export class Transport {
         const client = url.protocol === 'https:' ? https : http;
         const headers: Record<string,string> = { ...options.headers };
         if (this.#token) headers['X-Agent-Bus-Token'] = this.#token;
+        if (options.upload) { headers['Content-Type']='application/octet-stream';headers['Content-Length']=String(options.upload.size);headers['Expect']='100-continue'; }
         if (payload !== undefined) { headers['Content-Type'] = 'application/json'; headers['Content-Length'] = String(Buffer.byteLength(payload)); }
         const opts: https.RequestOptions = { method, headers, agent: false, socketPath: isUnix ? this.addr : undefined };
         // Supplying a preverified TLS socket prevents HTTP headers from preceding pin verification.
         if (verifiedSocket) { const agent = new https.Agent({ keepAlive: false }); agent.createConnection = () => verifiedSocket; opts.agent = agent; }
         req = client.request(url, opts, response => {
+          responseReceived = true; clearTimeout(continueTimer);
           const chunks: Buffer[] = []; let size = 0;
-          response.on('data', chunk => { size += chunk.length; if (size > 16 * 1024 * 1024) { req?.destroy(); fail(new Error('response too large')); } else chunks.push(chunk); });
+          response.on('data', chunk => { size += chunk.length; if (size > (options.bigResponse ? 32 : 16) * 1024 * 1024) { req?.destroy(); fail(new Error('response too large')); } else chunks.push(chunk); });
           response.on('error', fail);
           response.on('end', () => {
             const bytes = Buffer.concat(chunks); const status = response.statusCode ?? 0;
             if (performance.now() >= deadline) { finish(write && left ? new UncertainOutcome('request exceeded deadline') : new BusTimeout()); return; }
             if (status < 200 || status >= 300) { let text = bytes.toString('utf8').trim(); try { const parsed = decodeJson(text) as {error?:unknown}; if (typeof parsed.error === 'string') text = parsed.error; } catch {} finish(new BusError(status, text)); return; }
-            try { finish(undefined, status === 204 ? null : options.raw ? bytes : decodeJson(bytes.toString('utf8'))); } catch (e) { finish(write && left ? new UncertainOutcome('operation returned an invalid response', { cause: e }) : new BusUnreachable('invalid daemon response', { cause: e })); }
+            try { finish(undefined, status === 204 ? null : options.bigResponse ? {data:bytes,headers:response.headers} : options.raw ? bytes : decodeJson(bytes.toString('utf8'))); } catch (e) { finish(write && left ? new UncertainOutcome('operation returned an invalid response', { cause: e }) : new BusUnreachable('invalid daemon response', { cause: e })); }
           });
         });
         req.on('socket', s => { socket = s; this.sockets.add(s); const connected = () => { left = true; }; if (s.connecting) s.once('connect', connected); else connected(); });
-        req.on('error', fail);
-        req.end(payload);
+        // A received refusal wins over an error from the still-writing upload.
+        req.on('error', error => { if (!responseReceived) fail(error); });
+        if (options.upload) {
+          const request = req; let started = false;
+          const send = () => {
+            if (started || settled || responseReceived) return;
+            started = true; clearTimeout(continueTimer);
+            void (async () => {
+              try {
+                for await (const chunk of options.upload!.source) {
+                  if (settled || responseReceived) return;
+                  if (!request.write(chunk)) await once(request, 'drain');
+                }
+                request.end();
+              } catch (error) { if (!responseReceived) { request.destroy(); fail(error); } }
+            })();
+          };
+          request.once('continue', send);
+          // Old servers may ignore Expect; the request's absolute deadline still bounds fallback.
+          continueTimer = setTimeout(send, Math.min(2000, timeout));
+          request.flushHeaders();
+        }
+        else req.end(payload);
       };
       if (url.protocol === 'https:' && this.pin) {
         socket = tls.connect({ host: url.hostname, port: Number(url.port || 443), servername: /^\d+\.\d+\.\d+\.\d+$/.test(url.hostname) ? undefined : url.hostname, rejectUnauthorized: false });
