@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.274 — 2026-11-01
+
+Python and TypeScript bigfile put/get use the same size-scaled budget as the daemon instead of the client timeout
+
 ## 0.9.273 — 2026-11-01
 
 KV import keeps empty strings, empty bytes and JSON exactly as ordinary writes store them

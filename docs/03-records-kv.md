@@ -175,7 +175,7 @@ The API:
 - `POST /bigfile/delete` takes `record` and `name`.
 - An existing name is replaced and the answer says `replaced`.
 - A refusal that arrives before the body is read (a bad parameter, no authority, an unknown record, an unusable store) is answered after the declared body, at most 32 MiB, has been read and discarded for up to 2 seconds, and the connection closes; a client still writing sees the status and its cause, not a reset.
-- The body of a put may be slow but not stalled: it is answered 408 when no bytes arrive for 30 s, or when the whole upload takes longer than 30 s plus the time 64 KiB a second needs for its declared length (up to 542 s for 32 MiB). The command line gives a get and a put the same budget, not the 2 minutes of its other calls.
+- The body of a put may be slow but not stalled: it is answered 408 when no bytes arrive for 30 s, or when the whole upload takes longer than 30 s plus the time 64 KiB a second needs for its declared length (up to 542 s for 32 MiB). The command line and the Go, Python and TypeScript clients give a put and a get the same budget, not the timeout of their other calls.
 - A declared length over the cap is a 413 at once with nothing read, and a caller who is not authenticated is refused before anything is read.
 - Over a limit is 413, a refusal by authority 403, an absent key or record 404, an unusable store 503.
 
