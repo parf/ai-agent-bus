@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.286 — 2026-11-01
+
+Setup never deletes the shared template after a failed lookup, package builds get no runner token, the container release is root-owned, and the webhook retries a transient start error
+
 ## 0.9.285 — 2026-11-01
 
 HEAD on /consume is refused; the Go client sends a negative wait or ttl for the daemon to refuse, and a call whose context ended returns its timeout
