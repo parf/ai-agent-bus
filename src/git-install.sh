@@ -155,7 +155,7 @@ echo "$unit restarted from the checkout"
 # (docs/07-setup.md#a-persons-user-account-runner); their tmux sessions stay.
 if [ -f /etc/systemd/user/agent-bus-runner.service ]; then
     "$bindir/agent-bus-setup" --runner refresh --user-runner ||
-        echo "warning: not every user-account runner was refreshed; see above" >&2
+        echo "warning: user-account runner refresh incomplete; in each affected person's login run: systemctl --user daemon-reload && systemctl --user try-restart agent-bus-runner.service" >&2
 fi
 echo
 echo "from here on:"

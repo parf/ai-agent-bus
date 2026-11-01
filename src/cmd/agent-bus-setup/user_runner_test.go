@@ -2,12 +2,121 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
 )
+
+func TestUserControlReachesTheTargetBusWithNoRootEnvironment(t *testing.T) {
+	dir := t.TempDir()
+	log := filepath.Join(dir, "calls.jsonl")
+	stub := func(name, text string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("#!/usr/bin/python3\n"+text), 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	stub("setpriv", fmt.Sprintf(`import json, os, sys
+assert sys.argv[1:6] == ['--reuid=1001', '--regid=1002', '--init-groups', '--no-new-privs', '--'], sys.argv
+assert os.getcwd() == '/', os.getcwd()
+with open(%q, 'a') as f: f.write(json.dumps({'identity': sys.argv[1:6], 'keys': sorted(os.environ), 'env': {k: os.environ.get(k) for k in ['HOME', 'PATH', 'LANG', 'XDG_RUNTIME_DIR', 'DBUS_SESSION_BUS_ADDRESS']}})+'\n')
+os.execv(sys.argv[6], sys.argv[6:])
+`, log))
+	stub("systemctl", fmt.Sprintf(`import json, os, sys
+assert '-M' not in sys.argv, 'transient-machine transport refused'
+assert os.environ.get('XDG_RUNTIME_DIR') == '/run/user/1001', 'wrong target runtime directory'
+assert os.environ.get('DBUS_SESSION_BUS_ADDRESS') == 'unix:path=/run/user/1001/bus', 'wrong target bus'
+with open(%q, 'a') as f: f.write(json.dumps({'args': sys.argv[1:]})+'\n')
+`, log))
+	t.Setenv("PATH", dir+":"+os.Getenv("PATH"))
+	for key, value := range map[string]string{"HOME": "/root-fixture", "XDG_RUNTIME_DIR": "/run/user/0",
+		"DBUS_SESSION_BUS_ADDRESS": "unix:path=/root/wrong-bus", "AGENT_BUS_TOKEN": "root-fixture-secret", "SUDO_USER": "root"} {
+		t.Setenv(key, value)
+	}
+	u := userRunner{person: "alice", uid: 1001, gid: 1002, home: "/home/alice"}
+	for _, args := range [][]string{{"daemon-reload"}, {"try-restart", userUnit}, {"is-active", "--quiet", userUnit}} {
+		if err := (hostUserOps{}).userctl(u, args...); err != nil {
+			t.Fatalf("target-user bus command %q failed: %v", args, err)
+		}
+	}
+	data, err := os.ReadFile(log)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) != 6 {
+		t.Fatalf("want three identity hops and three commands, got %q", data)
+	}
+	wantArgs := []string{"--user daemon-reload", "--user try-restart " + userUnit, "--user is-active --quiet " + userUnit}
+	for i := 0; i < len(lines); i += 2 {
+		var row struct {
+			Env  map[string]string
+			Keys []string
+		}
+		if err := json.Unmarshal([]byte(lines[i]), &row); err != nil {
+			t.Fatal(err)
+		}
+		want := map[string]string{"HOME": "/home/alice", "PATH": "/usr/local/bin:/usr/bin:/bin", "LANG": "C.UTF-8",
+			"XDG_RUNTIME_DIR": "/run/user/1001", "DBUS_SESSION_BUS_ADDRESS": "unix:path=/run/user/1001/bus"}
+		if len(row.Keys) != len(want) {
+			t.Fatalf("inherited environment: %d variables, want %d", len(row.Keys), len(want))
+		}
+		for k, v := range want {
+			if row.Env[k] != v {
+				t.Errorf("%s=%q, want %q", k, row.Env[k], v)
+			}
+		}
+		var command struct{ Args []string }
+		if err := json.Unmarshal([]byte(lines[i+1]), &command); err != nil {
+			t.Fatal(err)
+		}
+		if got := strings.Join(command.Args, " "); got != wantArgs[i/2] {
+			t.Fatalf("wrong user-manager command %q, want %q", got, wantArgs[i/2])
+		}
+	}
+	if err := (hostUserOps{}).userctl(u, "stop", "ab-session-work.scope"); err == nil {
+		t.Fatal("accepted a session command")
+	}
+	after, _ := os.ReadFile(log)
+	if string(after) != string(data) {
+		t.Fatal("a refused command reached systemctl")
+	}
+}
+
+func TestGitInstallUserRefreshFailureHasManualInstruction(t *testing.T) {
+	data, err := os.ReadFile("../../git-install.sh")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(data)
+	start := strings.Index(text, "if [ -f /etc/systemd/user/agent-bus-runner.service ]; then")
+	if start < 0 {
+		t.Fatal("missing user refresh block")
+	}
+	end := strings.Index(text[start:], "\necho\n")
+	if end < 0 {
+		t.Fatal("missing user refresh block end")
+	}
+	block := strings.Replace(text[start:start+end], "[ -f /etc/systemd/user/agent-bus-runner.service ]", "true", 1)
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "agent-bus-setup"), []byte("#!/bin/sh\nexit 1\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("bash", "-c", "set -euo pipefail\nbindir=$1\n"+block+"\necho deploy-continued\n", "test", dir)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("unreachable user manager failed the deploy: %v: %s", err, out)
+	}
+	for _, want := range []string{"deploy-continued", "person's login", "systemctl --user daemon-reload", "systemctl --user try-restart agent-bus-runner.service"} {
+		if !strings.Contains(string(out), want) {
+			t.Errorf("missing manual recovery %q in %s", want, out)
+		}
+	}
+}
 
 func fakeAccounts(t *testing.T, accounts map[string]account) {
 	t.Helper()
@@ -40,17 +149,17 @@ func TestUserRunnerPersonIsAnOrdinaryLoginAccount(t *testing.T) {
 }
 
 func TestUserManagerIsOnlyAskedAboutTheRunnerUnit(t *testing.T) {
-	argv, err := userCtlArgv("alice", "enable", "--now", userUnit)
-	if err != nil || strings.Join(argv, " ") != "systemctl --user -M alice@ enable --now agent-bus-runner.service" {
+	argv, err := userCtlArgv("enable", "--now", userUnit)
+	if err != nil || strings.Join(argv, " ") != "systemctl --user enable --now agent-bus-runner.service" {
 		t.Fatalf("%q %v", argv, err)
 	}
-	if _, err := userCtlArgv("alice", "daemon-reload"); err != nil {
+	if _, err := userCtlArgv("daemon-reload"); err != nil {
 		t.Fatal(err)
 	}
 	for _, bad := range [][]string{{"restart", "user@1001.service"}, {"stop", userUnit}, {"restart", userUnit},
 		{"daemon-reexec"}, {"stop", "ab-session-work.scope"}, {"kill", userUnit}, {"try-restart", "ab-session-work.scope"},
 		{"enable"}, {"try-restart", userUnit, "user@1001.service"}, {"enable", "--now", "ab-session-work.scope", userUnit}} {
-		if _, err := userCtlArgv("alice", bad...); err == nil {
+		if _, err := userCtlArgv(bad...); err == nil {
 			t.Errorf("%q accepted", bad)
 		}
 	}

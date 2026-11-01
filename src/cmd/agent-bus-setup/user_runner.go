@@ -209,9 +209,9 @@ type userOps interface {
 var userCtlVerbs = map[string]bool{"daemon-reload": true, "enable": true, "disable": true,
 	"is-enabled": true, "is-active": true, "try-restart": true}
 
-// userCtlArgv builds `systemctl --user -M <person>@ <verb> [--now] [unit]`
-// and refuses anything else.
-func userCtlArgv(person string, args ...string) ([]string, error) {
+// userCtlArgv permits only this runner's commands. hostUserOps runs them as
+// the person against their existing bus, without the -M transient transport.
+func userCtlArgv(args ...string) ([]string, error) {
 	if len(args) == 0 || !userCtlVerbs[args[0]] {
 		return nil, fmt.Errorf("refusing systemctl --user %q", args)
 	}
@@ -223,7 +223,7 @@ func userCtlArgv(person string, args ...string) ([]string, error) {
 	if args[0] != "daemon-reload" && args[len(args)-1] != userUnit {
 		return nil, fmt.Errorf("refusing systemctl --user %q: only %s", args, userUnit)
 	}
-	return append([]string{"systemctl", "--user", "-M", person + "@"}, args...), nil
+	return append([]string{"systemctl", "--user"}, args...), nil
 }
 
 // helperArgv runs this program as the person: their uid, gid and groups,
@@ -469,7 +469,7 @@ func reachableByAll(path string) error {
 	}
 }
 
-// userManagerAvailable checks for `systemctl --user -M`, systemd 248 or later.
+// userManagerAvailable retains the installer's supported systemd floor.
 var userManagerAvailable = func() error {
 	out, err := exec.Command("systemctl", "--version").Output()
 	if err != nil {
@@ -480,7 +480,7 @@ var userManagerAvailable = func() error {
 		return fmt.Errorf("systemctl --version: unexpected answer")
 	}
 	if n, _ := strconv.Atoi(string(m[1])); n < 248 {
-		return fmt.Errorf("systemd %d is too old for `systemctl --user -M` (248 or later)", n)
+		return fmt.Errorf("systemd %d is too old for user-account runners (248 or later)", n)
 	}
 	return nil
 }
@@ -684,13 +684,22 @@ func (o hostUserOps) enableLinger(u userRunner) error {
 }
 
 func (o hostUserOps) userctl(u userRunner, args ...string) error {
-	argv, err := userCtlArgv(u.person, args...)
+	argv, err := userCtlArgv(args...)
 	if err != nil {
 		return err
 	}
+	ctl, err := exec.LookPath(argv[0])
+	if err != nil {
+		return err
+	}
+	argv = append([]string{"--reuid=" + strconv.Itoa(u.uid), "--regid=" + strconv.Itoa(u.gid),
+		"--init-groups", "--no-new-privs", "--", ctl}, argv[1:]...)
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	cmd := exec.CommandContext(ctx, "setpriv", argv...)
+	runtime := filepath.Join(runUser, strconv.Itoa(u.uid))
+	cmd.Env = append(helperEnv(u), "XDG_RUNTIME_DIR="+runtime, "DBUS_SESSION_BUS_ADDRESS=unix:path="+filepath.Join(runtime, "bus"))
+	cmd.Dir = "/"
 	if len(args) > 1 && args[1] == "--quiet" {
 		return cmd.Run()
 	}
