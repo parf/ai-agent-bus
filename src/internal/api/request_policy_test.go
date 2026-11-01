@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"io"
 	"net/http/httptest"
 	"net/url"
 	"strings"
@@ -201,5 +202,15 @@ func TestHTTPRejectsDuplicateKnownQueriesAcrossTheRouteInventory(t *testing.T) {
 	s.Handler().ServeHTTP(w, r)
 	if w.Code != 401 {
 		t.Fatalf("query validation bypassed authentication: %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestRequestJSONPreservesTheBodyDeadlineAfterOneDocument(t *testing.T) {
+	s, _ := serverFor(t, core.New(), "owner@h")
+	r := httptest.NewRequest("POST", "/register", io.MultiReader(strings.NewReader(`{"name":"a"}`), timedOutBody{}))
+	w := httptest.NewRecorder()
+	var out struct{ Name string }
+	if s.read(w, r, &out) || w.Code != 408 {
+		t.Fatalf("body deadline after JSON document: %d %s", w.Code, w.Body.String())
 	}
 }

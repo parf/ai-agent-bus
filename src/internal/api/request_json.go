@@ -19,6 +19,9 @@ func decodeRequest(r io.Reader, out any) error {
 		return err
 	}
 	if err := dec.Decode(new(any)); err != io.EOF {
+		if err != nil {
+			return err
+		}
 		return fmt.Errorf("expected one JSON body")
 	}
 	if err := checkMembers(json.NewDecoder(bytes.NewReader(raw)), reflect.TypeOf(out)); err != nil {
