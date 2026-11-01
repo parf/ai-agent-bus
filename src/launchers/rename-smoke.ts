@@ -173,8 +173,15 @@ try {
     const [diagnostic] = await Promise.all([err.bounded(), output.bounded()]);
     const rows = readEvents(events);
     const before = identity.data.name;
-    const after = rows.find(r => r.kind === "after-rename").data.name;
-    const renamed = rows.find(r => r.kind === "renamed").data;
+    const afterEvent = rows.find(r => r.kind === "after-rename");
+    const renamedEvent = rows.find(r => r.kind === "renamed");
+    check(`${runtime} publishes both rename results`, !!afterEvent && !!renamedEvent);
+    if (!afterEvent || !renamedEvent) {
+      console.log(diagnostic, JSON.stringify(rows));
+      continue;
+    }
+    const after = afterEvent.data.name;
+    const renamed = renamedEvent.data;
     if (code || renamed.isError) console.log(diagnostic, JSON.stringify(renamed));
     const expected = defaultName({ ...env, AGENT_BUS_REALM: realm, AGENT_BUS_RUNTIME: runtime, AGENT_BUS_CWD: title }, "/");
     check(`${runtime} names its session in the bus realm`, before.endsWith(`@${realm}`) && after.endsWith(`@${realm}`));
