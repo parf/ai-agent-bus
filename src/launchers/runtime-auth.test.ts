@@ -31,6 +31,23 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { startOwnedServer } from "./runtime-listener.ts";
 
 type ServerChild = { proc: ChildProcess };
+// startOwnedServer resolves only after the kernel identifies our listener, or
+// rejects after detecting a foreign one. Wait for that signal, not Bun's default
+// five-second test budget, which can expire during /proc inspection under load.
+async function listenerOutcome<T>(pending: Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const ready = pending.then(value => ({ state: "ready", value } as const), error => ({ state: "refused", error } as const));
+  try {
+    const outcome = await Promise.race([ready, new Promise<{ state: "timeout" }>(resolve => {
+      timer = setTimeout(() => resolve({ state: "timeout" }), 15_000);
+    })]);
+    expect(outcome.state, "runtime listener never signalled owned readiness or foreign refusal within 15s").not.toBe("timeout");
+    if (outcome.state === "timeout") throw new Error("unreachable readiness timeout");
+    if (outcome.state === "refused") throw outcome.error;
+    return outcome.value;
+  } finally { clearTimeout(timer); }
+}
+
 function runtimeChild(port: number, listen: boolean): ServerChild {
   return { proc: spawn(process.execPath, ["-e", listen
     ? `Bun.serve({hostname:"127.0.0.1",port:${port},fetch:()=>new Response("owned")});`
@@ -48,12 +65,12 @@ test("foreign listeners never receive credentials, including on the retry", asyn
   let error = "";
   try {
     try {
-      const result = await startOwnedServer(port => {
+      const result = await listenerOutcome(startOwnedServer(port => {
         foreign.push(Bun.serve({ hostname: "127.0.0.1", port, fetch: request => {
           headers.push(request.headers.get("authorization")); return new Response("foreign");
         } }));
         const child = runtimeChild(port, false); children.push(child); return child;
-      }, stopRuntime);
+      }, stopRuntime));
       // Exactly what an adapter would do once startup declares the port safe.
       await fetch(`http://127.0.0.1:${result.port}/config`, { headers: { authorization: "Bearer fixture-secret" } });
     } catch (e) { error = String(e); }
@@ -64,20 +81,20 @@ test("foreign listeners never receive credentials, including on the retry", asyn
     for (const child of children) await stopRuntime(child);
     for (const server of foreign) server.stop(true);
   }
-});
+}, 30_000);
 
 test("a port collision retries once and authenticates only to our runtime", async () => {
   let foreign: ReturnType<typeof Bun.serve> | undefined;
   const children: ServerChild[] = [];
   const headers: (string | null)[] = [];
   try {
-    const result = await startOwnedServer(port => {
+    const result = await listenerOutcome(startOwnedServer(port => {
       const collision = children.length === 0;
       if (collision) foreign = Bun.serve({ hostname: "127.0.0.1", port, fetch: request => {
         headers.push(request.headers.get("authorization")); return new Response("foreign");
       } });
       const child = runtimeChild(port, !collision); children.push(child); return child;
-    }, stopRuntime);
+    }, stopRuntime));
     const response = await fetch(`http://127.0.0.1:${result.port}/config`, { headers: { authorization: "Bearer fixture-secret" } });
     expect(await response.text()).toBe("owned");
     expect(headers).toEqual([]);
@@ -86,4 +103,4 @@ test("a port collision retries once and authenticates only to our runtime", asyn
     for (const child of children) await stopRuntime(child);
     foreign?.stop(true);
   }
-});
+}, 30_000);
