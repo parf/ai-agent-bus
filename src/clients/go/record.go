@@ -16,6 +16,7 @@ type Record struct {
 	Name  string
 	bus   *Bus
 	KV    KV
+	Big   Big
 	Locks Locks
 }
 
