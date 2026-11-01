@@ -158,8 +158,11 @@ if (args[0] === "serve") {
   }
   if (!config) { event("plain"); process.exit(Number(process.env.TEST_EXIT || 0)); }
   writeFileSync(file + ".tui-ready", "ready");
-  if (kind === "claude" && !args.includes("mcp__plugin_agent-bus_agent-bus__*")) { event("tools-not-authorized"); process.exit(18); }
-  if (kind === "codex" && config.default_tools_approval_mode !== "approve") { event("tools-not-authorized"); process.exit(18); }
+  // The safe tools are pre-approved by name; a tool that touches files asks.
+  const allowed = String(args[args.indexOf("--allowedTools") + 1] ?? "").split(",");
+  const prefix = "mcp__plugin_agent-bus_agent-bus__";
+  if (kind === "claude" && (!allowed.includes(prefix + "ab_send") || allowed.some(t => /bigfile_(put|get)$/.test(t) || t.endsWith("*")))) { event("tools-not-authorized"); process.exit(18); }
+  if (kind === "codex" && (config.default_tools_approval_mode !== "approve" || config.tools?.ab_bigfile_put?.approval_mode !== "prompt" || config.tools?.ab_bigfile_get?.approval_mode !== "prompt")) { event("tools-not-authorized"); process.exit(18); }
   if (kind === "codex") {
     if (args.includes("resume") && args.some(a => /^(approval_policy|sandbox_mode)=/.test(a))) {
       event("resume-permission-override");

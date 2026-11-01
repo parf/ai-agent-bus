@@ -4,6 +4,8 @@ import { appendFileSync, chmodSync, closeSync, existsSync, mkdirSync, mkdtempSyn
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { Bus, BusError } from "../mcp/bus.ts";
+import descriptions from "../mcp/tools.yaml";
+import { allowedTools, codexPrompted } from "../mcp/tool-access.ts";
 import { Codex } from "../mcp/codex.ts";
 import { Opencode } from "../mcp/opencode.ts";
 import { Opencode1 } from "../mcp/opencode1.ts";
@@ -350,7 +352,7 @@ ${COPYRIGHT}`);
       env: { AGENT_BUS_SESSION_FILE: envFile }, enabled: true,
     };
     // TOML inline table; strings are JSON-escaped, never interpreted by a shell.
-    serverArgs.push("-c", `mcp_servers.agent-bus={command=${JSON.stringify(mcp.command)},args=[${faceCommand.slice(1).map(a => JSON.stringify(a)).join(",")}],env={AGENT_BUS_SESSION_FILE=${JSON.stringify(envFile)}},enabled=true,default_tools_approval_mode="approve"}`);
+    serverArgs.push("-c", `mcp_servers.agent-bus={command=${JSON.stringify(mcp.command)},args=[${faceCommand.slice(1).map(a => JSON.stringify(a)).join(",")}],env={AGENT_BUS_SESSION_FILE=${JSON.stringify(envFile)}},enabled=true,default_tools_approval_mode="approve",${codexPrompted()}}`);
     const fd = openSync(join(runDir, "app-server.log"), "a", 0o600);
     try {
       const owned = await startOwnedServer(port => start([binary, "app-server", ...serverArgs, "--listen", `ws://127.0.0.1:${port}`], cleanEnv, fd), stop);
@@ -449,7 +451,7 @@ ${COPYRIGHT}`);
     faceEnv.AGENT_BUS_SESSION_FILE = envFile;
     faceEnv.AGENT_BUS_MCP_ENTRY = face;
     ensureClaudePlugin(binary, cleanEnv);
-    runtimeArgs =["--allowedTools", "mcp__plugin_agent-bus_agent-bus__*", "--channels", "plugin:agent-bus@agent-bus-local", ...runtimeArgs];
+    runtimeArgs =["--allowedTools", allowedTools(Object.keys(descriptions)).join(","), "--channels", "plugin:agent-bus@agent-bus-local", ...runtimeArgs];
     resumedArgs = () => {
       const forwarded: string[] = [];
       for (let i = 0; i < runtimeArgs.length; i++) {
