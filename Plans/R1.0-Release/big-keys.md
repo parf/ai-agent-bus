@@ -1,7 +1,7 @@
 # Big keys
 
 📌 **TL;DR:**
-- **Plan only; no code until the owner approves** ([B.32](TODO.md#bundled-agents), [decision](DECISIONS.md#recorded-decisions), questions Q288–Q295).
+- **Approved 2026-11-01 11:05, all recommendations accepted** ([B.32](TODO.md#bundled-agents), [decision](DECISIONS.md#recorded-decisions)). Stage 2a (API and a memory holder) is built; the file holder follows in 2b.
 - **Idea (owner, 2026-11-01):** a named value too big for a message lives in the bus, in memory or in a file. Agents pass the key name instead of the body.
 - **Access:** the record's Maintainers upload, download and delete; principals its allow list admits download only.
 - **Release:** R1. It extends the R1 [key-value store](done/kv.md#per-record-storage), a shared extension of the same release, and the [IMAP agent](imap-folders.md#help-text) needs it now; R1.1 storage backends and encryption are separate work this does not wait for.
@@ -18,7 +18,7 @@ big rm <record> <name>: Delete one big key at once; the answer says whether it w
 ```
 
 - `<record>` is any record that can hold a [key-value store](../../docs/03-records-kv.md#where-to-attach-it); `<name>` follows the key-value name rules.
-- The same four calls exist as API, client-library and MCP calls (`ab_big_put`, `ab_big_get`, `ab_big_ls`, `ab_big_rm`) and as the face-neutral names the [method metadata](done/method-metadata.md#method-metadata) lists; the web face lists and deletes only ([Q295](QUESTIONS.md#big-keys)).
+- The same four calls exist as API, client-library and MCP calls (`ab_big_put`, `ab_big_get`, `ab_big_ls`, `ab_big_rm`) and as the face-neutral names the [method metadata](done/method-metadata.md#method-metadata) lists; the web face lists and deletes only (settled).
 - A message that passes a key carries the record name and the key name as plain text; the receiver runs `big get`. No new message field.
 
 ## How the IMAP agent uses it
@@ -32,7 +32,7 @@ part <uid> <part-id> --big <name> [--folder <name>]: Store the decoded part unde
 
 - The plain `part` and `append` of the folders plan stay as landed for small mail.
 - Download: the caller reads the key after the instance wrote it; the instance's own allow list is the caller's own admission, so no extra grant is needed.
-- Upload for `append`: the caller puts the mail on a record they maintain, such as their own User record, and that record's allow list admits the IMAP instance ([Q294](QUESTIONS.md#big-keys)). The agent builds no MIME and holds the bytes only while it streams them to the server.
+- Upload for `append`: the caller puts the mail on a record they maintain, such as their own User record, and that record's allow list admits the IMAP instance (settled). The agent builds no MIME and holds the bytes only while it streams them to the server.
 
 ## What it is and is not
 
@@ -47,13 +47,13 @@ part <uid> <part-id> --big <name> [--folder <name>]: Store the decoded part unde
 ### Authority
 
 - Maintainers, the Owner and the record's own Agent use it as they use the key-value store ([shared authority](../../docs/03-records-kv.md#where-to-attach-it)).
-- **One deliberate difference:** the key-value store says the allow list never reaches the store. Here the allow list admits download, because the owner asked that agents be able to read what is passed to them ([Q293](QUESTIONS.md#big-keys)). Upload, delete and expiry stay with Maintainers.
+- **One deliberate difference:** the key-value store says the allow list never reaches the store. Here the allow list admits download, because the owner asked that agents be able to read what is passed to them (settled). Upload, delete and expiry stay with Maintainers.
 
 ### Trust and durability
 
 - **[Trust boundary](../../docs/02-access.md#trust-boundary):** the daemon can read every byte; nothing is encrypted at rest or between peers. Files are `0600` in a `0700` directory; off loopback use TLS or SSH.
 - **[Durability](../../docs/04-messaging.md#durability):** an upload is written to a temporary file, synced, and committed with its index entry before the call answers; a crash leaves no key, and temporary files are removed at start. A memory key is explicitly not durable. A full disk refuses the upload.
-- **Backup:** big keys are transient and left out of the database backup; a restore starts with none ([Q292](QUESTIONS.md#big-keys)).
+- **Backup:** big keys are transient and left out of the database backup; a restore starts with none (settled).
 - **[Process boundary](../../docs/08-processes.md#the-rule):** the bus role owns it; no new process, no new listener. The upload and download paths stream and are not bus messages, so they are not bound by the 1 MiB request cap.
 
 ## Order of work
