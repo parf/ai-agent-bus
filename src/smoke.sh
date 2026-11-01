@@ -2935,10 +2935,10 @@ has "and asking twice is a read, not a rotation" \
 is_empty "while --rotate hands out a new one" \
   "$(AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$ETOK "$D/agent-bus" token alice@srv1 --rotate | grep -x "$TOK1")"
 # The point of the key path: nothing to present, and no sshd in it anywhere.
-KTOK=$(AGENT_BUS_ADDR=http://127.0.0.1:$((PORT+10)) "$D/agent-bus" token squatter@vouched --key "$D/enr/mine" 2>&1)
+KTOK=$(AGENT_BUS_ADDR=http://127.0.0.1:$((PORT+10)) "$D/agent-bus" token squatter@vouched --key="$D/enr/mine" 2>&1)
 has "a key is credential enough where the realm publishes it" "$KTOK" '^[0-9a-f]\{48\}$'
 has "and that credential is that name's" "$(ecode squatter@vouched "$KTOK" /status)" '200'
-out=$(AGENT_BUS_ADDR=http://127.0.0.1:$((PORT+10)) "$D/agent-bus" token newbie@vouched --key "$D/enr/theirs" 2>&1); rc=$?
+out=$(AGENT_BUS_ADDR=http://127.0.0.1:$((PORT+10)) "$D/agent-bus" token newbie@vouched --key="$D/enr/theirs" 2>&1); rc=$?
 bad_exit "a key the realm does not publish for that name gets nothing" $rc
 # Over SSH the line is the entitlement and the request is what was typed.
 out=$(SSH_ORIGINAL_COMMAND="token $OWNER" AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$ETOK \

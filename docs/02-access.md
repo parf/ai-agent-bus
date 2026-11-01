@@ -126,7 +126,7 @@ Public exceptions are listed below.
 |---|---|
 | SSH | `export AGENT_BUS_TOKEN=$(ssh agent-busd@<node> token)` |
 | Local account | `agent-bus token` (login socket identity), or an explicit `<name>` |
-| Published key, no sshd needed | `agent-bus token <name> --key <ed25519>` |
+| Published key, no sshd needed | `agent-bus token <name> --key=<ed25519>` |
 
 - The first two paths require access to the node's host.
 - Over SSH, the `authorized_keys` forced command fixes the permitted identity; a caller cannot replace it by supplying another name.

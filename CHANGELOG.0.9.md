@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.271 — 2026-11-01
+
+token --key and enrol sign only in the agent-bus namespace and check the challenge first; --key --rotate rotates; token takes its key only as --key=<file>
+
 ## 0.9.270 — 2026-11-01
 
 A slow bigfile upload is no longer cut at 30 s: PUT /bigfile gets an idle timeout within a total budget scaled to its size, answers 408 on a stall, and the CLI uses the same budget
