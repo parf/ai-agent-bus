@@ -3,7 +3,7 @@
 ## B1/B2/B3 key proof signs only the bus's namespace, rotates and parses `--key`
 
 - 🟠 B1 `agent-bus token --key` and `agent-bus enrol` signed the namespace and message a node sent back. Result: `keyproof.Sign` has no namespace parameter and always signs the nonce in `agent-bus`; both callers refuse an answer with another namespace, name or a nonce that is not 32 hex digits, naming the member and never echoing it ([proof](../../docs/02-access.md#proving-possession)).
-- 🟠 B2 `--rotate` with `--key` was dropped. Result: the proof's credential is used to rotate, and the new one is printed. 🟠 B3 `--key <word>` took the word as the file: now only `--key=<file>` or a bare `--key`, and a word that is an existing file is refused with "--key takes its file as --key=<file>". Mutants are named in the ready note; the node-in-the-middle relay is in [FUTURE](FUTURE.md#key-proof-bound-to-the-node-it-was-made-for).
+- 🟠 B2 `--rotate` with `--key` was dropped. Result: the proof's credential is used to rotate, and the new one is printed. 🟠 B3 `--key <word>` took the word as the file: now only `--key=<file>` or a bare `--key`, and a word that is an existing file is refused with "--key takes its file as --key=<file>". After review: the rotation is sent to the shared listener, because a user socket ignores a presented token; a namespace that is present but empty, null or not text is refused (only an absent one is the older answer); an explicit empty `--key=` is refused. Mutants are named in the ready note; the node-in-the-middle relay is in [FUTURE](FUTURE.md#key-proof-bound-to-the-node-it-was-made-for).
 
 ## J1 MCP bigfile tools fenced and never pre-approved
 
