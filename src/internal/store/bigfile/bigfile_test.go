@@ -178,6 +178,33 @@ func TestLimitsCountFilesAndMemoryTogether(t *testing.T) {
 	if _, err := put(s, 1, "f", strings.Repeat("y", 90), false, now); err != nil {
 		t.Fatalf("a replace counted its old bytes: %v", err)
 	}
+	// And the other way round: memory first, then a file.
+	other, _ := open(t)
+	if _, err := put(other, 1, "m", strings.Repeat("x", 90), true, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := put(other, 1, "f", strings.Repeat("x", 70), false, now); !errors.Is(err, ports.ErrBigFull) {
+		t.Fatalf("70 bytes in a file beside 90 in memory passed the record total: %v", err)
+	}
+}
+
+func TestAFileUnderTheWrongNameIsRemovedAtStart(t *testing.T) {
+	s, dir := open(t)
+	now := time.Now()
+	put(s, 1, "k", "bytes", false, now)
+	good := filepath.Join(dir, "1", fileName("k"))
+	raw, _ := os.ReadFile(good)
+	wrong := filepath.Join(dir, "1", fileName("another"))
+	os.WriteFile(wrong, raw, 0o600) // whole, but not the file this key's name maps to
+	if _, err := Open(dir, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(wrong); !os.IsNotExist(err) {
+		t.Fatal("a whole file under the wrong name was kept")
+	}
+	if _, err := os.Stat(good); err != nil {
+		t.Fatalf("the right file was removed: %v", err)
+	}
 }
 
 func TestReplaceMovesAKeyBetweenHolders(t *testing.T) {
