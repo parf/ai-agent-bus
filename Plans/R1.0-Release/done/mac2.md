@@ -66,6 +66,23 @@ Native no-sudo verification at `e6720401` also passes on the owner's darwin/arm6
 
 Immediately after install teardown, the clone was clean on `main` and the workspace was **53M**; the later admin proof leaves it **54M** as recorded above. `~/go` and `~/Library/Caches/go-build` are absent. `df -h` reported 460 Gi total, 192 Gi used / 244 Gi available before, and 193 Gi used / 244 Gi available after; these are the filesystem's rounded readings, not a claim that global disk usage was unchanged.
 
+## Archive acceptance
+
+Passed on the owner's Apple Silicon Mac on 2026-11-01 at 15:14, run by #ab-ceo from the [archive run list](../mac2b-run-list.md#run-the-archive-check): `rc=0` in 27.059 s, revision `c49d51f3` (0.9.267), arm64, the stamped `darwin-aarch64` full archive (checksum verified). Log: [mac2-archive-2026-11-01.log](mac2-archive-2026-11-01.log), sha256 `4380848d714e8b14376bea30198fa17695c570e3f93a29b801a1844fc4b2f074`.
+
+| PASS line in the log | |
+|---|---|
+| existing hidden non-login role account is safe to reuse | three times: before the install, after it, and at teardown |
+| native full archive checksum, manifest, versions and build stamps | every program stamped `c49d51f3` |
+| full archive installed by reduced setup without `--exec`, token wrapper version | |
+| role account, launchd identity and private storage | |
+| pinned TLS request/reply, exactly once, agent identity | |
+| registry survives launchd restart | |
+| supervisor kill leaves no old bus child and registry survives | |
+| uninstall removed the fixture job and setup files | with `role account kept (by design)` |
+
+Setup restored the group the earlier teardown had removed: `/Groups/_agentbusd` came back with PrimaryGroupID 206, the existing user's own ([MAC.2g](mac2g.md#scope)). Nothing was left behind: no job, plist, library, storage or links, and the checkout is clean. `du -sh ~/agent-bus-dev` ends the log at 128M; #ab-ceo reports 64M afterwards. The log holds commands, paths, revisions and the throwaway fixture's public certificate fingerprint, and no credential.
+
 ## Sudo commands actually run
 
 Every direct invocation is listed below in execution order, including read-only preflights and repeated status reads. The two `SETUP CHILD SUDO` lines describe the fresh-install child invocations: successful database initialization and first-user enrolment confirm both ran. No token value or private key is printed.

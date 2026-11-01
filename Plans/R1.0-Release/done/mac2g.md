@@ -6,7 +6,7 @@ The CEO's 0.9.263 rerun stopped in preflight: `_agentbusd` existed without its g
 
 Setup now keeps the user unchanged, reuses the matching group, or recreates only a missing group at that user's unused PrimaryGroupID and verifies it. A named group at another GID or another group owning the GID refuses with both identities named. Directory lookup errors refuse rather than triggering creation.
 
-The [current run list](../mac2b-run-list.md#role-account-reuse) owns preflight and cleanup. Preflight allows a safe user-only state; after setup and at teardown the complete safe pair is required. Other leftovers still refuse. MAC.2 remains pending native archive acceptance; no Mac access or host changes were used for this work.
+The [current run list](../mac2b-run-list.md#role-account-reuse) owns preflight and cleanup. Preflight allows a safe user-only state; after setup and at teardown the complete safe pair is required. Other leftovers still refuse. The native archive run later passed and restored the group ([result](mac2.md#archive-acceptance)); no Mac access or host changes were used for this work.
 
 ## Local checks
 

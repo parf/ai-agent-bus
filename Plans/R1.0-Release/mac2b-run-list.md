@@ -1,6 +1,6 @@
 # Full Darwin archive acceptance
 
-📌 **TL;DR:** MAC.2b supplies the full Darwin archive for the reduced launchd setup. The CEO runs this fresh-fixture check on the owner's Mac; workers have no Mac access. MAC.2 remains pending until the archive install, request/reply, restart and cleanup all pass.
+📌 **TL;DR:** MAC.2b supplies the full Darwin archive for the reduced launchd setup. The CEO runs this fresh-fixture check on the owner's Mac; workers have no Mac access. The archive install, request/reply, restart and cleanup passed on 2026-11-01 ([result](done/mac2.md#archive-acceptance)).
 
 ## What this proves
 
