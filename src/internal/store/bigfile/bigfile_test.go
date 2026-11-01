@@ -615,3 +615,54 @@ func TestStartDoesNotBlockOnAFifoOrOpenAnyNonRegularEntry(t *testing.T) {
 		t.Fatal("the FIFO was kept")
 	}
 }
+
+// Start never removes or reads through a linked record directory: the row goes
+// and the file behind the link stays, expired or not.
+func TestStartNeverRemovesThroughALinkedRecordDirectory(t *testing.T) {
+	for _, expired := range []bool{true, false} {
+		s, dir, idx := open(t)
+		now := time.Now()
+		put(s, 7, "k", "outside bytes", false, now)
+		row := rowOf(t, idx, 7, "k")
+		outside := filepath.Join(t.TempDir(), "outside")
+		if err := os.Rename(filepath.Join(dir, "7"), outside); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(outside, filepath.Join(dir, "7")); err != nil {
+			t.Fatal(err)
+		}
+		at := now
+		if expired {
+			at = now.Add(2 * time.Hour)
+		}
+		again := reopen(t, dir, idx, at)
+		if _, err := os.Stat(filepath.Join(outside, row.File)); err != nil {
+			t.Fatalf("expired=%v: the file behind the link was removed: %v", expired, err)
+		}
+		if _, found, _ := idx.BigRowGet(7, "k"); found {
+			t.Fatalf("expired=%v: the row behind a linked directory was kept", expired)
+		}
+		absent(t, again, 7, "k", at)
+	}
+}
+
+// Dropping a record whose directory is a link removes the link, never what it
+// points at.
+func TestADropNeverRemovesThroughALinkedRecordDirectory(t *testing.T) {
+	s, dir, idx := open(t)
+	now := time.Now()
+	put(s, 7, "k", "outside bytes", false, now)
+	row := rowOf(t, idx, 7, "k")
+	outside := filepath.Join(t.TempDir(), "outside")
+	os.Rename(filepath.Join(dir, "7"), outside)
+	os.Symlink(outside, filepath.Join(dir, "7"))
+	if err := s.BigDrop(7); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(outside, row.File)); err != nil {
+		t.Fatalf("a drop removed the file behind the link: %v", err)
+	}
+	if _, found, _ := idx.BigRowGet(7, "k"); found {
+		t.Fatal("the row survived the drop")
+	}
+}

@@ -110,9 +110,13 @@ func (s *Store) reconcile(now time.Time) error {
 	for _, r := range rows {
 		path := s.rowPath(r)
 		whole := false
-		if fi, err := os.Lstat(path); err == nil && fi.Mode().IsRegular() && now.Before(r.Expires) {
-			if info, err := readFooter(path); err == nil && info.Name == r.Name && info.Size == r.Size && info.SHA256 == r.SHA256 {
-				whole = true
+		// A record directory that is a link is not trusted for reading or for
+		// removing: the row goes, and nothing behind the link is touched.
+		if s.parentOK(path) == nil {
+			if fi, err := os.Lstat(path); err == nil && fi.Mode().IsRegular() && now.Before(r.Expires) {
+				if info, err := readFooter(path); err == nil && info.Name == r.Name && info.Size == r.Size && info.SHA256 == r.SHA256 {
+					whole = true
+				}
 			}
 		}
 		if whole {
@@ -124,7 +128,7 @@ func (s *Store) reconcile(now time.Time) error {
 		if _, _, err := s.idx.BigRowDelete(r.Record, r.Name); err != nil {
 			return err
 		}
-		os.Remove(path)
+		s.unlink(r)
 	}
 	entries, err := os.ReadDir(s.dir)
 	if err != nil {
