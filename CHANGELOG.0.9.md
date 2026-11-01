@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.253 — 2026-11-01
+
+Big keys survive restarts in private files, expire, and drop orphans; an unusable store answers 503 with the cause while the daemon stays up
+
 ## 0.9.252 — 2026-11-01
 
 Big keys API and authority: Maintainers put and delete, the allow list gets and lists, memory holder, keys removed with their record
