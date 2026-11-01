@@ -25,6 +25,7 @@ stage is [R1.2](../R1.2/README.md#scope).
 | Runner backups | [Backup contract](backups.md#backing-it-up); [RT13 and RBK1](TODO.md#backups) |
 | Operations | [Operations](operations.md#reload) |
 | Discord agent (moved from R1) | [Discord plan](discord.md#discord-agent-b27a); [task](TODO.md#discord) |
+| File scanner (FS.1, plan only) | [Filescan plan](filescan.md#steps-and-estimate); [task](TODO.md#filescan) |
 | Storage backends | [Storage backends](storage.md#backends) |
 | Peer registry | [Registry sync](registry.md#registry-sync) |
 | Module boundaries | [R1.1 modules](modules.md#modules) |
