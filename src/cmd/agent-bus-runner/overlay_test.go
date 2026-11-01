@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -326,5 +327,33 @@ func TestAgentAndInstanceOverlayPublicationStayIndependent(t *testing.T) {
 		if err != nil || string(data) != key {
 			t.Fatalf("publishing another key changed %s: %s %v", key, data, err)
 		}
+	}
+}
+
+func TestFailedOverlayPublicationRestoresPreviousMerge(t *testing.T) {
+	host := t.TempDir()
+	if err := publishOverlays(host, "hello", []overlayFile{{name: "settings.json", body: []byte("old")}}); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(host, ".merged", "hello", ".files")
+	err := publishOverlayTree(target, []overlayFile{{name: "settings.json", body: []byte("new")}}, func(from, to string) error {
+		if strings.HasPrefix(filepath.Base(from), ".files.merge-") {
+			return errors.New("injected publication refusal")
+		}
+		return os.Rename(from, to)
+	})
+	if err == nil || !strings.Contains(err.Error(), "injected publication refusal") {
+		t.Fatalf("expected publication refusal: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(target, "settings.json"))
+	if err != nil || string(data) != "old" {
+		t.Fatalf("failed publication did not restore previous merge: %s %v", data, err)
+	}
+	entries, err := os.ReadDir(filepath.Dir(target))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != ".files" {
+		t.Fatalf("failed publication retained temporary/backup output: %v", entries)
 	}
 }

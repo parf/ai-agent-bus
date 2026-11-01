@@ -144,6 +144,11 @@ func recoverOverlays(runnerDir string) error {
 // The sibling backup also recovers an interrupted two-rename replacement.
 func publishOverlays(runnerDir, key string, files []overlayFile) error {
 	target := filepath.Join(runnerDir, ".merged", filepath.FromSlash(key), ".files")
+	return publishOverlayTree(target, files, os.Rename)
+}
+
+// The rename seam exercises rollback without relying on host permission errors.
+func publishOverlayTree(target string, files []overlayFile, rename func(string, string) error) error {
 	parent := filepath.Dir(target)
 	backup := filepath.Join(parent, ".files.previous")
 	if len(files) == 0 {
@@ -164,16 +169,16 @@ func publishOverlays(runnerDir, key string, files []overlayFile) error {
 	}
 	hadOld := false
 	if _, err := os.Lstat(target); err == nil {
-		if err := os.Rename(target, backup); err != nil {
+		if err := rename(target, backup); err != nil {
 			return err
 		}
 		hadOld = true
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	if err := os.Rename(stage, target); err != nil {
+	if err := rename(stage, target); err != nil {
 		if hadOld {
-			if restore := os.Rename(backup, target); restore != nil {
+			if restore := rename(backup, target); restore != nil {
 				return fmt.Errorf("publish overlays: %v; previous files retained at %s: %w", err, backup, restore)
 			}
 		}
