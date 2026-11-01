@@ -198,7 +198,10 @@ Both live on a record and answer to its management authority.
 
 ### Every route and its class
 
-One row for each route the daemon registers, read from every Go source: a route with no row, a row for a route that is not registered, or a registration the check cannot read as `HandleFunc("METHOD /path", …)` fails `TestEveryRegisteredRouteHasAContractRow`; a stable route whose whole path is missing from [the client contract](#the-client-contract) fails `TestEveryStableRoutePathIsInTheClientContract`.
+One row for each route the daemon registers, read from every Go source. Two tests hold it:
+
+- `TestEveryRegisteredRouteHasAContractRow` fails for a route with no row, a row for a route that is not registered, or a registration it cannot read as `HandleFunc("METHOD /path", …)`.
+- `TestEveryStableRoutePathIsInTheClientContract` fails for a stable route whose whole path is missing from [the client contract](#the-client-contract).
 
 | Route | Class | Where |
 |---|---|---|
