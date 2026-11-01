@@ -121,6 +121,12 @@ def role_account():
         assert re.fullmatch(r'[0-9]+', user.get(field, '')), 'invalid role ' + field
         assert 200 <= int(user[field]) < 400, 'unsafe role ' + field
     assert group.get('PrimaryGroupID') == user['PrimaryGroupID'] == user['UniqueID'], 'unsafe role group id: ' + ROLE
+    for privileged in ('admin', 'wheel'):
+        result = run(['/usr/bin/dscl', '.', '-read', '/Groups/' + privileged, 'GroupMembership'], private=True)
+        assert not result.stderr, 'cannot inspect privileged group ' + privileged
+        membership = re.search(r'^GroupMembership:(.*)$', result.stdout, re.M)
+        assert membership is not None, 'cannot inspect GroupMembership: ' + privileged
+        assert ROLE not in membership[1].split(), 'role belongs to privileged group ' + privileged
     print('PASS existing hidden non-login role account is safe to reuse', flush=True)
     return True
 
@@ -147,6 +153,7 @@ def uninstall(missing_parents):
     assert not root_exists(HOME) and not root_exists(RUN) and not root_exists(PREFIX) and not root_exists(PLIST)
     assert all(not root_exists(link) for link in COMMAND_LINKS), 'command link remains'
     assert sudo('/bin/launchctl', 'print', JOB, check=False, private=True).returncode != 0, 'launchd job remains'
+    assert role_account(), 'kept role account/group is missing'
     print('role account kept (by design)', flush=True)
     print('PASS uninstall removed the fixture job and setup files', flush=True)
 

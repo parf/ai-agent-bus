@@ -226,8 +226,6 @@ The [MAC.2 acceptance harness](../src/acceptance/mac2-install-check.py) removes 
 - Retry user deletion and delete the group only if it remains; verify both entries are absent.
 - Use `sysadminctl` and `dseditgroup` for deletion; `dscl` is used only to inspect the directory.
 
-- The harness checks both entries, skips an already absent group and verifies absence after deletion even when `dseditgroup` returns nonzero.
-- A remaining entry or an unreadable directory produces a named user/group leftover report, recovery steps and a nonzero exit; it never prints a clean uninstall result in those cases.
 - Granting Full Disk Access and retrying live cleanup remain owner actions.
 
 ### The two accounts

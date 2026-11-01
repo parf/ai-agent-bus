@@ -271,13 +271,15 @@ Owner, 2026-10-30: every doc leads with why, then what you get, then real exampl
 
 ## MAC.2 daemon and reduced setup
 
+Cleanup details below are historical, superseded by [MAC.2e](done/mac2e.md#decision-and-scope), which keeps the verified role account.
+
 - Close-out audit: `f11c9d2a` landed the native reduced setup, orphan-startup refusal and verified cleanup. MAC.2 remains pending for MAC.2b: the written acceptance requires installing a full Darwin daemon archive, while the recorded native run installed focused binaries with `--exec` and main currently produces client-only Darwin archives. The CEO must supply the archive-based Mac proof; the earlier run is not relabelled as that acceptance.
 
 - Native daemon/setup/admin build, launchd identity, private storage, pinned TLS request/reply, registry restart and orphan checks passed on the owner's Apple Silicon Mac. [Evidence and every sudo invocation](done/mac2.md#checks-and-results).
 - The fresh-parent permission HIGH is fixed and assertion-proven; first-user administration explicitly stays in the Darwin role's home and socket. Node setup mutants fail on assertions. Admin's installed account/home/socket and credential hint now follow the OS; the native defaults test failed before the fix and the focused native checks pass afterward, without sudo.
 - The release archive check remains with MAC.1; deleting the test role over SSH was refused and is an owner item. Runtime files and build caches were removed, the clone is clean on main, and the Mac was handed back.
-- Acceptance cleanup now uses `sysadminctl` for the user and `dseditgroup` for the group, checks directory absence independently and fails with named leftovers and Full Disk Access recovery. Local command-stub checks fail on the old cleanup and pass on the fixed harness; the owner-run live proof is recorded below.
-- Owner-run cleanup passed at 17:23 on 2026-10-30: `sysadminctl` removed both user and group without Full Disk Access; the CEO confirmed both directory entries and the user identity are absent. Stubs cover the group already removed by user deletion and a nonzero group deletion followed by verified absence; both succeed.
+- Acceptance cleanup now uses `sysadminctl` for the user and `dseditgroup` for the group, checks directory absence independently and fails with named leftovers and Full Disk Access recovery. Local command-stub checks fail on the old cleanup and pass on the fixed harness; the owner-run live proof is recorded below. Historical cleanup is superseded by [MAC.2e](done/mac2e.md#decision-and-scope), which keeps the verified role account.
+- Owner-run cleanup passed at 17:23 on 2026-10-30: `sysadminctl` removed both user and group without Full Disk Access; the CEO confirmed both directory entries and the user identity are absent. Stubs cover the group already removed by user deletion and a nonzero group deletion followed by verified absence; both succeed. Historical cleanup is superseded by [MAC.2e](done/mac2e.md#decision-and-scope), which keeps the verified role account.
 - Supervisor startup review: the non-Linux child verifies its spawning supervisor's explicit PID before startup, then watches that same parent. Local process fixtures cover parent death before and after watcher startup and prove the inherited listener is released; the setup package runs the cleanup stub regression checks.
 
 ## RT33 may-send for another name
@@ -302,7 +304,9 @@ The checker extracts INSTALL.md's checkout shell blocks and runs them verbatim i
 
 ## MAC.2d account-only teardown reporting
 
-The archive harness reports a verified `-14120` account-only cleanup partial with exit 3 and the exact owner local-terminal removal/absence check. Other teardown failures remain strict. [Native failed run and local checks](done/mac2d.md#native-run); [owner recovery](mac2b-run-list.md#account-removal-blocked-over-ssh). MAC.2 remains pending the revised run and CEO account-absence confirmation.
+Historical cleanup is superseded by [MAC.2e](done/mac2e.md#decision-and-scope), which keeps the verified role account.
+
+The archive harness reports a verified `-14120` account-only cleanup partial with exit 3 and the exact owner local-terminal removal/absence check. Other teardown failures remain strict. [Native failed run and local checks](done/mac2d.md#native-run); [owner recovery](mac2b-run-list.md#account-removal-blocked-over-ssh). MAC.2 remains pending the revised run and CEO account-absence confirmation. Historical cleanup is superseded by [MAC.2e](done/mac2e.md#decision-and-scope), which keeps the verified role account.
 
 ## P.1c macOS npm platform acceptance
 

@@ -19,3 +19,7 @@ The owning cleanup/archive stub suite verifies a valid reusable role, absent rol
 - Skipping other setup-path refusals: six leftover-path assertions fail, 0.315 s.
 
 Each mutant ran only its owning test under the slow lock, compiled and failed on assertions (no ERROR); source restored and lock released immediately. Restored cleanup/archive suite: 20/0; owning Go wrapper: PASS. No shipped program behavior or version changes.
+
+## Review delta
+
+Preflight additionally checks direct `GroupMembership` in both `admin` and `wheel`, refusing a privileged role. Tests isolate UID boundaries 0, 199 and 400 with matching group IDs. Teardown rechecks the kept account before printing its success message; a role changed to a login shell fails cleanup. Current setup/TODO and historical MAC.2/MAC.2d notes now point explicitly to this replacement policy. Restored suite: 22 tests; owning Go wrapper passes. Review mutants each fail on assertions, no ERROR: skipping privileged memberships gives two failures (admin and wheel); dropping the UID lower bound gives two failures (0 and 199); skipping the teardown safety recheck gives one failure. All sources were restored and the slow lock released.

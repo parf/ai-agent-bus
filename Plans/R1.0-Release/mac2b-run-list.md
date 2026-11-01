@@ -70,11 +70,12 @@ Cleanup runs in `finally` after failed assertions too. It bootouts the fixture j
 Owner, 2026-11-01 13:58 ([decision](DECISIONS.md#recorded-decisions)): the acceptance keeps the role account instead of deleting and recreating it on every run. Preflight accepts either an absent user/group pair or the expected existing pair:
 
 - user shell `/usr/bin/false`, `IsHidden: 1`, home `/usr/local/var/agent-bus/daemon`;
-- user UID and primary GID in 200–399, matching each other and the role group's GID.
+- user UID and primary GID in 200–399, matching each other and the role group's GID;
+- no direct membership in the privileged `admin` or `wheel` group.
 
 A login-capable or visible account, unexpected home or IDs, incomplete pair or unreadable lookup refuses the run. All other existing fixture state is still refused. Setup already reuses an existing account; the run still checks the launchd daemon's `_agentbusd` identity (never root) and `0700` storage.
 
-The harness prints `role account kept (by design)` and exits 0 after successful acceptance and strict teardown. The MAC.2d account-removal partial exit 3 is retired. Deleting the account is an optional owner step for a [real uninstall](../../docs/07-setup.md#uninstall-the-macos-test-daemon), not acceptance cleanup.
+After teardown rechecks the kept account’s safety, the harness prints `role account kept (by design)` and exits 0 after successful acceptance and strict teardown. The MAC.2d account-removal partial exit 3 is retired. Deleting the account is an optional owner step for a [real uninstall](../../docs/07-setup.md#uninstall-the-macos-test-daemon), not acceptance cleanup.
 
 Fresh account creation was already proven by the 2026-10-31 run's `PASS role account, launchd identity and private storage` ([saved log](done/mac2d-native-2026-10-31.log), line 85). That run's SSH account-deletion failure remains history; it no longer blocks a rerun with the expected account kept. MAC.2 remains pending until the new archive-run log verifies the remaining acceptance and cleanup.
 

@@ -19,6 +19,7 @@ m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 mode = sys.argv[2]
 action, mode = mode.split(':', 1)
 present = mode != 'absent'
+id_value = {'uid-zero':'0','uid-199':'199','uid-400':'400'}.get(mode,'200')
 paths = {str(p): False for p in (m.HOME, m.RUN, m.PREFIX, m.PLIST)}
 link = Path('/usr/local/bin/agent-bus')
 m.COMMAND_LINKS = {link: Path('/fresh/current/agent-bus')}
@@ -33,16 +34,21 @@ def run(args, **kw):
     if args[0]=='/usr/bin/dscl':
         node=args[-1].strip('/').split('/')[0]
         if mode=='unreadable': code,err=40,'directory unavailable'
+        elif 'GroupMembership' in args:
+            privileged = args[-2].split('/')[-1]
+            member = m.ROLE if mode == privileged+'-member' else 'root'
+            out = 'GroupMembership: '+member+'\n'
         elif '-list' in args:
             exists=present and not (mode=='missing-group' and node=='Groups')
             out=m.ROLE+'\n' if exists else ''
         elif node=='Users':
-            fields={'UserShell':'/usr/bin/false','IsHidden':'1','UniqueID':'200','PrimaryGroupID':'200','NFSHomeDirectory':str(m.HOME)}
+            fields={'UserShell':'/usr/bin/false','IsHidden':'1','UniqueID':id_value,'PrimaryGroupID':id_value,'NFSHomeDirectory':str(m.HOME)}
             changes={'login':('UserShell','/bin/zsh'),'visible':('IsHidden','0'),'uid':('UniqueID','501'),'gid':('PrimaryGroupID','501'),'home':('NFSHomeDirectory','/Users/parf'),'bad-id':('UniqueID','abc')}
+            if mode=='teardown-unsafe' and booted_out[0]: fields['UserShell']='/bin/zsh'
             if mode in changes:
                 key,value=changes[mode];fields[key]=value
             out=''.join(k+': '+v+'\n' for k,v in fields.items())
-        else: out='PrimaryGroupID: '+('201' if mode=='wrong-group' else '200')+'\n'
+        else: out='PrimaryGroupID: '+('201' if mode=='wrong-group' else id_value)+'\n'
     elif args[:2]==['/bin/launchctl','print']:
         code=0 if mode=='job' or mode=='job-remains' else 113
     elif args[:2]==['/bin/launchctl','bootout']: booted_out[0]=True
@@ -94,10 +100,23 @@ class Cleanup(unittest.TestCase):
                 self.assertIn(field,p.stderr)
 
     def test_preflight_refuses_wrong_ids_home_or_partial_pair(self):
-        for mode in ('uid','gid','bad-id','home','wrong-group','missing-group','unreadable'):
+        for mode in ('uid','uid-zero','uid-199','uid-400','gid','bad-id','home','wrong-group','missing-group','unreadable'):
             with self.subTest(mode=mode):
                 p=self.stub(mode,'preflight')
                 self.assertNotEqual(p.returncode,0,p.stdout)
+
+    def test_preflight_refuses_privileged_group_membership(self):
+        for group in ('admin','wheel'):
+            with self.subTest(group=group):
+                p=self.stub(group+'-member','preflight')
+                self.assertNotEqual(p.returncode,0,p.stdout)
+                self.assertIn('privileged group '+group,p.stderr)
+
+    def test_teardown_rechecks_kept_account_safety(self):
+        p=self.stub('teardown-unsafe')
+        self.assertEqual(p.returncode,1,p.stdout+p.stderr)
+        self.assertIn('unsafe role UserShell',p.stderr)
+        self.assertNotIn('role account kept (by design)',p.stdout)
 
     def test_preflight_refuses_every_other_leftover(self):
         for mode in ('job',*[ 'leftover-'+key for key in ('home','run','prefix','plist','link','web')]):

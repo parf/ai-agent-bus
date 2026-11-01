@@ -1,6 +1,6 @@
 # MAC.2 account-only teardown partial
 
-📌 **TL;DR:** The native full-archive run passed its runtime checks but left `_agentbusd` after `sysadminctl` returned `-14120` over SSH. The harness now names that account-only partial and exits 3; it never calls it clean. MAC.2 stays pending the revised run and CEO confirmation of local-terminal account removal.
+📌 **TL;DR:** The native full-archive run passed its runtime checks but left `_agentbusd` after `sysadminctl` returned `-14120` over SSH. The harness now names that account-only partial and exits 3; it never calls it clean. MAC.2 stays pending the revised run and CEO confirmation of local-terminal account removal. Superseded by [MAC.2e](mac2e.md#decision-and-scope): acceptance now keeps the checked role account.
 
 ## Native run
 
