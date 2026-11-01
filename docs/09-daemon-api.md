@@ -195,6 +195,73 @@ Both live on a record and answer to its management authority.
 - **Refusal kinds are a closed set:** `acl`, `authority`, `busy`, `credential`, `enrolment`, `full`, `malformed`, `name-taken`, `second-reader`, `suspended`, `unavailable`, `unknown`, `no_route`. A new kind is a breaking change. A `500` has no kind and a client says "internal daemon error".
 - **Deprecation.** A route, field or kind is first documented as deprecated for at least one released MINOR version, and removed only in a MAJOR version. The removals made at the freeze, with no notice because nothing stable depended on them: `POST /subscriber/remove` and the `subscriber` fallback on `/deliver-to/remove` (use `recipient`), the `services` count in `/status` and the `services` list on a user (use `records`), and the web face's `/pubsub/topic*` and `/service-*` aliases. No CLI alias is removed.
 
+
+### Every route and its class
+
+One row for each route the daemon registers; a route with no row, or a row for a route that is not registered, fails `TestEveryRegisteredRouteHasAContractRow`.
+
+| Route | Class | Where |
+|---|---|---|
+| `DELETE /session` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `GET /accounts` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `GET /activity` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `GET /activity/days` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `GET /bigfile` | stable | [Bigfiles](#bigfiles) |
+| `GET /bigfile/list` | stable | [Bigfiles](#bigfiles) |
+| `GET /config` | stable | [Configuration](#configuration) |
+| `GET /consume` | stable | [Send and consume](#send-and-consume) |
+| `GET /debug` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `GET /groups` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `GET /holders` | stable | [Locks](#locks) |
+| `GET /identity` | stable | [Status and identity](#status-and-identity) |
+| `GET /inactive` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `GET /kv` | stable | [Key-value](#key-value) |
+| `GET /kv/list` | stable | [Key-value](#key-value) |
+| `GET /lookup` | stable | [what a listing answers](05-discovery.md#what-a-listing-answers) |
+| `GET /ls` | stable | [what a listing answers](05-discovery.md#what-a-listing-answers) |
+| `GET /manages` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `GET /may-send` | stable | [Checking permission to send](#checking-permission-to-send) |
+| `GET /names` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `GET /recent` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `GET /secret` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `GET /status` | stable | [Status and identity](#status-and-identity) |
+| `GET /users` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `GET /{$}` | unstable | browser redirect to the web face, not an API route |
+| `POST /account` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `POST /bigfile/delete` | stable | [Bigfiles](#bigfiles) |
+| `POST /configure` | stable | [Configuration](#configuration) |
+| `POST /debug` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `POST /deliver-to/remove` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `POST /enrol` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `POST /extend` | stable | [Locks](#locks) |
+| `POST /group` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `POST /identity/remove` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `POST /kv/delete` | stable | [Key-value](#key-value) |
+| `POST /kv/inc` | stable | [Key-value](#key-value) |
+| `POST /kv/json` | stable | [Key-value](#key-value) |
+| `POST /kv/set` | stable | [Key-value](#key-value) |
+| `POST /lock` | stable | [Locks](#locks) |
+| `POST /manage` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `POST /owner` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `POST /profile` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `POST /records/export` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `POST /records/import` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `POST /register` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `POST /release` | stable | [Locks](#locks) |
+| `POST /release-force` | stable | [Locks](#locks) |
+| `POST /secret` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `POST /send` | stable | [Send and consume](#send-and-consume) |
+| `POST /session` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `POST /subscribe` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `POST /token` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `POST /try-lock` | stable | [Locks](#locks) |
+| `POST /unregister` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `POST /user` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `POST /user/github-refresh` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `POST /user/key` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `POST /user/state` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `PUT /bigfile` | stable | [Bigfiles](#bigfiles) |
+
 ## The client contract
 
 Common to every route below:
