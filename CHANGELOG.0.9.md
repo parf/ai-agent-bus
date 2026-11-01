@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.280 — 2026-11-01
+
+KV import preflight no longer scans every KV record under the store lock
+
 ## 0.9.279 — 2026-11-01
 
 The missing-data refusal kind is renamed unknown to not_found in the daemon, docs and every client; protocol stays 1 because it was never published

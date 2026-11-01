@@ -67,3 +67,16 @@ Deferred by the owner on 2026-10-30; use the [manual macOS uninstall steps](../.
 - **Deferred:** found on `#rag` (2026-11-01, `#ab-dir`); the refusal is the same as every other agent's, and the guide states the difference ([RAG guide](../../docs/agents/rag.md#installing-it)).
 - **To start it:** a user is caught by it again, or the owner asks; nothing is built before that.
 
+## Bigfile reopen without the registry lock
+
+- **For R1.1 — A1:** reopening a failed bigfile holder and pruning orphan files currently perform filesystem/index I/O under the global registry lock. Deferred by `#ab-dir`, 2026-11-01; A2's credentials-only preflight is the R1 change.
+- **Approach:** claim one attempt, retry timestamp and generation under `b.mu`; reopen outside it into an unpublished holder. Classify orphan IDs briefly under the lock and remove their files outside it: record IDs are never reused, so an ID already absent cannot become another record's live ID. Recheck the remaining IDs before publication.
+- **Publication:** install only if the claimed generation still matches; re-read the requested record's current ID and ACL after reopening. A replaced holder or unavailable state invalidates an old attempt. Move the explicit prune's scan/drop I/O out of `b.mu` too.
+- **Lifecycle and proof:** start a reopened holder's sweeper only when accepted, or stop it when rejected; never leave an abandoned timer. Channel-gated reopen/prune tests must let an ordinary KV write complete before releasing the blocked I/O, and pin superseded attempts, record removal/transfer and current ACL checks.
+- **To start it:** the R1.1 storage work, with the lock and sweeper design reviewed before implementation.
+
+## Database agent transport TLS
+
+- **For R1.1 — L1:** MySQL and PostgreSQL connections do not require TLS, and ClickHouse can send its key over plain HTTP to a non-loopback host. Add explicit TLS configuration and a clear refusal or warning for an unprotected remote connection.
+- **Deferred:** the db agent is disabled on this node and no owner use needs it in R1 (`#ab-dir`, 2026-11-01).
+- **To start it:** the R1.1 agent security work, or an owner use that needs the database agent sooner.
