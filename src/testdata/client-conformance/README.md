@@ -28,7 +28,7 @@ calls. `send`, `call` and `self-call` need a worker; these five do not share it.
 | `locks.json` | the real fixture daemon | `id`, optional `setup`, `steps` with `as` (`owner` or `worker`) |
 | `bigfile.json` | the real fixture daemon; Go, Python and TypeScript only | `id`, `steps` |
 | `identity.json` | a fake daemon | `id`, `identity` (the raw `/identity` body), `expect` |
-| `refusals.json` | a fake daemon | `id`, `identity` (`current` or `old`), `daemon`, `expect` |
+| `refusals.json` | a fake daemon | `id`, `identity` (`current` or `old`), then `daemon` and `expect`, or `call` and `expect` |
 
 **Steps.** Each step has an `op` and the fields that op names (`kind`, `name`,
 `value`, `ttl_s`, ...). An integer that may pass 2^53 is a string of digits.
@@ -53,7 +53,12 @@ the daemon saw only the `/identity` request.
 client's record listing. `expect` is the exact `status`, `kind` (empty when the
 client keeps none) and `message`: the daemon's `error` text, `internal daemon
 error` for a 500, and `daemon too old for GET /ls` when the identity was `old`
-and the kind is `no_route`.
+and the kind is `no_route`. A 5xx other than 500 keeps the daemon's text; a kind
+outside the closed set passes through unchanged.
+
+A row with `call` instead of `daemon` is a call the client must refuse itself
+(lock `ttl_s` over 24 h or negative, `wait_s` over 60): the error is not a daemon
+refusal, and the fake daemon never sees the `expect.not_requested` path.
 
 Route coverage is not a vector: `internal/api/route_contract_test.go` fails when
 a registered route has no row in [the route table](../../../docs/09-daemon-api.md#every-route-and-its-class)

@@ -198,7 +198,7 @@ Both live on a record and answer to its management authority.
 
 ### Every route and its class
 
-One row for each route the daemon registers; a route with no row, or a row for a route that is not registered, fails `TestEveryRegisteredRouteHasAContractRow`.
+One row for each route the daemon registers, read from every Go source: a route with no row, a row for a route that is not registered, or a registration the check cannot read as `HandleFunc("METHOD /path", …)` fails `TestEveryRegisteredRouteHasAContractRow`; a stable route whose whole path is missing from [the client contract](#the-client-contract) fails `TestEveryStableRoutePathIsInTheClientContract`.
 
 | Route | Class | Where |
 |---|---|---|
@@ -399,4 +399,5 @@ A bigfile is a named value up to 32 MiB held for a limited time. The bytes are a
 | MVP | Scope |
 |---|---|
 | Built | Every route above, and the frozen client contract: refusal `kind`, `protocol` 1 and `protocol_min` 1 in `/identity`, `no_route` for unknown routes, unknown fields ignored and duplicates refused, the retired aliases removed (0.9.264). |
-| Pending | The shared conformance vectors that pin each contract section in the six client libraries, and a check that every route is covered by a section here. |
+| Built, with V1 | A check that every route has a row here and every stable route is in the client contract (the two tests named above), and shared conformance vectors for key-value, locks, bigfiles, identity and refusals, run by the Go, Python and TypeScript clients ([vectors](../src/testdata/client-conformance/README.md#state-identity-and-refusal-vectors-t-24)). |
+| Pending | The Rust, PHP and Java adapters for the same vectors (S2). |
