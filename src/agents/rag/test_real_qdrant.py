@@ -43,29 +43,34 @@ class Wire:
     def embed(self,request):return {'data':[{'index':i,'embedding':[.5]*DIM} for i in range(len(request['input']))]}
 
 
+SERVER={}
+
+
+def setUpModule():
+    def ready(name,port):
+        request=urllib.request.Request(f'http://127.0.0.1:{port}/',headers={'api-key':KEY})
+        try:
+            with urllib.request.urlopen(request,timeout=3) as answer:return answer.status==200
+        except (OSError,urllib.error.URLError):return False
+    SERVER['name'],SERVER['port']=fixtures.bring_up('Qdrant',lambda:fixtures.container(QDRANT,6333,{'QDRANT__SERVICE__API_KEY':KEY}),ready,lambda n,p:None,seconds=120)
+
+
+def tearDownModule():
+    # Removed here, by name, and then asked for by this run's label: the gate reads the count from the output.
+    fixtures.podman('rm','-f','-t','1',SERVER['name'],check=False)
+    listed=fixtures.podman('ps','-aq','--filter',f'label=ab-db-fixture={fixtures.RUN}',check=False)
+    # A failed listing is not "none left": it would print the same zero.
+    if listed.returncode!=0:raise AssertionError(f'podman ps failed ({listed.returncode}): {listed.stderr.strip()[:200]}')
+    left=listed.stdout.split()
+    print(f'RAG fixture containers left: {len(left)}')
+    if left:raise AssertionError(f'containers of this run remain: {left}')
+
+
 class RealKeyword(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        def ready(name,port):
-            request=urllib.request.Request(f'http://127.0.0.1:{port}/',headers={'api-key':KEY})
-            try:
-                with urllib.request.urlopen(request,timeout=3) as answer:return answer.status==200
-            except (OSError,urllib.error.URLError):return False
-        cls.name,cls.port=fixtures.bring_up('Qdrant',lambda:fixtures.container(QDRANT,6333,{'QDRANT__SERVICE__API_KEY':KEY}),ready,lambda n,p:None,seconds=120)
-    @classmethod
-    def tearDownClass(cls):
-        # Removed here, by name, and then asked for by this run's label: the gate reads the count from the output.
-        fixtures.podman('rm','-f','-t','1',cls.name,check=False)
-        listed=fixtures.podman('ps','-aq','--filter',f'label=ab-db-fixture={fixtures.RUN}',check=False)
-        # A failed listing is not "none left": it would print the same zero.
-        if listed.returncode!=0:raise AssertionError(f'podman ps failed ({listed.returncode}): {listed.stderr.strip()[:200]}')
-        left=listed.stdout.split()
-        print(f'RAG fixture containers left: {len(left)}')
-        if left:raise AssertionError(f'containers of this run remain: {left}')
     SPARSE=True
     def setUp(self):
         self.collection='rag_'+secrets.token_hex(4)
-        self.wire=Wire(self.port,self.collection)
+        self.wire=Wire(SERVER['port'],self.collection)
         body={'vectors':{'size':DIM,'distance':'Cosine'},'metadata':{'embedding_model':'voyage-3.5'}}
         if self.SPARSE:body['sparse_vectors']={'text':{'modifier':'idf'}}
         self.wire.http('PUT','/collections/'+self.collection,body)
