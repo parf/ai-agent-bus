@@ -523,15 +523,9 @@ host. Three arrangements, and the third is what the split buys:
 |---|---|---|
 | laptop | yours, local | none — publish by hand ([script agents](../../docs/06-dedicated-runner.md#script-agents)) |
 | one host | local, `agent-busd` | local, `agent-bus-runner` |
-| **edge box** | **elsewhere** | local, alone — a machine that hosts agents and holds no bus state |
+| Edge box (M.6b, R1.1) | [Proposed arrangement](../R1.1/runner.md#edge-runners) | [R1.1 acceptance](../R1.1/TODO.md#runner-extensions) |
 
-**An edge runner takes the bus's realm** (owner decision, [№Q15](DECISIONS.md#recorded-decisions)). It has no
-daemon to vouch for an `@<edge>` realm, so it registers as an instance under
-the daemon it reports to, `#runner/<edge>@<realm>`, the way a
-[pool member](#the-name-a-member-registers) takes the pool's name. Where it
-runs is the hostname it states, not its name. The instance is the one slot a
-person's runner also uses ([who it runs as](#who-it-runs-as)), so an edge's
-name and a person's never mean two things at once ([№Q165](DECISIONS.md#recorded-decisions)).
+M.6b edge-runner naming moved to [R1.1](../R1.1/runner.md#edge-runners).
 
 A remote daemon is reached over **ssh**
 ([access § the three doors](../../docs/02-access.md#what-a-call-carries)), or
@@ -676,7 +670,7 @@ capability for either.
 | filesystem | systemd unit properties | bubblewrap: the system read-only, an empty home, the checkout read-only, the work directory writable, override files mounted read-only over the shipped paths |
 | privilege | `NoNewPrivileges` | also no capabilities, and a system-call filter like systemd's `@system-service`, compiled by the runner and loaded by bubblewrap (`--seccomp FD`) |
 | network | `PrivateNetwork` unless asked | a network namespace of its own, loopback only, unless asked |
-| network to named hosts only | not offered | a filtering proxy of the runner's, reached through a socket mounted into the sandbox and named in `HTTPS_PROXY`, passing only the hosts in `needs`; it covers what goes through a proxy, so an agent needing raw UDP needs the full network |
+| network to named hosts only | not offered | M.7 moved to [R1.1](../R1.1/runner.md#named-hosts) |
 | disk space | not bounded | `/tmp` a tmpfs sized by bubblewrap (`--size`), whose pages also count against the agent's memory; the work directory a soft limit: measured, and the agent stopped and reported by name when over, since a real quota needs root |
 | siblings | one account; another child can be signalled, traced, its `/proc` read | a PID namespace and a fresh `/proc` per agent, so it sees no other agent's processes, `ptrace_scope` notwithstanding; not an account per agent, which needs root or a setuid helper on every install |
 | joining the cgroup | the transient unit's own | each process started directly inside its agent's cgroup (`CLONE_INTO_CGROUP`), never running outside it |

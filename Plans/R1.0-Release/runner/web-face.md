@@ -119,31 +119,7 @@ the acceptance check must hold it on this redirect too.
 
 ## Useful additions
 
-Proposals to prioritize after the minimum:
-
-- ⏳ RW10 Search and filter agents by name, tag, state and refusal reason; count
-  - Details: before pagination and only over the caller-visible set.
-
-- ⏳ RW11 Show running work versus capacity, queued work, last failure and last
-  - Details: successful status refresh when the runner supplies those observations.
-
-- ⏳ RW12 Show effective sandbox/resource limits and warnings when protection is
-  - Details: disabled, without implying settings the running version does not enforce.
-
-- ⏳ RW13 Explain configuration precedence and whether changes need reload or a
-  - Details: process restart; provide a deliberate restart action when supported.
-
-- ✅ RW14 (0.8.211) Enable/disable future serving separately from starting/stopping it now.
-
-- ⏳ RW15 Offer bounded, permission-checked logs and diagnostics when available,
-  - Details: with secret redaction and a clear unavailable state.
-
-- ⏳ RW16 Add agents from installed packages/templates, then install/update/remove
-  - Details: packages when the runner supports remote management. Keep removal and interruption behind consequence confirmations.
-
-- ⏳ RW17 Recheck status after an action and show the resulting agent state; refresh
-  - Details: without changing a separate agent editor or overwriting a newer action result.
-
+RT11 RW10–RW17 moved to [R1.1](../../R1.1/runner-web.md#useful-additions) by owner decision (Q299), 2026-11-01; the R1 minimum and acceptance below stay here.
 
 ## Acceptance checklist
 

@@ -20,7 +20,7 @@ instance per use.
 
 | | |
 |---|---|
-| **The runner is an agent** | its person's `#runner/<person>@<realm>`, never the person, deployed to by calls under its ACL; no ssh door and no account to be let into. On an edge box with no daemon it takes the bus's realm, `#runner/<edge>@<realm>` ([where it runs](runner-implementation.md#where-it-runs)) |
+| **The runner is an agent** | its person's `#runner/<person>@<realm>`, never the person, deployed to by calls under its ACL; no ssh door and no account to be let into. Edge-runner naming (M.6b) moved to [R1.1](../R1.1/runner.md#edge-runners) |
 | **It does the bus talking** | it creates each agent it runs for its person, keeping the token the creating `register` answers, and [reads each agent's own inbox](runner-implementation.md#many-names-into-one-inbox) and answers as it ([who it runs as](runner-implementation.md#who-it-runs-as)) |
 | **A child holds no credential** | a script gets the message and gives back the answer |
 | **A smart agent serves itself** | one whose `agent.json` says it serves itself, usually through a [client library](../../src/clients/README.md), is not registered by the runner: it holds its own token and reads its own inbox, and the runner only starts it and restarts it when it dies |
@@ -182,7 +182,7 @@ author, decides what it may spend and see.
 | **One sandbox per agent** | an agent, or one instance of a template, is a cgroup; its processes are inside it, so a pool of 33 shares one ceiling and one runaway cannot starve the others |
 | **Resources** | memory, CPU, number of processes, open files, disk I/O weight, and disk space in its work directory and `/tmp` |
 | **Filesystem** | the system read-only, no home, a private `/tmp`; its checkout read-only, its own work directory writable |
-| **Network** | none unless asked; when asked, optionally only to named hosts |
+| **Network** | none unless asked; named-host filtering (M.7) moved to [R1.1](../R1.1/runner.md#named-hosts) |
 | **Privilege** | no new privileges, no capabilities, system calls limited to what a service needs, no devices |
 | **Siblings** | every agent runs as the runner's one account, which alone keeps nothing apart; the sandbox must stop one agent seeing, signalling or tracing another's processes, or reading their environment |
 | **The author asks, the host decides** | `agent.json` says what the code needs, such as the network or a memory size; `agents.json` sets the limits and wins. A need above the host's limit is refused at `reload`, by name |
@@ -194,8 +194,8 @@ The same holds for an agent that serves itself: the runner starts it, so the
 runner sandboxes it. The cgroups come from a subtree delegated to the
 runner's own unit, and the sandbox is on by default (owner decision, [№Q157](DECISIONS.md#recorded-decisions));
 the rest is applied by **bubblewrap**, each agent in namespaces of its own,
-so no agent can see or touch another's processes, and the network to named
-hosts goes through a filtering proxy of the runner's (owner decision, [№Q158](DECISIONS.md#recorded-decisions)).
+so no agent can see or touch another's processes; named-host network filtering
+(M.7) moved to [R1.1](../R1.1/runner.md#named-hosts).
 Detail is in the
 [implementation page](runner-implementation.md#sandboxing).
 

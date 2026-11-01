@@ -100,3 +100,67 @@ Owner-moved from R1 on 2026-11-01; M.14 and Q276–Q280 keep their IDs.
 | 5. CPU default — **added from T-18 review, owner to confirm** | Run a busy agent with no CPU override and measure that its whole process group stays within the approved finite default over the approved observation window/tolerance. Check explicit overrides and reload follow the approved policy; a second agent remains able to answer a bounded probe |
 
 The question answers must state observable allowed/denied operations, bounds, transitions and compatibility requirements before implementation acceptance is final. They choose **policy**, not a technical mechanism. Tests use sandboxed fixtures and harmless markers; no real host secret or live account socket is read. Removing each implemented boundary must fail its owning assertion, rather than a setup or build failure. Until approval, no code, runtime experiment or rollout belongs to this item.
+
+## Runner extensions
+
+Moved by [Q299](../R1.0-Release/DECISIONS.md#recorded-decisions), owner, 2026-11-01.
+
+- ⏳ M.6b Edge runners as `#runner/<edge>@<realm>`; [naming](runner.md#edge-runners), settled [Q165 / RD84](../R1.0-Release/DECISIONS.md#recorded-decisions).
+  - Acceptance: an edge runner registers as `#runner/<edge>@<realm>`.
+  - M.6a sharing and hostname reporting stay in [R1](../R1.0-Release/TODO.md#runner-waves).
+
+- ⏳ M.7 Named hosts (audit 2026-10-30: the network is on or off, nothing filters hosts)
+  - M.7a the mechanism is chosen and its format approved (owner question); M.7b the proxy and the no-route bypass check (L)
+  - Builds: the filtering proxy for `needs` hosts
+  - Acceptance: a named host is reached and another refused; bypassing the proxy has no route
+  - Mutant: Not recorded in the source.
+  - Home: [named hosts](runner.md#named-hosts); [open policy](QUESTIONS.md#runner-extensions).
+
+- 💡 RT19 A root runner: [proposal](runner.md#root-runner), [open choices](QUESTIONS.md#runner-extensions); no design approved.
+
+## Runner web additions
+
+RT11 RW10–RW17 only, moved by Q299; [topic](runner-web.md#useful-additions). R1 minimum and RW19/RW21/RW27 remain in [R1](../R1.0-Release/runner/web-face.md#acceptance-checklist).
+
+- ⏳ RW10 Search and filter agents by name, tag, state and refusal reason; count
+  - Details: before pagination and only over the caller-visible set.
+
+- ⏳ RW11 Show running work versus capacity, queued work, last failure and last
+  - Details: successful status refresh when the runner supplies those observations.
+
+- ⏳ RW12 Show effective sandbox/resource limits and warnings when protection is
+  - Details: disabled, without implying settings the running version does not enforce.
+
+- ⏳ RW13 Explain configuration precedence and whether changes need reload or a
+  - Details: process restart; provide a deliberate restart action when supported.
+
+- ✅ RW14 (0.8.211) Enable/disable future serving separately from starting/stopping it now.
+
+- ⏳ RW15 Offer bounded, permission-checked logs and diagnostics when available,
+  - Details: with secret redaction and a clear unavailable state.
+
+- ⏳ RW16 Add agents from installed packages/templates, then install/update/remove
+  - Details: packages when the runner supports remote management. Keep removal and interruption behind consequence confirmations.
+
+- ⏳ RW17 Recheck status after an action and show the resulting agent state; refresh
+  - Details: without changing a separate agent editor or overwriting a newer action result.
+
+## Agent capabilities
+
+- ❓ RT23 Agent capabilities: every agent answers `help` (minimum); callers learn which further asks an agent answers before sending them (owner, 2026-10-26)
+  - Plus an optional `status` an agent may declare; the web shows it and may offer actions based on it (owner, 2026-10-26)
+  - Exposed to bus MCP users too: `status` as an `ab_send` ask, and the capabilities line read before other asks (owner, 2026-10-26)
+  - Open choice: [Q191](QUESTIONS.md#agent-capabilities)
+  - Acceptance: the web record page and doctor send no ask an agent did not declare; an agent that answers only `help` costs one round trip and never a timeout
+  - Status: needs thinking through first (owner, 2026-10-26: "this question needs to be thought through"); decide Q191, then document it (constitution § agent self-description, authoring checklist, create-agent prompt) and update every bundled and standalone agent and the MCP face to the chosen form
+  - Home: [proposal](agent-capabilities.md#proposal).
+
+## Node cleanup
+
+- ⏳ B.15 Node cleanup with a lasting bound: [proposal and observation](node-cleanup.md#lasting-bounds), [RD110](../R1.0-Release/DECISIONS.md#recorded-decisions).
+  - Acceptance: after one week of normal work, none of the Go build cache, shared Rust target, abrt crash dumps, old release versions, logs, backups or test `/tmp` leftovers has grown past its stated bound, and the disk report shows it. Review the stale-session list and back up the daemon before removing records; observation itself authorizes no timer or deletion.
+
+## macOS sandbox
+
+- ☐ MAC.3 Sandbox: [proposal](macos.md#mac3-sandbox); deferred, built only if the owner asks.
+  - Acceptance: mirrors the Linux profiles; a mutant that lets a denied access through fails the owning assertion.

@@ -46,7 +46,7 @@ the 0.8 line; no release wave is committed yet. Item glyphs follow
   - State: one-message serving built 0.8.123; full evidence remains in [runner waves](#runner-waves)
   - Depends: [method metadata](done/method-metadata.md#method-metadata); the pool hostname field, now R1 ([where a member says it is](runner-implementation.md#where-a-member-says-it-is))
 
-- ⚠️ RT11 [Runners section in the web face](runner/web-face.md#goal) — status, per-agent controls, host files and instances are built; remaining acceptance is tracked in the checklist
+- ⚠️ RT11 [Runners section in the web face](runner/web-face.md#goal) — status, per-agent controls, host files and instances are built; R1 acceptance stays in the checklist, while [RW10–RW17 move to R1.1](../R1.1/TODO.md#runner-web-additions) (Q299)
   - State: the information page and per-agent management page are separate; denied management shows Access denied
   - Home: [Minimum and acceptance checklist](runner/web-face.md#minimum-checklist)
 
@@ -101,11 +101,7 @@ Plan for discussion of the note above: [shorter prompts](short-prompts.md#propos
 
 - ✅ J27 Lock waiters are served in arrival order ([issue](../issues/2026-10/2026-10-30.md#locks)) — **0.9.185**, `de98f55d`; deployed 2026-10-30 ([result](DONE.md#j27-lock-waiters-in-arrival-order))
 
-- 💡 RT19 A root runner: one system runner that runs each agent under the Linux account it names, or as root with optional privilege drop
-  - Owner, 2026-10-19: "root runner; allow to run services under specific user; or under root (optional drop permissions)"; extends the note above
-  - Idea, not designed: today each person runs their own runner as `<person>-ab-runner`, and agents that need host access (systemd, logwatch, git) are standalone units on the shared starter. A root runner could keep all of them in one place, per agent `user: <account>` or `user: root` with `drop` of capabilities (e.g. keep only CAP_DAC_READ_SEARCH for logwatch)
-  - Settled, owner 2026-10-19: an agent's account or root is set by whoever has access to the host ("тот кто имеет доступ к host"): it lives in a root-owned host file the runner reads, never in a bus record or call, so no bus caller, Owner included, can raise an agent's privilege ([process boundary](../../docs/08-processes.md#the-rule))
-  - To decide before any design: whether it replaces the standalone starter or sits beside it; the sandbox under each account; how a person's agents stay isolated from another's
+- RT19 Moved to [R1.1](../R1.1/TODO.md#runner-extensions) by owner decision (Q299), 2026-11-01.
 
 > **Serg Parf:** git agent; ~ autopull / pull on demand,; status, more - come with ideas
 
@@ -224,18 +220,14 @@ configuration written under `runner/` on the host, then a `reload` call.
   - Result: the combined runner/ports/sandbox runtime and tests are byte-identical to reviewed `e80f5143`; focused runner+sandbox `-race` 154/0, no skips, and guides3/0. [Evidence](DONE.md#m5-host-controls-and-settings-overrides). The inherited malformed/unknown answer-line test LOW is J50, a separate follow-up after landing.
 
 - ⏳ M.6 Pools and edges (audit 2026-10-30: the daemon already lets two readers share an inbox; `share` in `agents.json` is parsed and read by nothing; no member hostname field)
-  - M.6a wire `share` to the consume call and add the member hostname field with the listing (L, daemon change, owner restarts); M.6b edge runners as `#runner/<edge>@<realm>` (M, after Q165)
+  - M.6a wire `share` to the consume call and add the member hostname field with the listing (L, daemon change, owner restarts); M.6b moved to [R1.1](../R1.1/TODO.md#runner-extensions) (Q299)
   - State M.6a 2026-10-30, branch `ab-w2b/M6a` (owner chose A in `local/w2a/m6a-member-host.md`): the daemon part is built: `host` on consume (1–64 of letters, digits, `.`, `-`; a 400 names it), a per-name map of host to last read, 2 minutes, at most 32 with a `hosts_cut` flag, in memory only; the lookup's `hosts` list, `ls --table <name>`'s Hosts line, the web record page. Wired on `ab-w2b/M6a-share`: the runner and `agent-bus run` state their host on every read (`AGENT_BUS_READER_HOST` when the unit sets it, else the machine's hostname; none is sent if it fails the 1–64 `[A-Za-z0-9.-]` check), `consume --host=`, and a served agent's `share` in `agents.json` rides its reads. Two runners serve one name, sharing its messages between them, and the listing shows both hosts, through the token handed over once (`TestTwoRunnersServeOneNameSharingMessagesAndTheListingShowsBothHosts`, no new code needed); `agent-bus run`'s host send is pinned by a real run. The deploy needs a daemon restart
-  - Builds: `share`; the member hostname field (daemon change); edge runners under the bus's realm
+  - Builds: `share`; the member hostname field (daemon change)
   - Hostname settled by owner, 2026-10-30 15:25, option A: optional `host` on each consume, refreshed when the read begins or ends, held in memory for 2 minutes; bounded to 32 hosts per name, never routing/authority or durable state. Validation and listing substance: [where a member says it is](runner-implementation.md#where-a-member-says-it-is). Pool members still read the pool's own inbox ([№Q159](DECISIONS.md#recorded-decisions)).
-  - Acceptance: two runners serve one name, shared between them, and a listing shows both hosts; an edge runner registers as `#runner/<edge>@<realm>`
+  - Acceptance: two runners serve one name, shared between them, and a listing shows both hosts
   - Mutant: Not recorded in the source.
 
-- ⏳ M.7 Named hosts (audit 2026-10-30: the network is on or off, nothing filters hosts)
-  - M.7a the mechanism is chosen and its format approved (owner question); M.7b the proxy and the no-route bypass check (L)
-  - Builds: the filtering proxy for `needs` hosts
-  - Acceptance: a named host is reached and another refused; bypassing the proxy has no route
-  - Mutant: Not recorded in the source.
+- M.7 Moved to [R1.1](../R1.1/TODO.md#runner-extensions) by owner decision (Q299), 2026-11-01.
 
 
 - ✅ M.10 The runner acts as its person
@@ -479,18 +471,9 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - B.27d WhatsApp: deferred to R2.0 until a public HTTPS address is decided, [plan](../R2.0-Future/whatsapp.md)
   - B.27e Facebook Messenger: deferred to R2.0 until a public HTTPS address is decided, [plan](../R2.0-Future/messenger.md)
 
-- ⏳ B.15 Node cleanup with a lasting bound ([RD110](DECISIONS.md#recorded-decisions))
-  - Observation: [report-only script](../../src/maintenance/OBSERVATION.md), run manually as an ordinary user; timestamped samples stay in ignored `tmp/b15/`. First sample captured 2026-10-30; growth and bound choices await repeated observations. No new timer, install or deletion.
-  - Remove stale session records from a list the owner sees first; back up the daemon before.
-  - Clean and bound: the Go build cache, the shared Rust target, abrt crash dumps, old release versions, logs and backups, `/tmp` leftovers from our tests.
-  - Acceptance: after one week of normal work, none of them has grown past its stated bound, and the disk report shows it.
+- B.15 Moved to [R1.1](../R1.1/TODO.md#node-cleanup) by owner decision (Q299), 2026-11-01.
 
-- ❓ RT23 Agent capabilities: every agent answers `help` (minimum); callers learn which further asks an agent answers before sending them (owner, 2026-10-26)
-  - Plus an optional `status` an agent may declare; the web shows it and may offer actions based on it (owner, 2026-10-26)
-  - Exposed to bus MCP users too: `status` as an `ab_send` ask, and the capabilities line read before other asks (owner, 2026-10-26)
-  - Open choice: [Q191](QUESTIONS.md#agent-capabilities)
-  - Acceptance: the web record page and doctor send no ask an agent did not declare; an agent that answers only `help` costs one round trip and never a timeout
-  - Status: needs thinking through first (owner, 2026-10-26: "this question needs to be thought through"); decide Q191, then document it (constitution § agent self-description, authoring checklist, create-agent prompt) and update every bundled and standalone agent and the MCP face to the chosen form
+- RT23 Moved to [R1.1](../R1.1/TODO.md#agent-capabilities) by owner decision (Q299), 2026-11-01.
 
 - ✅ RT24 The bus on the bus: Landed as `bfeb5f58` (0.9.224): the settled read-only help/status/version/ls set is complete; AI CLI `ab_send` with ask `help` has component coverage only, with no end-to-end test. Management methods remain future scope. [Acceptance and original task detail](done/rt24-bus-close-out.md#acceptance-map); [current contract](../../docs/agents/bus.md#what-it-does).
 
@@ -586,8 +569,8 @@ Implement the [release artifacts](distribution.md#release-artifacts) and [contai
   - Acceptance: install the local `npm pack` tarballs in a clean supported container with npm but no checkout, Go or bun; resolve dependencies only from those tarballs (a private loopback registry is allowed). Start the installed bus and an installed agent, complete a request/reply and an MCP tool call. Install the client-only package as a second account and prove it joins without a daemon or writes outside its prefix. Compare installed executables and MCP assets to the release manifest.
   - Mutants: omit a required executable, then an MCP runtime asset, repack and reinstall; each must fail the corresponding runtime assertion. A corrupt archive checksum and an incomplete manifest are refused before unchecked files are installed. Keep update/configuration/data and rollback checks.
   - State P.1b 2026-10-30, branch `ab-w2b/P1b`: `src/acceptance/npm-clean-install.sh` runs [`src/npm/acceptance.py`](../../src/npm/README.md#clean-install-acceptance) (the control, the omitted executable and MCP asset, the corrupt archive, altered file and unchecked file) and the container check, now with an installed agent and the client package installed by a second account without a daemon or writes outside its prefix. `pack.py` refuses a release with a file its manifest does not check, apart from the unpackaged review-settings example. Not built here: the update, configuration, data and rollback checks stay as they are, and macOS support is P.1c.
-  - First real publication: both `ai-agent-bus` and `ai-agent-bus-client` are reserved under `parf73` as README-only 0.0.1 placeholders (2026-10-30); publish a version above 0.0.1. The shared `VERSION` already exceeds it; the owner’s go is still required.
-  - No npm publish or npm login by any worker. Publication waits for the owner’s explicit go; no live publication is needed for acceptance.
+  - First real publication: at the release, right after STABLE, per [Q300](DECISIONS.md#recorded-decisions). Until then the `parf73` reservations stay README-only 0.0.1 placeholders.
+  - No npm publish or npm login by any worker. Publication follows the [release decision](DECISIONS.md#recorded-decisions); no live publication is needed for acceptance.
 
 - ✅ P.2 Ready-to-use container image: [result](DONE.md#done--r1) and [container guide](../../src/container/README.md#container-image); npm does not replace this separate artifact.
 
@@ -611,7 +594,7 @@ Plan and acceptance in [macOS](macos.md#tasks); decided in [RD166](DECISIONS.md#
   - MAC.2c closes the revision-tie and release-set LOWs: native program stamps must name the release-source commit; collector and verifier agree on optional Darwin full sets ([checks](done/mac2c.md#checks)).
   - MAC.2d account-deletion partial is superseded by [MAC.2e role reuse](mac2b-run-list.md#role-account-reuse): acceptance keeps the verified hidden non-login account; fresh creation was already proven in the [10-31 log](done/mac2d-native-2026-10-31.log).
   - Remaining acceptance: #ab-ceo follows the [archive run list](mac2b-run-list.md#run-the-archive-check), installs the full archive through reduced setup without `--exec`, checks identity, private storage, request/reply and registry restart, then removes the job and fixture files while keeping and rechecking the safe role account. MAC.2 stays ⏳ until that archive-based Mac run passes; the earlier focused-binary run does not establish it. No worker Mac access.
-- ☐ MAC.3 Sandbox: [sandbox](macos.md#mac3-sandbox); deferred, built only if the owner asks
+- MAC.3 Moved to [R1.1](../R1.1/TODO.md#macos-sandbox) by owner decision (Q299), 2026-11-01.
 
 ## Web scale follow-up from MVP
 

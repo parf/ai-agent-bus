@@ -1,6 +1,6 @@
 # macOS
 
-📌 **TL;DR:** macOS comes in three steps, cheapest first: the client and the runner without a sandbox, then the daemon with a reduced setup, then a sandbox only if the owner asks. A sandbox request on macOS is refused, never silently ignored. Test host, signing and the full-set direction are in [distribution § macOS](distribution.md#macos).
+📌 **TL;DR:** macOS comes in three steps, cheapest first: the client and the runner without a sandbox, then the daemon with a reduced setup, then a [sandbox in R1.1](../R1.1/macos.md#mac3-sandbox) only if the owner asks. A sandbox request on macOS is refused, never silently ignored. Test host, signing and the full-set direction are in [distribution § macOS](distribution.md#macos).
 
 ## Order
 
@@ -10,7 +10,7 @@ Owner, 2026-10-30 ([RD166](DECISIONS.md#recorded-decisions)):
 |---|---|---|
 | 1 Client and runner | CLI, runner, MCP face and launchers, the client edition for darwin-arm64 | any sandbox |
 | 2 Daemon | the daemon with a reduced setup for macOS | the full Linux setup (systemd units, per-role accounts, cgroup limits) |
-| 3 Sandbox | an equivalent of the Linux sandbox | deferred; built only if the owner asks |
+| 3 Sandbox | [R1.1 MAC.3](../R1.1/macos.md#mac3-sandbox) | outside R1 (Q299) |
 
 ## Rules without a sandbox
 
@@ -40,7 +40,7 @@ Team 2's runner work ([M.5](TODO.md#runner-waves), [DR.1](TODO.md#runner-waves))
 |---|---|---|
 | MAC.1 | client and runner | `src/internal/proctitle/` (no-op where there is no cgo), `src/cmd/agent-bus-runner/` ⚑, `src/internal/cgroup/` ⚑, `src/internal/sandbox/` ⚑, `src/cmd/agent-bus/` (`/proc` and lock readers), `src/internal/authkeys/`, `src/internal/agentmeta/`, `src/build.sh`, `src/package.sh`, `install.sh`, docs |
 | MAC.2 | daemon and reduced setup | `src/cmd/agent-busd/`, `src/cmd/agent-bus-setup/` (a macOS path beside the Linux one), the store and listener files `GOOS` touches |
-| MAC.3 | sandbox | `src/internal/sandbox/` ⚑ — deferred, only if the owner asks |
+| MAC.3 | [R1.1 sandbox](../R1.1/macos.md#mac3-sandbox) | deferred from R1 (Q299) |
 
 ### MAC.1 client and runner on macOS
 
@@ -61,4 +61,4 @@ Native code and focused setup acceptance are [verified](done/mac2.md#checks-and-
 
 ### MAC.3 sandbox
 
-Deferred ([RD166](DECISIONS.md#recorded-decisions)). When the owner asks, the macOS backend (the system's own sandbox profile mechanism) goes behind the existing sandbox port; its acceptance then mirrors the Linux profiles, with a mutant that lets a denied access through.
+Moved to [R1.1](../R1.1/macos.md#mac3-sandbox) by owner decision (Q299), 2026-11-01.
