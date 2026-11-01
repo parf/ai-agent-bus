@@ -242,3 +242,26 @@ func TestPersonFilesRefusesANewDirectoryThatIsNotTheMakersOwn(t *testing.T) {
 		t.Fatalf("a directory of another owner: %v", err)
 	}
 }
+
+func TestPersonFilesRefusesASwappedInDirectoryThatHoldsOnlyAFile(t *testing.T) {
+	root, uid, gid := personFilesFixture(t)
+	other := t.TempDir() // a link count of 2: it holds no directory, but it is not empty
+	if err := os.WriteFile(filepath.Join(other, "theirs.txt"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	afterMkdir = func(parent int, name string) {
+		if name == "files" {
+			dir := filepath.Join(root, "users", "parf")
+			if err := os.Remove(filepath.Join(dir, "files")); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Rename(other, filepath.Join(dir, "files")); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	t.Cleanup(func() { afterMkdir = func(int, string) {} })
+	if _, err := ensurePersonFiles(root, "parf", uid, gid); err == nil || !strings.Contains(err.Error(), "replaced while it was being made") {
+		t.Fatalf("a swapped directory with a file in it: %v", err)
+	}
+}

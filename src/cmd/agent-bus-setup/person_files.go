@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -126,7 +127,7 @@ func ensureDirAt(parent int, path, name string, uid, gid int, mode uint32) (int,
 	// What was just made is empty and ours. The person owns the parent of their
 	// folders and could have swapped the new one for another directory between
 	// the make and the open; never hand that one over.
-	if created && (int(st.Uid) != personFilesMaker() || st.Nlink != 2) {
+	if created && (int(st.Uid) != personFilesMaker() || st.Nlink != 2 || !emptyDirFd(fd)) {
 		unix.Close(fd)
 		return -1, nil, fmt.Errorf("%s was replaced while it was being made (owner %d, %d links); nothing was changed", path, st.Uid, st.Nlink)
 	}
@@ -156,4 +157,18 @@ func ensureDirAt(parent int, path, name string, uid, gid int, mode uint32) (int,
 		}
 	}
 	return fd, notes, nil
+}
+
+// emptyDirFd says whether the open directory holds nothing, read through a
+// duplicate of the descriptor so the one in use keeps its position. A link
+// count of 2 says only that it holds no directory.
+func emptyDirFd(fd int) bool {
+	dup, err := unix.Dup(fd)
+	if err != nil {
+		return false
+	}
+	f := os.NewFile(uintptr(dup), "dir")
+	defer f.Close()
+	_, err = f.Readdirnames(1)
+	return err == io.EOF
 }
