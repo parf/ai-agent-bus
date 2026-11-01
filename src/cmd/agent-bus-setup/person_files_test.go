@@ -3,9 +3,11 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 )
 
 // A test cannot be root, so users/ is "root's" by being the test user's.
@@ -42,7 +44,7 @@ func TestPersonFilesAreCreatedOnceAndLeftAlone(t *testing.T) {
 			t.Fatalf("%s belongs to %d:%d", path, st.Uid, st.Gid)
 		}
 	}
-	if !personFilesReady(root, "parf", uid, gid) {
+	if !personFilesReady(root, "parf", uid) {
 		t.Fatal("a made folder is not ready")
 	}
 	keep := filepath.Join(dir, "report.pdf")
@@ -98,7 +100,7 @@ func TestPersonFilesTightensALooseModeAndSaysSo(t *testing.T) {
 	if err := os.Chmod(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if personFilesReady(root, "parf", uid, gid) {
+	if personFilesReady(root, "parf", uid) {
 		t.Fatal("a loose folder counts as ready")
 	}
 	notes, err := ensurePersonFiles(root, "parf", uid, gid)
@@ -204,64 +206,176 @@ func mustMkdir(t *testing.T, path string, mode os.FileMode) {
 	}
 }
 
-func TestPersonFilesRefusesADirectorySwappedInAfterTheMake(t *testing.T) {
-	root, uid, gid := personFilesFixture(t)
-	// A directory that is not empty, put in the new one's place.
-	other := t.TempDir()
-	mustMkdir(t, filepath.Join(other, "inside"), 0o755)
-	if err := os.Chmod(other, 0o755); err != nil {
+func usersEntries(t *testing.T, root string) []string {
+	t.Helper()
+	entries, err := os.ReadDir(filepath.Join(root, "users"))
+	if err != nil {
 		t.Fatal(err)
 	}
-	afterMkdir = func(parent int, name string) {
-		if name != "files" {
-			return
-		}
-		dir := filepath.Join(root, "users", "parf")
-		if err := os.Remove(filepath.Join(dir, "files")); err != nil {
+	var names []string
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	return names
+}
+
+func hookPublish(t *testing.T, f func(stage int, tmp string, parent int, name string)) {
+	t.Helper()
+	beforePublish = f
+	t.Cleanup(func() { beforePublish = func(int, string, int, string) {} })
+}
+
+// A new directory is made where the person cannot write, never in their own folder.
+func TestPersonFilesMakesNewDirectoriesInUsersNotInThePersonsFolder(t *testing.T) {
+	root, uid, gid := personFilesFixture(t)
+	madeIn := map[string]string{}
+	afterStage = func(stage int, name string) {
+		where, err := os.Readlink("/proc/self/fd/" + strconv.Itoa(stage))
+		if err != nil {
 			t.Fatal(err)
 		}
-		if err := os.Rename(other, filepath.Join(dir, "files")); err != nil {
-			t.Fatal(err)
+		madeIn[name] = where
+	}
+	t.Cleanup(func() { afterStage = func(int, string) {} })
+	if _, err := ensurePersonFiles(root, "parf", uid, gid); err != nil {
+		t.Fatal(err)
+	}
+	if len(madeIn) != 3 {
+		t.Fatalf("expected three staged directories, got %v", madeIn)
+	}
+	for tmp, where := range madeIn {
+		if where == filepath.Join(root, "users", "parf") || where == personFilesDir(root, "parf") {
+			t.Fatalf("%s was made inside the person's own folder %s", tmp, where)
 		}
 	}
-	t.Cleanup(func() { afterMkdir = func(int, string) {} })
-	if _, err := ensurePersonFiles(root, "parf", uid, gid); err == nil || !strings.Contains(err.Error(), "replaced while it was being made") {
-		t.Fatalf("a swapped directory: %v", err)
-	}
-	if modeOf(t, filepath.Join(root, "users", "parf", "files")).Perm() != 0o755 {
-		t.Fatal("the swapped-in directory was changed")
+	if left := usersEntries(t, root); len(left) != 1 || left[0] != "parf" {
+		t.Fatalf("a staging directory was left behind: %v", left)
 	}
 }
 
-func TestPersonFilesRefusesANewDirectoryThatIsNotTheMakersOwn(t *testing.T) {
-	root, uid, gid := personFilesFixture(t)
-	was := personFilesMaker
-	personFilesMaker = func() int { return os.Geteuid() + 1 } // a stand-in root: the directory just made is someone else's
-	t.Cleanup(func() { personFilesMaker = was })
-	if _, err := ensurePersonFiles(root, "parf", uid, gid); err == nil || !strings.Contains(err.Error(), "replaced while it was being made") {
-		t.Fatalf("a directory of another owner: %v", err)
+// The name is made by the person (or anyone) while the new directory waits to be renamed: the new one never
+// replaces it, and what is there is checked like any other directory that was there.
+func TestPersonFilesNeverReplacesANameThatAppearsBeforeThePublish(t *testing.T) {
+	for _, kind := range []string{"empty directory", "directory with a file", "link"} {
+		t.Run(kind, func(t *testing.T) {
+			root, uid, gid := personFilesFixture(t)
+			outside := t.TempDir()
+			if err := os.Chmod(outside, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			var planted uint64
+			hookPublish(t, func(stage int, tmp string, parent int, name string) {
+				if name != "files" {
+					return
+				}
+				target := filepath.Join(root, "users", "parf", "files")
+				defer func() {
+					if st, err := os.Lstat(target); err == nil {
+						planted = st.Sys().(*syscall.Stat_t).Ino
+					}
+				}()
+				switch kind {
+				case "link":
+					mustSymlink(t, outside, target)
+				default:
+					if err := os.Mkdir(target, 0o755); err != nil {
+						t.Fatal(err)
+					}
+					if err := os.Chmod(target, 0o755); err != nil {
+						t.Fatal(err)
+					}
+					if kind == "directory with a file" {
+						if err := os.WriteFile(filepath.Join(target, "theirs.txt"), []byte("x"), 0o600); err != nil {
+							t.Fatal(err)
+						}
+					}
+				}
+			})
+			_, err := ensurePersonFiles(root, "parf", uid, gid)
+			if kind == "link" {
+				if err == nil || !strings.Contains(err.Error(), "link or not a directory") {
+					t.Fatalf("a link made at the name: %v", err)
+				}
+			} else if err != nil {
+				t.Fatalf("a directory of the right owner at the name is checked and kept: %v", err)
+			}
+			target := filepath.Join(root, "users", "parf", "files")
+			if kind == "link" && modeOf(t, outside).Perm() != 0o755 {
+				t.Fatal("the mode of what the link led to changed")
+			}
+			if kind != "link" && mustStat(t, target).Ino != planted {
+				t.Fatal("the new directory replaced the one that was at the name")
+			}
+			if kind == "directory with a file" {
+				if b, _ := os.ReadFile(filepath.Join(target, "theirs.txt")); string(b) != "x" {
+					t.Fatalf("what was at the name was replaced: %q", b)
+				}
+			}
+			if kind != "link" && modeOf(t, target).Perm() != 0o700 {
+				t.Fatalf("the directory that was there was not tightened: %v", modeOf(t, target))
+			}
+			if left := usersEntries(t, root); len(left) != 1 || left[0] != "parf" {
+				t.Fatalf("a staging directory was left behind: %v", left)
+			}
+		})
 	}
 }
 
-func TestPersonFilesRefusesASwappedInDirectoryThatHoldsOnlyAFile(t *testing.T) {
+func TestPersonFilesSweepsOnlyStaleEmptyStagingDirectories(t *testing.T) {
 	root, uid, gid := personFilesFixture(t)
-	other := t.TempDir() // a link count of 2: it holds no directory, but it is not empty
-	if err := os.WriteFile(filepath.Join(other, "theirs.txt"), []byte("x"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	afterMkdir = func(parent int, name string) {
-		if name == "files" {
-			dir := filepath.Join(root, "users", "parf")
-			if err := os.Remove(filepath.Join(dir, "files")); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.Rename(other, filepath.Join(dir, "files")); err != nil {
-				t.Fatal(err)
-			}
+	users := filepath.Join(root, "users")
+	mustMkdir(t, users, 0o755)
+	old := time.Now().Add(-time.Hour)
+	for _, name := range []string{".new-stale", ".new-full", "keep"} {
+		mustMkdir(t, filepath.Join(users, name), 0o700)
+		if err := os.Chtimes(filepath.Join(users, name), old, old); err != nil {
+			t.Fatal(err)
 		}
 	}
-	t.Cleanup(func() { afterMkdir = func(int, string) {} })
-	if _, err := ensurePersonFiles(root, "parf", uid, gid); err == nil || !strings.Contains(err.Error(), "replaced while it was being made") {
-		t.Fatalf("a swapped directory with a file in it: %v", err)
+	if err := os.WriteFile(filepath.Join(users, ".new-full", "x"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	mustMkdir(t, filepath.Join(users, ".new-fresh"), 0o700)
+	if _, err := ensurePersonFiles(root, "parf", uid, gid); err != nil {
+		t.Fatal(err)
+	}
+	got := strings.Join(usersEntries(t, root), " ")
+	if got != ".new-fresh .new-full keep parf" {
+		t.Fatalf("after the sweep users/ holds %q; only the stale empty staging directory goes", got)
+	}
+}
+
+func TestPersonFilesReadyAndTightenCountTheSpecialModeBits(t *testing.T) {
+	root, uid, gid := personFilesFixture(t)
+	if _, err := ensurePersonFiles(root, "parf", uid, gid); err != nil {
+		t.Fatal(err)
+	}
+	dir := personFilesDir(root, "parf")
+	if err := os.Chmod(dir, os.ModeSetgid|0o700); err != nil {
+		t.Fatal(err)
+	}
+	if personFilesReady(root, "parf", uid) {
+		t.Fatal("a setgid folder counts as ready")
+	}
+	notes, err := ensurePersonFiles(root, "parf", uid, gid)
+	if err != nil || len(notes) != 1 || !strings.Contains(notes[0], "from 02700 to 0700") {
+		t.Fatalf("tighten a special bit: %v %v", notes, err)
+	}
+	if fullMode(modeOf(t, dir)) != 0o700 {
+		t.Fatalf("mode %v", modeOf(t, dir))
+	}
+}
+
+func TestPersonFilesLeavesAnExistingFoldersGroupAndSaysSo(t *testing.T) {
+	root, uid, gid := personFilesFixture(t)
+	if _, err := ensurePersonFiles(root, "parf", uid, gid); err != nil {
+		t.Fatal(err)
+	}
+	notes, err := ensurePersonFiles(root, "parf", uid, gid+4242)
+	if err != nil || len(notes) != 2 || !strings.Contains(notes[0], "left as it is") {
+		t.Fatalf("a folder of another group: %v %v", notes, err)
+	}
+	if got := int(mustStat(t, personFilesDir(root, "parf")).Gid); got != gid {
+		t.Fatalf("an existing folder's group was changed to %d", got)
 	}
 }

@@ -633,7 +633,7 @@ func observeUser(u userRunner, ops hostUserOps, dry bool) (userState, error) {
 		var s struct{ You string }
 		st.tokenValid = err == nil && code == 200 && json.Unmarshal(out, &s) == nil && s.You == u.name
 	}
-	st.files = personFilesReady(stateRoot, u.person, u.uid, u.gid)
+	st.files = personFilesReady(stateRoot, u.person, u.uid)
 	st.linger = lingerReady(u)
 	if st.linger {
 		st.enabled = ops.userctl(u, "is-enabled", "--quiet", userUnit) == nil
