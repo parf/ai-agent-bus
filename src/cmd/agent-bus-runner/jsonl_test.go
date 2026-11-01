@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -542,5 +543,19 @@ func TestJsonlOversizedAnswerSparesAnotherRequestAlreadyInFlight(t *testing.T) {
 	}
 	if failures != 1 || successes != 1 {
 		t.Fatalf("oversized failures=%d peer successes=%d; want one each", failures, successes)
+	}
+}
+
+func TestJsonlOversizedAnswerLogsOnlyAQuotedCappedID(t *testing.T) {
+	id := "injected\nforged log line " + strings.Repeat("x", 256)
+	var log bytes.Buffer
+	st := &stream{r: &runner{say: &log}, s: &served{name: "#fixture@h"}}
+	c := &streamChild{pending: map[string]chan streamResult{}}
+	c.out = strings.NewReader(`{"message_id":` + string(mustJSON(id)) + `,"body":"` + strings.Repeat("x", maxOutput) + `"}` + "\n")
+	st.answers(c)
+	want := fmt.Sprintf("#fixture@h: %q: answer too large (limit %d)\n", id[:128], maxOutput) +
+		"#fixture@h: an answer line names no message in flight; dropped\n"
+	if log.String() != want {
+		t.Fatalf("oversized answer log = %q; want capped, quoted id: %q", log.String(), want)
 	}
 }

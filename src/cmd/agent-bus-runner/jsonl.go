@@ -306,7 +306,7 @@ func (st *stream) answers(c *streamChild) {
 			id = answerPrefixID(line)
 			ok = id != ""
 			answerErr = answerFailure{fmt.Sprintf("answer too large (limit %d)", maxOutput)}
-			fmt.Fprintf(st.r.say, "%s: %s: %v\n", st.s.name, id, answerErr)
+			fmt.Fprintf(st.r.say, "%s: %q: %v\n", st.s.name, id[:min(len(id), 128)], answerErr)
 			if !ok {
 				st.failAnswers(c, answerFailure{"answer too large without a parsable message_id; process killed"})
 				st.kill(c)
@@ -368,6 +368,8 @@ func readAnswerLine(r *bufio.Reader) ([]byte, bool, error) {
 
 // Read only top-level JSON members from the retained prefix. A message_id
 // inside a body or nested object must never identify another pending call.
+// On this oversized path the first top-level message_id wins; the normal
+// complete-line json.Unmarshal instead uses the last repeated message_id.
 func answerPrefixID(line []byte) string {
 	d := json.NewDecoder(bytes.NewReader(line))
 	token, err := d.Token()
