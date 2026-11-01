@@ -88,10 +88,12 @@ func TestDaemonAgentReservationAcrossRegisteredAPIRoutes(t *testing.T) {
 		"POST /extend":         `{"record":"#bus","name":"probe","ttl":"1m"}`,
 		"GET /holders":         "record=%23bus",
 		"GET /kv":              "record=%23bus&name=probe", "GET /kv/list": "record=%23bus",
-		"POST /kv/set":              `{"record":"#bus","name":"probe","kind":"string","value":"takeover"}`,
-		"POST /kv/delete":           `{"record":"#bus","name":"probe"}`,
-		"POST /kv/inc":              `{"record":"#bus","name":"probe","n":1}`,
-		"POST /kv/json":             `{"record":"#bus","name":"probe","ops":[{"op":"set","key":"probe","value":1}]}`,
+		"POST /kv/set":    `{"record":"#bus","name":"probe","kind":"string","value":"takeover"}`,
+		"POST /kv/delete": `{"record":"#bus","name":"probe"}`,
+		"POST /kv/inc":    `{"record":"#bus","name":"probe","n":1}`,
+		"POST /kv/json":   `{"record":"#bus","name":"probe","ops":[{"op":"set","key":"probe","value":1}]}`,
+		"PUT /big":        "record=%23bus&name=probe", "GET /big": "record=%23bus&name=probe", "GET /big/list": "record=%23bus",
+		"POST /big/delete":          `{"record":"#bus","name":"probe"}`,
 		"POST /user":                `{"name":"#bus","create":true,"person_name":"takeover"}`,
 		"POST /user/github-refresh": `{"name":"#bus"}`,
 		"POST /user/state":          `{"name":"#bus","status":"inactive"}`,
@@ -138,6 +140,10 @@ func TestDaemonAgentReservationAcrossRegisteredAPIRoutes(t *testing.T) {
 				if method == "GET" {
 					path += "?" + payload
 					body = ""
+				}
+				if method == "PUT" { // raw bytes in the body, the record in the query
+					path += "?" + payload
+					body = "takeover"
 				}
 				r := httptest.NewRequest(method, path, strings.NewReader(body))
 				r.Header.Set(HeaderToken, token(who))
