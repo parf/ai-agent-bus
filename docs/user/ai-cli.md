@@ -92,6 +92,7 @@ AGENT_BUS_NAME='#reviewer@parf.us' ab-codex
 | `ab_rename` | register under a new name; no argument takes the session's own title |
 | `ab_lock`, `ab_lock_release`, `ab_lock_extend`, `ab_lock_holders` | a named lock on a record, one holder at a time; its Owner, Maintainers and own Agent may take one |
 | `ab_kv_get`, `ab_kv_set`, `ab_kv_delete`, `ab_kv_inc`, `ab_kv_json` | the record's key-value store |
+| `ab_bigfile_put`, `ab_bigfile_get`, `ab_bigfile_ls`, `ab_bigfile_rm` | a record's [bigfiles](../03-records-kv.md#bigfiles): up to 32 MiB, passed by name |
 
 - Tell your agent these three things; they are the usual mistakes:
   - ⚠️ **Writing the answer in its own output is not replying.** The asker never sees it. Use `ab_reply` for a consumed message; a pushed message spells out the call to answer it with.

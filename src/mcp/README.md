@@ -1,8 +1,8 @@
 # The MCP face
 
-📌 **TL;DR:** One package, on bun: fifteen tools over stdio — `ab_ls`, `ab_send`,
+📌 **TL;DR:** One package, on bun: nineteen tools over stdio — `ab_ls`, `ab_send`,
 `ab_consume`, `ab_reply`, `ab_receipt`, `ab_rename`, and `ab_lock`,
-`ab_lock_release`, `ab_lock_extend`, `ab_lock_holders` for [shared locks](../../docs/01-identity-and-authority.md#shared-locks), and `ab_kv_get`, `ab_kv_set`, `ab_kv_delete`, `ab_kv_inc`, `ab_kv_json` for each record's [key-value store](../../Plans/R1.0-Release/done/kv.md#per-record-storage)
+`ab_lock_release`, `ab_lock_extend`, `ab_lock_holders` for [shared locks](../../docs/01-identity-and-authority.md#shared-locks), and `ab_kv_get`, `ab_kv_set`, `ab_kv_delete`, `ab_kv_inc`, `ab_kv_json` for each record's [key-value store](../../Plans/R1.0-Release/done/kv.md#per-record-storage), and `ab_bigfile_put`, `ab_bigfile_get`, `ab_bigfile_ls`, `ab_bigfile_rm` for [bigfiles](../../docs/03-records-kv.md#bigfiles)
 — the [MCP Resources](../../docs/03-records-resource.md#what-a-resource-is) the caller may
 read, and push into a live Claude Code, Codex or opencode session. The `ab-*` launchers load it for you;
 this page is for loading it by hand. Design:
