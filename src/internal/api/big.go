@@ -95,9 +95,8 @@ func (s *Server) bigRefused(w http.ResponseWriter, r *http.Request, err error) {
 			n = core.BigMaxValue
 		}
 		rc := http.NewResponseController(w)
-		rc.SetReadDeadline(time.Now().Add(bigDrain)) // a recorder has none; the bound is the length
+		rc.SetReadDeadline(time.Now().Add(bigDrain)) // the connection closes after the answer, so the deadline is never lifted; a recorder has none and the bound is the length
 		io.CopyN(io.Discard, r.Body, n)
-		rc.SetReadDeadline(time.Time{})
 	}
 	w.Header().Set("Connection", "close")
 	s.reply(w, nil, err)
