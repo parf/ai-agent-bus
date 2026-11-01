@@ -130,9 +130,20 @@ class Transport:
             timer.start()
             # Set this before writing: a partial send is already an uncertain write.
             sent = True
-            connection.request(method, path, body=encoded, headers={
-                "X-Agent-Bus-Token": self.token, "Content-Type": "application/json", **(headers or {})})
-            response = connection.getresponse()
+            try:
+                connection.request(method, path, body=encoded, headers={
+                    "X-Agent-Bus-Token": self.token, "Content-Type": "application/json", **(headers or {})})
+            except (OSError, http.client.HTTPException) as write_error:
+                if upload is None:
+                    raise
+                # A refusal can arrive while the large body is still writing.
+                # Read that response once; never retry the upload.
+                try:
+                    response = connection.getresponse()
+                except (OSError, http.client.HTTPException):
+                    raise write_error
+            else:
+                response = connection.getresponse()
             if big_response and 200 <= response.status < 300:
                 length = response.getheader('Content-Length')
                 if not length or not length.isdigit() or not 1 <= int(length) <= max_size:

@@ -6,7 +6,7 @@ import json
 import threading
 import unittest
 from unittest.mock import Mock, patch
-from agent_bus import Bus, Refusal, InvalidArgument
+from agent_bus import Bus, Refusal, InvalidArgument, BusError, UncertainOutcome
 
 class BigClient(unittest.TestCase):
     def setUp(self):
@@ -82,3 +82,26 @@ class BigClient(unittest.TestCase):
         for operation in (lambda:big.put('n',b'bytes'),lambda:big.get('n'),lambda:big.list(),lambda:big.delete('n')):
             with self.assertRaises(Refusal) as error:operation()
             self.assertEqual(error.exception.status,503);self.assertIn('disk path blocked',str(error.exception))
+
+    def test_early_refusal_wins_over_large_upload_write_error(self):
+        big=self.big();self.bus._name='owner@fixture'
+        for status in (403,413,503):
+            response=Mock(status=status,reason='fixture refusal')
+            response.read.return_value=b'{"error":"early refusal cause"}'
+            connection=Mock();connection.getresponse.return_value=response
+            def failed_write(*args,**kwargs):
+                next(iter(kwargs['body']))
+                raise ConnectionResetError('peer stopped the large upload')
+            connection.request.side_effect=failed_write
+            with self.subTest(status=status),patch('agent_bus.transport.http.client.HTTPConnection',return_value=connection):
+                try:big.put('n',b'x'*(3*1024*1024))
+                except BusError as error:
+                    self.assertIsInstance(error,Refusal,'an available response must win over the upload write error')
+                    self.assertEqual(error.status,status);self.assertIn('early refusal cause',str(error))
+                else:self.fail('the refused upload was reported as success')
+                connection.request.assert_called_once();connection.getresponse.assert_called_once()
+        connection=Mock();connection.request.side_effect=ConnectionResetError('write failed')
+        connection.getresponse.side_effect=ConnectionResetError('no response received')
+        with patch('agent_bus.transport.http.client.HTTPConnection',return_value=connection):
+            with self.assertRaises(UncertainOutcome):big.put('n',b'x'*(3*1024*1024))
+        connection.request.assert_called_once()
