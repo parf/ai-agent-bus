@@ -225,6 +225,10 @@ func (s *Server) routes(g guard) http.Handler {
 	mux.HandleFunc("POST /kv/delete", g(s.kvDelete))
 	mux.HandleFunc("POST /kv/inc", g(s.kvInc))
 	mux.HandleFunc("POST /kv/json", g(s.kvJSON))
+	mux.HandleFunc("PUT /big", g(s.bigPut))
+	mux.HandleFunc("GET /big", g(s.bigGet))
+	mux.HandleFunc("GET /big/list", g(s.bigList))
+	mux.HandleFunc("POST /big/delete", g(s.bigDelete))
 	mux.HandleFunc("POST /account", g(s.audited("account-map", s.account)))
 	mux.HandleFunc("GET /groups", g(s.groups))
 	mux.HandleFunc("GET /users", g(s.users))
@@ -1035,6 +1039,11 @@ var codes = []struct {
 	{core.ErrKVValue, http.StatusBadRequest, "malformed"},
 	{core.ErrKVType, http.StatusBadRequest, "malformed"},
 	{core.ErrKVLimit, http.StatusRequestEntityTooLarge, "malformed"},
+	{core.ErrBigAbsent, http.StatusNotFound, "unknown"},
+	{core.ErrBigValue, http.StatusBadRequest, "malformed"},
+	{core.ErrBigNoStore, http.StatusNotImplemented, "unknown"},
+	{ports.ErrBigTooLarge, http.StatusRequestEntityTooLarge, "malformed"},
+	{ports.ErrBigFull, http.StatusRequestEntityTooLarge, "malformed"},
 	{core.ErrUnknown, http.StatusNotFound, "unknown"},
 	// Not 503: a full inbox is the sender outrunning the reader, not the
 	// service being unavailable — and 503 is the service's own answer for
