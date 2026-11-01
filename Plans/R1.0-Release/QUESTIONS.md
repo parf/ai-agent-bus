@@ -8,7 +8,19 @@ suggestion with `✅ 💡` or `🚫 💡`.
 
 ## R1 release decisions
 
-None open: Q296 to Q304 are [settled](DECISIONS.md#recorded-decisions).
+Q296 to Q304 are [settled](DECISIONS.md#recorded-decisions).
+
+- ❓ Q311 Runner web page: the "last observation kept" and "saved vs applied per setting" views (RT11 RW4, RW8)
+  - Context: both are partial display polish, not security; the page works today. The other runner web extras (RW10–RW17) already moved to R1.1 (Q299)
+  - ( ) Move them to R1.1 with RW10–RW17 🌟
+  - ( ) Finish them in R1, about 30–60 minutes of agent time
+  > 💡👾 R1.1: polish, and nothing in the release depends on it.
+
+- ❓ Q312 Agent events (RT34): per-agent notice/warning/alert logs in the daemon, shown in the API and web
+  - Context: under discussion since 2026-10-29 and unassigned; it waits for you to ask for the API shape ([design](agent-events/README.md#levels)). The `#eventlog` agent already gives named logs
+  - ( ) R1.1 🌟
+  - ( ) R1
+  > 💡👾 R1.1: it is a new daemon feature, and adding it now would reopen the frozen protocol.
 
 ## Messaging agents
 
