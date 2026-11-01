@@ -470,3 +470,96 @@ test('bigfiles use real authority and preserve exact streamed bytes',async()=>{
  expect(await big.delete('mail/raw')).toBe(true);expect(await big.delete('mail/raw')).toBe(false);
  await expect(big.get('mail/raw')).rejects.toMatchObject({status:404});
 });
+
+// The shared state vectors (kv, locks, bigfile). A step's `expect` is a value to compare,
+// {refused:{status,message_has}} for a daemon refusal, or {refused:true} for a refusal by client or daemon.
+type StateStep = {[key:string]:any};
+type StateCase = {id:string;fresh?:boolean;setup?:string[];steps:StateStep[]};
+async function refused(where:string,step:StateStep,call:()=>Promise<any>):Promise<{refused:boolean;result?:any}> {
+ const want=step.expect?.refused;
+ if(!want) return {refused:false,result:await call()};
+ let error:unknown;
+ try { await call(); } catch(e) { error=e; }
+ expect(error,`${where}: expected a refusal, got success`).toBeDefined();
+ if(typeof want==='object') {
+  expect(error,`${where}: ${String(error)}`).toBeInstanceOf(BusError);
+  expect((error as InstanceType<typeof BusError>).status,where).toBe(want.status);
+  if(want.message_has) expect((error as Error).message,where).toContain(want.message_has);
+ }
+ return {refused:true};
+}
+const stepValue=(step:StateStep):string|Uint8Array => step.repeat ? String(step.repeat.text).repeat(step.repeat.count)
+ : step.value_b64 ? Uint8Array.from(Buffer.from(step.value_b64,'base64')) : (step.value ?? '');
+
+for(const row of conformanceCases('kv') as unknown as StateCase[]) test(`shared kv vector ${row.id}`,async()=>{
+ {
+  const kv=bus('owner@fixture').record('jobs@fixture').kv;
+  for(const [i,step] of row.steps.entries()) {
+   const where=`${row.id} step ${i} ${step.op} ${step.name??''}`,kind=step.kind??'string',exp=step.expect??{};
+   if(step.op==='set') {
+    let value:any=stepValue(step);
+    if(kind==='int') value=BigInt(value); else if(kind==='json') value=JSON.parse(value as string);
+    await refused(where,step,()=>kv.set(kind,step.name,value,{mode:step.how??'set'}));
+   } else if(step.op==='get') {
+    const r=await refused(where,step,()=>kv.get(kind,step.name)); if(r.refused) continue;
+    const got=r.result.value;
+    if(exp.value_b64!==undefined) expect(Buffer.from(typeof got==='string'?Buffer.from(got):got).toString('base64'),where).toBe(exp.value_b64);
+    else if(exp.length!==undefined) expect(got.length,where).toBe(exp.length);
+    else if(exp.json!==undefined) expect(got,where).toEqual(exp.json);
+    else expect(String(got),where).toBe(exp.value);
+   } else if(step.op==='fill') {
+    for(let n=0;n<step.count;n++) await kv.set(kind,step.prefix+n,'v',{mode:'add'});
+   } else if(step.op==='delete') {
+    const r=await refused(where,step,()=>kv.delete(kind,step.name)); if(!r.refused) expect(r.result,where).toBe(exp.deleted);
+   } else if(step.op==='inc') {
+    const r=await refused(where,step,()=>kv.increment(step.name,{by:BigInt(step.by)})); if(!r.refused&&exp.value!==undefined) expect(String(r.result),where).toBe(exp.value);
+   } else if(step.op==='json') {
+    const r=await refused(where,step,()=>kv.jsonApply(step.name,step.ops)); if(!r.refused&&exp.changed) expect((r.result.results??r.result).map((x:any)=>x.changed),where).toEqual(exp.changed);
+   } else throw new Error(`${where}: unknown vector op`);
+  }
+ }
+},30000);
+
+for(const row of conformanceCases('locks') as unknown as StateCase[]) test(`shared lock vector ${row.id}`,async()=>{
+ {
+  const buses:{[key:string]:InstanceType<typeof Bus>}={owner:bus('owner@fixture'),worker:bus('#worker@fixture')};
+  for(const setup of row.setup??[]) { expect(setup).toBe('worker-maintains-jobs'); await buses.owner!.record('jobs@fixture').manage({maintainers:['#worker@fixture']}); }
+  for(const [i,step] of row.steps.entries()) {
+   const where=`${row.id} step ${i} ${step.as} ${step.op} ${step.name??''}`,locks=buses[step.as]!.record('jobs@fixture').locks,exp=step.expect??{};
+   const ttl=(step.ttl_s??0)*1000,calls:{[key:string]:()=>Promise<any>}={
+    try:()=>locks.tryAcquire(step.name,{ttl}),
+    acquire:()=>locks.acquire(step.name,{ttl,wait:(step.wait_s??0)*1000}),
+    extend:()=>locks.extend(step.name,ttl),
+    release:()=>locks.release(step.name),
+    force:()=>locks.forceRelease(step.name),
+    holders:()=>locks.holders()};
+   expect(calls[step.op],where).toBeDefined();
+   const r=await refused(where,step,calls[step.op]!); if(r.refused) continue;
+   if(step.op==='force') expect(r.result,where).toBe(exp.displaced);
+   if(step.op==='holders') expect(Object.fromEntries((r.result as any[]).map(h=>[h.name,h.holder])),where).toEqual(exp.holders);
+  }
+ }
+});
+
+for(const row of conformanceCases('bigfile') as unknown as StateCase[]) test(`shared bigfile vector ${row.id}`,async()=>{
+ {
+  const big=bus('owner@fixture').record('jobs@fixture').bigfile;
+  for(const [i,step] of row.steps.entries()) {
+   const where=`${row.id} step ${i} ${step.op} ${step.name??''}`,exp=step.expect??{};
+   if(step.op==='put') {
+    const raw=stepValue(step),value=typeof raw==='string'?Buffer.from(raw):raw;
+    const r=await refused(where,step,()=>big.put(step.name,value,{ttl:step.ttl_s*1000,memory:!!step.memory,sha256:step.sha256})); if(r.refused) continue;
+    for(const key of ['size','sha256','held','replaced']) if(exp[key]!==undefined) expect((r.result as any)[key]??false,`${where} ${key}`).toBe(exp[key]);
+   } else if(step.op==='get') {
+    const r=await refused(where,step,()=>big.get(step.name)); if(r.refused) continue;
+    expect(r.result.data.toString(),where).toBe(exp.value);
+    expect(r.result.info.sha256,where).toBe(createHash('sha256').update(r.result.data).digest('hex'));
+    if(exp.sha256) expect(r.result.info.sha256,where).toBe(exp.sha256);
+   } else if(step.op==='list') {
+    const r=await refused(where,step,()=>big.list()); expect((r.result as any[]).map(k=>k.name),where).toEqual(exp.names);
+   } else if(step.op==='delete') {
+    const r=await refused(where,step,()=>big.delete(step.name)); if(!r.refused) expect(r.result,where).toBe(exp.deleted);
+   } else throw new Error(`${where}: unknown vector op`);
+  }
+ }
+},30000);

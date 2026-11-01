@@ -1,4 +1,6 @@
 import {test,expect} from 'bun:test';
+import {readFileSync} from 'node:fs';
+import {join} from 'node:path';
 import {createServer} from 'node:http';
 import {Bus} from '../src/bus.js';
 import {KVNotFound} from '../src/record.js';
@@ -32,4 +34,41 @@ test('protocol no_route is never converted to a missing KV value and unknown kee
  for(const kind of ['unknown','no_route'])await fixture({protocol:1,protocol_min:1},async b=>{
   try{await b.record('owner@test').kv.get('string','k');throw new Error('refused KV accepted');}catch(error){expect(error).toBeInstanceOf(BusError);expect((error as BusError).kind).toBe(kind);expect(error instanceof KVNotFound).toBe(kind==='unknown');}
  },[404,kind]);
+});
+
+// The shared identity and refusal vectors: a fake daemon answers the vector's raw bodies.
+const vectors=(name:string):any[]=>{
+ const directory=process.env.AB_CLIENT_CONFORMANCE_CASES??join(import.meta.dir,'../../../testdata/client-conformance');
+ const rows=JSON.parse(readFileSync(join(directory,`${name}.json`),'utf8'));expect(rows.length).toBeGreaterThan(0);return rows;
+};
+async function rawDaemon(identity:string,run:(b:Bus,calls:string[])=>Promise<void>,refuse?:{status:number;body:string;allow?:string}) {
+ const calls:string[]=[];
+ const server=createServer((req,res)=>{calls.push(req.url!);
+  if(req.url==='/identity'){res.end(identity);return;}
+  if(refuse&&req.url!.split('?')[0]==='/ls'){res.statusCode=refuse.status;if(refuse.allow)res.setHeader('Allow',refuse.allow);res.end(refuse.body);return;}
+  res.end('{"you":"owner@test"}');});
+ await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));
+ const b=new Bus({addr:`http://127.0.0.1:${(server.address() as any).port}`,token:'fixture',timeout:2000});
+ try{await run(b,calls);}finally{await b.close();server.closeAllConnections();await new Promise<void>(r=>server.close(()=>r()));}
+}
+test('shared identity vectors',async()=>{
+ const original=console.warn;
+ try{for(const row of vectors('identity')){
+  const warnings:string[]=[];console.warn=(...a)=>{warnings.push(a.join(' '));};
+  await rawDaemon(row.identity,async(b,calls)=>{
+   if(row.expect.fatal){await expect(b.status(),row.id).rejects.toThrow(row.expect.fatal);expect(calls,row.id).toEqual(['/identity']);return;}
+   await b.status();expect(calls[0],row.id).toBe('/identity');
+   if(row.expect.warns)expect(warnings.join(' '),row.id).toContain(row.expect.warns);else expect(warnings,row.id).toEqual([]);
+  });
+ }}finally{console.warn=original;}
+});
+test('shared refusal vectors',async()=>{
+ const original=console.warn;console.warn=()=>{};
+ try{for(const row of vectors('refusals')){
+  await rawDaemon(row.identity==='current'?'{"protocol":1,"protocol_min":1}':'{}',async b=>{
+   let error:unknown;try{await b.records();}catch(e){error=e;}
+   expect(error,row.id).toBeInstanceOf(BusError);const refusal=error as BusError;
+   expect([refusal.status,refusal.kind??'',refusal.message],row.id).toEqual([row.expect.status,row.expect.kind,row.expect.message]);
+  },row.daemon);
+ }}finally{console.warn=original;}
 });
