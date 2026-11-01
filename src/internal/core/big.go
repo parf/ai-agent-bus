@@ -49,7 +49,9 @@ func (b *Bus) bigStore(caller, record, name string, write bool) (ports.BigStore,
 	r, live := b.entity(record)
 	may := live && b.resourceManages(caller, r)
 	if live && !write {
-		may = b.may(caller, r)
+		// The daemon's own record admits everyone to send to it; that is not a
+		// grant to its big keys, as it is none to its key-value store.
+		may = r.Name != DaemonAgent && b.may(caller, r)
 	}
 	store := b.big
 	b.unlock()

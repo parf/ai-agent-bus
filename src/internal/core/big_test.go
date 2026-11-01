@@ -203,3 +203,23 @@ func TestBigKeysNeedAHolder(t *testing.T) {
 		t.Fatalf("no holder = %v", err)
 	}
 }
+
+// The daemon's own record admits everyone to send to it, which must not make
+// its big keys anyone's to read, write or list.
+func TestBigKeysOfTheDaemonRecordAreNobodys(t *testing.T) {
+	b := bigFixture(t)
+	if err := b.EstablishDaemonAgent("node.example"); err != nil {
+		t.Fatal(err)
+	}
+	for _, who := range []string{"alice@h", "bob@h", "admin@h"} {
+		if _, _, err := b.BigGet(who, DaemonAgent, "k"); !errors.Is(err, ErrNotOwner) {
+			t.Fatalf("%s get on the daemon record = %v", who, err)
+		}
+		if _, _, err := b.BigList(who, DaemonAgent); !errors.Is(err, ErrNotOwner) {
+			t.Fatalf("%s list on the daemon record = %v", who, err)
+		}
+		if _, _, err := b.BigPut(who, DaemonAgent, "k", strings.NewReader("x"), 0, false, ""); !errors.Is(err, ErrNotOwner) {
+			t.Fatalf("%s put on the daemon record = %v", who, err)
+		}
+	}
+}
