@@ -8,6 +8,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/parf/ai-agent-bus/internal/keyproof"
@@ -15,12 +16,24 @@ import (
 )
 
 func enrol(args []string) error {
+	// Like token's argv form, a file after a bare --key is an ambiguous
+	// positional argument. Refuse it before asking the node for a proof.
+	for i, arg := range args {
+		if arg == "--" {
+			break
+		}
+		if arg == "--key" && i+1 < len(args) {
+			if _, err := os.Stat(args[i+1]); err == nil {
+				return fmt.Errorf("--key takes its file as --key=<file>")
+			}
+		}
+	}
 	pos, flags, err := split(args)
 	if err := only(flags, err, "key"); err != nil {
 		return err
 	}
 	if len(pos) != 1 {
-		return fmt.Errorf("enrol wants one name: agent-bus enrol <user[@realm]> [--key ~/.ssh/id_ed25519]")
+		return fmt.Errorf("enrol wants one name: agent-bus enrol <user[@realm]> [--key=<file>]")
 	}
 	name, err := protocol.ParseName(pos[0])
 	if err != nil {
