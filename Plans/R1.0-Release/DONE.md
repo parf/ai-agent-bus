@@ -353,3 +353,7 @@ Every `agent-bus-setup --runner` verb (install, a second install, enable, disabl
 ## F2 install validation preserves live overrides
 
 Staging validation no longer changes the live merged files. Apply publishes complete merged output under the reload mutex and recovers interrupted replacements. [Checks and mutant](done/f2-overlay-staging.md#checks).
+
+## J78 runner reload settings snapshots
+
+Inbox polls snapshot the shared-reader setting without locking a blocking consume; delayed JSONL retirement and shutdown capture their deadlines and jails before scheduling their goroutines. The reload/poll race reproduces on main; four compiling owning mutants fail on race reports or a bounded assertion. [Field sweep and proof](done/j78-runner-settings.md#proof).
