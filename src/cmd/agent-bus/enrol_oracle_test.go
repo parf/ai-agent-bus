@@ -12,8 +12,12 @@ import (
 )
 
 // A node that asks for another namespace must not get the key's signature:
-// enrol signs what the bus asks for, in the bus's namespace, or not at all.
+// enrol signs what the bus asks for, in the bus's namespace, or not at all. A
+// namespace that is present but empty or null is wrong too; only an absent one
+// is the older answer.
 func TestEnrolDoesNotSignForAnotherNamespace(t *testing.T) {
+	// One node for all the cases: the CLI keeps its address for the process.
+	var ns string
 	calls := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/identity" {
@@ -25,9 +29,9 @@ func TestEnrolDoesNotSignForAnotherNamespace(t *testing.T) {
 		var in map[string]any
 		_ = json.Unmarshal(b, &in)
 		if in["signature"] != nil {
-			t.Errorf("a signature was sent to the node: %s", b)
+			t.Errorf("namespace %s: a signature was sent to the node: %s", ns, b)
 		}
-		json.NewEncoder(w).Encode(map[string]string{"name": "alice@test", "nonce": "0123456789abcdef0123456789abcdef", "namespace": "file"})
+		io.WriteString(w, `{"name":"alice@test","nonce":"0123456789abcdef0123456789abcdef","namespace":`+ns+`}`)
 	}))
 	defer srv.Close()
 	dir := t.TempDir()
@@ -43,14 +47,17 @@ func TestEnrolDoesNotSignForAnotherNamespace(t *testing.T) {
 	t.Setenv("PATH", dir+":"+os.Getenv("PATH"))
 	t.Setenv("AGENT_BUS_ADDR", srv.URL)
 	t.Setenv("AGENT_BUS_TOKEN", "fixture")
-	err := enrol([]string{"alice@test", "--key=" + key})
-	if err == nil || !strings.Contains(err.Error(), "namespace") {
-		t.Fatalf("enrol = %v, want a refusal naming the namespace", err)
-	}
-	if _, statErr := os.Stat(log); statErr == nil {
-		t.Fatal("ssh-keygen was run for another namespace")
-	}
-	if calls != 1 {
-		t.Fatalf("the node saw %d calls, want only the challenge", calls)
+	for _, ns = range []string{`"file"`, `""`, `null`} {
+		calls = 0
+		err := enrol([]string{"alice@test", "--key=" + key})
+		if err == nil || !strings.Contains(err.Error(), "namespace") {
+			t.Errorf("namespace %s: enrol = %v, want a refusal naming the namespace", ns, err)
+		}
+		if _, statErr := os.Stat(log); statErr == nil {
+			t.Errorf("namespace %s: ssh-keygen was run", ns)
+		}
+		if calls != 1 {
+			t.Errorf("namespace %s: the node saw %d calls, want only the challenge", ns, calls)
+		}
 	}
 }

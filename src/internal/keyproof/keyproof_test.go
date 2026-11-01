@@ -1,11 +1,14 @@
 package keyproof
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func ns(v string) json.RawMessage { b, _ := json.Marshal(v); return b }
 
 const goodNonce = "0123456789abcdef0123456789abcdef"
 
@@ -15,14 +18,17 @@ func TestCheckRefusesWhatIsNotTheBusProof(t *testing.T) {
 		c    Challenge
 		want string // "" = accepted
 	}{
-		{"the bus's own answer", Challenge{"alice@r", goodNonce, "agent-bus"}, ""},
-		{"an answer without a namespace", Challenge{"alice@r", goodNonce, ""}, ""},
-		{"another namespace", Challenge{"alice@r", goodNonce, "git"}, "namespace"},
-		{"another name", Challenge{"bob@r", goodNonce, "agent-bus"}, "name"},
-		{"a short nonce", Challenge{"alice@r", "abc", "agent-bus"}, "nonce"},
-		{"a nonce with capitals", Challenge{"alice@r", strings.ToUpper(goodNonce), "agent-bus"}, "nonce"},
-		{"a nonce that is not hex", Challenge{"alice@r", strings.Repeat("z", 32), "agent-bus"}, "nonce"},
-		{"a long free-text message", Challenge{"alice@r", "tree 0123\nauthor x\n" + goodNonce, "agent-bus"}, "nonce"},
+		{"the bus's own answer", Challenge{"alice@r", goodNonce, ns("agent-bus")}, ""},
+		{"an answer without a namespace", Challenge{"alice@r", goodNonce, nil}, ""},
+		{"an empty namespace", Challenge{"alice@r", goodNonce, json.RawMessage(`""`)}, "namespace"},
+		{"a null namespace", Challenge{"alice@r", goodNonce, json.RawMessage(`null`)}, "namespace"},
+		{"a numeric namespace", Challenge{"alice@r", goodNonce, json.RawMessage(`7`)}, "namespace"},
+		{"another namespace", Challenge{"alice@r", goodNonce, ns("git")}, "namespace"},
+		{"another name", Challenge{"bob@r", goodNonce, ns("agent-bus")}, "name"},
+		{"a short nonce", Challenge{"alice@r", "abc", ns("agent-bus")}, "nonce"},
+		{"a nonce with capitals", Challenge{"alice@r", strings.ToUpper(goodNonce), ns("agent-bus")}, "nonce"},
+		{"a nonce that is not hex", Challenge{"alice@r", strings.Repeat("z", 32), ns("agent-bus")}, "nonce"},
+		{"a long free-text message", Challenge{"alice@r", "tree 0123\nauthor x\n" + goodNonce, ns("agent-bus")}, "nonce"},
 	}
 	for _, tc := range cases {
 		err := tc.c.Check("alice@r")
@@ -37,7 +43,7 @@ func TestCheckRefusesWhatIsNotTheBusProof(t *testing.T) {
 			continue
 		}
 		for _, secret := range []string{"git", "bob@r", "author x"} {
-			if strings.Contains(tc.c.Namespace+tc.c.Name+tc.c.Nonce, secret) && strings.Contains(err.Error(), secret) {
+			if strings.Contains(string(tc.c.Namespace)+tc.c.Name+tc.c.Nonce, secret) && strings.Contains(err.Error(), secret) {
 				t.Errorf("%s: the refusal echoes %q: %v", tc.name, secret, err)
 			}
 		}

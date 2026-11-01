@@ -5,6 +5,7 @@
 package keyproof
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -21,7 +22,12 @@ func Default() string {
 }
 
 // Challenge is the answer to the first POST /enrol: the bus names what to sign.
-type Challenge struct{ Name, Nonce, Namespace string }
+// Namespace is kept raw so that an absent member (an older answer) is not the
+// same as one that is present and wrong: "", null or a number is refused.
+type Challenge struct {
+	Name, Nonce string
+	Namespace   json.RawMessage
+}
 
 // Check refuses an answer that asks for anything but the bus's own proof. A
 // node that is not the one meant (a wrong address, a plain-http one) answers
@@ -36,8 +42,11 @@ func (c Challenge) Check(asked string) error {
 	if len(c.Nonce) != 32 || strings.Trim(c.Nonce, "0123456789abcdef") != "" {
 		return fmt.Errorf("the node sent a nonce that is not 32 hex digits")
 	}
-	if c.Namespace != "" && c.Namespace != protocol.SigNamespace {
-		return fmt.Errorf("the node asked for a signature in another namespace")
+	if len(c.Namespace) > 0 {
+		var ns string
+		if json.Unmarshal(c.Namespace, &ns) != nil || ns != protocol.SigNamespace {
+			return fmt.Errorf("the node asked for a signature in another namespace")
+		}
 	}
 	return nil
 }

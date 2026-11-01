@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -18,6 +19,7 @@ type seen struct{ path, token, body string }
 
 // daemon answers the key-proof exchange and records what it was asked.
 func daemon(t *testing.T, namespace string) (log func() []seen) {
+	// namespace is the raw JSON of the member; empty leaves it out.
 	t.Helper()
 	var mu sync.Mutex
 	var calls []seen
@@ -30,7 +32,11 @@ func daemon(t *testing.T, namespace string) (log func() []seen) {
 		_ = json.Unmarshal(b, &in)
 		switch {
 		case r.URL.Path == "/enrol" && in["signature"] == nil:
-			json.NewEncoder(w).Encode(map[string]string{"name": in["name"].(string), "nonce": nonce, "namespace": namespace})
+			answer := map[string]json.RawMessage{"name": json.RawMessage(strconv.Quote(in["name"].(string))), "nonce": json.RawMessage(strconv.Quote(nonce))}
+			if namespace != "" {
+				answer["namespace"] = json.RawMessage(namespace)
+			}
+			json.NewEncoder(w).Encode(answer)
 		case r.URL.Path == "/enrol":
 			json.NewEncoder(w).Encode(map[string]string{"token": "PROOF-TOKEN"})
 		case r.URL.Path == "/token":
@@ -75,7 +81,7 @@ func stdout(t *testing.T, f func() error) (string, error) {
 }
 
 func TestAHostileNodeCannotChooseWhatTheKeySigns(t *testing.T) {
-	log := daemon(t, "git")
+	log := daemon(t, `"git"`)
 	key, keygenLog := keygen(t)
 	_, err := prove("alice@test", key)
 	if err == nil || !strings.Contains(err.Error(), "namespace") {
@@ -90,7 +96,7 @@ func TestAHostileNodeCannotChooseWhatTheKeySigns(t *testing.T) {
 }
 
 func TestTheProofSignsTheNonceInTheBusNamespace(t *testing.T) {
-	log := daemon(t, "agent-bus")
+	log := daemon(t, `"agent-bus"`)
 	key, keygenLog := keygen(t)
 	tok, err := prove("alice@test", key)
 	if err != nil || tok != "PROOF-TOKEN" {
@@ -103,5 +109,32 @@ func TestTheProofSignsTheNonceInTheBusNamespace(t *testing.T) {
 	calls := log()
 	if len(calls) != 2 || !strings.Contains(calls[1].body, `"signature"`) || !strings.Contains(calls[1].body, nonce) {
 		t.Fatalf("the daemon saw %+v", calls)
+	}
+}
+
+// Present and wrong is refused, whatever its shape; only an absent member is the older answer.
+func TestAPresentButEmptyOrNullNamespaceIsRefusedBeforeTheKeyIsUsed(t *testing.T) {
+	for _, ns := range []string{`""`, `null`, `7`, `"Agent-Bus"`} {
+		log := daemon(t, ns)
+		key, keygenLog := keygen(t)
+		_, err := prove("alice@test", key)
+		if err == nil || !strings.Contains(err.Error(), "namespace") {
+			t.Errorf("namespace %s: prove = %v, want a refusal naming the namespace", ns, err)
+		}
+		if _, statErr := os.Stat(keygenLog); statErr == nil {
+			t.Errorf("namespace %s: ssh-keygen was run", ns)
+		}
+		if n := len(log()); n != 1 {
+			t.Errorf("namespace %s: the daemon saw %d calls", ns, n)
+		}
+	}
+	// An answer without the member is the older daemon's and is signed in agent-bus.
+	daemon(t, "")
+	key, keygenLog := keygen(t)
+	if _, err := prove("alice@test", key); err != nil {
+		t.Fatalf("absent namespace: %v", err)
+	}
+	if argv, _ := os.ReadFile(keygenLog); !strings.Contains(string(argv), "-n agent-bus ") {
+		t.Fatalf("ssh-keygen was called with %q", argv)
 	}
 }
