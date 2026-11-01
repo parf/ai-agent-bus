@@ -1,5 +1,11 @@
 # DONE — R1
 
+## J1 MCP bigfile tools fenced and never pre-approved
+
+- 🔴 J1 of the 2026-11-01 range review: `mcp__plugin_agent-bus_agent-bus__*` was pre-approved in `ab-claude`, so `ab_bigfile_put/get` read and wrote model-chosen paths with no prompt. Result: the Claude allow list names every safe tool and omits the two file-touching ones; Codex asks for them by tool; the launcher passes `AGENT_BUS_BIGFILE_DIR` to the face; and [the face works only inside that directory](../../docs/03-records-kv.md#bigfiles) and refuses when it is unset (owner, 2026-11-01, [decision](DECISIONS.md#recorded-decisions)).
+- `ab-opencode` has no per-tool list: its server runs `permission: "allow"` for the whole session, so the directory is its only control. The CLI `agent-bus bigfile` is not fenced.
+- Proof: `bigfile-fence.test.ts`, `tool-access.test.ts` (finds file-touching tools by schema, so an unlisted new one fails) and the updated big tests in `face.test.ts`; mutants named in the commit report.
+
 ## T-24 client compatibility
 
 - Go, Python and TypeScript clients, CLI and MCP check HTTP identity protocol compatibility and surface refusal kinds; [behavior and checks](done/t24-clients.md#checks). Five independent too-new mutants fail on assertions. The server, full contract documentation and shared conformance-vector work are separate T-24 slices.
