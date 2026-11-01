@@ -311,3 +311,8 @@ The archive harness reports a verified `-14120` account-only cleanup partial wit
 ## P.1c macOS npm platform acceptance
 
 The CEO’s arm64 run on 2026-10-31 passed local npm client/full-wrapper installation, the stamped installed CLI version, one correlated bus call and the expected unsupported-daemon refusal; cleanup was confirmed at 122M. [Acceptance and native log](done/p1c-macos-npm.md#native-acceptance). P.1c is complete; publication and the parent P.1 remain separate.
+
+## M.11 real-host acceptance of the system runner
+
+Every `agent-bus-setup --runner` verb (install, a second install, enable, disable, uninstall, uninstall `--purge`) and a refused non-User ran on a real systemd host, a disposable rootless-podman container on 0.9.262: 38 checks passed, 0 failed, and each verb left the account, unit, template, private directory and shared `agent.d` as [the setup guide](../../docs/07-setup.md#a-persons-runner) states. The bus record and `runner.env`'s mode were read back, not asserted. [Evidence and the unaltered log](done/m11.md#what-each-verb-left); open gaps are in [FUTURE](FUTURE.md#m11-acceptance-gaps). No code change, no bump.
+
