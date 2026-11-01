@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"io"
@@ -395,5 +396,151 @@ func TestLateTakenJsonlMessageNeverFallsBackToOneShotAfterThePoolRetires(t *test
 	r.runOne(s, message("taken-before-reload"))
 	if _, err := os.Stat(filepath.Join(s.work, "late-frame")); err == nil {
 		t.Fatal("a late taken jsonl message ran as a new one-shot process after its pool retired")
+	}
+}
+
+func TestJsonlOversizedAnswerFailsOnlyItsRequestAndKeepsProcess(t *testing.T) {
+	st, dir := streamFixture(t, `while read -r a; do
+ id=$(idof "$a")
+ if [ "$id" = large ]; then
+ printf '{"message_id":"%s","body":"' "$id"
+ head -c 2097152 /dev/zero | tr '\000' x
+ printf '"}\n'
+ else
+ printf '{"message_id":"%s","body":"ok"}\n' "$id"
+ fi
+ done
+`, 2)
+	ctx, cancel := context.WithTimeout(context.Background(), 900*time.Millisecond)
+	defer cancel()
+	_, err := st.do(ctx, message("large"))
+	if _, ok := err.(answerFailure); !ok || err.Error() != "answer too large (limit 1048576)" {
+		t.Fatalf("oversized request = %v, want explicit answer-too-large error", err)
+	}
+	body, err := st.do(ctx, message("next"))
+	if err != nil || body != "ok" {
+		t.Fatalf("next request = %q, %v; want ok on same process", body, err)
+	}
+	starts, err := os.ReadFile(filepath.Join(dir, "starts"))
+	if err != nil || string(starts) != "s" {
+		t.Fatalf("process starts = %q, %v; want exactly one", starts, err)
+	}
+}
+
+func TestJsonlOversizedAnswerWithoutIDFailsAllPendingAndKillsChild(t *testing.T) {
+	st, _ := streamFixture(t, `read -r a; read -r b
+ printf '{"body":"'
+ head -c 2097152 /dev/zero | tr '\000' x
+ printf '"}\n'
+ sleep 30
+`, 2)
+	ctx, cancel := context.WithTimeout(context.Background(), 900*time.Millisecond)
+	defer cancel()
+	errs := make(chan error, 2)
+	for _, id := range []string{"a", "b"} {
+		go func(id string) { _, err := st.do(ctx, message(id)); errs <- err }(id)
+	}
+	for range 2 {
+		err := <-errs
+		if _, ok := err.(answerFailure); !ok || !strings.Contains(err.Error(), "without a parsable message_id") {
+			t.Fatalf("pending request = %v, want explicit no-id failure", err)
+		}
+	}
+	st.mu.Lock()
+	var gone <-chan struct{}
+	for c := range st.children {
+		gone = c.gone
+	}
+	st.mu.Unlock()
+	if gone != nil {
+		select {
+		case <-gone:
+		case <-ctx.Done():
+			t.Fatal("unidentifiable oversized answer did not kill child")
+		}
+	}
+}
+
+func TestJsonlAnswerLineLimitAndPrefixID(t *testing.T) {
+	for _, n := range []int{maxOutput - 1, maxOutput, maxOutput + 1} {
+		r := bufio.NewReaderSize(strings.NewReader(strings.Repeat("x", n)+"\nnext\n"), 64<<10)
+		line, over, err := readAnswerLine(r)
+		if err != nil || len(line) != min(n, maxOutput) || over != (n > maxOutput) {
+			t.Fatalf("size %d: len=%d over=%v err=%v", n, len(line), over, err)
+		}
+		next, over, err := readAnswerLine(r)
+		if string(next) != "next" || over || err != nil {
+			t.Fatalf("next line = %q, %v, %v", next, over, err)
+		}
+	}
+	for _, tc := range []struct{ line, want string }{
+		{`{"message_id":"a","body":"unfinished`, "a"},
+		{`{"nested":{"message_id":"wrong"},"message_id":"right","body":"unfinished`, "right"},
+		{`{"body":"message_id: wrong`, ""},
+		{`{"message_id":123,"body":"unfinished`, ""},
+	} {
+		if got := answerPrefixID([]byte(tc.line)); got != tc.want {
+			t.Fatalf("prefix %q = %q, want %q", tc.line, got, tc.want)
+		}
+	}
+}
+
+func TestJsonlOversizedAnswerIsReturnedToTheCaller(t *testing.T) {
+	r, b, script := configurationFixture(t, "", `read -r a
+ printf '{"message_id":"large","body":"'
+ head -c 2097152 /dev/zero | tr '\000' x
+ printf '"}\n'
+ while read -r a; do :; done
+`)
+	manifest := map[string]any{"description": "probe", "command": "/bin/sh " + script, "form": "jsonl", "processes": 1, "deadline": "900ms"}
+	if err := os.WriteFile(filepath.Join(filepath.Dir(script), "agent.json"), mustJSON(manifest), 0600); err != nil {
+		t.Fatal(err)
+	}
+	r.reload()
+	r.mu.Lock()
+	s := r.served["#fixture@h"]
+	r.mu.Unlock()
+	e := message("large")
+	e.From = "owner@h"
+	r.runOne(s, e)
+	ctx, cancel := context.WithTimeout(context.Background(), 900*time.Millisecond)
+	defer cancel()
+	answer, err := b.Consume(ctx, "owner@h", "", "", false, false)
+	if err != nil || answer.Body != "error: answer too large (limit 1048576)" {
+		t.Fatalf("caller answer = %+v, %v; want request-specific answer-too-large reply", answer, err)
+	}
+}
+
+func TestJsonlOversizedAnswerSparesAnotherRequestAlreadyInFlight(t *testing.T) {
+	st, _ := streamFixture(t, `read -r a; read -r b
+ printf '{"message_id":"%s","body":"' "$(idof "$a")"
+ head -c 2097152 /dev/zero | tr '\000' x
+ printf '"}\n'
+ printf '{"message_id":"%s","body":"peer ok"}\n' "$(idof "$b")"
+ while read -r a; do :; done
+`, 2)
+	ctx, cancel := context.WithTimeout(context.Background(), 900*time.Millisecond)
+	defer cancel()
+	type result struct {
+		id, body string
+		err      error
+	}
+	results := make(chan result, 2)
+	for _, id := range []string{"one", "two"} {
+		go func(id string) { body, err := st.do(ctx, message(id)); results <- result{id, body, err} }(id)
+	}
+	failures, successes := 0, 0
+	for range 2 {
+		got := <-results
+		if _, ok := got.err.(answerFailure); ok {
+			failures++
+		} else if got.err == nil && got.body == "peer ok" {
+			successes++
+		} else {
+			t.Fatalf("request %s = %q, %v", got.id, got.body, got.err)
+		}
+	}
+	if failures != 1 || successes != 1 {
+		t.Fatalf("oversized failures=%d peer successes=%d; want one each", failures, successes)
 	}
 }

@@ -866,6 +866,9 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 		finishAck()
 		if err != nil {
 			fmt.Fprintf(r.say, "%s: %s was not answered: %v\n", s.name, e.ID, err)
+			if failure, ok := err.(answerFailure); ok {
+				r.answerAs(s.bus, e, "error: "+failure.Error())
+			}
 			return
 		}
 		if answer == "" {

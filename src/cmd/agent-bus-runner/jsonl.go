@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -64,7 +65,7 @@ type streamChild struct {
 	in      io.WriteCloser
 	out     io.Reader
 	cmd     *exec.Cmd
-	pending map[string]chan string // message ID → its answer
+	pending map[string]chan streamResult // message ID → its answer
 	dead    bool
 	retired bool          // stopped for being idle: not started again
 	used    time.Time     // when it last held a message
@@ -287,32 +288,121 @@ func (st *stream) start() (*streamChild, error) {
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
-	return &streamChild{in: in, out: out, cmd: cmd, pending: map[string]chan string{}, used: time.Now(), gone: make(chan struct{})}, nil
+	return &streamChild{in: in, out: out, cmd: cmd, pending: map[string]chan streamResult{}, used: time.Now(), gone: make(chan struct{})}, nil
 }
 
 // answers routes each answer line to the message it names, until the
 // process closes its output.
 func (st *stream) answers(c *streamChild) {
-	lines := bufio.NewScanner(c.out)
-	lines.Buffer(make([]byte, 64<<10), maxOutput+4096)
-	for lines.Scan() {
-		id, body, ok := streamAnswer(lines.Bytes())
+	reader := bufio.NewReaderSize(c.out, 64<<10)
+	for {
+		line, over, err := readAnswerLine(reader)
+		if len(line) == 0 && err != nil {
+			return
+		}
+		id, body, ok := streamAnswer(line)
+		var answerErr error
+		if over {
+			id = answerPrefixID(line)
+			ok = id != ""
+			answerErr = answerFailure{fmt.Sprintf("answer too large (limit %d)", maxOutput)}
+			fmt.Fprintf(st.r.say, "%s: %s: %v\n", st.s.name, id, answerErr)
+			if !ok {
+				st.failAnswers(c, answerFailure{"answer too large without a parsable message_id; process killed"})
+				st.kill(c)
+				return
+			}
+		}
 		c.mu.Lock()
 		answer := c.pending[id]
 		if ok && answer != nil {
 			delete(c.pending, id)
+			c.used = time.Now()
 		}
 		c.mu.Unlock()
 		if !ok || answer == nil {
 			fmt.Fprintf(st.r.say, "%s: an answer line names no message in flight; dropped\n", st.s.name)
-			continue
+		} else {
+			answer <- streamResult{body, answerErr}
+			st.wake()
 		}
-		c.mu.Lock()
-		c.used = time.Now()
-		c.mu.Unlock()
-		answer <- body
-		st.wake()
+		if err != nil {
+			return
+		}
 	}
+
+}
+
+// answerFailure is an agent output failure that must be answered to the caller.
+type answerFailure struct{ text string }
+
+func (e answerFailure) Error() string { return e.text }
+
+type streamResult struct {
+	body string
+	err  error
+}
+
+// readAnswerLine retains at most the answer limit, discarding the remainder
+// through the newline so that the next answer stays aligned.
+func readAnswerLine(r *bufio.Reader) ([]byte, bool, error) {
+	var line []byte
+	over := false
+	for {
+		part, err := r.ReadSlice('\n')
+		payload := part
+		if len(payload) > 0 && payload[len(payload)-1] == '\n' {
+			payload = payload[:len(payload)-1]
+		}
+		room := maxOutput - len(line)
+		if len(payload) > room {
+			over = true
+			payload = payload[:room]
+		}
+		line = append(line, payload...)
+		if err != bufio.ErrBufferFull {
+			return line, over, err
+		}
+	}
+}
+
+// Read only top-level JSON members from the retained prefix. A message_id
+// inside a body or nested object must never identify another pending call.
+func answerPrefixID(line []byte) string {
+	d := json.NewDecoder(bytes.NewReader(line))
+	token, err := d.Token()
+	if err != nil || token != json.Delim('{') {
+		return ""
+	}
+	for d.More() {
+		key, err := d.Token()
+		if err != nil {
+			return ""
+		}
+		if key == "message_id" {
+			var id string
+			if d.Decode(&id) == nil {
+				return id
+			}
+			return ""
+		}
+		var value json.RawMessage
+		if d.Decode(&value) != nil {
+			return ""
+		}
+	}
+	return ""
+}
+
+func (st *stream) failAnswers(c *streamChild, err error) {
+	c.mu.Lock()
+	c.dead = true
+	for id, answer := range c.pending {
+		answer <- streamResult{err: err}
+		delete(c.pending, id)
+	}
+	c.mu.Unlock()
+	st.wake()
 }
 
 // wake tells a waiting do that a place may be free.
@@ -363,7 +453,7 @@ func (st *stream) do(ctx context.Context, e protocol.Envelope) (string, error) {
 			return "", ctx.Err()
 		}
 	}
-	answer := make(chan string, 1)
+	answer := make(chan streamResult, 1)
 	c.pending[e.ID] = answer
 	c.used = time.Now()
 	c.mu.Unlock()
@@ -393,11 +483,11 @@ func (st *stream) do(ctx context.Context, e protocol.Envelope) (string, error) {
 		return "", ctx.Err()
 	}
 	select {
-	case body, ok := <-answer:
+	case result, ok := <-answer:
 		if !ok {
 			return "", fmt.Errorf("its process exited")
 		}
-		return body, nil
+		return result.body, result.err
 	case <-ctx.Done():
 		fmt.Fprintf(st.r.say, "%s: %s passed its deadline; its process is killed\n", st.s.name, e.ID)
 		st.kill(c)
