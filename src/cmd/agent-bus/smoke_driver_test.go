@@ -26,6 +26,18 @@ func TestSmokeInterruptStopsItsTimeoutShard(t *testing.T) { smokeInterrupt(t, 0)
 // The same, with the shard starting later than the old fixed three-second wait.
 func TestSmokeInterruptWaitsForALateShard(t *testing.T) { smokeInterrupt(t, 3500*time.Millisecond) }
 
+// The real go_unit shard exports slow mode but consumes its child stamps.
+// A fixture driver must be isolated from both that mode and any future stamp.
+func TestSmokeInterruptUnderInheritedSlowEnvironment(t *testing.T) {
+	t.Setenv("MODE", "slow")
+	t.Setenv("TARGETS", "A,C,E,H")
+	t.Setenv("SMOKE_PLAN", "/nonexistent/j73-parent-plan")
+	t.Setenv("SMOKE_CHILD_SHARD", "j73-must-not-survive")
+	t.Setenv("SMOKE_CHILD_PLAN", "/nonexistent/j73-parent-plan")
+	t.Setenv("SMOKE_DRIVER_CHILD", "1")
+	smokeInterrupt(t, 0)
+}
+
 func smokeInterrupt(t *testing.T, startDelay time.Duration) {
 	source, err := os.ReadFile("../../smoke.sh")
 	if err != nil {
@@ -39,9 +51,12 @@ func smokeInterrupt(t *testing.T, startDelay time.Duration) {
 	dir := t.TempDir()
 	script, pidfile := filepath.Join(dir, "driver.sh"), filepath.Join(dir, "child.pid")
 	// The driver sources these beside itself.
-	for _, name := range []string{"smoke-options.sh", "smoke-port.sh"} {
+	for _, name := range []string{"smoke-options.sh", "smoke-port.sh", "smoke-gofail.sh", "smoke-bun.sh", "clients/cargo-target.sh"} {
 		body, err := os.ReadFile("../../" + name)
 		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(dir, name)), 0700); err != nil {
 			t.Fatal(err)
 		}
 		if err := os.WriteFile(filepath.Join(dir, name), body, 0600); err != nil {
@@ -56,9 +71,34 @@ func smokeInterrupt(t *testing.T, startDelay time.Duration) {
 		t.Fatal(err)
 	}
 	defer out.Close()
+	// This stub belongs only to this fixture's PATH. A mode leak cannot reach
+	// the real bus, and its calls are counted even if its fake lock would allow it.
+	stubDir := filepath.Join(dir, "stub-bin")
+	if err := os.Mkdir(stubDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	lockCalls := filepath.Join(dir, "lock.calls")
+	stub := `#!/bin/bash
+printf '%s\n' "$1" >>"$PROBE_LOCK_CALLS"
+case "$1" in
+ status) printf '%s\n' '{"you":"fixture@j73"}' ;;
+ holders) printf '%s\n' 'smoke-gate@parf.us slow fixture@j73' ;;
+ *) exit 91 ;;
+esac
+`
+	if err := os.WriteFile(filepath.Join(stubDir, "agent-bus"), []byte(stub), 0700); err != nil {
+		t.Fatal(err)
+	}
 	cmd := exec.Command("bash", script)
 	// Its port claim locks in the test's own directory, never the host's.
-	cmd.Env = append(os.Environ(), "PROBE_PID="+pidfile, "TMPDIR="+dir, "SMOKE_PORT_LOCKS="+filepath.Join(dir, "ports"))
+	for _, entry := range os.Environ() {
+		name, _, _ := strings.Cut(entry, "=")
+		if name == "MODE" || name == "TARGETS" || name == "PORT" || name == "PATH" || strings.HasPrefix(name, "SMOKE_") || strings.HasPrefix(name, "AGENT_BUS_") {
+			continue
+		}
+		cmd.Env = append(cmd.Env, entry)
+	}
+	cmd.Env = append(cmd.Env, "PATH="+stubDir+string(os.PathListSeparator)+os.Getenv("PATH"), "PROBE_LOCK_CALLS="+lockCalls, "PROBE_PID="+pidfile, "TMPDIR="+dir, "SMOKE_PORT_LOCKS="+filepath.Join(dir, "ports"))
 	cmd.Stdout, cmd.Stderr = out, out
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := cmd.Start(); err != nil {
@@ -106,6 +146,18 @@ func smokeInterrupt(t *testing.T, startDelay time.Duration) {
 	case <-exited:
 	case <-time.After(smokeExitWithin):
 		t.Fatal("interrupted smoke driver did not exit")
+	}
+	if calls, err := os.ReadFile(lockCalls); err == nil && len(calls) > 0 {
+		t.Fatalf("nested driver inherited gate state and consulted the lock: %s", calls)
+	} else if err != nil && !os.IsNotExist(err) {
+		t.Fatal(err)
+	}
+	text, err := os.ReadFile(filepath.Join(dir, "output"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(text), "No such file or directory") {
+		t.Fatalf("fixture driver omitted a sourced helper: %s", text)
 	}
 	if err := syscall.Kill(child, 0); err == nil {
 		t.Fatal("interrupted smoke left its timeout shard running")
