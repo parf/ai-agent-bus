@@ -6,7 +6,7 @@ The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
 ## 0.9.265 — 2026-11-01
 
-RAG keyword search: hybrid dense+BM25 ranking, search shows only live record revisions, and keyword_index adds and backfills the index in place
+RAG keyword search: BM25 `search` that returns only live record revisions, and `keyword_index` to add and backfill the keyword index in place
 
 ## 0.9.264 — 2026-11-01
 
