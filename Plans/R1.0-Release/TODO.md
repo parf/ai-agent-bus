@@ -407,7 +407,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Acceptance: [the plan's acceptance](imap-large-transfer.md#acceptance-for-the-todo-item)
   - Mutants: [the plan's list](imap-large-transfer.md#acceptance-for-the-todo-item)
 
-- ⏳ B.32 Bigfiles (formerly big keys; renamed in T-22) — **approved 2026-11-01 11:05**; API and file/memory holders built (stage 2); CLI, clients, MCP, web and IMAP in progress. [Plan](bigfile.md#help-text); [decision](DECISIONS.md#recorded-decisions)
+- ✅ B.32 Bigfiles (formerly big keys; renamed in T-22) — **approved 2026-11-01 11:05**, built in stages: 2a `90dddc07` 0.9.252 (API, memory holder, authority); 2b `36d43221` 0.9.253 (file holder, limits, expiry, 503 when the directory fails); 2d `5d259db5` 0.9.258 (early refusals drained); 2c `1a95ec19` 0.9.260 (IMAP `part`/`append`); T-22 `07a3422c` 0.9.262 (the rename, `bigfile/` directory); T-23 `516fae57` 0.9.263 (index in the database). [Plan](bigfile.md#help-text), [result and evidence](DONE.md#b32-status-close-out), [guide](../../docs/03-records-kv.md#bigfiles); [decision](DECISIONS.md#recorded-decisions). The Rust, PHP and Java clients do not carry bigfile (T-24).
   - Builds: a bus store of named big values in memory or a file, with `bigfile put|get|ls|rm`; Maintainers upload and download, allow-list principals download only; IMAP `part --bigfile` and `append --bigfile` use it
   - Depends: the key-value store; B.30 steps 2 and 4 for the IMAP part
   - Acceptance: [the plan's acceptance](bigfile.md#acceptance-for-the-todo-item)

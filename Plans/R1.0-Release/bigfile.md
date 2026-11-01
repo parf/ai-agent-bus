@@ -1,7 +1,7 @@
 # Bigfiles
 
 📌 **TL;DR:**
-- **Approved 2026-11-01 11:05, all recommendations accepted** ([B.32](TODO.md#bundled-agents), [decision](DECISIONS.md#recorded-decisions)). Built: the API and the file and memory holders ([guide](../../docs/03-records-kv.md#bigfiles)); the CLI, clients, MCP and web follow.
+- **Approved 2026-11-01 11:05, all recommendations accepted** ([B.32](TODO.md#bundled-agents), [decision](DECISIONS.md#recorded-decisions)). Built: the API, the file and memory holders with their index in the database, the CLI, the Go, Python and TypeScript clients, the MCP tools, the web card and the IMAP options ([guide](../../docs/03-records-kv.md#bigfiles), [result](DONE.md#b32-status-close-out)).
 - **Name:** called big keys until 2026-11-01, then renamed bigfile in every user-visible place ([decision](DECISIONS.md#recorded-decisions)).
 - **Idea (owner, 2026-11-01):** a named value too big for a message lives in the bus, in memory or in a file. Agents pass the key name instead of the body.
 - **Access:** the record's Maintainers upload, download and delete; principals its allow list admits download only.
