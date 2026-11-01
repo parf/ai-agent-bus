@@ -2,6 +2,14 @@
 
 ## Recorded decisions
 
+- **Agent status is seen on the agent's own page; no mass polling** (Q191) — owner, 2026-11-01: "go to agent own page to see status, = no mass polling". `ab_ls` shows no status; the web offers restart on `failed` only. RT23 itself moved to R1.1 (Q299).
+  - Home: [agent capabilities](TODO.md#bundled-agents).
+- **The protocol card lives in both places** (Q183) — owner, 2026-11-01: "agree"; the MCP instructions hold the minimum, which cannot be skipped, and a short doc holds the rest, read when needed.
+  - Home: [shorter prompts](short-prompts.md#proposal).
+- **Message style is guidance in the protocol card only** (Q184) — owner, 2026-11-01; no size hint from the face.
+  - Home: [shorter prompts](short-prompts.md#proposal).
+- **RAG keyword search is an option: Qdrant's built-in BM25 or an external one, default built-in** (Q194) — owner, 2026-11-01: "option - use build in BM25 or external; default = build in". The R.5 trial no longer picks a winner.
+  - Home: [RAG rules](rag/README.md#rules).
 - **Cut to R1.1: RT23, M.7, M.6b, RT11 RW10–RW17, RT19, MAC.3, B.15** (Q299) — owner, 2026-11-01: "agree" to moving all; none blocks the release. Google Chat (B.27b) already moved to R1.2 with Q247/Q248.
   - Home: [R1 TODO](TODO.md#objective); the items move to [R1.1](../R1.1/TODO.md#objective).
 - **npm publishes `ai-agent-bus` and `ai-agent-bus-client` first at the release** (Q300) — owner, 2026-11-01: "agree"; right after the STABLE commit, so the first public version is 1.0.0. The parf73 placeholders stay at 0.0.1 until then.
