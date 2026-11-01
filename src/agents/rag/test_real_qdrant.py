@@ -49,7 +49,14 @@ class RealKeyword(unittest.TestCase):
             try:
                 with urllib.request.urlopen(request,timeout=3) as answer:return answer.status==200
             except (OSError,urllib.error.URLError):return False
-        _,cls.port=fixtures.bring_up('Qdrant',lambda:fixtures.container(QDRANT,6333,{'QDRANT__SERVICE__API_KEY':KEY}),ready,lambda n,p:None,seconds=120)
+        cls.name,cls.port=fixtures.bring_up('Qdrant',lambda:fixtures.container(QDRANT,6333,{'QDRANT__SERVICE__API_KEY':KEY}),ready,lambda n,p:None,seconds=120)
+    @classmethod
+    def tearDownClass(cls):
+        # Removed here, by name, and then asked for by this run's label: the gate reads the count from the output.
+        fixtures.podman('rm','-f','-t','1',cls.name,check=False)
+        left=fixtures.podman('ps','-aq','--filter',f'label=ab-db-fixture={fixtures.RUN}',check=False).stdout.split()
+        print(f'RAG fixture containers left: {len(left)}')
+        if left:raise AssertionError(f'containers of this run remain: {left}')
     def setUp(self):
         self.collection='rag_'+secrets.token_hex(4)
         self.wire=Wire(self.port,self.collection)

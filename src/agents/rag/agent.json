@@ -1,5 +1,5 @@
 {
-  "description": "Store documents with embeddings and topic labels, ready for search by meaning. Save, read, list and delete records, and set each table's classification prompts. Start with upsert and a namespace.",
+  "description": "Store documents with embeddings and topic labels, ready for search by meaning. Find records by word. Save, read, list and delete records, and set each table's classification prompts. Start with upsert and a namespace.",
   "version": "0.1.0",
   "command": "./rag.py",
   "form": "args",
@@ -87,6 +87,11 @@
       "json_only": true,
       "default": false,
       "help": "Required true for any delete without id; a method confirmation flag, never a stored record field. Forbid with id."
+    },
+    "query": {
+      "type": "string",
+      "help": "Required for search: 1..1024 bytes of UTF-8 containing at least one word (letters, digits, underscore). Matched case-insensitively against stored chunk text.",
+      "json_only": true
     }
   },
   "methods": {
@@ -172,6 +177,36 @@
       ],
       "returns": "JSON {records:[summaries],cursor:string|null}; <=16 summaries, excluding data and embeddings, each <=32 KiB. Filters do not grant access; no snapshot guarantee across calls.",
       "example": "agent-bus call '#rag@node.example' '{\"method\":\"list\",\"namespace\":\"team\",\"tableName\":\"notes\",\"limit\":2}'"
+    },
+    "search": {
+      "help": "Find records by keyword: the stored text ranked by Qdrant BM25, best first, one row per record, up to 16. Needs a collection created with the text sparse vector (idf modifier).",
+      "text": "search (JSON only)",
+      "args": [
+        {
+          "name": "namespace"
+        },
+        {
+          "name": "query"
+        },
+        {
+          "name": "tableName",
+          "optional": true
+        },
+        {
+          "name": "key1",
+          "optional": true
+        },
+        {
+          "name": "key2",
+          "optional": true
+        },
+        {
+          "name": "limit",
+          "optional": true
+        }
+      ],
+      "returns": "JSON {records:[{namespace,tableName,id,key1?,key2?,score,text}]}; text is the best matching chunk, <=4 KiB. Filters narrow the search and grant no access. With keyword_search external, the connected engine answers instead.",
+      "example": "agent-bus call '#rag@node.example' '{\"method\":\"search\",\"namespace\":\"team\",\"query\":\"green tea\",\"limit\":5}'"
     },
     "delete": {
       "help": "Remove one record, or exactly the namespace-scoped selection you name.",
@@ -265,6 +300,12 @@
       "type": "string",
       "help": "Model for one Jev Choice call per record",
       "default": "typesafe/jev-1.14"
+    },
+    "keyword_search": {
+      "type": "string",
+      "help": "Keyword search engine for search: builtin (default) uses the collection's BM25 sparse vector named text; external answers through an engine connected to the agent, and builtin ingest is then off",
+      "default": "builtin",
+      "example": "builtin"
     }
   },
   "deadline": "120s",
