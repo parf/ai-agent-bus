@@ -343,7 +343,11 @@ type streamResult struct {
 	err  error
 }
 
-// readAnswerLine retains at most the answer limit, discarding the remainder
+// maxAnswerLine preserves the old Scanner framing allowance: a body below
+// maxOutput must still fit when wrapped in its JSON answer envelope.
+const maxAnswerLine = maxOutput + 4096
+
+// readAnswerLine retains at most the framed line limit, discarding the remainder
 // through the newline so that the next answer stays aligned.
 func readAnswerLine(r *bufio.Reader) ([]byte, bool, error) {
 	var line []byte
@@ -354,7 +358,7 @@ func readAnswerLine(r *bufio.Reader) ([]byte, bool, error) {
 		if len(payload) > 0 && payload[len(payload)-1] == '\n' {
 			payload = payload[:len(payload)-1]
 		}
-		room := maxOutput - len(line)
+		room := maxAnswerLine - len(line)
 		if len(payload) > room {
 			over = true
 			payload = payload[:room]

@@ -463,10 +463,10 @@ func TestJsonlOversizedAnswerWithoutIDFailsAllPendingAndKillsChild(t *testing.T)
 }
 
 func TestJsonlAnswerLineLimitAndPrefixID(t *testing.T) {
-	for _, n := range []int{maxOutput - 1, maxOutput, maxOutput + 1} {
+	for _, n := range []int{maxAnswerLine - 1, maxAnswerLine, maxAnswerLine + 1} {
 		r := bufio.NewReaderSize(strings.NewReader(strings.Repeat("x", n)+"\nnext\n"), 64<<10)
 		line, over, err := readAnswerLine(r)
-		if err != nil || len(line) != min(n, maxOutput) || over != (n > maxOutput) {
+		if err != nil || len(line) != min(n, maxAnswerLine) || over != (n > maxAnswerLine) {
 			t.Fatalf("size %d: len=%d over=%v err=%v", n, len(line), over, err)
 		}
 		next, over, err := readAnswerLine(r)
@@ -551,11 +551,46 @@ func TestJsonlOversizedAnswerLogsOnlyAQuotedCappedID(t *testing.T) {
 	var log bytes.Buffer
 	st := &stream{r: &runner{say: &log}, s: &served{name: "#fixture@h"}}
 	c := &streamChild{pending: map[string]chan streamResult{}}
-	c.out = strings.NewReader(`{"message_id":` + string(mustJSON(id)) + `,"body":"` + strings.Repeat("x", maxOutput) + `"}` + "\n")
+	c.out = strings.NewReader(`{"message_id":` + string(mustJSON(id)) + `,"body":"` + strings.Repeat("x", maxAnswerLine) + `"}` + "\n")
 	st.answers(c)
 	want := fmt.Sprintf("#fixture@h: %q: answer too large (limit %d)\n", id[:128], maxOutput) +
 		"#fixture@h: an answer line names no message in flight; dropped\n"
 	if log.String() != want {
 		t.Fatalf("oversized answer log = %q; want capped, quoted id: %q", log.String(), want)
+	}
+}
+
+func TestJsonlAnswerLineSlackDeliversBodyBelowLimitAndStillRefusesOverlongLine(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		size      int
+		oversized bool
+	}{
+		{"body below limit with JSON wrapper above it", maxOutput - 1, false},
+		{"line above framing allowance", maxOutput + 4096, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			body := strings.Repeat("x", tc.size)
+			line := []byte(`{"message_id":"boundary","body":"` + body + "\"}\n")
+			if len(line) <= maxOutput {
+				t.Fatal("fixture did not cross the old body-only line cap")
+			}
+			answer := make(chan streamResult, 1)
+			st := &stream{r: &runner{say: io.Discard}, s: &served{name: "#fixture@h"}, freed: make(chan struct{}, 1)}
+			c := &streamChild{out: bytes.NewReader(line), pending: map[string]chan streamResult{"boundary": answer}}
+			st.answers(c)
+			select {
+			case got := <-answer:
+				if tc.oversized {
+					if _, ok := got.err.(answerFailure); !ok || !strings.Contains(got.err.Error(), "answer too large") {
+						t.Fatalf("line over the cap = %v, want explicit size refusal", got.err)
+					}
+				} else if got.err != nil || got.body != body {
+					t.Fatalf("body under limit not delivered: bytes=%d err=%v", len(got.body), got.err)
+				}
+			default:
+				t.Fatal("complete boundary answer was not delivered")
+			}
+		})
 	}
 }
