@@ -1,5 +1,10 @@
 # DONE — R1
 
+## RT31 user-account runner close-out
+
+- Implementation and state handover were already accepted (`c952c241`, 0.9.149; `9905f3ff`, 0.9.151). The 2026-11-01 read-only close-out checks the live runner, both instance records, state paths and retained journal. CEO removed the two disabled standalone unit files; both system and user rechecks list zero.
+- [Acceptance map and evidence limits](done/rt31-user-account-runner.md#acceptance-map): no pre-switch baseline was observed. The plain unconfigured instance answers status but has no running session; this is recorded and accepted for RT31. No lifecycle action was performed for the audit.
+
 ## Docs rewrite DW11
 
 - Rewrite complete across all 16 pages: three `src/*.md` guides, the client hub, six language READMEs, the examples hub and its five example pages. `d4de8959` enforced the initial batch; PHP joined in `300cc54a` and its final two-identity example landed in `d4b4833c`. The close-out rechecked all 16 against the order/first-fifth checker and ENFORCED list; links and anchors resolve.
