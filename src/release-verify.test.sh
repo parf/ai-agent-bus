@@ -40,7 +40,11 @@ assert re.search(r'^    needs: \[build, darwin\]$', release, re.M), 'release doe
 assert 'src/release-verify.sh --os "linux darwin" dist' in release, 'publication must verify the complete checksum set'
 assert 'dist/*.tar.gz dist/SHA256SUMS' in release, 'publication must include archives and SHA256SUMS'
 assert release.index('src/release-verify.sh --os "linux darwin" dist') < release.index('gh release create'), 'publication precedes verification'
-assert '--darwin-client' in release and 'src/npm-pack.sh' in release and 'npm-dist/*.tgz' in release, 'release must pack and attach Darwin client npm packages'
+assert release.count('src/npm-pack.sh ') == 1, 'release must run npm-pack exactly once'
+for cpu, archivearch in [('arm64', 'aarch64'), ('x64', 'x86_64')]:
+    assert f'--darwin-client "dist/agent-bus-client-$version-darwin-{archivearch}.tar.gz"' in release, f'npm-pack must include the Darwin {cpu} client archive'
+    assert f'test -f "npm-dist/ai-agent-bus-client-darwin-{cpu}-$version.tgz"' in release, f'release must require the Darwin {cpu} npm tarball'
+assert 'dist/*.tar.gz dist/SHA256SUMS npm-dist/ai-agent-bus-client-darwin-*.tgz' in release, 'release must attach archives and only Darwin client npm tarballs'
 steps = re.split(r'(?=^      - )', build, flags=re.M)
 found = [i for i, step in enumerate(steps) if re.search(r'^        id: release-evidence$', step, re.M)]
 assert len(found) == 1, 'release workflow needs exactly one release-evidence step'

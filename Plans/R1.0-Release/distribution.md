@@ -74,6 +74,25 @@ Artifacts follow the shared [versioning and build evidence](../../CLAUDE.md#vers
 
 The owner’s Mac is the test host ([RD164](DECISIONS.md#recorded-decisions)); Apple code signing and notarization are not required ([RD165](DECISIONS.md#recorded-decisions)). The [macOS plan](macos.md#order) owns the supported parts. macOS client npm packages are built for both CPUs; local-tarball installation and a bus call passed on arm64 ([P.1c evidence](done/p1c-macos-npm.md#native-acceptance)). No native Intel run or npm publication is claimed.
 
+### Prepared tagged release path
+
+Q313 is pending; the prepared macOS workflow is not a published release.
+Its proof is local execution of the stamped `src/package.sh`, `src/release-verify.sh`
+and `src/npm-pack.sh` commands: full and client archives for both Darwin CPUs,
+with the two client-only macOS npm packages. The Ubuntu Go/Bun cross-build job
+and release-job npm packing have not run on GitHub. Foreign verification reads
+Mach-O headers, versions, build stamps and manifests; it executes no macOS binary.
+
+The directory verifier deliberately accepts a client-only Darwin set when both
+full archives are absent. The workflow's full-archive guarantee comes from each
+build's explicit expected-filename checks plus its `dist/*.tar.gz` upload.
+Only a real tag run proves `GITHUB_REF_NAME` against `VERSION`, main ancestry,
+hosted runner setup, artifact upload/download/merge, token permissions and
+`gh release` asset creation. One pack invocation wraps both Darwin clients;
+only their two npm tarballs are attached, alongside all Linux and Darwin archives.
+The incidental Linux platform and command tarballs are not a complete Linux npm
+set and are not attached by this workflow.
+
 ## Container runtime
 
 

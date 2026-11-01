@@ -1,5 +1,12 @@
 # A version tag builds both editions for Linux and macOS on both CPUs.
 # Publish the checked archives and SHA256SUMS as the npm wrapping source.
+# Proof is local command execution only: the ubuntu-24.04 Go/Bun cross-build
+# and release-job npm packing have not run on GitHub; foreign verification reads
+# Mach-O headers, versions, stamps and manifests, without native macOS execution.
+# Only a tag run proves tag/VERSION/main ancestry, hosted setup, artifact transfer,
+# token permissions and release assets; full Darwin archives are required by each
+# build's filename checks and upload glob, since directory verification also
+# accepts client-only Darwin sets (Plans/R1.0-Release/distribution.md#macos).
 # Actions are pinned to commits: each SHA is what `git ls-remote` gave for the
 # named tag on 2026-10-29. Moving one is a reviewed change, by hand or by a
 # dependency bot, never a floating tag.
@@ -131,15 +138,13 @@ jobs:
           cat dist/SHA256SUMS >> "$GITHUB_STEP_SUMMARY"
           src/release-verify.sh --os "linux darwin" dist
           version=$(tr -d '[:space:]' < src/internal/version/VERSION)
-          for arch in x86_64 aarch64; do
-            src/npm-pack.sh "dist/agent-bus-$version-linux-$arch.tar.gz" \
-              "dist/agent-bus-client-$version-linux-$arch.tar.gz" dist/SHA256SUMS npm-dist \
-              --darwin-client "dist/agent-bus-client-$version-darwin-aarch64.tar.gz" \
-              --darwin-client "dist/agent-bus-client-$version-darwin-x86_64.tar.gz"
-          done
+          src/npm-pack.sh "dist/agent-bus-$version-linux-x86_64.tar.gz" \
+            "dist/agent-bus-client-$version-linux-x86_64.tar.gz" dist/SHA256SUMS npm-dist \
+            --darwin-client "dist/agent-bus-client-$version-darwin-aarch64.tar.gz" \
+            --darwin-client "dist/agent-bus-client-$version-darwin-x86_64.tar.gz"
           test -f "npm-dist/ai-agent-bus-client-darwin-arm64-$version.tgz"
           test -f "npm-dist/ai-agent-bus-client-darwin-x64-$version.tgz"
           gh release create "${GITHUB_REF_NAME}" --verify-tag \
             --title "agent-bus ${GITHUB_REF_NAME#v}" \
             --notes "Release binaries and SHA256SUMS for npm packaging." \
-            dist/*.tar.gz dist/SHA256SUMS npm-dist/*.tgz
+            dist/*.tar.gz dist/SHA256SUMS npm-dist/ai-agent-bus-client-darwin-*.tgz
