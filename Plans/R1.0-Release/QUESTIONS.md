@@ -22,6 +22,12 @@ Q296 to Q304 are [settled](DECISIONS.md#recorded-decisions).
   - ( ) R1
   > 💡👾 R1.1: it is a new daemon feature, and adding it now would reopen the frozen protocol.
 
+- ❓ Q313 Do the macOS archives and npm packages ship in 1.0.0
+  - Context: the release workflow builds only the two Linux runners. The macOS CLI, daemon (MAC.2) and npm client (P.1c) all passed on your Mac today from archives cross-built here (Go builds darwin from Linux, no Mac runner needed); `release-verify.sh` already checks darwin archives when present
+  - ( ) Ship them: the workflow cross-builds darwin arm64 and x64, verifies them, attaches them, and npm publishes the macOS client packages; one more Mac check on the published 1.0.0 🌟
+  - ( ) Linux only in 1.0.0; macOS in 1.0.1 ⭐
+  > 💡👾 Ship them: all three Mac checks passed today, and a Mac user can then `npm install -g ai-agent-bus-client`.
+
 ## Messaging agents
 
 Q247 and Q248 (Google Chat) moved to [R1.2](../R1.2/QUESTIONS.md#open-questions) with B.27b: the owner, 2026-11-01, "we need corp acct. cant use personal".
