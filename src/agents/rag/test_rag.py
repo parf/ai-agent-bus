@@ -38,7 +38,7 @@ class Store:
     def __init__(self,dimensions=2):
         self.points={};self.calls=[];self.paid=[];self.fail=None;self.fail_paid=None;self.fail_get=False
         self.enforce_projection=False
-        self.sparse=False;self.modifier='idf';self.dimensions=dimensions;self.indexes={k:{'data_type':'keyword'} for k in INDEXES}
+        self.sparse=False;self.refuse_vector=False;self.modifier='idf';self.dimensions=dimensions;self.indexes={k:{'data_type':'keyword'} for k in INDEXES}
         self.model='voyage-3.5';self.probabilities={'drink':.8,'other':.2}
     def begin(self,budget):self.budget=budget
     def decide(self,request):
@@ -53,6 +53,7 @@ class Store:
         return {'data':[{'index':i,'embedding':[.5]*self.dimensions} for i in range(len(request['input']))]}
     def matches(self,point,condition):
         def check(c):
+            if 'has_vector' in c:return isinstance(point['vector'],dict) and c['has_vector'] in point['vector']
             if 'has_id' in c:return point['id'] in c['has_id']
             return point['payload'].get(c['key'])==c['match']['value']
         return all(check(c) for c in condition.get('must',[])) and not any(check(c) for c in condition.get('must_not',[]))
@@ -80,7 +81,17 @@ class Store:
                 if score>0:scored.append((score,p))
             scored.sort(key=lambda x:(-x[0],x[1]['id']))
             keep=body['with_payload']['include']
-            return {'points':[{'id':p['id'],'score':s,'payload':{k:v for k,v in p['payload'].items() if k in keep}} for s,p in scored[:body['limit']]]}
+            start=body.get('offset',0)
+            return {'points':[{'id':p['id'],'score':s,'payload':{k:v for k,v in p['payload'].items() if k in keep}} for s,p in scored[start:start+body['limit']]]}
+        if verb=='PUT' and path=='/vectors/text':
+            if self.refuse_vector:raise Refused('Qdrant grant missing: requires admin role')
+            self.sparse=True;self.modifier=body['sparse']['modifier'];return {'status':'completed'}
+        if verb=='PUT' and path.startswith('/points/vectors'):
+            for update in body['points']:
+                point=self.points[update['id']]
+                dense=point['vector'] if isinstance(point['vector'],list) else point['vector']['']
+                point['vector']={'':dense,**update['vector']}
+            return {'status':'completed'}
         if verb=='PUT':
             if '?wait=true' not in path:raise AssertionError('wait=true required')
             for point in body['points']:
@@ -93,7 +104,15 @@ class Store:
             if 'points' in body:self.points={pid:p for pid,p in self.points.items() if pid not in body['points']}
             else:self.points={pid:p for pid,p in self.points.items() if not self.matches(p,body['filter'])}
         elif path=='/points':
-            return [{'id':p,'vector':deepcopy(self.points[p]['vector'])} for p in body['ids'] if p in self.points]
+            rows=[]
+            for p in body['ids']:
+                if p not in self.points:continue
+                row={'id':p,'vector':deepcopy(self.points[p]['vector'])}
+                if body.get('with_payload'):
+                    keep=body['with_payload']['include'] if isinstance(body['with_payload'],dict) else None
+                    row['payload']={k:deepcopy(v) for k,v in self.points[p]['payload'].items() if keep is None or k in keep}
+                rows.append(row)
+            return rows
         elif path=='/points/scroll':
             if self.enforce_projection:
                 assert body['with_payload']=={'include':list(SUMMARY_FIELDS)}, 'scroll must project summaries before proxy reply cap'
@@ -141,7 +160,7 @@ class Keyword(unittest.TestCase):
         self.put('tea','Tea is a drink.')
         chunk=next(p for p in self.store.points.values() if p['payload']['_rag_kind']=='chunk')
         self.assertEqual(chunk['vector'],[.5,.5])
-        with self.assertRaisesRegex(RagError,'no BM25 sparse vector'):self.find('tea')
+        with self.assertRaisesRegex(RagError,'keyword index not built yet'):self.find('tea')
     def test_get_still_returns_the_dense_vectors_of_a_collection_with_named_ones(self):
         self.put('tea','Tea is a drink.')
         try:got=self.app.run(parse(dumps({'method':'get','namespace':'team','tableName':'notes','id':'tea'})))
@@ -166,7 +185,7 @@ class Keyword(unittest.TestCase):
             self.put('tea','Tea is a drink.')
             chunk=next(p for p in self.store.points.values() if p['payload']['_rag_kind']=='chunk')
             self.assertEqual(chunk['vector'],[.5,.5])
-            with self.assertRaisesRegex(RagError,'no BM25 sparse vector'):self.find('tea')
+            with self.assertRaisesRegex(RagError,'lacks the idf modifier'):self.find('tea')
     def test_an_answer_outside_the_asked_scope_or_shape_is_refused(self):
         self.put('tea','Tea is a drink.')
         real=self.store.qdrant
@@ -182,6 +201,93 @@ class Keyword(unittest.TestCase):
             self.store.qdrant=lying(change)
             with self.assertRaisesRegex(RagError,'projection|filter mismatch'):self.find('tea',**more)
         self.store.qdrant=real
+    def test_a_draft_whose_head_never_landed_is_never_searched(self):
+        self.put('tea','Tea is a drink.')
+        calls=[]
+        def fail(verb,path,body):
+            if verb=='PUT' and path=='/points?wait=true':
+                calls.append(1)
+                return len(calls)==2   # the head, after its chunks
+            return False
+        self.store.fail=fail
+        with self.assertRaisesRegex(Unknown,'unknown'):self.put('saffron','Saffron is a rare spice.')
+        self.store.fail=None
+        self.assertIsNone(self.app.run(parse(dumps({'method':'get','namespace':'team','tableName':'notes','id':'saffron'}))))
+        self.assertTrue(any(p['payload'].get('_rag_kind')=='chunk' and p['payload'].get('id')=='saffron' for p in self.store.points.values()))   # the draft is stored
+        self.assertEqual(self.find('saffron')['records'],[])
+        self.assertEqual([r['id'] for r in self.find('tea')['records']],['tea'])
+    def test_a_replaced_revision_whose_chunks_were_not_removed_is_hidden(self):
+        self.put('tea','Tea is a drink.')
+        self.store.fail=lambda verb,path,body:verb=='POST' and '/delete?' in path   # the old revision's removal fails
+        with self.assertRaisesRegex(Unknown,'unknown'):self.put('tea','Coffee is a drink.')
+        self.store.fail=None
+        chunks=[p for p in self.store.points.values() if p['payload'].get('_rag_kind')=='chunk']
+        self.assertEqual(len(chunks),2)   # both revisions are stored
+        self.assertEqual(self.find('tea')['records'],[])
+        found=self.find('coffee')['records']
+        self.assertEqual([(r['id'],r['text']) for r in found],[('tea','Coffee is a drink.')])
+        self.assertEqual(len(self.find('drink')['records']),1)
+    def test_a_deleted_record_whose_chunks_remain_is_hidden(self):
+        self.put('tea','Tea is a drink.')
+        self.store.fail=lambda verb,path,body:verb=='POST' and '/delete?' in path
+        with self.assertRaises(RagError):self.app.run(parse(dumps({'method':'delete','namespace':'team','tableName':'notes','id':'tea'})))
+        self.store.fail=None
+        self.assertEqual(self.find('tea')['records'],[])
+    def test_dead_chunks_that_outrank_live_ones_do_not_crowd_them_out(self):
+        self.put('live','tea')
+        for n in range(6):   # six drafts, each scoring higher than the live record
+            self.store.points[f'00000000-0000-0000-0000-00000000000{n}']={'id':f'00000000-0000-0000-0000-00000000000{n}','vector':{'':[.5,.5],'text':sparse('tea tea tea tea')},
+                'payload':{'namespace':'team','tableName':'notes','id':f'draft{n}','_rag_kind':'chunk','_rag_text':'tea tea tea tea'}}
+        self.assertEqual([r['id'] for r in self.find('tea',limit=1)['records']],['live'])
+    def test_keyword_index_adds_the_vector_and_gives_every_chunk_its_words_and_is_safe_to_repeat(self):
+        self.store.sparse=False
+        self.app=Core(CFG,self.store,self.kv);self.app.cache.set('team','notes',PROMPT)
+        for n in range(3):self.put(f'doc{n}',f'Tea number {n}. Saffron is a spice.' if n==1 else f'Tea number {n}.')
+        with self.assertRaisesRegex(RagError,'keyword index not built yet; run \\{"method":"keyword_index"\\}'):self.find('tea')
+        owner={'roles':['owner']}
+        first=self.app.run({'method':'keyword_index'},owner)
+        self.assertEqual(first,{'status':'ok','indexed':3})
+        self.assertTrue(self.store.sparse and self.store.modifier=='idf')
+        self.assertEqual(sorted(r['id'] for r in self.find('tea')['records']),['doc0','doc1','doc2'])
+        self.assertEqual([r['id'] for r in self.find('saffron')['records']],['doc1'])
+        self.assertEqual(self.app.run({'method':'keyword_index'},owner),{'status':'ok','indexed':0})
+        # the dense vectors came through the update untouched
+        chunk=next(p for p in self.store.points.values() if p['payload']['_rag_kind']=='chunk')
+        self.assertEqual(chunk['vector'][''],[.5,.5])
+    def test_keyword_index_resumes_after_an_interruption_without_redoing_chunks(self):
+        self.store.sparse=False
+        self.app=Core(CFG,self.store,self.kv);self.app.cache.set('team','notes',PROMPT)
+        for n in range(70):self.put(f'doc{n:02d}',f'Tea number {n}.')
+        owner={'roles':['maintainer']};updates=[]
+        def fail(verb,path,body):
+            if verb=='PUT' and path.startswith('/points/vectors'):
+                updates.append(len(body['points']))
+                return len(updates)==2
+            return False
+        self.store.fail=fail
+        with self.assertRaises(RagError):self.app.run({'method':'keyword_index'},owner)
+        self.store.fail=None
+        done=sum(1 for p in self.store.points.values() if isinstance(p['vector'],dict) and 'text' in p['vector'])
+        self.assertEqual(done,64)   # the first batch stayed
+        updates.clear()
+        again=self.app.run({'method':'keyword_index'},owner)
+        self.assertEqual(again,{'status':'ok','indexed':6})   # only the chunks still without the vector
+        self.assertEqual(len(self.find('tea',limit=16)['records']),16)
+    def test_keyword_index_is_for_the_owner_and_maintainers_and_only_in_builtin_mode(self):
+        for roles in ({'roles':[]},{'roles':['write']},{}):
+            with self.assertRaisesRegex(RagError,'Owner or Maintainers'):self.app.run({'method':'keyword_index'},roles)
+        self.assertEqual(self.store.points,{})
+        self.app=Core({**CFG,'keyword_search':'external'},self.store,self.kv)
+        with self.assertRaisesRegex(RagError,'external'):self.app.run({'method':'keyword_index'},{'roles':['owner']})
+    def test_a_proxy_without_the_admin_role_names_the_owners_step(self):
+        self.store.sparse=False;self.store.refuse_vector=True
+        self.app=Core(CFG,self.store,self.kv)
+        with self.assertRaisesRegex(RagError,'admin role.*request PUT /collections/notes/vectors/text .*repeat this command'):self.app.run({'method':'keyword_index'},{'roles':['owner']})
+        self.assertFalse(self.store.sparse)
+    def test_keyword_index_takes_no_fields(self):
+        parse(dumps({'method':'keyword_index'}))
+        for extra in ({'namespace':'team'},{'limit':1},{'all':True}):
+            with self.assertRaises(RagError):parse(dumps({'method':'keyword_index',**extra}))
     def test_search_ranks_by_the_words_and_returns_one_row_per_record(self):
         self.put('tea','Tea is a drink made from leaves.')
         self.put('cats','Cats sleep. Tea is not for cats.')

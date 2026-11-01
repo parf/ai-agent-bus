@@ -26,6 +26,8 @@ BM25_K1 = 1.2
 BM25_B = 0.75
 BM25_AVG_TOKENS = 128
 TOKEN_MAX = 64
+NO_VECTOR = 'keyword index not built yet; run {"method":"keyword_index"}'
+NO_IDF = 'the collection\'s text vector lacks the idf modifier, so search is unavailable; recreate that vector with {"sparse":{"modifier":"idf"}}'
 
 
 class RagError(ValueError):
@@ -115,6 +117,9 @@ def parse(raw):
     v=loads(raw)
     if not isinstance(v,dict): raise RagError('expected a JSON method object')
     method=v.get('method')
+    if method=='keyword_index':
+        if set(v)!={'method'}: raise RagError('unknown method field')
+        return v
     allowed={'upsert':{'namespace','tableName','id','data','mime-type','key1','key2','embeddings'},
              'get':{'namespace','tableName','id'},'list':{'namespace','tableName','key1','key2','limit','cursor'},
              'search':{'namespace','tableName','key1','key2','query','limit'},
