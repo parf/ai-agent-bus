@@ -23,17 +23,24 @@ import re
 import sys
 text = Path(sys.argv[1]).read_text()
 assert not re.search(r'ssh-keygen|release-sign|SHA256SUMS\.sig|owner[^\n]*(?:sign|key)|--draft', text, re.I), 'release workflow must have no signing, owner key or draft wait'
-build, separator, release = text.partition('\n  release:\n')
+builds, separator, release = text.partition('\n  release:\n')
+build, darwin_separator, darwin = builds.partition('\n  darwin:\n')
+assert darwin_separator, 'release workflow has no Darwin build job'
+assert 'GOOS: darwin' in darwin and 'GOARCH: ${{ matrix.goarch }}' in darwin, 'Darwin builds must cross-build the selected CPU'
+assert set(re.findall(r'^          - goarch: (.+)$', darwin, re.M)) == {'arm64', 'amd64'}, 'both Darwin CPUs are required'
+assert 'BUILD_COMMIT: ${{ github.sha }}' in darwin and 'run: src/package.sh ' in darwin, 'Darwin archives need the stamped documented build'
+assert darwin.index('src/release-verify.sh dist/*.tar.gz') < darwin.index('uses: actions/upload-artifact@'), 'Darwin verification must precede upload'
 assert separator, 'release workflow has no release job'
-for job, body in [('build', build), ('release', release)]:
+for job, body in [('build', build), ('darwin', darwin), ('release', release)]:
     assert not re.search(r'^    (if|continue-on-error):', body, re.M), job + ' job must be unconditional and stop on failure'
 matrix = re.search(r'^        runner: \[(.+)\]$', build, re.M)
 assert matrix and {x.strip() for x in matrix[1].split(',')} == {'ubuntu-24.04', 'ubuntu-24.04-arm'}, 'both native architecture builds are required'
 assert not re.search(r'^        (exclude|include):', build, re.M), 'the native architecture matrix must not skip or replace builds'
-assert re.search(r'^    needs: build$', release, re.M), 'release does not require the verified builds'
-assert 'src/release-verify.sh dist' in release, 'publication must verify the complete checksum set'
+assert re.search(r'^    needs: \[build, darwin\]$', release, re.M), 'release does not require the verified builds'
+assert 'src/release-verify.sh --os "linux darwin" dist' in release, 'publication must verify the complete checksum set'
 assert 'dist/*.tar.gz dist/SHA256SUMS' in release, 'publication must include archives and SHA256SUMS'
-assert release.index('src/release-verify.sh dist') < release.index('gh release create'), 'publication precedes verification'
+assert release.index('src/release-verify.sh --os "linux darwin" dist') < release.index('gh release create'), 'publication precedes verification'
+assert '--darwin-client' in release and 'src/npm-pack.sh' in release and 'npm-dist/*.tgz' in release, 'release must pack and attach Darwin client npm packages'
 steps = re.split(r'(?=^      - )', build, flags=re.M)
 found = [i for i, step in enumerate(steps) if re.search(r'^        id: release-evidence$', step, re.M)]
 assert len(found) == 1, 'release workflow needs exactly one release-evidence step'
