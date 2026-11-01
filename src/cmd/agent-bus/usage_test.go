@@ -298,6 +298,7 @@ func TestHelpSeparatesHomepageAndSource(t *testing.T) {
 	}
 	for _, page := range []string{page, verbUsage("help"), verbUsage("ls"), verbUsage("run")} {
 		_, links, ok := strings.Cut(page, "SEE ALSO")
+		links = strings.TrimSuffix(links, "\n\n"+display.Footer())
 		if !ok || !strings.Contains(links, display.SourceURL+"/docs/user/cli.md") || !strings.HasSuffix(strings.TrimSpace(links), display.Source) {
 			t.Fatal("SEE ALSO must list source documentation and repository")
 		}

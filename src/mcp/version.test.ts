@@ -13,3 +13,9 @@ for (const [name,args] of [
  expect(p.exitCode).toBe(0);
  expect(p.stdout.toString().trim().split("\n")).toEqual([version,"build_info: test build","© Sergey Porfiriev"]);
 });
+
+import {helpAnswer} from "../agents/shared/metadata.ts";
+import agent from "../agents/slack/agent.json";
+test("agent help footer credits its declared full author",()=>{
+ expect(helpAnswer(agent,"help","",["owner"])).toContain(" · © Sergey Porfiriev\n");
+});
