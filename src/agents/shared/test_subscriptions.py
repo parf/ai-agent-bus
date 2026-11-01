@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import signal
+import subprocess
 import sys
 import tempfile
 import threading
@@ -141,6 +142,39 @@ class Helpers(unittest.TestCase):
             self.assertFalse(engine.processes)
         finally:engine.close()
 
+    def filter_worker(self, request, setup='', arguments=''):
+        code = ('import sys,time,json\nsys.path.insert(0,' + repr(str(HERE)) + ')\n'
+                'import subscription_filters as filters\n' + setup + '\nsys.exit(filters.worker(' + arguments + '))')
+        try:
+            result = subprocess.run([sys.executable, '-B', '-c', code],
+                                    input=json.dumps(request), text=True, capture_output=True, timeout=5)
+        except subprocess.TimeoutExpired:
+            self.fail('filter worker did not refuse runaway CPU within the outer test deadline')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return json.loads(result.stdout)
+
+    def test_filter_waiting_does_not_use_cpu_budget(self):
+        setup = ("match = filters.matches\ndef blocked(*args):\n"
+                 "    time.sleep(.12)\n    return match(*args)\nfilters.matches = blocked\n")
+        self.assertEqual(self.filter_worker({'text':'x', 'filters':['/x/'] * 2}, setup), [True] * 2)
+
+    def test_injected_batch_budget_does_not_count_waiting(self):
+        setup = ("match = filters.matches\ndef blocked(*args):\n"
+                 "    time.sleep(.12)\n    return match(*args)\nfilters.matches = blocked\n")
+        result = self.filter_worker({'text':'x', 'filters':['/x/'] * 2}, setup,
+                                    'pattern_cpu_seconds=.01, batch_cpu_seconds=.05')
+        self.assertEqual(result, [True, True])
+
+    def test_injected_cpu_budget_still_refuses_runaway_regex_and_continues(self):
+        result = self.filter_worker({'text':'a' * 180 + 'b', 'filters':['/(a|aa)+$/', '/b$/']},
+                                    arguments='pattern_cpu_seconds=.01, batch_cpu_seconds=.2')
+        self.assertEqual(result, ['timeout', True])
+
+    def test_batch_cpu_budget_is_shared_by_all_patterns(self):
+        result = self.filter_worker({'text':'a' * 180 + 'b', 'filters':['/(a|aa)+$/', '/b$/']},
+                                    arguments='pattern_cpu_seconds=.1, batch_cpu_seconds=.01')
+        self.assertEqual(result, ['timeout', 'timeout'])
+
     def test_js_whitespace_is_not_a_range_string_or_hyphen(self):
         for text,want in [('-',False),('\u2003',True),('\u200a',True),('\u180e',False)]:
             self.assertEqual(f.matches(f.compile_filter('/^\\s$/'),text),want)
@@ -153,7 +187,7 @@ class Helpers(unittest.TestCase):
             handler=value
             return signal.SIG_DFL
         def timer(kind,value):
-            if value==0 and handler is not None:handler(signal.SIGALRM,None)
+            if value==0 and handler is not None:handler(signal.SIGPROF,None)
         with patch.object(f.sys,'stdin',request),patch.object(f.sys,'stdout',out),patch.object(f.signal,'signal',side_effect=install),patch.object(f.signal,'setitimer',side_effect=timer):
             self.assertEqual(f.worker(),0)
         self.assertEqual(json.loads(out.getvalue()),[True,True])

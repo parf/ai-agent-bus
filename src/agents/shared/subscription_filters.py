@@ -152,8 +152,8 @@ def matches(compiled, value):
     return regex.search(value) is not None
 
 
-def worker():
-    """Trusted bounded input; no credentials/network; one alarm per pattern."""
+def worker(*, pattern_cpu_seconds=.05, batch_cpu_seconds=.9):
+    """Trusted bounded input; injectable CPU budgets, no credentials/network."""
     raw=sys.stdin.buffer.read(128*1024+1)
     if len(raw)>128*1024:return 78
     try:
@@ -162,13 +162,15 @@ def worker():
         running=False
         def alarm(*_):
             if running: raise PatternTimeout()
-        signal.signal(signal.SIGALRM,alarm)
-        results=[];end=time.monotonic()+.9
+        signal.signal(signal.SIGPROF,alarm)
+        # PROF and process_time both count user and system CPU, not descheduling.
+        results=[];end=time.process_time()+batch_cpu_seconds
         for pattern in patterns:
-            if time.monotonic()>=end:results.append('timeout');continue
+            left=end-time.process_time()
+            if left<=0:results.append('timeout');continue
             try:
                 running=True
-                signal.setitimer(signal.ITIMER_REAL,min(.05,end-time.monotonic()))
+                signal.setitimer(signal.ITIMER_PROF,min(pattern_cpu_seconds,left))
                 try:result=matches(compile_filter(pattern),value)
                 except FilterError:result='invalid'
                 running=False  # Still inside the timeout-catching scope.
@@ -177,7 +179,7 @@ def worker():
                 result='timeout'
             finally:
                 running=False  # A late signal during disarm cannot raise.
-                signal.setitimer(signal.ITIMER_REAL,0)
+                signal.setitimer(signal.ITIMER_PROF,0)
             results.append(result)
         print(json.dumps(results,separators=(',',':')))
         return 0
