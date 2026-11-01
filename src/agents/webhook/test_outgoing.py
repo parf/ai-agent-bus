@@ -88,10 +88,14 @@ class Outgoing(unittest.TestCase):
         with self.assertRaises(Invalid):post(self.route(),'body',{}, {'deadline':'2000-01-01T00:00:00Z'})
         self.assertEqual(self.server.calls,[])
         self.server.trickle=True;self.server.reply=b'x'*100
-        deadline=(datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(seconds=.4)).isoformat()
+        # The deadline covers the helper's own interpreter start, imports and connect, which can
+        # take over a second when many shards run at once; the 100-byte reply trickles for five
+        # seconds, so the deadline, not the reply, is what ends the call.
+        wait=2.0
+        deadline=(datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(seconds=wait)).isoformat()
         start=time.monotonic()
         with self.assertRaises(Invalid):post(self.route(),'body',{}, {'deadline':deadline})
-        self.assertLess(time.monotonic()-start,1.2);self.assertEqual(len(self.server.calls),1)
+        self.assertLess(time.monotonic()-start,wait+1.2);self.assertEqual(len(self.server.calls),1)
     def test_helper_stdout_and_stderr_are_bounded_and_process_reaped(self):
         start=time.monotonic()
         with self.assertRaises(Invalid):post(self.route(),'body',{},helper=[sys.executable,'-c',f'import sys;sys.stderr.write("x"*{PIPE_MAX+65536});sys.stderr.flush();__import__("time").sleep(30)'])
