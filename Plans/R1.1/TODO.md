@@ -120,7 +120,7 @@ Moved by [Q299](../R1.0-Release/DECISIONS.md#recorded-decisions), owner, 2026-11
 
 ## Runner web additions
 
-RT11 RW10–RW17 only, moved by Q299; [topic](runner-web.md#useful-additions). R1 minimum and RW19/RW21/RW27 remain in [R1](../R1.0-Release/runner/web-face.md#acceptance-checklist).
+Proposals to prioritize after the minimum. RT11 RW10–RW17 only, moved by Q299; [topic](runner-web.md#useful-additions). R1 minimum and RW19/RW21/RW27 remain in [R1](../R1.0-Release/runner/web-face.md#acceptance-checklist).
 
 - ⏳ RW10 Search and filter agents by name, tag, state and refusal reason; count
   - Details: before pagination and only over the caller-visible set.

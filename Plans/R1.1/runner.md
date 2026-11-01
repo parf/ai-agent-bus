@@ -24,6 +24,6 @@ Owner, 2026-10-19: "root runner; allow to run services under specific user; or u
 
 Proposed, not designed: today each person runs their own runner as `<person>-ab-runner`, and agents that need host access (systemd, logwatch, git) are standalone units on the shared starter. A root runner could keep all of them in one place, per agent `user: <account>` or `user: root` with `drop` of capabilities (e.g. keep only CAP_DAC_READ_SEARCH for logwatch)
 
-Settled, owner 2026-10-19: an agent's account or root is set by whoever has access to the host ("тот кто имеет доступ к host"): it lives in a root-owned host file the runner reads, never in a bus record or call, so no bus caller, Owner included, can raise an agent's privilege ([process boundary](../../docs/08-processes.md#the-rule))
+Settled, owner 2026-10-19: an agent's account or root is set by whoever has access to the host (the owner’s words, translated: "whoever has access to the host"): it lives in a root-owned host file the runner reads, never in a bus record or call, so no bus caller, Owner included, can raise an agent's privilege ([process boundary](../../docs/08-processes.md#the-rule))
 
 The [open choices](QUESTIONS.md#runner-extensions) precede design. Execution belongs in [RT19](TODO.md#runner-extensions).
