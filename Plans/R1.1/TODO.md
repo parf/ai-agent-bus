@@ -187,7 +187,7 @@ Owner, 2026-11-01; plan in [filescan](filescan.md#steps-and-estimate), owner cho
 
 ## Alexa
 
-- ☐ AL.1 `#alexa`: control Alexa devices from the bus by wrapping [alexacli](https://github.com/codenamejason/alexacli) (owner, 2026-11-01: "for 1.1 - alexa integration")
+- ☐ AL.1 `#alexa`: control Alexa devices from the bus by wrapping alexacli by codenamejason (Go CLI; repository link to be confirmed) (owner, 2026-11-01: "for 1.1 - alexa integration")
   - Builds: a runner agent around the alexacli Go binary: `devices` (list), and `say <text>` mapped to `alexacli voice-command`, so "turn on the kitchen light" works as text; Alexa+ text conversation where alexacli supports it; its direct smart-home API is still a work in progress upstream
   - Depends: an owner plan for approval first (methods, Configuration, which account); alexacli talks to Amazon through an unofficial API, so the Amazon session is the record's Secret and the agent must say when Amazon breaks it
   - Risks to settle in the plan: device commands act in the physical home, so every acting method is `[destructive]` and the allow list stays owner-only by default; credentials and refresh; Linux packaging of the binary (Homebrew on macOS)
