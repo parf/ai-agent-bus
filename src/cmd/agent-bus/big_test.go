@@ -195,3 +195,21 @@ func (e *endless) Read(p []byte) (int, error) {
 	}
 	return len(p), nil
 }
+
+func TestBigUnavailableStoreShowsTheDaemonsCauseOnEveryCall(t *testing.T) {
+	const cause = "big-key store unavailable: the directory cannot be opened"
+	bigDaemon(t, func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(503); io.WriteString(w, cause) })
+	file := filepath.Join(t.TempDir(), "v")
+	os.WriteFile(file, []byte("x"), 0o600)
+	for name, run := range map[string]func() error{
+		"put": func() error { return bigPutVerb([]string{"#r", "k", file}) },
+		"get": func() error { return bigGetVerb([]string{"#r", "k"}) },
+		"ls":  func() error { return bigLsVerb([]string{"#r"}) },
+		"rm":  func() error { return bigRmVerb([]string{"#r", "k"}) },
+	} {
+		_, e := captureStdout(t, run)
+		if e == nil || !strings.Contains(e.Error(), cause) {
+			t.Errorf("%s: %v", name, e)
+		}
+	}
+}

@@ -182,3 +182,23 @@ func TestBigListAndDelete(t *testing.T) {
 		t.Fatal(e, deleted)
 	}
 }
+
+func TestBigUnavailableStoreIsABusErrorCarryingTheCause(t *testing.T) {
+	const cause = "big-key store unavailable: the directory cannot be opened"
+	b := bigServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(503)
+		fmt.Fprintf(w, `{"error":%q}`, cause)
+	})
+	g := b.Record("#r").Big
+	ctx := context.Background()
+	_, put := g.Put(ctx, "k", strings.NewReader("x"), 1)
+	_, get := g.Get(ctx, "k", io.Discard)
+	_, list := g.List(ctx)
+	_, del := g.Delete(ctx, "k")
+	for name, e := range map[string]error{"put": put, "get": get, "list": list, "delete": del} {
+		var be *BusError
+		if !errors.As(e, &be) || be.Status != 503 || be.Message != cause {
+			t.Errorf("%s: %v", name, e)
+		}
+	}
+}
