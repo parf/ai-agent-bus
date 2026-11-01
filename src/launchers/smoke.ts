@@ -210,7 +210,9 @@ try {
     check(`${runtime} diagnoses an explicit unavailable bus without fallback or runtime startup`, missingCode !== 0 && failureOutput.includes(unavailable) && rowsIn(events).length === 0);
     check(`${runtime} restores its terminal title on startup failure`, restoredTitle(failureOutput));
     const ver = Bun.spawn([launcher, "--version"], { env, stdout: "pipe", stderr: "pipe" });
-    check(`${runtime} shares the release version`, (await new Response(ver.stdout).text()).trim() === version && await ver.exited === 0);
+    const versionLines = (await new Response(ver.stdout).text()).trim().split("\n");
+    check(`${runtime} shares the release version`, versionLines.length === 3 && versionLines[0] === version &&
+      versionLines[1]!.startsWith("build_info: ") && versionLines[2] === "© Sergey Porfiriev" && await ver.exited === 0);
 
     // Renaming takes effect at the next launch, including old name-only bindings.
     const previous = rows.find(r => r.kind === "identity")?.data.name;

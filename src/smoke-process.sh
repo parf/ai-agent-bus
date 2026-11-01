@@ -17,10 +17,10 @@ if [ -n "${BUILD_STARTED:-}" ]; then
 fi
 for program in cmd/*; do
   name=${program##*/}
-  same "$name shares the release version and build_info" "$(timeout 5 "$BIN/$name" --version)" "$(printf '%s\nbuild_info: %s' "$VERSION" "$stamp")"
+  same "$name shares the release version and build_info" "$(timeout 5 "$BIN/$name" --version)" "$(printf '%s\nbuild_info: %s\n© Sergey Porfiriev' "$VERSION" "$stamp")"
 done
 same "MCP shares the release version without a bus" \
-  "$(AGENT_BUS_ADDR=/nonexistent timeout 5 bun run mcp/server.ts --version)" "$VERSION"
+  "$(AGENT_BUS_ADDR=/nonexistent AGENT_BUS_BUILD_INFO=source timeout 5 bun run mcp/server.ts --version)" "$(printf '%s\nbuild_info: source\n© Sergey Porfiriev' "$VERSION")"
 
 mkdir -p ../tmp
 D=$(mktemp -d "$(realpath ../tmp)/title.XXXXXX")
@@ -95,4 +95,4 @@ done
 await_title "the dedicated runner counts messages taken" "$RUN" "agent-bus run $VERSION ; Calls: 5 ; #title@test"
 sleep 1.1
 same "a blocked dedicated runner does not invent calls" "$(title "$RUN")" "agent-bus run $VERSION ; Calls: 5 ; #title@test"
-same "build_info is build time, not query time" "$("$BIN/agent-busd" --version)" "$(printf '%s\nbuild_info: %s' "$VERSION" "$stamp")"
+same "build_info is build time, not query time" "$("$BIN/agent-busd" --version)" "$(printf '%s\nbuild_info: %s\n© Sergey Porfiriev' "$VERSION" "$stamp")"

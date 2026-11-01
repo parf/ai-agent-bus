@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.250 — 2026-11-01
+
+Version output, help footers, agent authors and the web face show (C) Sergey Porfiriev
+
 ## 0.9.249 — 2026-10-31
 
 Fourteenth published 0.9 changeset: 0.9.246–0.9.249, squashed.
