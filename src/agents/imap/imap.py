@@ -21,7 +21,7 @@ sys.path.insert(0, str(SUPPORT / 'clients/python'))
 sys.path.insert(0, str(SUPPORT / 'agents/shared'))
 sys.path.insert(0, str(HERE))
 from agent_bus import Bus
-from agent_bus.errors import BusError, BusTimeout, Refusal, TransportError, UncertainOutcome
+from agent_bus.errors import InvalidArgument, BusError, BusTimeout, Refusal, TransportError, UncertainOutcome
 from cache import Cache, CacheError, MiB, uid
 from mail import MailError, deadline, tls_context
 from mail_oauth import google_access_token
@@ -349,7 +349,12 @@ class Agent:
             raw = None
             if method == 'append' and 'big' in call:
                 record, name = call['big']
-                raw, info = self.bus.record(record).big.get(name, max_size=folder_admin.MAIL_CAP)
+                try:
+                    raw, info = self.bus.record(record).big.get(name, max_size=folder_admin.MAIL_CAP)
+                except InvalidArgument:
+                    raise MailError('big key download refused: append requires 1..26214400 bytes (25 MB), a valid record and key') from None
+                except ValueError:
+                    raise MailError('big key download failed integrity verification; APPEND not attempted') from None
                 if not raw or len(raw) > folder_admin.MAIL_CAP:
                     raise MailError('append big mail must be nonempty and at most 25 MB (26214400 bytes)')
             connection = open_connection()

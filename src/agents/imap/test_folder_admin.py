@@ -8,7 +8,7 @@ import test_imap as fixture
 import test_destructive
 import folder_admin
 import wire
-from agent_bus.errors import Refusal, UncertainOutcome
+from agent_bus.errors import InvalidArgument, Refusal, UncertainOutcome
 from mail import MailError
 
 
@@ -48,7 +48,7 @@ class Calls(unittest.TestCase):
         for body in ['append Other --big user/key\nraw',
                      json.dumps({'method': 'append', 'folder': 'Other', 'big': 'user/key', 'raw': 'raw'})]:
             with self.assertRaisesRegex(MailError, 'never both'): fixture.proxy.parse(body)
-        for name in ('', 'x' * 257, 1):
+        for name in ('', 'x' * 257, 'é' * 129, 1):
             with self.assertRaisesRegex(MailError, 'key name'):
                 fixture.proxy.parse(json.dumps({'method': 'part', 'uid': 7, 'part_id': '1', 'big': name}))
         self.assertEqual(fixture.proxy.parse('part 7 1 --big archive')['big'], 'archive')
@@ -60,13 +60,14 @@ class Calls(unittest.TestCase):
             self.server.bodystructure = ('("' + kind + '" "PLAIN" ("CHARSET" "utf-8") NIL NIL "BASE64" ' + str(len(encoded)) + ' 1)').encode()
             self.server.part_bodies = {'1': encoded}
             self.env['IMAP_CLIENT_SECRET'] = 'secret-bytes'
-            answer = self.call('part 7 1 --big saved')
+            answer = self.call('part 7 1 --big saved' if kind == 'TEXT' else json.dumps({'method': 'part', 'uid': 7, 'part_id': '1', 'big': 'saved'}))
             self.assertFalse(answer.startswith('error:'), answer)
             big.put.assert_called_with('saved', raw)
             self.assertIn('size ' + str(len(raw)), answer)
             self.assertIn(hashlib.sha256(raw).hexdigest(), answer)
             self.assertNotIn('secret-bytes', answer)
             self.assertNotIn(encoded.decode(), answer)
+        self.assertEqual(big.put.call_count, 2)
         self.assertTrue(all(args[0] == self.bus.name for args, _ in self.bus.record.call_args_list))
         self.assertEqual(self.server.stores, [])
         self.assertFalse(any(b' SELECT ' in c for c in self.server.commands))
@@ -82,9 +83,29 @@ class Calls(unittest.TestCase):
     def test_big_part_predecode_cap_stores_nothing(self):
         big = self.big_store()
         self.server.bodystructure = b'("APPLICATION" "OCTET-STREAM" NIL NIL NIL "BASE64" 26214401 NIL NIL)'
+        self.server.part_bodies = {'1': b'YQ=='}
         self.assertIn('25 MB', self.call('part 7 1 --big large'))
         big.put.assert_not_called()
         self.assertFalse(any(b'BODY.PEEK[1]' in a for _, a in self.server.fetches))
+
+    def test_big_part_bus_refusal_and_unknown_upload_not_retried(self):
+        big = self.big_store()
+        self.server.part_bodies = {'1': b'hello'}
+        for error, answer in [(Refusal(403, 'fixture'), 'access refused'),
+                              (UncertainOutcome('fixture'), 'outcome unknown')]:
+            big.put.reset_mock()
+            big.put.side_effect = error
+            self.assertIn(answer, self.call('part 7 1 --big saved'))
+            self.assertEqual(big.put.call_count, 1)
+
+    def test_big_append_exact_size_boundary(self):
+        self.enable()
+        raw = b'Subject: limit\r\n\r\nx'
+        big = self.big_store(raw)
+        with patch.object(folder_admin, 'MAIL_CAP', len(raw)):
+            self.assertIn('destination UID', self.call('append Other --big source/mail'))
+            big.get.assert_called_with('mail', max_size=len(raw))
+        self.assertEqual(self.server.appended[0][1], raw)
 
     def test_big_append_exact_binary_bounded_source_record_uid_and_missing_uid(self):
         self.enable()
@@ -92,7 +113,7 @@ class Calls(unittest.TestCase):
         big = self.big_store(raw)
         for mode, expected in [('valid', 'destination UID'), ('missing', 'UID unavailable')]:
             self.server.appenduid_mode = mode
-            answer = self.call('append Other --big "user/folder@fixture/mail" --flags answered --date 2026-10-31T01:02:03Z')
+            answer = self.call('append Other --big "user/folder@fixture/mail" --flags answered --date 2026-10-31T01:02:03Z' if mode == 'valid' else json.dumps({'method': 'append', 'folder': 'Other', 'big': 'user/folder@fixture/mail', 'flags': ['answered']}))
             self.assertIn(expected, answer)
         self.assertEqual(len(self.server.appended), 2)
         self.assertTrue(all(row[1] == raw for row in self.server.appended))
@@ -120,9 +141,11 @@ class Calls(unittest.TestCase):
         with patch.object(folder_admin, 'MAIL_CAP', 10):
             self.assertIn('25 MB', self.call('append Other --big source/mail'))
         self.assertEqual(self.server.commands, [])
-        big.get.side_effect = ValueError('bad hash')
-        self.assertTrue(self.call('append Other --big source/mail').startswith('error:'))
-        self.assertEqual(self.writes(), [])
+        for error, expected in [(InvalidArgument('oversize'), '25 MB'), (ValueError('bad hash'), 'integrity verification')]:
+            big.get.side_effect = error
+            self.assertIn(expected, self.call('append Other --big source/mail'))
+            self.assertEqual(self.server.commands, [])
+            self.assertEqual(self.writes(), [])
         big.get.side_effect = None
         self.server.drop_after_admin = True
         answer = self.call('append Other --big source/mail')
