@@ -500,10 +500,13 @@ func (b *Bus) Send(ctx context.Context, to, body string, options ...Option) (*En
 	if s.tag != "" {
 		v["tag"] = s.tag
 	}
-	if s.ttl > 0 {
+	// Zero is none. A negative value is sent as given: the daemon refuses a
+	// ttl or wait that is not positive, where leaving it out would run the
+	// send with no limit the caller asked to be negative.
+	if s.ttl != 0 {
 		v["ttl"] = s.ttl.String()
 	}
-	if s.wait > 0 {
+	if s.wait != 0 {
 		v["wait"] = s.wait.String()
 	}
 	if s.reply != nil {
@@ -616,6 +619,15 @@ func (b *Bus) Call(ctx context.Context, to, body string, opts ...Option) (CallOu
 		}
 		return CallOutcome{}, e
 	}
+	// A deadline already passed is the caller's timeout, said before anything
+	// is sent: the request's wait would be negative.
+	if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) <= 0 {
+		cause := ctx.Err()
+		if cause == nil {
+			cause = context.DeadlineExceeded
+		}
+		return CallOutcome{}, &ErrCallTimeout{CallOutcome{}, cause}
+	}
 	b.mu.Lock()
 	if b.raw {
 		b.mu.Unlock()
@@ -659,7 +671,8 @@ func (b *Bus) Call(ctx context.Context, to, body string, opts ...Option) (CallOu
 	}()
 	options := []Option{WithTopic(topic), WithTag(tag), WithTTL(s.ttl), WithAsk(s.ask)}
 	if deadline, ok := ctx.Deadline(); ok {
-		options = append(options, WithWait(time.Until(deadline)))
+		// Positive even if the deadline slipped by since the check above.
+		options = append(options, WithWait(max(time.Until(deadline), time.Nanosecond)))
 	}
 	if inbox != b.you {
 		options = append(options, WithReplyTo(ReplyTo{inbox, topic, tag}))
