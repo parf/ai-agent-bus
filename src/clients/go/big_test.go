@@ -34,14 +34,14 @@ func TestBigPutStreamsTheBytesWithTheDocumentedQueryAndChecksTheAnswer(t *testin
 	var query, ctype, token, sha string
 	var length int64
 	b := bigServer(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "PUT" || r.URL.Path != "/big" {
+		if r.Method != "PUT" || r.URL.Path != "/bigfile" {
 			t.Errorf("%s %s", r.Method, r.URL.Path)
 		}
-		query, ctype, token, sha, length = r.URL.RawQuery, r.Header.Get("Content-Type"), r.Header.Get("X-Agent-Bus-Token"), r.Header.Get("X-Big-Sha256"), r.ContentLength
+		query, ctype, token, sha, length = r.URL.RawQuery, r.Header.Get("Content-Type"), r.Header.Get("X-Agent-Bus-Token"), r.Header.Get("X-Bigfile-Sha256"), r.ContentLength
 		got, _ = io.ReadAll(r.Body)
 		fmt.Fprintf(w, `{"record":"#r","name":"k","size":%d,"sha256":%q,"held":"memory","expires":"2026-11-02T00:00:00Z","replaced":true}`, len(got), hexOf(got))
 	})
-	info, e := b.Record("#r").Big.Put(context.Background(), "k", bytes.NewReader(value), int64(len(value)), BigTTL(90*time.Minute), BigMemory(), BigSHA256(strings.ToUpper(hexOf(value))))
+	info, e := b.Record("#r").Bigfile.Put(context.Background(), "k", bytes.NewReader(value), int64(len(value)), BigfileTTL(90*time.Minute), BigfileMemory(), BigfileSHA256(strings.ToUpper(hexOf(value))))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -61,23 +61,23 @@ func TestBigPutStreamsTheBytesWithTheDocumentedQueryAndChecksTheAnswer(t *testin
 func TestBigPutRefusesOutOfRangeSizeAndTTLBeforeAnyRequest(t *testing.T) {
 	var calls atomic.Int32
 	b := bigServer(t, func(w http.ResponseWriter, r *http.Request) { calls.Add(1) })
-	g := b.Record("#r").Big
+	g := b.Record("#r").Bigfile
 	for name, run := range map[string]func() error{
 		"zero bytes": func() error { _, e := g.Put(context.Background(), "k", strings.NewReader(""), 0); return e },
 		"over 32 MiB": func() error {
-			_, e := g.Put(context.Background(), "k", strings.NewReader("x"), BigMaxBytes+1)
+			_, e := g.Put(context.Background(), "k", strings.NewReader("x"), BigfileMaxBytes+1)
 			return e
 		},
 		"ttl under 1s": func() error {
-			_, e := g.Put(context.Background(), "k", strings.NewReader("x"), 1, BigTTL(time.Millisecond))
+			_, e := g.Put(context.Background(), "k", strings.NewReader("x"), 1, BigfileTTL(time.Millisecond))
 			return e
 		},
 		"ttl over 30d": func() error {
-			_, e := g.Put(context.Background(), "k", strings.NewReader("x"), 1, BigTTL(31*24*time.Hour))
+			_, e := g.Put(context.Background(), "k", strings.NewReader("x"), 1, BigfileTTL(31*24*time.Hour))
 			return e
 		},
 		"ttl negative": func() error {
-			_, e := g.Put(context.Background(), "k", strings.NewReader("x"), 1, BigTTL(-time.Second))
+			_, e := g.Put(context.Background(), "k", strings.NewReader("x"), 1, BigfileTTL(-time.Second))
 			return e
 		},
 	} {
@@ -95,8 +95,8 @@ func TestBigPutAnswerWithAnotherDigestIsAHashMismatch(t *testing.T) {
 		io.Copy(io.Discard, r.Body)
 		fmt.Fprintf(w, `{"record":"#r","name":"k","size":3,"sha256":%q,"held":"memory"}`, strings.Repeat("0", 64))
 	})
-	_, e := b.Record("#r").Big.Put(context.Background(), "k", strings.NewReader("abc"), 3)
-	var m *BigHashMismatch
+	_, e := b.Record("#r").Bigfile.Put(context.Background(), "k", strings.NewReader("abc"), 3)
+	var m *BigfileHashMismatch
 	if !errors.As(e, &m) || m.Want != hexOf([]byte("abc")) {
 		t.Fatal(e)
 	}
@@ -106,12 +106,12 @@ func TestBigGetStreamsAndVerifiesTheDigestAndLength(t *testing.T) {
 	value := []byte("the big value")
 	serve := func(sum string, cut bool) *Bus {
 		return bigServer(t, func(w http.ResponseWriter, r *http.Request) {
-			if r.Method != "GET" || r.URL.Path != "/big" || r.URL.Query().Get("record") != "#r" || r.URL.Query().Get("name") != "k" {
+			if r.Method != "GET" || r.URL.Path != "/bigfile" || r.URL.Query().Get("record") != "#r" || r.URL.Query().Get("name") != "k" {
 				t.Errorf("%s %s", r.Method, r.URL.String())
 			}
-			w.Header().Set("X-Big-Sha256", sum)
-			w.Header().Set("X-Big-Held", "file")
-			w.Header().Set("X-Big-Expires", "2026-11-02T00:00:00Z")
+			w.Header().Set("X-Bigfile-Sha256", sum)
+			w.Header().Set("X-Bigfile-Held", "file")
+			w.Header().Set("X-Bigfile-Expires", "2026-11-02T00:00:00Z")
 			w.Header().Set("Content-Length", fmt.Sprint(len(value)))
 			if cut {
 				w.Write(value[:4])
@@ -121,21 +121,21 @@ func TestBigGetStreamsAndVerifiesTheDigestAndLength(t *testing.T) {
 		})
 	}
 	var out bytes.Buffer
-	info, e := serve(hexOf(value), false).Record("#r").Big.Get(context.Background(), "k", &out)
+	info, e := serve(hexOf(value), false).Record("#r").Bigfile.Get(context.Background(), "k", &out)
 	if e != nil || out.String() != string(value) || info.Held != "file" || info.Size != int64(len(value)) || info.SHA256 != hexOf(value) || info.Expires.IsZero() {
 		t.Fatal(e, out.String(), info)
 	}
 	out.Reset()
-	_, e = serve(strings.Repeat("f", 64), false).Record("#r").Big.Get(context.Background(), "k", &out)
-	var m *BigHashMismatch
+	_, e = serve(strings.Repeat("f", 64), false).Record("#r").Bigfile.Get(context.Background(), "k", &out)
+	var m *BigfileHashMismatch
 	if !errors.As(e, &m) {
 		t.Fatal("a wrong digest was accepted:", e)
 	}
-	_, e = serve(hexOf(value), true).Record("#r").Big.Get(context.Background(), "k", io.Discard)
+	_, e = serve(hexOf(value), true).Record("#r").Bigfile.Get(context.Background(), "k", io.Discard)
 	if e == nil || errors.As(e, &m) {
 		t.Fatal("a body cut short was not reported as a transport failure:", e)
 	}
-	_, e = serve("", false).Record("#r").Big.Get(context.Background(), "k", io.Discard)
+	_, e = serve("", false).Record("#r").Bigfile.Get(context.Background(), "k", io.Discard)
 	if e == nil {
 		t.Fatal("a get without a digest was accepted")
 	}
@@ -147,7 +147,7 @@ func TestBigRefusalsKeepTheDaemonsKindAndStatus(t *testing.T) {
 			w.WriteHeader(status)
 			fmt.Fprintf(w, `{"error":%q}`, kind+": refused")
 		})
-		_, e := b.Record("#r").Big.Get(context.Background(), "k", io.Discard)
+		_, e := b.Record("#r").Bigfile.Get(context.Background(), "k", io.Discard)
 		var be *BusError
 		if !errors.As(e, &be) || be.Status != status || !strings.HasPrefix(be.Message, kind) {
 			t.Fatalf("%d: %v", status, e)
@@ -158,12 +158,12 @@ func TestBigRefusalsKeepTheDaemonsKindAndStatus(t *testing.T) {
 func TestBigListAndDelete(t *testing.T) {
 	b := bigServer(t, func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/big/list":
+		case "/bigfile/list":
 			if r.Method != "GET" || r.URL.Query().Get("record") != "#r" {
 				t.Errorf("%s %s", r.Method, r.URL.String())
 			}
 			io.WriteString(w, `{"record":"#r","keys":[{"name":"a","size":1,"sha256":"aa","held":"memory","expires":"2026-11-02T00:00:00Z"},{"name":"b","size":2,"sha256":"bb","held":"file","expires":"2026-11-03T00:00:00Z"}]}`)
-		case "/big/delete":
+		case "/bigfile/delete":
 			body, _ := io.ReadAll(r.Body)
 			if r.Method != "POST" || !strings.Contains(string(body), `"name":"a"`) || !strings.Contains(string(body), `"record":"#r"`) {
 				t.Errorf("%s %s", r.Method, body)
@@ -173,23 +173,23 @@ func TestBigListAndDelete(t *testing.T) {
 			t.Errorf("unexpected %s", r.URL.Path)
 		}
 	})
-	keys, e := b.Record("#r").Big.List(context.Background())
+	keys, e := b.Record("#r").Bigfile.List(context.Background())
 	if e != nil || len(keys) != 2 || keys[0].Name != "a" || keys[1].Held != "file" || keys[1].Size != 2 {
 		t.Fatal(e, keys)
 	}
-	deleted, e := b.Record("#r").Big.Delete(context.Background(), "a")
+	deleted, e := b.Record("#r").Bigfile.Delete(context.Background(), "a")
 	if e != nil || !deleted {
 		t.Fatal(e, deleted)
 	}
 }
 
 func TestBigUnavailableStoreIsABusErrorCarryingTheCause(t *testing.T) {
-	const cause = "big-key store unavailable: the directory cannot be opened"
+	const cause = "bigfile store unavailable: the directory cannot be opened"
 	b := bigServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(503)
 		fmt.Fprintf(w, `{"error":%q}`, cause)
 	})
-	g := b.Record("#r").Big
+	g := b.Record("#r").Bigfile
 	ctx := context.Background()
 	_, put := g.Put(ctx, "k", strings.NewReader("x"), 1)
 	_, get := g.Get(ctx, "k", io.Discard)
@@ -214,7 +214,7 @@ func TestBigPutOfALargeBodyReportsAnEarlyRefusalNotAResetConnection(t *testing.T
 		})
 		size := int64(24 << 20)
 		for try := 0; try < 3; try++ {
-			_, e := b.Record("#r").Big.Put(context.Background(), "k", io.LimitReader(zeros{}, size), size)
+			_, e := b.Record("#r").Bigfile.Put(context.Background(), "k", io.LimitReader(zeros{}, size), size)
 			var be *BusError
 			if !errors.As(e, &be) || be.Status != status || !strings.Contains(be.Message, "refused early") {
 				t.Fatalf("%d try %d: %v", status, try, e)

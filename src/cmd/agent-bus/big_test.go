@@ -82,7 +82,7 @@ func TestBigPutSendsTheHashFirstAndPrintsTheStoredValue(t *testing.T) {
 	var query, sha string
 	var body []byte
 	bigDaemon(t, func(w http.ResponseWriter, r *http.Request) {
-		query, sha = r.URL.RawQuery, r.Header.Get("X-Big-Sha256")
+		query, sha = r.URL.RawQuery, r.Header.Get("X-Bigfile-Sha256")
 		body, _ = io.ReadAll(r.Body)
 		fmt.Fprintf(w, `{"record":"#r","name":"k","size":%d,"sha256":%q,"held":"memory","expires":"2026-11-02T00:00:00Z","replaced":true}`, len(body), bigHex(body))
 	})
@@ -105,7 +105,7 @@ func TestBigPutSendsTheHashFirstAndPrintsTheStoredValue(t *testing.T) {
 func TestBigGetWritesNothingUntilTheValueIsVerified(t *testing.T) {
 	value := []byte("the value")
 	serve := func(sum string) {
-		bigDaemon(t, func(w http.ResponseWriter, r *http.Request) { w.Header().Set("X-Big-Sha256", sum); w.Write(value) })
+		bigDaemon(t, func(w http.ResponseWriter, r *http.Request) { w.Header().Set("X-Bigfile-Sha256", sum); w.Write(value) })
 	}
 	dir := t.TempDir()
 	file := filepath.Join(dir, "copy")
@@ -141,7 +141,7 @@ func TestBigGetWritesNothingUntilTheValueIsVerified(t *testing.T) {
 func TestBigLsAndRmPrintTheDaemonsAnswer(t *testing.T) {
 	bigDaemon(t, func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/big/list":
+		case "/bigfile/list":
 			fmt.Fprintf(w, `{"keys":[{"name":"a","size":1,"sha256":"aa","held":"file","expires":%q}]}`, time.Now().Add(time.Hour).Format(time.RFC3339))
 		default:
 			io.WriteString(w, `{"deleted":false}`)
@@ -152,7 +152,7 @@ func TestBigLsAndRmPrintTheDaemonsAnswer(t *testing.T) {
 		t.Fatal(e, out)
 	}
 	out, e = captureStdout(t, func() error { return bigRmVerb([]string{"#r", "a"}) })
-	if e != nil || !strings.Contains(out, "held no big key") {
+	if e != nil || !strings.Contains(out, "held no bigfile") {
 		t.Fatal(e, out)
 	}
 }
@@ -197,7 +197,7 @@ func (e *endless) Read(p []byte) (int, error) {
 }
 
 func TestBigUnavailableStoreShowsTheDaemonsCauseOnEveryCall(t *testing.T) {
-	const cause = "big-key store unavailable: the directory cannot be opened"
+	const cause = "bigfile store unavailable: the directory cannot be opened"
 	bigDaemon(t, func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(503); io.WriteString(w, cause) })
 	file := filepath.Join(t.TempDir(), "v")
 	os.WriteFile(file, []byte("x"), 0o600)

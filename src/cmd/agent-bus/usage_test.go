@@ -96,7 +96,7 @@ func TestParserFlagsMatchCommandHelp(t *testing.T) {
 		"ack": func(a []string) error { return receipt("ack", a) }, "done": func(a []string) error { return receipt("done", a) }, "publish": publish, "unsubscribe": unsubscribe,
 		"manage": manage, "may-send": maySend, "stop": stopVerb, "logs": logsVerb, "config": agentTemplate, "secret": secret, "group": group, "enrol": enrol,
 		"lock": lockTake(false), "try-lock": lockTake(true), "release": lockRelease, "extend": lockExtend, "holders": lockHolders,
-		"kv": func(a []string) error { return kvVerb(append([]string{"set"}, a...)) }, "big": func(a []string) error { return bigVerb(append([]string{"put"}, a...)) }, "help": func(a []string) error { return agentHelp(a, output) },
+		"kv": func(a []string) error { return kvVerb(append([]string{"set"}, a...)) }, "bigfile": func(a []string) error { return bigVerb(append([]string{"put"}, a...)) }, "help": func(a []string) error { return agentHelp(a, output) },
 		"status": func(a []string) error { _, f, e := split(a); return only(f, e) }, "unregister": func(a []string) error { _, f, e := split(a); return only(f, e) },
 	}
 	for _, g := range commandGroups {

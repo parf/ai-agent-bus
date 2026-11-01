@@ -528,7 +528,7 @@ before rollback; they may describe an earlier identity assignment.
 | Built store | Holds |
 |---|---|
 | SQLite database `agent-bus.db`, mode 0600, held exclusively | Daemon Owner, local-account map, users, registry, groups, credentials and issued times, queue contents, counters, each record's [key-value store](03-records-kv.md#key-value-store), its [activity history](05-discovery.md#activity-history) by day, and the clean-stop marker; an older schema is migrated forward at open |
-| Files in `big-keys/` beside the database, 0600 in a 0700 directory | Each record's [big keys](03-records-kv.md#big-keys), whole or absent, expiring, never in a backup |
+| Files in `bigfile/` beside the database, 0600 in a 0700 directory | Each record's [bigfiles](03-records-kv.md#bigfiles), whole or absent, expiring, never in a backup |
 | Memory only | Browser sessions, outstanding readers, [locks](01-identity-and-authority.md#shared-locks), uptime and recent envelope feed |
 
 - It is reached through `modernc.org/sqlite` behind the store ports.

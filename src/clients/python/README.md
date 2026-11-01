@@ -72,20 +72,20 @@ PYTHONPATH=src/clients/python python3 -m unittest discover -s src/clients/python
 - Build a wheel locally with `TMPDIR="$PWD/tmp" python3 -m pip wheel --no-deps --no-build-isolation --wheel-dir tmp/python-wheels src/clients/python`.
 - The [shared request/answer cases](../../testdata/client-conformance/README.md) are also run by the Python check, as in every other language.
 
-## Big keys
+## Bigfiles
 
-`record.big` uses the same authenticated transport as KV. Upload bytes or a binary reader with an explicit size; empty input and invalid size/ttl refuse before any request. Uploads are streamed once and never retried.
+`record.bigfile` uses the same authenticated transport as KV. Upload bytes or a binary reader with an explicit size; empty input and invalid size/ttl refuse before any request. Uploads are streamed once and never retried.
 
 ```python
-info = bus.record("owner@node").big.put("mail", raw_bytes, ttl="24h")
-data, info = bus.record("owner@node").big.get("mail", max_size=26214400)
-keys = bus.record("owner@node").big.list()
-removed = bus.record("owner@node").big.delete("mail")
+info = bus.record("owner@node").bigfile.put("mail", raw_bytes, ttl="24h")
+data, info = bus.record("owner@node").bigfile.get("mail", max_size=26214400)
+keys = bus.record("owner@node").bigfile.list()
+removed = bus.record("owner@node").bigfile.delete("mail")
 ```
 
 - `put(name, reader, size=n)` accepts a binary reader whose `read(n)` returns bytes.
 - TTL is numeric seconds or whole `s/m/h/d`, default 24h, maximum 30d.
 - `memory=True` requests volatile storage; `sha256=hex_digest` adds the expected upload hash.
 - Get checks Content-Length against `max_size` before reading the body and verifies SHA-256 before returning `(bytes, info)`.
-- `BigHashMismatch` means discard the download. Daemon refusals retain their status and cause, including 503.
-- See [big keys](../../../docs/03-records-kv.md#big-keys) for authority and expiry.
+- `BigfileHashMismatch` means discard the download. Daemon refusals retain their status and cause, including 503.
+- See [bigfiles](../../../docs/03-records-kv.md#bigfiles) for authority and expiry.

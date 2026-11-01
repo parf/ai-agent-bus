@@ -1,4 +1,4 @@
-import {RecordBig} from './big.js';
+import {RecordBigfile} from './big.js';
 import { Bus } from './bus.js';
 import { Secret, type Json } from './message.js';
 import { type Operation, duration, BusError } from './transport.js';
@@ -8,8 +8,8 @@ export class KVNotFound extends BusError { constructor(message:string) { super(4
 const int64 = (n:bigint|number): bigint => { if (typeof n === 'number' && !Number.isSafeInteger(n)) throw new TypeError('use bigint for exact integers'); const value = BigInt(n); if (value < -(1n<<63n) || value >= (1n<<63n)) throw new TypeError('integer must fit int64'); return value; };
 const kindCheck = (kind:KVKind) => { if (!['string','int','json'].includes(kind)) throw new TypeError('kind is string, int or json'); };
 export class RecordHandle {
-  readonly big:RecordBig; readonly kv: RecordKV; readonly locks: RecordLocks;
-  constructor(readonly bus:Bus,readonly name:string) { this.big=new RecordBig(this); this.kv = new RecordKV(this); this.locks = new RecordLocks(this); }
+  readonly bigfile:RecordBigfile; readonly kv: RecordKV; readonly locks: RecordLocks;
+  constructor(readonly bus:Bus,readonly name:string) { this.bigfile=new RecordBigfile(this); this.kv = new RecordKV(this); this.locks = new RecordLocks(this); }
   lookup(options:Operation = {}): Promise<any> { return this.bus.request('GET','/lookup',undefined,{ ...options,query:{name:this.name} }); }
   manage(changes:{[key:string]:unknown},options:Operation = {}): Promise<any> { if ('name' in changes) throw new TypeError('management cannot change target name'); return this.bus.request('POST','/manage',{name:this.name,...changes},options); }
   unregister(options:Operation = {}): Promise<any> { return this.bus.request('POST','/unregister',{name:this.name},options); }

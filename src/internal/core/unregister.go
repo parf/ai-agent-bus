@@ -69,7 +69,7 @@ func (b *Bus) Unregister(name, caller string) error {
 	if err := b.commit(); err != nil {
 		return err
 	}
-	// The record's big keys go with it; its ID is never reused, so nothing
+	// The record's bigfiles go with it; its ID is never reused, so nothing
 	// else could reach them, but their bytes are private mail.
 	b.dropBig(r.ID)
 	return nil

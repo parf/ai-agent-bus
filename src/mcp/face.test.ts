@@ -376,10 +376,10 @@ test('MCP big files stay out of context and corrupt downloads never replace outp
  const sha=()=>createHash('sha256').update(data).digest('hex');
  const server=Bun.serve({port:0,hostname:'127.0.0.1',async fetch(req){calls++;const url=new URL(req.url);
   expect(req.headers.get('x-agent-bus-token')).toBe('fixture-only');
-  if(req.method==='PUT'){data=Buffer.from(await req.arrayBuffer());expect(req.headers.get('x-big-sha256')).toBe(sha());return Response.json({size:data.length,sha256:sha(),replaced:false});}
-  if(url.pathname==='/big/list')return Response.json({record:'owner@fixture',keys:[]});
+  if(req.method==='PUT'){data=Buffer.from(await req.arrayBuffer());expect(req.headers.get('x-bigfile-sha256')).toBe(sha());return Response.json({size:data.length,sha256:sha(),replaced:false});}
+  if(url.pathname==='/bigfile/list')return Response.json({record:'owner@fixture',keys:[]});
   if(req.method==='POST')return Response.json({deleted:true});
-  return new Response(data,{headers:{'Content-Length':String(data.length),'X-Big-Sha256':bad?'0'.repeat(64):sha(),'X-Big-Held':'memory','X-Big-Expires':'2026-11-02T00:00:00Z'}});
+  return new Response(data,{headers:{'Content-Length':String(data.length),'X-Bigfile-Sha256':bad?'0'.repeat(64):sha(),'X-Bigfile-Held':'memory','X-Bigfile-Expires':'2026-11-02T00:00:00Z'}});
  }});
  const bus:any=new Bus({AGENT_BUS_NAME:'#mcp@fixture',AGENT_BUS_ADDR:`http://127.0.0.1:${server.port}`,AGENT_BUS_TOKEN:'fixture-only'});
  const input=join(scratch,'in'),output=join(scratch,'out');
@@ -399,16 +399,16 @@ test('MCP big tools transfer files, require output_path and preserve unavailable
   seen.push(req.method+' '+url.pathname);
   if(unavailable)return Response.json({error:'disk path blocked'},{status:503});
   if(req.method==='PUT'){expect(Buffer.from(await req.arrayBuffer())).toEqual(payload);return Response.json({record:'r',name:'n',size:payload.length,sha256:sum,held:'memory',expires:'2026-11-02T00:00:00Z',replaced:false,content:'SHOULD_NOT_REACH_MODEL'});}
-  if(url.pathname==='/big/list')return Response.json({record:'r',keys:[]});
+  if(url.pathname==='/bigfile/list')return Response.json({record:'r',keys:[]});
   if(req.method==='POST')return Response.json({deleted:true});
-  return new Response(payload,{headers:{'Content-Length':String(payload.length),'X-Big-Sha256':sum,'X-Big-Held':'memory','X-Big-Expires':'2026-11-02T00:00:00Z'}});
+  return new Response(payload,{headers:{'Content-Length':String(payload.length),'X-Bigfile-Sha256':sum,'X-Bigfile-Held':'memory','X-Bigfile-Expires':'2026-11-02T00:00:00Z'}});
  });
- const missing=await call('ab_big_get',{record:'r',name:'n'});expect(missing.isError).toBe(true);expect(missing.text).toContain('output_path');expect(seen).toEqual([]);
- const uploaded=await call('ab_big_put',{record:'r',name:'n',input_path:input,ttl:'24h'});expect(uploaded.isError).toBe(false);expect(uploaded.text).toContain(sum);expect(uploaded.text).not.toContain('SHOULD_NOT_REACH_MODEL');
- const downloaded=await call('ab_big_get',{record:'r',name:'n',output_path:output});expect(downloaded.isError).toBe(false);expect(await readFile(output)).toEqual(payload);
- expect((await call('ab_big_ls',{record:'r'})).isError).toBe(false);expect((await call('ab_big_rm',{record:'r',name:'n'})).isError).toBe(false);
+ const missing=await call('ab_bigfile_get',{record:'r',name:'n'});expect(missing.isError).toBe(true);expect(missing.text).toContain('output_path');expect(seen).toEqual([]);
+ const uploaded=await call('ab_bigfile_put',{record:'r',name:'n',input_path:input,ttl:'24h'});expect(uploaded.isError).toBe(false);expect(uploaded.text).toContain(sum);expect(uploaded.text).not.toContain('SHOULD_NOT_REACH_MODEL');
+ const downloaded=await call('ab_bigfile_get',{record:'r',name:'n',output_path:output});expect(downloaded.isError).toBe(false);expect(await readFile(output)).toEqual(payload);
+ expect((await call('ab_bigfile_ls',{record:'r'})).isError).toBe(false);expect((await call('ab_bigfile_rm',{record:'r',name:'n'})).isError).toBe(false);
  unavailable=true;
- for(const [name,args] of [['ab_big_put',{record:'r',name:'n',input_path:input}],['ab_big_get',{record:'r',name:'n',output_path:output}],['ab_big_ls',{record:'r'}],['ab_big_rm',{record:'r',name:'n'}]] as const){const refusal=await call(name,args);expect(refusal.isError).toBe(true);expect(refusal.text).toContain('503');expect(refusal.text).toContain('disk path blocked');}
+ for(const [name,args] of [['ab_bigfile_put',{record:'r',name:'n',input_path:input}],['ab_bigfile_get',{record:'r',name:'n',output_path:output}],['ab_bigfile_ls',{record:'r'}],['ab_bigfile_rm',{record:'r',name:'n'}]] as const){const refusal=await call(name,args);expect(refusal.isError).toBe(true);expect(refusal.text).toContain('503');expect(refusal.text).toContain('disk path blocked');}
 });
 
 test('MCP big tools roundtrip local files through the real daemon without returning content',async()=>{
@@ -434,12 +434,12 @@ test('MCP big tools roundtrip local files through the real daemon without return
   };
   const input=join(scratch,'input'),output=join(scratch,'output'),bytes=Buffer.alloc(1048577,255);
   await writeFile(input,bytes);const sha256=createHash('sha256').update(bytes).digest('hex');
-  const up=await call('ab_big_put',{record:name,name:'raw',input_path:input,ttl:'24h'});
+  const up=await call('ab_bigfile_put',{record:name,name:'raw',input_path:input,ttl:'24h'});
   expect(up.size).toBe(bytes.length);expect(up.sha256).toBe(sha256);expect(Object.keys(up).sort()).toEqual(['expires','held','name','record','replaced','sha256','size']);
-  const down=await call('ab_big_get',{record:name,name:'raw',output_path:output});
+  const down=await call('ab_bigfile_get',{record:name,name:'raw',output_path:output});
   expect(down.sha256).toBe(sha256);expect(down.size).toBe(bytes.length);expect(await readFile(output)).toEqual(bytes);
-  expect((await call('ab_big_ls',{record:name})).keys.map((key:any)=>key.name)).toEqual(['raw']);
-  expect((await call('ab_big_rm',{record:name,name:'raw'})).deleted).toBe(true);
+  expect((await call('ab_bigfile_ls',{record:name})).keys.map((key:any)=>key.name)).toEqual(['raw']);
+  expect((await call('ab_bigfile_rm',{record:name,name:'raw'})).deleted).toBe(true);
  }finally{
   await client?.close();daemon?.stdin.end();
   let timer:ReturnType<typeof setTimeout>|undefined;

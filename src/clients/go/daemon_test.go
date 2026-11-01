@@ -251,9 +251,9 @@ func TestRealDaemonBigKeysRoundTripAndRefuseWhoMayNot(t *testing.T) {
 	if _, e := owner.Record("jobs@fixture").Manage(ctx, map[string]any{"allow": []string{"owner@fixture"}}); e != nil {
 		t.Fatal(e)
 	}
-	big := owner.Record("jobs@fixture").Big
+	big := owner.Record("jobs@fixture").Bigfile
 	value := bytes.Repeat([]byte("0123456789abcdef"), 1<<20/16*3) // 3 MiB
-	info, e := big.Put(ctx, "report", bytes.NewReader(value), int64(len(value)), BigTTL(time.Hour), BigMemory())
+	info, e := big.Put(ctx, "report", bytes.NewReader(value), int64(len(value)), BigfileTTL(time.Hour), BigfileMemory())
 	if e != nil || info.Size != int64(len(value)) || info.Held != "memory" || info.Replaced || info.SHA256 != hexOf(value) {
 		t.Fatalf("%+v %v", info, e)
 	}
@@ -270,10 +270,10 @@ func TestRealDaemonBigKeysRoundTripAndRefuseWhoMayNot(t *testing.T) {
 		t.Fatalf("%+v %v", keys, e)
 	}
 	var be *BusError
-	if _, e := outsider.Record("jobs@fixture").Big.Get(ctx, "report", io.Discard); !errors.As(e, &be) || be.Status != 403 {
+	if _, e := outsider.Record("jobs@fixture").Bigfile.Get(ctx, "report", io.Discard); !errors.As(e, &be) || be.Status != 403 {
 		t.Fatalf("a stranger downloaded: %v", e)
 	}
-	if _, e := outsider.Record("jobs@fixture").Big.Put(ctx, "mine", strings.NewReader("x"), 1); !errors.As(e, &be) || be.Status != 403 {
+	if _, e := outsider.Record("jobs@fixture").Bigfile.Put(ctx, "mine", strings.NewReader("x"), 1); !errors.As(e, &be) || be.Status != 403 {
 		t.Fatalf("a stranger uploaded: %v", e)
 	}
 	if _, e := big.Get(ctx, "absent", io.Discard); !errors.As(e, &be) || be.Status != 404 {
@@ -292,13 +292,13 @@ func TestRealDaemonBigKeyOf32MiBRoundTripsByteIdentical(t *testing.T) {
 	owner := fixtureBus(t, addr, tokens["owner@fixture"], "owner@fixture")
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	big := owner.Record("jobs@fixture").Big
-	value := make([]byte, BigMaxBytes)
+	big := owner.Record("jobs@fixture").Bigfile
+	value := make([]byte, BigfileMaxBytes)
 	for i := range value {
 		value[i] = byte(i * 7)
 	}
-	info, e := big.Put(ctx, "max", bytes.NewReader(value), int64(len(value)), BigMemory())
-	if e != nil || info.Size != BigMaxBytes || info.SHA256 != hexOf(value) {
+	info, e := big.Put(ctx, "max", bytes.NewReader(value), int64(len(value)), BigfileMemory())
+	if e != nil || info.Size != BigfileMaxBytes || info.SHA256 != hexOf(value) {
 		t.Fatalf("%+v %v", info, e)
 	}
 	var out bytes.Buffer
@@ -317,7 +317,7 @@ func TestRealDaemonRefusesAStrangersLargePutWithItsCauseNotAReset(t *testing.T) 
 		t.Fatal(e)
 	}
 	size := int64(24 << 20)
-	_, e := outsider.Record("jobs@fixture").Big.Put(ctx, "mine", io.LimitReader(zeros{}, size), size)
+	_, e := outsider.Record("jobs@fixture").Bigfile.Put(ctx, "mine", io.LimitReader(zeros{}, size), size)
 	var be *BusError
 	if !errors.As(e, &be) || be.Status != 403 {
 		t.Fatalf("a stranger's 24 MiB put: %v", e)

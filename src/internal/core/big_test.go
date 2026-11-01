@@ -207,7 +207,7 @@ func TestBigKeysNeedAHolder(t *testing.T) {
 }
 
 // The daemon's own record admits everyone to send to it, which must not make
-// its big keys anyone's to read, write or list.
+// its bigfiles anyone's to read, write or list.
 func TestBigKeysOfTheDaemonRecordAreNobodys(t *testing.T) {
 	b := bigFixture(t)
 	if err := b.EstablishDaemonAgent("node.example"); err != nil {
@@ -250,7 +250,7 @@ func TestBigKeysGoWithTheirRecord(t *testing.T) {
 		t.Fatal(err)
 	}
 	if n := bigKeysOf(t, b, store, id); n != 0 {
-		t.Fatalf("the removed record retains %d big keys and their quota", n)
+		t.Fatalf("the removed record retains %d bigfiles and their quota", n)
 	}
 	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "eve@h"}); err != nil {
 		t.Fatal(err)
@@ -335,7 +335,7 @@ func TestBigKeysSurviveATransferOfTheirRecord(t *testing.T) {
 	}
 }
 
-// An import that replaces a record keeps its ID, so its big keys stay with the
+// An import that replaces a record keeps its ID, so its bigfiles stay with the
 // name and no key is orphaned by the import; keys of an ID the registry no
 // longer knows, from any other cause, are pruned at start.
 func TestAnImportReplaceKeepsTheRecordIDAndItsBigKeys(t *testing.T) {
@@ -355,7 +355,7 @@ func TestAnImportReplaceKeepsTheRecordIDAndItsBigKeys(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got := target.records["#runner@source"].ID; got != oldID {
-		t.Fatalf("an import replace gave the record a new ID (%d, was %d); its big keys are now orphans", got, oldID)
+		t.Fatalf("an import replace gave the record a new ID (%d, was %d); its bigfiles are now orphans", got, oldID)
 	}
 	target.PruneBigOrphans()
 	if n := bigKeysOf(t, target, store, oldID); n != 1 {

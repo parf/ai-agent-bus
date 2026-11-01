@@ -128,7 +128,7 @@ export const FLASH: Record<string, string> = {
   "user-deactivated": "User deactivated.", "user-reactivated": "User reactivated.", "credential-removed": "Credential removed.",
   "group-saved": "Group saved.", "group-registered": "Group registered.", "github-refreshed": "GitHub profile refreshed.",
   "email-saved": "Email saved.",
-  "lock-released": "Lock released.", "kv-saved": "Value saved.", "kv-deleted": "Value deleted.", "big-deleted": "Big value deleted.", "lock-force-released": "Lock released by force; the audit log records it.",
+  "lock-released": "Lock released.", "kv-saved": "Value saved.", "kv-deleted": "Value deleted.", "bigfile-deleted": "Bigfile deleted.", "lock-force-released": "Lock released by force; the audit log records it.",
 };
 
 export async function respond(ctx: Ctx, o: PageOptions, body: Child, status = 200): Promise<Response> {

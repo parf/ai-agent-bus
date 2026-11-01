@@ -8,5 +8,5 @@ export { BusError, UnexpectedAnswer, BusUnreachable, UncertainOutcome, BusTimeou
 export type { Operation } from './transport.js';
 export { VERSION } from './version.js';
 
-export {RecordBig,BigHashMismatch} from './big.js';
-export type {BigKey,BigInfo,BigPutOptions} from './big.js';
+export {RecordBigfile,BigfileHashMismatch} from './big.js';
+export type {BigfileKey,BigfileInfo,BigfilePutOptions} from './big.js';

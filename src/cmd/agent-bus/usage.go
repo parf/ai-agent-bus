@@ -40,7 +40,7 @@ var commandGroups = []struct {
 	}},
 	{"STORAGE AND LOCKS", []commandHelp{
 		{"kv", "kv get <record> <key>\n  agent-bus kv set <record> <key> <value|->\n  agent-bus kv delete <record> <key>\n  agent-bus kv inc <record> <key> [n]\n  agent-bus kv json <record> <key> <ops>", "Read or change stored values", "--int  Integer storage (get,set,delete)\n--json  JSON storage (get,set,delete)\n--add  Set only if absent (set only)\n--replace  Set only if present (set only)"},
-		{"big", "big put <record> <name> [<file>|-]\n  agent-bus big get <record> <name> [-o <file>]\n  agent-bus big ls <record>\n  agent-bus big rm <record> <name>", "Pass values too big for a message, by name", "--ttl=duration  Lifetime, h m s or d (put; default 24h, at most 30d)\n--memory  Keep in daemon memory only (put)\n-o file  Write to a file instead of stdout (get)"},
+		{"bigfile", "bigfile put <record> <name> [<file>|-]\n  agent-bus bigfile get <record> <name> [-o <file>]\n  agent-bus bigfile ls <record>\n  agent-bus bigfile rm <record> <name>", "Pass values too big for a message, by name", "--ttl=duration  Lifetime, h m s or d (put; default 24h, at most 30d)\n--memory  Keep in daemon memory only (put)\n-o file  Write to a file instead of stdout (get)"},
 		{"lock", "lock <record> <name>", "Wait for and take a named lock", "--ttl=duration  Lease lifetime (default 30s)\n--wait=duration  Acquisition deadline (default 30s)"},
 		{"try-lock", "try-lock <record> <name>", "Take a named lock or refuse immediately", "--ttl=duration  Lease lifetime (default 30s)"},
 		{"release", "release <record> <name>", "Release a named lock", "--force  Release another holder (manager only)"},
@@ -71,8 +71,8 @@ func generalHelp() string {
 			if c.name == "kv" {
 				synopsis = "kv get|set|delete|inc|json"
 			}
-			if c.name == "big" {
-				synopsis = "big put|get|ls|rm"
+			if c.name == "bigfile" {
+				synopsis = "bigfile put|get|ls|rm"
 			}
 			if c.name == "ls" {
 				synopsis = "ls [-h] [--all] [<name>]"

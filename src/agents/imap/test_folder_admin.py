@@ -38,25 +38,25 @@ class Calls(unittest.TestCase):
         original = self.bus.record
         def record(name):
             rec = original(name)
-            rec.big = big
+            rec.bigfile = big
             return rec
         self.bus.record = Mock(side_effect=record)
         return big
 
     def test_big_reference_last_slash_and_exclusive_inline_text_json(self):
-        for body in ['append Other --big "#imap/source@fixture/mail"',
-                     json.dumps({'method': 'append', 'folder': 'Other', 'big': '#imap/source@fixture/mail'})]:
-            self.assertEqual(fixture.proxy.parse(body)['big'], ('#imap/source@fixture', 'mail'))
+        for body in ['append Other --bigfile "#imap/source@fixture/mail"',
+                     json.dumps({'method': 'append', 'folder': 'Other', 'bigfile': '#imap/source@fixture/mail'})]:
+            self.assertEqual(fixture.proxy.parse(body)['bigfile'], ('#imap/source@fixture', 'mail'))
         for ref in ('missing', '/key', '#record/', '', 1):
             with self.subTest(ref=ref), self.assertRaisesRegex(MailError, 'last /'):
-                fixture.proxy.parse(json.dumps({'method': 'append', 'folder': 'Other', 'big': ref}))
-        for body in ['append Other --big user/key\nraw',
-                     json.dumps({'method': 'append', 'folder': 'Other', 'big': 'user/key', 'raw': 'raw'})]:
+                fixture.proxy.parse(json.dumps({'method': 'append', 'folder': 'Other', 'bigfile': ref}))
+        for body in ['append Other --bigfile user/key\nraw',
+                     json.dumps({'method': 'append', 'folder': 'Other', 'bigfile': 'user/key', 'raw': 'raw'})]:
             with self.assertRaisesRegex(MailError, 'never both'): fixture.proxy.parse(body)
         for name in ('', 'x' * 257, 'é' * 129, 1):
-            with self.assertRaisesRegex(MailError, 'key name'):
-                fixture.proxy.parse(json.dumps({'method': 'part', 'uid': 7, 'part_id': '1', 'big': name}))
-        self.assertEqual(fixture.proxy.parse('part 7 1 --big archive')['big'], 'archive')
+            with self.assertRaisesRegex(MailError, 'bigfile name'):
+                fixture.proxy.parse(json.dumps({'method': 'part', 'uid': 7, 'part_id': '1', 'bigfile': name}))
+        self.assertEqual(fixture.proxy.parse('part 7 1 --bigfile archive')['bigfile'], 'archive')
 
     def test_big_part_exact_decoded_bytes_own_record_no_seen_and_no_answer_body(self):
         big = self.big_store()
@@ -65,7 +65,7 @@ class Calls(unittest.TestCase):
             self.server.bodystructure = ('("' + kind + '" "PLAIN" ("CHARSET" "utf-8") NIL NIL "BASE64" ' + str(len(encoded)) + ' 1)').encode()
             self.server.part_bodies = {'1': encoded}
             self.env['IMAP_CLIENT_SECRET'] = 'secret-bytes'
-            answer = self.call('part 7 1 --big saved' if kind == 'TEXT' else json.dumps({'method': 'part', 'uid': 7, 'part_id': '1', 'big': 'saved'}))
+            answer = self.call('part 7 1 --bigfile saved' if kind == 'TEXT' else json.dumps({'method': 'part', 'uid': 7, 'part_id': '1', 'bigfile': 'saved'}))
             self.assertFalse(answer.startswith('error:'), answer)
             big.put.assert_called_with('saved', raw)
             self.assertIn('size ' + str(len(raw)), answer)
@@ -82,14 +82,14 @@ class Calls(unittest.TestCase):
         big = self.big_store()
         self.server.bodystructure = b'("TEXT" "PLAIN" NIL NIL NIL "7BIT" 0 1)'
         self.server.part_bodies = {'1': b''}
-        self.assertIn('empty', self.call('part 7 1 --big empty'))
+        self.assertIn('empty', self.call('part 7 1 --bigfile empty'))
         big.put.assert_not_called()
 
     def test_big_part_predecode_cap_stores_nothing(self):
         big = self.big_store()
         self.server.bodystructure = b'("APPLICATION" "OCTET-STREAM" NIL NIL NIL "BASE64" 26214401 NIL NIL)'
         self.server.part_bodies = {'1': b'YQ=='}
-        self.assertIn('25 MB', self.call('part 7 1 --big large'))
+        self.assertIn('25 MB', self.call('part 7 1 --bigfile large'))
         big.put.assert_not_called()
         self.assertFalse(any(b'BODY.PEEK[1]' in a for _, a in self.server.fetches))
 
@@ -100,7 +100,7 @@ class Calls(unittest.TestCase):
                               (UncertainOutcome('fixture'), 'outcome unknown')]:
             big.put.reset_mock()
             big.put.side_effect = error
-            self.assertIn(answer, self.call('part 7 1 --big saved'))
+            self.assertIn(answer, self.call('part 7 1 --bigfile saved'))
             self.assertEqual(big.put.call_count, 1)
 
     def test_big_append_exact_size_boundary(self):
@@ -108,7 +108,7 @@ class Calls(unittest.TestCase):
         raw = b'Subject: limit\r\n\r\nx'
         big = self.big_store(raw)
         with patch.object(folder_admin, 'MAIL_CAP', len(raw)):
-            self.assertIn('destination UID', self.call('append Other --big source/mail'))
+            self.assertIn('destination UID', self.call('append Other --bigfile source/mail'))
             big.get.assert_called_with('mail', max_size=len(raw))
         self.assertEqual(self.server.appended[0][1], raw)
 
@@ -118,7 +118,7 @@ class Calls(unittest.TestCase):
         big = self.big_store(raw)
         for mode, expected in [('valid', 'destination UID'), ('missing', 'UID unavailable')]:
             self.server.appenduid_mode = mode
-            answer = self.call('append Other --big "user/folder@fixture/mail" --flags answered --date 2026-10-31T01:02:03Z' if mode == 'valid' else json.dumps({'method': 'append', 'folder': 'Other', 'big': 'user/folder@fixture/mail', 'flags': ['answered']}))
+            answer = self.call('append Other --bigfile "user/folder@fixture/mail" --flags answered --date 2026-10-31T01:02:03Z' if mode == 'valid' else json.dumps({'method': 'append', 'folder': 'Other', 'bigfile': 'user/folder@fixture/mail', 'flags': ['answered']}))
             self.assertIn(expected, answer)
         self.assertEqual(len(self.server.appended), 2)
         self.assertTrue(all(row[1] == raw for row in self.server.appended))
@@ -130,12 +130,12 @@ class Calls(unittest.TestCase):
     def test_big_append_switch_and_admission_refuse_before_any_write(self):
         self.folder('Other', '')
         big = self.big_store()
-        self.assertIn('allow_destructive', self.call('append Other --big source/mail'))
+        self.assertIn('allow_destructive', self.call('append Other --bigfile source/mail'))
         big.get.assert_not_called()
         self.assertEqual(self.server.commands, [])
         self.cfg['allow_destructive'] = True
         big.get.side_effect = Refusal(403, 'fixture denied')
-        self.assertIn('big key access refused', self.call('append Other --big source/mail'))
+        self.assertIn('bigfile access refused', self.call('append Other --bigfile source/mail'))
         self.assertEqual(self.server.commands, [])
         self.assertEqual(self.writes(), [])
         self.assertEqual(big.get.call_count, 1)
@@ -144,16 +144,16 @@ class Calls(unittest.TestCase):
         self.enable()
         big = self.big_store()
         with patch.object(folder_admin, 'MAIL_CAP', 10):
-            self.assertIn('25 MB', self.call('append Other --big source/mail'))
+            self.assertIn('25 MB', self.call('append Other --bigfile source/mail'))
         self.assertEqual(self.server.commands, [])
         for error, expected in [(InvalidArgument('oversize'), '25 MB'), (ValueError('bad hash'), 'integrity verification')]:
             big.get.side_effect = error
-            self.assertIn(expected, self.call('append Other --big source/mail'))
+            self.assertIn(expected, self.call('append Other --bigfile source/mail'))
             self.assertEqual(self.server.commands, [])
             self.assertEqual(self.writes(), [])
         big.get.side_effect = None
         self.server.drop_after_admin = True
-        answer = self.call('append Other --big source/mail')
+        answer = self.call('append Other --bigfile source/mail')
         self.assertIn('outcome unknown', answer)
         self.assertEqual(len(self.server.appended), 1)
         self.assertEqual(len(self.writes()), 1)
@@ -186,23 +186,23 @@ class Calls(unittest.TestCase):
         self.assertGreater(len(raw), 1048576)
         self.server.bodystructure = ('("APPLICATION" "OCTET-STREAM" NIL NIL NIL "BINARY" ' + str(len(raw)) + ' NIL NIL)').encode()
         self.server.part_bodies = {'1': raw}
-        answer = request('part 7 1 --big decoded')
+        answer = request('part 7 1 --bigfile decoded')
         self.assertIn('size ' + str(len(raw)), answer)
         self.assertIn(hashlib.sha256(raw).hexdigest(), answer)
-        downloaded, info = caller.record(imap.name).big.get('decoded')
+        downloaded, info = caller.record(imap.name).bigfile.get('decoded')
         self.assertEqual(downloaded, raw)
         self.assertEqual(info['sha256'], hashlib.sha256(raw).hexdigest())
         self.assertEqual(self.server.stores, [])
         with self.assertRaises(Refusal) as denied:
-            stranger.record(imap.name).big.get('decoded')
+            stranger.record(imap.name).bigfile.get('decoded')
         self.assertEqual(denied.exception.status, 403)
-        caller.record(caller.name).big.put('mail', raw)
+        caller.record(caller.name).bigfile.put('mail', raw)
         self.folder('Other', '')
-        command = 'append Other --big ' + caller.name + '/mail'
+        command = 'append Other --bigfile ' + caller.name + '/mail'
         before = list(self.server.commands)
         self.assertIn('allow_destructive', request(command))
         self.cfg['allow_destructive'] = True
-        self.assertIn('big key access refused', request(command))
+        self.assertIn('bigfile access refused', request(command))
         self.assertEqual(self.server.commands, before)
         owner.record(caller.name).manage(allow=[imap.name])
         self.assertIn('destination UID', request(command))
@@ -211,7 +211,7 @@ class Calls(unittest.TestCase):
         self.assertEqual(self.server.mailboxes, [b'"INBOX"'])  # part EXAMINE only
         owner.record(caller.name).manage(allow=[])
         before = list(self.server.commands)
-        self.assertIn('big key access refused', request(command))
+        self.assertIn('bigfile access refused', request(command))
         self.assertEqual(self.server.commands, before)
         self.assertEqual(len(self.server.appended), 1)
 

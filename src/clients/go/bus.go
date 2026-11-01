@@ -477,7 +477,7 @@ func (b *Bus) Records(ctx context.Context, filters ...map[string]string) (json.R
 	return v, e
 }
 func (b *Bus) Record(name string) Record {
-	return Record{Name: name, bus: b, KV: KV{b, name}, Big: Big{b, name}, Locks: Locks{b, name}}
+	return Record{Name: name, bus: b, KV: KV{b, name}, Bigfile: Bigfile{b, name}, Locks: Locks{b, name}}
 }
 func (b *Bus) Register(ctx context.Context, metadata map[string]any) (json.RawMessage, error) {
 	var v json.RawMessage

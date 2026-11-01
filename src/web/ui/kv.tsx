@@ -17,8 +17,8 @@ export type BigKey = { name: string; size: number; sha256: string; held: string;
 export type BigListing = { record: string; keys: BigKey[] | null };
 export type KVStoreRow = { record: string; kind: string; string: number; int: number; json: number };
 
-/** The record's big keys, none when the visitor may not list them, and the
- *  daemon's own cause when its big-key store is unavailable (503). */
+/** The record's bigfiles, none when the visitor may not list them, and the
+ *  daemon's own cause when its bigfile store is unavailable (503). */
 export async function recordBig(ctx: Ctx, record: string): Promise<{ keys: BigKey[]; unavailable?: string }> {
   return ctx.bigList(record).then(l => ({ keys: l?.keys ?? [] }), e => {
     if (e instanceof Refusal && e.status === 503) return { keys: [], unavailable: e.detail };

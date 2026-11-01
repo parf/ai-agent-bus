@@ -348,10 +348,10 @@ For a record you may manage: stored values and named locks. All options and limi
 | `agent-bus kv inc jobs@demo cursor` | add one atomically |
 | `agent-bus kv delete jobs@demo cursor --int` | remove it |
 | `agent-bus kv json jobs@demo batch '[{"op":"push","key":"todo","value":"job-1"}]'` | edit a JSON value atomically |
-| `agent-bus big put jobs@demo report ./report.pdf --ttl=2h` | store a value too big for a message (up to 32 MiB; default 24h, at most 30d; `--memory` keeps it in daemon memory) |
-| `agent-bus big get jobs@demo report -o ./copy.pdf` | download it, checked against its SHA-256; without `-o` it goes to stdout |
-| `agent-bus big ls jobs@demo` | list its big keys with size, SHA-256, where held and time left |
-| `agent-bus big rm jobs@demo report` | delete one now |
+| `agent-bus bigfile put jobs@demo report ./report.pdf --ttl=2h` | store a value too big for a message (up to 32 MiB; default 24h, at most 30d; `--memory` keeps it in daemon memory) |
+| `agent-bus bigfile get jobs@demo report -o ./copy.pdf` | download it, checked against its SHA-256; without `-o` it goes to stdout |
+| `agent-bus bigfile ls jobs@demo` | list its bigfiles with size, SHA-256, where held and time left |
+| `agent-bus bigfile rm jobs@demo report` | delete one now |
 | `agent-bus lock jobs@demo deploy --ttl=30s --wait=10s` | wait for a named lock |
 | `agent-bus try-lock jobs@demo deploy --ttl=30s` | try immediately |
 | `agent-bus extend jobs@demo deploy --ttl=30s` | renew your hold |

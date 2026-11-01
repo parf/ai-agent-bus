@@ -171,9 +171,9 @@ type inbox struct {
 type Bus struct {
 	legacyEmptyTags []string // pending startup persistence of removed no-tags sentinels
 	store           ports.Store
-	// big holds big keys, bound at start (big.go).
+	// big holds bigfiles, bound at start (big.go).
 	big ports.BigStore
-	// bigCause, bigReopen and bigTried are why big keys are refused and how
+	// bigCause, bigReopen and bigTried are why bigfiles are refused and how
 	// to try again (big.go).
 	bigCause  error
 	bigReopen func() (ports.BigStore, error)

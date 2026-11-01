@@ -24,7 +24,7 @@ const asWritten = (_k: string, v: unknown, c?: { source?: string }) =>
   typeof v === "number" && c?.source !== undefined && c.source !== String(v) ? (JSON as unknown as { rawJSON(s: string): unknown }).rawJSON(c.source) : v;
 const kindWord = (k: string) => k === "pubsub" ? "PubSub" : `${entity(k)?.word ?? k}s`;
 const size = (n: number) => n < 1024 ? `${n} B` : n < 1 << 20 ? `${(n / 1024).toFixed(n < 10240 ? 1 : 0)} KiB` : `${(n / (1 << 20)).toFixed(1)} MiB`;
-/** Time left before a big key expires, as the nearest two units. */
+/** Time left before a bigfile expires, as the nearest two units. */
 const left = (iso: string, now = Date.now()) => {
   const s = Math.round((Date.parse(iso) - now) / 1000);
   if (!(s > 0)) return "expired";
@@ -112,7 +112,7 @@ const DeleteValue = ({ record, kind, name, back }: { record: string; kind: KVKin
 
 /** Values too big for a message: listed and deleted here, uploaded and downloaded through the CLI or API. */
 const BigCard = ({ record, keys }: { record: string; keys: BigKey[] }) =>
-  <Card title="Big keys" icon="file-down" id="kv-big" actions={<span class="count">{keys.length}</span>}>
+  <Card title="Big files" icon="file-down" id="kv-bigfile" actions={<span class="count">{keys.length}</span>}>
     <table class="data stack kv-table">
       <thead><tr><th>Name</th><th>Size</th><th>SHA-256</th><th>Held</th><th>Time left</th><th><span class="sr-only">Actions</span></th></tr></thead>
       <tbody>{keys.map(k => <tr>
@@ -123,7 +123,7 @@ const BigCard = ({ record, keys }: { record: string; keys: BigKey[] }) =>
         <td data-label="Time left">{left(k.expires)}</td>
         <td data-label="Actions" class="row-actions">
           <details class="inline-confirm"><summary class="btn btn-sm btn-danger">Delete</summary>
-            <form method="post" action="/big-delete" class="inline-form">
+            <form method="post" action="/bigfile-delete" class="inline-form">
               <input type="hidden" name="record" value={record} /><input type="hidden" name="name" value={k.name} />
               <button class="btn btn-sm btn-danger">Confirm delete of <code>{k.name}</code></button>
             </form>
@@ -131,7 +131,7 @@ const BigCard = ({ record, keys }: { record: string; keys: BigKey[] }) =>
         </td>
       </tr>)}</tbody>
     </table>
-    <p class="muted small">Upload and download with <code>agent-bus big put</code> and <code>big get</code>; the page never shows the contents.</p>
+    <p class="muted small">Upload and download with <code>agent-bus bigfile put</code> and <code>bigfile get</code>; the page never shows the contents.</p>
   </Card>;
 
 async function storePage(ctx: Ctx, st: FormState = { values: {} }, status = 200): Promise<Response> {
@@ -162,7 +162,7 @@ async function storePage(ctx: Ctx, st: FormState = { values: {} }, status = 200)
         </table>
       </Card>;
     })}
-    {big.unavailable !== undefined ? <Card title="Big keys" icon="file-down" id="kv-big"><p class="warn">{big.unavailable}</p></Card>
+    {big.unavailable !== undefined ? <Card title="Big files" icon="file-down" id="kv-bigfile"><p class="warn">{big.unavailable}</p></Card>
       : big.keys.length ? <BigCard record={kv.record} keys={big.keys} /> : null}
     <Card title="Add value" icon="plus" id="kv-add"><AddForm record={kv.record} st={st} /></Card>
   </>;
@@ -250,8 +250,8 @@ async function postDelete(ctx: Ctx): Promise<Response> {
 
 async function postBigDelete(ctx: Ctx): Promise<Response> {
   const record = ctx.f("record"), name = ctx.f("name");
-  await ctx.bus("POST", "/big/delete", { body: { record, name } });
-  return flashRedirect(ctx, storeHref(record), "big-deleted");
+  await ctx.bus("POST", "/bigfile/delete", { body: { record, name } });
+  return flashRedirect(ctx, storeHref(record), "bigfile-deleted");
 }
 
 export const handlers = { kv: kvPage, store: (ctx: Ctx) => storePage(ctx), value: (ctx: Ctx) => valuePage(ctx), postSet, postInc, postDelete, postBigDelete };

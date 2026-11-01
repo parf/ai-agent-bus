@@ -183,7 +183,7 @@ func TestAnAgentsLimitsAreTheHostsAndBoundItsNeeds(t *testing.T) {
 // in the reason; one under it, or with no limit, is not.
 func TestAWorkDirectoryOverItsDiskLimitIsSaid(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(dir+"/big", make([]byte, 3000), 0o600); err != nil {
+	if err := os.WriteFile(dir+"/bigfile", make([]byte, 3000), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if why := overDisk(dir, 2000); !strings.Contains(why, "holds 3000 bytes, over its disk limit of 2000") {

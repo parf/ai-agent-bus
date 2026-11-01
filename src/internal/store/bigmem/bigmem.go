@@ -1,6 +1,6 @@
-// Package bigmem is the memory holder of big keys: the minimal holder behind
+// Package bigmem is the memory holder of bigfiles: the minimal holder behind
 // ports.BigStore. Everything is lost at a restart; the file holder follows in
-// the same release (Plans/R1.0-Release/big-keys.md#order-of-work).
+// the same release (Plans/R1.0-Release/bigfile.md#order-of-work).
 package bigmem
 
 import (
@@ -77,11 +77,11 @@ func (s *Store) BigPut(record uint32, name string, data io.Reader, sum string, m
 	size := int64(len(buf))
 	switch {
 	case names+1 > lim.Names:
-		return ports.BigInfo{}, false, fmt.Errorf("%w: a record holds at most %d big keys", ports.ErrBigFull, lim.Names)
+		return ports.BigInfo{}, false, fmt.Errorf("%w: a record holds at most %d bigfiles", ports.ErrBigFull, lim.Names)
 	case inRecord+size > lim.Record:
-		return ports.BigInfo{}, false, fmt.Errorf("%w: a record holds at most %d bytes of big keys", ports.ErrBigFull, lim.Record)
+		return ports.BigInfo{}, false, fmt.Errorf("%w: a record holds at most %d bytes of bigfiles", ports.ErrBigFull, lim.Record)
 	case total+size > lim.Total:
-		return ports.BigInfo{}, false, fmt.Errorf("%w: the daemon holds at most %d bytes of big keys", ports.ErrBigFull, lim.Total)
+		return ports.BigInfo{}, false, fmt.Errorf("%w: the daemon holds at most %d bytes of bigfiles", ports.ErrBigFull, lim.Total)
 	}
 	_, replaced := s.keys[key{record, name}]
 	info := ports.BigInfo{Name: name, Size: size, SHA256: hexsum, Held: "memory", Expires: expires}

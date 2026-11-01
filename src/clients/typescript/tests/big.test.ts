@@ -11,18 +11,18 @@ async function fixture(run:(big:any,state:any)=>Promise<void>){
   expect(req.headers['x-agent-bus-token']).toBe('fixture-only');
   if(req.url==='/status'){res.end('{"you":"owner@fixture"}');return;}
   if(state.unavailable){res.statusCode=503;res.end('{"error":"disk path blocked"}');return;}
-  if(req.url?.startsWith('/big/list')){res.end('{"keys":[{"name":"z"},{"name":"a"}]}');return;}
+  if(req.url?.startsWith('/bigfile/list')){res.end('{"keys":[{"name":"z"},{"name":"a"}]}');return;}
   if(req.method==='POST'){res.end('{"deleted":true}');return;}
   if(req.method==='PUT'){
    expect(req.headers['content-type']).toBe('application/octet-stream');
    const parts:Buffer[]=[];for await(const part of req)parts.push(Buffer.from(part));state.data=Buffer.concat(parts);
    res.end(JSON.stringify({size:state.data.length,sha256:state.bad?'0'.repeat(64):sha(state.data),replaced:true}));return;
   }
-  res.setHeader('Content-Length',state.data.length);res.setHeader('X-Big-Sha256',state.bad?'0'.repeat(64):sha(state.data));res.setHeader('X-Big-Held','memory');res.setHeader('X-Big-Expires','2026-11-02T00:00:00Z');res.end(state.data);
+  res.setHeader('Content-Length',state.data.length);res.setHeader('X-Bigfile-Sha256',state.bad?'0'.repeat(64):sha(state.data));res.setHeader('X-Bigfile-Held','memory');res.setHeader('X-Bigfile-Expires','2026-11-02T00:00:00Z');res.end(state.data);
  });
  await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));
  const bus=Bus.connect({addr:`http://127.0.0.1:${(server.address() as any).port}`,token:'fixture-only'});
- try{const rec=bus.record('owner@fixture');expect('big' in rec).toBe(true);await run((rec as any).big,state);}
+ try{const rec=bus.record('owner@fixture');expect('bigfile' in rec).toBe(true);await run((rec as any).bigfile,state);}
  finally{await bus.close();server.closeAllConnections();await new Promise<void>(r=>server.close(()=>r()));}
 }
 test('big streamed binary roundtrip verifies metadata, names and ttl',()=>fixture(async(big,s)=>{
@@ -57,7 +57,7 @@ test('big received refusals win over concurrent large-upload write errors',async
   for(const status of [403,413,503]){
    let calls=0;
    http.request=((url:any,options:any,callback:any)=>{
-    if(url.pathname!=='/big')return original(url,options,callback);
+    if(url.pathname!=='/bigfile')return original(url,options,callback);
     calls++;const request:any=new EventEmitter();request.destroy=()=>request;request.end=()=>{};request.flushHeaders=()=>queueMicrotask(()=>request.emit('continue'));
     request.write=()=>{queueMicrotask(()=>{
      const response:any=new EventEmitter();response.statusCode=status;response.headers={};callback(response);
@@ -87,7 +87,7 @@ test('big large puts wait for Continue and retain early 403 413 503 causes',asyn
   await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));
   const bus=Bus.connect({addr:`http://127.0.0.1:${(server.address() as any).port}`,token:'fixture-only'});
   try{
-   try{await bus.record('owner@fixture').big.put('n',Buffer.alloc(24*1024*1024));throw new Error('refusal accepted');}
+   try{await bus.record('owner@fixture').bigfile.put('n',Buffer.alloc(24*1024*1024));throw new Error('refusal accepted');}
    catch(error:any){expect(error.status).toBe(status);expect(error.message).toContain('early real refusal');}
    expect(expected).toBe(true);expect(received).toBe(0);expect(puts).toBe(1);
   }finally{await bus.close();server.closeAllConnections();await new Promise<void>(resolve=>server.close(()=>resolve()));}

@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-// The big-key port: named values too large for a message, held outside the
-// bus's queues in memory or a file. See Plans/R1.0-Release/big-keys.md.
+// The bigfile port: named values too large for a message, held outside the
+// bus's queues in memory or a file. See Plans/R1.0-Release/bigfile.md.
 
 // BigInfo is one stored big value.
 type BigInfo struct {
@@ -26,12 +26,12 @@ type BigLimits struct {
 
 var (
 	// ErrBigTooLarge is a value above the per-key cap.
-	ErrBigTooLarge = errors.New("that is more than one big key holds")
+	ErrBigTooLarge = errors.New("that is more than one bigfile holds")
 	// ErrBigFull is a put that would pass a record's or the daemon's total, or
 	// a record's key count.
-	ErrBigFull = errors.New("that would pass the big-key limit")
+	ErrBigFull = errors.New("that would pass the bigfile limit")
 	// ErrBigEmpty is a put of no bytes.
-	ErrBigEmpty = errors.New("a big key holds at least one byte")
+	ErrBigEmpty = errors.New("a bigfile holds at least one byte")
 	// ErrBigHash is a put whose bytes do not match the SHA-256 the caller gave.
 	ErrBigHash = errors.New("the bytes do not match the SHA-256 given")
 )

@@ -65,30 +65,30 @@ def parse(body):
         if method == 'folder.rename': value['new'] = positional[1]
         if method == 'append':
             if separator: value['raw'] = raw
-            elif 'big' not in value: raise MailError('append requires raw RFC 5322 mail after the first newline')
+            elif 'bigfile' not in value: raise MailError('append requires raw RFC 5322 mail after the first newline')
         elif separator:
             raise MailError('folder calls must be one line')
     method = value['method']
     if method != 'append' and len(body.encode()) > 32768:
         raise MailError('folder call must be text or JSON of at most 32768 bytes')
     allowed = {'folder.create': {'name'}, 'folder.rename': {'name', 'new'},
-               'folder.delete': {'name', 'force'}, 'append': {'folder', 'raw', 'flags', 'date', 'big'}}[method]
+               'folder.delete': {'name', 'force'}, 'append': {'folder', 'raw', 'flags', 'date', 'bigfile'}}[method]
     if set(value) - allowed - {'method'}: raise MailError('unknown argument for ' + method)
     wire.mailbox(value.get('folder' if method == 'append' else 'name'))
     if method == 'folder.rename': wire.mailbox(value.get('new'))
     if method == 'folder.delete' and type(value.get('force', False)) is not bool:
         raise MailError('force must be a boolean')
     if method == 'append':
-        if 'big' in value:
-            if 'raw' in value: raise MailError('append takes either raw mail or --big, never both')
-            ref = value['big']
+        if 'bigfile' in value:
+            if 'raw' in value: raise MailError('append takes either raw mail or --bigfile, never both')
+            ref = value['bigfile']
             record, slash, name = ref.rpartition('/') if isinstance(ref, str) else ('', '', '')
             if not slash or not record or not name:
-                raise MailError('big reference requires <record>/<name>: the key name after the last /; a name containing / can\'t be used here')
+                raise MailError('bigfile reference requires <record>/<name>: the key name after the last /; a name containing / can\'t be used here')
             operations.big_name(name)
             if any(ord(c) <= 32 or ord(c) == 127 for c in record):
-                raise MailError('big reference record must not contain whitespace or controls')
-            value['big'] = (record, name)
+                raise MailError('bigfile reference record must not contain whitespace or controls')
+            value['bigfile'] = (record, name)
         else:
             raw = value.get('raw')
             if not isinstance(raw, str) or not raw or '\x00' in raw:
@@ -125,7 +125,7 @@ def perform(connection, call, cfg, *, watched=(), raw=None):
             if raw is None:
                 wire.ok(connection.append(wire.mailbox(name), flags, call.get('date'), call['raw'].encode('utf-8')))
             else:
-                # IMAP4.append normalizes lone CR/LF. A verified big key must
+                # IMAP4.append normalizes lone CR/LF. A verified bigfile must
                 # reach the server byte-for-byte, including binary MIME data.
                 connection.literal = raw
                 date = imaplib.Time2Internaldate(call['date']) if call.get('date') else None

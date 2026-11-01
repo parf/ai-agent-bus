@@ -1,5 +1,5 @@
-// Package bigfile holds big keys in a private directory, or in memory when a
-// put asks for it (Plans/R1.0-Release/big-keys.md#trust-and-durability).
+// Package bigfile holds bigfiles in a private directory, or in memory when a
+// put asks for it (Plans/R1.0-Release/bigfile.md#trust-and-durability).
 //
 // One file holds one key: the bytes, then a footer naming the key, its size,
 // its SHA-256 and its expiry, then the footer's length. A file is written to a
@@ -68,7 +68,7 @@ func Open(dir string, now time.Time) (*Store, error) {
 		return nil, err
 	}
 	if fi, err := os.Lstat(dir); err != nil || !fi.IsDir() {
-		return nil, fmt.Errorf("big-key directory %s is not a directory", dir)
+		return nil, fmt.Errorf("bigfile directory %s is not a directory", dir)
 	}
 	if err := os.Chmod(dir, 0o700); err != nil {
 		return nil, err
@@ -153,7 +153,7 @@ func readFooter(path string) (ports.BigInfo, error) {
 	defer f.Close()
 	st, err := f.Stat()
 	if err != nil || !st.Mode().IsRegular() || st.Size() < 5 {
-		return ports.BigInfo{}, errors.New("not a big-key file")
+		return ports.BigInfo{}, errors.New("not a bigfile file")
 	}
 	var n [4]byte
 	if _, err := f.ReadAt(n[:], st.Size()-4); err != nil {
@@ -286,11 +286,11 @@ func (s *Store) BigPut(record uint32, name string, data io.Reader, sum string, m
 	}
 	switch {
 	case names+1 > lim.Names:
-		return fail(fmt.Errorf("%w: a record holds at most %d big keys", ports.ErrBigFull, lim.Names))
+		return fail(fmt.Errorf("%w: a record holds at most %d bigfiles", ports.ErrBigFull, lim.Names))
 	case inRecord+size > lim.Record:
-		return fail(fmt.Errorf("%w: a record holds at most %d bytes of big keys", ports.ErrBigFull, lim.Record))
+		return fail(fmt.Errorf("%w: a record holds at most %d bytes of bigfiles", ports.ErrBigFull, lim.Record))
 	case total+size > lim.Total:
-		return fail(fmt.Errorf("%w: the daemon holds at most %d bytes of big keys", ports.ErrBigFull, lim.Total))
+		return fail(fmt.Errorf("%w: the daemon holds at most %d bytes of bigfiles", ports.ErrBigFull, lim.Total))
 	}
 	old, replaced := s.keys[key{record, name}]
 	info := ports.BigInfo{Name: name, Size: size, SHA256: hexs, Held: "memory", Expires: expires}

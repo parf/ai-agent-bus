@@ -14,7 +14,7 @@ SYSTEM = {name: '\\' + name.title() for name in ('flagged', 'answered', 'draft',
 
 def big_name(value):
     if not isinstance(value, str) or not value or len(value.encode('utf-8')) > 256:
-        raise MailError('big key name must be 1 to 256 UTF-8 bytes')
+        raise MailError('bigfile name must be 1 to 256 UTF-8 bytes')
     return value
 
 
@@ -138,7 +138,7 @@ def parse_call(body):
             value['text'] = ' '.join(positional)
     method = value['method']
     allowed = {'mark': {'uids', 'uid', 'state'}, 'flag': {'uids', 'action', 'flags'},
-               'headers': {'uids'}, 'parts': {'uid'}, 'part': {'uid', 'part_id', 'big'},
+               'headers': {'uids'}, 'parts': {'uid'}, 'part': {'uid', 'part_id', 'bigfile'},
                'list': {'limit', 'unread', 'flag'}, 'search': CRITERIA | {'limit', 'text'},
                'copy': {'uids', 'dest'}, 'move': {'uids', 'dest'}, 'trash': {'uids'},
                'delete': {'uids'}, 'compact_trash': {'older'}}[method]
@@ -159,8 +159,8 @@ def parse_call(body):
     if method in {'parts', 'part'}: value['uid'] = uid(value.get('uid'))
     if method == 'part' and (not isinstance(value.get('part_id'), str) or not re.fullmatch(r'[1-9][0-9]{0,3}(?:\.[1-9][0-9]{0,3}){0,30}', value['part_id'])):
         raise MailError('part-id must be a MIME part id from parts')
-    if method == 'part' and 'big' in value:
-        big_name(value['big'])
+    if method == 'part' and 'bigfile' in value:
+        big_name(value['bigfile'])
     if method == 'mark' and value.get('state') not in ('read', 'unread'):
         raise MailError('mark state must be read or unread')
     if method == 'flag':

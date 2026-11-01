@@ -19,11 +19,11 @@ try {
  const caller=Bus.connect({addr:info.addr,token:info.tokens['#caller@fixture'],expectName:'#caller@fixture'}),worker=Bus.connect({addr:info.addr,token:info.tokens['#worker@fixture'],expectName:'#worker@fixture'});buses.push(caller,worker);
  const kv=owner.record('jobs@fixture').kv;await kv.set('int','exact',9223372036854775807n,{mode:'set'});assert.equal((await kv.get('int','exact')).value,9223372036854775807n);
  serving=worker.serve(async msg=>`node:${msg.body}`,{drainTimeout:1000});const answer=await caller.call('#worker@fixture','smoke',{timeout:1000});assert.equal(answer.kind,'answer');assert.equal(answer.message.body,'node:smoke');worker.stop();await serving;
- const raw=Buffer.alloc(1048577,255),big=worker.record('#worker@fixture').big;
+ const raw=Buffer.alloc(1048577,255),big=worker.record('#worker@fixture').bigfile;
  const hash=createHash('sha256').update(raw).digest('hex');
  const stored=await big.put('node/raw',raw,{ttl:'24h',sha256:hash});assert.equal(stored.sha256,hash);assert.equal(stored.size,raw.length);
- const fetched=await caller.record('#worker@fixture').big.get('node/raw');assert.deepEqual(fetched.data,raw);assert.equal(fetched.info.sha256,hash);
- await assert.rejects(caller.record('#worker@fixture').big.put('node/raw',Buffer.alloc(24*1024*1024)),e=>e.status===403);
+ const fetched=await caller.record('#worker@fixture').bigfile.get('node/raw');assert.deepEqual(fetched.data,raw);assert.equal(fetched.info.sha256,hash);
+ await assert.rejects(caller.record('#worker@fixture').bigfile.put('node/raw',Buffer.alloc(24*1024*1024)),e=>e.status===403);
  assert.deepEqual((await big.list()).map(k=>k.name),['node/raw']);assert.equal(await big.delete('node/raw'),true);
  const key=join(scratch,'key.pem'),cert=join(scratch,'cert.pem');assert.equal(spawnSync('openssl',['req','-x509','-newkey','rsa:2048','-nodes','-days','1','-subj','/CN=localhost','-keyout',key,'-out',cert],{stdio:'ignore'}).status,0);
  let credentials=0;server=createServer({key:readFileSync(key),cert:readFileSync(cert)},(req,res)=>{if(req.headers['x-agent-bus-token'])credentials++;res.end('{"you":"#caller@fixture"}');});await new Promise(r=>server.listen(0,'127.0.0.1',r));const addr=`https://127.0.0.1:${server.address().port}`;

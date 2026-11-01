@@ -1,6 +1,6 @@
-// The big-key API: values too large for a message, uploaded and downloaded as
+// The bigfile API: values too large for a message, uploaded and downloaded as
 // raw bytes and passed between agents by key name. The registry decides who
-// may reach a record's keys; this file is the wire (Plans/R1.0-Release/big-keys.md).
+// may reach a record's keys; this file is the wire (Plans/R1.0-Release/bigfile.md).
 package api
 
 import (
@@ -33,7 +33,7 @@ func bigRowOf(i ports.BigInfo) bigRow {
 }
 
 // bigPut takes the raw bytes as the body; the name, lifetime in whole seconds
-// and holder travel in the query, an optional SHA-256 in X-Big-Sha256.
+// and holder travel in the query, an optional SHA-256 in X-Bigfile-Sha256.
 func (s *Server) bigPut(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	// A declared length over the cap is refused at once; nothing is read.
 	if r.ContentLength > core.BigMaxValue {
@@ -60,9 +60,9 @@ func (s *Server) bigPut(w http.ResponseWriter, r *http.Request, caller protocol.
 		s.bigRefused(w, r, fmt.Errorf("%w: memory is true or false", core.ErrBigValue))
 		return
 	}
-	sum := r.Header.Get("X-Big-Sha256")
+	sum := r.Header.Get("X-Bigfile-Sha256")
 	if sum != "" && !hexSHA256.MatchString(sum) {
-		s.bigRefused(w, r, fmt.Errorf("%w: X-Big-Sha256 is 64 lowercase hex digits", core.ErrBigValue))
+		s.bigRefused(w, r, fmt.Errorf("%w: X-Bigfile-Sha256 is 64 lowercase hex digits", core.ErrBigValue))
 		return
 	}
 	info, replaced, err := s.bus.BigPut(caller.String(), q.Get("record"), q.Get("name"), r.Body, ttl, memory, sum)
@@ -122,9 +122,9 @@ func (s *Server) bigGet(w http.ResponseWriter, r *http.Request, caller protocol.
 	h := w.Header()
 	h.Set("Content-Type", "application/octet-stream")
 	h.Set("Content-Length", strconv.FormatInt(info.Size, 10))
-	h.Set("X-Big-Sha256", info.SHA256)
-	h.Set("X-Big-Held", info.Held)
-	h.Set("X-Big-Expires", info.Expires.UTC().Format(time.RFC3339))
+	h.Set("X-Bigfile-Sha256", info.SHA256)
+	h.Set("X-Bigfile-Held", info.Held)
+	h.Set("X-Bigfile-Expires", info.Expires.UTC().Format(time.RFC3339))
 	io.Copy(w, rc)
 }
 

@@ -108,7 +108,7 @@ History only; these rows are never a current contract. See [current decisions](.
 | Identity cleanup through write-through changes | [constitution persistence](../../docs/constitution.md#persistence-and-loading) | 2026-09-19 owner clarification after review; durable and in-memory grants must follow identity lifecycle changes |
 | SQLite first; additional backends in R1.1 | [constitution persistence](../../docs/constitution.md#persistence-and-loading); [R1.1 storage](../R1.1/storage.md#backends) | 2026-09-20 owner instruction; replaces the earlier 0.7 adapter scope |
 | Direct entity edits go only to daemon log files | [constitution § Registry record](../../docs/constitution.md#-registry-record) | 2026-09-20 owner correction; the authenticated User-or-Agent actor, operation, target, result, and available client IP are logged without sensitive information; credential, state, read, and traffic operations are outside scope |
-| Large messages on the bus are not needed now; if ever, Redis holds the file and the message carries its key name (Q285) | [big keys](../R1.0-Release/big-keys.md#what-it-is-and-is-not) | owner, 2026-11-01 10:29; superseded the same morning by a bus big-key store, owner's words in the [R1 decision](../R1.0-Release/DECISIONS.md#recorded-decisions) |
+| Large messages on the bus are not needed now; if ever, Redis holds the file and the message carries its key name (Q285) | [big keys](../R1.0-Release/bigfile.md#what-it-is-and-is-not) | owner, 2026-11-01 10:29; superseded the same morning by a bus big-key store, owner's words in the [R1 decision](../R1.0-Release/DECISIONS.md#recorded-decisions) |
 
 ## Runner and execution
 

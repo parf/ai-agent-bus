@@ -113,7 +113,7 @@ func main() {
 		err = lockHolders(rest)
 	case "kv":
 		err = kvVerb(rest)
-	case "big":
+	case "bigfile":
 		err = bigVerb(rest)
 	case "ls":
 		err = ls(rest)

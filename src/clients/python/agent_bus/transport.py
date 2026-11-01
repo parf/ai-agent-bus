@@ -147,7 +147,7 @@ class Transport:
             if big_response and 200 <= response.status < 300:
                 length = response.getheader('Content-Length')
                 if not length or not length.isdigit() or not 1 <= int(length) <= max_size:
-                    raise InvalidArgument('big download exceeds max_size or has invalid Content-Length')
+                    raise InvalidArgument('bigfile download exceeds max_size or has invalid Content-Length')
             data = response.read(max_size + 1) if big_response else response.read()
             if time.monotonic() >= deadline:
                 if destructive or method != "GET":

@@ -416,11 +416,11 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Acceptance: [the plan's acceptance](imap-large-transfer.md#acceptance-for-the-todo-item)
   - Mutants: [the plan's list](imap-large-transfer.md#acceptance-for-the-todo-item)
 
-- ⏳ B.32 Big keys — **approved 2026-11-01 11:05**; API and file/memory holders built (stage 2); CLI, clients, MCP, web and IMAP in progress. [Plan](big-keys.md#help-text); [decision](DECISIONS.md#recorded-decisions)
-  - Builds: a bus store of named big values in memory or a file, with `big put|get|ls|rm`; Maintainers upload and download, allow-list principals download only; IMAP `part --big` and `append --big` use it
+- ⏳ B.32 Bigfiles (formerly big keys; renamed in T-22) — **approved 2026-11-01 11:05**; API and file/memory holders built (stage 2); CLI, clients, MCP, web and IMAP in progress. [Plan](bigfile.md#help-text); [decision](DECISIONS.md#recorded-decisions)
+  - Builds: a bus store of named big values in memory or a file, with `bigfile put|get|ls|rm`; Maintainers upload and download, allow-list principals download only; IMAP `part --bigfile` and `append --bigfile` use it
   - Depends: the key-value store; B.30 steps 2 and 4 for the IMAP part
-  - Acceptance: [the plan's acceptance](big-keys.md#acceptance-for-the-todo-item)
-  - Mutants: [the plan's list](big-keys.md#acceptance-for-the-todo-item)
+  - Acceptance: [the plan's acceptance](bigfile.md#acceptance-for-the-todo-item)
+  - Mutants: [the plan's list](bigfile.md#acceptance-for-the-todo-item)
 
 - ✅ B.16 webhook — built in **0.9.143**, `61ae2338`; normal **1217/0**, **45** assertion-red mutants; deployed disabled, check-deploy **6/6**. [Current guide](../../docs/agents/webhook.md#what-it-does), [completion and plan history](done/webhook.md#result). No public listener or real sender check; owner approval required before exposure.
 

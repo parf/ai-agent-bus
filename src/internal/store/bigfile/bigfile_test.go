@@ -251,7 +251,7 @@ func TestALinkInPlaceOfAKeyFileIsNotFollowed(t *testing.T) {
 	now := time.Now()
 	put(s, 1, "k", "bytes", false, now)
 	outside := filepath.Join(t.TempDir(), "secret")
-	os.WriteFile(outside, []byte("not a big key"), 0o600)
+	os.WriteFile(outside, []byte("not a bigfile"), 0o600)
 	path := filepath.Join(dir, "1", fileName("k"))
 	os.Remove(path)
 	os.Symlink(outside, path)

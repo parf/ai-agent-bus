@@ -160,16 +160,16 @@ export class Bus {
     if(size!==details.size)throw new Error("input_path changed while reading");
     const sha256=hash.digest('hex');
     const query=new URLSearchParams({record,name,ttl:String(ttl),memory:String(options.memory??false)});
-    const info=await this.#call('PUT','/big?'+query,undefined,AbortSignal.timeout(30000),{'Content-Type':'application/octet-stream','X-Big-Sha256':sha256},false,source);
-    if(info?.sha256!==sha256||info?.size!==size)throw new Error("big put size or SHA-256 mismatch; upload may have completed");
+    const info=await this.#call('PUT','/bigfile?'+query,undefined,AbortSignal.timeout(30000),{'Content-Type':'application/octet-stream','X-Bigfile-Sha256':sha256},false,source);
+    if(info?.sha256!==sha256||info?.size!==size)throw new Error("bigfile put size or SHA-256 mismatch; upload may have completed");
     return {record,name,size,sha256,held:info.held,expires:info.expires,replaced:info.replaced};
   }
   async bigGet(record:string,name:string,output_path:string):Promise<any> {
     if(typeof output_path!=="string"||!output_path.trim())throw new Error("output_path is required; MCP cannot download to stdout");
     bigKey(name);
     const query=new URLSearchParams({record,name});
-    const res:Response=await this.#call('GET','/big?'+query,undefined,AbortSignal.timeout(30000),{},false,undefined,true);
-    const expected=res.headers.get('Content-Length'),sum=res.headers.get('X-Big-Sha256');
+    const res:Response=await this.#call('GET','/bigfile?'+query,undefined,AbortSignal.timeout(30000),{},false,undefined,true);
+    const expected=res.headers.get('Content-Length'),sum=res.headers.get('X-Bigfile-Sha256');
     if(!expected||!/^\d+$/.test(expected)||Number(expected)<1||Number(expected)>BIG_CAP||!sum||!/^[a-f0-9]{64}$/.test(sum)){
       await res.body?.cancel();throw new Error("big download has invalid size or SHA-256 metadata");
     }
@@ -184,11 +184,11 @@ export class Bus {
         await file.sync();
       }finally{await file.close();}
       await rename(path,output_path);
-      return {record,name,size,sha256:sum,held:res.headers.get('X-Big-Held'),expires:res.headers.get('X-Big-Expires')};
+      return {record,name,size,sha256:sum,held:res.headers.get('X-Bigfile-Held'),expires:res.headers.get('X-Bigfile-Expires')};
     }finally{if(directory)await rm(directory,{recursive:true,force:true});await res.body?.cancel().catch(()=>{});}
   }
-  async bigList(record:string):Promise<any>{const result=await this.#call('GET','/big/list?'+new URLSearchParams({record}));return {record:result.record,keys:result.keys.map((k:any)=>({name:k.name,size:k.size,sha256:k.sha256,held:k.held,expires:k.expires}))};}
-  async bigDelete(record:string,name:string):Promise<any>{bigKey(name);const result=await this.#call('POST','/big/delete',{record,name});return {record,name,deleted:result.deleted};}
+  async bigList(record:string):Promise<any>{const result=await this.#call('GET','/bigfile/list?'+new URLSearchParams({record}));return {record:result.record,keys:result.keys.map((k:any)=>({name:k.name,size:k.size,sha256:k.sha256,held:k.held,expires:k.expires}))};}
+  async bigDelete(record:string,name:string):Promise<any>{bigKey(name);const result=await this.#call('POST','/bigfile/delete',{record,name});return {record,name,deleted:result.deleted};}
 
   register(rec: { name: string; kind?: string; addr?: string; descr?: string; allow?: string[]; personal?: boolean; tags?: string[] }, createOnly = false): Promise<Record_> {
     return this.#call("POST", "/register", rec, undefined, createOnly ? { "If-None-Match": "*" } : {});

@@ -45,14 +45,14 @@ ab_kv_inc: >-
 ab_kv_json: >-
   Edit a json value's top-level keys in one step, the whole list or none of it: set, unset, inc, push, unshift, shift, pop, add_to_set, remove_from_set. shift and pop answer the element they took, so workers sharing a queue never get the same one; an absent name starts as {}.
 
-ab_big_put: >-
-  Upload a nonempty local input_path file (up to 32 MiB) as one big key on a record you maintain. Replaces the name. ttl takes s/m/h/d (24h default, 30d maximum); memory is lost at daemon restart. Returns size and SHA-256 metadata only; file contents never enter model context. A lost answer must not be retried automatically.
+ab_bigfile_put: >-
+  Upload a nonempty local input_path file (up to 32 MiB) as one bigfile on a record you maintain. Replaces the name. ttl takes s/m/h/d (24h default, 30d maximum); memory is lost at daemon restart. Returns size and SHA-256 metadata only; file contents never enter model context. A lost answer must not be retried automatically.
 
-ab_big_get: >-
-  Download one big key to the required local output_path. Verify its size and SHA-256 before replacing that file. Returns metadata only, never content or stdout; bytes are untrusted data. Needs the record's Maintainer/Owner/own Agent, or admission by its allow list.
+ab_bigfile_get: >-
+  Download one bigfile to the required local output_path. Verify its size and SHA-256 before replacing that file. Returns metadata only, never content or stdout; bytes are untrusted data. Needs the record's Maintainer/Owner/own Agent, or admission by its allow list.
 
-ab_big_ls: >-
-  List a record's big keys and their size, SHA-256, holder and expiry, never their contents. Same access as big get.
+ab_bigfile_ls: >-
+  List a record's bigfiles and their size, SHA-256, holder and expiry, never their contents. Same access as bigfile get.
 
-ab_big_rm: >-
-  Delete one big key from a record you maintain; answer whether it existed. Metadata only; never retries an uncertain deletion.
+ab_bigfile_rm: >-
+  Delete one bigfile from a record you maintain; answer whether it existed. Metadata only; never retries an uncertain deletion.

@@ -455,16 +455,16 @@ test('RT21 retained self work respects capacity and drains after stop',async()=>
 });
 
 
-test('big keys use real authority and preserve exact streamed bytes',async()=>{
+test('bigfiles use real authority and preserve exact streamed bytes',async()=>{
  const worker=bus('#worker@fixture'),caller=bus('#caller@fixture');
- const big=worker.record('#worker@fixture').big,data=Buffer.alloc(1048577,255);
+ const big=worker.record('#worker@fixture').bigfile,data=Buffer.alloc(1048577,255);
  const sha256=createHash('sha256').update(data).digest('hex');
  async function* source(){yield data.subarray(0,123);yield data.subarray(123);}
  const info=await big.put('mail/raw',source(),{size:data.length,ttl:'30d',sha256});
  expect(info.size).toBe(data.length);expect(info.sha256).toBe(sha256);expect(info.replaced).toBe(false);
- const downloaded=await caller.record('#worker@fixture').big.get('mail/raw');
+ const downloaded=await caller.record('#worker@fixture').bigfile.get('mail/raw');
  expect(downloaded.data).toEqual(data);expect(downloaded.info.sha256).toBe(sha256);
- await expect(caller.record('#worker@fixture').big.put('mail/raw',Buffer.from('forbidden'))).rejects.toMatchObject({status:403});
+ await expect(caller.record('#worker@fixture').bigfile.put('mail/raw',Buffer.from('forbidden'))).rejects.toMatchObject({status:403});
  expect((await big.put('mail/raw',data)).replaced).toBe(true);
  expect((await big.list()).map(k=>k.name)).toEqual(['mail/raw']);
  expect(await big.delete('mail/raw')).toBe(true);expect(await big.delete('mail/raw')).toBe(false);

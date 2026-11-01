@@ -50,7 +50,7 @@ func TestBigPutDrainsAnEarlyRefusalByItsDeclaredLengthAndNoMore(t *testing.T) {
 	// A refusal for authority arrives before the body is read: it is drained,
 	// up to the declared length even if the client sends more.
 	body := &counting{total: 4 * declared}
-	w := putBody(s, tok("bob@h"), "/big?record=%23svc@h&name=k", declared, body)
+	w := putBody(s, tok("bob@h"), "/bigfile?record=%23svc@h&name=k", declared, body)
 	if w.Code != http.StatusForbidden || w.Header().Get("Connection") != "close" {
 		t.Fatalf("an admitted non-Maintainer's put = %d %v, want 403 and a close", w.Code, w.Header())
 	}
@@ -59,27 +59,27 @@ func TestBigPutDrainsAnEarlyRefusalByItsDeclaredLengthAndNoMore(t *testing.T) {
 	}
 	// A bad parameter is early as well.
 	body = &counting{total: 2 * declared}
-	if w = putBody(s, tok("alice@h"), "/big?record=%23svc@h&name=k&ttl=0", declared, body); w.Code != http.StatusBadRequest || body.read != declared {
+	if w = putBody(s, tok("alice@h"), "/bigfile?record=%23svc@h&name=k&ttl=0", declared, body); w.Code != http.StatusBadRequest || body.read != declared {
 		t.Fatalf("a bad ttl = %d after reading %d, want 400 after %d", w.Code, body.read, declared)
 	}
 	// No declared length: the drain is bounded by the cap.
 	body = &counting{total: 2 * core.BigMaxValue}
-	if w = putBody(s, tok("bob@h"), "/big?record=%23svc@h&name=k", -1, body); w.Code != http.StatusForbidden || body.read != core.BigMaxValue {
+	if w = putBody(s, tok("bob@h"), "/bigfile?record=%23svc@h&name=k", -1, body); w.Code != http.StatusForbidden || body.read != core.BigMaxValue {
 		t.Fatalf("an unknown length = %d after reading %d, want 403 after %d", w.Code, body.read, int64(core.BigMaxValue))
 	}
 	// A declared length over the cap is a 413 at once, nothing read.
 	body = &counting{total: 2 * core.BigMaxValue}
-	if w = putBody(s, tok("alice@h"), "/big?record=%23svc@h&name=k", core.BigMaxValue+1, body); w.Code != http.StatusRequestEntityTooLarge || body.read != 0 {
+	if w = putBody(s, tok("alice@h"), "/bigfile?record=%23svc@h&name=k", core.BigMaxValue+1, body); w.Code != http.StatusRequestEntityTooLarge || body.read != 0 {
 		t.Fatalf("an over-cap length = %d after reading %d, want 413 after 0", w.Code, body.read)
 	}
 	// A caller who was never admitted is refused before the handler: nothing read.
 	body = &counting{total: declared}
-	if w = putBody(s, "not-a-token", "/big?record=%23svc@h&name=k", declared, body); w.Code != http.StatusUnauthorized || body.read != 0 {
+	if w = putBody(s, "not-a-token", "/bigfile?record=%23svc@h&name=k", declared, body); w.Code != http.StatusUnauthorized || body.read != 0 {
 		t.Fatalf("an unauthenticated put = %d after reading %d, want 401 after 0", w.Code, body.read)
 	}
 	// An accepted put reads its body as ever.
 	body = &counting{total: 1000}
-	if w = putBody(s, tok("alice@h"), "/big?record=%23svc@h&name=ok", 1000, body); w.Code != http.StatusOK || body.read != 1000 {
+	if w = putBody(s, tok("alice@h"), "/bigfile?record=%23svc@h&name=ok", 1000, body); w.Code != http.StatusOK || body.read != 1000 {
 		t.Fatalf("an accepted put = %d after reading %d", w.Code, body.read)
 	}
 }
@@ -102,9 +102,9 @@ func TestBigPutRefusalReachesAClientStillWriting(t *testing.T) {
 		code int
 		want string
 	}{
-		{"bob@h", "/big?record=%23svc@h&name=k", http.StatusForbidden, "someone else"},
-		{"alice@h", "/big?record=%23nobody@h&name=k", http.StatusNotFound, "no such name"},
-		{"alice@h", "/big?record=%23svc@h&name=k&ttl=0", http.StatusBadRequest, "ttl"},
+		{"bob@h", "/bigfile?record=%23svc@h&name=k", http.StatusForbidden, "someone else"},
+		{"alice@h", "/bigfile?record=%23nobody@h&name=k", http.StatusNotFound, "no such name"},
+		{"alice@h", "/bigfile?record=%23svc@h&name=k&ttl=0", http.StatusBadRequest, "ttl"},
 	} {
 		conn, err := net.Dial("tcp", srv.Listener.Addr().String())
 		if err != nil {
@@ -149,7 +149,7 @@ func TestBigPutDrainEndsAtItsDeadlineForADribblingClient(t *testing.T) {
 	}
 	defer conn.Close()
 	conn.SetDeadline(time.Now().Add(6 * time.Second))
-	fmt.Fprintf(conn, "PUT /big?record=%%23svc@h&name=k HTTP/1.1\r\nHost: x\r\n%s: %s\r\nContent-Length: %d\r\n\r\n", HeaderToken, tok("bob@h"), 3<<20)
+	fmt.Fprintf(conn, "PUT /bigfile?record=%%23svc@h&name=k HTTP/1.1\r\nHost: x\r\n%s: %s\r\nContent-Length: %d\r\n\r\n", HeaderToken, tok("bob@h"), 3<<20)
 	stop := make(chan struct{})
 	writing := make(chan struct{})
 	go func() {

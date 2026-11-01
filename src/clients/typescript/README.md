@@ -69,12 +69,12 @@ pong hello
 - `AB_CLIENT_FIXTURE` selects the isolated fixture, and `AB_TYPESCRIPT_CLIENT_PATH` selects scratch sources for mutation runs.
 - The [shared protocol examples](../../testdata/client-conformance/README.md) run in the native TypeScript adapter as well. `AB_CLIENT_CONFORMANCE_CASES` selects another case directory; the default is `src/testdata/client-conformance` in this checkout.
 
-## Big keys
+## Bigfiles
 
-`record.big` uses the same authenticated transport as KV. Upload a `Uint8Array`, or an `AsyncIterable<Uint8Array>` with an explicit `size`. Empty input and invalid size/ttl refuse before any request; an upload is streamed once and never retried.
+`record.bigfile` uses the same authenticated transport as KV. Upload a `Uint8Array`, or an `AsyncIterable<Uint8Array>` with an explicit `size`. Empty input and invalid size/ttl refuse before any request; an upload is streamed once and never retried.
 
 ```ts
-const big = bus.record('owner@node').big;
+const big = bus.record('owner@node').bigfile;
 const info = await big.put('mail', bytes, { ttl: '24h' });
 const { data, info: downloaded } = await big.get('mail');
 const keys = await big.list();
@@ -83,6 +83,6 @@ const removed = await big.delete('mail');
 
 - TTL accepts whole `s/m/h/d`; numeric values are milliseconds, as elsewhere in this client. It defaults to 24h, at most 30d.
 - Options `memory` and `sha256` request volatile storage and an expected upload hash.
-- Get returns verified bytes and metadata; `BigHashMismatch` means discard the download.
+- Get returns verified bytes and metadata; `BigfileHashMismatch` means discard the download.
 - Daemon refusals retain their status and cause, including 503.
-- See [big keys](../../../docs/03-records-kv.md#big-keys) for authority and expiry.
+- See [bigfiles](../../../docs/03-records-kv.md#bigfiles) for authority and expiry.

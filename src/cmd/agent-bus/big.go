@@ -1,5 +1,5 @@
-// The big-key verbs: named values too big for a message, held by the daemon in
-// a file or in memory (Plans/R1.0-Release/big-keys.md#help-text). This file
+// The bigfile verbs: named values too big for a message, held by the daemon in
+// a file or in memory (Plans/R1.0-Release/bigfile.md#help-text). This file
 // checks what it can before any request and speaks the wire only through
 // bigWire; the daemon decides access, size and expiry.
 package main
@@ -65,7 +65,7 @@ func parseBigTTL(s string) (time.Duration, error) {
 }
 
 // bigEmpty is the one refusal for a zero-byte file and for empty stdin.
-var bigEmpty = errors.New("big put wants a value with at least one byte; nothing was sent")
+var bigEmpty = errors.New("bigfile put wants a value with at least one byte; nothing was sent")
 
 // takeShortO removes "-o <file>" from args: the option parser knows only --name.
 func takeShortO(args []string) ([]string, string, bool, error) {
@@ -91,7 +91,7 @@ func planBigPut(args []string, stdin io.Reader) (bigPutPlan, []byte, error) {
 		return bigPutPlan{}, nil, err
 	}
 	if len(pos) < 2 || len(pos) > 3 {
-		return bigPutPlan{}, nil, fmt.Errorf("big put wants <record> <name> [<file>|-]")
+		return bigPutPlan{}, nil, fmt.Errorf("bigfile put wants <record> <name> [<file>|-]")
 	}
 	p := bigPutPlan{Record: pos[0], Name: pos[1], TTL: bigDefaultTTL, Memory: has(f, "memory")}
 	if v, ok := f["ttl"]; ok {
@@ -115,7 +115,7 @@ func planBigGet(args []string) (bigGetPlan, error) {
 		return bigGetPlan{}, err
 	}
 	if len(pos) != 2 {
-		return bigGetPlan{}, fmt.Errorf("big get wants <record> <name> [-o <file>]")
+		return bigGetPlan{}, fmt.Errorf("bigfile get wants <record> <name> [-o <file>]")
 	}
 	if seen && out == "" {
 		return bigGetPlan{}, fmt.Errorf("-o wants one file")
@@ -205,7 +205,7 @@ func bigDo(method, path string, q url.Values, body io.Reader, size int64, header
 
 func bigVerb(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("big wants put, get, ls or rm")
+		return fmt.Errorf("bigfile wants put, get, ls or rm")
 	}
 	verb, rest := args[0], args[1:]
 	switch verb {
@@ -218,7 +218,7 @@ func bigVerb(args []string) error {
 	case "rm":
 		return bigRmVerb(rest)
 	}
-	return fmt.Errorf("big wants put, get, ls or rm, not %q", verb)
+	return fmt.Errorf("bigfile wants put, get, ls or rm, not %q", verb)
 }
 
 type bigAnswer struct {
@@ -264,7 +264,7 @@ func bigPutVerb(args []string) error {
 	local := hex.EncodeToString(h.Sum(nil))
 	q := url.Values{"record": {plan.Record}, "name": {plan.Name},
 		"ttl": {strconv.FormatInt(int64(plan.TTL/time.Second), 10)}, "memory": {strconv.FormatBool(plan.Memory)}}
-	resp, err := bigDo("PUT", "/big", q, src, size, map[string]string{"Content-Type": "application/octet-stream", "X-Big-Sha256": local})
+	resp, err := bigDo("PUT", "/bigfile", q, src, size, map[string]string{"Content-Type": "application/octet-stream", "X-Bigfile-Sha256": local})
 	if err != nil {
 		return err
 	}
@@ -289,12 +289,12 @@ func bigGetVerb(args []string) error {
 	if err != nil {
 		return err
 	}
-	resp, err := bigDo("GET", "/big", url.Values{"record": {plan.Record}, "name": {plan.Name}}, nil, 0, nil)
+	resp, err := bigDo("GET", "/bigfile", url.Values{"record": {plan.Record}, "name": {plan.Name}}, nil, 0, nil)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
-	want := strings.ToLower(resp.Header.Get("X-Big-Sha256"))
+	want := strings.ToLower(resp.Header.Get("X-Bigfile-Sha256"))
 	if want == "" {
 		return fmt.Errorf("the daemon sent the value without its SHA-256")
 	}
@@ -341,9 +341,9 @@ func bigLsVerb(args []string) error {
 		return err
 	}
 	if len(pos) != 1 {
-		return fmt.Errorf("big ls wants <record>")
+		return fmt.Errorf("bigfile ls wants <record>")
 	}
-	out, code, err := call("GET", "/big/list", url.Values{"record": {pos[0]}}, nil)
+	out, code, err := call("GET", "/bigfile/list", url.Values{"record": {pos[0]}}, nil)
 	if err != nil || code >= 400 {
 		return show(out, code, err)
 	}
@@ -375,9 +375,9 @@ func bigRmVerb(args []string) error {
 		return err
 	}
 	if len(pos) != 2 {
-		return fmt.Errorf("big rm wants <record> <name>")
+		return fmt.Errorf("bigfile rm wants <record> <name>")
 	}
-	out, code, err := call("POST", "/big/delete", nil, map[string]string{"record": pos[0], "name": pos[1]})
+	out, code, err := call("POST", "/bigfile/delete", nil, map[string]string{"record": pos[0], "name": pos[1]})
 	if err != nil || code >= 400 {
 		return show(out, code, err)
 	}
@@ -390,7 +390,7 @@ func bigRmVerb(args []string) error {
 	if res.Deleted {
 		fmt.Printf("%s %s deleted\n", pos[0], pos[1])
 	} else {
-		fmt.Printf("%s %s held no big key\n", pos[0], pos[1])
+		fmt.Printf("%s %s held no bigfile\n", pos[0], pos[1])
 	}
 	return nil
 }

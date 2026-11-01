@@ -278,7 +278,7 @@ class Agent:
         try:
             call = parse(message.body)
             method = call['method']
-            big_operation = method in {'part', 'append'} and 'big' in call
+            big_operation = method in {'part', 'append'} and 'bigfile' in call
             if method in {'help', 'status'}:
                 status = 'ok'
                 return dispatch(HERE, 'help') if method == 'help' else self.status()
@@ -347,16 +347,16 @@ class Agent:
                     wire.prepare_search(connection, operations.search_args(call))
                 return connection
             raw = None
-            if method == 'append' and 'big' in call:
-                record, name = call['big']
+            if method == 'append' and 'bigfile' in call:
+                record, name = call['bigfile']
                 try:
-                    raw, info = self.bus.record(record).big.get(name, max_size=folder_admin.MAIL_CAP)
+                    raw, info = self.bus.record(record).bigfile.get(name, max_size=folder_admin.MAIL_CAP)
                 except InvalidArgument:
-                    raise MailError('big key download refused: append requires 1..26214400 bytes (25 MB), a valid record and key') from None
+                    raise MailError('bigfile download refused: append requires 1..26214400 bytes (25 MB), a valid record and key') from None
                 except ValueError:
-                    raise MailError('big key download failed integrity verification; APPEND not attempted') from None
+                    raise MailError('bigfile download failed integrity verification; APPEND not attempted') from None
                 if not raw or len(raw) > folder_admin.MAIL_CAP:
-                    raise MailError('append big mail must be nonempty and at most 25 MB (26214400 bytes)')
+                    raise MailError('append bigfile mail must be nonempty and at most 25 MB (26214400 bytes)')
             connection = open_connection()
             from folder_watch import recover
             recover(self.bus, self.bus.name, connection, cfg, user)
@@ -551,11 +551,11 @@ class Agent:
                             for row in mime_parts.tree(connection, call['uid'])]
                     result = render(json.dumps(rows, ensure_ascii=False).encode(), secrets)
                 elif method == 'part':
-                    if 'big' in call:
+                    if 'bigfile' in call:
                         row, body = mime_parts.decoded(connection, call['uid'], call['part_id'])
-                        if not body: raise MailError('decoded part is empty; big keys require at least one byte')
-                        info = self.bus.record(self.bus.name).big.put(call['big'], body)
-                        result = f"stored big key {json.dumps(call['big'], ensure_ascii=False)}; size {info['size']}; SHA-256 {info['sha256']}; not marked"
+                        if not body: raise MailError('decoded part is empty; bigfiles require at least one byte')
+                        info = self.bus.record(self.bus.name).bigfile.put(call['bigfile'], body)
+                        result = f"stored bigfile {json.dumps(call['bigfile'], ensure_ascii=False)}; size {info['size']}; SHA-256 {info['sha256']}; not marked"
                         status = 'ok'
                         return result
                     row, text, binary = mime_parts.payload(connection, call['uid'], call['part_id'])
@@ -621,17 +621,17 @@ class Agent:
             return 'error: IMAP server refused the operation'
         except Refusal:
             error_class = 'bus_refused'
-            if big_operation: return 'error: big key access refused by the bus; no retry'
+            if big_operation: return 'error: bigfile access refused by the bus; no retry'
             return ('error: the bus could not store this; check sub list before repeating'
                     if method.startswith('sub.') else 'error: publication refused by the bus')
         except UncertainOutcome:
             error_class = 'unconfirmed'
-            if big_operation: return 'error: big key outcome unknown; inspect the key before repeating'
+            if big_operation: return 'error: bigfile outcome unknown; inspect the key before repeating'
             return ('error: outcome unknown; check sub list before repeating'
                     if method.startswith('sub.') else 'error: publication outcome unknown; inspect the destination before repeating')
         except (BusTimeout, TransportError):
             error_class = 'bus_unavailable'
-            if big_operation: return 'error: big key bus unavailable; no retry'
+            if big_operation: return 'error: bigfile bus unavailable; no retry'
             return ('error: the bus could not store this; check sub list before repeating'
                     if method.startswith('sub.') else 'error: bus unavailable; publication not sent')
         except BusError:

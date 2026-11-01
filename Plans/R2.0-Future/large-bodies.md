@@ -1,7 +1,7 @@
 # Large bodies
 
 📌 **TL;DR:**
-- **Superseded (owner, 2026-11-01):** large values live in the bus as [big keys](../R1.0-Release/big-keys.md#what-it-is-and-is-not), an R1 plan; Redis is not the shape.
+- **Superseded (owner, 2026-11-01):** large values live in the bus as [bigfiles](../R1.0-Release/bigfile.md#what-it-is-and-is-not), an R1 plan; Redis is not the shape.
 - **Nothing is built.** This page stays only so older links resolve.
 
 ## History

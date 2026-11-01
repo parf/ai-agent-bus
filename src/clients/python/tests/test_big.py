@@ -23,9 +23,9 @@ class BigClient(unittest.TestCase):
                 if self.path=='/status':return self.reply(b'{"you":"owner@fixture"}')
                 if owner.unavailable:return self.reply(b'{"error":"disk path blocked"}',503)
                 if owner.denied:return self.reply(b'{"error":"refused","kind":"acl"}',403)
-                if self.path.startswith('/big/list'):
+                if self.path.startswith('/bigfile/list'):
                     return self.reply(json.dumps({'keys':[{'name':'z'},{'name':'a'}]}).encode())
-                self.reply(owner.payload,X_Big_Sha256=('0'*64 if owner.bad_hash else hashlib.sha256(owner.payload).hexdigest()),X_Big_Held='memory',X_Big_Expires='2026-11-02T00:00:00Z')
+                self.reply(owner.payload,X_Bigfile_Sha256=('0'*64 if owner.bad_hash else hashlib.sha256(owner.payload).hexdigest()),X_Bigfile_Held='memory',X_Bigfile_Expires='2026-11-02T00:00:00Z')
             def do_PUT(self):
                 raw=self.rfile.read(int(self.headers['Content-Length']));owner.payload=raw
                 if owner.unavailable:return self.reply(b'{"error":"disk path blocked"}',503)
@@ -41,11 +41,11 @@ class BigClient(unittest.TestCase):
         self.bus=Bus(addr='http://127.0.0.1:'+str(self.server.server_port),token='fixture-token')
         self.rec=self.bus.record('owner@fixture')
         self.addCleanup(self.bus.close);self.addCleanup(self.server.server_close);self.addCleanup(self.server.shutdown)
-    def big(self):
-        self.assertTrue(hasattr(self.rec,'big'),'Record.big must expose the big-key client')
-        return self.rec.big
+    def bigfile(self):
+        self.assertTrue(hasattr(self.rec,'bigfile'),'Record.bigfile must expose the bigfile client')
+        return self.rec.bigfile
     def test_binary_roundtrip_and_metadata(self):
-        big=self.big(); raw=bytes(range(256))*4097
+        big=self.bigfile(); raw=bytes(range(256))*4097
         info=big.put('a/b',io.BytesIO(raw),size=len(raw),ttl='30d',memory=True,sha256=hashlib.sha256(raw).hexdigest())
         self.assertTrue(info['replaced']);data,got=big.get('a/b')
         self.assertEqual(data,raw);self.assertEqual(got['size'],len(raw));self.assertEqual(got['sha256'],info['sha256'])
@@ -53,12 +53,12 @@ class BigClient(unittest.TestCase):
         self.assertTrue(all(c[2]=='fixture-token' for c in self.calls if c[0]!='POST'))
         self.assertEqual([row['name'] for row in big.list()],['a','z']);self.assertTrue(big.delete('a/b'))
     def test_empty_size_and_ttl_refused_before_any_request(self):
-        big=self.big()
+        big=self.bigfile()
         for data,opts in [(b'',{}),(b'x',{'ttl':'0s'}),(b'x',{'ttl':'31d'}),(b'x',{'ttl':.5}),(io.BytesIO(b''),{'size':1}),(b'x',{'size':33554433})]:
             with self.subTest(opts=opts),self.assertRaises((InvalidArgument,ValueError)):big.put('n',data,**opts)
         self.assertEqual(self.calls,[])
     def test_hash_mismatch_and_refusal_are_not_success(self):
-        big=self.big();self.bad_hash=True
+        big=self.bigfile();self.bad_hash=True
         with self.assertRaisesRegex(ValueError,'SHA-256'):big.get('n')
         with self.assertRaisesRegex(ValueError,'SHA-256'):big.put('n',b'body')
         self.assertEqual(sum(c[0]=='PUT' for c in self.calls),1)
@@ -66,11 +66,11 @@ class BigClient(unittest.TestCase):
         with self.assertRaises(Refusal) as e:big.get('n')
         self.assertEqual(e.exception.status,403)
     def test_full_32_mib_download(self):
-        big=self.big();self.payload=b'x'*(32*1024*1024)
+        big=self.bigfile();self.payload=b'x'*(32*1024*1024)
         data,info=big.get('limit');self.assertEqual(len(data),32*1024*1024)
         self.assertEqual(info['sha256'],hashlib.sha256(data).hexdigest())
     def test_get_bound_is_checked_before_reading_any_body(self):
-        big=self.big(); self.bus._name='owner@fixture'
+        big=self.bigfile(); self.bus._name='owner@fixture'
         response=Mock(status=200);response.getheader.return_value='26214401'
         response.read.side_effect=AssertionError('oversized body was read before max_size refusal')
         connection=Mock();connection.getresponse.return_value=response
@@ -78,13 +78,13 @@ class BigClient(unittest.TestCase):
             with self.assertRaisesRegex(InvalidArgument,'max_size'):big.get('n',max_size=26214400)
         response.read.assert_not_called()
     def test_all_unavailable_calls_preserve_503_and_cause(self):
-        big=self.big();self.unavailable=True
+        big=self.bigfile();self.unavailable=True
         for operation in (lambda:big.put('n',b'bytes'),lambda:big.get('n'),lambda:big.list(),lambda:big.delete('n')):
             with self.assertRaises(Refusal) as error:operation()
             self.assertEqual(error.exception.status,503);self.assertIn('disk path blocked',str(error.exception))
 
     def test_early_refusal_wins_over_large_upload_write_error(self):
-        big=self.big();self.bus._name='owner@fixture'
+        big=self.bigfile();self.bus._name='owner@fixture'
         for status in (403,413,503):
             response=Mock(status=status,reason='fixture refusal')
             response.read.return_value=b'{"error":"early refusal cause"}'
