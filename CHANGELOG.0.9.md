@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.273 — 2026-11-01
+
+KV import keeps empty strings, empty bytes and JSON exactly as ordinary writes store them
+
 ## 0.9.272 — 2026-11-01
 
 The daemon API is documented as a frozen client contract with shared conformance vectors and a route-coverage check, and the TypeScript client refuses out-of-range lock ttl and wait before sending
