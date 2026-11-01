@@ -13,11 +13,11 @@ changes. F3's framing allowance landed separately and is not part of this batch.
 
 | Item | Implementation |
 |---|---|
-| G3 `e7ae4168` | Return the `userRecords` error from `observeUser`, as refresh already does |
-| F4 `5cda4c07` | Set only the packager command's environment through `script.ChildEnv(os.Environ())`; the import is aliased `scriptEnv` because the local script path already uses `script` |
-| Q1 `a9e3a51d` | Add only `--no-same-owner --no-same-permissions` to the Containerfile tar extraction |
-| L2 `123f7d2a` | Drop `BusError` from the inner caught tuple; the existing outer handler returns 1, while invalid Configuration remains a standing failure |
-| T-27 follow-up `36e79814` | Call the existing `sweepStale` on the open state root, then retain its users-directory sweep |
+| G3 `dcf1d33d` | Return the `userRecords` error from `observeUser`, as refresh already does |
+| F4 `e1c62b6d` | Set only the packager command's environment through `script.ChildEnv(os.Environ())`; the import is aliased `scriptEnv` because the local script path already uses `script` |
+| Q1 `b87ff000` | Add only `--no-same-owner --no-same-permissions` to the Containerfile tar extraction |
+| L2 `887a3f37` | Drop `BusError` from the inner caught tuple; the existing outer handler returns 1, while invalid Configuration remains a standing failure |
+| T-27 follow-up `4babfb74` | Call the existing `sweepStale` on the open state root, then retain its users-directory sweep |
 
 The runner's kept loop (`itself.go`) restarts ordinary nonzero exits with its
 existing 1-to-30-second backoff. Exit 78 still retires until reload and is not
