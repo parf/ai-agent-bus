@@ -6,47 +6,16 @@ The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
 ## 0.9.260 — 2026-11-01
 
-IMAP part --big stores a decoded part as a big key on the instance, and append --big appends a big key byte for byte
+Fifteenth published 0.9 changeset: 0.9.250–0.9.260, squashed.
 
-## 0.9.259 — 2026-11-01
-
-The TypeScript client and MCP tools store, fetch, list and delete big keys; MCP moves content through local files, never model context
-
-## 0.9.258 — 2026-11-01
-
-PUT /big drains a bounded body before an early refusal, so a client still writing receives the status and its cause
-
-## 0.9.257 — 2026-11-01
-
-Setup refreshes the user runner as the person through setpriv with a minimal environment; a failed refresh in git-install prints the manual fix instead of failing
-
-## 0.9.256 — 2026-11-01
-
-The Python client stores, fetches, lists and deletes big keys, with a bounded get and SHA-256 checked both ways
-
-## 0.9.255 — 2026-11-01
-
-The web store page lists and deletes big keys, and the user guide documents them
-
-## 0.9.254 — 2026-11-01
-
-agent-bus big put|get|ls|rm and the Go client store, fetch, list and delete big keys up to 32 MiB with SHA-256 checked both ways
-
-## 0.9.253 — 2026-11-01
-
-Big keys survive restarts in private files, expire, and drop orphans; an unusable store answers 503 with the cause while the daemon stays up
-
-## 0.9.252 — 2026-11-01
-
-Big keys API and authority: Maintainers put and delete, the allow list gets and lists, memory holder, keys removed with their record
-
-## 0.9.251 — 2026-11-01
-
-The db agent packager installs pinned, hash-checked wheels instead of reading host site-packages, so it builds on hosts without package metadata
-
-## 0.9.250 — 2026-11-01
-
-Version output, help footers, agent authors and the web face show (C) Sergey Porfiriev
+| Area | Changes |
+|---|---|
+| Daemon | Big keys: a record's Maintainers put and delete, its allow list gets and lists; content up to 32 MiB is held in private files (or memory on request), expires, survives restarts and is removed with its record, with SHA-256 checked both ways. An unusable store answers 503 with its cause while the daemon stays up, and an early refusal drains the body so the client sees why. |
+| CLI and clients | `agent-bus big put\|get\|ls\|rm` and the Go, Python and TypeScript clients store, fetch, list and delete big keys; MCP tools move content through local files, never model context. |
+| Web | The store page lists and deletes big keys. |
+| Agents | IMAP `part --big` stores a decoded part as a big key and `append --big` appends one byte for byte. The db packager installs pinned, hash-checked wheels instead of host site-packages. |
+| Setup | Setup refreshes the user runner as the person through setpriv; a failed refresh in git-install prints the manual fix instead of failing. |
+| Notices | Version output, help footers, agent authors, license notices and the web face name Sergey Porfiriev. |
 
 ## 0.9.249 — 2026-10-31
 
