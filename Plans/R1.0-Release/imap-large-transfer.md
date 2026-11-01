@@ -1,5 +1,7 @@
 # IMAP large transfer
 
+**Parked (owner, 2026-11-01): behind [big keys](big-keys.md#how-the-imap-agent-uses-it), which replace these chunked calls.**
+
 📌 **TL;DR:**
 - **Plan only; no code until the owner approves** ([B.31](TODO.md#bundled-agents), questions Q281–Q287, Q285 settled).
 - **Problem:** `part` and `append` of the [IMAP folders plan](imap-folders.md#help-text) are capped at 25 MB, but a bus answer holds 256 KiB and a request 1 MiB.
@@ -62,7 +64,7 @@ A caller sends a finished RFC 5322 mail, attachments included. The agent builds 
 
 - Other agents could reuse it, but none asks for it yet: only IMAP exceeds the caps.
 - It changes the daemon store and the wire: ⚠️ storage and protocol subsystems, a bump of its own, and the [durability](../../docs/04-messaging.md#durability) rule that queues flush as one batch a minute does not suit 25 MB bodies.
-- Decided by the owner on 2026-11-01: not needed now; if ever, Redis holds the file and the message carries its key name ([R2.0 large bodies](../R2.0-Future/large-bodies.md#the-shape)).
+- The owner first chose Redis for this (2026-11-01), then replaced it the same day with [big keys](big-keys.md#what-it-is-and-is-not), a store inside the bus ([decision](DECISIONS.md#recorded-decisions)).
 
 ## Order of work
 

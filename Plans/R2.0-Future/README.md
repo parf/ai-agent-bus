@@ -19,7 +19,7 @@ Generic undecided or unassigned plans, formerly Future. R2.0 names where they wa
 | Microsoft Teams agent | [Teams](teams.md#microsoft-teams-agent-b27c-deferred) |
 | WhatsApp agent | [WhatsApp](whatsapp.md#whatsapp-agent-b27d-deferred) |
 | Facebook Messenger agent | [Messenger](messenger.md#facebook-messenger-agent-b27e-deferred) |
-| Large message bodies | [Large bodies](large-bodies.md#the-shape) |
+| Large message bodies | Moved to R1: [Big keys](../R1.0-Release/big-keys.md#what-it-is-and-is-not); [history](large-bodies.md#history) |
 
 Open choices are in [questions](QUESTIONS.md#open-questions); recorded choices are in [decisions](DECISIONS.md#recorded-decisions).
 Other candidates are listed in [follow-up](FUTURE.md#candidates).

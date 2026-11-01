@@ -2,6 +2,8 @@
 
 ## Recorded decisions
 
+- **The bus gets big keys: named large values in memory or a file, passed by key name** (Q285 revised) — owner, 2026-11-01 10:29: "big key => memory-or-file storage; then agents can pass keys; usual ACL with file limits - maintainers upload/dl, acl - download"; replaces the Redis shape. Limits, lifetime, storage and backup are open ([Q288–Q295](QUESTIONS.md#big-keys)).
+  - Home: [big keys](big-keys.md#what-it-is-and-is-not).
 - **IMAP full mail automation approved** — owner, 2026-10-31 12:05, five steps built by team 2, step 1 urgent; the call list settles Q269 (`folders --counts`) and Q275 (`publish` takes `--folder` in step 1).
   - Home: [call list](imap-folders.md#help-text).
 - **IMAP `delete` is permanent, `trash` separate** (Q272) — owner, 2026-10-31 12:05: `\Deleted` plus `UID EXPUNGE` of exactly the named UIDs; `trash` moves to the Trash-role folder; `compact_trash` expunges Trash.

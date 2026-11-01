@@ -410,11 +410,17 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Acceptance: [the plan's acceptance](imap-folders.md#acceptance-for-the-todo-item)
   - Mutants: [the plan's list](imap-folders.md#acceptance-for-the-todo-item)
 
-- ⏳ B.31 IMAP large transfer — **plan only, awaiting the owner**; no code until approved. [Plan](imap-large-transfer.md#help-text); questions [Q281](QUESTIONS.md#imap-large-transfer)–Q287 (Q285 settled).
+- ⏸ B.31 IMAP large transfer — **deferred (owner, 2026-11-01): parked behind [B.32](#bundled-agents)**; no code. [Plan](imap-large-transfer.md#help-text); questions [Q281](QUESTIONS.md#imap-large-transfer)–Q287 (Q285 settled).
   - Builds: `part` in windows, `upload begin|put|status|abort` and `append --upload`, so mail and attachments up to 25 MB pass the 256 KiB answer and 1 MiB request caps; code in `src/agents/imap` only
   - Depends: B.30 steps 2 and 4
   - Acceptance: [the plan's acceptance](imap-large-transfer.md#acceptance-for-the-todo-item)
   - Mutants: [the plan's list](imap-large-transfer.md#acceptance-for-the-todo-item)
+
+- ⏳ B.32 Big keys — **plan only, awaiting the owner**; no code until approved. [Plan](big-keys.md#help-text); [decision](DECISIONS.md#recorded-decisions); questions [Q288](QUESTIONS.md#big-keys)–Q295.
+  - Builds: a bus store of named big values in memory or a file, with `big put|get|ls|rm`; Maintainers upload and download, allow-list principals download only; IMAP `part --big` and `append --big` use it
+  - Depends: the key-value store; B.30 steps 2 and 4 for the IMAP part
+  - Acceptance: [the plan's acceptance](big-keys.md#acceptance-for-the-todo-item)
+  - Mutants: [the plan's list](big-keys.md#acceptance-for-the-todo-item)
 
 - ✅ B.16 webhook — built in **0.9.143**, `61ae2338`; normal **1217/0**, **45** assertion-red mutants; deployed disabled, check-deploy **6/6**. [Current guide](../../docs/agents/webhook.md#what-it-does), [completion and plan history](done/webhook.md#result). No public listener or real sender check; owner approval required before exposure.
 
