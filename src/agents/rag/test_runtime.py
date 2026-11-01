@@ -45,6 +45,11 @@ class Runtime(unittest.TestCase):
                 if ask=='help-json':self.assertTrue(answer.startswith('{'),'help-json must be JSON')
                 if ask=='help':self.assertIn('upsert',answer)
                 if ask=='not-supported':self.assertEqual(answer,'unsupported: not-supported')
+            # Asks are not data calls: the unconfigured instance answers them, and refuses every data call by name.
+            self.assertIn('upsert',agent.handle(SimpleNamespace(ask='help',roles=[],body='',envelope={})))
+            self.assertIn('RAG',agent.handle(SimpleNamespace(ask='status',roles=[],body='',envelope={})))
+            for body in ('help','{"method":"list","namespace":"team"}','{"method":"search","namespace":"team","query":"tea"}','{"method":"keyword_index"}'):
+                self.assertEqual(agent.handle(SimpleNamespace(ask=None,roles=['owner'],body=body,envelope={})),'error: configure RAG block names and collection',body)
             self.assertEqual(json.loads((package/'agent.json').read_text())['version'],json.loads((HERE/'agent.json').read_text())['version'])
             self.assertTrue((package/'support/clients/python/agent_bus/client.py').is_file())
             self.assertTrue((package/'LICENSE.md').is_file())

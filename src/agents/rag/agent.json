@@ -1,6 +1,6 @@
 {
   "description": "Store documents with embeddings and topic labels, ready for search by meaning. Find records by word. Save, read, list and delete records, and set each table's classification prompts. Start with upsert and a namespace.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "command": "./rag.py",
   "form": "args",
   "serves": "itself",

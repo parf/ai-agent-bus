@@ -95,7 +95,7 @@ error: configure RAG block names and collection
 4. Copy the [Configuration example](../../src/agents/rag/config.json.dist), set the record Configuration, provision the collection and grants below, reload the runner.
 
 - It is a kept, sandboxed package with one worker, serializing replacement and prompt-cache changes.
-- Help works before Configuration is set.
+- Help works before Configuration is set: `agent-bus help '#rag@node.example'` and the status ask answer on an unconfigured helper, while a plain-text call such as `agent-bus call '#rag@node.example' help` is data and is refused with `error: configure RAG block names and collection`, as every other agent refuses nonsense.
 
 </details>
 
