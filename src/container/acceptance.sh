@@ -96,6 +96,12 @@ else
 fi
 got=$(podman run --rm "$image" agent-busd --version 2>&1 | head -1)
 [[ -n $version && $got == "$version" ]] && pass "the image runs release $version" || fail "agent-busd --version said '$got', expected '$version'"
+# Check the built tree, rather than trusting the archive's uid/gid or packager umask.
+if podman run --rm -i --entrypoint /bin/sh "$image" -s <"$here/check-release-tree.sh"; then
+  pass "release archive owners and write permissions are normalized"
+else
+  fail "release archive owners and write permissions are normalized"
+fi
 
 podman network create "$net" >/dev/null
 podman volume create "$dvol" >/dev/null

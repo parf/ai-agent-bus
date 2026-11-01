@@ -31,7 +31,7 @@ RUN set -eu; cd /tmp/release; \
     if [ -n "$ARCHIVE" ]; then archive=$ARCHIVE; else \
       set -- agent-bus-*-linux-*.tar.gz; [ $# = 1 ] || { echo "more than one release archive: pass --build-arg ARCHIVE=" >&2; exit 1; }; archive=$1; fi; \
     sha256sum -c "$archive.sha256"; \
-    mkdir unpacked; tar -xzf "$archive" -C unpacked --strip-components=1; \
+    mkdir unpacked; tar --no-same-owner --no-same-permissions -xzf "$archive" -C unpacked --strip-components=1; \
     (cd unpacked && sha256sum -c --quiet MANIFEST.sha256); \
     version=$(tr -d '[:space:]' < unpacked/internal/version/VERSION); \
     mkdir -p /usr/local/lib/agent-bus/releases; \
