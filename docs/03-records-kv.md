@@ -169,5 +169,5 @@ A big key is a named value of up to 32 MiB that is passed by name instead of ins
 
 The API: `PUT /big?record=<name>&name=<key>&ttl=<seconds>&memory=<true|false>` with the raw bytes as the body; `GET /big?record=&name=` streams the bytes; `GET /big/list?record=` answers each key's name, size, sha256, held and expires; `POST /big/delete` takes `record` and `name`. An existing name is replaced and the answer says `replaced`. Over a limit is 413, a refusal by authority 403, an absent key or record 404, an unusable store 503.
 
-Bytes are readable by the daemon and are not encrypted at rest ([trust boundary](02-access.md#trust-boundary)); the file mode is 0600 in a 0700 directory. The plan is [big keys](../Plans/R1.0-Release/big-keys.md#help-text).
+Bytes are readable by the daemon and are not encrypted at rest ([trust boundary](02-access.md#trust-boundary)); the file mode is 0600 in a 0700 directory. The daemon checks that a directory is not a link before it uses it, which stops a planted link; it does not defend against someone who can already write as the daemon's own account. The plan is [big keys](../Plans/R1.0-Release/big-keys.md#help-text).
 

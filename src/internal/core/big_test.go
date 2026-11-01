@@ -389,3 +389,31 @@ func TestBigKeysRefusedNamingTheCauseAndRecoveredByALaterCall(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+// A holder published by the 503 recovery gets the same orphan cleanup the start
+// gives one: the start-up prune saw none.
+func TestBigKeyRecoveryPrunesOrphans(t *testing.T) {
+	b, _ := kvFixture(t)
+	now := time.Now()
+	b.clock = func() time.Time { return now }
+	s, err := bigfile.Open(filepath.Join(t.TempDir(), "big"), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.BigPut(4242, "orphan", strings.NewReader("x"), "", false, now.Add(time.Hour), now,
+		ports.BigLimits{Value: 10, Record: 10, Total: 10, Names: 1}); err != nil {
+		t.Fatal(err)
+	}
+	b.BigUnavailable(errors.New("planted file"), func() (ports.BigStore, error) { return s, nil })
+	b.PruneBigOrphans() // the boot prune: no holder yet
+	if got := s.BigRecords(); len(got) != 1 {
+		t.Fatalf("setup: records = %v", got)
+	}
+	now = now.Add(2 * time.Minute)
+	if _, _, err := b.BigList("alice@h", "#svc@h"); err != nil {
+		t.Fatalf("the recovering call = %v", err)
+	}
+	if got := s.BigRecords(); len(got) != 0 {
+		t.Fatalf("the recovered holder kept orphan keys: %v", got)
+	}
+}

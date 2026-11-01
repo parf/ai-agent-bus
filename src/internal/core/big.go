@@ -69,6 +69,9 @@ func (b *Bus) bigStore(caller, record, name string, write bool) (ports.BigStore,
 		if s, err := b.bigReopen(); err == nil {
 			b.big, b.bigCause, b.bigReopen = s, nil, nil
 			b.report(ports.Warning, "big-key directory is usable again; big-key calls are served")
+			// The start-up prune saw no holder; keys of records removed since
+			// would keep their quota.
+			b.pruneBigOrphans()
 		}
 	}
 	store, cause := b.big, b.bigCause
@@ -181,12 +184,17 @@ func (b *Bus) dropBig(id uint32) {
 // a record removed while the daemon was down. They are nobody's, and unlike
 // key-value values they hold bytes that expire anyway, so they are deleted.
 func (b *Bus) PruneBigOrphans() {
+	b.mu.Lock()
+	defer b.unlock()
+	b.pruneBigOrphans()
+}
+
+// pruneBigOrphans is PruneBigOrphans for a caller holding b.mu.
+func (b *Bus) pruneBigOrphans() {
 	lister, _ := b.big.(interface{ BigRecords() []uint32 })
 	if lister == nil {
 		return
 	}
-	b.mu.Lock()
-	defer b.unlock()
 	for _, id := range lister.BigRecords() {
 		if _, known := b.recordByID[id]; !known {
 			b.dropBig(id)
