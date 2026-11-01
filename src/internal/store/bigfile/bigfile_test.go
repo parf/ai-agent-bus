@@ -725,3 +725,23 @@ func TestARefusedDeleteKeepsAMemoryKey(t *testing.T) {
 		t.Fatalf("the memory key is damaged after a refused delete: %q", got)
 	}
 }
+
+// An ordinary delete removes the row and then the file: nothing is left to
+// leak until the next start.
+func TestADeleteRemovesTheFileAsWellAsTheRow(t *testing.T) {
+	s, dir, idx := open(t)
+	now := time.Now()
+	put(s, 1, "k", "bytes", false, now)
+	if n := len(filesUnder(dir)); n != 1 {
+		t.Fatalf("setup: files = %v", filesUnder(dir))
+	}
+	if was, err := s.BigDelete(1, "k", now); err != nil || !was {
+		t.Fatalf("delete = %v %v", was, err)
+	}
+	if rows, _ := idx.BigRows(); len(rows) != 0 {
+		t.Fatalf("rows left: %+v", rows)
+	}
+	if got := filesUnder(dir); len(got) != 0 {
+		t.Fatalf("a delete left its file behind: %v", got)
+	}
+}
