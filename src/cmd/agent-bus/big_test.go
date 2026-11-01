@@ -236,3 +236,41 @@ func TestBigPutOfALargeFileReportsAnEarlyRefusalNotAResetConnection(t *testing.T
 		}
 	}
 }
+
+// A bigfile transfer runs on its own budget (bigBudget), not on the Timeout api.Dial gives
+// every other call (E1): a slow put or get is not cut at 2 minutes, and a stuck one still ends.
+func TestBigDoIgnoresTheClientsOwnTimeoutAndKeepsItsBudget(t *testing.T) {
+	bigDaemon(t, func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(300 * time.Millisecond)
+		fmt.Fprint(w, `{"keys":[]}`)
+	})
+	short := transport
+	t.Cleanup(func() { transport = short })
+	client, base := short()
+	c := *client
+	c.Timeout = 100 * time.Millisecond // what api.Dial's 2 minutes would be, scaled down
+	transport = func() (*http.Client, string) { return &c, base }
+
+	resp, err := bigDo("GET", "/bigfile/list", nil, nil, 0, nil)
+	if err != nil {
+		t.Fatalf("a transfer slower than the client's own Timeout was cut: %v", err)
+	}
+	resp.Body.Close()
+
+	was := bigIdle
+	bigIdle = 100 * time.Millisecond
+	t.Cleanup(func() { bigIdle = was })
+	// A one-byte put has the stall allowance alone as its budget.
+	if resp, err = bigDo("PUT", "/bigfile", nil, strings.NewReader("x"), 1, nil); err == nil {
+		resp.Body.Close() // a failing run must not leave the fake daemon's connection open
+		t.Fatal("a transfer past its own budget was not ended")
+	}
+}
+
+func TestBigBudgetIsTheStallAllowancePlusTheTimeAtTheSlowestRate(t *testing.T) {
+	for size, want := range map[int64]time.Duration{1: 30*time.Second + 15*time.Microsecond, 64 << 10: 31 * time.Second, bigMaxBytes: 542 * time.Second, 0: 542 * time.Second, bigMaxBytes + 1: 542 * time.Second} {
+		if got := bigBudget(size); got.Round(time.Millisecond) != want.Round(time.Millisecond) {
+			t.Errorf("bigBudget(%d) = %v, want %v", size, got, want)
+		}
+	}
+}

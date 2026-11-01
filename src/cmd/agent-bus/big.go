@@ -156,6 +156,30 @@ func bigSource(p bigPutPlan, stdin io.Reader) (io.Reader, int64, error) {
 
 const bigMaxBytes = 32 << 20
 
+// A bigfile transfer is bounded by one budget, not the 2 minutes api.Dial gives
+// every call: the stall allowance plus the time the slowest promised rate
+// (64 KiB/s, as the daemon's upload budget has it) needs for the bytes. A get
+// does not know its size, so it gets the budget of the largest value.
+var (
+	bigIdle = 30 * time.Second
+	bigRate = int64(64 << 10)
+)
+
+func bigBudget(size int64) time.Duration {
+	if size < 1 || size > bigMaxBytes {
+		size = bigMaxBytes
+	}
+	return bigIdle + time.Duration(size)*time.Second/time.Duration(bigRate)
+}
+
+// cancelOnClose ends the transfer's context when the caller is done with the body.
+type cancelOnClose struct {
+	io.ReadCloser
+	cancel context.CancelFunc
+}
+
+func (c cancelOnClose) Close() error { err := c.ReadCloser.Close(); c.cancel(); return err }
+
 // bigDo sends one streamed request; a refusal comes back as its text, as call's does.
 func bigDo(method, path string, q url.Values, body io.Reader, size int64, header map[string]string) (*http.Response, error) {
 	token := os.Getenv("AGENT_BUS_TOKEN")
@@ -171,10 +195,16 @@ func bigDo(method, path string, q url.Values, body io.Reader, size int64, header
 	if len(q) > 0 {
 		u += "?" + q.Encode()
 	}
-	req, err := http.NewRequestWithContext(context.Background(), method, u, body)
+	ctx, cancel := context.WithTimeout(context.Background(), bigBudget(size))
+	req, err := http.NewRequestWithContext(ctx, method, u, body)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
+	// The client's own Timeout covers a whole request and is 2 minutes; the budget above replaces it.
+	c := *client
+	c.Timeout = 0
+	client = &c
 	if body != nil {
 		req.ContentLength = size
 		// Expect: 100-continue lets an early refusal arrive before the body is
@@ -184,9 +214,7 @@ func bigDo(method, path string, q url.Values, body io.Reader, size int64, header
 			t = t.Clone()
 			t.ExpectContinueTimeout = 2 * time.Second
 			defer t.CloseIdleConnections()
-			c := *client
-			c.Transport = t
-			client = &c
+			client.Transport = t
 		}
 	}
 	if token != "" {
@@ -197,8 +225,10 @@ func bigDo(method, path string, q url.Values, body io.Reader, size int64, header
 	}
 	resp, err := client.Do(req)
 	if err != nil {
+		cancel()
 		return nil, away{err}
 	}
+	resp.Body = cancelOnClose{resp.Body, cancel}
 	if resp.StatusCode >= 400 {
 		defer resp.Body.Close()
 		out, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
