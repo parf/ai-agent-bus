@@ -410,6 +410,12 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Acceptance: [the plan's acceptance](imap-folders.md#acceptance-for-the-todo-item)
   - Mutants: [the plan's list](imap-folders.md#acceptance-for-the-todo-item)
 
+- ⏳ B.31 IMAP large transfer — **plan only, awaiting the owner**; no code until approved. [Plan](imap-large-transfer.md#help-text); questions [Q281](QUESTIONS.md#imap-large-transfer)–Q286.
+  - Builds: `part` in windows, `upload begin|put|status|abort` and `append --upload`, so mail and attachments up to 25 MB pass the 256 KiB answer and 1 MiB request caps; code in `src/agents/imap` only
+  - Depends: B.30 steps 2 and 4
+  - Acceptance: [the plan's acceptance](imap-large-transfer.md#acceptance-for-the-todo-item)
+  - Mutants: [the plan's list](imap-large-transfer.md#acceptance-for-the-todo-item)
+
 - ✅ B.16 webhook — built in **0.9.143**, `61ae2338`; normal **1217/0**, **45** assertion-red mutants; deployed disabled, check-deploy **6/6**. [Current guide](../../docs/agents/webhook.md#what-it-does), [completion and plan history](done/webhook.md#result). No public listener or real sender check; owner approval required before exposure.
 
 - ✅ B.17 cron, built in 0.9.139 (commit 3305d54e; gate --normal 1215/0; 48 tests on the fixture daemon; 51 mutants each failing its owning test on an assertion; deployed to `agent.d/cron`, disabled in the runner inventory; check-deploy 6/6; [guide](../../docs/agents/cron.md#what-it-does)) — [defaults](agents.md#next-set); AB2

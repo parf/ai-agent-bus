@@ -36,6 +36,40 @@ Choices for the [IMAP folders plan](imap-folders.md#scope) ([B.30](TODO.md#bundl
   - Recommendation: shared; memory and disk stay bounded as today
   - Impact: per-folder multiplies the bound by the folder count
 
+## IMAP large transfer
+
+Choices for the [large transfer plan](imap-large-transfer.md#the-three-options) ([B.31](TODO.md#bundled-agents)). None blocks T-17 steps 1 to 3.
+
+- ❓ Q281 Chunked calls or a file handoff
+  - Options: chunked `part` and `upload` calls; or a file the agent writes and the caller reads; or a generic large-body mechanism
+  - Recommendation: chunked calls; the file is unreadable to remote callers and to other accounts, and the generic mechanism is daemon work no other agent needs
+  - Impact: decides whether anything outside `src/agents/imap` changes
+
+- ❓ Q282 Staging bounds and lifetime
+  - Options: 100 MB in total, one staging per caller, upload expires after an hour, download staging after 15 minutes; or tighter or looser
+  - Recommendation: those numbers; they fit the default 1 GiB disk check with room for the mail cache
+  - Impact: a lower total refuses 25 MB while another caller is mid-transfer
+
+- ❓ Q283 Caller convenience for a hundred calls
+  - Options: a documented shell loop in the guide only; or a CLI verb that loops; or an MCP helper
+  - Recommendation: the documented loop now; a verb only if the owner wants it, as client work outside this plan
+  - Impact: an AI caller can loop itself; a person at a shell needs the example
+
+- ❓ Q284 Should the agent build the MIME for an upload
+  - Options: the caller sends a finished RFC 5322 mail; or the agent assembles one from a text body and attachment files
+  - Recommendation: the caller sends the finished mail; MIME assembly is a parser surface the agent need not own
+  - Impact: building attachments is the caller's job
+
+- ❓ Q285 A generic large-body mechanism for the bus
+  - Options: not now; or R2.0 work in the daemon and protocol
+  - Recommendation: not now; record it in R2.0 when a second agent needs it
+  - Impact: another agent that exceeds the caps repeats this plan
+
+- ❓ Q286 Is the SHA-256 at `upload begin` required
+  - Options: optional, checked when given; or required
+  - Recommendation: optional; `part` always reports the hash of the whole part
+  - Impact: required makes every upload verifiable but forces callers to hash first
+
 ## Runner hardening
 
 Policy choices for the [M.14 hardening proposal](runner.md#runner-hardening-proposal), separate from [current isolation](../../docs/runner/security.md#isolation-today). All await the owner; no mechanism or implementation is selected. Q279 and Q280 are **added from T-18 review, owner to confirm**, not part of the owner's original three boundaries.
