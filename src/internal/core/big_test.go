@@ -334,3 +334,31 @@ func TestBigKeysSurviveATransferOfTheirRecord(t *testing.T) {
 		t.Fatalf("after the transfer: %q", got)
 	}
 }
+
+// An import that replaces a record keeps its ID, so its big keys stay with the
+// name and no key is orphaned by the import; keys of an ID the registry no
+// longer knows, from any other cause, are pruned at start.
+func TestAnImportReplaceKeepsTheRecordIDAndItsBigKeys(t *testing.T) {
+	_, _, data, _, _ := transferSource(t)
+	target, _, _ := transferBus(t, "owner@source")
+	if _, err := target.ImportRecords("owner@source", data, ImportChoices{KeepExisting: []string{"all"}}); err != nil {
+		t.Fatal(err)
+	}
+	store := bigmem.New()
+	target.SetBigStore(store)
+	oldID := target.records["#runner@source"].ID
+	if _, _, err := target.BigPut("owner@source", "#runner@source", "k", strings.NewReader("bytes"), 0, false, ""); err != nil {
+		t.Fatal(err)
+	}
+	keep := []string{"name:owner@source", "name:peer@source", "name:@administrators", "name:@team@source"}
+	if _, err := target.ImportRecords("owner@source", data, ImportChoices{Replace: []string{"tag:ops"}, KeepExisting: keep}); err != nil {
+		t.Fatal(err)
+	}
+	if got := target.records["#runner@source"].ID; got != oldID {
+		t.Fatalf("an import replace gave the record a new ID (%d, was %d); its big keys are now orphans", got, oldID)
+	}
+	target.PruneBigOrphans()
+	if n := bigKeysOf(t, target, store, oldID); n != 1 {
+		t.Fatalf("the start prune removed a live record's key: %d left", n)
+	}
+}
