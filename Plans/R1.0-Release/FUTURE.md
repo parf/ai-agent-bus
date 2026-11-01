@@ -2,6 +2,12 @@
 
 📌 **TL;DR:** Follow-up the owner has decided is not part of R1. Each entry names the decision that deferred it and what would start it.
 
+## Race-free open of an MCP bigfile path
+
+- **What:** `fencedInput` in `src/mcp/bigfile-fence.ts` checks the real path and then opens it, a window in which a same-account local process could swap a link. Opening with `O_NOFOLLOW` on the real path would close it.
+- **Deferred:** outside the threat model the fence answers (a path chosen by a model or an injected message); a process of the same account can already read the file itself (J1 review, 2026-11-01, QA1).
+- **To start it:** the owner asks for it, or the fence is widened to a shared directory other accounts write to.
+
 ## Key proof bound to the node it was made for
 
 - **What:** the signed message names the name and the daemon's address (for example `agent-bus enrol\n<name>\n<nonce>`), so a node in the middle cannot relay a real daemon's challenge to a user who does not pin it. The daemon would accept both forms for a release.
