@@ -418,6 +418,14 @@ impl BusBuilder {
                 warnings: Mutex::new(Vec::new()),
             }),
         };
+        // The version rule first: a daemon this client cannot speak is asked nothing else.
+        let (protocol, warning) = check_protocol(&bus.identity().await?)?;
+        bus.inner
+            .daemon_protocol
+            .store(protocol, std::sync::atomic::Ordering::SeqCst);
+        if let Some(warning) = warning {
+            bus.inner.warnings.lock().unwrap().push(warning);
+        }
         let status = bus.status().await?;
         let actual = status
             .get("you")
@@ -428,13 +436,6 @@ impl BusBuilder {
                 expected: bus.inner.name.clone(),
                 actual: actual.into(),
             });
-        }
-        let (protocol, warning) = check_protocol(&bus.identity().await?)?;
-        bus.inner
-            .daemon_protocol
-            .store(protocol, std::sync::atomic::Ordering::SeqCst);
-        if let Some(warning) = warning {
-            bus.inner.warnings.lock().unwrap().push(warning);
         }
         tokio::spawn(dispatcher(Arc::downgrade(&bus.inner)));
         Ok(bus)

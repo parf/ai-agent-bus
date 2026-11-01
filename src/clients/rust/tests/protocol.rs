@@ -1,6 +1,7 @@
 //! The version rule and the refusal `kind`, against a daemon that answers
 //! whatever each case says (docs/09-daemon-api.md, `GET /identity`).
 use agent_bus::*;
+use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 /// Serves `identity` for GET /identity, `{"you":"#worker"}` for GET /status
@@ -165,4 +166,40 @@ async fn a_server_error_without_a_kind_is_an_internal_daemon_error() {
         }
         other => panic!("{other:?}"),
     }
+}
+
+// The version rule runs before anything else is asked of the daemon: a daemon
+// this client cannot speak is never sent a /status, and the first request
+// of every connection is GET /identity (docs/09-daemon-api.md#the-client-contract).
+#[tokio::test]
+async fn the_first_request_is_the_identity_and_a_refused_daemon_sees_nothing_else() {
+    let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = format!("http://{}", listener.local_addr().unwrap());
+    let identity = Arc::new(std::sync::Mutex::new(String::new()));
+    let (log, answer) = (seen.clone(), identity.clone());
+    tokio::spawn(async move {
+        loop {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let (log, answer) = (log.clone(), answer.clone());
+            tokio::spawn(async move {
+                let mut buffer = [0; 4096];
+                let n = socket.read(&mut buffer).await.unwrap_or(0);
+                let request = String::from_utf8_lossy(&buffer[..n]).into_owned();
+                let path = request.split_whitespace().nth(1).unwrap_or("").to_owned();
+                log.lock().unwrap().push(path.clone());
+                let body = if path == "/identity" { answer.lock().unwrap().clone() } else { "{\"you\":\"#worker\"}".to_owned() };
+                let head = format!("HTTP/1.1 200 X\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len());
+                let _ = socket.write_all(head.as_bytes()).await;
+                let _ = socket.write_all(body.as_bytes()).await;
+            });
+        }
+    });
+    *identity.lock().unwrap() = r#"{"protocol":2,"protocol_min":2}"#.to_owned();
+    assert!(connect(&address).await.is_err());
+    assert_eq!(*seen.lock().unwrap(), vec!["/identity".to_owned()], "a daemon this client refuses was sent another request");
+    seen.lock().unwrap().clear();
+    *identity.lock().unwrap() = r#"{"protocol":1,"protocol_min":1}"#.to_owned();
+    connect(&address).await.unwrap();
+    assert_eq!(seen.lock().unwrap()[0], "/identity", "the first request of a connection is /identity");
 }
