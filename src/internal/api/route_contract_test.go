@@ -1,7 +1,10 @@
 package api
 
 import (
+	"fmt"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"sort"
@@ -14,24 +17,111 @@ import (
 // fields and codes are in the client contract) or unstable and admin-only.
 // A new route without a row, or a row for a route that is gone, fails here.
 
-var registered = regexp.MustCompile(`mux\.HandleFunc\("([A-Z]+) (/[^"]*)"`)
 var row = regexp.MustCompile("(?m)^\\| `([A-Z]+ /[^`]*)` \\| (stable|unstable) \\| (.+) \\|$")
 
+// registration finds every call that adds a handler to a mux: Handle or HandleFunc.
+var registration = regexp.MustCompile(`\.(Handle|HandleFunc)\(\s*`)
+var routeLiteral = regexp.MustCompile(`^"([A-Z]+) (/[^"]*)"`)
+
+// scanRoutes reads one source file for routes. A registration it cannot read as
+// HandleFunc("METHOD /path", ...) is a problem, never a skipped line: a new
+// registration form must go red here so the inventory cannot silently miss it.
+func scanRoutes(file string, src string) (routes, problems []string) {
+	for _, at := range registration.FindAllStringSubmatchIndex(src, -1) {
+		line := strings.Count(src[:at[0]], "\n") + 1
+		call := src[at[2]:at[3]]
+		rest := src[at[1]:]
+		m := routeLiteral.FindStringSubmatch(rest)
+		switch {
+		case call == "Handle":
+			problems = append(problems, fmt.Sprintf("%s:%d registers with Handle: use HandleFunc(\"METHOD /path\", ...) so the route can be read", file, line))
+		case m == nil && strings.HasPrefix(rest, `"/`):
+			problems = append(problems, fmt.Sprintf("%s:%d registers a route with no method: write \"METHOD /path\"", file, line))
+		case m == nil:
+			problems = append(problems, fmt.Sprintf("%s:%d registers a route whose first argument is not a \"METHOD /path\" literal", file, line))
+		default:
+			routes = append(routes, m[1]+" "+m[2])
+		}
+	}
+	return routes, problems
+}
+
+// registeredRoutes reads every non-test Go file under src, since a route may be
+// registered outside package api.
 func registeredRoutes(t *testing.T) []string {
 	t.Helper()
-	src, err := os.ReadFile("server.go")
+	var out []string
+	err := filepath.WalkDir("../..", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() && (d.Name() == "testdata" || d.Name() == "node_modules") {
+			return filepath.SkipDir
+		}
+		if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		src, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		routes, problems := scanRoutes(path, string(src))
+		for _, p := range problems {
+			t.Error(p)
+		}
+		out = append(out, routes...)
+		return nil
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	var out []string
-	for _, m := range registered.FindAllStringSubmatch(string(src), -1) {
-		out = append(out, m[1]+" "+m[2])
-	}
 	if len(out) < 50 {
-		t.Fatalf("found only %d registered routes; the pattern no longer reads server.go", len(out))
+		t.Fatalf("found only %d registered routes; the scan no longer reads the sources", len(out))
 	}
 	sort.Strings(out)
 	return out
+}
+
+// whole says whether text holds path as a whole path: not the front of a longer
+// one (/lock inside /lock/extend) nor the tail of one.
+func whole(text, path string) bool {
+	return regexp.MustCompile(`(^|[^A-Za-z0-9_/-])` + regexp.QuoteMeta(path) + `($|[^A-Za-z0-9_/-])`).MatchString(text)
+}
+
+func TestScanRoutesReadsOnlyLiteralMethodRoutes(t *testing.T) {
+	routes, problems := scanRoutes("x.go", "mux.HandleFunc(\"GET /a\", f)\nmux.HandleFunc(\n\t\"POST /b/c\", g)\n")
+	if !slices.Equal(routes, []string{"GET /a", "POST /b/c"}) || len(problems) != 0 {
+		t.Fatalf("routes %v, problems %v", routes, problems)
+	}
+	for name, src := range map[string]string{
+		"Handle":       `mux.Handle("GET /a", h)`,
+		"no method":    `mux.HandleFunc("/a", f)`,
+		"a variable":   `mux.HandleFunc(pattern, f)`,
+		"lower method": `mux.HandleFunc("get /a", f)`,
+		"http.Handle":  `http.Handle("GET /a", h)`,
+	} {
+		routes, problems := scanRoutes("x.go", src)
+		if len(problems) != 1 || len(routes) != 0 {
+			t.Errorf("%s: routes %v, problems %v: want exactly one problem and no route", name, routes, problems)
+		}
+	}
+}
+
+func TestWholePathIsNotAPrefixOrSuffix(t *testing.T) {
+	for text, want := range map[string]bool{
+		"`POST /lock` takes it":  true,
+		"/lock":                  true,
+		"/lock.":                 true,
+		"only /lock/extend here": false,
+		"only /try-lock here":    false,
+		"a/lock":                 false,
+		"/lock-more":             false,
+		"see /lock and /lock/x":  true,
+	} {
+		if got := whole(text, "/lock"); got != want {
+			t.Errorf("whole(%q, /lock) = %v, want %v", text, got, want)
+		}
+	}
 }
 
 func contractRows(t *testing.T, doc string) map[string][2]string {
@@ -92,7 +182,7 @@ func TestEveryStableRoutePathIsInTheClientContract(t *testing.T) {
 			continue // /lookup and /ls are specified by the discovery page
 		}
 		path := route[strings.Index(route, " ")+1:]
-		if !strings.Contains(contract, path) {
+		if !whole(contract, path) {
 			t.Errorf("stable route %s is not described in the client contract", route)
 		}
 	}
