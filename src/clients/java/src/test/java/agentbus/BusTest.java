@@ -173,6 +173,9 @@ public final class BusTest {
 
         final java.util.List<String> lines = Collections.synchronizedList(new ArrayList<>());
 
+        /** What GET /identity answers; null hands it to the script like any other request. */
+        volatile Answer identity = new Answer(0, 200, "{\"protocol\":1,\"protocol_min\":1}");
+
         /** On loopback TCP instead of a unix socket, IPv4 or IPv6. */
         static Fake tcp(java.util.function.BiFunction<String, Integer, Answer> scripted) throws Exception { return new Fake(null, scripted); }
 
@@ -231,10 +234,16 @@ public final class BusTest {
                                 req.append(new String(b.array(), 0, b.position(), StandardCharsets.ISO_8859_1));
                                 b.clear();
                             }
-                            int i = seen.getAndIncrement();
                             String first = req.toString().split("\r\n")[0];
-                            lines.add(first);
-                            Answer a = script.apply(first, i);
+                            // The protocol handshake is answered apart and counted in no test's tally.
+                            Answer a;
+                            if (first.startsWith("GET /identity") && identity != null) {
+                                a = identity;
+                            } else {
+                                int i = seen.getAndIncrement();
+                                lines.add(first);
+                                a = script.apply(first, i);
+                            }
                             Thread.sleep(a.delayMs());
                             if (a.status() < 0) return;
                             byte[] body = a.body().getBytes(StandardCharsets.UTF_8);
@@ -710,8 +719,16 @@ public final class BusTest {
             ServerSocketChannel srv = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
             srv.bind(UnixDomainSocketAddress.of(sock));
             Thread t = Thread.ofVirtual().start(() -> {
-                for (int i = 0; i < 2; i++) {
-                    try (SocketChannel c = srv.accept()) { c.read(ByteBuffer.allocate(65536)); } catch (Exception ignored) { return; }
+                // The first connection is the protocol handshake, answered; the next two are cut off.
+                for (int i = 0; i < 3; i++) {
+                    try (SocketChannel c = srv.accept()) {
+                        c.read(ByteBuffer.allocate(65536));
+                        if (i == 0) {
+                            String body = "{\"protocol\":1,\"protocol_min\":1}";
+                            c.write(ByteBuffer.wrap(("HTTP/1.1 200 X\r\nContent-Type: application/json\r\nContent-Length: "
+                                    + body.length() + "\r\nConnection: close\r\n\r\n" + body).getBytes(StandardCharsets.ISO_8859_1)));
+                        }
+                    } catch (Exception ignored) { return; }
                 }
             });
             Bus b = Bus.connect(Connect.of(sock.toString(), "x").timeout(Duration.ofSeconds(2)));
@@ -945,6 +962,85 @@ public final class BusTest {
             check("nor a cached secret", thrown(r::secret) instanceof BusException);
         });
 
+        section("protocol rule and refusal kind", () -> {
+            Path sock = Path.of(DIR, "p-ok.sock");
+            try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 200, "{}"))) {
+                Bus b = Bus.connect(Connect.of(sock.toString(), "x"));
+                b.status();
+                check("a daemon at the client's protocol is silent", b.warnings().isEmpty(), b.warnings());
+                check("the handshake is one GET /identity, once", f.count("GET /identity") == 0 && f.seen.get() == 1, f.lines);
+            }
+            try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 200, "{}"))) {
+                f.identity = new Answer(0, 200, "{\"protocol\":5,\"protocol_min\":1}");
+                Bus b = Bus.connect(Connect.of(sock.toString(), "x"));
+                b.status();
+                check("a newer daemon still within protocol_min is silent", b.warnings().isEmpty(), b.warnings());
+            }
+            try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 200, "{}"))) {
+                f.identity = new Answer(0, 200, "{\"protocol\":2,\"protocol_min\":2}");
+                Throwable e = thrown(() -> Bus.connect(Connect.of(sock.toString(), "x")).status());
+                check("a daemon whose protocol_min is above the client is too new",
+                        e instanceof BusException.DaemonTooNewException && e.getMessage().contains("daemon too new for this client")
+                                && e.getMessage().contains("serves protocol 2 and later"), name(e));
+            }
+            try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 200, "{}"))) {
+                f.identity = null;
+                Throwable e = thrown(() -> Bus.connect(Connect.of(sock.toString(), "x")).status());
+                check("an identity answer with neither member counts as protocol 0: a warning, not an error", e == null, name(e));
+            }
+            try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 200, "{}"))) {
+                f.identity = new Answer(0, 200, "{}");
+                Bus b = Bus.connect(Connect.of(sock.toString(), "x"));
+                b.status();
+                check("an identity without the members warns the daemon is too old",
+                        b.warnings().size() == 1 && b.warnings().get(0).contains("daemon too old for this client: it speaks protocol 0"), b.warnings());
+            }
+            for (String[] bad : new String[][] {
+                    {"{\"protocol\":\"1\",\"protocol_min\":1}", "identity protocol is not a non-negative integer"},
+                    {"{\"protocol\":-1,\"protocol_min\":0}", "identity protocol is not a non-negative integer"},
+                    {"{\"protocol\":1.5,\"protocol_min\":1}", "identity protocol is not a non-negative integer"},
+                    {"{\"protocol\":2,\"protocol_min\":\"x\"}", "identity protocol_min is not a non-negative integer"},
+                    {"{\"protocol\":1,\"protocol_min\":2}", "identity protocol_min is greater than protocol"}}) {
+                try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 200, "{}"))) {
+                    f.identity = new Answer(0, 200, bad[0]);
+                    Throwable e = thrown(() -> Bus.connect(Connect.of(sock.toString(), "x")).status());
+                    check("a malformed identity is a protocol error naming the member: " + bad[0],
+                            e instanceof BusException.ProtocolErrorException && e.getMessage().equals(bad[1]), name(e));
+                }
+            }
+            try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 404, "{\"error\":\"no such route\",\"kind\":\"no_route\"}"))) {
+                f.identity = new Answer(0, 200, "{\"protocol\":0,\"protocol_min\":0}");
+                Bus b = Bus.connect(Connect.of(sock.toString(), "x"));
+                Throwable e = thrown(() -> b.list(Optional.empty()));
+                check("no_route from an older daemon says too old for the operation",
+                        e instanceof BusException.NotFound n && "no_route".equals(n.kind()) && e.getMessage().equals("daemon too old for GET /ls"), name(e));
+            }
+            try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 404, "{\"error\":\"no such route\",\"kind\":\"no_route\"}"))) {
+                Throwable e = thrown(() -> Bus.connect(Connect.of(sock.toString(), "x")).list(Optional.empty()));
+                check("no_route from a daemon at the client's protocol keeps the daemon's own words",
+                        e instanceof BusException.NotFound n && "no_route".equals(n.kind()) && e.getMessage().equals("no such route"), name(e));
+            }
+            try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 404, "{\"error\":\"no such record\",\"kind\":\"unknown\"}"))) {
+                f.identity = new Answer(0, 200, "{\"protocol\":0,\"protocol_min\":0}");
+                Throwable e = thrown(() -> Bus.connect(Connect.of(sock.toString(), "x")).list(Optional.empty()));
+                check("unknown is missing data, not a missing route, even from an older daemon",
+                        e instanceof BusException.NotFound n && "unknown".equals(n.kind()) && e.getMessage().equals("no such record"), name(e));
+            }
+            try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 403, "{\"error\":\"not yours\",\"kind\":\"acl\"}"))) {
+                Throwable e = thrown(() -> Bus.connect(Connect.of(sock.toString(), "x")).list(Optional.empty()));
+                check("a refusal carries the daemon's kind", e instanceof BusException.Forbidden fo && "acl".equals(fo.kind()), name(e));
+            }
+            try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 500, "{\"error\":\"sqlite: disk I/O\"}"))) {
+                Throwable e = thrown(() -> Bus.connect(Connect.of(sock.toString(), "x")).list(Optional.empty()));
+                check("a 5xx without a kind is an internal daemon error, its text not passed on",
+                        e instanceof BusException.RefusalException r && r.kind() == null && e.getMessage().equals("internal daemon error"), name(e));
+            }
+            try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 503, "{\"error\":\"store unavailable\",\"kind\":\"unavailable\"}"))) {
+                Throwable e = thrown(() -> Bus.connect(Connect.of(sock.toString(), "x")).list(Optional.empty()));
+                check("a 503 with a kind keeps its words and kind",
+                        e instanceof BusException.RefusalException r && "unavailable".equals(r.kind()) && e.getMessage().equals("store unavailable"), name(e));
+            }
+        });
         section("tls", () -> {
             String https = env("AB_TEST_TLS"), pin = env("AB_TEST_PIN");
             Bus pinned = Bus.connect(Connect.of(https, TOKEN).pin(pin).expectName(OWNER));

@@ -41,6 +41,9 @@ public final class Bus implements AutoCloseable {
     private static final SecureRandom RANDOM = new SecureRandom();
     static final System.Logger LOG = System.getLogger("agentbus");
 
+    /** The wire protocol this client speaks; the daemon reports its own in {@code GET /identity}. */
+    public static final long CLIENT_PROTOCOL = 1;
+
     final Http t;
     private final Optional<String> expect;
     private volatile String name;
@@ -62,6 +65,13 @@ public final class Bus implements AutoCloseable {
         if (o.expectName().isPresent()) b.name();
         return b;
     }
+
+    /**
+     * What the client warned about at its first call, such as "daemon too old for this client". A
+     * daemon older than the client still serves; a client older than the daemon's protocol_min is
+     * refused with {@link BusException.DaemonTooNewException}.
+     */
+    public List<String> warnings() { return t.warnings(); }
 
     /** Who the credential is, as the daemon answers it. */
     public String name() { return who(t.timeout()); }

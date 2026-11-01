@@ -136,6 +136,7 @@ final class Http {
     Response within(String method, String path, Map<String, String> q, Object body, boolean write,
                     Duration limit, Map<String, String> headers) {
         open();
+        if (!negotiated && !path.equals("/identity")) negotiate(limit);
         if (limit.isNegative() || limit.isZero()) limit = Duration.ofMillis(1);
         String target = path + query(q);
         byte[] payload = body == null ? null : Json.write(body).getBytes(StandardCharsets.UTF_8);
@@ -143,15 +144,60 @@ final class Http {
         Response r = exchange(method, target, payload, write, limit, headers);
         if (r.status >= 400) {
             String msg = r.text().trim();
+            String kind = null;
             try {
-                Object e = Json.object(msg).get("error");
-                if (e instanceof String s) msg = s;
+                Map<String, Object> answer = Json.object(msg);
+                if (answer.get("error") instanceof String s) msg = s;
+                if (answer.get("kind") instanceof String k) kind = k;
             } catch (RuntimeException ignored) {
                 // not the daemon's JSON: the text as it came
             }
-            throw RefusalException.of(r.status, msg);
+            // A route or method this daemon lacks, from a daemon older than the client, is that age,
+            // said for the operation that met it.
+            if ("no_route".equals(kind) && daemonProtocol < Bus.CLIENT_PROTOCOL) msg = "daemon too old for " + method + " " + path;
+            // A server error that names no kind is the daemon failing, not refusing.
+            if (kind == null && r.status >= 500) msg = "internal daemon error";
+            throw RefusalException.of(r.status, msg, kind);
         }
         return r;
+    }
+
+    private volatile boolean negotiated;
+    private volatile long daemonProtocol = Bus.CLIENT_PROTOCOL;
+    private final java.util.List<String> warnings = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /** What the client warned about at its first call. */
+    java.util.List<String> warnings() { return java.util.List.copyOf(warnings); }
+
+    /**
+     * Reads protocol and protocol_min from GET /identity once, before the first call, and applies the
+     * rule: absent members count as 0; a member that is not a non-negative integer, or protocol_min
+     * above protocol, is a ProtocolErrorException naming it; a client older than protocol_min is
+     * refused as too new; a daemon older than the client warns and still serves.
+     */
+    private synchronized void negotiate(Duration limit) {
+        if (negotiated) return;
+        Object answer = json("GET", "/identity", null, null, false, limit);
+        long[] member = new long[2];
+        String[] names = {"protocol", "protocol_min"};
+        for (int i = 0; i < 2; i++) {
+            Object v = answer instanceof Map<?, ?> m && m.containsKey(names[i]) ? m.get(names[i]) : Long.valueOf(0);
+            if (!(v instanceof Long n) || n < 0) {
+                throw new BusException.ProtocolErrorException("identity " + names[i] + " is not a non-negative integer");
+            }
+            member[i] = n;
+        }
+        long protocol = member[0], min = member[1];
+        if (min > protocol) throw new BusException.ProtocolErrorException("identity protocol_min is greater than protocol");
+        if (Bus.CLIENT_PROTOCOL < min) {
+            throw new BusException.DaemonTooNewException("daemon too new for this client: it serves protocol " + min
+                    + " and later, this client speaks " + Bus.CLIENT_PROTOCOL);
+        }
+        if (protocol < Bus.CLIENT_PROTOCOL) {
+            warnings.add("daemon too old for this client: it speaks protocol " + protocol + ", this client speaks " + Bus.CLIENT_PROTOCOL);
+        }
+        daemonProtocol = protocol;
+        negotiated = true;
     }
 
     /** The answer decoded, or null for 204 and an empty body. */
