@@ -6,7 +6,7 @@ Migration labels: `RT` identifies the original unnumbered work rows; `RBK`
 identifies the backup acceptance paragraph. Existing M/B/P wave IDs are unchanged.
 
 Prepare the [proposed scope](README.md#scope). Started ahead of the release on
-the 0.8 line; no release wave is committed yet. Item glyphs follow
+the 0.8 line; R1 releases as 1.0.0 ([decision](DECISIONS.md#recorded-decisions)). Item glyphs follow
 [plan markup](../MARKUP.md#glyphs); built results are in [DONE](DONE.md).
 
 - ✅ RT1 [Shared locks](done/locks.md#shared-locks)
@@ -41,12 +41,12 @@ the 0.8 line; no release wave is committed yet. Item glyphs follow
   - ✅ RT9.2 Every bundled agent's `agent.json` and `env.dist` carry the metadata (methods, args, Configuration keys, description, license, author, homepage) and their hand-written help code is removed where RT9.1 covers it; the guides link `--help-config`, `--help-secret` and `--help-json`. Acceptance: each agent's `--help` matches its real methods (a parser check per agent); removing a method from the code without its entry fails the check
   - ✅ RT9.4 [Usable Methods cards](../../src/web/web-face/records.md#method-rows), built in 0.9.44: native disclosure rows, signatures, typed args/enums, CLI/JSON examples from declared `body_formats`, GET filter, meaningful fields and compact settings. RT9.4b reports only role-hidden counts/needed roles. Phone-width/no-JS browser check passed; help-listed and hidden-count mutants compiled and failed assertions under `--slow`; restored full gate 1164/0. A call-execution form remains later.
 
-- ⚠️ RT10 [Runner](runner.md#runner)
-  - Details: decided; [waves](#runner-waves) proposed
-  - State: one-message serving built 0.8.123; full evidence remains in [runner waves](#runner-waves)
+- ✅ RT10 [Runner](runner.md#runner)
+  - Details: decided; every [wave](#runner-waves) of R1 is built (M.6b, M.7 and RT19 moved to R1.1, Q299)
+  - State: one-message serving built 0.8.123; M.1, M.2, M.4, M.6a and M.9–M.13 are ✅ in [runner waves](#runner-waves)
   - Depends: [method metadata](done/method-metadata.md#method-metadata); the pool hostname field, now R1 ([where a member says it is](runner-implementation.md#where-a-member-says-it-is))
 
-- ⚠️ RT11 [Runners section in the web face](runner/web-face.md#goal) — status, per-agent controls, host files and instances are built; R1 acceptance stays in the checklist, while [RW10–RW17 move to R1.1](../R1.1/TODO.md#runner-web-additions) (Q299)
+- ⚠️ RT11 [Runners section in the web face](runner/web-face.md#goal) — status, per-agent controls, host files and instances are built; R1 acceptance stays in the checklist, while [RW10–RW13 and RW15–RW17 move to R1.1; RW14 is built, 0.8.211](../R1.1/TODO.md#runner-web-additions) (Q299)
   - State: the information page and per-agent management page are separate; denied management shows Access denied
   - Home: [Minimum and acceptance checklist](runner/web-face.md#minimum-checklist)
 
@@ -94,7 +94,7 @@ Plan for discussion of the note above: [shorter prompts](short-prompts.md#propos
   - State: built in 0.9.41; CLI `agent-bus may-send <name>`, shared target-admission function with Send; no queue, refusal counter or activity changes. The caller asks only for itself; Send keeps its ACL `403`, including invisible targets.
   - Verification: API parity for active/allowed, ACL/Personal refused, invisible, inactive, absent, external and User-inbox cases; CLI success/refusal; no on-behalf input. Enqueue and divergent-answer mutants compiled and failed assertions under `--slow go_checks`; restored full gate 1160/0.
 
-- ✅ RT21 A client calling itself gets its handler's answer, never its own request
+- ✅ RT21 A client calling itself gets its handler's answer, never its own request (`3d191597`)
   - Found by Codex #3 in B.13, 2026-10-19: the Python client's `Bus.call` to its own name consumes the request it just sent (the same inbox, topic and tag) as the correlated answer, before the handler runs. All six clients had it
   - Built on `ab-w2a/RT21`, with #ab-w2c's RT8 Python, TypeScript and Go slices: an unmarked message carrying the call's own message ID is work for a free serving worker, drained like other taken work; PHP, serving one message at a time, runs its handler in the call and refuses outside `serve()`. Shared `self-call.json` runs in all six adapters, direct and through another reply inbox; red on the old code in each
   - Mutants, 2026-10-30: the own-request check off in each client compiled and failed its self-call checks on assertions (Python 5, TypeScript 4, Go 3, Rust 2, Java 4, PHP 5)
@@ -107,19 +107,19 @@ Plan for discussion of the note above: [shorter prompts](short-prompts.md#propos
 
 ## Next step
 
-Assigned roles are built ([verification](done/assigned-roles.md#verification)).
-Method metadata, bundled agents and distribution packaging are built on 0.9;
-continue the remaining runner waves, distribution acceptance and the accepted
-[protocol conformance task](#objective). Federation is
-[R1.2](../R1.2/federation.md#chaining); its R1.1 prerequisites no longer block
-this release. Existing decisions describe targets, not completed code.
+Built on 0.9: assigned roles, method metadata, the runner waves, the bundled
+agents, distribution packaging and its acceptance, and the protocol freeze
+(T-24; its last step, S2v, is in review). What is left for R1 is the first npm publication at the release (P.1,
+[Q300](DECISIONS.md#recorded-decisions)) and the deferred IMAP transfer (B.31).
+Federation is [R1.2](../R1.2/federation.md#chaining); its R1.1 prerequisites no
+longer block this release.
 
 ## Dependencies
 
 Repeated work has one editable item under Objective, with its dependency
 cells retained there. Distinctly named work keeps its own item here:
 
-- ✅ RT16 [Record-defined roles](roles.md#record-defined-roles)
+- ✅ RT16 [Record-defined roles](roles.md#record-defined-roles) — no code of its own: the existing allow list and nested membership already do it (contract `2727d193`)
   - Evidence: Built using the existing allow list and nested membership; [current contract](../../docs/03-records-agent.md#roles)
 
 - [№RT15](#objective) — Federation moved to [R1.2](../R1.2/TODO.md#federation)
@@ -127,9 +127,6 @@ cells retained there. Distinctly named work keeps its own item here:
 - [№RT12](#objective) — [Agents for the runner](agents.md#dependencies)
 - [№RT9](#objective) — [Agent method metadata](done/method-metadata.md#method-metadata)
 - [№RT5](#objective) — [Client libraries](done/client-libraries.md#scope)
-
-- ⛔ RT17 Release distributions
-  - Depends: Release builds and runnable daemon/runner roles; choose publication names and supported platforms before packaging
 
 Name implementation waves and falsifiable acceptance after those choices.
 Federation's distinct-node acceptance moved with [its task](../R1.2/TODO.md#federation).
@@ -219,9 +216,9 @@ configuration written under `runner/` on the host, then a `reload` call.
   - Existing enable/disable/start/stop/restart and host-file controls remain; backup moved to R1.1. The current contract is [runner operations](../../docs/runner/operations.md#the-hosts-files-over-the-bus) and [settings overrides](../../docs/runner/configuration.md#overriding-a-settings-file).
   - Result: the combined runner/ports/sandbox runtime and tests are byte-identical to reviewed `e80f5143`; focused runner+sandbox `-race` 154/0, no skips, and guides3/0. [Evidence](DONE.md#m5-host-controls-and-settings-overrides). The inherited malformed/unknown answer-line test LOW is J50, a separate follow-up after landing.
 
-- ⏳ M.6 Pools and edges (audit 2026-10-30: the daemon already lets two readers share an inbox; `share` in `agents.json` is parsed and read by nothing; no member hostname field)
+- ✅ M.6 Pools and edges (M.6a `9871870d`, docs `553faa81`) (audit 2026-10-30: the daemon already lets two readers share an inbox; `share` in `agents.json` is parsed and read by nothing; no member hostname field)
   - M.6a wire `share` to the consume call and add the member hostname field with the listing (L, daemon change, owner restarts); M.6b moved to [R1.1](../R1.1/TODO.md#runner-extensions) (Q299)
-  - State M.6a 2026-10-30, branch `ab-w2b/M6a` (owner chose A in `local/w2a/m6a-member-host.md`): the daemon part is built: `host` on consume (1–64 of letters, digits, `.`, `-`; a 400 names it), a per-name map of host to last read, 2 minutes, at most 32 with a `hosts_cut` flag, in memory only; the lookup's `hosts` list, `ls --table <name>`'s Hosts line, the web record page. Wired on `ab-w2b/M6a-share`: the runner and `agent-bus run` state their host on every read (`AGENT_BUS_READER_HOST` when the unit sets it, else the machine's hostname; none is sent if it fails the 1–64 `[A-Za-z0-9.-]` check), `consume --host=`, and a served agent's `share` in `agents.json` rides its reads. Two runners serve one name, sharing its messages between them, and the listing shows both hosts, through the token handed over once (`TestTwoRunnersServeOneNameSharingMessagesAndTheListingShowsBothHosts`, no new code needed); `agent-bus run`'s host send is pinned by a real run. The deploy needs a daemon restart
+  - State M.6a 2026-10-30, branch `ab-w2b/M6a` (owner chose A in `local/w2a/m6a-member-host.md`): the daemon part is built: `host` on consume (1–64 of letters, digits, `.`, `-`; a 400 names it), a per-name map of host to last read, 2 minutes, at most 32 with a `hosts_cut` flag, in memory only; the lookup's `hosts` list, `ls --table <name>`'s Hosts line, the web record page. Wired on `ab-w2b/M6a-share`: the runner and `agent-bus run` state their host on every read (`AGENT_BUS_READER_HOST` when the unit sets it, else the machine's hostname; none is sent if it fails the 1–64 `[A-Za-z0-9.-]` check), `consume --host=`, and a served agent's `share` in `agents.json` rides its reads. Two runners serve one name, sharing its messages between them, and the listing shows both hosts, through the token handed over once (`TestTwoRunnersServeOneNameSharingMessagesAndTheListingShowsBothHosts`, no new code needed); `agent-bus run`'s host send is pinned by a real run. Landed and deployed: two runners serving one name is checked by `9871870d`
   - Builds: `share`; the member hostname field (daemon change)
   - Hostname settled by owner, 2026-10-30 15:25, option A: optional `host` on each consume, refreshed when the read begins or ends, held in memory for 2 minutes; bounded to 32 hosts per name, never routing/authority or durable state. Validation and listing substance: [where a member says it is](runner-implementation.md#where-a-member-says-it-is). Pool members still read the pool's own inbox ([№Q159](DECISIONS.md#recorded-decisions)).
   - Acceptance: two runners serve one name, shared between them, and a listing shows both hosts
@@ -278,7 +275,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Acceptance: no-role list/timers/failed/status, operate start/restart/reload/logs, admin stop/enable/disable; an unconfigured service or timer is listed, statused and started by operate; every tier refuses invalid names; install twice leaves one unit and one name, removal leaves no unit, token or record. Running as a non-root account leaves list/status working and every acting verb returns systemctl's refusal as an error, never silent success.
   - Mutants: remove role enforcement; trust a role claimed in the body; suppress errors from the non-root unit's acting verbs. NoNewPrivileges is not a privilege-loss mutant: it does not drop existing root credentials.
 
-- ✅ B.9 systemd dedicated instances
+- ✅ B.9 systemd dedicated instances (`b4b3fd92`)
   - Builds: a `units` entry in the instance's Configuration, a comma-separated list of exact unit names, which limits that instance to those units ([dedicated instances](../../src/agents/standalone/systemd/README.md#dedicated-instances)). Owner, 2026-10-19: "support "config" entry; with comma separated list of units (timers, ... whatever systemd manages); this way we can create dedicated instances of specific service status/restarters for ordinary users"
   - Depends: №RT18, the Configuration in the script's environment
   - Acceptance: with `units` set, list/timers/failed show only the listed units; status, an acting verb and `logs <unit>` on an unlisted unit are refused by name with systemctl never run; `logs` with no unit reads only the listed units; without `units` every unit works as today; a malformed entry answers every call with a named Configuration units error without executing; two instances on one host with different lists each see only their own; tiers unchanged
@@ -292,7 +289,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Acceptance: the last N come back unfiltered by default and oldest first; a filter applies only when asked; `after <mark>` returns exactly the lines appended after the mark; a file created after start is picked up by the next rescan; an excluded glob never appears; cleaned output contains no escape bytes; writing far beyond the ring keeps it at its bound; a subscribed line reaches its target and a non-match does not; a caller outside the ACL is refused
   - Mutants: the ring's bound removed, which must fail the bounded check rather than hang it; a default filter applied when none was asked for; a new file never rescanned; the cleaning removed; `after` returning lines from before the mark
 
-- ✅ B.4 Choose the next set — the owner chose mail, then webhook, cron and fetch, 2026-10-27 ([RD125](DECISIONS.md#recorded-decisions)); rows B.5, B.6, B.16–B.18
+- ✅ B.4 Choose the next set (a planning row, no build) — the owner chose mail, then webhook, cron and fetch, 2026-10-27 ([RD125](DECISIONS.md#recorded-decisions)); rows B.5, B.6, B.16–B.18
 
 - ✅ B.5 IMAP client — [guide](../../docs/agents/imap.md#what-it-does), [verification and disabled deployment](done/mail.md#b5-imap)
   - Plain agent and three owner-requested instances installed disabled, sandboxed and owner-only; publication target unset. Manager-controlled live enable/small sync remains separate from fixture proof.
@@ -323,7 +320,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - [Install-time timers and status](../../src/agents/standalone/git/README.md#autopull): an optional `--autopull ab=5m` for each configured repository with deploy or commit access, ff-only under the same lock; dirty or diverged trees are never forced, errors are logged and returned by `autopull ab`. No timer by default and no service restart. Owner revised the initial Configuration proposal to install-time systemd timers on 2026-10-19.
   - Acceptance: a real private timer brings a fixture upstream commit within a bounded interval; a dirty tree remains intact and its failure is returned; removal removes the timer. Mutants: timer not enabled; dirty tree reset/cleaned.
 
-- ✅ B.10 Git roots and access levels in Configuration
+- ✅ B.10 Git roots and access levels in Configuration (`b7ec1957`)
   - Builds: [repositories and access levels](../../src/agents/standalone/git/README.md#repositories-and-access-levels): `repos` with path and `access` (`read`, `deploy`, `commit`, cumulative) in the Configuration, replacing `--repo`; roles `deploy` and `commit` replace `operate` and `admin`; the effective level is the lower of the repository cap and the caller's role. Owner, 2026-10-19: "in config - list git roots and allowed access level … even with best role user can not go over repo cap"
   - Acceptance: a `commit` caller on a `deploy` repository is refused push and reset-free pull still works; a `deploy` caller on a `commit` repository is refused commit; a `read` repository refuses pull from any role; a path not in `repos` is refused; a changed Configuration applies to the next call; autopull runs only on a repository whose cap is at least `deploy`; a malformed `repos` answers an error naming it. Live: `ab` capped at `read`
   - Mutants: the cap ignored (role alone decides); the role ignored (cap alone decides); a repository outside `repos` accepted
@@ -467,7 +464,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
 
 - ✅ B.28 `#eventlog` agent — **0.9.183–0.9.187**, `0d60d4ff`; deployed 2026-10-30 ([result](DONE.md#b28-eventlog-agent); [design](agent-events/eventlog.md#what-it-does), [tasks](agent-events/TODO.md#b28-eventlog-agent) (owner, 2026-10-29)). The web page is not built
 
-- ⏳ B.27 Messaging agents, the [Slack and Telegram shape](../R1.2/services.md#people-and-the-world-outside): post and read, replies routed to the asking session, `sub` forwarding a conversation; one instance per account, the provider token as the record's Secret (owner, 2026-10-29). Unassigned; each needs a plan of its own, with methods and Configuration proposed for approval, before code ([plans](messaging/README.md#plans))
+- ✅ B.27 Messaging agents, the [Slack and Telegram shape](../R1.2/services.md#people-and-the-world-outside): post and read, replies routed to the asking session, `sub` forwarding a conversation; one instance per account, the provider token as the record's Secret (owner, 2026-10-29). Built: Slack (`62d90c9e`, [guide](../../docs/agents/slack.md#what-it-does)) and Telegram (B.1, [guide](../../docs/agents/telegram.md#what-it-does)); every other service needs a plan of its own, with methods and Configuration proposed for approval, before code ([plans](messaging/README.md#plans))
   - B.27a Discord: moved to R1.1 (owner, 2026-10-30: "move discord to 1.1"); the code stays on main, outside the R1 bundle and archives. [R1.1 task](../R1.1/TODO.md#discord)
   - ✅ B.27m Discord leaves the R1 bundle: `src/agents/package.sh` and setup's file list drop it, and the packager test fails if an R1 package holds a discord tree
   - B.27b Google Chat: moved to [R1.2](../R1.2/TODO.md#messaging-agents) (owner, 2026-11-01: a corporate account is needed); [plan](messaging/google-chat.md#proposed-methods-for-approval)
@@ -512,13 +509,6 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Done 0.9.107 (`fff602f0`): normal 1191/0, seven mutants red; `#tmux-sessions` live, `#sessions` retired; this node's set waits for the owner's switchover
   - Reopened (owner, 2026-10-27): one tmux `session` per set, each entry a `window` in it (keys `session`, `windows`, `window`); methods `start`, `stop`, `restart` for all or named windows (start adds only missing windows), `list` of the configured windows with their real state; the `status` ask checks the real tmux windows and bus readers (`ok` all up, `degraded` some missing, `failed` none or no session); generic, not AI-only (owner: "this is a generic tmux session starter"): a window is `name` (the tmux window name, required, used to check it runs), `cwd`, a `command` string run by `sh -c` as tmux does, and optional `env`, an env-file string (`KEY=VALUE` lines) or an object, never credentials; nothing runtime- or bus-specific, every method gated by the record ACL alone
   - Done 0.9.110 (`b4317179`): one session of named command windows, start/stop/restart/list, observed status, shared Python env-file parser on the Go vectors, `config.json.dist`; normal 1187/0, 13 mutants red
-
-- 🚫 RT30 `#tmux-sessions` runs under the person's runner, not as a standalone service (owner, 2026-10-27: "any reason why this is not a part of Runner?" → "yes")
-  - A kept agent of the personal runner with `"sandbox": "off"`, declared and documented as such: it needs the person's tmux server, `systemd-run --user --scope`, their HOME logins and network, and windows that outlive any call
-  - Windows already leave the agent's cgroup through `systemd-run --user --scope`; reload, stop or a crash of the agent never touches them
-  - The main and the `ab-dvp` instance move with their Configuration, ACL and owner; their standalone units are removed; a second instance is a second runner record
-  - Acceptance: both instances answer help and status through the runner; `reload` and `stop` of the agent leave every tmux window and its pid unchanged; no standalone tmux-sessions unit remains
-  - Cancelled 2026-10-27: the person's runner runs as its own account (`parf-ab-runner`), not as the person, so it cannot reach their tmux server, user manager or logins without crossing the process boundary. `#tmux-sessions` stays a standalone service run as the person
 
 - ✅ RT31 A person's user-account runner — implementation `c952c241` (0.9.149), state-home handover `9905f3ff` (0.9.151), live close-out 2026-11-01 on 0.9.262. Both tmux instances are served by `#runner/parf-user@parf.us`; standalone unit files are removed. [Acceptance, live observations and baseline limits](done/rt31-user-account-runner.md#acceptance-map); [current contract](../../docs/07-setup.md#a-persons-user-account-runner).
 
@@ -566,14 +556,13 @@ asks for the API shape; then runner, daemon and web parts are split.
 Implement the [release artifacts](distribution.md#release-artifacts) and [container contract](distribution.md#container-runtime).
 
 - ✅ T-10 One notice file, `licenses/NOTICE.md` — **0.9.189**, `0e7868ee` ([result](DONE.md#t-10-one-notice-file))
-- Deferred P.4 Shell installer: moved to [FUTURE](FUTURE.md#shell-installer) by RD178. Earlier acceptance is [history](done/installer-acceptance.md#checks), not a remaining key or publication prerequisite.
-  - Native aarch64 build and release evidence passed 2026-10-30 ([result](done/p3-aarch64-mac-run.md#steps)); the clean install there passed on 0.9.223 (21 checks) after J59, once setup stopped restarting units faster than systemd's start limit ([result](done/p3-aarch64-mac-run.md#steps)). This is retained evidence, not an npm publication blocker.
+- ✅ P.3a Native aarch64 build and release evidence: passed 2026-10-30 ([result](done/p3-aarch64-mac-run.md#steps)); the clean install there passed on 0.9.223 (21 checks) after J59, once setup stopped restarting units faster than systemd's start limit ([result](done/p3-aarch64-mac-run.md#steps)). Retained evidence, not an npm publication blocker; the shell installer (P.4) is in [FUTURE](FUTURE.md#shell-installer).
 
 - ⏳ P.1 npm package
   - Contract: [npm packaging and local acceptance](distribution.md#npm). Full and client editions carry the release executables, compiled MCP runtime and its required assets, launchers, bundled runtime files, license and notices. Build stamped release archives on the tag, verify `SHA256SUMS` and manifests, then wrap them with `src/npm/pack.py` and `npm pack`.
   - Manifest inventory: the builder’s generated command `package.json` names change from `agent-bus` / `agent-bus-client` to `ai-agent-bus` / `ai-agent-bus-client`; generated platform names are `ai-agent-bus-{linux-x64,linux-arm64}` and `ai-agent-bus-client-{linux-x64,linux-arm64}`. Audit the `name`, dependency and platform-name references together and drop any published `@agent-bus/` variants; change the builder defaults in a separate implementation commit and retain the installed command `agent-bus`. Add macOS platform names only with built and tested assets. No manifest edits in this plan change.
   - The tracked `src/clients/typescript/package.json` (`@agent-bus/client`), `src/mcp/package.json` (`@agent-bus/mcp`) and `src/web/package.json` (`@agent-bus/web`) are private development manifests. Keep them unpublished; if any becomes a published artifact, rename it to an unscoped name and update its references first. There is no npm org; publishing uses the owner’s account, per the [decision](distribution.md#npm).
-  - T-16 implementation: the wrapper defaults select the owner’s reserved package names while preserving the `agent-bus` command; naming/bin assertions and local installed-command acceptance cover the change. Other distribution migration remains pending.
+  - T-16 implementation: the wrapper defaults select the owner’s reserved package names while preserving the `agent-bus` command; naming/bin assertions and local installed-command acceptance cover the change. The only step left is the first publication at the release ([Q300](DECISIONS.md#recorded-decisions)), below.
   - ✅ P.1a Release signing retired in the workflow, verifier, checksum generator and installer fixtures; [result and acceptance](done/p1a-unsigned-release.md#result). Both native builds and checksum/manifest verification precede unsigned GitHub build-artifact publication.
   - ✅ P.1c macOS npm platform packages: local-tarball installation, stamped CLI version, one correlated call and client-only daemon refusal passed on arm64; cleanup confirmed by the CEO ([result](done/p1c-macos-npm.md#native-acceptance)).
   - Acceptance: install the local `npm pack` tarballs in a clean supported container with npm but no checkout, Go or bun; resolve dependencies only from those tarballs (a private loopback registry is allowed). Start the installed bus and an installed agent, complete a request/reply and an MCP tool call. Install the client-only package as a second account and prove it joins without a daemon or writes outside its prefix. Compare installed executables and MCP assets to the release manifest.
@@ -596,7 +585,7 @@ Implement the [release artifacts](distribution.md#release-artifacts) and [contai
 
 Plan and acceptance in [macOS](macos.md#tasks); decided in [RD166](DECISIONS.md#recorded-decisions). The owner approved starting the cheaper path on 2026-10-30 (Q221).
 
-- ✅ MAC.1 Client and runner on macOS without a sandbox: [client and runner](macos.md#mac1-client-and-runner-on-macos); shares `src/cmd/agent-bus-runner/`, `src/internal/cgroup/` and `src/internal/sandbox/` with team 2's M.5 and DR.1
+- ✅ MAC.1 Client and runner on macOS without a sandbox (`b4197cf2`): [client and runner](macos.md#mac1-client-and-runner-on-macos); shares `src/cmd/agent-bus-runner/`, `src/internal/cgroup/` and `src/internal/sandbox/` with team 2's M.5 and DR.1
   - State 2026-10-30, branch `ab-w1b/MAC1`: built and rebased on main; on the Mac (arm64, macOS 26.5.2) the throwaway release passes I2 install, I3 version and build stamp, I4 already current, I5 tampered archive refused with nothing written, I6 full node refused, and R1 `--sandbox=on` is refused with exit 1 and no output from the script. R2 passed 2026-10-30 17:49 over the pinned-TLS path (a loopback tunnel to the node's daemon, a credential issued for the one run and revoked): the script agent `sh -c "id -un"` answered `parf`, the account that started the runner, with the sandbox off. R3 (the same as a standard non-administrator account) skipped: optional by the [plan](mac-run-list.md#d-client-install-and-runner-on-macos-mac1) ("optional, the owner decides"), and MAC.2 proved the non-root service account (`#ab-ceo`, 2026-10-30); the Mac holds 57M under `~/agent-bus-dev`, nothing of this run
 - ✅ MAC.2 Daemon with a reduced setup: code and native daemon/setup/admin acceptance verified ([result](done/mac2.md#checks-and-results)); the archive-based Mac run passed on 2026-11-01 at 15:14: `rc=0` in 27.059 s, revision `c49d51f3` (0.9.267), arm64, stamped `darwin-aarch64` full archive, the missing role group restored at GID 206, nothing left behind ([evidence](done/mac2.md#archive-acceptance)); [current setup](../../docs/07-setup.md#the-daemon).
   - Native reduced setup and cleanup landed in `f11c9d2a`: `sysadminctl` and `dseditgroup` verify absence, including an already removed group, and report named leftovers on failure. Local stubs and the owner cleanup proof pass ([cleanup](done/mac2.md#owner-cleanup-verified)).

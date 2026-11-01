@@ -113,7 +113,7 @@ Moved by [Q299](../R1.0-Release/DECISIONS.md#recorded-decisions), owner, 2026-11
   - M.7a the mechanism is chosen and its format approved (owner question); M.7b the proxy and the no-route bypass check (L)
   - Builds: the filtering proxy for `needs` hosts
   - Acceptance: a named host is reached and another refused; bypassing the proxy has no route
-  - Mutant: Not recorded in the source.
+  - Mutant: set with the mechanism (M.7a): a request to a host outside the list reaches it, and the no-route bypass check passes without the proxy.
   - Home: [named hosts](runner.md#named-hosts); [open policy](QUESTIONS.md#runner-extensions).
 
 - 💡 RT19 A root runner: [proposal](runner.md#root-runner), [open choices](QUESTIONS.md#runner-extensions); no design approved.
@@ -133,8 +133,6 @@ Proposals to prioritize after the minimum. RT11 RW10–RW17 only, moved by Q299;
 
 - ⏳ RW13 Explain configuration precedence and whether changes need reload or a
   - Details: process restart; provide a deliberate restart action when supported.
-
-- ✅ RW14 (0.8.211) Enable/disable future serving separately from starting/stopping it now.
 
 - ⏳ RW15 Offer bounded, permission-checked logs and diagnostics when available,
   - Details: with secret redaction and a clear unavailable state.
@@ -157,7 +155,7 @@ Proposals to prioritize after the minimum. RT11 RW10–RW17 only, moved by Q299;
 
 ## Node cleanup
 
-- ⏳ B.15 Node cleanup with a lasting bound: [proposal and observation](node-cleanup.md#lasting-bounds), [RD110](../R1.0-Release/DECISIONS.md#recorded-decisions).
+- ⏳ B.15 Node cleanup with a lasting bound (built: `src/maintenance/node-cleanup.py` and its weekly timer ran on 2026-11-01; the one-week acceptance below is still open): [proposal and observation](node-cleanup.md#lasting-bounds), [RD110](../R1.0-Release/DECISIONS.md#recorded-decisions).
   - Acceptance: after one week of normal work, none of the Go build cache, shared Rust target, abrt crash dumps, old release versions, logs, backups or test `/tmp` leftovers has grown past its stated bound, and the disk report shows it. Review the stale-session list and back up the daemon before removing records; observation itself authorizes no timer or deletion.
 
 ## macOS sandbox

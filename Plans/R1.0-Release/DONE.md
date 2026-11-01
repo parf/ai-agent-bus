@@ -1,5 +1,10 @@
 # DONE — R1
 
+## Task review 2026-11-01
+
+- Applied from the pre-release sweep (`#ab-dir`): RT10, M.6 (M.6a `9871870d`) and B.27 (Slack `62d90c9e`, Telegram B.1) are ✅; RT17, the P.4 pointer and RT30 ([moved to done](done/rt30-tmux-in-the-runner.md)) leave the TODO; the Objective and Next step say what is built and what is left; P.1's remainder is the first publication; missing evidence is filled for RT16, RT21, B.9, B.10 and MAC.1 and B.4 is marked a planning row.
+- RW14 (0.8.211, enable or disable future serving apart from starting or stopping now) is built; it left the R1.1 list, where it sat among open rows.
+
 ## B1/B2/B3 key proof signs only the bus's namespace, rotates and parses `--key`
 
 - 🟠 B1 `agent-bus token --key` and `agent-bus enrol` signed the namespace and message a node sent back. Result: `keyproof.Sign` has no namespace parameter and always signs the nonce in `agent-bus`; both callers refuse an answer with another namespace, name or a nonce that is not 32 hex digits, naming the member and never echoing it ([proof](../../docs/02-access.md#proving-possession)).
