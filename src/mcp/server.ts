@@ -35,7 +35,7 @@ if (process.argv.length === 3 && ["--version", "-version"].includes(process.argv
 function loadSessionEnv(): void {
   if (!process.env.AGENT_BUS_SESSION_FILE) return;
   const env = JSON.parse(readFileSync(process.env.AGENT_BUS_SESSION_FILE, "utf8"));
-  for (const key of ["AGENT_BUS_TOKEN", "AGENT_BUS_NAME", "AGENT_BUS_ADDR", "AGENT_BUS_TLS_FINGERPRINT", "AGENT_BUS_DESCR", "AGENT_BUS_CWD", "AGENT_BUS_RUNTIME", "AGENT_BUS_PUSH", "AGENT_BUS_CONTROL_ADDR", "AGENT_BUS_CONTROL_TOKEN", "AGENT_BUS_SESSION_ID", "AGENT_BUS_TAKEOVER"]) {
+  for (const key of ["AGENT_BUS_TOKEN", "AGENT_BUS_NAME", "AGENT_BUS_ADDR", "AGENT_BUS_TLS_FINGERPRINT", "AGENT_BUS_BIGFILE_DIR", "AGENT_BUS_DESCR", "AGENT_BUS_CWD", "AGENT_BUS_RUNTIME", "AGENT_BUS_PUSH", "AGENT_BUS_CONTROL_ADDR", "AGENT_BUS_CONTROL_TOKEN", "AGENT_BUS_SESSION_ID", "AGENT_BUS_TAKEOVER"]) {
     if (typeof env[key] === "string") process.env[key] = env[key];
   }
 }

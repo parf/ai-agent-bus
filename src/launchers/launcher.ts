@@ -416,7 +416,7 @@ ${COPYRIGHT}`);
   // fork of this session, not the session itself (RD129).
   faceEnv.AGENT_BUS_SESSION_ID = session.id;
   if (takeOver) faceEnv.AGENT_BUS_TAKEOVER = "1";
-  for (const key of ["AGENT_BUS_NAME", "AGENT_BUS_TOKEN", "AGENT_BUS_RUNTIME", "AGENT_BUS_DESCR", "AGENT_BUS_CWD", "AGENT_BUS_PUSH", "AGENT_BUS_ADDR", "AGENT_BUS_TLS_FINGERPRINT"] as const) {
+  for (const key of ["AGENT_BUS_NAME", "AGENT_BUS_TOKEN", "AGENT_BUS_RUNTIME", "AGENT_BUS_DESCR", "AGENT_BUS_CWD", "AGENT_BUS_PUSH", "AGENT_BUS_ADDR", "AGENT_BUS_TLS_FINGERPRINT", "AGENT_BUS_BIGFILE_DIR"] as const) {
     const v = env[key];
     if (v !== undefined) faceEnv[key] = v;
   }

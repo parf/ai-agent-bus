@@ -1,4 +1,5 @@
 import { checkProtocol } from "./protocol.ts";
+import { fencedInput, fencedOutput } from "./bigfile-fence.ts";
 import { PIN_ENV, pinnedCertificate } from "./pin.ts";
 import os from "node:os";
 import {createHash} from "node:crypto";
@@ -179,6 +180,7 @@ export class Bus {
     bigKey(name);
     const ttl=bigSeconds(options.ttl??"24h");
     if(options.memory!==undefined&&typeof options.memory!=="boolean")throw new Error("memory must be boolean");
+    input_path=await fencedInput(this.#env,input_path);
     const source=Bun.file(input_path), details=await stat(input_path);
     if(!details.isFile()||details.size<1||details.size>BIG_CAP)throw new Error("input_path must name a nonempty file of at most 33554432 bytes");
     const hash=createHash('sha256');let size=0;
@@ -193,6 +195,7 @@ export class Bus {
   async bigGet(record:string,name:string,output_path:string):Promise<any> {
     if(typeof output_path!=="string"||!output_path.trim())throw new Error("output_path is required; MCP cannot download to stdout");
     bigKey(name);
+    output_path=await fencedOutput(this.#env,output_path);
     const query=new URLSearchParams({record,name});
     const res:Response=await this.#call('GET','/bigfile?'+query,undefined,AbortSignal.timeout(30000),{},false,undefined,true);
     const expected=res.headers.get('Content-Length'),sum=res.headers.get('X-Bigfile-Sha256');

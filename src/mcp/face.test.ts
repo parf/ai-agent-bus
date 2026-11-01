@@ -383,10 +383,13 @@ test('MCP big files stay out of context and corrupt downloads never replace outp
   if(req.method==='POST')return Response.json({deleted:true});
   return new Response(data,{headers:{'Content-Length':String(data.length),'X-Bigfile-Sha256':bad?'0'.repeat(64):sha(),'X-Bigfile-Held':'memory','X-Bigfile-Expires':'2026-11-02T00:00:00Z'}});
  }});
- const bus:any=new Bus({AGENT_BUS_NAME:'#mcp@fixture',AGENT_BUS_ADDR:`http://127.0.0.1:${server.port}`,AGENT_BUS_TOKEN:'fixture-only'});
+ const bus:any=new Bus({AGENT_BUS_NAME:'#mcp@fixture',AGENT_BUS_ADDR:`http://127.0.0.1:${server.port}`,AGENT_BUS_TOKEN:'fixture-only',AGENT_BUS_BIGFILE_DIR:scratch});
  const input=join(scratch,'in'),output=join(scratch,'out');
  try{
   await expect(bus.bigPut('r','n',join(scratch,'missing'))).rejects.toThrow();await writeFile(input,'');await expect(bus.bigPut('r','n',input)).rejects.toThrow();await expect(bus.bigGet('r','n',undefined)).rejects.toThrow('output_path');expect(calls).toBe(0);
+  const unset:any=new Bus({AGENT_BUS_NAME:'#mcp@fixture',AGENT_BUS_ADDR:`http://127.0.0.1:${server.port}`,AGENT_BUS_TOKEN:'fixture-only'});
+  await expect(unset.bigPut('r','n',input)).rejects.toThrow('bigfile is not configured');await expect(unset.bigGet('r','n',output)).rejects.toThrow('bigfile is not configured');
+  await expect(bus.bigPut('r','n','/etc/passwd')).rejects.toThrow('outside');await expect(bus.bigGet('r','n','/tmp/agent-bus-escape')).rejects.toThrow('outside');expect(calls).toBe(0);
   data=Buffer.alloc(1048577,255);await writeFile(input,data);const up=await bus.bigPut('r','n',input,{ttl:'30d'});expect(up.size).toBe(data.length);
   const down=await bus.bigGet('r','n',output);expect(down.sha256).toBe(up.sha256);expect(await readFile(output)).toEqual(data);expect(JSON.stringify(down)).not.toContain('data');
   bad=true;await writeFile(output,'keep old');await expect(bus.bigGet('r','n',output)).rejects.toThrow('SHA-256');expect(await readFile(output,'utf8')).toBe('keep old');
@@ -404,7 +407,7 @@ test('MCP big tools transfer files, require output_path and preserve unavailable
   if(url.pathname==='/bigfile/list')return Response.json({record:'r',keys:[]});
   if(req.method==='POST')return Response.json({deleted:true});
   return new Response(payload,{headers:{'Content-Length':String(payload.length),'X-Bigfile-Sha256':sum,'X-Bigfile-Held':'memory','X-Bigfile-Expires':'2026-11-02T00:00:00Z'}});
- });
+ },{AGENT_BUS_BIGFILE_DIR:root});
  const missing=await call('ab_bigfile_get',{record:'r',name:'n'});expect(missing.isError).toBe(true);expect(missing.text).toContain('output_path');expect(seen).toEqual([]);
  const uploaded=await call('ab_bigfile_put',{record:'r',name:'n',input_path:input,ttl:'24h'});expect(uploaded.isError).toBe(false);expect(uploaded.text).toContain(sum);expect(uploaded.text).not.toContain('SHOULD_NOT_REACH_MODEL');
  const downloaded=await call('ab_bigfile_get',{record:'r',name:'n',output_path:output});expect(downloaded.isError).toBe(false);expect(await readFile(output)).toEqual(payload);
@@ -428,7 +431,7 @@ test('MCP big tools roundtrip local files through the real daemon without return
   let timer:ReturnType<typeof setTimeout>|undefined;
   const info=await Promise.race([ready,new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(new Error('real fixture readiness timed out')),3000);})]).finally(()=>clearTimeout(timer));
   const name='#helper@fixture';
-  const transport=new StdioClientTransport({command:process.execPath,args:[join(import.meta.dir,'server.ts')],stderr:'pipe',env:{PATH:process.env.PATH??'',AGENT_BUS_NAME:name,AGENT_BUS_ADDR:info.addr,AGENT_BUS_TOKEN:info.tokens[name]}});
+  const transport=new StdioClientTransport({command:process.execPath,args:[join(import.meta.dir,'server.ts')],stderr:'pipe',env:{PATH:process.env.PATH??'',AGENT_BUS_NAME:name,AGENT_BUS_ADDR:info.addr,AGENT_BUS_TOKEN:info.tokens[name],AGENT_BUS_BIGFILE_DIR:scratch}});
   client=new Client({name:'big-real-test',version:'1'});await client.connect(transport);
   const call=async(tool:string,args:Record<string,unknown>)=>{
    const reply:any=await client!.callTool({name:tool,arguments:args});
@@ -455,7 +458,7 @@ test('MCP large file puts preserve early refusal status and cause',async()=>{
  const input=join(scratch,'input');await writeFile(input,Buffer.alloc(24*1024*1024,255));
  let status=403,calls=0;
  const daemon=Bun.serve({port:0,hostname:'127.0.0.1',fetch:(req)=>{if(new URL(req.url).pathname==='/identity')return Response.json({protocol:1,protocol_min:1});calls++;return Response.json({error:'early file refusal cause'},{status});}});
- const bus=new Bus({AGENT_BUS_NAME:'#mcp@fixture',AGENT_BUS_ADDR:`http://127.0.0.1:${daemon.port}`,AGENT_BUS_TOKEN:'fixture-only'});
+ const bus=new Bus({AGENT_BUS_NAME:'#mcp@fixture',AGENT_BUS_ADDR:`http://127.0.0.1:${daemon.port}`,AGENT_BUS_TOKEN:'fixture-only',AGENT_BUS_BIGFILE_DIR:scratch});
  try{
   for(status of [403,413,503]){
    try{await bus.bigPut('r','n',input);throw new Error('refused file upload accepted');}
