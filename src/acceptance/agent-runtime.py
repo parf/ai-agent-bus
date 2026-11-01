@@ -87,7 +87,7 @@ def check(root):
     rag_help = json.loads(output)
     rag_manifest = json.loads((rag / 'agent.json').read_text())
     assert rag_help['version'] == rag_manifest['version'], 'RAG own app version lost'
-    assert set(rag_help['methods']) == {'upsert','get','list','delete','prompts'}
+    assert set(rag_help['methods']) == {'upsert','get','list','search','keyword_index','delete','prompts'}
     assert (rag / 'config.json.dist').is_file() and (rag / 'CHANGELOG.md').is_file()
     print('rag: app version, client/helper imports and JSON methods loaded without live blocks')
 
