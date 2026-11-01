@@ -1084,9 +1084,9 @@ ab owner@srv1 register '#refused-by@srv1' --kind agent --allow owner@srv1 >/dev/
 n0=$(count credential)
 tcode not-a-token /status >/dev/null 2>&1
 delta "a credential that is not one is counted as that" 1 "$n0" "$(count credential)"
-n0=$(count unknown)
+n0=$(count not_found)
 ab caller@srv1 send nobody-at-all@srv1 "into the void" >/dev/null 2>&1
-delta "an unknown receiver is counted as unknown" 1 "$n0" "$(count unknown)"
+delta "an unknown receiver is counted as not_found" 1 "$n0" "$(count not_found)"
 n0=$(count acl)
 ab stranger@srv1 send '#refused-by@srv1' "let me in" >/dev/null 2>&1
 delta "a call the ACL refuses is counted as acl" 1 "$n0" "$(count acl)"
