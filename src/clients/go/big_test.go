@@ -202,3 +202,25 @@ func TestBigUnavailableStoreIsABusErrorCarryingTheCause(t *testing.T) {
 		}
 	}
 }
+
+func TestBigPutOfALargeBodyReportsAnEarlyRefusalNotAResetConnection(t *testing.T) {
+	for _, status := range []int{403, 413, 503} {
+		b := bigServer(t, func(w http.ResponseWriter, r *http.Request) {
+			// Refuse without reading the body, as the daemon does for a record or limit.
+			w.WriteHeader(status)
+			fmt.Fprintf(w, `{"error":"refused early: %d"}`, status)
+		})
+		size := int64(24 << 20)
+		for try := 0; try < 3; try++ {
+			_, e := b.Record("#r").Big.Put(context.Background(), "k", io.LimitReader(zeros{}, size), size)
+			var be *BusError
+			if !errors.As(e, &be) || be.Status != status || !strings.Contains(be.Message, "refused early") {
+				t.Fatalf("%d try %d: %v", status, try, e)
+			}
+		}
+	}
+}
+
+type zeros struct{}
+
+func (zeros) Read(p []byte) (int, error) { clear(p); return len(p), nil }

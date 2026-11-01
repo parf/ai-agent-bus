@@ -173,6 +173,17 @@ func bigDo(method, path string, q url.Values, body io.Reader, size int64, header
 	}
 	if body != nil {
 		req.ContentLength = size
+		// Expect: 100-continue lets an early refusal arrive before the body is
+		// sent, so a large put reports it rather than a reset connection.
+		req.Header.Set("Expect", "100-continue")
+		if t, ok := client.Transport.(*http.Transport); ok {
+			t = t.Clone()
+			t.ExpectContinueTimeout = 2 * time.Second
+			defer t.CloseIdleConnections()
+			c := *client
+			c.Transport = t
+			client = &c
+		}
 	}
 	if token != "" {
 		req.Header.Set(api.HeaderToken, token)

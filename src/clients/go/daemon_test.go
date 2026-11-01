@@ -306,3 +306,20 @@ func TestRealDaemonBigKeyOf32MiBRoundTripsByteIdentical(t *testing.T) {
 		t.Fatalf("%+v %v", got, e)
 	}
 }
+
+func TestRealDaemonRefusesAStrangersLargePutWithItsCauseNotAReset(t *testing.T) {
+	addr, tokens := realFixture(t)
+	owner := fixtureBus(t, addr, tokens["owner@fixture"], "owner@fixture")
+	outsider := fixtureBus(t, addr, tokens["#outsider@fixture"], "#outsider@fixture")
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if _, e := owner.Record("jobs@fixture").Manage(ctx, map[string]any{"allow": []string{"owner@fixture"}}); e != nil {
+		t.Fatal(e)
+	}
+	size := int64(24 << 20)
+	_, e := outsider.Record("jobs@fixture").Big.Put(ctx, "mine", io.LimitReader(zeros{}, size), size)
+	var be *BusError
+	if !errors.As(e, &be) || be.Status != 403 {
+		t.Fatalf("a stranger's 24 MiB put: %v", e)
+	}
+}

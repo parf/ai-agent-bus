@@ -159,7 +159,9 @@ func (b Big) Put(ctx context.Context, name string, r io.Reader, size int64, opts
 	h := sha256.New()
 	q := url.Values{"record": {b.record}, "name": {name},
 		"ttl": {strconv.FormatInt(int64(p.ttl/time.Second), 10)}, "memory": {strconv.FormatBool(p.memory)}}
-	header := map[string]string{"Content-Type": "application/octet-stream"}
+	// Expect: 100-continue lets an early refusal (403, 413, 503) arrive before the body is sent,
+	// so a large put reports it rather than a reset connection.
+	header := map[string]string{"Content-Type": "application/octet-stream", "Expect": "100-continue"}
 	if p.sha != "" {
 		header["X-Big-Sha256"] = strings.ToLower(p.sha)
 	}

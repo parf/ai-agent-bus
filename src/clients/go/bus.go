@@ -243,7 +243,7 @@ func Dial(o Options) (*Bus, error) {
 	if o.Addr == "" {
 		o.Addr = defaultSocket(o.Token != "")
 	}
-	t := &http.Transport{DisableKeepAlives: true, ForceAttemptHTTP2: false, TLSNextProto: map[string]func(string, *tls.Conn) http.RoundTripper{}, DialContext: (&net.Dialer{Timeout: o.Timeout}).DialContext}
+	t := &http.Transport{ExpectContinueTimeout: 2 * time.Second, DisableKeepAlives: true, ForceAttemptHTTP2: false, TLSNextProto: map[string]func(string, *tls.Conn) http.RoundTripper{}, DialContext: (&net.Dialer{Timeout: o.Timeout}).DialContext}
 	base := strings.TrimRight(o.Addr, "/")
 	if strings.HasPrefix(base, "unix:") || strings.HasPrefix(base, "/") {
 		path := strings.TrimPrefix(base, "unix:")

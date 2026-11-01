@@ -213,3 +213,22 @@ func TestBigUnavailableStoreShowsTheDaemonsCauseOnEveryCall(t *testing.T) {
 		}
 	}
 }
+
+func TestBigPutOfALargeFileReportsAnEarlyRefusalNotAResetConnection(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "large")
+	f, _ := os.Create(file)
+	f.Truncate(24 << 20)
+	f.Close()
+	for _, status := range []int{403, 413, 503} {
+		bigDaemon(t, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(status)
+			fmt.Fprintf(w, "refused early: %d", status)
+		})
+		for try := 0; try < 3; try++ {
+			_, e := captureStdout(t, func() error { return bigPutVerb([]string{"#r", "k", file}) })
+			if e == nil || !strings.Contains(e.Error(), fmt.Sprintf("refused early: %d", status)) {
+				t.Fatalf("%d try %d: %v", status, try, e)
+			}
+		}
+	}
+}
