@@ -79,7 +79,7 @@ func (s *Server) bigPut(w http.ResponseWriter, r *http.Request, caller protocol.
 
 // bigDrain is how long, at most, a refused upload's remaining bytes are read
 // and thrown away so the client can see the refusal.
-const bigDrain = 2 * time.Second
+var bigDrain = 2 * time.Second
 
 // bigRefused answers a refusal of an upload. One that arrives before the body
 // has been read would reset a client still writing it, so the client never

@@ -132,3 +132,56 @@ func TestBigPutRefusalReachesAClientStillWriting(t *testing.T) {
 		conn.Close()
 	}
 }
+
+// A client that dribbles its body must not hold the handler for the whole
+// drain: the answer arrives about bigDrain after the refusal, while the client
+// is still writing.
+func TestBigPutDrainEndsAtItsDeadlineForADribblingClient(t *testing.T) {
+	s, tok := bigServer(t)
+	srv := httptest.NewServer(s.Handler())
+	defer srv.Close()
+	old := bigDrain
+	bigDrain = 300 * time.Millisecond
+	t.Cleanup(func() { bigDrain = old })
+	conn, err := net.Dial("tcp", srv.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	conn.SetDeadline(time.Now().Add(6 * time.Second))
+	fmt.Fprintf(conn, "PUT /big?record=%%23svc@h&name=k HTTP/1.1\r\nHost: x\r\n%s: %s\r\nContent-Length: %d\r\n\r\n", HeaderToken, tok("bob@h"), 3<<20)
+	stop := make(chan struct{})
+	writing := make(chan struct{})
+	go func() {
+		defer close(writing)
+		for {
+			select {
+			case <-stop:
+				return
+			case <-time.After(20 * time.Millisecond):
+				if _, err := conn.Write([]byte{0}); err != nil {
+					return
+				}
+			}
+		}
+	}()
+	start := time.Now()
+	resp, err := http.ReadResponse(bufio.NewReader(conn), nil)
+	took := time.Since(start)
+	select {
+	case <-writing:
+		t.Error("the client had stopped writing before the answer arrived")
+	default:
+	}
+	close(stop)
+	<-writing
+	if err != nil {
+		t.Fatalf("no answer for a dribbling client within %v: %v", took, err)
+	}
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("status %d", resp.StatusCode)
+	}
+	if took < bigDrain-50*time.Millisecond || took > bigDrain+1500*time.Millisecond {
+		t.Fatalf("the answer came after %v, want about the %v drain deadline", took, bigDrain)
+	}
+}
