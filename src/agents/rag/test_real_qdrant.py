@@ -61,7 +61,9 @@ class RealKeyword(unittest.TestCase):
         self.app.cache.set('team','notes',PROMPT)
         self.addCleanup(self.wire.http,'DELETE','/collections/'+self.collection)
     def put(self,id,data):return self.app.run(parse(dumps({'method':'upsert','namespace':'team','tableName':'notes','id':id,'data':data})))
-    def find(self,query,**more):return self.app.run(parse(dumps({'method':'search','namespace':'team','query':query,**more})))
+    def find(self,query,**more):
+        try:return self.app.run(parse(dumps({'method':'search','namespace':'team','query':query,**more})))
+        except RagError as error:self.fail(f'the real server refused search {query!r}: {error}')
     def test_ingest_search_get_and_delete_against_the_real_server(self):
         self.put('tea','Tea is a drink made from leaves.')
         self.put('saffron','Saffron is a rare spice.')
