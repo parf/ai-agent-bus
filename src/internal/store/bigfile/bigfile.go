@@ -498,12 +498,13 @@ func (s *Store) BigDelete(record uint32, name string, now time.Time) (bool, erro
 		return false, err
 	}
 	k := key{record, name}
-	_, wasMem := s.mem[k]
-	delete(s.mem, k)
+	// The database goes first: a refusal leaves the memory key where it was.
 	old, wasRow, err := s.idx.BigRowDelete(record, name)
 	if err != nil {
 		return false, err
 	}
+	_, wasMem := s.mem[k]
+	delete(s.mem, k)
 	crashPoint("row-deleted")
 	if wasRow {
 		s.unlink(old)

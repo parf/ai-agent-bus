@@ -666,3 +666,24 @@ func TestADropNeverRemovesThroughALinkedRecordDirectory(t *testing.T) {
 		t.Fatal("the row survived the drop")
 	}
 }
+
+// A refused delete leaves a memory key as it found it: the database is asked
+// first, and the key is dropped only once it has answered.
+func TestARefusedDeleteKeepsAMemoryKey(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "big")
+	idx := failingIndex{MemoryIndex: NewMemoryIndex()}
+	s, err := Open(dir, idx, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	put(s, 1, "k", "in memory", true, now)
+	idx.failDelete = true
+	s.idx = idx
+	if _, err := s.BigDelete(1, "k", now); err == nil {
+		t.Fatal("a refused delete was reported as done")
+	}
+	if got := get(t, s, 1, "k", now); got != "in memory" {
+		t.Fatalf("the memory key is damaged after a refused delete: %q", got)
+	}
+}
