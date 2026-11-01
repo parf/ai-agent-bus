@@ -2,6 +2,15 @@
 
 Completed steps of the [RAG TODO](TODO.md#steps), newest first.
 
+## T-25 Keyword search
+
+- **Landed:** `bdd10390`, **0.9.265**, app manifest unchanged at 0.1.0. A `keyword_search` setting (`builtin` default, `external`), BM25 ingest into a `text` sparse vector with Qdrant's idf modifier, a `search` method, and `keyword_index` to add the vector and backfill an existing collection. The fused dense plus keyword query, filters beyond the key fields and rerank stay in [R.7](TODO.md#steps). [Guide](../../../docs/agents/rag.md#what-it-does).
+- **Behavior:** a chunk answers only while its record's live head lists it (a failed first publish, a replaced revision and a deleted record are never returned); an exhausted window and a partly built index are refused, never answered as empty or partial; `keyword_index` is Owner/Maintainer-only, idempotent and resumable, with each update under 512 KiB for the proxy's body cap; an unbuilt index says `keyword index not built yet; run {"method":"keyword_index"}`. Existing collections keep working unchanged.
+- **Checks:** 53 fake-backed tests and 3 real-Qdrant tests on the pinned 1.20.0 container (one container for the module, own API key, scratch collections removed, `--cgroup-manager=cgroupfs`, journal-quiet silent, no container left): ingest and idf ordering, replace, delete, read-back by name, an orphan chunk, and a collection built without the vector indexed in place over existing points, repeated, and a stray chunk found and repaired. The shard takes 19.7 s alone and 32 s inside a full run, off the critical path.
+- **Mutants:** 34 compiling mutants over four rounds, all failing on assertions after five weak checks were tightened (the result limit, the named-vector read-back, the completeness cache, the update size cap and the recount time).
+- **Review:** three rounds by `#ab-w1c` and `#ab-w2b`: the first found drafts and old revisions returned by search and a wrong "recreate the collection" claim; the second a window that read as no match and a half-built index answered partially; the third a cached zero trusted forever. The first normal gate went red twice on `src/acceptance/agent-runtime.py`, which still listed the old five RAG methods; one line fixed it and the whole setup package passed.
+- **Host:** no rag instance is configured and the Qdrant proxy holds no collection, so nothing was backfilled; adding the vector needs the proxy's admin role, which the helper does not hold, and its answer names the owner's one command.
+
 ## R.6 Core CRUD and prompts
 
 - **Landed:** app **0.1.0** (`src/agents/rag/agent.json`, own changelog), shared integration **0.9.132**, `2960c44b`. Before any deployment, an omitted `serves:itself` declaration was found: the direct-entrypoint fixture did not exercise runner loading. **0.9.133**, `4c1a31d1`, adds that declaration and a real exported-package runner-loader assertion. Main `e40578c5` contains both and the separate database fast-check correction; fast-forward and ancestry were verified before reporting. The same R.6 step retains app 0.1.0; later app steps bump its PATCH.

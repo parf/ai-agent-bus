@@ -49,6 +49,7 @@ Blocks first (R.1–R.4), then the app (R.5–R.9).
 - ✅ R.6 `#rag` core: CRUD and prompts — app **0.1.0**, shared integration **0.9.132–0.9.133**, source `2960c44b`, reader-mode correction `4c1a31d1`; final normal **1212/0**, check-deploy **6/6**. [Evidence and reviewed plan](DONE.md#r6-core-crud-and-prompts). Live ingestion waits for owner provisioning and provider approval.
 
 - ☐ R.7 `#rag` search
+  - State: keyword search built in 0.9.265 (`bdd10390`): BM25 `search` over live record heads, `keyword_index` (in-place add of the vector and a resumable backfill), and refusals for an exhausted window and a partly built index; remaining: meaning (dense) search and the fusion of the two, filters beyond the key fields, rerank. [Result](DONE.md#t-25-keyword-search)
   - Builds: hybrid `search` with filters and optional rerank; the keyword configuration option and default follow [Q194](README.md#rules). R.5 supplies comparison evidence, not the backend choice.
   - Acceptance: on a fixture set, filters hold exactly; a keyword-only match and a meaning-only match both appear; rerank reorders; hits carry the agreed fields
 
