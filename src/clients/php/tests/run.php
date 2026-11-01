@@ -126,10 +126,12 @@ function fake(string $sock, callable $script, int $max = 200, bool $identity = t
                 continue;
             }
             file_put_contents("$sock.count", (string) ($i + 1));
-            [$delay, $status, $body] = $script(strtok($req, "\r\n"), $i);
+            $answer = $script(strtok($req, "\r\n"), $i);
+            [$delay, $status, $body] = $answer;
+            $extra = $answer[3] ?? '';
             usleep((int) ($delay * 1e6));
             if ($status === 'hangup') { fclose($c); continue; }
-            @fwrite($c, "HTTP/1.1 $status X\r\nContent-Type: application/json\r\nContent-Length: " . strlen($body) . "\r\nConnection: close\r\n\r\n$body");
+            @fwrite($c, "HTTP/1.1 $status X\r\nContent-Type: application/json\r\n$extra" . "Content-Length: " . strlen($body) . "\r\nConnection: close\r\n\r\n$body");
             fclose($c);
         }
     });
@@ -853,6 +855,8 @@ section('protocol rule and refusal kind', function () use ($dir) {
     check('a 503 that names its kind keeps its words', $e instanceof Refusal && $e->kind() === 'unavailable' && $e->getMessage() === 'store down', $e ? $e->getMessage() : 'none');
     unfake($pid);
 });
+
+require __DIR__ . '/vectors.php';
 
 echo "passed $pass, failed $fail\n";
 exit($fail === 0 ? 0 : 1);
