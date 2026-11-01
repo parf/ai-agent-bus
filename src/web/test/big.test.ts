@@ -49,7 +49,8 @@ test("the store page lists a record's big keys without their contents", async ()
   expect(c).toContain("12 B");
   expect(c).toMatch(/>2d 2\dh<|>3d 0h<|>2d 23h</);
   expect(c).toContain('action="/big-delete"');
-  expect(c).not.toContain(hex + "ab");
+  expect(c).toContain(">abababababab…<");
+  expect(c).not.toContain(`>${hex}`);
 });
 
 test("a record with no big keys, or one the visitor may not list, shows no card", async () => {
