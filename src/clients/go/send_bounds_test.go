@@ -106,3 +106,45 @@ func TestCallWithAnExpiredContextReturnsItsErrorBeforeSending(t *testing.T) {
 		t.Fatalf("an expired call sent %d message(s)", sends)
 	}
 }
+
+// The same, when the context ends between the check and the send (here it is
+// cancelled while its deadline is still ahead): the send's error is the
+// caller's timeout, not a transport failure.
+func TestCallWhoseContextEndsBeforeItsSendReportsATimeout(t *testing.T) {
+	var mu sync.Mutex
+	sends := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/identity":
+			fmt.Fprint(w, `{"protocol":1,"protocol_min":1}`)
+		case "/send":
+			mu.Lock()
+			sends++
+			mu.Unlock()
+			fmt.Fprint(w, `{"message_id":"m1"}`)
+		default:
+			fmt.Fprint(w, `{"you":"owner@fixture"}`)
+		}
+	}))
+	defer server.Close()
+	b, err := Dial(Options{Addr: server.URL, Token: "fixture"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	if _, err := b.Status(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	cancel()
+	_, err = b.Call(ctx, "x@fixture", "b")
+	var timeout *ErrCallTimeout
+	if !errors.As(err, &timeout) || !errors.Is(err, context.Canceled) {
+		t.Fatalf("Call = %v, want a timeout wrapping the context's error", err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if sends != 0 {
+		t.Fatalf("a call whose context had ended sent %d message(s)", sends)
+	}
+}

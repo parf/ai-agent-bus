@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.285 — 2026-11-01
+
+HEAD on /consume is refused; the Go client sends a negative wait or ttl for the daemon to refuse, and a call whose context ended returns its timeout
+
 ## 0.9.284 — 2026-11-01
 
 Rust, PHP and Java run the shared conformance vectors; Rust asks identity first and PHP and Java refuse out-of-range lock times locally

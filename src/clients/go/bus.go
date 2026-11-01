@@ -679,6 +679,13 @@ func (b *Bus) Call(ctx context.Context, to, body string, opts ...Option) (CallOu
 	}
 	sent, e := b.Send(ctx, to, body, options...)
 	if e != nil {
+		// The caller's context ended before the request left: that is the call's
+		// timeout, as it is once the send is out, not a transport fault. A send
+		// that may have been accepted keeps its own, uncertain, answer.
+		var uncertain *UncertainOutcome
+		if ctx.Err() != nil && !errors.As(e, &uncertain) {
+			return CallOutcome{}, &ErrCallTimeout{CallOutcome{}, ctx.Err()}
+		}
 		return CallOutcome{}, e
 	}
 	out := CallOutcome{}
