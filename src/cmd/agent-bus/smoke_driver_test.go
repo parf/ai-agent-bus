@@ -12,8 +12,21 @@ import (
 	"time"
 )
 
+// A shard that starts late is a loaded host, not a failure: the wait is on the
+// shard's own start signal, bounded generously, and ends at once if the driver
+// itself exits (J69).
+const (
+	smokeStartWithin = 30 * time.Second
+	smokeExitWithin  = 15 * time.Second
+)
+
 // Exercise the real driver's traps with one harmless shard and no build.
-func TestSmokeInterruptStopsItsTimeoutShard(t *testing.T) {
+func TestSmokeInterruptStopsItsTimeoutShard(t *testing.T) { smokeInterrupt(t, 0) }
+
+// The same, with the shard starting later than the old fixed three-second wait.
+func TestSmokeInterruptWaitsForALateShard(t *testing.T) { smokeInterrupt(t, 3500*time.Millisecond) }
+
+func smokeInterrupt(t *testing.T, startDelay time.Duration) {
 	source, err := os.ReadFile("../../smoke.sh")
 	if err != nil {
 		t.Fatal(err)
@@ -22,7 +35,7 @@ func TestSmokeInterruptStopsItsTimeoutShard(t *testing.T) {
 	driver = regexp.MustCompile(`(?s)SHARDS=\(.*?\)`).ReplaceAllString(driver, "SHARDS=(fixture)")
 	driver = strings.Replace(driver, `python3 ./smoke-select.py --mode "$MODE" --targets "$TARGETS" --out "$SMOKE_PLAN" || exit 2`, `printf "fixture\tnormal\n" >"$SMOKE_PLAN"`, 1)
 	driver = strings.Replace(driver, `bash ./build.sh "$B/bin" || exit 1`, `mkdir -p "$B/bin"`, 1)
-	driver = strings.Replace(driver, `if [ -z "$SHARD" ]; then`, `if [ -n "$SHARD" ]; then echo "$$" >"$PROBE_PID"; exec sleep 30; fi`+"\n"+`if [ -z "$SHARD" ]; then`, 1)
+	driver = strings.Replace(driver, `if [ -z "$SHARD" ]; then`, `if [ -n "$SHARD" ]; then sleep `+strconv.FormatFloat(startDelay.Seconds(), 'f', 3, 64)+`; echo "$$" >"$PROBE_PID"; exec sleep 30; fi`+"\n"+`if [ -z "$SHARD" ]; then`, 1)
 	dir := t.TempDir()
 	script, pidfile := filepath.Join(dir, "driver.sh"), filepath.Join(dir, "child.pid")
 	// The driver sources these beside itself.
@@ -60,8 +73,14 @@ func TestSmokeInterruptStopsItsTimeoutShard(t *testing.T) {
 		}
 		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 	}()
-	until := time.Now().Add(3 * time.Second)
+	until := time.Now().Add(smokeStartWithin)
 	for time.Now().Before(until) {
+		select {
+		case err := <-exited:
+			text, _ := os.ReadFile(filepath.Join(dir, "output"))
+			t.Fatalf("the driver exited (%v) before its fixture shard started: %s", err, text)
+		default:
+		}
 		if b, err := os.ReadFile(pidfile); err == nil {
 			child, err = strconv.Atoi(strings.TrimSpace(string(b)))
 			if err != nil {
@@ -85,7 +104,7 @@ func TestSmokeInterruptStopsItsTimeoutShard(t *testing.T) {
 	}
 	select {
 	case <-exited:
-	case <-time.After(3 * time.Second):
+	case <-time.After(smokeExitWithin):
 		t.Fatal("interrupted smoke driver did not exit")
 	}
 	if err := syscall.Kill(child, 0); err == nil {
