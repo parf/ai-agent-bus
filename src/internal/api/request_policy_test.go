@@ -164,3 +164,42 @@ func TestRecordImportUsesTheSharedRequestFieldPolicy(t *testing.T) {
 		}
 	}
 }
+
+// Pin the HTTP inventory independently of queryFields: dropping a route from
+// that map must not silently remove its duplicate-key coverage.
+func TestHTTPRejectsDuplicateKnownQueriesAcrossTheRouteInventory(t *testing.T) {
+	s, token := serverFor(t, core.New(), "owner@h")
+	for _, probe := range []string{
+		"GET /secret name", "GET /config name", "GET /lookup name",
+		"GET /manages name who", "GET /ls kind tag", "GET /may-send name who",
+		"GET /consume topic tag inbox wait host asks original_to share",
+		"POST /lock wait", "POST /try-lock wait", "GET /holders record",
+		"GET /kv record name kind", "GET /kv/list record",
+		"PUT /bigfile record name ttl memory", "GET /bigfile record name", "GET /bigfile/list record",
+		"GET /activity name", "GET /activity/days name from to totals",
+	} {
+		args := strings.Fields(probe)
+		for _, key := range args[2:] {
+			q := url.Values{key: {"0s", "0s"}}
+			if args[1] == "/consume" && key != "wait" {
+				q.Set("wait", "0s")
+			}
+			r := httptest.NewRequest(args[0], args[1]+"?"+q.Encode(), nil)
+			r.Header.Set(HeaderToken, token("owner@h"))
+			w := httptest.NewRecorder()
+			s.Handler().ServeHTTP(w, r)
+			var body map[string]string
+			_ = json.Unmarshal(w.Body.Bytes(), &body)
+			if w.Code != 400 || body["kind"] != "malformed" || !strings.Contains(body["error"], "duplicate query key") {
+				t.Errorf("%s duplicate %s: %d %s", probe, key, w.Code, w.Body.String())
+			}
+		}
+	}
+	// Query syntax cannot override the authentication gate on private routes.
+	r := httptest.NewRequest("GET", "/lookup?name=a@h&name=b@h", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, r)
+	if w.Code != 401 {
+		t.Fatalf("query validation bypassed authentication: %d %s", w.Code, w.Body.String())
+	}
+}

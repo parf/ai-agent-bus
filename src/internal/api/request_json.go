@@ -11,7 +11,7 @@ import (
 
 // All request schemas ignore unknown members. Known members retain their
 // types and may occur only once (including case-insensitive spellings that
-// encoding/json accepts). Maps and RawMessage are caller data, not schemas.
+// encoding/json accepts). Map keys and RawMessage remain caller data.
 func decodeRequest(r io.Reader, out any) error {
 	dec := json.NewDecoder(r)
 	var raw json.RawMessage
