@@ -69,6 +69,8 @@ descriptions against YAML, including a description for every advertised tool.
 | `AGENT_BUS_CODEX_APPROVAL` | the Codex approval policy for bus-started turns — see [approvals](#one-app-server-two-clients) |
 | `AGENT_BUS_SESSION_FILE`, `AGENT_BUS_CONTROL_ADDR`, `AGENT_BUS_CONTROL_TOKEN`, `AGENT_BUS_MCP_ENTRY` | set by a launcher for its own face; not for hand use |
 
+point `AGENT_BUS_BIGFILE_DIR` at your own `/var/lib/agent-bus/users/<person>/files`; unset, the bigfile tools refuse.
+
 The [launchers](../../docs/06-launchers.md#smart-launchers) supply their
 [assigned session identity](../../docs/06-launchers.md#session-names);
 the defaults above apply when starting the face directly.
