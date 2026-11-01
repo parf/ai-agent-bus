@@ -13,7 +13,8 @@
 
 ## T-24 client compatibility
 
-- Go, Python and TypeScript clients, CLI and MCP check HTTP identity protocol compatibility and surface refusal kinds; [behavior and checks](done/t24-clients.md#checks). Five independent too-new mutants fail on assertions. The server, full contract documentation and shared conformance-vector work are separate T-24 slices.
+- Go, Python and TypeScript clients, CLI and MCP check HTTP identity protocol compatibility and surface refusal kinds; [behavior and checks](done/t24-clients.md#checks). Five independent too-new mutants fail on assertions. The server, the contract documentation and the vectors are separate slices.
+- T-24 D1 and V1, `0.9.272` `c1a89aa0`: [the stability policy and client contract](../../docs/09-daemon-api.md#stability-and-compatibility) with a table of every route and its class, and [shared vectors](../../src/testdata/client-conformance/README.md#state-identity-and-refusal-vectors-t-24) for key-value, locks, bigfiles, identity and refusals run by the Go, Python and TypeScript clients, plus a check that every registered route has a row. Wiring the Rust, PHP and Java adapters to the vectors (S2v) is team 2's, still open.
 
 ## RT31 user-account runner close-out
 
