@@ -410,7 +410,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Acceptance: [the plan's acceptance](imap-folders.md#acceptance-for-the-todo-item)
   - Mutants: [the plan's list](imap-folders.md#acceptance-for-the-todo-item)
 
-- ⏳ B.31 IMAP large transfer — **plan only, awaiting the owner**; no code until approved. [Plan](imap-large-transfer.md#help-text); questions [Q281](QUESTIONS.md#imap-large-transfer)–Q287.
+- ⏳ B.31 IMAP large transfer — **plan only, awaiting the owner**; no code until approved. [Plan](imap-large-transfer.md#help-text); questions [Q281](QUESTIONS.md#imap-large-transfer)–Q287 (Q285 settled).
   - Builds: `part` in windows, `upload begin|put|status|abort` and `append --upload`, so mail and attachments up to 25 MB pass the 256 KiB answer and 1 MiB request caps; code in `src/agents/imap` only
   - Depends: B.30 steps 2 and 4
   - Acceptance: [the plan's acceptance](imap-large-transfer.md#acceptance-for-the-todo-item)

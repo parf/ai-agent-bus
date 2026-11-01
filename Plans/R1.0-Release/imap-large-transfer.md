@@ -1,7 +1,7 @@
 # IMAP large transfer
 
 📌 **TL;DR:**
-- **Plan only; no code until the owner approves** ([B.31](TODO.md#bundled-agents), questions Q281–Q287).
+- **Plan only; no code until the owner approves** ([B.31](TODO.md#bundled-agents), questions Q281–Q287, Q285 settled).
 - **Problem:** `part` and `append` of the [IMAP folders plan](imap-folders.md#help-text) are capped at 25 MB, but a bus answer holds 256 KiB and a request 1 MiB.
 - **Recommendation: (b) chunked calls.** The caller reads or writes one window per call, with offsets, resume and a SHA-256 over the whole; the agent keeps a bounded staging file in its own work directory.
 - **Why not a file handoff:** the sandboxed agent's only writable path is its own work folder, which a remote caller cannot read and a local one may not; (b) works for every caller.
@@ -62,7 +62,7 @@ A caller sends a finished RFC 5322 mail, attachments included. The agent builds 
 
 - Other agents could reuse it, but none asks for it yet: only IMAP exceeds the caps.
 - It changes the daemon store and the wire: ⚠️ storage and protocol subsystems, a bump of its own, and the [durability](../../docs/04-messaging.md#durability) rule that queues flush as one batch a minute does not suit 25 MB bodies.
-- Placement if ever wanted: [R2.0](../R2.0-Future/README.md#topics), because it is an undecided protocol idea with no current need ([Q285](QUESTIONS.md#imap-large-transfer)).
+- Decided by the owner on 2026-11-01: not needed now; if ever, Redis holds the file and the message carries its key name ([R2.0 large bodies](../R2.0-Future/large-bodies.md#the-shape)).
 
 ## Order of work
 

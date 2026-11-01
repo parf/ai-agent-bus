@@ -17,6 +17,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | Teams SDK and first scope (Q249, Q251; #ab-dir, 2026-10-30) | [teams](teams.md#decided) | |
 | WhatsApp answers inside the 24-hour window first, opt-in is a per-contact flag (Q254, Q256; #ab-dir, 2026-10-30) | [whatsapp](whatsapp.md#decided) | |
 | Messenger serves an own Page only (Q258; #ab-dir, 2026-10-30) | [messenger](messenger.md#decided) | |
+| Large messages on the bus are not needed now; if ever, Redis holds the file and the message carries its key name (Q285; owner, 2026-11-01) | [large bodies](large-bodies.md#decided) | |
 
 ## Open
 

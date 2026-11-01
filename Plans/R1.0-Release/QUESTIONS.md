@@ -60,11 +60,6 @@ Choices for the [large transfer plan](imap-large-transfer.md#the-three-options) 
   - Recommendation: the caller sends the finished mail; MIME assembly is a parser surface the agent need not own
   - Impact: building attachments is the caller's job
 
-- ❓ Q285 A generic large-body mechanism for the bus
-  - Options: not now; or R2.0 work in the daemon and protocol
-  - Recommendation: not now; record it in R2.0 when a second agent needs it
-  - Impact: another agent that exceeds the caps repeats this plan
-
 - ❓ Q286 Is the SHA-256 at `upload begin` required
   - Options: optional, checked when given; or required
   - Recommendation: optional; `part` always reports the hash of the whole part
