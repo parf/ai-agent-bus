@@ -1,10 +1,7 @@
 package api
 
 import (
-	"bufio"
-	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -84,6 +81,26 @@ func TestBigPutDrainsAnEarlyRefusalByItsDeclaredLengthAndNoMore(t *testing.T) {
 	}
 }
 
+// paced is a body written a chunk at a time, as a client on a real link does,
+// so the server decides its refusal while the client is still writing.
+type paced struct{ left int }
+
+func (p *paced) Read(b []byte) (int, error) {
+	if p.left == 0 {
+		return 0, io.EOF
+	}
+	time.Sleep(time.Millisecond)
+	n := len(b)
+	if n > 32<<10 {
+		n = 32 << 10
+	}
+	if n > p.left {
+		n = p.left
+	}
+	p.left -= n
+	return n, nil
+}
+
 // Over a real connection, a client still writing 3 MiB when the refusal is
 // decided receives its status and cause instead of a reset.
 func TestBigPutRefusalReachesAClientStillWriting(t *testing.T) {
@@ -101,27 +118,22 @@ func TestBigPutRefusalReachesAClientStillWriting(t *testing.T) {
 		{"alice@h", "/big?record=%23nobody@h&name=k", http.StatusNotFound, "no such name"},
 		{"alice@h", "/big?record=%23svc@h&name=k&ttl=0", http.StatusBadRequest, "ttl"},
 	} {
-		conn, err := net.Dial("tcp", srv.Listener.Addr().String())
+		req, err := http.NewRequest("PUT", srv.URL+c.path, &paced{left: size})
 		if err != nil {
 			t.Fatal(err)
 		}
-		conn.SetDeadline(time.Now().Add(10 * time.Second))
-		fmt.Fprintf(conn, "PUT %s HTTP/1.1\r\nHost: x\r\n%s: %s\r\nContent-Length: %d\r\nContent-Type: application/octet-stream\r\n\r\n", c.path, HeaderToken, tok(c.who), size)
-		chunk := make([]byte, 64<<10)
-		var werr error
-		for sent := 0; sent < size && werr == nil; sent += len(chunk) {
-			_, werr = conn.Write(chunk)
-		}
-		resp, err := http.ReadResponse(bufio.NewReader(conn), nil)
+		req.ContentLength = size
+		req.Header.Set(HeaderToken, tok(c.who))
+		client := &http.Client{Transport: &http.Transport{DisableKeepAlives: true}, Timeout: 15 * time.Second}
+		resp, err := client.Do(req)
 		if err != nil {
-			t.Errorf("%s: no response after writing (write error %v): %v", c.path, werr, err)
-			conn.Close()
+			t.Errorf("%s: the client saw %v instead of the refusal", c.path, err)
 			continue
 		}
 		raw, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
 		if resp.StatusCode != c.code || !strings.Contains(strings.ToLower(string(raw)), c.want) {
 			t.Errorf("%s = %d %s, want %d naming %q", c.path, resp.StatusCode, raw, c.code, c.want)
 		}
-		conn.Close()
 	}
 }
