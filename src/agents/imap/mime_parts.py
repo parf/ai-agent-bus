@@ -90,7 +90,7 @@ def tree(connection, number):
     return rows
 
 
-def payload(connection, number, part_id):
+def decoded(connection, number, part_id):
     rows = tree(connection, number)
     row = next((r for r in rows if r['id'] == part_id and r['size'] is not None), None)
     if row is None: raise wire.WireError('part-id is not a MIME leaf; use parts')
@@ -107,6 +107,11 @@ def payload(connection, number, part_id):
     elif encoding == 'quoted-printable': body = quopri.decodestring(raw)
     elif encoding in {'7bit', '8bit', 'binary'}: body = raw
     else: raise wire.WireError('unsupported MIME transfer encoding')
+    return row, body
+
+
+def payload(connection, number, part_id):
+    row, body = decoded(connection, number, part_id)
     if row['type'].startswith('text/'):
         try: text = body.decode(row['charset'], 'replace')
         except LookupError: text = body.decode('utf-8', 'replace')

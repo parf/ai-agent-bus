@@ -64,25 +64,36 @@ def parse(body):
         value['folder' if method == 'append' else 'name'] = positional[0]
         if method == 'folder.rename': value['new'] = positional[1]
         if method == 'append':
-            if not separator: raise MailError('append requires raw RFC 5322 mail after the first newline')
-            value['raw'] = raw
+            if separator: value['raw'] = raw
+            elif 'big' not in value: raise MailError('append requires raw RFC 5322 mail after the first newline')
         elif separator:
             raise MailError('folder calls must be one line')
     method = value['method']
     if method != 'append' and len(body.encode()) > 32768:
         raise MailError('folder call must be text or JSON of at most 32768 bytes')
     allowed = {'folder.create': {'name'}, 'folder.rename': {'name', 'new'},
-               'folder.delete': {'name', 'force'}, 'append': {'folder', 'raw', 'flags', 'date'}}[method]
+               'folder.delete': {'name', 'force'}, 'append': {'folder', 'raw', 'flags', 'date', 'big'}}[method]
     if set(value) - allowed - {'method'}: raise MailError('unknown argument for ' + method)
     wire.mailbox(value.get('folder' if method == 'append' else 'name'))
     if method == 'folder.rename': wire.mailbox(value.get('new'))
     if method == 'folder.delete' and type(value.get('force', False)) is not bool:
         raise MailError('force must be a boolean')
     if method == 'append':
-        raw = value.get('raw')
-        if not isinstance(raw, str) or not raw or '\x00' in raw:
-            raise MailError('append raw must be nonempty RFC 5322 text without NUL')
-        if len(raw.encode()) > MAIL_CAP: raise MailError('append exceeds the 25 MB (26214400-byte) mail cap')
+        if 'big' in value:
+            if 'raw' in value: raise MailError('append takes either raw mail or --big, never both')
+            ref = value['big']
+            record, slash, name = ref.rpartition('/') if isinstance(ref, str) else ('', '', '')
+            if not slash or not record or not name:
+                raise MailError('big reference requires <record>/<name>: the key name after the last /; a name containing / can\'t be used here')
+            operations.big_name(name)
+            if any(ord(c) <= 32 or ord(c) == 127 for c in record):
+                raise MailError('big reference record must not contain whitespace or controls')
+            value['big'] = (record, name)
+        else:
+            raw = value.get('raw')
+            if not isinstance(raw, str) or not raw or '\x00' in raw:
+                raise MailError('append raw must be nonempty RFC 5322 text without NUL')
+            if len(raw.encode()) > MAIL_CAP: raise MailError('append exceeds the 25 MB (26214400-byte) mail cap')
         flags = value.get('flags', [])
         if isinstance(flags, str): flags = flags.split(',')
         if not isinstance(flags, list) or len(flags) > 100: raise MailError('append flags must be at most 100 flag names')
@@ -103,7 +114,7 @@ def under(name, parent, delimiter):
     return folders.same(name, parent) or bool(delimiter and name.startswith(parent + delimiter))
 
 
-def perform(connection, call, cfg, *, watched=()):
+def perform(connection, call, cfg, *, watched=(), raw=None):
     method = call['method']
     rows = folders.listing(connection)
     if method == 'append':
@@ -111,7 +122,7 @@ def perform(connection, call, cfg, *, watched=()):
         connection.response('APPENDUID')  # No stale mapping from any earlier response.
         try:
             wire.ok(connection.append(wire.mailbox(name), '(' + ' '.join(call['flags']) + ')',
-                                      call.get('date'), call['raw'].encode('utf-8')))
+                                      call.get('date'), raw if raw is not None else call['raw'].encode('utf-8')))
         except wire.Refused:
             raise wire.WireError('APPEND refused; no retry') from None
         except (OSError, imaplib.IMAP4.error, wire.WireError):

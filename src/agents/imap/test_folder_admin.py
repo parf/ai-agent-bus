@@ -1,11 +1,15 @@
 """Folder/APPEND authority and wire commands against the local TLS fake only."""
 import json
+import hashlib
+import base64
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 import test_imap as fixture
 import test_destructive
 import folder_admin
 import wire
+from agent_bus.errors import Refusal, UncertainOutcome
+from mail import MailError
 
 
 class Calls(unittest.TestCase):
@@ -20,6 +24,111 @@ class Calls(unittest.TestCase):
     def enable(self):
         self.cfg['allow_destructive'] = True
         self.other = self.folder('Other', '')
+
+    def big_store(self, raw=b'Subject: big\r\n\r\nmail'):
+        info = {'size': len(raw), 'sha256': hashlib.sha256(raw).hexdigest()}
+        big = Mock()
+        big.get.return_value = (raw, info)
+        big.put.side_effect = lambda name, body: {'size': len(body), 'sha256': hashlib.sha256(body).hexdigest()}
+        original = self.bus.record
+        def record(name):
+            rec = original(name)
+            rec.big = big
+            return rec
+        self.bus.record = Mock(side_effect=record)
+        return big
+
+    def test_big_reference_last_slash_and_exclusive_inline_text_json(self):
+        for body in ['append Other --big "#imap/source@fixture/mail"',
+                     json.dumps({'method': 'append', 'folder': 'Other', 'big': '#imap/source@fixture/mail'})]:
+            self.assertEqual(fixture.proxy.parse(body)['big'], ('#imap/source@fixture', 'mail'))
+        for ref in ('missing', '/key', '#record/', '', 1):
+            with self.subTest(ref=ref), self.assertRaisesRegex(MailError, 'last /'):
+                fixture.proxy.parse(json.dumps({'method': 'append', 'folder': 'Other', 'big': ref}))
+        for body in ['append Other --big user/key\nraw',
+                     json.dumps({'method': 'append', 'folder': 'Other', 'big': 'user/key', 'raw': 'raw'})]:
+            with self.assertRaisesRegex(MailError, 'never both'): fixture.proxy.parse(body)
+        for name in ('', 'x' * 257, 1):
+            with self.assertRaisesRegex(MailError, 'key name'):
+                fixture.proxy.parse(json.dumps({'method': 'part', 'uid': 7, 'part_id': '1', 'big': name}))
+        self.assertEqual(fixture.proxy.parse('part 7 1 --big archive')['big'], 'archive')
+
+    def test_big_part_exact_decoded_bytes_own_record_no_seen_and_no_answer_body(self):
+        big = self.big_store()
+        for kind, raw in [('TEXT', b'not-utf8:\xff secret-bytes'), ('APPLICATION', b'\x00\xffbinary')]:
+            encoded = base64.b64encode(raw)
+            self.server.bodystructure = ('("' + kind + '" "PLAIN" ("CHARSET" "utf-8") NIL NIL "BASE64" ' + str(len(encoded)) + ' 1)').encode()
+            self.server.part_bodies = {'1': encoded}
+            self.env['IMAP_CLIENT_SECRET'] = 'secret-bytes'
+            answer = self.call('part 7 1 --big saved')
+            self.assertFalse(answer.startswith('error:'), answer)
+            big.put.assert_called_with('saved', raw)
+            self.assertIn('size ' + str(len(raw)), answer)
+            self.assertIn(hashlib.sha256(raw).hexdigest(), answer)
+            self.assertNotIn('secret-bytes', answer)
+            self.assertNotIn(encoded.decode(), answer)
+        self.assertTrue(all(args[0] == self.bus.name for args, _ in self.bus.record.call_args_list))
+        self.assertEqual(self.server.stores, [])
+        self.assertFalse(any(b' SELECT ' in c for c in self.server.commands))
+        self.assertTrue(all(b'BODY.PEEK[' in args for _, args in self.server.fetches if b'BODYSTRUCTURE' not in args))
+
+    def test_big_part_empty_refused_without_upload(self):
+        big = self.big_store()
+        self.server.bodystructure = b'("TEXT" "PLAIN" NIL NIL NIL "7BIT" 0 1)'
+        self.server.part_bodies = {'1': b''}
+        self.assertIn('empty', self.call('part 7 1 --big empty'))
+        big.put.assert_not_called()
+
+    def test_big_part_predecode_cap_stores_nothing(self):
+        big = self.big_store()
+        self.server.bodystructure = b'("APPLICATION" "OCTET-STREAM" NIL NIL NIL "BASE64" 26214401 NIL NIL)'
+        self.assertIn('25 MB', self.call('part 7 1 --big large'))
+        big.put.assert_not_called()
+        self.assertFalse(any(b'BODY.PEEK[1]' in a for _, a in self.server.fetches))
+
+    def test_big_append_exact_binary_bounded_source_record_uid_and_missing_uid(self):
+        self.enable()
+        raw = b'Subject: raw bytes\r\n\r\n\xff\x00unchanged'
+        big = self.big_store(raw)
+        for mode, expected in [('valid', 'destination UID'), ('missing', 'UID unavailable')]:
+            self.server.appenduid_mode = mode
+            answer = self.call('append Other --big "user/folder@fixture/mail" --flags answered --date 2026-10-31T01:02:03Z')
+            self.assertIn(expected, answer)
+        self.assertEqual(len(self.server.appended), 2)
+        self.assertTrue(all(row[1] == raw for row in self.server.appended))
+        big.get.assert_called_with('mail', max_size=26214400)
+        self.assertEqual(big.get.call_count, 2)
+        self.assertTrue(any(c.args == ('user/folder@fixture',) for c in self.bus.record.call_args_list))
+        self.assertEqual(self.server.mailboxes, [])
+
+    def test_big_append_switch_and_admission_refuse_before_any_write(self):
+        self.folder('Other', '')
+        big = self.big_store()
+        self.assertIn('allow_destructive', self.call('append Other --big source/mail'))
+        big.get.assert_not_called()
+        self.assertEqual(self.server.commands, [])
+        self.cfg['allow_destructive'] = True
+        big.get.side_effect = Refusal(403, 'fixture denied')
+        self.assertIn('big key access refused', self.call('append Other --big source/mail'))
+        self.assertEqual(self.server.commands, [])
+        self.assertEqual(self.writes(), [])
+        self.assertEqual(big.get.call_count, 1)
+
+    def test_big_append_cap_before_connection_and_no_retry_unknown_write(self):
+        self.enable()
+        big = self.big_store()
+        with patch.object(folder_admin, 'MAIL_CAP', 10):
+            self.assertIn('25 MB', self.call('append Other --big source/mail'))
+        self.assertEqual(self.server.commands, [])
+        big.get.side_effect = ValueError('bad hash')
+        self.assertTrue(self.call('append Other --big source/mail').startswith('error:'))
+        self.assertEqual(self.writes(), [])
+        big.get.side_effect = None
+        self.server.drop_after_admin = True
+        answer = self.call('append Other --big source/mail')
+        self.assertIn('outcome unknown', answer)
+        self.assertEqual(len(self.server.appended), 1)
+        self.assertEqual(len(self.writes()), 1)
 
     def test_create_ungated_and_utf7_quoted_without_selection(self):
         name = '邮件 & "box"'

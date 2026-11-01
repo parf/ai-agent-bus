@@ -31,6 +31,7 @@ part <uid> <part-id> --big <name> [--folder <name>]: Store the decoded part unde
 [destructive] append <folder> --big <record>/<name> [--flags f,..] [--date rfc3339]: Append the raw RFC 5322 mail held in that big key, up to 25 MB, and report APPENDUID when supplied, otherwise UID unavailable. Requires allow_destructive and the instance admitted by that record's allow list; never retry an unknown write.
 ```
 
+- **In-plan settle (2026-11-01):** `append --big <record>/<name>` splits at the last `/` in both text and JSON; the key name after the last `/`, so a name containing `/` cannot be used here. Missing or empty record/name is refused.
 - The plain `part` and `append` of the folders plan stay as landed for small mail.
 - Download: the caller reads the key after the instance wrote it; the instance's own allow list is the caller's own admission, so no extra grant is needed.
 - Upload for `append`: the caller puts the mail on a record they maintain, such as their own User record, and that record's allow list admits the IMAP instance (settled). The agent builds no MIME and holds the bytes only while it streams them to the server.

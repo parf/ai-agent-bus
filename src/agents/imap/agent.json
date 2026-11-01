@@ -325,8 +325,8 @@
       ]
     },
     "part": {
-      "text": "part <uid> <part-id> [--folder <name>]",
-      "help": "Decoded, base64 for binary, 25 MB cap, no Seen. Refuse above 26214400 encoded bytes before decoding. Return what fits in the 256 KiB answer cap and label truncation.",
+      "text": "part <uid> <part-id> [--big <name>] [--folder <name>]",
+      "help": "Decoded, base64 for binary, 25 MB cap, no Seen. Refuse above 26214400 encoded bytes before decoding. Return what fits in the 256 KiB answer cap and label truncation. With --big, store the decoded part under the big key <name> on this instance and answer its size and SHA-256 instead of the bytes; no Seen. Download with big get <this-instance> <name>; whoever may call this instance may download it.",
       "args": [
         {
           "name": "uid"
@@ -339,6 +339,11 @@
         {
           "name": "folder",
           "optional": true
+        },
+        {
+          "name": "big",
+          "optional": true,
+          "help": "Store exact decoded bytes as this instance's big key instead of answering bytes"
         }
       ]
     },
@@ -468,8 +473,8 @@
       "destructive": true
     },
     "append": {
-      "text": "append <folder> [--flags f,..] [--date rfc3339]\\n<raw RFC 5322 body>",
-      "help": "Append raw RFC 5322 text after the first newline (JSON raw). Report APPENDUID when supplied; otherwise explicitly report UID unavailable. Mail cap 25 MB; the existing 1048576-byte bus request cap including encoded JSON and envelope is lower. Requires allow_destructive; never retry an unknown write.",
+      "text": "append <folder> [--big <record>/<name>] [--flags f,..] [--date rfc3339]",
+      "help": "Append raw RFC 5322 text after the first newline (JSON raw). Report APPENDUID when supplied; otherwise explicitly report UID unavailable. Mail cap 25 MB; the existing 1048576-byte bus request cap including encoded JSON and envelope is lower. Requires allow_destructive; never retry an unknown write. Alternatively, --big appends the raw RFC 5322 mail held in that key, up to 25 MB, without an inline body; requires the instance admitted by that record's allow list. The key name after the last /; a name containing / can't be used here.",
       "args": [
         {
           "name": "folder"
@@ -492,6 +497,11 @@
           "json_only": true,
           "optional": true,
           "help": "Raw RFC 5322 UTF-8 mail text"
+        },
+        {
+          "name": "big",
+          "optional": true,
+          "help": "<record>/<name>: the key name after the last /; a name containing / can't be used here. Mutually exclusive with raw."
         }
       ],
       "destructive": true
