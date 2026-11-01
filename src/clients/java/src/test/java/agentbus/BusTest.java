@@ -81,6 +81,8 @@ public final class BusTest {
         return null;
     }
 
+    static Object or(Map<?, ?> m, String key, Object fallback) { Object v = m.get(key); return v == null ? fallback : v; }
+
     static String name(Throwable e) { return e == null ? "none" : e.getClass().getSimpleName() + " " + e.getMessage(); }
 
     /** Every expected key is read, so a field added to the shared fixtures cannot go unchecked. */
@@ -163,7 +165,9 @@ public final class BusTest {
 
 
     /** One scripted answer: after delayMs, a status (or -1 to hang up) and a body. */
-    record Answer(long delayMs, int status, String body) {}
+    record Answer(long delayMs, int status, String body, String headers) {
+        Answer(long delayMs, int status, String body) { this(delayMs, status, body, ""); }
+    }
 
     /** A scripted daemon on a unix socket: answers each request as {@code script} says; counts them. */
     static final class Fake implements AutoCloseable {
@@ -172,6 +176,9 @@ public final class BusTest {
         final Thread loop;
 
         final java.util.List<String> lines = Collections.synchronizedList(new ArrayList<>());
+
+        /** Every request line, the protocol handshake included. */
+        final java.util.List<String> all = Collections.synchronizedList(new ArrayList<>());
 
         /** What GET /identity answers; null hands it to the script like any other request. */
         volatile Answer identity = new Answer(0, 200, "{\"protocol\":1,\"protocol_min\":1}");
@@ -235,6 +242,7 @@ public final class BusTest {
                                 b.clear();
                             }
                             String first = req.toString().split("\r\n")[0];
+                            all.add(first);
                             // The protocol handshake is answered apart and counted in no test's tally.
                             Answer a;
                             if (first.startsWith("GET /identity") && identity != null) {
@@ -248,7 +256,7 @@ public final class BusTest {
                             if (a.status() < 0) return;
                             byte[] body = a.body().getBytes(StandardCharsets.UTF_8);
                             c.write(ByteBuffer.wrap(("HTTP/1.1 " + a.status() + " X\r\nContent-Type: application/json\r\nContent-Length: "
-                                    + body.length + "\r\nConnection: close\r\n\r\n").getBytes(StandardCharsets.ISO_8859_1)));
+                                    + body.length + "\r\n" + a.headers() + "Connection: close\r\n\r\n").getBytes(StandardCharsets.ISO_8859_1)));
                             c.write(ByteBuffer.wrap(body));
                         } catch (Exception ignored) { }
                     });
@@ -1097,6 +1105,253 @@ public final class BusTest {
             }
             check("a blank pin matches nothing", thrown(() -> Bus.connect(Connect.of(https, TOKEN).pin(" "))) instanceof IllegalArgumentException);
             check("a pin is for https:// only", thrown(() -> Bus.connect(Connect.of(TCP, TOKEN).pin(pin))) instanceof IllegalArgumentException);
+        });
+
+
+
+        // The shared state, identity and refusal vectors (src/testdata/client-conformance): kv, locks, identity and
+        // refusals; not bigfile. Fixture names are mapped to this daemon's.
+        Function<String, List<?>> vectors = file -> {
+            try {
+                Path cases = Path.of(env("AB_CLIENT_CONFORMANCE_CASES"), file + ".json");
+                List<?> all = (List<?>) Json.parse(Files.readString(cases).replace("owner@fixture", OWNER).replace("#worker@fixture", "#j-vec-worker@localhost"));
+                check("the shared " + file + " vectors are not empty", !all.isEmpty(), cases);
+                return all;
+            } catch (java.io.IOException e) {
+                throw new java.io.UncheckedIOException(e);
+            }
+        };
+        /** The step's value as bytes: repeated text, decoded bytes or the text itself. */
+        Function<Map<?, ?>, byte[]> stepBytes = step -> {
+            if (step.get("repeat") instanceof Map<?, ?> r) return ((String) r.get("text")).repeat(((Number) r.get("count")).intValue()).getBytes(StandardCharsets.UTF_8);
+            if (step.get("value_b64") instanceof String b) return java.util.Base64.getDecoder().decode(b);
+            return String.valueOf(or(step, "value", "")).getBytes(StandardCharsets.UTF_8);
+        };
+        /** Runs one step under its expected refusal: the result when it was meant to succeed, else null after a matched refusal. */
+        class Vector {
+            Object result;
+            boolean ok;
+
+            Vector run(String at, Map<?, ?> step, java.util.concurrent.Callable<Object> call) {
+                Object want = step.get("expect") instanceof Map<?, ?> e ? e.get("refused") : null;
+                Throwable e = thrown(() -> result = call.call());
+                if (want == null) {
+                    check(at, e == null, name(e));
+                    ok = e == null;
+                    return this;
+                }
+                boolean good = e instanceof BusException;
+                if (good && want instanceof Map<?, ?> w) {
+                    good = e instanceof BusException.RefusalException r && r.status() == ((Number) w.get("status")).intValue()
+                            && (w.get("message_has") == null || e.getMessage().contains((String) w.get("message_has")));
+                }
+                check(at + ": refused as expected", good, e == null ? "it succeeded" : name(e));
+                ok = false;
+                return this;
+            }
+        }
+        section("shared kv vectors", () -> {
+            int n = 0;
+            for (Object c : vectors.apply("kv")) {
+                Map<?, ?> k = (Map<?, ?>) c;
+                String rec = "#j-vec-kv" + n++ + "@localhost";
+                me.register(Map.of("kind", "agent", "name", rec, "allow", List.of("*")));
+                KV kv = me.record(rec).kv();
+                int i = 0;
+                for (Object so : (List<?>) k.get("steps")) {
+                    Map<?, ?> step = (Map<?, ?>) so;
+                    String op = (String) step.get("op"), name = String.valueOf(or(step, "name", "")), kind = String.valueOf(or(step, "kind", "string"));
+                    String at = k.get("id") + " step " + i++ + " " + op + " " + name;
+                    Map<?, ?> expect = step.get("expect") instanceof Map<?, ?> e ? e : Map.of();
+                    KV.How how = KV.How.valueOf(String.valueOf(or(step, "how", "set")).toUpperCase());
+                    switch (op) {
+                        case "set" -> new Vector().run(at, step, () -> {
+                            switch (kind) {
+                                case "int" -> kv.set(name, Long.parseLong((String) step.get("value")), how);
+                                case "json" -> kv.setJson(name, (String) step.get("value"), how);
+                                default -> kv.set(name, stepBytes.apply(step), how);
+                            }
+                            return null;
+                        });
+                        case "get" -> {
+                            Vector v = new Vector().run(at, step, () -> switch (kind) {
+                                case "int" -> kv.getInt(name);
+                                case "json" -> kv.getJson(name);
+                                default -> kv.getBytes(name);
+                            });
+                            if (!v.ok) continue;
+                            boolean same;
+                            if (expect.get("value_b64") != null) same = java.util.Base64.getEncoder().encodeToString((byte[]) v.result).equals(expect.get("value_b64"));
+                            else if (expect.get("length") != null) same = ((byte[]) v.result).length == ((Number) expect.get("length")).intValue();
+                            else if (expect.containsKey("json")) same = Json.write(Json.parse((String) v.result)).equals(Json.write(expect.get("json")));
+                            else if (kind.equals("int")) same = String.valueOf(v.result).equals(expect.get("value"));
+                            else same = new String((byte[]) v.result, StandardCharsets.UTF_8).equals(expect.get("value"));
+                            check(at + ": reads back", same, v.result instanceof byte[] b ? b.length + " bytes" : v.result);
+                        }
+                        case "fill" -> {
+                            Throwable failed = thrown(() -> {
+                                for (int j = 0; j < ((Number) step.get("count")).intValue(); j++) kv.set(step.get("prefix") + "" + j, "v", KV.How.ADD);
+                            });
+                            check(at + ": " + step.get("count") + " names", failed == null, name(failed));
+                        }
+                        case "delete" -> {
+                            Vector v = new Vector().run(at, step, () -> kv.delete(name, KV.Kind.valueOf(kind.toUpperCase())));
+                            if (v.ok) check(at + ": deleted flag", v.result.equals(expect.get("deleted")), v.result);
+                        }
+                        case "inc" -> {
+                            Vector v = new Vector().run(at, step, () -> kv.inc(name, Long.parseLong((String) step.get("by"))));
+                            if (v.ok && expect.get("value") != null) check(at + ": counter", String.valueOf(v.result).equals(expect.get("value")), v.result);
+                        }
+                        case "json" -> {
+                            List<KV.Op> ops = new ArrayList<>();
+                            for (Object oo : (List<?>) step.get("ops")) {
+                                Map<?, ?> o = (Map<?, ?>) oo;
+                                String key = (String) o.get("key");
+                                Object value = o.get("value");
+                                ops.add(switch ((String) o.get("op")) {
+                                    case "push" -> KV.Op.push(key, value);
+                                    case "unshift" -> KV.Op.unshift(key, value);
+                                    case "set" -> KV.Op.set(key, value);
+                                    case "inc" -> KV.Op.inc(key, ((Number) value).longValue());
+                                    case "unset" -> KV.Op.unset(key);
+                                    case "shift" -> KV.Op.shift(key);
+                                    case "pop" -> KV.Op.pop(key);
+                                    case "add_to_set" -> KV.Op.addToSet(key, value);
+                                    case "remove_from_set" -> KV.Op.removeFromSet(key, value);
+                                    default -> throw new IllegalStateException("unknown json op " + o.get("op"));
+                                });
+                            }
+                            Vector v = new Vector().run(at, step, () -> kv.json(name, ops.toArray(new KV.Op[0])));
+                            if (v.ok && expect.get("changed") != null) {
+                                List<Object> changed = new ArrayList<>();
+                                for (KV.OpResult r : (List<KV.OpResult>) v.result) changed.add(r.changed());
+                                check(at + ": changed flags", changed.equals(expect.get("changed")), changed);
+                            }
+                        }
+                        default -> check(at + ": known op", false, op);
+                    }
+                }
+                me.record(rec).unregister();
+            }
+        });
+
+        section("shared lock vectors", () -> {
+            String worker = "#j-vec-worker@localhost";
+            me.register(Map.of("kind", "agent", "name", worker, "allow", List.of("*")));
+            Map<String, Bus> buses = Map.of("owner", me, "worker", client(worker));
+            int n = 0;
+            for (Object c : vectors.apply("locks")) {
+                Map<?, ?> k = (Map<?, ?>) c;
+                String rec = "#j-vec-lock" + n++ + "@localhost";
+                me.register(Map.of("kind", "agent", "name", rec, "allow", List.of("*")));
+                for (Object setup : k.get("setup") instanceof List<?> l ? l : List.of()) {
+                    check("setup " + setup + " is known", "worker-maintains-jobs".equals(setup));
+                    me.record(rec).manage(Map.of("maintainers", List.of(worker)));
+                }
+                Map<String, Locks.Lease> held = new java.util.LinkedHashMap<>();
+                int i = 0;
+                for (Object so : (List<?>) k.get("steps")) {
+                    Map<?, ?> step = (Map<?, ?>) so;
+                    String who = (String) step.get("as"), op = (String) step.get("op"), name = String.valueOf(step.get("name"));
+                    String at = k.get("id") + " step " + i++ + " " + who + " " + op + " " + name;
+                    Locks locks = buses.get(who).record(rec).locks();
+                    Map<?, ?> expect = step.get("expect") instanceof Map<?, ?> e ? e : Map.of();
+                    Duration ttl = Duration.ofSeconds(step.get("ttl_s") instanceof Number t ? t.longValue() : 0);
+                    switch (op) {
+                        case "try" -> { Vector v = new Vector().run(at, step, () -> locks.tryAcquire(name, ttl)); if (v.ok) held.put(who + name, (Locks.Lease) v.result); }
+                        case "acquire" -> {
+                            Duration wait = Duration.ofSeconds(step.get("wait_s") instanceof Number t ? t.longValue() : 0);
+                            Vector v = new Vector().run(at, step, () -> locks.acquire(name, ttl, wait));
+                            if (v.ok) held.put(who + name, (Locks.Lease) v.result);
+                        }
+                        case "extend" -> new Vector().run(at, step, () -> { locks.extend(name, ttl); return null; });
+                        case "release" -> new Vector().run(at, step, () -> {
+                            Locks.Lease lease = held.remove(who + name);
+                            if (lease != null && lease.release()) return null;
+                            locks.release(name);
+                            return null;
+                        });
+                        case "force" -> {
+                            Vector v = new Vector().run(at, step, () -> locks.forceRelease(name).orElse(null));
+                            if (v.ok) check(at + ": displaced holder", java.util.Objects.equals(v.result, expect.get("displaced")), v.result);
+                        }
+                        case "holders" -> {
+                            Vector v = new Vector().run(at, step, locks::holders);
+                            if (v.ok) {
+                                Map<String, String> got = new java.util.LinkedHashMap<>();
+                                ((Map<String, Locks.Hold>) v.result).forEach((key, hold) -> got.put(key, hold.holder()));
+                                check(at + ": holders", got.equals(expect.get("holders")), got);
+                            }
+                        }
+                        default -> check(at + ": known op", false, op);
+                    }
+                }
+                // The vector held some on purpose; a release here is housekeeping, not part of the case.
+                for (Locks.Lease lease : held.values()) thrown(lease::release);
+                me.record(rec).unregister();
+            }
+        });
+
+        section("shared identity vectors", () -> {
+            Path sock = Path.of(DIR, "j-vec-identity.sock");
+            for (Object c : vectors.apply("identity")) {
+                Map<?, ?> k = (Map<?, ?>) c;
+                String id = (String) k.get("id");
+                try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 200, "{}"))) {
+                    f.identity = new Answer(0, 200, (String) k.get("identity"));
+                    Map<?, ?> expect = (Map<?, ?>) k.get("expect");
+                    Bus[] bus = new Bus[1];
+                    Throwable e = thrown(() -> { bus[0] = Bus.connect(Connect.of(sock.toString(), "x")); bus[0].status(); });
+                    if (expect.get("fatal") != null) {
+                        check(id + ": fatal naming it", e != null && e.getMessage().contains((String) expect.get("fatal")), name(e));
+                        check(id + ": the daemon saw only /identity", f.all.size() == 1 && f.all.get(0).startsWith("GET /identity"), f.all);
+                    } else {
+                        check(id + ": serves", e == null, name(e));
+                        check(id + ": /identity was first", !f.all.isEmpty() && f.all.get(0).startsWith("GET /identity"), f.all);
+                        List<String> warns = bus[0] == null ? List.of() : bus[0].warnings();
+                        if (expect.get("warns") != null) check(id + ": warns", warns.size() == 1 && warns.get(0).contains((String) expect.get("warns")), warns);
+                        else check(id + ": silent", warns.isEmpty(), warns);
+                    }
+                }
+            }
+        });
+
+        section("shared refusal vectors", () -> {
+            Path sock = Path.of(DIR, "j-vec-refusal.sock");
+            String current = "{\"protocol\":1,\"protocol_min\":1}";
+            for (Object c : vectors.apply("refusals")) {
+                Map<?, ?> k = (Map<?, ?>) c;
+                String id = (String) k.get("id");
+                if (k.get("call") instanceof Map<?, ?> call) {
+                    try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 200, "{}"))) {
+                        Locks locks = Bus.connect(Connect.of(sock.toString(), "x")).record("jobs@localhost").locks();
+                        String name = (String) call.get("name");
+                        Duration ttl = Duration.ofSeconds(((Number) call.get("ttl_s")).longValue());
+                        Throwable e = thrown(() -> {
+                            switch ((String) call.get("op")) {
+                                case "acquire" -> locks.acquire(name, ttl, Duration.ofSeconds(((Number) call.get("wait_s")).longValue()));
+                                case "try" -> locks.tryAcquire(name, ttl);
+                                case "extend" -> locks.extend(name, ttl);
+                                default -> throw new IllegalStateException("unknown call op");
+                            }
+                        });
+                        check(id + ": refused by the client", e != null && !(e instanceof BusException.RefusalException), name(e));
+                        String not = (String) ((Map<?, ?>) k.get("expect")).get("not_requested");
+                        check(id + ": " + not + " never reached the daemon", f.all.stream().noneMatch(l -> l.split(" ")[1].split("\\?")[0].equals(not)), f.all);
+                    }
+                    continue;
+                }
+                Map<?, ?> daemon = (Map<?, ?>) k.get("daemon"), want = (Map<?, ?>) k.get("expect");
+                String allow = daemon.get("allow") == null ? "" : "Allow: " + daemon.get("allow") + "\r\n";
+                try (Fake f = new Fake(sock, (line, i) -> new Answer(0, ((Number) daemon.get("status")).intValue(), (String) daemon.get("body"), allow))) {
+                    f.identity = new Answer(0, 200, "current".equals(k.get("identity")) ? current : "{}");
+                    Bus b = Bus.connect(Connect.of(sock.toString(), "x"));
+                    Throwable e = thrown(() -> b.list(Optional.empty()));
+                    check(id + ": status, kind and message", e instanceof BusException.RefusalException r && r.status() == ((Number) want.get("status")).intValue()
+                            && java.util.Objects.equals(r.kind() == null ? "" : r.kind(), want.get("kind")) && e.getMessage().equals(want.get("message")), name(e));
+                    check(id + ": warns only for an old daemon", b.warnings().isEmpty() == !"old".equals(k.get("identity")), b.warnings());
+                }
+            }
         });
 
 
