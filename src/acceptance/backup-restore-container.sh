@@ -62,7 +62,7 @@ snap = {
     "accounts": out("agent-bus-admin", "account", "list"),
     "keys": out("agent-bus-admin", "user", "list"),
     "authorized_keys_sha256": hashlib.sha256(keys).hexdigest(),
-    "status": {k: status.get(k) for k in ("services", "queued", "dropped", "expired", "kinds")},
+    "status": {k: status[k] for k in ("records", "queued", "dropped", "expired", "kinds")},
 }
 json.dump(snap, sys.stdout, indent=1, sort_keys=True)
 print()

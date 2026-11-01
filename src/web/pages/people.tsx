@@ -168,7 +168,7 @@ function SSHKeyField({ st }: { st: FormState }) {
 // ------------------------------------------------------------------ /user
 
 function ownedRecords(row: UserRow, records: Rec[]): Rec[] {
-  const names = new Set([...(row.records ?? row.services ?? []), ...records.filter(r => r.owner === row.name && r.kind !== "group" && r.name !== row.name).map(r => r.name)]);
+  const names = new Set([...(row.records ?? []), ...records.filter(r => r.owner === row.name && r.kind !== "group" && r.name !== row.name).map(r => r.name)]);
   return records.filter(r => names.has(r.name) && r.name !== row.name).sort((a, b) => a.name.localeCompare(b.name));
 }
 

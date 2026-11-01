@@ -102,7 +102,6 @@ func TestDaemonAgentReservationAcrossRegisteredAPIRoutes(t *testing.T) {
 		"POST /group":               `{"name":"#bus","members":[]}`,
 		"POST /subscribe":           `{"channel":"#bus","off":true}`,
 		"POST /deliver-to/remove":   `{"channel":"#bus","recipient":"ordinary@h"}`,
-		"POST /subscriber/remove":   `{"channel":"#bus","subscriber":"ordinary@h"}`,
 		"POST /configure":           `{"name":"#bus","config":{"takeover":true}}`,
 		"GET /config":               "name=%23bus", "POST /secret": `{"name":"#bus","secret":"TOKEN=takeover"}`, "GET /secret": "name=%23bus",
 		"GET /consume": "inbox=%23bus&wait=0s",

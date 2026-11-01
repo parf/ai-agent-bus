@@ -136,7 +136,7 @@ def main() -> None:
             "/activity?range=week": "Activity", "/activity?range=month": "Activity", "/diagnostics": "Diagnostics",
             "/account": "Account", "/agent?name=%23c3po%40tatooine": "c3po@tatooine",
             "/queue?name=air-supply%40druidia": "air-supply@druidia",
-            "/pubsub/topic?name=spaceballs-merch%40spaceball": "spaceballs-merch@spaceball",
+            "/pubsub/channel?name=spaceballs-merch%40spaceball": "spaceballs-merch@spaceball",
             "/service?name=schwartz%40vega": "schwartz@vega", "/user?name=luke%40tatooine": "Luke Skywalker",
             "/resources": "Resources", "/resources/new": "Register resource", "/locks": "Locks", "/group?name=%40rebels": "@rebels",
         }

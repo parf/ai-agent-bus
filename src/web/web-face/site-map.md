@@ -68,5 +68,3 @@ refusal shows) and Links out. A part with nothing to say is omitted.
 
 What the Go face and older specs got differently is
 [history](../../../Plans/done/R0.8-MVP/done/web-go-face-differences.md#site-mapmd).
-
-Addresses before 0.8.108 answer for one release: `/pubsub/topic`, `/pubsub/topic/edit`, `/service-danger` and `/service-deactivate` reply `301` to their new names, and `POST /service` and `POST /service-confirm` still take a form.

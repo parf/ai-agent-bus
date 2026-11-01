@@ -227,7 +227,7 @@ section has a Kind filter: each lists one kind.
 | 👾 Agents | `/agents` | `/agent` | queued inbox work beside its Readers count |
 | 📡 Services | `/services` | `/service` | address and protocol; nothing about a queue |
 | 📮 Queues | `/queues` | `/queue` | messages held for a reader beside its Readers count |
-| 📣 PubSub | `/pubsub` | `/pubsub/topic` | messages accepted, copies out and its Deliver-To count; never a backlog |
+| 📣 PubSub | `/pubsub` | `/pubsub/channel` | messages accepted, copies out and its Deliver-To count; never a backlog |
 
 - The old `/channels`, `/channels/new`, `/channel` and `/channel/edit` redirect permanently to the kind's own address, so bookmarks keep working.
 - Search, filters, sort and page are plain URL state kept through detail and back; a successful registration or edit returns to that record.
