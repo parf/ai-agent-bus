@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.251 — 2026-11-01
+
+The db agent packager installs pinned, hash-checked wheels instead of reading host site-packages, so it builds on hosts without package metadata
+
 ## 0.9.250 — 2026-11-01
 
 Version output, help footers, agent authors and the web face show (C) Sergey Porfiriev
