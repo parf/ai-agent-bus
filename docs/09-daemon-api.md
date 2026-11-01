@@ -69,6 +69,8 @@ to mangle it ([secrets](03-records-service.md#secrets)).
 
 ## Credentials
 
+**Unstable, admin-only** except where [the client contract](#the-client-contract) lists the route: these may change in any release ([stability](#stability-and-compatibility)).
+
 | Route | |
 |---|---|
 | `POST /token` | mint a credential for a name the caller is entitled to ([getting a token](02-access.md#getting-a-token)) |
@@ -77,6 +79,8 @@ to mangle it ([secrets](03-records-service.md#secrets)).
 | `GET /names` | the names the caller holds a credential for, with whose each one is and what it is for — a fingerprint, never the bytes ([what it shows](05-discovery.md#what-it-shows)) |
 
 ## Registry
+
+**Stable:** `GET /lookup` and `GET /ls` (read-only); **unstable, admin-only:** registering, managing and removing records, which the CLI, the web face and `agent-bus-admin` use.
 
 | Route | |
 |---|---|
@@ -159,8 +163,7 @@ Both live on a record and answer to its management authority.
 
 ## People, groups and accounts
 
-Who may call these is [positions and scopes](01-identity-and-authority.md#positions-and-scopes);
-most need daemon administration.
+**Unstable, admin-only:** every route below, `POST /records/export` and `POST /records/import` included, may change in any release and is not part of the client contract. Who may call these is [positions and scopes](01-identity-and-authority.md#positions-and-scopes); most need daemon administration.
 
 | Route | |
 |---|---|
