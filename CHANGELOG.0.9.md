@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.275 — 2026-11-01
+
+KV set accepts an empty value_base64 as empty bytes; a null value is now refused as malformed naming the member
+
 ## 0.9.274 — 2026-11-01
 
 Python and TypeScript bigfile put/get use the same size-scaled budget as the daemon instead of the client timeout
