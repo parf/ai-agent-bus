@@ -1,4 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
+import {spawnSync} from "node:child_process";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -411,11 +412,15 @@ test('MCP big tools transfer files, require output_path and preserve unavailable
 });
 
 test('MCP big tools roundtrip local files through the real daemon without returning content',async()=>{
- const fixture=process.env.AB_CLIENT_FIXTURE??resolve(import.meta.dir,'../../tmp/client-fixture');
- const daemon=Bun.spawn([fixture],{stdin:'pipe',stdout:'pipe',stderr:'pipe'});
  const scratch=await mkdtemp(resolve(import.meta.dir,'../../tmp/mcp-real-big-'));
- let client:Client|undefined;
+ let client:Client|undefined,daemon:ReturnType<typeof Bun.spawn<"pipe","pipe","pipe">>|undefined;
  try{
+  const fixture=process.env.AB_CLIENT_FIXTURE??join(scratch,'client-fixture');
+  if(!process.env.AB_CLIENT_FIXTURE){
+   const build=spawnSync('go',['build','-o',fixture,'./clients/fixture'],{cwd:resolve(import.meta.dir,'..'),encoding:'utf8',timeout:20000});
+   expect(build.status,build.stderr||String(build.error??'fixture build failed')).toBe(0);
+  }
+  daemon=Bun.spawn([fixture],{stdin:'pipe',stdout:'pipe',stderr:'pipe'});
   const reader=daemon.stdout.getReader();let text='';
   const ready=(async()=>{while(!text.includes('\n')){const chunk=await reader.read();if(chunk.done)throw new Error('real fixture closed before readiness');text+=new TextDecoder().decode(chunk.value);}return JSON.parse(text.split('\n')[0]!);})();
   let timer:ReturnType<typeof setTimeout>|undefined;
@@ -436,12 +441,12 @@ test('MCP big tools roundtrip local files through the real daemon without return
   expect((await call('ab_big_ls',{record:name})).keys.map((key:any)=>key.name)).toEqual(['raw']);
   expect((await call('ab_big_rm',{record:name,name:'raw'})).deleted).toBe(true);
  }finally{
-  await client?.close();daemon.stdin.end();
+  await client?.close();daemon?.stdin.end();
   let timer:ReturnType<typeof setTimeout>|undefined;
-  await Promise.race([daemon.exited,new Promise<never>((_,reject)=>{timer=setTimeout(()=>{daemon.kill();reject(new Error('real fixture did not stop'));},3000);})]).finally(()=>clearTimeout(timer));
+  if(daemon)await Promise.race([daemon.exited,new Promise<never>((_,reject)=>{timer=setTimeout(()=>{daemon!.kill();reject(new Error('real fixture did not stop'));},3000);})]).finally(()=>clearTimeout(timer));
   await rm(scratch,{recursive:true,force:true});
  }
-});
+},30000);
 
 test('MCP large file puts preserve early refusal status and cause',async()=>{
  const scratch=await mkdtemp(resolve(import.meta.dir,'../../tmp/mcp-early-big-'));

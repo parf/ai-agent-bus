@@ -77,7 +77,7 @@ try {
 
   const list = await request("tools/list");
   const names = (list.result?.tools ?? []).map((t: any) => t.name).sort();
-  const expected = ["ab_consume", "ab_kv_delete", "ab_kv_get", "ab_kv_inc", "ab_kv_json", "ab_kv_set", "ab_lock", "ab_lock_extend", "ab_lock_holders", "ab_lock_release", "ab_ls", "ab_receipt", "ab_rename", "ab_reply", "ab_send"];
+  const expected = ["ab_big_get", "ab_big_ls", "ab_big_put", "ab_big_rm", "ab_consume", "ab_kv_delete", "ab_kv_get", "ab_kv_inc", "ab_kv_json", "ab_kv_set", "ab_lock", "ab_lock_extend", "ab_lock_holders", "ab_lock_release", "ab_ls", "ab_receipt", "ab_rename", "ab_reply", "ab_send"];
   check("exactly the ab_ tools", JSON.stringify(names) === JSON.stringify(expected), names.join(","));
   const descriptions = Bun.YAML.parse(await Bun.file(new URL("tools.yaml", import.meta.url)).text()) as Record<string, string>;
   check("tools/list sends the YAML descriptions", JSON.stringify(Object.keys(descriptions).sort()) === JSON.stringify(names) &&

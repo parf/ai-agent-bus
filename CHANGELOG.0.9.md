@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.259 — 2026-11-01
+
+The TypeScript client and MCP tools store, fetch, list and delete big keys; MCP moves content through local files, never model context
+
 ## 0.9.258 — 2026-11-01
 
 PUT /big drains a bounded body before an early refusal, so a client still writing receives the status and its cause
