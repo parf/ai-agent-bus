@@ -54,7 +54,7 @@ The owner's input list. [RD135](../DECISIONS.md#recorded-decisions) approves JSO
 |---|---|
 | Idempotent upsert | the point id derives from namespace, tableName and id, so the same record upserted twice replaces itself, and its old chunks go first |
 | One model per instance | all records share one collection, so one embedding model and vector size; a vector of another size is refused at once |
-| Hybrid search | dense vectors from Voyage plus sparse keyword vectors, fused in one Qdrant query; filters on tableName, key1, key2 and classification ids. The keyword half is chosen by a trial on the owner's real Russian and English texts: Qdrant's built-in BM25 against the agent's own sparse vectors with stemming ([Q194](../QUESTIONS.md#rag-service)) |
+| Hybrid search | dense vectors from Voyage plus sparse keyword vectors, fused in one Qdrant query; filters on tableName, key1, key2 and classification ids. The keyword backend is a configuration option: Qdrant's built-in BM25 or an external implementation, defaulting to built-in BM25 ([owner decision Q194](../DECISIONS.md#recorded-decisions)). This option and search wiring are pending implementation; the R.5 trial measures the options without choosing a winner |
 | Size | up to about 100k records per namespace: full float vectors, all in memory, no quantization (owner, 2026-10-27, settling Q195) |
 | Rerank | optional, through `#voyage`'s pass-through to Voyage rerank |
 | Classification on upsert | Jev assigns the classification ids before the record is stored; a Jev failure fails the upsert, explicitly |
@@ -90,4 +90,4 @@ CRUD + extra functionality (like search completion, ..)"). JSON-only arguments f
 
 ## Open choices
 
-[Q194](../QUESTIONS.md#rag-service), settled by the trial. Decisions: [RD127](../DECISIONS.md#recorded-decisions).
+None open: Q194 is [settled](../DECISIONS.md#recorded-decisions); the keyword option and built-in default are defined in [rules](#rules). R.5 is a comparison, not a selection gate.

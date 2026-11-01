@@ -3,8 +3,7 @@
 📌 **TL;DR:** P3 receipt rules are built; the remaining steps are a plan for discussion. Every pushed message now repeats
 the protocol (how to ack, reply and finish) and peers write long prose, so
 most tokens re-say what the session already knows. The idea, from the owner:
-teach the protocol once, then send only the data a message adds. Open choices
-are [№Q183–№Q184](QUESTIONS.md#short-prompts).
+teach the protocol once, then send only the data a message adds. Q183 and Q184 are [settled](DECISIONS.md#recorded-decisions); implementation beyond P3 remains pending.
 
 ## Goal
 
@@ -37,11 +36,16 @@ assignment, and the three-route footer on each push.
 
 | Step | What changes | Measure |
 |---|---|---|
-| P1 Protocol card | One short canonical text, about 10 lines: receipts, replies, routes, ask help, and the message style. The MCP instructions carry it, so it is read once. The current instructions are its starting point | its size, against today's 1.1 KB plus the footers |
+| P1 Protocol card | Implement the [settled placement](#settled-choices) (Q183). Cover receipts, replies, routes, ask help and message style; the current instructions are the starting point | its size, against today's 1.1 KB plus the footers |
 | P2 Minimal push | A pushed message is its header line and body only. The footer goes, because the header already has from, topic, tag and id, and the card says how to use them. A `reply_to` route is shown only when it differs from the sender | bytes per pushed message, before and after |
 | P3 Fewer receipts | [Receipt rules](#receipt-rules): no ack when the answer comes in this turn; no done after an answer or for a report; the runner acks only a slow script | receipts per exchange on the fixed scenario |
-| P4 Message style | The card asks peers to send only what is new: IDs, commits, `file:line`, the decision or result. No recap of context the receiver has, and no restated rules; one link to the rule instead | body bytes on a fixed scenario |
+| P4 Message style | The card asks peers to send only what is new: IDs, commits, `file:line`, the decision or result. No recap of context the receiver has, and no restated rules; one link to the rule instead. Guidance only: no face-generated size hint (Q184) | body bytes on a fixed scenario |
 | P5 Check | A fixed scenario (assign, ack, report, review) runs before and after. The face's tests assert the push has no footer and the card is in the instructions | a smoke check per face that fails when the footer comes back |
+
+## Settled choices
+
+- Q183: both homes — the MCP instructions contain the minimum; a short doc contains the rest, read when needed ([owner decision](DECISIONS.md#recorded-decisions), 2026-11-01).
+- Q184: message style is guidance in the protocol card only; the face adds no size hint ([owner decision](DECISIONS.md#recorded-decisions), 2026-11-01).
 
 ## Receipt rules
 

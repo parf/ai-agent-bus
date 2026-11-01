@@ -13,7 +13,7 @@
 - **Key-value limits are what ships: signed 64-bit integers and 512 KiB values** (Q297) — owner, 2026-11-01: "agree"; the docs were corrected, behaviour untouched. The earlier unenforced 2^62 and 128 KiB targets are dropped.
   - Home: [key-value rules](../../docs/03-records-kv.md#rules).
 - **Agent status is seen on the agent's own page; no mass polling** (Q191) — owner, 2026-11-01: "go to agent own page to see status, = no mass polling". `ab_ls` shows no status; the web offers restart on `failed` only. RT23 itself moved to R1.1 (Q299).
-  - Home: [agent capabilities](TODO.md#bundled-agents).
+  - Home: [agent capabilities](../R1.1/agent-capabilities.md#proposal).
 - **The protocol card lives in both places** (Q183) — owner, 2026-11-01: "agree"; the MCP instructions hold the minimum, which cannot be skipped, and a short doc holds the rest, read when needed.
   - Home: [shorter prompts](short-prompts.md#proposal).
 - **Message style is guidance in the protocol card only** (Q184) — owner, 2026-11-01; no size hint from the face.
@@ -205,7 +205,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 - ✅ RD118 The runner answers `status` itself when what it sees decides it: `starting`, `stopping` or `failed` (a crashed, refused or unconfigured agent). While the agent runs, `status` goes to the script, or answers `unsupported: status` under `--no-asks`
   - Why: owner, 2026-10-26: "runner answers status itself (starting, failed from what it sees) - yes - WHEN it can"
   - Date: 2026-10-26
-  - Home: [RT25](TODO.md#bundled-agents) and [Q191](../R1.1/QUESTIONS.md#agent-capabilities)
+  - Home: [RT25](TODO.md#bundled-agents) and [Q191 policy](../R1.1/agent-capabilities.md#proposal)
 
 - ✅ RD117 Every agent kind handles asks in one shape: the ask first, `unsupported: <ask>` for one it does not handle, the normal flow only without an ask. Existing agents are rewritten, with no compatibility layer; `--no-asks` on `agent-bus run` and `"asks": "none"` in a package let any shell script run unchanged, answered `unsupported` for every ask metadata cannot answer
   - Why: owner, 2026-10-26: "want to have uniform design for all kinds of agents … there are no old scripts yet, we will rewrite them all … optionally a special flag to auto answer all AGENT_BUS_ASK as unsupported; this way we can use any shell script w/o any changes/wrappers"
@@ -215,7 +215,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 - ✅ RD116 For an ask, the runner answers from package metadata when it can. An ask it cannot answer from metadata, `status` included, goes to the script as `AGENT_BUS_ASK=<ask>` with empty input, never refused or dropped; `help: native` still sends the help asks to the script
   - Why: owner, 2026-10-26: "answering from metadata = good; if we can - we can answer; however if we can['t] - we should pass AGENT_BUS_ASK=<ask> and empty input"
   - Date: 2026-10-26
-  - Home: [package help](../../docs/runner/configuration.md#package-help) and [Q191](../R1.1/QUESTIONS.md#agent-capabilities), pending the change
+  - Home: [package help](../../docs/runner/configuration.md#package-help) and [Q191 policy](../R1.1/agent-capabilities.md#proposal), pending the change
 
 - ✅ RD115 An AI CLI session started without `--descr` describes itself as `<runtime> <cwd>` (`claude /usr/local/src/ai-agent-bus`), refreshed at each start; a purpose set by `--descr` or edited on the web stays until replaced
   - Why: owner, 2026-10-26: "upon start all ab-* ai-cli starters should add CWD as description \"$name $CWD\""; keeps J12, which stopped resumes from erasing a purpose

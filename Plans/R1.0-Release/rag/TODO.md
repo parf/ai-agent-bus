@@ -41,15 +41,15 @@ Blocks first (R.1–R.4), then the app (R.5–R.9).
 
 - ✅ R.4 `#qdrant`: built and deployed in 0.9.130 — [result and review](DONE.md#r4-qdrant-proxy)
 
-- ☐ R.5 Keyword trial, settling [Q194](../QUESTIONS.md#rag-service)
+- ☐ R.5 Keyword comparison, following settled [Q194](../DECISIONS.md#recorded-decisions)
   - Compares Qdrant's built-in BM25 with the agent's own sparse vectors with stemming, on the owner's real Russian and English texts
-  - Needs: a sample from the owner; the results go into the question, and the owner picks
+  - Needs: a sample from the owner; the report measures both options and does not pick a winner or change the default. The configuration option and built-in BM25 default are [settled](README.md#rules).
   - Output: a short report under `done/`; no product code
 
 - ✅ R.6 `#rag` core: CRUD and prompts — app **0.1.0**, shared integration **0.9.132–0.9.133**, source `2960c44b`, reader-mode correction `4c1a31d1`; final normal **1212/0**, check-deploy **6/6**. [Evidence and reviewed plan](DONE.md#r6-core-crud-and-prompts). Live ingestion waits for owner provisioning and provider approval.
 
 - ☐ R.7 `#rag` search
-  - Builds: hybrid `search` with filters and optional rerank, the keyword half chosen by R.5
+  - Builds: hybrid `search` with filters and optional rerank; the keyword configuration option and default follow [Q194](README.md#rules). R.5 supplies comparison evidence, not the backend choice.
   - Acceptance: on a fixture set, filters hold exactly; a keyword-only match and a meaning-only match both appear; rerank reorders; hits carry the agreed fields
 
 - ☐ R.8 `#rag` extras: `complete`, `similar`, `count`, `classify`

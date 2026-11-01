@@ -84,7 +84,7 @@ the 0.8 line; no release wave is committed yet. Item glyphs follow
 > **Serg Parf:** Review prompts AI's send to each other, we can make them MUCH shorter; 
 > 1st - ask to read proto, then just send minimal data w/o needed
 
-Plan for discussion of the note above: [shorter prompts](short-prompts.md#proposal), open choices №Q183–№Q184; №Q182 is settled in the [receipt rules](../../docs/04-messaging.md#receipts).
+Plan for discussion of the note above: [shorter prompts](short-prompts.md#proposal), settled choices [Q183–Q184](DECISIONS.md#recorded-decisions); №Q182 is settled in the [receipt rules](../../docs/04-messaging.md#receipts).
 
 > **Serg Parf:** Define "official" method description syntax for agents; AI prompts to generate one; try to use official standard
 

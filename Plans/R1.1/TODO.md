@@ -147,12 +147,12 @@ RT11 RW10–RW17 only, moved by Q299; [topic](runner-web.md#useful-additions). R
 
 ## Agent capabilities
 
-- ❓ RT23 Agent capabilities: every agent answers `help` (minimum); callers learn which further asks an agent answers before sending them (owner, 2026-10-26)
+- ☐ RT23 Agent capabilities: every agent answers `help` (minimum); callers learn which further asks an agent answers before sending them (owner, 2026-10-26)
   - Plus an optional `status` an agent may declare; the web shows it and may offer actions based on it (owner, 2026-10-26)
   - Exposed to bus MCP users too: `status` as an `ab_send` ask, and the capabilities line read before other asks (owner, 2026-10-26)
-  - Open choice: [Q191](QUESTIONS.md#agent-capabilities)
+  - Q191 settled: status only on the agent’s own page; no mass polling or status in `ab_ls`; the web offers restart on `failed` only ([policy](agent-capabilities.md#proposal), [decision](DECISIONS.md#recorded-decisions)).
   - Acceptance: the web record page and doctor send no ask an agent did not declare; an agent that answers only `help` costs one round trip and never a timeout
-  - Status: needs thinking through first (owner, 2026-10-26: "this question needs to be thought through"); decide Q191, then document it (constitution § agent self-description, authoring checklist, create-agent prompt) and update every bundled and standalone agent and the MCP face to the chosen form
+  - Remaining: document and implement capability discovery (constitution § agent self-description, authoring checklist, create-agent prompt), updating every bundled and standalone agent and the MCP face. The settled status policy is not reopened.
   - Home: [proposal](agent-capabilities.md#proposal).
 
 ## Node cleanup
