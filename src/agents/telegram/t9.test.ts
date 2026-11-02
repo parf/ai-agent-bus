@@ -32,7 +32,9 @@ test("TG.9 reply routing uses the mapped sender and correlation, listed users on
   agent=spawn(['bun','telegram.ts'],{cwd:import.meta.dir,env:{...process.env,AGENT_BUS_ADDR:fx.socket,AGENT_BUS_TOKEN:token,AGENT_BUS_NAME:self},stdout:Bun.file(log),stderr:Bun.file(log)});
   await until(async()=>Number((await fx.call(fx.ownerToken,'GET','/lookup?name='+encodeURIComponent(self))).readers)>0);
  }
- async function drain(bus:Bus){const messages:Message[]=[];for(;;){const m=await bus.consume({wait:50});if(!m)break;if(!m.receipt)messages.push(m);}return messages;}
+ // Reads until `want` messages have arrived (bounded at 10 s, so a missing one still fails its
+ // count assertion), then until a 50 ms quiet window; `want` 0 only observes the quiet window.
+ async function drain(bus:Bus,want=0){const messages:Message[]=[];const limit=Date.now()+10000;for(;;){const m=await bus.consume({wait:messages.length>=want?50:500});if(!m){if(messages.length>=want||Date.now()>=limit)break;continue;}if(!m.receipt)messages.push(m);}return messages;}
  async function post(bus:Bus,topic:string,tag:string){
   const id=await bus.send(self,'post hello',{topic,tag});
   await until(()=>sent.length>0&&sent.at(-1).text.startsWith('hello'));
@@ -50,7 +52,7 @@ test("TG.9 reply routing uses the mapped sender and correlation, listed users on
   const first=await post(A,'original-topic','first-tag');expect(sent.at(-1).text).toBe('hello\n\n#a');
   await post(B,'other-topic','second-tag');expect(sent.at(-1).text).toBe('hello\n\n#b');
   await incoming('reply to alpha',first.telegram);
-  const replies=await drain(A);const wrong=await drain(B);
+  const replies=await drain(A,1);const wrong=await drain(B);
   expect(replies.length).toBe(1);expect(wrong.length).toBe(0);
   expect(replies[0]!.from).toBe(self);expect(replies[0]!.topic).toBe('original-topic');expect(replies[0]!.tag).toBe('first-tag');expect(replies[0]!.re).toBe(first.id);
   const replyNotice=sent.length;
@@ -62,8 +64,8 @@ test("TG.9 reply routing uses the mapped sender and correlation, listed users on
   expect(sent.at(-1).text).toBe('session answer\n\n#a');
   expect(sent.at(-1).reply_to_message_id).toBe(2);
   expect(replies[0]!.body).toBe('[parf (TG)] reply to alpha');expect(replies[0]!.roles).not.toContain('owner');expect(replies[0]!.roles).not.toContain('maintainer');
-  await incoming('#b tagged');expect((await drain(B)).map(m=>m.body)).toEqual(['[parf (TG)] tagged']);expect(await drain(A)).toEqual([]);
-  await incoming(a+' full name');expect((await drain(A)).map(m=>m.body)).toEqual(['[parf (TG)] full name']);
+  await incoming('#b tagged');expect((await drain(B,1)).map(m=>m.body)).toEqual(['[parf (TG)] tagged']);expect(await drain(A)).toEqual([]);
+  await incoming(a+' full name');expect((await drain(A,1)).map(m=>m.body)).toEqual(['[parf (TG)] full name']);
   await incoming('private '+ 'z'.repeat(100),first.telegram,43);
   expect(await drain(A)).toEqual([]);expect(await drain(B)).toEqual([]);
   expect(sent.at(-1).text).toBe('we do not know you');
@@ -72,29 +74,29 @@ test("TG.9 reply routing uses the mapped sender and correlation, listed users on
   const forbidden=await A.call(self,'refused',{timeout:3000});expect(forbidden.kind).toBe('answer');if(forbidden.kind==='answer')expect(forbidden.message.body).toContain('requires owner or maintainer');
   const logs=await Bun.file(log).text();expect(logs).toContain('"user":"43"');expect(logs).toContain('@employee');expect(logs).toContain('Employee Person');expect(logs).toContain('Fixture chat');expect(logs).toContain('not a listed user');expect(logs).not.toContain('z'.repeat(41));
   const before=sent.length;await incoming('where does this go?');expect(sent.length).toBe(before+1);expect(sent.at(-1).text).toContain('did not understand');expect(sent.at(-1).text).toContain('#a');expect(sent.at(-1).text).toContain('#b');
-  config.route=b;await fx.call(fx.ownerToken,'POST','/configure',{name:self,config});await incoming('fallback');expect((await drain(B)).map(m=>m.body)).toEqual(['[parf (TG)] fallback']);
+  config.route=b;await fx.call(fx.ownerToken,'POST','/configure',{name:self,config});await incoming('fallback');expect((await drain(B,1)).map(m=>m.body)).toEqual(['[parf (TG)] fallback']);
   delete config.route;await fx.call(fx.ownerToken,'POST','/configure',{name:self,config});
   agent!.kill('SIGKILL');await agent!.exited;
   const state=JSON.parse(String((await owner.record(self).kv.get('string','reply_routes')).value));state.messages['100:'+first.telegram].until=Date.now()-1;
   await owner.record(self).kv.set('string','reply_routes',JSON.stringify(state),{mode:'set'});
   await start();
   await incoming('too late',first.telegram);expect(sent.at(-1).text).toBe('that thread expired; use #tag');expect(await drain(A)).toEqual([]);expect(await drain(B)).toEqual([]);
-  await incoming('#a still the same session');expect((await drain(A)).map(m=>m.body)).toEqual(['[parf (TG)] still the same session']);
+  await incoming('#a still the same session');expect((await drain(A,1)).map(m=>m.body)).toEqual(['[parf (TG)] still the same session']);
   // TG.10 exercises the actual channel_post receiver and configured group
   // scopes through the same real daemon, not just a router dependency mock.
   config.aliases['#friends']='-100';config.aliases['#company']='-200';config.route=b;
   config.chats={'#friends':{route:a,tags:false,anyone:true},'#company':{route:b}};
   await fx.call(fx.ownerToken,'POST','/configure',{name:self,config});
-  await incoming('#b literal in friends',undefined,42,-100);expect((await drain(A)).map(m=>m.body)).toEqual(['[parf (TG)] #b literal in friends']);expect(await drain(B)).toEqual([]);
-  await incoming('unlisted friend',undefined,77,-100);expect((await drain(A)).map(m=>m.body)).toEqual(['[Telegram user 77 (TG)] unlisted friend']);
+  await incoming('#b literal in friends',undefined,42,-100);expect((await drain(A,1)).map(m=>m.body)).toEqual(['[parf (TG)] #b literal in friends']);expect(await drain(B)).toEqual([]);
+  await incoming('unlisted friend',undefined,77,-100);expect((await drain(A,1)).map(m=>m.body)).toEqual(['[Telegram user 77 (TG)] unlisted friend']);
   config.chats['#friends'].tags=true;config.chats['-400']={anyone:true};
   await fx.call(fx.ownerToken,'POST','/configure',{name:self,config});
-  await incoming('#b stay in friends',undefined,77,-100);expect((await drain(A)).map(m=>m.body)).toEqual(['[Telegram user 77 (TG)] #b stay in friends']);expect(await drain(B)).toEqual([]);
-  await incoming(b+' full name stays here',undefined,77,-100);expect((await drain(A)).length).toBe(1);expect(await drain(B)).toEqual([]);
+  await incoming('#b stay in friends',undefined,77,-100);expect((await drain(A,1)).map(m=>m.body)).toEqual(['[Telegram user 77 (TG)] #b stay in friends']);expect(await drain(B)).toEqual([]);
+  await incoming(b+' full name stays here',undefined,77,-100);expect((await drain(A,1)).length).toBe(1);expect(await drain(B)).toEqual([]);
   await incoming('no chat route',undefined,77,-400);expect(await drain(A)).toEqual([]);expect(await drain(B)).toEqual([]);expect(sent.at(-1).text).toContain('did not understand');
 
   await incoming('same sender elsewhere',undefined,77,100);expect(await drain(A)).toEqual([]);expect(await drain(B)).toEqual([]);expect(sent.at(-1).text).toBe('we do not know you');
-  await incoming('company announcement',undefined,42,-200,true);expect((await drain(B)).map(m=>m.body)).toEqual(['[channel -200 (TG)] company announcement']);
+  await incoming('company announcement',undefined,42,-200,true);expect((await drain(B,1)).map(m=>m.body)).toEqual(['[channel -200 (TG)] company announcement']);
   // Drop runs before routing, subscriptions and seen history; outgoing post is independent.
   config.aliases['#drop']='-500'; config.chats['#drop']={handler:'drop'};
   await fx.call(fx.ownerToken,'POST','/configure',{name:self,config});
