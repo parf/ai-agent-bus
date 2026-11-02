@@ -206,3 +206,48 @@ Open choices for [dbsync](dbsync.md#questions).
   - ( ) Later, a counter mode with its own lookback in counter units (rows with a counter below the high-water mark within a window) 🌟
   - ( ) Never: refuse counters, tell the owner to add a timestamp ⭐
   > 💡👾 Park it: refuse counters in R1.1; a counter mode is its own small step if a table needs it.
+
+## IMAP large transfer
+
+Open choices for [B.31](TODO.md#imap-large-transfer), parked on
+2026-11-01 and moved from R1 with its [plan](imap-large-transfer.md#parked-questions).
+Q285 is [settled](../R1.0-Release/DECISIONS.md#recorded-decisions).
+The recommendations below are retained parked proposals.
+
+- ❓ Q281 Chunked calls or a file handoff
+  - ( ) chunked `part` and `upload` calls 🌟
+  - ( ) a file the agent writes and the caller reads
+  - ( ) a generic large-body mechanism ⭐
+  > 💡👾 chunked calls; the file is unreadable to remote callers and to other accounts, and the generic mechanism is daemon work no other agent needs
+  - Impact: decides whether anything outside `src/agents/imap` changes
+
+- ❓ Q282 Staging bounds and lifetime
+  - ( ) 100 MB in total, one staging per caller, upload expires after an hour, download staging after 15 minutes 🌟
+  - ( ) tighter or looser ⭐
+  > 💡👾 those numbers; they fit the default 1 GiB disk check with room for the mail cache
+  - Impact: a lower total refuses 25 MB while another caller is mid-transfer
+
+- ❓ Q283 Caller convenience for a hundred calls
+  - ( ) a documented shell loop in the guide only 🌟
+  - ( ) a CLI verb that loops ⭐
+  - ( ) an MCP helper
+  > 💡👾 the documented loop now; a verb only if the owner wants it, as client work outside this plan
+  - Impact: an AI caller can loop itself; a person at a shell needs the example
+
+- ❓ Q284 Should the agent build the MIME for an upload
+  - ( ) the caller sends a finished RFC 5322 mail 🌟
+  - ( ) the agent assembles one from a text body and attachment files ⭐
+  > 💡👾 the caller sends the finished mail; MIME assembly is a parser surface the agent need not own
+  - Impact: building attachments is the caller's job
+
+- ❓ Q286 Is the SHA-256 at `upload begin` required
+  - ( ) optional, checked when given 🌟
+  - ( ) required ⭐
+  > 💡👾 optional; `part` always reports the hash of the whole part
+  - Impact: required makes every upload verifiable but forces callers to hash first
+
+- ❓ Q287 Do windowed `part` answers use base64 for text too
+  - ( ) base64 for every type when `--offset` or `--limit` is given, and a plain `part` unchanged 🌟
+  - ( ) decoded text for text parts in windows as well ⭐
+  > 💡👾 base64 in windows; exact reassembly and the hash, and a split character never shows escapes
+  - Impact: the other choice cannot promise the whole-part hash for text parts

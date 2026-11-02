@@ -20,7 +20,9 @@ None open: Q269 to Q275 are [settled](DECISIONS.md#recorded-decisions) for the [
 
 ## IMAP large transfer
 
-B.31 is parked behind [bigfile](bigfile.md#help-text) (owner, 2026-11-01); its open choices Q281–Q284, Q286 and Q287 wait with it in [its plan](imap-large-transfer.md#parked-questions).
+B.31 and its parked Q281–Q284, Q286 and Q287 moved to
+[R1.1 QUESTIONS](../R1.1/QUESTIONS.md#imap-large-transfer), with the
+[plan](../R1.1/imap-large-transfer.md#parked-questions).
 
 ## Short prompts
 

@@ -1,10 +1,10 @@
 # IMAP large transfer
 
-**Parked (owner, 2026-11-01): behind [bigfiles](bigfile.md#how-the-imap-agent-uses-it), which replace these chunked calls.**
+**Parked (owner, 2026-11-01): behind [bigfiles](../R1.0-Release/bigfile.md#how-the-imap-agent-uses-it). Whether the built IMAP part/append path supersedes this proposal is the owner's later call.**
 
 📌 **TL;DR:**
-- **Plan only; no code until the owner approves** ([B.31](TODO.md#bundled-agents), questions Q281–Q287, Q285 settled).
-- **Problem:** `part` and `append` of the [IMAP folders plan](imap-folders.md#help-text) are capped at 25 MB, but a bus answer holds 256 KiB and a request 1 MiB.
+- **Plan only; no code until the owner approves** ([B.31](TODO.md#imap-large-transfer), questions Q281–Q287, Q285 settled).
+- **Problem:** `part` and `append` of the [IMAP folders plan](../R1.0-Release/imap-folders.md#help-text) are capped at 25 MB, but a bus answer holds 256 KiB and a request 1 MiB.
 - **Recommendation: (b) chunked calls.** The caller reads or writes one window per call, with offsets, resume and a SHA-256 over the whole; the agent keeps a bounded staging file in its own work directory.
 - **Why not a file handoff:** the sandboxed agent's only writable path is its own work folder, which a remote caller cannot read and a local one may not; (b) works for every caller.
 
@@ -24,11 +24,11 @@ upload abort <id>: Delete the staging.
 
 **Added to `part`:** the last sentence only. **Added to `append`:** the last sentence of the body form, and the `--upload` form, whose closing clauses are the landed ones.
 
-**Behaviour change, windowed `part` only:** a window is base64 for every type, so reassembled windows are byte-exact and match the hash; a text part cut in the middle of a character would otherwise show hex escapes at the edge. A plain `part` without `--offset` or `--limit` stays as landed: decoded text for text, base64 for binary, truncated with a label. Recommendation: this split ([Q287](#parked-questions)).
+**Behaviour change, windowed `part` only:** a window is base64 for every type, so reassembled windows are byte-exact and match the hash; a text part cut in the middle of a character would otherwise show hex escapes at the edge. A plain `part` without `--offset` or `--limit` stays as landed: decoded text for text, base64 for binary, truncated with a label. Recommendation: this split ([Q287](QUESTIONS.md#imap-large-transfer)).
 
 JSON spellings: `folder` as everywhere; `{"method":"upload.put","id":"…","offset":0,"data":"<base64>"}`; `{"method":"part","uid":7,"part":"2","offset":0,"limit":163840}`. `upload` is the only new method name; `begin`, `put`, `status` and `abort` follow it as `sub` has `add`, `list` and `delete`.
 
-A caller sends a finished RFC 5322 mail, attachments included. The agent builds no MIME ([Q284](#parked-questions)).
+A caller sends a finished RFC 5322 mail, attachments included. The agent builds no MIME ([Q284](QUESTIONS.md#imap-large-transfer)).
 
 ## The three options
 
@@ -54,17 +54,17 @@ A caller sends a finished RFC 5322 mail, attachments included. The agent builds 
 - **Download:** the first `part` call fetches the whole part from the server in bounded windows with PEEK, decodes it on the fly into a staging file, hashes it, and serves windows from that file. Later windows read the staging, not the server. The mail cache is untouched; it holds only mail up to 2 MiB.
 - **Upload:** `upload put` appends in order into a staging file; `append --upload` streams that file to the server as the literal, only after the size and hash match.
 - **Resume and integrity:** offsets are exact, a repeat of the last window is accepted, a different byte at a held offset is refused; the whole-part SHA-256 is the end-to-end check, and a mismatch refuses before any server write.
-- **Bounds:** staging total and lifetime ([Q282](#parked-questions)); one staging per caller; deleted on completion, abort, expiry and at agent start; `0600` files in a `0700` directory under `AGENT_BUS_WORK`, never followed through links, like the [mail cache](../../docs/agents/imap.md#technical-details).
+- **Bounds:** staging total and lifetime ([Q282](QUESTIONS.md#imap-large-transfer)); one staging per caller; deleted on completion, abort, expiry and at agent start; `0600` files in a `0700` directory under `AGENT_BUS_WORK`, never followed through links, like the [mail cache](../../docs/agents/imap.md#technical-details).
 - **Trust:** each window is private mail passing the daemon like any body today; off loopback the [trust boundary](../../docs/02-access.md#trust-boundary) applies unchanged: use TLS or SSH. An attachment is untrusted bytes; the answer says so and nothing is opened or rendered.
 - **Durability:** nothing large enters a queue; the [queue flush](../../docs/04-messaging.md#durability) sees only windows of at most a few hundred KiB.
-- **Authority:** `part` and `upload put/status/abort` need ordinary admission (staging is the caller's own and bounded); `append` stays behind the destructive switch of the [folders plan](imap-folders.md#authority).
+- **Authority:** `part` and `upload put/status/abort` need ordinary admission (staging is the caller's own and bounded); `append` stays behind the destructive switch of the [folders plan](../R1.0-Release/imap-folders.md#authority).
 - **No daemon, runner or protocol change.** Code in `src/agents/imap` only: `wire.py` (partial FETCH, literal APPEND), `imap.py` (parser: ⚠️ parsers, mutants), a staging module beside `cache.py`.
 
 ### (c) A generic large-body mechanism
 
 - Other agents could reuse it, but none asks for it yet: only IMAP exceeds the caps.
 - It changes the daemon store and the wire: ⚠️ storage and protocol subsystems, a bump of its own, and the [durability](../../docs/04-messaging.md#durability) rule that queues flush as one batch a minute does not suit 25 MB bodies.
-- The owner first chose Redis for this (2026-11-01), then replaced it the same day with [bigfiles](bigfile.md#what-it-is-and-is-not), a store inside the bus ([decision](DECISIONS.md#recorded-decisions)).
+- The owner first chose Redis for this (2026-11-01), then replaced it the same day with [bigfiles](../R1.0-Release/bigfile.md#what-it-is-and-is-not), a store inside the bus ([decision](../R1.0-Release/DECISIONS.md#recorded-decisions)).
 
 ## Order of work
 
@@ -90,33 +90,6 @@ Each step is its own commit and landing; the mutants take the `slow` lock.
 
 ## Parked questions
 
-Open choices of this plan, parked with B.31 behind [bigfile](bigfile.md#help-text) (owner, 2026-11-01). They return to [R1 questions](QUESTIONS.md#imap-large-transfer) only if B.31 resumes.
-
-- ❓ Q281 Chunked calls or a file handoff
-  - Options: chunked `part` and `upload` calls; or a file the agent writes and the caller reads; or a generic large-body mechanism
-  - Recommendation: chunked calls; the file is unreadable to remote callers and to other accounts, and the generic mechanism is daemon work no other agent needs
-  - Impact: decides whether anything outside `src/agents/imap` changes
-
-- ❓ Q282 Staging bounds and lifetime
-  - Options: 100 MB in total, one staging per caller, upload expires after an hour, download staging after 15 minutes; or tighter or looser
-  - Recommendation: those numbers; they fit the default 1 GiB disk check with room for the mail cache
-  - Impact: a lower total refuses 25 MB while another caller is mid-transfer
-
-- ❓ Q283 Caller convenience for a hundred calls
-  - Options: a documented shell loop in the guide only; or a CLI verb that loops; or an MCP helper
-  - Recommendation: the documented loop now; a verb only if the owner wants it, as client work outside this plan
-  - Impact: an AI caller can loop itself; a person at a shell needs the example
-
-- ❓ Q284 Should the agent build the MIME for an upload
-  - Options: the caller sends a finished RFC 5322 mail; or the agent assembles one from a text body and attachment files
-  - Recommendation: the caller sends the finished mail; MIME assembly is a parser surface the agent need not own
-  - Impact: building attachments is the caller's job
-
-- ❓ Q286 Is the SHA-256 at `upload begin` required
-  - Options: optional, checked when given; or required
-  - Recommendation: optional; `part` always reports the hash of the whole part
-  - Impact: required makes every upload verifiable but forces callers to hash first
-- ❓ Q287 Do windowed `part` answers use base64 for text too
-  - Options: base64 for every type when `--offset` or `--limit` is given, and a plain `part` unchanged; or decoded text for text parts in windows as well
-  - Recommendation: base64 in windows; exact reassembly and the hash, and a split character never shows escapes
-  - Impact: the other choice cannot promise the whole-part hash for text parts
+The unchanged IDs Q281–Q284, Q286 and Q287 live in
+[R1.1 QUESTIONS](QUESTIONS.md#imap-large-transfer). They remain parked
+with B.31; Q285 is already settled.

@@ -225,3 +225,12 @@ Owner, 2026-11-02; plan in [dbsync](dbsync.md#steps-and-estimate), open [Q314–
   - Today: one shared version for every program and agent ([versioning](../../CLAUDE.md#versioning)); agents live under `src/agents/` and ship with the daemon
   - Depends: an owner-approved plan first: what stays in this repository (daemon, runner, CLI, MCP, clients), which protocol versions the pack declares it works with ([client contract](../../docs/09-daemon-api.md#the-client-contract)), and how install, packaging and the smoke gate change
   - Acceptance: the pack builds, tests and releases from its own repository at its own version; a daemon release with no agent change bumps no agent version; the pack refuses a daemon whose protocol it does not support
+
+## IMAP large transfer
+
+- ⏸ B.31 IMAP large transfer — **deferred (owner, 2026-11-01): parked behind [B.32](../R1.0-Release/TODO.md#bundled-agents)**; no code. [Plan](imap-large-transfer.md#help-text); questions [Q281](QUESTIONS.md#imap-large-transfer)–Q287 (Q285 settled).
+  - Builds: `part` in windows, `upload begin|put|status|abort` and `append --upload`, so mail and attachments up to 25 MB pass the 256 KiB answer and 1 MiB request caps; code in `src/agents/imap` only
+  - Depends: [B.30](../R1.0-Release/TODO.md#bundled-agents) steps 2 and 4
+  - Acceptance: [the plan's acceptance](imap-large-transfer.md#acceptance-for-the-todo-item)
+  - Mutants: [the plan's list](imap-large-transfer.md#acceptance-for-the-todo-item)
+  - Whether bigfile's IMAP part/append (`1a95ec19`) supersedes B.31 is the owner's later call.

@@ -25,7 +25,7 @@ bigfile rm <record> <name>: Delete one bigfile at once; the answer says whether 
 
 ## How the IMAP agent uses it
 
-These replace the [chunked calls](imap-large-transfer.md#the-three-options), which are parked.
+The [chunked calls](../R1.1/imap-large-transfer.md#the-three-options) remain parked in R1.1; whether this IMAP path supersedes them is the owner's later call.
 
 ```text
 part <uid> <part-id> --bigfile <name> [--folder <name>]: Store the decoded part under the bigfile <name> on this IMAP instance's record and answer its size and SHA-256 instead of the bytes; no Seen. Refuse above 26214400 encoded bytes before decoding. Download it with bigfile get <this-instance> <name>; whoever may call this instance may download it.

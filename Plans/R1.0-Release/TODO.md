@@ -113,8 +113,8 @@ agents, distribution packaging and its acceptance, and the protocol freeze.
 T-24's last step, S2v, landed as `84f3534a`, 0.9.284; agent events
 ([RT34](#rt34-agent-events)) have also landed.
 Still open for R1, besides what the rows below say: the first npm publication
-at the release (P.1, [Q300](DECISIONS.md#recorded-decisions)) and the deferred
-IMAP transfer (B.31). RT11 is closed: RW4/RW8 moved to
+at the release (P.1, [Q300](DECISIONS.md#recorded-decisions)). B.31 moved to
+[R1.1](../R1.1/TODO.md#imap-large-transfer). RT11 is closed: RW4/RW8 moved to
 [R1.1](../R1.1/TODO.md#runner-web-additions) ([Q311](DECISIONS.md#recorded-decisions)).
 Federation is [R1.2](../R1.2/federation.md#chaining); its R1.1 prerequisites
 no longer block this release.
@@ -403,11 +403,9 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Acceptance: [the plan's acceptance](imap-folders.md#acceptance-for-the-todo-item)
   - Mutants: [the plan's list](imap-folders.md#acceptance-for-the-todo-item)
 
-- ⏸ B.31 IMAP large transfer — **deferred (owner, 2026-11-01): parked behind [B.32](#bundled-agents)**; no code. [Plan](imap-large-transfer.md#help-text); questions [Q281](QUESTIONS.md#imap-large-transfer)–Q287 (Q285 settled).
-  - Builds: `part` in windows, `upload begin|put|status|abort` and `append --upload`, so mail and attachments up to 25 MB pass the 256 KiB answer and 1 MiB request caps; code in `src/agents/imap` only
-  - Depends: B.30 steps 2 and 4
-  - Acceptance: [the plan's acceptance](imap-large-transfer.md#acceptance-for-the-todo-item)
-  - Mutants: [the plan's list](imap-large-transfer.md#acceptance-for-the-todo-item)
+- B.31 Moved to [R1.1](../R1.1/TODO.md#imap-large-transfer); remains parked
+  per the owner's 2026-11-01 decision. [Plan](../R1.1/imap-large-transfer.md#help-text)
+  and [questions](../R1.1/QUESTIONS.md#imap-large-transfer) moved with it.
 
 - ✅ B.32 Bigfiles (formerly big keys; renamed in T-22) — **approved 2026-11-01 11:05**, built in stages: 2a `90dddc07` 0.9.252 (API, memory holder, authority); 2b `36d43221` 0.9.253 (file holder, limits, expiry, 503 when the directory fails); 2d `5d259db5` 0.9.258 (early refusals drained); 2c `1a95ec19` 0.9.260 (IMAP `part`/`append`); T-22 `07a3422c` 0.9.262 (the rename, `bigfile/` directory); T-23 `516fae57` 0.9.263 (index in the database). [Plan](bigfile.md#help-text), [result and evidence](DONE.md#b32-status-close-out), [guide](../../docs/03-records-kv.md#bigfiles); [decision](DECISIONS.md#recorded-decisions). The Rust, PHP and Java clients do not carry bigfile (T-24).
   - Builds: a bus store of named big values in memory or a file, with `bigfile put|get|ls|rm`; Maintainers upload and download, allow-list principals download only; IMAP `part --bigfile` and `append --bigfile` use it
