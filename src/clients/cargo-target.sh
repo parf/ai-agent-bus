@@ -9,3 +9,5 @@ if [ -z "${CARGO_TARGET_DIR:-}" ]; then
   export CARGO_TARGET_DIR="$cargo_tree/tmp/cargo-target"
   unset cargo_tree cargo_common
 fi
+# Cargo's job count defaults to every core; a test run shares the host with other builds. Overridable.
+export CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS:-4}

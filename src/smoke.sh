@@ -9,6 +9,10 @@
 #   ./smoke.sh --shard S  one shard, with the same mode flags and PORT
 #   SMOKE_TEST_PATTERN=pattern  filter a Bun agent shard for mutant kills only
 #   SMOKE_TIMES=1         list every section and shard's wall time
+#   SMOKE_CPU_PERCENT=N   CPU ceiling of the whole run, in percent of one core (default half the cores x 100;
+#                         0 = uncapped, said aloud); the driver re-runs itself in a systemd user scope
+#   SMOKE_GO_PROCS=N / SMOKE_GO_P=N   GOMAXPROCS (default cores/4) and go -p (default 4) for every Go command
+#   CARGO_BUILD_JOBS=N    cargo's jobs (default 4, set in clients/cargo-target.sh)
 #
 # A landing runs normal for changed subsystems and fast for the rest.
 # Mutants run only their owning check. Slow is for a release or huge change.
@@ -21,10 +25,39 @@ set -u
 cd "$(dirname "$0")"
 SELF=$PWD/$(basename "$0")
 source "$PWD/clients/cargo-target.sh"
+# Cap Go's fan-out: left alone, vet, build and `go test -race` each use every core (-p and GOMAXPROCS are the core
+# count), and the test binaries the same. Overridable; inherited by the build, the shards and the fixture builds.
+export GOMAXPROCS=${SMOKE_GO_PROCS:-$(( $(nproc) / 4 > 0 ? $(nproc) / 4 : 1 ))}
+export GOFLAGS="${GOFLAGS:+$GOFLAGS }-p=${SMOKE_GO_P:-4}"
 # Modes are parsed separately so their contract is checked without a build.
 source ./smoke-options.sh
 smoke_options "$@" || exit $?
 smoke_require_gate_lock || exit $?
+# One CPU ceiling over the whole run: the driver re-runs itself inside a user scope with CPUQuota (default half the cores),
+# so however many shards and Go/cargo/bun workers fan out, they share it. Marked children, a hand-run shard and a run
+# that is already capped do not wrap again. SMOKE_CPU_PERCENT=0 turns it off, loudly. Without systemd-run, or if the
+# scope cannot be started, the run warns and goes on uncapped. The confinement shards' own `systemd-run --scope`
+# units (script_confined, the guide's private runner) are siblings of this scope under app.slice, not children: they
+# are NOT inside the cap, so the Go/cargo caps above and the shard builds are what bound them.
+if [ -z "$SHARD" ] && [ "$SMOKE_DRIVER_CHILD" = 0 ] && [ -z "${SMOKE_CAPPED:-}" ]; then
+  smoke_cap=${SMOKE_CPU_PERCENT:-$(( $(nproc) / 2 * 100 ))}
+  if [ "$smoke_cap" = 0 ]; then
+    echo "smoke: CPU cap disabled (SMOKE_CPU_PERCENT=0); this run is uncapped" >&2
+  elif ! command -v systemd-run >/dev/null; then
+    echo "smoke: WARNING no systemd-run, so no CPU cap; this run is uncapped" >&2
+  else
+    smoke_mark=$(mktemp)
+    SMOKE_CAPPED=$smoke_cap SMOKE_CAP_MARK=$smoke_mark systemd-run --user --scope --quiet -p "CPUQuota=${smoke_cap}%" -- bash "$SELF" "$@"
+    smoke_rc=$?
+    if [ -s "$smoke_mark" ]; then rm -f "$smoke_mark"; exit "$smoke_rc"; fi
+    rm -f "$smoke_mark"
+    echo "smoke: WARNING systemd-run could not start the capped scope (exit $smoke_rc); this run is uncapped" >&2
+  fi
+fi
+if [ -n "${SMOKE_CAP_MARK:-}" ]; then
+  echo started >"$SMOKE_CAP_MARK"; unset SMOKE_CAP_MARK
+  echo "smoke: CPU capped at ${SMOKE_CAPPED}% (cgroup $(sed 's/^0:://' /proc/self/cgroup))" >&2
+fi
 # This run builds its own fixture: whatever bus the caller is already talking
 # to is not it. A session launcher exports AGENT_BUS_TOKEN, NAME, ADDR, PUSH,
 # RUNTIME, DESCR and the control pair, and the MCP face reads all of them —
@@ -102,6 +135,9 @@ if [ -z "$SHARD" ]; then
   mkdir -p "$B/bin"
   if printf '%s\n' "${LEVELS[@]}" | grep -Eq '^(normal|slow)$'; then
     bash ./build.sh "$B/bin" || exit 1
+    # One client fixture for every shard that needs a real daemon on the Go client side.
+    go build -o "$B/bin/client-fixture" ./clients/fixture || { echo "FAIL the client fixture did not build"; exit 1; }
+    export SMOKE_CLIENT_FIXTURE=$B/bin/client-fixture
   fi
   export BUILD_FINISHED=$(date +%s)
   # Read-only from here: each shard hard-links it into its own directory.
@@ -4050,6 +4086,16 @@ has "the daemon the trap will stop is the one this run started" \
 # the counters the next one reads.
 core() { for CURRENT_CHECK in core_{1..10}; do "$CURRENT_CHECK"; done; unset CURRENT_CHECK; }
 
+# The client fixture is built once by the driver and shared read-only (SMOKE_CLIENT_FIXTURE). A shard under a
+# driver never builds its own and fails loudly when it is missing; a hand-run shard without a driver builds one.
+client_fixture() {
+  if [ -n "${SMOKE_CLIENT_FIXTURE:-}" ]; then
+    [ -x "$SMOKE_CLIENT_FIXTURE" ] || { echo "  FAIL the driver's client fixture is missing: $SMOKE_CLIENT_FIXTURE" >&2; return 1; }
+    echo "$SMOKE_CLIENT_FIXTURE"; return 0
+  fi
+  [ -x "$D/client-fixture" ] || go build -o "$D/client-fixture" ./clients/fixture || return 1
+  echo "$D/client-fixture"
+}
 client_check() {
   if normal; then
     sec "$1 client conformance"
@@ -4164,8 +4210,8 @@ agent_git() {
   if normal; then
     sec "git declared repositories, roles and SSH identity"
     local out rc
-    go build -o "$D/autopull-client-fixture" ./clients/fixture || { ok_exit "autopull bus fixture builds" 1; return; }
-    out=$(AUTOPULL_BUS_FIXTURE="$D/autopull-client-fixture" SMOKE_TEST_SET="$(level)" PYTHONDONTWRITEBYTECODE=1 AGENT_BUS_TMP="$D" python3 -m unittest discover -s agents/standalone/git -p 'test_*.py' -v 2>&1); rc=$?
+    local fixture; fixture=$(client_fixture) || { ok_exit "autopull bus fixture is present" 1; return; }
+    out=$(AUTOPULL_BUS_FIXTURE="$fixture" SMOKE_TEST_SET="$(level)" PYTHONDONTWRITEBYTECODE=1 AGENT_BUS_TMP="$D" python3 -m unittest discover -s agents/standalone/git -p 'test_*.py' -v 2>&1); rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "git operations and refusal boundaries" "$rc"
     out=$(sudo -n env AB_TEST_DIR="$D" PYTHONDONTWRITEBYTECODE=1 python3 ./agents/standalone/git/ssh_check.py 2>&1); rc=$?
@@ -4241,8 +4287,8 @@ agent_imap() {
   if normal; then
     sec "IMAP bounded private UID cache and raw external publication"
     local out rc
-    go build -o "$D/imap-client-fixture" ./clients/fixture || { ok_exit "IMAP bus fixture builds" 1; return; }
-    out=$(IMAP_BUS_FIXTURE="$D/imap-client-fixture" PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/imap -p 'test_*.py' -v 2>&1); rc=$?
+    local fixture; fixture=$(client_fixture) || { ok_exit "IMAP bus fixture is present" 1; return; }
+    out=$(IMAP_BUS_FIXTURE="$fixture" PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/imap -p 'test_*.py' -v 2>&1); rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "IMAP TLS/auth, bounded literals/cache, raw publication and exported reader" "$rc"
   else skipped=$((skipped+1)); fi
@@ -4252,8 +4298,8 @@ agent_eventlog() {
   if normal; then
     sec "eventlog rings, persistent alerts, roles and once-only subscriptions"
     local out rc
-    go build -o "$D/eventlog-client-fixture" ./clients/fixture || { ok_exit "eventlog bus fixture builds" 1; return; }
-    out=$(EVENTLOG_BUS_FIXTURE="$D/eventlog-client-fixture" PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/eventlog -p 'test_*.py' -v 2>&1); rc=$?
+    local fixture; fixture=$(client_fixture) || { ok_exit "eventlog bus fixture is present" 1; return; }
+    out=$(EVENTLOG_BUS_FIXTURE="$fixture" PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/eventlog -p 'test_*.py' -v 2>&1); rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "eventlog bounds, fold/restart, pull/clean, direct roles, subscription-first and package" "$rc"
   else skipped=$((skipped+1)); fi
@@ -4304,8 +4350,8 @@ agent_cron() {
   if normal; then
     sec "cron subscriptions and one-shots: destination authority, single firing, RD138 delivery"
     local out rc
-    go build -o "$D/cron-client-fixture" ./clients/fixture || { ok_exit "cron bus fixture builds" 1; return; }
-    out=$(CRON_BUS_FIXTURE="$D/cron-client-fixture" PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/cron -p 'test_*.py' -v 2>&1); rc=$?
+    local fixture; fixture=$(client_fixture) || { ok_exit "cron bus fixture is present" 1; return; }
+    out=$(CRON_BUS_FIXTURE="$fixture" PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/cron -p 'test_*.py' -v 2>&1); rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "cron parser, /manages at add and firing, one sender per slot, restarts and unconfirmed pauses" "$rc"
   else skipped=$((skipped+1)); fi
@@ -4315,8 +4361,8 @@ agent_at() {
   if normal; then
     sec "at: deferred one-shot calls on the shared scheduler engine"
     local out rc
-    go build -o "$D/at-client-fixture" ./clients/fixture || { ok_exit "at bus fixture builds" 1; return; }
-    out=$(CRON_BUS_FIXTURE="$D/at-client-fixture" PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/at -p 'test_*.py' -v 2>&1); rc=$?
+    local fixture; fixture=$(client_fixture) || { ok_exit "at bus fixture is present" 1; return; }
+    out=$(CRON_BUS_FIXTURE="$fixture" PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/at -p 'test_*.py' -v 2>&1); rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "at grammar and HH:MM, one send per call, restarts, ACL pauses, shared engine packaged unchanged" "$rc"
   else skipped=$((skipped+1)); fi
@@ -4346,10 +4392,10 @@ agent_rag() {
   if normal; then
     sec "RAG core, prompt cache, disposable bus block identities and keyword search on a real Qdrant"
     local out rc
-    go build -o "$D/rag-client-fixture" ./clients/fixture || { ok_exit "RAG bus fixture builds" 1; return; }
+    local fixture; fixture=$(client_fixture) || { ok_exit "RAG bus fixture is present" 1; return; }
     # The real-Qdrant check starts a container like the database proxy's fixtures: under the same journal-quiet wrapper (J32),
     # bounded so a missing podman fails instead of hanging, and its own run's containers are counted by label at the end.
-    out=$(RAG_BUS_FIXTURE="$D/rag-client-fixture" PYTHONDONTWRITEBYTECODE=1 timeout 300 ./journal-quiet.sh ab-db-fixture python3 -m unittest discover -s agents/rag -p 'test_*.py' -v 2>&1); rc=$?
+    out=$(RAG_BUS_FIXTURE="$fixture" PYTHONDONTWRITEBYTECODE=1 timeout 300 ./journal-quiet.sh ab-db-fixture python3 -m unittest discover -s agents/rag -p 'test_*.py' -v 2>&1); rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "RAG scoped storage, provider preparation, cache, identity and BM25 keyword search" "$rc"
     has "the RAG fixtures wrote nothing to the host journal" "$out" "^journal-quiet: no journal entry for ab-db-fixture$"
@@ -4373,8 +4419,8 @@ agent_webhook() {
   if normal; then
     sec "Webhook authenticated routes, bounded HTTP and private configured outbound"
     local out rc
-    go build -o "$D/webhook-client-fixture" ./clients/fixture || { ok_exit "webhook bus fixture builds" 1; return; }
-    out=$(WEBHOOK_BUS_FIXTURE="$D/webhook-client-fixture" PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/webhook -p 'test_*.py' -v 2>&1); rc=$?
+    local fixture; fixture=$(client_fixture) || { ok_exit "webhook bus fixture is present" 1; return; }
+    out=$(WEBHOOK_BUS_FIXTURE="$fixture" PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/webhook -p 'test_*.py' -v 2>&1); rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "webhook auth, exact delivery, concurrency, TLS, deadlines, caps and package" "$rc"
   else skipped=$((skipped+1)); fi

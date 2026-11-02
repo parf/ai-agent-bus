@@ -15,7 +15,13 @@ export GOCACHE=${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/go-build}
 export XDG_CACHE_HOME=$work/cache
 case ${1:-} in
   python|rust|typescript|go|php|java)
-    (cd "$root/src" && go build -o "$work/fixture" ./clients/fixture)
+    # Under a smoke driver the fixture was built once and is shared; a missing one fails loudly. Run by hand, build one.
+    if [ -n "${SMOKE_CLIENT_FIXTURE:-}" ]; then
+      [ -x "$SMOKE_CLIENT_FIXTURE" ] || { echo "the driver's client fixture is missing: $SMOKE_CLIENT_FIXTURE" >&2; exit 1; }
+      cp "$SMOKE_CLIENT_FIXTURE" "$work/fixture"
+    else
+      (cd "$root/src" && go build -o "$work/fixture" ./clients/fixture)
+    fi
     export AB_CLIENT_FIXTURE=$work/fixture AGENT_BUS_FIXTURE_BINARY=$work/fixture
     ;;
 esac

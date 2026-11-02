@@ -331,8 +331,13 @@ class DaemonDelivery(unittest.TestCase):
         (root/'tmp').mkdir(exist_ok=True)
         with tempfile.TemporaryDirectory(prefix='subscription-daemon-',dir=root/'tmp') as directory:
             fixture=Path(directory)/'fixture'
-            built=subprocess.run(['go','build','-o',str(fixture),'./clients/fixture'],cwd=root/'src',capture_output=True,text=True,timeout=30)
-            self.assertEqual(built.returncode,0,built.stderr)
+            shared=os.environ.get('SMOKE_CLIENT_FIXTURE')   # built once by the smoke driver: never rebuilt, never silently missing
+            if shared:
+                self.assertTrue(os.access(shared,os.X_OK),'the driver client fixture is missing: '+shared)
+                fixture=Path(shared)
+            else:
+                built=subprocess.run(['go','build','-o',str(fixture),'./clients/fixture'],cwd=root/'src',capture_output=True,text=True,timeout=30)
+                self.assertEqual(built.returncode,0,built.stderr)
             process=subprocess.Popen([str(fixture)],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True)
             clients=[];engine=None
             try:
