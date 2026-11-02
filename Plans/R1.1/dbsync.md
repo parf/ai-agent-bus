@@ -166,7 +166,7 @@ Plan decisions that need no owner answer; the owner may overrule any of them.
 | DBSync runs against a read-only DB agent | It only reads; a read-only account makes a statement-building bug harmless |
 | No inotify or other instant mode | A database has no event source the DB agent offers; the timer is the trigger |
 | The lookback is measured by database time | An agent clock may differ from the database's |
-| A cut answer with a new row means more to fetch; a cut with none is a refusal | `max_rows` is a page size, not an end, and a loop must not hide a stuck row |
+| A full page, or a cut whose scan position advanced, continues from the last raw pair; a cut with no scan progress is a refusal | `max_rows` is a page size, not an end, and a loop must not hide a stuck row |
 | Only identifiers matching a plain pattern, and only numeric or timestamp cursor values, reach the statement text; the [type guard](#the-cursor) refuses the rest ([Q318](QUESTIONS.md#dbsync) holds the alternatives) | There are no binds, and tolerant quoting would hide a mistake |
 
 ## Steps and estimate

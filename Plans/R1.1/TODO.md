@@ -189,7 +189,8 @@ Owner, 2026-11-01; plan in [filescan](filescan.md#steps-and-estimate), owner cho
 Owner, 2026-11-02; plan in [dbsync](dbsync.md#steps-and-estimate), open [Q314–Q320](QUESTIONS.md#dbsync). Plan only: no code until the owner approves.
 
 - ⛔ DS.1 `#dbsync/<name>`: a runner agent that tracks new and changed rows of one table by an `updated` column, asks through a read-only [DB agent](../../docs/agents/db.md#what-it-does), and hands the rows to subscribed agents; steps D0–D3 with an estimate of four to five hours of agent time
-  - Depends: the DB agent (built); the owner's answers to [Q314–Q320](QUESTIONS.md#dbsync); [FS.1](#filescan) for the shared core if Q314 says so
+  - Depends: the DB agent (built); the owner's answers to [Q314–Q319](QUESTIONS.md#dbsync); [FS.1](#filescan) for the shared core if Q314 says so
+  - Follow-up, outside R1.1: [Q320](QUESTIONS.md#dbsync), a counter mode for `updated`
   - Acceptance, each against the DB fixture and a fake subscriber, never the live bus:
     - **Cursor:** three rows sharing one `updated` value with `batch` of two are all sent, once each; a cursor on `updated` alone fails this
     - **Paging:** an uncut short page ends the poll; a full page, or a cut whose scan position advanced, triggers the next query at once from the last raw pair received; the page is `max_rows` minus `ceil(max_rows / 10)`, recomputed each poll; `max_rows` 1 is refused with an alert; `max_rows` lowered after a cursor is saved gives a smaller page and the same saved cursor
