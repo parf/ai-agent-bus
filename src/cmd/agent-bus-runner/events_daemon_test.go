@@ -91,7 +91,9 @@ func TestRunnerEventsReachTheAgentsLogAndLeaveItsInboxEmpty(t *testing.T) {
 	for _, e := range log.Rings["alert"] {
 		alerts = append(alerts, e.Text)
 	}
-	if !contains(notices, "runner started serving this agent") || !contains(warnings, "connecting with ***") || !contains(alerts, "process exited unexpectedly, code 3") {
+	// Counts, so a duplicated event fails: the start notice and the fence, one
+	// masked warning, one alert.
+	if len(notices) != 2 || !contains(notices, "runner started serving this agent") || len(warnings) != 1 || warnings[0] != "connecting with ***" || len(alerts) != 1 || alerts[0] != "process exited unexpectedly, code 3" {
 		t.Fatalf("the agent's log holds notices %v, warnings %v, alerts %v", notices, warnings, alerts)
 	}
 	for _, text := range warnings {

@@ -37,12 +37,15 @@ const (
 	eventRate       = 10               // per agent per second, the daemon's admission rate
 	eventBurst      = 20               // and its burst
 	eventDropReport = 60 * time.Second // how often a drop count is said in the journal
-	eventDrain      = 2 * time.Second  // how long the runner's shutdown waits for what is queued
 	eventTopic      = "agent-event"
 )
 
 // eventDeadline bounds one write to #bus; a var only so a test can shorten it.
 var eventDeadline = 3 * time.Second
+
+// eventDrain is how long the runner's shutdown waits for what is queued; a var
+// only so a test can shorten it.
+var eventDrain = 2 * time.Second
 
 const (
 	levelNotice  = "notice"
@@ -97,6 +100,10 @@ func (k *eventSink) start() {
 	go func() {
 		defer close(k.done)
 		for {
+			if ctx.Err() != nil {
+				k.drain()
+				return
+			}
 			select {
 			case e := <-k.urgent:
 				k.deliver(context.Background(), e)
@@ -109,22 +116,31 @@ func (k *eventSink) start() {
 			case e := <-k.queue:
 				k.deliver(context.Background(), e)
 			case <-ctx.Done():
-				end, cancel := context.WithTimeout(context.Background(), eventDrain)
-				defer cancel()
-				for end.Err() == nil {
-					select {
-					case e := <-k.urgent:
-						k.deliver(end, e)
-					case e := <-k.queue:
-						k.deliver(end, e)
-					default:
-						return
-					}
-				}
-				return
 			}
 		}
 	}()
+}
+
+// drain gives what is queued at close a bounded moment, alerts first, and
+// leaves the rest: a hung #bus holds the runner's stop for eventDrain plus the
+// one write in flight, never for every queued event.
+func (k *eventSink) drain() {
+	end, cancel := context.WithTimeout(context.Background(), eventDrain)
+	defer cancel()
+	for end.Err() == nil {
+		select {
+		case e := <-k.urgent:
+			k.deliver(end, e)
+			continue
+		default:
+		}
+		select {
+		case e := <-k.queue:
+			k.deliver(end, e)
+		default:
+			return
+		}
+	}
 }
 
 // close ends the sender after it has drained, within eventDrain. Safe on nil.

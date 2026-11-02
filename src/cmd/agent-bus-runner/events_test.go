@@ -466,3 +466,31 @@ func TestAlertsAreSentBeforeEarlierQueuedWarnings(t *testing.T) {
 		t.Fatalf("delivery order %v, want all ten alerts right after the held write and before every warning", order)
 	}
 }
+
+// A hung #bus holds the runner's stop for the drain and one write, not for
+// every queued event.
+func TestShutdownWithAHungBusIsBounded(t *testing.T) {
+	oldD, oldW := eventDrain, eventDeadline
+	eventDrain, eventDeadline = 300*time.Millisecond, 200*time.Millisecond
+	defer func() { eventDrain, eventDeadline = oldD, oldW }()
+	r := &runner{ctx: context.Background(), say: io.Discard, name: "#runner@h"}
+	r.events = newEventSink(r)
+	r.events.send = func(ctx context.Context, e agentEvent) error { <-ctx.Done(); return ctx.Err() }
+	s := &served{name: "#a@h", bus: &client{}}
+	for i := 0; i < 20; i++ {
+		r.events.emit(s, levelAlert, "alert "+strconv.Itoa(i))
+	}
+	r.events.start()
+	time.Sleep(50 * time.Millisecond) // the sender is inside its first hung write
+	began := time.Now()
+	done := make(chan struct{})
+	go func() { r.events.close(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("close waited for every queued alert")
+	}
+	if took := time.Since(began); took > eventDrain+eventDeadline+400*time.Millisecond {
+		t.Fatalf("close took %s with a hung bus, want at most the drain (%s) and one write (%s)", took, eventDrain, eventDeadline)
+	}
+}
