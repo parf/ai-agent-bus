@@ -152,13 +152,20 @@ selection triggers under the existing selector rules.
 
 - **Fast:** the bash time service only, on a test bus; explicit argv allowlist,
   measured within the fast budget. No Python/build-everything/confined runner.
-- **Normal:** all guide examples and shared assertions, including the runner
-  helper and ordinary confinement checks. Reuse smoke-built binaries and fixture
-  prerequisites; no fresh Go build per example.
-- **Slow:** deliberate enforcement of CPU/resource limits. If measured ordinary
-  confinement cost exceeds normal's budget, move that portion to slow with a
-  named normal guard; every published example must still run in this one shard's
-  slow form before landing. Do not silently skip missing sandbox prerequisites.
+- **Normal:** the CLI and Python-process examples and the shared assertions,
+  plus a named guard for the packaged form that needs no runner: each package's
+  `agent.json` parses, its command is an executable `./` path, and
+  `agent-bus run --package-dir` answers the packaged help (description, or the
+  script's own for `help: native`). Reuse smoke-built binaries; no systemd scope,
+  so nothing reaches the host journal (owner rule; Q327 asks whether systemd's
+  own scope line counts).
+- **Slow:** every example packaged for a private runner (Configuration, Secret,
+  confinement views, limits read from the live cgroup, a kept process that comes
+  back) and the deliberate CPU-limit enforcement. The runner needs
+  `systemd-run --scope`, which writes one systemd line per run, so it lives
+  here; if the owner accepts that line the runner part moves back to normal.
+  Every published example still runs in this one shard's slow form before
+  landing. Do not silently skip missing sandbox prerequisites.
 
 Confinement proof covers the real writable/read-only view, applied CPU quota
 without provoking a normal-run limit kill, and denied networking versus the
