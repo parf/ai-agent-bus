@@ -50,6 +50,13 @@ after a manual change. It must also distinguish refusal of new authentication
 from the ability to decrypt old work: a manual revocation needs an explicit
 backlog outcome. *Settled by:* owner, with R1.1.
 
+- ❓ Q323 May an answer reach an agent whose Allow does not name the answerer ([J84](../issues/2026-11/2026-11-02.md))
+  - Context: a private agent can ask `#bus` (`status`, `help`, agent events), but the answer is refused, because an answer is an ordinary send checked against the asker's Allow and the daemon keeps no reply state. 1.0.0 keeps it and documents "list `#bus` in your Allow"
+  - ( ) Keep and document: an agent that asks `#bus` lists it in its Allow ⭐
+  - ( ) Only the daemon's own `#bus` may answer any agent that may ask it; agent-to-agent answers stay as today 🌟
+  - ( ) Any answer to an accepted ask passes the asker's Allow; the daemon then has to remember each ask
+  > 💡👾 Only `#bus`: it is the daemon itself and only answers, so this fixes the trap without new reply state or wider agent reach.
+
 ## Auth context
 
 ❓ **`authorized_keys` is regenerated from the bundle each generation**, which
