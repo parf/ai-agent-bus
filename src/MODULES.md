@@ -26,6 +26,7 @@ The table describes built code.
 | `internal/store/sqlite`, `internal/store/memory` | The SQLite store and the in-memory test store |
 | `internal/directory/file`, `internal/directory/github`, `internal/signature/sshkeygen`, `internal/keyproof` | Public-key lookup, system signature verification and the client's proof of possession |
 | `internal/eventlog` | Independent per-agent rings, folding, expiry and reserved IDs behind storage ports |
+| `internal/subfilter` | The portable subscription filter: the regular-expression subset ECMAScript and Python share, matched with ECMAScript semantics |
 | `internal/journal` | The three logs and syslog |
 | `internal/activity`, `internal/callstats` | Per-record activity days and the daemon's request-rate samples |
 | `internal/sandbox` | Script sandbox backends |
