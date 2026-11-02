@@ -47,6 +47,7 @@ STUB
 chmod +x "$d/bin/agent-bus"
 export PATH="$d/bin:$PATH" PROBE_MARKER="$d/marker" AGENT_BUS_NAME='#worker@test'
 export PROBE_HOLDER='' PROBE_STATUS_ERROR=0 PROBE_HOLDER_ERROR=0 PROBE_BAD_JSON=0
+export SMOKE_CPU_PERCENT=0   # the probes below start no systemd scope each; the CPU cap has its own checks at the end
 probe() {
   local label=$1 want=$2; shift 2
   rm -f "$PROBE_MARKER"
@@ -123,3 +124,32 @@ for name in go_checks go_unit go_release; do
   grep -Eq "^[[:space:]]+[0-9]+ $name$" <<<"$times" || { echo "missing split-shard time for $name: $output"; exit 1; }
 done
 echo 'actual normal driver marks all three split Go children and reports each time: green'
+
+# The CPU cap: a capped driver re-runs itself through systemd-run exactly once (children never wrap again), a scope
+# that cannot start warns and runs uncapped, and SMOKE_CPU_PERCENT=0 says so and does not call it. A stub stands
+# in for systemd-run; it records its arguments and runs the command after `--`.
+cat >"$d/bin/systemd-run" <<'SD'
+#!/bin/bash
+echo "$*" >>"$SD_CALLS"
+[ -z "${SD_FAIL:-}" ] || { echo 'stub: no user bus' >&2; exit 1; }
+while [ $# -gt 0 ] && [ "$1" != -- ]; do shift; done
+shift
+exec "$@"
+SD
+chmod +x "$d/bin/systemd-run"
+export SD_CALLS="$d/sd.calls"
+capped() { # label calls pattern [env...]
+  local label=$1 calls=$2 pattern=$3; shift 3
+  rm -f "$PROBE_MARKER" "$SD_CALLS"; : >"$SD_CALLS"
+  local rc=0 output
+  output=$(env "$@" TMPDIR="$d" PROBE_HOLDER='#worker@test' bash "$d/src/smoke.sh" --normal 2>&1) || rc=$?
+  [ "$rc" = 0 ] && [[ $output == *'passed 3, failed 0'* ]] || { echo "$label: the run did not pass (rc $rc): $output"; exit 1; }
+  [ "$(wc -l <"$SD_CALLS")" = "$calls" ] || { echo "$label: systemd-run called $(wc -l <"$SD_CALLS") times, want $calls"; exit 1; }
+  [[ $output == *$pattern* ]] || { echo "$label: output lacks [$pattern]: $output"; exit 1; }
+  CAPPED_OUTPUT=$output
+}
+capped cap-wraps-once 1 'CPU capped at' SMOKE_CPU_PERCENT=600
+grep -q 'CPUQuota=600%' "$SD_CALLS" || { echo "the scope was not asked for the quota: $(cat "$SD_CALLS")"; exit 1; }
+capped cap-fallback-warns 1 'WARNING systemd-run could not start the capped scope' SMOKE_CPU_PERCENT=600 SD_FAIL=1
+capped cap-off-says-so 0 'uncapped' SMOKE_CPU_PERCENT=0
+echo 'the CPU cap wraps the driver once, falls back loudly and can be turned off: green'

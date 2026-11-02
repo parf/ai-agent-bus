@@ -98,7 +98,7 @@ esac
 		}
 		cmd.Env = append(cmd.Env, entry)
 	}
-	cmd.Env = append(cmd.Env, "PATH="+stubDir+string(os.PathListSeparator)+os.Getenv("PATH"), "PROBE_LOCK_CALLS="+lockCalls, "PROBE_PID="+pidfile, "TMPDIR="+dir, "SMOKE_PORT_LOCKS="+filepath.Join(dir, "ports"))
+	cmd.Env = append(cmd.Env, "PATH="+stubDir+string(os.PathListSeparator)+os.Getenv("PATH"), "PROBE_LOCK_CALLS="+lockCalls, "PROBE_PID="+pidfile, "SMOKE_CPU_PERCENT=0", "TMPDIR="+dir, "SMOKE_PORT_LOCKS="+filepath.Join(dir, "ports"))
 	cmd.Stdout, cmd.Stderr = out, out
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := cmd.Start(); err != nil {
