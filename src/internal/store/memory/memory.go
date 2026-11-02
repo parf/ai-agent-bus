@@ -95,23 +95,24 @@ func (t *Tokens) apply(pairs map[string]*ports.CredentialPair) {
 // back what the daemon committed and nothing else. Err, when set, refuses every
 // write; Commits counts the ones that landed.
 type State struct {
-	mu       sync.Mutex
-	Err      error
-	Commits  int
-	owner    string
-	hasOwner bool
-	accounts map[string]string
-	hasAccts bool
-	users    map[string]protocol.User
-	records  map[string]protocol.Record
-	queues   map[string]ports.Queue
-	tokens   *Tokens
-	clean    bool
-	nextRec  uint32
-	nextUser uint32
-	activity []byte
-	days     map[[2]string]ports.ActivityDay
-	kv       map[kvKey]ports.KVValue
+	eventHigh map[uint32]uint64
+	mu        sync.Mutex
+	Err       error
+	Commits   int
+	owner     string
+	hasOwner  bool
+	accounts  map[string]string
+	hasAccts  bool
+	users     map[string]protocol.User
+	records   map[string]protocol.Record
+	queues    map[string]ports.Queue
+	tokens    *Tokens
+	clean     bool
+	nextRec   uint32
+	nextUser  uint32
+	activity  []byte
+	days      map[[2]string]ports.ActivityDay
+	kv        map[kvKey]ports.KVValue
 	// Enter, when set, is closed as the first commit starts, which then waits
 	// for Release: a test's way to hold a write open.
 	Enter, Release chan struct{}
