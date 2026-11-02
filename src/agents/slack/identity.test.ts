@@ -30,7 +30,7 @@ beforeAll(async () => {
       if (path.endsWith("/apps.connections.open")) return Response.json({ ok: true, url: `ws://127.0.0.1:${provider.port}/socket` });
       if (path.endsWith("/auth.test")) {
         authCalls++;
-        return Date.now() < failUntil ? Response.json({ ok: false, error: "ratelimited" }) : Response.json({ ok: true, user: "b", user_id: "UBOT", team: "T", url: "u" });
+        return Date.now() < failUntil ? new Response("<html><h1>502 Bad Gateway</h1></html>", { status: 502, headers: { "content-type": "text/html" } }) : Response.json({ ok: true, user: "b", user_id: "UBOT", team: "T", url: "u" });
       }
       if (path.endsWith("/users.list")) return Response.json({ ok: true, members: [] });
       if (path.endsWith("/conversations.list")) return Response.json({ ok: true, channels: [] });

@@ -215,7 +215,9 @@ t("a hostile endpoint's reflection does not leak the token into the answer", asy
   const reflect = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: req =>
     new Response(`diagnostic ${req.headers.get("authorization") ?? ""} garbage`, { status: 502, headers: { "content-type": "text/html" } }) });
   await setSecret(`SLACK_BOT_TOKEN=xoxb-review-secret\nSLACK_APP_TOKEN=xapp-fixture-app\nSLACK_API_URL=http://127.0.0.1:${reflect.port}/api/\n`);
-  startAgent(agentToken, name);
+  // Every Slack call here is a gateway 502, which start-up treats as "try again"; this test is about the
+  // answer, not that wait, so it takes the wait's test hook down to half a second.
+  startAgent(agentToken, name, { SLACK_AGENT_IDENTITY_GIVE_MS: "500" });
   await waitForRegistration();
   const answer = await call("whoami");
   expect(answer).toContain("error:");

@@ -84,6 +84,18 @@ function unanswered(method: string, e: unknown): Error {
 }
 
 /** The pinned HTTP policy, inside the caller's deadline. */
+/** The HTTP status a reply came with, carried on the parsed result without being part of it (it is not
+ *  enumerable, so it never reaches an answer or a log): a caller that must tell "try again" from a
+ *  refusal asks `httpStatusOf`, rather than reading the status back out of an error's text. */
+function withStatus<T extends object>(parsed: T, status: number): T {
+  Object.defineProperty(parsed, "httpStatus", { value: status, enumerable: false, configurable: true });
+  return parsed;
+}
+export function httpStatusOf(result: unknown): number | undefined {
+  const v = (result as { httpStatus?: unknown } | null)?.httpStatus;
+  return typeof v === "number" ? v : undefined;
+}
+
 export async function slackWeb(token: string, api: string | undefined, kind: "write" | "read", method: string, params: Record<string, unknown> = {}, deadline = Date.now() + perAttemptMs): Promise<any> {
   let first: Attempt;
   try {
@@ -94,7 +106,7 @@ export async function slackWeb(token: string, api: string | undefined, kind: "wr
   if (first.status === 429) {
     // The wait and a second attempt must both fit the caller's deadline:
     // a retry the caller will never hear of is a write done for nobody.
-    if (Date.now() + first.retryAfterMs >= deadline) return { ok: false, error: "ratelimited" };
+    if (Date.now() + first.retryAfterMs >= deadline) return withStatus({ ok: false, error: "ratelimited" }, 429);
     await Bun.sleep(first.retryAfterMs);
     let second: Attempt;
     try {
@@ -102,16 +114,16 @@ export async function slackWeb(token: string, api: string | undefined, kind: "wr
     } catch (e) {
       throw unanswered(method, e);
     }
-    return second.status === 429 ? { ok: false, error: "ratelimited" } : second.parsed;
+    return second.status === 429 ? withStatus({ ok: false, error: "ratelimited" }, 429) : withStatus(second.parsed, second.status);
   }
   if (first.status >= 500 && kind === "read") {
     try {
-      return (await attempt(token, api, method, params, deadline)).parsed;
+      { const again = await attempt(token, api, method, params, deadline); return withStatus(again.parsed, again.status); }
     } catch (e) {
       throw unanswered(method, e);
     }
   }
-  return first.parsed;
+  return withStatus(first.parsed, first.status);
 }
 
 /** Remove the agent's own credential bytes from any string that reaches a caller. */

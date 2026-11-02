@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.294 — 2026-11-02
+
+The Slack agent learns its own identity before it takes events, waiting through Slack outages but not refusals, reports not ready with the reason, and no longer drops an early event silently
+
 ## 0.9.293 — 2026-11-02
 
 Agent-log alerts survive a daemon restart: durable per-agent alert snapshots, store schema 11
