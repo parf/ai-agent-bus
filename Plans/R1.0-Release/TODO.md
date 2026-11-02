@@ -546,20 +546,20 @@ and no daemon change. A row that needs a format first proposes it for approval.
 
 Final Fable review of T0 `af1c7e06` ([issues](../issues/2026-11/2026-11-02.md), `c6e5b4c9`): no 🔴, 12 🟠, all fixed for 1.0.0 (`#ab-dir`, 2026-11-02), each minimal. Then `--slow all` again and a delta review by `#ab-ceo` before the STABLE commit. Authority and secret fixes go to Claude windows (J85). The ⚪/🔵 items do not block.
 
-- ☐ FR.B1 team 1: `agent-bus enrol` posts without a token
-- ☐ FR.B2 team 1: cache directory lookups per login, plus one daemon-wide bound on uncached lookups refused with 429
+- ✅ FR.B1 team 1: `agent-bus enrol` posts without a token (`307ec862`, 0.9.296).
+- ✅ FR.B2 team 1: GitHub-backed directory lookups are cached per login and share one daemon-wide uncached allowance with 429; local files remain uncached and unbounded (`2a4cc233`, 0.9.301).
 - ✅ FR.J1 team 2: the Codex pusher declines the file tools (`506d7239`).
-- ☐ FR.G1 team 1: the release step creates or uploads with `--clobber`; distribution.md gives the tag procedure
-- ☐ FR.Q1 team 1: the Containerfile verifies archives against `SHA256SUMS`
-- ☐ FR.I1 team 1: the 403 case asserts the page renders its own rows
-- ☐ FR.I2 team 1: `src/web/web-face/records.md` describes the Events card
+- ✅ FR.G1 team 1: the release step creates or uploads with `--clobber`; distribution.md gives the tag procedure (`88a1b6dc`, 0.9.295).
+- ✅ FR.Q1 team 1: the Containerfile verifies archives against `SHA256SUMS` (`a115609c`, 0.9.298).
+- ✅ FR.I1 team 1: the 403 case asserts the page renders its own rows (`3a3a2b97`, no bump).
+- ✅ FR.I2 team 1: `src/web/web-face/records.md` describes the Events card (`0ffd8572`, no bump).
 - ✅ FR.A2 team 2: agent-log calls resolve the target with `b.entity` and answer `not_found` for an inactive record or User (`09018860`).
 - ✅ FR.A3 team 2 (with A4): `sub add` refuses a target that cannot admit `#bus`, and `#bus` itself; the bus guide says a Personal agent is no target (`4d0fb211`).
   Letting Personal agents admit `#bus` is [Q328](../R1.1/QUESTIONS.md#access-context).
-- ☐ FR.D1 team 1: one name grammar through `protocol.ParseName`, with a shared vector for the Python and TypeScript helpers
+- ✅ FR.D1 team 1: one name grammar through `protocol.ParseName`, with a shared vector for the Python and TypeScript helpers (`f32f605d`, 0.9.303).
 - ✅ FR.C1 team 2: one daemon-wide bucket groups dirty alert snapshots into transactions (`4b2610a5`).
   Alerts reach disk within about 100 ms; a clean stop flushes all. `dropped` stays admission-only and unchanged.
-- ☐ FR.F1 team 1: `docs/runner/security.md` says masked stderr reaches the agent's log, readable by its Owner and Maintainers. Not fixing in 1.0.0: the per-entry host setting `"events": "off"` waits for 1.0.1 (`#ab-dir`: the readers are the agent's own managers, it is disclosed once documented, and no reviewer quota is left for a runner change with a mutant)
+- ✅ FR.F1 team 1: `docs/runner/security.md` says masked stderr reaches the agent's log, readable by its Owner and Maintainers. Not fixing in 1.0.0: the per-entry host setting `"events": "off"` waits for 1.0.1 (`#ab-dir`: the readers are the agent's own managers, it is disclosed once documented, and no reviewer quota is left for a runner change with a mutant) (`ac28de6d`, no bump).
 
 ## T-31 Client APIs and event examples
 
