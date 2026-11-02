@@ -130,8 +130,13 @@ Any other value of a parameter reads as its default.
 | `GET /status` | `you`, `daemon_owner` |
 | `GET /ls` | active visible records |
 | `GET /inactive` | inactive visible records |
+| `#bus` call `list` (Agents only) | private event summaries, as the signed-in visitor; no entry bodies |
 
-Either list call failing fails the page ([shell](shell.md#problem-page)).
+Either registry list call failing fails the page ([shell](shell.md#problem-page)).
+
+- Agents load the event summaries alongside the other page reads, with one `#bus` call. Visible summaries add a recent-alert mark and the retained-warning count beside the agent name.
+- A `forbidden` answer or HTTP `403` from the summary call leaves the listing visible with no event marks or unavailable notice.
+- HTTP `503`, a transport failure or an invalid summary answer leaves the listing visible and shows `Event summaries unavailable.` No private entry text is loaded here.
 
 ### Content
 
@@ -339,6 +344,7 @@ Back to the list; Cancel.
 | `name` | the record, exact |
 | `return` | local list URL for Back; used only when its path is the record's own list, else that list ([shell](shell.md#return-addresses)) |
 | `range`, `at` | the Activity card's range, as on [/activity](node.md#activity) |
+| `events` | `all` expands the agent’s full retained log; any other value shows the recent preview |
 
 | Address | Answer |
 |---|---|
@@ -354,6 +360,10 @@ Back to the list; Cancel.
 | Stranger, missing name | `404 No such name` |
 | Inactive record | [inactive view](#inactive-record-view) instead |
 
+The Events card has its own authority check: the agent's Owner and Maintainers,
+and the daemon Owner, can read the [private log](../../../docs/agents/bus.md#agent-logs).
+Being able to view the record, or being the agent itself, does not grant log access.
+
 ### Daemon calls
 
 | Call | Gives | On failure |
@@ -362,6 +372,7 @@ Back to the list; Cancel.
 | `GET /inactive` | if `name` is among them, the inactive view | treated as none |
 | `GET /lookup?name=` | the record and its flags | problem page |
 | `GET /users` | the Owner's profile, for its photo and link | Owner shown as plain `<code>` |
+| `#bus` call `read <agent>` (agents only) | the selected agent’s retained log, as the signed-in visitor; called anew for preview and expand | the Events card shows its own state below |
 | `GET /activity?name=` or `/activity/days?name=&from=&to=` | the Activity card's range | the card says `Activity unavailable: {reason}` |
 
 ### Content
@@ -374,9 +385,10 @@ Back to the list; Cancel.
 | 3 | meta row: kind pill; `Owner` chip with photo, linked `/user?name=` when the profile is visible, else plain; `👮 Maintainers: …` when any; `Delivery: one at a time` or `a copy to each recipient` (pubsub) | all |
 | 4 | the description, when set; the read-only sentence for non-managers | all |
 | Left, 1 | **Activity** card `id=activity`: Day · Week · Month, Prev, Next and Today (links keep `name` and `return`, `#activity`), the range title, day ribbon and chart; `Open in Activity` keeps the range. A resource shows its Resource card instead. | all |
-| Left, 2 | **Queue & counters** card `id=counters`: one Messages summary as on Agents; Readers only when non-zero, Oldest held only while a message is held and the age is known. Empty cards are omitted; no duplicate in/out, held or lost rows | all but service and resource |
-| Left, 3 | **Configuration** `id=configuration`: stored JSON only, pretty-printed read-only for managers, with Edit and an Expand control; long JSON scrolls within a capped block. No card when unconfigured | agent, service |
-| Left, 4 | One-line subscription notice with **Take my inbox off this list**: only for a non-manager on this pubsub's list | pubsub |
+| Left, 2 | **Events** `id=events`: recent preview or full retained log ([below](#events-card)) | agent |
+| Left, 3 | **Queue & counters** card `id=counters`: one Messages summary as on Agents; Readers only when non-zero, Oldest held only while a message is held and the age is known. Empty cards are omitted; no duplicate in/out, held or lost rows | all but service and resource |
+| Left, 4 | **Configuration** `id=configuration`: stored JSON only, pretty-printed read-only for managers, with Edit and an Expand control; long JSON scrolls within a capped block. No card when unconfigured | agent, service |
+| Left, 5 | One-line subscription notice with **Take my inbox off this list**: only for a non-manager on this pubsub's list | pubsub |
 | Right, 1 | **Status & Policy** card `id=status`: state badge beside its title in the header. First row: Updated and Last used side by side, each label inline with its timestamp, using the listing’s relative-time formatter with the exact timestamp in the title; absent times are omitted. Then non-empty Allow and Maintainers as compact name rows, non-default policy rows for agent, queue and user inbox: external reach, a configured non-zero bound or TTL, and ring overflow. Defaults and other kinds omit policy rows | all |
 | Right, 3 | **Package settings**: declared Configuration and Secret keys, when any; names and help only for Secret | agent |
 | Right, 4 | **Locks** `id=locks` only when held, then **Key-value store** `id=kv` with **Open store** | permitted viewers only |
@@ -390,8 +402,26 @@ and queues with exactly one `subs`: `true` → `Route allowed now.`; `false` →
 longer registered. Add {name} to its allow list, or clear this route.`; absent →
 `Whether this route is usable now was not reported.`
 
-The face computes nothing but formatting, the owner match against `/users` and
-whether your name is on `subs`.
+The face formats daemon data, selects the recent event preview, matches the
+Owner against `/users` and checks whether your name is on `subs`. Log authority
+comes from the daemon, not those page calculations.
+
+### Events card
+
+- The preview shows the three entries with greatest ids across the levels. Each line shows its level, text, last occurrence time and repeat count when repeated. Alerts use the error tone, warnings the warning tone, and notices the plain tone.
+- `Expand log` opens `/agent?name=…&events=all#events`. It makes a fresh read, shows every retained entry grouped by level, and offers `Show recent entries`. There is no paging or destructive `pull`/`clean` call.
+- Both views say `Showing {shown} of {retained} retained entries.` The expanded view explains that expired or evicted entries are no longer retained; it does not claim to show an all-time history.
+- The loader rejects a different agent’s log, inconsistent counts or an incomplete answer as unavailable. The daemon owns [retention, levels and authority](../../../docs/agents/bus.md#agent-logs).
+
+| Read outcome | Events card |
+|---|---|
+| `forbidden` or HTTP `403` | `Not allowed to read this agent’s events.`; no entries or empty-log claim |
+| `not_found` | `No events yet for this agent.` |
+| A valid active log with no entries | `No retained events.` with the shown/retained count |
+| HTTP `503`, another failure or an invalid answer | `Events unavailable. Try again.` |
+
+The same card and fresh read are used on the inactive agent view; the daemon
+still decides access before log existence. Other record kinds have no Events card.
 
 ### States
 
