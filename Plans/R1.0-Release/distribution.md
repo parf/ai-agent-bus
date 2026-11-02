@@ -76,7 +76,7 @@ The owner’s Mac is the test host ([RD164](DECISIONS.md#recorded-decisions)); A
 
 ### Prepared tagged release path
 
-Q313 is pending; the prepared macOS workflow is not a published release.
+The owner settled [Q313](DECISIONS.md#recorded-decisions): macOS ships in 1.0.0 (`be60a2eb`). The workflow landed at `c6b8f8ec` (0.9.288); the first real tag run remains the proof of its hosted release path.
 Its proof is local execution of the stamped `src/package.sh`, `src/release-verify.sh`
 and `src/npm-pack.sh` commands: full and client archives for both Darwin CPUs,
 with the two client-only macOS npm packages. The Ubuntu Go/Bun cross-build job
