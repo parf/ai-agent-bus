@@ -55,7 +55,7 @@ class SharedEvents(unittest.TestCase):
                         self.assertIsInstance(out, CallReply, where)
                         answers[i] = out.message.body
                         decoded = json.loads(out.message.body)
-                        if step['body'].startswith('sub add '):
+                        if step['body'].startswith('sub add ') and 'error' not in decoded:
                             subscription = decoded.get('id')
                             self.assertTrue(subscription, where + ' subscription id')
                         for path, want in step.get('expect', {}).items():

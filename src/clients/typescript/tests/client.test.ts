@@ -582,7 +582,7 @@ for (const row of eventCases) test(`shared ${file} vectors: ${row.id}`, async()=
    if(out.kind!=='answer') throw new Error(where+' expected answer');
    answers.set(i,out.message.body);
    const value=JSON.parse(out.message.body);
-   if(step.body!.startsWith('sub add ')) {subscription=value.id;expect(subscription,where+' subscription id').toBeTruthy();}
+   if(step.body!.startsWith('sub add ')&&!value.error) {subscription=value.id;expect(subscription,where+' subscription id').toBeTruthy();}
    for(const [path,want] of Object.entries(step.expect??{})) {
     const got=path.split('.').reduce((v,key)=>v[key],value);
     expect(got,where+' '+path).toEqual(typeof want==='string'?want.replaceAll('$subscription',subscription):want);

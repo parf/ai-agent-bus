@@ -418,7 +418,7 @@ async fn run_event_vectors(file: &str) {
                 "call" => {
                     let raw = event_call(bus, &text(step,"body").replace("$subscription", &subscription)).await;
                     let decoded: Value = serde_json::from_str(&raw).expect("event JSON reply");
-                    if text(step,"body").starts_with("sub add ") {
+                    if text(step,"body").starts_with("sub add ") && decoded.get("error").is_none() {
                         subscription = decoded["id"].as_str().expect("subscription id").to_owned();
                         assert!(!subscription.is_empty(), "{at}: subscription id");
                     }
