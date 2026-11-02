@@ -416,7 +416,7 @@ function render(json: boolean, r: Result, ctx?: Ctx): string {
 // The client's serve loop acks each message before the handler runs and
 // refuses receipts there, so they are consumed and never answered here.
 async function handle(e: Message): Promise<string | null> {
-  const answer = dispatchAsk(e.ask, ask => describe(name, mayChangeSubscriptions(e, name), ask), { status: () => "ok" });
+  const answer = dispatchAsk(e.ask, ask => describe(name, mayChangeSubscriptions(e, name), ask), { status: () => (identity ? "ok" : "not ready: Slack has not said who the agent is yet") });
   if (answer !== undefined) return answer;
   const json = e.body.trim().startsWith("{");
   const call = parseCall(e.body);
@@ -597,7 +597,25 @@ const earlyAsks = (async () => {
 phase = "starting: reading routing and who the agent is in Slack";
 await routing();
 await router.load();
-await ensureIdentity();
+// Slack's own answer to who this agent is comes before any event is taken: a
+// failing or slow auth.test is asked again with a growing wait, for at most
+// ~20 s, while `status` says what it waits for. If it still fails the agent
+// starts anyway, says so once, and keeps asking in the background; `status`
+// is "ok" only once it knows.
+{
+  const give = Date.now() + 20_000;
+  for (let attempt = 1; !(await ensureIdentity()) && Date.now() < give; attempt++) {
+    phase = `starting: waiting for Slack to say who the agent is (try ${attempt})`;
+    await new Promise(done => setTimeout(done, Math.min(500 * 2 ** (attempt - 1), 4000)));
+  }
+  if (!identity) {
+    console.error("slack: warning: Slack has not said who the agent is; identity unknown, retrying");
+    void (async () => {
+      for (let wait = 1000; !(await ensureIdentity()); wait = Math.min(wait * 2, 30_000)) await new Promise(done => setTimeout(done, wait));
+      console.error("slack: the agent's Slack identity is known now");
+    })();
+  }
+}
 phase = "starting: loading the workspace's users and channels";
 // The directories, loaded once at start and kept in memory: names resolve
 // without a Slack call each time. A failure leaves them to the first use.
