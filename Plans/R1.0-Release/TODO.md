@@ -108,14 +108,15 @@ Plan for discussion of the note above: [shorter prompts](short-prompts.md#propos
 ## Next step
 
 Built on 0.9: assigned roles, method metadata, the runner waves, the bundled
-agents, distribution packaging and its acceptance, and the protocol freeze
-(T-24; its last step, S2v, is in review). Still open for R1, besides what the
-rows below say: the first npm publication at the release (P.1,
-[Q300](DECISIONS.md#recorded-decisions)), the deferred IMAP transfer (B.31),
-and the agent
-events work (RT34). RT11 is closed: RW4/RW8 moved to
-[R1.1](../R1.1/TODO.md#runner-web-additions) ([Q311](DECISIONS.md#recorded-decisions)). Federation is [R1.2](../R1.2/federation.md#chaining);
-its R1.1 prerequisites no longer block this release.
+agents, distribution packaging and its acceptance, and the protocol freeze.
+T-24's last step, S2v, landed as `84f3534a`, 0.9.284; agent events
+([RT34](#rt34-agent-events)) have also landed.
+Still open for R1, besides what the rows below say: the first npm publication
+at the release (P.1, [Q300](DECISIONS.md#recorded-decisions)) and the deferred
+IMAP transfer (B.31). RT11 is closed: RW4/RW8 moved to
+[R1.1](../R1.1/TODO.md#runner-web-additions) ([Q311](DECISIONS.md#recorded-decisions)).
+Federation is [R1.2](../R1.2/federation.md#chaining); its R1.1 prerequisites
+no longer block this release.
 
 ## Dependencies
 
@@ -554,11 +555,11 @@ and no daemon change. A row that needs a format first proposes it for approval.
 
 ## RT34 Agent events
 
-⏳ Owner, 2026-10-29, under discussion: per-agent notice/warning/alert rings in
-the daemon, written by the runner, the daemon, the agent and diagnostics, shown
-by the API and the web to Owner and Maintainers ([design](agent-events/README.md#levels)).
-Settings in the bus setup ([RT22](#bundled-agents)). Unassigned until the owner
-asks for the API shape; then runner, daemon and web parts are split.
+- ✅ RT34 R1-min landed as T-29 parts P1–P5, `3b87ce4c` through
+  `ca87beb0`, 0.9.289–0.9.293; deployed as 0.9.293.
+  [Accepted scope](agent-events/TODO.md#r1-min) and
+  [completed checks](agent-events/done/r1-landed-parts.md) record the result.
+  [Post-1.0 parts](agent-events/TODO.md#post-10-parts) remain separate.
 
 ## RT33 May-send for another name
 
