@@ -4,9 +4,9 @@
 a few recent lines, alerts loud, warnings quieter, and expand to the full log.
 The end state is one Go engine in the daemon with `#eventlog` as its front;
 that migration and the daemon's own producers are post-1.0. This plan contains
-no implementation. Persistence is [pending owner, Q321](../QUESTIONS.md#r1-release-decisions).
-The volatile-entry option costs about 3–5¼ AI hours in total, with a
-3–5-hour tree-ready delay when the three workers overlap their parts.
+no implementation. Alerts are [decided on disk for R1, Q321](../DECISIONS.md#recorded-decisions).
+The selected cut costs about 3½–6 AI hours in total, with a 3¼–5⅓-hour
+tree-ready delay when the three workers overlap their parts.
 
 Owner's [Q312 decision](../DECISIONS.md#recorded-decisions) and
 [falsifiable acceptance](TODO.md#r1-min) define the cut.
@@ -202,12 +202,13 @@ requires it; this recommendation rests on reuse, not protocol avoidance.
 
 ## Flood and persistence
 
-**Persistence: [pending owner, Q321](../QUESTIONS.md#r1-release-decisions).**
-Recommend alerts on disk in R1: daemon deploys restart it several times a day,
-including the release deploy, and an agent's verb-written alert is not copied
-to `error.log` or syslog; those hold daemon-generated errors. P5 adds this after
-P3 for 25–40 AI minutes. The memory option below remains an alternative, not
-a recorded decision.
+**Persistence: [decided, Q321](../DECISIONS.md#recorded-decisions).** Alerts
+survive a daemon restart in R1; notice and warning entries remain in memory.
+Daemon deploys restart it several times a day, including the release deploy,
+and an agent's verb-written alert is not copied to `error.log` or syslog.
+P5 is therefore required: 25–40 AI minutes, landing after P3, with its build
+allowed in parallel with P3. The old memory-only option is an estimate
+comparison, not an unresolved release choice.
 
 Proposed admission defaults: ten accepted occurrences per second per agent,
 burst twenty, counting folded occurrences too. Match the existing eventlog
@@ -224,8 +225,8 @@ drop. Budget these controls with the engine/writers, not as later hardening.
 
 | Option | Restart and retention | Work |
 |---|---|---|
-| All entry rings in memory, if chosen in Q321 | Every level expires by the shared TTL and disappears at daemon restart | No durable entry table; durable id high-water is still mandatory |
-| P5 alerts on disk, recommended, pending Q321 | Alerts survive restart until the same TTL/size/clean/pull removes them; other entries remain volatile | New store table, migration, atomic writes/removals, reopen/corrupt-state checks and storage mutants |
+| Memory-only comparison, not selected for R1 | Every level expires by the shared TTL and disappears at daemon restart | No durable entry table; durable id high-water is still mandatory |
+| P5 alerts on disk, selected in Q321 | Alerts survive restart until the same TTL/size/clean/pull removes them; other entries remain volatile | New store table, migration, atomic writes/removals, reopen/corrupt-state checks and storage mutants |
 
 "All in memory" cannot include the id allocator while retaining eventlog's
 never-reused-id rule. Persist reserved high-water blocks before issuing ids;
@@ -236,15 +237,36 @@ the work, but their integration and restart proof are not free.
 
 ### P1 storage seam for P5
 
-P1 separates ring/model operations from storage: id-block reservation is always
-durable; entry retention has a replaceable backend. The initial memory-entry
-backend stores no alert bytes. P5 supplies alert load/commit/removal through
-that seam, without rewriting the engine, verb parser, ACL or web contract.
-Reserve ids before use, commit a durable alert before accepting/publishing it,
-and commit pull/clean removal before answering. A backend failure cannot
-acknowledge a half-write or roll the high-water backwards. P1 includes a fake
-backend failure check; P5 proves the real table/migration/restart path. No
-schema or wire layout is selected in this plan.
+Use small ports, like the existing KV/bigfile capabilities, implemented by
+SQLite and the memory adapter. `ports.EventEntry` represents the existing
+shared eventlog entry model; no different wire shape is introduced.
+
+| Port operation | Required behavior |
+|---|---|
+| `EventIDStore.EventHighWater(recordID)` | load the last reserved id; missing is an unused allocator, damaged state is an error |
+| `EventIDStore.ReserveEventIDs(recordID, through)` | atomic durable monotonic reservation before ids are issued; never move backwards |
+| `EventAlertStore.LoadEventAlerts(recordID)` | P5 capability: load the validated live alert snapshot for that identity; no silent reset on damage |
+| `EventAlertStore.ReplaceEventAlerts(recordID, alerts)` | P5 capability: atomically replace the bounded snapshot, including fold updates, pull/clean removals and expiry |
+
+Key entries and high-waters by the record's internal id, which is never reused;
+a newly registered record with an old name inherits neither alerts nor ids.
+P1's id reservations use the store's existing durable metadata, not a new
+schema version. P1 supplies the memory adapter and the optional alert-store
+capability seam; SQLite gains the durable alert implementation in P5. Until
+that capability is installed, do not acknowledge an alert as durably accepted.
+P2/event-log deployment waits for the complete P1/P3/P5 set.
+
+Reserve ids before use, commit an alert before accepting/publishing it, and
+commit pull/clean removal before answering. Backend failures cannot acknowledge
+a half-write or roll high-water backwards. P1 tests a fault-injected backend;
+P5 restarts the actual daemon in its test and proves alerts survive within the
+[shared alert retention](../../../docs/agents/eventlog.md#log-model), with
+notice/warning entries gone. Load fails closed on damaged state, as store
+`Load()` does today. P5 changes the adapter, not engine/parser/ACL/web semantics.
+
+The current schema is 9. P3 and P5 add migrations 10 and 11: whoever lands
+second rebases and renumbers its migration and checks. Never overwrite the
+other part's migration or assume a schema number from an old branch.
 
 ### Subscriptions are new daemon work
 
@@ -367,7 +389,7 @@ mutants and two readers. No production log migration is in the R1 cut.
 | Read API + ACL, P1 | core A ⚠️; daemon agent E; help/docs H/N | 20–30 min | R1 via verbs |
 | Shared ring/vector adapters, P1 | `src/testdata/` M; eventlog/shared L; journal C ⚠️ | 10–20 min | R1 |
 | Subscriptions + durable management, P3 W2C | core A ⚠️; ports/store C ⚠️; daemon agent E | 40–65 min | Selected R1 cut, including bounded fan-out |
-| P5 alerts on disk, after P3 | store/ports/journal C ⚠️ | 25–40 min | Pending owner, Q321; recommended for R1 |
+| P5 alerts on disk, W2B, landing after P3 | store/ports/journal C ⚠️ | 25–40 min | Required R1; store migration, mutants and two readers |
 | `#bus` own events | `src/cmd/agent-busd/` H; core/journal A/C ⚠️ | 15–25 min | Post-1.0 |
 | Three-line preview + expand, P4 W1C | `src/web/` I; core/API A ⚠️/E | 20–35 min | Selected R1 cut |
 | Eventlog front and migration | eventlog/shared L; store/core C/A ⚠️ | 35–60 min | Post-1.0; existing logs stay put |
@@ -376,7 +398,8 @@ mutants and two readers. No production log migration is in the R1 cut.
 | Direct HTTP alternative | API E/protocol D ⚠️; vectors/clients K/M; docs N | +15–25 min, SDK extras separate | Alternative, outside totals |
 
 P1 is W2C, target 11:40–12:40; P2 is W2B, P3 is W2C after P1, P4 is W1C.
-P5 follows P3 if the owner chooses disk alerts; P1 builds its storage seam now.
+P5 is W2B: build in parallel with P3, land after P3; P1 exposes the storage
+seam now. The second P3/P5 lander renumbers its schema migration.
 P2 and P4 can build against the verb contract while P1 is implemented, then
 prove their integration against it. P1's counted scope is 110–180 minutes,
 including its proof allocation: a one-hour slot is an aggressive target,
@@ -388,13 +411,13 @@ remain shared resources.
 |---|---|---|---|
 | R1-min without subscriptions or web, volatile entries | 2 h 10–3 h 30 | 2 h 20–4 h, including 30–60 min review/gate | Comparison only; moves the Nov 2 release run by one session and does not meet Q312 |
 | With subscriptions, without web | 2 h 50–4 h 35 | 3 h–5 h 05, including 30–60 min review/gate | Comparison only; same Nov 2 delay, but omits the owner's web requirement |
-| **Selected R1 scope: subscriptions + small web; memory-entry cost if Q321 chooses it** | **3 h 10–5 h 10** | **3 h–5 h 05**, P1 then P3, P2/P4 overlapped, plus 30–60 min review/gate | With an 11:40 start and no queue, tree-ready about 14:40–16:45 on Nov 2; late starts/findings can slip to Nov 3 |
-| Selected scope + P5 durable alerts, recommended, pending Q321 | 3 h 35–5 h 50 | 3 h 25–5 h 45, including its migration/restart proof | Same scope, longer Nov 2 window; alerts survive only within the shared retention limits |
+| Memory-entry version of subscriptions + small web, comparison only | **3 h 10–5 h 10** | **3 h–5 h 05**, P1 then P3, P2/P4 overlapped, plus 30–60 min review/gate | With an 11:40 start and no queue, tree-ready about 14:40–16:45 on Nov 2; late starts/findings can slip to Nov 3 |
+| **Selected R1: subscriptions + small web + P5 durable alerts** | **3 h 35–5 h 50** | **3 h 15–5 h 20**, P3/P5 builds overlapped, including migration/restart proof and gates | With an 11:40 start and no queue, tree-ready about 14:55–17:00 Nov 2; alert TTL/size still apply |
 | Full listed set: durable alerts, `#bus` producers, front/migration | 4 h 25–7 h 15 | About 5½–8¾ h with review/gates; migration is serial | Another full session; not the R1 cut |
 
 These are delays from the existing release-run/Fable tree-ready point, not a
 new promised release date. Lock queues and findings add time. The earlier
 1½–2-hour whole-feature estimate is too small for the selected cut. The owner's
-R1 scope decision stands; persistence is [pending owner, Q321](../QUESTIONS.md#r1-release-decisions),
-with P5 recommended and priced separately after P3. The named-log transition and verified
+R1 scope and [disk persistence, Q321](../DECISIONS.md#recorded-decisions) are
+decided; P5 is required and priced separately, with its landing after P3. The named-log transition and verified
 runner provenance are not hidden in that estimate.

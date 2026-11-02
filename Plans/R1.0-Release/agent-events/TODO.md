@@ -10,9 +10,10 @@ catalogues remain follow-up work, not an extra requirement hidden in P1.
 Contract: [verbs and authority](README.md#r1-min-surface-and-authority),
 [shared model](../../../docs/agents/eventlog.md#log-model),
 [retention](README.md#flood-and-persistence). Persistence is
-[pending owner, Q321](../QUESTIONS.md#r1-release-decisions). P1 has a memory-entry
-backend and the storage seam for P5; id reservations and subscription definitions
-are durable either way.
+[decided on disk, Q321](../DECISIONS.md#recorded-decisions). P1 exposes the
+[small storage ports](README.md#p1-storage-seam-for-p5); P5 supplies durable
+alerts, while notices/warnings remain volatile. Id reservations and
+subscription definitions are durable.
 Do not mark RT34 complete on the smaller no-subscription comparison estimate.
 
 | Part | Owner/order | Falsifiable acceptance | Status |
@@ -21,7 +22,7 @@ Do not mark RT34 complete on the smaller no-subscription comparison estimate.
 | P2 runner observations | W2B, parallel after contract | Uses target agent's `s.bus`; masked stderr and requested/unrequested exit fixtures below | ⏳ |
 | P3 subscriptions | W2C after P1 | Shared semantics plus new daemon storage/ACL/send proof below | ⏳ |
 | P4 web | W1C, parallel against contract | Three recent lines and expand, with server ACL; no dashboard/polish | ⏳ |
-| P5 alerts on disk | After P3, pending Q321 | Real store/migration/restart checks below; plugs into the P1 seam | ⏳ |
+| P5 alerts on disk | W2B, build parallel with P3, land after it | Real store/migration/restart checks below; plugs into the P1 seam | ⏳ |
 | Read, normal gate and release-run touched set | Two readers on ⚠️ changes, then gate | Compiling mutants fail their owning assertions; restored touched checks and normal gate green | ⏳ |
 
 ### P1 checks
@@ -140,18 +141,21 @@ Do not mark RT34 complete on the smaller no-subscription comparison estimate.
 - Test empty, warning-only and alert logs; expansion reads the current log
   without consuming it. No new stream route or dashboard work is required.
 
-### P5 checks, pending owner Q321
+### P5 checks, required by Q321
 
 - A real table/migration backend attaches through the P1 seam after P3.
-  Restart preserves alerts within the shared size/TTL limits, and keeps notices
-  and warnings volatile. Run the existing durable-alert shared cases.
+  The test restarts the actual daemon and alerts survive within the shared
+  size/TTL limits, while notices and warnings disappear. Run the existing
+  durable-alert shared cases. The second P3/P5 lander renumbers schema10/11
+  after rebasing; both migrations must remain, starting from schema9.
 - Failed alert append or pull/clean removal cannot acknowledge partial state;
   crash/reopen cannot replay a delivered occurrence or reuse an id. Corrupt
   state fails closed, and rollback leaves the old store usable.
 - Compiling storage mutants drop persistence, omit removal commits or reset
   ids; each fails its own assertion. No live logs are migrated in this part.
-- If the owner chooses memory for R1, keep these checks with the first 1.0.x
-  durable-alert task rather than claim durable retention already exists.
+- Until P5 is present, no deployment or reply may claim durable alert
+  acceptance. Both SQLite and memory ports are tested, and damaged load fails
+  closed without resetting ids or adopting old-name records.
 
 ## Post-1.0 parts
 
