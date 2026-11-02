@@ -6,6 +6,7 @@ import (
 	"io"
 	"regexp"
 	"strings"
+	"unicode"
 
 	"github.com/parf/ai-agent-bus/internal/eventlog"
 )
@@ -65,42 +66,32 @@ func parseSubCall(body string, c eventCall) (eventCall, error) {
 			return c, bad
 		}
 	} else {
-		rest := strings.TrimLeft(body, " ")
-		rest = strings.TrimPrefix(rest, "sub")
-		rest = strings.TrimLeft(rest, " ")
-		rest = strings.TrimPrefix(rest, strings.TrimPrefix(c.Method, "sub."))
-		args := strings.Fields(rest)
+		// One whitespace rule for every token, the method words included: the
+		// method is found the way eventMethod found it, so a tab cannot move a word.
+		_, rest := subWord(body)
+		_, rest = subWord(rest)
 		switch c.Method {
 		case "sub.add":
-			if len(args) < 2 {
+			if target, rest = subWord(rest); target == "" {
 				return c, bad
 			}
-			target, log = args[0], args[1]
-			// The filter is the rest of the line after the optional level, spaces
-			// inside it kept.
-			tail := rest
-			for range 2 {
-				tail = strings.TrimLeft(tail, " ")
-				_, after, _ := strings.Cut(tail, " ")
-				tail = after
+			if log, rest = subWord(rest); log == "" {
+				return c, bad
 			}
-			tail = strings.TrimLeft(tail, " ")
-			if word, after, _ := strings.Cut(tail, " "); eventlog.IsLevel(word) {
-				level, tail = word, strings.TrimLeft(after, " ")
+			// The filter is the rest of the line after the optional level, its
+			// own whitespace kept.
+			if word, after := subWord(rest); eventlog.IsLevel(word) {
+				level, rest = word, after
 			}
-			filter = tail
+			filter = rest
 		case "sub.list":
-			if len(args) > 1 {
+			if log, rest = subWord(rest); rest != "" {
 				return c, bad
-			}
-			if len(args) == 1 {
-				log = args[0]
 			}
 		case "sub.delete":
-			if len(args) != 1 {
+			if id, rest = subWord(rest); id == "" || rest != "" {
 				return c, bad
 			}
-			id = args[0]
 		}
 	}
 	if c.Method == "sub.add" && (target == "" || log == "") || c.Method == "sub.delete" && !subDeleteID.MatchString(id) {
@@ -111,6 +102,17 @@ func parseSubCall(body string, c eventCall) (eventCall, error) {
 	}
 	c.Target, c.Log, c.Level, c.Filter, c.SubID = target, log, level, filter, id
 	return c, nil
+}
+
+// subWord returns the first word of s, split on any white space, and the rest
+// with its leading white space removed.
+func subWord(s string) (word, rest string) {
+	s = strings.TrimLeftFunc(s, unicode.IsSpace)
+	i := strings.IndexFunc(s, unicode.IsSpace)
+	if i < 0 {
+		return s, ""
+	}
+	return s[:i], strings.TrimLeftFunc(s[i:], unicode.IsSpace)
 }
 
 // subFields reads a structured call's members: one object, no duplicate member,

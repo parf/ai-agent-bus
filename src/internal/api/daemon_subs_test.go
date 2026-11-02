@@ -107,6 +107,34 @@ func (a *subAPI) take(queue, id string, within time.Duration) (string, bool) {
 	return e.Body, true
 }
 
+// askBefore is ask with a bound on the whole call, the send included: a call
+// that cannot even be accepted fails on its deadline, not as a hang.
+func (a *subAPI) askBefore(from, body string, within time.Duration) (string, bool) {
+	a.t.Helper()
+	type result struct {
+		out string
+		ok  bool
+	}
+	done := make(chan result, 1)
+	go func() {
+		queue := a.reply()
+		sent, err := a.b.Send(protocol.Envelope{From: from, To: core.DaemonAgent, Body: body, Wait: "5s", Topic: "call", Tag: "x",
+			ReplyTo: &protocol.ReplyTo{Name: queue, Topic: "call", Tag: "x"}})
+		if err != nil {
+			done <- result{}
+			return
+		}
+		out, ok := a.take(queue, sent.ID, within)
+		done <- result{out, ok}
+	}()
+	select {
+	case r := <-done:
+		return r.out, r.ok
+	case <-time.After(within):
+		return "", false
+	}
+}
+
 func (a *subAPI) mustAsk(from, body string) string {
 	a.t.Helper()
 	out, ok := a.ask(from, body, "5s")
@@ -181,6 +209,43 @@ func TestDaemonSubscriptionCallsAddListAndDelete(t *testing.T) {
 		if code := errorCode(t, a.mustAsk("admin@h", body)); code != want {
 			t.Errorf("%s answered %s, want %s", body, code, want)
 		}
+	}
+}
+
+// Every token of a text call is split on the same white space, the method
+// words included: a tab or a newline gives the row the same call with spaces
+// gives, never a shifted word.
+func TestASubscriptionTextCallSplitsEveryWordOnTheSameWhiteSpace(t *testing.T) {
+	a := newSubAPI(t)
+	for _, body := range []string{
+		"sub\tadd q@h #a@h alert /x/",
+		"sub add\tq@h #a@h alert /x/",
+		"sub add q@h #a@h\talert /x/",
+		"sub add q@h\n#a@h\nalert\n/x/",
+		"\tsub \t add  q@h  #a@h  alert  /x/",
+	} {
+		var row map[string]any
+		if err := json.Unmarshal([]byte(a.mustAsk("admin@h", body)), &row); err != nil {
+			t.Fatalf("%q: %v", body, err)
+		}
+		sel, _ := row["selector"].(map[string]any)
+		if row["target"] != "q@h" || sel["level"] != "alert" || row["filter"] != "/x/" {
+			t.Errorf("%q made %v, want target q@h, level alert, filter /x/", body, row)
+		}
+	}
+	for _, body := range []string{"sub\tlist\t#a@h", "sub list\n#a@h"} {
+		var listed struct{ Subscriptions []map[string]any }
+		if err := json.Unmarshal([]byte(a.mustAsk("admin@h", body)), &listed); err != nil || len(listed.Subscriptions) != 5 {
+			t.Errorf("%q listed %d (%v), want the 5 made above", body, len(listed.Subscriptions), err)
+		}
+	}
+	var row map[string]any
+	json.Unmarshal([]byte(a.mustAsk("admin@h", "sub add q@h #a@h")), &row)
+	if got := a.mustAsk("admin@h", "sub\tdelete\t"+row["id"].(string)); got != `{"deleted":true}` {
+		t.Errorf("a delete with tabs answered %s", got)
+	}
+	if code := errorCode(t, a.mustAsk("admin@h", "sub\tdelete\t"+row["id"].(string)+"\textra")); code != "invalid_request" {
+		t.Errorf("a delete with a stray word: %s", code)
 	}
 }
 
@@ -260,10 +325,10 @@ func TestAHeldDeliveryBlocksNeitherUnrelatedCallsNorTheCopyOfItsEntry(t *testing
 		t.Fatal("the delivery never started")
 	}
 	// Unrelated calls answer while the delivery is held.
-	if out, ok := a.ask("admin@h", "status", "5s"); !ok || !strings.HasPrefix(out, "ok:") {
+	if out, ok := a.askBefore("admin@h", "status", 2*time.Second); !ok || !strings.HasPrefix(out, "ok:") {
 		t.Fatalf("status while a delivery is held: %q %v", out, ok)
 	}
-	if _, ok := a.ask("admin@h", "read #other@h", "5s"); !ok {
+	if _, ok := a.askBefore("admin@h", "read #other@h", 2*time.Second); !ok {
 		t.Fatal("an unrelated read waited for a held delivery")
 	}
 	// A pull of the same log is queued behind it and does not answer yet.

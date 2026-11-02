@@ -209,6 +209,94 @@ func TestDaemonForbiddenFloodCannotReserveVictimOrGlobalCapacity(t *testing.T) {
 		t.Fatalf("forbidden flood reserved capacity: victim accepted=%v queued=%d", accepted, queued)
 	}
 }
+
+// The forbidden-flood rule holds for the subscription calls too: a caller that
+// cannot manage a log cannot reserve a lane with `sub list`, `sub add` or
+// `sub delete` aimed at it.
+func TestDaemonForbiddenSubscriptionFloodCannotReserveALane(t *testing.T) {
+	b := core.New()
+	s, _ := serverFor(t, b, "admin@h")
+	b.EstablishDaemonAgent("node.example")
+	for _, name := range []string{"#victim@h", "#attacker@h"} {
+		if _, err := b.Register(protocol.Record{Name: name, Kind: protocol.KindAgent, Owner: "admin@h", Allow: []string{"*"}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	release := make(chan struct{})
+	entered := make(chan struct{}, 256)
+	d := newDaemonDispatch(ctx, func(e protocol.Envelope) { entered <- struct{}{}; <-release })
+	defer func() { close(release); cancel(); d.wg.Wait() }()
+	for _, body := range []string{"sub list #victim@h", "sub add q@h #victim@h alert", `{"method":"sub.list","log":"#victim@h"}`, `{"method":"sub.add","target":"q@h","log":"#victim@h"}`} {
+		for range 80 {
+			s.dispatchDaemonTask(d, protocol.Envelope{From: "#attacker@h", Body: body})
+		}
+	}
+	time.Sleep(150 * time.Millisecond)
+	d.mu.Lock()
+	queued := d.waiting
+	d.mu.Unlock()
+	if queued != 0 || len(entered) != 0 {
+		t.Fatalf("a forbidden subscription call reserved a lane: waiting=%d reached a worker=%d", queued, len(entered))
+	}
+	if !s.dispatchDaemonTask(d, protocol.Envelope{From: "#victim@h", Body: "write #victim@h alert important"}) {
+		t.Fatal("the victim's write was refused after the flood")
+	}
+}
+
+// A delete is ordered with the caller's own calls, whatever log either names,
+// and with nobody else's.
+func TestDaemonSubscriptionDeletesAreOrderedPerCaller(t *testing.T) {
+	b := core.New()
+	s, _ := serverFor(t, b, "admin@h")
+	b.EstablishDaemonAgent("node.example")
+	ctx, cancel := context.WithCancel(context.Background())
+	first, firstRelease, firstDone := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	second, third := make(chan bool, 1), make(chan struct{})
+	d := newDaemonDispatch(ctx, func(e protocol.Envelope) {
+		switch e.ID {
+		case "third":
+			close(third)
+		case "first":
+			close(first)
+			<-firstRelease
+			close(firstDone)
+		case "second":
+			select {
+			case <-firstDone:
+				second <- false
+			default:
+				second <- true
+			}
+		}
+	})
+	var once sync.Once
+	defer func() { once.Do(func() { close(firstRelease) }); cancel(); d.wg.Wait() }()
+	s.dispatchDaemonTask(d, protocol.Envelope{ID: "first", From: "admin@h", Body: "sub delete 000000000001"})
+	select {
+	case <-first:
+	case <-time.After(time.Second):
+		t.Fatal("the first delete did not start")
+	}
+	s.dispatchDaemonTask(d, protocol.Envelope{ID: "second", From: "admin@h", Body: "sub delete 000000000002"})
+	// Another caller's delete is not held behind the first one.
+	s.dispatchDaemonTask(d, protocol.Envelope{ID: "third", From: "#other@h", Body: "sub delete 000000000003"})
+	select {
+	case <-third:
+	case <-time.After(2 * time.Second):
+		t.Fatal("a delete of another caller waited behind the first caller's")
+	}
+	once.Do(func() { close(firstRelease) })
+	select {
+	case overlapped := <-second:
+		if overlapped {
+			t.Fatal("a second delete of the same caller ran while the first was active")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("the second delete never ran")
+	}
+}
+
 func TestDaemonOneActiveMutationPerAgent(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	first := make(chan struct{})
