@@ -416,7 +416,7 @@ function render(json: boolean, r: Result, ctx?: Ctx): string {
 // The client's serve loop acks each message before the handler runs and
 // refuses receipts there, so they are consumed and never answered here.
 async function handle(e: Message): Promise<string | null> {
-  const answer = dispatchAsk(e.ask, ask => describe(name, mayChangeSubscriptions(e, name), ask), { status: () => (identity ? "ok" : "not ready: Slack has not said who the agent is yet") });
+  const answer = dispatchAsk(e.ask, ask => describe(name, mayChangeSubscriptions(e, name), ask), { status: () => (identity ? "ok" : `not ready: Slack has not said who the agent is yet (${identityWhy || "not asked yet"})`) });
   if (answer !== undefined) return answer;
   const json = e.body.trim().startsWith("{");
   const call = parseCall(e.body);
@@ -549,17 +549,18 @@ async function ensureIdentity(): Promise<Identity | undefined> {
   try {
     ctx = await eventCtx();
   } catch {
-    return lost(false); // the secret or the bus, not Slack: holding the start would only hide it
+    return lost(false, "the secret or the bus could not be read"); // not Slack: holding the start would only hide it
   }
   if (identity && identityFor === ctx.key) return identity;
   let me: any;
   try {
     me = await web(ctx, "read", "auth.test");
   } catch {
-    return lost(true); // Slack did not answer
+    return lost(true, "Slack did not answer"); // Slack did not answer
   }
   if (me.ok !== true || typeof me.user_id !== "string") {
-    return lost(me.ok === false && typeof me.error === "string" && transientSlack.test(me.error));
+    const code = me.ok === false && typeof me.error === "string" ? me.error.slice(0, 60).replace(/[^\w ().-]/g, "") : "";
+    return lost(code !== "" && transientSlack.test(code), code || "Slack's answer had no user id");
   }
   identity = { botUser: me.user_id, botId: me.bot_id, appId: me.app_id };
   identityFor = ctx.key;
@@ -569,11 +570,13 @@ async function ensureIdentity(): Promise<Identity | undefined> {
  *  not worth holding the start for. */
 const transientSlack = /^(ratelimited|service_unavailable|internal_error|fatal_error|request_timeout|failed \((5\d\d|429)\))$/;
 let identityRetryable = false; // the last failed ask is one start-up should wait out
+let identityWhy = ""; // what the last failed ask said, for `status`
 /** The identity is unknown again (a failed ask, or a changed token): once the
  *  agent is serving, something keeps asking, so `status` does not wait for an event to do it. */
-function lost(retryable: boolean): undefined {
+function lost(retryable: boolean, why: string): undefined {
   identity = undefined;
   identityRetryable = retryable;
+  identityWhy = why;
   if (serving) keepAsking();
   return undefined;
 }

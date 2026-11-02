@@ -12,6 +12,7 @@ let agent: Subprocess;
 let provider: ReturnType<typeof Bun.serve>;
 const name = `#slack-refused-${process.pid}@t`;
 let callerToken = "";
+let authCalls = 0;
 
 beforeAll(async () => {
   fx = await startFixture();
@@ -24,7 +25,7 @@ beforeAll(async () => {
       const path = new URL(request.url).pathname;
       if (path === "/socket") return server.upgrade(request) ? undefined : new Response("no", { status: 400 });
       if (path.endsWith("/apps.connections.open")) return Response.json({ ok: true, url: `ws://127.0.0.1:${provider.port}/socket` });
-      if (path.endsWith("/auth.test")) return Response.json({ ok: false, error: "invalid_auth" });
+      if (path.endsWith("/auth.test")) { authCalls++; return Response.json({ ok: false, error: "invalid_auth" }); }
       if (path.endsWith("/users.list")) return Response.json({ ok: true, members: [] });
       if (path.endsWith("/conversations.list")) return Response.json({ ok: true, channels: [] });
       return Response.json({ ok: false, error: "no route" });
@@ -55,8 +56,13 @@ test("a refusal that will not pass does not hold the start: it serves and says n
     s = o.kind === "answer" ? o.message.body : "(timeout)";
     if (!s.startsWith("not ready")) await Bun.sleep(100);
   }
-  expect(s).toBe("not ready: Slack has not said who the agent is yet");
+  expect(s).toBe("not ready: Slack has not said who the agent is yet (invalid_auth)");
   expect(Date.now() - began).toBeLessThan(15000); // well inside the 20 s a "try again" would be given
   const help = await bus.call(name, "help", { timeout: 5000 });
   expect(help.kind).toBe("answer"); // an ordinary call is answered, not left queued
+  // It keeps asking in the background on a growing wait (1 s, doubling to 30 s), not in a burst:
+  // after another 6 s there are the start-up ask plus the asks at about +1, +3 and +7 s.
+  await Bun.sleep(6000);
+  expect(authCalls).toBeGreaterThanOrEqual(2);
+  expect(authCalls).toBeLessThanOrEqual(5);
 }, 40000);

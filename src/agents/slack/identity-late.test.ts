@@ -65,7 +65,7 @@ const until = async (bus: Bus, want: (s: string) => boolean, ms: number): Promis
 
 test("past the start-up wait it warns once, says not ready, and the background asking makes it ok", async () => {
   const bus = Bus.connect({ addr: fx.socket, token: callerToken });
-  expect(await until(bus, s => s.startsWith("not ready"), 20000)).toBe("not ready: Slack has not said who the agent is yet");
+  expect(await until(bus, s => s.startsWith("not ready"), 20000)).toBe("not ready: Slack has not said who the agent is yet (ratelimited)");
   expect((await log()).split("identity unknown, retrying").length - 1).toBe(1);
   expect(await until(bus, s => s === "ok", 30000)).toBe("ok");
 }, 60000);
