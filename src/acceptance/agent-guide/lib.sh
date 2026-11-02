@@ -11,8 +11,8 @@ pass=0; fail=0
 ok()   { echo "  ok   $1"; pass=$((pass+1)); }
 bad()  { echo "  FAIL $1${2:+: $2}"; fail=$((fail+1)); }
 # has LABEL TEXT REGEX / lacks LABEL TEXT REGEX: the label names the claim.
-has()   { if printf '%s' "$2" | grep -Eq -- "$3"; then ok "$1"; else bad "$1" "[$2] lacks [$3]"; fi; }
-lacks() { if printf '%s' "$2" | grep -Eq -- "$3"; then bad "$1" "[$2] still has [$3]"; else ok "$1"; fi; }
+has()   { if grep -Eq -- "$3" <<<"$2"; then ok "$1"; else bad "$1" "[$2] lacks [$3]"; fi; }
+lacks() { if grep -Eq -- "$3" <<<"$2"; then bad "$1" "[$2] still has [$3]"; else ok "$1"; fi; }
 eq()    { if [ "$2" = "$3" ]; then ok "$1"; else bad "$1" "got [$2], want [$3]"; fi; }
 sec()   { echo "== $1"; }
 
