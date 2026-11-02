@@ -28,6 +28,7 @@ import { resolve } from "node:path";
 
 import { Pending, drain, lines } from "./rpc.ts";
 import { version } from "./version.ts";
+import { FILE_TOOLS } from "./tool-access.ts";
 // The only MCP server this face will approve a tool call for: its own.
 const MCP_SERVER_NAME = "agent-bus";
 
@@ -456,8 +457,9 @@ export class Codex {
   // App Server asks *us* to approve what the session wants to do. Approving
   // in general would be handing a remote peer the user's permissions. The
   // one thing this face will approve is **a tool call into the agent-bus MCP
-  // server itself** — answering the peer is what the turn is for, and that
-  // answer is an ab_ call.
+  // server itself**, excluding file tools: those require a person. Unknown
+  // tool identity is declined too. The launcher pre-approves non-file tools
+  // by name, so they normally do not elicit at all.
   // Everything else is declined and shows up in the session as such.
   #serverRequest(id: number | string, method: string, params: unknown): void {
     if (method !== "mcpServer/elicitation/request") {
@@ -465,9 +467,14 @@ export class Codex {
       this.#respond(id, { error: { code: -32601, message: `agent-bus does not implement ${method}` } });
       return;
     }
-    const p = (params ?? {}) as { serverName?: string; _meta?: { codex_approval_kind?: string } };
-    const ours = p.serverName === MCP_SERVER_NAME && p._meta?.codex_approval_kind === "mcp_tool_call";
-    this.#log(`codex: ${ours ? "approving" : "declining"} an approval for ${p.serverName ?? "?"}`);
+    const p = (params ?? {}) as { serverName?: unknown; _meta?: { codex_approval_kind?: unknown; tool_name?: unknown } };
+    // Only identifiers go into the log, never tool arguments, paths or an
+    // arbitrary display message from the elicitation.
+    const identifier = (v: unknown): string | undefined => typeof v === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(v) ? v : undefined;
+    const tool = identifier(p._meta?.tool_name);
+    const ours = p.serverName === MCP_SERVER_NAME && p._meta?.codex_approval_kind === "mcp_tool_call"
+      && tool !== undefined && !Object.hasOwn(FILE_TOOLS, tool);
+    this.#log(`codex: ${ours ? "approving" : "declining"} an approval for ${identifier(p.serverName) ?? "unknown"} tool ${tool ?? "unknown"}`);
     this.#respond(id, { result: { action: ours ? "accept" : "decline", content: {} } });
   }
 

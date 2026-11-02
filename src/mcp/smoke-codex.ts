@@ -10,6 +10,7 @@
 
 import { Codex, AppServerError } from "./codex.ts";
 import { version } from "./version.ts";
+import { FILE_TOOLS } from "./tool-access.ts";
 
 const CWD = "/tmp/agent-bus-fake-codex";
 
@@ -191,46 +192,62 @@ try {
     spy.stop(true);
   }
   {
-    // Approvals are the safety-critical part: a turn started by a bus
-    // message has no human, so the server asks us. We approve the bus's own
-    // reply path and nothing else.
-    const answers: any[] = [];
+    // A pushed turn has no person present to approve a file operation.
+    const cases = [
+      { id: 9001, server: "agent-bus", tool: "ab_reply", action: "accept" },
+      { id: 9002, server: "some-other-server", tool: "ab_reply", action: "decline" },
+      ...Object.keys(FILE_TOOLS).map((tool, i) => ({ id: 9010 + i, server: "agent-bus", tool, action: "decline" })),
+      { id: 9020, server: "agent-bus", tool: undefined, action: "decline" },
+      { id: 9021, server: "agent-bus", tool: 7, action: "decline" },
+    ];
+    const answers: { id: number; result?: { action?: string } }[] = [];
+    const logs: string[] = [];
+    let received!: () => void;
+    const complete = new Promise<void>((resolve) => { received = resolve; });
     const spy = Bun.serve({
       port: 0, hostname: "127.0.0.1",
       fetch: (req, s) => (s.upgrade(req) ? undefined : new Response("no", { status: 400 })),
       websocket: {
         message(ws, raw): void {
           const msg = JSON.parse(String(raw));
-          if (msg.id >= 9000) { answers.push(msg); return; }
+          if (msg.id >= 9000) { answers.push(msg); if (answers.length === cases.length) received(); return; }
           const reply = (result: unknown) => void ws.send(JSON.stringify({ jsonrpc: "2.0", id: msg.id, result }));
           if (msg.method === "initialize") return reply({});
           if (msg.method === "initialized") return;
           if (msg.method === "thread/list") return reply({ data: [{ id: "t", cwd: CWD, turns: [] }] });
           if (msg.method === "thread/resume") return reply({ thread: { id: "t", cwd: CWD, turns: [] } });
           if (msg.method === "turn/start") {
-            for (const [id, serverName] of [[9001, "agent-bus"], [9002, "some-other-server"]] as const) {
+            for (const { id, server: serverName, tool } of cases) {
               ws.send(JSON.stringify({
                 jsonrpc: "2.0", id, method: "mcpServer/elicitation/request",
-                params: { serverName, mode: "form", _meta: { codex_approval_kind: "mcp_tool_call" } },
+                params: { serverName, mode: "form", _meta: { codex_approval_kind: "mcp_tool_call", tool_name: tool, tool_params: { path: "/private/not-logged" } } },
               }));
             }
             reply({ turn: { id: "turn-new" } });
-            return;
           }
         },
-        close() {},
       },
     });
-    const codex = new Codex(CWD, quiet, `ws://127.0.0.1:${spy.port}`);
-    await codex.start();
-    await codex.deliver("hello", "m7");
-    await Bun.sleep(600);
-    const ours = answers.find((a) => a.id === 9001);
-    const theirs = answers.find((a) => a.id === 9002);
-    check("the bus's own tool call is approved", ours?.result?.action === "accept", JSON.stringify(ours));
-    check("any other server's tool call is declined", theirs?.result?.action === "decline", JSON.stringify(theirs));
-    codex.stop();
-    spy.stop(true);
+    const codex = new Codex(CWD, (line) => logs.push(line), `ws://127.0.0.1:${spy.port}`);
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await codex.start();
+      await codex.deliver("hello", "m7");
+      await Promise.race([complete, new Promise<void>((resolve) => { deadline = setTimeout(resolve, 2000); })]);
+      for (const c of cases) {
+        const answer = answers.find((a) => a.id === c.id);
+        check(`approval for ${c.server}/${String(c.tool)} is ${c.action}`, answer?.result?.action === c.action, JSON.stringify(answer));
+      }
+      const declines = logs.filter((line) => line.includes("declining an approval"));
+      check("each decline is logged once", declines.length === cases.filter((c) => c.action === "decline").length, JSON.stringify(declines));
+      for (const tool of Object.keys(FILE_TOOLS)) check(`decline names ${tool} and server`, declines.filter((line) => line.includes(`agent-bus tool ${tool}`)).length === 1, JSON.stringify(declines));
+      check("missing and non-string tools are logged as unknown", declines.filter((line) => line.includes("agent-bus tool unknown")).length === 2, JSON.stringify(declines));
+      check("approval logs contain no arguments or paths", !logs.join("\n").includes("/private/not-logged"), JSON.stringify(logs));
+    } finally {
+      clearTimeout(deadline);
+      codex.stop();
+      spy.stop(true);
+    }
   }
 } catch (e) {
   check("no exception", false, String(e));
