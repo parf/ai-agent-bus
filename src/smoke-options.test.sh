@@ -138,11 +138,11 @@ exec "$@"
 SD
 chmod +x "$d/bin/systemd-run"
 export SD_CALLS="$d/sd.calls"
-capped() { # label calls pattern [env...]
+capped() { # label calls pattern [env...]: every guard a capped gate's driver exports is unset first, then the case sets its own
   local label=$1 calls=$2 pattern=$3; shift 3
   rm -f "$PROBE_MARKER" "$SD_CALLS"; : >"$SD_CALLS"
   local rc=0 output
-  output=$(env "$@" TMPDIR="$d" PROBE_HOLDER='#worker@test' bash "$d/src/smoke.sh" --normal 2>&1) || rc=$?
+  output=$(env -u SMOKE_CAPPED -u SMOKE_CAP_MARK -u SMOKE_CHILD_SHARD -u SMOKE_CHILD_PLAN -u SMOKE_DRIVER_CHILD -u SMOKE_PLAN -u SMOKE_CPU_PERCENT -u SD_FAIL "$@" TMPDIR="$d" PROBE_HOLDER='#worker@test' bash "$d/src/smoke.sh" --normal 2>&1) || rc=$?
   [ "$rc" = 0 ] && [[ $output == *'passed 3, failed 0'* ]] || { echo "$label: the run did not pass (rc $rc): $output"; exit 1; }
   [ "$(wc -l <"$SD_CALLS")" = "$calls" ] || { echo "$label: systemd-run called $(wc -l <"$SD_CALLS") times, want $calls"; exit 1; }
   [[ $output == *$pattern* ]] || { echo "$label: output lacks [$pattern]: $output"; exit 1; }
