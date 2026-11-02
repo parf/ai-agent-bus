@@ -1,5 +1,6 @@
 //! Native Rust adapter for the shared state, identity and refusal vectors in
-//! src/testdata/client-conformance (kv, locks, identity, refusals; not bigfile).
+//! src/testdata/client-conformance (kv, locks, identity, refusals, events; not bigfile).
+//! Event cases: shared_event_vectors. Executed event example: native_event_example.
 use agent_bus::*;
 use serde_json::{json, Value};
 use std::{

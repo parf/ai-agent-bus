@@ -1,9 +1,8 @@
 # Client APIs and agent events
 
-📌 **TL;DR:** this is a dated client audit and an unapproved implementation plan,
-not a replacement protocol contract. The six libraries already carry ordinary
-messages and calls; T-29 event verbs need examples and integration checks first.
-Java, PHP and Rust lack bigfile, as the existing capability matrix declares.
+📌 **TL;DR:** this is a dated client audit with an [implementation status](#implementation-acceptance),
+not a replacement protocol contract. Native event-call examples are built;
+subscription work remains pending T-31d. The audit below stays a dated snapshot.
 
 ## Audit snapshot
 
@@ -155,15 +154,9 @@ verified runner provenance for an entry.
 
 ## Implementation acceptance
 
-- Extend the [private client fixture](../../src/clients/fixture/main.go#L31)
-  once: establish the reserved daemon record and start/join its
-  [ServeDaemonAgent reader](../../src/internal/api/daemon_agent.go#L22).
-  Today's fixture starts HTTP and storage but no `#bus` reader. Use the landed
-  P1/P3 implementation, not six fake event handlers and never the live daemon.
-  This fixture serves Go/Python/TypeScript/Rust. Java/PHP instead need their
-  tests/daemon.sh harnesses to expose the same three test identities and
-  authorized destination against their real test daemon; after P1 that daemon
-  already owns the `#bus` reader. Verify readiness in both harness types.
+- **Built:** all six event adapters use the [shared Go fixture](../../src/clients/fixture/main.go#L31), including Java/PHP (not their tests/daemon.sh harnesses for these cases). It establishes the reserved daemon record, runs the real [ServeDaemonAgent reader](../../src/internal/api/daemon_agent.go#L22) and fences readiness with an Owner status call. Never use six fake event handlers or the live daemon.
+  - Landed evidence: T-31a `3249e133` (vectors, fixture, Go); T-31b `b4928628` (Python/TypeScript/Rust); T-31c `fc298c4c` (Java/PHP).
+  - Confirmed write, Owner read/list, private refusals, writer-own-read refusal, empty versus missing and no-wait inbox fencing are built with executed native examples. Subscription copies, receipts and deletion/cancellation remain pending T-31d after P3.
 - Put representative event calls and subscription receipt cases into the
   [shared client vectors](../../src/testdata/client-conformance/README.md#state-identity-and-refusal-vectors-t-24),
   with a native adapter in all six clients. Reuse engine vectors for ring rules;
