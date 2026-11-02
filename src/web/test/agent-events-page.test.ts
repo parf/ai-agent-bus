@@ -16,6 +16,7 @@ let wrongLog = false;
 let sizeRefusal = false;
 let inactive = false;
 let absent = false;
+let listHttpStatus = 0;
 const calls: { cred: string; body: string; to: string }[] = [];
 const pending = new Map<string, unknown>();
 let daemon: ReturnType<typeof Bun.serve>;
@@ -28,6 +29,7 @@ beforeAll(() => {
     if (url.pathname === "/send") {
       const e = await req.json() as { to: string; body: string; tag: string };
       calls.push({ cred, body: e.body, to: e.to });
+      if (e.body === "list" && listHttpStatus) return Response.json({error:"fixture"}, {status:listHttpStatus});
       expect(e.to).toBe("#bus");
       expect(e.body === "list" || e.body === `read ${A}` || e.body === `read ${B}`).toBe(true);
       const answer = !canRead ? { error: { code: "forbidden", text: "private" } }
@@ -121,6 +123,7 @@ test("agent list makes one summary-only call with no entry bodies or unauthorize
   expect(html).not.toContain("-private-"); expect(calls).toEqual([{ cred: owner, body: "list", to: "#bus" }]);
   const denied = await list(reader);
   expect(denied).not.toContain('data-event-summary'); expect(denied).not.toContain("-private-");
+  expect(denied).not.toContain('data-event-summaries-unavailable');
 });
 
 
@@ -135,4 +138,18 @@ test("a missing log is not disclosed before read authority, on preview or direct
       expect(refused).not.toContain('data-events-not-found'); expect(refused).not.toContain('data-events-empty');
     }
   } finally { absent = false; }
+});
+
+
+test("forbidden summaries are quiet while actual list failures have an unavailable element", async () => {
+  const list = async () => (await handle(new Request("http://web.fixture/agents", { headers: { cookie: `agent_bus_session=${reader}` } }))).text();
+  for (const status of [403, 503]) {
+    listHttpStatus = status;
+    try {
+      const html = await list();
+      expect(html).not.toContain('data-event-summary');
+      if (status === 403) expect(html).not.toContain('data-event-summaries-unavailable');
+      else expect(html).toContain('<p class="muted small" data-event-summaries-unavailable>Event summaries unavailable.</p>');
+    } finally { listHttpStatus = 0; }
+  }
 });

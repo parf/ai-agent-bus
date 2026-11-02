@@ -95,7 +95,9 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   const kind = LIST_KIND[key];
   const k = KINDS[kind];
   const path = k.list;
-  const [st, all, id] = await Promise.all([ctx.status(), ctx.records(), ctx.identity()]);
+  const [st, all, id, summaries] = await Promise.all([
+    ctx.status(), ctx.records(), ctx.identity(), key === "agents" ? eventSummaries(ctx) : undefined,
+  ]);
   const you = st.you, owner0 = !!st.daemon_owner;
   const tag = filterTag(ctx.q("tag") || (ctx.q("personal") === "1" ? "personal" : ""));
   const personal = tag === "personal";
@@ -184,7 +186,6 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   else if (key === "queues") columns.push(readersCol, heldCol("Held"), inCol, outCol("Dequeued"), updCol);
   else if (cards) columns.push({ head: "URI", cell: r => <code>{r.resource?.uri}</code> }, { head: "Source", cell: r => r.resource?.source ? <code>{r.resource.source}</code> : <Muted>fetched</Muted> }, { head: "MIME type", cell: r => r.resource?.mimeType ?? <Muted>—</Muted> }, updCol);
   else columns.push(inCol, outCol("Copies out"), { head: "Deliver-To", num: true, cell: r => <>{number(r.subs?.length ?? 0)}</> }, updCol);
-  const summaries = key === "agents" ? await eventSummaries(ctx) : undefined;
   const firstHead = k.noun;
 
   const filtered = !!(q || tag || state === "inactive" || readers || work || sort);

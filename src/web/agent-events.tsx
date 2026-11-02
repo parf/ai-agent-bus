@@ -59,6 +59,7 @@ export type EventSummary = { counts: Record<Level, number>; recentAlert: boolean
 export async function eventSummaries(ctx: Ctx): Promise<Map<string, EventSummary> | undefined> {
   try {
     const value = await eventCall(ctx, "list");
+    if (object(value) && object(value.error) && value.error.code === "forbidden") return new Map();
     if (!object(value) || !Array.isArray(value.logs) || typeof value.now !== "string") return;
     const now = Date.parse(value.now);
     if (!Number.isFinite(now)) return;
@@ -74,7 +75,10 @@ export async function eventSummaries(ctx: Ctx): Promise<Map<string, EventSummary
       result.set(row.log, { counts, recentAlert: counts.alert > 0 && Number.isFinite(latest) && latest <= now && latest >= now - 86400_000 });
     }
     return result;
-  } catch { return; }
+  } catch (e) {
+    if (e instanceof Refusal && e.status === 403) return new Map();
+    return;
+  }
 }
 
 export function EventMark({ summary }: { summary?: EventSummary }) {
@@ -103,7 +107,7 @@ export function EventsCard({ events, name, expanded = false }: { events: Events;
   const q = new URLSearchParams({ name, ...(expanded ? {} : { events: "all" }) });
   return <Card title="Events" icon="list" id="events" actions={<a href={`/agent?${q}#events`}>{expanded ? "Show recent entries" : "Expand log"}</a>}>
     <p data-event-count>Showing {entries.length} of {all.length} retained entries.</p>
-    {expanded ? <p class="muted small">Full retained log (up to 500 entries); older expired or evicted entries are not retained.</p> : null}
+    {expanded ? <p class="muted small">Full retained log; older expired or evicted entries are not retained.</p> : null}
     {all.length ? <EventLines entries={entries} /> : <p data-events-empty>No retained events.</p>}
   </Card>;
 }
