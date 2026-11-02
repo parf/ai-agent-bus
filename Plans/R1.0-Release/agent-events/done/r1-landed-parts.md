@@ -1,8 +1,9 @@
 # Landed agent-event parts
 
-📌 **TL;DR:** P1, P2 and P4 are built. Subscriptions (P3) and durable
-alerts (P5) remain open in the [TODO](../TODO.md#r1-min). These are the
-completed check details; current usage lives in the [bus guide](../../../../docs/agents/bus.md#agent-logs).
+📌 **TL;DR:** P1–P5 are built: private logs, runner observations,
+subscriptions, the web preview and durable alerts. R1-min is complete;
+[open follow-ups](../TODO.md#post-10-parts) remain separate. Current usage
+lives in the [bus guide](../../../../docs/agents/bus.md#agent-logs).
 
 <a id="p1"></a>
 
@@ -114,3 +115,68 @@ Completed acceptance checklist (historical evidence):
   No presentation claims a verified runner source.
 - Test empty, warning-only and alert logs; expansion reads the current log
   without consuming it. No new stream route or dashboard work is required.
+
+<a id="p3"></a>
+
+## P3 — landed b6003407, 0.9.292
+
+Completed acceptance checklist, updated for Q325:
+
+### P3 checks
+
+- `sub add` starts now; wrong source authority or target admission refuses it.
+  The creator or current source managers manage it; other admitted callers
+  cannot list/delete it. Restart keeps definitions without replaying entries.
+- Apply `src/testdata/subscriptions.json` to the Go adapter, including the
+  portable regex rules. No Go-only regex extension silently changes matching.
+- A matching new occurrence is sent once before pull can remove it, including
+  an accepted fold. Immediate pull cannot steal the copy. Two subscriptions
+  each get their copy; unrelated logs/levels do not match.
+- A refused/full/unavailable target drops and counts that copy; the next event
+  still attempts delivery. A deleted source/author removes its subscriptions; source rights are checked
+  at creation only; target admission (creator may-send and target Allow for
+  `#bus`) is checked at every send ([Q325](../../DECISIONS.md#recorded-decisions)).
+  No outbox, retry, pause, or credential stored in definitions; no recursive
+  event storm when delivery reporting itself fails.
+- While a real selected subscriber's injected send is held, an unrelated
+  read and status answer before it is released. Pull/clean of that source
+  cannot erase its entry yet. Per-target and whole-write budgets drop/count
+  remaining copies; a cancelled attempt cannot later send. Test through the
+  real dispatch and subscription path, then break the lane/barrier to see the
+  named assertion fail. See [dispatch bounds](../README.md#bounded-dispatch-and-fairness).
+- Mutants remove each ACL check, retry a refused copy, skip subscription
+  persistence, or let pull win; each compiles and fails a named assertion.
+
+<a id="p5"></a>
+
+## P5 — landed ca87beb0, 0.9.293
+
+Completed acceptance checklist (historical evidence):
+
+### P5 checks, required by Q321
+
+- A real table/migration backend attaches through the P1 seam after P3.
+  The test restarts the actual daemon and alerts survive within the shared
+  size/TTL limits, while notices and warnings disappear. Run the existing
+  durable-alert shared cases. The second P3/P5 lander renumbers schema10/11
+  after rebasing; both migrations must remain, starting from schema9.
+- Failed alert append or pull/clean removal cannot acknowledge partial state;
+  crash/reopen cannot replay a delivered occurrence or reuse an id. Corrupt
+  state fails closed, and rollback leaves the old store usable.
+- Compiling storage mutants drop persistence, omit removal commits or reset
+  ids; each fails its own assertion. No live logs are migrated in this part.
+- Until P5 is present, no deployment or reply may claim durable alert
+  acceptance. Both SQLite and memory ports are tested, and damaged load fails
+  closed without resetting ids or adopting old-name records.
+
+## Review and gates
+
+- P1–P5 passed their reviews and landing gates, ending at `ca87beb0`,
+  0.9.293. The individual commits retain compiling assertion-red mutant
+  evidence and restored focused-check results.
+- P3's schema 10 keeps subscription definitions; P5's schema 11 adds alert
+  state. Real-data migration and restart checks retain both changes.
+- The subscription checks cover the real dispatcher, copy-before-pull ordering,
+  private authority, target admission, counts, and status during held delivery.
+- The alert checks cover restart retention, expiry, atomic replacement,
+  damaged-log isolation and removal with a retired record.

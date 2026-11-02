@@ -84,11 +84,15 @@ agent-bus call '#bus' 'ls --kind agent --tag runner' | jq -r .body | head -3
 
 ## Agent logs
 
-- **Built:** private per-agent logs, runner observations and the web record-page preview with expand. Subscriptions and alert persistence across daemon restarts are pending; entries currently live in memory, while id reservations survive restarts.
+- **Built:** private per-agent logs, runner observations, subscriptions and the web record-page preview with expand. Alerts, id reservations and subscription definitions survive daemon restarts; notices and warnings stay in memory.
 - The runner forwards masked stderr and lifecycle observations using the agent's own credential. Alerts go first in their own lane; forwarding never blocks the child. A full or unavailable event path drops and counts the event without retrying. An agent can write a misleading line about itself, seen only by its own Owner and Maintainers; no line proves who produced it.
 - `write <agent> notice|warning|alert <text>` writes the agent's own log; the daemon Owner may also write. A write answers only when `wait` is set; a reply to the caller’s own inbox also requires its Allow to admit `#bus`, following the [normal reply ACL](../04-messaging.md#reply-routing).
 - `read <agent> [level]`, `list`, `pull <agent> [level] [count]` and `clean <agent> [level] [id]` use the [shared log model](eventlog.md#log-model) and [reply forms](eventlog.md#technical-details). Only the log's Owner, Maintainers and daemon Owner may read or manage it; only the daemon Owner may read `#bus`'s own log.
-- `sub add <target> <agent> [level] [/regex/]`, `sub list [agent]` and `sub delete <id>` copy each new entry of a log you manage to a queue or agent, from now on: one message from `#bus` per matching entry, sent once and never retried, so the target must admit `#bus`. A write answers `deliveries` with the copies matched, sent and dropped, and is done only when they are. The [shared rules](subscriptions.md#the-shared-behaviour) apply, with the author's right to the log checked when the subscription is made.
+- `sub add <target> <agent> [level] [/regex/]` subscribes to new matching entries of a log you manage. The target is a queue or agent; there is no replay.
+- `sub list [agent]` lists subscriptions you made or manage; `sub delete <id>` removes one by its subscription id.
+- Source rights are checked at creation only. Every send checks the creator's may-send to the target and the target's Allow for `#bus`, under the [shared subscription rules](subscriptions.md#the-shared-behaviour). Deleting a source or author removes its subscriptions.
+- Each matching subscription sends one copy from `#bus`, including a folded occurrence. Refused copies are dropped and counted without retry; the next entry is still attempted.
+- A waiting write reports real `deliveries` counts: matched, sent and dropped. Its copies finish before pull or clean can remove the entry. A waiting write with possible subscribers needs at least three seconds left before storing.
 - A damaged log is left out of `list`, still refuses its own read with `storage_invalid`, and is named in the daemon's error log at startup.
 
 

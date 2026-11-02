@@ -1,8 +1,17 @@
 # Agent events results
 
-📌 **TL;DR:** Shared subscription work has landed. This branch adds named
-event logs, durable alert rings and their checks, awaiting QA and landing.
-Live eventlog deployment and its web view remain pending.
+📌 **TL;DR:** R1-min's five parts are landed: private per-agent logs,
+runner observations, subscriptions, web preview and durable alerts.
+The [completed checks](done/r1-landed-parts.md) hold the evidence;
+[post-1.0 work](TODO.md#post-10-parts) stays open.
+
+## R1-min accepted
+
+P1 `3b87ce4c` / 0.9.289, P2 `d8228153` / 0.9.290,
+P4 `bedc2a2f` / 0.9.291, P3 `b6003407` / 0.9.292 and
+P5 `ca87beb0` / 0.9.293 complete the accepted cut.
+Current behavior is in the [bus guide](../../../docs/agents/bus.md#agent-logs)
+and [shared log model](../../../docs/agents/eventlog.md#log-model).
 
 ## Shared subscriptions
 

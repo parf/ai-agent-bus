@@ -124,8 +124,8 @@ eventlog: 0 active logs
   under [persistence](#technical-details).
 - The daemon's per-agent logs use these rules through [#bus](bus.md#agent-logs).
   The bus guide distinguishes its built and pending parts.
-- Named logs, subscriptions and durable alerts described on this page belong
-  to the eventlog agent.
+- This page describes the eventlog agent's named logs. The bus guide owns
+  per-agent usage; both hosts keep alerts across restarts.
 
 Default rings:
 
@@ -143,6 +143,20 @@ Default rings:
 - A repeated level and text within a fixed minute from its first entry folds into that live entry, preserving its id and increasing count; an accepted folded occurrence still forwards once.
 - Controls and ANSI sequences are removed before the text is cut to 200 Unicode characters. Text remains untrusted data.
 - Times use UTC RFC3339 with milliseconds and `Z`; ids still order entries when the clock moves backwards. A backwards clock does not fold a new occurrence into an older entry.
+
+### Levels
+
+Choose the severity for what happened:
+
+| Level | Use for | Runner observations |
+|---|---|---|
+| notice | Normal progress or a requested change | Start or requested stop |
+| warning | A problem worth keeping alongside continued operation | A masked stderr line |
+| alert | An unexpected failure that needs attention | An unrequested exit or failed start |
+
+- A requested stop is a notice, never a failure alert.
+- Agent self-writes use the same severities. Text remains the writer's claim;
+  a level does not prove who produced it.
 
 ## Secret keys
 

@@ -1,8 +1,8 @@
 # Agent events TODO
 
 📌 **TL;DR:** the owner's R1 cut is per-agent logs, subscriptions and a small
-web preview with expand. The [design and estimate](README.md#build-split-and-estimate)
-own the scope; the checks below decide when it is built. Existing producer
+web preview with expand. All R1-min parts are complete; the [landed checks](done/r1-landed-parts.md)
+record acceptance. The [design](README.md#r1-min-surface-and-authority) owns the scope. Existing producer
 catalogues remain follow-up work, not an extra requirement hidden in P1.
 
 ## R1-min
@@ -14,55 +14,17 @@ Contract: [verbs and authority](README.md#r1-min-surface-and-authority),
 [small storage ports](README.md#p1-storage-seam-for-p5); P5 supplies durable
 alerts, while notices/warnings remain volatile. Id reservations and
 subscription definitions are durable.
-Do not mark RT34 complete on the smaller no-subscription comparison estimate.
+The accepted cut includes subscriptions, durable alerts and the web preview.
+Only the post-1.0 parts and later producer integrations below remain open.
 
 | Part | Owner/order | Falsifiable acceptance | Status |
 |---|---|---|---|
 | P1 engine, verbs, ACL, ids, vectors | Landed | [Completed checks](done/r1-landed-parts.md#p1) | ✅ `3b87ce4c` · 0.9.289 |
 | P2 runner observations | Landed | [Completed checks](done/r1-landed-parts.md#p2) | ✅ `d8228153` · 0.9.290 |
-| P3 subscriptions | W2B after P1 | Shared semantics plus new daemon storage/ACL/send proof below | ⏳ |
+| P3 subscriptions | Landed | [Completed checks](done/r1-landed-parts.md#p3) | ✅ `b6003407` · 0.9.292 |
 | P4 web | Landed | [Completed checks](done/r1-landed-parts.md#p4) | ✅ `bedc2a2f` · 0.9.291 |
-| P5 alerts on disk | W2B, build parallel with P3, land after it | Real store/migration/restart checks below; plugs into the P1 seam | ⏳ |
-| Read, normal gate and release-run touched set | Two readers on ⚠️ changes, then gate | Compiling mutants fail their owning assertions; restored touched checks and normal gate green | ⏳ |
-
-### P3 checks
-
-- `sub add` starts now; wrong source authority or target admission refuses it.
-  The creator or current source managers manage it; other admitted callers
-  cannot list/delete it. Restart keeps definitions without replaying entries.
-- Apply `src/testdata/subscriptions.json` to the Go adapter, including the
-  portable regex rules. No Go-only regex extension silently changes matching.
-- A matching new occurrence is sent once before pull can remove it, including
-  an accepted fold. Immediate pull cannot steal the copy. Two subscriptions
-  each get their copy; unrelated logs/levels do not match.
-- A refused/full/unavailable target drops and counts that copy; the next event
-  still attempts delivery. A revoked creator/source/target sends nothing.
-  No outbox, retry, pause, or credential stored in definitions; no recursive
-  event storm when delivery reporting itself fails.
-- While a real selected subscriber's injected send is held, an unrelated
-  read and status answer before it is released. Pull/clean of that source
-  cannot erase its entry yet. Per-target and whole-write budgets drop/count
-  remaining copies; a cancelled attempt cannot later send. Test through the
-  real dispatch and subscription path, then break the lane/barrier to see the
-  named assertion fail. See [dispatch bounds](README.md#bounded-dispatch-and-fairness).
-- Mutants remove each ACL check, retry a refused copy, skip subscription
-  persistence, or let pull win; each compiles and fails a named assertion.
-
-### P5 checks, required by Q321
-
-- A real table/migration backend attaches through the P1 seam after P3.
-  The test restarts the actual daemon and alerts survive within the shared
-  size/TTL limits, while notices and warnings disappear. Run the existing
-  durable-alert shared cases. The second P3/P5 lander renumbers schema10/11
-  after rebasing; both migrations must remain, starting from schema9.
-- Failed alert append or pull/clean removal cannot acknowledge partial state;
-  crash/reopen cannot replay a delivered occurrence or reuse an id. Corrupt
-  state fails closed, and rollback leaves the old store usable.
-- Compiling storage mutants drop persistence, omit removal commits or reset
-  ids; each fails its own assertion. No live logs are migrated in this part.
-- Until P5 is present, no deployment or reply may claim durable alert
-  acceptance. Both SQLite and memory ports are tested, and damaged load fails
-  closed without resetting ids or adopting old-name records.
+| P5 alerts on disk | Landed | [Completed checks](done/r1-landed-parts.md#p5) | ✅ `ca87beb0` · 0.9.293 |
+| Review and landing gates | Landed with P1–P5 | [Acceptance evidence](done/r1-landed-parts.md#review-and-gates) | ✅ through `ca87beb0` · 0.9.293 |
 
 ## Post-1.0 parts
 
@@ -73,7 +35,7 @@ Do not mark RT34 complete on the smaller no-subscription comparison estimate.
 | Runner provenance B | Manager-controlled daemon binding, foreign-runner/rebinding race mutants, no tag/shared-owner shortcut | ⏳ |
 
 The catalogue below is retained design work for later producer integrations.
-It is not all included in the four-part R1 cut.
+It is not all included in the five-part R1 cut.
 
 ## Tasks
 

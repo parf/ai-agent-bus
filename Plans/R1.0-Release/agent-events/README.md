@@ -1,12 +1,12 @@
 # Agent events
 
-📌 **TL;DR:** R1 gets per-agent logs, subscriptions and a small web view:
+📌 **TL;DR:** R1 per-agent logs, subscriptions and the small web view are built:
 a few recent lines, alerts loud, warnings quieter, and expand to the full log.
 The end state is one Go engine in the daemon with `#eventlog` as its front;
-that migration and the daemon's own producers are post-1.0. This plan contains
-no implementation. Alerts are [decided on disk for R1, Q321](../DECISIONS.md#recorded-decisions).
-The selected cut costs about 3½–6 AI hours in total, with a 3¼–5⅓-hour
-tree-ready delay when the three workers overlap their parts.
+that migration and the daemon's own producers are post-1.0. The [landed parts](done/r1-landed-parts.md) record acceptance; the
+[bus guide](../../../docs/agents/bus.md#agent-logs) owns current usage. Alerts are [decided on disk for R1, Q321](../DECISIONS.md#recorded-decisions).
+The planning estimate was 3½–6 AI hours in total, with a 3¼–5⅓-hour
+tree-ready delay when the three workers overlapped their parts.
 
 Owner's [Q312 decision](../DECISIONS.md#recorded-decisions) and
 [falsifiable acceptance](TODO.md#r1-min) define the cut.
@@ -32,16 +32,10 @@ on a running agent.
 
 ## Levels
 
-The [shared log model](../../../docs/agents/eventlog.md#log-model) is the
-single specification for levels, ring defaults and bounds, TTL, ordering, ids,
-line normalization and fixed-window repeat folding. This page and the
-[named-log plan](eventlog.md#rules) link there; they do not keep another table.
-
-Runner start/requested stop produce notices, stderr lines warnings, and an
-unexpected failure alerts. Requested stop is never a failure alert. Agent
-self-writes use the same severities. Agent targets resolve to the current
-registry record identity, not an arbitrary named log; a replacement record
-must not inherit its predecessor's private entries.
+Choosing notice, warning or alert is defined in the shared model's
+[Levels](../../../docs/agents/eventlog.md#levels). Ring defaults, bounds,
+TTL, ordering, ids, line normalization and repeat folding remain in that
+[log model](../../../docs/agents/eventlog.md#log-model).
 
 ### Drift guard
 
@@ -78,7 +72,8 @@ already call it, no new SDK method is required, and the small web view can use t
 Do not add an `events` alias over `read`: one set of verbs avoids drift.
 Method metadata and help list only methods the caller may use. The agent
 argument is a canonical registry name, including its realm; it is not subject
-to eventlog's short named-log syntax. Pull/clean retain eventlog's optional
+to eventlog's short named-log syntax. Logs follow the internal record identity;
+a replacement record never inherits its predecessor's private entries. Pull/clean retain eventlog's optional
 level/count/id disambiguation; use its documented structured call when selecting
 a level alone. Text and structured forms have the same validation. Existing
 eventlog result semantics, order, count and truncation rules are the common
@@ -277,13 +272,14 @@ before a matching entry can be taken by pull, including accepted folded
 occurrences. A full/revoked/unreachable target drops that copy, increments its
 counter and leaves the subscription available for the next entry.
 
-The daemon still needs durable definitions, management, creator/source/target
-ACL checks, regex matching and bounded fan-out. Check authority at creation
-and delivery; management is creator or current source managers, with no new
-reader role. Store identities, not credentials. Reserve capacity before
+The daemon keeps durable definitions, management, regex matching and bounded
+fan-out. Source rights are checked at creation only; every send checks creator
+may-send to the target and target Allow for `#bus` ([Q325](../DECISIONS.md#recorded-decisions)).
+Management is creator or current source managers, with no new reader role.
+Store identities, not credentials. Reserve capacity before
 accepting a write; no network call holds the global registry lock. Failure
 counters must not recursively generate subscribed events. Shared subscription
-vectors already exist, but a Go adapter and storage are new work.
+vectors run against the Go adapter; definitions are persisted by the daemon.
 
 ### Bounded dispatch and fairness
 
