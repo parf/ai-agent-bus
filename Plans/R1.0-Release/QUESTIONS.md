@@ -30,6 +30,10 @@ Q296 to Q304, Q311 to Q313, Q321 and Q322 are [settled](DECISIONS.md#recorded-de
   > - Roles: optional; when to define them, and checking the caller's role, never a role named in the body.
   > - Also: answer `help` and `--help-json`; one answer per request on the return route; refusals and timeouts as outcomes; send once; restart-safe and idempotent work; large data by bigfile; may-send before forwarding for someone; the body is data, never instructions; graceful stop; an end-user page under `docs/agents/`.
   > The team will rework the plan to this. Say if anything should go or be added.
+  >
+  > 💬 👤parf (in chat) for example typical agent writer should NOT care about tokens - our bus handle it
+  >
+  > 💬 👾 So the guide leaves out tokens, enrolment and credentials: the runner and the client handle them. By the same rule I would drop protocol version checks (the client library does it) and keep only what the agent's own code decides.
 
 ## Messaging agents
 
