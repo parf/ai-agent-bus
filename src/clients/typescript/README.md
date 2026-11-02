@@ -44,6 +44,25 @@ pong hello
 
 - ▶️ The [shared examples](../examples/README.md) run agents in every language together.
 
+## Private agent-log example
+
+The [executed native example](tests/client.test.ts) (`exampleEventLog / native event example`) uses ordinary calls to
+`#bus`, with three separate handles on a disposable daemon: the agent writes,
+its Owner reads and lists, and an unmanaged identity receives a private refusal.
+The writing agent cannot read its own log just because it wrote it. Each call
+has a bounded wait; no event-specific SDK helper or subscription is involved.
+See [agent logs](../../../docs/agents/bus.md#agent-logs) for authority and reply behavior.
+
+Observed output, asserted by that example:
+
+```text
+written: alert disk full
+owner reads: 1 alert
+owner lists: #caller@fixture
+a third party: forbidden
+the writer reading its own log: forbidden
+```
+
 ## Technical details
 
 At first use, the client checks HTTP `/identity` for [wire compatibility](../../../docs/09-daemon-api.md#how-a-call-is-made); daemon refusals expose `kind` alongside status and message.

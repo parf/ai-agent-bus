@@ -563,3 +563,50 @@ for(const row of conformanceCases('bigfile') as unknown as StateCase[]) test(`sh
   }
  }
 },30000);
+
+
+// Ordinary native calls over the same event vectors as every other adapter.
+type EventStep = {as: 'owner'|'agent'|'third'; op: string; body?: string; expect?:Record<string,unknown>; same_answer_as?:number};
+const eventCases = JSON.parse(readFileSync(join(root,'src/testdata/client-conformance/events.json'),'utf8')) as Array<{id:string;fresh:boolean;steps:EventStep[]}>;
+for (const row of eventCases) test(`shared event vectors: ${row.id}`, async()=>{
+ expect(row.fresh).toBe(true);
+ const actors = {owner:bus('owner@fixture'), agent:bus('#caller@fixture'), third:bus('#outsider@fixture')};
+ const answers = new Map<number,string>();
+ for(const [i,step] of row.steps.entries()) {
+  const b=actors[step.as],where=`${row.id} step ${i} ${step.op}`;
+  if(step.op==='call') {
+   const out=await b.call('#bus',step.body!,{timeout:3000});
+   expect(out.kind,where).toBe('answer');
+   if(out.kind!=='answer') throw new Error(where+' expected answer');
+   answers.set(i,out.message.body);
+   const value=JSON.parse(out.message.body);
+   for(const [path,want] of Object.entries(step.expect??{})) {
+    const got=path.split('.').reduce((v,key)=>v[key],value);
+    expect(got,where+' '+path).toEqual(want);
+   }
+   if(step.same_answer_as!==undefined) expect(out.message.body,where).toBe(answers.get(step.same_answer_as)!);
+  } else if(step.op==='send') await b.send('#bus',step.body!);
+  else if(step.op==='inbox') {
+   expect(step.expect?.empty).toBe(true);
+   expect(await b.consume({wait:300}),where).toBeNull();
+  } else throw new Error(where+' unsupported operation');
+ }
+},15000);
+
+async function exampleEventLog(agent:InstanceType<typeof Bus>, owner:InstanceType<typeof Bus>, third:InstanceType<typeof Bus>) {
+ const call=async(b:InstanceType<typeof Bus>,body:string)=>{
+  const out=await b.call('#bus',body,{timeout:3000});
+  if(out.kind!=='answer') throw new Error('event example expected answer');
+  return JSON.parse(out.message.body);
+ };
+ const entry=(await call(agent,'write #caller@fixture alert disk full')).entry;
+ const read=await call(owner,'read #caller@fixture');
+ const logs=(await call(owner,'list')).logs;
+ const privateRead=(await call(third,'read #caller@fixture')).error.code;
+ const ownRead=(await call(agent,'read #caller@fixture')).error.code;
+ return `written: ${entry.level} ${entry.text}\nowner reads: ${read.rings.alert.length} alert\nowner lists: ${logs[0].log}\na third party: ${privateRead}\nthe writer reading its own log: ${ownRead}`;
+}
+test('native event example uses the writer, Owner and unmanaged identity',async()=>{
+ const output=await exampleEventLog(bus('#caller@fixture'),bus('owner@fixture'),bus('#outsider@fixture'));
+ expect(output).toBe('written: alert disk full\nowner reads: 1 alert\nowner lists: #caller@fixture\na third party: forbidden\nthe writer reading its own log: forbidden');
+},15000);

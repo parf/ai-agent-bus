@@ -62,6 +62,25 @@ pong hello
 
 - ▶️ The [shared examples](../examples/README.md) run agents in every language together.
 
+## Private agent-log example
+
+The [executed native example](tests/conformance_state.rs) (`example_event_log / native_event_example`) uses ordinary calls to
+`#bus`, with three separate handles on a disposable daemon: the agent writes,
+its Owner reads and lists, and an unmanaged identity receives a private refusal.
+The writing agent cannot read its own log just because it wrote it. Each call
+has a bounded wait; no event-specific SDK helper or subscription is involved.
+See [agent logs](../../../docs/agents/bus.md#agent-logs) for authority and reply behavior.
+
+Observed output, asserted by that example:
+
+```text
+written: alert disk full
+owner reads: 1 alert
+owner lists: #caller@fixture
+a third party: forbidden
+the writer reading its own log: forbidden
+```
+
 ## Technical details
 
 - **Package:** unpublished development code; `agent_bus::VERSION` comes from the checkout's canonical daemon version; the [reviewed API plan](../../../Plans/R1.0-Release/done/client-libraries/rust.md#surface) owns the intended scope.

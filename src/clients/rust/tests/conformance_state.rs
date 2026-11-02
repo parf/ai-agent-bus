@@ -379,3 +379,75 @@ async fn shared_refusal_vectors() {
         assert_eq!(!bus.warnings().is_empty(), old, "{id}: warnings {:?}", bus.warnings());
     }
 }
+
+
+// Existing send/call/consume only: no new event SDK or subscription surface.
+async fn event_call(bus: &Bus, body: &str) -> String {
+    match bus.call("#bus", body, CallOptions {timeout: Duration::from_secs(3), ..Default::default()}).await.expect("event call failed") {
+        CallOutcome::Reply(message) => message.body().to_owned(),
+        CallOutcome::Done(_) => panic!("event call finished without an answer"),
+    }
+}
+fn event_path<'a>(mut value: &'a Value, path: &str) -> &'a Value {
+    for key in path.split('.') {
+        value = if value.is_array() { &value[key.parse::<usize>().expect("array index")] } else { &value[key] };
+    }
+    value
+}
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn shared_event_vectors() {
+    for case in cases("events") {
+        assert_eq!(case["fresh"], true);
+        let (_fixture, v) = fixture();
+        let owner = connect(&v, "owner@fixture").await;
+        let agent = connect(&v, "#caller@fixture").await;
+        let third = connect(&v, "#outsider@fixture").await;
+        let mut answers = std::collections::HashMap::new();
+        for (i, step) in case["steps"].as_array().unwrap().iter().enumerate() {
+            let at = format!("{} step {i} {}", text(&case,"id"), text(step,"op"));
+            let bus = match text(step,"as") {"owner"=>&owner,"agent"=>&agent,"third"=>&third,other=>panic!("unknown identity {other}")};
+            match text(step,"op") {
+                "call" => {
+                    let raw = event_call(bus, text(step,"body")).await;
+                    let decoded: Value = serde_json::from_str(&raw).expect("event JSON reply");
+                    if let Some(expected) = step["expect"].as_object() {
+                        for (path,want) in expected {
+                            assert_eq!(event_path(&decoded,path), want, "{at}: {path}");
+                        }
+                    }
+                    if let Some(prior) = step["same_answer_as"].as_u64() {
+                        assert_eq!(Some(&raw), answers.get(&(prior as usize)), "{at}: private refusal bytes");
+                    }
+                    answers.insert(i,raw);
+                }
+                "send" => {bus.send("#bus",text(step,"body"),SendOptions::default()).await.unwrap();}
+                "inbox" => {
+                    assert_eq!(step["expect"]["empty"],true);
+                    assert!(bus.consume(ConsumeOptions {wait:Duration::from_millis(300),..Default::default()}).await.unwrap().is_none(),"{at}: inbox not empty");
+                }
+                other=>panic!("{at}: unknown operation {other}"),
+            }
+        }
+        for bus in [&owner,&agent,&third] {bus.close().await.unwrap();}
+    }
+}
+
+// Executed native README example; distinct credentials keep the authority honest.
+async fn example_event_log(agent: &Bus, owner: &Bus, third: &Bus) -> String {
+    let write: Value = serde_json::from_str(&event_call(agent,"write #caller@fixture alert disk full").await).unwrap();
+    let read: Value = serde_json::from_str(&event_call(owner,"read #caller@fixture").await).unwrap();
+    let list: Value = serde_json::from_str(&event_call(owner,"list").await).unwrap();
+    let private: Value = serde_json::from_str(&event_call(third,"read #caller@fixture").await).unwrap();
+    let own: Value = serde_json::from_str(&event_call(agent,"read #caller@fixture").await).unwrap();
+    format!("written: {} {}\nowner reads: {} alert\nowner lists: {}\na third party: {}\nthe writer reading its own log: {}",
+        text(&write["entry"],"level"),text(&write["entry"],"text"),read["rings"]["alert"].as_array().unwrap().len(),text(&list["logs"][0],"log"),text(&private["error"],"code"),text(&own["error"],"code"))
+}
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn native_event_example() {
+    let (_fixture,v)=fixture();
+    let owner=connect(&v,"owner@fixture").await;
+    let agent=connect(&v,"#caller@fixture").await;
+    let third=connect(&v,"#outsider@fixture").await;
+    assert_eq!(example_event_log(&agent,&owner,&third).await,"written: alert disk full\nowner reads: 1 alert\nowner lists: #caller@fixture\na third party: forbidden\nthe writer reading its own log: forbidden");
+    for bus in [&owner,&agent,&third] {bus.close().await.unwrap();}
+}
