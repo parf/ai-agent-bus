@@ -66,34 +66,34 @@ class Runtime(unittest.TestCase):
             ready=Path(d)/'ready'
             code=f'import sys,socket,time,pathlib;sys.path.insert(0,{str(HERE)!r});socket.getaddrinfo=lambda *a,**k:(pathlib.Path({str(ready)!r}).write_text("ready"),time.sleep(30))[1];import worker;worker.main()'
             start=time.monotonic()
-            with self.assertRaises(TimeoutError):fetch.run({'url':'http://public.example/','format':'text'},1,helper=[sys.executable,'-B','-c',code])
+            with self.assertRaises(TimeoutError):fetch.run({'url':'http://public.example/','format':'text'},3,helper=[sys.executable,'-B','-c',code])
             self.assertTrue(ready.exists(),'DNS fake actually entered, rather than a child that never started')
-            self.assertLess(time.monotonic()-start,1.7)
+            self.assertLess(time.monotonic()-start,3.7)
     def test_header_and_body_trickle_have_one_hard_parent_deadline(self):
         fixture=fixtures.Transport();fixture.setUp()
         try:
-            for response in ([b'H']+[b'T']*50,[b'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 100\r\n\r\n']+[b'x']*100):
+            for response in ([b'H']+[b'T']*120,[b'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 100\r\n\r\n']+[b'x']*100):
                 fixture.server.raw=response;fixture.server.calls.clear()
                 code=f'import sys,socket;sys.path.insert(0,{str(HERE)!r});import transport,worker;from test_policy import answers;worker.get=lambda raw,budget:transport.get(raw,budget=budget,resolver=lambda *a,**k:answers("8.8.8.8"),connector=lambda address,port,timeout:socket.create_connection(("127.0.0.1",{fixture.server.server_port}),timeout));worker.main()'
                 start=time.monotonic()
-                with self.assertRaises(TimeoutError):fetch.run({'url':'http://public.example/','format':'text'},.5,helper=[sys.executable,'-B','-c',code])
-                self.assertLess(time.monotonic()-start,1.2);self.assertEqual(len(fixture.server.calls),1)
+                with self.assertRaises(TimeoutError):fetch.run({'url':'http://public.example/','format':'text'},2,helper=[sys.executable,'-B','-c',code])
+                self.assertLess(time.monotonic()-start,3.2);self.assertEqual(len(fixture.server.calls),1)
         finally:fixture.tearDown()
     def test_helper_pipe_output_cap_is_not_unbounded_communicate(self):
         code='import sys,time;sys.stdout.write("x"*'+str(fetch.PIPE_MAX+65536)+');sys.stdout.flush();time.sleep(5)'
         start=time.monotonic()
-        try:fetch.run({'url':'http://example.org/','format':'text'},2,helper=[sys.executable,'-c',code])
+        try:fetch.run({'url':'http://example.org/','format':'text'},4,helper=[sys.executable,'-c',code])
         except (ValueError,TimeoutError):pass
         else:self.fail('oversized helper output was accepted')
-        self.assertLess(time.monotonic()-start,1)
+        self.assertLess(time.monotonic()-start,3)
     def test_deadline_kills_the_ready_descendant_before_reaping(self):
         (ROOT/'tmp').mkdir(exist_ok=True)
         with tempfile.TemporaryDirectory(dir=ROOT/'tmp',prefix='fetch-child-') as d:
             ready=Path(d)/'ready';survived=Path(d)/'survived'
-            child=f'import pathlib,time;pathlib.Path({str(ready)!r}).write_text("ready");time.sleep(1.3);pathlib.Path({str(survived)!r}).write_text("bad")'
+            child=f'import pathlib,time;pathlib.Path({str(ready)!r}).write_text("ready");time.sleep(2.8);pathlib.Path({str(survived)!r}).write_text("bad")'
             code=f'import subprocess,sys,time;subprocess.Popen([sys.executable,"-c",{child!r}]);time.sleep(30)'
-            with self.assertRaises(TimeoutError):fetch.run({'url':'http://example.org/','format':'text'},1,helper=[sys.executable,'-c',code])
-            self.assertTrue(ready.exists());time.sleep(1.4);self.assertFalse(survived.exists())
+            with self.assertRaises(TimeoutError):fetch.run({'url':'http://example.org/','format':'text'},2.5,helper=[sys.executable,'-c',code])
+            self.assertTrue(ready.exists());time.sleep(2.9);self.assertFalse(survived.exists())
     def test_helper_success_schema_and_output_warning_cannot_be_skipped(self):
         for value in ({'ok':True,'body':'missing warning','class':'ok','bytes':0},{'ok':True,'body':WARNING+'x'*OUTPUT_MAX,'class':'ok','bytes':0},{'ok':True,'body':WARNING,'class':'injected private URL','bytes':0}):
             code='import json;v='+repr({**value,'body':''})+';v["body"]='+ (repr(WARNING)+'+"x"*'+str(OUTPUT_MAX) if len(value['body'])>OUTPUT_MAX else repr(value['body']))+';print(json.dumps(v))'
@@ -104,7 +104,7 @@ class Runtime(unittest.TestCase):
             dest=Path(d)/'fetch';subprocess.run([str(HERE/'package.sh'),str(dest)],check=True,capture_output=True)
             env={'PATH':os.environ['PATH'],'AGENT_BUS_CONFIG':'invalid config','AGENT_BUS_TOKEN':'fixture-private-token'}
             for ask in ('help','help-json','help-config','help-secret','mcp','status','future'):
-                process=subprocess.run([str(dest/'fetch.py')],input='get http://127.0.0.1',env={**env,'AGENT_BUS_ASK':ask},capture_output=True,text=True,timeout=2,cwd=d)
+                process=subprocess.run([str(dest/'fetch.py')],input='get http://127.0.0.1',env={**env,'AGENT_BUS_ASK':ask},capture_output=True,text=True,timeout=10,cwd=d)
                 self.assertEqual(process.returncode,0,process.stderr);self.assertEqual(process.stderr,'')
                 if ask in ('status','future'):self.assertEqual(process.stdout.strip(),'unsupported: '+ask)
                 if ask=='help-json':

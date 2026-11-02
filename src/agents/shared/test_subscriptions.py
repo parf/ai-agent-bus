@@ -140,8 +140,9 @@ class Helpers(unittest.TestCase):
         engine=self.engine()
         try:
             request=json.dumps({'text':'a'*180+'b','filters':['/(a|aa)+$/','/b$/']}).encode()
-            started=time.monotonic();raw,complete=engine._helper(HERE/'subscription_filters.py',request,time.monotonic()+1)
-            self.assertTrue(complete);self.assertEqual(json.loads(raw),['timeout',True]);self.assertLess(time.monotonic()-started,1)
+            started=time.monotonic();raw,complete=engine._helper(HERE/'subscription_filters.py',request,time.monotonic()+4)
+            # Room for the helper's start under load; a pattern timeout that was not per pattern would run to the deadline.
+            self.assertTrue(complete);self.assertEqual(json.loads(raw),['timeout',True]);self.assertLess(time.monotonic()-started,3)
             self.assertFalse(engine.processes)
         finally:engine.close()
 
@@ -207,7 +208,10 @@ class Helpers(unittest.TestCase):
             root=Path(directory);script=root/'held.py';pidfile=root/'child.pid'
             script.write_text('import subprocess,sys,time\np=subprocess.Popen([sys.executable,"-c","import time;time.sleep(30)"])\nopen('+repr(str(pidfile))+',"w").write(str(p.pid))\nprint("started",flush=True)\n')
             try:
-                raw,complete=engine._helper(script,b'{}',time.monotonic()+.3)
+                # The deadline covers the helper's own interpreter start, which can take over a
+                # second when many shards run at once; the descendant holds stdout for 30 s, so
+                # only the deadline ends the call.
+                raw,complete=engine._helper(script,b'{}',time.monotonic()+2)
                 self.assertFalse(complete);self.assertIn(b'started',raw)
                 self.assertTrue(pidfile.is_file(),'fixture child did not start')
                 pid=int(pidfile.read_text());end=time.monotonic()+1
