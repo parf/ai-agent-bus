@@ -8,6 +8,7 @@ import (
 	"github.com/parf/ai-agent-bus/internal/eventlog"
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/subscription"
 )
 
 // Unbound embedded buses keep private reservations in memory. A bound store
@@ -107,19 +108,42 @@ func (b *Bus) eventRecheck(caller string, r protocol.Record, write bool) error {
 	return nil
 }
 func (b *Bus) EventWrite(caller, target, level, text string) (ports.EventEntry, error) {
+	v, _, err := b.EventWriteWithin(caller, target, level, text, time.Time{})
+	return v, err
+}
+
+// subscribersNeed is the least time a write must have left to be stored when a
+// subscription could match it: stored and then forwarded, or not stored at all.
+const subscribersNeed = 3 * time.Second
+
+// EventWriteWithin appends to the caller's own log and sends the copies the
+// entry's subscriptions ask for, once each, before it returns: the write is
+// done only when its fan-out is, which keeps a pull or clean of the same log
+// behind it (the daemon schedules one mutation per log at a time). The fan-out
+// holds no registry or ring lock. A write with a deadline that leaves a
+// possible subscriber less than three seconds is refused before it is stored.
+func (b *Bus) EventWriteWithin(caller, target, level, text string, deadline time.Time) (ports.EventEntry, subscription.Result, error) {
 	r, e, p, err := b.eventAccess(caller, target, true)
 	if err != nil {
-		return ports.EventEntry{}, err
+		return ports.EventEntry{}, subscription.Result{}, err
 	}
 	defer b.eventRelease(r, e)
+	if !deadline.IsZero() && eventlog.IsLevel(level) && time.Until(deadline) < subscribersNeed && b.subsHaveCandidates(r, level) {
+		return ports.EventEntry{}, subscription.Result{}, eventlog.Error("deadline")
+	}
 	v, err := e.WriteChecked(r.ID, level, text, p, func() error { return b.eventRecheck(caller, r, true) })
 	if err != nil {
-		return v, err
+		return v, subscription.Result{}, err
 	}
+	end := deadline
+	if end.IsZero() {
+		end = time.Now().Add(subscription.BatchBudget)
+	}
+	res := b.deliverEntry(r, v, end)
 	if err = b.eventRecheck(caller, r, true); err != nil {
-		return ports.EventEntry{}, err
+		return ports.EventEntry{}, subscription.Result{}, err
 	}
-	return v, nil
+	return v, res, nil
 }
 func (b *Bus) EventRead(caller, target, level string) (eventlog.ReadResult, error) {
 	r, e, p, err := b.eventAccess(caller, target, false)

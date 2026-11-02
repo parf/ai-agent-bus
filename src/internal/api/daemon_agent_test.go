@@ -139,7 +139,7 @@ func TestDaemonAgentReadOnlyMethodsAndAsks(t *testing.T) {
 		}
 		if ask == protocol.AskHelpJSON {
 			var data struct{ Methods map[string]any }
-			if json.Unmarshal([]byte(got), &data) != nil || len(data.Methods) != 9 {
+			if json.Unmarshal([]byte(got), &data) != nil || len(data.Methods) != 12 {
 				t.Fatal(got)
 			}
 		}

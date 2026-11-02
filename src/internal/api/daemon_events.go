@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/eventlog"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
@@ -17,6 +18,9 @@ type eventCall struct {
 	Method, Log, Level, Text string
 	Count                    int
 	ID                       uint64
+	// A subscription call: the target to copy to, the filter, and the id of one
+	// to delete.
+	Target, Filter, SubID string
 }
 
 var eventWrite = regexp.MustCompile(`(?s)^write +(\S+) +(\S+) (.*)$`)
@@ -55,6 +59,9 @@ func eventMethod(body string) string {
 		return v.Method
 	}
 	parts := strings.Fields(body)
+	if len(parts) > 1 && parts[0] == "sub" && (parts[1] == "add" || parts[1] == "list" || parts[1] == "delete") {
+		return "sub." + parts[1]
+	}
 	if len(parts) > 0 {
 		return parts[0]
 	}
@@ -71,13 +78,17 @@ func writeLooking(body string) bool {
 }
 
 func isEventMethod(method string) bool {
-	return method == "write" || method == "read" || method == "list" || method == "pull" || method == "clean"
+	return method == "write" || method == "read" || method == "list" || method == "pull" || method == "clean" ||
+		method == "sub.add" || method == "sub.list" || method == "sub.delete"
 }
 func parseEventCall(body string) (eventCall, error) {
 	c := eventCall{Method: eventMethod(body), Count: 100}
 	bad := eventlog.Error("invalid_request")
 	if len(body) > daemonMaxInput || !utf8.ValidString(body) || strings.ContainsRune(body, 0) {
 		return c, bad
+	}
+	if strings.HasPrefix(c.Method, "sub.") {
+		return parseSubCall(body, c)
 	}
 	if strings.HasPrefix(strings.TrimSpace(body), "{") {
 		d := json.NewDecoder(strings.NewReader(body))
@@ -205,7 +216,7 @@ func parseEventCall(body string) (eventCall, error) {
 }
 func eventFailure(err error, write bool) string {
 	code := eventlog.Code(err)
-	texts := map[string]string{"forbidden": "Only the log’s Owner, Maintainers or daemon Owner may read or manage it.", "not_found": "No such log or subscription.", "invalid_request": "Invalid call; ask help.", "invalid_level": "Use notice, warning or alert.", "invalid_log": "Invalid agent name.", "invalid_text": "Invalid entry text.", "busy": "Agent event dispatch is busy.", "rate_limit": "Agent event rate limit reached.", "storage_invalid": "Persistent ring state is invalid.", "storage_unknown": "Ring storage outcome is unknown; reopen validated state.", "deadline": "Insufficient time to store this entry."}
+	texts := map[string]string{"forbidden": "Only the log’s Owner, Maintainers or daemon Owner may read or manage it.", "not_found": "No such log or subscription.", "invalid_request": "Invalid call; ask help.", "invalid_level": "Use notice, warning or alert.", "invalid_log": "Invalid agent name.", "invalid_text": "Invalid entry text.", "busy": "Agent event dispatch is busy.", "invalid_target": "Invalid subscription target.", "invalid_selector": "Invalid subscription level.", "invalid_filter": "Invalid subscription filter.", "invalid_id": "Invalid subscription id.", "limit": "Subscription limit reached.", "not_author": "Only the author or a manager of the log may change this subscription.", "admission_refused": "The author may not send to that target.", "admission_unavailable": "The target could not be checked.", "store_unknown": "Subscription storage outcome is unknown.", "rate_limit": "Agent event rate limit reached.", "storage_invalid": "Persistent ring state is invalid.", "storage_unknown": "Ring storage outcome is unknown; reopen validated state.", "deadline": "Insufficient time to store this entry."}
 	text, ok := texts[code]
 	if !ok {
 		code = "internal_error"
@@ -228,9 +239,18 @@ func (s *Server) daemonEventAnswer(e protocol.Envelope) string {
 	var result any
 	switch c.Method {
 	case "write":
-		v, er := s.bus.EventWrite(e.From, c.Log, c.Level, c.Text)
+		v, deliveries, er := s.bus.EventWriteWithin(e.From, c.Log, c.Level, c.Text, e.Deadline)
 		err = er
-		result = map[string]any{"entry": v, "deliveries": map[string]int{"matched": 0, "sent": 0, "dropped": 0}}
+		result = map[string]any{"entry": v, "deliveries": deliveries}
+	case "sub.add":
+		result, err = s.bus.SubAdd(e.From, c.Log, c.Target, c.Level, c.Filter)
+	case "sub.list":
+		var rows []core.SubscriptionEntry
+		rows, err = s.bus.SubList(e.From, c.Log)
+		result = map[string]any{"subscriptions": rows}
+	case "sub.delete":
+		err = s.bus.SubDelete(e.From, c.SubID)
+		result = map[string]any{"deleted": true}
 	case "read":
 		result, err = s.bus.EventRead(e.From, c.Log, c.Level)
 	case "list":
@@ -262,10 +282,13 @@ func (s *Server) eventMethods(caller string) map[string]any {
 		{"list", "List private logs you manage", "", read},
 		{"pull", "Remove oldest entries once from a managed agent log", "<agent> [level] [count]", read},
 		{"clean", "Clear a managed agent log, optionally through an inclusive entry id", "<agent> [level] [id]", read},
+		{"sub add", "Copy each new entry of a managed agent log to a queue or agent, from now on", "<target> <agent> [level] [/regex/]", read},
+		{"sub list", "List the subscriptions you made or can manage", "[agent]", read},
+		{"sub delete", "Delete a subscription", "<id>", read},
 	} {
 		if row.allowed {
 			method := map[string]any{"help": row.help}
-			if row.name == "pull" || row.name == "clean" {
+			if row.name == "pull" || row.name == "clean" || row.name == "sub delete" {
 				method["destructive"] = true
 			}
 			if row.args != "" {
@@ -283,7 +306,7 @@ func (s *Server) eventHelp(caller string) string {
 		text += "write <agent> notice|warning|alert <text> — append to your own log; answers only when wait is set\n"
 	}
 	if read {
-		text += "read <agent> [level] — complete private log\nlist — private log summaries\npull <agent> [level] [count] — remove oldest entries\nclean <agent> [level] [id] — clear entries through id\n"
+		text += "read <agent> [level] — complete private log\nlist — private log summaries\npull <agent> [level] [count] — remove oldest entries\nclean <agent> [level] [id] — clear entries through id\nsub add <target> <agent> [level] [/regex/] — copy each new entry to a queue or agent\nsub list [agent] — subscriptions you made or manage\nsub delete <id> — delete a subscription\n"
 	}
 	return text
 }
@@ -320,7 +343,7 @@ func (s *Server) dispatchDaemonTask(d *daemonDispatch, e protocol.Envelope) bool
 	// check does no store I/O; the execution and precommit checks still decide.
 	key := ""
 	mutation := false
-	if e.Ask == "" && isEventMethod(c.Method) && c.Method != "list" {
+	if e.Ask == "" && isEventMethod(c.Method) && c.Method != "list" && c.Log != "" {
 		_, err = s.bus.EventAdmit(e.From, c.Log, c.Method == "write")
 		if err != nil {
 			s.replyDaemonTask(e, eventFailure(err, c.Method == "write"))
@@ -330,7 +353,10 @@ func (s *Server) dispatchDaemonTask(d *daemonDispatch, e protocol.Envelope) bool
 		if n, er := protocol.ParseName(key); er == nil {
 			key = n.String()
 		}
-		mutation = c.Method == "write" || c.Method == "pull" || c.Method == "clean"
+		mutation = c.Method == "write" || c.Method == "pull" || c.Method == "clean" || c.Method == "sub.add"
+	} else if e.Ask == "" && c.Method == "sub.delete" {
+		// A delete is ordered with the caller's own, not with any log's writes.
+		key, mutation = e.From, true
 	} else if e.Ask == "" && writeLooking(e.Body) {
 		key = e.From
 		mutation = true
