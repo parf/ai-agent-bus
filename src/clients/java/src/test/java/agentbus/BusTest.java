@@ -1384,6 +1384,72 @@ public final class BusTest {
         });
 
 
+        // The shared event-log vectors: three identities act on a fixture daemon with its own #bus reader — the daemon
+        // Owner, the agent whose log it is, and a third that manages neither.
+        section("shared event-log vectors", () -> {
+            Map<String, String> who = Map.of("owner", "owner@fixture", "agent", "#caller@fixture", "third", "#outsider@fixture");
+            for (Object c : vectors.apply("events")) {
+                Map<?, ?> k = (Map<?, ?>) c;
+                try (VectorDaemon daemon = new VectorDaemon()) {
+                    Map<String, Bus> buses = new java.util.HashMap<>();
+                    who.forEach((role, name) -> buses.put(role, daemon.as(name)));
+                    Map<Integer, String> answers = new java.util.HashMap<>();
+                    int i = 0;
+                    for (Object so : (List<?>) k.get("steps")) {
+                        Map<?, ?> step = (Map<?, ?>) so;
+                        int n = i++;
+                        String op = (String) step.get("op"), at = k.get("id") + " step " + n + " " + op;
+                        Bus bus = buses.get((String) step.get("as"));
+                        if (bus == null) { check(at + ": known identity", false, step.get("as")); continue; }
+                        switch (op) {
+                            case "call" -> {
+                                Outcome o = bus.call("#bus", (String) step.get("body"), Call.within(Duration.ofSeconds(5)));
+                                if (!(o instanceof Outcome.Answer a)) { check(at + ": answered", false, o); break; }
+                                String answer = a.message().body();
+                                answers.put(n, answer);
+                                Object decoded = Json.parse(answer);
+                                Map<?, ?> expect = step.get("expect") instanceof Map<?, ?> e ? e : Map.of();
+                                for (Map.Entry<?, ?> e : expect.entrySet()) {
+                                    Object got = decoded;
+                                    boolean found = true;
+                                    for (String key : ((String) e.getKey()).split("\\.")) {
+                                        if (got instanceof Map<?, ?> m && m.containsKey(key)) got = m.get(key);
+                                        else if (got instanceof List<?> l && key.matches("\\d+") && Integer.parseInt(key) < l.size()) got = l.get(Integer.parseInt(key));
+                                        else { found = false; break; }
+                                    }
+                                    check(at + ": " + e.getKey(), found && java.util.Objects.equals(got, e.getValue()), "got " + got + " want " + e.getValue() + "; reply " + answer);
+                                }
+                                if (step.get("same_answer_as") instanceof Number prior) {
+                                    check(at + ": the reply is byte for byte step " + prior + "'s", answer.equals(answers.get(prior.intValue())), answer);
+                                }
+                            }
+                            case "send" -> {
+                                Throwable e = thrown(() -> bus.send("#bus", (String) step.get("body")));
+                                check(at + ": queued", e == null, name(e));
+                            }
+                            case "inbox" -> {
+                                Optional<Message> m = bus.consume(Consume.waiting(Duration.ofMillis(300)));
+                                check(at + ": the inbox is empty", m.isEmpty(), m.map(x -> x.from() + ": " + x.body()).orElse(""));
+                            }
+                            default -> check(at + ": known op", false, op);
+                        }
+                    }
+                }
+            }
+        });
+        section("event-log example", () -> {
+            try (VectorDaemon daemon = new VectorDaemon()) {
+                List<String> lines = EventLogExample.run(daemon.addr, daemon.tokens);
+                check("the event-log example prints what it documents", lines.equals(List.of(
+                        "written: alert disk full",
+                        "owner reads: 1 alert, newest disk full",
+                        "owner lists: #caller@fixture",
+                        "a third party: forbidden",
+                        "the writer reading its own log: forbidden")), lines);
+            }
+        });
+
+
         System.out.println("passed " + pass + ", failed " + fail);
         System.exit(fail == 0 ? 0 : 1);
     }
