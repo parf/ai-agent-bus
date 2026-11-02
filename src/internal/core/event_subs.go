@@ -284,7 +284,7 @@ func (b *Bus) authError(caller string, err error) error {
 func (b *Bus) managesNow(who, name string, id uint32) bool {
 	b.mu.Lock()
 	defer b.unlock()
-	r, ok := b.records[name]
+	r, ok := b.entity(name)
 	return ok && r.ID == id && b.acting(who) == nil && b.eventReader(who, r)
 }
 
@@ -388,7 +388,7 @@ func (b *Bus) SubList(caller, source string) ([]SubscriptionEntry, error) {
 	}
 	managed := map[string]protocol.Record{}
 	for name, r := range b.records {
-		if r.Kind == protocol.KindAgent && b.eventReader(caller, r) {
+		if r.Kind == protocol.KindAgent && b.live(r) && b.eventReader(caller, r) {
 			managed[name] = r
 		}
 	}
@@ -407,7 +407,9 @@ func (b *Bus) SubList(caller, source string) ([]SubscriptionEntry, error) {
 	for _, id := range authored {
 		if name := b.recordByID[id]; name != "" {
 			if _, ok := managed[name]; !ok {
-				managed[name] = b.records[name]
+				if r, live := b.entity(name); live {
+					managed[name] = r
+				}
 			}
 		}
 	}
@@ -449,7 +451,7 @@ func (b *Bus) SubDelete(caller, id string) error {
 	}
 	b.mu.Lock()
 	name := b.recordByID[source]
-	r, live := b.records[name]
+	r, live := b.entity(name)
 	manager := live && b.eventReader(caller, r)
 	b.unlock()
 	if !found || !live {

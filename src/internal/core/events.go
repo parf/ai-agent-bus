@@ -59,6 +59,9 @@ func (b *Bus) eventAccess(caller, target string, write bool) (protocol.Record, *
 	if b.acting(caller) != nil {
 		return protocol.Record{}, nil, nil, eventlog.Error("forbidden")
 	}
+	// The ACL is decided on the registration as it is, so a caller with no right to the name learns
+	// nothing; then a record that is not live (inactive, or its User inactive) is as absent as a
+	// missing one, whoever asks (docs/01-identity-and-authority.md#user-states).
 	r, ok := b.records[target]
 	allowed := b.eventReader(caller, r)
 	if write {
@@ -67,7 +70,7 @@ func (b *Bus) eventAccess(caller, target string, write bool) (protocol.Record, *
 	if !allowed {
 		return protocol.Record{}, nil, nil, eventlog.Error("forbidden")
 	}
-	if !ok || r.Kind != protocol.KindAgent {
+	if _, live := b.entity(target); !ok || !live || r.Kind != protocol.KindAgent {
 		return protocol.Record{}, nil, nil, eventlog.Error("not_found")
 	}
 	if b.events == nil {
@@ -195,7 +198,7 @@ func (b *Bus) EventList(caller string) (map[string]any, error) {
 	now := b.clock()
 	names := []string{}
 	for name, r := range b.records {
-		if r.Kind == protocol.KindAgent && b.eventReader(caller, r) {
+		if r.Kind == protocol.KindAgent && b.live(r) && b.eventReader(caller, r) {
 			names = append(names, name)
 		}
 	}
@@ -224,7 +227,7 @@ func (b *Bus) EventCapabilities(caller string) (write, read bool) {
 	}
 	write = caller == b.admin || b.records[caller].Kind == protocol.KindAgent
 	for _, r := range b.records {
-		if r.Kind == protocol.KindAgent && b.eventReader(caller, r) {
+		if r.Kind == protocol.KindAgent && b.live(r) && b.eventReader(caller, r) {
 			read = true
 			break
 		}

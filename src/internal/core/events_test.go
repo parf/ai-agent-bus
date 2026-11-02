@@ -500,3 +500,91 @@ func TestEventListUsesBusClockAndSkipsOnlyDamagedLogs(t *testing.T) {
 		t.Fatalf("damaged log became clean: %v", err)
 	}
 }
+
+// A Maintainer of only an inactive agent has no log to read, and the capability probe agrees.
+func TestEventCapabilitiesIgnoreAnInactiveAgent(t *testing.T) {
+	b := ownerFixture(t)
+	known(t, b, "carol@h", "maint@h")
+	if _, err := b.Register(protocol.Record{Name: "#only@h", Kind: protocol.KindAgent, Owner: "carol@h", Allow: []string{"*"}, Maintainers: protocol.MaintainerList{"maint@h"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.EstablishDaemonAgent("node.example"); err != nil {
+		t.Fatal(err)
+	}
+	if _, read := b.EventCapabilities("maint@h"); !read {
+		t.Fatal("a Maintainer of a live agent may not read its log")
+	}
+	if _, err := b.SetUserState("owner@h", "carol@h", "inactive"); err != nil {
+		t.Fatal(err)
+	}
+	if _, read := b.EventCapabilities("maint@h"); read {
+		t.Fatal("a Maintainer of only an inactive User's agent is told it may read logs")
+	}
+}
+
+// A record that is not live, inactive itself or through its inactive User, is as absent as a missing
+// one to every caller who may ask about it (docs/01-identity-and-authority.md#user-states), through
+// every log call and `sub add`; the ACL still decides first, so a caller with no right learns nothing.
+func TestAnInactiveAgentsLogIsNotFoundForEveryCall(t *testing.T) {
+	for _, how := range []string{"record inactive", "user inactive"} {
+		t.Run(how, func(t *testing.T) {
+			b := eventFixture(t)
+			known(t, b, "q@h")
+			if _, err := b.Register(protocol.Record{Name: "#sink@h", Kind: protocol.KindAgent, Owner: "alice@h", Allow: []string{"*"}}); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := b.EventWrite("#a@h", "#a@h", "alert", "kept"); err != nil {
+				t.Fatal(err)
+			}
+			row, err := b.SubAdd("alice@h", "#a@h", "#sink@h", "", "")
+			if err != nil {
+				t.Fatal(err)
+			}
+			subID := row.ID
+			if how == "record inactive" {
+				if _, err := b.Manage("alice@h", Management{Name: "#a@h", Status: ptr("inactive")}); err != nil {
+					t.Fatal(err)
+				}
+			} else if _, err := b.SetUserState("owner@h", "alice@h", "inactive"); err != nil {
+				t.Fatal(err)
+			}
+			callers := []string{"maint@h", "owner@h"}
+			if how == "record inactive" {
+				callers = append(callers, "alice@h")
+			}
+			for _, who := range callers {
+				calls := map[string]func() error{
+					"read":    func() error { _, err := b.EventRead(who, "#a@h", ""); return err },
+					"pull":    func() error { _, err := b.EventPull(who, "#a@h", "", 1); return err },
+					"clean":   func() error { _, err := b.EventClean(who, "#a@h", "", 0); return err },
+					"sub add": func() error { _, err := b.SubAdd(who, "#a@h", "#sink@h", "", ""); return err },
+				}
+				for name, call := range calls {
+					if got := eventlog.Code(call()); got != "not_found" {
+						t.Errorf("%s: %s of an inactive agent's log answered %q, want not_found", who, name, got)
+					}
+				}
+				list, err := b.EventList(who)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if raw, _ := json.Marshal(list["logs"]); strings.Contains(string(raw), "#a@h") {
+					t.Errorf("%s: list shows the inactive agent's log: %s", who, raw)
+				}
+				if _, err := b.SubList(who, "#a@h"); eventlog.Code(err) != "not_found" {
+					t.Errorf("%s: sub list of an inactive agent's log: %v", who, err)
+				}
+				if entries, err := b.SubList(who, ""); err != nil || len(entries) != 0 {
+					t.Errorf("%s: unscoped sub list shows the inactive agent's subscriptions: %v %v", who, entries, err)
+				}
+				if got := eventlog.Code(b.SubDelete(who, subID)); got != "not_found" {
+					t.Errorf("%s: sub delete on an inactive agent's log answered %q, want not_found", who, got)
+				}
+			}
+			// The ACL still decides first: a caller with no right to the name is forbidden, not told "not found".
+			if _, err := b.EventRead("bob@h", "#a@h", ""); eventlog.Code(err) != "forbidden" {
+				t.Errorf("a stranger asking about the inactive agent's log: %v", err)
+			}
+		})
+	}
+}
