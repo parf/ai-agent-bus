@@ -343,6 +343,15 @@ func (b *Bus) Restore(s ports.Snapshot) {
 		}
 	}
 	b.node, _ = b.restoreActivity("the node", s.Activity, b.refusedTotal())
+	for _, id := range s.EventIDIssues {
+		name := b.recordByID[id]
+		if name == "" {
+			b.report(ports.Error, "invalid orphan agent-event counter")
+		} else {
+			b.report(ports.Error, "invalid agent-event counter for %s", name)
+		}
+	}
+
 }
 
 // indexIDs rebuilds the ID indexes from the loaded entities and moves the

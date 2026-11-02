@@ -1,5 +1,6 @@
 {
   "v": 1,
+  "note": "go_only expectations cover daemon-only admission. Python executes those operations without those expectations; final-alert and ring-model expectations remain shared. Named-log namespace limits are supplied by the named-log adapter, not daemon record names.",
   "cases": [
     {
       "name": "fold-fixed-window",
@@ -704,7 +705,10 @@
             "warning",
             "20"
           ],
-          "expect": {}
+          "expect": {},
+          "go_only": {
+            "error": "rate_limit"
+          }
         },
         {
           "op": "write",
@@ -713,7 +717,10 @@
             "warning",
             "21"
           ],
-          "expect": {}
+          "expect": {},
+          "go_only": {
+            "error": "rate_limit"
+          }
         },
         {
           "op": "write",
@@ -722,7 +729,10 @@
             "warning",
             "22"
           ],
-          "expect": {}
+          "expect": {},
+          "go_only": {
+            "error": "rate_limit"
+          }
         },
         {
           "op": "write",
@@ -731,7 +741,10 @@
             "warning",
             "23"
           ],
-          "expect": {}
+          "expect": {},
+          "go_only": {
+            "error": "rate_limit"
+          }
         },
         {
           "op": "write",
@@ -740,7 +753,10 @@
             "warning",
             "24"
           ],
-          "expect": {}
+          "expect": {},
+          "go_only": {
+            "error": "rate_limit"
+          }
         },
         {
           "op": "write",
@@ -749,7 +765,10 @@
             "warning",
             "25"
           ],
-          "expect": {}
+          "expect": {},
+          "go_only": {
+            "error": "rate_limit"
+          }
         },
         {
           "op": "write",
@@ -758,7 +777,10 @@
             "warning",
             "26"
           ],
-          "expect": {}
+          "expect": {},
+          "go_only": {
+            "error": "rate_limit"
+          }
         },
         {
           "op": "write",
@@ -767,7 +789,10 @@
             "warning",
             "27"
           ],
-          "expect": {}
+          "expect": {},
+          "go_only": {
+            "error": "rate_limit"
+          }
         },
         {
           "op": "write",
@@ -776,7 +801,10 @@
             "warning",
             "28"
           ],
-          "expect": {}
+          "expect": {},
+          "go_only": {
+            "error": "rate_limit"
+          }
         },
         {
           "op": "write",
@@ -785,7 +813,10 @@
             "warning",
             "29"
           ],
-          "expect": {}
+          "expect": {},
+          "go_only": {
+            "error": "rate_limit"
+          }
         },
         {
           "op": "write",
@@ -794,7 +825,10 @@
             "warning",
             "30"
           ],
-          "expect": {}
+          "expect": {},
+          "go_only": {
+            "error": "rate_limit"
+          }
         },
         {
           "op": "write",
@@ -803,7 +837,10 @@
             "warning",
             "31"
           ],
-          "expect": {}
+          "expect": {},
+          "go_only": {
+            "error": "rate_limit"
+          }
         },
         {
           "op": "write",
@@ -812,7 +849,10 @@
             "warning",
             "32"
           ],
-          "expect": {}
+          "expect": {},
+          "go_only": {
+            "error": "rate_limit"
+          }
         },
         {
           "op": "write",
@@ -821,7 +861,10 @@
             "warning",
             "33"
           ],
-          "expect": {}
+          "expect": {},
+          "go_only": {
+            "error": "rate_limit"
+          }
         },
         {
           "op": "write",
@@ -830,7 +873,10 @@
             "warning",
             "34"
           ],
-          "expect": {}
+          "expect": {},
+          "go_only": {
+            "error": "rate_limit"
+          }
         },
         {
           "op": "write",
@@ -839,7 +885,10 @@
             "warning",
             "35"
           ],
-          "expect": {}
+          "expect": {},
+          "go_only": {
+            "error": "rate_limit"
+          }
         },
         {
           "op": "write",
@@ -848,7 +897,10 @@
             "warning",
             "36"
           ],
-          "expect": {}
+          "expect": {},
+          "go_only": {
+            "error": "rate_limit"
+          }
         },
         {
           "op": "write",
@@ -857,7 +909,10 @@
             "warning",
             "37"
           ],
-          "expect": {}
+          "expect": {},
+          "go_only": {
+            "error": "rate_limit"
+          }
         },
         {
           "op": "write",
@@ -866,7 +921,10 @@
             "warning",
             "38"
           ],
-          "expect": {}
+          "expect": {},
+          "go_only": {
+            "error": "rate_limit"
+          }
         },
         {
           "op": "write",
@@ -875,7 +933,10 @@
             "warning",
             "39"
           ],
-          "expect": {}
+          "expect": {},
+          "go_only": {
+            "error": "rate_limit"
+          }
         },
         {
           "op": "write",

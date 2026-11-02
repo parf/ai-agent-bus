@@ -65,6 +65,19 @@ func validBusConfig(raw json.RawMessage) error {
 			return fmt.Errorf("%w: %s is a whole number from 1 to %d", ErrConfig, key, s.Max)
 		}
 	}
+	total := 0
+	for _, level := range []string{"notice", "warning", "alert"} {
+		n := map[string]int{"notice": 200, "warning": 200, "alert": 50}[level]
+		if v, ok := values[level+"_entries"].(json.Number); ok {
+			parsed, _ := v.Int64()
+			n = int(parsed)
+		}
+		total += n
+	}
+	if total > 500 {
+		return fmt.Errorf("%w: agent-event rings total at most 500 entries", ErrConfig)
+	}
+
 	if _, ok := values["realm"]; !ok {
 		return fmt.Errorf("%w: the bus setup needs a realm", ErrConfig)
 	}

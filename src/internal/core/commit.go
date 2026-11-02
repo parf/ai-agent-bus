@@ -251,6 +251,13 @@ func (b *Bus) commitTransfer(values map[string]ports.Credential, kv map[uint32][
 		b.report(ports.Error, "a management write was not committed and nothing changed: %s", err)
 		return fmt.Errorf("persist administrative state: %w", err)
 	}
+	if b.events != nil {
+		for name, old := range s.records {
+			if _, exists := b.records[name]; !exists && old != nil {
+				b.events.Forget(old.ID)
+			}
+		}
+	}
 	if b.store != nil {
 		for name := range s.inboxes {
 			delete(b.flushed, name)

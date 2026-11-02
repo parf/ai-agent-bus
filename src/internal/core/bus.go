@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/activity"
+	"github.com/parf/ai-agent-bus/internal/eventlog"
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
@@ -169,6 +170,7 @@ type inbox struct {
 }
 
 type Bus struct {
+	events          *eventlog.Engine
 	legacyEmptyTags []string // pending startup persistence of removed no-tags sentinels
 	store           ports.Store
 	// big holds bigfiles, bound at start (big.go).

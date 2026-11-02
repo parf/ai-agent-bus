@@ -123,6 +123,9 @@ func (e *Engine) load(id uint32, l *log) error {
 	l.next = high + 1
 	if e.alerts != nil {
 		entries, active, err := e.alerts.LoadEventAlerts(id)
+		if errors.Is(err, ports.ErrEventStateInvalid) {
+			return Error("storage_invalid")
+		}
 		if err != nil {
 			return Error("storage_unknown")
 		}
@@ -425,9 +428,6 @@ func (e *Engine) Clean(id uint32, name, level string, upper uint64, p Policy) (C
 	if err = e.save(id, l, next, !(level == "" && upper == 0)); err != nil {
 		return CleanResult{}, err
 	}
-	if level == "" && upper == 0 {
-		l.active = false
-	}
 	return CleanResult{name, removed, summary(name, l).Counts}, nil
 }
 func (e *Engine) Dropped(id uint32) uint64 {
@@ -443,3 +443,8 @@ func Code(err error) string {
 	}
 	return "internal_error"
 }
+
+// Forget releases only this registration's loaded state. A running operation
+// may finish on its old pointer, but cannot republish it into the catalog.
+func (e *Engine) Forget(id uint32) { e.mu.Lock(); delete(e.logs, id); e.mu.Unlock() }
+func (e *Engine) Loaded() int      { e.mu.Lock(); defer e.mu.Unlock(); return len(e.logs) }

@@ -116,7 +116,7 @@ func TestBusSetupValidationNeverTrimsOrTruncates(t *testing.T) {
 		t.Fatalf("a refused save changed the realm: %q", b.Realm())
 	}
 	longest := strings.Repeat("a", 62)
-	if _, err := b.Configure(DaemonAgent, "owner@h", []byte(`{"realm":"`+longest+`","notice_entries":10000,"warning_days":3650}`)); err != nil || b.Realm() != longest {
+	if _, err := b.Configure(DaemonAgent, "owner@h", []byte(`{"realm":"`+longest+`","notice_entries":250,"warning_days":3650}`)); err != nil || b.Realm() != longest {
 		t.Fatalf("bounds refused: %v %q", err, b.Realm())
 	}
 }

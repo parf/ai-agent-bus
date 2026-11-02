@@ -15,11 +15,12 @@ import (
 )
 
 type backend struct {
-	calls  int
-	active map[uint32]bool
-	high   map[uint32]uint64
-	alerts map[uint32][]ports.EventEntry
-	fail   bool
+	loadErr error
+	calls   int
+	active  map[uint32]bool
+	high    map[uint32]uint64
+	alerts  map[uint32][]ports.EventEntry
+	fail    bool
 }
 
 func newBackend() *backend {
@@ -37,7 +38,7 @@ func (s *backend) ReserveEventIDs(id uint32, n uint64) error {
 	return nil
 }
 func (s *backend) LoadEventAlerts(id uint32) ([]ports.EventEntry, bool, error) {
-	return append([]ports.EventEntry{}, s.alerts[id]...), s.active[id], nil
+	return append([]ports.EventEntry{}, s.alerts[id]...), s.active[id], s.loadErr
 }
 func (s *backend) ReplaceEventAlerts(id uint32, v []ports.EventEntry, active bool) error {
 	if s.fail {
@@ -69,6 +70,7 @@ func TestSharedEventRingVectors(t *testing.T) {
 				Args    []any
 				Seconds int64
 				Expect  map[string]any
+				GoOnly  map[string]any `json:"go_only"`
 			}
 		}
 	}
@@ -160,6 +162,12 @@ func TestSharedEventRingVectors(t *testing.T) {
 				raw, _ := json.Marshal(got)
 				var result any
 				json.Unmarshal(raw, &result)
+				for path, want := range step.GoOnly {
+					if step.Expect == nil {
+						step.Expect = map[string]any{}
+					}
+					step.Expect[path] = want
+				}
 				for path, want := range step.Expect {
 					value := result
 					for _, key := range strings.Split(path, ".") {
@@ -302,5 +310,14 @@ func TestUnchangedAlertsDoNotWriteAndInactiveSnapshotRefuses(t *testing.T) {
 	e = New(st, st, nil)
 	if _, err := e.Read(1, "a", "", p); Code(err) != "storage_invalid" {
 		t.Fatalf("inactive snapshot with entries accepted: %v", err)
+	}
+}
+
+func TestDamagedAlertBackendReturnsStorageInvalid(t *testing.T) {
+	st := newBackend()
+	st.loadErr = ports.ErrEventStateInvalid
+	e := New(st, st, nil)
+	if _, err := e.Read(1, "a", "", Defaults()); Code(err) != "storage_invalid" {
+		t.Fatalf("damaged alert error %v", err)
 	}
 }
