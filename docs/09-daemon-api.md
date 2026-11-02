@@ -390,6 +390,7 @@ A bigfile is a named value up to 32 MiB held for a limited time. The bytes are a
 
 - A dash is a capability the library does not have; the route still works for any HTTP caller.
 - The six libraries share one conformance suite; its coverage is [protocol conformance](../Plans/R1.0-Release/modules.md#protocol-conformance).
+- Event logs and subscriptions use plain send/call to `#bus`, not a separate library API. All six libraries run the shared event-log and event-subscription vectors with executed examples: [Go](../src/clients/go/README.md#event-logs), [Python](../src/clients/python/README.md#event-subscriptions), [TypeScript](../src/clients/typescript/README.md#event-subscriptions), [Rust](../src/clients/rust/README.md#event-subscriptions), [Java](../src/clients/java/README.md#event-logs) and [PHP](../src/clients/php/README.md#event-logs). The owning behavior is [agent logs](agents/bus.md#agent-logs).
 
 ## Nothing else
 

@@ -1,5 +1,9 @@
 # DONE — R1
 
+## T-31 Client event logs and subscriptions
+
+- All six native clients run the shared event-log and subscription cases against the real fixture, with executed examples and README links. Generic send/call and destination consumption suffice; no event helper was added. [Completion evidence](done/t31-client-events.md#landed-evidence) records Q322 and parts a–g; the client audit stays dated.
+
 ## T-32 Good-agent guide
 
 - The [current guide](../../docs/10-writing-an-agent.md), three worked pages and isolated-bus example shard are built. The five author rules and the event-log owning homes resolve the original gaps; [landed evidence](done/t32-agent-guide.md#landed-evidence) includes Q327's runner checks at normal.

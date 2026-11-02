@@ -544,9 +544,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
 
 ## T-31 Client APIs and event examples
 
-- ⛔ T-31 Plan only, awaiting owner scope approval: [dated six-client audit and event-call proposal](clients-events.md#audit-snapshot).
-  - Depends: owner approval, T-29 P1 and P3 on main; no new helper API is approved by this row.
-  - Acceptance: all six native clients run the shared event cases through their isolated fixture or real-daemon harness, with tested examples and the [implementation acceptance](clients-events.md#implementation-acceptance); scope and freeze cost follow [the estimate](clients-events.md#ai-time-and-freeze-impact).
+- ✅ T-31 All six clients run the shared event-log and subscription vectors with executed native examples, using plain send/call to `#bus`; [completion evidence](done/t31-client-events.md#landed-evidence) records Q322 approval and the landed parts. The [audit](clients-events.md#audit-snapshot) remains a dated snapshot.
 
 ## T-32 Good-agent checklist
 

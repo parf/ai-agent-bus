@@ -1,8 +1,8 @@
 # Client APIs and agent events
 
 📌 **TL;DR:** this is a dated client audit with an [implementation status](#implementation-acceptance),
-not a replacement protocol contract. Native event-call examples are built;
-subscription work remains pending T-31d. The audit below stays a dated snapshot.
+not a replacement protocol contract. All six clients have executed event-log
+and subscription examples and shared-vector coverage. The audit below stays a dated snapshot.
 
 ## Audit snapshot
 
@@ -84,19 +84,17 @@ Go/Java/PHP/Rust is approximately 8–12 min each with admission/refusal vectors
 adding Python's selector is approximately 5–8 min with a selected-read test.
 These are separate optional parity work, not prerequisites invented for T-31.
 
-The final status table in docs/09 still calls S2 adapters pending. That is
-stale relative to the cited Java/PHP/Rust state-vector tests and R1 TODO's S2v
-completion. Correct that status in an approved follow-up; this branch makes
-no current-doc changes. No missing event-log helper is inferred from it.
+The audit found docs/09's S2 status stale. That follow-up is built at
+`a3e3962d`; the [current status](../../docs/09-daemon-api.md#status) records S2v.
+This historical audit does not imply a missing event-log helper.
 
 
 ## Event calls without new APIs
 
 **Answer for every client: the generic transport is sufficient.** At the audit
-snapshot, the libraries can express all four operations, but the daemon event
-verbs are not yet on main. Executable agent-log examples must land after P1;
-subscription delivery also depends on P3. This is a feasibility conclusion,
-not a claim that those event operations passed an integration test today.
+snapshot, the libraries could express all four operations before the daemon
+verbs landed. That was a feasibility conclusion. The [implementation status](#implementation-acceptance)
+now records the built examples and vectors after P1 and P3.
 
 Use the existing [T-29 verbs and authority](agent-events/README.md#r1-min-surface-and-authority)
 and [write answer rule](agent-events/README.md#p2-write-transport).
@@ -156,7 +154,7 @@ verified runner provenance for an entry.
 
 - **Built:** all six event adapters use the [shared Go fixture](../../src/clients/fixture/main.go#L31), including Java/PHP (not their tests/daemon.sh harnesses for these cases). It establishes the reserved daemon record, runs the real [ServeDaemonAgent reader](../../src/internal/api/daemon_agent.go#L22) and fences readiness with an Owner status call. Never use six fake event handlers or the live daemon.
   - Landed evidence: T-31a `3249e133` (vectors, fixture, Go); T-31b `b4928628` (Python/TypeScript/Rust); T-31c `fc298c4c` (Java/PHP).
-  - Confirmed write, Owner read/list, private refusals, writer-own-read refusal, empty versus missing and no-wait inbox fencing are built with executed native examples. Subscription copies, receipts and deletion/cancellation remain pending T-31d after P3.
+  - Confirmed write, Owner read/list, private refusals, writer-own-read refusal, empty versus missing and no-wait inbox fencing are built with executed native examples. Subscription copies, notice receipt handling and deletion/cancellation are built: T-31d `18efe47d` (shared subscription vectors and Go), T-31g `d4bf4814` (Python/TypeScript/Rust), T-31f `25be118f` (Java/PHP).
 - Put representative event calls and subscription receipt cases into the
   [shared client vectors](../../src/testdata/client-conformance/README.md#state-identity-and-refusal-vectors-t-24),
   with a native adapter in all six clients. Reuse engine vectors for ring rules;
@@ -173,12 +171,14 @@ verified runner provenance for an entry.
   must fail a named adapter assertion; a helper, if approved, has shared-vector
   coverage before it lands.
 - Promote only executed examples to the owning client READMEs and link the
-  canonical event model. Correct docs/09's stale S2-pending status in that
-  approved follow-up, using the Part 1 evidence; no protocol change is needed.
+  canonical event model. README links and output hygiene landed at T-31e
+  `1b9b1d05`; the S2-status correction is built at `a3e3962d`. No new event helper
+  or protocol change was needed.
 
 ## AI-time and freeze impact
 
-Estimates are observed agent wall-clock minutes for B/C workers, not human
+Historical pre-implementation estimate, retained as planning evidence after
+[completion](done/t31-client-events.md#landed-evidence). Estimates are observed agent wall-clock minutes for B/C workers, not human
 hours. They start when P1/P3 and the agreed reply semantics are on main. They
 cover examples and native integration, not six new high-level API layers.
 
@@ -209,4 +209,5 @@ concrete example showing the need. A subscription helper would add roughly
 6–10 minutes per Go/Python/TypeScript client or 8–12 per Java/PHP/Rust client,
 plus shared lifecycle cases and another review. Optional bigfile parity and
 removed-alias coverage have their separate sizes above; neither is a dependency
-for event calls. Implementation waits on the owner's [Q322 scope choice](QUESTIONS.md#r1-release-decisions); this plan does not authorize code.
+for event calls. The owner approved this minimum in Q322 (`2ea865a8`), recorded in
+[R1 decisions](DECISIONS.md#recorded-decisions); implementation is complete as listed above.
