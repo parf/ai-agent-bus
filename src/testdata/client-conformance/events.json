@@ -15,8 +15,10 @@
       {"as": "agent", "op": "call", "body": "write #caller@fixture notice hello", "expect": {"entry.text": "hello"}},
       {"as": "third", "op": "call", "body": "read #caller@fixture", "expect": {"error.code": "forbidden"}},
       {"as": "third", "op": "call", "body": "read #helper@fixture", "expect": {"error.code": "forbidden"}, "same_answer_as": 1},
+      {"as": "third", "op": "call", "body": "read #ghost@fixture", "expect": {"error.code": "forbidden"}, "same_answer_as": 1},
       {"as": "third", "op": "call", "body": "pull #caller@fixture", "expect": {"error.code": "forbidden"}},
-      {"as": "third", "op": "call", "body": "pull #helper@fixture", "expect": {"error.code": "forbidden"}, "same_answer_as": 3},
+      {"as": "third", "op": "call", "body": "pull #helper@fixture", "expect": {"error.code": "forbidden"}, "same_answer_as": 4},
+      {"as": "third", "op": "call", "body": "pull #ghost@fixture", "expect": {"error.code": "forbidden"}, "same_answer_as": 4},
       {"as": "third", "op": "call", "body": "list", "expect": {"logs": []}}
     ]
   },
