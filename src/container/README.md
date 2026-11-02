@@ -16,8 +16,11 @@ runner for a sandbox is refused, never run unconfined. This implements the
 
 ## Build
 
-The image is built from a release archive that `src/package.sh` made, never
-from a checkout. The archive's checksum and manifest are checked first.
+The image is built from a release archive, never from a source checkout.
+It checks the selected archive's checksum, then its inner manifest:
+
+- `SHA256SUMS` takes precedence; a missing selected line fails even if a sidecar exists.
+- A local `src/package.sh` directory supplies `<archive>.sha256`, used only when `SHA256SUMS` is absent.
 
 ```sh
 src/package.sh tmp/dist
@@ -26,6 +29,11 @@ podman build --build-context release=tmp/dist -t agent-bus src/container
 
 `docker buildx build` takes the same `--build-context`. With more than one
 archive in the directory, pass `--build-arg ARCHIVE=agent-bus-<version>-linux-<arch>.tar.gz`.
+Use that explicit selection with a downloaded GitHub release, whose directory
+contains several platforms and `SHA256SUMS`, without per-archive sidecars.
+Run `src/release-verify.sh --os "linux darwin" <directory>` on the complete
+release directory before building the chosen Linux image.
+
 
 ## Run
 

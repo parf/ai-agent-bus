@@ -1,7 +1,7 @@
 # The agent-bus container image: one image, two roles in two containers —
 # the daemon and a runner (README.md). Built from a release archive made by
 # src/package.sh, never from a checkout:
-#   podman build --build-context release=<directory holding the archive and its .sha256> src/container
+#   podman build --build-context release=<directory holding the archive and SHA256SUMS or its .sha256> src/container
 # (docker buildx build takes the same --build-context). Pick the archive with
 # --build-arg ARCHIVE=agent-bus-<version>-linux-<arch>.tar.gz when the
 # directory holds more than one release.
@@ -21,16 +21,24 @@ RUN groupadd --system --gid 990 agent-busd \
  && useradd --system --uid 991 --gid 991 --home-dir /var/lib/agent-bus/runner --shell /usr/sbin/nologin agent-bus-runner
 
 ARG ARCHIVE=
-COPY --from=release agent-bus-*-linux-*.tar.gz agent-bus-*-linux-*.tar.gz.sha256 /tmp/release/
+COPY --from=release . /tmp/release/
 COPY agent-bus-container /usr/local/sbin/agent-bus-container
 COPY echo /var/lib/agent-bus/agent.d/echo
-# The archive's own checksum and manifest are checked before anything is
-# installed; the release keeps the layout agent-bus-setup gives it.
+# Check the archive and manifest before installation. Published SHA256SUMS takes
+# precedence: a missing selected line fails. Only without that file, use the
+# per-archive sidecar produced by package.sh for local builds/acceptance.
 RUN set -eu; cd /tmp/release; \
     rm -f agent-bus-client-*; \
     if [ -n "$ARCHIVE" ]; then archive=$ARCHIVE; else \
       set -- agent-bus-*-linux-*.tar.gz; [ $# = 1 ] || { echo "more than one release archive: pass --build-arg ARCHIVE=" >&2; exit 1; }; archive=$1; fi; \
-    sha256sum -c "$archive.sha256"; \
+    if [ -f SHA256SUMS ]; then \
+      : > selected.sha256; \
+      while read -r checksum name; do \
+        if [ "$name" = "$archive" ] || [ "$name" = "*$archive" ]; then printf '%s  %s\n' "$checksum" "$archive" >> selected.sha256; fi; \
+      done < SHA256SUMS; \
+      [ -s selected.sha256 ] || { echo "missing checksum for $archive in SHA256SUMS" >&2; exit 1; }; \
+      sha256sum -c selected.sha256; \
+    else sha256sum -c "$archive.sha256"; fi; \
     mkdir unpacked; tar --no-same-owner --no-same-permissions -xzf "$archive" -C unpacked --strip-components=1; \
     (cd unpacked && sha256sum -c --quiet MANIFEST.sha256); \
     version=$(tr -d '[:space:]' < unpacked/internal/version/VERSION); \

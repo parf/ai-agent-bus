@@ -1,6 +1,6 @@
 #!/bin/bash
 # Container image acceptance (Plans/R1.0-Release/TODO.md P.2), rootless podman.
-# Usage: acceptance.sh <directory holding one release archive and its .sha256>
+# Usage: acceptance.sh <directory holding one release archive and SHA256SUMS or its .sha256>
 #        acceptance.sh --image=<published image reference> <its version>
 # Builds the image from the archive, or takes a published one already pulled
 # into the local store, runs the daemon and a runner in separate
@@ -14,6 +14,7 @@
 # each must fail a check.
 set -uo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
+python3 -B "$here/checksum_test.py" || exit 1
 published="" dist=""
 case ${1:?release archive directory or --image=<reference> required} in
   --image=*) published=${1#--image=}; version=${2:?the version of the published image required} ;;
