@@ -205,18 +205,30 @@ runner_up || { bad "the private runner is serving"; finish; }
 gb launcher@localhost register '#time-process@localhost' --kind agent --allow '*' >/dev/null || bad "the Owner registered the packaged process"
 gtok '#time-process@localhost' >"$GB_DIR/rh/runner/tokens/%23time-process@localhost"
 runner_call reload >/dev/null
-for a in time-simple time-advanced time-process probe probenet probefree; do gb launcher@localhost manage "#$a@localhost" --add-allow '*' >/dev/null 2>&1; done
+for a in time-simple time-advanced probe probenet probefree; do gb launcher@localhost manage "#$a@localhost" --add-allow '*' >/dev/null 2>&1; done
 state=$(runner_call status)
 for a in time-simple time-advanced probe; do
   has "the runner serves $a" "$state" "\"name\":\"#$a@localhost\",\"enabled\":true,\"state\":\"idle\""
 done
-# The listing is read until the process is the reader, bounded: the runner may restart it once while it settles.
-for _ in $(seq 1 100); do
+# The listing is read until the process is the reader, within 15 s of wall clock (each attempt has its own waits).
+end=$((SECONDS + 15))
+while :; do
   listing=$(gb asker@localhost ls '#time-process@localhost' 2>/dev/null)
   case $listing in *'"readers":1'*) break ;; esac
+  [ "$SECONDS" -lt "$end" ] || break
   sleep 0.1
 done
 has "the packaged process is the reader of its own inbox" "$listing" '"readers":1'
+# The wait above only sees a reader; a restart is its own fact, so it is read from the runner: no exit recorded in its
+# status (last_exit) and no stop, exit or second start in its log before the deliberate kill below. An expected
+# restart (a reload after a change) does not happen yet at this point, so any is unexpected and is reported with its lines.
+last_exit=$(runner_call status | jq -c '.agents[] | select(.name == "#time-process@localhost") | .last_exit // null' 2>/dev/null)
+settle_lines=$(grep -E '#time-process@localhost (exited|stopped)|keeping #time-process@localhost' "$RUNNER_LOG" 2>/dev/null)
+if [ "$last_exit" = null ] && [ "$(grep -c 'keeping #time-process' <<<"$settle_lines")" = 1 ] && ! grep -qE 'exited|stopped' <<<"$settle_lines"; then
+  ok "the packaged process was started once and not stopped or restarted while settling"
+else
+  bad "the packaged process was started once and not stopped or restarted while settling" "last_exit=$last_exit; runner log: $(tr '\n' '|' <<<"$settle_lines")"
+fi
 
 S=#time-simple@localhost
 before=$(NOW); got=$(answer "$S" asker@localhost epoch); after=$(NOW)
