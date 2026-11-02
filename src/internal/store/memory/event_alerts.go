@@ -52,3 +52,18 @@ func (s *State) dropEventLog(id uint32) {
 	delete(s.eventLogs, id)
 	delete(s.eventHigh, id)
 }
+
+// DropEventState removes every private event record of a retired record ID:
+// alerts, log state and the reserved-id counter. Nothing stored is success.
+func (s *State) DropEventState(id uint32) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.Err != nil {
+		return s.Err
+	}
+	if id == 0 {
+		return fmt.Errorf("invalid event record id")
+	}
+	s.dropEventLog(id)
+	return nil
+}

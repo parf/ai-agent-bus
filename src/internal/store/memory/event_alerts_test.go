@@ -88,3 +88,40 @@ func overCount() []ports.EventEntry {
 	a[0].Count = ports.EventMaxID + 1
 	return a
 }
+
+// A late write on a retired registration re-creates state; the drop removes it
+// and nothing of another record.
+func TestMemoryDroppingARetiredRecordsEventStateRemovesALateWrite(t *testing.T) {
+	s := NewState()
+	for _, id := range []uint32{9, 10} {
+		if err := s.ReplaceEventAlerts(id, memAlerts(1), true); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.ReserveEventIDs(id, 64); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var pruner ports.EventStatePruner = s
+	if err := pruner.DropEventState(9); err != nil {
+		t.Fatal(err)
+	}
+	if got, active, _ := s.LoadEventAlerts(9); len(got) != 0 || active {
+		t.Fatalf("a dropped record kept %+v active=%v", got, active)
+	}
+	if n, _ := s.EventHighWater(9); n != 0 {
+		t.Fatalf("a dropped record kept its counter: %d", n)
+	}
+	if got, active, _ := s.LoadEventAlerts(10); len(got) != 1 || !active {
+		t.Fatalf("another record's alerts were touched: %+v", got)
+	}
+	if n, _ := s.EventHighWater(10); n != 64 {
+		t.Fatalf("another record's counter was touched: %d", n)
+	}
+	if err := pruner.DropEventState(0); err == nil {
+		t.Fatal("record id 0 accepted")
+	}
+	s.Err = errors.New("failed store")
+	if err := pruner.DropEventState(10); err == nil {
+		t.Fatal("a failed store accepted a drop")
+	}
+}

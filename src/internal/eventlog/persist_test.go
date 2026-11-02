@@ -134,8 +134,8 @@ func TestADamagedAlertRowFailsThatLogAfterARestartAndNoOther(t *testing.T) {
 	}
 	defer s.Close()
 	e = eventlog.New(s, s, func() time.Time { return now })
-	if _, err := e.Read(2, "b", "", p); eventlog.Code(err) != "storage_unknown" {
-		t.Fatalf("a damaged log: %v, want a storage error", err)
+	if _, err := e.Read(2, "b", "", p); eventlog.Code(err) != "storage_invalid" {
+		t.Fatalf("a damaged log: %v, want storage_invalid", err)
 	}
 	if r, err := e.Read(1, "a", "", p); err != nil || len(r.Rings["alert"]) != 1 {
 		t.Fatalf("an undamaged log was affected: %+v %v", r, err)

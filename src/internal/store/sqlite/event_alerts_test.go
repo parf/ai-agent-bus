@@ -315,3 +315,40 @@ func TestSchemaNineGainsTheEventAlertTables(t *testing.T) {
 		t.Fatalf("the migration lost data: %q %v", kept, err)
 	}
 }
+
+// A late write that finished on a retired registration after its deletion
+// committed re-creates its rows; the drop removes all of them and nothing else.
+func TestDroppingARetiredRecordsEventStateRemovesALateWrite(t *testing.T) {
+	s := openEvents(t, filepath.Join(t.TempDir(), "events.db"))
+	defer s.Close()
+	for _, id := range []uint32{9, 10} {
+		if err := s.ReplaceEventAlerts(id, alerts(1, 2), true); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.ReserveEventIDs(id, 64); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var pruner ports.EventStatePruner = s
+	if err := pruner.DropEventState(9); err != nil {
+		t.Fatal(err)
+	}
+	if got, active := loadAlerts(t, s, 9); len(got) != 0 || active {
+		t.Fatalf("a dropped record kept %+v active=%v", got, active)
+	}
+	if n, err := s.EventHighWater(9); err != nil || n != 0 {
+		t.Fatalf("a dropped record kept its counter: %d %v", n, err)
+	}
+	if got, active := loadAlerts(t, s, 10); !reflect.DeepEqual(got, alerts(1, 2)) || !active {
+		t.Fatalf("another record's alerts were touched: %+v active=%v", got, active)
+	}
+	if n, err := s.EventHighWater(10); err != nil || n != 64 {
+		t.Fatalf("another record's counter was touched: %d %v", n, err)
+	}
+	if err := pruner.DropEventState(9); err != nil {
+		t.Fatalf("dropping an id with nothing stored: %v", err)
+	}
+	if err := pruner.DropEventState(0); err == nil {
+		t.Fatal("record id 0 accepted")
+	}
+}
