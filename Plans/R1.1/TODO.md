@@ -189,3 +189,10 @@ Owner, 2026-11-01; plan in [filescan](filescan.md#steps-and-estimate), owner cho
   - Builds: a runner agent around the alexacli Go binary: `devices` (list), and `say <text>` mapped to `alexacli voice-command`, so "turn on the kitchen light" works as text; Alexa+ text conversation where alexacli supports it; its direct smart-home API is still a work in progress upstream
   - Depends: an owner plan for approval first (methods, Configuration, which account); alexacli talks to Amazon through an unofficial API, so the Amazon session is the record's Secret and the agent must say when Amazon breaks it
   - Risks to settle in the plan: device commands act in the physical home, so every acting method is `[destructive]` and the allow list stays owner-only by default; credentials and refresh; Linux packaging of the binary (Homebrew on macOS)
+
+## Agents split
+
+- ☐ AS.1 Split the daemon and the bundled agents: the bundled agents pack moves to its own repository with its own SemVer (owner, 2026-11-02: "split Daemon and Agents - separate repo & semver for bundled agents pack")
+  - Today: one shared version for every program and agent ([versioning](../../CLAUDE.md#versioning)); agents live under `src/agents/` and ship with the daemon
+  - Depends: an owner-approved plan first: what stays in this repository (daemon, runner, CLI, MCP, clients), which protocol versions the pack declares it works with ([client contract](../../docs/09-daemon-api.md#the-client-contract)), and how install, packaging and the smoke gate change
+  - Acceptance: the pack builds, tests and releases from its own repository at its own version; a daemon release with no agent change bumps no agent version; the pack refuses a daemon whose protocol it does not support
