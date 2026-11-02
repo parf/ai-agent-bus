@@ -63,6 +63,13 @@ Q296 to Q304, Q311 to Q313, Q321 and Q322 are [settled](DECISIONS.md#recorded-de
   > 💬 👾 Both added:
   > - An agent that emits events offers subscriptions the standard publish/subscribe way: `sub add <target> [filter]`, `sub list`, `sub delete <id>`, as #logwatch, #discord and #eventlog already do ([shared subscriptions](../../docs/agents/subscriptions.md)). The team checks those verbs against common practice (subscribe and unsubscribe, a filter, delivery at least once, the subscriber's permission checked) and raises any mismatch as a question.
   > - Configuration and Secret are separate, as their own item: Configuration is non-secret settings in the record, which Owners and Maintainers can read; Secret is environment values the agent reads at start. A secret never goes in Configuration, help, answers, status or logs.
+  >
+  > 💬 👤parf (in chat) mention absolute minimum, suggested and then more...
+  >
+  > 💬 👾 The guide is in three tiers:
+  > - **Absolute minimum** (every agent): answer help and status, then one request and one answer on the return route.
+  > - **Suggested** (a good agent): Configuration vs Secret; the event log (notice, warning, alert); state and KV; refusals and timeouts; send once; restart-safe; graceful stop.
+  > - **More** (when you need it): ack and done, roles, locks, bigfile, subscriptions for agents that emit events, may-send when forwarding.
 
 ## Messaging agents
 
