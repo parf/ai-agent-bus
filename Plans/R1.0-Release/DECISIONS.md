@@ -4,7 +4,7 @@
 
 - **macOS archives and the macOS npm client packages ship in 1.0.0** (Q313) — owner, 2026-11-02: "agree". The release workflow cross-builds darwin arm64 and x64, verifies and attaches them; one more Mac check runs on the published 1.0.0.
   - Home: [release artifacts](distribution.md#release-artifacts).
-- **Agent events are in R1, unified with `#eventlog`** (Q312) — owner, 2026-11-02: "review our eventlog; try to unify systems … daemon itself \"bus\" agent should provide … agent's logs subscriptions similar to eventlog", then "go … good sane web presentation, few recent lines + expand". One model and verb set for both; the daemon keeps each agent's log and its subscriptions; the web shows a few recent lines per agent with an expand. Plan and estimate: T-29.
+- **Agent events are in R1, unified with `#eventlog`** (Q312) — owner, 2026-11-02: "review our eventlog; try to unify systems … daemon itself "bus" agent should provide … agent's logs subscriptions similar to eventlog", then "go … good sane web presentation, few recent lines + expand". One model and verb set for both; the daemon keeps each agent's log and its subscriptions; the web shows a few recent lines per agent with an expand. Plan and estimate: T-29.
   - Home: [agent events](agent-events/README.md#levels).
 - **Runner web RW4 (stale last observation) and RW8 (per-setting saved vs applied) leave R1** (Q311) — owner, 2026-11-02: "ideally just ignore; our values are ~ good enough for most cases". Parked in R1.1 with RW10–RW17, low priority.
   - Home: [runner web additions](../R1.1/TODO.md#runner-web-additions).
