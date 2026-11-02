@@ -135,9 +135,18 @@ if [ -z "$SHARD" ]; then
   mkdir -p "$B/bin"
   if printf '%s\n' "${LEVELS[@]}" | grep -Eq '^(normal|slow)$'; then
     bash ./build.sh "$B/bin" || exit 1
-    # One client fixture for every shard that needs a real daemon on the Go client side.
-    go build -o "$B/bin/client-fixture" ./clients/fixture || { echo "FAIL the client fixture did not build"; exit 1; }
-    export SMOKE_CLIENT_FIXTURE=$B/bin/client-fixture
+    # One client fixture for the selected shards that run a real daemon on the Go client side, built from this
+    # file's directory (the module root) and only when one of them is selected at normal or slow.
+    fixture_shards=" mcp_rpc client_python client_rust client_php client_typescript client_java client_go client_examples agent_logwatch agent_git agent_rag agent_webhook agent_imap agent_cron agent_at agent_eventlog agent_subscriptions "
+    for name in "${SHARDS[@]}"; do
+      case "$fixture_shards" in *" $name "*)
+        case "${LEVELS[$name]:-normal}" in normal|slow)
+          (cd "$(dirname "$SELF")" && go build -o "$B/bin/client-fixture" ./clients/fixture) || { echo "FAIL the client fixture did not build"; exit 1; }
+          export SMOKE_CLIENT_FIXTURE=$B/bin/client-fixture
+          break ;;
+        esac ;;
+      esac
+    done
   fi
   export BUILD_FINISHED=$(date +%s)
   # Read-only from here: each shard hard-links it into its own directory.
