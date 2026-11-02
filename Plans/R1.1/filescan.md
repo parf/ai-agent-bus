@@ -202,4 +202,4 @@ About four to six hours of agent time in all; the owner's steps are only the Con
 
 ## Questions
 
-[Q305–Q310](QUESTIONS.md#filescan), each with a recommendation.
+[Q305–Q310](QUESTIONS.md#filescan), each with a recommendation. Its sibling for database rows is [DBSync](dbsync.md#shared-with-filescan-and-different); sharing code is [Q314](QUESTIONS.md#dbsync).

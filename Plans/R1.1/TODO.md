@@ -183,6 +183,22 @@ Owner, 2026-11-01; plan in [filescan](filescan.md#steps-and-estimate), owner cho
     - **First run:** `baseline:true` sends nothing for existing files; `max_per_scan` caps one scan and `status` shows the backlog
   - Mutants (each must compile and fail on an assertion): send deletes while the guard is held; skip the `dir` symlink and root refusals; write the state in place instead of rename; mark tracked before the reply; drop the cookie pairing; ignore the overflow; drop the lock; ignore `state_max`
 
+
+## DBSync
+
+Owner, 2026-11-02; plan in [dbsync](dbsync.md#steps-and-estimate), open [Q314–Q319](QUESTIONS.md#dbsync). Plan only: no code until the owner approves.
+
+- ☐ DS.1 `#dbsync/<name>`: a runner agent that tracks new and changed rows of one table by an `updated` column, asks through a read-only [DB agent](../../docs/agents/db.md#what-it-does), and hands the rows to subscribed agents; steps D0–D3 with an estimate of four to five hours of agent time
+  - Depends: the DB agent (built); [FS.1](#filescan) for the shared core if [Q314](QUESTIONS.md#dbsync) says so
+  - Acceptance, each against the DB fixture and a fake subscriber, never the live bus:
+    - **Cursor:** three rows sharing one `updated` value with `batch` of two are all sent, once each; a cursor on `updated` alone fails this
+    - **Paging:** a cut answer triggers the next query at once; `batch` at or above `max_rows` is refused
+    - **Late commit:** a row committed after a newer one with an older `updated`, inside `lookback`, is sent once; outside it, it is not
+    - **No binds:** a text key or a name outside the identifier pattern is refused at configuration and at `sub add`
+    - **Read only:** every statement the agent sends is a read, and a write attempted through its tier is refused by the database
+    - **Authority:** an author without may-send to the DB agent is refused at `sub add` and before a forward
+    - **Resend:** a refused or unanswered send stays pending and is sent again; a confirmed one is not
+    - Every ⚠️ part (the statement builder, state writes, authority) carries a mutant that fails on an assertion
 ## Alexa
 
 - ☐ AL.1 `#alexa`: control Alexa devices from the bus by wrapping alexacli by codenamejason (Go CLI; repository link to be confirmed) (owner, 2026-11-01: "for 1.1 - alexa integration")
