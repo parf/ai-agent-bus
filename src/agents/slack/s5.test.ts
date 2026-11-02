@@ -106,7 +106,9 @@ async function call(body: string): Promise<string> {
 async function drain(who: string, ms = 1500, want?: number): Promise<{ body: string; topic?: string; tag?: string }[]> {
   const bus = Bus.connect({ addr: fx.socket, token: tokens[who]! });
   const out: { body: string; topic?: string; tag?: string }[] = [];
-  const until = Date.now() + 10000;
+  // With a count the wait is for that many, however slow the host (it returns the moment they are
+  // there, so a quiet host pays nothing); without one it is a bounded quiet window.
+  const until = Date.now() + (want === undefined ? 10000 : 30000);
   for (let wait = ms; Date.now() < until; ) {
     const m = await bus.consume({ wait }).catch(() => null);
     if (!m) {
