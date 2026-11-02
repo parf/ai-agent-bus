@@ -194,20 +194,27 @@ func matchBounded(t *testing.T, filter, text string, budget time.Duration) (bool
 }
 
 // Zero-width work is charged to the budget like any other: 2^60 empty
-// alternation branches, nested empty groups and an empty quantified group end
-// at the budget, not after the heat death of the host.
+// alternation branches, nested empty groups and empty alternation under bounds
+// end at the budget with filter_timeout, each one required to, not allowed to;
+// an empty quantified group is linear and finishes with its exact answer.
 func TestZeroWidthShapesRespectTheBudget(t *testing.T) {
-	for name, filter := range map[string]string{
-		"60 empty alternations then anchors": "/" + strings.Repeat("(|)", 60) + "^$/",
-		"empty alternations with letters":    "/" + strings.Repeat("(|a|)", 39) + "$^/",
-		"nested empty groups":                "/" + strings.Repeat("((|)(|))", 24) + "^$/",
-		"an empty quantified group":          "/(?:)*(?:)*(?:)*(?:)*(?:)*(?:)*(?:)*(?:)*(?:)*(?:)*x/",
-		"empty alternation under a bound":    "/(|){100}(|){100}(|){100}(|){100}y/",
+	for name, c := range map[string]struct {
+		filter  string
+		timeout bool
+	}{
+		"60 empty alternations then anchors": {"/" + strings.Repeat("(|)", 60) + "^$/", true},
+		"empty alternations with letters":    {"/" + strings.Repeat("(|a|)", 39) + "$^/", true},
+		"nested empty groups":                {"/" + strings.Repeat("((|)(|))", 24) + "^$/", true},
+		"empty alternation under bounds":     {"/(|){100}(|){100}(|){100}(|){100}y/", true},
+		"an empty quantified group":          {"/(?:)*(?:)*(?:)*(?:)*(?:)*(?:)*(?:)*(?:)*(?:)*(?:)*y/", false},
 	} {
 		t.Run(name, func(t *testing.T) {
-			_, err, took := matchBounded(t, filter, "x", time.Millisecond)
-			if !errors.Is(err, ErrTimeout) && err != nil {
-				t.Fatalf("%v", err)
+			ok, err, took := matchBounded(t, c.filter, "x", time.Millisecond)
+			switch {
+			case c.timeout && !errors.Is(err, ErrTimeout):
+				t.Fatalf("got %v, %v; want filter_timeout", ok, err)
+			case !c.timeout && (err != nil || ok):
+				t.Fatalf("got %v, %v; want a finished no-match", ok, err)
 			}
 			if took > 2*time.Second {
 				t.Fatalf("ran %s past a 1 ms budget", took)
