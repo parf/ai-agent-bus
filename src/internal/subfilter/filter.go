@@ -222,11 +222,11 @@ func (f *frame) alt() matcher {
 	}
 	return func(m *machine, i int, k func(int) bool) bool {
 		for _, b := range branches {
+			if !m.tick() {
+				return false
+			}
 			if b(m, i, k) {
 				return true
-			}
-			if m.abort {
-				return false
 			}
 		}
 		return false
@@ -237,6 +237,9 @@ func sequence(ms []matcher) matcher {
 	return func(m *machine, i int, k func(int) bool) bool {
 		var run func(idx, pos int) bool
 		run = func(idx, pos int) bool {
+			if !m.tick() { // zero-width elements are work too
+				return false
+			}
 			if idx == len(ms) {
 				return k(pos)
 			}
@@ -415,16 +418,20 @@ func parse(p []rune, flags map[rune]bool, fold func(rune) rune) (matcher, error)
 			last = "atom"
 		case c == '^':
 			if flags['m'] {
-				add(func(m *machine, i int, k func(int) bool) bool { return (i == 0 || isTerminator(m.t[i-1])) && k(i) })
+				add(func(m *machine, i int, k func(int) bool) bool {
+					return m.tick() && (i == 0 || isTerminator(m.t[i-1])) && k(i)
+				})
 			} else {
-				add(func(m *machine, i int, k func(int) bool) bool { return i == 0 && k(i) })
+				add(func(m *machine, i int, k func(int) bool) bool { return m.tick() && i == 0 && k(i) })
 			}
 			last = "anchor"
 		case c == '$':
 			if flags['m'] {
-				add(func(m *machine, i int, k func(int) bool) bool { return (i == len(m.t) || isTerminator(m.t[i])) && k(i) })
+				add(func(m *machine, i int, k func(int) bool) bool {
+					return m.tick() && (i == len(m.t) || isTerminator(m.t[i])) && k(i)
+				})
 			} else {
-				add(func(m *machine, i int, k func(int) bool) bool { return i == len(m.t) && k(i) })
+				add(func(m *machine, i int, k func(int) bool) bool { return m.tick() && i == len(m.t) && k(i) })
 			}
 			last = "anchor"
 		default:

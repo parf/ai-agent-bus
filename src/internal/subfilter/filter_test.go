@@ -164,3 +164,58 @@ func TestInvalidTextIsRefusedEvenByTheEmptyFilter(t *testing.T) {
 		t.Errorf("text at the limit: %v %v", ok, err)
 	}
 }
+
+// matchBounded runs a match and fails on an assertion, not on the go test
+// timeout, if it does not end.
+func matchBounded(t *testing.T, filter, text string, budget time.Duration) (bool, error, time.Duration) {
+	t.Helper()
+	f, err := Compile(filter)
+	if err != nil {
+		t.Fatalf("%.60q: %v", filter, err)
+	}
+	type outcome struct {
+		ok   bool
+		err  error
+		took time.Duration
+	}
+	done := make(chan outcome, 1)
+	go func() {
+		began := time.Now()
+		ok, err := f.Match(text, budget)
+		done <- outcome{ok, err, time.Since(began)}
+	}()
+	select {
+	case got := <-done:
+		return got.ok, got.err, got.took
+	case <-time.After(5 * time.Second):
+		t.Fatalf("%.60q: a %s budget did not end the search within 5 s", filter, budget)
+		return false, nil, 0
+	}
+}
+
+// Zero-width work is charged to the budget like any other: 2^60 empty
+// alternation branches, nested empty groups and an empty quantified group end
+// at the budget, not after the heat death of the host.
+func TestZeroWidthShapesRespectTheBudget(t *testing.T) {
+	for name, filter := range map[string]string{
+		"60 empty alternations then anchors": "/" + strings.Repeat("(|)", 60) + "^$/",
+		"empty alternations with letters":    "/" + strings.Repeat("(|a|)", 39) + "$^/",
+		"nested empty groups":                "/" + strings.Repeat("((|)(|))", 24) + "^$/",
+		"an empty quantified group":          "/(?:)*(?:)*(?:)*(?:)*(?:)*(?:)*(?:)*(?:)*(?:)*(?:)*x/",
+		"empty alternation under a bound":    "/(|){100}(|){100}(|){100}(|){100}y/",
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err, took := matchBounded(t, filter, "x", time.Millisecond)
+			if !errors.Is(err, ErrTimeout) && err != nil {
+				t.Fatalf("%v", err)
+			}
+			if took > 2*time.Second {
+				t.Fatalf("ran %s past a 1 ms budget", took)
+			}
+		})
+	}
+	// The step count alone bounds it too, with no deadline given.
+	if _, err, _ := matchBounded(t, "/"+strings.Repeat("(|)", 60)+"^$/", "x", 0); !errors.Is(err, ErrTimeout) {
+		t.Fatalf("with no deadline the step bound gave %v, want filter_timeout", err)
+	}
+}
