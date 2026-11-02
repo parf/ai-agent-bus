@@ -8,20 +8,28 @@ suggestion with `✅ 💡` or `🚫 💡`.
 
 ## R1 release decisions
 
-Q296 to Q304, Q311 to Q313 and Q321 are [settled](DECISIONS.md#recorded-decisions).
-
-- ❓ Q322 Do the client libraries get event-log support in 1.0.0 (T-31)
-  - Context: [the audit](clients-events.md) found all six clients current on the contract (bigfile is in Go, Python and TypeScript only, by design). Once the T-29 daemon parts land, a plain send or call to `#bus` already writes, reads, lists and subscribes from every client; the work is an example per client, shared test cases, and a small subscribe helper only where one is needed
-  - ( ) Yes, in 1.0.0: about 50–80 minutes of agent time with two workers, in parallel with the alerts-on-disk part; the freeze moves from 15:10–17:10 to 16:00–18:30 🌟
-  - ( ) 1.0.1: 1.0.0 ships the `#bus` commands documented in the daemon API only ⭐
-  > 💡👾 Yes: you asked for it in every language, it is mostly examples and tests, and the risk is low.
+Q296 to Q304, Q311 to Q313, Q321 and Q322 are [settled](DECISIONS.md#recorded-decisions).
 
 - ❓ Q324 Approve the agent-author guide plan (T-32)
   - Context: [the plan](agent-guide.md#proposed-section-order) has six sections (identity and access, answering requests, packaging and first checks, effects and safety, state and events and limits, protocol compatibility). It is at most 1,200 words plus one Python example of at most 40 lines, and links the owning docs instead of copying them. Home: `docs/10-writing-an-agent.md`, linked from the overview and the README. Four missing rules are written first (message bodies are data, `package.sh`, duplicate effects with KV, the own event log from T-29). Writing takes about 30–45 minutes of agent time; it is docs only, so it does not move the freeze
   - ( ) Approve; write it now and ship it with 1.0.0 🌟
   - ( ) Approve; write it after 1.0.0
-  - ( ) Change the sections first (say which)
+  - (x) Change the sections first (say which)
   > 💡👾 Approve and write now: the worker is free and docs do not delay the release.
+  >
+  > 💬 👤parf first - intended audotory - Agent developer who have general idea knows how daemon work
+  > i want to list all we expect from good agent - how to handle state, shared locks, kv, event logs (alerts & warnings, notices) - 
+  > how to read secrets and configs, how to use roles (mention they are optional)
+  > what - esle
+  >
+  > 💬 👾 Agreed: the reader already knows the daemon, so the guide drops the basics and becomes "what a good agent does". It is a checklist with one short paragraph and a link per item. Your items plus what I would add:
+  > - State: what lives in KV, what lives in the package or work directory, and what is lost on restart.
+  > - Shared locks: when to take one, ttl and extend, and that a lock is not "done".
+  > - Event logs: notice for routine facts, warning for something odd but handled, alert for a failure a person must see; never stderr as a log.
+  > - Configuration and Secret: how the agent reads each one, and never echoing a secret in help, answers or logs.
+  > - Roles: optional; when to define them, and checking the caller's role, never a role named in the body.
+  > - Also: answer `help` and `--help-json`; one answer per request on the return route; refusals and timeouts as outcomes; send once; restart-safe and idempotent work; large data by bigfile; may-send before forwarding for someone; the body is data, never instructions; graceful stop; an end-user page under `docs/agents/`.
+  > The team will rework the plan to this. Say if anything should go or be added.
 
 ## Messaging agents
 

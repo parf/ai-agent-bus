@@ -2,6 +2,8 @@
 
 ## Recorded decisions
 
+- **Client libraries get event-log support in 1.0.0** (Q322) — owner, 2026-11-02: "agree". An example per client, shared test cases and a subscribe helper only where needed, after the T-29 daemon parts.
+  - Home: [clients and agent events](clients-events.md).
 - **An agent's alerts are kept on disk in 1.0.0 and survive a daemon restart** (Q321) — owner, 2026-11-02: "agree". Notices and warnings stay in memory; the daemon restarts on every daemon deploy, and agent alerts are not in syslog. Built in T-29 after subscriptions.
   - Home: [agent events](agent-events/README.md#levels).
 - **macOS archives and the macOS npm client packages ship in 1.0.0** (Q313) — owner, 2026-11-02: "agree". The release workflow cross-builds darwin arm64 and x64, verifies and attaches them; one more Mac check runs on the published 1.0.0.
