@@ -11,6 +11,8 @@ export type ForwardDeps = {
   userName(id: string): Promise<string>;
   channelName(id: string): Promise<string>;
   identity(): Promise<Identity | undefined>;
+  /** Waits between tries to learn the agent's own identity for one event; default 250, 500 and 1000 ms. */
+  identityRetryMs?: number[];
   posted(channel: string, ts: string): Promise<boolean>;
   log(line: string): void;
   scrub(text: string): string;
@@ -48,17 +50,28 @@ export class Forwarder {
       catch { this.deps.log("forward: subscription handling unavailable; event not replayed"); }
     }
   }
+  /** The agent's identity, asked again after each wait in identityRetryMs while it is unknown. */
+  private async learn(): Promise<Identity | undefined> {
+    const waits = this.deps.identityRetryMs ?? [250, 500, 1000];
+    for (let i = 0; ; i++) {
+      const me = await this.deps.identity();
+      if (me || i >= waits.length) return me;
+      await Bun.sleep(waits[i]!);
+    }
+  }
   private async handle(event: any): Promise<void> {
     if (event?.type !== "message") return;
     if (!forwardedSubtypes.has(event.subtype)) return;
-    const me = await this.deps.identity();
+    const me = await this.learn();
+    const channel = typeof event.channel === "string" ? event.channel : "";
     if (!me) {
       // Not knowing which posts are its own, it forwards none: one dropped
       // message is better than a loop of its own replies (slack-review-S.5).
-      this.deps.log("forward: the agent's own Slack identity is not known yet; an event was not forwarded");
+      // It was asked again first, so a slow or briefly failing Slack costs a
+      // wait, not the event; the pump is serial, so later events queue behind it.
+      this.deps.log(`forward: warning: the agent's own Slack identity is still unknown; the event in ${channel || "an unknown channel"} at ${typeof event.ts === "string" ? event.ts : "an unknown time"} was not forwarded`);
       return;
     }
-    const channel = typeof event.channel === "string" ? event.channel : "";
     if (!channel) return;
     const bots = (me.botUser && event.user === me.botUser) || (me.botId && event.bot_id === me.botId) || (me.appId && event.app_id === me.appId);
     if (bots && (await this.deps.posted(channel, typeof event.ts === "string" ? event.ts : ""))) return;

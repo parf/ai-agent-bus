@@ -29,10 +29,28 @@ test("duplicate provider event ids do not make duplicate copies", async () => {
 });
 
 test("unknown identity and own posted messages forward nothing; shared-token messages still forward", async () => {
-  const unknown = fixture({ identity: async () => undefined }); unknown.f.admit(event(), "unknown"); await unknown.f.stop(1000); expect(unknown.sent).toEqual([]);
+  const unknown = fixture({ identity: async () => undefined, identityRetryMs: [1, 1] }); unknown.f.admit(event(), "unknown"); await unknown.f.stop(1000); expect(unknown.sent).toEqual([]);
   const own = fixture({ identity: async () => ({ botUser: "UBOT" }), posted: async (_c: string, ts: string) => ts === "mine" });
   own.f.admit(event("mine", { user: "UBOT" }), "own"); own.f.admit(event("shared", { user: "UBOT" }), "shared");
   await own.f.stop(1000); expect(own.sent).toEqual(["shared"]);
+});
+
+test("an identity that Slack has not given yet is asked for again, and the event waits instead of being lost", async () => {
+  let asked = 0;
+  const x = fixture({ identity: async () => (++asked < 3 ? undefined : {}), identityRetryMs: [1, 1, 1] });
+  x.f.admit(event("late"), "late-1"); x.f.admit(event("later"), "late-2");
+  await x.f.stop(2000);
+  expect(x.sent).toEqual(["late", "later"]); expect(asked).toBe(4); // 3 for the first event, 1 for the second
+  expect(x.logs.filter(l => l.includes("warning"))).toEqual([]);
+});
+
+test("an event lost for want of an identity is logged at warning with its channel and ts, never its text", async () => {
+  const x = fixture({ identity: async () => undefined, identityRetryMs: [1, 1] });
+  x.f.admit(event("secret body text", { ts: "1700.5" }), "gone");
+  await x.f.stop(2000);
+  expect(x.sent).toEqual([]);
+  const lines = x.logs.filter(l => l.includes("warning"));
+  expect(lines.length).toBe(1); expect(lines[0]).toContain("C1"); expect(lines[0]).toContain("1700.5"); expect(lines[0]).not.toContain("secret body text");
 });
 
 test("edits and deletes are not forwarded; thread broadcasts and bot posts are", async () => {
