@@ -75,9 +75,18 @@ test("list uses only summary rows, with recent alerts relative to the daemon clo
     { log: "#future@fixture", counts: log.counts, latest_alert_at: "2026-11-03T10:00:00Z" },
   ] }));
   const mark = render(EventMark({ summary: summaries?.get(log.log) }));
-  expect(mark).toContain('tone-bad">alert in last day'); expect(mark).toContain('tone-warn">1 retained warnings');
+  expect(mark).toContain('tone-bad">alert in last day'); expect(mark).toContain('tone-warn">1 retained warning');
   expect(render(EventMark({ summary: summaries?.get("#old@fixture") }))).not.toContain("alert in last day");
   expect(render(EventMark({ summary: summaries?.get("#future@fixture") }))).not.toContain("alert in last day");
   expect(render(EventMark({}))).toBe("");
   expect(await eventSummaries(fake({ error: { code: "internal_error" } }))).toBeUndefined();
+});
+
+
+test("not_found is a distinct no-events-yet state, not an empty success or an outage", async () => {
+  const events = await agentEvents(fake({ error: { code: "not_found" } }), log.log);
+  expect(events).toEqual({ problem: "not found" });
+  const page = render(EventsCard({ events, name: log.log }));
+  expect(page).toContain('<p data-events-not-found>No events yet for this agent.</p>');
+  expect(page).not.toContain('data-events-empty'); expect(page).not.toContain('data-events-unavailable');
 });

@@ -200,6 +200,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
       <LinkButton href={registerHref} tone="primary" icon="plus">{registerText}</LinkButton>
     </PageHead>
     <Tabs label="Record views" items={tabs} />
+    {key === "agents" && !summaries ? <p class="muted small" data-event-summaries-unavailable>Event summaries unavailable.</p> : null}
     {moreTags.length ? <details><summary>{moreTags.length} more tags</summary><Tabs label="More record tags" items={moreTags.map(([t,count]) => ({ href: listUrl(path, { ...keepFilters, scope, tag: t }), text: t, count }))} /></details> : null}
     {personal && owner0 ? <form method="get" class="toolbar owner-chooser">
         <input type="hidden" name="personal" value="1" />

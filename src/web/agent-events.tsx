@@ -7,7 +7,7 @@ export const eventLevels = ["alert", "warning", "notice"] as const;
 type Level = typeof eventLevels[number];
 export type EventEntry = { id: number; level: Level; text: string; at: string; last_at: string; count: number };
 export type EventLog = { log: string; rings: Record<Level, EventEntry[]>; counts: Record<Level, number> };
-export type Events = { log: EventLog } | { problem: "not allowed" | "unavailable" };
+export type Events = { log: EventLog } | { problem: "not allowed" | "unavailable" | "not found" };
 
 const MAX_ENTRIES = 500;
 const positive = (n: unknown): n is number => Number.isSafeInteger(n) && (n as number) > 0;
@@ -43,7 +43,10 @@ async function eventCall(ctx: Ctx, body: string): Promise<unknown> {
 export async function agentEvents(ctx: Ctx, name: string): Promise<Events> {
   try {
     const value = await eventCall(ctx, `read ${name}`);
-    if (object(value) && object(value.error) && value.error.code === "forbidden") return { problem: "not allowed" };
+    if (object(value) && object(value.error)) {
+      if (value.error.code === "forbidden") return { problem: "not allowed" };
+      if (value.error.code === "not_found") return { problem: "not found" };
+    }
     const log = readLog(value, name);
     return log ? { log } : { problem: "unavailable" };
   } catch (e) {
@@ -77,7 +80,7 @@ export async function eventSummaries(ctx: Ctx): Promise<Map<string, EventSummary
 export function EventMark({ summary }: { summary?: EventSummary }) {
   return summary ? <span data-event-summary>
     {summary.recentAlert ? <Pill tone="bad">alert in last day</Pill> : null}
-    {summary.counts.warning ? <Pill tone="warn">{summary.counts.warning} retained warnings</Pill> : null}
+    {summary.counts.warning ? <Pill tone="warn">{summary.counts.warning} retained {summary.counts.warning === 1 ? "warning" : "warnings"}</Pill> : null}
   </span> : null;
 }
 
@@ -91,7 +94,9 @@ export function EventLines({ entries }: { entries: EventEntry[] }) {
 
 export function EventsCard({ events, name, expanded = false }: { events: Events; name: string; expanded?: boolean }) {
   if ("problem" in events) return <Card title="Events" icon="list" id="events">
-    {events.problem === "not allowed" ? <p data-events-not-allowed>Not allowed to read this agent’s events.</p> : <p class="warn" data-events-unavailable>Events unavailable. Try again.</p>}
+    {events.problem === "not allowed" ? <p data-events-not-allowed>Not allowed to read this agent’s events.</p>
+      : events.problem === "not found" ? <p data-events-not-found>No events yet for this agent.</p>
+      : <p class="warn" data-events-unavailable>Events unavailable. Try again.</p>}
   </Card>;
   const all = eventLevels.flatMap(level => events.log.rings[level]);
   const entries = expanded ? all : [...all].sort((a, b) => b.id - a.id).slice(0, 3);
