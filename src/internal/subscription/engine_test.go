@@ -76,6 +76,7 @@ type query struct {
 
 type vectorBus struct {
 	t        *testing.T
+	source   string
 	step     map[string]any
 	answers  []any
 	queries  []query
@@ -85,6 +86,10 @@ type vectorBus struct {
 
 // sendTuple is one copy as the bus was asked to carry it.
 type sendTuple struct{ Target, Body, Topic, Tag string }
+
+// MayManage is the author's standing over the source; the vectors record it as
+// the same query the helper makes.
+func (b *vectorBus) MayManage(who string) Admission { return b.MaySend(who, b.source) }
 
 func (b *vectorBus) MaySend(who, target string) Admission {
 	b.queries = append(b.queries, query{who, target})
@@ -180,8 +185,8 @@ func TestSharedOperationVectors(t *testing.T) {
 	if err = json.Unmarshal(raw, &file); err != nil {
 		t.Fatal(err)
 	}
-	if len(file.Cases) != 35 {
-		t.Fatalf("%d operation vectors, want 35: the file changed", len(file.Cases))
+	if len(file.Cases) != 36 {
+		t.Fatalf("%d operation vectors, want 36: the file changed", len(file.Cases))
 	}
 	for _, c := range file.Cases {
 		t.Run(c.Name, func(t *testing.T) {
@@ -190,7 +195,7 @@ func TestSharedOperationVectors(t *testing.T) {
 				value, _ := json.Marshal(row)
 				store.rows[row["id"].(string)] = value
 			}
-			bus := &vectorBus{t: t}
+			bus := &vectorBus{t: t, source: c.Source}
 			var warnings []string
 			now := time.Date(2026, 10, 29, 0, 0, 0, 0, time.UTC)
 			if c.Now != "" {
@@ -244,9 +249,13 @@ func TestSharedOperationVectors(t *testing.T) {
 					// entry as sent, topic the log and tag the level.
 					event, _ := step["event"].(map[string]any)
 					wantBody, _ := json.Marshal(event)
+					targets := map[string]bool{}
+					for _, row := range c.Initial {
+						targets[row["target"].(string)] = true
+					}
 					for _, sent := range bus.sent {
-						if sent.Target != "events@fixture.test" || sent.Body != string(wantBody) || sent.Topic != event["log"] || sent.Tag != event["level"] {
-							t.Errorf("step %d: a copy was %+v, want target events@fixture.test, body %s, topic %v, tag %v", n, sent, wantBody, event["log"], event["level"])
+						if !targets[sent.Target] || sent.Body != string(wantBody) || sent.Topic != event["log"] || sent.Tag != event["level"] {
+							t.Errorf("step %d: a copy was %+v, want one of the rows' targets, body %s, topic %v, tag %v", n, sent, wantBody, event["log"], event["level"])
 						}
 					}
 				}

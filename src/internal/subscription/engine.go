@@ -134,10 +134,13 @@ const (
 
 // Bus is what the engine needs of the daemon.
 type Bus interface {
-	// MaySend asks whether who may reach target. For the source itself it
-	// asks whether who manages it. A 404-like refusal is Refused; anything
-	// unexpected is Unavailable, never Allowed.
+	// MaySend asks whether who may reach target under the target's own ACL.
+	// A 404-like refusal is Refused; anything unexpected is Unavailable, never
+	// Allowed.
 	MaySend(who, target string) Admission
+	// MayManage asks whether who may read and manage the source log. It is the
+	// authority over the source and nothing about reaching it as a target.
+	MayManage(who string) Admission
 	// Kind is the registry kind of target and its canonical name;
 	// ErrNoSuchTarget when there is none, any other error when it cannot be
 	// told.
@@ -376,10 +379,20 @@ func (e *Engine) load() (map[string]Row, map[string]bool, error) {
 
 // Caller is the authenticated acting principal: its canonical name, and whether
 // it manages the source (the source's Owner, a Maintainer or the daemon Owner).
-// Neither comes from a request body.
+// Neither comes from a request body. Current, when set, is asked again after
+// the rows have been read and before anything is shown or removed: standing can
+// change while the store is read, and the answer then is the one that counts.
 type Caller struct {
 	Name    string
 	Manager bool
+	Current func() bool
+}
+
+func (c Caller) manager() bool {
+	if c.Current != nil {
+		return c.Current()
+	}
+	return c.Manager
 }
 
 type admissions map[[2]string]error
@@ -391,6 +404,25 @@ func (e *Engine) admit(who, target string, cache admissions) error {
 	}
 	var code error
 	switch e.bus.MaySend(who, target) {
+	case Allowed:
+	case Refused:
+		code = ErrAdmissionRefused
+	default:
+		code = ErrAdmissionUnavail
+	}
+	cache[pair] = code
+	return code
+}
+
+// admitManage is the author's standing over the source, cached with the batch's
+// other questions under the source's own name.
+func (e *Engine) admitManage(who string, cache admissions) error {
+	pair := [2]string{who, e.cfg.Source}
+	if code, ok := cache[pair]; ok {
+		return code
+	}
+	var code error
+	switch e.bus.MayManage(who) {
 	case Allowed:
 	case Refused:
 		code = ErrAdmissionRefused
@@ -442,6 +474,9 @@ func (e *Engine) Add(c Caller, target string, selector map[string]string, filter
 	if err != nil {
 		return Row{}, err
 	}
+	if c.Current != nil && !c.Current() { // asked after the rows were read
+		return Row{}, ErrNotAuthor
+	}
 	mine := 0
 	for _, r := range rows {
 		if r.CreatedBy == who {
@@ -452,10 +487,11 @@ func (e *Engine) Add(c Caller, target string, selector map[string]string, filter
 		return Row{}, ErrLimit
 	}
 	cache := admissions{}
-	for _, wanted := range []string{target, e.cfg.Source} {
-		if err = e.admit(who, wanted, cache); err != nil {
-			return Row{}, err
-		}
+	if err = e.admit(who, target, cache); err != nil {
+		return Row{}, err
+	}
+	if err = e.admitManage(who, cache); err != nil {
+		return Row{}, err
 	}
 	if target, err = e.destination(target); err != nil {
 		var coded Error
@@ -507,6 +543,7 @@ func (e *Engine) List(c Caller) ([]Listed, error) {
 	if err != nil {
 		return nil, err
 	}
+	manager := c.manager() // asked after the rows were read: a revoked manager sees its own only
 	ids := make([]string, 0, len(rows)+len(damaged))
 	for id := range rows {
 		ids = append(ids, id)
@@ -518,13 +555,13 @@ func (e *Engine) List(c Caller) ([]Listed, error) {
 	out := []Listed{}
 	for _, id := range ids {
 		if damaged[id] {
-			if c.Manager {
+			if manager {
 				out = append(out, Listed{ID: id, Reason: "invalid_state"})
 			}
 			continue
 		}
 		row := rows[id]
-		if !c.Manager && row.CreatedBy != who {
+		if !manager && row.CreatedBy != who {
 			continue
 		}
 		listed := Listed{Row: &row}
@@ -556,7 +593,7 @@ func (e *Engine) Delete(c Caller, id string) error {
 	if !found && !damaged[id] {
 		return ErrNotFound
 	}
-	if !c.Manager && (!found || row.CreatedBy != who) {
+	if !c.manager() && (!found || row.CreatedBy != who) { // asked now, before the row goes
 		return ErrNotAuthor
 	}
 	deleted, err := e.store.Delete(id)
@@ -721,7 +758,7 @@ func (e *Engine) send(rows []Row, body, topic, tag string, end time.Time, out ma
 			continue
 		}
 		if e.cfg.RecheckSourcePerDelivery {
-			if code := e.admit(row.CreatedBy, e.cfg.Source, cache); code != nil {
+			if code := e.admitManage(row.CreatedBy, cache); code != nil {
 				out[row.ID] = outcome{code: admissionWarning(code)}
 				continue
 			}

@@ -18,11 +18,12 @@ import (
 
 // Subscriptions of an agent's log (Plans/R1.0-Release/agent-events/README.md,
 // docs/agents/subscriptions.md#the-shared-behaviour). The engine is the shared
-// one; this is its daemon side: who may subscribe (the source's managers), what
-// the author must still be allowed at every send (to reach the target, and to
-// manage the source), and who sends the copy: #bus, the service, never the
-// source agent, whose own words these are not. The target must therefore admit
-// #bus under its ordinary ACL, like any other sender.
+// one; this is its daemon side: who may subscribe (the source's managers,
+// checked when the subscription is created and asked again after the store is
+// read, never at a send: Q325), what a send still needs (the author's reach to
+// the target under the target's ordinary ACL), and who sends the copy: #bus, the
+// service, never the source agent, whose own words these are not. The target
+// must therefore admit #bus under its ordinary ACL, like any other sender.
 
 // subMemory is the store of an unbound embedded bus, as eventIDs is for ids.
 type subMemory struct {
@@ -146,25 +147,13 @@ func (s subStore) SetCounts(id string, sent, dropped int64) error {
 type subBus struct {
 	b      *Bus
 	source string
+	id     uint32
 }
 
-// MaySend is the author's standing now: for the source itself, whether the
-// author still manages it; for any other target, the ordinary send ACL.
+// MaySend is the ordinary send ACL, whatever the target is, the source itself
+// included: the author's reach to the target, never a management question.
 func (s subBus) MaySend(who, target string) subscription.Admission {
-	b := s.b
-	if target == s.source {
-		b.mu.Lock()
-		defer b.unlock()
-		r, ok := b.records[s.source]
-		if !ok || b.acting(who) != nil {
-			return subscription.Refused
-		}
-		if b.eventReader(who, r) {
-			return subscription.Allowed
-		}
-		return subscription.Refused
-	}
-	err := b.MaySend(who, target)
+	err := s.b.MaySend(who, target)
 	switch {
 	case err == nil:
 		return subscription.Allowed
@@ -172,6 +161,15 @@ func (s subBus) MaySend(who, target string) subscription.Admission {
 		return subscription.Refused
 	}
 	return subscription.Unavailable
+}
+
+// MayManage is the author's standing over the source log now: still the same
+// registration, and still its Owner, a Maintainer or the daemon Owner.
+func (s subBus) MayManage(who string) subscription.Admission {
+	if s.b.managesNow(who, s.source, s.id) {
+		return subscription.Allowed
+	}
+	return subscription.Refused
 }
 
 func (s subBus) Kind(target string) (string, string, error) {
@@ -242,7 +240,7 @@ func (b *Bus) subsFor(r protocol.Record) *subscription.Engine {
 		}
 	}
 	source := r.Name
-	e, err := subscription.New(subStore{port, r.ID}, subBus{b, source}, subscription.Config{
+	e, err := subscription.New(subStore{port, r.ID}, subBus{b, source, r.ID}, subscription.Config{
 		Source: source, ValidateSelector: subSelector, SelectorMatches: subMatches, NewID: subID,
 		Clock: b.clock,
 		Warning: func(code string) {
@@ -259,6 +257,16 @@ func (b *Bus) subsFor(r protocol.Record) *subscription.Engine {
 	}
 	b.subEngines[r.ID] = e
 	return e
+}
+
+// managesNow is whether who, now, is the active owner or a maintainer of the
+// source registration id under name, or the daemon Owner: asked again after any
+// external work, since standing and even the registration can change meanwhile.
+func (b *Bus) managesNow(who, name string, id uint32) bool {
+	b.mu.Lock()
+	defer b.unlock()
+	r, ok := b.records[name]
+	return ok && r.ID == id && b.acting(who) == nil && b.eventReader(who, r)
 }
 
 func (b *Bus) forgetSubs(id uint32) {
@@ -290,13 +298,17 @@ func (b *Bus) SubAdd(caller, source, target, level, filter string) (subscription
 	if e == nil {
 		return subscription.Row{}, eventlog.Error("internal_error")
 	}
-	row, err := e.Add(subscription.Caller{Name: caller, Manager: true}, target, selector, filter)
+	standing := func() bool { return b.managesNow(caller, r.Name, r.ID) }
+	row, err := e.Add(subscription.Caller{Name: caller, Manager: true, Current: standing}, target, selector, filter)
+	if errors.Is(err, subscription.ErrNotAuthor) {
+		return subscription.Row{}, eventlog.Error("forbidden") // the standing went while the store was read
+	}
 	if err != nil {
 		return subscription.Row{}, subError(err)
 	}
-	if err = b.eventRecheck(caller, r, false); err != nil {
-		_ = e.Delete(subscription.Caller{Name: caller, Manager: true}, row.ID)
-		return subscription.Row{}, err
+	if !standing() { // and if it went after the row was stored, the row goes
+		_ = e.Delete(subscription.Caller{Name: caller, Manager: true, Current: func() bool { return true }}, row.ID)
+		return subscription.Row{}, eventlog.Error("forbidden")
 	}
 	return row, nil
 }
@@ -330,9 +342,12 @@ func (b *Bus) SubList(caller, source string) ([]SubscriptionEntry, error) {
 		if e == nil {
 			return eventlog.Error("internal_error")
 		}
-		rows, err := e.List(subscription.Caller{Name: caller, Manager: manager})
+		rows, err := e.List(subscription.Caller{Name: caller, Manager: manager, Current: func() bool { return b.managesNow(caller, r.Name, r.ID) }})
 		if err != nil {
 			return subError(err)
+		}
+		if manager && !b.managesNow(caller, r.Name, r.ID) && source != "" {
+			return eventlog.Error("forbidden") // revoked while the rows were read: nothing of theirs is shown
 		}
 		for _, row := range rows {
 			out = append(out, SubscriptionEntry{Source: r.Name, Listed: row})
@@ -424,7 +439,7 @@ func (b *Bus) SubDelete(caller, id string) error {
 	if e == nil {
 		return eventlog.Error("internal_error")
 	}
-	return subError(e.Delete(subscription.Caller{Name: caller, Manager: manager}, id))
+	return subError(e.Delete(subscription.Caller{Name: caller, Manager: manager, Current: func() bool { return b.managesNow(caller, r.Name, r.ID) }}, id))
 }
 
 // subsHaveCandidates is the selector-only preflight before an entry is stored.

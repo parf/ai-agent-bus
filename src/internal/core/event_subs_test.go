@@ -391,3 +391,113 @@ func TestSubErrorsUseTheLogsErrorForm(t *testing.T) {
 		}
 	}
 }
+
+// hookStore runs a hook inside a store read or write, as a slow disk lets
+// standing change in the middle of a call.
+type hookStore struct {
+	*memory.State
+	onList, afterAdd func()
+}
+
+func (h *hookStore) ListSubscriptions(source uint32) (map[string][]byte, error) {
+	if h.onList != nil {
+		h.onList()
+	}
+	return h.State.ListSubscriptions(source)
+}
+
+func (h *hookStore) AddSubscription(source uint32, id string, value []byte) error {
+	err := h.State.AddSubscription(source, id, value)
+	if h.afterAdd != nil {
+		h.afterAdd()
+	}
+	return err
+}
+
+func revokeMaint(t *testing.T, b **Bus) func() {
+	return func() {
+		if _, err := (*b).Manage("alice@h", Management{Name: "#a@h", Maintainers: ptr(protocol.MaintainerList{})}); err != nil {
+			t.Error(err)
+		}
+	}
+}
+
+// Standing is asked again after the store is read: a Maintainer revoked while
+// the rows are being read gets nothing of the Owner's, and deletes nothing.
+func TestAManagerRevokedDuringAListOrDeleteSeesAndRemovesNothing(t *testing.T) {
+	var b *Bus
+	hooks := &hookStore{State: memory.NewState()}
+	b = subFixture(t, hooks)
+	row, err := b.SubAdd("alice@h", "#a@h", "q@h", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	hooks.onList = revokeMaint(t, &b)
+	// The hook fires inside the read: the Maintainer is revoked just before the rows come back.
+	got, err := b.SubList("maint@h", "#a@h")
+	if eventlog.Code(err) != "forbidden" || len(got) != 0 {
+		t.Fatalf("a manager revoked during the read got %v, %v; want forbidden and no rows", got, err)
+	}
+	// Restore the role, and again revoke it in the middle of a delete.
+	hooks.onList = nil
+	if _, err := b.Manage("alice@h", Management{Name: "#a@h", Maintainers: ptr(protocol.MaintainerList{"maint@h"})}); err != nil {
+		t.Fatal(err)
+	}
+	hooks.onList = revokeMaint(t, &b)
+	if err := b.SubDelete("maint@h", row.ID); eventlog.Code(err) != "not_author" {
+		t.Fatalf("a manager revoked during a delete: %v, want not_author", err)
+	}
+	hooks.onList = nil
+	if rows, err := b.SubList("alice@h", "#a@h"); err != nil || len(rows) != 1 {
+		t.Fatalf("the subscription was deleted by a revoked manager: %v %v", rows, err)
+	}
+}
+
+// A Maintainer revoked while a subscription is being stored leaves none stored:
+// before the write, and after it.
+func TestAManagerRevokedDuringAnAddLeavesNothingStored(t *testing.T) {
+	var b *Bus
+	hooks := &hookStore{State: memory.NewState()}
+	b = subFixture(t, hooks)
+	count := func() int {
+		rows, _ := hooks.State.ListSubscriptions(subSource(b).ID)
+		return len(rows)
+	}
+	hooks.onList = revokeMaint(t, &b) // during the read that precedes the write
+	if _, err := b.SubAdd("maint@h", "#a@h", "q@h", "", ""); eventlog.Code(err) != "forbidden" || count() != 0 {
+		t.Fatalf("revoked before the write: %v, %d stored", err, count())
+	}
+	hooks.onList = nil
+	if _, err := b.Manage("alice@h", Management{Name: "#a@h", Maintainers: ptr(protocol.MaintainerList{"maint@h"})}); err != nil {
+		t.Fatal(err)
+	}
+	hooks.afterAdd = revokeMaint(t, &b) // right after the row is stored
+	if _, err := b.SubAdd("maint@h", "#a@h", "q@h", "", ""); eventlog.Code(err) != "forbidden" || count() != 0 {
+		t.Fatalf("revoked after the write: %v, %d stored", err, count())
+	}
+}
+
+// A subscription whose target is its own source is delivered under the target's
+// ordinary Allow, whatever happened to its author's role: the per-send question
+// is never a management one.
+func TestASubscriptionToItsOwnSourceIsOrdinaryTargetAdmission(t *testing.T) {
+	b := subFixture(t, nil)
+	row, err := b.SubAdd("maint@h", "#a@h", "#a@h", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Manage("alice@h", Management{Name: "#a@h", Maintainers: ptr(protocol.MaintainerList{})}); err != nil {
+		t.Fatal(err)
+	}
+	res := b.deliverEntry(subSource(b), subEntry(1, "alert", "loop"), time.Now().Add(time.Minute))
+	if res.Sent != 1 || res.Dropped != 0 {
+		t.Fatalf("a self-target copy after the author's role was revoked: %+v, want sent", res)
+	}
+	got := drain(t, b, "#a@h")
+	if len(got) != 1 || got[0].From != "#bus" || !strings.Contains(got[0].Body, "loop") {
+		t.Fatalf("the copy: %v", got)
+	}
+	if s, d := subCounts(t, b, "alice@h", row.ID); s != 1 || d != 0 {
+		t.Fatalf("counts %v/%v", s, d)
+	}
+}
