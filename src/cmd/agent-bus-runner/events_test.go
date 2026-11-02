@@ -421,8 +421,10 @@ func TestWarningFloodThenAnExitAlertIsStillSent(t *testing.T) {
 	awaitCount(t, rec, levelAlert, 1)
 }
 
-// The sender takes an alert before warnings that were queued earlier.
-func TestAlertIsSentBeforeEarlierQueuedWarnings(t *testing.T) {
+// The sender takes every queued alert before any warning that was queued
+// earlier. Ten of each, so that a sender choosing between ready lanes at random
+// would almost never pass.
+func TestAlertsAreSentBeforeEarlierQueuedWarnings(t *testing.T) {
 	r := &runner{ctx: context.Background(), say: io.Discard, name: "#runner@h"}
 	r.events = newEventSink(r)
 	rec := &recorded{}
@@ -438,17 +440,29 @@ func TestAlertIsSentBeforeEarlierQueuedWarnings(t *testing.T) {
 	s := &served{name: "#a@h", bus: &client{}}
 	r.events.emit(s, levelWarning, "held")
 	<-inside
-	for _, text := range []string{"w1", "w2", "w3"} {
-		r.events.emit(s, levelWarning, text)
+	for i := 0; i < 10; i++ {
+		r.events.emit(s, levelWarning, "w"+strconv.Itoa(i))
 	}
-	r.events.emit(s, levelAlert, "alert")
+	for i := 0; i < 10; i++ {
+		r.events.emit(s, levelAlert, "a"+strconv.Itoa(i))
+	}
 	close(release)
-	awaitCount(t, rec, levelWarning, 4)
-	got := []string{}
-	for _, e := range rec.list() {
-		got = append(got, e.text)
+	awaitCount(t, rec, levelAlert, 10)
+	awaitCount(t, rec, levelWarning, 11)
+	got := rec.list()
+	lastAlert, firstWarning := -1, -1
+	for i, e := range got[1:] {
+		if e.level == levelAlert {
+			lastAlert = i
+		} else if firstWarning < 0 {
+			firstWarning = i
+		}
 	}
-	if strings.Join(got, ",") != "held,alert,w1,w2,w3" {
-		t.Fatalf("delivery order %v, want the alert right after the held write", got)
+	if got[0].text != "held" || lastAlert > firstWarning {
+		var order []string
+		for _, e := range got {
+			order = append(order, e.text)
+		}
+		t.Fatalf("delivery order %v, want all ten alerts right after the held write and before every warning", order)
 	}
 }
