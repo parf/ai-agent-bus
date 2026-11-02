@@ -91,7 +91,9 @@ subscription-filter subset and shared vectors; no broader Go-only syntax.
 Use [eventlog's existing reply semantics](../../../docs/agents/eventlog.md#technical-details),
 with these cases explicit for P4:
 
-- `read` of a never-written or fully cleaned log returns the content-free
+- Check read ACL before log existence; an unauthorized caller gets the same
+  `forbidden` code for existing and never-written logs. For an authorized
+  manager, `read` of a never-written or fully cleaned log returns the content-free
   not-found method refusal. An authorized agent record is not itself a log.
   An active log whose entries expired or were all pulled returns empty rings,
   zero counts and no latest alert; no refusal and no invented placeholder line.
@@ -115,12 +117,34 @@ with these cases explicit for P4:
 ### P2 write transport
 
 P2 uses the existing `send` to `#bus`, body `write <agent> <level> <text>`,
-with the target agent's credential. The answer follows the supplied `reply_to`
-via the existing reply route and preserves correlation. A refused operation
-answers with a body starting `error:`; content after it is fixed and safe,
-not raw storage/refusal internals. HTTP acceptance of the send alone proves
-only queue acceptance, not a successful log append. No different P2 body or
-`callBus` transport is required by this contract.
+with the target agent's credential. The full `#agent@realm` form, including
+`#` and host/realm, is accepted; authority is canonical caller equals target,
+plus the daemon Owner, not a claimed runner source.
+
+**Write answers if and only if `wait` is set.** Core validates a positive wait,
+retains it on the consumed envelope and derives the deadline. `reply_to` only
+selects the answer route; it is not required for a waiting CLI/client Call.
+Preserve correlation, use that route when supplied and the caller otherwise.
+A write sent without wait gets no success or error answer at all, even with
+`reply_to`, so nothing leaks into kept/JSONL agents' own process readers.
+Honor the waiting caller's deadline and do not emit a late stray write reply.
+
+A refused waiting write answers with a body starting `error:` and a fixed safe
+description/code, not raw internals. **This is a write-only dispatch exception:**
+the current `ServeDaemonAgent` always replies, so P1 must add it deliberately;
+old help/status/version/ls behavior does not change. A stray answer has no
+request deadline and can be executed as new input by runner-read agents;
+P1's daemon-backed no-answer assertion is therefore a deployment prerequisite
+for P2, not a cosmetic inbox check. Read/list use eventlog's
+existing structured replies, including its private error code `forbidden`,
+not the write error prefix. All selected levels have list values, empty lists
+when empty, never missing or null; with no level selector all levels are
+present. Unselected levels stay omitted as in the existing level-only read.
+`list` uses the existing eventlog summary form.
+
+HTTP acceptance of P2's send alone proves queue acceptance, not a successful
+log append. P2's no-wait sends receive nothing. No different P2 write body or
+`callBus` transport is required; callers wanting confirmation set wait.
 
 ### Who reads
 
@@ -161,8 +185,9 @@ and its shared vectors; from 1.0.0, the integer rises with any wire change.
 Every verb above is additive agent-method behavior over unchanged message
 routes; none changes an old verb, envelope, refusal kind or client handshake.
 Transport errors retain the existing HTTP refusal set; method-level errors
-use eventlog's content-free descriptions through the existing `#bus` answer
-convention: the body starts `error:`. They are not new HTTP kinds. A new HTTP refusal kind or broader read permission
+use eventlog's content-free descriptions. Read/list keep the existing eventlog
+reply forms; waiting write refusals alone use the `error:` prefix below.
+They are not new HTTP kinds. A new HTTP refusal kind or broader read permission
 would not meet this design; neither is proposed. Keep T-24's client vectors
 passing, and add representative call/refusal integration cases through the
 existing client calls; ring/ACL/subscription cases belong in their shared
@@ -188,7 +213,8 @@ Proposed admission defaults: ten accepted occurrences per second per agent,
 burst twenty, counting folded occurrences too. Match the existing eventlog
 request bound for explicit writes; runner stderr capture must also have a
 bounded partial-line buffer before normalization. Ring bounds remain the
-shared model. Runner forwarding has a bounded queue; overflow drops and
+shared model: bus setup refuses a combined capacity above 500 per agent
+before publishing settings (defaults total 450), preserving the read bound. Runner forwarding has a bounded queue; overflow drops and
 counts rather than blocking the child. Existing routine stderr output can
 still make noisy warnings; caps do not classify it, and the all-agent producer
 cleanup is outside this cut. Per-agent serialization must not hold

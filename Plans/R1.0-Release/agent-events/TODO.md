@@ -38,6 +38,15 @@ Do not mark RT34 complete on the smaller no-subscription comparison estimate.
   Crash between reservation and append skips ids, never repeats them. A failed
   durable reservation accepts no entry. Test retention profiles explicitly;
   do not silently skip the existing durable-alert expectation.
+- Bus setup rejects per-agent ring sizes whose sum exceeds the shared
+  500-entry cap; defaults total 450. A 501-entry configuration is refused
+  without publishing it, while the boundary and defaults are accepted. A
+  compiling cap-disabled mutant fails the explicit configuration assertion.
+- Read authorization precedes log existence: a non-reader gets `forbidden`
+  for a private existing log and a never-written log alike. An authorized
+  manager of an existing agent with no log gets not-found. An existence-first
+  mutant fails the explicit forbidden-code assertion, not only an empty-body
+  check.
 - Owner/Maintainer/daemon Owner can read/list/pull/clean. A bare admitted caller,
   a `read` role and an agent with write-only self access see no log contents or
   counts. Revocation is honored on the next operation; replacement records
@@ -57,10 +66,24 @@ Do not mark RT34 complete on the smaller no-subscription comparison estimate.
   destructive, never hidden read pagination.
 - P2's actual `send` body `write <agent> <level> <text>` and `reply_to` route
   reach the real `#bus` parser. A refused append returns an `error:` body on
-  that route; the HTTP send's success is not mistaken for append success.
+  that route when wait is set; the HTTP send's success is not mistaken for
+  append success. A waiting Call without explicit reply_to gets its response;
+  no-wait writes send neither success nor refusal, even with reply_to, so the
+  agent's process inbox remains untouched. Other verbs retain their behavior.
+  Read/list retain eventlog forms, selected empty levels are lists and private
+  refusal code is forbidden. Full canonical target names are accepted.
 - A new verb is reachable through existing `call` without SDK additions;
   protocol/min remain 1. T-24 vectors remain green; representative call and ACL
   cases exercise real credentials, not supplied caller strings.
+
+- **No-answer HIGH, daemon-backed:** after the real daemon has completed a
+  no-wait `write` from an agent, that agent's inbox is empty, for success and
+  refusal alike. Wait for task completion, not merely HTTP send acceptance;
+  otherwise an early empty read is vacuous. A waiting write gets exactly one
+  correlated answer, including without explicit reply_to. Old verbs still
+  answer as before. A compiling always-send-answer mutant fails the explicit
+  inbox-empty/count assertion, not a timeout. No late reply can become a
+  runner-read agent's script input. P2 must not deploy before this P1 guarantee.
 
 - P1 has bounded independent read/control and mutation dispatch. Hold an
   injected mutation operation on a readiness barrier; unrelated `read` and
