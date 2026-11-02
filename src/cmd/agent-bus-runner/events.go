@@ -183,38 +183,19 @@ func (k *eventSink) drop(name string) {
 	}
 }
 
-// callBus is one call to #bus as the agent: the write verb for the agent's own
-// log, answered to the agent's own name with a tag of its own, which the
-// filtered read below takes so the runner's ordinary reader of that inbox
-// never sees it as work. The answer's content is not kept or logged: it is the
-// daemon's, and a refusal only counts as a drop.
+// callBus is one write to #bus as the agent: the write verb for the agent's
+// own log, sent with no wait and no reply route, so #bus sends no answer at all
+// and nothing can reach the agent's inbox, where an in-process reader of a kept
+// or stream agent would take it for a message. The runner learns only what the
+// transport says: a refused or failed send is a drop. One sender serves every
+// agent, so a #bus that is slow to accept delays the events of all of them by
+// up to eventDeadline each; the queue and the rate limit bound what waits.
 func (k *eventSink) callBus(ctx context.Context, e agentEvent) error {
-	tag := newEventTag()
-	until, _ := ctx.Deadline()
 	env := protocol.Envelope{
-		To: busAgent, Topic: eventTopic, Tag: tag,
-		Body:    "write " + e.s.name + " " + e.level + " " + e.text,
-		Wait:    time.Until(until).String(),
-		ReplyTo: &protocol.ReplyTo{Name: e.s.name, Topic: eventTopic, Tag: tag},
+		To: busAgent, Topic: eventTopic, Tag: newEventTag(),
+		Body: "write " + e.s.name + " " + e.level + " " + e.text,
 	}
-	if err := e.s.bus.postContext(ctx, "/send", env, nil); err != nil {
-		return err
-	}
-	for ctx.Err() == nil {
-		q := map[string][]string{"topic": {eventTopic}, "tag": {tag}, "wait": {time.Until(until).String()}}
-		got, ok, err := e.s.bus.consume(ctx, time.Until(until), q)
-		if err != nil {
-			return err
-		}
-		if !ok || got.Receipt != "" {
-			continue
-		}
-		if strings.HasPrefix(got.Body, "error:") {
-			return fmt.Errorf("refused")
-		}
-		return nil
-	}
-	return ctx.Err()
+	return e.s.bus.postContext(ctx, "/send", env, nil)
 }
 
 var eventTags atomic.Int64

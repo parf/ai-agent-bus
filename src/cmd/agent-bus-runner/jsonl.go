@@ -194,6 +194,10 @@ func (st *stream) loop() {
 			st.r.event(st.s, levelNotice, "process started")
 			st.answers(c)
 			err = c.cmd.Wait()
+			// The last unfinished stderr line is often the crash message.
+			if stderr, ok := c.cmd.Stderr.(*stderrLine); ok {
+				stderr.flush()
+			}
 			close(c.gone)
 			st.mu.Lock()
 			delete(st.children, c)

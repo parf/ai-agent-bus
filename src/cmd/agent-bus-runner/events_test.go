@@ -72,29 +72,25 @@ func awaitCount(t *testing.T, rec *recorded, level string, want int) {
 }
 
 // The write is one call to #bus as the agent: the agent's own token, never the
-// runner's, the agent's own name as the target, and an answer routed to the
-// agent's own inbox under a tag the filtered read takes.
-func TestEventWriteUsesTheAgentsOwnCredentialAndTarget(t *testing.T) {
+// runner's, the agent's own name as the target, and no wait and no reply route,
+// so #bus has nothing to answer and nothing reaches the agent's inbox.
+func TestEventWriteUsesTheAgentsOwnCredentialAndSendsNoReplyRoute(t *testing.T) {
 	var mu sync.Mutex
 	var sent []protocol.Envelope
-	var sendTokens, consumeTokens, consumeTags []string
+	var tokens, other []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		mu.Lock()
 		defer mu.Unlock()
-		switch {
-		case req.Method == "POST" && req.URL.Path == "/send":
+		if req.Method == "POST" && req.URL.Path == "/send" {
 			var e protocol.Envelope
 			json.NewDecoder(req.Body).Decode(&e)
 			sent = append(sent, e)
-			sendTokens = append(sendTokens, req.Header.Get("X-Agent-Bus-Token"))
+			tokens = append(tokens, req.Header.Get("X-Agent-Bus-Token"))
 			io.WriteString(w, `{}`)
-		case req.URL.Path == "/consume":
-			consumeTokens = append(consumeTokens, req.Header.Get("X-Agent-Bus-Token"))
-			consumeTags = append(consumeTags, req.URL.Query().Get("tag"))
-			io.WriteString(w, `{"from":"#bus","body":"{\"entry\":{}}"}`)
-		default:
-			w.WriteHeader(404)
+			return
 		}
+		other = append(other, req.Method+" "+req.URL.Path)
+		w.WriteHeader(404)
 	}))
 	defer srv.Close()
 	for _, who := range []string{"#a@h", "#b@h"} {
@@ -108,24 +104,19 @@ func TestEventWriteUsesTheAgentsOwnCredentialAndTarget(t *testing.T) {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	if len(sent) != 2 {
-		t.Fatalf("%d sends, want 2", len(sent))
+	if len(sent) != 2 || len(other) != 0 {
+		t.Fatalf("%d sends and other calls %v; want two sends and nothing else (no read of an answer)", len(sent), other)
 	}
 	for i, who := range []string{"#a@h", "#b@h"} {
 		e := sent[i]
-		if sendTokens[i] != "TOKEN-"+who || consumeTokens[i] != "TOKEN-"+who {
-			t.Errorf("%s: write used tokens %q and %q, want its own", who, sendTokens[i], consumeTokens[i])
+		if tokens[i] != "TOKEN-"+who {
+			t.Errorf("%s: write used token %q, want its own", who, tokens[i])
 		}
 		if e.To != "#bus" || e.Body != "write "+who+" warning disk is full" {
 			t.Errorf("%s: sent to %q body %q", who, e.To, e.Body)
 		}
-		if e.ReplyTo == nil || e.ReplyTo.Name != who || e.ReplyTo.Tag != e.Tag || consumeTags[i] != e.Tag || e.Wait == "" {
-			t.Errorf("%s: answer is not routed to its own filtered read: %+v tag %q", who, e.ReplyTo, consumeTags[i])
-		}
-	}
-	for _, tok := range append(sendTokens, consumeTokens...) {
-		if tok == "RUNNER" || !strings.HasPrefix(tok, "TOKEN-") {
-			t.Errorf("a call carried %q", tok)
+		if e.ReplyTo != nil || e.Wait != "" {
+			t.Errorf("%s: the write asks for an answer: reply_to %+v wait %q", who, e.ReplyTo, e.Wait)
 		}
 	}
 }
@@ -137,10 +128,6 @@ func TestEventWriteToASilentBusEndsAtItsDeadline(t *testing.T) {
 	defer func() { eventDeadline = old }()
 	release := make(chan struct{})
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if req.URL.Path == "/send" {
-			io.WriteString(w, `{}`)
-			return
-		}
 		select {
 		case <-release:
 		case <-req.Context().Done():
@@ -163,19 +150,16 @@ func TestEventWriteToASilentBusEndsAtItsDeadline(t *testing.T) {
 	}
 }
 
-// A refusing #bus counts a drop and nothing else.
+// A refused send counts a drop and nothing else.
 func TestEventWriteRefusedIsCountedNotRetried(t *testing.T) {
 	var sends int
 	var mu sync.Mutex
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		mu.Lock()
 		defer mu.Unlock()
-		if req.URL.Path == "/send" {
-			sends++
-			io.WriteString(w, `{}`)
-			return
-		}
-		io.WriteString(w, `{"from":"#bus","body":"error: refused"}`)
+		sends++
+		w.WriteHeader(403)
+		io.WriteString(w, "refused")
 	}))
 	defer srv.Close()
 	sink := newEventSink(&runner{say: io.Discard})
@@ -383,5 +367,24 @@ func TestEventWriteIsGivenADeadline(t *testing.T) {
 	sink.deliver(context.Background(), agentEvent{s: &served{name: "#a@h", bus: &client{}}, level: "notice", text: "x"})
 	if !ok || time.Until(until) > eventDeadline {
 		t.Fatalf("write deadline %v (set %v), want one within %s", until, ok, eventDeadline)
+	}
+}
+
+// A stream agent's last unterminated stderr line, often the crash message, is
+// forwarded when its process is waited for.
+func TestStreamAgentsLastUnterminatedStderrLineIsForwarded(t *testing.T) {
+	testAnswers(t)
+	r, rec := recordingRunner(t)
+	dir := t.TempDir()
+	script := filepath.Join(dir, "agent.sh")
+	os.WriteFile(script, []byte("printf 'last words' >&2\nexit 3\n"), 0600)
+	s := &served{bus: unconfiguredClient(), name: "#fixture@h", cmd: "/bin/sh " + strconv.Quote(script), work: dir, dir: dir, box: sandbox.Off{}, jail: &jail{},
+		in: installed{Key: "fixture", Agent: agentFile{Form: "jsonl", InFlight: 1, Deadline: "100ms"}, Span: span{Min: 1, Max: 1}}}
+	r.installed = []installed{s.in}
+	st := r.startStream(s)
+	defer st.stop(100*time.Millisecond, nil)
+	awaitCount(t, rec, "warning", 1)
+	if got := rec.list(); got[0].level == "warning" && got[0].text != "last words" {
+		t.Fatalf("forwarded %q, want the unterminated last line", got[0].text)
 	}
 }
