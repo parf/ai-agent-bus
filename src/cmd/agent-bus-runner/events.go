@@ -89,7 +89,8 @@ func newEventSink(r *runner) *eventSink {
 
 // start runs the sender until close, which gives what is queued a short moment
 // to go out: a stop at shutdown is the event worth keeping. Alerts have their
-// own lane and are taken first.
+// own lane and are taken first. Each write has its own deadline and is never
+// given the stop context, or an event taken just as close began would be lost.
 func (k *eventSink) start() {
 	ctx, cancel := context.WithCancel(context.Background())
 	k.stop = cancel
@@ -98,15 +99,15 @@ func (k *eventSink) start() {
 		for {
 			select {
 			case e := <-k.urgent:
-				k.deliver(ctx, e)
+				k.deliver(context.Background(), e)
 				continue
 			default:
 			}
 			select {
 			case e := <-k.urgent:
-				k.deliver(ctx, e)
+				k.deliver(context.Background(), e)
 			case e := <-k.queue:
-				k.deliver(ctx, e)
+				k.deliver(context.Background(), e)
 			case <-ctx.Done():
 				end, cancel := context.WithTimeout(context.Background(), eventDrain)
 				defer cancel()
