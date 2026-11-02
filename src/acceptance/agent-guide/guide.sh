@@ -33,6 +33,18 @@ guide_up "$BIN" || exit 1
 users asker@localhost || { echo "FAIL could not create the caller"; exit 1; }
 
 NOW() { date -u +%s; }
+# The worked pages: what they quote is what ran, and the commands they show are run here.
+# page_quotes PAGE; page_run PAGE KIND PACKAGE [NAME=value ...]: PACKAGE is copied and is the commands' folder.
+page_ingest() { local line; while IFS= read -r line; do case $line in "  ok   "*) ok "${line#  ok   }" ;; "  FAIL "*) bad "${line#  FAIL }" ;; esac; done; }
+page_quotes() { page_ingest < <(python3 -I "$here/pages.py" quotes "$@"); }
+# PAGE_AS is the person the commands run as (default the test bus's owner).
+page_run() {
+  local page=$1 kind=$2 pkg=$3; shift 3
+  local as=${PAGE_AS:-$GB_OWNER}
+  local work=$GB_DIR/pg-$kind; rm -rf "$work"; cp -R "$PKG/$pkg" "$work"
+  PAGE_WORK=$work PAGE_ENV="$*" GB_BIN=$BIN GB_ADDR=$GB_ADDR GB_TOKEN=$(gtok "$as") GB_OWNER=$as python3 -I "$here/pages.py" run "$page" "$kind" > "$work.out"
+  page_ingest < "$work.out"
+}
 iso_epoch() { date -u -d "$1" +%s; }
 # What a time answer must be: an ISO or epoch reading taken between two clock reads.
 time_window() { # LABEL ANSWER KIND BEFORE AFTER
@@ -62,6 +74,12 @@ eq "a body that is not a format is data and is never echoed back" "$unsupported"
 status_answer=$(ask "$T" asker@localhost --status)
 eq "an ask the script does not know is refused by name" "$status_answer" "unsupported: status"
 cli_stop
+sec "Pages: what the CLI page quotes and shows"
+page_quotes docs/user/write-agent-cli.md
+page_quotes docs/user/write-agent-process.md
+page_quotes docs/user/write-agent-runner.md 0   # it runs the same files; it quotes no region of its own
+page_run docs/user/write-agent-cli.md cli-simple time-simple
+gb "$GB_OWNER" unregister "$T" >/dev/null 2>&1
 finish() { echo; echo "passed $pass, failed $fail"; [ "$fail" -eq 0 ]; exit; }
 if [ "$MODE" = fast ]; then
   since_log=$(journalctl -q -t agent-busd -t agent-bus-runner -t agent-bus --since "$JOURNAL_START" -o cat 2>&1)
@@ -130,6 +148,13 @@ kill -0 "$PPID_" 2>/dev/null && bad "SIGTERM stops the Python service within its
 wait "$PPID_" 2>/dev/null
 lacks "the Python service's own log never holds the Secret" "$(cat "$GB_DIR/process.log")" "$KEY"
 gb "$GB_OWNER" unregister "$A" >/dev/null 2>&1; gb "$GB_OWNER" unregister "$P" >/dev/null 2>&1   # free the names for the runner
+
+sec "Pages: the commands the CLI advanced and process pages show"
+page_run docs/user/write-agent-cli.md cli-advanced time-advanced STAMP_KEY=$KEY
+gb "$GB_OWNER" unregister '#time-advanced' >/dev/null 2>&1   # the page registers the name without a realm
+mkdir -p "$GB_DIR/pg-process-src"; cp -R "$PKG/time-process/." "$GB_DIR/pg-process-src/"; cp -R "$ROOT/src/clients/python/agent_bus" "$GB_DIR/pg-process-src/agent_bus"
+PKG_SAVE=$PKG; PKG=$GB_DIR; page_run docs/user/write-agent-process.md process pg-process-src STAMP_KEY=$KEY AGENT_BUS_ADDR=$GB_ADDR; PKG=$PKG_SAVE
+gb "$GB_OWNER" unregister '#time-process' >/dev/null 2>&1
 
 # ---- packaging without a runner: the facts a package must hold, checked statically ----
 sec "Packages: what the runner will read (no runner started)"
@@ -232,6 +257,13 @@ if [ "$MODE" = slow ]; then
   lt=${limited##*: }; ft=${free##*: }
   within "an unlimited agent spins for most of four seconds (the control)" "${ft:-0}" 350 450
   within "an agent held to 50% gets at most about half of the same four seconds" "${lt:-0}" 100 290
+
+  # The runner page's commands, on the same runner: first take the packages and names the run above used away.
+  sec "Pages: the commands the runner page shows (slow)"
+  for d in time-simple time-advanced time-process; do rm -rf "${RHA:?}/$d"; gb launcher@localhost unregister "#$d@localhost" >/dev/null 2>&1; done
+  rm -f "$GB_DIR/rh/runner/tokens/%23time-process@localhost"
+  runner_call reload >/dev/null
+  PAGE_AS=launcher@localhost page_run docs/user/write-agent-runner.md runner . STAMP_KEY=$KEY AGENTS=$RHA CLIENTS=$ROOT/src/clients HOST=$GB_DIR/rh/runner RUNNER='#runner/launcher@localhost' REALM=localhost
 fi
 # What our programs wrote to the host journal and syslog during the run: nothing.
 # (systemd's own line for the runner's cgroup scope is not ours.)
