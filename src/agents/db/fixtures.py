@@ -239,6 +239,13 @@ def container_args(image, name, host_port, port, env, files=()):
     return [*args, image]
 
 
+def start_container(name, args):
+    """Register both cleanup paths before run, including a start still in flight."""
+    STOP.append(lambda: podman('rm', '-f', '-v', '-t', '1', name, check=False))
+    watch(f'^podman .* run .*--name {name}( |$)', *podman_command(), 'rm', '-f', '-v', '-t', '1', name)
+    podman(*args)
+
+
 def container(image, port, env, files=()):
     """Start a container with its port on a free loopback port; return (name, host port).
 
@@ -256,9 +263,7 @@ def container(image, port, env, files=()):
     # No --rm: a container that exits must stay listed for diagnose, which copies its logs out before bring_up and STOP remove it.
     # The label scopes this run's containers: diagnostics and cleanup name only these, never a neighbour's.
     # Registered before the run: a run that fails after creating the container still leaves one to remove.
-    STOP.append(lambda: podman('rm', '-f', '-v', '-t', '1', name, check=False))
-    watch(f'^podman .* run .*--name {name}( |$)', *podman_command(), 'rm', '-f', '-v', '-t', '1', name)
-    podman(*container_args(image, name, host_port, port, env, files))
+    start_container(name, container_args(image, name, host_port, port, env, files))
     return name, host_port
 
 
