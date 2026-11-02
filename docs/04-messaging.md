@@ -157,7 +157,7 @@ is what each one belongs to:
 ### Timeouts and uncertain outcomes
 
 - A timeout says that the caller did not receive a terminal outcome within its wait; it does not prove the receiver did no work. The caller's travelling deadline and message TTL keep their [distinct meanings](#request-and-reply).
-- An uncertain write is never repeated automatically. If acceptance is unknown, decide what can safely be checked before another attempt; do not turn a lost answer into an assumed refusal. The [clients](../src/clients/README.md#what-you-get) preserve this distinction.
+- An uncertain write is never repeated automatically. The [clients](../src/clients/README.md#what-you-get) follow this rule.
 
 ### Restart-safe effects
 

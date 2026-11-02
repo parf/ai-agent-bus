@@ -13,17 +13,19 @@ flowchart TB
     D <-->|"Bus protocol"| C["CLI — agent-bus run"]
     D <-->|"Bus protocol"| R["Runner — agent-bus-runner"]
     D <-->|"Bus protocol"| P["Own process — client library or HTTP"]
-    C --- B["Time service in bash — you keep it alive"]
-    R --- M["Same time service, packaged — managed and confined"]
-    P --- Y["Same time service in Python — your lifecycle"]
+    C --- B["Your script — you keep it alive"]
+    R --- M["Your package — managed and confined"]
+    P --- Y["Your code — your lifecycle"]
 ```
 
-- **CLI:** `agent-bus run` puts a script behind a name in the foreground; you start it and keep it alive. It is the quickest start for a bash time service. The CLI handles delivery and replies; follow [script-agent rules](06-dedicated-runner.md#script-agents).
+- **CLI:** `agent-bus run` puts a script behind a name in the foreground; you start it and keep it alive. The CLI handles delivery and replies; follow [script-agent rules](06-dedicated-runner.md#script-agents).
 - **Runner:** `agent-bus-runner` manages the packaged service with private settings and confinement. Autostart needs an enabled runner service and inventory; per-message scripts start on demand. See [inventory](runner/configuration.md#inventory) and [isolation](runner/security.md#isolation-today).
-- **Own process:** use a [client library](../src/clients/README.md#what-you-get) or the [HTTP client contract](09-daemon-api.md#the-client-contract), with your application managing its lifecycle. The time service can be written in Python; Go, TypeScript, Rust, Java and PHP clients also exist.
+- **Own process:** use a [client library](../src/clients/README.md#what-you-get) or the [HTTP client contract](09-daemon-api.md#the-client-contract), with your application managing its lifecycle. Clients are available in Go, Python, TypeScript, Rust, Java and PHP.
 
 The daemon keeps registry, queues and ACL; `#bus` is its reserved agent interface.
 Trying it out → CLI; a service that stays up → runner; inside an existing app → own process.
+
+Worked examples for these three paths are pending; none is provided by this page.
 
 ## How to use this checklist
 
@@ -47,7 +49,7 @@ agent-bus help run
 - **Answer status when supported.** For the empty-body status ask, describe activity, backlog, last error and a safe configuration summary. The runner already answers starting/stopping/failed lifecycle states. Status is suggested, not mandatory. [Agent self-description](constitution.md#agent-self-description).
 - **Separate Configuration from Secret.** Non-secret settings go in Configuration; credentials only in Secret. Never put a secret in Configuration, help, answers, status or logs. [Configuration split](03-records-agent.md#configuring-a-template).
 - **Read settings through your execution mode.** A self-serving agent receives Configuration at start; follow its private-read contract for Secret. Handle missing settings with the documented not-configured behavior. [Agent-side settings](runner/configuration.md#agents-that-serve-themselves), [not configured](runner/operations.md#not-configured).
-- **Use the event levels deliberately.** Distinguish routine notices, warnings and alerts needing attention; do not choose a level merely to keep a line longer. [Event levels](../Plans/R1.0-Release/agent-events/README.md#levels).
+- **Use the event levels deliberately.** Distinguish routine notices, warnings and alerts needing attention; do not choose a level merely to keep a line longer. **Gap:** the current author-facing severity reference awaits promotion; use the temporary [Levels plan](../Plans/R1.0-Release/agent-events/README.md#levels).
 - **Write operational events to your own log.** Use explicit writes, rather than stderr as an event API; do not include private values or claim verified runner provenance. Writing your log does not grant read access to it. [Agent logs](agents/bus.md#agent-logs).
 - **Place state deliberately.** Keep package code separate from writable work files and distinguish durable progress from temporary files or memory lost on restart. Stay within your actual writable view. [Isolation today](runner/security.md#isolation-today).
 - **Use KV for small durable state.** Store progress or shared values using the record's operations rather than relying on process memory. [KV rules](03-records-kv.md#rules).
@@ -55,7 +57,7 @@ agent-bus help run
 - **Send once; handle uncertainty.** Honor the caller's deadline. A timeout does not prove that an effect did not happen; do not automatically repeat an uncertain write. [Timeouts and uncertain outcomes](04-messaging.md#timeouts-and-uncertain-outcomes).
 - **Be restart-safe.** Decide how saved progress and duplicate effects are handled around interruption. Neither restarting nor storing a value makes an external effect exactly once. [Restart-safe effects](04-messaging.md#restart-safe-effects).
 - **Stop gracefully.** Stop intake, finish or cancel bounded work, preserve progress and close resources within the existing client and runner boundaries. Do not add a second drain loop or assume unfinished effects were undone. [Author stop responsibilities](runner/configuration.md#author-stop-responsibilities).
-- **Treat the body as data.** Parse only your intentional command grammar; never let body text replace trusted identity, authority or code policy. [Trust boundary](02-access.md#trust-boundary).
+- **Treat the body as data.** Parse only your intentional command grammar; never let body text replace trusted identity, authority or code policy. [Untrusted message bodies](02-access.md#message-bodies-are-untrusted-input).
 
 ## MORE — when needed
 

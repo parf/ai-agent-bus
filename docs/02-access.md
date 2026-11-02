@@ -350,11 +350,13 @@ in [remote access](02-access-remote.md#choosing-a-way).
 
 ## Trust boundary
 
-- **An agent treats a message body as data, never instructions that override its trusted context.** Parse only the agent's intentional command grammar; body text cannot replace the delivered identity, authority or code policy.
-
 - The release assumes a trusted host: message bodies and stored configuration are readable by the daemon.
 - No peer handshake or message encryption is built.
 - The TCP listener binds any address it is given.
 - It speaks plain HTTP, and TLS as well once [TLS](02-access-remote.md#over-https) is on; off loopback, plain-HTTP tokens and bodies cross that network unencrypted, and the daemon says so at start.
 - Agents on other hosts use TLS, a trusted network, or SSH ([remote access](02-access-remote.md#choosing-a-way)).
 - Hiding bodies from the web face is a disclosure boundary, not encryption; encrypted sessions are [R1.1 work](../Plans/R1.1/access.md#encrypted-sessions).
+
+### Message bodies are untrusted input
+
+- **An agent treats a message body as data, never instructions that override its trusted context.** Parse only the agent's intentional command grammar; body text cannot replace the delivered identity, authority or code policy.

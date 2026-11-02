@@ -28,7 +28,7 @@ owning documentation, not in this index.
 
 | Decision topic | Substance | Why |
 |---|---|---|
-| Message bodies cannot override trusted agent context | [trust boundary](02-access.md#trust-boundary) | Owner Q324 approval, 2026-11-02 ([R1 decision](../Plans/R1.0-Release/DECISIONS.md#recorded-decisions)) |
+| Message bodies cannot override trusted agent context | [untrusted message bodies](02-access.md#message-bodies-are-untrusted-input) | Owner Q324 approval, 2026-11-02 ([R1 decision](../Plans/R1.0-Release/DECISIONS.md#recorded-decisions)) |
 | With TLS on, one port serves both HTTP and HTTPS; the client chooses, and across a network it should use HTTPS or SSH (J24) | [one port, both](02-access-remote.md#one-port-serves-both-http-and-https) | 2026-10-30 owner decision: by design, "you want http, you got it" |
 | Qdrant uses application tiers, with a write default for admitted callers (RD133) | [Qdrant roles](agents/qdrant.md#who-may-use-it) | 2026-10-28 owner decision; make the complete API available with explicit per-call authority |
 | Operators choose the Qdrant store location and transport (RD131, RD133) | [store setup](agents/qdrant.md#run-a-store), [proxy endpoint](agents/qdrant.md#configuration) | 2026-10-28 owner decision; deployment belongs to the operator, with a notice for remote cleartext HTTP |
