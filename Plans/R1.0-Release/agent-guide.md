@@ -21,7 +21,7 @@ The checklist owns the reading path, not another version of those contracts.
 
 ## Proposed section order
 
-Only decisions belonging to the agent's code are included. A reference marked
+The checklist has **19 items**, all decisions belonging to the agent's code. A reference marked
 as a gap is a proposed place to resolve it, not evidence of a rule already there.
 
 ### 1. Essentials: help, then an answer
@@ -36,8 +36,9 @@ as a gap is a proposed place to resolve it, not evidence of a rule already there
   reconstruct the destination from the sender or emit an extra final answer.
   Owner: [Reply routing](../../docs/04-messaging.md#reply-routing).
 
-- **OPTIONAL support: ack and done.** Ack when the answer needs another turn;
-  done only for a task with no answer expected; never done after an answer;
+- **OPTIONAL support: ack and done.** No ack when the answer comes in the same
+  turn; ack when the answer needs another turn; done only for a task with no
+  answer expected; never done after an answer;
   nothing for reports, notices or receipts. Do not duplicate support already
   provided by the runner or client. Owner: [Receipts](../../docs/04-messaging.md#receipts).
 
