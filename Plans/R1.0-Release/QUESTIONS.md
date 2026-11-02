@@ -75,6 +75,12 @@ Q296 to Q304, Q311 to Q313, Q321 and Q322 are [settled](DECISIONS.md#recorded-de
   >
   > 💬 👾 Moved: the minimum is help plus one request and one answer; `status` is the first suggested item.
 
+- ❓ Q325 Should source application-role revocation stop an existing event subscription?
+  - Context: the [comparison](agent-guide.md#publishsubscribe-comparison) finds shared creator admission checks at add/every forward, but [named eventlog](../../docs/agents/eventlog.md#who-may-use-it) keeps its source application-role grant from creation. T-29 requires current source authority. Removing a source read role while bare admission remains can therefore behave differently; this is not a request to change existing behavior silently.
+  - ( ) Recommend current source authority on each forward for new event emitters; keep named eventlog's existing exception explicit until a separately approved migration 🌟
+  - ( ) Keep creation-time source role authorization as the general profile and explicitly document exceptions such as T-29 ⭐
+  - 💡👾 Prefer current source authority for new emitters so removal of private-data access can stop future copies; preserve the existing named-log contract until an approved migration defines its compatibility and tests.
+
 ## Messaging agents
 
 Q247 and Q248 (Google Chat) moved to [R1.2](../R1.2/QUESTIONS.md#open-questions) with B.27b: the owner, 2026-11-01, "we need corp acct. cant use personal".

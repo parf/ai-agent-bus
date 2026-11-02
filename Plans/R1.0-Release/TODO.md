@@ -552,7 +552,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
 
 - ⛔ T-32 Plan only, revised for the owner's Q324 audience: [what a good agent does](agent-guide.md#proposed-section-order), for developers who already understand the daemon.
   - Depends: Q324 approval and resolution of the [owning-rule gaps](agent-guide.md#gaps-to-resolve-before-writing), including accepted T-29 own-log instructions.
-  - Acceptance: the current guide meets the [checklist acceptance](agent-guide.md#approval-and-acceptance): help and one answer first, only agent-code decisions, optional roles, one owning link per item or an explicit gap; no tokens, onboarding or client-managed compatibility rules.
+  - Acceptance: the current guide meets the [checklist acceptance](agent-guide.md#approval-and-acceptance): minimum help/answer, suggested status and Configuration/Secret split, optional publish/subscribe per Q325, only agent-code decisions and owning references or explicit gaps; no tokens, onboarding or client-managed compatibility rules.
 
 ## RT34 Agent events
 
