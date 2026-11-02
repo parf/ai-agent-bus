@@ -36,17 +36,17 @@ as a gap is a proposed place to resolve it, not evidence of a rule already there
   reconstruct the destination from the sender or emit an extra final answer.
   Owner: [Reply routing](../../docs/04-messaging.md#reply-routing).
 
-- **Leave receipts to the right layer.** Where the agent itself decides receipts,
-  distinguish a delayed answer from completion without an answer and do not
-  answer a receipt or notice. Do not duplicate receipts already handled by the
-  runner or client. Owner: [Receipts](../../docs/04-messaging.md#receipts).
+- **OPTIONAL support: ack and done.** Ack when the answer needs another turn;
+  done only for a task with no answer expected; never done after an answer;
+  nothing for reports, notices or receipts. Do not duplicate support already
+  provided by the runner or client. Owner: [Receipts](../../docs/04-messaging.md#receipts).
 
 ### 2. Settings, private values and access
 
-- **Read Configuration as settings.** Read and validate the agent's own settings,
-  distinguish absent from configured values and report what prevents useful
-  work. Do not turn configuration handling into credential provisioning.
-  Owner: [Configuring a template](../../docs/03-records-agent.md#configuring-a-template).
+- **Read Configuration as settings.** Read and validate the agent-side
+  `AGENT_BUS_CONFIG` supplied at start, distinguishing absent settings from a
+  configured value; see “What it is told” in [Agents that serve themselves](../../docs/runner/configuration.md#agents-that-serve-themselves).
+  When settings prevent useful work, use the [not-configured exit/wait rule](../../docs/runner/operations.md#not-configured), not a retry loop.
 
 - **Read Secret without echoing it.** Obtain the agent's own private values
   through its supported execution/client path, and exclude them from help,
@@ -88,10 +88,12 @@ as a gap is a proposed place to resolve it, not evidence of a rule already there
   can safely do next without treating every refusal as retryable.
   Owner: [Refusals](../../docs/05-discovery.md#refusals).
 
-- **Send once; distinguish timeout from uncertain outcome.** Bound the operation
-  and report what is known instead of silently repeating a possibly accepted
-  effect. **Gap:** an author-facing owning rule for this distinction is missing;
-  proposed home: [Request and reply](../../docs/04-messaging.md#request-and-reply).
+- **Send once; distinguish timeout from uncertain outcome.** Honor the caller's
+  travelling deadline and the TTL boundary for a late answer, already owned by
+  [Request and reply](../../docs/04-messaging.md#request-and-reply). **Gap:** promote
+  the client's “an uncertain write is never repeated automatically” rule from
+  [What you get](../../src/clients/README.md#what-you-get) into the author-facing
+  outcome reference; the deadline/TTL rule itself is not missing.
 
 - **Make work idempotent and restart-safe.** Decide how progress and duplicate
   effects are handled after interruption; restarting the process is not replaying
@@ -107,8 +109,10 @@ as a gap is a proposed place to resolve it, not evidence of a rule already there
 
 - **Choose notice, warning or alert deliberately.** The checklist must cover the
   owner's requested distinction between routine facts, handled problems and
-  failures requiring attention. **Gap:** the current [Log model](../../docs/agents/eventlog.md#log-model)
-  owns ring behavior, not this general author-facing severity-selection rule.
+  failures requiring attention. **Gap:** promote the T-29 [Levels text](agent-events/README.md#levels)
+  describing routine lifecycle notices, stderr warnings and unexpected-failure
+  alerts into the current author-facing severity reference; the plan is not
+  that current reference.
 
 - **Write to the agent's own event log.** Use explicit event writes for intended
   operational events rather than stderr as the event API; never include private
@@ -121,16 +125,17 @@ as a gap is a proposed place to resolve it, not evidence of a rule already there
   **Gap:** the runner documents its signal and kill boundary, not a general
   author-side drain contract; proposed home: [Agents that serve themselves](../../docs/runner/configuration.md#agents-that-serve-themselves).
 
-### 5. Make the behavior usable and checkable
-
-- **Write an end-user page.** Provide a `docs/agents/` page explaining the useful
-  work, safe calls, required settings, access, diagnostics and troubleshooting.
-  This is user guidance, not development machinery. Owner: [How we write docs](../../WRITING.md#how-we-write-docs).
+### 5. Check the behavior you wrote
 
 - **Check the behavior you wrote.** Exercise actual help and an ordinary call,
   plus the agent's own refusal and interruption cases. Separate those checks
   from bus-health checks; do not claim debug proves the agent's business work.
   Owner: [Check the bus in a minute](../../docs/agents/debug.md#check-the-bus-in-a-minute).
+
+**Before you share it:** provide a `docs/agents/` end-user page for useful work,
+safe calls, settings, access, diagnostics and troubleshooting, following
+[How we write docs](../../WRITING.md#how-we-write-docs). This closing deliverable
+is not an agent-code checklist item.
 
 ## Gaps to resolve before writing
 
@@ -139,12 +144,13 @@ until an owning rule exists; this plan does not fill them with a new policy.
 
 - **Body trust:** add the approved body-as-data rule to the proposed Trust
   boundary home, preserving deliberate agent command parsing.
-- **Timeout versus uncertain outcome and send-once:** agree the owning outcome
-  rule before writing it as a universal obligation.
+- **Uncertain outcome:** promote the client README's explicit no-repeat rule
+  to the author-facing outcome home. Request and reply already owns travelling
+  deadlines and the TTL boundary; those are not gaps.
 - **Idempotent/restart-safe effects:** define the author-facing scope and limits
   of any recipe; never imply transport or KV alone gives exactly-once effects.
-- **Severity selection:** promote the owner's notice/warning/alert distinction
-  to an agreed current owning section; ring retention rules are not that rule.
+- **Severity selection:** promote the T-29 Levels text named in the checklist
+  into an agreed current owning section; do not substitute ring retention rules.
 - **Own event log:** promote accepted T-29 use instructions before linking them
   as current behavior. Do not use stderr forwarding as a substitute write API.
 - **Graceful stop:** agree the author-side responsibility and its relationship
@@ -169,8 +175,9 @@ This branch edits the plan and its navigation only, not current docs.
 - The guide starts with help/ask handling, then one request and one answer on
   the return route; the reader already knows the daemon.
 - Every checklist item concerns an agent-code decision, has one short paragraph
-  and one owning section link, or is visibly held as a gap. Optional roles are
-  called optional. No policy values or client internals are duplicated.
+  and a link to the owning section for each rule, or is visibly held as a gap.
+  Roles and ack/done support are explicitly optional. No policy values or client
+  internals are duplicated.
 - The five headings and prose budget above keep it concise. No onboarding or
   mandatory minimal agent example remains.
 - The end-user page and meaningful agent checks remain, without repository
