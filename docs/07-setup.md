@@ -60,7 +60,7 @@ agent-bus status
 
 ### npm package
 
-- **Publication pending:** `ai-agent-bus` and `ai-agent-bus-client` are reserved names, not yet published with installable release binaries. Local package assembly exists; clean installed-tree acceptance and macOS npm platforms remain distribution work.
+- **Publication pending:** `ai-agent-bus` and `ai-agent-bus-client` are reserved names, not yet published with installable release binaries. Local package assembly and clean Linux installed-tree acceptance are verified; the macOS client package passes local-tarball installation and a bus call on Apple Silicon.
 - The wrapper selects the matching Linux x64 or arm64 platform binaries. Node 18 or later runs the npm wrapper; a packaged release needs neither Go nor Bun.
 - The full package depends on the exact matching client version. Installing either npm package creates no service accounts or service units.
 - The client can use a user-owned prefix. Full-node setup requires a root-owned Node executable and global prefix, including its packages, shims and every parent, with no group/other write access.
@@ -178,7 +178,7 @@ Release builds follow [working rules § versioning](../CLAUDE.md#versioning).
 
 - **Client and runner:** native checks are recorded; the runner has no sandbox or cgroup limits.
 - **Reduced daemon setup:** launchd runs it as `_agentbusd`; the Linux service layout is not available on macOS.
-- **Archive build:** the builder supplies full and client Darwin archives for both CPUs. The full archive's native install acceptance remains pending; macOS npm packages remain client-only; local-tarball installation and a bus call are verified on Apple Silicon.
+- **Archive build:** the builder supplies full and client Darwin archives for both CPUs. The full archive's reduced daemon/setup acceptance is verified on Apple Silicon; macOS npm packages remain client-only; local-tarball installation and a bus call are verified on Apple Silicon.
 
 #### The client and runner
 
@@ -754,9 +754,9 @@ The real-browser gate has a `TLS=1` variant ([browser acceptance](05-discovery.m
 | Area | Status |
 |---|---|
 | Linux archive installation | Built: checked manifest, service accounts, units, upgrade/recovery and rollback |
-| npm assembly | Built for local Linux checks; local macOS client installation is verified on Apple Silicon; installable npm publication and remaining clean npm acceptance stay pending |
+| npm assembly | Built for local Linux checks; local macOS client installation is verified on Apple Silicon; installable npm publication remains pending |
 | macOS client and runner | Native checks recorded; no sandbox, and a sandbox request is refused |
-| macOS daemon | Reduced launchd setup verified with focused binaries; full archive builds and checks pass, native archive-install acceptance pending; manual cleanup only |
+| macOS daemon | Reduced launchd setup verified from a full archive on Apple Silicon; full archive builds and checks pass for both CPUs; manual cleanup only |
 | Release evidence | Built: stamps, version, license, notices, manifests and unsigned checksums; no release signature required |
 
 [Installation acceptance](#installation-acceptance) identifies the archived exercises and their limits.

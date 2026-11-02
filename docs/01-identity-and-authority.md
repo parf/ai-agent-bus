@@ -307,7 +307,7 @@ Record management requires the [resource assignment](#record-authority).
 
 | Verb | |
 |---|---|
-| `lock <record> <name> --ttl` | take it; waits until granted or the caller's `--wait` runs out (default 30s, at most 60s). Pending, built for the next daemon restart ([J27](../Plans/R1.0-Release/TODO.md#objective)): waiters are granted in the order they began waiting, a release or expiry handing the lock to the oldest; until then whoever retries at the release wins. Re-taking your own lock is refused at once — use extend |
+| `lock <record> <name> --ttl` | take it; waits until granted or the caller's `--wait` runs out (default 30s, at most 60s). Waiters are granted in the order they began waiting, a release or expiry handing the lock to the oldest. Re-taking your own lock is refused at once — use extend |
 | `try-lock <record> <name> --ttl` | the same, granted or refused now; a refusal names the holder |
 | `extend <record> <name> --ttl` | the holder sets a fresh ttl from now; anyone else is refused, and a lock nobody holds is not extended |
 | `release <record> <name>` | the holder gives it back before the ttl; anyone else is refused |
@@ -341,7 +341,7 @@ own Agent. Its contract, operations and suggested patterns have their own page:
 - Ordinary groups may contain principals and other groups.
 - Their membership follows the stored graph: cycles terminate, unknown group references stay inert until populated, and any path to a principal grants effective membership.
 - Every walk processes each group once.
-- Walking iteratively rather than recursively is settled; only role assignment does so yet, and the rest is [pending](../Plans/R1.0-Release/TODO.md#group-walk-acceptance).
+- ACL, directory, publication and role-assignment group walks are iterative.
 
 <details>
 <summary>Administrative membership and shared-group limits</summary>

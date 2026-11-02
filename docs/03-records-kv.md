@@ -42,7 +42,7 @@ agent-bus kv get '#ab-w1b' some-key
 
 The reference below keeps every section as it was; other pages link to these sections.
 
-- **Three kinds, three namespaces:** a **string** (any bytes, the default), an **int** (signed 64-bit today; the accepted narrower range is pending) and a **json** object.
+- **Three kinds, three namespaces:** a **string** (any bytes, the default), an **int** (signed 64-bit) and a **json** object.
 - **Not the allow list:** the allow list grants use of the record, never of its store.
 - **One store per record:** the same name on two records is two values.
 - **Lives with its record:** it goes when the record goes, and is kept through a transfer ([rules](#rules)).
