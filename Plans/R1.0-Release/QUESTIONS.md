@@ -51,6 +51,10 @@ Q296 to Q304, Q311 to Q313, Q321 and Q322 are [settled](DECISIONS.md#recorded-de
   > - bigfile, notice/warning/alert in your own log (not stderr);
   > - graceful stop, checks.
   > It ends with "Before you share it" (the end-user page). Cut by your rule: tokens and enrolment, protocol checks, install, sandbox, repo gates. Pick an option above again.
+  >
+  > 💬 👤parf (in chat) mention about "status" call
+  >
+  > 💬 👾 Added to the essentials, next to help: answer the `status` ask (empty body, like help) with the agent's own state, for example what it is doing, its backlog and its last error. The runner answers while the agent is starting, stopping or failed ([agent self-description](../../docs/constitution.md#agent-self-description)).
 
 ## Messaging agents
 
