@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -59,6 +60,12 @@ func main() {
 		_, err = bus.SetSecret(name, "owner@fixture", "TOKEN=dummy-fixture-only\n")
 		must(err)
 	}
+	// The daemon's own #bus agent and its reader, as the real daemon starts
+	// them, so event calls reach the landed event verbs and never a fake.
+	must(bus.EstablishDaemonAgent("fixture.example"))
+	stopBus := s.ServeDaemonAgent(context.Background())
+	defer stopBus()
+	must(busReady(bus))
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	must(err)
 	server := &http.Server{Handler: s.Handler(), ReadHeaderTimeout: 5 * time.Second}
@@ -77,4 +84,22 @@ func main() {
 	if local != nil {
 		_ = local.Close()
 	}
+}
+
+// busReady proves the #bus reader answers before the fixture says it is ready:
+// a status call as the daemon Owner, answered into the Owner's own inbox. It
+// fails the fixture, with a bounded wait, rather than leave a client to time out.
+func busReady(bus *core.Bus) error {
+	sent, err := bus.Send(protocol.Envelope{From: "owner@fixture", To: core.DaemonAgent, Body: "status",
+		Topic: "ready", Tag: "fixture-ready", Wait: "5s"})
+	if err != nil {
+		return fmt.Errorf("fixture: #bus refused the readiness call: %w", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	answer, err := bus.Consume(ctx, "owner@fixture", "ready", "fixture-ready", true, false)
+	if err != nil || answer.Re != sent.ID {
+		return fmt.Errorf("fixture: #bus did not answer its readiness call: %v", err)
+	}
+	return nil
 }
