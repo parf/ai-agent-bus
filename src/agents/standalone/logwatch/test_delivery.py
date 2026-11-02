@@ -27,10 +27,15 @@ class SharedDelivery(unittest.TestCase):
         (ROOT / 'tmp').mkdir(exist_ok=True)
         cls.work = tempfile.TemporaryDirectory(prefix='logwatch-delivery-', dir=ROOT / 'tmp')
         cls.addClassCleanup(cls.work.cleanup)
-        cls.fixture = str(Path(cls.work.name) / 'fixture')
-        result = subprocess.run(['go', 'build', '-o', cls.fixture, './clients/fixture'],
-                                cwd=ROOT / 'src', capture_output=True, text=True, timeout=30)
-        if result.returncode: raise AssertionError(result.stderr)
+        shared = os.environ.get('SMOKE_CLIENT_FIXTURE')   # built once by the smoke driver: never rebuilt, never silently missing
+        if shared:
+            if not os.access(shared, os.X_OK): raise AssertionError('the driver client fixture is missing: ' + shared)
+            cls.fixture = shared
+        else:
+            cls.fixture = str(Path(cls.work.name) / 'fixture')
+            result = subprocess.run(['go', 'build', '-o', cls.fixture, './clients/fixture'],
+                                    cwd=ROOT / 'src', capture_output=True, text=True, timeout=30)
+            if result.returncode: raise AssertionError(result.stderr)
 
     def setUp(self):
         self.clients = []
