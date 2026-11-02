@@ -108,7 +108,9 @@ The existing `call` and `inbox` operations also cover subscriptions:
   as the specified identity. It must succeed. This changes real Maintainers
   and target admission between writes, not fixture-side fake answers.
 
-The cases prove one copy for each matching write, level/text filtering, list
+The creation case changes only the source or target from an accepted add,
+proving a non-manager and an unreachable destination are refused.
+The other cases prove one copy for each matching write, level/text filtering, list
 counts, deletion and no later copy. A copy comes from `#bus` as a non-waiting
 notice: no ack or done is sent for it ([receipts](../../../docs/04-messaging.md#receipts)).
 The confirmed write fences its completed fan-out before the inbox is checked.

@@ -59,5 +59,20 @@
       {"as": "worker", "op": "call", "body": "sub list", "expect": {"subscriptions.0.sent": 1, "subscriptions.0.dropped": 2}},
       {"as": "worker", "op": "call", "body": "sub delete $subscription", "expect": {"deleted": true}}
     ]
+  },
+  {
+    "id": "subscription-creation-refuses-only-the-unmanaged-source-or-unreachable-target",
+    "fresh": true,
+    "steps": [
+      {"as": "owner", "op": "manage", "name": "#caller@fixture", "changes": {"maintainers": ["#worker@fixture"]}},
+      {"as": "worker", "op": "call", "body": "sub add jobs@fixture #caller@fixture alert", "expect": {"target": "jobs@fixture", "created_by": "#worker@fixture"}},
+      {"as": "worker", "op": "call", "body": "sub add jobs@fixture #helper@fixture alert", "expect": {"error.code": "forbidden"}},
+      {"as": "worker", "op": "call", "body": "sub delete $subscription", "expect": {"deleted": true}},
+      {"as": "owner", "op": "manage", "name": "#helper@fixture", "changes": {"allow": ["#bus"]}},
+      {"as": "worker", "op": "call", "body": "sub add jobs@fixture #caller@fixture alert", "expect": {"target": "jobs@fixture", "created_by": "#worker@fixture"}},
+      {"as": "worker", "op": "call", "body": "sub add #helper@fixture #caller@fixture alert", "expect": {"error.code": "admission_refused"}},
+      {"as": "worker", "op": "call", "body": "sub delete $subscription", "expect": {"deleted": true}},
+      {"as": "worker", "op": "call", "body": "sub list", "expect": {"subscriptions": []}}
+    ]
   }
 ]

@@ -83,7 +83,7 @@ func eventVectors(t *testing.T, file string) {
 					if json.Unmarshal([]byte(answer), &decoded) != nil {
 						t.Fatalf("%s: reply is not JSON: %q", where, answer)
 					}
-					if strings.HasPrefix(str(step, "body"), "sub add ") {
+					if strings.HasPrefix(str(step, "body"), "sub add ") && decoded.(map[string]any)["error"] == nil {
 						subscription, _ = decoded.(map[string]any)["id"].(string)
 						if subscription == "" {
 							t.Fatalf("%s: sub add returned no id: %s", where, answer)
