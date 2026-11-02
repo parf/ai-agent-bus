@@ -49,9 +49,25 @@ Do not mark RT34 complete on the smaller no-subscription comparison estimate.
 - Burst/rate and oversized-input fixtures prove bounded memory, no id allocated
   on refusal, and a drop count without recursive warnings. A blocked event
   operation does not hold core's global lock over disk/network work.
+- Never-written and fully cleaned logs refuse read without data; active empty
+  logs return zero counts and no placeholder. Read returns a complete selected
+  ring set up to 500 entries, never a cut success. List contains sorted active
+  summaries only, including active-empty, and either a full result or a size
+  refusal. A level is a read selector, while pull's count and clean's id remain
+  destructive, never hidden read pagination.
+- P2's actual `send` body `write <agent> <level> <text>` and `reply_to` route
+  reach the real `#bus` parser. A refused append returns an `error:` body on
+  that route; the HTTP send's success is not mistaken for append success.
 - A new verb is reachable through existing `call` without SDK additions;
   protocol/min remain 1. T-24 vectors remain green; representative call and ACL
   cases exercise real credentials, not supplied caller strings.
+
+- P1 has bounded independent read/control and mutation dispatch. Hold an
+  injected mutation operation on a readiness barrier; unrelated `read` and
+  `status` answer before releasing it, within the named bound. Overflow returns
+  busy without more goroutines; one agent cannot fill every mutation worker.
+  Mutants serialize dispatch or remove the per-agent fairness limit and fail
+  their own assertions, not a test timeout.
 
 ### P2 checks
 
@@ -80,6 +96,12 @@ Do not mark RT34 complete on the smaller no-subscription comparison estimate.
   still attempts delivery. A revoked creator/source/target sends nothing.
   No outbox, retry, pause, or credential stored in definitions; no recursive
   event storm when delivery reporting itself fails.
+- While a real selected subscriber's injected send is held, an unrelated
+  read and status answer before it is released. Pull/clean of that source
+  cannot erase its entry yet. Per-target and whole-write budgets drop/count
+  remaining copies; a cancelled attempt cannot later send. Test through the
+  real dispatch and subscription path, then break the lane/barrier to see the
+  named assertion fail. See [dispatch bounds](README.md#bounded-dispatch-and-fairness).
 - Mutants remove each ACL check, retry a refused copy, skip subscription
   persistence, or let pull win; each compiles and fails a named assertion.
 

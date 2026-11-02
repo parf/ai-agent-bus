@@ -5,8 +5,8 @@ a few recent lines, alerts loud, warnings quieter, and expand to the full log.
 The end state is one Go engine in the daemon with `#eventlog` as its front;
 that migration and the daemon's own producers are post-1.0. This plan contains
 no implementation. Persistence is [pending owner, Q321](../QUESTIONS.md#r1-release-decisions).
-The volatile-entry option costs 2¾–4½ AI hours in total, with a
-2½–4½-hour tree-ready delay when the three workers overlap their parts.
+The volatile-entry option costs about 3–5¼ AI hours in total, with a
+3–5-hour tree-ready delay when the three workers overlap their parts.
 
 Owner's [Q312 decision](../DECISIONS.md#recorded-decisions) and
 [falsifiable acceptance](TODO.md#r1-min) define the cut.
@@ -86,6 +86,42 @@ reply contract; P1/P3/P4 build against that guide, not a second reply design.
 No new JSON shape is introduced here. Regex uses the existing portable
 subscription-filter subset and shared vectors; no broader Go-only syntax.
 
+### Read and list completeness
+
+Use [eventlog's existing reply semantics](../../../docs/agents/eventlog.md#technical-details),
+with these cases explicit for P4:
+
+- `read` of a never-written or fully cleaned log returns the content-free
+  not-found method refusal. An authorized agent record is not itself a log.
+  An active log whose entries expired or were all pulled returns empty rings,
+  zero counts and no latest alert; no refusal and no invented placeholder line.
+- `read` returns **all** live selected entries, newest first within each level,
+  levels alert/warning/notice. Its maximum is the shared combined ring capacity:
+  500 entries per answer. Counts describe all levels even for a level-only read.
+  A full result is complete; there is no truncated success, cursor or hidden page.
+- Select a level with `read <agent> <level>`; it is also a complete selection.
+  `read` has no count or id bound. The count on `pull` removes entries, and the
+  id on `clean` removes through that id: neither is a way to page a read.
+  Expired, evicted or consumed entries cannot be fetched by an older id.
+- `list` returns all authorized **active log summaries**, sorted by name, with
+  counts but no entry bodies. Never-written/fully cleaned logs are absent;
+  active empty logs remain, and no visible active logs gives an empty list.
+  It does not cut or paginate. The same hard reply budget as eventlog applies:
+  over-budget output is a method refusal, not partial success. Inspect a known
+  agent with `read` rather than treating a count/id as a missing list-page flag.
+- The preview's three-line cut is explicitly a web presentation choice, with
+  expand to the complete bounded `read`; it is not a truncated API result.
+
+### P2 write transport
+
+P2 uses the existing `send` to `#bus`, body `write <agent> <level> <text>`,
+with the target agent's credential. The answer follows the supplied `reply_to`
+via the existing reply route and preserves correlation. A refused operation
+answers with a body starting `error:`; content after it is fixed and safe,
+not raw storage/refusal internals. HTTP acceptance of the send alone proves
+only queue acceptance, not a successful log append. No different P2 body or
+`callBus` transport is required by this contract.
+
 ### Who reads
 
 - The record's Owner, Maintainers and daemon Owner may read, pull, clean and
@@ -125,8 +161,8 @@ and its shared vectors; from 1.0.0, the integer rises with any wire change.
 Every verb above is additive agent-method behavior over unchanged message
 routes; none changes an old verb, envelope, refusal kind or client handshake.
 Transport errors retain the existing HTTP refusal set; method-level errors
-reuse eventlog's content-free application refusals inside the call answer,
-not new HTTP kinds. A new HTTP refusal kind or broader read permission
+use eventlog's content-free descriptions through the existing `#bus` answer
+convention: the body starts `error:`. They are not new HTTP kinds. A new HTTP refusal kind or broader read permission
 would not meet this design; neither is proposed. Keep T-24's client vectors
 passing, and add representative call/refusal integration cases through the
 existing client calls; ring/ACL/subscription cases belong in their shared
@@ -201,6 +237,46 @@ accepting a write; no network call holds the global registry lock. Failure
 counters must not recursively generate subscribed events. Shared subscription
 vectors already exist, but a Go adapter and storage are new work.
 
+### Bounded dispatch and fairness
+
+The present `ServeDaemonAgent` consumes, answers and replies on one goroutine.
+Do not put synchronous subscription fan-out on that reader. **P1 adds bounded
+separate dispatch lanes:** two workers for help/status/version/read/list, four
+for mutations, with bounded queues (64 read/control jobs, 64 mutations in total and at most
+16 waiting mutations per agent). Admission to a full lane returns a content-free busy
+answer; it never starts another goroutine. Schedule mutation-ready agents
+round-robin, at most one active mutation per agent. A hot agent cannot occupy
+all mutation workers, and fan-out cannot borrow read/control capacity.
+
+**P3 chooses delivery off the answer-reader path**, rather than merely waiting
+for each target on the sole reader. One write's mutation worker commits and
+publishes its entry, completes the bounded subscriber attempts, then answers.
+Pull/clean for that agent pass the same per-agent completion barrier, so they
+cannot erase an entry before its subscriber attempts finish. Read takes a
+snapshot without waiting for that delivery barrier. The engine catalog lock only finds per-agent state; id I/O and delivery do
+not hold that lock or the global registry mutex. No ring mutex stays held
+over a send. Other agents' reads and status/help use the
+reserved lane while a delivery is blocked.
+
+Use the existing non-waiting core queue-admission/send path, not HTTP calls
+back into the daemon. Cap each target attempt at one second and a write's
+whole fan-out at five seconds, or its remaining caller deadline if shorter;
+unattempted copies at the budget are dropped and counted once. These bounds
+do not permit a timed-out send goroutine to continue later: the delivery
+adapter must finish/cancel before the barrier is released. The current core
+queue send refuses a full target rather than waiting for its consumer.
+
+A readiness-barrier fixture holds one target's injected send pending, then
+issues an unrelated read and status. Both must answer while that send is still
+held; a named two-second assertion bounds the check, inside a longer fixture
+send budget. Only then release/cancel the target and verify pull, counts and
+single delivery. A serial-dispatch mutant must fail that reply assertion,
+not a harness timeout. Saturate one agent's mutation queue too: another
+agent still gets a worker, and control replies remain available. P1 owns the
+lane/fairness proof with an injected blocking operation; P3 repeats it through
+real subscription selection and delivery. This adds 15–25 AI minutes to P1
+and 10–20 to P3 over the first estimate; it is required work, not polish.
+
 ## The bus's own events
 
 Post-1.0: wire up the daemon's own start/stop, store, authentication, TLS and
@@ -258,12 +334,13 @@ mutants and two readers. No production log migration is in the R1 cut.
 | Part | Likely paths and subsystem letter | AI time | R1-min or later |
 |---|---|---|---|
 | Daemon ring engine + flood bounds, P1 | `src/internal/journal/` C ⚠️; core A ⚠️ | 25–35 min | R1 |
+| Bounded dispatch and reserved read/control lane, P1 | daemon agent E; core A ⚠️; harness M | 15–25 min | R1, required for P3 fairness |
 | Durable id high-water, P1 | `src/internal/ports/`, `store/`, `journal/` C ⚠️ | 15–25 min | R1, mandatory even for volatile entries |
 | Runner writers + bounded stderr, P2 W2B | `src/cmd/agent-bus-runner/`, `internal/script/` F ⚠️ | 20–30 min | R1, `s.bus` per agent |
 | Agent self-write, P1 | core A ⚠️; `src/internal/api/daemon_agent.go` E | 5–10 min | R1; no all-agent producer migration |
 | Read API + ACL, P1 | core A ⚠️; daemon agent E; help/docs H/N | 20–30 min | R1 via verbs |
 | Shared ring/vector adapters, P1 | `src/testdata/` M; eventlog/shared L; journal C ⚠️ | 10–20 min | R1 |
-| Subscriptions + durable management, P3 W2C | core A ⚠️; ports/store C ⚠️; daemon agent E | 30–45 min | Selected R1 cut |
+| Subscriptions + durable management, P3 W2C | core A ⚠️; ports/store C ⚠️; daemon agent E | 40–65 min | Selected R1 cut, including bounded fan-out |
 | P5 alerts on disk, after P3 | store/ports/journal C ⚠️ | 25–40 min | Pending owner, Q321; recommended for R1 |
 | `#bus` own events | `src/cmd/agent-busd/` H; core/journal A/C ⚠️ | 15–25 min | Post-1.0 |
 | Three-line preview + expand, P4 W1C | `src/web/` I; core/API A ⚠️/E | 20–35 min | Selected R1 cut |
@@ -275,7 +352,7 @@ mutants and two readers. No production log migration is in the R1 cut.
 P1 is W2C, target 11:40–12:40; P2 is W2B, P3 is W2C after P1, P4 is W1C.
 P5 follows P3 if the owner chooses disk alerts; P1 builds its storage seam now.
 P2 and P4 can build against the verb contract while P1 is implemented, then
-prove their integration against it. P1's counted scope is 95–155 minutes,
+prove their integration against it. P1's counted scope is 110–180 minutes,
 including its proof allocation: a one-hour slot is an aggressive target,
 not evidence that storage/ACL checks take no time. An overrun must be reported,
 not hidden by skipping tests. P3 follows the engine; readers and the gate
@@ -283,11 +360,11 @@ remain shared resources.
 
 | R1 choice | Summed AI time | Tree-ready moves later by, with the split | Calendar impact |
 |---|---|---|---|
-| R1-min without subscriptions or web, volatile entries | 1 h 55–3 h 05 | 2 h 05–3 h 35, including 30–60 min review/gate | Comparison only; moves the Nov 2 release run by one session and does not meet Q312 |
-| With subscriptions, without web | 2 h 25–3 h 50 | 2 h 35–4 h 20, including 30–60 min review/gate | Comparison only; same Nov 2 delay, but omits the owner's web requirement |
-| **Selected R1 scope: subscriptions + small web; memory-entry cost if Q321 chooses it** | **2 h 45–4 h 25** | **2 h 35–4 h 20**, P1 then P3, P2/P4 overlapped, plus 30–60 min review/gate | With an 11:40 start and no queue, tree-ready about 14:15–16:00 on Nov 2; late starts/findings can slip to Nov 3 |
-| Selected scope + P5 durable alerts, recommended, pending Q321 | 3 h 10–5 h 05 | 3 h–5 h, including its migration/restart proof | Same scope, longer Nov 2 window; alerts survive only within the shared retention limits |
-| Full listed set: durable alerts, `#bus` producers, front/migration | 4 h–6 h 30 | About 5–8 h with review/gates; migration is serial | Another full session; not the R1 cut |
+| R1-min without subscriptions or web, volatile entries | 2 h 10–3 h 30 | 2 h 20–4 h, including 30–60 min review/gate | Comparison only; moves the Nov 2 release run by one session and does not meet Q312 |
+| With subscriptions, without web | 2 h 50–4 h 35 | 3 h–5 h 05, including 30–60 min review/gate | Comparison only; same Nov 2 delay, but omits the owner's web requirement |
+| **Selected R1 scope: subscriptions + small web; memory-entry cost if Q321 chooses it** | **3 h 10–5 h 10** | **3 h–5 h 05**, P1 then P3, P2/P4 overlapped, plus 30–60 min review/gate | With an 11:40 start and no queue, tree-ready about 14:40–16:45 on Nov 2; late starts/findings can slip to Nov 3 |
+| Selected scope + P5 durable alerts, recommended, pending Q321 | 3 h 35–5 h 50 | 3 h 25–5 h 45, including its migration/restart proof | Same scope, longer Nov 2 window; alerts survive only within the shared retention limits |
+| Full listed set: durable alerts, `#bus` producers, front/migration | 4 h 25–7 h 15 | About 5½–8¾ h with review/gates; migration is serial | Another full session; not the R1 cut |
 
 These are delays from the existing release-run/Fable tree-ready point, not a
 new promised release date. Lock queues and findings add time. The earlier
