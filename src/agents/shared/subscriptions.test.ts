@@ -273,3 +273,16 @@ test("a send never starts once close has returned, and a later delivery is refus
   expect(await subs.deliver({}, "x", "x").catch(e => e.code)).toBe("store_unknown");
   expect(state.queries).toEqual([]);
 });
+
+test("subscription name vectors match protocol", async () => {
+  const { targetText } = await import("./subscriptions.ts");
+  const vectors = await Bun.file(new URL("../../testdata/client-conformance/subscription-names.json", import.meta.url)).json() as { accept: { name: string; canonical: string }[]; reject: string[] };
+  expect(vectors.accept.length).toBeGreaterThan(0); expect(vectors.reject.length).toBeGreaterThan(0);
+  for (const row of vectors.accept) {
+    expect({ name: row.name, canonical: targetText(row.name) }).toEqual({ name: row.name, canonical: row.canonical });
+    const { port } = fake([]);
+    const subs = new Subscriptions(port, row.name, { validateSelector() {}, selectorMatches() { return true; }, warning() {} });
+    expect(subs.source).toBe(row.canonical); subs.close();
+  }
+  for (const name of vectors.reject) expect({ name, error: code(() => targetText(name)) }).toEqual({ name, error: "invalid_target" });
+});

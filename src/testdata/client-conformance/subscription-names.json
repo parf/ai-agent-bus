@@ -1,0 +1,108 @@
+{
+  "accept": [
+    {
+      "name": "alice",
+      "canonical": "alice"
+    },
+    {
+      "name": "u+2@h",
+      "canonical": "u+2@h"
+    },
+    {
+      "name": "q+1@h",
+      "canonical": "q+1@h"
+    },
+    {
+      "name": "q@my_node",
+      "canonical": "q@my_node"
+    },
+    {
+      "name": "#a+b@h",
+      "canonical": "#a+b@h"
+    },
+    {
+      "name": "#a_b@my_node",
+      "canonical": "#a_b@my_node"
+    },
+    {
+      "name": "#mail/user+tag@example.com@my_node",
+      "canonical": "#mail/user+tag@example.com@my_node"
+    },
+    {
+      "name": "mail-sender / Parf+alerts@comfi.com @ HOST",
+      "canonical": "mail-sender/parf+alerts@comfi.com@host"
+    },
+    {
+      "name": "  #A_B@MY_NODE  ",
+      "canonical": "#a_b@my_node"
+    },
+    {
+      "name": "#u@x@h",
+      "canonical": "#u@x@h"
+    },
+    {
+      "name": "u@x@h",
+      "canonical": "u@x@h"
+    },
+    {
+      "name": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "canonical": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "name": "                                                                      a",
+      "canonical": "a"
+    },
+    {
+      "name": "\u0085Alice\u0085",
+      "canonical": "alice"
+    },
+    {
+      "name": "\u2003Alice\u2003",
+      "canonical": "alice"
+    },
+    {
+      "name": "a / b @ h",
+      "canonical": "a/b@h"
+    },
+    {
+      "name": "x\n@ h",
+      "canonical": "x@h"
+    },
+    {
+      "name": "#a / b",
+      "canonical": "#a/b"
+    }
+  ],
+  "reject": [
+    "",
+    "#",
+    "@h",
+    "x@",
+    "x@@h",
+    "x@x@@h",
+    "x/@h",
+    "x/y/z@h",
+    "x+y/z@h",
+    "x@h+1",
+    "x@_h",
+    "_x@h",
+    "+x@h",
+    "# x@h",
+    "##x@h",
+    "a b@h",
+    "\u00e9@h",
+    "a@h\u00e9",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "x/",
+    "/x",
+    "x\\y",
+    "x:2",
+    "x@h/x",
+    "a\u001c",
+    "\ufeffa",
+    "a\u0000",
+    "x@.h",
+    "x/@a@h"
+  ]
+}

@@ -119,3 +119,11 @@ For the daemon profile, revoking the source right after creation keeps delivery;
 revoking the creator's may-send to the target stops it. The target must also
 continue admitting `#bus`. This is [Q325](../../../Plans/R1.0-Release/DECISIONS.md),
 not a change to the app emitters' per-delivery source checks.
+
+## Subscription names
+
+`subscription-names.json` pins accepted/rejected subscription identities against
+[protocol names](../../../docs/01-identity-and-authority.md#names), including
+canonical spelling. Go's subscription engine and the shared Python/TypeScript
+helpers read the same file; Go also compares every case with `protocol.ParseName`.
+This is grammar coverage, separate from the event-subscription operations.

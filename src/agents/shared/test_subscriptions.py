@@ -379,3 +379,18 @@ class DaemonDelivery(unittest.TestCase):
                 if engine is not None:engine.close()
                 for client in clients:client.close()
                 process.stdin.close();process.wait(timeout=5);process.stdout.close()
+
+
+class NameVectors(unittest.TestCase):
+    def test_subscription_names_match_protocol(self):
+        vectors=json.loads((HERE.parents[1]/'testdata/client-conformance/subscription-names.json').read_text())
+        self.assertTrue(vectors['accept']);self.assertTrue(vectors['reject'])
+        for row in vectors['accept']:
+            with self.subTest(name=row['name']):
+                self.assertEqual(s.target_text(row['name']),row['canonical'])
+                self.assertEqual(s.identity(row['name']),row['canonical'])
+        for name in vectors['reject']:
+            with self.subTest(name=name):
+                for parse,code in ((s.target_text,'invalid_target'),(s.identity,'not_author')):
+                    with self.assertRaises(s.SubscriptionError) as caught:parse(name)
+                    self.assertEqual(caught.exception.code,code)

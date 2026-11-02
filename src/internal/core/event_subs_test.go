@@ -593,3 +593,40 @@ func TestSubAddRefusesATargetThatCannotTakeCopiesFromTheBus(t *testing.T) {
 		t.Fatalf("an absent target keeps the engine's own answer: %v", err)
 	}
 }
+
+func TestEventSubscriptionsAcceptAllProtocolNameComponents(t *testing.T) {
+	b := New()
+	b.SetDaemonOwner("owner@h")
+	if err := b.EstablishDaemonAgent("node.example"); err != nil {
+		t.Fatal(err)
+	}
+	for _, who := range []string{"u+2@h", "u@my_node", "u@x@h"} {
+		if _, err := b.SetUser("owner@h", protocol.User{Name: who}, true); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, target := range []string{"q+1@h", "q@my_node"} {
+		if _, err := b.Register(protocol.Record{Name: target, Kind: protocol.KindQueue, Owner: "owner@h", Allow: []string{"*"}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i, source := range []string{"#own2@h", "#own+2@h", "#own_2@my_node", "#own@x@h"} {
+		who := []string{"u+2@h", "u@my_node", "u@x@h"}[i%3]
+		if _, err := b.Register(protocol.Record{Name: source, Kind: protocol.KindAgent, Owner: who, Allow: []string{"*"}}); err != nil {
+			t.Fatal(err)
+		}
+		for _, target := range []string{"q+1@h", "q@my_node"} {
+			row, err := b.SubAdd(who, source, target, "", "")
+			if err != nil {
+				t.Fatalf("%s sub add %s -> %s: %v", who, source, target, err)
+			}
+			if row.CreatedBy != who || row.Target != target {
+				t.Fatalf("wrong subscription names: %+v", row)
+			}
+		}
+		rows, err := b.SubList(who, source)
+		if err != nil || len(rows) != 2 {
+			t.Fatalf("%s sub list %s: %d rows %v", who, source, len(rows), err)
+		}
+	}
+}
