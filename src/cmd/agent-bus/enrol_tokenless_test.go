@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -74,6 +75,13 @@ func TestEnrolWithoutATokenReachesTheDaemonAndOtherVerbsStayRefused(t *testing.T
 	_, _, err = call("GET", "/enrol", nil, nil)
 	if err == nil || err.Error() != "set AGENT_BUS_TOKEN" {
 		t.Fatalf("a tokenless GET /enrol = %v; want the local refusal (only POST is exempt)", err)
+	}
+	// The token check itself, below the protocol probe: only POST /enrol is exempt from it.
+	for _, c := range [][2]string{{"POST", "/token"}, {"POST", "/send"}, {"GET", "/enrol"}, {"POST", "/enrolx"}} {
+		_, _, err = callRawCtx(context.Background(), c[0], c[1], nil, map[string]any{})
+		if err == nil || err.Error() != "set AGENT_BUS_TOKEN" {
+			t.Fatalf("a tokenless %s %s = %v; want the local refusal", c[0], c[1], err)
+		}
 	}
 	if got, _ := seen(); len(got) != 1 {
 		t.Fatalf("the refused verbs reached the daemon: %v", got)
