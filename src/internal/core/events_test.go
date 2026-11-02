@@ -522,14 +522,14 @@ func TestEventCapabilitiesIgnoreAnInactiveAgent(t *testing.T) {
 	}
 }
 
-// A record that is not live, inactive itself or through its inactive User, is as absent as a missing
-// one to every caller who may ask about it (docs/01-identity-and-authority.md#user-states), through
-// every log call and `sub add`; the ACL still decides first, so a caller with no right learns nothing.
-func TestAnInactiveAgentsLogIsNotFoundForEveryCall(t *testing.T) {
+// A record that is not live, inactive itself or through its inactive User, is the zero record to every
+// log call and `sub` call: each caller's answer for it EQUALS that caller's answer for a name nobody
+// registered, so a former rights-holder cannot tell "suspended" from "gone" (and a caller with no
+// right still learns nothing). Nothing is listed, deleted or delivered from it meanwhile.
+func TestAnInactiveAgentsLogAnswersAsAMissingNameDoesForEveryCaller(t *testing.T) {
 	for _, how := range []string{"record inactive", "user inactive"} {
 		t.Run(how, func(t *testing.T) {
 			b := eventFixture(t)
-			known(t, b, "q@h")
 			if _, err := b.Register(protocol.Record{Name: "#sink@h", Kind: protocol.KindAgent, Owner: "alice@h", Allow: []string{"*"}}); err != nil {
 				t.Fatal(err)
 			}
@@ -540,7 +540,6 @@ func TestAnInactiveAgentsLogIsNotFoundForEveryCall(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			subID := row.ID
 			if how == "record inactive" {
 				if _, err := b.Manage("alice@h", Management{Name: "#a@h", Status: ptr("inactive")}); err != nil {
 					t.Fatal(err)
@@ -548,20 +547,28 @@ func TestAnInactiveAgentsLogIsNotFoundForEveryCall(t *testing.T) {
 			} else if _, err := b.SetUserState("owner@h", "alice@h", "inactive"); err != nil {
 				t.Fatal(err)
 			}
-			callers := []string{"maint@h", "owner@h"}
-			if how == "record inactive" {
-				callers = append(callers, "alice@h")
+			answers := func(who, target string) map[string]string {
+				out := map[string]string{}
+				code := func(name string, err error) { out[name] = eventlog.Code(err) }
+				_, err := b.EventRead(who, target, "")
+				code("read", err)
+				_, err = b.EventPull(who, target, "", 1)
+				code("pull", err)
+				_, err = b.EventClean(who, target, "", 0)
+				code("clean", err)
+				_, err = b.EventWrite(who, target, "notice", "x")
+				code("write", err)
+				_, err = b.SubAdd(who, target, "#sink@h", "", "")
+				code("sub add", err)
+				_, err = b.SubList(who, target)
+				code("sub list", err)
+				return out
 			}
-			for _, who := range callers {
-				calls := map[string]func() error{
-					"read":    func() error { _, err := b.EventRead(who, "#a@h", ""); return err },
-					"pull":    func() error { _, err := b.EventPull(who, "#a@h", "", 1); return err },
-					"clean":   func() error { _, err := b.EventClean(who, "#a@h", "", 0); return err },
-					"sub add": func() error { _, err := b.SubAdd(who, "#a@h", "#sink@h", "", ""); return err },
-				}
-				for name, call := range calls {
-					if got := eventlog.Code(call()); got != "not_found" {
-						t.Errorf("%s: %s of an inactive agent's log answered %q, want not_found", who, name, got)
+			for _, who := range []string{"maint@h", "owner@h", "alice@h", "bob@h", "#other@h", "#a@h"} {
+				inactive, missing := answers(who, "#a@h"), answers(who, "#ghost@h")
+				for name, want := range missing {
+					if inactive[name] != want {
+						t.Errorf("%s: %s answers %q for the inactive agent's log but %q for a missing name", who, name, inactive[name], want)
 					}
 				}
 				list, err := b.EventList(who)
@@ -571,19 +578,16 @@ func TestAnInactiveAgentsLogIsNotFoundForEveryCall(t *testing.T) {
 				if raw, _ := json.Marshal(list["logs"]); strings.Contains(string(raw), "#a@h") {
 					t.Errorf("%s: list shows the inactive agent's log: %s", who, raw)
 				}
-				if _, err := b.SubList(who, "#a@h"); eventlog.Code(err) != "not_found" {
-					t.Errorf("%s: sub list of an inactive agent's log: %v", who, err)
-				}
-				if entries, err := b.SubList(who, ""); err != nil || len(entries) != 0 {
+				if entries, err := b.SubList(who, ""); err != nil && eventlog.Code(err) != "forbidden" || len(entries) != 0 {
 					t.Errorf("%s: unscoped sub list shows the inactive agent's subscriptions: %v %v", who, entries, err)
 				}
-				if got := eventlog.Code(b.SubDelete(who, subID)); got != "not_found" {
-					t.Errorf("%s: sub delete on an inactive agent's log answered %q, want not_found", who, got)
+				if got, want := eventlog.Code(b.SubDelete(who, row.ID)), eventlog.Code(b.SubDelete(who, "000000000000")); got != want {
+					t.Errorf("%s: sub delete answers %q for an inactive agent's subscription but %q for a missing one", who, got, want)
 				}
 			}
-			// The ACL still decides first: a caller with no right to the name is forbidden, not told "not found".
-			if _, err := b.EventRead("bob@h", "#a@h", ""); eventlog.Code(err) != "forbidden" {
-				t.Errorf("a stranger asking about the inactive agent's log: %v", err)
+			// Nothing is delivered from an inactive source while it is suspended: every write above was refused.
+			if got := drain(t, b, "#sink@h"); len(got) != 0 {
+				t.Errorf("%d copies reached the subscription's target from an inactive source", len(got))
 			}
 		})
 	}

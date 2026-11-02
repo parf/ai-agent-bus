@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.297 — 2026-11-02
+
+An inactive agent's log, or one whose User is inactive, answers every log and sub call as a missing name does
+
 ## 0.9.296 — 2026-11-02
 
 agent-bus enrol reaches the daemon without a token, so a newcomer can join

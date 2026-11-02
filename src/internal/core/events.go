@@ -59,10 +59,11 @@ func (b *Bus) eventAccess(caller, target string, write bool) (protocol.Record, *
 	if b.acting(caller) != nil {
 		return protocol.Record{}, nil, nil, eventlog.Error("forbidden")
 	}
-	// The ACL is decided on the registration as it is, so a caller with no right to the name learns
-	// nothing; then a record that is not live (inactive, or its User inactive) is as absent as a
-	// missing one, whoever asks (docs/01-identity-and-authority.md#user-states).
-	r, ok := b.records[target]
+	// A record that is not live (inactive, or its User inactive) is the zero record here, as a missing
+	// name is, so every caller gets the same answer for the two and a former rights-holder cannot tell
+	// "suspended" from "gone" (docs/01-identity-and-authority.md#user-states). The ACL decides first
+	// on what remains.
+	r, ok := b.entity(target)
 	allowed := b.eventReader(caller, r)
 	if write {
 		allowed = caller == b.admin || caller == target
@@ -70,7 +71,7 @@ func (b *Bus) eventAccess(caller, target string, write bool) (protocol.Record, *
 	if !allowed {
 		return protocol.Record{}, nil, nil, eventlog.Error("forbidden")
 	}
-	if _, live := b.entity(target); !ok || !live || r.Kind != protocol.KindAgent {
+	if !ok || r.Kind != protocol.KindAgent {
 		return protocol.Record{}, nil, nil, eventlog.Error("not_found")
 	}
 	if b.events == nil {
