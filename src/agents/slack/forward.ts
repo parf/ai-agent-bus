@@ -4,6 +4,14 @@ import type { ChatSubscriptions } from "../shared/subscription-port.ts";
 const queueMax = Number(process.env.SLACK_AGENT_QUEUE ?? "1000");
 const dedupMax = 1000;
 const forwardedSubtypes = new Set([undefined, "thread_broadcast", "bot_message"]);
+/** How long start-up asks Slack who the agent is: 20 s. SLACK_AGENT_IDENTITY_GIVE_MS is a hook for
+ *  the tests, not a setting (and not in the user docs): unset is the default, anything but a
+ *  positive whole number of milliseconds is an `error` and the agent refuses to start. */
+export function identityGiveMs(raw: string | undefined): { ms: number } | { error: string } {
+  if (raw === undefined) return { ms: 20_000 };
+  if (/^[1-9][0-9]{0,8}$/.test(raw)) return { ms: Number(raw) };
+  return { error: "SLACK_AGENT_IDENTITY_GIVE_MS must be a positive whole number of milliseconds" };
+}
 export type Identity = { botUser?: string; botId?: string; appId?: string };
 export type ForwardDeps = {
   route?(event: any, identity: Identity): Promise<void | false>;

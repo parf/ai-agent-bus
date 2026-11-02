@@ -20,7 +20,7 @@ import { DeadlinePassed, endpoint, scrub, slackWeb } from "./slackapi.js";
 import { parseCall, type Call } from "./parse.js";
 import { BusError, KVNotFound } from "../../clients/typescript/src/index.js";
 import { ChatPort, ChatSubscriptions, staff as mayChangeSubscriptions, subscriptionList } from "../shared/subscription-port.ts";
-import { Forwarder, Posted, type Identity } from "./forward.js";
+import { Forwarder, Posted, identityGiveMs, type Identity } from "./forward.js";
 import { SocketMode } from "./socket.js";
 import { postAs } from "./postas.js";
 import { describe } from "./describe.js";
@@ -577,6 +577,12 @@ function keepAsking(): void {
   })();
 }
 
+// A bad test hook is a configuration error, said before anything starts (exit 78, as an unconfigured agent).
+const giveMs = identityGiveMs(process.env.SLACK_AGENT_IDENTITY_GIVE_MS);
+if ("error" in giveMs) {
+  console.error(`slack: ${giveMs.error}`);
+  process.exit(78);
+}
 await bus.register({ name, kind: "agent", descr: manifest.description }, { createOnly: false });
 // While it initializes the agent answers asks and only asks (RT25): an
 // asks-only read takes `status` and the help asks, and ordinary messages stay
@@ -623,7 +629,7 @@ await router.load();
 // If it still fails the agent starts anyway, says so once, and keeps asking
 // in the background; `status` is "ok" only once it knows.
 {
-  const give = Date.now() + Number(process.env.SLACK_AGENT_IDENTITY_GIVE_MS ?? "20000");
+  const give = Date.now() + (giveMs as { ms: number }).ms;
   for (let attempt = 1; !(await ensureIdentity()) && Date.now() < give; attempt++) {
     phase = `starting: waiting for Slack to say who the agent is (try ${attempt})`;
     await new Promise(done => setTimeout(done, Math.min(500 * 2 ** (attempt - 1), 4000)));

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 process.env.SLACK_AGENT_QUEUE = "3";
 // A distinct module instance pins this fixture even if J22 imported the default first.
-const { Forwarder } = await import("./forward.ts?queue-fixture");
+const { Forwarder, identityGiveMs } = await import("./forward.ts?queue-fixture");
 delete process.env.SLACK_AGENT_QUEUE;
 const event = (text = "x", extra = {}) => ({ type: "message", channel: "C1", user: "U1", text, ts: text, ...extra });
 function fixture(over: any = {}) {
@@ -78,4 +78,12 @@ test("stop is bounded, closes shared workers and refuses further intake", async 
   x.f.admit(event(), "one");
   const result = await Promise.race([x.f.stop(50).then(() => "stopped"), Bun.sleep(1000).then(() => "hung")]);
   expect(result).toBe("stopped"); expect(closed).toBe(1);
+});
+
+test("the start-up identity wait takes only a positive whole number; anything else is an error", () => {
+  expect(identityGiveMs(undefined)).toEqual({ ms: 20_000 });
+  expect(identityGiveMs("1500")).toEqual({ ms: 1500 });
+  for (const bad of ["abc", "", "-5", "0", "1.5", "1e3", " 7", "99999999999"]) {
+    expect(identityGiveMs(bad)).toEqual({ error: "SLACK_AGENT_IDENTITY_GIVE_MS must be a positive whole number of milliseconds" });
+  }
 });

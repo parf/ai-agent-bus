@@ -74,9 +74,23 @@ test("an identity lost again is asked for again with no event to prompt it", asy
   const bus = Bus.connect({ addr: fx.socket, token: callerToken });
   expect(await until(bus, s => s === "ok", 5000)).toBe("ok");
   for (let i = 0; i < 100 && sockets.length === 0; i++) await Bun.sleep(50);
-  failUntil = Date.now() + 2500;
+  failUntil = Date.now() + 5000; // longer than the event's own 3 retries (~1.75 s), so only the background asker can recover it
   await secret("xoxb-second"); // a new token: the identity learned for the old one no longer counts
   for (const ws of sockets) ws.send(JSON.stringify({ envelope_id: "e1", type: "events_api", payload: { event_id: "Ev1", event: { type: "message", channel: "C1", user: "U1", text: "hello", ts: "1.1" } } }));
   expect(await until(bus, s => s.startsWith("not ready"), 10000)).toStartWith("not ready");
   expect(await until(bus, s => s === "ok", 30000)).toBe("ok"); // and with no second event
 }, 90000);
+
+test("a bad start-up wait setting refuses to start the agent, naming it", async () => {
+  const token = (await fx.call(fx.ownerToken, "POST", "/token", { name })).token;
+  for (const bad of ["abc", "", "-5"]) {
+    const child = spawn(["bun", "slack.ts"], {
+      cwd: import.meta.dir,
+      env: { ...process.env, AGENT_BUS_ADDR: fx.socket, AGENT_BUS_NAME: name, AGENT_BUS_TOKEN: token, SLACK_AGENT_IDENTITY_GIVE_MS: bad },
+      stdout: "pipe", stderr: "pipe",
+    });
+    const [code, err] = await Promise.all([child.exited, new Response(child.stderr).text()]);
+    expect(code).toBe(78);
+    expect(err).toContain("SLACK_AGENT_IDENTITY_GIVE_MS must be a positive whole number");
+  }
+}, 30000);
