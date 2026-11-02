@@ -55,7 +55,7 @@ flowchart LR
     S -. "no reply or a refusal: stays pending, sent again" .-> R1
 ```
 
-- One poll at a time: a lock file in the work directory is held for the poll, so a timer poll and a `poll` call never overlap.
+- One poll at a time: a lock file in the work directory is held for the poll, so a timer poll and a poll asked for by hand never overlap.
 - A row is *pending* for a subscriber until that subscriber's reply says ok; then it is *tracked*. A failed or unanswered send stays pending and goes out again on the next tick ([Q310](QUESTIONS.md#filescan) applies the same way).
 - The only thing DBSync asks the database for is one `query` of the [DB agent](../../docs/agents/db.md#what-it-does), a read; the only place it writes is its own work directory.
 
@@ -75,35 +75,9 @@ How the two share code is [Q314](QUESTIONS.md#dbsync); [FileScan](filescan.md#qu
 
 ## How it is used
 
-| I want to… | Command |
-|---|---|
-| Feed my table to RAG | `agent-bus call '#dbsync/orders@node.example' 'sub add #rag@node.example'` |
-| Get new rows in Telegram | `agent-bus call '#dbsync/orders@node.example' 'sub add #telegram@node.example'` |
-| Poll now | `agent-bus call '#dbsync/orders@node.example' 'poll'` |
-| See the cursor, the backlog and each subscriber's progress | `agent-bus call '#dbsync/orders@node.example' 'status'` |
-| Forget everything and start over | `agent-bus call '#dbsync/orders@node.example' 'reset confirm:true'` |
-
-| Call | Does |
-|---|---|
-| `poll` | Asks the database now |
-| `status` | The cursor, the last poll, the backlog per subscriber, pending count, whether the last answer was cut, state size against its cap |
-| `reset confirm:true` | Drops the saved state and starts from the table as it is now |
-| `sub add <target> [replay:true]` | Subscribes an agent or queue to changes |
-| `sub list` | Your subscriptions with sent, confirmed, pending and dropped counts |
-| `sub delete <id>` | Removes one and its saved marks |
-
-Settings, in the agent's Configuration:
-
-| Setting | Meaning | Default |
-|---|---|---|
-| `db` | The DB agent to ask; it must be a read-only one ([decision](#decisions)) | none, required |
-| `table`, `key`, `updated` | The table, the key column and the `updated` column | none, required |
-| `columns` | Columns sent with each row | all that the answer holds |
-| `every` | Poll interval | 5 minutes |
-| `lookback` | How far behind database time a row may still arrive late ([late commits](#late-commits)) | set by [Q317](QUESTIONS.md#dbsync) |
-| `batch` | Rows asked per query, well under the DB agent's `max_rows` ([paging](#paging)) | half of `max_rows` |
-| `baseline` | `true` records the rows that exist at the first poll without sending them | `false` |
-| `state_max` | Cap on the state file | 64 MiB |
+- **Subscribe:** a subscriber names the target, as in `agent-bus call '#dbsync/orders@node.example' 'sub add #rag@node.example'`; the same subscription calls as [FileScan](filescan.md#how-it-is-used) list and delete them.
+- **Poll now, status, reset:** a person can ask for a poll at once, see the cursor, the backlog per subscriber, the last poll and whether the last answer was cut, and drop the saved state to start from the table as it is now (after confirming).
+- **Configuration, in words:** the Owner names the read-only DB agent, the table, the key column and the `updated` column, the columns to send, the poll interval, the lookback, whether the first run only records what exists, and a cap on the state file. The exact setting names, argument forms and defaults are fixed at implementation, not here.
 
 ## What a message carries
 
@@ -115,20 +89,23 @@ Settings, in the agent's Configuration:
 
 - **A decision, not a choice:** the position is the pair (`updated`, key), never `updated` alone. A batch that ends in the middle of rows sharing one timestamp would otherwise skip the rest of them.
 - A poll asks for rows whose `updated` is greater than the cursor's, or equal with a key greater than the cursor's key. It is written as the two plain comparisons, not as a row-value comparison, because that form differs across engines ([dialects](#dialects)).
-- **Types:** the `updated` column and the key must be numeric or timestamp types ([Q318](QUESTIONS.md#dbsync)). A text key is refused when the subscription is added.
+- **The type guard** ([Q318](QUESTIONS.md#dbsync)): the declared `updated` column and key column must be numeric or timestamp types, as the database reports them. DBSync counts the declared columns that are not, and refuses when the count is above zero.
+- **When it refuses:** when the Owner's configuration is loaded, and again at `sub add`. The refusal is a named error that says how many columns failed and which, for example `cannot sync: 1 of 2 cursor columns is not numeric or timestamp: key "sku" is text`. Nothing is quoted, escaped or coerced to get past it.
 - The cursor is stored as the database returned it, as text, never through a floating-point number, so a timestamp's precision is the column's own.
 
 ## Paging
 
-- The query orders by (`updated`, key) and limits to `batch`, which is kept under `max_rows` by a clear margin.
-- A *cut* answer (the DB agent's notice that `max_rows` stopped the result) means more rows wait, never "done": the next query starts at the last row received, with no pause for the timer.
-- If an operator lowers `max_rows` after a cursor is saved, the cursor stays valid; each query still fits because `batch` is reduced to the new limit at the next poll, and `status` says so. If `batch` is configured at or above `max_rows`, the agent refuses to run and says why: a result always cut at its first row would never advance.
+- **One rule:** a page is `max_rows` minus a margin, the margin being a tenth of `max_rows` and at least 1. The query orders by (`updated`, key) and limits to the page. The page is recomputed from the DB agent's current `max_rows` at every poll, so lowering `max_rows` after a cursor is saved changes the next page and nothing else; the cursor stays valid.
+- **Refusal on size:** when the page would be under 1, DBSync does not run and says so in `status` and an alert. `max_rows` 1 is refused (margin 1, page 0); `max_rows` 2 gives a page of 1.
+- A *cut* answer (the DB agent's notice that a cap stopped the result) with at least one new row means more rows wait, never "done": the next query starts at the last row received, with no pause for the timer.
+- **A cut with no new row** is possible: the DB agent also cuts on a byte cap before it appends a row ([db agent](../../src/agents/db/db.py)), so one very large row comes back as a cut with nothing in it.
+- **No-progress refusal:** a poll whose answer is cut and whose cursor did not advance stops there, never loops. DBSync alerts, names the key it was stuck on if known, and refuses further polls until the Owner narrows the columns or the row is gone; the cursor is not moved past an unread row.
 
 ## Late commits
 
 - A transaction can commit after a newer row and still carry an older `updated` value, so a cursor that moves to the newest row seen would never see it.
-- **Lookback:** each poll also asks for rows within `lookback` before the cursor, measured by the database's own clock (`now()` in the query), never by the agent's, so a skewed host cannot widen or narrow it.
-- **De-duplication:** the state keeps the pairs already delivered for the window, so a row asked for again is sent only if its `updated` value or key is new. A row changed again inside the window has a new `updated` and is sent again, which is what a subscriber wants.
+- **One cutoff, by database time:** each poll computes a floor of `now()` in the query minus the lookback, never the agent's clock, and asks from the earlier of the floor and the cursor. In steady state the cursor is recent, so the floor is the start and rows already delivered are read again; with a stale cursor or a backlog (agent stopped, subscriber slow, many rows) the cursor is the older one, the poll starts at the cursor and the lookback adds nothing until DBSync has caught up.
+- **De-duplication:** the state keeps the delivered pairs whose `updated` is at or after the floor and drops older ones, so a row asked for again is sent only if its `updated` value or key is new. A row changed again inside the window has a new `updated` and is sent again, which is what a subscriber wants.
 - **A row that commits later than the lookback is lost to DBSync.** That limit is stated in `status` and in the guide; the size of the window is [Q317](QUESTIONS.md#dbsync).
 
 ## Deletes
@@ -145,7 +122,7 @@ A deleted row leaves nothing for `updated > cursor` to see. Three ways, one chos
 
 - One file in the agent's work directory (`AGENT_BUS_WORK`), written whole to a temporary file, flushed, then renamed over the old one, as in [FileScan](filescan.md#state). No key-value use.
 - It holds the cursor, the lookback window's delivered pairs, and per subscriber what it has confirmed. A subscriber added later starts from now ([Q307](QUESTIONS.md#filescan) applies the same way).
-- **At the cap:** the poll is refused with a message naming the size and the setting, and the old file stays untouched.
+- **At the cap:** the poll is refused with a message naming the size and the cap, and the old file stays untouched.
 
 ## Who may use it
 
@@ -159,23 +136,23 @@ This is [FileScan's model](filescan.md#who-may-use-it) and the [shared subscript
 
 DBSync relies only on what [`#db`](../../docs/agents/db.md#what-it-does) does today and invents no call format.
 
-- One `query` statement per call, with **no bind parameters**: the statement is text, so DBSync builds it from validated settings and numeric or timestamp cursor values only ([Q318](QUESTIONS.md#dbsync)). Table and column names must match a plain identifier pattern or the setting is refused.
+- One `query` statement per call, with **no bind parameters**: the statement is text, so DBSync builds it from validated settings and numeric or timestamp cursor values only ([Q318](QUESTIONS.md#dbsync)). Table and column names must match a plain identifier pattern or the configuration is refused.
 - Results are cut at `max_rows` (1 to 10000, default 1000) with a notice, which DBSync reads as "more to fetch".
-- Roles are `read`, `write` and `admin`; DBSync's instance is a `read` caller, and the database refuses any write, so an error in building the statement cannot change a row.
+- Roles are `read`, `write` and `admin`; the DBSync instance is a `read` caller, and the database refuses any write, so an error in building the statement cannot change a row.
 - MySQL (and MariaDB), PostgreSQL and ClickHouse; a DB agent for another engine is not supported.
 
 ## Dialects
 
 - **Comparison:** the two-comparison form above works on all three engines.
 - **Timestamp precision** differs (seconds, microseconds, a column's own fraction). The cursor is stored and sent back at the precision the database returned; a column that truncates differently from its stored value is a configuration error DBSync cannot detect, so the guide says to use the column the application sets.
-- **ClickHouse has no transactions,** so a row is visible when written and late-commit order does not apply; `lookback` still covers rows inserted with an old `updated`. Whether R1.1 supports ClickHouse is [Q319](QUESTIONS.md#dbsync).
+- **ClickHouse has no transactions,** so a row is visible when written and late-commit order does not apply; the lookback still covers rows inserted with an old `updated`. Whether R1.1 supports ClickHouse is [Q319](QUESTIONS.md#dbsync).
 - **Lookback and time** use `now()` in the SQL for each engine, so the unit differs per dialect and is part of F-step acceptance.
 
 ## First run
 
-- Default: the first poll queues every row, `batch` at a time; `status` shows the backlog shrinking.
-- `baseline: true` records the newest position without sending anything, so only later changes go out.
-- A paid target (RAG) should use `baseline` on a big table.
+- Default: the first poll queues every row, a page at a time; `status` shows the backlog shrinking.
+- The first-run option records the newest position without sending anything, so only later changes go out.
+- A paid target (RAG) should use that option on a big table.
 
 ## Decisions
 
@@ -186,9 +163,9 @@ Plan decisions that need no owner answer; the owner may overrule any of them.
 | The cursor is (`updated`, key) | Rows sharing a timestamp are never skipped |
 | DBSync runs against a read-only DB agent | It only reads; a read-only account makes a statement-building bug harmless |
 | No inotify or other instant mode | A database has no event source the DB agent offers; the timer is the trigger |
-| `lookback` is measured by database time | An agent clock may differ from the database's |
-| A cut answer means more to fetch | `max_rows` is a page size, not an end |
-| Only identifiers matching a plain pattern, and only numeric or timestamp cursor values, reach the statement text ([Q318](QUESTIONS.md#dbsync) holds the alternatives) | There are no binds, and tolerant quoting would hide a mistake |
+| The lookback is measured by database time | An agent clock may differ from the database's |
+| A cut answer with a new row means more to fetch; a cut with none is a refusal | `max_rows` is a page size, not an end, and a loop must not hide a stuck row |
+| Only identifiers matching a plain pattern, and only numeric or timestamp cursor values, reach the statement text; the [type guard](#the-cursor) refuses the rest ([Q318](QUESTIONS.md#dbsync) holds the alternatives) | There are no binds, and tolerant quoting would hide a mistake |
 
 ## Steps and estimate
 
@@ -197,7 +174,7 @@ AI time, agent wall-clock, including reviews and gate loops.
 | Step | Builds | Estimate |
 |---|---|---|
 | D0 | Shared core (state file, subscriptions, delivery) if [Q314](QUESTIONS.md#dbsync) chooses it, extracted from FileScan's F1 | 40 to 60 min |
-| D1 | Agent: configuration, validation, the query builder, cursor and paging, `poll` `status` `reset`, subscriptions with confirm and resend | 90 to 120 min |
+| D1 | Agent: configuration, validation, the query builder, cursor and paging, poll, status and reset, subscriptions with confirm and resend | 90 to 120 min |
 | D2 | Lookback and de-duplication, dialect lines for each engine, the chosen delete way | 60 to 90 min |
 | D3 | Smoke lines against the existing DB fixture, the user guide in `docs/agents/`, and the mutants | 45 to 60 min |
 

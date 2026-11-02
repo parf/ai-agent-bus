@@ -188,13 +188,15 @@ Owner, 2026-11-01; plan in [filescan](filescan.md#steps-and-estimate), owner cho
 
 Owner, 2026-11-02; plan in [dbsync](dbsync.md#steps-and-estimate), open [Q314–Q319](QUESTIONS.md#dbsync). Plan only: no code until the owner approves.
 
-- ☐ DS.1 `#dbsync/<name>`: a runner agent that tracks new and changed rows of one table by an `updated` column, asks through a read-only [DB agent](../../docs/agents/db.md#what-it-does), and hands the rows to subscribed agents; steps D0–D3 with an estimate of four to five hours of agent time
-  - Depends: the DB agent (built); [FS.1](#filescan) for the shared core if [Q314](QUESTIONS.md#dbsync) says so
+- ⛔ DS.1 `#dbsync/<name>`: a runner agent that tracks new and changed rows of one table by an `updated` column, asks through a read-only [DB agent](../../docs/agents/db.md#what-it-does), and hands the rows to subscribed agents; steps D0–D3 with an estimate of four to five hours of agent time
+  - Depends: the DB agent (built); the owner's answers to [Q314–Q319](QUESTIONS.md#dbsync); [FS.1](#filescan) for the shared core if Q314 says so
   - Acceptance, each against the DB fixture and a fake subscriber, never the live bus:
     - **Cursor:** three rows sharing one `updated` value with `batch` of two are all sent, once each; a cursor on `updated` alone fails this
-    - **Paging:** a cut answer triggers the next query at once; `batch` at or above `max_rows` is refused
+    - **Paging:** a cut answer with a new row triggers the next query at once; the page is `max_rows` minus its margin, recomputed each poll; `max_rows` 1 is refused with an alert; `max_rows` lowered after a cursor is saved gives a smaller page and the same cursor
+    - **No progress:** a fixture row larger than the DB agent's byte cap returns a cut with no row; DBSync alerts and stops, the cursor does not move, and a second poll does not loop; removing the refusal makes this check hang or advance past the row and fail on an assertion
     - **Late commit:** a row committed after a newer one with an older `updated`, inside `lookback`, is sent once; outside it, it is not
-    - **No binds:** a text key or a name outside the identifier pattern is refused at configuration and at `sub add`
+    - **Type guard:** a text key, or a text or non-timestamp `updated`, makes configuration load and `sub add` refuse with the named error that counts the failing columns (1 of 2, 2 of 2); a numeric key with a timestamp `updated` passes; a name outside the identifier pattern is refused; the statement text never carries a quote from a cursor value
+    - **Lookback:** a stale cursor older than the floor starts at the cursor; a recent one starts at the floor by the database's clock, not the agent's (a skewed agent clock changes nothing)
     - **Read only:** every statement the agent sends is a read, and a write attempted through its tier is refused by the database
     - **Authority:** an author without may-send to the DB agent is refused at `sub add` and before a forward
     - **Resend:** a refused or unanswered send stays pending and is sent again; a confirmed one is not

@@ -153,33 +153,33 @@ Open choices for [dbsync](dbsync.md#questions).
 - ❓ Q314 How DBSync and FileScan share code
   - Context: both keep one state file, subscriptions with confirm and resend, and delivery
   - ( ) One shared core module that both agents use 🌟
-  - ( ) Copy the code into each agent
+  - ( ) Copy the code into each agent ⭐
   > 💡👾 Shared core: two copies of the resend and authority logic would drift, and the authority part is ⚠️.
 
 - ❓ Q315 Whose DB-agent grant the query runs under
   - Context: the subscription author's rights to the target are checked as in [FileScan](filescan.md#who-may-use-it); the query itself reads data
   - ( ) The DBSync instance's own grant, fixed by its Owner; the author also needs may-send to the DB agent at `sub add` and before every forward, so nobody reads through DBSync what they could not read directly 🌟
+  - ( ) The instance's own grant alone, with no author check on the DB agent ⭐
   - ( ) The subscriber's grant, forwarded per query
-  - ( ) The instance's own grant alone, with no author check on the DB agent
   > 💡👾 Own grant plus the author's check: a forwarded grant has no way to travel through a timer-driven poll.
 
 - ❓ Q316 How a delete is noticed
   - ( ) Soft delete (a marked row keeps a new `updated`) first; the key diff later if wanted 🌟
-  - ( ) Periodic key diff with a mass-delete guard now
+  - ( ) Periodic key diff with a mass-delete guard now ⭐
   - ( ) Never; document that deletes are invisible
   > 💡👾 Soft delete is exact and cheap; a key diff costs a full key listing capped by `max_rows`.
 
 - ❓ Q317 The late-commit lookback
   - ( ) Default 5 minutes, configurable, with de-duplication marks for that window 🌟
+  - ( ) A long window (an hour) by default ⭐
   - ( ) No lookback: the cursor alone, late commits lost
-  - ( ) A long window (an hour) by default
   > 💡👾 Five minutes covers ordinary transactions at the price of a small re-read; a long one costs state and queries.
 
 - ❓ Q318 Cursor and key types without bind parameters
   - Context: the DB agent takes one statement of text and has no binds
-  - ( ) Only numeric or timestamp types in R1.1; the guard counts and refuses at `sub add` and at configuration, never tolerant quoting 🌟
+  - ( ) Only numeric or timestamp types in R1.1; the [type guard](dbsync.md#the-cursor) counts the declared cursor and key columns that are not and refuses at configuration and at `sub add`, never tolerant quoting 🌟
+  - ( ) Add binds to the DB agent first, as its own item ⭐
   - ( ) Allow text keys through each engine's literal quoting
-  - ( ) Add binds to the DB agent first, as its own item
   > 💡👾 Numeric and timestamp only: no quoting to get wrong; a DB-agent bind feature can widen it later.
 
 - ❓ Q319 ClickHouse in R1.1
