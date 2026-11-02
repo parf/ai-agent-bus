@@ -29,7 +29,7 @@ The diagram is a proposed reading aid, not a claim that these examples already r
 
 ```mermaid
 flowchart TB
-    D["Daemon — #bus: registry, queues, ACL"]
+    D["Daemon (agent-busd)"]
     D <-->|"Bus protocol"| C["CLI — agent-bus run"]
     D <-->|"Bus protocol"| R["Runner — agent-bus-runner"]
     D <-->|"Bus protocol"| P["Own process — client library or HTTP"]
@@ -144,7 +144,11 @@ CLI, runner/sandbox/cgroup/script, client code and the example directory,
 their navigation pages. Include these paths with the tags: tags alone do not
 bypass the selector's path filter. Add selection assertions with named reasons
 for an H, F, K, N guide-doc and M helper change; do not promote every docs change
-just to cover these pages.
+just to cover these pages. M is included because the proposed helper path
+`src/acceptance/agent-guide` maps to M; the `paths` list, not the M tag,
+scopes the shard away from unrelated M paths during ordinary path selection.
+Shared smoke/build edits and explicit subsystem overrides remain broader
+selection triggers under the existing selector rules.
 
 - **Fast:** the bash time service only, on a test bus; explicit argv allowlist,
   measured within the fast budget. No Python/build-everything/confined runner.
@@ -187,10 +191,12 @@ runner fixture work, so it is larger than merely adding prose.
 |---|---|---|
 | Checklist/top diagram and three pages | 13:35–13:55 | Reading path, source-region quotes and canonical links; gaps stay explicit |
 | Bash/Python examples and common assertions | 13:55–14:25 | Same simple/advanced time behavior, packaging and bounded private runner helper |
-| One shard and drift selection | 14:25–14:50 | H/F/K/N/M selection proofs, fast timing, normal confinement and slow enforcement proof |
-| Review and findings | 14:50–15:05 | One docs reader; two readers for any new confinement/runner harness boundary; final executed outputs |
+| One shard and drift selection | 14:25–15:05 | Shared smoke.sh/smoke-map.json/smoke selection tests; H/F/K/N/M proofs; measured fast timing, normal run under budget and CPU-limit enforcement on a real cgroup |
+| Review and findings | 15:05–15:35 | Two readers for the runner/confinement harness boundary, docs review and fixes; final executed outputs |
 
-Target ready **15:05 EST**, earliest landing after review/gate availability;
+Implementation ready **15:05 EST**, review complete about **15:35 EST**.
+This adds roughly 25–30 minutes for shared-shard wiring, measurements and
+review over the earlier estimate. Earliest landing follows gate availability;
 shift each window by any later GO. P3/T-31d subscription readiness and resolving
 owning-rule gaps can delay the optional exercises. Native-platform confinement
 availability must be measured, not inferred from prose. No release-ready claim
@@ -220,9 +226,9 @@ as a gap is a proposed place to resolve it, not evidence of a rule already there
   safe configuration summary. The runner answers starting/stopping/failed
   lifecycle states anyway. Owner: [Agent self-description](../../docs/constitution.md#agent-self-description).
   **Gap 7:** dispatch is documented, running-status content guidance is not.
-  Illustrative answer, not a run: “Indexing reports; local backlog: 3;
-  last error: none; configuration: read-only reports scope.” Never dump private
-  values or raw errors. Status is suggested, not required of every agent.
+  Never dump private values or raw errors. Status is suggested, not required
+  of every agent; publish no sample answer until the advanced time-service
+  check executes and asserts it.
 
 - **Separate Configuration from Secret, then read each correctly.** Non-secret
   settings belong in the record's Configuration, readable by Owner/Maintainers;
