@@ -210,8 +210,13 @@ state=$(runner_call status)
 for a in time-simple time-advanced probe; do
   has "the runner serves $a" "$state" "\"name\":\"#$a@localhost\",\"enabled\":true,\"state\":\"idle\""
 done
-for _ in $(seq 1 100); do wait_reader '#time-process@localhost' && break; done
-has "the packaged process is the reader of its own inbox" "$(gb asker@localhost ls '#time-process@localhost')" '"readers":1'
+# The listing is read until the process is the reader, bounded: the runner may restart it once while it settles.
+for _ in $(seq 1 100); do
+  listing=$(gb asker@localhost ls '#time-process@localhost' 2>/dev/null)
+  case $listing in *'"readers":1'*) break ;; esac
+  sleep 0.1
+done
+has "the packaged process is the reader of its own inbox" "$listing" '"readers":1'
 
 S=#time-simple@localhost
 before=$(NOW); got=$(answer "$S" asker@localhost epoch); after=$(NOW)
