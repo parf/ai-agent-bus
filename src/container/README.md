@@ -21,6 +21,7 @@ It checks the selected archive's checksum, then its inner manifest:
 
 - `SHA256SUMS` takes precedence; a missing selected line fails even if a sidecar exists.
 - A local `src/package.sh` directory supplies `<archive>.sha256`, used only when `SHA256SUMS` is absent.
+- Verification and unpacking happen in a builder stage; only the unpacked tree enters the final image, without release-input archive layers.
 
 ```sh
 src/package.sh tmp/dist

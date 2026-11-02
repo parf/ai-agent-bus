@@ -5,7 +5,7 @@
 # (docker buildx build takes the same --build-context). Pick the archive with
 # --build-arg ARCHIVE=agent-bus-<version>-linux-<arch>.tar.gz when the
 # directory holds more than one release.
-FROM docker.io/library/almalinux:10-minimal@sha256:350ccb15938e7dcabdbc296f38c0cab9c5828ae30f4297d8cb2f82b2119fac4a
+FROM docker.io/library/almalinux:10-minimal@sha256:350ccb15938e7dcabdbc296f38c0cab9c5828ae30f4297d8cb2f82b2119fac4a AS runtime-base
 
 # python3 runs the bundled agents; ca-certificates lets agents reach HTTPS;
 # util-linux gives setpriv, shadow-utils the accounts, tar and gzip unpack
@@ -20,10 +20,10 @@ RUN groupadd --system --gid 990 agent-busd \
  && groupadd --system --gid 991 agent-bus-runner \
  && useradd --system --uid 991 --gid 991 --home-dir /var/lib/agent-bus/runner --shell /usr/sbin/nologin agent-bus-runner
 
+# Release inputs exist only in this verification stage, never final layers.
+FROM runtime-base AS verified-release
 ARG ARCHIVE=
 COPY --from=release . /tmp/release/
-COPY agent-bus-container /usr/local/sbin/agent-bus-container
-COPY echo /var/lib/agent-bus/agent.d/echo
 # Check the archive and manifest before installation. Published SHA256SUMS takes
 # precedence: a missing selected line fails. Only without that file, use the
 # per-archive sidecar produced by package.sh for local builds/acceptance.
@@ -40,14 +40,19 @@ RUN set -eu; cd /tmp/release; \
       sha256sum -c selected.sha256; \
     else sha256sum -c "$archive.sha256"; fi; \
     mkdir unpacked; tar --no-same-owner --no-same-permissions -xzf "$archive" -C unpacked --strip-components=1; \
-    (cd unpacked && sha256sum -c --quiet MANIFEST.sha256); \
-    version=$(tr -d '[:space:]' < unpacked/internal/version/VERSION); \
+    (cd unpacked && sha256sum -c --quiet MANIFEST.sha256)
+
+FROM runtime-base
+COPY --from=verified-release /tmp/release/unpacked/ /tmp/unpacked/
+COPY agent-bus-container /usr/local/sbin/agent-bus-container
+COPY echo /var/lib/agent-bus/agent.d/echo
+RUN set -eu; \
+    version=$(tr -d '[:space:]' < /tmp/unpacked/internal/version/VERSION); \
     mkdir -p /usr/local/lib/agent-bus/releases; \
-    mv unpacked "/usr/local/lib/agent-bus/releases/$version"; \
+    mv /tmp/unpacked "/usr/local/lib/agent-bus/releases/$version"; \
     ln -s "releases/$version" /usr/local/lib/agent-bus/current; \
     for p in agent-bus agent-busd agent-bus-admin agent-bus-runner agent-bus-token agent-bus-ts; do \
       ln -s "/usr/local/lib/agent-bus/current/$p" "/usr/local/bin/$p"; done; \
-    rm -rf /tmp/release; \
     install -d -m 0700 -o agent-busd -g agent-busd /var/lib/agent-bus/daemon; \
     install -d -m 0700 -o agent-bus-runner -g agent-bus-runner /var/lib/agent-bus/runner; \
     install -d -m 0755 /var/lib/agent-bus/agent.d; \

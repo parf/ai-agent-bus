@@ -1,6 +1,7 @@
 """Run the Containerfile's actual pre-unpack checksum step, without a build."""
 import hashlib
 import os
+import shlex
 from pathlib import Path
 import subprocess
 import tempfile
@@ -40,6 +41,15 @@ class ContainerChecksums(unittest.TestCase):
     def test_downloaded_release_without_sidecars_verifies(self):
         result = self.verify()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_final_stage_does_not_copy_the_release_directory(self):
+        text = (HERE / 'Containerfile').read_text()
+        final_stage = text.rsplit('\nFROM ', 1)[-1]
+        for line in final_stage.splitlines():
+            if line.startswith('COPY '):
+                args = shlex.split(line)
+                self.assertNotIn('.', args[1:-1], 'whole release directory retained in final image layers')
+                self.assertNotIn('--from=release', args, 'raw release input retained in final image layers')
 
     def test_tampered_release_archive_is_refused(self):
         result = self.verify(tampered=True)

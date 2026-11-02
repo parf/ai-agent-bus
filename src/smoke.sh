@@ -4333,7 +4333,7 @@ container_image() {
     local out rc dist="$D/container-dist" base
     # The build never pulls: a host without the pinned base cannot build it,
     # and a selected check that cannot run fails rather than passing unrun.
-    base=$(sed -n 's/^FROM //p' container/Containerfile | head -1)
+    base=$(awk '$1 == "FROM" {print $2; exit}' container/Containerfile)
     if [ -z "$base" ] || ! podman image exists "$base" 2>/dev/null; then
       echo "  the base image '$base' is not in the local store, or podman is unavailable; podman pull it once"
       ok_exit "container image prerequisites: podman and the pinned base image" 1; return
