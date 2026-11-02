@@ -12,6 +12,7 @@ import (
 	"github.com/parf/ai-agent-bus/internal/agentmeta"
 	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/display"
+	"github.com/parf/ai-agent-bus/internal/eventlog"
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/version"
@@ -42,6 +43,10 @@ func (s *Server) ServeDaemonAgent(parent context.Context) func() {
 			if err != nil {
 				body = "error: " + err.Error()
 			}
+			// Plain writes are observations, never fresh input for their sender.
+			if e.Ask == "" && eventMethod(e.Body) == "write" && (e.Wait == "" || (!e.Deadline.IsZero() && !time.Now().Before(e.Deadline))) {
+				continue
+			}
 			back := protocol.ReplyTo{Name: e.From, Topic: e.Topic, Tag: e.Tag}
 			if e.ReplyTo != nil {
 				back = *e.ReplyTo
@@ -58,10 +63,19 @@ func (s *Server) ServeDaemonAgent(parent context.Context) func() {
 func (s *Server) daemonAnswer(e protocol.Envelope) (string, error) {
 	// Trusted From was established by Send, never read from method arguments.
 	if err := s.bus.Authenticate(e.From); err != nil {
+		if e.Ask == "" && isEventMethod(eventMethod(e.Body)) {
+			return eventFailure(eventlog.Error("forbidden"), eventMethod(e.Body) == "write"), nil
+		}
 		return "", err
 	}
 	if !e.Deadline.IsZero() && time.Now().After(e.Deadline) {
+		if e.Ask == "" && isEventMethod(eventMethod(e.Body)) {
+			return eventFailure(eventlog.Error("deadline"), eventMethod(e.Body) == "write"), nil
+		}
 		return "", context.DeadlineExceeded
+	}
+	if e.Ask == "" && isEventMethod(eventMethod(e.Body)) {
+		return s.daemonEventAnswer(e), nil
 	}
 	caller, err := protocol.ParseName(e.From)
 	if err != nil {
@@ -73,6 +87,9 @@ func (s *Server) daemonAnswer(e protocol.Envelope) (string, error) {
 		"status":  map[string]any{"help": "Read daemon counts and uptime; --json gives the daemon's /status result", "args": []any{jsonOption}},
 		"version": map[string]any{"help": "Read daemon version and build; --json gives the daemon's /identity result", "args": []any{jsonOption}},
 		"ls":      map[string]any{"help": "List records visible to you; same selection as agent-bus ls; --json gives the daemon's list, or one record's lookup, as JSON", "args": []any{map[string]any{"name": "args", "optional": true, "rest": true, "help": "[name] [--kind kind] [--tag tag] [--all] [--json]"}}},
+	}
+	for name, method := range s.eventMethods(e.From) {
+		methods[name] = method
 	}
 	if e.Ask != "" {
 		body, _, err := agentmeta.DispatchAsk(e.Ask, map[string]agentmeta.AskHandler{
@@ -112,7 +129,7 @@ func (s *Server) daemonAnswer(e protocol.Envelope) (string, error) {
 		}
 		switch args[0] {
 		case "help":
-			return "help — list methods\nstatus [--json] — daemon counts and uptime\nversion [--json] — daemon version and build\nls [name] [--kind kind] [--tag tag] [--all] [--json] — caller-visible records\n\nLicense: " + display.License + "\nAuthor: " + display.Author + "\nHomepage: " + display.Homepage + "\nDocs: " + display.BusDocs, nil
+			return s.eventHelp(e.From) + "help — list methods\nstatus [--json] — daemon counts and uptime\nversion [--json] — daemon version and build\nls [name] [--kind kind] [--tag tag] [--all] [--json] — caller-visible records\n\nLicense: " + display.License + "\nAuthor: " + display.Author + "\nHomepage: " + display.Homepage + "\nDocs: " + display.BusDocs, nil
 		case "status":
 			st := s.bus.StatusFor(caller.String())
 			return fmt.Sprintf("ok: %d records, %d readers, up %s", st.Records, st.Waiting, st.Up), nil
