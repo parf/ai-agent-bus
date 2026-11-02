@@ -211,6 +211,7 @@ What the logs mask:
 
 - **Masked with `***`:** values of at least four bytes from the bus Secret and private host env files, plus a self-serving agent's own token.
 - **Where:** child stderr copied to the journal, the unconfigured reason and `last_exit.reason`.
+- **Who else can read stderr:** masked lines are also forwarded to the agent’s [private `#bus` log](../agents/bus.md#agent-logs). The agent’s Owner and Maintainers, and the daemon Owner, can read that log.
 - **Not masked:** Configuration and package defaults stay readable.
 - **Shorter private values** cannot be reliably masked as substrings; each load warns by key name without logging the value.
 - **An agent's own replies** are its code's responsibility.
