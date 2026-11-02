@@ -313,6 +313,9 @@ func (b *Bus) SubAdd(caller, source, target, level, filter string) (subscription
 	if level != "" {
 		selector["level"] = level
 	}
+	if err := b.subTargetTakesBus(target); err != nil {
+		return subscription.Row{}, err
+	}
 	e := b.subsFor(r)
 	if e == nil {
 		return subscription.Row{}, eventlog.Error("internal_error")
@@ -331,6 +334,24 @@ func (b *Bus) SubAdd(caller, source, target, level, filter string) (subscription
 		return subscription.Row{}, eventlog.Error("forbidden")
 	}
 	return row, nil
+}
+
+// subTargetTakesBus refuses, when a subscription is made, a target that can never receive its copies:
+// #bus itself, and any target whose Allow does not admit #bus, which is every Personal agent (its Allow
+// reaches no further than its owner's own agents). A target that does not exist, or is the wrong kind,
+// is left to the engine's own answer.
+func (b *Bus) subTargetTakesBus(target string) error {
+	name, err := canon(target)
+	if err != nil {
+		return nil
+	}
+	if name == DaemonAgent {
+		return eventlog.Refusal{Code: "invalid_target", Text: "#bus cannot be a subscription target."}
+	}
+	if err := b.MaySend(DaemonAgent, name); errors.Is(err, ErrNotAllow) {
+		return eventlog.Refusal{Code: "invalid_target", Text: "The target does not admit #bus: list #bus in its Allow (a Personal agent cannot be a target)."}
+	}
+	return nil
 }
 
 // SubscriptionEntry is one listed subscription and the log it reads.

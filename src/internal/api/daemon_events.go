@@ -218,6 +218,9 @@ func eventFailure(err error, write bool) string {
 	code := eventlog.Code(err)
 	texts := map[string]string{"forbidden": "Only the log’s Owner, Maintainers or daemon Owner may read or manage it.", "not_found": "No such log or subscription.", "invalid_request": "Invalid call; ask help.", "invalid_level": "Use notice, warning or alert.", "invalid_log": "Invalid agent name.", "invalid_text": "Invalid entry text.", "busy": "Agent event dispatch is busy.", "invalid_target": "Invalid subscription target.", "invalid_selector": "Invalid subscription level.", "invalid_filter": "Invalid subscription filter.", "invalid_id": "Invalid subscription id.", "limit": "Subscription limit reached.", "not_author": "Only the author or a manager of the log may change this subscription.", "admission_refused": "The author may not send to that target.", "admission_unavailable": "The target could not be checked.", "store_unknown": "Subscription storage outcome is unknown.", "rate_limit": "Agent event rate limit reached.", "storage_invalid": "Persistent ring state is invalid.", "storage_unknown": "Ring storage outcome is unknown; reopen validated state.", "deadline": "Insufficient time to store this entry."}
 	text, ok := texts[code]
+	if reason := eventlog.Reason(err); ok && reason != "" {
+		text = reason
+	}
 	if !ok {
 		code = "internal_error"
 		text = "The operation could not be completed."

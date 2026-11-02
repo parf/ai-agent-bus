@@ -255,10 +255,13 @@ func TestASubscriptionTextCallSplitsEveryWordOnTheSameWhiteSpace(t *testing.T) {
 func TestAWriteAnswersWithItsRealDeliveries(t *testing.T) {
 	a := newSubAPI(t)
 	a.mustAsk("admin@h", "sub add q@h #a@h alert /boom/i")
-	if _, err := a.b.Register(protocol.Record{Name: "shut@h", Kind: protocol.KindQueue, Owner: "admin@h", Allow: []string{"admin@h"}}); err != nil {
+	if _, err := a.b.Register(protocol.Record{Name: "shut@h", Kind: protocol.KindQueue, Owner: "admin@h", Allow: []string{"admin@h", "#bus"}}); err != nil {
 		t.Fatal(err)
 	}
 	a.mustAsk("admin@h", "sub add shut@h #a@h alert")
+	if _, err := a.b.Manage("admin@h", core.Management{Name: "shut@h", Allow: &[]string{"admin@h"}}); err != nil { // it stops admitting #bus after the subscription
+		t.Fatal(err)
+	}
 	var out struct {
 		Entry      map[string]any
 		Deliveries map[string]int
@@ -408,5 +411,23 @@ func TestTheMethodListOffersTheSubscriptionCallsOnlyToManagers(t *testing.T) {
 	}
 	if d, _ := manager["sub delete"].(map[string]any); d["destructive"] != true {
 		t.Errorf("sub delete is not marked destructive: %v", manager["sub delete"])
+	}
+}
+
+// The refusal of a target that cannot take #bus's copies uses the existing invalid_target code on the
+// wire; only its text says why.
+func TestSubAddTargetThatCannotTakeBusCopiesIsInvalidTargetWithItsReason(t *testing.T) {
+	a := newSubAPI(t)
+	if _, err := a.b.Register(protocol.Record{Name: "#nobus@h", Kind: protocol.KindAgent, Owner: "admin@h", Allow: []string{"admin@h"}}); err != nil {
+		t.Fatal(err)
+	}
+	for body, why := range map[string]string{"sub add #bus #a@h": "#bus cannot be a subscription target", "sub add #nobus@h #a@h": "does not admit #bus"} {
+		var out struct{ Error struct{ Code, Text string } }
+		if err := json.Unmarshal([]byte(a.mustAsk("admin@h", body)), &out); err != nil {
+			t.Fatal(err)
+		}
+		if out.Error.Code != "invalid_target" || !strings.Contains(out.Error.Text, why) {
+			t.Errorf("%s answered %+v, want invalid_target mentioning %q", body, out.Error, why)
+		}
 	}
 }

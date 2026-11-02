@@ -470,6 +470,26 @@ func (e *Engine) Dropped(id uint32) uint64 {
 	defer l.mu.Unlock()
 	return l.dropped.Load()
 }
+
+// Refusal is an Error that keeps its code on the wire and says why in its own words: the code is one
+// the protocol already has, the reason is only text for the caller.
+type Refusal struct {
+	Code Error
+	Text string
+}
+
+func (r Refusal) Error() string { return string(r.Code) }
+func (r Refusal) Unwrap() error { return r.Code }
+
+// Reason is the refusal's own words, or "" when err has none.
+func Reason(err error) string {
+	var r Refusal
+	if errors.As(err, &r) {
+		return r.Text
+	}
+	return ""
+}
+
 func Code(err error) string {
 	var e Error
 	if errors.As(err, &e) {

@@ -34,7 +34,7 @@ func subFixture(t *testing.T, st ports.Store) *Bus {
 	if _, err := b.Register(protocol.Record{Name: "#a@h", Kind: protocol.KindAgent, Owner: "alice@h", Allow: []string{"*"}, Maintainers: protocol.MaintainerList{"maint@h"}}); err != nil {
 		t.Fatal(err)
 	}
-	for name, allow := range map[string][]string{"q@h": {"*"}, "q2@h": {"*"}, "shut@h": {"alice@h", "maint@h"}} {
+	for name, allow := range map[string][]string{"q@h": {"*"}, "q2@h": {"*"}, "shut@h": {"alice@h", "maint@h", DaemonAgent}} {
 		if _, err := b.Register(protocol.Record{Name: name, Kind: protocol.KindQueue, Owner: "alice@h", Allow: allow}); err != nil {
 			t.Fatal(err)
 		}
@@ -162,7 +162,7 @@ func TestSubscribingChecksTheAuthorsReachToTheTarget(t *testing.T) {
 		t.Fatalf("a filter outside the subset: %v", err)
 	}
 	// bob manages nothing, but a queue he may not reach is refused first for a manager who may not.
-	if _, err := b.Manage("alice@h", Management{Name: "shut@h", Allow: ptr([]string{"alice@h"})}); err != nil {
+	if _, err := b.Manage("alice@h", Management{Name: "shut@h", Allow: ptr([]string{"alice@h", DaemonAgent})}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.SubAdd("maint@h", "#a@h", "shut@h", "", ""); eventlog.Code(err) != "admission_refused" {
@@ -221,9 +221,12 @@ func TestACopyIsOneMessageFromBusToEachMatchingTarget(t *testing.T) {
 // entry is attempted.
 func TestARefusedCopyIsDroppedCountedAndTheNextEntryIsAttempted(t *testing.T) {
 	b := subFixture(t, nil)
-	// shut@h admits alice and maint but not #bus: the copy is refused.
+	// shut@h admitted #bus when the subscription was made and stops admitting it: the copy is refused.
 	row, err := b.SubAdd("alice@h", "#a@h", "shut@h", "", "")
 	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Manage("alice@h", Management{Name: "shut@h", Allow: ptr([]string{"alice@h", "maint@h"})}); err != nil {
 		t.Fatal(err)
 	}
 	r := subSource(b)
@@ -551,4 +554,42 @@ func TestASuspendedAuthorListsDeletesAddsAndForwardsNothing(t *testing.T) {
 func subCount(st *memory.State, source uint32) int {
 	rows, _ := st.ListSubscriptions(source)
 	return len(rows)
+}
+
+// A target that can never receive the copies is refused when the subscription is made, with the
+// protocol's own code for a bad target and the reason in the text: #bus itself, a target whose Allow
+// does not admit #bus, and a Personal agent (its Allow reaches no further than its owner's agents).
+func TestSubAddRefusesATargetThatCannotTakeCopiesFromTheBus(t *testing.T) {
+	b := subFixture(t, nil)
+	if _, err := b.Register(protocol.Record{Name: "#alice/oncall@h", Kind: protocol.KindAgent, Owner: "alice@h", Personal: true, Allow: []string{"@owner"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Register(protocol.Record{Name: "#nobus@h", Kind: protocol.KindAgent, Owner: "alice@h", Allow: []string{"alice@h"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Register(protocol.Record{Name: "#opens@h", Kind: protocol.KindAgent, Owner: "alice@h", Allow: []string{DaemonAgent}}); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct{ target, why string }{
+		{DaemonAgent, "#bus cannot be a subscription target"},
+		{"#alice/oncall@h", "does not admit #bus"},
+		{"#nobus@h", "does not admit #bus"},
+	} {
+		_, err := b.SubAdd("alice@h", "#a@h", tc.target, "", "")
+		if eventlog.Code(err) != "invalid_target" {
+			t.Errorf("target %s: code %q, want the existing invalid_target", tc.target, eventlog.Code(err))
+		}
+		if !strings.Contains(eventlog.Reason(err), tc.why) {
+			t.Errorf("target %s: reason %q does not say %q", tc.target, eventlog.Reason(err), tc.why)
+		}
+	}
+	if rows, err := b.SubList("alice@h", "#a@h"); err != nil || len(rows) != 0 {
+		t.Fatalf("a refused target left a subscription: %v %v", rows, err)
+	}
+	if _, err := b.SubAdd("alice@h", "#a@h", "#opens@h", "", ""); err != nil {
+		t.Fatalf("a target that admits #bus was refused: %v", err)
+	}
+	if _, err := b.SubAdd("alice@h", "#a@h", "nobody@h", "", ""); eventlog.Code(err) != "admission_refused" {
+		t.Fatalf("an absent target keeps the engine's own answer: %v", err)
+	}
 }
