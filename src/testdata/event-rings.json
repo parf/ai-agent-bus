@@ -447,6 +447,54 @@
           }
         }
       ]
+    },
+    {
+      "name": "backwards-after-another-line",
+      "now": 1793318400,
+      "steps": [
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "notice",
+            "A"
+          ],
+          "expect": {
+            "id": 1
+          }
+        },
+        {
+          "op": "advance",
+          "seconds": 10
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "notice",
+            "B"
+          ],
+          "expect": {
+            "id": 2
+          }
+        },
+        {
+          "op": "advance",
+          "seconds": -5
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "notice",
+            "A"
+          ],
+          "expect": {
+            "id": 3,
+            "count": 1
+          }
+        }
+      ]
     }
   ]
 }
