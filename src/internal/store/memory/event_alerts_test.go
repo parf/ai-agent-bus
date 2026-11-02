@@ -50,7 +50,7 @@ func TestMemoryEventAlertsAreSeparateCopiesAndAFailedWriteChangesNothing(t *test
 	}
 	notice := memAlerts(5)
 	notice[0].Level = "notice"
-	for name, bad := range map[string][]ports.EventEntry{"descending": memAlerts(4, 3), "zero id": memAlerts(0), "a notice": notice} {
+	for name, bad := range map[string][]ports.EventEntry{"descending": memAlerts(4, 3), "zero id": memAlerts(0), "a notice": notice, "id above the ceiling": memAlerts(ports.EventMaxID + 1), "count above the ceiling": overCount()} {
 		if err := s.ReplaceEventAlerts(1, bad, true); err == nil {
 			t.Errorf("%s accepted", name)
 		}
@@ -81,4 +81,10 @@ func TestMemoryEventAlertsGoWithTheirRecord(t *testing.T) {
 	if n, _ := s.EventHighWater(3); n != 0 {
 		t.Fatalf("a replaced record's id counter survived: %d", n)
 	}
+}
+
+func overCount() []ports.EventEntry {
+	a := memAlerts(1)
+	a[0].Count = ports.EventMaxID + 1
+	return a
 }

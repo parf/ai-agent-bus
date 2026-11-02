@@ -35,7 +35,7 @@ func (s *State) ReplaceEventAlerts(id uint32, alerts []ports.EventEntry, active 
 	}
 	var last uint64
 	for _, e := range alerts {
-		if e.Level != "alert" || e.ID == 0 || e.ID <= last || e.Count == 0 {
+		if e.Level != "alert" || e.ID == 0 || e.ID <= last || e.Count == 0 || e.ID > ports.EventMaxID || e.Count > ports.EventMaxID {
 			return fmt.Errorf("invalid event alert snapshot")
 		}
 		last = e.ID
