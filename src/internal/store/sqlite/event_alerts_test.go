@@ -1,6 +1,7 @@
 package sqlite
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"path/filepath"
@@ -366,12 +367,43 @@ func TestEventAlertBatchRollsBackEveryRingOnFailure(t *testing.T) {
 	if _, err := s.db.Exec(`CREATE TRIGGER refuse_second BEFORE INSERT ON event_logs WHEN NEW.record_id = 2 BEGIN SELECT RAISE(ABORT,'injected'); END`); err != nil {
 		t.Fatal(err)
 	}
-	err := s.ReplaceEventAlertBatch([]ports.EventAlertSnapshot{{RecordID: 1, Alerts: alerts(2), Active: true}, {RecordID: 2, Alerts: alerts(3), Active: true}})
+	err := s.ReplaceEventAlertBatch(context.Background(), []ports.EventAlertSnapshot{{RecordID: 1, Alerts: alerts(2), Active: true}, {RecordID: 2, Alerts: alerts(3), Active: true}})
 	if err == nil {
 		t.Fatal("injected second-ring failure accepted")
 	}
 	got, _ := loadAlerts(t, s, 1)
 	if !reflect.DeepEqual(got, alerts(1)) {
 		t.Fatalf("failed batch changed first ring: %+v", got)
+	}
+}
+
+func TestEventAlertBatchDeadlineBoundsWaitingForTheSingleConnection(t *testing.T) {
+	s := openEvents(t, filepath.Join(t.TempDir(), "deadline.db"))
+	defer s.Close()
+	held, err := s.db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer held.Rollback()
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		done <- s.ReplaceEventAlertBatch(ctx, []ports.EventAlertSnapshot{{RecordID: 1, Alerts: alerts(1), Active: true}})
+	}()
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Errorf("batch deadline: %v", err)
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Error("batch ignored deadline while waiting for SQLite's connection")
+		held.Rollback()
+		<-done
+	}
+	held.Rollback()
+	got, active := loadAlerts(t, s, 1)
+	if active || len(got) != 0 {
+		t.Fatalf("timed-out batch published: %+v %v", got, active)
 	}
 }

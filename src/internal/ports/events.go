@@ -1,6 +1,9 @@
 package ports
 
-import "errors"
+import (
+	"context"
+	"errors"
+)
 
 const EventMaxID = uint64(1<<53 - 1)
 
@@ -78,5 +81,5 @@ type EventAlertSnapshot struct {
 // EventAlertBatchStore commits all replacements in a single transaction.
 // Invalid input or an error leaves every previous snapshot unchanged.
 type EventAlertBatchStore interface {
-	ReplaceEventAlertBatch([]EventAlertSnapshot) error
+	ReplaceEventAlertBatch(context.Context, []EventAlertSnapshot) error
 }

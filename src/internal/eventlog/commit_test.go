@@ -1,6 +1,7 @@
 package eventlog
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -16,7 +17,7 @@ type batchBackend struct {
 	batchErr              error
 }
 
-func (s *batchBackend) ReplaceEventAlertBatch(batch []ports.EventAlertSnapshot) error {
+func (s *batchBackend) ReplaceEventAlertBatch(ctx context.Context, batch []ports.EventAlertSnapshot) error {
 	s.transactions++
 	s.largest = max(s.largest, len(batch))
 	if s.batchErr != nil {
@@ -171,8 +172,8 @@ type notifyingBatch struct {
 	committed chan []ports.EventAlertSnapshot
 }
 
-func (s *notifyingBatch) ReplaceEventAlertBatch(v []ports.EventAlertSnapshot) error {
-	if err := s.State.ReplaceEventAlertBatch(v); err != nil {
+func (s *notifyingBatch) ReplaceEventAlertBatch(ctx context.Context, v []ports.EventAlertSnapshot) error {
+	if err := s.State.ReplaceEventAlertBatch(ctx, v); err != nil {
 		return err
 	}
 	s.committed <- v
@@ -193,5 +194,19 @@ func TestAQuietDirtyRingIsFlushedByTheTimer(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timer failed to flush dirty alert on the next token")
+	}
+}
+
+func TestRetirementRollbackKeepsPendingAlerts(t *testing.T) {
+	e, s, _ := batchFixture(t)
+	writeLogs(t, e, 1, 21, "pending")
+	if err := e.CommitRetirement([]uint32{21}, func() error { return errors.New("registry commit failed") }); err == nil {
+		t.Fatal("failed retirement accepted")
+	}
+	if err := e.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if len(s.alerts[21]) != 1 {
+		t.Fatal("failed retirement discarded an accepted alert")
 	}
 }

@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
@@ -25,9 +26,12 @@ func (s *State) LoadEventAlerts(id uint32) ([]ports.EventEntry, bool, error) {
 
 // ReplaceEventAlerts stores the whole snapshot; a refused write changes nothing.
 func (s *State) ReplaceEventAlerts(id uint32, alerts []ports.EventEntry, active bool) error {
-	return s.ReplaceEventAlertBatch([]ports.EventAlertSnapshot{{RecordID: id, Alerts: alerts, Active: active}})
+	return s.ReplaceEventAlertBatch(context.Background(), []ports.EventAlertSnapshot{{RecordID: id, Alerts: alerts, Active: active}})
 }
-func (s *State) ReplaceEventAlertBatch(batch []ports.EventAlertSnapshot) error {
+func (s *State) ReplaceEventAlertBatch(ctx context.Context, batch []ports.EventAlertSnapshot) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.Err != nil {

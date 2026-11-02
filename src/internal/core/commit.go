@@ -224,11 +224,27 @@ func (b *Bus) commitTransfer(values map[string]ports.Credential, kv map[uint32][
 	}
 	c := b.change(s)
 	c.ImportKV, c.ImportCredentials = kv, values
-	write := func() error {
-		if b.store != nil {
-			return b.store.Commit(c)
+	var retired []uint32
+	for name, old := range s.records {
+		if current, exists := b.records[name]; old != nil && (!exists || current.ID != old.ID) {
+			retired = append(retired, old.ID)
 		}
-		return nil
+	}
+	write := func() error {
+		apply := func() error {
+			if b.store != nil {
+				return b.store.Commit(c)
+			}
+			return nil
+		}
+		// Lock order: registry b.mu -> alert commit gate -> engine catalog.
+		// The timer and Close never enter the registry; pull/clean/expiry
+		// finish their authority callback before taking the commit gate.
+		// Store adapters never call back into core while holding that gate.
+		if b.events != nil {
+			return b.events.CommitRetirement(retired, apply)
+		}
+		return apply()
 	}
 	var err error
 	if values != nil {
@@ -251,13 +267,7 @@ func (b *Bus) commitTransfer(values map[string]ports.Credential, kv map[uint32][
 		b.report(ports.Error, "a management write was not committed and nothing changed: %s", err)
 		return fmt.Errorf("persist administrative state: %w", err)
 	}
-	if b.events != nil {
-		for name, old := range s.records {
-			if current, exists := b.records[name]; old != nil && (!exists || current.ID != old.ID) {
-				b.events.Forget(old.ID)
-			}
-		}
-	}
+
 	for name, old := range s.records {
 		if current, exists := b.records[name]; old != nil && (!exists || current.ID != old.ID) {
 			b.forgetSubs(old.ID)

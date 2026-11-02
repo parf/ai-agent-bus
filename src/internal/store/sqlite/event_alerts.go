@@ -1,6 +1,7 @@
 package sqlite
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -78,10 +79,10 @@ func (s *Store) LoadEventAlerts(recordID uint32) ([]ports.EventEntry, bool, erro
 // transaction: the previous alerts are removed and the new ones written, or
 // nothing changes.
 func (s *Store) ReplaceEventAlerts(recordID uint32, alerts []ports.EventEntry, active bool) error {
-	return s.ReplaceEventAlertBatch([]ports.EventAlertSnapshot{{RecordID: recordID, Alerts: alerts, Active: active}})
+	return s.ReplaceEventAlertBatch(context.Background(), []ports.EventAlertSnapshot{{RecordID: recordID, Alerts: alerts, Active: active}})
 }
 
-func (s *Store) ReplaceEventAlertBatch(batch []ports.EventAlertSnapshot) error {
+func (s *Store) ReplaceEventAlertBatch(ctx context.Context, batch []ports.EventAlertSnapshot) error {
 	for _, v := range batch {
 		if v.RecordID == 0 || len(v.Alerts) > maxEventAlerts {
 			return fmt.Errorf("invalid event alert snapshot")
@@ -94,7 +95,7 @@ func (s *Store) ReplaceEventAlertBatch(batch []ports.EventAlertSnapshot) error {
 			last = e.ID
 		}
 	}
-	tx, err := s.db.Begin()
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -104,14 +105,14 @@ func (s *Store) ReplaceEventAlertBatch(batch []ports.EventAlertSnapshot) error {
 		if v.Active {
 			flag = 1
 		}
-		if _, err = tx.Exec(`INSERT INTO event_logs (record_id, active) VALUES (?, ?) ON CONFLICT(record_id) DO UPDATE SET active = excluded.active`, v.RecordID, flag); err != nil {
+		if _, err = tx.ExecContext(ctx, `INSERT INTO event_logs (record_id, active) VALUES (?, ?) ON CONFLICT(record_id) DO UPDATE SET active = excluded.active`, v.RecordID, flag); err != nil {
 			return err
 		}
-		if _, err = tx.Exec(`DELETE FROM event_alerts WHERE record_id = ?`, v.RecordID); err != nil {
+		if _, err = tx.ExecContext(ctx, `DELETE FROM event_alerts WHERE record_id = ?`, v.RecordID); err != nil {
 			return err
 		}
 		for _, e := range v.Alerts {
-			if _, err = tx.Exec(`INSERT INTO event_alerts (record_id, id, text, at, last_at, count) VALUES (?, ?, ?, ?, ?, ?)`,
+			if _, err = tx.ExecContext(ctx, `INSERT INTO event_alerts (record_id, id, text, at, last_at, count) VALUES (?, ?, ?, ?, ?, ?)`,
 				v.RecordID, e.ID, e.Text, e.At, e.LastAt, e.Count); err != nil {
 				return err
 			}

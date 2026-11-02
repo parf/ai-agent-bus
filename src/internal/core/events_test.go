@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/store/memory"
@@ -225,7 +226,7 @@ func (s *eventLoadBarrier) ReplaceEventAlerts(id uint32, v []ports.EventEntry, a
 	s.active[id] = active
 	return nil
 }
-func (s *eventLoadBarrier) ReplaceEventAlertBatch(batch []ports.EventAlertSnapshot) error {
+func (s *eventLoadBarrier) ReplaceEventAlertBatch(ctx context.Context, batch []ports.EventAlertSnapshot) error {
 	for _, v := range batch {
 		if err := s.ReplaceEventAlerts(v.RecordID, v.Alerts, v.Active); err != nil {
 			return err

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"sort"
 	"sync"
 	"time"
@@ -273,12 +274,18 @@ func (b *Bus) EventAdmit(caller, target string, write bool) (string, error) {
 }
 
 // FlushEvents drains accepted alert writes after request handlers have stopped.
-func (b *Bus) FlushEvents() error {
+func (b *Bus) FlushEvents(deadline ...context.Context) error {
 	b.mu.Lock()
 	e := b.events
 	b.unlock()
 	if e == nil {
 		return nil
 	}
-	return e.Close()
+	err := e.Close(deadline...)
+	if err != nil {
+		b.mu.Lock()
+		b.report(ports.Warning, "alert flush at stop: %v", err)
+		b.unlock()
+	}
+	return err
 }
