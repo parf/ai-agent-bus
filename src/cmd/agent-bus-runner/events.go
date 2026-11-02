@@ -30,6 +30,7 @@ import (
 
 const (
 	busAgent        = "#bus"           // the daemon's agent: its method calls carry the log verbs
+	eventUrgent     = 64               // alerts waiting for the sender; their own lane
 	eventQueue      = 256              // events waiting for the sender, all agents together
 	eventLineMax    = 512              // bytes of one stderr line forwarded, cut on a rune boundary
 	eventPartialMax = 4 * eventLineMax // bytes of an unfinished stderr line held; the rest of it is dropped
@@ -59,7 +60,8 @@ type agentEvent struct {
 // eventSink queues events and sends them one at a time.
 type eventSink struct {
 	r       *runner
-	queue   chan agentEvent
+	queue   chan agentEvent                               // notices and warnings, all agents together
+	urgent  chan agentEvent                               // alerts: a flood of lines never takes their place
 	send    func(ctx context.Context, e agentEvent) error // replaced in tests
 	dropped atomic.Int64
 
@@ -76,13 +78,14 @@ type bucket struct {
 }
 
 func newEventSink(r *runner) *eventSink {
-	k := &eventSink{r: r, queue: make(chan agentEvent, eventQueue), buckets: map[string]*bucket{}, done: make(chan struct{})}
+	k := &eventSink{r: r, queue: make(chan agentEvent, eventQueue), urgent: make(chan agentEvent, eventUrgent), buckets: map[string]*bucket{}, done: make(chan struct{})}
 	k.send = k.callBus
 	return k
 }
 
 // start runs the sender until close, which gives what is queued a short moment
-// to go out: a stop at shutdown is the event worth keeping.
+// to go out: a stop at shutdown is the event worth keeping. Alerts have their
+// own lane and are taken first.
 func (k *eventSink) start() {
 	ctx, cancel := context.WithCancel(context.Background())
 	k.stop = cancel
@@ -90,22 +93,30 @@ func (k *eventSink) start() {
 		defer close(k.done)
 		for {
 			select {
+			case e := <-k.urgent:
+				k.deliver(ctx, e)
+				continue
+			default:
+			}
+			select {
+			case e := <-k.urgent:
+				k.deliver(ctx, e)
 			case e := <-k.queue:
 				k.deliver(ctx, e)
 			case <-ctx.Done():
 				end, cancel := context.WithTimeout(context.Background(), eventDrain)
 				defer cancel()
-				for {
+				for end.Err() == nil {
 					select {
+					case e := <-k.urgent:
+						k.deliver(end, e)
 					case e := <-k.queue:
 						k.deliver(end, e)
 					default:
 						return
 					}
-					if end.Err() != nil {
-						return
-					}
 				}
+				return
 			}
 		}
 	}()
@@ -128,8 +139,9 @@ func (k *eventSink) deliver(ctx context.Context, e agentEvent) {
 	}
 }
 
-// emit queues one event without ever waiting. The rate is per agent; the queue
-// is shared. Either limit drops and counts.
+// emit queues one event without ever waiting. The rate is per agent and per
+// lane (alerts apart from the rest); the lanes are shared. Either limit drops
+// and counts.
 func (k *eventSink) emit(s *served, level, text string) {
 	if k == nil || s == nil || s.bus == nil {
 		return
@@ -138,12 +150,18 @@ func (k *eventSink) emit(s *served, level, text string) {
 	if text == "" {
 		return
 	}
-	if !k.admit(s.name) {
+	// An alert has its own allowance and lane: a flood of stderr warnings
+	// must never cost the runner the exit or failed-start alert.
+	lane, key := k.queue, s.name
+	if level == levelAlert {
+		lane, key = k.urgent, s.name+"\x00alert"
+	}
+	if !k.admit(key) {
 		k.drop(s.name)
 		return
 	}
 	select {
-	case k.queue <- agentEvent{s: s, level: level, text: text}:
+	case lane <- agentEvent{s: s, level: level, text: text}:
 	default:
 		k.drop(s.name)
 	}

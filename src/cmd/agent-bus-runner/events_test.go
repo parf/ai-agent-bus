@@ -65,7 +65,7 @@ func awaitCount(t *testing.T, rec *recorded, level string, want int) {
 	end := time.Now().Add(2 * time.Second)
 	for rec.count(level) < want {
 		if time.Now().After(end) {
-			t.Fatalf("%d %s events, want %d: %+v", rec.count(level), level, want, rec.list())
+			t.Fatalf("%d %s events, want %d (of %d events in all)", rec.count(level), level, want, len(rec.list()))
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
@@ -387,4 +387,36 @@ func TestStreamAgentsLastUnterminatedStderrLineIsForwarded(t *testing.T) {
 	if got := rec.list(); got[0].level == "warning" && got[0].text != "last words" {
 		t.Fatalf("forwarded %q, want the unterminated last line", got[0].text)
 	}
+}
+
+// A flood of stderr warnings uses up the agent's warning allowance and fills the
+// shared queue behind a slow sender; the exit alert that follows is still sent.
+func TestWarningFloodThenAnExitAlertIsStillSent(t *testing.T) {
+	r := &runner{ctx: context.Background(), say: io.Discard, name: "#runner@h"}
+	r.events = newEventSink(r)
+	rec := &recorded{}
+	r.events.send = func(_ context.Context, e agentEvent) error {
+		if e.level != levelAlert {
+			time.Sleep(10 * time.Millisecond)
+		}
+		rec.add(e)
+		return nil
+	}
+	r.events.start()
+	defer r.events.close()
+	s := &served{name: "#a@h", bus: &client{}}
+	w := r.stderrOf(s, nil)
+	for i := 0; i < 2000; i++ {
+		io.WriteString(w, "noise "+strconv.Itoa(i)+"\n")
+	}
+	for i := 0; i < 400; i++ {
+		r.events.emit(&served{name: "#many" + strconv.Itoa(i) + "@h", bus: &client{}}, levelWarning, "x")
+	}
+	if r.events.admit(s.name) {
+		t.Fatal("the flood did not use up the agent's warning allowance; the test proves nothing")
+	}
+	cmd := exec.Command("/bin/sh", "-c", "exit 9")
+	cmd.Run()
+	r.exitEvent(s, cmd, false)
+	awaitCount(t, rec, levelAlert, 1)
 }
