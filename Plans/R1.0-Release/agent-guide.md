@@ -26,10 +26,18 @@ as a gap is a proposed place to resolve it, not evidence of a rule already there
 
 ### 1. Essentials: help, then an answer
 
-- **Serve help first.** Describe supported work through help and `--help-json`,
-  dispatch the ask flag before ordinary body handling, and keep help free of
-  business effects. The code implements native help only where its execution
-  model leaves that responsibility with it. Owner: [Agent self-description](../../docs/constitution.md#agent-self-description).
+- **Serve help and status first.** Describe supported work through help and
+  `--help-json`, dispatch asks before ordinary body handling, and keep help free
+  of business effects. Answer the `status` ask (empty body) with the agent's own
+  activity, observed backlog, last error and a configuration summary without
+  secrets; the runner answers starting/stopping/failed itself while it owns the
+  reader. Owner: [Agent self-description](../../docs/constitution.md#agent-self-description).
+  **Gap 7:** status dispatch is documented, but answer-content guidance is not.
+
+  Illustrative proposed answer, not output from a run: “Indexing reports;
+  local backlog: 3; last error: none; configuration: read-only reports scope.”
+  Report only state the agent can observe, and use a safe error description,
+  never a raw error or configuration dump.
 
 - **Give one request its one answer on the return route.** Preserve the consumed
   request's routing and correlation context through asynchronous work; do not
@@ -156,6 +164,10 @@ until an owning rule exists; this plan does not fill them with a new policy.
   as current behavior. Do not use stderr forwarding as a substitute write API.
 - **Graceful stop:** agree the author-side responsibility and its relationship
   to the client's drain behavior, without inventing a new runner stop policy.
+- **Gap 7 — Status answer content:** Agent self-description owns the empty-body
+  ask and runner-observed starting/stopping/failed dispatch, but does not define
+  useful running-status content. Add the approved activity/backlog/last-error/
+  safe-configuration guidance there before writing it as a current guide rule.
 
 ## Deliberate cuts
 
@@ -173,7 +185,7 @@ guide. The package-building gap from the earlier outline is therefore removed.
 The owner approves the revised scope through Q324 before the guide is written.
 This branch edits the plan and its navigation only, not current docs.
 
-- The guide starts with help/ask handling, then one request and one answer on
+- The guide starts with help/status ask handling, then one request and one answer on
   the return route; the reader already knows the daemon.
 - Every checklist item concerns an agent-code decision, has one short paragraph
   and a link to the owning section for each rule, or is visibly held as a gap.
