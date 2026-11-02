@@ -97,6 +97,7 @@ func (t *Tokens) apply(pairs map[string]*ports.CredentialPair) {
 type State struct {
 	eventHigh map[uint32]uint64
 	subs      map[string]memorySub
+	eventLogs map[uint32]eventLog
 	mu        sync.Mutex
 	Err       error
 	Commits   int
@@ -203,6 +204,7 @@ func (s *State) Commit(c ports.Change) error {
 			s.dropKV(old.ID)
 			s.dropSubscriptions(old.ID)
 			s.dropSubscriptionsBy(name)
+			s.dropEventLog(old.ID)
 		}
 		if r == nil {
 			delete(s.records, name)

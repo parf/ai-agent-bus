@@ -33,7 +33,7 @@ import (
 // schema is the layout this daemon reads and writes. A database at an older
 // version with a migration below is brought up to it at open, in one
 // transaction; any other version is refused rather than guessed at.
-const schema = 10
+const schema = 11
 
 var tables = []string{
 	`CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
@@ -50,6 +50,8 @@ var tables = []string{
 	bigfilesTable,
 	eventSubsTable,
 	eventSubsIndex,
+	eventLogsTable,
+	eventAlertsTable,
 }
 
 // bigfilesTable is the bigfile index: one row per bigfile held in a file, the
@@ -88,6 +90,9 @@ var migrations = map[int][]string{
 	// 0.9.291: the subscriptions of agent logs are kept on disk, so a restart
 	// keeps them (Plans/R1.0-Release/agent-events/README.md#subscriptions-are-new-daemon-work).
 	9: {eventSubsTable, eventSubsIndex},
+	// The alerts of an agent's event log are kept on disk, with whether
+	// the log exists (Plans/R1.0-Release/agent-events/README.md#flood-and-persistence).
+	10: {eventLogsTable, eventAlertsTable},
 }
 
 // ErrMissing is a database that is not there and was not asked to be made.
@@ -534,6 +539,9 @@ func (s *Store) Commit(c ports.Change) error {
 			return err
 		}
 		if err := dropEventSubs(tx, name, keep); err != nil {
+			return err
+		}
+		if err := dropEventAlerts(tx, name, keep); err != nil {
 			return err
 		}
 		if r == nil {
