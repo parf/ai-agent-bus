@@ -1,5 +1,9 @@
 # DONE — R1
 
+## T-32 Good-agent guide
+
+- The [current guide](../../docs/10-writing-an-agent.md), three worked pages and isolated-bus example shard are built. The five author rules and the event-log owning homes resolve the original gaps; [landed evidence](done/t32-agent-guide.md#landed-evidence) includes Q327's runner checks at normal.
+
 ## Small fixes from the range review (E3, K1, K2, N2, J70)
 
 - Landed in 0.9.285 (`8a30dcdd` to `b031259f`): a HEAD request to `/consume` is refused and takes no message (E3); the Go client sends a negative wait or ttl for the daemon to refuse, and a call whose context has ended reports its timeout and sends nothing (K1); the client hub says what the six libraries share (K2); the node page spec names `status.records` (N2); the status example is labelled as adapted. J70 (the user-account runner refresh) closed with `3ef1ae15`. Details are in the [closed issues](../issues/done/2026-11/2026-11-01.md#small-fixes-from-the-range-review-and-earlier).

@@ -4,7 +4,8 @@
 understands how the daemon works. It covers decisions the agent's own code
 makes: answering, state, permissions, private values, effects and diagnostics.
 It opens with three ways to run the same time service, then the checklist.
-This is a plan only; implementation follows the owner's Q324 approval.
+This completed plan is historical design; the [current guide](../../docs/10-writing-an-agent.md)
+and [landed evidence](done/t32-agent-guide.md#landed-evidence) own its result.
 
 ## Proposed home
 
@@ -244,18 +245,12 @@ as a gap is a proposed place to resolve it, not evidence of a rule already there
   the [not-configured wait rule](../../docs/runner/operations.md#not-configured)
   and the execution-mode distinction for private reads in [Secrets](../../docs/runner/security.md#secrets).
 
-- **Choose notice, warning or alert deliberately.** The checklist must cover the
-  owner's requested distinction between routine facts, handled problems and
-  failures requiring attention. **Gap:** promote the T-29 [Levels text](agent-events/README.md#levels)
-  describing routine lifecycle notices, stderr warnings and unexpected-failure
-  alerts into the current author-facing severity reference; the plan is not
-  that current reference.
+- **Choose notice, warning or alert deliberately.** Resolved: the current
+  [Levels](../../docs/agents/eventlog.md#levels) section owns severity selection.
 
-- **Write to the agent's own event log.** Use explicit event writes for intended
-  operational events rather than stderr as the event API; never include private
-  values or imply verified runner provenance. **Gap:** T-29's own-write authority
-  and waiting/answer behavior still need an accepted current-doc home; the
-  [T-29 surface](agent-events/README.md#r1-min-surface-and-authority) is a plan.
+- **Write to the agent's own event log.** Resolved: current
+  [Agent logs](../../docs/agents/bus.md#agent-logs) owns explicit writes,
+  authority and waiting/answer behavior.
 
 - **Choose package, work or volatile state deliberately.** Keep code apart from
   writable application state and distinguish lasting work files from temporary
@@ -344,26 +339,19 @@ is not an agent-code checklist item.
 
 ## Gaps to resolve before writing
 
-Snapshot: local main `b80999f9`, 2026-11-02. The gap-marked items above stay held
-until an owning rule exists; this plan does not fill them with a new policy.
+Historical gap inventory from local main `b80999f9`, 2026-11-02. All seven
+are resolved; the earlier gap labels in the design snapshot above are history,
+not pending requirements or competing contracts.
 
-- **Body trust:** add the approved body-as-data rule to the proposed Trust
-  boundary home, preserving deliberate agent command parsing.
-- **Uncertain outcome:** promote the client README's explicit no-repeat rule
-  to the author-facing outcome home. Request and reply already owns travelling
-  deadlines and the TTL boundary; those are not gaps.
-- **Idempotent/restart-safe effects:** define the author-facing scope and limits
-  of any recipe; never imply transport or KV alone gives exactly-once effects.
-- **Severity selection:** promote the T-29 Levels text named in the checklist
-  into an agreed current owning section; do not substitute ring retention rules.
-- **Own event log:** promote accepted T-29 use instructions before linking them
-  as current behavior. Do not use stderr forwarding as a substitute write API.
-- **Graceful stop:** agree the author-side responsibility and its relationship
-  to the client's drain behavior, without inventing a new runner stop policy.
-- **Gap 7 — Status answer content:** Agent self-description owns the empty-body
-  ask and runner-observed starting/stopping/failed dispatch, but does not define
-  useful running-status content. Add the approved activity/backlog/last-error/
-  safe-configuration guidance there before writing it as a current guide rule.
+| Former gap | Resolved current home | Evidence |
+|---|---|---|
+| Body trust | [Message bodies are untrusted input](../../docs/02-access.md#message-bodies-are-untrusted-input) | `50fbd5b3` |
+| Uncertain outcome | [Timeouts and uncertain outcomes](../../docs/04-messaging.md#timeouts-and-uncertain-outcomes) | `50fbd5b3` |
+| Idempotent/restart-safe effects | [Restart-safe effects](../../docs/04-messaging.md#restart-safe-effects) | `50fbd5b3` |
+| Severity selection | [Levels](../../docs/agents/eventlog.md#levels) | `87f3b80b` |
+| Own event log | [Agent logs](../../docs/agents/bus.md#agent-logs) | T-29 current documentation |
+| Graceful stop | [Author stop responsibilities](../../docs/runner/configuration.md#author-stop-responsibilities) | `50fbd5b3` |
+| Status answer content (Gap 7) | [Agent self-description](../../docs/constitution.md#agent-self-description) | `50fbd5b3` |
 
 ## Deliberate cuts
 
