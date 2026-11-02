@@ -5,6 +5,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/event_log_example.php';
+require_once __DIR__ . '/event_subscription_example.php';
 
 use AgentBus\{Bus, Kind, How, Op, Refusal, BusException, CallOptions, ConsumeOptions, Answer};
 
@@ -358,6 +359,18 @@ section('event-log example', function () {
         'owner lists: #caller@fixture',
         'a third party: forbidden',
         'the writer reading its own log: forbidden',
+    ], json_encode($lines));
+    vectorFixtureStop($fixture);
+});
+section('event-subscription example', function () {
+    $fixture = vectorFixture();
+    $lines = eventSubscriptionExample($fixture[2]);
+    check('the event-subscription example prints what it documents', $lines === [
+        'listed: 1 subscription',
+        'delivered: 1 copy',
+        'copy from #bus: alert disk full',
+        'one copy only: true',
+        'after cancelling, matched: 0',
     ], json_encode($lines));
     vectorFixtureStop($fixture);
 });

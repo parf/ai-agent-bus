@@ -55,6 +55,19 @@ sent to bob@example.com
 
 - ▶️ The [shared examples](../examples/README.md) run agents in every language together.
 
+## Event logs
+
+Use ordinary calls to `#bus` for the daemon's
+[agent logs](../../../docs/agents/bus.md#agent-logs). The executed examples,
+[event_log_example.php](tests/event_log_example.php) and [event_subscription_example.php](tests/event_subscription_example.php), run against a private fixture:
+
+- The agent writes its own log; its Owner reads, lists and subscribes.
+- The Owner consumes one copy from the authorized queue and cancels the subscription.
+
+A subscription copy is a non-waiting notice from `#bus`, not a call reply.
+Do not send ack or done for it; see [receipts](../../../docs/04-messaging.md#receipts).
+No event-specific helper is needed.
+
 ## Technical details
 
 - **Package:** PHP 8.1 or later; the [PHP plan](../../../Plans/R1.0-Release/done/client-libraries/php.md) owns the interface; [authentication](../../../docs/02-access.md#what-a-call-carries) owns credentials; [MIT license](LICENSE.md).
