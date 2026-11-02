@@ -80,3 +80,118 @@ The final status table in docs/09 still calls S2 adapters pending. That is
 stale relative to the cited Java/PHP/Rust state-vector tests and R1 TODO's S2v
 completion. Correct that status in an approved follow-up; this branch makes
 no current-doc changes. No missing event-log helper is inferred from it.
+
+
+## Event calls without new APIs
+
+**Answer for every client: the generic transport is sufficient.** At the audit
+snapshot, the libraries can express all four operations, but the daemon event
+verbs are not yet on main. Executable agent-log examples must land after P1;
+subscription delivery also depends on P3. This is a feasibility conclusion,
+not a claim that those event operations passed an integration test today.
+
+Use the existing [T-29 verbs and authority](agent-events/README.md#r1-min-surface-and-authority)
+and [write answer rule](agent-events/README.md#p2-write-transport).
+Call for a confirmed append, read or list; send without wait proves only queue
+acceptance and deliberately receives no write answer. Inspect the call outcome
+and the existing method reply, not just HTTP success. Method refusals such as
+`forbidden` and `not_found` are separate from HTTP refusal kinds. Do not retry
+an uncertain append.
+
+| Client | Generic write / read / list | Subscribe and receive | Helper assessment |
+|---|---|---|---|
+| Go | [Call / Send, bus.go:494–603](../../src/clients/go/bus.go#L494), with context and timeout options | Call the subscription verbs; Consume on the authorized destination | No write/read/list helper; optional subscription lifecycle helper only after an example exposes a gap |
+| Java | [call / send, Bus.java:120–153](../../src/clients/java/src/main/java/agentbus/Bus.java#L120), with Call timeout | Subscription calls, then consume with Consume options | Same; use native cancellation and preserve Outcome handling |
+| PHP | [call / send, Bus.php:130–153](../../src/clients/php/src/Bus.php#L130), with CallOptions timeout | Subscription calls, then consume with ConsumeOptions | Same; keep the single-reader constraint explicit |
+| Python | [call / send, client.py:205–286](../../src/clients/python/agent_bus/client.py#L205), with timeout | Subscription calls, then consume on the selected inbox | Same; the missing asks-only selector is not needed here |
+| Rust | [call, lib.rs:683](../../src/clients/rust/src/lib.rs#L683), with CallOptions; send for unconfirmed writes | Subscription calls and async consume | Same; cancellation must not imply remote work was undone |
+| TypeScript | [call / send / consume, bus.ts:111–134](../../src/clients/typescript/src/bus.ts#L111), with the existing call budget | Subscription calls, then consume on the selected inbox | Same; subscription copies are not correlated call replies |
+
+The implementation deliverable is one tested native-language example per
+client, not speculative snippets in this plan. Each example writes to its own
+agent log, reads it, lists visible logs, creates a subscription to an authorized
+destination, receives a copy and deletes the subscription. It uses the canonical
+reply meanings rather than introducing another response format or SDK model.
+
+### Subscription pitfalls and the helper threshold
+
+- Subscription registration, listing and deletion already fit ordinary calls.
+  The extra work is managing the destination reader, cancellation and receipts.
+- Start with a dedicated authorized destination and raw consume loop. Do not
+  classify arbitrary inbox messages as events by guessing a body, tag or topic.
+  Do not run a second reader beside a library's serve loop.
+- Raw consume gives the caller control; generic serve has automatic receipt and
+  answer behavior. A copy must not accidentally become a request to answer, or
+  start a receipt loop. Ignore receipts as data and exercise this in the example.
+- Add a helper only if the native example requires repeated, error-prone
+  lifecycle code. Keep it thin, within the clients' [MIT boundary](../../src/clients/LICENSE.md#mit-license),
+  and tested through shared vectors for correlation, receipt handling,
+  cancellation and no automatic replay. It must not add authority rules,
+  transport retries or a second event model. Helpers are not included in the
+  minimum estimate below; each needs an approved scope before implementation.
+
+### Named logs use the same model
+
+`#eventlog` named logs fit the same [canonical log model](../../docs/agents/eventlog.md#log-model)
+and existing verb meanings. The destination and authority differ: named logs
+use the instance's short log names and application-role grants; daemon agent
+logs use canonical registry names and the T-29 management rule. An instance's
+named logs do not become visible through another instance or through `#bus`.
+The [front transition](agent-events/README.md#eventlog-front-and-existing-state)
+is separate work; the R1 examples must not claim it has happened or claim
+verified runner provenance for an entry.
+
+## Implementation acceptance
+
+- Extend the [private client fixture](../../src/clients/fixture/main.go#L31)
+  once: establish the reserved daemon record and start/join its
+  [ServeDaemonAgent reader](../../src/internal/api/daemon_agent.go#L22).
+  Today's fixture starts HTTP and storage but no `#bus` reader. Use the landed
+  P1/P3 implementation, not six fake event handlers and never the live daemon.
+- Put representative event calls and subscription receipt cases into the
+  [shared client vectors](../../src/testdata/client-conformance/README.md#state-identity-and-refusal-vectors-t-24),
+  with a native adapter in all six clients. Reuse engine vectors for ring rules;
+  do not copy the whole engine suite into every SDK.
+- Each example verifies confirmed append/read/list, private refusal before
+  existence disclosure, an empty active log versus missing log, one subscription
+  copy, receipt handling and deletion/cancellation. Bound every wait. A plain
+  no-wait write leaves no answer in its caller's inbox.
+- Retain all existing protocol vectors. A deliberately wrong event expectation
+  must fail a named adapter assertion; a helper, if approved, has shared-vector
+  coverage before it lands.
+- Promote only executed examples to the owning client READMEs and link the
+  canonical event model. Correct docs/09's stale S2-pending status in that
+  approved follow-up, using the Part 1 evidence; no protocol change is needed.
+
+## AI-time and freeze impact
+
+Estimates are observed agent wall-clock minutes for B/C workers, not human
+hours. They start when P1/P3 and the agreed reply semantics are on main. They
+cover examples and native integration, not six new high-level API layers.
+
+| Client | Minimum work | AI minutes, one B/C worker | Before-freeze fit |
+|---|---|---|---|
+| Go | Native example and shared event adapter | 6–10 | Fits if owner accepts the common schedule below |
+| Python | Native example and shared event adapter | 6–10 | Fits on the same condition |
+| TypeScript | Native example and shared event adapter | 6–10 | Fits on the same condition |
+| Java | Native example and shared event adapter | 8–12 | Fits on the same condition; no bigfile work required |
+| PHP | Native example and shared event adapter | 8–12 | Fits on the same condition; no bigfile work required |
+| Rust | Native example and shared event adapter | 8–12 | Fits on the same condition; no bigfile work required |
+| Shared | Real `#bus` fixture, shared cases and docs/status alignment | 8–12 | Required once, before native integrations |
+| Review and landing | Reader, required assertion proof, owning checks and gate | 15–25 | Required after the implementation |
+
+Minimum total: **65–103 AI minutes with one worker**, including review/landing.
+With two B/C workers, budget 8–12 shared minutes, 21–33 minutes for balanced
+client work and 15–25 minutes for review/landing: **about 45–70 minutes on the
+critical path**. Against tree-ready **15:10–17:10**, making this entire minimum
+mandatory shifts it to approximately **15:55–18:20**, if dependencies and both
+workers are available. Any P1/P3 wait or gate queue adds directly; this is not a
+promise to keep the original freeze window unchanged.
+
+Recommendation for the owner's scope decision: accept the minimum examples
+and tests if that shift fits the release; do not require helper APIs without a
+concrete example showing the need. A subscription helper would add roughly
+6–10 minutes per Go/Python/TypeScript client or 8–12 per Java/PHP/Rust client,
+plus shared lifecycle cases and another review. Optional bigfile parity and
+removed-alias coverage have their separate sizes above; neither is a dependency
+for event calls. This plan remains unapproved until the owner chooses the cut.

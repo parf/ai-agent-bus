@@ -542,6 +542,12 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Depends: S1, C1, S2
   - Acceptance: V1's shared vectors in `src/testdata/client-conformance` are green on all six client adapters, and the route coverage check fails when a registered route has no row in [the route table](../../docs/09-daemon-api.md#every-route-and-its-class)
 
+## T-31 Client APIs and event examples
+
+- ⛔ T-31 Plan only, awaiting owner scope approval: [dated six-client audit and event-call proposal](clients-events.md#audit-snapshot).
+  - Depends: owner approval, T-29 P1 and P3 on main; no new helper API is approved by this row.
+  - Acceptance: all six native clients run the shared event cases against the isolated daemon fixture, with tested examples and the [implementation acceptance](clients-events.md#implementation-acceptance); scope and freeze cost follow [the estimate](clients-events.md#ai-time-and-freeze-impact).
+
 ## RT34 Agent events
 
 ⏳ Owner, 2026-10-29, under discussion: per-agent notice/warning/alert rings in
