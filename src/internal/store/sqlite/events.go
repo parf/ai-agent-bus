@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/parf/ai-agent-bus/internal/eventlog"
+	"github.com/parf/ai-agent-bus/internal/ports"
 )
 
 func eventIDKey(id uint32) string { return "event-high:" + strconv.FormatUint(uint64(id), 10) }
@@ -15,12 +15,19 @@ func eventHigh(raw string, has bool) (uint64, error) {
 		return 0, nil
 	}
 	n, err := strconv.ParseUint(raw, 10, 64)
-	if err != nil || n > eventlog.Safe || strconv.FormatUint(n, 10) != raw {
-		return 0, fmt.Errorf("invalid event ID reservation")
+	if err != nil || n > ports.EventMaxID || strconv.FormatUint(n, 10) != raw {
+		return 0, ports.ErrEventStateInvalid
 	}
 	return n, nil
 }
 func (s *Store) EventHighWater(id uint32) (uint64, error) {
+	issues, err := eventIDIssues(s.db)
+	if err != nil {
+		return 0, err
+	}
+	if issues[id] {
+		return 0, ports.ErrEventStateInvalid
+	}
 	raw, has, err := meta(s.db, eventIDKey(id))
 	if err != nil {
 		return 0, err
@@ -28,8 +35,8 @@ func (s *Store) EventHighWater(id uint32) (uint64, error) {
 	return eventHigh(raw, has)
 }
 func (s *Store) ReserveEventIDs(id uint32, through uint64) error {
-	if id == 0 || through == 0 || through > eventlog.Safe {
-		return fmt.Errorf("invalid event ID reservation")
+	if id == 0 || through == 0 || through > ports.EventMaxID {
+		return ports.ErrEventStateInvalid
 	}
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -53,27 +60,29 @@ func (s *Store) ReserveEventIDs(id uint32, through uint64) error {
 	return tx.Commit()
 }
 
-func validateEventIDs(tx interface {
+func eventIDIssues(tx interface {
 	Query(string, ...any) (*sql.Rows, error)
-}) error {
+}) (map[uint32]bool, error) {
 	rows, err := tx.Query(`SELECT key,value FROM meta WHERE key LIKE 'event-high:%'`)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer rows.Close()
+	issues := map[uint32]bool{}
 	for rows.Next() {
 		var key, value string
 		if err = rows.Scan(&key, &value); err != nil {
-			return err
+			return nil, err
 		}
 		raw := strings.TrimPrefix(key, "event-high:")
 		id, er := strconv.ParseUint(raw, 10, 32)
 		if er != nil || id == 0 || strconv.FormatUint(id, 10) != raw {
-			return fmt.Errorf("invalid event record ID")
+			issues[uint32(id)] = true
+			continue
 		}
-		if _, err = eventHigh(value, true); err != nil {
-			return err
+		if _, er = eventHigh(value, true); er != nil {
+			issues[uint32(id)] = true
 		}
 	}
-	return rows.Err()
+	return issues, rows.Err()
 }

@@ -1,5 +1,11 @@
 package ports
 
+import "errors"
+
+const EventMaxID = uint64(1<<53 - 1)
+
+var ErrEventStateInvalid = errors.New("invalid event state")
+
 // EventEntry is the shared eventlog entry model. Record IDs, never names, key
 // storage so a new registration cannot inherit another registration's log.
 type EventEntry struct {

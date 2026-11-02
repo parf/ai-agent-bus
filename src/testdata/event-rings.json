@@ -512,6 +512,467 @@
           }
         }
       ]
+    },
+    {
+      "name": "warning-flood-does-not-starve-alerts",
+      "now": 1793318400,
+      "steps": [
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "0"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "1"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "2"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "3"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "4"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "5"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "6"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "7"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "8"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "9"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "10"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "11"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "12"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "13"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "14"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "15"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "16"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "17"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "18"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "19"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "20"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "21"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "22"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "23"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "24"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "25"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "26"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "27"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "28"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "29"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "30"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "31"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "32"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "33"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "34"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "35"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "36"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "37"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "38"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "39"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "alert",
+            "important"
+          ],
+          "expect": {
+            "level": "alert",
+            "text": "important"
+          }
+        }
+      ]
+    },
+    {
+      "name": "warning-overflow-preserves-alert",
+      "now": 1793318400,
+      "config": {
+        "rings": {
+          "alert": {
+            "size": 1
+          },
+          "warning": {
+            "size": 2
+          }
+        }
+      },
+      "steps": [
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "alert",
+            "kept"
+          ],
+          "expect": {
+            "id": 1
+          }
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "0"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "1"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "2"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "3"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "write",
+          "args": [
+            "x",
+            "warning",
+            "4"
+          ],
+          "expect": {}
+        },
+        {
+          "op": "read",
+          "args": [
+            "x"
+          ],
+          "expect": {
+            "counts.alert": 1,
+            "counts.warning": 2,
+            "rings.alert.0.text": "kept"
+          }
+        }
+      ]
     }
   ]
 }

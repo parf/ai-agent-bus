@@ -31,6 +31,8 @@ type Queue struct {
 // records travel with the queues: a reloaded inbox that belongs to no record
 // is a backlog nobody can read.
 type Snapshot struct {
+	// EventIDIssues are private startup diagnostics; affected logs fail closed, not the registry.
+	EventIDIssues []uint32 `json:"-"`
 	// OwnerEstablished distinguishes a store that has never had a daemon Owner
 	// from one whose missing Owner is damage.
 	OwnerEstablished bool   `json:"owner_established,omitempty"`

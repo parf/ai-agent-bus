@@ -2,7 +2,7 @@ package memory
 
 import (
 	"fmt"
-	"github.com/parf/ai-agent-bus/internal/eventlog"
+	"github.com/parf/ai-agent-bus/internal/ports"
 )
 
 func (s *State) EventHighWater(id uint32) (uint64, error) {
@@ -19,7 +19,7 @@ func (s *State) ReserveEventIDs(id uint32, through uint64) error {
 	if s.Err != nil {
 		return s.Err
 	}
-	if id == 0 || through == 0 || through > eventlog.Safe || through < s.eventHigh[id] {
+	if id == 0 || through == 0 || through > ports.EventMaxID || through < s.eventHigh[id] {
 		return fmt.Errorf("invalid event ID reservation")
 	}
 	if s.eventHigh == nil {

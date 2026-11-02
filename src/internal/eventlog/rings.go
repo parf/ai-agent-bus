@@ -16,7 +16,7 @@ import (
 	"github.com/parf/ai-agent-bus/internal/ports"
 )
 
-const Safe = uint64(1<<53 - 1)
+const Safe = ports.EventMaxID
 
 var Levels = []string{"alert", "warning", "notice"}
 var ansi = regexp.MustCompile("\x1b(?:\\[[0-?]*[ -/]*[@-~]|\\][^\x07\x1b]*(?:\x07|\x1b\\\\))")
@@ -74,7 +74,7 @@ type log struct {
 	next, high               uint64
 	last                     time.Time
 	rings                    map[string][]ports.EventEntry
-	tokens                   float64
+	tokens, alertTokens      float64
 	rateAt                   time.Time
 	dropped                  uint64
 }
@@ -97,7 +97,7 @@ func (e *Engine) get(id uint32) *log {
 	defer e.mu.Unlock()
 	l := e.logs[id]
 	if l == nil {
-		l = &log{rings: map[string][]ports.EventEntry{}, tokens: 20}
+		l = &log{rings: map[string][]ports.EventEntry{}, tokens: 20, alertTokens: 20}
 		e.logs[id] = l
 	}
 	return l
@@ -113,7 +113,10 @@ func (e *Engine) load(id uint32, l *log) error {
 		return Error("storage_unknown")
 	}
 	high, err := e.ids.EventHighWater(id)
-	if err != nil || high > Safe {
+	if errors.Is(err, ports.ErrEventStateInvalid) || high > Safe {
+		return Error("storage_invalid")
+	}
+	if err != nil {
 		return Error("storage_unknown")
 	}
 	l.high = high
@@ -209,6 +212,10 @@ func (e *Engine) Write(id uint32, level, text string, p Policy) (ports.EventEntr
 	defer l.mu.Unlock()
 	if !l.rateAt.IsZero() && now.After(l.rateAt) {
 		l.tokens += now.Sub(l.rateAt).Seconds() * 10
+		l.alertTokens += now.Sub(l.rateAt).Seconds() * 10
+		if l.alertTokens > 20 {
+			l.alertTokens = 20
+		}
 		if l.tokens > 20 {
 			l.tokens = 20
 		}
@@ -216,7 +223,11 @@ func (e *Engine) Write(id uint32, level, text string, p Policy) (ports.EventEntr
 	if now.After(l.rateAt) {
 		l.rateAt = now
 	}
-	if l.tokens < 1 {
+	bucket := &l.tokens
+	if level == "alert" {
+		bucket = &l.alertTokens
+	}
+	if *bucket < 1 {
 		l.dropped++
 		return ports.EventEntry{}, Error("rate_limit")
 	}
@@ -266,7 +277,7 @@ func (e *Engine) Write(id uint32, level, text string, p Policy) (ports.EventEntr
 		l.next++
 	}
 	l.active = true
-	l.tokens--
+	*bucket--
 	if now.After(l.last) {
 		l.last = now
 	}

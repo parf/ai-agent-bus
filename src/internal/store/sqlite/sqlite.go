@@ -267,8 +267,12 @@ func (s *Store) Load() (ports.Snapshot, error) {
 		return snap, err
 	}
 	defer tx.Rollback()
-	if err := validateEventIDs(tx); err != nil {
+	issues, err := eventIDIssues(tx)
+	if err != nil {
 		return snap, err
+	}
+	for id := range issues {
+		snap.EventIDIssues = append(snap.EventIDIssues, id)
 	}
 	if owner, has, err := meta(tx, "owner"); err != nil {
 		return snap, err
