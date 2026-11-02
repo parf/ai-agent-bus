@@ -1384,16 +1384,20 @@ public final class BusTest {
         });
 
 
-        // The shared event-log vectors: three identities act on a fixture daemon with its own #bus reader — the daemon
-        // Owner, the agent whose log it is, and a third that manages neither.
-        section("shared event-log vectors", () -> {
-            Map<String, String> who = Map.of("owner", "owner@fixture", "agent", "#caller@fixture", "third", "#outsider@fixture");
-            for (Object c : vectors.apply("events")) {
+        // The shared event-log and event-subscription vectors: the daemon Owner, the agent whose log it is, a third
+        // party and a source Maintainer act on a fixture daemon with its own #bus reader. A subscription copy is read
+        // from the destination queue named by the step; no ack or done is sent for it (it is a notice).
+        interface Vectors { void run(String file) throws Exception; }
+        Vectors eventVectors = file -> {
+            Map<String, String> who = Map.of("owner", "owner@fixture", "agent", "#caller@fixture", "third", "#outsider@fixture", "worker", "#worker@fixture");
+            for (Object c : vectors.apply(file)) {
                 Map<?, ?> k = (Map<?, ?>) c;
                 try (VectorDaemon daemon = new VectorDaemon()) {
                     Map<String, Bus> buses = new java.util.HashMap<>();
                     who.forEach((role, name) -> buses.put(role, daemon.as(name)));
                     Map<Integer, String> answers = new java.util.HashMap<>();
+                    String[] subscription = {""};
+                    java.util.function.Function<Object, Object> sub = v -> v instanceof String t ? t.replace("$subscription", subscription[0]) : v;
                     int i = 0;
                     for (Object so : (List<?>) k.get("steps")) {
                         Map<?, ?> step = (Map<?, ?>) so;
@@ -1401,14 +1405,17 @@ public final class BusTest {
                         String op = (String) step.get("op"), at = k.get("id") + " step " + n + " " + op;
                         Bus bus = buses.get((String) step.get("as"));
                         if (bus == null) { check(at + ": known identity", false, step.get("as")); continue; }
+                        Map<?, ?> expect = step.get("expect") instanceof Map<?, ?> e ? e : Map.of();
                         switch (op) {
                             case "call" -> {
-                                Outcome o = bus.call("#bus", (String) step.get("body"), Call.within(Duration.ofSeconds(5)));
+                                String body = (String) sub.apply(step.get("body"));
+                                Outcome o = bus.call("#bus", body, Call.within(Duration.ofSeconds(5)));
                                 if (!(o instanceof Outcome.Answer a)) { check(at + ": answered", false, o); break; }
                                 String answer = a.message().body();
                                 answers.put(n, answer);
                                 Object decoded = Json.parse(answer);
-                                Map<?, ?> expect = step.get("expect") instanceof Map<?, ?> e ? e : Map.of();
+                                if (body.startsWith("sub add ") && decoded instanceof Map<?, ?> row && row.get("id") instanceof String id) subscription[0] = id;
+                                else if (body.startsWith("sub add ") && expect.containsKey("target")) check(at + ": sub add returned an id", false, answer);
                                 for (Map.Entry<?, ?> e : expect.entrySet()) {
                                     Object got = decoded;
                                     boolean found = true;
@@ -1417,7 +1424,8 @@ public final class BusTest {
                                         else if (got instanceof List<?> l && key.matches("\\d+") && Integer.parseInt(key) < l.size()) got = l.get(Integer.parseInt(key));
                                         else { found = false; break; }
                                     }
-                                    check(at + ": " + e.getKey(), found && java.util.Objects.equals(got, e.getValue()), "got " + got + " want " + e.getValue() + "; reply " + answer);
+                                    Object want = sub.apply(e.getValue());
+                                    check(at + ": " + e.getKey(), found && java.util.Objects.equals(got, want), "got " + got + " want " + want + "; reply " + answer);
                                 }
                                 if (step.get("same_answer_as") instanceof Number prior) {
                                     check(at + ": the reply is byte for byte step " + prior + "'s", answer.equals(answers.get(prior.intValue())), answer);
@@ -1427,16 +1435,45 @@ public final class BusTest {
                                 Throwable e = thrown(() -> bus.send("#bus", (String) step.get("body")));
                                 check(at + ": queued", e == null, name(e));
                             }
+                            case "manage" -> {
+                                @SuppressWarnings("unchecked") Map<String, Object> changes = (Map<String, Object>) step.get("changes");
+                                Throwable e = thrown(() -> bus.record((String) step.get("name")).manage(changes));
+                                check(at + ": managed", e == null, name(e));
+                            }
                             case "inbox" -> {
-                                Optional<Message> m = bus.consume(Consume.waiting(Duration.ofMillis(300)));
-                                check(at + ": the inbox is empty", m.isEmpty(), m.map(x -> x.from() + ": " + x.body()).orElse(""));
+                                Consume read = Consume.waiting(Duration.ofMillis(300));
+                                if (step.get("inbox") instanceof String q) read = read.inbox(q);
+                                Optional<Message> m = bus.consume(read);
+                                if (Boolean.TRUE.equals(expect.get("empty"))) {
+                                    check(at + ": the inbox is empty", m.isEmpty(), m.map(x -> x.from() + ": " + x.body()).orElse(""));
+                                    break;
+                                }
+                                if (m.isEmpty()) { check(at + ": a copy was waiting", false, "the inbox was empty"); break; }
+                                Message x = m.get();
+                                Map<String, Object> seen = new java.util.HashMap<>();
+                                seen.put("from", x.from()); seen.put("to", x.to());
+                                seen.put("topic", x.topic().orElse("")); seen.put("tag", x.tag().orElse(""));
+                                seen.put("receipt", x.receipt().map(Object::toString).orElse("")); seen.put("re", x.re().orElse(""));
+                                seen.put("wait", x.deadline().isPresent() ? "set" : "");   // this client reads a waiting call as a message with a deadline
+                                seen.put("body", Json.parse(x.body()));
+                                for (Map.Entry<?, ?> e : expect.entrySet()) {
+                                    Object got = seen;
+                                    boolean found = true;
+                                    for (String key : ((String) e.getKey()).split("\\.")) {
+                                        if (got instanceof Map<?, ?> mm && mm.containsKey(key)) got = mm.get(key);
+                                        else { found = false; break; }
+                                    }
+                                    check(at + ": copy " + e.getKey(), found && java.util.Objects.equals(got, e.getValue()), "got " + got + " want " + e.getValue());
+                                }
                             }
                             default -> check(at + ": known op", false, op);
                         }
                     }
                 }
             }
-        });
+        };
+        section("shared event-log vectors", () -> eventVectors.run("events"));
+        section("shared event-subscription vectors", () -> eventVectors.run("event-subscriptions"));
         section("event-log example", () -> {
             try (VectorDaemon daemon = new VectorDaemon()) {
                 List<String> lines = EventLogExample.run(daemon.addr, daemon.tokens);
