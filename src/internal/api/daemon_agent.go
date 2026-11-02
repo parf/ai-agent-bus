@@ -18,13 +18,15 @@ import (
 	"github.com/parf/ai-agent-bus/internal/version"
 )
 
-// ServeDaemonAgent starts one in-process reader, after the reserved record is
-// established. Closing joins it before the daemon's final queue checkpoint.
+// ServeDaemonAgent consumes through bounded, fair lanes and joins every worker
+// before the daemon's final queue checkpoint.
 func (s *Server) ServeDaemonAgent(parent context.Context) func() {
 	ctx, cancel := context.WithCancel(parent)
 	done := make(chan struct{})
+	d := newDaemonDispatch(ctx, s.runDaemonTask)
 	go func() {
 		defer close(done)
+		defer func() { cancel(); d.wg.Wait() }()
 		for {
 			if ctx.Err() != nil {
 				return
@@ -39,25 +41,36 @@ func (s *Server) ServeDaemonAgent(parent context.Context) func() {
 			if e.Receipt != "" || e.Re != "" {
 				continue
 			}
-			body, err := s.daemonAnswer(e)
-			if err != nil {
-				body = "error: " + err.Error()
-			}
-			// Plain writes are observations, never fresh input for their sender.
-			if e.Ask == "" && eventMethod(e.Body) == "write" && (e.Wait == "" || (!e.Deadline.IsZero() && !time.Now().Before(e.Deadline))) {
-				continue
-			}
-			back := protocol.ReplyTo{Name: e.From, Topic: e.Topic, Tag: e.Tag}
-			if e.ReplyTo != nil {
-				back = *e.ReplyTo
-			}
-			_, err = s.bus.Send(protocol.Envelope{From: core.DaemonAgent, To: back.Name, Topic: back.Topic, Tag: back.Tag, Re: e.ID, Body: body})
-			if err != nil {
-				s.logs().Report(ports.Warning, "#bus answer could not be delivered: "+err.Error())
+			if !d.enqueue(e) {
+				if writeLooking(e.Body) {
+					c, _ := parseEventCall(e.Body)
+					s.bus.EventAdmissionDrop(e.From, c.Log)
+				}
+				s.replyDaemonTask(e, eventFailure(eventlog.Error("busy"), writeLooking(e.Body)))
 			}
 		}
 	}()
 	return func() { cancel(); <-done }
+}
+func (s *Server) runDaemonTask(e protocol.Envelope) {
+	body, err := s.daemonAnswer(e)
+	if err != nil {
+		body = "error: " + err.Error()
+	}
+	s.replyDaemonTask(e, body)
+}
+func (s *Server) replyDaemonTask(e protocol.Envelope, body string) {
+	// Plain writes are observations, never fresh input for the sender's process.
+	if e.Ask == "" && writeLooking(e.Body) && (e.Wait == "" || (!e.Deadline.IsZero() && !time.Now().Before(e.Deadline))) {
+		return
+	}
+	back := protocol.ReplyTo{Name: e.From, Topic: e.Topic, Tag: e.Tag}
+	if e.ReplyTo != nil {
+		back = *e.ReplyTo
+	}
+	if _, err := s.bus.Send(protocol.Envelope{From: core.DaemonAgent, To: back.Name, Topic: back.Topic, Tag: back.Tag, Re: e.ID, Body: body}); err != nil {
+		s.logs().Report(ports.Warning, "#bus answer could not be delivered: "+err.Error())
+	}
 }
 
 func (s *Server) daemonAnswer(e protocol.Envelope) (string, error) {

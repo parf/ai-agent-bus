@@ -35,6 +35,13 @@ func eventMethod(body string) string {
 	}
 	return ""
 }
+
+var eventWriteMember = regexp.MustCompile(`(?i)"method"\s*:\s*"write"`)
+
+func writeLooking(body string) bool {
+	return strings.EqualFold(eventMethod(body), "write") || strings.HasPrefix(strings.TrimSpace(body), "{") && eventWriteMember.MatchString(body)
+}
+
 func isEventMethod(method string) bool {
 	return method == "write" || method == "read" || method == "list" || method == "pull" || method == "clean"
 }
@@ -170,13 +177,16 @@ func parseEventCall(body string) (eventCall, error) {
 }
 func eventFailure(err error, write bool) string {
 	code := eventlog.Code(err)
-	texts := map[string]string{"forbidden": "This call requires a direct instance role.", "not_found": "No such log or subscription.", "invalid_request": "Invalid call; ask help.", "invalid_level": "Use notice, warning or alert.", "invalid_log": "Invalid agent name.", "invalid_text": "Invalid entry text.", "rate_limit": "Agent event rate limit reached.", "storage_invalid": "Persistent ring state is invalid.", "storage_unknown": "Ring storage outcome is unknown; reopen validated state.", "deadline": "Insufficient time to store this entry."}
+	texts := map[string]string{"forbidden": "Only the log’s Owner, Maintainers or daemon Owner may read or manage it.", "not_found": "No such log or subscription.", "invalid_request": "Invalid call; ask help.", "invalid_level": "Use notice, warning or alert.", "invalid_log": "Invalid agent name.", "invalid_text": "Invalid entry text.", "busy": "Agent event dispatch is busy.", "rate_limit": "Agent event rate limit reached.", "storage_invalid": "Persistent ring state is invalid.", "storage_unknown": "Ring storage outcome is unknown; reopen validated state.", "deadline": "Insufficient time to store this entry."}
 	text, ok := texts[code]
 	if !ok {
 		code = "internal_error"
 		text = "The operation could not be completed."
 	}
 	if write {
+		if code == "forbidden" {
+			text = "Only the agent itself or daemon Owner may write this log."
+		}
 		return "error: " + code + ": " + text
 	}
 	out, _ := json.Marshal(map[string]any{"error": map[string]string{"code": code, "text": text}})
@@ -227,6 +237,9 @@ func (s *Server) eventMethods(caller string) map[string]any {
 	} {
 		if row.allowed {
 			method := map[string]any{"help": row.help}
+			if row.name == "pull" || row.name == "clean" {
+				method["destructive"] = true
+			}
 			if row.args != "" {
 				method["args"] = []any{map[string]any{"name": "args", "rest": true, "help": row.args}}
 			}
@@ -239,7 +252,7 @@ func (s *Server) eventHelp(caller string) string {
 	write, read := s.bus.EventCapabilities(caller)
 	text := ""
 	if write {
-		text += "write <agent> notice|warning|alert <text> — append to your own log; confirms only when wait is set\n"
+		text += "write <agent> notice|warning|alert <text> — append to your own log; answers only when wait is set\n"
 	}
 	if read {
 		text += "read <agent> [level] — complete private log\nlist — private log summaries\npull <agent> [level] [count] — remove oldest entries\nclean <agent> [level] [id] — clear entries through id\n"

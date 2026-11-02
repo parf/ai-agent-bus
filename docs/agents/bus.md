@@ -18,10 +18,10 @@
 - ✅ **Counts are the whole node's:** records are every live record of any kind, not only the ones you may see; readers are reads waiting for a message, so one agent can count twice and a busy one not at all.
 - ✅ **Deploy check:** `version` gives the running version and build.
 - ✅ **Find helpers:** `ls` lists your team's helpers with one-line descriptions.
-- ✅ **Read the menu:** `help` lists the read-only calls you may use.
+- ✅ **Read the menu:** `help` lists the calls you may use.
 - ✅ **Machine-readable answers:** `status --json`, `version --json` and `ls … --json` answer with the daemon's own JSON and nothing else; an empty list is `[]`. Text stays the default.
 - ✅ **Built in:** every daemon has its own `#bus`, created and protected by the daemon; nobody can replace, disable, transfer or remove it, get its token or read its queue.
-- 🚫 **Not for:** checking whether a particular helper works (call that helper, or use [debug](debug.md#check-the-bus-in-a-minute)), or changing anything (its calls are read-only).
+- 🚫 **Not for:** checking whether a particular helper works (call that helper, or use [debug](debug.md#check-the-bus-in-a-minute)), or managing the registry through its message methods.
 
 ## You'll need
 
@@ -82,6 +82,13 @@ agent-bus call '#bus' 'ls --kind agent --tag runner' | jq -r .body | head -3
 
 - Nothing to install: the daemon creates `#bus` itself.
 
+## Agent logs
+
+- `write <agent> notice|warning|alert <text>` writes the agent's own log; the daemon Owner may also write. A no-wait write sends no answer; a waiting write to the caller’s own inbox gets its answer only if the caller’s Allow admits `#bus`, following the [normal reply ACL](../04-messaging.md#reply-routing).
+- `read <agent> [level]`, `list`, `pull <agent> [level] [count]` and `clean <agent> [level] [id]` use the [shared log model](eventlog.md#log-model) and [reply forms](eventlog.md#technical-details). Only the log's Owner, Maintainers and daemon Owner may read or manage it; only the daemon Owner may read `#bus`'s own log.
+- A damaged log is left out of `list`, still refuses its own read with `storage_invalid`, and is named in the daemon's error log at startup.
+
+
 ## Configuration
 
 - **The Configuration of `#bus` is the bus setup,** and only the daemon Owner reads or saves it; an Administrator, an Agent of the Owner or anybody else is refused.
@@ -113,7 +120,7 @@ echo '{"realm":"parf.us"}' | agent-bus config '#bus' -
 - The whole value is one JSON object of the keys above; an unknown key, a missing realm or a value out of range refuses the save and changes nothing.
 - The realm is checked as written: lower case `a-z 0-9 . _ -`, starting with a letter or digit, at most 62 characters; nothing is trimmed, lowered or cut; only the first-start default lowers the host name and drops a trailing dot.
 - A key given twice refuses the save.
-- Numbers are whole: entries 1–10000, days 1–3650.
+- Numbers are whole: entries per ring 1–500, with a combined total of 500 or less; days 1–3650.
 - A realm change writes one audit-log line naming the Owner and the old and new realm; a realm the daemon saves from the host name at start is audited as `(daemon start)`.
 
 </details>
@@ -125,7 +132,7 @@ echo '{"realm":"parf.us"}' | agent-bus config '#bus' -
 ## Who may use it
 
 - **Anyone with a bus account.**
-- **Every request runs with the caller's own authority;** `#bus` never lists as the daemon Owner on someone else's behalf and offers no management calls.
+- **Every request runs with the caller's own authority;** `#bus` never lists as the daemon Owner on someone else's behalf and private-log methods check the log’s management authority.
 - **Its [Configuration](#configuration)** is the daemon Owner's.
 
 <details>

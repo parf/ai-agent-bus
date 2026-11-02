@@ -133,7 +133,7 @@ Default rings:
 
 - The combined ring capacity of a log is at most 500. Each level's size is at least one.
 - A log summary may include `dropped`, counting admission refusals only, not subscriber copy drops; absent means zero.
-- TTL is a positive duration with one `s`, `m`, `h` or `d` unit, at most 366 days.
+- TTL is positive; each host owns its input form and upper bound in Configuration, including [the bus setup](bus.md#configuration).
 - Entries use one increasing id sequence per log across all levels, never reused after clean or restart. Full clean keeps the last-id tombstone; ids reserve blocks of 64, so restart can skip unused numbers. Ids stay within the exact JSON integer range; exhaustion refuses a write.
 - Read is newest first within a level, levels alert then warning then notice; pull removes oldest ids once, and clean through an id is inclusive.
 - A repeated level and text within a fixed minute from its first entry folds into that live entry, preserving its id and increasing count; an accepted folded occurrence still forwards once.

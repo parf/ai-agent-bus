@@ -24,11 +24,11 @@ type BusSetting struct {
 // The agent-event keys are kept and validated now and applied by RT34.
 var BusSettings = []BusSetting{
 	{Key: "realm", Help: "The bus's default realm for new automatic names; existing names never change"},
-	{Key: "notice_entries", Help: "Agent-event notices kept per agent", Default: 200, Max: 10000},
+	{Key: "notice_entries", Help: "Agent-event notices kept per agent; all levels total at most 500", Default: 200, Max: 500},
 	{Key: "notice_days", Help: "Days an agent-event notice is kept", Default: 1, Max: 3650},
-	{Key: "warning_entries", Help: "Agent-event warnings kept per agent", Default: 200, Max: 10000},
+	{Key: "warning_entries", Help: "Agent-event warnings kept per agent; all levels total at most 500", Default: 200, Max: 500},
 	{Key: "warning_days", Help: "Days an agent-event warning is kept", Default: 7, Max: 3650},
-	{Key: "alert_entries", Help: "Agent-event alerts kept per agent", Default: 50, Max: 10000},
+	{Key: "alert_entries", Help: "Agent-event alerts kept per agent; all levels total at most 500", Default: 50, Max: 500},
 	{Key: "alert_days", Help: "Days an agent-event alert is kept", Default: 30, Max: 3650},
 }
 

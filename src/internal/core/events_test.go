@@ -408,3 +408,95 @@ func TestEventReadFinalRecheckHidesDataRevokedDuringExpiryCommit(t *testing.T) {
 		t.Fatal("read did not finish after commit release")
 	}
 }
+
+func TestAdmissionDropIsVisibleAndZeroIsAbsent(t *testing.T) {
+	b := eventFixture(t)
+	b.EventWrite("#a@h", "#a@h", "notice", "one")
+	r, err := b.EventRead("alice@h", "#a@h", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := json.Marshal(r)
+	if strings.Contains(string(raw), `"dropped"`) {
+		t.Fatalf("zero drop field must be absent: %s", raw)
+	}
+	b.EventAdmissionDrop("#a@h", "#a@h")
+	b.EventAdmissionDrop("#other@h", "#a@h")
+	r, err = b.EventRead("alice@h", "#a@h", "")
+	if err != nil || r.Dropped != 1 {
+		t.Fatalf("drop admission count wrong: %+v %v", r, err)
+	}
+}
+
+func TestEventReadPrecommitDoesNotPruneAfterAuthorityRevocation(t *testing.T) {
+	b := eventFixture(t)
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	b.Clock(func() time.Time { return now })
+	st := &eventLoadBarrier{State: memory.NewState(), alerts: map[uint32][]ports.EventEntry{}, active: map[uint32]bool{}, entered: make(chan struct{}), release: make(chan struct{})}
+	b.Persistence(st)
+	b.EventWrite("#a@h", "#a@h", "alert", "expired")
+	now = now.Add(24 * time.Hour)
+	b.EventWrite("#a@h", "#a@h", "alert", "kept")
+	id := b.records["#a@h"].ID
+	now = now.Add(29*24*time.Hour + 12*time.Hour)
+	b.events = nil
+	st.block.Store(true)
+	done := make(chan error, 1)
+	go func() { _, err := b.EventRead("maint@h", "#a@h", ""); done <- err }()
+	select {
+	case <-st.entered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("read did not enter load barrier")
+	}
+	if _, err := b.Manage("alice@h", Management{Name: "#a@h", Maintainers: ptr(protocol.MaintainerList{})}); err != nil {
+		t.Fatal(err)
+	}
+	close(st.release)
+	select {
+	case err := <-done:
+		if eventlog.Code(err) != "forbidden" {
+			t.Fatalf("revoked read %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("read did not finish")
+	}
+	if len(st.alerts[id]) != 2 {
+		t.Fatalf("unauthorized read pruned persistent entries: %v", st.alerts[id])
+	}
+}
+
+type oneBadEventStore struct {
+	*memory.State
+	bad uint32
+}
+
+func (s *oneBadEventStore) EventHighWater(id uint32) (uint64, error) {
+	if id == s.bad {
+		return 0, ports.ErrEventStateInvalid
+	}
+	return s.State.EventHighWater(id)
+}
+func TestEventListUsesBusClockAndSkipsOnlyDamagedLogs(t *testing.T) {
+	b := eventFixture(t)
+	now := time.Date(2025, 3, 4, 5, 6, 7, 0, time.UTC)
+	b.Clock(func() time.Time { return now })
+	st := &oneBadEventStore{State: memory.NewState(), bad: b.records["#a@h"].ID}
+	b.Persistence(st)
+	if _, err := b.EventWrite("#other@h", "#other@h", "notice", "healthy"); err != nil {
+		t.Fatal(err)
+	}
+	listed, err := b.EventList("alice@h")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if listed["now"] != "2025-03-04T05:06:07.000Z" {
+		t.Fatalf("list ignored bus clock: %v", listed["now"])
+	}
+	raw, _ := json.Marshal(listed["logs"])
+	if !strings.Contains(string(raw), "#other@h") || strings.Contains(string(raw), "#a@h") {
+		t.Fatalf("damaged-log isolation failed: %s", raw)
+	}
+	if _, err = b.EventRead("alice@h", "#a@h", ""); eventlog.Code(err) != "storage_invalid" {
+		t.Fatalf("damaged log became clean: %v", err)
+	}
+}
