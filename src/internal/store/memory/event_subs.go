@@ -70,11 +70,11 @@ func (s *State) SetSubscriptionCounts(sourceID uint32, id string, sent, dropped 
 	}
 	sub, ok := s.subs[id]
 	if !ok || sub.source != sourceID {
-		return errors.New("absent")
+		return ports.ErrSubscriptionAbsent
 	}
 	var m map[string]any
-	if err := json.Unmarshal(sub.body, &m); err != nil {
-		return err
+	if err := json.Unmarshal(sub.body, &m); err != nil || m == nil {
+		return ports.ErrSubscriptionInvalid
 	}
 	m["sent"], m["dropped"] = sent, dropped
 	body, err := json.Marshal(m)

@@ -205,3 +205,24 @@ func TestSchemaNineGainsTheSubscriptionTable(t *testing.T) {
 		t.Fatalf("the migration lost data: %q %v", kept, err)
 	}
 }
+
+// A counter write to a stored value that is not an object is refused, not applied.
+func TestACounterWriteToANonObjectRowIsRefused(t *testing.T) {
+	s, _ := open(t)
+	defer s.Close()
+	for _, body := range []string{"null", "[]", "3", "not json"} {
+		if _, err := s.db.Exec(`DELETE FROM event_subs`); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.db.Exec(`INSERT INTO event_subs (id, source_id, body) VALUES ('000000000001', 3, ?)`, body); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.SetSubscriptionCounts(3, "000000000001", 1, 1); !errors.Is(err, ports.ErrSubscriptionInvalid) {
+			t.Errorf("a counter write to %q gave %v, want ErrSubscriptionInvalid", body, err)
+		}
+		var got string
+		if err := s.db.QueryRow(`SELECT body FROM event_subs WHERE id = '000000000001'`).Scan(&got); err != nil || got != body {
+			t.Errorf("the stored %q was changed to %q", body, got)
+		}
+	}
+}

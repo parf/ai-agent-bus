@@ -54,15 +54,20 @@ func (s *Store) DeleteSubscription(sourceID uint32, id string) (bool, error) {
 }
 
 func (s *Store) SetSubscriptionCounts(sourceID uint32, id string, sent, dropped int64) error {
-	res, err := s.db.Exec(`UPDATE event_subs SET body = json_set(json_set(body, '$.sent', ?), '$.dropped', ?) WHERE id = ? AND source_id = ? AND json_valid(body)`, sent, dropped, id, sourceID)
+	res, err := s.db.Exec(`UPDATE event_subs SET body = json_set(json_set(body, '$.sent', ?), '$.dropped', ?) WHERE id = ? AND source_id = ? AND json_valid(body) AND json_type(body) = 'object'`, sent, dropped, id, sourceID)
 	if err != nil {
 		return err
 	}
 	n, err := res.RowsAffected()
-	if err == nil && n == 0 {
-		err = sql.ErrNoRows
+	if err != nil || n > 0 {
+		return err
 	}
-	return err
+	// Nothing changed: the row is gone, or it is stored but not an object.
+	var valid int
+	if qerr := s.db.QueryRow(`SELECT count(*) FROM event_subs WHERE id = ? AND source_id = ?`, id, sourceID).Scan(&valid); qerr == nil && valid > 0 {
+		return ports.ErrSubscriptionInvalid
+	}
+	return ports.ErrSubscriptionAbsent
 }
 
 func (s *Store) FindSubscription(id string) (uint32, bool, error) {

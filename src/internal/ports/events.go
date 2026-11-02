@@ -39,6 +39,15 @@ type EventStatePruner interface{ DropEventState(recordID uint32) error }
 // ErrSubscriptionExists is AddSubscription's answer for a taken id.
 var ErrSubscriptionExists = errors.New("subscription id exists")
 
+// ErrSubscriptionInvalid is SetSubscriptionCounts's answer for a stored value
+// that is not a subscription object: damage, to be shown to the managers, never
+// written through.
+var ErrSubscriptionInvalid = errors.New("stored subscription is not an object")
+
+// ErrSubscriptionAbsent is SetSubscriptionCounts's answer for a row that is
+// gone: deleted while a write's copies were being sent.
+var ErrSubscriptionAbsent = errors.New("subscription is gone")
+
 // SubscriptionStore keeps the subscriptions of agent logs: one row per
 // subscription, its stored JSON opaque to the store, keyed by an id that is
 // unique across sources and by the internal ID of the source record, which is

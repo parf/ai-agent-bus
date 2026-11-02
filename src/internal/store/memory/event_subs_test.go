@@ -101,3 +101,21 @@ func TestMemorySubscriptionsGoWithTheirSourceAndAuthor(t *testing.T) {
 		t.Fatalf("the retirement prune left %d rows", len(rows))
 	}
 }
+
+// A counter write to a stored value that is not an object is refused, with no panic.
+func TestMemoryCounterWriteToANonObjectRowIsRefused(t *testing.T) {
+	s := NewState()
+	for _, body := range []string{"null", "[]", "3", "not json"} {
+		s.subs = map[string]memorySub{"000000000001": {source: 3, body: []byte(body)}}
+		func() {
+			defer func() {
+				if p := recover(); p != nil {
+					t.Errorf("a counter write to %q panicked: %v", body, p)
+				}
+			}()
+			if err := s.SetSubscriptionCounts(3, "000000000001", 1, 1); !errors.Is(err, ports.ErrSubscriptionInvalid) {
+				t.Errorf("a counter write to %q gave %v, want ErrSubscriptionInvalid", body, err)
+			}
+		}()
+	}
+}
