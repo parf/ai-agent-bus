@@ -21,7 +21,7 @@
 
 ## Try this first
 
-- Save the service as `time-simple.sh`, make it executable, and start it in one terminal. The file begins with `#!/bin/sh`, then the lines below:
+- Save [time-simple.sh](../../src/clients/examples/agent-guide/packages/time-simple/time-simple.sh) and make it executable (the file begins with `#!/bin/sh` and a comment; its working part is below), then start it in one terminal:
 
 <!-- quote: src/clients/examples/agent-guide/packages/time-simple/time-simple.sh simple -->
 ```sh
@@ -70,7 +70,7 @@ unsupported format; ask help
 - 🔑 **Settings and keys stay out of the script.** Configuration holds the format; the Secret holds a stamp key that the script uses and never prints.
 - 🗂️ **State lives in the work folder:** a report count and the last five times, which a restart keeps with `--stay-registered`.
 - 📖 **It shapes its own help and status,** so help can name the history word.
-- Save it as `time-advanced.sh` (it also begins with `#!/bin/sh`), and run it kept registered:
+- Save [time-advanced.sh](../../src/clients/examples/agent-guide/packages/time-advanced/time-advanced.sh) the same way; its working part is below. Run it kept registered:
 
 <!-- quote: src/clients/examples/agent-guide/packages/time-advanced/time-advanced.sh advanced -->
 ```sh
@@ -106,6 +106,7 @@ agent-bus run '#time-advanced' "$PWD/time-advanced.sh" --stay-registered
 
 <!-- run: cli-advanced -->
 ```sh
+STAMP_KEY=a-private-stamp-key
 agent-bus config '#time-advanced' '{"format":"epoch"}' >/dev/null
 agent-bus secret '#time-advanced' "TIME_STAMP_KEY=$STAMP_KEY" >/dev/null
 ```

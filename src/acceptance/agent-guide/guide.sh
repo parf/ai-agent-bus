@@ -36,14 +36,21 @@ NOW() { date -u +%s; }
 # The worked pages: what they quote is what ran, and the commands they show are run here.
 # page_quotes PAGE; page_run PAGE KIND PACKAGE [NAME=value ...]: PACKAGE is copied and is the commands' folder.
 page_ingest() { local line; while IFS= read -r line; do case $line in "  ok   "*) ok "${line#  ok   }" ;; "  FAIL "*) bad "${line#  FAIL }" ;; esac; done; }
-page_quotes() { page_ingest < <(python3 -I "$here/pages.py" quotes "$@"); }
+# page_report LABEL OUTFILE EXITCODE: the checker's lines are counted, and a crash, a non-zero exit or no
+# checks at all is a failure of its own, never a silent pass.
+page_report() {
+  page_ingest < "$2"
+  [ "$3" -eq 0 ] || bad "$1: the page checker exited $3" "$(tail -n 3 "$2.err" | tr '\n' ' ')"
+  grep -q '^  ok   ' "$2" || bad "$1: the page checker reported no passing check"
+}
+page_quotes() { local out=$GB_DIR/pq.$RANDOM; python3 -I "$here/pages.py" quotes "$@" >"$out" 2>"$out.err"; page_report "quotes $1" "$out" $?; }
 # PAGE_AS is the person the commands run as (default the test bus's owner).
 page_run() {
   local page=$1 kind=$2 pkg=$3; shift 3
   local as=${PAGE_AS:-$GB_OWNER}
-  local work=$GB_DIR/pg-$kind; rm -rf "$work"; cp -R "$PKG/$pkg" "$work"
-  PAGE_WORK=$work PAGE_ENV="$*" GB_BIN=$BIN GB_ADDR=$GB_ADDR GB_TOKEN=$(gtok "$as") GB_OWNER=$as python3 -I "$here/pages.py" run "$page" "$kind" > "$work.out"
-  page_ingest < "$work.out"
+  local work=$GB_DIR/pg-$kind; rm -rf "$work"; cp -R "$PKG/$pkg" "$work" || { bad "page $kind: the package folder was copied"; return; }
+  PAGE_WORK=$work PAGE_ENV="$*" GB_BIN=$BIN GB_ADDR=$GB_ADDR GB_TOKEN=$(gtok "$as") GB_OWNER=$as python3 -I "$here/pages.py" run "$page" "$kind" > "$work.out" 2> "$work.err"
+  page_report "run $page $kind" "$work.out" $?
 }
 iso_epoch() { date -u -d "$1" +%s; }
 # What a time answer must be: an ISO or epoch reading taken between two clock reads.
@@ -150,10 +157,10 @@ lacks "the Python service's own log never holds the Secret" "$(cat "$GB_DIR/proc
 gb "$GB_OWNER" unregister "$A" >/dev/null 2>&1; gb "$GB_OWNER" unregister "$P" >/dev/null 2>&1   # free the names for the runner
 
 sec "Pages: the commands the CLI advanced and process pages show"
-page_run docs/user/write-agent-cli.md cli-advanced time-advanced STAMP_KEY=$KEY
+page_run docs/user/write-agent-cli.md cli-advanced time-advanced
 gb "$GB_OWNER" unregister '#time-advanced' >/dev/null 2>&1   # the page registers the name without a realm
 mkdir -p "$GB_DIR/pg-process-src"; cp -R "$PKG/time-process/." "$GB_DIR/pg-process-src/"; cp -R "$ROOT/src/clients/python/agent_bus" "$GB_DIR/pg-process-src/agent_bus"
-PKG_SAVE=$PKG; PKG=$GB_DIR; page_run docs/user/write-agent-process.md process pg-process-src STAMP_KEY=$KEY AGENT_BUS_ADDR=$GB_ADDR; PKG=$PKG_SAVE
+PKG_SAVE=$PKG; PKG=$GB_DIR; page_run docs/user/write-agent-process.md process pg-process-src AGENT_BUS_ADDR=$GB_ADDR; PKG=$PKG_SAVE
 gb "$GB_OWNER" unregister '#time-process' >/dev/null 2>&1
 
 # ---- packaging without a runner: the facts a package must hold, checked statically ----
@@ -263,7 +270,7 @@ if [ "$MODE" = slow ]; then
   for d in time-simple time-advanced time-process; do rm -rf "${RHA:?}/$d"; gb launcher@localhost unregister "#$d@localhost" >/dev/null 2>&1; done
   rm -f "$GB_DIR/rh/runner/tokens/%23time-process@localhost"
   runner_call reload >/dev/null
-  PAGE_AS=launcher@localhost page_run docs/user/write-agent-runner.md runner . STAMP_KEY=$KEY AGENTS=$RHA CLIENTS=$ROOT/src/clients HOST=$GB_DIR/rh/runner RUNNER='#runner/launcher@localhost' REALM=localhost
+  PAGE_AS=launcher@localhost page_run docs/user/write-agent-runner.md runner . AGENTS=$RHA CLIENTS=$ROOT/src/clients HOST=$GB_DIR/rh/runner RUNNER='#runner/launcher@localhost' REALM=localhost
 fi
 # What our programs wrote to the host journal and syslog during the run: nothing.
 # (systemd's own line for the runner's cgroup scope is not ours.)

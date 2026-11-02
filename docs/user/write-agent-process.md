@@ -22,7 +22,7 @@
 
 ## Try this first
 
-- The program is the Python file below, saved as `time_service.py` next to the client's `agent_bus` folder, which needs no installation ([clients](../../src/clients/README.md#what-you-get)):
+- The program is [time_service.py](../../src/clients/examples/agent-guide/packages/time-process/time_service.py): save the whole file (it adds the imports, the help text and the `serve()` call) next to the client's `agent_bus` folder, which needs no installation ([clients](../../src/clients/README.md#what-you-get)). Its working part is below:
 
 <!-- quote: src/clients/examples/agent-guide/packages/time-process/time_service.py process -->
 ```python
@@ -100,6 +100,7 @@ AGENT_BUS_NAME="#time-process" AGENT_BUS_TOKEN=$(agent-bus token '#time-process'
 
 <!-- run: process -->
 ```sh
+STAMP_KEY=a-private-stamp-key
 agent-bus call '#time-process' --help | jq -r .body
 agent-bus config '#time-process' '{"format":"epoch"}' >/dev/null
 agent-bus secret '#time-process' "TIME_STAMP_KEY=$STAMP_KEY" >/dev/null

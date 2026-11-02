@@ -90,47 +90,51 @@ def run(page, kind):
         k, _, v = word.partition("=")
         env[k] = v
     groups = []
-    items = blocks(page)
     n = 0
-    for idx, (marker, arg, body) in enumerate(items):
-        if marker != "run" or arg.split()[0] != kind:
-            continue
-        n += 1
-        ready = next((a[6:] for a in arg.split()[1:] if a.startswith("ready=")), None)
-        out = work / f"out.{n}"
-        sink, errs = open(out, "w"), open(f"{out}.err", "w")      # the page shows stdout, the answers
-        p = subprocess.Popen(["bash", "-e", "-o", "pipefail", "-c", body], cwd=work, env=env, stdout=sink,
-                             stderr=errs, start_new_session=True)
-        groups.append(p)
-        if ready:   # a block that keeps running: the page says "leave it running"
-            for _ in range(150):
-                r = subprocess.run(["agent-bus", "ls", ready], env=env, capture_output=True, text=True)
-                if '"readers":1' in r.stdout:
-                    break
-                time.sleep(0.1)
-            say(p.poll() is None and '"readers":1' in r.stdout, f"{page}: command block {n} ({kind}) keeps running and {ready} reads its inbox",
-                out.read_text()[-300:] + Path(f"{out}.err").read_text()[-300:])
-            continue
-        try:
-            code = p.wait(timeout=60)
-        except subprocess.TimeoutExpired:
-            code = "timeout"
-        say(code == 0, f"{page}: command block {n} ({kind}) ran", f"exit {code}: {out.read_text()[-200:]} {Path(f'{out}.err').read_text()[-300:]}")
-        nxt = items[idx + 1] if idx + 1 < len(items) else None
-        if nxt and nxt[0] == "output":
-            say(out.read_text().rstrip("\n") == nxt[2], f"{page}: output block {n} is what block {n} printed",
-                f"printed [{out.read_text().rstrip()}]")
+    try:
+        items = blocks(page)
+        for idx, (marker, arg, body) in enumerate(items):
+            if marker != "run" or arg.split()[0] != kind:
+                continue
+            n += 1
+            ready = next((a[6:] for a in arg.split()[1:] if a.startswith("ready=")), None)
+            out = work / f"out.{n}"
+            sink, errs = open(out, "w"), open(f"{out}.err", "w")      # the page shows stdout, the answers
+            p = subprocess.Popen(["bash", "-e", "-o", "pipefail", "-c", body], cwd=work, env=env, stdout=sink,
+                                 stderr=errs, start_new_session=True)
+            groups.append(p)
+            if ready:   # a block that keeps running: the page says "leave it running"
+                for _ in range(150):
+                    r = subprocess.run(["agent-bus", "ls", ready], env=env, capture_output=True, text=True)
+                    if '"readers":1' in r.stdout:
+                        break
+                    time.sleep(0.1)
+                say(p.poll() is None and '"readers":1' in r.stdout, f"{page}: command block {n} ({kind}) keeps running and {ready} reads its inbox",
+                    out.read_text()[-300:] + Path(f"{out}.err").read_text()[-300:])
+                continue
+            try:
+                code = p.wait(timeout=60)
+            except subprocess.TimeoutExpired:
+                code = "timeout"
+            say(code == 0, f"{page}: command block {n} ({kind}) ran", f"exit {code}: {out.read_text()[-200:]} {Path(f'{out}.err').read_text()[-300:]}")
+            nxt = items[idx + 1] if idx + 1 < len(items) else None
+            if nxt and nxt[0] == "output":
+                say(out.read_text().rstrip("\n") == nxt[2], f"{page}: output block {n} is what block {n} printed",
+                    f"printed [{out.read_text().rstrip()}]")
+    finally:
+        for p in groups:
+            try:
+                os.killpg(p.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+        for p in groups:   # let each stop, so its name can be freed
+            try:
+                p.wait(timeout=15)
+            except subprocess.TimeoutExpired:
+                os.killpg(p.pid, signal.SIGKILL)
+
+
     say(n > 0, f"{page}: the page has {kind} command blocks")
-    for p in groups:
-        try:
-            os.killpg(p.pid, signal.SIGTERM)
-        except ProcessLookupError:
-            pass
-    for p in groups:   # let each stop, so its name can be freed
-        try:
-            p.wait(timeout=15)
-        except subprocess.TimeoutExpired:
-            os.killpg(p.pid, signal.SIGKILL)
 
 
 if __name__ == "__main__":

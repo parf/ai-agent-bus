@@ -1,7 +1,7 @@
 # Your service under the runner: the time service as packages
 
 📌 **TL;DR:**
-- **Problem:** a script run from your terminal stops with the terminal, and has no private settings, no confinement and no limits.
+- **Problem:** a script run from your terminal stops with the terminal, and nothing starts it again, keeps it up or applies a host's limits to it.
 - **Outcome:** the same time scripts and the Python process as packages the runner starts on demand, keeps up, confines and limits.
 - **Start:** copy the packages into the runner's folder and reload it ([Try this first](#try-this-first)).
 
@@ -9,7 +9,7 @@
 
 - 🖥️ **Your terminal is the service manager.** Now the runner starts the script when a message arrives, and keeps the process up.
 - 🔑 **Settings and keys sit beside the script.** Now Configuration and Secret belong to the agent's record and reach it at its next start.
-- 🧱 **A script can touch everything its account can.** Now it sees its own package read-only, a writable work folder and the network it asked for.
+- 🧱 **A script you run by hand is as open as your account unless you ask otherwise.** Now by default it sees its own package read-only, a writable work folder and the network it asked for.
 
 ## What you get
 
@@ -64,6 +64,7 @@ time [now|iso|epoch] - the current UTC time, now in the configured format; histo
 
 <!-- run: runner -->
 ```sh
+STAMP_KEY=a-private-stamp-key
 for a in time-advanced time-process; do
   agent-bus config "#$a@$REALM" '{"format":"epoch"}' >/dev/null
   agent-bus secret "#$a@$REALM" "TIME_STAMP_KEY=$STAMP_KEY" >/dev/null
