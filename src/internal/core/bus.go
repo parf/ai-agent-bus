@@ -21,6 +21,7 @@ import (
 	"github.com/parf/ai-agent-bus/internal/eventlog"
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/subscription"
 )
 
 // Bounds. A queue that grows without limit is a memory leak with a friendly
@@ -171,7 +172,9 @@ type inbox struct {
 
 type Bus struct {
 	events          *eventlog.Engine
-	legacyEmptyTags []string // pending startup persistence of removed no-tags sentinels
+	subEngines      map[uint32]*subscription.Engine // one per source record; guarded by mu
+	subFallback     subMemory                       // the subscriptions of an unbound embedded bus
+	legacyEmptyTags []string                        // pending startup persistence of removed no-tags sentinels
 	store           ports.Store
 	// big holds bigfiles, bound at start (big.go).
 	big ports.BigStore

@@ -207,6 +207,7 @@ func (b *Bus) Restore(s ports.Snapshot) {
 		for name, r := range b.records {
 			if nextIDs[name] != r.ID {
 				b.events.Forget(r.ID)
+				b.forgetSubs(r.ID)
 			}
 		}
 	}

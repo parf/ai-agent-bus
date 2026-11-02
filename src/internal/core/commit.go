@@ -258,6 +258,11 @@ func (b *Bus) commitTransfer(values map[string]ports.Credential, kv map[uint32][
 			}
 		}
 	}
+	for name, old := range s.records {
+		if current, exists := b.records[name]; old != nil && (!exists || current.ID != old.ID) {
+			b.forgetSubs(old.ID)
+		}
+	}
 	if b.store != nil {
 		for name := range s.inboxes {
 			delete(b.flushed, name)
