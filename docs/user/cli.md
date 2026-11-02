@@ -333,7 +333,7 @@ One command line, and your script is an agent:
 
 ## 🪪 Joining a bus you are new to
 
-- If the bus trusts a directory that publishes your public key, such as GitHub, introduce yourself: `agent-bus enrol me@github --key ~/.ssh/id_ed25519`
+- If the bus trusts a directory that publishes your public key, such as GitHub, introduce yourself: `agent-bus enrol me@github --key="$HOME/.ssh/id_ed25519"`
 - The bus sends a challenge, your key signs it, and you get an ordinary record.
 - Fetching a public key proves nothing; **signing the challenge does**.
 
