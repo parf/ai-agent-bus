@@ -114,6 +114,27 @@ class Selection(unittest.TestCase):
         self.assertEqual(self.plan(['src/agents/telegram/receive.ts'], 'slow')['checks']['distro_install'], 'skip')
         self.assertEqual(self.plan([], 'slow', 'all')['checks']['distro_install'], 'slow')
 
+    def test_agent_guide_shard_is_selected_with_a_named_reason_for_each_of_its_paths(self):
+        # One shard runs every guide example (src/acceptance/agent-guide); each owner of what it exercises selects it.
+        cases = {
+            'H': 'src/cmd/agent-bus/run.go', 'F': 'src/cmd/agent-bus-runner/serve.go',
+            'K': 'src/clients/examples/agent-guide/packages/time-simple/time-simple.sh',
+            'N': 'docs/user/write-agent-cli.md', 'M': 'src/acceptance/agent-guide/guide.sh',
+        }
+        for letter, path in cases.items():
+            with self.subTest(letter=letter, path=path):
+                p = self.plan([path])
+                self.assertEqual(p['checks']['agent_guide'], 'normal')
+                self.assertEqual(p['reasons'][letter], 'changed: ' + path)
+                fast = self.plan([path], 'fast')
+                self.assertEqual(fast['checks']['agent_guide'], 'fast')
+        # Unrelated code of another face leaves it at fast, and fast is only the bash time service.
+        p = self.plan(['src/clients/go/bus.go'])
+        self.assertEqual(p['checks']['agent_guide'], 'fast')
+        import json
+        config = json.loads((ROOT/'src/smoke-map.json').read_text())
+        self.assertEqual(config['fast']['agent_guide'], [{'argv': ['bash', 'acceptance/agent-guide/guide.sh', 'fast']}])
+
     def test_shared_or_unknown_fails_closed(self):
         for path in ['src/smoke.sh', 'src/go.mod', 'src/web/bun.lock', 'new-unknown-file']:
             p = self.plan([path])

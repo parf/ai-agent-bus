@@ -21,9 +21,11 @@ if [ -z "$BIN" ]; then
   mkdir -p "$ROOT/tmp"
   BIN=$(mktemp -d "$ROOT/tmp/guide-bin.XXXXXX")
   GB_BUILT=$BIN
-  (cd "$ROOT/src" && go build -o "$BIN/" ./cmd/agent-busd ./cmd/agent-bus ./cmd/agent-bus-runner) || { echo "FAIL the programs did not build"; exit 1; }
+  programs=(./cmd/agent-busd ./cmd/agent-bus); [ "$MODE" = fast ] || programs+=(./cmd/agent-bus-runner)   # fast never starts a runner
+  (cd "$ROOT/src" && go build -o "$BIN/" "${programs[@]}") || { echo "FAIL the programs did not build"; exit 1; }
   trap 'guide_down; rm -rf "$GB_BUILT"' EXIT
 fi
+JOURNAL_START=$(date '+%Y-%m-%d %H:%M:%S')
 guide_up "$BIN" || exit 1
 users asker@localhost || { echo "FAIL could not create the caller"; exit 1; }
 
@@ -50,24 +52,30 @@ before=$(NOW); got=$(answer "$T" asker@localhost epoch); after=$(NOW)
 time_window "an epoch request" "$got" epoch "$before" "$after"
 before=$(NOW); got=$(answer "$T" asker@localhost iso); after=$(NOW)
 time_window "an ISO request" "$got" iso "$before" "$after"
-help=$(gb asker@localhost call "$T" --help | jq -r .body)
+help=$(ask "$T" asker@localhost --help)
 eq "help is answered by the script, with no business effect" "$help" "time [iso|epoch] - the current UTC time"
 unsupported=$(answer "$T" asker@localhost 'rm -rf /')
 eq "a body that is not a format is data and is never echoed back" "$unsupported" "unsupported format; ask help"
-status_answer=$(gb asker@localhost call "$T" --status | jq -r .body)
+status_answer=$(ask "$T" asker@localhost --status)
 eq "an ask the script does not know is refused by name" "$status_answer" "unsupported: status"
 cli_stop
 finish() { echo; echo "passed $pass, failed $fail"; [ "$fail" -eq 0 ]; exit; }
-[ "$MODE" = fast ] && finish
+if [ "$MODE" = fast ]; then
+  since_log=$(journalctl -q -t agent-busd -t agent-bus-runner -t agent-bus --since "$JOURNAL_START" -o cat 2>&1)
+  eq "the daemon and the CLI wrote nothing to the host journal" "$since_log" ""
+  finish
+fi
 
 KEY=disposable-stamp-key-1
 # The advanced checks, shared by the CLI and the runner: the same service behaves the same.
-# advanced_checks LABEL NAME OWNERNAME: Configuration, Secret, state, status, body-as-data.
+# advanced_checks LABEL NAME MANAGER [reload]: Configuration, Secret, state, status, body-as-data.
+# With "reload" the settings reach a runner-managed agent through the runner's reload.
 advanced_checks() {
   local label=$1 name=$2 manager=$3 seen="" before after got stamp want
   gb "$manager" config "$name" '{"format":"epoch"}' >/dev/null || bad "$label: Configuration was set"
   gb "$manager" secret "$name" "TIME_STAMP_KEY=$KEY" >/dev/null || bad "$label: Secret was set"
-  help=$(gb asker@localhost call "$name" --help | jq -r .body)
+  if [ "${4:-}" = reload ]; then runner_call reload >/dev/null; for _ in $(seq 1 100); do wait_reader "$name" && break; done; fi
+  help=$(ask "$name" asker@localhost --help)
   has "$label: help names the history method" "$help" 'history'
   before=$(NOW); got=$(answer "$name" asker@localhost now); after=$(NOW); seen+=$got
   time_window "$label: now follows the configured format" "${got%% *}" epoch "$before" "$after"
@@ -79,7 +87,7 @@ advanced_checks() {
   got=$(answer "$name" asker@localhost "iso; touch $GB_DIR/pwned"); seen+=$got
   eq "$label: a body that carries a command is data, not a command" "$got" "unsupported format; ask help"
   [ ! -e "$GB_DIR/pwned" ] && ok "$label: nothing the body asked for ran" || bad "$label: the body ran a command"
-  got=$(gb asker@localhost call "$name" --status | jq -r .body); seen+=$got
+  got=$(ask "$name" asker@localhost --status); seen+=$got
   eq "$label: status reports the work state and the configuration" "$got" "reports: 2; format: epoch"
   got=$(answer "$name" asker@localhost history); seen+=$got
   eq "$label: history keeps the reports newest first" "$(printf '%s\n' "$got" | wc -l)" 2
@@ -92,7 +100,103 @@ advanced_checks "CLI advanced" "$A" "$GB_OWNER"
 # State lives in the work folder and Configuration in the record (kept by --stay-registered), so a restart keeps both.
 cli_stop
 cli_start "$A" "$PKG/time-advanced/time-advanced.sh" --descr "Tell the current UTC time and keep the last five reports" --stay-registered || bad "the restarted service is reading its inbox"
-got=$(gb asker@localhost call "$A" --status | jq -r .body)
+got=$(ask "$A" asker@localhost --status)
 eq "CLI advanced: progress survives a restart" "$got" "reports: 2; format: epoch"
 cli_stop
+
+# ---- own process: the same service in Python, with the client library ---------
+sec "Own process: the Python time service"
+P=#time-process@localhost
+gb "$GB_OWNER" register "$P" --kind agent --allow '*' >/dev/null || bad "the Owner registered the process's name"
+PTOK=$(gtok "$P")
+AGENT_BUS_ADDR=$GB_ADDR AGENT_BUS_TOKEN=$PTOK AGENT_BUS_NAME=$P PYTHONPATH=$ROOT/src/clients/python \
+  python3 "$PKG/time-process/time_service.py" >"$GB_DIR/process.log" 2>&1 &
+PPID_=$!; GB_PIDS+=("$PPID_")
+wait_reader "$P" || bad "the Python service is reading its inbox"
+help=$(ask "$P" asker@localhost --help)
+has "the Python service answers help itself" "$help" 'time \[now\|iso\|epoch\]'
+advanced_checks "process" "$P" "$GB_OWNER"
+kvreports=$(gb "$GB_OWNER" kv get "$P" reports --int 2>/dev/null || gb "$GB_OWNER" kv get "$P" reports 2>&1)
+has "the process keeps its progress in KV" "$kvreports" '(^|[^0-9])2([^0-9]|$)'
+has "and holds no lock once a report is recorded" "$(gb "$GB_OWNER" holders "$P")" 'holds no locks'
+log=$(gb "$GB_OWNER" call "#bus" --wait 10s "read $P" | jq -r .body)
+has "each report wrote an event to the process's own log" "$log" '"counts":\{"alert":0,"notice":2,"warning":0\}'
+kill -TERM "$PPID_"
+for _ in $(seq 1 60); do kill -0 "$PPID_" 2>/dev/null || break; sleep 0.1; done
+kill -0 "$PPID_" 2>/dev/null && bad "SIGTERM stops the Python service within its drain" || ok "SIGTERM stops the Python service within its drain"
+wait "$PPID_" 2>/dev/null
+lacks "the Python service's own log never holds the Secret" "$(cat "$GB_DIR/process.log")" "$KEY"
+gb "$GB_OWNER" unregister "$A" >/dev/null 2>&1; gb "$GB_OWNER" unregister "$P" >/dev/null 2>&1   # free the names for the runner
+
+# ---- the runner: the same services, packaged, with private settings and confinement --
+sec "Runner: the same services, packaged"
+RHA=$GB_DIR/rh/agent.d
+mkdir -p "$RHA" "$GB_DIR/rh/runner/tokens"
+for d in time-simple time-advanced time-process; do mkdir -p "$RHA/$d"; cp -R "$PKG/$d/." "$RHA/$d/"; done
+cp -R "$ROOT/src/clients/python/agent_bus" "$RHA/time-process/agent_bus"        # the client travels in the package
+for p in probe probenet probefree; do
+  mkdir -p "$RHA/$p"; cp "$here/probes/probe.sh" "$RHA/$p/"
+  net=""; [ "$p" = probenet ] && net=',"needs":{"network":["127.0.0.1"]}'
+  echo "{\"command\":\"./probe.sh\",\"form\":\"args\",\"asks\":\"none\",\"description\":\"Show what the sandbox allows\"$net}" >"$RHA/$p/agent.json"
+done
+echo '{"time-simple":{"enabled":true},"time-advanced":{"enabled":true},"time-process":{"enabled":true,"limits":{"cpu":"50%","memory":"256M","processes":64}},"probe":{"enabled":true,"limits":{"cpu":"50%"}},"probenet":{"enabled":true},"probefree":{"enabled":true}}' >"$GB_DIR/rh/runner/agents.json"
+runner_up || { bad "the private runner is serving"; finish; }
+# An agent that serves itself is registered by its Owner, who hands its token over once.
+gb launcher@localhost register '#time-process@localhost' --kind agent --allow '*' >/dev/null || bad "the Owner registered the packaged process"
+gtok '#time-process@localhost' >"$GB_DIR/rh/runner/tokens/%23time-process@localhost"
+runner_call reload >/dev/null
+for a in time-simple time-advanced time-process probe probenet probefree; do gb launcher@localhost manage "#$a@localhost" --add-allow '*' >/dev/null 2>&1; done
+state=$(runner_call status)
+for a in time-simple time-advanced probe; do
+  has "the runner serves $a" "$state" "\"name\":\"#$a@localhost\",\"enabled\":true,\"state\":\"idle\""
+done
+for _ in $(seq 1 100); do wait_reader '#time-process@localhost' && break; done
+has "the packaged process is the reader of its own inbox" "$(gb asker@localhost ls '#time-process@localhost')" '"readers":1'
+
+S=#time-simple@localhost
+before=$(NOW); got=$(answer "$S" asker@localhost epoch); after=$(NOW)
+time_window "runner simple: an epoch request" "$got" epoch "$before" "$after"
+has "runner simple: help is the package's description" "$(ask "$S" asker@localhost --help)" 'current UTC time'
+eq "runner simple: an ask the package leaves to the runner is refused by name" "$(ask "$S" asker@localhost --status)" "unsupported: status"
+advanced_checks "runner advanced" '#time-advanced@localhost' launcher@localhost reload
+advanced_checks "runner process" '#time-process@localhost' launcher@localhost reload
+
+sec "Runner: confinement the packages run under"
+python3 -m http.server 0 --bind 127.0.0.1 >"$GB_DIR/http.log" 2>&1 &
+HTTP_PID=$!; GB_PIDS+=("$HTTP_PID")
+for _ in $(seq 1 50); do PORT=$(ss -ltnp 2>/dev/null | grep "pid=$HTTP_PID," | sed -n 's/.*127.0.0.1:\([0-9]*\) .*/\1/p' | head -1); [ -n "$PORT" ] && break; sleep 0.1; done
+mkdir -p "$GB_DIR/outside"
+view=$(answer '#probe@localhost' asker@localhost "view $GB_DIR/outside/x")
+has "the package folder is read-only" "$view" 'package: read-only'
+has "the work folder is writable" "$view" 'work: writable'
+has "a path outside both is not writable" "$view" 'outside: denied'
+[ ! -e "$GB_DIR/outside/x" ] && ok "and nothing was created outside" || bad "the sandbox let a file out"
+eq "no network by default: a local listener is not reachable" "$(answer '#probe@localhost' asker@localhost "net $PORT")" "network: denied"
+eq "the network the package asked for reaches the same listener" "$(answer '#probenet@localhost' asker@localhost "net $PORT")" "network: reached"
+# The limits are the live cgroup's, read from the running process: nothing is pushed over them here.
+ppid=$(pgrep -f "$RHA/time-process" | head -1); [ -n "$ppid" ] || ppid=$(pgrep -f "time_service.py" | head -1)
+cg=$(sed 's/^0:://' "/proc/$ppid/cgroup" 2>/dev/null)
+eq "the configured CPU share is applied to the live cgroup" "$(cat "/sys/fs/cgroup$cg/cpu.max" 2>/dev/null)" "50000 100000"
+eq "the configured memory is applied to the live cgroup" "$(cat "/sys/fs/cgroup$cg/memory.max" 2>/dev/null)" "268435456"
+eq "the configured process count is applied to the live cgroup" "$(cat "/sys/fs/cgroup$cg/pids.max" 2>/dev/null)" "64"
+
+sec "Runner: a kept process comes back"
+kill -KILL "$ppid" 2>/dev/null
+for _ in $(seq 1 100); do got=$(ask '#time-process@localhost' asker@localhost --status 2>/dev/null); case $got in reports:*) break ;; esac; sleep 0.2; done
+has "the runner restarts a process that died and it answers again" "$got" 'reports: 2; format: epoch'
+
+if [ "$MODE" = slow ]; then
+  # Enforcement, not configuration: the same four seconds of spinning, under a 50% share and under none.
+  # The normal run only read the limits above; this is the one that pushes against them.
+  sec "Runner: the CPU share is enforced (slow)"
+  limited=$(answer '#probe@localhost' asker@localhost burn)
+  free=$(answer '#probefree@localhost' asker@localhost burn)
+  lt=${limited##*: }; ft=${free##*: }
+  within "an unlimited agent spins for most of four seconds (the control)" "${ft:-0}" 350 450
+  within "an agent held to 50% gets at most about half of the same four seconds" "${lt:-0}" 100 290
+fi
+# What our programs wrote to the host journal and syslog during the run: nothing.
+# (systemd's own line for the runner's cgroup scope is not ours.)
+since_log=$(journalctl -q -t agent-busd -t agent-bus-runner -t agent-bus --since "$JOURNAL_START" -o cat 2>&1)
+eq "the daemon, the runner and the CLI wrote nothing to the host journal" "$since_log" ""
 finish

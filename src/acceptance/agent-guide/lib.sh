@@ -49,7 +49,7 @@ guide_down() {
   for p in "${GB_PIDS[@]:-}"; do [ -n "$p" ] && kill "$p" 2>/dev/null; done
   for p in "${GB_PIDS[@]:-}"; do [ -n "$p" ] && wait "$p" 2>/dev/null; done
   [ -n "${GB_DPID:-}" ] && { kill "$GB_DPID" 2>/dev/null; wait "$GB_DPID" 2>/dev/null; }
-  [ -n "${GB_DIR:-}" ] && rm -rf "$GB_DIR"
+  [ -n "${GB_DIR:-}" ] && { [ -n "${GUIDE_KEEP:-}" ] && echo "kept $GB_DIR" || rm -rf "$GB_DIR"; }
 }
 
 # tok NAME: the credential of NAME, minted by the owner of the test bus.
@@ -59,7 +59,9 @@ gb() { AGENT_BUS_ADDR=$GB_ADDR AGENT_BUS_TOKEN=$(gtok "$1") AGENT_BUS_NAME=$1 "$
 # gbx: the same, exec'd, for `&`: $! is then the binary, not a subshell.
 gbx() { AGENT_BUS_ADDR=$GB_ADDR AGENT_BUS_TOKEN=$(gtok "$1") AGENT_BUS_NAME=$1 exec "$GB_BIN/agent-bus" "${@:2}"; }
 # answer NAME FROM ARGS...: what FROM's call to NAME answered, the body only.
-answer() { gb "$2" call "$1" --wait 15s "${@:3}" | jq -r .body; }
+answer() { gb "$2" call "$1" --wait 15s "${@:3}" 2>/dev/null | jq -r .body; }
+# ask NAME FROM FLAG: an ask (--help, --status) and the answer body.
+ask() { gb "$2" call "$1" "$3" 2>/dev/null | jq -r .body; }
 users() {
   local name
   for name in "$@"; do
@@ -85,3 +87,22 @@ cli_start() {
 cli_stop() { kill "$CLI_PID" 2>/dev/null; wait "$CLI_PID" 2>/dev/null; }
 # within LABEL VALUE LOW HIGH: LOW <= VALUE <= HIGH, all whole seconds.
 within() { if [ "$2" -ge "$3" ] && [ "$2" -le "$4" ]; then ok "$1"; else bad "$1" "$2 is outside $3..$4"; fi; }
+
+# A private runner on the test bus, run by a person (launcher@localhost), with
+# its own package folder, host folder and inventory, in a delegated cgroup scope.
+# runner_up: needs systemd-run --user and the sandbox the runner picks; a host
+# without them fails the check, never skips it.
+runner_up() {
+  RH=$GB_DIR/rh; mkdir -p "$RH/agent.d" "$RH/runner/tokens"
+  users launcher@localhost || return 1
+  gb launcher@localhost register '#runner/launcher@localhost' --kind agent --allow '@owner' >/dev/null || return 1
+  command -v systemd-run >/dev/null || { echo "FAIL no systemd-run: the runner's cgroup scope needs it"; return 1; }
+  RUNNER_LOG=$GB_DIR/runner.log
+  AGENT_BUS_ADDR=$GB_ADDR AGENT_BUS_TOKEN=$(gtok '#runner/launcher@localhost') \
+    systemd-run --user --scope --quiet -p Delegate=yes "$GB_BIN/agent-bus-runner" --agents "$RH/agent.d" --host "$RH/runner" >>"$RUNNER_LOG" 2>&1 &
+  RUNNER_PID=$!; GB_PIDS+=("$RUNNER_PID")
+  for _ in $(seq 1 100); do grep -q 'is the runner' "$RUNNER_LOG" 2>/dev/null && return 0; sleep 0.1; done
+  echo "FAIL the runner did not report that it is serving"; cat "$RUNNER_LOG"; return 1
+}
+# runner_call VERB...: a call to the runner as its person.
+runner_call() { gb launcher@localhost call '#runner/launcher@localhost' --wait 20s "$@" | jq -r .body; }

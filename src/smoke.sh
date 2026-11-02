@@ -53,7 +53,7 @@ SHARDS=(core go_checks go_unit go_release agent_packages process_titles readers 
   script_done script_confined listing backlog ttl full_queue enrolment restart
   orphans transfer corrupt_pair supervisor
   mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename web_ts samples tls_port
-  client_python client_rust client_php client_typescript client_java client_go client_examples
+  client_python client_rust client_php client_typescript client_java client_go client_examples agent_guide
   agent_slack agent_telegram agent_discord agent_server_info agent_systemd agent_git agent_logwatch agent_sessions agent_ai agent_sms agent_voyage agent_db agent_qdrant agent_rag agent_webhook agent_fetch agent_smtp agent_imap agent_cron agent_at agent_subscriptions container_image distro_install agent_eventlog)
 if [ -n "$SHARD" ]; then
   case " ${SHARDS[*]} " in
@@ -4073,6 +4073,21 @@ client_typescript() { client_check typescript; }
 client_java() { client_check java; }
 client_go() { client_check go; }
 client_examples() { client_check examples; }
+# The agent-guide examples (Plans/R1.0-Release/agent-guide.md): every worked example on a
+# private test bus and a private runner, with this build's programs. Normal runs the
+# examples and the ordinary confinement views, reading the configured limits from a live
+# cgroup; slow also pushes a CPU share against its limit. Fast is the allowlist in smoke-map.json.
+agent_guide() {
+  if normal; then
+    sec "agent guide examples"
+    local out rc
+    out=$(GUIDE_BIN="$D" timeout 180 bash ./acceptance/agent-guide/guide.sh "$(level)" 2>&1); rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "agent guide examples" "$rc"
+  else
+    skipped=$((skipped+1))
+  fi
+}
 # The Slack agent's own suite (src/agents/slack): a real daemon from this
 # build, the actual agent, a fake Slack with a Socket Mode websocket
 # (Plans/R1.2/done/slack/TODO.md S.7).

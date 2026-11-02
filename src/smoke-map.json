@@ -189,6 +189,25 @@
     "client_examples": {
       "tags": "GK"
     },
+    "agent_guide": {
+      "tags": "FHKMN",
+      "paths": [
+        "src/cmd/agent-bus/",
+        "src/cmd/agent-bus-runner/",
+        "src/internal/sandbox/",
+        "src/internal/cgroup/",
+        "src/internal/script/",
+        "src/clients/python/",
+        "src/clients/examples/agent-guide/",
+        "src/acceptance/agent-guide/",
+        "docs/10-writing-an-agent.md",
+        "docs/user/write-agent-cli.md",
+        "docs/user/write-agent-runner.md",
+        "docs/user/write-agent-process.md",
+        "docs/user/README.md",
+        "docs/00-overview.md"
+      ]
+    },
     "agent_slack": {
       "tags": "L",
       "paths": [
@@ -1050,6 +1069,15 @@
         "argv": [
           "bash",
           "release-verify.test.sh"
+        ]
+      }
+    ],
+    "agent_guide": [
+      {
+        "argv": [
+          "bash",
+          "acceptance/agent-guide/guide.sh",
+          "fast"
         ]
       }
     ]
