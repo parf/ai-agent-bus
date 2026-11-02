@@ -403,4 +403,4 @@ A bigfile is a named value up to 32 MiB held for a limited time. The bytes are a
 |---|---|
 | Built | Every route above, and the frozen client contract: refusal `kind`, `protocol` 1 and `protocol_min` 1 in `/identity`, `no_route` for unknown routes, unknown fields ignored and duplicates refused, the retired aliases removed (0.9.264). |
 | Built, with V1 | A check that every route has a row here and every stable route is in the client contract (the two tests named above), and shared conformance vectors for key-value, locks, bigfiles, identity and refusals, run by the Go, Python and TypeScript clients ([vectors](../src/testdata/client-conformance/README.md#state-identity-and-refusal-vectors-t-24)). |
-| Pending | The Rust, PHP and Java adapters for the same vectors (S2). |
+| Built, with S2v | The Rust, PHP and Java adapters run the shared key-value, lock, identity and refusal vectors ([acceptance evidence](../Plans/R1.0-Release/DONE.md#t-24-s2v-the-rust-php-and-java-clients-run-the-shared-vectors)); bigfiles remain outside their client surface. |
