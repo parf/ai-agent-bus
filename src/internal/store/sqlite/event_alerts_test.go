@@ -7,7 +7,9 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/parf/ai-agent-bus/internal/eventlog"
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
@@ -74,6 +76,13 @@ func TestEventAlertsSurviveReopenWithRemovalsAndTheActiveFlag(t *testing.T) {
 	if got, active := loadAlerts(t, s, 5); !reflect.DeepEqual(got, alerts(9)) || !active {
 		t.Fatalf("after a removal: %+v active=%v, want only id 9", got, active)
 	}
+	// Replaced by an entirely different set: only the new one loads.
+	if err := s.ReplaceEventAlerts(5, alerts(10), true); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := loadAlerts(t, s, 5); !reflect.DeepEqual(got, alerts(10)) {
+		t.Fatalf("after replacing {9} by {10}: %+v", got)
+	}
 	if err := s.ReplaceEventAlerts(5, nil, true); err != nil {
 		t.Fatal(err)
 	}
@@ -92,6 +101,22 @@ func TestEventAlertsSurviveReopenWithRemovalsAndTheActiveFlag(t *testing.T) {
 	}
 	if got, active := loadAlerts(t, s, 6); !reflect.DeepEqual(got, alerts(1)) || !active {
 		t.Fatalf("another record's log changed: %+v active=%v", got, active)
+	}
+}
+
+// A replacement by a disjoint set leaves only the new set: nothing of the old
+// one is kept, and no key conflict stands in for that check.
+func TestEventAlertsReplaceByADisjointSetKeepsOnlyTheNewOnes(t *testing.T) {
+	s := openEvents(t, filepath.Join(t.TempDir(), "events.db"))
+	defer s.Close()
+	if err := s.ReplaceEventAlerts(11, alerts(1, 2), true); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ReplaceEventAlerts(11, alerts(3), true); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := loadAlerts(t, s, 11); !reflect.DeepEqual(got, alerts(3)) {
+		t.Fatalf("after replacing {1,2} by {3}: %+v", got)
 	}
 }
 
@@ -134,6 +159,11 @@ func TestEventAlertsRefuseASnapshotTheModelCannotHave(t *testing.T) {
 		if err := s.ReplaceEventAlerts(5, bad, true); err == nil {
 			t.Errorf("%s accepted", name)
 		}
+	}
+	notAlert := alerts(1)
+	notAlert[0].Level = "notice"
+	if err := s.ReplaceEventAlerts(5, notAlert, true); err == nil {
+		t.Error("a notice was accepted as an alert")
 	}
 	if err := s.ReplaceEventAlerts(0, alerts(1), true); err == nil {
 		t.Error("record id 0 accepted")
@@ -194,6 +224,9 @@ func TestEventAlertsGoWithTheirRecord(t *testing.T) {
 		if err := s.ReplaceEventAlerts(id, alerts(1), true); err != nil {
 			t.Fatal(err)
 		}
+		if err := s.ReserveEventIDs(id, 64); err != nil {
+			t.Fatal(err)
+		}
 	}
 	// a@h is registered again under a new ID: the old ID's private log is nobody's.
 	if err := s.Commit(ports.Change{Records: map[string]*protocol.Record{"a@h": record("a@h", 9)}}); err != nil {
@@ -216,9 +249,17 @@ func TestEventAlertsGoWithTheirRecord(t *testing.T) {
 	if err := s.db.QueryRow(`SELECT count(*) FROM event_alerts WHERE record_id IN (3, 4)`).Scan(&n); err != nil || n != 0 {
 		t.Fatalf("%d alert rows of removed records remain (%v)", n, err)
 	}
+	if err := s.db.QueryRow(`SELECT count(*) FROM meta WHERE key IN ('event-high:3', 'event-high:4')`).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("%d id counters of removed records remain (%v)", n, err)
+	}
+	if got, err := s.EventHighWater(9); err != nil || got != 0 {
+		t.Fatalf("the new record inherited a counter: %d %v", got, err)
+	}
 }
 
-// A schema-9 database opens as schema 10 with no alerts and keeps its data.
+// A schema-9 database, with a record, its data and a reserved-id counter,
+// opens as schema 10: its log reads inactive and empty, the next write goes
+// above the reserved ids, and everything else is intact.
 func TestSchemaNineGainsTheEventAlertTables(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "bus.db")
 	old, err := sql.Open("sqlite", path)
@@ -233,9 +274,15 @@ func TestSchemaNineGainsTheEventAlertTables(t *testing.T) {
 			t.Fatalf("%s: %v", stmt, err)
 		}
 	}
-	for _, stmt := range []string{`INSERT INTO kv (record_id, name, value) VALUES (3, 'kept', 'value')`, `PRAGMA user_version = 9`} {
+	for _, stmt := range []string{
+		`INSERT INTO users (name, id, body) VALUES ('alice@h', 7, '{"name":"alice@h"}')`,
+		`INSERT INTO records (name, id, kind, body, owner_id) VALUES ('jobs@h', 3, 'agent', '{"name":"jobs@h","kind":"agent","owner":"alice@h"}', 7)`,
+		`INSERT INTO kv (record_id, name, value) VALUES (3, 'kept', 'value')`,
+		`INSERT INTO meta (key, value) VALUES ('event-high:3', '64')`,
+		`PRAGMA user_version = 9`,
+	} {
 		if _, err := old.Exec(stmt); err != nil {
-			t.Fatal(err)
+			t.Fatalf("%s: %v", stmt, err)
 		}
 	}
 	old.Close()
@@ -249,10 +296,19 @@ func TestSchemaNineGainsTheEventAlertTables(t *testing.T) {
 		t.Fatalf("version %d (%v), want 10", version, err)
 	}
 	if got, active := loadAlerts(t, s, 3); len(got) != 0 || active {
-		t.Fatalf("a migrated database holds alerts: %+v", got)
+		t.Fatalf("a migrated database holds alerts: %+v active=%v", got, active)
 	}
-	if err := s.ReplaceEventAlerts(3, alerts(1), true); err != nil {
-		t.Fatalf("the migrated tables refuse a write: %v", err)
+	if n, err := s.EventHighWater(3); err != nil || n != 64 {
+		t.Fatalf("the reserved-id counter changed: %d %v", n, err)
+	}
+	e := eventlog.New(s, s, func() time.Time { return time.Unix(1793318400, 0) })
+	w, err := e.Write(3, "alert", "first after the upgrade", eventlog.Defaults())
+	if err != nil || w.ID <= 64 {
+		t.Fatalf("first write after the upgrade got id %d (%v), want above 64", w.ID, err)
+	}
+	snap, err := s.Load()
+	if err != nil || len(snap.Records) != 1 || snap.Records[0].Name != "jobs@h" || snap.Records[0].OwnerID != 7 {
+		t.Fatalf("the migration changed the registry: %+v %v", snap.Records, err)
 	}
 	var kept string
 	if err := s.db.QueryRow(`SELECT value FROM kv WHERE record_id = 3 AND name = 'kept'`).Scan(&kept); err != nil || kept != "value" {

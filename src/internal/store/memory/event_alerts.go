@@ -35,7 +35,7 @@ func (s *State) ReplaceEventAlerts(id uint32, alerts []ports.EventEntry, active 
 	}
 	var last uint64
 	for _, e := range alerts {
-		if e.ID == 0 || e.ID <= last || e.Count == 0 {
+		if e.Level != "alert" || e.ID == 0 || e.ID <= last || e.Count == 0 {
 			return fmt.Errorf("invalid event alert snapshot")
 		}
 		last = e.ID
@@ -48,4 +48,7 @@ func (s *State) ReplaceEventAlerts(id uint32, alerts []ports.EventEntry, active 
 }
 
 // dropEventLog removes one record's alerts. Caller holds s.mu.
-func (s *State) dropEventLog(id uint32) { delete(s.eventLogs, id) }
+func (s *State) dropEventLog(id uint32) {
+	delete(s.eventLogs, id)
+	delete(s.eventHigh, id)
+}

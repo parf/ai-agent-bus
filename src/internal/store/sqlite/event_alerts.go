@@ -83,7 +83,7 @@ func (s *Store) ReplaceEventAlerts(recordID uint32, alerts []ports.EventEntry, a
 	}
 	var last uint64
 	for _, e := range alerts {
-		if e.ID == 0 || e.ID <= last || e.Count == 0 || e.ID > 1<<53-1 || e.Count > 1<<53-1 {
+		if e.Level != "alert" || e.ID == 0 || e.ID <= last || e.Count == 0 || e.ID > ports.EventMaxID || e.Count > ports.EventMaxID {
 			return fmt.Errorf("invalid event alert snapshot")
 		}
 		last = e.ID
@@ -112,7 +112,7 @@ func (s *Store) ReplaceEventAlerts(recordID uint32, alerts []ports.EventEntry, a
 	return tx.Commit()
 }
 
-// dropEventAlerts removes the alerts of the record stored under name, unless
+// dropEventAlerts removes the alerts and the id counter of the record stored under name, unless
 // its ID is keep: a record's private log goes with it, and a name registered
 // again under a new ID starts empty. Caller holds tx.
 func dropEventAlerts(tx *sql.Tx, name string, keep uint32) error {
@@ -121,5 +121,7 @@ func dropEventAlerts(tx *sql.Tx, name string, keep uint32) error {
 			return err
 		}
 	}
-	return nil
+	// The record's id is never reused, so its reserved-id counter goes too.
+	_, err := tx.Exec(`DELETE FROM meta WHERE key IN (SELECT 'event-high:' || id FROM records WHERE name = ? AND id <> ?)`, name, keep)
+	return err
 }
