@@ -366,7 +366,7 @@ func TestAHeldDeliveryBlocksNeitherUnrelatedCallsNorTheCopyOfItsEntry(t *testing
 func TestTheSubscriptionCallsAreInHelpOnlyForManagers(t *testing.T) {
 	a := newSubAPI(t)
 	manager := a.mustAsk("admin@h", "help")
-	for _, line := range []string{"sub add <target> <agent> [level] [/regex/]", "sub list [agent]", "sub delete <id>"} {
+	for _, line := range []string{"sub add <target> <agent> [level] [filter]", "sub list [agent]", "sub delete <id>"} {
 		if !strings.Contains(manager, line) {
 			t.Errorf("a manager's help lacks %q:\n%s", line, manager)
 		}

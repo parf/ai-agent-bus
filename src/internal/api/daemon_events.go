@@ -285,7 +285,7 @@ func (s *Server) eventMethods(caller string) map[string]any {
 		{"list", "List private logs you manage", "", read},
 		{"pull", "Remove oldest entries once from a managed agent log", "<agent> [level] [count]", read},
 		{"clean", "Clear a managed agent log, optionally through an inclusive entry id", "<agent> [level] [id]", read},
-		{"sub add", "Copy each new entry of a managed agent log to a queue or agent, from now on", "<target> <agent> [level] [/regex/]", read},
+		{"sub add", "Copy each new entry of a managed agent log to a queue or agent, from now on", "<target> <agent> [level] [filter]", read},
 		{"sub list", "List the subscriptions you made or can manage", "[agent]", read},
 		{"sub delete", "Delete a subscription", "<id>", read},
 	} {
@@ -309,7 +309,7 @@ func (s *Server) eventHelp(caller string) string {
 		text += "write <agent> notice|warning|alert <text> — append to your own log; answers only when wait is set\n"
 	}
 	if read {
-		text += "read <agent> [level] — complete private log\nlist — private log summaries\npull <agent> [level] [count] — remove oldest entries\nclean <agent> [level] [id] — clear entries through id\nsub add <target> <agent> [level] [/regex/] — copy each new entry to a queue or agent\nsub list [agent] — subscriptions you made or manage\nsub delete <id> — delete a subscription\n"
+		text += "read <agent> [level] — complete private log\nlist — private log summaries\npull <agent> [level] [count] — remove oldest entries\nclean <agent> [level] [id] — clear entries through id\nsub add <target> <agent> [level] [filter] — copy each new entry to a queue or agent\nsub list [agent] — subscriptions you made or manage\nsub delete <id> — delete a subscription\n"
 	}
 	return text
 }
