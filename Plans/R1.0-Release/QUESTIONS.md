@@ -34,6 +34,10 @@ Q296 to Q304, Q311 to Q313, Q321 and Q322 are [settled](DECISIONS.md#recorded-de
   > 💬 👤parf (in chat) for example typical agent writer should NOT care about tokens - our bus handle it
   >
   > 💬 👾 So the guide leaves out tokens, enrolment and credentials: the runner and the client handle them. By the same rule I would drop protocol version checks (the client library does it) and keep only what the agent's own code decides.
+  >
+  > 💬 👤parf make sure to start with essentials - helps
+  >
+  > 💬 👾 Yes: the guide opens with the essentials, answering `help` first, then one request and one answer. Everything else follows in order of need.
 
 ## Messaging agents
 
