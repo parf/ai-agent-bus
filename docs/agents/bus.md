@@ -84,7 +84,7 @@ agent-bus call '#bus' 'ls --kind agent --tag runner' | jq -r .body | head -3
 
 ## Agent logs
 
-- `write <agent> notice|warning|alert <text>` writes the agent's own log; the daemon Owner may also write. A no-wait write sends no answer; a waiting write to the caller’s own inbox gets its answer only if the caller’s Allow admits `#bus`, following the [normal reply ACL](../04-messaging.md#reply-routing).
+- `write <agent> notice|warning|alert <text>` writes the agent's own log; the daemon Owner may also write. A write answers only when `wait` is set; a reply to the caller’s own inbox also requires its Allow to admit `#bus`, following the [normal reply ACL](../04-messaging.md#reply-routing).
 - `read <agent> [level]`, `list`, `pull <agent> [level] [count]` and `clean <agent> [level] [id]` use the [shared log model](eventlog.md#log-model) and [reply forms](eventlog.md#technical-details). Only the log's Owner, Maintainers and daemon Owner may read or manage it; only the daemon Owner may read `#bus`'s own log.
 - A damaged log is left out of `list`, still refuses its own read with `storage_invalid`, and is named in the daemon's error log at startup.
 
@@ -176,5 +176,6 @@ echo '{"realm":"parf.us"}' | agent-bus config '#bus' -
 - Description asks use the envelope's `ask` field: `help`, `help-json`, `help-config`, `help-secret` and `mcp`.
 - `help-config` lists the [bus setup](#configuration) keys; there are no Secret keys; `mcp` returns `{"tools":[]}`.
 - A plain body names a method; body text `--help` is ordinary unsupported input.
+- A body is at most 16 KiB, checked before parsing; oversized input is refused with `invalid_request`.
 
 </details>

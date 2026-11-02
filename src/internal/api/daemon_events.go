@@ -21,7 +21,32 @@ type eventCall struct {
 
 var eventWrite = regexp.MustCompile(`(?s)^write +(\S+) +(\S+) (.*)$`)
 
+const daemonMaxInput = 16384
+
+// Oversized input is never passed to JSON, regexp or an unbounded token scan.
+func shortWriteLooking(body string) bool {
+	prefix := strings.ToLower(strings.TrimSpace(body[:min(len(body), 256)]))
+	fields := strings.Fields(prefix)
+	if len(fields) > 0 && fields[0] == "write" {
+		return true
+	}
+	if strings.HasPrefix(prefix, "{") {
+		if _, rest, ok := strings.Cut(prefix, `"method"`); ok {
+			rest = strings.TrimSpace(rest)
+			if strings.HasPrefix(rest, ":") {
+				return strings.HasPrefix(strings.TrimSpace(rest[1:]), `"write"`)
+			}
+		}
+	}
+	return false
+}
 func eventMethod(body string) string {
+	if len(body) > daemonMaxInput {
+		if shortWriteLooking(body) {
+			return "write"
+		}
+		return ""
+	}
 	if strings.HasPrefix(strings.TrimSpace(body), "{") {
 		var v struct {
 			Method string `json:"method"`
@@ -39,6 +64,9 @@ func eventMethod(body string) string {
 var eventWriteMember = regexp.MustCompile(`(?i)"method"\s*:\s*"write"`)
 
 func writeLooking(body string) bool {
+	if len(body) > daemonMaxInput {
+		return shortWriteLooking(body)
+	}
 	return strings.EqualFold(eventMethod(body), "write") || strings.HasPrefix(strings.TrimSpace(body), "{") && eventWriteMember.MatchString(body)
 }
 
@@ -48,7 +76,7 @@ func isEventMethod(method string) bool {
 func parseEventCall(body string) (eventCall, error) {
 	c := eventCall{Method: eventMethod(body), Count: 100}
 	bad := eventlog.Error("invalid_request")
-	if len(body) > 16384 || !utf8.ValidString(body) || strings.ContainsRune(body, 0) {
+	if len(body) > daemonMaxInput || !utf8.ValidString(body) || strings.ContainsRune(body, 0) {
 		return c, bad
 	}
 	if strings.HasPrefix(strings.TrimSpace(body), "{") {
@@ -258,4 +286,62 @@ func (s *Server) eventHelp(caller string) string {
 		text += "read <agent> [level] — complete private log\nlist — private log summaries\npull <agent> [level] [count] — remove oldest entries\nclean <agent> [level] [id] — clear entries through id\n"
 	}
 	return text
+}
+
+// inspectDaemonInput is the reader's first input operation. Keeping the scanner
+// behind this guard lets the owning check count full scans, not time a machine.
+func inspectDaemonInput(e protocol.Envelope, scan func(string) (eventCall, error)) (eventCall, error) {
+	if len(e.Body) > daemonMaxInput {
+		c := eventCall{}
+		if shortWriteLooking(e.Body) {
+			c.Method = "write"
+		}
+		return c, eventlog.Error("invalid_request")
+	}
+	if e.Ask != "" {
+		return eventCall{}, nil
+	}
+	return scan(e.Body)
+}
+func scanDaemonInput(body string) (eventCall, error) {
+	method := eventMethod(body)
+	if isEventMethod(method) {
+		return parseEventCall(body)
+	}
+	return eventCall{Method: method}, nil
+}
+func (s *Server) dispatchDaemonTask(d *daemonDispatch, e protocol.Envelope) bool {
+	c, err := inspectDaemonInput(e, scanDaemonInput)
+	if err != nil {
+		s.replyDaemonTask(e, eventFailure(err, c.Method == "write"))
+		return false
+	}
+	// Reject forbidden subjects before they can reserve anybody's lane. This
+	// check does no store I/O; the execution and precommit checks still decide.
+	key := ""
+	mutation := false
+	if e.Ask == "" && isEventMethod(c.Method) && c.Method != "list" {
+		_, err = s.bus.EventAdmit(e.From, c.Log, c.Method == "write")
+		if err != nil {
+			s.replyDaemonTask(e, eventFailure(err, c.Method == "write"))
+			return false
+		}
+		key = c.Log
+		if n, er := protocol.ParseName(key); er == nil {
+			key = n.String()
+		}
+		mutation = c.Method == "write" || c.Method == "pull" || c.Method == "clean"
+	} else if e.Ask == "" && writeLooking(e.Body) {
+		key = e.From
+		mutation = true
+	}
+	health := e.Ask != "" || (!isEventMethod(c.Method) && !mutation)
+	if d.enqueueAt(e, key, mutation, health) {
+		return true
+	}
+	if c.Method == "write" {
+		s.bus.EventAdmissionDrop(e.From, c.Log)
+	}
+	s.replyDaemonTask(e, eventFailure(eventlog.Error("busy"), writeLooking(e.Body)))
+	return false
 }

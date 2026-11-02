@@ -235,3 +235,10 @@ func (b *Bus) EventAdmissionDrop(caller, target string) {
 		e.AdmissionDrop(r.ID)
 	}
 }
+
+// EventAdmit is an in-memory reader preflight only. It reserves no authority;
+// operations must still perform their execution and precommit checks.
+func (b *Bus) EventAdmit(caller, target string, write bool) (string, error) {
+	r, _, _, err := b.eventAccess(caller, target, write)
+	return r.Name, err
+}

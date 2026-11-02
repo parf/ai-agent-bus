@@ -7,12 +7,13 @@ import (
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
-// daemonDispatch has fixed, independent lanes: a blocked mutation never borrows
-// a control worker. A target has at most one active mutation and takes one
+// daemonDispatch has independent health, event-read and mutation lanes: store
+// work never borrows a health worker. A target has at most one active mutation and takes one
 // turn before rejoining the end of the ready queue.
 type daemonDispatch struct {
 	ctx     context.Context
 	control chan protocol.Envelope
+	health  chan protocol.Envelope
 	mu      sync.Mutex
 	changed *sync.Cond
 	queues  map[string][]protocol.Envelope
@@ -24,26 +25,35 @@ type daemonDispatch struct {
 }
 
 func newDaemonDispatch(ctx context.Context, run func(protocol.Envelope)) *daemonDispatch {
-	d := &daemonDispatch{ctx: ctx, control: make(chan protocol.Envelope, 64), queues: map[string][]protocol.Envelope{}, active: map[string]bool{}, run: run}
+	return newDaemonDispatchWorkers(ctx, run, 4)
+}
+func newDaemonDispatchWorkers(ctx context.Context, run func(protocol.Envelope), mutations int) *daemonDispatch {
+	d := &daemonDispatch{ctx: ctx, health: make(chan protocol.Envelope, 64), control: make(chan protocol.Envelope, 64), queues: map[string][]protocol.Envelope{}, active: map[string]bool{}, run: run}
 	d.changed = sync.NewCond(&d.mu)
-	for range 2 {
-		d.wg.Add(1)
-		go func() {
-			defer d.wg.Done()
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case e := <-d.control:
-					if ctx.Err() != nil {
+	for _, lane := range []struct {
+		queue   chan protocol.Envelope
+		workers int
+	}{{d.health, 1}, {d.control, 2}} {
+		for range lane.workers {
+			d.wg.Add(1)
+			go func(queue chan protocol.Envelope) {
+				defer d.wg.Done()
+				for {
+					select {
+					case <-ctx.Done():
 						return
+					case e := <-queue:
+						if ctx.Err() != nil {
+							return
+						}
+						d.run(e)
 					}
-					d.run(e)
 				}
-			}
-		}()
+			}(lane.queue)
+		}
 	}
-	for range 4 {
+
+	for range mutations {
 		d.wg.Add(1)
 		go d.mutationWorker()
 	}
@@ -68,11 +78,21 @@ func mutationTarget(e protocol.Envelope) (string, bool) {
 	}
 	return key, true
 }
+
+// enqueue is the scheduler-level entry used by component checks. The server
+// enters through dispatchDaemonTask, which checks input and authority first.
 func (d *daemonDispatch) enqueue(e protocol.Envelope) bool {
 	key, mutation := mutationTarget(e)
+	return d.enqueueAt(e, key, mutation, e.Ask != "" || !isEventMethod(eventMethod(e.Body)) && !mutation)
+}
+func (d *daemonDispatch) enqueueAt(e protocol.Envelope, key string, mutation, health bool) bool {
 	if !mutation {
+		queue := d.control
+		if health {
+			queue = d.health
+		}
 		select {
-		case d.control <- e:
+		case queue <- e:
 			return true
 		default:
 			return false

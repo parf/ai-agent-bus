@@ -41,13 +41,7 @@ func (s *Server) ServeDaemonAgent(parent context.Context) func() {
 			if e.Receipt != "" || e.Re != "" {
 				continue
 			}
-			if !d.enqueue(e) {
-				if writeLooking(e.Body) {
-					c, _ := parseEventCall(e.Body)
-					s.bus.EventAdmissionDrop(e.From, c.Log)
-				}
-				s.replyDaemonTask(e, eventFailure(eventlog.Error("busy"), writeLooking(e.Body)))
-			}
+			s.dispatchDaemonTask(d, e)
 		}
 	}()
 	return func() { cancel(); <-done }

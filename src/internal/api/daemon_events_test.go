@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/core"
+	"github.com/parf/ai-agent-bus/internal/eventlog"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
@@ -292,5 +293,41 @@ func TestDaemonPrivateAgentWriteStoresWithoutWideningReplyACL(t *testing.T) {
 	v, err := b.EventRead("admin@h", "#private@h", "")
 	if err != nil || v.Counts["notice"] != 2 {
 		t.Fatalf("private waiting write was not stored: %+v %v", v, err)
+	}
+}
+
+func TestOversizedDaemonInputDoesNotRunFullBodyScanners(t *testing.T) {
+	for _, body := range []string{strings.Repeat("x", 1024*1024), "write #a@h alert " + strings.Repeat("x", 1024*1024), `{"method":"write","text":"` + strings.Repeat("x", 1024*1024) + `"}`} {
+		scans := 0
+		c, err := inspectDaemonInput(protocol.Envelope{Body: body}, func(body string) (eventCall, error) { scans++; return scanDaemonInput(body) })
+		if eventlog.Code(err) != "invalid_request" || scans != 0 {
+			t.Fatalf("oversized body reached full scanner: bytes=%d scans=%d method=%s err=%v", len(body), scans, c.Method, err)
+		}
+	}
+	scans := 0
+	inspectDaemonInput(protocol.Envelope{Body: strings.Repeat("x", daemonMaxInput)}, func(body string) (eventCall, error) { scans++; return eventCall{}, nil })
+	if scans != 1 {
+		t.Fatal("input at the bound was not scanned")
+	}
+}
+func TestForbiddenEventRepliesUseExactAuthorityTextPerVerb(t *testing.T) {
+	b := core.New()
+	s, _ := serverFor(t, b, "admin@h")
+	b.EstablishDaemonAgent("node.example")
+	b.Register(protocol.Record{Name: "#victim@h", Kind: protocol.KindAgent, Owner: "admin@h"})
+	b.Register(protocol.Record{Name: "#attacker@h", Kind: protocol.KindAgent, Owner: "admin@h"})
+	for _, method := range []string{"read", "pull", "clean", "write"} {
+		t.Run(method, func(t *testing.T) {
+			body := method + " #victim@h"
+			want := `{"error":{"code":"forbidden","text":"Only the log’s Owner, Maintainers or daemon Owner may read or manage it."}}`
+			if method == "write" {
+				body += " alert attempted"
+				want = "error: forbidden: Only the agent itself or daemon Owner may write this log."
+			}
+			got, err := s.daemonAnswer(protocol.Envelope{From: "#attacker@h", Body: body, Wait: "1s"})
+			if err != nil || got != want {
+				t.Fatalf("%s forbidden bytes changed: %q %v", method, got, err)
+			}
+		})
 	}
 }
