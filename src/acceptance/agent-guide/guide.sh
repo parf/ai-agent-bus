@@ -78,7 +78,7 @@ advanced_checks() {
   gb "$manager" config "$name" '{"format":"epoch"}' >/dev/null || bad "$label: Configuration was set"
   gb "$manager" secret "$name" "TIME_STAMP_KEY=$KEY" >/dev/null || bad "$label: Secret was set"
   if [ "${4:-}" = reload ]; then runner_call reload >/dev/null; for _ in $(seq 1 100); do wait_reader "$name" && break; done; fi
-  help=$(ask "$name" asker@localhost --help)
+  help=$(ask "$name" asker@localhost --help); seen+=$help
   has "$label: help names the history method" "$help" 'history'
   before=$(NOW); got=$(answer "$name" asker@localhost now); after=$(NOW); seen+=$got
   time_window "$label: now follows the configured format" "${got%% *}" epoch "$before" "$after"
@@ -204,14 +204,22 @@ has "a path outside both is not writable" "$view" 'outside: denied'
 eq "no network by default: a local listener is not reachable" "$(answer '#probe@localhost' asker@localhost "net $PORT")" "network: denied"
 eq "the network the package asked for reaches the same listener" "$(answer '#probenet@localhost' asker@localhost "net $PORT")" "network: reached"
 # The limits are the live cgroup's, read from the running process: nothing is pushed over them here.
-ppid=$(pgrep -f "$RHA/time-process" | head -1); [ -n "$ppid" ] || ppid=$(pgrep -f "time_service.py" | head -1)
-cg=$(sed 's/^0:://' "/proc/$ppid/cgroup" 2>/dev/null)
+# Only this private runner's own child: its command line names the private package folder and its cgroup sits
+# in the runner's own systemd scope. No global lookup: a miss fails the check and kills nothing.
+ppid=""; scope=$(sed 's/^0:://' "/proc/$RUNNER_PID/cgroup" 2>/dev/null)
+case $scope in *.scope*) scope=${scope%%.scope*}.scope ;; *) scope="" ;; esac   # no scope: nothing can match
+for c in $(pgrep -f "$RHA/time-process"); do
+  ccg=$(sed 's/^0:://' "/proc/$c/cgroup" 2>/dev/null)
+  [ -n "$scope" ] && case $ccg in "$scope"|"$scope"/*) ppid=$c; break ;; esac
+done
+[ -n "$ppid" ] && ok "the packaged process is found in this runner's own scope" || bad "the packaged process is found in this runner's own scope" "no child of the private runner matched"
+cg=$(sed 's/^0:://' "/proc/${ppid:-0}/cgroup" 2>/dev/null)
 eq "the configured CPU share is applied to the live cgroup" "$(cat "/sys/fs/cgroup$cg/cpu.max" 2>/dev/null)" "50000 100000"
 eq "the configured memory is applied to the live cgroup" "$(cat "/sys/fs/cgroup$cg/memory.max" 2>/dev/null)" "268435456"
 eq "the configured process count is applied to the live cgroup" "$(cat "/sys/fs/cgroup$cg/pids.max" 2>/dev/null)" "64"
 
 sec "Runner: a kept process comes back"
-kill -KILL "$ppid" 2>/dev/null
+[ -n "$ppid" ] && kill -KILL "$ppid" 2>/dev/null
 for _ in $(seq 1 100); do got=$(ask '#time-process@localhost' asker@localhost --status 2>/dev/null); case $got in reports:*) break ;; esac; sleep 0.2; done
 has "the runner restarts a process that died and it answers again" "$got" 'reports: 2; format: epoch'
 
