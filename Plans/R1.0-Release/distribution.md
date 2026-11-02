@@ -70,6 +70,30 @@ Existing local checks are in [npm packaging](../../src/npm/README.md#local-check
 
 Artifacts follow the shared [versioning and build evidence](../../CLAUDE.md#versioning) and [licensing](../../CLAUDE.md#licensing) rules. Native Linux aarch64 build evidence is [recorded](done/p3-aarch64-mac-run.md#steps); remaining native install work is in the [Mac run list](mac-run-list.md#a-linux-aarch64).
 
+## Publishing a version tag
+
+The release operator cuts the version tag on the checked release commit of
+main, with `VERSION` already set for that release. Create and push the tag
+through Git, not the GitHub Releases page:
+
+```sh
+version=$(tr -d '[:space:]' < src/internal/version/VERSION)
+git tag "v$version"
+git push origin "v$version"
+```
+
+The [release workflow](../../.github/workflows/release.yml) is triggered by that
+tag push. It checks tag/version agreement and main ancestry, builds and verifies
+the archives, and prepares the same checked assets for either publication path:
+
+- No release for the tag: `gh release create` creates it with the workflow's title and notes.
+- Release already exists (including a re-run): `gh release upload --clobber` replaces matching assets while preserving the existing release title and notes.
+
+The [local publication check](../../src/release-publish.test.py) executes the
+workflow step with a `gh` shim and asserts both paths' arguments. It contacts no
+GitHub service; hosted runner wiring, token permissions and actual asset upload
+remain proof for a real tag run.
+
 ## macOS
 
 The owner’s Mac is the test host ([RD164](DECISIONS.md#recorded-decisions)); Apple code signing and notarization are not required ([RD165](DECISIONS.md#recorded-decisions)). The [macOS plan](macos.md#order) owns the supported parts. macOS client npm packages are built for both CPUs; local-tarball installation and a bus call passed on arm64 ([P.1c evidence](done/p1c-macos-npm.md#native-acceptance)). No native Intel run or npm publication is claimed.

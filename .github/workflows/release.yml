@@ -144,7 +144,12 @@ jobs:
             --darwin-client "dist/agent-bus-client-$version-darwin-x86_64.tar.gz"
           test -f "npm-dist/ai-agent-bus-client-darwin-arm64-$version.tgz"
           test -f "npm-dist/ai-agent-bus-client-darwin-x64-$version.tgz"
-          gh release create "${GITHUB_REF_NAME}" --verify-tag \
-            --title "agent-bus ${GITHUB_REF_NAME#v}" \
-            --notes "Release binaries and SHA256SUMS for npm packaging." \
-            dist/*.tar.gz dist/SHA256SUMS npm-dist/ai-agent-bus-client-darwin-*.tgz
+          assets=(dist/*.tar.gz dist/SHA256SUMS npm-dist/ai-agent-bus-client-darwin-*.tgz)
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" "${assets[@]}" --clobber
+          else
+            gh release create "${GITHUB_REF_NAME}" --verify-tag \
+              --title "agent-bus ${GITHUB_REF_NAME#v}" \
+              --notes "Release binaries and SHA256SUMS for npm packaging." \
+              "${assets[@]}"
+          fi

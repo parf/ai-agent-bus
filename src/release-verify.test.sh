@@ -9,6 +9,8 @@ here=$PWD
 mkdir -p "$here/../tmp"
 work=$(mktemp -d "$here/../tmp/rvtest.XXXXXX")
 trap 'rm -rf "$work"' EXIT
+# Exercise the publication step itself without contacting GitHub.
+python3 -B "$here/release-publish.test.py"
 v=1.2.3; arch=$(uname -m)
 src="$work/VERSION"; echo $v >"$src"
 export SOURCE_VERSION=$src
