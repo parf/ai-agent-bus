@@ -9,8 +9,8 @@
 #   ./smoke.sh --shard S  one shard, with the same mode flags and PORT
 #   SMOKE_TEST_PATTERN=pattern  filter a Bun agent shard for mutant kills only
 #   SMOKE_TIMES=1         list every section and shard's wall time
-#   SMOKE_CPU_PERCENT=N   CPU ceiling of the whole run, in percent of one core (default half the cores x 100;
-#                         0 = uncapped, said aloud); the driver re-runs itself in a systemd user scope
+#   SMOKE_CPU_PERCENT=N   Optional CPU ceiling in percent of one core (default 0 = off);
+#                         a nonzero value re-runs the driver in a systemd user scope
 #   SMOKE_GO_PROCS=N / SMOKE_GO_P=N   GOMAXPROCS (default cores/4) and go -p (default 4) for every Go command
 #   CARGO_BUILD_JOBS=N    cargo's jobs (default 4, set in clients/cargo-target.sh)
 #
@@ -33,16 +33,16 @@ case " ${GOFLAGS:-} " in *" -p="*) ;; *) export GOFLAGS="${GOFLAGS:+$GOFLAGS }-p
 source ./smoke-options.sh
 smoke_options "$@" || exit $?
 smoke_require_gate_lock || exit $?
-# One CPU ceiling over the whole run: the driver re-runs itself inside a user scope with CPUQuota (default half the cores),
-# so however many shards and Go/cargo/bun workers fan out, they share it. Marked children, a hand-run shard and a run
-# that is already capped do not wrap again. SMOKE_CPU_PERCENT=0 turns it off, loudly. Without systemd-run, or if the
+# An optional CPU ceiling over the whole run: SMOKE_CPU_PERCENT defaults to 0 (off). A nonzero value re-runs the driver
+# inside a user scope with CPUQuota, shared by its shards. Marked children, a hand-run shard and a run that is already
+# capped do not wrap again. Without systemd-run, or if the
 # scope cannot be started, the run warns and goes on uncapped. The confinement shards' own `systemd-run --scope`
 # units (script_confined, the guide's private runner) are siblings of this scope under app.slice, not children: they
 # are NOT inside the cap, so the Go/cargo caps above and the shard builds are what bound them.
 if [ -z "$SHARD" ] && [ "$SMOKE_DRIVER_CHILD" = 0 ] && [ -z "${SMOKE_CAPPED:-}" ]; then
-  smoke_cap=${SMOKE_CPU_PERCENT:-$(( $(nproc) / 2 * 100 ))}
+  smoke_cap=${SMOKE_CPU_PERCENT:-0}
   if [ "$smoke_cap" = 0 ]; then
-    echo "smoke: CPU cap disabled (SMOKE_CPU_PERCENT=0); this run is uncapped" >&2
+    echo "smoke: CPU cap off" >&2
   elif ! command -v systemd-run >/dev/null; then
     echo "smoke: WARNING no systemd-run, so no CPU cap; this run is uncapped" >&2
   else

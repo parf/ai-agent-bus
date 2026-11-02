@@ -126,7 +126,7 @@ done
 echo 'actual normal driver marks all three split Go children and reports each time: green'
 
 # The CPU cap: a capped driver re-runs itself through systemd-run exactly once (children never wrap again), a scope
-# that cannot start warns and runs uncapped, and SMOKE_CPU_PERCENT=0 says so and does not call it. A stub stands
+# that cannot start warns and runs uncapped; unset or SMOKE_CPU_PERCENT=0 says off and does not call it. A stub stands
 # in for systemd-run; it records its arguments and runs the command after `--`.
 cat >"$d/bin/systemd-run" <<'SD'
 #!/bin/bash
@@ -148,8 +148,12 @@ capped() { # label calls pattern [env...]: every guard a capped gate's driver ex
   [[ $output == *$pattern* ]] || { echo "$label: output lacks [$pattern]: $output"; exit 1; }
   CAPPED_OUTPUT=$output
 }
+capped cap-default-off 0 'CPU cap off'
+[ "$(grep -c '^smoke: CPU cap off$' <<<"$CAPPED_OUTPUT")" = 1 ] && [[ $CAPPED_OUTPUT != *WARNING* ]] || {
+  echo "cap-default-off: expected one off line and no warning: $CAPPED_OUTPUT"; exit 1;
+}
 capped cap-wraps-once 1 'CPU capped at' SMOKE_CPU_PERCENT=600
 grep -q 'CPUQuota=600%' "$SD_CALLS" || { echo "the scope was not asked for the quota: $(cat "$SD_CALLS")"; exit 1; }
 capped cap-fallback-warns 1 'WARNING systemd-run could not start the capped scope' SMOKE_CPU_PERCENT=600 SD_FAIL=1
-capped cap-off-says-so 0 'uncapped' SMOKE_CPU_PERCENT=0
-echo 'the CPU cap wraps the driver once, falls back loudly and can be turned off: green'
+capped cap-off-says-so 0 'CPU cap off' SMOKE_CPU_PERCENT=0
+echo 'the CPU cap defaults off, wraps once when requested and falls back loudly: green'
