@@ -74,6 +74,19 @@ pong hello
 
 - ▶️ The [shared examples](../examples/README.md) run agents in every language together.
 
+## Event logs
+
+Use ordinary `Call` operations for the daemon's
+[agent logs](../../../docs/agents/bus.md#agent-logs). The executed
+[event-log and subscription examples](example_events_test.go) use a private fixture:
+
+- The agent writes; its Owner reads and subscribes.
+- The Owner consumes one copy from the authorized queue and cancels the subscription.
+
+A subscription copy is a non-waiting notice from `#bus`, not a call reply.
+Do not send ack or done for it; see [receipts](../../../docs/04-messaging.md#receipts).
+No event-specific helper is needed for this example.
+
 ## Technical details
 
 At first use, the client checks HTTP `/identity` for [wire compatibility](../../../docs/09-daemon-api.md#how-a-call-is-made); daemon refusals expose `kind` alongside status and message.

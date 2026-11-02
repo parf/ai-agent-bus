@@ -86,3 +86,34 @@ All six adapters run `send.json`, `call.json` and `self-call.json`
 a time). Each client's check changes independently of the others when its
 request or its reading of an answer changes. Run the native
 [client checks](../../clients/README.md#checks); do not use the live bus.
+
+## Event subscriptions (T-31d)
+
+`event-subscriptions.json` extends event coverage separately from `events.json`,
+so an adapter can adopt subscriptions without skipping or changing the existing
+five cases. It uses the same real fixture, with `worker` (`#worker@fixture`)
+as the source's temporary Maintainer and `jobs@fixture` as the destination.
+The daemon Owner consumes that queue. Nothing is mocked or sent to a live bus.
+
+The existing `call` and `inbox` operations also cover subscriptions:
+
+- A successful `sub add` saves the reply's `id`. `$subscription` in subsequent
+  call bodies and expected strings means that saved id; it is adapter
+  substitution, not a new daemon field or verb.
+- `inbox` optionally names an `inbox` (the queue). An `expect.empty` check waits
+  briefly and fails on any message. Otherwise `expect` addresses envelope
+  fields and decoded JSON body paths such as `body.text`. An absent optional
+  envelope `wait` is read as the empty string. All waits have an upper bound.
+- `manage` calls the existing record management API with `name` and `changes`,
+  as the specified identity. It must succeed. This changes real Maintainers
+  and target admission between writes, not fixture-side fake answers.
+
+The cases prove one copy for each matching write, level/text filtering, list
+counts, deletion and no later copy. A copy comes from `#bus` as a non-waiting
+notice: no ack or done is sent for it ([receipts](../../../docs/04-messaging.md#receipts)).
+The confirmed write fences its completed fan-out before the inbox is checked.
+
+For the daemon profile, revoking the source right after creation keeps delivery;
+revoking the creator's may-send to the target stops it. The target must also
+continue admitting `#bus`. This is [Q325](../../../Plans/R1.0-Release/DECISIONS.md),
+not a change to the app emitters' per-delivery source checks.

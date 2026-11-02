@@ -1,0 +1,63 @@
+[
+  {
+    "id": "subscription-copies-once-filters-lists-and-cancels",
+    "fresh": true,
+    "steps": [
+      {"as": "owner", "op": "call", "body": "sub add jobs@fixture #caller@fixture alert /disk/", "expect": {"target": "jobs@fixture", "selector.level": "alert", "filter": "/disk/", "sent": 0}},
+      {"as": "agent", "op": "call", "body": "write #caller@fixture alert disk first", "expect": {"entry.text": "disk first", "deliveries.matched": 1, "deliveries.sent": 1, "deliveries.dropped": 0}},
+      {"as": "owner", "op": "inbox", "inbox": "jobs@fixture", "expect": {"from": "#bus", "to": "jobs@fixture", "topic": "#caller@fixture", "tag": "alert", "receipt": "", "re": "", "wait": "", "body.log": "#caller@fixture", "body.level": "alert", "body.text": "disk first"}},
+      {"as": "owner", "op": "inbox", "inbox": "jobs@fixture", "expect": {"empty": true}},
+      {"as": "agent", "op": "call", "body": "write #caller@fixture notice disk quiet", "expect": {"entry.text": "disk quiet", "deliveries.matched": 0, "deliveries.sent": 0, "deliveries.dropped": 0}},
+      {"as": "owner", "op": "inbox", "inbox": "jobs@fixture", "expect": {"empty": true}},
+      {"as": "agent", "op": "call", "body": "write #caller@fixture alert other alert", "expect": {"entry.text": "other alert", "deliveries.matched": 0, "deliveries.sent": 0, "deliveries.dropped": 0}},
+      {"as": "owner", "op": "inbox", "inbox": "jobs@fixture", "expect": {"empty": true}},
+      {"as": "agent", "op": "call", "body": "write #caller@fixture alert disk second", "expect": {"entry.text": "disk second", "deliveries.matched": 1, "deliveries.sent": 1, "deliveries.dropped": 0}},
+      {"as": "owner", "op": "inbox", "inbox": "jobs@fixture", "expect": {"from": "#bus", "to": "jobs@fixture", "topic": "#caller@fixture", "tag": "alert", "receipt": "", "re": "", "wait": "", "body.log": "#caller@fixture", "body.level": "alert", "body.text": "disk second"}},
+      {"as": "owner", "op": "inbox", "inbox": "jobs@fixture", "expect": {"empty": true}},
+      {"as": "owner", "op": "call", "body": "sub list #caller@fixture", "expect": {"subscriptions.0.id": "$subscription", "subscriptions.0.target": "jobs@fixture", "subscriptions.0.sent": 2, "subscriptions.0.dropped": 0}},
+      {"as": "owner", "op": "call", "body": "sub delete $subscription", "expect": {"deleted": true}},
+      {"as": "owner", "op": "call", "body": "sub list #caller@fixture", "expect": {"subscriptions": []}},
+      {"as": "agent", "op": "call", "body": "write #caller@fixture alert disk after deletion", "expect": {"entry.text": "disk after deletion", "deliveries.matched": 0, "deliveries.sent": 0, "deliveries.dropped": 0}},
+      {"as": "owner", "op": "inbox", "inbox": "jobs@fixture", "expect": {"empty": true}}
+    ]
+  },
+  {
+    "id": "subscription-source-authority-is-checked-at-creation-only",
+    "fresh": true,
+    "steps": [
+      {"as": "owner", "op": "manage", "name": "#caller@fixture", "changes": {"maintainers": ["#worker@fixture"]}},
+      {"as": "worker", "op": "call", "body": "sub add jobs@fixture #caller@fixture alert", "expect": {"target": "jobs@fixture", "created_by": "#worker@fixture"}},
+      {"as": "agent", "op": "call", "body": "write #caller@fixture alert before source revoke", "expect": {"entry.text": "before source revoke", "deliveries.matched": 1, "deliveries.sent": 1, "deliveries.dropped": 0}},
+      {"as": "owner", "op": "inbox", "inbox": "jobs@fixture", "expect": {"from": "#bus", "to": "jobs@fixture", "topic": "#caller@fixture", "tag": "alert", "receipt": "", "re": "", "wait": "", "body.log": "#caller@fixture", "body.level": "alert", "body.text": "before source revoke"}},
+      {"as": "owner", "op": "manage", "name": "#caller@fixture", "changes": {"maintainers": []}},
+      {"as": "worker", "op": "call", "body": "read #caller@fixture", "expect": {"error.code": "forbidden"}},
+      {"as": "agent", "op": "call", "body": "write #caller@fixture alert after source revoke", "expect": {"entry.text": "after source revoke", "deliveries.matched": 1, "deliveries.sent": 1, "deliveries.dropped": 0}},
+      {"as": "owner", "op": "inbox", "inbox": "jobs@fixture", "expect": {"from": "#bus", "to": "jobs@fixture", "topic": "#caller@fixture", "tag": "alert", "receipt": "", "re": "", "wait": "", "body.log": "#caller@fixture", "body.level": "alert", "body.text": "after source revoke"}},
+      {"as": "owner", "op": "inbox", "inbox": "jobs@fixture", "expect": {"empty": true}},
+      {"as": "worker", "op": "call", "body": "sub list", "expect": {"subscriptions.0.id": "$subscription", "subscriptions.0.sent": 2}},
+      {"as": "worker", "op": "call", "body": "sub delete $subscription", "expect": {"deleted": true}},
+      {"as": "agent", "op": "call", "body": "write #caller@fixture alert after cancellation", "expect": {"entry.text": "after cancellation", "deliveries.matched": 0, "deliveries.sent": 0, "deliveries.dropped": 0}},
+      {"as": "owner", "op": "inbox", "inbox": "jobs@fixture", "expect": {"empty": true}}
+    ]
+  },
+  {
+    "id": "subscription-target-admission-is-checked-on-every-send",
+    "fresh": true,
+    "steps": [
+      {"as": "owner", "op": "manage", "name": "#caller@fixture", "changes": {"maintainers": ["#worker@fixture"]}},
+      {"as": "owner", "op": "manage", "name": "jobs@fixture", "changes": {"allow": ["#worker@fixture", "#bus"]}},
+      {"as": "worker", "op": "call", "body": "sub add jobs@fixture #caller@fixture alert", "expect": {"target": "jobs@fixture", "created_by": "#worker@fixture"}},
+      {"as": "agent", "op": "call", "body": "write #caller@fixture alert before target revoke", "expect": {"entry.text": "before target revoke", "deliveries.matched": 1, "deliveries.sent": 1, "deliveries.dropped": 0}},
+      {"as": "owner", "op": "inbox", "inbox": "jobs@fixture", "expect": {"from": "#bus", "to": "jobs@fixture", "topic": "#caller@fixture", "tag": "alert", "receipt": "", "re": "", "wait": "", "body.log": "#caller@fixture", "body.level": "alert", "body.text": "before target revoke"}},
+      {"as": "owner", "op": "manage", "name": "jobs@fixture", "changes": {"allow": ["#bus"]}},
+      {"as": "agent", "op": "call", "body": "write #caller@fixture alert after target revoke", "expect": {"entry.text": "after target revoke", "deliveries.matched": 1, "deliveries.sent": 0, "deliveries.dropped": 1}},
+      {"as": "owner", "op": "inbox", "inbox": "jobs@fixture", "expect": {"empty": true}},
+      {"as": "worker", "op": "call", "body": "sub list", "expect": {"subscriptions.0.sent": 1, "subscriptions.0.dropped": 1}},
+      {"as": "owner", "op": "manage", "name": "jobs@fixture", "changes": {"allow": ["#worker@fixture"]}},
+      {"as": "agent", "op": "call", "body": "write #caller@fixture alert bus sender refused", "expect": {"entry.text": "bus sender refused", "deliveries.matched": 1, "deliveries.sent": 0, "deliveries.dropped": 1}},
+      {"as": "owner", "op": "inbox", "inbox": "jobs@fixture", "expect": {"empty": true}},
+      {"as": "worker", "op": "call", "body": "sub list", "expect": {"subscriptions.0.sent": 1, "subscriptions.0.dropped": 2}},
+      {"as": "worker", "op": "call", "body": "sub delete $subscription", "expect": {"deleted": true}}
+    ]
+  }
+]

@@ -21,7 +21,10 @@ func realFixture(t *testing.T) (string, map[string]string) {
 	if binary == "" {
 		binary = filepath.Join("..", "client-fixture")
 	}
-	cmd := exec.Command(binary)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	cmd := exec.CommandContext(ctx, binary)
+	cmd.WaitDelay = time.Second
+	t.Cleanup(cancel)
 	input, e := cmd.StdinPipe()
 	if e != nil {
 		t.Fatal(e)
@@ -34,7 +37,7 @@ func realFixture(t *testing.T) (string, map[string]string) {
 	if e = cmd.Start(); e != nil {
 		t.Fatal(e)
 	}
-	t.Cleanup(func() { input.Close(); cmd.Wait() })
+	t.Cleanup(func() { input.Close(); cmd.Wait(); cancel() })
 	var info struct {
 		Addr   string            `json:"addr"`
 		Tokens map[string]string `json:"tokens"`
