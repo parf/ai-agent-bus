@@ -2,9 +2,12 @@
 # Runs the agent-guide examples on a private test bus (docs/user/write-agent-*.md
 # quote the files this runs). Modes:
 #   fast    the bash time service through `agent-bus run`, nothing else
-#   normal  every example: CLI, packaged for the runner (with Configuration,
-#           Secret and the ordinary confinement views), and the Python process
-#   slow    normal, plus the CPU limit actually enforced
+#   normal  the CLI and Python-process examples, the packages' static facts and
+#           the packaged-help rule through `agent-bus run --package-dir`; no
+#           runner, so no systemd scope and nothing in the host journal
+#   slow    normal, plus the examples packaged for a private runner (Configuration,
+#           Secret, confinement views, live cgroup limits, a kept process that
+#           comes back) and the CPU limit actually enforced
 # GUIDE_BIN names a directory holding agent-busd, agent-bus and agent-bus-runner
 # (smoke passes the build it already made); without it they are built here.
 # Prints "  ok" / "  FAIL" lines and "passed N, failed M"; exits 1 on any failure.
@@ -21,7 +24,7 @@ if [ -z "$BIN" ]; then
   mkdir -p "$ROOT/tmp"
   BIN=$(mktemp -d "$ROOT/tmp/guide-bin.XXXXXX")
   GB_BUILT=$BIN
-  programs=(./cmd/agent-busd ./cmd/agent-bus); [ "$MODE" = fast ] || programs+=(./cmd/agent-bus-runner)   # fast never starts a runner
+  programs=(./cmd/agent-busd ./cmd/agent-bus); [ "$MODE" = slow ] && programs+=(./cmd/agent-bus-runner)   # only slow starts a runner
   (cd "$ROOT/src" && go build -o "$BIN/" "${programs[@]}") || { echo "FAIL the programs did not build"; exit 1; }
   trap 'guide_down; rm -rf "$GB_BUILT"' EXIT
 fi
@@ -128,8 +131,35 @@ wait "$PPID_" 2>/dev/null
 lacks "the Python service's own log never holds the Secret" "$(cat "$GB_DIR/process.log")" "$KEY"
 gb "$GB_OWNER" unregister "$A" >/dev/null 2>&1; gb "$GB_OWNER" unregister "$P" >/dev/null 2>&1   # free the names for the runner
 
+# ---- packaging without a runner: the facts a package must hold, checked statically ----
+sec "Packages: what the runner will read (no runner started)"
+for d in time-simple time-advanced time-process; do
+  j=$PKG/$d/agent.json
+  jq -e . "$j" >/dev/null 2>&1 && ok "$d: agent.json parses" || bad "$d: agent.json parses"
+  cmd=$(jq -r .command "$j"); first=${cmd%% *}
+  case $first in ./*) [ -x "$PKG/$d/${first#./}" ] && ok "$d: command is a package-relative executable" || bad "$d: command is a package-relative executable" "$first is not executable" ;; *) bad "$d: command is a package-relative executable" "$cmd" ;; esac
+  [ -n "$(jq -r '.description // empty' "$j")" ] && ok "$d: has a description" || bad "$d: has a description"
+done
+eq "time-advanced hands help to its script" "$(jq -r .help "$PKG/time-advanced/agent.json")" "native"
+eq "time-process serves itself" "$(jq -r .serves "$PKG/time-process/agent.json")" "itself"
+# The same packages through `agent-bus run --package-dir`: the runner's help rule without a runner.
+S=#time-simple@localhost
+cli_start "$S" "$PKG/time-simple/time-simple.sh" --descr "Tell the current UTC time" --package-dir "$PKG/time-simple" || bad "the packaged simple service is reading its inbox"
+has "packaged simple: help is the package's description" "$(ask "$S" asker@localhost --help)" 'Tell the current UTC time'
+cli_stop
+gb "$GB_OWNER" unregister "$S" >/dev/null 2>&1
+cli_start "$A" "$PKG/time-advanced/time-advanced.sh" --descr "Tell the current UTC time and keep the last five reports" --package-dir "$PKG/time-advanced" || bad "the packaged advanced service is reading its inbox"
+has "packaged advanced: native help comes from the script" "$(ask "$A" asker@localhost --help)" 'history - the last five reports'
+cli_stop
+gb "$GB_OWNER" unregister "$A" >/dev/null 2>&1
+
+# What our programs wrote to the host journal and syslog during the run: nothing.
+since_log=$(journalctl -q -t agent-busd -t agent-bus-runner -t agent-bus --since "$JOURNAL_START" -o cat 2>&1)
+eq "the daemon and the CLI wrote nothing to the host journal" "$since_log" ""
+[ "$MODE" = slow ] || finish
+
 # ---- the runner: the same services, packaged, with private settings and confinement --
-sec "Runner: the same services, packaged"
+sec "Runner: the same services, packaged (slow: the runner needs a systemd scope)"
 RHA=$GB_DIR/rh/agent.d
 mkdir -p "$RHA" "$GB_DIR/rh/runner/tokens"
 for d in time-simple time-advanced time-process; do mkdir -p "$RHA/$d"; cp -R "$PKG/$d/." "$RHA/$d/"; done
