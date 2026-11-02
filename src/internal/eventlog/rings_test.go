@@ -15,6 +15,7 @@ import (
 )
 
 type backend struct {
+	calls  int
 	active map[uint32]bool
 	high   map[uint32]uint64
 	alerts map[uint32][]ports.EventEntry
@@ -42,6 +43,7 @@ func (s *backend) ReplaceEventAlerts(id uint32, v []ports.EventEntry, active boo
 	if s.fail {
 		return errors.New("disk")
 	}
+	s.calls++
 	s.active[id] = active
 	s.alerts[id] = append([]ports.EventEntry{}, v...)
 	return nil
@@ -252,6 +254,7 @@ func TestRateAndValidationRefusalsDoNotAllocateIDs(t *testing.T) {
 func TestDamagedAndUncertainAlertStoreFailClosed(t *testing.T) {
 	st := newBackend()
 	st.high[1] = 64
+	st.active[1] = true
 	st.alerts[1] = []ports.EventEntry{{ID: 1, Level: "notice", Text: "wrong ring", At: "2026-10-30T00:00:00.000Z", LastAt: "2026-10-30T00:00:00.000Z", Count: 1}}
 	e := New(st, st, nil)
 	if _, err := e.Read(1, "a", "", Defaults()); Code(err) != "storage_invalid" {
@@ -269,5 +272,35 @@ func TestDamagedAndUncertainAlertStoreFailClosed(t *testing.T) {
 	st.fail = false
 	if _, err := e.Read(1, "a", "", Defaults()); Code(err) != "storage_unknown" {
 		t.Fatalf("poisoned log served %v", err)
+	}
+}
+
+func TestUnchangedAlertsDoNotWriteAndInactiveSnapshotRefuses(t *testing.T) {
+	st := newBackend()
+	e := New(st, st, nil)
+	p := Defaults()
+	if _, err := e.Write(1, "notice", "one", p); err != nil {
+		t.Fatal(err)
+	}
+	before := st.calls
+	if _, err := e.Write(1, "warning", "two", p); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.Read(1, "a", "", p); err != nil {
+		t.Fatal(err)
+	}
+	if st.calls != before {
+		t.Fatalf("unchanged alert snapshot wrote %d extra times", st.calls-before)
+	}
+	if _, err := e.Write(1, "alert", "alert", p); err != nil {
+		t.Fatal(err)
+	}
+	if st.calls != before+1 {
+		t.Fatal("changed alert snapshot was not committed")
+	}
+	st.active[1] = false
+	e = New(st, st, nil)
+	if _, err := e.Read(1, "a", "", p); Code(err) != "storage_invalid" {
+		t.Fatalf("inactive snapshot with entries accepted: %v", err)
 	}
 }

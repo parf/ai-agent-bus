@@ -6,6 +6,7 @@ package eventlog
 import (
 	"errors"
 	"regexp"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -51,7 +52,7 @@ func Line(s string) (string, error) {
 	}
 	rs := []rune{}
 	for _, r := range ansi.ReplaceAllString(s, "") {
-		if unicode.Is(unicode.C, r) {
+		if unicode.IsOneOf([]*unicode.RangeTable{unicode.Cc, unicode.Cf, unicode.Cs, unicode.Zl, unicode.Zp}, r) {
 			continue
 		}
 		rs = append(rs, r)
@@ -132,7 +133,7 @@ func (e *Engine) load(id uint32, l *log) error {
 			}
 			prev = v.ID
 		}
-		if len(entries) > 500 {
+		if len(entries) > 500 || (!active && len(entries) > 0) {
 			return Error("storage_invalid")
 		}
 		l.rings["alert"] = append([]ports.EventEntry{}, entries...)
@@ -149,7 +150,7 @@ func clone(in map[string][]ports.EventEntry) map[string][]ports.EventEntry {
 	return out
 }
 func (e *Engine) save(id uint32, l *log, next map[string][]ports.EventEntry, active bool) error {
-	if e.alerts != nil {
+	if e.alerts != nil && (active != l.active || !slices.Equal(next["alert"], l.rings["alert"])) {
 		if err := e.alerts.ReplaceEventAlerts(id, append([]ports.EventEntry{}, next["alert"]...), active); err != nil {
 			l.poisoned = true
 			return Error("storage_unknown")
