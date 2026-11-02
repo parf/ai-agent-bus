@@ -46,12 +46,12 @@ pong hello
 
 ## Private agent-log example
 
-The [executed native example](tests/client.test.ts) (`exampleEventLog / native event example`) uses ordinary calls to
-`#bus`, with three separate handles on a disposable daemon: the agent writes,
-its Owner reads and lists, and an unmanaged identity receives a private refusal.
-The writing agent cannot read its own log just because it wrote it. Each call
-has a bounded wait; no event-specific SDK helper or subscription is involved.
-See [agent logs](../../../docs/agents/bus.md#agent-logs) for authority and reply behavior.
+The [executed native example](tests/client.test.ts) (`exampleEventLog / native event example`) uses ordinary calls to `#bus` on a disposable daemon.
+
+- Three separate handles: the agent writes, its Owner reads and lists, and an unmanaged identity receives a private refusal.
+- The writing agent cannot read its own log just because it wrote it.
+- Each call has a bounded wait; no event-specific SDK helper or subscription is involved.
+- See [agent logs](../../../docs/agents/bus.md#agent-logs) for authority and reply behavior.
 
 Observed output, asserted by that example:
 
