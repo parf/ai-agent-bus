@@ -33,7 +33,7 @@ import (
 // schema is the layout this daemon reads and writes. A database at an older
 // version with a migration below is brought up to it at open, in one
 // transaction; any other version is refused rather than guessed at.
-const schema = 9
+const schema = 10
 
 var tables = []string{
 	`CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
@@ -48,6 +48,8 @@ var tables = []string{
 	`CREATE TABLE kv_int (record_id INTEGER NOT NULL, name TEXT NOT NULL, value INTEGER NOT NULL, PRIMARY KEY (record_id, name)) WITHOUT ROWID`,
 	`CREATE TABLE kv_json (record_id INTEGER NOT NULL, name TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (record_id, name)) WITHOUT ROWID`,
 	bigfilesTable,
+	eventSubsTable,
+	eventSubsIndex,
 }
 
 // bigfilesTable is the bigfile index: one row per bigfile held in a file, the
@@ -83,6 +85,9 @@ var migrations = map[int][]string{
 	// list, get and expiry read it and a restart no longer rebuilds it from the
 	// files' footers.
 	8: {bigfilesTable},
+	// 0.9.291: the subscriptions of agent logs are kept on disk, so a restart
+	// keeps them (Plans/R1.0-Release/agent-events/README.md#subscriptions-are-new-daemon-work).
+	9: {eventSubsTable, eventSubsIndex},
 }
 
 // ErrMissing is a database that is not there and was not asked to be made.
@@ -503,6 +508,11 @@ func (s *Store) Commit(c ports.Change) error {
 			if _, err := tx.Exec(`DELETE FROM users WHERE name = ?`, name); err != nil {
 				return err
 			}
+			// A removed User's subscriptions go with it: a name registered again
+			// by somebody else is not the author of what the old one made.
+			if _, err := tx.Exec(`DELETE FROM event_subs WHERE CASE WHEN json_valid(body) THEN json_extract(body, '$.created_by') END = ?`, name); err != nil {
+				return err
+			}
 			continue
 		}
 		body, err := json.Marshal(u)
@@ -521,6 +531,9 @@ func (s *Store) Commit(c ports.Change) error {
 			keep = r.ID
 		}
 		if err := dropKV(tx, name, keep); err != nil {
+			return err
+		}
+		if err := dropEventSubs(tx, name, keep); err != nil {
 			return err
 		}
 		if r == nil {

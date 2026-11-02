@@ -36,5 +36,6 @@ func (s *State) DropEventState(id uint32) error {
 		return s.Err
 	}
 	delete(s.eventHigh, id)
+	s.dropSubscriptions(id)
 	return nil
 }

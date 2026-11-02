@@ -126,6 +126,10 @@ func (s *Store) DropEventState(id uint32) error {
 			return err
 		}
 	}
+	// A late subscription added on the retired registration goes with it.
+	if _, err = tx.Exec(`DELETE FROM event_subs WHERE source_id = ?`, id); err != nil {
+		return err
+	}
 	if err = tx.Commit(); err != nil {
 		return err
 	}

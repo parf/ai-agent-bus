@@ -96,6 +96,7 @@ func (t *Tokens) apply(pairs map[string]*ports.CredentialPair) {
 // write; Commits counts the ones that landed.
 type State struct {
 	eventHigh map[uint32]uint64
+	subs      map[string]memorySub
 	mu        sync.Mutex
 	Err       error
 	Commits   int
@@ -191,6 +192,7 @@ func (s *State) Commit(c ports.Change) error {
 	}
 	for name, u := range c.Users {
 		if u == nil {
+			s.dropSubscriptionsBy(name)
 			delete(s.users, name)
 		} else {
 			s.users[name] = *u
@@ -199,6 +201,8 @@ func (s *State) Commit(c ports.Change) error {
 	for name, r := range c.Records {
 		if old, had := s.records[name]; had && (r == nil || r.ID != old.ID) {
 			s.dropKV(old.ID)
+			s.dropSubscriptions(old.ID)
+			s.dropSubscriptionsBy(name)
 		}
 		if r == nil {
 			delete(s.records, name)

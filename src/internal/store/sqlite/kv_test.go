@@ -204,7 +204,7 @@ func TestSchemaSixMigratesToKeepValues(t *testing.T) {
 func schemaSix() []string {
 	var out []string
 	for _, stmt := range tables {
-		if strings.HasPrefix(stmt, "CREATE TABLE kv") || strings.HasPrefix(stmt, "CREATE TABLE bigfiles") {
+		if strings.HasPrefix(stmt, "CREATE TABLE kv") || strings.HasPrefix(stmt, "CREATE TABLE bigfiles") || strings.HasPrefix(stmt, "CREATE TABLE event_") || strings.HasPrefix(stmt, "CREATE INDEX event_") {
 			continue
 		}
 		out = append(out, strings.Replace(stmt, ", owner_id INTEGER NOT NULL DEFAULT 0", "", 1))

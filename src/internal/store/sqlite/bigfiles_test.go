@@ -84,7 +84,7 @@ func TestBigfileRowsDeleteDropAndExpire(t *testing.T) {
 	}
 }
 
-// A schema-8 database opens as schema 9 with an empty index and keeps its data.
+// A schema-8 database opens as the current schema with an empty index and keeps its data.
 func TestSchemaEightGainsTheBigfileIndex(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "bus.db")
 	old, err := sql.Open("sqlite", path)
@@ -92,7 +92,7 @@ func TestSchemaEightGainsTheBigfileIndex(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, stmt := range tables {
-		if strings.HasPrefix(stmt, "CREATE TABLE bigfiles") {
+		if strings.HasPrefix(stmt, "CREATE TABLE bigfiles") || strings.HasPrefix(stmt, "CREATE TABLE event_") || strings.HasPrefix(stmt, "CREATE INDEX event_") {
 			continue
 		}
 		if _, err := old.Exec(stmt); err != nil {
@@ -114,8 +114,8 @@ func TestSchemaEightGainsTheBigfileIndex(t *testing.T) {
 	}
 	defer s.Close()
 	var version int
-	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != schema || schema != 9 {
-		t.Fatalf("version %d (%v), want 9", version, err)
+	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != schema || schema != 10 {
+		t.Fatalf("version %d (%v), want 10", version, err)
 	}
 	if rows, err := s.BigRows(); err != nil || len(rows) != 0 {
 		t.Fatalf("a migrated database's index = %+v %v", rows, err)
