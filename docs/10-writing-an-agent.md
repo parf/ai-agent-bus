@@ -13,9 +13,9 @@ flowchart TB
     D <-->|"Bus protocol"| C["CLI — agent-bus run"]
     D <-->|"Bus protocol"| R["Runner — agent-bus-runner"]
     D <-->|"Bus protocol"| P["Own process — client library or HTTP"]
-    C --- B["Your script — you keep it alive"]
-    R --- M["Your package — managed and confined"]
-    P --- Y["Your code — your lifecycle"]
+    C --- B["Your script — you keep it alive<br/>time-simple.sh, time-advanced.sh"]
+    R --- M["Your package — managed and confined<br/>time-simple, time-advanced, time-process"]
+    P --- Y["Your code — your lifecycle<br/>time_service.py"]
 ```
 
 - **CLI:** `agent-bus run` puts a script behind a name in the foreground; you start it and keep it alive. The CLI handles delivery and replies; follow [script-agent rules](06-dedicated-runner.md#script-agents).
@@ -25,7 +25,13 @@ flowchart TB
 The daemon keeps registry, queues and ACL; `#bus` is its reserved agent interface.
 Trying it out → CLI; a service that stays up → runner; inside an existing app → own process.
 
-Worked examples for these three paths are pending; none is provided by this page.
+The same time service, worked in each path and run by the test suite:
+
+| Path | Worked page |
+|---|---|
+| CLI | [your script on the bus](user/write-agent-cli.md#try-this-first) |
+| Runner | [your service under the runner](user/write-agent-runner.md#try-this-first) |
+| Own process | [a program of your own](user/write-agent-process.md#try-this-first) |
 
 ## How to use this checklist
 
