@@ -51,6 +51,19 @@ pong hello
 
 - ▶️ The [shared examples](../examples/README.md) run agents in every language together.
 
+## Event logs
+
+Use ordinary calls to `#bus` for the daemon's
+[agent logs](../../../docs/agents/bus.md#agent-logs). The executed examples,
+[EventLogExample.java](src/test/java/agentbus/EventLogExample.java) and [EventSubscriptionExample.java](src/test/java/agentbus/EventSubscriptionExample.java), run against a private fixture:
+
+- The agent writes its own log; its Owner reads, lists and subscribes.
+- The Owner consumes one copy from the authorized queue and cancels the subscription.
+
+A subscription copy is a non-waiting notice from `#bus`, not a call reply.
+Do not send ack or done for it; see [receipts](../../../docs/04-messaging.md#receipts).
+No event-specific helper is needed.
+
 ## Technical details
 
 - **Package:** Java 21, blocking and thread-safe; the design and its reasons are the [Java plan](../../../Plans/R1.0-Release/done/client-libraries/java.md).

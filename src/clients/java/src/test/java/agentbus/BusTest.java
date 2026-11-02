@@ -1487,6 +1487,18 @@ public final class BusTest {
         });
 
 
+        section("event-subscription example", () -> {
+            try (VectorDaemon daemon = new VectorDaemon()) {
+                List<String> lines = EventSubscriptionExample.run(daemon.addr, daemon.tokens);
+                check("the event-subscription example prints what it documents", lines.equals(List.of(
+                        "listed: 1 subscription",
+                        "delivered: 1 copy",
+                        "copy from #bus: alert disk full",
+                        "one copy only: true",
+                        "after cancelling, matched: 0")), lines);
+            }
+        });
+
         System.out.println("passed " + pass + ", failed " + fail);
         System.exit(fail == 0 ? 0 : 1);
     }
