@@ -273,27 +273,42 @@ function eventPath(mixed $value, string $path): array
     return [true, $value];
 }
 
-section('shared event-log vectors', function () {
-    $who = ['owner' => 'owner@fixture', 'agent' => '#caller@fixture', 'third' => '#outsider@fixture'];
-    foreach (vectorRows('events') as $case) {
+/**
+ * The shared event-log and event-subscription vectors: the daemon Owner, the agent whose log it is, a third
+ * party and a source Maintainer act on a fixture daemon with its own #bus reader. A subscription copy is read
+ * from the destination queue the step names; no ack or done is sent for it (it is a notice).
+ */
+function eventVectors(string $file): void
+{
+    $who = ['owner' => 'owner@fixture', 'agent' => '#caller@fixture', 'third' => '#outsider@fixture', 'worker' => '#worker@fixture'];
+    foreach (vectorRows($file) as $case) {
         $fixture = vectorFixture();
         $info = $fixture[2];
         $buses = array_map(fn($name) => Bus::connect($info['addr'], $info['tokens'][$name], $name, 10.0), $who);
         $answers = [];
+        $subscription = '';
+        $sub = function ($v) use (&$subscription) { return is_string($v) ? str_replace('$subscription', $subscription, $v) : $v; };
         foreach ($case['steps'] as $i => $step) {
             $at = "{$case['id']} step $i {$step['op']}";
             $bus = $buses[$step['as']] ?? null;
             if ($bus === null) { check("$at: known identity", false, $step['as']); continue; }
             switch ($step['op']) {
                 case 'call':
+                    $body = $sub($step['body']);
                     $outcome = null;
-                    $e = thrown(function () use ($bus, $step, &$outcome) { $outcome = $bus->call('#bus', $step['body'], new CallOptions(5)); });
+                    $e = thrown(function () use ($bus, $body, &$outcome) { $outcome = $bus->call('#bus', $body, new CallOptions(5)); });
                     if ($e !== null || !$outcome instanceof Answer) { check("$at: answered", false, $e ? get_class($e) . ' ' . $e->getMessage() : get_class($outcome)); break; }
                     $answer = $outcome->message->body;
                     $answers[$i] = $answer;
                     $decoded = json_decode($answer, true);
+                    if (str_starts_with($body, 'sub add ') && is_array($decoded) && is_string($decoded['id'] ?? null)) {
+                        $subscription = $decoded['id'];
+                    } elseif (str_starts_with($body, 'sub add ') && isset($step['expect']['target'])) {
+                        check("$at: sub add returned an id", false, $answer);
+                    }
                     foreach ($step['expect'] ?? [] as $path => $want) {
                         [$found, $got] = eventPath($decoded, $path);
+                        $want = $sub($want);
                         check("$at: $path", $found && $got === $want, "got " . json_encode($got) . " want " . json_encode($want) . "; reply $answer");
                     }
                     if (isset($step['same_answer_as'])) {
@@ -304,9 +319,25 @@ section('shared event-log vectors', function () {
                     $e = thrown(fn() => $bus->send('#bus', $step['body']));
                     check("$at: queued", $e === null, $e ? $e->getMessage() : '');
                     break;
+                case 'manage':
+                    $e = thrown(fn() => $bus->record($step['name'])->manage($step['changes']));
+                    check("$at: managed", $e === null, $e ? get_class($e) . ' ' . $e->getMessage() : '');
+                    break;
                 case 'inbox':
-                    $m = $bus->consume(new ConsumeOptions(wait: 0.3));
-                    check("$at: the inbox is empty", $m === null, $m ? "{$m->from}: {$m->body}" : '');
+                    $m = $bus->consume(new ConsumeOptions(inbox: $step['inbox'] ?? null, wait: 0.3));
+                    if (($step['expect']['empty'] ?? false) === true) {
+                        check("$at: the inbox is empty", $m === null, $m ? "{$m->from}: {$m->body}" : '');
+                        break;
+                    }
+                    if ($m === null) { check("$at: a copy was waiting", false, 'the inbox was empty'); break; }
+                    $seen = ['from' => $m->from, 'to' => $m->to, 'topic' => $m->topic ?? '', 'tag' => $m->tag ?? '',
+                        'receipt' => $m->receipt ?? '', 're' => $m->re ?? '',
+                        'wait' => $m->deadline !== null ? 'set' : '',   // this client reads a waiting call as a message with a deadline
+                        'body' => json_decode($m->body, true)];
+                    foreach ($step['expect'] as $path => $want) {
+                        [$found, $got] = eventPath($seen, $path);
+                        check("$at: copy $path", $found && $got === $want, 'got ' . json_encode($got) . ' want ' . json_encode($want));
+                    }
                     break;
                 default:
                     check("$at: known op", false, $step['op']);
@@ -314,7 +345,9 @@ section('shared event-log vectors', function () {
         }
         vectorFixtureStop($fixture);
     }
-});
+}
+section('shared event-log vectors', fn() => eventVectors('events'));
+section('shared event-subscription vectors', fn() => eventVectors('event-subscriptions'));
 
 section('event-log example', function () {
     $fixture = vectorFixture();
