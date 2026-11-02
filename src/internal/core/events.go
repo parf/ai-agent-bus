@@ -198,6 +198,7 @@ func (b *Bus) EventList(caller string) (map[string]any, error) {
 	now := b.clock()
 	names := []string{}
 	for name, r := range b.records {
+		// b.live is defence in depth: EventRead below answers not_found for a hidden log, and the loop skips it.
 		if r.Kind == protocol.KindAgent && b.live(r) && b.eventReader(caller, r) {
 			names = append(names, name)
 		}
