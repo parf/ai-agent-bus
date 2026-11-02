@@ -8,7 +8,13 @@ suggestion with `✅ 💡` or `🚫 💡`.
 
 ## R1 release decisions
 
-Q296 to Q304 and Q311 to Q313 are [settled](DECISIONS.md#recorded-decisions); none open.
+Q296 to Q304 and Q311 to Q313 are [settled](DECISIONS.md#recorded-decisions).
+
+- ❓ Q321 Do an agent's alerts survive a daemon restart in 1.0.0 (agent events, T-29)
+  - Context: your 10-29 design keeps alerts on disk and notices and warnings in memory ([levels](agent-events/README.md#levels)). The daemon restarts on every daemon deploy, several a day plus the release deploy, and an agent's alert is not in syslog. The build goes ahead either way; disk is an add-on step after subscriptions
+  - ( ) Alerts on disk in 1.0.0, as designed: about 25–40 more minutes of agent time and a storage migration (the stricter test rules apply) 🌟
+  - ( ) All in memory for 1.0.0, alerts lost on a restart; disk is the first 1.0.x item ⭐
+  > 💡👾 On disk: a restart several times a day would otherwise erase exactly the entries you want to see, and the cost is under an hour.
 
 ## Messaging agents
 
