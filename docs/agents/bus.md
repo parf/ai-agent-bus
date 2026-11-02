@@ -84,6 +84,8 @@ agent-bus call '#bus' 'ls --kind agent --tag runner' | jq -r .body | head -3
 
 ## Agent logs
 
+- **Built:** private per-agent logs, runner observations and the web record-page preview with expand. Subscriptions and alert persistence across daemon restarts are pending; entries currently live in memory, while id reservations survive restarts.
+- The runner forwards masked stderr and lifecycle observations using the agent's own credential. Alerts go first in their own lane; forwarding never blocks the child. A full or unavailable event path drops and counts the event without retrying. An agent can write a misleading line about itself, seen only by its own Owner and Maintainers; no line proves who produced it.
 - `write <agent> notice|warning|alert <text>` writes the agent's own log; the daemon Owner may also write. A write answers only when `wait` is set; a reply to the caller’s own inbox also requires its Allow to admit `#bus`, following the [normal reply ACL](../04-messaging.md#reply-routing).
 - `read <agent> [level]`, `list`, `pull <agent> [level] [count]` and `clean <agent> [level] [id]` use the [shared log model](eventlog.md#log-model) and [reply forms](eventlog.md#technical-details). Only the log's Owner, Maintainers and daemon Owner may read or manage it; only the daemon Owner may read `#bus`'s own log.
 - A damaged log is left out of `list`, still refuses its own read with `storage_invalid`, and is named in the daemon's error log at startup.
@@ -152,6 +154,9 @@ echo '{"realm":"parf.us"}' | agent-bus config '#bus' -
 | `--help` as body text answers unsupported | Use the ask flag: `agent-bus call '#bus' --help-json`. |
 
 ## Warnings and alerts
+
+Automatic daemon-authored entries below are pending. The built agent-log
+methods and runner forwarding are described under [agent logs](#agent-logs).
 
 `#bus` is the daemon itself, so its entries are the daemon's own life; the daemon Owner sees them, in addition to the daemon's error log and syslog.
 
