@@ -8,13 +8,7 @@ suggestion with `✅ 💡` or `🚫 💡`.
 
 ## R1 release decisions
 
-Q296 to Q304, Q311 to Q313, Q321, Q322, Q324 and Q325 are [settled](DECISIONS.md#recorded-decisions).
-
-- ❓ Q327 Does "normal and fast runs write nothing to the host journal" allow systemd's own one-line scope notice
-  - Context: the repo rule ([verification](../../CLAUDE.md#verification)) says normal and fast test runs write nothing to the host journal or syslog. A runner test uses `systemd-run --scope`, and systemd itself then logs one "Started run-….scope" line to your user journal per run. Our programs write nothing, and a test checks that. The existing `script_confined` test already does the same at normal. Meanwhile the new guide test runs its runner part only in the slow set, so nothing waits
-  - ( ) The rule means our programs write nothing; systemd's own scope line is allowed. The runner check runs in the normal set, and the rule gets a one-line clarification 🌟
-  - ( ) Literal: anything that makes systemd log runs only in the slow set; `script_confined` moves to slow too ⭐
-  > 💡👾 Allow it: one systemd line per run is not our output, and the normal set catches runner breaks before landing instead of at the release gate.
+Q296 to Q304, Q311 to Q313, Q321, Q322, Q324, Q325 and Q327 are [settled](DECISIONS.md#recorded-decisions); none open.
 
 ## Messaging agents
 

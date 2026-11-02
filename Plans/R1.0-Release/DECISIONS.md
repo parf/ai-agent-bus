@@ -2,6 +2,8 @@
 
 ## Recorded decisions
 
+- **systemd's own scope notice does not break the no-journal rule for normal and fast runs** (Q327) — owner, 2026-11-02: "agree". Our programs still write nothing; a runner check that uses `systemd-run --scope` may run in the normal set.
+  - Home: [verification](../../CLAUDE.md#verification).
 - **The agent-author guide plan is approved with the owner's changes** (Q324) — owner, 2026-11-02. Audience: a developer who already knows how the daemon works. It opens with three ways to run an agent (the CLI tool, the runner, your own process), with a diagram and one page each carrying the same tested time-service example. Then three tiers: absolute minimum (help; one request, one answer), suggested (status first, Configuration vs Secret, event levels in the agent's own log, state and KV, refusals, send once, restart-safe, graceful stop), and more (ack and done, optional roles, locks, bigfile, the standard publish/subscribe pattern, may-send). It leaves out what the bus handles: tokens, enrolment, protocol checks.
   - Home: [agent guide plan](agent-guide.md).
 - **An event subscription is authorized once, when it is created** (Q325) — owner, 2026-11-02: "daemon do not care about app roles; ignore; - yes creation time only". For the daemon's `#bus` agent logs (T-29), the right to read the source log is checked when the subscription is created, not again; ordinary delivery admission to the target still applies to each send. `#eventlog`, `#logwatch` and `#discord` still recheck the source on every delivery through the shared helper; whether they follow is [Q326](../R1.1/QUESTIONS.md#access-context).
