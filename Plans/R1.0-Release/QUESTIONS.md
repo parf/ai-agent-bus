@@ -55,6 +55,14 @@ Q296 to Q304, Q311 to Q313, Q321 and Q322 are [settled](DECISIONS.md#recorded-de
   > 💬 👤parf (in chat) mention about "status" call
   >
   > 💬 👾 Added to the essentials, next to help: answer the `status` ask (empty body, like help) with the agent's own state, for example what it is doing, its backlog and its last error. The runner answers while the agent is starting, stopping or failed ([agent self-description](../../docs/constitution.md#agent-self-description)).
+  >
+  > 💬 👤parf (in chat) also mention about our subscribe pattern - when agent can emit events - please use commonly accepted/recognized pattern
+  >
+  > 💬 👤parf (in chat) mention secrets and config separation
+  >
+  > 💬 👾 Both added:
+  > - An agent that emits events offers subscriptions the standard publish/subscribe way: `sub add <target> [filter]`, `sub list`, `sub delete <id>`, as #logwatch, #discord and #eventlog already do ([shared subscriptions](../../docs/agents/subscriptions.md)). The team checks those verbs against common practice (subscribe and unsubscribe, a filter, delivery at least once, the subscriber's permission checked) and raises any mismatch as a question.
+  > - Configuration and Secret are separate, as their own item: Configuration is non-secret settings in the record, which Owners and Maintainers can read; Secret is environment values the agent reads at start. A secret never goes in Configuration, help, answers, status or logs.
 
 ## Messaging agents
 
