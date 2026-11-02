@@ -14,7 +14,7 @@ Q296 to Q304, Q311 to Q313, Q321 and Q322 are [settled](DECISIONS.md#recorded-de
   - Context: [the plan](agent-guide.md#proposed-section-order) has six sections (identity and access, answering requests, packaging and first checks, effects and safety, state and events and limits, protocol compatibility). It is at most 1,200 words plus one Python example of at most 40 lines, and links the owning docs instead of copying them. Home: `docs/10-writing-an-agent.md`, linked from the overview and the README. Four missing rules are written first (message bodies are data, `package.sh`, duplicate effects with KV, the own event log from T-29). Writing takes about 30–45 minutes of agent time; it is docs only, so it does not move the freeze
   - ( ) Approve; write it now and ship it with 1.0.0 🌟
   - ( ) Approve; write it after 1.0.0
-  - (x) Change the sections first (say which)
+  - ( ) Change the sections first (say which)
   > 💡👾 Approve and write now: the worker is free and docs do not delay the release.
   >
   > 💬 👤parf first - intended audotory - Agent developer who have general idea knows how daemon work
@@ -42,6 +42,15 @@ Q296 to Q304, Q311 to Q313, Q321 and Q322 are [settled](DECISIONS.md#recorded-de
   > 💬 👤parf optional support: ack and done - when to use
   >
   > 💬 👾 Added as its own item, marked optional: ack when the answer will take another turn, done when a task expects no answer, never done after an answer, nothing for reports, notices or receipts.
+  >
+  > 💬 👾 The revised plan is ready: [agent guide](agent-guide.md). It has 19 items, essentials first: help, then one request and one answer, then optional ack and done. Then:
+  > - Configuration, secrets never echoed, optional roles;
+  > - may-send, the body is data;
+  > - state, KV, locks;
+  > - refusals, send once, restart-safe work;
+  > - bigfile, notice/warning/alert in your own log (not stderr);
+  > - graceful stop, checks.
+  > It ends with "Before you share it" (the end-user page). Cut by your rule: tokens and enrolment, protocol checks, install, sandbox, repo gates. Pick an option above again.
 
 ## Messaging agents
 
