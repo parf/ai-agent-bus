@@ -142,7 +142,7 @@ t("a matching event reaches its target as JSON, topic slack, tag the channel; a 
   push(msg({ text: "agent: deploy now" }));
   push(msg({ text: "chatter" }));
   push(msg({ channel: "C2", text: "agent: other channel" }));
-  const got = await drain(target);
+  const got = await drain(target, 1500, 1);
   expect(got).toHaveLength(1);
   expect(got[0]!.topic).toBe("slack");
   expect(got[0]!.tag).toBe("C1");
@@ -160,7 +160,7 @@ t("its own posts are dropped, even ahead of their answer; others in the same bot
   push(msg({ subtype: "message_deleted" }));
   push(msg({ user: undefined, bot_id: "BALERT", subtype: "bot_message", text: "alert" }));
   push({ type: "reaction_added", item: { channel: "C1" } });
-  const got = await drain(target);
+  const got = await drain(target, 1500, 3);
   expect(got.map(m => JSON.parse(m.body).text)).toEqual(["shared by user", "shared by bot", "alert"]);
   await call(`sub delete ${id}`);
 });
@@ -180,7 +180,7 @@ t("the same event_id on a new connection is forwarded once, and every envelope i
   for (const ws of sockets) ws.close(); // the agent reconnects
   for (let i = 0; i < 100 && upgrades === was; i++) await Bun.sleep(50);
   push(msg({ text: "once" }), "EvSame");
-  const got = await drain(target);
+  const got = await drain(target, 1500, 1);
   expect(got.map(m => JSON.parse(m.body).text)).toEqual(["once"]);
   for (let i = 0; i < 40 && acks.length < before + 2; i++) await Bun.sleep(25);
   expect(acks.length).toBe(before + 2);
