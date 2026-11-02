@@ -57,6 +57,12 @@ backlog outcome. *Settled by:* owner, with R1.1.
   - ( ) Any answer to an accepted ask passes the asker's Allow; the daemon then has to remember each ask
   > 💡👾 Only `#bus`: it is the daemon itself and only answers, so this fixes the trap without new reply state or wider agent reach.
 
+- ❓ Q326 Do `#eventlog`, `#logwatch` and `#discord` also check a subscription's source only at creation
+  - Context: [Q325](../R1.0-Release/DECISIONS.md#recorded-decisions) made the daemon's `#bus` logs check the source once, at creation. These three agents share a helper that rechecks the creator's reach to the source on every delivery ([shared subscriptions](../../docs/agents/subscriptions.md)), so today the two behave differently
+  - ( ) Yes, one rule everywhere: changes shipped behaviour, about 20–30 minutes of agent time plus the shared test cases 🌟
+  - ( ) No, the agents keep their per-delivery recheck ⭐
+  > 💡👾 One rule everywhere is easier to explain in the agent guide; not urgent, after 1.0.0.
+
 ## Auth context
 
 ❓ **`authorized_keys` is regenerated from the bundle each generation**, which

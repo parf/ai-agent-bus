@@ -2,7 +2,7 @@
 
 ## Recorded decisions
 
-- **An event subscription is authorized once, when it is created** (Q325) — owner, 2026-11-02: "daemon do not care about app roles; ignore; - yes creation time only". Revoking a source role later does not stop an existing subscription; ordinary delivery admission still applies to each send. Same for `#eventlog` and the T-29 `#bus` logs.
+- **An event subscription is authorized once, when it is created** (Q325) — owner, 2026-11-02: "daemon do not care about app roles; ignore; - yes creation time only". For the daemon's `#bus` agent logs (T-29), the right to read the source log is checked when the subscription is created, not again; ordinary delivery admission to the target still applies to each send. `#eventlog`, `#logwatch` and `#discord` still recheck the source on every delivery through the shared helper; whether they follow is [Q326](../R1.1/QUESTIONS.md#access-context).
   - Home: [shared subscriptions](../../docs/agents/subscriptions.md).
 - **Client libraries get event-log support in 1.0.0** (Q322) — owner, 2026-11-02: "agree". An example per client, shared test cases and a subscribe helper only where needed, after the T-29 daemon parts.
   - Home: [clients and agent events](clients-events.md).
