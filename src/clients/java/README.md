@@ -53,16 +53,11 @@ pong hello
 
 ## Event logs
 
-Use ordinary calls to `#bus` for the daemon's
-[agent logs](../../../docs/agents/bus.md#agent-logs). The executed examples,
-[EventLogExample.java](src/test/java/agentbus/EventLogExample.java) and [EventSubscriptionExample.java](src/test/java/agentbus/EventSubscriptionExample.java), run against a private fixture:
-
-- The agent writes its own log; its Owner reads, lists and subscribes.
-- The Owner consumes one copy from the authorized queue and cancels the subscription.
-
-A subscription copy is a non-waiting notice from `#bus`, not a call reply.
-Do not send ack or done for it; see [receipts](../../../docs/04-messaging.md#receipts).
-No event-specific helper is needed.
+- 📜 **Calls to `#bus`:** use ordinary calls for the daemon's [agent logs](../../../docs/agents/bus.md#agent-logs).
+- ▶️ **Executed examples:** [EventLogExample.java](src/test/java/agentbus/EventLogExample.java) and [EventSubscriptionExample.java](src/test/java/agentbus/EventSubscriptionExample.java) run against a private fixture.
+- ✍️ **What they show:** the agent writes its own log; its Owner reads, lists and subscribes, consumes one copy from the authorized queue, and cancels.
+- 🔕 **A copy is a notice:** it is a non-waiting message from `#bus`, not a call reply. Send no ack or done for it ([receipts](../../../docs/04-messaging.md#receipts)).
+- 🧰 **No helper:** none is needed.
 
 ## Technical details
 
