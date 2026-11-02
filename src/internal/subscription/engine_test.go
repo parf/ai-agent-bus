@@ -80,7 +80,11 @@ type vectorBus struct {
 	answers  []any
 	queries  []query
 	attempts int
+	sent     []sendTuple
 }
+
+// sendTuple is one copy as the bus was asked to carry it.
+type sendTuple struct{ Target, Body, Topic, Tag string }
 
 func (b *vectorBus) MaySend(who, target string) Admission {
 	b.queries = append(b.queries, query{who, target})
@@ -111,6 +115,7 @@ func (b *vectorBus) Kind(target string) (string, string, error) {
 
 func (b *vectorBus) Send(_ context.Context, target, body, topic, tag string) error {
 	b.attempts++
+	b.sent = append(b.sent, sendTuple{target, body, topic, tag})
 	switch b.step["send"] {
 	case "refused":
 		return ErrRefused
@@ -222,7 +227,7 @@ func TestSharedOperationVectors(t *testing.T) {
 				_ = json.Unmarshal(rawStep, &fields)
 				store.step, bus.step = step, step
 				bus.answers, _ = step["checks"].([]any)
-				bus.queries, bus.attempts, store.writes, warnings = nil, 0, 0, nil
+				bus.queries, bus.attempts, bus.sent, store.writes, warnings = nil, 0, nil, 0, nil
 				actual := map[string]any{}
 				runStep(t, engine, c.Source, step, fields, actual)
 				actual["queries"] = append([]query{}, bus.queries...)
@@ -230,6 +235,17 @@ func TestSharedOperationVectors(t *testing.T) {
 				actual["warnings"] = append([]string{}, warnings...)
 				actual["writes"] = store.writes
 				expect, _ := step["expect"].(map[string]any)
+				if step["op"] == "deliver" {
+					// Every copy is one message to its row's target carrying the
+					// entry as sent, topic the log and tag the level.
+					event, _ := step["event"].(map[string]any)
+					wantBody, _ := json.Marshal(event)
+					for _, sent := range bus.sent {
+						if sent.Target != "events@fixture.test" || sent.Body != string(wantBody) || sent.Topic != event["log"] || sent.Tag != event["level"] {
+							t.Errorf("step %d: a copy was %+v, want target events@fixture.test, body %s, topic %v, tag %v", n, sent, wantBody, event["log"], event["level"])
+						}
+					}
+				}
 				for field, want := range expect {
 					got, _ := json.Marshal(actual[field])
 					var gotValue any
@@ -429,5 +445,66 @@ func TestAnUnauthenticatedCallerNameTouchesNothing(t *testing.T) {
 	}
 	if len(bus.queries) != 0 || store.writes != 0 || len(store.rows) != 0 {
 		t.Fatalf("a refused caller reached the bus (%d queries) or the store (%d writes)", len(bus.queries), store.writes)
+	}
+}
+
+// Two subscriptions to two targets: the copies, in id order, are exactly the
+// ordered tuples (target, body, topic, tag), and a refused first does not stop the second.
+func TestEachCopyIsOneMessageToItsTargetInIDOrder(t *testing.T) {
+	store := &vectorStore{rows: map[string][]byte{}}
+	for id, target := range map[string]string{"000000000002": "b@fixture.test", "000000000001": "a@fixture.test"} {
+		raw, _ := json.Marshal(Row{ID: id, Target: target, Selector: map[string]string{"level": ""}, CreatedBy: "#writer@fixture.test", CreatedAt: "2026-10-29T00:00:00.000Z"})
+		store.rows[id] = raw
+	}
+	bus := &vectorBus{t: t, step: map[string]any{}}
+	engine, _ := New(store, bus, Config{Source: "#eventlog@fixture.test",
+		ValidateSelector: func(m map[string]string) (map[string]string, error) { return m, nil },
+		SelectorMatches:  func(map[string]string, map[string]any) bool { return true }})
+	res := engine.Deliver(map[string]any{"log": "deploys"}, "boom", `{"log":"deploys","text":"boom"}`, "#deploys@fixture.test", "alert", time.Now().Add(time.Minute))
+	want := []sendTuple{
+		{"a@fixture.test", `{"log":"deploys","text":"boom"}`, "#deploys@fixture.test", "alert"},
+		{"b@fixture.test", `{"log":"deploys","text":"boom"}`, "#deploys@fixture.test", "alert"},
+	}
+	if !reflect.DeepEqual(bus.sent, want) || res.Sent != 2 {
+		t.Fatalf("sent %+v (result %+v), want %+v", bus.sent, res, want)
+	}
+}
+
+// A write's own deadline bounds the filters too: eight pathological filters
+// against a 1 ms deadline stop at it, none is sent, and nothing runs on.
+func TestACallersDeadlineBoundsTheFiltersAsWellAsTheSends(t *testing.T) {
+	store := &vectorStore{rows: map[string][]byte{}}
+	for i := 1; i <= 8; i++ {
+		id := fmt.Sprintf("%012x", i)
+		raw, _ := json.Marshal(Row{ID: id, Target: "events@fixture.test", Selector: map[string]string{}, Filter: "/(a|a)*$/", CreatedBy: "#writer@fixture.test", CreatedAt: "2026-10-29T00:00:00.000Z"})
+		store.rows[id] = raw
+	}
+	bus := &vectorBus{t: t, step: map[string]any{}}
+	var warnings []string
+	engine, _ := New(store, bus, Config{Source: "#eventlog@fixture.test", ValidateSelector: vectorSelector, SelectorMatches: vectorMatches,
+		Warning: func(c string) { warnings = append(warnings, c) }})
+	done := make(chan Result, 1)
+	began := time.Now()
+	go func() {
+		done <- engine.Deliver(map[string]any{}, strings.Repeat("a", 4000)+"b", "{}", "x", "alert", time.Now().Add(time.Millisecond))
+	}()
+	select {
+	case res := <-done:
+		if res.Matched != 8 || res.Dropped != 8 || res.Sent != 0 || bus.attempts != 0 {
+			t.Fatalf("result %+v attempts %d, want 8 dropped, none sent", res, bus.attempts)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("a 1 ms deadline did not end the matching within 5 s")
+	}
+	if took := time.Since(began); took > 150*time.Millisecond {
+		t.Fatalf("the write took %s against a 1 ms deadline: eight filters ran their own budgets one after another", took)
+	}
+}
+
+func TestAFilterGetsFiftyMillisecondsAtMostAndNeverMoreThanIsLeft(t *testing.T) {
+	for left, want := range map[time.Duration]time.Duration{time.Second: 50 * time.Millisecond, 50 * time.Millisecond: 50 * time.Millisecond, 20 * time.Millisecond: 20 * time.Millisecond, time.Microsecond: time.Microsecond} {
+		if got := patternBudget(left); got != want {
+			t.Errorf("with %s left a filter got %s, want %s", left, got, want)
+		}
 	}
 }

@@ -600,6 +600,12 @@ func (e *Engine) Deliver(event map[string]any, text, body, topic, tag string, de
 		e.warn(warnStoreUnknown)
 		return Result{}
 	}
+	// One deadline from entry bounds the whole write: the filters and then the
+	// sends, within BatchBudget or the caller's deadline, whichever is shorter.
+	end := time.Now().Add(BatchBudget)
+	if deadline.Before(end) {
+		end = deadline
+	}
 	var candidates []Row
 	for _, row := range rows {
 		if e.cfg.SelectorMatches != nil && e.cfg.SelectorMatches(row.Selector, event) {
@@ -609,9 +615,8 @@ func (e *Engine) Deliver(event map[string]any, text, body, topic, tag string, de
 	sort.Slice(candidates, func(i, j int) bool { return candidates[i].ID < candidates[j].ID })
 	outcomes := map[string]outcome{}
 	var active []Row
-	now := time.Now()
 	switch {
-	case !now.Before(deadline):
+	case !time.Now().Before(end):
 		for _, r := range candidates {
 			outcomes[r.ID] = outcome{code: warnDeadline}
 		}
@@ -626,6 +631,11 @@ func (e *Engine) Deliver(event map[string]any, text, body, topic, tag string, de
 				active = append(active, r)
 				continue
 			}
+			left := time.Until(end)
+			if left <= 0 { // the write's own budget is gone: this copy was never attempted
+				outcomes[r.ID] = outcome{code: warnDeadline}
+				continue
+			}
 			if time.Since(matching) >= time.Second { // all filters together get one second
 				outcomes[r.ID] = outcome{code: warnFilterTimeout}
 				continue
@@ -635,7 +645,7 @@ func (e *Engine) Deliver(event map[string]any, text, body, topic, tag string, de
 				outcomes[r.ID] = outcome{code: warnFilterInvalid}
 				continue
 			}
-			ok, merr := f.Match(text, 50*time.Millisecond)
+			ok, merr := f.Match(text, patternBudget(left))
 			switch {
 			case errors.Is(merr, subfilter.ErrTimeout):
 				outcomes[r.ID] = outcome{code: warnFilterTimeout}
@@ -647,7 +657,7 @@ func (e *Engine) Deliver(event map[string]any, text, body, topic, tag string, de
 		}
 	}
 	if len(active) > 0 {
-		e.send(active, body, topic, tag, deadline, outcomes)
+		e.send(active, body, topic, tag, end, outcomes)
 	}
 	result := Result{Matched: len(outcomes)}
 	failed := false
@@ -677,12 +687,12 @@ func (e *Engine) Deliver(event map[string]any, text, body, topic, tag string, de
 	return result
 }
 
+// patternBudget is one filter's time: 50 ms, and never more than what is left of
+// the write's own budget.
+func patternBudget(left time.Duration) time.Duration { return min(50*time.Millisecond, left) }
+
 // send attempts each active row's copy, one at a time, in id order.
-func (e *Engine) send(rows []Row, body, topic, tag string, deadline time.Time, out map[string]outcome) {
-	end := time.Now().Add(BatchBudget)
-	if deadline.Before(end) {
-		end = deadline
-	}
+func (e *Engine) send(rows []Row, body, topic, tag string, end time.Time, out map[string]outcome) {
 	cache := admissions{}
 	for _, row := range rows {
 		if !time.Now().Before(end) {
