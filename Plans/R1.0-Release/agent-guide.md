@@ -102,9 +102,10 @@ into a per-message script to make an example appear equivalent. Business
 behavior remains the same time service; identical capabilities are not promised.
 
 Every checklist item gets an exercised case or an explicit applicability/gap
-note. Do not invent policies for the gaps below. Subscription creation and
-ordinary delivery checks follow the settled Q325 rule, not a per-forward source
-role revocation rule. Optional subscription exercises wait for P3 and T-31d.
+note. Do not invent policies for the gaps below. The daemon subscription
+exercise follows Q325: revoking a source role after add still permits delivery.
+App-helper exercises retain their current per-delivery creator-reach check,
+pending an owner follow-up. Optional subscription exercises wait for P3 and T-31d.
 
 ### Single source and real runs
 
@@ -307,12 +308,14 @@ as a gap is a proposed place to resolve it, not evidence of a rule already there
   `sub add <target> [filter]`, `sub list`, `sub delete <id>` family, with the
   helper's documented selector where needed, as logwatch, Discord, eventlog and
   T-29 `#bus` do. State send-once/no-replay behavior rather than implying durable
-  at-least-once delivery; authorize the subscription at creation and enforce
-  ordinary delivery admission for each send.
-  Owner: [The shared behaviour](../../docs/agents/subscriptions.md#the-shared-behaviour).
-  Source authorization is checked at creation; revoking the source role later
-  does not stop it. Ordinary delivery admission still applies on each send,
-  for both named eventlog and #bus logs: [Q325 decision](DECISIONS.md#recorded-decisions).
+  at-least-once delivery. Owner: [The shared behaviour](../../docs/agents/subscriptions.md#the-shared-behaviour).
+  Distinguish authorization profiles: daemon `#bus` authorizes at creation;
+  later source-role revocation does not stop it, while ordinary delivery
+  admission still applies to each send ([Q325 decision](DECISIONS.md#recorded-decisions)).
+  App helpers, including named `#eventlog`, currently recheck the creator's
+  reach on every delivery, as the shared vectors' `revoked-source` and
+  `revoked-target` cases assert. That difference awaits an owner follow-up;
+  do not claim one general permission rule.
 
 - **Check may-send before forwarding for someone.** Decide whether the author's
   request may reach the chosen destination before forwarding; the agent's own
@@ -398,9 +401,10 @@ Thus publish/subscribe alone does not promise retries, replay or deduplication.
 | Filters | Selector plus portable bounded regex is our profile; Redis channel glob matching differs. Describe the supported grammar, not generic broker interchangeability. |
 | Delivery | Shared subscriptions attempt each matching copy once and drop/count refusal or uncertainty; this fits an at-most-once-style forwarding profile, not Google's acknowledged redelivery model. An uncertain attempt may have arrived. |
 | Dedupe | No shared global event dedupe is promised: logwatch repeated arrivals and multiple matching subscriptions remain distinct copies. Redis also documents multiple delivery when channel and pattern subscriptions overlap; applications needing idempotent effects must handle that explicitly. |
-| Permission | Ordinary delivery admission applies to every send. Source application-role authorization is checked once, at creation; role revocation does not stop the subscription. This applies to named eventlog and T-29 #bus logs. See the [Q325 decision](DECISIONS.md#recorded-decisions). |
+| Permission | Daemon `#bus` authorizes at creation: later source-role revocation does not stop delivery; ordinary delivery admission still applies ([Q325 decision](DECISIONS.md#recorded-decisions)). App helpers, including named `#eventlog`, currently recheck creator reach on each delivery ([shared vectors](../../src/testdata/subscriptions.json), `revoked-source` and `revoked-target`). The profiles differ pending an owner follow-up; no general rule is claimed. |
 
 Recommendation: call this standard publish/subscribe with our documented
 send-once subscription profile. Keep naming, filters and delivery unchanged;
-follow the settled creation-time source authorization rule; do not add
+describe the daemon creation-time rule and the app helpers' current
+per-delivery reach check separately pending the owner follow-up. Do not add
 retries, dedupe, aliases or new permission behavior.
