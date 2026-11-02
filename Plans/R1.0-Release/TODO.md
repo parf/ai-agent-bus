@@ -548,6 +548,12 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Depends: owner approval, T-29 P1 and P3 on main; no new helper API is approved by this row.
   - Acceptance: all six native clients run the shared event cases through their isolated fixture or real-daemon harness, with tested examples and the [implementation acceptance](clients-events.md#implementation-acceptance); scope and freeze cost follow [the estimate](clients-events.md#ai-time-and-freeze-impact).
 
+## T-32 Essential agent guide
+
+- ⛔ T-32 Plan only, awaiting owner approval: [home and ordered outline](agent-guide.md#proposed-home) for the essential agent-author guide.
+  - Depends: owner approval and resolution of the [reference gaps](agent-guide.md#gaps-to-resolve-before-writing), including accepted T-29 own-log instructions.
+  - Acceptance: the approved current page and its navigation links meet the [guide acceptance](agent-guide.md#approval-and-acceptance), with an executed minimal example and no copied contract values or repo-internal testing instructions.
+
 ## RT34 Agent events
 
 ⏳ Owner, 2026-10-29, under discussion: per-agent notice/warning/alert rings in
