@@ -574,3 +574,36 @@ func TestAListingAnswersWhileASendIsHeld(t *testing.T) {
 	}
 	<-finished
 }
+
+// splitBus answers reaching the target and managing the source separately.
+type splitBus struct {
+	vectorBus
+	reach, manage Admission
+	asked         []string
+}
+
+func (b *splitBus) MaySend(who, target string) Admission {
+	b.asked = append(b.asked, "reach "+target)
+	return b.reach
+}
+
+func (b *splitBus) MayManage(who string) Admission {
+	b.asked = append(b.asked, "manage")
+	return b.manage
+}
+
+// A subscription whose target is its own source is two questions, not one: the
+// target may admit its author while the author no longer manages the source,
+// and the second answer is never taken from the first.
+func TestASelfTargetAsksTheManagementQuestionToo(t *testing.T) {
+	bus := &splitBus{vectorBus: vectorBus{t: t, source: "#eventlog@fixture.test", step: map[string]any{}}, reach: Allowed, manage: Refused}
+	store := &vectorStore{rows: map[string][]byte{}}
+	engine, _ := New(store, bus, Config{Source: "#eventlog@fixture.test", ValidateSelector: vectorSelector, SelectorMatches: vectorMatches,
+		NewID: func() string { return "000000000001" }})
+	if _, err := engine.Add(Caller{Name: "#writer@fixture.test", Manager: true}, "#eventlog@fixture.test", map[string]string{}, ""); !errors.Is(err, ErrAdmissionRefused) {
+		t.Fatalf("a self-target add by an author who does not manage the source: %v, want admission_refused", err)
+	}
+	if !reflect.DeepEqual(bus.asked, []string{"reach #eventlog@fixture.test", "manage"}) || len(store.rows) != 0 {
+		t.Fatalf("asked %v, stored %d; want both questions and nothing stored", bus.asked, len(store.rows))
+	}
+}

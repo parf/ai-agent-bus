@@ -395,10 +395,18 @@ func (c Caller) manager() bool {
 	return c.Manager
 }
 
-type admissions map[[2]string]error
+// admissions caches a batch's answers by who was asked, about what, and which
+// question: reaching a target and managing the source are different questions
+// even when the target is the source.
+type admissions map[admissionKey]error
+
+type admissionKey struct {
+	who, name string
+	manage    bool
+}
 
 func (e *Engine) admit(who, target string, cache admissions) error {
-	pair := [2]string{who, target}
+	pair := admissionKey{who, target, false}
 	if code, ok := cache[pair]; ok {
 		return code
 	}
@@ -417,7 +425,7 @@ func (e *Engine) admit(who, target string, cache admissions) error {
 // admitManage is the author's standing over the source, cached with the batch's
 // other questions under the source's own name.
 func (e *Engine) admitManage(who string, cache admissions) error {
-	pair := [2]string{who, e.cfg.Source}
+	pair := admissionKey{who, e.cfg.Source, true}
 	if code, ok := cache[pair]; ok {
 		return code
 	}
