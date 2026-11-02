@@ -60,6 +60,23 @@ A row with `call` instead of `daemon` is a call the client must refuse itself
 (lock `ttl_s` over 24 h or negative, `wait_s` over 60): the error is not a daemon
 refusal, and the fake daemon never sees the `expect.not_requested` path.
 
+## Event logs (T-31a)
+
+`events.json` holds cases for an agent's private event log through the daemon's
+own `#bus`, using only the existing [T-29 verbs](../../../Plans/R1.0-Release/agent-events/README.md#r1-min-surface-and-authority).
+Each case has `id`, `fresh: true` (its own daemon) and `steps`. A step has `as`,
+one of three fixture identities: `owner` (`owner@fixture`, the daemon Owner),
+`agent` (`#caller@fixture`, the writer of its own log) or `third`
+(`#outsider@fixture`, who manages neither).
+
+| `op` | Does | Reads |
+|---|---|---|
+| `call` | `call` to `#bus` with `body`; the reply body is JSON, or text starting `error:` for a refused write | `expect`: dotted paths into the reply (`entry.text`, `counts.alert`, `rings.alert.0.text`, `error.code`); `same_answer_as`: the earlier step whose reply bytes this one must equal |
+| `send` | a `send` to `#bus` with `body` and no wait | nothing: a write without wait gets no answer |
+| `inbox` | one short consume of the caller's own inbox | `expect.empty` |
+
+A reply is a mapping of what the verbs already answer; no field is defined here.
+
 Route coverage is not a vector: `internal/api/route_contract_test.go` fails when
 a registered route has no row in [the route table](../../../docs/09-daemon-api.md#every-route-and-its-class)
 or a stable route is absent from [the client contract](../../../docs/09-daemon-api.md#the-client-contract).

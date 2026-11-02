@@ -1,0 +1,53 @@
+[
+  {
+    "id": "write-then-owner-reads-and-lists",
+    "fresh": true,
+    "steps": [
+      {"as": "agent", "op": "call", "body": "write #caller@fixture alert disk full", "expect": {"entry.level": "alert", "entry.text": "disk full", "entry.count": 1}},
+      {"as": "owner", "op": "call", "body": "read #caller@fixture", "expect": {"log": "#caller@fixture", "counts.alert": 1, "counts.warning": 0, "counts.notice": 0, "rings.alert.0.text": "disk full"}},
+      {"as": "owner", "op": "call", "body": "list", "expect": {"logs.0.log": "#caller@fixture", "logs.0.counts.alert": 1}}
+    ]
+  },
+  {
+    "id": "private-refusal-is-the-same-before-existence-disclosure",
+    "fresh": true,
+    "steps": [
+      {"as": "agent", "op": "call", "body": "write #caller@fixture notice hello", "expect": {"entry.text": "hello"}},
+      {"as": "third", "op": "call", "body": "read #caller@fixture", "expect": {"error.code": "forbidden"}},
+      {"as": "third", "op": "call", "body": "read #helper@fixture", "expect": {"error.code": "forbidden"}, "same_answer_as": 1},
+      {"as": "third", "op": "call", "body": "pull #caller@fixture", "expect": {"error.code": "forbidden"}},
+      {"as": "third", "op": "call", "body": "pull #helper@fixture", "expect": {"error.code": "forbidden"}, "same_answer_as": 3},
+      {"as": "third", "op": "call", "body": "list", "expect": {"logs": []}}
+    ]
+  },
+  {
+    "id": "the-writing-agent-may-not-read-its-own-log",
+    "fresh": true,
+    "steps": [
+      {"as": "agent", "op": "call", "body": "write #caller@fixture warning slow disk", "expect": {"entry.level": "warning"}},
+      {"as": "agent", "op": "call", "body": "read #caller@fixture", "expect": {"error.code": "forbidden"}},
+      {"as": "agent", "op": "call", "body": "list", "expect": {"logs": []}}
+    ]
+  },
+  {
+    "id": "an-empty-log-is-not-a-missing-log",
+    "fresh": true,
+    "steps": [
+      {"as": "owner", "op": "call", "body": "read #helper@fixture", "expect": {"error.code": "not_found"}},
+      {"as": "agent", "op": "call", "body": "write #caller@fixture alert once", "expect": {"entry.text": "once"}},
+      {"as": "owner", "op": "call", "body": "pull #caller@fixture alert 1", "expect": {"entries.0.text": "once", "remaining": 0}},
+      {"as": "owner", "op": "call", "body": "read #caller@fixture", "expect": {"counts.alert": 0, "counts.warning": 0, "counts.notice": 0}},
+      {"as": "owner", "op": "call", "body": "list", "expect": {"logs.0.log": "#caller@fixture", "logs.0.counts.alert": 0}}
+    ]
+  },
+  {
+    "id": "a-write-without-wait-leaves-no-answer-in-the-callers-inbox",
+    "fresh": true,
+    "steps": [
+      {"as": "agent", "op": "send", "body": "write #caller@fixture notice quiet"},
+      {"as": "agent", "op": "call", "body": "write #caller@fixture notice fence", "expect": {"entry.text": "fence"}},
+      {"as": "agent", "op": "inbox", "expect": {"empty": true}},
+      {"as": "owner", "op": "call", "body": "read #caller@fixture", "expect": {"counts.notice": 2}}
+    ]
+  }
+]
