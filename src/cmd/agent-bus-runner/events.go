@@ -59,7 +59,11 @@ type agentEvent struct {
 
 // eventSink queues events and sends them one at a time.
 type eventSink struct {
-	r       *runner
+	r *runner
+	// Two lanes, the sender taking alerts first. An alert can therefore reach
+	// the agent's log ahead of an earlier notice or warning still queued: a
+	// quick "exited" alert may get a lower id than the "process started" notice
+	// before it. The order of one agent's log is the order of arrival at #bus.
 	queue   chan agentEvent                               // notices and warnings, all agents together
 	urgent  chan agentEvent                               // alerts: a flood of lines never takes their place
 	send    func(ctx context.Context, e agentEvent) error // replaced in tests

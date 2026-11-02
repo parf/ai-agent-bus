@@ -420,3 +420,35 @@ func TestWarningFloodThenAnExitAlertIsStillSent(t *testing.T) {
 	r.exitEvent(s, cmd, false)
 	awaitCount(t, rec, levelAlert, 1)
 }
+
+// The sender takes an alert before warnings that were queued earlier.
+func TestAlertIsSentBeforeEarlierQueuedWarnings(t *testing.T) {
+	r := &runner{ctx: context.Background(), say: io.Discard, name: "#runner@h"}
+	r.events = newEventSink(r)
+	rec := &recorded{}
+	inside, release := make(chan struct{}), make(chan struct{})
+	var first sync.Once
+	r.events.send = func(_ context.Context, e agentEvent) error {
+		first.Do(func() { close(inside); <-release })
+		rec.add(e)
+		return nil
+	}
+	r.events.start()
+	defer r.events.close()
+	s := &served{name: "#a@h", bus: &client{}}
+	r.events.emit(s, levelWarning, "held")
+	<-inside
+	for _, text := range []string{"w1", "w2", "w3"} {
+		r.events.emit(s, levelWarning, text)
+	}
+	r.events.emit(s, levelAlert, "alert")
+	close(release)
+	awaitCount(t, rec, levelWarning, 4)
+	got := []string{}
+	for _, e := range rec.list() {
+		got = append(got, e.text)
+	}
+	if strings.Join(got, ",") != "held,alert,w1,w2,w3" {
+		t.Fatalf("delivery order %v, want the alert right after the held write", got)
+	}
+}
