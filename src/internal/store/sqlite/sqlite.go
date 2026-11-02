@@ -21,6 +21,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
@@ -89,8 +90,10 @@ var ErrMissing = errors.New("no database")
 
 // Store is one open database, held exclusively.
 type Store struct {
-	db   *sql.DB
-	path string
+	eventMu     sync.Mutex
+	eventIssues map[uint32]bool
+	db          *sql.DB
+	path        string
 }
 
 // Open opens the database at path, creating it only when create is set.
@@ -271,6 +274,9 @@ func (s *Store) Load() (ports.Snapshot, error) {
 	if err != nil {
 		return snap, err
 	}
+	s.eventMu.Lock()
+	s.eventIssues = issues
+	s.eventMu.Unlock()
 	for id := range issues {
 		snap.EventIDIssues = append(snap.EventIDIssues, id)
 	}

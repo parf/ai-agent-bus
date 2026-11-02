@@ -949,6 +949,16 @@
             "level": "alert",
             "text": "important"
           }
+        },
+        {
+          "op": "read",
+          "args": [
+            "x"
+          ],
+          "expect": {},
+          "go_only": {
+            "dropped": 20
+          }
         }
       ]
     },

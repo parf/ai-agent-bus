@@ -28,3 +28,13 @@ func (s *State) ReserveEventIDs(id uint32, through uint64) error {
 	s.eventHigh[id] = through
 	return nil
 }
+
+func (s *State) DropEventState(id uint32) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.Err != nil {
+		return s.Err
+	}
+	delete(s.eventHigh, id)
+	return nil
+}

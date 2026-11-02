@@ -9,6 +9,7 @@ import (
 	"slices"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -76,7 +77,7 @@ type log struct {
 	rings                    map[string][]ports.EventEntry
 	tokens, alertTokens      float64
 	rateAt                   time.Time
-	dropped                  uint64
+	dropped                  atomic.Uint64
 }
 type Engine struct {
 	mu     sync.Mutex
@@ -201,6 +202,9 @@ func (e *Engine) lock(id uint32, p Policy) (*log, time.Time, error) {
 	return l, now, nil
 }
 func (e *Engine) Write(id uint32, level, text string, p Policy) (ports.EventEntry, error) {
+	return e.WriteChecked(id, level, text, p, nil)
+}
+func (e *Engine) WriteChecked(id uint32, level, text string, p Policy, check func() error) (ports.EventEntry, error) {
 	if !IsLevel(level) {
 		return ports.EventEntry{}, Error("invalid_level")
 	}
@@ -231,7 +235,7 @@ func (e *Engine) Write(id uint32, level, text string, p Policy) (ports.EventEntr
 		bucket = &l.alertTokens
 	}
 	if *bucket < 1 {
-		l.dropped++
+		l.dropped.Add(1)
 		return ports.EventEntry{}, Error("rate_limit")
 	}
 	next := sweep(l, p, now)
@@ -273,6 +277,11 @@ func (e *Engine) Write(id uint32, level, text string, p Policy) (ports.EventEntr
 		}
 	}
 	next[level] = entries
+	if check != nil {
+		if err := check(); err != nil {
+			return ports.EventEntry{}, err
+		}
+	}
 	if err = e.save(id, l, next, true); err != nil {
 		return ports.EventEntry{}, err
 	}
@@ -288,6 +297,7 @@ func (e *Engine) Write(id uint32, level, text string, p Policy) (ports.EventEntr
 }
 
 type Summary struct {
+	Dropped       uint64         `json:"dropped,omitempty"`
 	Log           string         `json:"log"`
 	Counts        map[string]int `json:"counts"`
 	LatestAlertAt *string        `json:"latest_alert_at"`
@@ -299,7 +309,7 @@ type ReadResult struct {
 }
 
 func summary(name string, l *log) Summary {
-	s := Summary{Log: name, Counts: map[string]int{}}
+	s := Summary{Log: name, Counts: map[string]int{}, Dropped: l.dropped.Load()}
 	for _, level := range Levels {
 		s.Counts[level] = len(l.rings[level])
 		for _, v := range l.rings["alert"] {
@@ -312,6 +322,9 @@ func summary(name string, l *log) Summary {
 	return s
 }
 func (e *Engine) Read(id uint32, name, level string, p Policy) (ReadResult, error) {
+	return e.ReadChecked(id, name, level, p, nil)
+}
+func (e *Engine) ReadChecked(id uint32, name, level string, p Policy, check func() error) (ReadResult, error) {
 	if level != "" && !IsLevel(level) {
 		return ReadResult{}, Error("invalid_level")
 	}
@@ -322,6 +335,11 @@ func (e *Engine) Read(id uint32, name, level string, p Policy) (ReadResult, erro
 	defer l.mu.Unlock()
 	if !l.active {
 		return ReadResult{}, Error("not_found")
+	}
+	if check != nil {
+		if err := check(); err != nil {
+			return ReadResult{}, err
+		}
 	}
 	if err = e.save(id, l, sweep(l, p, now), l.active); err != nil {
 		return ReadResult{}, err
@@ -348,6 +366,9 @@ type PullResult struct {
 }
 
 func (e *Engine) Pull(id uint32, name, level string, count int, p Policy) (PullResult, error) {
+	return e.PullChecked(id, name, level, count, p, nil)
+}
+func (e *Engine) PullChecked(id uint32, name, level string, count int, p Policy, check func() error) (PullResult, error) {
 	if level != "" && !IsLevel(level) || count < 1 || count > 500 {
 		return PullResult{}, Error("invalid_request")
 	}
@@ -385,6 +406,11 @@ func (e *Engine) Pull(id uint32, name, level string, count int, p Policy) (PullR
 		next[s] = keep
 		remaining += len(keep)
 	}
+	if check != nil {
+		if err := check(); err != nil {
+			return PullResult{}, err
+		}
+	}
 	if err = e.save(id, l, next, l.active); err != nil {
 		return PullResult{}, err
 	}
@@ -398,6 +424,9 @@ type CleanResult struct {
 }
 
 func (e *Engine) Clean(id uint32, name, level string, upper uint64, p Policy) (CleanResult, error) {
+	return e.CleanChecked(id, name, level, upper, p, nil)
+}
+func (e *Engine) CleanChecked(id uint32, name, level string, upper uint64, p Policy, check func() error) (CleanResult, error) {
 	if level != "" && !IsLevel(level) || upper > Safe {
 		return CleanResult{}, Error("invalid_request")
 	}
@@ -425,6 +454,11 @@ func (e *Engine) Clean(id uint32, name, level string, upper uint64, p Policy) (C
 		}
 		next[s] = keep
 	}
+	if check != nil {
+		if err := check(); err != nil {
+			return CleanResult{}, err
+		}
+	}
 	if err = e.save(id, l, next, !(level == "" && upper == 0)); err != nil {
 		return CleanResult{}, err
 	}
@@ -434,7 +468,7 @@ func (e *Engine) Dropped(id uint32) uint64 {
 	l := e.get(id)
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	return l.dropped
+	return l.dropped.Load()
 }
 func Code(err error) string {
 	var e Error
@@ -448,3 +482,5 @@ func Code(err error) string {
 // may finish on its old pointer, but cannot republish it into the catalog.
 func (e *Engine) Forget(id uint32) { e.mu.Lock(); delete(e.logs, id); e.mu.Unlock() }
 func (e *Engine) Loaded() int      { e.mu.Lock(); defer e.mu.Unlock(); return len(e.logs) }
+
+func (e *Engine) AdmissionDrop(id uint32) { e.get(id).dropped.Add(1) }

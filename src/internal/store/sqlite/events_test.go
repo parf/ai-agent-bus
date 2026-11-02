@@ -1,6 +1,7 @@
 package sqlite
 
 import (
+	"encoding/json"
 	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/eventlog"
 	"github.com/parf/ai-agent-bus/internal/ports"
@@ -9,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestEventReservationsSurviveReopenAndNeverDecrease(t *testing.T) {
@@ -141,6 +143,16 @@ func TestOneDamagedEventLogDoesNotStopTheDaemonRegistry(t *testing.T) {
 	if _, err = restarted.EventWrite("#good@h", "#good@h", "notice", "works"); err != nil {
 		t.Fatalf("other log stopped: %v", err)
 	}
+	now := time.Date(2026, 11, 2, 12, 0, 0, 0, time.UTC)
+	restarted.Clock(func() time.Time { return now })
+	listed, er := restarted.EventList("admin@h")
+	if er != nil {
+		t.Fatalf("damaged log poisoned list: %v", er)
+	}
+	raw, _ := json.Marshal(listed)
+	if strings.Contains(string(raw), "#bad@h") || !strings.Contains(string(raw), "#good@h") || listed["now"] != "2026-11-02T12:00:00.000Z" {
+		t.Fatalf("wrong healthy list: %s", raw)
+	}
 	found := false
 	for _, line := range j.lines {
 		if strings.Contains(line, "#bad@h") {
@@ -149,5 +161,18 @@ func TestOneDamagedEventLogDoesNotStopTheDaemonRegistry(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("no error.log diagnostic naming record: %v", j.lines)
+	}
+}
+
+func TestDropEventStateRemovesRetiredReservations(t *testing.T) {
+	s, _ := open(t)
+	if err := s.ReserveEventIDs(7, 64); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.DropEventState(7); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := s.EventHighWater(7); err != nil || n != 0 {
+		t.Fatalf("retired reservation remained: %d %v", n, err)
 	}
 }

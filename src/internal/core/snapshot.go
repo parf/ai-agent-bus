@@ -199,6 +199,18 @@ func (b *Bus) unlock() {
 func (b *Bus) Restore(s ports.Snapshot) {
 	b.mu.Lock()
 	defer b.unlock()
+	if b.events != nil {
+		nextIDs := map[string]uint32{}
+		for _, next := range s.Records {
+			nextIDs[next.Name] = next.ID
+		}
+		for name, r := range b.records {
+			if nextIDs[name] != r.ID {
+				b.events.Forget(r.ID)
+			}
+		}
+	}
+
 	b.ownerRestored = s.OwnerEstablished || s.Owner != ""
 	b.ownerRestoreErr = nil
 	if s.Owner != "" && !s.OwnerEstablished {

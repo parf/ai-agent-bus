@@ -21,11 +21,18 @@ func eventHigh(raw string, has bool) (uint64, error) {
 	return n, nil
 }
 func (s *Store) EventHighWater(id uint32) (uint64, error) {
-	issues, err := eventIDIssues(s.db)
-	if err != nil {
-		return 0, err
+	s.eventMu.Lock()
+	if s.eventIssues == nil {
+		issues, err := eventIDIssues(s.db)
+		if err != nil {
+			s.eventMu.Unlock()
+			return 0, err
+		}
+		s.eventIssues = issues
 	}
-	if issues[id] {
+	invalid := s.eventIssues[id]
+	s.eventMu.Unlock()
+	if invalid {
 		return 0, ports.ErrEventStateInvalid
 	}
 	raw, has, err := meta(s.db, eventIDKey(id))
@@ -85,4 +92,45 @@ func eventIDIssues(tx interface {
 		}
 	}
 	return issues, rows.Err()
+}
+
+func (s *Store) DropEventState(id uint32) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	rows, err := tx.Query(`SELECT key FROM meta WHERE key LIKE 'event-high:%'`)
+	if err != nil {
+		return err
+	}
+	keys := []string{}
+	for rows.Next() {
+		var key string
+		if err = rows.Scan(&key); err != nil {
+			rows.Close()
+			return err
+		}
+		n, er := strconv.ParseUint(strings.TrimPrefix(key, "event-high:"), 10, 32)
+		if er == nil && n == uint64(id) {
+			keys = append(keys, key)
+		}
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return err
+	}
+	for _, key := range keys {
+		if _, err = tx.Exec(`DELETE FROM meta WHERE key=?`, key); err != nil {
+			return err
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	s.eventMu.Lock()
+	delete(s.eventIssues, id)
+	s.eventMu.Unlock()
+	return nil
 }

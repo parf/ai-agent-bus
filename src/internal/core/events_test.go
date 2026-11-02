@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/store/memory"
+	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -184,5 +187,224 @@ func TestEventStoreIOLeavesOrdinaryKVWritesUnblocked(t *testing.T) {
 	}
 	if problem != "" {
 		t.Fatal(problem)
+	}
+}
+
+type eventLoadBarrier struct {
+	saveBlock                atomic.Bool
+	saveEntered, saveRelease chan struct{}
+	*memory.State
+	block            atomic.Bool
+	entered, release chan struct{}
+	mu               sync.Mutex
+	alerts           map[uint32][]ports.EventEntry
+	active           map[uint32]bool
+}
+
+func (s *eventLoadBarrier) EventHighWater(id uint32) (uint64, error) {
+	n, err := s.State.EventHighWater(id)
+	if s.block.CompareAndSwap(true, false) {
+		close(s.entered)
+		<-s.release
+	}
+	return n, err
+}
+func (s *eventLoadBarrier) LoadEventAlerts(id uint32) ([]ports.EventEntry, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]ports.EventEntry{}, s.alerts[id]...), s.active[id], nil
+}
+func (s *eventLoadBarrier) ReplaceEventAlerts(id uint32, v []ports.EventEntry, active bool) error {
+	if s.saveBlock.CompareAndSwap(true, false) {
+		close(s.saveEntered)
+		<-s.saveRelease
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.alerts[id] = append([]ports.EventEntry{}, v...)
+	s.active[id] = active
+	return nil
+}
+func (s *eventLoadBarrier) DropEventState(id uint32) error {
+	s.mu.Lock()
+	delete(s.alerts, id)
+	delete(s.active, id)
+	s.mu.Unlock()
+	return s.State.DropEventState(id)
+}
+func TestEventAuthorityRecheckedAfterLoadBeforeCommit(t *testing.T) {
+	for _, method := range []string{"read", "pull", "clean", "write"} {
+		for _, change := range []string{"revoke", "delete"} {
+			t.Run(method+"/"+change, func(t *testing.T) {
+				b := eventFixture(t)
+				st := &eventLoadBarrier{State: memory.NewState(), alerts: map[uint32][]ports.EventEntry{}, active: map[uint32]bool{}, entered: make(chan struct{}), release: make(chan struct{})}
+				b.Persistence(st)
+				if _, err := b.EventWrite("#a@h", "#a@h", "alert", "kept"); err != nil {
+					t.Fatal(err)
+				}
+				old := b.records["#a@h"].ID
+				b.events = nil
+				st.block.Store(true)
+				done := make(chan struct {
+					value any
+					err   error
+				}, 1)
+				go func() {
+					var value any
+					var err error
+					switch method {
+					case "read":
+						value, err = b.EventRead("maint@h", "#a@h", "")
+					case "pull":
+						value, err = b.EventPull("maint@h", "#a@h", "", 1)
+					case "clean":
+						value, err = b.EventClean("maint@h", "#a@h", "", 0)
+					case "write":
+						value, err = b.EventWrite("#a@h", "#a@h", "alert", "new")
+					}
+					done <- struct {
+						value any
+						err   error
+					}{value, err}
+				}()
+				select {
+				case <-st.entered:
+				case <-time.After(2 * time.Second):
+					t.Fatal("load never entered barrier")
+				}
+				want := "forbidden"
+				if change == "delete" {
+					if err := b.Unregister("#a@h", "alice@h"); err != nil {
+						t.Fatal(err)
+					}
+					want = "forbidden"
+				} else if method == "write" {
+					if _, err := b.SetUserState("owner@h", "alice@h", "inactive"); err != nil {
+						t.Fatal(err)
+					}
+				} else {
+					if _, err := b.Manage("alice@h", Management{Name: "#a@h", Maintainers: ptr(protocol.MaintainerList{})}); err != nil {
+						t.Fatal(err)
+					}
+				}
+				close(st.release)
+				select {
+				case result := <-done:
+					if eventlog.Code(result.err) != want {
+						t.Fatalf("%s after %s: %+v %v", method, change, result.value, result.err)
+					}
+					raw, _ := json.Marshal(result.value)
+					if strings.Contains(string(raw), "kept") || strings.Contains(string(raw), "new") {
+						t.Fatalf("refusal returned private entry: %s", raw)
+					}
+				case <-time.After(2 * time.Second):
+					t.Fatal("operation did not finish after release")
+				}
+				if change == "revoke" {
+					if method == "write" {
+						b.SetUserState("owner@h", "alice@h", "active")
+					} else {
+						b.Manage("alice@h", Management{Name: "#a@h", Maintainers: ptr(protocol.MaintainerList{"maint@h"})})
+					}
+					v, err := b.EventRead("alice@h", "#a@h", "")
+					if err != nil || v.Counts["alert"] != 1 || v.Rings["alert"][0].Text != "kept" {
+						t.Fatalf("revoked mutation changed entries: %+v %v", v, err)
+					}
+				} else {
+					n, _ := st.State.EventHighWater(old)
+					if n != 0 || len(st.alerts[old]) != 0 {
+						t.Fatalf("retired state resurrected: high %d alerts %v", n, st.alerts[old])
+					}
+				}
+			})
+		}
+	}
+}
+func TestEventUnknownAndNonAgentTargetsDoNotRevealExistence(t *testing.T) {
+	b := eventFixture(t)
+	for _, name := range []string{"#missing@h", "news@h"} {
+		if _, err := b.EventRead("bob@h", name, ""); eventlog.Code(err) != "forbidden" {
+			t.Fatalf("nonreader learned %s: %v", name, err)
+		}
+	}
+	b.mu.Lock()
+	r := b.records[DaemonAgent]
+	r.Maintainers = protocol.MaintainerList{"maint@h"}
+	b.records[DaemonAgent] = r
+	b.unlock()
+	if _, err := b.EventRead("maint@h", DaemonAgent, ""); eventlog.Code(err) != "forbidden" {
+		t.Fatalf("bus Maintainer saw daemon log: %v", err)
+	}
+}
+func TestReplacingARecordIDDropsItsLoadedLog(t *testing.T) {
+	for _, how := range []string{"commit", "restore"} {
+		t.Run(how, func(t *testing.T) {
+			b := eventFixture(t)
+			b.EventWrite("#a@h", "#a@h", "alert", "old")
+			if how == "commit" {
+				b.mu.Lock()
+				r := b.records["#a@h"]
+				b.dropRecord(r.Name)
+				b.setRecord(r.Name, r)
+				err := b.commit()
+				b.unlock()
+				if err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				snap := b.Snapshot()
+				for i := range snap.Records {
+					if snap.Records[i].Name == "#a@h" {
+						snap.Records[i].ID = snap.NextRecordID
+						snap.NextRecordID++
+					}
+				}
+				b.Restore(snap)
+			}
+			if n := b.events.Loaded(); n != 0 {
+				t.Fatalf("old-ID log retained after %s: %d", how, n)
+			}
+		})
+	}
+}
+
+func TestEventReadFinalRecheckHidesDataRevokedDuringExpiryCommit(t *testing.T) {
+	b := eventFixture(t)
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	b.Clock(func() time.Time { return now })
+	st := &eventLoadBarrier{State: memory.NewState(), alerts: map[uint32][]ports.EventEntry{}, active: map[uint32]bool{}, saveEntered: make(chan struct{}), saveRelease: make(chan struct{})}
+	b.Persistence(st)
+	b.EventWrite("#a@h", "#a@h", "alert", "expired")
+	now = now.Add(24 * time.Hour)
+	b.EventWrite("#a@h", "#a@h", "alert", "kept")
+	now = now.Add(29*24*time.Hour + 12*time.Hour)
+	st.saveBlock.Store(true)
+	done := make(chan struct {
+		v   eventlog.ReadResult
+		err error
+	}, 1)
+	go func() {
+		v, err := b.EventRead("maint@h", "#a@h", "")
+		done <- struct {
+			v   eventlog.ReadResult
+			err error
+		}{v, err}
+	}()
+	select {
+	case <-st.saveEntered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("expiry snapshot did not reach commit barrier")
+	}
+	if _, err := b.Manage("alice@h", Management{Name: "#a@h", Maintainers: ptr(protocol.MaintainerList{})}); err != nil {
+		t.Fatal(err)
+	}
+	close(st.saveRelease)
+	select {
+	case result := <-done:
+		if eventlog.Code(result.err) != "forbidden" || len(result.v.Rings) != 0 {
+			t.Fatalf("private data returned after revoke during commit: %+v %v", result.v, result.err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("read did not finish after commit release")
 	}
 }

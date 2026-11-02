@@ -112,11 +112,14 @@ func (b *Bus) EventWrite(caller, target, level, text string) (ports.EventEntry, 
 		return ports.EventEntry{}, err
 	}
 	defer b.eventRelease(r, e)
-	v, err := e.Write(r.ID, level, text, p)
+	v, err := e.WriteChecked(r.ID, level, text, p, func() error { return b.eventRecheck(caller, r, true) })
 	if err != nil {
 		return v, err
 	}
-	return v, b.eventRecheck(caller, r, true)
+	if err = b.eventRecheck(caller, r, true); err != nil {
+		return ports.EventEntry{}, err
+	}
+	return v, nil
 }
 func (b *Bus) EventRead(caller, target, level string) (eventlog.ReadResult, error) {
 	r, e, p, err := b.eventAccess(caller, target, false)
@@ -124,11 +127,14 @@ func (b *Bus) EventRead(caller, target, level string) (eventlog.ReadResult, erro
 		return eventlog.ReadResult{}, err
 	}
 	defer b.eventRelease(r, e)
-	v, err := e.Read(r.ID, r.Name, level, p)
+	v, err := e.ReadChecked(r.ID, r.Name, level, p, func() error { return b.eventRecheck(caller, r, false) })
 	if err != nil {
 		return v, err
 	}
-	return v, b.eventRecheck(caller, r, false)
+	if err = b.eventRecheck(caller, r, false); err != nil {
+		return eventlog.ReadResult{}, err
+	}
+	return v, nil
 }
 func (b *Bus) EventPull(caller, target, level string, count int) (eventlog.PullResult, error) {
 	r, e, p, err := b.eventAccess(caller, target, false)
@@ -136,11 +142,14 @@ func (b *Bus) EventPull(caller, target, level string, count int) (eventlog.PullR
 		return eventlog.PullResult{}, err
 	}
 	defer b.eventRelease(r, e)
-	v, err := e.Pull(r.ID, r.Name, level, count, p)
+	v, err := e.PullChecked(r.ID, r.Name, level, count, p, func() error { return b.eventRecheck(caller, r, false) })
 	if err != nil {
 		return v, err
 	}
-	return v, b.eventRecheck(caller, r, false)
+	if err = b.eventRecheck(caller, r, false); err != nil {
+		return eventlog.PullResult{}, err
+	}
+	return v, nil
 }
 func (b *Bus) EventClean(caller, target, level string, upper uint64) (eventlog.CleanResult, error) {
 	r, e, p, err := b.eventAccess(caller, target, false)
@@ -148,14 +157,18 @@ func (b *Bus) EventClean(caller, target, level string, upper uint64) (eventlog.C
 		return eventlog.CleanResult{}, err
 	}
 	defer b.eventRelease(r, e)
-	v, err := e.Clean(r.ID, r.Name, level, upper, p)
+	v, err := e.CleanChecked(r.ID, r.Name, level, upper, p, func() error { return b.eventRecheck(caller, r, false) })
 	if err != nil {
 		return v, err
 	}
-	return v, b.eventRecheck(caller, r, false)
+	if err = b.eventRecheck(caller, r, false); err != nil {
+		return eventlog.CleanResult{}, err
+	}
+	return v, nil
 }
 func (b *Bus) EventList(caller string) (map[string]any, error) {
 	b.mu.Lock()
+	now := b.clock()
 	names := []string{}
 	for name, r := range b.records {
 		if r.Kind == protocol.KindAgent && b.eventReader(caller, r) {
@@ -167,7 +180,7 @@ func (b *Bus) EventList(caller string) (map[string]any, error) {
 	out := []eventlog.Summary{}
 	for _, name := range names {
 		v, err := b.EventRead(caller, name, "")
-		if eventlog.Code(err) == "not_found" || eventlog.Code(err) == "forbidden" {
+		if eventlog.Code(err) == "not_found" || eventlog.Code(err) == "forbidden" || eventlog.Code(err) == "storage_invalid" || eventlog.Code(err) == "storage_unknown" {
 			continue
 		}
 		if err != nil {
@@ -175,7 +188,7 @@ func (b *Bus) EventList(caller string) (map[string]any, error) {
 		}
 		out = append(out, v.Summary)
 	}
-	return map[string]any{"logs": out, "now": time.Now().UTC().Format("2006-01-02T15:04:05.000Z")}, nil
+	return map[string]any{"logs": out, "now": now.UTC().Format("2006-01-02T15:04:05.000Z")}, nil
 }
 
 // EventCapabilities drives method discovery without granting access to data.
@@ -200,8 +213,25 @@ func (b *Bus) EventCapabilities(caller string) (write, read bool) {
 func (b *Bus) eventRelease(r protocol.Record, e *eventlog.Engine) {
 	b.mu.Lock()
 	live := b.records[r.Name].ID == r.ID
+	pruner, _ := b.store.(ports.EventStatePruner)
 	b.unlock()
 	if !live {
 		e.Forget(r.ID)
+		if pruner != nil {
+			if err := pruner.DropEventState(r.ID); err != nil {
+				b.mu.Lock()
+				b.report(ports.Error, "retired agent-event state could not be removed for %s", r.Name)
+				b.unlock()
+			}
+		}
+	}
+}
+
+// EventAdmissionDrop counts queue admission refusal without I/O or waiting on
+// a log's mutation lock. Untrusted targets cannot change someone else's count.
+func (b *Bus) EventAdmissionDrop(caller, target string) {
+	r, e, _, err := b.eventAccess(caller, target, true)
+	if err == nil {
+		e.AdmissionDrop(r.ID)
 	}
 }

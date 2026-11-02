@@ -253,7 +253,7 @@ func (b *Bus) commitTransfer(values map[string]ports.Credential, kv map[uint32][
 	}
 	if b.events != nil {
 		for name, old := range s.records {
-			if _, exists := b.records[name]; !exists && old != nil {
+			if current, exists := b.records[name]; old != nil && (!exists || current.ID != old.ID) {
 				b.events.Forget(old.ID)
 			}
 		}

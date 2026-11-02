@@ -132,6 +132,7 @@ Default rings:
 | alert | 50 | 30 days |
 
 - The combined ring capacity of a log is at most 500. Each level's size is at least one.
+- A log summary may include `dropped`, counting admission refusals only, not subscriber copy drops; absent means zero.
 - TTL is a positive duration with one `s`, `m`, `h` or `d` unit, at most 366 days.
 - Entries use one increasing id sequence per log across all levels, never reused after clean or restart. Full clean keeps the last-id tombstone; ids reserve blocks of 64, so restart can skip unused numbers. Ids stay within the exact JSON integer range; exhaustion refuses a write.
 - Read is newest first within a level, levels alert then warning then notice; pull removes oldest ids once, and clean through an id is inclusive.
