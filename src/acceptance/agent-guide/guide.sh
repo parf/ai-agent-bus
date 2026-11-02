@@ -1,13 +1,12 @@
 #!/bin/bash
 # Runs the agent-guide examples on a private test bus (docs/user/write-agent-*.md
 # quote the files this runs). Modes:
-#   fast    the bash time service through `agent-bus run`, nothing else
-#   normal  the CLI and Python-process examples, the packages' static facts and
-#           the packaged-help rule through `agent-bus run --package-dir`; no
-#           runner, so no systemd scope and nothing in the host journal
-#   slow    normal, plus the examples packaged for a private runner (Configuration,
-#           Secret, confinement views, live cgroup limits, a kept process that
-#           comes back) and the CPU limit actually enforced
+#   fast    the bash time service through `agent-bus run`, and the page quotes
+#   normal  every example: CLI, the Python process, the packages' static facts
+#           and packaged help, the same services under a private runner (Configuration,
+#           Secret, confinement views, limits read from the live cgroup, a kept
+#           process that comes back) and the pages' commands
+#   slow    normal, plus the CPU limit actually enforced (the deliberate over-limit run)
 # GUIDE_BIN names a directory holding agent-busd, agent-bus and agent-bus-runner
 # (smoke passes the build it already made); without it they are built here.
 # Prints "  ok" / "  FAIL" lines and "passed N, failed M"; exits 1 on any failure.
@@ -24,7 +23,7 @@ if [ -z "$BIN" ]; then
   mkdir -p "$ROOT/tmp"
   BIN=$(mktemp -d "$ROOT/tmp/guide-bin.XXXXXX")
   GB_BUILT=$BIN
-  programs=(./cmd/agent-busd ./cmd/agent-bus); [ "$MODE" = slow ] && programs+=(./cmd/agent-bus-runner)   # only slow starts a runner
+  programs=(./cmd/agent-busd ./cmd/agent-bus); [ "$MODE" = fast ] || programs+=(./cmd/agent-bus-runner)   # fast never starts a runner
   (cd "$ROOT/src" && go build -o "$BIN/" "${programs[@]}") || { echo "FAIL the programs did not build"; exit 1; }
   trap 'guide_down; rm -rf "$GB_BUILT"' EXIT
 fi
@@ -188,10 +187,9 @@ gb "$GB_OWNER" unregister "$A" >/dev/null 2>&1
 # What our programs wrote to the host journal and syslog during the run: nothing.
 since_log=$(journalctl -q -t agent-busd -t agent-bus-runner -t agent-bus --since "$JOURNAL_START" -o cat 2>&1)
 eq "the daemon and the CLI wrote nothing to the host journal" "$since_log" ""
-[ "$MODE" = slow ] || finish
 
 # ---- the runner: the same services, packaged, with private settings and confinement --
-sec "Runner: the same services, packaged (slow: the runner needs a systemd scope)"
+sec "Runner: the same services, packaged"
 RHA=$GB_DIR/rh/agent.d
 mkdir -p "$RHA" "$GB_DIR/rh/runner/tokens"
 for d in time-simple time-advanced time-process; do mkdir -p "$RHA/$d"; cp -R "$PKG/$d/." "$RHA/$d/"; done
@@ -255,9 +253,16 @@ sec "Runner: a kept process comes back"
 for _ in $(seq 1 100); do got=$(ask '#time-process@localhost' asker@localhost --status 2>/dev/null); case $got in reports:*) break ;; esac; sleep 0.2; done
 has "the runner restarts a process that died and it answers again" "$got" 'reports: 2; format: epoch'
 
+# The runner page's commands, on the same runner: first take the packages and names the run above used away.
+sec "Pages: the commands the runner page shows"
+for d in time-simple time-advanced time-process; do rm -rf "${RHA:?}/$d"; gb launcher@localhost unregister "#$d@localhost" >/dev/null 2>&1; done
+rm -f "$GB_DIR/rh/runner/tokens/%23time-process@localhost"
+runner_call reload >/dev/null
+PAGE_AS=launcher@localhost page_run docs/user/write-agent-runner.md runner . AGENTS=$RHA CLIENTS=$ROOT/src/clients HOST=$GB_DIR/rh/runner RUNNER='#runner/launcher@localhost' REALM=localhost
+
 if [ "$MODE" = slow ]; then
   # Enforcement, not configuration: the same four seconds of spinning, under a 50% share and under none.
-  # The normal run only read the limits above; this is the one that pushes against them.
+  # Normal only reads the limits above from the live cgroup; this is the one that pushes against them.
   sec "Runner: the CPU share is enforced (slow)"
   limited=$(answer '#probe@localhost' asker@localhost burn)
   free=$(answer '#probefree@localhost' asker@localhost burn)
@@ -265,15 +270,9 @@ if [ "$MODE" = slow ]; then
   within "an unlimited agent spins for most of four seconds (the control)" "${ft:-0}" 350 450
   within "an agent held to 50% gets at most about half of the same four seconds" "${lt:-0}" 100 290
 
-  # The runner page's commands, on the same runner: first take the packages and names the run above used away.
-  sec "Pages: the commands the runner page shows (slow)"
-  for d in time-simple time-advanced time-process; do rm -rf "${RHA:?}/$d"; gb launcher@localhost unregister "#$d@localhost" >/dev/null 2>&1; done
-  rm -f "$GB_DIR/rh/runner/tokens/%23time-process@localhost"
-  runner_call reload >/dev/null
-  PAGE_AS=launcher@localhost page_run docs/user/write-agent-runner.md runner . AGENTS=$RHA CLIENTS=$ROOT/src/clients HOST=$GB_DIR/rh/runner RUNNER='#runner/launcher@localhost' REALM=localhost
 fi
 # What our programs wrote to the host journal and syslog during the run: nothing.
-# (systemd's own line for the runner's cgroup scope is not ours.)
+# (systemd's own one-line scope notice for the runner's scope is not ours: Q327.)
 since_log=$(journalctl -q -t agent-busd -t agent-bus-runner -t agent-bus --since "$JOURNAL_START" -o cat 2>&1)
 eq "the daemon, the runner and the CLI wrote nothing to the host journal" "$since_log" ""
 finish

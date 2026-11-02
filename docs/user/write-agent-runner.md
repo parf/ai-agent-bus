@@ -16,7 +16,7 @@
 - ✅ **The same files:** the [simple and advanced scripts](write-agent-cli.md#try-this-first) and the [Python process](write-agent-process.md#try-this-first) run unchanged; only a package description, `agent.json`, is added beside each.
 - ✅ **Help from the package:** the runner answers a simple package's help from its description; the advanced one sets `"help":"native"` so its own script shapes the answer from live Configuration.
 - ✅ **A process that comes back:** the kept process serves itself, and the runner restarts it if it dies.
-- ✅ **Confinement and limits you can read:** the shard reads the package views and the limits from a live agent at `slow`, and pushes a limit once to see it held.
+- ✅ **Confinement and limits you can read:** the shard reads the package views and the limits from a live agent, and the slow level pushes a limit once to see it held.
 - 🔑 **Per-message scripts hold no bus credential;** only the process that serves itself is handed its own token ([what runs as what](../runner/security.md#what-runs-as-what)).
 - 🚫 **A package folder is code:** copying one in is a host change, so it takes the rights the folder needs.
 
@@ -85,6 +85,6 @@ agent-bus call "#time-process@$REALM" now | jq -r .body
 
 - 📦 **Packages and the inventory:** where packages live, the options and the inventory entry that limits one: [configuration](../runner/configuration.md#inventory).
 - 🧱 **Confinement:** the views, the network rule and the limits are in [isolation today](../runner/security.md#isolation-today); this page copies none of them.
-- 🔬 **Where they are checked:** `src/acceptance/agent-guide/guide.sh` at `slow` runs these packages on a private runner and bus, reads the package, work and outside views, the network answer and the live cgroup limits, kills the kept process to see it return, and enforces the CPU share once. The runner needs a systemd scope for that, so the normal level checks only the packages' static facts and the packaged help rule through `agent-bus run --package-dir`.
+- 🔬 **Where they are checked:** `src/acceptance/agent-guide/guide.sh` runs these packages on a private runner and bus, reads the package, work and outside views, the network answer and the live cgroup limits, and kills the kept process to see it return. Only the slow level pushes against a limit, by enforcing the CPU share once.
 - 🪪 **Serving itself:** [agents that serve themselves](../runner/configuration.md#agents-that-serve-themselves) say what is handed over and how a stop behaves.
 - 🧭 **The checklist:** [what a good agent does](../10-writing-an-agent.md).

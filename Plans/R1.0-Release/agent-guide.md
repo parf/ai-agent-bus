@@ -152,20 +152,17 @@ selection triggers under the existing selector rules.
 
 - **Fast:** the bash time service only, on a test bus; explicit argv allowlist,
   measured within the fast budget. No Python/build-everything/confined runner.
-- **Normal:** the CLI and Python-process examples and the shared assertions,
-  plus a named guard for the packaged form that needs no runner: each package's
-  `agent.json` parses, its command is an executable `./` path, and
-  `agent-bus run --package-dir` answers the packaged help (description, or the
-  script's own for `help: native`). Reuse smoke-built binaries; no systemd scope,
-  so nothing reaches the host journal (owner rule; Q327 asks whether systemd's
-  own scope line counts).
-- **Slow:** every example packaged for a private runner (Configuration, Secret,
-  confinement views, limits read from the live cgroup, a kept process that comes
-  back) and the deliberate CPU-limit enforcement. The runner needs
-  `systemd-run --scope`, which writes one systemd line per run, so it lives
-  here; if the owner accepts that line the runner part moves back to normal.
-  Every published example still runs in this one shard's slow form before
-  landing. Do not silently skip missing sandbox prerequisites.
+- **Normal:** every guide example and the shared assertions: the CLI and
+  Python-process forms, the packages' static facts and packaged help through
+  `agent-bus run --package-dir`, and the same services under a private runner
+  (Configuration, Secret, the package, work and outside views, the network
+  answer, limits read from the live cgroup, a kept process that comes back).
+  Reuse smoke-built binaries. Our programs write nothing to the host journal;
+  the runner's `systemd-run --scope` makes systemd write its own one-line notice,
+  which is not our output and is allowed (Q327, [settled](DECISIONS.md#recorded-decisions)).
+- **Slow:** normal, plus the deliberate over-limit run: the CPU share enforced
+  against a control. Every published example still runs in this one shard's slow
+  form before landing. Do not silently skip missing sandbox prerequisites.
 
 Confinement proof covers the real writable/read-only view, applied CPU quota
 without provoking a normal-run limit kill, and denied networking versus the
