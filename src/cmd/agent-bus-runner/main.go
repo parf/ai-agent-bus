@@ -171,6 +171,8 @@ type runner struct {
 	filterOne sync.Once // the system-call filter, compiled once
 	filter    []byte
 	filterErr error
+
+	events *eventSink // what the runner observed of each agent, written to its own log; nil writes nothing
 }
 
 // run learns who the runner is, loads what is installed, and answers calls
@@ -180,6 +182,8 @@ func (r *runner) run(ctx context.Context) error {
 	if err := r.become(); err != nil {
 		return err
 	}
+	r.events = newEventSink(r)
+	r.events.start()
 	r.reload()
 	fmt.Fprintf(r.say, "%s is the runner (%s), %s\n", r.name, version.String, r.summary())
 	const poll = 55 * time.Second
@@ -189,6 +193,7 @@ func (r *runner) run(ctx context.Context) error {
 		if ctx.Err() != nil {
 			fmt.Fprintf(r.say, "%s: stopping\n", r.name)
 			r.stopKept()
+			r.events.close()
 			return nil
 		}
 		if err != nil {
@@ -198,6 +203,7 @@ func (r *runner) run(ctx context.Context) error {
 			case <-time.After(2 * time.Second):
 			case <-ctx.Done():
 				r.stopKept()
+				r.events.close()
 				return nil
 			}
 			continue

@@ -183,11 +183,15 @@ func (st *stream) loop() {
 	for st.ctx.Err() == nil {
 		began := time.Now()
 		c, err := st.start()
+		if err != nil && st.ctx.Err() == nil {
+			st.r.event(st.s, levelAlert, "process failed to start")
+		}
 		if err == nil {
 			st.mu.Lock()
 			st.children[c] = true
 			st.mu.Unlock()
 			st.wake()
+			st.r.event(st.s, levelNotice, "process started")
 			st.answers(c)
 			err = c.cmd.Wait()
 			close(c.gone)
@@ -203,6 +207,7 @@ func (st *stream) loop() {
 			}
 			c.mu.Unlock()
 			st.r.recordExit(st.s, nil, c.cmd)
+			st.r.exitEvent(st.s, c.cmd, c.retired || st.ctx.Err() != nil)
 			if c.retired {
 				return
 			}
@@ -262,7 +267,7 @@ func (st *stream) start() (*streamChild, error) {
 		base = []string{"PATH=/usr/local/bin:/usr/bin:/bin", "HOME=" + s.work, "LANG=C.UTF-8"}
 	}
 	cmd.Env = mergeEnv(base, env, []string{"AGENT_BUS_TO=" + s.name, "AGENT_BUS_WORK=" + s.work})
-	cmd.Stderr = secretStderr(prefixed{r.say, s.name + ": "}, launch.secretEnv)
+	cmd.Stderr = r.stderrOf(s, launch.secretEnv)
 	in, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, err

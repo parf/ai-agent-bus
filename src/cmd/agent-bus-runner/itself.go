@@ -122,6 +122,7 @@ func (k *keeper) loop() {
 			k.mu.Unlock()
 			if err == nil {
 				k.r.askersAgain() // the process is the reader now: the runner's asks-only read ends
+				k.r.event(k.s, levelNotice, "process started")
 			}
 		}
 		if cmd != nil {
@@ -129,6 +130,9 @@ func (k *keeper) loop() {
 			for _, f := range cmd.ExtraFiles {
 				f.Close()
 			}
+		}
+		if err != nil && k.ctx.Err() == nil {
+			k.r.event(k.s, levelAlert, "process failed to start")
 		}
 		if err == nil {
 			var exited, watched chan struct{}
@@ -158,6 +162,8 @@ func (k *keeper) loop() {
 			}
 		}
 		k.r.recordExit(k.s, k, cmd)
+		// Asked to end, or restarted because it did not handle SIGHUP, is not a failure.
+		k.r.exitEvent(k.s, cmd, k.ctx.Err() != nil || k.hups.Load() != hups)
 		if reason, unconfigured := configurationExit(cmd, err); unconfigured && k.ctx.Err() == nil {
 			k.r.notConfigured(k.s, k, reason)
 			return
@@ -232,7 +238,7 @@ func (k *keeper) command() (*exec.Cmd, *jail, error) {
 		"AGENT_BUS_NAME=" + s.name, "AGENT_BUS_TOKEN=" + k.token, "AGENT_BUS_ADDR=" + addr, "AGENT_BUS_WORK=" + s.work})
 	private := append(append([]string{}, launch.secretEnv...), "AGENT_BUS_TOKEN="+k.token)
 	cmd.Stdout = secretStderr(prefixed{k.r.say, s.name + ": "}, private)
-	cmd.Stderr = secretStderr(prefixed{k.r.say, s.name + ": "}, private)
+	cmd.Stderr = k.r.stderrOf(s, private)
 	if len(j.seccomp) > 0 {
 		rd, wr, err := os.Pipe()
 		if err != nil {

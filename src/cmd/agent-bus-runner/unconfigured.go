@@ -47,7 +47,12 @@ func (s *stderrLine) Write(p []byte) (int, error) {
 	return len(p), err
 }
 
-func (s *stderrLine) flush() { _ = s.drain(true) }
+func (s *stderrLine) flush() {
+	_ = s.drain(true)
+	if f, ok := s.out.(interface{ flush() }); ok {
+		f.flush()
+	}
+}
 
 func (s *stderrLine) drain(final bool) error {
 	var clean []byte

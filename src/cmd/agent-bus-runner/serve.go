@@ -453,6 +453,7 @@ func (r *runner) stop(name string, s *served) {
 		<-s.readDone
 	}
 	delete(r.served, name)
+	r.event(s, levelNotice, "runner stopped serving this agent on request")
 	if st := s.stream; st != nil {
 		// Called under r.mu: its processes drain off the lock, and the key
 		// stays retiring until they have, so a replacement waits for them.
@@ -546,6 +547,7 @@ func (r *runner) stopKept() {
 		retiring = append(retiring, done)
 	}
 	for _, s := range r.served {
+		r.event(s, levelNotice, "runner stopped serving this agent on shutdown")
 		if s.kept != nil {
 			ks = append(ks, s.kept)
 		}
@@ -748,6 +750,7 @@ func (r *runner) adopt(ctx context.Context, in installed, name string, as *clien
 	s.readDone = make(chan struct{})
 	go func() { defer close(s.readDone); r.read(rctx, s) }()
 	fmt.Fprintf(r.say, "%s: serving %s, %d at a time, sandbox %s\n", r.name, name, max, box.Name())
+	r.event(s, levelNotice, "runner started serving this agent")
 	return s, nil
 }
 
@@ -942,7 +945,7 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 		"AGENT_BUS_ASK=" + e.Ask})
 	out := &bounded{max: maxOutput}
 	cmd.Stdout = out
-	cmd.Stderr = secretStderr(prefixed{r.say, s.name + ": "}, launch.secretEnv)
+	cmd.Stderr = r.stderrOf(s, launch.secretEnv)
 	var err error
 	if launch.box.Name() == "off" {
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -972,6 +975,9 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	finishAck()
 	if cmd.ProcessState != nil && !cmd.ProcessState.Success() {
 		r.recordExit(s, nil, cmd)
+		r.exitEvent(s, cmd, r.ctx != nil && r.ctx.Err() != nil)
+	} else if err != nil && cmd.ProcessState == nil && (r.ctx == nil || r.ctx.Err() == nil) {
+		r.event(s, levelAlert, "process failed to start")
 	}
 	if reason, unconfigured := configurationExit(cmd, err); unconfigured {
 		r.notConfigured(s, nil, reason)
