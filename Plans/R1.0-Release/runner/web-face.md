@@ -57,7 +57,7 @@ flowchart TD
 - ✅ RW3 (0.8.198) Implement zero/one/many navigation, including the requested single-runner
   - Details: 301. Apply it only to navigation, never to submitted actions; avoid redirect loops and stale redirects after the accessible set changes. Verify `Cache-Control: no-store` on the final response, including the normal web response wrapper, rather than inspecting only the redirect helper.
 
-- ⚠️ RW4 Join the runner's agent inventory with caller-visible registry records.
+- ➡️ RW4 (moved to R1.1, [Q311](../DECISIONS.md#recorded-decisions)) Join the runner's agent inventory with caller-visible registry records.
   - Details: Runner status supplies name, enabled/disabled setting, observed serving state, refusal reason and running/minimum/maximum process counts; description and tags come from the records. Keep registry information available when status fails, with its last observation identified as stale. Distinguish a disabled agent, a refused agent, an unreachable runner and an idle agent.
   - Built: status rows joined with the visitor's records. Partial: a last observation is not kept between requests (the face stores nothing across requests), so a failed status shows the runner identified and its agents "not known" rather than stale rows.
 
@@ -71,7 +71,7 @@ flowchart TD
 - ✅ RW7 (0.8.198) Use the existing `/agent?name=<encoded name>&return=<encoded local path>`
   - Details: link form. Extend the existing record detail/edit/save return-path allowlists to admit the runner page once its route is defined; today they accept only the record's list page. Preserve the local-path checks and safe fallback.
 
-- ⚠️ RW8 Make saved versus applied settings clear. Offer an explicit reload/apply
+- ➡️ RW8 (moved to R1.1, [Q311](../DECISIONS.md#recorded-decisions)) Make saved versus applied settings clear. Offer an explicit reload/apply
   - Details: action where supported, with its scope explained. A saved value must not be presented as already applied to a running process.
   - Built: reload explained as runner-wide, a saved change taking effect only then. Partial: no per-setting saved/applied view.
 
@@ -119,7 +119,7 @@ the acceptance check must hold it on this redirect too.
 
 ## Useful additions
 
-RT11 RW10–RW17 moved to [R1.1](../../R1.1/runner-web.md#useful-additions) by owner decision (Q299), 2026-11-01; the R1 minimum and acceptance below stay here.
+RT11 RW10–RW17 moved to [R1.1](../../R1.1/runner-web.md#useful-additions) by owner decision (Q299), 2026-11-01, and RW4 and RW8 by Q311, 2026-11-02; the R1 minimum and acceptance below stay here.
 
 ## Acceptance checklist
 

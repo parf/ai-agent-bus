@@ -120,7 +120,7 @@ Moved by [Q299](../R1.0-Release/DECISIONS.md#recorded-decisions), owner, 2026-11
 
 ## Runner web additions
 
-Proposals to prioritize after the minimum. RT11 RW10–RW17 only, moved by Q299; [topic](runner-web.md#useful-additions). R1 minimum and RW19/RW21/RW27 remain in [R1](../R1.0-Release/runner/web-face.md#acceptance-checklist).
+Proposals to prioritize after the minimum. RT11 RW10–RW17, moved by Q299, and RW4 and RW8, moved by [Q311](../R1.0-Release/DECISIONS.md#recorded-decisions); [topic](runner-web.md#useful-additions). R1 minimum and RW19/RW21/RW27 remain in [R1](../R1.0-Release/runner/web-face.md#acceptance-checklist).
 
 - ⏳ RW10 Search and filter agents by name, tag, state and refusal reason; count
   - Details: before pagination and only over the caller-visible set.
@@ -142,6 +142,14 @@ Proposals to prioritize after the minimum. RT11 RW10–RW17 only, moved by Q299;
 
 - ⏳ RW17 Recheck status after an action and show the resulting agent state; refresh
   - Details: without changing a separate agent editor or overwriting a newer action result.
+
+- ⏳ RW4 Keep the runner's last observation and show it as stale when status fails (low priority)
+  - Owner, 2026-11-02 (Q311): "ideally just ignore; our values are ~ good enough for most cases". Moved from R1; today a failed status shows the runner with its agents "not known".
+  - Details: the web face keeps nothing between requests, so this needs a small cache; the full text and tests are in [the R1 checklist](../R1.0-Release/runner/web-face.md#minimum-checklist).
+
+- ⏳ RW8 Mark which settings are saved but not yet applied (low priority)
+  - Owner, 2026-11-02 (Q311): "ideally just ignore; our values are ~ good enough for most cases". Moved from R1; today the page explains that a saved change takes effect at the next runner reload.
+  - Details: needs a per-setting comparison between the record and the running process; the full text and tests are in [the R1 checklist](../R1.0-Release/runner/web-face.md#minimum-checklist).
 
 ## Agent capabilities
 

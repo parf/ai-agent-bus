@@ -17,7 +17,7 @@
 
 ## RT11 web security checks (RW19, RW21, RW25, RW27)
 
-- RW18–RW27 are met; RW4/RW8 pending [Q311](QUESTIONS.md#r1-release-decisions): [the checklist](runner/web-face.md#minimum-checklist) has each item with its test and mutants. RW19 and RW25 were already built (`a2ee21cc`) and are now recorded; RW21 gained a forged-post test in `src/web/test/runners.test.ts`, a drift check between its fake runner and the real runner's managing verbs, and smoke checks at a real runner; RW27 gained seven mutants, all assertion-red. No hole was found, so no production code changed.
+- RW18–RW27 are met; RW4/RW8 moved to [R1.1](../R1.1/TODO.md#runner-web-additions) by the owner ([Q311](DECISIONS.md#recorded-decisions)): [the checklist](runner/web-face.md#minimum-checklist) has each item with its test and mutants. RW19 and RW25 were already built (`a2ee21cc`) and are now recorded; RW21 gained a forged-post test in `src/web/test/runners.test.ts`, a drift check between its fake runner and the real runner's managing verbs, and smoke checks at a real runner; RW27 gained seven mutants, all assertion-red. No hole was found, so no production code changed.
 
 ## B1/B2/B3 key proof signs only the bus's namespace, rotates and parses `--key`
 
