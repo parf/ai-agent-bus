@@ -74,6 +74,13 @@ Q296 to Q304, Q311 to Q313, Q321 and Q322 are [settled](DECISIONS.md#recorded-de
   > 💬 👤parf (in chat) status is "suggested"; most of our bundled agents do not support it
   >
   > 💬 👾 Moved: the minimum is help plus one request and one answer; `status` is the first suggested item.
+  >
+  > 💬 👤parf (in chat) top section — 3 ways to run agents:
+  > 1. agent-bus cli tool + link to new page - simple-bash-based agent - time-service with help; then more advanced example covering most we expect from agent
+  > 2. runner - autostart, own private configs + confinement (files, cpu, network) ... + link to new page - ... same example
+  > 3. own agent - choose our libs or just use our bus protocol + link to new page ... ~ same example (python)
+  >
+  > 💬 👾 Added as the guide's opening section, before the tiers. Each way gets its own page with the same two examples: a minimal time service that answers help, then a fuller one covering most of the checklist. The examples are run on a test bus before they are published.
 
 - ❓ Q325 Should source application-role revocation stop an existing event subscription?
   - Context: the [comparison](agent-guide.md#publishsubscribe-comparison) finds shared creator admission checks at add/every forward, but [named eventlog](../../docs/agents/eventlog.md#who-may-use-it) keeps its source application-role grant from creation. T-29 requires current source authority. Removing a source read role while bare admission remains can therefore behave differently; this is not a request to change existing behavior silently.
