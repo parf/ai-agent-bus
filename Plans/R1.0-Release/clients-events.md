@@ -216,4 +216,4 @@ concrete example showing the need. A subscription helper would add roughly
 6–10 minutes per Go/Python/TypeScript client or 8–12 per Java/PHP/Rust client,
 plus shared lifecycle cases and another review. Optional bigfile parity and
 removed-alias coverage have their separate sizes above; neither is a dependency
-for event calls. This plan remains unapproved until the owner chooses the cut.
+for event calls. Implementation waits on the owner's [Q322 scope choice](QUESTIONS.md#r1-release-decisions); this plan does not authorize code.
