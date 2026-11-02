@@ -1,0 +1,1 @@
+{"command":"./time-advanced.sh","form":"args","description":"Tell the current UTC time, keep the last five reports and answer status","config":{"format":{"help":"iso or epoch; the format used when the request names none"}}}
