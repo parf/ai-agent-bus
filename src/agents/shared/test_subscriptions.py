@@ -235,7 +235,7 @@ class Helpers(unittest.TestCase):
             script.write_text('import os,json\nprint(json.dumps(sorted(os.environ)))\n')
             try:
                 with patch.dict(os.environ,{'AGENT_BUS_TOKEN':'SECRET','AB_ROLE_OWNER':'1','PYTHONPATH':'SECRET'}):
-                    raw,complete=engine._helper(script,b'{}',time.monotonic()+1)
+                    raw,complete=engine._helper(script,b'{}',time.monotonic()+10)
                 self.assertTrue(complete)
                 self.assertFalse(any(key.startswith(('AGENT_BUS_','AB_ROLE_')) or key=='PYTHONPATH' for key in json.loads(raw)))
             finally:engine.close()
@@ -283,8 +283,9 @@ class Delivery(unittest.TestCase):
         self.engine.add(message({'author':'alice@fixture.test'}),'dest@fixture.test',{})
     def tearDown(self):
         self.authority_release.set();self.engine.close();self.server.shutdown();self.server.server_close();self.thread.join()
-    def deliver(self):
-        return self.engine.deliver({'log':'deploys'},'entry','payload',topic='deploys',tag='alert',deadline=time.monotonic()+2)
+    def deliver(self,room=10):
+        # The deadline covers the child's interpreter start; only the stalled-authority test needs it short.
+        return self.engine.deliver({'log':'deploys'},'entry','payload',topic='deploys',tag='alert',deadline=time.monotonic()+room)
     def test_refused_copy_warns_once_then_next_entry_is_delivered_once(self):
         self.assertEqual(self.deliver(),{'matched':1,'sent':0,'dropped':1})
         self.assertEqual(self.warnings,['send_refused']);self.assertEqual(self.accepted,[])
@@ -312,7 +313,7 @@ class Delivery(unittest.TestCase):
                 self.assertFalse(any(path=='/send' for path,_,_ in self.calls))
     def test_stalled_authority_is_bounded_and_leaves_no_worker(self):
         self.slow=True;self.refuse=False
-        self.assertEqual(self.deliver(),{'matched':1,'sent':0,'dropped':1})
+        self.assertEqual(self.deliver(2),{'matched':1,'sent':0,'dropped':1})
         # The real child reached the stalled authority; its interpreter/import
         # startup is not part of the authority-response and cleanup bound.
         self.assertTrue(self.authority_seen.is_set(),'the child never requested authority')

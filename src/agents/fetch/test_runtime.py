@@ -45,7 +45,7 @@ class Runtime(unittest.TestCase):
                 result=worker.perform({'url':'x','format':format,'timeout':1})
                 self.assertTrue(result['ok']);self.assertEqual(result['body'],WARNING+'hello')
     def test_real_child_refuses_literal_private_without_network(self):
-        result=fetch.run({'url':'http://127.0.0.1/','format':'text'},1)
+        result=fetch.run({'url':'http://127.0.0.1/','format':'text'},10)
         self.assertFalse(result['ok']);self.assertEqual(result['body'],fetch.FAILURE);self.assertEqual(result['class'],'address')
     def test_expired_deadline_and_config_refusal_do_not_launch_child(self):
         calls=[]
@@ -57,7 +57,7 @@ class Runtime(unittest.TestCase):
     def test_helper_environment_and_argv_do_not_contain_identity_or_credentials(self):
         code='import json,os,sys;print(json.dumps({"ok":True,"body":'+repr(WARNING)+'+json.dumps({"env":dict(os.environ),"argv":sys.argv}),"class":"ok","bytes":0}))'
         with patch.dict(os.environ,{'AGENT_BUS_TOKEN':'fixture-private-token','AGENT_BUS_NAME':'#private','AB_ROLE_OWNER':'1','OTHER_SECRET':'fixture-private-token'}):
-            result=fetch.run({'url':'http://example.org/','format':'text'},1,helper=[sys.executable,'-c',code])
+            result=fetch.run({'url':'http://example.org/','format':'text'},10,helper=[sys.executable,'-c',code])
         value=json.loads(result['body'][len(WARNING):]);self.assertFalse(any(k.startswith(('AGENT_BUS_','AB_ROLE_')) for k in value['env']))
         self.assertNotIn('OTHER_SECRET',value['env']);self.assertNotIn('fixture-private-token',json.dumps(value));self.assertNotIn('http://example.org/',json.dumps(value['argv']))
     def test_stuck_dns_has_a_hard_parent_deadline(self):
@@ -97,7 +97,7 @@ class Runtime(unittest.TestCase):
     def test_helper_success_schema_and_output_warning_cannot_be_skipped(self):
         for value in ({'ok':True,'body':'missing warning','class':'ok','bytes':0},{'ok':True,'body':WARNING+'x'*OUTPUT_MAX,'class':'ok','bytes':0},{'ok':True,'body':WARNING,'class':'injected private URL','bytes':0}):
             code='import json;v='+repr({**value,'body':''})+';v["body"]='+ (repr(WARNING)+'+"x"*'+str(OUTPUT_MAX) if len(value['body'])>OUTPUT_MAX else repr(value['body']))+';print(json.dumps(v))'
-            with self.subTest(value={k:v for k,v in value.items() if k!='body'}),self.assertRaises(ValueError):fetch.run({'url':'http://example.org/','format':'text'},1,helper=[sys.executable,'-c',code])
+            with self.subTest(value={k:v for k,v in value.items() if k!='body'}),self.assertRaises(ValueError):fetch.run({'url':'http://example.org/','format':'text'},10,helper=[sys.executable,'-c',code])
     def test_exported_offline_asks_do_not_launch_network_or_read_config(self):
         (ROOT/'tmp').mkdir(exist_ok=True)
         with tempfile.TemporaryDirectory(dir=ROOT/'tmp',prefix='fetch-package-') as d:
