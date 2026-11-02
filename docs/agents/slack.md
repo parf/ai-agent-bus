@@ -255,6 +255,7 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 | Missing channel messages | Invite the bot; check scopes and event subscriptions |
 | Only some events arrive | Give this agent its own app connection; another client on the same app token may receive the other events |
 | `starting: loading …` as its status | It is reading a large workspace's users and channels; wait. Messages you send meanwhile are kept and answered when it is ready |
+| `starting: waiting for Slack …` or `not ready: Slack has not said who the agent is yet` as its status | Slack's identity check is failing or slow (token, scopes or Slack itself); the agent keeps asking and takes events once it answers. An event it still could not place is logged as `warning` with its channel and time |
 | `not configured` | Store both tokens in Secret, then reload the runner |
 | Repeated send or settings failures | Check the runner journal; transient failures are tried three times, then logged and skipped |
 
