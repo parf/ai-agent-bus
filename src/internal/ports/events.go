@@ -31,3 +31,7 @@ type EventAlertStore interface {
 	LoadEventAlerts(recordID uint32) (alerts []EventEntry, active bool, err error)
 	ReplaceEventAlerts(recordID uint32, alerts []EventEntry, active bool) error
 }
+
+// EventStatePruner removes private state of a never-reused, retired record ID.
+// It is also called after an in-flight old-ID operation finishes.
+type EventStatePruner interface{ DropEventState(recordID uint32) error }
