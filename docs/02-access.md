@@ -183,8 +183,12 @@ new name in a directory-backed realm; realms without directories use the
 
 GitHub enrolment retains public keys and the provider's person name under the
 [profile import rules](01-identity-and-authority.md#users-and-profiles). Existing
-tokens keep working during provider outages; a new challenge requires both
+tokens keep working during provider outages; an uncached challenge requires both
 provider answers. Private keys stay with the signing tool.
+
+- The daemon caches each realm/login lookup, including unknown logins and lookup errors, for five minutes. Published-key changes can remain stale for that interval.
+- All realms and callers share twelve uncached lookups per rolling hour; cache hits do not spend the allowance. Exhaustion answers HTTP 429 (`busy`), with `Retry-After` seconds until the oldest counted lookup leaves the window.
+- This deliberately lets twelve hostile uncached requests delay real newcomers until the window frees. Existing credentials are unaffected; the availability trade-off is accepted for 1.0.
 
 </details>
 

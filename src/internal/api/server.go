@@ -15,6 +15,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1091,6 +1092,7 @@ var codes = []struct {
 	{locks.ErrTooMany, http.StatusRequestEntityTooLarge, "malformed"},
 	{selfTake, http.StatusConflict, "busy"},
 	{core.ErrPersonal, http.StatusBadRequest, "malformed"},
+	{core.ErrDirectoryBusy, http.StatusTooManyRequests, "busy"},
 	{core.ErrEnrol, http.StatusForbidden, "enrolment"},
 	{core.ErrNoRemoval, http.StatusBadRequest, "malformed"},
 	{core.ErrRange, http.StatusBadRequest, "malformed"},
@@ -1140,6 +1142,14 @@ func (s *Server) reply(w http.ResponseWriter, v any, err error) {
 	if err == nil {
 		ok(w, v)
 		return
+	}
+	var retry interface{ RetryAfter() time.Duration }
+	if errors.As(err, &retry) {
+		seconds := int64((retry.RetryAfter() + time.Second - 1) / time.Second)
+		if seconds < 1 {
+			seconds = 1
+		}
+		w.Header().Set("Retry-After", strconv.FormatInt(seconds, 10))
 	}
 	for _, c := range codes {
 		if errors.Is(err, c.err) {

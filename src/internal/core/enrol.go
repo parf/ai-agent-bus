@@ -3,6 +3,7 @@ package core
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"time"
 
@@ -35,6 +36,8 @@ func (b *Bus) Directories(dirs map[string]ports.Directory, sigs ports.Signatures
 	b.mu.Lock()
 	defer b.unlock()
 	b.dirs, b.sigs = dirs, sigs
+	b.directoryCache = nil
+	b.directoryEpoch++
 	b.github = nil
 	for _, directory := range dirs {
 		if provider, ok := directory.(ports.ProfileDirectory); ok {
@@ -74,7 +77,10 @@ func (b *Bus) Challenge(name string) (string, error) {
 	if !backed {
 		return "", fmt.Errorf("%w: nothing backs the realm %q, so there is nothing to prove", ErrEnrol, n.Realm)
 	}
-	entry, err := dir.Lookup(n.Local)
+	entry, err := b.lookupDirectory(n.Realm, n.Local, dir)
+	if errors.Is(err, ErrDirectoryBusy) {
+		return "", err
+	}
 	if err != nil {
 		return "", fmt.Errorf("%w: %s", ErrEnrol, err)
 	}

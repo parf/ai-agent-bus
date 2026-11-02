@@ -266,10 +266,13 @@ type Bus struct {
 	recent []protocol.Envelope
 	// Which realms are backed by a directory, what verifies a signature,
 	// and the challenges outstanding. See docs/01-identity-and-authority.md#registration.
-	dirs    map[string]ports.Directory
-	github  ports.ProfileDirectory
-	sigs    ports.Signatures
-	pending map[string]challenge
+	dirs             map[string]ports.Directory
+	github           ports.ProfileDirectory
+	sigs             ports.Signatures
+	pending          map[string]challenge
+	directoryCache   map[directoryLookupKey]directoryLookupResult
+	directoryFetches []time.Time
+	directoryEpoch   uint64
 }
 
 func New() *Bus {
