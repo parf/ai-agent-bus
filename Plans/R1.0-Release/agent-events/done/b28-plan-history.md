@@ -50,4 +50,3 @@ Acceptance, each failing on a missing implementation or by a named mutant:
 - `clean <log> alert 7` removes alerts with ids up to 7 and keeps alert 9 and every warning;
 - `clean <log> warning` empties only warnings; `clean` by a `read`-only caller is refused and changes nothing.
 - The web shows an alert mark only for logs with an alert within its window, and a reader without the role gets no page.
-

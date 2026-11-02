@@ -53,12 +53,12 @@ fold windows, level isolation, pull order and inclusive clean. A changed
 expectation must fail both adapters when it concerns the shared model.
 
 Separate entry-retention profiles from model rules: today's Python profile
-keeps alerts; R1's memory-entry profile loses them at restart. Split the
+keeps alerts; R1 is decided: alerts on disk (P5), with notices and warnings in memory. Split the
 existing combined restart case into common id-reservation checks and explicit
 retention checks; do not claim that volatile alerts pass a durable-alert
 expectation. Both engines run the common cases; each configured retention
 profile has a named restart assertion. Go must run the durable-alert cases
-before that optional storage step can land.
+before the decided alerts-on-disk step (P5) can land.
 
 ## R1-min surface and authority
 
