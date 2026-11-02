@@ -280,9 +280,17 @@ test("subscription name vectors match protocol", async () => {
   expect(vectors.accept.length).toBeGreaterThan(0); expect(vectors.reject.length).toBeGreaterThan(0);
   for (const row of vectors.accept) {
     expect({ name: row.name, canonical: targetText(row.name) }).toEqual({ name: row.name, canonical: row.canonical });
-    const { port } = fake([]);
+    const { port, state } = fake([]);
     const subs = new Subscriptions(port, row.name, { validateSelector() {}, selectorMatches() { return true; }, warning() {} });
-    expect(subs.source).toBe(row.canonical); subs.close();
+    try {
+      expect(subs.source).toBe(row.canonical);
+      state.checks = [true, true];
+      const caller = { from: row.name, roles: [] };
+      const added = await subs.add(caller, row.name, {});
+      expect({ target: added.target, created_by: added.created_by }).toEqual({ target: row.canonical, created_by: row.canonical });
+      expect(subs.list(caller).map(r => r.id)).toEqual([added.id]);
+      expect(await subs.delete(caller, added.id)).toBe(true);
+    } finally { subs.close(); }
   }
   for (const name of vectors.reject) expect({ name, error: code(() => targetText(name)) }).toEqual({ name, error: "invalid_target" });
 });

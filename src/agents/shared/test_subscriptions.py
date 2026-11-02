@@ -387,8 +387,10 @@ class NameVectors(unittest.TestCase):
         self.assertTrue(vectors['accept']);self.assertTrue(vectors['reject'])
         for row in vectors['accept']:
             with self.subTest(name=row['name']):
-                self.assertEqual(s.target_text(row['name']),row['canonical'])
-                self.assertEqual(s.identity(row['name']),row['canonical'])
+                for parse in (s.target_text,s.identity):
+                    try:actual=(parse(row['name']),None)
+                    except s.SubscriptionError as error:actual=(None,error.code)
+                    self.assertEqual(actual,(row['canonical'],None),'accepted protocol name '+repr(row['name']))
         for name in vectors['reject']:
             with self.subTest(name=name):
                 for parse,code in ((s.target_text,'invalid_target'),(s.identity,'not_author')):

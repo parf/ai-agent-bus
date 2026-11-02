@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.303 — 2026-11-02
+
+Subscriptions accept every name the bus accepts: one name grammar across the daemon and the Python and TypeScript helpers
+
 ## 0.9.302 — 2026-11-02
 
 Alert-ring snapshots are grouped into daemon-wide bounded transactions, on disk within about 100 ms and flushed on a clean stop
