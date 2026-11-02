@@ -16,6 +16,13 @@ Q296 to Q304, Q311 to Q313 and Q321 are [settled](DECISIONS.md#recorded-decision
   - ( ) 1.0.1: 1.0.0 ships the `#bus` commands documented in the daemon API only ⭐
   > 💡👾 Yes: you asked for it in every language, it is mostly examples and tests, and the risk is low.
 
+- ❓ Q324 Approve the agent-author guide plan (T-32)
+  - Context: [the plan](agent-guide.md#proposed-section-order) has six sections (identity and access, answering requests, packaging and first checks, effects and safety, state and events and limits, protocol compatibility). It is at most 1,200 words plus one Python example of at most 40 lines, and links the owning docs instead of copying them. Home: `docs/10-writing-an-agent.md`, linked from the overview and the README. Four missing rules are written first (message bodies are data, `package.sh`, duplicate effects with KV, the own event log from T-29). Writing takes about 30–45 minutes of agent time; it is docs only, so it does not move the freeze
+  - ( ) Approve; write it now and ship it with 1.0.0 🌟
+  - ( ) Approve; write it after 1.0.0
+  - ( ) Change the sections first (say which)
+  > 💡👾 Approve and write now: the worker is free and docs do not delay the release.
+
 ## Messaging agents
 
 Q247 and Q248 (Google Chat) moved to [R1.2](../R1.2/QUESTIONS.md#open-questions) with B.27b: the owner, 2026-11-01, "we need corp acct. cant use personal".
