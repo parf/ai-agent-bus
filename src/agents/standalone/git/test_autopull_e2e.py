@@ -100,6 +100,8 @@ class OwnersFlow(unittest.TestCase):
         self.copies = {}
         for name, host, mode, dirty in SERVERS:
             root = self.base / host / 'realty'
+            # Script ancestors must be private even with an inherited umask 0002.
+            root.parent.mkdir(mode=0o700)
             self.sh(self.base, 'clone', str(up), str(root))
             self.copies[host] = root
 
@@ -114,8 +116,10 @@ class OwnersFlow(unittest.TestCase):
         self.marks = {}
         for name, host, mode, dirty in SERVERS:
             state = self.base / host / 'state'
+            state.mkdir(mode=0o700)
+            (state / 'agent-bus-git').mkdir(mode=0o700)
             scripts = state / 'agent-bus-git' / 'autopull.d'
-            scripts.mkdir(parents=True, mode=0o700)
+            scripts.mkdir(mode=0o700)
             for kind in ('success', 'fail'):
                 marker = self.base / host / (kind + '.log')
                 self.marks[host, kind] = marker
