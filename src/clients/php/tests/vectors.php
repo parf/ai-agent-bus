@@ -4,7 +4,9 @@
 // which supplies check(), thrown(), fake(), client() and the daemon.
 declare(strict_types=1);
 
-use AgentBus\{Bus, Kind, How, Op, Refusal, BusException};
+require_once __DIR__ . '/event_log_example.php';
+
+use AgentBus\{Bus, Kind, How, Op, Refusal, BusException, CallOptions, ConsumeOptions, Answer};
 
 /** The shared rows of one vector file, with the fixture names mapped to this daemon's. */
 function vectorRows(string $file, array $names = []): array
@@ -259,4 +261,70 @@ section('shared refusal vectors', function () use ($dir) {
         check("{$case['id']}: warns only for an old daemon", ($bus->warnings() !== []) === ($case['identity'] === 'old'), json_encode($bus->warnings()));
         unfake($pid);
     }
+});
+
+/** The value at a dotted path of decoded JSON: map keys and list indexes; [found, value]. */
+function eventPath(mixed $value, string $path): array
+{
+    foreach (explode('.', $path) as $key) {
+        if (!is_array($value) || !array_key_exists(ctype_digit($key) && array_is_list($value) ? (int) $key : $key, $value)) { return [false, null]; }
+        $value = $value[ctype_digit($key) && array_is_list($value) ? (int) $key : $key];
+    }
+    return [true, $value];
+}
+
+section('shared event-log vectors', function () {
+    $who = ['owner' => 'owner@fixture', 'agent' => '#caller@fixture', 'third' => '#outsider@fixture'];
+    foreach (vectorRows('events') as $case) {
+        $fixture = vectorFixture();
+        $info = $fixture[2];
+        $buses = array_map(fn($name) => Bus::connect($info['addr'], $info['tokens'][$name], $name, 10.0), $who);
+        $answers = [];
+        foreach ($case['steps'] as $i => $step) {
+            $at = "{$case['id']} step $i {$step['op']}";
+            $bus = $buses[$step['as']] ?? null;
+            if ($bus === null) { check("$at: known identity", false, $step['as']); continue; }
+            switch ($step['op']) {
+                case 'call':
+                    $outcome = null;
+                    $e = thrown(function () use ($bus, $step, &$outcome) { $outcome = $bus->call('#bus', $step['body'], new CallOptions(5)); });
+                    if ($e !== null || !$outcome instanceof Answer) { check("$at: answered", false, $e ? get_class($e) . ' ' . $e->getMessage() : get_class($outcome)); break; }
+                    $answer = $outcome->message->body;
+                    $answers[$i] = $answer;
+                    $decoded = json_decode($answer, true);
+                    foreach ($step['expect'] ?? [] as $path => $want) {
+                        [$found, $got] = eventPath($decoded, $path);
+                        check("$at: $path", $found && $got === $want, "got " . json_encode($got) . " want " . json_encode($want) . "; reply $answer");
+                    }
+                    if (isset($step['same_answer_as'])) {
+                        check("$at: the reply is byte for byte step {$step['same_answer_as']}'s", $answer === ($answers[$step['same_answer_as']] ?? null), $answer);
+                    }
+                    break;
+                case 'send':
+                    $e = thrown(fn() => $bus->send('#bus', $step['body']));
+                    check("$at: queued", $e === null, $e ? $e->getMessage() : '');
+                    break;
+                case 'inbox':
+                    $m = $bus->consume(new ConsumeOptions(wait: 0.3));
+                    check("$at: the inbox is empty", $m === null, $m ? "{$m->from}: {$m->body}" : '');
+                    break;
+                default:
+                    check("$at: known op", false, $step['op']);
+            }
+        }
+        vectorFixtureStop($fixture);
+    }
+});
+
+section('event-log example', function () {
+    $fixture = vectorFixture();
+    $lines = eventLogExample($fixture[2]);
+    check('the event-log example prints what it documents', $lines === [
+        'written: alert disk full',
+        'owner reads: 1 alert, newest disk full',
+        'owner lists: #caller@fixture',
+        'a third party: forbidden',
+        'the writer reading its own log: forbidden',
+    ], json_encode($lines));
+    vectorFixtureStop($fixture);
 });
