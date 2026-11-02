@@ -38,6 +38,10 @@ Q296 to Q304, Q311 to Q313, Q321 and Q322 are [settled](DECISIONS.md#recorded-de
   > 💬 👤parf make sure to start with essentials - helps
   >
   > 💬 👾 Yes: the guide opens with the essentials, answering `help` first, then one request and one answer. Everything else follows in order of need.
+  >
+  > 💬 👤parf optional support: ack and done - when to use
+  >
+  > 💬 👾 Added as its own item, marked optional: ack when the answer will take another turn, done when a task expects no answer, never done after an answer, nothing for reports, notices or receipts.
 
 ## Messaging agents
 
