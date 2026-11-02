@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.298 — 2026-11-02
+
+The container image builds from a downloaded release, verifying the archive against SHA256SUMS, and ships no release inputs in its layers
+
 ## 0.9.297 — 2026-11-02
 
 An inactive agent's log, or one whose User is inactive, answers every log and sub call as a missing name does

@@ -40,16 +40,18 @@ RUN set -eu; cd /tmp/release; \
       sha256sum -c selected.sha256; \
     else sha256sum -c "$archive.sha256"; fi; \
     mkdir unpacked; tar --no-same-owner --no-same-permissions -xzf "$archive" -C unpacked --strip-components=1; \
-    (cd unpacked && sha256sum -c --quiet MANIFEST.sha256)
+    (cd unpacked && sha256sum -c --quiet MANIFEST.sha256); \
+    version=$(tr -d '[:space:]' < unpacked/internal/version/VERSION); \
+    mkdir -p /out/releases; \
+    mv unpacked "/out/releases/$version"
 
 FROM runtime-base
-COPY --from=verified-release /tmp/release/unpacked/ /tmp/unpacked/
+COPY --from=verified-release /out/ /usr/local/lib/agent-bus/
 COPY agent-bus-container /usr/local/sbin/agent-bus-container
 COPY echo /var/lib/agent-bus/agent.d/echo
 RUN set -eu; \
-    version=$(tr -d '[:space:]' < /tmp/unpacked/internal/version/VERSION); \
-    mkdir -p /usr/local/lib/agent-bus/releases; \
-    mv /tmp/unpacked "/usr/local/lib/agent-bus/releases/$version"; \
+    set -- /usr/local/lib/agent-bus/releases/*; [ "$#" = 1 ]; \
+    version=$(tr -d '[:space:]' < "$1/internal/version/VERSION"); \
     ln -s "releases/$version" /usr/local/lib/agent-bus/current; \
     for p in agent-bus agent-busd agent-bus-admin agent-bus-runner agent-bus-token agent-bus-ts; do \
       ln -s "/usr/local/lib/agent-bus/current/$p" "/usr/local/bin/$p"; done; \

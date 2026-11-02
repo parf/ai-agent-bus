@@ -45,11 +45,17 @@ class ContainerChecksums(unittest.TestCase):
     def test_final_stage_does_not_copy_the_release_directory(self):
         text = (HERE / 'Containerfile').read_text()
         final_stage = text.rsplit('\nFROM ', 1)[-1]
+        self.assertNotRegex(final_stage, r'\bmv\s', 'release payload moved across final image layers')
+        from_copies = []
         for line in final_stage.splitlines():
             if line.startswith('COPY '):
                 args = shlex.split(line)
+                if any(arg.startswith('--from=') for arg in args):
+                    from_copies.append(args)
                 self.assertNotIn('.', args[1:-1], 'whole release directory retained in final image layers')
                 self.assertNotIn('--from=release', args, 'raw release input retained in final image layers')
+        self.assertEqual(len(from_copies), 1, 'expected one verified payload copy')
+        self.assertEqual(from_copies[0][-1], '/usr/local/lib/agent-bus/', 'payload must be copied directly to its final location')
 
     def test_tampered_release_archive_is_refused(self):
         result = self.verify(tampered=True)
