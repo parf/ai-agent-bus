@@ -2,6 +2,8 @@
 
 ## Recorded decisions
 
+- **An agent's alerts are kept on disk in 1.0.0 and survive a daemon restart** (Q321) — owner, 2026-11-02: "agree". Notices and warnings stay in memory; the daemon restarts on every daemon deploy, and agent alerts are not in syslog. Built in T-29 after subscriptions.
+  - Home: [agent events](agent-events/README.md#levels).
 - **macOS archives and the macOS npm client packages ship in 1.0.0** (Q313) — owner, 2026-11-02: "agree". The release workflow cross-builds darwin arm64 and x64, verifies and attaches them; one more Mac check runs on the published 1.0.0.
   - Home: [release artifacts](distribution.md#release-artifacts).
 - **Agent events are in R1, unified with `#eventlog`** (Q312) — owner, 2026-11-02: "review our eventlog; try to unify systems … daemon itself "bus" agent should provide … agent's logs subscriptions similar to eventlog", then "go … good sane web presentation, few recent lines + expand". One model and verb set for both; the daemon keeps each agent's log and its subscriptions; the web shows a few recent lines per agent with an expand. Plan and estimate: T-29.
