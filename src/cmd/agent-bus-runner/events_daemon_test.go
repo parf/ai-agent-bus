@@ -54,7 +54,7 @@ func TestRunnerEventsReachTheAgentsLogAndLeaveItsInboxEmpty(t *testing.T) {
 	w := r.stderrOf(s, []string{"API_KEY=sekret-value-123"})
 	io.WriteString(w, "connecting with sekret-value-123\n")
 	r.event(s, levelAlert, "process exited unexpectedly, code 3")
-	r.events.close() // drains the queue through the real call
+	closeSink(t, r.events) // drains the queue through the real call
 
 	// The completion fence: a write that waits, on the same single #bus reader,
 	// is answered only after every earlier call has been completed.

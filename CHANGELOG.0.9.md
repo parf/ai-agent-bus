@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.290 — 2026-11-02
+
+The runner forwards each agent start, stderr warning and exit alert into its private event log, bounded and never blocking the child
+
 ## 0.9.289 — 2026-11-02
 
 Private per-agent event logs in the daemon: #bus write/read/list/pull/clean with reserved ids, private ACL, bounded fair dispatch

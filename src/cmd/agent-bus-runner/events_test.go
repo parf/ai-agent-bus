@@ -56,7 +56,7 @@ func recordingRunner(t *testing.T) (*runner, *recorded) {
 	r.events = newEventSink(r)
 	r.events.send = func(_ context.Context, e agentEvent) error { rec.add(e); return nil }
 	r.events.start()
-	t.Cleanup(r.events.close)
+	t.Cleanup(func() { closeSink(t, r.events) })
 	return r, rec
 }
 
@@ -228,7 +228,7 @@ func TestEventsNeverBlockTheChildAndDropWhenFull(t *testing.T) {
 	block := make(chan struct{})
 	r.events.send = func(ctx context.Context, e agentEvent) error { <-block; return nil }
 	r.events.start()
-	defer func() { close(block); r.events.close() }()
+	defer func() { close(block); closeSink(t, r.events) }()
 	s := &served{name: "#a@h", bus: &client{}}
 	w := r.stderrOf(s, nil)
 	wrote := make(chan struct{})
@@ -403,7 +403,7 @@ func TestWarningFloodThenAnExitAlertIsStillSent(t *testing.T) {
 		return nil
 	}
 	r.events.start()
-	defer r.events.close()
+	defer closeSink(t, r.events)
 	s := &served{name: "#a@h", bus: &client{}}
 	w := r.stderrOf(s, nil)
 	for i := 0; i < 2000; i++ {
@@ -436,7 +436,7 @@ func TestAlertsAreSentBeforeEarlierQueuedWarnings(t *testing.T) {
 		return nil
 	}
 	r.events.start()
-	defer r.events.close()
+	defer closeSink(t, r.events)
 	s := &served{name: "#a@h", bus: &client{}}
 	r.events.emit(s, levelWarning, "held")
 	<-inside
@@ -492,5 +492,18 @@ func TestShutdownWithAHungBusIsBounded(t *testing.T) {
 	}
 	if took := time.Since(began); took > eventDrain+eventDeadline+400*time.Millisecond {
 		t.Fatalf("close took %s with a hung bus, want at most the drain (%s) and one write (%s)", took, eventDrain, eventDeadline)
+	}
+}
+
+// closeSink stops a test's sink, failing on an assertion, not on the go test
+// timeout, if the stop does not return.
+func closeSink(t *testing.T, k *eventSink) {
+	t.Helper()
+	done := make(chan struct{})
+	go func() { k.close(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Error("the event sink did not stop within 5 s")
 	}
 }
