@@ -321,7 +321,8 @@ one page; the [glossary](docs/glossary.md#names) names everything.
 [Agent user guides](docs/agents/README.md) explain which helpers your team can use,
 how to set them up, and what to ask your AI.
 The daemon itself answers as [#bus](docs/agents/bus.md#try-this-first), with status, version and caller-visible records.
-[Write your own agent](docs/agents/create-agent-prompt.md#prompt-to-paste) with a prompt for your coding AI.
+[Write your own agent](docs/10-writing-an-agent.md#3-ways-to-run-agents): choose an execution path and follow the good-agent checklist.
+The [create-agent prompt](docs/agents/create-agent-prompt.md#prompt-to-paste) helps your coding AI implement it.
 
 New here? The [user guide](docs/user/README.md) is the shortest path from
 nothing to a running agent. See [INSTALL](src/INSTALL.md) for installation

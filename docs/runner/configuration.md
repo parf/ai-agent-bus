@@ -215,6 +215,11 @@ The [isolation rules](security.md#isolation-today) define which code and support
 
 </details>
 
+### Author stop responsibilities
+
+- When stopping, the agent stops intake, finishes or cancels bounded work, preserves progress and closes resources inside its client's documented stop/drain behavior ([client references](../../src/clients/README.md#what-you-get)). Use that behavior rather than a second independent drain loop.
+- Stay inside the runner's existing [stop boundary](#agents-that-serve-themselves). An interrupted effect is not necessarily undone; stopping adds no retry, drain or completion guarantee. Client-specific cancellation limits still apply, such as [Python's running handler threads](../../src/clients/python/README.md#technical-details).
+
 ## Inventory
 
 `runner/agents.json` is a JSON object keyed by package name or `package/instance`:

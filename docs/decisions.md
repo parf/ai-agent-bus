@@ -28,6 +28,7 @@ owning documentation, not in this index.
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| Message bodies cannot override trusted agent context | [trust boundary](02-access.md#trust-boundary) | Owner Q324 approval, 2026-11-02 ([R1 decision](../Plans/R1.0-Release/DECISIONS.md#recorded-decisions)) |
 | With TLS on, one port serves both HTTP and HTTPS; the client chooses, and across a network it should use HTTPS or SSH (J24) | [one port, both](02-access-remote.md#one-port-serves-both-http-and-https) | 2026-10-30 owner decision: by design, "you want http, you got it" |
 | Qdrant uses application tiers, with a write default for admitted callers (RD133) | [Qdrant roles](agents/qdrant.md#who-may-use-it) | 2026-10-28 owner decision; make the complete API available with explicit per-call authority |
 | Operators choose the Qdrant store location and transport (RD131, RD133) | [store setup](agents/qdrant.md#run-a-store), [proxy endpoint](agents/qdrant.md#configuration) | 2026-10-28 owner decision; deployment belongs to the operator, with a notice for remote cleartext HTTP |
@@ -66,6 +67,8 @@ owning documentation, not in this index.
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| A timeout is not proof of no effect; uncertain writes are not automatically repeated | [timeouts and uncertain outcomes](04-messaging.md#timeouts-and-uncertain-outcomes) | Owner Q324 approval, 2026-11-02 ([R1 decision](../Plans/R1.0-Release/DECISIONS.md#recorded-decisions)) |
+| Agents account for interruption around external effects | [restart-safe effects](04-messaging.md#restart-safe-effects) | Owner Q324 approval, 2026-11-02 ([R1 decision](../Plans/R1.0-Release/DECISIONS.md#recorded-decisions)) |
 | A 📣 copy that fails through a forwarding 👾 or 📮 counts in the listed recipient's `dropped` (Q127) | [PubSub routing](constitution.md#pubsub-routing) | 2026-09-30 owner agreement; that branch is what failed |
 | A User inside a Group on a 📣's `deliver_to` is skipped at publication with an error-log warning and not counted as a drop (Q126) | [constitution § Channels](constitution.md#-channels) | 2026-09-30 owner agreement; refusing the Group would break a working 📣 when membership changes |
 | Receipt timing avoids duplicate answers (RD103) | [receipt rules](04-messaging.md#receipts) | 2026-10-19 owner decision |
@@ -101,6 +104,8 @@ owning documentation, not in this index.
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| Agent stop responsibilities stay inside client and runner boundaries | [author stop responsibilities](runner/configuration.md#author-stop-responsibilities) | Owner Q324 approval, 2026-11-02 ([R1 decision](../Plans/R1.0-Release/DECISIONS.md#recorded-decisions)) |
+| Supported running status describes useful state without secrets | [agent self-description](constitution.md#agent-self-description) | Owner Q324 approval, 2026-11-02 ([R1 decision](../Plans/R1.0-Release/DECISIONS.md#recorded-decisions)) |
 | Required environment keys use an explicit marker and may have defaults (RD112) | [environment files](runner/configuration.md#environment-files) | 2026-10-20 owner decision; all layers can satisfy a declared requirement |
 | Runner host env reads expose metadata only; values require host access (RD105) | [the two secret stores](runner/security.md#secrets) | Owner-approved RD105; bus and web writes still travel as ordinary durable messages, not a separate host-secret store |
 | Runner controls distinguish temporary start/stop/restart from persisted enable/disable (RD100) | [controlling one agent](runner/operations.md#controlling-one-agent) | Owner-approved RD100; changing whether an agent runs now does not silently change its configured enablement |

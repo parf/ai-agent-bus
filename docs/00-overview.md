@@ -69,6 +69,7 @@ Values have one owning section; other pages link to it. A `↳` topic belongs to
 | ↳ [Backup and restore](07-setup.md#backup-and-restore) | Encrypted record exports and imports, and the stopped-daemon backup |
 | [Processes](08-processes.md#the-processes) | Supervisor, bus and web; privileges, listeners and process titles |
 | [Daemon API](09-daemon-api.md#how-a-call-is-made) | The HTTP routes, grouped; each one's meaning stays with its topic |
+| [Writing an agent](10-writing-an-agent.md#3-ways-to-run-agents) | Execution choices and the minimum, suggested and optional agent-code checklist; contracts stay at their linked owning sections |
 | [Create an agent](agents/create-agent-prompt.md#prompt-to-paste) | Copyable AI prompt for implementing, packaging and verifying a new agent |
 | [Bundled agent guides](agents/README.md) | Ready-made helpers: choosing, installing and using them |
 | [User guides](user/README.md) | What to type: the command-line tools, running an agent, the daemon, and agent sessions; the *why* stays in the topics above |

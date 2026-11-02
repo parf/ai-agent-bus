@@ -154,6 +154,16 @@ is what each one belongs to:
 - Only the receiver knows whether the work is worth doing for somebody else — a third party on `reply-to`, a cache, an audit — and the bus does not guess.
 - What the bus does guarantee is that the moment is its own: the caller states a **duration** and never an instant, so the receiver is not reading the caller's clock.
 
+### Timeouts and uncertain outcomes
+
+- A timeout says that the caller did not receive a terminal outcome within its wait; it does not prove the receiver did no work. The caller's travelling deadline and message TTL keep their [distinct meanings](#request-and-reply).
+- An uncertain write is never repeated automatically. If acceptance is unknown, decide what can safely be checked before another attempt; do not turn a lost answer into an assumed refusal. The [clients](../src/clients/README.md#what-you-get) preserve this distinction.
+
+### Restart-safe effects
+
+- An agent decides how to preserve progress and handle duplicate effects after interruption. Separate durable work state from process memory; restarting a process is not safely replaying an operation.
+- An external effect and a progress write can be interrupted between them. Neither KV nor transport alone promises exactly-once effects; account for that uncertainty before resuming work. These rules add no automatic retry or universal recovery recipe.
+
 ## Inbox selection and filters
 
 - `--inbox` selects where to read; `--topic` and `--tag` select messages there, each on its own field: `--topic` alone takes any tag.
