@@ -70,6 +70,10 @@ Q296 to Q304, Q311 to Q313, Q321 and Q322 are [settled](DECISIONS.md#recorded-de
   > - **Absolute minimum** (every agent): answer help and status, then one request and one answer on the return route.
   > - **Suggested** (a good agent): Configuration vs Secret; the event log (notice, warning, alert); state and KV; refusals and timeouts; send once; restart-safe; graceful stop.
   > - **More** (when you need it): ack and done, roles, locks, bigfile, subscriptions for agents that emit events, may-send when forwarding.
+  >
+  > 💬 👤parf (in chat) status is "suggested"; most of our bundled agents do not support it
+  >
+  > 💬 👾 Moved: the minimum is help plus one request and one answer; `status` is the first suggested item.
 
 ## Messaging agents
 
