@@ -549,13 +549,32 @@ async function ensureIdentity(): Promise<Identity | undefined> {
     const ctx = await eventCtx();
     if (identity && identityFor === ctx.key) return identity;
     const me = await web(ctx, "read", "auth.test");
-    if (me.ok !== true || typeof me.user_id !== "string") return (identity = undefined);
+    if (me.ok !== true || typeof me.user_id !== "string") return lost();
     identity = { botUser: me.user_id, botId: me.bot_id, appId: me.app_id };
     identityFor = ctx.key;
     return identity;
   } catch {
-    return (identity = undefined);
+    return lost();
   }
+}
+/** The identity is unknown again (a failed ask, or a changed token): once the
+ *  agent is serving, something keeps asking, so `status` does not wait for an event to do it. */
+function lost(): undefined {
+  identity = undefined;
+  if (serving) keepAsking();
+  return undefined;
+}
+let serving = false; // the start-up asking is over
+let asking = false;
+function keepAsking(): void {
+  if (asking) return;
+  asking = true;
+  void (async () => {
+    try {
+      for (let wait = 1000; !(await ensureIdentity()); wait = Math.min(wait * 2, 30_000)) await new Promise(done => setTimeout(done, wait));
+      console.error("slack: the agent's Slack identity is known now");
+    } finally { asking = false; }
+  })();
 }
 
 await bus.register({ name, kind: "agent", descr: manifest.description }, { createOnly: false });
@@ -598,22 +617,21 @@ phase = "starting: reading routing and who the agent is in Slack";
 await routing();
 await router.load();
 // Slack's own answer to who this agent is comes before any event is taken: a
-// failing or slow auth.test is asked again with a growing wait, for at most
-// ~20 s, while `status` says what it waits for. If it still fails the agent
-// starts anyway, says so once, and keeps asking in the background; `status`
-// is "ok" only once it knows.
+// failing or slow auth.test is asked again with a growing wait while `status`
+// says what it waits for. The wait is given up after ~20 s (SLACK_AGENT_IDENTITY_GIVE_MS), so at
+// worst ~35 s counting one auth.test of up to 15 s that began just inside it.
+// If it still fails the agent starts anyway, says so once, and keeps asking
+// in the background; `status` is "ok" only once it knows.
 {
-  const give = Date.now() + 20_000;
+  const give = Date.now() + Number(process.env.SLACK_AGENT_IDENTITY_GIVE_MS ?? "20000");
   for (let attempt = 1; !(await ensureIdentity()) && Date.now() < give; attempt++) {
     phase = `starting: waiting for Slack to say who the agent is (try ${attempt})`;
     await new Promise(done => setTimeout(done, Math.min(500 * 2 ** (attempt - 1), 4000)));
   }
+  serving = true;
   if (!identity) {
     console.error("slack: warning: Slack has not said who the agent is; identity unknown, retrying");
-    void (async () => {
-      for (let wait = 1000; !(await ensureIdentity()); wait = Math.min(wait * 2, 30_000)) await new Promise(done => setTimeout(done, wait));
-      console.error("slack: the agent's Slack identity is known now");
-    })();
+    keepAsking();
   }
 }
 phase = "starting: loading the workspace's users and channels";
