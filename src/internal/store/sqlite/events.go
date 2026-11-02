@@ -95,6 +95,9 @@ func eventIDIssues(tx interface {
 }
 
 func (s *Store) DropEventState(id uint32) error {
+	if id == 0 {
+		return fmt.Errorf("invalid event record id")
+	}
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
@@ -126,9 +129,16 @@ func (s *Store) DropEventState(id uint32) error {
 			return err
 		}
 	}
-	// A late subscription added on the retired registration goes with it.
-	if _, err = tx.Exec(`DELETE FROM event_subs WHERE source_id = ?`, id); err != nil {
-		return err
+	// A late write on the retired registration may have made rows again; the ID
+	// is never reused, so its subscriptions, alerts and log state go with it.
+	for _, stmt := range []string{
+		`DELETE FROM event_subs WHERE source_id = ?`,
+		`DELETE FROM event_alerts WHERE record_id = ?`,
+		`DELETE FROM event_logs WHERE record_id = ?`,
+	} {
+		if _, err = tx.Exec(stmt, id); err != nil {
+			return err
+		}
 	}
 	if err = tx.Commit(); err != nil {
 		return err

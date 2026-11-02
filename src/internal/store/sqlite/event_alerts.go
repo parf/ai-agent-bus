@@ -125,31 +125,3 @@ func dropEventAlerts(tx *sql.Tx, name string, keep uint32) error {
 	_, err := tx.Exec(`DELETE FROM meta WHERE key IN (SELECT 'event-high:' || id FROM records WHERE name = ? AND id <> ?)`, name, keep)
 	return err
 }
-
-// DropEventState removes every private event row of a retired record ID: its
-// alerts, its log state and its reserved-id counter, in one transaction. A late
-// write that finished on the old registration after the deletion committed may
-// have created them again; the ID is never reused, so nothing else is touched.
-// An ID with nothing stored is success.
-func (s *Store) DropEventState(recordID uint32) error {
-	if recordID == 0 {
-		return fmt.Errorf("invalid event record id")
-	}
-	tx, err := s.db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	for _, stmt := range []string{
-		`DELETE FROM event_alerts WHERE record_id = ?`,
-		`DELETE FROM event_logs WHERE record_id = ?`,
-	} {
-		if _, err = tx.Exec(stmt, recordID); err != nil {
-			return err
-		}
-	}
-	if _, err = tx.Exec(`DELETE FROM meta WHERE key = ?`, eventIDKey(recordID)); err != nil {
-		return err
-	}
-	return tx.Commit()
-}

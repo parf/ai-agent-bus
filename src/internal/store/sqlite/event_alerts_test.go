@@ -257,17 +257,17 @@ func TestEventAlertsGoWithTheirRecord(t *testing.T) {
 	}
 }
 
-// A schema-9 database, with a record, its data and a reserved-id counter,
-// opens as schema 10: its log reads inactive and empty, the next write goes
+// A schema-10 database, with a record, its data, a subscription and a
+// reserved-id counter, opens as schema 11: its log reads inactive and empty, the next write goes
 // above the reserved ids, and everything else is intact.
-func TestSchemaNineGainsTheEventAlertTables(t *testing.T) {
+func TestSchemaTenGainsTheEventAlertTables(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "bus.db")
 	old, err := sql.Open("sqlite", path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, stmt := range tables {
-		if strings.HasPrefix(stmt, "CREATE TABLE event_") {
+		if strings.HasPrefix(stmt, "CREATE TABLE event_logs") || strings.HasPrefix(stmt, "CREATE TABLE event_alerts") {
 			continue
 		}
 		if _, err := old.Exec(stmt); err != nil {
@@ -279,7 +279,8 @@ func TestSchemaNineGainsTheEventAlertTables(t *testing.T) {
 		`INSERT INTO records (name, id, kind, body, owner_id) VALUES ('jobs@h', 3, 'agent', '{"name":"jobs@h","kind":"agent","owner":"alice@h"}', 7)`,
 		`INSERT INTO kv (record_id, name, value) VALUES (3, 'kept', 'value')`,
 		`INSERT INTO meta (key, value) VALUES ('event-high:3', '64')`,
-		`PRAGMA user_version = 9`,
+		`INSERT INTO event_subs (id, source_id, body) VALUES ('000000000001', 3, '{"id":"000000000001"}')`,
+		`PRAGMA user_version = 10`,
 	} {
 		if _, err := old.Exec(stmt); err != nil {
 			t.Fatalf("%s: %v", stmt, err)
@@ -288,12 +289,12 @@ func TestSchemaNineGainsTheEventAlertTables(t *testing.T) {
 	old.Close()
 	s, err := Open(path, false)
 	if err != nil {
-		t.Fatalf("schema 9 did not open: %v", err)
+		t.Fatalf("schema 10 did not open: %v", err)
 	}
 	defer s.Close()
 	var version int
-	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != 10 {
-		t.Fatalf("version %d (%v), want 10", version, err)
+	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != 11 {
+		t.Fatalf("version %d (%v), want 11", version, err)
 	}
 	if got, active := loadAlerts(t, s, 3); len(got) != 0 || active {
 		t.Fatalf("a migrated database holds alerts: %+v active=%v", got, active)
@@ -309,6 +310,9 @@ func TestSchemaNineGainsTheEventAlertTables(t *testing.T) {
 	snap, err := s.Load()
 	if err != nil || len(snap.Records) != 1 || snap.Records[0].Name != "jobs@h" || snap.Records[0].OwnerID != 7 {
 		t.Fatalf("the migration changed the registry: %+v %v", snap.Records, err)
+	}
+	if rows, err := s.ListSubscriptions(3); err != nil || len(rows) != 1 {
+		t.Fatalf("the migration lost the subscription: %v %v", rows, err)
 	}
 	var kept string
 	if err := s.db.QueryRow(`SELECT value FROM kv WHERE record_id = 3 AND name = 'kept'`).Scan(&kept); err != nil || kept != "value" {

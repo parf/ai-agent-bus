@@ -154,8 +154,8 @@ func TestADamagedSubscriptionRowDoesNotBlockCommitsOrLookups(t *testing.T) {
 	}
 }
 
-// A schema-9 database, with a record and its data, opens as schema 10 with no
-// subscriptions and keeps everything.
+// A schema-9 database, with a record and its data, opens as the current schema
+// (through 10 to 11) with no subscriptions and keeps everything.
 func TestSchemaNineGainsTheSubscriptionTable(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "bus.db")
 	old, err := sql.Open("sqlite", path)
@@ -187,8 +187,8 @@ func TestSchemaNineGainsTheSubscriptionTable(t *testing.T) {
 	}
 	defer s.Close()
 	var version int
-	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != 10 {
-		t.Fatalf("version %d (%v), want 10", version, err)
+	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != 11 {
+		t.Fatalf("version %d (%v), want 11", version, err)
 	}
 	if rows, err := s.ListSubscriptions(3); err != nil || len(rows) != 0 {
 		t.Fatalf("a migrated database holds subscriptions: %v %v", rows, err)

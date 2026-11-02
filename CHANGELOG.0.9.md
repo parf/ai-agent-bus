@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.293 — 2026-11-02
+
+Agent-log alerts survive a daemon restart: durable per-agent alert snapshots, store schema 11
+
 ## 0.9.292 — 2026-11-02
 
 Agent-log subscriptions in the daemon: #bus sub add/list/delete, copies sent from #bus before pull or clean, real delivery counts; store schema 10

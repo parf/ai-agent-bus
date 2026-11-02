@@ -35,7 +35,10 @@ func (s *State) DropEventState(id uint32) error {
 	if s.Err != nil {
 		return s.Err
 	}
-	delete(s.eventHigh, id)
+	if id == 0 {
+		return fmt.Errorf("invalid event record id")
+	}
+	s.dropEventLog(id)
 	s.dropSubscriptions(id)
 	return nil
 }

@@ -114,8 +114,8 @@ func TestSchemaEightGainsTheBigfileIndex(t *testing.T) {
 	}
 	defer s.Close()
 	var version int
-	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != schema || schema != 10 {
-		t.Fatalf("version %d (%v), want 10", version, err)
+	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != schema || schema != 11 {
+		t.Fatalf("version %d (%v), want 11", version, err)
 	}
 	if rows, err := s.BigRows(); err != nil || len(rows) != 0 {
 		t.Fatalf("a migrated database's index = %+v %v", rows, err)
