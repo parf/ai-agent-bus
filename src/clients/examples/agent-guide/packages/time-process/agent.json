@@ -1,1 +1,1 @@
-{"command":"python3 time_service.py","serves":"itself","processes":1,"description":"Tell the current UTC time, keep progress in KV and write events to its own log","config":{"format":{"help":"iso or epoch; the format used when the request names none"}}}
+{"command":"./time_service.py","serves":"itself","processes":1,"description":"Tell the current UTC time, keep progress in KV and write events to its own log","config":{"format":{"help":"iso or epoch; the format used when the request names none"}}}
