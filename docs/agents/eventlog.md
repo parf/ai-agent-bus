@@ -120,11 +120,12 @@ eventlog: 0 active logs
 
 ## Log model
 
-This section owns the shared ring rules; the current agent's storage
-retention is described under [persistence](#technical-details). The daemon's
-per-agent logs use these rules through [#bus](bus.md#agent-logs); named logs,
-subscriptions and durable alerts described on this page belong to the eventlog
-agent. The bus guide distinguishes its built and pending parts.
+- This section owns the shared ring rules; eventlog's retention is described
+  under [persistence](#technical-details).
+- The daemon's per-agent logs use these rules through [#bus](bus.md#agent-logs).
+  The bus guide distinguishes its built and pending parts.
+- Named logs, subscriptions and durable alerts described on this page belong
+  to the eventlog agent.
 
 Default rings:
 
