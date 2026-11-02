@@ -1,10 +1,105 @@
 # Agent events TODO
 
-📌 **TL;DR:** what each bundled agent must write into its own
-[event rings](README.md#levels): the runner's common events once, then each
-agent's own alerts and warnings, as its guide states them. Blocked on the API
-shape (see [RT34](../TODO.md#rt34-agent-events)) and on stderr noise: many
-agents log every call on stderr today, which would make each call a warning.
+📌 **TL;DR:** the owner's R1 cut is per-agent logs, subscriptions and a small
+web preview with expand. The [design and estimate](README.md#build-split-and-estimate)
+own the scope; the checks below decide when it is built. Existing producer
+catalogues remain follow-up work, not an extra requirement hidden in P1.
+
+## R1-min
+
+Contract: [verbs and authority](README.md#r1-min-surface-and-authority),
+[shared model](../../../docs/agents/eventlog.md#log-model),
+[retention](README.md#flood-and-persistence). All entries are volatile in the
+selected R1 cut; only id reservations and subscription definitions are durable.
+Do not mark RT34 complete on the smaller no-subscription comparison estimate.
+
+| Part | Owner/order | Falsifiable acceptance | Status |
+|---|---|---|---|
+| P1 engine, verbs, ACL, ids, vectors | W2C; target 11:40–12:40, estimate risk in design | Checks P1 below; no new route/SDK or verified runner provenance | ⏳ |
+| P2 runner observations | W2B, parallel after contract | Uses target agent's `s.bus`; masked stderr and requested/unrequested exit fixtures below | ⏳ |
+| P3 subscriptions | W2C after P1 | Shared semantics plus new daemon storage/ACL/send proof below | ⏳ |
+| P4 web | W1C, parallel against contract | Three recent lines and expand, with server ACL; no dashboard/polish | ⏳ |
+| Read, normal gate and release-run touched set | Two readers on ⚠️ changes, then gate | Compiling mutants fail their owning assertions; restored touched checks and normal gate green | ⏳ |
+
+### P1 checks
+
+- Run the same `src/testdata/event-rings.json` model cases through Python and
+  Go adapters. Cover default bounds, independent levels, TTL edge, control/ANSI
+  removal, Unicode truncation, fixed-minute folding, backwards clock, read/pull
+  order and inclusive clean. A changed model assertion can fail both engines.
+- Restart the memory-entry engine: all entries are absent; newly issued ids
+  exceed every id issued before restart, including a clean-then-restart path.
+  Crash between reservation and append skips ids, never repeats them. A failed
+  durable reservation accepts no entry. Test retention profiles explicitly;
+  do not silently skip the existing durable-alert expectation.
+- Owner/Maintainer/daemon Owner can read/list/pull/clean. A bare admitted caller,
+  a `read` role and an agent with write-only self access see no log contents or
+  counts. Revocation is honored on the next operation; replacement records
+  never expose old private logs.
+- A caller writes only its own agent log; daemon Owner may also write. Another
+  agent, a same-owner runner token and an Owner-set `runner` tag do not bypass
+  this check. A body claiming a runner source grants nothing and is not shown
+  as verified. Existing `#bus` help/status/version/ls still behave as before.
+- Burst/rate and oversized-input fixtures prove bounded memory, no id allocated
+  on refusal, and a drop count without recursive warnings. A blocked event
+  operation does not hold core's global lock over disk/network work.
+- A new verb is reachable through existing `call` without SDK additions;
+  protocol/min remain 1. T-24 vectors remain green; representative call and ACL
+  cases exercise real credentials, not supplied caller strings.
+
+### P2 checks
+
+- Start/requested stop are notices; an unrequested exit, signal or failed start
+  is an alert. A requested stop produces no failure alert. One lifecycle event
+  is not emitted twice by overlapping stop/exit hooks.
+- Tee stderr only after the existing secret masker, with a bounded partial-line
+  and forwarding queue. Plant configured secrets and verify they are masked;
+  other text remains private/untrusted. A full/unavailable event path neither
+  blocks the child nor retries it as a second event.
+- Assert calls use each agent's `s.bus` token, never `r.bus`, and cannot select
+  another agent. No log label or web view presents this as verified producer
+  provenance. Existing stdout/JSONL protocol parsing remains intact.
+
+### P3 checks
+
+- `sub add` starts now; wrong source authority or target admission refuses it.
+  The creator or current source managers manage it; other admitted callers
+  cannot list/delete it. Restart keeps definitions without replaying entries.
+- Apply `src/testdata/subscriptions.json` to the Go adapter, including the
+  portable regex rules. No Go-only regex extension silently changes matching.
+- A matching new occurrence is sent once before pull can remove it, including
+  an accepted fold. Immediate pull cannot steal the copy. Two subscriptions
+  each get their copy; unrelated logs/levels do not match.
+- A refused/full/unavailable target drops and counts that copy; the next event
+  still attempts delivery. A revoked creator/source/target sends nothing.
+  No outbox, retry, pause, or credential stored in definitions; no recursive
+  event storm when delivery reporting itself fails.
+- Mutants remove each ACL check, retry a refused copy, skip subscription
+  persistence, or let pull win; each compiles and fails a named assertion.
+
+### P4 checks
+
+- For a managed agent, preview the three highest ids across all levels when
+  more entries exist; a newer notice is not hidden by older alerts. Expand
+  reveals the complete bounded log in the shared level/order convention.
+  Alerts stand out more than warnings; escaped markup remains text.
+- Unrelated/read-role/self-write-only callers receive no preview, expand body
+  or counts, including a forged direct page request and a revoked manager.
+  No presentation claims a verified runner source.
+- Test empty, warning-only and alert logs; expansion reads the current log
+  without consuming it. No new stream route or dashboard work is required.
+
+## Post-1.0 parts
+
+| Part | Falsifiable acceptance | Status |
+|---|---|---|
+| Alerts on disk | Failed write/removal leaves no acknowledged half-state; restart preserves alerts until TTL/size/clean/pull; migration, corrupt-state refusal and durable vector cases pass | ⏳ |
+| Eventlog front/migration | Existing alert ids, high-waters, configuration and subscriptions survive isolated import; no replay/double writer; original files survive failed import/rollback | ⏳ |
+| Daemon's own producers | Fixed safe templates at each selected report site; planted tokens/bodies/raw refusal internals never enter daemon-authored lines | ⏳ |
+| Runner provenance B | Manager-controlled daemon binding, foreign-runner/rebinding race mutants, no tag/shared-owner shortcut | ⏳ |
+
+The catalogue below is retained design work for later producer integrations.
+It is not all included in the four-part R1 cut.
 
 ## Tasks
 

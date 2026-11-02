@@ -1,96 +1,277 @@
 # Agent events
 
-📌 **TL;DR:** the daemon keeps a syslog-like event log for each agent, in three
-rings: notice, warning and alert. Starts and stops are notices, stderr lines are
-warnings, unexpected failures are alerts. The API and the web show them to the
-agent's Owner and Maintainers, and the web makes alerts loud and warnings
-quieter. Owner, 2026-10-29; settings live in [the bus setup](../daemon-configuration.md#approved-plan).
+📌 **TL;DR:** R1 gets per-agent logs, subscriptions and a small web view:
+a few recent lines, alerts loud, warnings quieter, and expand to the full log.
+The end state is one Go engine in the daemon with `#eventlog` as its front;
+that migration and the daemon's own producers are post-1.0. This plan contains
+no implementation. With the recommended volatile-entry option, the selected cut costs 2¾–4½
+AI hours in total, with a
+2½–4½-hour tree-ready delay when the three workers overlap their parts.
 
-Tasks: [RT34](../TODO.md#rt34-agent-events), [per-agent events](TODO.md#per-agent-events).
+Owner's [Q312 decision](../DECISIONS.md#recorded-decisions) and
+[falsifiable acceptance](TODO.md#r1-min) define the cut.
+
+## One engine at the end
+
+Recommend keeping `#eventlog` as a thin front, rather than retiring its name:
+existing writers, named logs, per-instance admission and subscriptions keep
+working. The daemon owns both agent logs and isolated named-log namespaces;
+`#bus` offers agent-log reads and subscriptions. A named log belonging to one
+`#eventlog` instance must never become visible through another instance.
+
+R1-min does **not** move the Python code into Go. It implements the same
+[log model](../../../docs/agents/eventlog.md#log-model) and verb meanings in
+Go for agent records; `#eventlog` continues unchanged for named logs. The
+[built agent guide](../../../docs/agents/eventlog.md#what-it-does) owns its
+current behavior; [the front transition](#eventlog-front-and-existing-state)
+is a separately priced step.
+
+The inverse, a runner writing agent events into `#eventlog`, is rejected:
+its ACL is per instance rather than per log, and daemon events must not depend
+on a running agent.
 
 ## Levels
 
-| Level | Written when | Ring | Kept |
-|---|---|---|---|
-| notice | usual information: the runner starts or stops the agent; the agent or a diagnostic reports something worth keeping | its own | daemon memory |
-| warning | usual warnings, never a failure: a line on the agent's stderr; a warning the agent reports; a daemon warning about the record (a dropped copy, a refused forward) | its own | daemon memory |
-| alert | the agent's script failed: a non-zero exit nobody asked for, a kill by signal, memory or process limit, a start that fails, a restart loop, a sandbox refusal; or the script reports an alert itself | its own | disk, survives a daemon restart |
+The [shared log model](../../../docs/agents/eventlog.md#log-model) is the
+single specification for levels, ring defaults and bounds, TTL, ordering, ids,
+line normalization and fixed-window repeat folding. This page and the
+[named-log plan](eventlog.md#rules) link there; they do not keep another table.
 
-stderr is for problems only: an agent never writes routine lines there; what
-is worth keeping it writes as an explicit notice (owner, 2026-10-29: "just
-writing to stderr is bad design").
+Runner start/requested stop produce notices, stderr lines warnings, and an
+unexpected failure alerts. Requested stop is never a failure alert. Agent
+self-writes use the same severities. Agent targets resolve to the current
+registry record identity, not an arbitrary named log; a replacement record
+must not inherit its predecessor's private entries.
 
-One ring per level, so a stream of stderr warnings never pushes an alert out
-(owner, 2026-10-29). Each ring is fixed-size; when full, the oldest entry is
-lost. Every entry also expires after its level's TTL, so nobody sees that an
-agent failed 100 days ago (owner, 2026-10-29). Defaults, changed in the bus
-setup:
+### Drift guard
 
-| Level | Entries per agent | TTL |
-|---|---|---|
-| notice | 200 | 1 day |
-| warning | 200 | 7 days |
-| alert | 50 | 30 days |
+`src/agents/shared/event_rings.py` already implements the model and
+`src/agents/eventlog/test_rings.py` runs `src/testdata/event-rings.json`.
+Add a Go adapter to the **same** vectors; do not translate them into a second
+fixture set. Extend shared cases for Unicode/control stripping, TTL boundaries,
+fold windows, level isolation, pull order and inclusive clean. A changed
+expectation must fail both adapters when it concerns the shared model.
 
-## Who writes
+Separate entry-retention profiles from model rules: today's Python profile
+keeps alerts; R1's memory-entry profile loses them at restart. Split the
+existing combined restart case into common id-reservation checks and explicit
+retention checks; do not claim that volatile alerts pass a durable-alert
+expectation. Both engines run the common cases; each configured retention
+profile has a named restart assertion. Go must run the durable-alert cases
+before that optional storage step can land.
 
-| Writer | Writes |
+## R1-min surface and authority
+
+Recommend the existing `send`/`call` path to `#bus`: every client and agent can
+already call it, no new SDK method is required, and the small web view can use that same call without a new HTTP route. Use eventlog's verbs, with an agent record in the log position:
+
+| Verb | Meaning in `#bus` |
 |---|---|
-| the runner | start, stop, stderr lines and unexpected failures of the agents it runs |
-| the daemon | its own warnings about the record, the ones `error.log` holds today; its own life into [`#bus`](#the-buss-own-events) |
-| the agent itself | its own record's rings only |
-| diagnostics (`#debug`, doctor, `check-deploy`) | what they find about an agent, and they read the rings in their reports (owner: "diagnostic and alike should also do") |
+| `write <agent> notice\|warning\|alert <text>` | append to the caller's own log; daemon Owner may also write |
+| `read <agent> [level]` | inspect without consuming; no level means all levels |
+| `list` | only agent logs the caller manages, with live counts |
+| `pull <agent> [level] [count]` | oldest ids first, default 100, range 1–500; remove each once |
+| `clean <agent> [level] [id]` | no id clears the selection; an id is an inclusive cutoff |
+| `sub add <target> <agent> [level] [/regex/]` | starts now for one managed agent; no level means all; target is an agent or queue |
+| `sub list [agent]`, `sub delete <id>` | caller-owned or source-managed subscriptions; ids are opaque, not entry ids |
 
-## Who reads
+Do not add an `events` alias over `read`: one set of verbs avoids drift.
+Method metadata and help list only methods the caller may use. The agent
+argument is a canonical registry name, including its realm; it is not subject
+to eventlog's short named-log syntax. Pull/clean retain eventlog's optional
+level/count/id disambiguation; use its documented structured call when selecting
+a level alone. Text and structured forms have the same validation. Existing
+eventlog result semantics, order, count and truncation rules are the common
+reply contract; P1/P3/P4 build against that guide, not a second reply design.
+No new JSON shape is introduced here. Regex uses the existing portable
+subscription-filter subset and shared vectors; no broader Go-only syntax.
 
-The agent's Owner and Maintainers, and the daemon Owner, through the API and
-the web (owner, 2026-10-29). Callers on the allow list see none, not even
-entries their own messages caused: stderr is not tied to one message reliably
-and may carry other callers' data, and a caller already gets an error answer.
+### Who reads
 
-Every entry has an increasing id per agent, one sequence across the three
-levels, never reused, so a reader can tell what it has already seen.
+- The record's Owner, Maintainers and daemon Owner may read, pull, clean and
+  subscribe. Bare admission and a `read` role grant **no** agent-log data:
+  stderr can carry anything. List, status and subscriptions must not leak it.
 
-An entry is one line, cut at 200 characters as `error.log` lines are; a line
-repeated within a minute is kept once with a count of those held back. stderr
-may carry anything an agent prints, which is why readers are Owner and
-Maintainers only. Bodies and secrets are never written by the runner or daemon.
+### Who writes
+
+- **Settled A:** the runner submits each agent's observations with that
+  agent's existing `s.bus` credential, not `r.bus`. The daemon accepts a write
+  only when caller equals the target agent; the daemon Owner may also write.
+  Agent self-writes use that same own-agent rule. There is no daemon-readable
+  runner inventory today, and tags or a shared Owner are not proof of a binding.
+- An agent can write a misleading line about itself, seen only by its own
+  Owner and Maintainers. The daemon Owner retains the read access above.
+  No verb, entry presentation or web label claims verified runner provenance;
+  a self-asserted “source: runner” is only untrusted text. Agent log lines never
+  change the runner's process status or its separate trusted observations.
+- Only the daemon Owner reads `#bus`'s log; automatic daemon events are post-1.0.
+  Named-log role behavior remains the existing `#eventlog` contract, not an
+  extra reader grant for agent logs.
+- Daemon-generated lines use fixed descriptions plus approved record/reason
+  identifiers: never tokens, message bodies, raw refusal internals or arbitrary
+  `error.Error()` strings. Runner-generated lifecycle lines follow that rule.
+  Forwarded stderr remains untrusted, private data; sanitization is not a
+  promise that secret text can always be recognized and removed.
+
+### Protocol and clients
+
+The [freeze rules](../../../docs/09-daemon-api.md#stability-and-compatibility)
+say a break to a conforming stable client is a "MAJOR version" and require
+clients to ignore unknown answer fields. The owner's
+[pre-1.0 decision](../DECISIONS.md#recorded-decisions) now keeps `protocol` and
+`protocol_min` at 1 until 1.0.0: before then, wire additions amend protocol 1
+and its shared vectors; from 1.0.0, the integer rises with any wire change.
+
+Every verb above is additive agent-method behavior over unchanged message
+routes; none changes an old verb, envelope, refusal kind or client handshake.
+Transport errors retain the existing HTTP refusal set; method-level errors
+reuse eventlog's content-free application refusals inside the call answer,
+not new HTTP kinds. A new HTTP refusal kind or broader read permission
+would not meet this design; neither is proposed. Keep T-24's client vectors
+passing, and add representative call/refusal integration cases through the
+existing client calls; ring/ACL/subscription cases belong in their shared
+engine fixtures, not six copied SDK suites.
+
+A direct HTTP events read/write surface is an alternative, **also protocol 1
+before 1.0.0**. It costs another 15–25 AI minutes for
+route inventory, unknown/duplicate-field/refusal checks, documentation and
+T-24 conformance cases, plus any new SDK helpers. It offers a shorter path for
+high-volume writers and web reads. Defer it unless measured call-path cost
+requires it; this recommendation rests on reuse, not protocol avoidance.
+
+## Flood and persistence
+
+Proposed admission defaults: ten accepted occurrences per second per agent,
+burst twenty, counting folded occurrences too. Match the existing eventlog
+request bound for explicit writes; runner stderr capture must also have a
+bounded partial-line buffer before normalization. Ring bounds remain the
+shared model. Runner forwarding has a bounded queue; overflow drops and
+counts rather than blocking the child. Existing routine stderr output can
+still make noisy warnings; caps do not classify it, and the all-agent producer
+cleanup is outside this cut. Per-agent serialization must not hold
+the registry's global lock during disk work or subscription sends. Rate-limited
+entries consume no ids; expose their count without logging another event per
+drop. Budget these controls with the engine/writers, not as later hardening.
+
+| Option | Restart and retention | Work |
+|---|---|---|
+| All entry rings in memory, recommended R1-min | Every level expires by the shared TTL and disappears at daemon restart | No durable entry table; durable id high-water is still mandatory |
+| Alerts on disk | Alerts survive restart until the same TTL/size/clean/pull removes them; other entries remain volatile | New store table, migration, atomic writes/removals, reopen/corrupt-state checks and storage mutants |
+
+"All in memory" cannot include the id allocator while retaining eventlog's
+never-reused-id rule. Persist reserved high-water blocks before issuing ids;
+retain the tombstone through clean. This is its own ⚠️ storage step, even
+without durable alert bytes. A failed reservation returns no accepted entry;
+never fall back to a restarted counter. Existing storage primitives may reduce
+the work, but their integration and restart proof are not free.
+
+### Subscriptions are new daemon work
+
+The selected R1 cut includes subscriptions; R1-min without them is an
+estimate comparison and does not satisfy Q312. Reuse core's existing send path and eventlog's send-once,
+drop-and-count behavior, without a retry queue or outbox. Copies are decided
+before a matching entry can be taken by pull, including accepted folded
+occurrences. A full/revoked/unreachable target drops that copy, increments its
+counter and leaves the subscription available for the next entry.
+
+The daemon still needs durable definitions, management, creator/source/target
+ACL checks, regex matching and bounded fan-out. Check authority at creation
+and delivery; management is creator or current source managers, with no new
+reader role. Store identities, not credentials. Reserve capacity before
+accepting a write; no network call holds the global registry lock. Failure
+counters must not recursively generate subscribed events. Shared subscription
+vectors already exist, but a Go adapter and storage are new work.
 
 ## The bus's own events
 
-`#bus` is the daemon's own record, so the daemon writes its own life into
-`#bus`'s rings (owner, 2026-10-29: "#bus itself must write there too"). Readers
-are the daemon Owner. `error.log` and syslog keep getting what they get today;
-the rings are an extra, readable view.
-
-| Level | When |
-|---|---|
-| notice | the daemon started (version, realm, listeners) or stopped cleanly; the bus setup changed (who, which key); `debug.log` turned on or off; a store migration ran at start; a backup or restore finished |
-| warning | what `error.log` holds as a warning today: a pubsub copy dropped for an inactive or full recipient, a ring queue dropping its oldest, a forward refused for crossing owners with roles; free space on the store's disk under 10 %; a burst of failed authentications from one address; a listener's TLS certificate expiring within 14 days; the clock stepped back; an unreadable stored activity day |
-| alert | a [conceptual error](../../../docs/constitution.md#errors-and-alerts): a violated invariant, corrupt stored state, a failure to answer with authority; a store write that failed (disk full, I/O error); a listener that cannot bind at start; an expired TLS certificate; the previous run ended without a clean stop, found at start |
-
-- The daemon cannot write while it is down: a crash shows as the start-time
-  alert of the next run, with the time of the last clean write.
-- Agents' own events stay in their own rings; `#bus` never copies them. The web
-  home sums alerts across `#bus` and the agents the viewer manages.
-- Thresholds (10 %, 14 days, the burst size) are bus setup keys with these
-  defaults.
+Post-1.0: wire up the daemon's own start/stop, store, authentication, TLS and
+other report sites. Agent logs and subscriptions do not require those hooks;
+adding them now expands the producer audit and risks re-emitting internal
+refusal or secret text. `error.log`, audit and syslog remain independent.
+Any later engine failure uses the existing journal, not its own subscriptions.
+The wider producer catalogue remains in [the TODO](TODO.md#per-agent-events).
 
 ## Web
 
-| Where | Shows |
-|---|---|
-| agent list | an alert mark on agents with alerts in the last day; warnings as a quieter count |
-| agent page | the three rings, alerts first and prominent, warnings below, notices folded |
-| home | recent alerts across the agents the viewer manages |
+**In R1, P4:** per agent, preview the three greatest entry ids across all
+levels, newest first; style alerts louder than warnings, with expand to the
+full log. Do not mistake level-prioritized read order for a global recent-line
+selection. Expansion reuses `read` and its level order;
+no websocket, new stream route, dashboard aggregation or visual polish.
+Recheck Owner/Maintainer/daemon-Owner access on the server for both preview and
+expand, render text as untrusted data, and show no verified runner source.
+The limit is presentation-only: it does not change ring retention or read order.
 
-Red for alerts, orange for warnings, nothing loud for notices
-(red/orange are reserved for errors and warnings). Alerts need no
-acknowledgement: they stand out by recency (owner, 2026-10-29).
+## Later runner provenance
 
-## Not in this
+Option B is post-1.0: explicit daemon-side runner-to-agent writer grants,
+controlled by the target's managers, plus current-binding validation and
+separate producer provenance. Host-local `agents.json` is not observable by
+the daemon; an Owner-set tag is not authority. This adds authority/storage
+work and deployment handoff, while option A uses credentials already handed
+to the runner. Do not quietly replace A with a shared-owner shortcut.
 
-- No push: alerts are not published to a channel; a watcher reads the API
-  (owner, 2026-10-29).
-- No change to `error.log`, `audit.log` or syslog.
-- Queues and other records: agents first; a record's daemon warnings may join later.
+## Eventlog front and existing state
+
+Post-1.0: keep deployed instances on the current engine until migration is
+accepted. This can ship separately: agent logs have a distinct private audience,
+and safe import/rollback of existing named logs adds storage and ACL work.
+Do not delay the agent-log flow for this conversion.
+Stop one instance's writes, preserve its work-directory state and subscription
+KV, then import alerts, reserved id high-waters/tombstones, configuration and
+subscription identities into an isolated daemon namespace. Validate counts,
+ids and retention before one atomic cutover; no dual writer or replay of old
+entries to subscribers. Notice/warning loss is the existing restart behavior.
+Keep the backup for rollback; refuse corrupt/ambiguous imports without deleting
+or resetting the original files. Resume the old engine only after disabling
+the front, so rollback cannot deliver twice. There is no automatic deletion of
+old logs. This is storage/authority work, not merely a proxy rename.
+
+## Build split and estimate
+
+Based on the inspected `a949ffc9` code plus the owner decisions now on local
+main: Python rings already have durability and shared vectors; `#bus` currently
+serves help/status/version/ls, runner stderr is local, and daemon-side
+subscription management does not exist. Times are focused AI implementation
+work; reviews and gates are separate. ⚠️ parts need compiling assertion-red
+mutants and two readers. No production log migration is in the R1 cut.
+
+| Part | Likely paths and subsystem letter | AI time | R1-min or later |
+|---|---|---|---|
+| Daemon ring engine + flood bounds, P1 | `src/internal/journal/` C ⚠️; core A ⚠️ | 25–35 min | R1 |
+| Durable id high-water, P1 | `src/internal/ports/`, `store/`, `journal/` C ⚠️ | 15–25 min | R1, mandatory even for volatile entries |
+| Runner writers + bounded stderr, P2 W2B | `src/cmd/agent-bus-runner/`, `internal/script/` F ⚠️ | 20–30 min | R1, `s.bus` per agent |
+| Agent self-write, P1 | core A ⚠️; `src/internal/api/daemon_agent.go` E | 5–10 min | R1; no all-agent producer migration |
+| Read API + ACL, P1 | core A ⚠️; daemon agent E; help/docs H/N | 20–30 min | R1 via verbs |
+| Shared ring/vector adapters, P1 | `src/testdata/` M; eventlog/shared L; journal C ⚠️ | 10–20 min | R1 |
+| Subscriptions + durable management, P3 W2C | core A ⚠️; ports/store C ⚠️; daemon agent E | 30–45 min | Selected R1 cut |
+| Alerts on disk | store/ports/journal C ⚠️ | 25–40 min | Later, optional |
+| `#bus` own events | `src/cmd/agent-busd/` H; core/journal A/C ⚠️ | 15–25 min | Post-1.0 |
+| Three-line preview + expand, P4 W1C | `src/web/` I; core/API A ⚠️/E | 20–35 min | Selected R1 cut |
+| Eventlog front and migration | eventlog/shared L; store/core C/A ⚠️ | 35–60 min | Post-1.0; existing logs stay put |
+| Tests and mutants, P1/P2 | owning packages; smoke/acceptance M | 20–35 min | R1; optional-part proof included in their rows |
+| Runner provenance B | core/store A/C ⚠️; runner F ⚠️ | +15–25 min | Post-1.0; outside totals |
+| Direct HTTP alternative | API E/protocol D ⚠️; vectors/clients K/M; docs N | +15–25 min, SDK extras separate | Alternative, outside totals |
+
+P1 is W2C, target 11:40–12:40; P2 is W2B, P3 is W2C after P1, P4 is W1C.
+P2 and P4 can build against the verb contract while P1 is implemented, then
+prove their integration against it. P1's counted scope is 95–155 minutes,
+including its proof allocation: a one-hour slot is an aggressive target,
+not evidence that storage/ACL checks take no time. An overrun must be reported,
+not hidden by skipping tests. P3 follows the engine; readers and the gate
+remain shared resources.
+
+| R1 choice | Summed AI time | Tree-ready moves later by, with the split | Calendar impact |
+|---|---|---|---|
+| R1-min without subscriptions or web, volatile entries | 1 h 55–3 h 05 | 2 h 05–3 h 35, including 30–60 min review/gate | Comparison only; moves the Nov 2 release run by one session and does not meet Q312 |
+| With subscriptions, without web | 2 h 25–3 h 50 | 2 h 35–4 h 20, including 30–60 min review/gate | Comparison only; same Nov 2 delay, but omits the owner's web requirement |
+| **Selected R1: subscriptions + small web, volatile entries** | **2 h 45–4 h 25** | **2 h 35–4 h 20**, P1 then P3, P2/P4 overlapped, plus 30–60 min review/gate | With an 11:40 start and no queue, tree-ready about 14:15–16:00 on Nov 2; late starts/findings can slip to Nov 3 |
+| Selected scope with durable alerts instead | 3 h 10–5 h 05 | 3 h–5 h, including its migration/restart proof | Same scope, longer Nov 2 window; alerts survive only within the shared retention limits |
+| Full listed set: durable alerts, `#bus` producers, front/migration | 4 h–6 h 30 | About 5–8 h with review/gates; migration is serial | Another full session; not the R1 cut |
+
+These are delays from the existing release-run/Fable tree-ready point, not a
+new promised release date. Lock queues and findings add time. The earlier
+1½–2-hour whole-feature estimate is too small for the selected cut. The owner's
+R1 scope decision stands; volatile entries are the recommendation priced
+above, and durable alerts are a separate option. The named-log transition and verified
+runner provenance are not hidden in that estimate.

@@ -109,7 +109,7 @@ eventlog: 0 active logs
 
 ## Configuration
 
-- An absent or null Configuration uses the defaults below.
+- An absent or null Configuration uses the [log model defaults](#log-model).
 - `config.json.dist` shows an unconfigured instance.
 
 | Key | Meaning |
@@ -117,6 +117,11 @@ eventlog: 0 active logs
 | `rings` | level → optional `size` and `ttl` duration overrides |
 | `logs` | log name → per-level overrides on top of `rings` |
 | `max_logs` | active log bound, default 100, range 1–100 |
+
+## Log model
+
+This section owns the shared ring rules; the current agent's storage
+retention is described under [persistence](#technical-details).
 
 Default rings:
 
@@ -128,6 +133,11 @@ Default rings:
 
 - The combined ring capacity of a log is at most 500. Each level's size is at least one.
 - TTL is a positive duration with one `s`, `m`, `h` or `d` unit, at most 366 days.
+- Entries use one increasing id sequence per log across all levels, never reused after clean or restart. Full clean keeps the last-id tombstone; ids reserve blocks of 64, so restart can skip unused numbers. Ids stay within the exact JSON integer range; exhaustion refuses a write.
+- Read is newest first within a level, levels alert then warning then notice; pull removes oldest ids once, and clean through an id is inclusive.
+- A repeated level and text within a fixed minute from its first entry folds into that live entry, preserving its id and increasing count; an accepted folded occurrence still forwards once.
+- Controls and ANSI sequences are removed before the text is cut to 200 Unicode characters. Text remains untrusted data.
+- Times use UTC RFC3339 with milliseconds and `Z`; ids still order entries when the clock moves backwards. A backwards clock does not fold a new occurrence into an older entry.
 
 ## Secret keys
 
@@ -167,9 +177,7 @@ None. The runner supplies this instance's bus credentials.
 <details>
 <summary>Entries and replies</summary>
 
-- Each entry has `id`, `level`, `text`, `at`, `last_at` and `count`. Times are UTC RFC3339 with milliseconds and `Z`. Ids order entries even when the clock moves backwards.
-- A repeated level and text within a fixed minute from its first entry folds into that live entry, preserving its id and increasing count; an accepted folded occurrence still forwards once.
-- Controls and ANSI sequences are removed before the text is cut to 200 Unicode characters. Text remains untrusted data.
+- Each entry has `id`, `level`, `text`, `at`, `last_at` and `count`; ordering and line rules are in the [log model](#log-model).
 - `write` returns `{entry,deliveries:{matched,sent,dropped}}`.
 - `read` returns `{log,rings,counts,latest_alert_at,now}`: rings appear in alert, warning, notice order, or contain only the requested level; counts cover all levels. Latest alert time is null when no live alert remains.
 - `list` returns `{logs,now}`, with rows `{log,counts,latest_alert_at}` sorted by name.
@@ -182,7 +190,7 @@ None. The runner supplies this instance's bus credentials.
 <summary>Persistence and storage</summary>
 
 - Alert snapshots and id reservations are private files, atomically replaced and fsynced before success. Notice and warning entries live only in memory.
-- Ids reserve blocks of 64; a restart can skip unused ids and never reuses them. Full clean retains a name's tombstone.
+- Durable id reservations and clean tombstones follow the [log model](#log-model).
 - The lifetime name cap is 10,000: new names are refused at the cap, old names are retained and cleanup is allowed.
 - Startup refuses corrupt or oversized state and an overlapping generation.
 - Storage uncertainty poisons further operations until state is reopened and validated; do not replay an uncertain write blindly.
