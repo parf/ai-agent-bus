@@ -63,6 +63,12 @@ backlog outcome. *Settled by:* owner, with R1.1.
   - ( ) No, the agents keep their per-delivery recheck ⭐
   > 💡👾 One rule everywhere is easier to explain in the agent guide; not urgent, after 1.0.0.
 
+- ❓ Q328 May a Personal agent list `#bus` in its Allow, so it can receive copies of agent-log subscriptions
+  - Context: a Personal agent's Allow is limited to its owner's own agents, so `#bus` is refused ([final review A3](../issues/2026-11/2026-11-02.md)). For 1.0.0, `sub add` refuses such a target and the bus guide says so; this would widen authority policy
+  - ( ) Let the Personal cohort include the daemon's own agent `#bus`, which is nobody's agent and sends only copies a manager subscribed to 🌟
+  - ( ) Keep it: a Personal agent is never a subscription target ⭐
+  > 💡👾 Allow `#bus`: it is the daemon itself, and a person's own on-call agent is the natural place for their alerts.
+
 ## Auth context
 
 ❓ **`authorized_keys` is regenerated from the bundle each generation**, which
