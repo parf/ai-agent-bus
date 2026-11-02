@@ -550,9 +550,9 @@ and no daemon change. A row that needs a format first proposes it for approval.
 
 ## T-32 Good-agent checklist
 
-- ⛔ T-32 Plan only, revised for the owner's Q324 audience: [what a good agent does](agent-guide.md#proposed-section-order), for developers who already understand the daemon.
+- ⛔ T-32 Plan only, revised for the owner's Q324 audience: [three ways to run agents and good-agent checklist](agent-guide.md#3-ways-to-run-agents), for developers who already understand the daemon.
   - Depends: Q324 approval and resolution of the [owning-rule gaps](agent-guide.md#gaps-to-resolve-before-writing), including accepted T-29 own-log instructions.
-  - Acceptance: the current guide meets the [checklist acceptance](agent-guide.md#approval-and-acceptance): minimum help/answer, suggested status and Configuration/Secret split, optional publish/subscribe per Q325, only agent-code decisions and owning references or explicit gaps; no tokens, onboarding or client-managed compatibility rules.
+  - Acceptance: the current guide meets the [checklist acceptance](agent-guide.md#approval-and-acceptance): minimum help/answer, suggested status and Configuration/Secret split, optional publish/subscribe per the Q325 decision, only agent-code decisions and owning references or explicit gaps. Three new worked pages share checked bash/Python time examples, one isolated-bus shard selected by H/F/K/N/M, and asserted output only; no copied contracts or client-managed compatibility rules.
 
 ## RT34 Agent events
 

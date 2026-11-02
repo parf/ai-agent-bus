@@ -26,7 +26,7 @@ the tools stage is [R1.2](../R1.2/README.md#scope).
 | Record-defined roles | [Roles](roles.md#record-defined-roles) |
 | Daemon configuration | [RT22 approved plan](daemon-configuration.md#approved-plan) |
 | Method metadata | [Method metadata](done/method-metadata.md#method-metadata) |
-| Good-agent checklist | [Minimum, suggested and optional agent-code checklist](agent-guide.md#proposed-section-order) |
+| Good-agent checklist | [Three ways to run the same agent](agent-guide.md#3-ways-to-run-agents), then the minimum, suggested and optional checklist |
 | Client libraries | [Client libraries](done/client-libraries.md#scope); [dated audit and event-call proposal](clients-events.md#audit-snapshot) |
 
 Open choices are in [questions](QUESTIONS.md#open-questions); recorded choices
