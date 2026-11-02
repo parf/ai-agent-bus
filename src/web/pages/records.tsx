@@ -1,3 +1,4 @@
+import { agentEvents, EventsCard, eventSummaries, EventMark } from "../agent-events.tsx";
 import { AccessRows } from "../ui/access.tsx";
 import { PAGE_SIZE as PAGE } from "../pagination.ts";
 import { TagBadges } from "../ui/tags.tsx";
@@ -183,6 +184,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   else if (key === "queues") columns.push(readersCol, heldCol("Held"), inCol, outCol("Dequeued"), updCol);
   else if (cards) columns.push({ head: "URI", cell: r => <code>{r.resource?.uri}</code> }, { head: "Source", cell: r => r.resource?.source ? <code>{r.resource.source}</code> : <Muted>fetched</Muted> }, { head: "MIME type", cell: r => r.resource?.mimeType ?? <Muted>—</Muted> }, updCol);
   else columns.push(inCol, outCol("Copies out"), { head: "Deliver-To", num: true, cell: r => <>{number(r.subs?.length ?? 0)}</> }, updCol);
+  const summaries = key === "agents" ? await eventSummaries(ctx) : undefined;
   const firstHead = k.noun;
 
   const filtered = !!(q || tag || state === "inactive" || readers || work || sort);
@@ -243,7 +245,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
           <thead><tr><th>{firstHead}</th>{columns.map(c => <th class={c.num ? "num" : ""}>{c.head}</th>)}</tr></thead>
           <tbody>{rows.map(r => <tr class={[r.owner === you ? "owned-record" : "", r.personal && !personal ? "personal-record" : "", r.status === "inactive" ? "inactive-record" : ""].join(" ")}>
             <td data-label={firstHead}><div class="rec-cell"><KindIcon kind={r.kind} owner={r.kind === "user" && r.name === nodeOwner} template={r.resource?.template} />
-              <div class="rec-title"><a href={recordHref(r, { return: here })}>{r.descr ? <><strong>{r.descr}</strong><code>{r.name}</code></> : <strong><code>{r.name}</code></strong>}</a><TagBadges rec={r} href={tag => listUrl(k.list, { ...params, tag })} /></div></div></td>
+              <div class="rec-title"><a href={recordHref(r, { return: here })}>{r.descr ? <><strong>{r.descr}</strong><code>{r.name}</code></> : <strong><code>{r.name}</code></strong>}</a><TagBadges rec={r} href={tag => listUrl(k.list, { ...params, tag })} />{key === "agents" ? <EventMark summary={summaries?.get(r.name)} /> : null}</div></div></td>
             {columns.map(c => <td class={c.num ? "num" : ""} data-label={c.head}>{c.cell(r)}</td>)}
           </tr>)}</tbody>
         </table></div></div>
@@ -417,7 +419,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
     return `${detailPath(rec.kind)}?${q}#activity`;
   };
   const fullHref = (() => { const q = new URLSearchParams({ name }); if (range.kind !== "day") q.set("range", range.kind); if (range.at !== range.today) q.set("at", String(range.at)); return `/activity?${q}`; })();
-  const [locks, kv] = await Promise.all([recordLocks(ctx, name), recordKV(ctx, name)]);
+  const [locks, kv, events] = await Promise.all([recordLocks(ctx, name), recordKV(ctx, name), rec.kind === "agent" ? agentEvents(ctx, rec.name) : null]);
   const onList = (rec.subs ?? []).includes(st.you);
   const declaredConfig = metadata.data?.config;
   const hasDeclaredConfig = !!declaredConfig && typeof declaredConfig === "object" && Object.keys(declaredConfig).length > 0;
@@ -486,6 +488,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
               <RangeChart r={range} data={act.ok} id="record-chart" compact dayHref={at => rangeHref({ at })} />
             </>}
         </Card>}
+        {events ? <EventsCard events={events} name={rec.name} expanded={ctx.q("events") === "all"} /> : null}
         {counters}
         <ConfigurationPreview value={config} editHref={editHref} sha={rec.config_sha} />
         {rec.kind === "pubsub" && onList && !manage ? <form method="post" action="/record" class="actions">
@@ -513,11 +516,13 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
 }
 
 async function inactiveView(ctx: Ctx, st: Status, rec: Rec): Promise<Response> {
+  const events = rec.kind === "agent" ? await agentEvents(ctx, rec.name) : null;
   const n = noun(rec.kind);
   const back = returnTo(ctx.q("return"), [listPath(rec), "/runner", "/runner-settings"], listOf(rec));
   const body = <>
     <PageHead back={{ href: back, label: "Back to records" }} icon={<Icon name={entity(rec.kind)?.icon ?? "box"} />} title={<><Name>{rec.name}</Name> <Badge>INACTIVE</Badge></>}
       sub={<div class="meta-row"><KindPill kind={rec.kind} template={rec.resource?.template} /><span class="owner-chip"><Icon name="kind:user" /><span>Owner</span><code>{rec.owner}</code></span><TagBadges rec={rec} /></div>} />
+    {events ? <EventsCard events={events} name={rec.name} expanded={ctx.q("events") === "all"} /> : null}
     <Card title="Status & Policy" icon="power" className="confirm-card" id="status">
       <AccessRows rec={rec} />
       <p class="big-state"><StatePill inactive /></p>
