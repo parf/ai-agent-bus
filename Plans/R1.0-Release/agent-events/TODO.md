@@ -9,8 +9,10 @@ catalogues remain follow-up work, not an extra requirement hidden in P1.
 
 Contract: [verbs and authority](README.md#r1-min-surface-and-authority),
 [shared model](../../../docs/agents/eventlog.md#log-model),
-[retention](README.md#flood-and-persistence). All entries are volatile in the
-selected R1 cut; only id reservations and subscription definitions are durable.
+[retention](README.md#flood-and-persistence). Persistence is
+[pending owner, Q321](../QUESTIONS.md#r1-release-decisions). P1 has a memory-entry
+backend and the storage seam for P5; id reservations and subscription definitions
+are durable either way.
 Do not mark RT34 complete on the smaller no-subscription comparison estimate.
 
 | Part | Owner/order | Falsifiable acceptance | Status |
@@ -19,6 +21,7 @@ Do not mark RT34 complete on the smaller no-subscription comparison estimate.
 | P2 runner observations | W2B, parallel after contract | Uses target agent's `s.bus`; masked stderr and requested/unrequested exit fixtures below | ⏳ |
 | P3 subscriptions | W2C after P1 | Shared semantics plus new daemon storage/ACL/send proof below | ⏳ |
 | P4 web | W1C, parallel against contract | Three recent lines and expand, with server ACL; no dashboard/polish | ⏳ |
+| P5 alerts on disk | After P3, pending Q321 | Real store/migration/restart checks below; plugs into the P1 seam | ⏳ |
 | Read, normal gate and release-run touched set | Two readers on ⚠️ changes, then gate | Compiling mutants fail their owning assertions; restored touched checks and normal gate green | ⏳ |
 
 ### P1 checks
@@ -27,6 +30,9 @@ Do not mark RT34 complete on the smaller no-subscription comparison estimate.
   Go adapters. Cover default bounds, independent levels, TTL edge, control/ANSI
   removal, Unicode truncation, fixed-minute folding, backwards clock, read/pull
   order and inclusive clean. A changed model assertion can fail both engines.
+- P1 exposes a ring storage seam for id reservation and optional alert
+  retention. An injected backend failure cannot return an accepted half-write
+  or reissue an id; P5 must not require changing the parser, ACL or ring model.
 - Restart the memory-entry engine: all entries are absent; newly issued ids
   exceed every id issued before restart, including a clean-then-restart path.
   Crash between reservation and append skips ids, never repeats them. A failed
@@ -89,11 +95,23 @@ Do not mark RT34 complete on the smaller no-subscription comparison estimate.
 - Test empty, warning-only and alert logs; expansion reads the current log
   without consuming it. No new stream route or dashboard work is required.
 
+### P5 checks, pending owner Q321
+
+- A real table/migration backend attaches through the P1 seam after P3.
+  Restart preserves alerts within the shared size/TTL limits, and keeps notices
+  and warnings volatile. Run the existing durable-alert shared cases.
+- Failed alert append or pull/clean removal cannot acknowledge partial state;
+  crash/reopen cannot replay a delivered occurrence or reuse an id. Corrupt
+  state fails closed, and rollback leaves the old store usable.
+- Compiling storage mutants drop persistence, omit removal commits or reset
+  ids; each fails its own assertion. No live logs are migrated in this part.
+- If the owner chooses memory for R1, keep these checks with the first 1.0.x
+  durable-alert task rather than claim durable retention already exists.
+
 ## Post-1.0 parts
 
 | Part | Falsifiable acceptance | Status |
 |---|---|---|
-| Alerts on disk | Failed write/removal leaves no acknowledged half-state; restart preserves alerts until TTL/size/clean/pull; migration, corrupt-state refusal and durable vector cases pass | ⏳ |
 | Eventlog front/migration | Existing alert ids, high-waters, configuration and subscriptions survive isolated import; no replay/double writer; original files survive failed import/rollback | ⏳ |
 | Daemon's own producers | Fixed safe templates at each selected report site; planted tokens/bodies/raw refusal internals never enter daemon-authored lines | ⏳ |
 | Runner provenance B | Manager-controlled daemon binding, foreign-runner/rebinding race mutants, no tag/shared-owner shortcut | ⏳ |
