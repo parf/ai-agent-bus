@@ -90,3 +90,11 @@ test("not_found is a distinct no-events-yet state, not an empty success or an ou
   expect(page).toContain('<p data-events-not-found>No events yet for this agent.</p>');
   expect(page).not.toContain('data-events-empty'); expect(page).not.toContain('data-events-unavailable');
 });
+
+test("expand renders the complete 500-entry bound without a hidden page or cut", async () => {
+  const full = { ...log, rings: { alert: [], warning: [], notice: Array.from({ length: 500 }, (_, i) => entry(500 - i, "notice")) }, counts: { alert: 0, warning: 0, notice: 500 } };
+  const page = render(EventsCard({ events: await agentEvents(fake(full), log.log), name: log.log, expanded: true }));
+  expect(ids(page)).toHaveLength(500);
+  expect(ids(page)[0]).toBe(500); expect(ids(page).at(-1)).toBe(1);
+  expect(page).toContain("Showing 500 of 500 retained entries.");
+});
