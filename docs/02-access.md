@@ -186,9 +186,10 @@ GitHub enrolment retains public keys and the provider's person name under the
 tokens keep working during provider outages; an uncached challenge requires both
 provider answers. Private keys stay with the signing tool.
 
-- The daemon caches each realm/login lookup, including unknown logins and lookup errors, for five minutes. Published-key changes can remain stale for that interval.
-- All realms and callers share twelve uncached lookups per rolling hour; cache hits do not spend the allowance. Exhaustion answers HTTP 429 (`busy`), with `Retry-After` seconds until the oldest counted lookup leaves the window.
+- For GitHub-backed realms, the daemon caches each realm/login lookup, including unknown logins and lookup errors, for five minutes. Published-key changes can remain stale for that interval.
+- GitHub-backed realms and their callers share twelve uncached lookups per rolling hour; cache hits do not spend the allowance. Exhaustion answers HTTP 429 (`busy`), with `Retry-After` seconds until the oldest counted lookup leaves the window.
 - This deliberately lets twelve hostile uncached requests delay real newcomers until the window frees. Existing credentials are unaffected; the availability trade-off is accepted for 1.0.
+- Local file directories are neither cached nor bounded by this provider allowance: every challenge reads the file, so removing a key or the file takes effect immediately.
 
 </details>
 

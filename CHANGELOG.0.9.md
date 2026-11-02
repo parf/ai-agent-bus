@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.301 — 2026-11-02
+
+GitHub-backed enrolment caches each lookup for five minutes and bounds uncached lookups daemon-wide, answering 429 with Retry-After; local directories stay uncached
+
 ## 0.9.300 — 2026-11-02
 
 The Codex pusher declines file-tool approvals in unattended turns, and any tool it cannot identify

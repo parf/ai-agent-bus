@@ -48,3 +48,7 @@ func TestEnrolDirectoryAllowanceReturns429WithoutFetching(t *testing.T) {
 		t.Fatal("uncached directory lookups never reached HTTP 429")
 	}
 }
+
+func (d *countedEnrolDirectory) Profile(string) (ports.DirectoryProfile, error) {
+	return ports.DirectoryProfile{}, nil
+}

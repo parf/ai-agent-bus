@@ -3,7 +3,10 @@ package core
 import (
 	"errors"
 	"fmt"
+	filedirectory "github.com/parf/ai-agent-bus/internal/directory/file"
 	"github.com/parf/ai-agent-bus/internal/ports"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -152,5 +155,35 @@ func TestDirectoryLookupBoundsConcurrentMisses(t *testing.T) {
 	case <-d.started:
 		t.Fatal("over-limit lookup fetched")
 	default:
+	}
+}
+
+// The production GitHub adapter has this provider capability; a file does not.
+func (d *countingDirectory) Profile(string) (ports.DirectoryProfile, error) {
+	return d.entry.Profile, d.err
+}
+func (d blockingDirectory) Profile(string) (ports.DirectoryProfile, error) {
+	return ports.DirectoryProfile{}, nil
+}
+func TestLocalDirectoryRevocationIsImmediateAndUnbounded(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "keys")
+	if err := os.WriteFile(path, []byte("alice ssh-ed25519 AAAAone\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	b := New()
+	b.Directories(map[string]ports.Directory{"local": filedirectory.New(path)}, nil)
+	for i := 0; i < directoryLookupLimit+1; i++ {
+		if _, err := b.Challenge("alice@local"); err != nil {
+			t.Fatalf("local lookup was bounded: %v", err)
+		}
+	}
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Challenge("alice@local"); !errors.Is(err, ErrEnrol) {
+		t.Fatalf("local key revocation must refuse immediately: %v", err)
+	}
+	if len(b.directoryFetches) != 0 || len(b.directoryCache) != 0 {
+		t.Fatal("local directory spent provider allowance or entered cache")
 	}
 }

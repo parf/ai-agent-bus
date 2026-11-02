@@ -11,7 +11,7 @@ const (
 	// Five minutes avoids repeated provider/key/avatar work without keeping
 	// changed keys or a formerly unknown login stale for long.
 	directoryLookupTTL = 5 * time.Minute
-	// One daemon-wide rolling allowance, shared by all realms and callers.
+	// One daemon-wide rolling allowance, shared by provider-backed realms and callers.
 	// GitHub allows 60 anonymous REST requests/hour per originating IP:
 	// https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api
 	// The adapter has no token path. A lookup does about three fetches (keys,
@@ -47,6 +47,11 @@ func copyDirectoryEntry(entry ports.DirectoryEntry) ports.DirectoryEntry {
 // expire together. This deliberately delays real newcomers when the allowance
 // is filled; that availability trade-off is accepted for 1.0 (B2).
 func (b *Bus) lookupDirectory(realm, login string, directory ports.Directory) (ports.DirectoryEntry, error) {
+	// Only the quota-backed provider capability opts in. A local file must
+	// be read on every challenge so removing a key revokes it immediately.
+	if _, quotaBacked := directory.(ports.ProfileDirectory); !quotaBacked {
+		return directory.Lookup(login)
+	}
 	b.mu.Lock()
 	now := b.clock()
 	key := directoryLookupKey{realm, login}
