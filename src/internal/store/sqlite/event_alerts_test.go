@@ -356,3 +356,22 @@ func TestDroppingARetiredRecordsEventStateRemovesALateWrite(t *testing.T) {
 		t.Fatal("record id 0 accepted")
 	}
 }
+
+func TestEventAlertBatchRollsBackEveryRingOnFailure(t *testing.T) {
+	s := openEvents(t, filepath.Join(t.TempDir(), "batch.db"))
+	defer s.Close()
+	if err := s.ReplaceEventAlerts(1, alerts(1), true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`CREATE TRIGGER refuse_second BEFORE INSERT ON event_logs WHEN NEW.record_id = 2 BEGIN SELECT RAISE(ABORT,'injected'); END`); err != nil {
+		t.Fatal(err)
+	}
+	err := s.ReplaceEventAlertBatch([]ports.EventAlertSnapshot{{RecordID: 1, Alerts: alerts(2), Active: true}, {RecordID: 2, Alerts: alerts(3), Active: true}})
+	if err == nil {
+		t.Fatal("injected second-ring failure accepted")
+	}
+	got, _ := loadAlerts(t, s, 1)
+	if !reflect.DeepEqual(got, alerts(1)) {
+		t.Fatalf("failed batch changed first ring: %+v", got)
+	}
+}

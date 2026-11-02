@@ -67,3 +67,16 @@ type SubscriptionStore interface {
 	// SubscriptionSources lists the sources where creator holds a row.
 	SubscriptionSources(creator string) ([]uint32, error)
 }
+
+// EventAlertSnapshot is an immutable replacement for one record's alert ring.
+type EventAlertSnapshot struct {
+	RecordID uint32
+	Alerts   []EventEntry
+	Active   bool
+}
+
+// EventAlertBatchStore commits all replacements in a single transaction.
+// Invalid input or an error leaves every previous snapshot unchanged.
+type EventAlertBatchStore interface {
+	ReplaceEventAlertBatch([]EventAlertSnapshot) error
+}

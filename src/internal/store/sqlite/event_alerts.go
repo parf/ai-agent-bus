@@ -78,35 +78,43 @@ func (s *Store) LoadEventAlerts(recordID uint32) ([]ports.EventEntry, bool, erro
 // transaction: the previous alerts are removed and the new ones written, or
 // nothing changes.
 func (s *Store) ReplaceEventAlerts(recordID uint32, alerts []ports.EventEntry, active bool) error {
-	if recordID == 0 || len(alerts) > maxEventAlerts {
-		return fmt.Errorf("invalid event alert snapshot")
-	}
-	var last uint64
-	for _, e := range alerts {
-		if e.Level != "alert" || e.ID == 0 || e.ID <= last || e.Count == 0 || e.ID > ports.EventMaxID || e.Count > ports.EventMaxID {
+	return s.ReplaceEventAlertBatch([]ports.EventAlertSnapshot{{RecordID: recordID, Alerts: alerts, Active: active}})
+}
+
+func (s *Store) ReplaceEventAlertBatch(batch []ports.EventAlertSnapshot) error {
+	for _, v := range batch {
+		if v.RecordID == 0 || len(v.Alerts) > maxEventAlerts {
 			return fmt.Errorf("invalid event alert snapshot")
 		}
-		last = e.ID
+		var last uint64
+		for _, e := range v.Alerts {
+			if e.Level != "alert" || e.ID == 0 || e.ID <= last || e.Count == 0 || e.ID > ports.EventMaxID || e.Count > ports.EventMaxID {
+				return fmt.Errorf("invalid event alert snapshot")
+			}
+			last = e.ID
+		}
 	}
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	flag := 0
-	if active {
-		flag = 1
-	}
-	if _, err = tx.Exec(`INSERT INTO event_logs (record_id, active) VALUES (?, ?) ON CONFLICT(record_id) DO UPDATE SET active = excluded.active`, recordID, flag); err != nil {
-		return err
-	}
-	if _, err = tx.Exec(`DELETE FROM event_alerts WHERE record_id = ?`, recordID); err != nil {
-		return err
-	}
-	for _, e := range alerts {
-		if _, err = tx.Exec(`INSERT INTO event_alerts (record_id, id, text, at, last_at, count) VALUES (?, ?, ?, ?, ?, ?)`,
-			recordID, e.ID, e.Text, e.At, e.LastAt, e.Count); err != nil {
+	for _, v := range batch {
+		flag := 0
+		if v.Active {
+			flag = 1
+		}
+		if _, err = tx.Exec(`INSERT INTO event_logs (record_id, active) VALUES (?, ?) ON CONFLICT(record_id) DO UPDATE SET active = excluded.active`, v.RecordID, flag); err != nil {
 			return err
+		}
+		if _, err = tx.Exec(`DELETE FROM event_alerts WHERE record_id = ?`, v.RecordID); err != nil {
+			return err
+		}
+		for _, e := range v.Alerts {
+			if _, err = tx.Exec(`INSERT INTO event_alerts (record_id, id, text, at, last_at, count) VALUES (?, ?, ?, ?, ?, ?)`,
+				v.RecordID, e.ID, e.Text, e.At, e.LastAt, e.Count); err != nil {
+				return err
+			}
 		}
 	}
 	return tx.Commit()

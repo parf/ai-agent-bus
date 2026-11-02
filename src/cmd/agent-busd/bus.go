@@ -285,6 +285,10 @@ func runBus(c config) {
 	// After the listeners are closed, so nothing arrives between the
 	// snapshot and the last reply. See docs/04-messaging.md#durability.
 	// The sockets themselves are the supervisor's to remove.
+	if err := bus.FlushEvents(); err != nil {
+		log.Printf("alert flush: %v", err)
+		logs.Report(ports.Error, "alert flush failed at stop: "+err.Error())
+	}
 	save(true)
 	log.Print("bus stopped")
 }

@@ -225,6 +225,14 @@ func (s *eventLoadBarrier) ReplaceEventAlerts(id uint32, v []ports.EventEntry, a
 	s.active[id] = active
 	return nil
 }
+func (s *eventLoadBarrier) ReplaceEventAlertBatch(batch []ports.EventAlertSnapshot) error {
+	for _, v := range batch {
+		if err := s.ReplaceEventAlerts(v.RecordID, v.Alerts, v.Active); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 func (s *eventLoadBarrier) DropEventState(id uint32) error {
 	s.mu.Lock()
 	delete(s.alerts, id)

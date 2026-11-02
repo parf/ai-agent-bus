@@ -14,8 +14,11 @@ import (
 )
 
 // The daemon restarts: a new engine on the reopened store.
-func restart(t *testing.T, s *sqlite.Store, path string, now *time.Time) (*sqlite.Store, *eventlog.Engine) {
+func restart(t *testing.T, s *sqlite.Store, path string, now *time.Time, old *eventlog.Engine) (*sqlite.Store, *eventlog.Engine) {
 	t.Helper()
+	if err := old.Close(); err != nil {
+		t.Fatal(err)
+	}
 	s.Close()
 	s, err := sqlite.Open(path, false)
 	if err != nil {
@@ -45,7 +48,7 @@ func TestAlertsSurviveARestartWithinTTLAndSize(t *testing.T) {
 	}
 	e.Write(rec, "notice", "just a notice", p)
 	e.Write(rec, "warning", "just a warning", p)
-	s, e = restart(t, s, path, &now)
+	s, e = restart(t, s, path, &now, e)
 	defer s.Close()
 	got, err := e.Read(rec, "x", "", p)
 	if err != nil {
@@ -64,12 +67,12 @@ func TestAlertsSurviveARestartWithinTTLAndSize(t *testing.T) {
 	}
 	// Past the alert TTL (30 days) a restart finds them expired.
 	now = now.Add(31 * 24 * time.Hour)
-	s, e = restart(t, s, path, &now)
+	s, e = restart(t, s, path, &now, e)
 	got, err = e.Read(rec, "x", "alert", p)
 	if err != nil || len(got.Rings["alert"]) != 0 {
 		t.Fatalf("expired alerts after a restart: %+v %v", got.Rings["alert"], err)
 	}
-	s, e = restart(t, s, path, &now)
+	s, e = restart(t, s, path, &now, e)
 	defer func() { s.Close() }()
 	got, err = e.Read(rec, "x", "alert", p)
 	if err != nil || len(got.Rings["alert"]) != 0 {
@@ -96,7 +99,7 @@ func TestCleanedAndActiveEmptyLogsDifferAcrossARestart(t *testing.T) {
 	if _, err := e.Clean(2, "b", "", 0, p); err != nil {
 		t.Fatal(err)
 	}
-	s, e = restart(t, s, path, &now)
+	s, e = restart(t, s, path, &now, e)
 	defer s.Close()
 	if r, err := e.Read(1, "a", "", p); err != nil || len(r.Rings["alert"]) != 0 {
 		t.Fatalf("an active empty log after a restart: %+v %v, want an empty answer", r, err)

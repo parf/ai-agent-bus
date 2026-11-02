@@ -25,25 +25,32 @@ func (s *State) LoadEventAlerts(id uint32) ([]ports.EventEntry, bool, error) {
 
 // ReplaceEventAlerts stores the whole snapshot; a refused write changes nothing.
 func (s *State) ReplaceEventAlerts(id uint32, alerts []ports.EventEntry, active bool) error {
+	return s.ReplaceEventAlertBatch([]ports.EventAlertSnapshot{{RecordID: id, Alerts: alerts, Active: active}})
+}
+func (s *State) ReplaceEventAlertBatch(batch []ports.EventAlertSnapshot) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.Err != nil {
 		return s.Err
 	}
-	if id == 0 || len(alerts) > 500 {
-		return fmt.Errorf("invalid event alert snapshot")
-	}
-	var last uint64
-	for _, e := range alerts {
-		if e.Level != "alert" || e.ID == 0 || e.ID <= last || e.Count == 0 || e.ID > ports.EventMaxID || e.Count > ports.EventMaxID {
+	for _, v := range batch {
+		if v.RecordID == 0 || len(v.Alerts) > 500 {
 			return fmt.Errorf("invalid event alert snapshot")
 		}
-		last = e.ID
+		var last uint64
+		for _, e := range v.Alerts {
+			if e.Level != "alert" || e.ID == 0 || e.ID <= last || e.Count == 0 || e.ID > ports.EventMaxID || e.Count > ports.EventMaxID {
+				return fmt.Errorf("invalid event alert snapshot")
+			}
+			last = e.ID
+		}
 	}
 	if s.eventLogs == nil {
 		s.eventLogs = map[uint32]eventLog{}
 	}
-	s.eventLogs[id] = eventLog{alerts: append([]ports.EventEntry(nil), alerts...), active: active}
+	for _, v := range batch {
+		s.eventLogs[v.RecordID] = eventLog{alerts: append([]ports.EventEntry(nil), v.Alerts...), active: v.Active}
+	}
 	return nil
 }
 

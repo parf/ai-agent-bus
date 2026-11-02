@@ -80,18 +80,21 @@ type log struct {
 	dropped                  atomic.Uint64
 }
 type Engine struct {
-	mu     sync.Mutex
-	logs   map[uint32]*log
-	ids    ports.EventIDStore
-	alerts ports.EventAlertStore
-	clock  func() time.Time
+	mu          sync.Mutex
+	logs        map[uint32]*log
+	ids         ports.EventIDStore
+	alerts      ports.EventAlertStore
+	clock       func() time.Time
+	persistence alertCommitter
 }
 
 func New(ids ports.EventIDStore, alerts ports.EventAlertStore, clock func() time.Time) *Engine {
 	if clock == nil {
 		clock = time.Now
 	}
-	return &Engine{logs: map[uint32]*log{}, ids: ids, alerts: alerts, clock: clock}
+	e := &Engine{logs: map[uint32]*log{}, ids: ids, alerts: alerts, clock: clock}
+	e.persistence.init(alerts)
+	return e
 }
 func (e *Engine) get(id uint32) *log {
 	e.mu.Lock()
@@ -156,9 +159,9 @@ func clone(in map[string][]ports.EventEntry) map[string][]ports.EventEntry {
 	}
 	return out
 }
-func (e *Engine) save(id uint32, l *log, next map[string][]ports.EventEntry, active bool) error {
+func (e *Engine) save(id uint32, l *log, next map[string][]ports.EventEntry, active bool, deferred bool) error {
 	if e.alerts != nil && (active != l.active || !slices.Equal(next["alert"], l.rings["alert"])) {
-		if err := e.alerts.ReplaceEventAlerts(id, append([]ports.EventEntry{}, next["alert"]...), active); err != nil {
+		if err := e.persistence.save(ports.EventAlertSnapshot{RecordID: id, Alerts: append([]ports.EventEntry{}, next["alert"]...), Active: active}, deferred); err != nil {
 			l.poisoned = true
 			return Error("storage_unknown")
 		}
@@ -239,6 +242,8 @@ func (e *Engine) WriteChecked(id uint32, level, text string, p Policy, check fun
 		return ports.EventEntry{}, Error("rate_limit")
 	}
 	next := sweep(l, p, now)
+	// TTL/cap pruning remains synchronous even when an append accompanies it.
+	deferAlert := slices.Equal(next["alert"], l.rings["alert"])
 	entries := next[level]
 	folded := -1
 	for i := len(entries) - 1; i >= 0; i-- {
@@ -282,7 +287,7 @@ func (e *Engine) WriteChecked(id uint32, level, text string, p Policy, check fun
 			return ports.EventEntry{}, err
 		}
 	}
-	if err = e.save(id, l, next, true); err != nil {
+	if err = e.save(id, l, next, true, deferAlert); err != nil {
 		return ports.EventEntry{}, err
 	}
 	if folded < 0 {
@@ -341,7 +346,7 @@ func (e *Engine) ReadChecked(id uint32, name, level string, p Policy, check func
 			return ReadResult{}, err
 		}
 	}
-	if err = e.save(id, l, sweep(l, p, now), l.active); err != nil {
+	if err = e.save(id, l, sweep(l, p, now), l.active, false); err != nil {
 		return ReadResult{}, err
 	}
 	out := ReadResult{Summary: summary(name, l), Rings: map[string][]ports.EventEntry{}, Now: stamp(now)}
@@ -411,7 +416,7 @@ func (e *Engine) PullChecked(id uint32, name, level string, count int, p Policy,
 			return PullResult{}, err
 		}
 	}
-	if err = e.save(id, l, next, l.active); err != nil {
+	if err = e.save(id, l, next, l.active, false); err != nil {
 		return PullResult{}, err
 	}
 	return PullResult{name, all, remaining, stamp(now)}, nil
@@ -459,7 +464,7 @@ func (e *Engine) CleanChecked(id uint32, name, level string, upper uint64, p Pol
 			return CleanResult{}, err
 		}
 	}
-	if err = e.save(id, l, next, !(level == "" && upper == 0)); err != nil {
+	if err = e.save(id, l, next, !(level == "" && upper == 0), false); err != nil {
 		return CleanResult{}, err
 	}
 	return CleanResult{name, removed, summary(name, l).Counts}, nil
@@ -500,7 +505,12 @@ func Code(err error) string {
 
 // Forget releases only this registration's loaded state. A running operation
 // may finish on its old pointer, but cannot republish it into the catalog.
-func (e *Engine) Forget(id uint32) { e.mu.Lock(); delete(e.logs, id); e.mu.Unlock() }
-func (e *Engine) Loaded() int      { e.mu.Lock(); defer e.mu.Unlock(); return len(e.logs) }
+func (e *Engine) Forget(id uint32) {
+	e.persistence.forget(id)
+	e.mu.Lock()
+	delete(e.logs, id)
+	e.mu.Unlock()
+}
+func (e *Engine) Loaded() int { e.mu.Lock(); defer e.mu.Unlock(); return len(e.logs) }
 
 func (e *Engine) AdmissionDrop(id uint32) { e.get(id).dropped.Add(1) }

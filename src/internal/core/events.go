@@ -271,3 +271,14 @@ func (b *Bus) EventAdmit(caller, target string, write bool) (string, error) {
 	r, _, _, err := b.eventAccess(caller, target, write)
 	return r.Name, err
 }
+
+// FlushEvents drains accepted alert writes after request handlers have stopped.
+func (b *Bus) FlushEvents() error {
+	b.mu.Lock()
+	e := b.events
+	b.unlock()
+	if e == nil {
+		return nil
+	}
+	return e.Close()
+}

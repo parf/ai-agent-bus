@@ -84,6 +84,8 @@ agent-bus call '#bus' 'ls --kind agent --tag runner' | jq -r .body | head -3
 
 ## Agent logs
 
+An alert is on disk within about 100 ms; a clean stop flushes all.
+
 - **Built:** private per-agent logs, runner observations, subscriptions and the web record-page preview with expand. Alerts, id reservations and subscription definitions survive daemon restarts; notices and warnings stay in memory.
 - The runner forwards masked stderr and lifecycle observations using the agent's own credential. Alerts go first in their own lane; forwarding never blocks the child. A full or unavailable event path drops and counts the event without retrying. An agent can write a misleading line about itself, seen only by its own Owner and Maintainers; no line proves who produced it.
 - `write <agent> notice|warning|alert <text>` writes the agent's own log; the daemon Owner may also write. A write answers only when `wait` is set; a reply to the caller’s own inbox also requires its Allow to admit `#bus`, following the [normal reply ACL](../04-messaging.md#reply-routing).
