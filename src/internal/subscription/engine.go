@@ -119,6 +119,10 @@ type Store interface {
 // ErrExists is Store.Add's answer for a taken id.
 var ErrExists = errors.New("subscription id exists")
 
+// ErrAbsent is Store.SetCounts's answer for a row deleted while its copy was
+// being sent: nothing to count, and no failure.
+var ErrAbsent = errors.New("subscription is gone")
+
 // Admission is the answer to "may who send to target".
 type Admission int
 
@@ -160,6 +164,14 @@ type Config struct {
 	NewID            func() string
 	MaxSubscriptions int // at most 100
 	MaxPerCreator    int // at most 20
+	// RecheckSourcePerDelivery makes the author's management of the source a
+	// check before every send, as the Python helper does. The daemon's own agent
+	// logs leave it off: the author's right to the source is checked when the
+	// subscription is created and not again (Q325). Every send still meets the
+	// author's reach to the target and the target's own admission of the sender.
+	// Off is the zero value on purpose; only the shared vectors, which pin the
+	// helper's behaviour, turn it on.
+	RecheckSourcePerDelivery bool
 }
 
 // Engine is one source's subscriptions.
@@ -593,9 +605,12 @@ type outcome struct {
 // dropped and counted once. Counters are written after every attempt has
 // finished, once per row.
 func (e *Engine) Deliver(event map[string]any, text, body, topic, tag string, deadline time.Time) Result {
+	// The rows are read under the lock; the filters and the sends, which take
+	// time, run without it, so a held target never holds a listing of the same
+	// source. The counters are written under it again.
 	e.mu.Lock()
-	defer e.mu.Unlock()
 	rows, _, err := e.load()
+	e.mu.Unlock()
 	if err != nil {
 		e.warn(warnStoreUnknown)
 		return Result{}
@@ -659,6 +674,8 @@ func (e *Engine) Deliver(event map[string]any, text, body, topic, tag string, de
 	if len(active) > 0 {
 		e.send(active, body, topic, tag, end, outcomes)
 	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	result := Result{Matched: len(outcomes)}
 	failed := false
 	for _, r := range candidates {
@@ -677,7 +694,7 @@ func (e *Engine) Deliver(event map[string]any, text, body, topic, tag string, de
 		} else {
 			r.Dropped = min(MaxSafe, r.Dropped+1)
 		}
-		if err := e.store.SetCounts(r.ID, r.Sent, r.Dropped); err != nil {
+		if err := e.store.SetCounts(r.ID, r.Sent, r.Dropped); err != nil && !errors.Is(err, ErrAbsent) {
 			failed = true
 		}
 	}
@@ -703,9 +720,11 @@ func (e *Engine) send(rows []Row, body, topic, tag string, end time.Time, out ma
 			out[row.ID] = outcome{code: admissionWarning(code)}
 			continue
 		}
-		if code := e.admit(row.CreatedBy, e.cfg.Source, cache); code != nil {
-			out[row.ID] = outcome{code: admissionWarning(code)}
-			continue
+		if e.cfg.RecheckSourcePerDelivery {
+			if code := e.admit(row.CreatedBy, e.cfg.Source, cache); code != nil {
+				out[row.ID] = outcome{code: admissionWarning(code)}
+				continue
+			}
 		}
 		if name, err := e.destination(row.Target); err != nil || name != row.Target {
 			code := warnAdmissionRefused

@@ -97,6 +97,9 @@ class Parity(unittest.TestCase):
 
     def test_operation_vectors(self):
         for case in json.loads(VECTORS.read_text())['cases']:
+            # A case tagged for the daemon's profile pins what the daemon's own logs do
+            # (Q325); this engine keeps its per-delivery source check.
+            if case.get('profile')=='daemon':continue
             with self.subTest(case=case['name']):self.case(case)
 
     def case(self,case):

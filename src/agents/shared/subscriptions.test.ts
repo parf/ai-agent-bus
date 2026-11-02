@@ -66,7 +66,9 @@ function fake(initial: Row[]) {
   return { port, state, store };
 }
 
-for (const c of vectors.cases as Record<string, any>[]) {
+// A case tagged for the daemon's profile pins what the daemon's own logs do (Q325);
+// this engine keeps its per-delivery source check.
+for (const c of (vectors.cases as Record<string, any>[]).filter((c) => c.profile !== "daemon")) {
   test(`case ${c.name}`, async () => {
     const { port, state } = fake(c.initial ?? []);
     const ids = [...(c.ids ?? [])];

@@ -58,7 +58,7 @@ func (s *vectorStore) SetCounts(id string, sent, dropped int64) error {
 	}
 	raw, ok := s.rows[id]
 	if !ok {
-		return errors.New("absent")
+		return ErrAbsent
 	}
 	var m map[string]any
 	if err := json.Unmarshal(raw, &m); err != nil {
@@ -168,6 +168,7 @@ func TestSharedOperationVectors(t *testing.T) {
 	var file struct {
 		Cases []struct {
 			Name    string
+			Profile string
 			Source  string
 			Now     string
 			IDs     []string
@@ -179,8 +180,8 @@ func TestSharedOperationVectors(t *testing.T) {
 	if err = json.Unmarshal(raw, &file); err != nil {
 		t.Fatal(err)
 	}
-	if len(file.Cases) != 33 {
-		t.Fatalf("%d operation vectors, want 33: the file changed", len(file.Cases))
+	if len(file.Cases) != 35 {
+		t.Fatalf("%d operation vectors, want 35: the file changed", len(file.Cases))
 	}
 	for _, c := range file.Cases {
 		t.Run(c.Name, func(t *testing.T) {
@@ -213,6 +214,9 @@ func TestSharedOperationVectors(t *testing.T) {
 					return fmt.Sprintf("%012x", serial)
 				},
 				MaxSubscriptions: c.Limits["max_subscriptions"], MaxPerCreator: c.Limits["max_per_creator"],
+				// The vectors pin the helper's per-delivery source check; the cases
+				// tagged for the daemon's profile run with it off.
+				RecheckSourcePerDelivery: c.Profile != "daemon",
 			}
 			engine, err := New(store, bus, cfg)
 			if err != nil {
@@ -507,4 +511,57 @@ func TestAFilterGetsFiftyMillisecondsAtMostAndNeverMoreThanIsLeft(t *testing.T) 
 			t.Errorf("with %s left a filter got %s, want %s", left, got, want)
 		}
 	}
+}
+
+// deleteBus deletes its row from the store while the copy is being sent.
+type deleteBus struct {
+	vectorBus
+	store *vectorStore
+	id    string
+}
+
+func (b *deleteBus) Send(ctx context.Context, target, body, topic, tag string) error {
+	delete(b.store.rows, b.id)
+	return nil
+}
+
+// A row deleted while its copy is being sent leaves nothing to count, and that
+// is not a store failure.
+func TestARowDeletedDuringItsSendIsNotAStoreFailure(t *testing.T) {
+	store := &vectorStore{rows: map[string][]byte{"000000000001": rowJSON("000000000001", "#writer@fixture.test")}}
+	bus := &deleteBus{vectorBus: vectorBus{t: t, step: map[string]any{}}, store: store, id: "000000000001"}
+	var warnings []string
+	engine, _ := New(store, bus, Config{Source: "#eventlog@fixture.test", ValidateSelector: vectorSelector, SelectorMatches: vectorMatches,
+		Warning: func(c string) { warnings = append(warnings, c) }})
+	res := engine.Deliver(map[string]any{"log": "deploys"}, "x", "{}", "deploys", "alert", time.Now().Add(time.Minute))
+	if res.Sent != 1 || len(warnings) != 0 {
+		t.Fatalf("result %+v warnings %v, want one sent and no warning", res, warnings)
+	}
+}
+
+// While a target's send is held, a listing of the same source answers: the
+// engine's lock is not held across a send.
+func TestAListingAnswersWhileASendIsHeld(t *testing.T) {
+	oldA := AttemptBudget
+	AttemptBudget = 400 * time.Millisecond
+	defer func() { AttemptBudget = oldA }()
+	store := &vectorStore{rows: map[string][]byte{"000000000001": rowJSON("000000000001", "#writer@fixture.test")}}
+	bus := &holdBus{vectorBus: vectorBus{t: t, step: map[string]any{}}, started: make(chan string, 4)}
+	engine, _ := New(store, bus, Config{Source: "#eventlog@fixture.test", ValidateSelector: vectorSelector, SelectorMatches: vectorMatches})
+	finished := make(chan Result, 1)
+	go func() {
+		finished <- engine.Deliver(map[string]any{"log": "deploys"}, "x", "{}", "deploys", "alert", time.Now().Add(time.Minute))
+	}()
+	<-bus.started // the send is in flight and held
+	listed := make(chan error, 1)
+	go func() { _, err := engine.List(Caller{Name: "#writer@fixture.test"}); listed <- err }()
+	select {
+	case err := <-listed:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(250 * time.Millisecond):
+		t.Fatal("a listing of the same source waited for a held send")
+	}
+	<-finished
 }
