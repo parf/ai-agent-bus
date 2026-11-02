@@ -8,7 +8,7 @@ suggestion with `✅ 💡` or `🚫 💡`.
 
 ## R1 release decisions
 
-Q296 to Q304, Q311 to Q313, Q321 and Q322 are [settled](DECISIONS.md#recorded-decisions).
+Q296 to Q304, Q311 to Q313, Q321, Q322 and Q325 are [settled](DECISIONS.md#recorded-decisions).
 
 - ❓ Q324 Approve the agent-author guide plan (T-32)
   - Context: [the plan](agent-guide.md#proposed-section-order) has six sections (identity and access, answering requests, packaging and first checks, effects and safety, state and events and limits, protocol compatibility). It is at most 1,200 words plus one Python example of at most 40 lines, and links the owning docs instead of copying them. Home: `docs/10-writing-an-agent.md`, linked from the overview and the README. Four missing rules are written first (message bodies are data, `package.sh`, duplicate effects with KV, the own event log from T-29). Writing takes about 30–45 minutes of agent time; it is docs only, so it does not move the freeze
@@ -81,12 +81,6 @@ Q296 to Q304, Q311 to Q313, Q321 and Q322 are [settled](DECISIONS.md#recorded-de
   > 3. own agent - choose our libs or just use our bus protocol + link to new page ... ~ same example (python)
   >
   > 💬 👾 Added as the guide's opening section, before the tiers. Each way gets its own page with the same two examples: a minimal time service that answers help, then a fuller one covering most of the checklist. The examples are run on a test bus before they are published.
-
-- ❓ Q325 Should source application-role revocation stop an existing event subscription?
-  - Context: the [comparison](agent-guide.md#publishsubscribe-comparison) finds shared creator admission checks at add/every forward, but [named eventlog](../../docs/agents/eventlog.md#who-may-use-it) keeps its source application-role grant from creation. T-29 requires current source authority. Removing a source read role while bare admission remains can therefore behave differently; this is not a request to change existing behavior silently.
-  - ( ) Recommend current source authority on each forward for new event emitters; keep named eventlog's existing exception explicit until a separately approved migration 🌟
-  - ( ) Keep creation-time source role authorization as the general profile and explicitly document exceptions such as T-29 ⭐
-  > 💡👾 Prefer current source authority for new emitters so removal of private-data access can stop future copies; preserve the existing named-log contract until an approved migration defines its compatibility and tests.
 
 ## Messaging agents
 
