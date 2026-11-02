@@ -142,11 +142,19 @@ test("a missing log is not disclosed before read authority, on preview or direct
 
 
 test("forbidden summaries are quiet while actual list failures have an unavailable element", async () => {
-  const list = async () => (await handle(new Request("http://web.fixture/agents", { headers: { cookie: `agent_bus_session=${reader}` } }))).text();
+  const list = async () => {
+    const url = new URL("http://web.fixture/agents"); url.searchParams.set("q", A);
+    const response = await handle(new Request(url, { headers: { cookie: `agent_bus_session=${reader}` } }));
+    expect(response.status).toBe(200);
+    return response.text();
+  };
   for (const status of [403, 503]) {
     listHttpStatus = status;
     try {
       const html = await list();
+      // The listing's own row, never the signed-in name or an inline style.
+      const body = html.match(/<tbody>([\s\S]*?)<\/tbody>/)?.[1] ?? "";
+      expect(body).toMatch(/<tr\b[^>]*>[\s\S]*?<a href="[^"]*"><strong><code>#one@fixture<\/code><\/strong><\/a>/);
       expect(html).not.toContain('data-event-summary');
       if (status === 403) expect(html).not.toContain('data-event-summaries-unavailable');
       else expect(html).toContain('<p class="muted small" data-event-summaries-unavailable>Event summaries unavailable.</p>');
