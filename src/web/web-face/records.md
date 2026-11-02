@@ -420,8 +420,10 @@ comes from the daemon, not those page calculations.
 | A valid active log with no entries | `No retained events.` with the shown/retained count |
 | HTTP `503`, another failure or an invalid answer | `Events unavailable. Try again.` |
 
-The same card and fresh read are used on the inactive agent view; the daemon
-still decides access before log existence. Other record kinds have no Events card.
+The same card and fresh read are used on the inactive agent view. An inactive
+agent’s log answers `not_found` to the daemon Owner and `forbidden` to everyone
+else, so this view shows only “No events yet for this agent.” or “Not allowed to
+read this agent’s events.”, never entries. Other record kinds have no Events card.
 
 ### States
 
