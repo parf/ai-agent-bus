@@ -60,6 +60,7 @@ the 0.8 line; R1 releases as 1.0.0 ([decision](DECISIONS.md#recorded-decisions))
   - Accepted on disposable daemons: real age/CLI/SQLite rebuild, old runner and standalone token clients after restart, wrong key and sidecar refusal, whole-transaction rollback, Owner doors and explicit conflicts; sixteen owning mutants and normal1187/0. No live export/import run.
 
 - ⏳ RT14 [Installable distribution](distribution.md#release-artifacts): P.1–P.3
+  - Remaining: the first npm publish at the 1.0.0 release (runbook); macOS ships (`c6b8f8ec`).
   - Built: runtime packages and verified manifests ship in build/package output; the installed-tree checks run outside the checkout.
   - Install: [npm full and client-only packages](distribution.md#simple-install), per the owner’s replacement decision RD178. No release signing; the shell installer is deferred.
   - Platforms and native evidence: [distribution](distribution.md#simple-install) and the [Mac run list](mac-run-list.md#a-linux-aarch64).
