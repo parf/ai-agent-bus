@@ -5,7 +5,7 @@
 - **Outcome:** `#dbsync/<name>` watches one table through a [DB agent](../../docs/agents/db.md#what-it-does), tells each subscribed agent which rows were added or changed, and marks a row done only after that agent answers ok.
 - **Start:** `agent-bus call '#dbsync/orders@node.example' 'sub add #rag@node.example'` ([how it is used](#how-it-is-used)).
 
-Plan only, for R1.1; nothing here is built. A separate agent, a sibling of [FileScan](filescan.md#why) (owner, 2026-11-02: "separate agent similar to filesync"). The open choices are [Q314–Q319](QUESTIONS.md#dbsync).
+Plan only, for R1.1; nothing here is built. A separate agent, a sibling of [FileScan](filescan.md#why) (owner, 2026-11-02: "separate agent similar to filesync"). The open choices are [Q314–Q320](QUESTIONS.md#dbsync).
 
 ## Why
 
@@ -89,7 +89,7 @@ How the two share code is [Q314](QUESTIONS.md#dbsync); [FileScan](filescan.md#qu
 
 - **A decision, not a choice:** the position is the pair (`updated`, key), never `updated` alone. A batch that ends in the middle of rows sharing one timestamp would otherwise skip the rest of them.
 - A poll asks for rows whose `updated` is greater than the cursor's, or equal with a key greater than the cursor's key. It is written as the two plain comparisons, not as a row-value comparison, because that form differs across engines ([dialects](#dialects)).
-- **The type guard** ([Q318](QUESTIONS.md#dbsync)): the declared `updated` column and key column must be numeric or timestamp types, as the database reports them. DBSync counts the declared columns that are not, and refuses when the count is above zero.
+- **The type guard** ([Q318](QUESTIONS.md#dbsync)): the key column must be numeric or timestamp, as the database reports it, and any numeric key is allowed. The `updated` column must be a timestamp, or a number that encodes database time with a declared unit (epoch seconds or milliseconds); a plain counter or version number is refused, because the lookback ([late commits](#late-commits)) needs a time. DBSync counts the declared columns that fail and refuses when the count is above zero. A counter mode with its own lookback is [Q320](QUESTIONS.md#dbsync).
 - **When it refuses:** when the Owner's configuration is loaded, and again at `sub add`. The refusal is a named error that says how many columns failed and which, for example `cannot sync: 1 of 2 cursor columns is not numeric or timestamp: key "sku" is text`. Nothing is quoted, escaped or coerced to get past it.
 - The cursor is stored as the database returned it, as text, never through a floating-point number, so a timestamp's precision is the column's own.
 
@@ -98,10 +98,10 @@ How the two share code is [Q314](QUESTIONS.md#dbsync); [FileScan](filescan.md#qu
 - **Two positions, never mixed:** the *saved cursor* is the high-water pair of rows delivered and confirmed, kept in the state. The *scan position* is where this poll's paging has read to; it starts at the start of the poll (the saved cursor, or the lookback floor, [late commits](#late-commits)) and moves with every page, whether or not the rows on it are new.
 - **One page-size rule:** a page is `max_rows` minus `ceil(max_rows / 10)`. The query orders by (`updated`, key) and limits to the page. The size is recomputed from the DB agent's current `max_rows` at every poll, so lowering `max_rows` after a cursor is saved changes the next page and nothing else; the saved cursor stays valid.
 - **Refusal on size:** when the page would be under 1, DBSync does not run and says so in `status` and an alert. `max_rows` 1 is refused (1 − 1 = 0); `max_rows` 2 gives a page of 1; 10 gives 9.
-- **Keep paging while a page is full:** a page limited below `max_rows` is not marked cut by the DB agent, so a full page (rows equal to the page size) means more may wait, and the next query starts at the scan position, with no pause for the timer. A page with fewer rows ends the poll.
+- **When the poll continues:** an uncut short page (fewer rows than the page size, no cut notice) ends the poll. A full page, or a cut answer whose scan position advanced, continues from the last raw (`updated`, key) pair received, whatever the page's fill, with no pause for the timer. A page limited below `max_rows` is not marked cut by the DB agent, so fullness is what says more may wait.
 - **A page of known rows still advances the scan:** a lookback page can hold only pairs already delivered, which de-duplication drops; the scan position moves past them all the same, so the next page reads new ground and a page is never read twice.
-- **A cut answer** (the DB agent's notice that a cap stopped the result) is the byte-cap case: the DB agent also cuts before it appends a row ([db agent](../../src/agents/db/db.py)), so one very large row comes back as a cut with nothing in it.
-- **No-progress refusal keys on the scan position:** a poll whose answer is cut and whose scan position did not advance stops there, never loops. DBSync alerts, names the key it was stuck on if known, and refuses further polls until the Owner narrows the columns or the row is gone; the position is never moved past an unread row. Known rows that advance the scan are not "no progress".
+- **A cut answer** (the DB agent's notice that a cap stopped the result) is the byte-cap case: the DB agent also cuts before it appends a row ([db agent](../../src/agents/db/db.py)), so a page can come back short and cut with rows unread, or, for one very large row, with nothing in it.
+- **No-progress refusal keys on the scan position:** a cut answer whose scan position did not advance stops there, never loops. DBSync alerts, names the key it was stuck on if known, and refuses further polls until the Owner narrows the columns or the row is gone; the position is never moved past an unread row. Known rows that advance the scan are not "no progress".
 
 ## Late commits
 
@@ -188,4 +188,4 @@ About four to five hours of agent time; the owner's steps are the DB agent accou
 
 ## Questions
 
-[Q314–Q319](QUESTIONS.md#dbsync), each with a recommendation.
+[Q314–Q320](QUESTIONS.md#dbsync), each with a recommendation.

@@ -187,3 +187,9 @@ Open choices for [dbsync](dbsync.md#questions).
   - ( ) Support MySQL and PostgreSQL first; ClickHouse once its lookback behaviour is tested against the fixture ⭐
   - ( ) All three from the start, with the lookback documented per engine 🌟
   > 💡👾 All three: the DB fixture already has ClickHouse, and the cursor logic is the same.
+
+- ❓ Q320 A counter as the `updated` column
+  - Context: R1.1 accepts only a timestamp, or epoch seconds or milliseconds, because the lookback needs database time; a version counter has no such unit
+  - ( ) Later, a counter mode with its own lookback in counter units (rows with a counter below the high-water mark within a window) 🌟
+  - ( ) Never: refuse counters, tell the owner to add a timestamp ⭐
+  > 💡👾 Park it: refuse counters in R1.1; a counter mode is its own small step if a table needs it.
