@@ -406,7 +406,7 @@ test("concurrent lock claimants have exactly one winner and all exit cleanly", a
     const dir = mkdtempSync(join(root, "parallel-"));
     const module = JSON.stringify(join(import.meta.dir, "sessions.ts"));
     const script = `
-      import { existsSync, writeFileSync } from "node:fs";
+      import { existsSync, renameSync, writeFileSync } from "node:fs";
       import { join } from "node:path";
       import { Bindings } from ${module};
       const dir = ${JSON.stringify(dir)}, id = process.argv[1];
@@ -414,7 +414,10 @@ test("concurrent lock claimants have exactly one winner and all exit cleanly", a
       writeFileSync(join(dir, id + ".ready"), "");
       while (!existsSync(join(dir, "go"))) await Bun.sleep(1);
       const won = b.lock("claim");
-      writeFileSync(join(dir, id + ".result"), String(won));
+      // Written whole, then renamed into place: a reader that sees the file sees its answer,
+      // not the empty file a create-then-write leaves for an instant.
+      writeFileSync(join(dir, id + ".result.tmp"), String(won));
+      renameSync(join(dir, id + ".result.tmp"), join(dir, id + ".result"));
       while (!existsSync(join(dir, "release"))) await Bun.sleep(1);
       b.close();
     `;
@@ -435,7 +438,9 @@ test("concurrent lock claimants have exactly one winner and all exit cleanly", a
       expect(await until(".ready")).toBe(true);
       fs.writeFileSync(join(dir, "go"), "");
       expect(await until(".result")).toBe(true);
-      expect(children.filter((_, i) => fs.readFileSync(join(dir, i + ".result"), "utf8") === "true").length).toBe(1);
+      const results = children.map((_, i) => fs.readFileSync(join(dir, i + ".result"), "utf8"));
+      // On failure the received value is the results themselves: what each claimant wrote.
+      expect(results.filter(r => r === "true").length || results).toBe(1);
       fs.writeFileSync(join(dir, "release"), "");
       expect(await Promise.all(children.map(c => c.exited))).toEqual(children.map(() => 0));
       expect(await Promise.all(errors)).toEqual(children.map(() => ""));
