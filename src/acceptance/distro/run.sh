@@ -57,7 +57,7 @@ run=$(mktemp -d "$base/run.XXXXXX")
 guard "$run" "$keep"
 names=()
 cleanup() {
-  for n in "${names[@]}"; do "${podman[@]}" rm -f -t 5 "$n" >/dev/null 2>&1 || true; done
+  for n in "${names[@]}"; do "${podman[@]}" rm -f -v -t 5 "$n" >/dev/null 2>&1 || true; done
   # alice's files are owned by a subordinate uid: remove them inside the user namespace.
   [ -n "$keep" ] || podman unshare rm -rf "$run"
   if [ -n "$clean" ]; then

@@ -226,6 +226,19 @@ DATA_TMPFS = {POSTGRES: '/var/lib/postgresql/data:rw,size=128m',
               CLICKHOUSE: '/var/lib/clickhouse:rw,size=32m'}
 
 
+def container_args(image, name, host_port, port, env, files=()):
+    """The ordinary fixture run, shared with the real mount-policy checks."""
+    args = ['run', '-d', '--image-volume=ignore', '--name', name, '--label', f'ab-db-fixture={RUN}', '-p', f'127.0.0.1:{host_port}:{port}',
+            '--log-driver', 'k8s-file', '--log-opt', f'path={private()}/{name}.ctr.log', '--log-opt', 'max-size=10mb']
+    if image in DATA_TMPFS:
+        args += ['--tmpfs', DATA_TMPFS[image]]
+    for host, inside in files:
+        args += ['-v', f'{host}:{inside}:ro,Z']
+    for key, value in env.items():
+        args += ['-e', f'{key}={value}']
+    return [*args, image]
+
+
 def container(image, port, env, files=()):
     """Start a container with its port on a free loopback port; return (name, host port).
 
@@ -242,18 +255,10 @@ def container(image, port, env, files=()):
     name = f'ab-db-fixture-{RUN}-{host_port}'
     # No --rm: a container that exits must stay listed for diagnose, which copies its logs out before bring_up and STOP remove it.
     # The label scopes this run's containers: diagnostics and cleanup name only these, never a neighbour's.
-    args = ['run', '-d', '--image-volume=ignore', '--name', name, '--label', f'ab-db-fixture={RUN}', '-p', f'127.0.0.1:{host_port}:{port}',
-            '--log-driver', 'k8s-file', '--log-opt', f'path={private()}/{name}.ctr.log', '--log-opt', 'max-size=10mb']
-    if image in DATA_TMPFS:
-        args += ['--tmpfs', DATA_TMPFS[image]]
-    for host, inside in files:
-        args += ['-v', f'{host}:{inside}:ro,Z']
-    for key, value in env.items():
-        args += ['-e', f'{key}={value}']
     # Registered before the run: a run that fails after creating the container still leaves one to remove.
     STOP.append(lambda: podman('rm', '-f', '-v', '-t', '1', name, check=False))
     watch(f'^podman .* run .*--name {name}( |$)', *podman_command(), 'rm', '-f', '-v', '-t', '1', name)
-    podman(*args, image)
+    podman(*container_args(image, name, host_port, port, env, files))
     return name, host_port
 
 

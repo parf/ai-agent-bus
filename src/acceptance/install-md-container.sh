@@ -26,7 +26,7 @@ podman=(podman --root "$common/tmp/distro-acceptance/storage" --runroot "${XDG_R
 . "$here/guard.sh"
 guard "$run"
 cleanup() {
-  "${podman[@]}" rm -f -t 5 "$name" >/dev/null 2>&1 || true
+  "${podman[@]}" rm -f -v -t 5 "$name" >/dev/null 2>&1 || true
   podman unshare rm -rf "$run"
 }
 trap cleanup EXIT

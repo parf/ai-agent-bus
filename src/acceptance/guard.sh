@@ -89,7 +89,7 @@ until pgrep -f -- "^podman .* run .*--label agent-bus-run=$run( |\$)" >/dev/null
 listed=
 for i in 1 2 3 4 5; do names=$("$@" ps -a --filter "label=agent-bus-run=$run" --format "{{.Names}}") && { listed=1; break; }; sleep 1; done
 [ -n "$listed" ] || exit 1   # never listed: the directory and its owner file stay, so the next start sweeps them
-for n in $names; do "$@" rm -f -t 1 "$n" >/dev/null 2>&1; done
+for n in $names; do "$@" rm -f -v -t 1 "$n" >/dev/null 2>&1; done
 [ -n "$keep" ] || "$@" unshare rm -rf "$dir"'
 
 guard() { # guard <run dir> [keep]
@@ -99,7 +99,7 @@ guard() { # guard <run dir> [keep]
   listing=$("${podman[@]}" ps -a --filter label=agent-bus-run --format '{{.Names}} {{index .Labels "agent-bus-run"}}') ||
     { echo "FAIL podman ps on the private store failed, so what an earlier run left cannot be told" >&2; exit 1; }
   while read -r n r; do
-    [ -n "$n" ] && guard_dead "$r" && "${podman[@]}" rm -f -t 1 "$n" >/dev/null 2>&1
+    [ -n "$n" ] && guard_dead "$r" && "${podman[@]}" rm -f -v -t 1 "$n" >/dev/null 2>&1
   done <<<"$listing"
   for d in "$(dirname "$run")"/run.*; do
     [ -f "$d/owner" ] && guard_dead "$(cat "$d/owner")" && "${podman[@]}" unshare rm -rf "$d"
