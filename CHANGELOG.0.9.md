@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.289 — 2026-11-02
+
+Private per-agent event logs in the daemon: #bus write/read/list/pull/clean with reserved ids, private ACL, bounded fair dispatch
+
 ## 0.9.288 — 2026-11-02
 
 Releases ship verified macOS arm64 and x64 archives and the macOS client npm packages

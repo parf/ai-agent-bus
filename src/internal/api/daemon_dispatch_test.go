@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -323,6 +324,9 @@ func TestDaemonWaitingWriteToFullLaneGetsBusyAnswer(t *testing.T) {
 	s, _ := serverFor(t, b, "admin@h")
 	b.EstablishDaemonAgent("node.example")
 	b.Register(protocol.Record{Name: "#a@h", Kind: protocol.KindAgent, Owner: "admin@h", Allow: []string{"*"}})
+	if _, err := b.EventWrite("#a@h", "#a@h", "notice", "seed"); err != nil {
+		t.Fatal(err)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	entered := make(chan struct{}, 32)
 	release := make(chan struct{})
@@ -351,6 +355,14 @@ func TestDaemonWaitingWriteToFullLaneGetsBusyAnswer(t *testing.T) {
 	if err != nil || answer.Re != e.ID || answer.Body != "error: busy: Agent event dispatch is busy." {
 		t.Fatalf("missing exact busy answer: %+v %v", answer, err)
 	}
+	summary, err := s.daemonAnswer(protocol.Envelope{From: "admin@h", Body: "read #a@h"})
+	var result struct {
+		Dropped uint64 `json:"dropped"`
+	}
+	if err != nil || json.Unmarshal([]byte(summary), &result) != nil || result.Dropped != 1 {
+		t.Fatalf("busy refusal missing from log summary: %s %v", summary, err)
+	}
+
 }
 
 type twoHungEventReads struct {
@@ -398,5 +410,87 @@ func TestDaemonHealthMethodsAnswerWithBothEventReadersHung(t *testing.T) {
 		if err != nil || answer.Re != sent.ID || answer.Body == "" || strings.HasPrefix(answer.Body, "error:") {
 			t.Fatalf("health method %s depended on event store: %+v %v", method, answer, err)
 		}
+	}
+}
+
+func TestDaemonPullAndCleanWaitForTheSameAgentsWrite(t *testing.T) {
+	for _, method := range []string{"pull", "clean"} {
+		t.Run(method, func(t *testing.T) {
+			b := core.New()
+			s, _ := serverFor(t, b, "admin@h")
+			b.EstablishDaemonAgent("node.example")
+			for _, name := range []string{"#a@h", "#b@h"} {
+				if _, err := b.Register(protocol.Record{Name: name, Kind: protocol.KindAgent, Owner: "admin@h", Allow: []string{"*"}}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			writeStarted := make(chan struct{})
+			writeRelease := make(chan struct{})
+			writeReturned := make(chan struct{})
+			readStarted := make(chan struct{}, 2)
+			readRelease := make(chan struct{})
+			mutationStarted := make(chan bool, 1)
+			d := newDaemonDispatch(ctx, func(e protocol.Envelope) {
+				switch eventMethod(e.Body) {
+				case "write":
+					close(writeStarted)
+					<-writeRelease
+					close(writeReturned)
+				case "read":
+					readStarted <- struct{}{}
+					<-readRelease
+				default:
+					select {
+					case <-writeReturned:
+						mutationStarted <- false
+					default:
+						mutationStarted <- true
+					}
+				}
+			})
+			var writeOnce sync.Once
+			defer func() { writeOnce.Do(func() { close(writeRelease) }); close(readRelease); cancel(); d.wg.Wait() }()
+			if !s.dispatchDaemonTask(d, protocol.Envelope{From: "#a@h", Body: "write #a@h notice held"}) {
+				t.Fatal("write refused")
+			}
+			select {
+			case <-writeStarted:
+			case <-time.After(time.Second):
+				t.Fatal("write never entered barrier")
+			}
+			if !s.dispatchDaemonTask(d, protocol.Envelope{From: "admin@h", Body: method + " #a@h"}) {
+				t.Fatalf("%s refused", method)
+			}
+			// Both read workers must enter and hold their probes. If the operation was
+			// misclassified into that FIFO lane, its callback has necessarily returned
+			// before the second probe can start; an empty channel here is not a race.
+			for range 2 {
+				if !s.dispatchDaemonTask(d, protocol.Envelope{From: "admin@h", Body: "read #b@h"}) {
+					t.Fatal("read probe refused")
+				}
+			}
+			for range 2 {
+				select {
+				case <-readStarted:
+				case <-time.After(time.Second):
+					t.Fatal("both read probes did not start")
+				}
+			}
+			select {
+			case <-mutationStarted:
+				t.Fatalf("%s started before the write returned", method)
+			default:
+			}
+			writeOnce.Do(func() { close(writeRelease) })
+			select {
+			case overlap := <-mutationStarted:
+				if overlap {
+					t.Fatalf("%s overlapped its write", method)
+				}
+			case <-time.After(time.Second):
+				t.Fatalf("%s did not run after the write", method)
+			}
+		})
 	}
 }
