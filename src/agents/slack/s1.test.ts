@@ -31,7 +31,7 @@ beforeAll(async () => {
   fake = { port: 0, saw: [] };
   fakeServer = Bun.serve({ port: 0, hostname: "127.0.0.1", async fetch(req) {
     fake.saw.push({ method: new URL(req.url).pathname, auth: req.headers.get("authorization") ?? "" });
-    return Response.json({ ok: true, user: "agentbot", team: "Fixture Team", url: "https://fixture-team.slack.com" });
+    return Response.json({ ok: true, user: "agentbot", user_id: "UBOT", team: "Fixture Team", url: "https://fixture-team.slack.com" });
   } });
   fake.port = fakeServer.port;
 }, 30000);

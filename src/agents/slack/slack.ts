@@ -545,22 +545,35 @@ const socket = new SocketMode(
  *  learned for the workspace in use, again whenever the token changes or the
  *  last attempt failed (slack-review-S.5). */
 async function ensureIdentity(): Promise<Identity | undefined> {
+  let ctx: Ctx;
   try {
-    const ctx = await eventCtx();
-    if (identity && identityFor === ctx.key) return identity;
-    const me = await web(ctx, "read", "auth.test");
-    if (me.ok !== true || typeof me.user_id !== "string") return lost();
-    identity = { botUser: me.user_id, botId: me.bot_id, appId: me.app_id };
-    identityFor = ctx.key;
-    return identity;
+    ctx = await eventCtx();
   } catch {
-    return lost();
+    return lost(false); // the secret or the bus, not Slack: holding the start would only hide it
   }
+  if (identity && identityFor === ctx.key) return identity;
+  let me: any;
+  try {
+    me = await web(ctx, "read", "auth.test");
+  } catch {
+    return lost(true); // Slack did not answer
+  }
+  if (me.ok !== true || typeof me.user_id !== "string") {
+    return lost(me.ok === false && typeof me.error === "string" && transientSlack.test(me.error));
+  }
+  identity = { botUser: me.user_id, botId: me.bot_id, appId: me.app_id };
+  identityFor = ctx.key;
+  return identity;
 }
+/** Slack's own "try again" answers; any other refusal (a bad token, a malformed reply) is
+ *  not worth holding the start for. */
+const transientSlack = /^(ratelimited|service_unavailable|internal_error|fatal_error|request_timeout|failed \((5\d\d|429)\))$/;
+let identityRetryable = false; // the last failed ask is one start-up should wait out
 /** The identity is unknown again (a failed ask, or a changed token): once the
  *  agent is serving, something keeps asking, so `status` does not wait for an event to do it. */
-function lost(): undefined {
+function lost(retryable: boolean): undefined {
   identity = undefined;
+  identityRetryable = retryable;
   if (serving) keepAsking();
   return undefined;
 }
@@ -630,7 +643,7 @@ await router.load();
 // in the background; `status` is "ok" only once it knows.
 {
   const give = Date.now() + (giveMs as { ms: number }).ms;
-  for (let attempt = 1; !(await ensureIdentity()) && Date.now() < give; attempt++) {
+  for (let attempt = 1; !(await ensureIdentity()) && identityRetryable && Date.now() < give; attempt++) {
     phase = `starting: waiting for Slack to say who the agent is (try ${attempt})`;
     await new Promise(done => setTimeout(done, Math.min(500 * 2 ** (attempt - 1), 4000)));
   }
