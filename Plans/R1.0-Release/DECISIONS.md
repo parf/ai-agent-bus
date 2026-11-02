@@ -2,6 +2,12 @@
 
 ## Recorded decisions
 
+- **macOS archives and the macOS npm client packages ship in 1.0.0** (Q313) — owner, 2026-11-02: "agree". The release workflow cross-builds darwin arm64 and x64, verifies and attaches them; one more Mac check runs on the published 1.0.0.
+  - Home: [release artifacts](distribution.md#release-artifacts).
+- **Agent events are in R1, unified with `#eventlog`** (Q312) — owner, 2026-11-02: "review our eventlog; try to unify systems … daemon itself \"bus\" agent should provide … agent's logs subscriptions similar to eventlog", then "go … good sane web presentation, few recent lines + expand". One model and verb set for both; the daemon keeps each agent's log and its subscriptions; the web shows a few recent lines per agent with an expand. Plan and estimate: T-29.
+  - Home: [agent events](agent-events/README.md#levels).
+- **Runner web RW4 (stale last observation) and RW8 (per-setting saved vs applied) leave R1** (Q311) — owner, 2026-11-02: "ideally just ignore; our values are ~ good enough for most cases". Parked in R1.1 with RW10–RW17, low priority.
+  - Home: [runner web additions](../R1.1/TODO.md#runner-web-additions).
 - **Protocol stays 1 until the 1.0.0 release; wire changes before it amend protocol 1** — owner, 2026-11-02: "until R1 - do not raise protocol version; just update old one". The rule that a wire change raises the protocol number applies from 1.0.0 on.
   - Home: [daemon API stability](../../docs/09-daemon-api.md#stability-and-compatibility).
 - **The "no such data" refusal kind is `not_found`, renamed from `unknown` before 1.0** (Q304) — owner, 2026-11-01; a missing endpoint stays `no_route`. Renaming after 1.0 would be a breaking change.
