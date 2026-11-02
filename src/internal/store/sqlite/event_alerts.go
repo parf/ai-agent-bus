@@ -36,10 +36,10 @@ func (s *Store) LoadEventAlerts(recordID uint32) ([]ports.EventEntry, bool, erro
 	if err = tx.QueryRow(`SELECT active FROM event_logs WHERE record_id = ?`, recordID).Scan(&flag); errors.Is(err, sql.ErrNoRows) {
 		has = false
 	} else if err != nil {
-		return nil, false, fmt.Errorf("event log state: %w", err)
+		return nil, false, fmt.Errorf("event log state: %w: %v", ports.ErrEventStateInvalid, err)
 	}
 	if has && flag != 0 && flag != 1 {
-		return nil, false, fmt.Errorf("event log state: invalid active flag")
+		return nil, false, fmt.Errorf("event log state: invalid active flag: %w", ports.ErrEventStateInvalid)
 	}
 	rows, err := tx.Query(`SELECT id, text, at, last_at, count FROM event_alerts WHERE record_id = ? ORDER BY id`, recordID)
 	if err != nil {
@@ -51,15 +51,15 @@ func (s *Store) LoadEventAlerts(recordID uint32) ([]ports.EventEntry, bool, erro
 		var id, count int64
 		var e ports.EventEntry
 		if err = rows.Scan(&id, &e.Text, &e.At, &e.LastAt, &count); err != nil {
-			return nil, false, fmt.Errorf("event alert row: %w", err)
+			return nil, false, fmt.Errorf("event alert row: %w: %v", ports.ErrEventStateInvalid, err)
 		}
 		if id <= 0 || count <= 0 {
-			return nil, false, fmt.Errorf("event alert row: invalid id or count")
+			return nil, false, fmt.Errorf("event alert row: invalid id or count: %w", ports.ErrEventStateInvalid)
 		}
 		e.ID, e.Count, e.Level = uint64(id), uint64(count), "alert"
 		out = append(out, e)
 		if len(out) > maxEventAlerts {
-			return nil, false, fmt.Errorf("event alert rows: more than %d", maxEventAlerts)
+			return nil, false, fmt.Errorf("event alert rows: more than %d: %w", maxEventAlerts, ports.ErrEventStateInvalid)
 		}
 	}
 	if err = rows.Err(); err != nil {
@@ -67,7 +67,7 @@ func (s *Store) LoadEventAlerts(recordID uint32) ([]ports.EventEntry, bool, erro
 	}
 	if !has {
 		if len(out) > 0 {
-			return nil, false, fmt.Errorf("event alert rows without a log state")
+			return nil, false, fmt.Errorf("event alert rows without a log state: %w", ports.ErrEventStateInvalid)
 		}
 		return nil, false, nil
 	}

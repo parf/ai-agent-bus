@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"database/sql"
+	"errors"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -169,8 +170,8 @@ func TestADamagedAlertRowFailsOnlyThatLog(t *testing.T) {
 			if _, err := s.db.Exec(damage.stmt); err != nil {
 				t.Fatal(err)
 			}
-			if _, _, err := s.LoadEventAlerts(7); err == nil {
-				t.Fatal("a damaged log loaded")
+			if _, _, err := s.LoadEventAlerts(7); !errors.Is(err, ports.ErrEventStateInvalid) {
+				t.Fatalf("a damaged log: %v, want the invalid-state error the counters use", err)
 			}
 			if got, active := loadAlerts(t, s, 8); !reflect.DeepEqual(got, alerts(1, 2)) || !active {
 				t.Fatalf("another record's log was affected: %+v active=%v", got, active)
