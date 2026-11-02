@@ -50,8 +50,20 @@ The [executed native example](tests/client.test.ts) (`exampleEventLog / native e
 
 - Three separate handles: the agent writes, its Owner reads and lists, and an unmanaged identity receives a private refusal.
 - The writing agent cannot read its own log just because it wrote it.
-- Each call has a bounded wait; no event-specific SDK helper or subscription is involved.
+- Each call has a bounded wait; no event-specific SDK helper is involved.
 - See [agent logs](../../../docs/agents/bus.md#agent-logs) for authority and reply behavior.
+
+## Event subscriptions
+
+The [executed subscription example](tests/client.test.ts)
+(`exampleEventSubscription / native event subscription example`) uses ordinary calls to `#bus` and consumes the authorized queue.
+
+- It lists the subscription, checks exactly one copy and deletes the subscription.
+- It checks that cancellation stops further copies.
+- Copies are non-waiting notices: send no ack or done for them.
+
+See [agent logs](../../../docs/agents/bus.md#agent-logs) and
+[receipts](../../../docs/04-messaging.md#receipts). No subscription helper is needed.
 
 ## Technical details
 

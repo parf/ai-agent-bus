@@ -566,32 +566,44 @@ for(const row of conformanceCases('bigfile') as unknown as StateCase[]) test(`sh
 
 
 // Ordinary native calls over the same event vectors as every other adapter.
-type EventStep = {as: 'owner'|'agent'|'third'; op: string; body?: string; expect?:Record<string,unknown>; same_answer_as?:number};
-const eventCases = JSON.parse(readFileSync(join(root,'src/testdata/client-conformance/events.json'),'utf8')) as Array<{id:string;fresh:boolean;steps:EventStep[]}>;
-for (const row of eventCases) test(`shared event vectors: ${row.id}`, async()=>{
+type EventStep = {as: 'owner'|'agent'|'third'|'worker'; op: string; body?: string; name?:string; changes?:Record<string,unknown>; inbox?:string; expect?:Record<string,unknown>; same_answer_as?:number};
+for(const file of ['events','event-subscriptions']) {
+const eventCases = JSON.parse(readFileSync(join(root,`src/testdata/client-conformance/${file}.json`),'utf8')) as Array<{id:string;fresh:boolean;steps:EventStep[]}>;
+for (const row of eventCases) test(`shared ${file} vectors: ${row.id}`, async()=>{
  expect(row.fresh).toBe(true);
- const actors = {owner:bus('owner@fixture'), agent:bus('#caller@fixture'), third:bus('#outsider@fixture')};
+ const actors = {owner:bus('owner@fixture'), agent:bus('#caller@fixture'), third:bus('#outsider@fixture'), worker:bus('#worker@fixture')};
+ let subscription='';
  const answers = new Map<number,string>();
  for(const [i,step] of row.steps.entries()) {
   const b=actors[step.as],where=`${row.id} step ${i} ${step.op}`;
   if(step.op==='call') {
-   const out=await b.call('#bus',step.body!,{timeout:3000});
+   const out=await b.call('#bus',step.body!.replaceAll('$subscription',subscription),{timeout:5000});
    expect(out.kind,where).toBe('answer');
    if(out.kind!=='answer') throw new Error(where+' expected answer');
    answers.set(i,out.message.body);
    const value=JSON.parse(out.message.body);
+   if(step.body!.startsWith('sub add ')) {subscription=value.id;expect(subscription,where+' subscription id').toBeTruthy();}
    for(const [path,want] of Object.entries(step.expect??{})) {
     const got=path.split('.').reduce((v,key)=>v[key],value);
-    expect(got,where+' '+path).toEqual(want);
+    expect(got,where+' '+path).toEqual(typeof want==='string'?want.replaceAll('$subscription',subscription):want);
    }
    if(step.same_answer_as!==undefined) expect(out.message.body,where).toBe(answers.get(step.same_answer_as)!);
   } else if(step.op==='send') await b.send('#bus',step.body!);
+  else if(step.op==='manage') await b.record(step.name!).manage(step.changes!);
   else if(step.op==='inbox') {
-   expect(step.expect?.empty).toBe(true);
-   expect(await b.consume({wait:300}),where).toBeNull();
+   const message=await b.consume({inbox:step.inbox,wait:300});
+   if(step.expect?.empty) {expect(message,where+' inbox not empty').toBeNull();continue;}
+   expect(message,where+' missing subscription copy').not.toBeNull();
+   const value={...message!.envelope,body:JSON.parse(message!.body),wait:message!.envelope.wait??'',receipt:message!.receipt??'',re:message!.re??''};
+   for(const [path,want] of Object.entries(step.expect!)) {
+    const got=path.split('.').reduce((v:any,key)=>v[key],value);
+    expect(got,where+' copy '+path).toEqual(want);
+   }
+   // Copies are non-waiting notices: no ack/done.
   } else throw new Error(where+' unsupported operation');
  }
-},15000);
+},30000);
+}
 
 async function exampleEventLog(agent:InstanceType<typeof Bus>, owner:InstanceType<typeof Bus>, third:InstanceType<typeof Bus>) {
  const call=async(b:InstanceType<typeof Bus>,body:string)=>{
@@ -609,4 +621,35 @@ async function exampleEventLog(agent:InstanceType<typeof Bus>, owner:InstanceTyp
 test('native event example uses the writer, Owner and unmanaged identity',async()=>{
  const output=await exampleEventLog(bus('#caller@fixture'),bus('owner@fixture'),bus('#outsider@fixture'));
  expect(output).toBe('written: alert disk full\nowner reads: 1 alert\nowner lists: #caller@fixture\na third party: forbidden\nthe writer reading its own log: forbidden');
+},15000);
+
+// Executed native subscription example; ordinary calls and consume, no helper.
+async function exampleEventSubscription(agent:InstanceType<typeof Bus>,owner:InstanceType<typeof Bus>) {
+ const call=async(b:InstanceType<typeof Bus>,body:string)=>{
+  const out=await b.call('#bus',body,{timeout:5000});
+  if(out.kind!=='answer') throw new Error('subscription example expected answer');
+  const reply=JSON.parse(out.message.body);
+  if(reply.error) throw new Error('subscription example refused: '+JSON.stringify(reply));
+  return reply;
+ };
+ const row=await call(owner,'sub add jobs@fixture #caller@fixture alert');
+ expect(row.id,'subscription id').toBeTruthy();
+ const listed=(await call(owner,'sub list #caller@fixture')).subscriptions;
+ expect(listed.length,'subscription listing').toBe(1);expect(listed[0].id).toBe(row.id);
+ expect((await call(agent,'write #caller@fixture alert disk full')).deliveries.sent,'one copy sent').toBe(1);
+ const copy=await owner.consume({inbox:'jobs@fixture',wait:300});
+ expect(copy,'missing subscription copy').not.toBeNull();
+ expect([copy!.from,copy!.topic,copy!.tag],'copy route').toEqual(['#bus','#caller@fixture','alert']);
+ const entry=JSON.parse(copy!.body);
+ expect([entry.level,entry.text],'copy body').toEqual(['alert','disk full']);
+ expect([copy!.receipt??'',copy!.re??'',copy!.envelope.wait??''],'copy is a notice').toEqual(['','','']);
+ // Do not ack/done a non-waiting notice.
+ expect(await owner.consume({inbox:'jobs@fixture',wait:300}),'duplicate copy').toBeNull();
+ expect((await call(owner,'sub delete '+row.id)).deleted,'subscription deletion').toBe(true);
+ expect((await call(agent,'write #caller@fixture alert after cancellation')).deliveries.matched,'cancelled subscription matched').toBe(0);
+ expect(await owner.consume({inbox:'jobs@fixture',wait:300}),'copy after cancellation').toBeNull();
+ return 'listed: 1 subscription; copy: alert disk full; receipt: none for a notice; cancelled: no further copies';
+}
+test('native event subscription example copies once and cancels',async()=>{
+ expect(await exampleEventSubscription(bus('#caller@fixture'),bus('owner@fixture'))).toBe('listed: 1 subscription; copy: alert disk full; receipt: none for a notice; cancelled: no further copies');
 },15000);

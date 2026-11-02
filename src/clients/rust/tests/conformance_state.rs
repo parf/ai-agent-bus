@@ -1,6 +1,7 @@
 //! Native Rust adapter for the shared state, identity and refusal vectors in
 //! src/testdata/client-conformance (kv, locks, identity, refusals, events; not bigfile).
-//! Event cases: shared_event_vectors. Executed event example: native_event_example.
+//! Event cases: shared_event_vectors / shared_event_subscription_vectors.
+//! Executed examples: native_event_example / native_event_subscription_example.
 use agent_bus::*;
 use serde_json::{json, Value};
 use std::{
@@ -384,7 +385,7 @@ async fn shared_refusal_vectors() {
 
 // Existing send/call/consume only: no new event SDK or subscription surface.
 async fn event_call(bus: &Bus, body: &str) -> String {
-    match bus.call("#bus", body, CallOptions {timeout: Duration::from_secs(3), ..Default::default()}).await.expect("event call failed") {
+    match bus.call("#bus", body, CallOptions {timeout: Duration::from_secs(5), ..Default::default()}).await.expect("event call failed") {
         CallOutcome::Reply(message) => message.body().to_owned(),
         CallOutcome::Done(_) => panic!("event call finished without an answer"),
     }
@@ -396,24 +397,35 @@ fn event_path<'a>(mut value: &'a Value, path: &str) -> &'a Value {
     value
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn shared_event_vectors() {
-    for case in cases("events") {
+async fn shared_event_vectors() { run_event_vectors("events").await; }
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn shared_event_subscription_vectors() { run_event_vectors("event-subscriptions").await; }
+
+async fn run_event_vectors(file: &str) {
+    for case in cases(file) {
         assert_eq!(case["fresh"], true);
         let (_fixture, v) = fixture();
         let owner = connect(&v, "owner@fixture").await;
         let agent = connect(&v, "#caller@fixture").await;
         let third = connect(&v, "#outsider@fixture").await;
+        let worker = connect(&v, "#worker@fixture").await;
+        let mut subscription = String::new();
         let mut answers = std::collections::HashMap::new();
         for (i, step) in case["steps"].as_array().unwrap().iter().enumerate() {
             let at = format!("{} step {i} {}", text(&case,"id"), text(step,"op"));
-            let bus = match text(step,"as") {"owner"=>&owner,"agent"=>&agent,"third"=>&third,other=>panic!("unknown identity {other}")};
+            let bus = match text(step,"as") {"owner"=>&owner,"agent"=>&agent,"third"=>&third,"worker"=>&worker,other=>panic!("unknown identity {other}")};
             match text(step,"op") {
                 "call" => {
-                    let raw = event_call(bus, text(step,"body")).await;
+                    let raw = event_call(bus, &text(step,"body").replace("$subscription", &subscription)).await;
                     let decoded: Value = serde_json::from_str(&raw).expect("event JSON reply");
+                    if text(step,"body").starts_with("sub add ") {
+                        subscription = decoded["id"].as_str().expect("subscription id").to_owned();
+                        assert!(!subscription.is_empty(), "{at}: subscription id");
+                    }
                     if let Some(expected) = step["expect"].as_object() {
                         for (path,want) in expected {
-                            assert_eq!(event_path(&decoded,path), want, "{at}: {path}");
+                            let want = if let Some(value) = want.as_str() { json!(value.replace("$subscription", &subscription)) } else { want.clone() };
+                            assert_eq!(event_path(&decoded,path), &want, "{at}: {path}");
                         }
                     }
                     if let Some(prior) = step["same_answer_as"].as_u64() {
@@ -422,14 +434,25 @@ async fn shared_event_vectors() {
                     answers.insert(i,raw);
                 }
                 "send" => {bus.send("#bus",text(step,"body"),SendOptions::default()).await.unwrap();}
+                "manage" => { bus.record(text(step,"name")).unwrap().manage(step["changes"].clone()).await.unwrap(); }
                 "inbox" => {
-                    assert_eq!(step["expect"]["empty"],true);
-                    assert!(bus.consume(ConsumeOptions {wait:Duration::from_millis(300),..Default::default()}).await.unwrap().is_none(),"{at}: inbox not empty");
+                    let inbox = step["inbox"].as_str().map(str::to_owned);
+                    let message = bus.consume(ConsumeOptions {inbox,wait:Duration::from_millis(300),..Default::default()}).await.unwrap();
+                    if step["expect"]["empty"] == true {
+                        assert!(message.is_none(),"{at}: inbox not empty");
+                        continue;
+                    }
+                    let message = message.expect(&format!("{at}: missing subscription copy"));
+                    let value = event_copy(&message);
+                    for (path,want) in step["expect"].as_object().unwrap() {
+                        assert_eq!(event_path(&value,path),want,"{at}: copy {path}");
+                    }
+                    // Non-waiting notices get no ack/done.
                 }
                 other=>panic!("{at}: unknown operation {other}"),
             }
         }
-        for bus in [&owner,&agent,&third] {bus.close().await.unwrap();}
+        for bus in [&owner,&agent,&third,&worker] {bus.close().await.unwrap();}
     }
 }
 
@@ -451,4 +474,48 @@ async fn native_event_example() {
     let third=connect(&v,"#outsider@fixture").await;
     assert_eq!(example_event_log(&agent,&owner,&third).await,"written: alert disk full\nowner reads: 1 alert\nowner lists: #caller@fixture\na third party: forbidden\nthe writer reading its own log: forbidden");
     for bus in [&owner,&agent,&third] {bus.close().await.unwrap();}
+}
+
+
+fn event_copy(message: &Message) -> Value {
+    json!({"from":message.from(),"to":message.to(),"topic":message.topic(),
+        "tag":message.tag(),"receipt":message.receipt(),"re":message.re(),
+        "wait":message.metadata().get("wait").cloned().unwrap_or(json!("")),
+        "body":serde_json::from_str::<Value>(message.body()).expect("copy body JSON")})
+}
+
+// Executed native subscription example, without an extra SDK abstraction.
+async fn example_event_subscription(agent: &Bus, owner: &Bus) -> String {
+    async fn call(bus: &Bus, body: &str) -> Value {
+        let reply: Value = serde_json::from_str(&event_call(bus,body).await).unwrap();
+        assert!(reply.get("error").is_none(),"subscription example refused: {reply}");
+        reply
+    }
+    let row=call(owner,"sub add jobs@fixture #caller@fixture alert").await;
+    let id=row["id"].as_str().expect("subscription id");
+    let listed=call(owner,"sub list #caller@fixture").await;
+    assert_eq!(listed["subscriptions"].as_array().unwrap().len(),1,"subscription listing");
+    assert_eq!(listed["subscriptions"][0]["id"],id,"listed id");
+    assert_eq!(call(agent,"write #caller@fixture alert disk full").await["deliveries"]["sent"],1,"one copy sent");
+    let options=ConsumeOptions {inbox:Some("jobs@fixture".into()),wait:Duration::from_millis(300),..Default::default()};
+    let copy=owner.consume(options.clone()).await.unwrap().expect("missing subscription copy");
+    let value=event_copy(&copy);
+    assert_eq!((copy.from(),copy.topic(),copy.tag()),("#bus","#caller@fixture","alert"),"copy route");
+    assert_eq!(value["body"]["level"],"alert");assert_eq!(value["body"]["text"],"disk full");
+    assert_eq!((copy.receipt(),copy.re(),value["wait"].as_str().unwrap()),("","",""),"copy is a notice");
+    // No ack/done for a non-waiting notice.
+    assert!(owner.consume(options.clone()).await.unwrap().is_none(),"duplicate copy");
+    assert_eq!(call(owner,&format!("sub delete {id}")).await["deleted"],true,"subscription deletion");
+    assert_eq!(call(agent,"write #caller@fixture alert after cancellation").await["deliveries"]["matched"],0,"cancelled subscription matched");
+    assert!(owner.consume(options).await.unwrap().is_none(),"copy after cancellation");
+    "listed: 1 subscription; copy: alert disk full; receipt: none for a notice; cancelled: no further copies".into()
+}
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn native_event_subscription_example() {
+    let (_fixture,v)=fixture();
+    let owner=connect(&v,"owner@fixture").await;
+    let agent=connect(&v,"#caller@fixture").await;
+    let result=tokio::time::timeout(Duration::from_secs(30),example_event_subscription(&agent,&owner)).await.expect("subscription example deadline");
+    assert_eq!(result,"listed: 1 subscription; copy: alert disk full; receipt: none for a notice; cancelled: no further copies");
+    for bus in [&owner,&agent] {bus.close().await.unwrap();}
 }
