@@ -548,15 +548,17 @@ Final Fable review of T0 `af1c7e06` ([issues](../issues/2026-11/2026-11-02.md), 
 
 - ☐ FR.B1 team 1: `agent-bus enrol` posts without a token
 - ☐ FR.B2 team 1: cache directory lookups per login, plus one daemon-wide bound on uncached lookups refused with 429
-- ☐ FR.J1 team 2: the Codex pusher declines the file tools
+- ✅ FR.J1 team 2: the Codex pusher declines the file tools (`506d7239`).
 - ☐ FR.G1 team 1: the release step creates or uploads with `--clobber`; distribution.md gives the tag procedure
 - ☐ FR.Q1 team 1: the Containerfile verifies archives against `SHA256SUMS`
 - ☐ FR.I1 team 1: the 403 case asserts the page renders its own rows
 - ☐ FR.I2 team 1: `src/web/web-face/records.md` describes the Events card
-- ☐ FR.A2 team 2: agent-log calls resolve the target with `b.entity` and answer `not_found` for an inactive record or User
-- ☐ FR.A3 team 2 (with A4): `sub add` refuses a target that cannot admit `#bus`, and `#bus` itself; the bus guide says a Personal agent is no target. Letting Personal agents admit `#bus` is [Q328](../R1.1/QUESTIONS.md#access-context)
+- ✅ FR.A2 team 2: agent-log calls resolve the target with `b.entity` and answer `not_found` for an inactive record or User (`09018860`).
+- ✅ FR.A3 team 2 (with A4): `sub add` refuses a target that cannot admit `#bus`, and `#bus` itself; the bus guide says a Personal agent is no target (`4d0fb211`).
+  Letting Personal agents admit `#bus` is [Q328](../R1.1/QUESTIONS.md#access-context).
 - ☐ FR.D1 team 1: one name grammar through `protocol.ParseName`, with a shared vector for the Python and TypeScript helpers
-- ☐ FR.C1 team 2: one daemon-wide bucket for alert writes, the excess counted as dropped
+- ✅ FR.C1 team 2: one daemon-wide bucket groups dirty alert snapshots into transactions (`4b2610a5`).
+  Alerts reach disk within about 100 ms; a clean stop flushes all. `dropped` stays admission-only and unchanged.
 - ☐ FR.F1 team 1: `docs/runner/security.md` says masked stderr reaches the agent's log, readable by its Owner and Maintainers. Not fixing in 1.0.0: the per-entry host setting `"events": "off"` waits for 1.0.1 (`#ab-dir`: the readers are the agent's own managers, it is disclosed once documented, and no reviewer quota is left for a runner change with a mutant)
 
 ## T-31 Client APIs and event examples
