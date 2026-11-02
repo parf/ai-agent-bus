@@ -800,6 +800,10 @@ func call(method, path string, q url.Values, body any) ([]byte, int, error) {
 // callCtx is the same with a deadline the caller owns: `run` gives it the
 // signal context so a long consume ends when the agent is asked to stop.
 func callCtx(ctx context.Context, method, path string, q url.Values, body any) ([]byte, int, error) {
+	if method == "POST" && path == "/enrol" {
+		// The protocol probe before an enrolment is part of it, so it is tokenless too.
+		ctx = context.WithValue(ctx, enrolling{}, true)
+	}
 	if path == "/identity" {
 		data, code, err := callRawCtx(ctx, method, path, q, body)
 		if err == nil && code < 400 {
@@ -819,12 +823,18 @@ func callCtx(ctx context.Context, method, path string, q url.Values, body any) (
 	return protocolRefusal(data, code, old, method+" "+path), code, err
 }
 
+// enrolling marks the context of an enrolment call: its /identity probe may go
+// without a token, like the call itself. No other verb sets it.
+type enrolling struct{}
+
 func callRawCtx(ctx context.Context, method, path string, q url.Values, body any) ([]byte, int, error) {
 	// On your own socket there is nothing to set: the socket says who is
 	// calling. Everywhere else the token does, and it is the only thing sent.
 	// See docs/02-access.md#what-a-call-carries.
 	token := os.Getenv("AGENT_BUS_TOKEN")
-	if token == "" && !onOwnSocket() {
+	// A newcomer has no credential yet: enrolment is how they get one, so it is
+	// the one call made without. Every other verb still needs a token or a socket.
+	if token == "" && !onOwnSocket() && !(method == "POST" && path == "/enrol") && !(path == "/identity" && ctx.Value(enrolling{}) != nil) {
 		return nil, 0, fmt.Errorf("set AGENT_BUS_TOKEN")
 	}
 	var buf io.Reader
