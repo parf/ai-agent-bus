@@ -93,7 +93,7 @@ class StartUp(Patched):
         config, err = self.quiet(fixtures.postgres)
         self.assertEqual(self.made, ['c1', 'c2'])
         self.assertEqual(config['port'], 5002)
-        self.assertIn(('rm', '-f', '-t', '1', 'c1'), fake.calls)
+        self.assertIn(('rm', '-f', '-v', '-t', '1', 'c1'), fake.calls)
         self.assertIn('fixture PostgreSQL failed', err)
 
     def test_a_container_that_is_ready_and_then_gone_during_setup_is_started_again(self):
@@ -104,7 +104,7 @@ class StartUp(Patched):
         config, err = self.quiet(fixtures.postgres)
         self.assertEqual(self.made, ['c1', 'c2'])
         self.assertEqual(config['port'], 5002)
-        self.assertIn(('rm', '-f', '-t', '1', 'c1'), fake.calls)
+        self.assertIn(('rm', '-f', '-v', '-t', '1', 'c1'), fake.calls)
 
     def test_the_wait_is_the_modules_budget_unless_a_caller_gives_one(self):
         seen = []
@@ -189,7 +189,7 @@ class StartUp(Patched):
                 stop()
         finally:
             fixtures.STOP[:] = saved
-        self.assertIn(('rm', '-f', '-t', '1', name), fake.calls)
+        self.assertIn(('rm', '-f', '-v', '-t', '1', name), fake.calls)
 
 
 class Leaks(Patched):
@@ -224,7 +224,7 @@ class Leaks(Patched):
         finally:
             fixtures.STOP[:] = saved
         starting, *cleanup = [w for w in self.watched if w[1] != 'rm'][0]
-        self.assertEqual(cleanup, [*fixtures.podman_command(), 'rm', '-f', '-t', '1', name])
+        self.assertEqual(cleanup, [*fixtures.podman_command(), 'rm', '-f', '-v', '-t', '1', name])
         run = fake.verbs('run')[0]
         self.assertIn('max-size=10mb', run)
         self.assertIn('path=%s/%s.ctr.log' % (fixtures.private(), name), run)   # in the run's dir, never journald
@@ -232,6 +232,24 @@ class Leaks(Patched):
         self.assertRegex(command, starting)   # the watcher recognises this start while it is in flight
         self.assertNotRegex(' '.join(['sh', '-c', fixtures.WATCH, 'sh', fixtures.RUN, starting, *cleanup]), starting)   # not itself
         self.assertNotRegex(command.replace(name, name + '9'), starting)   # nor a neighbour's start
+
+    def test_image_data_uses_bounded_tmpfs_and_never_implicit_volumes(self):
+        fake = fixtures.podman = FakePodman()
+        saved = fixtures.STOP[:]
+        try:
+            for image, path in [(fixtures.POSTGRES, '/var/lib/postgresql/data:rw,size=128m'),
+                                (fixtures.CLICKHOUSE, '/var/lib/clickhouse:rw,size=32m')]:
+                name, _ = self.saved[1](image, 5432, {})
+                run = fake.verbs('run')[-1]
+                self.assertIn('--image-volume=ignore', run)
+                self.assertIn('--tmpfs', run)
+                self.assertEqual(run[run.index('--tmpfs') + 1], path)
+                self.assertIn('ab-db-fixture=' + fixtures.RUN, run)
+                cleanup = fixtures.STOP[-1]
+                cleanup()
+                self.assertIn(('rm', '-f', '-v', '-t', '1', name), fake.calls)
+        finally:
+            fixtures.STOP[:] = saved
 
     def test_nothing_podman_does_for_a_fixture_reaches_the_journal(self):
         self.assertEqual(fixtures.PODMAN, ('podman', '--events-backend=none'))
@@ -258,7 +276,7 @@ class Leaks(Patched):
             self.saved[1]('image', 5432, {})
         finally:
             fixtures.STOP[:] = saved
-        self.assertIn(('rm', '-f', '-t', '1', 'ab-db-fixture-999999999-2'), fake.calls)
+        self.assertIn(('rm', '-f', '-v', '-t', '1', 'ab-db-fixture-999999999-2'), fake.calls)
 
     def test_a_store_that_cannot_be_listed_is_not_an_empty_one(self):
         fixtures.podman = lambda *a, check=True: subprocess.CompletedProcess(a, 125, '', 'storage broke')
@@ -445,7 +463,7 @@ class KilledRun(unittest.TestCase):
         name = child.stdout.readline().strip()
         self.assertTrue(name.startswith('ab-db-fixture-%d-' % child.pid), name)
         self.assertEqual(fixtures.podman('ps', '-a', '--filter', 'name=' + name, '-q').stdout.count('\n'), 1)   # it exists
-        self.addCleanup(lambda: fixtures.podman('rm', '-f', '-t', '1', name, check=False))
+        self.addCleanup(lambda: fixtures.podman('rm', '-f', '-v', '-t', '1', name, check=False))
         os.kill(child.pid, number)
         child.wait(30)
         end = __import__('time').time() + 30
@@ -473,7 +491,7 @@ class KilledRun(unittest.TestCase):
         self.addCleanup(child.wait)
         child.stdout.readline()
         mine = 'name=ab-db-fixture-%d-' % child.pid
-        self.addCleanup(lambda: [fixtures.podman('rm', '-f', '-t', '1', n, check=False)
+        self.addCleanup(lambda: [fixtures.podman('rm', '-f', '-v', '-t', '1', n, check=False)
                                  for n in fixtures.podman('ps', '-a', '--filter', mine, '--format', '{{.Names}}').stdout.split()])
         __import__('time').sleep(1)
         os.kill(child.pid, signal.SIGKILL)   # the first removal fires now, before `podman run` has made the container

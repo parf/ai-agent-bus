@@ -104,8 +104,8 @@ else
 fi
 
 podman network create "$net" >/dev/null
-podman volume create "$dvol" >/dev/null
-podman volume create "$rvol" >/dev/null
+podman volume create --label "agent-bus-test=$id" "$dvol" >/dev/null
+podman volume create --label "agent-bus-test=$id" "$rvol" >/dev/null
 
 daemon() {
   podman run -d --name "$id-d" --network "$net" --network-alias agent-busd --hostname node \

@@ -55,7 +55,7 @@ def setUpModule():
 
 def tearDownModule():
     # Removed here, by name, and then asked for by this run's label: the gate reads the count from the output.
-    fixtures.podman('rm','-f','-t','1',SERVER['name'],check=False)
+    fixtures.podman('rm','-f','-v','-t','1',SERVER['name'],check=False)
     listed=fixtures.podman('ps','-aq','--filter',f'label=ab-db-fixture={fixtures.RUN}',check=False)
     # A failed listing is not "none left": it would print the same zero.
     if listed.returncode!=0:raise AssertionError(f'podman ps failed ({listed.returncode}): {listed.stderr.strip()[:200]}')
