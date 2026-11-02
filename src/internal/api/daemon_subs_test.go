@@ -431,3 +431,26 @@ func TestSubAddTargetThatCannotTakeBusCopiesIsInvalidTargetWithItsReason(t *test
 		}
 	}
 }
+
+func TestSubAddCannotDistinguishAnUnreachableTargetFromAnAbsentOne(t *testing.T) {
+	a := newSubAPI(t)
+	maintainers := protocol.MaintainerList{"#other@h"}
+	if _, err := a.b.Manage("admin@h", core.Management{Name: "#a@h", Maintainers: &maintainers}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.b.Register(protocol.Record{Name: "#hidden@h", Kind: protocol.KindAgent, Owner: "admin@h"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.b.MaySend("#other@h", "#hidden@h"); err == nil {
+		t.Fatal("fixture caller can reach hidden target")
+	}
+	absent := a.mustAsk("#other@h", "sub add #absent@h #a@h")
+	hidden := a.mustAsk("#other@h", "sub add #hidden@h #a@h")
+	if hidden != absent {
+		t.Fatalf("target replies differ: hidden %s; absent %s", hidden, absent)
+	}
+	var out struct{ Error struct{ Code, Text string } }
+	if err := json.Unmarshal([]byte(hidden), &out); err != nil || out.Error.Code == "" || out.Error.Text == "" {
+		t.Fatalf("expected equal refusals, got %s (%v)", hidden, err)
+	}
+}

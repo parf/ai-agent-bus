@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.299 — 2026-11-02
+
+sub add refuses #bus and a target that cannot admit #bus, a Personal agent included, without revealing targets the caller cannot reach
+
 ## 0.9.298 — 2026-11-02
 
 The container image builds from a downloaded release, verifying the archive against SHA256SUMS, and ships no release inputs in its layers
