@@ -24,7 +24,7 @@ The links retain file:line evidence for this snapshot; line numbers may drift.
 | Timeouts / uncertain sends | ✅ [failure_test.go:91](../../src/clients/go/failure_test.go#L91) | ✅ [BusTest.java:770](../../src/clients/java/src/test/java/agentbus/BusTest.java#L770) | ✅ [run.php:597](../../src/clients/php/tests/run.php#L597) | ✅ [test_client.py:520](../../src/clients/python/tests/test_client.py#L520) | ✅ [transport.rs:196](../../src/clients/rust/tests/transport.rs#L196) | ✅ [client.test.ts:146](../../src/clients/typescript/tests/client.test.ts#L146) |
 | RT8 send / call / self-call | ✅ [conformance_test.go:85](../../src/clients/go/conformance_test.go#L85) | ✅ [BusTest.java:488](../../src/clients/java/src/test/java/agentbus/BusTest.java#L488) | ✅ [run.php:255](../../src/clients/php/tests/run.php#L255) | ✅ [test_conformance.py:37](../../src/clients/python/tests/test_conformance.py#L37) | ✅ [conformance.rs:78](../../src/clients/rust/tests/conformance.rs#L78) | ✅ [client.test.ts:320](../../src/clients/typescript/tests/client.test.ts#L320) |
 | Removed aliases | ✅ [protocol_test.go:132](../../src/clients/go/protocol_test.go#L132) | partial A — [BusTest.java:1348](../../src/clients/java/src/test/java/agentbus/BusTest.java#L1348) | partial A — [vectors.php:233](../../src/clients/php/tests/vectors.php#L233) | partial A — [test_conformance_state.py:227](../../src/clients/python/tests/test_conformance_state.py#L227) | partial A — [conformance_state.rs:328](../../src/clients/rust/tests/conformance_state.rs#L328) | partial A — [protocol.test.ts:65](../../src/clients/typescript/tests/protocol.test.ts#L65) |
-| Bigfile | ✅ [conformance_state_test.go:286](../../src/clients/go/conformance_state_test.go#L286) | missing B — [Record.java:1](../../src/clients/java/src/main/java/agentbus/Record.java#L1) | missing B — [Record.php:1](../../src/clients/php/src/Record.php#L1) | ✅ [test_conformance_state.py:123](../../src/clients/python/tests/test_conformance_state.py#L123) | missing B — [storage.rs:1](../../src/clients/rust/src/storage.rs#L1) | ✅ [client.test.ts:544](../../src/clients/typescript/tests/client.test.ts#L544) |
+| Bigfile | ✅ [conformance_state_test.go:286](../../src/clients/go/conformance_state_test.go#L286) | missing B — [capability matrix](../../docs/09-daemon-api.md#client-capability-matrix), source search below | missing B — [capability matrix](../../docs/09-daemon-api.md#client-capability-matrix), source search below | ✅ [test_conformance_state.py:123](../../src/clients/python/tests/test_conformance_state.py#L123) | missing B — [capability matrix](../../docs/09-daemon-api.md#client-capability-matrix), source search below | ✅ [client.test.ts:544](../../src/clients/typescript/tests/client.test.ts#L544) |
 
 The protocol tests include absent fields, malformed values, compatible newer
 daemons, too-new fatal rejection and older-daemon warnings. Shared refusal
@@ -47,6 +47,12 @@ retired `services` fields. Go's cited test deliberately calls the removed route
 and expects `no_route`; the other five have generic refusal tests but no
 explicit removed-route assertion. No client calls the web-only aliases.
 
+The missing-B result combines the [documented capability row](../../docs/09-daemon-api.md#client-capability-matrix)
+with a case-insensitive source search at the snapshot: no `bigfile` symbol in
+`src/clients/java/src/main`, `src/clients/php/src` or `src/clients/rust/src`.
+Matches in those clients' test trees only describe the excluded vector set;
+a link to the start of a record wrapper does not establish absence.
+
 ### Shared suite wiring
 
 [check.sh:17](../../src/clients/check.sh#L17) builds the private
@@ -58,9 +64,12 @@ The rows above cite send/call and state adapters; identity/refusal adapters are
 at the refusal evidence links and their adjacent identity tests. This is
 applicable-vector coverage, not a claim that missing bigfile is implemented.
 
-Java/PHP map fixture names into their private daemon and run native code;
-identity/refusal vectors use fake servers deliberately. The fixture does not
-substitute HTTP calls for the SDK under test. Native check entry points are
+Java and PHP map fixture names into their own real daemon, started by
+[Java tests/daemon.sh](../../src/clients/java/tests/daemon.sh) and
+[PHP tests/daemon.sh](../../src/clients/php/tests/daemon.sh), and run native code.
+Go, Python, TypeScript and Rust use the Go fixture. Identity/refusal vectors use
+fake servers deliberately. Neither harness substitutes raw HTTP calls for the
+SDK under test. Native check entry points are
 [Java run.sh:34](../../src/clients/java/tests/run.sh#L34),
 [PHP run.php:861](../../src/clients/php/tests/run.php#L861),
 [TypeScript check.sh:11](../../src/clients/typescript/tests/check.sh#L11), and
@@ -108,10 +117,13 @@ an uncertain append.
 | TypeScript | [call / send / consume, bus.ts:111–134](../../src/clients/typescript/src/bus.ts#L111), with the existing call budget | Subscription calls, then consume on the selected inbox | Same; subscription copies are not correlated call replies |
 
 The implementation deliverable is one tested native-language example per
-client, not speculative snippets in this plan. Each example writes to its own
-agent log, reads it, lists visible logs, creates a subscription to an authorized
-destination, receives a copy and deletes the subscription. It uses the canonical
-reply meanings rather than introducing another response format or SDK model.
+client, not speculative snippets in this plan. Each uses three identities:
+the target agent writes its own log; its User Owner reads, lists, creates and
+deletes the subscription, and consumes the authorized destination's copy; a
+third, unmanaged agent probes private refusal. The target agent is not granted
+read access merely because the log is its own. The Owner must be admitted to
+consume the destination, and the subscription sender must be admitted there.
+The example uses the canonical reply meanings rather than introducing another response format or SDK model.
 
 ### Subscription pitfalls and the helper threshold
 
@@ -148,13 +160,21 @@ verified runner provenance for an entry.
   [ServeDaemonAgent reader](../../src/internal/api/daemon_agent.go#L22).
   Today's fixture starts HTTP and storage but no `#bus` reader. Use the landed
   P1/P3 implementation, not six fake event handlers and never the live daemon.
+  This fixture serves Go/Python/TypeScript/Rust. Java/PHP instead need their
+  tests/daemon.sh harnesses to expose the same three test identities and
+  authorized destination against their real test daemon; after P1 that daemon
+  already owns the `#bus` reader. Verify readiness in both harness types.
 - Put representative event calls and subscription receipt cases into the
   [shared client vectors](../../src/testdata/client-conformance/README.md#state-identity-and-refusal-vectors-t-24),
   with a native adapter in all six clients. Reuse engine vectors for ring rules;
   do not copy the whole engine suite into every SDK.
 - Each example verifies confirmed append/read/list, private refusal before
   existence disclosure, an empty active log versus missing log, one subscription
-  copy, receipt handling and deletion/cancellation. Bound every wait. A plain
+  copy, receipt handling and deletion/cancellation. The agent credential does
+  confirmed append only; its User Owner performs read/list/subscription and
+  destination consumption; the unmanaged third credential receives the same
+  private refusal for existing and never-written logs. Also assert the writing
+  agent's own read is forbidden. Bound every wait. A plain
   no-wait write leaves no answer in its caller's inbox.
 - Retain all existing protocol vectors. A deliberately wrong event expectation
   must fail a named adapter assertion; a helper, if approved, has shared-vector
@@ -174,17 +194,19 @@ cover examples and native integration, not six new high-level API layers.
 | Go | Native example and shared event adapter | 6–10 | Fits if owner accepts the common schedule below |
 | Python | Native example and shared event adapter | 6–10 | Fits on the same condition |
 | TypeScript | Native example and shared event adapter | 6–10 | Fits on the same condition |
-| Java | Native example and shared event adapter | 8–12 | Fits on the same condition; no bigfile work required |
-| PHP | Native example and shared event adapter | 8–12 | Fits on the same condition; no bigfile work required |
+| Java | Native example, shared event adapter and real-daemon harness identities/readiness | 8–12 | Fits on the same condition; no bigfile work required |
+| PHP | Native example, shared event adapter and real-daemon harness identities/readiness | 8–12 | Fits on the same condition; no bigfile work required |
 | Rust | Native example and shared event adapter | 8–12 | Fits on the same condition; no bigfile work required |
-| Shared | Real `#bus` fixture, shared cases and docs/status alignment | 8–12 | Required once, before native integrations |
+| Shared | Real `#bus` Go fixture and shared cases | 8–12 | Required once, before native integrations |
+| Documentation | Six client README examples and docs/09 S2-status correction | 5–10 | Required after executed examples; included in this schedule |
 | Review and landing | Reader, required assertion proof, owning checks and gate | 15–25 | Required after the implementation |
 
-Minimum total: **65–103 AI minutes with one worker**, including review/landing.
+Minimum total: **70–113 AI minutes with one worker**, including review/landing.
 With two B/C workers, budget 8–12 shared minutes, 21–33 minutes for balanced
-client work and 15–25 minutes for review/landing: **about 45–70 minutes on the
-critical path**. Against tree-ready **15:10–17:10**, making this entire minimum
-mandatory shifts it to approximately **15:55–18:20**, if dependencies and both
+client work, 5–10 minutes for documentation and 15–25 minutes for review/landing:
+**about 50–80 minutes on the critical path** (49–80 before rounding). Against
+tree-ready **15:10–17:10**, making this entire minimum
+mandatory shifts it to approximately **16:00–18:30**, if dependencies and both
 workers are available. Any P1/P3 wait or gate queue adds directly; this is not a
 promise to keep the original freeze window unchanged.
 
