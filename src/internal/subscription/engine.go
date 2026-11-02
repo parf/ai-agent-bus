@@ -23,6 +23,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/subfilter"
 )
 
@@ -187,7 +188,6 @@ type Engine struct {
 
 var (
 	idPattern   = regexp.MustCompile(`^[0-9a-f]{12}$`)
-	namePattern = regexp.MustCompile(`^#?[a-z0-9][a-z0-9._/-]*(@[a-z0-9][a-z0-9.-]*)?$`)
 	timePattern = regexp.MustCompile(`^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$`)
 )
 
@@ -214,19 +214,11 @@ func New(store Store, bus Bus, cfg Config) (*Engine, error) {
 }
 
 func targetText(v string) (string, error) {
-	if len(v) < 1 || len(v) > 64 {
+	name, err := protocol.ParseName(v)
+	if err != nil {
 		return "", ErrInvalidTarget
 	}
-	for i := 0; i < len(v); i++ {
-		if v[i] >= 0x80 {
-			return "", ErrInvalidTarget
-		}
-	}
-	v = strings.ToLower(v)
-	if !namePattern.MatchString(v) {
-		return "", ErrInvalidTarget
-	}
-	return v, nil
+	return name.String(), nil
 }
 
 func identity(v string) (string, error) {

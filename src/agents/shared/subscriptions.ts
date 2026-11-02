@@ -79,11 +79,38 @@ export function checkText(text: string): string {
   return text;
 }
 const ID = /^[0-9a-f]{12}$/;
-const NAME = /^#?[a-z0-9][a-z0-9._+@/-]*$/;
+// Go strings.TrimSpace (including NEL; excluding JS-only BOM).
+const NAME_SPACE = /^[\t-\r \u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+|[\t-\r \u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+$/g;
+const trimName = (v: string) => v.replace(NAME_SPACE, "");
+const PART = /^[a-z0-9][a-z0-9._-]*$/;
+const LOCAL = /^[a-z0-9][a-z0-9._+-]*(?:@[a-z0-9][a-z0-9._+-]*)*$/;
+/** Mirror protocol.ParseName, pinned by the shared subscription-name vectors. */
+export function targetText(value: unknown): string {
+  const bad = (): never => { throw new SubscriptionError("invalid_target"); };
+  if (typeof value !== "string") return bad();
+  let name = trimName(value);
+  if (/[^\x00-\x7f]/.test(name)) return bad();
+  const prefix = name.startsWith("#") ? "#" : "";
+  if (prefix) { name = name.slice(1); if (!name || /^[\t-\r ]/.test(name)) return bad(); }
+  name = name.toLowerCase();
+  const at = name.lastIndexOf("@");
+  let local = trimName(at < 0 ? name : name.slice(0, at));
+  const realm = at < 0 ? "" : trimName(name.slice(at + 1));
+  const slash = local.indexOf("/");
+  let template = "";
+  if (slash >= 0) { template = trimName(local.slice(0, slash)); local = trimName(local.slice(slash + 1)); if (!PART.test(template)) return bad(); }
+  if (!LOCAL.test(local) || at >= 0 && !PART.test(realm)) return bad();
+  const result = prefix + (slash >= 0 ? template + "/" : "") + local + (at >= 0 ? "@" + realm : "");
+  if (result.length > 64) return bad();
+  return result;
+}
+function identity(value: unknown): string {
+  try { return targetText(value); } catch { throw new SubscriptionError("not_author"); }
+}
 const SAFE = (n: unknown): n is number => Number.isSafeInteger(n) && (n as number) >= 0;
 const FIELDS = ["created_at", "created_by", "dropped", "filter", "id", "selector", "sent", "target"].join();
 const STAMP = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/;
-const named = (v: unknown): v is string => typeof v === "string" && v.length <= 64 && NAME.test(v);
+const named = (v: unknown): v is string => { try { targetText(v); return true; } catch { return false; } };
 
 /** A counter saturates at the largest safe integer rather than losing precision. */
 const bump = (n: number) => Math.min(n + 1, Number.MAX_SAFE_INTEGER);
@@ -274,6 +301,7 @@ export class Subscriptions {
   private readonly maxPerCreator: number;
 
   constructor(private readonly port: Port, readonly source: string, private readonly options: Options) {
+    this.source = targetText(source);
     this.clock = options.clock ?? (() => new Date());
     this.idFactory = options.idFactory ?? randomId;
     this.matcher = options.matcher ?? ((re, text, until) => this.filters.test(re, text, until));
@@ -333,15 +361,14 @@ export class Subscriptions {
 
   async add(caller: Caller, target: string, selector: Record<string, unknown>, filter = ""): Promise<Row> {
     // Everything that needs no network first.
-    const to = typeof target === "string" ? target.trim().toLowerCase() : "";
-    if (!NAME.test(to) || to.length > 64) throw new SubscriptionError("invalid_target");
+    const to = targetText(target);
     try {
       this.options.validateSelector(selector);
     } catch {
       throw new SubscriptionError("invalid_selector");
     }
     compileFilter(filter);
-    const creator = caller.from;
+    const creator = identity(caller.from);
     if (this.rows.size + this.damaged.size >= this.maxSubscriptions || [...this.rows.values()].filter(r => r.created_by === creator).length >= this.maxPerCreator) {
       throw new SubscriptionError("limit");
     }
@@ -375,9 +402,10 @@ export class Subscriptions {
   }
 
   list(caller: Caller): (Row | Damaged)[] {
+    const who = identity(caller.from);
     const all = this.manages(caller);
     const rows: (Row | Damaged)[] = [...this.rows.values()]
-      .filter(r => all || r.created_by === caller.from)
+      .filter(r => all || r.created_by === who)
       .map(r => (this.filterOf(r) === null ? { ...r, reason: "invalid_filter" as const } : structuredClone(r)));
     if (all) rows.push(...[...this.damaged.values()].map(d => ({ ...d })));
     return rows.sort((a, b) => (a.id < b.id ? -1 : 1));
@@ -385,10 +413,11 @@ export class Subscriptions {
 
   async delete(caller: Caller, id: string): Promise<boolean> {
     if (typeof id !== "string" || !ID.test(id)) throw new SubscriptionError("invalid_id");
+    const who = identity(caller.from);
     const row = this.rows.get(id);
     if (!row && !this.damaged.has(id)) throw new SubscriptionError("not_found");
     // A damaged row has no creator to trust: only a manager repairs it.
-    if (!this.manages(caller) && row?.created_by !== caller.from) throw new SubscriptionError("not_author");
+    if (!this.manages(caller) && row?.created_by !== who) throw new SubscriptionError("not_author");
     let gone: boolean;
     try {
       gone = await this.port.remove(`sub.${id}`); // storage first, then memory

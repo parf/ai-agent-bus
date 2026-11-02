@@ -24,7 +24,10 @@ import subscription_filters as filters
 MAX_SAFE=2**53-1
 FIELDS={'id','target','selector','filter','created_by','created_at','sent','dropped'}
 ID=re.compile(r'[0-9a-f]{12}\Z')
-NAME=re.compile(r'#?[a-z0-9][a-z0-9._/-]*(?:@[a-z0-9][a-z0-9.-]*)?\Z')
+# protocol.ParseName: trim Go's Unicode space set, then require ASCII.
+NAME_SPACE=' \t\n\r\v\f\u0085\u00a0\u1680'+''.join(chr(n) for n in range(0x2000,0x200b))+'\u2028\u2029\u202f\u205f\u3000'
+PART=re.compile(r'[a-z0-9][a-z0-9._-]*\Z')
+LOCAL=re.compile(r'[a-z0-9][a-z0-9._+-]*(?:@[a-z0-9][a-z0-9._+-]*)*\Z')
 ERRORS={'invalid_target','invalid_selector','invalid_filter','invalid_id','limit','not_found','not_author','admission_refused','admission_unavailable','store_unknown'}
 WARNINGS={'admission_refused','admission_unavailable','filter_invalid','filter_timeout','invalid_text','send_refused','send_unknown','deadline','store_unknown'}
 
@@ -34,9 +37,27 @@ class SubscriptionError(ValueError):
 
 
 def target_text(value):
-    if not isinstance(value,str) or not 1<=len(value)<=64 or not value.isascii() or not NAME.fullmatch(value.lower()):
-        raise SubscriptionError('invalid_target')
-    return value.lower()
+    # Mirror internal/protocol/name.go; shared name vectors pin the grammar.
+    bad=lambda: SubscriptionError('invalid_target')
+    if not isinstance(value,str):raise bad()
+    value=value.strip(NAME_SPACE)
+    if not value.isascii():raise bad()
+    prefix='#' if value.startswith('#') else ''
+    if prefix:
+        value=value[1:]
+        if not value or value[0] in ' \t\n\r\v\f':raise bad()
+    value=value.lower()
+    local,at,realm=value.rpartition('@')
+    if not at:local,realm=value,''
+    local,realm=local.strip(NAME_SPACE),realm.strip(NAME_SPACE)
+    template,slash,tail=local.partition('/')
+    if slash:
+        template,local=template.strip(NAME_SPACE),tail.strip(NAME_SPACE)
+        if not PART.fullmatch(template):raise bad()
+    if not LOCAL.fullmatch(local) or at and not PART.fullmatch(realm):raise bad()
+    result=prefix+(template+'/' if slash else '')+local+('@'+realm if at else '')
+    if len(result)>64:raise bad()
+    return result
 
 
 def identity(value):
