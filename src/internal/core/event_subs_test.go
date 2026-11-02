@@ -501,3 +501,54 @@ func TestASubscriptionToItsOwnSourceIsOrdinaryTargetAdmission(t *testing.T) {
 		t.Fatalf("counts %v/%v", s, d)
 	}
 }
+
+// A suspended author shows and removes nothing, not even its own, whatever it
+// manages: standing as an active principal is asked after the store is read, for
+// list, delete and add alike; and a suspended author's copies are not forwarded.
+func TestASuspendedAuthorListsDeletesAddsAndForwardsNothing(t *testing.T) {
+	var b *Bus
+	hooks := &hookStore{State: memory.NewState()}
+	b = subFixture(t, hooks)
+	row, err := b.SubAdd("maint@h", "#a@h", "q@h", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	suspend := func() {
+		if _, err := b.SetUserState("owner@h", "maint@h", "inactive"); err != nil {
+			t.Error(err)
+		}
+	}
+	hooks.onList = suspend
+	if rows, err := b.SubList("maint@h", ""); err == nil && len(rows) != 0 || err != nil && eventlog.Code(err) != "forbidden" {
+		t.Fatalf("a caller suspended during the read listed %v, %v", rows, err)
+	}
+	if _, err := b.SetUserState("owner@h", "maint@h", "active"); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.SubDelete("maint@h", row.ID); eventlog.Code(err) != "forbidden" {
+		t.Fatalf("a caller suspended during a delete: %v, want forbidden", err)
+	}
+	hooks.onList = nil
+	if rows, _ := b.SubList("alice@h", "#a@h"); len(rows) != 1 {
+		t.Fatalf("the suspended author's subscription was deleted: %d rows", len(rows))
+	}
+	if _, err := b.SetUserState("owner@h", "maint@h", "active"); err != nil {
+		t.Fatal(err)
+	}
+	hooks.onList = suspend
+	before := subCount(hooks.State, subSource(b).ID)
+	if _, err := b.SubAdd("maint@h", "#a@h", "q2@h", "", ""); eventlog.Code(err) != "forbidden" || subCount(hooks.State, subSource(b).ID) != before {
+		t.Fatalf("an add by a caller suspended during the read: %v", err)
+	}
+	// Forwarding: the author is suspended now, the target still admits #bus.
+	hooks.onList = nil
+	res := b.deliverEntry(subSource(b), subEntry(1, "alert", "x"), time.Now().Add(time.Minute))
+	if res.Sent != 0 || res.Dropped != 1 || len(drain(t, b, "q@h")) != 0 {
+		t.Fatalf("a suspended author's copy: %+v, want dropped and not delivered", res)
+	}
+}
+
+func subCount(st *memory.State, source uint32) int {
+	rows, _ := st.ListSubscriptions(source)
+	return len(rows)
+}

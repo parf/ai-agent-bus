@@ -153,6 +153,9 @@ type subBus struct {
 // MaySend is the ordinary send ACL, whatever the target is, the source itself
 // included: the author's reach to the target, never a management question.
 func (s subBus) MaySend(who, target string) subscription.Admission {
+	if !s.b.activeNow(who) { // a suspended or removed author reaches nothing
+		return subscription.Refused
+	}
 	err := s.b.MaySend(who, target)
 	switch {
 	case err == nil:
@@ -259,6 +262,22 @@ func (b *Bus) subsFor(r protocol.Record) *subscription.Engine {
 	return e
 }
 
+// activeNow is whether who is still a registered, active principal.
+func (b *Bus) activeNow(who string) bool {
+	b.mu.Lock()
+	defer b.unlock()
+	return b.acting(who) == nil
+}
+
+// authError is a refusal of a caller that is no longer active as forbidden, as
+// the log's own calls answer it, and any other refusal as it is.
+func (b *Bus) authError(caller string, err error) error {
+	if errors.Is(err, subscription.ErrNotAuthor) && !b.activeNow(caller) {
+		return eventlog.Error("forbidden")
+	}
+	return subError(err)
+}
+
 // managesNow is whether who, now, is the active owner or a maintainer of the
 // source registration id under name, or the daemon Owner: asked again after any
 // external work, since standing and even the registration can change meanwhile.
@@ -299,7 +318,8 @@ func (b *Bus) SubAdd(caller, source, target, level, filter string) (subscription
 		return subscription.Row{}, eventlog.Error("internal_error")
 	}
 	standing := func() bool { return b.managesNow(caller, r.Name, r.ID) }
-	row, err := e.Add(subscription.Caller{Name: caller, Manager: true, Current: standing}, target, selector, filter)
+	active := func() bool { return b.activeNow(caller) }
+	row, err := e.Add(subscription.Caller{Name: caller, Manager: true, Current: standing, Active: active}, target, selector, filter)
 	if errors.Is(err, subscription.ErrNotAuthor) {
 		return subscription.Row{}, eventlog.Error("forbidden") // the standing went while the store was read
 	}
@@ -342,9 +362,9 @@ func (b *Bus) SubList(caller, source string) ([]SubscriptionEntry, error) {
 		if e == nil {
 			return eventlog.Error("internal_error")
 		}
-		rows, err := e.List(subscription.Caller{Name: caller, Manager: manager, Current: func() bool { return b.managesNow(caller, r.Name, r.ID) }})
+		rows, err := e.List(subscription.Caller{Name: caller, Manager: manager, Current: func() bool { return b.managesNow(caller, r.Name, r.ID) }, Active: func() bool { return b.activeNow(caller) }})
 		if err != nil {
-			return subError(err)
+			return b.authError(caller, err)
 		}
 		if manager && !b.managesNow(caller, r.Name, r.ID) && source != "" {
 			return eventlog.Error("forbidden") // revoked while the rows were read: nothing of theirs is shown
@@ -439,7 +459,8 @@ func (b *Bus) SubDelete(caller, id string) error {
 	if e == nil {
 		return eventlog.Error("internal_error")
 	}
-	return subError(e.Delete(subscription.Caller{Name: caller, Manager: manager, Current: func() bool { return b.managesNow(caller, r.Name, r.ID) }}, id))
+	err = e.Delete(subscription.Caller{Name: caller, Manager: manager, Current: func() bool { return b.managesNow(caller, r.Name, r.ID) }, Active: func() bool { return b.activeNow(caller) }}, id)
+	return b.authError(caller, err)
 }
 
 // subsHaveCandidates is the selector-only preflight before an entry is stored.

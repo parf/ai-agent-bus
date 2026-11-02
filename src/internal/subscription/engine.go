@@ -386,7 +386,13 @@ type Caller struct {
 	Name    string
 	Manager bool
 	Current func() bool
+	// Active, when set, is asked at the same moments: whether the caller is still
+	// a registered, active principal, whatever it manages. A suspended author
+	// shows and removes nothing, even its own.
+	Active func() bool
 }
+
+func (c Caller) gone() bool { return c.Active != nil && !c.Active() }
 
 func (c Caller) manager() bool {
 	if c.Current != nil {
@@ -482,7 +488,7 @@ func (e *Engine) Add(c Caller, target string, selector map[string]string, filter
 	if err != nil {
 		return Row{}, err
 	}
-	if c.Current != nil && !c.Current() { // asked after the rows were read
+	if c.gone() || c.Current != nil && !c.Current() { // asked after the rows were read
 		return Row{}, ErrNotAuthor
 	}
 	mine := 0
@@ -551,6 +557,9 @@ func (e *Engine) List(c Caller) ([]Listed, error) {
 	if err != nil {
 		return nil, err
 	}
+	if c.gone() {
+		return nil, ErrNotAuthor
+	}
 	manager := c.manager() // asked after the rows were read: a revoked manager sees its own only
 	ids := make([]string, 0, len(rows)+len(damaged))
 	for id := range rows {
@@ -596,6 +605,9 @@ func (e *Engine) Delete(c Caller, id string) error {
 	rows, damaged, err := e.load()
 	if err != nil {
 		return err
+	}
+	if c.gone() {
+		return ErrNotAuthor
 	}
 	row, found := rows[id]
 	if !found && !damaged[id] {
