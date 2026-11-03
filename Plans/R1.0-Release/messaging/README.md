@@ -30,4 +30,4 @@
 
 - **Why and outcome first**, then the proposal, then provider facts with a source.
 - **A fact not confirmed is marked "unconfirmed"** and names what would confirm it; no sign-up was made and nothing was sent live.
-- **Choices are recorded as decisions or open questions:** [R1 questions](../QUESTIONS.md#messaging-agents) and [decisions](../DECISIONS.md#recorded-decisions).
+- **Choices are recorded as decisions or open questions:** [R1.2 questions](../../R1.2/QUESTIONS.md#open-questions) and [decisions](../DECISIONS.md#recorded-decisions).

@@ -26,7 +26,7 @@ control plan execution, mark done items, and do review after meaningful progress
 5. xAB reports each landed step to the manager, who reports to the owner.
 6. No real provider call (Voyage, OpenRouter) and no live data without the
    owner's approval. Tests use fakes.
-7. A choice for the owner goes to [questions](../QUESTIONS.md#rag-service), never picked silently.
+7. A choice for the owner goes to [questions](../QUESTIONS.md#open-questions), never picked silently.
 
 ## Steps
 

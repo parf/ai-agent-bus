@@ -10,7 +10,7 @@ and [landed evidence](done/t32-agent-guide.md#landed-evidence) own its result.
 ## Proposed home
 
 Create `docs/10-writing-an-agent.md`, titled “What a good agent does”, after
-[Q324](QUESTIONS.md#r1-release-decisions) is settled. Link it from the root
+[Q324](DECISIONS.md#recorded-decisions) is settled. Link it from the root
 README's agent-writing entry and docs/00's Document ownership section.
 It is not a daemon introduction, installation tutorial or SDK implementation guide.
 
