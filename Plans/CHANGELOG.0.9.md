@@ -2,7 +2,7 @@
 
 📌 **TL;DR:** Changes on the 0.9 development line, newest first, one or two
 lines per version. 0.9 is an odd line: it is development and may be broken.
-The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
+The previous line is [changelog 0.8](CHANGELOG.0.8.md#changelog-08).
 
 ## 0.9.303 — 2026-11-02
 
