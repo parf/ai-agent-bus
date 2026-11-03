@@ -2,7 +2,7 @@
 
 ## Recorded decisions
 
-- **AI-assisted setup is final-release work** — owner, 2026-11-03: an AI Markdown install/config/update workflow and Web Face AI chat backed by an `ab-*` session, following the mdhouse pattern. Implementation is pending.
+- **AI-assisted setup is final-release work** — owner, 2026-11-03: an AI Markdown install/config/update workflow stays in R1. Owner update, 2026-11-03: Web Face AI chat moves to [R1.1](../R1.1/ai-setup.md#web-face-chat).
   - Home: [AI-assisted setup](ai-setup.md#release-scope).
 
 - ✅ Q329 W1C performs the prepared daemon and CLI cutover while the CEO is unavailable

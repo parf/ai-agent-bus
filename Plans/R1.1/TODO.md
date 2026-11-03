@@ -234,3 +234,11 @@ Owner, 2026-11-02; plan in [dbsync](dbsync.md#steps-and-estimate), open [Q314–
   - Acceptance: [the plan's acceptance](imap-large-transfer.md#acceptance-for-the-todo-item)
   - Mutants: [the plan's list](imap-large-transfer.md#acceptance-for-the-todo-item)
   - Whether bigfile's IMAP part/append (`1a95ec19`) supersedes B.31 is the owner's later call.
+
+## Web Face AI chat
+
+- ☐ T-34 Web Face AI chat backed by an `ab-*` session; moved from R1 by the owner, 2026-11-03.
+  - Home: [Web Face chat](ai-setup.md#web-face-chat).
+  - Depends: T-33's Markdown workflow; inspect the owner's mdhouse implementation before design/build.
+  - Acceptance: a real conversation reaches its backing session, asks for required setup choices, performs the chosen configuration flow and shows progress/results across turns.
+  - Acceptance: an email or Telegram setup journey reuses T-33; an unavailable session or unfinished step is shown plainly rather than reported as success.

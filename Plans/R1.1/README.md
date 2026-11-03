@@ -12,6 +12,7 @@ stage is [R1.2](../R1.2/README.md#scope).
 
 | Topic | Canonical knowledge |
 |---|---|
+| Web Face AI setup chat (T-34, moved from R1) | [Chat scope](ai-setup.md#web-face-chat) |
 | Identity extensions (sigils, delegation, ownership) | [Identity extensions](identity.md#sigils) |
 | AUTH distribution | [AUTH distribution](auth.md#bundle) |
 | Scoped credentials and encryption | [Scoped credentials and encryption](access.md#token-scope) |

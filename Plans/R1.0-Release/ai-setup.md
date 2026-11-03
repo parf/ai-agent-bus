@@ -1,12 +1,12 @@
 # AI-assisted installation and agent setup
 
-📌 **TL;DR:** Give an AI one Markdown workflow: it does most installation work, then asks the questions needed to connect useful agents. A Web Face chat backed by an `ab-*` session offers the same help. These are owner-requested final-release tasks, not built features.
+📌 **TL;DR:** Give an AI one Markdown workflow: it does most installation work, then asks the questions needed to connect useful agents. The Markdown workflow is R1 work; Web Face chat is separate R1.1 work.
 
 ## Release scope
 
 Owner request, 2026-11-03: an AI Markdown install/config/update script and AI chat in the Web Face, backed by an `ab-*` session like the owner's mdhouse integration.
 
-The goal is a working bus and configured agents without making users translate documentation into shell commands. Implementation is pending; this note defines journeys, not a new protocol or message format.
+The goal is a working bus and configured agents without making users translate documentation into shell commands. T-33 is in progress; this note defines journeys, not a new protocol or message format.
 
 ## Markdown workflow
 
@@ -20,12 +20,8 @@ Link the canonical [installation and update rules](../../docs/07-setup.md#releas
 
 ## Web Face chat
 
-- Add AI chat backed by an `ab-*` session, so users can work through agent setup from the Web Face.
-- Inspect the owner's mdhouse chat integration before proposing the implementation. Reuse its demonstrated interaction pattern where it fits this project.
-- Keep the ongoing setup conversation in the backing session; show progress, questions and operation results plainly.
-- Reuse the Markdown workflow and current agent documentation, so chat and command-driven setup do not drift.
-- Keep the existing plain Web Face style. Session lifecycle, UI placement and the integration contract follow the mdhouse read; they are not decided here.
+T-34 moved to [R1.1](../R1.1/ai-setup.md#web-face-chat) by the owner, 2026-11-03. It reuses T-33 and does not block R1.
 
 ## Work and acceptance
 
-[T-33 and T-34](TODO.md#ai-assisted-installation-and-agent-setup) track the deliverables and end-user acceptance. They join the final-release queue. This plan does not authorize publication, provider messages or live host changes; Mac validation and release execution remain scheduled separately.
+[T-33](TODO.md#ai-assisted-installation-and-agent-setup) tracks the Markdown deliverable and end-user acceptance. This plan does not authorize publication, provider messages or changes to a live installation; use an isolated test system for acceptance.
