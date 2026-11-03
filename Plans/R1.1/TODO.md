@@ -10,6 +10,12 @@ Storage scope is assigned; its implementation follows the 0.7 prerequisites.
 Other proposed work needs scope confirmation and resolution of
 [questions](QUESTIONS.md#open-questions). Existing decisions describe targets, not completed code.
 
+## CLI reply body
+
+
+- ☐ Add `agent-bus call --body` to print only the reply body, without the JSON envelope.
+  - Acceptance: `agent-bus call "#time-simple@$REALM" epoch --body` produces the same output as `agent-bus call "#time-simple@$REALM" epoch | jq -r .body`.
+
 ## Dependencies
 
 | Candidate work | Must precede it |
