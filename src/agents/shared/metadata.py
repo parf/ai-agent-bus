@@ -98,7 +98,7 @@ def answer(directory, ask='help', *, allowed=None, roles=None, as_json=False):
     if shared: lines += ['', 'Arguments'] + [argument(shared[name]) for name in sorted(shared)]
     if examples: lines += ['', 'Examples'] + examples
     footer = ['v' + value['version']]
-    if value.get('license'): footer.append(value['license'].replace('PolyForm-Noncommercial-1.0.0', 'PolyForm-NC'))
+    if value.get('license'): footer.append(value['license'].replace('LicenseRef-PolyForm-Strict-1.0.0', 'PolyForm Strict'))
     if value.get('homepage'): footer.append(value['homepage'].removeprefix('https://').removeprefix('http://'))
     if value.get('author'): footer.append('© ' + value['author'])
     target = shlex.quote(os.environ['AGENT_BUS_NAME']) if os.environ.get('AGENT_BUS_NAME') else '<name>'

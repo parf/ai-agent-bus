@@ -11,7 +11,8 @@ const Source = "https://github.com/parf/ai-agent-bus"
 const SourceURL = Source + "/blob/main"
 
 // Project metadata is shared by daemon descriptions and faces.
-const License = "PolyForm-Noncommercial-1.0.0"
+// License is a custom SPDX reference to the project terms in root LICENSE.md.
+const License = "LicenseRef-PolyForm-Strict-1.0.0"
 const Author = "Sergey Porfiriev"
 
 // BusDescription is #bus's help description; docs/agents/README.md's agent list is generated from it.
@@ -22,5 +23,5 @@ const BusDocs = SourceURL + "/docs/agents/bus.md"
 
 // Footer is the common copyright line on command help.
 func Footer() string {
-	return "v" + version.String + " · PolyForm-NC · " + strings.TrimPrefix(Homepage, "https://") + " · " + version.Copyright
+	return "v" + version.String + " · PolyForm Strict · " + strings.TrimPrefix(Homepage, "https://") + " · " + version.Copyright
 }

@@ -13,7 +13,7 @@
       "*.slack.com"
     ]
   },
-  "license": "PolyForm-Noncommercial-1.0.0",
+  "license": "LicenseRef-PolyForm-Strict-1.0.0",
   "author": "Sergey Porfiriev",
   "homepage": "https://parf.dev/agent-bus/",
   "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/slack.md",

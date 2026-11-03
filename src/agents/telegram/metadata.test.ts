@@ -23,7 +23,7 @@ test("manifest help matches the parser and every handler", () => {
   expect(Object.keys(generated.methods).sort()).toEqual(methods);
   expect(generated.asks).toEqual(["help", "help-config", "help-secret", "help-json"]);
   expect(manifest).not.toHaveProperty("version");
-  expect(manifest.license).toBe("PolyForm-Noncommercial-1.0.0");
+  expect(manifest.license).toBe("LicenseRef-PolyForm-Strict-1.0.0");
 });
 
 test("secret help exposes declarations and comments, never values", () => {

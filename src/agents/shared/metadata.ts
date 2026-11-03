@@ -88,7 +88,7 @@ export function helpAnswer(manifest: Manifest, ask: HelpAsk, envDist: string, ro
   if (shared.size) lines.push("", "Arguments", ...[...shared.keys()].sort().map(name => argument(shared.get(name)!)));
   if (examples.length) lines.push("", "Examples", ...examples);
   const footer = [`v${data.version}`];
-  if (data.license) footer.push(data.license.replace("PolyForm-Noncommercial-1.0.0", "PolyForm-NC"));
+  if (data.license) footer.push(data.license.replace("LicenseRef-PolyForm-Strict-1.0.0", "PolyForm Strict"));
   if (data.homepage) footer.push(data.homepage.replace(/^https?:\/\//, ""));
   if (data.author) footer.push("© " + data.author);
   const target = name ? "'" + name.replaceAll("'", "'\"'\"'") + "'" : "<name>";

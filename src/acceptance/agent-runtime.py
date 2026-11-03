@@ -38,7 +38,7 @@ def check(root):
     env = {k: v for k, v in os.environ.items() if not k.startswith(('AGENT_BUS_', 'AB_ROLE_', 'PYTHON'))}
     env.update(PYTHONDONTWRITEBYTECODE='1', AB_ROLE_OWNER='1')
     version = (root / 'internal/version/VERSION').read_text().strip()
-    assert 'PolyForm Noncommercial License 1.0.0' in (root / 'agents/LICENSE.md').read_text()
+    assert 'PolyForm Strict License 1.0.0' in (root / 'agents/LICENSE.md').read_text()
     assert 'MIT License' in (root / 'clients/LICENSE.md').read_text()
     assert (root / 'agents/licenses/NOTICE.md').is_file()
 

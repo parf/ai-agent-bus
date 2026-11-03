@@ -101,7 +101,7 @@ def check(test, directory, agent, name):
             test.assertTrue(any(line.removeprefix('[destructive] ').startswith(usage + ' ') or line.removeprefix('[destructive] ').startswith(usage + ':') for line in text.splitlines()), method)
         test.assertNotIn('help:', text)
         test.assertNotIn('Version:', text)
-        test.assertIn('PolyForm-NC · ' + manifest['homepage'].removeprefix('https://').removeprefix('http://'), text)
+        test.assertIn('PolyForm Strict · ' + manifest['homepage'].removeprefix('https://').removeprefix('http://'), text)
         for shared_name, definition in manifest.get('arguments', {}).items():
             if any(any(a['name'] == shared_name and not a.get('json_only') for a in m.get('args', [])) for m in rendered['methods'].values()):
                 test.assertEqual(text.count(shared_name + ' ('), 1, shared_name)
@@ -115,7 +115,7 @@ def check(test, directory, agent, name):
         with patch.dict(os.environ, {'AGENT_BUS_NAME': '#fixture/instance@t'}):
             test.assertIn("More: agent-bus help '#fixture/instance@t' config | secret | json", answer(directory))
         test.assertNotIn('version', manifest)
-        test.assertEqual(manifest['license'], 'PolyForm-Noncommercial-1.0.0')
+        test.assertEqual(manifest['license'], 'LicenseRef-PolyForm-Strict-1.0.0')
         for key in ('description','author','homepage'): test.assertTrue(manifest[key])
         for method in actual - {'help'}:
             args = {'unit':'nginx.service','repo':'fixture','query':'needle','age':'1m',

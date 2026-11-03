@@ -197,7 +197,7 @@ func (m Manifest) Answer(dir, ask string, roles []string, jsonForm bool, target 
 		if len(examples) > 0 {
 			b.WriteString("\nExamples\n" + strings.Join(examples, "\n") + "\n")
 		}
-		license := strings.ReplaceAll(m.License, "PolyForm-Noncommercial-1.0.0", "PolyForm-NC")
+		license := strings.ReplaceAll(m.License, "LicenseRef-PolyForm-Strict-1.0.0", "PolyForm Strict")
 		footer := []string{"v" + v}
 		if license != "" {
 			footer = append(footer, license)

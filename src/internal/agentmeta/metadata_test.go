@@ -134,7 +134,7 @@ func TestMachineHelpIncludesWholeDescriptionWithoutValues(t *testing.T) {
 }
 
 func TestReadableHelpPreservesOrderAndSeparatesTextFromJSON(t *testing.T) {
-	raw := `{"description":"Route conversations","license":"PolyForm-Noncommercial-1.0.0","author":"Full author","homepage":"https://example.test/repo","docs":"https://example.test/docs/agents/chat.md","arguments":{"channel":{"help":"Channel name","type":"string"}},"methods":{"post":{"help":"Post a message","args":[{"name":"channel"},{"name":"thread","help":"Thread ID","json_only":true},{"name":"text","help":"Message","rest":true}],"example":"agent-bus call '#chat@t' 'post #general Hello'"},"add":{"text":"sub add <channel> <target>","help":"Forward messages","args":[{"name":"channel"},{"name":"target","help":"Destination"}],"destructive":true},"help":{"help":"Help"}}}`
+	raw := `{"description":"Route conversations","license":"LicenseRef-PolyForm-Strict-1.0.0","author":"Full author","homepage":"https://example.test/repo","docs":"https://example.test/docs/agents/chat.md","arguments":{"channel":{"help":"Channel name","type":"string"}},"methods":{"post":{"help":"Post a message","args":[{"name":"channel"},{"name":"thread","help":"Thread ID","json_only":true},{"name":"text","help":"Message","rest":true}],"example":"agent-bus call '#chat@t' 'post #general Hello'"},"add":{"text":"sub add <channel> <target>","help":"Forward messages","args":[{"name":"channel"},{"name":"target","help":"Destination"}],"destructive":true},"help":{"help":"Help"}}}`
 	m, err := Decode([]byte(raw))
 	if err != nil {
 		t.Fatal(err)
@@ -143,7 +143,7 @@ func TestReadableHelpPreservesOrderAndSeparatesTextFromJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"post <channel> <text...>:", "[destructive] sub add <channel> <target>:", "Arguments\nchannel (string): Channel name", "Examples\nagent-bus call", "PolyForm-NC · example.test/repo · © Full author\nDocs: https://example.test/docs/agents/chat.md\nMore: agent-bus help '#chat/work@t' config | secret | json"} {
+	for _, want := range []string{"post <channel> <text...>:", "[destructive] sub add <channel> <target>:", "Arguments\nchannel (string): Channel name", "Examples\nagent-bus call", "PolyForm Strict · example.test/repo · © Full author\nDocs: https://example.test/docs/agents/chat.md\nMore: agent-bus help '#chat/work@t' config | secret | json"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("missing %q: %s", want, body)
 		}
@@ -176,7 +176,7 @@ func TestReadableHelpPreservesOrderAndSeparatesTextFromJSON(t *testing.T) {
 		t.Fatalf("Python/Go help differs:\nPython:\n%s\nGo:\n%s", native, body)
 	}
 	machine, _ := m.Answer(t.TempDir(), "help-json", nil, false)
-	for _, want := range []string{`"thread"`, `"json_only":true`, `"author":"Full author"`, `"license":"PolyForm-Noncommercial-1.0.0"`, `"help":"Channel name"`} {
+	for _, want := range []string{`"thread"`, `"json_only":true`, `"author":"Full author"`, `"license":"LicenseRef-PolyForm-Strict-1.0.0"`, `"help":"Channel name"`} {
 		if !strings.Contains(machine, want) {
 			t.Fatalf("machine help lost %q: %s", want, machine)
 		}

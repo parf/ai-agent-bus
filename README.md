@@ -408,7 +408,7 @@ All local conventions live in [CLAUDE.md](CLAUDE.md#working-rules).
 
 ## License
 
-[PolyForm Noncommercial](LICENSE.md#polyform-noncommercial-license-100), except
+[PolyForm Strict](LICENSE.md#polyform-strict-license-100), except
 the client libraries and their examples under `src/clients/`, which are
 [MIT](src/clients/LICENSE.md#mit-license).
 

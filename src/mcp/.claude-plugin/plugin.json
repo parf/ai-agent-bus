@@ -2,7 +2,7 @@
   "name": "agent-bus",
   "description": "Find connected sessions and services; send and receive messages",
   "author": {"name": "Sergey Porfiriev"},
-  "license": "PolyForm-Noncommercial-1.0.0",
+  "license": "LicenseRef-PolyForm-Strict-1.0.0",
   "mcpServers": {
     "agent-bus": {
       "command": "bun",

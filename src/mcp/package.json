@@ -1,7 +1,7 @@
 {
   "name": "@agent-bus/mcp",
   "author": "Sergey Porfiriev",
-  "license": "PolyForm-Noncommercial-1.0.0",
+  "license": "SEE LICENSE IN ../../LICENSE.md",
   "private": true,
   "type": "module",
   "description": "agent-bus MCP face: its tools over the daemon's HTTP+JSON",

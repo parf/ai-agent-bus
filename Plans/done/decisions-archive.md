@@ -170,6 +170,8 @@ History only; these rows are never a current contract. See [current decisions](.
 
 ## Versioning and project process
 
+- **Project license was PolyForm Noncommercial 1.0.0** — owner, 2026-09-13; replaced by PolyForm Strict on 2026-11-02. [Former standard terms](https://polyformproject.org/licenses/noncommercial/1.0.0); [current project terms](../../LICENSE.md#polyform-strict-license-100).
+
 | Decision topic | Substance | Why |
 |---|---|---|
 | No compatibility obligation before R1.2 | [record kinds](../../docs/03-records.md#record-kinds) | 2026-09-18 owner decision; no migration feature is written. The upgrade still needs a stated restore rule and a cutover, which are [J.11 and J.12](R0.8-MVP/0.6.0-TODO.md#remaining-work) |
