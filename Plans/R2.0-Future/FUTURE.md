@@ -21,3 +21,8 @@ The stable proposals are indexed in [topics](README.md#topics). Assign a release
 If a Claude Code plugin named `ab` is shipped, its commands, skills and agents
 use the `ab:` namespace. That namespace is not an MCP tool name. No plugin release
 is committed by reserving the name.
+
+## CLI reply body
+
+- ☐ Add `agent-bus call --body` to print only the reply body, without the JSON envelope. Target release is not assigned.
+  - Acceptance: `agent-bus call "#time-simple@$REALM" epoch --body` produces the same output as `agent-bus call "#time-simple@$REALM" epoch | jq -r .body`.
