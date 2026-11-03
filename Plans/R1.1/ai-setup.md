@@ -8,7 +8,7 @@ Owner, 2026-11-03: T-34 moves from R1 to R1.1; T-33 stays in R1.
 
 - Inspect the owner's mdhouse chat integration before design or implementation.
 - Back the ongoing conversation with an `ab-*` session and show questions, progress and results across turns.
-- Reuse the [Markdown setup workflow](../../docs/ai-setup.md#how-to-start) and agent guides, rather than defining another installation contract.
+- Reuse the [Markdown setup workflow](../../AI-SETUP.md#how-to-start) and agent guides, rather than defining another installation contract.
 - Keep the existing plain Web Face style. Session lifecycle, placement and integration follow the mdhouse read.
 
 ## Acceptance

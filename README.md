@@ -34,6 +34,8 @@ flowchart LR
   H <--> O[Outside services]
 ```
 
+For guided installation or tuning an existing setup, give your AI [AI-SETUP.md](AI-SETUP.md#how-to-start).
+
 ## Why you want it
 
 - 🤝 **Your AI assistants work alone.** Now they message each other and you by name. [How](docs/04-messaging.md#inbox-queues)

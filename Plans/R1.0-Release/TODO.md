@@ -3,10 +3,11 @@
 ## AI-assisted installation and agent setup
 
 - ⏳ T-33 AI Markdown workflow for installation, configuration and updates
-  - State: owner-requested final-release work, 2026-11-03; implementation not started.
+  - State: Markdown entry point written at [AI-SETUP.md](../../AI-SETUP.md#how-to-start); documentation and installed-node inspection checked. A fresh-system AI journey and an update journey remain acceptance work.
   - Home: [AI-assisted setup](ai-setup.md#markdown-workflow).
   - Acceptance: on a clean test system, an AI follows the Markdown entry point and does most installation itself; it asks for needed choices/account input and helps configure email and Telegram agents, then demonstrates the selected agents working.
-  - Acceptance: a second run and an update preserve existing setup and give a truthful completion summary. External account checks use designated accounts with user authorization, or remain explicitly pending.
+  - Existing installation: offer tuning after inspection; never reinstall or update automatically. Read the main docs and selected guides before answering or changing an agent.
+  - Acceptance: a second run and a requested update preserve existing setup and give a truthful completion summary. External account checks use designated accounts with user authorization, or remain explicitly pending.
 
 - T-34 Web Face AI chat moved to [R1.1](../R1.1/TODO.md#web-face-ai-chat) by the owner, 2026-11-03.
 

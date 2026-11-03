@@ -22,6 +22,8 @@
 
 ### Install
 
+For AI-guided setup and agent tuning, start with [AI-SETUP.md](../AI-SETUP.md#how-to-start). It inspects an existing installation before proposing changes.
+
 | Need | Path | Availability |
 |---|---|---|
 | Full Linux node from npm | `npm install -g ai-agent-bus`, then explicit setup | Chosen release path; installable npm publication is pending |

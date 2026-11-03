@@ -409,6 +409,12 @@ timer to exhaust an exact budget. Twenty runs under load pass; a fresh-budget
 per-pattern mutant fails the named assertion. Production timing is unchanged.
 [Cause and proof](../issues/done/2026-11/2026-11-01.md#subscription-filter-test-timing).
 
+
 ## Native macOS RC2 journey
 
 The Linux-tested `1.0.0RC2` source passes the full Darwin arm64 archive's native install, non-root role/private storage, pinned-TLS request/reply, restart/orphan persistence and teardown. Local offline npm client installation and two unsandboxed script-agent calls also pass. The existing Mac clone is clean, own test state is removed and the workspace is 66M. [Candidate, exact artifacts and retained logs](done/rc-macos-installation.md#candidate-and-machine).
+
+
+## T-33 Markdown setup entry point
+
+[AI-SETUP.md](../../AI-SETUP.md#how-to-start) now directs an AI to inspect an installation, offer tuning when present, read the main docs and selected agent help, and follow the existing install/configuration/update rules. [Delivered scope and checked limits](done/t33-ai-setup.md#checks-and-limits) retain the fresh-system and update acceptance items as pending. T-34 moved to R1.1.

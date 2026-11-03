@@ -5,6 +5,8 @@
 - **Outcome:** the release archive installs the daemon, web panel and CLI; your ordinary login can use them immediately.
 - **Start:** follow [From a release archive](#from-a-release-archive). Developers can [build from a checkout](#from-a-checkout) instead.
 
+Let your AI inspect an existing installation or guide a fresh one with [AI-SETUP.md](https://github.com/parf/ai-agent-bus/blob/main/AI-SETUP.md#how-to-start).
+
 ## Why you'd want it
 
 - 🚀 **A node in minutes.** Setup creates the accounts, tree, services and web panel for you.
