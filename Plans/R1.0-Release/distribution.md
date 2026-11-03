@@ -133,3 +133,15 @@ preserving their [secret domains](../../docs/07-setup.md#the-two-accounts).
 | Sandboxing | The container is the boundary; document that script sandboxing is off. Explicitly requesting unavailable sandboxing must fail under the existing [sandbox contract](../../docs/06-dedicated-runner.md#sandboxing) |
 
 The later [catalogue image](../R1.2/image.md#the-image) extends this distribution.
+
+## Final release gate
+
+For this release, the owner delegated the prepared daemon/Go-CLI cutover to W1C
+and accepted the independent Codex fix reviews plus the full slow run in place
+of the unavailable CEO/Fable delta pass. The reviews remain labelled Codex; this
+is a one-release substitution. [№Q329 and №Q330](DECISIONS.md#recorded-decisions)
+retain the exact approval, evidence and scope.
+
+Local STABLE preparation is authorized for review. Existing MCP/pusher sessions
+are outside the binary cutover; pushing, tagging and publication are separate
+steps and are not authorized by these two decisions.

@@ -2,6 +2,31 @@
 
 ## Recorded decisions
 
+- ✅ Q329 W1C performs the prepared daemon and CLI cutover while the CEO is unavailable
+  - Details: one stop/start cycle for candidate `06fabb3c` (0.9.303): back up the stopped daemon home and old binaries privately, atomically replace only the staged daemon and Go CLI binaries, then check identity and deployment health. Existing MCP faces and Codex pushers are not refreshed; no runner/web restart, push, tag or publication is included.
+  - State: deployed 0.9.303 (`06fabb3c`) in one stop/start cycle on 2026-11-02; protocol 1/1, all six deployment checks passed. Root-only stopped-home, old-binary and unit backup retained under `/var/lib/agent-bus/daemon.backup/`. Existing MCP/pushers were not refreshed.
+  - Evidence: the exact candidate tree `82388f930a03213fd9f26d074a2ca722e7c8368e` passed the corrected `--slow all` run, 1305/0, exit 0. The first red run and its diagnosed wrapper/fixture causes remain recorded in [J94](../issues/done/2026-11/2026-11-02.md#release-validation).
+  - Settled by: owner, before the live restart; the current local authority rule reserves daemon restarts to the owner/CEO.
+  - Home: [stopped-daemon backup](../../docs/07-setup.md#stopped-daemon-backup), [minimal deployment](../../docs/07-setup.md#deploy-only-the-changed-component).
+  - (x) Authorize W1C's one backed-up daemon/CLI cutover and post-deploy checks; keep every other live action outside this approval. 🌟
+  - ( ) Keep the live node unchanged and wait for the CEO to return. ⭐
+  > ✅ 💡👾 Authorize the narrow cutover: the exact binaries are staged, the candidate is slow-green, and the plan has an independent clean read. A failed start stops for owner input before any second restart or rollback.
+  >
+  > 💬 👤parf agree
+
+- ✅ Q330 Independent Codex reviews replace the unavailable CEO/Fable final delta pass for this release candidate
+  - Details: the original Fable review found the twelve blockers; all are fixed and independently reviewed. W1C and W2C completed finding-resolution audits, but those are Codex work, not a new Fable pass. The release runbook still calls for a CEO/Fable delta review, and that account is out of usage.
+  - State: owner accepted the one-release substitution on 2026-11-02 and authorized local STABLE preparation for review only; no STABLE commit has landed.
+  - Evidence: 1305/0 on the exact candidate tree; all final-review rows in [TODO](TODO.md#10-final-review) are closed. The J94 fixture correction also has a clean independent read and a green normal gate.
+  - Impact: accepting the substitute allows preparation of a local STABLE candidate for review; publishing, pushing and tagging still need their own authorization. A questions-only documentation commit after the slow run does not change the tested executable tree.
+  - Settled by: owner, before STABLE preparation; this is a one-release review substitution, not a standing change to the review rule.
+  - (x) Accept the independent Codex reviews plus the green slow run, and authorize local STABLE preparation for review only. 🌟
+  - ( ) Retain the CEO/Fable delta gate and wait for that account to return; do not prepare STABLE yet. ⭐
+  > ✅ 💡👾 Accept the one-release substitute: the changes have independent reads and the full exact-tree run is green. Keep the evidence labelled as Codex review and leave all external publication steps separate.
+  >
+  > 💬 👤parf agree
+
+
 - **systemd's own scope notice does not break the no-journal rule for normal and fast runs** (Q327) — owner, 2026-11-02: "agree". Our programs still write nothing; a runner check that uses `systemd-run --scope` may run in the normal set.
   - Home: [verification](../../CLAUDE.md#verification).
 - **The agent-author guide plan is approved with the owner's changes** (Q324) — owner, 2026-11-02. Audience: a developer who already knows how the daemon works. It opens with three ways to run an agent (the CLI tool, the runner, your own process), with a diagram and one page each carrying the same tested time-service example. Then three tiers: absolute minimum (help; one request, one answer), suggested (status first, Configuration vs Secret, event levels in the agent's own log, state and KV, refusals, send once, restart-safe, graceful stop), and more (ack and done, optional roles, locks, bigfile, the standard publish/subscribe pattern, may-send). It leaves out what the bus handles: tokens, enrolment, protocol checks.
