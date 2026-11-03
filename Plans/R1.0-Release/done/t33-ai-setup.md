@@ -1,6 +1,6 @@
 # T-33 AI setup workflow
 
-📌 **TL;DR:** The root AI-SETUP.md guides a fresh install or tuning an existing installation, using the main docs and agent help. Documentation checks and read-only discovery of an installed node pass. Fresh-system and update journeys are not yet claimed as accepted.
+📌 **TL;DR:** The root AI-SETUP.md guides a fresh install or tuning an existing installation, using the main docs and agent help. Documentation checks and read-only discovery of an installed node pass. Linux installation uses the completed RC2 acceptance; it is not a new release blocker.
 
 ## Delivered entry point
 
@@ -15,5 +15,5 @@
 
 - The docs-order checker returns no failures for AI-SETUP.md. Changed-file links and git diff whitespace checks pass.
 - Read-only existing-node discovery: installed CLI reports 0.9.303 with its build stamp, and status exits 0. No install, upgrade, credential write, reload or provider call ran.
-- A clean Podman acceptance was not started: this session's bus identity was refused the smoke-gate lock (record belongs to someone else). No lock was bypassed and no container ran.
-- Earlier Linux RC2 journeys prove the referenced installation procedures on five systems, not this new AI workflow's acceptance. Fresh installation, second-run preservation, requested update and designated-provider setup remain explicit acceptance items in [T-33](../TODO.md#ai-assisted-installation-and-agent-setup).
+- The MCP identity could not take smoke-gate; the ordinary terminal identity was the resource Owner and obtained/released it through the CLI. A short Ubuntu RC2 workflow check finished before the owner's request to stop repeating Linux checks: 32/32 command statuses plus hello, KV and bigfile content assertions passed; second-run read-only discovery/help preserved inventory, Configuration and KV. Its container was removed. No more Linux installation reruns are required for this Markdown change.
+- Existing Linux RC2 evidence covers the installation procedures on five systems. No actual version upgrade or real provider action ran in this short check; those claims are not inferred from it. Follow the documented update procedure when requested, and use designated accounts only with authorization. The next platform acceptance is the RC on macOS.

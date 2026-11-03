@@ -3,7 +3,7 @@
 ## AI-assisted installation and agent setup
 
 - ⏳ T-33 AI Markdown workflow for installation, configuration and updates
-  - State: Markdown entry point written at [AI-SETUP.md](../../AI-SETUP.md#how-to-start); documentation and installed-node inspection checked. A fresh-system AI journey and an update journey remain acceptance work.
+  - State: Markdown entry point written at [AI-SETUP.md](../../AI-SETUP.md#how-to-start); documentation and installed-node inspection checked. The short Ubuntu RC2 workflow check passes 32/32 and preserves inventory/Configuration/KV on second-run inspection; existing five-system Linux RC evidence remains valid. Real provider setup requires designated accounts and authorization.
   - Home: [AI-assisted setup](ai-setup.md#markdown-workflow).
   - Acceptance: on a clean test system, an AI follows the Markdown entry point and does most installation itself; it asks for needed choices/account input and helps configure email and Telegram agents, then demonstrates the selected agents working.
   - Existing installation: offer tuning after inspection; never reinstall or update automatically. Read the main docs and selected guides before answering or changing an agent.
