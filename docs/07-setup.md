@@ -31,7 +31,7 @@
 
 - The npm names are reserved as README-only placeholders; they do not yet deliver a working installation.
 - The installed command remains **`agent-bus`**, regardless of the npm package name.
-- For the current checkout procedure and its prerequisites, use [Install from a checkout](../src/INSTALL.md#how-to-start).
+- For the current checkout procedure and its prerequisites, use [Install from a checkout](../src/INSTALL.md#from-a-checkout).
 - Setup changes the host and needs root. Ordinary client use does not; remote access uses your own credential ([access](02-access-remote.md#remote-access)).
 
 ### Simple install

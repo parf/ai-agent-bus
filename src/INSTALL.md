@@ -1,45 +1,43 @@
-# Install from a checkout
+# Install agent-bus
 
 📌 **TL;DR:**
-- **Problem:** you want a working bus on a Linux host without hand-building accounts, units and a database.
-- **Outcome:** clone it under `/usr/local/src`, build it, run setup once and link the programs with `git-install.sh`; after that, an update is a pull, a build and a restart.
-- **Start:** follow [How to start](#how-to-start).
+- **Problem:** you want a working bus on a Linux host without building it or assembling accounts and services by hand.
+- **Outcome:** the release archive installs the daemon, web panel and CLI; your ordinary login can use them immediately.
+- **Start:** follow [From a release archive](#from-a-release-archive). Developers can [build from a checkout](#from-a-checkout) instead.
 
 ## Why you'd want it
 
 - 🚀 **A node in minutes.** Setup creates the accounts, tree, services and web panel for you.
-- 🔁 **Updates are small.** Pull, build, restart.
-- 🧰 **Your first agent right away.** The [Try it](#try-it) step runs a two-line script as an agent.
+- 🔁 **Keep your data when updating.** Setup upgrades an installed release with a backup and rollback.
+- 🧰 **Your first agent right away.** [Try it](#try-it) runs a two-line script as an agent.
 
 ## What you get
 
-- ✅ **A running daemon and the web panel** at <http://127.0.0.1:6780/>.
-- ✅ **The CLI** (`agent-bus`) linked into `/usr/local/bin`.
-- ✅ **Your SSH key as the first user's key**, so you can reach the bus from your own account.
+- ✅ **A running daemon and web panel** at <http://127.0.0.1:6780/>.
+- ✅ **The CLI** linked into `/usr/local/bin`.
+- ✅ **Your own bus account**, reached from your ordinary local login.
 
 ## How to start
 
-For a release installation, use the [npm packages](../docs/07-setup.md#npm-package). The commands below are for developing from a checkout.
+### From a release archive
 
-Prerequisites:
+- Use a Linux system with systemd, `sudo`, `tar`, `gzip` and `sha256sum`.
+- Run these commands from your ordinary login, not a root shell; only setup uses `sudo`.
+- Put the full archive for your CPU and its `.sha256` sidecar in an otherwise empty directory. Do not mix it with the client archive.
+- Native bundled agents need Python 3; their [guides](https://github.com/parf/ai-agent-bus/blob/main/docs/agents/README.md#choose-an-agent) name other prerequisites. The release needs neither Go nor Bun.
 
-- Linux with systemd, and `sudo`
-- git, Go with gcc, and Bun at `/usr/bin/bun`
-- Python 3 for native bundled agents; see the [agent guides](../docs/agents/README.md#choose-an-agent) for their other tools
-
-### Install
+Check and unpack that archive, then install it:
 
 ```sh
-sudo mkdir -p /usr/local/src/ai-agent-bus && sudo chown "$USER" /usr/local/src/ai-agent-bus
-git clone https://github.com/parf/ai-agent-bus /usr/local/src/ai-agent-bus
-cd /usr/local/src/ai-agent-bus
-bun install --cwd src/mcp
-src/build.sh
-sudo src/agent-bus-setup --exec "$PWD/src/agent-busd"
-sudo src/git-install.sh --no-build
+sha256sum -c agent-bus-*.tar.gz.sha256
+mkdir agent-bus-install
+tar -xzf agent-bus-*.tar.gz -C agent-bus-install --strip-components=1
+sudo ./agent-bus-install/agent-bus-setup --owner "$USER"
 ```
 
-- The checkout must live outside `/home`: the daemon runs as its own account and cannot see a home directory.
+- The plain local user name also works with the [person's runner](https://github.com/parf/ai-agent-bus/blob/main/docs/07-setup.md#a-persons-runner). A qualified bus identity is a separate choice, not needed for this local installation.
+- Setup uses your SSH public key when present. To create one first, run `ssh-keygen -t ed25519`, or add it later with `agent-bus-admin user add`.
+- The installed release includes `agents/` and its shared Python helpers and client.
 
 ### Check
 
@@ -63,39 +61,50 @@ In another terminal, call it:
 agent-bus call '#hi' --wait 10s ping
 ```
 
-```text
-{"message_id":"…","from":"#hi","to":"you","topic":"call","tag":"…","body":"hi: ping",…}
+- The answer's body is `hi: ping`.
+- To keep an agent running without your terminal, follow the [runner getting-started guide](https://github.com/parf/ai-agent-bus/blob/main/docs/runner/getting-started.md).
+
+### Update an installed release
+
+- Unpack the new archive into a new directory the same way, then run its `agent-bus-setup --upgrade` with `sudo`.
+- It keeps the node's configuration and TLS, backs up the state, and rolls back if the new release fails to start.
+- After an interrupted upgrade, run `--recover`, then `--upgrade` again; see [release installation details](https://github.com/parf/ai-agent-bus/blob/main/docs/07-setup.md#release-installation-details).
+
+## Technical details
+
+### More setup options
+
+| Need | Start here |
+|---|---|
+| npm installation | [npm packages](https://github.com/parf/ai-agent-bus/blob/main/docs/07-setup.md#npm-package) |
+| TLS | [setup TLS](https://github.com/parf/ai-agent-bus/blob/main/docs/07-setup.md#tls) |
+| Sample data | `sudo /usr/local/bin/agent-bus-setup --samples`; `--remove-samples` takes it away |
+| Preview | `--dry-run` prints the plan; `--print-unit` prints the daemon unit |
+| Native agents | Installers under `/usr/local/lib/agent-bus/current/agents/standalone/`; Slack and Telegram are bundled under `agents/slack/` and `agents/telegram/` |
+
+### From a checkout
+
+- Development needs git, Go with gcc, and Bun at `/usr/bin/bun`.
+- Keep the checkout outside `/home`: the daemon's account cannot see a home directory.
+
+### Install
+
+```sh
+sudo mkdir -p /usr/local/src/ai-agent-bus && sudo chown "$USER" /usr/local/src/ai-agent-bus
+git clone https://github.com/parf/ai-agent-bus /usr/local/src/ai-agent-bus
+cd /usr/local/src/ai-agent-bus
+bun install --cwd src/mcp
+src/build.sh
+sudo src/agent-bus-setup --exec "$PWD/src/agent-busd"
+sudo src/git-install.sh --no-build
 ```
 
 ### Update
+
+Update that checkout, build it and restart its services:
 
 ```sh
 cd /usr/local/src/ai-agent-bus
 git pull && bun install --cwd src/mcp && src/build.sh
 sudo systemctl restart agent-busd agent-bus-web
 ```
-
-## Technical details
-
-### More setup options
-
-| | |
-|---|---|
-| SSH key | Setup makes your `~/.ssh/id_ed25519.pub` the first user's key. Without one, run `ssh-keygen -t ed25519` first, or add it later with `agent-bus-admin user add` |
-| TLS | `sudo src/agent-bus-setup --exec "$PWD/src/agent-busd" --tls self-signed`, or `--tls files --tls-cert … --tls-key …` ([setup § TLS](../docs/07-setup.md#tls)) |
-| Sample data | `sudo /usr/local/bin/agent-bus-setup --samples` adds sample users, agents, services, queues, pubsub channels and groups; `--remove-samples` takes them away |
-| Preview | `--dry-run` says what setup would do; `--print-unit` prints the daemon unit. Neither changes anything |
-
-### From a release archive
-
-```sh
-sha256sum -c agent-bus-*.tar.gz.sha256
-mkdir agent-bus-install
-tar -xzf agent-bus-*.tar.gz -C agent-bus-install --strip-components=1
-sudo ./agent-bus-install/agent-bus-setup --owner "$USER@$(hostname -s)"
-```
-
-- The installed release includes `agents/` and its shared Python helpers and client.
-- Native agents need Python 3. Their installers live under `/usr/local/lib/agent-bus/current/agents/standalone/`; Slack and Telegram are already bundled under `agents/slack/` and `agents/telegram/`.
-- To upgrade, unpack the new archive the same way and run its `agent-bus-setup --upgrade`. It keeps the node's configuration and TLS, backs up the state, and rolls back by itself if the new release fails to start.
-- After an interrupted upgrade, run `--recover`, then `--upgrade` again ([setup § install](../docs/07-setup.md#install)).

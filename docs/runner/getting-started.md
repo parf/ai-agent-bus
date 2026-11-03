@@ -46,7 +46,7 @@ agent-bus ls '#runner/parf@parf.us'
 
 ```sh
 ME=your-bus-user
-HOST=$(hostname)
+HOST=$(uname -n)
 RUNNER="#runner/$ME@$HOST"
 AGENT="#hello-guide@$HOST"
 AGENTS=/var/lib/agent-bus/agent.d

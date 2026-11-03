@@ -19,6 +19,7 @@
 - ✅ **A polite stop:** SIGTERM stops intake, finishes the work in hand and leaves.
 - 🪪 **Your own credential:** unlike a per-message script, a process that serves itself holds its own token ([what runs as what](../runner/security.md#what-runs-as-what)).
 - 🔁 **Run it under the runner** when it should stay up without you: [the runner page](write-agent-runner.md).
+- A daemon disconnect can end `serve()` with an uncertain-consumption error. Supervise and restart the process; never automatically replay that consumption ([client uncertainty](../../src/clients/python/README.md#technical-details)).
 
 ## Try this first
 
