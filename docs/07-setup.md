@@ -146,6 +146,24 @@ Each service account owns its private state. Setup and host changes require root
 - Plain setup refuses to replace a different release.
 - The standalone package instructions define the `--upgrade` and interrupted `--recover` paths; their populated-node behavior is accepted under [H.1.1](../Plans/done/R0.8-MVP/done/upgrade-recovery.md#checks).
 
+### Tested Linux systems
+
+Installation was checked on these systems on 2026-11-03 (UTC), using the
+`1.0.0RC2` full release archive:
+
+| System | Tested version |
+|---|---|
+| Ubuntu | 24.04.5 LTS |
+| Arch Linux | Rolling image 20261101.0.620205 |
+| Debian | 13 (trixie) |
+| AlmaLinux | 10.2 (Lavender Lion), the RHEL 10-compatible distribution |
+| Fedora | 44 stable; the freshly resolved official `latest` container image |
+
+- Each was a fresh rootless Podman container running systemd on x86_64, sharing the host kernel; this is container installation evidence, not a bare-metal or other-CPU claim.
+- Checks covered archive installation as an ordinary local user, daemon/web startup, sample data, a person's runner, an answering agent, queues, KV, locks, bigfiles, event subscriptions and persistence after a clean daemon restart.
+- The Linux npm full-node and client-only installation paths were also checked through a local test registry; public registry publication is separate.
+- Exact candidate, image identifiers, results and the RC1 installation fixes are in the [Linux RC evidence](../Plans/R1.0-Release/done/rc-linux-installation.md#linux-rc-installation-evidence).
+
 ### Build information
 
 Building the daemon and CLI needs cgo and a C compiler for
