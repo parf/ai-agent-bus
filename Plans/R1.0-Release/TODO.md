@@ -1,5 +1,20 @@
 # TODO R1
 
+## AI-assisted installation and agent setup
+
+- ⏳ T-33 AI Markdown workflow for installation, configuration and updates
+  - State: owner-requested final-release work, 2026-11-03; implementation not started.
+  - Home: [AI-assisted setup](ai-setup.md#markdown-workflow).
+  - Acceptance: on a clean test system, an AI follows the Markdown entry point and does most installation itself; it asks for needed choices/account input and helps configure email and Telegram agents, then demonstrates the selected agents working.
+  - Acceptance: a second run and an update preserve existing setup and give a truthful completion summary. External account checks use designated accounts with user authorization, or remain explicitly pending.
+
+- ⏳ T-34 Web Face AI chat backed by an `ab-*` session
+  - State: owner-requested final-release work, 2026-11-03; implementation not started.
+  - Depends: T-33's shared workflow; inspect the owner's mdhouse implementation before design/build.
+  - Home: [Web Face chat](ai-setup.md#web-face-chat).
+  - Acceptance: a real Web Face conversation reaches its backing session, asks for required setup choices, performs the chosen configuration flow, and shows progress/results across turns.
+  - Acceptance: an email or Telegram setup journey uses T-33's workflow; an unavailable session or unfinished step is shown plainly rather than reported as success.
+
 ## Objective
 
 Migration labels: `RT` identifies the original unnumbered work rows; `RBK`

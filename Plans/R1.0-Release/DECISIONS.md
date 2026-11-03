@@ -2,6 +2,9 @@
 
 ## Recorded decisions
 
+- **AI-assisted setup is final-release work** — owner, 2026-11-03: an AI Markdown install/config/update workflow and Web Face AI chat backed by an `ab-*` session, following the mdhouse pattern. Implementation is pending.
+  - Home: [AI-assisted setup](ai-setup.md#release-scope).
+
 - ✅ Q329 W1C performs the prepared daemon and CLI cutover while the CEO is unavailable
   - Details: one stop/start cycle for candidate `06fabb3c` (0.9.303): back up the stopped daemon home and old binaries privately, atomically replace only the staged daemon and Go CLI binaries, then check identity and deployment health. Existing MCP faces and Codex pushers are not refreshed; no runner/web restart, push, tag or publication is included.
   - State: deployed 0.9.303 (`06fabb3c`) in one stop/start cycle on 2026-11-02; protocol 1/1, all six deployment checks passed. Root-only stopped-home, old-binary and unit backup retained under `/var/lib/agent-bus/daemon.backup/`. Existing MCP/pushers were not refreshed.

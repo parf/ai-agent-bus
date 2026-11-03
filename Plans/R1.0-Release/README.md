@@ -14,6 +14,7 @@ the tools stage is [R1.2](../R1.2/README.md#scope).
 | Topic | Canonical knowledge |
 |---|---|
 | Installable distributions | [Release artifacts](distribution.md#release-artifacts) |
+| AI-assisted installation and agent setup | [Pending final-release work](ai-setup.md#release-scope): Markdown workflow and Web Face chat backed by an `ab-*` session |
 | Federation moved to R1.2 | [Chaining](../R1.2/federation.md#chaining), owner decision 2026-10-17 |
 | Shared locks | [Shared locks](done/locks.md#shared-locks) |
 | Key-value store | [Key-value store](done/kv.md#per-record-storage) |
