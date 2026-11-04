@@ -140,13 +140,13 @@ class Bus:
         Asked as this caller, about a target this caller can see. True or False
         is the daemon's answer and nothing else: a target the caller cannot see
         raises Refusal (404), and anything that is not a well-formed answer for
-        exactly this `who` (a transport failure, a timeout, an older daemon that
-        ignores `who` and answers for the caller) raises, never returns False.
+        exactly this `who` (including a transport failure, timeout or mismatched
+        identity) raises, never returns False.
         `who` and `name` are trimmed and lower-cased, as the daemon reads them,
         and the daemon must echo exactly that `who` (a name without a realm stays
         without one). A refusal (404) is `Refusal`, a foreign answer is
-        `UnexpectedAnswer`: agents tell "no such destination" from "daemon too
-        old". It is a check that goes stale at once; ask again before each send.
+        `UnexpectedAnswer`: agents distinguish an unseen destination from an
+        invalid answer. It is a check that goes stale at once; ask again before each send.
         """
         if not isinstance(who, str) or not who.strip() or not isinstance(name, str) or not name.strip():
             raise InvalidArgument("may_send wants who and a target name")
@@ -154,7 +154,7 @@ class Bus:
         got = self._request("GET", "/may-send", query={"who": who, "name": name.strip()})
         echoed = got.get("who") if isinstance(got, dict) else None
         if not isinstance(echoed, str) or not isinstance(got.get("may_send"), bool) or echoed != who:
-            raise UnexpectedAnswer("may-send answered for another name or in an unknown shape: is the daemon older than RT33?")
+            raise UnexpectedAnswer("may-send answered for another name or in an unknown shape")
         return got["may_send"]
 
     def records(self, **filters):

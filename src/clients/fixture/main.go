@@ -33,7 +33,7 @@ func main() {
 	bus.Restore(ports.Snapshot{Clean: true,
 		Users: []protocol.User{{Name: "owner@fixture", Status: "active"}},
 		Records: []protocol.Record{{Name: "owner@fixture", Owner: "owner@fixture", Kind: protocol.KindUser,
-			Personal: true, Full: protocol.OverflowStrict, At: time.Now()}},
+			Tags: []string{"personal"}, Full: protocol.OverflowStrict, At: time.Now()}},
 	})
 	bus.Persistence(memory.NewState())
 	bus.SetBigStore(bigmem.New())

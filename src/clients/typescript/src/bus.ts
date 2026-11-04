@@ -84,13 +84,13 @@ export class Bus {
   records(filters: {kind?:string} = {},options:Operation = {}): Promise<any> { return this.request('GET','/ls',undefined,{ ...options,query:filters }); }
   /** Whether `who` may manage the record `name`, by the daemon's own rule; asked only about a record this caller may see. */
   async manages(who: string, name: string, options: Operation = {}): Promise<boolean> { return (await this.request('GET','/manages',undefined,{ ...options,query:{who,name} }))?.manages === true; }
-  /** Whether the daemon's Send rule admits `who` sending to `name` now, asked as this caller about a target it can see. `who` and `name` are trimmed and lower-cased as the daemon reads them; the daemon must echo exactly that `who`. A target it cannot see rejects with BusError 404; a transport failure rejects as itself; an answer that is not well formed for this `who` (an older daemon) rejects with UnexpectedAnswer; it never resolves false. It goes stale at once: ask again before each send. */
+  /** Whether the daemon's Send rule admits `who` sending to `name` now, asked as this caller about a target it can see. `who` and `name` are trimmed and lower-cased as the daemon reads them; the daemon must echo exactly that `who`. A target it cannot see rejects with BusError 404; a transport failure rejects as itself; an answer that is not well formed for this `who` rejects with UnexpectedAnswer; it never resolves false. It goes stale at once: ask again before each send. */
   async maySend(who: string, name: string, options: Operation = {}): Promise<boolean> {
     if (typeof who !== 'string' || !who.trim() || typeof name !== 'string' || !name.trim()) throw new TypeError('maySend wants who and a target name');
     const asked = who.trim().toLowerCase();
     const got = await this.request('GET','/may-send',undefined,{ ...options,query:{who:asked,name:name.trim()} });
     const echoed = got?.who;
-    if (typeof echoed !== 'string' || typeof got.may_send !== 'boolean' || echoed !== asked) throw new UnexpectedAnswer('may-send answered for another name or in an unknown shape: is the daemon older than RT33?');
+    if (typeof echoed !== 'string' || typeof got.may_send !== 'boolean' || echoed !== asked) throw new UnexpectedAnswer('may-send answered for another name or in an unknown shape');
     return got.may_send;
   }
   record(name: string): RecordHandle { this.check(); if (!name.trim()) throw new TypeError('record name required'); const normalized = name.trim().toLowerCase(); if (!this.handles.has(normalized)) this.handles.set(normalized,new RecordHandle(this,normalized)); return this.handles.get(normalized)!; }

@@ -1368,7 +1368,7 @@ public final class BusTest {
                 Map<?, ?> daemon = (Map<?, ?>) k.get("daemon"), want = (Map<?, ?>) k.get("expect");
                 String allow = daemon.get("allow") == null ? "" : "Allow: " + daemon.get("allow") + "\r\n";
                 try (Fake f = new Fake(sock, (line, i) -> new Answer(0, ((Number) daemon.get("status")).intValue(), (String) daemon.get("body"), allow))) {
-                    f.identity = new Answer(0, 200, "current".equals(k.get("identity")) ? current : "{}");
+                    f.identity = new Answer(0, 200, current);
                     Bus b = Bus.connect(Connect.of(sock.toString(), "x"));
                     Throwable e = thrown(() -> b.list(Optional.empty()));
                     check(id + ": status, kind and message", e instanceof BusException.RefusalException r && r.status() == ((Number) want.get("status")).intValue()

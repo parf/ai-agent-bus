@@ -24,7 +24,7 @@ if [ "${TLS:-}" = 1 ]; then
   mkdir -p "$D/tls"
   openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 1 -subj /CN=127.0.0.1 \
     -addext subjectAltName=IP:127.0.0.1 -keyout "$D/tls/key.pem" -out "$D/tls/cert.pem" 2>/dev/null
-  tls=(-tls-dir "$D/tls")
+  tls=(--tls-dir "$D/tls")
   AB_TEST_PIN=sha256:$(openssl x509 -in "$D/tls/cert.pem" -outform der | sha256sum | cut -d' ' -f1)
   # The same key and certificate for a test's own TLS server, as Java reads them.
   openssl pkcs12 -export -in "$D/tls/cert.pem" -inkey "$D/tls/key.pem" -out "$D/tls/server.p12" -passout pass:test 2>/dev/null
@@ -35,8 +35,8 @@ fi
 for _ in 1 2 3 4 5; do
   port=$((20000 + RANDOM % 20000))
   rm -f "$D/bus.db"
-  "$bin/agent-busd" -addr 127.0.0.1:$port -socket "$D/bus.sock" -owner "$owner" \
-    -db "$D/bus.db" -create -flush-every 0 "${tls[@]}" >"$D/daemon.log" 2>&1 &
+  "$bin/agent-busd" --addr 127.0.0.1:$port --socket "$D/bus.sock" --owner "$owner" \
+    --db "$D/bus.db" --create --flush-every 0 "${tls[@]}" >"$D/daemon.log" 2>&1 &
   dpid=$!
   for _ in $(seq 1 20); do [ -S "$D/bus.sock" ] && break; kill -0 "$dpid" 2>/dev/null || break; sleep 0.05; done
   kill -0 "$dpid" 2>/dev/null && break

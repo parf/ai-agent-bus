@@ -246,7 +246,7 @@ section('shared refusal vectors', function () use ($dir) {
             unfake($pid);
             continue;
         }
-        $pid = vectorDaemon($sock, $case['identity'] === 'current' ? $current : '{}', $case['daemon']);
+        $pid = vectorDaemon($sock, $current, $case['daemon']);
         $bus = Bus::connect($sock, 't');
         $e = thrown(fn() => $bus->list());
         $want = $case['expect'];

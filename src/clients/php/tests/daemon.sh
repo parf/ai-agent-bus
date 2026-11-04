@@ -35,8 +35,8 @@ chmod 600 "$D/tls/key.pem"
 for _ in 1 2 3 4 5; do
   port=$((20000 + RANDOM % 20000))
   rm -f "$D/bus.db"
-  "$bin/agent-busd" -addr 127.0.0.1:$port -socket "$D/bus.sock" -owner "$owner" \
-    -db "$D/bus.db" -create -flush-every 0 -tls-dir "$D/tls" >"$D/daemon.log" 2>&1 &
+  "$bin/agent-busd" --addr 127.0.0.1:$port --socket "$D/bus.sock" --owner "$owner" \
+    --db "$D/bus.db" --create --flush-every 0 --tls-dir "$D/tls" >"$D/daemon.log" 2>&1 &
   dpid=$!
   for _ in $(seq 1 20); do [ -S "$D/bus.sock" ] && break; kill -0 "$dpid" 2>/dev/null || break; sleep 0.05; done
   kill -0 "$dpid" 2>/dev/null && break

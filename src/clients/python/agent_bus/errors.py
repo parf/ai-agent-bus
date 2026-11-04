@@ -13,7 +13,7 @@ class TransportError(BusError):
     pass
 
 class UnexpectedAnswer(BusError):
-    """The daemon answered, but not what was asked: an older daemon, or a wrong shape."""
+    """The daemon answered, but not what was asked: a mismatched identity or wrong shape."""
 
 class UncertainOutcome(BusError):
     """The operation may have completed remotely; do not repeat it blindly."""

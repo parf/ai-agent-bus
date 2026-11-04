@@ -225,11 +225,10 @@ class SharedState(unittest.TestCase):
                 if 'call' in case:
                     self.refused_by_the_client(case)
                     continue
-                identity = '{"protocol":1,"protocol_min":1}' if case['identity'] == 'current' else '{}'
+                identity = '{"protocol":1,"protocol_min":1}'
                 bus, _ = self.fake_daemon(identity, case['daemon'])
                 with self.assertRaises(Refusal) as raised:
-                    with self.assertLogs('agent_bus', level='WARNING') if case['identity'] == 'old' else self.assertNoLogs('agent_bus', level='WARNING'):
-                        bus.records()
+                    bus.records()
                 want = case['expect']
                 error = raised.exception
                 self.assertEqual((error.status, error.kind or '', str(error)), (want['status'], want['kind'], want['message']))

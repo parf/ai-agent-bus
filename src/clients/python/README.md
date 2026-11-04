@@ -79,7 +79,7 @@ At first use, the client checks HTTP `/identity` for [the current protocol versi
 - **Private values:** cached until `refresh()`; copies already returned survive revocation; no setters; secret representations are redacted, and `reveal()` returns bytes (do not log them).
 - **Dispatch:** one dispatcher owns call and serve polling, and raw consume is exclusive with those modes. Call callbacks run on the calling thread; handlers run on bounded threads.
 - **Serve:** it skips requests whose caller deadline has passed before acknowledgment, stops intake, drains to its deadline and reports unfinished handlers. Python cannot forcibly stop a running handler thread.
-- **Replies:** each client has its own call-tag prefix to discard late replies, including legacy replies without `re`, without retaining completed calls. Normal replies include their request's `re`.
+- **Replies:** each client has its own call-tag prefix to discard late replies, including route-correlated replies without `re`, without retaining completed calls. Normal replies include their request's `re`.
 - **Locks and uncertainty:** lock helpers have no fencing token and their expiry is a conservative estimate; an uncertain write or consumption is never replayed automatically.
 - **Self-calls:** they use the same serving handler. The unmarked request is never its own answer, even if it arrives before the send response; it waits for a free handler slot, and an already-taken self request joins graceful drain. A handler making a blocking call to itself needs another available worker. Legacy replies with a different message ID remain accepted.
 

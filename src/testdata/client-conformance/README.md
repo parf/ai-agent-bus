@@ -51,8 +51,7 @@ the daemon saw only the `/identity` request.
 `daemon.body` (raw) and an optional `Allow` header; the adapter calls the
 client's record listing. `expect` is the exact `status`, `kind` (empty when the
 client keeps none) and `message`: the daemon's `error` text, `internal daemon
-error` for a 500, and `daemon too old for GET /ls` when the identity was `old`
-and the kind is `no_route`. A 5xx other than 500 keeps the daemon's text; a kind
+error` for a 500. All refusal rows use the current protocol pair. A 5xx other than 500 keeps the daemon's text; a kind
 outside the closed set passes through unchanged.
 
 A row with `call` instead of `daemon` is a call the client must refuse itself

@@ -117,7 +117,7 @@ while [ ${#waiting[@]} -gt 0 ]; do
   still=()
   for name in "${waiting[@]}"; do
     q=$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))' "$name")
-    if owner GET "/lookup?name=$q" 2>/dev/null | python3 -c 'import json,sys; r=json.load(sys.stdin); sys.exit(0 if r.get("reading") or (r.get("readers") or 0) > 0 else 1)'; then
+    if owner GET "/lookup?name=$q" 2>/dev/null | python3 -c 'import json,sys; r=json.load(sys.stdin); sys.exit(0 if (r.get("readers") or 0) > 0 else 1)'; then
       echo "  up   $name"
     else
       still+=("$name")

@@ -351,7 +351,7 @@ async fn shared_refusal_vectors() {
             assert!(!calls.lock().unwrap().iter().any(|p| p.split('?').next() == Some(not)), "{id}: {not} reached the daemon");
             continue;
         }
-        let identity = if text(&case, "identity") == "current" { current } else { "{}" };
+        let identity = current;
         let daemon = &case["daemon"];
         let (address, _) = fake_daemon(
             identity,
