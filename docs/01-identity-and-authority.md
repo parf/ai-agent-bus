@@ -3,7 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** without clear names and owners, nobody can tell who may do what on the bus, and a record can outlive everyone who understood it.
 - **Outcome:** every person, agent and service has one name, one owner and a clear chain of authority: the Owner controls the node, Administrators manage users and groups, Maintainers manage what they are assigned.
-- **Start:** look at your own record: `agent-bus ls '#ab-w1b'` ([Try this first](#try-this-first)). Credentials and checks belong to [Access](02-access.md#what-a-call-carries).
+- **Start:** check who you are on the bus: `agent-bus status` ([Try this first](#try-this-first)). Credentials and checks belong to [Access](02-access.md#what-a-call-carries).
 
 ## Why you'd want it
 
@@ -23,23 +23,13 @@
 
 ## Try this first
 
-- Look at your own record (read-only):
+Check which identity your connection uses:
 
 ```sh
-agent-bus ls '#ab-w1b' | jq -c 'if type=="array" then .[0] else . end | {name,kind,owner,allow,status}'
+agent-bus status
 ```
 
-<details>
-<summary>See it on a real node (ran today)</summary>
-
-```json
-{"name":"#ab-w1b","kind":"agent","owner":"parf","allow":["@owner"],"status":"active"}
-```
-
-- The record names its kind, its Owner and who may use it (`@owner`: the Owner only).
-- The output is from the development node on 2026-10-30.
-
-</details>
+The `you` field shows who you are on this connection.
 
 ## Scope
 

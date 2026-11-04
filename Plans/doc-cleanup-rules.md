@@ -213,3 +213,7 @@ Applied to the client API audit: moved from `Plans/R1.0-Release/clients-events.m
 ## Prevent empty technical sections
 
 Removed the repeated “The reference below keeps every section as it was; other pages link to these sections” block and its empty Technical details heading from 15 core pages. The docs checker now permits omitting technical detail and still checks its order when present. Its focused regression fails on the previous checker with `no technical part`; useful reference sections remain intact.
+
+## Fresh-install examples
+
+First-use commands must not depend on development-node records such as `#ab-w1b`. Use the current connection or explicitly create the example's prerequisites. Show complete JSON by default; avoid `jq` unless filtering helps the specific task. Applied to identity/authority: `agent-bus status`, with `you` explained, replaces the private worker record and dated output.

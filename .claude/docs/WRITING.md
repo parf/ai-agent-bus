@@ -40,6 +40,7 @@
 
 ## 🧪 Examples
 
+- **Works for a new user.** First-use commands must work on a fresh installation; do not assume our development agents, records or account names exist. Show the complete JSON by default; add `jq` only when filtering serves the specific task.
 - **Real only.** Every command and output was actually run; never invented.
 - **One line, then the command.** Say what it does in one plain line, then the command. No trailing `#` caveat comments.
   - List all visible records in a readable table:
