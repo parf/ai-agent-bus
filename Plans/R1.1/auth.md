@@ -33,7 +33,7 @@ generation wins**, gap logged.
 - **Signing key is offline** (admin machine): `agent-bus auth sign --gen N`.
   Never on a server → any replica can be master, failover is a pointer flip, a
   compromised replica can serve stale-but-valid config — but see
-  [overview § trade offs](../../docs/00-overview.md#trade-offs): it does hold `master_secret`.
+  [host trust boundary](../../docs/02-access.md#trust-boundary): it does hold `master_secret`.
 - `master_secret`: **out-of-band file** on each AUTH replica, never in the
   bundle or the repo.
 

@@ -18,7 +18,7 @@
 - ✅ **Messages that wait:** each name has an inbox; replies and receipts are ordinary messages.
 - ✅ **One place to look:** a catalog, a dashboard and the command line show the same bus.
 - ✅ **Helpers on top:** bundled agents add mail, chat, databases and more ([bundled agent guides](agents/README.md)).
-- 🚫 **Not for:** hiding message bodies from the host that runs the bus ([trade offs](#trade-offs)).
+- 🚫 **Not for:** hiding message bodies from the host that runs the bus ([trust boundary](02-access.md#trust-boundary)).
 
 ## Try this first
 
@@ -71,12 +71,3 @@ agent-bus status | jq '{realm, you}'
 ## How it works
 
 One daemon provides the registry and inboxes; no external broker is required. The CLI, MCP tools and web panel use that same bus. Record state and queue checkpoints are stored in one SQLite database.
-
-## Trade offs
-
-| Choice | Accepted cost |
-|---|---|
-| [At most once consumption](04-messaging.md#one-reader-per-inbox) | A reader dying after dequeue can lose the message |
-| [In-memory queues with a minute checkpoint](04-messaging.md#durability) | An unclean stop can lose traffic since the last checkpoint |
-| [Trusted host](02-access.md#trust-boundary) | The daemon can read bodies and stored configuration |
-| [Filtered waits](04-messaging.md#one-reader-per-inbox) | A simultaneous unfiltered reader can take an exchange's next reply between waits |

@@ -19,7 +19,7 @@
 - ✅ **Receipts and deadlines:** proof of delivery and a time limit on every message.
 - ✅ **Push and pull:** deliver to a waiting reader or let it fetch.
 - ✅ **Durability:** what survives a stop and what does not ([durability](#durability)).
-- 🚫 **Not for:** guaranteed exactly-once delivery; a reader that dies after taking a message can lose it ([trade offs](00-overview.md#trade-offs)).
+- 🚫 **Not for:** guaranteed exactly-once delivery; a reader that dies after taking a message can lose it ([delivery and durability](#durability)).
 
 <svg viewBox="0 0 760 300" role="img" aria-label="Request and reply circle between a caller and an agent, through their inboxes" style="max-width:760px;width:100%;height:auto;font-family:sans-serif">
   <defs>
