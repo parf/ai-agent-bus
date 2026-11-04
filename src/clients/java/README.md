@@ -22,7 +22,9 @@
 
 Use a Java 21 JDK and jackson-core 2.22.3. Build the local library with [pom.xml](pom.xml) (Maven), or compile its `src/main/java` sources with jackson-core on the classpath. Put both the resulting library and jackson-core on the compile and runtime classpath for `Main.java` below.
 
-Register `#worker@localhost` as an Agent using an authorized CLI account, obtain its token with `agent-bus token '#worker@localhost'`, and set `AGENT_BUS_TOKEN` to that token. Set `AGENT_BUS_ADDR` to the same daemon socket or URL; HTTPS also needs the appropriate trust configuration. Construction alone does not register the identity.
+1. Register `#worker@localhost` as an Agent using an authorized CLI account. Construction alone does not register the identity.
+2. Obtain its token with `agent-bus token '#worker@localhost'` and set `AGENT_BUS_TOKEN` to that token.
+3. Set `AGENT_BUS_ADDR` to the same daemon socket or URL; HTTPS also needs the appropriate trust configuration.
 
 Serve one handler and call it from the same process:
 

@@ -22,7 +22,9 @@
 
 Use Python 3.11 or later. From the checkout root, set `PYTHONPATH="$PWD/src/clients/python"` when running the saved script so `from agent_bus import ...` resolves this library. It uses only the standard library.
 
-Register `#worker@localhost` as an Agent using an authorized CLI account, obtain its token with `agent-bus token '#worker@localhost'`, and set `AGENT_BUS_TOKEN` to that token. Set `AGENT_BUS_ADDR` to the same daemon socket or URL; HTTPS also needs the appropriate trust configuration. Construction alone does not register the identity.
+1. Register `#worker@localhost` as an Agent using an authorized CLI account. Construction alone does not register the identity.
+2. Obtain its token with `agent-bus token '#worker@localhost'` and set `AGENT_BUS_TOKEN` to that token.
+3. Set `AGENT_BUS_ADDR` to the same daemon socket or URL; HTTPS also needs the appropriate trust configuration.
 
 Serve one handler and call it from the same process:
 
@@ -72,7 +74,8 @@ See [agent logs](../../../docs/agents/bus.md#agent-logs) and
 
 ## Technical details
 
-At first use, the client requires both HTTP `/identity` protocol fields to match [the current protocol version](../../../docs/09-daemon-api.md#protocol-version). Missing, malformed and unsupported versions are refused before application requests; daemon refusals expose `kind` alongside status and message.
+- **Protocol:** both HTTP `/identity` fields must match [the current protocol version](../../../docs/09-daemon-api.md#protocol-version) before application requests. Missing, malformed and unsupported versions are refused.
+- **Refusals:** errors expose the daemon's `kind` alongside its status and message.
 
 - **Package:** see [the Python API source](agent_bus/client.py); [authentication](../../../docs/02-access.md#what-a-call-carries) owns credentials; the version follows the repository VERSION; [MIT license](LICENSE.md).
 - **Connecting:** `Bus(name)` verifies the credential at the first authenticated operation; constructing it neither connects nor registers. Unix sockets, HTTP and HTTPS work, and `AGENT_BUS_TLS_FINGERPRINT` pins the peer certificate before credentials are sent.

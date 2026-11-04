@@ -20,9 +20,14 @@
 
 ## Try this first
 
-Use Node 22+ or Bun 1.3+. For a checkout example, install this directory's dependencies with `bun install --frozen-lockfile`, save the snippet as a `.ts` file in this directory, replace its package import with `./src/index.ts`, and run it with Bun. For an application package, use the [local package build](#build-and-checks) and install its `dist/` directory as `@agent-bus/client`.
+Use Node 22+ or Bun 1.3+.
 
-Register `#worker@localhost` as an Agent using an authorized CLI account, obtain its token with `agent-bus token '#worker@localhost'`, and set `AGENT_BUS_TOKEN` to that token. Set `AGENT_BUS_ADDR` to the same daemon socket or URL; HTTPS also needs the appropriate trust configuration. Construction alone does not register the identity.
+- **Checkout example:** install this directory's dependencies with `bun install --frozen-lockfile`, save the snippet as a `.ts` file here, replace its package import with `./src/index.ts`, and run it with Bun.
+- **Application package:** use the [local package build](#build-and-checks) and install its `dist/` directory as `@agent-bus/client`.
+
+1. Register `#worker@localhost` as an Agent using an authorized CLI account. Construction alone does not register the identity.
+2. Obtain its token with `agent-bus token '#worker@localhost'` and set `AGENT_BUS_TOKEN` to that token.
+3. Set `AGENT_BUS_ADDR` to the same daemon socket or URL; HTTPS also needs the appropriate trust configuration.
 
 Serve one handler and call it from the same process:
 
@@ -69,7 +74,8 @@ See [agent logs](../../../docs/agents/bus.md#agent-logs) and
 
 ## Technical details
 
-At first use, the client requires both HTTP `/identity` protocol fields to match [the current protocol version](../../../docs/09-daemon-api.md#protocol-version). Missing, malformed and unsupported versions are refused before application requests; daemon refusals expose `kind` alongside status and message.
+- **Protocol:** both HTTP `/identity` fields must match [the current protocol version](../../../docs/09-daemon-api.md#protocol-version) before application requests. Missing, malformed and unsupported versions are refused.
+- **Refusals:** errors expose the daemon's `kind` alongside its status and message.
 
 - **Runtime:** an ESM client for Node 22+ and Bun 1.3+. All network I/O uses Node's built-in HTTP and HTTPS interfaces, including Unix sockets. Browsers are unsupported.
 - **Connecting:** `Bus.connect()` does no I/O. The first authenticated operation verifies `/status.you` against `expectName` when supplied, and `record(name)` selects a target, never a different caller.

@@ -22,7 +22,9 @@
 
 Use a Rust toolchain supporting edition 2024. Add `agent-bus` as a path dependency pointing to this directory, and `tokio = { version = "1", features = ["rt-multi-thread", "macros"] }` to your application's Cargo dependencies. Save the example as `src/main.rs`.
 
-Register `#worker@localhost` as an Agent using an authorized CLI account, obtain its token with `agent-bus token '#worker@localhost'`, and set `AGENT_BUS_TOKEN` to that token. Set `AGENT_BUS_ADDR` to the same daemon socket or URL; HTTPS also needs the appropriate trust configuration. Construction alone does not register the identity.
+1. Register `#worker@localhost` as an Agent using an authorized CLI account. Construction alone does not register the identity.
+2. Obtain its token with `agent-bus token '#worker@localhost'` and set `AGENT_BUS_TOKEN` to that token.
+3. Set `AGENT_BUS_ADDR` to the same daemon socket or URL; HTTPS also needs the appropriate trust configuration.
 
 Serve one handler and call it from the same process:
 
