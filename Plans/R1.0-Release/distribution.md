@@ -1,6 +1,6 @@
 # Distribution
 
-📌 **TL;DR:** Install with `npm install -g ai-agent-bus`, or `npm install -g ai-agent-bus-client` to join an existing bus. Both wrap the release binaries; no checkout or local Go build. The owner chose npm, without release signing, on 2026-10-30 ([RD178](DECISIONS.md#recorded-decisions)). Publication and remaining platform acceptance are pending.
+📌 **TL;DR:** Install with `npm install -g ai-agent-bus`, or `npm install -g ai-agent-bus-client` to join an existing bus. Both wrap the release binaries; no checkout or local Go build. The owner chose npm, without release signing, on 2026-10-30 ([RD178](DECISIONS.md#recorded-decisions)). [Publication evidence](done/release-1.0-publication.md#published-release) records the tagged archives and clean-container checks.
 
 ## Why
 
@@ -49,9 +49,7 @@ Owner, 2026-10-30, superseding the earlier installer and signing choices ([RD178
 | Release path | Verify each HTTPS-downloaded archive against that release’s `SHA256SUMS`, then its `MANIFEST.sha256`; produce the platform and command packages with `npm pack`. No draft waiting for a signature |
 | Layout | npm owns its package files and command shims; explicit full-node setup stages a checked release and uses the existing releases/current layout and rollback |
 
-The installed command stays `agent-bus`. npm refused the earlier `agent-bus` package name as too similar to `agentbus`; the CEO reserved `ai-agent-bus` at placeholder version 0.0.1 on 2026-10-30. Read-only `npm view ai-agent-bus-client --json` returned E404 on the same date; the owner subsequently reserved it too. Both names are now reserved; the [first real publication step](TODO.md#distribution-acceptance) records the version floor. Workers reserve or publish nothing.
-
-`src/npm/pack.py` emits the split platform and command manifests; T-16’s separate implementation commit changes its defaults to these names, preserving the installed commands. The three tracked `@agent-bus/` manifests are private development projects, not published packages. The exact manifest inventory and pending migration are [P.1](TODO.md#distribution-acceptance).
+The installed command stays `agent-bus`. `src/npm/pack.py` emits the split platform and command manifests under the approved names. The three tracked `@agent-bus/` manifests are private development projects and stay unpublished. The [publication record](done/release-1.0-publication.md#registry-publication) owns the live registry result.
 
 ### Install acceptance
 
@@ -91,12 +89,11 @@ the archives, and prepares the same checked assets for either publication path:
 
 The [local publication check](../../src/release-publish.test.py) executes the
 workflow step with a `gh` shim and asserts both paths' arguments. It contacts no
-GitHub service; hosted runner wiring, token permissions and actual asset upload
-remain proof for a real tag run.
+GitHub service; the [1.0.0 hosted run](done/release-1.0-publication.md#published-release) proves runner wiring, permissions and actual upload.
 
 ## macOS
 
-The owner’s Mac is the test host ([RD164](DECISIONS.md#recorded-decisions)); Apple code signing and notarization are not required ([RD165](DECISIONS.md#recorded-decisions)). The [macOS plan](macos.md#order) owns the supported parts. macOS client npm packages are built for both CPUs; local-tarball installation and a bus call passed on arm64 ([P.1c evidence](done/p1c-macos-npm.md#native-acceptance)). No native Intel run or npm publication is claimed.
+The owner’s Mac is the test host ([RD164](DECISIONS.md#recorded-decisions)); Apple code signing and notarization are not required ([RD165](DECISIONS.md#recorded-decisions)). The [macOS plan](macos.md#order) owns the supported parts. macOS client npm packages are built for both CPUs; local-tarball installation and a bus call passed on arm64 ([P.1c evidence](done/p1c-macos-npm.md#native-acceptance)). No native Intel run is claimed; registry publication is recorded [separately](done/release-1.0-publication.md#registry-publication).
 
 ### Prepared tagged release path
 
