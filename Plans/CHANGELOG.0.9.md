@@ -1,254 +1,89 @@
 # Changelog 0.9
 
-📌 **TL;DR:** Changes on the 0.9 development line, newest first, one or two
-lines per version. 0.9 is an odd line: it is development and may be broken.
-The previous line is [changelog 0.8](CHANGELOG.0.8.md#changelog-08).
-
-## 0.9.303 — 2026-11-02
-
-Sixteenth published 0.9 changeset: 0.9.261–0.9.303, squashed.
-
-| Area | Changes |
-|---|---|
-| Protocol and clients | Protocol 1 identity/compatibility checks, a frozen documented route contract and shared six-client conformance vectors; one name grammar and named refusals. |
-| Data and events | Bigfiles with checksums and size-scaled transfer deadlines; exact KV import shapes; private per-agent event logs, subscriptions and bounded durable alert snapshots. |
-| Runner and agents | Atomic staged overrides with recovery, reload and answer-size fixes, private user files, CPU-bounded subscription filters, Slack startup readiness and Codex unattended file-tool refusal. |
-| Access | Tokenless enrolment, scoped signing, cached/bounded GitHub directory lookups with uncached local revocation, and uniform inactive-record/agent-log refusal. |
-| Distribution | Verified Linux and Darwin full/client archives and macOS client npm packages; safe role-group recovery, setup cleanup and release-asset reuse; container inputs verified by SHA256SUMS. |
-| Web and documentation | Private event-log management, current security/access descriptions, release-install guides checked on five Linux distributions and native macOS RC acceptance. |
-
-## 0.9.260 — 2026-11-01
-
-Fifteenth published 0.9 changeset: 0.9.250–0.9.260, squashed.
-
-| Area | Changes |
-|---|---|
-| Daemon | Big keys: a record's Maintainers put and delete, its allow list gets and lists; content up to 32 MiB is held in private files (or memory on request), expires, survives restarts and is removed with its record, with SHA-256 checked both ways. An unusable store answers 503 with its cause while the daemon stays up, and an early refusal drains the body so the client sees why. |
-| CLI and clients | `agent-bus big put\|get\|ls\|rm` and the Go, Python and TypeScript clients store, fetch, list and delete big keys; MCP tools move content through local files, never model context. |
-| Web | The store page lists and deletes big keys. |
-| Agents | IMAP `part --big` stores a decoded part as a big key and `append --big` appends one byte for byte. The db packager installs pinned, hash-checked wheels instead of host site-packages. |
-| Setup | Setup refreshes the user runner as the person through setpriv; a failed refresh in git-install prints the manual fix instead of failing. |
-| Notices | Version output, help footers, agent authors, license notices and the web face name Sergey Porfiriev. |
-
-## 0.9.249 — 2026-10-31
-
-Fourteenth published 0.9 changeset: 0.9.246–0.9.249, squashed.
-
-| Area | Changes |
-|---|---|
-| Agents | The IMAP agent covers mail automation without a mail client: it marks and flags UID sets; filters list and search by server criteria; reads headers and MIME parts without marking Seen; copies, moves, trashes, permanently deletes exact UIDs and compacts Trash; creates, renames and deletes folders and appends raw mail. Every write that removes or rewrites mail sits behind `allow_destructive`, off by default, and INBOX, role, configured and watched folders are protected. Subscriptions take `--folder` and use IDLE where the server supports it, else polling; status reports per folder. |
-| Gate | Every bundled agent manifest passes the runner's reload validator before landing. |
-
-## 0.9.245 — 2026-10-31
-
-Thirteenth published 0.9 changeset: 0.9.243–0.9.245, squashed.
-
-| Area | Changes |
-|---|---|
-| Agents | The IMAP agent lists folders (`folders [--counts]`) and takes `--folder` on sync, list, search, read, mark and publish, with a separate cache per folder; its manifest keeps search's text argument last so the runner accepts it. |
-| Launchers | The launcher reports resumed status once a held message is accepted, clearing the stale "waits for it to end" line. |
-
-## 0.9.242 — 2026-10-30
-
-Twelfth published 0.9 changeset: 0.9.212–0.9.242, squashed.
-
-| Area | Changes |
-|---|---|
-| Daemon | A consume may state its host and the daemon lists each name's recent reader hosts for two minutes, in memory only; consume takes `asks=only`, an ask-only read that waits beside the unfiltered reader, which still wins an ask. The daemon answers as `#bus`: `status`, `version` and `ls` take `--json`. |
-| Runner | Shared agents load first, then bundled ones from `--bundled`, which serve only when enabled; metadata-only standalone services are skipped. Runners on different hosts share one agent's messages (`consume --host`, the `AGENT_BUS_READER_HOST` unit override), each handled exactly once. The runner deploys agents over the bus: a bundled agent or a git repo pinned to a full commit, explicit replace, and a remove that keeps data and tokens; a read-only agents directory is refused by name and the git fetch never runs repository hooks. |
-| Clients | PHP long polls use HTTP/1.1, so a replaced reader's cancelled poll no longer swallows messages. The TypeScript client and the faces read asks-only. |
-| Launchers | `--fresh` starts a named session with a new session ID. A Codex session keeps its bus push across `/compact`: delivery waits out a non-steerable turn and a failed push restarts up to three times. The Codex and OpenCode push also keeps a message it consumed but could not deliver during a compaction and delivers it first after the restart; other failures drop it with a log line. Launchers and the installer name new agents and runners in the configured bus realm, keep existing names and refuse a name that would not fit. |
-| Agents | Telegram starts in the checkout sandbox with shared envfile and subscription code; the git agent names why an autopull script could not start. Cron and `#at` drop a refused send with one warning (RD161), use random ids with a crash-safe legacy-id migration and refuse `sub edit`. Slack answers `starting` while it loads, then `ok`. Bundled agent packagers build then replace `agent.d/<name>` as a whole tree and refuse a concurrent publisher; the standalone tmux-sessions packager does the same through the shared helper, which releases now ship. Discord leaves the R1 release: the exporter, setup and packager drop it and refuse a discord tree, and its code stays for R1.1. |
-| macOS | The CLI builds and runs natively, and release verify checks Darwin archives; the daemon, setup and admin run natively under launchd as a non-root role, and an orphaned child no longer keeps the listeners. Full macOS archives for arm64 and x64 carry the daemon and setup beside the client archives, and release verify checks each program's Mach-O CPU and stamped commit against the release source; a client-only Darwin set stays accepted. The npm package gate installs and resolves the macOS arm64 and x64 platform packages, which stay client-only. |
-| Release and install | Releases are unsigned: the workflow, release verify and `install.sh` check `SHA256SUMS` and manifests only, with no signing step or owner key. `npm install -g ai-agent-bus` installs the `agent-bus` command; the builder defaults to `ai-agent-bus` and `ai-agent-bus-client`. A clean-install acceptance installs the local tarballs on a clean host and serves a call and an MCP tool call, the client package joins without a daemon, and pack refuses files its manifest does not check. Release verify queries each shipped program's own version and exit status, refusing a bad token wrapper or TypeScript stamp. Setup restarts the web face once, only when its unit, TLS or release bytes changed, so a fast host no longer hits systemd's start limit. |
-| Web | New record forms default to the configured bus realm, keeping typed and existing names exact. |
-
-## 0.9.211 — 2026-10-30
-
-Eleventh published 0.9 changeset: 0.9.205–0.9.211, squashed.
-
-| Area | Changes |
-|---|---|
-| Subscriptions | Slack and Telegram subscriptions run on the shared engine: deterministic ids migrate once, `sub edit` becomes delete-and-add, and drops are counted and warned. |
-| Daemon | Replacing an inbox reader loses no message: the daemon drops a cancelled waiter and requeues what it was handed, in arrival order. `agent-busd`'s default database follows an absolute `XDG_STATE_HOME`, and its refusal names the old home database. |
-| Clients | Go client long polls use HTTP/1.1 over https, so a replaced reader's cancelled poll no longer swallows messages. |
-| Runner | The runner serves a pool of `jsonl` children and answers each message by its echoed id. Pools take settings-file overlays under bwrap and are refused without it. |
-| Agents | The Discord agent posts to and reads channels and receives gateway messages, never exposing its token. |
-
-## 0.9.204 — 2026-10-30
-
-Tenth published 0.9 changeset: 0.9.199–0.9.204, squashed.
-
-| Area | Changes |
-|---|---|
-| Subscriptions | Logwatch and imap use the shared subscriptions module: one copy per match, a refused send is dropped with one warning, invalid filters are refused at add, and `sub edit` is gone. Old subscriptions migrate once to the shared shape; damaged ones stay inert for the Owner and Maintainers to delete. |
-| Runner | Reload sends SIGHUP on a settings change and restarts a kept agent whose sandbox, network or limits changed; a killed kept agent restarts at once and `last_exit` names the signal. |
-| CLI | `agent-bus run` reconnects within seconds of a daemon restart and logs when its reader is back. |
-| Clients | Client libraries answer a self-call made from inside a running handler, and refuse one outside serve. |
-| Launchers | A named session resumes its own transcript by id, never the newest one in its directory. |
-
-## 0.9.198 — 2026-10-30
-
-Ninth published 0.9 changeset: 0.9.195–0.9.198, squashed.
-
-| Area | Changes |
-|---|---|
-| CLI | Repeated `--tag` options on `ls` and `call --tagged` select records carrying every tag; an empty `--tag` value is refused instead of dropping the filter. |
-| Web | The Account and Owner user pages are paginated with search, as the other listings are. |
-| Install | The installer refuses an incomplete client archive before writing anything, and an update provably keeps the node's configuration. |
-
-## 0.9.194 — 2026-10-30
-
-Eighth published 0.9 changeset: 0.9.192–0.9.194, squashed.
-
-| Area | Changes |
-|---|---|
-| Listing | A listing with several tags returns only records carrying every tag. |
-| Release | The release run verifies every archive in both native builds before upload, and a failed verify stops the draft release. |
-| Test fixtures | Container fixtures refuse to start, before any podman call, unless the smoke-gate lock is held. |
-
-## 0.9.191 — 2026-10-30
-
-Seventh published 0.9 changeset: 0.9.190–0.9.191, squashed.
-
-| Area | Changes |
-|---|---|
-| Setup | `agent-bus-setup --help` lists its options. |
-| Test fixtures | Database fixtures and container checks keep the host journal quiet with capped private log files. Cleanup identifies each run by process ID and start time, waits for starts in flight, and removes only that run's containers and temporary data after exit or a kill. Dead runs are swept at the next start; unreadable journal or container listings fail closed. |
-
-## 0.9.189 — 2026-10-30
-
-Sixth published 0.9 changeset: 0.9.163–0.9.189, squashed.
-
-| Area | Changes |
-|---|---|
-| Release | One compiled `agent-bus-ts` carries the web face, the MCP face and the launchers, so a release needs no bun or Node; `package.sh` also builds the client edition archive. |
-| Licensing/packaging | Third-party notices are in `licenses/NOTICE.md`, shipped beside `LICENSE.md` in every archive, agent package and npm package. |
-| Install | `install.sh` installs a signed release, the full node or `--client` under `~/.local`: it verifies the `SHA256SUMS` signature and the archive, re-verifies as root in a root-owned copy, refuses a quiet downgrade, pins the key with `--key-fingerprint` and never replaces a real file in `~/.local/bin`. Acceptance on AlmaLinux 10, Ubuntu 26.04 and Debian 13 in rootless podman; bubblewrap is in the install needs. |
-| Signing | `release-sign.sh` signs exactly one release's four archives against the CI hash list (or a loud `--no-ci-check`); the workflow builds only tags on main with pinned actions. `release-verify.sh` checks the evidence of a signed release and matches a `SHA256SUMS` line literally. x86_64 verified; aarch64 waits for the owner's Mac. |
-| Container | One image on a digest-pinned AlmaLinux 10 base runs the daemon or a runner from the release archive, with its own acceptance as smoke subsystem Q. |
-| Launchers | A release launcher reinstalls the Claude channel plugin another release installed, one launcher at a time under a lock that names its holder. An explicit bus name resumes its own conversation, else an unbound one, else a fresh one. |
-| Subscriptions | One shared engine in Python and TypeScript passes the same language-neutral vectors: filters, authority re-checked at delivery, refused sends, revoked authors. Deliveries no longer send `wait=0`, which the daemon refused, so real subscription sends reach their target again. |
-| Events | New `#eventlog` keeps named logs with the same notice, warning and alert rings as agent events. A ring restarted smaller keeps only its newest entries, and `events.lock` is created 0600. It starts on its documented defaults when its record has no Configuration, and it shuts down cleanly when stopped mid-request, with no stray error on stderr. |
-| Clients | Every client library sends a zero or sub-millisecond wait as a plain send, and still refuses a negative wait. |
-| Runner | Agents start in their `depends` order; an unknown or cyclic dependency is refused by name. A dedicated runner script reads its bus secret on each message. One shared masker hides each secret value, and each line of a multi-line secret, in runner and CLI output. Kept sandboxed agents restart when the daemon replaces the bus socket. The scheduler exits after 30 consecutive bus errors so its runner restarts it. |
-| Debug | The `env` answer masks every bus-prefixed secret and shows only an allowlist. |
-| Daemon | Group walks for ACL, directory and delivery are iterative, so a deep or cyclic group chain no longer exhausts the stack. Needs a daemon restart. Lock waiters are served in arrival order, and a waiter that gives up or cancels leaves the queue; also live after the next daemon restart. |
-
-## 0.9.162 — 2026-10-29
-
-Git autopull can run admin-installed success/failure scripts after its result publication attempt, with trusted allowlist selection, bounded processes and separate correlated script-failure records. Stderr alone fails a script; optional-log delivery failures never suppress the hooks.
-
-## 0.9.161 — 2026-10-29
-
-The web has a Bus setup page, the `#bus` Configuration on the edit page, linked in the left navigation for the daemon Owner alone.
-
-## 0.9.160 — 2026-10-29
-
-`#git` follows configured pubsub events with safe fast-forward or explicit mirror updates, revision deploy, per-checkout result records and startup catch-up; reinstall retires the old timers. Post-attempt script integration remains separate.
-
-## 0.9.159 — 2026-10-29
-
-The bus setup refuses a repeated key, audits a realm saved from the host name at start, and shows the daemon Owner its Configuration digest.
-
-## 0.9.158 — 2026-10-29
-
-The `#bus` Configuration is the bus setup: the daemon Owner alone saves the default realm (the host name at first start) and the agent-event keys; a save is validated, audited, applied at once and kept in backups, and `status` shows the realm.
-
-## 0.9.157 — 2026-10-29
-
-A `#webhook` route can publish a GitLab or GitHub push, or a pipeline's deploy request, to a pubsub channel as a strict new-code event; a channel it may not publish to keeps the listener closed.
-
-## 0.9.156 — 2026-10-29
-
-The Secret and Configuration key tables on the agent pages break a key name only after an underscore, never inside a word.
-
-## 0.9.155 — 2026-10-29
-
-A runner taking over an existing agent clears the `script` an earlier `agent-bus run` left on its record, so listings stop saying `runs exec …`.
-
-## 0.9.154 — 2026-10-29
-
-IMAP list/search show live read status and list can filter unread mail; read marks Seen by default with a no-mark option, and mark sets or clears only Seen. Background subscriptions and publication remain PEEK/read-only.
-
-## 0.9.153 — 2026-10-29
-
-`#fetch` adds bounded curl requests with raw status/headers/body and per-instance site/URL allowlists. Exact entries can grant private access; wildcard/default scope remains public-only, with per-hop checks, cross-origin credential stripping and explicit uncertain outcomes.
-
-## 0.9.152 — 2026-10-29
-
-The runner's overlapping-work-directory refusal says how to keep both: disable the shorter key and give its record a sibling key with its name.
-
-## 0.9.151 — 2026-10-29
-
-`#tmux-sessions` keeps each instance's `XDG_STATE_HOME` across the move to the user-account runner: new `state_home` Configuration, defaulting to the old standalone unit's `/var/lib` directory (RT31).
-
-## 0.9.150 — 2026-10-28
-
-Fifth published 0.9 changeset: 0.9.137–0.9.150, squashed.
-
-| Area | Changes |
-|---|---|
-| Daemon | J16: a `call` keeps its answer from a face reading the same inbox. RT33: `GET /may-send?who=&name=` answers whether another name may send to a target the caller can see; Python `Bus.may_send`, TypeScript `bus.maySend`. Both need a daemon restart. |
-| Scheduling | New `#cron` (schedules and one-shot `later`) and `#at` (`in 30m`, `at 09:30`) on one shared scheduler engine; each send goes under the agent's own name, the target's ACL decides (RD140), the creator's may-send is checked at add and before every send (RD141), an unconfirmed send pauses (RD138). |
-| Mail | `#imap` subscriptions: new mail polled every 60 s and forwarded to queues or agents, with author may-send checks, a durable bounded outbox and visible pauses instead of resends; compact Date/From/Subject lists and newest-first manual backfill. |
-| Web | New `#webhook` (authenticated inbound routes, single-attempt outbound POSTs) and `#fetch` (public-only, pinned HTTP(S) reads with an external-content warning, RD142). Both ship disabled. |
-| Subscriptions | Slack, Telegram and logwatch `sub` also check the author's may-send at add, on a moved target and before every forward. |
-| Runner | RT31: a person's user-account runner, `#runner/<person>-user`, run as them under their user manager for agents such as `#tmux-sessions`; tmux sessions survive its reloads, stops and crashes. |
-| Release | `#cron`/`#at` scripts packaged and installed executable; the db agent is left out of the release archive until Q209, and a check holds every packaged file against setup's list. |
-
-## 0.9.136 — 2026-10-28
-
-Fourth published 0.9 changeset: 0.9.136, squashed.
-
-| Area | Changes |
-|---|---|
-| Mail | New `#imap`: verified IMAPS/app-password or Gmail XOAUTH2, read-only EXAMINE and BODY.PEEK, local list/search/read. |
-| Cache | Private bounded UIDVALIDITY/UID cache, atomic writes, LRU eviction and repair; bounded sync progress, reported skips and capped persisted refusal retries. |
-| Publication | Explicit one-UID copy to a fixed destination: external-content warning plus raw text, at most 256 KiB; no HTML rendering, resource fetching or automatic forwarding. |
-| Packaging and docs | Self-serving runtime/client/license inventories, IMAP guide and docs index, loader/fixture checks; installed instances stay disabled until the operator enables them. |
-| Agent docs | Every agent page opens in plain words — the problem, the idea, when to use it and use cases — with technical detail in closed blocks; the index shows how incoming events reach a queue or an agent, with a mail help-desk example. |
-
-## 0.9.135 — 2026-10-28
-
-Third published 0.9 changeset: 0.9.115–0.9.135, squashed.
-
-| Area | Changes |
-|---|---|
-| Bundled agents | New: `#voyage` embeddings and API proxy, `#qdrant` proxy with read/write/admin roles (default write), `#db` proxy for MySQL, PostgreSQL and ClickHouse (default read), `#smtp` with verified TLS, app passwords and Gmail XOAUTH2. `#ai` gains `decide` with per-choice probabilities. Qdrant runs as a plain container the operator places (RD131). |
-| Apps | `#rag` 0.1.0, versioned on its own: JSON CRUD and prompts built from bus agents. |
-| Docs | Every bundled agent has its own page in one structure, linked from its help, help-json and web page; `docs/agents/README.md` opens with a one-line-per-agent list. |
-| Launchers | One live session per bus name (RD129): a refused face says so in every tool, `--take-over` evicts a verified holder, a fork gets a `.job` name. A daemon restart is a quiet reconnect. |
-| Runner | Status asks give a one-line health summary; the synthetic `no-tags` sentinel is gone and stored ones migrate at startup. |
-| Web | Configuration as colorized JSON in its own section, inline Updated and Last used, empty policy rows hidden, aligned activity strips, KV summaries without zero counts, calm teal primary and 100 rows per page. |
-
-## 0.9.114 — 2026-10-27
-
-Second published 0.9 changeset: 0.9.101–0.9.114, squashed.
-
-| Area | Changes |
-|---|---|
-| Asks | Every agent kind checks the ask first and answers `unsupported: <ask>` for one it does not handle. `status` is an ask: the runner answers starting, stopping and failed itself; `--no-asks` and `"asks": "none"` let any script run unchanged. |
-| CLI | `agent-bus token` replaces the `agent-bus-token` program, which stays only as the SSH forced-command wrapper. Help is man style: grouped commands with main ones first, complete per-command pages with values, defaults, examples and global options, full documentation URLs. New spellings `config`, `ls --table` (`-h`) and `register --service-addr`; old ones still accepted. |
-| Backups | `agent-bus-admin export` and `import`: the daemon Owner's full or partial backup of permanent records, Configuration, Secret, KV and credentials, `age`-encrypted to the Owner's key, with an open `.info` beside each archive. Import resolves every conflict explicitly before one transaction. |
-| tmux sessions | `#tmux-sessions` keeps one tmux session of named command windows: start, stop, restart and list, with status from the real windows. Shared Python env-file parser, a `config.json.dist` example. |
-| Web | Tag badges, a "you" owner badge, agent status on its page, collapsed Methods, no `no-tags` sentinel. |
-| Project | Homepage https://parf.dev/agent-bus/, with code and docs on GitHub. #bus help carries license, author and homepage. |
-| Fixes | 0.9.101 archives are rejected by setup. Packaged web was broken from at least 0.9.100 until 0.9.103. |
-
-## 0.9.100 — 2026-10-26
-
-First published 0.9 changeset: 0.9.0–0.9.100, squashed. The 0.8 line closed at 0.8.243.
-
-| Area | Changes |
-|---|---|
-| Bus | Reserved in-daemon `#bus` answers help, status, version and ls. `agent-bus may-send` checks target permission. `call --tagged` and `ls --tag` reach agents by tag. Tags allow only `a-z 0-9 - _`. Group publication copies need the destination Owner. |
-| Security | HTTP bodies read after authentication with per-handler limits. Tokens and private values stay out of runner stderr, exit reasons and diagnostics. Linked settings files are refused. Mapped-user, debug-probe and reload authority tightened. |
-| Runner | Acknowledgments share the message deadline. Configuration is capped at 64 KiB and passed as `AGENT_BUS_CONFIG`. Required env keys are marked `# required`. Killed cgroups are recreated. Reload swaps readers without leaving old ones. |
-| Bundled agents | New: git, logwatch, debug doctor, AI proxy (`#ai`) and Telnyx SMS. Systemd manages all unit types with Configuration caps. Telegram and Slack share one router, with per-chat routes and `handler: "drop"`. Every agent publishes machine-readable help from its package metadata. |
-| Launchers | Claude loads the bus as a channel plugin. Added `--tag`, the `ai-cli` tag, automatic `<runtime> <cwd>` descriptions, crash restart with backoff, and a tmux session starter. |
-| MCP face | Help asks are answered without the model. Rename and push recovery. Fewer receipts (RD103). |
-| Web | Machine-readable help pages. Compact record and settings pages with one Messages display and waiting/lost chips. A Last used column. Token-only login. Self-hosted fonts, icons and charts with no CDN. |
-| CLI | `agent-bus help <agent>` prints readable help. Long options use `--name=value`. `agent-bus-token` works without a name. `run` defaults to args. |
-| Operations | The daemon logs to syslog only with `--syslog`. Weekly cleanup bounds caches, releases, backups and logs. Releases ship every bundled agent with license notices. Deploy checks run each agent's selftest. |
-| Tests | `src/smoke.sh` runs fast, normal and slow sets per subsystem; the normal gate is under one minute. Mutants run only for new checks and ⚠️ subsystems. |
+📌 **TL;DR:** Archived changes **0.9.0–0.9.303**, 2026-10-19–2026-11-02, grouped by area. These record development transitions, including choices later replaced. Earlier: [0.8](CHANGELOG.0.8.md#changelog-08); next: [1.0](../CHANGELOG.1.0.md#changelog-10).
+
+## Protocol, discovery and command line
+
+- **0.9.0–0.9.100:** reserved in-daemon `#bus` answered help, status, version and listing. Added target-permission checks, tag-based listing/calls, strict tag syntax and machine-readable method/Configuration/Secret help from package metadata.
+- **0.9.101–0.9.114:** asks were checked before ordinary methods, with unsupported asks refused and runner lifecycle status answered by the runner. Scripts could opt out of asks. Added man-style command help; `agent-bus token` replaced the general token-helper command while its SSH wrapper remained. Introduced `config`, `ls --table` and `register --service-addr`, retaining prior spellings at that point.
+- **0.9.158–0.9.161:** the daemon Owner gained validated, audited, durable `#bus` Configuration for the default realm and agent-event settings. First start derived the realm from the host; saves applied immediately and entered backups. A web Bus setup page exposed the same operation.
+- **0.9.192–0.9.198:** multiple tags matched by intersection. Repeated `--tag` options were joined rather than overwritten, and empty values were refused instead of silently removing the filter.
+- **0.9.212–0.9.242:** consume gained optional host observations, retained for two minutes in a bounded memory-only listing. `asks=only` readers could wait beside an ordinary reader without becoming a second unfiltered reader; the ordinary reader had priority for arriving/requeued asks.
+- **0.9.261–0.9.303:** froze the protocol-1 route contract and added `/identity` compatibility fields, named refusal kinds and one name grammar through the daemon/helpers. All six clients ran shared conformance cases; unknown routes used `no_route`, and missing data used `not_found`.
+
+## Authentication and authority
+
+- **0.9.0–0.9.100:** authentication preceded bounded HTTP body reads. Runner output, errors and diagnostics masked tokens/private values; linked settings were refused and mapped-user/reload/debug-probe authority was tightened.
+- **0.9.137–0.9.150:** `GET /may-send?who=&name=` let an admitted caller check another name's permission to a visible target; Python and TypeScript exposed matching calls.
+- **0.9.163–0.9.189:** iterative Group traversal handled deep/cyclic ACL, directory and delivery chains without stack exhaustion. Lock waiters gained FIFO handoff, cancellation and give-up removal. A shared masker covered complete secret values and individual lines of multiline secrets; debug env output used an allowlist.
+- **0.9.261–0.9.303:** key proof signed only the bus namespace, validated challenges and carried rotation through the proof flow. Enrolment could start without a token. GitHub directory lookups used a short cache and one daemon-wide uncached budget; local files stayed uncached so revocation applied immediately. Inactive agent/User log access matched a missing-name refusal, and subscription admission checked destination rights without revealing unavailable records.
+
+## Calls, readers and client outcomes
+
+- **0.9.137–0.9.150:** a waiting call reserved its answer against another face reading the same inbox.
+- **0.9.163–0.9.189:** zero/sub-millisecond send waits used a plain send across clients rather than an invalid `wait=0` request; negative waits remained refused.
+- **0.9.199–0.9.211:** self-call handling and shared cases prevented a client from accepting its own request as the answer. Cancelled-reader handoffs were purged/requeued in arrival order instead of losing the handed message.
+- **0.9.205–0.9.242:** Go and then PHP consume polls over HTTPS used HTTP/1.1 while other supported traffic could retain HTTP/2, fixing replaced-reader cancellation losses.
+- **0.9.261–0.9.303:** documented uncertain external effects: a caller timeout did not establish that a write failed, and uncertain writes were not automatically repeated.
+
+## Backups, KV and bigfiles
+
+- **0.9.101–0.9.114:** added Owner-only `age`-encrypted full/partial exports of permanent records, Configuration, Secret, KV and credentials, with readable non-secret `.info` sidecars. Import required explicit conflict choices before an all-or-nothing transaction.
+- **0.9.250–0.9.260:** introduced the then-named big-key store: expiring private files or requested memory storage, up to 32 MiB, with SHA-256 on transfer and lifecycle cleanup. A record's Maintainers wrote/deleted and its allow list read/listed. CLI, Go/Python/TypeScript, MCP and web exposed the operations; MCP moved file contents outside model context. An unusable store returned 503 while the daemon remained up.
+- **0.9.262–0.9.263:** renamed big keys to bigfiles across faces, clients and IMAP. Moved their index into the database; the first migration removed pre-index files rather than importing them, with the removal count logged.
+- **0.9.270–0.9.281:** transfer body handling used an idle timeout within a size-scaled total budget, with the CLI and Python/TypeScript following that budget. Empty strings/bytes and JSON survived KV import exactly; an unused global KV preflight scan was removed. MCP bigfile paths were fenced by `AGENT_BUS_BIGFILE_DIR`, and each user-runner person gained a private files directory.
+
+## Runner and agent installation
+
+- **0.9.0–0.9.100:** acknowledgments shared the call deadline; Configuration was bounded and supplied as `AGENT_BUS_CONFIG`. Required env keys, killed-cgroup recovery and reader replacement became explicit runtime behavior.
+- **0.9.115–0.9.162:** status asks reported health, and the synthetic no-tags sentinel was removed. Added a person's user-manager runner for agents such as tmux; its sessions and state directory survived runner lifecycle changes. A managed runner taking over a dedicated-run record cleared the stale script field.
+- **0.9.163–0.9.189:** dependency order was validated, with missing/cyclic dependencies refused. Dedicated scripts read their Secret per call. Kept sandboxed agents restarted after replacement of the mounted daemon socket; schedulers exited after 30 consecutive bus errors for supervised recovery.
+- **0.9.199–0.9.211:** settings changes sent SIGHUP where supported; confinement/limit changes restarted the kept process and signal exits were reported. Added ID-correlated pools of kept JSONL children; settings overlays required their sandbox path. Dedicated runs reconnected after daemon restart.
+- **0.9.212–0.9.242:** shared code loaded before bundled packages; bundled entries required enablement and metadata-only standalone services were skipped. Multiple runners could share one Agent with host reporting/override. Bus-driven install accepted bundled code or a full-commit-pinned git source, refused unsafe destinations/hooks and preserved data/tokens on removal. Agent packagers, including standalone tmux, built before replacing the entire destination tree and refused concurrent publication.
+- **0.9.250–0.9.260:** setup refreshed a user runner as its person; a failed development refresh reported the manual recovery rather than disguising it.
+- **0.9.261–0.9.303:** staged merged overrides published atomically with per-key recovery; reload and answer-size handling received further race/boundary fixes.
+
+## Shared subscriptions and event logs
+
+- **0.9.137–0.9.150:** scheduling and forwarding checked the creator's may-send at add and before each delivery, while the target ACL judged the sending helper's own identity. Unconfirmed scheduling sends paused rather than being blindly replayed.
+- **0.9.163–0.9.189:** Python/TypeScript subscription engines shared vectors for filters, revocation, authority failures and refused copies. Added standalone `#eventlog` with named notice/warning/alert rings, bounded retention, private lock mode, null-Configuration defaults and clean interrupted-request shutdown.
+- **0.9.199–0.9.242:** logwatch, IMAP, Slack, Telegram, cron and at moved to the shared engine. Each refused copy was dropped/counted with a warning while later matches remained usable. Deterministic or random 12-hex IDs replaced older IDs through interruption-safe migration; damaged legacy state stayed inert. `sub edit` was replaced by delete-and-add.
+- **0.9.261:** subscription filters used CPU budgets rather than wall time to avoid load-induced false timeouts.
+- **0.9.289–0.9.293:** added private per-agent event rings in the daemon and `#bus` write/read/list/pull/clean and subscription operations. Runner starts, masked stderr warnings and exits fed those logs; the web exposed them only to the Agent's managers. Schema 10 persisted subscriptions and schema 11 persisted bounded alert snapshots, batched for disk writes and flushed on clean shutdown.
+
+## Bundled helpers and applications
+
+- **0.9.0–0.9.100:** added git, logwatch, debug doctor, AI proxy and Telnyx SMS. Systemd supported declared unit caps; Slack/Telegram shared reply routing with per-chat routes and a drop handler.
+- **0.9.101–0.9.135:** added tmux command-window lifecycle, Voyage embeddings/API proxy, role-tiered Qdrant (default write for admitted callers) and database proxies (default read), and verified-TLS SMTP with app-password/Gmail XOAUTH2 authentication. Qdrant remained an operator-run service rather than a bus-managed container. AI gained structured decisions/probabilities; RAG began its separately versioned CRUD/prompt application.
+- **IMAP, 0.9.136–0.9.150:** began with read-only EXAMINE/BODY.PEEK, a bounded private UID cache, local list/search/read, newest-first backfill and explicit warned raw-mail publication. Added future-mail subscriptions with a durable bounded outbox and visible paused outcomes.
+- **IMAP, 0.9.154–0.9.249:** added live Seen status, read marking by default with `--no-mark`, and explicit mark controls, then folder-specific caches and subscription/IDLE or polling state. Expanded to UID-set flags, server-side search, headers/MIME parts, copy/move/trash/delete, folder operations and raw append, with destructive-operation controls and protected folders. Background publication stayed non-marking; the agent as a whole was no longer read-only.
+- **IMAP/database packaging, 0.9.250–0.9.262:** IMAP parts/append gained byte-preserving stored-file input/output, subsequently named bigfile options. The database package used pinned, hash-checked wheels instead of host site-packages.
+- **Webhook/fetch, 0.9.137–0.9.157:** added authenticated inbound routes, single-attempt outbound POST and warned public HTTP(S) reads. Fetch later added bounded raw curl responses and per-instance site/URL allowlists, with explicit private grants, per-hop checks, cross-origin credential stripping and uncertain-write outcomes. Webhook emitted strict GitHub/GitLab push/deploy events only to an admitted destination.
+- **Git, 0.9.160–0.9.162:** event-driven autopull replaced timers, supporting fast-forward or explicit mirror, revision deployment, startup catch-up and correlated per-checkout results. Administrator-installed post-attempt hooks used trusted selection, bounded processes and separate script-failure records; later startup diagnostics named executable failures.
+- **Discord, 0.9.205–0.9.242:** implemented REST/gateway methods and token-redaction controls, then removed the helper from the R1 export/setup/package inventories. Its retained implementation moved to the later-release plan rather than remaining a shipped R1 helper.
+- **Slack, 0.9.212–0.9.303:** distinguished starting from ready, learned identity before receiving events and retried temporary startup outages without treating permanent refusals as retryable. Shared support files became readable in the checkout sandbox.
+
+## AI sessions and MCP
+
+- **0.9.0–0.9.100:** Claude used a channel plugin; launchers gained tags, automatic descriptions, crash backoff and tmux startup. MCP handled help asks without involving the model and improved rename/push recovery.
+- **0.9.115–0.9.135:** enforced one live session per bus name, reported refused faces in tools, supported verified takeover and separate fork names, and quietly reconnected after daemon restarts.
+- **0.9.163–0.9.204:** release launchers refreshed their Claude plugin under a holder-named lock. Named sessions selected their own saved transcript by explicit ID rather than the directory's newest conversation.
+- **0.9.212–0.9.245:** `--fresh` kept a name while giving it a new session ID. Codex/OpenCode retained a consumed message across supported compaction recovery and delivered it first after restart; non-recoverable push failures were logged/dropped. New generated names used the configured realm without renaming existing identities.
+- **0.9.261–0.9.303:** Codex unattended approval declined file tools and unidentified tools; file-touching MCP operations were not treated as blanket safe approvals.
+
+## Web and user documentation
+
+- **0.9.0–0.9.135:** added machine-readable agent help, compact record/settings views, last-use observations, tag/owner badges, collapsed method cards, token login and self-hosted assets. Configuration gained its own JSON editor, lists used 100-row pages and the project homepage linked code/docs.
+- **0.9.151–0.9.198:** improved key-name wrapping and added searchable pagination to Account and Owner User listings.
+- **0.9.212–0.9.242:** new record forms followed the configured realm while keeping explicitly entered and existing names exact.
+
+## Distribution, platforms and verification tooling
+
+- **0.9.0–0.9.114:** packaged bundled helpers and notices, added deployment selftests and bounded development cleanup. Repaired the packaged web asset omission: 0.9.101 archives were rejected, and the missing parser shipped at 0.9.103.
+- **0.9.163–0.9.189:** compiled web/MCP/launchers into `agent-bus-ts` and built full/client archives, removing Bun/Node requirements from the archive runtime. Third-party notices moved beside LICENSE under `licenses/NOTICE.md`. The initial shell installer/signing workflow verified signed checksums, rechecked privileged copies and refused quiet downgrades or conflicting command files.
+- **0.9.212–0.9.242:** npm became the selected distribution path with `ai-agent-bus`/`ai-agent-bus-client` names and the existing `agent-bus` command. Signing was removed in favor of SHA256SUMS plus full manifests; the secondary shell installer kept those integrity checks. Wrapper/manifest/version/build-stamp validation ran before installation/upload, and setup restarted web only for changed runtime inputs.
+- **macOS, 0.9.212–0.9.288:** added native client/runner support and reduced non-root launchd setup. Full/client Darwin archives for both CPUs carried matching manifests and Mach-O/source stamps; npm Darwin remained client-only. Native Apple Silicon full-archive acceptance was recorded on 0.9.267, while the tagged workflow later required both Linux builds and both Darwin archive pairs. This did not establish native Intel execution or a public tag run.
+- **0.9.190–0.9.194:** container/database fixtures used capped private logs, suppressed host-journal events and identified runs by PID plus start time. Cleanup handled interrupted startup and dead-run sweep; unreadable inventory/journal data failed closed. Fixture startup required the smoke-gate lock before any Podman call.
+- **0.9.163–0.9.303:** a digest-pinned container image ran daemon/runner roles from release files; later image builds verified downloaded archives against SHA256SUMS. Release workflows used pinned actions and version tags on main, verified every artifact before upload and could update an existing release's assets.
+
+The early folds recorded fast/normal/slow subsystem selection and mutation checks. Their “under one minute” statement was a gate timing target/evidence, not a runtime guarantee. Later five-distribution Linux RC and native Mac RC results are [separate release-candidate evidence](R1.0-Release/done/rc-linux-installation.md#candidates-and-order), not changes shipped by a 0.9 patch.
