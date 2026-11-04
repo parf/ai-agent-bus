@@ -22,7 +22,7 @@ Give your AI this instruction: **Read AI-SETUP.md, inspect this computer, and he
 
 ### 1. Read before advising
 
-- Read the [main overview](README.md), [documentation map](docs/00-overview.md#document-ownership), [setup guide](docs/07-setup.md#install) and [agent catalogue](docs/agents/README.md#choose-an-agent). Open the linked topic when answering a question about it; do not infer behavior from this file alone.
+- Read the [main overview](README.md), [documentation map](docs/00-overview.md#guides), [setup guide](docs/07-setup.md#install) and [agent catalogue](docs/agents/README.md#choose-an-agent). Open the linked topic when answering a question about it; do not infer behavior from this file alone.
 - For agent work, read [runner configuration](docs/runner/configuration.md#record-configuration), [operations](docs/runner/operations.md#running-and-checking-the-runner), [secret handling](docs/runner/security.md#secrets) and each selected agent's guide. Use the documentation matching the installed release when available; identify a version mismatch before applying a newer instruction.
 - Use local files in a checkout. If they are absent, fetch the main docs from the project's [repository](https://github.com/parf/ai-agent-bus); follow that release's documentation links. If the needed guide cannot be read, say which fact is unverified before making a change based on it.
 - Re-read the relevant guide and installed help when a requested setting is unfamiliar. Explain the supported effect, default and trade-off in plain words, then tune the existing instance instead of creating another one unnecessarily.

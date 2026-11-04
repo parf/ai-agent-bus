@@ -18,7 +18,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 Identity linkage is deferred to [R1.3 questions](../R1.3/QUESTIONS.md#open-questions).
 
 ❓ **Whether `kv` is optional.** It is not in the required minimum
-([overview § principles](../../docs/00-overview.md#principles)) and the bus runs without
+([overview § principles](../../docs/00-overview.md#how-it-works)) and the bus runs without
 it — but a store that holds agents' **configuration** is a hard thing to call
 optional, because then the agents that keep their config there are optional
 too. *Settled by:* owner.

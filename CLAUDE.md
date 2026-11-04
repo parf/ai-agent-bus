@@ -12,7 +12,7 @@ Legacy-V1 lives at `/rd/service/agent-bus/`, with its design at `/rd/vhosts/real
 
 | Home | Owns |
 |---|---|
-| [Overview](docs/00-overview.md#document-ownership) | User documentation and current reference |
+| [Overview](docs/00-overview.md#guides) | User documentation and current reference |
 | [Glossary](docs/glossary.md#names) | Current naming and links to definitions |
 | [Decisions](docs/decisions.md#settled) | Current decision names and links |
 | [Plans](Plans/README.md#stages) | Stage status and release scope navigation |

@@ -120,7 +120,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Admin-only debug trace per service | [discovery § debug mode](../../../R2.0-Future/debug.md#debug-mode) |
 | The bus holds the store, and the supervisor holds nothing durable | [processes § what is shared](../../../../docs/08-processes.md#what-is-shared) |
 | One binary, the role from the environment; the supervisor opens every listener and hands it down | [processes § how a child is started](../../../../docs/08-processes.md#how-a-child-is-started) |
-| AUTH merged into `agent-busd` as an optional role; WEB child cgroup-limited | [overview § roles](../../../../docs/00-overview.md#process-roles) |
+| AUTH merged into `agent-busd` as an optional role; WEB child cgroup-limited | [overview § roles](../../../../docs/08-processes.md#the-processes) |
 | Bundle in git over SSH; gaps resolved newer-generation-wins; master/slave | [AUTH role § topology](../../../R1.1/auth.md#topology) |
 | `master_secret` is an out-of-band file | [AUTH role § where it runs](../../../R1.1/auth.md#where-it-runs) |
 | Admin keys live in the bundle; root on the box is the break-glass | [AUTH role § SSH admin](../../../R1.1/auth.md#ssh-admin) |
@@ -235,7 +235,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Every external dependency sits behind a port, so it is replaced by writing one adapter | [modules § the rule](../../../../src/MODULES.md#the-rule) |
 | Only adapters touch the outside world; calling an external tool is an adapter-layer rule | [modules § external tools](../../../../src/MODULES.md#external-tools) |
 | `protocol` is the layer the client libraries reimplement, and depends on nothing | [modules § the rule](../../../../src/MODULES.md#the-rule) |
-| No external broker; `agent-busd` is the broker | [overview § goal](../../../../docs/00-overview.md#goal) |
+| No external broker; `agent-busd` is the broker | [overview § goal](../../../../docs/00-overview.md#how-it-works) |
 | Legacy-V1 leftovers (RAG, KV/DB gateways, writers) deferred, non-core — nothing to design | — |
 | A registered topic named alone is an inbox to read; with a tag it is a filter — one rule for every face | [messaging § one reader per inbox](../../../../docs/04-messaging.md#one-reader-per-inbox) |
 | A name-shaped topic that is registered nowhere is refused, not read as a filter | [messaging § one reader per inbox](../../../../docs/04-messaging.md#one-reader-per-inbox) |

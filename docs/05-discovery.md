@@ -62,7 +62,7 @@ The reference below keeps every section as it was; other pages link to these sec
 | **`last_used`** | when the name's credential last authenticated a call, live; the listing puts the most recently used first, then the never used by name | the name holds no credential, or it was never used |
 
 - These are **observations attached to the listing**, not values a registrant may state.
-- Traffic and loss counters are durable totals, kept with the queue in the database and checkpointed every minute; `readers` and `reading` are not ([overview § principles](00-overview.md#principles)).
+- Traffic and loss counters are durable totals, kept with the queue in the database and checkpointed every minute; `readers` and `reading` are not ([queue durability](04-messaging.md#durability)).
 - They describe the observed inbox, not health or a guarantee that a particular request will be handled.
 
 **A 📡 answers none of them.** It has no queue here, so the daemon states no

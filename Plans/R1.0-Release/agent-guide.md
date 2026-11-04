@@ -67,7 +67,7 @@ inside an existing app or language → own process.
 ### Page homes and ownership
 
 All three NEW pages belong under `docs/user/`: the overview's
-[User guides ownership](../../docs/00-overview.md#document-ownership) assigns
+[User guides ownership](../../docs/00-overview.md#guides) assigns
 “what to type” there. The numbered guide owns the checklist and links to them;
 `docs/user/README.md` lists them. Existing runner and dedicated-runner pages
 keep their canonical rules and point to the worked pages, not copied sessions.

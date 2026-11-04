@@ -190,3 +190,5 @@ Astra's second analysis read every block in ten further files: runner configurat
 | `.claude/docs/deployment.md`, `Plans/done/setup-upgrade-history.md` | Maintainer deployment and historical transitions leave the product install page. All existing incoming section links retargeted. | Historical links remain historical; active compatibility removal is still separate. |
 
 Static link and whitespace checks pass for this batch. No runtime builds, installations or gates run for prose.
+
+| `docs/00-overview.md` | Removed release-line opening, editorial ownership narration, future/acceptance navigation and repeated architecture summaries; retained real example and trade-offs. Renamed navigation to Guides and repaired incoming links. | Full cross-page review continues. |

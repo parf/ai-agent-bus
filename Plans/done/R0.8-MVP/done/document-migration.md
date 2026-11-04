@@ -279,7 +279,7 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D215 | [owner](../../../../src/MODULES.md#the-rule) |
 | D216 | [owner](../../../../src/MODULES.md#external-tools) |
 | D217 | [owner](../../../../src/MODULES.md#the-rule) |
-| D218 | [owner](../../../../docs/00-overview.md#goal) |
+| D218 | [owner](../../../../docs/00-overview.md#how-it-works) |
 | D219 | [owner](../../../R2.0-Future/FUTURE.md#candidates) |
 | D220 | [owner](../../../../docs/04-messaging.md#one-reader-per-inbox) |
 | D221 | [owner](../../../../docs/04-messaging.md#one-reader-per-inbox) |

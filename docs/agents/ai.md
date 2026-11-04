@@ -94,7 +94,7 @@ More: agent-bus help '#ai@parf.us' config | secret | json
 4. Set the default model: `agent-bus config '#ai@node.example' '{"model":"openai/gpt-4.1-mini"}'`.
 5. Grant access only to callers who may spend the provider balance.
 
-The runner needs the key before the agent answers help or model calls.
+The provider key is required for model calls.
 
 ## Configuration
 

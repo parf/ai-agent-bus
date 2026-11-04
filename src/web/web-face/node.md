@@ -473,8 +473,8 @@ History: the Go face's list, and each page's differences from older docs, are in
 
 | Pages | Main documentation |
 |---|---|
-| Landing and sign-in, including refused sign-in | [Introduction](../../../docs/00-overview.md#goal), [getting a token](../../../docs/02-access.md#getting-a-token) |
-| Overview | [Introduction](../../../docs/00-overview.md#goal), [dashboard](../../../docs/05-discovery.md#dashboard) |
+| Landing and sign-in, including refused sign-in | [Introduction](../../../docs/00-overview.md#how-it-works), [getting a token](../../../docs/02-access.md#getting-a-token) |
+| Overview | [Introduction](../../../docs/00-overview.md#how-it-works), [dashboard](../../../docs/05-discovery.md#dashboard) |
 | Activity | [Activity history](../../../docs/05-discovery.md#activity-history), [message fields](../../../docs/04-messaging.md#message-fields) |
 | Diagnostics | [Overview and diagnostics](../../../docs/05-discovery.md#overview-and-diagnostics), [logs](../../../docs/administration.md#logs) |
 

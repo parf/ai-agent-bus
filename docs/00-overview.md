@@ -2,8 +2,8 @@
 
 📌 **TL;DR:**
 - **Problem:** AI agents and the services they use cannot reach each other without per-pair wiring, shared passwords and lost messages.
-- **Outcome:** each one gets a name, an inbox and a permission list on one bus; this documentation covers current behaviour on the 0.9 line, and anything not built is in its release plan.
-- **Start:** see who you are on the bus: `agent-bus status` ([Try this first](#try-this-first)). Each value below is owned by one section the others link to; stage status stays in the [plan index](../Plans/README.md#stages).
+- **Outcome:** each one gets a name, an inbox and a permission list on one bus.
+- **Start:** see who you are on the bus: `agent-bus status` ([Try this first](#try-this-first)).
 
 ## Why you'd want it
 
@@ -29,32 +29,25 @@ agent-bus status | jq '{realm, you}'
 ```
 
 <details>
-<summary>See it on a real node (ran today)</summary>
+<summary>Example response</summary>
 
 ```json
 {"realm":"parf.us","you":"#ab-w1b"}
 ```
 
 - The realm is the bus's own name, and `you` is the name your credential carries.
-- The output is from the development node on 2026-10-30.
 
 </details>
 
-## Technical details
+## Guides
 
-Everything below is the reference. Each section owns its values; other pages link here.
-
-## Document ownership
-
-Values have one owning section; other pages link to it. A `↳` topic belongs to the one above it.
-
-| Topic | Owns |
+| Topic | Find |
 |---|---|
-| [Constitution](constitution.md#project-constitution) | The model every face implements; open gaps are the [constitution conformance](../Plans/done/R0.8-MVP/TODO.md#constitution-conformance) rows |
+| [Constitution](constitution.md#project-constitution) | Names, authority and delivery guarantees |
 | [Identity and authority](01-identity-and-authority.md#identities) | Names, users, positions, groups, shared locks and record lifecycle |
 | [Access](02-access.md#what-a-call-carries) | Authentication, credentials, ACLs, sockets and the trust boundary |
 | ↳ [Remote access](02-access-remote.md#choosing-a-way) | Reaching the bus from another host: HTTP on a trusted network, HTTPS, and your own or the shared socket forwarded over SSH |
-| [Records](03-records.md#record-kinds) | Record kinds, common and kind-specific fields, and Personal |
+| [Records](03-records.md#record-kinds) | Record kinds and their fields |
 | ↳ [Agents](03-records-agent.md#what-an-agent-is) | The 👾 kind: name, credential, inbox, fields, agent templates, configuration and how one is started |
 | ↳ [Channels](03-records-channel.md#the-two-channel-kinds) | The 📮 and 📣 kinds: delivery, retention and what publish stamps |
 | ↳ [Services](03-records-service.md#what-a-service-is) | The external 📡 case: address, protocol, secrets and what it has no queue for |
@@ -64,8 +57,8 @@ Values have one owning section; other pages link to it. A `↳` topic belongs to
 | [Discovery](05-discovery.md#faces) | Catalog, listing, dashboard, administration and what a refusal answers |
 | [Dedicated runner](06-dedicated-runner.md#script-agents) | `agent-bus run`: one script behind one agent, optionally sandboxed |
 | [Session launchers](06-launchers.md) | Push adapters and the `ab-*` runtime launchers |
-| [Runner](runner/README.md) | Installed script agents: packaging, configuration, operations and current security limits |
-| [Setup](user/cli.md) | Programs, accounts, paths, installation and build information |
+| [Runner](runner/README.md) | Configure, run and monitor installed agents |
+| [Setup](07-setup.md#install) | Install, update or configure with your AI; manual installation fallback |
 | ↳ [Backup and restore](administration.md#backup-and-restore) | Encrypted record exports and imports, and the stopped-daemon backup |
 | [Processes](08-processes.md#the-processes) | Supervisor, bus and web; privileges, listeners and process titles |
 | [Daemon API](09-daemon-api.md#how-a-call-is-made) | The HTTP routes, grouped; each one's meaning stays with its topic |
@@ -74,32 +67,10 @@ Values have one owning section; other pages link to it. A `↳` topic belongs to
 | [Bundled agent guides](agents/README.md) | Ready-made helpers: choosing, installing and using them |
 | [User guides](user/README.md) | What to type: the command-line tools, running an agent, the daemon, and agent sessions; the *why* stays in the topics above |
 | [Glossary](glossary.md#names) | Current vocabulary |
-| [Decisions](decisions.md#settled) | Index of current contracts |
 
-## Goal
+## How it works
 
-One daemon provides a registry for agents and services, and message queues for agents.
-The CLI, MCP face and the TypeScript [web face](08-processes.md#the-web-face) expose that bus. It requires no external broker.
-
-## Principles
-
-- Credentials identify callers, and the bus enforces access before delivery
-  ([access](02-access.md#what-a-call-carries), [ACL](02-access.md#acl)).
-- A name owns its inbox; the process serving it may disappear while work waits
-  ([messaging](04-messaging.md#inbox-queues)).
-- Replies and receipts are ordinary messages; the daemon keeps no exchange state
-  ([messaging](04-messaging.md#reply-routing)).
-- The dashboard sees a filtered envelope feed, with bodies removed in the bus
-  ([discovery](05-discovery.md#dashboard)). This is not body encryption.
-- One SQLite database holds records, credentials and queues; queue state is
-  checkpointed every minute ([durability](04-messaging.md#durability)).
-- Runtime privilege boundaries and code dependency boundaries are separate
-  ([processes](08-processes.md#the-rule), [modules](../src/MODULES.md#the-rule)).
-
-## Process roles
-
-The built runtime is described in [processes § the processes](08-processes.md#the-processes).
-Optional future process roles are owned by their release plans, not this document.
+One daemon provides the registry and inboxes; no external broker is required. The CLI, MCP tools and web panel use that same bus. Record state and queue checkpoints are stored in one SQLite database.
 
 ## Trade offs
 

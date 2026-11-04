@@ -51,7 +51,7 @@ denied" plus "register, pay, use through the bus" needs the sign-up and payment
 agents to be free. *Settled by:* owner.
 
 ❓ **Direct talk bypasses billing** — parties that already know an address may
-skip the bus ([overview § goal](../../docs/00-overview.md#goal)), and the bus only counts
+skip the bus ([overview § goal](../../docs/00-overview.md#how-it-works)), and the bus only counts
 what routes through it. *Settled by:* owner.
 
 ## Storage context

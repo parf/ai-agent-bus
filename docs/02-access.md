@@ -244,7 +244,6 @@ Faces cannot widen these permissions. Enter ACLs in the project's
 | `@owner` | Grants access to the direct Owner and the agents that Owner directly owns |
 
 - The daemon Owner has [node-wide management](01-identity-and-authority.md#daemon-owner), which permits discovery and editing without opening a resource's message interface.
-- History: the open-empty default and the master layer were removed in [0.5.44](../Plans/done/setup-upgrade-history.md#empty-acl-upgrade) and [0.5.74](../Plans/done/setup-upgrade-history.md#owner-acl-and-master-removal).
 
 Allow lists are registry settings, never values taken from private
 [registry configuration](03-records-agent.md#configuring-a-template). Queries, sends, consumes and writes still obey their applicable

@@ -255,7 +255,7 @@ is the access model above it.
 
 **A gateway to a broker is not a broker.** The rule is that `agent-busd` *is*
 the broker and no external one is introduced
-([overview § goal](../../docs/00-overview.md#goal)) — and it is untouched by this. Nothing
+([overview § goal](../../docs/00-overview.md#how-it-works)) — and it is untouched by this. Nothing
 in the bus's own transport changes; what changes is that a company's existing
 Kafka becomes reachable from it, on the far side of a name, like every other
 gateway in this catalogue. The day one of these is load-bearing *inside* the

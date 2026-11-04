@@ -32,7 +32,7 @@ Mapped local accounts can authenticate through their [own socket](../../../docs/
 
 ## Scope
 
-[Current docs](../../../docs/00-overview.md#document-ownership) own the MVP contracts. This table tracks what the release covers.
+[Current docs](../../../docs/00-overview.md#guides) own the MVP contracts. This table tracks what the release covers.
 
 | Area | Status | Canonical contract |
 |---|---|---|
