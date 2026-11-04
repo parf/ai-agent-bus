@@ -11,6 +11,13 @@
 
 - T-34 Web Face AI chat moved to [R1.1](../R1.1/TODO.md#web-face-ai-chat) by the owner, 2026-11-03.
 
+## Clean R1 inputs
+
+- [Prerelease compatibility removal](legacy-removal.md#scope) is R1 work, not a patch-release deferral.
+  - One canonical CLI, wire, persisted-state and package form; no prerelease converters, retired aliases or silent field repairs.
+  - Current-format clean installation, explicit updates and interrupted-operation recovery remain supported.
+  - Implementation and focused mutation evidence are recorded in the [integration review](../issues/2026-11/2026-11-04.md). Final integrated normal verification is pending.
+
 ## Objective
 
 Migration labels: `RT` identifies the original unnumbered work rows; `RBK`
