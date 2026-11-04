@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -240,14 +239,12 @@ var bundleFiles = []string{
 	"agents/standalone/git/git_agent.py",
 	"agents/standalone/git/install.py",
 	"agents/standalone/git/autopull.py",
-	"agents/standalone/git/timers.py",
 	"agents/standalone/tmux-sessions/agent.json", "agents/standalone/tmux-sessions/config.json.dist",
 	"agents/standalone/tmux-sessions/sessions.py",
 	"agents/standalone/tmux-sessions/install.py", "agents/standalone/tmux-sessions/package.sh", "agents/package-tree.sh",
 	"agents/standalone/logwatch/agent.json",
 	"agents/standalone/logwatch/env.dist",
 	"agents/standalone/logwatch/logwatch.py",
-	"agents/standalone/logwatch/subscription_migration.py",
 	"agents/standalone/logwatch/install.py",
 	"agents/standalone/logwatch/cleaning.py",
 	"agents/standalone/logwatch/filters.py",
@@ -507,31 +504,7 @@ func selectBundle(releaseID string) (string, error) {
 	if err := syncDir(installRoot); err != nil {
 		return "", err
 	}
-	pruneCommandLinks()
 	return filepath.Join(installRoot, "current"), nil
-}
-
-// pruneCommandLinks takes away each command link the selected release has
-// nothing behind: a rollback past the runner's arrival would otherwise leave
-// agent-bus-runner a link to nothing, a command that fails strangely.
-func pruneCommandLinks() {
-	for name, target := range commandLinks() {
-		path := filepath.Join(installBin, name)
-		if _, err := os.Stat(target); os.IsNotExist(err) && isSymlink(path) {
-			_ = os.Remove(path)
-		}
-	}
-}
-
-// priorReleaseForRollback is the release a failed reinstall returns to. No
-// release yet is a first install; anything else unreadable is refused, or a
-// rollback would start the new program against the restored old home.
-func priorReleaseForRollback() (string, error) {
-	id, err := currentReleaseID()
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return "", fmt.Errorf("the current release cannot be read, so a failed reinstall could not be rolled back: %w", err)
-	}
-	return id, nil
 }
 
 func currentReleaseID() (string, error) {

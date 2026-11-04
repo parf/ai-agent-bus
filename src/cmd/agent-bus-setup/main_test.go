@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -173,5 +175,24 @@ func TestSudoLineNamesSetupByItsPath(t *testing.T) {
 	os.Args = []string{"./agent-bus-setup", "--upgrade"}
 	if got, want := sudoLine(), "sudo ./agent-bus-setup --upgrade"; got != want {
 		t.Fatalf("a path as given changed: sudoLine() = %q, want %q", got, want)
+	}
+}
+
+func TestSetupRejectsRetiredOptionsBeforeActions(t *testing.T) {
+	oldArgs, oldFlags := os.Args, flag.CommandLine
+	defer func() { os.Args = oldArgs; flag.CommandLine = oldFlags }()
+	for _, args := range [][]string{{"--reinstall"}, {"-owner", "owner@test"}, {"-h"}, {"-help"}} {
+		fs := flag.NewFlagSet("setup", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		flag.CommandLine = fs
+		os.Args = append([]string{"setup"}, args...)
+		if err := setup(); err == nil {
+			t.Fatalf("retired option accepted: %v", args)
+		}
+		for _, name := range []string{"upgrade", "recover", "owner", "tls"} {
+			if fs.Lookup(name) == nil {
+				t.Fatalf("current option %s missing", name)
+			}
+		}
 	}
 }

@@ -32,8 +32,6 @@ switch() { # release-dir
     ln -sfn "releases/$(basename "$1")" "$root/current.new"
     mv -T "$root/current.new" "$root/current"
     for p in "${progs[@]}" "${scripts[@]}"; do ln -sfn "$root/current/$p" "$bindir/$p"; done
-    # The Go dashboard is gone since 0.8.50; its link would dangle.
-    [ -L "$bindir/agent-bus-web" ] && rm -f "$bindir/agent-bus-web"
     for p in "${launchers[@]}"; do ln -sfn "$root/current/launchers/$p" "$bindir/$p"; done
     if command -v restorecon >/dev/null && [ "$(getenforce 2>/dev/null)" != Disabled ]; then
         restorecon -RF "$root" >/dev/null

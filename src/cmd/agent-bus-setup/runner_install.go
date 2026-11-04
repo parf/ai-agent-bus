@@ -459,11 +459,11 @@ func envToken(path string) string {
 }
 
 // The only old-layout installation was the unreleased development node.
-// Refuse before observing the bus or planning host changes; migration is manual.
+// Refuse before observing the bus or planning host changes; conversion is unsupported.
 func refuseLegacyRunners(root string) error {
 	path := filepath.Join(root, "runners")
 	if _, err := os.Lstat(path); err == nil {
-		return fmt.Errorf("legacy runner tree %s: move it to the new layout (docs/07-setup.md#a-persons-runner) and run again", path)
+		return fmt.Errorf("legacy runner tree %s: unsupported layout; clean installation is required", path)
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}

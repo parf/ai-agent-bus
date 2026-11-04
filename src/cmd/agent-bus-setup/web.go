@@ -27,7 +27,6 @@ import (
 // directly in the account home and the unit shipped beside its sources.
 const (
 	webAccount  = "agent-bus-web"
-	oldWebLink  = stateRoot + "/web"
 	webUnitName = "agent-bus-web.service"
 )
 
@@ -213,13 +212,6 @@ func installWeb(web string, tlsOn bool, daemonTLSDir string) error {
 			return err
 		}
 		if err := os.WriteFile(webAppliedPath, []byte(want), 0o644); err != nil {
-			return err
-		}
-	}
-	// Only remove the obsolete symlink, after the replacement unit starts.
-	// A real directory at the old path is the operator's and stays.
-	if fi, err := os.Lstat(oldWebLink); err == nil && fi.Mode()&os.ModeSymlink != 0 {
-		if err := os.Remove(oldWebLink); err != nil {
 			return err
 		}
 	}

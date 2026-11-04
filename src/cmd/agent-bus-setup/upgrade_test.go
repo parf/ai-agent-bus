@@ -59,7 +59,7 @@ func TestUpgradeJournalIsDurableAndStrict(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`"old_release": "0.5.68-old"`, `"new_release": "0.5.69-new"`, `"backup": "/state/backup"`, `"unit_before": "old managed unit"`} {
+	for _, want := range []string{`"old_release": "0.5.68-old"`, `"new_release": "0.5.69-new"`, `"backup": "/state/backup"`} {
 		if !strings.Contains(string(b), want) {
 			t.Fatalf("journal missing %s: %s", want, b)
 		}
@@ -159,30 +159,27 @@ func TestCgroupProcessInspectionDescendsDelegatedSubgroups(t *testing.T) {
 	}
 }
 
-func TestAReinstallRefusesAnUnreadableCurrentRelease(t *testing.T) {
+func TestCurrentReleaseLinkRefusesForeignTargets(t *testing.T) {
 	root, _ := withInstallPaths(t)
-	if id, err := priorReleaseForRollback(); err != nil || id != "" {
-		t.Fatalf("no release yet: %q, %v; want a first install", id, err)
-	}
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		t.Fatal(err)
-	}
-	if id, err := priorReleaseForRollback(); err != nil || id != "" {
-		t.Fatalf("no release yet: %q, %v; want a first install", id, err)
 	}
 	if err := os.Symlink("/elsewhere", filepath.Join(root, "current")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := priorReleaseForRollback(); err == nil || !strings.Contains(err.Error(), "could not be rolled back") {
-		t.Fatalf("an unsafe current link was accepted for rollback: %v", err)
+	if _, err := currentReleaseID(); err == nil {
+		t.Fatal("foreign current link accepted")
 	}
-	if err := os.Remove(filepath.Join(root, "current")); err != nil {
+}
+
+func TestUpgradeJournalRejectsObsoletePayload(t *testing.T) {
+	current := `{"old_release":"1.0.0-a","new_release":"1.0.1-b","unit_sha256":"abc"}`
+	if _, err := decodeUpgradeJournal([]byte(current)); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink("releases/0.8.24-abc", filepath.Join(root, "current")); err != nil {
-		t.Fatal(err)
-	}
-	if id, err := priorReleaseForRollback(); err != nil || id != "0.8.24-abc" {
-		t.Fatalf("a relative release link, as release.sh writes it: %q, %v", id, err)
+	for _, body := range []string{strings.Replace(current, `}`, `,"unit_before":"old unit"}`, 1), `{}`, current + ` {}`} {
+		if _, err := decodeUpgradeJournal([]byte(body)); err == nil {
+			t.Fatalf("unsupported journal accepted: %s", body)
+		}
 	}
 }

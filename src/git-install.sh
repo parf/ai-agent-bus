@@ -20,16 +20,14 @@ bindir=/usr/local/bin
 unit=agent-busd.service
 want=/usr/local/src
 
-build=yes revert=no reinstall=no
+build=yes revert=no
 for a in "$@"; do case $a in
     --revert)   revert=yes ;;
-    --reinstall) reinstall=yes ;;
     --no-build) build=no ;;
-    -h|--help)  sed -n '2,12p' "$0"
+    --help)  sed -n '2,12p' "$0"
                 echo
                 echo "  $0 [--no-build]   symlink this checkout into $bindir"
                 echo "  $0 --revert       copy the real binaries back"
-                echo "  $0 --reinstall    link, then set the daemon's state aside and install fresh"
                 exit 0 ;;
     *) echo "unknown option: $a" >&2; exit 2 ;;
 esac; done
@@ -116,14 +114,6 @@ for p in "${launchers[@]}"; do
     fi
 done
 
-# Existing source installs keep their managed unit. Add the explicit logging
-# opt-in without changing its address, owner, account map or TLS flags.
-unitfile=/etc/systemd/system/$unit
-if [ -f "$unitfile" ] && ! grep -Eq '^ExecStart=.* --?syslog( |$)' "$unitfile"; then
-    sed -i '/^ExecStart=/ s/$/ --syslog/' "$unitfile"
-    systemctl daemon-reload
-fi
-
 # The daemon's strict mount namespace needs this new sibling writable too.
 install -d -m 0700 -o agent-busd -g agent-busd /var/lib/agent-bus/record-backups
 install -d -m 0755 /etc/systemd/system/agent-busd.service.d
@@ -131,14 +121,7 @@ printf '[Service]\nReadWritePaths=/var/lib/agent-bus/record-backups\n' > /etc/sy
 chmod 0644 /etc/systemd/system/agent-busd.service.d/record-backups.conf
 systemctl daemon-reload
 
-if [ "$reinstall" = yes ]; then
-    # The cutover, against the linked daemon: stop, set the old state and the
-    # unit's drop-ins aside, initialize a fresh database, write the unit and
-    # bootstrap the installer (Plans/done/R0.8-MVP/0.7-cutover.md#procedure).
-    "$src/agent-bus-setup" --reinstall --exec "$bindir/agent-busd"
-else
-    systemctl restart "$unit"
-fi
+systemctl restart "$unit"
 # active is not serving: the listener is up a moment after the unit is, and a
 # script that returns between the two teaches you to add your own sleep.
 for _ in $(seq 30); do

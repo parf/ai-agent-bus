@@ -110,7 +110,7 @@ main() {
             --version=*) version=${1#--version=} ;;
             --rollback) rollback=1 ;;
             --) shift; break ;;
-            -h|--help) sed -n '2,14p' "$0" 2>/dev/null || true; exit 0 ;;
+            --help) sed -n '2,14p' "$0" 2>/dev/null || true; exit 0 ;;
             *) die "unknown option $1 (setup options go after --)" ;;
         esac
         shift
