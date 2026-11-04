@@ -40,7 +40,7 @@ DESCRIPTION
   --fingerprint prints the public TLS certificate pin instead of a credential.
 
 OPTIONS
-  -h, --help  Show this command help
+  --help  Show this command help
   --rotate  Rotate the credential
   --key=file  SSH private key (default $HOME/.ssh/id_ed25519; bare --key uses it)
   --fingerprint  Print the TLS certificate pin
@@ -58,11 +58,11 @@ SEE ALSO
 
 // Run is the token command only: SSH input is never a CLI verb.
 func Run(args []string) error {
-	if len(args) == 1 && (args[0] == "--version" || args[0] == "-version") {
+	if len(args) == 1 && args[0] == "--version" {
 		fmt.Print(version.Text())
 		return nil
 	}
-	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
+	if len(args) == 1 && args[0] == "--help" {
 		fmt.Println(usage)
 		return nil
 	}
@@ -80,7 +80,7 @@ func issue(args []string) error {
 	var rotate, sshRotate bool
 	var err error
 	if !fingerprint {
-		entitled, rotate, key, err = parse(protocol.ExpandAgentFlags(args), true)
+		entitled, rotate, key, err = parse(args, true)
 		if err != nil {
 			return err
 		}

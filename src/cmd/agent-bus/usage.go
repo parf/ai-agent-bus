@@ -48,12 +48,12 @@ var commandGroups = []struct {
 		{"holders", "holders <record>", "Show who holds locks", ""},
 	}},
 	{"CREDENTIALS", []commandHelp{
-		{"token", "token [<name>]", "Get your credential", "-h, --help  Show this command help\n--key=file  SSH private key (default $HOME/.ssh/id_ed25519)\n--fingerprint  Print the TLS pin instead of a credential\n--rotate  Rotate the credential"},
+		{"token", "token [<name>]", "Get your credential", "--help  Show this command help\n--key=file  SSH private key (default $HOME/.ssh/id_ed25519)\n--fingerprint  Print the TLS pin instead of a credential\n--rotate  Rotate the credential"},
 		{"enrol", "enrol <user[@realm]>", "Join with a published SSH key", "--key=file  SSH private key (default $HOME/.ssh/id_ed25519)"},
 	}},
 }
 
-const globalOptions = "\n\nGLOBAL OPTIONS\n  --addr=<address>  Daemon address; place before the command\n  --agent=<name>  Expand a name to #name (name shorthand)\n  -h, --help  Overview when used alone; <command> --help shows its page\n  --version  Print version and build; use alone\n  Use -h before a command for overview help; ls -h requests its table."
+const globalOptions = "\n\nGLOBAL OPTIONS\n  --addr=<address>  Daemon address; place before the command\n  --help  Overview when used alone; <command> --help shows its page\n  --version  Print version and build; use alone"
 
 func commandPage(text string) string {
 	return display.ManText(strings.Replace(text, "\n\nEXAMPLES", globalOptions+"\n\nEXAMPLES", 1)) + "\n\n" + display.Footer()
@@ -63,7 +63,7 @@ var usage = generalHelp()
 
 func generalHelp() string {
 	var b strings.Builder
-	b.WriteString("agent-bus " + version.String + " — talk to agent-busd · " + display.Homepage + "\n\nUSAGE\n  agent-bus [--addr=<address>] <command> [<args>]\n  agent-bus help <command> · help '#agent' · --version | -h, --help\n\nDESCRIPTION\n  Talk to the bus: send messages, list records and run agents.\n")
+	b.WriteString("agent-bus " + version.String + " — talk to agent-busd · " + display.Homepage + "\n\nUSAGE\n  agent-bus [--addr=<address>] <command> [<args>]\n  agent-bus help <command> · help '#agent' · --version | --help\n\nDESCRIPTION\n  Talk to the bus: send messages, list records and run agents.\n")
 	for _, g := range commandGroups {
 		b.WriteString("\n" + g.title + "\n")
 		for _, c := range g.commands {
@@ -75,7 +75,7 @@ func generalHelp() string {
 				synopsis = "bigfile put|get|ls|rm"
 			}
 			if c.name == "ls" {
-				synopsis = "ls [-h] [--all] [<name>]"
+				synopsis = "ls [--table] [--all] [<name>]"
 			}
 			if c.name == "send" || c.name == "call" {
 				synopsis = c.name + " <to> <text>"
@@ -84,16 +84,10 @@ func generalHelp() string {
 		}
 	}
 	b.WriteString(globalOptions)
-	b.WriteString("\n\nNAMES\n  Quote #agent names: the shell treats # as a comment.\n  --agent <name> expands an agent name wherever a name is accepted.\n\nENVIRONMENT\n  AGENT_BUS_ADDR — daemon address (or automatic local socket discovery)\n  AGENT_BUS_TOKEN — caller credential; unnecessary on your login socket\n  AGENT_BUS_TLS_FINGERPRINT — HTTPS certificate pin\n  NO_COLOR — disable help colour\n\nEXIT STATUS\n  0 — success\n  1 — invalid input, refusal, transport failure or deadline exceeded\n\nSEE ALSO\n  " + display.SourceURL + "/docs/user/cli.md\n  " + display.Source)
+	b.WriteString("\n\nNAMES\n  Quote #agent names: the shell treats # as a comment.\n\nENVIRONMENT\n  AGENT_BUS_ADDR — daemon address (or automatic local socket discovery)\n  AGENT_BUS_TOKEN — caller credential; unnecessary on your login socket\n  AGENT_BUS_TLS_FINGERPRINT — HTTPS certificate pin\n  NO_COLOR — disable help colour\n\nEXIT STATUS\n  0 — success\n  1 — invalid input, refusal, transport failure or deadline exceeded\n\nSEE ALSO\n  " + display.SourceURL + "/docs/user/cli.md\n  " + display.Source)
 	return display.ManText(b.String()) + "\n\n" + display.Footer()
 }
 func verbUsage(verb string) string {
-	switch verb {
-	case "enroll":
-		verb = "enrol"
-	case "agent-template":
-		verb = "config"
-	}
 	if verb == "help" {
 		return commandPage("USAGE\n  agent-bus help <command>\n  agent-bus help '#agent' [config|secret|json]\n\nDESCRIPTION\n  Learn how to use a command, or ask an agent what it can do. <command> names a CLI command. A #agent answers with its own help; config, secret or json selects another form. Agent help uses colour only on a terminal, unless NO_COLOR or --no-color is set. Refusals go to stderr with a nonzero exit.\n\nOPTIONS\n  --no-color  Disable terminal colour\n  --wait=duration  Agent answer deadline (default 30s)\n\nEXAMPLES\n  agent-bus help ls\n  agent-bus help '#debug@demo' json\n\nSEE ALSO\n  " + display.SourceURL + "/docs/user/cli.md\n  " + display.Source)
 	}

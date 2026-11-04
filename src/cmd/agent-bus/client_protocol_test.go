@@ -37,7 +37,7 @@ func cliProtocolTransport(t *testing.T, server *httptest.Server) {
 }
 func TestCLIProtocolHandshake(t *testing.T) {
 	for _, c := range []struct{ identity, want string }{
-		{`{"protocol":2,"protocol_min":2}`, "daemon too new"}, {`{"protocol":-1}`, "protocol"}, {`{"protocol":null}`, "protocol"}, {`{"protocol":true}`, "protocol"}, {`{"protocol":1.5}`, "protocol"}, {`{"protocol":1,"protocol_min":2}`, "protocol_min"}, {`{"protocol":1,"protocol_min":1}`, ""}, {`{"protocol":2,"protocol_min":1}`, ""}, {`{}`, ""},
+		{`{"protocol":2,"protocol_min":2}`, "daemon too new"}, {`{"protocol":-1}`, "protocol"}, {`{"protocol":null}`, "protocol"}, {`{"protocol":true}`, "protocol"}, {`{"protocol":1.5}`, "protocol"}, {`{"protocol":1,"protocol_min":2}`, "protocol_min"}, {`{"protocol":1,"protocol_min":1}`, ""}, {`{"protocol":2,"protocol_min":1}`, "unsupported"}, {`{}`, "protocol"}, {`{"protocol":0,"protocol_min":0}`, "unsupported"}, {`{"protocol":1,"protocol_min":0}`, "unsupported"},
 	} {
 		t.Run(c.identity, func(t *testing.T) {
 			var paths []string
@@ -67,7 +67,7 @@ func TestCLIProtocolHandshake(t *testing.T) {
 			write.Close()
 			os.Stderr = previous
 			warning, _ := io.ReadAll(read)
-			if strings.Contains(string(warning), "daemon too old") != (c.identity == `{}`) {
+			if len(warning) != 0 {
 				t.Fatalf("warning=%q identity=%s", warning, c.identity)
 			}
 			if c.want != "" {
@@ -149,19 +149,19 @@ func TestCLIRealDaemonProtocolAndRemovedRoute(t *testing.T) {
 
 func TestCLIProtocolRefusalMessages(t *testing.T) {
 	for _, data := range []string{`{"error":"stack"}`, "proxy failure"} {
-		got := protocolRefusal([]byte(data), 500, false, "GET /ls")
+		got := protocolRefusal([]byte(data), 500)
 		if string(got) != `{"error":"internal daemon error"}` {
 			t.Fatalf("500 leaked cause: %s", got)
 		}
 	}
 	for _, kind := range []string{"not_found", "no_route", "unavailable", "acl", "authority", "busy", "credential", "enrolment", "full", "malformed", "name-taken", "second-reader", "suspended"} {
 		input := []byte(`{"error":"cause","kind":"` + kind + `"}`)
-		got := protocolRefusal(input, 404, true, "GET /missing")
+		got := protocolRefusal(input, 404)
 		if !strings.Contains(string(got), `"kind":"`+kind+`"`) {
 			t.Fatalf("kind lost: %s", got)
 		}
-		if kind == "no_route" && !strings.Contains(string(got), "daemon too old for GET /missing") {
-			t.Fatalf("old operation not named: %s", got)
+		if string(got) != string(input) {
+			t.Fatalf("refusal cause changed: %s", got)
 		}
 	}
 }

@@ -136,8 +136,8 @@ func TestDeployFromGitInstallsOnlyTheReviewedRootPackage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(entries["fixture"]["origin"]), pin) {
-		t.Fatal("failed layout check changed origin pin")
+	if string(entries["fixture"]["enabled"]) != "true" || entries["fixture"]["origin"] != nil {
+		t.Fatal("failed layout check changed canonical inventory")
 	}
 
 }

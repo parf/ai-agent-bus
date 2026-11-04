@@ -62,7 +62,7 @@ func TestHumanListLabelsEntitiesWithoutChangingJSONKinds(t *testing.T) {
 	transport = sync.OnceValues(connect)
 	t.Cleanup(func() { cliAddress, transport = oldAddress, oldTransport })
 
-	human := captureOutput(t, func() error { return ls([]string{"-h", "--all"}) })
+	human := captureOutput(t, func() error { return ls([]string{"--table", "--all"}) })
 	for _, want := range []string{"📡 Service", "👾 Agent", "📮 Queue", "📣 PubSub", "👤 User", "old@h", "generic"} {
 		if !strings.Contains(human, want) {
 			t.Errorf("human listing lacks %q:\n%s", want, human)
@@ -106,7 +106,7 @@ func TestDefaultListIsTheAgentsBeingRead(t *testing.T) {
 	if strings.Contains(raw, "#idle@h") || strings.Contains(raw, "#old@h") {
 		t.Fatalf("an agent nobody reads was listed: %s", raw)
 	}
-	human := captureOutput(t, func() error { return ls([]string{"-h"}) })
+	human := captureOutput(t, func() error { return ls([]string{"--table"}) })
 	if !strings.Contains(human, "#on@h") || strings.Contains(human, "#idle@h") {
 		t.Fatalf("the table does not follow the same rule: %s", human)
 	}

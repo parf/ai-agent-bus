@@ -130,7 +130,7 @@ func main() {
 	if version.Print() {
 		return
 	}
-	if len(os.Args) == 2 && (os.Args[1] == "--help" || os.Args[1] == "-h") {
+	if len(os.Args) == 2 && os.Args[1] == "--help" {
 		fmt.Println(usage)
 		return
 	}
@@ -440,7 +440,7 @@ func userAdd(args []string) error {
 	// `-` is the key on stdin, because whoever holds the file is not always
 	// whoever may open it: this program runs as agent-busd, and a key in a
 	// person's home is exactly what that account cannot read. Same spelling
-	// as `agent-template <name> -`.
+	// as `config <name> -`.
 	raw, err := readKey(keyFile)
 	if err != nil {
 		return err

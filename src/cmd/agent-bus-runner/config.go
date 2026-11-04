@@ -26,16 +26,12 @@ type agentFile agentmeta.Manifest
 type needs = agentmeta.Needs
 
 type hostEntry struct {
-	Tags         []string `json:"tags,omitempty"`
-	Enabled      *bool    `json:"enabled,omitempty"`
-	Name         string   `json:"name,omitempty"`
-	Share        bool     `json:"share,omitempty"`
-	Sandbox      string   `json:"sandbox,omitempty"`
-	Limits       *limits  `json:"limits,omitempty"`
-	Version      string   `json:"version,omitempty"`
-	Origin       *origin  `json:"origin,omitempty"`
-	FirstStarted string   `json:"first_started,omitempty"`
-	LastStarted  string   `json:"last_started,omitempty"`
+	Tags    []string `json:"tags,omitempty"`
+	Enabled *bool    `json:"enabled,omitempty"`
+	Name    string   `json:"name,omitempty"`
+	Share   bool     `json:"share,omitempty"`
+	Sandbox string   `json:"sandbox,omitempty"`
+	Limits  *limits  `json:"limits,omitempty"`
 }
 
 type limits struct {
@@ -45,11 +41,6 @@ type limits struct {
 	Files     int    `json:"files,omitempty"`
 	IOWeight  int    `json:"io_weight,omitempty"`
 	Disk      string `json:"disk,omitempty"`
-}
-
-type origin struct {
-	Remote string `json:"remote,omitempty"`
-	Commit string `json:"commit,omitempty"`
 }
 
 // span is `processes`: a fixed count, or min..max.

@@ -104,7 +104,10 @@ func main() {
 	agents := flag.String("agents", "/var/lib/agent-bus/agent.d", "the shared directory of agent code")
 	host := flag.String("host", "", "the runner account's private directory (required)")
 	flag.Usage = func() { fmt.Fprintln(os.Stderr, "agent-bus-runner "+version.String+usage+"\n\n"+display.Footer()) }
-	flag.Parse()
+	if err := display.ParseFlags(flag.CommandLine, os.Args[1:]); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
 	if strings.TrimSpace(*bundled) == "" {
 		fmt.Fprintln(os.Stderr, "agent-bus-runner: --bundled wants a directory")
 		os.Exit(1)

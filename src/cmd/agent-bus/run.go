@@ -295,12 +295,8 @@ func describe(args []string) (agent, error) {
 		ag.Instances = count
 	}
 
-	// The runner publishes an agent, and an agent's name begins with #; a
-	// plainly written `run hi@demo` names the same thing
-	// (docs/06-dedicated-runner.md#script-agents). Anything else is left alone:
-	// the daemon's refusal names the rule better than a rewrite here could.
 	if ag.Name != "" && !strings.HasPrefix(ag.Name, "#") {
-		ag.Name = "#" + ag.Name
+		return ag, fmt.Errorf("run requires a complete #agent name")
 	}
 
 	if ag.Name == "" || ag.Script == "" {

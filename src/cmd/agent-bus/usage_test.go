@@ -1,13 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"github.com/parf/ai-agent-bus/internal/display"
 	"github.com/parf/ai-agent-bus/internal/version"
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -109,7 +107,7 @@ func TestParserFlagsMatchCommandHelp(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			docs := documentedFlags(verbUsage(name))
 			globals := documentedSectionFlags(verbUsage(name), "GLOBAL OPTIONS")
-			if !slices.Equal(globals, []string{"addr", "agent", "help", "version"}) || !strings.Contains(verbUsage(name), "-h, --help") {
+			if !slices.Equal(globals, []string{"addr", "help", "version"}) || !strings.Contains(verbUsage(name), "--help") {
 				t.Fatalf("%s globals/short forms incomplete: %v", name, globals)
 			}
 
@@ -186,47 +184,22 @@ func TestManHelpDispatchAndExitCodes(t *testing.T) {
 		t.Fatal("missing concurrency description")
 	}
 }
-func TestLegacyAliasesReachSameDaemonCalls(t *testing.T) {
-	var paths []string
-	var bodies []string
-	server := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		paths = append(paths, r.URL.RequestURI())
-		b, _ := io.ReadAll(r.Body)
-		bodies = append(bodies, string(b))
-		fmt.Fprint(w, `[]`)
-	}))
-	defer server.Close()
-	old := transport
-	defer func() { transport = old }()
-	transport = func() (*http.Client, string) { return server.Client(), server.URL }
-	cases := []struct {
-		f    func([]string) error
-		a, b []string
-	}{
-		{register, []string{"svc", "--service-addr=x", "--protocol=demo"}, []string{"svc", "--addr=x", "--protocol=demo"}},
-		{ls, []string{"--table", "--all"}, []string{"-h", "--all"}},
-		{agentTemplate, []string{"fixture", "{}"}, []string{"fixture", "{}"}},
-	}
-	for _, c := range cases {
-		paths = nil
-		bodies = nil
-		_ = c.f(c.a)
-		_ = c.f(c.b)
-		if len(paths) != 2 || paths[0] != paths[1] || bodies[0] != bodies[1] {
-			t.Fatalf("alias diverged %v %v", paths, bodies)
+func TestRetiredAliasesRefusedBeforeDaemonCalls(t *testing.T) {
+	for _, args := range [][]string{{"agent-template"}, {"channel", "create", "queue"}, {"enroll"}, {"-h"}, {"-version"}, {"get"}, {"list"}, {"template"}} {
+		out, code := cliHelpRun(t, args...)
+		if code == 0 || !strings.Contains(out, "unknown verb") {
+			t.Fatalf("retired %q: %d %s", args, code, out)
 		}
 	}
-	paths = nil
-	bodies = nil
-	_ = register([]string{"queue", "--kind=queue"})
-	_ = channel([]string{"create", "queue"})
-	if len(paths) != 2 || paths[0] != paths[1] || bodies[0] != bodies[1] {
-		t.Fatalf("channel alias diverged %v", bodies)
-	}
-	for _, v := range []string{"config", "agent-template"} {
-		out, code := cliHelpRun(t, v)
-		if code != 1 || !strings.Contains(out, "config wants") {
-			t.Fatalf("config dispatch missing %s: %s", v, out)
+	for _, c := range []struct {
+		f    func([]string) error
+		args []string
+	}{
+		{register, []string{"svc", "--addr=x", "--protocol=demo"}},
+		{ls, []string{"-h"}}, {send, []string{"--agent", "fixture", "hello"}},
+	} {
+		if err := c.f(c.args); err == nil {
+			t.Fatalf("retired input accepted: %q", c.args)
 		}
 	}
 }
@@ -254,7 +227,7 @@ func TestTokenParserOptionsMatchHelp(t *testing.T) {
 	})
 	slices.Sort(accepted)
 	accepted = slices.Compact(accepted)
-	if !slices.Equal(documentedSectionFlags(verbUsage("token"), "GLOBAL OPTIONS"), []string{"addr", "agent", "help", "version"}) {
+	if !slices.Equal(documentedSectionFlags(verbUsage("token"), "GLOBAL OPTIONS"), []string{"addr", "help", "version"}) {
 		t.Fatal("token global options incomplete")
 	}
 	if !slices.Equal(accepted, documentedFlags(verbUsage("token"))) {
