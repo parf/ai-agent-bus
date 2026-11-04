@@ -44,7 +44,7 @@ export class ChatPort implements Port {
           throw Error("unsupported subscription state: key");
         try {
           const value = (await kv.get("json", name, this.operation())).value;
-          if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join() !== FIELDS || value.id !== name.slice(4))
+          if (!value || typeof value !== "object" || Array.isArray(value) || value instanceof Uint8Array || Object.keys(value).sort().join() !== FIELDS || value.id !== name.slice(4))
             throw Error("unsupported subscription state: row");
           rows.set(name, value);
         } catch (e) { if (!(e instanceof KVNotFound)) throw e; }
