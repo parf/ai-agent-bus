@@ -25,9 +25,18 @@ import { cards, descriptor, read } from "./resources.ts";
 import descriptions from "./tools.yaml";
 import general from "./instructions.yaml";
 
-if (process.argv.length === 3 && ["--version", "-version"].includes(process.argv[2]!)) {
+if (process.argv.length === 3 && process.argv[2] === "--version") {
   console.log(versionOutput());
   process.exit(0);
+}
+
+if (process.argv.length === 3 && process.argv[2] === "--help") {
+  console.log("Usage: agent-bus-mcp [--help | --version]\nConfigure the MCP face through its environment.");
+  process.exit(0);
+}
+if (process.argv.length > 2) {
+  console.error("agent-bus-mcp: unsupported arguments; use --help or --version alone");
+  process.exit(2);
 }
 
 // The launcher's private environment file keeps session credentials out of
