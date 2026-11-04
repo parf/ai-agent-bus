@@ -7,7 +7,9 @@ the job, scope and deployment inputs before implementation.
 ## Prompt to paste
 
 ```text
-Read docs/agents/create-agent-prompt.md and follow its checklists.
+Read docs/agents/create-agent-prompt.md and docs/10-writing-an-agent.md.
+Apply the safety checks for the capabilities this agent uses.
+Add optional features only for a concrete caller benefit.
 Job and expected answer:
 Proposed name and owner-provided realm:
 Resources and read/write scope:
@@ -65,10 +67,11 @@ omit it and use the shared version. Method arguments support types/enum arrays,
 `optional`, final `rest`, `json_only` and defaults; methods support text usage,
 roles, destructive marks and real examples. Configuration keys need help/examples.
 
-Bundled agents declare a `help` method and handle body `help` with the shared
-manifest helper, never duplicated prose. The runner intercepts packaged help asks;
-self-serving agents dispatch every ask through their language helper before body parsing or normal work. Unknown asks answer `unsupported: <ask>` as ordinary text. A script receives unhandled asks in `AGENT_BUS_ASK` with an empty body; declare `"asks":"none"` (or `run --no-asks`) if it knows nothing of asks. An independent
-package must not declare body `help` unless it implements it.
+Use the shared manifest helper for help, never duplicated prose. Declare a body
+`help` method only if its advertised text or JSON grammar implements it. Test that
+body separately from the help ask. The runner normally intercepts packaged help asks;
+self-serving agents dispatch every ask through their language helper before body parsing or normal work. Unknown asks answer `unsupported: <ask>` as ordinary text. A script receives unhandled asks in `AGENT_BUS_ASK` with an empty body; declare `"asks":"none"` (or `run --no-asks`) if it knows nothing of asks. Runtime-dependent scope uses native help, with the same available methods in text
+and machine help.
 
 ### Complete minimal manifest
 
