@@ -22,28 +22,14 @@
 
 ## Try this first
 
-Ask an agent which settings it takes:
+Choose an enabled agent from `agent-bus ls --kind=agent`, then ask what settings and secret-key names it accepts:
 
 ```sh
-agent-bus help --no-color '#ai@parf.us' config
+agent-bus help '<agent-name>' config
+agent-bus help '<agent-name>' secret
 ```
 
-```text
-base_url (string): Trusted OpenAI-compatible API root; chat/completions is appended for ask, ...; default: "https://openrouter.ai/api/v1"
-model (string): Default chat model ID for ask/text and chat JSON requests without model; ...; example: "openai/gpt-4.1-mini"
-```
-
-Ask which secrets it needs; values are never shown:
-
-```sh
-agent-bus help --no-color '#ai@parf.us' secret
-```
-
-```text
-OPENROUTER_API_KEY (required): Provider API key, required. Set only in runner/ai/env on the host, never bus Secret or Configuration.
-```
-
-- This ran on the development node on 2026-10-30.
+Replace `<agent-name>` with its complete name. Secret help shows names and requirements, never credential values.
 
 ## Where settings belong
 
@@ -338,7 +324,7 @@ MODE=prod # required
 - 🔁 Call the runner's `reload`; a refusal names the agent and the reason.
 - ⏳ It waits up to 15 seconds, or the caller's shorter deadline, for restarted kept agents to come back.
 - 🟡 One not ready yet shows `starting`; check `status` before using it.
-- 🌐 Every file here can also be read, and the host's ones written, over the bus ([the host's files](operations.md#the-hosts-files-over-the-bus)); a write applies at once.
+- 🌐 Author files and host settings can be inspected, and host settings edited, over the bus; env reads return names and digests rather than values ([the host's files](operations.md#the-hosts-files-over-the-bus)); a write applies at once.
 - 🩺 Commands: [reading status](operations.md#reading-status); errors: [why an agent was refused](operations.md#why-an-agent-was-refused).
 
 ## Technical details

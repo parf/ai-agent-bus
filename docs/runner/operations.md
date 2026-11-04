@@ -27,39 +27,13 @@
 
 ## Try this first
 
-Ask your runner for its one-line health verdict:
+Find your runner's name with `agent-bus ls --kind=agent`, then inspect it:
 
 ```sh
-agent-bus call '#runner/parf@parf.us' --status | jq -r .body
+agent-bus call '#runner/<you>@<realm>' --wait 15s status
 ```
 
-```text
-degraded: 11/12 running, 10 on demand (ai, fetch, qdrant, sms-telnyx, smtp/difive, smtp/eprofit, smtp/gmail, smtp/realmo, smtp/scienteco, voyage); eventlog (unconfigured)
-```
-
-- `degraded` names the agents that are down; here one exited as not configured.
-- `on demand` agents start a process per message, so they are not counted as down.
-- A disabled agent does not count as a failure.
-
-<details>
-<summary>The full status, for one or more agents (ran today)</summary>
-
-Show three rows of the full status, without the empty fields:
-
-```sh
-agent-bus call '#runner/parf@parf.us' --wait 15s status | jq -r .body \
-  | jq -c '.agents[] | select(.key=="debug" or .key=="eventlog" or .key=="db") | {name,state,reason,sandbox} | with_entries(select(.value != null))'
-```
-
-```text
-{"name":"#db@parf.us","state":"disabled"}
-{"name":"#debug@parf.us","state":"running","sandbox":"on"}
-{"name":"#eventlog@parf.us","state":"unconfigured","reason":"eventlog: startup refused"}
-```
-
-The output is from the development node on 2026-10-30; names differ on yours.
-
-</details>
+Replace the name with the one from your listing. The answer includes each agent's state and any refusal reason. On-demand agents start a process per message; disabled agents do not count as failures.
 
 ## Where to look
 
@@ -98,7 +72,7 @@ The output is from the development node on 2026-10-30; names differ on yours.
 - **Each control is `<verb> <agent>`,** naming the agent or its `agents.json` key.
 - **It answers as `status` does,** or `error: …` naming what was wrong.
 - **Only the runner's Owner and Maintainers** may make them.
-- **Example:** `restart #mail/work@parf.us`, sent as the body of an `agent-bus call` to your runner, restarts that one agent.
+- **Example:** `restart #mail/work@node.example`, sent as the body of an `agent-bus call` to your runner, restarts that one agent.
 
 | Call | Does | Lasts |
 |---|---|---|
@@ -180,18 +154,19 @@ The output is from the development node on 2026-10-30; names differ on yours.
 
 ## Installing, changing and removing an agent
 
-- **Installing** is a file change on the host followed by a `reload` call.
-- **Configuring** is a file change too, or a [call](#the-hosts-files-over-the-bus) that writes and applies it.
+### Use a bundled agent
 
-| Step | |
-|---|---|
-| 1. install | `sudo git clone <agent> /var/lib/agent-bus/agent.d/<agent>` — its code, its `agent.json`, its `env.dist` |
-| 2. configure | if it is a template, one instance per use: `runner/<agent>/<instance>/env`. Host decisions go in `runner/agents.json` |
-| 3. apply | `agent-bus call '#runner/<you>@<realm>' reload` |
-| 4. open it up | widen the new record's ACL, or nobody can call it: [who may call an agent](security.md#who-may-call-an-agent) |
+1. Choose an agent from the [catalogue](../agents/README.md#choose-an-agent).
+2. Follow its guide for Configuration, credentials and access. Preserve unrelated settings.
+3. Set `enabled:true` in the [inventory](configuration.md#inventory), then reload the runner.
 
-- **`runner/agents.json` is optional.** An agent directory under `agent.d/` with no entry is served under its own name.
-- **Entries exist** to disable an agent, name it explicitly, or declare the instances of a template.
+Bundled agents stay off until explicitly enabled. Do not copy or build a second package to enable one.
+
+### Install a custom package
+
+Install reviewed code into the host's shared `agent.d/<agent>` directory, with its `agent.json` and `env.dist`, then configure and reload. Custom-package directories can run without an inventory entry; disable the entry while preparing credentials and access.
+
+An inventory entry can disable a package, name it explicitly or declare its instances. The [directory-selection rules](configuration.md#agent-directories) explain shared packages and bundled fallback.
 
 What takes effect when:
 
@@ -206,16 +181,12 @@ What takes effect when:
 | any other setting of a kept agent's inventory entry, with its package and env unchanged | `reload` sends its processes `SIGHUP` to reread their configuration; one that does not handle it exits and is started again at once |
 | per-message to self-serving, or back | `reload` stops the old mode and starts the new one |
 
-**Removing takes care,** because an agent with no entry is served by default:
+### Disable or remove
 
-| To | Do |
-|---|---|
-| stop serving it, keep it installed | `disable <agent>`, or set `"enabled": false` on its entry in `runner/agents.json` |
-| remove it | delete its directory under `agent.d/` **and** every `agents.json` entry naming it |
-
-- **Deleting only the entry** does not remove the agent: the runner falls back to the directory and serves it under its own name again.
-- **Deleting only the directory** stops it, but each orphaned entry then shows as `refused`.
-- **Either way `reload` applies it.** The runner stops reading that agent's inbox; what is sent waits there until it is served again or its record is removed.
+- To stop one instance while keeping settings and code, set `enabled:false` in its inventory entry and reload.
+- Keep bundled code installed for other instances. Removing an inventory entry alone can re-enable a shared package, whose default is on.
+- To remove custom shared code, disable its entries, reload, then remove that package directory and unwanted settings. A shared directory shadows a bundled package with the same name; deleting it permits fallback on the next reload, so retain `enabled:false` if it must stay stopped.
+- Queued messages and bus records remain until explicitly removed. Keep work directories, tokens and subscriptions when they are needed for recovery.
 
 ## Why an agent was refused
 
@@ -279,7 +250,7 @@ journalctl -u agent-bus-runner@<you> -f
 |---|---|
 | the caller is refused | the agent's ACL still admits only you ([ACL](security.md#who-may-call-an-agent)) |
 | `status` says `is <someone>'s now` or `the token kept … is not its any more` | the agent was transferred, or its token rotated: hand it over again ([what runs as what](security.md#what-runs-as-what)), or let its new person's runner serve it |
-| `READERS` is `0` in `agent-bus ls` | the agent is not served: `status` says why, often `exists and its token is not kept here` ([who owns what](security.md#what-runs-as-what)) |
+| `READERS` is `0` in `agent-bus ls` | no read is waiting at that instant; the process can be busy, starting or stopped. Inspect `status` for the actual state ([who owns what](security.md#what-runs-as-what)) |
 | the caller waits, then gives up | the script exited nonzero: no answer is sent, the failure is logged, and there is no retry |
 | nothing ran at all | the caller's deadline had already passed when the message came up |
 | the answer ends in `[agent-bus-runner: the answer was cut at 1048576 bytes]` | one answer is bounded at 1 MiB; the rest was dropped |
@@ -295,8 +266,8 @@ sudo /usr/local/bin/agent-bus-setup --runner disable --for <you>
 ```
 
 - **`systemctl stop agent-bus-runner@<you>`** only stops it.
-- **Messages already taken are lost** in the ordinary way ([durability](../04-messaging.md#durability)); everything still queued waits for the runner.
-- **A restart resumes every agent:** they stay registered, their messages wait in their inboxes, and the runner keeps their tokens in `runner/tokens/`.
+- **An abrupt stop can lose work already taken** ([durability](../04-messaging.md#durability)); everything still queued waits for the runner.
+- **A restart resumes enabled agent:** they stay registered, their messages wait in their inboxes, and the runner keeps their tokens in `runner/tokens/`.
 - **A daemon that goes away is not a failure:** the runner logs it and reads again.
 
 ## Technical details

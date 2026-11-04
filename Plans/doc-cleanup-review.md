@@ -60,13 +60,13 @@ Astra read every block in all 68 docs/ Markdown pages plus root README and AI-SE
 | [docs/dedicated-runner/agent-json.md](../docs/dedicated-runner/agent-json.md) | Users | All blocks read by Astra | Pending final pass |
 | [docs/glossary.md](../docs/glossary.md) | Users | All blocks read by Astra | Pending final pass |
 | [docs/platforms/macos.md](../docs/platforms/macos.md) | Users | All blocks read by Astra | Pending final pass |
-| [docs/runner/README.md](../docs/runner/README.md) | Users | All blocks read by Astra | Pending final pass |
-| [docs/runner/agents.md](../docs/runner/agents.md) | Users | All blocks read by Astra | Pending final pass |
-| [docs/runner/configuration.md](../docs/runner/configuration.md) | Users | All blocks read by Astra | Pending final pass |
-| [docs/runner/getting-started.md](../docs/runner/getting-started.md) | Users | All blocks read by Astra | Pending final pass |
-| [docs/runner/operations.md](../docs/runner/operations.md) | Users | All blocks read by Astra | Pending final pass |
-| [docs/runner/security.md](../docs/runner/security.md) | Users | All blocks read by Astra | Pending final pass |
-| [docs/runner/setup.md](../docs/runner/setup.md) | Users | All blocks read by Astra | Pending final pass |
+| [docs/runner/README.md](../docs/runner/README.md) | Users | All blocks read by Astra | Portable examples and bundle/shared distinction fixed; final dedup pending |
+| [docs/runner/agents.md](../docs/runner/agents.md) | Users | All blocks read by Astra | Portable examples and bundle/shared distinction fixed; final dedup pending |
+| [docs/runner/configuration.md](../docs/runner/configuration.md) | Users | All blocks read by Astra | Portable examples and bundle/shared distinction fixed; final dedup pending |
+| [docs/runner/getting-started.md](../docs/runner/getting-started.md) | Users | All blocks read by Astra | Portable examples and bundle/shared distinction fixed; final dedup pending |
+| [docs/runner/operations.md](../docs/runner/operations.md) | Users | All blocks read by Astra | Portable examples and bundle/shared distinction fixed; final dedup pending |
+| [docs/runner/security.md](../docs/runner/security.md) | Users | All blocks read by Astra | Portable examples and bundle/shared distinction fixed; final dedup pending |
+| [docs/runner/setup.md](../docs/runner/setup.md) | Users | All blocks read by Astra | Portable examples and bundle/shared distinction fixed; final dedup pending |
 | [docs/user/README.md](../docs/user/README.md) | Users | All blocks read by Astra | Pending final pass |
 | [docs/user/ai-cli.md](../docs/user/ai-cli.md) | Users | All blocks read by Astra | Pending final pass |
 | [docs/user/backup.md](../docs/user/backup.md) | Users | All blocks read by Astra | Pending final pass |

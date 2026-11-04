@@ -9,7 +9,7 @@
 
 ## Why you want it
 
-- 🔑 **A script needs a password.** Now the password stays on the server; the script finds it when it runs, and callers never see it.
+- 🔑 **A script needs a password.** The password stays on the server and is passed to the trusted script, rather than handed to callers.
 - 🧱 **A script can touch everything.** Now its [isolation rules](security.md#isolation-today) state what it can reach, see and write.
 - 🙋 **Nobody else can call it.** Now it has a name, and you choose who may use it.
 - 🔁 **It dies and nobody notices.** Now you see its state and failures in one place, and restart it from a web page.
@@ -18,7 +18,7 @@
 ## What you get
 
 - ✅ **No message code:** the script reads its input and prints its answer.
-- ✅ **Secrets kept apart:** passwords live outside the code, shown to nobody.
+- ✅ **Secrets kept apart:** passwords live outside the code and are passed only to the agent that needs them. Trusted agent code can still disclose what it receives.
 - ✅ **Confinement:** [isolation today](security.md#isolation-today) defines the Linux default, network access, file visibility and the off setting.
 - ✅ **Control:** start, stop, restart, enable and disable each agent, from the command line or the web page.
 - ✅ **Always-on helpers:** an agent that must keep running, such as a mail reader, is restarted if it stops.
@@ -27,52 +27,7 @@
 
 - Follow [Getting started](getting-started.md): a short script, a reload, one call.
 - It ends with the script answering by name.
-
-<details>
-<summary>See it on a real node (commands that ran today)</summary>
-
-List the agents your runner keeps:
-
-```sh
-agent-bus ls --tag runner --table
-```
-
-```text
-NAME                           KIND     OWNER  READERS  QUEUED  LAST USED  DESCRIPTION
-#debug@parf.us                 👾 Agent  parf   1        0       just now   Check delivery and runner health; ...
-#webhook@parf.us               👾 Agent  parf   1        0       just now   Receive authenticated events and post ...
-#rag@parf.us                   👾 Agent  parf   1        0       just now   Store, classify and embed records; ...
-```
-
-Ask one of them a question:
-
-```sh
-agent-bus call '#debug@parf.us' --wait 10s ping | jq -r .body
-```
-
-```text
-{"received_at":1793343898.704945,"answered_at":1793343898.7049594,"version":"0.9.131"}
-```
-
-See what the runner serves and in what state:
-
-```sh
-agent-bus call '#runner/parf@parf.us' --wait 15s status | jq -r .body \
-  | jq -c '.agents[] | select(.key=="ai" or .key=="debug") | {name,state,sandbox,processes}'
-```
-
-```text
-{"name":"#ai@parf.us","state":"idle","sandbox":"on","processes":{"running":0,"min":0,"max":3}}
-{"name":"#debug@parf.us","state":"running","sandbox":"on","processes":{"running":1,"min":1,"max":1}}
-```
-
-- `idle`: waiting for a message; a process starts per message.
-- `running`: a kept process serves its own inbox.
-- `sandbox: on`: the [managed isolation rules](security.md#isolation-today) apply.
-
-The output above is from the development node on 2026-10-30; names and counts differ on yours.
-
-</details>
+- Already have a runner? List its visible agents with `agent-bus ls --kind=agent`, then use [Operations](operations.md#try-this-first) to inspect their state.
 
 ## How it works
 

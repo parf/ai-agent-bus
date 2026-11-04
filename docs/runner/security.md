@@ -26,21 +26,13 @@
 
 ## Try this first
 
-See whether each agent is confined, and its limits:
+Use your runner's complete name from `agent-bus ls --kind=agent`:
 
 ```sh
-agent-bus call '#runner/parf@parf.us' --wait 15s status | jq -r .body \
-  | jq -c '.agents[] | select(.key=="debug" or .key=="webhook") | {name,sandbox,limits}'
+agent-bus call '#runner/<you>@<realm>' --wait 15s status
 ```
 
-```text
-{"name":"#debug@parf.us","sandbox":"on","limits":{"memory_bytes":536870912,"processes":64,"disk_bytes":1073741824}}
-{"name":"#webhook@parf.us","sandbox":"on","limits":{"memory_bytes":536870912,"processes":64,"disk_bytes":1073741824}}
-```
-
-- `sandbox: on`: the [isolation below](#isolation-today) applies.
-- `limits`: the default 512 MiB of memory, 64 processes and 1 GiB of disk.
-- The output is from the development node on 2026-10-30; names differ on yours.
+Inspect each agent's `sandbox` and `limits`. `sandbox: on` applies the Linux isolation below; it does not make the agent code trustworthy.
 
 ## Isolation today
 

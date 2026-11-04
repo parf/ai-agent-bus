@@ -21,24 +21,13 @@
 
 ## Try this first
 
-See what callers get from a finished package's `agent.json`:
+Choose an enabled agent from `agent-bus ls --kind=agent` and inspect its help:
 
 ```sh
-agent-bus help --no-color '#debug@parf.us'
+agent-bus help '<agent-name>'
 ```
 
-```text
-Check delivery and runner health; diagnose failures with bounded probes
-selftest: Check ping, echo and slow/error answers locally, plus own KV and lock via the bus; ...
-echo: Return the delivered envelope fields as JSON, never process credentials
-...
-hello [name...]: Greet a name; hello smoke returns hello, smoke
-  name (string): Name to greet
-...
-```
-
-- This ran on the development node on 2026-10-30.
-- Your first package: [Getting started](getting-started.md).
+Replace `<agent-name>` with its complete name. To create your own package, follow [Getting started](getting-started.md).
 
 ## Package a script
 

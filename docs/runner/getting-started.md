@@ -13,7 +13,7 @@
 
 ## What you get
 
-- ✅ **A named agent:** `#hello-guide@<host>` answers `hello, world`.
+- ✅ **A named agent:** `#hello-guide@<realm>` answers `hello, world`.
 - ✅ **You own it:** you can call it at once and decide who else may.
 - ✅ **A pattern to reuse:** the same folder, reload and call work for every later script.
 - ⚠️ **Shared folder:** installing into it needs `sudo` on the host.
@@ -26,29 +26,27 @@
 
 ## Try this first
 
-Check that your runner is registered and listening (`"reading":true`):
+Confirm your identity and the bus's realm:
 
 ```sh
-agent-bus ls '#runner/parf@parf.us'
+agent-bus status
 ```
 
-```text
-{"name":"#runner/parf@parf.us","kind":"agent","descr":"parf's runner: status, reload, start, stop, restart, enable, disable, read, write, create, delete", ... "reading":true,"readers":1, ...}
-```
+Find your runner in the agent list:
 
-- Use your own user and host names.
-- This ran on the development node on 2026-10-30.
+```sh
+agent-bus ls --kind=agent
+```
 
 ## Set the names
 
-- Replace `your-bus-user` with your plain bus user name, such as `alice`.
-- The example agent is `hello-guide`; pick another name if it is taken.
+Use your bus user name and the `realm` from status. Check that `RUNNER` matches the runner name in the listing; the bus realm need not match the computer's hostname. Pick another agent name if `hello-guide` is taken.
 
 ```sh
 ME=your-bus-user
-HOST=$(uname -n)
-RUNNER="#runner/$ME@$HOST"
-AGENT="#hello-guide@$HOST"
+REALM=your-bus-realm
+RUNNER="#runner/$ME@$REALM"
+AGENT="#hello-guide@$REALM"
 AGENTS=/var/lib/agent-bus/agent.d
 ```
 
@@ -92,20 +90,7 @@ agent-bus call "$AGENT" --wait 10s world
 - The answer is `hello, world`.
 - Stuck? See [when a call does not come back](operations.md#when-a-call-does-not-come-back).
 
-<details>
-<summary>A runner agent answering the same greeting (ran today)</summary>
 
-The bundled debug agent has a `hello` method with the same answer:
-
-```sh
-agent-bus call '#debug@parf.us' --wait 10s 'hello world' | jq -r .body
-```
-
-```text
-hello, world
-```
-
-</details>
 
 ## Finish the example
 
