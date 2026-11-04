@@ -252,7 +252,7 @@ test("agents list shows last use and exact timestamps, leaving unused times empt
     { name: "#a-never@h", kind: "agent", owner: "owner" },
     { name: "#b-older@h", kind: "agent", owner: "owner", last_used: older },
     { name: "#c-recent@h", kind: "agent", owner: "owner", last_used: recent },
-    { name: "#private@h", kind: "agent", owner: "other", personal: true, last_used: recent },
+    { name: "#private@h", kind: "agent", owner: "other", tags: ["personal"], last_used: recent },
   ];
   const html = await (await handlers.agents(ctx)).text();
   expect(html).toContain('>Last used</th>');
@@ -273,7 +273,7 @@ test("default agents order puts readers before pagination and preserves explicit
   setAssets(buildLocal());
   const records = Array.from({length:PAGE_SIZE+1}, (_,i) => ({name:`#a${String(i).padStart(2,"0")}@h`,kind:"agent",owner:"owner",last_used:"2026-10-25T00:00:00Z"}));
   records.push({name:"#z-connected@h",kind:"agent",owner:"owner",last_used:"2026-10-20T00:00:00Z",readers:1} as typeof records[number]);
-  records.push({name:"#y-reading@h",kind:"agent",owner:"owner",last_used:"2026-10-20T00:00:00Z",reading:true} as typeof records[number]);
+  records.push({name:"#y-connected@h",kind:"agent",owner:"owner",last_used:"2026-10-20T00:00:00Z",readers:2} as typeof records[number]);
   async function body(query="") {
     const ctx = new Ctx(new Request("http://localhost/agents"+query),{} as never,false);
     ctx.status=async()=>({you:"owner"});ctx.identity=async()=>({owner:"owner",host:"fixture"});ctx.records=async()=>records;
@@ -281,7 +281,7 @@ test("default agents order puts readers before pagination and preserves explicit
   }
   const page=await body();
   expect(page).toContain("#z-connected@h");
-  expect(page.indexOf("#y-reading@h")).toBeLessThan(page.indexOf("#z-connected@h"));
+  expect(page.indexOf("#y-connected@h")).toBeLessThan(page.indexOf("#z-connected@h"));
   expect(page.indexOf("#z-connected@h")).toBeLessThan(page.indexOf("#a00@h"));
   expect(await body("?sort=last_used")).not.toContain("#z-connected@h");
 });

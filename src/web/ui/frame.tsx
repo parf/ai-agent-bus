@@ -61,7 +61,7 @@ const Sidebar = ({ section, id, personal, busSetup }: { section: Section; id: Id
   <nav class="side-nav" aria-label="sections">
     {NAV.map(n => {
       const keep = personal && KIND_SECTIONS.has(n.key);
-      return <a href={keep ? `${n.href}?personal=1` : n.href} class={`side-link ${keep ? "personal" : ""}`} aria-current={n.key === section ? "page" : undefined} data-keys={n.keys}>
+      return <a href={keep ? `${n.href}?tag=personal` : n.href} class={`side-link ${keep ? "personal" : ""}`} aria-current={n.key === section ? "page" : undefined} data-keys={n.keys}>
         <Icon name={n.icon} /><span class="side-label">{n.label}</span>{keep ? <Icon name="lock" label="Personal" className="side-lock" /> : null}
       </a>;
     })}

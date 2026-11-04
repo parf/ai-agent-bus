@@ -28,5 +28,5 @@ test("web saves compact configuration bytes before calling the daemon", async ()
     bus: async (_method: string, _path: string, options: {bodyJSON:string}) => {wire = options.bodyJSON;},
   } as unknown as Ctx;
   await storeConfiguration(ctx, "#worker@h", "Saved");
-  expect(wire).toBe('{"Name":"#worker@h","Config":{"n":9007199254740993}}');
+  expect(wire).toBe('{"name":"#worker@h","config":{"n":9007199254740993}}');
 });

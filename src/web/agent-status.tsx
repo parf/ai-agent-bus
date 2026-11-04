@@ -14,7 +14,7 @@ export function StatusAnswer({body}: {body: string}) {
 }
 export async function agentStatus(ctx: Ctx): Promise<Response> {
   const rec = await ctx.lookup(ctx.q("name"));
-  if (rec.kind !== "agent" || !(rec.readers || rec.reading)) return html("");
+  if (rec.kind !== "agent" || (rec.readers ?? 0) <= 0) return html("");
   try {
     const answer = await ctx.call(rec.name, "", 1800, "status");
     // JSX escapes the agent's text. Only this server-rendered fragment is sent.

@@ -3,7 +3,8 @@
 // visitor's own session; the face holds no credential, session map or cache.
 import { load, type Config } from "./config.ts";
 import { Daemon } from "./daemon.ts";
-import { Ctx, SignInRequired } from "./ctx.ts";
+import { canonicalInput } from "./canonical.ts";
+import { Ctx, LocalProblem, SignInRequired } from "./ctx.ts";
 import { VERSION, versionOutput } from "./version.ts";
 import { buildLocal } from "./assets.ts";
 import { setAssets } from "./ui/frame.tsx";
@@ -74,6 +75,7 @@ export function makeHandler(cfg: Config) {
     try {
       if (!m.known) return await notFoundPage(ctx);
       if (!m.route) return await methodPage(ctx);
+      try { canonicalInput(url.searchParams, ctx.form); } catch (error) { throw new LocalProblem(400, (error as Error).message); }
       if (m.route.auth && !ctx.signedIn) throw new SignInRequired("sign in to open this page");
       return await m.route.handler(ctx);
     } catch (e) {
@@ -85,7 +87,7 @@ export function makeHandler(cfg: Config) {
 // Run directly from source, or by the release binary (ts-main.ts), which
 // imports this module and so is never import.meta.main here.
 export async function main(): Promise<void> {
-  if (process.argv.includes("--version") || process.argv.includes("-version")) {
+  if (process.argv.includes("--version")) {
     console.log(versionOutput());
     process.exit(0);
   }
