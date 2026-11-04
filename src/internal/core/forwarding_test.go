@@ -423,10 +423,8 @@ func TestAPublishedCopyTakesItsRecipientsTTL(t *testing.T) {
 	}
 }
 
-// A topic stored before 0.8.52 carries the overflow default and may carry a
-// TTL or capacity: load drops them and keeps the topic, reporting only a
-// setting somebody chose (Q123).
-func TestAStoredTopicLosesItsQueueSettings(t *testing.T) {
+// A pubsub channel with stored queue settings is refused without repair.
+func TestStoredPubsubQueueSettingsAreRefused(t *testing.T) {
 	b := New()
 	j := &reports{}
 	b.Journal(j)
@@ -435,18 +433,11 @@ func TestAStoredTopicLosesItsQueueSettings(t *testing.T) {
 		{Name: "timed@h", Kind: protocol.KindPubSub, Owner: "alice@h", TTL: "1h", Bound: 5, Full: protocol.OverflowRing},
 	}}, "alice@h"))
 	for _, name := range []string{"plain@h", "timed@h"} {
-		r, loaded := b.records[name]
-		if !loaded {
-			t.Fatalf("%s was ignored: %v", name, j.lines)
+		if _, loaded := b.records[name]; loaded {
+			t.Fatalf("%s accepted or repaired", name)
 		}
-		if r.TTL != "" || r.Bound != 0 || r.Full != "" {
-			t.Fatalf("%s kept queue settings: %+v", name, r)
+		if !j.has("stored record " + name + " is ignored") {
+			t.Fatalf("missing refusal: %v", j.lines)
 		}
-	}
-	if j.has("plain@h") {
-		t.Fatalf("the stored default was reported: %v", j.lines)
-	}
-	if !j.has("stored pubsub channel timed@h carried") {
-		t.Fatalf("a chosen setting was dropped silently: %v", j.lines)
 	}
 }

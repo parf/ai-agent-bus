@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -292,38 +293,12 @@ func (b *Bus) Restore(s ports.Snapshot) {
 	}
 	// Restore loads; it commits nothing and repairs nothing.
 	b.staging = nil
-	b.legacyEmptyTags = nil
 	for _, r := range s.Records {
-		legacy := false
-		for _, raw := range r.Tags {
-			for _, tag := range strings.Split(raw, ",") {
-				if strings.EqualFold(strings.TrimSpace(tag), "no-tags") {
-					legacy = true
-				}
-			}
-		}
-		if legacy {
-			b.legacyEmptyTags = append(b.legacyEmptyTags, r.Name)
-		}
-		// A snapshot may have been written by another version or supplied by
-		// an embedding caller. Live fields belong to this process and its
-		// current inboxes, never to durable registry state.
+		// Live fields are derived from this process, never durable state.
 		clearLiveRecord(&r)
 		if r.Name == DaemonAgent {
 			r = b.restoreDaemonAgent(r)
 		}
-		var tags []string
-		for _, raw := range r.Tags {
-			for _, tag := range strings.Split(raw, ",") {
-				normalized, err := protocol.NormalizeTags([]string{tag})
-				if err != nil {
-					b.report(ports.Warning, "stored record %s: %v; tag dropped", r.Name, err)
-					continue
-				}
-				tags = append(tags, normalized...)
-			}
-		}
-		r.Tags, _ = protocol.NormalizeTags(tags)
 		b.records[r.Name] = r
 	}
 	b.indexIDs()
@@ -450,9 +425,6 @@ func (b *Bus) UserName(id uint32) (string, bool) {
 // Caller holds b.mu.
 func (b *Bus) ignoreIncorrect() {
 	b.ignoreSharedIdentities()
-	b.dropPubSubQueueSettings()
-	b.dropStrayAddresses()
-	b.dropOversizedConfigurations()
 	for {
 		var gone []string
 		names := make([]string, 0, len(b.records))
@@ -595,50 +567,21 @@ func (b *Bus) ignoreSharedIdentities() {
 	}
 }
 
-// dropStrayAddresses takes an address or protocol off every stored record
-// that is not a service: runners before 0.8.76 wrote a note in an agent's
-// addr, and a record that keeps working is better than one ignored for a
-// field nothing reads (K.28). Caller holds b.mu.
-func (b *Bus) dropStrayAddresses() {
-	for name, r := range b.records {
-		if r.Kind == protocol.KindService || r.Addr == "" && r.Proto == "" {
-			continue
-		}
-		b.report(ports.Warning, "stored %s %s carried an address or protocol, which only a service has; they are dropped", r.Kind, name)
-		r.Addr, r.Proto = "", ""
-		b.records[name] = r
+// validateRestored checks durable representation without rewriting it.
+func validateRestored(r protocol.Record) error {
+	tags, err := protocol.NormalizeTags(r.Tags)
+	if err != nil {
+		return err
 	}
-}
-
-// Keep the record and its grants/queue when an older configuration exceeds
-// the current process-environment limit. The next write persists the drop.
-func (b *Bus) dropOversizedConfigurations() {
-	for name, r := range b.records {
-		if holdsPrivate(r.Kind) && configSize(r.Config) != nil {
-			b.report(ports.Alert, "stored configuration %s exceeds the 65536-byte compact JSON limit and is dropped", name)
-			r.Config, r.ConfigSHA = nil, ""
-			b.records[name] = r
+	if !slices.Equal(tags, r.Tags) {
+		return fmt.Errorf("stored tags are not canonical labels")
+	}
+	if holdsPrivate(r.Kind) {
+		if err := configSize(r.Config); err != nil {
+			return err
 		}
 	}
-}
-
-// dropPubSubQueueSettings takes queue settings off a stored 📣. Before 0.8.52
-// every topic was stored with the overflow default, and one could be given a
-// TTL or capacity; none had a meaning of its own, so they are dropped rather
-// than making a working pubsub channel incorrect (Q123). Only a setting somebody chose
-// is reported. The next write of the channel stores it without them. Caller
-// holds b.mu.
-func (b *Bus) dropPubSubQueueSettings() {
-	for name, r := range b.records {
-		if r.Kind != protocol.KindPubSub || r.TTL == "" && r.Bound == 0 && r.Full == "" {
-			continue
-		}
-		if r.TTL != "" || r.Bound != 0 || r.Full != protocol.OverflowStrict {
-			b.report(ports.Warning, "stored pubsub channel %s carried a TTL, capacity or overflow policy, which a pubsub channel cannot have; they are dropped", name)
-		}
-		r.TTL, r.Bound, r.Full = "", 0, ""
-		b.records[name] = r
-	}
+	return validateKind(r)
 }
 
 // incorrect says why a stored record could not have been written by this
@@ -660,7 +603,7 @@ func (b *Bus) incorrect(r protocol.Record) string {
 			return err.Error()
 		}
 	}
-	if err := validateKind(r); err != nil {
+	if err := validateRestored(r); err != nil {
 		return err.Error()
 	}
 	u, user := b.users[r.Owner]

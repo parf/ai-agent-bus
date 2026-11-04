@@ -171,11 +171,10 @@ type inbox struct {
 }
 
 type Bus struct {
-	events          *eventlog.Engine
-	subEngines      map[uint32]*subscription.Engine // one per source record; guarded by mu
-	subFallback     subMemory                       // the subscriptions of an unbound embedded bus
-	legacyEmptyTags []string                        // pending startup persistence of removed no-tags sentinels
-	store           ports.Store
+	events      *eventlog.Engine
+	subEngines  map[uint32]*subscription.Engine // one per source record; guarded by mu
+	subFallback subMemory                       // the subscriptions of an unbound embedded bus
+	store       ports.Store
 	// big holds bigfiles, bound at start (big.go).
 	big ports.BigStore
 	// bigCause, bigReopen and bigTried are why bigfiles are refused and how

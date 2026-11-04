@@ -11,7 +11,7 @@ import (
 
 func TestRecordTagsPersistWithoutStoringSyntheticLabels(t *testing.T) {
 	b := personalFixture(t)
-	tags := []string{"BUILD-Notes,claude,CLAUDE,no-tags"}
+	tags := []string{"BUILD-Notes,claude,CLAUDE"}
 	got, err := b.Manage("alice@h", Management{Name: "jobs@h", Tags: &tags})
 	if err != nil {
 		t.Fatal(err)
@@ -90,7 +90,7 @@ func TestTagDeltasAreAdditiveAndUseTheSameNormalization(t *testing.T) {
 	}
 }
 
-func TestBadTagsAreRefusedAndStoredTagsAreDroppedIndividually(t *testing.T) {
+func TestBadTagsAreRefusedWithoutRepair(t *testing.T) {
 	b := personalFixture(t)
 	bad := []string{"prod web"}
 	if _, err := b.Manage("alice@h", Management{Name: "jobs@h", Tags: &bad}); err == nil || !strings.Contains(err.Error(), "prod web") {
@@ -115,10 +115,10 @@ func TestBadTagsAreRefusedAndStoredTagsAreDroppedIndividually(t *testing.T) {
 	restored.Journal(j)
 	restored.Restore(snapshot)
 	got, ok := restored.Lookup("alice@h", "jobs@h")
-	if !ok || !slices.Equal(got.Tags, []string{"prod-web", "v2"}) {
+	if ok {
 		t.Fatalf("record or good tags lost: %v %v", ok, got.Tags)
 	}
-	if !j.has("bad tag") || !j.has("tag dropped") {
+	if !j.has("bad tag") || !j.has("is ignored") {
 		t.Fatalf("bad stored tag not reported: %v", j.lines)
 	}
 }

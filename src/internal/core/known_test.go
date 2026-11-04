@@ -96,7 +96,7 @@ func provisionState(b *Bus, users []string, records ...protocol.Record) error {
 		if r.Kind == "" {
 			r.Kind = protocol.KindAgent
 		}
-		if r.Full == "" && r.Kind != protocol.KindService {
+		if r.Full == "" && onBus(r) && r.Kind != protocol.KindPubSub {
 			r.Full = protocol.OverflowStrict
 		}
 		replaced := false

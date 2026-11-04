@@ -90,11 +90,6 @@ func runBus(c config) {
 	if err := bus.EstablishDaemonOwner(me.String()); err != nil {
 		fatal("owner: %v", err)
 	}
-	if count, err := bus.MigrateLegacyEmptyTags(); err != nil {
-		fatal("legacy tags: %v", err)
-	} else {
-		log.Printf("legacy no-tags migration: %d records", count)
-	}
 	host, _ := os.Hostname()
 	if err := bus.EstablishDaemonAgent(host); err != nil {
 		fatal("bus agent: %v", err)

@@ -13,7 +13,10 @@ func NormalizeTags(in []string) ([]string, error) {
 	var out []string
 	for _, raw := range in {
 		for _, word := range strings.Split(strings.ToLower(raw), ",") {
-			if word == "" || word == "no-tags" {
+			if word == "no-tags" {
+				return nil, fmt.Errorf("no-tags is a listing filter, not a record tag")
+			}
+			if word == "" {
 				continue
 			}
 			for _, r := range word {
@@ -37,12 +40,15 @@ func HasTag(tags []string, tag string) bool { return slices.Contains(tags, tag) 
 // with none, and combined with a real label it is refused, since a record has
 // no tags or has that one.
 func TagFilter(raw string) (labels []string, none bool, err error) {
+	var words []string
 	for _, word := range strings.Split(strings.ToLower(raw), ",") {
 		if word == "no-tags" {
 			none = true
+		} else {
+			words = append(words, word)
 		}
 	}
-	labels, err = NormalizeTags([]string{raw})
+	labels, err = NormalizeTags(words)
 	if err != nil {
 		return nil, false, err
 	}

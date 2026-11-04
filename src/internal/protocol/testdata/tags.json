@@ -1,7 +1,7 @@
 [
   {
     "input": [
-      "BUILD,Claude,CLAUDE,no-tags,x_y,v2,0-8"
+      "BUILD,Claude,CLAUDE,x_y,v2,0-8"
     ],
     "expected": [
       "0-8",
@@ -17,7 +17,7 @@
       "no-tags,NO-TAGS"
     ],
     "expected": [],
-    "invalid": false
+    "invalid": true
   },
   {
     "input": [
@@ -99,6 +99,13 @@
   {
     "input": [
       "x\ty"
+    ],
+    "expected": [],
+    "invalid": true
+  },
+  {
+    "input": [
+      "ops,no-tags"
     ],
     "expected": [],
     "invalid": true

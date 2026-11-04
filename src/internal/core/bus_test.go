@@ -1062,9 +1062,8 @@ func TestOnlyAnAgentCarriesAScript(t *testing.T) {
 	}
 }
 
-// An agent an older runner noted in addr loses that note at load, with a
-// warning, and a new start registers its script and no addr (K.28).
-func TestAStoredAgentLosesTheAddrAnOlderRunnerWrote(t *testing.T) {
+// A non-service record carrying an address is refused without repair.
+func TestStoredNonServiceAddressIsRefused(t *testing.T) {
 	b, rep := New(), &reports{}
 	b.Journal(rep)
 	b.Restore(ports.Snapshot{
@@ -1078,10 +1077,10 @@ func TestAStoredAgentLosesTheAddrAnOlderRunnerWrote(t *testing.T) {
 	}
 	for _, name := range []string{"#w@h", "jobs@h"} {
 		r, ok := b.records[name]
-		if !ok || r.Addr != "" || r.Proto != "" {
+		if ok {
 			t.Fatalf("%s after load: %+v %v", name, r, ok)
 		}
-		if !rep.has("stored " + r.Kind + " " + name + " carried an address or protocol") {
+		if !rep.has("stored record " + name + " is ignored") {
 			t.Errorf("the drop on %s was not said: %v", name, rep.lines)
 		}
 	}
