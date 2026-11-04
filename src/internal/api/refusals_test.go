@@ -49,7 +49,7 @@ func refusalFixture(t *testing.T) *counted {
 	t.Helper()
 	bus := core.New()
 	store := &refusalStore{TokenStore: memory.NewTokens()}
-	tokens, err := auth.Load(store, "admin@h")
+	tokens, err := auth.Load(store)
 	if err != nil {
 		t.Fatal(err)
 	}

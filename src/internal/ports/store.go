@@ -14,8 +14,7 @@ import "time"
 //
 // Every credential names a User, and an agent's also names the Agent whose
 // Owner that User is — by internal ID, so a removed name registered again by
-// somebody else can never be answered for by the old bytes. A zero pair was
-// issued before its principal was bound and is bound at the next check.
+// somebody else can never be answered for by the old bytes. Zero pairs are invalid.
 // See docs/02-access.md#token-lifetime.
 type Credential struct {
 	Name     string `json:"name"`
@@ -58,8 +57,6 @@ type TokenStore interface {
 type CredentialIndex interface {
 	// Pairs returns what every held credential answers for.
 	Pairs() map[string]CredentialPair
-	// Bind persists and publishes a pair for a credential issued unbound.
-	Bind(name string, p CredentialPair) error
 	// Rebind publishes a pair a committed Change has already written.
 	Rebind(name string, p CredentialPair)
 	// Discard stops a credential authenticating, with the sessions standing

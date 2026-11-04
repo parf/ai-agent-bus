@@ -77,7 +77,7 @@ func startNode(t *testing.T, path string) *node {
 	if err := n.bus.EstablishDaemonOwner("admin@h"); err != nil {
 		t.Fatal(err)
 	}
-	if n.tokens, err = auth.Load(st.Tokens(), "admin@h"); err != nil {
+	if n.tokens, err = auth.Load(st.Tokens()); err != nil {
 		t.Fatal(err)
 	}
 	n.srv = New(n.bus, n.tokens, "admin@h")

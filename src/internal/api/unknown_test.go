@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/parf/ai-agent-bus/internal/core"
+	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
@@ -24,6 +25,7 @@ import (
 func TestAnUnknownNameCannotActAndCannotBeIssuedACredential(t *testing.T) {
 	b := core.New()
 	s, token := serverFor(t, b, "admin@h")
+	token = withOrphanCredentials(t, s, token, "#ghost@h")
 	call := func(who, method, path, body string) (int, string) {
 		t.Helper()
 		r := httptest.NewRequest(method, path, strings.NewReader(body))
@@ -123,6 +125,7 @@ var privateRoutes = []string{
 func TestEveryPrivateRouteRefusesAnUnregisteredName(t *testing.T) {
 	b := core.New()
 	s, token := serverFor(t, b, "admin@h")
+	token = withOrphanCredentials(t, s, token, "#ghost@h")
 	leftover := token("#ghost@h")
 	session, err := s.tokens.StartSession("#ghost@h")
 	if err != nil {
@@ -158,4 +161,31 @@ func TestEveryPrivateRouteRefusesAnUnregisteredName(t *testing.T) {
 	if _, made := b.Lookup("admin@h", "#ghost@h"); made {
 		t.Fatal("probing left a record behind for a name nobody registered")
 	}
+}
+
+// Inject current-format credentials for IDs no longer held by the registry.
+// Normal minting cannot create these; the fixture models retained orphan rows.
+func withOrphanCredentials(t *testing.T, s *Server, normal func(string) string, names ...string) func(string) string {
+	t.Helper()
+	orphans := map[string]bool{}
+	for _, name := range names {
+		orphans[name] = true
+	}
+	return func(name string) string {
+		if _, err := s.bus.PairFor(name); err != nil && orphans[name] {
+			value, err := s.tokens.IssuePair(name, orphanPair(name))
+			if err != nil {
+				t.Fatal(err)
+			}
+			return value
+		}
+		return normal(name)
+	}
+}
+func orphanPair(name string) ports.CredentialPair {
+	pair := ports.CredentialPair{UserID: 1000000}
+	if protocol.IsAgentName(name) {
+		pair.AgentID = 1000001
+	}
+	return pair
 }

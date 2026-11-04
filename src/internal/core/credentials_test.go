@@ -12,15 +12,13 @@ import (
 type index struct {
 	mu        sync.Mutex
 	held      map[string]ports.CredentialPair
-	bound     map[string]ports.CredentialPair
 	rebound   map[string]ports.CredentialPair
 	discarded []string
 	pairOf    func(string) (ports.CredentialPair, error)
-	bindErr   error
 }
 
 func newIndex() *index {
-	return &index{held: map[string]ports.CredentialPair{}, bound: map[string]ports.CredentialPair{}, rebound: map[string]ports.CredentialPair{}}
+	return &index{held: map[string]ports.CredentialPair{}, rebound: map[string]ports.CredentialPair{}}
 }
 
 func (x *index) Pairs() map[string]ports.CredentialPair {
@@ -31,15 +29,6 @@ func (x *index) Pairs() map[string]ports.CredentialPair {
 		out[n] = p
 	}
 	return out
-}
-func (x *index) Bind(name string, p ports.CredentialPair) error {
-	x.mu.Lock()
-	defer x.mu.Unlock()
-	if x.bindErr != nil {
-		return x.bindErr
-	}
-	x.bound[name], x.held[name] = p, p
-	return nil
 }
 func (x *index) Rebind(name string, p ports.CredentialPair) {
 	x.mu.Lock()
@@ -66,10 +55,7 @@ func mustPair(t *testing.T, b *Bus, name string) ports.CredentialPair {
 	return p
 }
 
-// A corrupt credential row is never repaired (K.29): an Agent's credential
-// with an empty pair is ignored and reported, not bound, while a User's — the
-// daemon Owner's first — is bound; and an issue over a row ignored as corrupt
-// is said, not silent.
+// No zero pair is converted into authority, for either a User or an Agent.
 func TestACorruptCredentialRowIsNeverRepairedSilently(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
@@ -80,20 +66,23 @@ func TestACorruptCredentialRowIsNeverRepairedSilently(t *testing.T) {
 	idx.held["#svc@h"] = ports.CredentialPair{}
 	idx.held["alice@h"] = ports.CredentialPair{}
 	b.BindCredentials(idx)
-	if _, bound := idx.bound["#svc@h"]; bound {
+	if _, held := idx.held["#svc@h"]; held {
 		t.Fatal("an agent's empty pair was bound")
 	}
-	if !rep.has("stored credential for #svc@h is ignored: an agent's credential is issued bound") {
+	if !rep.has("stored credential for #svc@h is ignored:") {
 		t.Fatalf("the empty agent pair was not reported: %v", rep.lines)
 	}
-	if _, bound := idx.bound["alice@h"]; !bound {
-		t.Fatal("a User's credential issued unbound was not bound")
+	if _, held := idx.held["alice@h"]; held {
+		t.Fatal("a zero-pair user credential remained usable")
+	}
+	if err := b.CheckCredential("alice@h", ports.CredentialPair{}); !errors.Is(err, ErrStaleCredential) {
+		t.Fatalf("zero user pair accepted: %v", err)
 	}
 	// Presented, an agent's empty pair authenticates nothing and binds nothing.
 	if err := b.CheckCredential("#svc@h", ports.CredentialPair{}); !errors.Is(err, ErrStaleCredential) {
 		t.Fatalf("an agent's empty pair authenticated: %v", err)
 	}
-	if _, bound := idx.bound["#svc@h"]; bound {
+	if _, held := idx.held["#svc@h"]; held {
 		t.Fatal("checking the empty pair bound it")
 	}
 	// Issuing again over the ignored row is a repair somebody asked for, and said.

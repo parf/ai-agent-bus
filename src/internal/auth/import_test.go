@@ -9,7 +9,7 @@ import (
 )
 
 func TestImportedCredentialsPublishOnlyAfterCommitAndSerializeRotation(t *testing.T) {
-	tokens, e := Load(memory.NewTokens(), "owner@h")
+	tokens, e := testTokens(memory.NewTokens(), "owner@h")
 	if e != nil {
 		t.Fatal(e)
 	}

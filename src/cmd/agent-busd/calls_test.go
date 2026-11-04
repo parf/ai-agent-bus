@@ -20,7 +20,7 @@ func TestCallCounterCoversListenersRefusalsAndItsOwnRead(t *testing.T) {
 	var calls atomic.Uint64
 	history := callstats.New(&calls)
 	history.Sample(time.Now())
-	tokens, err := auth.Load(memory.NewTokens(), "owner@h")
+	tokens, err := auth.Load(memory.NewTokens())
 	if err != nil {
 		t.Fatal(err)
 	}

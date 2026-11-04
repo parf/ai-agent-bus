@@ -13,6 +13,7 @@ import (
 func TestIdentityCleanupRechecksAuthorityAndCurrentState(t *testing.T) {
 	b := core.New()
 	s, token := serverFor(t, b, "owner@h")
+	token = withOrphanCredentials(t, s, token, "#unused@h", "#unrelated@h")
 	// An administrator is a User first (docs/01-identity-and-authority.md#daemon-administrators).
 	if _, err := b.SetUser("owner@h", protocol.User{Name: "maintainer@h"}, true); err != nil {
 		t.Fatal(err)
@@ -32,7 +33,7 @@ func TestIdentityCleanupRechecksAuthorityAndCurrentState(t *testing.T) {
 		return w.Body.Bytes()
 	}
 	previous := token("#unused@h")
-	current, err := s.tokens.Rotate("#unused@h")
+	current, err := s.tokens.RotatePair("#unused@h", orphanPair("#unused@h"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -20,6 +20,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/parf/ai-agent-bus/internal/auth"
 	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/tlsdir"
 )
@@ -180,6 +181,9 @@ func supervisorAccounts(c config) (accounts, error) {
 		return accounts{}, err
 	}
 	snapshot, err := st.Load()
+	if err == nil {
+		_, err = auth.Load(st.Tokens())
+	}
 	st.Close() // the bus child takes the database next, exclusively
 	if err != nil {
 		return accounts{}, err

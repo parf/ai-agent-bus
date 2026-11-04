@@ -27,7 +27,7 @@ func (h *heard) Report(sev ports.Severity, msg string) {
 // only the caller (K.33).
 func TestAStoreThatRefusesACredentialWriteIsReported(t *testing.T) {
 	store := memory.NewTokens()
-	tokens, err := Load(store, "owner@h")
+	tokens, err := testTokens(store, "owner@h")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,9 +44,6 @@ func TestAStoreThatRefusesACredentialWriteIsReported(t *testing.T) {
 	store.Err = errors.New("disk full")
 	// These two report themselves: the daemon's caller adds nothing
 	// (issues/done/2026-10/2026-10-17.md#B4).
-	if err := tokens.Bind("carol@h", ports.CredentialPair{}); err == nil {
-		t.Fatal("a binding the store refused succeeded")
-	}
 	if err := tokens.FlushUsed(); err == nil {
 		t.Fatal("a last-use flush the store refused succeeded")
 	}
@@ -57,7 +54,7 @@ func TestAStoreThatRefusesACredentialWriteIsReported(t *testing.T) {
 		t.Fatal("a removal the store refused succeeded")
 	}
 	got := strings.Join(h.lines, "\n")
-	for _, want := range []string{"the token store refused the issue of alice@h's credential: disk full", "the token store refused the removal of owner@h's credential", "the token store refused the binding of carol@h's credential", "the token store refused a write of last-use times"} {
+	for _, want := range []string{"the token store refused the issue of alice@h's credential: disk full", "the token store refused the removal of owner@h's credential", "the token store refused a write of last-use times"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("not reported: %q in\n%s", want, got)
 		}

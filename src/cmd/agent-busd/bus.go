@@ -83,6 +83,11 @@ func runBus(c config) {
 			fatal("database %s: %v", c.db, err)
 		}
 	}
+	tokens, err := auth.Load(st.Tokens())
+	if err != nil {
+		fatal("token: %v", err)
+	}
+	tokens.Journal(logs)
 	// Bound before the first write, so setup's seed below commits like any
 	// other change.
 	bus.Persistence(st)
@@ -106,11 +111,6 @@ func runBus(c config) {
 	bindBigKeys(bus, filepath.Dir(c.db), st)
 	bus.PruneBigOrphans()
 	owner := bus.DaemonOwner()
-	tokens, err := auth.Load(st.Tokens(), owner)
-	if err != nil {
-		fatal("token: %v", err)
-	}
-	tokens.Journal(logs)
 	// Written straight away and not clean: the next start needs to tell a
 	// first one from one that follows a death, and only the database can.
 	save := func(clean bool) {

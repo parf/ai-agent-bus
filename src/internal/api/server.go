@@ -178,8 +178,7 @@ func New(bus *core.Bus, tokens *auth.Tokens, owner string) *Server {
 	if err := bus.EstablishDaemonOwner(owner); err != nil {
 		panic(err)
 	}
-	// After the owner is established, so the owner's own credential binds
-	// rather than being ignored as answering for nobody.
+	// Credentials are checked against already established principal IDs.
 	bus.BindCredentials(tokens)
 	return &Server{bus: bus, tokens: tokens, locks: locks.New()}
 }

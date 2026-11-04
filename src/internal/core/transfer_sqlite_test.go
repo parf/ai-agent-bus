@@ -28,7 +28,7 @@ func openTransferSQLite(t *testing.T, path string, create bool) (*Bus, *auth.Tok
 	if e = b.EstablishDaemonOwner("owner@source"); e != nil {
 		t.Fatal(e)
 	}
-	tokens, e := auth.Load(store.Tokens(), "owner@source")
+	tokens, e := auth.Load(store.Tokens())
 	if e != nil {
 		t.Fatal(e)
 	}

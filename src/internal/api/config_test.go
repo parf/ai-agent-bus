@@ -18,7 +18,7 @@ import (
 // now, so a test cannot state one without the other — which is the point.
 func serverFor(t *testing.T, bus *core.Bus, owner string) (*Server, func(string) string) {
 	t.Helper()
-	tokens, err := auth.Load(memory.NewTokens(), owner)
+	tokens, err := auth.Load(memory.NewTokens())
 	if err != nil {
 		t.Fatal(err)
 	}
