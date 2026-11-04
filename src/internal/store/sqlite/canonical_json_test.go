@@ -14,7 +14,7 @@ func TestStoredRecordJSONRefusesUnsupportedMembers(t *testing.T) {
 		"reading":           `{"name":"a@h","kind":"queue","reading":false}`,
 		"unknown":           `{"name":"a@h","kind":"queue","retired":true}`,
 		"case":              `{"Name":"a@h","kind":"queue"}`,
-		"duplicate":         `{"name":"a@h","name":"b@h","kind":"queue"}`,
+		"duplicate":         `{"name":"a@h","name":"a@h","kind":"queue"}`,
 		"scalar maintainer": `{"name":"a@h","kind":"queue","maintainers":"owner@h"}`,
 	} {
 		t.Run(name, func(t *testing.T) {
