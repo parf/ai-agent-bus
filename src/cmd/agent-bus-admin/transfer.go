@@ -27,7 +27,8 @@ type transferArgs struct {
 func parseTransfer(verb string, args []string) (transferArgs, error) {
 	var o transferArgs
 	o.choices.RenameRealm = map[string]string{}
-	for _, arg := range args {
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
 		key, val, eq := strings.Cut(arg, "=")
 		if verb == "import" && key == "--dry-run" && !eq {
 			o.choices.DryRun = true
@@ -37,8 +38,13 @@ func parseTransfer(verb string, args []string) (transferArgs, error) {
 			o.archive = arg
 			continue
 		}
+		if !eq && strings.HasPrefix(key, "--") && i+1 < len(args) && !strings.HasPrefix(args[i+1], "--") {
+			i++
+			val = args[i]
+			eq = true
+		}
 		if !eq || val == "" {
-			return o, fmt.Errorf("expected --name=value: %s", key)
+			return o, fmt.Errorf("expected --name=value or --name value: %s", key)
 		}
 		if verb == "export" {
 			switch key {

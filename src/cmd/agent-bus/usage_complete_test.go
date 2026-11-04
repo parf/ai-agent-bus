@@ -84,16 +84,16 @@ func TestShortAliasesAreInHelpAndStillParse(t *testing.T) {
 			return true
 		})
 	}
-	if !strings.Contains(verbUsage("ls"), "-h, --table") {
+	if !strings.Contains(verbUsage("ls"), "--table") {
 		t.Fatal("ls short alias is hidden")
 	}
-	if !strings.Contains(verbUsage("token"), "-h, --help") {
+	if !strings.Contains(verbUsage("token"), "--help") {
 		t.Fatal("token help alias is hidden")
 	}
 	if !strings.Contains(verbUsage("run"), "-N") {
 		t.Fatal("numeric concurrency form is hidden")
 	}
-	a, e := describe([]string{"fixture", "/bin/true", "-4"})
+	a, e := describe([]string{"#fixture", "/bin/true", "-4"})
 	if e != nil || a.Instances != 4 {
 		t.Fatalf("numeric short form %v %+v", e, a)
 	}
@@ -101,7 +101,7 @@ func TestShortAliasesAreInHelpAndStillParse(t *testing.T) {
 
 func TestOldUsageFactsStayOnTheirCommandPages(t *testing.T) {
 	facts := map[string][]string{
-		"ls":       {"agents being read now", "<name> shows one record", "-h, --table", "default JSON"},
+		"ls":       {"agents being read now", "<name> shows one record", "--table", "default JSON"},
 		"register": {"external service", "--service-addr and --protocol", "resource card", "who may see and use"},
 		"run":      {"JSON from stdin", "Confinement is off", "no network unless --network", "AB_ROLE_<NAME>=1", "AGENT_BUS_CONFIG"},
 		"manage":   {"--add appends", "--add-to-set adds without duplicates", "--remove removes", "empty value clears"},

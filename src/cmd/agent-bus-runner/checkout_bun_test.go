@@ -16,7 +16,6 @@ import (
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/auth"
 	"github.com/parf/ai-agent-bus/internal/core"
-	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/sandbox"
 	"github.com/parf/ai-agent-bus/internal/store/memory"
@@ -82,7 +81,9 @@ func checkoutBunAgent(t *testing.T, agent string) {
 	// bus uses a bound Unix socket; there is no shared network or host route.
 	const provider = "http://127.0.0.1:34567"
 	b := core.New()
-	b.Restore(ports.Snapshot{Clean: true, Users: []protocol.User{{Name: "owner@h", Status: "active"}}, Records: []protocol.Record{{Name: "owner@h", Kind: protocol.KindUser, Owner: "owner@h", Full: protocol.OverflowStrict}}})
+	if err := b.EstablishDaemon("owner@h", nil); err != nil {
+		t.Fatal(err)
+	}
 	b.Persistence(memory.NewState())
 	const name = "#fixture@h"
 	if _, err := b.Register(protocol.Record{Name: name, Kind: protocol.KindAgent, Owner: "owner@h", Allow: []string{"@owner"}}); err != nil {
@@ -100,7 +101,7 @@ func checkoutBunAgent(t *testing.T, agent string) {
 	if _, err := b.Configure(name, "owner@h", []byte(`{}`)); err != nil {
 		t.Fatal(err)
 	}
-	tokens, err := auth.Load(memory.NewTokens(), "owner@h")
+	tokens, err := auth.Load(memory.NewTokens())
 	if err != nil {
 		t.Fatal(err)
 	}

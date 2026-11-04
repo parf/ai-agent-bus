@@ -13,8 +13,6 @@ import (
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/auth"
 	"github.com/parf/ai-agent-bus/internal/core"
-	"github.com/parf/ai-agent-bus/internal/ports"
-	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/store/memory"
 )
 
@@ -97,17 +95,19 @@ func TestCLIProtocolHandshake(t *testing.T) {
 }
 func TestCLIRealDaemonProtocolAndRemovedRoute(t *testing.T) {
 	bus := core.New()
-	bus.Restore(ports.Snapshot{Clean: true, Users: []protocol.User{{Name: "owner@fixture", Status: "active"}}, Records: []protocol.Record{{Name: "owner@fixture", Owner: "owner@fixture", Kind: protocol.KindUser, Tags: []string{"personal"}, Full: protocol.OverflowStrict}}})
-	bus.Persistence(memory.NewState())
-	tokens, err := auth.Load(memory.NewTokens(), "owner@fixture")
-	if err != nil {
+	if err := bus.EstablishDaemon("owner@fixture", nil); err != nil {
 		t.Fatal(err)
 	}
-	token, err := tokens.Issue("owner@fixture")
+	bus.Persistence(memory.NewState())
+	tokens, err := auth.Load(memory.NewTokens())
 	if err != nil {
 		t.Fatal(err)
 	}
 	daemon := api.New(bus, tokens, "owner@fixture")
+	token, err := tokens.Issue("owner@fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer daemon.Close()
 	server := httptest.NewServer(daemon.Handler())
 	defer server.Close()

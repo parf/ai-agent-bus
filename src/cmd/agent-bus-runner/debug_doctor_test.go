@@ -23,7 +23,7 @@ import (
 func TestDebugDoctorRealBus(t *testing.T) {
 	b := core.New()
 	b.Persistence(memory.NewState())
-	tokens, err := auth.Load(memory.NewTokens(), "owner@h")
+	tokens, err := auth.Load(memory.NewTokens())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -96,6 +96,16 @@ EXAMPLES
 SEE ALSO
   ` + display.SourceURL + `/docs/runner/configuration.md`
 
+func parseRunnerFlags(fs *flag.FlagSet, args []string) error {
+	if err := display.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() != 0 {
+		return fmt.Errorf("agent-bus-runner takes no positional arguments")
+	}
+	return nil
+}
+
 func main() {
 	if version.Print() {
 		return
@@ -104,7 +114,7 @@ func main() {
 	agents := flag.String("agents", "/var/lib/agent-bus/agent.d", "the shared directory of agent code")
 	host := flag.String("host", "", "the runner account's private directory (required)")
 	flag.Usage = func() { fmt.Fprintln(os.Stderr, "agent-bus-runner "+version.String+usage+"\n\n"+display.Footer()) }
-	if err := display.ParseFlags(flag.CommandLine, os.Args[1:]); err != nil {
+	if err := parseRunnerFlags(flag.CommandLine, os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}

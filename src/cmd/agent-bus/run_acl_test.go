@@ -18,8 +18,8 @@ func TestRunnerSharingIsExplicit(t *testing.T) {
 		entries  int
 		personal bool
 	}{
-		{[]string{"echo@h", "echo ok"}, 0, false},
-		{[]string{"echo@h", "echo ok", "--allow", "peer@h", "--tags", "personal"}, 1, true},
+		{[]string{"#echo@h", "echo ok"}, 0, false},
+		{[]string{"#echo@h", "echo ok", "--allow", "peer@h", "--tags", "personal"}, 1, true},
 	} {
 		ag, err := describe(tc.args)
 		if err != nil {
@@ -35,7 +35,7 @@ func TestRunnerSharingIsExplicit(t *testing.T) {
 }
 
 func TestRemovedMasterOptionsAreRejected(t *testing.T) {
-	if _, err := describe([]string{"echo@h", "echo ok", "--no-master"}); err == nil || !strings.Contains(err.Error(), "unknown option --no-master") {
+	if _, err := describe([]string{"#echo@h", "echo ok", "--no-master"}); err == nil || !strings.Contains(err.Error(), "unknown option --no-master") {
 		t.Fatalf("removed runner flag was accepted: %v", err)
 	}
 	if err := register([]string{"svc@h", "--kind", "agent", "--no-master"}); err == nil || !strings.Contains(err.Error(), "unknown option --no-master") {
@@ -43,7 +43,7 @@ func TestRemovedMasterOptionsAreRejected(t *testing.T) {
 	}
 
 	path := filepath.Join(t.TempDir(), "agent.json")
-	if err := os.WriteFile(path, []byte(`{"name":"echo@h","script":"echo ok","no_master":true}`), 0600); err != nil {
+	if err := os.WriteFile(path, []byte(`{"name":"#echo@h","script":"echo ok","no_master":true}`), 0600); err != nil {
 		t.Fatal(err)
 	}
 	input, err := os.Open(path)
@@ -81,10 +81,10 @@ func TestRunnerRegistrationCarriesExplicitSharing(t *testing.T) {
 			}))
 			defer server.Close()
 			transport = func() (*http.Client, string) { return server.Client(), server.URL }
-			args := []string{"echo@h", "echo ok", "--allow", "peer@h", "--tags", "Build-Notes,claude,personal"}
+			args := []string{"#echo@h", "echo ok", "--allow", "peer@h", "--tags", "Build-Notes,claude,personal"}
 			if jsonInput {
 				path := filepath.Join(t.TempDir(), "agent.json")
-				if err := os.WriteFile(path, []byte(`{"name":"echo@h","script":"echo ok","allow":["peer@h"],"tags":["Build-Notes,claude,personal"]}`), 0600); err != nil {
+				if err := os.WriteFile(path, []byte(`{"name":"#echo@h","script":"echo ok","allow":["peer@h"],"tags":["Build-Notes,claude,personal"]}`), 0600); err != nil {
 					t.Fatal(err)
 				}
 				input, err := os.Open(path)
@@ -116,21 +116,15 @@ func TestRunnerRegistrationCarriesExplicitSharing(t *testing.T) {
 	}
 }
 
-// A plainly written name is the agent's: `run hi@demo` publishes #hi@demo,
-// and a name that already carries its # is left exactly as it came.
-func TestAPlainRunnerNameGainsItsHash(t *testing.T) {
-	for _, tc := range []struct{ in, want string }{
-		{"hi@demo", "#hi@demo"},
-		{"hi", "#hi"},
-		{"#hi@demo", "#hi@demo"},
-	} {
-		ag, err := describe([]string{tc.in, "echo ok"})
-		if err != nil {
-			t.Fatal(err)
+func TestRunRequiresExplicitAgentName(t *testing.T) {
+	for _, name := range []string{"hi", "hi@demo"} {
+		if _, err := describe([]string{name, "echo ok"}); err == nil {
+			t.Fatalf("inferred agent prefix for %s", name)
 		}
-		if ag.Name != tc.want {
-			t.Errorf("run %s registered as %s, want %s", tc.in, ag.Name, tc.want)
-		}
+	}
+	ag, err := describe([]string{"#hi@demo", "echo ok", "-4"})
+	if err != nil || ag.Name != "#hi@demo" || ag.Instances != 4 {
+		t.Fatalf("canonical name/concurrency: %+v %v", ag, err)
 	}
 }
 

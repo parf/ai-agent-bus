@@ -17,7 +17,6 @@ import (
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/auth"
 	"github.com/parf/ai-agent-bus/internal/core"
-	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/sandbox"
 	"github.com/parf/ai-agent-bus/internal/store/memory"
@@ -50,7 +49,9 @@ func TestWebhookKeeperBindsHostLoopbackAndStopsBeforeReplacement(t *testing.T) {
 		t.Fatalf("webhook kept network contract lost: refused=%q serves=%q span=%+v network=%v", in.Refused, in.Agent.Serves, in.Span, wantsNet(in))
 	}
 	b := core.New()
-	b.Restore(ports.Snapshot{Clean: true, Users: []protocol.User{{Name: "owner@h", Status: "active"}}, Records: []protocol.Record{{Name: "owner@h", Kind: protocol.KindUser, Owner: "owner@h", Full: protocol.OverflowStrict}}})
+	if err := b.EstablishDaemon("owner@h", nil); err != nil {
+		t.Fatal(err)
+	}
 	b.Persistence(memory.NewState())
 	for _, rec := range []protocol.Record{{Name: "#fixture@h", Kind: protocol.KindAgent, Owner: "owner@h", Allow: []string{"@owner"}}, {Name: "events@h", Kind: protocol.KindQueue, Owner: "owner@h", Allow: []string{"#fixture@h"}}} {
 		if _, err = b.Register(rec); err != nil {
@@ -61,7 +62,7 @@ func TestWebhookKeeperBindsHostLoopbackAndStopsBeforeReplacement(t *testing.T) {
 	if _, err = b.Configure("#fixture@h", "owner@h", cfg); err != nil {
 		t.Fatal(err)
 	}
-	tokens, err := auth.Load(memory.NewTokens(), "owner@h")
+	tokens, err := auth.Load(memory.NewTokens())
 	if err != nil {
 		t.Fatal(err)
 	}

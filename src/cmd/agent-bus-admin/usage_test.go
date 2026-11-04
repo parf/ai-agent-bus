@@ -96,7 +96,7 @@ func TestAdminPagesAreComplete(t *testing.T) {
 			t.Fatal("empty details")
 		}
 	}
-	if !strings.Contains(usage, "-h, --help") || !strings.Contains(usage, "no shell") {
+	if !strings.Contains(usage, "--help") || !strings.Contains(usage, "no shell") {
 		t.Fatal("lost short help or SSH restriction")
 	}
 }

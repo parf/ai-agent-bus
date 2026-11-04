@@ -24,7 +24,7 @@ import (
 // last tag (three records) or all of them cannot pass.
 func TestRepeatedTagOptionsSelectRecordsCarryingEveryTag(t *testing.T) {
 	b := core.New()
-	tokens, err := auth.Load(memory.NewTokens(), "owner@h")
+	tokens, err := auth.Load(memory.NewTokens())
 	if err != nil {
 		t.Fatal(err)
 	}

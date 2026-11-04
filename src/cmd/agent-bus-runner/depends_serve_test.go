@@ -20,7 +20,7 @@ import (
 // them back in key order.
 func TestTheRunnerAdoptsAgentsInDependencyOrder(t *testing.T) {
 	b := core.New()
-	tokens, err := auth.Load(memory.NewTokens(), "owner@h")
+	tokens, err := auth.Load(memory.NewTokens())
 	if err != nil {
 		t.Fatal(err)
 	}

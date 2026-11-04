@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -166,5 +168,46 @@ func TestLoadRejectsLinkedAuthorManifest(t *testing.T) {
 	}
 	if len(got) != 1 || !strings.Contains(got[0].Refused, "agent.json") || got[0].Agent.Description != "" {
 		t.Fatal("linked author manifest loaded instead of being refused")
+	}
+}
+
+func TestRunnerRefusesRetiredInventoryFields(t *testing.T) {
+	for _, field := range []string{"version", "origin", "first_started", "last_started"} {
+		var entry hostEntry
+		if err := strictData("agents.json", []byte(`{"`+field+`":null}`), &entry); err == nil {
+			t.Fatalf("accepted retired %s", field)
+		}
+	}
+	var entry hostEntry
+	if err := strictData("agents.json", []byte(`{"enabled":true,"tags":["ops"],"name":"#worker@h","limits":{"memory":"64M"}}`), &entry); err != nil {
+		t.Fatal(err)
+	}
+	if entry.Enabled == nil || !*entry.Enabled || entry.Name != "#worker@h" {
+		t.Fatalf("current settings lost: %+v", entry)
+	}
+}
+
+func TestRunnerInventoryUsesExactUniqueFields(t *testing.T) {
+	for _, body := range []string{`{"Enabled":true}`, `{"enabled":true,"enabled":false}`, `{"enabled":true} {}`} {
+		var entry hostEntry
+		if err := strictData("agents.json", []byte(body), &entry); err == nil {
+			t.Fatalf("accepted noncanonical inventory %s", body)
+		}
+	}
+}
+
+func TestRunnerFlagsRejectTrailingArgumentsBeforeStartup(t *testing.T) {
+	for _, args := range [][]string{{"--host=/tmp/fixture", "junk", "-old"}, {"--host=/tmp/fixture", "--", "junk"}, {"-host=/tmp/fixture"}, {"-h"}} {
+		fs := flag.NewFlagSet("runner", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		fs.String("host", "", "")
+		if err := parseRunnerFlags(fs, args); err == nil {
+			t.Fatalf("accepted %q", args)
+		}
+	}
+	fs := flag.NewFlagSet("runner", flag.ContinueOnError)
+	host := fs.String("host", "", "")
+	if err := parseRunnerFlags(fs, []string{"--host", "/tmp/fixture"}); err != nil || *host != "/tmp/fixture" {
+		t.Fatalf("current flag: %q %v", *host, err)
 	}
 }

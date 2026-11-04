@@ -64,13 +64,13 @@ func switchRefusal(addr string) error {
 // usage opens with the program and its version, like every agent-bus program.
 var usage = "agent-bus-admin " + version.String + display.ManText(usageText) + "\n\n" + display.Footer()
 
-const adminGlobals = "\n\nGLOBAL OPTIONS\n  -h, --help  Show program help; use alone\n  --version  Print version and build; use alone"
+const adminGlobals = "\n\nGLOBAL OPTIONS\n  --help  Show program help; use alone\n  --version  Print version and build; use alone"
 
 const usageText = ` — manage this node · ` + display.Homepage + `
 
 USAGE
   agent-bus-admin <command> [<args>]
-  agent-bus-admin -h, --help | --version
+  agent-bus-admin --help | --version
 
 DESCRIPTION
   Run this node: enrol people and their SSH keys, map local accounts, hand

@@ -15,7 +15,7 @@ func TestHumanResourceListDoesNotInventAQueue(t *testing.T) {
 	saved := transport
 	transport = func() (*http.Client, string) { return server.Client(), server.URL }
 	defer func() { transport = saved }()
-	out := captureOutput(t, func() error { return ls([]string{"-h", "--all"}) })
+	out := captureOutput(t, func() error { return ls([]string{"--table", "--all"}) })
 	for _, line := range strings.Split(out, "\n") {
 		fields := strings.Fields(line)
 		if len(fields) > 0 && fields[0] == "manual@h" {

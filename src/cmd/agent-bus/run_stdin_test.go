@@ -108,8 +108,8 @@ func TestRunDefaultsToArgsAndKeepsExplicitJSON(t *testing.T) {
 		args []string
 		want string
 	}{
-		{[]string{"hello", "/bin/echo"}, "args"},
-		{[]string{"hello", "--algo=json", "/bin/echo"}, "json"},
+		{[]string{"#hello", "/bin/echo"}, "args"},
+		{[]string{"#hello", "--algo=json", "/bin/echo"}, "json"},
 	} {
 		ag, err := describe(tc.args)
 		if err != nil || ag.Algo != tc.want {
@@ -119,8 +119,8 @@ func TestRunDefaultsToArgsAndKeepsExplicitJSON(t *testing.T) {
 	saved := os.Stdin
 	defer func() { os.Stdin = saved }()
 	for _, body := range []struct{ input, want string }{
-		{`{"name":"hello","script":"/bin/echo"}`, "args"},
-		{`{"name":"hello","script":"/bin/echo","algo":"json"}`, "json"},
+		{`{"name":"#hello","script":"/bin/echo"}`, "args"},
+		{`{"name":"#hello","script":"/bin/echo","algo":"json"}`, "json"},
 	} {
 		path := filepath.Join(t.TempDir(), "input.json")
 		if err := os.WriteFile(path, []byte(body.input), 0600); err != nil {

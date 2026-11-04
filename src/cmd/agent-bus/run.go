@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/envfile"
+	"github.com/parf/ai-agent-bus/internal/jsonshape"
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/proctitle"
 	"github.com/parf/ai-agent-bus/internal/protocol"
@@ -268,9 +269,7 @@ func describe(args []string) (agent, error) {
 		return ag, errors.New(runUsage)
 	}
 	if fromStdin {
-		decoder := json.NewDecoder(os.Stdin)
-		decoder.DisallowUnknownFields()
-		if err := decoder.Decode(&ag); err != nil {
+		if err := jsonshape.Decode(os.Stdin, &ag); err != nil {
 			return ag, fmt.Errorf("bad agent JSON on stdin: %w", err)
 		}
 	} else {

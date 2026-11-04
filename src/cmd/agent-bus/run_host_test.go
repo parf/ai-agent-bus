@@ -24,7 +24,7 @@ func TestAgentBusRunStatesItsHostOnItsReads(t *testing.T) {
 		t.Skipf("this machine's hostname states no host: %s", why)
 	}
 	b := core.New()
-	tokens, err := auth.Load(memory.NewTokens(), "owner@h")
+	tokens, err := auth.Load(memory.NewTokens())
 	if err != nil {
 		t.Fatal(err)
 	}

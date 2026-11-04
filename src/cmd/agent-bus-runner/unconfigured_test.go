@@ -36,7 +36,7 @@ func configurationFixtureOutput(t *testing.T, serves, body string, output io.Wri
 func configurationFixtureTokens(t *testing.T, serves, body string, output io.Writer, sandboxName ...string) (*runner, *core.Bus, string, *auth.Tokens) {
 	t.Helper()
 	b := core.New()
-	tokens, err := auth.Load(memory.NewTokens(), "owner@h")
+	tokens, err := auth.Load(memory.NewTokens())
 	if err != nil {
 		t.Fatal(err)
 	}

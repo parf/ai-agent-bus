@@ -22,7 +22,7 @@ import (
 // it, so nothing the runner reads on the agent's behalf is ever an answer to it.
 func TestRunnerEventsReachTheAgentsLogAndLeaveItsInboxEmpty(t *testing.T) {
 	b := core.New()
-	tokens, err := auth.Load(memory.NewTokens(), "owner@h")
+	tokens, err := auth.Load(memory.NewTokens())
 	if err != nil {
 		t.Fatal(err)
 	}

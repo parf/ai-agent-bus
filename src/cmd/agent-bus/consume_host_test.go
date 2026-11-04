@@ -21,7 +21,7 @@ import (
 // the host, so the mistake is not silently dropped.
 func TestConsumeHostIsStatedAndRefusedByName(t *testing.T) {
 	b := core.New()
-	tokens, err := auth.Load(memory.NewTokens(), "owner@h")
+	tokens, err := auth.Load(memory.NewTokens())
 	if err != nil {
 		t.Fatal(err)
 	}

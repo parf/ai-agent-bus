@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -14,6 +13,7 @@ import (
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/agentmeta"
+	"github.com/parf/ai-agent-bus/internal/jsonshape"
 	"github.com/parf/ai-agent-bus/internal/ports"
 )
 
@@ -89,15 +89,10 @@ func strict(path string, into any) error {
 }
 
 func strictData(path string, b []byte, into any) error {
-	d := json.NewDecoder(bytes.NewReader(b))
-	d.DisallowUnknownFields()
-	if err := d.Decode(into); err != nil {
+	if err := jsonshape.Decode(bytes.NewReader(b), into); err != nil {
 		return fmt.Errorf("%s: %w", filepath.Base(path), err)
 	}
-	var trailing any
-	if err := d.Decode(&trailing); err != io.EOF {
-		return fmt.Errorf("%s: more than one JSON value", filepath.Base(path))
-	}
+
 	return nil
 }
 

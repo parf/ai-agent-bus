@@ -45,15 +45,6 @@ func runDir() string {
 // would otherwise make it two.
 func segment(name string) string { return strings.ReplaceAll(name, "/", "%") }
 
-// Script agents may be named with or without the leading # at the CLI.
-// start canonicalizes the name before writing its local note and log.
-func scriptAgentName(name string) string {
-	if name != "" && !strings.HasPrefix(name, "#") {
-		return "#" + name
-	}
-	return name
-}
-
 func notePath(name string) string {
 	return filepath.Join(runDir(), "agents", segment(name)+".json")
 }
@@ -98,7 +89,9 @@ func hold(name string) (*os.File, error) {
 // is still there. An agent killed outright leaves its note behind, so the
 // stale one is cleared here rather than reported as a running agent.
 func alive(name string) (running, error) {
-	name = scriptAgentName(name)
+	if !strings.HasPrefix(name, "#") {
+		return running{}, fmt.Errorf("use a complete #agent name")
+	}
 	path := notePath(name)
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -164,7 +157,7 @@ func stopVerb(args []string) error {
 		return err
 	}
 	defer process.Release()
-	if r.Name != scriptAgentName(pos[0]) || !ownsRunLock(r.Name, r.PID) {
+	if r.Name != pos[0] || !ownsRunLock(r.Name, r.PID) {
 		return fmt.Errorf("%s has a stale or unverifiable process note; not signalled", pos[0])
 	}
 	if err := process.Signal(syscall.SIGTERM); err != nil {
@@ -198,7 +191,10 @@ func logsVerb(args []string) error {
 		}
 		last = n
 	}
-	name := scriptAgentName(pos[0])
+	name := pos[0]
+	if !strings.HasPrefix(name, "#") {
+		return fmt.Errorf("use a complete #agent name")
+	}
 	path := logPath(name)
 	b, err := os.ReadFile(path)
 	if err != nil {

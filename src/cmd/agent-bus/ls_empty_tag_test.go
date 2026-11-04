@@ -23,7 +23,7 @@ import (
 // COUNTED), and #bus ls answers the same refusal instead of a listing.
 func TestAnEmptyTagValueIsRefusedNotDropped(t *testing.T) {
 	b := core.New()
-	tokens, err := auth.Load(memory.NewTokens(), "owner@h")
+	tokens, err := auth.Load(memory.NewTokens())
 	if err != nil {
 		t.Fatal(err)
 	}

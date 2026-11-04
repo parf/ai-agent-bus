@@ -37,7 +37,7 @@ func TestEveryVerbRefusesUnknownFlagsBeforeRequests(t *testing.T) {
 	defer server.Close()
 	cases := []string{
 		"status", "register fixture --kind agent", "unregister fixture", "lock fixture key", "try-lock fixture key", "release fixture key", "extend fixture key", "holders fixture",
-		"kv get fixture key", "kv set fixture key value", "kv delete fixture key", "kv inc fixture key", "kv json fixture key []", "ls", "send fixture text", "send --agent", "call fixture text", "consume --wait 1ms", "ack fixture", "done fixture", "reply --to fixture text", "channel create fixture", "publish --channel fixture text", "unsubscribe fixture", "agent-template fixture {}", "secret fixture TOKEN=x", "run fixture /bin/true --sandbox off", "stop fixture", "logs fixture", "manage fixture --descr text", "group @fixture member", "enrol fixture", "enroll fixture", "help", "-h", "--help", "--version", "-version",
+		"kv get fixture key", "kv set fixture key value", "kv delete fixture key", "kv inc fixture key", "kv json fixture key []", "ls", "send fixture text", "call fixture text", "consume --wait 1ms", "ack fixture", "done fixture", "reply --to fixture text", "publish --channel fixture text", "unsubscribe fixture", "config fixture {}", "secret fixture TOKEN=x", "run #fixture /bin/true --sandbox off", "stop fixture", "logs fixture", "manage fixture --descr text", "group @fixture member", "enrol fixture", "help", "--help", "--version",
 	}
 	for _, line := range cases {
 		t.Run(line, func(t *testing.T) {
@@ -158,7 +158,7 @@ func TestMissingValuedFlagsFailBeforeRequests(t *testing.T) {
 	var requests atomic.Int32
 	server := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { requests.Add(1); http.Error(w, "fixture boundary", 403) }))
 	defer server.Close()
-	for _, line := range []string{"send fixture text --topic", "send fixture text --tag --help", "call fixture text --wait", "register fixture --descr", "ls --kind", "consume --inbox", "logs fixture --lines", "enrol fixture --key", "run fixture /bin/true --algo"} {
+	for _, line := range []string{"send fixture text --topic", "send fixture text --tag --help", "call fixture text --wait", "register fixture --descr", "ls --kind", "consume --inbox", "logs fixture --lines", "enrol fixture --key", "run #fixture /bin/true --algo"} {
 		t.Run(line, func(t *testing.T) {
 			args := strings.Fields(line)
 			missing := args[len(args)-1]
