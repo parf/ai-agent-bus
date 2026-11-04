@@ -256,7 +256,7 @@ func addSamples() error {
 			kept = append(kept, g.name)
 			continue
 		}
-		if err := c.must("group "+g.name, "POST", "/group", map[string]any{"Name": g.name, "Members": g.members}); err != nil {
+		if err := c.must("group "+g.name, "POST", "/group", map[string]any{"name": g.name, "members": g.members}); err != nil {
 			return err
 		}
 		if err := c.must("describe "+g.name, "POST", "/manage", map[string]any{"name": g.name, "descr": g.descr}); err != nil {
@@ -314,7 +314,7 @@ func addSamples() error {
 			}
 		}
 		if r.config != "" && fresh[r.name] {
-			if err := c.mustAs(r.owner, "configuration of "+r.name, "POST", "/configure", map[string]any{"Name": r.name, "Config": json.RawMessage(r.config)}); err != nil {
+			if err := c.mustAs(r.owner, "configuration of "+r.name, "POST", "/configure", map[string]any{"name": r.name, "config": json.RawMessage(r.config)}); err != nil {
 				return err
 			}
 		}

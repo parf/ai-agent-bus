@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 )
 
@@ -42,7 +41,7 @@ func busRealm(bus realmBus) (string, error) {
 // runner and "-user" for the user-account one.
 func automaticRealm(bus realmBus, person, suffix string) (string, error) {
 	prefix := "#runner/" + person + suffix + "@"
-	code, out, err := bus.call("GET", "/ls?kind=agent&q="+url.QueryEscape("#runner/"+person), nil)
+	code, out, err := bus.call("GET", "/ls?kind=agent", nil)
 	if err != nil || code != http.StatusOK {
 		return "", fmt.Errorf("list the runners of %s: %d %v", person, code, err)
 	}

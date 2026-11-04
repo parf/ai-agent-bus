@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -44,6 +45,13 @@ func TestSamplesPreserveRealGroupsAndUsers(t *testing.T) {
 				http.Error(w, "bad fixture request", 400)
 				return
 			}
+			for key := range body {
+				if key != strings.ToLower(key) {
+					t.Errorf("noncanonical sample field %q", key)
+					http.Error(w, "unknown field", 400)
+					return
+				}
+			}
 			mu.Lock()
 			writes = append(writes, write{r.URL.Path, body})
 			mu.Unlock()
@@ -82,9 +90,6 @@ func TestSamplesPreserveRealGroupsAndUsers(t *testing.T) {
 	groupCreated, groupEmptied, userReactivated, userDeactivated := false, false, false, false
 	for _, got := range writes {
 		name, _ := got.body["name"].(string)
-		if name == "" {
-			name, _ = got.body["Name"].(string)
-		}
 		switch name {
 		case "real@h", "@undescribed", "@described":
 			t.Errorf("changed real data: %s %s", got.path, name)
