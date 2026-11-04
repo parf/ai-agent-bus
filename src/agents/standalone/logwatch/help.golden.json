@@ -150,16 +150,16 @@
         "type": "list",
         "help": "Absolute file patterns and/or syslog; new files start at EOF",
         "default": [
-          "/rd/var/log/**/*.log",
+          "/var/log/app/*.log",
           "syslog",
           "/var/log/nginx/*error*log"
         ]
       },
       "excludes": {
         "type": "list",
-        "help": "Absolute excluded file patterns; see guide for tail-all defaults",
+        "help": "Absolute excluded file patterns; none by default",
         "example": [
-          "/var/log/nginx/paperhouses-error.log"
+          "/var/log/app/debug.log"
         ]
       },
       "ring_size": {

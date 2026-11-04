@@ -1,4 +1,4 @@
-"""Unchanged cleanup from /rd/service/tail-ring-buffer/server."""
+"""Remove terminal escapes and unsafe control runs from log text."""
 import re
 import unicodedata
 

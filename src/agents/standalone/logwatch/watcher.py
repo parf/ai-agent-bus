@@ -14,12 +14,8 @@ import time
 
 from cleaning import clean_line
 
-DEFAULT_SOURCES = ['/rd/var/log/**/*.log', 'syslog', '/var/log/nginx/*error*log']
-DEFAULT_EXCLUDES = ['/rd/var/log/realmo.com_ai-query.log', '/rd/var/log/cron/realmo.com_ai-query.log',
- '/rd/var/log/realmo.com_ai-search-query.log', '/rd/var/log/cron/realmo.com_ai-search-query.log',
- '/rd/var/log/realmo.com_ai-*.log', '/rd/var/log/cron/realmo.com_ai-*.log',
- '/rd/var/log/realmo.com_realmo-ai-property-type.log', '/rd/var/log/realmo.com_realmo-ai-*.log',
- '/rd/var/log/cron/realmo.com_realmo-ai-*.log', '/var/log/nginx/paperhouses-error.log']
+DEFAULT_SOURCES = ['syslog']
+DEFAULT_EXCLUDES = []
 UNIT = re.compile(r'[A-Za-z0-9][A-Za-z0-9_.:@-]*\.(?:service|socket|timer|target|mount|path|scope|slice|automount|swap|device)\Z')
 
 
@@ -165,7 +161,7 @@ class Monitor:
                         continue
                     file = open(name, 'rb')
                     if not self.started:
-                        # tail-all initially reads ten lines; later discoveries start at EOF.
+                        # Startup reads ten lines; later discoveries start at EOF.
                         file.seek(0, 2)
                         start = max(0, file.tell() - self.config['startup_bytes'])
                         file.seek(start)

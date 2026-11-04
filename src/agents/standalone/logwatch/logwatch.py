@@ -21,7 +21,6 @@ from watcher import Monitor, Ring, configuration
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "shared"))
 from metadata import answer as metadata_answer, ASKS, dispatch
 import subscriptions as shared_subscriptions
-from subscription_migration import migrate
 PACKAGE = Path(__file__).resolve().parent
 
 FIELDS = {'tail': {'n'}, 'grep': {'query', 'n'}, 'since': {'age', 'n'}, 'mark': {'label'},
@@ -40,7 +39,6 @@ def parse(body):
         if method == 'sub':
             if not words: raise ValueError('sub takes add, list or delete')
             method += '.' + words.pop(0)
-        if method == 'sub.edit': raise ValueError('delete it and add it again')
         call = {'method': method}
         if method in ('tail', 'grep', 'since') and words and words[-1].isdigit() and (method == 'tail' or len(words) > 1):
             call['n'] = int(words.pop())
@@ -51,7 +49,6 @@ def parse(body):
             if words: call['filter'] = ' '.join(words); words = []
         if method == 'sub.delete' and len(words) == 1: call['id'] = words.pop()
         if words: raise ValueError('unexpected arguments')
-    if isinstance(call, dict) and call.get('method') == 'sub.edit': raise ValueError('delete it and add it again')
     if not isinstance(call, dict) or not isinstance(call.get('method'), str) or call['method'] not in FIELDS:
         raise ValueError('unknown method; ask help')
     method = call['method']
@@ -99,8 +96,19 @@ class Agent:
             self.log('forward queue full; line dropped')
 
     def load(self):
-        # No handler/forwarder starts until interrupted legacy moves are finished.
-        migrate(self.subscriptions, self.clock)
+        # Refuse unsupported formats before starting any reader or forwarder.
+        listing = self.subscriptions.kv.list()
+        for kind, items in listing.items():
+            if not isinstance(items, list):
+                raise ValueError('unsupported subscription state: listing')
+            for item in items:
+                name = item.get('name') if isinstance(item, dict) else None
+                if kind != 'json' or not isinstance(name, str) or not name.startswith('sub.') or not shared_subscriptions.ID.fullmatch(name[4:]):
+                    raise ValueError('unsupported subscription state: key')
+                row = self.subscriptions.kv.get(name, kind='json')
+                if not isinstance(row, dict) or set(row) != shared_subscriptions.FIELDS or row.get('id') != name[4:]:
+                    raise ValueError('unsupported subscription state: row')
+        self.subscriptions._load()
 
     def subscription(self, call, message):
         if call['method'] == 'sub.list':

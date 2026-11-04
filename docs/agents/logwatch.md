@@ -101,8 +101,8 @@ unset AGENT_BUS_TOKEN
 
 | Key | Meaning |
 |---|---|
-| `sources` | File patterns (`**` for subfolders) and/or `syslog`. Default `["/rd/var/log/**/*.log", "syslog", "/var/log/nginx/*error*log"]` |
-| `excludes` | File patterns to skip. Default: the built-in exclusion list for AI query logs and a noisy nginx error log; inspect the exact list with `--help-config` |
+| `sources` | File patterns (`**` for subfolders) and/or `syslog`. Default `["syslog"]` |
+| `excludes` | File patterns to skip. Default `[]` |
 | `journal` | Exact service names, or `"all"`. Default `[]`. `"all"` reads what the account may read; it grants no private journals |
 | `ring_size` | Lines kept, default `2000` (1–100000) |
 | `line_bytes` | Bytes per line including the truncation marker, default `16384` |
@@ -143,6 +143,8 @@ None.
 | warning | A subscription's send failed, or its send check was unavailable | Nothing if it clears; if it repeats, check the destination |
 
 ## Troubleshooting
+
+Unsupported subscription state formats stop startup without converting, deleting or replaying entries.
 
 | If you see | Do this |
 |---|---|
