@@ -314,12 +314,6 @@ func setup() (err error) {
 		{svcAccount, svcHome, "/bin/sh"},
 	} {
 		if _, err := user.Lookup(a.name); err == nil {
-			if a.name == svcAccount {
-				// Keep the current account shell consistent with its SSH entry point.
-				if err := repairSSHShell(a.name, a.shell); err != nil {
-					return err
-				}
-			}
 			continue
 		}
 		if err := run("useradd", "--system", "--home-dir", a.home, "--create-home",
@@ -558,22 +552,6 @@ func waitForSocket(path string, timeout time.Duration) error {
 		time.Sleep(50 * time.Millisecond)
 	}
 	return fmt.Errorf("daemon account socket did not become ready: %s", path)
-}
-
-// Do not overwrite an operator's custom shell when repairing the old default.
-func repairSSHShell(name, shell string) error {
-	entry, err := exec.Command("getent", "passwd", name).Output()
-	if err != nil {
-		return fmt.Errorf("read %s account shell: %w", name, err)
-	}
-	fields := strings.Split(strings.TrimSpace(string(entry)), ":")
-	if len(fields) != 7 || fields[0] != name {
-		return fmt.Errorf("invalid passwd entry for %s", name)
-	}
-	if fields[6] == "/usr/sbin/nologin" || fields[6] == "/sbin/nologin" {
-		return run("usermod", "--shell", shell, name)
-	}
-	return nil
 }
 
 // installerKey is the public half the person running this already has. A

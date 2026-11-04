@@ -430,7 +430,7 @@ func TestInstallBundleSwitchesOneCompleteReleaseAndIsIdempotent(t *testing.T) {
 		}
 	}
 	if _, err := installBundle(b); err != nil {
-		t.Fatalf("identical reinstall: %v", err)
+		t.Fatalf("identical current-format setup: %v", err)
 	}
 	entries, err := os.ReadDir(filepath.Join(root, "releases"))
 	if err != nil || len(entries) != 1 {

@@ -91,10 +91,7 @@ fi
 for p in "${progs[@]}" "${scripts[@]}"; do
     ln -sfn "$src/$p" "$bindir/$p"
 done
-# The launchers are TypeScript, which build.sh does not compile into the
-# checkout, so they only pick up an edit when run from here. Each ab-* prefers
-# a launcher.js beside itself, which is how a copied install goes on running a
-# stale bundle however often the source changes.
+# Checkout launchers run their TypeScript sources; links keep edits live.
 for p in "${launchers[@]}"; do
     ln -sfn "$src/launchers/$p" "$bindir/$p"
 done

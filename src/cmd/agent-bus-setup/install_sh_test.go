@@ -710,3 +710,20 @@ func TestReleaseSumsTakesTheMacOSFullBothOrNone(t *testing.T) {
 		t.Fatalf("full/client Darwin set not checksummed: %s", sums)
 	}
 }
+
+func TestClientRollbackRefusesObsoleteLayoutBeforeSwitch(t *testing.T) {
+	f := newInstallFixture(t)
+	for _, v := range []string{"1.0.0", "1.0.1"} {
+		f.publish(v, true)
+		if out, err := f.run("--client", "--version", v); err != nil {
+			t.Fatalf("install: %v %s", err, out)
+		}
+	}
+	previous := filepath.Join(f.home, ".local/lib/agent-bus/releases/1.0.0")
+	if err := os.Remove(filepath.Join(previous, "agent-bus-ts")); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := f.run("--client", "--rollback"); err == nil || f.current() != "1.0.1" {
+		t.Fatalf("obsolete rollback changed current: %v %s", err, out)
+	}
+}
