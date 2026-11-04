@@ -9,8 +9,7 @@
 
 - 🙋 **Nobody else can call your script.** Now it has a name anyone allowed can call, from any host on the bus.
 - 🧑‍💻 **Message code is a chore.** Now your script reads its input and prints its answer; nothing else.
-- 🔌 **Links drop and servers restart.** Now it waits and reconnects by itself, and answers once the bus is back.
-- 🧠 **Your AI session is stuck in one terminal.** Now peers can message the live Claude Code, Codex or opencode session.
+- 🔌 **Links drop and servers restart.** The reader reconnects; a pending answer can be sent after reconnection while its deadline permits.
 
 ## What you get
 
@@ -19,7 +18,7 @@
 - ✅ **Parallel work:** up to N copies at once with `-N`.
 - ✅ **Logs and a polite stop** from any terminal of yours.
 - ✅ **Optional sandbox:** see its [network and filesystem boundaries](../runner/security.md#isolation-today).
-- ⚠️ **No retry:** a failed script is logged, not run again; the caller asks again if it wants.
+- ⚠️ **No automatic retry:** a failed or timed-out call may already have effects. Check the result before deciding whether another request is safe.
 - 🚫 **Runs as you, in the foreground:** for installed scripts that keep running without you, use the [runner](../runner/README.md).
 
 ## Try this first
@@ -50,7 +49,7 @@ OPTIONS
   ...
 ```
 
-- The output is shortened (`...`) and is from the development node on 2026-10-30.
+- Help output above is shortened (`...`).
 - Then serve your script: [the one-liner](#-the-one-liner).
 
 ## ⚡ The one-liner
@@ -62,7 +61,7 @@ That single command:
 
 | | |
 |---|---|
-| 1️⃣ | registers `#hi@demo` so everyone can see it |
+| 1️⃣ | registers `#hi@demo`; its ACL controls calls, and managers can also discover it |
 | 2️⃣ | gets the agent its own credential |
 | 3️⃣ | reads its inbox until stopped; when the bus restarts or the link drops, it waits and reconnects |
 | 4️⃣ | runs your script **once per message**, and sends back what it printed |
@@ -79,7 +78,7 @@ That single command:
 
 - 🧾 **Either way, the envelope is in the environment:** `AGENT_BUS_MESSAGE_ID`, `AGENT_BUS_FROM`, `AGENT_BUS_TO`, `AGENT_BUS_TOPIC`, `AGENT_BUS_TAG`, `AGENT_BUS_WORK`, `AGENT_BUS_ASK`.
 - 🎫 **Roles:** one `AB_ROLE_<NAME>=1` per role granted to this caller.
-- ⚙️ **Settings:** `AGENT_BUS_CONFIG` holds compact Configuration at the next start, or is unset; see the [`jq` example](../03-records-agent.md#configuring-a-template).
+- ⚙️ **Settings:** `AGENT_BUS_CONFIG` holds compact Configuration at the next start, or is unset; see [Configuration](../03-records-agent.md#configuring-a-template).
 - 📂 **A scratch directory of its own:** `AGENT_BUS_WORK`; the script starts there.
 - ⚠️ **`FROM` is a label, not proof.** The bus enforces `--allow`; for single methods check the granted `AB_ROLE_<NAME>=1`, such as `AB_ROLE_OPERATE=1`, never a string match on `$AGENT_BUS_FROM` ([roles](../03-records-agent.md#roles)).
 
@@ -103,7 +102,7 @@ That single command:
 | exited nonzero | nothing. It is logged as a failure and **not retried** ❌ |
 | the caller's deadline already passed | the script is not run at all |
 
-- 🔁 **No retry, on purpose:** the bus cannot know whether running your script twice is safe. The caller asks again if it wants.
+- A missing answer does not roll back effects. Use application-specific checks or idempotency before retrying.
 
 ## More than one at a time
 
@@ -126,8 +125,8 @@ From any terminal of yours, not only the one it runs in:
 - 🧹 **A deliberate exit unregisters the name** when nothing is waiting, so an unserved name answers "no such name" instead of collecting messages.
 - 📌 **`--stay-registered` keeps the name** and credential after a clean stop, for an outside supervisor.
 - 💥 **A crash or an error exit keeps the name** and its waiting messages, so a restart picks up where it left off; so does a stop with messages still waiting.
-- 🔌 **The bus going away is not an exit.** The runner says `daemon away`, shows `away` in `ps`, retries every second at first, then every 30 s, and says `reconnected` when back.
-- 📨 **An answer worked out meanwhile** is sent once the bus is back, while the caller still waits. Only a refusal, such as a revoked token, ends the run.
+- 🔌 **The bus going away is not an exit.** The runner says `daemon away`, shows `away` in `ps` and backs off connection retries before reporting `reconnected`.
+- 📨 **An answer worked out meanwhile** is sent once the bus is back, while the caller still waits. A terminal refusal, such as a revoked token, ends reconnection.
 - 🚫 **Starting a name already running here is refused:** that is a duplicate, not a second worker.
 
 ## Common trip-ups
@@ -136,14 +135,13 @@ From any terminal of yours, not only the one it runs in:
 |---|---|
 | `use an absolute script path` | ⚠️ `run` refuses a relative path such as `./hi.sh` or `bin/hi.sh`: the script runs in its *own* work directory |
 | `exit status 127` in the logs | ⚠️ a bare command that is not on `PATH` |
-| the script runs but the caller times out | it printed nothing **and** exited nonzero. Check `agent-bus logs` |
+| the script runs but the caller times out | it may still be running, have failed, or have lost its answer; inspect `agent-bus logs` and its effects before retrying |
 | `already running here` | you started this name in another terminal |
-| messages pile up, nothing happens | `agent-bus ls --table --kind=agent`: `READERS` `0` means nothing reads it. Runner-managed agents differ: see [managed troubleshooting](../runner/operations.md#when-a-call-does-not-come-back) |
+| messages pile up, nothing happens | `agent-bus ls --table --kind=agent`: `READERS 0` means no read is waiting at that instant, including while all worker slots are busy. Runner-managed agents differ: see [managed troubleshooting](../runner/operations.md#when-a-call-does-not-come-back) |
 
 ## Sandboxing
 
-- 🔓 **Optional confinement:** the [isolation reference](../runner/security.md#isolation-today) defines the dedicated runner's network and filesystem reach.
-- Use `--sandbox=on` to request it and `--network` for network access; startup names its backend or refusal.
+Use `--sandbox=on` to request confinement and `--network` for network access; startup names its backend or refusal. Read the [dedicated sandbox boundaries](../runner/security.md#the-separate-agent-bus-run-sandbox) before trusting it with code.
 
 ## Who it runs as
 
@@ -152,32 +150,14 @@ From any terminal of yours, not only the one it runs in:
 
 ## Putting an AI session on the bus
 
-Four launchers ship with agent-bus:
+Start `ab-claude`, `ab-codex` or `ab-opencode` in the project directory; the corresponding AI CLI must be installed. Use `ab-opencode1` for opencode 1.x.
 
-| Launcher | Starts |
-|---|---|
-| `ab-claude` | a Claude Code session, on the bus |
-| `ab-codex` | a Codex session, on the bus |
-| `ab-opencode` | an opencode session, on the bus |
-| `ab-opencode1` | the same, on a host still running opencode 1.x |
+See [AI CLI integration](ai-cli.md#try-this-first) for naming, messages, permissions and launcher settings.
 
-- 🔎 **They do the wiring:** find your socket, register the session under a name, load the bus tools, and deliver messages to the **live** session.
-- 💬 **Talk to it from any terminal:** see [Claude Code, Codex and opencode](ai-cli.md).
-- ▶️ **They continue** the last session in the current directory when there is one, and always start in automatic execution, so the session is not waiting on a prompt when a message arrives.
-- ⚠️ **A message cannot change the session's permissions or mode:** those are fixed at launch, and messages are data, not orders.
-- 📦 The AI tool itself must be installed. An installed release runs the launchers as a built program; run from a source checkout, they also need Bun. `ab-claude --help` (and the others) says the rest.
-
-| Environment | |
-|---|---|
-| `AGENT_BUS_ADDR` | skip discovery, use this address |
-| `AGENT_BUS_TOKEN` | a token, when the socket is not enough |
-| `AGENT_BUS_TLS_FINGERPRINT` | the pin for an `https://` address ([over HTTPS](../02-access-remote.md#over-https)) |
-| `AGENT_BUS_NAME` | the bus name you want, beginning with `#`; otherwise `#<runtime>/<session title or directory>@<host>` |
-
-## Technical details
+## Run options
 
 <details>
-<summary>Every <code>agent-bus run</code> option</summary>
+<summary>Options for input, access and execution</summary>
 
 | Option | |
 |---|---|
@@ -195,14 +175,5 @@ Four launchers ship with agent-bus:
 | `--no-asks` | answer unsupported asks without starting the script |
 
 - **From a declaration:** `agent-bus run -4 - < agent.json` reads the agent as JSON from stdin; `-N` overrides its worker count.
-
-</details>
-
-<details>
-<summary>Where this sits</summary>
-
-- **Part of the ordinary [`agent-bus`](cli.md) tool;** installed scripts managed by the separate `agent-bus-runner` program are in the [runner guide](../runner/README.md).
-- **Outside the bus:** the dedicated runner is your own process; nothing the bus runs may start user programs.
-- 📖 The design: [runner § what the runner does](../06-dedicated-runner.md#what-it-does).
 
 </details>

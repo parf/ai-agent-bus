@@ -2,28 +2,81 @@
 
 📌 **TL;DR:**
 - **Problem:** an application that already runs wants to answer bus messages and keep progress, without a script launcher in between.
-- **Outcome:** the same time service as a Python process that reads its own inbox, keeps progress in KV under a lock, writes events to its own log and stops cleanly.
+- **Outcome:** the same time service as a Python process that reads its own inbox, records progress in KV, uses a short lock and writes events to its own log.
 - **Start:** register the name, start the program with its credential, and call it ([Try this first](#try-this-first)).
 
 ## Why you'd want it
 
 - 🏠 **The logic already lives in your application.** Now it answers by name from inside it.
-- 💾 **Memory is lost on restart.** Now progress sits in KV, and a lock keeps two reports from overwriting each other.
+- 💾 **Memory is lost on restart.** Progress sits in KV; a lock coordinates the two workers while its lease remains valid.
 - 🧾 **Operators want to know what happened.** Now each report writes an event to the agent's own log.
 
 ## What you get
 
 - ✅ **One serve loop:** the client reads the inbox, runs your handler on bounded workers and sends each answer back to the right caller.
-- ✅ **Help, status and the same body rules** as the [script version](write-agent-cli.md#the-advanced-service): the body is data, only two words are read.
+- ✅ **Help, status and the same body rules** as the [script version](write-agent-cli.md#the-advanced-service): the body must be one of the supported time or history commands.
 - ✅ **Settings and a key:** Configuration for the format, Secret for the stamp key, read through the client and never echoed.
-- ✅ **A polite stop:** SIGTERM stops intake, finishes the work in hand and leaves.
+- ✅ **A bounded drain:** SIGTERM stops intake and allows five seconds for outstanding work; it does not forcibly cancel a Python handler.
 - 🪪 **Your own credential:** unlike a per-message script, a process that serves itself holds its own token ([what runs as what](../runner/security.md#what-runs-as-what)).
 - 🔁 **Run it under the runner** when it should stay up without you: [the runner page](write-agent-runner.md).
 - A daemon disconnect can end `serve()` with an uncertain-consumption error. Supervise and restart the process; never automatically replay that consumption ([client uncertainty](../../src/clients/python/README.md#technical-details)).
 
 ## Try this first
 
-- The program is [time_service.py](../../src/clients/examples/agent-guide/packages/time-process/time_service.py): save the whole file (it adds the imports, the help text and the `serve()` call) next to the client's `agent_bus` folder, which needs no installation ([clients](../../src/clients/README.md#what-you-get)). Its working part is below:
+- The program is [time_service.py](../../src/clients/examples/agent-guide/packages/time-process/time_service.py): save the whole file (it adds the imports, the help text and the `serve()` call) next to the client's `agent_bus` folder, which needs no installation ([clients](../../src/clients/README.md#what-you-get)). The [working part](#example-source) is reproduced below.
+
+- Register the name; you are its Owner:
+
+<!-- run: process -->
+```sh
+agent-bus register '#time-process' --kind agent
+```
+
+- Start it with its own credential, and leave it running:
+
+<!-- run: process ready=#time-process -->
+```sh
+AGENT_BUS_NAME="#time-process" AGENT_BUS_TOKEN=$(agent-bus token '#time-process') python3 time_service.py
+```
+
+- In a second terminal, ask what it does, then set `format` (`iso` by default, or `epoch`) and the disposable example `TIME_STAMP_KEY`. This help example uses `jq -r .body` only to show the answer text:
+
+<!-- run: process -->
+```sh
+STAMP_KEY=a-private-stamp-key
+agent-bus call '#time-process' --help | jq -r .body
+agent-bus config '#time-process' '{"format":"epoch"}' >/dev/null
+agent-bus secret '#time-process' "TIME_STAMP_KEY=$STAMP_KEY" >/dev/null
+```
+
+<!-- output -->
+```text
+time [now|iso|epoch] - the current UTC time, now in the configured format; history - the last five reports
+```
+
+- Ask for the time in the configured format; the full JSON answer contains the time and its demonstration stamp:
+
+<!-- run: process -->
+```sh
+agent-bus call '#time-process' now
+```
+
+- Read the progress the process kept in KV:
+
+<!-- run: process -->
+```sh
+agent-bus kv get '#time-process' reports --int
+```
+
+<!-- output -->
+```text
+1
+```
+
+## Example source
+
+<details>
+<summary>Time service handler and serve loop</summary>
 
 <!-- quote: src/clients/examples/agent-guide/packages/time-process/time_service.py process -->
 ```python
@@ -83,60 +136,21 @@ def serve():
         bus.serve(handle, workers=2, stop=stop, drain_timeout=5)
 ```
 
-- Register the name; you are its Owner:
+</details>
 
-<!-- run: process -->
-```sh
-agent-bus register '#time-process' --kind agent
-```
+## Limits of the example
 
-- Start it with its own credential, and leave it running:
+- **No transaction or exactly-once result:** the count increment, history update, log event and answer are separate operations. A failure can leave only some of them completed; do not retry an uncertain call blindly.
+- **A five-second lease:** the code neither extends the lock nor fences writes after expiry. A slow worker can overlap a later holder. Use a transaction or a design that tolerates partial updates for production state.
+- **Narrow Secret parsing:** this example splits lines at `=` without applying the full environment-file grammar. Use a plain `TIME_STAMP_KEY=value` line here; quoted values, comments containing `=` and other syntax need a proper parser.
+- **A demonstration stamp:** a short hash of a key and public time is not a signature. Keep the key disposable and use an established authentication construction for real verification.
+- **Bounded work matters:** the client's drain timeout can raise while a Python worker is still running. Bound each handler's I/O and execution time; a supervisor must not assume every effect stopped at that timeout.
 
-<!-- run: process ready=#time-process -->
-```sh
-AGENT_BUS_NAME="#time-process" AGENT_BUS_TOKEN=$(agent-bus token '#time-process') python3 time_service.py
-```
-
-- In a second terminal, ask what it does, then set its format and key. The block lists what the commands print on stdout, the answers:
-
-<!-- run: process -->
-```sh
-STAMP_KEY=a-private-stamp-key
-agent-bus call '#time-process' --help | jq -r .body
-agent-bus config '#time-process' '{"format":"epoch"}' >/dev/null
-agent-bus secret '#time-process' "TIME_STAMP_KEY=$STAMP_KEY" >/dev/null
-```
-
-<!-- output -->
-```text
-time [now|iso|epoch] - the current UTC time, now in the configured format; history - the last five reports
-```
-
-- Ask for the time in the configured format; the stamp proves the key was used without showing it:
-
-<!-- run: process -->
-```sh
-agent-bus call '#time-process' now | jq -r .body
-```
-
-- Read the progress the process kept in KV:
-
-<!-- run: process -->
-```sh
-agent-bus kv get '#time-process' reports --int
-```
-
-<!-- output -->
-```text
-1
-```
-
-## Technical details
+## Further reading
 
 - 🧩 **The client:** calls, serving, KV, locks and the event write are in the [client libraries](../../src/clients/README.md#what-you-get); other languages use the [HTTP client contract](../09-daemon-api.md#the-client-contract).
 - 🔁 **Under the runner:** `"serves": "itself"` keeps it running; its token is handed over once ([agents that serve themselves](../runner/configuration.md#agents-that-serve-themselves)).
 - 🛑 **Stopping:** what a stop waits for and what the author owns: [author stop responsibilities](../runner/configuration.md#author-stop-responsibilities).
 - 🔐 **Secret and Configuration:** [the split](../03-records-agent.md#configuring-a-template); the Secret is never written to answers, status or logs.
 - 📝 **Events:** the process writes only to its own log; reading it is a manager's right ([agent logs](../agents/bus.md#agent-logs)).
-- ✅ **What the shard checks:** `src/acceptance/agent-guide/guide.sh` runs this file and the commands above; a quoted block that drifts from its source fails there.
-- 🧭 **The checklist:** [what a good agent does](../10-writing-an-agent.md).
+- 🧭 **Before using an agent in production:** [what a good agent does](../10-writing-an-agent.md).
