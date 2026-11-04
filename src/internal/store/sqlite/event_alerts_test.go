@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/parf/ai-agent-bus/internal/eventlog"
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
@@ -258,10 +257,8 @@ func TestEventAlertsGoWithTheirRecord(t *testing.T) {
 	}
 }
 
-// A schema-10 database, with a record, its data, a subscription and a
-// reserved-id counter, opens as schema 11: its log reads inactive and empty, the next write goes
-// above the reserved ids, and everything else is intact.
-func TestSchemaTenGainsTheEventAlertTables(t *testing.T) {
+// Retired database layouts are refused without conversion.
+func TestSchemaTenIsRefused(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "bus.db")
 	old, err := sql.Open("sqlite", path)
 	if err != nil {
@@ -288,36 +285,9 @@ func TestSchemaTenGainsTheEventAlertTables(t *testing.T) {
 		}
 	}
 	old.Close()
-	s, err := Open(path, false)
-	if err != nil {
-		t.Fatalf("schema 10 did not open: %v", err)
-	}
-	defer s.Close()
-	var version int
-	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != 11 {
-		t.Fatalf("version %d (%v), want 11", version, err)
-	}
-	if got, active := loadAlerts(t, s, 3); len(got) != 0 || active {
-		t.Fatalf("a migrated database holds alerts: %+v active=%v", got, active)
-	}
-	if n, err := s.EventHighWater(3); err != nil || n != 64 {
-		t.Fatalf("the reserved-id counter changed: %d %v", n, err)
-	}
-	e := eventlog.New(s, s, func() time.Time { return time.Unix(1793318400, 0) })
-	w, err := e.Write(3, "alert", "first after the upgrade", eventlog.Defaults())
-	if err != nil || w.ID <= 64 {
-		t.Fatalf("first write after the upgrade got id %d (%v), want above 64", w.ID, err)
-	}
-	snap, err := s.Load()
-	if err != nil || len(snap.Records) != 1 || snap.Records[0].Name != "jobs@h" || snap.Records[0].OwnerID != 7 {
-		t.Fatalf("the migration changed the registry: %+v %v", snap.Records, err)
-	}
-	if rows, err := s.ListSubscriptions(3); err != nil || len(rows) != 1 {
-		t.Fatalf("the migration lost the subscription: %v %v", rows, err)
-	}
-	var kept string
-	if err := s.db.QueryRow(`SELECT value FROM kv WHERE record_id = 3 AND name = 'kept'`).Scan(&kept); err != nil || kept != "value" {
-		t.Fatalf("the migration lost data: %q %v", kept, err)
+	if s, err := Open(path, false); err == nil {
+		s.Close()
+		t.Fatal("retired schema was accepted")
 	}
 }
 

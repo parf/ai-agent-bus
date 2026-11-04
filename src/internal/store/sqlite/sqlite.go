@@ -30,9 +30,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// schema is the layout this daemon reads and writes. A database at an older
-// version with a migration below is brought up to it at open, in one
-// transaction; any other version is refused rather than guessed at.
+// schema is the only database layout this daemon reads and writes.
 const schema = 11
 
 var tables = []string{
@@ -58,43 +56,6 @@ var tables = []string{
 // source of truth for which exist (Plans/R1.0-Release/bigfile.md#trust-and-durability).
 const bigfilesTable = `CREATE TABLE bigfiles (record_id INTEGER NOT NULL, name TEXT NOT NULL, file TEXT NOT NULL, size INTEGER NOT NULL, sha256 TEXT NOT NULL, held TEXT NOT NULL, expires INTEGER NOT NULL, PRIMARY KEY (record_id, name)) WITHOUT ROWID`
 
-// noOwner is protocol.NoOwnerID as SQL.
-var noOwner = strconv.FormatUint(uint64(protocol.NoOwnerID), 10)
-
-// migrations[v] takes a database from schema v to v+1.
-var migrations = map[int][]string{
-	// 0.8.12: a record's day of activity is saved with its queue, so it goes
-	// with the queue's row (docs/05-discovery.md#activity-history).
-	4: {`ALTER TABLE queues ADD COLUMN activity BLOB NOT NULL DEFAULT x''`},
-	// 0.8.41: every name's traffic is kept per calendar day, beyond the ring's
-	// last 24 hours (docs/05-discovery.md#activity-history).
-	5: {`CREATE TABLE activity_days (day INTEGER NOT NULL, name TEXT NOT NULL, slots BLOB NOT NULL, PRIMARY KEY (day, name))`},
-	// 0.8.77: each record's key-value store, one table per kind
-	// (Plans/R1.0-Release/done/kv.md#per-record-storage).
-	6: {
-		`CREATE TABLE kv (record_id INTEGER NOT NULL, name TEXT NOT NULL, value BLOB NOT NULL, PRIMARY KEY (record_id, name)) WITHOUT ROWID`,
-		`CREATE TABLE kv_int (record_id INTEGER NOT NULL, name TEXT NOT NULL, value INTEGER NOT NULL, PRIMARY KEY (record_id, name)) WITHOUT ROWID`,
-		`CREATE TABLE kv_json (record_id INTEGER NOT NULL, name TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (record_id, name)) WITHOUT ROWID`,
-	},
-	// 0.8.80: each record's owner by user_id as well as by name, so a User
-	// recreated under a vanished one's name owns none of its records. A
-	// record whose owner is no User takes NoOwner, which no User has.
-	7: {
-		`ALTER TABLE records ADD COLUMN owner_id INTEGER NOT NULL DEFAULT 0`,
-		`UPDATE records SET owner_id = COALESCE((SELECT id FROM users WHERE users.name = json_extract(records.body, '$.owner')), ` + noOwner + `)`,
-	},
-	// 0.9.263: the index of bigfiles held in files moves into the database, so
-	// list, get and expiry read it and a restart no longer rebuilds it from the
-	// files' footers.
-	8: {bigfilesTable},
-	// 0.9.291: the subscriptions of agent logs are kept on disk, so a restart
-	// keeps them (Plans/R1.0-Release/agent-events/README.md#subscriptions-are-new-daemon-work).
-	9: {eventSubsTable, eventSubsIndex},
-	// The alerts of an agent's event log are kept on disk, with whether
-	// the log exists (Plans/R1.0-Release/agent-events/README.md#flood-and-persistence).
-	10: {eventLogsTable, eventAlertsTable},
-}
-
 // ErrMissing is a database that is not there and was not asked to be made.
 var ErrMissing = errors.New("no database")
 
@@ -111,7 +72,7 @@ func Open(path string, create bool) (*Store, error) {
 	fresh := false
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
 		if !create {
-			return nil, fmt.Errorf("%w at %s: initialize it with agent-bus-setup, or start the daemon with -create", ErrMissing, path)
+			return nil, fmt.Errorf("%w at %s: initialize it with agent-bus-setup, or start the daemon with --create", ErrMissing, path)
 		}
 		// Made here, empty and private, so SQLite never creates it with a
 		// wider mode; its journal takes the same mode as the database.
@@ -157,7 +118,7 @@ func Open(path string, create bool) (*Store, error) {
 		}
 		if empty && !create {
 			db.Close()
-			return nil, fmt.Errorf("database %s is empty: initialize it with agent-bus-setup, or start the daemon with -create", path)
+			return nil, fmt.Errorf("database %s is empty: initialize it with agent-bus-setup, or start the daemon with --create", path)
 		}
 		fresh = empty
 	}
@@ -217,12 +178,6 @@ func (s *Store) prepare(fresh bool) error {
 		}
 		version = schema
 	}
-	if steps, known := migrations[version]; known && version < schema {
-		if err := s.migrate(version, steps); err != nil {
-			return fmt.Errorf("database %s: migrate schema %d: %w", s.path, version, err)
-		}
-		return s.prepare(false)
-	}
 	if version != schema {
 		return fmt.Errorf("database %s has schema %d; this daemon reads %d", s.path, version, schema)
 	}
@@ -234,23 +189,6 @@ func (s *Store) prepare(fresh bool) error {
 		return fmt.Errorf("database %s failed its integrity check: %s", s.path, check)
 	}
 	return nil
-}
-
-func (s *Store) migrate(from int, steps []string) error {
-	tx, err := s.db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	for _, step := range steps {
-		if _, err := tx.Exec(step); err != nil {
-			return err
-		}
-	}
-	if _, err := tx.Exec(fmt.Sprintf(`PRAGMA user_version = %d`, from+1)); err != nil {
-		return err
-	}
-	return tx.Commit()
 }
 
 // Close releases the database and its lock.

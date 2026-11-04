@@ -84,8 +84,8 @@ func TestBigfileRowsDeleteDropAndExpire(t *testing.T) {
 	}
 }
 
-// A schema-8 database opens as the current schema with an empty index and keeps its data.
-func TestSchemaEightGainsTheBigfileIndex(t *testing.T) {
+// Retired database layouts are refused without conversion.
+func TestSchemaEightIsRefused(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "bus.db")
 	old, err := sql.Open("sqlite", path)
 	if err != nil {
@@ -108,20 +108,8 @@ func TestSchemaEightGainsTheBigfileIndex(t *testing.T) {
 		}
 	}
 	old.Close()
-	s, err := Open(path, false)
-	if err != nil {
-		t.Fatalf("schema 8 did not open: %v", err)
-	}
-	defer s.Close()
-	var version int
-	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != schema || schema != 11 {
-		t.Fatalf("version %d (%v), want 11", version, err)
-	}
-	if rows, err := s.BigRows(); err != nil || len(rows) != 0 {
-		t.Fatalf("a migrated database's index = %+v %v", rows, err)
-	}
-	var kept string
-	if err := s.db.QueryRow(`SELECT value FROM kv WHERE record_id = 3 AND name = 'kept'`).Scan(&kept); err != nil || kept != "value" {
-		t.Fatalf("the migration lost data: %q %v", kept, err)
+	if s, err := Open(path, false); err == nil {
+		s.Close()
+		t.Fatal("retired schema was accepted")
 	}
 }

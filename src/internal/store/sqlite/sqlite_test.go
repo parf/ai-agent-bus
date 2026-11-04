@@ -218,6 +218,37 @@ func TestCommitCarriesCredentials(t *testing.T) {
 	}
 }
 
+func TestRetiredSchemaFourRefusedWithoutMigration(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "bus.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, stmt := range schema4 {
+		if _, err := db.Exec(stmt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	db.Close()
+	if st, err := Open(path, false); err == nil {
+		st.Close()
+		t.Fatal("retired schema 4 was accepted")
+	}
+	db, err = sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var version int
+	if err := db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != 4 {
+		t.Fatalf("refusal changed schema: %d %v", version, err)
+	}
+	var body string
+	if err := db.QueryRow(`SELECT body FROM messages WHERE queue = 'svc@h'`).Scan(&body); err != nil || body != `{"id":"m1","body":"kept"}` {
+		t.Fatalf("refusal changed data: %q %v", body, err)
+	}
+}
+
 func TestIncompatibleSchemaIsRefused(t *testing.T) {
 	s, path := open(t)
 	if _, err := s.db.Exec(`PRAGMA user_version = 99`); err != nil {
@@ -301,9 +332,8 @@ var schema4 = []string{
 	`PRAGMA user_version = 4`,
 }
 
-// A schema-4 database with data in it opens as schema 5, keeps every row,
-// and then carries each queue's activity and the node's.
-func TestSchemaFourMigratesWithItsData(t *testing.T) {
+// Retired database layouts are refused without conversion.
+func TestSchemaFourIsRefused(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "bus.db")
 	old, err := sql.Open("sqlite", path)
 	if err != nil {
@@ -315,63 +345,14 @@ func TestSchemaFourMigratesWithItsData(t *testing.T) {
 		}
 	}
 	old.Close()
-	s, err := Open(path, false)
-	if err != nil {
-		t.Fatalf("schema 4 did not open: %v", err)
-	}
-	var version int
-	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != schema {
-		t.Fatalf("user_version %d after migration: %v", version, err)
-	}
-	snap, err := s.Load()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if snap.Owner != "admin@h" || !snap.Clean || len(snap.Users) != 1 || len(snap.Records) != 1 || snap.Activity != nil {
-		t.Fatalf("meta, users or records lost: %+v", snap)
-	}
-	if len(snap.Queues) != 1 || snap.Queues[0].In != 5 || snap.Queues[0].Expired != 1 || len(snap.Queues[0].Messages) != 1 || len(snap.Queues[0].Activity) != 0 {
-		t.Fatalf("queue after migration: %+v", snap.Queues)
-	}
-	if creds, err := s.Tokens().Load(); err != nil || len(creds) != 1 {
-		t.Fatalf("credentials after migration: %+v %v", creds, err)
-	}
-	q := snap.Queues[0]
-	q.Activity = []byte{1, 2, 3}
-	if err := s.SaveQueues([]ports.Queue{q}, []byte{9, 8}, true); err != nil {
-		t.Fatal(err)
-	}
-	s.Close()
-	s, err = Open(path, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer s.Close()
-	snap, err = s.Load()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(snap.Queues[0].Activity) != "\x01\x02\x03" || string(snap.Activity) != "\x09\x08" {
-		t.Fatalf("activity did not survive a reopen: queue %v node %v", snap.Queues[0].Activity, snap.Activity)
-	}
-	// nil leaves the node's day as it was saved.
-	if err := s.SaveQueues(nil, nil, false); err != nil {
-		t.Fatal(err)
-	}
-	if snap, _ = s.Load(); string(snap.Activity) != "\x09\x08" {
-		t.Fatalf("an empty save cleared the node's day: %v", snap.Activity)
-	}
-	if err := s.Commit(ports.Change{Records: map[string]*protocol.Record{"svc@h": nil}, DropQueues: []string{"svc@h"}}); err != nil {
-		t.Fatal(err)
-	}
-	var left int
-	if err := s.db.QueryRow(`SELECT count(*) FROM queues WHERE name = 'svc@h'`).Scan(&left); err != nil || left != 0 {
-		t.Fatalf("the removed record's queue row and its activity remain: %d %v", left, err)
+	if s, err := Open(path, false); err == nil {
+		s.Close()
+		t.Fatal("retired schema was accepted")
 	}
 }
 
-// A schema-4 database migrates through 5 to 6 and can keep days at once.
-func TestOldSchemasMigrateToKeepActivityDays(t *testing.T) {
+// Retired database layouts are refused without conversion.
+func TestOldSchemasAreRefused(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "bus.db")
 	old, err := sql.Open("sqlite", path)
 	if err != nil {
@@ -383,13 +364,9 @@ func TestOldSchemasMigrateToKeepActivityDays(t *testing.T) {
 		}
 	}
 	old.Close()
-	s, err := Open(path, false)
-	if err != nil {
-		t.Fatalf("schema 4 did not open: %v", err)
-	}
-	defer s.Close()
-	if err := s.SaveActivityDays([]ports.ActivityDay{{Date: 260924, Name: "svc@h", Slots: []byte{1}}}); err != nil {
-		t.Fatalf("a migrated database keeps no days: %v", err)
+	if s, err := Open(path, false); err == nil {
+		s.Close()
+		t.Fatal("retired schema was accepted")
 	}
 }
 
