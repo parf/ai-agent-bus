@@ -109,7 +109,6 @@ captured at startup; a later working-directory change does not rename the sessio
 - For example, a Codex session titled `home` on a bus whose realm is `node.example` derives `#codex/home@node.example`, owned by the launching User.
 - They keep a realm in the name although [a realm is optional](01-identity-and-authority.md#names): a bare `codex` or `runner` would be one name for every node and every user.
 - They register those agents as [Personal](03-records.md#personal-and-shared): a session record belongs to the launching user, not on the shared web pages.
-- Saved dot-form addresses migrate on restart through the same address-change behavior below.
 - Explicit bus names and other clients' naming remain unchanged.
 - Canonical addresses use `.2`, `.3` before the realm, because `#` inside a name is not part of the grammar — it is the [agent prefix](01-identity-and-authority.md#names) and appears only at the front.
 - Allocation checks the visible registry and holds local locks; normalization and truncation collisions are checked on the resulting canonical name.

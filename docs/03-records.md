@@ -90,7 +90,7 @@ The record's [ACL](02-access.md#acl) governs visibility and use according to its
 | 👥 📮 📣 📡 📚 | a User, or an Agent acting for its Owner |
 
 Registering with no kind stores `service`, the case a bare `register` is
-usually for; `--personal` with no kind names an `agent`.
+usually for; use `--kind=agent` when registering an Agent.
 
 </details>
 
@@ -110,7 +110,6 @@ Every record carries these.
 | `descr` | one free-text line `ls`, MCP and the web show; method details come from the agent's [self-description](03-records-agent.md#about-an-agent) |
 | `status` | `active` or `inactive`. Ordinary operations treat an inactive record as absent; an authorized read-only web view can show it ([inactive records](constitution.md#common-record-fields)). Status changes by a settings edit, never by registering |
 | `tags` | record labels used for classification and filtering ([Tags](#tags)) |
-| `personal` | mirror of the `personal` audience tag, not a permission; always true on a 👤 ([Personal and shared](#personal-and-shared)) |
 | `allow` | who may use it — send to it, read it, see it; on a 👥, its membership ([ACL](02-access.md#acl)). Unused on a 👤 |
 | `maintainers` | who may manage it beside the Owner. Unused on a 👤 |
 | `created_at`, `at` | when it was made and last changed; the daemon's, never a caller's |
@@ -129,11 +128,9 @@ A field a kind does not carry is refused, never stored and ignored.
 | `roles` | the roles it understands; informational ([roles](03-records-agent.md#roles)) | 👾 |
 | `resource` | the MCP card: URI, template flag, source and descriptor ([resources](03-records-resource.md#what-a-resource-is)) | 📚 |
 
-At load, `addr` and `protocol` on a stored record other than a service are
-dropped, with a warning naming its kind and record: “carried an address or
-protocol, which only a service has; they are dropped”.
+Stored records must obey the same kind-specific shape. An address or protocol on a non-Service is refused rather than discarded.
 
-- Listings also report `reading`, `readers`, `queued`, `in`, `out`, `dropped`, `expired`, `oldest`, `last_used`, `can_manage` and `route_allowed`.
+- Listings also report `readers`, `queued`, `in`, `out`, `dropped`, `expired`, `oldest`, `last_used`, `can_manage` and `route_allowed`.
 - These are observations or derived permissions, not editable registration fields ([discovery](05-discovery.md#what-a-listing-answers)). Activity and counters follow their [persistence rules](04-messaging.md#durability).
 
 ## How to call it
@@ -176,13 +173,10 @@ labels are separate from the envelope's message-correlation `tag`.
 
 - Commas separate labels. Input becomes lowercase; tags contain only `a-z`,
   `0-9`, `-` and `_`. Spaces and all other characters are refused with an error
-  naming the tag, never silently removed. Stored invalid tags are dropped
-  individually at startup with a warning; their record remains.
+  naming the tag, never silently removed. Invalid stored tags are refused; startup does not repair or convert them.
 - Duplicates are removed and labels sorted. `no-tags` is reserved for the empty-tag filter: it is neither stored nor
-  added to API records. Startup removes it from stored records in one transaction.
-- `personal` retains every [Personal rule](#personal-and-shared). Existing
-  Personal records acquire this label on load. The `personal` field remains
-  a compatibility mirror; tags are the edit control.
+  added to API records. Stored `no-tags` is invalid and is refused.
+- The `personal` tag selects the [Personal rules](#personal-and-shared). It is the sole representation; there is no separate boolean field.
 
 <details>
 <summary>Updates, automatic labels and browse counts</summary>
@@ -190,8 +184,7 @@ labels are separate from the envelope's message-correlation `tag`.
 - Registration adds tags to the existing set; it cannot change the Owner's Personal classification.
 - Manage replaces the stated set; `--remove-tags` removes labels, and `--add-to-set-tags` adds without removing others.
 - Changing `personal` requires Owner authority and audience validation.
-- At creation, the `personal` flag or a `personal` label enables it.
-- An edit that supplies conflicting flag and label values is refused.
+- At creation, include `personal` in `tags` to select this classification.
 
 - Launchers add `claude`, `codex` or `opencode`.
 - The runner adds `runner`; the dedicated runner (`agent-bus run`) adds no automatic tag, but accepts explicit `--tags` or the `tags` array in JSON passed to `agent-bus run -`.

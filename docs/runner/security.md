@@ -1,7 +1,5 @@
 # Runner security: what you grant the runner
 
-**Run other people's scripts as team tools without handing them your server or your passwords.**
-
 📌 **TL;DR:**
 - **Problem:** a shared script can read every file and password its account can, and anyone who can reach it may be able to call it.
 - **Outcome:** on Linux, each managed agent gets the [network and filesystem isolation described below](#isolation-today); a script run per message holds no bus password; only the callers you name may use it.
@@ -89,7 +87,7 @@ The [dedicated runner](../06-dedicated-runner.md#sandboxing) is off by default. 
 
 | | Runs as | Owned on the bus by |
 |---|---|---|
-| `#runner/<you>@<host>` | `<you>-ab-runner`, a system account of your runner's alone, unit `agent-bus-runner@<you>`, with your runner agent's token in `runner/runner.env` ([a person's runner](setup.md#a-persons-runner)) | you |
+| `#runner/<you>@<realm>` | `<you>-ab-runner`, a system account of your runner's alone, unit `agent-bus-runner@<you>`, with your runner agent's token in `runner/runner.env` ([a person's runner](setup.md#a-persons-runner)) | you |
 | every agent it serves | the same account | you |
 | one message's child process | the same account, in that agent's work directory | — |
 
@@ -100,12 +98,7 @@ The [dedicated runner](../06-dedicated-runner.md#sandboxing) is off by default. 
 - **Taking it over,** the runner clears the `script` an earlier `agent-bus run` left on the record, so listings no longer name a program that does not serve it.
 - **Author settings** (`agent.json` and `env.dist`), including their packaged help, are read only from regular files; a final symlink is refused by filename.
 
-Hand an existing agent's token to your runner, then reload:
-
-```sh
-agent-bus token '#hello@host' | sudo -u you-ab-runner tee /var/lib/agent-bus/you-ab-runner/tokens/%23hello@host >/dev/null
-agent-bus call '#runner/you@host' reload
-```
+The Owner provisions an existing agent’s token once in the runner’s private `tokens/` directory, in a file named for the percent-encoded full agent name. Use mode `0600`, owned by the runner account, then reload. Do not expose the token in a command argument or transcript. The [credential handoff procedure](../agents/create-agent-prompt.md#self-serving-credential-handoff) covers this operation.
 
 ## What the code is told, and what it may trust
 
@@ -144,10 +137,11 @@ agent-bus manage '#hello@host' --add-allow alice@host
 | Who can run that | |
 |---|---|
 | the record's Owner | you |
+| its Maintainers | assigned record management |
 | the daemon Owner | node-wide record authority |
 | an Administrator | **no** — administering users grants no record authority ([authority](../01-identity-and-authority.md#record-authority)) |
 
-- **The runner gains no authority over what it creates:** it holds each agent's token, and only you manage the record.
+- The runner holds each served agent’s token and can act as that agent, including its self-management rights. Record Owners and Maintainers retain their separate management and private-value rights ([authority](../01-identity-and-authority.md#record-authority)). Trust the runner account with those credentials.
 - **At start and `reload`,** it checks that the token answers as that agent and that the agent is still yours.
 - **A transferred agent or rotated-out token** is then stopped and refused by name; its messages wait for whoever serves it now.
 - **An admitted operation** does not re-ask identity or authority midway ([authority at the door](../constitution.md#authority-at-the-door)).
@@ -181,7 +175,7 @@ Secrets are injected into the process before it starts, never as a path the code
 | Layer, lowest first | Where | Who writes it |
 |---|---|---|
 | declared variables and non-secret defaults | `agent.d/<agent>/env.dist` | the agent's author |
-| the record's [bus secret](../03-records-service.md#secrets) | the daemon | the Owner, on the bus |
+| the record's [bus secret](../03-records-service.md#secrets) | the daemon | its Owner and Maintainers |
 | what every instance of the agent shares | `runner/<agent>/env` | this host |
 | this instance's own | `runner/<agent>/<instance>/env` | this host |
 
@@ -196,7 +190,7 @@ Writing secrets over the bus or the web:
 - **An unconsumed write** may be stored in the runner's inbox; its durable copy is removed at the checkpoint after consumption. SQLite free pages may retain the bytes until reused.
 - **If the values must never enter daemon storage,** edit the file through host access instead.
 - **The web editor starts empty,** and saving replaces the entire host env file.
-- **To inspect values,** use host access, for example `sudo cat /var/lib/agent-bus/parf-ab-runner/slack/env`; `status` reports the actual `runner_dir`.
+- Inspect values only through authorized host access at the `runner_dir` reported by status. Do not paste them into messages or logs.
 - **Debug `env`** masks all values except the delivered `AGENT_BUS_*` and `AB_ROLE_*` namespaces.
 
 What the logs mask:
@@ -234,7 +228,7 @@ What the logs mask:
 - **Kernel-enforced:** memory (no swap), CPU, processes and I/O weight.
 - **Per process:** open files.
 - **`/tmp`** is a tmpfs no larger than the memory limit.
-- **Defaults:** 512M of memory, 64 processes, 1024 open files and a 1G soft disk limit ([limits](configuration.md#limits)).
+- Choose values in [limits](configuration.md#limits); disk usage is a soft check, not a hard quota.
 
 </details>
 

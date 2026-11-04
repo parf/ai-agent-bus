@@ -309,7 +309,7 @@ An active User or Agent can register an unheld name in an unbacked realm. A User
 - A name must first be created by an existing authorized principal or through enrolment.
 - The owner must be a registered User.
 - Enrolment creates a profile and self-owned record.
-- Ordinary registration that states no `kind` creates a 📡 `service`, which is why it must also carry an address and a protocol; a caller meaning another [kind](03-records.md#record-kinds) says so, and `--personal` says `agent`.
+- Ordinary registration that states no `kind` creates a 📡 `service`, which is why it must also carry an address and a protocol; a caller meaning another [kind](03-records.md#record-kinds) states that kind explicitly.
 
 A conditional creation refuses an existing canonical name, even for its owner;
 claim and insertion happen together. Launchers use this for unique session

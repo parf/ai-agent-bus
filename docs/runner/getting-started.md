@@ -7,7 +7,6 @@
 
 ## Why you'd want it
 
-- ⏱️ **Trying a new tool takes an afternoon.** Now it takes four short steps.
 - 🖥️ **A script stops when you close the terminal.** Now the runner starts it whenever a message arrives.
 - 🧾 **Wrapping a script for messages means new code.** Now the script reads one argument and prints its answer.
 
@@ -62,7 +61,7 @@ printf '{"command":"./hello.sh","form":"args","asks":"none","description":"Greet
 ```
 
 - 📥 The script gets the message as one argument and prints the answer.
-- 🏷️ The folder name becomes the agent name; nothing else to list.
+- 🏷️ The folder name supplies the default agent name. Other runners using this shared directory also discover the package; disable it in their inventories if only your runner should serve it.
 - 📝 Every package needs a `description`; callers see it.
 - 🙋 `"asks":"none"` says the script knows nothing of questions about itself: the runner answers `help` from the description and replies `unsupported: <ask>` to the rest, without starting it.
 
@@ -89,7 +88,6 @@ agent-bus call "$AGENT" --wait 10s world
 
 - The answer is `hello, world`.
 - Stuck? See [when a call does not come back](operations.md#when-a-call-does-not-come-back).
-
 
 
 ## Finish the example

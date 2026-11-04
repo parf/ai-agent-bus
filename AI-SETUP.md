@@ -79,8 +79,4 @@ Give your AI this instruction: **Read AI-SETUP.md, inspect this computer, and he
 - List the selected instances, changes applied, access policy and checks actually performed. Say when a check used a fixture rather than a real provider.
 - List anything pending, its reason and the next user action. Ask whether another agent or setting needs tuning; do not claim a finished mail/chat integration from metadata help alone.
 
-## Technical details
-
-- This file directs an AI through the existing product guides; it defines no new setup command, credential store or agent setting.
-- Installation, remote access and agent management still require their documented privileges. Reading this file grants no additional authority.
-- Keep logs limited to commands with secret values omitted, observed exit status and safe assertions. Bound service readiness and provider checks; a timeout is a reported failure rather than an endless retry.
+Keep the completion report free of secret values and private content. Bound service readiness and provider checks; report a timeout instead of retrying forever.

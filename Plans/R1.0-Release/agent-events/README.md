@@ -170,7 +170,7 @@ log append. P2's no-wait sends receive nothing. No different P2 write body or
 
 ### Protocol and clients
 
-The [freeze rules](../../../docs/09-daemon-api.md#stability-and-compatibility)
+The [freeze rules](../../../docs/09-daemon-api.md#protocol-version)
 say a break to a conforming stable client is a "MAJOR version" and require
 clients to ignore unknown answer fields. The owner's
 [pre-1.0 decision](../DECISIONS.md#recorded-decisions) now keeps `protocol` and

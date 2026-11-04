@@ -23,7 +23,7 @@ The CLI prints the complete JSON response. Use a client library or the routes be
 | Who is calling | the `X-Agent-Bus-Token` header, or the account socket in its place; on the account socket, an owned Agent's token makes the call that Agent's ([what a call carries](02-access.md#what-a-call-carries), [local socket](02-access.md#local-socket)) |
 | Body | JSON on a `POST`, which has 30 s to arrive or is answered `408`; raw bytes on a bigfile `PUT`, which has 30 s of silence and a [total budget](03-records-kv.md#bigfiles) instead; query parameters on a `GET` |
 | Answer | JSON, and a refusal is `{"error": "...", "kind": "..."}` with the status code and the `kind` that [refusals](05-discovery.md#refusals) owns; a router rejection is a refusal too: `404` or `405` with kind `no_route` (`405` carries an `Allow` header) |
-| Unknown fields | an unknown JSON member or query key is ignored on every route; a known one is validated, and a duplicate or invalid value is `malformed`; a body is exactly one JSON document, anything after it is `malformed` |
+| Validation | Unknown request members, unknown query keys, duplicates and invalid values are `malformed`. Field names are exact and case-sensitive. A body contains exactly one JSON document. Opaque Configuration and message-body data are validated by their owning application |
 
 `GET /secret` answers stored bytes as `text/plain` ([secrets](03-records-service.md#secrets)); `GET /bigfile` returns raw bytes.
 
@@ -39,7 +39,7 @@ The CLI prints the complete JSON response. Use a client library or the routes be
 
 ## Credentials
 
-**Unstable administrative interface** except where [the client contract](#the-client-contract) lists the route: these may change in any release ([stability](#stability-and-compatibility)).
+**Unstable administrative interface** except where [the client contract](#the-client-contract) lists the route: these may change in any release ([stability](#protocol-version)).
 
 | Route | |
 |---|---|
@@ -55,7 +55,7 @@ The CLI prints the complete JSON response. Use a client library or the routes be
 | Route | |
 |---|---|
 | `POST /register` · `POST /unregister` | state a record, or remove an idle one ([registration](01-identity-and-authority.md#registration), [unregistering](01-identity-and-authority.md#unregistering)) |
-| `POST /manage` | one record's description, address, protocol, queue settings, allow list, `deliver_to`, Maintainers, Personal, status and owner, each list whole or by `add` / `add_to_set` / `remove` deltas ([record authority](01-identity-and-authority.md#record-authority)) |
+| `POST /manage` | one record's description, address, protocol, queue settings, allow list, `deliver_to`, Maintainers, tags, status and owner, each list whole or by `add` / `add_to_set` / `remove` deltas ([record authority](01-identity-and-authority.md#record-authority)) |
 | `GET /ls` · `GET /lookup` | the records the caller may see, or one of them ([what a listing answers](05-discovery.md#what-a-listing-answers)) |
 | `GET /manages?who=&name=` | `{"manages": true}` when `who` may manage the record by the rule `/manage` applies; asked only about a record the caller may see, so an agent decides for the sender it was handed without a copy of the rule ([record authority](01-identity-and-authority.md#record-authority)) |
 
@@ -83,7 +83,7 @@ A reply and a receipt are ordinary sends ([request and reply](04-messaging.md#re
 **For another name.** `GET /may-send?who=<name>&name=<target>` answers by Send's
 own rule for `who` instead of the caller, for an agent that sends for someone
 else (cron, `#at`, a subscription). `who` is optional, given once and nonempty;
-without it the caller's own form above is unchanged; an unknown key is ignored, as on every route, and a repeated `name` or `who` is `400`.
+without it the caller's own form above is unchanged; unknown keys and a repeated `name` or `who` are `400`.
 
 | Case | Answer |
 |---|---|
@@ -92,7 +92,7 @@ without it the caller's own form above is unchanged; an unknown key is ignored, 
 | the caller cannot see the target (hidden, absent or inactive) | `404` `no such name`, the same for each, as [`/manages?who=`](#registry) |
 | a malformed name, an empty or repeated `who` | `400` |
 
-- The `who` echo is how a client knows the daemon read `who`: a daemon older than this form ignores it and answers for the caller, so a client refuses an answer whose `who` is missing or is not the one it asked about.
+- A client validates the `who` echo against the requested principal; a missing or different value is an invalid answer, never permission.
 - A refusal is not an error and records no refusal counter, queue entry or activity.
 - A `true` means a plain message to that name would be admitted now, nothing about queue capacity, TTL or what the receiver does, and it goes stale at once: ask again before each send, and still handle a refusal from the send.
 - It is an answer about ACL membership that the caller could already read from the record's allow list, the same disclosure as `/manages?who=`; pass only the authenticated sender (the envelope's `from`), never a name taken from a message body.
@@ -148,23 +148,18 @@ Both live on a record and answer to its management authority.
 | `POST /owner` | transfer daemon ownership ([daemon owner](01-identity-and-authority.md#daemon-owner)) |
 | `GET /debug` · `POST /debug` | read or switch the debug log, `{"on": true}`; daemon Owner only ([logs](administration.md#logs)) |
 
-## Stability and compatibility
+## Protocol version
 
-| Class | Routes | Promise |
-|---|---|---|
-| **Stable** | the [client contract](#the-client-contract) below: `/send`, `/consume`, `/may-send`, `/kv*`, the lock routes, `/bigfile*`, `/status`, `/identity`, `/config`, `/lookup`, `/ls` | a change that breaks a conforming client is a MAJOR version |
-| **Unstable administrative interface** | users, groups, accounts, profiles, keys, `/owner`, `/enrol`, `/token`, `/session`, `/names`, `/debug`, `/activity*`, `/recent`, `/records/export`, `/records/import`, `/register`, `/manage` and the other registry and credential routes | may change in any release; for the CLI, the web face and `agent-bus-admin`, not for third-party clients |
+`GET /identity` supplies `protocol: 1` and `protocol_min: 1`. Clients require both fields and these exact values before using the bus. Missing, malformed or unsupported versions fail connection; no older-format mode or warning-only fallback is provided.
 
-- **Version rule.** `GET /identity` carries `protocol`, an integer starting at 1, and `protocol_min`, the oldest client protocol the daemon serves (1 now). Before 1.0.0, a wire change amends protocol 1; both integers stay 1. From 1.0.0, any wire change raises the protocol integer; a breaking change raises `protocol_min`, and so the MAJOR version.
-- **What a client does.** A client built for protocol P:
-  - P below `protocol_min`: "daemon too new for this client", fatal at connect;
-  - daemon `protocol` below P: a "daemon too old" warning at connect, not fatal (the MCP face also adds one note to its first tool result, so the model sees it), and a later refusal of kind `no_route` reports "daemon too old for <operation>";
-  - otherwise it stays silent.
-- **Missing or malformed.** An `/identity` with neither field is an old daemon: protocol 0, minimum 0, the warning above. Fields that are present but not integers, negative, or with `protocol_min` above `protocol` are a fatal protocol error naming the field.
-- **Compatible changes** keep the protocol number's meaning: a new route, a new optional request field, a new answer field a client may ignore, a new value in an open list. A client must ignore answer fields it does not know.
-- **Refusal kinds are a closed set:** `acl`, `authority`, `busy`, `credential`, `enrolment`, `full`, `malformed`, `name-taken`, `second-reader`, `suspended`, `unavailable`, `not_found`, `no_route`. A new kind is a breaking change. A `500` has no kind and a client says "internal daemon error".
-- **Deprecation.** A route, field or kind is first documented as deprecated for at least one released MINOR version, and removed only in a MAJOR version.
+The protocol number identifies the wire contract, independently of the installed program’s version. Requests use the documented field names and types; unknown keys, duplicate keys and retired forms are refused rather than ignored or converted. Configuration and message bodies remain application-owned data.
 
+| Class | Purpose |
+|---|---|
+| Client contract | The routes listed [below](#the-client-contract), used by the client libraries |
+| Administrative interface | Account, credential, registry and operational controls used by the CLI, web face and admin tools |
+
+Refusals use the [documented kinds](05-discovery.md#refusals); an internal daemon error is separate from a refusal.
 
 ### Every route and its class
 

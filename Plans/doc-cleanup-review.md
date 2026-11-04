@@ -131,7 +131,7 @@ Astra read every block in all 68 docs/ Markdown pages plus root README and AI-SE
 
 ## Boundaries
 
-- Deprecated implementation removal is a separate 1.0.1 code task. This cleanup does not remove active behavior.
+- Canonical-only implementation is part of R1: no compatibility for prerelease installations or data is required. Retired formats are refused and no migration or fallback code is shipped; scripts, help and documentation follow the same forms.
 - Runtime builds, gates, provider calls and host changes are not needed for prose. Documentation tooling changes receive focused verification.
 - Plans retain genuine future scope and dated evidence; user pages describe current behavior without internal history.
 

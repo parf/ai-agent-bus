@@ -24,7 +24,6 @@ Use a returned name with `agent-bus ls <name>` to inspect that record. An empty 
 |---|---|---|
 | **`protocol`** | how to call a 📡, which is not through the bus ([services § how to call it](03-records-service.md#how-to-call-it)) | use the [record kind](03-records.md#record-kinds) to choose how to use it |
 | **`readers`** | how many consume requests are outstanding now, filtered and unfiltered together | unavailable; a current daemon publishes measured zero explicitly |
-| **`reading`** | compatibility-only flag: an unfiltered read is outstanding now. Human faces render `readers`; new consumers should use it | no unfiltered read observed; this does not mean nobody is attached |
 | **`queued`** | how many messages are waiting in it | none are |
 | **`in`** · **`out`** | how many messages have arrived for it, and how many a reader has taken, in total | none have |
 | **`dropped`** · **`expired`** | what its queue lost to overflow, and what outlived its TTL in it, in total ([messaging § overflow](04-messaging.md#overflow)) | it has lost nothing |
@@ -33,7 +32,7 @@ Use a returned name with `agent-bus ls <name>` to inspect that record. An empty 
 | **`last_used`** | when the name's credential last authenticated a call, live; the listing puts the most recently used first, then the never used by name | the name holds no credential, or it was never used |
 
 - These are **observations attached to the listing**, not values a registrant may state.
-- Traffic and loss counters are durable totals, kept with the queue in the database and checkpointed every minute; `readers` and `reading` are not ([queue durability](04-messaging.md#durability)).
+- Traffic and loss counters are durable totals, kept with the queue in the database and checkpointed every minute; `readers` is not ([queue durability](04-messaging.md#durability)).
 - They describe the observed inbox, not health or a guarantee that a particular request will be handled.
 
 **A 📡 answers none of them.** It has no queue here, so the daemon states no
@@ -55,9 +54,7 @@ unfiltered together. No separate counters or breakdown by filter type.
 - A positive count does not promise that a particular message matches, or that any work has finished.
 - Count waiting requests, not processes, sessions or completed reads.
 
-The compatibility `reading` flag cannot provide this count and is not rendered
-by WEB, CLI or MCP. Ordinary reading follows the [full-inbox reading
-rule](04-messaging.md#one-reader-per-inbox).
+See the [full-inbox reading rule](04-messaging.md#one-reader-per-inbox) for how waiting readers share work.
 
 ## Where a pool member says it is
 
@@ -293,7 +290,7 @@ record ([records § register](../src/web/web-face/records.md#register)).
 
 `GET /identity` needs no credential. It publishes version, build information,
 hostname, daemon Owner name, uptime, call counts and the `protocol` and
-`protocol_min` [compatibility numbers](09-daemon-api.md#stability-and-compatibility).
+`protocol_min` [protocol fields](09-daemon-api.md#protocol-version).
 
 It exposes no registry rows, credentials, refusal counts or per-caller traffic.
 
@@ -398,7 +395,7 @@ handler runs, and a failure of ours, which is a `500`.
 | `full` | `429` | the receiver's queue is at its bound and refuses rather than loses ([messaging § overflow](04-messaging.md#overflow)) |
 | `malformed` | `400`; `408` when a request body does not arrive in 30 s (a bigfile upload: 30 s of silence, or past its [budget](03-records-kv.md#bigfiles)); `413` for a key-value value, a bigfile or a lock count past its [limit](03-records-kv.md#rules); `501` for SSH keys on a node with none configured | the caller got the request wrong. One reason, not eight: *"you sent nonsense"* is a single answer however many ways there are to send it |
 | `unavailable` | `503` | an optional part of the daemon cannot serve now and says why in `error`: the bigfile store when its directory cannot be opened ([bigfiles](03-records-kv.md#bigfiles)); a client may retry later |
-| `no_route` | `404`; `405` with an `Allow` header | no such route, or the route does not take that method; not counted, and a client built for a newer protocol reads it as "daemon too old for <operation>" ([stability](09-daemon-api.md#stability-and-compatibility)) |
+| `no_route` | `404`; `405` with an `Allow` header | no such route, or the route does not take that method; not counted, and a client reports the unsupported route ([stability](09-daemon-api.md#protocol-version)) |
 
 **Two answers a caller must never confuse.** `401` is *who are you* — the
 credential is missing or is not one. `403` is *I know who you are and you may

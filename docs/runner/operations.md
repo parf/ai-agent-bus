@@ -1,7 +1,5 @@
 # Running and checking the runner
 
-**See what your agents are doing, and fix the one that is not, from one place.**
-
 📌 **TL;DR:**
 - **Problem:** a script that quietly stops answering looks fine until someone needs it, and finding out why means logging in and digging.
 - **Outcome:** one call tells you which agents run and why any of them does not; one more starts, stops or reloads them.
@@ -44,14 +42,14 @@ Replace the name with the one from your listing. The answer includes each agent'
 | what it and its agents said | `journalctl -u agent-bus-runner@<you>` |
 
 - **Your runner is your agent,** `#runner/<you>@<realm>`.
-- **It answers** `status`, `reload`, the [controls](#controlling-one-agent) the [file calls](#the-hosts-files-over-the-bus), and [deploy calls](#deploying-an-agent).
+- **It answers** `status`, `reload`, the [controls](#controlling-one-agent), [file calls](#the-hosts-files-over-the-bus) and [deployment calls](#deploying-an-agent).
 - **`status` is for anyone its ACL admits.** Everything else is for its Owner and Maintainers only, since it can replace your host env files ([who may manage the runner](security.md#who-may-manage-the-runner)).
 - **`--status`** gives the one-line verdict; plain `status` gives the full JSON the runner page and scripts use.
 
 ## Reading `status`
 
 - **The answer is JSON:** the runner's name and version, one row per installed agent, and `error` if the load failed as a whole.
-- **A row is never left out.** An agent that is silently skipped looks fine and never answers, so one the runner cannot serve shows as `refused` with its reason.
+- A selected package or instance appears even when refused, with its reason. Metadata-only standalone services managed outside this runner are not selected ([agent directories](configuration.md#agent-directories)).
 
 | `state` | Means |
 |---|---|
@@ -64,7 +62,7 @@ Replace the name with the one from your listing. The answer includes each agent'
 | `stopped` | enabled and supported, but not being served: a `stop` call (its `reason` says so), or an agent whose registration failed |
 
 - **`agent_dir`** names the selected package directory. Shared packages override bundles of the same name; see [agent directories](configuration.md#agent-directories).
-- **`processes`** reports `running`, `min` and `max`. For a script only `max` is in force ([what is accepted but inert](security.md#what-is-accepted-but-inert)).
+- **`processes`** reports `running`, `min` and `max`. For a per-message `args` or `json` script only `max` is in force ([what is accepted but inert](security.md#what-is-accepted-but-inert)).
 - **More fields** (start times, paths, sandbox, limits, last exit) are under [Technical details](#technical-details).
 
 ## Controlling one agent
@@ -93,7 +91,7 @@ Replace the name with the one from your listing. The answer includes each agent'
 
 | Call | Result |
 |---|---|
-| `install <agent>` | Builds or copies the bundled package, checks it and serves it |
+| `install <agent>` | Copies and checks the bundled package, then serves it; a contributor checkout can run its trusted packager |
 | `install <agent> git <url> <full-commit>` | Fetches the exact 40- or 64-hex commit, verifies its identity, checks and serves it |
 | `install --replace <agent> …` | Replaces an existing writable package as a whole tree; stale files disappear and host settings stay |
 | `remove <agent>` | Removes the writable package, its inventory entries, env and overrides; answers what it kept: work data, tokens and bus records |
@@ -102,7 +100,7 @@ Replace the name with the one from your listing. The answer includes each agent'
 - **Bundled names cannot be removed,** including a writable package shadowing a bundle: disable the agent instead.
 - **Repository rule:** a self-contained package with a regular `agent.json` at its root. Subdirectory layouts, special files and symbolic links escaping the package are refused.
 - **Pins only:** branches, tags, shortened commits and floating `HEAD` are refused. URLs carry no username, password, query or fragment; no credential or source bytes belong in the call.
-- **Configuration stays write-only** through the [file calls](#the-hosts-files-over-the-bus); installing code does not grant another identity or an ACL.
+- Private env values are not returned by the [file calls](#the-hosts-files-over-the-bus). Installing code does not grant another identity or change an ACL.
 
 <details>
 <summary>Host-provisioned private Git access</summary>
@@ -222,12 +220,12 @@ Every reason is a sentence in the `status` row and in the journal. The common on
 
 An agent that exits **78** (`EX_CONFIG`) is `unconfigured`:
 
-- **The runner stops serving it,** does not restart it, and takes no more messages from its inbox; queued messages wait there.
+- The runner stops application work and automatic restarts. Ordinary messages stay queued; with a stored token, its asks-only reader can still answer help and status.
 - **Its last stderr line is the `reason`** in `status`, even an unterminated one; no stderr means no reason. The line is bounded by the script-answer size limit.
 - **A script agent's triggering message is answered,** as that agent: `error: <agent> is not configured: <reason>`.
 - **Other exit codes behave as usual:** a failed script logs its failure without an answer, and a kept process restarts with backoff.
 - **To try again,** fix the settings or code, then call `reload`. Editing files alone does not resume it, and there is no timer or automatic retry.
-- **This is the runner's rule;** the dedicated `agent-bus run` command behaves as it always has.
+- This rule applies to the managed runner; [dedicated scripts](../06-dedicated-runner.md#script-agents) have their own lifecycle.
 
 ## Reading the logs
 
@@ -251,7 +249,7 @@ journalctl -u agent-bus-runner@<you> -f
 | the caller is refused | the agent's ACL still admits only you ([ACL](security.md#who-may-call-an-agent)) |
 | `status` says `is <someone>'s now` or `the token kept … is not its any more` | the agent was transferred, or its token rotated: hand it over again ([what runs as what](security.md#what-runs-as-what)), or let its new person's runner serve it |
 | `READERS` is `0` in `agent-bus ls` | no read is waiting at that instant; the process can be busy, starting or stopped. Inspect `status` for the actual state ([who owns what](security.md#what-runs-as-what)) |
-| the caller waits, then gives up | the script exited nonzero: no answer is sent, the failure is logged, and there is no retry |
+| the caller waits, then gives up | a nonzero script exit, stalled work, connection failure or expired deadline can leave no answer; inspect status and logs before deciding whether retrying is safe |
 | nothing ran at all | the caller's deadline had already passed when the message came up |
 | the answer ends in `[agent-bus-runner: the answer was cut at 1048576 bytes]` | one answer is bounded at 1 MiB; the rest was dropped |
 | `#runner` answers `error: … answers status, reload, start, …, not "x"` | the runner is not the agent you meant to call |
@@ -267,7 +265,7 @@ sudo /usr/local/bin/agent-bus-setup --runner disable --for <you>
 
 - **`systemctl stop agent-bus-runner@<you>`** only stops it.
 - **An abrupt stop can lose work already taken** ([durability](../04-messaging.md#durability)); everything still queued waits for the runner.
-- **A restart resumes enabled agent:** they stay registered, their messages wait in their inboxes, and the runner keeps their tokens in `runner/tokens/`.
+- **A restart resumes enabled agents:** they stay registered, their messages wait in their inboxes, and the runner keeps their tokens in `runner/tokens/`.
 - **A daemon that goes away is not a failure:** the runner logs it and reads again.
 
 ## Technical details

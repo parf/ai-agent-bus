@@ -85,7 +85,7 @@ adding Python's selector is approximately 5–8 min with a selected-read test.
 These are separate optional parity work, not prerequisites invented for T-31.
 
 The audit found docs/09's S2 status stale. That follow-up is built at
-`a3e3962d`; the [current status](../../../../docs/09-daemon-api.md#stability-and-compatibility) records S2v.
+`a3e3962d`; the [current status](../../../../docs/09-daemon-api.md#protocol-version) records S2v.
 This historical audit does not imply a missing event-log helper.
 
 

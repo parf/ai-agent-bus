@@ -62,7 +62,7 @@ Follow each link for the full behavior and limits.
 
 ### Versioning and project process
 
-- The [API stability contract](09-daemon-api.md#stability-and-compatibility) distinguishes client routes from administrative interfaces.
+- The [API contract](09-daemon-api.md#protocol-version) distinguishes client routes from administrative interfaces.
 - Project and client-library terms are in the [project license](../LICENSE.md#polyform-strict-license-100) and [client license](../src/clients/LICENSE.md#mit-license).
 
 ### Backups

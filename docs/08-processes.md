@@ -151,7 +151,6 @@ child cannot make one and does not need the capability to.
 | `AGENT_BUS_ACCOUNTS` | the supervisor's active editable account map; the bus compares it with durable desired state to report whether a full restart is required |
 | `AGENT_BUS_SUPERVISOR_PID` | the spawning supervisor's PID, replacing any inherited value; the non-Linux child checks this exact parent before starting and while running |
 | `--owner` | required first-run Owner seed; the daemon account's socket answers as the durable daemon Owner, which a transfer moves ([daemon ownership](01-identity-and-authority.md#daemon-owner)) |
-| `--web` | accepted and ignored for compatibility with older units; the [web face](#the-web-face) is its own unit |
 
 The bus child inherits the supervisor's environment.
 

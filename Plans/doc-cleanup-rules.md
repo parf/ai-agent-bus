@@ -5,7 +5,7 @@
 ## Review baseline
 
 - Owner direction: public docs cover the shipped R1 scope, without product release/stage narration. Setup is a short guide with the user's AI executing AI-SETUP.md as the recommended first path. The same entry handles requested updates and tuning.
-- Deprecated project support is a separate **1.0.1** code task. Removing its historical prose does not remove the implementation.
+- The owner requires a **clean R1 installation with canonical forms only**. Retired project formats, aliases and migrations are removed from code, scripts, fixtures and docs together; no prerelease-state preservation or one-off conversion is required.
 - Astra reviewed all blocks in the eight files below: **2,743 lines**, plus CLAUDE.md and [.claude/docs/WRITING.md](../.claude/docs/WRITING.md#how-we-write-docs). No edits, tests, builds, installs or provider calls were part of its analysis.
 - The sample is the first review batch, not a claim that all documentation has been read. The wider inventory has 65 Markdown files under docs/ and 37 tracked source README/INSTALL candidates, plus root entry points and other linked references.
 - Publication, push and the final tag remain on hold.
@@ -36,7 +36,7 @@ Line references below refer to main `1ab9031a`, before cleanup.
 | Repeated information | The same fact, procedure, example, table or caveat appears more than once without adding a distinct use. | Combine into one primary section and link to it; retain a repeat only for a specific reader need. |
 | Editorial filler | Text explaining document ownership, section placement or writing policy. | Delete; put an actual authoring rule in .claude/docs if needed. |
 | Suspect claim | Contradictions, inflated guarantees or questionable commands. | Check implementation/shipping evidence; record the result before rewriting. |
-| Deprecated support | Old aliases, mirrors, formats, migrations or fallback behavior actually implemented. | Inventory separately for 1.0.1; keep current technical facts truthful until changed. |
+| Deprecated support | Old aliases, mirrors, formats, migrations or fallback behavior actually implemented. | Remove in R1 with its producers, scripts and tests; reject retired input explicitly and verify the canonical form. |
 
 ## To fix: first batch
 
@@ -73,10 +73,10 @@ Line references below refer to main `1ab9031a`, before cleanup.
 | V08 | Voyage install:56; runner/security network-reach | needs.network hosts are not a sandbox destination allowlist. State the fixed provider origin enforced by the application without promising domain-restricted host networking. |
 | V07 | setup:389; AI-SETUP:52 | Distinguish shared-package defaults from bundled packages requiring explicit enabled:true. Check the actual loader before rewriting. |
 
-### Separate 1.0.1 compatibility work
+### Canonical R1 interfaces
 
-- C01 — records:139,208–222: personal field/tag mirror, accepted old input and stored-tag cleanup.
-- C02 — launchers:57,103,309,338–340: distinguish external runtime-version support from deprecated AgentBus behavior; inspect prior Claude MCP-definition cleanup and duplicate-reader prevention.
+- C01 — Remove the Personal boolean mirror, scalar Maintainers, legacy reader fields and stored-state conversions. The `personal` tag is the classification; retired fields are refused.
+- C02 — Remove launcher binding, name and bundle fallbacks. Preserve deliberate current runtime support and live-session concurrency safeguards, using one canonical stored and generated representation.
 - Extend this inventory across CLI aliases, all six clients, package formats and stored-state paths during the full pass. A search hit containing “legacy” is not itself proof of deprecated project support.
 - For each real compatibility path, record its reader, writer, consumer, current tests and removal consequence. Removing support must have a named refusal or deliberate replacement behavior and preserve valid current data.
 - Do not silently delete active input/output fields, migration safeguards or security refusals while editing prose. Do not publish a claim that they are already removed.
@@ -166,7 +166,7 @@ These are editorial proposals, not executed commands or invented output.
 - [ ] The block classes and to-avoid exceptions match the intended cleanup.
 - [ ] The short setup shape and proposed reference destinations are acceptable.
 - [ ] Verification questions V01–V07 stay separate from cosmetic rewriting.
-- [ ] Actual deprecated-support removal remains 1.0.1 work.
+- [ ] Retired formats and aliases are removed from runtime, scripts, examples and help; positive canonical and negative retired-input checks pass.
 - [ ] Every page gets a semantic dedup pass, with necessary repetitions justified.
 - [ ] All offered documentation gets a file-by-file disposition after these rules are reviewed.
 

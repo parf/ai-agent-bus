@@ -1,6 +1,6 @@
 # agent-bus
 
-🏢 **An enterprise platform that connects your AI agents, tools and people, governs every access, and runs managed agents with [documented isolation](docs/runner/security.md#isolation-today).**
+🏢 **An enterprise platform that connects your AI agents, tools and people, governs access on the bus, and runs managed agents with [documented isolation](docs/runner/security.md#isolation-today).**
 
 💻 **Runs on Linux and macOS:** full system services on Linux; on macOS, a client, local bus and runner with [platform limits](docs/platforms/macos.md).
 
@@ -47,33 +47,6 @@ For guided installation or tuning an existing setup, give your AI [AI-SETUP.md](
 - 🧰 **Your handy scripts stay private hacks.** Now any script becomes a safe, shared team tool. [How](docs/runner/README.md)
 - 👀 **You cannot see what is going on.** Now one web page shows what needs attention. [How](docs/05-discovery.md#dashboard)
 
-## The bus
-
-**Everyone finds each other; you decide who can do what.**
-
-*The problem:* AI sessions, scripts and people cannot find or reach each other, and nobody controls who may use what.
-
-- 🔗 **Connect:** reach anyone by name, on this machine or another.
-- 🔍 **Discover:** see who is there and ask each one what it can do.
-- 🛡️ **Access Control:** for each person and each agent, decide who may call it, read it and manage it.
-- 🗂️ **One place for settings and shared passwords:** kept with each name, readable only by its owner, its managers and the agent itself.
-
-More: [access](docs/02-access.md#acl).
-
-🔐 **Passwords in two places:** the ones several people or machines share live on the bus; a script's own stay with its runner, on its host. [Two stores](docs/runner/security.md#secrets)
-
-## The runner
-
-*systemd on steroids, for AI-era tools.* The problem: a useful script is unsafe to share, or a pain to run as a service.
-
-- 📦 **Confined:** see [isolation today](docs/runner/security.md#isolation-today) for what an agent can reach on the network, read and write.
-- 📏 **Capped:** the [isolation rules](docs/runner/security.md#isolation-today) describe enforced limits, soft disk checks and host refusals.
-- 🔑 **Its own passwords:** kept in a file on its host; the bus never shows them, and set on the host they never cross it.
-- 🎛️ **Controlled from a web page:** start, stop and restart it, and see its state and why it stopped.
-- 🔁 **Kept running:** a helper that stays running is restarted when it fails; a script run per message starts fresh each time.
-
-The runner's [isolation rules](docs/runner/security.md#isolation-today) explain the Linux sandbox and what changes when it is off.
-
 ## Helpers are building blocks
 
 🧱 **Our agents are building blocks, like lego: they make it possible to assemble complex systems easily, without sacrificing security.**
@@ -99,7 +72,7 @@ flowchart LR
   S --> R[Reply to customer]
 ```
 
-🔒 **Why it stays safe:** each block gets only the access you grant, and a block that holds a password keeps it: your AI uses the block and never sees that password. [Help desk](docs/agents/README.md#example-a-mail-help-desk)
+🔒 **Control each step:** grant each block only the access it needs. Helpers hold credentials for their callers; trust helper code with what it receives. [Help desk](docs/agents/README.md#example-a-mail-help-desk)
 
 ## From one laptop to many hosts
 
@@ -122,7 +95,7 @@ flowchart LR
   A -- HTTPS or SSH --> B
 ```
 
-## One real flow: a server error reaches you on Slack
+## A server error reaches you on Slack
 
 ```mermaid
 flowchart LR
@@ -169,7 +142,7 @@ flowchart LR
 - **Management** — register records, edit ACLs and group members, manage users, transfer or retire.
 - **Activity graphs** — by day, week and month, per record or node-wide, 400 days back with ‹ Prev.
 - **Diagnostics** — refusals by reason and stray names, refreshed on demand; message bodies never shown.
-- **Isolated** — its own process and `nobody`-like account, `agent-bus-web`; holds no bus state.
+- **Separate process** — `agent-bus-web` acts with the signed-in visitor’s rights and has no privileged bus credential.
 
 ### Safe by design
 
@@ -220,9 +193,9 @@ An optional realm (<code>@team</code>) is part of the name.
 <dt><strong><a href="docs/constitution.md#authority-rules">Owner</a></strong></dt>
 <dd>The User a record belongs to; may transfer it and names its Maintainers.</dd>
 <dt><strong><a href="docs/constitution.md#authority-rules">Maintainers</a></strong></dt>
-<dd>Users or Agents the Owner lets edit a record's description, ACL and status.</dd>
+<dd>People, agents or groups assigned to manage a record’s description, access list and status.</dd>
 <dt><strong><a href="docs/02-access.md#acl">ACL</a></strong></dt>
-<dd>Who may reach a record: Users, Agents, Groups (nested), or <code>*</code> for every registered user.</dd>
+<dd>Who may reach a record: Users, Agents, Groups (nested), or <code>*</code> for every authenticated registered caller.</dd>
 <dt><strong><a href="docs/03-records.md#personal-and-shared">Personal</a></strong></dt>
 <dd>A record meant only for its Owner and that Owner's Agents.</dd>
 <dt><strong><a href="docs/constitution.md#-private-values">Private values</a></strong></dt>
@@ -243,41 +216,20 @@ An optional realm (<code>@team</code>) is part of the name.
 <dt><strong><a href="docs/04-messaging.md#receipts">Receipts and deadlines</a></strong></dt>
 <dd>A reader may confirm it took or finished a message, and a caller may say when an answer stops being useful.</dd>
 <dt><strong><a href="docs/04-messaging.md#one-reader-per-inbox">One reader per inbox</a></strong></dt>
-<dd>A message is taken at most once; readers that say so may share an inbox as a pool.</dd>
+<dd>Each successful take hands the message to one reader; readers that opt in can share an inbox as a pool. This does not guarantee exactly-once external effects.</dd>
 <dt><strong><a href="docs/04-messaging.md#overflow">TTL, bound and overflow</a></strong></dt>
 <dd>How long an inbox keeps a message, how many it holds, and whether a full one refuses or drops the oldest.</dd>
 </dl>
 
-### Resources and locks
+### Shared locks
 
-<dl>
-<dt><strong><a href="docs/03-records-resource.md#what-a-resource-is">Resources</a></strong></dt>
-<dd>MCP clients list and read them; an Agent, an MCP Service or the web supplies the contents, and the card stores none.</dd>
-<dt><strong><a href="docs/01-identity-and-authority.md#shared-locks">Shared locks</a></strong></dt>
-<dd>Each registry record has its own set of named locks, available to its Owner, Maintainers and own Agent. Each lock allows one holder at a time and expires after its TTL. Blocking <code>lock</code> waits until the lock is available or the wait times out; nonblocking <code>try-lock</code> returns immediately. Locks live in memory and are released when the daemon restarts.</dd>
-</dl>
+Coordinate work on a record with [named, expiring locks](docs/01-identity-and-authority.md#shared-locks). A lock protects ownership of work; it does not make an external effect exactly once.
 
 ### Persistent KV storage per registry record (Redis- or NATS-like, built in)
 
 Keep small shared values—settings, counters and job checkpoints—on the record they belong to. String, integer and JSON values support atomic updates and survive daemon restarts.
 
 Use [KV operations and coordination patterns](docs/03-records-kv.md#key-value-store) for details. Separate operations are not a transaction; a crash between them can require reconciliation. For large payloads, pass a [bigfile](docs/03-records-kv.md#bigfiles) name instead of bytes in a message.
-
-### Faces, logs & storage
-
-<dl>
-<dt><strong><a href="docs/05-discovery.md#faces">Faces</a></strong></dt>
-<dd>The <code>agent-bus</code> CLI; the MCP face and its launchers; the dedicated runner, which puts a script behind an agent name, optionally sandboxed; and the web face.</dd>
-<dt><strong><a href="docs/08-processes.md#the-web-face">Web face</a></strong></dt>
-<dd>Its own process and hardened unit: overview, every record and person, activity history by day, week and month, and diagnostics, with bodies never shown.</dd>
-<dt><strong><a href="docs/constitution.md#logs">Logs</a></strong></dt>
-<dd>An audit log of every administrative action, an error log copied to syslog, and an on-demand debug log.</dd>
-<dt><strong><a href="docs/administration.md#storage">SQLite storage</a></strong></dt>
-<dd>The Go daemon handles the registry and messaging with an embedded database; no separate database or message broker to administer.</dd>
-</dl>
-
-The [constitution](docs/constitution.md#project-constitution) is the model in
-one page; the [glossary](docs/glossary.md#names) names everything.
 
 ## Using it
 
@@ -293,9 +245,9 @@ The [client libraries](src/clients/README.md) provide native examples. For scrip
 
 The [CLI guide](docs/user/cli.md#-the-command-line-tools) has every command.
 
-Everything you do with the bus from a terminal goes through one program, `agent-bus`: register records, send and read messages, call agents, take locks, keep KV values and run a script as an agent. On your own machine it finds your login socket by itself, so no token is needed; from elsewhere, set `AGENT_BUS_ADDR` and a credential.
+Use `agent-bus` to register records, send and read messages, call agents, take locks, keep KV values and run a script as an agent. On your own machine it finds your login socket by itself, so no token is needed; from elsewhere, set `AGENT_BUS_ADDR` and a credential.
 
-The other programs are used rarely. `agent-bus-setup` installs the node once, `agent-bus-admin` lets the bus operator add people and hand out credentials, `agent-bus-runner` serves installed scripts, and `agent-busd` is the daemon itself. The [CLI guide](docs/user/cli.md#-the-command-line-tools) covers each one.
+The other programs are used rarely. `agent-bus-setup` installs the node once, `agent-bus-admin` lets the bus operator add people and hand out credentials, `agent-bus-runner` serves installed scripts, and `agent-busd` is the daemon itself.
 
 List all visible records in a readable table:
 
@@ -312,7 +264,7 @@ printf '#!/bin/sh\necho "hello $1"\n' > "$HOME/hello.sh" && chmod +x "$HOME/hell
 Run it as an agent in this terminal:
 
 ```sh
-agent-bus run hello "$HOME/hello.sh" --no-asks
+agent-bus run '#hello' "$HOME/hello.sh" --no-asks
 ```
 
 Call it from another terminal and get "hello world" back:

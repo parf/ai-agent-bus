@@ -186,7 +186,7 @@ says what a term names:
   registry key, token identity, envelope `from` and `to`, what the Agent is told
   it serves, what a caller sends to. Nothing strips it, so `name` is unique
   across kinds and no term needs a lookup to say what it names.
-- Agent identities in API and MCP arguments, registration, credential issue and configuration use the `#` prefix. An unprefixed record target does not select an Agent. The dedicated runner also accepts an unprefixed launch name and adds `#` before registration; that convenience does not change the canonical identity.
+- Agent identities in API and MCP arguments, registration, credential issue and configuration use the `#` prefix. An unprefixed record target does not select an Agent. The dedicated runner requires the same complete Agent name; it never guesses or adds a prefix.
 - Because a shell reads an unquoted `#` as a comment, the CLI MUST also accept
   `--agent worker@srv1`, which names `#worker@srv1`. It adds the `#` only when
   absent, never a second one; a quoted `'#worker@srv1'` stays valid.
@@ -235,7 +235,7 @@ kind, and a field a kind cannot have is refused. Inactive records and failed del
 | `name` | canonical `name`, `name@team` or `template/instance@team`; globally unique and required. The realm is optional and the last `@` separates it. A 👾 name begins with `#` and a 👥 name with `@`, so the name alone says the kind. The ordinary rules still apply after the prefix, so `@support@srv1` is a Group with a realm |
 | `description` | |
 | wire names | the API spells `description` as `descr`, `deliver_to` as `subs`, `updated_at` as `at`, and `owner_id` as `owner`, the owning User's name; the store keeps the owner's `user_id` beside it, on no answer |
-| `personal` | the intended audience is the Owner and the Agents that Owner owns; the record's `allow` and `maintainers` admit that cohort and nothing wider |
+| `tags` containing `personal` | the intended audience is the Owner and the Agents that Owner owns; its `allow` and `maintainers` admit that cohort and nothing wider |
 | `maintainers` | typed actor terms |
 | `allow` | typed actor terms: the ACL on every kind that has one, and the membership list on a 👥 |
 | `status` | `active` or `inactive` |
@@ -251,7 +251,7 @@ Every record carries those, except that a 👤 has neither `maintainers` nor
 
 A 👤 record is the User's own inbox: it takes `ttl`, `bound` and `overflow` and
 nothing else from this table, who may reach it follows the
-[User delivery rule](#-channels) rather than a list, and its `personal` is fixed true —
+[User delivery rule](#-channels) rather than a list, and its `personal` tag is fixed —
 everything not Personal is shared, in the web views as everywhere else, and a
 User is not.
 
@@ -549,7 +549,7 @@ it. A Personal Group MUST carry its Owner's prefix, so Users never compete for
 a personal name, and one without it is refused. A prefixed Group MUST NOT be
 transferred, because its name says whose it is and a name never changes. Create a correctly named group instead. A
 stored Group whose prefix is not its Owner, or a Personal one without a prefix,
-is incorrect and ignored at load. Unprefixed names are the shared namespace.
+is incorrect and refused at load. Unprefixed names are the shared namespace.
 
 </details>
 
