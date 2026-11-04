@@ -183,3 +183,60 @@ func TestUpgradeJournalRejectsObsoletePayload(t *testing.T) {
 		}
 	}
 }
+
+func TestRollbackRefusesInvalidTargetBeforeEffects(t *testing.T) {
+	for _, damage := range []string{"missing", "corrupt", "mismatch", "obsolete"} {
+		t.Run(damage, func(t *testing.T) {
+			root, _ := withInstallPaths(t)
+			bundle, err := checkBundle(fixtureBundle(t, "rollback"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := stageBundle(bundle); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := selectBundle(bundle.releaseID); err != nil {
+				t.Fatal(err)
+			}
+			old := bundle.releaseID
+			target := filepath.Join(root, "releases", old)
+			switch damage {
+			case "missing":
+				old = "missing-release"
+			case "corrupt":
+				if err := os.WriteFile(filepath.Join(target, "agent-busd"), []byte("changed"), 0755); err != nil {
+					t.Fatal(err)
+				}
+			case "mismatch":
+				old = "wrong-name"
+				if err := os.Rename(target, filepath.Join(root, "releases", old)); err != nil {
+					t.Fatal(err)
+				}
+			case "obsolete":
+				if err := os.Rename(filepath.Join(target, "agent-bus-ts"), filepath.Join(target, "agent-bus-web")); err != nil {
+					t.Fatal(err)
+				}
+			}
+			tools := t.TempDir()
+			calls := filepath.Join(tools, "calls")
+			if err := os.WriteFile(filepath.Join(tools, "systemctl"), []byte("#!/bin/sh\necho called >> \""+calls+"\"\nexit 1\n"), 0700); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("PATH", tools)
+			before, err := os.Readlink(filepath.Join(root, "current"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := performRollback(upgradeJournal{OldRelease: old}, "unused"); err == nil {
+				t.Fatal("invalid rollback target accepted")
+			}
+			after, err := os.Readlink(filepath.Join(root, "current"))
+			if err != nil || after != before {
+				t.Fatalf("refusal changed current: %q -> %q: %v", before, after, err)
+			}
+			if _, err := os.Stat(calls); !os.IsNotExist(err) {
+				t.Fatal("refusal ran service commands")
+			}
+		})
+	}
+}

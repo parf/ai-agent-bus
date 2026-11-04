@@ -207,7 +207,25 @@ func rollbackUpgrade(j upgradeJournal, addr string, cause error) error {
 	return fmt.Errorf("%v; rolled back to %s with its consistent state", cause, releaseVersion(j.OldRelease))
 }
 
+// Validate recovery's stored target again before stopping services or selecting it.
+func validateRollbackRelease(id string) error {
+	if id == "" || filepath.Base(id) != id || id == "." || id == ".." {
+		return fmt.Errorf("invalid rollback release name")
+	}
+	bundle, err := checkBundleVersion(filepath.Join(installRoot, "releases", id), "")
+	if err != nil {
+		return fmt.Errorf("rollback target is not a current bundle: %w", err)
+	}
+	if bundle.releaseID != id {
+		return fmt.Errorf("rollback target name %s does not match its manifest %s", id, bundle.releaseID)
+	}
+	return nil
+}
+
 func performRollback(j upgradeJournal, addr string) error {
+	if err := validateRollbackRelease(j.OldRelease); err != nil {
+		return err
+	}
 	_ = run("systemctl", "stop", "agent-busd")
 	if _, err := selectBundle(j.OldRelease); err != nil {
 		return fmt.Errorf("could not select %s: %w", j.OldRelease, err)
