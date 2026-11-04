@@ -20,9 +20,9 @@ const cases:[string,string,string][]=[
  ["locks","/locks","01-identity-and-authority.md#shared-locks"],
  ["kv","/kv/value","03-records-kv.md#rules"],
  ["activity","/activity","05-discovery.md#activity-history"],
- ["diagnostics","/diagnostics","07-setup.md#logs"],
+ ["diagnostics","/diagnostics","administration.md#logs"],
  ["account","/account","02-access.md#getting-a-token"],
- ["overview","/","00-overview.md#goal"],
+ ["overview","/","00-overview.md#try-this-first"],
 ];
 test("every page family and its forms link to their own public documentation",()=>{
  for(const [section,path,target] of cases)expect(pageDocumentation(section,path,"GET",true).map(d=>d.target)).toContain(target);

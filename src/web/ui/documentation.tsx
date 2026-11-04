@@ -9,7 +9,7 @@ const tags:Doc={label:"Tags",target:"03-records.md#tags"};
 const access:Doc={label:"Access rules",target:"02-access.md#acl"};
 const configuration:Doc={label:"Configuration",target:"03-records-agent.md#configuring-a-template"};
 const secrets:Doc={label:"Secrets (ENV)",target:"03-records-service.md#secrets"};
-const overview:Doc={label:"AgentBus guide",target:"00-overview.md#goal"};
+const overview:Doc={label:"AgentBus guide",target:"00-overview.md#try-this-first"};
 
 export const PAGE_DOCUMENTATION:Record<string,Doc[]>={
  overview:[overview,{label:"Dashboard",target:"05-discovery.md#dashboard"}],
@@ -25,7 +25,7 @@ export const PAGE_DOCUMENTATION:Record<string,Doc[]>={
  locks:[{label:"Locks",target:"01-identity-and-authority.md#shared-locks"}],
  kv:[{label:"Key-value stores",target:"03-records-kv.md#rules"},{label:"Bigfiles",target:"03-records-kv.md#bigfiles"},{label:"JSON operations",target:"03-records-kv.md#json-operations"}],
  activity:[{label:"Activity history",target:"05-discovery.md#activity-history"},{label:"Message fields",target:"04-messaging.md#message-fields"}],
- diagnostics:[{label:"Diagnostics",target:"05-discovery.md#overview-and-diagnostics"},{label:"Logs",target:"07-setup.md#logs"}],
+ diagnostics:[{label:"Diagnostics",target:"05-discovery.md#overview-and-diagnostics"},{label:"Logs",target:"administration.md#logs"}],
 };
 
 export function pageDocumentation(section:string,path:string,method:string,signedIn:boolean):Doc[]{
