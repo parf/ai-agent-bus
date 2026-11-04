@@ -287,3 +287,16 @@ func TestCopyrightOnGeneralAndCommandHelp(t *testing.T) {
 		}
 	}
 }
+
+func TestOverviewHelpTakesNoExtraArguments(t *testing.T) {
+	for _, args := range [][]string{{"--help", "junk"}, {"--help", "--"}, {"--help", "--mistyped"}} {
+		out, code := cliHelpRun(t, args...)
+		if code == 0 || !strings.Contains(out, "--help takes no arguments") {
+			t.Fatalf("%q: %d %s", args, code, out)
+		}
+	}
+	out, code := cliHelpRun(t, "--help")
+	if code != 0 || !strings.Contains(out, "USAGE") {
+		t.Fatalf("canonical help: %d %s", code, out)
+	}
+}

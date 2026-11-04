@@ -140,8 +140,9 @@ func main() {
 	case "help":
 		err = agentHelp(rest, os.Stdout)
 	case "--help":
-		_, flags, parseErr := split(rest)
-		if err = only(flags, parseErr); err == nil {
+		if len(rest) != 0 {
+			err = fmt.Errorf("--help takes no arguments")
+		} else {
 			fmt.Println(usage)
 		}
 	case "--version":
