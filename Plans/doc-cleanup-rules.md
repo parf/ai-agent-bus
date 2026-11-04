@@ -1,6 +1,6 @@
 # Documentation cleanup rules
 
-📌 **TL;DR:** User documentation describes the shipped product and helps someone use it; development history, future scope and editorial process stay outside that reading path. The owner-directed cleanup passes are recorded in the [review ledger](doc-cleanup-review.md#file-dispositions). Final integrated verification remains pending.
+📌 **TL;DR:** User documentation describes the shipped product and helps someone use it; development history, future scope and editorial process stay outside that reading path. The owner-directed cleanup passes are recorded in the [review ledger](doc-cleanup-review.md#file-dispositions). The final integrated normal and documentation checks passed; see the ledger’s verification section.
 
 ## Review baseline
 

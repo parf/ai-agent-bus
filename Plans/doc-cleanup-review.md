@@ -1,6 +1,6 @@
 # Documentation cleanup review
 
-Status: the recorded user-guide and source-guide cleanup/dedup passes are applied. Final integrated verification is pending. Push, publication and tagging remain on hold.
+Status: the recorded user-guide and source-guide cleanup/dedup passes are applied. Final integrated verification passed on 2026-11-04. Push, publication and tagging remain on hold.
 
 This ledger reconciles the earlier full-block Astra reviews with the completed family commits through `0dcc17c6`, plus the closure pass below. A commit alone is not treated as proof of a full semantic review: the evidence combines the recorded reviewer coverage, family handoffs and the actual page changes. Contributor references added late have narrower dispositions where a full dedup pass is not evidenced.
 
@@ -139,9 +139,9 @@ This ledger reconciles the earlier full-block Astra reviews with the completed f
 | [src/web/web-face/node.md](../src/web/web-face/node.md) | Web contributors | Full read; current-contract cleanup | Retained UI/state tables; removed obsolete route aliases and rewrite-history section; node diagnostics remain current. |
 | [src/web/web-face/site-map.md](../src/web/web-face/site-map.md) | Web contributors | Full read; current-contract cleanup | Canonical tag routes and unsupported aliases; added existing runner settings/control routes; removed history navigation. |
 | [src/web/web-face/runners.md](../src/web/web-face/runners.md) | Web contributors | Full read; current-contract cleanup | Current status rows require key/name/state/enabled; removed fixed-version fallback narrative; kept unknown outcomes and optional observations. |
-| [src/web/web-face/people.md](../src/web/web-face/people.md) | Web contributors | Canonical contract reviewed by C | Canonical tags/forms/routes checked; dense developer UI tables deliberately retained. A separate whole-page semantic dedup pass is not evidenced. |
-| [src/web/web-face/records.md](../src/web/web-face/records.md) | Web contributors | Canonical contract reviewed by C | Canonical tags and Configuration form contract checked; dense developer UI tables retained. A separate whole-page semantic dedup pass is not evidenced. |
-| [src/web/web-face/shell.md](../src/web/web-face/shell.md) | Web contributors | Canonical contract reviewed by C | Canonical TLS/runtime and interface spellings checked; dense shared-shell reference retained. A separate whole-page semantic dedup pass is not evidenced. |
+| [src/web/web-face/people.md](../src/web/web-face/people.md) | Web contributors | Reviewed — Source | Full semantic pass: user/group/account contracts retained; repeated Configuration recovery linked to its owning reference. |
+| [src/web/web-face/records.md](../src/web/web-face/records.md) | Web contributors | Reviewed — Source | Full semantic pass: routes, filters, authority, forms and Configuration contracts reconciled; Roles duplication removed. |
+| [src/web/web-face/shell.md](../src/web/web-face/shell.md) | Web contributors | Reviewed — Source | Full semantic pass: current process/TLS/socket/origin/refusal reference retained; editorial history and duplicate return/count rules removed. |
 
 ## Moved and historical material
 
@@ -157,16 +157,19 @@ The catalogue generator selects the release packager's runtime/standalone invent
 ## Preserved distinctions
 
 - Operational limits remain: uncertain send outcomes, queued versus consumed durability, export exclusions, short-lease and separate-write examples, platform limits and Secret exposure.
-- The three authoring tutorials retain exact source-quote regions. Caveats explain their simple Secret parsing, lease/counter gaps and wait loops rather than fabricating safer example behavior.
+- Three source excerpts in the CLI and Python-process tutorials match their source. All three tutorials execute their command blocks, including the runner page, which quotes no source region. Caveats retain the real Secret parsing, lease/counter gaps and bounded waits.
 - First use avoids private development identities and unnecessary output filtering. Real version diagnostics, scheduled future events, standards terminology and actual runtime history remain useful.
 - Security warnings beside a sensitive action may repeat a short statement from the reference: user-account runner credentials are readable by that user's own processes; backup archives must be private from creation.
 - Current-format setup/update/recovery remains supported. Prerelease conversion, retired aliases and old stored formats are separate implementation removals, not prose-only deletions.
 
-## Final verification still pending
+## Final verification
 
-- Integrated Markdown/HTML/source-link and anchor checks, including inbound links to removed headings.
-- Final asset/diagram and source-quote checks on the integrated tree.
-- Final cross-page canonical-command/field consistency after remaining implementation follow-ups.
-- The required integrated runtime landing gate for the combined code changes. Earlier gates and isolated checks do not close this item.
+- `src/smoke.sh --normal`: **1298 passed, 0 failed**, exit 0, **61.213 seconds**, all 63 selected shards at normal. Runtime tree: `12524143`; subsequent changes are documentation only.
+- The one skipped case is `test_real_user_scope_survives_starter_service_restart`, explicitly assigned to slow. No slow-suite or release/tag/publication claim is made.
+- Agent-page checks: 8/8; documentation-order checks: 27/27. Standard Markdown/inbound-anchor checker passes.
+- Supplemental offline audit of 107 changed public/source documents: 1866 Markdown links, 33 HTML links and 6 local-repository GitHub targets; no missing paths or anchors.
+- README retains all three original image assets and four byte-identical Mermaid diagrams.
+- The executable guide shard passes 122/0: three source-excerpt comparisons, 18 executable command blocks and five output comparisons. It ran again in the final normal gate.
+- Independent reviews, reproduced findings and focused compiling mutation evidence are recorded in [the integration review](issues/2026-11/2026-11-04.md) and the owning commits. The first aborted integration run is retained there as a failed attempt, not a passing gate.
 
-The closure pass uses read-only source inspection and static documentation checks only; it makes no installation, deployment, provider call or external send. No final verification item above is marked complete by this ledger update.
+No live deployment, provider request, push, publication or tag was performed. Historical material stays in Plans; user-facing guides describe the current product.

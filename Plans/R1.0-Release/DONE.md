@@ -1,5 +1,10 @@
 # DONE — R1
 
+## Clean R1 inputs
+
+- Prerelease field/flag/route aliases, unbound credentials, schema/state converters and obsolete package adapters are removed. First-party callers, fixtures, help and documentation use the canonical forms. Current-format updates and atomic recovery remain supported.
+- [Implementation and checks](legacy-removal.md#implementation-and-checks) records independent reviews, mutation evidence and the successful integrated normal gate. Earlier migration descriptions below are historical implementation evidence, not supported release behavior.
+
 ## T-31 Client event logs and subscriptions
 
 - All six native clients run the shared event-log and subscription cases against the real fixture, with executed examples and README links. Generic send/call and destination consumption suffice; no event helper was added. [Completion evidence](done/t31-client-events.md#landed-evidence) records Q322 and parts a–g; the client audit stays dated.

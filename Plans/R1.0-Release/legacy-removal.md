@@ -15,7 +15,7 @@ old package/layout adapter. No one-off conversion is required or shipped. No
 
 The initial inventory was read at `01dbbb77`; implementation starts from `562de7d8`.
 “Current use” below identifies source callers and fixtures, not observed live installations.
-This file records scope and acceptance, not completed runtime verification or deployment.
+This file records scope, acceptance and the completed local verification below. No live deployment or publication was performed.
 
 ## Removal inventory
 
@@ -81,3 +81,16 @@ No live state conversion, deletion, deployment or external-provider call is impl
 plan. Inventory completeness remains bounded by source inspection: repeat the compatibility
 and serialization-default sweep after integration, and report any remaining supported form
 with its actual current contract and test evidence.
+
+## Implementation and checks
+
+Canonical inputs are implemented across registry/storage, credentials, CLI/runner, all six SDKs, MCP/launchers/web, agent state, packaging and the first-party callers. Retired formats are refused, not converted. Current-format atomic updates and recovery remain supported.
+
+- Stored snapshots and credentials validate before serving; fresh account-map seeds validate before any listener binds.
+- Typed JSON schemas reject wrong case, repeated fields and duplicate map entries while opaque Configuration remains application data.
+- Retired command/flag/route aliases, unbound credentials, obsolete schema readers, state migrations and obsolete package adapters are removed, with callers, help, fixtures and guides updated together.
+- Independent reviews and the fixes they found are recorded in [the integration review](../issues/2026-11/2026-11-04.md). The owning commits record compiling mutants failing their intended assertions and restored checks passing.
+- Final normal: 1298/0, exit 0, 61.213 seconds; all 63 selected shards at normal. The sole skipped real-service-restart case belongs to slow.
+- Documentation checks, exact source excerpts and executable guide examples pass; the [cleanup ledger](../doc-cleanup-review.md#final-verification) records link and asset coverage.
+
+This closes R1's prerelease-compatibility removal acceptance. It does not claim native Mac hardware acceptance, a full slow release gate, deployment or publication.

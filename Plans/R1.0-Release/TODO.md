@@ -13,10 +13,10 @@
 
 ## Clean R1 inputs
 
-- [Prerelease compatibility removal](legacy-removal.md#scope) is R1 work, not a patch-release deferral.
+- ✅ [Prerelease compatibility removal](legacy-removal.md#scope) is R1 work, not a patch-release deferral.
   - One canonical CLI, wire, persisted-state and package form; no prerelease converters, retired aliases or silent field repairs.
   - Current-format clean installation, explicit updates and interrupted-operation recovery remain supported.
-  - Implementation and focused mutation evidence are recorded in the [integration review](../issues/2026-11/2026-11-04.md). Final integrated normal verification is pending.
+  - Implementation, independent review and mutation evidence are recorded in the [integration review](../issues/2026-11/2026-11-04.md). [Normal verification passed](legacy-removal.md#implementation-and-checks).
 
 ## Objective
 
