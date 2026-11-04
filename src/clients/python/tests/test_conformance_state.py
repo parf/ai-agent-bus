@@ -199,11 +199,6 @@ class SharedState(unittest.TestCase):
                         bus.status()
                     self.assertIn(expect['fatal'], str(raised.exception))
                     self.assertEqual(calls, ['/identity'], 'an application request followed a fatal handshake')
-                elif 'warns' in expect:
-                    with self.assertLogs('agent_bus', level='WARNING') as logged:
-                        bus.status()
-                    self.assertIn(expect['warns'], ' '.join(logged.output))
-                    self.assertEqual(calls[0], '/identity')
                 else:
                     with self.assertNoLogs('agent_bus', level='WARNING'):
                         bus.status()

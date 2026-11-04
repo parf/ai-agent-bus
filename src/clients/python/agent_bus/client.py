@@ -58,8 +58,6 @@ class Bus:
             fingerprint if fingerprint is not None else os.environ.get("AGENT_BUS_TLS_FINGERPRINT"))
         self._pid = os.getpid()
         self._name = None
-        self._daemon_old = False
-        self._protocol_warned = False
         self._identity_lock = threading.Lock()
         self._condition = threading.Condition()
         self._closed = False
@@ -118,13 +116,8 @@ class Bus:
             raise BusTimeout()
         if query:
             path += "?" + urlencode({key: value for key, value in query.items() if value is not None})
-        try:
-            return self._transport.request(method, path, body, timeout=left, raw=raw,
-                                           headers=headers, destructive=destructive, upload=upload, big_response=big_response, max_size=max_size)
-        except Refusal as exc:
-            if self._daemon_old and exc.kind == 'no_route':
-                raise Refusal(exc.status, 'daemon too old for ' + method + ' ' + path.split('?')[0], exc.kind) from exc
-            raise
+        return self._transport.request(method, path, body, timeout=left, raw=raw,
+                                       headers=headers, destructive=destructive, upload=upload, big_response=big_response, max_size=max_size)
 
     @property
     def name(self):
@@ -132,10 +125,7 @@ class Bus:
         return self._name
 
     def _check_protocol(self, identity):
-        self._daemon_old = check_identity(identity)
-        if self._daemon_old and not self._protocol_warned:
-            _log.warning('daemon too old: protocol is older than this client')
-            self._protocol_warned = True
+        check_identity(identity)
         return identity
 
     def identity(self):

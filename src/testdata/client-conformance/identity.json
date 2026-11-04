@@ -7,26 +7,24 @@
   }
  },
  {
-  "id": "newer-daemon-still-compatible",
+  "id": "unsupported-newer-daemon",
   "identity": "{\"protocol\":2,\"protocol_min\":1}",
   "expect": {
-   "ok": true
+   "fatal": "daemon protocol is unsupported"
   }
  },
  {
-  "id": "absent-fields-read-as-zero-and-warn",
+  "id": "absent-fields-refused",
   "identity": "{}",
   "expect": {
-   "ok": true,
-   "warns": "daemon too old"
+   "fatal": "protocol"
   }
  },
  {
-  "id": "older-daemon-warns",
+  "id": "older-daemon-refused",
   "identity": "{\"protocol\":0,\"protocol_min\":0}",
   "expect": {
-   "ok": true,
-   "warns": "daemon too old"
+   "fatal": "daemon protocol is unsupported"
   }
  },
  {
@@ -83,6 +81,20 @@
   "identity": "{\"protocol\":1,\"protocol_min\":\"1\"}",
   "expect": {
    "fatal": "protocol_min"
+  }
+ },
+ {
+  "id": "missing-minimum-refused",
+  "identity": "{\"protocol\":1}",
+  "expect": {
+   "fatal": "protocol_min"
+  }
+ },
+ {
+  "id": "old-minimum-refused",
+  "identity": "{\"protocol\":1,\"protocol_min\":0}",
+  "expect": {
+   "fatal": "daemon protocol is unsupported"
   }
  }
 ]

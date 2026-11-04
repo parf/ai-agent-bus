@@ -53,9 +53,6 @@ export type ResourceCard = { uri: string; template?: boolean; name?: string; tit
 export type Record_ = { name: string; kind: string; addr?: string; descr?: string; owner: string;
   script?: string; // what agent-bus run serves an agent with (docs/06-dedicated-runner.md#script-agents)
   resource?: ResourceCard;
-  // Resource management grants are a list. Older daemons used one group
-  // string; the current daemon accepts that input only for migration and
-  // always answers with this array form.
   maintainers?: string[];
   // Who may see and use it. A listing already leaves out what its caller may
   // not, so this is what a record says about itself, not a filter to apply
@@ -90,9 +87,7 @@ export class Bus {
   readonly #env: Record<string, string | undefined>;
   #ca?: Promise<string>;
   #protocolFlight?: Promise<void>;
-  #daemonOld = false;
   /** True once the daemon's identity said its protocol is older than this client's. */
-  get daemonOld(): boolean { return this.#daemonOld; }
 
   constructor(env = process.env, allowLocal = false) {
     this.name = (env.AGENT_BUS_NAME || defaultName(env)).trim().toLowerCase();
@@ -122,8 +117,7 @@ export class Bus {
     if (path.split('?')[0] !== '/identity') {
       if (!this.#protocolFlight) {
         const flight = this.#call('GET','/identity',undefined,AbortSignal.timeout(30000)).then(identity => {
-          this.#daemonOld = checkProtocol(identity);
-          if (this.#daemonOld) console.warn('daemon too old: protocol is older than this client');
+          checkProtocol(identity);
         });
         this.#protocolFlight = flight;
         flight.catch(() => { if (this.#protocolFlight === flight) this.#protocolFlight = undefined; });
@@ -170,7 +164,6 @@ export class Bus {
     if (!res.ok) {
       let message = text.trim() || res.statusText, kind: string | undefined;
       try { const refusal = JSON.parse(text); if (typeof refusal.error === 'string') message = refusal.error; if (typeof refusal.kind === 'string') kind = refusal.kind; } catch {}
-      if (this.#daemonOld && kind === 'no_route') message = `daemon too old for ${method} ${path.split('?')[0]}`;
       throw new BusError(res.status, message, kind);
     }
     return raw ? text : text ? JSON.parse(text, exact) : null;

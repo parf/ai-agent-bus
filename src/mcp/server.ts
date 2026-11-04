@@ -527,18 +527,7 @@ const callTool = async (req: { params: { name: string; arguments?: Record<string
   }
 };
 
-// A daemon older than this face is told to the model once, where it reads: the first tool result after the
-// version check found it. stderr already has the warning, which the model never sees.
-const tooOldNote = "[agent-bus MCP face, not part of any message] the bus daemon is older than this tool's protocol; some calls may be refused as 'daemon too old for ...'.";
-let toldTooOld = false;
-server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
-  const result = await callTool(req, extra);
-  if (bus.daemonOld && !toldTooOld) {
-    toldTooOld = true;
-    return { ...result, content: [...result.content, { type: "text" as const, text: tooOldNote }] };
-  }
-  return result;
-});
+server.setRequestHandler(CallToolRequestSchema, callTool);
 
 // The low-level Server does not enforce the schema it advertises, so a
 // missing required argument would otherwise become an empty body on the wire.

@@ -16,17 +16,16 @@ async function fixture(identity:unknown,run:(b:Bus,calls:string[])=>Promise<void
  try{await run(b,calls);}finally{await b.close();server.closeAllConnections();await new Promise<void>(r=>server.close(()=>r()));}
 }
 test('protocol handshake rejects too-new and malformed before any application request',async()=>{
- for(const [identity,error] of [[{protocol:2,protocol_min:2},'daemon too new'],[{protocol:1.5},'protocol'],[{protocol:-1},'protocol'],[{protocol:null},'protocol'],[{protocol:true},'protocol'],[{protocol:1,protocol_min:2},'protocol_min']] as const){
+ for(const [identity,error] of [[{},'protocol'],[{protocol:0,protocol_min:0},'unsupported'],[{protocol:2,protocol_min:1},'unsupported'],[{protocol:1},'protocol_min'],[{protocol:1,protocol_min:0},'unsupported'],[{protocol:2,protocol_min:2},'daemon too new'],[{protocol:1.5},'protocol'],[{protocol:-1},'protocol'],[{protocol:null},'protocol'],[{protocol:true},'protocol'],[{protocol:1,protocol_min:2},'protocol_min']] as const){
   await fixture(identity,async(b,calls)=>{await expect(b.status()).rejects.toThrow(error);expect(calls).toEqual(['/identity']);});
  }
 });
-test('protocol current and compatible are silent, missing and old warn once',async()=>{
- const original=console.warn,warnings:string[]=[];console.warn=(...a)=>{warnings.push(a.join(' '));};
- try{for(const [identity,old] of [[{protocol:1,protocol_min:1},false],[{protocol:2,protocol_min:1},false],[{},true],[{protocol:0,protocol_min:0},true]] as const){warnings.length=0;await fixture(identity,async(b,calls)=>{await b.status();await b.status();expect(calls[0]).toBe('/identity');expect(warnings.length).toBe(old?1:0);});}}finally{console.warn=original;}
+test('current protocol succeeds',async()=>{
+ await fixture({protocol:1,protocol_min:1},async(b,calls)=>{await b.status();expect(calls[0]).toBe('/identity');});
 });
-test('protocol refusals expose kind, keep not_found separate, and name unavailable operation on old daemon',async()=>{
- for(const identity of [{},{protocol:1,protocol_min:1}])for(const [code,kind] of [[404,'not_found'],[404,'no_route'],[503,'unavailable'],[500,undefined]] as const){await fixture(identity,async b=>{
-  try{await b.records();throw new Error('refusal accepted');}catch(e){expect(e).toBeInstanceOf(BusError);const err=e as BusError;expect(err.status).toBe(code);expect(err.kind).toBe(kind);expect(err.message).toBe(code===500?'internal daemon error':!('protocol'in identity)&&kind==='no_route'?'daemon too old for GET /ls':'cause');}
+test('protocol refusals expose kind and preserve the cause',async()=>{
+ for(const identity of [{protocol:1,protocol_min:1}])for(const [code,kind] of [[404,'not_found'],[404,'no_route'],[503,'unavailable'],[500,undefined]] as const){await fixture(identity,async b=>{
+  try{await b.records();throw new Error('refusal accepted');}catch(e){expect(e).toBeInstanceOf(BusError);const err=e as BusError;expect(err.status).toBe(code);expect(err.kind).toBe(kind);expect(err.message).toBe(code===500?'internal daemon error':'cause');}
  },[code,kind]);}
 });
 
@@ -58,7 +57,7 @@ test('shared identity vectors',async()=>{
   await rawDaemon(row.identity,async(b,calls)=>{
    if(row.expect.fatal){await expect(b.status(),row.id).rejects.toThrow(row.expect.fatal);expect(calls,row.id).toEqual(['/identity']);return;}
    await b.status();expect(calls[0],row.id).toBe('/identity');
-   if(row.expect.warns)expect(warnings.join(' '),row.id).toContain(row.expect.warns);else expect(warnings,row.id).toEqual([]);
+   expect(warnings,row.id).toEqual([]);
   });
  }}finally{console.warn=original;}
 });

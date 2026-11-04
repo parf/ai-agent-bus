@@ -222,46 +222,6 @@
   }
  },
  {
-  "id": "old-daemon-names-the-missing-route-404",
-  "identity": "old",
-  "daemon": {
-   "status": 404,
-   "body": "{\"error\": \"cause\", \"kind\": \"no_route\"}"
-  },
-  "expect": {
-   "status": 404,
-   "kind": "no_route",
-   "message": "daemon too old for GET /ls"
-  }
- },
- {
-  "id": "old-daemon-names-the-missing-route-405",
-  "identity": "old",
-  "daemon": {
-   "status": 405,
-   "body": "{\"error\": \"cause\", \"kind\": \"no_route\"}",
-   "allow": "GET"
-  },
-  "expect": {
-   "status": 405,
-   "kind": "no_route",
-   "message": "daemon too old for GET /ls"
-  }
- },
- {
-  "id": "old-daemon-not_found-stays-not_found",
-  "identity": "old",
-  "daemon": {
-   "status": 404,
-   "body": "{\"error\": \"cause\", \"kind\": \"not_found\"}"
-  },
-  "expect": {
-   "status": 404,
-   "kind": "not_found",
-   "message": "cause"
-  }
- },
- {
   "id": "502-keeps-the-daemon-text",
   "identity": "current",
   "daemon": {

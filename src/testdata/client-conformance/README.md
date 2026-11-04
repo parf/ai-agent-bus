@@ -44,8 +44,7 @@ adapters give every case a clean daemon where that is cheap. Setup
 
 **Identity.** The fake daemon answers `/identity` with the row's raw body and
 `{"you":"owner@fixture"}` elsewhere; the adapter calls the client's status
-operation. `expect` is `{"ok": true}` (a `warns` text means the client logs that
-warning), or `{"fatal": "text"}`: the call fails with the text in its message and
+operation. `expect` is `{"ok": true}`, or `{"fatal": "text"}`: the call fails with the text in its message and
 the daemon saw only the `/identity` request.
 
 **Refusals.** The fake daemon answers `GET /ls` with `daemon.status`,

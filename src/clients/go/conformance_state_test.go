@@ -396,9 +396,8 @@ func TestSharedIdentityVectors(t *testing.T) {
 			if requests[0] != "/identity" {
 				t.Fatalf("identity was not checked first: %v", requests)
 			}
-			warns, _ := c.Expect["warns"].(string)
-			if (warns != "" && !strings.Contains(warnings.String(), warns)) || (warns == "" && warnings.Len() != 0) {
-				t.Fatalf("warning %q, want %q", warnings.String(), warns)
+			if warnings.Len() != 0 {
+				t.Fatalf("unexpected warning %q", warnings.String())
 			}
 		})
 	}

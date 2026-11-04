@@ -212,8 +212,6 @@ type Bus struct {
 	mu                            sync.Mutex
 	you                           string
 	verified                      bool
-	daemonOld                     bool
-	protocolWarned                bool
 	verifying                     chan struct{}
 	pending                       map[string]*pending
 	raw                           bool

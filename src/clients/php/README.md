@@ -18,7 +18,7 @@
 - ✅ **Your own name works:** a call to yourself from inside a handler is answered by that handler.
 - ✅ **Pools:** `ServeOptions(share: true)` makes several processes one serving pool.
 - ✅ **Typed errors:** `Refusal` subclasses by HTTP status; `Transport`, `Timeout` and `UncertainOutcome` otherwise.
-- ✅ **Protocol:** `Refusal::kind()` is the daemon's refusal kind. The first call reads `GET /identity`: a daemon older than the client adds a line to `Bus::warnings()`, a client older than the daemon's `protocol_min` gets `DaemonTooNew`, a malformed answer `ProtocolError`.
+- **Protocol:** The client requires both `/identity` protocol fields to equal the [current protocol version](../../../docs/09-daemon-api.md#protocol-version). Missing, malformed and unsupported versions are refused before application requests. Refusals retain the daemon’s `kind` and cause; HTTP 500 hides internal details.
 
 ## Try this first
 

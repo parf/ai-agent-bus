@@ -792,23 +792,20 @@ section('protocol rule and refusal kind', function () use ($dir) {
         if (str_starts_with($line, 'GET /status ')) { return [0, 200, '{"you":"w@x"}']; }
         return [0, $code, $body];
     }, 200, false);
-    // At the client's protocol or newer: silent.
-    foreach (['{"protocol":1,"protocol_min":1}', '{"protocol":2,"protocol_min":1}', '{"protocol":7,"protocol_min":0,"extra":"ignored"}'] as $identity) {
+    // The declared current protocol succeeds.
+    foreach (['{"protocol":1,"protocol_min":1}'] as $identity) {
         $pid = $serve($identity);
         $bus = Bus::connect($sock, 't');
         $e = thrown(fn() => $bus->status());
-        check("protocol $identity is silent", $e === null && $bus->warnings() === [], $e ? $e->getMessage() : json_encode($bus->warnings()));
+        check("protocol $identity succeeds", $e === null, $e ? $e->getMessage() : "");
         unfake($pid);
     }
-    // Older than the client, or absent: one warning, and the call still works.
-    foreach (['{"protocol":0,"protocol_min":0}', '{}', '{"you":"x"}'] as $identity) {
+    // Unsupported or absent protocol is refused.
+    foreach (['{"protocol":0,"protocol_min":0}', '{}', '{"protocol":2,"protocol_min":1}', '{"protocol":1}', '{"protocol":1,"protocol_min":0}'] as $identity) {
         $pid = $serve($identity);
         $bus = Bus::connect($sock, 't');
         $e = thrown(fn() => $bus->status());
-        $w = $bus->warnings();
-        check("an older daemon $identity warns once and serves", $e === null && count($w) === 1 && str_starts_with($w[0], 'daemon too old'), $e ? $e->getMessage() : json_encode($w));
-        $once = thrown(fn() => $bus->status());
-        check('and does not warn again on the next call', $once === null && count($bus->warnings()) === 1);
+        check("unsupported protocol $identity is refused", $e instanceof ProtocolError, $e ? $e->getMessage() : 'none');
         unfake($pid);
     }
     // A client older than the daemon's minimum: refused on the first call.
@@ -833,17 +830,13 @@ section('protocol rule and refusal kind', function () use ($dir) {
         check("a refusal surfaces kind $kind", $e instanceof Refusal && $e->kind() === $kind && $e->getMessage() === 'no', $e ? get_class($e) . ':' . $e->getMessage() : 'none');
         unfake($pid);
     }
-    // A missing route: too old for the operation when the daemon is older; otherwise its own words.
+    // A missing route preserves the daemon cause.
     $route = '{"error":"Not Found","kind":"no_route"}';
-    $pid = $serve('{"protocol":0,"protocol_min":0}', 404, $route);
-    $e = thrown(fn() => Bus::connect($sock, 't')->list());
-    check('no_route from an older daemon says too old for the operation', $e instanceof Refusal && $e->kind() === 'no_route' && $e->getMessage() === 'daemon too old for GET /ls', $e ? $e->getMessage() : 'none');
-    unfake($pid);
     $pid = $serve('{"protocol":1,"protocol_min":1}', 404, $route);
     $e = thrown(fn() => Bus::connect($sock, 't')->list());
     check('no_route from a daemon at the client protocol keeps its words', $e instanceof Refusal && $e->kind() === 'no_route' && $e->getMessage() === 'Not Found', $e ? $e->getMessage() : 'none');
     unfake($pid);
-    $pid = $serve('{}', 404, '{"error":"no such name","kind":"not_found"}');
+    $pid = $serve('{"protocol":1,"protocol_min":1}', 404, '{"error":"no such name","kind":"not_found"}');
     $e = thrown(fn() => Bus::connect($sock, 't')->list());
     check('missing data (kind not_found) is not a missing route, whatever the daemon age', $e instanceof Refusal && $e->kind() === 'not_found' && $e->getMessage() === 'no such name', $e ? $e->getMessage() : 'none');
     unfake($pid);

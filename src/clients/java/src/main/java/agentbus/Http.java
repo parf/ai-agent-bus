@@ -152,9 +152,6 @@ final class Http {
             } catch (RuntimeException ignored) {
                 // not the daemon's JSON: the text as it came
             }
-            // A route or method this daemon lacks, from a daemon older than the client, is that age,
-            // said for the operation that met it.
-            if ("no_route".equals(kind) && daemonProtocol < Bus.CLIENT_PROTOCOL) msg = "daemon too old for " + method + " " + path;
             // A server error that names no kind is the daemon failing, not refusing.
             if (r.status == 500) msg = "internal daemon error";
             throw RefusalException.of(r.status, msg, kind);
@@ -163,17 +160,12 @@ final class Http {
     }
 
     private volatile boolean negotiated;
-    private volatile long daemonProtocol = Bus.CLIENT_PROTOCOL;
-    private final java.util.List<String> warnings = new java.util.concurrent.CopyOnWriteArrayList<>();
-
-    /** What the client warned about at its first call. */
-    java.util.List<String> warnings() { return java.util.List.copyOf(warnings); }
 
     /**
      * Reads protocol and protocol_min from GET /identity once, before the first call, and applies the
-     * rule: absent members count as 0; a member that is not a non-negative integer, or protocol_min
+     * rule: both members are required; a member that is not a non-negative integer, or protocol_min
      * above protocol, is a ProtocolErrorException naming it; a client older than protocol_min is
-     * refused as too new; a daemon older than the client warns and still serves.
+     * refused as too new; both members must equal CLIENT_PROTOCOL.
      */
     private synchronized void negotiate(Duration limit) {
         if (negotiated) return;
@@ -182,7 +174,7 @@ final class Http {
         long[] member = new long[2];
         String[] names = {"protocol", "protocol_min"};
         for (int i = 0; i < 2; i++) {
-            Object v = ((Map<?, ?>) answer).containsKey(names[i]) ? ((Map<?, ?>) answer).get(names[i]) : Long.valueOf(0);
+            Object v = ((Map<?, ?>) answer).get(names[i]);
             if (!(v instanceof Long n) || n < 0) {
                 throw new BusException.ProtocolErrorException("protocol error: " + names[i] + " must be a nonnegative integer");
             }
@@ -193,10 +185,9 @@ final class Http {
         if (Bus.CLIENT_PROTOCOL < min) {
             throw new BusException.DaemonTooNewException("daemon too new for this client");
         }
-        if (protocol < Bus.CLIENT_PROTOCOL) {
-            warnings.add("daemon too old: protocol is older than this client");
+        if (protocol != Bus.CLIENT_PROTOCOL || min != Bus.CLIENT_PROTOCOL) {
+            throw new BusException.ProtocolErrorException("daemon protocol is unsupported");
         }
-        daemonProtocol = protocol;
         negotiated = true;
     }
 
