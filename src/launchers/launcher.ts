@@ -20,7 +20,7 @@ import { automaticBase, claimFork, claimIdentity, releaseIdle } from "./identity
 import { serveControl } from "./control.ts";
 import { codexAuth } from "./runtime-auth.ts";
 import { restartOption, RestartBackoff } from "./restart.ts";
-import { pluginSteps, removal, withPluginLock } from "./plugin-steps.ts";
+import { pluginSteps, withPluginLock } from "./plugin-steps.ts";
 import { tagOption } from "./tags.ts";
 import { descriptionOption } from "./description.ts";
 import { ForeignListener, startOwnedServer } from "./runtime-listener.ts";
@@ -627,19 +627,19 @@ function ensureClaudePlugin(binary: string, env: NodeJS.ProcessEnv): void {
     const known = read("known_marketplaces.json")["agent-bus-local"];
     const path = known?.source?.path;
     return pluginSteps({
-      compiled, source: compiled ? dirname(process.execPath) : dirname(import.meta.dir),
+      source: compiled ? dirname(process.execPath) : dirname(import.meta.dir),
       knownPath: known ? (typeof path === "string" ? path : "") : undefined,
       installed: !!read("installed_plugins.json").plugins?.[plugin]?.length,
     });
   };
   if (!state().length) return;
-  // Several launchers may start at once after an upgrade: one changes the
+  // Several launchers may start at once during setup: one installs the
   // plugin under a lock, and each decides again once it holds it.
   withPluginLock(dir, () => {
     const steps = state();
     for (const step of steps) {
       const r = spawnSync(binary, ["plugin", ...step], { env, encoding: "utf8", timeout: 120_000 });
-      if (r.status !== 0 && !removal(step)) throw new Error(`claude plugin ${step.join(" ")} failed: ${(r.stderr || r.stdout || r.error?.message || "").trim().slice(-300)}`);
+      if (r.status !== 0) throw new Error(`claude plugin ${step.join(" ")} failed: ${(r.stderr || r.stdout || r.error?.message || "").trim().slice(-300)}`);
     }
     if (steps.length) note(`installed the ${plugin} channel plugin in ${claudeHome()}`);
   });

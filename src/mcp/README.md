@@ -179,7 +179,7 @@ These labels preserve existing tags and grant no authority.
 
 For record kinds supporting Configuration or Secret, use the [configuration guide](../../docs/03-records-agent.md#configuring-a-template).
 MCP listings expose the authorized `config_sha`, not settings bytes. Read or
-edit settings with `agent-bus agent-template` or the web editor; there is no
+edit settings with `agent-bus config` or the web editor; there is no
 separate MCP configuration tool.
 
 ## Implementation

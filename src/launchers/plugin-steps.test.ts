@@ -3,28 +3,19 @@ import { pluginSteps } from "./plugin-steps.ts";
 
 const add = (p: string) => ["marketplace", "add", p];
 const install = ["install", "agent-bus@agent-bus-local", "--scope", "user"];
-const uninstall = ["uninstall", "agent-bus@agent-bus-local"];
-const remove = ["marketplace", "remove", "agent-bus-local"];
-
-test("a fresh Claude home gets the marketplace and the plugin, compiled or not", () => {
-  for (const compiled of [true, false]) expect(pluginSteps({ compiled, source: "/r/1", installed: false })).toEqual([add("/r/1"), install]);
+test("a fresh Claude home installs the current marketplace and plugin", () => {
+  expect(pluginSteps({source: "/current", installed: false})).toEqual([add("/current"), install]);
 });
 
-test("a release replaces a plugin another release or a checkout installed", () => {
-  expect(pluginSteps({ compiled: true, source: "/rel/0.9.164", knownPath: "/rel/0.9.163", installed: true })).toEqual([uninstall, remove, add("/rel/0.9.164"), install]);
-  expect(pluginSteps({ compiled: true, source: "/rel/0.9.163", knownPath: "/usr/local/src/ab/src", installed: true })).toEqual([uninstall, remove, add("/rel/0.9.163"), install]);
-  expect(pluginSteps({ compiled: true, source: "/rel/0.9.164", knownPath: "/rel/0.9.163", installed: false })).toEqual([remove, add("/rel/0.9.164"), install]);
+test("a different or unreadable marketplace is refused without conversion", () => {
+  for (const installed of [false, true]) for (const knownPath of ["/previous", ""])
+    expect(() => pluginSteps({source: "/current", knownPath, installed})).toThrow("clean installation");
+  expect(() => pluginSteps({source: "/current", installed: true})).toThrow("clean installation");
 });
 
-test("the same release, and any checkout, leave an installed plugin alone", () => {
-  expect(pluginSteps({ compiled: true, source: "/rel/0.9.164", knownPath: "/rel/0.9.164", installed: true })).toEqual([]);
-  expect(pluginSteps({ compiled: false, source: "/tmp/worktree/src", knownPath: "/usr/local/src/ab/src", installed: true })).toEqual([]);
-  expect(pluginSteps({ compiled: false, source: "/usr/local/src/ab/src", knownPath: "/usr/local/src/ab/src", installed: false })).toEqual([install]);
-});
-
-test("a recorded marketplace whose path cannot be read is never re-pointed", () => {
-  expect(pluginSteps({ compiled: true, source: "/rel/0.9.164", knownPath: "", installed: true })).toEqual([]);
-  expect(pluginSteps({ compiled: true, source: "/rel/0.9.164", knownPath: "", installed: false })).toEqual([install]);
+test("the current marketplace resumes or finishes its own setup", () => {
+  expect(pluginSteps({source: "/current", knownPath: "/current", installed: true})).toEqual([]);
+  expect(pluginSteps({source: "/current", knownPath: "/current", installed: false})).toEqual([install]);
 });
 
 test("two launchers at once change the plugin one after the other", async () => {
