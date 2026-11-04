@@ -35,40 +35,6 @@
 agent-bus call '#bus' status
 ```
 
-<details>
-<summary>See it on a real node (commands that ran today)</summary>
-
-```sh
-agent-bus call '#bus' status | jq -r .body
-```
-
-```text
-ok: 125 records, 47 readers, up 6h2m48s
-```
-
-```sh
-agent-bus call '#bus' version | jq -r .body
-```
-
-```text
-0.9.159
-build_info: parf@parf.us 2026-10-29 21:46:38
-```
-
-```sh
-agent-bus call '#bus' 'ls --kind agent --tag runner' | jq -r .body | head -3
-```
-
-```text
-#webhook@parf.us	agent	Receive authenticated events and post to configured webhook routes
-#telegram/parf@parf.us	agent	Post and read chats; route your replies to the right session
-#slack@parf.us	agent	Post and read messages; route replies; forward selected conversations
-```
-
-- The output is from the development node on 2026-10-30; the list shows only what the caller may see.
-
-</details>
-
 ## Use examples
 
 - **Check the bus is up:** `agent-bus call '#bus' status`
@@ -96,7 +62,6 @@ An alert is on disk within about 100 ms; a clean stop flushes all.
 - Each matching subscription sends one copy from `#bus`, including a folded occurrence. Refused copies are dropped and counted without retry; the next entry is still attempted.
 - A waiting write reports real `deliveries` counts: matched, sent and dropped. Its copies finish before pull or clean can remove the entry. A waiting write with possible subscribers needs at least three seconds left before storing.
 - A damaged log is left out of `list`, still refuses its own read with `storage_invalid`, and is named in the daemon's error log at startup.
-
 
 ## Configuration
 

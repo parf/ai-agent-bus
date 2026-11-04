@@ -46,6 +46,8 @@ The calls, last:
 
 ## Try this first
 
+Use the complete name of your [enabled instance](#installing-it) in the commands below.
+
 - Ask it what it can do (read-only):
 
 ```sh
@@ -53,31 +55,6 @@ agent-bus help '#logwatch@node.example'
 ```
 
 - See [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do).
-
-<details>
-<summary>See it on a real node (ran today)</summary>
-
-```sh
-agent-bus call '#logwatch@parf.us' --wait 15s stats | jq -r .body | jq 'del(.version)'
-```
-
-```text
-{
-  "uptime": 23011.278787851334,
-  "ring_size": 2000,
-  "fill": 2000,
-  "ring_bytes": 363406,
-  "ring_byte_capacity": 8388608,
-  "lines_seen": 124881,
-  "dropped": 122881,
-  "forward_dropped": 0
-}
-```
-
-- `fill` against `ring_size` says how full the memory is; `dropped` counts lines pushed out by newer ones, so a long answer can be older than you think.
-- The version is left out of the output here. The output is from the development node on 2026-10-30.
-
-</details>
 
 ## Use examples
 
@@ -146,7 +123,7 @@ unset AGENT_BUS_TOKEN
 | Key | Meaning |
 |---|---|
 | `sources` | File patterns (`**` for subfolders) and/or `syslog`. Default `["/rd/var/log/**/*.log", "syslog", "/var/log/nginx/*error*log"]` |
-| `excludes` | File patterns to skip. Default: the legacy tail-all exclusion list (AI query logs, one nginx error log), shown by `--help-config` |
+| `excludes` | File patterns to skip. Default: the built-in exclusion list for AI query logs and a noisy nginx error log; inspect the exact list with `--help-config` |
 | `journal` | Exact service names, or `"all"`. Default `[]`. `"all"` reads what the account may read; it grants no private journals |
 | `ring_size` | Lines kept, default `2000` (1–100000) |
 | `line_bytes` | Bytes per line including the truncation marker, default `16384` |

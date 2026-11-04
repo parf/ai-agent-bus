@@ -22,8 +22,6 @@
 - ✅ **Control:** only listed people pick sessions with tags; one channel can be opened to everyone for that channel's session only.
 - 🚫 **Not for:** messages on your own phone outside work chat (use [Telegram](telegram.md)), a plain text message (use [SMS](sms.md)), or content that must not pass through Slack.
 
-The abilities, last:
-
 | Ability | In plain words |
 |---|---|
 | `post` | Send a message; answers with its link |
@@ -46,6 +44,8 @@ The abilities, last:
 
 ## Try this first
 
+Use the complete name of your [enabled instance](#installing-it) in the commands below.
+
 - Ask it what it can do (read-only):
 
 ```sh
@@ -53,22 +53,6 @@ agent-bus help '#slack@node.example'
 ```
 
 - It lists every call and setting; see [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do).
-
-<details>
-<summary>See it on a real node (ran today)</summary>
-
-```sh
-agent-bus call '#slack@parf.us' --wait 15s whoami | jq -r .body
-```
-
-```text
-realmologs on Realmo (https://…)
-```
-
-- It names the bot and its workspace, which shows the tokens work. The workspace address is shortened here.
-- The output is from the development node on 2026-10-30; nothing was posted.
-
-</details>
 
 ## Use examples
 
@@ -80,7 +64,7 @@ realmologs on Realmo (https://…)
 | Answer my AI | Reply in its Slack thread, or DM the bot `#b <your answer>` |
 | See who was refused | `agent-bus call '#slack@node.example' refused` |
 
-### 3. Forward only useful errors
+### Forward only useful errors
 
 - The author needs send permission to both this helper and the destination session.
 - The answer gives an id; `sub list` shows it and `sub delete <id>` removes it.

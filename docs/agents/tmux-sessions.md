@@ -30,29 +30,14 @@
 
 ## Try this first
 
+Use the complete name of your [enabled instance](#installing-it) in the commands below.
+
 - Ask the helper what it can do, then list its windows:
 
 ```sh
 agent-bus help '#tmux-sessions@node.example'
 agent-bus call '#tmux-sessions@node.example' list
 ```
-
-<details>
-<summary>See it on a real node (ran today)</summary>
-
-```sh
-agent-bus call '#tmux-sessions@parf.us' list | tail -1 | jq -r .body
-agent-bus call '#tmux-sessions@parf.us' --status | tail -1 | jq -r .body
-```
-
-```text
-no windows configured
-failed: session tmux-sessions absent
-```
-
-- The main instance on the development node has no windows configured, so the status ask says no session is running; the output is from 2026-10-30.
-
-</details>
 
 ## Use examples
 

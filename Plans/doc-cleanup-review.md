@@ -134,3 +134,5 @@ Astra read every block in all 68 docs/ Markdown pages plus root README and AI-SE
 - Deprecated implementation removal is a separate 1.0.1 code task. This cleanup does not remove active behavior.
 - Runtime builds, gates, provider calls and host changes are not needed for prose. Documentation tooling changes receive focused verification.
 - Plans retain genuine future scope and dated evidence; user pages describe current behavior without internal history.
+
+Agent guide example pass: removed 17 duplicated private development-node sessions and their dates/build versions; retained the portable use commands and the meaningful cron outcome-window explanation. Instance-dependent commands explicitly require an enabled instance. No provider requests were made.

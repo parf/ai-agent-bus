@@ -30,6 +30,8 @@
 
 ## Try this first
 
+Use the complete name of your [enabled instance](#installing-it) in the commands below.
+
 - Ask the helper what it can do; it shows the request format, sender settings and the key's name, never its value:
 
 ```sh
@@ -37,31 +39,6 @@ agent-bus help '#sms-telnyx@node.example'
 ```
 
 - More on this: [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do).
-
-<details>
-<summary>See it on a real node (ran today)</summary>
-
-```sh
-agent-bus help '#sms-telnyx@parf.us'
-```
-
-```text
-Send one SMS through Telnyx; the body is {to,text} or <to> <text>; never retry unknown results
-send <to> <text...>: Send one SMS; accepted means provider acceptance; never retry an unknown result
-  to (string): E.164 destination or configured alias
-  text (string): Message, 1 to 1600 characters
-
-Examples
-agent-bus call '#sms-telnyx@node.example' 'send +12025550142 Hello'
-...
-Docs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/sms.md
-More: agent-bus help '#sms-telnyx@parf.us' config | secret | json
-```
-
-- The output is shortened (the line marked `...`) and is from the development node on 2026-10-30.
-- No text was sent: every send costs money.
-
-</details>
 
 ## Use examples
 

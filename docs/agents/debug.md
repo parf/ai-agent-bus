@@ -39,6 +39,8 @@ The calls, last:
 
 ## Try this first
 
+Use the complete name of your [enabled instance](#installing-it) in the commands below.
+
 - Ask it what it can do (read-only):
 
 ```sh
@@ -46,22 +48,6 @@ agent-bus help '#debug@node.example'
 ```
 
 - See [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do).
-
-<details>
-<summary>See it on a real node (ran today)</summary>
-
-```sh
-agent-bus call '#debug@parf.us' --wait 10s ping | jq -r .body | jq 'del(.version)' -c
-```
-
-```text
-{"received_at":1793347856.9322708,"answered_at":1793347856.9322953}
-```
-
-- The two times are when the helper received and answered, so the gap is its own delay; the answer also names the release it runs, left out here.
-- The output is from the development node on 2026-10-30.
-
-</details>
 
 ## Check the bus in a minute
 

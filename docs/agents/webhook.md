@@ -31,25 +31,11 @@
 
 ## Try this first
 
+Use the complete name of your [enabled instance](#installing-it) in the commands below.
+
 - Copy [config.json.dist](../../src/agents/webhook/config.json.dist), replace its fictional targets and URL, and set it as the whole Configuration value.
 - Leave the package disabled until the targets, authentication and reverse proxy are ready.
 - Use the packaged `help-json` offline to inspect the call grammar without a listener.
-
-<details>
-<summary>See what an unconfigured helper says (ran today)</summary>
-
-```sh
-agent-bus call '#webhook@parf.us' routes | tail -1 | jq -r .body
-```
-
-```text
-error: Configuration, required Secret or listener unavailable
-```
-
-- On the development node the helper is running without routes; the output is from 2026-10-30.
-- Step by step: [Installing it](#installing-it).
-
-</details>
 
 ## Use examples
 

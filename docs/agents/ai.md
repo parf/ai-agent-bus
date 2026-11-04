@@ -37,37 +37,13 @@ agent-bus call '#ai@node.example' 'decide {"model":"typesafe/jev-1.14","state":"
 
 ## Try this first
 
+Use the complete name of your [enabled instance](#installing-it) in the commands below.
+
 - See what the helper does, its settings and the key's name (never the key):
 
 ```sh
 agent-bus help '#ai@node.example'
 ```
-
-<details>
-<summary>See it on a real node (ran today)</summary>
-
-```sh
-agent-bus help '#ai@parf.us'
-```
-
-```text
-Ask a model or submit a typed decision without sharing its provider key
-ask <prompt...>: Ask a model with prompt text or an OpenAI chat request
-  prompt (json): Prompt text, or an OpenAI chat-completions object in JSON; text returns assistant text, an object returns provider JSON
-decide <body...>: Submit an OpenRouter Decisions request and return the full JSON answer
-  body (string): Raw JSON request, including state, questions and the decision model; sent unchanged
-
-Examples
-agent-bus call '#ai@node.example' 'ask Explain a database backup.'
-...
-Docs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/ai.md
-More: agent-bus help '#ai@parf.us' config | secret | json
-```
-
-- The output is shortened (the lines marked `...`) and is from the development node on 2026-10-30.
-- No model call was made: calls spend the provider balance.
-
-</details>
 
 <details>
 <summary>More help forms</summary>
@@ -83,7 +59,7 @@ More: agent-bus help '#ai@parf.us' config | secret | json
 - **Send a full chat request:** `agent-bus call '#ai@node.example' --wait=60s '{"messages":[{"role":"user","content":"Say hello in French."}],"temperature":0.2}'`
 - **Use another model once:** add `"model":"openai/gpt-4.1-mini"` to the JSON.
 - **Get probabilities for fixed choices:** a `decide` call, [above](#typed-decisions).
-- **See the default model:** `agent-bus help '#ai@node.example' config`
+- **See the supported model setting:** `agent-bus help '#ai@node.example' config`
 - **Ask from my AI session:** say "Ask the AI helper to explain this error."
 
 ## Installing it
@@ -115,7 +91,7 @@ The provider key is required for model calls.
 <details>
 <summary>Narrowing access and limits</summary>
 
-The list is stored by the daemon and survives a runner reload. To narrow `*` to the owner:
+The list is stored by the daemon and survives a runner reload. To narrow an existing `*` grant to the owner and their agents:
 
 ```sh
 agent-bus manage '#ai@node.example' --add-to-set-allow '@owner'

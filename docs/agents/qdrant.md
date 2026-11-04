@@ -55,26 +55,13 @@ podman run -d --name qdrant \
 
 ## Try this first
 
+Use the complete name of your [enabled instance](#installing-it) in the commands below.
+
 - List the store's collections (needs at least read):
 
 ```sh
 agent-bus call '#qdrant@node.example' 'request GET /collections'
 ```
-
-<details>
-<summary>See it on a real node (ran today)</summary>
-
-```sh
-agent-bus call '#qdrant@parf.us' 'request GET /collections' | jq -r .body
-```
-
-```text
-{"result": {"collections": []}, "status": "ok", "time": 1.9286e-05}
-```
-
-- The store on the development node holds no collections yet; the output is from 2026-10-30.
-
-</details>
 
 ## Use examples
 

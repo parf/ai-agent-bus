@@ -26,8 +26,6 @@
 - ✅ **Control:** readers can read and subscribe; only writers can write, pull and clean.
 - 🚫 **Not for:** long-term storage (entries expire), or text you do not control as instructions: an entry is the writer's content and stays untrusted data.
 
-The calls, last:
-
 | Call | Result |
 |---|---|
 | `write <log> notice\|warning\|alert <text>` | Creates a log when needed; stores an entry, then forwards matching subscriptions before answering |
@@ -50,30 +48,14 @@ The calls, last:
 
 ## Try this first
 
+Use the complete name of your [enabled instance](#installing-it) in the commands below.
+
 - Write one entry, then read it back:
 
 ```sh
 agent-bus call '#eventlog@node.example' 'write deploys notice deployed 691ae2da'
 agent-bus call '#eventlog@node.example' 'read deploys'
 ```
-
-<details>
-<summary>See it on a real node (ran today)</summary>
-
-Check the instance without writing a log entry:
-
-```sh
-agent-bus call '#eventlog@parf.us' --wait 15s --status | jq -r .body
-```
-
-```text
-eventlog: 0 active logs
-```
-
-- Status is read-only; here no logs are active.
-- This ran on the development node on 2026-10-30.
-
-</details>
 
 ## Use examples
 
@@ -110,7 +92,7 @@ eventlog: 0 active logs
 ## Configuration
 
 - An absent or null Configuration uses the [log model defaults](#log-model).
-- `config.json.dist` shows an unconfigured instance.
+- The [configuration example](../../src/agents/eventlog/config.json.dist) shows an unconfigured instance.
 
 | Key | Meaning |
 |---|---|

@@ -22,8 +22,6 @@
 - ✅ **Control:** only people you list may pick sessions; an open group can be limited to one session.
 - 🚫 **Not for:** teams that live in Slack (use [Slack](slack.md)), a plain text message to someone without Telegram (use [SMS](sms.md)), or content that must not pass through Telegram's servers.
 
-The abilities, last:
-
 | Ability | In plain words |
 |---|---|
 | `post` | Send a message (to the default chat if none is named) |
@@ -44,6 +42,8 @@ The abilities, last:
 
 ## Try this first
 
+Use the complete name of your [enabled instance](#installing-it) in the commands below.
+
 - Ask it what it can do (read-only):
 
 ```sh
@@ -51,22 +51,6 @@ agent-bus help '#telegram/ann@node.example'
 ```
 
 - It lists every call and setting; see [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do).
-
-<details>
-<summary>See it on a real node (ran today)</summary>
-
-```sh
-agent-bus call '#telegram/parf@parf.us' --wait 15s whoami | jq -r .body
-```
-
-```text
-@parf_claude_bot (id …)
-```
-
-- It names the bot, which shows the token works. The numeric id is shortened here.
-- The output is from the development node on 2026-10-30; nothing was sent.
-
-</details>
 
 ## Use examples
 

@@ -97,6 +97,8 @@ The calls, last:
 
 ## Try this first
 
+Use the complete name of your [enabled instance](#installing-it) in the commands below.
+
 - Ask it what it can do (read-only):
 
 ```sh
@@ -104,22 +106,6 @@ agent-bus help '#imap/work@node.example'
 ```
 
 - Help, `status` and `sub list` work without credentials or a mailbox connection. `list` and `search` scan cached mail but still check the mailbox identity on the server; `sync`, `read` and `publish` also connect.
-
-<details>
-<summary>See it on a real node (ran today)</summary>
-
-```sh
-agent-bus call '#imap/gmail@parf.us' --wait 15s status | jq -r .body
-```
-
-```text
-ok: manual cache only; subscriptions=0 damaged=0 backlog=0 sent=0 dropped=0 warnings=none view_age_s=54
-```
-
-- `ok` is the last poll's verdict; the counters say how many copies were sent or dropped and why, and `view_age_s` is how old this view is.
-- The output is from the development node on 2026-10-30; it shows no mail.
-
-</details>
 
 ## Use examples
 

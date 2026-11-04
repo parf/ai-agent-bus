@@ -132,7 +132,7 @@ owning documentation, not in this index.
 | Slack and Telegram bundle one session router; Slack subscriptions stay independent of addressed routing | [Slack reply routing](agents/slack.md#configuration) | 2026-10-19 owner request, S.10 |
 | Per-chat drop handlers discard incoming Telegram and Slack messages while outgoing posts remain available | [Telegram per-chat routing](agents/telegram.md#per-chat-routing), [Slack configuration](agents/slack.md#configuration) | 2026-10-20 owner request; quiet selected chats without changing others |
 | Telegram per-chat routing and channel announcements | [Per-chat routing](agents/telegram.md#per-chat-routing) | 2026-10-19 owner instructions |
-| Slack subscriptions may select resolved user and bot authors | [subscription authors](agents/slack.md#3-forward-only-useful-errors) | 2026-10-19 owner decision, S.9 |
+| Slack subscriptions may select resolved user and bot authors | [subscription authors](agents/slack.md#forward-only-useful-errors) | 2026-10-19 owner decision, S.9 |
 | Git updates follow bus channels with explicit ff/mirror modes | [autopull](agents/git-autopull.md#how-it-works) | 2026-10-29 owner decisions replace install-time polling |
 | Post-attempt scripts choose host-installed allowlist names | [git scripts](agents/git-autopull.md#after-an-update) | 2026-10-29 owner decisions; bounded execution and separate script-failure records |
 | Git synchronization uses server identity | [git agent](agents/git.md#what-it-does), [roles and boundaries](agents/git.md#who-may-use-it) | 2026-10-19 owner decision, B.8 |

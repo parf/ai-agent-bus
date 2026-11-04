@@ -30,22 +30,6 @@
 agent-bus call '#git@node.example' 'autopull site'
 ```
 
-<details>
-<summary>See it on a real node (ran today)</summary>
-
-```sh
-agent-bus call '#git@parf.us' 'autopull ab'
-```
-
-```text
-no autopull attempt recorded
-```
-
-- That node has no announcement channel wired yet, so no attempt has happened; on yours the answer is the last result line, for example `FAIL site@node.example main: diverged (ff)`.
-- The output is from the development node on 2026-10-30.
-
-</details>
-
 ## How it works
 
 | Step | What happens |
@@ -127,7 +111,6 @@ Only a delivery through the exact configured `autopull-cmd` pubsub channel is an
 
 </details>
 
-
 ## Run or inspect an update
 
 <details><summary>Calls, roles, locking and limits</summary>
@@ -159,7 +142,6 @@ agent-bus call '#git@node.example' 'deploy site main 0123456' | jq -e '.result =
 - Excess work is refused before admission; those events and events dropped on invalid Configuration leave no result record; channel publishers must not rely on an inbox as a durable job queue.
 
 </details>
-
 
 ## Results
 
@@ -193,9 +175,7 @@ Each admitted attempt saves its last result locally and, when `autopull-log` is 
 
 </details>
 
-
 ## After an update
-
 
 - A host administrator may install scripts in `autopull.d` under the Git agent's state directory: `~/.local/state/agent-bus-git/autopull.d`, or `$XDG_STATE_HOME/agent-bus-git/autopull.d` when that variable is set.
 - Configuration only chooses an installed bare name per repository:

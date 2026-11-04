@@ -38,29 +38,13 @@
 
 ## Try this first
 
+Use the complete name of your [enabled instance](#installing-it) in the commands below.
+
 - Ask cron what it can do:
 
 ```sh
 agent-bus help '#cron@node.example'
 ```
-
-<details>
-<summary>See it on a real node (ran today)</summary>
-
-```sh
-agent-bus call '#cron@parf.us' --wait 15s 'sub list' | jq -r .body
-agent-bus call '#cron@parf.us' --wait 15s 'later list' | jq -r .body
-```
-
-```text
-{"subs": [], "tz": "UTC", "outcomes_since": "2026-10-30T14:02:40.812721+00:00"}
-{"later": [], "finished": [], "tz": "UTC"}
-```
-
-- Both lists are read-only; which entries you can see follows [Who may use it](#who-may-use-it). An empty list means none are visible to you.
-- `outcomes_since` is when cron last started; outcomes before it are not kept. The output is from the development node on 2026-10-30.
-
-</details>
 
 - Then ask for one message in a minute, to a session of yours:
 
@@ -120,6 +104,7 @@ None.
 - If that access is lost, that copy is dropped with a warning and the subscription stays active for its next slot; when the check cannot be made, nothing is stored or sent.
 - Deleting or cancelling an entry needs its creator, or cron's Owner or Maintainers.
 - Lists show your own entries with their messages; cron's Owner and Maintainers also see the others' ids, targets and outcomes.
+- `later list` retains recent outcomes only since the last start, shown by `outcomes_since`.
 - Cron never schedules messages to itself.
 
 ## Warnings and alerts

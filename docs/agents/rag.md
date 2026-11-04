@@ -43,27 +43,13 @@
 
 ## Try this first
 
+Use the complete name of your [enabled instance](#installing-it) in the commands below.
+
 - Give a table its topic list; this makes no AI call yet:
 
 ```sh
 agent-bus call '#rag@node.example' '{"method":"prompts","action":"set","namespace":"team","tableName":"notes","data":{"labels":{"drink":"Beverages","other":"Other topics"},"instructions":"Choose the topic."}}'
 ```
-
-<details>
-<summary>See what an unconfigured helper says (ran today)</summary>
-
-```sh
-agent-bus call '#rag@parf.us' '{"method":"list","namespace":"team","limit":16}' | tail -1 | jq -r .body
-```
-
-```text
-error: configure RAG block names and collection
-```
-
-- On the development node the helper is running but is not configured; the output is from 2026-10-30.
-- Step by step: [Installing it](#installing-it).
-
-</details>
 
 ## Use examples
 

@@ -62,7 +62,7 @@ Each helper decides only what a subscription watches:
 | Management | Each author lists and deletes only their own; the helper record's Owner and Maintainers list and delete all. A role reached through a forward does not count. The helper's own roles decide who may subscribe at all |
 | Invalid stored state | A stored filter the grammar no longer accepts stays listed with `reason: invalid_filter`, matches nothing and warns, never becoming match-all. A stored entry that is not a subscription at all is listed only to the Owner and Maintainers, as its id with `reason: invalid_state`; it counts toward the limit and only they can delete it |
 
-`#eventlog` rechecks the author's right to the source log at each delivery; the daemon's own agent logs, `#bus`, check it at creation only; both check the target's admission of the sender at every send ([decision](../../Plans/R1.0-Release/DECISIONS.md#recorded-decisions)).
+`#eventlog` checks the application role when the subscription is created, then rechecks the author's bus access to source and target before each delivery. `#bus` checks source-log authority at creation only. Both check that the target admits the forwarding sender before each send.
 
 ### What each helper does today
 

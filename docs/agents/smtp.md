@@ -30,35 +30,13 @@
 
 ## Try this first
 
+Use the complete name of your [enabled instance](#installing-it) in the commands below.
+
 - Ask the helper what it can do (help needs no credentials; the examples below send real mail):
 
 ```sh
 agent-bus help '#smtp/work@node.example'
 ```
-
-<details>
-<summary>See it on a real node (ran today)</summary>
-
-```sh
-agent-bus help '#smtp/gmail@parf.us'
-```
-
-```text
-Send mail once through a configured account with verified TLS
-[destructive] send <to> <subject> <text> [cc] [bcc] [html]: Submit once; return accepted, partial, refused or unknown delivery outcome
-  to (json): Nonempty array of bare ASCII addresses; at most 20 unique across to/cc/bcc
-  subject (string): Single line, at most 998 UTF-8 bytes
-  text (string): Plain text; total encoded mail at most 1 MiB
-  cc (json): Additional visible recipients
-  bcc (json): Envelope recipients, omitted from headers
-  html (string): HTML alternative; never fetched or rendered here
-...
-```
-
-- The output is shortened (the line marked `...`) and is from the development node on 2026-10-30.
-- No mail was sent.
-
-</details>
 
 ## Use examples
 

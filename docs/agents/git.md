@@ -33,6 +33,8 @@ Every call names a project declared in [Configuration](#configuration).
 
 ## Try this first
 
+Use the complete name of your [enabled instance](#installing-it) in the commands below.
+
 - Ask the helper what it can do:
 
 ```sh
@@ -40,51 +42,6 @@ agent-bus help '#git@node.example'
 ```
 
 - More on this: [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do).
-
-<details>
-<summary>See it on a real node (commands that ran today)</summary>
-
-List the projects the helper may touch:
-
-```sh
-agent-bus call '#git@parf.us' list
-```
-
-```text
-ab
-```
-
-Check whether the copy is clean and up to date:
-
-```sh
-agent-bus call '#git@parf.us' 'status ab'
-```
-
-```text
-## main...origin/main [ahead 175]
-```
-
-Review the last three changes:
-
-```sh
-agent-bus call '#git@parf.us' 'log ab 3'
-```
-
-
-
-Ask about the last automatic update:
-
-```sh
-agent-bus call '#git@parf.us' 'autopull ab'
-```
-
-```text
-no autopull attempt recorded
-```
-
-Project names and returned changes depend on your configured repositories.
-
-</details>
 
 ## Use examples
 
