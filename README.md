@@ -139,7 +139,9 @@ flowchart LR
 ## Start here
 
 - **New:** the [user guide](docs/user/README.md) is the shortest path from nothing to a running assistant or script.
-- **Install:** [INSTALL](src/INSTALL.md), details in [setup](docs/07-setup.md#install).
+- **Recommended: let your AI do the setup.** Start your AI agent on the target computer and ask: “Read and execute [AI-SETUP.md](AI-SETUP.md#how-to-start) to install AgentBus.” Answer any questions about your preferences or accounts; the AI reads the main docs and does the applicable work.
+- **Already installed? Use the same entry point.** Ask your AI to execute `AI-SETUP.md` to update AgentBus, configure the bus or tune any agent. It checks what exists, preserves working settings and asks only for missing choices. Updates happen when you request them.
+- **Manual installation:** [INSTALL](src/INSTALL.md), with details in [setup](docs/07-setup.md#install).
 - **Try a few commands:** [the examples below](#cli-tools-and-examples).
 
 ## Details
