@@ -164,3 +164,33 @@ func TestAgentRuntimeMethodMismatchNamesAgentAndBothSets(t *testing.T) {
 		}
 	}
 }
+
+func TestAgentRuntimeScopeKeepsExactMethodComparison(t *testing.T) {
+	code := `import runpy
+m = runpy.run_path('../../acceptance/agent-runtime.py')
+expected, check = m['expected_methods'], m['assert_methods']
+manifest = {'methods': {'help': {}, 'health': {}, 'sensors': {}, 'load': {}}}
+for agent, uid, want in [('server-info', 1000, {'help', 'load'}), ('server-info', 0, set(manifest['methods'])), ('other', 1000, set(manifest['methods']))]:
+    methods = expected(agent, manifest, uid)
+    assert methods == want, (agent, uid, methods)
+    check(agent, methods, want)
+    for wrong in (want - {'load'}, want | {'unexpected'}):
+        try:
+            check(agent, methods, wrong)
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError('inexact methods accepted')
+try:
+    check('server-info', expected('server-info', manifest, 1000), {'help','load','health'})
+except AssertionError as error:
+    assert "extra=['health']" in str(error), str(error)
+else:
+    raise AssertionError('nonroot health incorrectly accepted')
+assert set(manifest['methods']) == {'help', 'health', 'sensors', 'load'}
+`
+	cmd := exec.Command("python3", "-B", "-c", code)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("runtime scope comparison: %v: %s", err, out)
+	}
+}

@@ -13,6 +13,14 @@ def assert_methods(agent, expected, actual):
                                 f'missing={sorted(expected - actual)!r} extra={sorted(actual - expected)!r}')
 
 
+def expected_methods(agent, manifest, euid):
+    methods = set(manifest['methods'])
+    # Native server-info help follows the child's inherited Linux account.
+    if agent == 'server-info' and euid != 0:
+        methods -= {'health', 'sensors'}
+    return methods
+
+
 def check(root):
     root = Path(root).resolve()
     # Negative fixtures remove these imports on purpose. Refuse before a child
@@ -81,7 +89,7 @@ def check(root):
             output, _ = run(['python3', str(script)], directory, extra)
         data = json.loads(output)
         manifest = json.loads((directory / 'agent.json').read_text())
-        assert_methods(agent, manifest['methods'], data['methods'])
+        assert_methods(agent, expected_methods(agent, manifest, os.geteuid()), data['methods'])
         assert data['version'] == version, agent + ' wrong version'
         assert 'config' in data and 'secrets' in data, agent + ' incomplete help'
         installer = directory / ('install.sh' if agent == 'server-info' else 'install.py')
