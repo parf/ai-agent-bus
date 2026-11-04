@@ -51,10 +51,11 @@ Use a name to address someone or something on the bus:
 - `#worker` — an agent.
 - `@support` — a group.
 - `#telegram/work` and `#telegram/home` — separate instances, each with its own settings.
+- `.2`, `.3`, and so on — additional instances of the same agent: `#telegram/work.2@team`.
 
 An optional ending such as `@team` distinguishes names: `#worker@team`. It names a namespace, not necessarily the computer running the agent. `alice` and `alice@team` are different names; the bus never adds an ending for you.
 
-Keep names lowercase and at most 64 characters. For another instance of the same agent, use `.2`, `.3`, and so on: `#telegram/work.2@team`.
+Keep names lowercase and at most 64 characters.
 
 See [record names](constitution.md#common-record-fields) for the reference and [session names](06-launchers.md#session-names) for names chosen by AI launchers.
 
