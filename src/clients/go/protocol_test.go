@@ -15,18 +15,17 @@ import (
 func TestProtocolHandshake(t *testing.T) {
 	cases := []struct {
 		name, identity, want string
-		old                  bool
 	}{
-		{"current", `{"protocol":1,"protocol_min":1}`, "", false},
-		{"future compatible", `{"protocol":2,"protocol_min":1}`, "", false},
-		{"absent", `{}`, "", true},
-		{"old", `{"protocol":0,"protocol_min":0}`, "", true},
-		{"too new", `{"protocol":2,"protocol_min":2}`, "daemon too new", false},
-		{"fraction", `{"protocol":1.5}`, "protocol", false},
-		{"negative", `{"protocol":-1}`, "protocol", false},
-		{"null", `{"protocol":null}`, "protocol", false},
-		{"minimum", `{"protocol":1,"protocol_min":2}`, "protocol_min", false},
-		{"bool", `{"protocol":true}`, "protocol", false},
+		{"current", `{"protocol":1,"protocol_min":1}`, ""},
+		{"unsupported newer", `{"protocol":2,"protocol_min":1}`, "unsupported"},
+		{"absent", `{}`, "protocol"},
+		{"old", `{"protocol":0,"protocol_min":0}`, "unsupported"},
+		{"too new", `{"protocol":2,"protocol_min":2}`, "daemon too new"},
+		{"fraction", `{"protocol":1.5}`, "protocol"},
+		{"negative", `{"protocol":-1}`, "protocol"},
+		{"null", `{"protocol":null}`, "protocol"},
+		{"minimum", `{"protocol":1,"protocol_min":2}`, "protocol_min"},
+		{"bool", `{"protocol":true}`, "protocol"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -65,21 +64,15 @@ func TestProtocolHandshake(t *testing.T) {
 			if len(requests) < 2 || requests[0] != "/identity" {
 				t.Fatalf("identity was not checked first: %v", requests)
 			}
-			if strings.Contains(warnings.String(), "daemon too old") != c.old {
-				t.Fatalf("warning=%q old=%v", warnings.String(), c.old)
-			}
+
 		})
 	}
 }
 func TestProtocolRefusalKinds(t *testing.T) {
-	for _, old := range []bool{false, true} {
+	{
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path == "/identity" {
-				if old {
-					fmt.Fprint(w, `{}`)
-				} else {
-					fmt.Fprint(w, `{"protocol":1,"protocol_min":1}`)
-				}
+				fmt.Fprint(w, `{"protocol":1,"protocol_min":1}`)
 				return
 			}
 			if r.URL.Path == "/status" {
@@ -110,9 +103,6 @@ func TestProtocolRefusalKinds(t *testing.T) {
 			if path == "/removed" {
 				if refusal.Kind != "no_route" || errors.Is(err, ErrKVNotFound) {
 					t.Fatalf("no_route treated as missing data: %+v", refusal)
-				}
-				if old && !strings.Contains(err.Error(), "daemon too old for GET /removed") {
-					t.Fatal(err)
 				}
 			}
 			if path == "/missing" && (!errors.Is(err, ErrKVNotFound) || refusal.Kind != "not_found") {

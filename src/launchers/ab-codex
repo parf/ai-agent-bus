@@ -5,6 +5,4 @@ dir=$(dirname "$(readlink -f "$0")")
 # go.mod beside them) runs the source with bun, even with a stray binary there.
 [ -x "$dir/../agent-bus-ts" ] && [ ! -e "$dir/../go.mod" ] && exec "$dir/../agent-bus-ts" launcher codex "$@"
 command -v bun >/dev/null 2>&1 || { echo 'ab-codex: install bun to run the launcher' >&2; exit 1; }
-entry="$dir/launcher.js"
-[ -f "$entry" ] || entry="$dir/launcher.ts"
-exec bun "$entry" codex "$@"
+exec bun "$dir/launcher.ts" codex "$@"

@@ -8,7 +8,7 @@
 ## Why you'd want it
 
 - 👀 **See it work.** Every agent can call every other, across languages.
-- 🧹 **Nothing is left behind.** By default the daemon, its agents and their records are gone when the run ends.
+- 🧹 **Isolated records.** By default the daemon, its agents and their records are gone when the run ends.
 - 📚 **Patterns to copy.** Locks, key-value, calls between agents and a relay ring, each in one small directory.
 
 ## What you get
@@ -19,13 +19,23 @@
 | [python](python/README.md) | Python | `#stats-python` | Audits a file's TODO lines, cross-checked by PHP's statistics | PHP |
 | [ts](ts/README.md) | TypeScript | `#stats-ts` | Validates a JSON file, then adds Python's TODO audit | Python, which calls PHP |
 | [go](go/README.md) | Go | `#stats-go` | Fingerprints a file (lines, blank lines, longest line, TODOs). A per-file lock refuses duplicate work | Rust, for the digest |
-| [rust](rust/README.md) | Rust | `#stats-rust` | Computes a content digest and caches it in KV under a record lock | Java, to verify it |
+| [rust](rust/README.md) | Rust | `#stats-rust` | Computes a digest and caches Java's cross-check in KV under a record lock | Java, to verify it |
 
 - Every agent also answers `stats` and `relay`, so all six languages take part in the crawl and in the relay ring.
 - One request can cross several languages: TypeScript, Python, PHP; or Go, Rust, Java.
 - Agent names are `@localhost`.
 
 ## Try this first
+
+These are contributor fixtures run from a checkout. They need Bash, curl,
+OpenSSL, `setsid`, Python 3.11+, PHP 8.1+ with curl/json/mbstring, and a Java 21
+JDK. The full set also needs Go 1.24+, a Rust edition-2024 toolchain and Bun
+1.3+. Java, Cargo and Bun dependencies may be downloaded and cached.
+
+The fixture expects built `src/agent-busd` and `src/agent-bus` (use the
+[contributor build](../../README.md#build-and-check)), or `CLIENT_BIN` pointing
+to a directory containing those release binaries. Put that same directory on
+`PATH`, because the demo scripts invoke `agent-bus` by name.
 
 Run one example on a throwaway daemon:
 
@@ -34,7 +44,7 @@ src/clients/examples/run.sh codestats
 ```
 
 - Run them all with `src/clients/examples/run.sh`.
-- Nothing reaches the node, so the agents never show in `agent-bus ls --all` or the web face.
+- In default isolated mode the agents never appear on the installed bus. The fixture removes its records and processes; dependency downloads and build caches remain.
 
 ## Technical details
 
@@ -51,7 +61,7 @@ src/clients/examples/run.sh codestats
 
 - The harness registers every listed agent, open to every caller, and mints each one a token.
 - It starts each `run.sh` and waits until every agent is reading (`READY_SECONDS`, default 90), failing at once if a `run.sh` exits.
-- Then it runs each `demo.sh` as `#demo@localhost` and stops everything.
+- It starts each `demo.sh` with `#demo@localhost` credentials; the Rust digest demo explicitly selects the fixture Owner. Default runs then stop the workers.
 - Each script gets these variables:
 
 | Variable | Is |
@@ -61,6 +71,6 @@ src/clients/examples/run.sh codestats
 | `EXAMPLES_ROOT` | the checkout |
 | `STATS_ROOT` | where workers may read files: the checkout |
 | `SAMPLES`, `DEMO_FILE` | a directory of sample files, and its `sample.json` |
-| `EXAMPLES_OWNER`, `EXAMPLES_OWNER_TOKEN` | the daemon's owner, for setup only |
+| `EXAMPLES_OWNER`, `EXAMPLES_OWNER_TOKEN` | the daemon's owner, used for setup and the Rust digest demo |
 
-- The daemon is the client tests' fixture: its own socket, port and database under `tmp/`, never the node's.
+- In default mode the daemon is the client tests' fixture: its own socket, port and database under `tmp/`. `--live` uses and modifies the installed bus as described above.

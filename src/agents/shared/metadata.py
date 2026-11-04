@@ -126,7 +126,7 @@ def normalize_tags(tags):
     for raw in tags:
         for word in raw.lower().split(','):
             if word == 'no-tags':
-                continue
+                raise ValueError('invalid tag ' + repr(word))
             if word and not re.fullmatch(r'[a-z0-9_-]+', word):
                 raise ValueError('invalid tag ' + repr(word))
             if word:

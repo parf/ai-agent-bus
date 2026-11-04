@@ -137,7 +137,7 @@ def parse_call(body):
         else:
             value['text'] = ' '.join(positional)
     method = value['method']
-    allowed = {'mark': {'uids', 'uid', 'state'}, 'flag': {'uids', 'action', 'flags'},
+    allowed = {'mark': {'uids', 'state'}, 'flag': {'uids', 'action', 'flags'},
                'headers': {'uids'}, 'parts': {'uid'}, 'part': {'uid', 'part_id', 'bigfile'},
                'list': {'limit', 'unread', 'flag'}, 'search': CRITERIA | {'limit', 'text'},
                'copy': {'uids', 'dest'}, 'move': {'uids', 'dest'}, 'trash': {'uids'},
@@ -146,9 +146,7 @@ def parse_call(body):
         raise MailError('unknown argument for ' + method)
     if 'folder' in value: wire.mailbox(value['folder'])
     if method in {'mark', 'flag', 'headers', 'copy', 'move', 'trash', 'delete'}:
-        if 'uid' in value and 'uids' in value:
-            raise MailError('use uids, not both uid and uids')
-        value['uids'] = uid_set(value.pop('uid', value.get('uids')))
+        value['uids'] = uid_set(value.get('uids'))
     if method in {'copy', 'move'}: wire.mailbox(value.get('dest'))
     if method == 'compact_trash' and 'older' in value:
         days = value['older']

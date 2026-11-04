@@ -1,10 +1,11 @@
 import {expect,test} from "bun:test";
+import {InvalidTag} from "../../mcp/tags.ts";
 import cases from "../../internal/protocol/testdata/tags.json";
 import {normalizeTags,recordTags,filterTag} from "../tags.ts";
 test("tags refuse invalid characters and match the protocol vectors",()=>{
- for (const c of cases) {if(c.invalid) expect(()=>normalizeTags(c.input)).toThrow("invalid tag");else expect(normalizeTags(c.input)).toEqual(c.expected);}
+ for (const c of cases) {if(c.invalid) expect(()=>normalizeTags(c.input)).toThrow(InvalidTag);else expect(normalizeTags(c.input)).toEqual(c.expected);}
  expect(recordTags({})).toEqual(["no-tags"]);
- expect(recordTags({personal:true})).toEqual(["personal"]);
+ expect(recordTags({tags:["personal"]})).toEqual(["personal"]);
  expect(filterTag("BUILD-Notes")).toBe("build-notes");
 });
 
@@ -14,7 +15,7 @@ import { Pill } from "../ui/kit.tsx";
 import { render } from "../jsx.ts";
 
 test("rendered shared badges use colored tag tokens with AA contrast in each theme", () => {
- const html=render(TagBadges({rec:{tags:["messaging"],personal:true}}));
+ const html=render(TagBadges({rec:{tags:["messaging","personal"]}}));
  expect(html).toMatch(/<a class="record-tag"[^>]*>messaging<\/a>/);
  expect(html).toMatch(/<a class="record-tag tag-personal"[^>]*>personal<\/a>/);
  const css=readFileSync(new URL("../style/30-components.css",import.meta.url),"utf8");

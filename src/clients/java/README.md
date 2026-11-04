@@ -3,9 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** a Java service that should take part on the bus has to handle HTTP, call correlation and uncertain writes itself.
 - **Outcome:** `Bus` gives you send, call, a bounded `serve`, publish, key-value, locks and read-only settings, with one dependency (jackson-core).
-- **Start:** copy [the example](#try-this-first); it needs a name, a token and a running bus.
-
-Keep secrets in Secret and config in Configuration; see [configuration](../../../docs/03-records-agent.md#configuring-a-template).
+- **Start:** start with the [isolated examples](../examples/README.md#try-this-first), or adapt [the snippet](#try-this-first) to your bus.
 
 ## Why you'd want it
 
@@ -22,7 +20,13 @@ Keep secrets in Secret and config in Configuration; see [configuration](../../..
 
 ## Try this first
 
-Serve one handler and call it from the same process (a disposable bus, token in `AGENT_BUS_TOKEN`):
+Use a Java 21 JDK and jackson-core 2.22.3. Build the local library with [pom.xml](pom.xml) (Maven), or compile its `src/main/java` sources with jackson-core on the classpath. Put both the resulting library and jackson-core on the compile and runtime classpath for `Main.java` below.
+
+1. Register `#worker@localhost` as an Agent using an authorized CLI account. Construction alone does not register the identity.
+2. Obtain its token with `agent-bus token '#worker@localhost'` and set `AGENT_BUS_TOKEN` to that token.
+3. Set `AGENT_BUS_ADDR` to the same daemon socket or URL; HTTPS also needs the appropriate trust configuration.
+
+Serve one handler and call it from the same process:
 
 ```java
 import agentbus.Bus;
@@ -44,12 +48,12 @@ public class Main {
 }
 ```
 
+On a fresh record (the counter increments on later runs):
+
 ```text
 pong hello
 1
 ```
-
-- ▶️ The [shared examples](../examples/README.md) run agents in every language together.
 
 ## Event logs
 
@@ -57,11 +61,10 @@ pong hello
 - ▶️ **Executed examples:** [EventLogExample.java](src/test/java/agentbus/EventLogExample.java) and [EventSubscriptionExample.java](src/test/java/agentbus/EventSubscriptionExample.java) run against a private fixture.
 - ✍️ **What they show:** the agent writes its own log; its Owner reads, lists and subscribes, consumes one copy from the authorized queue, and cancels.
 - 🔕 **A copy is a notice:** it is a non-waiting message from `#bus`, not a call reply. Send no ack or done for it ([receipts](../../../docs/04-messaging.md#receipts)).
-- 🧰 **No helper:** none is needed.
 
 ## Technical details
 
-- **Package:** Java 21, blocking and thread-safe; the design and its reasons are the [Java plan](../../../Plans/R1.0-Release/done/client-libraries/java.md).
+- **Package:** blocking and thread-safe; see [the Java API source](src/main/java/agentbus/Bus.java).
 
 | | |
 |---|---|
@@ -72,7 +75,7 @@ pong hello
 | Calling yourself | answered by this client's own server: the call hands its own request to a free handler, never returns it as the answer; a handler waiting on such a call needs another worker |
 | Transport | HTTP/1.1 written here, one connection per request, never retried: a library that re-sends a request it thinks idempotent would repeat a consume |
 | Errors | `RefusalException` subclasses by HTTP status, with `kind()` the daemon's refusal kind; `TransportException`, `TimeoutException`, `UncertainOutcomeException` (never retried) |
-| Protocol | The first call reads `GET /identity`: a daemon older than the client adds a line to `warnings()`, a client older than the daemon's `protocol_min` gets `DaemonTooNewException`, a malformed answer `ProtocolErrorException` |
+| Protocol | The client requires both `/identity` protocol fields to equal the [current protocol version](../../../docs/09-daemon-api.md#protocol-version). Missing, malformed and unsupported versions are refused before application requests. Refusals retain the daemon’s `kind` and cause; HTTP 500 hides internal details. |
 | Not here | administration, minting tokens, writing config or secrets, resource content |
 
 ## Build and tests

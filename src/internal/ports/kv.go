@@ -16,8 +16,8 @@ const (
 // KVValue is one stored value: Bytes for a string or a JSON value, Int for an
 // int.
 type KVValue struct {
-	Bytes []byte
-	Int   int64
+	Bytes []byte `json:"bytes"`
+	Int   int64  `json:"int"`
 }
 
 // KVEdit is what an edit decides: write Value, remove the name, or leave it.

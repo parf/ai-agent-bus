@@ -53,10 +53,6 @@ func main() {
 		return
 	}
 	var c config
-	// --web ran the Go dashboard as a child until 0.8.50; the web face is now
-	// its own unit (docs/08-processes.md#the-web-face). Accepted and ignored,
-	// so a unit written before then still starts.
-	flag.Bool("web", false, "ignored: the web face runs as its own agent-bus-web unit")
 	flag.StringVar(&c.addr, "addr", "127.0.0.1:6767", "TCP listen address, any interface; plain HTTP, so off loopback tokens and bodies cross the network unencrypted. AGENT_BUS_ADDR is the CLI's socket, never this")
 	flag.StringVar(&c.sock, "socket", env("AGENT_BUS_SOCKET", api.DefaultSocket()), "unix socket path")
 	flag.StringVar(&c.owner, "owner", env("AGENT_BUS_OWNER", ""), "initial daemon owner (required; later transfers are durable)")
@@ -80,12 +76,17 @@ func main() {
 	}
 	// Asked for help, it answers on stdout and succeeds, as every agent-bus
 	// program does; the flag package would say it on stderr and exit 2.
-	if len(os.Args) == 2 && (os.Args[1] == "-h" || os.Args[1] == "-help" || os.Args[1] == "--help") {
+	if len(os.Args) == 2 && os.Args[1] == "--help" {
 		flag.CommandLine.SetOutput(os.Stdout)
 		flag.Usage()
 		return
 	}
-	flag.Parse()
+	if err := display.ParseFlags(flag.CommandLine, os.Args[1:]); err != nil {
+		log.Fatal(err)
+	}
+	if flag.NArg() != 0 {
+		log.Fatalf("unexpected arguments: %v", flag.Args())
+	}
 	if c.logDir == "" {
 		c.logDir = filepath.Join(filepath.Dir(c.db), "logs")
 	}
@@ -301,21 +302,11 @@ func defaultDB() string {
 	return homeDB()
 }
 
-// homeDB is the default before XDG_STATE_HOME was honoured.
+// homeDB is the XDG default when XDG_STATE_HOME is unset or relative.
 func homeDB() string {
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".local", "state", "agent-bus", "agent-bus.db")
 }
 
-// openDatabase is sqlite.Open that, when the database is missing at the XDG
-// default while one sits at the old home default, names that one: a daemon
-// started with XDG_STATE_HOME set and no --db must not be left to guess.
-func openDatabase(path string, create bool) (*sqlite.Store, error) {
-	st, err := sqlite.Open(path, create)
-	if err != nil && errors.Is(err, sqlite.ErrMissing) && path == defaultDB() && path != homeDB() {
-		if _, statErr := os.Stat(homeDB()); statErr == nil {
-			err = fmt.Errorf("%w; a database exists at the previous default %s: start with --db=%s to use it", err, homeDB(), homeDB())
-		}
-	}
-	return st, err
-}
+// openDatabase opens only the requested canonical database path.
+func openDatabase(path string, create bool) (*sqlite.Store, error) { return sqlite.Open(path, create) }

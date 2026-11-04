@@ -12,7 +12,7 @@ account of its own when it is installed, never by default
 | Account | Home | Shell | Runs |
 |---|---|---|---|
 | `agent-busd` | `/var/lib/agent-bus/daemon` | `/bin/sh`, for forced commands | the daemon |
-| `agent-bus-web` | the [web code directory](08-processes.md#the-web-face), read only | `nologin` | the [web face](08-processes.md#the-web-face); owns nothing on disk |
+| `agent-bus-web` | the [web code directory](08-processes.md#the-web-face), read only | `nologin` | the [web face](08-processes.md#the-web-face); holds no privileged bus credential |
 
 | Directory under `/var/lib/agent-bus` | Owner | Mode | Current purpose |
 |---|---|---|---|
@@ -22,7 +22,6 @@ account of its own when it is installed, never by default
 
 - The daemon account uses `/bin/sh` because sshd runs even forced commands through the account shell; each issued key is restricted to its named helper, without PTY or forwarding.
 - A runner's account has `nologin` and receives no SSH keys.
-- The daemon account shell must be able to execute forced SSH helpers.
 - Runtime sockets live at the [access location](02-access.md#local-socket), not under any home.
 
 #### The two units
@@ -45,7 +44,6 @@ account of its own when it is installed, never by default
 - Otherwise the flags decide, and without flags a node keeps what it has.
 - An unreadable TLS directory fails with its permission error; setup never infers TLS-off from it or widens its modes.
 - Writing TLS files restarts a running daemon even when its unit and release are unchanged.
-- Reinstall sets the TLS directory aside with the old state and restores it on rollback.
 - The port answers TLS beside plain HTTP ([remote access § over HTTPS](02-access-remote.md#over-https)).
 
 | Flag | |
@@ -112,13 +110,13 @@ credentials**:
 | Config field | Purpose |
 |---|---|
 | local account | the OS account on this host; resolved to its uid |
-| bus username | the principal it *is* — `parf@localhost`, `parf@github`, `parf@realmo` ([identity § names](01-identity-and-authority.md#names)) |
+| bus username | the principal it *is* — `alice`, `alice@team.example` ([identity § names](01-identity-and-authority.md#names)) |
 
 From that the daemon opens one socket per user
 ([access § local socket](02-access.md#local-socket)) and knows who is calling
 on every request.
 
-- Result: a bus that **serves every user on the host at once**, so record ACLs apply per user with nothing for anyone to configure.
+- Each mapped local account uses its own socket; the bus applies record ACLs to that mapped identity.
 - Setup's initial principal is the first daemon Owner; after transfer, the stored current Owner holds node-wide management authority ([identity § daemon owner](01-identity-and-authority.md#daemon-owner)).
 
 ### SSH admin
@@ -191,14 +189,12 @@ that answers who may do anything else.
 
 | Store | Holds |
 |---|---|
-| SQLite database `agent-bus.db`, mode 0600, held exclusively | Daemon Owner, local-account map, users, registry, groups, credentials and issued times, queue contents, counters, each record's [key-value store](03-records-kv.md#key-value-store), the index of each record's [bigfiles](03-records-kv.md#bigfiles), its [activity history](05-discovery.md#activity-history) by day, and the clean-stop marker; an older schema is migrated forward at open |
-| Files in `bigfile/` beside the database, 0600 in a 0700 directory | The bytes of each record's [bigfiles](03-records-kv.md#bigfiles), whole or absent and expiring. Their index is a table in the database, so a database backup holds the rows and not the files, and start drops each restored row whose file is not present. Upgrading from a release that kept the index only in memory loses the bigfiles written before it: the first start removes their rowless files, logs how many, and imports nothing |
+| SQLite database `agent-bus.db`, mode 0600, held exclusively | Daemon Owner, local-account map, users, registry, groups, credentials and issued times, queue contents, counters, each record's [key-value store](03-records-kv.md#key-value-store), the index of each record's [bigfiles](03-records-kv.md#bigfiles), its [activity history](05-discovery.md#activity-history) by day, and the clean-stop marker; only the current schema is accepted |
+| Files in `bigfile/` beside the database, 0600 in a 0700 directory | The bytes of each record's [bigfiles](03-records-kv.md#bigfiles), whole or absent and expiring. Their index is a table in the database, so a database backup holds the rows and not the files, and start drops each restored row whose file is not present. |
 | Memory only | Browser sessions, outstanding readers, [locks](01-identity-and-authority.md#shared-locks), uptime and recent envelope feed |
 
-- It is reached through `modernc.org/sqlite` behind the store ports.
 - The daemon is told where the database is with `--db`; setup runs `agent-busd --init` once, as the daemon account, to create it, and the unit never passes `--create`.
 - An empty file a create left behind is finished by the next create, and refused as empty without one; a file holding anything else is never taken for one.
-- Every record and user carries an internal ID: stable, persisted, never on an answer, and never handed out twice, because the database keeps each high-water mark rather than deriving it from what is left.
 - Durability is defined in [messaging § durability](04-messaging.md#durability).
 - SQLite state and backups retain the daemon account's private directory and file boundary.
 
@@ -240,11 +236,11 @@ that answers who may do anything else.
 
 - **A stopped-daemon backup is the whole daemon home.** The daemon holds its database exclusively, so no online copy exists: `sqlite3 .backup` and every other reader get `database is locked`.
 - A graceful stop flushes queues and counters and checkpoints the WAL into `agent-bus.db`, so the stopped home is complete and consistent.
-- The pause is the stop plus the start.
+- Use an unused archive name in a root-only directory. Create the archive with a private umask before writing any bytes; it contains credentials and secrets.
 
 | Step | As root |
 |---|---|
-| Back up | `systemctl stop agent-busd`, then `tar -C /var/lib/agent-bus -cpf <backup>.tar daemon`, `chmod 600 <backup>.tar`, `systemctl start agent-busd` |
+| Back up | `systemctl stop agent-busd`, then `(umask 077; tar -C /var/lib/agent-bus -cpf <backup>.tar daemon)`, then `systemctl start agent-busd` |
 | Restore | Install the same release (on a new host, `agent-bus-setup` as in [install](07-setup.md#install)), `systemctl stop agent-busd`, `rm -rf /var/lib/agent-bus/daemon`, `tar -C /var/lib/agent-bus -xpf <backup>.tar`, `systemctl start agent-busd` |
 
 <details>

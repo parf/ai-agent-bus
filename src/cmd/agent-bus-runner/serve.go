@@ -1319,7 +1319,6 @@ func failedStatus(in installed) string {
 // its process count differ between two loads.
 func settingsChanged(a, b installed) bool {
 	// The start times are the runner's own bookkeeping, not a setting.
-	a.Host.FirstStarted, a.Host.LastStarted, b.Host.FirstStarted, b.Host.LastStarted = "", "", "", ""
 	for _, pair := range [][2]any{{a.Agent, b.Agent}, {a.Host, b.Host}, {a.Span, b.Span}} {
 		x, _ := json.Marshal(pair[0])
 		y, _ := json.Marshal(pair[1])

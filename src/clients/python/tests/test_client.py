@@ -414,7 +414,7 @@ class LiveClient(unittest.TestCase):
         self.serve(self.caller, handler)
         self.owner._request("POST", "/send", {"to": self.caller.name, "body": "late answer",
             "re": "ffffffffffffffff", "topic": "old", "tag": "old"})
-        self.worker.send(self.caller.name, "legacy late answer", topic=expired.topic, tag=expired.tag)
+        self.worker.send(self.caller.name, "route-correlated late answer", topic=expired.topic, tag=expired.tag)
         self.owner.send(self.caller.name, "work")
         self.assertTrue(handled.wait(2))
         self.assertEqual(bodies, ["work"])

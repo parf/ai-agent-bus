@@ -64,13 +64,13 @@ func switchRefusal(addr string) error {
 // usage opens with the program and its version, like every agent-bus program.
 var usage = "agent-bus-admin " + version.String + display.ManText(usageText) + "\n\n" + display.Footer()
 
-const adminGlobals = "\n\nGLOBAL OPTIONS\n  -h, --help  Show program help; use alone\n  --version  Print version and build; use alone"
+const adminGlobals = "\n\nGLOBAL OPTIONS\n  --help  Show program help; use alone\n  --version  Print version and build; use alone"
 
 const usageText = ` — manage this node · ` + display.Homepage + `
 
 USAGE
   agent-bus-admin <command> [<args>]
-  agent-bus-admin -h, --help | --version
+  agent-bus-admin --help | --version
 
 DESCRIPTION
   Run this node: enrol people and their SSH keys, map local accounts, hand
@@ -130,7 +130,7 @@ func main() {
 	if version.Print() {
 		return
 	}
-	if len(os.Args) == 2 && (os.Args[1] == "--help" || os.Args[1] == "-h") {
+	if len(os.Args) == 2 && os.Args[1] == "--help" {
 		fmt.Println(usage)
 		return
 	}
@@ -152,6 +152,9 @@ func admin() error {
 	if len(args) == 0 {
 		return fmt.Errorf("%s", usage)
 	}
+	if err := canonicalAdminArgs(args); err != nil {
+		return err
+	}
 	// The served certificate is public; describing it needs no account.
 	if args[0] == "tls" {
 		cert, err := tlsdir.LoadCert(tlsdir.Installed())
@@ -171,6 +174,25 @@ func admin() error {
 		return err
 	}
 	return runAdmin(args, entitled)
+}
+
+// Validate retired spellings before any account handover or host reads.
+func canonicalAdminArgs(args []string) error {
+	if len(args) == 0 {
+		return nil
+	}
+	if args[0] == "tls" && len(args) != 1 {
+		return fmt.Errorf("tls takes no arguments")
+	}
+	if len(args) > 1 && (args[0] == "user" || args[0] == "account") {
+		if args[1] == "rm" || args[0] == "user" && args[1] == "delete" {
+			return fmt.Errorf("use %s remove", args[0])
+		}
+		if args[1] == "list" && len(args) != 2 {
+			return fmt.Errorf("%s list takes no arguments", args[0])
+		}
+	}
+	return nil
 }
 
 func runAdmin(args []string, entitled string) error {
@@ -241,7 +263,7 @@ func accountVerb(args []string) error {
 	switch {
 	case len(args) == 3 && args[0] == "set":
 		change["account"], change["principal"] = args[1], args[2]
-	case len(args) == 2 && (args[0] == "remove" || args[0] == "rm"):
+	case len(args) == 2 && args[0] == "remove":
 		change["account"], change["remove"] = args[1], true
 	default:
 		return fmt.Errorf("account wants list, set <local-account> <user[@realm]>, or remove <local-account>\n\n%s", usage)
@@ -324,8 +346,11 @@ func userVerb(args []string) error {
 	case "add-local":
 		return userAddLocal(args[1:], user.Lookup)
 	case "list":
+		if len(args) != 1 {
+			return fmt.Errorf("user list takes no arguments")
+		}
 		return userList()
-	case "remove", "rm", "delete":
+	case "remove":
 		return userRemove(args[1:])
 	}
 	return fmt.Errorf("no such user verb %q\n\n%s", args[0], usage)
@@ -440,7 +465,7 @@ func userAdd(args []string) error {
 	// `-` is the key on stdin, because whoever holds the file is not always
 	// whoever may open it: this program runs as agent-busd, and a key in a
 	// person's home is exactly what that account cannot read. Same spelling
-	// as `agent-template <name> -`.
+	// as `config <name> -`.
 	raw, err := readKey(keyFile)
 	if err != nil {
 		return err

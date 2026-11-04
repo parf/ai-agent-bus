@@ -1021,14 +1021,13 @@ public final class BusTest {
             try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 200, "{}"))) {
                 Bus b = Bus.connect(Connect.of(sock.toString(), "x"));
                 b.status();
-                check("a daemon at the client's protocol is silent", b.warnings().isEmpty(), b.warnings());
                 check("the handshake is one GET /identity, once", f.count("GET /identity") == 0 && f.seen.get() == 1, f.lines);
             }
             try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 200, "{}"))) {
                 f.identity = new Answer(0, 200, "{\"protocol\":5,\"protocol_min\":1}");
                 Bus b = Bus.connect(Connect.of(sock.toString(), "x"));
-                b.status();
-                check("a newer daemon still within protocol_min is silent", b.warnings().isEmpty(), b.warnings());
+                Throwable e = thrown(b::status);
+                check("unsupported newer protocol refused", e instanceof BusException.ProtocolErrorException, name(e));
             }
             try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 200, "{}"))) {
                 f.identity = new Answer(0, 200, "{\"protocol\":2,\"protocol_min\":2}");
@@ -1039,14 +1038,13 @@ public final class BusTest {
             try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 200, "{}"))) {
                 f.identity = null;
                 Throwable e = thrown(() -> Bus.connect(Connect.of(sock.toString(), "x")).status());
-                check("an identity answer with neither member counts as protocol 0: a warning, not an error", e == null, name(e));
+                check("an identity missing protocol is refused", e instanceof BusException.ProtocolErrorException, name(e));
             }
             try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 200, "{}"))) {
                 f.identity = new Answer(0, 200, "{}");
                 Bus b = Bus.connect(Connect.of(sock.toString(), "x"));
-                b.status();
-                check("an identity without the members warns the daemon is too old",
-                        b.warnings().size() == 1 && b.warnings().get(0).equals("daemon too old: protocol is older than this client"), b.warnings());
+                Throwable e = thrown(b::status);
+                check("absent protocol refused", e instanceof BusException.ProtocolErrorException, name(e));
             }
             for (String[] bad : new String[][] {
                     {"{\"protocol\":\"1\",\"protocol_min\":1}", "protocol error: protocol must be a nonnegative integer"},
@@ -1062,11 +1060,11 @@ public final class BusTest {
                 }
             }
             try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 404, "{\"error\":\"no such route\",\"kind\":\"no_route\"}"))) {
-                f.identity = new Answer(0, 200, "{\"protocol\":0,\"protocol_min\":0}");
+                f.identity = new Answer(0, 200, "{\"protocol\":1,\"protocol_min\":1}");
                 Bus b = Bus.connect(Connect.of(sock.toString(), "x"));
                 Throwable e = thrown(() -> b.list(Optional.empty()));
-                check("no_route from an older daemon says too old for the operation",
-                        e instanceof BusException.NotFound n && "no_route".equals(n.kind()) && e.getMessage().equals("daemon too old for GET /ls"), name(e));
+                check("no_route preserves its cause",
+                        e instanceof BusException.NotFound n && "no_route".equals(n.kind()) && e.getMessage().equals("no such route"), name(e));
             }
             try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 404, "{\"error\":\"no such route\",\"kind\":\"no_route\"}"))) {
                 Throwable e = thrown(() -> Bus.connect(Connect.of(sock.toString(), "x")).list(Optional.empty()));
@@ -1074,9 +1072,9 @@ public final class BusTest {
                         e instanceof BusException.NotFound n && "no_route".equals(n.kind()) && e.getMessage().equals("no such route"), name(e));
             }
             try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 404, "{\"error\":\"no such record\",\"kind\":\"not_found\"}"))) {
-                f.identity = new Answer(0, 200, "{\"protocol\":0,\"protocol_min\":0}");
+                f.identity = new Answer(0, 200, "{\"protocol\":1,\"protocol_min\":1}");
                 Throwable e = thrown(() -> Bus.connect(Connect.of(sock.toString(), "x")).list(Optional.empty()));
-                check("not_found is missing data, not a missing route, even from an older daemon",
+                check("not_found is missing data, not a missing route",
                         e instanceof BusException.NotFound n && "not_found".equals(n.kind()) && e.getMessage().equals("no such record"), name(e));
             }
             try (Fake f = new Fake(sock, (line, i) -> new Answer(0, 403, "{\"error\":\"not yours\",\"kind\":\"acl\"}"))) {
@@ -1120,7 +1118,7 @@ public final class BusTest {
                             int n = c.getInputStream().read(buf);
                             if (n > 0) {
                                 requestBytes.addAndGet(n);
-                                c.getOutputStream().write("HTTP/1.1 200 OK\r\nContent-Length: 13\r\nConnection: close\r\n\r\n{\"you\":\"tls\"}".getBytes(StandardCharsets.US_ASCII));
+                                c.getOutputStream().write("HTTP/1.1 200 OK\r\nContent-Length: 43\r\nConnection: close\r\n\r\n{\"you\":\"tls\",\"protocol\":1,\"protocol_min\":1}".getBytes(StandardCharsets.US_ASCII));
                             }
                         } catch (Exception e) {
                             if (ss.isClosed()) return;
@@ -1337,9 +1335,6 @@ public final class BusTest {
                     } else {
                         check(id + ": serves", e == null, name(e));
                         check(id + ": /identity was first", !f.all.isEmpty() && f.all.get(0).startsWith("GET /identity"), f.all);
-                        List<String> warns = bus[0] == null ? List.of() : bus[0].warnings();
-                        if (expect.get("warns") != null) check(id + ": warns", warns.size() == 1 && warns.get(0).contains((String) expect.get("warns")), warns);
-                        else check(id + ": silent", warns.isEmpty(), warns);
                     }
                 }
             }
@@ -1373,12 +1368,11 @@ public final class BusTest {
                 Map<?, ?> daemon = (Map<?, ?>) k.get("daemon"), want = (Map<?, ?>) k.get("expect");
                 String allow = daemon.get("allow") == null ? "" : "Allow: " + daemon.get("allow") + "\r\n";
                 try (Fake f = new Fake(sock, (line, i) -> new Answer(0, ((Number) daemon.get("status")).intValue(), (String) daemon.get("body"), allow))) {
-                    f.identity = new Answer(0, 200, "current".equals(k.get("identity")) ? current : "{}");
+                    f.identity = new Answer(0, 200, current);
                     Bus b = Bus.connect(Connect.of(sock.toString(), "x"));
                     Throwable e = thrown(() -> b.list(Optional.empty()));
                     check(id + ": status, kind and message", e instanceof BusException.RefusalException r && r.status() == ((Number) want.get("status")).intValue()
                             && java.util.Objects.equals(r.kind() == null ? "" : r.kind(), want.get("kind")) && e.getMessage().equals(want.get("message")), name(e));
-                    check(id + ": warns only for an old daemon", b.warnings().isEmpty() == !"old".equals(k.get("identity")), b.warnings());
                 }
             }
         });

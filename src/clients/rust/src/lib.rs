@@ -52,18 +52,17 @@ pub type Result<T> = std::result::Result<T, BusError>;
 /// `GET /identity` (`protocol`, and `protocol_min`, the oldest client it serves).
 pub const CLIENT_PROTOCOL: u64 = 1;
 
-/// Applies the version rule to a `GET /identity` answer and returns the
-/// daemon's protocol, with a warning when it is older than this client:
-/// absent members count as 0; a member that is not a non-negative integer, or
+/// Requires the current protocol pair in a `GET /identity` answer.
+/// Both members are required; a member that is not a non-negative integer, or
 /// `protocol_min` above `protocol`, is a protocol error naming the member; a
 /// client older than `protocol_min` is refused as too new.
-fn check_protocol(identity: &Value) -> Result<(u64, Option<String>)> {
+fn check_protocol(identity: &Value) -> Result<()> {
     if !identity.is_object() {
         return Err(BusError::Protocol("protocol error: identity must be an object".into()));
     }
     let member = |name: &str| -> Result<u64> {
         match identity.get(name) {
-            None => Ok(0),
+            None => Err(BusError::Protocol(format!("protocol error: {name} is required"))),
             Some(v) => v.as_u64().ok_or_else(|| {
                 BusError::Protocol(format!("protocol error: {name} must be a nonnegative integer"))
             }),
@@ -82,10 +81,10 @@ fn check_protocol(identity: &Value) -> Result<(u64, Option<String>)> {
             client: CLIENT_PROTOCOL,
         });
     }
-    let warning = (protocol < CLIENT_PROTOCOL).then(|| {
-        "daemon too old: protocol is older than this client".to_string()
-    });
-    Ok((protocol, warning))
+    if protocol != CLIENT_PROTOCOL || protocol_min != CLIENT_PROTOCOL {
+        return Err(BusError::Protocol("daemon protocol is unsupported".into()));
+    }
+    Ok(())
 }
 
 /// Received envelope. Fields remain private so server-stamped roles cannot be edited.
@@ -324,9 +323,6 @@ pub(crate) struct Inner {
     notify: Notify,
     close: CancellationToken,
     records: Mutex<HashMap<String, Arc<RecordInner>>>,
-    /// The daemon's protocol, read at connect, and what the client warned about it.
-    daemon_protocol: std::sync::atomic::AtomicU64,
-    warnings: Mutex<Vec<String>>,
 }
 impl fmt::Debug for Bus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -414,18 +410,10 @@ impl BusBuilder {
                 notify: Notify::new(),
                 close: CancellationToken::new(),
                 records: Mutex::new(HashMap::new()),
-                daemon_protocol: std::sync::atomic::AtomicU64::new(CLIENT_PROTOCOL),
-                warnings: Mutex::new(Vec::new()),
             }),
         };
         // The version rule first: a daemon this client cannot speak is asked nothing else.
-        let (protocol, warning) = check_protocol(&bus.identity().await?)?;
-        bus.inner
-            .daemon_protocol
-            .store(protocol, std::sync::atomic::Ordering::SeqCst);
-        if let Some(warning) = warning {
-            bus.inner.warnings.lock().unwrap().push(warning);
-        }
+        check_protocol(&bus.identity().await?)?;
         let status = bus.status().await?;
         let actual = status
             .get("you")
@@ -457,10 +445,6 @@ impl Bus {
     }
     pub fn name(&self) -> &str {
         &self.inner.name
-    }
-    /// Warnings raised at connect, such as "daemon too old: protocol is older than this client".
-    pub fn warnings(&self) -> Vec<String> {
-        self.inner.warnings.lock().unwrap().clone()
     }
     pub async fn identity(&self) -> Result<Value> {
         self.json(Method::GET, "/identity", &[], None, None).await
@@ -571,13 +555,6 @@ impl Bus {
                 .as_ref()
                 .and_then(|v| v["error"].as_str().map(str::to_owned))
                 .unwrap_or_else(|| String::from_utf8_lossy(&bytes).into_owned());
-            // A route or method this daemon lacks, from a daemon older than the
-            // client, is that age, said for the operation that met it.
-            if kind.as_deref() == Some("no_route")
-                && self.inner.daemon_protocol.load(std::sync::atomic::Ordering::SeqCst) < CLIENT_PROTOCOL
-            {
-                msg = format!("daemon too old for {operation}");
-            }
             // A server error that names no kind is the daemon failing, not refusing.
             if status.as_u16() == 500 {
                 msg = "internal daemon error".into();
@@ -1123,16 +1100,7 @@ fn default_socket(token: bool) -> String {
             return p.to_string_lossy().into_owned();
         }
     }
-    if let Ok(runtime) = std::env::var("XDG_RUNTIME_DIR") {
-        return PathBuf::from(runtime)
-            .join("agent-bus/bus.sock")
-            .to_string_lossy()
-            .into_owned();
-    }
-    std::env::temp_dir()
-        .join(format!("agent-bus-{}.sock", users::get_current_uid()))
-        .to_string_lossy()
-        .into_owned()
+    format!("/run/agent-bus/{}", if token { "bus.sock".to_owned() } else { account.map(|a| format!("user-{a}.sock")).unwrap_or_else(|| "bus.sock".into()) })
 }
 
 fn mutating(method: &Method, path: &str) -> bool {

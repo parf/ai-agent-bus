@@ -5,10 +5,8 @@ import { join } from "node:path";
 export type Config = {
   daemon: string;        // a Unix socket path, or http://host:port
   listen: { hostname: string; port: number };
-  // PEM text. front: TLS and plain HTTP share the port, plain redirected
-  // (AGENT_BUS_WEB_TLS_DIR); otherwise the port is HTTPS alone (the older
-  // AGENT_BUS_WEB_CERT and AGENT_BUS_WEB_KEY).
-  tls?: { cert: string; key: string; front: boolean };
+  // PEM text; TLS and redirected plain HTTP share one public port.
+  tls?: { cert: string; key: string };
   inner?: string;        // where the TLS server listens behind the front
   dev: boolean;          // serves /_styleguide
 };
@@ -33,27 +31,20 @@ export function listenAddr(v: string): { hostname: string; port: number } {
 
 export function defaultSocket(env: NodeJS.ProcessEnv): string {
   if (env.XDG_RUNTIME_DIR) return `${env.XDG_RUNTIME_DIR}/agent-bus/bus.sock`;
-  return `/tmp/agent-bus-${process.getuid?.() ?? 0}.sock`;
+  return "/run/agent-bus/bus.sock";
 }
 
 export function load(env: NodeJS.ProcessEnv = process.env): Config {
-  const cert = env.AGENT_BUS_WEB_CERT ?? "", key = env.AGENT_BUS_WEB_KEY ?? "";
-  let tls: Config["tls"];
-  if (env.AGENT_BUS_WEB_TLS_DIR) {
-    // What setup turns on: both on one port, plain HTTP redirected.
-    tls = { ...tlsDir(env.AGENT_BUS_WEB_TLS_DIR), front: true };
-  } else if (cert || key) {
-    // Asking for TLS and missing half of it is a refusal to start, never plain HTTP.
-    if (!cert || !key) throw new Error("TLS needs both AGENT_BUS_WEB_CERT and AGENT_BUS_WEB_KEY");
-    for (const f of [cert, key]) if (!existsSync(f)) throw new Error(`TLS file ${f} does not exist`);
-    tls = { cert: readFileSync(cert, "utf8"), key: readFileSync(key, "utf8"), front: false };
+  for (const name of ["AGENT_BUS_WEB_CERT", "AGENT_BUS_WEB_KEY", "AGENT_BUS_WEB_RUNTIME"]) {
+    if (env[name] !== undefined) throw new Error(`${name} is not supported; use AGENT_BUS_WEB_TLS_DIR and RUNTIME_DIRECTORY`);
   }
+  const tls = env.AGENT_BUS_WEB_TLS_DIR ? tlsDir(env.AGENT_BUS_WEB_TLS_DIR) : undefined;
   return {
     daemon: env.AGENT_BUS_ADDR || defaultSocket(env),
     listen: listenAddr(env.AGENT_BUS_WEB_ADDR || "127.0.0.1:6780"),
     tls,
     // systemd's RuntimeDirectory, or the caller's own runtime directory.
-    inner: join(env.RUNTIME_DIRECTORY || env.AGENT_BUS_WEB_RUNTIME || env.XDG_RUNTIME_DIR || "/tmp", env.RUNTIME_DIRECTORY ? "https.sock" : `agent-bus-web-${process.pid}.sock`),
+    inner: join(env.RUNTIME_DIRECTORY || env.XDG_RUNTIME_DIR || "/tmp", env.RUNTIME_DIRECTORY ? "https.sock" : `agent-bus-web-${process.pid}.sock`),
     dev: env.AGENT_BUS_WEB_DEV === "1",
   };
 }

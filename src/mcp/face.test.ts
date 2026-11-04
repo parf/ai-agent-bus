@@ -474,14 +474,13 @@ async function protocolFixture(identity:unknown,run:(bus:Bus,calls:string[])=>Pr
  try{await run(new Bus({AGENT_BUS_ADDR:`http://127.0.0.1:${server.port}`,AGENT_BUS_TOKEN:'fixture',AGENT_BUS_NAME:'owner@test'}),calls);}finally{server.stop(true);}
 }
 test('MCP protocol handshake refuses too-new and malformed before application requests',async()=>{
- for(const [identity,error] of [[{protocol:2,protocol_min:2},'daemon too new'],[{protocol:1.5},'protocol'],[{protocol:-1},'protocol'],[{protocol:null},'protocol'],[{protocol:true},'protocol'],[{protocol:1,protocol_min:2},'protocol_min']] as const){await protocolFixture(identity,async(bus,calls)=>{await expect(bus.status()).rejects.toThrow(error);expect(calls).toEqual(['/identity']);});}
+ for(const [identity,error] of [[{},'protocol'],[{protocol:0,protocol_min:0},'unsupported'],[{protocol:2,protocol_min:1},'unsupported'],[{protocol:1},'protocol_min'],[{protocol:1,protocol_min:0},'unsupported'],[{protocol:2,protocol_min:2},'daemon too new'],[{protocol:1.5},'protocol'],[{protocol:-1},'protocol'],[{protocol:null},'protocol'],[{protocol:true},'protocol'],[{protocol:1,protocol_min:2},'protocol_min']] as const){await protocolFixture(identity,async(bus,calls)=>{await expect(bus.status()).rejects.toThrow(error);expect(calls).toEqual(['/identity']);});}
 });
-test('MCP protocol compatibility warns once only for old or absent',async()=>{
- const original=console.warn,warnings:string[]=[];console.warn=(...a)=>{warnings.push(a.join(' '));};
- try{for(const [identity,old] of [[{protocol:1,protocol_min:1},false],[{protocol:2,protocol_min:1},false],[{},true],[{protocol:0,protocol_min:0},true]] as const){warnings.length=0;await protocolFixture(identity,async(bus,calls)=>{await bus.status();await bus.status();expect(calls[0]).toBe('/identity');expect(warnings.length).toBe(old?1:0);});}}finally{console.warn=original;}
+test('current protocol succeeds',async()=>{
+ await protocolFixture({protocol:1,protocol_min:1},async(bus,calls)=>{await bus.status();expect(calls[0]).toBe('/identity');});
 });
 test('MCP protocol refusal kinds and 500 do not lose the daemon cause',async()=>{
- for(const identity of [{},{protocol:1,protocol_min:1}])for(const [code,kind] of [[404,'not_found'],[404,'no_route'],[503,'unavailable'],[500,undefined]] as const){await protocolFixture(identity,async bus=>{try{await bus.status();throw new Error('refusal accepted');}catch(e){expect(e).toBeInstanceOf(BusError);const err=e as BusError;expect(err.status).toBe(code);expect(err.kind).toBe(kind);expect(err.message).toBe(code===500?'internal daemon error':!('protocol'in identity)&&kind==='no_route'?'daemon too old for GET /status':'cause');}},[code,kind]);}
+ for(const identity of [{protocol:1,protocol_min:1}])for(const [code,kind] of [[404,'not_found'],[404,'no_route'],[503,'unavailable'],[500,undefined]] as const){await protocolFixture(identity,async bus=>{try{await bus.status();throw new Error('refusal accepted');}catch(e){expect(e).toBeInstanceOf(BusError);const err=e as BusError;expect(err.status).toBe(code);expect(err.kind).toBe(kind);expect(err.message).toBe(code===500?'internal daemon error':'cause');}},[code,kind]);}
 });
 
 test('MCP tool errors surface refusal kind and cause',async()=>{
@@ -490,32 +489,20 @@ test('MCP tool errors surface refusal kind and cause',async()=>{
  expect(got.isError).toBe(true);expect(got.text).toContain('unavailable');expect(got.text).toContain('store unavailable');expect(got.text).toContain('503');
 });
 
-// A daemon older than this face (C1's version check) says so where the model reads it: once, in a tool
-// result; stderr keeps the warning, and a compatible daemon adds nothing.
-const tooOld = "bus daemon is older than this tool";
-const warned = "daemon too old: protocol is older than this client";
-const queued: Handler = () => Response.json(message);
-
-test("a too-old daemon's warning reaches the model once, in a tool result, and stderr keeps it", async () => {
-  const { call, stderr } = await face(queued, {}, undefined, {});
-  const first = await call("ab_consume", { wait: "0s" });
-  expect(first.text).toContain("queued-body");
-  expect(first.text).toContain(tooOld);
-  // The note is the face's own, in a block of its own, after the peer's body and labelled as not part of it.
-  expect(first.blocks.length).toBeGreaterThan(1);
-  const note = first.blocks[first.blocks.length - 1]!;
-  expect(note.startsWith("[agent-bus MCP face, not part of any message]")).toBe(true);
-  expect(note).toContain(tooOld);
-  expect(first.blocks.slice(0, -1).join("\n")).toContain("queued-body");
-  expect(first.blocks.slice(0, -1).join("\n")).not.toContain(tooOld);
-  const second = await call("ab_consume", { wait: "0s" });
-  expect(second.text).not.toContain(tooOld);
-  expect(stderr.join("")).toContain(warned);
-});
-
-test("a compatible daemon adds nothing to a tool result", async () => {
-  const { call, stderr } = await face(queued);
-  const got = await call("ab_consume", { wait: "0s" });
-  expect(got.text).not.toContain(tooOld);
-  expect(stderr.join("")).not.toContain(warned);
+test("unsupported daemon refuses startup before application requests", async () => {
+  const paths: string[] = [];
+  const daemon = Bun.serve({port: 0, hostname: '127.0.0.1', fetch(req) {
+    paths.push(new URL(req.url).pathname);
+    return Response.json({});
+  }});
+  const child = Bun.spawn([process.execPath, `${import.meta.dir}/server.ts`], {
+    env: {PATH: process.env.PATH ?? '', AGENT_BUS_ADDR: `http://127.0.0.1:${daemon.port}`, AGENT_BUS_TOKEN: 't', AGENT_BUS_NAME: '#face@test'},
+    stdin: 'pipe', stdout: 'pipe', stderr: 'pipe',
+  });
+  try {
+    const stderr = await new Response(child.stderr).text();
+    expect(await child.exited).not.toBe(0);
+    expect(stderr).toContain('protocol');
+    expect(paths).toEqual(['/identity']);
+  } finally { child.kill(); daemon.stop(true); }
 });

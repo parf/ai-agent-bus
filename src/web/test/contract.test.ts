@@ -29,7 +29,7 @@ beforeAll(async () => {
     const b = Bun.spawnSync(["go", "build", "-o", bin + "/", "./cmd/agent-busd", "./cmd/agent-bus"], { cwd: join(import.meta.dir, "../.."), stderr: "pipe" });
     if (b.exitCode) throw new Error(b.stderr.toString());
   }
-  daemon = Bun.spawn([join(bin, "agent-busd"), "-addr", "127.0.0.1:0", "-socket", join(dir, "bus.sock"), "-owner", "owner@test", "-db", join(dir, "bus.db"), "-create", "-flush-every", "0", "-dashboard", "", "-ssh-keys", join(dir, "ssh", "authorized_keys"), "-ssh-token", "/usr/local/bin/agent-bus-token"], { stdout: "ignore", stderr: "ignore" });
+  daemon = Bun.spawn([join(bin, "agent-busd"), "--addr", "127.0.0.1:0", "--socket", join(dir, "bus.sock"), "--owner", "owner@test", "--db", join(dir, "bus.db"), "--create", "--flush-every", "0", "--dashboard", "", "--ssh-keys", join(dir, "ssh", "authorized_keys"), "--ssh-token", "/usr/local/bin/agent-bus-token"], { stdout: "ignore", stderr: "ignore" });
   const user = join(dir, `user-${userInfo().username}.sock`);
   for (let i = 0; i < 100 && !existsSync(user); i++) await Bun.sleep(50);
   owner = Bun.spawnSync([join(bin, "agent-bus"), "token", "owner@test"], { env: { ...process.env, AGENT_BUS_ADDR: user } }).stdout.toString().trim();
@@ -39,11 +39,11 @@ beforeAll(async () => {
   await api("/register", { name: "jobs@test", kind: "queue", descr: "Jobs", allow: ["*"] });
   await api("/register", { name: "news@test", kind: "pubsub", subs: ["jobs@test"], allow: ["*"] });
   await api("/register", { name: "db@test", kind: "service", addr: "db:5432", protocol: "postgresql" });
-  await api("/group", { Name: "@ops", Members: ["bob"] });
-  await api("/group", { Name: "@hidden", Members: ["owner@test"] });
-  await api("/register", { name: "mine@test", kind: "service", addr: "mine:1", protocol: "https", personal: true });
-  await api("/group", { Name: "@owner@test/team", Members: ["owner@test"] });
-  await api("/manage", { name: "@owner@test/team", personal: true });
+  await api("/group", { name: "@ops", members: ["bob"] });
+  await api("/group", { name: "@hidden", members: ["owner@test"] });
+  await api("/register", { name: "mine@test", kind: "service", addr: "mine:1", protocol: "https", tags: ["personal"] });
+  await api("/group", { name: "@owner@test/team", members: ["owner@test"] });
+  await api("/manage", { name: "@owner@test/team", tags: ["personal"] });
   await api("/send", { to: "jobs@test", body: "hello", topic: "t", tag: "x" });
   handle = makeHandler({ daemon: join(dir, "bus.sock"), listen: { hostname: "127.0.0.1", port: 6781 }, dev: false });
 }, 120_000);
@@ -292,7 +292,9 @@ describe("pages as the daemon owner", () => {
     expect(selectedTop).toContain('aria-current="true">extra_bf');
     expect(selected).toContain("name=%23tagbrowse-bf%40test");
     expect(selected).not.toContain("name=%23tagbrowse-aa%40test");
-    const saved=await req("/record",{cookie:s,form:{action:"save",name:"#tagbrowse-aa@test",descr:"tagged",tags:"BUILD-Notes,CLAUDE,no-tags,v2"}});
+    const sentinel=await req("/record",{cookie:s,form:{action:"save",name:"#tagbrowse-aa@test",descr:"tagged",tags:"BUILD-Notes,no-tags"}});
+    expect(sentinel.status).toBe(400);
+    const saved=await req("/record",{cookie:s,form:{action:"save",name:"#tagbrowse-aa@test",descr:"tagged",tags:"BUILD-Notes,CLAUDE,v2"}});
     expect(saved.status).toBe(303);
     const bad = await req("/record",{cookie:s,form:{action:"save",name:"#tagbrowse-aa@test",tags:"bad tag"}});
     expect(bad.status).toBe(400);
@@ -364,7 +366,7 @@ describe("pages as the daemon owner", () => {
   test("record cards show declared or assigned roles, held locks and stored Configuration", async () => {
     const name = "#layout-used@test";
     await api("/register", {name, kind:"agent", roles:["operate"], allow:["*"]});
-    await api("/configure", {Name:name, Config:{mode:"used-layout-config"}});
+    await api("/configure", {name:name, config:{mode:"used-layout-config"}});
     await api("/send",{to:name,body:"kept message"});
     await api("/lock", {record:name, name:"layout-held", ttl:"1m"});
     try {
@@ -436,7 +438,7 @@ describe("pages as the daemon owner", () => {
     expect(after).toContain("@ops(deploy,audit)");
     expect(after).not.toContain("must not save");
   });
-  const pages = ["/", "/agents", "/services", "/queues", "/pubsub", "/agents?personal=1", "/queues?personal=1", "/services?personal=1", "/groups?personal=1", "/agents/new", "/services/new", "/queues/new", "/pubsub/new",
+  const pages = ["/", "/agents", "/services", "/queues", "/pubsub", "/agents?tag=personal", "/queues?tag=personal", "/services?tag=personal", "/groups?tag=personal", "/agents/new", "/services/new", "/queues/new", "/pubsub/new",
     "/agent?name=%23helper@test", "/queue?name=jobs@test", "/pubsub/channel?name=news@test", "/service?name=db@test", "/agent/edit?name=%23helper@test",
     "/record-deactivate?name=jobs@test", "/record-danger?name=jobs@test", "/activity", "/activity?name=jobs@test", "/diagnostics",
     "/users", "/users/new", "/user?name=bob", "/user/edit?name=bob", "/user-danger?name=bob", "/user-deactivate?name=bob", "/groups", "/groups/new", "/group?name=@ops", "/group/edit?name=@ops", "/account"];
@@ -452,7 +454,7 @@ describe("pages as the daemon owner", () => {
     }
   });
   test("record forms give Roles the same full width as Tags and keep useful guidance", async () => {
-    for(const path of ["/agents/new?personal=1","/agent/edit?name=%23helper@test"]){
+    for(const path of ["/agents/new?tag=personal","/agent/edit?name=%23helper@test"]){
       const html=await(await req(path,{cookie:s})).text();
       const fields=html.split(/<div class="field(?= |")/);
       for(const name of ["roles","tags"]){
@@ -559,10 +561,9 @@ describe("pages as the daemon owner", () => {
     expect(own).toContain("<h1>");
     expect(own).not.toContain('id="form-ssh-key"');
   });
-  test("signed in, /users?kind=other goes to the leftovers", async () => {
+  test("the retired users kind filter refuses", async () => {
     const r = await req("/users?kind=other", { cookie: s });
-    expect(r.status).toBe(303);
-    expect(r.headers.get("location")).toBe("/diagnostics#leftovers");
+    expect(r.status).toBe(400);
   });
   test("a bad return on a user action cannot fail it afterwards", async () => {
     const r = await req("/user", { cookie: s, form: { action: "active", name: "bob", return: "/user?a\r\nb" } });
@@ -649,39 +650,40 @@ describe("pages as the daemon owner", () => {
     expect((await req("/user-danger?name=owner%40test", { cookie: s })).status).toBe(403);
   });
   test("every list has exactly one Register action, empty or not", async () => {
-    for (const p of ["/agents", "/services", "/pubsub?personal=1", "/pubsub", "/groups", "/groups?personal=1"]) {
+    for (const p of ["/agents", "/services", "/pubsub?tag=personal", "/pubsub", "/groups", "/groups?tag=personal"]) {
       const t = await (await req(p, { cookie: s })).text();
       expect(`${p} ${(t.match(/href="\/[a-z]+\/new[^"]*"/g) ?? []).length}`).toBe(`${p} 1`);
     }
   });
   test("Personal is a filter on each kind's list, kept by the sidebar", async () => {
-    const t = await (await req("/services?personal=1", { cookie: s })).text();
+    const t = await (await req("/services?tag=personal", { cookie: s })).text();
     expect(t).toContain("mine@test");
     expect(t).not.toContain("db@test");
     expect(t).not.toContain('aria-label="Kind"');
     expect(t).toMatch(/class="tab personal-view" aria-current="true"/);
     // The sidebar keeps the filter on every kind, and never elsewhere.
-    for (const p of ["/agents", "/queues", "/pubsub", "/groups"]) expect(t).toContain(`href="${p}?personal=1" class="side-link personal"`);
-    expect(t).toMatch(/<a href="\/services\?personal=1" class="side-link personal" aria-current="page"/);
+    for (const p of ["/agents", "/queues", "/pubsub", "/groups"]) expect(t).toContain(`href="${p}?tag=personal" class="side-link personal"`);
+    expect(t).toMatch(/<a href="\/services\?tag=personal" class="side-link personal" aria-current="page"/);
     expect(t).toContain('href="/users" class="side-link "');
     // Only the columns that tell rows apart: no Type, and no Owner on your own list.
     expect(t).not.toMatch(/<th[^>]*>Type<\/th>/);
     expect(t).not.toMatch(/<th[^>]*>Owner<\/th>/);
     expect(t).not.toMatch(/<th[^>]*>Status<\/th>/);
-    expect(t.match(/href="\/[a-z]+\/new[^"]*"/g)).toEqual(['href="/services/new?personal=1"']);
+    expect(t.match(/href="\/[a-z]+\/new[^"]*"/g)).toEqual(['href="/services/new?tag=personal"']);
     // Filters and paging keep the filter too.
     expect(t).toContain('tag=personal');
     const plain = await (await req("/services", { cookie: s })).text();
-    expect(plain).not.toContain("?personal=1\" class=\"side-link");
+    expect(plain).not.toContain("?tag=personal\" class=\"side-link");
     expect(plain).toMatch(/<th[^>]*>Owner<\/th>/);
-    const form = await (await req("/services/new?personal=1", { cookie: s })).text();
-    expect(form).toMatch(/name="personal" value="on" checked/);
-    expect(form).toContain('href="/services?personal=1"');
+    const form = await (await req("/services/new?tag=personal", { cookie: s })).text();
+    expect(form).toMatch(/name="tags"[^>]*value="personal"/);
+    expect(form).not.toContain('name="personal"');
+    expect(form).toContain('href="/services?tag=personal"');
     // A Personal record's page leads back to its Personal list and keeps the sidebar's filter.
     const detail = await (await req("/service?name=mine@test", { cookie: s })).text();
-    expect(detail).toContain('class="back-link" href="/services?personal=1"');
-    expect(detail).toContain('href="/agents?personal=1" class="side-link personal"');
-    const groups = await (await req("/groups?personal=1", { cookie: s })).text();
+    expect(detail).toContain('class="back-link" href="/services?tag=personal"');
+    expect(detail).toContain('href="/agents?tag=personal" class="side-link personal"');
+    const groups = await (await req("/groups?tag=personal", { cookie: s })).text();
     expect(groups).toContain("@owner@test/team");
     expect(groups).not.toContain(">@ops<");
     for (const gone of ["/personal", "/personal?kind=service"]) expect((await req(gone, { cookie: s })).status).toBe(404);
@@ -808,19 +810,12 @@ describe("pages as the daemon owner", () => {
     expect(html).toContain('href="https://datatracker.ietf.org/doc/html/rfc6570">URI Template syntax</a>');
     expect(html).toContain('href="https://modelcontextprotocol.io/specification/latest/server/resources"');
   });
-  test("Personal uses a creation checkbox and an edit tag", async () => {
+  test("Personal uses the Tags editor on creation and edit", async () => {
     for (const path of ["/agents/new", "/services/new", "/queues/new", "/pubsub/new", "/resources/new", "/groups/new", "/agent/edit?name=%23helper%40test", "/group/edit?name=%40ops"]) {
       const html = await (await req(path, { cookie: s })).text();
-      if (path.includes("/edit")) {
-        expect(html).toContain('name="tags"');
-        expect(html).not.toContain('type="checkbox" name="personal"');
-      } else {
-        expect(html).toContain('type="checkbox" name="personal"');
-        expect(html).toMatch(/<div class="field-heading"><label for="(?:create-name|f-name)">Name[\s\S]*?name="personal"/);
-        expect(html).toMatch(/<button[^>]*aria-label="About Personal records"[^>]*data-tooltip=/);
-      }
+      expect(html).toContain('name="tags"');
+      expect(html).not.toContain('type="checkbox" name="personal"');
       expect(html).not.toContain("<legend>Classification</legend>");
-      expect(html).not.toMatch(/Personal<span class="hint">/);
     }
   });
   test("queue settings share one header and keep their submitted controls", async () => {
@@ -850,7 +845,7 @@ describe("pages as the daemon owner", () => {
       const empty = await (await req(`${path}?name=${encodeURIComponent(name!)}`, { cookie: s })).text();
       expect(empty).toContain("No secret is stored.");
       expect(empty).toContain("No configuration is stored.");
-      await api("/configure", { Name: name, Config: { token: "PRIVATE-CONFIG" } });
+      await api("/configure", { name: name, config: { token: "PRIVATE-CONFIG" } });
       await api("/secret", { name, secret: "ENV_PRIVATE=value\n" });
       const page = await (await req(`${path}?name=${encodeURIComponent(name!)}`, { cookie: s })).text();
       expect(page.indexOf('name="config"')).toBeGreaterThan(page.indexOf('name="secret"'));
@@ -874,7 +869,7 @@ describe("pages as the daemon owner", () => {
       };
       const secret = async () => (await fetch(`http://unix/secret?name=${encodeURIComponent(name!)}`, { headers: { "X-Agent-Bus-Token": owner }, unix: join(dir, "bus.sock") } as RequestInit)).text();
       // A form left open while the values change elsewhere submits them empty, which keeps what is stored now.
-      await api("/configure", { Name: name, Config: { token: "PRIVATE-CONFIG" } });
+      await api("/configure", { name: name, config: { token: "PRIVATE-CONFIG" } });
       await api("/secret", { name, secret: "ENV_PRIVATE=rotated\n" });
       expect((await req(post, { cookie: s, form: { ...form, config: "", secret: "" } })).status).toBe(303);
       expect(await config()).toEqual({ token: "PRIVATE-CONFIG" });
@@ -902,7 +897,7 @@ describe("pages as the daemon owner", () => {
   test("configuration is visible to Owner and Maintainer only, never the Secret", async () => {
     const name = "#rt16@test";
     await api("/register", {name, kind:"agent", allow:["*"], maintainers:["bob"]});
-    const cli = Bun.spawnSync([join(bin, "agent-bus"), "agent-template", name, '{"channel":"RT16-CONFIG","nested":{"n":2}}'], {
+    const cli = Bun.spawnSync([join(bin, "agent-bus"), "config", name, '{"channel":"RT16-CONFIG","nested":{"n":2}}'], {
       env: {...Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("AGENT_BUS_"))), AGENT_BUS_ADDR:join(dir,"bus.sock"), AGENT_BUS_TOKEN:owner},
       stdout:"pipe", stderr:"pipe",
     });
@@ -955,7 +950,7 @@ describe("pages as the daemon owner", () => {
     expect(ok.status).toBe(303);
   });
   test("a Personal group must carry its owner's prefix, refused before any call", async () => {
-    const r = await req("/groups", { cookie: s, form: { action: "save", new: "1", name: "@team", members: "", personal: "on" } });
+    const r = await req("/groups", { cookie: s, form: { action: "save", new: "1", name: "@team", members: "", tags: "personal" } });
     expect(r.status).toBe(400);
     expect(await r.text()).toContain("call it @owner@test/&lt;name&gt;");
   });
@@ -1058,8 +1053,8 @@ describe("locks, resources and the nav", () => {
   });
 
   test("the Personal filter keeps Resources in the nav", async () => {
-    const t = await (await req("/agents?personal=1", { cookie: s })).text();
-    expect(t).toContain('href="/resources?personal=1"');
+    const t = await (await req("/agents?tag=personal", { cookie: s })).text();
+    expect(t).toContain('href="/resources?tag=personal"');
   });
 
   test("the Overview strip counts resources", async () => {
@@ -1300,7 +1295,7 @@ describe("the daemon unreachable", () => {
 test("agent metadata pages show every declaration but never Secret values", async () => {
   const name = "#metadata@test", sentinel = "rt9-secret-value-must-not-render";
   await api("/register", { name, kind: "agent" });
-  await api("/secret", { Name: name, Secret: `TOKEN=${sentinel}` });
+  await api("/secret", { name: name, secret: `TOKEN=${sentinel}` });
   const token = (await api("/token", { name })).token;
   let serving = true;
   const stop = new AbortController();
@@ -1345,7 +1340,7 @@ test("agent metadata pages show every declaration but never Secret values", asyn
     expect(page).not.toContain('id="configuration"');
     expect(page).toContain("Formatting mode");
     expect(page).not.toContain("No configuration is stored.");
-    await api("/configure", { Name: name, Config: { mode: "text", extra: true } });
+    await api("/configure", { name: name, config: { mode: "text", extra: true } });
     await ready();
     const filtered = await (await req(`/agent?name=${encodeURIComponent(name)}&m=not-matching`, { cookie: c })).text();
     expect(filtered).toContain('0 of 1 methods match.');
@@ -1381,10 +1376,10 @@ test("shared tag badges and self owners hide empty tags on every record view", a
   await api("/register", {name:"#badge-foreign@test",kind:"agent"}, bob);
   const foreign=await (await req("/agents?q=badge-foreign",{cookie:c})).text();
   expect(foreign).toMatch(/<td[^>]*data-label="Owner"><code>bob<\/code><\/td>/);
-  await api("/manage", {name, personal:true});
+  await api("/manage", {name, tags:["personal"]});
   page = await (await req(`/agent?name=${encodeURIComponent(name)}`, {cookie:c})).text();
   expect(page).toMatch(/<a class="record-tag tag-personal"[^>]*>personal<\/a>/);
-  await api("/manage", {name, personal:false, tags:[]});
+  await api("/manage", {name, tags:[]});
   for (const path of ["/agents?q=badge-fixture", `/agent?name=${encodeURIComponent(name)}`, `/agent/edit?name=${encodeURIComponent(name)}`]) {
     const html = await (await req(path, {cookie:c})).text();
     // Exclude the inline application bundle and stylesheet: assert rendered elements.
@@ -1423,7 +1418,7 @@ test("stored Configuration is a manager-only JSON preview in the left column", a
  const own=await signIn(owner),other=await signIn(bob);
  let page=await(await req(`/agent?name=${encodeURIComponent(name)}`,{cookie:own})).text();
  expect(page).not.toContain('id="configuration"');
- await api("/configure",{Name:name,Config:{window:value}});
+ await api("/configure",{name:name,config:{window:value}});
  page=await(await req(`/agent?name=${encodeURIComponent(name)}`,{cookie:own})).text();
  expect(page.replace(/<\/?span\b[^>]*>/g,"" )).toMatch(/<pre[^>]*data-configuration-json[^>]*><code>\{\n  &quot;window&quot;: &quot;configuration-left-private-value&quot;\n\}<\/code><\/pre>/);
  expect(page.indexOf('id="configuration"')).toBeLessThan(page.indexOf('id="status"'));
@@ -1456,10 +1451,10 @@ test("record tags appear once inside header metadata for every record kind", asy
   expect(meta).toContain('href="/agents?tag=work">work</a>');
   expect(meta.indexOf('class="record-tags"')).toBeGreaterThan(meta.indexOf('>owner@test<'));
   expect(page.match(/aria-label="Tags"/g)?.length).toBe(1);
-  await api("/manage", {name,personal:true});
+  await api("/manage", {name,tags:["personal"]});
   page = await(await req(url,{cookie})).text();
   expect(/<header class="page-head">[\s\S]*?<\/header>/.exec(page)?.[0]).toContain('class="record-tag tag-personal" href="/agents?tag=personal"');
-  await api("/manage", {name,personal:false,tags:[]});
+  await api("/manage", {name,tags:[]});
   page = await(await req(url,{cookie})).text();
   expect(page).not.toContain('aria-label="Tags"');
   expect(page).not.toContain('>no-tags<');
@@ -1508,7 +1503,7 @@ test("Configuration digest stays in its manager-only header for every configurab
   await api("/register",{kind,name,allow:["bob"],...(kind==="service"?{addr:"localhost:1",protocol:"http"}:{})});
   const url=`/${path}?name=${encodeURIComponent(name!)}`;
   expect(await(await req(url,{cookie})).text()).not.toContain('id="configuration"');
-  await api("/configure",{Name:name,Config:{mode:"safe"}});
+  await api("/configure",{name:name,config:{mode:"safe"}});
   const lookup=await fetch(`http://unix/lookup?name=${encodeURIComponent(name!)}`,{headers:{"X-Agent-Bus-Token":owner},unix:join(dir,"bus.sock")} as RequestInit);
   const sha=(await lookup.json() as any).config_sha;
   const page=await(await req(url,{cookie})).text();
@@ -1540,7 +1535,8 @@ describe("bus setup", () => {
     expect(html).toContain('name="action" value="configure"');
     expect(html).not.toContain('name="descr"');
     expect(html).not.toContain("/record-danger");
-    expect(html).toContain("agent events are in work");
+    expect(html).not.toContain("agent events are in work");
+    expect(html).toContain("Agent-event notices kept per agent");
   });
   test("even the daemon owner has no Danger Zone or settings save for #bus", async () => {
     const danger = await req("/record-danger?name=%23bus", { cookie: o });
@@ -1635,4 +1631,14 @@ test("the visible page footer credits Sergey Porfiriev",async()=>{
 test("the landing author uses the full owner name",async()=>{
  const html=await(await handle(new Request(ORIGIN+"/"))).text();
  expect(html).toContain('by <a href="https://parf.dev/">Sergey Porfiriev</a>');
+});
+
+test("the bus configure action refuses other records without changing Configuration",async()=>{
+  const name="#canonical-config@test";
+  await api("/register",{name,kind:"agent"});
+  await api("/configure",{name,config:{mode:"before"}});
+  const r=await req("/record",{cookie:await signIn(owner),form:{action:"configure",name,config:'{"mode":"after"}'}});
+  expect(r.status).toBe(400);
+  const current=await fetch(`http://unix/config?name=${encodeURIComponent(name)}`,{unix:join(dir,"bus.sock"),headers:{"X-Agent-Bus-Token":owner}} as RequestInit);
+  expect(await current.json()).toEqual({mode:"before"});
 });

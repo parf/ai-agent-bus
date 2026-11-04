@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"go/ast"
 	"go/parser"
@@ -29,10 +30,16 @@ func TestRunnerHelpAndRealExitCodes(t *testing.T) {
 	for _, c := range []struct {
 		args []string
 		code int
-	}{{[]string{"--help"}, 0}, {nil, 1}, {[]string{"--unknown"}, 2}, {[]string{"--bundled="}, 1}} {
+	}{{[]string{"--help"}, 0}, {[]string{"--help", "junk"}, 2}, {[]string{"-h"}, 2}, {nil, 1}, {[]string{"--unknown"}, 2}, {[]string{"--bundled="}, 1}} {
 		cmd := exec.Command(os.Args[0], append([]string{"-test.run=^TestRunnerHelpProcess$", "--"}, c.args...)...)
 		cmd.Env = append(os.Environ(), "AB_RUNNER_HELP_TEST=1", "GORACE=atexit_sleep_ms=0")
-		out, err := cmd.CombinedOutput()
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+		out, err := cmd.Output()
+		if len(c.args) == 1 && c.args[0] == "--help" && (len(out) == 0 || stderr.Len() != 0) {
+			t.Fatalf("help must use stdout: stdout=%q stderr=%q", out, stderr.String())
+		}
+		out = append(out, stderr.Bytes()...)
 		code := 0
 		if err != nil {
 			code = err.(*exec.ExitError).ExitCode()
@@ -83,7 +90,7 @@ func TestRunnerHelpAndRealExitCodes(t *testing.T) {
 }
 
 func TestRunnerHelpKeepsStartupAndControlFacts(t *testing.T) {
-	for _, text := range []string{"DESCRIPTION\n", "EXAMPLES\n", "GLOBAL OPTIONS\n", "--version", "-h, --help", "agent.d/*/agent.json", "runner/agents.json", "never to the person", "until the next reload", "enable and disable persist", "host files", "instances"} {
+	for _, text := range []string{"DESCRIPTION\n", "EXAMPLES\n", "GLOBAL OPTIONS\n", "--version", "--help", "agent.d/*/agent.json", "runner/agents.json", "never to the person", "until the next reload", "enable and disable persist", "host files", "instances"} {
 		if !strings.Contains(strings.Join(strings.Fields(usage), " "), strings.Join(strings.Fields(text), " ")) {
 			t.Fatalf("lost runner fact %q", text)
 		}

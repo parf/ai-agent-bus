@@ -294,3 +294,16 @@ test("subscription name vectors match protocol", async () => {
   }
   for (const name of vectors.reject) expect({ name, error: code(() => targetText(name)) }).toEqual({ name, error: "invalid_target" });
 });
+
+test("unsupported subscription ids refuse the whole reload without writes", async()=>{
+  for(const key of ["sub.1","sub.00000000000A","sub.0000000000000"]){
+    const {port,state,store}=fake([]);
+    store.set(key,{...good});
+    const subs=new Subscriptions(port,"#source@fixture.test",{
+      validateSelector:()=>{},selectorMatches:()=>true,warning:()=>{}
+    });
+    await expect(subs.reload()).rejects.toThrow("invalid_id");
+    expect(state.writes).toBe(0);
+    expect(store.has(key)).toBe(true);
+  }
+});

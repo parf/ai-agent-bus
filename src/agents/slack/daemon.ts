@@ -55,7 +55,7 @@ export async function startFixture(account = process.env.USER || "tester"): Prom
   const owner = `owner-${process.pid}@t${(Math.random() * 1e6) | 0}`;
   const socket = join(dir, "bus.sock");
   // Port 0: the kernel's pick, never another fixture's or a smoke shard's.
-  const daemon = spawn(daemonBinary(), ["-addr", "127.0.0.1:0", "-socket", socket, "-owner", owner, "-db", join(dir, "bus.db"), "-create", "-flush-every", "0"], { stdio: ["ignore", "ignore", "pipe"] });
+  const daemon = spawn(daemonBinary(), ["--addr", "127.0.0.1:0", "--socket", socket, "--owner", owner, "--db", join(dir, "bus.db"), "--create", "--flush-every", "0"], { stdio: ["ignore", "ignore", "pipe"] });
   const errors: string[] = [];
   daemon.stderr.on("data", d => errors.push(String(d)));
   const userSocket = join(dir, `user-${account}.sock`);

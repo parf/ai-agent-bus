@@ -133,10 +133,10 @@ try {
     }
     const state = join(env.XDG_STATE_HOME, "agent-bus/sessions");
     mkdirSync(state, { recursive: true });
-    const legacy = defaultName({ ...env, AGENT_BUS_RUNTIME: runtime, AGENT_BUS_CWD: "Named session" });
-    await owner.register({ name: legacy, kind: "agent", descr: "Named session" });
-    const legacyID = runtime === "claude" ? id : `${runtime === "codex" ? "codex" : "opencode"}-session`;
-    writeFileSync(join(state, `${hash(`${runtime}:${legacyID}`)}.json`), JSON.stringify({ name: legacy, ...(runtime === "claude" ? {} : { base: legacy }) }), { mode: 0o600 });
+    const savedName = defaultName({ ...env, AGENT_BUS_RUNTIME: runtime, AGENT_BUS_CWD: "Named session" });
+    await owner.register({ name: savedName, kind: "agent", descr: `${runtime === "opencode1" ? "opencode" : runtime} ${cwd}` });
+    const savedID = runtime === "claude" ? id : `${runtime === "codex" ? "codex" : "opencode"}-session`;
+    writeFileSync(join(state, `${hash(`${runtime}:${savedID}`)}.json`), JSON.stringify({ name: savedName, base: savedName }), { mode: 0o600 });
     const overrides = runtime === "claude" ? ["--permission-mode", "plan"]
       : runtime === "codex" ? ["-C", "codex path with spaces", "-a", "on-request", "-s", "read-only"]
       : ["--dir", `${runtime} path with spaces`];
@@ -186,7 +186,7 @@ try {
     // The claim is about the address. A label suffix here only means an
     // earlier runtime in this run still holds the same label, which the
     // collision checks below own.
-    check(`${runtime} migrates a saved dot address to template/instance`, !!registered && registered.name.startsWith(`#${runtime}/named-session@`) && registered.descr === `${runtime === "opencode1" ? "opencode" : runtime} ${cwd}` && !(await owner.ls()).some(r => r.name === legacy));
+    check(`${runtime} resumes its saved template/instance address`, !!registered && registered.name.startsWith(`#${runtime}/named-session@`) && registered.descr === `${runtime === "opencode1" ? "opencode" : runtime} ${cwd}` && registered.name === savedName);
     check(`${runtime} releases its session locks`, !readdirSync(state).some(f => f.endsWith(".lock")));
     const serverPID = rows.find(r => r.kind === "server-ready")?.pid;
     let alive = false;
@@ -214,12 +214,8 @@ try {
     check(`${runtime} shares the release version`, versionLines.length === 3 && versionLines[0] === version &&
       versionLines[1]!.startsWith("build_info: ") && versionLines[2] === "© Sergey Porfiriev" && await ver.exited === 0);
 
-    // Renaming takes effect at the next launch, including old name-only bindings.
+    // Renaming takes effect at the next launch with the saved canonical binding.
     const previous = rows.find(r => r.kind === "identity")?.data.name;
-    for (const f of readdirSync(state).filter(f => f.endsWith(".json"))) {
-      const path = join(state, f), binding = JSON.parse(readFileSync(path, "utf8"));
-      if (binding.name === previous) writeFileSync(path, JSON.stringify({ name: previous }));
-    }
     if (runtime !== "claude") await owner.send({ to: previous, body: "keep old backlog" });
     writeFileSync(join(proj, id + ".jsonl"), JSON.stringify({ type: "custom-title", customTitle: "Renamed session" }) + "\n");
     writeFileSync(events, "");

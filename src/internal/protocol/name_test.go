@@ -401,19 +401,3 @@ func BenchmarkParseName(b *testing.B) {
 		})
 	}
 }
-
-// `--agent worker@srv1` is `#worker@srv1`, in the flag's own position, and a
-// name already carrying its "#" is never given a second.
-func TestExpandAgentFlags(t *testing.T) {
-	got := ExpandAgentFlags([]string{"send", "--agent", "worker@srv1", "hello", "--agent=#done@srv1", "--topic", "t"})
-	want := []string{"send", "#worker@srv1", "hello", "#done@srv1", "--topic", "t"}
-	if strings.Join(got, " ") != strings.Join(want, " ") {
-		t.Fatalf("got %q", got)
-	}
-	if got := ExpandAgentFlags([]string{"--agent", "#x@h"}); got[0] != "#x@h" {
-		t.Fatalf("a second prefix was added: %q", got)
-	}
-	if got := ExpandAgentFlags([]string{"ls", "--agent"}); len(got) != 2 || got[1] != "--agent" {
-		t.Fatalf("a trailing --agent was swallowed: %q", got)
-	}
-}

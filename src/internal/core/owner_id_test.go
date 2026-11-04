@@ -73,39 +73,25 @@ func TestAUserRecreatedUnderAVanishedNameOwnsNothingOfItsRecords(t *testing.T) {
 		t.Fatal(err)
 	}
 	db.Close()
-	b, rep := start(t, path)
-	if _, ok := b.records["jobs@h"]; ok || !rep.has("stored record jobs@h is ignored") {
-		t.Fatalf("a record whose owner vanished was loaded: %v", rep.lines)
-	}
-	// A new alice is made under the name, and the node restarts.
-	if _, err := b.SetUser("owner@h", protocol.User{Name: "alice@h"}, true); err != nil {
+	st, err := sqlite.Open(path, false)
+	if err != nil {
 		t.Fatal(err)
 	}
-	b, rep = start(t, path)
-	if r, ok := b.records["jobs@h"]; ok {
-		t.Fatalf("the new alice owns the vanished one's record: %+v", r)
+	defer st.Close()
+	saved, err := st.Load()
+	if err != nil {
+		t.Fatal(err)
 	}
-	if !rep.has("stored record jobs@h is ignored: its owner alice@h is user") {
-		t.Fatalf("not reported as another user's: %v", rep.lines)
-	}
-	if _, found := b.Lookup("alice@h", "jobs@h"); found {
-		t.Fatal("the new alice reaches jobs@h")
-	}
+	assertRestoreRefused(t, New(), saved)
 }
 
 // A record snapshot carrying another user_id than its owner's is ignored.
 func TestARecordOwnedByAnotherUserIDIsIgnored(t *testing.T) {
 	b, rep := New(), &reports{}
 	b.Journal(rep)
-	b.Restore(ports.Snapshot{
+	assertRestoreRefused(t, b, canonicalFixture(ports.Snapshot{
 		Users:      []protocol.User{{Name: "alice@h", ID: 9, Status: "active"}},
-		Records:    []protocol.Record{{Name: "alice@h", Owner: "alice@h", OwnerID: 9, Kind: protocol.KindUser, Personal: true}, {Name: "jobs@h", Owner: "alice@h", OwnerID: 5, Kind: protocol.KindQueue}},
+		Records:    []protocol.Record{{Name: "alice@h", Owner: "alice@h", OwnerID: 9, Kind: protocol.KindUser, Tags: []string{"personal"}}, {Name: "jobs@h", Owner: "alice@h", OwnerID: 5, Kind: protocol.KindQueue}},
 		NextUserID: 10, NextRecordID: 10,
-	})
-	if err := b.EstablishDaemonOwner("alice@h"); err != nil {
-		t.Fatal(err)
-	}
-	if _, ok := b.records["jobs@h"]; ok || !rep.has("stored record jobs@h is ignored") {
-		t.Fatalf("a record of user 5 was given to user 9: %v", rep.lines)
-	}
+	}, ""))
 }

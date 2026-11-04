@@ -1,25 +1,19 @@
 # Messaging
 
 📌 **TL;DR:**
-- **Problem:** a message sent to a program that is busy, restarting or gone is lost, and nobody knows whether the work was done.
-- **Outcome:** messages wait in bounded inboxes, and taking a message is not completing it: a reader takes a message, does the work, and answers it. The verbs, request and reply, inbox selection, one reader per inbox, message fields and TTL, receipts and reply routing are owned here.
+- **Problem:** callers need to reach busy or offline programs and distinguish pickup from completed work.
+- **Outcome:** messages wait in bounded inboxes, and taking a message is not completing it: a reader takes a message, does the work, and answers it.
 - **Start:** inspect the agents visible to you: `agent-bus ls --kind=agent` ([Try this first](#try-this-first)).
 
-## Why you'd want it
+## Try this first
 
-- 📭 **A busy or absent reader loses work.** Now each name has an inbox that holds messages until they are read.
-- 🧾 **You cannot tell whether work was done.** Now a reply or a receipt answers, and answers are ordinary messages.
-- 📦 **Old messages pile up.** Now each has a lifetime, and a full inbox follows a stated overflow rule.
-- 🧵 **Several readers take each other's replies.** Now one reader per inbox is the rule, with filters for waiting on one exchange.
+List the agents you can see:
 
-## What you get
+```sh
+agent-bus ls --kind=agent
+```
 
-- ✅ **Inboxes:** bounded queues, one reader each, with a stated overflow behaviour.
-- ✅ **Request and reply:** send once, wait for the answer, route the reply back.
-- ✅ **Receipts and deadlines:** proof of delivery and a time limit on every message.
-- ✅ **Push and pull:** deliver to a waiting reader or let it fetch.
-- ✅ **Durability:** what survives a stop and what does not ([durability](#durability)).
-- 🚫 **Not for:** guaranteed exactly-once delivery; a reader that dies after taking a message can lose it ([delivery and durability](#durability)).
+Each record's `readers` field counts waiting reads; `queued` counts messages waiting in its inbox. A record can exist while no process is reading it. See [receipts](#receipts) for pickup and completion.
 
 <svg viewBox="0 0 760 300" role="img" aria-label="Request and reply circle between a caller and an agent, through their inboxes" style="max-width:760px;width:100%;height:auto;font-family:sans-serif">
   <defs>
@@ -55,29 +49,15 @@
   <text x="212" y="234" text-anchor="middle" font-size="13" fill="#475569">consume reply</text>
 </svg>
 
-## Try this first
-
-List the agents you can see:
-
-```sh
-agent-bus ls --kind=agent
-```
-
-Each record's `readers` field counts waiting reads; `queued` counts messages waiting in its inbox. A record can exist while no process is reading it. See [receipts](#receipts) for pickup and completion.
-
 ## Inbox queues
 
-**Every registered agent has its own queue** — an implicit 📮 named
-after it, in memory in `agent-busd`, bounded, with a TTL.
+Users, Agents and Queue records have bounded inboxes. PubSub records fan out
+to recipient inboxes and retain no messages themselves; Services, Groups and
+Resources have no inbox.
 
-**An inbox belongs to a registered name.** Consuming as a name the registry
-does not know is refused rather than answered with an empty wait: nothing
-could ever arrive in it — `send` refuses an unknown receiver — and creating
-one on demand would let any caller name leave an inbox behind for good.
-
-**The address outlives the process**: anyone may `send` to a registered agent that is down — or one that has never run yet — and the message waits until something with that name reads it, unless the TTL expires or the queue fills first.
-- Choose both sensibly.
-- A queue belongs to a **name**, never to a connection or a session, so nothing is lost because a reader died: that is the whole difference from an ephemeral channel.
+- An inbox belongs to a registered name, not a connection or session. An unknown inbox is refused.
+- An authorized caller can send while an Agent's process is offline or has never run. Queued messages wait until a reader takes them, their TTL expires or the overflow policy removes them.
+- Process exit does not remove queued messages. Work already consumed has the separate [delivery and durability limits](#durability).
 
 ## Verbs
 
@@ -95,8 +75,8 @@ and who?" to anyone whose access allows the lookup.
 
 ## Request and reply
 
-- A 👤 User takes a direct send from an Agent exactly when that Agent's ACL admits the User — whoever may reach an Agent may be answered by it — and never from another User.
-- The daemon does not recognize replies: matching stays the sender's topic + tag.
+- A 👤 User takes a direct send from an Agent when that Agent's ACL admits the User or the User manages the Agent — whoever may reach an Agent may be answered by it — and never from another User.
+- Application reply matching uses the sender's topic + tag; a reply is an ordinary message.
 - A User is not a Deliver-To recipient, no forwarding route may name one, and a User carries no `deliver_to` field of its own ([constitution § Channels](constitution.md#-channels)).
 - This intentionally ends person-to-person sends: a person reaches another person through an agent.
 
@@ -105,21 +85,19 @@ the same topic + tag**, and the caller waits for it:
 
 | Side | Does |
 |---|---|
-| caller | **states its own record** if it has none — an answer needs an address to arrive at ([identity § registration](01-identity-and-authority.md#registration)) — then `send` and wait on its own queue for a message with that topic + tag. A plain `send` does **not** require this: a sender's name is checked for shape, not for registration, so fire-and-forget works from anyone and an answer to an unregistered sender is refused as *no such name*. Wanting a reply is what makes the record necessary |
-| receiver | `consume` its inbox, optionally `ack` (got it), do the work, `reply` — and `done` if the sender asked for it |
+| caller | authenticate as a registered principal, `send`, and wait on its inbox for the topic + tag; the return destination must be a registered inbox |
+| receiver | `consume` its inbox, optionally `ack` (got it), do the work, `reply`, or `done` when finished without an answer |
 | deadline | the caller's, and it **travels with the request** so the receiver can give up early — see below. The message's TTL is a different bound, and is what stops a late answer arriving |
 
 - The bus adds one thing here: a send with a wait that names the sender itself as its `reply-to`, with a topic and a tag, **holds the reply** for the sender's own filtered read until its deadline (the CLI `call` sends that).
-- The held reply is queued, never dropped or refused, and an unfiltered reader of the same inbox, such as a session's push adapter, is handed it when the hold ends.
+- The held reply remains subject to inbox capacity, overflow and TTL; an unfiltered reader can take a surviving reply when the hold ends.
 - See [one reader per inbox](#one-reader-per-inbox).
 - Otherwise matching is the topic + tag it already carries, the wait is an ordinary `consume`, and a caller that does not want to wait simply does not.
 - A receiver may answer twice (`ack` now, result later) or hand the answer to a third party with `reply-to`.
 
 **The caller's deadline travels.** A request states how long its caller will
 wait, and the bus turns that into a moment on the envelope the receiver
-consumes. A receiver that sees the moment already past **does not do the
-work**: nobody is waiting for it. Without the field the two parties time out
-independently and the work is done for a caller who has gone.
+consumes. A receiver can skip expired work instead of continuing for a caller whose wait has ended. The dedicated runner skips it automatically.
 
 It is a second pair beside the TTL, not a spelling of it, and the difference
 is what each one belongs to:
@@ -158,22 +136,18 @@ agent-bus consume --inbox jobs@host --topic MyTopic --tag result
 ```
 
 <details>
-<summary>Options and migration</summary>
+<summary>Read options</summary>
 
 | Option | Meaning |
 |---|---|
 | `--inbox NAME` | Explicit inbox; omitted means the caller's own |
 | `--topic TOPIC` | Message-topic filter, never an inbox address |
 | `--tag TAG` | Message-tag filter; does not change the selected inbox |
-| `original_to=NAME` (API only) | Takes only messages sent to that address: a forwarded one's `original_to`, or the `to` of one not forwarded. A plain filter with no built caller today: since M.10 the runner reads each agent's own inbox ([many names into one inbox](../Plans/R1.0-Release/runner-implementation.md#many-names-into-one-inbox), history); a reader waiting this way counts as reading the inbox |
+| `original_to=NAME` (API only) | Takes only messages sent to that address: a forwarded one's `original_to`, or the `to` of one not forwarded. a reader waiting this way counts as reading the inbox |
 
 Each option requires a value when present. Reading without filters takes the
 next message from the selected inbox. “Own inbox” refers to the caller's
 identity, not the record's Personal classification.
-
-Before 0.5.52, a `topic` without a tag could implicitly select a registered
-channel's inbox. Such callers must now select it explicitly. An address-shaped
-topic is an ordinary filter value: if it matches nothing, the wait ends empty.
 
 </details>
 
@@ -192,7 +166,7 @@ the notifier, or the reverse.
 | Rule | Why |
 |---|---|
 | **one outstanding unfiltered read** at a time — a second is **refused**, not queued behind the first, unless both asked to share ([several readers](#several-readers-may-wait-when-they-say-so)) | a silent second reader looks exactly like message loss |
-| by convention, one *designated* process does that reading for a principal | the bus enforces the outstanding read, not process ownership; claiming otherwise would need a lease nothing here wants |
+| by convention, one *designated* process does that reading for a principal | the bus enforces the outstanding read, not process ownership; the rule does not lease the inbox to a process |
 | a waiter passes a **topic + tag filter** to `consume`, and the daemon hands it a match ahead of the unfiltered reader | the match happens where the message already is: no dispatcher in a client, and no local protocol between a Go CLI and a TypeScript session process |
 
 **Reading a channel's inbox is not filtering.** A 📮 channel is a named inbox;
@@ -210,7 +184,6 @@ is read and which messages are selected.
 - It is for that reply only: a `reply-to` naming someone else, a send without a wait, another sender, topic or tag reserve and hold nothing.
 - An inbox keeps at most 64 reservations, each at most ten minutes; past either the send behaves as it did and is not refused.
 - It lives in the daemon's memory, so a restart returns to the plain priority above.
-- A held reply is late to the adapter by up to one wait, never lost.
 - It sits in the queue, so the inbox bound, a ring's eviction and a TTL shorter than the hold apply to it as to any message ([message ttl](#message-ttl)).
 - A reply counts when it comes from the name the request was sent to or one a forwarding route carried it on to, as the routes stood when the call was sent; any filtered read that selects it takes it and ends the hold, whoever started that read.
 - When the hold ends, queued replies go to the blocked unfiltered readers one each in the order they began to wait.
@@ -230,8 +203,8 @@ once; the first message wakes one of them.
 | what this does not change | competing consumers, which already worked — while there is a backlog, N readers take turns and no message goes to two of them ([channels](03-records-channel.md#the-two-channel-kinds)). What sharing adds is the **empty** inbox, which is a pool's steady state |
 | what it deliberately is not | a lease, a group or a registration. Nothing is remembered between reads, so a worker that dies leaves nothing behind to clean up |
 
-- So the guarantee is stated precisely: **filtered and unfiltered readers on one inbox are allowed, and a synchronous `call` on such an inbox is not guaranteed its own answer.** A caller that needs the answer — a CLI beside a pushing session, say — uses **a name of its own**, which costs one record and no machinery.
-- Making the wait exclusive for the length of an exchange would mean a reservation in the daemon, and the daemon keeps no exchange state ([reply routing](#reply-routing)).
+- Filtered waits get priority and eligible calls use the bounded [reply hold](#one-reader-per-inbox). These do not guarantee an answer: another matching filtered reader can take it, and expiry, overflow or a crash can lose it.
+- Use a separate caller identity when independent consumers must not compete for replies.
 
 **`consume` is at-most-once**, except across a crash ([durability](#durability)): the message is handed over and gone. A reader
 that dies between taking a message and acting on it loses that message, and
@@ -319,14 +292,8 @@ Optional, and **both emitted by the receiver**, not the bus:
 | **`ack`** | the receiver **got** the message |
 | **`done`** | the receiver **finished processing** it |
 
-- Together they are what a sender actually wants to know — **`ack`: received.
-- `done`: the work finished** — and both can only come from the receiver, because nothing else knows.
-- That is why the bus keeps no delivery journal of its own: an observation made anywhere but the receiver is about the transport, and a correlated message from the receiver is both simpler and worth more.
-
-- Read them for exactly what they say.
-- `ack` means the message reached the receiver, **not** that the work started: a client-library script agent may ack before it runs the script ([runner § script agents](06-dedicated-runner.md#script-agents)).
-- And **no receipt means unknown** — the request, the work or the receipt may be late or lost — never proof of loss.
-- Receipts remove a layer of guessing, not the uncertainty itself.
+- `ack` reports receipt, not successful work. A script agent may ack before its script finishes ([script agents](06-dedicated-runner.md#script-agents)).
+- No receipt means unknown: the request, work or receipt may be late or lost.
 
 **`done` ends a caller's wait.** A receiver that replies has plainly finished, so it sends no `done`; therefore a `done` that does arrive says *finished, and no answer is coming*.
 - A caller blocked on the answer stops there rather than sitting out its deadline for something that will never be sent — and says which of the two happened, because "finished with nothing to return" and "no answer in time" are different outcomes.
@@ -358,17 +325,14 @@ route is the requester's own name plus the exchange's topic and tag, or an
 explicit `reply-to` naming another; either way the destination is a
 **registered name**, checked when the request is accepted rather than discovered when the answer bounces.
 - Registered is not the same as *live* — the name owns a queue and its reader may be offline, which is the point of name-owned queues ([inbox queues](#inbox-queues)).
-- A plain `send` or `publish` stays open to unregistered senders: fire-and-forget asks for nothing back.
+- A plain `send` or `publish` needs no explicit return route; caller authentication and target authorization still apply.
 
-**The daemon keeps no reply state.** A reply is an ordinary `send` carrying
-the routing fields, and `reply <message-id>` is sugar: the client that
-consumed the message still has its envelope, so it fills in receiver, topic and
-tag itself. The daemon stays simple — nothing to bound, expire or reconcile —
-and the rule that a consumed message is gone stays true.
+A reply is an ordinary `send`. The client retains the consumed envelope and
+fills in its return destination, topic and tag for `reply <message-id>`.
 
-- The consequence: **you can only `reply` from a client that holds the routing context of what was consumed** — the receiver, topic and tag.
-- Whether that is one process is up to the client: the MCP face keeps it in memory, and the CLI writes it where its next invocation finds it, so `consume` and `reply` work as two commands.
-- Since an inbox has exactly one reader, the context has one owner either way.
+- Reply context stays in the client: the MCP face keeps it in memory, and the CLI saves it for a later invocation.
+- The daemon separately holds bounded, temporary [reply reservations](#one-reader-per-inbox); it does not retain consumed envelopes for a later reply command.
+- A client that has lost the routing context cannot recover it from the consumed inbox message.
 
 ## Push and pull
 
@@ -378,10 +342,6 @@ client-side adapters — see
 [runner § adapters](06-launchers.md#adapters).
 
 ### Deliver-To
-
-The rules below describe built delivery, including
-[PubSub routing](constitution.md#pubsub-routing): routing counters, partial-delivery
-warnings and the refusal of a publication no recipient takes.
 
 **A 📣 channel carries two lists, and they answer different questions.** Its
 [ACL](02-access.md#acl) says who may **publish** to it. Its **Deliver-To list**
@@ -415,10 +375,7 @@ Declared per inbox at creation. A 📣 takes none: each copy follows its recipie
 | **strict** (default) | **reject the send/publish** with an error to the producer | anything that is work: losing one silently is worse than failing loudly, so this is what you get unless you ask otherwise |
 | **ring** | drop the **oldest**, and count it in stats (the same count an [inactive recipient](#deliver-to) adds to) | alerts, telemetry, progress — the newest matters most and a gap is not a bug |
 
-**A rejected send answers `429`.** A full queue is the sender outrunning the
-reader, which is what that code is for; `503` is left for
-[R1.2 declared state](../Plans/R1.2/records.md#coming-back-in-a-moment-is-not-one-of-them).
-It is counted as `full` either way ([refusals](05-discovery.md#refusals)).
+**A send refused by a full inbox answers `429 full`** ([refusals](05-discovery.md#refusals)).
 
 Declared on the record, so it is a property of the **receiver**, not of the
 sender or the message: whoever owns the queue decides what its fullness
@@ -446,8 +403,7 @@ checks, depth and provenance.
 
 - The daemon takes SQLite's exclusive lock when it opens the database, so a second daemon on the same file cannot serve.
 - A missing database is created only by `agent-busd --init` or `--create`, never silently at start; an unreadable, damaged or incompatible one refuses the start.
-- A queue whose durable record is absent, ignored or cannot hold one is ignored and reported under the [incorrect-record rule](constitution.md#persistence-and-loading), and stays in the database.
-- A record later registered under that name starts with no stored queue: its first commit drops the old one, so its messages never reach a new owner.
+- A stored queue without a receiving record [refuses startup](constitution.md#what-refuses-the-start). It is neither discarded to make the node start nor attached to another owner.
 
 ## Administrative crash recovery
 
@@ -471,8 +427,6 @@ Publication is the lock being released, so it cannot fail after a commit
 
 - Browser sessions remain process-local; after restart, callers sign in again.
 - Persistent tokens and mapped sockets are checked against the recovered policy.
-- The [H.5.3 evidence](../Plans/done/R0.8-MVP/done/administrative-durability.md#checks) covers real bus-child kills, storage failure and the old-checkpoint ordering hazard.
-- It does not certify every filesystem or simulate hardware power loss.
 
 </details>
 
@@ -480,15 +434,9 @@ Publication is the lock being released, so it cannot fail after a commit
 
 Bodies travel as plaintext strings in the current JSON envelope. The daemon
 carries them without interpreting their application meaning. It stamps the
-sender from the credential and rejects a caller's attempt to choose another.
-There is no built delegation field or negotiated binary encoding.
+sender from the credential, replacing any caller-supplied `from` value.
+There is no delegation field or negotiated binary encoding.
 
 The [protocol source](../src/internal/protocol/envelope.go) owns the implemented
 fields. The web face reads the filtered `/recent` feed, with bodies removed in
 the bus; this does not encrypt queued bodies or the database.
-
-## Status
-
-| MVP | Scope |
-|---|---|
-| Built | Inbox delivery, [explicit inbox selection](#inbox-selection-and-filters), shared readers, filtered waits, receipts, deadlines, TTL, Deliver-To lists, overflow, the [SQLite store](#durability) and [durable administrative changes](#administrative-crash-recovery). |

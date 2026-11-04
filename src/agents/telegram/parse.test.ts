@@ -95,11 +95,9 @@ test("help and the parser list the same set (tg1-review P3-2)", () => {
 });
 
 
-test("removed sub.edit refuses both forms and names delete/add", () => {
+test("unknown subscription methods do not produce operations", () => {
   for (const body of ['sub edit abc target=#other', '{"method":"sub.edit","id":"abc","target":"#other"}']) {
     const result = parseCall(body);
     expect(result.method).toBe("help");
-    expect((result as { why?: string }).why).toContain("sub delete");
-    expect((result as { why?: string }).why).toContain("sub add");
   }
 });

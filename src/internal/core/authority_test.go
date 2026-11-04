@@ -74,18 +74,18 @@ func TestAMaintainerCannotAlterProtectedFields(t *testing.T) {
 	if _, err := b.Manage("maint@h", Management{Name: "jobs@h", Descr: &descr, Allow: &allow}); err != nil {
 		t.Fatalf("a Maintainer cannot edit the description and ACL: %v", err)
 	}
-	bob, personal := "bob@h", true
+	bob := "bob@h"
 	maintainers := protocol.MaintainerList{"maint@h", "bob@h"}
 	for what, change := range map[string]Management{
 		"owner":       {Name: "jobs@h", Owner: &bob},
 		"maintainers": {Name: "jobs@h", Maintainers: &maintainers},
-		"personal":    {Name: "jobs@h", Personal: &personal},
+		"personal":    {Name: "jobs@h", Tags: ptr([]string{"personal"})},
 	} {
 		if _, err := b.Manage("maint@h", change); !errors.Is(err, ErrNotOwner) {
 			t.Errorf("a Maintainer changed the %s: %v", what, err)
 		}
 	}
-	if r, _ := b.Lookup("alice@h", "jobs@h"); r.Owner != "alice@h" || r.Personal || len(r.Maintainers) != 1 {
+	if r, _ := b.Lookup("alice@h", "jobs@h"); r.Owner != "alice@h" || r.IsPersonal() || len(r.Maintainers) != 1 {
 		t.Fatalf("a Maintainer's refused edit changed a protected field: %+v", r)
 	}
 }
@@ -98,12 +98,12 @@ func TestAnAgentManagesItsOwnRecordAsAMaintainer(t *testing.T) {
 	if _, err := b.Manage("#svc@h", Management{Name: "#svc@h", Descr: &descr}); err != nil {
 		t.Fatalf("an agent cannot describe itself: %v", err)
 	}
-	bob, personal := "bob@h", true
+	bob := "bob@h"
 	maintainers := protocol.MaintainerList{"#svc@h"}
 	for what, change := range map[string]Management{
 		"owner":       {Name: "#svc@h", Owner: &bob},
 		"maintainers": {Name: "#svc@h", Maintainers: &maintainers},
-		"personal":    {Name: "#svc@h", Personal: &personal},
+		"personal":    {Name: "#svc@h", Tags: ptr([]string{"personal"})},
 	} {
 		if _, err := b.Manage("#svc@h", change); !errors.Is(err, ErrNotOwner) {
 			t.Errorf("an agent changed its own %s: %v", what, err)
@@ -111,10 +111,10 @@ func TestAnAgentManagesItsOwnRecordAsAMaintainer(t *testing.T) {
 	}
 	// The Owner can, in one write that also drops the Maintainer a Personal
 	// record could not keep: the final record is what is checked.
-	if _, err := b.Manage("alice@h", Management{Name: "#svc@h", Personal: &personal}); !errors.Is(err, ErrPersonal) {
+	if _, err := b.Manage("alice@h", Management{Name: "#svc@h", Tags: ptr([]string{"personal"})}); !errors.Is(err, ErrPersonal) {
 		t.Fatalf("Personal was set with a Maintainer outside the cohort: %v", err)
 	}
-	if _, err := b.Manage("alice@h", Management{Name: "#svc@h", Personal: &personal, Maintainers: &protocol.MaintainerList{}}); err != nil {
+	if _, err := b.Manage("alice@h", Management{Name: "#svc@h", Tags: ptr([]string{"personal"}), Maintainers: &protocol.MaintainerList{}}); err != nil {
 		t.Fatalf("the Owner cannot make her agent Personal: %v", err)
 	}
 }
@@ -168,7 +168,7 @@ func TestATransferTakesTheAgentOutOfItsOldOwnersPersonalRecords(t *testing.T) {
 	b := authorityFixture(t)
 	provision(t, b, nil,
 		protocol.Record{Name: "#helper@h", Kind: protocol.KindAgent, Owner: "alice@h", Full: protocol.OverflowStrict},
-		protocol.Record{Name: "pq@h", Kind: protocol.KindQueue, Owner: "alice@h", Personal: true, Allow: []string{"#helper@h", "@owner"}, Maintainers: protocol.MaintainerList{"#helper@h"}, Full: protocol.OverflowStrict},
+		protocol.Record{Name: "pq@h", Kind: protocol.KindQueue, Owner: "alice@h", Tags: []string{"personal"}, Allow: []string{"#helper@h", "@owner"}, Maintainers: protocol.MaintainerList{"#helper@h"}, Full: protocol.OverflowStrict},
 		protocol.Record{Name: "shared@h", Kind: protocol.KindQueue, Owner: "alice@h", Allow: []string{"#helper@h"}, Full: protocol.OverflowStrict},
 	)
 	bob := "bob@h"

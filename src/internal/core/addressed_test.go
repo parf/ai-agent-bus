@@ -45,7 +45,7 @@ func TestAReadForOneAddressTakesOnlyItsMessages(t *testing.T) {
 		}
 	}()
 	for i := 0; ; i++ {
-		if r, _ := b.Lookup("admin@h", "#runner@h"); r.Reading {
+		if r, _ := b.Lookup("admin@h", "#runner@h"); r.Readers != nil && *r.Readers > 0 {
 			break
 		}
 		if i > 200 {

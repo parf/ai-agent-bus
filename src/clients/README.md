@@ -15,7 +15,7 @@
 
 - ✅ **Send and call:** an ack confirms pickup; an answer, done and timeout are distinct outcomes.
 - ✅ **Serve:** a bounded pool of handlers answers the messages sent to your name.
-- ✅ **Per-record key-value, locks and read-only settings:** each record owns its KV, locks, Configuration and Secret.
+- ✅ **Per-record key-value, locks and read-only settings:** records expose KV and locks; supported kinds also expose Configuration and Secret.
 - ✅ **Safe by default:** an uncertain write is never repeated automatically; consumption is at most once.
 
 | Language | Code | Execution |
@@ -29,21 +29,21 @@
 
 ## Try this first
 
-Run working agents in all six languages together on a disposable bus:
+Follow the [example prerequisites](examples/README.md#try-this-first), then run working agents on a disposable bus:
 
 ```sh
 src/clients/examples/run.sh codestats
 ```
 
 - The [examples](examples/README.md) cover audits, digests, JSON validation, file fingerprints and a relay ring.
-- The run leaves nothing on your node: its daemon and records are gone when it ends.
+- The default run removes its daemon and records; downloaded dependencies and build caches remain.
 - Packages stay local to this repository.
 
 ## Technical details
 
 - `Bus` is the credentialed caller and a `Record` is a target; construction does not register a name.
 - Keep secrets in Secret and config in Configuration ([rule](../../docs/03-records-agent.md#configuring-a-template)).
-- The [shared vision](../../Plans/R1.0-Release/done/client-libraries.md#shared-vision) owns the contract.
+- See the [client contract](../../docs/09-daemon-api.md#the-client-contract) and each library's source for its API.
 - Lock helpers have no fencing token.
 - Cached private copies outlive server revocation; refresh invalidates the client's cache.
 
@@ -61,7 +61,7 @@ src/clients/examples/run.sh codestats
 
 ### Checks
 
-- `bash src/smoke.sh` runs the client checks with the daemon and faces.
+- `bash src/smoke.sh --normal` runs selected normal checks with the daemon and faces; follow the [gate rules](../../CLAUDE.md#verification).
 - Individual checks use `bash src/clients/check.sh python|rust|php|typescript|java|go|examples`.
 - Rust checks, examples and packaging share the main checkout's `tmp/cargo-target` across worktrees; an explicit `CARGO_TARGET_DIR` overrides it.
 - Fixtures use private daemons and scratch under the repository's `tmp/`, not the live bus.

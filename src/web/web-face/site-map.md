@@ -30,7 +30,7 @@ refusal shows) and Links out. A part with nothing to say is omitted.
 | `/` — homepage for a signed-in user | Overview: attention items, the node strip, today's traffic, the Find row | [/` signed in: Overview](node.md#-signed-in-overview) |
 | `/activity` | Day, Week or Month of activity for the visible records or one record | [/activity](node.md#activity) |
 | `/diagnostics` | Refusals, held inboxes, retained exchanges, loss, leftover names | [/diagnostics](node.md#diagnostics) |
-| `/agents` `/services` `/queues` `/pubsub` `/resources` | One kind's records; `?personal=1` shows its Personal ones | [Lists](records.md#lists) |
+| `/agents` `/services` `/queues` `/pubsub` `/resources` | One kind's records; `?tag=personal` shows its Personal ones | [Lists](records.md#lists) |
 | `/agents/new` `/services/new` `/queues/new` `/pubsub/new` `/resources/new` | Register a record of that kind | [Register](records.md#register) |
 | `/agent` `/service` `/queue` `/pubsub/channel` `/resource` `?name=` | One record; an inactive one is read-only with Reactivate | [Record detail](records.md#record-detail), [Inactive record view](records.md#inactive-record-view) |
 | `/agent/edit` `/service/edit` `/queue/edit` `/pubsub/channel/edit` `/resource/edit` | Settings for the Owner or a Maintainer | [Settings](records.md#settings) |
@@ -49,22 +49,21 @@ refusal shows) and Links out. A part with nothing to say is omitted.
 | `/user/edit?name=` | Profile editor | [Edit user `/user/edit?name=](people.md#edit-user-usereditname) |
 | `POST /user` | Create or save a profile, own email, GitHub refresh, user state, credential removal | [POST /user](people.md#post-user) |
 | `/user-danger`, `/user-deactivate`, `/credential-remove` | User Danger Zone and deactivation confirmation, or credential removal | [User](people.md#a-user-kind-user), [Confirm deactivation `/user-deactivate?name=](people.md#confirm-deactivation-user-deactivatename), [Confirm credential removal `/credential-remove?name=](people.md#confirm-credential-removal-credential-removename) |
-| `/groups`, `/groups/new` | Groups, with `?personal=1`, and registering one | [Groups `/groups](people.md#groups-groups), [Register group `/groups/new](people.md#register-group-groupsnew) |
+| `/groups`, `/groups/new` | Groups, with `?tag=personal`, and registering one | [Groups `/groups](people.md#groups-groups), [Register group `/groups/new](people.md#register-group-groupsnew) |
 | `/group?name=`, `/group/edit?name=` | One group, and its editor | [Group `/group?name=](people.md#group-groupname), [Edit group `/group/edit?name=](people.md#edit-group-groupeditname) |
 | `POST /groups` | Create or save a group | [POST /groups](people.md#post-groups) |
 | `/record-danger?name=<group>` | A group's Danger Zone | [Group Danger Zone](people.md#group-danger-zone) |
 | `/runners`, `/runner?name=` | The runners you may see, one runner's status and agents | [runners](runners.md#runners) |
 | `POST /runner-reload` | Ask a runner to reload; show its answer | [POST /runner-reload](runners.md#post-runner-reload) |
+| `/runner-settings`, `/runner-instance-delete` | Host or agent settings, instance deletion confirmation | [Settings](runners.md#runner-settingsnamekey) |
+| `POST /runner-control`, `/runner-file`, `/runner-instance` | Agent lifecycle, host files and instances | [Controls](runners.md#post-runner-control), [files and instances](runners.md#post-runner-file-post-runner-instance) |
 | `/account` | Your identity, owned records and credentials | [Account `/account](people.md#account-account) |
-| `/palette.json` | The `⌘K` palette's names, the visitor's own view; JSON `401` signed out, `403` cross-site | [interactive features](../../../Plans/done/R0.8-MVP/web/README.md#interactive-features) |
+| `/palette.json` | The `⌘K` palette's names, the visitor's own view; JSON `401` signed out, `403` cross-site | [palette](shell.md#page-frame) |
 | `/healthz`, `/favicon.svg`, `/favicon.ico`, `/app.<hash>.css`, `/ui.<hash>.js`, `/agent-bus.<hash>.webp` | Liveness and assets | [/healthz](node.md#healthz), [Static assets](node.md#static-assets) |
-| `/channels`, `/channel`, other old addresses | Redirects kept for bookmarks | [Redirects and catch-alls](node.md#redirects-and-catch-alls) |
-| `/_styleguide` | With `AGENT_BUS_WEB_DEV=1`: every component; `404` otherwise | [W.2](../../../Plans/done/R0.8-MVP/web/TODO.md#steps) |
+| `/channels`, `/channel` | Unsupported paths; framed `404` | [Redirects and catch-alls](node.md#redirects-and-catch-alls) |
+| `/_styleguide` | With `AGENT_BUS_WEB_DEV=1`: every component; `404` otherwise | [development mode](shell.md#process-model) |
 | Any other path | Framed `404 No such page`; a known path asked with the wrong method is a framed `405` | [shell § problem page](shell.md#problem-page) |
 
 ## Shared rules
 
 [Process model](shell.md#process-model) · [Session](shell.md#session) · [Signed-out requests](shell.md#signed-out-requests) · [Origin checks](shell.md#origin-checks) · [Security headers](shell.md#security-headers) · [Page frame](shell.md#page-frame) · [Titles and help](shell.md#titles-and-help) · [Problem page](shell.md#problem-page) · [Refusal routing](shell.md#refusal-routing) · [Form recovery](shell.md#form-recovery) · [Assets](shell.md#assets) · [Glyphs](shell.md#glyphs) · [Narrow screens and zoom](shell.md#narrow-screens-and-zoom) · [Pagination](shell.md#pagination) · [Return addresses](shell.md#return-addresses)
-
-What the Go face and older specs got differently is
-[history](../../../Plans/done/R0.8-MVP/done/web-go-face-differences.md#site-mapmd).

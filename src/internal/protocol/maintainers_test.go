@@ -6,13 +6,13 @@ import (
 	"testing"
 )
 
-func TestMaintainersReadLegacyStringAndWriteArray(t *testing.T) {
+func TestMaintainersReadAndWriteArray(t *testing.T) {
 	var record Record
-	if err := json.Unmarshal([]byte(`{"name":"svc@h","owner":"alice@h","maintainers":"@ops"}`), &record); err != nil {
+	if err := json.Unmarshal([]byte(`{"name":"svc@h","owner":"alice@h","maintainers":["@ops"]}`), &record); err != nil {
 		t.Fatal(err)
 	}
 	if len(record.Maintainers) != 1 || record.Maintainers[0] != "@ops" {
-		t.Fatalf("legacy maintainer was not migrated in memory: %#v", record.Maintainers)
+		t.Fatalf("maintainer array was not decoded: %#v", record.Maintainers)
 	}
 	encoded, err := json.Marshal(record)
 	if err != nil {

@@ -72,7 +72,7 @@ func (f suspendFixture) raw(token, method, path, body string, want int) string {
 
 func (f suspendFixture) state(name, state string) {
 	f.t.Helper()
-	f.call("admin@h", "POST", "/user/state", `{"kind":"agent","name":"`+name+`","status":"`+state+`"}`, 200)
+	f.call("admin@h", "POST", "/user/state", `{"name":"`+name+`","status":"`+state+`"}`, 200)
 }
 
 func (f suspendFixture) refusals() map[string]int {
@@ -167,7 +167,7 @@ func TestSuspensionDestroysNothing(t *testing.T) {
 
 	// An Administrator may lift an ordinary user's ban. The credentials and
 	// queue below were retained across that Administrator-authorized lift.
-	f.call("maint@h", "POST", "/user/state", `{"kind":"agent","name":"alice@h","status":"active"}`, 200)
+	f.call("maint@h", "POST", "/user/state", `{"name":"alice@h","status":"active"}`, 200)
 
 	// Both credentials still work, and these are the bytes held before the
 	// ban rather than freshly minted ones, so this is kept-not-revoked rather
@@ -184,7 +184,7 @@ func TestSuspensionDestroysNothing(t *testing.T) {
 // A channel is how a third party reads a name that is not its own.
 func TestAThirdPartyCannotReadASuspendedOwnersInbox(t *testing.T) {
 	f := suspendedOwnerFixture(t)
-	f.call("alice@h", "POST", "/register", `{"name":"jobs@h","kind":"queue","allow":["bystander@h","admin@h"],"share":true}`, 200)
+	f.call("alice@h", "POST", "/register", `{"name":"jobs@h","kind":"queue","allow":["bystander@h","admin@h"]}`, 200)
 	f.call("bystander@h", "POST", "/send", `{"to":"jobs@h","body":"waiting"}`, 200)
 	f.state("alice@h", "inactive")
 

@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/ports"
@@ -102,30 +101,24 @@ func getOne(t *testing.T, b *core.Bus) string {
 	return string(raw)
 }
 
-// A directory under the old name is renamed once, and its bigfiles are served.
-func TestTheOldBigKeysDirectoryIsRenamedAndItsFilesServed(t *testing.T) {
+// A retired directory is refused without moving or adopting its files.
+func TestRetiredBigKeysDirectoryIsRefused(t *testing.T) {
 	home := t.TempDir()
-	first, _ := bigBus(t)
-	idx := bigfile.NewMemoryIndex()
-	s, err := bigfile.Open(filepath.Join(home, oldBigDir), idx, time.Now())
-	if err != nil {
+	old := filepath.Join(home, "big-keys")
+	if err := os.Mkdir(old, 0700); err != nil {
 		t.Fatal(err)
 	}
-	first.SetBigStore(s)
-	if err := putOne(t, first, "kept through the rename"); err != nil {
+	if err := os.WriteFile(filepath.Join(old, "kept"), []byte("untouched"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	// The same record IDs, as after a daemon restart: a fresh bus, the same names.
-	second, rep := bigBus(t)
-	bindBigKeys(second, home, idx)
-	if strings.Contains(rep.all(), "could not be prepared") {
-		t.Fatalf("the rename was refused: %s", rep.all())
+	if _, err := openBigKeys(home, bigfile.NewMemoryIndex()); err == nil {
+		t.Fatal("retired layout accepted")
 	}
-	if _, err := os.Lstat(filepath.Join(home, oldBigDir)); !os.IsNotExist(err) {
-		t.Fatalf("the old directory is still there: %v", err)
+	if raw, err := os.ReadFile(filepath.Join(old, "kept")); err != nil || string(raw) != "untouched" {
+		t.Fatal("retired files changed")
 	}
-	if got := getOne(t, second); got != "kept through the rename" {
-		t.Fatalf("after the rename: %q", got)
+	if _, err := os.Stat(filepath.Join(home, bigDir)); !os.IsNotExist(err) {
+		t.Fatal("refusal created canonical directory")
 	}
 }
 
@@ -133,7 +126,7 @@ func TestTheOldBigKeysDirectoryIsRenamedAndItsFilesServed(t *testing.T) {
 // cause, and neither directory is touched.
 func TestBothBigDirectoriesRefuseCallsAndTouchNeither(t *testing.T) {
 	home := t.TempDir()
-	for _, d := range []string{oldBigDir, bigDir} {
+	for _, d := range []string{"big-keys", bigDir} {
 		if err := os.MkdirAll(filepath.Join(home, d), 0o700); err != nil {
 			t.Fatal(err)
 		}
@@ -144,13 +137,13 @@ func TestBothBigDirectoriesRefuseCallsAndTouchNeither(t *testing.T) {
 	b, rep := bigBus(t)
 	bindBigKeys(b, home, bigfile.NewMemoryIndex())
 	err := putOne(t, b, "x")
-	if !errors.Is(err, core.ErrBigNoStore) || !strings.Contains(err.Error(), "both") || !strings.Contains(err.Error(), oldBigDir) || !strings.Contains(err.Error(), bigDir) {
+	if !errors.Is(err, core.ErrBigNoStore) || !strings.Contains(err.Error(), "unsupported big-keys") {
 		t.Fatalf("a put with both directories = %v, want the unavailable refusal naming both", err)
 	}
 	if !strings.HasPrefix(rep.all(), "error") {
 		t.Fatalf("reports = %q, want an error", rep.all())
 	}
-	for _, d := range []string{oldBigDir, bigDir} {
+	for _, d := range []string{"big-keys", bigDir} {
 		if raw, err := os.ReadFile(filepath.Join(home, d, "marker")); err != nil || string(raw) != d {
 			t.Fatalf("%s was touched: %q %v", d, raw, err)
 		}
@@ -168,7 +161,7 @@ func TestNeitherBigDirectoryStartsTheNewOne(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(home, bigDir)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Lstat(filepath.Join(home, oldBigDir)); !os.IsNotExist(err) {
+	if _, err := os.Lstat(filepath.Join(home, "big-keys")); !os.IsNotExist(err) {
 		t.Fatalf("the old name appeared: %v", err)
 	}
 }

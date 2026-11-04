@@ -26,7 +26,7 @@ try {
  await assert.rejects(caller.record('#worker@fixture').bigfile.put('node/raw',Buffer.alloc(24*1024*1024)),e=>e.status===403);
  assert.deepEqual((await big.list()).map(k=>k.name),['node/raw']);assert.equal(await big.delete('node/raw'),true);
  const key=join(scratch,'key.pem'),cert=join(scratch,'cert.pem');assert.equal(spawnSync('openssl',['req','-x509','-newkey','rsa:2048','-nodes','-days','1','-subj','/CN=localhost','-keyout',key,'-out',cert],{stdio:'ignore'}).status,0);
- let credentials=0;server=createServer({key:readFileSync(key),cert:readFileSync(cert)},(req,res)=>{if(req.headers['x-agent-bus-token'])credentials++;res.end('{"you":"#caller@fixture"}');});await new Promise(r=>server.listen(0,'127.0.0.1',r));const addr=`https://127.0.0.1:${server.address().port}`;
+ let credentials=0;server=createServer({key:readFileSync(key),cert:readFileSync(cert)},(req,res)=>{if(req.headers['x-agent-bus-token'])credentials++;res.end('{"you":"#caller@fixture","protocol":1,"protocol_min":1}');});await new Promise(r=>server.listen(0,'127.0.0.1',r));const addr=`https://127.0.0.1:${server.address().port}`;
  const wrong=Bus.connect({addr,token:'no-leak',fingerprint:'00'.repeat(32)});buses.push(wrong);await assert.rejects(wrong.whoami(),BusUnreachable);assert.equal(credentials,0);
  const pin=createHash('sha256').update(new X509Certificate(readFileSync(cert)).raw).digest('hex');const right=Bus.connect({addr,token:'dummy',fingerprint:pin});buses.push(right);assert.equal((await right.whoami()).you,'#caller@fixture');assert.equal(credentials,2);
  console.log('Node package smoke: HTTP calls, Unix identity, exact int64, verified big transfers and ACL, pin-before-credentials passed');

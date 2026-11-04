@@ -89,8 +89,8 @@ func TestAuditEntriesForEditsAndNoneForTraffic(t *testing.T) {
 		{"/register", `{"name":"db@h","addr":"db:5432","protocol":"postgresql"}`, "register", "db@h", "ok"},
 		{"/secret", `{"name":"db@h","secret":"PW=` + canarySecret + `"}`, "set-secret", "db@h", "ok"},
 		{"/user/state", `{"name":"bob@h","status":"inactive"}`, "user-state", "bob@h", "refused 403"},
-		// The web sends Go-cased field names; the target is still the group.
-		{"/group", `{"Name":"@alices","Members":["alice@h"]}`, "group", "@alices", "ok"},
+		// Canonical group fields identify the audit target.
+		{"/group", `{"name":"@alices","members":["alice@h"]}`, "group", "@alices", "ok"},
 	}
 	for _, c := range calls {
 		send(s, alice, "POST", c.path, c.body, "192.0.2.7:4000")
@@ -214,7 +214,7 @@ func TestAnAuditTargetCannotBeADecoy(t *testing.T) {
 		send(s, alice, "POST", "/manage", `{"NAME":"decoy@h","name":"victim@h","descr":"x"}`, "")
 	}
 	send(s, alice, "POST", "/subscribe", `{"channel":"news@h","name":"decoy@h"}`, "")
-	if code, body := send(s, alice, "POST", "/lock", `{"record":"victim@h","name":"decoy@h","ttl":"1m","try":true}`, ""); code != 200 {
+	if code, body := send(s, alice, "POST", "/lock", `{"record":"victim@h","name":"decoy@h","ttl":"1m"}`, ""); code != 200 {
 		t.Fatalf("take: %d %s", code, body)
 	}
 	if code, body := send(s, alice, "POST", "/release-force", `{"record":"victim@h","name":"decoy@h"}`, ""); code != 200 {

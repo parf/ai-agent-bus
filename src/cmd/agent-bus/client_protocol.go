@@ -18,7 +18,6 @@ type protocolKey struct {
 }
 type protocolResult struct {
 	done chan struct{}
-	old  bool
 	err  error
 }
 
@@ -27,27 +26,30 @@ var protocolChecks = struct {
 	entries map[protocolKey]*protocolResult
 }{entries: make(map[protocolKey]*protocolResult)}
 
-func checkClientProtocol(data []byte) (bool, error) {
+func checkClientProtocol(data []byte) error {
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal(data, &fields); err != nil || fields == nil {
-		return false, fmt.Errorf("protocol error: identity must be an object")
+		return fmt.Errorf("protocol error: identity must be an object")
 	}
 	values := [2]int{}
 	for i, field := range []string{"protocol", "protocol_min"} {
-		if raw, ok := fields[field]; ok && (json.Unmarshal(raw, &values[i]) != nil || string(raw) == "null" || values[i] < 0) {
-			return false, fmt.Errorf("protocol error: %s must be a nonnegative integer", field)
+		if raw, ok := fields[field]; !ok || json.Unmarshal(raw, &values[i]) != nil || string(raw) == "null" || values[i] < 0 {
+			return fmt.Errorf("protocol error: %s must be a nonnegative integer", field)
 		}
 	}
 	if values[1] > values[0] {
-		return false, fmt.Errorf("protocol error: protocol_min exceeds protocol")
+		return fmt.Errorf("protocol error: protocol_min exceeds protocol")
 	}
 	if clientProtocol < values[1] {
-		return false, fmt.Errorf("daemon too new for this client")
+		return fmt.Errorf("daemon too new for this client")
 	}
-	return values[0] < clientProtocol, nil
+	if values[0] != clientProtocol || values[1] != clientProtocol {
+		return fmt.Errorf("daemon protocol is unsupported")
+	}
+	return nil
 }
 
-func ensureDaemonProtocol(ctx context.Context) (bool, error) {
+func ensureDaemonProtocol(ctx context.Context) error {
 	client, base := transport()
 	key := protocolKey{client, base, os.Getenv("AGENT_BUS_TOKEN")}
 	protocolChecks.Lock()
@@ -55,9 +57,9 @@ func ensureDaemonProtocol(ctx context.Context) (bool, error) {
 		protocolChecks.Unlock()
 		select {
 		case <-ctx.Done():
-			return false, ctx.Err()
+			return ctx.Err()
 		case <-state.done:
-			return state.old, state.err
+			return state.err
 		}
 	}
 	state := &protocolResult{done: make(chan struct{})}
@@ -70,43 +72,21 @@ func ensureDaemonProtocol(ctx context.Context) (bool, error) {
 		err = fmt.Errorf("identity refused (%d): %s", code, data)
 	}
 	if err == nil {
-		state.old, err = checkClientProtocol(data)
+		err = checkClientProtocol(data)
 	}
 	state.err = err
-	if err == nil && state.old {
-		fmt.Fprintln(os.Stderr, "daemon too old: protocol is older than this client")
-	}
 	protocolChecks.Lock()
 	if err != nil {
 		delete(protocolChecks.entries, key)
 	}
 	close(state.done)
 	protocolChecks.Unlock()
-	return state.old, err
+	return err
 }
 
-func protocolRefusal(data []byte, code int, old bool, operation string) []byte {
-	if code < 400 {
-		return data
-	}
+func protocolRefusal(data []byte, code int) []byte {
 	if code == 500 {
 		return []byte(`{"error":"internal daemon error"}`)
 	}
-	var row map[string]any
-	if json.Unmarshal(data, &row) != nil {
-		return data
-	}
-	if code != 500 && !(old && row["kind"] == "no_route") {
-		return data
-	}
-	if code == 500 {
-		row = map[string]any{"error": "internal daemon error"}
-	} else if old && row["kind"] == "no_route" {
-		row["error"] = "daemon too old for " + operation
-	}
-	out, err := json.Marshal(row)
-	if err != nil {
-		return data
-	}
-	return out
+	return data
 }

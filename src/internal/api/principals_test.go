@@ -2,10 +2,8 @@ package api
 
 import (
 	"testing"
-	"time"
 
 	"github.com/parf/ai-agent-bus/internal/core"
-	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
@@ -15,34 +13,33 @@ import (
 // fixture does not need the ceremony of creating each.
 func known(t testing.TB, b *core.Bus, names ...string) {
 	t.Helper()
-	s := ports.Snapshot{Clean: true}
-	user := func(name string) {
-		s.Users = append(s.Users, protocol.User{Name: name, Status: "active"})
-		s.Records = append(s.Records, protocol.Record{
-			Name: name, Owner: name, Kind: protocol.KindUser, Personal: true,
-			Full: protocol.OverflowStrict, At: time.Now(),
-		})
+	owner := b.DaemonOwner()
+	if owner == "" {
+		owner = fixtureOwner
+		b.SetDaemonOwner(owner)
 	}
-	agents := false
+	user := func(name string) {
+		if b.IsPerson(name) {
+			return
+		}
+		if _, err := b.SetUser(owner, protocol.User{Name: name, Status: "active"}, true); err != nil {
+			t.Fatal(err)
+		}
+	}
 	for _, name := range names {
 		n, err := protocol.ParseName(name)
 		if err != nil {
-			t.Fatalf("fixture principal %s: %v", name, err)
+			t.Fatal(err)
 		}
 		if n.Agent {
-			agents = true
-			s.Records = append(s.Records, protocol.Record{
-				Name: n.String(), Owner: fixtureOwner, Kind: protocol.KindAgent,
-				Full: protocol.OverflowStrict, At: time.Now(),
-			})
-			continue
+			user(fixtureOwner)
+			if _, err := b.Register(protocol.Record{Name: n.String(), Owner: fixtureOwner, Kind: protocol.KindAgent}); err != nil {
+				t.Fatal(err)
+			}
+		} else {
+			user(n.String())
 		}
-		user(n.String())
 	}
-	if agents && !b.IsPerson(fixtureOwner) {
-		user(fixtureOwner)
-	}
-	b.Restore(s)
 }
 
 // fixtureOwner is the User a fixture's agents belong to.

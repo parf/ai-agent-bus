@@ -4,21 +4,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
 func TestDirectoryClassifiesFactsAndPreservesCallerScope(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("owner@h")
-	b.Restore(ports.Snapshot{
-		Users: []protocol.User{
-			{Name: "smoke-person@h"}, // blank fields, test-like name
-			{Name: "paused@h", Status: "inactive"},
-			{Name: "banned@h", Status: "inactive"},
-		},
-		Records: []protocol.Record{userRecord("smoke-person@h"), userRecord("paused@h"), userRecord("banned@h")},
-	})
+	for _, user := range []protocol.User{{Name: "smoke-person@h"}, {Name: "paused@h", Status: "inactive"}, {Name: "banned@h", Status: "inactive"}} {
+		if _, err := b.SetUser("owner@h", user, true); err != nil {
+			t.Fatal(err)
+		}
+	}
 	// An administrator is a User first (docs/01-identity-and-authority.md#daemon-administrators).
 	if _, err := b.SetUser("owner@h", protocol.User{Name: "maintainer@h"}, true); err != nil {
 		t.Fatal(err)

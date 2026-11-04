@@ -9,28 +9,27 @@ import (
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/auth"
 	"github.com/parf/ai-agent-bus/internal/core"
-	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/store/memory"
 )
 
 func userRecord(name string) protocol.Record {
-	return protocol.Record{Name: name, Owner: name, Kind: protocol.KindUser, Personal: true, Full: protocol.OverflowStrict}
+	return protocol.Record{Name: name, Owner: name, Kind: protocol.KindUser, Tags: []string{"personal"}, Full: protocol.OverflowStrict}
 }
 
 // The bus child serves each inherited socket: the daemon account's as the
-// daemon Owner of each request, so a transfer moves it without a restart, and
-// none for a mapping the load ignored.
-func TestInheritedSocketsFollowTheOwnerAndSkipIgnoredMappings(t *testing.T) {
+// daemon Owner of each request, so a transfer moves it without a restart.
+func TestInheritedSocketsFollowTheOwner(t *testing.T) {
 	bus := core.New()
-	bus.Restore(ports.Snapshot{
-		Clean: true, OwnerEstablished: true, Owner: "owner@h", AccountsEstablished: true,
-		Accounts: []protocol.AccountMapping{{Account: "ghost", Principal: "#gone@h"}, {Account: "ops", Principal: "heir@h"}},
-		Users:    []protocol.User{{Name: "owner@h", Status: "active"}, {Name: "heir@h", Status: "active"}},
-		Records: []protocol.Record{userRecord("owner@h"), userRecord("heir@h"),
-			{Name: core.AdministratorsGroup, Kind: protocol.KindGroup, Owner: "owner@h", Allow: []string{"owner@h"}}},
-	})
-	tokens, err := auth.Load(memory.NewTokens(), "owner@h")
+	bus.SetDaemonOwner("owner@h")
+	if _, err := bus.SetUser("owner@h", protocol.User{Name: "heir@h"}, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := bus.EstablishAccounts(map[string]string{"ops": "heir@h"}); err != nil {
+		t.Fatal(err)
+	}
+
+	tokens, err := auth.Load(memory.NewTokens())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,9 +41,6 @@ func TestInheritedSocketsFollowTheOwnerAndSkipIgnoredMappings(t *testing.T) {
 			t.Fatal(err)
 		}
 		return h
-	}
-	if h := handler(inlet{who: "#gone@h"}); h != nil {
-		t.Fatal("the socket of an ignored mapping is served")
 	}
 	if h := handler(inlet{who: "heir@h"}); h == nil {
 		t.Fatal("a loaded mapping's socket is not served")

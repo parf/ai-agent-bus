@@ -40,7 +40,7 @@ export function ErrorSummary({ id, error }: { id: string; error?: FormError }) {
   </section>;
 }
 
-export function TagsField({ st, errId, rec, disabled }: { st: FormState; errId: string; rec?: { tags?: string[]; personal?: boolean }; disabled?: boolean }) {
+export function TagsField({ st, errId, rec, disabled }: { st: FormState; errId: string; rec?: { tags?: string[] }; disabled?: boolean }) {
   const value = st.values.tags != null ? normalizeTags(st.values.tags) : rec ? recordTags(rec).filter(t => t !== "no-tags") : [];
   return <div class="field wide"><label for="f-tags">Tags<Help label="About tags" tip={FIELD_DOCUMENTATION.tags!.tip} doc={FIELD_DOCUMENTATION.tags}/></label>
     <input id="f-tags" name="tags" data-tags type="text" value={value.join(",")} disabled={disabled} autocomplete="off" spellcheck="false" placeholder="claude,build-notes"
@@ -160,14 +160,6 @@ export function MaintainersField({ st, errId, value, canAssign, hint }: { st: Fo
       value={value} disabled={!canAssign} placeholder={"user@realm\n@group\n#agent@realm"}
       hint={hint ?? (canAssign ? "One user, group or agent per line; @owner is ACL-only." : undefined)}
       help={{label:"About Maintainers",tip:"Maintainers manage this record, except transfer. One user, group or agent per line; @owner is ACL-only."}} />
-  </>;
-}
-
-export function PersonalField({ st, errId, checked, canAssign, hint }: { st: FormState; errId: string; checked: boolean; canAssign: boolean; hint: string }) {
-  return <>
-    {canAssign ? <input type="hidden" name="edit_personal" value="1" /> : null}
-    <CheckField name="personal" label="Personal" st={st} errId={errId} checked={checked} disabled={!canAssign}
-      help={{ label: "About Personal records", tip: hint }} />
   </>;
 }
 

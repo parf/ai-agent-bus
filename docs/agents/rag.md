@@ -5,13 +5,6 @@
 - **Outcome:** a shared notebook that stores each text sorted into your own topics, so you or your AI find it by the words in it.
 - **Start:** give a table its topic list (no AI call yet): [Try this first](#try-this-first).
 
-## Why you'd want it
-
-- 🧠 **An AI forgets.** Now texts live in one place and a session can recall them later.
-- 🗂️ **Texts are scattered.** Now each is sorted automatically into **your own** categories.
-- 🔎 **Finding a note by hand is slow.** Now `search` finds stored texts by their words; each text also keeps an *embedding* (a "meaning fingerprint": numbers where texts about the same thing land close together) stored beside it.
-- 👥 **Knowledge stays in one head.** Now several people or AI sessions share the same texts.
-
 ## What it does
 
 - ✅ **Store a text:** it is sorted into your topics, fingerprinted and kept (`upsert`).
@@ -21,13 +14,12 @@
 - ✅ **Delete:** one record, or a whole table when you confirm it (`delete`).
 - ✅ **Keep topic lists:** read or set a table's topics (`prompts`); changing a list affects only texts added afterwards.
 - ✅ **Recover from an interrupted call:** the answer distinguishes **nothing changed**, **unknown** and **incomplete**. Follow the operation's recovery instructions; repeating an upsert can spend provider balance again and replace concurrent changes. Nothing retries by itself.
-- ✅ **Use cases:** sort a support inbox into billing, bug, sales and spam; a team knowledge base; meeting and call notes; research clippings; facts an AI session wants to keep.
 - ⚙️ **Records:** live in a **namespace** (say, a team) and a **table** (say, `notes`), each with its own `id`; two optional keys (`key1`, `key2`) tag records further; texts can be plain, Markdown, HTML or JSON.
 - 🚫 **Not for:** a few pages (just paste them), exact lookups by id or number (use a database), or anything that must stay out of an AI provider (the text goes to the classifier and embedding services).
 
 ## How it is built
 
-- **A small app made of other helpers,** like Lego blocks; it never holds any provider key itself.
+- **An app using other helpers;** it never holds any provider key itself.
 
 | Block | Its job here |
 |---|---|
@@ -76,7 +68,7 @@ agent-bus call '#rag@node.example' '{"method":"prompts","action":"set","namespac
 4. Copy the [Configuration example](../../src/agents/rag/config.json.dist), set the record Configuration, provision the collection and grants below, reload the runner.
 
 - It is a kept, sandboxed package with one worker, serializing replacement and prompt-cache changes.
-- Help works before Configuration is set: `agent-bus help '#rag@node.example'` and the status ask answer on an unconfigured helper, while a plain-text call such as `agent-bus call '#rag@node.example' help` is data and is refused with `error: configure RAG block names and collection`, as every other agent refuses nonsense.
+- Help works before Configuration is set: `agent-bus help '#rag@node.example'` and the status ask answer on an unconfigured helper, while a plain-text call such as `agent-bus call '#rag@node.example' help` is data and is refused with `error: configure RAG block names and collection`, ordinary text is not a supported RAG call format.
 
 ### Owner provisions the collection
 
@@ -108,15 +100,13 @@ agent-bus manage '#ai@node.example' --add-to-set-allow '#rag@node.example'
 - **Build it on an existing collection:** `agent-bus call '#rag@node.example' --wait=120s '{"method":"keyword_index"}'`, as the helper's Owner or a Maintainer. It adds the vector with the `idf` modifier and then gives each stored text its words in batches; run it again if it answers `incomplete`, or after an interruption, and it continues where it stopped; each update is kept under 512 KiB of vectors, one scroll and one update per batch of at most 64 texts. A second run on a finished collection changes nothing and answers `indexed: 0`. A search checks once a minute that no text lacks its words (another writer, an older build or a restore can add some) and refuses with `keyword index incomplete` until `keyword_index` has run.
 - **If the proxy refuses to add the vector,** the answer names one command to run as the Qdrant proxy's owner: `request PUT /collections/notes/vectors/text {"sparse":{"modifier":"idf"}}`, because adding a vector needs the proxy's admin role and the helper only has write. Then run `keyword_index` again.
 - The [collection API](https://api.qdrant.tech/api-reference/collections/create-collection) supports model metadata; [strict filtering](https://qdrant.tech/documentation/search/text-search/text-filtering/) requires payload indexes.
-- The index list above matches one constant used by startup verification, including `_rag_rev`.
-- [Collection information](https://api.qdrant.tech/api-reference/collections/get-collection) defines `config.metadata` and the keyword payload type; the [Decisions reference](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-request) defines string state, typed Choice questions and `answers.<name>.probabilities`; tests use these shapes, not invented APIs.
+- [Collection information](https://api.qdrant.tech/api-reference/collections/get-collection) defines `config.metadata` and the keyword payload type; the [Decisions reference](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-request) defines string state, typed Choice questions and `answers.<name>.probabilities`.
 - A collection removed between verification and a point read may give a missing result; repeating the read verifies again.
 
 </details>
 
 ## Configuration
 
-- **What:** which blocks to use, where to store, and which models.
 - **One model and vector size per instance.**
 
 <details>
@@ -171,7 +161,7 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 | alert | A block (`#qdrant`, `#voyage`, `#ai`) refuses RAG's own grant | Grant RAG on that block |
 | alert | Configuration lacks the block names or the collection | Set them |
 | warning | The collection is optimizing (yellow) | Nothing; it clears by itself |
-| warning | A call's outcome is unknown, or a delete is incomplete | The caller repeats the same call; if it repeats, check that block's own entries |
+| warning | A call's outcome is unknown, or a delete is incomplete | Inspect an unknown outcome before retrying; follow the named continuation for an incomplete delete and check the block's own entries |
 
 ## Technical details
 
@@ -195,7 +185,7 @@ Replacement and recovery:
 - Delete hides heads with a `deleted` tombstone, filter-deletes all chunk revisions, then removes the tombstone; it also sweeps headless chunks, including a failed first insertion.
 - A tombstone keeps source text until cleanup finishes; `incomplete: repeat the same delete to continue` resumes a large wipe.
 - A definite first-write refusal says **not stored; prior record unchanged**: 400, 401, 403, 404, 405, 413, 415, 422 or a local proxy role refusal; 408, 409, 429, 499 and other ambiguous failures never claim the prior state is unchanged; no cross-call transactions.
-- UUID namespace, tuple encoding and chunk-boundary version are permanent storage contracts; changing them needs a migration.
+- UUID namespace, tuple encoding and chunk-boundary version are permanent storage contracts; changing them makes persisted data incompatible.
 - Splitting prefers the last paragraph, line or space boundary in the latter half of a 4096-byte window, else hard-cuts at a complete UTF-8 character; identical prepared content rewrites the same points; different Jev labels or vectors give a new revision.
 - Search filters `_rag_kind=chunk` and checks each hit's revision against its head.
 

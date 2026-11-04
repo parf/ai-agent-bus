@@ -54,6 +54,11 @@ type Snapshot struct {
 	NextRecordID, NextUserID uint32
 }
 
+// Empty identifies a store with no durable state to adopt.
+func (s Snapshot) Empty() bool {
+	return !s.OwnerEstablished && s.Owner == "" && !s.AccountsEstablished && len(s.Accounts) == 0 && len(s.Users) == 0 && len(s.Records) == 0 && len(s.Queues) == 0 && len(s.Activity) == 0 && s.At.IsZero() && s.NextRecordID == 0 && s.NextUserID == 0
+}
+
 // Change is one management write: every entity it touches, as it will be
 // once committed. A nil value removes that entity. Nothing outside the change
 // is rewritten, so an edit of one record costs one record

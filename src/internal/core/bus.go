@@ -171,11 +171,10 @@ type inbox struct {
 }
 
 type Bus struct {
-	events          *eventlog.Engine
-	subEngines      map[uint32]*subscription.Engine // one per source record; guarded by mu
-	subFallback     subMemory                       // the subscriptions of an unbound embedded bus
-	legacyEmptyTags []string                        // pending startup persistence of removed no-tags sentinels
-	store           ports.Store
+	events      *eventlog.Engine
+	subEngines  map[uint32]*subscription.Engine // one per source record; guarded by mu
+	subFallback subMemory                       // the subscriptions of an unbound embedded bus
+	store       ports.Store
 	// big holds bigfiles, bound at start (big.go).
 	big ports.BigStore
 	// bigCause, bigReopen and bigTried are why bigfiles are refused and how
@@ -359,7 +358,7 @@ func validateKind(r protocol.Record) error {
 		}
 		// The protected group has no Maintainers and is never Personal:
 		// its membership is the daemon Owner's alone (docs/constitution.md#-group).
-		if r.Name == AdministratorsGroup && (len(r.Maintainers) != 0 || r.Personal) {
+		if r.Name == AdministratorsGroup && (len(r.Maintainers) != 0 || r.IsPersonal()) {
 			return fmt.Errorf("%w: %s has no maintainers and is never personal", ErrNotOwner, AdministratorsGroup)
 		}
 		// A prefix reserves the name for its User, and a Personal group
@@ -368,7 +367,7 @@ func validateKind(r protocol.Record) error {
 		if prefixed && r.Owner != "" && prefix != r.Owner {
 			return fmt.Errorf("%w: %s is reserved for %s", ErrNotOwner, r.Name, prefix)
 		}
-		if r.Personal && !prefixed {
+		if r.IsPersonal() && !prefixed {
 			return fmt.Errorf("%w: a personal group is named @<owner>/<name>, and %s is not", ErrKind, r.Name)
 		}
 	}
@@ -503,7 +502,7 @@ func unwritten(r protocol.Record) error {
 		"secret": r.Secret != "", "secret_sha": r.SecretSHA != "",
 		"at": !r.At.IsZero(), "created_at": !r.Created.IsZero(), "last_used": r.LastUsed != nil,
 		"can_manage": r.CanManage, "can_transfer": r.CanTransfer, "route_allowed": r.RouteAllowed != nil,
-		"reading": r.Reading, "readers": r.Readers != nil, "queued": r.Queued != 0, "in": r.In != 0, "out": r.Out != 0,
+		"readers": r.Readers != nil, "queued": r.Queued != 0, "in": r.In != 0, "out": r.Out != 0,
 		"dropped": r.Dropped != 0, "expired": r.Expired != 0, "oldest": r.Oldest != "", "at_bound": r.AtBound,
 		"hosts": len(r.Hosts) > 0, "hosts_cut": r.HostsCut,
 	} {
@@ -603,8 +602,6 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	if err != nil {
 		return protocol.Record{}, fmt.Errorf("%w: %v", ErrBadName, err)
 	}
-	r.Personal = r.Personal || protocol.HasTag(r.Tags, "personal")
-	r.SyncTags()
 	if owner, err := canon(r.Owner); err == nil {
 		r.Owner = owner
 	}
@@ -779,10 +776,9 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 		r.Maintainers, r.Status = append(protocol.MaintainerList(nil), old.Maintainers...), old.Status
 		// Personal is the owner's classification. An agent refreshes its own
 		// metadata on every start and cannot clear or set that owner choice.
-		r.Personal = old.Personal
+		r.Tags = slices.DeleteFunc(r.Tags, func(tag string) bool { return tag == "personal" })
 		// Starts add provenance without replacing owner labels or classification.
 		r.Tags, _ = protocol.NormalizeTags(append(append([]string(nil), old.Tags...), r.Tags...))
-		r.SyncTags()
 		// Metadata refreshes must not erase grants. Explicit ACLs still replace
 		// the policy; Manage can clear it deliberately.
 		if r.Allow == nil {
@@ -1180,14 +1176,6 @@ func (b *Bus) withLiveness(name string, r protocol.Record) protocol.Record {
 		// front (docs/04-messaging.md#inbox-queues).
 		r.Oldest = time.Since(in.queue[0].At).Round(time.Second).String()
 	}
-	// A reader for one address is a reader too, unlike a call waiting on its
-	// reply's topic and tag.
-	for _, w := range in.waiters {
-		if !w.filtered || w.addressed != "" {
-			r.Reading = true
-			break
-		}
-	}
 	return r
 }
 
@@ -1197,7 +1185,7 @@ func (b *Bus) withLiveness(name string, r protocol.Record) protocol.Record {
 func clearLiveRecord(r *protocol.Record) {
 	r.ParsedAllow = nil
 	r.CanManage, r.CanTransfer, r.RouteAllowed = false, false, nil
-	r.Reading, r.Readers, r.Queued, r.In, r.Out = false, nil, 0, 0, 0
+	r.Readers, r.Queued, r.In, r.Out = nil, 0, 0, 0
 	r.Hosts, r.HostsCut = nil, false
 	r.Dropped, r.Expired, r.Oldest, r.AtBound = 0, 0, "", false
 	r.LastUsed = nil

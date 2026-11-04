@@ -48,24 +48,15 @@ async fn connect(address: &str) -> Result<Bus> {
 }
 
 #[tokio::test]
-async fn a_daemon_at_the_clients_protocol_or_newer_is_silent() {
-    for identity in [
-        r#"{"protocol":1,"protocol_min":1}"#,
-        r#"{"protocol":2,"protocol_min":1}"#,
-        r#"{"protocol":7,"protocol_min":0,"extra":"ignored"}"#,
-    ] {
-        let bus = connect(&daemon(identity, (200, "{}")).await).await.unwrap();
-        assert!(bus.warnings().is_empty(), "{identity}: {:?}", bus.warnings());
-    }
+async fn current_protocol_connects() {
+    connect(&daemon(r#"{"protocol":1,"protocol_min":1}"#, (200, "{}")).await).await.unwrap();
 }
 
 #[tokio::test]
-async fn a_daemon_older_than_the_client_warns_and_still_connects() {
-    for identity in [r#"{"protocol":0,"protocol_min":0}"#, r#"{}"#, r#"{"you":"x"}"#] {
-        let bus = connect(&daemon(identity, (200, "{}")).await).await.unwrap();
-        let warnings = bus.warnings();
-        assert_eq!(warnings.len(), 1, "{identity}: {warnings:?}");
-        assert!(warnings[0].starts_with("daemon too old"), "{}", warnings[0]);
+async fn unsupported_protocol_is_refused() {
+    for identity in [r#"{"protocol":0,"protocol_min":0}"#, r#"{}"#, r#"{"protocol":2,"protocol_min":1}"#, r#"{"protocol":1}"#, r#"{"protocol":1,"protocol_min":0}"#] {
+        let error = connect(&daemon(identity, (200, "{}")).await).await.unwrap_err();
+        assert!(matches!(error, BusError::Protocol(_)), "{identity}: {error:?}");
     }
 }
 
@@ -113,17 +104,8 @@ async fn a_refusal_carries_the_kind_the_daemon_sent() {
 }
 
 #[tokio::test]
-async fn a_missing_route_from_an_older_daemon_says_it_is_too_old_for_the_operation() {
+async fn a_missing_route_preserves_its_cause() {
     let body = r#"{"error":"Not Found","kind":"no_route"}"#;
-    let old = connect(&daemon(r#"{"protocol":0,"protocol_min":0}"#, (404, body)).await).await.unwrap();
-    match old.records(&[]).await {
-        Err(BusError::Refusal { status: 404, kind, message }) => {
-            assert_eq!(kind.as_deref(), Some("no_route"));
-            assert_eq!(message, "daemon too old for GET /ls");
-        }
-        other => panic!("{other:?}"),
-    }
-    // From a daemon at the client's protocol the same refusal keeps its own words.
     let current = connect(&daemon(r#"{"protocol":1,"protocol_min":1}"#, (404, body)).await).await.unwrap();
     match current.records(&[]).await {
         Err(BusError::Refusal { kind, message, .. }) => {
@@ -132,9 +114,9 @@ async fn a_missing_route_from_an_older_daemon_says_it_is_too_old_for_the_operati
         }
         other => panic!("{other:?}"),
     }
-    // Missing data is not a missing route, whatever the daemon's age.
+    // Missing data is not a missing route.
     let data = r#"{"error":"no such name","kind":"not_found"}"#;
-    let old = connect(&daemon(r#"{}"#, (404, data)).await).await.unwrap();
+    let old = connect(&daemon(r#"{"protocol":1,"protocol_min":1}"#, (404, data)).await).await.unwrap();
     match old.records(&[]).await {
         Err(BusError::Refusal { kind, message, .. }) => {
             assert_eq!(kind.as_deref(), Some("not_found"));

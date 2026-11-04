@@ -9,22 +9,22 @@ import (
 
 func TestStartRefusesRelativeScriptBeforeRegistration(t *testing.T) {
 	for _, script := range []string{"./hi.sh", "../hi.sh", "bin/hi.sh", "scripts/x/hi.sh --flag"} {
-		_, err := describe([]string{"sample-hello", script})
+		_, err := describe([]string{"#sample-hello", script})
 		if err == nil || !strings.Contains(err.Error(), "absolute script path") {
 			t.Fatalf("%q was not refused before registration: %v", script, err)
 		}
 	}
 }
 
-func TestStopAcceptsPlainAgentName(t *testing.T) {
+func TestStopRefusesPlainAgentName(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	startStopLockFixture(t, "#sample-hello")
-	if err := stopVerb([]string{"sample-hello"}); err != nil {
+	if err := stopVerb([]string{"sample-hello"}); err == nil {
 		t.Fatal(err)
 	}
 }
 
-func TestLogsAcceptPlainAgentName(t *testing.T) {
+func TestLogsRefusePlainAgentName(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	if err := os.MkdirAll(filepath.Dir(logPath("#sample-hello")), 0o700); err != nil {
 		t.Fatal(err)
@@ -32,7 +32,7 @@ func TestLogsAcceptPlainAgentName(t *testing.T) {
 	if err := os.WriteFile(logPath("#sample-hello"), []byte("sample answered\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := logsVerb([]string{"sample-hello"}); err != nil {
+	if err := logsVerb([]string{"sample-hello"}); err == nil {
 		t.Fatalf("plain name did not find agent log: %v", err)
 	}
 }

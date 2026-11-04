@@ -34,10 +34,10 @@ func TestDaemonOwnerTransferChangesEveryPublicOwnerAnswer(t *testing.T) {
 		s.Handler().ServeHTTP(w, r)
 		return w
 	}
-	if w := call("next@h", http.MethodPost, "/owner", `{"kind":"agent","name":"next@h"}`); w.Code != http.StatusForbidden {
+	if w := call("next@h", http.MethodPost, "/owner", `{"name":"next@h"}`); w.Code != http.StatusForbidden {
 		t.Fatalf("non-owner transferred daemon: %d %s", w.Code, w.Body.String())
 	}
-	w := call("owner@h", http.MethodPost, "/owner", `{"kind":"agent","name":"next@h"}`)
+	w := call("owner@h", http.MethodPost, "/owner", `{"name":"next@h"}`)
 	if w.Code != http.StatusOK {
 		t.Fatalf("transfer: %d %s", w.Code, w.Body.String())
 	}
@@ -78,7 +78,7 @@ func TestDaemonOwnerTransferChangesEveryPublicOwnerAnswer(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &onSocket); err != nil || onSocket.You != "next@h" || !onSocket.DaemonOwner {
 		t.Fatalf("the daemon account's socket did not follow the transfer: %s (%v)", w.Body.String(), err)
 	}
-	if w := onOwnerSocket(http.MethodPost, "/manage", `{"kind":"agent","name":"#svc@h","descr":"socket root"}`); w.Code != http.StatusOK {
+	if w := onOwnerSocket(http.MethodPost, "/manage", `{"name":"#svc@h","descr":"socket root"}`); w.Code != http.StatusOK {
 		t.Fatalf("the daemon account's socket lacks the new Owner's root management: %d %s", w.Code, w.Body.String())
 	}
 	// The former Owner's own socket, where one is mapped, keeps its retained
@@ -87,10 +87,10 @@ func TestDaemonOwnerTransferChangesEveryPublicOwnerAnswer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if w := serveOn(s.HandlerFor(seed), http.MethodPost, "/manage", `{"kind":"agent","name":"#svc@h","descr":"former root"}`); w.Code != http.StatusNotFound {
+	if w := serveOn(s.HandlerFor(seed), http.MethodPost, "/manage", `{"name":"#svc@h","descr":"former root"}`); w.Code != http.StatusNotFound {
 		t.Fatalf("former owner's socket retained root management: %d %s", w.Code, w.Body.String())
 	}
-	if w := call("next@h", http.MethodPost, "/manage", `{"kind":"agent","name":"#svc@h","descr":"new root"}`); w.Code != http.StatusOK {
+	if w := call("next@h", http.MethodPost, "/manage", `{"name":"#svc@h","descr":"new root"}`); w.Code != http.StatusOK {
 		t.Fatalf("new owner lacks root management: %d %s", w.Code, w.Body.String())
 	}
 }

@@ -36,13 +36,13 @@ Mapped local accounts can authenticate through their [own socket](../../../docs/
 
 | Area | Status | Canonical contract |
 |---|---|---|
-| Identity, credentials and local isolation | Built, including TCP on any address, optional TLS with fingerprint pinning (0.8.60) and [remote access](../../../docs/02-access-remote.md#choosing-a-way) | [identity](../../../docs/01-identity-and-authority.md#scope), [access](../../../docs/02-access.md#scope) |
+| Identity, credentials and local isolation | Built, including TCP on any address, optional TLS with fingerprint pinning (0.8.60) and [remote access](../../../docs/02-access-remote.md#choosing-a-way) | [identity](../../../docs/01-identity-and-authority.md#identities), [access](../../../docs/02-access.md#what-a-call-carries) |
 | Registry, channels and record configuration | Built, including Personal classification and web grouping | [records](../../../docs/03-records.md#record-kinds) |
-| Messaging and restart persistence | Built, including administrative crash durability and explicit inbox selection | [messaging](../../../docs/04-messaging.md#status) |
-| API, CLI, MCP and web face | Built; the TypeScript web face under its own unit from 0.8.50, its installed container gates passed on 0.8.51 and its installed real-browser gate on 0.8.53 | [discovery](../../../docs/05-discovery.md#status) |
-| Foreground agents and adapters | Built, including launchers; live-runtime acceptance passed on the development and a fresh installed host | [runner](../../../docs/06-dedicated-runner.md#status) |
+| Messaging and restart persistence | Built, including administrative crash durability and explicit inbox selection | [messaging](../../../docs/04-messaging.md#durability) |
+| API, CLI, MCP and web face | Built; the TypeScript web face under its own unit from 0.8.50, its installed container gates passed on 0.8.51 and its installed real-browser gate on 0.8.53 | [discovery](../../../docs/05-discovery.md#dashboard) |
+| Foreground agents and adapters | Built, including launchers; live-runtime acceptance passed on the development and a fresh installed host | [runner](../../../docs/06-dedicated-runner.md#script-agents) |
 | Installation and service account | Package, setup, upgrade, reinstall and fresh-host acceptance passed | [setup](../../R1.0-Release/done/rc-linux-installation.md) |
-| Process isolation | Split, web authority isolation, resource limits and installed account/socket/capability acceptance built | [processes](../../../docs/08-processes.md#status) |
+| Process isolation | Split, web authority isolation, resource limits and installed account/socket/capability acceptance built | [processes](../../../docs/08-processes.md#the-processes) |
 
 ## Boundaries
 

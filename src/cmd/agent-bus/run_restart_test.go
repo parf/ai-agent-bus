@@ -109,9 +109,9 @@ func TestRunKeepsItsNameAndSerialReaderAfterDaemonRestart(t *testing.T) {
 	startDaemon := func() func() {
 		t.Helper()
 		log := &lockedBuffer{}
-		cmd := exec.CommandContext(ctx, binary, "-socket", socket, "-addr", "127.0.0.1:0", "-owner", "owner@fixture",
-			"-db", filepath.Join(dir, "bus.db"), "-create", "-flush-every", "0", "-dashboard", "",
-			"-ssh-keys", filepath.Join(dir, "authorized_keys"), "-ssh-token", "/bin/false")
+		cmd := exec.CommandContext(ctx, binary, "--socket", socket, "--addr", "127.0.0.1:0", "--owner", "owner@fixture",
+			"--db", filepath.Join(dir, "bus.db"), "--create", "--flush-every", "0", "--dashboard", "",
+			"--ssh-keys", filepath.Join(dir, "authorized_keys"), "--ssh-token", "/bin/false")
 		cmd.Env = env
 		cmd.Stdout, cmd.Stderr = log, log
 		if err := cmd.Start(); err != nil {

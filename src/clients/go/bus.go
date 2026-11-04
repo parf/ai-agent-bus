@@ -212,8 +212,6 @@ type Bus struct {
 	mu                            sync.Mutex
 	you                           string
 	verified                      bool
-	daemonOld                     bool
-	protocolWarned                bool
 	verifying                     chan struct{}
 	pending                       map[string]*pending
 	raw                           bool
@@ -309,14 +307,11 @@ func defaultSocket(token bool) string {
 			return p
 		}
 	}
-	if d := os.Getenv("XDG_RUNTIME_DIR"); d != "" {
-		return filepath.Join(d, "agent-bus", "bus.sock")
+	name := "bus.sock"
+	if !token && account != "" {
+		name = "user-" + account + ".sock"
 	}
-	uid := ""
-	if u != nil {
-		uid = u.Uid
-	}
-	return filepath.Join(os.TempDir(), "agent-bus-"+uid+".sock")
+	return filepath.Join("/run/agent-bus", name)
 }
 func (b *Bus) wake() {
 	select {

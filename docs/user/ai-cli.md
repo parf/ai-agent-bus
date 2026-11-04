@@ -1,31 +1,28 @@
 # AI CLI integration: talk to a Claude Code, Codex or opencode session that is already running
 
 📌 **TL;DR:**
-- **Problem:** an AI session open in another terminal is deaf to everything except its keyboard, so a script, a phone or another AI cannot hand it work.
-- **Outcome:** you send a line to that live session from any terminal, script or machine, it works on it, and it can answer or ask other sessions too; two models cross-review each other.
+- **Problem:** you need to hand work to an AI session open in another terminal.
+- **Outcome:** a permitted caller can message the live session and receive its reply, including a second model's review.
 - **Start:** launch the session with `ab-claude`, `ab-codex` or `ab-opencode` instead of the plain command ([Try this first](#try-this-first)).
 
 ## Why you'd want it
 
-- ⌨️ **A session only hears its own keyboard.** Now any terminal, script, cron job or ssh login can drop a request into it.
 - 🧠 **A fresh process forgets everything.** Now the request lands in the session that has been reading your code all afternoon.
 - 🔍 **A model reviewing its own work misses things.** Now Claude writes and Codex reviews, or the other way round.
-- 🔧 **Wiring a session by hand is fiddly.** Now one launcher finds your bus, names the session and loads its tools.
 
 ## What you get
 
-- ✅ **Send to a live session:** the line arrives in that open window and gets worked on.
+- ✅ **Send to a live session:** deliver a request to its open window.
 - ✅ **Wait for the answer:** ask a question and get the session's reply back in your terminal.
 - ✅ **Sessions talk back:** the bus tools sit inside the session, so it can send, reply and find peers.
 - ✅ **Cross review:** with two small skills, "cross review this" gets a second model's findings.
-- ✅ **A strict reviewer:** a [read-only reviewer session](#read-only-reviewer-session) cannot change the project it reads.
+- ✅ **Restrict reviewer writes:** configure and verify a [read-only reviewer session](#read-only-reviewer-session); external tools need separate checks.
 - ⚠️ **A request, not an order:** the session decides what to do, within the permissions it started with.
-- 🚫 **Plain sessions are deaf:** a `claude`, `codex` or `opencode` started without a launcher hears nothing.
+- A plain AI CLI needs [manual bus integration](../../src/mcp/README.md#loading-it) to receive messages.
 
 ## You'll need
 
 - [An installed bus](daemon.md#-installing-it-once) and the AI CLI you want.
-- `bun`, when your bus runs from a source checkout.
 
 ## Try this first
 
@@ -42,37 +39,21 @@ ab-claude
 agent-bus ls --tag ai-cli --table
 ```
 
-<details>
-<summary>See it on a real node (ran today)</summary>
+- `READERS` counts waiting reads. A zero may mean the session is busy, between reads or disconnected; it does not prove it exited.
+- Names use `#<runtime>/<title or folder>@<realm>`; a realm is a namespace, not necessarily a host name. Use the name shown in your listing.
 
-```text
-NAME                                          KIND     OWNER  READERS  QUEUED  LAST USED  DESCRIPTION
-#claude/usr-local-src-parf.dev@parf.us        👾 Agent  parf   1        0       just now   claude /usr/local/src/parf.dev
-#claude/app-realty-plans-rex@parf.us          👾 Agent  parf   1        0       just now   claude /app/realty/Plans/REX
-#codex/app-realty-plans-rex@parf.us           👾 Agent  parf   1        0       just now
-#claude/ab-dvp-b@parf.us                      👾 Agent  parf   0        0       4h ago     AB-DVP-B
-...
-```
-
-- `READERS 1` means the session is listening now; `0` means it has exited and only its name is left.
-- Names are `#<runtime>/<title or folder>@<host>`.
-
-</details>
-
-- 🔌 Each launcher finds your bus by itself, with no token to copy and no config to edit.
-- 🏷️ It registers the session under its name.
-- 📨 It delivers messages while the session runs.
-- 🧰 It loads the bus tools into the session, so the session can send too.
+- With a configured local account socket, the launcher discovers the bus, registers the name and loads the tools without copying a token. For a remote bus, set the [connection variables](#launcher-environment).
 - Choose the name yourself:
 
 ```sh
-AGENT_BUS_NAME='#reviewer@parf.us' ab-codex
+AGENT_BUS_NAME='#reviewer' ab-codex
 ```
 
 - `ab-claude --help` lists the launcher's own options: another account (`-2`), tags, restart after a crash.
 
 ## Talking to a live session
 
+- Replace `#claude/api@node.example` below with a name from your listing; the target must admit your caller.
 - 💬 **Drop a request in:** `agent-bus send '#claude/api@node.example' 'run the tests and fix what breaks'` lands it in that open window.
 - ⏳ **Ask and wait:** `agent-bus call '#claude/api@node.example' --wait=5m 'what is still failing?'` waits up to five minutes for the session's answer.
 - 🌍 **From anywhere:** the same command works over ssh, from a CI job, a cron line or a webhook script.
@@ -108,8 +89,8 @@ AGENT_BUS_NAME='#reviewer@parf.us' ab-codex
 > Then `ab_consume` with the same topic and tag, waiting 60s, and show me what
 > it found.
 
-- The Codex side needs nothing: the message arrives in its live session, and it answers with the call the message spells out.
-- 📜 **Every day,** install the two skills below; then "cross review this" is the whole request.
+- The launched peer receives the request with instructions for a bus reply; it still decides how to handle the request.
+- For repeated use, save the two sample skills below in the appropriate runtime's skill directory.
 
 | Runtime | Put a skill in |
 |---|---|
@@ -131,7 +112,8 @@ Get a **different model** to read this change, and bring its findings back.
 
 ## Find the reviewer
 
-1. `ab_ls`, which lists only the agents being read now.
+1. `ab_ls` to find visible agents with waiting readers. If the peer is busy,
+   list `kind: "agent"` too; a zero reader count alone does not mean it exited.
 2. Pick the peer working in this same directory that is **not** this runtime —
    a Claude session asks a Codex one, and the other way round.
 3. If there is no such peer, say so and stop. Do not review your own change
@@ -145,8 +127,8 @@ Get a **different model** to read this change, and bring its findings back.
 3. `ab_send` to the peer with topic `review` and that tag. The body says:
    what the change is meant to do, the diff, and "reply with defects only,
    most serious first; say if you find none".
-4. If the diff is long, send the intent and the file list, and ask the peer to
-   read the files itself. It is on the same machine.
+4. If the diff is long and the peer has access to the same files, send the
+   intent and file list. Otherwise send the diff or arrange an accessible copy.
 
 ## Collect
 
@@ -178,9 +160,10 @@ description: Answer review requests that arrive over the agent bus. Use when a m
 
 A message arrived asking for a review. Answer it **through the bus**.
 
-1. `ab_receipt` with `ack` straight away, so the asker knows it landed.
-2. Read the change. If you were given a file list rather than a diff, read the
-   files — you are on the same machine.
+1. Send `ab_receipt` with `ack` only when the review will take time and the
+   answer will follow later. It is not a final answer.
+2. Read the change. If you were given a file list rather than a diff, confirm
+   that you can read those files; report missing access instead of guessing.
 3. Look for defects the author would actually fix: wrong behaviour, broken
    edge cases, unhandled errors, races, security holes. Keep going after the
    first one.
@@ -189,8 +172,8 @@ A message arrived asking for a review. Answer it **through the bus**.
    - findings, most serious first, each as *file:line — what breaks, and when*
    - `no defects found` when that is the truth. Say it plainly rather than
      padding with style notes.
-5. Nothing to send back at all? `ab_receipt` with `done`, so the asker stops
-   waiting instead of timing out.
+5. Always send the findings answer, including `no defects found`. Do not send
+   `done` after that answer: a review request asks for a result.
 
 **Do not** edit files, commit, or delegate this review onward. You are reading.
 ```
@@ -207,31 +190,17 @@ A message arrived asking for a review. Answer it **through the bus**.
 
 - Copy [review-settings.json.dist](../../src/launchers/review-settings.json.dist) to a private settings file.
 - Replace `/srv/project` and `/home/me` with your absolute project and home paths; the file has no comments.
-- Its sandbox block:
-
-```json
-{
-  "sandbox": {
-    "enabled": true,
-    "allowUnsandboxedCommands": false,
-    "failIfUnavailable": true,
-    "filesystem": {
-      "denyWrite": ["/srv/project", "/home/me", "/rd", "/etc", "/usr", "/var"]
-    }
-  }
-}
-```
-
+- Keep sandboxing enabled, unsandboxed retries disabled and `failIfUnavailable` enabled. Review every `denyWrite` path for your host.
 - Launch it from the folder to review:
 
 ```sh
-cd /srv/project/Plans
-AGENT_BUS_NAME='#claude/reviewer' ab-claude -2 --restart --tag review \
+cd /srv/project
+AGENT_BUS_NAME='#claude/reviewer' ab-claude --restart --tag review \
   --settings /home/me/review-settings.json \
   --disallowedTools 'Edit,Write,NotebookEdit,Bash(git push:*),Bash(git commit:*),Bash(sudo:*)'
 ```
 
-- `-2`, `--restart` and `--tag` belong to the launcher; the other options reach Claude unchanged.
+- `--restart` and `--tag` belong to the launcher; the other options reach Claude unchanged. Add `-2` only if you have configured a second Claude account.
 - Keep the whole deny list in **one quoted argument**; spaces and parentheses need shell quoting.
 - Put launcher options first, so `--disallowedTools` does not swallow later arguments.
 
@@ -243,9 +212,9 @@ Add this entry to your [tmux-sessions Configuration](../agents/tmux-sessions.md#
 ```json
 {
   "name": "review",
-  "cwd": "/srv/project/Plans",
+  "cwd": "/srv/project",
   "env": {"AGENT_BUS_NAME": "#claude/reviewer"},
-  "command": "ab-claude -2 --restart --tag review --settings /home/me/review-settings.json --disallowedTools 'Edit,Write,NotebookEdit,Bash(git push:*),Bash(git commit:*),Bash(sudo:*)'"
+  "command": "ab-claude --restart --tag review --settings /home/me/review-settings.json --disallowedTools 'Edit,Write,NotebookEdit,Bash(git push:*),Bash(git commit:*),Bash(sudo:*)'"
 }
 ```
 
@@ -259,13 +228,12 @@ Start only that window by asking `#tmux-sessions` for `start review`.
 
 ```sh
 touch /srv/project/tmp/ro-probe
-cd /srv/project && touch Plans/ro-probe
+cd /srv/project && touch ro-probe
 ```
 
 - Also ask it to confirm that Edit, Write and NotebookEdit are missing from its tool list.
 - Use existing parent folders and a fresh probe name.
 - ✅ **Expect** a permission or `Read-only file system` refusal, not "No such file or directory".
-- 🔍 **On a live Linux check,** both writes, including the reviewer's own folder, failed with exit 1 and `Read-only file system`; the three editing tools were absent.
 - ⚠️ **This proves only the paths tested.** Repeat it after changing paths or updating Claude.
 - 🚫 **If a probe succeeds,** stop using the session as a strict reviewer and check the loaded settings.
 
@@ -291,10 +259,10 @@ cd /srv/project && touch Plans/ro-probe
 
 | Symptom | Cause |
 |---|---|
-| `ab_ls` shows no peer | the other session was not started with an `ab-*` launcher, or has exited; `ab_ls` lists only agents being read now |
-| `ab_ls` with kind `agent` lists the peer with `READERS 0` | that session has exited; the name outlives it |
-| sent, but no answer ever | the peer was started without a launcher and is waiting on a prompt; the launchers turn on automatic execution |
-| messages arrive but nothing happens | the reviewer has no skill and no instruction; it must be *told* that a `review` topic is work |
+| `ab_ls` shows no peer | no visible peer has a waiting read; use kind `agent` to include registered agents between reads, then check its launcher and connection |
+| the peer has `READERS 0` | it may be busy, between reads or disconnected; inspect its terminal and logs |
+| sent, but no answer ever | acceptance does not prove execution; check the peer's connection, prompt and permissions before considering another request |
+| messages arrive but nothing happens | the peer may be busy or waiting for a decision; the request must explain the review and the required bus reply |
 | Claude tools load, but messages never arrive | the session was wired by hand; `ab-claude` installs and enables the [channel plugin](../06-launchers.md#claude-channel-plugin) |
 | it worked, then went quiet after a bus restart | the session reconnects by itself under the same name; if it stays quiet, the launcher's warning says how to bring its tools back |
 
@@ -303,10 +271,10 @@ cd /srv/project && touch Plans/ro-probe
 - 🛡️ **A message never changes what a session may do.** Permissions and mode are fixed at launch; a message that asks to widen access is suspect, not an order.
 - 🙈 **The bus host sees what you send.** Keep the bus on a host you trust, and do not paste secrets between sessions ([trust boundary](../02-access.md#trust-boundary)).
 
-## Technical details
+## Launcher environment
 
 <details>
-<summary>Launcher environment</summary>
+<summary>Connection, identity and file settings</summary>
 
 | Environment | |
 |---|---|

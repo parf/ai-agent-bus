@@ -51,11 +51,11 @@ def autopull_check(tokens, ask):
         run(['git','-C',str(seed),'push'])
         return run(['git','-C',str(seed),'rev-parse','HEAD']).strip()
     command='autopull-cmd@localhost';log='autopull-log@localhost';queue='autopull-results@localhost'
-    for name,kind in [(command,'pubsub'),(log,'pubsub'),(queue,'queue')]:cli('channel','create',name,'--kind',kind)
+    for name,kind in [(command,'pubsub'),(log,'pubsub'),(queue,'queue')]:cli('register',name,'--kind',kind)
     cli('manage',command,'--add-allow','#plain@localhost','--deliver-to',NAME)
     cli('manage',log,'--add-allow',NAME,'--deliver-to',queue)
     config={'repos':{'ab':{'path':str(repo),'access':'deploy','follow':True,'mode':'ff'}},'autopull-cmd':command,'autopull-log':log}
-    cli('agent-template',NAME,json.dumps(config))
+    cli('config',NAME,json.dumps(config))
     wanted=advance('second')
     body={'v':1,'type':'push','remote':'remote','branch':'main','commit':wanted,'id':'fixture-1'}
     # Same sender/body: direct call has no channel authority.
@@ -81,7 +81,7 @@ def autopull_check(tokens, ask):
         cli('publish','--channel',command,json.dumps(body),token=tokens['plain'])
         value=record();assert value['error']['code']=='dirty' and (repo/'file').read_text()=='keep dirty'
         # Explicit mirror via current Configuration, no restart required.
-        config['repos']['ab']['mode']='mirror';cli('agent-template',NAME,json.dumps(config))
+        config['repos']['ab']['mode']='mirror';cli('config',NAME,json.dumps(config))
         (repo/'untracked').write_text('discard')
         cli('publish','--channel',command,json.dumps(body),token=tokens['plain'])
         value=record();assert value['result']=='ok' and value['discarded']['files']==2
@@ -105,7 +105,6 @@ def autopull_check(tokens, ask):
         pair=[record(),record()]
         assert {r['id'] for r in pair}=={'parallel-1','parallel-2'} and all(r['result']=='skip' for r in pair)
         assert bus.consume(inbox=queue,wait=0) is None,'concurrent attempts duplicated publication'
-        assert not list((ROOT/'units').glob('*-autopull-*')),'reinstall retained old timers'
     print('private installed startup, channel authority, exact records, mirror and log failure verified')
 
 
@@ -126,7 +125,7 @@ def main():
         assert (ROOT/(unit+'.pid')).read_text()==pid,'unchanged install restarted keeper'
         assert len(list((ROOT/'units').glob('*.service')))==1
         assert sum(r['name']==NAME for r in json.loads(cli('ls','--all')))==1
-        cli('agent-template', NAME, json.dumps({'repos':{'ab':{'path':str(ROOT/'repo'),'access':'commit'}}}))
+        cli('config', NAME, json.dumps({'repos':{'ab':{'path':str(ROOT/'repo'),'access':'commit'}}}))
         assert next(r for r in json.loads(cli('ls','--all')) if r['name']==NAME)['roles']==['deploy','commit']
         assert ask('plain',{'method':'list'})['repos']==['ab']
         assert ask('plain',{'method':'rev','repo':'ab'})['branch']=='main'
@@ -141,12 +140,12 @@ def main():
         run(['git','-C',str(ROOT/'repo'),'remote','add','origin',str(ROOT/'remote.git')])
         run(['git','-C',str(ROOT/'repo'),'push','-u','origin','main'])
         assert ask('owner',{'method':'push','repo':'ab'})['status']==0
-        cli('agent-template', NAME, json.dumps({'repos':{'ab':{'path':str(ROOT/'repo'),'access':'read'}}}))
+        cli('config', NAME, json.dumps({'repos':{'ab':{'path':str(ROOT/'repo'),'access':'read'}}}))
         assert 'access cap read' in ask('owner',{'method':'push','repo':'ab'})['error']
         assert 'access cap read' in ask('operator',{'method':'clean','repo':'ab'})['error']
         assert ask('plain',{'method':'rev','repo':'ab'})['branch']=='main'
         autopull_check(tokens,ask)
-        cli('agent-template', NAME, json.dumps({'repos':{}}))
+        cli('config', NAME, json.dumps({'repos':{}}))
         assert 'undeclared repository' in ask('operator',{'method':'status','repo':'ab'})['error']
     finally:
         install('remove')

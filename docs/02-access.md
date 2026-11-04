@@ -7,18 +7,15 @@
 
 ## Why you'd want it
 
-- 🎭 **Anyone can claim to be anyone.** Now the credential decides who is calling, never a name in the message.
-- 🔑 **One shared password for everything.** Now each caller has its own credential, which can be rotated or ended.
-- 🚪 **Not everything should be reachable.** Now each record has an access list that names who may use it.
-- 🔍 **You must know a message will be allowed before sending it.** Now a check says yes or no and queues nothing.
+- Share access without sharing one credential for every caller.
+- Check permission before sending work, and revoke access when responsibility changes.
 
 ## What you get
 
-- ✅ **Credentials:** a token or an account socket identifies each caller; a call from an unknown or inactive caller is refused.
-- ✅ **Access lists and groups:** nested groups decide what a caller may reach.
-- ✅ **Token lifetime and possession:** how a token is obtained, proved and ended.
+- Authenticated sender identities that message text cannot override.
+- Access lists and nested groups for each record.
+- Tokens, local account sockets and key-possession enrolment.
 - 🎯 ✅ **A stated trust boundary:** what the bus protects and what it does not.
-- 🚫 **Not for:** hiding message bodies from the host that runs the bus ([trust boundary](#trust-boundary)).
 
 ## Try this first
 
@@ -30,16 +27,6 @@ agent-bus status
 
 Look at `you`. To check permission without sending a message, use `agent-bus may-send <name>` with an existing destination from `agent-bus ls --all`.
 
-For ownership and management, see [Identity and authority](01-identity-and-authority.md#positions-and-scopes).
-Reaching the bus from another host — HTTP, HTTPS, a forwarded socket — is [remote access](02-access-remote.md#choosing-a-way).
-
-## Scope
-
-- Tokens, key-possession enrolment, account sockets, rotation, browser sessions, ACLs and nested groups are built, as are TCP on any address and optional TLS with fingerprint pinning ([remote access](02-access-remote.md#choosing-a-way)).
-- [Application roles](03-records-agent.md#roles) let an agent distinguish admitted callers without granting bus management authority.
-- Startup revocation is [best effort](#ownerless-credentials).
-- The [Owner-and-Maintainers empty ACL rule](#acl) applies to new and restored records.
-
 ## What a call carries
 
 A token identifies one principal; an account socket can supply that identity
@@ -49,7 +36,7 @@ Sending a name alongside a credential cannot change who is calling.
 - A token always names a User and an agent credential names its Agent as well, the User being that Agent's Owner, both by internal ID.
 - The Agent remains the acting principal and the User is who it acts for, so an inactive User refuses the agent's token too.
 - Every call checks that pair against the registry as it is now; a credential whose pair disagrees answers for nothing.
-- Only a User and an Agent are issued one: a queue, a pubsub channel and a service are reached, never speak.
+- Only Users and Agents receive tokens. Groups, channels, services and resources do not authenticate as callers.
 - See [constitution § Token](constitution.md#-token).
 
 ```mermaid
@@ -101,9 +88,8 @@ Public exceptions are listed below.
 ## Getting a token
 
 - Use `agent-bus token`, locally, over SSH or with a published key.
-- The daemon owner may request any known identity's credential; other callers may request their own or a record they own.
+- The daemon Owner may request any known User or Agent's credential; other callers may request their own or an Agent they own.
 - Unknown names must be created or enrolled first.
-- An Agent's `register` that creates an agent for its User answers that agent's token; a re-registration of any existing record answers none.
 
 <details>
 <summary>Commands and entitlement</summary>
@@ -123,7 +109,7 @@ previously enrolled identity retrieving its credential again. No path issues a
 token for an unknown identity without first establishing that identity.
 
 - Creating is the one moment nobody else holds the name, so when an Agent creates an agent for its User the `register` answer carries the new agent's token in `token`.
-- That is how the [runner](../Plans/R1.0-Release/runner.md) starts an agent without its person's own credential.
+- That is how the [runner](runner/README.md) starts an agent without its person's own credential.
 - The agent is the User's, as every record an Agent creates is; the Agent gains no authority over it, and cannot collect the token later through `/token` or by registering again.
 - A User creating a record mints nothing: `/token` is theirs for it, so no credential exists that nobody asked for.
 
@@ -174,7 +160,7 @@ provider answers. Private keys stay with the signing tool.
 
 - For GitHub-backed realms, the daemon caches each realm/login lookup, including unknown logins and lookup errors, for five minutes. Published-key changes can remain stale for that interval.
 - GitHub-backed realms and their callers share twelve uncached lookups per rolling hour; cache hits do not spend the allowance. Exhaustion answers HTTP 429 (`busy`), with `Retry-After` seconds until the oldest counted lookup leaves the window.
-- This deliberately lets twelve hostile uncached requests delay real newcomers until the window frees. Existing credentials are unaffected; the availability trade-off is accepted for 1.0.
+- Twelve hostile uncached requests can exhaust this allowance and delay real newcomers until capacity returns. Existing credentials are unaffected.
 - Local file directories are neither cached nor bounded by this provider allowance: every challenge reads the file, so removing a key or the file takes effect immediately.
 
 </details>
@@ -185,10 +171,10 @@ Forwarding uses the constitution's
 [hop-specific ACL checks](constitution.md#-channels): a route's destination
 must list the forwarding record itself, a queue source by its channel name.
 
-**ACL governs other principals' access to a record**, whichever of the six [kinds](03-records.md#record-kinds) it is.
+**ACL governs other principals' access to a record**, under its [kind-specific rules](03-records.md#record-kinds).
 - A record does not need to list itself in its own ACL: it may read its own inbox independently.
 - Caller standing and the record's status still apply: an inactive record, or one whose User is inactive, is no such record.
-- On a 📡 the list governs who may **read** the record — its address, protocol, description and [secret](03-records-service.md#secrets) — because a service has no delivery to govern.
+- On a 📡 it governs who may **read the card** — address, protocol and description. [Secret](03-records-service.md#secrets) requires separate private-value authority.
 - On a 📣 it governs who may **publish**; who receives a copy is the separate [Deliver-To list](04-messaging.md#deliver-to).
 
 **For other principals, an empty ACL means access only for the record's Owner
@@ -202,32 +188,29 @@ resource positions, not additional entries that must be placed in the ACL.
 - A [Personal agent](03-records.md#personal-and-shared) cannot use this grant because it admits every registered user.
 - `*` also admits every active Agent, which acts for its User.
 
-**`@owner` is a runtime ACL term for the record's direct Owner and every 👾 `agent` directly owned by that Owner.** No other [kind](03-records.md#record-kinds) joins the cohort: a 📮, a 📣 and a 👤 are destinations or people rather than callers acting for an owner, and a 📡 calls nothing here at all.
-- Ownership is one step: an agent owned by another agent does not inherit the human owner's cohort.
-- The term follows current registry ownership, grants access rather than management, and is not a stored group: it cannot be created, nested in a group or assigned as a Maintainer.
+Runtime terms resolve against the record at each check:
 
-- An ACL or Maintainer line naming an 👾 `agent` carries a leading `#` and is stored with it, so a bare `alice@team` names a User; the [typed actor terms](constitution.md#-registry-record) own that rule.
-- `@agent` joins `@owner` as a runtime term, aliasing the record's own agent principal on an 👾 `agent` record, and both terms become valid in Maintainers as well as the ACL.
-- Neither becomes a stored group: they still cannot be created or nested in one, and they resolve against current registry ownership at each check.
-- Both names are reserved, so no group may be named `@owner` or `@agent`, and `@agent` on a record that is not an 👾 is refused.
-- A [Personal agent](03-records.md#personal-and-shared) may use both; the wildcard stays invalid there because it admits every registered user.
+- **`@owner`** means its direct User Owner and every Agent directly owned by that User. Other record kinds do not join this cohort.
+- **`@agent`** means the record's own Agent and is refused on other kinds.
+- Both work in ACLs and Maintainers. In an ACL they grant use; in Maintainers they grant management. Neither is a stored group or may be nested in one.
+- Both names are reserved and both are valid on Personal agents; `*` remains invalid there.
+- Named Agent terms require `#`; a bare `alice@team` names a User. See [typed actor terms](constitution.md#actors-and-ascii-textarea-syntax).
 
 Allow-list terms may carry [application roles](03-records-agent.md#roles).
-Their actor part grants access exactly as before; their labels grant no
+Their actor part grants access; their labels grant no
 AgentBus position. `owner` and `maintainer` are generated and cannot be assigned.
 
 Faces cannot widen these permissions. Enter ACLs in the project's
 [plain-text syntax](05-discovery.md#acl-editing), not display glyphs.
 
 <details>
-<summary>Grants and upgrade behavior</summary>
+<summary>Grants and visibility</summary>
 
 | Rule | Effect for an active, known caller |
 |---|---|
 | Record authority | Owner, the record's own Agent and assigned Maintainers have access |
 | Empty allow list | No additional access beyond record authority |
 | Matching name, ordinary group or `*` | Grants access |
-| `@owner` | Grants access to the direct Owner and the agents that Owner directly owns |
 
 - The daemon Owner has [node-wide management](01-identity-and-authority.md#daemon-owner), which permits discovery and editing without opening a resource's message interface.
 
@@ -235,8 +218,8 @@ Allow lists are registry settings, never values taken from private
 [registry configuration](03-records-agent.md#configuring-a-template). Queries, sends, consumes and writes still obey their applicable
 state and authority checks.
 
-- ACLs can name any registered record, ordinary groups and `@owner`.
-- Ordinary group resolution follows [nested membership](01-identity-and-authority.md#groups), including cycle-safe and later-populated group references.
+- ACLs accept typed actors, runtime terms and channel names used as forwarding sources; a channel entry does not make that channel a credential-bearing principal.
+- Ordinary group resolution follows [nested membership](01-identity-and-authority.md#groups), with cycle-safe traversal. Membership edits require existing groups.
 - Entity glyphs are [display labels](05-discovery.md#identity-labels-in-web-and-cli), not ACL input.
 
 </details>
@@ -255,26 +238,20 @@ state and authority checks.
 * Token bytes, issuance time and the User/Agent pair persist. Last use is
   written in one batch on the queue flush's cadence, never once per call, so
   a crash may lose the uses since the last flush.
-* At start, a stored credential whose pair disagrees with ownership, or that a
-  kind holding none carries, can only come from a failed write: it is ignored,
-  authenticates nothing and is reported as an alert naming the User, the
-  Agent and the current Owner, never the credential. It is not repaired. A
-  credential issued before its principal was bound is bound on first check.
+* Tokens are issued only after their principal is registered and its internal IDs are bound. Stored credentials with missing or invalid IDs refuse startup.
+* Every authenticated call checks those bound IDs against the current registry. A removed identity's token cannot act for a later identity with the same name; ownership mismatches grant no access.
 * Credential listings show only identities the caller holds, using keyed
   fingerprints rather than token bytes.
-* A person's credential lasts while their user profile exists; Users are
-  never deleted. Removing a person's registry record does not remove their
-  profile or credential. See [record removal](01-identity-and-authority.md#unregistering).
+* A person's credential lasts while their user profile exists. Users and their own records are never deleted; see [record removal](01-identity-and-authority.md#unregistering).
 * Browser sessions have a [separate lifetime](05-discovery.md#signing-in) and
   are not persisted; they are not principal-token rotation.
-* The R1.1 [key lifecycle](../Plans/R1.1/access.md#key-modes) keeps this rule.
 
 </details>
 
 ## Ownerless credentials
 
 A credential with neither a user profile nor a registry record is collected at
-startup, after [orphaned records](01-identity-and-authority.md#orphaned-records).
+startup, after the complete registry has been validated.
 The Owner or an Administrator can also remove it explicitly; viewing a list
 never performs cleanup.
 
@@ -322,13 +299,13 @@ That directory is `/run/agent-bus` on Linux and `/usr/local/var/run/agent-bus` o
 - The daemon creates its runtime directory and maps identity by the listener used; `status` reports that identity.
 - Its own account gets a socket too.
 - A launcher obtains a session token over its account socket.
-- A runner or launcher started on an account socket stays there once the daemon answers as its agent; a daemon before 0.8.63 moves it to the shared listener.
+- A runner or launcher started on an account socket stays there once the daemon answers as its agent. If that socket cannot act as the Agent, the client falls back to the shared listener; a forwarded setup must then provide that listener too.
 - Socket ownership needs [supervisor-only CAP_CHOWN](08-processes.md#why-the-supervisor-holds-cap_chown), not a root-running bus child.
 
 - Setup flags seed the editable account map once.
 - The stored map is then authoritative and Owner/Administrators change it through the existing [administration path](administration.md#administering-the-account-map); a full daemon restart replaces the listeners.
 - The daemon account's implicit socket stays outside that map and answers as the daemon Owner of each request, so a transfer moves it without a restart.
-- A stored mapping whose principal is no User or Agent is [ignored at load](constitution.md#persistence-and-loading): its socket is not served, it is not listed, and `account remove` still deletes its row.
+- A stored mapping whose principal is not a registered User or Agent [refuses startup](constitution.md#what-refuses-the-start); it cannot silently drop a configured login socket.
 
 </details>
 
@@ -340,12 +317,11 @@ in [remote access](02-access-remote.md#choosing-a-way).
 
 ## Trust boundary
 
-- The release assumes a trusted host: message bodies and stored configuration are readable by the daemon.
-- No peer handshake or message encryption is built.
+- The bus assumes a trusted host: message bodies and stored Configuration and Secret are readable by the daemon. Messages have no end-to-end encryption.
 - The TCP listener binds any address it is given.
 - It speaks plain HTTP, and TLS as well once [TLS](02-access-remote.md#over-https) is on; off loopback, plain-HTTP tokens and bodies cross that network unencrypted, and the daemon says so at start.
 - Agents on other hosts use TLS, a trusted network, or SSH ([remote access](02-access-remote.md#choosing-a-way)).
-- Hiding bodies from the web face is a disclosure boundary, not encryption; encrypted sessions are [R1.1 work](../Plans/R1.1/access.md#encrypted-sessions).
+- Hiding bodies from the web face limits disclosure; it does not encrypt them.
 
 ### Message bodies are untrusted input
 

@@ -53,20 +53,17 @@ export type ResourceCard = { uri: string; template?: boolean; name?: string; tit
 export type Record_ = { name: string; kind: string; addr?: string; descr?: string; owner: string;
   script?: string; // what agent-bus run serves an agent with (docs/06-dedicated-runner.md#script-agents)
   resource?: ResourceCard;
-  // Resource management grants are a list. Older daemons used one group
-  // string; the current daemon accepts that input only for migration and
-  // always answers with this array form.
   maintainers?: string[];
   // Who may see and use it. A listing already leaves out what its caller may
   // not, so this is what a record says about itself, not a filter to apply
   // here (docs/02-access.md#acl).
   allow?: string[];
   // Personal records admit only their owner's cohort (docs/03-records.md#personal-and-shared).
-  personal?: boolean; tags?: string[];
+  tags?: string[];
   // How to call it, and whether anything is actually serving it. A registry
   // entry says a name exists; these say whether a call through the bus will
   // reach anyone (docs/05-discovery.md#what-a-listing-answers).
-  protocol?: string; reading?: boolean; readers?: number; queued?: number; last_used?: string;
+  protocol?: string; readers?: number; queued?: number; last_used?: string;
   // The digest of a configuration, never the configuration itself: it is
   // how a caller sees that a record is configured, and that its setup
   // still matches the one it knew (docs/03-records-agent.md#why-a-digest-at-all).
@@ -90,9 +87,7 @@ export class Bus {
   readonly #env: Record<string, string | undefined>;
   #ca?: Promise<string>;
   #protocolFlight?: Promise<void>;
-  #daemonOld = false;
   /** True once the daemon's identity said its protocol is older than this client's. */
-  get daemonOld(): boolean { return this.#daemonOld; }
 
   constructor(env = process.env, allowLocal = false) {
     this.name = (env.AGENT_BUS_NAME || defaultName(env)).trim().toLowerCase();
@@ -122,8 +117,7 @@ export class Bus {
     if (path.split('?')[0] !== '/identity') {
       if (!this.#protocolFlight) {
         const flight = this.#call('GET','/identity',undefined,AbortSignal.timeout(30000)).then(identity => {
-          this.#daemonOld = checkProtocol(identity);
-          if (this.#daemonOld) console.warn('daemon too old: protocol is older than this client');
+          checkProtocol(identity);
         });
         this.#protocolFlight = flight;
         flight.catch(() => { if (this.#protocolFlight === flight) this.#protocolFlight = undefined; });
@@ -170,7 +164,6 @@ export class Bus {
     if (!res.ok) {
       let message = text.trim() || res.statusText, kind: string | undefined;
       try { const refusal = JSON.parse(text); if (typeof refusal.error === 'string') message = refusal.error; if (typeof refusal.kind === 'string') kind = refusal.kind; } catch {}
-      if (this.#daemonOld && kind === 'no_route') message = `daemon too old for ${method} ${path.split('?')[0]}`;
       throw new BusError(res.status, message, kind);
     }
     return raw ? text : text ? JSON.parse(text, exact) : null;
@@ -221,7 +214,7 @@ export class Bus {
   async bigList(record:string):Promise<any>{const result=await this.#call('GET','/bigfile/list?'+new URLSearchParams({record}));return {record:result.record,keys:result.keys.map((k:any)=>({name:k.name,size:k.size,sha256:k.sha256,held:k.held,expires:k.expires}))};}
   async bigDelete(record:string,name:string):Promise<any>{bigKey(name);const result=await this.#call('POST','/bigfile/delete',{record,name});return {record,name,deleted:result.deleted};}
 
-  register(rec: { name: string; kind?: string; addr?: string; descr?: string; allow?: string[]; personal?: boolean; tags?: string[] }, createOnly = false): Promise<Record_> {
+  register(rec: { name: string; kind?: string; addr?: string; descr?: string; allow?: string[]; tags?: string[] }, createOnly = false): Promise<Record_> {
     return this.#call("POST", "/register", rec, undefined, createOnly ? { "If-None-Match": "*" } : {});
   }
 
@@ -272,26 +265,26 @@ export class Bus {
 // human refers to a session anyway. The NATS version names channels the same way.
 // The rule is docs/01-identity-and-authority.md#names — a-z0-9._- either side, 64 total,
 // and an Agent's name begins with "#", which counts toward the 64.
-export function defaultName(env: NodeJS.ProcessEnv = process.env, separator: "." | "/" = "."): string {
-  return build(slug(env.AGENT_BUS_REALM || hostname()), env, separator);
+export function defaultName(env: NodeJS.ProcessEnv = process.env): string {
+  return build(slug(env.AGENT_BUS_REALM || hostname()), env);
 }
 
 // The same name in a realm kept exactly as given (a realm the daemon has
 // already validated: slug would turn `team_` into `team`, a different realm).
 // It refuses, rather than return a name the bus would reject, when the runtime
 // and the realm leave no room for any instance.
-export function defaultNameIn(realm: string, env: NodeJS.ProcessEnv, separator: "." | "/" = "."): string {
-  return build(realm, env, separator, true);
+export function defaultNameIn(realm: string, env: NodeJS.ProcessEnv): string {
+  return build(realm, env, true);
 }
 
-function build(realm: string, env: NodeJS.ProcessEnv, separator: "." | "/", strict = false): string {
+function build(realm: string, env: NodeJS.ProcessEnv, strict = false): string {
   const runtime = slug(env.AGENT_BUS_RUNTIME || "agent");
   const where = slug(env.AGENT_BUS_CWD || process.cwd());
   // Trim from the front: the tail of a path is the part that identifies it.
   const room = MAX_NAME - AGENT_PREFIX.length - realm.length - 1 - runtime.length - 1;
-  if (strict && room < 1) throw new Error(`the realm ${realm} leaves no room in a ${MAX_NAME}-character name for ${AGENT_PREFIX}${runtime}${separator}<session>@${realm}; automatic naming is refused`);
+  if (strict && room < 1) throw new Error(`the realm ${realm} leaves no room in a ${MAX_NAME}-character name for ${AGENT_PREFIX}${runtime}/<session>@${realm}; automatic naming is refused`);
   const tail = where.length > room ? where.slice(where.length - room) : where;
-  return `${AGENT_PREFIX}${runtime}${separator}${trimEdges(tail)}@${realm}`;
+  return `${AGENT_PREFIX}${runtime}/${trimEdges(tail)}@${realm}`;
 }
 
 // AGENT_PREFIX begins every Agent's name (docs/constitution.md#actors-and-ascii-textarea-syntax).

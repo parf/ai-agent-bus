@@ -1,6 +1,6 @@
 # Shared client protocol cases
 
-These are concrete existing-protocol examples, not a schema or a generator.
+📌 **TL;DR:** These concrete protocol examples let every SDK exercise the same behavior.
 Every language adapter reads the same files and uses its native SDK against a
 disposable daemon. Fixture names and message text are synthetic.
 
@@ -17,7 +17,7 @@ Generated IDs, tags and deadlines are checked by adapters through their runtime
 relationships rather than copied into fixtures. Existing receipt, authority,
 transport and capacity tests remain independent.
 
-## State, identity and refusal vectors (T-24)
+## State, identity and refusal vectors
 
 Same rule: concrete examples, read by each adapter, run through the SDK's own
 calls. `send`, `call` and `self-call` need a worker; these five do not share it.
@@ -44,26 +44,24 @@ adapters give every case a clean daemon where that is cheap. Setup
 
 **Identity.** The fake daemon answers `/identity` with the row's raw body and
 `{"you":"owner@fixture"}` elsewhere; the adapter calls the client's status
-operation. `expect` is `{"ok": true}` (a `warns` text means the client logs that
-warning), or `{"fatal": "text"}`: the call fails with the text in its message and
+operation. `expect` is `{"ok": true}`, or `{"fatal": "text"}`: the call fails with the text in its message and
 the daemon saw only the `/identity` request.
 
 **Refusals.** The fake daemon answers `GET /ls` with `daemon.status`,
 `daemon.body` (raw) and an optional `Allow` header; the adapter calls the
 client's record listing. `expect` is the exact `status`, `kind` (empty when the
 client keeps none) and `message`: the daemon's `error` text, `internal daemon
-error` for a 500, and `daemon too old for GET /ls` when the identity was `old`
-and the kind is `no_route`. A 5xx other than 500 keeps the daemon's text; a kind
+error` for a 500. All refusal rows use the current protocol pair. A 5xx other than 500 keeps the daemon's text; a kind
 outside the closed set passes through unchanged.
 
 A row with `call` instead of `daemon` is a call the client must refuse itself
 (lock `ttl_s` over 24 h or negative, `wait_s` over 60): the error is not a daemon
 refusal, and the fake daemon never sees the `expect.not_requested` path.
 
-## Event logs (T-31a)
+## Event logs
 
 `events.json` holds cases for an agent's private event log through the daemon's
-own `#bus`, using only the existing [T-29 verbs](../../../Plans/R1.0-Release/agent-events/README.md#r1-min-surface-and-authority).
+own `#bus`, using only the existing [agent-log calls](../../../docs/agents/bus.md#agent-logs).
 Each case has `id`, `fresh: true` (its own daemon) and `steps`. A step has `as`,
 one of three fixture identities: `owner` (`owner@fixture`, the daemon Owner),
 `agent` (`#caller@fixture`, the writer of its own log) or `third`
@@ -87,7 +85,7 @@ a time). Each client's check changes independently of the others when its
 request or its reading of an answer changes. Run the native
 [client checks](../../clients/README.md#checks); do not use the live bus.
 
-## Event subscriptions (T-31d)
+## Event subscriptions
 
 `event-subscriptions.json` extends event coverage separately from `events.json`,
 so an adapter can adopt subscriptions without skipping or changing the existing
@@ -117,8 +115,8 @@ The confirmed write fences its completed fan-out before the inbox is checked.
 
 For the daemon profile, revoking the source right after creation keeps delivery;
 revoking the creator's may-send to the target stops it. The target must also
-continue admitting `#bus`. This is [Q325](../../../Plans/R1.0-Release/DECISIONS.md),
-not a change to the app emitters' per-delivery source checks.
+continue admitting `#bus`. See the [subscription rules](../../../docs/agents/subscriptions.md); app emitters
+check source access on each delivery.
 
 ## Subscription names
 

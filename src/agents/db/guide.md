@@ -1,9 +1,9 @@
 # Database proxy: source-package guide
 
 📌 **TL;DR:**
-- **Problem:** your AI or a teammate needs numbers from a database that lives elsewhere, and sharing the password gives away everything that account can do, forever.
+- **Problem:** your AI or a teammate needs numbers from a database that lives elsewhere, and sharing the password grants that account's database access.
 - **Outcome:** they ask SQL questions through a door to one database account; the password stays on the server and the database itself decides what each caller may do.
-- **Start:** ask what the helper can do: `agent-bus help '#mysql/billing-ro@node.example'` ([Try this first](#try-this-first)).
+- **Start:** [install and configure an instance](#installing-it), then [ask for its help](#try-this-first).
 
 This guide is for the source-only database proxy; it is not included in the installed agent bundle.
 
@@ -17,9 +17,6 @@ This guide is for the source-only database proxy; it is not included in the inst
 ## What it does
 
 - ✅ **Run one statement:** you get columns and rows, or how many rows changed (`query <SQL>`).
-- ✅ **Answer business questions:** a count or a few rows, for an AI, a script or a teammate.
-- ✅ **Mark an invoice paid:** a read-write agent returns the number of rows changed.
-- ✅ **Safe exploration:** a read-only agent; any write is refused by the database.
 - ✅ **Capped results:** long results are cut at `max_rows` and the answer says so.
 - ✅ **Best practice:** one agent per real database account, such as `#mysql/billing-ro` (read only) and `#mysql/billing-rw` (read and write); who may read or write is set by [roles](#who-may-use-it).
 - 🚫 **Not for:** bulk export or big data moves (results are capped), long transactions over several calls (one statement per call). For a shared notebook with keyword search, use [RAG](../../../docs/agents/rag.md#what-it-does).
@@ -38,7 +35,8 @@ A nonempty `needs.network` in `agent.json` enables network access (it is not a h
 
 ## Try this first
 
-- Ask the helper what it can do:
+After [installing an instance](#installing-it), replace the example name below
+with its registered name and use a caller admitted by its access list. Ask what it can do:
 
 ```sh
 agent-bus help '#mysql/billing-ro@node.example'
@@ -52,8 +50,6 @@ agent-bus help '#mysql/billing-ro@node.example'
 - **Peek at recent rows:** ask it for a `SELECT` with a `LIMIT`.
 - **Mark an invoice paid:** ask the read-write agent for an `UPDATE` statement.
 - **Call from a script as JSON:** send `{"method":"query","sql":"..."}`.
-- **The same UPDATE through the read-only agent** is refused by the database.
-- **On a fallback instance,** grant roles in its access list, for example `bob(write)`, `ops(admin)`.
 
 ## Installing it
 
@@ -71,11 +67,6 @@ agent-bus help '#mysql/billing-ro@node.example'
 
 ## Configuration
 
-- **What:** which kind of database, where it is, and how many rows to return at most.
-
-<details>
-<summary>Keys</summary>
-
 | Key | Meaning |
 |---|---|
 | `engine` | `mysql` (also MariaDB), `postgres` or `clickhouse` |
@@ -85,25 +76,18 @@ agent-bus help '#mysql/billing-ro@node.example'
 | `secure` | ClickHouse over HTTPS |
 | `max_rows` | Rows returned at most, 1 to 10000, default 1000 |
 
-</details>
-
 ## Secret keys
 
 - **Database logins live only** in the private host `db/env` file ([environment files](../../../docs/runner/configuration.md#environment-files)), never in Configuration or a call.
-
-<details>
-<summary>Keys</summary>
 
 | Key | Meaning |
 |---|---|
 | `DB_USER`, `DB_PASSWORD` | One account for every caller |
 | `DB_READ_*`, `DB_WRITE_*`, `DB_ADMIN_*` (`_USER`, `_PASSWORD`) | One account per tier. Set any `_USER` key and the instance is per-tier: a tier without its account is refused, never served by a stronger one |
 
-</details>
-
 ## Who may use it
 
-- **Preferred: one agent per real SQL user.** Create database accounts with the rights you want and run one agent per account, named for it; the access list says who may call each, the database enforces what each may do.
+- Create one instance per database account, as in [installation](#installing-it); its access list admits callers and the database account limits their SQL access.
 - **Fallback: roles on one agent,** only when you cannot create normal SQL users with correct permissions; give `read` its own read-only account (`DB_READ_*`) if you can.
 - **No role means read only:** the opposite of [`#qdrant`](../../../docs/agents/qdrant.md#who-may-use-it), where no role means write.
 - **The highest role held picks the tier** ([roles](../../../docs/03-records-agent.md#roles)):

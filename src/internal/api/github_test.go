@@ -26,7 +26,7 @@ func enableGithubProfiles(b *core.Bus) {
 	b.Directories(map[string]ports.Directory{"github": testGithubDirectory{}}, nil)
 }
 
-func TestGithubRefreshRouteIgnoresUnknownFieldsAndRemainsAdministrative(t *testing.T) {
+func TestGithubRefreshRouteRejectsUnknownFieldsAndRemainsAdministrative(t *testing.T) {
 	b := core.New()
 	enableGithubProfiles(b)
 	s, token := serverFor(t, b, "owner@h")
@@ -44,7 +44,7 @@ func TestGithubRefreshRouteIgnoresUnknownFieldsAndRemainsAdministrative(t *testi
 		}
 	}
 	call("owner@h", `{"name":"alice@h"}`, 200)
-	call("owner@h", `{"name":"alice@h","person_name":"forged"}`, 200)
+	call("owner@h", `{"name":"alice@h","person_name":"forged"}`, 400)
 	for _, u := range b.Users("owner@h", nil) {
 		if u.Name == "alice@h" && u.PersonName == "forged" {
 			t.Fatal("unknown field changed profile")

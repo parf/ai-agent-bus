@@ -79,21 +79,29 @@ func runBus(c config) {
 			log.Print("WARNING: " + msg)
 			logs.Report(ports.Warning, msg)
 		}
-		bus.Restore(s)
+		if err := bus.Restore(s); err != nil {
+			fatal("database %s: %v", c.db, err)
+		}
 	}
+	tokens, err := auth.Load(st.Tokens())
+	if err != nil {
+		fatal("token: %v", err)
+	}
+	tokens.Journal(logs)
 	// Bound before the first write, so setup's seed below commits like any
 	// other change.
 	bus.Persistence(st)
 	// Today's and yesterday's stored days put each ring back
 	// (docs/05-discovery.md#activity-history).
 	bus.RestoreActivityDays()
-	if err := bus.EstablishDaemonOwner(me.String()); err != nil {
-		fatal("owner: %v", err)
+	activeAccounts := map[string]string{}
+	if raw := os.Getenv(accountsEnv); raw == "" {
+		fatal("%s is empty: the bus is started by the supervisor, not by hand", accountsEnv)
+	} else if err := json.Unmarshal([]byte(raw), &activeAccounts); err != nil {
+		fatal("%s: %v", accountsEnv, err)
 	}
-	if count, err := bus.MigrateLegacyEmptyTags(); err != nil {
-		fatal("legacy tags: %v", err)
-	} else {
-		log.Printf("legacy no-tags migration: %d records", count)
+	if err := bus.EstablishDaemon(me.String(), activeAccounts); err != nil {
+		fatal("initialize: %v", err)
 	}
 	host, _ := os.Hostname()
 	if err := bus.EstablishDaemonAgent(host); err != nil {
@@ -102,21 +110,7 @@ func runBus(c config) {
 	bus.ReportKVOrphans()
 	bindBigKeys(bus, filepath.Dir(c.db), st)
 	bus.PruneBigOrphans()
-	activeAccounts := map[string]string{}
-	if raw := os.Getenv(accountsEnv); raw == "" {
-		fatal("%s is empty: the bus is started by the supervisor, not by hand", accountsEnv)
-	} else if err := json.Unmarshal([]byte(raw), &activeAccounts); err != nil {
-		fatal("%s: %v", accountsEnv, err)
-	}
-	if err := bus.EstablishAccounts(activeAccounts); err != nil {
-		fatal("local accounts: %v", err)
-	}
 	owner := bus.DaemonOwner()
-	tokens, err := auth.Load(st.Tokens(), owner)
-	if err != nil {
-		fatal("token: %v", err)
-	}
-	tokens.Journal(logs)
 	// Written straight away and not clean: the next start needs to tell a
 	// first one from one that follows a death, and only the database can.
 	save := func(clean bool) {
@@ -157,11 +151,6 @@ func runBus(c config) {
 		}
 		face.SSHKeys(c.sshKeys, program)
 	}
-
-	// A record whose owner is not a User was ignored at load and reported
-	// (docs/constitution.md#persistence-and-loading), so its name is not
-	// known here; the credential sweep below is what takes a credential that
-	// answered for it.
 
 	// A credential whose name has no record and no registered user answers for
 	// nothing, and is dropped here — at start, at a known moment, never by
@@ -225,7 +214,7 @@ func runBus(c config) {
 			fatal("%v", err)
 		}
 		if h == nil {
-			log.Printf("socket for %s is not served: its account mapping was ignored at load", in.who)
+			log.Printf("socket for %s is not served: its principal is unavailable", in.who)
 			in.l.Close()
 			continue
 		}

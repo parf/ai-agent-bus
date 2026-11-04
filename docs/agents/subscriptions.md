@@ -3,23 +3,12 @@
 📌 **TL;DR:**
 - **Problem:** new mail, a log error or a chat message matters only if someone notices it, and watching each source by hand does not scale.
 - **Outcome:** you ask a helper to forward every match to a queue or an agent's inbox: one copy per match, only while you may send there.
-- **Start:** `agent-bus call '#logwatch@node.example' 'sub add #claude/oncall@node.example ERROR'` ([how to use it](#how-to-use-it)).
-
-## Why you'd want it
-
-- 👀 **Nobody watches every source.** Now each match arrives in an inbox you or your AI already read.
-- 🔀 **Each source would need its own rules.** Now IMAP, logwatch, Slack and Telegram share one set.
-- 🔒 **A forward can outlive the right to send.** Now the right is checked when you add it and again before every copy.
-- 🧯 **One bad target should not stop the rest.** Now a refused copy is dropped and counted, and the subscription keeps working.
+- **Start:** choose a helper below, inspect its help, then add a forward to an existing inbox you may use ([how to use it](#how-to-use-it)).
 
 ## What you get
 
-- ✅ **One copy per match,** sent once into the target's own inbox and never retried.
-- ✅ **From now on:** a new subscription starts at the moment you add it; nothing earlier is replayed.
-- ✅ **Counts you can read:** `sub list` shows how many copies each subscription sent and dropped.
-- ✅ **Your own list:** each author sees and deletes their own; the helper's Owner and Maintainers manage all.
-- ✅ **Safe filters:** a filter is a small regular expression that every helper reads the same way, checked when you add it.
-- 🚫 **Not for:** schedules (that is [cron](cron.md#what-it-does)), replaying history, or editing a subscription in place: delete it and add it again.
+- New matches arrive at your chosen inbox; `sub list` reports sent and dropped copies.
+- No history replay, automatic delivery retries or in-place edits. To change a subscription, delete it and add it again. Schedules use [cron](cron.md#what-it-does).
 
 Each helper decides only what a subscription watches:
 
@@ -32,10 +21,12 @@ Each helper decides only what a subscription watches:
 
 ## How to use it
 
+Enable the chosen helper using its guide below. Replace example helper and target names with registered names; chat/channel selectors must exist in the connected service.
+
 | I want to… | Command |
 |---|---|
 | Get new log errors in my inbox | `agent-bus call '#logwatch@node.example' 'sub add #claude/oncall@node.example ERROR'` |
-| Get future invoices into a queue | `agent-bus call '#imap/work@node.example' 'sub add #invoices@node.example /invoice/i'` |
+| Get future invoices into a queue | `agent-bus call '#imap/work@node.example' 'sub add invoices@node.example /invoice/i'` |
 | Forward Slack errors to my session | `agent-bus call '#slack@node.example' 'sub add #alerts #claude/main@node.example /error/i'` |
 | Forward a Telegram group's errors | `agent-bus call '#telegram/ann@node.example' 'sub add #dev #claude/main@node.example /error/i'` |
 | See mine and their counts | `agent-bus call '#logwatch@node.example' 'sub list'` |
@@ -44,7 +35,6 @@ Each helper decides only what a subscription watches:
 - You must be allowed to send to the target and to the helper itself.
 - The target is a queue or an agent; anything else is refused at `sub add`.
 - The answer to `sub add` gives the id that `sub list` shows and `sub delete` takes.
-- To change a subscription, delete it and add it again; there is no `sub edit`.
 
 ## Technical details
 
@@ -83,18 +73,5 @@ says. Telegram works like Slack.
 - It is the regular-expression subset JavaScript and Python agree on: groups, alternation, anchors, ASCII classes, `\d \w \s`, and quantifiers up to 100, at most 20 of them.
 - Lookaround, backreferences, named groups, inline flags, nested quantified groups and non-ASCII classes are refused at `sub add`.
 - A filter is tested against at most 8192 bytes of text. An empty filter matches everything the selector does.
-- The common vectors are `src/testdata/subscriptions.json`.
-
-</details>
-
-<details>
-<summary>Where it is built</summary>
-
-| Part | Home |
-|---|---|
-| Python engine | `src/agents/shared/subscriptions.py`, filters in `subscription_filters.py` |
-| TypeScript twin, for Slack and Telegram | `src/agents/shared/subscriptions.ts` |
-| Shared vectors both pass | `src/testdata/subscriptions.json` |
-| Engine contract | `src/agents/shared/subscriptions.md` |
 
 </details>

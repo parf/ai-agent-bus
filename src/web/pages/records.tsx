@@ -4,7 +4,7 @@ import { PAGE_SIZE as PAGE } from "../pagination.ts";
 import { TagBadges } from "../ui/tags.tsx";
 import { agentHelp, AgentDescription, ConfigurationHelp, SecretHelp, type AgentHelp } from "../agent-metadata.tsx";
 import { configuration, ConfigurationPreview, formatConfiguration } from "../configuration.tsx";
-import { normalizeTags, recordTags, filterTag } from "../tags.ts";
+import { normalizeTags, recordTags, filterTag, isPersonal } from "../tags.ts";
 // Record pages: lists, register, detail, inactive view, settings, deactivate,
 // Danger Zone, and the two POST handlers (src/web/web-face/records.md).
 // Authority is rendered, never computed: controls follow can_manage and
@@ -15,7 +15,7 @@ import { LocksCard, recordLocks } from "../ui/locks.tsx";
 import { KVCard, recordKV, storeHref } from "../ui/kv.tsx";
 import { respond, flashRedirect, type Section } from "../ui/frame.tsx";
 import { Icon, Help, PageHead, Card, Name, Muted, KindIcon, KindPill, Pill, StatePill, Badge, Empty, Tabs, Segmented, Pager, Button, LinkButton, Avatar, Facts, recordHref, detailPath } from "../ui/kit.tsx";
-import { TextField, LinesField, SecretField, TagsField, ConfigurationField, privateHint, CheckField, MaintainersField, PersonalField, ErrorSummary, FieldError, keep, terms, lines, type FormState, type FormError } from "../ui/forms.tsx";
+import { TextField, LinesField, SecretField, TagsField, ConfigurationField, privateHint, CheckField, MaintainersField, ErrorSummary, FieldError, keep, terms, lines, type FormState, type FormError } from "../ui/forms.tsx";
 import { rangeFor, loadRange, rangeTitle, RangeNav, RangeChart } from "../ui/range.tsx";
 import { redirect, local, returnTo } from "../http.ts";
 import { number, relative, stamp, slotLabel, validTime, duration } from "../format.ts";
@@ -64,12 +64,12 @@ export const KINDS: Record<Kind, { list: string; newPath: string; noun: string; 
 const isKind = (k: string): k is Kind => k in KINDS;
 
 export function noun(kind: string) { return kind === "user" ? "User" : isKind(kind) ? KINDS[kind].noun : kind === "group" ? "Group" : kind; }
-/** The list a record lives on; a Personal record lives on its kind's list with `personal=1`. */
+/** The list a record lives on; a Personal record lives on its kind's list with `tag=personal`. */
 export function listOf(r: Rec): string {
-  if (r.kind === "group") return r.personal ? "/groups?personal=1" : "/groups";
+  if (r.kind === "group") return isPersonal(r) ? "/groups?tag=personal" : "/groups";
   if (r.kind === "user") return "/users";
   const list = isKind(r.kind) ? KINDS[r.kind].list : "/services";
-  return r.personal ? `${list}?personal=1` : list;
+  return isPersonal(r) ? `${list}?tag=personal` : list;
 }
 /** The path alone of listOf: what a return address is checked against. */
 export const listPath = (r: Rec) => listOf(r).split("?")[0]!;
@@ -89,7 +89,7 @@ function listUrl(path: string, p: Record<string, string | undefined>, drop: stri
   return q.size ? `${path}?${q}` : path;
 }
 
-// One list per kind; `personal=1` is the Personal filter on it. The sidebar is
+// One list per kind; `tag=personal` is the Personal filter on it. The sidebar is
 // the kind axis, so the page has no kind filter of its own.
 async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   const kind = LIST_KIND[key];
@@ -99,7 +99,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
     ctx.status(), ctx.records(), ctx.identity(), key === "agents" ? eventSummaries(ctx) : undefined,
   ]);
   const you = st.you, owner0 = !!st.daemon_owner;
-  const tag = filterTag(ctx.q("tag") || (ctx.q("personal") === "1" ? "personal" : ""));
+  const tag = filterTag(ctx.q("tag"));
   const personal = tag === "personal";
   const q = ctx.q("q"), scope = !personal && ctx.q("scope") === "my" && (kind === "agent" || kind === "service") ? "my" : "";
   const state = ctx.q("state") === "inactive" ? "inactive" : "active";
@@ -112,8 +112,8 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   if (ownerParam && !owner0) return redirect(listUrl(path, { ...Object.fromEntries(ctx.url.searchParams), owner: undefined }));
 
   const records = all.filter(r => r.kind === kind);
-  const personalRecs = records.filter(r => r.personal && (owner0 || r.owner === you));
-  const shared = records.filter(r => !r.personal);
+  const personalRecs = records.filter(r => isPersonal(r) && (owner0 || r.owner === you));
+  const shared = records.filter(r => !isPersonal(r));
   let category = [...shared, ...personalRecs.filter(r => !ownerParam || r.owner === ownerParam)];
   let allCount=0, myCount=0;
 
@@ -128,10 +128,10 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
     const holding = (r.queued ?? 0) > 0;
     const stateMatches = recordState === state;
     const labels = recordTags(r);
-    const tagMatches = tag ? labels.includes(tag) : !r.personal;
+    const tagMatches = tag ? labels.includes(tag) : !isPersonal(r);
     const readersMatch = !readers || readerState === readers;
     const workMatches = !work || holding;
-    if (stateMatches && readersMatch && workMatches && !r.personal) { allCount++; if (r.owner === you) myCount++; }
+    if (stateMatches && readersMatch && workMatches && !isPersonal(r)) { allCount++; if (r.owner === you) myCount++; }
     if (scope === "my" && r.owner !== you) continue;
     if (stateMatches && readersMatch && workMatches) for (const t of labels) tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1);
     if (!tagMatches) continue;
@@ -144,13 +144,12 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   rows.sort((a, b) => sort === "updated" ? (b.at ?? "").localeCompare(a.at ?? "") || a.name.localeCompare(b.name)
     : sort === "last_used" ? (validTime(b.last_used)?.getTime() ?? 0) - (validTime(a.last_used)?.getTime() ?? 0) || a.name.localeCompare(b.name)
     : sort === "queued" ? ((pubsub ? b.in : b.queued) ?? 0) - ((pubsub ? a.in : a.queued) ?? 0) || a.name.localeCompare(b.name)
-    : (key === "agents" ? Number(!!b.reading || (b.readers ?? 0) > 0) - Number(!!a.reading || (a.readers ?? 0) > 0) : 0) || a.name.localeCompare(b.name));
+    : (key === "agents" ? Number((b.readers ?? 0) > 0) - Number((a.readers ?? 0) > 0) : 0) || a.name.localeCompare(b.name));
   const matched = rows.length, pages = Math.max(1, Math.ceil(matched / PAGE));
   const pageNo = Math.min(pages, Math.max(1, Math.floor(Number(ctx.q("page"))) || 1));
   rows = rows.slice((pageNo - 1) * PAGE, pageNo * PAGE);
 
-  const pflag = personal ? "1" : undefined;
-  const params = { personal: pflag, q, scope, state, readers, work, sort, tag, owner: ownerParam };
+    const params = { q, scope, state, readers, work, sort, tag, owner: ownerParam };
   const here = listUrl(path, { ...params, page: pageNo > 1 ? String(pageNo) : undefined });
   const keepFilters = { state, q, readers, work, sort };
   const tagEntries = [...tagCounts].filter(([tag]) => tag !== "no-tags").sort((a,b) => b[1]-a[1] || a[0].localeCompare(b[0]));
@@ -164,7 +163,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
     ...(kind === "agent" || kind === "service" ? [{ href: listUrl(path, { ...keepFilters, scope: "my" }), text: "My", count: myCount, current: !tag && scope === "my", className: "my-view" }] : []),
     ...primaryTags.map(([t,count]) => ({ href: listUrl(path, { ...keepFilters, scope, tag: t }), text: t, count, current: tag === t, className: t === "personal" ? "personal-view" : "", icon: t === "personal" ? "lock" : undefined })),
   ];
-  const registerHref = personal ? `${k.newPath}?personal=1` : k.newPath;
+  const registerHref = personal ? `${k.newPath}?tag=personal` : k.newPath;
   const registerText = personal ? `Register Personal ${k.lower}` : `Register ${k.lower}`;
   const filterLink = (name: string, value: string) => listUrl(path, { ...params, [name]: value || undefined });
   const owners = [...new Set(personalRecs.map(r => r.owner))].sort();
@@ -189,7 +188,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   const firstHead = k.noun;
 
   const filtered = !!(q || tag || state === "inactive" || readers || work || sort);
-  const clear = listUrl(path, { personal: pflag, scope, owner: owner0 ? ownerParam : undefined });
+  const clear = listUrl(path, { scope, owner: owner0 ? ownerParam : undefined });
   const helpItems = [k.blurb, personal ? "Personal: records their Owner keeps out of the shared lists; delivery is unchanged. The sidebar keeps this choice from kind to kind." : "Personal records are under the Personal tab, not in these lists.",
     "Status: Active by default, or Inactive — hidden from use and kept.",
     ...(services ? [] : ["Readers: consumers waiting on this inbox now.", key === "agents" ? "Messages: accepted total, with waiting (held now) and lost (dropped plus expired) when non-zero. Zero counts and unused times are blank." : "Accepted and Dequeued: messages in and taken out, kept across restarts."]),
@@ -204,7 +203,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
     {key === "agents" && !summaries ? <p class="muted small" data-event-summaries-unavailable>Event summaries unavailable.</p> : null}
     {moreTags.length ? <details><summary>{moreTags.length} more tags</summary><Tabs label="More record tags" items={moreTags.map(([t,count]) => ({ href: listUrl(path, { ...keepFilters, scope, tag: t }), text: t, count }))} /></details> : null}
     {personal && owner0 ? <form method="get" class="toolbar owner-chooser">
-        <input type="hidden" name="personal" value="1" />
+        <input type="hidden" name="tag" value="personal" />
         {[["state", state], ["readers", readers], ["work", work], ["q", q], ["sort", sort]].map(([n, v]) => v ? <input type="hidden" name={n} value={v} /> : null)}
         <label for="owner-select" class="seg-label">Owner</label>
         <select id="owner-select" name="owner" data-submit-on-change>
@@ -215,7 +214,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
     <form class="toolbar record-search" method="get" action={path}>
       <div class="search"><Icon name="search" /><label for="record-query" class="sr-only">Search records</label>
         <input id="record-query" type="search" name="q" value={q} placeholder={showOwner ? "Search by name, owner, or description" : "Search by name or description"} /></div>
-      {[["tag", tag], ["personal", pflag ?? ""], ["scope", scope], ["state", state], ["readers", readers], ["work", work], ["owner", ownerParam]].map(([n, v]) => v ? <input type="hidden" name={n} value={v} /> : null)}
+      {[["tag", tag], ["scope", scope], ["state", state], ["readers", readers], ["work", work], ["owner", ownerParam]].map(([n, v]) => v ? <input type="hidden" name={n} value={v} /> : null)}
       <label for="record-sort" class="sr-only">Sort</label>
       <select id="record-sort" name="sort" data-submit-on-change>
         <option value="">Name (A–Z)</option>
@@ -232,7 +231,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
       </> : null}
     </div>
     {category.length === 0 ? (!personal && personalRecs.length
-      ? <Empty icon="lock" title={`No shared ${k.plural}`} action={<a class="btn" href={listUrl(path, { personal: "1" })}>Open the Personal tab</a>}>
+      ? <Empty icon="lock" title={`No shared ${k.plural}`} action={<a class="btn" href={listUrl(path, { tag: "personal" })}>Open the Personal tab</a>}>
           {personalRecs.length} Personal {k.lower}{personalRecs.length === 1 ? " is" : "s are"} under the Personal tab, which this list omits. {k.blurb}
         </Empty>
       : <Empty icon={personal ? "lock" : entity(kind)!.icon} title={`No ${personal ? "Personal " : ""}${k.plural} yet`}>
@@ -245,7 +244,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
           {filtered ? <a href={clear}>Clear filters</a> : null}</div>
         <div class="table-wrap"><div class="table-scroll"><table class="data stack record-table">
           <thead><tr><th>{firstHead}</th>{columns.map(c => <th class={c.num ? "num" : ""}>{c.head}</th>)}</tr></thead>
-          <tbody>{rows.map(r => <tr class={[r.owner === you ? "owned-record" : "", r.personal && !personal ? "personal-record" : "", r.status === "inactive" ? "inactive-record" : ""].join(" ")}>
+          <tbody>{rows.map(r => <tr class={[r.owner === you ? "owned-record" : "", isPersonal(r) && !personal ? "personal-record" : "", r.status === "inactive" ? "inactive-record" : ""].join(" ")}>
             <td data-label={firstHead}><div class="rec-cell"><KindIcon kind={r.kind} owner={r.kind === "user" && r.name === nodeOwner} template={r.resource?.template} />
               <div class="rec-title"><a href={recordHref(r, { return: here })}>{r.descr ? <><strong>{r.descr}</strong><code>{r.name}</code></> : <strong><code>{r.name}</code></strong>}</a><TagBadges rec={r} href={tag => listUrl(k.list, { ...params, tag })} />{key === "agents" ? <EventMark summary={summaries?.get(r.name)} /> : null}</div></div></td>
             {columns.map(c => <td class={c.num ? "num" : ""} data-label={c.head}>{c.cell(r)}</td>)}
@@ -259,16 +258,9 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
 
 // ------------------------------------------------------------------ record form
 
-const RECORD_KEEP = ["config", "from_personal", "name", "descr", "tags", "roles", "kind", "addr", "protocol", "personal", "allow", "subs", "ttl", "bound", "overflow", "maintainers", "edit_allow", "edit_subs", "edit_sharing", "edit_personal", "uri", "template", "source", "mime", "title"];
+const RECORD_KEEP = ["config", "name", "descr", "tags", "roles", "kind", "addr", "protocol", "allow", "subs", "ttl", "bound", "overflow", "maintainers", "edit_allow", "edit_subs", "edit_sharing", "uri", "template", "source", "mime", "title"];
 
-const personalValue = (st: FormState, rec?: Rec) => st.values.edit_personal != null || st.values.personal != null ? st.values.personal === "on" : !!rec?.personal;
-
-function RecordPersonalField({ kind, st, rec, errId }: { kind: string; st: FormState; rec?: Rec; errId: string }) {
-  if (kind === "user") return null;
-  const canAssign = !rec || !!rec.can_transfer;
-  return <PersonalField st={st} errId={errId} checked={personalValue(st, rec)} canAssign={canAssign}
-    hint={`Puts this ${noun(kind)} in its Owner’s Personal view. Its allow list and Maintainers may name only its Owner and the Owner's own agents; delivery is unchanged.`} />;
-}
+const personalValue = (st: FormState, rec?: Rec) => st.values.tags != null ? normalizeTags(st.values.tags).includes("personal") : isPersonal(rec);
 
 function RecordFields({ kind, st, mode, rec, errId, metadata = {} }: { metadata?: AgentHelp; kind: string; st: FormState; mode: "create" | "save"; rec?: Rec; errId: string }) {
   const n = noun(kind);
@@ -280,7 +272,7 @@ function RecordFields({ kind, st, mode, rec, errId, metadata = {} }: { metadata?
     : personal ? `While Personal: the Owner, the Owner’s own agents, @owner${kind === "agent" ? " or @agent" : ""}, one per line.` : "One identity, group, @owner, or * per line.";
   return <div class="form-grid">
     {mode === "create"
-      ? <TextField name="name" label="Name" st={st} errId={errId} required placeholder={kind === "agent" ? "#name@realm" : "name@realm"} id="create-name" besideLabel={<RecordPersonalField kind={kind} st={st} rec={rec} errId={errId} />}
+      ? <TextField name="name" label="Name" st={st} errId={errId} required placeholder={kind === "agent" ? "#name@realm" : "name@realm"} id="create-name"
           help={{ label: "About the name", tip: "The routing identity callers use. Complete the name before @; you can change or remove the suggested realm. It cannot be changed afterwards." }}
           hint={kind === "agent" ? "An agent's name starts with #." : undefined} />
       : <input type="hidden" name="name" value={rec!.name} />}
@@ -357,9 +349,9 @@ async function registerPage(ctx: Ctx, kind: Kind, st: FormState = { values: {} }
   if (st.values.name == null && s.realm) st = { ...st, values: { ...st.values, name: `${kind === "agent" ? "#" : ""}@${s.realm}` } };
   const k = KINDS[kind];
   // Arriving from a Personal list: the form starts Personal, and Back returns there.
-  const fromPersonal = ctx.q("personal") === "1" || st.values.from_personal === "1";
-  if (fromPersonal && !st.error && st.values.personal == null) st = { ...st, values: { ...st.values, personal: "on" } };
-  const back = fromPersonal ? { href: `${k.list}?personal=1`, label: `Back to Personal ${kind === "pubsub" ? "PubSub" : k.noun + "s"}` } : { href: k.list, label: `Back to ${kind === "pubsub" ? "PubSub" : k.noun + "s"}` };
+  const fromPersonal = ctx.q("tag") === "personal" || normalizeTags(st.values.tags ?? "").includes("personal");
+  if (fromPersonal && !st.error && st.values.tags == null) st = { ...st, values: { ...st.values, tags: "personal" } };
+  const back = fromPersonal ? { href: `${k.list}?tag=personal`, label: `Back to Personal ${kind === "pubsub" ? "PubSub" : k.noun + "s"}` } : { href: k.list, label: `Back to ${kind === "pubsub" ? "PubSub" : k.noun + "s"}` };
   const body = <>
     <PageHead back={back} icon={<Icon name={entity(kind)!.icon} />} title={`Register ${k.lower}`}
       sub={<>{k.blurb} You become its Owner.</>} />
@@ -368,7 +360,7 @@ async function registerPage(ctx: Ctx, kind: Kind, st: FormState = { values: {} }
     <form id="form-create" class="card form-card editor-card task-card" method="post" action="/record">
       <div class="card-body">
         <input type="hidden" name="action" value="create" /><input type="hidden" name="kind" value={kind} />
-        {fromPersonal ? <input type="hidden" name="from_personal" value="1" /> : null}
+
         <RecordFields kind={kind} st={st} mode="create" errId="create-error" />
         <FieldError id="create-error" error={st.error} />
         <div class="actions"><Button tone="primary" icon="plus">Register {k.lower}</Button><a class="btn btn-ghost" href={back.href}>Cancel</a></div>
@@ -469,7 +461,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
 
   const body = <>
     <PageHead back={{ href: back, label: "Back to records" }} icon={<Icon name={entity(rec.kind)?.icon ?? "box"} />}
-      title={<><Name copy>{rec.name}</Name>{rec.personal ? <span class="muted"> · Personal</span> : null}</>}
+      title={<><Name copy>{rec.name}</Name>{isPersonal(rec) ? <span class="muted"> · Personal</span> : null}</>}
       sub={<div class="meta-row">
         <KindPill kind={rec.kind} template={rec.resource?.template} />
         <OwnerChip rec={rec} users={users} />
@@ -498,7 +490,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
         </form> : null}
       </div>
       <div>
-        <Card title={<>Status &amp; Policy <StatePill />{rec.kind === "agent" && (rec.readers || rec.reading) ? <span class="agent-status-answer" data-agent-status={`/agent-status?name=${encodeURIComponent(rec.name)}`} aria-live="polite"></span> : null}</>} icon="power" id="status">
+        <Card title={<>Status &amp; Policy <StatePill />{rec.kind === "agent" && ((rec.readers ?? 0) > 0) ? <span class="agent-status-answer" data-agent-status={`/agent-status?name=${encodeURIComponent(rec.name)}`} aria-live="polite"></span> : null}</>} icon="power" id="status">
           <div class="status-times">
             {validTime(rec.at) ? <span class="status-time">Updated {recordTime(rec.at, true)}</span> : null}
             {validTime(rec.last_used) ? <span class="status-time">Last used {recordTime(rec.last_used)}</span> : null}
@@ -514,7 +506,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
       </div>
     </div>
   </>;
-  return respond(ctx, { title: `${n} ${rec.name}`, section: sectionOf(rec), signedIn: true, you: st.you, charts: true, personal: !!rec.personal }, body);
+  return respond(ctx, { title: `${n} ${rec.name}`, section: sectionOf(rec), signedIn: true, you: st.you, charts: true, personal: !!isPersonal(rec) }, body);
 }
 
 async function inactiveView(ctx: Ctx, st: Status, rec: Rec): Promise<Response> {
@@ -538,7 +530,7 @@ async function inactiveView(ctx: Ctx, st: Status, rec: Rec): Promise<Response> {
         : <p class="muted">Its owner and assigned maintainers can reactivate it.</p>}
     </Card>
   </>;
-  return respond(ctx, { title: `${n} ${rec.name}`, section: sectionOf(rec), signedIn: true, you: st.you, personal: !!rec.personal }, body);
+  return respond(ctx, { title: `${n} ${rec.name}`, section: sectionOf(rec), signedIn: true, you: st.you, personal: !!isPersonal(rec) }, body);
 }
 
 /** The record for a page that needs it active and visible; inactive reads as absent. */
@@ -582,7 +574,7 @@ async function settingsPage(ctx: Ctx, name: string, st: FormState = { values: {}
     </form>
     <a class="danger-link" href={`/record-danger?name=${encodeURIComponent(rec.name)}`}><span><Icon name="flame" /> Danger Zone</span><Icon name="chevron-right" /></a>
   </>;
-  return respond(ctx, { title: `Edit ${rec.name}`, section: sectionOf(rec), signedIn: true, you: s.you, personal: !!rec.personal }, body, status);
+  return respond(ctx, { title: `Edit ${rec.name}`, section: sectionOf(rec), signedIn: true, you: s.you, personal: !!isPersonal(rec) }, body, status);
 }
 
 // ------------------------------------------------------------------ bus setup
@@ -607,7 +599,7 @@ async function busSetupPage(ctx: Ctx, s: Status, rec: Rec, st: FormState, status
       <div class="card-body">
         <input type="hidden" name="action" value="configure" />
         <input type="hidden" name="name" value={rec.name} />
-        <p class="muted small bus-events-note">The agent-event keys are checked and kept now; agent events are in work, so they take effect when those ship.</p>
+
         <p class="warn bus-realm-warning" role="note">Changing the realm is not a rename: every existing name, token, access entry, route and saved session keeps its old spelling and keeps working. Only new automatic names use the new realm.</p>
         <ConfigurationField st={st} errId="save-error" kind="agent" stored />
         <ConfigurationHelp help={metadata} value={st.values.config} />
@@ -639,7 +631,7 @@ async function deactivatePage(ctx: Ctx): Promise<Response> {
         <a class="btn btn-ghost" href={back}>Cancel</a></form>
     </Card>
   </>;
-  return respond(ctx, { title: `Confirm deactivation · ${rec.name}`, section: sectionOf(rec), signedIn: true, you: s.you, personal: !!rec.personal }, body);
+  return respond(ctx, { title: `Confirm deactivation · ${rec.name}`, section: sectionOf(rec), signedIn: true, you: s.you, personal: !!isPersonal(rec) }, body);
 }
 
 // ------------------------------------------------------------------ danger zone
@@ -677,7 +669,7 @@ export async function dangerPage(ctx: Ctx, name: string, err?: { section: "trans
       </Card> : group ? <Card title="Removal" icon="trash-2"><p class="muted">A group is retired by emptying its members, never removed: records that name it keep a stable meaning.</p></Card> : null}
     </div>
   </>;
-  return respond(ctx, { title: `Danger Zone · ${rec.name}`, section: group ? "groups" : sectionOf(rec), signedIn: true, you: s.you, personal: !!rec.personal }, body, status);
+  return respond(ctx, { title: `Danger Zone · ${rec.name}`, section: group ? "groups" : sectionOf(rec), signedIn: true, you: s.you, personal: !!isPersonal(rec) }, body, status);
 }
 
 async function postConfirm(ctx: Ctx): Promise<Response> {
@@ -698,7 +690,7 @@ async function postConfirm(ctx: Ctx): Promise<Response> {
         </form>
       </Card>
     </>;
-    return respond(ctx, { title: `Confirm ownership transfer · ${rec.name}`, section: sectionOf(rec), signedIn: true, you: s.you, personal: !!rec.personal }, body);
+    return respond(ctx, { title: `Confirm ownership transfer · ${rec.name}`, section: sectionOf(rec), signedIn: true, you: s.you, personal: !!isPersonal(rec) }, body);
   }
   if (action === "delete") {
     if (!rec.can_manage || rec.kind === "group" || rec.kind === "user") throw notYours("only the owner or an assigned Maintainer can delete this record");
@@ -714,7 +706,7 @@ async function postConfirm(ctx: Ctx): Promise<Response> {
         </form>
       </Card>
     </>;
-    return respond(ctx, { title: `Confirm deletion · ${rec.name}`, section: sectionOf(rec), signedIn: true, you: s.you, personal: !!rec.personal }, body);
+    return respond(ctx, { title: `Confirm deletion · ${rec.name}`, section: sectionOf(rec), signedIn: true, you: s.you, personal: !!isPersonal(rec) }, body);
   }
   throw new LocalProblem(400, "That confirmation action is not available.");
 }
@@ -748,7 +740,7 @@ export async function storeConfiguration(ctx: Ctx, name: string, what: string): 
   const raw = ctx.f("config").trim();
   if (!raw) return;
   try {
-    await ctx.bus("POST", "/configure", { bodyJSON: `{"Name":${JSON.stringify(name)},"Config":${formatConfiguration(raw)}}` });
+    await ctx.bus("POST", "/configure", { bodyJSON: `{"name":${JSON.stringify(name)},"config":${formatConfiguration(raw)}}` });
   } catch (e) {
     const reason = e instanceof Refusal ? e.detail : "the daemon did not answer";
     throw new LocalProblem(502, `${what}, but its configuration was not stored: ${reason}. Set it from the edit page.`, true);
@@ -765,7 +757,7 @@ async function postRecordSettings(ctx: Ctx): Promise<Response> {
       const values = keep(ctx.form, RECORD_KEEP);
       const bound = ctx.f("bound").trim();
       if (bound && !/^\d+$/.test(bound)) return registerPage(ctx, kind, { values, error: { message: "Queue capacity must be a whole number.", field: "bound", status: 400 } }, 400);
-      const body: Record<string, unknown> = { name, kind, descr: ctx.f("descr"), tags: normalizeTags(ctx.f("tags")), allow: terms(ctx.f("allow")), maintainers: terms(ctx.f("maintainers")), personal: ctx.f("personal") === "on", subs: terms(ctx.f("subs")) };
+      const body: Record<string, unknown> = { name, kind, descr: ctx.f("descr"), tags: normalizeTags(ctx.f("tags")), allow: terms(ctx.f("allow")), maintainers: terms(ctx.f("maintainers")), subs: terms(ctx.f("subs")) };
       if (kind === "agent" && ctx.f("roles").trim()) body.roles = terms(ctx.f("roles").replace(/,/g, " "));
       if (kind === "service") { body.addr = ctx.f("addr"); body.protocol = ctx.f("protocol"); }
       if (kind === "agent" || kind === "queue") { body.ttl = ctx.f("ttl"); body.overflow = ctx.f("overflow") || "strict"; body.bound = Number(bound || 0); }
@@ -802,7 +794,6 @@ async function postRecordSettings(ctx: Ctx): Promise<Response> {
       if (ctx.form!.has("edit_allow")) change.allow = terms(ctx.f("allow"));
       if (ctx.form!.has("edit_subs")) change.subs = terms(ctx.f("subs"));
       if (ctx.form!.has("edit_sharing")) change.maintainers = terms(ctx.f("maintainers"));
-      if (ctx.form!.has("edit_personal")) change.personal = ctx.f("personal") === "on";
       try {
         await ctx.bus("POST", "/manage", { body: change });
       } catch (e) {
@@ -820,7 +811,8 @@ async function postRecordSettings(ctx: Ctx): Promise<Response> {
       const ret = returnTo(ctx.f("return"), [listPath(fresh), "/runner", "/runner-settings"], "");
       return flashRedirect(ctx, recordHref(fresh, ret ? { return: ret } : undefined), "saved");
     }
-    case "configure": { // older forms still post here
+    case "configure": { // the bus setup form
+      if (name !== BUS) throw new LocalProblem(400, "Use the record settings form to save Configuration.");
       const rec = await activeRecord(ctx, name);
       const invalid = (message: string, status: number) => rec.kind === "group"
         ? (() => { throw new LocalProblem(status, message); })()
@@ -830,7 +822,7 @@ async function postRecordSettings(ctx: Ctx): Promise<Response> {
         return invalid("Configuration must be valid JSON.", 400);
       }
       try {
-        await ctx.bus("POST", "/configure", { bodyJSON: `{"Name":${JSON.stringify(name)},"Config":${formatConfiguration(ctx.f("config"))}}` });
+        await ctx.bus("POST", "/configure", { bodyJSON: `{"name":${JSON.stringify(name)},"config":${formatConfiguration(ctx.f("config"))}}` });
       } catch (e) {
         const r = formRefusal(e);
         if (!r?.preserve) throw e;
@@ -889,35 +881,6 @@ async function postRecordSettings(ctx: Ctx): Promise<Response> {
   throw new LocalProblem(400, "That record action is not available.");
 }
 
-// ------------------------------------------------------------------ legacy addresses
-
-/** A page that moved: the old address answers 301 to the new one, query kept. */
-function moved(to: string) {
-  return async (ctx: Ctx) => redirect(to + ctx.url.search, 301);
-}
-
-function channelsRedirect(to: { queue: string; pubsub: string }) {
-  return async (ctx: Ctx) => {
-    const p = new URLSearchParams(ctx.url.search);
-    const kind = p.get("kind"); p.delete("kind");
-    const qs = p.size ? `?${p}` : "";
-    return redirect((kind === "pubsub" ? to.pubsub : to.queue) + qs, 301);
-  };
-}
-
-function channelRedirect(edit: boolean) {
-  return async (ctx: Ctx) => {
-    if (!ctx.signedIn) throw new (await import("../ctx.ts")).SignInRequired("sign in to open this page");
-    const name = ctx.q("name");
-    const off = (await ctx.inactive().catch(() => [] as Rec[])).find(r => r.name === name);
-    // An inactive record is served here, as its own view; only a visible queue or topic moves.
-    if (off) return edit ? Promise.reject(new NotFound()) : inactiveView(ctx, await ctx.status(), off);
-    const rec = await ctx.lookup(name);
-    const base = rec.kind === "pubsub" ? "/pubsub/channel" : rec.kind === "queue" ? "/queue" : detailPath(rec.kind);
-    return redirect(`${base}${edit ? "/edit" : ""}${ctx.url.search}`, 301);
-  };
-}
-
 export const handlers = {
   agents: (ctx: Ctx) => list(ctx, "agents"), services: (ctx: Ctx) => list(ctx, "services"), queues: (ctx: Ctx) => list(ctx, "queues"),
   pubsub: (ctx: Ctx) => list(ctx, "pubsub"), resources: (ctx: Ctx) => list(ctx, "resources"),
@@ -927,9 +890,6 @@ export const handlers = {
   edit: (ctx: Ctx) => settingsPage(ctx, ctx.q("name")),
   deactivate: deactivatePage, danger: (ctx: Ctx) => dangerPage(ctx, ctx.q("name")),
   post: postRecordSettings, confirm: postConfirm,
-  moved,
-  channels: channelsRedirect({ queue: "/queues", pubsub: "/pubsub" }), channelsNew: channelsRedirect({ queue: "/queues/new", pubsub: "/pubsub/new" }),
-  channel: channelRedirect(false), channelEdit: channelRedirect(true),
 };
 
 /** Each host that read lately and how long ago, as `srv1 (now), srv2 (40s)`; a cut list says so. */

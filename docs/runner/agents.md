@@ -91,7 +91,7 @@ The host inventory declares the instances:
 ## Message context and roles
 
 - 🏷️ **Labels:** the script gets the message's labels and its work path in environment variables.
-- ⚙️ **Configuration:** `AGENT_BUS_CONFIG` carries the record's settings, unset when none ([jq example](../03-records-agent.md#configuring-a-template)).
+- ⚙️ **Configuration:** `AGENT_BUS_CONFIG` carries the record's settings, unset when none ([record configuration](../03-records-agent.md#configuring-a-template)).
 - 🛡️ **Roles:** let the script tell which operations its caller may perform; see the [agent record](../03-records-agent.md#roles).
 - 📖 **The full list,** and what each value may be trusted for: [what the code is told](security.md#what-the-code-is-told-and-what-it-may-trust).
 - 🔌 **A program with a [client library](../../src/clients/README.md)** reads its own inbox: run it as an [agent that serves itself](configuration.md#agents-that-serve-themselves).
@@ -101,7 +101,7 @@ The host inventory declares the instances:
 <details>
 <summary>How a run ends</summary>
 
-- Success with no output sends a completion notice.
+- Success with no output sends the runner’s completion receipt; it does not create a text answer.
 - A nonzero exit is logged and sends no answer.
 - A request whose caller has already given up is not run.
 - Work already taken is not retried.

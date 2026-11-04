@@ -116,7 +116,7 @@ describe("the real app behind the front", () => {
     const { cert, key } = tlsDir(dir);
     const inner = join(dir, "app.sock");
     rmSync(inner, { force: true });
-    const handler = makeHandler({ daemon: daemonSock, listen: { hostname: "127.0.0.1", port: 0 }, dev: false, tls: { cert, key, front: true } });
+    const handler = makeHandler({ daemon: daemonSock, listen: { hostname: "127.0.0.1", port: 0 }, dev: false, tls: { cert, key } });
     const app = Bun.serve({ unix: inner, tls: { cert, key }, fetch: handler } as any);
     const front = await dualFront({ hostname: "127.0.0.1", port: 0, inner });
     const port = (front.address() as net.AddressInfo).port;

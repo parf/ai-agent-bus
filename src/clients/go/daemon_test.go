@@ -145,7 +145,7 @@ func TestRealDaemonRegistryPrivateTypedKVAndLocks(t *testing.T) {
 		t.Fatal(e)
 	}
 	created := owner.Record(name)
-	if _, e = created.Manage(ctx, map[string]any{"desc": "changed"}); e != nil {
+	if _, e = created.Manage(ctx, map[string]any{"descr": "changed"}); e != nil {
 		t.Fatal(e)
 	}
 	if e = created.Unregister(ctx); e != nil {

@@ -3,7 +3,9 @@
 // visitor's own session; the face holds no credential, session map or cache.
 import { load, type Config } from "./config.ts";
 import { Daemon } from "./daemon.ts";
-import { Ctx, SignInRequired } from "./ctx.ts";
+import { InvalidTag } from "../mcp/tags.ts";
+import { canonicalInput } from "./canonical.ts";
+import { Ctx, LocalProblem, SignInRequired } from "./ctx.ts";
 import { VERSION, versionOutput } from "./version.ts";
 import { buildLocal } from "./assets.ts";
 import { setAssets } from "./ui/frame.tsx";
@@ -74,18 +76,25 @@ export function makeHandler(cfg: Config) {
     try {
       if (!m.known) return await notFoundPage(ctx);
       if (!m.route) return await methodPage(ctx);
+      try { canonicalInput(url.searchParams, ctx.form); } catch (error) { throw new LocalProblem(400, (error as Error).message); }
       if (m.route.auth && !ctx.signedIn) throw new SignInRequired("sign in to open this page");
       return await m.route.handler(ctx);
     } catch (e) {
-      return problemPage(ctx, e);
+      return problemPage(ctx, e instanceof InvalidTag ? new LocalProblem(400, e.message) : e);
     }
   }
 }
 
 // Run directly from source, or by the release binary (ts-main.ts), which
 // imports this module and so is never import.meta.main here.
+export function webArguments(args: string[]): "version" | "start" {
+  if (args.length === 1 && args[0] === "--version") return "version";
+  if (args.length) throw new Error(`Unknown web option: ${args[0]}; use environment configuration`);
+  return "start";
+}
+
 export async function main(): Promise<void> {
-  if (process.argv.includes("--version") || process.argv.includes("-version")) {
+  if (webArguments(process.argv.slice(2)) === "version") {
     console.log(versionOutput());
     process.exit(0);
   }
@@ -98,7 +107,7 @@ export async function main(): Promise<void> {
     ...(cfg.tls ? { tls: { cert: cfg.tls.cert, key: cfg.tls.key } } : {}),
   };
   let where: string;
-  if (cfg.tls?.front) {
+  if (cfg.tls) {
     // TLS and plain HTTP on the one port, only when TLS is on: the app's
     // server listens behind the front on a unix socket (docs/08-processes.md#the-web-face).
     const inner = cfg.inner!;

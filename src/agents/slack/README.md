@@ -5,25 +5,11 @@ client. Its package includes the shared session router and subscription engine;
 the runner mounts only the completed package.
 User instructions live in the [Slack guide](../../../docs/agents/slack.md).
 
-## The Slack app
+## Contributor package
 
-See [app creation and permissions](../../../docs/agents/slack.md#create-the-slack-app).
-
-## The bus
-
-See [bus setup](../../../docs/agents/slack.md#connect-it-to-the-bus) and
-[post appearance](../../../docs/agents/slack.md#post-appearance).
-
-## Running it
-
-[Install and run](../../../docs/agents/slack.md#installing-it) through the runner.
 `package.sh` bundles the client, router and worker into a flat agent.d package.
 No runtime import may reach back into the checkout. A package digest change
 restarts the kept process on runner reload.
-
-## Calling it
-
-See [use examples](../../../docs/agents/slack.md#use-examples).
 
 ## Reply routing
 
@@ -35,15 +21,14 @@ subscription matching. Own-post detection (bot user, bot id or app id plus
 Posted) precedes both, including API/Socket races. Routing retry exhaustion
 never skips subscription matching.
 
-## Compatibility
+## Credentials and post appearance
 
-`postas.ts` retains runner-env defaults and legacy Secret defaults for
-SLACK_USERNAME/SLACK_ICON; these are not routing Configuration keys.
+`postas.ts` uses call overrides and runner environment defaults for
+SLACK_USERNAME/SLACK_ICON. Secret accepts only provider token and endpoint keys.
 Token and workspace contexts stay per call; API errors are scrubbed before
 answers or logs. Counter persistence remains batched independently of routing.
 
 ## Tests
-
 
 `bun test ./src/agents/slack` runs everything against a real daemon (built
 here, or `SMOKE_BIN`), the actual agent, and a fake Slack with a Socket Mode

@@ -154,9 +154,8 @@ func TestADamagedSubscriptionRowDoesNotBlockCommitsOrLookups(t *testing.T) {
 	}
 }
 
-// A schema-9 database, with a record and its data, opens as the current schema
-// (through 10 to 11) with no subscriptions and keeps everything.
-func TestSchemaNineGainsTheSubscriptionTable(t *testing.T) {
+// Retired database layouts are refused without conversion.
+func TestSchemaNineIsRefused(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "bus.db")
 	old, err := sql.Open("sqlite", path)
 	if err != nil {
@@ -181,28 +180,9 @@ func TestSchemaNineGainsTheSubscriptionTable(t *testing.T) {
 		}
 	}
 	old.Close()
-	s, err := Open(path, false)
-	if err != nil {
-		t.Fatalf("schema 9 did not open: %v", err)
-	}
-	defer s.Close()
-	var version int
-	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != 11 {
-		t.Fatalf("version %d (%v), want 11", version, err)
-	}
-	if rows, err := s.ListSubscriptions(3); err != nil || len(rows) != 0 {
-		t.Fatalf("a migrated database holds subscriptions: %v %v", rows, err)
-	}
-	if err := s.AddSubscription(3, "000000000001", subRow("000000000001", "alice@h")); err != nil {
-		t.Fatalf("the migrated table refuses a write: %v", err)
-	}
-	snap, err := s.Load()
-	if err != nil || len(snap.Records) != 1 || snap.Records[0].Name != "jobs@h" {
-		t.Fatalf("the migration changed the registry: %+v %v", snap.Records, err)
-	}
-	var kept string
-	if err := s.db.QueryRow(`SELECT value FROM kv WHERE record_id = 3 AND name = 'kept'`).Scan(&kept); err != nil || kept != "value" {
-		t.Fatalf("the migration lost data: %q %v", kept, err)
+	if s, err := Open(path, false); err == nil {
+		s.Close()
+		t.Fatal("retired schema was accepted")
 	}
 }
 

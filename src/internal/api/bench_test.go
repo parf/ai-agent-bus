@@ -32,7 +32,7 @@ func BenchmarkSendAndConsume(b *testing.B) {
 		ports.Credential{Name: "src@h", Current: "src-tok"},
 		ports.Credential{Name: "#sink@h", Current: "sink-tok", CredentialPair: sinkPair},
 	)
-	tokens, err := auth.Load(store, "src@h")
+	tokens, err := auth.Load(store)
 	if err != nil {
 		b.Fatal(err)
 	}

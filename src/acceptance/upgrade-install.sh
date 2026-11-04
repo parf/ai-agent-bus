@@ -1,6 +1,6 @@
 #!/bin/bash
-# H.1.1 acceptance. The disposable host sees two release archives and this
-# fixture, never the checkout or /rd.
+# Tests upgrade/recovery between two archives with the current canonical
+# install manifest and database schema; prerelease layouts are unsupported.
 # Usage: upgrade-install.sh <old-archive> <new-archive> <new-output-directory>
 set -euo pipefail
 old=$(realpath "${1:?old release archive required}")

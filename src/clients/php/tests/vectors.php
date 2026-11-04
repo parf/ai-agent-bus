@@ -220,14 +220,8 @@ section('shared identity vectors', function () use ($dir) {
             check("{$case['id']}: fatal naming it", $e !== null && str_contains($e->getMessage(), $expect['fatal']), $e ? $e->getMessage() : 'no error');
             check("{$case['id']}: the daemon saw only /identity", vectorPaths($sock) === ['/identity'], json_encode(vectorPaths($sock)));
         } else {
-            $warns = $bus->warnings();
             check("{$case['id']}: serves", $e === null, $e ? $e->getMessage() : '');
             check("{$case['id']}: /identity was first", (vectorPaths($sock)[0] ?? '') === '/identity', json_encode(vectorPaths($sock)));
-            if (isset($expect['warns'])) {
-                check("{$case['id']}: warns", count($warns) === 1 && str_contains($warns[0], $expect['warns']), json_encode($warns));
-            } else {
-                check("{$case['id']}: silent", $warns === [], json_encode($warns));
-            }
         }
         unfake($pid);
     }
@@ -252,14 +246,13 @@ section('shared refusal vectors', function () use ($dir) {
             unfake($pid);
             continue;
         }
-        $pid = vectorDaemon($sock, $case['identity'] === 'current' ? $current : '{}', $case['daemon']);
+        $pid = vectorDaemon($sock, $current, $case['daemon']);
         $bus = Bus::connect($sock, 't');
         $e = thrown(fn() => $bus->list());
         $want = $case['expect'];
         check("{$case['id']}: status, kind and message", $e instanceof Refusal
             && $e->status() === $want['status'] && ($e->kind() ?? '') === $want['kind'] && $e->getMessage() === $want['message'],
             $e ? get_class($e) . ' ' . $e->getMessage() : 'no error');
-        check("{$case['id']}: warns only for an old daemon", ($bus->warnings() !== []) === ($case['identity'] === 'old'), json_encode($bus->warnings()));
         unfake($pid);
     }
 });

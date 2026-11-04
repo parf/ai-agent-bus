@@ -1,7 +1,7 @@
 # Configuration: every setting and secret in its one place
 
 📌 **TL;DR:**
-- **Problem:** settings scattered through code and servers leak secrets and break on every update.
+- **Problem:** settings mixed into code expose secrets and make changes hard to track.
 - **Outcome:** the code says how an agent runs; host files say which names run here and hold their private values; the bus keeps who may call.
 - **Start:** ask an agent what it expects ([Try this first](#try-this-first)), then put each value where [the table](#where-settings-belong) says.
 
@@ -14,9 +14,9 @@
 
 ## What you get
 
-- ✅ **One home per value:** code, host files or the bus record, never two of them.
+- ✅ **Separate code and settings:** package defaults, host overrides and record values follow a defined precedence.
 - ✅ **Enable, disable, rename and instances** from one inventory file.
-- ✅ **Limits per agent:** memory, CPU, processes, open files, disk I/O and disk use.
+- ✅ **Limits per agent:** memory, CPU, processes, open files and disk I/O, plus a soft work-directory size check.
 - ✅ **Safe edits:** apply everything with one `reload`; refusals name the agent and the reason.
 - ⚠️ **Access is not here:** who may call stays on the bus record, edited with ordinary bus tools.
 
@@ -59,9 +59,7 @@ Replace `<agent-name>` with its complete name. Secret help shows names and requi
 
 ## Agent directories
 
-The runner reads shared packages first, then bundled packages. The first package with a name wins, including when that package is refused; removing it lets the next `reload` fall back to the bundled copy.
-
-A stale or emptied shared package directory still shadows its bundled copy as `refused`; remove that shared directory to fall back.
+The runner reads shared packages first, then bundled packages. The first package with a name wins, even if it is refused. Removing a shared package lets the next `reload` select the bundled copy.
 
 | Source | Default | Starts without an inventory entry? |
 |---|---|---|
@@ -92,12 +90,14 @@ The [isolation rules](security.md#isolation-today) define which code and support
 |---|---|
 | `command` | Shell command line; `./` paths resolve inside the package |
 | `description` | Nonempty text registered on the bus; missing or blank refuses the package by name |
-| `form` | How a message reaches the script: `args` or `json` (default) |
+| `form` | `args` passes the body as an argument; `json` (default) passes one envelope on stdin; `jsonl` keeps a process and sends one envelope per line ([lifecycle](operations.md#technical-details)) |
 | `serves` | `runner` (default): a script per message; `itself`: kept processes that read their own inbox ([below](#agents-that-serve-themselves)) |
 | `version` | Own version shown in help; bundled agents use the shared bus version instead |
 | `license`, `author`, `homepage` | License (SPDX), author and documentation link shown in help |
 | `body_formats`, `arguments`, `methods`, `config` | Call, method and Configuration descriptions ([package help](#package-help)) |
-| `processes` | Most scripts at once, a count or `min..max`, default `0..1`; the runner enforces the maximum. An agent that serves itself takes a count |
+| `processes` | A count or `min..max`, default `0..1`. Per-message scripts use the maximum; `jsonl` pools use both bounds. An agent that serves itself takes a fixed count |
+| `in_flight` | Concurrent messages per `jsonl` process; default 1 |
+| `idle` | How long an extra idle `jsonl` process waits before shrinking the pool; default 5 minutes |
 | `deadline` | Longest run, such as `30s`; this or the caller's deadline, whichever comes first, ends it. For an agent that serves itself: how long a stop waits before killing, default `10s` |
 | `tags` | Labels, joined with inventory tags and the automatic `runner` label ([tag rules](../03-records.md#tags)) |
 | `roles` | Roles the agent understands, registered on its record; grants no caller any role |
@@ -138,7 +138,7 @@ The [isolation rules](security.md#isolation-today) define which code and support
 - A running script handles asks before its normal flow; an unknown ask gets an ordinary unsupported reply.
 - While it holds a reader, the runner answers `status` itself during start (`starting`), shutdown (`stopping`) or failure (`failed`).
 - A normally running agent answers its own status; with asks off it answers unsupported.
-- A refused or unconfigured agent has no reader, so its ordinary messages stay queued.
+- A refused or unconfigured entry with a stored token can answer help and status through the runner’s asks-only reader. Ordinary messages remain queued; no application script runs.
 - An agent that serves itself answers help in its own process.
 
 </details>
@@ -223,7 +223,6 @@ The [isolation rules](security.md#isolation-today) define which code and support
 | `share` | `true` makes this agent's reads say they are one of a pool, so a second runner may read the same name beside it; default `false`. The second runner is handed the name's token once, as for any name it did not register, and its entry says `share` too. Each read also states the runner's host, the machine's hostname, which the listing shows; a hostname the daemon would refuse is left out, never failing the read ([where a pool member says it is](../05-discovery.md#where-a-pool-member-says-it-is)) |
 | `sandbox` | `on` (default) or `off` for this entry only; read [security](security.md#isolation-today) first |
 | `limits` | The whole agent's [limits](#limits) |
-| `version`, `origin`, `first_started`, `last_started` | Reserved for the runner; never set by hand |
 
 Disable a package and give an instance its own name; merge these into your existing file:
 
@@ -242,7 +241,7 @@ Disable a package and give an instance its own name; merge these into your exist
 
 | May override | May not |
 |---|---|
-| `processes`, `deadline`, `depends` | Everything else: `command`, `form`, `serves` and the rest describe what the code is |
+| `processes`, `idle`, `deadline`, `depends` | Everything else: `command`, `form`, `serves` and the rest describe what the code is |
 
 Give the agent three processes and two minutes per run:
 

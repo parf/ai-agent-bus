@@ -24,6 +24,18 @@ class CacheTests(unittest.TestCase):
     def open(self, identity='account-a', validity=1, budget=4 * cache.MiB):
         return cache.Cache(self.work, identity, validity, budget)
 
+    def test_unsupported_cache_fields_are_refused_without_deletion(self):
+        with self.open() as store:
+            store.put(7, b'mail')
+        path = self.work / 'mail-cache/.state'
+        value = json.loads(path.read_text()); value.pop('retry')
+        path.write_text(json.dumps(value))
+        before = path.read_bytes()
+        with self.assertRaisesRegex(cache.CacheError, 'unsupported mailbox cache state'):
+            self.open()
+        self.assertEqual(path.read_bytes(), before)
+        self.assertEqual((path.parent/'7.eml').read_bytes(), b'mail')
+
     def test_restart_reuses_uid_and_invalidity_or_account_drops_it(self):
         with self.open() as store:
             store.put(7, b'Subject: A\r\n\r\noriginal')

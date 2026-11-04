@@ -26,8 +26,6 @@ export class Bus {
   private readonly timeout: number;
   private readonly expected?: string;
   private name?: string;
-  private daemonOld = false;
-  private protocolWarned = false;
   private identityFlight?: Promise<void>;
   private closed = false;
   private raw = false;
@@ -75,29 +73,24 @@ export class Bus {
     if (path !== '/identity') await this.ensureIdentity(deadline,options.signal);
     this.check();
     if (options.query) { const query = new URLSearchParams(); for (const [key,value] of Object.entries(options.query)) if (value !== undefined && value !== null) query.set(key,String(value)); path += `?${query}`; }
-    try { return await this.transport.request(method,path,body,{ ...options,timeout: remaining(deadline) }); }
-    catch (error) {
-      if (this.daemonOld && error instanceof BusError && error.kind === 'no_route') throw new BusError(error.status,`daemon too old for ${method} ${path.split('?')[0]}`,error.kind);
-      throw error;
-    }
+    return await this.transport.request(method,path,body,{ ...options,timeout: remaining(deadline) });
   }
   async whoami(options: Operation = {}): Promise<{you:string}> { const deadline = budget(options.timeout ?? this.timeout); await this.ensureIdentity(deadline,options.signal); return { you:this.name! }; }
   status(options: Operation = {}): Promise<any> { return this.request('GET','/status',undefined,options); }
   private checkProtocol(identity: unknown): void {
-    this.daemonOld = checkProtocol(identity);
-    if (this.daemonOld && !this.protocolWarned) { console.warn('daemon too old: protocol is older than this client'); this.protocolWarned = true; }
+    checkProtocol(identity);
   }
   async identity(options: Operation = {}): Promise<any> { const identity = await this.request('GET','/identity',undefined,options); this.checkProtocol(identity); return identity; }
   records(filters: {kind?:string} = {},options:Operation = {}): Promise<any> { return this.request('GET','/ls',undefined,{ ...options,query:filters }); }
   /** Whether `who` may manage the record `name`, by the daemon's own rule; asked only about a record this caller may see. */
   async manages(who: string, name: string, options: Operation = {}): Promise<boolean> { return (await this.request('GET','/manages',undefined,{ ...options,query:{who,name} }))?.manages === true; }
-  /** Whether the daemon's Send rule admits `who` sending to `name` now, asked as this caller about a target it can see. `who` and `name` are trimmed and lower-cased as the daemon reads them; the daemon must echo exactly that `who`. A target it cannot see rejects with BusError 404; a transport failure rejects as itself; an answer that is not well formed for this `who` (an older daemon) rejects with UnexpectedAnswer; it never resolves false. It goes stale at once: ask again before each send. */
+  /** Whether the daemon's Send rule admits `who` sending to `name` now, asked as this caller about a target it can see. `who` and `name` are trimmed and lower-cased as the daemon reads them; the daemon must echo exactly that `who`. A target it cannot see rejects with BusError 404; a transport failure rejects as itself; an answer that is not well formed for this `who` rejects with UnexpectedAnswer; it never resolves false. It goes stale at once: ask again before each send. */
   async maySend(who: string, name: string, options: Operation = {}): Promise<boolean> {
     if (typeof who !== 'string' || !who.trim() || typeof name !== 'string' || !name.trim()) throw new TypeError('maySend wants who and a target name');
     const asked = who.trim().toLowerCase();
     const got = await this.request('GET','/may-send',undefined,{ ...options,query:{who:asked,name:name.trim()} });
     const echoed = got?.who;
-    if (typeof echoed !== 'string' || typeof got.may_send !== 'boolean' || echoed !== asked) throw new UnexpectedAnswer('may-send answered for another name or in an unknown shape: is the daemon older than RT33?');
+    if (typeof echoed !== 'string' || typeof got.may_send !== 'boolean' || echoed !== asked) throw new UnexpectedAnswer('may-send answered for another name or in an unknown shape');
     return got.may_send;
   }
   record(name: string): RecordHandle { this.check(); if (!name.trim()) throw new TypeError('record name required'); const normalized = name.trim().toLowerCase(); if (!this.handles.has(normalized)) this.handles.set(normalized,new RecordHandle(this,normalized)); return this.handles.get(normalized)!; }

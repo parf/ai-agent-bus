@@ -67,13 +67,17 @@ class Cache:
                 if len(raw) > 16384:
                     raise ValueError()
                 state = json.loads(raw)
-                if not isinstance(state, dict) or set(state) not in ({'identity', 'validity', 'cursor'}, {'identity', 'validity', 'cursor', 'retry'}) or not isinstance(state['identity'], str) or type(state['validity']) is not int or not 1 <= state['validity'] <= 4294967295 or type(state['cursor']) is not int or not 0 <= state['cursor'] <= 4294967295:
+                if not isinstance(state, dict) or set(state) != {'identity', 'validity', 'cursor', 'retry'}:
+                    raise CacheError('unsupported mailbox cache state')
+                if not isinstance(state['identity'], str) or type(state['validity']) is not int or not 1 <= state['validity'] <= 4294967295 or type(state['cursor']) is not int or not 0 <= state['cursor'] <= 4294967295:
                     raise ValueError()
-                retry = state.setdefault('retry', None)
+                retry = state['retry']
                 if retry is not None and (not isinstance(retry, dict) or set(retry) != {'uid', 'count'} or type(retry['uid']) is not int or not 1 <= retry['uid'] <= 4294967295 or type(retry['count']) is not int or not 1 <= retry['count'] <= 3):
                     raise ValueError()
             except FileNotFoundError:
                 state = None
+            except CacheError:
+                raise
             except ValueError:
                 self.repaired += 1
                 state = None  # Cache corruption cannot become the only copy of mail.

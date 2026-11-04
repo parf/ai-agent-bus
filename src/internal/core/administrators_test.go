@@ -135,20 +135,7 @@ func TestRestoreIgnoresAnAdministratorWhoIsNoUser(t *testing.T) {
 	rep := &reports{}
 	b.Journal(rep)
 	b.SetDaemonOwner("owner@h")
-	next := b.nextRecordID
 	admins := b.records[AdministratorsGroup]
 	admins.Allow = []string{"legacy@h", "owner@h"}
-	b.Restore(ports.Snapshot{Records: []protocol.Record{admins}})
-	if b.IsAdministrator("legacy@h") || b.IsPerson("legacy@h") {
-		t.Fatal("an administrator with no User was repaired into one")
-	}
-	if !rep.has("stored @administrators member legacy@h is ignored") {
-		t.Errorf("the ignored administrator was not reported: %v", rep.lines)
-	}
-	if b.nextRecordID != next {
-		t.Errorf("the restore took record IDs: %d, then %d", next, b.nextRecordID)
-	}
-	if !b.IsAdministrator("owner@h") {
-		t.Error("the daemon Owner stopped being an administrator")
-	}
+	assertRestoreRefused(t, b, canonicalFixture(ports.Snapshot{Records: []protocol.Record{admins}}, ""))
 }

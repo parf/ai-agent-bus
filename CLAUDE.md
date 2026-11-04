@@ -5,7 +5,7 @@ All repository conventions live here. `AGENTS.md` only points here.
 ## What this repo is
 
 agent-bus V2 connects AI agents and services through a registry, broker and faces.
-Current development is the 0.9 line. [R0.8 (MVP)](Plans/done/R0.8-MVP/README.md#scope) is released history; the next stage is [R1](Plans/R1.0-Release/README.md#scope).
+R1 targets a clean installation. Its current scope is in [the release plan](Plans/R1.0-Release/README.md#scope); earlier development records are historical evidence.
 Legacy-V1 lives at `/rd/service/agent-bus/`, with its design at `/rd/vhosts/realty/Plans/PRF-25/`. Read those when a legacy fact is needed; this repository builds V2.
 
 ## Document map
@@ -24,6 +24,7 @@ Legacy-V1 lives at `/rd/service/agent-bus/`, with its design at `/rd/vhosts/real
 ## Working rules
 
 - **No data models, schemas or wire formats until the owner asks.** Do not invent tables of fields, JSON shapes or endpoint lists during planning.
+- **One canonical interface.** R1 accepts only its current field shapes, command names, flags and layouts. Retired forms fail explicitly; remove their decoders, aliases, converters and fallback producers from scripts, packages, fixtures and docs together. No prerelease installation or data-conversion compatibility is required. Current atomic operations and failure cleanup are not an excuse to retain obsolete input formats.
 - **Current scope.** `docs/` describes shipped behavior and useful current limits, without release-stage narration, build status, roadmap or internal evidence. Keep history and unshipped scope in Plans, and contributor mechanics in contributor docs.
 - **Future scope.** Future design belongs in `Plans/<release>/README.md` or its topic files. Use `Plans/R2.0-Future/` when the release or idea is undecided. Do not assign an idea to the current release merely because it was mentioned now.
 - **Canonical home.** Every value has one owning section. Any other document may restate its claim in one sentence with a section link. If changing the value would require editing the summary, remove the value. The root README CLI example block is the sole example exception.

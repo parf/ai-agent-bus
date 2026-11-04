@@ -16,7 +16,7 @@ import (
 func TestNodeIdentityRemainsPublic(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/identity" {
-			fmt.Fprint(w, `{"version":"fixture"}`)
+			fmt.Fprint(w, `{"version":"fixture","protocol":1,"protocol_min":1}`)
 		} else {
 			w.WriteHeader(401)
 			fmt.Fprint(w, `{"error":"bad credential"}`)
@@ -99,7 +99,7 @@ func TestServeDrainsKnownTakenWorkOnStop(t *testing.T) {
 	var handled atomic.Int32
 	var took atomic.Int32
 	b.client.Transport = reviewRoundTripper(func(r *http.Request) (*http.Response, error) {
-		var body io.ReadCloser = io.NopCloser(strings.NewReader(`{"you":"#me"}`))
+		var body io.ReadCloser = io.NopCloser(strings.NewReader(`{"you":"#me","protocol":1,"protocol_min":1}`))
 		if r.URL.Path == "/consume" {
 			took.Add(1)
 			body = &reviewBody{strings.NewReader(`{"message_id":"taken","from":"#sender","to":"#me","body":"work"}`), cancel}

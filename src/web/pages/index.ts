@@ -30,10 +30,6 @@ route("GET", "/record-deactivate", rec.deactivate);
 route("GET", "/record-danger", rec.danger);
 route("POST", "/record", rec.post);
 route("POST", "/record-confirm", rec.confirm);
-route("GET", "/channels", rec.channels, false);
-route("GET", "/channels/new", rec.channelsNew, false);
-route("GET", "/channel", rec.channel);
-route("GET", "/channel/edit", rec.channelEdit);
 
 import { handlers as ppl } from "./people.tsx";
 import { handlers as lk } from "./locks.tsx";

@@ -5,13 +5,6 @@
 - **Outcome:** apps and AI sessions read and write the store under their own bus name; the key stays on the server and each caller gets read, write or admin rights.
 - **Start:** list the store's collections: `agent-bus call '#qdrant@node.example' 'request GET /collections'` ([Try this first](#try-this-first)).
 
-## Why you'd want it
-
-- 🔑 **One key opens everything.** Now the key stays on the server; each caller gets a door with a lock level.
-- 🧱 **Anyone with the key can delete it all.** Now **read** looks, **write** changes stored items, **admin** changes or deletes whole collections.
-- 🔍 **You cannot tell who did what.** Now every call is made under the caller's own bus name.
-- 🤖 **An AI should search, not own the store.** Now it gets read and nothing more.
-
 ## What it does
 
 - ✅ **Pass one request through:** list, search, store, count, within the caller's rights (`request`).
@@ -65,7 +58,6 @@ agent-bus call '#qdrant@node.example' 'request GET /collections'
 
 ## Use examples
 
-- **See what collections exist:** `agent-bus call '#qdrant@node.example' 'request GET /collections'`
 - **Store a point (write):** `agent-bus call '#qdrant@node.example' 'request PUT /collections/example/points?wait=true {"points":[{"id":1,"vector":[0.1,0.2]}]}'`
 - **Count points from a script:** `agent-bus call '#qdrant@node.example' '{"method":"request","verb":"POST","path":"/collections/example/points/count","body":"{\"exact\":true}"}'`
 - **Set up a collection for RAG:** admin only; see [RAG provisioning](rag.md#owner-provisions-the-collection).

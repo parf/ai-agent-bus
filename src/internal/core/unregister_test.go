@@ -47,7 +47,7 @@ func TestUnregisterLeavesNothingBehind(t *testing.T) {
 		t.Fatal(err)
 	}
 	restored := New()
-	restored.Restore(snapshot)
+	restored.Restore(b.Snapshot())
 	for _, bus := range []*Bus{b, restored} {
 		if owner, ok := bus.OwnerOf("#svc@h"); ok {
 			t.Fatalf("a removed name still claims an owner: %q", owner)

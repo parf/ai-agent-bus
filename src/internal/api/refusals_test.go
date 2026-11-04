@@ -49,7 +49,7 @@ func refusalFixture(t *testing.T) *counted {
 	t.Helper()
 	bus := core.New()
 	store := &refusalStore{TokenStore: memory.NewTokens()}
-	tokens, err := auth.Load(store, "admin@h")
+	tokens, err := auth.Load(store)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func TestARefusalDecidedBeforeTheErrorMapStillCounts(t *testing.T) {
 		reason                          string
 	}{
 		{"an unparseable body", "POST", "/send", "{", tok, 400, "malformed"},
-		{"an invalid name in a token request", "POST", "/token", `{"kind":"agent","name":"!"}`, tok, 400, "malformed"},
+		{"an invalid name in a token request", "POST", "/token", `{"name":"!"}`, tok, 400, "malformed"},
 		{"a lookup of a name the daemon does not hold", "GET", "/lookup?name=missing@h", "", tok, 404, "not_found"},
 		// Unauthenticated, and counted for that reason rather than despite it:
 		// an addressed endpoint's refusals count whatever the caller's
@@ -201,12 +201,12 @@ func TestWhatIsNotARefusalIsNotCounted(t *testing.T) {
 	// Rotate must persist a fresh credential. A store failure is an actual 500,
 	// not an invented handler or an error injected into reply directly.
 	c.store.err = errors.New("credential store unavailable")
-	code, moved := c.call("POST", "/token", `{"kind":"agent","name":"admin@h","rotate":true}`, tok)
+	code, moved := c.call("POST", "/token", `{"name":"admin@h","rotate":true}`, tok)
 	if code != 500 || len(moved) != 0 {
 		t.Errorf("failed credential persistence answered %d, counted %v; want 500 and no refusal", code, moved)
 	}
 	c.store.err = nil
-	code, moved = c.call("POST", "/token", `{"kind":"agent","name":"admin@h","rotate":true}`, tok)
+	code, moved = c.call("POST", "/token", `{"name":"admin@h","rotate":true}`, tok)
 	if code != 200 || len(moved) != 0 {
 		t.Errorf("recovered store answered %d, counted %v; want 200 and no refusal", code, moved)
 	}

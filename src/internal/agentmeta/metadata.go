@@ -106,9 +106,8 @@ type Config struct {
 	Default json.RawMessage `json:"default,omitempty"`
 }
 type Needs struct {
-	Network  []string `json:"network,omitempty"`
-	Memory   string   `json:"memory,omitempty"`
-	Writable []string `json:"writable,omitempty"`
+	Network []string `json:"network,omitempty"`
+	Memory  string   `json:"memory,omitempty"`
 }
 
 // Manifest includes the existing runner fields so both consumers reject the
@@ -169,6 +168,11 @@ func field(where, help string, t Type) error {
 	return nil
 }
 func (m Manifest) Check() error {
+	switch m.Form {
+	case "", "args", "json", "jsonl":
+	default:
+		return fmt.Errorf("agent.json: unsupported form %q; use args, json or jsonl", m.Form)
+	}
 	if m.Asks != "" && m.Asks != "none" {
 		return fmt.Errorf("agent.json: asks must be none when set")
 	}

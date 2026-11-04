@@ -18,7 +18,7 @@ import (
 // now, so a test cannot state one without the other — which is the point.
 func serverFor(t *testing.T, bus *core.Bus, owner string) (*Server, func(string) string) {
 	t.Helper()
-	tokens, err := auth.Load(memory.NewTokens(), owner)
+	tokens, err := auth.Load(memory.NewTokens())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func TestConcurrentConfigReads(t *testing.T) {
 	known(t, bus, "#svc@h")
 	h := s.Handler()
 	set := httptest.NewRequest("POST", "/configure",
-		strings.NewReader(`{"kind":"agent","name":"#svc@h","config":{"a":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}`))
+		strings.NewReader(`{"name":"#svc@h","config":{"a":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}`))
 	set.Header.Set(HeaderToken, tok("fixture-owner@h"))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, set)
@@ -83,7 +83,7 @@ func TestNoAnswerCarriesAConfiguration(t *testing.T) {
 			t.Fatalf("fixture principal %s: %v", who, err)
 		}
 	}
-	if w := post("/configure", "owner@h", `{"kind":"agent","name":"#mail/parf@h","config":{"password":"FIXTURE"}}`); w.Code != 200 {
+	if w := post("/configure", "owner@h", `{"name":"#mail/parf@h","config":{"password":"FIXTURE"}}`); w.Code != 200 {
 		t.Fatalf("configure: %d %s", w.Code, w.Body.String())
 	} else if strings.Contains(w.Body.String(), "FIXTURE") {
 		t.Fatalf("configure echoed the configuration back: %s", w.Body.String())
@@ -127,7 +127,7 @@ func TestAConfigurationIsPrivateToItsService(t *testing.T) {
 			t.Fatalf("fixture principal %s: %v", who, err)
 		}
 	}
-	if w := do("POST", "/configure", "owner@h", `{"kind":"agent","name":"#mail/parf@h","config":{"password":"FIXTURE"}}`); w.Code != 200 {
+	if w := do("POST", "/configure", "owner@h", `{"name":"#mail/parf@h","config":{"password":"FIXTURE"}}`); w.Code != 200 {
 		t.Fatalf("configure: %d %s", w.Code, w.Body.String())
 	}
 	// The owner reads the agent's configuration; a caller who may not see the
@@ -150,7 +150,7 @@ func TestAConfigurationIsPrivateToItsService(t *testing.T) {
 		t.Fatalf("the service could not read its own: %d %s", w.Code, w.Body.String())
 	}
 	// The owner can still SET one; it just never comes back.
-	if w := do("POST", "/configure", "owner@h", `{"kind":"agent","name":"#mail/parf@h","config":{"password":"SECOND"}}`); w.Code != 200 {
+	if w := do("POST", "/configure", "owner@h", `{"name":"#mail/parf@h","config":{"password":"SECOND"}}`); w.Code != 200 {
 		t.Fatalf("the owner lost the right to configure: %d %s", w.Code, w.Body.String())
 	}
 }

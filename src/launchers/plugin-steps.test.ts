@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { pluginSteps } from "./plugin-steps.ts";
+import { pluginSteps, readPluginState } from "./plugin-steps.ts";
 
 const add = (p: string) => ["marketplace", "add", p];
 const install = ["install", "agent-bus@agent-bus-local", "--scope", "user"];
@@ -75,4 +75,35 @@ test("a lock whose holder has exited is taken over; a live holder's is not", asy
     expect(withPluginLock(dir, () => 7, 2_000)).toBe(7);
     expect(existsSync(lock)).toBe(false);
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+
+test("malformed plugin metadata refuses before setup steps", async () => {
+  const {mkdirSync,mkdtempSync,writeFileSync,rmSync} = await import("node:fs");
+  const {resolve,join} = await import("node:path");
+  const root=resolve(import.meta.dir,"../../tmp/plugin-metadata");mkdirSync(root,{recursive:true});
+  const dir=mkdtempSync(join(root,"case-"));
+  try {
+    expect(readPluginState(dir)).toEqual({knownPath:undefined,installed:false});
+    for (const file of ["known_marketplaces.json","installed_plugins.json"]) {
+      for(const body of ["{", "null", "false", "[]", '\"\"']) {
+        writeFileSync(join(dir,file),body);
+        expect(()=>readPluginState(dir)).toThrow();
+        rmSync(join(dir,file));
+      }
+      mkdirSync(join(dir,file));expect(()=>readPluginState(dir)).toThrow();rmSync(join(dir,file),{recursive:true});
+    }
+    for (const [file, value] of [
+      ["known_marketplaces.json", {"agent-bus-local":null}],
+      ["known_marketplaces.json", {"agent-bus-local":{source:{}}}],
+      ["installed_plugins.json", {}],
+      ["installed_plugins.json", {plugins:[]}],
+      ["installed_plugins.json", {plugins:{"agent-bus@agent-bus-local":"installed"}}],
+    ] as const) {
+      writeFileSync(join(dir,file),JSON.stringify(value));expect(()=>readPluginState(dir)).toThrow();rmSync(join(dir,file));
+    }
+    writeFileSync(join(dir,"known_marketplaces.json"),JSON.stringify({"agent-bus-local":{source:{path:"/current"}}}));
+    writeFileSync(join(dir,"installed_plugins.json"),JSON.stringify({plugins:{"agent-bus@agent-bus-local":[{}]}}));
+    expect(readPluginState(dir)).toEqual({knownPath:"/current",installed:true});
+  } finally {rmSync(dir,{recursive:true,force:true});}
 });

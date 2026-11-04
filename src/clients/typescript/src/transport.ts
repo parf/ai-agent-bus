@@ -31,7 +31,7 @@ export function discoverSocket(token: string): string {
     if (!root) continue;
     for (const socket of token ? [`${root}/bus.sock`, `${root}/user-${account}.sock`] : [`${root}/user-${account}.sock`]) if (existsSync(socket)) return socket;
   }
-  return `/tmp/agent-bus-${process.getuid?.() ?? 0}.sock`; // CLI development fallback; no file is created.
+  return `/run/agent-bus/${token ? "bus.sock" : `user-${account}.sock`}`;
 }
 export class Transport {
   private readonly sockets = new Set<import('node:net').Socket>();

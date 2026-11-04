@@ -7,7 +7,7 @@ in the daemon's Users listing were fixed. Each of the four named mutations fails
 its check. The installed rerun stays with F.12.
 
 Completed requirement: F.13.6, whose row moved to [DONE](../DONE.md#done--mvp).
-Current contract: [browser acceptance](../../../../docs/05-discovery.md#browser-acceptance).
+Current contract: [browser acceptance](web-acceptance.md#budgets).
 The installed role/action and restart rerun is
 [F.12](../TODO.md#remaining-work).
 

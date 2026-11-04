@@ -25,7 +25,7 @@ Use the full Darwin archive to install the daemon with `agent-bus-setup`. It run
 | TLS | as on Linux ([TLS](../administration.md#tls)) |
 | First user | the installer, from their key, through `agent-bus-admin` on the account's socket |
 
-An existing role user is kept unchanged. Setup reuses its matching group, or restores a missing group at the user's PrimaryGroupID with `dseditgroup` when that GID is unused. A different group owning that GID, a named group at another GID, or a failed lookup refuses setup.
+Setup reuses an existing role user only with its matching group. A missing or mismatched group, or a failed lookup, refuses setup without changing the account.
 
 - Not on macOS: per-role accounts, cgroup limits, the web job, logrotate, a person's runner, `--upgrade`; setup refuses those options.
 - Without `CAP_CHOWN` the daemon cannot hand a socket to another account, so there are no per-user sockets: a person calls with a token (`sudo -u _agentbusd agent-bus token <name>`).

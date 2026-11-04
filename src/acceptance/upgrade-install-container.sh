@@ -76,9 +76,7 @@ agent-bus-admin token peer@fresh >/root/peer.token
 authenticates /root/owner.token owner@fresh || fail "owner credential positive control"
 authenticates /root/peer.token peer@fresh || fail "peer credential positive control"
 [ -f "$db" ] || fail "old release has no database"
-for legacy in token dump.json; do
-  [ ! -e "/var/lib/agent-bus/daemon/$legacy" ] || fail "0.7 install wrote the 0.6 $legacy"
-done
+
 sha256sum /var/lib/agent-bus/daemon/.ssh/authorized_keys >/evidence/credentials.before.sha256
 old_current=$(readlink /usr/local/lib/agent-bus/current)
 old_pid=$(systemctl show agent-busd -p MainPID --value)

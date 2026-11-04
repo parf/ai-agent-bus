@@ -49,11 +49,11 @@ func TestAnAskTravelsThroughForwardsCopiesAndRestarts(t *testing.T) {
 		t.Fatalf("the published copy arrived with ask %q through %q", e.Ask, e.OriginalTo)
 	}
 	r := New()
-	r.Restore(ports.Snapshot{
+	r.Restore(canonicalFixture(ports.Snapshot{
 		Users:   []protocol.User{{Name: "alice@h", Status: "active"}},
 		Records: []protocol.Record{userRecord("alice@h"), {Name: "#svc@h", Owner: "alice@h", Kind: protocol.KindAgent, Full: protocol.OverflowStrict}},
 		Queues:  []ports.Queue{{Name: "#svc@h", Messages: []protocol.Envelope{{ID: "q", From: "alice@h", To: "#svc@h", Ask: protocol.AskHelp, At: time.Now()}}}},
-	})
+	}, ""))
 	if err := r.EstablishDaemonOwner("alice@h"); err != nil {
 		t.Fatal(err)
 	}

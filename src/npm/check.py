@@ -20,6 +20,36 @@ pack = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(pack)
 
 
+class CanonicalLaunch(unittest.TestCase):
+    def test_only_sole_canonical_info_flags_bypass_setup_guard(self):
+        # Evaluate the production launcher with fake modules: no npm, install,
+        # account, filesystem write or child program can run.
+        script = r"""
+const fs = require('node:fs'), vm = require('node:vm'), assert = require('node:assert/strict');
+const source = fs.readFileSync(process.argv[1], 'utf8');
+for (const args of [['--help'], ['--version'], ['-h'], ['-version'], ['--help','extra'], ['--version','extra'], []]) {
+  let spawned = 0, errors = [];
+  const fakeProcess = {platform:'linux', arch:'x64', getuid:()=>1000, on:()=>{}, once:()=>{}};
+  const req = name => {
+    if (name === 'node:fs') return {readFileSync:()=>JSON.stringify({version:'test'})};
+    if (name === 'node:path') return require(name);
+    if (name === 'node:child_process') return {spawn:()=>{spawned++; return {once:()=>{},kill:()=>{}};}};
+    if (name === './package.json') return {version:'test',agentBus:{kind:'client',platforms:{'linux-x64':'fake'}}};
+    throw Error('unexpected module '+name);
+  };
+  req.resolve = () => '/fake/package.json';
+  const context = {require:req,module:{exports:{}},__dirname:'/fake',__filename:'/fake/launch.cjs',process:fakeProcess,console:{error:m=>errors.push(m)}};
+  vm.runInNewContext(source, context);
+  context.module.exports('agent-bus-setup', args);
+  const info = args.length === 1 && ['--help','--version'].includes(args[0]);
+  assert.equal(spawned, info ? 1 : 0, JSON.stringify(args));
+  if (!info) assert.ok(errors.some(m=>m.includes('setup requires explicit sudo')), JSON.stringify(args));
+}
+"""
+        result = subprocess.run(['node', '-e', script, str(Path(__file__).with_name('launch.cjs'))], capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+
 class Packages(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -159,7 +189,7 @@ class Packages(unittest.TestCase):
         self.assertIn('explicit sudo', result.stderr)
 
     def test_setup_informational_flag_alone_needs_no_sudo(self):
-        for flag in ('--version', '-version', '--help', '-h'):
+        for flag in ('--version', '--help'):
             with self.subTest(flag=flag):
                 result = self.run_command([str(self.bin / 'agent-bus-setup'), flag])
                 self.assertEqual(result.returncode, 0, result.stderr)

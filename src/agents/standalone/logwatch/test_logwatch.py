@@ -12,7 +12,6 @@ from unittest.mock import patch
 from cleaning import clean_line
 from filters import match
 import logwatch
-import subscription_migration as migration
 from logwatch import Agent, parse
 from agent_bus.errors import BusError, Refusal, UnexpectedAnswer
 from watcher import Monitor, Ring, configuration
@@ -62,6 +61,10 @@ def message(body, roles=(), original_to=None, who='#caller@t'):
 
 
 class WatcherTests(unittest.TestCase):
+    def test_default_sources_are_portable_and_have_no_site_exclusions(self):
+        self.assertEqual(configuration({})['sources'], ['syslog'])
+        self.assertEqual(configuration({})['excludes'], [])
+
     def test_byte_caps_bound_partial_ring_and_startup(self):
         agent = self.agent(ring_size=100, line_bytes=16384, ring_bytes=32768, startup_bytes=65536)
         with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[4]/'tmp') as directory:
@@ -157,7 +160,7 @@ class WatcherTests(unittest.TestCase):
         self.assertEqual(agent.handle(message('since 1m')), '[file] after')
         self.assertIn('unknown mark', agent.handle(message('after missing')))
 
-    def test_cleaning_preserves_plain_text_and_removes_exact_legacy_forms(self):
+    def test_cleaning_preserves_plain_text_and_removes_terminal_controls(self):
         text = '\x1b[31mred\x1b[0m #033[32mgreen [0;38;05;145mplain \x00\x01\x02end\tkeep\r\n'
         self.assertEqual(clean_line(text), 'red green plain ...end\tkeep\r')
         self.assertEqual(clean_line('\x1b]title\x07hello\x1bM'), 'hello')
@@ -301,158 +304,36 @@ time.sleep(30)
         self.assertEqual(len(json.loads(agent.handle(message('sub list', roles=('maintainer',))))['subs']), 2)
         self.assertEqual(json.loads(agent.handle(message('sub delete '+other, roles=('owner',))))['deleted'], other)
 
-    def test_legacy_definitions_keep_author_counts_and_inert_filters_without_pauses(self):
-        agent = self.agent(); agent.clock = lambda:1000.
-        base = {'target':'#target@t', 'filter':'/error/i', 'created_by':'#caller@t'}
-        agent.bus.kv.set('sub.000000000001', dict(base, id='000000000001', forwarded=7, dropped=2, paused='denied'))
-        agent.bus.kv.set('sub.000000000002', dict(base, id='000000000002', filter='/(/', disabled=True))
-        agent.bus.kv.set('sub.000000000003', {'id':'000000000003', 'target':'#target@t', 'filter':''})
-        agent.load(); once = copy.deepcopy(agent.bus.kv.values); agent.load()
-        self.assertEqual(agent.bus.kv.values, once, 'migration rewrote a shared row')
-        rows = json.loads(agent.handle(message('sub list')))['subs']
-        self.assertEqual([r['id'] for r in rows], ['000000000001','000000000002'])
-        self.assertEqual((rows[0]['created_by'], rows[0]['created_at'], rows[0]['sent'], rows[0]['dropped']),
-                         ('#caller@t','1970-01-01T00:16:40.000Z',7,2))
-        self.assertEqual(rows[1]['reason'], 'invalid_filter')
-        managers = json.loads(agent.handle(message('sub list', roles=('owner',))))['subs']
-        self.assertEqual(managers[-1], {'id':'000000000003','reason':'invalid_state'})
-        warnings = []; agent.log = warnings.append
-        agent.forward([agent.ring.add('file', 'ERROR arrival')])
-        self.assertEqual(len(agent.bus.sent), 1)
-        self.assertEqual(warnings, ['subscription: filter_invalid'])
-        rows = json.loads(agent.handle(message('sub list')))['subs']
-        self.assertEqual((rows[0]['sent'], rows[0]['dropped'], rows[1]['dropped']), (8,2,1))
-        self.assertFalse(any('paused' in r or 'disabled' in r for r in rows))
+    def test_startup_rejects_noncanonical_state_without_writes(self):
+        values = [
+            {'sub.old': {'id': 'old', 'target': '#target@t', 'created_by': '#caller@t', 'filter': ''}},
+            {'sub.000000000001': {'id': '000000000001', 'target': '#target@t', 'created_by': '#caller@t', 'filter': '', 'forwarded': 3}},
+            {'logwatch-migration.old': {'old': 'sub.old'}},
+        ]
+        for stored in values:
+            with self.subTest(stored=stored):
+                agent = self.agent()
+                agent.bus.kv.values = copy.deepcopy(stored)
+                with self.assertRaisesRegex(ValueError, 'unsupported subscription state'):
+                    agent.load()
+                self.assertEqual(agent.bus.kv.values, stored)
+                self.assertEqual(agent.bus.sent, [])
 
-    def test_legacy_unqualified_destination_uses_the_registry_canonical_name(self):
-        agent = self.agent(); agent.bus.canonical['events'] = 'events@t'
-        agent.bus.kv.set('sub.000000000001', {'id':'000000000001','target':'events',
-                        'filter':'','created_by':'#caller@t'})
-        agent.load()
-        rows = json.loads(agent.handle(message('sub list')))['subs']
-        self.assertEqual(len(rows), 1)
-        row = rows[0]
-        self.assertEqual(row['target'], 'events@t')
-        agent.forward([agent.ring.add('file', 'arrival')])
-        self.assertEqual(agent.bus.sent[0][0], 'events@t')
-
-    def test_legacy_literal_filter_is_escaped_in_the_shared_grammar(self):
+    def test_current_state_load_preserves_identity_and_counts(self):
         agent = self.agent()
-        agent.bus.kv.set('sub.000000000001', {'id':'000000000001','target':'#target@t',
-                        'filter':'error.dot','created_by':'#caller@t'})
+        key = json.loads(agent.handle(message('sub add #target@t /error/i')))['id']
+        agent.bus.kv.values['sub.'+key].update(sent=7, dropped=3)
+        before = copy.deepcopy(agent.bus.kv.values)
         agent.load()
-        rows = json.loads(agent.handle(message('sub list')))['subs']
-        self.assertEqual(len(rows), 1)
-        row = rows[0]
-        self.assertEqual(row['filter'], r'/error\.dot/iu')
-        agent.forward([agent.ring.add('file', 'errorXdot'), agent.ring.add('file', 'ERROR.dot')])
-        self.assertEqual([body for _, body, _ in agent.bus.sent], ['[file] ERROR.dot'])
+        self.assertEqual(agent.bus.kv.values, before)
+        self.assertEqual(json.loads(agent.handle(message('sub list')))['subs'][0]['sent'], 7)
 
-    def test_non_hex_ids_are_deterministic_collision_checked_and_idempotent(self):
-        agent = self.agent(); agent.clock = lambda:1000.
-        key = 'sub.old-id'; legacy = {'id':'old-id','target':'#target@t','filter':'','created_by':'#caller@t'}
-        collision = migration.migration_id(agent.bus.name, key)
-        self.assertEqual(collision, migration.migration_id(agent.bus.name, key), 'legacy ID mapping is not deterministic')
-        native = migration.project(agent.subscriptions, key, legacy, collision, agent.clock)
-        agent.bus.kv.set('sub.'+collision, native)
-        agent.bus.kv.set(key, legacy)
-        agent.load()
-        self.assertNotIn(key, agent.bus.kv.values)
-        self.assertEqual(agent.bus.kv.get('sub.'+collision), native, 'migration overwrote/coalesced a real collision')
-        expected = migration.migration_id(agent.bus.name, key, 1)
-        rows = json.loads(agent.handle(message('sub list')))['subs']
-        self.assertEqual({r['id'] for r in rows}, {collision, expected})
-        self.assertFalse(any(k.startswith(migration.PREFIX) for k in agent.bus.kv.values))
-        once = copy.deepcopy(agent.bus.kv.values); agent.clock = lambda:2000.; agent.load()
-        self.assertEqual(agent.bus.kv.values, once)
-        agent.forward([agent.ring.add('file', 'one match')])
-        self.assertEqual(len(agent.bus.sent), 2, 'a real subscription was lost to an ID collision')
-
-    def test_non_hex_unconfirmed_new_commit_keeps_old_until_restart_deduplicates(self):
-        agent = self.agent(); agent.clock = lambda:1000.
-        key = 'sub.short'; legacy = {'id':'short','target':'#target@t','filter':'','created_by':'#caller@t'}
-        agent.bus.kv.set(key, legacy)
-        new_key = 'sub.'+migration.migration_id(agent.bus.name, key)
-        real_set = agent.bus.kv.set
-        def lost_reply(name, value, **options):
-            result = real_set(name, value, **options)
-            if name == new_key: raise BusError('commit reply lost')
-            return result
-        agent.bus.kv.set = lost_reply
-        try:
-            with self.assertRaises(BusError): agent.load()
-        finally: agent.bus.kv.set = real_set
-        self.assertIn(key, agent.bus.kv.values, 'legacy row disappeared before a confirmed new commit')
-        self.assertEqual(agent.bus.kv.get(key), legacy)
-        self.assertIn(new_key, agent.bus.kv.values)
-        first = agent.bus.kv.get(new_key)
-        agent.clock = lambda:2000.; agent.load()
-        self.assertNotIn(key, agent.bus.kv.values)
-        self.assertEqual(agent.bus.kv.get(new_key), first, 'restart recreated the committed row')
-        rows = json.loads(agent.handle(message('sub list')))['subs']
-        self.assertEqual(len(rows), 1)
-        agent.forward([agent.ring.add('file', 'after restart')])
-        self.assertEqual(len(agent.bus.sent), 1)
-
-    def test_non_hex_failed_new_write_does_not_delete_the_legacy_row(self):
-        agent = self.agent()
-        key = 'sub.short'; legacy = {'id':'short','target':'#target@t','filter':'','created_by':'#caller@t'}
-        agent.bus.kv.set(key, legacy)
-        new_key = 'sub.'+migration.migration_id(agent.bus.name, key)
-        real_set = agent.bus.kv.set
-        def failed_write(name, value, **options):
-            if name == new_key: raise BusError('write failed')
-            return real_set(name, value, **options)
-        agent.bus.kv.set = failed_write
-        try:
-            with self.assertRaises(BusError): agent.load()
-        finally: agent.bus.kv.set = real_set
-        self.assertIn(key, agent.bus.kv.values, 'legacy row disappeared before a confirmed new commit')
-        self.assertEqual(agent.bus.kv.get(key), legacy)
-        self.assertNotIn(new_key, agent.bus.kv.values)
-        agent.load()
-        self.assertNotIn(key, agent.bus.kv.values)
-        self.assertIn(new_key, agent.bus.kv.values)
-
-    def test_non_hex_delete_reply_lost_finishes_checkpoint_without_recreating_old_row(self):
-        agent = self.agent()
-        key = 'sub.short'; legacy = {'id':'short','target':'#target@t','filter':'','created_by':'#caller@t'}
-        agent.bus.kv.set(key, legacy)
-        real_delete = agent.bus.kv.delete
-        def lost_reply(name, **options):
-            result = real_delete(name, **options)
-            if name == key: raise BusError('delete reply lost')
-            return result
-        agent.bus.kv.delete = lost_reply
-        try:
-            with self.assertRaises(BusError): agent.load()
-        finally: agent.bus.kv.delete = real_delete
-        self.assertNotIn(key, agent.bus.kv.values)
-        self.assertTrue(any(k.startswith(migration.PREFIX) for k in agent.bus.kv.values))
-        agent.load()
-        rows = json.loads(agent.handle(message('sub list')))['subs']
-        self.assertEqual(len(rows), 1)
-        self.assertFalse(any(k.startswith(migration.PREFIX) for k in agent.bus.kv.values))
-
-    def test_non_hex_damaged_definition_stays_manager_only_repair(self):
-        agent = self.agent()
-        key = 'sub.orphan'
-        agent.bus.kv.set(key, {'id':'orphan','target':'#target@t','filter':''})
-        agent.load()
-        new_id = migration.migration_id(agent.bus.name, key)
-        self.assertNotIn(key, agent.bus.kv.values)
-        self.assertEqual(json.loads(agent.handle(message('sub list')))['subs'], [])
-        managers = json.loads(agent.handle(message('sub list', roles=('owner',))))['subs']
-        self.assertEqual(managers, [{'id':new_id, 'reason':'invalid_state'}])
-        self.assertEqual(agent.handle(message('sub delete '+new_id)), 'error: not_author')
-        self.assertEqual(json.loads(agent.handle(message('sub delete '+new_id, roles=('owner',))))['deleted'], new_id)
-
-    def test_sub_edit_is_refused_with_delete_and_add_guidance_without_mutation(self):
+    def test_unknown_methods_are_refused_without_mutation(self):
         agent = self.agent()
         agent.handle(message('sub add #target@t'))
         before = copy.deepcopy(agent.bus.kv.values)
         for body in ['sub edit old #other@t /error/', 'sub.edit old #other@t', '{"method":"sub.edit","id":"old","target":"#other@t"}']:
-            self.assertEqual(agent.handle(message(body)), 'error: delete it and add it again')
+            self.assertTrue(agent.handle(message(body)).startswith('error:'), body)
             self.assertEqual(agent.bus.kv.values, before)
         self.assertNotIn('sub.edit', logwatch.FIELDS)
         self.assertIn('delete it and add it again', agent.handle(message('help')))

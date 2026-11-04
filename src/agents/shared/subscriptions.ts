@@ -108,7 +108,7 @@ function identity(value: unknown): string {
   try { return targetText(value); } catch { throw new SubscriptionError("not_author"); }
 }
 const SAFE = (n: unknown): n is number => Number.isSafeInteger(n) && (n as number) >= 0;
-const FIELDS = ["created_at", "created_by", "dropped", "filter", "id", "selector", "sent", "target"].join();
+export const FIELDS = ["created_at", "created_by", "dropped", "filter", "id", "selector", "sent", "target"].join();
 const STAMP = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/;
 const named = (v: unknown): v is string => { try { targetText(v); return true; } catch { return false; } };
 
@@ -317,7 +317,8 @@ export class Subscriptions {
     const damaged = new Map<string, Damaged>();
     for (const [key, value] of stored) {
       const id = key.slice(4);
-      if (!key.startsWith("sub.") || !ID.test(id)) continue;
+      if (!key.startsWith("sub.")) continue;
+      if (!ID.test(id)) throw new SubscriptionError("invalid_id");
       if (this.isRow(value, id)) rows.set(id, structuredClone(value));
       else damaged.set(id, { id, reason: "invalid_state" });
     }

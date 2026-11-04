@@ -4,8 +4,7 @@
 containers: the `daemon` role on a storage volume, and a `runner` role for one
 person that reaches the daemon's port with its own token. People use the port
 with tokens. The container is the sandbox boundary: an agent that asks the
-runner for a sandbox is refused, never run unconfined. This implements the
-[container contract](../../Plans/R1.0-Release/distribution.md#container-runtime).
+runner for a sandbox is refused, never run unconfined. See [sandboxing](#sandboxing-is-off) before running agents.
 
 | File | What it is |
 |---|---|
@@ -16,15 +15,16 @@ runner for a sandbox is refused, never run unconfined. This implements the
 
 ## Build
 
-The image is built from a release archive, never from a source checkout.
-It checks the selected archive's checksum, then its inner manifest:
+Install a container engine (Podman or Docker Buildx) and the bus client on the host.
+Download a full Linux release archive and its `SHA256SUMS` into `tmp/dist`.
+Use this checkout for the Containerfile and entry point; the runtime comes from
+the archive. The build checks the selected checksum, then its inner manifest:
 
 - `SHA256SUMS` takes precedence; a missing selected line fails even if a sidecar exists.
 - A local `src/package.sh` directory supplies `<archive>.sha256`, used only when `SHA256SUMS` is absent.
 - Verification and unpacking happen in a builder stage; only the unpacked tree enters the final image, without release-input archive layers.
 
 ```sh
-src/package.sh tmp/dist
 podman build --build-context release=tmp/dist -t agent-bus src/container
 ```
 
@@ -32,9 +32,8 @@ podman build --build-context release=tmp/dist -t agent-bus src/container
 archive in the directory, pass `--build-arg ARCHIVE=agent-bus-<version>-linux-<arch>.tar.gz`.
 Use that explicit selection with a downloaded GitHub release, whose directory
 contains several platforms and `SHA256SUMS`, without per-archive sidecars.
-Run `src/release-verify.sh --os "linux darwin" <directory>` on the complete
-release directory before building the chosen Linux image.
-
+For contributor-built archives, run `src/package.sh tmp/dist` first. Complete
+release-set verification is described in the [maintainer deployment guide](../../.claude/docs/deployment.md#build-information).
 
 ## Run
 
@@ -54,14 +53,14 @@ podman run -d --name agent-busd --network agent-bus --hostname node -p 6767:6767
 
 # Inside the daemon container its own account is the Owner, on the local socket.
 podman exec -u agent-busd agent-busd agent-bus register '#runner/owner' --allow @owner
-podman exec -u agent-busd agent-busd agent-bus token '#runner/owner'   # the runner's token
-podman exec -u agent-busd agent-busd agent-bus token                   # the Owner's token
+RUNNER_TOKEN=$(podman exec -u agent-busd agent-busd agent-bus token '#runner/owner')
+OWNER_TOKEN=$(podman exec -u agent-busd agent-busd agent-bus token)
 
 podman run -d --name agent-bus-runner --network agent-bus \
-  -e AGENT_BUS_ADDR=http://agent-busd:6767 -e AGENT_BUS_TOKEN=<runner token> \
+  -e AGENT_BUS_ADDR=http://agent-busd:6767 -e AGENT_BUS_TOKEN="$RUNNER_TOKEN" \
   -v agent-bus-runner:/var/lib/agent-bus/runner agent-bus runner
 
-AGENT_BUS_ADDR=http://localhost:6767 AGENT_BUS_TOKEN=<owner token> agent-bus call '#echo' hello
+AGENT_BUS_ADDR=http://localhost:6767 AGENT_BUS_TOKEN="$OWNER_TOKEN" agent-bus call '#echo' hello
 ```
 
 The answer comes from `#echo`, served by the runner container.
@@ -100,7 +99,7 @@ the runner's identity.
 roles on a private network and checks: a request/reply from a third container;
 a recreated daemon on its volume keeps a registered service and the issued
 tokens; an agent that asks for a sandbox is refused and gets no answer. It
-removes everything it made. `MUTANT=daemon-entry|runner-entry|storage-outside|sandbox-downgrade`
+removes the fixture containers, network and volumes; build caches remain. `MUTANT=daemon-entry|runner-entry|storage-outside|sandbox-downgrade`
 breaks the entry point, and each must fail a check.
 
 `src/container/acceptance.sh --image=<reference> <version>` runs the same
@@ -111,4 +110,3 @@ The build uses `--pull=never` and needs the pinned base image in the local
 store: `podman pull` the `FROM` reference in the `Containerfile` once. Without
 it, or without podman, the smoke check fails with that reason. Its package install reaches the
 AlmaLinux mirrors, so an offline host with no cached layers fails the build.
-The check takes about 45 seconds in a normal gate.

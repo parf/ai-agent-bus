@@ -17,22 +17,10 @@ func TestRestoreIgnoresASecretOnAKindThatHoldsNone(t *testing.T) {
 	b := New()
 	rep := &reports{}
 	b.Journal(rep)
-	b.Restore(withUsers(ports.Snapshot{Clean: true, Records: []protocol.Record{
+	assertRestoreRefused(t, b, canonicalFixture(withUsers(ports.Snapshot{Clean: true, Records: []protocol.Record{
 		{Name: "jobs@h", Kind: protocol.KindQueue, Owner: "owner@h", Secret: "TOKEN=abc"},
 		{Name: "digest@h", Kind: protocol.KindQueue, Owner: "owner@h", SecretSHA: "deadbeef"},
-	}}, "owner@h"))
-	if err := b.EstablishDaemonOwner("owner@h"); err != nil {
-		t.Fatal(err)
-	}
-	for _, name := range []string{"jobs@h", "digest@h"} {
-		if _, loaded := b.Lookup("owner@h", name); loaded {
-			t.Errorf("a queue holding a secret was loaded: %s", name)
-		}
-		// Named, so that whoever reads the report knows which record to edit.
-		if !rep.has("stored record "+name+" is ignored") || !rep.has("holds no secret") {
-			t.Errorf("the ignored %s was not reported with its reason: %v", name, rep.lines)
-		}
-	}
+	}}, "owner@h"), ""))
 }
 
 // The controls: the kinds that hold one keep what they were given, or the

@@ -1,7 +1,5 @@
 # AgentBus runner
 
-**Turn any script into a safe, shared team tool.**
-
 📌 **TL;DR:**
 - **Problem:** a handy script stays a private hack, because sharing it means sharing its passwords and giving it free run of a server.
 - **Outcome:** the runner gives the script a name, keeps its passwords apart, applies [documented isolation](security.md#isolation-today), and lets your team call it.
@@ -26,7 +24,6 @@
 ## One way to start
 
 - Follow [Getting started](getting-started.md): a short script, a reload, one call.
-- It ends with the script answering by name.
 - Already have a runner? List its visible agents with `agent-bus ls --kind=agent`, then use [Operations](operations.md#try-this-first) to inspect their state.
 
 ## How it works
@@ -58,16 +55,3 @@ flowchart LR
 - **A script in your own terminal:** use the [dedicated runner](../user/dedicated-runner.md).
 - **Claude Code, Codex or OpenCode sessions:** use the [session launchers](../user/ai-cli.md).
 - **A program with a client library:** it runs on its own, or under the runner as an [agent that serves itself](configuration.md#agents-that-serve-themselves).
-
-<details>
-<summary>Technical details</summary>
-
-- **Separate program:** the runner ships in the same release and uses the bus like any client.
-- **Per message, bounded:** one process starts per message, with bounded parallel work.
-- **Confinement:** read the [network, filesystem and limit boundaries](security.md#isolation-today) before installing code.
-- **Accepted is not always active:** see [current limits](security.md#what-is-accepted-but-inert).
-- **Controls:** per-agent controls and host-file editing are in [operations](operations.md#running-and-checking-the-runner).
-- **Web pages:** information and management are separate pages ([the runner web pages](../../src/web/web-face/runners.md#web-face-runner-pages)).
-- **Version and install:** the runner uses the repository's shared version and [installation](../07-setup.md#install).
-
-</details>

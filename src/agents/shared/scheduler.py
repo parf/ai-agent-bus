@@ -11,7 +11,6 @@ An agent subclasses Scheduler with
 its call grammar and its methods.
 """
 from datetime import datetime, timedelta, timezone
-import hashlib
 import json
 import math
 import os
@@ -57,8 +56,6 @@ def valid(kind, value):
         raise ValueError('target')
     if not isinstance(value.get('body'), str) or not isinstance(value.get('by'), str) or not value['by']:
         raise ValueError('body or creator')
-    if 'paused' in value and not isinstance(value['paused'], str):
-        raise ValueError('paused')
     for number in ('created',) + (('at',) if kind == 'later' else ()):
         if type(value.get(number)) not in (int, float) or not math.isfinite(value[number]):
             raise ValueError(number)
@@ -124,7 +121,6 @@ class Scheduler:
         self.state = {}  # id -> outcome, sent, dropped, skipped and missed counts (memory)
         self.invalid = {}  # id -> (kind, creator or None): stored entries that do not parse
         self.taken = set()  # claims another process made; never this process's to clean up
-        self.migrating = set()  # ids of a legacy move not finished: not served, its claims kept
         self.started = clock()
         self.author_check = None  # the last may_send outcome: 'ok' or 'unavailable'
         self.lease = 0
@@ -137,103 +133,48 @@ class Scheduler:
 
     # Storage ----------------------------------------------------------
     def load(self):
-        """Read every entry; one that does not parse is shown as invalid, never fatal."""
+        """Validate the persisted format before recovery can mutate any state."""
         if self.error:
             return
         names = self.bus.kv.list()
-        if self.migrate_ids(names):
-            names = self.bus.kv.list()
+        subs, later, invalid, claims = {}, {}, {}, {}
         for entry in names.get('json', []):
             name = entry['name']
             kind, _, key = name.partition('.')
-            if kind not in self.KINDS or not ID.fullmatch(key):
+            if kind not in self.KINDS:
                 continue
-            if key in self.migrating:
-                self.log(f'{kind} {key} waits for its move to finish; not served')
-                continue
-            value = None
+            if not ID.fullmatch(key):
+                raise ValueError('unsupported scheduler state: entry id')
+            value = self.bus.kv.get(name, kind='json')
+            fields = {'target', 'body', 'by', 'created', 'cron' if kind == 'sub' else 'at'}
+            if not isinstance(value, dict) or set(value) != fields:
+                raise ValueError('unsupported scheduler state: entry fields')
             try:
-                value = self.bus.kv.get(name, kind='json')
-                (self.subs if kind == 'sub' else self.later)[key] = valid(kind, value)
-            except (BusError, KeyError, TypeError, ValueError):
+                (subs if kind == 'sub' else later)[key] = valid(kind, value)
+            except (KeyError, TypeError, ValueError):
                 self.log(f'stored {kind} {key} is invalid; skipped')
-                by = value.get('by') if isinstance(value, dict) and isinstance(value.get('by'), str) else None
-                self.invalid[key] = (kind, by)
+                by = value.get('by') if isinstance(value.get('by'), str) else None
+                invalid[key] = (kind, by)
         for entry in names.get('string', []):
             name = entry['name']
-            if name.startswith('fired.'):
-                self.claims[name] = self.bus.kv.get(name)
-        self.unpause()
+            if not name.startswith('fired.'):
+                continue
+            parts = name.split('.')
+            if len(parts) != 3 or not ID.fullmatch(parts[1]):
+                raise ValueError('unsupported scheduler state: claim id')
+            slot = parts[2]
+            if slot != 'once':
+                try:
+                    if datetime.strptime(slot, '%Y-%m-%dT%H:%M').strftime('%Y-%m-%dT%H:%M') != slot:
+                        raise ValueError()
+                except ValueError:
+                    raise ValueError('unsupported scheduler state: claim slot') from None
+            value = self.bus.kv.get(name)
+            if value not in ('sending', 'sent', 'dropped'):
+                raise ValueError('unsupported scheduler state: claim outcome')
+            claims[name] = value
+        self.subs, self.later, self.invalid, self.claims = subs, later, invalid, claims
         self.sweep()
-
-    def migrate_ids(self, names):
-        """A stored entry whose id is not 12 hex moves to one that is. The new id is the first 12 hex of
-        the SHA-256 of the old key, then of that digest again while it is taken, so a restart gives
-        the same answer. The new entry is written before the old one is removed, and it names the old
-        key, so a restart after the write finishes the move. True when anything moved."""
-        present = {entry['name'] for entry in names.get('json', [])}
-        self.migrating = set()
-        moved = False
-        for name in sorted(present):
-            kind, _, key = name.partition('.')
-            if kind not in self.KINDS or not name.partition('.')[2] or ID.fullmatch(key):
-                continue
-            candidate = hashlib.sha256(name.encode()).hexdigest()[:12]
-            unread = False
-            while True:
-                taken = f'{kind}.{candidate}'
-                if taken not in present:
-                    break
-                try:
-                    if self.bus.kv.get(taken, kind='json').get('migrated_from') == key:
-                        break  # the write happened, the removal did not
-                except BusError:
-                    unread = True  # not known to be someone else's: never hash onward on a failed read
-                    break
-                except AttributeError:
-                    pass
-                candidate = hashlib.sha256(candidate.encode()).hexdigest()[:12]
-            if unread:
-                self.migrating |= {key, candidate}
-                self.log(f'stored {kind} {key} could not be checked for a move; skipped')
-                continue
-            self.migrating |= {key, candidate}  # until the claims and the old key are done
-            try:
-                if f'{kind}.{candidate}' not in present:
-                    value = self.bus.kv.get(name, kind='json')
-                    if not isinstance(value, dict):
-                        raise ValueError('not an object')
-                    self.bus.kv.set(f'{kind}.{candidate}', value | {'migrated_from': key}, kind='json', mode='add')
-                prefix = f'fired.{key}.'
-                for claim in sorted(entry['name'] for entry in names.get('string', [])
-                                    if entry['name'].startswith(prefix) and '.' not in entry['name'][len(prefix):]):
-                    # the claims follow the entry, so a copy already claimed under the old id is not sent again
-                    self.bus.kv.set(f'fired.{candidate}.' + claim[len(prefix):], self.bus.kv.get(claim), mode='set')
-                    self.bus.kv.delete(claim)
-                self.bus.kv.delete(name, kind='json')
-                self.migrating -= {key, candidate}
-                self.log(f'{kind} {key} moved to {candidate}')
-                moved = True
-            except (BusError, ValueError, TypeError):
-                self.log(f'stored {kind} {key} could not move to a 12-hex id; skipped')
-        return moved
-
-    def unpause(self):
-        """An entry a release before RD161 paused is active again, and a paused one-shot is dropped:
-        a copy is dropped, never held."""
-        for key, sub in list(self.subs.items()):
-            if sub.get('paused'):
-                sub.pop('paused')
-                try:
-                    self.bus.kv.set('sub.' + key, self.stored(sub), kind='json', mode='replace')
-                except BusError:
-                    self.log(f'subscription {key} could not be reactivated; kept in memory')
-        for key, entry in list(self.later.items()):
-            if entry.get('paused'):
-                entry.pop('paused')
-                self.warn(key, 'send_unknown')
-                self.count(key, 'dropped')
-                self.finish(key, 'dropped')
 
     def sweep(self):
         """At start: a claim still `sending` is a copy whose acceptance is unknown, so dropped; orphans
@@ -242,19 +183,13 @@ class Scheduler:
         newest = {}
         for name, value in sorted(self.claims.items()):
             _, key, slot = name.split('.', 2)
-            if any(name.startswith(f'fired.{moving}.') for moving in self.migrating):
-                continue  # an unfinished legacy move keeps its evidence
             entry = self.subs.get(key) or self.later.get(key)
             if entry is None and key not in self.invalid:
                 self.drop_claim(name, orphan=True)
                 continue
             if value == 'sending':
                 self.drop(key, name, 'send_unknown')
-            elif value in ('unconfirmed', 'denied', 'gone') or value.startswith('retrying '):
-                # What a release before RD161 left: that copy is over and is dropped, never sent, and
-                # its claim becomes the settled `dropped` so the slot or one-shot is not fired again.
-                self.drop(key, name, {'denied': 'admission_refused', 'gone': 'target_gone'}.get(value, 'send_unknown'))
-            elif value in ('sent', 'refused', 'dropped') and key in self.later:
+            elif value in ('sent', 'dropped') and key in self.later:
                 self.finish(key, value)  # the removal after its outcome did not happen
             elif key in self.subs:
                 newest.setdefault(key, []).append(name)
@@ -263,8 +198,7 @@ class Scheduler:
                 self.drop_claim(name)
 
     def drop_claim(self, name, orphan=False):
-        """Only settled claims are removed: `sending`, `unconfirmed` and `denied` are the evidence,
-        unless their entry is gone."""
+        """Only settled claims are removed; a `sending` claim stays unless its entry is gone."""
         if name in self.taken or not orphan and self.claims.get(name) == 'sending':
             return
         try:
@@ -649,7 +583,7 @@ class Scheduler:
         return self.remove(message, self.later, call['id'], 'later')
 
     def wait(self):
-        """Seconds to the next minute boundary or due one-shot or retry, at most 10."""
+        """Seconds to the next minute boundary or due one-shot, at most 10."""
         now = self.clock()
         due = [60 - now % 60 + 0.2] + \
               [e['at'] - now for k, e in self.later.items() if f'fired.{k}.once' not in self.claims]

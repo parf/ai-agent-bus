@@ -55,26 +55,12 @@ func main() {
 		die(usage)
 	}
 	verb, rest := args[0], args[1:]
-	if len(rest) == 1 && (rest[0] == "--help" || verb == "token" && rest[0] == "-h") {
+	if len(rest) == 1 && rest[0] == "--help" {
 		if help := verbUsage(verb); help != "" {
 			fmt.Println(help)
 			return
 		}
 	}
-	// A delimiter also ends the name shorthand; literal text stays untouched.
-	end := len(rest)
-	for i, arg := range rest {
-		if arg == "--" {
-			end = i
-			break
-		}
-	}
-	for i := 0; i+1 < end; i++ {
-		if rest[i] == "--agent" && strings.HasPrefix(rest[i+1], "--") {
-			die("--agent wants a name, not option %s", rest[i+1])
-		}
-	}
-	rest = append(protocol.ExpandAgentFlags(rest[:end]), rest[end:]...)
 	var err error
 	switch verb {
 	case "token":
@@ -129,9 +115,7 @@ func main() {
 		err = receipt(protocol.ReceiptAck, rest)
 	case "done":
 		err = receipt(protocol.ReceiptDone, rest)
-	case "channel":
-		err = channel(rest)
-	case "config", "agent-template":
+	case "config":
 		err = agentTemplate(rest)
 	case "secret":
 		err = secret(rest)
@@ -149,18 +133,19 @@ func main() {
 		err = manage(rest)
 	case "group":
 		err = group(rest)
-	case "enrol", "enroll":
+	case "enrol":
 		err = enrol(rest)
 	case "reply":
 		err = reply(rest)
 	case "help":
 		err = agentHelp(rest, os.Stdout)
-	case "-h", "--help":
-		_, flags, parseErr := split(rest)
-		if err = only(flags, parseErr); err == nil {
+	case "--help":
+		if len(rest) != 0 {
+			err = fmt.Errorf("--help takes no arguments")
+		} else {
 			fmt.Println(usage)
 		}
-	case "--version", "-version":
+	case "--version":
 		_, flags, parseErr := split(rest)
 		if err = only(flags, parseErr); err == nil {
 			err = fmt.Errorf("%s takes no arguments", verb)
@@ -196,18 +181,12 @@ func tokenFor(name string) (string, error) {
 
 func register(args []string) error {
 	pos, flags, err := split(args)
-	if err := only(flags, err, "kind", "service-addr", "addr", "descr", "overflow", "personal", "allow", "ttl", "bound", "protocol",
+	if err := only(flags, err, "kind", "service-addr", "descr", "overflow", "allow", "ttl", "bound", "protocol",
 		"uri", "template", "source", "mime", "title", "size", "mcp-name", "icons", "annotations", "tags"); err != nil {
 		return err
 	}
 	if len(pos) != 1 {
 		return fmt.Errorf("register wants one name")
-	}
-	if v, ok := flags["service-addr"]; ok {
-		if old, exists := flags["addr"]; exists && old != v {
-			return fmt.Errorf("use one service address")
-		}
-		flags["addr"] = v
 	}
 	res, err := resourceFlags(flags)
 	if err != nil {
@@ -218,12 +197,6 @@ func register(args []string) error {
 		return err
 	}
 	kind := flags["kind"]
-	// --personal names an agent: it is the owner's own agent, grouped in their
-	// view, and no other kind may carry the flag. Stating both is allowed and
-	// stating a different one is the caller's error to see.
-	if kind == "" && has(flags, "personal") {
-		kind = protocol.KindAgent
-	}
 	if kind == "" && res != nil {
 		kind = protocol.KindResource
 	}
@@ -232,10 +205,10 @@ func register(args []string) error {
 		return err
 	}
 	return post("/register", protocol.Record{
-		Name: pos[0], Kind: kind, Addr: flags["addr"], Descr: flags["descr"],
+		Name: pos[0], Kind: kind, Addr: flags["service-addr"], Descr: flags["descr"],
 		Full: flags["overflow"], Proto: flags["protocol"],
 		TTL: flags["ttl"], Bound: n,
-		Allow: allow(flags), Personal: has(flags, "personal"), Resource: res, Tags: tags,
+		Allow: allow(flags), Resource: res, Tags: tags,
 	})
 }
 
@@ -275,7 +248,7 @@ func ls(args []string) error {
 	filtered := make([]string, 0, len(args))
 	options := true
 	for _, arg := range args {
-		if options && (arg == "-h" || arg == "--table") {
+		if options && arg == "--table" {
 			human = true
 			continue
 		}
@@ -575,7 +548,7 @@ func agentTemplate(args []string) error {
 }
 
 // secret sets a record's credential (an agent's, a service's or a group's), and reads it
-// back. One verb for the same reason agent-template is one: the direction is
+// back. One verb for the same reason config is one: the direction is
 // whether a secret was handed to it.
 //
 // What is written is bytes and nothing checks inside them; what is read is
@@ -612,43 +585,6 @@ func secret(args []string) error {
 		Name   string `json:"name"`
 		Secret string `json:"secret"`
 	}{name, string(raw)})
-}
-
-// A channel is a record like any other; `channel create` is the sugar that
-// says so. The verb is `channel` and not `topic` because an envelope's
-// `topic` is a label on one message, which is a different thing.
-// See docs/03-records-channel.md.
-func channel(args []string) error {
-	pos, flags, err := split(args)
-	if err := only(flags, err, "kind", "descr", "overflow", "ttl", "bound", "allow"); err != nil {
-		return err
-	}
-	if len(pos) == 0 || pos[0] != "create" {
-		return fmt.Errorf("the only channel verb is: channel create <name> [--kind queue|pubsub]")
-	}
-	pos = pos[1:]
-	if len(pos) != 1 {
-		return fmt.Errorf("channel create wants one name")
-	}
-	// A channel is a record kind rather than a mode on one, so --kind names
-	// the kind directly and there is nothing else to store.
-	// See docs/03-records.md#record-kinds.
-	kind := flags["kind"]
-	if kind == "" {
-		kind = protocol.KindQueue
-	}
-	if kind != protocol.KindQueue && kind != protocol.KindPubSub {
-		return fmt.Errorf("a channel is %s or %s", protocol.KindQueue, protocol.KindPubSub)
-	}
-	n, err := bound(flags)
-	if err != nil {
-		return err
-	}
-	return post("/register", protocol.Record{
-		Name: pos[0], Kind: kind, Descr: flags["descr"],
-		Full: flags["overflow"], TTL: flags["ttl"], Bound: n,
-		Allow: allow(flags),
-	})
 }
 
 // publish is a send to a pubsub channel. A publisher need not be a registered agent
@@ -807,20 +743,16 @@ func callCtx(ctx context.Context, method, path string, q url.Values, body any) (
 	if path == "/identity" {
 		data, code, err := callRawCtx(ctx, method, path, q, body)
 		if err == nil && code < 400 {
-			var old bool
-			old, err = checkClientProtocol(data)
-			if err == nil && old {
-				fmt.Fprintln(os.Stderr, "daemon too old: protocol is older than this client")
-			}
+			err = checkClientProtocol(data)
 		}
 		return data, code, err
 	}
-	old, err := ensureDaemonProtocol(ctx)
+	err := ensureDaemonProtocol(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
 	data, code, err := callRawCtx(ctx, method, path, q, body)
-	return protocolRefusal(data, code, old, method+" "+path), code, err
+	return protocolRefusal(data, code), code, err
 }
 
 // enrolling marks the context of an enrolment call: its /identity probe may go
@@ -1130,7 +1062,7 @@ func warn(format string, a ...any) {
 // is recorded as present and empty.
 // Flags that are on or off. Without this the word after one is taken as its
 // value, and `--follow consume` reads as follow="consume".
-var onOff = map[string]bool{"follow": true, "personal": true, "share": true, "network": true,
+var onOff = map[string]bool{"follow": true, "share": true, "network": true,
 	"int": true, "json": true, "memory": true, "add": true, "replace": true, "help": true, "help-config": true, "help-secret": true, "help-json": true, "mcp": true, "force": true, "all": true, "template": true, "stay-registered": true, "no-color": true, "no-asks": true}
 
 // askOf is what --help or --mcp asks: it travels as the envelope's ask with
@@ -1218,6 +1150,11 @@ func splitOptionsJoined(args []string, asks bool, joined []string) ([]string, ma
 			return append(pos, args[i+1:]...), flags, nil
 		}
 		if !strings.HasPrefix(a, "--") {
+			if strings.HasPrefix(a, "-") && a != "-" {
+				if n, err := strconv.Atoi(a[1:]); err != nil || n <= 0 {
+					return pos, flags, fmt.Errorf("unknown option %s; use --help", a)
+				}
+			}
 			pos = append(pos, a)
 			continue
 		}

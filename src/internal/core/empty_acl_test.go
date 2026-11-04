@@ -2,12 +2,10 @@ package core
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"testing"
 	"time"
 
-	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
@@ -41,19 +39,12 @@ func restrictedFixture(t *testing.T, restored bool) *Bus {
 		t.Fatal(err)
 	}
 	if restored {
-		// The pre-change snapshot shape has no access-policy version or migration.
-		// An existing empty ACL must remain empty and adopt the same restriction.
-		data, err := json.Marshal(b.Snapshot())
-		if err != nil {
-			t.Fatal(err)
-		}
-		var snapshot ports.Snapshot
-		if err := json.Unmarshal(data, &snapshot); err != nil {
-			t.Fatal(err)
-		}
+		saved := b.Snapshot()
 		b = New()
-		b.Restore(snapshot)
-		b.SetDaemonOwner("admin@h")
+		if err := b.Restore(saved); err != nil {
+			t.Fatal(err)
+		}
+
 	}
 	return b
 }

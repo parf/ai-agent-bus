@@ -55,7 +55,7 @@ threads remain in [R1's decision record](../R1.0-Release/DECISIONS.md#recorded-d
 
 | Date | Decision | Why | Substance |
 |---|---|---|---|
-| 2026-09-13 | Runtime integrations promoted to MVP | Owner requires usable integrations in the current stage | [MVP delivery](../../docs/06-launchers.md#runtime-integration-delivery) |
+| 2026-09-13 | Runtime integrations promoted to MVP | Owner requires usable integrations in the current stage | [MVP delivery](../../docs/06-launchers.md#adapters) |
 
 ## Superseded
 

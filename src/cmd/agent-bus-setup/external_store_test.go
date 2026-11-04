@@ -25,7 +25,7 @@ func TestSetupDoesNotManageExternalQdrant(t *testing.T) {
 		t.Fatal("setup advertises management of an external store")
 	}
 	out, err := exec.CommandContext(ctx, binary, "--qdrant", "install", "--dry-run").CombinedOutput()
-	if err == nil || !strings.Contains(string(out), "flag provided but not defined: -qdrant") {
+	if err == nil || !strings.Contains(string(out), "unknown option --qdrant") {
 		t.Fatalf("removed Qdrant flag was accepted: %v %s", err, out)
 	}
 }

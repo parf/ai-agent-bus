@@ -1,4 +1,4 @@
-"""The RAG wire and storage bounds; changes to IDs/chunking require migration."""
+"""The RAG wire and storage bounds; IDs and chunking define the persisted format."""
 import hashlib
 import json
 import math

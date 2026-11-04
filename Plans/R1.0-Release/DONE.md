@@ -1,5 +1,10 @@
 # DONE — R1
 
+## Clean R1 inputs
+
+- Prerelease field/flag/route aliases, unbound credentials, schema/state converters and obsolete package adapters are removed. First-party callers, fixtures, help and documentation use the canonical forms. Current-format updates and atomic recovery remain supported.
+- [Implementation and checks](legacy-removal.md#implementation-and-checks) records independent reviews, mutation evidence and the successful integrated normal gate. Earlier migration descriptions below are historical implementation evidence, not supported release behavior.
+
 ## T-31 Client event logs and subscriptions
 
 - All six native clients run the shared event-log and subscription cases against the real fixture, with executed examples and README links. Generic send/call and destination consumption suffice; no event helper was added. [Completion evidence](done/t31-client-events.md#landed-evidence) records Q322 and parts a–g; the client audit stays dated.
@@ -14,7 +19,7 @@
 
 ## T-24 S2v the Rust, PHP and Java clients run the shared vectors
 
-- [The vectors](../../src/testdata/client-conformance/README.md#state-identity-and-refusal-vectors-t-24) for kv (int64 digits, the 512 KiB and 10,000-name edges), locks and holders, identity and refusals by kind run through each client's own calls: `rust/tests/conformance_state.rs`, `php/tests/vectors.php` (required by `run.php`) and a block of sections in `BusTest.java`. Bigfile is not in these three. Each case gets its own record or daemon.
+- [The vectors](../../src/testdata/client-conformance/README.md#state-identity-and-refusal-vectors) for kv (int64 digits, the 512 KiB and 10,000-name edges), locks and holders, identity and refusals by kind run through each client's own calls: `rust/tests/conformance_state.rs`, `php/tests/vectors.php` (required by `run.php`) and a block of sections in `BusTest.java`. Bigfile is not in these three. Each case gets its own record or daemon.
 - The vectors found three real differences, each fixed with its own test that was red first: the Rust client asked the daemon `/status` before `/identity`, so a daemon it refused was still asked a request (it now reads `/identity` first); the PHP and Java clients sent a lock ttl over 24 h or a wait over 60 s to the daemon (they now refuse them locally, as Go, Python, TypeScript and Rust do); the Java client's local refusal of a name taking its own lock again did not say to extend it, as the daemon's text does.
 - Two things the vectors cannot say in Rust: a negative lock ttl cannot be written as a `Duration`, so the adapter asks for zero, the nearest value; `holders()` returns the daemon's `{record, locks}` object, which the adapter reads. The Rust, PHP and Java docs now quote the warning "daemon too old: protocol is older than this client" and the 500-only rule as the code emits them.
 
@@ -41,7 +46,7 @@
 ## T-24 client compatibility
 
 - Go, Python and TypeScript clients, CLI and MCP check HTTP identity protocol compatibility and surface refusal kinds; [behavior and checks](done/t24-clients.md#checks). Five independent too-new mutants fail on assertions. The server, the contract documentation and the vectors are separate slices.
-- T-24 D1 and V1, `0.9.272` `c1a89aa0`: [the stability policy and client contract](../../docs/09-daemon-api.md#stability-and-compatibility) with a table of every route and its class, and [shared vectors](../../src/testdata/client-conformance/README.md#state-identity-and-refusal-vectors-t-24) for key-value, locks, bigfiles, identity and refusals run by the Go, Python and TypeScript clients, plus a check that every registered route has a row. Wiring the Rust, PHP and Java adapters to the vectors (S2v) is team 2's, still open.
+- T-24 D1 and V1, `0.9.272` `c1a89aa0`: [the stability policy and client contract](../../docs/09-daemon-api.md#protocol-version) with a table of every route and its class, and [shared vectors](../../src/testdata/client-conformance/README.md#state-identity-and-refusal-vectors) for key-value, locks, bigfiles, identity and refusals run by the Go, Python and TypeScript clients, plus a check that every registered route has a row. Wiring the Rust, PHP and Java adapters to the vectors (S2v) is team 2's, still open.
 
 ## RT31 user-account runner close-out
 

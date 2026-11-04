@@ -42,8 +42,7 @@ func TestAPersonalGroupIsNamedForItsOwner(t *testing.T) {
 	if err := b.SetGroup("alice@srv1", "@alice@srv1/friends@batch1", []string{"alice@srv1"}); err != nil {
 		t.Fatalf("alice could not create her own prefixed group: %v", err)
 	}
-	on := true
-	if _, err := b.Manage("alice@srv1", Management{Name: "@alice@srv1/friends@batch1", Personal: &on}); err != nil {
+	if _, err := b.Manage("alice@srv1", Management{Name: "@alice@srv1/friends@batch1", Tags: ptr([]string{"personal"})}); err != nil {
 		t.Fatalf("alice could not make her prefixed group Personal: %v", err)
 	}
 
@@ -51,10 +50,10 @@ func TestAPersonalGroupIsNamedForItsOwner(t *testing.T) {
 	if err := b.SetGroup("alice@srv1", "@crew", []string{"alice@srv1"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Manage("alice@srv1", Management{Name: "@crew", Personal: &on}); !errors.Is(err, ErrKind) {
+	if _, err := b.Manage("alice@srv1", Management{Name: "@crew", Tags: ptr([]string{"personal"})}); !errors.Is(err, ErrKind) {
 		t.Fatalf("an unprefixed group became Personal: %v", err)
 	}
-	if r, _ := b.Lookup("alice@srv1", "@crew"); r.Personal {
+	if r, _ := b.Lookup("alice@srv1", "@crew"); r.IsPersonal() {
 		t.Fatal("the refused Personal change was stored")
 	}
 
@@ -77,17 +76,9 @@ func TestAPrefixedGroupOwnedByAnotherIsIgnoredAtLoad(t *testing.T) {
 	b := New()
 	rep := &reports{}
 	b.Journal(rep)
-	b.Restore(withUsers(ports.Snapshot{Clean: true, Records: []protocol.Record{
+	assertRestoreRefused(t, b, canonicalFixture(withUsers(ports.Snapshot{Clean: true, Records: []protocol.Record{
 		{Name: "@alice/friends", Kind: protocol.KindGroup, Owner: "bob@h", Allow: []string{"bob@h"}},
-		{Name: "@crew", Kind: protocol.KindGroup, Owner: "bob@h", Allow: []string{"bob@h"}, Personal: true},
-		{Name: "@bob@h/mine", Kind: protocol.KindGroup, Owner: "bob@h", Allow: []string{"bob@h"}, Personal: true},
-	}}, "alice", "bob@h"))
-	for _, name := range []string{"@alice/friends", "@crew"} {
-		if _, known := b.entity(name); known {
-			t.Errorf("%s loaded although its name does not fit its owner", name)
-		}
-	}
-	if _, known := b.entity("@bob@h/mine"); !known {
-		t.Error("a correct prefixed Personal group was not loaded")
-	}
+		{Name: "@crew", Kind: protocol.KindGroup, Owner: "bob@h", Allow: []string{"bob@h"}, Tags: []string{"personal"}},
+		{Name: "@bob@h/mine", Kind: protocol.KindGroup, Owner: "bob@h", Allow: []string{"bob@h"}, Tags: []string{"personal"}},
+	}}, "alice", "bob@h"), ""))
 }

@@ -5,13 +5,6 @@
 - **Outcome:** an HTTP post becomes a bus message, a hosting service's push reaches every server that follows the branch, and an admitted caller posts to a named, configured address.
 - **Start:** keep the package disabled until targets, authentication and the reverse proxy are ready: [Try this first](#try-this-first).
 
-## Why you'd want it
-
-- 📥 **An event source speaks HTTP.** Now each post lands in an inbox or reaches an assistant.
-- 🚀 **A push must update many servers.** Now a GitLab or GitHub push becomes one new-code event for every server that follows the branch.
-- 🔑 **A caller must not hold another service's credentials.** Now it posts to a named route and the Basic credential stays in the helper.
-- 🛡️ **Anyone could post.** Now each inbound route can require Basic or a signature check.
-
 ## What it does
 
 - ✅ **Receive:** HTTP POST bodies at fixed paths are forwarded to a configured queue or agent, as their original UTF-8 text (no wrapper, no HTTP headers).
@@ -35,7 +28,7 @@ Use the complete name of your [enabled instance](#installing-it) in the commands
 
 - Copy [config.json.dist](../../src/agents/webhook/config.json.dist), replace its fictional targets and URL, and set it as the whole Configuration value.
 - Leave the package disabled until the targets, authentication and reverse proxy are ready.
-- Use the packaged `help-json` offline to inspect the call grammar without a listener.
+- Inspect the installed `agent.json` for call grammar without starting a listener.
 
 ## Use examples
 
@@ -98,7 +91,7 @@ Use the complete name of your [enabled instance](#installing-it) in the commands
 
 | `event` | Accepted request | Published |
 |---|---|---|
-| `gitlab-push` | `X-Gitlab-Event: Push Hook`; `ref`, `after`, `project.path_with_namespace` | `{"v":1,"type":"push","remote":"realmo/realty","branch":"main","commit":"<40 hex>"}` |
+| `gitlab-push` | `X-Gitlab-Event: Push Hook`; `ref`, `after`, `project.path_with_namespace` | `{"v":1,"type":"push","remote":"team/site","branch":"main","commit":"<40 hex>"}` |
 | `github-push` | `X-GitHub-Event: push`; `ref`, `after`, `repository.full_name` | the same |
 | `deploy` | a pipeline's JSON with exactly `remote`, `branch`, `commit` (7–40 hex) and an optional `id` (1–64 of `A-Za-z0-9._-`) | `{"v":1,"type":"deploy",…,"id":"pipeline-81234"}` |
 
@@ -166,7 +159,7 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 | alert | The listener stays closed: invalid Configuration, a missing Secret key, or a `publish` name it may not publish to | Fix the route `status` names, then reload the runner |
 | alert | Another program holds `WEBHOOK_LISTEN` | Free the address or choose another |
 | alert | A route's `target` refuses the webhook or no longer exists | Allow the webhook on the target, or fix the route |
-| warning | A send's outcome was unknown (HTTP 503) | Check the destination; the sender may repeat it |
+| warning | A send's outcome was unknown (HTTP 503) | Check the destination before repeating; acceptance may already have occurred |
 | warning | Requests were refused by the rate bucket (429) or dropped at the admission limit | Raise `rate` or `burst`, or look for a flood at the proxy |
 | warning | Repeated failed authentication on a route | Check the sender's credentials; it may be a probe |
 | warning | Basic credentials go to a plain-HTTP outbound URL outside loopback | Use HTTPS |

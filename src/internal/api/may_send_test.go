@@ -46,7 +46,7 @@ func TestMaySendMatchesSendWithoutMessagesOrCounters(t *testing.T) {
 				{Name: "#inactive@h", Kind: protocol.KindAgent, Owner: "alice@h"},
 				{Name: "web@h", Kind: protocol.KindService, Owner: "alice@h", Addr: "https://example.test", Proto: "https"},
 				{Name: "#peer@h", Kind: protocol.KindAgent, Owner: "alice@h", Allow: []string{"bob@h"}},
-				{Name: "#personal@h", Kind: protocol.KindAgent, Owner: "alice@h", Personal: true, Allow: []string{"#peer@h"}},
+				{Name: "#personal@h", Kind: protocol.KindAgent, Owner: "alice@h", Tags: []string{"personal"}, Allow: []string{"#peer@h"}},
 			} {
 				if _, err := b.Register(rec); err != nil {
 					t.Fatal(err)
@@ -141,7 +141,7 @@ func TestMaySendForAnotherNameFollowsSendAndLimitsDisclosure(t *testing.T) {
 	for _, rec := range []protocol.Record{
 		{Name: "#private@h", Kind: protocol.KindAgent, Owner: "alice@h"},
 		{Name: "#peer@h", Kind: protocol.KindAgent, Owner: "alice@h", Allow: []string{"bob@h"}},
-		{Name: "#personal@h", Kind: protocol.KindAgent, Owner: "alice@h", Personal: true, Allow: []string{"#peer@h"}},
+		{Name: "#personal@h", Kind: protocol.KindAgent, Owner: "alice@h", Tags: []string{"personal"}, Allow: []string{"#peer@h"}},
 		{Name: "#gone@h", Kind: protocol.KindAgent, Owner: "alice@h"},
 		{Name: "web@h", Kind: protocol.KindService, Owner: "alice@h", Addr: "https://example.test", Proto: "https"},
 	} {

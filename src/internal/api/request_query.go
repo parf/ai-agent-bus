@@ -7,8 +7,8 @@ import (
 	"strings"
 )
 
-// Query schemas follow JSON schemas: ignore unknown keys, reject repeated
-// known keys. Value/type and permission checks remain in the owning handler.
+// Query schemas accept only the route's declared keys, once each.
+// Value/type and permission checks remain in the owning handler.
 var queryFields = map[string]string{
 	"GET /secret": "name", "GET /config": "name", "GET /lookup": "name",
 	"GET /manages": "name who", "GET /ls": "kind tag", "GET /may-send": "name who",
@@ -28,8 +28,15 @@ func requestQuery(r *http.Request) error {
 	if method == http.MethodHead {
 		method = http.MethodGet
 	}
+	allowed := map[string]bool{}
 	for _, key := range strings.Fields(queryFields[method+" "+r.URL.Path]) {
-		if len(q[key]) > 1 {
+		allowed[key] = true
+	}
+	for key, values := range q {
+		if !allowed[key] {
+			return fmt.Errorf("unknown query key %q", key)
+		}
+		if len(values) > 1 {
 			return fmt.Errorf("duplicate query key %q", key)
 		}
 	}

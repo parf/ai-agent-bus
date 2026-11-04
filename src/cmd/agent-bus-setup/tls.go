@@ -357,8 +357,8 @@ func writeTLSDir(dir, account string, certPEM, chainPEM, keyPEM []byte) error {
 	return nil
 }
 
-// A fingerprint is public. Repair old installations without rewriting their
-// certificate or private key; only the containing directory needs traversal.
+// A fingerprint is public. Reconcile current TLS directory permissions without
+// rewriting its certificate or private key; the directory needs traversal.
 func repairTLSDirectory(dir string) error {
 	st, err := os.Lstat(dir)
 	if errors.Is(err, os.ErrNotExist) {

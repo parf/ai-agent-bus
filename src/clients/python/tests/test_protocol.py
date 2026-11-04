@@ -21,24 +21,22 @@ class Protocol(unittest.TestCase):
         return bus,calls
 
     def test_handshake(self):
-        for identity,error in [({'protocol':2,'protocol_min':2},'daemon too new'),({'protocol':1.5},'protocol'),({'protocol':-1},'protocol'),({'protocol':None},'protocol'),({'protocol':True},'protocol'),({'protocol':1,'protocol_min':2},'protocol_min')]:
+        for identity,error in [({},'protocol'),({'protocol':0,'protocol_min':0},'unsupported'),({'protocol':2,'protocol_min':1},'unsupported'),({'protocol':1},'protocol_min'),({'protocol':1,'protocol_min':0},'unsupported'),({'protocol':2,'protocol_min':2},'daemon too new'),({'protocol':1.5},'protocol'),({'protocol':-1},'protocol'),({'protocol':None},'protocol'),({'protocol':True},'protocol'),({'protocol':1,'protocol_min':2},'protocol_min')]:
             with self.subTest(identity=identity):
                 bus,calls=self.bus(identity)
                 with self.assertRaisesRegex(BusError,error):bus.status()
                 self.assertEqual(calls,['/identity'],'application request after fatal protocol error')
-        for identity,old in [({'protocol':1,'protocol_min':1},False),({'protocol':2,'protocol_min':1},False),({},True),({'protocol':0,'protocol_min':0},True)]:
-            bus,calls=self.bus(identity)
-            with self.assertLogs('agent_bus',level='WARNING') if old else self.assertNoLogs('agent_bus',level='WARNING'):
-                self.assertEqual(bus.status()['you'],'owner@test')
-            self.assertEqual(calls[0],'/identity')
+        bus,calls=self.bus({'protocol':1,'protocol_min':1})
+        self.assertEqual(bus.status()['you'],'owner@test')
+        self.assertEqual(calls[0],'/identity')
 
-    def test_kinds_and_old_operation(self):
-        for identity in ({},{'protocol':1,'protocol_min':1}):
+    def test_refusal_kinds(self):
+        for identity in ({'protocol':1,'protocol_min':1},):
             for code,kind in [(404,'not_found'),(404,'no_route'),(503,'unavailable'),(500,None)]:
                 bus,_=self.bus(identity,(code,{'error':'cause','kind':kind}))
                 with self.assertRaises(Refusal) as caught:bus._request('GET','/ls')
                 self.assertEqual(caught.exception.status,code);self.assertEqual(caught.exception.kind,kind)
-                wanted='internal daemon error' if code==500 else 'daemon too old for GET /ls' if not identity and kind=='no_route' else 'cause'
+                wanted='internal daemon error' if code==500 else 'cause'
                 self.assertEqual(str(caught.exception),wanted)
 
 if __name__=='__main__':unittest.main()

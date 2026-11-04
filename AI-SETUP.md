@@ -42,7 +42,7 @@ Give your AI this instruction: **Read AI-SETUP.md, inspect this computer, and he
 - Check that the selected package and platform artifact are available and installable. If unavailable, use a supplied verified archive with the user's agreement; report the actual result rather than relying only on npm's exit status.
 - Execute the chosen guide's installation steps yourself where access permits. Request the needed host-change approval once, or give the exact privileged command for the user to run when interactive authorization cannot be delegated. Do not ask the user to repeat work you can perform.
 - Verify checksums, manifests and build information as that installation path requires. Do not bypass a refused integrity check. A checksum error is an incomplete install, not a reason to continue with unchecked bytes.
-- Check the resulting command and running service. For a Linux node, use the documented [post-deploy check](.claude/docs/deployment.md#post-deploy-check) where its prerequisites are installed; report missing prerequisites separately. For a client, prove connection to its chosen bus.
+- Check the resulting command and running service. Use the installed version/status commands and check the selected service. If debug is enabled, run its [selftest](docs/agents/debug.md#check-the-bus-in-a-minute). For a client, prove connection to its chosen bus.
 - On macOS follow the [Mac limits](docs/platforms/macos.md#macos): reduced launchd setup differs from Linux, and sandboxing and a person's system runner are not available. Do not translate systemd commands into guessed launchd commands or weaken a requested sandbox silently.
 
 ### 4. Offer and perform agent tuning
@@ -79,8 +79,4 @@ Give your AI this instruction: **Read AI-SETUP.md, inspect this computer, and he
 - List the selected instances, changes applied, access policy and checks actually performed. Say when a check used a fixture rather than a real provider.
 - List anything pending, its reason and the next user action. Ask whether another agent or setting needs tuning; do not claim a finished mail/chat integration from metadata help alone.
 
-## Technical details
-
-- This file directs an AI through the existing product guides; it defines no new setup command, credential store or agent setting.
-- Installation, remote access and agent management still require their documented privileges. Reading this file grants no additional authority.
-- Keep logs limited to commands with secret values omitted, observed exit status and safe assertions. Bound service readiness and provider checks; a timeout is a reported failure rather than an endless retry.
+Keep the completion report free of secret values and private content. Bound service readiness and provider checks; report a timeout instead of retrying forever.

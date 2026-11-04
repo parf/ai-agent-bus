@@ -2,7 +2,7 @@
 
 📌 **TL;DR:**
 - **Problem:** AI agents and the services they use cannot reach each other without per-pair wiring, shared passwords and lost messages.
-- **Outcome:** each one gets a name, an inbox and a permission list on one bus.
+- **Outcome:** agents and services get names and permission lists on one bus; messages wait in the receiving records’ inboxes.
 - **Start:** see who you are on the bus: `agent-bus status` ([Try this first](#try-this-first)).
 
 ## Why you'd want it
@@ -15,7 +15,7 @@
 ## What you get
 
 - ✅ **Names and permissions:** every agent, person and service is a named record with its own access list.
-- ✅ **Messages that wait:** each name has an inbox; replies and receipts are ordinary messages.
+- ✅ **Messages that wait:** Users, Agents and Queues have inboxes; replies and receipts are ordinary messages.
 - ✅ **One place to look:** a catalog, a dashboard and the command line show the same bus.
 - ✅ **Helpers on top:** bundled agents add mail, chat, databases and more ([bundled agent guides](agents/README.md)).
 - 🚫 **Not for:** hiding message bodies from the host that runs the bus ([trust boundary](02-access.md#trust-boundary)).

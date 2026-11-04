@@ -1,7 +1,5 @@
 # Runner security: what you grant the runner
 
-**Run other people's scripts as team tools without handing them your server or your passwords.**
-
 📌 **TL;DR:**
 - **Problem:** a shared script can read every file and password its account can, and anyone who can reach it may be able to call it.
 - **Outcome:** on Linux, each managed agent gets the [network and filesystem isolation described below](#isolation-today); a script run per message holds no bus password; only the callers you name may use it.
@@ -21,7 +19,7 @@
 - ✅ **Callers you choose:** who may call an agent is its record's [ACL](../02-access.md#acl), set the ordinary way; a fresh one admits only its Owner and Maintainers.
 - ⚠️ **An agent that [serves itself](configuration.md#agents-that-serve-themselves)** is handed its own token, and only its own, since reading its inbox is its job.
 - ⚠️ **Network access is broader than a list of hosts:** see [isolation today](#isolation-today).
-- ⚠️ **Some keys are accepted and do nothing:** see [what is accepted but inert](#what-is-accepted-but-inert).
+- ✅ **Strict configuration:** unknown keys and unsupported forms are refused ([configuration controls](#configuration-controls)).
 - 🚫 **`"sandbox": "off"`:** read [what it gives up](#isolation-today) before enabling it.
 
 ## Try this first
@@ -55,7 +53,7 @@ Network isolation does not restrict what the agent writes in an answer or sends 
 |---|---|
 | System files | All of `/usr` is mounted read-only, with `/bin`, `/sbin`, `/lib` and `/lib64` pointing into it. This includes readable files under `/usr/local`: other agents' public code installed there is visible too |
 | Its code | Its selected package is mounted read-only, with host file overrides mounted read-only over their packaged paths. Git-checkout bundled agents also get the public `src/agents/shared`, Python and TypeScript client roots, and `src/internal/version`, read-only |
-| Persistent host writes | Its own work directory is bound writable and is the working directory; `HOME` points there. The work bind is the only writable host directory added by the sandbox; system and package mounts are read-only. `needs.writable` adds no paths |
+| Persistent host writes | Its own work directory is bound writable and is the working directory; `HOME` points there. The work bind is the only writable host directory added by the sandbox; system and package mounts are read-only. |
 | Temporary files | A private `/tmp` tmpfs, sized from the memory limit, lasts for that child process; a kept process retains it across messages. It disappears when that sandbox ends |
 | Other host files | Host home directories, runner settings, credentials and other work directories are not mounted as whole trees. Files outside the mounts above are unavailable by path; this is not a promise to hide a file placed inside `/usr`, the selected package, a mounted support root or the work directory. Ordinary account permissions still apply to visible files |
 | Local interfaces | A private `/proc` shows the sandbox's processes and `/dev` supplies basic devices. With network enabled, existing resolver and certificate paths under `/etc` are mounted read-only; the rest of the host's `/etc` is not mounted. The self-serving socket exception is described above |
@@ -89,7 +87,7 @@ The [dedicated runner](../06-dedicated-runner.md#sandboxing) is off by default. 
 
 | | Runs as | Owned on the bus by |
 |---|---|---|
-| `#runner/<you>@<host>` | `<you>-ab-runner`, a system account of your runner's alone, unit `agent-bus-runner@<you>`, with your runner agent's token in `runner/runner.env` ([a person's runner](setup.md#a-persons-runner)) | you |
+| `#runner/<you>@<realm>` | `<you>-ab-runner`, a system account of your runner's alone, unit `agent-bus-runner@<you>`, with your runner agent's token in `runner/runner.env` ([a person's runner](setup.md#a-persons-runner)) | you |
 | every agent it serves | the same account | you |
 | one message's child process | the same account, in that agent's work directory | — |
 
@@ -100,12 +98,9 @@ The [dedicated runner](../06-dedicated-runner.md#sandboxing) is off by default. 
 - **Taking it over,** the runner clears the `script` an earlier `agent-bus run` left on the record, so listings no longer name a program that does not serve it.
 - **Author settings** (`agent.json` and `env.dist`), including their packaged help, are read only from regular files; a final symlink is refused by filename.
 
-Hand an existing agent's token to your runner, then reload:
-
-```sh
-agent-bus token '#hello@host' | sudo -u you-ab-runner tee /var/lib/agent-bus/you-ab-runner/tokens/%23hello@host >/dev/null
-agent-bus call '#runner/you@host' reload
-```
+- The Owner provisions the token in the runner’s private `tokens/` directory, named for the percent-encoded full agent name.
+- Use mode `0600`, owned by the runner account, then reload. Keep tokens out of command arguments and transcripts.
+- Follow the [credential handoff procedure](../agents/create-agent-prompt.md#self-serving-credential-handoff).
 
 ## What the code is told, and what it may trust
 
@@ -144,10 +139,11 @@ agent-bus manage '#hello@host' --add-allow alice@host
 | Who can run that | |
 |---|---|
 | the record's Owner | you |
+| its Maintainers | assigned record management |
 | the daemon Owner | node-wide record authority |
 | an Administrator | **no** — administering users grants no record authority ([authority](../01-identity-and-authority.md#record-authority)) |
 
-- **The runner gains no authority over what it creates:** it holds each agent's token, and only you manage the record.
+- The runner holds each served agent’s token and can act as that agent, including its self-management rights. Record Owners and Maintainers retain their separate management and private-value rights ([authority](../01-identity-and-authority.md#record-authority)). Trust the runner account with those credentials.
 - **At start and `reload`,** it checks that the token answers as that agent and that the agent is still yours.
 - **A transferred agent or rotated-out token** is then stopped and refused by name; its messages wait for whoever serves it now.
 - **An admitted operation** does not re-ask identity or authority midway ([authority at the door](../constitution.md#authority-at-the-door)).
@@ -181,7 +177,7 @@ Secrets are injected into the process before it starts, never as a path the code
 | Layer, lowest first | Where | Who writes it |
 |---|---|---|
 | declared variables and non-secret defaults | `agent.d/<agent>/env.dist` | the agent's author |
-| the record's [bus secret](../03-records-service.md#secrets) | the daemon | the Owner, on the bus |
+| the record's [bus secret](../03-records-service.md#secrets) | the daemon | its Owner and Maintainers |
 | what every instance of the agent shares | `runner/<agent>/env` | this host |
 | this instance's own | `runner/<agent>/<instance>/env` | this host |
 
@@ -196,7 +192,7 @@ Writing secrets over the bus or the web:
 - **An unconsumed write** may be stored in the runner's inbox; its durable copy is removed at the checkpoint after consumption. SQLite free pages may retain the bytes until reused.
 - **If the values must never enter daemon storage,** edit the file through host access instead.
 - **The web editor starts empty,** and saving replaces the entire host env file.
-- **To inspect values,** use host access, for example `sudo cat /var/lib/agent-bus/parf-ab-runner/slack/env`; `status` reports the actual `runner_dir`.
+- Inspect values only through authorized host access at the `runner_dir` reported by status. Do not paste them into messages or logs.
 - **Debug `env`** masks all values except the delivered `AGENT_BUS_*` and `AB_ROLE_*` namespaces.
 
 What the logs mask:
@@ -209,22 +205,15 @@ What the logs mask:
 - **An agent's own replies** are its code's responsibility.
 - **The digest covers the whole file:** compare the hash, not a secret store. It confirms what was written, but does not hide a tiny guessable value.
 
-## What is accepted but inert
+## Configuration controls
 
-`agent.json` and `agents.json` are read strictly: an unknown field is refused by name, so a typo cannot pass. These real keys are accepted in silence and change nothing:
+`agent.json` and `agents.json` refuse unknown fields by name. Only the keys in [package metadata](configuration.md#package-options) and [host entries](configuration.md#inventory) are accepted.
 
-| Key | Where | Would control |
-|---|---|---|
-| `needs.writable` | `agent.json` | writable paths beyond the work directory |
-| `version` | `agents.json` | host-side package version pin |
-| `origin`, `first_started`, `last_started` | `agents.json` | recording where an agent came from and when it ran |
-
-- **`needs.network` has the [network effect described above](#isolation-today);** host names do not restrict destinations.
-- **`processes` is half in force for a one-message script:** its maximum bounds how many copies run at once, its minimum does nothing, so `0..1` and `1` behave identically. For a `jsonl` agent both ends are in force.
-- **An agent that serves itself** is kept at its `processes` count, restarted when one exits.
-- **`"sandbox"` is fully in force.**
-- **Unsupported forms fail loudly instead:** `msgpack` and `std` are refused by name. The table above is the set that fails silently.
-- **Versions:** generated help shows the package's `agent.json` version (the shared bus version when omitted); the version in runner `status` is the **runner's**.
+- **Network:** `needs.network` has the [effect described above](#isolation-today); host names do not restrict destinations.
+- **Per-message scripts:** `processes` sets the maximum parallel copies; a minimum cannot keep an `args` or `json` script running between messages.
+- **JSONL agents:** both ends of the `processes` range control the pool.
+- **Self-serving agents:** the runner keeps the configured number of processes alive.
+- **Versions:** generated help shows the package's `agent.json` version, or the shared bus version when omitted. Runner `status` reports the runner's version.
 
 ## Technical details
 
@@ -234,7 +223,7 @@ What the logs mask:
 - **Kernel-enforced:** memory (no swap), CPU, processes and I/O weight.
 - **Per process:** open files.
 - **`/tmp`** is a tmpfs no larger than the memory limit.
-- **Defaults:** 512M of memory, 64 processes, 1024 open files and a 1G soft disk limit ([limits](configuration.md#limits)).
+- Choose values in [limits](configuration.md#limits); disk usage is a soft check, not a hard quota.
 
 </details>
 

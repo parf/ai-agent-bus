@@ -57,12 +57,9 @@ type Tokens struct {
 	journal interface{ Report(ports.Severity, string) }
 }
 
-// Load reads the store, creating a token for owner on first run.
-func Load(store ports.TokenStore, owner string) (*Tokens, error) {
-	me, err := protocol.ParseName(owner)
-	if err != nil {
-		return nil, fmt.Errorf("owner: %w", err)
-	}
+// Load reads canonical stored credentials. Minting starts only after core
+// supplies the principal-ID resolver.
+func Load(store ports.TokenStore) (*Tokens, error) {
 	t := &Tokens{store: store, who: map[string]string{}, tok: map[string]held{}}
 	creds, err := store.Load()
 	if err != nil {
@@ -70,8 +67,14 @@ func Load(store ports.TokenStore, owner string) (*Tokens, error) {
 	}
 	for _, c := range creds {
 		n, err := protocol.ParseName(c.Name)
-		if err != nil {
+		if err != nil || n.String() != c.Name {
+			return nil, fmt.Errorf("credential store: invalid canonical name %q", c.Name)
+		}
+		if err := validPair(c.Name, c.CredentialPair); err != nil {
 			return nil, fmt.Errorf("credential store: %w", err)
+		}
+		if _, exists := t.tok[c.Name]; exists {
+			return nil, fmt.Errorf("credential store: duplicate name %s", c.Name)
 		}
 		h := held{current: c.Current, previous: c.Previous, issued: c.Issued, pair: c.CredentialPair, used: &atomic.Int64{}}
 		if !c.Used.IsZero() {
@@ -80,12 +83,7 @@ func Load(store ports.TokenStore, owner string) (*Tokens, error) {
 		}
 		t.keep(n.String(), h)
 	}
-	if _, has := t.tok[me.String()]; has {
-		return t, nil
-	}
-	if _, err := t.Issue(me.String()); err != nil {
-		return nil, err
-	}
+
 	return t, nil
 }
 
@@ -100,7 +98,7 @@ func (t *Tokens) Principal(token string) (string, bool) {
 // Credential is Principal with what the credential answers for, which the
 // caller checks against the registry before trusting the name. A session
 // answers for whatever its token did; it carries no pair of its own, and the
-// zero pair it returns is bound like any unbound credential.
+// pair always comes from its current token.
 func (t *Tokens) Credential(token string) (string, ports.CredentialPair, bool) {
 	if token == "" {
 		return "", ports.CredentialPair{}, false
@@ -127,16 +125,23 @@ func (t *Tokens) Credential(token string) (string, ports.CredentialPair, bool) {
 // Issue hands out name's token, making one if it has none. Asking again is a
 // read, not a rotation: the same credential comes back, so a second call
 // cannot lock out an agent that is already using the first. The pair comes
-// from core when it is bound, and is left for binding otherwise.
+// from core before anything is minted.
 // See docs/02-access.md#token-lifetime.
 func (t *Tokens) Issue(name string) (string, error) {
-	return t.IssuePair(name, t.pairFor(name))
+	pair, err := t.pairFor(name)
+	if err != nil {
+		return "", err
+	}
+	return t.IssuePair(name, pair)
 }
 
 // IssuePair is Issue with the pair core decided while it still holds.
 func (t *Tokens) IssuePair(name string, pair ports.CredentialPair) (string, error) {
 	n, err := protocol.ParseName(name)
 	if err != nil {
+		return "", err
+	}
+	if err := validPair(n.String(), pair); err != nil {
 		return "", err
 	}
 	t.mu.Lock()
@@ -168,7 +173,11 @@ func (t *Tokens) failed(what, name string, err error) {
 // still authenticates; the one before that is dropped.
 // See docs/02-access.md#token-lifetime.
 func (t *Tokens) Rotate(name string) (string, error) {
-	return t.RotatePair(name, t.pairFor(name))
+	pair, err := t.pairFor(name)
+	if err != nil {
+		return "", err
+	}
+	return t.RotatePair(name, pair)
 }
 
 // RotatePair is Rotate with the pair core decided while it still holds.
@@ -177,21 +186,28 @@ func (t *Tokens) RotatePair(name string, pair ports.CredentialPair) (string, err
 	if err != nil {
 		return "", err
 	}
+	if err := validPair(n.String(), pair); err != nil {
+		return "", err
+	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	return t.mint(n.String(), t.tok[n.String()], pair)
 }
 
-// pairFor asks core, outside this index's lock: core calls into the index
-// while holding its own, so asking it from inside ours would invert the
-// order. Unbound when core is not bound yet or the name is no principal.
-func (t *Tokens) pairFor(name string) ports.CredentialPair {
+// pairFor asks core outside this index's lock to preserve lock order.
+func (t *Tokens) pairFor(name string) (ports.CredentialPair, error) {
 	if f := t.pairOf.Load(); f != nil {
-		if p, err := (*f)(name); err == nil {
-			return p
-		}
+		return (*f)(name)
 	}
-	return ports.CredentialPair{}
+	return ports.CredentialPair{}, fmt.Errorf("credential IDs are not bound to a registry")
+}
+
+func validPair(name string, pair ports.CredentialPair) error {
+	agent := protocol.IsAgentName(name)
+	if pair.UserID == 0 || pair.UserID == protocol.NoOwnerID || pair.AgentID == protocol.NoOwnerID || agent != (pair.AgentID != 0) {
+		return fmt.Errorf("credential %s has invalid user/agent IDs", name)
+	}
+	return nil
 }
 
 // mint makes a token for name, keeping was.current as the previous one, and
@@ -374,23 +390,6 @@ func (t *Tokens) Pairs() map[string]ports.CredentialPair {
 		out[name] = h.pair
 	}
 	return out
-}
-
-// Bind persists and publishes the pair of a credential issued unbound.
-func (t *Tokens) Bind(name string, p ports.CredentialPair) error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	h, has := t.tok[name]
-	if !has {
-		return nil
-	}
-	h.pair = p
-	if err := t.store.Put(credential(name, h)); err != nil {
-		t.failed("binding", name, err)
-		return err
-	}
-	t.tok[name] = h
-	return nil
 }
 
 // Rebind publishes a pair that a committed change has already written.

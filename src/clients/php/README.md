@@ -3,13 +3,11 @@
 📌 **TL;DR:**
 - **Problem:** a PHP script that should take part on the bus has to speak HTTP, match replies and avoid repeating an uncertain write.
 - **Outcome:** `Bus` gives you send, call, serve, publish, key-value, locks and read-only settings; PHP 8.1+ with ext-curl, ext-json and ext-mbstring only.
-- **Start:** copy [the example](#try-this-first); it needs a registered name, its token and a running bus.
-
-Keep secrets in Secret and config in Configuration; see [configuration](../../../docs/03-records-agent.md#configuring-a-template).
+- **Start:** start with the [isolated examples](../examples/README.md#try-this-first), or adapt [the snippets](#try-this-first) to your bus.
 
 ## Why you'd want it
 
-- 🧰 **Nothing to install.** Blocking calls over the unix socket or HTTP(S); load it with one `require` or Composer.
+- 🧰 **Direct loading.** Blocking calls over the unix socket or HTTP(S); load it with one `require` or Composer.
 - 🔑 **Credentials stay out of your code.** The environment defaults match the CLI.
 - 🛡️ **No silent repeats.** An uncertain write or consumption is never replayed.
 
@@ -20,13 +18,16 @@ Keep secrets in Secret and config in Configuration; see [configuration](../../..
 - ✅ **Your own name works:** a call to yourself from inside a handler is answered by that handler.
 - ✅ **Pools:** `ServeOptions(share: true)` makes several processes one serving pool.
 - ✅ **Typed errors:** `Refusal` subclasses by HTTP status; `Transport`, `Timeout` and `UncertainOutcome` otherwise.
-- ✅ **Protocol:** `Refusal::kind()` is the daemon's refusal kind. The first call reads `GET /identity`: a daemon older than the client adds a line to `Bus::warnings()`, a client older than the daemon's `protocol_min` gets `DaemonTooNew`, a malformed answer `ProtocolError`.
+- **Protocol:** The client requires both `/identity` protocol fields to equal the [current protocol version](../../../docs/09-daemon-api.md#protocol-version). Missing, malformed and unsupported versions are refused before application requests. Refusals retain the daemon’s `kind` and cause; HTTP 500 hides internal details.
 
 ## Try this first
+
+Use PHP 8.1 or later with curl, json and mbstring extensions. Save the two files below in the checkout root; their `require` loads the local library. In separate shells, use the credentials for the indicated names. Grant `#caller@localhost` permission to send to `#mailer@localhost`.
 
 Serve one handler under one name and call it from another (a disposable bus; both names registered, each process's `AGENT_BUS_ADDR`, `AGENT_BUS_TOKEN` and `AGENT_BUS_NAME` set for its own name):
 
 ```php
+<?php
 // serve.php, as #mailer@localhost
 require 'src/clients/php/src/autoload.php';
 use AgentBus\{Bus, Message, ServeOptions};
@@ -36,6 +37,7 @@ $bus->serve(fn(Message $m) => "sent to {$m->body}", new ServeOptions(topic: 'mai
 ```
 
 ```php
+<?php
 // call.php, as #caller@localhost
 require 'src/clients/php/src/autoload.php';
 use AgentBus\{Bus, CallOptions, Answer};
@@ -46,14 +48,12 @@ if ($o instanceof Answer) { echo $o->message->body, "\n"; }
 echo $bus->record('#caller@localhost')->kv->inc('sent', 1), "\n";
 ```
 
-Run `php serve.php &`, then `php call.php`, then stop the server:
+Run `php serve.php` in the mailer shell, then `php call.php` in the caller shell; stop the server with Ctrl-C. On a fresh caller record the output is:
 
 ```text
 sent to bob@example.com
 1
 ```
-
-- ▶️ The [shared examples](../examples/README.md) run agents in every language together.
 
 ## Event logs
 
@@ -61,16 +61,13 @@ sent to bob@example.com
 - ▶️ **Executed examples:** [event_log_example.php](tests/event_log_example.php) and [event_subscription_example.php](tests/event_subscription_example.php) run against a private fixture.
 - ✍️ **What they show:** the agent writes its own log; its Owner reads, lists and subscribes, consumes one copy from the authorized queue, and cancels.
 - 🔕 **A copy is a notice:** it is a non-waiting message from `#bus`, not a call reply. Send no ack or done for it ([receipts](../../../docs/04-messaging.md#receipts)).
-- 🧰 **No helper:** none is needed.
 
 ## Technical details
 
-- **Package:** PHP 8.1 or later; the [PHP plan](../../../Plans/R1.0-Release/done/client-libraries/php.md) owns the interface; [authentication](../../../docs/02-access.md#what-a-call-carries) owns credentials; [MIT license](LICENSE.md).
+- **Package:** see [the PHP API source](src/Bus.php); [authentication](../../../docs/02-access.md#what-a-call-carries) owns credentials; [MIT license](LICENSE.md).
 - **Identity:** the credential's name calls. `as:` only checks it, throwing `IdentityMismatch` on the first call.
 - **Secret:** `secret()` holds the bytes as delivered; `env()` is a single-line `NAME=value` reader, not the runner's dotenv grammar: a ` # note` stays in the value and a quoted value cannot span lines, so parse a PEM or multi-line value from `bytes()`.
-- **Serving:** one message at a time per process; parallelism is more processes.
 - **Self-calls:** outside `serve()` a call that takes its own request throws, since nothing here can answer it.
-- **Uncertainty:** `UncertainOutcome` is never retried.
 - **Not here:** administration, minting tokens, writing config or secrets, resource content, a pinned `https://` daemon.
 
 ## Checks

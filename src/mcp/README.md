@@ -1,32 +1,43 @@
 # The MCP face
 
-📌 **TL;DR:** One package, on bun: nineteen tools over stdio — `ab_ls`, `ab_send`,
-`ab_consume`, `ab_reply`, `ab_receipt`, `ab_rename`, and `ab_lock`,
-`ab_lock_release`, `ab_lock_extend`, `ab_lock_holders` for [shared locks](../../docs/01-identity-and-authority.md#shared-locks), and `ab_kv_get`, `ab_kv_set`, `ab_kv_delete`, `ab_kv_inc`, `ab_kv_json` for each record's [key-value store](../../Plans/R1.0-Release/done/kv.md#per-record-storage), and `ab_bigfile_put`, `ab_bigfile_get`, `ab_bigfile_ls`, `ab_bigfile_rm` for [bigfiles](../../docs/03-records-kv.md#bigfiles)
-— the [MCP Resources](../../docs/03-records-resource.md#what-a-resource-is) the caller may
-read, and push into a live Claude Code, Codex or opencode session. The `ab-*` launchers load it for you;
-this page is for loading it by hand. Design:
-[modules § languages](../MODULES.md#languages).
+📌 **TL;DR:** Give AI sessions bus tools, readable resources and incoming messages.
+The `ab-*` launchers configure the face automatically. For manual tool loading,
+start with [Loading it](#loading-it); source contributors can edit the [tool descriptions](#tool-descriptions).
 
-| File | |
-|---|---|
-| `bus.ts` | the daemon as seen from TypeScript — HTTP+JSON over its unix socket or TCP (`http://`, or `https://` pinned) — and the default session name |
-| `pin.ts` | reaching an `https://` daemon by its fingerprint: the pinned certificate is the only one trusted |
-| `server.ts` | the tools, the Resources handlers and the push wiring |
-| `tools.yaml` | tool names and descriptions sent to every MCP client |
-| `instructions.yaml` | general MCP instructions, including receipt and completion policy |
-| `resources.ts` | 📚 cards as MCP Resources: listed one to one, and a read asked of the card's source — an Agent over the bus, an MCP Service, or an `https://` fetch |
-| `push.ts` | the reader loop every push mode shares |
-| `messages.ts` | how a delivered message reads in the session, with the route to answer it |
-| `catalogue.ts` | what `ab_ls` lists (by default only agents with a reader) and shows for each record |
-| `codex.ts` | the Codex App Server client, over a loopback WebSocket or stdio |
-| `opencode.ts` | the opencode 2 server client, over its loopback HTTP API; used by `ab-opencode` |
-| `opencode1.ts` | the archived 1.x client, identical in role; used by `ab-opencode1` |
-| `rpc.ts` | newline-delimited JSON-RPC line reader and request matcher |
-| `face-mark.ts` | the mark that tells a launcher its face is still alive |
-| `version.ts` | the shared release number, read from `../internal/version/VERSION` |
-| `.claude-plugin/`, `commands/` | the Claude Code plugin manifest and its `/agent-bus:ls`, `/agent-bus:send` |
-| `smoke*.ts`, `launcher-runtime-fixture.ts`, `*.test.ts` | acceptance and unit checks; run by [`../smoke.sh`](../smoke.sh) |
+## Loading it
+
+**Claude Code.** Use `ab-claude`; follow [plugin installation and Team/Enterprise policy](../../docs/06-launchers.md#claude-channel-plugin).
+The plugin supplies MCP tools and `/agent-bus:ls` and `/agent-bus:send`.
+The source plugin's cache-safe `channel.ts` imports `AGENT_BUS_MCP_ENTRY`, supplied by the
+launcher; the private session environment carries identity and connection
+settings. No credentials are embedded in the plugin.
+
+**Codex**, in `~/.codex/config.toml`, with the installed client commands on PATH.
+Register an Agent with your authorized CLI account and obtain its token.
+Replace the name and token below with that identity; set `AGENT_BUS_ADDR` if
+the daemon is not on the default local socket:
+
+```toml
+[mcp_servers.agent-bus]
+command = "agent-bus-ts"
+args = ["mcp"]
+env = { AGENT_BUS_NAME = "<registered-agent-name>", AGENT_BUS_TOKEN = "<token>", AGENT_BUS_PUSH = "off", AGENT_BUS_RUNTIME = "codex" }
+```
+
+This gives the session its tools; reaching it while it runs needs a pusher
+beside the App Server, below.
+
+MCP has no server-to-client push that Codex surfaces, so reaching a live
+Codex session means steering its turn through the App Server — and **which
+App Server** is the whole question.
+
+## Tools
+
+`ab_ls`, `ab_send`,
+`ab_consume`, `ab_reply`, `ab_receipt`, `ab_rename`, and `ab_lock`,
+`ab_lock_release`, `ab_lock_extend`, `ab_lock_holders` for [shared locks](../../docs/01-identity-and-authority.md#shared-locks), and `ab_kv_get`, `ab_kv_set`, `ab_kv_delete`, `ab_kv_inc`, `ab_kv_json` for each record's [key-value store](../../docs/03-records-kv.md#key-value-store), and `ab_bigfile_put`, `ab_bigfile_get`, `ab_bigfile_ls`, `ab_bigfile_rm` for [bigfiles](../../docs/03-records-kv.md#bigfiles)
+
+Readable [resources](../../docs/03-records-resource.md#what-a-resource-is) follow the caller's access.
 
 `ab_send` accepts `ask: "help"`, `"help-config"`, `"help-secret"`, `"help-json"`, `"mcp"` or `"status"`
 with no text; help-secret describes environment names, never values
@@ -55,10 +66,10 @@ descriptions against YAML, including a description for every advertised tool.
 | | |
 |---|---|
 | `AGENT_BUS_TOKEN` | **required.** Same token the CLI uses ([access § getting a token](../../docs/02-access.md#getting-a-token)) |
-| `AGENT_BUS_NAME` | this session's agent name, beginning with `#`. Defaults to `#<runtime>.<cwd>@<host>`, trimmed to the name rule ([identity § names](../../docs/01-identity-and-authority.md#names)) — a plugin manifest cannot know it, so it is derived |
+| `AGENT_BUS_NAME` | this session's agent name, beginning with `#`. Defaults to `#<runtime>/<cwd>@<host>`, trimmed to the name rule ([identity § names](../../docs/01-identity-and-authority.md#names)) — a plugin manifest cannot know it, so it is derived |
 | `AGENT_BUS_RUNTIME` | the `<runtime>` in that default, and in the default description; `agent` when unset |
 | `AGENT_BUS_REALM` | the `<host>` in that default; the host name when unset |
-| `AGENT_BUS_ADDR` | the daemon's socket path, `http://host:port` or `https://host:port`. Defaults to `$XDG_RUNTIME_DIR/agent-bus/bus.sock` |
+| `AGENT_BUS_ADDR` | the daemon's socket path, `http://host:port` or `https://host:port`. Uses [local socket discovery](../../docs/02-access.md#local-socket), ending at the installed socket when no runtime socket is present |
 | `AGENT_BUS_TLS_FINGERPRINT` | the pin an `https://` address needs ([remote access § over HTTPS](../../docs/02-access-remote.md#over-https)) |
 | `AGENT_BUS_PUSH` | `claude`, `codex` or `off` (default) |
 | `AGENT_BUS_DESCR` | what `ls` shows for this session |
@@ -69,7 +80,7 @@ descriptions against YAML, including a description for every advertised tool.
 | `AGENT_BUS_CODEX_APPROVAL` | the Codex approval policy for bus-started turns — see [approvals](#one-app-server-two-clients) |
 | `AGENT_BUS_SESSION_FILE`, `AGENT_BUS_CONTROL_ADDR`, `AGENT_BUS_CONTROL_TOKEN`, `AGENT_BUS_MCP_ENTRY` | set by a launcher for its own face; not for hand use |
 
-point `AGENT_BUS_BIGFILE_DIR` at your own `/var/lib/agent-bus/users/<person>/files`; unset, the bigfile tools refuse.
+For installed file storage, point `AGENT_BUS_BIGFILE_DIR` at your own `/var/lib/agent-bus/users/<person>/files`.
 
 The [launchers](../../docs/06-launchers.md#smart-launchers) supply their
 [assigned session identity](../../docs/06-launchers.md#session-names);
@@ -80,52 +91,11 @@ daemon restart the face reconnects by itself under the same name: each tool
 call is its own request, and a push reader retries every two seconds until the
 daemon answers again.
 
-## Loading it
-
-**Claude Code.** Install this package as `agent-bus@agent-bus-local` and use
-`ab-claude`, which selects `--channels plugin:agent-bus@agent-bus-local`.
-One-time setup from a source checkout:
-
-```sh
-claude plugin marketplace add /usr/local/src/ai-agent-bus/src
-claude plugin install agent-bus@agent-bus-local --scope user
-```
-
-The [launcher setup and Team/Enterprise policy](../../docs/06-launchers.md#claude-channel-plugin)
-own installation, migration from the old local MCP definition and channel allowlisting.
-The plugin declares its channel in `.claude-plugin/plugin.json`. Its cache-safe
-`channel.ts` imports the face path supplied by the launcher as
-`AGENT_BUS_MCP_ENTRY`; the session's existing private environment file carries
-identity and connection settings. No credentials are embedded in the plugin.
-The plugin supplies `/agent-bus:ls` and `/agent-bus:send` as well as MCP tools.
-No development-channel flag or channel-free fallback is used.
-
-**Codex**, in `~/.codex/config.toml`, with the installed face (or
-`<checkout>/src/mcp/server.ts`):
-
-```toml
-[mcp_servers.agent-bus]
-command = "bun"
-args = ["run", "/usr/local/lib/agent-bus/current/mcp/server.js"]
-env = { AGENT_BUS_TOKEN = "<token>", AGENT_BUS_PUSH = "off", AGENT_BUS_RUNTIME = "codex" }
-```
-
-This gives the session its tools; reaching it while it runs needs a pusher
-beside the App Server, below.
-
-MCP has no server-to-client push that Codex surfaces, so reaching a live
-Codex session means steering its turn through the App Server — and **which
-App Server** is the whole question.
-
 ## One App Server, two clients
 
-A `codex app-server` the face starts for itself is a *second process*. It can
-resume a thread's saved history, but steering it does not reach the session
-somebody is typing in. Legacy-V1 — the NATS system at `/rd/service/agent-bus/`, and
-every mention of it on this page — solved this by topology (`/rd/bin/ai-codex`): one
-App Server, the TUI attached to it, the notifier attached to the same one.
-
-Same shape here — and for Codex it is **two processes under one name**:
+A separately started `codex app-server` can resume saved history but cannot
+steer the session somebody is typing in. The TUI and pusher must attach to the
+same authenticated App Server. Codex uses two bus clients under one name:
 
 | Process | Started by | Role |
 |---|---|---|
@@ -134,8 +104,7 @@ Same shape here — and for Codex it is **two processes under one name**:
 
 They must **not** be the same process: the App Server starts its own MCP
 servers, so a face started that way cannot dial back into the App Server that
-is still starting it. Verified — the push loop never came up. Legacy-V1 keeps the
-pusher a sidecar for the same reason.
+is still starting it.
 
 Give both the same `AGENT_BUS_NAME`: one session, one name. Only the pusher
 consumes, so they do not contend for the inbox's one read.
@@ -153,17 +122,16 @@ context is empty. The pushed text therefore carries the routing — sender,
 topic and tag — which is all a reply is
 ([messaging § reply routing](../../docs/04-messaging.md#reply-routing)).
 
-**Approvals.** A turn started by a bus message has no human at the keyboard,
-so the App Server asks the client that started it — the pusher. It approves
-**only agent-bus's own tool calls** and declines everything else, so a remote
-peer cannot spend the user's permissions. Set `AGENT_BUS_CODEX_APPROVAL` to
-match the session (`on-request` by default; `never` means *deny*, not *allow*,
-and blocks the reply).
+**Approvals.** `ab-codex` enforces `approval_policy="never"` and
+`sandbox_mode="danger-full-access"`: commands execute automatically with the
+session account's access. `never` means no approval prompts, not denial.
+For a manually managed session, `AGENT_BUS_CODEX_APPROVAL` selects the policy
+for bus-started turns (default `on-request`); the adapter requests the runtime's
+user reviewer. If an MCP approval request reaches the pusher, its fallback
+accepts identified agent-bus non-file tools and declines file tools or unknown
+requests. That filter is not an execution boundary for the session.
 
-A **loopback WebSocket**, not `unix://`: both are WebSocket listeners, and bun
-can open one over a port but not over a unix socket — which is exactly what
-put Legacy-V1's Codex notifier on Node. A port removes the `ws` dependency and its
-`permessage-deflate` workaround, while native bearer authentication provides the account boundary.
+The adapter connects over a loopback WebSocket.
 
 Without `AGENT_BUS_CODEX_WS` the face still works and says so in its log: it
 drives its own App Server and answers in a headless thread, which does not
@@ -173,8 +141,7 @@ The thread is chosen at the **first message**, not at startup: the face is
 Codex's own MCP server, so it starts before the session has a thread, and
 choosing one then would pick its own headless thread instead of the one the
 person is typing in. After that it is fixed — following someone who opens a
-*new* session in the same directory would need Legacy-V1's re-selection machinery;
-here, restart the face.
+*new* session in the same directory requires restarting the face.
 
 **OpenCode** declares the face as a `local` MCP server under `mcp` in its
 configuration, like any other. Push needs `ab-opencode`: it starts
@@ -210,11 +177,31 @@ These labels preserve existing tags and grant no authority.
 
 ## Record configuration
 
-Keep secrets in Secret and config in Configuration; see [configuration](../../docs/03-records-agent.md#configuring-a-template).
+For record kinds supporting Configuration or Secret, use the [configuration guide](../../docs/03-records-agent.md#configuring-a-template).
+MCP listings expose the authorized `config_sha`, not settings bytes. Read or
+edit settings with `agent-bus config` or the web editor; there is no
+separate MCP configuration tool.
 
-Configuration is JSON settings visible to Owner and Maintainers in the CLI and web;
-an Agent also reads its own. MCP listings carry the authorized `config_sha`,
-not the bytes. Use `agent-bus agent-template` or the web editor to read/edit;
-there is no separate MCP configuration tool. Scripts get compact
-`AGENT_BUS_CONFIG` at their next start, unset when unconfigured. See
-[configuration](../../docs/03-records-agent.md#configuring-a-template).
+## Implementation
+
+See [module boundaries](../MODULES.md#languages) for the language split.
+
+| File | |
+|---|---|
+| `bus.ts` | the daemon as seen from TypeScript — HTTP+JSON over its unix socket or TCP (`http://`, or `https://` pinned) — and the default session name |
+| `pin.ts` | reaching an `https://` daemon by its fingerprint: the pinned certificate is the only one trusted |
+| `server.ts` | the tools, the Resources handlers and the push wiring |
+| `tools.yaml` | tool names and descriptions sent to every MCP client |
+| `instructions.yaml` | general MCP instructions, including receipt and completion policy |
+| `resources.ts` | 📚 cards as MCP Resources: listed one to one, and a read asked of the card's source — an Agent over the bus, an MCP Service, or an `https://` fetch |
+| `push.ts` | the reader loop every push mode shares |
+| `messages.ts` | how a delivered message reads in the session, with the route to answer it |
+| `catalogue.ts` | what `ab_ls` lists (by default only agents with a reader) and shows for each record |
+| `codex.ts` | the Codex App Server client, over a loopback WebSocket or stdio |
+| `opencode.ts` | the opencode 2 server client, over its loopback HTTP API; used by `ab-opencode` |
+| `opencode1.ts` | the archived 1.x client, identical in role; used by `ab-opencode1` |
+| `rpc.ts` | newline-delimited JSON-RPC line reader and request matcher |
+| `face-mark.ts` | the mark that tells a launcher its face is still alive |
+| `version.ts` | the shared release number, read from `../internal/version/VERSION` |
+| `.claude-plugin/`, `commands/` | the Claude Code plugin manifest and its `/agent-bus:ls`, `/agent-bus:send` |
+| `smoke*.ts`, `launcher-runtime-fixture.ts`, `*.test.ts` | acceptance and unit checks; run by [`../smoke.sh`](../smoke.sh) |

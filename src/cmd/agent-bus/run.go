@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/envfile"
+	"github.com/parf/ai-agent-bus/internal/jsonshape"
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/proctitle"
 	"github.com/parf/ai-agent-bus/internal/protocol"
@@ -47,7 +48,6 @@ type agent struct {
 	metadata   *agentmeta.Manifest
 	Name       string   `json:"name"`
 	Allow      []string `json:"allow,omitempty"`
-	Personal   bool     `json:"personal,omitempty"`
 	Algo       string   `json:"algo"`      // json: envelope on stdin · args: body as argv[1]
 	Script     string   `json:"script"`    // the program to run
 	Descr      string   `json:"descr"`     // what ls and the MCP catalog show
@@ -120,7 +120,7 @@ func serveScript(args []string) error {
 
 	if err := postQuiet("/register", protocol.Record{
 		Name: ag.Name, Kind: protocol.KindAgent, Script: ag.Script, Descr: ag.Descr,
-		Allow: ag.Allow, Personal: ag.Personal, Roles: ag.Roles, Tags: ag.Tags,
+		Allow: ag.Allow, Roles: ag.Roles, Tags: ag.Tags,
 	}); err != nil {
 		return err
 	}
@@ -194,7 +194,7 @@ func unregisterStopped(name string) error {
 			if json.Unmarshal(out, &record) != nil || record.Name != name || record.Readers == nil || record.Queued != 0 {
 				return refusal
 			}
-			if *record.Readers == 0 && !record.Reading {
+			if *record.Readers == 0 {
 				break
 			}
 			select {
@@ -242,7 +242,7 @@ var runUsage = verbUsage("run")
 func describe(args []string) (agent, error) {
 	var ag agent
 	pos, flags, err := split(args)
-	if err := only(flags, err, "algo", "descr", "sandbox", "allow", "personal", "network", "roles", "tags", "stay-registered", "package-dir", "no-asks"); err != nil {
+	if err := only(flags, err, "algo", "descr", "sandbox", "allow", "network", "roles", "tags", "stay-registered", "package-dir", "no-asks"); err != nil {
 		return ag, err
 	}
 
@@ -269,9 +269,7 @@ func describe(args []string) (agent, error) {
 		return ag, errors.New(runUsage)
 	}
 	if fromStdin {
-		decoder := json.NewDecoder(os.Stdin)
-		decoder.DisallowUnknownFields()
-		if err := decoder.Decode(&ag); err != nil {
+		if err := jsonshape.Decode(os.Stdin, &ag); err != nil {
 			return ag, fmt.Errorf("bad agent JSON on stdin: %w", err)
 		}
 	} else {
@@ -296,12 +294,8 @@ func describe(args []string) (agent, error) {
 		ag.Instances = count
 	}
 
-	// The runner publishes an agent, and an agent's name begins with #; a
-	// plainly written `run hi@demo` names the same thing
-	// (docs/06-dedicated-runner.md#script-agents). Anything else is left alone:
-	// the daemon's refusal names the rule better than a rewrite here could.
 	if ag.Name != "" && !strings.HasPrefix(ag.Name, "#") {
-		ag.Name = "#" + ag.Name
+		return ag, fmt.Errorf("run requires a complete #agent name")
 	}
 
 	if ag.Name == "" || ag.Script == "" {
@@ -329,9 +323,6 @@ func describe(args []string) (agent, error) {
 	}
 	if has(flags, "allow") {
 		ag.Allow = allow(flags)
-	}
-	if has(flags, "personal") {
-		ag.Personal = true
 	}
 	if has(flags, "network") {
 		ag.Network = true

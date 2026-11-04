@@ -252,3 +252,20 @@ func TestDocsLinkIsOptionalAndOnlyTheDocsKeyIsNew(t *testing.T) {
 		t.Fatalf("misspelled docs key accepted: %v", err)
 	}
 }
+
+func TestRejectUnsupportedManifestInputs(t *testing.T) {
+	for _, input := range []string{
+		`{"description":"fixture","needs":{"writable":["/work"]}}`,
+		`{"description":"fixture","form":"std"}`,
+		`{"description":"fixture","form":"msgpack"}`,
+	} {
+		if _, err := Decode([]byte(input)); err == nil {
+			t.Fatalf("accepted unsupported manifest: %s", input)
+		}
+	}
+	for _, form := range []string{"args", "json", "jsonl"} {
+		if _, err := Decode([]byte(`{"description":"fixture","form":"` + form + `","needs":{"network":["example.com"],"memory":"64M"}}`)); err != nil {
+			t.Fatalf("current form %s: %v", form, err)
+		}
+	}
+}

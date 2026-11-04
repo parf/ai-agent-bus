@@ -47,9 +47,9 @@
 - **Runner web RW4 (stale last observation) and RW8 (per-setting saved vs applied) leave R1** (Q311) — owner, 2026-11-02: "ideally just ignore; our values are ~ good enough for most cases". Parked in R1.1 with RW10–RW17, low priority.
   - Home: [runner web additions](../R1.1/TODO.md#runner-web-additions).
 - **Protocol stays 1 until the 1.0.0 release; wire changes before it amend protocol 1** — owner, 2026-11-02: "until R1 - do not raise protocol version; just update old one". The rule that a wire change raises the protocol number applies from 1.0.0 on.
-  - Home: [daemon API stability](../../docs/09-daemon-api.md#stability-and-compatibility).
+  - Home: [daemon API stability](../../docs/09-daemon-api.md#protocol-version).
 - **The "no such data" refusal kind is `not_found`, renamed from `unknown` before 1.0** (Q304) — owner, 2026-11-01; a missing endpoint stays `no_route`. Renaming after 1.0 would be a breaking change.
-  - Home: [daemon API stability](../../docs/09-daemon-api.md#stability-and-compatibility).
+  - Home: [daemon API stability](../../docs/09-daemon-api.md#protocol-version).
 - **AI sessions on this node get a bigfile folder in the person's own directory under `/var/lib/agent-bus`** (Q303) — owner, 2026-11-01: "do we have users own dir in /var/lib/agent-bus? - setup files dir there". `/var/lib/agent-bus/users/parf/files` (parf, 0700) is `AGENT_BUS_BIGFILE_DIR` for every AB-DVP and `work` window; setup is to create `users/<person>/files` for each person. Built: [T-27](TODO.md#bundled-agents).
   - Home: [bigfiles](bigfile.md#what-it-is-and-is-not).
 - **RAG is set up on this node** (Q302) — owner, 2026-11-01: "agree"; done by `#ab-ceo` 14:58: Qdrant collection `notes` (voyage-3.5, 1024 dimensions, Cosine, keyword vector `text` with `idf`, the eight keyword payload indexes), `#rag` granted `#qdrant` (write), `#voyage` and `#ai`, Configuration from the example with `keyword_search: builtin`; `keyword_index` answers `indexed: 0, status: ok`.
@@ -131,7 +131,7 @@
   - Replaces the installed-unit-set restriction and scoped-all journal rule; [systemd](agents.md#systemd) owns the accepted behavior.
 
 - B.2 call format and real privilege-loss verification — accepted 2026-10-19; the original declared-unit scope and scoped journal logs are superseded above.
-  - Home: [calls](../../src/agents/standalone/systemd/README.md#calls), [logs](../../src/agents/standalone/systemd/README.md#logs), [verification](../../src/agents/standalone/systemd/README.md#verification).
+  - Home: [calls](../../docs/agents/systemd.md#who-may-use-it), [logs](../../docs/agents/systemd.md#logs), [verification](../../src/agents/standalone/systemd/README.md#verification).
 
 `RD` labels the original unnumbered decision-index rows; it allocates no Q IDs.
 
@@ -329,7 +329,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 - ✅ RD104 In bundled agents a record's Owner and Maintainers may do everything the agent offers with no assigned role; assigned roles only grant others more than reading; an agent's own cap (systemd `units`, git `access`) still binds everyone
   - Why: owner, 2026-10-19: "we don't have operate — I see no roles at all"; the owner had to be written into his own agents' allow lists as `parf(operate)` and `parf(commit)` to act on them
   - Date: 2026-10-19
-  - Home: [systemd calls](../../src/agents/standalone/systemd/README.md#calls), [git roles](../../src/agents/standalone/git/README.md#repositories-and-access-levels), [agent guides](../../docs/agents/README.md#agents-your-team-can-use)
+  - Home: [systemd calls](../../docs/agents/systemd.md#who-may-use-it), [git roles](../../docs/agents/git.md#repositories-and-access-levels), [agent guides](../../docs/agents/README.md#agents-your-team-can-use)
 
 - ✅ RD103 Receipts only where they carry information: no ack when the answer comes in this turn, no done after an answer or for a report, and the runner acks only a script slower than 2 s (settles №Q182)
   - Why: owner, 2026-10-19: "do not send ack when can reply right away (no junk on a bus); do not send done when result sent (only when no results expected)"; "runner sends too much noise"

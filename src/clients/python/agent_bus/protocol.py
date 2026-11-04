@@ -8,7 +8,7 @@ def check_identity(identity):
         raise BusError('protocol error: identity must be an object')
     values = []
     for field in ('protocol', 'protocol_min'):
-        value = identity.get(field, 0)
+        value = identity.get(field)
         if type(value) is not int or value < 0:
             raise BusError('protocol error: ' + field + ' must be a nonnegative integer')
         values.append(value)
@@ -17,4 +17,5 @@ def check_identity(identity):
         raise BusError('protocol error: protocol_min exceeds protocol')
     if PROTOCOL < minimum:
         raise BusError('daemon too new for this client')
-    return protocol < PROTOCOL
+    if protocol != PROTOCOL or minimum != PROTOCOL:
+        raise BusError('daemon protocol is unsupported')

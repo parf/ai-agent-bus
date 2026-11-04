@@ -15,7 +15,6 @@ import (
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/auth"
 	"github.com/parf/ai-agent-bus/internal/core"
-	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/store/bigmem"
 	"github.com/parf/ai-agent-bus/internal/store/memory"
@@ -30,14 +29,10 @@ func must(err error) {
 
 func main() {
 	bus := core.New()
-	bus.Restore(ports.Snapshot{Clean: true,
-		Users: []protocol.User{{Name: "owner@fixture", Status: "active"}},
-		Records: []protocol.Record{{Name: "owner@fixture", Owner: "owner@fixture", Kind: protocol.KindUser,
-			Personal: true, Full: protocol.OverflowStrict, At: time.Now()}},
-	})
 	bus.Persistence(memory.NewState())
+	must(bus.EstablishDaemon("owner@fixture", nil))
 	bus.SetBigStore(bigmem.New())
-	tokens, err := auth.Load(memory.NewTokens(), "owner@fixture")
+	tokens, err := auth.Load(memory.NewTokens())
 	must(err)
 	s := api.New(bus, tokens, "owner@fixture")
 	defer s.Close()

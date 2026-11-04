@@ -13,7 +13,10 @@ func NormalizeTags(in []string) ([]string, error) {
 	var out []string
 	for _, raw := range in {
 		for _, word := range strings.Split(strings.ToLower(raw), ",") {
-			if word == "" || word == "no-tags" {
+			if word == "no-tags" {
+				return nil, fmt.Errorf("no-tags is a listing filter, not a record tag")
+			}
+			if word == "" {
 				continue
 			}
 			for _, r := range word {
@@ -37,12 +40,15 @@ func HasTag(tags []string, tag string) bool { return slices.Contains(tags, tag) 
 // with none, and combined with a real label it is refused, since a record has
 // no tags or has that one.
 func TagFilter(raw string) (labels []string, none bool, err error) {
+	var words []string
 	for _, word := range strings.Split(strings.ToLower(raw), ",") {
 		if word == "no-tags" {
 			none = true
+		} else {
+			words = append(words, word)
 		}
 	}
-	labels, err = NormalizeTags([]string{raw})
+	labels, err = NormalizeTags(words)
 	if err != nil {
 		return nil, false, err
 	}
@@ -62,15 +68,5 @@ func HasEveryTag(tags, labels []string) bool {
 	return true
 }
 
-// SyncTags mirrors the legacy Personal field after the caller validates tags.
-func (r *Record) SyncTags() {
-	r.Tags, _ = NormalizeTags(r.Tags)
-	if r.Personal {
-		if !HasTag(r.Tags, "personal") {
-			r.Tags = append(r.Tags, "personal")
-			slices.Sort(r.Tags)
-		}
-	} else if HasTag(r.Tags, "personal") {
-		r.Tags = slices.DeleteFunc(r.Tags, func(t string) bool { return t == "personal" })
-	}
-}
+// IsPersonal derives the owner's classification from the canonical tag.
+func (r Record) IsPersonal() bool { return HasTag(r.Tags, "personal") }

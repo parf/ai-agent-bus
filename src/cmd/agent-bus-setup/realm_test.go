@@ -17,6 +17,9 @@ type fakeRealmBus struct {
 
 func (f fakeRealmBus) call(method, path string, body any) (int, []byte, error) {
 	if strings.HasPrefix(path, "/ls") {
+		if path != "/ls?kind=agent" {
+			return http.StatusBadRequest, []byte(`{"error":"unknown query key"}`), nil
+		}
 		rows := []map[string]string{{"name": "#runner/bobby@other", "owner": "bobby"}}
 		for _, n := range f.registered {
 			owner := strings.TrimSuffix(strings.SplitN(strings.TrimPrefix(n, "#runner/"), "@", 2)[0], "-user")

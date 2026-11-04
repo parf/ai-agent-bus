@@ -642,19 +642,6 @@ class IMAPTests(unittest.TestCase):
         self.assertIn('fetched 0', self.call('sync'))
         self.assertEqual(self.bus.kv.get('imap.progress', kind='json')['observe'], 31)
 
-    def test_sync_migrates_legacy_retry_and_cached_bodies_without_refetch(self):
-        self.server.messages = {1: RAW, 2: RAW, 3: RAW}
-        self.assertIn('(fetched)', self.call('read 3'))
-        path = Path(self.work.name) / 'mail-cache/.state'
-        state = json.loads(path.read_text())
-        state['cursor'], state['retry'] = 1, {'uid': 2, 'count': 2}
-        path.write_text(json.dumps(state))
-        self.server.refuse_uids = {2}
-        self.assertIn('retry 3/3', self.call('sync'))
-        self.assertEqual([n for n, fields in self.server.fetches if b'BODY.PEEK[]' in fields], [3])
-        self.assertEqual(self.bus.kv.get('imap.progress', kind='json')['cursor'], 1)
-        self.assertTrue((path.parent / '3.eml').exists())
-
     def test_sync_progress_failures_are_visible_and_never_silently_rebaseline(self):
         self.assertIn('fetched 1', self.call('sync'))
         original = self.bus.kv.get('imap.progress', kind='json')

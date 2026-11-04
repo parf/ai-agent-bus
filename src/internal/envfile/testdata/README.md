@@ -1,6 +1,6 @@
 # Dotenv conformance data
 
-`common.json` is consumed by the Go parser, daemon write checks, runner delivery
+📌 **TL;DR:** `common.json` is consumed by the Go parser, daemon write checks, runner delivery
 and Slack's TypeScript parser. Its first case contains the verbatim upstream
 [`tests/.env`](https://github.com/motdotla/dotenv/blob/master/tests/.env) and
 expected values from [`tests/test-parse.js`](https://github.com/motdotla/dotenv/blob/master/tests/test-parse.js), retrieved 2026-10-17.

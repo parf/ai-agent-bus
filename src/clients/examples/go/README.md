@@ -17,6 +17,8 @@
 
 ## Try this first
 
+Set up the [harness prerequisites](../README.md#try-this-first) before running these commands from the checkout root.
+
 Run every example, Go among them:
 
 ```sh

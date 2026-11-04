@@ -55,12 +55,12 @@ test("opencode unwraps v2 pages and keeps only this directory's own sessions", a
       { id: "own", location: { directory: "/tmp" } },
       { id: "child", parentID: "own", location: { directory: "/tmp" } },
       { id: "elsewhere", location: { directory: "/elsewhere" } },
-      { id: "legacy-no-directory" },
+      { id: "session-without-directory" },
     ], cursor: { previous: null, next: null } });
   } });
   const o = new Opencode("/tmp", () => {}, `http://127.0.0.1:${server.port}`);
   try {
-    expect((await o.sessions()).map(s => s.id)).toEqual(["own", "legacy-no-directory"]);
+    expect((await o.sessions()).map(s => s.id)).toEqual(["own", "session-without-directory"]);
   } finally {
     o.stop();
     server.stop(true);

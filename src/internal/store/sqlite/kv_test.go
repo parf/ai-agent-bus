@@ -173,8 +173,8 @@ func TestKVEditConcurrentIncrementsCountExactly(t *testing.T) {
 	}
 }
 
-// A schema-6 database migrates to 7 and keeps values at once.
-func TestSchemaSixMigratesToKeepValues(t *testing.T) {
+// Retired database layouts are refused without conversion.
+func TestSchemaSixIsRefused(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "bus.db")
 	old, err := sql.Open("sqlite", path)
 	if err != nil {
@@ -189,15 +189,10 @@ func TestSchemaSixMigratesToKeepValues(t *testing.T) {
 		t.Fatal(err)
 	}
 	old.Close()
-	s, err := Open(path, false)
-	if err != nil {
-		t.Fatalf("schema 6 did not open: %v", err)
+	if s, err := Open(path, false); err == nil {
+		s.Close()
+		t.Fatal("retired schema was accepted")
 	}
-	defer s.Close()
-	if err := s.Commit(ports.Change{Records: map[string]*protocol.Record{"a@h": record("a@h", 1)}}); err != nil {
-		t.Fatal(err)
-	}
-	put(t, s, ports.KVJSON, 1, "k", ports.KVValue{Bytes: []byte(`{}`)})
 }
 
 // schemaSix is the layout before the key-value tables and records.owner_id.
@@ -212,15 +207,14 @@ func schemaSix() []string {
 	return out
 }
 
-// Migrating to 8 fills each record's owner_id from its owner's user, and one
-// whose owner is no user takes an ID no user has.
-func TestSchemaSevenFillsEachRecordsOwnerID(t *testing.T) {
+// Retired database layouts are refused without conversion.
+func TestSchemaSevenIsRefused(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "bus.db")
 	old, err := sql.Open("sqlite", path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, stmt := range append(schemaSix(), migrations[6]...) {
+	for _, stmt := range schemaSix() {
 		if _, err := old.Exec(stmt); err != nil {
 			t.Fatalf("%s: %v", stmt, err)
 		}
@@ -236,35 +230,9 @@ func TestSchemaSevenFillsEachRecordsOwnerID(t *testing.T) {
 		}
 	}
 	old.Close()
-	s, err := Open(path, false)
-	if err != nil {
-		t.Fatalf("schema 7 did not open: %v", err)
-	}
-	defer s.Close()
-	snap, err := s.Load()
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := map[string]uint32{}
-	for _, r := range snap.Records {
-		got[r.Name] = r.OwnerID
-	}
-	if got["jobs@h"] != 7 || got["lost@h"] != protocol.NoOwnerID {
-		t.Fatalf("owner IDs after migration: %v", got)
-	}
-	// And a commit writes it.
-	if err := s.Commit(ports.Change{Records: map[string]*protocol.Record{"new@h": {Name: "new@h", ID: 5, OwnerID: 7, Owner: "alice@h", Kind: protocol.KindQueue}}}); err != nil {
-		t.Fatal(err)
-	}
-	if snap, _ = s.Load(); func() uint32 {
-		for _, r := range snap.Records {
-			if r.Name == "new@h" {
-				return r.OwnerID
-			}
-		}
-		return 0
-	}() != 7 {
-		t.Fatal("a committed record lost its owner ID")
+	if s, err := Open(path, false); err == nil {
+		s.Close()
+		t.Fatal("retired schema was accepted")
 	}
 }
 

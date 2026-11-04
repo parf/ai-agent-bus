@@ -288,7 +288,6 @@ func (b *Bus) ImportRecords(caller string, data RecordBackup, choices ImportChoi
 			return report, fmt.Errorf("invalid tags: %s", n)
 		}
 		r.Tags = tags
-		r.SyncTags()
 		records[n] = r
 	}
 	choiceIndex := map[string]protocol.Record{}

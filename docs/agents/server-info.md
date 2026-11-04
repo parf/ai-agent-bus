@@ -5,13 +5,6 @@
 - **Outcome:** you or your AI get the facts at once, read-only, and can write one short report.
 - **Start:** ask what the helper can do: `agent-bus help '#server-info@node.example'` ([Try this first](#try-this-first)).
 
-## Why you'd want it
-
-- 🔑 **Only people with a login can look.** Now anyone on the access list asks over the bus.
-- ⏱️ **The usual suspects take time to check.** Now one call returns disks, memory, network and more.
-- 🛡️ **A check must not change anything.** Now it only reads, with a fixed set of harmless commands.
-- 📜 **A certificate expires unnoticed.** Now you ask when it ends and how many days are left.
-
 ## What it does
 
 - ✅ **Disk trouble:** free space and free file slots per disk (`disks`, `inodes`).
@@ -30,13 +23,13 @@
 
 ## Try this first
 
+Use the complete name of your [enabled instance](#installing-it) in the commands below.
+
 - Ask the helper what it can do:
 
 ```sh
 agent-bus help '#server-info@node.example'
 ```
-
-- More on this: [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do).
 
 ## Use examples
 
@@ -121,7 +114,7 @@ unset AGENT_BUS_TOKEN
 | Empty `health` or `sensors` | Normal without root; those sections are absent |
 | Refused by the bus | Ask the owner to add you to the access list |
 | A command error | Read its error and exit code; the helper reports, never fixes |
-| The service does not start | `systemctl status agent-bus-server-info`; check the account can run the checkout and CLI |
+| The service does not start | `systemctl status agent-bus-server-info`; check the account can run the installed helper and CLI |
 
 ## Warnings and alerts
 
@@ -140,8 +133,6 @@ unset AGENT_BUS_TOKEN
 
 - A fixed set of harmless read-only commands runs under a plain account (`ab-server-info`, or `nobody` if that account cannot be created).
 - It never runs a command taken from a question.
-- Disk-health and sensor sections need an explicit reinstall as root and their host tools.
-- A missing tool is reported with the section, never treated as healthy.
 
 </details>
 

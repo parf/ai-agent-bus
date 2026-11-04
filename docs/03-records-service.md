@@ -3,23 +3,27 @@
 📌 **TL;DR:**
 - **Problem:** something outside the bus (a web service, a database host) must be findable and nameable like everything else, without pretending the bus runs it.
 - **Outcome:** a 📡 `service` is a card saying where something outside is and how to reach it; nothing on this bus answers for it. Its address and protocol are required. Like a 📚 resource card it has no queue here, and it refuses everything that would need one.
-- **Start:** read [what a service is](#what-a-service-is) ([Try this first](#try-this-first)).
+- **Start:** list service cards with `agent-bus ls --kind=service`, then use the external service's own client.
 
 ## Why you'd want it
 
-- 📡 **An outside service has no name on the bus.** Now a card gives it one, with where it is and how to reach it.
-- 🙅 **A message to it would go nowhere.** Now the card refuses what needs a queue it does not have.
-- 🔐 **Its secrets must not sit in the card.** Now they are kept apart ([secrets](#secrets)).
+- Make an external endpoint discoverable without implying that the bus runs it.
+- Share connection details while restricting access to credentials.
 
 ## What you get
 
-- ✅ **A card:** address, protocol and owner for something external.
-- ✅ **Honest refusals:** it has no queue here, and says so.
-- 🚫 **Not for:** running a program on the bus; that is an [agent](03-records.md#record-kinds).
+- A named card with an address, protocol and description.
+- Separate private Configuration and Secret values for managers.
 
 ## Try this first
 
-- Read [what a service is](#what-a-service-is), then look at a card with `agent-bus ls` and its name once one is registered.
+List the external service cards you may see:
+
+```sh
+agent-bus ls --kind=service
+```
+
+A fresh bus may have none. Inspect a returned name with `agent-bus ls <name>`; the card describes an endpoint but does not test its availability.
 
 ## What a service is
 
@@ -30,7 +34,7 @@ a registration only describes.
 
 The record is **information for the people and agents its
 [allow list](02-access.md#acl) admits**: where the thing is, how to speak to it,
-what it is for, and the [credential](#secrets) to use.
+and what it is for. Its [credential](#secrets) requires separate private-value authority.
 
 | A service | |
 |---|---|
@@ -44,22 +48,20 @@ something outside is the case a bare `register` is usually for. That is also why
 a bare `register` must carry an address and a protocol: the daemon refuses a
 service without both.
 
+Register a card using your service's actual name and endpoint; this command does not create a database:
+
 ```sh
 agent-bus register mysql-prod@srv1 --service-addr host:3306 --protocol mysql
 ```
 
 ## How to call it
 
-**Call it directly**, at `addr`, speaking `protocol`. The bus is not in the path
-at all; the four kinds that have a queue are reached by sending to the name
-instead ([records § record kinds](03-records.md#record-kinds)).
+**Call it directly**, at `addr`, speaking `protocol`. The daemon does not proxy the call. Users, Agents and queues hold inboxes; pubsub fans messages out to recipient inboxes ([records § record kinds](03-records.md#record-kinds)).
 
-- A service's `addr` and `protocol` are the registration's own words, stored raw and **never interpreted**.
-- The daemon does not implement a second protocol and does not proxy.
-- They are facts in the registry for whoever is choosing what to call ([discovery § what a listing answers](05-discovery.md#what-a-listing-answers)).
+- The daemon stores `addr` and `protocol` as supplied; it does not test the endpoint. An MCP face can use a Service with protocol `mcp` as a [resource source](03-records-resource.md#what-a-resource-is).
 
 **`/etc/services` is the suggested vocabulary for `protocol`, and only a suggestion.** Use the name from it where there is one, so two people registering the same kind of thing write the same word.
-- It is not a checked set and cannot become one: the file is outdated and incomplete — half of what anyone registers here (`mcp`, `grpc`, an in-house protocol) is not in it, and refusing those would make the field useless to the people who need it most.
+- The daemon does not check this vocabulary; names such as `mcp`, `grpc` and application-specific protocols are accepted.
 
 A thing outside that somebody wants reachable **over** the bus is not this case:
 register an 👾 for whatever reads its queue, and let that agent call the outside
@@ -78,12 +80,12 @@ not see the name learns only that.
 | consume from it | refused: there is no queue here to read |
 | its reader count and backlog | **not stated.** A zero would be an observation of something that does not exist |
 | TTL, capacity, overflow policy, delivery switch | refused at registration and at a settings edit |
-| a stored queue under its name | ignored and reported at [load](constitution.md#persistence-and-loading) |
+| a stored queue under its name | refuses [startup](constitution.md#what-refuses-the-start) |
 
 ## Secrets
 
-Keep secrets in Secret and config in Configuration; see [configuration](03-records-agent.md#configuring-a-template).
-A secret used only by one runner can live in its host files; writes through the bus still carry values in a durable message ([two places for secrets](runner/security.md#secrets)).
+- Keep credentials in Secret and settings in [Configuration](03-records-agent.md#configuring-a-template). A secret used only by one runner can live in its host files.
+- Sending a secret in a bus message places it in that message's durable queue. Direct Configuration/Secret API writes are separate ([two places for secrets](runner/security.md#secrets)).
 
 Reaching an external thing usually needs a credential. A secret is that
 credential, held on the record and read by the record's Owner and
@@ -94,10 +96,9 @@ Maintainers ([private values](constitution.md#-private-values)); its
 |---|---|
 | `agent-bus secret <name>` | print it |
 | `cat .env \| agent-bus secret <name> -` | set it, bytes on stdin |
-| `agent-bus secret <name> 'TOKEN=abc'` | the same, inline |
+| `agent-bus secret <name> 'TOKEN=abc'` | the same, inline; use stdin for real credentials to avoid shell-history exposure |
 | the web face's [service registration](../src/web/web-face/records.md#register) | set it once, as the record is created |
 
-- One verb, and the direction is whether a secret was handed to it — the shape [config](03-records-agent.md#configuring-a-template) uses.
 - The read writes the bytes to stdout exactly as stored, with no trailing newline: a credential goes into a shell or an environment, and every byte added on the way is one whatever uses it has to strip off again.
 - Setting one answers with the record, so what comes back is the digest and never what was just sent.
 
@@ -105,8 +106,8 @@ Maintainers ([private values](constitution.md#-private-values)); its
 |---|---|
 | who may write it | the record's Owner and Maintainers, as for a configuration. A registration carries **neither half** — not the bytes, and not the digest — and a re-registration keeps the one already stored |
 | who may read it | the record's Owner and Maintainers, and an 👾 agent its own. A caller who sees the record and may not read it is told it is private; one who may not see it learns only that there is no such name |
-| what it must be | an **env file**, in the [env-file syntax](#env-file-syntax). Nothing application-specific is checked. A refusal names the line and never repeats it; the record holding a stored secret that is not an env file is ignored and reported at load |
-| which kinds hold one | 📡 `service`, 👾 `agent` and 👥 `group`, under the [private-value rule](constitution.md#-private-values). Every other kind is reached by sending to its name — refused at the verb, and a stored record holding one is ignored and reported at [load](constitution.md#persistence-and-loading). |
+| what it must be | an **env file**, in the [env-file syntax](#env-file-syntax). Nothing application-specific is checked. A refusal names the line and never repeats it; a stored Secret that is not a valid env file refuses startup |
+| which kinds hold one | 📡 `service`, 👾 `agent` and 👥 `group`, under the [private-value rule](constitution.md#-private-values). Other kinds cannot hold a Secret: the write is refused, and an invalid stored record refuses [startup](constitution.md#what-refuses-the-start). |
 | what a query gets | **`secret_sha`**, a SHA-256 of the stored bytes, on every answer that carries a record to a caller who may read the secret, and on the service's own page; anyone else gets no digest, which for a short secret would be the secret. The bytes are on no listing, record answer, page or log; the web editor only replaces it ([Configuration and Secret](../src/web/web-face/records.md#private-configuration)) |
 | nothing to store | an empty secret is refused, because it reads back exactly like never having set one |
 | when it is acknowledged | once it is durable. A credential the caller was told was stored, and which a restart then loses, is worse than a refusal |
@@ -116,14 +117,6 @@ The digest answers the same questions a configuration's does
 ([why a digest at all](03-records-agent.md#why-a-digest-at-all)): whether a service
 has a credential, whether a write landed, whether it has been rotated since,
 and whether two hosts hold the same one.
-
-**A secret is not [registry configuration](03-records-agent.md#configuring-a-template).**
-Listings omit both values and include digests only for authorized readers.
-Configuration is displayed to Owner and Maintainers; Secret is never displayed.
-
-A secret is stored as written but must be an env file
-([private values](constitution.md#-private-values)); there is no legacy
-exception, so a record holding a non-conforming stored secret is ignored at load.
 
 | | Configuration | Secret |
 |---|---|---|
@@ -137,7 +130,7 @@ See [configuration](03-records-agent.md#configuring-a-template) for access and t
 ### Env file syntax
 
 - One syntax for every `KEY=value` list the bus and the runner read — a record's secret, the runner's `env.dist`, an agent's and an instance's `env` — and one parser for all of them, so a secret the daemon accepts is one the runner can deliver.
-- The syntax is the official [dotenv](https://github.com/motdotla/dotenv#what-rules-does-the-parsing-engine-follow) format, read as its own parser reads it, with nothing evaluated (owner decisions Q171–Q173, 2026-10-17), and fast and simple: a reference fails at once rather than being carried as text (owner rule, 2026-10-18).
+- The syntax follows [dotenv](https://github.com/motdotla/dotenv#what-rules-does-the-parsing-engine-follow), with the stricter refusal rules below. No value is evaluated or expanded.
 
 | A line | Means |
 |---|---|
@@ -150,17 +143,8 @@ See [configuration](03-records-agent.md#configuring-a-template) for access and t
 | `$NAME`, `${…}`, `$(…)` in an unquoted or `"…"` value | **refused**, by its line: dotenvx would expand it, and nothing here does, so every reference is an unknown one. A `$` followed by no letter, `_`, `{` or `(` is ordinary text (`5$`, `cost $5`) |
 | the same in `'…'` or `` `…` `` | literal text: single quotes are dotenvx's way to keep a `$` |
 
-Where the reference parser skips a line it cannot read, the bus refuses it, by
-its line number, never repeating it. NUL bytes are also refused because a
-process environment cannot carry them. There is no legacy form: a stored secret
-or an env file on disk that does not fit is fixed, not carried.
+- A line the reference parser skips is refused by the bus, with its line number but no private text.
+- NUL bytes are refused because a process environment cannot carry them.
+- Invalid stored Secrets cause their records to be ignored and reported at load. Invalid runner env files must be corrected before use.
 
-Since 0.8.154, the daemon and runner use the same parser; the Slack agent's
-TypeScript reader passes the same upstream conformance fixture. Stored text
-stays as written; parsing removes quotes and decodes the escapes above for
-process delivery.
-
-Before deploying this check over an older database, audit every stored secret
-and runner env file using the new parser in the stopped-home backup window.
-Fix any non-conforming entry before the strict daemon starts: an invalid stored
-record is ignored and reported at load, with its name and reason.
+Stored text stays as written. Parsing removes quotes and decodes the escapes above for process delivery. The daemon, runner and Slack reader use the same syntax.

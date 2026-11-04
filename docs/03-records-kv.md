@@ -5,19 +5,6 @@
 - **Outcome:** every record has its own durable store of named values (strings, ints and JSON objects), edited atomically and committed before an answer. Its Owner, Maintainers and own Agent use it, under the same authority as the record's [shared locks](01-identity-and-authority.md#shared-locks).
 - **Start:** see the available store operations: `agent-bus help kv` ([Try this first](#try-this-first)).
 
-## Why you'd want it
-
-- 🔢 **Workers need a shared counter.** Now `kv inc` adds to an integer atomically.
-- 🚩 **A flag must survive a restart.** Now a value is committed before the answer.
-- ⚛️ **Several changes must land together.** Now a JSON operation list applies all or none.
-
-## What you get
-
-- ✅ **Three kinds of value:** a string, an int and a JSON object, each in its own namespace.
-- ✅ **Atomic edits:** all or none, committed before the call answers.
-- ✅ **One store per record:** the same key on two records is two values.
-- 🚫 **Not for:** granting use of the record (the allow list never reaches the store), or large data.
-
 ## Try this first
 
 See the store commands without changing data:
@@ -27,12 +14,6 @@ agent-bus help kv
 ```
 
 Each operation names a record you manage and a key. Use an existing record from `agent-bus ls --all`; an arbitrary example name need not exist on your installation.
-
-- **Three kinds, three namespaces:** a **string** (any bytes, the default), an **int** (signed 64-bit) and a **json** object.
-- **Not the allow list:** the allow list grants use of the record, never of its store.
-- **One store per record:** the same name on two records is two values.
-- **Lives with its record:** it goes when the record goes, and is kept through a transfer ([rules](#rules)).
-- **Stored, not cached:** it lives in the daemon's database, never only in memory.
 
 ## Where to attach it
 
@@ -63,7 +44,7 @@ Each operation names a record you manage and a key. Use an existing record from 
 | The record's life | an inactive record's store is [no such entity](constitution.md#common-record-fields) and comes back with it; removing the record deletes its store in the same transaction, and a name registered again starts empty. Values are keyed by the record's internal ID, so a transfer keeps them |
 | Limits | a name is 1 to 256 bytes of UTF-8; a value is at most 512 KiB; a record holds at most 10,000 names of one kind; a JSON list at most 100 operations |
 | At start | a stored value whose record is not stored is ignored and reported, never reattached |
-| Faces | the API's `GET /kv` and `POST /kv/set`, `/kv/delete`, `/kv/inc`, `/kv/json` take `record`, `kind` and `name`; a string travels as a JSON string, or `value_base64` when its bytes are not UTF-8, an int as a number and a JSON value as the object. `GET /kv/list` answers a record's names with sizes and previews, or with no record every store the caller may use. The MCP face has `ab_kv_get`, `ab_kv_set`, `ab_kv_delete`, `ab_kv_inc` and `ab_kv_json`; the web face shows a record's store on its page, and on the **KV** page and its own pages ([web face](../src/web/web-face/records.md#key-value-stores)) |
+| Faces | See the [HTTP contract](09-daemon-api.md#key-value). MCP offers `ab_kv_get`, `ab_kv_set`, `ab_kv_delete`, `ab_kv_inc` and `ab_kv_json`; the web face has a **KV** page and per-record store pages ([web store](../src/web/web-face/records.md#key-value-stores)) |
 
 - A string write carries exactly one of `value` (a JSON string) or `value_base64` (a base64 string). Both accept `""` as empty bytes; `null` is malformed and the refusal names the member.
 - The API body bound accommodates JSON escaping of a 512 KiB value.
@@ -93,48 +74,21 @@ A list of them is applied whole or not at all; an absent name starts as `{}`.
 
 ```sh
 agent-bus kv json jobs@team batch '[{"op":"push","key":"todo","value":"a"},{"op":"push","key":"todo","value":"b"}]'
-agent-bus kv json jobs@team batch '[{"op":"shift","key":"todo"}]'   # each worker gets its own job
+agent-bus kv json jobs@team batch '[{"op":"shift","key":"todo"}]'
 ```
-
-Why it is shaped this way is the [plan's reasoning](../Plans/R1.0-Release/done/kv.md#per-record-storage).
 
 ## Suggested use
 
-- The store coordinates a pool without a database beside the bus.
-- Put it on the record the work belongs to — a 📮 queue or the pool's 👾 Agent — so the workers reach it as that Agent, or as its Maintainers.
-- Three rules make every pattern below safe: **claim with an atomic op** (`shift`, `pop`, `set --add`), **make results idempotent** (`--add` on a result name, so a retried item writes once), and **pair a store with a [lock](01-identity-and-authority.md#shared-locks) when liveness matters** — the lock's ttl says who is alive, the store says how far they got, and survives them.
+Attach shared work state to a queue or Agent that the workers manage.
 
-Below, `batch.todo` is the key `todo` of the JSON value `batch`, edited with
-`kv json`; `batch/total` is a name of its own.
-
-| Pattern | Coordinator | Each worker | Why it holds |
-|---|---|---|---|
-| **Scatter** | `push` every item onto `batch.todo`, then `set --int batch/total N` | `shift batch.todo` until it answers nothing | no two workers get one item; an empty `shift` is the end, not an error |
-| **Gather** | waits for one message, not a poll | writes `set --add result/<id> …`, then `inc batch/done`; the worker whose `inc` answers `N` sends the coordinator "gathered" | `--add` makes a retry write nothing twice; exactly one `inc` sees the total |
-| **Retry** | — | a failed item goes back with `unshift batch.todo`, or to `push batch.failed` after its third try, counted in the item | the queue keeps it through any crash but the worker's own |
-| **Sharding** | `set --int shards N`; items go to shard `hash(key) mod N` | claims a shard with `set --add shard/<n> <me>`, holds `lock <record> shard/<n> --ttl 30s` and `extend`s it while working, keeps `set --int cursor/<n> <offset>` | the claim is exclusive; a dead worker's lock expires, and whoever takes shard `n` next — `delete shard/<n>`, then `--add` — resumes from its cursor |
-| **Rebalancing** | takes `lock <record> rebalance`, rewrites the `shards` map, bumps `inc epoch` | reads `epoch` before each item and re-claims when it moved | one rebalance at a time; a worker never mixes two maps |
-| **Suspend** | `set --int paused 1` | reads `paused` before each claim, stops taking new items, and checkpoints `set --json job/<id>` with its cursor and state | a pool pauses without stopping a process; nothing in flight is lost |
-| **Resume** | `set --int paused 0` | picks up from each `job/<id>` it held, or any whose worker is gone, by the same claim | the checkpoint is stored and committed before its answer, so a daemon restart resumes too |
-
-<details>
-<summary>Scatter and gather from the CLI</summary>
-
-```sh
-# coordinator
-agent-bus kv json jobs@team batch '[{"op":"push","key":"todo","value":"img-1"},{"op":"push","key":"todo","value":"img-2"}]'
-agent-bus kv set --int jobs@team batch/total 2
-
-# each worker, in a loop
-job=$(agent-bus kv json jobs@team batch '[{"op":"shift","key":"todo"}]')   # "changed":false, no value, when empty
-agent-bus kv set --add jobs@team result/img-1 "done:42"                   # a retry is refused, not doubled
-[ "$(agent-bus kv inc jobs@team batch/done)" = 2 ] && agent-bus send '#coordinator@team' gathered
-```
-
-</details>
-
-- What the store is not: a message queue — nothing wakes a waiting worker, so a worker that finds `todo` empty waits for a message, not a tight loop — and not a database: no queries, only names and top-level keys.
-- A value is small (see the [limits](#rules)); put large results in a [bigfile](#bigfiles) and keep its name in the store.
+- `shift` or `pop` removes one item atomically. Two workers cannot take the same stored item, but a worker that dies after taking it can lose that work.
+- `set --add result/<id>` refuses a duplicate result. Check that outcome before any follow-up counter update; the refused write does not stop a later command automatically.
+- A result write and a separate `inc` are separate transactions. A crash between them leaves the count behind; retrying an increment can overcount. Do not use this pair as an exactly-once completion protocol.
+- Use one JSON operation list when several edits to the same value must commit together. External effects and edits to other values remain separate.
+- A [lock](01-identity-and-authority.md#shared-locks) coordinates callers while held. Its expiry does not stop an old worker or fence its later writes; applications must handle stale workers and interrupted effects.
+- A stored pause flag or checkpoint survives a restart. Workers must check the flag and implement recovery; the store does not pause processes or resume jobs itself.
+- KV does not wake waiting workers. Use messages to notify them, and avoid polling an empty work list in a tight loop.
+- The store has no queries beyond names and top-level JSON operations. Put large results in a [bigfile](#bigfiles) and keep its name in the store.
 
 ## Bigfiles
 
@@ -155,12 +109,8 @@ A bigfile holds up to 32 MiB in a private file or, on request, daemon memory. It
 | Backups | the files live in `bigfile/` beside the database. A database backup holds the index rows but never the files, and a record export holds neither. After a restore, start drops every row whose file is not present, so a restore has no bigfiles unless their files are restored with it |
 | Integrity | a put answers the size and SHA-256 of what was stored, and refuses bytes that do not match an `X-Bigfile-Sha256` header; a get carries the hash in `X-Bigfile-Sha256` |
 
-The API:
+The [bigfile API](09-daemon-api.md#bigfiles) uses raw bytes for upload and download, with separate list and delete operations.
 
-- `PUT /bigfile?record=<name>&name=<key>&ttl=<seconds>&memory=<true|false>` with the raw bytes as the body.
-- `GET /bigfile?record=&name=` streams the bytes.
-- `GET /bigfile/list?record=` answers each key's name, size, sha256, held and expires.
-- `POST /bigfile/delete` takes `record` and `name`.
 - An existing name is replaced and the answer says `replaced`.
 - A refusal that arrives before the body is read (a bad parameter, no authority, an unknown record, an unusable store) is answered after the declared body, at most 32 MiB, has been read and discarded for up to 2 seconds, and the connection closes; a client still writing sees the status and its cause, not a reset.
 - The body of a put may be slow but not stalled: it is answered 408 when no bytes arrive for 30 s, or when the whole upload takes longer than 30 s plus the time 64 KiB a second needs for its declared length (up to 542 s for 32 MiB). The command line and the Go, Python and TypeScript clients give a put and a get the same budget, not the timeout of their other calls.

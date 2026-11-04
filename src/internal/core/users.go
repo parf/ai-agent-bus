@@ -681,6 +681,7 @@ func (b *Bus) SetUserWithProfileDetails(caller string, in protocol.User, create,
 			in.GithubTwitterUsername = twitter
 		}
 	}
+	b.setUser(in.Name, in)
 	// A vouched realm still requires key-possession proof before its name can
 	// be created. Editing an existing enrolled profile does not repeat proof.
 	if _, known := b.records[in.Name]; !known {
@@ -688,14 +689,13 @@ func (b *Bus) SetUserWithProfileDetails(caller string, in protocol.User, create,
 		if _, backed := b.dirs[parsed.Realm]; backed {
 			return protocol.User{}, ErrEnrol
 		}
-		record := protocol.Record{Name: in.Name, Owner: in.Name, Kind: protocol.KindUser, Personal: true, Full: protocol.OverflowStrict, At: time.Now()}
+		record := protocol.Record{Name: in.Name, Owner: in.Name, Kind: protocol.KindUser, Tags: []string{"personal"}, Full: protocol.OverflowStrict, At: time.Now()}
 		if err := validateKind(record); err != nil {
 			return protocol.User{}, err
 		}
 		b.setRecord(in.Name, record)
 		b.ensure(in.Name)
 	}
-	b.setUser(in.Name, in)
 	if err := b.commit(); err != nil {
 		return protocol.User{}, err
 	}

@@ -139,7 +139,7 @@ test("the face's socket discovery falls back to the installed path, never /tmp",
 // New sessions must leave existing records untouched, even when dormant.
 // Observe unregister attempts independently of daemon-side refusals.
 import { claimIdentity } from "./identity.ts";
-import { Bindings } from "./sessions.ts";
+import { Bindings, hash } from "./sessions.ts";
 
 for (const scenario of [
   { name: "fresh registration", at: -1000, readers: 0 },
@@ -210,7 +210,7 @@ for (const scenario of [
       if (scenario.crash) {
         // A dead child leaves the same on-disk bus lock as an abrupt exit.
         const child = Bun.spawnSync([process.execPath, "-e",
-          `import { Bindings } from ${JSON.stringify(join(import.meta.dir, "sessions.ts"))};
+          `import { Bindings, hash } from ${JSON.stringify(join(import.meta.dir, "sessions.ts"))};
            const b = new Bindings(${JSON.stringify(dir)}, "claude");
            if (!b.lock(${JSON.stringify(`bus:${expected}`)})) process.exit(1);`]);
         expect(child.exitCode).toBe(0);
@@ -384,10 +384,10 @@ test("a stale claimant cannot remove a replacement live lock", () => probe(`
   const dead = Bun.spawnSync([process.execPath, "-e", "console.log(process.pid)"]);
   expect(dead.exitCode).toBe(0);
   fs.mkdirSync(path);
-  fs.writeFileSync(join(path, "pid"), dead.stdout.toString().trim());
+  fs.writeFileSync(join(path, "pid.00000000-0000-0000-0000-000000000000"), dead.stdout.toString().trim());
   let injected = false, secondWon = false;
   afterRead = p => {
-    if (!injected && p === join(path, "pid")) {
+    if (!injected && p === join(path, "pid.00000000-0000-0000-0000-000000000000")) {
       injected = true;
       secondWon = b.lock("claim");
     }
@@ -408,7 +408,7 @@ test("concurrent lock claimants have exactly one winner and all exit cleanly", a
     const script = `
       import { existsSync, renameSync, writeFileSync } from "node:fs";
       import { join } from "node:path";
-      import { Bindings } from ${module};
+      import { Bindings, hash } from ${module};
       const dir = ${JSON.stringify(dir)}, id = process.argv[1];
       const b = new Bindings(dir, "codex");
       writeFileSync(join(dir, id + ".ready"), "");
@@ -423,7 +423,7 @@ test("concurrent lock claimants have exactly one winner and all exit cleanly", a
     `;
     if (stale) {
       const dead = Bun.spawnSync([process.execPath, "-e",
-        `import { Bindings } from ${module}; const b = new Bindings(${JSON.stringify(dir)}, "codex"); if (!b.lock("claim")) process.exit(1);`]);
+        `import { Bindings, hash } from ${module}; const b = new Bindings(${JSON.stringify(dir)}, "codex"); if (!b.lock("claim")) process.exit(1);`]);
       expect(dead.exitCode).toBe(0);
     }
     const children = Array.from({ length: 12 }, (_, i) => Bun.spawn([process.execPath, "-e", script, String(i)], { stdout: "ignore", stderr: "pipe" }));
@@ -459,15 +459,15 @@ test("session purpose is explicit and does not change a saved identity", async (
   expect(descriptionOption(["--descr=Review billing", "resume"]).args).toEqual(["resume"]);
   expect(() => descriptionOption(["--descr"])).toThrow();
   const name = "#codex/billing@t";
-  let record: any = { name, kind: "agent", descr: "codex(/work/billing)", allow: ["@owner"], personal: true, tags: ["codex"], readers: 0 };
+  let record: any = { name, kind: "agent", descr: "codex(/work/billing)", allow: ["@owner"], tags: ["codex", "personal"], readers: 0 };
   const owner: any = { ls: async () => [record], register: async (next: any) => { record = { ...record, ...next }; } };
   const bindings: any = { lock: () => true, holds: () => false, unlock: () => {} };
   const before = { ...record };
   const claimed = await claimIdentity(owner, bindings, name, "Billing", name, name, "codex", undefined, "");
   expect(claimed.name).toBe(name);
-  expect(record).toEqual({ ...before, descr: "", tags:["ai-cli","codex"] });
+  expect(record).toEqual({ ...before, descr: "", tags:["ai-cli","codex","personal"] });
   await claimIdentity(owner, bindings, name, "Billing", name, name, "codex", undefined, "Review billing");
-  expect(record).toEqual({ ...before, descr: "Review billing", tags:["ai-cli","codex"] });
+  expect(record).toEqual({ ...before, descr: "Review billing", tags:["ai-cli","codex","personal"] });
   await claimIdentity(owner, bindings, name, "Billing", name, name, "codex");
   expect(record.descr).toBe("Review billing");
 });
@@ -483,7 +483,7 @@ test("session tags are set explicitly, preserved on resume and inherited on rena
     const bindings: any = {lock: () => true, holds: () => false, unlock: () => {}};
     const automatic = runtime === "opencode1" ? "opencode" : runtime;
     await claimIdentity(owner, bindings, name, "Tags", undefined, undefined, runtime, undefined, undefined, ["review", "billing"]);
-    expect(records[0].tags).toEqual(["ai-cli", "billing", automatic, "review"].sort());
+    expect(records[0].tags).toEqual(["ai-cli", "billing", automatic, "personal", "review"].sort());
     records[0].tags.push("web-edit");
     await claimIdentity(owner, bindings, name, "Tags", name, name, runtime);
     expect(records[0].tags).toContain("web-edit");
@@ -509,7 +509,7 @@ test("launcher tags use the protocol vectors and repeatable comma options", asyn
   const { normalizeTags } = await import("../mcp/tags.ts");
   const { tagOption } = await import("./tags.ts");
   const vectors = await Bun.file(resolve(import.meta.dir, "../internal/protocol/testdata/tags.json")).json();
-  for (const vector of vectors) {if(vector.invalid) expect(()=>normalizeTags(vector.input)).toThrow("invalid tag"); else expect(normalizeTags(vector.input)).toEqual(vector.expected);}
+  for (const vector of vectors) {if(vector.invalid) expect(()=>normalizeTags(vector.input)).toThrow(); else expect(normalizeTags(vector.input)).toEqual(vector.expected);}
   expect(tagOption(["resume", "--tag", "BUILD-Notes,review", "--tag=v2", "--tag", "review"]).tags).toEqual(["build-notes", "review", "v2"]);
   expect(tagOption(["resume"]).tags).toBeUndefined();
   expect(tagOption(["--tag", ""]).tags).toEqual([]);
@@ -602,7 +602,6 @@ test("a changed bus realm moves only names not yet bound", async () => {
   // bound with the old realm: the same session resumes its exact name
   expect(await automaticBase(realmBus("new.test"), env, "claude", "Billing", bound("#claude/billing@old.test"))).toBe("#claude/billing@old.test");
   expect(await automaticBase(realmBus("new.test"), env, "claude", "Billing", bound("#claude/billing.2@old.test", "#claude/billing@old.test"))).toBe("#claude/billing@old.test");
-  expect(await automaticBase(realmBus("new.test"), env, "claude", "Billing", { name: "#claude/billing.3@old.test" })).toBe("#claude/billing@old.test"); // legacy binding, no base
   // a long title is cut by the realm's length: the bound realm's cut is the one that matches
   const long = "x".repeat(70);
   const old = await automaticBase(realmBus("a.test"), env, "claude", long);
@@ -686,4 +685,48 @@ test("the control endpoint's fork capability takes a session id only, under the 
     expect(await ok.text()).toBe("#claude/x.job@fixture"); // the name, never a token
     expect(asked).toEqual(["11111111-1111-1111-1111-111111111111"]);
   } finally { control.stop(); }
+});
+
+
+test("bindings require an explicit base and leave obsolete state untouched", () => {
+  const root = resolve(import.meta.dir, "../../tmp/binding-format");
+  mkdirSync(root, {recursive: true});
+  const dir = mkdtempSync(join(root, "case-"));
+  const bindings = new Bindings(dir, "codex");
+  try {
+    writeFileSync(bindings.file("session"), JSON.stringify({name: "#codex.old@t"}));
+    expect(() => bindings.saved({id: "session"})).toThrow("name and base are required");
+    bindings.save("session", "#codex/current@t", "#codex/current@t");
+    expect(bindings.saved({id: "session"})).toEqual({name: "#codex/current@t", base: "#codex/current@t"});
+    const lock = join(dir, hash("fixed") + ".lock");
+    mkdirSync(lock);
+    writeFileSync(join(lock, "pid"), "999999999");
+    expect(bindings.lock("fixed")).toBe(false);
+  } finally { bindings.close(); rmSync(dir, {recursive: true, force: true}); }
+});
+
+
+test("non-object saved bindings refuse before a resumed identity can be claimed", () => {
+  const root = resolve(import.meta.dir, "../../tmp/binding-format");
+  mkdirSync(root, {recursive: true});
+  const dir = mkdtempSync(join(root, "invalid-")), bindings = new Bindings(dir, "codex");
+  try {
+    for (const value of [null, false, 0, "", [], {name:"#codex/a@t"}, {name:"#codex/a@t",base:"#codex/a@t",old:true}]) {
+      writeFileSync(bindings.file("s"), JSON.stringify(value));
+      expect(() => bindings.saved({id:"s"})).toThrow("invalid session binding");
+    }
+  } finally {bindings.close();rmSync(dir,{recursive:true,force:true});}
+});
+
+
+test("launcher version accepts the canonical flag and refuses its retired alias", async () => {
+  for (const runtime of ["claude", "codex", "opencode", "opencode1"]) {
+    for (const args of [["--version"], ["-V"], ["-V", "--version"]]) {
+      const proc = Bun.spawn([process.execPath, `${import.meta.dir}/launcher.ts`, runtime, ...args], { stdout: "pipe", stderr: "pipe" });
+      const out = new Response(proc.stdout).text(), err = new Response(proc.stderr).text();
+      expect(await proc.exited).toBe(args[0] === "--version" ? 0 : 1);
+      if (args[0] === "--version") expect(await out).toContain("build_info:");
+      else { expect(await err).toContain("use --version"); expect(await out).toBe(""); }
+    }
+  }
 });

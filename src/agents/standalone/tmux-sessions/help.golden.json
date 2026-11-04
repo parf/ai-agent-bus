@@ -81,7 +81,7 @@
       },
       "state_home": {
         "type": "string",
-        "help": "XDG_STATE_HOME for every window (an existing absolute directory); a window's env overrides it. Default: /var/lib/agent-bus-tmux-sessions[-<instance>] when that is a directory owned by the person (the old standalone unit's state), else inherited.",
+        "help": "XDG_STATE_HOME for every window (an existing absolute directory); a window's env overrides it. Default: inherited from the runner environment.",
         "example": "/home/me/.local/state"
       },
       "windows": {

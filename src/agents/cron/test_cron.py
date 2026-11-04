@@ -266,17 +266,6 @@ class Authority(Fixture):
         restarted.tick()
         self.assertEqual(self.received(), ['tick'])  # active again: nothing was paused or held
 
-    def test_a_legacy_denied_claim_is_settled_and_the_subscription_stays_active(self):
-        agent = self.agent()
-        key = self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')['id']
-        self.owner.record(WORKER).kv.set(f'fired.{key}.2026-10-28T12:00', 'denied')
-        self.die(agent)
-        restarted = self.agent()
-        self.at(12, 1)
-        restarted.tick()
-        self.assertEqual(self.received(), ['tick'])
-        self.assertNotIn('paused', restarted.subs[key])
-
     def test_a_typo_or_a_non_inbox_target_is_refused_at_add(self):
         agent = self.agent()
         self.assertIn('unknown destination #nope@fixture', self.ask(agent, 'later +1m #nope@fixture x'))
@@ -463,7 +452,7 @@ class Firing(Fixture):
     def test_one_bad_stored_entry_leaves_the_others_firing(self):
         agent = self.agent()
         self.ask(agent, 'sub add * * * * * ' + TARGET + ' good')
-        self.owner.record(WORKER).kv.set('sub.0123456789ab', {'cron': '61 * * * *', 'target': TARGET, 'body': 'x', 'by': CALLER},
+        self.owner.record(WORKER).kv.set('sub.0123456789ab', {'cron': '61 * * * *', 'target': TARGET, 'body': 'x', 'by': CALLER, 'created': T0},
                                          kind='json')
         self.die(agent)
         try:
@@ -574,68 +563,6 @@ class Delivery(Fixture):
         self.assertEqual(self.received(), [])
         self.assertEqual(restarted.later, {})
         self.assertEqual([r['status'] for r in self.ask(restarted, 'later list')['finished']], ['dropped'])
-
-    def test_a_legacy_gone_claim_is_dropped_once_at_restart_without_replaying_its_slot(self):
-        agent = self.agent()
-        key = self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')['id']
-        claim = f'fired.{key}.2026-10-28T12:01'
-        self.owner.record(WORKER).kv.set(claim, 'gone')
-        self.at(12, 1)
-        self.logs.clear()
-        self.die(agent)
-        restarted = self.agent()
-        self.assertEqual(restarted.claims[claim], 'dropped')
-        self.assertEqual(restarted.state[key]['dropped'], 1)
-        restarted.tick()
-        restarted.tick()
-        self.assertEqual(self.received(), [])
-        self.assertIn(key, restarted.subs)
-        self.assertNotIn('paused', restarted.subs[key])
-        self.die(restarted)
-        again = self.agent()
-        self.assertEqual(again.claims[claim], 'dropped')  # durable, not just an in-memory conversion
-        again.tick()
-        self.assertEqual(self.received(), [])
-        warnings = [json.loads(line) for line in self.logs if line.startswith('{') and 'warning' in json.loads(line)]
-        self.assertEqual(warnings, [{'id': key, 'warning': 'target_gone'}])
-        self.at(12, 2)
-        again.tick()
-        self.assertEqual(self.received(), ['tick'])  # the recurring entry stayed active
-
-    def test_a_legacy_unconfirmed_claim_is_settled_and_the_subscription_stays_active(self):
-        agent = self.agent()
-        key = self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')['id']
-        self.owner.record(WORKER).kv.set(f'fired.{key}.2026-10-28T12:00', 'unconfirmed')
-        self.die(agent)
-        restarted = self.agent()
-        self.at(12, 1)
-        restarted.tick()
-        self.assertEqual(self.received(), ['tick'])
-        self.assertNotIn('paused', restarted.subs[key])
-
-    def test_a_legacy_unconfirmed_claim_of_the_current_slot_is_dropped_and_not_sent_on_restart(self):
-        agent = self.agent()
-        key = self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')['id']
-        self.owner.record(WORKER).kv.set(f'fired.{key}.2026-10-28T12:01', 'unconfirmed')
-        self.die(agent)
-        restarted = self.agent()
-        self.at(12, 1)
-        restarted.tick()
-        restarted.tick()
-        self.assertEqual(self.received(), [])
-        self.assertEqual(restarted.claims[f'fired.{key}.2026-10-28T12:01'], 'dropped')
-        self.assertEqual(restarted.state[key]['dropped'], 1)
-
-    def test_a_legacy_retrying_one_shot_is_dropped_on_restart_instead_of_sent(self):
-        agent = self.agent()
-        key = self.ask(agent, 'later +1s ' + TARGET + ' once')['id']
-        self.owner.record(WORKER).kv.set(f'fired.{key}.once', 'retrying 1 ' + str(int(T0) + 60))
-        self.die(agent)
-        self.at(12, 1)
-        restarted = self.agent()
-        restarted.tick()
-        self.assertEqual(self.received(), [])
-        self.assertNotIn(key, restarted.later)
 
     def test_an_orphan_in_flight_claim_is_swept(self):
         name = 'fired.0123456789ab.2026-10-28T12:00'
@@ -833,150 +760,3 @@ class BusLoss(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
-
-class Migration(Fixture):
-    """B.29: an id that is not 12 hex moves to one that is, deterministically, and a paused entry is active again."""
-
-    def put(self, name, value):
-        self.owner.record(WORKER).kv.set(name, value, kind='json')
-
-    def keys(self):
-        return sorted(e['name'] for e in self.owner.record(WORKER).kv.list().get('json', []))
-
-    def entry(self, by=CALLER):
-        return {'cron': '* * * * *', 'target': TARGET, 'body': 'tick', 'by': by, 'created': T0}
-
-    def test_a_legacy_id_moves_to_the_same_12_hex_id_every_time_and_keeps_firing(self):
-        import hashlib
-        self.put('sub.Legacy-1', self.entry())
-        agent = self.agent()
-        new = hashlib.sha256(b'sub.Legacy-1').hexdigest()[:12]
-        self.assertEqual(self.keys(), ['sub.' + new])
-        self.assertIn(new, agent.subs)
-        self.at(12, 1)
-        agent.tick()
-        self.assertEqual(self.received(), ['tick'])
-        self.die(agent)
-        self.assertEqual(self.keys(), ['sub.' + new])  # a restart changes nothing
-
-    def test_a_claim_under_the_old_id_moves_with_its_entry_and_the_slot_is_not_sent_again(self):
-        import hashlib
-        new = hashlib.sha256(b'sub.Legacy-1').hexdigest()[:12]
-        self.put('sub.Legacy-1', self.entry())
-        kv = self.owner.record(WORKER).kv
-        kv.set('fired.Legacy-1.2026-10-28T12:01', 'sending')
-        agent = self.agent()
-        names = {e['name'] for e in kv.list().get('string', [])}
-        self.assertEqual({n for n in names if n.startswith('fired.')} - {f'fired.{new}.2026-10-28T12:01'}, set())
-        self.at(12, 1)
-        agent.tick()
-        agent.tick()
-        self.assertEqual(self.received(), [])  # the claimed copy of that slot was dropped, not sent again
-        self.assertEqual(agent.claims[f'fired.{new}.2026-10-28T12:01'], 'dropped')
-
-    def test_a_dotted_legacy_id_moves_its_claims_by_the_exact_prefix(self):
-        import hashlib
-        new = hashlib.sha256(b'sub.Legacy.1').hexdigest()[:12]
-        self.put('sub.Legacy.1', self.entry())
-        kv = self.owner.record(WORKER).kv
-        kv.set('fired.Legacy.1.2026-10-28T12:01', 'sending')
-        agent = self.agent()
-        self.at(12, 1)
-        agent.tick()
-        self.assertEqual(self.received(), [])
-        self.assertIn(agent.claims[f'fired.{new}.2026-10-28T12:01'], ('sending', 'dropped'))
-
-    def test_a_move_whose_claims_cannot_move_serves_nothing_until_it_finishes(self):
-        import hashlib
-        new = hashlib.sha256(b'sub.Legacy-1').hexdigest()[:12]
-        self.put('sub.Legacy-1', self.entry())
-        self.put('sub.' + new, self.entry() | {'migrated_from': 'Legacy-1'})  # crash after the new row was written
-        kv = self.owner.record(WORKER).kv
-        kv.set('fired.Legacy-1.2026-10-28T12:01', 'sending')
-        agent = cron.Agent(self.bus(WORKER), {}, clock=self.clock, log=self.logs.append)
-        real = agent.bus.kv.set
-
-        def refuse(name, *args, **kw):
-            if name.startswith(f'fired.{new}.'):
-                raise TransportError('down')
-            return real(name, *args, **kw)
-        with patch.object(agent.bus.kv, 'set', side_effect=refuse):
-            agent.load()
-        self.assertNotIn(new, agent.subs)  # not served without its claims
-        self.at(12, 1)
-        agent.tick()
-        self.assertEqual(self.received(), [])
-        self.assertIn('fired.Legacy-1.2026-10-28T12:01', [e['name'] for e in kv.list().get('string', [])])  # evidence kept
-        again = self.agent()  # the next start finishes the move
-        again.tick()
-        self.assertEqual(self.received(), [])  # the claimed slot was dropped, never sent
-        self.assertEqual(again.claims[f'fired.{new}.2026-10-28T12:01'], 'dropped')
-
-    def test_an_unreadable_candidate_defers_the_move_instead_of_taking_the_next_digest(self):
-        import hashlib
-        first = hashlib.sha256(b'sub.Legacy-1').hexdigest()[:12]
-        second = hashlib.sha256(first.encode()).hexdigest()[:12]
-        self.put('sub.Legacy-1', self.entry())
-        self.put('sub.' + first, self.entry() | {'migrated_from': 'Legacy-1'})  # the write happened, the removal did not
-        agent = cron.Agent(self.bus(WORKER), {}, clock=self.clock, log=self.logs.append)
-        real, failed = agent.bus.kv.get, []
-
-        def flaky(name, *args, **kw):
-            if name == 'sub.' + first and not failed:
-                failed.append(name)
-                raise TransportError('down')
-            return real(name, *args, **kw)
-        with patch.object(agent.bus.kv, 'get', side_effect=flaky):
-            agent.load()
-        self.assertEqual(failed, ['sub.' + first])
-        self.assertNotIn(second, [k.partition('.')[2] for k in self.keys()])  # no second row was made
-        self.assertEqual(sorted(agent.subs), [])  # neither row is served until the move is known
-        self.at(12, 1)
-        agent.tick()
-        self.assertEqual(self.received(), [])
-        self.die(agent)
-        again = self.agent()  # the next start finishes the move: one row, one send
-        self.assertEqual(self.keys(), ['sub.' + first])
-        again.tick()
-        self.assertEqual(self.received(), ['tick'])
-
-    def test_a_taken_id_moves_the_entry_to_the_next_digest(self):
-        import hashlib
-        first = hashlib.sha256(b'sub.Legacy-2').hexdigest()[:12]
-        second = hashlib.sha256(first.encode()).hexdigest()[:12]
-        self.put('sub.' + first, self.entry(by=OUTSIDER))  # someone else's entry already holds the first candidate
-        self.put('sub.Legacy-2', self.entry())
-        agent = self.agent()
-        self.assertEqual(self.keys(), sorted(['sub.' + first, 'sub.' + second]))
-        self.assertEqual(agent.subs[first]['by'], OUTSIDER)
-        self.assertEqual(agent.subs[second]['by'], CALLER)
-
-    def test_a_move_interrupted_after_the_write_is_finished_on_restart(self):
-        import hashlib
-        new = hashlib.sha256(b'later.Old').hexdigest()[:12]
-        shot = {'at': T0 + 600, 'target': TARGET, 'body': 'once', 'by': CALLER, 'created': T0}
-        self.put('later.Old', shot)
-        self.put('later.' + new, shot | {'migrated_from': 'Old'})  # written, the old key not yet removed
-        agent = self.agent()
-        self.assertEqual(self.keys(), ['later.' + new])
-        self.assertEqual(list(agent.later), [new])
-
-    def test_a_paused_entry_from_an_earlier_release_is_active_again(self):
-        key = '0123456789ab'
-        self.put('sub.' + key, self.entry() | {'paused': 'denied: test'})
-        self.put('later.ba9876543210', {'at': T0 + 1, 'target': TARGET, 'body': 'once', 'by': CALLER, 'created': T0, 'paused': 'unconfirmed'})
-        agent = self.agent()
-        self.assertNotIn('paused', agent.subs[key])
-        self.assertNotIn('paused', self.owner.record(WORKER).kv.get('sub.' + key, kind='json'))
-        self.assertEqual(agent.later, {})  # a held one-shot is dropped
-        self.at(12, 1)
-        agent.tick()
-        self.assertEqual(self.received(), ['tick'])
-
-    def test_sub_edit_is_refused_and_changes_nothing(self):
-        agent = self.agent()
-        key = self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')['id']
-        for body in ('sub edit ' + key + ' * * * * * ' + TARGET + ' other', 'sub edit', '{"method": "sub.edit", "id": "' + key + '"}'):
-            self.assertEqual(self.ask(agent, body), 'error: sub edit is not supported; delete it and add it again')
-        self.assertEqual(agent.subs[key]['body'], 'tick')

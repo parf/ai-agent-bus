@@ -5,13 +5,6 @@
 - **Outcome:** callers get a "meaning fingerprint" for any text, and can re-order search results by relevance; the key stays on the server and the owner decides who may use it.
 - **Start:** see what the helper offers: `agent-bus help '#voyage@node.example'` ([Try this first](#try-this-first)).
 
-## Why you'd want it
-
-- 🔑 **The key is spread across apps.** Now it sits in one locked place; callers get a door, not the key.
-- 💸 **Nobody knows who spends.** Now the owner's access list decides who may spend the balance.
-- 🔎 **Exact-word search misses the point.** Now texts are compared by meaning.
-- 📊 **The best hit is buried.** Now a list of candidates is re-ordered by relevance.
-
 ## What it does
 
 - ✅ **Fingerprint a text:** numbers that put similar texts close together, called an embedding (`embed`).
@@ -29,6 +22,8 @@
 - The agent's owner to let you call it.
 
 ## Try this first
+
+Use the complete name of your [enabled instance](#installing-it) in the commands below.
 
 - Ask the helper what it can do (help works before a key is set; real calls need it):
 

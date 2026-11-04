@@ -11,14 +11,14 @@ import { Bindings, numberedName, sameBase, type Session } from "./sessions.ts";
 // the same session name, used without asking the bus. Anything else is a new
 // name, and a bus that names no realm is not answered with the host's: it is
 // refused.
-export async function automaticBase(owner: Bus, env: NodeJS.ProcessEnv, runtime: string, where: string, bound?: { name: string; base?: string }): Promise<string> {
+export async function automaticBase(owner: Bus, env: NodeJS.ProcessEnv, runtime: string, where: string, bound?: { name: string; base: string }): Promise<string> {
   const given = { ...env, AGENT_BUS_RUNTIME: runtime, AGENT_BUS_CWD: where };
   // An explicit AGENT_BUS_REALM keeps its long-standing normalization; the
   // bus's own realm is used exactly as the daemon holds it.
-  const make = (realm: string) => env.AGENT_BUS_REALM ? defaultName({ ...given, AGENT_BUS_REALM: realm }, "/") : defaultNameIn(realm, given, "/");
+  const make = (realm: string) => env.AGENT_BUS_REALM ? defaultName({ ...given, AGENT_BUS_REALM: realm }) : defaultNameIn(realm, given);
   let realm = env.AGENT_BUS_REALM;
   if (!realm && bound) {
-    const old = bound.base ?? bound.name;
+    const old = bound.base;
     const at = old.lastIndexOf("@");
     if (at >= 0) {
       try {
@@ -76,12 +76,12 @@ export async function claimIdentity(owner: Bus, bindings: Bindings, base: string
       const automatic = /^(claude|codex|opencode) \/.*$/.test(stored);
       const kind = runtime === "opencode1" ? "opencode" : runtime;
       const purpose = description ?? (!stored || automatic ? (kind ? `${kind} ${cwd}` : "") : stored);
-      const labels = normalizeTags([...(tags ?? existing?.tags ?? records.find(r => r.name === previous)?.tags ?? []), ...runtimeTags(runtime)]);
-      await owner.register({ name, kind: "agent", descr: purpose, allow: withOwnerACL(existing?.allow), personal: true, tags: labels }, !saved);
+      const labels = normalizeTags([...(tags ?? existing?.tags ?? records.find(r => r.name === previous)?.tags ?? []), ...runtimeTags(runtime), ...(!existing || existing.tags?.includes("personal") ? ["personal"] : [])]);
+      await owner.register({ name, kind: "agent", descr: purpose, allow: withOwnerACL(existing?.allow), tags: labels }, !saved);
       // Register adds labels; only an explicit --tag replaces the custom set.
       // Keep the Owner's existing Personal classification unchanged.
       if (tags !== undefined && existing) await owner.post("/manage", { name, tags: normalizeTags([
-        ...labels, ...(existing.personal || existing.tags?.includes("personal") ? ["personal"] : []),
+        ...labels, ...(existing.tags?.includes("personal") ? ["personal"] : []),
       ]) });
       return { name, label, description: purpose };
     } catch (e) {

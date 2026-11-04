@@ -2,15 +2,8 @@
 
 📌 **TL;DR:**
 - **Problem:** "check again in an hour" or "start the export at nine" needs somebody to remember and send the message at the right moment.
-- **Outcome:** you hand `#at` a message with a delay or a time, and it sends it once when it falls due, even across restarts; for repeating schedules use [cron](cron.md#what-it-does), which shares the same engine.
+- **Outcome:** you hand `#at` a message with a delay or a time, and it attempts delivery once when it falls due, including after a restart; for repeating schedules use [cron](cron.md#what-it-does), which shares the same engine.
 - **Start:** ask what the helper can do: `agent-bus help '#at@node.example'` ([Try this first](#try-this-first)).
-
-## Why you'd want it
-
-- 🧠 **Somebody must remember.** Now the call is kept and sent when it falls due.
-- 🔁 **A restart loses reminders.** Now each call is sent at most once, even across restarts.
-- 🤖 **An AI wants to look again later.** Now it schedules the message to itself.
-- ⏰ **A job should start at a time of day.** Now "at 09:00" does it, once.
 
 ## What it does
 
@@ -18,17 +11,18 @@
 - ✅ **Send at a time:** `HH:MM` or an RFC 3339 instant (`at <time> <target> <message>`).
 - ✅ **See what is pending:** your pending calls, recent outcomes and the agent's time zone (`list`).
 - ✅ **Cancel one:** a pending call (`cancel <id>`).
-- ✅ **No surprises:** the answer shows the resolved instant with its offset and the agent's zone (`"at": "2026-10-29T09:30:00-04:00", "tz": "America/New_York"`).
+- The answer shows the resolved instant with its UTC offset and the instance's time zone.
 - ✅ **Arrives as:** the message is the rest of the line, unchanged, from `#at` with topic `at` and tag `by <creator>`.
-- ✅ **Use cases:** re-check a deploy in 30 minutes; start a job at nine; send a message at a fixed instant.
 - 🚫 **Not for:** repeating schedules (use [cron](cron.md)), sub-minute timing, or delivery that requires retries after a destination refuses.
 
 ## You'll need
 
 - A [person's runner](../runner/setup.md#a-persons-runner) with Python 3, and time zone data on the host if `tz` is not UTC.
-- `#at` on your access list, and on the access list of each destination you send to.
+- Permission to call `#at`, and a destination that admits both you and the `#at` instance.
 
 ## Try this first
+
+Use the complete name of your [enabled instance](#installing-it) in the commands below.
 
 - Ask the helper what it can do:
 
@@ -38,13 +32,6 @@ agent-bus help '#at@node.example'
 
 - Then schedule one message a minute ahead to your session or a queue: `in 1m` followed by the target and the text.
 - `HH:MM` is in the instance's `tz`, which is UTC unless its Configuration says otherwise; the answer shows the resolved instant and zone.
-
-## Use examples
-
-- **Remind a session in 30 minutes:** ask for `in 30m`, the session's name and the text.
-- **Queue a job at nine:** ask for `at 09:00`, the destination and the text.
-- **See what is pending:** ask for `list`.
-- **Cancel one:** ask for `cancel` and its id.
 
 ## Installing it
 
@@ -77,12 +64,14 @@ It needs no network beyond the bus socket.
 
 ## Troubleshooting
 
+Unsupported stored entry IDs, fields or claim outcomes stop startup without rewriting state.
+
 | If you see | Do this |
 |---|---|
 | `you may not send to …, so at will not send there for you` | Ask the destination's Owner to allow you |
 | `admission_refused` for a call whose creator lost access | Restore the creator's access, then schedule the call again |
-| `could not check that you may send to …`, or `author_check: unavailable` in a list | The daemon could not answer the creator check or is down; nothing is sent until it can, and missed slots are not replayed |
-| `deferred` in a list | More than 200 different creator–destination pairs were due in one minute; the rest wait for the next pass (a missed slot is not replayed) |
+| `could not check that you may send to …`, or `author_check: unavailable` in a list | The daemon could not answer the creator check or is down; nothing is sent until it can, and one-shots may arrive late |
+| `deferred` in a list | More than 200 different creator–destination pairs were due in one minute; the rest wait for the next pass (delivery may be late) |
 | `unknown destination …, or it does not allow at` | Check the name, or ask its Owner to allow `#at` |
 | `… does not exist on <date>: the clocks skip it` | Pick another time; that minute is skipped by daylight saving |
 | An answer at an unexpected hour | The time is in the agent's `tz`, shown in the answer; use an instant with an offset |
@@ -112,8 +101,8 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 - When clocks go back, both occurrences of a repeated time count, so the next one is taken; a time skipped when clocks go forward is refused with the nearest valid time, never shifted; words such as `tomorrow` are refused.
 - An RFC 3339 instant needs an offset; one more than 30 s in the past is refused.
 - An empty message is refused.
-- JSON forms: `{"method":"in","in":"30m","target":"…","body":"…"}`, `{"method":"at","at":"09:30",…}`, `list`, `{"method":"cancel","id":"…"}`.
-- Delivery is the [cron engine's](cron.md#what-it-does): claimed in KV before the send, never sent twice.
+- JSON forms: `{"method":"in","in":"30m","target":"jobs@node.example","body":"run export"}`, `{"method":"at","at":"09:30","target":"jobs@node.example","body":"run export"}`, `{"method":"list"}`, `{"method":"cancel","id":"<id from list>"}`. Replace the target with your existing destination.
+- Delivery is the [cron engine's](cron.md#what-it-does): claimed in KV before one send attempt; a crash after claiming can lose that attempt. It does not guarantee receipt or processing.
 - An unconfirmed send drops the call as `send_unknown`; a 403 from the target's access list drops it as `admission_refused`, a vanished target as `target_gone`, and any other refusal, such as a full inbox, as `send_refused`. Nothing is retried, held or paused, and the call is removed; `list` shows it as finished `dropped`.
 - A call that fell due while `#at` was down is sent once when it starts, possibly late.
 - Cancelling a call whose send is in flight may still deliver it once.

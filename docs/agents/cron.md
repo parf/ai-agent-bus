@@ -5,17 +5,10 @@
 - **Outcome:** you hand cron a message and a time; it attempts each due send once under its own name. Missed recurring slots are skipped, and uncertain or refused sends are not retried.
 - **Start:** see what it can do: `agent-bus help '#cron@node.example'` ([Try this first](#try-this-first)).
 
-## Why you'd want it
-
-- ⏰ **Nothing on the bus starts on time.** Now an AI session wakes on a schedule, like a person.
-- 🧠 **Reminders live in somebody's head.** Now "check the deploy in two hours" is a message that arrives.
-- 🔁 **A routine job needs a human to start it.** Now the same work item reaches a queue every hour, by itself.
-- 🔒 **A scheduler should not widen anyone's access.** Now each destination's own access list decides whether it accepts messages from cron.
-
 ## What it does
 
 - ✅ **Repeating messages:** "every weekday at nine", "every 15 minutes", with the usual five-field schedule.
-- ✅ **One-off messages:** "in two hours" or "at 2026-11-02T08:00:00-05:00".
+- ✅ **One-off messages:** a delay such as "in two hours", or an RFC 3339 instant with an offset.
 - ✅ **One attempt per firing:** restarts do not repeat a claimed send; this does not guarantee receipt or processing.
 - ✅ **Survives restarts:** your schedule is kept; a slot missed while cron was down is skipped, and a one-off that fell due is sent once when cron starts.
 - ✅ **Says who scheduled it:** the message arrives from cron with topic `cron` or `later` and the tag `by <creator>`.
@@ -34,7 +27,7 @@
 ## You'll need
 
 - A [person's runner](../runner/setup.md#a-persons-runner) with Python 3, and time zone data on the host if `tz` is not UTC.
-- Cron on your access list, and on the access list of each destination you schedule to.
+- Permission to call cron, and destinations that admit both you and the cron instance.
 
 ## Try this first
 
@@ -46,7 +39,7 @@ Use the complete name of your [enabled instance](#installing-it) in the commands
 agent-bus help '#cron@node.example'
 ```
 
-- Then ask for one message in a minute, to a session of yours:
+- Replace `#claude/main@node.example` with an existing session of yours that admits cron, then request a message in a minute:
 
 ```sh
 agent-bus call '#cron@node.example' 'later +1m #claude/main@node.example hello from cron'
@@ -62,18 +55,6 @@ agent-bus call '#cron@node.example' 'later +1m #claude/main@node.example hello f
 | Stop one | `agent-bus call '#cron@node.example' 'sub delete <id>'` |
 | Remind me in two hours | `agent-bus call '#cron@node.example' 'later +2h #claude/main@node.example check the deploy'` |
 | See what is pending and what was sent | `agent-bus call '#cron@node.example' 'later list'` |
-
-<details>
-<summary>More use cases</summary>
-
-| Use case | What you do | What you get |
-|---|---|---|
-| Morning log review | `sub add 0 9 * * 1-5 #claude/ops@… check the overnight logs` | The session gets that message every weekday at nine |
-| Hourly job | `sub add 0 * * * * jobs@… rebuild index` | One work item per hour in the queue |
-| Reminder | `later +2h #claude/main@… is the deploy still green?` | One message in two hours |
-| Fixed moment | `later 2026-11-02T08:00:00-05:00 jobs@… month-end export` | One message at that instant |
-
-</details>
 
 ## Installing it
 
@@ -104,7 +85,7 @@ None.
 - If that access is lost, that copy is dropped with a warning and the subscription stays active for its next slot; when the check cannot be made, nothing is stored or sent.
 - Deleting or cancelling an entry needs its creator, or cron's Owner or Maintainers.
 - Lists show your own entries with their messages; cron's Owner and Maintainers also see the others' ids, targets and outcomes.
-- `later list` retains recent outcomes only since the last start, shown by `outcomes_since`.
+- `sub list` counts recurring outcomes since the last start, shown by `outcomes_since`.
 - Cron never schedules messages to itself.
 
 ## Warnings and alerts
@@ -121,6 +102,8 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 
 ## Troubleshooting
 
+Stored entry IDs must be 12 lower-case hex characters. Unsupported state formats stop startup without rewriting state.
+
 | If you see | Do this |
 |---|---|
 | `you may not send to …, so cron will not send there for you` | Ask the destination's Owner to allow you |
@@ -133,7 +116,6 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 | `unknown destination …, or it does not allow cron` when adding | Check the name, or ask its Owner to allow cron |
 | `target_gone` | The target was removed or no longer allows cron; delete the entry, or allow cron again |
 | `send_refused` | The destination refused that copy, for example because its inbox was full; make room in it. Nothing is retried |
-| `sub edit …` | Not supported: delete it and add it again |
 | `Configuration: tz … is not in this host's time zone data` | Install tzdata on the runner host or use `UTC` |
 | A slot did not fire | Cron was down, the pass was late or the bus's KV store was unavailable; missed slots are skipped by design (`missed` in `sub list`) |
 
@@ -159,7 +141,6 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 - A destination whose access list does not admit cron (403) drops the copy as `admission_refused`, and one that no longer exists (404) as `target_gone`; neither is retried.
 - A new entry must name an existing queue or agent that cron can see.
 - Any other definite refusal (the destination is full) drops the copy as `send_refused`. Nothing is retried, held or paused.
-- An entry a release before this rule paused is active again when cron starts, and a paused one-shot is dropped. A stored id that is not 12 hex moves once, to the first 12 hex of the SHA-256 of its old key (of that digest again while the id is taken), and the new entry is written before the old one is removed.
 - Each send carries a time to live so a destination that was away is not flooded: the time to the next slot, capped at 24 h; 24 h for a one-shot.
 - When cron cannot reach the bus 30 times in a row, 2 s apart, it exits and its runner starts it again. Until then, a slot that falls due is `missed`.
 
@@ -170,6 +151,6 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 
 - Forms: `{"method":"sub.add","cron":"0 9 * * 1-5","target":"…","body":"…"}`, `{"method":"later","in":"+15m"|"at":"…","target":"…","body":"…"}`, `sub.list`, `sub.delete`, `later.list`, `later.cancel` with `id`. Use JSON for a multi-line message.
 - Bounds: 100 subscriptions (20 per creator), 1000 pending one-shots (100 per creator), 16384 bytes per message.
-- Outcomes and the `sent` and `dropped` counts are kept in memory and reset on restart; a one-shot's finished record is kept.
+- Recurring outcomes and the `sent` and `dropped` counts reset on restart. The last 100 finished one-shots are stored and remain available through `later list` after a restart.
 
 </details>

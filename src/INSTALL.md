@@ -25,17 +25,20 @@ Let your AI inspect an existing installation or guide a fresh one with [AI-SETUP
 
 - Use a Linux system with systemd, `sudo`, `tar`, `gzip` and `sha256sum`.
 - Run these commands from your ordinary login, not a root shell; only setup uses `sudo`.
-- Put the full archive for your CPU and its `.sha256` sidecar in an otherwise empty directory. Do not mix it with the client archive.
+- Put the full Linux archive for your CPU and `SHA256SUMS` from the same [release](https://github.com/parf/ai-agent-bus/releases) in an otherwise empty directory. Do not mix it with the client archive.
 - Native bundled agents need Python 3; their [guides](https://github.com/parf/ai-agent-bus/blob/main/docs/agents/README.md#choose-an-agent) name other prerequisites. The release needs neither Go nor Bun.
 
 Check and unpack that archive, then install it:
 
 ```sh
-sha256sum -c agent-bus-*.tar.gz.sha256
+sha256sum --ignore-missing -c SHA256SUMS
 mkdir agent-bus-install
 tar -xzf agent-bus-*.tar.gz -C agent-bus-install --strip-components=1
 sudo ./agent-bus-install/agent-bus-setup --owner "$USER"
 ```
+
+For a locally packaged archive supplied with an individual `.sha256` sidecar,
+use `sha256sum -c agent-bus-*.tar.gz.sha256` for the checksum step instead.
 
 - The plain local user name also works with the [person's runner](https://github.com/parf/ai-agent-bus/blob/main/docs/runner/setup.md#a-persons-runner). A qualified bus identity is a separate choice, not needed for this local installation.
 - Setup uses your SSH public key when present. To create one first, run `ssh-keygen -t ed25519`, or add it later with `agent-bus-admin user add`.
@@ -54,7 +57,7 @@ Turn a two-line script into an agent:
 
 ```sh
 printf '#!/bin/sh\necho "hi: $1"\n' > ~/hi.sh && chmod +x ~/hi.sh
-agent-bus run hi ~/hi.sh --no-asks
+agent-bus run '#hi' ~/hi.sh --no-asks
 ```
 
 In another terminal, call it:
@@ -70,7 +73,7 @@ agent-bus call '#hi' --wait 10s ping
 
 - Unpack the new archive into a new directory the same way, then run its `agent-bus-setup --upgrade` with `sudo`.
 - It keeps the node's configuration and TLS, backs up the state, and rolls back if the new release fails to start.
-- After an interrupted upgrade, run `--recover`, then `--upgrade` again; see [release installation details](https://github.com/parf/ai-agent-bus/blob/main/src/INSTALL.md#from-a-release-archive).
+- After an interrupted upgrade, run `--recover`, then `--upgrade` again; use the unpacked setup program for both commands.
 
 ## Technical details
 
@@ -84,12 +87,12 @@ agent-bus call '#hi' --wait 10s ping
 | Preview | `--dry-run` prints the plan; `--print-unit` prints the daemon unit |
 | Native agents | Installers under `/usr/local/lib/agent-bus/current/agents/standalone/`; Slack and Telegram are bundled under `agents/slack/` and `agents/telegram/` |
 
-### From a checkout
+### Contributor checkout
 
 - Development needs git, Go with gcc, and Bun at `/usr/bin/bun`.
 - Keep the checkout outside `/home`: the daemon's account cannot see a home directory.
 
-### Install
+#### Install
 
 ```sh
 sudo mkdir -p /usr/local/src/ai-agent-bus && sudo chown "$USER" /usr/local/src/ai-agent-bus
@@ -101,7 +104,7 @@ sudo src/agent-bus-setup --exec "$PWD/src/agent-busd"
 sudo src/git-install.sh --no-build
 ```
 
-### Update
+#### Update
 
 Update that checkout, build it and restart its services:
 

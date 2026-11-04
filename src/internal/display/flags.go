@@ -8,7 +8,7 @@ import (
 )
 
 // PrintFlagDefaults keeps flag's descriptions and defaults, spelling long
-// option headings with two dashes. Parsing remains flag's, including legacy input.
+// option headings with two dashes.
 func PrintFlagDefaults(fs *flag.FlagSet) {
 	out := fs.Output()
 	var b bytes.Buffer
@@ -24,4 +24,37 @@ func PrintFlagDefaults(fs *flag.FlagSet) {
 		}
 		fmt.Fprint(out, line)
 	}
+}
+
+// ParseFlags accepts one spelling for each program option: two leading
+// dashes. Values remain opaque, including values that begin with a dash.
+func ParseFlags(fs *flag.FlagSet, args []string) error {
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--" || arg == "-" || !strings.HasPrefix(arg, "-") {
+			break
+		}
+		if !strings.HasPrefix(arg, "--") {
+			return fmt.Errorf("invalid option %q: use --name", arg)
+		}
+		name, _, hasValue := strings.Cut(arg[2:], "=")
+		if name == "help" {
+			if len(args) != 1 || hasValue {
+				return fmt.Errorf("--help must be used alone")
+			}
+			continue
+		}
+		f := fs.Lookup(name)
+		if f == nil {
+			return fmt.Errorf("unknown option --%s", name)
+		}
+		if hasValue {
+			continue
+		}
+		if boolean, ok := f.Value.(interface{ IsBoolFlag() bool }); ok && boolean.IsBoolFlag() {
+			continue
+		}
+		i++
+	}
+	return fs.Parse(args)
 }

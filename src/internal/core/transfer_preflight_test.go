@@ -39,7 +39,7 @@ func TestImportPreflightReadsCredentialsWithoutScanningKV(t *testing.T) {
 			if err := b.EstablishDaemonOwner("owner@source"); err != nil {
 				t.Fatal(err)
 			}
-			tokens, err := auth.Load(store.Tokens(), "owner@source")
+			tokens, err := auth.Load(store.Tokens())
 			if err != nil {
 				t.Fatal(err)
 			}

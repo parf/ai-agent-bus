@@ -17,6 +17,8 @@
 
 ## Try this first
 
+Set up the [harness prerequisites](../README.md#try-this-first) before running these commands from the checkout root.
+
 Run every example, TypeScript among them:
 
 ```sh
@@ -41,6 +43,6 @@ TypeScript validation assertions passed; invalid UTF8 rejected
 
 ## Technical details
 
-- **Running alone:** run `run.sh` with `AGENT_BUS_ADDR`, `AGENT_BUS_TOKEN`, `AGENT_BUS_NAME` and `STATS_ROOT` after registering the name in `agents.txt`; Bun runs the native TypeScript client. The shared [harness](../README.md) supplies the principals and sample files.
+- **Running alone:** register `#stats-ts@localhost`, then run `run.sh` with its `AGENT_BUS_ADDR`, `AGENT_BUS_TOKEN` and `STATS_ROOT`; the script fixes `AGENT_BUS_NAME` to that identity; Bun runs the native TypeScript client. The shared [harness](../README.md) supplies the principals and sample files.
 - **Paths:** the real file must be inside `STATS_ROOT`; opened-descriptor checks prevent symlink replacement from reading outside it. Invalid requests return JSON errors.
 - **Serving:** two handlers allow peer calls while serving. SIGTERM stops intake and drains active work for up to 25 seconds.

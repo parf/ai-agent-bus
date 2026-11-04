@@ -11,6 +11,13 @@
 
 - T-34 Web Face AI chat moved to [R1.1](../R1.1/TODO.md#web-face-ai-chat) by the owner, 2026-11-03.
 
+## Clean R1 inputs
+
+- ✅ [Prerelease compatibility removal](legacy-removal.md#scope) is R1 work, not a patch-release deferral.
+  - One canonical CLI, wire, persisted-state and package form; no prerelease converters, retired aliases or silent field repairs.
+  - Current-format clean installation, explicit updates and interrupted-operation recovery remain supported.
+  - Implementation, independent review and mutation evidence are recorded in the [integration review](../issues/2026-11/2026-11-04.md). [Normal verification passed](legacy-removal.md#implementation-and-checks).
+
 ## Objective
 
 Migration labels: `RT` identifies the original unnumbered work rows; `RBK`
@@ -287,12 +294,12 @@ and no daemon change. A row that needs a format first proposes it for approval.
 
 - ✅ B.2 systemd — built: [agent and verification](../../src/agents/standalone/systemd/README.md#verification)
   - Builds: the [standalone systemd agent](agents.md#systemd) on the shared starter, including `logs`, `failed`, `timers` and `list [type]` for every host unit. Owner, 2026-10-19: "add journalctl methods: check last logs (all or specific service), return N lines; support date filtering (from 1h ago)".
-  - Format: [B.2 calls and delivered tiers](../../src/agents/standalone/systemd/README.md#calls); no installed unit-set file; `agent.json` supplies the `systemd` discovery tag.
+  - Format: [B.2 calls and delivered tiers](../../docs/agents/systemd.md#who-may-use-it); no installed unit-set file; `agent.json` supplies the `systemd` discovery tag.
   - Acceptance: no-role list/timers/failed/status, operate start/restart/reload/logs, admin stop/enable/disable; an unconfigured service or timer is listed, statused and started by operate; every tier refuses invalid names; install twice leaves one unit and one name, removal leaves no unit, token or record. Running as a non-root account leaves list/status working and every acting verb returns systemctl's refusal as an error, never silent success.
   - Mutants: remove role enforcement; trust a role claimed in the body; suppress errors from the non-root unit's acting verbs. NoNewPrivileges is not a privilege-loss mutant: it does not drop existing root credentials.
 
 - ✅ B.9 systemd dedicated instances (`b4b3fd92`)
-  - Builds: a `units` entry in the instance's Configuration, a comma-separated list of exact unit names, which limits that instance to those units ([dedicated instances](../../src/agents/standalone/systemd/README.md#dedicated-instances)). Owner, 2026-10-19: "support "config" entry; with comma separated list of units (timers, ... whatever systemd manages); this way we can create dedicated instances of specific service status/restarters for ordinary users"
+  - Builds: a `units` entry in the instance's Configuration, a comma-separated list of exact unit names, which limits that instance to those units ([dedicated instances](../../docs/agents/systemd.md#dedicated-instances)). Owner, 2026-10-19: "support "config" entry; with comma separated list of units (timers, ... whatever systemd manages); this way we can create dedicated instances of specific service status/restarters for ordinary users"
   - Depends: №RT18, the Configuration in the script's environment
   - Acceptance: with `units` set, list/timers/failed show only the listed units; status, an acting verb and `logs <unit>` on an unlisted unit are refused by name with systemctl never run; `logs` with no unit reads only the listed units; without `units` every unit works as today; a malformed entry answers every call with a named Configuration units error without executing; two instances on one host with different lists each see only their own; tiers unchanged
   - Mutants: the list ignored for an acting verb (an unlisted restart reaches systemctl); `logs` with no unit reading the whole journal while a list is set; a malformed entry treated as "all units"
@@ -316,7 +323,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
 - ✅ B.7 server-info — built: [agent and verification](../../src/agents/standalone/server-info/README.md#verification), shared standalone starter for №B.2
   - Builds: `#server-info@<host>`, **standalone like systemd** (owner, 2026-10-19: "we need separate starter same as for systemd one"). Its own install script writes a unit running `agent-bus run` with the sandbox off, reaching the bus over IP with a token from the unit's `EnvironmentFile`. It answers the [catalogue's sections](../R1.2/services.md#server-info): `uname -a`, `ip a`, `ip r`, `free`, `lsblk` with models and serials plus `df`, `uptime`, load average, and the accepted additions: OS release, CPU, inodes, pressure, failed units, time sync, DNS, listening ports, users, virtualization, and root-only disk health and sensors
   - Depends: none in the runner; the systemd agent's install script (№B.2) is the pattern, shared rather than copied
-  - Format: [section names, text and JSON calls](../../src/agents/standalone/server-info/README.md#calls)
+  - Format: [section names, text and JSON calls](../../docs/agents/server-info.md#calls)
   - Acceptance: each section answers the host's own facts (not a sandbox's: `ip a` shows more than `lo`); a call carrying arguments is refused, so nothing a caller sends reaches a shell; the install script run twice leaves one unit and one name, and its removal leaves no unit, no token file and no orphaned record; root-only sections are absent in an unprivileged instance, not failing
   - Mutant: run inside the sandbox, which must fail the host-facts check; a caller's argument passed to a command, which must fail the no-arguments refusal
 
@@ -333,11 +340,11 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Mutants: the option-injection refusal removed; `clean` run without the tier check; a role claimed in the body trusted; a path outside the declared set accepted; an identity taken from the call; the configured key ignored, so the push uses the account's default key; `pull <rev> <file>` touching another file
 
 - ✅ B.8a Git autopull (0.9.19)
-  - [Install-time timers and status](../../src/agents/standalone/git/README.md#autopull): an optional `--autopull ab=5m` for each configured repository with deploy or commit access, ff-only under the same lock; dirty or diverged trees are never forced, errors are logged and returned by `autopull ab`. No timer by default and no service restart. Owner revised the initial Configuration proposal to install-time systemd timers on 2026-10-19.
+  - [Install-time timers and status](../../docs/agents/git.md#autopull): an optional `--autopull ab=5m` for each configured repository with deploy or commit access, ff-only under the same lock; dirty or diverged trees are never forced, errors are logged and returned by `autopull ab`. No timer by default and no service restart. Owner revised the initial Configuration proposal to install-time systemd timers on 2026-10-19.
   - Acceptance: a real private timer brings a fixture upstream commit within a bounded interval; a dirty tree remains intact and its failure is returned; removal removes the timer. Mutants: timer not enabled; dirty tree reset/cleaned.
 
 - ✅ B.10 Git roots and access levels in Configuration (`b7ec1957`)
-  - Builds: [repositories and access levels](../../src/agents/standalone/git/README.md#repositories-and-access-levels): `repos` with path and `access` (`read`, `deploy`, `commit`, cumulative) in the Configuration, replacing `--repo`; roles `deploy` and `commit` replace `operate` and `admin`; the effective level is the lower of the repository cap and the caller's role. Owner, 2026-10-19: "in config - list git roots and allowed access level … even with best role user can not go over repo cap"
+  - Builds: [repositories and access levels](../../docs/agents/git.md#repositories-and-access-levels): `repos` with path and `access` (`read`, `deploy`, `commit`, cumulative) in the Configuration, replacing `--repo`; roles `deploy` and `commit` replace `operate` and `admin`; the effective level is the lower of the repository cap and the caller's role. Owner, 2026-10-19: "in config - list git roots and allowed access level … even with best role user can not go over repo cap"
   - Acceptance: a `commit` caller on a `deploy` repository is refused push and reset-free pull still works; a `deploy` caller on a `commit` repository is refused commit; a `read` repository refuses pull from any role; a path not in `repos` is refused; a changed Configuration applies to the next call; autopull runs only on a repository whose cap is at least `deploy`; a malformed `repos` answers an error naming it. Live: `ab` capped at `read`
   - Mutants: the cap ignored (role alone decides); the role ignored (cap alone decides); a repository outside `repos` accepted
 
@@ -549,7 +556,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
 
 ## T-24 Protocol freeze
 
-- ✅ T-24 Protocol freeze — owner GO (Q296); team 1 owns the item, team 2 updates S2. Steps: S1 ✅ `0.9.264` (identity `protocol`/`protocol_min`, refusal `kind`, 404 `no_route`, aliases removed); C1 ✅ `0.9.266` `bb897701` (clients check the version and keep the kind); D1 ✅ `0.9.272` `c1a89aa0` ([contract and stability policy](../../docs/09-daemon-api.md#stability-and-compatibility)); V1 ✅ `0.9.272` `c1a89aa0` ([vectors](../../src/testdata/client-conformance/README.md#state-identity-and-refusal-vectors-t-24) for kv, locks, bigfile, identity and refusals through the Go, Python and TypeScript clients, and the route coverage check; 28 mutants failed on assertions; the Rust, PHP and Java adapters are team 2's, S2v); S2 ✅ `0.9.269` `f7c4f39f` (the Rust, PHP and Java clients carry the protocol check and refusal kinds); S2v ✅ (the Rust, PHP and Java adapters run V1's kv, lock, identity and refusal vectors; they found and fixed three client differences, see [done](DONE.md#t-24-s2v-the-rust-php-and-java-clients-run-the-shared-vectors))
+- ✅ T-24 Protocol freeze — owner GO (Q296); team 1 owns the item, team 2 updates S2. Steps: S1 ✅ `0.9.264` (identity `protocol`/`protocol_min`, refusal `kind`, 404 `no_route`, aliases removed); C1 ✅ `0.9.266` `bb897701` (clients check the version and keep the kind); D1 ✅ `0.9.272` `c1a89aa0` ([contract and stability policy](../../docs/09-daemon-api.md#protocol-version)); V1 ✅ `0.9.272` `c1a89aa0` ([vectors](../../src/testdata/client-conformance/README.md#state-identity-and-refusal-vectors) for kv, locks, bigfile, identity and refusals through the Go, Python and TypeScript clients, and the route coverage check; 28 mutants failed on assertions; the Rust, PHP and Java adapters are team 2's, S2v); S2 ✅ `0.9.269` `f7c4f39f` (the Rust, PHP and Java clients carry the protocol check and refusal kinds); S2v ✅ (the Rust, PHP and Java adapters run V1's kv, lock, identity and refusal vectors; they found and fixed three client differences, see [done](DONE.md#t-24-s2v-the-rust-php-and-java-clients-run-the-shared-vectors))
   - Depends: S1, C1, S2
   - Acceptance: V1's shared vectors in `src/testdata/client-conformance` are green on all six client adapters, and the route coverage check fails when a registered route has no row in [the route table](../../docs/09-daemon-api.md#every-route-and-its-class)
 

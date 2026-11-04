@@ -98,22 +98,11 @@ func TestRestoreIgnoresANonconformingPrivateValue(t *testing.T) {
 	b := New()
 	rep := &reports{}
 	b.Journal(rep)
-	b.Restore(withUsers(ports.Snapshot{Clean: true, Records: []protocol.Record{
+	assertRestoreRefused(t, b, canonicalFixture(withUsers(ports.Snapshot{Clean: true, Records: []protocol.Record{
 		{Name: "#badsecret@h", Kind: protocol.KindAgent, Owner: "owner@h", Secret: "not an env file", Full: protocol.OverflowStrict},
 		{Name: "#loose@h", Kind: protocol.KindAgent, Owner: "owner@h", Config: []byte(`{ "k": 1 }`), Full: protocol.OverflowStrict},
 		{Name: "#fine@h", Kind: protocol.KindAgent, Owner: "owner@h", Secret: "A=1", Config: []byte(`{"k":1}`), Full: protocol.OverflowStrict},
-	}}, "owner@h"))
-	for _, name := range []string{"#badsecret@h", "#loose@h"} {
-		if !rep.has("stored record " + name + " is ignored") {
-			t.Errorf("%s was not ignored and reported: %v", name, rep.lines)
-		}
-	}
-	if !b.IsPerson("owner@h") {
-		t.Fatal("fixture")
-	}
-	if _, ok := b.records["#fine@h"]; !ok {
-		t.Fatal("a conforming record was ignored")
-	}
+	}}, "owner@h"), ""))
 }
 
 func TestRestoreReportsOversizedConfiguration(t *testing.T) {
@@ -121,23 +110,7 @@ func TestRestoreReportsOversizedConfiguration(t *testing.T) {
 	rep := &reports{}
 	b.Journal(rep)
 	cfg := []byte(`"` + strings.Repeat("x", 65535) + `"`)
-	b.Restore(withUsers(ports.Snapshot{Clean: true, Records: []protocol.Record{
+	assertRestoreRefused(t, b, canonicalFixture(withUsers(ports.Snapshot{Clean: true, Records: []protocol.Record{
 		{Name: "#oversize@h", Kind: protocol.KindAgent, Owner: "owner@h", Config: cfg, ConfigSHA: "old-digest", Secret: "TOKEN=kept", Allow: []string{"@owner"}, Full: protocol.OverflowStrict},
-	}, Queues: []ports.Queue{{Name: "#oversize@h", Messages: []protocol.Envelope{{From: "owner@h", To: "#oversize@h", Body: "kept"}}}}}, "owner@h"))
-	r, ok := b.records["#oversize@h"]
-	if !ok {
-		t.Fatal("oversized configuration discarded the entire record")
-	}
-	if len(r.Config) != 0 || r.ConfigSHA != "" {
-		t.Fatalf("oversized config or digest remains: %d %s", len(r.Config), r.ConfigSHA)
-	}
-	if r.Secret != "TOKEN=kept" || len(r.Allow) != 1 || len(b.ensure(r.Name).queue) != 1 {
-		t.Fatal("config migration lost secret, ACL or queue")
-	}
-	if !rep.has("stored configuration #oversize@h") || !rep.has("65536") {
-		t.Fatalf("missing named size report: %v", rep.lines)
-	}
-	if _, err := b.Configure(r.Name, "owner@h", cfg); !errors.Is(err, ErrConfig) {
-		t.Fatalf("oversized write accepted: %v", err)
-	}
+	}, Queues: []ports.Queue{{Name: "#oversize@h", Messages: []protocol.Envelope{{From: "owner@h", To: "#oversize@h", Body: "kept"}}}}}, "owner@h"), ""))
 }

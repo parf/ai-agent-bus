@@ -40,3 +40,22 @@ func TestWrongImportKeyNeverReachesDaemon(t *testing.T) {
 		t.Fatal("invalid archive reached daemon")
 	}
 }
+
+func TestTransferFlagLexicalFormsAgree(t *testing.T) {
+	a, err := parseTransfer("export", []string{"--include=tag:ops", "--out=result.age"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := parseTransfer("export", []string{"--include", "tag:ops", "--out", "result.age"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.out != b.out || strings.Join(a.selection.Include, ",") != strings.Join(b.selection.Include, ",") {
+		t.Fatalf("different options: %+v %+v", a, b)
+	}
+	for _, args := range [][]string{{"-out=x"}, {"--out"}, {"--out", "--include=x"}} {
+		if _, err := parseTransfer("export", args); err == nil {
+			t.Fatalf("bad options accepted: %q", args)
+		}
+	}
+}

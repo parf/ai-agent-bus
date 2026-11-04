@@ -289,5 +289,6 @@ func stored(t *testing.T, b *Bus, st *memory.State) ports.Snapshot {
 	}
 	mem := b.Snapshot()
 	saved.Users, saved.Records = mem.Users, mem.Records
+	saved.Owner, saved.OwnerEstablished, saved.AccountsEstablished = mem.Owner, mem.OwnerEstablished, true
 	return saved
 }

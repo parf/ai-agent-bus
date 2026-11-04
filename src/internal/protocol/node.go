@@ -4,7 +4,7 @@ import "time"
 
 // NodeIdentity is the public description of a daemon. Private status, caller
 // identity, per-record data and credentials do not belong in this response.
-// Protocol rises on every wire change; ProtocolMin rises when older clients stop being served.
+// Clients require this exact protocol and minimum pair.
 const Protocol = 1
 const ProtocolMin = 1
 

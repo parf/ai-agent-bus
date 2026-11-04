@@ -99,26 +99,18 @@ type ReplyTo struct {
 	Tag   string `json:"tag,omitempty"`
 }
 
-// MaintainerList is the resource's explicit management grants. New answers use
-// an array; accepting the legacy string keeps old snapshots and pre-migration
-// clients readable during the one-way move from one group to a list.
+// MaintainerList is the resource's explicit management grants, encoded as an array.
 type MaintainerList []string
 
 func (m *MaintainerList) UnmarshalJSON(data []byte) error {
-	var many []string
-	if err := json.Unmarshal(data, &many); err == nil {
-		*m = many
-		return nil
+	if len(strings.TrimSpace(string(data))) == 0 || strings.TrimSpace(string(data))[0] != '[' {
+		return fmt.Errorf("maintainers must be an array of names")
 	}
-	var one string
-	if err := json.Unmarshal(data, &one); err != nil {
+	var many []string
+	if err := json.Unmarshal(data, &many); err != nil {
 		return fmt.Errorf("maintainers must be an array of names: %w", err)
 	}
-	if one == "" {
-		*m = nil
-	} else {
-		*m = MaintainerList{one}
-	}
+	*m = many
 	return nil
 }
 
@@ -180,10 +172,6 @@ type Record struct {
 
 	Owner       string         `json:"owner"`
 	Maintainers MaintainerList `json:"maintainers,omitempty"`
-	// Personal groups a record in the owner's web view. It changes neither
-	// delivery nor access; core only enforces which authority assignments may
-	// coexist with it. See docs/03-records.md#personal-and-shared.
-	Personal bool `json:"personal,omitempty"`
 	// Status is active or inactive; empty reads as active. An inactive
 	// record is no such entity to everything but its reactivation and the
 	// web face's read-only view (docs/constitution.md#common-record-fields).
@@ -254,7 +242,6 @@ type Record struct {
 	// destination is live and still lists this record. A configured route is
 	// not always an allowed one (docs/constitution.md#-channels).
 	RouteAllowed *bool `json:"route_allowed,omitempty"`
-	Reading      bool  `json:"reading,omitempty"` // an unfiltered read is outstanding; retained for compatibility
 	Readers      *int  `json:"readers,omitempty"` // all outstanding reads, filtered and unfiltered together; nil means unobserved
 	// Hosts are the machines that read it in the last two minutes, as they
 	// stated themselves: a label for a pool, never an input to anything.
@@ -316,9 +303,6 @@ type AccountMappings struct {
 // See docs/03-records-agent.md#configuring-a-template.
 func (r Record) Public() Record {
 	r.Tags = append([]string(nil), r.Tags...)
-	if r.Personal && !HasTag(r.Tags, "personal") {
-		r.Tags = append(r.Tags, "personal")
-	}
 	r.ParsedAllow = nil
 	if len(r.Config) > 0 {
 		sum := sha256.Sum256(r.Config)

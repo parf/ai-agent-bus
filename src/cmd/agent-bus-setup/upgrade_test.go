@@ -7,27 +7,22 @@ import (
 	"testing"
 )
 
-func TestUpgradeAddsOnlyTheSyslogFlagToOldUnit(t *testing.T) {
-	old := []byte("# preserve this comment\n[Service]\nUser=agent-busd\nExecStart=/usr/local/lib/agent-bus/current/agent-busd -addr 127.0.0.1:7777 -owner owner@h -user alice=alice@h -tls-dir /private/tls\nRestart=on-failure\n")
-	want := strings.Replace(string(old), " -tls-dir /private/tls\n", " -tls-dir /private/tls --syslog\n", 1)
-	got := unitWithSyslog(old)
-	if string(got) != want {
-		t.Fatalf("upgrade must add only --syslog, preserving all operator settings:\n%s", got)
+func TestUpgradePreservesExactlyTheCurrentUnit(t *testing.T) {
+	unit := []byte(unitFor("/usr/local/lib/agent-bus/current/agent-busd", "127.0.0.1:7777", "owner@h", nil, ""))
+	j := upgradeJournal{UnitSHA256: bytesSHA256(unit)}
+	if !upgradeUnitMatches(j, unit) {
+		t.Fatal("current unit refused")
 	}
-	if string(unitWithSyslog(got)) != want {
-		t.Fatal("upgrade syslog repair is not idempotent")
-	}
-	j := upgradeJournal{UnitSHA256: bytesSHA256(got), UnitBefore: string(old)}
-	if !upgradeUnitMatches(j, old) || !upgradeUnitMatches(j, got) {
-		t.Fatal("recovery must recognize both sides of the managed syslog migration")
-	}
-	if upgradeUnitMatches(j, append(got, []byte("# operator edit\n")...)) {
-		t.Fatal("syslog migration must not authorize overwriting an operator edit")
+	if upgradeUnitMatches(j, append(unit, []byte("# operator edit\n")...)) {
+		t.Fatal("changed unit accepted")
 	}
 }
 
 func TestUnitAddressRequiresExplicitManagedAddress(t *testing.T) {
-	unit := []byte("[Service]\nExecStart=/usr/local/lib/agent-bus/current/agent-busd -addr 127.0.0.1:7777 -web\n")
+	if _, err := unitAddress([]byte("ExecStart=/bin/agent-busd -addr 127.0.0.1:7777\n")); err == nil {
+		t.Fatal("obsolete single-dash unit accepted")
+	}
+	unit := []byte("[Service]\nExecStart=/usr/local/lib/agent-bus/current/agent-busd --addr 127.0.0.1:7777\n")
 	got, err := unitAddress(unit)
 	if err != nil || got != "127.0.0.1:7777" {
 		t.Fatalf("address=%q err=%v", got, err)
@@ -36,7 +31,7 @@ func TestUnitAddressRequiresExplicitManagedAddress(t *testing.T) {
 	if got, err := unitAddress([]byte(current)); err != nil || got != "127.0.0.1:8888" {
 		t.Fatalf("current unit address=%q err=%v", got, err)
 	}
-	if _, err := unitAddress([]byte("[Service]\nExecStart=/bin/agent-busd -web\n")); err == nil || !strings.Contains(err.Error(), "-addr") {
+	if _, err := unitAddress([]byte("[Service]\nExecStart=/bin/agent-busd\n")); err == nil || !strings.Contains(err.Error(), "-addr") {
 		t.Fatalf("missing address: %v", err)
 	}
 }
@@ -56,7 +51,7 @@ func TestCurrentReleaseRejectsTargetsOutsideReleaseDirectory(t *testing.T) {
 
 func TestUpgradeJournalIsDurableAndStrict(t *testing.T) {
 	root, _ := withInstallPaths(t)
-	j := upgradeJournal{OldRelease: "0.5.68-old", NewRelease: "0.5.69-new", Backup: "/state/backup", UnitSHA256: "abc", UnitBefore: "old managed unit"}
+	j := upgradeJournal{OldRelease: "0.5.68-old", NewRelease: "0.5.69-new", Backup: "/state/backup", UnitSHA256: "abc"}
 	if err := writeUpgradeJournal(j); err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +59,7 @@ func TestUpgradeJournalIsDurableAndStrict(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`"old_release": "0.5.68-old"`, `"new_release": "0.5.69-new"`, `"backup": "/state/backup"`, `"unit_before": "old managed unit"`} {
+	for _, want := range []string{`"old_release": "0.5.68-old"`, `"new_release": "0.5.69-new"`, `"backup": "/state/backup"`} {
 		if !strings.Contains(string(b), want) {
 			t.Fatalf("journal missing %s: %s", want, b)
 		}
@@ -100,7 +95,7 @@ func TestStateBackupAndRestoreReplaceTheWholeTree(t *testing.T) {
 	if err := copyTreeAtomic(source, backup); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(source, "dump.json"), []byte("migrated snapshot\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(source, "dump.json"), []byte("updated snapshot\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Remove(filepath.Join(source, "token")); err != nil {
@@ -164,30 +159,84 @@ func TestCgroupProcessInspectionDescendsDelegatedSubgroups(t *testing.T) {
 	}
 }
 
-func TestAReinstallRefusesAnUnreadableCurrentRelease(t *testing.T) {
+func TestCurrentReleaseLinkRefusesForeignTargets(t *testing.T) {
 	root, _ := withInstallPaths(t)
-	if id, err := priorReleaseForRollback(); err != nil || id != "" {
-		t.Fatalf("no release yet: %q, %v; want a first install", id, err)
-	}
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		t.Fatal(err)
-	}
-	if id, err := priorReleaseForRollback(); err != nil || id != "" {
-		t.Fatalf("no release yet: %q, %v; want a first install", id, err)
 	}
 	if err := os.Symlink("/elsewhere", filepath.Join(root, "current")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := priorReleaseForRollback(); err == nil || !strings.Contains(err.Error(), "could not be rolled back") {
-		t.Fatalf("an unsafe current link was accepted for rollback: %v", err)
+	if _, err := currentReleaseID(); err == nil {
+		t.Fatal("foreign current link accepted")
 	}
-	if err := os.Remove(filepath.Join(root, "current")); err != nil {
+}
+
+func TestUpgradeJournalRejectsObsoletePayload(t *testing.T) {
+	current := `{"old_release":"1.0.0-a","new_release":"1.0.1-b","unit_sha256":"abc"}`
+	if _, err := decodeUpgradeJournal([]byte(current)); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink("releases/0.8.24-abc", filepath.Join(root, "current")); err != nil {
-		t.Fatal(err)
+	for _, body := range []string{strings.Replace(current, `}`, `,"unit_before":"old unit"}`, 1), `{}`, current + ` {}`, strings.Replace(current, `"old_release"`, `"OLD_RELEASE"`, 1), strings.Replace(current, `}`, `,"unit_sha256":"other"}`, 1)} {
+		if _, err := decodeUpgradeJournal([]byte(body)); err == nil {
+			t.Fatalf("unsupported journal accepted: %s", body)
+		}
 	}
-	if id, err := priorReleaseForRollback(); err != nil || id != "0.8.24-abc" {
-		t.Fatalf("a relative release link, as release.sh writes it: %q, %v", id, err)
+}
+
+func TestRollbackRefusesInvalidTargetBeforeEffects(t *testing.T) {
+	for _, damage := range []string{"missing", "corrupt", "mismatch", "obsolete"} {
+		t.Run(damage, func(t *testing.T) {
+			root, _ := withInstallPaths(t)
+			bundle, err := checkBundle(fixtureBundle(t, "rollback"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := stageBundle(bundle); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := selectBundle(bundle.releaseID); err != nil {
+				t.Fatal(err)
+			}
+			old := bundle.releaseID
+			target := filepath.Join(root, "releases", old)
+			switch damage {
+			case "missing":
+				old = "missing-release"
+			case "corrupt":
+				if err := os.WriteFile(filepath.Join(target, "agent-busd"), []byte("changed"), 0755); err != nil {
+					t.Fatal(err)
+				}
+			case "mismatch":
+				old = "wrong-name"
+				if err := os.Rename(target, filepath.Join(root, "releases", old)); err != nil {
+					t.Fatal(err)
+				}
+			case "obsolete":
+				if err := os.Rename(filepath.Join(target, "agent-bus-ts"), filepath.Join(target, "agent-bus-web")); err != nil {
+					t.Fatal(err)
+				}
+			}
+			tools := t.TempDir()
+			calls := filepath.Join(tools, "calls")
+			if err := os.WriteFile(filepath.Join(tools, "systemctl"), []byte("#!/bin/sh\necho called >> \""+calls+"\"\nexit 1\n"), 0700); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("PATH", tools)
+			before, err := os.Readlink(filepath.Join(root, "current"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := performRollback(upgradeJournal{OldRelease: old}, "unused"); err == nil {
+				t.Fatal("invalid rollback target accepted")
+			}
+			after, err := os.Readlink(filepath.Join(root, "current"))
+			if err != nil || after != before {
+				t.Fatalf("refusal changed current: %q -> %q: %v", before, after, err)
+			}
+			if _, err := os.Stat(calls); !os.IsNotExist(err) {
+				t.Fatal("refusal ran service commands")
+			}
+		})
 	}
 }

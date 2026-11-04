@@ -1,9 +1,8 @@
 # Web face record pages
 
 📌 **TL;DR:** Every record page of the web face (`agent-bus-web`, `src/web`):
-the four kind lists and their Personal filter, four registration forms, the
-detail, settings, deactivation and Danger Zone pages, the legacy `/channel`
-addresses and the two POST handlers. Each page gives its parameters, access by
+the five kind lists and their Personal filter, five registration forms, the
+detail, settings, deactivation and Danger Zone pages, and the two POST handlers. Each page gives its parameters, access by
 position, daemon calls, content, states, controls, form fields and links. The
 frame, problem pages, form recovery, paging and `return` rules are in
 [shell](shell.md#problem-page).
@@ -45,7 +44,7 @@ each record, and the daemon rechecks every write.
 | `ttl`, `bound`, `overflow` | yes | – | yes | – (each copy lives by its recipient's TTL) | – | yes (settings only) |
 | `subs` | one-slot Deliver-To route | – | one-slot route | Deliver-To list | – | – |
 | `allow` | yes | yes | yes (who may send) | yes (who may **publish**) | yes (who may see and read) | – |
-| Personal | checkbox | checkbox | checkbox | checkbox | checkbox | always; no control |
+| Personal | `personal` tag | `personal` tag | `personal` tag | `personal` tag | `personal` tag | always; no control |
 | `maintainers` | settings only | settings only | settings only | settings only | settings only | – |
 | Replace configuration | yes | yes | – | – | – | – |
 | Deactivate / Reactivate | yes | yes | yes | yes | yes | – (follows its user) |
@@ -69,13 +68,13 @@ Every page reads records as JSON from `/ls`, `/inactive` or `/lookup`.
 | `descr` | description; the list's bold first line |
 | `owner` | Owner, `<code>` |
 | `maintainers[]` | `👮 Maintainers: a, b` (joined `, `), omitted when empty |
-| `personal` | `· Personal` beside the name; the record lives on its list's Personal filter |
+| `tags[]` | classification badges; `personal` selects the Personal view |
 | `status` | `inactive` or anything else (active). The face also stamps `inactive` on every `/inactive` row |
 | `at` | Updated. Listing and detail: relative (`now`, `5m ago`, `3h ago`, `12d ago`, `Jan 2`, `Jan 2, 2006`), exact time in the title; zero or absent → blank |
 | `last_used` | Listing and detail: relative last use, exact timestamp in the title; absent → blank in the listing and no detail field |
 | `addr`, `protocol` | Address, Protocol |
 | `ttl`, `bound`, `overflow` | Retention, Queue bound, When full (`ring` → drop the oldest, else refuse) |
-| `allow[]` | only in the settings form. **No page displays it** |
+| `allow[]` | editable in Settings; non-empty grants appear in Status & Policy |
 | `subs[]` | route destination (first entry) or Deliver-To list; list count on PubSub |
 | `secret_sha`, `config_sha` | authorized digests; Configuration is fetched separately for managers, Secret bytes never appear |
 | `can_manage`, `can_transfer` | which controls render |
@@ -87,40 +86,36 @@ Numbers use comma grouping; tables keep `0`.
 
 ## Lists
 
-`/agents` · `/services` · `/queues` · `/pubsub`, each with `?personal=1`
+`/agents` · `/services` · `/queues` · `/pubsub` · `/resources`, each with `?tag=personal`
 
 One handler per kind. The page filters, sorts and pages one `/ls` +
 `/inactive` answer; the daemon has no paging. **Personal is a filter, not a
-page**: `personal=1` shows the kind's Personal records instead of its shared
+page**: `tag=personal` shows the kind's Personal records instead of its shared
 ones. The sidebar is the kind axis, so there is no Kind filter.
 
 ### Route
 
 | Parameter | Values | Meaning | Default |
 |---|---|---|---|
-| `personal` | `1` | the Personal records of this kind: your own, or every visible one for the daemon Owner | shared records |
+| `tag` | a normalized label | records carrying the tag; `personal` shows your own Personal records, or every visible one for the daemon Owner | shared records |
 | `q` | text, trimmed | case-insensitive substring of `name`, `descr` or `owner` | none |
-| `scope` | `my` | only records whose `owner` is you. Agents and Services only, and not with `personal` | all |
-| `state` | `active`, `inactive` | status filter | both |
-| `readers` | `present` (readers > 0), `none` (= 0), `unavailable` (absent) | reader filter. Ignored on `/services`; **honoured but not offered** on `/pubsub` | any |
-| `work` | `held` | `queued > 0`. Ignored on `/services` and `/pubsub` | any |
-| `sort` | `updated` (newest `at` first), `last_used` (Agents only, most recently used first; never-used last), `queued` (most work first; on `/pubsub` the 📣's `in`) | order; ties and default by `name` ascending. `queued` is dropped on `/services` | name |
+| `scope` | `my` | only records whose `owner` is you. Agents and Services only, and not with `tag=personal` | all |
+| `state` | `active`, `inactive` | status filter | active |
+| `readers` | `present` (readers > 0), `none` (= 0), `unavailable` (absent) | reader filter. Ignored on `/services` and `/resources`; **honoured but not offered** on `/pubsub` | any |
+| `work` | `held` | `queued > 0`. Ignored on `/services`, `/resources` and `/pubsub` | any |
+| `sort` | `updated` (newest `at` first), `last_used` (Agents only, most recently used first; never-used last), `queued` (most work first; on `/pubsub` the 📣's `in`) | order; ties and default by `name` ascending, except Agents put those with outstanding reads first. `queued` is dropped on `/services` and `/resources` | name |
 | `page` | integer | 1-based, clamped to 1…last | 1 |
-| `owner` | a name | with `personal=1`, daemon Owner only: one owner's records. From anyone else: `303` to the same URL without `owner` | all visible owners |
+| `owner` | a name | with `tag=personal`, daemon Owner only: one owner's records. From anyone else: `303` to the same URL without `owner` | all visible owners |
 
-Any other value of a parameter reads as its default.
-
-| Old address | Answer |
-|---|---|
-| `/channels?…` | `301` to `/pubsub` when `kind=pubsub`, else `/queues`; `kind` removed, rest of the query kept. No sign-in needed for the redirect |
+Unsupported tag syntax is refused. Other filter values outside their listed choices use their defaults.
 
 ### Access
 
 | Position | Gets |
 |---|---|
 | Any signed-in caller | the page, with the records the daemon lets them see |
-| Daemon Owner | every record; with `personal=1` the owner chooser and every owner's Personal records |
-| Everyone else | with `personal=1` only their own Personal records (`Owned by <you>.`) |
+| Daemon Owner | every record; with `tag=personal` the owner chooser and every owner's Personal records |
+| Everyone else | with `tag=personal` only their own Personal records (`Owned by <you>.`) |
 | Signed out | `401` sign-in form |
 
 ### Daemon calls
@@ -143,16 +138,17 @@ Either registry list call failing fails the page ([shell](shell.md#problem-page)
 | Order | Element |
 |---|---|
 | Title | `Agents` · `Services` · `Queues` · `PubSub`, with ` · Personal` under the filter, then ` · agent-bus`. Nav: the matching section, kind links keeping the filter |
-| 1 | Page head: the kind mark (a lock under the filter), the title, an `ⓘ` popover `record-views-help` (the kind, Personal, tab counts, Status, Readers, Messages on Agents), and the one Register action: `Register {kind}` → `{kind}/new`, or `Register Personal {kind}` → `{kind}/new?personal=1` |
-| 2 | Tabs: All · My (Agents and Services) · Personal, with counts |
-| 3 | With `personal=1` and the daemon Owner: the owner chooser |
+| 1 | Page head: the kind mark (a lock under the filter), the title, an `ⓘ` popover `record-views-help` (the kind, Personal, tab counts, Status, Readers, Messages on Agents), and the one Register action: `Register {kind}` → `{kind}/new`, or `Register Personal {kind}` → `{kind}/new?tag=personal` |
+| 2 | Tabs: All · My (Agents and Services), then classification tags with counts, including Personal |
+| 3 | With `tag=personal` and the daemon Owner: the owner chooser |
 | 4 | Toolbar: search and sort; then the Status, Readers and Queue filters |
 | 5 | Empty-state card, **or** the Personal note, the results line and the table |
 | 6 | `<nav aria-label="Record pages">` with `Previous page` / `Next page` |
 
-**Tabs.** Counts are computed by the face over the visible records of this
-kind, before toolbar filters: All counts shared records, My the shared ones you
-own, Personal the Personal ones (yours, or all for the daemon Owner). Tabs keep
+**Tabs.** Counts are computed before pagination, after search, state, reader
+and work filters. All counts shared records, My the shared ones you own; tag
+counts also respect the selected ownership scope. Personal records are limited
+to yours, or all visible owners for the daemon Owner. Tabs keep
 `state`, `q`, `readers`, `work` and `sort`; Personal also keeps the daemon
 Owner's `owner`. My has class `my-view`, Personal `personal-view` with a lock.
 
@@ -161,9 +157,9 @@ Owner's `owner`. My has class `my-view`, Personal `personal-view` with a lock.
 | Control | Detail |
 |---|---|
 | Search | `<input id=record-query type=search name=q>`, visually hidden label `Search records`, placeholder `Search by name, owner, or description` (`Search by name or description` when the Owner column is hidden) |
-| Hidden | `personal`, `scope`, `state`, `readers`, `work`, `owner`, each only when set |
+| Hidden | `tag`, `scope`, `state`, `readers`, `work`, `owner`, each only when set |
 | Sort | `<select id=record-sort name=sort data-submit-on-change>`: `""` Name (A–Z), `updated` Recently updated, `last_used` Recently used (Agents only), `queued` Queued (high–low) — `Accepted (high–low)` on PubSub, absent on Services |
-| Status filter | All · Active · Inactive |
+| Status filter | Active · Inactive |
 | Readers filter | not on Services or PubSub: All · Reading now · No reader now · Unavailable |
 | Queue filter | not on Services or PubSub: All · Holding work |
 
@@ -207,11 +203,11 @@ phone layout.
 | Category empty | card `No {agents|…} yet` (`No Personal {…} yet`) and the kind blurb (under the filter: `Personal records belong to their Owner's own view instead of the shared lists.`) |
 | Filters match nothing | card `No records match these filters` / `Change the active filters above or clear filters.` and `Clear filters` |
 | Personal list with rows | daemon Owner: `Only Personal records visible through your normal access; not a node-wide inventory.`; others: `Owned by <code>you</code>.` |
-| Inactive records | listed with `Inactive` under All and Inactive |
+| Inactive records | listed with `Inactive` under the Inactive state filter |
 | Pagination | 100 rows. Links keep every parameter |
 | Bus unavailable, refusal | problem page ([shell](shell.md#problem-page)) |
 
-"Category" is the page's records after `personal`, `scope` and `owner`, before
+"Category" is the page's records after `tag`, `scope` and `owner`, before
 the toolbar filters.
 
 ### Controls by position
@@ -219,7 +215,7 @@ the toolbar filters.
 | Control | Who |
 |---|---|
 | Everything on the page | every signed-in caller; nothing is disabled |
-| Owner chooser | daemon Owner with `personal=1` only |
+| Owner chooser | daemon Owner with `tag=personal` only |
 | Register action | everyone; the daemon decides at submission |
 
 ### Forms
@@ -227,24 +223,23 @@ the toolbar filters.
 | Form | Action | Fields | Submit |
 |---|---|---|---|
 | Toolbar | `GET {this path}` | `q`, hidden filters, `sort` | reloads the list |
-| Owner chooser | `GET` (current path) | `<select id=owner-select name=owner data-submit-on-change>`: `""` All visible owners, then each owner of a visible Personal record, sorted; hidden `personal=1`, `state`, `readers`, `work`, `q`, `sort` | reloads the list |
+| Owner chooser | `GET` (current path) | `<select id=owner-select name=owner data-submit-on-change>`: `""` All visible owners, then each owner of a visible Personal record, sorted; hidden `tag=personal`, `state`, `readers`, `work`, `q`, `sort` | reloads the list |
 
 ### Links out
 
 The page also carries its [GitHub documentation links](#documentation-targets).
 
 Rows → detail with `return`; tabs; filter links; Clear filters (keeps
-`personal`, `scope` and the daemon Owner's `owner`); Register; paging.
+`tag`, `scope` and the daemon Owner's `owner`); Register; paging.
 
 ## Register
 
-`/agents/new` · `/services/new` · `/queues/new` · `/pubsub/new`
+`/agents/new` · `/services/new` · `/queues/new` · `/pubsub/new` · `/resources/new`
 
 ### Route
 
-`personal=1` starts the form Personal, and Back and Cancel return to the
-Personal list. `/channels/new` → `301` to `/pubsub/new` when `kind=pubsub`,
-else `/queues/new`.
+`tag=personal` starts the form Personal, and Back and Cancel return to the
+Personal list. The Tags field starts with `personal`.
 
 ### Access
 
@@ -263,14 +258,14 @@ Any signed-in caller gets the form; the caller becomes the Owner. Signed out:
 | 1 | `Back to {Agents|Services|Queues|PubSub}` (`Back to Personal …`) → the list |
 | 2 | `<h1>` kind mark + title; sub line: the kind blurb, then `You become its Owner.` |
 | 3 | form error summary (after a refusal) |
-| 4 | `<form id=form-create method=post action=/service>`, button = the title, `Cancel` |
+| 4 | `<form id=form-create method=post action=/record>`, button = the title, `Cancel` |
 | 5 | help popovers for the fields shown (below) |
 
 ### Forms
 
 Registration and editing use `RecordFields`; record and group forms share the
-Maintainers and Personal controls. Personal sits beside Name; its details are
-shown on hover or focus. Template sits beside URI; its help explains URI
+Maintainers and Tags controls. Tags follows Description; its help explains
+Personal classification and the access restrictions it carries. Template sits beside URI; its help explains URI
 expansion, file, schema and log examples, and links RFC 6570. Registration links
 the latest official MCP Resources specification. Agent register/edit role help
 explains the informational supported list, ACL role assignments and reading
@@ -278,8 +273,8 @@ message `roles` or `AB_ROLE_*`. ACL help shows a parenthesized multi-role exampl
 and whole-save refusal for generated names. Both hover/focus tooltips show `@dev(deploy, read_only)` directly; clicking
 opens the fuller explanation.
 
-Hidden: `action=create`, `kind={agent|service|queue|pubsub}`,
-`from_personal=1` when started from a Personal list, `edit_personal=1`, `edit_sharing=1`.
+Hidden: `action=create`, `kind={agent|service|queue|pubsub|resource}`,
+`edit_sharing=1`. The submitted `tags` preserve the Personal classification.
 
 | `name` | Control | Kinds | Required | Prefill | Placeholder / values | Meaning |
 |---|---|---|---|---|---|---|
@@ -294,12 +289,12 @@ Hidden: `action=create`, `kind={agent|service|queue|pubsub}`,
 | `subs` | `<input>` | agent, queue | no | empty | `#agent@realm, queue@realm or pubsub@realm` | one-slot Deliver-To route ⓘ |
 | `subs` | numbered line-list textarea | pubsub | no | empty | `#agent@realm⏎queue@realm⏎@group` | Deliver-To list, one per line; empty reaches nobody ⓘ |
 | `allow` | numbered line-list textarea; label `Allow list`, `Who may send` (queue), `Who may publish` (pubsub) | all | no | empty | `#agent@realm⏎user@realm⏎@group⏎@owner⏎*` | one term per line ⓘ |
-| `personal` | checkbox with hover help | all | no | off (on from a Personal list) | `on` | Personal classification |
+| `tags` | text with help | all | no | `personal` from a Personal list, otherwise empty | comma-separated labels | normalized classification tags |
 | `maintainers` | numbered line-list textarea | all | no | empty | `user@realm⏎@group⏎#agent@realm` | initial management grant, shared with the edit form |
 
 **Submit** (`POST /record`, see [below](#post-record)): `POST /register`
 (header `If-None-Match: *`) with body `name`, `kind`, `descr`, `allow`
-(split outside role parentheses), `maintainers` (split outside role parentheses), `personal`, `subs` (split outside role parentheses); `addr`, `protocol`
+(split outside role parentheses), `maintainers` (split outside role parentheses), `tags`, `subs` (split outside role parentheses); `addr`, `protocol`
 for a service; `ttl`, `overflow`, `bound` for an agent or queue. Then, with a
 non-empty secret, `POST /secret {name, secret}` with CRLF turned into LF.
 
@@ -314,15 +309,15 @@ non-empty secret, `POST /secret {name, secret}` with CRLF turned into LF.
 | Other `403`, `500`, `503`, transport | problem page |
 | Record made, secret refused | `502` saved-in-part page: `The {Noun} was registered and its secret was not stored: {reason} Set it with: agent-bus secret {name} '...'` |
 
-Kept on refusal: `name`, `descr`, `kind`, `addr`, `protocol`, `personal`,
-`allow`, `maintainers`, `subs`, `ttl`, `bound`, `overflow`, `from_personal`. Never kept:
+Kept on refusal: `name`, `descr`, `kind`, `addr`, `protocol`, `tags`,
+`allow`, `maintainers`, `subs`, `ttl`, `bound`, `overflow`. Never kept:
 `secret`. The refused field gets `aria-invalid="true"` and
 `aria-describedby=create-error`.
 
 <details><summary>Kind-dependent help text</summary>
 
-- Allow list hint: PubSub `Who may publish here. Who receives is the Deliver-To list above.`; while Personal is ticked `While Personal: the Owner, the Owner’s own agents, @owner` (`or @agent` for an agent) `, one per line.`; else `One identity, group, @owner, or * per line.`
-- Personal hover help: the Owner’s Personal view, delivery unchanged, and the restriction to the Owner and the Owner’s agents.
+- Allow list hint: PubSub `Who may publish here. Who receives is the Deliver-To list above.`; when the record carries the `personal` tag `While Personal: the Owner, the Owner’s own agents, @owner` (`or @agent` for an agent) `, one per line.`; else `One identity, group, @owner, or * per line.`
+- Tags help: the Owner’s Personal view, delivery unchanged, and the restriction to the Owner and the Owner’s agents.
 - Route: `Empty keeps messages here. One destination: a message sent to this {Noun} moves there instead, and the destination’s allow list must list this {Noun} itself.`
 - Secret tooltip: `Its Owner, Maintainers and the agent itself` (agent) or `Its Owner and Maintainers` (service) `read them back, and no page ever shows them again.`
 - Popovers restate the allow, route, Deliver-To and secret rules as bullets.
@@ -335,27 +330,26 @@ Back to the list; Cancel.
 
 ## Record detail
 
-`/agent` · `/service` · `/queue` · `/pubsub/channel`
+`/agent` · `/service` · `/queue` · `/pubsub/channel` · `/resource`
 
 ### Route
 
 | Parameter | Meaning |
 |---|---|
 | `name` | the record, exact |
-| `return` | local list URL for Back; used only when its path is the record's own list, else that list ([shell](shell.md#return-addresses)) |
+| `return` | local list URL for Back; used only when its path is the record's own list, `/runner` or `/runner-settings`, else the list ([shell](shell.md#return-addresses)) |
 | `range`, `at` | the Activity card's range, as on [/activity](node.md#activity) |
 | `events` | `all` expands the agent’s full retained log; any other value shows the recent preview |
 
 | Address | Answer |
 |---|---|
 | a detail path not the kind's own | `302` to the kind's detail path, query kept; a group → `/group?name=` |
-| `/channel?name=` | `301` to the record's own detail path (query kept); an inactive record's view is served at `/channel` |
 
 ### Access
 
 | Position | Gets |
 |---|---|
-| Owner, Maintainer, record itself, daemon Owner (`can_manage`) | full page with Edit settings, the route settings link, Deliver-To Remove buttons and the Danger Zone link |
+| Owner, Maintainer, record itself, daemon Owner (`can_manage`) | full page with Edit settings, the route settings link and the Danger Zone link |
 | Other visible caller | read-only page and `You can view this record; its owner and assigned maintainers can manage it.` |
 | Stranger, missing name | `404 No such name` |
 | Inactive record | [inactive view](#inactive-record-view) instead |
@@ -441,7 +435,6 @@ read this agent’s events.”, never entries. Other record kinds have no Events
 |---|---|---|
 | Edit settings, route settings link, Danger Zone | shown (Danger Zone not for a user inbox) | omitted |
 | Deactivate → `GET /record-deactivate` | in Danger Zone, not for a user inbox or group | omitted |
-| Deliver-To Remove | shown | omitted |
 | Take my inbox off | anyone whose name is on `subs` | same |
 
 ### Forms
@@ -465,10 +458,10 @@ Served by the detail addresses when `name` is in `/inactive`.
 | Part | Detail |
 |---|---|
 | Visibility | daemon Owner: every inactive record; others: those their ACL, ownership or maintenance admits |
-| Calls | `/status`, `/inactive` only |
+| Calls | `/status`, `/inactive`; agents also request their Events card |
 | Title | `{Noun} {name}` |
 | Content | `Back to records`; `<h1>` kind mark, name, badge `INACTIVE`; kind pill; `Owner` chip, never linked; Status card with the `Inactive` pill and three bullets, the second `Its queued work is kept: {queued} held when observed.` (service: without the count) |
-| Manager (not a user inbox) | `<form method=post action=/service>` hidden `name`, button `name=action value=reactivate` → `POST /manage {name, status: "active"}` → `303` detail |
+| Manager (not a user inbox) | `<form method=post action=/record>` hidden `name`, button `name=action value=reactivate` → `POST /manage {name, status: "active"}` → `303` detail |
 | Others | `Its owner and assigned maintainers can reactivate it.` |
 | Absent | settings, Danger Zone, activity, counters |
 
@@ -477,7 +470,7 @@ answers `404 No such name`.
 
 ## Settings
 
-`/agent/edit` · `/service/edit` · `/queue/edit` · `/pubsub/channel/edit`
+`/agent/edit` · `/service/edit` · `/queue/edit` · `/pubsub/channel/edit` · `/resource/edit`
 
 ### Route
 
@@ -486,15 +479,14 @@ answers `404 No such name`.
 | `name` | the record; a group → `302` to `/group/edit?name=` |
 | `return` | as on detail; carried into the form |
 
-`/channel/edit?name=` → `301` to the record's own settings path; an inactive
-record is `404`.
+An inactive record is `404`.
 
 ### Access
 
 | Position | Gets |
 |---|---|
 | Owner, daemon Owner | every field editable |
-| Maintainer, record itself | Personal and Maintainers **disabled**; everything else editable |
+| Maintainer, record itself | Maintainers **disabled**; Tags editable, with Personal changes restricted by the daemon to its Owner or daemon Owner |
 | Other visible caller | `403 Not yours to see`, message `only the owner or an assigned Maintainer can change this record's settings` |
 | Stranger, inactive | `404` |
 
@@ -510,26 +502,25 @@ record is `404`.
 | 1 | `Back to {name}` → detail with `return` |
 | 2 | `<h1>` kind mark + `Edit {Noun} {name}`, with **Locks** → `/locks?q=<name>` and **Store** → the record’s KV page; both always shown |
 | 3 | error summary |
-| 4 | `<form id=form-save method=post action=/service>`, button `Save settings`, `Cancel` |
+| 4 | `<form id=form-save method=post action=/record>`, button `Save settings`, `Cancel` |
 | 5 | help popovers; red `Danger Zone` link |
 
 ### Private configuration
 
 Keep secrets in Secret and config in Configuration; see [configuration](../../../docs/03-records-agent.md#configuring-a-template).
 
-Owner and Maintainers always see **Configuration (JSON)** on the record page
-and in its editor, pretty-printed. Agent and service editors put it after
+Owner and Maintainers see stored **Configuration (JSON)** on the record page
+when configured, and can edit it in the editor, pretty-printed. Agent and service editors put it after
 Secret; groups use the same field. Only authorized callers fetch it through
 `GET /config`; general management rights alone do not grant this read.
 Secret (ENV) always starts empty and is never displayed.
 
 All textareas use the shared `rowsFor(value, focused)` helper: empty is one row, content uses its line count capped at 20; focus grows to at least five rows. Blur restores the content height, and the no-JS form keeps its server-rendered content height. Sizing never changes a value, and Secret remains empty. Blank keeps the stored value; nonempty configuration
-is validated and sent compact through `POST /configure {Name, Config}`. Formatting
+is validated and sent compact through `POST /configure {name, config}`. Formatting
 preserves exact numbers, escaped strings and key order, so the digest matches
 CLI input. An open editor saves its displayed configuration, including an older
 value. Invalid JSON returns 400 before settings writes; invalid Configuration edits stay in the field for correction. Settings, Secret and configuration remain separate writes with
-partial-failure reporting. Configuration is absent from the Danger Zone; older
-`action=configure` forms remain accepted.
+partial-failure reporting. Configuration is absent from the Danger Zone. The dedicated `action=configure` form is only for `#bus` settings; other records save Configuration through the normal editor.
 
 ### Forms
 
@@ -544,7 +535,6 @@ registration set with these changes.
 | `edit_subs=1` | hidden, with `subs` (agent, queue, pubsub): says the form carried `subs` |
 | `edit_allow=1` | hidden, with `allow` (not a user inbox) |
 | `tags` | after Description; comma-separated normalized labels, including Personal classification |
-| `personal` | creation checkbox only; edits use the `personal` tag |
 | `maintainers` | line-list textarea, one per line, prefilled; `disabled` unless `can_transfer`. Hint `One user, group, agent or service per line; @owner is ACL-only.` |
 | `edit_sharing=1` | hidden, only when `can_transfer` |
 | user inbox | only `descr`, `ttl`, `bound`, `overflow` |
@@ -556,12 +546,12 @@ always, and only what the form showed:
 |---|---|
 | `addr` or `protocol` present | `addr`, `protocol` |
 | any of `bound`, `ttl`, `overflow` present | `bound` (must be a whole number, else `400` field `bound`, no call), `ttl`, `overflow` |
-| `edit_allow` present | `allow` (whitespace-split; empty clears) |
-| `edit_subs` present | `subs` (whitespace-split; empty clears) |
+| `edit_allow` present | `allow` (split outside role parentheses; empty clears) |
+| `edit_subs` present | `subs` (split outside role parentheses; empty clears) |
 | `edit_sharing` present | `maintainers` |
-| `edit_personal` present | `personal` (`on` → true, absent → false) |
+| `tags` present | normalized `tags` array |
 
-Then, if `secret` is non-empty, `POST /secret {name, secret}` (CRLF → LF).
+Then, if `secret` is non-empty, `POST /secret {name, secret}` (CRLF → LF); non-empty Configuration follows through `POST /configure`, as described in [Private configuration](#private-configuration).
 
 | Outcome | Answer |
 |---|---|
@@ -573,7 +563,7 @@ Then, if `secret` is non-empty, `POST /secret {name, secret}` (CRLF → LF).
 | Settings saved, secret refused | `502`: `The settings were saved and its secret was not stored: {reason} Set it with: agent-bus secret {name} '...'` |
 
 Kept on refusal: `descr`, `addr`, `protocol`, `ttl`, `overflow`, `bound`,
-`allow`, `edit_allow`, `subs`, `edit_subs`, `personal`, `edit_personal`,
+`allow`, `edit_allow`, `subs`, `edit_subs`, `tags`, `roles`, `config`,
 `maintainers`, `edit_sharing`, `return`. Never: `secret`. Error element id
 `save-error`; summary anchor `#form-save`. The record is re-read, so a record
 that vanished answers `404`.
@@ -644,12 +634,12 @@ first, then `/status`. Each success is a `303` with a flash message.
 | `action` | Fields | Daemon calls | Success `303` |
 |---|---|---|---|
 | `create` | see [Register](#register) | `POST /register`, then `POST /secret` | detail |
-| `save` | see [Settings](#settings) | `POST /manage`, then `POST /secret` | detail |
-| `configure` | `name`, `config` | `POST /configure {Name, Config}` | detail |
+| `save` | see [Settings](#settings) | `POST /manage`, then submitted Secret and Configuration through `/secret` and `/configure` | detail |
+| `configure` | `name=#bus`, `config` | `POST /configure {name, config}` | `/agent/edit?name=%23bus` |
 | `deactivate` | `name` | re-read, `POST /manage {name, status:"inactive"}` | detail |
 | `reactivate` | `name` | `POST /manage {name, status:"active"}`, `GET /lookup` | detail |
 | `transfer` | `name`, `owner`, `expected_owner`, `confirmed` | re-read, `POST /manage {name, owner}`, `GET /lookup` | detail if still visible, else the record's list |
-| `delete` | `name`, `expected_owner`, `expected_queued`, `expected_readers`, `confirmed` | re-read, `POST /unregister {name}` | the record's list (`?personal=1` when Personal) |
+| `delete` | `name`, `expected_owner`, `expected_queued`, `expected_readers`, `confirmed` | re-read, `POST /unregister {name}` | the record's list (`?tag=personal` when Personal) |
 | `unsubscribe` | `name` | `POST /subscribe {channel, off}` | detail |
 | other | – | – | `400` `That record action is not available.` |
 
@@ -665,15 +655,9 @@ different `queued`, reader count or lost `can_manage` (delete) answers
 `409 The conditions changed` with the link `Review the current Danger Zone`.
 
 **Refusal routing.** `create` and `save` return their form as above.
-`configure` returns the normal edit form on an invalid agent/service submission; `transfer` returns the Danger Zone; a refused transfer keeps and
+`configure` is restricted to `#bus` settings; `transfer` returns the Danger Zone; a refused transfer keeps and
 marks `owner`. `delete`, `deactivate`, `reactivate` and the Deliver-To actions
 go to the problem page.
-
-## Differences from the older specs
-
-History: the Go face's differences from older specs, and what was worth
-revisiting in the rewrite, are in
-[web-go-face-differences § records](../../../Plans/done/R0.8-MVP/done/web-go-face-differences.md#recordsmd).
 
 ## Locks
 
@@ -716,10 +700,10 @@ Only a record's Owner, Maintainers and own Agent see or change its store
 
 ## Record labels
 
-The existing top browse row contains All, My and tag(count) filters. My is a
+The top browse row contains All, My and tag(count) filters. My is a
 hardcoded ownership filter, not a tag. The [tag contract](../../../docs/03-records.md#tags)
 owns normalization, count scope, sorting and the expandable remainder. Tags
-follow Description in every record editor; ACL list parsing is unchanged.
+follow Description in every record editor.
 
 ## Documentation targets
 
@@ -741,7 +725,7 @@ external-link behavior and field-help targets.
 
 ### Agent roles display
 
-An agent’s read-only Roles section is hidden unless application roles are declared or explicitly assigned. It contains only those roles and assignments. Non-empty Allow and Maintainers appear as compact name rows in Status & Policy for every record kind, independently of Roles; empty lists have no row or placeholder. Group grants remain group names; the face does not invent membership or effective authority.
+The [detail content table](#content-2) separates application Roles from Allow and Maintainers in Status & Policy. Group grants remain group names; the face does not invent membership or effective authority.
 
 ## Agent metadata
 
@@ -793,7 +777,7 @@ has a distinct style. Record pages put them once in the header metadata line,
 after kind and owner; every badge links to the agents tag filter. The synthetic
 empty-tag filter is never a record label.
 The My listing omits Owner; other listings mark the signed-in owner's records
-with the existing you badge.
+with the you badge.
 
 While an agent page is open, one asynchronous request asks its status as the
 visitor, with a 1.8-second budget. Its escaped answer appears next to the record

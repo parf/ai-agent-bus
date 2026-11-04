@@ -2,7 +2,7 @@ import { AccessRows } from "../ui/access.tsx";
 import { PAGE_SIZE as PAGE } from "../pagination.ts";
 import { TagBadges } from "../ui/tags.tsx";
 import { configuration, ConfigurationPreview } from "../configuration.tsx";
-import { normalizeTags } from "../tags.ts";
+import { normalizeTags, isPersonal } from "../tags.ts";
 // People pages: Users, a user, the profile editor, Groups, a group, its
 // editor, Account, and their POST handlers (src/web/web-face/people.md).
 import { h, Fragment, type Child } from "../jsx.ts";
@@ -11,7 +11,7 @@ import { respond, flashRedirect } from "../ui/frame.tsx";
 import { LocksCard, recordLocks, postReleaseLock } from "../ui/locks.tsx";
 import { KVCard, recordKV } from "../ui/kv.tsx";
 import { Icon, Help, PageHead, Card, Name, Muted, KindIcon, KindPill, Pill, StatePill, Badge, Empty, Tabs, Segmented, Pager, Button, LinkButton, Avatar, recordHref } from "../ui/kit.tsx";
-import { TextField, TextAreaField, LinesField, SecretField, TagsField, ConfigurationField, privateHint, CheckField, MaintainersField, PersonalField, ErrorSummary, FieldError, keep, terms, lines, type FormState } from "../ui/forms.tsx";
+import { TextField, TextAreaField, LinesField, SecretField, TagsField, ConfigurationField, privateHint, CheckField, MaintainersField, ErrorSummary, FieldError, keep, terms, lines, type FormState } from "../ui/forms.tsx";
 import { redirect, returnTo, json, local } from "../http.ts";
 import { number, relative, minute, validTime, left } from "../format.ts";
 import { formRefusal, lineRefusal, notYours } from "../problem.tsx";
@@ -52,7 +52,7 @@ const IdentityPill = ({ u }: { u: UserRow }) => u.daemon_owner
 // ------------------------------------------------------------------ /users
 
 async function usersPage(ctx: Ctx): Promise<Response> {
-  if (ctx.q("kind") === "other") return redirect("/diagnostics#leftovers");
+  if (ctx.url.searchParams.has("kind")) throw new LocalProblem(400, "Use /diagnostics for leftovers; kind is not a users filter.");
   const { st, users, records } = await load(ctx);
   const q = ctx.q("q"), state = ["inactive", "all"].includes(ctx.q("state")) ? ctx.q("state") : "active";
   const people = users.filter(u => u.kind === "user");
@@ -465,19 +465,19 @@ function mayEdit(name: string, rec: Rec | undefined, st: Status): boolean {
 
 async function groupsPage(ctx: Ctx): Promise<Response> {
   const [st, groups, ls] = await Promise.all([ctx.status(), ctx.groups(), ctx.ls()]);
-  const personal = ctx.q("personal") === "1";
+  const personal = ctx.q("tag") === "personal";
   const recs = new Map(ls.filter(r => r.kind === "group").map(r => [r.name, r]));
   const all = Object.keys(groups).sort();
-  const personalNames = all.filter(n => recs.get(n)?.personal);
-  const names = personal ? personalNames : all.filter(n => !recs.get(n)?.personal);
+  const personalNames = all.filter(n => isPersonal(recs.get(n)));
+  const names = personal ? personalNames : all.filter(n => !isPersonal(recs.get(n)));
   const body = <>
     <PageHead icon={<Icon name="kind:group" />} title="Groups"
       help={<Help label="About Groups" tip="Named sets of users, agents and other groups, used in allow lists and as Maintainers." title="Groups"
         items={["A group names a set of users, agents and nested groups for allow lists and Maintainers.", "Anyone may register a group and becomes its Owner.", "Its Owner, its Maintainers and the daemon Administrators change its membership.", "You see a group's details when you are in it or manage it.", "@owner is ACL syntax for a record's Owner, not a group."]} />}>
-      <LinkButton href={personal ? "/groups/new?personal=1" : "/groups/new"} tone="primary" icon="plus">{personal ? "Register Personal group" : "Register group"}</LinkButton>
+      <LinkButton href={personal ? "/groups/new?tag=personal" : "/groups/new"} tone="primary" icon="plus">{personal ? "Register Personal group" : "Register group"}</LinkButton>
     </PageHead>
     <Tabs label="Group views" items={[{ href: "/groups", text: "All", count: all.length - personalNames.length, current: !personal },
-      { href: "/groups?personal=1", text: "Personal", count: personalNames.length, current: personal, className: "personal-view", icon: "lock" }]} />
+      { href: "/groups?tag=personal", text: "Personal", count: personalNames.length, current: personal, className: "personal-view", icon: "lock" }]} />
     {names.length ? <div class="table-wrap"><table class="data stack">
       <caption>{plural(names.length, "group")}</caption>
       <thead><tr><th>Group</th>{personal ? null : <th>Owner</th>}<th>Maintainers</th><th>Members</th></tr></thead>
@@ -535,7 +535,7 @@ async function groupPage(ctx: Ctx): Promise<Response> {
   const protectedGroup = key === "@administrators";
   const used = usedBy(key, ls, groups);
   const body = <>
-    <PageHead back={{ href: rec?.personal ? "/groups?personal=1" : "/groups", label: "Back to Groups" }} icon={<Icon name="kind:group" />} title={<Name copy>{key}</Name>}
+    <PageHead back={{ href: isPersonal(rec) ? "/groups?tag=personal" : "/groups", label: "Back to Groups" }} icon={<Icon name="kind:group" />} title={<Name copy>{key}</Name>}
       sub={<div class="meta-row">
         {protectedGroup ? <Pill tone="accent"><Icon name="shield" />protected</Pill> : null}
         {rec ? <>
@@ -572,10 +572,10 @@ async function groupPage(ctx: Ctx): Promise<Response> {
       </div>
     </div>
   </>;
-  return respond(ctx, { title: `Group ${key}`, section: "groups", signedIn: true, you: st.you, personal: !!rec?.personal }, body);
+  return respond(ctx, { title: `Group ${key}`, section: "groups", signedIn: true, you: st.you, personal: !!isPersonal(rec) }, body);
 }
 
-const GROUP_KEEP = ["config", "name", "members", "new", "descr", "tags", "maintainers", "personal", "edit_sharing", "edit_personal"];
+const GROUP_KEEP = ["config", "name", "members", "new", "descr", "tags", "maintainers", "edit_sharing"];
 
 async function groupFormPage(ctx: Ctx, create: boolean, st: FormState = { values: {} }, status = 200): Promise<Response> {
   const [s, groups, ls] = await Promise.all([ctx.status(), ctx.groups(), ctx.ls()]);
@@ -595,7 +595,8 @@ async function groupFormPage(ctx: Ctx, create: boolean, st: FormState = { values
   const protectedGroup = name === "@administrators";
   const assign = create || (!protectedGroup && !!rec?.can_transfer);
   const v = (n: string, from: string) => st.values[n] ?? from;
-  const personal = st.values.personal != null || st.values.new != null ? st.values.personal === "on" : create ? ctx.q("personal") === "1" : !!rec?.personal;
+  const personal = st.values.tags != null ? normalizeTags(st.values.tags).includes("personal") : create ? ctx.q("tag") === "personal" : isPersonal(rec);
+  if (create && personal && st.values.tags == null) st.values.tags = "personal";
   const title = create ? "Register group" : `Edit ${name}`;
   const back = create ? "/groups" : `/group?name=${encodeURIComponent(name)}`;
   const body = <>
@@ -605,8 +606,7 @@ async function groupFormPage(ctx: Ctx, create: boolean, st: FormState = { values
       <input type="hidden" name="action" value="save" />
       {create ? <input type="hidden" name="new" value="1" /> : <input type="hidden" name="name" value={name} />}
       <div class="form-grid">
-        <TextField name="name" label="Name" besideLabel={create ? <PersonalField st={st} errId="group-error" checked={personal} canAssign={assign}
-          hint="Puts this group in its Owner's Personal view. Its members and Maintainers may name only its Owner and the Owner's own agents." /> : undefined} st={st} errId="group-error" required={create} disabled={!create} value={create ? st.values.name : name} placeholder={`@${s.you}/team or @operators`} wide
+        <TextField name="name" label="Name" st={st} errId="group-error" required={create} disabled={!create} value={create ? st.values.name : name} placeholder={`@${s.you}/team or @operators`} wide
           hint={create ? <>One name for the set. It cannot be changed afterwards. You become its Owner. A Personal group is named <code>@{s.you}/…</code>.{st.values.name === "@owner" ? " @owner is reserved for ACLs and cannot be a group." : ""}</> : undefined} />
         <TextField name="descr" label="Description" st={st} errId="group-error" value={v("descr", rec?.descr ?? "")} placeholder="What this group is for" wide
           disabled={!create && !rec} hint={!create && !rec ? "This group's record is not visible to you, so its description is left as it is." : "Shown beside the group's name."} />
@@ -623,7 +623,7 @@ async function groupFormPage(ctx: Ctx, create: boolean, st: FormState = { values
       <div class="actions"><Button tone="primary" icon="check">{create ? "Register group" : "Save group"}</Button><a class="btn btn-ghost" href={back}>Cancel</a></div>
     </div></form>
   </>;
-  return respond(ctx, { title, section: "groups", signedIn: true, you: s.you, personal: create ? ctx.q("personal") === "1" || st.values.personal === "on" : !!rec?.personal }, body, status);
+  return respond(ctx, { title, section: "groups", signedIn: true, you: s.you, personal: create ? personal : !!isPersonal(rec) }, body, status);
 }
 
 async function postGroups(ctx: Ctx): Promise<Response> {
@@ -632,7 +632,7 @@ async function postGroups(ctx: Ctx): Promise<Response> {
   const create = ctx.f("new") === "1";
   const name = ctx.f("name").trim();
   const members = terms(ctx.f("members")).sort();
-  const personal = ctx.f("personal") === "on";
+  const personal = normalizeTags(ctx.f("tags")).includes("personal");
   const values = keep(ctx.form, GROUP_KEEP);
   const back = (message: string, status: number, field = create ? "name" : "members", line?: number) =>
     groupFormPage(ctx, create, { values, error: { message, status, field, line } }, status);
@@ -664,7 +664,7 @@ async function postGroups(ctx: Ctx): Promise<Response> {
   let stored = name;
   if (create) {
     try {
-      await ctx.bus("POST", "/register", { body: { name, kind: "group", tags: normalizeTags(ctx.f("tags")), allow: members, descr: ctx.f("descr"), personal, maintainers: terms(ctx.f("maintainers")) }, headers: { "If-None-Match": "*" } });
+      await ctx.bus("POST", "/register", { body: { name, kind: "group", tags: normalizeTags(ctx.f("tags")), allow: members, descr: ctx.f("descr"), maintainers: terms(ctx.f("maintainers")) }, headers: { "If-None-Match": "*" } });
       stored = lc(name);
     } catch (e) { return refused(e); }
   } else if (exists && name !== "@administrators") {
@@ -672,14 +672,12 @@ async function postGroups(ctx: Ctx): Promise<Response> {
     if (ctx.form!.has("tags")) change.tags = normalizeTags(ctx.f("tags"));
     if (ctx.form!.has("descr")) change.descr = ctx.f("descr");
     if (ctx.form!.has("edit_sharing")) change.maintainers = terms(ctx.f("maintainers"));
-    if (ctx.form!.has("edit_personal")) change.personal = personal;
     try { await ctx.bus("POST", "/manage", { body: change }); } catch (e) { return refused(e); }
   } else {
-    try { const g = await ctx.bus<{ name?: string; Name?: string }>("POST", "/group", { body: { Name: name, Members: members } }); stored = g?.name ?? g?.Name ?? lc(name); }
+    try { const g = await ctx.bus<{ name?: string }>("POST", "/group", { body: { name, members } }); stored = g?.name ?? lc(name); }
     catch (e) { return refused(e); }
     const second: Record<string, unknown> = { name: stored };
     if (ctx.f("descr") && (create || name === "@administrators")) second.descr = ctx.f("descr");
-    if (create && personal) second.personal = true;
     if (Object.keys(second).length > 1) {
       try { await ctx.bus("POST", "/manage", { body: second }); }
       catch (e) {

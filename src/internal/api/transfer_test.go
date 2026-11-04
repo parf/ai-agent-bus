@@ -28,7 +28,7 @@ func transferServer(t *testing.T) (*Server, *auth.Tokens) {
 	if e := b.EstablishDaemonOwner("owner@h"); e != nil {
 		t.Fatal(e)
 	}
-	tokens, e := auth.Load(store.Tokens(), "owner@h")
+	tokens, e := auth.Load(store.Tokens())
 	if e != nil {
 		t.Fatal(e)
 	}

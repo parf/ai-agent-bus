@@ -2,7 +2,7 @@
 
 📌 **TL;DR:**
 - **Problem:** a shell script answers only you; letting others call it by name means writing message code.
-- **Outcome:** a six-line time service you start with one command and call by name, then the same service with settings, a key, help and state.
+- **Outcome:** a small time service you start with one command and call by name, then the same service with settings, a key, help and state.
 - **Start:** save the script below, run it, and call it from a second terminal ([Try this first](#try-this-first)).
 
 ## Why you'd want it
@@ -17,7 +17,7 @@
 - ✅ **Help without effects:** an ask such as help reaches the script as `AGENT_BUS_ASK`; the script answers it and does nothing else.
 - ✅ **The advanced form:** [settings and a key](#the-advanced-service) kept out of the script, a little state, and a status answer.
 - ✅ **Runs as the same service elsewhere:** the [runner](write-agent-runner.md) packages these two scripts unchanged; a [process of your own](write-agent-process.md) does the same work with a client library.
-- 🚫 **You keep it alive:** the command runs in your terminal; close it and the agent is gone.
+- 🚫 **You keep it alive:** the command runs in your terminal; a graceful stop removes an empty registration unless you use `--stay-registered`. A crash can leave the registration behind.
 
 ## Try this first
 
@@ -48,10 +48,10 @@ agent-bus run '#time-simple' "$PWD/time-simple.sh"
 
 <!-- run: cli-simple -->
 ```sh
-agent-bus call '#time-simple' iso | jq -r .body
+agent-bus call '#time-simple' iso
 ```
 
-- Ask what it does, and send a body that is not a format. The body is data: it is never echoed back and nothing in it runs:
+- The call prints the full JSON answer. For the following comparison, `jq -r .body` extracts only the help and refusal text. The script treats a body that is not a format as data and never executes it:
 
 <!-- run: cli-simple -->
 ```sh
@@ -68,9 +68,13 @@ unsupported format; ask help
 ## The advanced service
 
 - 🔑 **Settings and keys stay out of the script.** Configuration holds the format; the Secret holds a stamp key that the script uses and never prints.
-- 🗂️ **State lives in the work folder:** a report count and the last five times, which a restart keeps with `--stay-registered`.
+- 🗂️ **State lives in the work folder:** a report count and the last five times. Keep the registration with `--stay-registered` when restarting this example.
 - 📖 **It shapes its own help and status,** so help can name the history word.
+- The advanced script also requires `sha256sum` on `PATH`.
 - Save [time-advanced.sh](../../src/clients/examples/agent-guide/packages/time-advanced/time-advanced.sh) the same way; its working part is below. Run it kept registered:
+
+<details>
+<summary>Advanced script source</summary>
 
 <!-- quote: src/clients/examples/agent-guide/packages/time-advanced/time-advanced.sh advanced -->
 ```sh
@@ -97,12 +101,14 @@ echo $(( $(cat "$AGENT_BUS_WORK/reports" 2>/dev/null || echo 0) + 1 )) >"$AGENT_
 echo "$now stamp=$stamp"
 ```
 
+</details>
+
 <!-- run: cli-advanced ready=#time-advanced -->
 ```sh
 agent-bus run '#time-advanced' "$PWD/time-advanced.sh" --stay-registered
 ```
 
-- Set the format and the key; the script reads both at its next message:
+- `format` chooses `iso` (default) or `epoch`; `TIME_STAMP_KEY` supplies the demonstration stamp key. Set them for the next message. The key below is a disposable example, not a real credential:
 
 <!-- run: cli-advanced -->
 ```sh
@@ -123,17 +129,22 @@ agent-bus call '#time-advanced' --status | jq -r .body
 reports: 0; format: epoch
 ```
 
-- Ask for the time. The word `now` means the configured format, and the stamp proves the key was used without showing it:
+- Ask for the configured time. The short hash demonstrates use of the example key; it is not a signature or a suitable authentication scheme:
 
 <!-- run: cli-advanced -->
 ```sh
-agent-bus call '#time-advanced' now | jq -r .body
+agent-bus call '#time-advanced' now
 ```
 
-## Technical details
+## Limits of the example
+
+- Keep the advanced shell script at one worker. Its counter update and history write are separate file operations, not a transaction; parallel runs or a crash can lose or split updates.
+- Its `sed` expression recognizes the compact `format` string used here, not arbitrary JSON. Use a JSON parser when extending Configuration.
+- The stamp uses a short hash of a key and public time. Use disposable demonstration values only; use an established authentication construction for a real signature.
+
+## Further reading
 
 - 📜 **Script rules:** how the CLI hands over the message, the ask and the work folder: [script agents](../06-dedicated-runner.md#script-agents).
 - 🔐 **A per-message script holds no bus credential;** only a [process that serves itself](write-agent-process.md) does ([what runs as what](../runner/security.md#what-runs-as-what)).
 - 🧩 **Settings and Secret:** the split and where each lives: [Configuration](../03-records-agent.md#configuring-a-template).
-- ✅ **What the shard checks:** `src/acceptance/agent-guide/guide.sh` runs these exact files and the commands above; a quoted block that drifts from its source fails there.
-- 🧭 **The checklist these examples follow:** [what a good agent does](../10-writing-an-agent.md).
+- 🧭 **Before using an agent in production:** [what a good agent does](../10-writing-an-agent.md).

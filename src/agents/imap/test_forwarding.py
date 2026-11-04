@@ -7,7 +7,7 @@ from unittest.mock import Mock
 
 import test_imap  # noqa: F401  (sets the import path)
 from agent_bus.errors import Refusal, TransportError
-from forwarding import BLOCK, Forwarder, JOURNAL, PROGRESS, SCAN, shared
+from forwarding import BLOCK, Forwarder, PROGRESS, shared
 import wire
 
 SELF = '#imap/account@t'
@@ -75,8 +75,6 @@ class Source:
     def snapshot(self):
         self.snapshots += 1
         return self.identity, self.validity, self.uidnext
-    def legacy(self):
-        return {'identity': self.identity, 'validity': self.validity, 'cursor': 0, 'retry': None}
     def close(self):
         self.closed += 1
     def search(self, start, end):
@@ -343,193 +341,26 @@ class EngineTests(unittest.TestCase):
         self.assertFalse((Path(__file__).resolve().parent / 'subscriptions.py').exists())
 
 
-def ledger(entries=None, skips=None, sent=4, discarded=1):
-    """A pre-B.29 ledger in the shape its validator accepted."""
-    if entries is None:
-        entries = {'95': {'state': 'pending', 'bytes': 10, 'attempts': 0, 'due': 0, 'reason': None},
-                   '96': {'state': 'retrying', 'bytes': 10, 'attempts': 1, 'due': 5, 'reason': None},
-                   '97': {'state': 'skipped', 'bytes': 0, 'attempts': 0, 'due': 0, 'reason': 'unmatched'}}
-    if skips is None:
-        skips = {'fetch': {'count': 2, 'first': 91, 'last': 92}}
-    counted = sum(counter['count'] for counter in skips.values())
-    return {'version': 1, 'identity': 'account', 'validity': 7, 'start': 90, 'floor': 90, 'pause': None,
-            'entries': entries, 'intake': None, 'intake_cleared': 0, 'last_reset_pause': None, 'sent': sent,
-            'skipped': counted, 'skipped_first': min((c['first'] for c in skips.values()), default=None),
-            'skipped_last': max((c['last'] for c in skips.values()), default=None), 'skips': skips,
-            'discarded': discarded, 'resets': 0}
+class UnsupportedStateTests(unittest.TestCase):
+    def test_unsupported_state_is_unchanged_and_never_delivered(self):
+        values = [
+            {'sub.aabbccdd': {'id': 'aabbccdd', 'ledger': {}}},
+            {'sub.aabbccdd0000': {'id': 'aabbccdd0000', 'ledger': {}}},
+            {'imap.migrate.aabbccdd': {'to': 'sub.aabbccdd0000'}},
+            {'imap.discovery': {'uid': 95}},
+            {PROGRESS: {'identity': 'account', 'validity': 7, 'cursor': 0}},
+        ]
+        for data in values:
+            with self.subTest(data=data), tempfile.TemporaryDirectory() as work:
+                bus, source = Bus(), Source()
+                bus.kv.data = copy.deepcopy(data)
+                with self.assertRaises(ValueError):
+                    Forwarder(bus, SELF, work, source, Clock(), Clock(), deliver(bus))
+                self.assertEqual(bus.kv.data, data)
+                self.assertEqual(bus.kv.writes, [])
+                self.assertEqual(bus.kv.deletes, [])
+                self.assertEqual(bus.sent, [])
+                self.assertEqual(source.snapshots, 0)
 
 
-class MigrationTests(unittest.TestCase):
-    """Rows of before B.29 move once onto the shared shape; nothing is sent twice."""
-    def setUp(self):
-        root = Path(__file__).resolve().parents[2] / 'tmp'
-        root.mkdir(exist_ok=True)
-        self.temp = tempfile.TemporaryDirectory(prefix='imap-migrate-', dir=root)
-        self.addCleanup(self.temp.cleanup)
-        self.clock, self.source, self.bus = Clock(), Source(), Bus()
-
-    def legacy(self, sub_id, **change):
-        value = {'id': sub_id, 'target': '#target@t', 'created_by': '#author@t',
-                 'created_at': '2026-10-29T12:00:00.250000+00:00', 'filter': '/invoice/i', 'ledger': ledger()}
-        value.update(change)
-        self.bus.kv.data['sub.' + sub_id] = value
-
-    def start(self):
-        worker = Forwarder(self.bus, SELF, self.temp.name, self.source, self.clock, self.clock,
-                           send_one=deliver(self.bus))
-        self.addCleanup(worker.close)
-        return worker
-
-    def test_a_legacy_row_keeps_target_author_filter_start_and_counts(self):
-        self.legacy('aabbccdd')
-        self.bus.kv.data[SCAN] = {'uid': 95}
-        self.start()
-        self.assertNotIn('sub.aabbccdd', self.bus.kv.data)
-        self.assertNotIn(SCAN, self.bus.kv.data)
-        self.assertEqual(self.bus.kv.data['sub.aabbccdd0000'], {
-            'id': 'aabbccdd0000', 'target': '#target@t', 'selector': {'validity': 7, 'from_uid': 90},
-            'filter': '/invoice/i', 'created_by': '#author@t', 'created_at': '2026-10-29T12:00:00.250Z',
-            'sent': 4, 'dropped': 5})   # one discarded, two counted skips, two held copies; unmatched is no loss
-
-    def test_compacted_skips_count_as_dropped_and_unmatched_mail_does_not(self):
-        self.legacy('aabbccdd', ledger=ledger(entries={}, skips={'fetch': {'count': 1, 'first': 95, 'last': 95}}, discarded=0))
-        unmatched = {'96': {'state': 'skipped', 'bytes': 0, 'attempts': 0, 'due': 0, 'reason': 'unmatched'}}
-        self.legacy('11223344', ledger=ledger(entries=unmatched, skips={}, discarded=0))
-        self.start()
-        self.assertIn('sub.aabbccdd0000', self.bus.kv.data)
-        self.assertIn('sub.112233440000', self.bus.kv.data)
-        self.assertEqual(self.bus.kv.data['sub.aabbccdd0000']['dropped'], 1)
-        self.assertEqual(self.bus.kv.data['sub.112233440000']['dropped'], 0)
-
-    def test_a_ledger_the_old_validator_refused_stays_raw_and_inert(self):
-        def broken(change):
-            value = ledger()
-            change(value)
-            return value
-        cases = {
-            'negative bytes': broken(lambda v: v['entries']['95'].update(bytes=-1)),
-            'unknown entry state': broken(lambda v: v['entries']['95'].update(state='lost')),
-            'pending with an attempt': broken(lambda v: v['entries']['95'].update(attempts=1)),
-            'retrying without a due time': broken(lambda v: v['entries']['96'].update(due=0)),
-            'negative sent': broken(lambda v: v.update(sent=-1)),
-            'negative discarded': broken(lambda v: v.update(discarded=-1)),
-            'floor below start': broken(lambda v: v.update(floor=1)),
-            'skipped range without skips': broken(lambda v: v.update(skips={}, skipped=0)),
-        }
-        owner = SimpleNamespace(envelope={'from': '#boss@t', 'roles': ['owner'], 'original_to': SELF})
-        for name, value in cases.items():
-            with self.subTest(name):
-                self.setUp()
-                self.legacy('aabbccdd', ledger=value)
-                worker = self.start()
-                self.assertIn('sub.aabbccdd0000', self.bus.kv.data)
-                self.assertIn('ledger', self.bus.kv.data['sub.aabbccdd0000'])   # kept raw, not converted
-                self.assertIn('aabbccdd0000 invalid subscription state', worker.text(owner))
-                self.source.arrive(100)
-                worker.tick()
-                self.assertEqual(self.bus.sent, [])
-                worker.close()
-
-    def test_a_ledger_whose_skip_totals_disagree_is_kept_as_invalid_state(self):
-        broken = ledger()
-        broken['skipped'] += 1
-        self.legacy('aabbccdd', ledger=broken)
-        self.start()
-        self.assertIn('sub.aabbccdd0000', self.bus.kv.data)
-        self.assertIn('ledger', self.bus.kv.data['sub.aabbccdd0000'])   # kept raw, not converted
-        self.assertEqual(self.bus.kv.data['sub.aabbccdd0000']['ledger'], broken)
-
-    def test_a_stop_between_the_add_and_the_delete_serves_the_subscription_once(self):
-        self.legacy('aabbccdd')
-        self.bus.kv.data[PROGRESS] = {'version': 1, 'identity': 'account', 'validity': 7, 'cursor': 0, 'retry': None,
-                                      'baseline': 90, 'observe': 100, 'history': 89, 'history_ceiling': 89}
-        delete = self.bus.kv.delete
-        def killed(key, *, kind):
-            if key == 'sub.aabbccdd':
-                raise Stop()
-            return delete(key, kind=kind)
-        self.bus.kv.delete = killed
-        with self.assertRaises(Stop):
-            self.start().close()
-        self.assertIn('sub.aabbccdd', self.bus.kv.data)        # both rows are stored now
-        self.assertIn('sub.aabbccdd0000', self.bus.kv.data)
-        self.assertEqual(self.bus.kv.data[JOURNAL + 'aabbccdd'], {'to': 'sub.aabbccdd0000'})
-        self.bus.kv.delete = delete
-        worker = self.start()
-        self.assertEqual(sorted(k for k in self.bus.kv.data if k.startswith('sub.')), ['sub.aabbccdd0000'])
-        self.assertNotIn(JOURNAL + 'aabbccdd', self.bus.kv.data)
-        self.source.arrive(100)
-        worker.tick()
-        self.assertEqual([(target, options['tag']) for target, _, options in self.bus.sent], [('#target@t', 'aabbccdd0000')])
-        self.assertEqual(self.bus.kv.data['sub.aabbccdd0000']['sent'], 5)
-        author = SimpleNamespace(envelope={'from': '#author@t', 'roles': [], 'original_to': SELF})
-        self.assertEqual(worker.text(author).count('#target@t by=#author@t'), 1)
-
-    def test_a_taken_new_id_moves_the_row_to_the_next_free_suffix(self):
-        self.legacy('aabbccdd')
-        other = {'id': 'aabbccdd0000', 'target': '#other@t', 'selector': {'validity': 7, 'from_uid': 100}, 'filter': '',
-                 'created_by': '#other@t', 'created_at': '2026-10-30T00:00:00.000Z', 'sent': 0, 'dropped': 0}
-        self.bus.kv.data['sub.aabbccdd0000'] = copy.deepcopy(other)
-        self.start().close()
-        self.assertEqual(self.bus.kv.data['sub.aabbccdd0000'], other)
-        self.assertIn('sub.aabbccdd0001', self.bus.kv.data)
-        self.assertEqual(self.bus.kv.data['sub.aabbccdd0001']['created_by'], '#author@t')
-        self.assertNotIn('sub.aabbccdd', self.bus.kv.data)
-
-    def test_an_identical_row_already_at_the_new_id_is_not_taken_for_the_moved_one(self):
-        self.legacy('aabbccdd')
-        twin = {'id': 'aabbccdd0000', 'target': '#target@t', 'selector': {'validity': 7, 'from_uid': 90},
-                'filter': '/invoice/i', 'created_by': '#author@t', 'created_at': '2026-10-29T12:00:00.250Z',
-                'sent': 4, 'dropped': 5}
-        self.bus.kv.data['sub.aabbccdd0000'] = copy.deepcopy(twin)
-        self.start()
-        self.assertEqual(sorted(k for k in self.bus.kv.data if k.startswith('sub.')), ['sub.aabbccdd0000', 'sub.aabbccdd0001'])
-        self.assertEqual(self.bus.kv.data['sub.aabbccdd0000'], twin)
-
-    def test_a_stop_before_the_create_finishes_into_the_journalled_id(self):
-        self.legacy('aabbccdd')
-        set_ = self.bus.kv.set
-        def killed(key, value, *, kind, mode):
-            if key == 'sub.aabbccdd0000':
-                raise Stop()
-            return set_(key, value, kind=kind, mode=mode)
-        self.bus.kv.set = killed
-        with self.assertRaises(Stop):
-            self.start().close()
-        self.assertEqual(self.bus.kv.data[JOURNAL + 'aabbccdd'], {'to': 'sub.aabbccdd0000'})
-        self.bus.kv.set = set_
-        self.start()
-        self.assertEqual(sorted(k for k in self.bus.kv.data if k.startswith('sub.')), ['sub.aabbccdd0000'])
-        self.assertNotIn(JOURNAL + 'aabbccdd', self.bus.kv.data)
-
-    def test_a_journal_left_after_the_old_row_went_is_removed(self):
-        self.bus.kv.data[JOURNAL + 'aabbccdd'] = {'to': 'sub.aabbccdd0000'}
-        self.start()
-        self.assertNotIn(JOURNAL + 'aabbccdd', self.bus.kv.data)
-
-    def test_a_damaged_legacy_row_is_kept_for_the_managers_to_delete(self):
-        self.legacy('aabbccdd', ledger='broken')
-        worker = self.start()
-        self.assertEqual(self.bus.kv.data['sub.aabbccdd0000']['ledger'], 'broken')
-        author = SimpleNamespace(envelope={'from': '#author@t', 'roles': [], 'original_to': SELF})
-        owner = SimpleNamespace(envelope={'from': '#boss@t', 'roles': ['owner'], 'original_to': SELF})
-        self.assertNotIn('aabbccdd0000', worker.text(author))
-        self.assertIn('aabbccdd0000 invalid subscription state', worker.text(owner))
-        with self.assertRaises(shared.SubscriptionError):
-            worker.delete(author, 'aabbccdd0000')
-        worker.delete(owner, 'aabbccdd0000')
-        self.assertNotIn('sub.aabbccdd0000', self.bus.kv.data)
-
-    def test_a_migrated_row_receives_new_mail_once(self):
-        self.legacy('aabbccdd')
-        self.bus.kv.data[PROGRESS] = {'version': 1, 'identity': 'account', 'validity': 7, 'cursor': 0, 'retry': None,
-                                      'baseline': 90, 'observe': 100, 'history': 89, 'history_ceiling': 89}
-        worker = self.start()
-        self.source.arrive(100)
-        worker.tick()
-        self.assertEqual([options['tag'] for _, _, options in self.bus.sent], ['aabbccdd0000'])
-        self.assertEqual(self.bus.kv.data['sub.aabbccdd0000']['sent'], 5)
-
-
-if __name__ == '__main__':
-    unittest.main()
+if __name__ == '__main__': unittest.main()

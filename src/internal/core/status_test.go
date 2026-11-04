@@ -177,10 +177,7 @@ func TestARestoredInactiveRecordStaysInactive(t *testing.T) {
 	rep := &reports{}
 	c := New()
 	c.Journal(rep)
-	c.Restore(withUsers(ports.Snapshot{Clean: true, Records: []protocol.Record{
+	assertRestoreRefused(t, c, withUsers(ports.Snapshot{Clean: true, Records: []protocol.Record{
 		{Name: "odd@h", Kind: protocol.KindQueue, Owner: "owner@h", Status: "paused", Full: protocol.OverflowStrict},
 	}}, "owner@h"))
-	if !rep.has("stored record odd@h is ignored") {
-		t.Errorf("a record with an unknown status was loaded: %v", rep.lines)
-	}
 }

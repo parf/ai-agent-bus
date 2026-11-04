@@ -26,14 +26,26 @@ keep=5
 owner=$(stat -c %U "$src")
 as_owner() { sudo -u "$owner" -- "$@"; }
 
+validate_release() { # current build layout only, before changing any installed link
+    for p in "${progs[@]}" "${scripts[@]}" agent-bus-ts; do
+        [ -f "$1/$p" ] && [ -x "$1/$p" ] || { echo "unsupported release layout: missing executable $p" >&2; return 1; }
+    done
+    for p in "${launchers[@]}"; do
+        [ -f "$1/launchers/$p" ] && [ -x "$1/launchers/$p" ] || { echo "unsupported release layout: missing launcher $p" >&2; return 1; }
+    done
+    for p in agent-bus-web mcp/server.js launchers/launcher.js; do
+        [ ! -e "$1/$p" ] && [ ! -L "$1/$p" ] || { echo "unsupported release layout: obsolete $p" >&2; return 1; }
+    done
+    [ -f "$1/internal/version/VERSION" ] && [ -f "$1/web/agent-bus-web.service" ] || { echo "unsupported release layout: incomplete metadata" >&2; return 1; }
+}
+
 switch() { # release-dir
+    validate_release "$1"
     # Relative, as a packaged install writes it: agent-bus-setup refuses an
     # absolute current link.
     ln -sfn "releases/$(basename "$1")" "$root/current.new"
     mv -T "$root/current.new" "$root/current"
     for p in "${progs[@]}" "${scripts[@]}"; do ln -sfn "$root/current/$p" "$bindir/$p"; done
-    # The Go dashboard is gone since 0.8.50; its link would dangle.
-    [ -L "$bindir/agent-bus-web" ] && rm -f "$bindir/agent-bus-web"
     for p in "${launchers[@]}"; do ln -sfn "$root/current/launchers/$p" "$bindir/$p"; done
     if command -v restorecon >/dev/null && [ "$(getenforce 2>/dev/null)" != Disabled ]; then
         restorecon -RF "$root" >/dev/null

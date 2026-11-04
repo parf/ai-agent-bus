@@ -21,3 +21,10 @@ test("viewed agent status is bounded, escaped, and absent when unsupported or of
   for(const [word,tone] of [["degraded","warn"],["failed","bad"],["starting","neutral"],["stopping","neutral"],["unknown","muted"]])
     expect(render(StatusAnswer({body:`${word}: detail`}))).toContain(`tone-${tone}`);
 });
+
+test("a retired reading flag never triggers an agent status call", async () => {
+  let calls=0;
+  const ctx={q:()=>"#fixture",lookup:async()=>({name:"#fixture",kind:"agent",reading:true,readers:0}),call:async()=>{calls++;return {kind:"answer",body:"ok"};}} as unknown as Ctx;
+  expect(await (await agentStatus(ctx)).text()).toBe("");
+  expect(calls).toBe(0);
+});

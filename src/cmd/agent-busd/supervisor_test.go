@@ -6,9 +6,12 @@ import (
 	"os/user"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
+	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/ports"
+	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/store/sqlite"
 )
 
@@ -33,7 +36,7 @@ func TestSupervisorUsesEstablishedAccountMapInsteadOfSetupFlags(t *testing.T) {
 	if err := seed.Set(other.Username + "=seed@h"); err != nil {
 		t.Fatal(err)
 	}
-	c := config{db: path, create: true, users: seed}
+	c := config{db: path, create: true, owner: "seed@h", users: seed}
 	got, err := supervisorAccounts(c)
 	if err != nil || got.mapping()[other.Username] != "seed@h" {
 		t.Fatalf("first-run setup seed: %v, %v", got.mapping(), err)
@@ -47,6 +50,29 @@ func TestSupervisorUsesEstablishedAccountMapInsteadOfSetupFlags(t *testing.T) {
 	got, err = supervisorAccounts(c)
 	if err != nil || len(got.list()) != 0 {
 		t.Fatalf("intentionally empty map resurrected setup flags: %v, %v", got.mapping(), err)
+	}
+}
+
+func TestSupervisorRejectsUnknownSeedWithoutEstablishingState(t *testing.T) {
+	if _, err := user.Lookup("nobody"); err != nil {
+		t.Skip("no second local account")
+	}
+	var seed accounts
+	if err := seed.Set("nobody=unknown@h"); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "bus.db")
+	if _, err := supervisorAccounts(config{db: path, create: true, owner: "owner@h", users: seed}); err == nil {
+		t.Fatal("unknown initial account mapping accepted")
+	}
+	st, err := sqlite.Open(path, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	snapshot, err := st.Load()
+	if err != nil || !snapshot.Empty() {
+		t.Fatalf("failed seed changed state: %+v, %v", snapshot, err)
 	}
 }
 
@@ -78,6 +104,23 @@ func storeAccounts(t *testing.T, path string, accounts map[string]string) {
 		t.Fatal(err)
 	}
 	defer st.Close()
+	b := core.New()
+	saved, err := st.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := b.Restore(saved); err != nil {
+		t.Fatal(err)
+	}
+	b.Persistence(st)
+	if err := b.EstablishDaemonOwner("owner@h"); err != nil {
+		t.Fatal(err)
+	}
+	for _, principal := range accounts {
+		if _, err := b.SetUser("owner@h", protocol.User{Name: principal}, true); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if err := st.Commit(ports.Change{Accounts: accounts}); err != nil {
 		t.Fatal(err)
 	}
@@ -120,4 +163,16 @@ func exeForTest(t *testing.T) (string, error) {
 	t.Helper()
 	path := t.TempDir() + "/agent-bus-web"
 	return path, os.WriteFile(path, []byte("#!/bin/true\n"), 0o755)
+}
+
+func TestSupervisorStartupRefusalWritesLocalAlert(t *testing.T) {
+	dir := t.TempDir()
+	reportStartupFailure(config{logDir: dir}, "local accounts: invalid snapshot")
+	data, err := os.ReadFile(filepath.Join(dir, "error.log"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), ` alert "the daemon cannot start: local accounts: invalid snapshot"`) {
+		t.Fatalf("startup alert absent: %s", data)
+	}
 }

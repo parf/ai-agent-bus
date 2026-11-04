@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/store/memory"
 )
@@ -92,7 +91,11 @@ func TestIDIndexIsRebuiltOnLoad(t *testing.T) {
 func TestIDExhaustionRefusesRatherThanWraps(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
-	b.Restore(ports.Snapshot{NextRecordID: ^uint32(0)})
+	s := b.Snapshot()
+	s.NextRecordID = ^uint32(0)
+	if err := b.Restore(s); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#late@h", Owner: "admin@h"}); !errors.Is(err, ErrExhausted) {
 		t.Fatalf("got %v", err)
 	}

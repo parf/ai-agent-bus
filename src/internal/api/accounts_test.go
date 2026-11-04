@@ -69,8 +69,8 @@ func TestAccountMapUsesExistingAdministrationAndHostValidation(t *testing.T) {
 	if len(validated) != 2 { // new-os and the deliberately missing set; removal performs no lookup
 		t.Fatalf("removal unexpectedly required the retired OS account: %v", validated)
 	}
-	if w := call("owner@h", http.MethodPost, "/account", `{"account":"x","principal":"mapped@h","unexpected":true}`); w.Code != http.StatusOK {
-		t.Fatalf("account endpoint refused an unknown field: %d %s", w.Code, w.Body.String())
+	if w := call("owner@h", http.MethodPost, "/account", `{"account":"x","principal":"mapped@h","unexpected":true}`); w.Code != http.StatusBadRequest {
+		t.Fatalf("account endpoint accepted an unknown field: %d %s", w.Code, w.Body.String())
 	}
 	if w := call("admin@h", http.MethodGet, "/accounts", ""); w.Code != http.StatusOK {
 		t.Fatalf("Administrator list: %d %s", w.Code, w.Body.String())

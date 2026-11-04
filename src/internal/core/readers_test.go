@@ -40,22 +40,18 @@ func TestReadersCountsEveryOutstandingReadAndRemovesEndedWaits(t *testing.T) {
 		return done
 	}
 
-	if got := live(); got.Readers == nil || *got.Readers != 0 || got.Reading {
+	if got := live(); got.Readers == nil || *got.Readers != 0 {
 		t.Fatalf("idle inbox: %+v", got)
 	}
 	filteredCtx, stopFiltered := context.WithCancel(context.Background())
 	defer stopFiltered()
 	filteredDone := run(filteredCtx, "wanted", true, false)
-	if got := wait(1); got.Reading {
-		t.Fatal("a filtered-only wait set the legacy unfiltered-reading bit")
-	}
+	wait(1)
 
 	firstCtx, stopFirst := context.WithCancel(context.Background())
 	defer stopFirst()
 	firstDone := run(firstCtx, "", false, true)
-	if got := wait(2); !got.Reading {
-		t.Fatal("an unfiltered wait did not set the compatibility bit")
-	}
+	wait(2)
 	secondCtx, stopSecond := context.WithCancel(context.Background())
 	defer stopSecond()
 	secondDone := run(secondCtx, "", false, true)
@@ -78,9 +74,7 @@ func TestReadersCountsEveryOutstandingReadAndRemovesEndedWaits(t *testing.T) {
 	if err := <-secondDone; !errors.Is(err, context.Canceled) {
 		t.Fatalf("second canceled read: %v", err)
 	}
-	if got := wait(0); got.Reading {
-		t.Fatal("the last ended wait left the compatibility bit set")
-	}
+	wait(0)
 
 	timeoutCtx, stopTimeout := context.WithTimeout(context.Background(), 30*time.Millisecond)
 	defer stopTimeout()
@@ -95,9 +89,9 @@ func TestReadersCountsEveryOutstandingReadAndRemovesEndedWaits(t *testing.T) {
 func TestReadersIsNeverRestoredOrPersisted(t *testing.T) {
 	b := New()
 	b.Restore(withUsers(ports.Snapshot{Clean: true, Records: []protocol.Record{{Kind: protocol.KindAgent,
-		Name: "#svc@h", Owner: "owner@h", Readers: ptr(99), Reading: true, Full: protocol.OverflowStrict,
+		Name: "#svc@h", Owner: "owner@h", Readers: ptr(99), Full: protocol.OverflowStrict,
 	}}}, "owner@h"))
-	if got, ok := b.Lookup("#svc@h", "#svc@h"); !ok || got.Readers == nil || *got.Readers != 0 || got.Reading {
+	if got, ok := b.Lookup("#svc@h", "#svc@h"); !ok || got.Readers == nil || *got.Readers != 0 {
 		t.Fatalf("restored live state: ok=%v record=%+v", ok, got)
 	}
 	raw, err := json.Marshal(b.Snapshot())

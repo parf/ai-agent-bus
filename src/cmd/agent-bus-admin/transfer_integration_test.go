@@ -29,12 +29,14 @@ func transferNode(t *testing.T, path string, create bool) (*core.Bus, *auth.Toke
 		t.Fatal(e)
 	}
 	b := core.New()
-	b.Restore(snapshot)
-	b.Persistence(store)
-	if e = b.EstablishDaemonOwner("owner@fixture"); e != nil {
+	if e = b.Restore(snapshot); e != nil {
 		t.Fatal(e)
 	}
-	tokens, e := auth.Load(store.Tokens(), "owner@fixture")
+	b.Persistence(store)
+	if e = b.EstablishDaemon("owner@fixture", nil); e != nil {
+		t.Fatal(e)
+	}
+	tokens, e := auth.Load(store.Tokens())
 	if e != nil {
 		t.Fatal(e)
 	}

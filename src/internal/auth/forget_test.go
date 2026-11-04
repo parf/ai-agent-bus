@@ -49,7 +49,7 @@ func has(creds []ports.Credential, name string) bool {
 // See docs/02-access.md#token-lifetime.
 func TestForgetKeepsEverythingWhenTheWriteFails(t *testing.T) {
 	store := &brittle{Tokens: memory.NewTokens()}
-	tok, err := Load(store, "owner@h")
+	tok, err := testTokens(store, "owner@h")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +100,7 @@ func TestForgetKeepsEverythingWhenTheWriteFails(t *testing.T) {
 // to IdleLife. See docs/01-identity-and-authority.md#unregistering.
 func TestForgetTakesBothGenerationsAndTheSessions(t *testing.T) {
 	store := &brittle{Tokens: memory.NewTokens()}
-	tok, err := Load(store, "owner@h")
+	tok, err := testTokens(store, "owner@h")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +137,7 @@ func TestForgetTakesBothGenerationsAndTheSessions(t *testing.T) {
 // Absent is success, and success has to mean nothing answers to the name.
 func TestForgetEndsSessionsWithNoTokenToForget(t *testing.T) {
 	store := &brittle{Tokens: memory.NewTokens()}
-	tok, err := Load(store, "owner@h")
+	tok, err := testTokens(store, "owner@h")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -174,7 +174,7 @@ func TestForgetEndsSessionsWithNoTokenToForget(t *testing.T) {
 // it leaves nothing behind matters more, not less.
 func TestMintHandsOutNothingItCouldNotWrite(t *testing.T) {
 	store := &brittle{Tokens: memory.NewTokens()}
-	tok, err := Load(store, "owner@h")
+	tok, err := testTokens(store, "owner@h")
 	if err != nil {
 		t.Fatal(err)
 	}

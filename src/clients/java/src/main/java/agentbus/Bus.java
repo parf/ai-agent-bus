@@ -7,7 +7,6 @@ import agentbus.Options.Connect;
 import agentbus.Options.Consume;
 import agentbus.Options.Send;
 
-import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;
@@ -66,12 +65,6 @@ public final class Bus implements AutoCloseable {
         return b;
     }
 
-    /**
-     * What the client warned about at its first call, such as "daemon too old: protocol is older than this client". A
-     * daemon older than the client still serves; a client older than the daemon's protocol_min is
-     * refused with {@link BusException.DaemonTooNewException}.
-     */
-    public List<String> warnings() { return t.warnings(); }
 
     /** Who the credential is, as the daemon answers it. */
     public String name() { return who(t.timeout()); }
@@ -339,16 +332,7 @@ public final class Bus implements AutoCloseable {
             Path p = Path.of(dir, !hasToken && !account.isEmpty() ? "user-" + account + ".sock" : "bus.sock");
             if (Files.exists(p) && !Files.isRegularFile(p) && !Files.isDirectory(p)) return p.toString();
         }
-        if (xdg != null && !xdg.isEmpty()) return xdg + "/agent-bus/bus.sock";
-        return System.getProperty("java.io.tmpdir") + File.separator + "agent-bus-" + uid() + ".sock";
-    }
-
-    private static String uid() {
-        try {
-            return String.valueOf(Files.getAttribute(Path.of(System.getProperty("user.home")), "unix:uid"));
-        } catch (Exception e) {
-            return "0";
-        }
+        return "/run/agent-bus/" + (!hasToken && !account.isEmpty() ? "user-" + account + ".sock" : "bus.sock");
     }
 
     /** Put in a call's queue when its wait failed; the failure is the call's. */

@@ -115,7 +115,6 @@ func setup() (err error) {
 	dry := fs.Bool("dry-run", false, "say what would be done and change nothing")
 	upgrade := fs.Bool("upgrade", false, "upgrade an existing packaged installation, preserving configuration and state")
 	recover := fs.Bool("recover", false, "roll back an interrupted packaged upgrade")
-	reinstall := fs.Bool("reinstall", false, "stop the daemon, set its whole state and TLS aside, and install fresh")
 	samples := fs.Bool("samples", false, "add sample users, agents, services, queues, pubsub channels and groups (Star Wars and Spaceballs) to the running node")
 	removeSamplesF := fs.Bool("remove-samples", false, "take the sample data away again: unregister its records, empty its groups, deactivate its users")
 	runnerV := fs.String("runner", "", "a person's runner: `install`, uninstall, enable or disable (docs/07-setup.md#a-persons-runner)")
@@ -128,12 +127,17 @@ func setup() (err error) {
 	// Asked for help, it answers on stdout and succeeds, as every agent-bus
 	// program does; the flag package would say it on stderr and exit 2. It
 	// answers only once every flag is defined, so the list names them all.
-	if len(os.Args) == 2 && (os.Args[1] == "-h" || os.Args[1] == "-help" || os.Args[1] == "--help") {
+	if len(os.Args) == 2 && os.Args[1] == "--help" {
 		fs.SetOutput(os.Stdout)
 		fs.Usage()
 		os.Exit(0)
 	}
-	fs.Parse(os.Args[1:])
+	if err := display.ParseFlags(fs, os.Args[1:]); err != nil {
+		return err
+	}
+	if fs.NArg() != 0 {
+		return fmt.Errorf("unexpected positional arguments: %v", fs.Args())
+	}
 	if runtime.GOOS == "darwin" {
 		return darwinSetup(fs, darwinInstall, *owner, *addr, *exe, *keyF, *printUnit, *dry, tlsC)
 	}
@@ -176,9 +180,6 @@ func setup() (err error) {
 	if tlsC.mode != "" && (*upgrade || *recover) {
 		return fmt.Errorf("--tls is set by setup; --upgrade keeps the node's TLS as it is")
 	}
-	if *reinstall && (*upgrade || *recover) {
-		return fmt.Errorf("--reinstall cannot be combined with --upgrade or --recover")
-	}
 	if *upgrade || *recover {
 		if *upgrade && *recover {
 			return fmt.Errorf("choose one of --upgrade or --recover")
@@ -219,7 +220,6 @@ func setup() (err error) {
 		users = append(list{who + "=" + me.String()}, users...)
 	}
 	explicitExe := *exe != ""
-	var selectRelease func() error
 	if !explicitExe {
 		self, err := os.Executable()
 		if err != nil {
@@ -227,26 +227,7 @@ func setup() (err error) {
 		}
 		if *printUnit || *dry || os.Geteuid() != 0 {
 			*exe = filepath.Join(filepath.Dir(self), "agent-busd")
-		} else if *reinstall {
-			bundle, err := checkBundle(filepath.Dir(self))
-			if err != nil {
-				return err
-			}
-			// A reinstall replaces whichever release is installed, so the
-			// "already installed" refusal is not asked. The release is staged
-			// and verified now but selected only once the old daemon has
-			// stopped and its state is set aside.
-			if _, err := stageBundle(bundle); err != nil {
-				return fmt.Errorf("install package: %w", err)
-			}
-			*exe = filepath.Join(installRoot, "current", "agent-busd")
-			selectRelease = func() error {
-				if err := installCommandLinks(); err != nil {
-					return err
-				}
-				_, err := selectBundle(bundle.releaseID)
-				return err
-			}
+
 		} else {
 			bundle, err := checkBundle(filepath.Dir(self))
 			if err != nil {
@@ -283,12 +264,7 @@ func setup() (err error) {
 	if *keyF == "" {
 		*keyF = installerKey()
 	}
-	aside := fmt.Sprintf("%s.before-0.7-%s-%d", svcHome, time.Now().Format("20060102-150405.000000"), os.Getpid())
 	steps := []string{}
-	if *reinstall {
-		steps = append(steps, "stop agent-busd; a node that will not stop, or a daemon holding its home outside systemd, is not reinstalled",
-			fmt.Sprintf("set aside everything in %s, the unit's drop-ins, and a copy of its TLS, in the root-only %s; nothing there is read again unless a later step fails, which puts it all back", svcHome, aside))
-	}
 	steps = append(steps,
 		fmt.Sprintf("create the system account %s with home %s", svcAccount, svcHome),
 	)
@@ -326,36 +302,13 @@ func setup() (err error) {
 			"Use --dry-run to see the steps, or --print-unit for the unit alone",
 			steps[0], unitPath, sudoLine(), svcAccount)
 	}
-	// What the node was before this run: a reinstall that fails midway puts it
-	// back, and setup over a running node restarts it only when that is what
-	// applies the change.
+	// A current-format setup restarts a running node only when its inputs change.
 	priorUnit, unitErr := os.ReadFile(unitPath)
 	if unitErr != nil && !errors.Is(unitErr, os.ErrNotExist) {
 		return unitErr
 	}
 	hadUnit := unitErr == nil
-	priorRelease, releaseErr := priorReleaseForRollback()
-	if releaseErr != nil {
-		return releaseErr
-	}
-	if *reinstall {
-		// Not `:=` on err: the rollback below reads setup's own result.
-		wasActive, asideErr := setAside(aside, tlsC.dir)
-		if asideErr != nil {
-			return asideErr
-		}
-		defer func() {
-			if err != nil {
-				err = rollbackReinstall(aside, tlsC.dir, priorUnit, hadUnit, priorRelease, wasActive, err)
-			}
-		}()
-	}
 	active := exec.Command("systemctl", "is-active", "--quiet", "agent-busd").Run() == nil
-	if selectRelease != nil {
-		if err := selectRelease(); err != nil {
-			return fmt.Errorf("install package: %w", err)
-		}
-	}
 	// sshd executes even a forced command through the account's shell. The
 	// daemon account therefore needs sh; restrict,command= on every issued key
 	// supplies the SSH boundary. The runner has no SSH entry point.
@@ -364,12 +317,6 @@ func setup() (err error) {
 		{svcAccount, svcHome, "/bin/sh"},
 	} {
 		if _, err := user.Lookup(a.name); err == nil {
-			if a.name == svcAccount {
-				// Repair installations created with the old nologin shell too.
-				if err := repairSSHShell(a.name, a.shell); err != nil {
-					return err
-				}
-			}
 			continue
 		}
 		if err := run("useradd", "--system", "--home-dir", a.home, "--create-home",
@@ -414,7 +361,7 @@ func setup() (err error) {
 	// never creates one, so a database lost later refuses the start rather
 	// than silently becoming an empty node (Plans/done/R0.8-MVP/0.7-cutover.md#procedure).
 	// An existing database is the node's state: setup over a running node,
-	// an identical reinstall included, uses it rather than initializing it
+	// including an identical rerun, uses it rather than initializing it
 	// again, which the daemon's exclusive lock would refuse anyway.
 	if _, err := os.Stat(dbPath); errors.Is(err, os.ErrNotExist) {
 		if err := run("runuser", "-u", svcAccount, "--", *exe, "--owner", me.String(), "--db", dbPath, "--init"); err != nil {
@@ -516,225 +463,6 @@ func portOf(addr string) string {
 	return addr
 }
 
-// setAside is the reinstall's first half (Plans/done/R0.8-MVP/0.7-cutover.md#procedure):
-// the daemon is stopped, and everything it kept — the database or the 0.6
-// dump, the credentials, authorized keys — and every drop-in that would
-// override the new unit moves into one root-only directory beside its home.
-// Nothing there is read again. A daemon that will not stop, or one still
-// holding its home outside systemd, is not reinstalled, and an existing
-// set-aside directory is never overwritten. It reports whether the unit was
-// running, so a failure later puts the node back as it was.
-func setAside(aside, tlsDir string) (bool, error) {
-	// A host that never had the unit has nothing to stop: that is the fresh
-	// case, not a daemon that refuses to stop.
-	wasActive := exec.Command("systemctl", "is-active", "--quiet", "agent-busd").Run() == nil
-	load, _ := exec.Command("systemctl", "show", "-p", "LoadState", "--value", "agent-busd").Output()
-	if strings.TrimSpace(string(load)) != "not-found" {
-		if err := run("systemctl", "stop", "agent-busd"); err != nil {
-			return false, fmt.Errorf("agent-busd will not stop, so it is not reinstalled: %w", err)
-		}
-	}
-	if out, _ := exec.Command("systemctl", "is-active", "agent-busd").Output(); strings.TrimSpace(string(out)) == "active" {
-		return false, fmt.Errorf("agent-busd is still active, so it is not reinstalled")
-	}
-	// A daemon started by hand holds the database outside the unit, and
-	// moving the file from under it would leave two nodes.
-	pids, err := holders(svcHome)
-	if err == nil && len(pids) != 0 {
-		err = fmt.Errorf("process %s still holds %s outside systemd, so it is not reinstalled; stop it and run setup again",
-			strings.Join(pids, ", "), svcHome)
-	}
-	if err == nil {
-		err = moveAside(aside, svcHome, unitPath+".d", tlsDir)
-	}
-	if err != nil {
-		if wasActive {
-			if startErr := startDaemon(); startErr != nil {
-				return false, fmt.Errorf("%w; restarting agent-busd also failed: %v", err, startErr)
-			}
-		}
-		return false, err
-	}
-	fmt.Printf("set aside the old daemon state in %s\n", aside)
-	return wasActive, nil
-}
-
-// moveAside is setAside's file half: home's entries go to aside/home and the
-// drop-ins to aside/agent-busd.service.d, inside a new directory only root
-// can open. TLS is copied there too, retaining its ownership and modes.
-func moveAside(aside, home, dropins, tlsDir string) error {
-	if err := os.Mkdir(aside, 0o700); err != nil {
-		return fmt.Errorf("set aside: %w", err)
-	}
-	// Mkdir honours the umask; the mode is the design, so it is set.
-	if err := os.Chmod(aside, 0o700); err != nil {
-		return fmt.Errorf("set aside: %w", err)
-	}
-	// TLS may be on another filesystem. Copy it before any state moves;
-	// keep the original available when the reinstall does not change TLS.
-	if tlsDir != "" {
-		if info, err := os.Lstat(tlsDir); err == nil {
-			if !info.IsDir() {
-				return fmt.Errorf("set aside TLS: %s is not a real directory", tlsDir)
-			}
-			if err := copyTreeAtomic(tlsDir, filepath.Join(aside, "tls")); err != nil {
-				return fmt.Errorf("set aside TLS: %w", err)
-			}
-		} else if !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("set aside TLS: %w", err)
-		}
-	}
-	if err := moveEntries(home, filepath.Join(aside, "home")); err != nil {
-		return fmt.Errorf("set aside %s: %w", home, err)
-	}
-	if err := moveEntries(dropins, filepath.Join(aside, "agent-busd.service.d")); err != nil {
-		return fmt.Errorf("set aside the unit's drop-ins: %w", err)
-	}
-	return nil
-}
-
-// moveEntries moves every entry of from into into, creating into 0700 only
-// when there is something to move.
-func moveEntries(from, into string) error {
-	entries, err := os.ReadDir(from)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	if len(entries) == 0 {
-		return nil
-	}
-	if err := os.MkdirAll(into, 0o700); err != nil {
-		return err
-	}
-	for _, e := range entries {
-		if err := os.Rename(filepath.Join(from, e.Name()), filepath.Join(into, e.Name())); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// restoreAside undoes moveAside. What the failed install left in home is
-// kept, root-only, in aside/failed-reinstall rather than deleted; aside is
-// removed when nothing remains in it.
-func restoreAside(aside, home, dropins, tlsDir string) error {
-	if err := moveEntries(home, filepath.Join(aside, "failed-reinstall")); err != nil {
-		return err
-	}
-	if err := moveEntries(filepath.Join(aside, "home"), home); err != nil {
-		return err
-	}
-	if err := moveEntries(filepath.Join(aside, "agent-busd.service.d"), dropins); err != nil {
-		return err
-	}
-	if tlsDir != "" {
-		backup := filepath.Join(aside, "tls")
-		if _, err := os.Stat(backup); err == nil {
-			if _, targetErr := os.Lstat(tlsDir); errors.Is(targetErr, os.ErrNotExist) {
-				err = copyTreeAtomic(backup, tlsDir)
-			} else if targetErr != nil {
-				return targetErr
-			} else {
-				err = restoreTreeAtomic(backup, tlsDir)
-			}
-			if err != nil {
-				return fmt.Errorf("restore TLS: %w", err)
-			}
-			if err := os.RemoveAll(backup); err != nil {
-				return err
-			}
-		} else if !errors.Is(err, os.ErrNotExist) {
-			return err
-		} else if _, err := os.Lstat(tlsDir); err == nil {
-			// No TLS existed before this reinstall; retain its failed new
-			// files root-only beside the failed database, then restore absence.
-			if err := copyTreeAtomic(tlsDir, filepath.Join(aside, "failed-tls")); err != nil {
-				return err
-			}
-			if err := os.RemoveAll(tlsDir); err != nil {
-				return err
-			}
-		} else if !errors.Is(err, os.ErrNotExist) {
-			return err
-		}
-	}
-	_ = os.Remove(filepath.Join(aside, "home"))
-	_ = os.Remove(filepath.Join(aside, "agent-busd.service.d"))
-	_ = os.Remove(aside)
-	return nil
-}
-
-// rollbackReinstall is a reinstall that failed after its state was set
-// aside: the old home, drop-ins, TLS, unit and release come back, and a node that
-// was running is started again rather than left stopped.
-func rollbackReinstall(aside, tlsDir string, priorUnit []byte, hadUnit bool, priorRelease string, wasActive bool, cause error) error {
-	_ = run("systemctl", "stop", "agent-busd")
-	var failed []string
-	if err := restoreAside(aside, svcHome, unitPath+".d", tlsDir); err != nil {
-		failed = append(failed, "state: "+err.Error())
-	}
-	if hadUnit {
-		if err := os.WriteFile(unitPath, priorUnit, 0o644); err != nil {
-			failed = append(failed, "unit: "+err.Error())
-		}
-	} else if err := os.Remove(unitPath); err != nil && !errors.Is(err, os.ErrNotExist) {
-		failed = append(failed, "unit: "+err.Error())
-	}
-	if priorRelease != "" {
-		if _, err := selectBundle(priorRelease); err != nil {
-			failed = append(failed, "release: "+err.Error())
-		}
-	}
-	if err := run("systemctl", "daemon-reload"); err != nil {
-		failed = append(failed, err.Error())
-	}
-	if wasActive && len(failed) == 0 {
-		if err := startDaemon(); err != nil {
-			failed = append(failed, err.Error())
-		}
-	}
-	if len(failed) != 0 {
-		return fmt.Errorf("%v; rollback failed (%s); the old state is in %s", cause, strings.Join(failed, "; "), aside)
-	}
-	state := "left stopped, as it was"
-	if wasActive {
-		state = "started again"
-	}
-	return fmt.Errorf("%v; rolled back: the old state, TLS, unit and drop-ins are restored and agent-busd is %s", cause, state)
-}
-
-// holders are the processes with a file under dir open.
-func holders(dir string) ([]string, error) {
-	procs, err := os.ReadDir("/proc")
-	if err != nil {
-		return nil, err
-	}
-	prefix := filepath.Clean(dir) + "/"
-	var pids []string
-	for _, p := range procs {
-		if p.Name()[0] < '0' || p.Name()[0] > '9' {
-			continue
-		}
-		fdDir := filepath.Join("/proc", p.Name(), "fd")
-		fds, err := os.ReadDir(fdDir)
-		if err != nil {
-			continue // gone, or not ours to read
-		}
-		for _, fd := range fds {
-			if target, err := os.Readlink(filepath.Join(fdDir, fd.Name())); err == nil && strings.HasPrefix(target, prefix) {
-				pids = append(pids, p.Name())
-				break
-			}
-		}
-	}
-	return pids, nil
-}
-
-// serving is one short look at whether the running daemon is already the
-// installed release and build.
 func serving(addr, version, build string) bool {
 	_, err := waitNodeIdentity(addr, version, build, time.Second)
 	return err == nil
@@ -827,22 +555,6 @@ func waitForSocket(path string, timeout time.Duration) error {
 		time.Sleep(50 * time.Millisecond)
 	}
 	return fmt.Errorf("daemon account socket did not become ready: %s", path)
-}
-
-// Do not overwrite an operator's custom shell when repairing the old default.
-func repairSSHShell(name, shell string) error {
-	entry, err := exec.Command("getent", "passwd", name).Output()
-	if err != nil {
-		return fmt.Errorf("read %s account shell: %w", name, err)
-	}
-	fields := strings.Split(strings.TrimSpace(string(entry)), ":")
-	if len(fields) != 7 || fields[0] != name {
-		return fmt.Errorf("invalid passwd entry for %s", name)
-	}
-	if fields[6] == "/usr/sbin/nologin" || fields[6] == "/sbin/nologin" {
-		return run("usermod", "--shell", shell, name)
-	}
-	return nil
 }
 
 // installerKey is the public half the person running this already has. A

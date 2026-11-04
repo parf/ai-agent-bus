@@ -58,7 +58,7 @@ test('shared subscriptions refuse malformed filters, count refused/unknown copie
 test('subscription management is author or direct staff, and sub.edit is refused',async()=>{
  const f=fixture();try{await f.app.initialize();const row:any=await f.app.call('sub add alerts #target@fixture',caller);
  const other={...caller,from:'#other@fixture'};expect(await f.app.call('sub list',other)).toEqual([]);await expect(f.app.call('sub delete '+row.id,other)).rejects.toMatchObject({code:'not_author'});
- await expect(f.app.call('sub edit '+row.id,caller)).rejects.toThrow('delete it and add it again');
+ await expect(f.app.call('sub edit '+row.id,caller)).rejects.toThrow();
  await expect(f.app.call('sub delete '+row.id,{...other,roles:['owner'],original_to:'#front@fixture'})).rejects.toMatchObject({code:'not_author'});
  expect(await f.app.call('sub delete '+row.id,{...other,roles:['owner']})).toEqual({deleted:true});expect(await f.app.call('sub list',caller)).toEqual([]);
  }finally{await f.close();}

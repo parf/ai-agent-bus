@@ -1,8 +1,8 @@
 # Logwatch implementation
 
-The [user guide](../../../../docs/agents/logwatch.md) owns setup, calls,
-Configuration and access. This directory implements B.3; it does not replace
-or stop the existing rd-tail-log service.
+📌 **TL;DR:** Logwatch follows files and the journal and forwards matching arrivals.
+See the [user guide](../../../../docs/agents/logwatch.md) for setup, calls,
+Configuration and access.
 
 ## Design
 
@@ -11,22 +11,12 @@ The shared starter's `--serves-itself` mode supplies only its own agent token
 and name. Configuration is read at startup. The ring and marks are in memory;
 subscription definitions and sent/dropped counts are in the agent's JSON KV.
 `src/agents/shared/subscriptions.py` owns filtering, authority, management,
-storage and once-only delivery. Each matched arrival gets its own copy; no
-repeat folding, pause, retry or local subscription implementation remains.
+storage and once-only delivery. Each matched arrival gets its own copy, without
+repeat folding, pause or retry.
 
-At startup the adapter maps legacy definitions into shared rows, preserves
-creators and valid durable counts, and removes obsolete pause/disabled fields.
-A definition without a creation time gets its migration time. Legacy bare
-literal filters are escaped into case-insensitive shared patterns; unsupported
-filters remain visible and inert. Malformed rows remain for direct managers to
-repair. Non-12-hex IDs map to deterministic, collision-checked 12-hex IDs.
-A checkpoint in the source's KV outside `sub.*` records the reserved ID and
-exact old/new values; unreserved existing rows are collisions even with matching content.
-The new row commits and is confirmed before the old key is deleted. Startup
-finishes interrupted moves before serving or forwarding, so a kill between the
-writes cannot serve two copies or lose the subscription. Re-loading shared
-rows does not rewrite them or replay history. `sub edit` is refused with
-"delete it and add it again"; the manifest declares only add/list/delete.
+Startup accepts only current shared subscription keys and row fields. Unsupported
+state stops startup without rewriting or deleting any entry. The manifest declares
+only add/list/delete; unknown methods refuse without mutation.
 
 `watcher.py` follows regular files, detects truncation/rotation, and discovers
 new files on a bounded interval. It follows one journalctl JSON stream with
@@ -37,15 +27,12 @@ History grep keeps its isolated regex worker. Subscription matching and sends
 use the shared bounded helpers and inherited TLS pin. Forwarding has a bounded
 queue and does not block file collection on a destination.
 
-## Provenance
+## Log input
 
-`cleaning.py` preserves the regex and `clean_line` algorithm from
-`/rd/service/tail-ring-buffer/server`: OSC, CSI, two-byte escapes, literal
-`#033`, SGR fragments and Unicode control runs. Default file selection, last-ten
-startup history, new-file EOF behavior and exclusions come from
-`/rd/var/tail-all` and its `exclude.conf`. Syslog selects the host's existing
-`/var/log/messages` or `/var/log/syslog` file. This port does not copy the
-legacy HTTP server or its service installation.
+`cleaning.py` removes OSC, CSI, two-byte escapes, literal `#033`, SGR fragments
+and Unicode control runs. The default source is `syslog`, selecting the host's
+existing `/var/log/messages` or `/var/log/syslog` file. Configure file patterns
+and exclusions explicitly. The installer creates its own unit.
 
 ## Verification
 

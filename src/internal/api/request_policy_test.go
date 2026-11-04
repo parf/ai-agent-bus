@@ -13,7 +13,7 @@ import (
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
-func TestRequestJSONIgnoresUnknownButRefusesDuplicateKnownFields(t *testing.T) {
+func TestRequestJSONRefusesUnknownAndDuplicateFields(t *testing.T) {
 	type child struct {
 		Name string `json:"name"`
 	}
@@ -29,13 +29,13 @@ func TestRequestJSONIgnoresUnknownButRefusesDuplicateKnownFields(t *testing.T) {
 		body string
 		ok   bool
 	}{
-		{`{"name":"first","future":{"name":1,"name":2},"future":false}`, true},
+		{`{"name":"first","future":{"name":1,"name":2},"future":false}`, false},
 		{`{"name":"first","name":"second"}`, false},
 		{`{"name":"first","Name":"second"}`, false},
 		{`{"name":1}`, false},
-		{`{"children":[{"name":"a","future":1}]}`, true},
+		{`{"children":[{"name":"a","future":1}]}`, false},
 		{`{"children":[{"name":"a","name":"b"}]}`, false},
-		{`{"payload":{"name":1,"name":2},"bytes":"YWJj","at":"2026-01-01T00:00:00Z","custom":"@ops"}`, true},
+		{`{"payload":{"name":1,"name":2},"bytes":"YWJj","at":"2026-01-01T00:00:00Z","custom":["@ops"]}`, true},
 		{`{"name":"a"} {"name":"b"}`, false},
 	} {
 		var out input
@@ -69,9 +69,11 @@ func TestEveryRequestBodyReaderUsesTheSameFieldPolicy(t *testing.T) {
 		t.Run(reader.name, func(t *testing.T) {
 			for _, body := range []string{`{"name":"a","future":true}`, `{"name":"a","name":"b"}`, `{"name":3}`} {
 				w := httptest.NewRecorder()
-				var out struct{ Name string }
+				var out struct {
+					Name string `json:"name"`
+				}
 				ok := reader.read(w, strings.NewReader(body), &out)
-				want := strings.Contains(body, "future")
+				want := false
 				if ok != want {
 					t.Fatalf("%s: accepted=%v, response=%d %s", body, ok, w.Code, w.Body.String())
 				}
@@ -83,7 +85,7 @@ func TestEveryRequestBodyReaderUsesTheSameFieldPolicy(t *testing.T) {
 	}
 }
 
-func TestEveryQuerySchemaIgnoresUnknownAndRefusesDuplicateKnownKeys(t *testing.T) {
+func TestEveryQuerySchemaRefusesUnknownAndDuplicateKeys(t *testing.T) {
 	for route, fields := range queryFields {
 		method, path, _ := strings.Cut(route, " ")
 		for _, key := range strings.Fields(fields) {
@@ -93,8 +95,8 @@ func TestEveryQuerySchemaIgnoresUnknownAndRefusesDuplicateKnownKeys(t *testing.T
 			}
 		}
 		r := httptest.NewRequest(method, path+"?future=one&future=two", nil)
-		if err := requestQuery(r); err != nil {
-			t.Errorf("%s rejected unknown keys: %v", path, err)
+		if err := requestQuery(r); err == nil {
+			t.Errorf("%s accepted unknown keys", path)
 		}
 	}
 }
@@ -107,13 +109,13 @@ func TestHTTPQueryPolicyAndRemovedRecipientField(t *testing.T) {
 		code               int
 		kind               string
 	}{
-		{"GET", "/identity?future=1&future=2", "", 200, ""},
-		{"GET", "/ls?future=1&future=2", "", 200, ""},
+		{"GET", "/identity?future=1&future=2", "", 400, "malformed"},
+		{"GET", "/ls?future=1&future=2", "", 400, "malformed"},
 		{"GET", "/ls?kind=agent&kind=queue", "", 400, "malformed"},
 		{"GET", "/lookup?name=a@h&name=b@h", "", 400, "malformed"},
-		{"GET", "/may-send?name=missing@h&from=forged@h", "", 404, "not_found"},
+		{"GET", "/may-send?name=missing@h&from=forged@h", "", 400, "malformed"},
 		{"GET", "/may-send?name=missing@h&name=other@h", "", 400, "malformed"},
-		{"POST", "/register", `{"name":"#wire@h","kind":"agent","future":true}`, 200, ""},
+		{"POST", "/register", `{"name":"#wire@h","kind":"agent","future":true}`, 400, "malformed"},
 		{"POST", "/register", `{"name":"#one@h","name":"#two@h","kind":"agent"}`, 400, "malformed"},
 	} {
 		r := httptest.NewRequest(tc.method, tc.path, strings.NewReader(tc.body))
@@ -150,7 +152,7 @@ func TestRecordImportUsesTheSharedRequestFieldPolicy(t *testing.T) {
 		body string
 		code int
 	}{
-		{`{"data":{"format":1,"future":true},"choices":{"dry_run":true},"future":1}`, 200},
+		{`{"data":{"format":1,"future":true},"choices":{"dry_run":true},"future":1}`, 400},
 		{`{"data":{"format":1,"format":2},"choices":{"dry_run":true}}`, 400},
 		{`{"data":{"format":1},"choices":{"dry_run":true,"dry_run":false}}`, 400},
 	} {
@@ -209,7 +211,9 @@ func TestRequestJSONPreservesTheBodyDeadlineAfterOneDocument(t *testing.T) {
 	s, _ := serverFor(t, core.New(), "owner@h")
 	r := httptest.NewRequest("POST", "/register", io.MultiReader(strings.NewReader(`{"name":"a"}`), timedOutBody{}))
 	w := httptest.NewRecorder()
-	var out struct{ Name string }
+	var out struct {
+		Name string `json:"name"`
+	}
 	if s.read(w, r, &out) || w.Code != 408 {
 		t.Fatalf("body deadline after JSON document: %d %s", w.Code, w.Body.String())
 	}

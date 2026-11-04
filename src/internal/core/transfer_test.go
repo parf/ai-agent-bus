@@ -23,7 +23,7 @@ func transferBus(t *testing.T, owner string) (*Bus, *auth.Tokens, *memory.State)
 	if e := b.EstablishDaemonOwner(owner); e != nil {
 		t.Fatal(e)
 	}
-	tokens, e := auth.Load(s.Tokens(), owner)
+	tokens, e := auth.Load(s.Tokens())
 	if e != nil {
 		t.Fatal(e)
 	}

@@ -7,7 +7,7 @@ import time
 from agent_bus.errors import Refusal, BusError
 import folders
 import progress
-from forwarding import Forwarder, PROGRESS, SCAN, BLOCK, selected
+from forwarding import Forwarder, PROGRESS, BLOCK, selected
 from publication import MAX_OUTPUT
 
 REGISTRY = 'imap.folder.'
@@ -20,35 +20,12 @@ def remember(bus, name, folder, identity):
     bus.record(name).kv.set(key, {'folder': folder, 'identity': identity}, kind='json', mode='set')
 
 
-def recover(bus, name, connection, cfg, user):
-    """Name pre-step-5 synced folders from a read-only LIST, never re-sync."""
-    kv = bus.record(name).kv
-    names = [row.get('name', '') for row in kv.list().get('json', []) if isinstance(row, dict)]
-    pending = {key[len(PROGRESS) + 1:] for key in names if key.startswith(PROGRESS + '.')}
-    if not pending: return
-    for key in names:
-        if key.startswith(REGISTRY):
-            try: entry = kv.get(key, kind='json')
-            except Refusal as error:
-                if error.status == 404: continue
-                raise
-            if isinstance(entry, dict) and isinstance(entry.get('identity'), str):
-                pending.discard(entry['identity'])
-    if not pending: return
-    for row in folders.listing(connection):
-        if not row['selectable']: continue
-        folder = cfg['mailbox'] if folders.same(row['name'], cfg['mailbox']) else row['name']
-        if folder.casefold() == 'inbox' and not folders.same(folder, cfg['mailbox']): folder = 'INBOX'
-        identity = hashlib.sha256(json.dumps([cfg['host'], cfg['port'], user, folder], ensure_ascii=False).encode()).hexdigest()
-        if identity in pending: remember(bus, name, folder, identity)
-
-
 class FolderKV:
     def __init__(self, kv):
         self.kv, self.suffix = kv, ''
 
     def key(self, key):
-        return key + self.suffix if key in (PROGRESS, SCAN, BLOCK) else key
+        return key + self.suffix if key in (PROGRESS, BLOCK) else key
 
     def get(self, key, **options): return self.kv.get(self.key(key), **options)
     def set(self, key, value, **options): return self.kv.set(self.key(key), value, **options)
@@ -130,7 +107,6 @@ class FolderForwarder(Forwarder):
         # same per-folder key as manual sync before any progress read/write.
         self.slots[self.active]['identity'] = snapshot[0]
         self.kv.suffix = '' if self.active == self.default_folder else '.' + snapshot[0]
-        recover(self.bus, self.name, self.source.connection, self.source.settings(), self.source.environment.get('IMAP_USERNAME', ''))
         return super().current_progress(snapshot, **options)
 
     def add(self, message, target, filter_text='', folder=None):
@@ -161,7 +137,7 @@ class FolderForwarder(Forwarder):
                         for entry in self.registered():
                             if folders.same(entry['folder'], self.active):
                                 self.kv.suffix = '' if self.active == self.default_folder else '.' + entry['identity']
-                    for key in (PROGRESS, SCAN, BLOCK): self.kv.delete(key, kind='json')
+                    for key in (PROGRESS, BLOCK): self.kv.delete(key, kind='json')
                     self.source.close()
                 self.next_run = 0
         return True

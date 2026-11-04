@@ -18,17 +18,13 @@ class ProgressTests(unittest.TestCase):
         with self.assertRaises(ProgressError):
             eligible(value, 99, 100)
 
-    def test_old_state_preserves_retry_and_cursor_without_reinterpreting_delivery(self):
+    def test_noncanonical_progress_is_refused_without_adoption(self):
         old = {'identity': 'account', 'validity': 7, 'cursor': 8, 'retry': {'uid': 9, 'count': 3}}
-        value, reset = load(old, 'account', 7, 100)
-        self.assertFalse(reset)
-        self.assertEqual((value['cursor'], value['retry']), (8, {'uid': 9, 'count': 3}))
-        self.assertEqual(value['observe'], 100)
-        self.assertEqual(value['history'], 99)
-        value['retry']['count'] = 1
-        self.assertEqual(old['retry']['count'], 3)
-        no_retry = {key: val for key, val in old.items() if key != 'retry'}
-        self.assertIsNone(load(no_retry, 'account', 7, 100)[0]['retry'])
+        for value in (old, {k:v for k,v in old.items() if k != 'retry'}):
+            before = copy.deepcopy(value)
+            with self.assertRaisesRegex(ProgressError, 'unsupported mailbox progress state'):
+                load(value, 'account', 7, 100)
+            self.assertEqual(value, before)
 
     def test_restart_retains_observation_frontier_even_when_mail_arrives(self):
         value, _ = load(None, 'account', 7, 100)

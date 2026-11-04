@@ -25,9 +25,18 @@ import { cards, descriptor, read } from "./resources.ts";
 import descriptions from "./tools.yaml";
 import general from "./instructions.yaml";
 
-if (process.argv.length === 3 && ["--version", "-version"].includes(process.argv[2]!)) {
+if (process.argv.length === 3 && process.argv[2] === "--version") {
   console.log(versionOutput());
   process.exit(0);
+}
+
+if (process.argv.length === 3 && process.argv[2] === "--help") {
+  console.log("Usage: agent-bus-mcp [--help | --version]\nConfigure the MCP face through its environment.");
+  process.exit(0);
+}
+if (process.argv.length > 2) {
+  console.error("agent-bus-mcp: unsupported arguments; use --help or --version alone");
+  process.exit(2);
 }
 
 // The launcher's private environment file keeps session credentials out of
@@ -527,18 +536,7 @@ const callTool = async (req: { params: { name: string; arguments?: Record<string
   }
 };
 
-// A daemon older than this face is told to the model once, where it reads: the first tool result after the
-// version check found it. stderr already has the warning, which the model never sees.
-const tooOldNote = "[agent-bus MCP face, not part of any message] the bus daemon is older than this tool's protocol; some calls may be refused as 'daemon too old for ...'.";
-let toldTooOld = false;
-server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
-  const result = await callTool(req, extra);
-  if (bus.daemonOld && !toldTooOld) {
-    toldTooOld = true;
-    return { ...result, content: [...result.content, { type: "text" as const, text: tooOldNote }] };
-  }
-  return result;
-});
+server.setRequestHandler(CallToolRequestSchema, callTool);
 
 // The low-level Server does not enforce the schema it advertises, so a
 // missing required argument would otherwise become an empty body on the wire.
@@ -587,11 +585,10 @@ function sessionTitle(): string | undefined {
 
 // The same derivation the launcher uses for a session address
 // (docs/01-identity-and-authority.md#names), so a rename here and a restart there agree on
-// the name. The separator is whatever this session already registered with.
+// the canonical automatic name.
 function derive(title: string): string {
   return defaultName(
     { ...process.env, AGENT_BUS_RUNTIME: process.env.AGENT_BUS_RUNTIME ?? "agent", AGENT_BUS_CWD: title },
-    bus.name.includes("/") ? "/" : ".",
   );
 }
 

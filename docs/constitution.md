@@ -1,296 +1,8 @@
 # Project Constitution
 
-📌 **TL;DR:** The model every face and the daemon implement: Users own
-everything, names say their kind, one write-through SQLite store, and an
-inactive or incorrect entity is no such entity. **MUST**, **MUST NOT**,
-**SHOULD** and **MAY** are normative. Built; the remaining gaps are the
-[constitution conformance](../Plans/done/R0.8-MVP/TODO.md#constitution-conformance) rows.
+📌 **TL;DR:** Users own records; credentials identify Users or their Agents; access and management are separate. This reference defines validation, delivery, persistence and privacy guarantees. **MUST**, **MUST NOT**, **SHOULD** and **MAY** are normative.
 
-Each section states its essentials first; the full rules are in the closed
-blocks below them, and are just as normative.
-
-## Persistence and loading
-
-One write-through SQLite store: a write validates, commits as one transaction,
-then publishes, so no reader sees an uncommitted or partial change. Startup
-loads every durable entity. It reports and ignores an incorrect record; it
-never repairs a record. The specific field drops below keep an otherwise valid
-record loaded. Queue contents are flushed in batches, so a crash MAY lose the
-last minute of traffic.
-
-Other [backends](../Plans/R1.1/storage.md#backends) are R1.1 work and MUST keep
-these rules behind the existing storage ports.
-
-<details>
-<summary>Write rules</summary>
-
-| Rule | Requirement |
-|---|---|
-| Durable | entities, credentials, queue contents, per-queue counters, activity days ([durability](04-messaging.md#durability)) |
-| A management write | validates, commits the complete change as one transaction, then publishes |
-| Publication | no reader ever observes a write before its commit: a write stages its entities under the one registry lock every reader also takes, and a failed commit restores every one of them before the lock is released |
-| Atomicity | invalid input fails the whole write; no partial update is ever visible |
-| Startup | load every durable entity, then build derived indexes such as token to principal and user ID to status. An incorrect record is ignored — not loaded, not repaired — and reported as a [conceptual error](#errors-and-alerts), and the rest of the node still starts, except for what [refuses the start](#what-refuses-the-start) |
-| List fields | the API MUST provide atomic add, add-if-absent and remove for `allow`, `maintainers` and `deliver_to` |
-
-That ordering is write-through. It covers record lifecycle changes too.
-
-</details>
-
-<details>
-<summary>Queue checkpoint</summary>
-
-Queue contents and their `in`, `out`, `dropped` and `expired` counters keep the
-[checkpoint boundary](04-messaging.md#durability): in memory during traffic, flushed as one batch every minute and on graceful shutdown, never once
-per message, so a crash MAY lose changes since the last flush.
-A durable queue whose record is absent or cannot hold a queue is such an
-incorrect record: startup MUST ignore and report it, and MUST NOT silently drop
-or reattach that backlog.
-
-</details>
-
-<details>
-<summary>What refuses the start</summary>
-
-#### What refuses the start
-
-Some stored rows break the store's shape or the node's authority, and a node
-that started past them would serve a wrong answer. Startup MUST refuse on them
-rather than ignore them (Q122):
-
-| Stored | Refuses because |
-|---|---|
-| a record body that does not decode | the store's shape is broken; nothing about it is known to ignore |
-| message rows whose queue is absent | a backlog with no record to hold it |
-| an internal ID out of range | IDs are the store's shape |
-| a damaged `@administrators` | it carries the node's administrative authority |
-| an account mapping to a missing OS account | a socket would be served to nobody, or to whoever takes the name |
-
-Everything else incorrect is ignored and reported.
-
-</details>
-
-<details>
-<summary>What startup ignores</summary>
-
-Startup also ignores and reports what no write of this version allows, and
-keeps an ignored record's credential for the operator who repairs it:
-
-| Stored | Ignored because |
-|---|---|
-| a record or User | it shares an internal ID with one earlier by name order; SQLite's schema already forbids it, so only another store can hold one |
-| a record | its stored owner `user_id` is not the `user_id` of the User now holding its owner's name: that User vanished and the name was given again |
-| a Group | a nested member names no stored Group, so its grant would pass to whoever created the name |
-| a local account mapping | its principal is no User or Agent; its socket is [not served](02-access.md#local-socket) |
-
-</details>
-
-<details>
-<summary>What startup drops</summary>
-
-#### What startup drops
-
-These fields are dropped and reported; the rest of the record is still
-validated normally. A later write of that record persists the drop.
-
-| Stored | Dropped at startup |
-|---|---|
-| `ttl`, `bound` or `overflow` on a 📣 | these inbox settings have no meaning on a pubsub channel (Q123) |
-| `addr` or `protocol` on a record other than a Service | endpoints belong only to Services |
-| A tag outside the [tag grammar](03-records.md#tags) | only the bad tag, retaining its record and valid tags (RD113) |
-| Configuration over the [compact-JSON size limit](03-records-agent.md#configuring-a-template) | Configuration and its digest, keeping the record, grants and queue (A5) |
-
-</details>
-
-<details>
-<summary>Identity changes</summary>
-
-Identity changes MUST invalidate stale credentials and grants in durable state
-and memory together:
-
-| Change | Requirement |
-|---|---|
-| Ownership transfer | update and commit the owned record, publish the new view, rewrite no unrelated record |
-| Removing an Agent or record | drop every stored ACL, Maintainer, Group-member and Deliver-To reference to that name in the same transaction |
-| Reusing a name | inherit no authority and no delivery from the former holder |
-| Users | never removed |
-
-</details>
-
-<details>
-<summary>Lock, publication failure, driver and reload</summary>
-
-One active daemon SHOULD use a database, and it MUST take whatever exclusive
-lock the storage engine offers before serving, so a competing instance cannot
-start. Detecting a lock lost afterwards is not required.
-
-Publication has no failure of its own: a write stages in memory under the
-registry lock, and a failed commit restores what it staged and refuses that
-write alone. Should a later design let a committed change fail to publish, the
-daemon MUST then refuse every read and write with a stated reason rather than
-answer from its cached view.
-
-The SQLite driver is `modernc.org/sqlite`.
-
-SIGINT and SIGTERM stop the daemon cleanly and remove its sockets. SIGHUP is
-not handled: it ends the supervisor and leaves its sockets, while the bus child
-still flushes and stops. Daemon reload is [R1.1 work](../Plans/R1.1/operations.md#reload).
-
-</details>
-
-## Logs
-
-Three logs under `/var/log/agent-bus/`: an on-demand `debug.log` of requests,
-an `audit.log` of administrative actions and entity edits, and an `error.log`
-of what needs attention, copied to syslog.
-
-The syslog copies below apply only with the daemon’s `--syslog` flag, which
-installed systemd units pass explicitly. Standalone and development
-processes keep diagnostics in their own log directory and stderr only.
-Normal and fast tests write nothing to the host journal or syslog.
-
-<details>
-<summary>The three logs</summary>
-
-The daemon writes three logs under `/var/log/agent-bus/`, which setup creates
-for the daemon account, set-group-ID `adm` so that group may read them
-([setup § logs](administration.md#logs)); setup also installs an ordinary `logrotate`
-configuration for them.
-
-| File | Holds | Like |
-|---|---|---|
-| `debug.log` | **off by default, written only on demand** — a daemon flag at start, or an enable/disable call only the daemon Owner may make while it runs: one line per request — time, caller, route, result and duration | an nginx access log |
-| `audit.log` | every administrative action and every [entity edit](#-registry-record) | an audit trail |
-| `error.log` | warnings and errors only — something needs attention — and each line also to syslog at matching severity; a warning that traffic raises is written at most once a minute per text, the next one counting those held back | an nginx error log |
-
-No log may contain a token, secret, configuration body or message body.
-A field of a debug or audit line keeps its first 200 characters and is marked
-`…cut` past them, so one request cannot grow a log by what it sent.
-
-</details>
-
-## Errors and alerts
-
-A conceptual error is a condition this model says cannot occur: a violated
-invariant, corrupt stored state, or a failure to answer with authority. It is
-reported twice, to syslog and the error log. An ordinary refusal — malformed
-request, denied permission, unknown name — is not one, and goes only to its
-caller.
-
-<details>
-<summary>Where each goes</summary>
-
-Every conceptual error and alert MUST be reported twice: to syslog at a
-severity matching the condition, and to the [error log](#logs). An ordinary
-refusal is answered to its caller and reaches neither of them: a refused
-administrative action is still [audited](#-registry-record) with its result,
-and any request is a line in the debug log while that is on.
-[Entity-edit logging](#-registry-record) goes to the audit log: authorized
-edits, not impossible states.
-
-</details>
-
-## External protocols
-
-**MCP means the latest stable Model Context Protocol specification, and only
-that one: currently [2026-07-28](https://modelcontextprotocol.io/specification/2026-07-28).**
-The MCP face, the launchers and every design built on MCP, such as Resource
-records, MUST follow it. An older revision MUST NOT be kept for compatibility;
-a new stable revision replaces it.
-
-<details>
-<summary>The 2025-11-25 exception, from 2026-09-30</summary>
-
-The face stays on MCP 2025-11-25 while no client here can use a latest-only
-face (Q143). Rechecked on 2026-10-16 with each client's first message to a
-server that answers nothing:
-
-| Client | On 2026-07-28 |
-|---|---|
-| Claude Code 2.1.302 | tries 2026-07-28 first (`server/discover`), then falls back to a 2025-11-25 `initialize`. On 2026-09-30, 2.1.286 connected on 2026-07-28 but delivered no channel messages, so push stopped; channel delivery is not rechecked while the two below block anyway |
-| Codex 0.163.0 | sends only a 2025-06-18 `initialize` |
-| OpenCode 2.0.30 | sends only a 2025-11-25 `initialize`: the 2.0 line has not moved to 2026-07-28 |
-
-Serving both revisions does not help, since Claude Code then picks 2026-07-28
-and loses push. The exception ends when Claude Code delivers channels on
-2026-07-28 and Codex and OpenCode speak it. The face then moves to the v2 SDK
-with older revisions refused ([K.37](../Plans/R1.1/TODO.md#mcp-latest-revision), postponed to R1.1 on 2026-10-16: waiting for Codex and OpenCode).
-Each client release is rechecked against this table.
-
-</details>
-
-## Authority at the door
-
-**Identity and authority are checked once, when a request comes in, and at
-restart; never again while the operation runs.** A User removed, or an Agent
-losing a right, while a request or a wait is already under way does not stop
-it: the next request is refused. The code MUST NOT add a check that re-asks who
-the caller is or what it may do partway through an operation (after a wait, at
-delivery, between two writes); such a check costs code and speed for a race
-that the next request settles anyway.
-
-A check of the records’ own routing state (a forward’s destination ACL, a
-group recipient’s Owner consent) is not caller authority.
-
-<details>
-<summary>Rules</summary>
-
-| Rule | Requirement |
-|---|---|
-| One check per request | authentication and the operation's authority are decided when the request is handled, once, under one hold when it reads and writes together |
-| No mid-operation check | a lock wait, a long poll, a delivery hand-over or a second write does not re-ask a decision the request already made |
-| Restart | every stored identity and grant is checked again at load ([what refuses the start](#what-refuses-the-start)) |
-| Revocation | takes effect on the next request; an operation already admitted finishes as admitted |
-
-</details>
-
-## Agent self-description
-
-**An agent describes itself; the daemon never does.** What an agent offers
-is knowledge of the agent's own code and changes with it, so it lives in the
-agent's package and nowhere in the registry. The daemon stores none of it,
-interprets none of it and only carries the asks:
-
-| What | Where it is written | Asked with |
-|---|---|---|
-| the agent: description, license, version, author, homepage | `agent.json` | `--help`, `--help-json` |
-| its methods and their arguments, with optional types, enums, roles and a destructive flag | `agent.json` `methods` | `--help`, `--help-json` |
-| its Configuration keys: name, type, help, example, default | `agent.json` `config` | `--help-config` |
-| its secret and environment keys: names, comments, required; never values | commented `env.dist` | `--help-secret` |
-
-The format is in [package help](runner/configuration.md#package-help); where
-secret values live is [two places for secrets](runner/security.md#secrets).
-
-**Ask an agent what it can do: `agent-bus call <to> --help`.** The ask is the
-envelope's `ask` field, never body text. An agent that serves calls SHOULD
-answer `ask: help` with a description written for an AI reader:
-what it is for, each method with its arguments, defaults and answer, an
-example call, and what it sends on its own. Every bundled agent MUST. The
-description MUST cover only what the caller may do: an action the caller's
-roles would be refused is left out, so admin-only actions are not shown to
-regular users. It is an ordinary answer and grants nothing; each call is
-still checked. Built 0.8.168 for the CLI, the MCP face, every client, `#debug`, the
-runner and `#slack` ([agent self-description](../Plans/done/R0.8-MVP/TODO.md#agent-self-description)).
-
-<details>
-<summary>Rules</summary>
-
-| Rule | Requirement |
-|---|---|
-| The call | the envelope's `ask` is `help`, `help-config`, `help-secret`, `help-json`, `status`, or `mcp` for the tools ([R1.1](../Plans/R1.1/mcp-agents.md#mcp-agents)), and its body is empty; `agent-bus call <to> --help`, `--help-config`, `--help-secret`, `--help-json` or `--mcp` sends it. No body text is reserved: `--help` in a body is ordinary input (Q179) |
-| Ask first | Every kind dispatches a nonempty ask before Configuration-dependent work, body parsing or normal handling. A supported ask is answered; every other ask answers `unsupported: <ask>` as ordinary text, not an error. Only no ask reaches normal work. The daemon still refuses asks outside the closed set |
-| Script forwarding | The runner answers what package metadata can describe; any other ask reaches the script as `AGENT_BUS_ASK=<ask>` with an empty body. `--no-asks` on `agent-bus run`, or `"asks":"none"` in the package, answers unsupported instead of running the script |
-| Observed status | While it owns the reader, the runner answers known starting, stopping or failed states itself; otherwise status reaches the running script, or answers unsupported under no-asks. It never attaches a fallback reader that could steal ordinary input: for a refused or unconfigured entry that has a token, and for a kept agent until its process runs, it reads asks only, answers `status` and the manifest's help asks, `unsupported: <ask>` for the rest, never runs the script and takes no ordinary message |
-| Running status content | If an agent supports the empty-body `status` ask, it describes what it is doing, its backlog, its last error and a safe configuration summary. Never include secrets or raw private values. This is suggested support, not a requirement for every agent; runner-observed lifecycle states remain the runner's responsibility |
-| Slow initialization | A slow-start agent must attach its reader and answer asks with `starting: <what it is loading>` before initializing, while ordinary messages stay queued. It uses the ask-only read (`asks=only`; `asks: "only"` in the TypeScript client; Slack does this while it loads the workspace). Simple agents need no starting phase |
-| A packaged script | the runner and `agent-bus run --package-dir` normally render package metadata; `help: native` delegates to the script when runtime Configuration determines scope ([package help](runner/configuration.md#package-help)) |
-| An unpackaged or self-serving agent | answers its own asks; a script receives `AGENT_BUS_ASK` and no input. At least `help` is required; its help names which extra asks it answers |
-| No MCP tools | An unpackaged script has no tools: its runner answers `mcp` without starting it. Offering tools requires a package declaring `help: native`. An agent that answers asks but has no MCP tools answers `mcp` with `{"tools": []}`, the MCP shape for none, so every caller gets one shape |
-| The answer | text for `help`, `help-config` and `help-secret`; the whole description as JSON for `help-json`; methods, arguments, returns and required roles from the package. Help names the supported extra asks. `help-config` describes Configuration keys; `help-secret` gives environment names, comments and required status, never values |
-| Access | written from the roles the daemon asserts on the message, never from what the caller claims |
-| AI sessions | a session behind the MCP face asks an unfamiliar agent `--help` before calling it, and answers `--help` with what it can do for that caller |
-
-</details>
+For practical commands, start with [identity and authority](01-identity-and-authority.md#try-this-first) or [access](02-access.md#try-this-first).
 
 ## Entities
 
@@ -323,7 +35,7 @@ Every User has exactly one 👤 record: `kind` = `user`, `owner_id` = that
 `user_id`. It MUST NOT be removed while the User exists, and removing it is
 refused. A User without its 👤 record, found at startup, is corrupt state and
 a [conceptual error](#errors-and-alerts), and so is a 👤 record whose
-`owner_id` names no User; like every incorrect record, each is ignored.
+`owner_id` names no User. Either refuses startup; neither is silently omitted.
 
 An inactive User makes every record it owns inactive too, under the
 [inactive-record rule](#common-record-fields): hidden and `404`, not a
@@ -353,9 +65,7 @@ runtime facts rather than durable daemon fields.
 
 ### 🔐 Token
 
-A token acts as its User, or as one Agent that User owns. Transferring an
-Agent moves its tokens in the same commit. A token whose User and Agent do not
-match is corrupt state: ignored, reported at `alert`, never repaired.
+A token acts as its User, or as one Agent that User owns. The stored identity pair determines which principal authenticates.
 
 <details>
 <summary>Fields</summary>
@@ -373,9 +83,7 @@ match is corrupt state: ignored, reported at `alert`, never repaired.
 <summary>User and Agent tokens, transfer, and a mismatched pair</summary>
 
 - Without `agent_id` the token acts as the User alone.
-- A credential MAY be issued before its principal is bound, such as the daemon
-  Owner's at the first start: it carries no `user_id` yet and is bound at the
-  next check. That empty pair is the one row that is not corrupt.
+- A credential MUST be issued only for a registered principal with its current internal IDs bound. A stored empty or structurally invalid pair refuses startup; no deferred binding is performed.
 - With `agent_id` the named User MUST be that Agent's Owner. The Agent is then
   the acting principal for access, routing and delivery, and the User is who it
   acts for; the User's inactivity refuses the token exactly as it suspends the
@@ -384,8 +92,7 @@ match is corrupt state: ignored, reported at `alert`, never repaired.
   the ownership change, never as a later step. A failed token write MUST abandon
   the transfer rather than commit an ownership change the tokens do not follow.
 
-A mismatched pair can therefore come only from a failed write, and is corrupt
-state rather than a refusal path. The daemon MUST ignore that token, which then
+A mismatched pair is corrupt stored state. The daemon MUST ignore that token, which then
 authenticates nothing, and MUST report it as a
 [conceptual error](#errors-and-alerts) at `alert` severity naming the token's
 User, Agent and current Owner. It MUST NOT repair the row or reinterpret it as
@@ -395,10 +102,7 @@ a User token.
 
 ### 📋 Registry record
 
-Every registry record, and the daemon, is owned by a 👤 User. An Agent may
-manage what it does not own, but creating or managing an object never makes it
-the owner or grants it authority. Every direct edit and administrative action
-writes one audit-log entry, and every field is validated by its own contract.
+Every registry record, and the daemon, is owned by a 👤 User. Record management, auditing and validation follow the rules below.
 
 <details>
 <summary>Ownership and Maintainers</summary>
@@ -421,7 +125,7 @@ administrative action, MUST write one entry to the [audit log](#logs):
 |---|---|
 | actor | the authenticated User or Agent |
 | operation, target, result | always |
-| client IP | when one exists; a Unix socket request has none and MUST NOT invent one. An edit made in the web face reaches the daemon over its socket and so carries no IP in MVP (Q128); forwarding the visitor's IP from the face is R1.1 work |
+| client IP | when one exists; a Unix socket request has none and MUST NOT invent one. An edit made in the web face reaches the daemon over its socket and carries no visitor IP |
 | a `status` change | is such an edit, so suspension is never silent |
 | setting a secret | audited with its target only, never its body |
 | key-based enrolment | its actor is written as `(enrolment signature)`, since no credential exists yet |
@@ -444,12 +148,12 @@ interpretation of application-specific values.
 
 The closed set of record kinds:
 
-| Kind | What it is | Channel |
+| Kind | What it is | Message delivery |
 |---|---|---|
-| 👤 `user` | the queue belonging to a User, under that User's name | yes |
-| 👾 `agent` | an Agent and the queue it reads | yes |
-| 📮 `queue` | a named competing-consumer queue | yes |
-| 📣 `pubsub` | fan-out: keeps nothing, copies each publication to its `deliver_to` | yes |
+| 👤 `user` | the inbox belonging to a User, under that User's name | inbox |
+| 👾 `agent` | an Agent and the inbox it reads | inbox |
+| 📮 `queue` | a named competing-consumer queue | inbox |
+| 📣 `pubsub` | fan-out: keeps nothing, copies each publication to its `deliver_to` | recipient copies |
 | 📡 `service` | information about an external service, protected by an ACL | no |
 | 👥 `group` | a named list of typed actors | no |
 | 📚 `resource` | a card for data an MCP client may read; its source answers ([Resource records](03-records-resource.md#what-a-resource-is)) | no |
@@ -480,13 +184,8 @@ says what a term names:
   registry key, token identity, envelope `from` and `to`, what the Agent is told
   it serves, what a caller sends to. Nothing strips it, so `name` is unique
   across kinds and no term needs a lookup to say what it names.
-- Every face MUST require the prefix wherever an Agent is named — API bodies,
-  CLI arguments, MCP arguments, registration, credential issue, configuration
-  files and what a process is told it serves — and MUST NOT complete, guess or
-  tolerate an unprefixed one. An unprefixed name names a User or nothing.
-- Because a shell reads an unquoted `#` as a comment, the CLI MUST also accept
-  `--agent worker@srv1`, which names `#worker@srv1`. It adds the `#` only when
-  absent, never a second one; a quoted `'#worker@srv1'` stays valid.
+- Agent identities in API and MCP arguments, registration, credential issue and configuration use the `#` prefix. An unprefixed record target does not select an Agent. The dedicated runner requires the same complete Agent name; it never guesses or adds a prefix.
+- Quote Agent names in the shell: `'#worker@srv1'`. An unquoted `#` starts a shell comment.
 - In a URL the `#` MUST be percent-encoded as `%23`, since an unescaped one
   starts a fragment and the rest of the name never reaches the daemon.
 - The last three terms resolve at each check instead of naming a stored entity.
@@ -509,11 +208,9 @@ eligibility and `@owner`, remain in force unless explicitly revised.
 
 Every record has an owner, a kind, a globally unique name, a description, a
 status and Personal, Maintainer and allow settings; the rest depend on the
-kind, and a field a kind cannot have is refused. **A record whose `status` is
-not `active` MUST be treated as no such entity.** A message succeeds while at
-least one recipient takes it.
+kind, and a field a kind cannot have is refused. Inactive records and failed delivery branches follow the rules below.
 
-| Field | 👾 | 📮 | 📣 | 📡 | 👥 | 📄 |
+| Field | 👾 | 📮 | 📣 | 📡 | 👥 | 📚 |
 |---|---|---|---|---|---|---|
 | `ttl`, `bound`, `overflow` | ✓ | ✓ | — | — | — | — |
 | `deliver_to` | one slot | one slot | list | — | — | — |
@@ -534,7 +231,7 @@ least one recipient takes it.
 | `name` | canonical `name`, `name@team` or `template/instance@team`; globally unique and required. The realm is optional and the last `@` separates it. A 👾 name begins with `#` and a 👥 name with `@`, so the name alone says the kind. The ordinary rules still apply after the prefix, so `@support@srv1` is a Group with a realm |
 | `description` | |
 | wire names | the API spells `description` as `descr`, `deliver_to` as `subs`, `updated_at` as `at`, and `owner_id` as `owner`, the owning User's name; the store keeps the owner's `user_id` beside it, on no answer |
-| `personal` | the intended audience is the Owner and the Agents that Owner owns; the record's `allow` and `maintainers` admit that cohort and nothing wider |
+| `tags` containing `personal` | the intended audience is the Owner and the Agents that Owner owns; its `allow` and `maintainers` admit that cohort and nothing wider |
 | `maintainers` | typed actor terms |
 | `allow` | typed actor terms: the ACL on every kind that has one, and the membership list on a 👥 |
 | `status` | `active` or `inactive` |
@@ -550,7 +247,7 @@ Every record carries those, except that a 👤 has neither `maintainers` nor
 
 A 👤 record is the User's own inbox: it takes `ttl`, `bound` and `overflow` and
 nothing else from this table, who may reach it follows the
-[User delivery rule](#-channels) rather than a list, and its `personal` is fixed true —
+[User delivery rule](#-channels) rather than a list, and its `personal` tag is fixed —
 everything not Personal is shared, in the web views as everywhere else, and a
 User is not.
 
@@ -572,7 +269,7 @@ whatever its kind:
 | what it grants | nothing, so no membership path through it reaches an actor |
 | a read already waiting | finishes as admitted; the next request is refused ([authority at the door](#authority-at-the-door)) |
 | the record itself | stays stored, keeps its canonical name reserved, and MUST refuse registration under that name |
-| the one exception | a dedicated read-only call for the web face shows inactive records to their Owner, Maintainers and own Agent, to the actors their `allow` admits, and always to the daemon Owner (Q125). It reads; it sends, consumes, drains, transfers and removes nothing |
+| the one exception | a dedicated read-only call for the web face shows inactive records to their Owner, Maintainers and own Agent, to the actors their `allow` admits, and always to the daemon Owner. It reads; it sends, consumes, drains, transfers and removes nothing |
 | reactivation | a status edit by the record's Owner, a Maintainer or the daemon Owner, never a re-creation; to anyone else the record stays no such entity |
 
 </details>
@@ -608,7 +305,7 @@ whose one destination is gone are all refused to the caller.
 | Owner | transfer ownership, replace the Maintainers list, and everything a Maintainer may | |
 | Maintainer | edit the description, ACL, status and the operational fields allowed for that kind; write the [private values](#-private-values); remove the record | name, kind, owner, Maintainers, Personal classification, `created_at`, `updated_at` |
 | Administrator, on a 👥 other than `@administrators` | add and remove members only | other record fields, unless acting as its Owner or a Maintainer |
-| The matching Agent principal, on its own record | what a Maintainer may | what a Maintainer may not |
+| The matching Agent principal, on its own record | manage its settings, read its private values and use its locks/KV | private-value writes without a Maintainer grant; everything else a Maintainer may not change |
 
 `@agent` is an input alias for that same principal.
 
@@ -628,15 +325,30 @@ not authorize the transfer again or restore the old Owner.
 
 </details>
 
+## Authority at the door
+
+A request uses the caller identity and authority admitted when it starts. Revocation affects the next request; it does not recall delivered work.
+
+A check of the records’ own routing state (a forward’s destination ACL, a
+group recipient’s Owner consent) is not caller authority.
+
+<details>
+<summary>Rules</summary>
+
+| Rule | Requirement |
+|---|---|
+| One check per request | authentication and the operation's authority are decided when the request is handled, once, under one hold when it reads and writes together |
+| No mid-operation check | a lock wait, a long poll, a delivery hand-over or a second write does not re-ask a decision the request already made |
+| Restart | every stored identity and grant is checked again at load ([what refuses the start](#what-refuses-the-start)) |
+| Revocation | takes effect on the next request; an operation already admitted finishes as admitted |
+
+</details>
+
 ## Kind-specific fields
 
 ### 📢 Channels
 
-`deliver_to` is the recipient list on a 📣 and zero or one forwarding
-destination on a 👾 or 📮, resolved against the registry. A 👾 or 📮 MAY forward
-through that one slot: for `sender → A → B` the sender passes A's ACL and B's
-ACL lists A. A forwarded envelope keeps its original sender, carries
-`original_to` and a forward counter, and a step past ten is an error.
+Channels route messages through `deliver_to`: a recipient list on pubsub or one forwarding destination on an Agent or queue. Routing preserves the original sender.
 
 <details>
 <summary>What <code>deliver_to</code> accepts</summary>
@@ -652,11 +364,7 @@ so the daemon MUST resolve it against the registry:
 
 - Every other term is refused, an unresolvable one included. An entry is refused
   for its kind, and a refusal names the term and stores nothing.
-- A term on a 📣 list is added only by a caller who manages its destination —
-  the record, or the 👥 Group — and one the caller may not see is answered as
-  unknown. This is asked when the term is added and never again: a stored list
-  keeps its terms when management changes, and loading one asks nothing. A
-  one-slot route answers to its destination's ACL instead (below).
+- Adding a Deliver-To entry requires management authority over its destination — the record, or a 👥 Group where groups are permitted. An unseen destination is answered as unknown. This is checked when added: a stored list keeps its entries when management changes. A one-slot route also requires its destination's ACL to admit the source, both at configuration and delivery.
 - A 👥 term is the exception: each record it expands to receives a copy only
   while that record’s Owner manages the channel, checked at every publication.
 - A 👥 term is expanded at publication, and its membership is actors only. A
@@ -666,15 +374,14 @@ so the daemon MUST resolve it against the registry:
   at all, the caller is refused like any other broken flow.
 - A 👤 User takes a direct send from an Agent exactly when that User may use
   the Agent: its `allow` admits the User, or the User is its Owner or a
-  Maintainer (Q125). If the User may reach the Agent, the Agent may answer it,
+  Maintainer. If the User may reach the Agent, the Agent may answer it,
   and no list of the User's is consulted. The daemon does not decide
   whether a message is a reply: the sender knows its own tags and matches the
   answer by topic and tag, as [reply routing](04-messaging.md#reply-routing)
-  already works. A person does not send to a person, so no User sends to a
-  User. A User is never a published copy's recipient or a route's destination:
+  already works. A User may send to its own inbox but not another User's. A User is never a published copy's recipient or a route's destination:
   naming one on `deliver_to` MUST be answered with an error, and one reached
   through a Group at publication is skipped with an error-log warning and
-  counted as no drop (Q126).
+  counted as no drop.
 - In the one-slot form, add succeeds only while empty and otherwise names the
   occupied field; remove clears it; replacement is an explicit whole-field
   write, never an add overwriting a concurrent choice. A write carrying two
@@ -685,8 +392,7 @@ so the daemon MUST resolve it against the registry:
 <details>
 <summary>Forwarding checks</summary>
 
-**Forwarding — owner-corrected September 20, 2026.** A 👾 Agent or 📮 Queue
-record MAY forward to another destination. For `sender → A → B`:
+A 👾 Agent or 📮 Queue record MAY forward to another destination. For `sender → A → B`:
 
 | Check | Requirement |
 |---|---|
@@ -733,10 +439,7 @@ The forwarding record counts neither overflow case.
 
 #### PubSub routing
 
-A 📣 routes and stores nothing of its own. Its `in` counts publications at
-least one recipient took and its `out` counts accepted copies. Each recipient
-is an independent branch under its own rules, so one broken recipient never
-breaks a working pipeline.
+A 📣 has no inbox. Its routing counters describe publications and accepted copies, as defined below.
 
 <details>
 <summary>Counters and branches</summary>
@@ -760,14 +463,14 @@ rules, and a failed one MUST NOT roll back or prevent any other: one broken
 recipient may not break a working pipeline. The caller's answer is the
 [flow outcome](#common-record-fields) — success while anything got through, an
 error when nothing did — and a partial failure is also a warning in the daemon
-log and syslog, carrying no credential and no body. Forwarding into a 📣 is
+error log and, when enabled, syslog, carrying no credential and no body. Forwarding into a 📣 is
 answered the same way, and each branch it fans out to increments the forward
 counter. The whole-send fan-out loop limit above is the exception: it answers
 an error while keeping earlier delivered copies.
 
 A branch that fails beyond its listed recipient — through a forwarding 👾 or 📮,
 or inside a nested 📣 — is counted in the listed recipient's `dropped`, never
-the final destination's (Q127).
+the final destination's.
 
 </details>
 
@@ -782,11 +485,7 @@ the final destination's (Q127).
 
 Keep secrets in Secret and config in Configuration; see [configuration](03-records-agent.md#configuring-a-template).
 
-Configuration is public to its record's **Owner and Maintainers**: they see
-and edit it in the CLI and web. It is JSON settings, not a
-Secret. The Secret remains hidden from web pages. Both keep their existing
-readers: Owner, Maintainers and an Agent itself. Everyone else gets neither
-the bytes nor their SHA-256 digests; the allow list grants use, not these values.
+Configuration is JSON visible to its record's **Owner and Maintainers** in the CLI and web. Secret is an env file whose stored values are never displayed on web pages. Both use the private-value authority below; an allow list grants use, not access to these values.
 
 <details>
 <summary>Readers and validation</summary>
@@ -830,11 +529,6 @@ membership edits only; any other edit requires the Group’s Owner or a
 Maintainer. Its `name`
 begins with `@`.
 
-This extends the existing
-[group administration](01-identity-and-authority.md#groups) model: a User or an
-Agent gains explicitly assigned control while daemon Owner and Administrator
-authority remains.
-
 Nested resolution MUST use a visited set, and grants membership only when a
 finite path reaches the requested actor.
 
@@ -849,10 +543,9 @@ group's own name is the Owner's choice — `@alice@srv1/friends@batch1` is
 `alice@srv1`'s. The prefix reserves the name: only that User creates or holds
 it. A Personal Group MUST carry its Owner's prefix, so Users never compete for
 a personal name, and one without it is refused. A prefixed Group MUST NOT be
-transferred, because its name says whose it is and a name never changes; moving
-one is an administrator editing the database and restarting the daemon. A
+transferred, because its name says whose it is and a name never changes. Create a correctly named group instead. A
 stored Group whose prefix is not its Owner, or a Personal one without a prefix,
-is incorrect and ignored at load. Unprefixed names are the shared namespace.
+is incorrect and refused at load. Unprefixed names are the shared namespace.
 
 </details>
 
@@ -867,36 +560,189 @@ boundary.
 
 </details>
 
-## Testing speed
+## Agent self-description
 
-A simple change MUST reach the node in minutes, never ten or more. Every
-subsystem (the letters in [the subsystem map](../Plans/subsystems.md))
-therefore has its own tests in three sets, each tagged with its subsystem:
+**An agent describes itself; the daemon never does.** What an agent offers
+is knowledge of the agent's own code and changes with it, so it lives in the
+agent's package and nowhere in the registry. The daemon stores none of it,
+interprets none of it and only carries the asks:
 
-| Set | Holds | Runs |
+| What | Where it is written | Asked with |
 |---|---|---|
-| fast | every essential operation of the subsystem | by default, with no option, for the subsystems a change touches |
-| normal | fast plus every check a mutant or a security or authority boundary depends on | before a code change lands, for the subsystems it touches |
-| slow | normal plus slower integrations, stress and permutations | for the subsystems a huge change touches, and for all before a release |
+| the agent: description, license, version, author, homepage | `agent.json` | `--help`, `--help-json` |
+| its methods and their arguments, with optional types, enums, roles and a destructive flag | `agent.json` `methods` | `--help`, `--help-json` |
+| its Configuration keys: name, type, help, example, default | `agent.json` `config` | `--help-config` |
+| its secret and environment keys: names, comments, required; never values | commented `env.dist` | `--help-secret` |
 
-Before a change lands, the agent making it chooses: normal for each
-subsystem it changed (slow for a huge change), fast for every other one. That
-landing run MUST finish within one to two minutes.
+The format is in [package help](runner/configuration.md#package-help); where
+secret values live is [two places for secrets](runner/security.md#secrets).
 
-A mutant runs only the test that owns its check, never a whole gate. Waiting
-is on an observed state, never a fixed sleep. A check too slow for its set
-moves to the next set only once another check in the faster set catches the
-same mutant. The commands are in
-[CLAUDE.md § Verification](../CLAUDE.md#verification).
+**Ask an agent what it can do: `agent-bus call <to> --help`.** The ask is the
+envelope's `ask` field, never body text. An agent that serves calls SHOULD
+answer `ask: help` with a description written for an AI reader:
+what it is for, each method with its arguments, defaults and answer, an
+example call, and what it sends on its own. Every bundled agent MUST. The
+description MUST cover only what the caller may do: an action the caller's
+roles would be refused is left out, so admin-only actions are not shown to
+regular users. It is an ordinary answer and grants nothing; each call is
+still checked.
 
-## Open questions
+<details>
+<summary>Rules</summary>
 
-None is open; settled choices are in the [decision index](decisions.md#settled).
+| Rule | Requirement |
+|---|---|
+| The call | the envelope's `ask` is `help`, `help-config`, `help-secret`, `help-json`, `status`, or `mcp` for the tools, and its body is empty; `agent-bus call <to> --help`, `--help-config`, `--help-secret`, `--help-json` or `--mcp` sends it. No body text is reserved: `--help` in a body is ordinary input |
+| Ask first | Every kind dispatches a nonempty ask before Configuration-dependent work, body parsing or normal handling. A supported ask is answered; every other ask answers `unsupported: <ask>` as ordinary text, not an error. Only no ask reaches normal work. The daemon still refuses asks outside the closed set |
+| Script forwarding | The runner answers what package metadata can describe; any other ask reaches the script as `AGENT_BUS_ASK=<ask>` with an empty body. `--no-asks` on `agent-bus run`, or `"asks":"none"` in the package, answers unsupported instead of running the script |
+| Observed status | While it owns the reader, the runner answers known starting, stopping or failed states itself; otherwise status reaches the running script, or answers unsupported under no-asks. It never attaches a fallback reader that could steal ordinary input: for a refused or unconfigured entry that has a token, and for a kept agent until its process runs, it reads asks only, answers `status` and the manifest's help asks, `unsupported: <ask>` for the rest, never runs the script and takes no ordinary message |
+| Running status content | If an agent supports the empty-body `status` ask, it describes what it is doing, its backlog, its last error and a safe configuration summary. Never include secrets or raw private values. This is suggested support, not a requirement for every agent; runner-observed lifecycle states remain the runner's responsibility |
+| Slow initialization | A slow-start agent must attach its reader and answer asks with `starting: <what it is loading>` before initializing, while ordinary messages stay queued. It uses the ask-only read (`asks=only`; `asks: "only"` in the TypeScript client; Slack does this while it loads the workspace). Simple agents need no starting phase |
+| A packaged script | the runner and `agent-bus run --package-dir` normally render package metadata; `help: native` delegates to the script when runtime Configuration determines scope ([package help](runner/configuration.md#package-help)) |
+| An unpackaged or self-serving agent | answers its own asks; a script receives `AGENT_BUS_ASK` and no input. At least `help` is required; its help names which extra asks it answers |
+| No MCP tools | An unpackaged script has no tools: its runner answers `mcp` without starting it. Offering tools requires a package declaring `help: native`. An agent that answers asks but has no MCP tools answers `mcp` with `{"tools": []}`, the MCP shape for none, so every caller gets one shape |
+| The answer | text for `help`, `help-config` and `help-secret`; the whole description as JSON for `help-json`; methods, arguments, returns and required roles from the package. Help names the supported extra asks. `help-config` describes Configuration keys; `help-secret` gives environment names, comments and required status, never values |
+| Access | written from the roles the daemon asserts on the message, never from what the caller claims |
+| AI sessions | a session behind the MCP face asks an unfamiliar agent `--help` before calling it, and answers `--help` with what it can do for that caller |
 
-## History
+</details>
 
-What this model replaced, and the owner clarifications of September 19, 2026,
-are [history](../Plans/done/R0.8-MVP/done/constitution-history.md#what-this-replaced);
-nothing here depends on them. State from before this model is never imported:
-an installation moved to it by a
-[clean reinstall](../Plans/done/R0.8-MVP/0.7-cutover.md#procedure).
+## Persistence and loading
+
+One write-through SQLite store: a write validates, commits as one transaction,
+then publishes, so no reader sees an uncommitted or partial change. Startup
+validates the registry snapshot as a whole and refuses an invalid one; it does
+not repair fields or serve a partial registry. Queue contents are flushed in batches, so a crash MAY lose the
+last minute of traffic.
+
+<details>
+<summary>Write rules</summary>
+
+| Rule | Requirement |
+|---|---|
+| Durable | entities, credentials, queue contents, per-queue counters, activity days ([durability](04-messaging.md#durability)) |
+| A management write | validates, commits the complete change as one transaction, then publishes |
+| Publication | no reader ever observes a write before its commit: a write stages its entities under the one registry lock every reader also takes, and a failed commit restores every one of them before the lock is released |
+| Atomicity | invalid input fails the whole write; no partial update is ever visible |
+| Startup | validate the complete durable snapshot before loading entities and building derived indexes. Incorrect state [refuses the start](#what-refuses-the-start); no partial registry, field repair or record salvage is published |
+| List fields | the API MUST provide atomic add, add-if-absent and remove for `allow`, `maintainers` and `deliver_to` |
+
+That ordering is write-through. It covers record lifecycle changes too.
+
+</details>
+
+<details>
+<summary>Queue checkpoint</summary>
+
+Queue contents and their `in`, `out`, `dropped` and `expired` counters keep the
+[checkpoint boundary](04-messaging.md#durability): in memory during traffic, flushed as one batch every minute and on graceful shutdown, never once
+per message, so a crash MAY lose changes since the last flush.
+A durable queue whose record is absent or cannot hold a queue is such an
+incorrect record: startup MUST refuse it, and MUST NOT silently drop
+or reattach that backlog.
+
+</details>
+
+<details>
+<summary>What refuses the start</summary>
+
+#### What refuses the start
+
+Startup validates the whole registry snapshot before replacing registry state. These errors refuse the start:
+
+| Stored state | Reason |
+|---|---|
+| Unknown, duplicate or differently cased schema members | Only the declared format is accepted; Configuration payloads remain opaque JSON |
+| Missing markers, invalid or duplicate internal IDs | Identity and account-map boundaries must be unambiguous |
+| A missing daemon Owner, User record or record Owner | The complete authority graph must exist |
+| Duplicate unique profile fields, broken Group references or invalid Personal assignments | Grants and identities cannot be selected or repaired by load order |
+| A queue without a receiving record, or message rows without their queue | Backlogs cannot be dropped or attached to another identity |
+| Invalid tags, disallowed inbox/endpoint fields or oversized Configuration | A stored record must satisfy the same constraints as a write |
+| A damaged `@administrators` or invalid account mapping | Administrative authority and local login principals must be valid |
+| A mapped OS account that does not exist | Its socket cannot be assigned safely |
+
+The daemon does not skip bad entities or strip bad fields to make a partial node start. Well-formed [ownerless credentials](02-access.md#ownerless-credentials) have their own cleanup rule.
+
+</details>
+
+<details>
+<summary>Identity changes</summary>
+
+Identity changes MUST invalidate stale credentials and grants in durable state
+and memory together:
+
+| Change | Requirement |
+|---|---|
+| Ownership transfer | commit the new Owner, rebind Agent credentials and remove grants on the former Owner's Personal records that the transferred Agent can no longer hold; publish together |
+| Removing an Agent or record | drop every stored ACL, Maintainer, Group-member and Deliver-To reference to that name in the same transaction |
+| Reusing a name | inherit no authority and no delivery from the former holder |
+| Users | never removed |
+
+</details>
+
+<details>
+<summary>Lock, publication failure, driver and reload</summary>
+
+One active daemon SHOULD use a database, and it MUST take whatever exclusive
+lock the storage engine offers before serving, so a competing instance cannot
+start. Detecting a lock lost afterwards is not required.
+
+Publication has no failure of its own: a write stages in memory under the
+registry lock, and a failed commit restores what it staged and refuses that
+write alone.
+
+The SQLite driver is `modernc.org/sqlite`.
+
+SIGINT and SIGTERM stop the daemon cleanly and remove its sockets. SIGHUP is
+not handled: it ends the supervisor and leaves its sockets, while the bus child
+still flushes and stops. Use a full restart for daemon settings that require new listeners.
+
+</details>
+
+## Logs
+
+Request diagnostics, administrative audit and operational errors have separate logs. Tokens, private values and message bodies MUST NOT appear in them.
+
+The syslog copies below apply only with the daemon’s `--syslog` flag, which
+installed systemd units pass explicitly. Standalone and development
+processes keep diagnostics in their own log directory and stderr only.
+
+<details>
+<summary>The three logs</summary>
+
+The daemon writes three logs under `/var/log/agent-bus/`, which setup creates
+for the daemon account, set-group-ID `adm` so that group may read them
+([setup § logs](administration.md#logs)); setup also installs an ordinary `logrotate`
+configuration for them.
+
+| File | Holds | Like |
+|---|---|---|
+| `debug.log` | **off by default, written only on demand** — a daemon flag at start, or an enable/disable call only the daemon Owner may make while it runs: one line per request — time, caller, route, result and duration | an nginx access log |
+| `audit.log` | every administrative action and every [entity edit](#-registry-record) | an audit trail |
+| `error.log` | warnings and errors only — something needs attention — and each line also to syslog at matching severity; a warning that traffic raises is written at most once a minute per text, the next one counting those held back | an nginx error log |
+
+A field of a debug or audit line keeps its first 200 characters and is marked
+`…cut` past them, so one request cannot grow a log by what it sent.
+
+</details>
+
+## Errors and alerts
+
+A conceptual error is a condition this model says cannot occur: a violated
+invariant, corrupt stored state, or a failure to answer with authority. A malformed request, denied permission or unknown name is an ordinary refusal instead.
+
+<details>
+<summary>Where each goes</summary>
+
+Every conceptual error and alert MUST reach the [error log](#logs), and syslog at a matching severity when syslog is enabled. An ordinary
+refusal is answered to its caller and reaches neither of them: a refused
+administrative action is still [audited](#-registry-record) with its result,
+and any request is a line in the debug log while that is on.
+[Entity-edit logging](#-registry-record) goes to the audit log: authorized
+edits, not impossible states.
+
+</details>
+
+## External protocols
+
+The MCP face uses the [2025-11-25 Model Context Protocol](https://modelcontextprotocol.io/specification/2025-11-25) through its MCP SDK, which negotiates a supported revision during initialization. Resource descriptors and reads follow that interface. Client capabilities still determine which features a connected client can use.

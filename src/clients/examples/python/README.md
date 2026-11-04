@@ -20,6 +20,8 @@
 
 ## Try this first
 
+Set up the [harness prerequisites](../README.md#try-this-first) before running these commands from the checkout root.
+
 Run every example, Python among them:
 
 ```sh
@@ -36,5 +38,5 @@ src/clients/examples/run.sh
 ## Technical details
 
 - **Identity:** `run.sh` always selects `#stats-python@localhost` and its token from `EXAMPLES_TOKENS`; `demo.sh` keeps the separate caller credentials. Run it through the shared [harness](../README.md).
-- **Paths:** they must resolve beneath `STATS_ROOT`; symlinks escaping it are refused.
+- **Paths:** they must resolve beneath `STATS_ROOT`; symlinks escaping it are refused at resolution. Opening is separate, so use a trusted fixture tree without concurrent path replacement; this is not race-proof confinement.
 - **Serving:** the worker serves two handlers so a nested call can receive its answer. SIGTERM stops intake and drains work.

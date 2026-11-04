@@ -28,7 +28,7 @@ simple lowercase labels; the starter passes it to registration and `run` as `--t
 restricted default. It is sent only at installation, so a unit restart preserves
 subsequent ACL grants. `--bus-binary` chooses the installed CLI, including its `token` verb for credential issuance during installation. The systemd unit
 is derived from the agent name without its host, with punctuation replaced
-by hyphens: `#server-info@parf.us` becomes `agent-bus-server-info.service`, and
+by hyphens: `#server-info@node.example` becomes `agent-bus-server-info.service`, and
 `#systemd/web@h` becomes `agent-bus-systemd-web.service`. It is printed on
 success. A collision with another name or an existing foreign unit is refused
 by unit name, including on removal; nothing is overwritten or renamed around it.
@@ -68,7 +68,7 @@ the name and ask `agent-bus token` for that agent's credential; it is never
 written to disk. The unit uses `agent-bus run --stay-registered`, so graceful
 stops retain the agent record and its credential for restart. The script's
 environment does not receive `AGENT_BUS_TOKEN`. It receives `AGENT_BUS_CONFIG`
-at each start when configured; see the [jq example](../../../docs/03-records-agent.md#configuring-a-template).
+at each start when configured; see [record configuration](../../../docs/03-records-agent.md#configuring-a-template).
 
 Installation is serialized per name. Atomic file replacements keep the unit
 and credential file complete. An unchanged installation is enabled without

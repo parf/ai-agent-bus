@@ -7,24 +7,11 @@
 - **Outcome:** write each one to a named log with a severity; read the recent entries, poll them away, or send new alerts to a queue your team already watches.
 - **Start:** write one entry and read it back: `agent-bus call '#eventlog@node.example' 'write deploys notice deployed 691ae2da'` ([Try this first](#try-this-first)).
 
-## Why you'd want it
-
-- 🗂️ **Results live in many places.** Now each log has a name, such as `deploys`, and keeps its own entries.
-- 🔎 **You must ask the producer to see its history.** Now you read the recent entries from the log itself.
-- 🔔 **Nobody sees a failure until they look.** Now new alerts go to a queue or agent your team watches, once each.
-- 🧹 **Old noise piles up.** Now each severity has its own size and lifetime, and entries expire by themselves.
-- 🔁 **A restart loses the alerts.** Now alerts and entry numbers survive an agent restart.
-
 ## What it does
 
-- ✅ **Named logs with three severities:** notice, warning and alert, each kept in its own ring with its own size and lifetime.
-- ✅ **Write and read:** an entry is stored with a number and a time; reading shows the newest first, alerts before warnings before notices.
-- ✅ **Alerts to a queue:** a subscription sends new matching entries once to an agent or queue, before the write is answered.
-- ✅ **Poll entries away:** `pull` removes and returns the oldest entries, so one reader can work through a log.
-- ✅ **Repeats fold:** the same text at the same level within a minute becomes one entry with a count.
-- ✅ **Survives restarts:** alerts and entry numbers are kept; a number is never reused.
-- ✅ **Control:** readers can read and subscribe; only writers can write, pull and clean.
-- 🚫 **Not for:** long-term storage (entries expire), or text you do not control as instructions: an entry is the writer's content and stays untrusted data.
+- Keep separate named logs, read recent entries, remove entries as work is consumed, or forward new matches to an inbox.
+- The [log model](#log-model) defines severity, expiry, repeated entries and IDs; [access roles](#who-may-use-it) separate reading from destructive operations.
+- Entries expire and remain the writer's untrusted content. Use another store for long-term retention.
 
 | Call | Result |
 |---|---|
@@ -58,6 +45,8 @@ agent-bus call '#eventlog@node.example' 'read deploys'
 ```
 
 ## Use examples
+
+Replace `ops@node.example` with an existing queue that admits you and this instance; use entry IDs from `read` when cleaning.
 
 | I want to… | Command |
 |---|---|

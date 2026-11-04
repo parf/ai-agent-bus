@@ -46,7 +46,6 @@ var darwinCommand = runIn
 // read or modify a real role account.
 var darwinLookupUser = user.Lookup
 var darwinLookupGroup = user.LookupGroup
-var darwinLookupGroupID = user.LookupGroupId
 
 // The flags the reduced setup takes; anything else is Linux-only.
 var darwinFlags = map[string]bool{"owner": true, "addr": true, "exec": true, "key": true, "print-unit": true, "dry-run": true,
@@ -299,7 +298,7 @@ func walkableParents(dir string) error {
 func (l darwinLayout) ensureAccount() error {
 	existing, lookupErr := darwinLookupUser(l.account)
 	if lookupErr == nil {
-		return l.ensureExistingRoleGroup(existing)
+		return l.checkExistingRoleGroup(existing)
 	}
 	var unknownUser user.UnknownUserError
 	if !errors.As(lookupErr, &unknownUser) {
@@ -332,9 +331,8 @@ func (l darwinLayout) ensureAccount() error {
 	return nil
 }
 
-// An earlier acceptance teardown could remove the group while macOS refused
-// to remove its user. Restore only that user's unused primary group ID.
-func (l darwinLayout) ensureExistingRoleGroup(existing *user.User) error {
+// Existing role accounts are reusable only with their matching existing group.
+func (l darwinLayout) checkExistingRoleGroup(existing *user.User) error {
 	gid := existing.Gid
 	if _, err := strconv.ParseUint(gid, 10, 32); err != nil {
 		return fmt.Errorf("user %s has invalid PrimaryGroupID %q", l.account, gid)
@@ -346,29 +344,7 @@ func (l darwinLayout) ensureExistingRoleGroup(existing *user.User) error {
 		}
 		return nil
 	}
-	var unknown user.UnknownGroupError
-	if !errors.As(err, &unknown) {
-		return fmt.Errorf("cannot inspect group %s: %w", l.account, err)
-	}
-	owner, err := darwinLookupGroupID(gid)
-	if err == nil {
-		return fmt.Errorf("user %s needs group %s with gid %s, already owned by group %s", l.account, l.account, gid, owner.Name)
-	}
-	var unknownID user.UnknownGroupIdError
-	if !errors.As(err, &unknownID) {
-		return fmt.Errorf("cannot inspect gid %s for user %s: %w", gid, l.account, err)
-	}
-	if err := darwinCommand(nil, "dseditgroup", "-o", "create", "-i", gid, l.account); err != nil {
-		return fmt.Errorf("group %s was not created with gid %s: %w", l.account, gid, err)
-	}
-	group, err = darwinLookupGroup(l.account)
-	if err != nil {
-		return fmt.Errorf("group %s was not created with gid %s: %w", l.account, gid, err)
-	}
-	if group.Gid != gid {
-		return fmt.Errorf("created group %s has gid %s, but user %s has PrimaryGroupID %s", group.Name, group.Gid, l.account, gid)
-	}
-	return nil
+	return fmt.Errorf("existing role account %s requires its existing group with gid %s: %w", l.account, gid, err)
 }
 
 // freeRoleID is the first id in macOS's role-account range that no user or

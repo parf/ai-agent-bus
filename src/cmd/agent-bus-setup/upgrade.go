@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -14,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/parf/ai-agent-bus/internal/jsonshape"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/tlsdir"
 )
@@ -25,7 +27,6 @@ type upgradeJournal struct {
 	NewRelease string `json:"new_release"`
 	Backup     string `json:"backup,omitempty"`
 	UnitSHA256 string `json:"unit_sha256"`
-	UnitBefore string `json:"unit_before,omitempty"` // old binaries may not understand --syslog
 }
 
 func upgradeBundle(b checkedBundle) error {
@@ -59,11 +60,7 @@ func upgradeBundle(b checkedBundle) error {
 	if err := enoughBackupSpace(svcHome, stateRoot); err != nil {
 		return err
 	}
-	nextUnit := unitWithSyslog(unit)
-	j := upgradeJournal{OldRelease: oldID, NewRelease: b.releaseID, UnitSHA256: bytesSHA256(nextUnit)}
-	if string(nextUnit) != string(unit) {
-		j.UnitBefore = string(unit)
-	}
+	j := upgradeJournal{OldRelease: oldID, NewRelease: b.releaseID, UnitSHA256: bytesSHA256(unit)}
 	if err := writeUpgradeJournal(j); err != nil {
 		return err
 	}
@@ -93,18 +90,6 @@ func upgradeBundle(b checkedBundle) error {
 	}
 	if _, err := selectBundle(b.releaseID); err != nil {
 		return rollbackUpgrade(j, addr, fmt.Errorf("select new release: %w", err))
-	}
-	if j.UnitBefore != "" {
-		current, err := os.ReadFile(unitPath)
-		if err != nil || string(current) != j.UnitBefore {
-			return rollbackUpgrade(j, addr, fmt.Errorf("managed unit changed before syslog migration"))
-		}
-		if err := os.WriteFile(unitPath, nextUnit, 0o644); err != nil {
-			return rollbackUpgrade(j, addr, fmt.Errorf("enable unit syslog: %w", err))
-		}
-		if err := run("systemctl", "daemon-reload"); err != nil {
-			return rollbackUpgrade(j, addr, fmt.Errorf("reload unit: %w", err))
-		}
 	}
 	if err := startDaemon(); err != nil {
 		return rollbackUpgrade(j, addr, fmt.Errorf("start new release: %w", err))
@@ -140,6 +125,17 @@ func upgradeBundle(b checkedBundle) error {
 	return nil
 }
 
+func decodeUpgradeJournal(data []byte) (upgradeJournal, error) {
+	var j upgradeJournal
+	if err := jsonshape.Decode(bytes.NewReader(data), &j); err != nil {
+		return j, fmt.Errorf("invalid upgrade recovery marker: %w", err)
+	}
+	if j.OldRelease == "" || j.NewRelease == "" || j.UnitSHA256 == "" {
+		return j, fmt.Errorf("invalid upgrade recovery marker: release and unit fields are required")
+	}
+	return j, nil
+}
+
 func recoverUpgrade() error {
 	b, err := os.ReadFile(upgradeJournalPath())
 	if err != nil {
@@ -148,12 +144,9 @@ func recoverUpgrade() error {
 		}
 		return err
 	}
-	var j upgradeJournal
-	if err := json.Unmarshal(b, &j); err != nil || j.OldRelease == "" || j.NewRelease == "" {
-		if err != nil {
-			return fmt.Errorf("invalid upgrade recovery marker: %w", err)
-		}
-		return fmt.Errorf("invalid upgrade recovery marker: release fields are missing")
+	j, err := decodeUpgradeJournal(b)
+	if err != nil {
+		return err
 	}
 	unit, err := os.ReadFile(unitPath)
 	if err != nil {
@@ -214,20 +207,26 @@ func rollbackUpgrade(j upgradeJournal, addr string, cause error) error {
 	return fmt.Errorf("%v; rolled back to %s with its consistent state", cause, releaseVersion(j.OldRelease))
 }
 
-func performRollback(j upgradeJournal, addr string) error {
-	_ = run("systemctl", "stop", "agent-busd")
-	if j.UnitBefore != "" {
-		unit, err := os.ReadFile(unitPath)
-		if err != nil || !upgradeUnitMatches(j, unit) {
-			return fmt.Errorf("refusing rollback: managed unit changed after upgrade began")
-		}
-		if err := os.WriteFile(unitPath, []byte(j.UnitBefore), 0o644); err != nil {
-			return err
-		}
-		if err := run("systemctl", "daemon-reload"); err != nil {
-			return err
-		}
+// Validate recovery's stored target again before stopping services or selecting it.
+func validateRollbackRelease(id string) error {
+	if id == "" || filepath.Base(id) != id || id == "." || id == ".." {
+		return fmt.Errorf("invalid rollback release name")
 	}
+	bundle, err := checkBundleVersion(filepath.Join(installRoot, "releases", id), "")
+	if err != nil {
+		return fmt.Errorf("rollback target is not a current bundle: %w", err)
+	}
+	if bundle.releaseID != id {
+		return fmt.Errorf("rollback target name %s does not match its manifest %s", id, bundle.releaseID)
+	}
+	return nil
+}
+
+func performRollback(j upgradeJournal, addr string) error {
+	if err := validateRollbackRelease(j.OldRelease); err != nil {
+		return err
+	}
+	_ = run("systemctl", "stop", "agent-busd")
 	if _, err := selectBundle(j.OldRelease); err != nil {
 		return fmt.Errorf("could not select %s: %w", j.OldRelease, err)
 	}
@@ -253,7 +252,7 @@ func performRollback(j upgradeJournal, addr string) error {
 }
 
 func upgradeUnitMatches(j upgradeJournal, unit []byte) bool {
-	return bytesSHA256(unit) == j.UnitSHA256 || (j.UnitBefore != "" && string(unit) == j.UnitBefore)
+	return bytesSHA256(unit) == j.UnitSHA256
 }
 
 func startDaemon() error {
@@ -282,33 +281,12 @@ func unitAddress(unit []byte) (string, error) {
 		}
 		fields := strings.Fields(strings.TrimPrefix(line, "ExecStart="))
 		for i := 0; i+1 < len(fields); i++ {
-			if fields[i] == "-addr" || fields[i] == "--addr" {
+			if fields[i] == "--addr" {
 				return fields[i+1], nil
 			}
 		}
 	}
 	return "", fmt.Errorf("refusing upgrade: %s has no explicit daemon --addr", unitPath)
-}
-
-// unitWithSyslog changes only the managed ExecStart, preserving operator options.
-func unitWithSyslog(unit []byte) []byte {
-	lines := strings.SplitAfter(string(unit), "\n")
-	for i, line := range lines {
-		if !strings.HasPrefix(line, "ExecStart=") {
-			continue
-		}
-		for _, word := range strings.Fields(line) {
-			if word == "-syslog" || word == "--syslog" || word == "-syslog=true" || word == "--syslog=true" {
-				return unit
-			}
-		}
-		lines[i] = strings.TrimSuffix(line, "\n") + " --syslog"
-		if strings.HasSuffix(line, "\n") {
-			lines[i] += "\n"
-		}
-		return []byte(strings.Join(lines, ""))
-	}
-	return unit
 }
 
 func waitIdentity(addr, wantVersion string, timeout time.Duration) error {

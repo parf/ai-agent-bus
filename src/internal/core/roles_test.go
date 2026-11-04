@@ -139,14 +139,14 @@ func TestAnAgentListsTheRolesItUnderstands(t *testing.T) {
 // gain none: one stored before roles existed arrives with none.
 func TestRestoredMessagesKeepTheirRoles(t *testing.T) {
 	b := New()
-	b.Restore(ports.Snapshot{
+	b.Restore(canonicalFixture(ports.Snapshot{
 		Users:   []protocol.User{{Name: "alice@h", Status: "active"}},
 		Records: []protocol.Record{userRecord("alice@h"), {Name: "#svc@h", Owner: "alice@h", Kind: protocol.KindAgent, Full: protocol.OverflowStrict}},
 		Queues: []ports.Queue{{Name: "#svc@h", Messages: []protocol.Envelope{
 			{ID: "new", From: "alice@h", To: "#svc@h", Body: "a", Roles: []string{RoleOwner}, At: time.Now()},
 			{ID: "old", From: "alice@h", To: "#svc@h", Body: "b", At: time.Now()},
 		}}},
-	})
+	}, ""))
 	if err := b.EstablishDaemonOwner("alice@h"); err != nil {
 		t.Fatal(err)
 	}

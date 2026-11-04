@@ -3,13 +3,14 @@ import json
 import re
 import sys
 import unittest
+import tempfile
+from unittest.mock import patch
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import agent_docs  # noqa: E402
 
-HEADINGS = ["Why you'd want it", 'What it does', "You'll need", 'Try this first', 'Use examples',
-            'Installing it', 'Configuration', 'Secret keys', 'Who may use it', 'Troubleshooting']
+HEADINGS = ['What it does', 'Try this first', 'Installing it', 'Who may use it', 'Troubleshooting']
 PAGES = agent_docs.ROOT / 'docs' / 'agents'
 
 
@@ -46,7 +47,11 @@ class AgentDocs(unittest.TestCase):
         path = PAGES / page
         if not path.is_file():
             return [f'{name}: no page {page}']
-        have = headings(path.read_text())
+        text = path.read_text()
+        lead = text.split('\n## ', 1)[0]
+        if '📌 **TL;DR:**' not in lead or any(not re.search(r'\*\*' + label + r':\*\*\s*\S', lead) for label in ('Problem', 'Outcome', 'Start')):
+            out.append(f'{name}: {page} needs a TL;DR with problem, outcome and start')
+        have = headings(text)
         missing = [h for h in HEADINGS if h not in have]
         if missing or not in_order(HEADINGS, have):
             out.append(f'{name}: {page} headings missing or out of order: {missing}')
@@ -55,6 +60,29 @@ class AgentDocs(unittest.TestCase):
         if name != 'bus' and page not in table_targets(self.index):
             out.append(f'{name}: no index table row linking {page}')
         return out
+
+    def test_concise_guide_does_not_need_duplicate_benefit_or_example_sections(self):
+        self.assertEqual(self.check_fixture(self.concise()), [])
+
+    def test_concise_guide_still_requires_essential_sections_and_complete_lead(self):
+        text = self.concise()
+        for heading in HEADINGS:
+            with self.subTest(heading=heading):
+                self.assertTrue(self.check_fixture(text.replace('## '+heading, '## Other')))
+        for label in ('Problem', 'Outcome', 'Start'):
+            with self.subTest(label=label):
+                self.assertTrue(self.check_fixture(text.replace('**'+label+':** Details.', '')))
+        self.assertTrue(self.check_fixture(text.replace('📌 **TL;DR:**', 'Summary')))
+        self.assertTrue(self.check_fixture(text.replace('## What it does', '## Swap').replace('## Try this first', '## What it does').replace('## Swap', '## Try this first')))
+
+    def concise(self):
+        return '# Helper\n\n📌 **TL;DR:**\n' + ''.join('- **'+label+':** Details.\n' for label in ('Problem','Outcome','Start')) + '\n' + '\n'.join('## '+heading+'\n\nDetails.\n' for heading in HEADINGS)
+
+    def check_fixture(self, text):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory); (path/'concise.md').write_text(text)
+            with patch(__name__+'.PAGES', path), patch.object(self, 'index', '| [Helper](concise.md) | Description |'):
+                return self.problems('helper', 'concise.md', self.source+'concise.md')
 
     def test_every_agent_has_page_structure_index_row_and_docs(self):
         found = [p for n, page, _, docs in self.agents if n not in agent_docs.PENDING for p in self.problems(n, page, docs)]

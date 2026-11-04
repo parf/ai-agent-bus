@@ -153,7 +153,7 @@ History only; these rows are never a current contract. See [current decisions](.
 | Launcher addresses use template and instance naming | [session names](../../docs/06-launchers.md#session-names) | 2026-09-13 owner instruction |
 | Launcher local socket discovery | [smart launchers](../../docs/06-launchers.md#smart-launchers) | 2026-09-13 owner instruction |
 | CLI address precedence and local socket discovery | [local socket](../../docs/02-access.md#local-socket) | 2026-09-13 owner instruction |
-| Codex delivery form | [definition](../../docs/06-launchers.md#runtime-integration-delivery) | 2026-09-13 owner clarification |
+| Codex delivery form | [definition](../../docs/06-launchers.md#adapters) | 2026-09-13 owner clarification |
 | Smart runtime launchers | [definition](../../docs/06-launchers.md#smart-launchers) | 2026-09-13 owner instruction |
 | Assigned session names before directory fallback | [definition](../../docs/06-launchers.md#session-names) | 2026-09-13 owner instruction |
 | Numbered duplicate session names | [definition](../../docs/06-launchers.md#session-names) | 2026-09-13 owner instruction |
@@ -202,3 +202,8 @@ Superseded by the owner on 2026-11-01 13:58: the [acceptance keeps the role acco
 
 - **The owner removes the macOS test account at the Mac for MAC.2** (Q298) — owner, 2026-11-01: "i'll run handoff file"; `sudo sysadminctl -deleteUser _agentbusd` from a Terminal on the Mac, as `~/agent-bus-dev/agent-bus-handoff.md` says, before the rerun and after it. No Full Disk Access grant to sshd.
   - Home: [MAC.2 run list](../R1.0-Release/mac2b-run-list.md#expected-checks-and-cleanup).
+
+
+## Decision register before documentation cleanup
+
+The [archived register](decisions-register-before-doc-cleanup.md#settled) retains the dated names and rationale from the former public index. Current behavior remains in docs/.

@@ -3,9 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** a script that should take part on the bus has to speak HTTP, match replies and avoid repeating an uncertain write.
 - **Outcome:** `Bus` gives you send, call, serve, key-value, locks and read-only settings with no dependencies beyond the standard library.
-- **Start:** copy [the example](#try-this-first); it needs a name, a token and a running bus.
-
-Keep secrets in Secret and config in Configuration; see [configuration](../../../docs/03-records-agent.md#configuring-a-template).
+- **Start:** start with the [isolated examples](../examples/README.md#try-this-first), or adapt [the snippet](#try-this-first) to your bus.
 
 ## Why you'd want it
 
@@ -22,7 +20,13 @@ Keep secrets in Secret and config in Configuration; see [configuration](../../..
 
 ## Try this first
 
-Serve one handler and call it from the same process (a disposable bus, token in `AGENT_BUS_TOKEN`):
+Use Python 3.11 or later. From the checkout root, set `PYTHONPATH="$PWD/src/clients/python"` when running the saved script so `from agent_bus import ...` resolves this library. It uses only the standard library.
+
+1. Register `#worker@localhost` as an Agent using an authorized CLI account. Construction alone does not register the identity.
+2. Obtain its token with `agent-bus token '#worker@localhost'` and set `AGENT_BUS_TOKEN` to that token.
+3. Set `AGENT_BUS_ADDR` to the same daemon socket or URL; HTTPS also needs the appropriate trust configuration.
+
+Serve one handler and call it from the same process:
 
 ```python
 import threading
@@ -40,12 +44,12 @@ with Bus("#worker@localhost") as bus:
     server.join()
 ```
 
+On a fresh record (the counter increments on later runs):
+
 ```text
 pong hello
 1
 ```
-
-- ▶️ The [shared examples](../examples/README.md) run agents in every language together.
 
 ## Private agent-log example
 
@@ -70,17 +74,17 @@ See [agent logs](../../../docs/agents/bus.md#agent-logs) and
 
 ## Technical details
 
-At first use, the client checks HTTP `/identity` for [wire compatibility](../../../docs/09-daemon-api.md#how-a-call-is-made); daemon refusals expose `kind` alongside status and message.
+- **Protocol:** both HTTP `/identity` fields must match [the current protocol version](../../../docs/09-daemon-api.md#protocol-version) before application requests. Missing, malformed and unsupported versions are refused.
+- **Refusals:** errors expose the daemon's `kind` alongside its status and message.
 
-
-- **Package:** Python 3.11 or later, standard library only; the [API plan](../../../Plans/R1.0-Release/done/client-libraries/python.md#surface) owns the interface; [authentication](../../../docs/02-access.md#what-a-call-carries) owns credentials; the version follows the repository VERSION; [MIT license](LICENSE.md).
+- **Package:** see [the Python API source](agent_bus/client.py); [authentication](../../../docs/02-access.md#what-a-call-carries) owns credentials; the version follows the repository VERSION; [MIT license](LICENSE.md).
 - **Connecting:** `Bus(name)` verifies the credential at the first authenticated operation; constructing it neither connects nor registers. Unix sockets, HTTP and HTTPS work, and `AGENT_BUS_TLS_FINGERPRINT` pins the peer certificate before credentials are sent.
 - **Private values:** cached until `refresh()`; copies already returned survive revocation; no setters; secret representations are redacted, and `reveal()` returns bytes (do not log them).
 - **Dispatch:** one dispatcher owns call and serve polling, and raw consume is exclusive with those modes. Call callbacks run on the calling thread; handlers run on bounded threads.
 - **Serve:** it skips requests whose caller deadline has passed before acknowledgment, stops intake, drains to its deadline and reports unfinished handlers. Python cannot forcibly stop a running handler thread.
-- **Replies:** each client has its own call-tag prefix to discard late replies, including legacy replies without `re`, without retaining completed calls. Normal replies include their request's `re`.
+- **Replies:** each client has its own call-tag prefix to discard late replies, including route-correlated replies without `re`, without retaining completed calls. Normal replies include their request's `re`.
 - **Locks and uncertainty:** lock helpers have no fencing token and their expiry is a conservative estimate; an uncertain write or consumption is never replayed automatically.
-- **Self-calls:** they use the same serving handler. The unmarked request is never its own answer, even if it arrives before the send response; it waits for a free handler slot, and an already-taken self request joins graceful drain. A handler making a blocking call to itself needs another available worker. Legacy replies with a different message ID remain accepted.
+- **Self-calls:** they use the same serving handler. The unmarked request is never its own answer, even if it arrives before the send response; it waits for a free handler slot, and an already-taken self request joins graceful drain. A handler making a blocking call to itself needs another available worker. Route-correlated replies without `re` are accepted when their message ID differs from the request.
 
 ## Checks
 
@@ -101,10 +105,10 @@ PYTHONPATH=src/clients/python python3 -m unittest discover -s src/clients/python
 `record.bigfile` uses the same authenticated transport as KV. Upload bytes or a binary reader with an explicit size; empty input and invalid size/ttl refuse before any request. Uploads are streamed once and never retried.
 
 ```python
-info = bus.record("owner@node").bigfile.put("mail", raw_bytes, ttl="24h")
-data, info = bus.record("owner@node").bigfile.get("mail", max_size=26214400)
-keys = bus.record("owner@node").bigfile.list()
-removed = bus.record("owner@node").bigfile.delete("mail")
+info = bus.record("#worker@localhost").bigfile.put("mail", raw_bytes, ttl="24h")
+data, info = bus.record("#worker@localhost").bigfile.get("mail", max_size=26214400)
+keys = bus.record("#worker@localhost").bigfile.list()
+removed = bus.record("#worker@localhost").bigfile.delete("mail")
 ```
 
 - `put(name, reader, size=n)` accepts a binary reader whose `read(n)` returns bytes.

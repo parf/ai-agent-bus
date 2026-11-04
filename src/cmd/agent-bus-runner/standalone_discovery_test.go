@@ -52,7 +52,11 @@ func TestStandaloneScanDoesNotHideBrokenRunnerPackages(t *testing.T) {
 		if in.Refused == "" {
 			t.Errorf("broken %s was not refused", in.Key)
 		}
-		if in.Key != "malformed" && !strings.Contains(in.Refused, "command is required") {
+		if in.Key == "upper-empty-command" {
+			if !strings.Contains(in.Refused, `unknown field "COMMAND"`) {
+				t.Errorf("case alias accepted or wrong refusal: %s", in.Refused)
+			}
+		} else if in.Key != "malformed" && !strings.Contains(in.Refused, "command is required") {
 			t.Errorf("wrong refusal for %s: %s", in.Key, in.Refused)
 		}
 	}

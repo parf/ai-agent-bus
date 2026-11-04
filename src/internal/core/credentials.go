@@ -53,7 +53,7 @@ func (b *Bus) PairFor(name string) (ports.CredentialPair, error) {
 
 // BindCredentials connects the face's credentials and checks every one held
 // against the registry just loaded. A credential for a name that is nothing
-// is left to the ownerless sweep; one issued unbound is bound now; one whose
+// is left to the ownerless sweep; one whose
 // pair disagrees, or that a kind which holds none carries, is ignored and
 // reported as an alert — it authenticates nothing and stays in the store for
 // an operator. The report names the User, the Agent and the current Owner,
@@ -81,16 +81,6 @@ func (b *Bus) BindCredentials(idx ports.CredentialIndex) {
 		case err != nil:
 			b.report(ports.Alert, "stored credential for %s is ignored: %s", name, err)
 			b.discardCredential(idx, name)
-		case got == (ports.CredentialPair{}) && want.AgentID != 0:
-			// Only a User's credential is ever issued unbound — the daemon
-			// Owner's at the first start. An Agent's is issued bound, so an
-			// empty one is a row no write made, and is not repaired.
-			b.report(ports.Alert, "stored credential for %s is ignored: an agent's credential is issued bound, and this one names nobody", name)
-			b.discardCredential(idx, name)
-		case got == (ports.CredentialPair{}):
-			if err := idx.Bind(name, want); err != nil {
-				b.report(ports.Error, "credential for %s could not be bound: %s", name, err)
-			}
 		case got != want:
 			b.report(ports.Alert, "stored credential for %s is ignored: it names %s, and %s", name, b.describePair(got), b.describeHolder(name))
 			b.discardCredential(idx, name)
@@ -119,7 +109,7 @@ func (b *Bus) replacedCorrupt(name, by string) {
 }
 
 // CheckCredential answers whether a credential still answers for name. A
-// credential issued unbound is bound on this first check; any other mismatch
+// mismatch
 // refuses the call as a bad credential, as if it did not exist.
 func (b *Bus) CheckCredential(name string, got ports.CredentialPair) error {
 	n, err := canon(name)
@@ -131,15 +121,6 @@ func (b *Bus) CheckCredential(name string, got ports.CredentialPair) error {
 	want, err := b.pairFor(n)
 	if err != nil {
 		return fmt.Errorf("%w: %s", ErrStaleCredential, err)
-	}
-	if got == (ports.CredentialPair{}) && want.AgentID != 0 {
-		return fmt.Errorf("%w: an agent's credential is issued bound, and this one names nobody", ErrStaleCredential)
-	}
-	if got == (ports.CredentialPair{}) && b.creds != nil {
-		if err := b.creds.Bind(n, want); err != nil {
-			return err
-		}
-		return nil
 	}
 	if got != want {
 		return fmt.Errorf("%w: it was issued for %s, and %s", ErrStaleCredential, b.describePair(got), b.describeHolder(n))

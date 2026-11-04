@@ -31,7 +31,7 @@ type vectorCase struct {
 	Setup []string         `json:"setup"`
 	Steps []map[string]any `json:"steps"`
 	// identity.json and refusals.json: a fake daemon's raw answers and the client's reading of them.
-	Identity string `json:"identity"` // the raw /identity body, or "current" / "old" in refusals.json
+	Identity string `json:"identity"` // the raw /identity body, or "current" in refusals.json
 	Daemon   struct {
 		Status int    `json:"status"`
 		Body   string `json:"body"`
@@ -396,9 +396,8 @@ func TestSharedIdentityVectors(t *testing.T) {
 			if requests[0] != "/identity" {
 				t.Fatalf("identity was not checked first: %v", requests)
 			}
-			warns, _ := c.Expect["warns"].(string)
-			if (warns != "" && !strings.Contains(warnings.String(), warns)) || (warns == "" && warnings.Len() != 0) {
-				t.Fatalf("warning %q, want %q", warnings.String(), warns)
+			if warnings.Len() != 0 {
+				t.Fatalf("unexpected warning %q", warnings.String())
 			}
 		})
 	}
@@ -409,12 +408,9 @@ func TestSharedRefusalVectors(t *testing.T) {
 		t.Run(c.ID, func(t *testing.T) {
 			var requests []string
 			previous := log.Writer()
-			log.SetOutput(io.Discard) // an old daemon's one-time warning is not under test here
+			log.SetOutput(io.Discard)
 			defer log.SetOutput(previous)
 			identity := `{"protocol":1,"protocol_min":1}`
-			if c.Identity == "old" {
-				identity = `{}`
-			}
 			b := protocolServer(t, identity, &requests, func(w http.ResponseWriter) {
 				if c.Daemon.Allow != "" {
 					w.Header().Set("Allow", c.Daemon.Allow)

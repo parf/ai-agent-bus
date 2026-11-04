@@ -20,7 +20,7 @@ import { automaticBase, claimFork, claimIdentity, releaseIdle } from "./identity
 import { serveControl } from "./control.ts";
 import { codexAuth } from "./runtime-auth.ts";
 import { restartOption, RestartBackoff } from "./restart.ts";
-import { pluginSteps, removal, withPluginLock } from "./plugin-steps.ts";
+import { pluginSteps, readPluginState, removal, withPluginLock } from "./plugin-steps.ts";
 import { tagOption } from "./tags.ts";
 import { descriptionOption } from "./description.ts";
 import { ForeignListener, startOwnedServer } from "./runtime-listener.ts";
@@ -151,8 +151,10 @@ process.on("SIGINT", () => {
 
 async function main(): Promise<number> {
   if (runtime !== "claude" && runtime !== "codex" && runtime !== "opencode" && runtime !== "opencode1") throw new Error("expected claude, codex, opencode or opencode1");
-  if (has("--version", "-V")) { console.log(versionOutput()); return 0; }
-  if (has("--help", "-h")) {
+  if (has("-V")) throw new Error("use --version");
+  if (has("--version")) { console.log(versionOutput()); return 0; }
+  if (has("-h")) throw new Error("use --help");
+  if (has("--help")) {
     console.log(`ab-${runtime}: launch ${runtime === "opencode1" ? "opencode 1.x, the archived variant" : runtime} with agent-bus tools and messaging.
 Discovers your local socket; AGENT_BUS_ADDR overrides discovery. AGENT_BUS_TOKEN supplies a token when needed.
 AGENT_BUS_NAME sets the preferred bus identity. Automatic execution and continuation are enforced.${runtime === "claude" ? `
@@ -621,18 +623,12 @@ ${COPYRIGHT}`);
 function ensureClaudePlugin(binary: string, env: NodeJS.ProcessEnv): void {
   const plugin = "agent-bus@agent-bus-local";
   const dir = join(claudeHome(), "plugins");
-  const read = (file: string) => { try { return JSON.parse(readFileSync(join(dir, file), "utf8")); } catch { return {}; } };
-  const state = () => {
-    const known = read("known_marketplaces.json")["agent-bus-local"];
-    const path = known?.source?.path;
-    return pluginSteps({
-      compiled, source: compiled ? dirname(process.execPath) : dirname(import.meta.dir),
-      knownPath: known ? (typeof path === "string" ? path : "") : undefined,
-      installed: !!read("installed_plugins.json").plugins?.[plugin]?.length,
-    });
-  };
+  const state = () => pluginSteps({
+    compiled, source: compiled ? dirname(process.execPath) : dirname(import.meta.dir),
+    ...readPluginState(dir),
+  });
   if (!state().length) return;
-  // Several launchers may start at once after an upgrade: one changes the
+  // Several launchers may start at once during setup: one installs the
   // plugin under a lock, and each decides again once it holds it.
   withPluginLock(dir, () => {
     const steps = state();

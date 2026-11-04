@@ -5,13 +5,6 @@
 - **Outcome:** your AI gets a seat in Slack: it posts and reads like a team member, receives the alerts it cares about, and people answer it in a thread.
 - **Start:** ask it what it can do: `agent-bus help '#slack@node.example'` ([Try this first](#try-this-first)).
 
-## Why you'd want it
-
-- 🔁 **Messages are copied between Slack and the AI by hand.** Now the AI posts and reads in Slack itself.
-- 🚨 **The AI misses the alerts that matter.** Now matching channel messages are forwarded to its session.
-- 🙋 **People cannot answer the AI where they work.** Now a reply in the AI's thread, or a DM to the bot, reaches the right session.
-- 🔑 **Slack passwords end up in the AI's hands.** Now both tokens stay on the server; the AI never sees them.
-
 ## What it does
 
 - ✅ **Post and reply:** the AI sends a message to a channel or into a thread and gets the message's link back.
@@ -22,15 +15,7 @@
 - ✅ **Control:** only listed people pick sessions with tags; one channel can be opened to everyone for that channel's session only.
 - 🚫 **Not for:** messages on your own phone outside work chat (use [Telegram](telegram.md)), a plain text message (use [SMS](sms.md)), or content that must not pass through Slack.
 
-| Ability | In plain words |
-|---|---|
-| `post` | Send a message; answers with its link |
-| `read` | Show recent channel messages |
-| `sub add`, `sub list`, `sub delete` | Forward matching channel messages to an AI session |
-| `users`, `user` | Look up Slack people and their ids |
-| `refused` | Show who the bot refused |
-| `whoami` | Name the workspace |
-| Edits, reactions, channel details | Change or react to messages, inspect channels |
+- Other methods edit messages, add reactions and inspect channels; `refused` reports blocked senders, and `whoami` identifies the workspace.
 
 - The routing is shared with Telegram ([reply routing](telegram.md#reply-routing)).
 - How its subscriptions differ from the shared rules is in [what each helper does today](subscriptions.md#what-each-helper-does-today).
@@ -52,8 +37,6 @@ Use the complete name of your [enabled instance](#installing-it) in the commands
 agent-bus help '#slack@node.example'
 ```
 
-- It lists every call and setting; see [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do).
-
 ## Use examples
 
 | I want to… | Command |
@@ -70,20 +53,12 @@ agent-bus help '#slack@node.example'
 - The answer gives an id; `sub list` shows it and `sub delete <id>` removes it.
 
 <details>
-<summary>Rules for these calls, and more use cases</summary>
+<summary>Read formats, author filters and replies</summary>
 
 - `read` also accepts JSON, `{"method":"read","channel":"#alerts","limit":10}`, and then answers in JSON.
 - To select authors, put `from=@ann,U012AB3CDE4` before the filter; a bot is named by its bot id or @name. Names are checked before saving.
 - An AI's posted question ends with its tag, such as `#b`. Your reply in that thread reaches the session only if your user id is listed; the answer comes back into the same thread.
 - `refused` is for the owner and maintainers only.
-
-| Use case | What you do | What you get |
-|---|---|---|
-| Deploy report | AI posts in `#dev` | The team sees it at once |
-| Catch up on alerts | Ask for the last 10 messages in `#alerts` | A short list to act on |
-| Errors to an AI | Forward `#alerts` messages matching "error" | The AI session sees only errors |
-| Ask the team | AI posts a question; someone replies in the thread | The AI continues with the answer |
-| Direct request | DM the bot `#b please check the logs` | That AI session does it |
 
 </details>
 
@@ -194,7 +169,7 @@ agent-bus config '#slack@node.example' '{"users":{"U012AB3CDE4":"ann"},"route":"
 <summary>Technical details: <code>username</code>, <code>icon</code> and host defaults</summary>
 
 - A JSON post may set `username` and `icon` for that message.
-- Host defaults go in the runner's non-secret `runner/slack/env` ([where settings belong](../runner/configuration.md#where-settings-belong)), then reload:
+- Secret rejects appearance settings. Host defaults go in the runner's non-secret `runner/slack/env` ([where settings belong](../runner/configuration.md#where-settings-belong)), then reload:
 
 ```sh
 SLACK_USERNAME="agent-bus@{host}"
@@ -209,9 +184,7 @@ SLACK_ICON=":robot_face:"
 
 - The bus allow list decides who may call the helper: `agent-bus manage '#slack@node.example' --add-allow 'bob@node.example'`.
 - `users` in Configuration decides who may talk to AI sessions from Slack.
-- Each author lists and deletes their own subscriptions; direct Owners and Maintainers manage all. To change one, use `sub delete` and `sub add` (there is no `sub edit`).
-- The author must be allowed to send to both this helper and the destination, checked at add and before every forward ([may-send for another name](../09-daemon-api.md#checking-permission-to-send)); a refused or uncertain copy is dropped, counted and warned, and the next match stays active. An unavailable permission check sends nothing.
-- Only the owner and maintainers may read `refused`.
+- Subscription management, author checks and refused-copy behavior follow the [shared subscription rules](subscriptions.md#the-shared-behaviour).
 
 ## Warnings and alerts
 
@@ -228,6 +201,8 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 
 ## Troubleshooting
 
+Unsupported subscription keys, fields or counter formats stop subscription operations without converting, deleting or replaying state.
+
 | If you see this | Do this |
 |---|---|
 | “we do not know you” | Owner adds your Slack user id to `users`; the notice comes at most once an hour |
@@ -238,8 +213,6 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 | `starting: waiting for Slack …` or `not ready: Slack has not said who the agent is yet` as its status | Slack's identity check is failing or slow (token, scopes or Slack itself); the agent keeps asking and takes events once it answers. An event it still could not place is logged as `warning` with its channel and time |
 | `not configured` | Store both tokens in Secret, then reload the runner |
 | Repeated send or settings failures | Check the runner journal; transient failures are tried three times, then logged and skipped |
-
-- `agent-bus help '#slack@node.example'` lists every call.
 
 ## Technical details
 

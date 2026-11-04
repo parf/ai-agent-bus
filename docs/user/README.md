@@ -7,8 +7,7 @@
 
 ## Why you'd want it
 
-- 🧭 **Too many pages to guess from.** Now each task has one guide, named by what you want done.
-- ⏱️ **Reading theory before typing anything is slow.** Now these guides say what to type; the numbered docs explain why.
+- Find instructions for everyday use, operations and writing an agent without reading the whole reference.
 
 ## What you get
 
@@ -30,13 +29,9 @@
 agent-bus status
 ```
 
-```text
-{"up":"6h43m35s","realm":"parf.us","records":126,...,"you":"#ab-w2a",...}
-```
+The `you` field identifies the caller. If it shows the identity you expect, continue with the [command line guide](cli.md#try-this-first).
 
-- If `you` shows your name, go on with the [command line guide](cli.md#try-this-first).
-
-## Technical details
+## More guides
 
 - Why the bus works the way it does: the numbered docs, starting at the [overview](../00-overview.md).
 - Installing a node: [setup](../07-setup.md#install).

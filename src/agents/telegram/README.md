@@ -12,10 +12,6 @@ See [bot and runner setup](../../../docs/agents/telegram.md#installing-it).
 no runtime import may reach the checkout. Both Slack and Telegram bundle
 `../shared/router.ts`, with Telegram retaining numeric message ids.
 
-## Methods
-
-See [calls and examples](../../../docs/agents/telegram.md#use-examples).
-
 ## Receiving and forwarding
 
 The receiver restores its offset, rings and directories with transient-read
@@ -44,7 +40,6 @@ Dictionary access never accepts inherited properties.
 
 ## The pinned HTTP policy
 
-
 Every Telegram call runs inside the caller's deadline: a 429 waits
 `parameters.retry_after` (at most 30 s) and retries the write once if the
 wait and the retry still fit, a write is never retried otherwise, and a
@@ -54,8 +49,7 @@ token — is logged with its description and named by `whoami`.
 ## Verification
 
 The slow agent_telegram shard includes receive durability/retries, fake API
-HTTP policy, routing scopes and prototype boundaries. TG.9/TG.10 routing tests
-remain unchanged across the shared extraction. The Slack S.10 real-daemon
+HTTP policy, routing scopes and prototype boundaries. The shared real-daemon
 fixture also executes both packaged agents outside the checkout and calls
 Telegram whoami. MCP reply and premature-seen mutants fail named assertions.
 

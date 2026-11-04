@@ -51,8 +51,7 @@ def discover_socket(token):
                 return path
         except OSError:
             pass
-    runtime = os.environ.get("XDG_RUNTIME_DIR")
-    return os.path.join(runtime, "agent-bus", "bus.sock") if runtime else f"/tmp/agent-bus-{os.getuid()}.sock"
+    return "/run/agent-bus/" + ("bus.sock" if token else f"user-{account}.sock")
 
 
 class UnixConnection(http.client.HTTPConnection):

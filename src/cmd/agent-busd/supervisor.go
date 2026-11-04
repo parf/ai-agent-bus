@@ -20,6 +20,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/parf/ai-agent-bus/internal/auth"
+	"github.com/parf/ai-agent-bus/internal/core"
+	"github.com/parf/ai-agent-bus/internal/journal"
+	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/tlsdir"
 )
 
@@ -57,6 +61,14 @@ func runSupervisor(c config) {
 			log.Printf("the TLS certificate expires %s", cert.Leaf.NotAfter.Format(time.DateOnly))
 		}
 	}
+	// Setup flags seed a fresh installation once. After the bus has written
+	// the establishment marker, the snapshot is authoritative: otherwise an
+	// operator's change would be undone by the unchanged systemd command line.
+	explicit, err := supervisorAccounts(c)
+	if err != nil {
+		reportStartupFailure(c, fmt.Sprintf("local accounts: %v", err))
+		log.Fatalf("local accounts: %v", err)
+	}
 	tcp, err := net.Listen("tcp", c.addr)
 	if err != nil {
 		log.Fatalf("listen %s: %v", c.addr, err)
@@ -83,13 +95,6 @@ func runSupervisor(c config) {
 	// are private. See docs/02-access.md#local-socket.
 	if err := os.Chmod(c.sock, 0o666); err != nil {
 		log.Fatalf("chmod %s: %v", c.sock, err)
-	}
-	// Setup flags seed a legacy installation once. After the bus has written
-	// the establishment marker, the snapshot is authoritative: otherwise an
-	// operator's change would be undone by the unchanged systemd command line.
-	explicit, err := supervisorAccounts(c)
-	if err != nil {
-		log.Fatalf("local accounts: %v", err)
 	}
 	c.users = explicit
 	activeJSON, err := json.Marshal(c.users.mapping())
@@ -168,6 +173,17 @@ func runSupervisor(c config) {
 	log.Print("stopped")
 }
 
+// Pre-listener state refusals still belong in the daemon's local alert journal.
+func reportStartupFailure(c config, message string) {
+	logs, err := journal.Open(c.logDir, c.debugLog, c.syslog)
+	if err != nil {
+		log.Printf("logs: %v", err)
+		return
+	}
+	logs.Report(ports.Alert, "the daemon cannot start: "+message)
+	logs.Close()
+}
+
 func supervisorAccounts(c config) (accounts, error) {
 	if c.create {
 		if err := os.MkdirAll(filepath.Dir(c.db), 0o700); err != nil {
@@ -179,12 +195,27 @@ func supervisorAccounts(c config) (accounts, error) {
 		return accounts{}, err
 	}
 	snapshot, err := st.Load()
+	if err == nil {
+		_, err = auth.Load(st.Tokens())
+	}
 	st.Close() // the bus child takes the database next, exclusively
 	if err != nil {
 		return accounts{}, err
 	}
-	if !snapshot.AccountsEstablished && len(snapshot.Accounts) == 0 {
-		return editableAccounts(c.users)
+	if snapshot.Empty() {
+		explicit, err := editableAccounts(c.users)
+		if err != nil {
+			return accounts{}, err
+		}
+		// Validate the exact seed the child will establish, without persistence.
+		// Invalid flags must not leave listeners bound to a restarting child.
+		if err := core.New().EstablishDaemon(c.owner, explicit.mapping()); err != nil {
+			return accounts{}, err
+		}
+		return explicit, nil
+	}
+	if err := core.ValidateSnapshot(snapshot); err != nil {
+		return accounts{}, err
 	}
 	if !snapshot.AccountsEstablished {
 		return accounts{}, fmt.Errorf("snapshot has local account mappings without establishment marker")

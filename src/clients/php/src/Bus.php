@@ -14,7 +14,6 @@ final class Bus
     private ?string $name = null;
     private bool $negotiated = false;
     /** @var list<string> */
-    private array $warnings = [];
     private bool $stop = false;
     private bool $serving = false;
     /** While serve() runs: hands one request to its handler. */
@@ -47,21 +46,13 @@ final class Bus
         return $this->who(null);
     }
 
-    /**
-     * What the client warned about at its first call, such as "daemon too old:
-     * protocol is older than this client". A daemon older than the client still serves; a client
-     * older than the daemon's protocol_min is refused with DaemonTooNew.
-     *
-     * @return list<string>
-     */
-    public function warnings(): array { return $this->warnings; }
 
     /**
      * Reads protocol and protocol_min from GET /identity once, before the first
-     * call, and applies the rule: absent members count as 0; a member that is
+     * call, and applies the rule: both members are required; a member that is
      * not a non-negative integer, or protocol_min above protocol, is a
      * ProtocolError naming it; a client older than protocol_min is refused as
-     * too new; a daemon older than the client warns and still serves.
+     * too new; both members must equal CLIENT_PROTOCOL.
      */
     private function negotiate(?float $timeout = null): void
     {
@@ -69,7 +60,7 @@ final class Bus
         $identity = $this->t->json('GET', '/identity', [], null, false, $timeout);
         if (!is_array($identity)) { throw new ProtocolError('protocol error: identity must be an object'); }
         $member = function (string $name) use ($identity): int {
-            if (!array_key_exists($name, $identity)) { return 0; }
+            if (!array_key_exists($name, $identity)) { throw new ProtocolError("protocol error: $name is required"); }
             $v = $identity[$name];
             if (!is_int($v) || $v < 0) { throw new ProtocolError("protocol error: $name must be a nonnegative integer"); }
             return $v;
@@ -80,10 +71,9 @@ final class Bus
         if (self::PROTOCOL < $min) {
             throw new DaemonTooNew('daemon too new for this client');
         }
-        if ($protocol < self::PROTOCOL) {
-            $this->warnings[] = 'daemon too old: protocol is older than this client';
+        if ($protocol !== self::PROTOCOL || $min !== self::PROTOCOL) {
+            throw new ProtocolError('daemon protocol is unsupported');
         }
-        $this->t->daemonProtocol($protocol);
         $this->negotiated = true;
     }
 
@@ -374,7 +364,6 @@ final class Bus
             $p = !$hasToken && $account !== '' ? "$dir/user-$account.sock" : "$dir/bus.sock";
             if (file_exists($p) && filetype($p) === 'socket') { return $p; }
         }
-        $d = getenv('XDG_RUNTIME_DIR');
-        return $d ? "$d/agent-bus/bus.sock" : sys_get_temp_dir() . '/agent-bus-' . (function_exists('posix_getuid') ? posix_getuid() : 0) . '.sock';
+        return !$hasToken && $account !== '' ? "/run/agent-bus/user-$account.sock" : '/run/agent-bus/bus.sock';
     }
 }

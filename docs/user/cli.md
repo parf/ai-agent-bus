@@ -7,9 +7,7 @@
 
 ## Why you'd want it
 
-- 🔑 **Every tool wants its own password.** Now your own account is your credential on your machine; no token to copy.
-- 🤷 **You cannot tell what an agent does.** Now you ask it, `agent-bus help '#agent'`, and read its answer as plain text.
-- 🧩 **Wiring a script into a team takes code.** Now one `agent-bus run` line puts it behind a name others can call.
+- 🔑 **Avoid another password.** A configured local account socket authenticates you without copying a token.
 - 📡 **Ten servers, ten terminals.** Now one `call --tagged` asks every matching agent at once and lists the answers.
 - 🏢 **It grows with you:** the same commands work on one laptop and across many hosts, people and teams.
 
@@ -20,8 +18,7 @@
 - ✅ **Describe things:** `register`, `manage` and `unregister` names, and set who may use them.
 - ✅ **Run a script as an agent:** `agent-bus run`, in the foreground, with [optional confinement](../runner/security.md#isolation-today).
 - ✅ **Share state:** stored values and named locks on a record you manage.
-- ⚠️ **Agent names begin with `#`:** quote them (`'#echo@demo'`) or write `--agent echo@demo`.
-- ⚠️ **One reader per inbox:** a second `consume` on the same name is refused unless you ask for `--share`; `--host=name` says where this reader runs, for a pool's listing.
+- ⚠️ **Agent names begin with `#`:** quote them (`'#echo@demo'`).
 - 🚫 **Not for:** installing the node (`agent-bus-setup`) or adding people (`agent-bus-admin`); see [the tools](#-the-command-line-tools).
 
 ## Try this first
@@ -32,26 +29,23 @@
 agent-bus status
 ```
 
-```text
-{"up":"6h43m35s","realm":"parf.us","records":126,...,"dropped":0,"expired":0,...,"you":"#ab-w2a",...}
-```
-
-- ✅ If `you` shows your name, setup is done. Nothing else to configure.
+- Check the `you` field against the identity you intend to use. Other fields describe the bus; see [health counters](daemon.md#is-it-healthy).
 - Somebody must have installed it already ([setup](../07-setup.md#install)).
 
-<details>
-<summary>Your first five minutes (commands that ran today)</summary>
-
-See every command, grouped by purpose:
+See the available commands, then list visible agents with waiting readers:
 
 ```sh
-agent-bus help
+agent-bus --help
+agent-bus ls --table
 ```
+
+<details>
+<summary>Command help, shortened</summary>
 
 ```text
 USAGE
   agent-bus [--addr=<address>] <command> [<args>]
-  agent-bus help <command> · help '#agent' · --version | -h, --help
+  agent-bus <command> --help · help '#agent' · --version
 
 DESCRIPTION
   Talk to the bus: send messages, list records and run agents.
@@ -64,32 +58,9 @@ MAIN COMMANDS
 ...
 ```
 
-List the agents that can take a message now, as a table:
-
-```sh
-agent-bus ls --table
-```
-
-```text
-NAME                                    KIND     OWNER  READERS  QUEUED  LAST USED  DESCRIPTION
-#debug@parf.us                          👾 Agent  parf   1        0       just now   Check delivery and runner health; ...
-#slack@parf.us                          👾 Agent  parf   1        0       just now   Post and read messages; route replies; ...
-...
-```
-
-Check that you may send to an agent, without sending:
-
-```sh
-agent-bus may-send '#systemd@parf.us'
-```
-
-```text
-{"may_send":true}
-```
-
-The output is from the development node on 2026-10-30; names and counts differ on yours.
-
 </details>
+
+Use `agent-bus ls --all` for the complete visible registry, including records without a waiting reader. Examples below use illustrative names such as `#echo@demo`; create them as shown or substitute names you manage.
 
 ## 🧰 The command-line tools
 
@@ -105,17 +76,17 @@ Five programs; you use the first one almost always.
 
 ## Help
 
-- `agent-bus help` groups every command by purpose.
-- `agent-bus help <command>` or `agent-bus <command> --help` shows its usage, options with defaults, and examples.
+- `agent-bus --help` groups every command by purpose.
+- `agent-bus <command> --help` shows its usage, options with defaults, and examples.
 - `agent-bus help '#agent'` asks an agent instead ([below](#asking-an-agent-what-it-can-do)).
-- `-h` or `--help` alone shows the overview; `ls -h` is the short form of `ls --table`.
-- `--addr=<address>` goes before the command; `--agent=<name>` is shorthand for `'#name'`.
+- `agent-bus ls --table` displays a table.
+- `--addr=<address>` goes before the command.
 
 ## Option spelling
 
 - Write long options as `--name` or `--name=value`.
-- A single dash is for one-letter options such as `-h`.
-- Older single-dash long spellings are still accepted.
+- A single dash is for numeric concurrency options such as `-4` for `run`.
+- Single-dash long spellings are also accepted; use the documented `--` form in new commands.
 
 ## 🔌 How it finds the bus, and how it knows you
 
@@ -123,8 +94,8 @@ You usually do not have to think about either.
 
 | Where you are | What to do |
 |---|---|
-| **on your own machine** | nothing: `agent-bus` finds your own socket, and the system already knows your account, so **no token is needed** |
-| **somewhere else** | set `AGENT_BUS_ADDR` to `http://host:port` and `AGENT_BUS_TOKEN` to your credential, or forward your socket over SSH ([remote access](../02-access-remote.md#choosing-a-way)) |
+| **on your own machine** | after your account is mapped to a bus User, `agent-bus` discovers its private socket; **no token is needed** |
+| **somewhere else** | set `AGENT_BUS_ADDR` to the bus address and `AGENT_BUS_TOKEN` to your credential; use HTTPS for an untrusted network, or forward your socket over SSH ([remote access](../02-access-remote.md#choosing-a-way)) |
 | **over TLS** | `AGENT_BUS_ADDR=https://host:port`, and `AGENT_BUS_TLS_FINGERPRINT` to what `ssh agent-busd@thehost token --fingerprint` prints ([TLS](../02-access-remote.md#over-https)) |
 | **a specific bus** | `--addr=<socket-path>` or `--addr=http://host:port` beats both |
 
@@ -144,7 +115,6 @@ Get your credential:
 - **Registering states a description.** The thing described does not have to know the bus exists.
 - A name with `#` is an agent; a name without `#` and without `--kind` is a 📡 service, which needs `--service-addr` and `--protocol`.
 - **Register an agent:** `agent-bus register '#echo@demo' --descr "says it back"`
-- **List everything you may see:** `agent-bus ls --table --all`
 - **See where a pool's members are:** `agent-bus ls --table '#name@realm'` adds a `Hosts` line, such as `srv1 (now), srv2 (40s)`.
 - **Remove the entry:** `agent-bus unregister '#echo@demo'`
 - ℹ️ `unregister` removes the entry, not the process; something still serving the name registers it again.
@@ -154,7 +124,7 @@ What `ls` shows:
 - Plain `ls` lists only agents being read right now; `--kind=agent` lists every agent, `--all` everything you may see.
 - `--tag=<tag>` (repeatable or comma-separated) keeps records carrying every given tag.
 - `READERS`: reads waiting right now. `QUEUED`: messages waiting for them. `LAST USED`: when the name's credential last made a call.
-- 🔍 `READERS 0` with a growing `QUEUED` is an agent that has stopped.
+- 🔍 `READERS 0` means no read is waiting at that instant. With a growing queue, check whether the worker is busy, disconnected or stopped; the counter alone cannot distinguish them.
 - A 📡 service and a 👥 group show `-`: a service is [something outside](../03-records-service.md#what-a-service-is), a group is a list of members.
 
 Useful flags when you register:
@@ -172,26 +142,28 @@ Useful flags when you register:
 
 A 📡 [service](../03-records-service.md#what-a-service-is) usually needs a password. Keep it on the record:
 
+- Register the service first with its address and protocol, as described in the [service guide](../03-records-service.md#how-to-call-it).
 - **Set it:** `agent-bus secret db@demo 'PGPASSWORD=s3cret'`
 - **From a file:** `agent-bus secret db@demo - < .env`
 - **Read it back:** `password=$(agent-bus secret db@demo)`
-- What you wrote comes back byte for byte; it must be `KEY=value` lines with `#` comments.
+- Secret uses the [accepted environment-file format](../runner/configuration.md#environment-files); a shell command substitution removes trailing newlines, so use file redirection when you need the exact bytes.
 - 🔍 The record's Owner and Maintainers may read it, and an Agent its own; nobody else, and group membership alone grants nothing ([private values](../constitution.md#-private-values)).
 
 ### ✏️ Changing a record
 
+- These examples use an existing `jobs@demo` record and existing members you manage.
 - **Add someone unless already there:** `agent-bus manage jobs@demo --add-to-set-allow bob@demo`
 - **Take them out:** `agent-bus manage jobs@demo --remove-allow bob@demo`
 - **Route a queue to an agent:** `agent-bus manage jobs@demo --deliver-to '#worker@demo'`
 - **Hide it:** `agent-bus manage jobs@demo --status inactive`; `--status active` brings it back.
 - **Replace the labels:** `agent-bus manage jobs@demo --tags 'work,alerts'`; `--tags=` clears them ([tag rules](../03-records.md#tags)).
 - **Set a group's whole membership:** `agent-bus group @crew alice@demo '#worker@demo'`
-- Every list (allow, maintainers, deliver-to, tags) takes `--add-`, `--add-to-set-` and `--remove-`; two people editing at once lose nothing.
-- An inactive record is in no listing and answers as if absent until reactivated.
+- Every list (allow, maintainers, deliver-to, tags) takes `--add-`, `--add-to-set-` and `--remove-`; each incremental list edit is atomic, avoiding a read-modify-replace race.
+- An inactive record is absent from ordinary listings and operations until reactivated; authorized callers can inspect the separate [inactive view](../09-daemon-api.md#registry).
 
 ## ✉️ Sending and receiving
 
-Three shapes; the only difference is how long you wait.
+Send a request, wait for its answer, or read your own inbox:
 
 - **Send, no answer wanted:** `agent-bus send '#echo@demo' "no answer wanted"`
 - **Call and wait for the reply:** `agent-bus call '#hi@demo' --wait 10s "ping"`
@@ -209,13 +181,21 @@ Answering by hand:
 - `agent-bus ack <message-id>`, `agent-bus done <message-id>`, `agent-bus reply <message-id> "here you go"`
 - **Unprompted:** `agent-bus reply --to '#hi@demo' --topic t "unprompted"`
 - **Answer to another inbox:** `send --reply-to=<name>` keeps the message's `--topic` and `--tag` for matching; the destination must admit the answering agent ([reply routes](../04-messaging.md#request-and-reply)).
-- ⚠️ **One reader per inbox.** A silent second reader would look like lost messages, so it is refused; `consume --share` asks for several workers on purpose.
+- ⚠️ **One reader per inbox.** A second reader is refused; `consume --share` asks for several workers on purpose. `--host=name` identifies a reader's host in a pool listing.
 
 ### 📣 Channels, for one-to-many
 
-- **Create one:** `agent-bus register alerts@demo --kind pubsub --descr "shouting"`
-- **Publish:** `agent-bus publish --channel alerts@demo "disk is filling up"`
-- **Leave it:** `agent-bus unsubscribe alerts@demo`
+Create a receiver and channel you own, admit the channel at the receiver, then configure delivery:
+
+```sh
+agent-bus register alerts@demo --kind pubsub --descr "alerts"
+agent-bus register '#alert-inbox@demo' --allow alerts@demo
+agent-bus manage alerts@demo --deliver-to '#alert-inbox@demo'
+agent-bus publish --channel alerts@demo "disk is filling up"
+```
+
+The message waits in `#alert-inbox@demo`; start its reader to process it. An empty pubsub Deliver-To list is refused. A recipient can leave with `agent-bus unsubscribe alerts@demo` when authenticated as that recipient.
+
 - ⚠️ **The owner chooses who receives.** You cannot add yourself; `unsubscribe` takes you off, because it is your inbox that fills.
 - ⚠️ **A channel is not a topic.** The channel is the name you publish to; `--topic` labels one message ([channels](../03-records-channel.md#channel-not-topic)).
 
@@ -226,44 +206,32 @@ Answering by hand:
 
 ## Checking whether you may send
 
-- `agent-bus may-send '#systemd@node.example'` answers `{"may_send":true}` without sending ([run above](#try-this-first)).
-- A refusal prints the reason on stderr and exits nonzero.
-- It checks your own identity only, and reserves nothing.
-- The [daemon API](../09-daemon-api.md#checking-permission-to-send) owns the rules.
+Choose a target from your listing and check your own identity without sending:
+
+```sh
+agent-bus may-send '#target'
+```
+
+A successful response includes `may_send: true`. A refusal prints its reason on stderr and exits nonzero. The check reserves nothing; [permission rules](../09-daemon-api.md#checking-permission-to-send) also apply when you send.
 
 ## Asking an agent what it can do
 
-Ask by name; the answer prints as readable text:
+Replace `#target` with the name of a running agent from your listing:
 
 ```sh
-agent-bus help '#systemd@parf.us'
+agent-bus help '#target'
 ```
 
-```text
-Scope: every unit on this host
-Inspect units and logs; start, stop and restart units within configured scope
-list [type]: List loaded units, including inactive units
-  type (service|timer|socket|mount|path|target|slice|scope|automount|swap|device): Optional unit type
-timers: List timers with their last and next runs
-failed: List failed units
-status <unit>: Show one unit’s status
-...
-More: agent-bus help '#systemd@parf.us' config | secret | json
-```
-
-- 🔍 It lists only the methods available **to you**; a caller with more roles sees more.
-- **Configuration keys:** `agent-bus help '#systemd@parf.us' config`
-- **Secret key names and instructions, never values:** `agent-bus help '#systemd@parf.us' secret`
-- **The whole description, pretty-printed:** `agent-bus help '#systemd@parf.us' json`
-- 🎨 On a terminal it is coloured; pipes and files get plain text. `NO_COLOR` or `--no-color` turns colour off.
+- Help describes the methods exposed by that agent; native help may filter them by the caller's roles or the instance's configured scope.
+- **Configuration:** `agent-bus help '#target' config`.
+- **Secret key names and instructions, never values:** `agent-bus help '#target' secret`.
+- **The complete description:** `agent-bus help '#target' json`.
+- Terminal output is coloured; pipes and files get plain text. `NO_COLOR` or `--no-color` turns colour off.
 - A refusal or timeout goes to stderr and exits nonzero; `--wait 5s` shortens the 30-second default.
 
-For scripts that want the original message:
-
-- `agent-bus call '#systemd@parf.us' --help-json` returns the message, with the description in its body.
-- `call … --help`, `--help-config` and `--help-secret` ask the same way; use one at a time. `send` takes them too.
-- `--status` asks for agent status; `--mcp` asks for MCP tools.
-- How installed agents supply these answers: [package help](../runner/configuration.md#package-help).
+- To receive the original message, use `agent-bus call '#target' --help-json`; its body contains the description.
+- Other asks are `--help`, `--help-config`, `--help-secret`, `--status` and `--mcp`; use one at a time. `send` accepts them too.
+- See [package help](../runner/configuration.md#package-help) for how agents answer.
 
 ## Calling many agents at once
 
@@ -273,22 +241,10 @@ Ask the same question of every agent with a tag:
 agent-bus ls --tag systemd --table
 ```
 
-```text
-NAME                  KIND     OWNER  READERS  QUEUED  LAST USED  DESCRIPTION
-#systemd@parf.us      👾 Agent  parf   1        0       just now   Inspect units and logs; ...
-#systemd/web@parf.us  👾 Agent  parf   1        0       just now   Inspect units and logs; ...
-```
+Choose a tag present on agents you intend to call. For installed systemd agents, ask for failed units:
 
 ```sh
 agent-bus call --tagged systemd --wait 10s failed
-```
-
-```text
-## #systemd/web@parf.us
-    no failed units
-
-## #systemd@parf.us
-    no failed units
 ```
 
 - ✅ Answers come back under name-sorted headings; `No answer:` and `Refused:` lists follow, one line per agent.
@@ -308,21 +264,8 @@ One command line, and your script is an agent:
 - **Watch its output:** `agent-bus logs '#hi@demo' --lines 50 --follow`
 - **Stop it:** `agent-bus stop '#hi@demo'`
 
-| Flag | |
-|---|---|
-| default (`--algo=args`) | the message arrives as an **argument** |
-| `--algo=json` | the whole message arrives as **JSON on stdin**: use it to see the sender or topic |
-| `-N` (e.g. `-3`) | how many at a time; one by default |
-| `--descr=text` | description shown in listings |
-| `--allow=names` | who may call it: comma-separated names, `@owner` or `*` |
-| `--personal` | a [personal agent](../03-records.md#personal-and-shared) |
-| `--tags=a,b` | record labels; none are added for you |
-| `--roles=a,b` | roles the script understands; informational, grants nothing |
-| `--no-asks` | answer `unsupported: <ask>` without starting the script when metadata cannot answer |
-| `--package-dir=/path` | absolute package folder; answers the help asks from its metadata without running the script |
-| `--sandbox=on` | request the [dedicated isolation rules](../runner/security.md#isolation-today) |
-| `--network` | request [network access](../runner/security.md#isolation-today) for that sandbox |
-| `--stay-registered` | keep the record and credential at a graceful stop |
+- The default input is the body as `$1`; `--algo=json` passes the whole message on stdin.
+- See [run options](dedicated-runner.md#run-options) for concurrency, access, metadata and confinement.
 
 - ⚠️ **Use an absolute path.** The script runs in its own work folder, so a relative path is refused; a bare command on `PATH`, such as `echo`, is fine ([script limits](../06-dedicated-runner.md#script-agents)).
 - 💡 **It runs in the foreground.** Ctrl-c stops it and, with nothing queued, unregisters the name.
@@ -365,7 +308,7 @@ For a record you may manage: stored values and named locks. All options and limi
 - **Read:** `agent-bus config <name>` prints its JSON settings; an Agent may read its own.
 - **Replace:** add JSON, or `-` for stdin, as Owner or Maintainer.
 - Configuration is not secret: authorized web pages show it; other callers get nothing.
-- Scripts receive it as compact `AGENT_BUS_CONFIG` at their next start ([`jq` example](../03-records-agent.md#configuring-a-template)).
+- Scripts receive it as compact `AGENT_BUS_CONFIG` at their next start ([configuration](../03-records-agent.md#configuring-a-template)).
 
 ## 🆘 When something looks wrong
 
@@ -373,22 +316,22 @@ For a record you may manage: stored values and named locks. All options and limi
 |---|---|
 | `set AGENT_BUS_TOKEN` | you are on the shared socket, not your own; see [above](#-how-it-finds-the-bus-and-how-it-knows-you) |
 | `no inbox for …: register it first` | you asked to `consume` from a name nobody registered; a User's own inbox always exists |
-| `no answer within 30s` | the message *was* accepted; do not send it again. Nobody answered in time |
+| `no answer within 30s` | no answer arrived by the deadline; the operation may have taken effect, so inspect the outcome before any retry |
 | a name that "does not exist" | sending to an unregistered name is refused on purpose, so you learn now |
-| `ls --kind=agent` shows `READERS 0` and `QUEUED` climbing | whatever serves that name is not running |
+| `ls --kind=agent` shows `READERS 0` and `QUEUED` climbing | work is not being drained fast enough; check the worker's logs and connection |
 
 - `agent-bus status` shows the counters worth watching: `dropped`, `expired` and `refused`.
 
 ## 👤 For the bus operator
 
-`agent-bus-admin` runs as the account the bus runs as:
+Host administration uses the daemon account through the admin tool. Record export/import instead require the bus Owner's own local login; do not run them through an account handover.
 
-- **Let somebody in:** `agent-bus-admin user add parf@myhost ~/.ssh/id_ed25519.pub`
-- **As a bus operator:** `agent-bus-admin user add parf@myhost - --admin < key.pub`
-- **Fill a name from a local account:** `agent-bus-admin user import-local parf@myhost parf`
+- **Let somebody in:** `agent-bus-admin user add alice@demo ~/.ssh/id_ed25519.pub`
+- **As a bus operator:** `agent-bus-admin user add alice@demo - --admin < key.pub`
+- **Fill a name from a local account:** `agent-bus-admin user import-local alice@demo alice`
 - **A keyless user on that account's socket:** `agent-bus-admin user add-local worker@myhost worker`
-- **List and remove:** `agent-bus-admin user list`, `agent-bus-admin user remove parf@myhost`
-- **Rotate a credential:** `agent-bus-admin token parf@myhost --rotate`
+- **List and remove:** `agent-bus-admin user list`, `agent-bus-admin user remove alice@demo`
+- **Rotate a credential:** `agent-bus-admin token alice@demo --rotate`
 - **Back up and restore records:** `agent-bus-admin export --include=tag:ops --out=ops.tar.gz.age`, then `agent-bus-admin import ops.tar.gz.age --dry-run --keep-existing=all` ([how-to](backup.md)).
 - 🔒 A key added this way reaches **one command and no shell**: `agent-bus token` for a person, this program for an operator.
 - Installing: [setup](../07-setup.md#install). The bus itself: [the daemon](daemon.md). Live AI sessions: [Claude Code, Codex and opencode](ai-cli.md).
@@ -404,7 +347,6 @@ For a record you may manage: stored values and named locks. All options and limi
 - A valued flag without its value is refused; `--descr=` supplies an explicit empty value.
 - A bare `--` ends options: everything after it is literal, for example `agent-bus send '#worker@demo' -- "--verbose please"`.
 - The current spellings are `config`, `ls --table`, `register --service-addr=…` and `register --kind=queue|pubsub`.
-- The older `agent-template`, `register --addr` and `channel create` still work but are hidden from help.
 
 </details>
 
@@ -423,14 +365,5 @@ For a record you may manage: stored values and named locks. All options and limi
 - A `done` receipt lands in the no-answer list with its reason, without waiting out the deadline.
 - Transport or read failures also land under no-answer: the outcome may be unknown.
 - Answer bodies are opaque: an application's own JSON error is still an answer.
-
-</details>
-
-<details>
-<summary>Record backups</summary>
-
-- Export and import ([how-to](backup.md), [details](../administration.md#encrypted-record-backups)) need the bus Owner's own login socket.
-- They keep permanent settings and credentials in an encrypted archive.
-- They never include queued messages or held locks.
 
 </details>

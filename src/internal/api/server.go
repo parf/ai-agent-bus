@@ -178,8 +178,7 @@ func New(bus *core.Bus, tokens *auth.Tokens, owner string) *Server {
 	if err := bus.EstablishDaemonOwner(owner); err != nil {
 		panic(err)
 	}
-	// After the owner is established, so the owner's own credential binds
-	// rather than being ignored as answering for nobody.
+	// Credentials are checked against already established principal IDs.
 	bus.BindCredentials(tokens)
 	return &Server{bus: bus, tokens: tokens, locks: locks.New()}
 }
@@ -494,6 +493,12 @@ func (s *Server) ownAgent(owner protocol.Name, token string) (protocol.Name, boo
 // so restarting the web child logs nobody out.
 // See docs/05-discovery.md#signing-in.
 func (s *Server) session(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+	// A local account socket authenticates without a token. Establish its
+	// current principal pair before a session starts referring to that token.
+	if _, err := s.bus.IssueFor(caller.String(), caller.String(), s.tokens.IssuePair); err != nil {
+		s.reply(w, nil, err)
+		return
+	}
 	id, err := s.tokens.StartSession(caller.String())
 	if err != nil {
 		oops(w, err)
@@ -928,8 +933,7 @@ func (s *Server) maySend(w http.ResponseWriter, r *http.Request, caller protocol
 			dryRefusal(w, err)
 			return
 		}
-		// The echo is how a client tells this answer from an older daemon's,
-		// which ignores who and answers for the caller.
+		// The answer identifies the principal whose permission was checked.
 		ok(w, struct {
 			MaySend bool   `json:"may_send"`
 			Who     string `json:"who"`

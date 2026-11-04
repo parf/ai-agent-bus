@@ -21,7 +21,7 @@ controller=ROOT/'control.py'
 controller.write_text(f'''#!/usr/bin/env python3
 import os,subprocess,sys
 if sys.argv[1] in ('start','restart'):
- result=subprocess.run([{str(BIN/'agent-bus')!r},'agent-template',{NAME!r},{json.dumps(config)!r}],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+ result=subprocess.run([{str(BIN/'agent-bus')!r},'config',{NAME!r},{json.dumps(config)!r}],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
  if result.returncode:sys.exit(result.returncode)
 os.execv(sys.executable,[sys.executable,{str(HERE.parent/'systemctl-fixture.py')!r},*sys.argv[1:]])
 ''');controller.chmod(0o755)

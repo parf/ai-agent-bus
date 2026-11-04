@@ -118,7 +118,7 @@ func TestBusRingSumRefusesAtTheConfigurationBoundary(t *testing.T) {
 	if err := b.EstablishDaemonAgent("node.example"); err != nil {
 		t.Fatal(err)
 	}
-	r := httptest.NewRequest("POST", "/configure", strings.NewReader(`{"name":"#bus","kind":"agent","config":{"realm":"invalid","notice_entries":251}}`))
+	r := httptest.NewRequest("POST", "/configure", strings.NewReader(`{"name":"#bus","config":{"realm":"invalid","notice_entries":251}}`))
 	r.Header.Set(HeaderToken, token("admin@h"))
 	w := httptest.NewRecorder()
 	s.Handler().ServeHTTP(w, r)

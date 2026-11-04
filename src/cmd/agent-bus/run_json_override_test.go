@@ -46,3 +46,26 @@ func TestJSONRunAppliesAlgoAndDescriptionFlags(t *testing.T) {
 		})
 	}
 }
+
+func TestRunJSONUsesExactUniqueFields(t *testing.T) {
+	saved := os.Stdin
+	defer func() { os.Stdin = saved }()
+	for _, body := range []string{`{"Name":"#worker","script":"echo"}`, `{"name":"#a","name":"#b","script":"echo"}`, `{"name":"#a","script":"echo"} {}`} {
+		f, err := os.CreateTemp(t.TempDir(), "input")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = f.WriteString(body); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = f.Seek(0, 0); err != nil {
+			t.Fatal(err)
+		}
+		os.Stdin = f
+		_, err = describe([]string{"-"})
+		f.Close()
+		if err == nil {
+			t.Fatalf("accepted noncanonical JSON %s", body)
+		}
+	}
+}

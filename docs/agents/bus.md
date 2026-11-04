@@ -5,17 +5,9 @@
 - **Outcome:** anyone with a bus account asks `#bus` whether the bus is up, which version runs and which helpers they may use; it answers only with what you are already allowed to see.
 - **Start:** `agent-bus call '#bus' status` ([Try this first](#try-this-first)); nothing to install, no extra password.
 
-## Why you'd want it
-
-- 🩺 **Is the bus up?** Now one call says so, with counts and uptime.
-- 🔢 **Which version runs after an update?** Now `version` answers.
-- 🔎 **Which helpers may I use?** Now `ls` lists exactly the ones you may see.
-- 🤖 **A script needs the menu.** Now `--help-json` returns it in machine-readable form.
-
 ## What it does
 
-- ✅ **Pre-flight check for an AI:** `status` answers `ok: <records> records, <readers> readers, up <uptime>`.
-- ✅ **Counts are the whole node's:** records are every live record of any kind, not only the ones you may see; readers are reads waiting for a message, so one agent can count twice and a busy one not at all.
+- **Check connectivity:** `status` reports record and reader counts and uptime.
 - ✅ **Deploy check:** `version` gives the running version and build.
 - ✅ **Find helpers:** `ls` lists your team's helpers with one-line descriptions.
 - ✅ **Read the menu:** `help` lists the calls you may use.
@@ -37,7 +29,6 @@ agent-bus call '#bus' status
 
 ## Use examples
 
-- **Check the bus is up:** `agent-bus call '#bus' status`
 - **Read the counts as JSON:** `agent-bus call '#bus' 'status --json'`
 - **See the running version:** `agent-bus call '#bus' version`
 - **List my team's agents:** `agent-bus call '#bus' 'ls --kind agent --tag team'`
@@ -83,7 +74,7 @@ An alert is on disk within about 100 ms; a clean stop flushes all.
 | `alert_entries`, `alert_days` | The same for alerts; default 50 and 30 |
 
 ```sh
-echo '{"realm":"parf.us"}' | agent-bus config '#bus' -
+agent-bus config '#bus' '{"realm":"node.example"}'
 ```
 
 </details>
@@ -135,7 +126,7 @@ Inspect the daemon's [diagnostic logs](../administration.md#logs) for startup, s
 <summary>Counts, listing and asks</summary>
 
 - `#bus` is a complete, realm-less name; it is not a runner package.
-- `status` counts active records and outstanding reads, including filtered reads; they are observations, not proof that an agent is healthy; a busy or empty queue does not by itself mean the daemon is degraded.
+- `status` counts all active records node-wide, regardless of listing visibility, and outstanding reads, including filtered reads; they are observations, not proof that an agent is healthy; a busy or empty queue does not by itself mean the daemon is degraded.
 - `ls` selects the same records as `agent-bus ls`: without options, agents being read now; `--all` everything visible; `--kind` or `--tag` filters; a name looks up that record.
 - Description asks use the envelope's `ask` field: `help`, `help-json`, `help-config`, `help-secret` and `mcp`.
 - `help-config` lists the [bus setup](#configuration) keys; there are no Secret keys; `mcp` returns `{"tools":[]}`.

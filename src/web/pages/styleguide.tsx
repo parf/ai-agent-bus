@@ -73,7 +73,7 @@ export async function styleguide(ctx: Ctx): Promise<Response> {
         <SelectField name="overflow" label="When full" st={{ values: {} }} errId="sg-err" options={[["strict", "Refuse new messages"], ["ring", "Drop the oldest"]]} />
         <LinesField name="members" label="Members" st={{ values: { members: "alice\nnosuchuser\nbob" }, error: err }} errId="sg-err" hint="One per line." />
         <SecretField name="secret" label="Secret" st={{ values: {} }} errId="sg-err" placeholder="TOKEN=..." hint="Never shown again." />
-        <CheckField name="personal" label="Personal" st={{ values: {} }} errId="sg-err" checked hint="Puts this record in its Owner's Personal view." />
+        <CheckField name="enabled" label="Enabled" st={{ values: {} }} errId="sg-err" checked hint="Starts the configured runner instance." />
       </div>
       <FieldError id="sg-err" error={err} />
       <div class="actions"><Button tone="primary" type="button" icon="check">Save</Button><Button tone="danger" type="button" icon="trash-2">Remove</Button><Button type="button" tone="secondary">Cancel</Button></div>

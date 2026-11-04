@@ -24,10 +24,11 @@ func TestOwnerlessIsNoRecordAndNoUser(t *testing.T) {
 	}
 	// A person with a profile and no record of their own — SetUser makes one,
 	// so make this one the way a directory restore would.
-	b.Restore(ports.Snapshot{
-		Users:   []protocol.User{{Name: "person@h", Status: "active"}, {Name: "banned@h", Status: "inactive"}},
-		Records: []protocol.Record{userRecord("person@h"), userRecord("banned@h")},
-	})
+	for _, user := range []protocol.User{{Name: "person@h", Status: "active"}, {Name: "banned@h", Status: "inactive"}} {
+		if _, err := b.SetUser("owner@h", user, true); err != nil {
+			t.Fatal(err)
+		}
+	}
 
 	got := b.Ownerless([]string{
 		"owner@h",  // the daemon owner: a profile, written by Administrator
@@ -54,10 +55,10 @@ func TestTheSweepNeedsRestoreAndTheOwnerFirst(t *testing.T) {
 	if got := early.Ownerless([]string{"person@h", "#svc@h"}); len(got) != 2 {
 		t.Errorf("before restore %v is ownerless; the test cannot show the ordering matters", got)
 	}
-	early.Restore(ports.Snapshot{
-		Users:   []protocol.User{{Name: "person@h", Status: "active"}},
-		Records: []protocol.Record{userRecord("person@h"), {Kind: protocol.KindAgent, Name: "#svc@h", Owner: "owner@h", Full: protocol.OverflowStrict}},
-	})
+	early.Restore(canonicalFixture(ports.Snapshot{
+		Users:   []protocol.User{{Name: "owner@h", Status: "active"}, {Name: "person@h", Status: "active"}},
+		Records: []protocol.Record{userRecord("owner@h"), userRecord("person@h"), {Kind: protocol.KindAgent, Name: "#svc@h", Owner: "owner@h", Full: protocol.OverflowStrict}},
+	}, ""))
 	if got := early.Ownerless([]string{"person@h", "#svc@h"}); len(got) != 0 {
 		t.Errorf("after restore %v is still ownerless", got)
 	}
@@ -89,22 +90,7 @@ func TestTheTwoSweepsAgreeAboutOneName(t *testing.T) {
 	// absent@h holds no record and no profile. A record it "owns" is one no
 	// version wrote: it is ignored at load and reported, not kept
 	// (docs/constitution.md#persistence-and-loading).
-	b.Restore(ports.Snapshot{Clean: true, Records: []protocol.Record{
+	assertRestoreRefused(t, b, canonicalFixture(canonicalFixture(ports.Snapshot{Clean: true, Records: []protocol.Record{
 		{Name: "#theirs@h", Owner: "absent@h", Kind: protocol.KindAgent, Full: protocol.OverflowStrict},
-	}})
-	if _, still := b.Lookup("owner@h", "#theirs@h"); still {
-		t.Error("a record owned by nobody was loaded")
-	}
-	if !rep.has("#theirs@h is ignored") {
-		t.Errorf("the ignored record was not reported: %v", rep.lines)
-	}
-	// So the credential behind it answers for nothing and is swept.
-	if got := b.Ownerless([]string{"absent@h"}); len(got) != 1 || got[0] != "absent@h" {
-		t.Errorf("the credential behind an ignored record survived: %v", got)
-	}
-	// And a user's own record is kept by the record test, not by this one.
-	known(t, b, "self@h")
-	if got := b.Ownerless([]string{"self@h"}); len(got) != 0 {
-		t.Errorf("a user was swept: %v", got)
-	}
+	}}, ""), ""))
 }

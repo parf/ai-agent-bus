@@ -11,7 +11,7 @@ fn answer(listener: UnixListener, you: &'static str) {
         while let Ok((mut socket, _)) = listener.accept().await {
             let mut buffer = [0; 4096];
             let _ = socket.read(&mut buffer).await;
-            let body = format!("{{\"you\":\"{you}\"}}");
+            let body = format!("{{\"you\":\"{you}\",\"protocol\":1,\"protocol_min\":1}}");
             let reply = format!(
                 "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
                 body.len()

@@ -3,7 +3,7 @@ import type { Record_ } from "./bus.ts";
 // What a caller needs to decide whether to call a record. A service is
 // external and has no queue here, so it reports where it is and nothing about
 // readers or backlog; for the rest, missing reader data is not a measured
-// zero, because it can be an older daemon answering a newer face.
+// zero: an omitted count is unknown.
 // See docs/03-records.md#record-kinds.
 // How long ago, coarse on purpose: a listing is read to tell a session that
 // is in use from one left behind, not to audit it.

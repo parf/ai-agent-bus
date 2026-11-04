@@ -71,7 +71,16 @@ client_preflight() { # bin
     done
 }
 
+client_validate() { # release directory
+    (cd "$1" && sha256_ok MANIFEST.sha256) || die "client release does not match its manifest"
+    for p in $client_files; do
+        grep -qxE "[0-9a-f]{64}  $p" "$1/MANIFEST.sha256" && [ -f "$1/$p" ] && [ -x "$1/$p" ] ||
+            die "client release is not the current layout: $p is missing"
+    done
+}
+
 client_switch() { # root bin release
+    client_validate "$1/releases/$3"
     ln -sfn "releases/$3" "$1/current.new"
     # Atomic where mv -T exists; where it does not (macOS), the link is replaced in place.
     mv -T "$1/current.new" "$1/current" 2>/dev/null || { ln -sfn "releases/$3" "$1/current"; rm -f "$1/current.new"; }
@@ -110,7 +119,7 @@ main() {
             --version=*) version=${1#--version=} ;;
             --rollback) rollback=1 ;;
             --) shift; break ;;
-            -h|--help) sed -n '2,14p' "$0" 2>/dev/null || true; exit 0 ;;
+            --help) sed -n '2,14p' "$0" 2>/dev/null || true; exit 0 ;;
             *) die "unknown option $1 (setup options go after --)" ;;
         esac
         shift

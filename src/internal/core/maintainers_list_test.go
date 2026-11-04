@@ -148,7 +148,7 @@ func TestMaintainersRefreshAndSnapshotUseArrayWithoutAuthorityLoss(t *testing.T)
 		t.Fatal(err)
 	}
 	restarted := New()
-	restarted.Restore(snapshot)
+	restarted.Restore(b.Snapshot())
 	if _, err := restarted.Manage("direct@h", Management{Name: "#target@h", Descr: ptr("restored")}); err != nil {
 		t.Fatalf("direct Maintainer lost authority after restore: %v", err)
 	}

@@ -159,8 +159,6 @@ def parse(body):
         value = {'method': 'sub.list'}
     elif body.startswith('sub delete '):
         value = {'method': 'sub.delete', 'id': body[len('sub delete '):].strip()}
-    elif body == 'sub edit' or body.startswith('sub edit '):
-        value = {'method': 'sub.edit'}
     else:
         method, _, rest = body.partition(' ')
         value = {'method': method}
@@ -173,10 +171,8 @@ def parse(body):
     method = value.get('method')
     if not isinstance(method, str):
         raise MailError('method must be text')
-    method = {'sub add': 'sub.add', 'sub list': 'sub.list', 'sub delete': 'sub.delete', 'sub edit': 'sub.edit'}.get(method, method)
+    method = {'sub add': 'sub.add', 'sub list': 'sub.list', 'sub delete': 'sub.delete'}.get(method, method)
     value['method'] = method
-    if method == 'sub.edit':
-        raise MailError('a subscription cannot be edited: delete it and add it again')
     fields = {'sync': {'limit'}, 'list': {'limit', 'unread'}, 'search': {'text'}, 'read': {'uid', 'mark_read'}, 'publish': {'uid'}, 'mark': {'uid', 'state'},
               'sub.add': {'target', 'filter', 'folder'}, 'sub.list': set(), 'sub.delete': {'id'}, 'status': set(), 'help': set()}
     fields['folders'] = {'counts'}
@@ -358,8 +354,6 @@ class Agent:
                 if not raw or len(raw) > folder_admin.MAIL_CAP:
                     raise MailError('append bigfile mail must be nonempty and at most 25 MB (26214400 bytes)')
             connection = open_connection()
-            from folder_watch import recover
-            recover(self.bus, self.bus.name, connection, cfg, user)
             if method in folder_admin.METHODS:
                 watched = self.forwarding().watched() if method in {'folder.rename', 'folder.delete'} else ()
                 result = folder_admin.perform(connection, call, cfg, watched=watched, raw=raw)
@@ -385,7 +379,7 @@ class Agent:
                 selected = trash
             selected = folders.choose(connection, selected)
             is_default = folders.same(selected, cfg['mailbox'])
-            # Preserve the old default identity byte for byte, including INBOX casing.
+            # The configured default folder determines its cache identity, including INBOX casing.
             cache_folder = cfg['mailbox'] if is_default else ('INBOX' if selected.casefold() == 'inbox' else selected)
             writable = method in destructive.METHODS or method in {'mark', 'flag'} or (method == 'read' and call.get('mark_read', True))
             validity, next_uid = wire.selected(connection, selected, readonly=not writable, flag_write=method == 'flag' or method in destructive.METHODS)
@@ -413,7 +407,7 @@ class Agent:
                         if any(isinstance(row, dict) and str(row.get('name', '')).startswith('sub.')
                                for row in listing.get('json', [])):
                             raise progress.ProgressError('forwarding progress is missing; explicit rebaseline required')
-                        previous = cache.state
+                        previous = None
                     state, _reset = progress.load(previous, identity, validity, next_uid)
                     if state['history'] == 0 and next_uid - 1 > state['history_ceiling']:
                         state = progress.renew_history(state, next_uid)
@@ -454,7 +448,7 @@ class Agent:
                         # Bodies commit first. A failed progress commit may repeat SEARCH,
                         # but the durable cache prevents another body FETCH after restart.
                         kv.set(progress_key, state, kind='json', mode='set')
-                    # Even an empty mailbox persists the migration and baseline.
+                    # Even an empty mailbox persists the progress baseline.
                     kv.set(progress_key, state, kind='json', mode='set')
                     result = f"fetched {fetched}; history {state['history']}; UIDNEXT {next_uid}; more {'yes' if state['history'] else 'no'}; skipped {skipped}"
                     if details:

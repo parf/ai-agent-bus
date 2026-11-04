@@ -92,7 +92,7 @@ func TestADeltaNeedsTheAuthorityAWholeWriteNeeds(t *testing.T) {
 		t.Fatalf("the administrators took a membership delta: %v", err)
 	}
 	// And Personal still holds against the list the delta leaves.
-	provision(t, b, nil, protocol.Record{Name: "#mine@h", Kind: protocol.KindAgent, Owner: "alice@h", Personal: true, Full: protocol.OverflowStrict})
+	provision(t, b, nil, protocol.Record{Name: "#mine@h", Kind: protocol.KindAgent, Owner: "alice@h", Tags: []string{"personal"}, Full: protocol.OverflowStrict})
 	if _, err := b.Manage("alice@h", Management{Name: "#mine@h", AddToSet: &ListDelta{Allow: []string{"*"}}}); !errors.Is(err, ErrPersonal) {
 		t.Fatalf("a delta opened a Personal record to everyone: %v", err)
 	}

@@ -336,10 +336,10 @@ func TestRestatingATopicKeepsItsDeliverToListUnlessItStatesOne(t *testing.T) {
 func TestAnAnswerNeverCarriesLivenessItWasHandedIn(t *testing.T) {
 	b := New()
 	known(t, b, "#claimer@srv")
-	got := b.withLiveness("#claimer@srv", protocol.Record{Kind: protocol.KindAgent, Name: "#claimer@srv", Reading: true, Readers: ptr(9), Queued: 9, In: 9, Out: 9,
+	got := b.withLiveness("#claimer@srv", protocol.Record{Kind: protocol.KindAgent, Name: "#claimer@srv", Readers: ptr(9), Queued: 9, In: 9, Out: 9,
 		Dropped: 9, Expired: 9, Oldest: "99h",
 	})
-	if got.Reading || got.Readers == nil || *got.Readers != 0 || got.Queued != 0 || got.In != 0 || got.Out != 0 ||
+	if got.Readers == nil || *got.Readers != 0 || got.Queued != 0 || got.In != 0 || got.Out != 0 ||
 		got.Dropped != 0 || got.Expired != 0 || got.Oldest != "" {
 		t.Fatalf("liveness came back from the caller, not from the inbox: %+v", got)
 	}
@@ -625,26 +625,26 @@ func TestReRegisteringKeepsTheRealDigest(t *testing.T) {
 func TestARegistrationCannotClaimLiveState(t *testing.T) {
 	b := New()
 	known(t, b, "o@h")
-	if _, err := b.Register(protocol.Record{Name: "#probe@h", Kind: "agent", Owner: "o@h", Reading: true, Readers: ptr(99), Queued: 77}); !errors.Is(err, ErrKind) {
+	if _, err := b.Register(protocol.Record{Name: "#probe@h", Kind: "agent", Owner: "o@h", Readers: ptr(99), Queued: 77}); !errors.Is(err, ErrKind) {
 		t.Fatalf("a registration claiming live state: %v", err)
 	}
 	rec, err := b.Register(protocol.Record{Name: "#probe@h", Kind: "agent", Owner: "o@h"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if rec.Reading || rec.Readers != nil || rec.Queued != 0 {
-		t.Fatalf("the registration answer carried live state: reading=%v readers=%v queued=%d", rec.Reading, rec.Readers, rec.Queued)
+	if rec.Readers != nil || rec.Queued != 0 {
+		t.Fatalf("the registration answer carried live state: readers=%v queued=%d", rec.Readers, rec.Queued)
 	}
 	got, ok := b.Lookup("#probe@h", "#probe@h")
 	if !ok {
 		t.Fatal("not registered")
 	}
-	if got.Reading || got.Readers == nil || *got.Readers != 0 {
-		t.Fatalf("stored or absent reader state survived into a lookup: reading=%v readers=%v", got.Reading, got.Readers)
+	if got.Readers == nil || *got.Readers != 0 {
+		t.Fatalf("stored or absent reader state survived into a lookup: readers=%v", got.Readers)
 	}
 	for _, r := range b.List("#probe@h", "") {
-		if r.Name == "#probe@h" && (r.Reading || r.Readers == nil || *r.Readers != 0) {
-			t.Fatalf("stored or absent reader state survived into a listing: reading=%v readers=%v", r.Reading, r.Readers)
+		if r.Name == "#probe@h" && (r.Readers == nil || *r.Readers != 0) {
+			t.Fatalf("stored or absent reader state survived into a listing: readers=%v", r.Readers)
 		}
 	}
 }
@@ -703,24 +703,24 @@ func TestAKindTheDaemonDoesNotKnowIsRefused(t *testing.T) {
 func TestLivenessIsAssignedNotMerged(t *testing.T) {
 	b := New()
 	known(t, b, "#svc@h")
-	dirty := protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Reading: true, Readers: ptr(99), Queued: 77}
+	dirty := protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Readers: ptr(99), Queued: 77}
 	look := func(name string, r protocol.Record) protocol.Record {
 		b.mu.Lock()
 		defer b.mu.Unlock()
 		return b.withLiveness(name, r)
 	}
 
-	if got := look("#svc@h", dirty); got.Reading || got.Readers == nil || *got.Readers != 0 || got.Queued != 0 {
-		t.Fatalf("an idle empty inbox answered reading=%v readers=%v queued=%d", got.Reading, got.Readers, got.Queued)
+	if got := look("#svc@h", dirty); got.Readers == nil || *got.Readers != 0 || got.Queued != 0 {
+		t.Fatalf("an idle empty inbox answered readers=%v queued=%d", got.Readers, got.Queued)
 	}
-	if got := look("no-inbox@h", dirty); got.Reading || got.Readers == nil || *got.Readers != 0 || got.Queued != 0 {
-		t.Fatalf("a name with no inbox answered reading=%v readers=%v queued=%d", got.Reading, got.Readers, got.Queued)
+	if got := look("no-inbox@h", dirty); got.Readers == nil || *got.Readers != 0 || got.Queued != 0 {
+		t.Fatalf("a name with no inbox answered readers=%v queued=%d", got.Readers, got.Queued)
 	}
 
 	// A waiting unfiltered reader is reported, and only while it waits.
 	done := make(chan struct{})
 	go func() { defer close(done); _, _ = b.Consume(context.Background(), "#svc@h", "", "", false, false) }()
-	for deadline := time.Now().Add(2 * time.Second); !look("#svc@h", protocol.Record{}).Reading; {
+	for deadline := time.Now().Add(2 * time.Second); *look("#svc@h", protocol.Record{}).Readers == 0; {
 		if time.Now().After(deadline) {
 			t.Fatal("a waiting unfiltered reader was never reported")
 		}
@@ -731,7 +731,7 @@ func TestLivenessIsAssignedNotMerged(t *testing.T) {
 		t.Fatal(err)
 	}
 	<-done
-	if got := look("#svc@h", dirty); got.Reading {
+	if got := look("#svc@h", dirty); got.Readers == nil || *got.Readers != 0 {
 		t.Fatal("the reader is gone and is still reported")
 	}
 
@@ -887,39 +887,37 @@ func TestEveryPathThatStoresARecordAsksTheSameShapeQuestion(t *testing.T) {
 		"owned by nobody":     {Name: "x@h", Owner: "ghost@h", Kind: protocol.KindQueue},
 		// A 👤 record is a User's inbox; one whose owner is no User, or is
 		// another User, is nobody's inbox.
-		"user record, owner no user":   {Name: "x@h", Owner: "x@h", Kind: protocol.KindUser, Personal: true},
-		"user record, another's owner": {Name: "x@h", Owner: "alice@h", Kind: protocol.KindUser, Personal: true},
+		"user record, owner no user":   {Name: "x@h", Owner: "x@h", Kind: protocol.KindUser, Tags: []string{"personal"}},
+		"user record, another's owner": {Name: "x@h", Owner: "alice@h", Kind: protocol.KindUser, Tags: []string{"personal"}},
 	} {
 		restarted := New()
 		rep := &reports{}
 		restarted.Journal(rep)
-		restarted.Restore(ports.Snapshot{
+		restarted.Restore(canonicalFixture(ports.Snapshot{
 			Users:   []protocol.User{{Name: "alice@h", Status: "active"}},
-			Records: []protocol.Record{{Name: "alice@h", Owner: "alice@h", Kind: protocol.KindUser, Personal: true}, record},
-		})
-		if err := restarted.EstablishDaemonOwner("alice@h"); err != nil {
-			t.Fatalf("an ignored record stopped the start: %v", err)
+			Records: []protocol.Record{{Name: "alice@h", Owner: "alice@h", Kind: protocol.KindUser, Tags: []string{"personal"}}, record},
+		}, "alice@h"))
+		if err := restarted.EstablishDaemonOwner("alice@h"); err == nil {
+			t.Fatalf("unsupported %s snapshot accepted", name)
 		}
-		if _, loaded := restarted.Lookup("alice@h", "x@h"); loaded {
-			t.Errorf("a snapshot holding a %s record served it", name)
+		if len(restarted.records) != 0 {
+			t.Fatal("refused snapshot partially loaded")
 		}
-		if !rep.has("stored record x@h is ignored") {
-			t.Errorf("the ignored %s record was not reported: %v", name, rep.lines)
-		}
+
 	}
 	// Falsifiable: a snapshot of records this version can serve restores.
 	restarted := New()
-	restarted.Restore(ports.Snapshot{
+	restarted.Restore(canonicalFixture(ports.Snapshot{
 		Users: []protocol.User{{Name: "alice@h", Status: "active"}},
 		Records: []protocol.Record{
-			{Name: "alice@h", Owner: "alice@h", Kind: protocol.KindUser, Personal: true},
+			{Name: "alice@h", Owner: "alice@h", Kind: protocol.KindUser, Tags: []string{"personal"}},
 			// The Personal record is listed BEFORE the agent its ACL names, so
 			// this also fails if Personal is validated mid-restore.
-			{Name: "#mine@h", Owner: "alice@h", Kind: protocol.KindAgent, Personal: true, Allow: []string{"#peer@h"}},
+			{Name: "#mine@h", Owner: "alice@h", Kind: protocol.KindAgent, Tags: []string{"personal"}, Allow: []string{"#peer@h"}},
 			{Name: "#peer@h", Owner: "alice@h", Kind: protocol.KindAgent},
 			{Name: "db@h", Owner: "alice@h", Kind: protocol.KindService, Addr: "h:1", Proto: "https"},
 		},
-	})
+	}, "alice@h"))
 	if err := restarted.EstablishDaemonOwner("alice@h"); err != nil {
 		t.Fatalf("a restorable snapshot was refused: %v", err)
 	}
@@ -1062,33 +1060,16 @@ func TestOnlyAnAgentCarriesAScript(t *testing.T) {
 	}
 }
 
-// An agent an older runner noted in addr loses that note at load, with a
-// warning, and a new start registers its script and no addr (K.28).
-func TestAStoredAgentLosesTheAddrAnOlderRunnerWrote(t *testing.T) {
+// A non-service record carrying an address is refused without repair.
+func TestStoredNonServiceAddressIsRefused(t *testing.T) {
 	b, rep := New(), &reports{}
 	b.Journal(rep)
-	b.Restore(ports.Snapshot{
+	assertRestoreRefused(t, b, canonicalFixture(ports.Snapshot{
 		Users: []protocol.User{{Name: "o@h", Status: "active"}},
 		Records: []protocol.Record{userRecord("o@h"),
 			{Name: "#w@h", Kind: protocol.KindAgent, Owner: "o@h", Addr: "/opt/w.sh", Full: protocol.OverflowStrict},
 			{Name: "jobs@h", Kind: protocol.KindQueue, Owner: "o@h", Proto: "https", Full: protocol.OverflowStrict}},
-	})
-	if err := b.EstablishDaemonOwner("o@h"); err != nil {
-		t.Fatal(err)
-	}
-	for _, name := range []string{"#w@h", "jobs@h"} {
-		r, ok := b.records[name]
-		if !ok || r.Addr != "" || r.Proto != "" {
-			t.Fatalf("%s after load: %+v %v", name, r, ok)
-		}
-		if !rep.has("stored " + r.Kind + " " + name + " carried an address or protocol") {
-			t.Errorf("the drop on %s was not said: %v", name, rep.lines)
-		}
-	}
-	r, err := b.Register(protocol.Record{Name: "#w@h", Kind: protocol.KindAgent, Owner: "o@h", Script: "/opt/w.sh"})
-	if err != nil || r.Addr != "" || r.Script != "/opt/w.sh" {
-		t.Fatalf("after a new start: addr %q script %q, %v", r.Addr, r.Script, err)
-	}
+	}, ""))
 }
 
 // Only a service takes an address and a protocol: registration and a

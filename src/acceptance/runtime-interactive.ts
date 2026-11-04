@@ -50,7 +50,7 @@ async function until(test: () => boolean | Promise<boolean>, label: string, ms =
   throw new Error("timed out: " + label);
 }
 const fd = openSync(join(out, "daemon.log"), "w");
-const daemon = Bun.spawn([join(bin, "agent-busd"), "-addr", "127.0.0.1:0", "-socket", join(out, "bus.sock"), "-owner", "owner@fixture", "-db", join(out, "bus.db"), "-create", "-flush-every", "0"], { env, stdout: fd, stderr: fd }); closeSync(fd);
+const daemon = Bun.spawn([join(bin, "agent-busd"), "--addr", "127.0.0.1:0", "--socket", join(out, "bus.sock"), "--owner", "owner@fixture", "--db", join(out, "bus.db"), "--create", "--flush-every", "0"], { env, stdout: fd, stderr: fd }); closeSync(fd);
 async function secondAccount(kind: string, url: string, target = "") {
   const p = Bun.spawn(["sudo", "-n", "-u", other, "--", process.execPath, join(import.meta.dir, "runtime-isolation.ts"), "probe", kind, url, target], { env, cwd: out, stdout: "pipe", stderr: "pipe" });
   const [text, stderr, code] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text(), p.exited]);

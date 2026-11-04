@@ -5,20 +5,10 @@
 - **Outcome:** you or your AI send one ordinary text message (SMS) to any phone, and the provider password never leaves the server; every send is logged with who asked.
 - **Start:** ask what the helper can do: `agent-bus help '#sms-telnyx@node.example'` ([Try this first](#try-this-first)).
 
-## Why you'd want it
-
-- 📵 **The person is not in a chat app.** Now a text reaches any phone, with no app on the other end.
-- 🚨 **An alert must reach a phone.** Now an on-call alert is one call away.
-- 🔑 **The provider password must stay private.** Now your AI sends without ever seeing it.
-- 🧾 **Nobody knows who texted.** Now every send is logged with the caller's name.
-
 ## What it does
 
 - ✅ **Send one text** to a phone number or a saved nickname (`send`).
-- ✅ **On-call alert:** send to the nickname `oncall`, and the on-call phone gets it.
-- ✅ **Job finished:** ask the AI to text you when the backup ends.
-- ✅ **Quick notes:** a schedule change or a short deploy confirmation, without opening a laptop.
-- ✅ **Any bus caller may send;** the caller's name is logged.
+- **Admitted callers may send;** the caller's name is logged.
 - ⚠️ **One attempt only:** "accepted" means Telnyx took the message, not that the phone got it; there is no automatic retry.
 - 🚫 **Not for:** a conversation or reply (use [Telegram](telegram.md) or [Slack](slack.md)), long or formatted text, or many messages: each one costs money.
 
@@ -37,8 +27,6 @@ Use the complete name of your [enabled instance](#installing-it) in the commands
 ```sh
 agent-bus help '#sms-telnyx@node.example'
 ```
-
-- More on this: [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do).
 
 ## Use examples
 

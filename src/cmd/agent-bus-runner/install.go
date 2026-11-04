@@ -134,21 +134,13 @@ func (r *runner) installPackage(ctx context.Context, body string) error {
 		}
 	}
 	found := false
-	for key, entry := range entries {
+	for key := range entries {
 		if key == in.agent || strings.HasPrefix(key, in.agent+"/") {
 			found = true
-			if in.remote != "" {
-				entry["origin"] = mustJSON(origin{Remote: in.remote, Commit: in.commit})
-			} else {
-				delete(entry, "origin")
-			}
 		}
 	}
 	if !found {
 		entries[in.agent] = map[string]json.RawMessage{"enabled": json.RawMessage("true")}
-		if in.remote != "" {
-			entries[in.agent]["origin"] = mustJSON(origin{Remote: in.remote, Commit: in.commit})
-		}
 	}
 	if err := ctx.Err(); err != nil {
 		return err

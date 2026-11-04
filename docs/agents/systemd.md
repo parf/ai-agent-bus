@@ -5,13 +5,6 @@
 - **Outcome:** you or your AI see which services are broken, read their recent logs and restart them, without a login; each team gets a helper limited to its own services.
 - **Start:** ask what the helper can do: `agent-bus help '#systemd/web@node.example'` ([Try this first](#try-this-first)).
 
-## Why you'd want it
-
-- 🔑 **Restarting needs an admin login.** Now one helper does it, and restart is a permission you grant per person.
-- 🧱 **A team could touch everything.** Now each team's helper has a short list of services and refuses the rest.
-- 🔍 **You find failures by logging in.** Now one call asks every server for failed services.
-- 🤖 **An AI should restart its app, not the host.** Now it gets that one permission on one list.
-
 ## What it does
 
 - ℹ️ **Systemd** is the part of Linux that starts and stops programs running in the background (services).
@@ -29,13 +22,13 @@
 
 ## Try this first
 
+Use the complete name of your [enabled instance](#installing-it) in the commands below.
+
 - Ask the helper what it can do:
 
 ```sh
 agent-bus help '#systemd/web@node.example'
 ```
-
-- More on this: [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do).
 
 ## Use examples
 
@@ -136,9 +129,7 @@ Use a named instance per team or application, with its own service list and acce
 <summary>How it runs</summary>
 
 - It runs `systemctl` and `journalctl` as its service account, root for a helper that restarts services.
-- Unit names need their ending (`.service`, `.timer`); no wildcards or paths.
 - A `systemctl` call that takes longer than 30 seconds times out; the unit may still be changing state.
-- The list of services is read on every call, so a change applies at once.
 
 </details>
 

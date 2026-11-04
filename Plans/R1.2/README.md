@@ -23,5 +23,5 @@ Execution prerequisites are in [TODO](TODO.md#objective).
 
 ## External dependency
 
-Runtime integration delivery now belongs to [MVP](../../docs/06-launchers.md#runtime-integration-delivery).
+Runtime integration delivery now belongs to [MVP](../../docs/06-launchers.md#adapters).
 Any vendor approval for an official listing remains external, as defined there.

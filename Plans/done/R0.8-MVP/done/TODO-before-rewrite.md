@@ -34,7 +34,7 @@ backend plus off (G.2). What is left:
 ## Blockers
 
 Each is already an indexed open decision
-([decisions § open](../../../../docs/decisions.md#open)) — listed here only because a
+([decisions § open](../../../README.md#stages)) — listed here only because a
 wave stands on it.
 
 | Gates | ❓ | Where it is settled |

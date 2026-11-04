@@ -122,7 +122,7 @@ class Calls(unittest.TestCase):
         listing=self.call('sub list')
         self.assertIn('folder="Other Box"',listing)
 
-    def test_pre_step5_synced_folder_names_recover_without_fetch_or_progress_change(self):
+    def test_provider_listing_does_not_reconstruct_missing_folder_descriptors(self):
         self.assertIn('fetched',self.call('sync --folder "Other Box"'))
         for key in list(self.bus.kv.data):
             if key.startswith(REGISTRY):self.bus.kv.data.pop(key)
@@ -130,7 +130,7 @@ class Calls(unittest.TestCase):
         fetched=len(self.server.fetches)
         self.assertNotIn('folder="Other Box"',self.agent.status())
         self.assertIn('Other Box',self.call('folders'))
-        self.assertIn('folder="Other Box"',self.agent.status())
+        self.assertNotIn('folder="Other Box"',self.agent.status())
         self.assertEqual(len(self.server.fetches),fetched)
         self.assertEqual({k:v for k,v in self.bus.kv.data.items() if k.startswith(PROGRESS)},before)
 
@@ -145,13 +145,13 @@ class Calls(unittest.TestCase):
         self.assertEqual([(to,'new epoch' in body) for to,body,_ in self.bus.sent],[('#other@t',True)])
         self.assertEqual(self.bus.kv.data[PROGRESS],before)
 
-    def test_invalid_descriptor_identity_does_not_break_readonly_recovery(self):
+    def test_provider_listing_does_not_repair_invalid_descriptor(self):
         self.assertIn('fetched',self.call('sync --folder "Other Box"'))
         for key,value in self.bus.kv.data.items():
             if key.startswith(REGISTRY):value['identity']=[]
         self.assertEqual(self.agent.status(),'degraded: folder state unavailable')
         self.assertFalse(self.call('folders').startswith('error:'))
-        self.assertIn('folder="Other Box"',self.agent.status())
+        self.assertEqual(self.agent.status(),'degraded: folder state unavailable')
 
     def test_renaming_and_deleting_nondefault_subscribed_folder_and_ancestor_refused(self):
         self.cfg['allow_destructive']=True

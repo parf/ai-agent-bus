@@ -22,14 +22,12 @@ Finish with the commit, mutation evidence and safe live verification.
 
 ## Plan and choose a kind
 
-Read [CLAUDE.md](../../CLAUDE.md#working-rules). For a bundled agent, first add an
-[R1 TODO row](../../Plans/R1.0-Release/TODO.md#bundled-agents) with scope and falsifiable
-acceptance checks, and get the owner's OK before implementation. Resolve essential
-missing inputs with one focused question.
+Read [CLAUDE.md](../../CLAUDE.md#working-rules). Record the agreed scope and
+falsifiable acceptance checks in the appropriate project plan. Resolve essential
+missing inputs before implementing dependent behavior.
 
 Use `git worktree add --detach tmp/<task> HEAD`; work there, never directly in
-the live checkout. On the development node, installed commands link to that
-checkout. Preserve others' edits and follow the repository's commit/deploy order.
+the live checkout. Preserve others' edits and follow the repository's commit/deploy order; a checkout used by an installed service must not be edited as a scratch environment.
 
 | Kind | Choose when | Owning instructions |
 |---|---|---|
@@ -41,8 +39,6 @@ Reuse supervision and [client libraries](../../src/clients/README.md). A standal
 manifest omits `command`: the starter receives the executable through `--script`.
 
 ## Required checklist
-
-- [ ] If help depends on runtime Configuration, set `"help":"native"` and implement all four help asks; generic metadata cannot apply runtime caps/scope. See [package help](../runner/configuration.md#package-help).
 
 | Check | Reason and contract |
 |---|---|
