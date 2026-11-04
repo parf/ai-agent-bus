@@ -292,7 +292,9 @@ describe("pages as the daemon owner", () => {
     expect(selectedTop).toContain('aria-current="true">extra_bf');
     expect(selected).toContain("name=%23tagbrowse-bf%40test");
     expect(selected).not.toContain("name=%23tagbrowse-aa%40test");
-    const saved=await req("/record",{cookie:s,form:{action:"save",name:"#tagbrowse-aa@test",descr:"tagged",tags:"BUILD-Notes,CLAUDE,no-tags,v2"}});
+    const sentinel=await req("/record",{cookie:s,form:{action:"save",name:"#tagbrowse-aa@test",descr:"tagged",tags:"BUILD-Notes,no-tags"}});
+    expect(sentinel.status).toBe(400);
+    const saved=await req("/record",{cookie:s,form:{action:"save",name:"#tagbrowse-aa@test",descr:"tagged",tags:"BUILD-Notes,CLAUDE,v2"}});
     expect(saved.status).toBe(303);
     const bad = await req("/record",{cookie:s,form:{action:"save",name:"#tagbrowse-aa@test",tags:"bad tag"}});
     expect(bad.status).toBe(400);
@@ -895,7 +897,7 @@ describe("pages as the daemon owner", () => {
   test("configuration is visible to Owner and Maintainer only, never the Secret", async () => {
     const name = "#rt16@test";
     await api("/register", {name, kind:"agent", allow:["*"], maintainers:["bob"]});
-    const cli = Bun.spawnSync([join(bin, "agent-bus"), "agent-template", name, '{"channel":"RT16-CONFIG","nested":{"n":2}}'], {
+    const cli = Bun.spawnSync([join(bin, "agent-bus"), "config", name, '{"channel":"RT16-CONFIG","nested":{"n":2}}'], {
       env: {...Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("AGENT_BUS_"))), AGENT_BUS_ADDR:join(dir,"bus.sock"), AGENT_BUS_TOKEN:owner},
       stdout:"pipe", stderr:"pipe",
     });
@@ -1533,7 +1535,8 @@ describe("bus setup", () => {
     expect(html).toContain('name="action" value="configure"');
     expect(html).not.toContain('name="descr"');
     expect(html).not.toContain("/record-danger");
-    expect(html).toContain("agent events are in work");
+    expect(html).not.toContain("agent events are in work");
+    expect(html).toContain("Agent-event notices kept per agent");
   });
   test("even the daemon owner has no Danger Zone or settings save for #bus", async () => {
     const danger = await req("/record-danger?name=%23bus", { cookie: o });
@@ -1628,4 +1631,14 @@ test("the visible page footer credits Sergey Porfiriev",async()=>{
 test("the landing author uses the full owner name",async()=>{
  const html=await(await handle(new Request(ORIGIN+"/"))).text();
  expect(html).toContain('by <a href="https://parf.dev/">Sergey Porfiriev</a>');
+});
+
+test("the bus configure action refuses other records without changing Configuration",async()=>{
+  const name="#canonical-config@test";
+  await api("/register",{name,kind:"agent"});
+  await api("/configure",{name,config:{mode:"before"}});
+  const r=await req("/record",{cookie:await signIn(owner),form:{action:"configure",name,config:'{"mode":"after"}'}});
+  expect(r.status).toBe(400);
+  const current=await fetch(`http://unix/config?name=${encodeURIComponent(name)}`,{unix:join(dir,"bus.sock"),headers:{"X-Agent-Bus-Token":owner}} as RequestInit);
+  expect(await current.json()).toEqual({mode:"before"});
 });

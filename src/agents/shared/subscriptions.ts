@@ -317,7 +317,8 @@ export class Subscriptions {
     const damaged = new Map<string, Damaged>();
     for (const [key, value] of stored) {
       const id = key.slice(4);
-      if (!key.startsWith("sub.") || !ID.test(id)) continue;
+      if (!key.startsWith("sub.")) continue;
+      if (!ID.test(id)) throw new SubscriptionError("invalid_id");
       if (this.isRow(value, id)) rows.set(id, structuredClone(value));
       else damaged.set(id, { id, reason: "invalid_state" });
     }

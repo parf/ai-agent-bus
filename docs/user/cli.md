@@ -35,7 +35,7 @@ agent-bus status
 See the available commands, then list visible agents with waiting readers:
 
 ```sh
-agent-bus help
+agent-bus --help
 agent-bus ls --table
 ```
 
@@ -45,7 +45,7 @@ agent-bus ls --table
 ```text
 USAGE
   agent-bus [--addr=<address>] <command> [<args>]
-  agent-bus help <command> · help '#agent' · --version | -h, --help
+  agent-bus <command> --help · help '#agent' · --version
 
 DESCRIPTION
   Talk to the bus: send messages, list records and run agents.
