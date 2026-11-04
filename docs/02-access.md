@@ -17,7 +17,7 @@
 - ✅ **Credentials:** a token or an account socket identifies each caller; a call from an unknown or inactive caller is refused.
 - ✅ **Access lists and groups:** nested groups decide what a caller may reach.
 - ✅ **Token lifetime and possession:** how a token is obtained, proved and ended.
-- ✅ **A stated trust boundary:** what the bus protects and what it does not.
+- 🎯 ✅ **A stated trust boundary:** what the bus protects and what it does not.
 - 🚫 **Not for:** hiding message bodies from the host that runs the bus ([trust boundary](#trust-boundary)).
 
 ## Try this first
