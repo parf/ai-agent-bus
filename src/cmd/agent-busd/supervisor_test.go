@@ -81,8 +81,17 @@ func storeAccounts(t *testing.T, path string, accounts map[string]string) {
 	}
 	defer st.Close()
 	b := core.New()
+	saved, err := st.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := b.Restore(saved); err != nil {
+		t.Fatal(err)
+	}
 	b.Persistence(st)
-	b.SetDaemonOwner("owner@h")
+	if err := b.EstablishDaemonOwner("owner@h"); err != nil {
+		t.Fatal(err)
+	}
 	for _, principal := range accounts {
 		if _, err := b.SetUser("owner@h", protocol.User{Name: principal}, true); err != nil {
 			t.Fatal(err)
