@@ -177,7 +177,7 @@ func TestUpgradeJournalRejectsObsoletePayload(t *testing.T) {
 	if _, err := decodeUpgradeJournal([]byte(current)); err != nil {
 		t.Fatal(err)
 	}
-	for _, body := range []string{strings.Replace(current, `}`, `,"unit_before":"old unit"}`, 1), `{}`, current + ` {}`} {
+	for _, body := range []string{strings.Replace(current, `}`, `,"unit_before":"old unit"}`, 1), `{}`, current + ` {}`, strings.Replace(current, `"old_release"`, `"OLD_RELEASE"`, 1), strings.Replace(current, `}`, `,"unit_sha256":"other"}`, 1)} {
 		if _, err := decodeUpgradeJournal([]byte(body)); err == nil {
 			t.Fatalf("unsupported journal accepted: %s", body)
 		}

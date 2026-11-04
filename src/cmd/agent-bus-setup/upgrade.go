@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/parf/ai-agent-bus/internal/jsonshape"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/tlsdir"
 )
@@ -126,14 +127,8 @@ func upgradeBundle(b checkedBundle) error {
 
 func decodeUpgradeJournal(data []byte) (upgradeJournal, error) {
 	var j upgradeJournal
-	d := json.NewDecoder(bytes.NewReader(data))
-	d.DisallowUnknownFields()
-	if err := d.Decode(&j); err != nil {
+	if err := jsonshape.Decode(bytes.NewReader(data), &j); err != nil {
 		return j, fmt.Errorf("invalid upgrade recovery marker: %w", err)
-	}
-	var extra any
-	if err := d.Decode(&extra); err != io.EOF {
-		return j, fmt.Errorf("invalid upgrade recovery marker: expected one object")
 	}
 	if j.OldRelease == "" || j.NewRelease == "" || j.UnitSHA256 == "" {
 		return j, fmt.Errorf("invalid upgrade recovery marker: release and unit fields are required")
