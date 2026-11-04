@@ -3,7 +3,7 @@
 📌 **TL;DR:** The [agent checklist](../docs/10-writing-an-agent.md#absolute-minimum--every-agent)
 separates essential behavior, safety required by an agent’s capabilities, and useful optional features.
 The source review covers every shipped package and the built-in `#bus`. Three help-contract gaps
-need correction; this review does not certify unexecuted provider or lifecycle acceptance.
+were corrected; this review does not certify unexecuted provider or lifecycle acceptance.
 
 ## Scope and evidence
 
@@ -33,13 +33,13 @@ that it passes or can detect a regression. Focused executed results are recorded
 | logwatch | Validated filters, creator reach, rings, worker stop, migration | standalone/logwatch/test_logwatch.py; test_delivery.py | No gap established by static review. |
 | qdrant | Route roles, pre-connect refusal, redaction, uncertain writes | qdrant/test_qdrant.py | No gap established by static review. |
 | rag | Ask-first, downstream budget, authority, interrupted writes, drain | rag/test_runtime.py; test_rag.py | No gap established by static review. |
-| server-info | Fixed commands, account scope, timeout, help | standalone/server-info/test_server_info.py; test_metadata.py | Machine-help scope mismatch; local output has no byte cap. |
+| server-info | Fixed commands, account scope, timeout, help | standalone/server-info/test_server_info.py; test_metadata.py | Machine-help scope fixed; local output byte cap remains an optional improvement. |
 | slack | Ask-first, deadlines, forwarding authority/counts, shutdown | slack/subscription-port.test.ts; forward.test.ts | No gap established by static review. |
 | sms-telnyx | Ask-first, one provider POST, uncertainty, redaction, deadline | sms-telnyx/test_sms.py | No gap established by static review. |
-| smtp | TLS, redaction, uncertainty/no retry, deadline, asks | smtp/test_smtp.py | Declared body help is not implemented. |
+| smtp | TLS, redaction, uncertainty/no retry, deadline, asks | smtp/test_smtp.py | Declared JSON body help is now implemented. |
 | systemd | Delivered-role tiers, configured scope, fixed argv, bounded logs | standalone/systemd/test_scope.py; test_systemd.py; test_logs.py | Per-message lifecycle belongs to the runner. |
 | telegram | Ask-first, deadlines, retry rules, author reach, stopping | telegram/t4.test.ts; forward.test.ts | No gap established by static review. |
-| tmux-sessions | Configured names, fixed argv, stripped environment, PID identity | standalone/tmux-sessions/test_sessions.py; test_metadata.py | Declared body help is not implemented; grammar test masks it. |
+| tmux-sessions | Configured names, fixed argv, stripped environment, PID identity | standalone/tmux-sessions/test_sessions.py; test_metadata.py | Declared body help fixed; its real entry point now has a regression check. |
 | voyage | Fixed provider origin, grammar, secret redaction, response/deadline bounds | voyage/test_voyage.py | No gap established by static review. |
 | webhook | Loopback default, scoped destinations, asks/roles, request drain | webhook/test_webhook.py; test_runtime.py; test_outgoing.py | No gap established by static review. |
 
@@ -48,6 +48,30 @@ that it passes or can detect a regression. Focused executed results are recorded
 The three verified source-level help inconsistencies are tracked separately in
 [the review findings](issues/2026-11/2026-11-03.md#bundled-agents).
 They concern advertised behavior, not an instruction to add features to every agent.
+
+- `1f15eba0` fixes all three entry points and adds their regression assertions.
+- `5e2be8a3` corrects packaged-runtime validation for nonroot server-info, retaining exact
+  missing/extra method checks for root, other agents and unavailable sections.
+- `b74e96a3` applies the canonical checklist to the create-agent prompt, without requiring
+  a second body-help syntax when an agent supports help asks instead.
+- Two independent reviewers found no high-severity issues. One noted that SMTP body help
+  is not independent of syntactically malformed Configuration at main(); valid bus-supplied
+  JSON is unaffected. No malformed-Configuration guarantee is claimed.
+
+The three new help checks were observed failing before and passing after the fix. Each
+reverse mutant was syntactically valid and failed its named assertion under the smoke-gate lock:
+
+| Mutant | Assertion-owning check |
+|---|---|
+| Remove tmux body-help dispatch | Metadata.test_advertised_body_help_without_configuration_or_commands |
+| Disable SMTP JSON-help dispatch | HelpContract.test_json_help_precedes_configuration_and_transport |
+| Filter only server-info text help | Metadata.test_all_help_forms_share_effective_account_scope |
+| Remove nonroot scope from the acceptance expectation | TestAgentRuntimeScopeKeepsExactMethodComparison |
+
+Original bytes were restored and the targeted checks passed after every mutant. The first
+normal run exposed the outdated installed-tree expectation; all four focused Go package/runtime
+checks passed after that correction. A subsequent complete run exposed dashboard links to the
+removed overview/setup anchors. `8db31669` retargets them; all three documentation-link tests pass.
 
 ## Useful improvements, in priority order
 
@@ -83,3 +107,10 @@ At, cron, eventlog, fetch, imap, qdrant, rag, smtp, voyage and webhook received 
 and documentation checks here, not executed serving acceptance. DB and Discord golden fixtures
 do not make either agent release-bundled. No provider calls, live daemon operations, host changes,
 normal gates or mutation claims are part of this run.
+
+
+Final validation: `PYTHONDONTWRITEBYTECODE=1 GOCACHE=/usr/local/src/ai-agent-bus/tmp/gocache bash src/smoke.sh --normal`
+passed **1294 checks, 0 failures**, with 61 selected shards and 54.550 seconds of shard wall time.
+The harness reported one skipped slow-set/host-specific section; this is normal-mode acceptance,
+not a claim that slow-only checks or live providers were exercised. The smoke-gate lock was held
+for the run and released immediately afterward. Documentation links and whitespace also pass.
