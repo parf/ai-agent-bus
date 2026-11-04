@@ -231,37 +231,6 @@ func isASCII(s string) bool {
 // See docs/01-identity-and-authority.md#registration.
 const SigNamespace = "agent-bus"
 
-// ExpandAgentFlags rewrites every `--agent NAME` or `--agent=NAME` in a command
-// line to the name it stands for, prefixed with "#" unless it already is, in
-// the position the flag held. A shell reads an unquoted "#" as the start of a
-// comment, so this is how a command line names an Agent without quoting
-// (docs/constitution.md#actors-and-ascii-textarea-syntax). A trailing
-// `--agent` with no name is left for the command to refuse.
-func ExpandAgentFlags(args []string) []string {
-	out := make([]string, 0, len(args))
-	for i := 0; i < len(args); i++ {
-		a := args[i]
-		switch {
-		case a == "--agent" && i+1 < len(args):
-			out = append(out, agentSpelling(args[i+1]))
-			i++
-		case strings.HasPrefix(a, "--agent="):
-			out = append(out, agentSpelling(strings.TrimPrefix(a, "--agent=")))
-		default:
-			out = append(out, a)
-		}
-	}
-	return out
-}
-
-func agentSpelling(name string) string {
-	name = strings.TrimSpace(name)
-	if strings.HasPrefix(name, AgentPrefix) {
-		return name
-	}
-	return AgentPrefix + name
-}
-
 // The two values of a User's and a record's status.
 const (
 	StatusActive   = "active"

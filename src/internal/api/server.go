@@ -927,8 +927,7 @@ func (s *Server) maySend(w http.ResponseWriter, r *http.Request, caller protocol
 			dryRefusal(w, err)
 			return
 		}
-		// The echo is how a client tells this answer from an older daemon's,
-		// which ignores who and answers for the caller.
+		// The answer identifies the principal whose permission was checked.
 		ok(w, struct {
 			MaySend bool   `json:"may_send"`
 			Who     string `json:"who"`
