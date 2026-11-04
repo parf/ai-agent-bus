@@ -1,0 +1,12 @@
+ 66M	/Users/parf/agent-bus-dev
+Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on
+/dev/disk3s5   460Gi   173Gi   263Gi    40%    1.6M  2.8G    0%   /System/Volumes/Data
+ABSENT /Users/parf/go
+ABSENT /Users/parf/Library/Caches/go-build
+CLEAN main c49d51f3973522a5d3d1af57c253996488abd21e
+PASS own Mac input, npm, fixture process/state and cache cleanup
+ABSENT /Library/LaunchDaemons/agent-busd.plist
+ABSENT /usr/local/lib/agent-bus
+ABSENT /usr/local/var/agent-bus/daemon
+ABSENT /usr/local/var/run/agent-bus
+ABSENT /usr/local/bin/agent-bus

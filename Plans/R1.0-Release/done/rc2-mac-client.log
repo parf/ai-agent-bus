@@ -1,0 +1,5 @@
+PASS local npm client/platform install, offline, no public registry
+PASS npm CLI native version and exact RC2 source stamp
+PASS Mac sandbox request explicitly refused
+PASS npm client plus unsandboxed runner: two correlated native calls with exact body and identity
+CLEAN client fixture, npm prefix/cache and own processes removed
