@@ -10,6 +10,7 @@
 package sqlite
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -24,6 +25,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/parf/ai-agent-bus/internal/jsonshape"
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 
@@ -270,8 +272,11 @@ func (s *Store) Load() (ports.Snapshot, error) {
 	rows.Close()
 	if err := eachIDBody(tx, `SELECT name, id, body FROM users ORDER BY name`, func(name string, id uint32, body []byte) error {
 		var u protocol.User
-		if err := json.Unmarshal(body, &u); err != nil {
+		if err := jsonshape.Decode(bytes.NewReader(body), &u); err != nil {
 			return fmt.Errorf("user %s: %w", name, err)
+		}
+		if u.Name != name {
+			return fmt.Errorf("user %s: body name differs", name)
 		}
 		u.ID = id
 		snap.Users = append(snap.Users, u)
@@ -281,8 +286,11 @@ func (s *Store) Load() (ports.Snapshot, error) {
 	}
 	if err := eachIDBody(tx, `SELECT name, id, body FROM records ORDER BY name`, func(name string, id uint32, body []byte) error {
 		var r protocol.Record
-		if err := json.Unmarshal(body, &r); err != nil {
+		if err := jsonshape.Decode(bytes.NewReader(body), &r); err != nil {
 			return fmt.Errorf("record %s: %w", name, err)
+		}
+		if r.Name != name {
+			return fmt.Errorf("record %s: body name differs", name)
 		}
 		r.ID = id
 		snap.Records = append(snap.Records, r)
@@ -358,7 +366,7 @@ func (s *Store) Load() (ports.Snapshot, error) {
 			return snap, fmt.Errorf("messages stored for queue %s, which has no queue row", name)
 		}
 		var e protocol.Envelope
-		if err := json.Unmarshal(body, &e); err != nil {
+		if err := jsonshape.Decode(bytes.NewReader(body), &e); err != nil {
 			rows.Close()
 			return snap, fmt.Errorf("queue %s: %w", name, err)
 		}
