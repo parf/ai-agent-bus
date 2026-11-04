@@ -70,6 +70,8 @@ See [record names](constitution.md#common-record-fields) for the reference and [
 
 ## Positions and scopes
 
+- 👑 **Bus Owner** — controls the whole bus: appoints Administrators, manages users and groups, and can manage any record. Using a record's messaging interface still requires access.
+- 🏷️ **Record Owner** — controls one record: chooses its access list and Maintainers, and can transfer ownership.
 - 🛡️ **Administrator** — manages users and groups on the bus. This position does not grant control over their records.
 - 🛠️ **Maintainer** — manages the records explicitly assigned to them.
 - 🔑 **Member** — may use a record through its access list. A member can be a person or another record.
