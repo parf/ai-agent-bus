@@ -65,7 +65,7 @@ The bus is the supervisor's only child. An AUTH role is
 ## Process titles
 
 - All programs use the shared [working rules § versioning](../CLAUDE.md#versioning).
-- Every Go program accepts `--version` and prints the version and [setup § build information](07-setup.md#build-information) before doing any work; its `--help` opens with the program and version ([build information](07-setup.md#build-information)).
+- Every Go program accepts `--version` and prints the version and [setup § build information](../.claude/docs/deployment.md#build-information) before doing any work; its `--help` opens with the program and version ([build information](../.claude/docs/deployment.md#build-information)).
 - The MCP and web entry points accept the same flag, compiled or via `bun run server.ts`; the MCP handshake and the Codex adapter report that version too.
 
 | Process | Title in `ps -ww -o args` | Calls |
@@ -83,7 +83,7 @@ The bus is the supervisor's only child. An AUTH role is
 
 The Go helper wraps `gspt`, as in the reference Go API: it rewrites the OS
 argument area while preserving Go's arguments and environment for child exec;
-build requirements live in [setup § build information](07-setup.md#build-information).
+build requirements live in [setup § build information](../.claude/docs/deployment.md#build-information).
 
 ## Nothing the daemon runs may exec
 
@@ -113,7 +113,7 @@ another account can use the intended socket.
 ## The TCP listener
 
 - The supervisor binds the TCP address; the bus child serves it.
-- With a TLS directory (`--tls-dir`, [setup § TLS](07-setup.md#tls)), every connection on that port is sniffed: a first byte of `0x16`, a TLS handshake, is answered over TLS with HTTP/2 or HTTP/1.1, and anything else as plain HTTP.
+- With a TLS directory (`--tls-dir`, [setup § TLS](administration.md#tls)), every connection on that port is sniffed: a first byte of `0x16`, a TLS handshake, is answered over TLS with HTTP/2 or HTTP/1.1, and anything else as plain HTTP.
 - Without one, the port is plain HTTP alone.
 - The unix sockets never answer TLS.
 
@@ -145,13 +145,13 @@ visitor's credentials and then uses their browser session.
 
 | | |
 |---|---|
-| Account | `agent-bus-web`: system account, `nologin`, home its code directory, no SSH keys, not in the account map; owns nothing on disk ([setup § the accounts](07-setup.md#the-two-accounts)) |
+| Account | `agent-bus-web`: system account, `nologin`, home its code directory, no SSH keys, not in the account map; owns nothing on disk ([setup § the accounts](administration.md#the-two-accounts)) |
 | Code | the real [web code directory](07-setup.md#install), directly; no state-directory link |
 | Runtime | a release: `<release>/agent-bus-ts web`, with the browser code and assets read from `web/` beside it; a checkout: `/usr/bin/bun run <web-directory>/server.ts`, no build step |
 | Unit | `agent-bus-web.service`, shipped as `src/web/agent-bus-web.service`; setup writes it with the host's exec paths |
 | Daemon link | `/run/agent-bus/bus.sock` only; mapped account sockets are closed to it by their mode |
 | Listen | [discovery § where it listens](05-discovery.md#where-it-listens) |
-| With TLS on | a small front on the port sniffs each connection: TLS is piped to the face's own server, which holds the certificate on a unix socket in its `RuntimeDirectory` (`/run/agent-bus-web/https.sock`); plain HTTP is answered at the front with a `301` to `https://` and never reaches the app, except `/healthz`, answered for the app. Without TLS the face binds the port itself, as before ([setup § TLS](07-setup.md#tls)) |
+| With TLS on | a small front on the port sniffs each connection: TLS is piped to the face's own server, which holds the certificate on a unix socket in its `RuntimeDirectory` (`/run/agent-bus-web/https.sock`); plain HTTP is answered at the front with a `301` to `https://` and never reaches the app, except `/healthz`, answered for the app. Without TLS the face binds the port itself, as before ([setup § TLS](administration.md#tls)) |
 
 **The face acts on the visitor's session, and on nothing else.** Owner-settled,
 2026-09-16. Every call a signed-in person causes is made with that person's
@@ -196,7 +196,7 @@ child cannot make one and does not need the capability to.
 | `AGENT_BUS_FDS` | what arrives at fd 3 upwards, in order: `tcp`, `shared`, `user:<principal>`, and `owner:` for the daemon account's own socket, the daemon Owner's — the whole contract between the two |
 | `AGENT_BUS_ACCOUNTS` | the supervisor's active editable account map; the bus compares it with durable desired state to report whether a full restart is required |
 | `AGENT_BUS_SUPERVISOR_PID` | the spawning supervisor's PID, replacing any inherited value; the non-Linux child checks this exact parent before starting and while running |
-| `--owner` | required first-run Owner seed; the daemon account's socket answers as the durable daemon Owner, which a transfer moves ([setup upgrade](07-setup.md#daemon-ownership-upgrade)) |
+| `--owner` | required first-run Owner seed; the daemon account's socket answers as the durable daemon Owner, which a transfer moves ([setup upgrade](../Plans/done/setup-upgrade-history.md#daemon-ownership-upgrade)) |
 | `--web` | accepted and ignored, so a unit from before 0.8.50 still starts; the [web face](#the-web-face) is its own unit |
 
 The bus child inherits the supervisor's environment.
@@ -209,7 +209,7 @@ orphaned keeps a port.
 On Linux the kernel sends the death signal (`PR_SET_PDEATHSIG`). Elsewhere,
 the bus child refuses startup if its expected supervisor is already gone;
 after startup it stops itself as on SIGTERM once that supervisor is gone
-([macOS](07-setup.md#the-daemon)).
+([macOS](platforms/macos.md#the-daemon)).
 
 ## Status
 

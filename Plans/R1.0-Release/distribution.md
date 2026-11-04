@@ -25,7 +25,7 @@ The client joins an existing bus with `AGENT_BUS_ADDR`, a token and, for a self-
 
 ## Simple install
 
-Install the selected npm package, then use its commands. Installing the full package creates no service or account: explicitly run its setup from a root-owned Node executable and global prefix, as the [setup guide](../../docs/07-setup.md#npm-package) describes. A user-owned prefix is suitable for the client, never for sudo setup.
+Install the selected npm package, then use its commands. Installing the full package creates no service or account: explicitly run its setup from a root-owned Node executable and global prefix, as the [setup guide](../../docs/07-setup.md#manual-installation) describes. A user-owned prefix is suitable for the client, never for sudo setup.
 
 | Need | Contract |
 |---|---|
@@ -123,11 +123,11 @@ set and are not attached by this workflow.
 Target runtimes: Docker and Podman.
 
 One image supports separate daemon and runner roles in separate containers,
-preserving their [secret domains](../../docs/07-setup.md#the-two-accounts).
+preserving their [secret domains](../../docs/administration.md#the-two-accounts).
 
 | Concern | Contract |
 |---|---|
-| Persistence | Mount the daemon's [storage](../../docs/07-setup.md#storage) on a persistent volume so replacing a container preserves registry and credentials |
+| Persistence | Mount the daemon's [storage](../../docs/administration.md#storage) on a persistent volume so replacing a container preserves registry and credentials |
 | Access | People authenticate over the port with tokens; the local socket serves the container's own processes ([access](../../docs/02-access.md#what-a-call-carries)) |
 | Registry | `docker.io/parf/agent-bus`, tagged with the release's VERSION and `latest` |
 | Sandboxing | The container is the boundary; document that script sandboxing is off. Explicitly requesting unavailable sandboxing must fail under the existing [sandbox contract](../../docs/06-dedicated-runner.md#sandboxing) |

@@ -39,7 +39,7 @@ page selection and iterative browser corrections
 rerun of the redesigned journeys, [F.12](DONE.md#done--mvp), is done. The owner's
 preference remains compact, plain administration rather than decorative polish.
 
-Local mapping administration is the operator key or a user token ([administering the account map](../../../docs/07-setup.md#administering-the-account-map)); it is not hidden inside a new Settings page. [G.1.2 resource limits](done/web-resources.md#checks) are complete. UI development can use an isolated populated daemon while installed isolation work proceeds separately.
+Local mapping administration is the operator key or a user token ([administering the account map](../../../docs/administration.md#administering-the-account-map)); it is not hidden inside a new Settings page. [G.1.2 resource limits](done/web-resources.md#checks) are complete. UI development can use an isolated populated daemon while installed isolation work proceeds separately.
 
 ## Installed stage gate
 

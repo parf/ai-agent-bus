@@ -42,10 +42,10 @@ agent-bus status
 
 ## 📦 Installing it, once
 
-- Follow [INSTALL](../../src/INSTALL.md#install) to get the programs; its setup step is:
+- Follow [installation guide](../07-setup.md#install) to get the programs; its setup step is:
 
 ```sh
-sudo src/agent-bus-setup --exec "$PWD/src/agent-busd"
+sudo /usr/local/bin/agent-bus-setup --owner "$USER"
 ```
 
 That one command:
@@ -66,7 +66,7 @@ Look before you leap:
 | Add sample users, agents, services, queues, pub/sub channels and groups | `sudo /usr/local/bin/agent-bus-setup --samples` |
 | Take exactly those samples away | `sudo /usr/local/bin/agent-bus-setup --remove-samples` |
 
-- Sample data: [setup § sample data](../07-setup.md#sample-data).
+- Sample data: [setup § sample data](../administration.md#sample-data).
 - Every setup flag: [setup flags](#setup-flags).
 
 ## Who can get in
@@ -83,7 +83,7 @@ Look before you leap:
 - 🔒 **The dashboard too:** setup's `--tls` turns TLS on for it, and plain HTTP there redirects to `https://`.
 - 🚇 **No exposed port at all:** one SSH remote forward carries your own socket to another machine.
 - 📖 All four ways, each with an example: [remote access](../02-access-remote.md#choosing-a-way).
-- 🔐 Why two accounts: [setup § the two accounts](../07-setup.md#the-two-accounts).
+- 🔐 Why two accounts: [setup § the two accounts](../administration.md#the-two-accounts).
 
 ## Running it
 
@@ -195,7 +195,7 @@ From the bus's own account:
 | `--key=path` | a different public key for the first user |
 | `--addr` · `--exec` | the network address, and which `agent-busd` to run |
 | `--upgrade` · `--recover` | replace the installed release with automatic rollback; finish an interrupted one ([INSTALL](../../src/INSTALL.md#from-a-release-archive)) |
-| `--tls=off\|self-signed\|files` · `--tls-cert` · `--tls-key` · `--tls-chain` · `--tls-name` | TLS on the bus and dashboard ports: your own files, or more names for a generated certificate ([setup § TLS](../07-setup.md#tls)) |
+| `--tls=off\|self-signed\|files` · `--tls-cert` · `--tls-key` · `--tls-chain` · `--tls-name` | TLS on the bus and dashboard ports: your own files, or more names for a generated certificate ([setup § TLS](../administration.md#tls)) |
 | `--dry-run` · `--print-unit` | say what would happen, or print the unit; change nothing |
 | `--samples` · `--remove-samples` | add or remove the sample data |
 
@@ -212,13 +212,13 @@ From the bus's own account:
 | `--user=account=user[@realm]` | first-start seed for a local account and its principal; later changes use `agent-bus-admin account` |
 | `--directory=realm=github` | a realm and what vouches for enrolment; `realm=/path/to/keys` for a directory of key files. Public GitHub profile metadata does not need this flag |
 | `--addr` · `--socket` | the network address, any interface, default `127.0.0.1:6767`, never taken from `AGENT_BUS_ADDR`; and the Unix socket path |
-| `--tls-dir=dir` | `cert.pem`, `key.pem` and optional `chain.pem`: the network port answers TLS beside plain HTTP ([setup § TLS](../07-setup.md#tls)) |
+| `--tls-dir=dir` | `cert.pem`, `key.pem` and optional `chain.pem`: the network port answers TLS beside plain HTTP ([setup § TLS](../administration.md#tls)) |
 | `--db=path` | the one SQLite database, by default `$XDG_STATE_HOME/agent-bus/agent-bus.db`, else `~/.local/state/agent-bus/agent-bus.db`. Held exclusively; a missing one refuses the start |
 | `--init` · `--create` | make the database: `--init` alone and exit, `--create` then serve. Only an explicit act creates one |
 | `--flush-every` | how often waiting messages and counters are saved, in one batch; `0` saves only at a clean stop |
 | `--syslog` | copy warnings, errors and alerts to host syslog; off by default, on in installed units |
 | `--log-dir` · `--debug-log` | where `audit.log`, `error.log` and the on-demand `debug.log` go, and whether the last starts on |
-| `--ssh-keys=path` | the bus account's `authorized_keys`, where an administrator may install a user's public key through the API; empty permits host-managed keys only ([SSH admin](../07-setup.md#ssh-admin)) |
+| `--ssh-keys=path` | the bus account's `authorized_keys`, where an administrator may install a user's public key through the API; empty permits host-managed keys only ([SSH admin](../administration.md#ssh-admin)) |
 | `--ssh-token=path` | the forced-command program for those keys; defaults to the SSH credential wrapper beside the program |
 | `--dashboard=url` | where a browser opening the API address is sent; empty serves no root page |
 | `--web` | accepted and ignored, so an older unit still starts; the dashboard is its own service |
@@ -238,7 +238,7 @@ Explicit flags override these:
 | `AGENT_BUS_DASHBOARD` | `--dashboard` | the default dashboard URL |
 
 - `AGENT_BUS_ADDR` never sets the listening address; use `--addr`.
-- `AGENT_BUS_TLS_DIR` selects installed TLS files for setup, the token helper and admin. The bus itself needs an explicit `--tls-dir` to serve TLS ([TLS setup](../07-setup.md#tls)).
+- `AGENT_BUS_TLS_DIR` selects installed TLS files for setup, the token helper and admin. The bus itself needs an explicit `--tls-dir` to serve TLS ([TLS setup](../administration.md#tls)).
 - **Dashboard TLS by hand:** set `AGENT_BUS_WEB_CERT` and `AGENT_BUS_WEB_KEY` in its unit and it serves HTTPS on its address ([where it listens](../05-discovery.md#where-it-listens)).
 
 <details>

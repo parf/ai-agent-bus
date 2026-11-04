@@ -65,8 +65,8 @@ Values have one owning section; other pages link to it. A `↳` topic belongs to
 | [Dedicated runner](06-dedicated-runner.md#script-agents) | `agent-bus run`: one script behind one agent, optionally sandboxed |
 | [Session launchers](06-launchers.md) | Push adapters and the `ab-*` runtime launchers |
 | [Runner](runner/README.md) | Installed script agents: packaging, configuration, operations and current security limits |
-| [Setup](07-setup.md#the-programs) | Programs, accounts, paths, installation and build information |
-| ↳ [Backup and restore](07-setup.md#backup-and-restore) | Encrypted record exports and imports, and the stopped-daemon backup |
+| [Setup](user/cli.md) | Programs, accounts, paths, installation and build information |
+| ↳ [Backup and restore](administration.md#backup-and-restore) | Encrypted record exports and imports, and the stopped-daemon backup |
 | [Processes](08-processes.md#the-processes) | Supervisor, bus and web; privileges, listeners and process titles |
 | [Daemon API](09-daemon-api.md#how-a-call-is-made) | The HTTP routes, grouped; each one's meaning stays with its topic |
 | [Writing an agent](10-writing-an-agent.md#3-ways-to-run-agents) | Execution choices and the minimum, suggested and optional agent-code checklist; contracts stay at their linked owning sections |

@@ -89,7 +89,7 @@ The calls, last:
 
 ## You'll need
 
-- A [person's runner](../07-setup.md#a-persons-runner) with Python 3.11 or newer.
+- A [person's runner](../runner/setup.md#a-persons-runner) with Python 3.11 or newer.
 - An IMAPS account; Gmail defaults work with an app password or XOAUTH2.
 - Permission to use this instance and, for publishing, a destination its own bus identity may send to.
 

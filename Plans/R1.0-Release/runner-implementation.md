@@ -67,7 +67,7 @@ Three rules stop that, and only the last one is new:
 
 | | |
 |---|---|
-| **a pool is one bus** | members that report to different daemons are not a pool, they are two queues with the same idea in them. So the members point their runners at the one daemon, which is the option the runner already has ([setup § the two units](../../docs/07-setup.md#the-two-units)) and the edge-box arrangement ([where it runs](#where-it-runs)) |
+| **a pool is one bus** | members that report to different daemons are not a pool, they are two queues with the same idea in them. So the members point their runners at the one daemon, which is the option the runner already has ([setup § the two units](../../docs/administration.md#the-two-units)) and the edge-box arrangement ([where it runs](#where-it-runs)) |
 | **the realm is the daemon's, never the runner's host** | a runner on `srv2` reporting to the bus on `srv1` is registering into `srv1`'s realm already. Nothing about where a process sits belongs in the name it serves |
 | **so the pool is given a complete name** | `#image-scaler@pool1`, a realm that daemon is told to hold. A complete name is taken whole; only a **bare** one is completed with the local host, and that completion is a convenience carrying no authority ([identity § names](../../docs/01-identity-and-authority.md#names)). `@srv1` would claim a location false for three members out of four; `@pool1` claims membership, which is true for all of them and survives a member moving |
 
@@ -320,7 +320,7 @@ The registry still answers what exists and what is alive; the runner answers
 only what should be up.
 
 Two directories hold it between them, and that split is the point — modes and
-owners are in [setup § the two accounts](../../docs/07-setup.md#the-two-accounts):
+owners are in [setup § the two accounts](../../docs/administration.md#the-two-accounts):
 
 | | Holds |
 |---|---|
@@ -380,7 +380,7 @@ The record's bus secret, held by the daemon, sits between `env.dist` and
 
 **The more secret it is, the more it wins.** Precedence and visibility run in
 opposite directions — a property a reader can check against the modes
-([setup § the two accounts](../../docs/07-setup.md#the-two-accounts)) rather than a rule
+([setup § the two accounts](../../docs/administration.md#the-two-accounts)) rather than a rule
 to remember. What keeps it true: **`env.dist` may carry a default only for
 something that is not secret.** Anything secret is declared with no value —
 and that is exactly what makes it required.
@@ -476,7 +476,7 @@ Moved to [R1.1 runner backups](../R1.1/backups.md#backing-it-up).
 
 - **Separate user** (default for shared/server use): the daemon as
   `agent-busd` and the runner as `agent-bus-runner`, two accounts that cannot
-  read each other's home ([setup § the two accounts](../../docs/07-setup.md#the-two-accounts)).
+  read each other's home ([setup § the two accounts](../../docs/administration.md#the-two-accounts)).
   Privileged installer once; **no root at runtime**, and the only capability
   anywhere is the supervisor's
   ([processes § why the supervisor holds CAP_CHOWN](../../docs/08-processes.md#why-the-supervisor-holds-cap_chown)).
@@ -500,7 +500,7 @@ that already exists is refused by name until its Owner hands its token over
 once into that directory; the runner never registers over it and cannot fetch
 it. Built in 0.8.141–0.8.142. Each person's runner runs as a Linux account
 of its own, `<person>-ab-runner`, installed by setup's `--runner` verbs
-([a person's runner](../../docs/07-setup.md#a-persons-runner), [№M.11](TODO.md#runner-waves)).
+([a person's runner](../../docs/runner/setup.md#a-persons-runner), [№M.11](TODO.md#runner-waves)).
 
 <details>
 <summary>History: the runner as the User <code>agent-bus-runner</code>, superseded by [№M.10](TODO.md#runner-waves)</summary>
@@ -612,7 +612,7 @@ does *not* say is most of it:
 
 **The runner is a bus citizen like anyone else**, which has a consequence
 worth stating: reaching the local bus over the socket means it is a *mapped
-local account* like every other ([local users](../../docs/07-setup.md#local-users)), so the install
+local account* like every other ([local users](../../docs/administration.md#local-users)), so the install
 maps it and the daemon opens it a socket. Nothing about the runner is special
 to the daemon — which is the whole claim of the split, made concrete.
 

@@ -34,7 +34,7 @@ the records the visitor may see. A `runner` tag, or a name such as
 
 | Accessible runners | Answer |
 |---|---|
-| none | the empty state, linking [a person's runner](../../../docs/07-setup.md#a-persons-runner) |
+| none | the empty state, linking [a person's runner](../../../docs/runner/setup.md#a-persons-runner) |
 | exactly one | `301` to its `/runner?name=`, decided from this visitor's set on every request; `Cache-Control: no-store` as on every page |
 | several | a table: runner and description, Owner, its answer (`answering · v<version>`, `no answer`, `refused`; `inactive` is not asked), its agent count |
 

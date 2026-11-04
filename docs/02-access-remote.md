@@ -81,7 +81,7 @@ Where the network is not trusted, carry the port over SSH instead:
 - The same port, encrypted.
 - With TLS turned on, the daemon answers TLS and plain HTTP on one port, so older clients keep working while new ones use `https://`.
 - A self-signed certificate is trusted by its fingerprint, which you fetch once over SSH; a client that meets any other certificate refuses to talk.
-- Setup turns it on ([setup § TLS](07-setup.md#tls)).
+- Setup turns it on ([setup § TLS](administration.md#tls)).
 
 ### One port serves both HTTP and HTTPS
 
@@ -90,7 +90,7 @@ Where the network is not trusted, carry the port over SSH instead:
 - **Across a network:** use HTTPS (pin the fingerprint) or SSH; a token sent to an `http://` address crosses the network in the clear.
 - **By design:** one listener reads each connection's first byte and answers TLS or plain HTTP ([the TCP listener](08-processes.md#the-tcp-listener), `src/internal/duallisten/`, tested by `TestOnePortAnswersTLSAndPlain`).
 
-For the web face, separately [trust the web certificate in your browser](07-setup.md#trust-the-web-certificate-in-your-browser); CLI fingerprint pinning does not enable browser token saving.
+For the web face, separately [trust the web certificate in your browser](administration.md#trust-the-web-certificate-in-your-browser); CLI fingerprint pinning does not enable browser token saving.
 
 <details>
 <summary>Example, and the client settings</summary>

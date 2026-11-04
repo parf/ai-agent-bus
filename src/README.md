@@ -96,7 +96,7 @@ A queue needs nobody reading when it is sent; the consumer may start later:
 
 ### Build and check
 
-- Build requirements and version output follow [setup § build information](../docs/07-setup.md#build-information); release numbering follows [working rules § versioning](../CLAUDE.md#versioning).
+- Build requirements and version output follow [setup § build information](../.claude/docs/deployment.md#build-information); release numbering follows [working rules § versioning](../CLAUDE.md#versioning).
 - With an output-directory argument, the build also bundles the MCP face and launchers with Bun, copies the web face's sources and unit (no tests), the release version, license and standalone install guide, and exposes launcher entry points at the output root.
 - `package.sh` adds the exact artifact manifest and produces the supported tar archive plus its portable SHA-256 file.
 - Running a launcher requires Bun and the selected AI runtime; the installed dashboard requires Bun at `/usr/bin/bun`; the daemon requires neither.

@@ -16,7 +16,7 @@ The goal is a working bus and configured agents without making users translate d
 - Help place public settings in Configuration and credentials in each agent's documented store (private host env for mail; record Secret for Telegram), load the agent and confirm it answers. Finish with what works and any remaining user action.
 - Inspect existing installations and offer tuning; perform updates only when requested. Read the main docs and selected guides before advice or changes. An incomplete step stays incomplete in the summary.
 
-Link the canonical [installation and update rules](../../docs/07-setup.md#release-installation-details), [runner operations](../../docs/runner/operations.md#running-and-checking-the-runner), [Configuration/Secret split](../../docs/03-records-agent.md#configuring-a-template) and [agent guides](../../docs/agents/README.md#choose-an-agent). Do not maintain a second installation contract.
+Link the canonical [installation and update rules](../../src/INSTALL.md#from-a-release-archive), [runner operations](../../docs/runner/operations.md#running-and-checking-the-runner), [Configuration/Secret split](../../docs/03-records-agent.md#configuring-a-template) and [agent guides](../../docs/agents/README.md#choose-an-agent). Do not maintain a second installation contract.
 
 ## Web Face chat
 

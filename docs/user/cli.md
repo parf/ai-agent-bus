@@ -429,7 +429,7 @@ For a record you may manage: stored values and named locks. All options and limi
 <details>
 <summary>Record backups</summary>
 
-- Export and import ([how-to](backup.md), [details](../07-setup.md#encrypted-record-backups)) need the bus Owner's own login socket.
+- Export and import ([how-to](backup.md), [details](../administration.md#encrypted-record-backups)) need the bus Owner's own login socket.
 - They keep permanent settings and credentials in an encrypted archive.
 - They never include queued messages or held locks.
 

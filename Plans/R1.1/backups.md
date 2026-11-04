@@ -25,7 +25,7 @@ without a custom encryption format or a new key type of ours.
 
 The archive contains secrets, so encryption is required. The user's key keeps
 backup recovery outside the daemon's authority and preserves the
-[separate secret domains](../../docs/07-setup.md#the-two-accounts).
+[separate secret domains](../../docs/administration.md#the-two-accounts).
 
 Restoring is the archive backwards: fetch each origin at its commit, unpack
 `runner/` over it. An agent whose origin is gone is a **named failure** and

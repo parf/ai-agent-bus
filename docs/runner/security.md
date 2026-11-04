@@ -44,7 +44,7 @@ agent-bus call '#runner/parf@parf.us' --wait 15s status | jq -r .body \
 
 ## Isolation today
 
-**On Linux, `agent-bus-runner` uses bubblewrap by default for each managed agent.** The host can set `"sandbox": "off"` for an entry. This is not the optional `agent-bus run` sandbox described at the end of this section; the [macOS runner](../07-setup.md#the-client-and-runner) has no Linux sandbox or cgroup limits.
+**On Linux, `agent-bus-runner` uses bubblewrap by default for each managed agent.** The host can set `"sandbox": "off"` for an entry. This is not the optional `agent-bus run` sandbox described at the end of this section; the [macOS runner](../platforms/macos.md#client-and-runner) has no Linux sandbox or cgroup limits.
 
 ### Network reach
 
@@ -97,7 +97,7 @@ The [dedicated runner](../06-dedicated-runner.md#sandboxing) is off by default. 
 
 | | Runs as | Owned on the bus by |
 |---|---|---|
-| `#runner/<you>@<host>` | `<you>-ab-runner`, a system account of your runner's alone, unit `agent-bus-runner@<you>`, with your runner agent's token in `runner/runner.env` ([a person's runner](../07-setup.md#a-persons-runner)) | you |
+| `#runner/<you>@<host>` | `<you>-ab-runner`, a system account of your runner's alone, unit `agent-bus-runner@<you>`, with your runner agent's token in `runner/runner.env` ([a person's runner](setup.md#a-persons-runner)) | you |
 | every agent it serves | the same account | you |
 | one message's child process | the same account, in that agent's work directory | — |
 

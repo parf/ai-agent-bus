@@ -370,7 +370,7 @@ The CEO’s arm64 run on 2026-10-31 passed local npm client/full-wrapper install
 
 ## M.11 real-host acceptance of the system runner
 
-Every `agent-bus-setup --runner` verb (install, a second install, enable, disable, uninstall, uninstall `--purge`) and a refused non-User ran on a real systemd host, a disposable rootless-podman container on 0.9.262: 38 checks passed, 0 failed, and each verb left the account, unit, template, private directory and shared `agent.d` as [the setup guide](../../docs/07-setup.md#a-persons-runner) states. The bus record and `runner.env`'s mode were read back, not asserted. [Evidence and the unaltered log](done/m11.md#what-each-verb-left); open gaps are in [FUTURE](FUTURE.md#m11-acceptance-gaps). No code change, no bump.
+Every `agent-bus-setup --runner` verb (install, a second install, enable, disable, uninstall, uninstall `--purge`) and a refused non-User ran on a real systemd host, a disposable rootless-podman container on 0.9.262: 38 checks passed, 0 failed, and each verb left the account, unit, template, private directory and shared `agent.d` as [the setup guide](../../docs/runner/setup.md#a-persons-runner) states. The bus record and `runner.env`'s mode were read back, not asserted. [Evidence and the unaltered log](done/m11.md#what-each-verb-left); open gaps are in [FUTURE](FUTURE.md#m11-acceptance-gaps). No code change, no bump.
 
 
 ## Agent runtime diagnostics and selection

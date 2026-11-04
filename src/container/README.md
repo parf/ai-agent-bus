@@ -71,8 +71,8 @@ The answer comes from `#echo`, served by the runner container.
 
 | Concern | Here |
 |---|---|
-| Persistence | The [storage](../../docs/07-setup.md#storage) is the daemon volume. A new container on the same volume keeps every record and credential; a container without it starts a new bus |
-| Access | The port answers HTTP on `0.0.0.0:6767` (`AGENT_BUS_LISTEN` changes it). Put `cert.pem` and `key.pem` in the volume's `tls/` directory and it answers TLS too; clients then pin it with `AGENT_BUS_TLS_FINGERPRINT` ([TLS](../../docs/07-setup.md#tls)). The local socket serves only the daemon container's own processes ([access](../../docs/02-access.md#what-a-call-carries)) |
+| Persistence | The [storage](../../docs/administration.md#storage) is the daemon volume. A new container on the same volume keeps every record and credential; a container without it starts a new bus |
+| Access | The port answers HTTP on `0.0.0.0:6767` (`AGENT_BUS_LISTEN` changes it). Put `cert.pem` and `key.pem` in the volume's `tls/` directory and it answers TLS too; clients then pin it with `AGENT_BUS_TLS_FINGERPRINT` ([TLS](../../docs/administration.md#tls)). The local socket serves only the daemon container's own processes ([access](../../docs/02-access.md#what-a-call-carries)) |
 | Agents | Shared agent code is `/var/lib/agent-bus/agent.d`: the image holds `echo`; bind-mount a directory there for others ([runner configuration](../../docs/runner/configuration.md#where-settings-belong)). An agent that serves itself needs its token handed over as the runner says |
 | Updates | Build a new image and replace the containers; the volumes stay |
 

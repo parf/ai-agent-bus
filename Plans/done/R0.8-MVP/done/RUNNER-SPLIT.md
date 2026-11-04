@@ -14,7 +14,7 @@ were argued for.
 | | Decision | Stated in |
 |---|---|---|
 | 1 | **The runner is outside the daemon** — its own program under its own account, not a supervised child. So the claim is not "only one child may exec" but *no process the daemon starts may exec at all* | [processes § nothing the daemon runs may exec](../../../../docs/08-processes.md#nothing-the-daemon-runs-may-exec) |
-| 2 | **Two accounts, one per secret domain**: the daemon holds every credential, the runner holds every configuration, and neither reads the other's | [setup § the two accounts](../../../../docs/07-setup.md#the-two-accounts) |
+| 2 | **Two accounts, one per secret domain**: the daemon holds every credential, the runner holds every configuration, and neither reads the other's | [setup § the two accounts](../../../../docs/administration.md#the-two-accounts) |
 | 3 | **The runner is a service on the bus**, reached by a call like anything else. No second ssh door; who may deploy on a host is that service's ACL | [runner § reaching the runner](../../../R1.0-Release/runner-implementation.md#reaching-the-runner) |
 | 4 | **A service is a checkout; an instance is an env file beside it.** What a service *is* stays externally controlled and holds no secret; what a host *decided* lives apart, so a `git pull` moves no local state | [runner § what an instance is](../../../R1.0-Release/runner-implementation.md#what-an-instance-is) |
 | 5 | **Configuration is three layers overlaid, and the more secret one wins.** Precedence and visibility run in opposite directions | [runner § the three env layers](../../../R1.0-Release/runner-implementation.md#the-three-env-layers) |

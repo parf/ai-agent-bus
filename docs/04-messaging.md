@@ -453,7 +453,7 @@ checks, depth and provenance.
 
 ## Durability
 
-- One SQLite database is the runtime store for records, users, groups, the daemon Owner, the local-account map, credentials, queue contents, the four per-queue counters and each record's [day of activity](05-discovery.md#activity-history) ([storage](07-setup.md#storage)).
+- One SQLite database is the runtime store for records, users, groups, the daemon Owner, the local-account map, credentials, queue contents, the four per-queue counters and each record's [day of activity](05-discovery.md#activity-history) ([storage](administration.md#storage)).
 - A management change commits immediately, and only the entities it touched.
 - Traffic updates queues in memory; queue state is flushed as one batch every minute (`--flush-every`) and at a graceful stop, never once per message, and a flush writes only the queues whose counters moved.
 - Delivery checks message expiry after reload, and a drained inbox stays drained.

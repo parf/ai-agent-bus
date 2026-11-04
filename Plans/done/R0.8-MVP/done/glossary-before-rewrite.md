@@ -43,7 +43,7 @@ wins.
 | **token** | the one thing every call carries, and the whole identity; persisted, previous one kept | [access § token lifetime](../../../../docs/02-access.md#token-lifetime) |
 | **service ACL / master ACL** | the two access layers, service asked first | [identity § acl](../../../../docs/02-access.md#acl) |
 | **`*`** | the term for anyone who can authenticate; `allow: *` opens a service to the world | [identity § sigils](../../../R1.1/identity.md#sigils) |
-| **`agent-bus-admin`** | the program that edits what the `agent-busd` account owns — *not* a role; the setup user simply holds master | [setup § the programs](../../../../docs/07-setup.md#the-programs) |
+| **`agent-bus-admin`** | the program that edits what the `agent-busd` account owns — *not* a role; the setup user simply holds master | [setup § the programs](../../../../docs/user/cli.md) |
 | **role** | service-defined string saying what a principal may do, written in parentheses after the term and handed over as written | [identity § sigils](../../../R1.1/identity.md#sigils) |
 | **`@`** · **`#`** (ACL) | a leading `@` is a group, a leading `#` a service, and anything else is a user | [identity § sigils](../../../R1.1/identity.md#sigils) |
 | **`term(roles)`** | an ACL entry: the term says who, the parentheses what the service is told; omitted when there are no roles | [identity § sigils](../../../R1.1/identity.md#sigils) |
@@ -77,7 +77,7 @@ wins.
 | **adapter** (runtime) | per-runtime push path into a live agent session | [runner § adapters](../../../../docs/06-launchers.md#adapters) |
 | **thin glue** | built-in first, then the system's tool, then a library — never our own | [modules § external tools](../../../../src/MODULES.md#external-tools) |
 | **supervisor** | the `agent-busd` process that spawns the rest and holds nothing else | [processes](../../../../docs/08-processes.md#processes-and-privileges) |
-| **`agent-busd`** · **`agent-bus-runner`** (accounts) | the two system users, one per secret domain: credentials and configurations, neither readable by the other | [setup § the two accounts](../../../../docs/07-setup.md#the-two-accounts) |
+| **`agent-busd`** · **`agent-bus-runner`** (accounts) | the two system users, one per secret domain: credentials and configurations, neither readable by the other | [setup § the two accounts](../../../../docs/administration.md#the-two-accounts) |
 | **configuration** (registry) · **environment** (runner) | two things one word names: what a template was configured with, which the daemon holds and a service fetches for itself; and the env files the runner injects, which it holds and nobody reads back | [services § configuring a template](../../../../docs/03-records-agent.md#configuring-a-template) · [runner § the three env layers](../../../R1.0-Release/runner-implementation.md#the-three-env-layers) |
 | **`--algo`** (`args` · `std` · `json` · `jsonl` · `msgpack`) | how a message reaches a script and what that implies about the process: argv, raw bytes on stdin, the envelope as JSON, or — into a child that is kept — that JSON per line, or `uint32`-framed msgpack | [runner § script services](../../../../docs/06-dedicated-runner.md#script-agents) |
 | **pool** (`--share`) | one name served by several processes, on one host or many, all reporting to one bus; the word is the same on `consume` and on `start` | [runner § one name on many hosts](../../../R1.0-Release/runner-implementation.md#one-name-on-many-hosts) |

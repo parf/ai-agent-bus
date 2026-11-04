@@ -41,7 +41,7 @@ Mapped local accounts can authenticate through their [own socket](../../../docs/
 | Messaging and restart persistence | Built, including administrative crash durability and explicit inbox selection | [messaging](../../../docs/04-messaging.md#status) |
 | API, CLI, MCP and web face | Built; the TypeScript web face under its own unit from 0.8.50, its installed container gates passed on 0.8.51 and its installed real-browser gate on 0.8.53 | [discovery](../../../docs/05-discovery.md#status) |
 | Foreground agents and adapters | Built, including launchers; live-runtime acceptance passed on the development and a fresh installed host | [runner](../../../docs/06-dedicated-runner.md#status) |
-| Installation and service account | Package, setup, upgrade, reinstall and fresh-host acceptance passed | [setup](../../../docs/07-setup.md#status) |
+| Installation and service account | Package, setup, upgrade, reinstall and fresh-host acceptance passed | [setup](../../R1.0-Release/done/rc-linux-installation.md) |
 | Process isolation | Split, web authority isolation, resource limits and installed account/socket/capability acceptance built | [processes](../../../docs/08-processes.md#status) |
 
 ## Boundaries

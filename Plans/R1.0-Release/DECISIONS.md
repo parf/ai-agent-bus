@@ -10,7 +10,7 @@
   - State: deployed 0.9.303 (`06fabb3c`) in one stop/start cycle on 2026-11-02; protocol 1/1, all six deployment checks passed. Root-only stopped-home, old-binary and unit backup retained under `/var/lib/agent-bus/daemon.backup/`. Existing MCP/pushers were not refreshed.
   - Evidence: the exact candidate tree `82388f930a03213fd9f26d074a2ca722e7c8368e` passed the corrected `--slow all` run, 1305/0, exit 0. The first red run and its diagnosed wrapper/fixture causes remain recorded in [J94](../issues/done/2026-11/2026-11-02.md#release-validation).
   - Settled by: owner, before the live restart; the current local authority rule reserves daemon restarts to the owner/CEO.
-  - Home: [stopped-daemon backup](../../docs/07-setup.md#stopped-daemon-backup), [minimal deployment](../../docs/07-setup.md#deploy-only-the-changed-component).
+  - Home: [stopped-daemon backup](../../docs/administration.md#stopped-daemon-backup), [minimal deployment](../../.claude/docs/deployment.md#deploy-only-the-changed-component).
   - (x) Authorize W1C's one backed-up daemon/CLI cutover and post-deploy checks; keep every other live action outside this approval. 🌟
   - ( ) Keep the live node unchanged and wait for the CEO to return. ⭐
   > ✅ 💡👾 Authorize the narrow cutover: the exact binaries are staged, the candidate is slow-green, and the plan has an independent clean read. A failed start stops for owner input before any second restart or rollback.
@@ -234,12 +234,12 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
   - Why: owner, 2026-10-27: "yes - only permanent stuff", accepting the recommendations
   - Rule (owner): never queued messages or held locks, and skip anything that does not survive a restart
   - Date: 2026-10-27
-  - Home: [encrypted record backups](../../docs/07-setup.md#encrypted-record-backups)
+  - Home: [encrypted record backups](../../docs/administration.md#encrypted-record-backups)
 
 - ✅ RD122 Records export as a full, `age`-encrypted partial daemon backup, selected as all, by tag or by name, and import from it; encryption is to the user's Ed25519 SSH public key, as backups are
   - Why: owner, 2026-10-27: "full export; encrypted with the user's secret key (age cli command), same as we planned for backups; treat it like a partial daemon backup"
   - Date: 2026-10-27
-  - Home: [encrypted record backups](../../docs/07-setup.md#encrypted-record-backups)
+  - Home: [encrypted record backups](../../docs/administration.md#encrypted-record-backups)
 
 - ✅ RD121 The session-set agent is `#tmux-sessions`, and an entry may name its tmux session; a node's own set is local configuration, never release content
   - Why: owner, 2026-10-27: "rename to tmux-sessions … this is our new dev setup; do not make it part of the release; make a local file so we do not forget"
@@ -339,7 +339,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 - ✅ RD102 One shared `/var/lib/agent-bus/agent.d/` for agent code, and each runner's own files in `/var/lib/agent-bus/<runner account>/` (e.g. `parf-ab-runner`); no `runners/` directory
   - Why: owner instruction, 2026-10-18: "i want agent.d/ in /var/lib/agent-bus; i do not want runners directory; to support multiple runners - use linux username of runner /var/lib/agent-bus/parf-ab-runner; we overcomplicated things"
   - Date: 2026-10-18
-  - Home: [a person's runner](../../docs/07-setup.md#a-persons-runner), with the code; replaces the `runners/<person>/{agent.d,runner}` layout
+  - Home: [a person's runner](../../docs/runner/setup.md#a-persons-runner), with the code; replaces the `runners/<person>/{agent.d,runner}` layout
   - With it: no `/var/lib/agent-bus/web` link; the `agent-bus-web` account's home and its unit name the real web directory, the checkout's `src/web` in development (owner, 2026-10-18: "lets get rid of web symlink")
 
 - ✅ RD101 The runner reads and writes the host's files and creates and deletes instances over the bus, and the web face edits them through it; the record's bus Secret and configuration stay on its record page
@@ -530,7 +530,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 
 - ⚠️ RD41 A person's runner is installed by `agent-bus-setup --runner install|uninstall|enable|disable --for <person> [--purge]`, as `<person>-ab-runner` under one template unit, and setup installs no runner by default ([№M.11](TODO.md#runner-waves))
   - Earlier rows: 2026-10-17 owner instruction; the option names are an implementation choice for owner review
-  - Home: [a person's runner](../../docs/07-setup.md#a-persons-runner)
+  - Home: [a person's runner](../../docs/runner/setup.md#a-persons-runner)
 
 - ✅ RD42 A pool's member runners each read the pool name's own inbox as one of several readers; nothing forwards to a runner (№Q159)
   - Earlier rows: 2026-10-17 owner decision; follows from [№M.10](TODO.md#runner-waves)

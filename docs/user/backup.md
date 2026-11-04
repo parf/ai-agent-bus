@@ -28,7 +28,7 @@
 
 | You want | Use | Takes |
 |---|---|---|
-| everything, exactly as it is now, on this host | [stopped-daemon backup](../07-setup.md#stopped-daemon-backup) | a short stop; as root |
+| everything, exactly as it is now, on this host | [stopped-daemon backup](../administration.md#stopped-daemon-backup) | a short stop; as root |
 | every record with its settings, secrets, stored values and tokens, while the bus runs | `agent-bus-admin export` (full) | nothing; as yourself |
 | some records, a tag or a few names, to move or keep | `agent-bus-admin export --include=…` (partial) | nothing; as yourself |
 
@@ -104,7 +104,7 @@ agent-bus-admin export
 sudo sh -c 'cp /var/lib/agent-bus/record-backups/full-* /mnt/backups/'
 ```
 
-- 🧹 **A weekly cleanup** keeps the newest five full and ten partial archives there ([the bounds](../07-setup.md#development-node-cleanup)).
+- 🧹 **A weekly cleanup** keeps the newest five full and ten partial archives there ([the bounds](../../.claude/docs/deployment.md#development-node-cleanup)).
 
 ## Import
 
@@ -132,7 +132,7 @@ agent-bus-admin import full-<host>-<time>.tar.gz.age --dry-run
 
 ## Rebuilding a bus from an export
 
-1. Take a [stopped-daemon backup](../07-setup.md#stopped-daemon-backup), always.
+1. Take a [stopped-daemon backup](../administration.md#stopped-daemon-backup), always.
 2. `agent-bus-admin export` the records to keep.
 3. Start a fresh bus with you as its Owner, and enroll your key on it; SSH enrollment and local account mappings are not in the archive.
 4. `agent-bus-admin import <archive> --dry-run`, then the import with the choices it asks for.
@@ -152,6 +152,6 @@ agent-bus-admin import full-<host>-<time>.tar.gz.age --dry-run
 - **To stdout:** `--out=-`, with `--info=<path>` for the `.info` file.
 - **`.info` on import:** a missing one is allowed; one that does not match the archive is refused.
 - **Separate folders:** record exports live apart from root's stopped-daemon backups in `/var/lib/agent-bus/daemon.backup/`.
-- **More:** [encrypted record backups](../07-setup.md#encrypted-record-backups).
+- **More:** [encrypted record backups](../administration.md#encrypted-record-backups).
 
 </details>

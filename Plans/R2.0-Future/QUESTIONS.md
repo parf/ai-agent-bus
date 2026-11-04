@@ -56,4 +56,4 @@ what routes through it. *Settled by:* owner.
 
 ## Storage context
 
-❓ **Which persistent data belongs in a replacement store?** The original question assumed unbuilt database and snapshot choices. [Current storage](../../docs/07-setup.md#storage) is the baseline; selecting a replacement remains the owner’s decision.
+❓ **Which persistent data belongs in a replacement store?** The original question assumed unbuilt database and snapshot choices. [Current storage](../../docs/administration.md#storage) is the baseline; selecting a replacement remains the owner’s decision.

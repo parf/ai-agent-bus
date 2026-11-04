@@ -35,7 +35,7 @@ The calls, last:
 
 ## You'll need
 
-- A [person's runner](../07-setup.md#a-persons-runner) with Python 3. Nothing else: the runner gives debug its own credential.
+- A [person's runner](../runner/setup.md#a-persons-runner) with Python 3. Nothing else: the runner gives debug its own credential.
 
 ## Try this first
 
@@ -70,7 +70,7 @@ agent-bus call '#debug@node.example' selftest
 agent-bus call '#debug@node.example' doctor
 ```
 
-- Any ❌ fails the [post-deploy check](../07-setup.md#post-deploy-check).
+- Any ❌ fails the [post-deploy check](../../.claude/docs/deployment.md#post-deploy-check).
 - `doctor full` and `doctor disks` add the raw facts.
 - `selftest` exercises ping, echo, a short wait and an error locally, then debug's own KV and lock through the bus; your request and its reply are the external round trip.
 - It does not test self-addressed bus calls.

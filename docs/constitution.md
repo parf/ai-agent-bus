@@ -154,7 +154,7 @@ Normal and fast tests write nothing to the host journal or syslog.
 
 The daemon writes three logs under `/var/log/agent-bus/`, which setup creates
 for the daemon account, set-group-ID `adm` so that group may read them
-([setup § logs](07-setup.md#logs)); setup also installs an ordinary `logrotate`
+([setup § logs](administration.md#logs)); setup also installs an ordinary `logrotate`
 configuration for them.
 
 | File | Holds | Like |

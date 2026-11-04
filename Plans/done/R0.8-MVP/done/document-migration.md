@@ -63,19 +63,19 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | Original row | Destination |
 |---|---|
 | D1 | [owner](../../../../CLAUDE.md#versioning) |
-| D2 | [owner](../../../../docs/07-setup.md#build-information) |
+| D2 | [owner](../../../../.claude/docs/deployment.md#build-information) |
 | D3 | [owner](../../../../docs/08-processes.md#process-titles) |
 | D4 | [owner](../../../../docs/01-identity-and-authority.md#names) |
 | D5 | [owner](../../../../docs/01-identity-and-authority.md#names) |
 | D6 | [owner](../../../R1.1/identity.md#sigils) |
 | D7 | [owner](../../../R1.1/identity.md#sigils) |
-| D8 | [owner](../../../../docs/07-setup.md#the-two-accounts) |
-| D9 | [owner](../../../../docs/07-setup.md#the-programs) |
-| D10 | [owner](../../../../docs/07-setup.md#the-programs) |
+| D8 | [owner](../../../../docs/administration.md#the-two-accounts) |
+| D9 | [owner](../../../../docs/user/cli.md) |
+| D10 | [owner](../../../../docs/user/cli.md) |
 | D11 | [owner](../../../../docs/02-access.md#getting-a-token) |
 | D12 | [owner](../../../../docs/02-access.md#proving-possession) |
-| D13 | [owner](../../../../docs/07-setup.md#the-programs) |
-| D14 | [owner](../../../../docs/07-setup.md#the-two-accounts) |
+| D13 | [owner](../../../../docs/user/cli.md) |
+| D14 | [owner](../../../../docs/administration.md#the-two-accounts) |
 | D15 | [owner](../../../../docs/02-access.md#acl) |
 | D16 | [owner](../../../../docs/01-identity-and-authority.md#registration) |
 | D17 | [owner](../../../../docs/01-identity-and-authority.md#registration) |
@@ -114,7 +114,7 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D50 | [owner](../../../../docs/02-access.md#token-lifetime) |
 | D51 | [owner](../../../../docs/02-access.md#token-lifetime) |
 | D52 | [owner](../../../../docs/01-identity-and-authority.md#ownership) |
-| D53 | [owner](../../../../docs/07-setup.md#storage) |
+| D53 | [owner](../../../../docs/administration.md#storage) |
 | D54 | [owner](../../../../docs/04-messaging.md#durability) |
 | D55 | [owner](../../../../docs/04-messaging.md#durability) |
 | D56 | [owner](../../../../docs/02-access.md#local-socket) |
@@ -256,7 +256,7 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D192 | [owner](../../../../docs/08-processes.md#what-is-shared) |
 | D193 | [owner](../../../../docs/08-processes.md#the-rule) |
 | D194 | [owner](../../../../docs/08-processes.md#nothing-the-daemon-runs-may-exec) |
-| D195 | [owner](../../../../docs/07-setup.md#the-two-accounts) |
+| D195 | [owner](../../../../docs/administration.md#the-two-accounts) |
 | D196 | [owner](../../../../docs/02-access.md#what-a-call-carries) |
 | D197 | [owner](../../../R1.0-Release/runner-implementation.md#reaching-the-runner) |
 | D198 | [owner](../../../R1.0-Release/runner-implementation.md#reaching-the-runner) |

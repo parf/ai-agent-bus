@@ -64,4 +64,4 @@ The [Fedora Project](https://fedoraproject.org/) and [official download page](ht
 - Public npm/GitHub download and publication, a genuine update from a separately released older archive, bare-metal installation, other CPUs and native macOS were not established by these checks. Re-running the same installer was checked on Ubuntu. macOS is the next separate acceptance task.
 - All test containers were removed with `rm -fv`; own-label listings and private volume listings were empty before each owner's lock release. No burners or live provider calls were used.
 
-The current concise system list lives in [setup](../../../docs/07-setup.md#tested-linux-systems). W1C led Ubuntu, npm and browser checks; W2C independently ran the other four systems and reviewed the installation fix.
+The current concise system list lives in [setup](rc-linux-installation.md). W1C led Ubuntu, npm and browser checks; W2C independently ran the other four systems and reviewed the installation fix.

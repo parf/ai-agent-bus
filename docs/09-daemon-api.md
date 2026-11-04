@@ -169,14 +169,14 @@ Both live on a record and answer to its management authority.
 |---|---|
 | `GET /users` · `POST /user` | the people this node knows, and adding or editing one ([users and profiles](01-identity-and-authority.md#users-and-profiles)) |
 | `POST /user/state` | `{"name", "status"}`, active or inactive ([user states](01-identity-and-authority.md#user-states)) |
-| `POST /user/key` | add or replace a User's `ssh-ed25519` key in the daemon account's `authorized_keys` ([SSH admin](07-setup.md#ssh-admin)) |
+| `POST /user/key` | add or replace a User's `ssh-ed25519` key in the daemon account's `authorized_keys` ([SSH admin](administration.md#ssh-admin)) |
 | `GET /inactive` | the one read-only view of inactive records, for the web face ([record status](constitution.md#common-record-fields)) |
 | `POST /user/github-refresh` · `POST /profile` | refresh a GitHub profile import; edit the profile fields |
 | `POST /identity/remove` | remove a person and what answered for them ([orphaned records](01-identity-and-authority.md#orphaned-records)) |
 | `GET /groups` · `POST /group` | group membership ([groups](01-identity-and-authority.md#groups)) |
 | `GET /accounts` · `POST /account` | the local account map, which needs a restart to take effect ([local socket](02-access.md#local-socket)) |
 | `POST /owner` | transfer daemon ownership ([daemon owner](01-identity-and-authority.md#daemon-owner)) |
-| `GET /debug` · `POST /debug` | read or switch the debug log, `{"on": true}`; daemon Owner only ([logs](07-setup.md#logs)) |
+| `GET /debug` · `POST /debug` | read or switch the debug log, `{"on": true}`; daemon Owner only ([logs](administration.md#logs)) |
 
 ## Stability and compatibility
 

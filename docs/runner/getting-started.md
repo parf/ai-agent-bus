@@ -20,7 +20,7 @@
 
 ## You'll need
 
-- Your runner installed: [setup](../07-setup.md#a-persons-runner).
+- Your runner installed: [setup](setup.md#a-persons-runner).
 - The host's [sandbox prerequisites](security.md#isolation-today).
 - A terminal signed in to the bus as yourself.
 

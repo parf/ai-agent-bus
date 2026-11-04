@@ -25,7 +25,7 @@
 
 ## You'll need
 
-- A [person's runner](../07-setup.md#a-persons-runner) with Python 3, and time zone data on the host if `tz` is not UTC.
+- A [person's runner](../runner/setup.md#a-persons-runner) with Python 3, and time zone data on the host if `tz` is not UTC.
 - `#at` on your access list, and on the access list of each destination you send to.
 
 ## Try this first

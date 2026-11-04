@@ -64,9 +64,9 @@ failed: session tmux-sessions absent
 
 ## Installing it
 
-- It belongs in the person's [user-account runner](../07-setup.md#a-persons-user-account-runner), which runs as them.
+- It belongs in the person's [user-account runner](../runner/setup.md#a-persons-user-account-runner), which runs as them.
 - An administrator installs that runner once (`sudo /usr/local/bin/agent-bus-setup --runner install --user-runner --for <person>`) and the person adds this package to it.
-- Running the main record and an instance in one runner takes sibling inventory keys, with the base key disabled ([how](../07-setup.md#a-persons-user-account-runner)).
+- Running the main record and an instance in one runner takes sibling inventory keys, with the base key disabled ([how](../runner/setup.md#a-persons-user-account-runner)).
 - Alternatively, install it as a separate Linux service for that person:
 
 <details>
@@ -114,7 +114,7 @@ Start from the shipped [config.json.dist](../../src/agents/standalone/tmux-sessi
 | Key | Meaning |
 |---|---|
 | `session` | tmux session name, 1–32 of `A-Za-z0-9-_`; default the instance part, or `tmux-sessions` |
-| `state_home` | Existing absolute directory given to every window as `XDG_STATE_HOME`; default `/var/lib/agent-bus-tmux-sessions[-<instance>]` when that is a directory owned by the person (the old standalone unit's state, so launchers keep their locks and sessions after the move to the [user-account runner](../07-setup.md#a-persons-user-account-runner)), else inherited |
+| `state_home` | Existing absolute directory given to every window as `XDG_STATE_HOME`; default `/var/lib/agent-bus-tmux-sessions[-<instance>]` when that is a directory owned by the person (the old standalone unit's state, so launchers keep their locks and sessions after the move to the [user-account runner](../runner/setup.md#a-persons-user-account-runner)), else inherited |
 | `windows` | Up to 32 entries; default empty |
 | `windows[].name` | Required, unique; same rule as `session`; case kept |
 | `windows[].cwd` | Required existing absolute directory; `$HOME` is not expanded |

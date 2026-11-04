@@ -25,7 +25,7 @@
 
 ## You'll need
 
-- A [person's runner](../07-setup.md#a-persons-runner), Python 3 and network access.
+- A [person's runner](../runner/setup.md#a-persons-runner), Python 3 and network access.
 - A mail account that allows SMTP sign-in; for Gmail an [app password](https://support.google.com/accounts/answer/185833) (needs 2-Step Verification), since the normal password does not work.
 
 ## Try this first

@@ -176,7 +176,7 @@ An administrator does this part. The bus and CLI must already be [installed](../
 
 ### Runner helpers
 
-- Helpers marked "Runner" above need [a person's runner](../07-setup.md#a-persons-runner) (a background program that keeps a person's helpers running), such as `#runner/ann@node.example` running as `ann-ab-runner`.
+- Helpers marked "Runner" above need [a person's runner](../runner/setup.md#a-persons-runner) (a background program that keeps a person's helpers running), such as `#runner/ann@node.example` running as `ann-ab-runner`.
 - Its shared code directory is `/var/lib/agent-bus/agent.d`; its private settings are in `/var/lib/agent-bus/ann-ab-runner`.
 - Installing helper code needs sudo.
 

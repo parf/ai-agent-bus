@@ -11,11 +11,11 @@ Current naming index. Canonical values and definitions remain in the linked sect
 
 | Name | Meaning | Definition |
 |---|---|---|
-| agent-busd | Daemon | [programs](07-setup.md#the-programs) |
-| agent-bus | User CLI | [programs](07-setup.md#the-programs) |
+| agent-busd | Daemon | [programs](user/cli.md) |
+| agent-bus | User CLI | [programs](user/cli.md) |
 | agent-bus-setup | Installer | [installation](07-setup.md#install) |
-| agent-bus token | Credential program | [programs](07-setup.md#the-programs) |
-| agent-bus-admin | Administration program | [SSH administration](07-setup.md#ssh-admin) |
+| agent-bus token | Credential program | [programs](user/cli.md) |
+| agent-bus-admin | Administration program | [SSH administration](administration.md#ssh-admin) |
 | agent-bus-web | The web face: TypeScript on bun, its own account and systemd unit | [the web face](08-processes.md#the-web-face) |
 | ab_ | MCP tool prefix only; never CLI or prose shorthand | [faces](05-discovery.md#faces) |
 | lock | a named right to be the one holder on a record, for a stated ttl | [shared locks](01-identity-and-authority.md#shared-locks) |
@@ -97,7 +97,7 @@ labels no record and is held for the daemon.
 | Local socket | Account credential | [definition](02-access.md#local-socket) |
 | Remote access | Reaching the bus from another host: HTTP, HTTPS or a forwarded socket | [definition](02-access-remote.md#choosing-a-way) |
 | Dual listener | One TCP port answering TLS and plain HTTP, sniffed per connection | [definition](08-processes.md#the-tcp-listener) |
-| TLS directory | Where setup keeps the node's certificate, chain and key | [definition](07-setup.md#tls) |
+| TLS directory | Where setup keeps the node's certificate, chain and key | [definition](administration.md#tls) |
 | Fingerprint, pin | The certificate's SHA-256, which a client checks instead of a CA | [definition](02-access-remote.md#over-https) |
 | Record ACL | Visibility and use policy, including runtime `@owner` | [definition](02-access.md#acl) |
 | Record authority | The Owner's and Maintainers' standing over a record; never *resource authority*, since a resource is the 📚 kind | [definition](01-identity-and-authority.md#record-authority) |

@@ -170,7 +170,7 @@ attached; otherwise a running script receives status normally.
 
 The dedicated runner executes as the user who started it. It is not a child of
 the daemon. Setup installs a person's separate [runner](runner/README.md) and its
-unit only on request ([a person's runner](07-setup.md#a-persons-runner)).
+unit only on request ([a person's runner](runner/setup.md#a-persons-runner)).
 
 ## Sandboxing
 

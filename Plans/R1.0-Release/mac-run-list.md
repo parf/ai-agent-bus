@@ -35,7 +35,7 @@ The table below retains the earlier owner-managed Linux aarch64 session plan ([R
 
 | Item | What the session gets |
 |---|---|
-| Bus address | `AGENT_BUS_ADDR=https://<this node's LAN host>:<port>` and `AGENT_BUS_TLS_FINGERPRINT=sha256:…` of the node's self-signed certificate ([setup § TLS](../../docs/07-setup.md#tls)); the owner supplies both, nothing here names them |
+| Bus address | `AGENT_BUS_ADDR=https://<this node's LAN host>:<port>` and `AGENT_BUS_TLS_FINGERPRINT=sha256:…` of the node's self-signed certificate ([setup § TLS](../../docs/administration.md#tls)); the owner supplies both, nothing here names them |
 | Token | one bus token for one agent name made for this (for example `#ab-mac`), issued by the owner with `agent-bus token`; handed over outside the repository and this chat; never written into a file the session commits |
 | Checkout | a clone of `parf/ai-agent-bus` at the commit the run names, or a `git bundle` the owner copies over if that commit is not yet public; read-only: the session pushes nothing and edits nothing |
 | Tools | `podman` with a running arm64 machine; the Linux machine needs Go, a C compiler and `bun` as the prerequisites table says; the Mac itself needs neither Go nor bun for the Linux aarch64 run |

@@ -5,7 +5,7 @@
 RT31 is complete on `parf.us`. The implementation landed as `c952c241`
 (0.9.149), and the state-home handover as `9905f3ff` (0.9.151). The live
 close-out below was read-only, 2026-11-01 13:11–13:18 EST, on 0.9.262.
-The current contract is [a person's user-account runner](../../../docs/07-setup.md#a-persons-user-account-runner).
+The current contract is [a person's user-account runner](../../../docs/runner/setup.md#a-persons-user-account-runner).
 
 Completion uses the retained disposable-container acceptance, the CEO's
 statement that this node's setup/switchover was done, and the observations

@@ -19,19 +19,19 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Decision | Where |
 |---|---|
 | Program versioning and release notes | [working rules § versioning](../../../../CLAUDE.md#versioning) |
-| Build information | [setup § build information](../../../../docs/07-setup.md#build-information) |
+| Build information | [setup § build information](../../../../.claude/docs/deployment.md#build-information) |
 | Process titles and call counts | [processes § process titles](../../../../docs/08-processes.md#process-titles) |
 | Names are `user@realm`; the name is the identity, provider ids are only a check | [identity § names](../../../../docs/01-identity-and-authority.md#names) |
 | What characters a name may hold, and that it starts alphanumeric | [identity § names](../../../../docs/01-identity-and-authority.md#names) |
 | An ACL entry is `term(roles)`: `user`, `@group`, `#service` or `*`, with roles in parentheses and left out when there are none | [identity § sigils](../../../R1.1/identity.md#sigils) |
 | Being in the list is the access, so there is no access level beside the role | [identity § sigils](../../../R1.1/identity.md#sigils) |
-| Setup installs the separate-user arrangement, and where the accounts live | [setup § the two accounts](../../../../docs/07-setup.md#the-two-accounts) |
-| One program per privilege, split no finer | [setup § the programs](../../../../docs/07-setup.md#the-programs) |
-| Over SSH a key reaches one forced command; the admin's is a superset, and the token verb is the same either way | [setup § the programs](../../../../docs/07-setup.md#the-programs) |
+| Setup installs the separate-user arrangement, and where the accounts live | [setup § the two accounts](../../../../docs/administration.md#the-two-accounts) |
+| One program per privilege, split no finer | [setup § the programs](../../../../docs/user/cli.md) |
+| Over SSH a key reaches one forced command; the admin's is a superset, and the token verb is the same either way | [setup § the programs](../../../../docs/user/cli.md) |
 | A token can be had by signing a challenge, because not every host runs sshd | [access § getting a token](../../../../docs/02-access.md#getting-a-token) |
 | Enrolment is the one route with no credential on it, because it is where one comes from | [identity § proving possession](../../../../docs/02-access.md#proving-possession) |
-| A user is a line in `authorized_keys`, written by one program, never a format of ours | [setup § the programs](../../../../docs/07-setup.md#the-programs) |
-| The unit is what makes the arrangement true: the account, its home, one capability, restart | [setup § the two accounts](../../../../docs/07-setup.md#the-two-accounts) |
+| A user is a line in `authorized_keys`, written by one program, never a format of ours | [setup § the programs](../../../../docs/user/cli.md) |
+| The unit is what makes the arrangement true: the account, its home, one capability, restart | [setup § the two accounts](../../../../docs/administration.md#the-two-accounts) |
 | Writing is subject to the ACL, like reading | [identity § acl](../../../../docs/02-access.md#acl) |
 | Registration is a stated record; a provider is an alternative to typing it and is not needed after enrolment | [identity § registration](../../../../docs/01-identity-and-authority.md#registration) |
 | MVP is manual registration + GitHub; LDAP/AD deferred | [identity § registration](../../../../docs/01-identity-and-authority.md#registration) · [future](../../../R2.0-Future/ldap-ad.md#ldap--active-directory--future) |
@@ -70,7 +70,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | When a credential was issued is durable; when it was last used is this run's | [access § token lifetime](../../../../docs/02-access.md#token-lifetime) |
 | A caller may ask what credentials they hold and never anybody else's; owning a name is not holding one | [access § token lifetime](../../../../docs/02-access.md#token-lifetime) |
 | A record that owns itself is a person, so nothing carries a separate flag saying so | [identity § ownership](../../../../docs/01-identity-and-authority.md#ownership) |
-| Credentials persist behind the store port, in a text file until the database is chosen | [setup § storage](../../../../docs/07-setup.md#storage) |
+| Credentials persist behind the store port, in a text file until the database is chosen | [setup § storage](../../../../docs/administration.md#storage) |
 | The restart snapshot carries the registry too, and is JSON until Parquet is written | [messaging § durability](../../../../docs/04-messaging.md#durability) |
 | A start that follows an unclean stop says so, and from when it is missing traffic | [messaging § durability](../../../../docs/04-messaging.md#durability) |
 | The socket is a credential, not an exemption from having one; one host, many users | [access § local socket](../../../../docs/02-access.md#local-socket) |
@@ -212,13 +212,13 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Nothing is shared implicitly — children talk over unix sockets with explicit contracts | [processes § what is shared](../../../../docs/08-processes.md#what-is-shared) |
 | The supervisor owns the listening sockets and passes fds down | [processes § the rule](../../../../docs/08-processes.md#the-rule) |
 | The runner is not part of `agent-busd`: a separate program under its own account, and no process the daemon starts may exec | [processes § nothing the daemon runs may exec](../../../../docs/08-processes.md#nothing-the-daemon-runs-may-exec) |
-| Two system accounts, one per secret domain, under one `/var/lib/agent-bus` | [setup § the two accounts](../../../../docs/07-setup.md#the-two-accounts) |
+| Two system accounts, one per secret domain, under one `/var/lib/agent-bus` | [setup § the two accounts](../../../../docs/administration.md#the-two-accounts) |
 | ssh with a forced command is a third way a caller is named, and how a remote daemon is reached | [access § the three doors](../../../../docs/02-access.md#what-a-call-carries) |
 | The runner is a service on the bus; deploying on a host is its service ACL, not a second door | [runner § reaching the runner](../../../R1.0-Release/runner-implementation.md#reaching-the-runner) |
 | The runner registers as `runner@<host>`, a name like any other | [runner § reaching the runner](../../../R1.0-Release/runner-implementation.md#reaching-the-runner) |
-| Two accounts, two units, started and stopped independently | [setup § the two units](../../../../docs/07-setup.md#the-two-units) |
-| Which bus the runner serves is a setting, defaulting to the local one | [setup § the two units](../../../../docs/07-setup.md#the-two-units) |
-| A local runner wants the local daemon and starts after it, but is not stopped with it | [setup § the two units](../../../../docs/07-setup.md#the-two-units) |
+| Two accounts, two units, started and stopped independently | [setup § the two units](../../../../docs/administration.md#the-two-units) |
+| Which bus the runner serves is a setting, defaulting to the local one | [setup § the two units](../../../../docs/administration.md#the-two-units) |
+| A local runner wants the local daemon and starts after it, but is not stopped with it | [setup § the two units](../../../../docs/administration.md#the-two-units) |
 | `service.d` is externally controlled — usually a checkout — so no local state lives in it | [runner § what an instance is](../../../R1.0-Release/runner-implementation.md#what-an-instance-is) |
 | Configuration is three env layers overlaid, and the more secret one wins | [runner § the three env layers](../../../R1.0-Release/runner-implementation.md#the-three-env-layers) |
 | `env.dist` declares the surface; a service needs an instance exactly when something is declared without a default | [runner § the three env layers](../../../R1.0-Release/runner-implementation.md#the-three-env-layers) |
@@ -285,8 +285,8 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Peer sync trusts unsigned records; no clock authority for "newer wins" | owner | [services § registry sync](../../../R1.1/registry.md#registry-sync) |
 | How a queued body is decrypted by a receiver that was not present when it was sent | owner, with the MVP | [access § encrypted sessions](../../../../docs/02-access.md#trust-boundary) |
 | What carries a service's method information | owner, with the MVP faces | [services § service and template](../../../../docs/03-records-agent.md#agent-templates) |
-| What else lives in the store, and whether RocksDB replaces it — holding the daemon's and the runner's data encrypted and replicating itself, linked in or a unit of its own | owner | [setup § storage](../../../../docs/07-setup.md#storage) |
-| Where the ACL and the user-to-account map are edited | owner | [setup § the programs](../../../../docs/07-setup.md#the-programs) |
+| What else lives in the store, and whether RocksDB replaces it — holding the daemon's and the runner's data encrypted and replicating itself, linked in or a unit of its own | owner | [setup § storage](../../../../docs/administration.md#storage) |
+| Where the ACL and the user-to-account map are edited | owner | [setup § the programs](../../../../docs/user/cli.md) |
 | npm install vs Go-first for the first release | owner | [setup § install](../../../../docs/07-setup.md#install) |
 | OpenCode (Z.AI) push path | one spike | [runner § adapters](../../../../docs/06-launchers.md#adapters) |
 | How a dormant name is woken, and what the daemon has to learn to do it | owner, in R1 | [runner § what an instance is](../../../R1.0-Release/runner-implementation.md#what-an-instance-is) |
@@ -324,8 +324,8 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Sandboxing is on by default, with a profile per child | off by default and opted into per service: secrets are injected as environment and never sit on a path the child can open, so confinement is hardening rather than what makes the layout correct — [runner § sandboxing](../../../../docs/06-dedicated-runner.md#sandboxing) |
 | The directory being there is the desired state, and there is no catalogue | it is the *installed* state; what should be **up**, and how many, is a list the runner reads at start — [runner § what an instance is](../../../R1.0-Release/runner-implementation.md#what-an-instance-is) |
 | The runner is one of the supervisor's children, and the only one that may exec | it is outside the daemon entirely, under its own account, so nothing the daemon starts execs at all — [processes § nothing the daemon runs may exec](../../../../docs/08-processes.md#nothing-the-daemon-runs-may-exec) |
-| The daemon's system account is `agent-bus` | `agent-busd`, so the account and the CLI are not the same word — [setup § the two accounts](../../../../docs/07-setup.md#the-two-accounts) |
-| The setup user gets the `agent-bus-admin` role | they hold master, and the name is the operator's program instead — [setup § the programs](../../../../docs/07-setup.md#the-programs) |
+| The daemon's system account is `agent-bus` | `agent-busd`, so the account and the CLI are not the same word — [setup § the two accounts](../../../../docs/administration.md#the-two-accounts) |
+| The setup user gets the `agent-bus-admin` role | they hold master, and the name is the operator's program instead — [setup § the programs](../../../../docs/user/cli.md) |
 | Minimal setup: install, `agent-bus setup`, start the service | `sudo agent-bus-setup` does all three, and is its own program — [setup § install](../../../../docs/07-setup.md#install) |
 | Go first, a bun/NPM build later | Go inside, TypeScript for the MCP face and adapters — built by bun, run on Node — [modules § languages](../../../../src/MODULES.md#languages) |
 | TypeScript runs on Node because bun's WebSocket fails on a unix socket | bun, reaching the App Server over stdio instead — the WebSocket was the only thing that needed Node — [modules § languages](../../../../src/MODULES.md#languages) |
@@ -338,7 +338,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | "Service" = the kind, "instance" = a running copy of it | "service" means the **configured** thing; the kind is a **service template** — [services § service and template](../../../../docs/03-records-agent.md#agent-templates) |
 | Local access needs no credential at all | the socket hides the credentials, it does not remove them — [access § local socket](../../../../docs/02-access.md#local-socket) |
 | Socket in each user's `/run/user/<uid>/` | the daemon's own directory, one socket per user — [access § local socket](../../../../docs/02-access.md#local-socket) |
-| Setup takes local username + gh-username | local account + bus username; the username carries its realm — [setup § local users](../../../../docs/07-setup.md#local-users) |
+| Setup takes local username + gh-username | local account + bus username; the username carries its realm — [setup § local users](../../../../docs/administration.md#local-users) |
 | Principal id is GitHub's numeric id | the name is the identity; the id is only a re-check comparison — [identity § names](../../../../docs/01-identity-and-authority.md#names) |
 | GitHub is *the* identity source, and the reason public services work | a provider is an alternative to typing the record — [identity § registration](../../../../docs/01-identity-and-authority.md#registration) |
 | Overflow: drop oldest | two modes, `ring` and `strict` — [messaging § overflow](../../../../docs/04-messaging.md#overflow) |

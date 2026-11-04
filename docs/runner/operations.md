@@ -288,7 +288,7 @@ journalctl -u agent-bus-runner@<you> -f
 
 ## Stopping and restarting
 
-Stop and disable your runner, keeping every file ([a person's runner](../07-setup.md#a-persons-runner)):
+Stop and disable your runner, keeping every file ([a person's runner](setup.md#a-persons-runner)):
 
 ```sh
 sudo /usr/local/bin/agent-bus-setup --runner disable --for <you>

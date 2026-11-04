@@ -32,22 +32,22 @@ Give your AI this instruction: **Read AI-SETUP.md, inspect this computer, and he
 - Inspect the operating system, CPU, current login, available administrative access and installed command locations. Do not install packages, change profiles or start services during inspection.
 - If `agent-bus` exists, query its version and status using the [read-only checks](docs/07-setup.md#check-an-existing-installation). Inspect its installed release path and service state as needed. A failed status may mean a stopped service, missing credential or unreachable remote bus; it does not prove the software is absent.
 - A client, an installed release tree or existing service/state files also counts as an existing installation, even when the command is not on PATH. Do not overwrite it to make discovery easier.
-- **Existing installation:** summarize what is present, then offer to tune agents, diagnose a specific problem or explain a feature. Ask which outcome the user wants. Do not reinstall, upgrade, reset credentials or replace configuration as the default action. Continue at step 4 for tuning; step 5 applies only when the user requests an update.
+- **Existing installation:** summarize what is present and perform the requested tuning or diagnosis. Ask for an outcome only when the request leaves it unclear. Do not reinstall, upgrade, reset credentials or replace configuration as the default action. Continue at step 4 for tuning; step 5 applies only when the user requests an update.
 - **Fresh computer:** ask whether it should join an existing bus or run its own, unless the request already answers that. Ask for the intended local owner and selected agents. For a remote bus, obtain the address and verified certificate fingerprint or documented SSH connection; use an existing credential without displaying it.
 - A client-only installation cannot configure services on a remote computer without access there. State which actions can be done locally and which require the remote administrator.
 
 ### 3. Install only on the fresh path
 
 - Read the [installation choices](docs/07-setup.md#install), the [release archive instructions](src/INSTALL.md#from-a-release-archive) and the target platform's limits before choosing commands. Use the selected released package or the exact candidate supplied for a test; do not silently substitute another version or build from source.
-- Check actual publication availability. If npm supplies only a placeholder or the required artifact is absent, explain that and use the supplied verified archive when available. Never claim an installation succeeded merely because npm exited successfully.
+- Check that the selected package and platform artifact are available and installable. If unavailable, use a supplied verified archive with the user's agreement; report the actual result rather than relying only on npm's exit status.
 - Execute the chosen guide's installation steps yourself where access permits. Request the needed host-change approval once, or give the exact privileged command for the user to run when interactive authorization cannot be delegated. Do not ask the user to repeat work you can perform.
 - Verify checksums, manifests and build information as that installation path requires. Do not bypass a refused integrity check. A checksum error is an incomplete install, not a reason to continue with unchecked bytes.
-- Check the resulting command and running service. For a Linux node, use the documented [post-deploy check](docs/07-setup.md#post-deploy-check) where its prerequisites are installed; report missing prerequisites separately. For a client, prove connection to its chosen bus.
-- On macOS follow the [Mac limits](docs/07-setup.md#macos): reduced launchd setup differs from Linux, and sandboxing and a person's system runner are not available. Do not translate systemd commands into guessed launchd commands or weaken a requested sandbox silently.
+- Check the resulting command and running service. For a Linux node, use the documented [post-deploy check](.claude/docs/deployment.md#post-deploy-check) where its prerequisites are installed; report missing prerequisites separately. For a client, prove connection to its chosen bus.
+- On macOS follow the [Mac limits](docs/platforms/macos.md#macos): reduced launchd setup differs from Linux, and sandboxing and a person's system runner are not available. Do not translate systemd commands into guessed launchd commands or weaken a requested sandbox silently.
 
 ### 4. Offer and perform agent tuning
 
-- Ask what the user wants to accomplish: read mail, send mail, use Telegram, work with files or another catalogue task. Reuse stated preferences and inspect existing instances before asking for names, provider details or destinations again.
+- Reuse the user's requested goal and inspect existing instances before asking for missing names, provider details or destinations. When defaults already meet the goal, keep them; a simple optional setting needs no configuration questionnaire.
 - Read each chosen guide, then ask the installed agent for its capabilities, Configuration keys and secret-key names through the [documented help asks](docs/user/cli.md#asking-an-agent-what-it-can-do). Metadata help does not prove the provider is connected. When no instance exists yet, inspect the shipped manifest and `env.dist` without reading credential values.
 - Follow the guide to select a bundled or shared package and create an instance only if needed. Preserve all unrelated inventory entries, Configuration keys, credentials and data; preview the intended changes. Bundled packages require explicit `enabled:true` in the [inventory](docs/runner/configuration.md#inventory).
 - Confirm who may call the helper and which accounts, chats or destinations it should reach. Keep the guide's restricted defaults unless the user requests a different policy; do not use public access or disable isolation as a convenience fix.
@@ -68,7 +68,7 @@ Give your AI this instruction: **Read AI-SETUP.md, inspect this computer, and he
 
 ### 5. Update only when requested
 
-- First read [release installation details](docs/07-setup.md#release-installation-details) and [backup and restore](docs/07-setup.md#backup-and-restore). Record current and target versions, installation method and the applicable recovery procedure. An update request is not permission to discard state or replace credentials.
+- First read [release installation details](src/INSTALL.md#from-a-release-archive) and [backup and restore](docs/administration.md#backup-and-restore). Record current and target versions, installation method and the applicable recovery procedure. An update request is not permission to discard state or replace credentials.
 - Use the existing installation's supported update method, verify the target artifact and protect state before replacing it. Do not apply Linux-only upgrade options on macOS.
 - Verify the resulting version and connection, selected agents, unchanged Configuration, inventory, credentials and saved state. After a failure, use the documented recovery or rollback path and report the outcome; never hide a failed update behind a fresh install.
 - On a second setup run, return to inspection and offer tuning. Reuse working settings; no duplicate instance or automatic reinstall/update should result.

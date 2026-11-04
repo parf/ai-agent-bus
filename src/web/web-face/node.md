@@ -476,7 +476,7 @@ History: the Go face's list, and each page's differences from older docs, are in
 | Landing and sign-in, including refused sign-in | [Introduction](../../../docs/00-overview.md#goal), [getting a token](../../../docs/02-access.md#getting-a-token) |
 | Overview | [Introduction](../../../docs/00-overview.md#goal), [dashboard](../../../docs/05-discovery.md#dashboard) |
 | Activity | [Activity history](../../../docs/05-discovery.md#activity-history), [message fields](../../../docs/04-messaging.md#message-fields) |
-| Diagnostics | [Overview and diagnostics](../../../docs/05-discovery.md#overview-and-diagnostics), [logs](../../../docs/07-setup.md#logs) |
+| Diagnostics | [Overview and diagnostics](../../../docs/05-discovery.md#overview-and-diagnostics), [logs](../../../docs/administration.md#logs) |
 
 Unclassified error/style-guide pages retain introduction and access guidance;
 JSON endpoints and redirects have no rendered documentation strip.

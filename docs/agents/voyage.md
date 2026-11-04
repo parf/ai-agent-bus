@@ -25,7 +25,7 @@
 ## You'll need
 
 - A Voyage API key.
-- A [person's runner](../07-setup.md#a-persons-runner) with Python 3.
+- A [person's runner](../runner/setup.md#a-persons-runner) with Python 3.
 - The agent's owner to let you call it.
 
 ## Try this first

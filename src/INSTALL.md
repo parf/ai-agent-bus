@@ -3,7 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** you want a working bus on a Linux host without building it or assembling accounts and services by hand.
 - **Outcome:** the release archive installs the daemon, web panel and CLI; your ordinary login can use them immediately.
-- **Start:** follow [From a release archive](#from-a-release-archive). Developers can [build from a checkout](#from-a-checkout) instead.
+- **Start:** follow [From a release archive](#from-a-release-archive).
 
 Let your AI inspect an existing installation or guide a fresh one with [AI-SETUP.md](https://github.com/parf/ai-agent-bus/blob/main/AI-SETUP.md#how-to-start).
 
@@ -37,7 +37,7 @@ tar -xzf agent-bus-*.tar.gz -C agent-bus-install --strip-components=1
 sudo ./agent-bus-install/agent-bus-setup --owner "$USER"
 ```
 
-- The plain local user name also works with the [person's runner](https://github.com/parf/ai-agent-bus/blob/main/docs/07-setup.md#a-persons-runner). A qualified bus identity is a separate choice, not needed for this local installation.
+- The plain local user name also works with the [person's runner](https://github.com/parf/ai-agent-bus/blob/main/docs/runner/setup.md#a-persons-runner). A qualified bus identity is a separate choice, not needed for this local installation.
 - Setup uses your SSH public key when present. To create one first, run `ssh-keygen -t ed25519`, or add it later with `agent-bus-admin user add`.
 - The installed release includes `agents/` and its shared Python helpers and client.
 
@@ -70,7 +70,7 @@ agent-bus call '#hi' --wait 10s ping
 
 - Unpack the new archive into a new directory the same way, then run its `agent-bus-setup --upgrade` with `sudo`.
 - It keeps the node's configuration and TLS, backs up the state, and rolls back if the new release fails to start.
-- After an interrupted upgrade, run `--recover`, then `--upgrade` again; see [release installation details](https://github.com/parf/ai-agent-bus/blob/main/docs/07-setup.md#release-installation-details).
+- After an interrupted upgrade, run `--recover`, then `--upgrade` again; see [release installation details](https://github.com/parf/ai-agent-bus/blob/main/src/INSTALL.md#from-a-release-archive).
 
 ## Technical details
 
@@ -78,8 +78,8 @@ agent-bus call '#hi' --wait 10s ping
 
 | Need | Start here |
 |---|---|
-| npm installation | [npm packages](https://github.com/parf/ai-agent-bus/blob/main/docs/07-setup.md#npm-package) |
-| TLS | [setup TLS](https://github.com/parf/ai-agent-bus/blob/main/docs/07-setup.md#tls) |
+| npm installation | [npm packages](https://github.com/parf/ai-agent-bus/blob/main/docs/07-setup.md#manual-installation) |
+| TLS | [setup TLS](https://github.com/parf/ai-agent-bus/blob/main/docs/administration.md#tls) |
 | Sample data | `sudo /usr/local/bin/agent-bus-setup --samples`; `--remove-samples` takes it away |
 | Preview | `--dry-run` prints the plan; `--print-unit` prints the daemon unit |
 | Native agents | Installers under `/usr/local/lib/agent-bus/current/agents/standalone/`; Slack and Telegram are bundled under `agents/slack/` and `agents/telegram/` |

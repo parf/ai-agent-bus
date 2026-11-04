@@ -85,11 +85,11 @@ Standing implementation requirements, first set for the [0.7 work](../Plans/done
 
 - Go implements the daemon, CLI and administrative programs.
 - TypeScript on bun implements the MCP face, its push adapters and the [web face](../docs/08-processes.md#the-web-face).
-- The process-title helper needs cgo; [setup § build information](../docs/07-setup.md#build-information) owns build requirements. This is not a claim that the executable has no native dependencies.
+- The process-title helper needs cgo; [setup § build information](../.claude/docs/deployment.md#build-information) owns build requirements. This is not a claim that the executable has no native dependencies.
 
 ### External tools
 
-- Record export and import use `age` for the [encrypted archive](../docs/07-setup.md#encrypted-record-backups); a missing executable is an error, never a plaintext fallback.
+- Record export and import use `age` for the [encrypted archive](../docs/administration.md#encrypted-record-backups); a missing executable is an error, never a plaintext fallback.
 - Sessions uses `tmux` for [detached session sets](../docs/agents/tmux-sessions.md#installing-it); a missing executable is reported as an error.
 - Server-info uses `openssl x509` for [public TLS certificate facts](../docs/agents/server-info.md#tls-certificate); absence is reported as unavailable.
 - The database proxy bundles two libraries, because it needs a database client in-process: `pymysql` (MIT) and `psycopg` 3 (LGPL-3.0-only, [psycopg.org](https://psycopg.org)), copied into the package with their licenses and a notice ([database agent](../docs/agents/db.md#installing-it)). A missing driver is reported by name, never replaced by another protocol.

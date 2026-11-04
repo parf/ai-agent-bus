@@ -182,3 +182,11 @@ Status: **applying owner feedback**. The first batch has been analyzed and class
 | `docs/agents/{git,logwatch,server-info,systemd,tmux-sessions}.md` | Read installation/configuration blocks; standalone commands use shipped installer paths. Systemd's single setting is direct, retaining safety and dedicated-instance scope. | Full-page provenance, scope and dedup pass. |
 
 Astra's second analysis read every block in ten further files: runner configuration, security and operations; daemon API; identity; discovery; IMAP; subscriptions; constitution; Voyage (3,955 lines). Its correctness findings remain part of the full review; a repaired installation block does not mark the entire page complete.
+
+| Setup split | Applied / checked | Remaining |
+|---|---|---|
+| `docs/07-setup.md` | Reduced from 893 to 64 lines: AI-assisted install first, manual fallback, existing install checks, update/configuration. Removed program inventory and acceptance/status/publication narrative. | Final cross-page dedup review. |
+| `docs/administration.md`, `docs/runner/setup.md`, `docs/platforms/macos.md` | Moved accounts/TLS/backup/operator facts and platform limits to relevant references; removed process evidence and source-packaging from ordinary runner enablement; preserve private data warnings and explicit enablement. | Prose tightening and cross-reference review. |
+| `.claude/docs/deployment.md`, `Plans/done/setup-upgrade-history.md` | Maintainer deployment and historical transitions leave the product install page. All existing incoming section links retargeted. | Historical links remain historical; active compatibility removal is still separate. |
+
+Static link and whitespace checks pass for this batch. No runtime builds, installations or gates run for prose.

@@ -465,7 +465,7 @@ handler runs, and a failure of ours, which is a `500`.
 | `enrolment` | `403` | a challenge that did not hold ([identity § proving possession](02-access.md#proving-possession)) |
 | `not_found` | `404` | no such name — absent, or inactive and so [no such entity](constitution.md#common-record-fields) ([messaging § verbs](04-messaging.md#verbs)) |
 | `busy` | `409` | removal conflicts with current state: an inbox has queued messages or a waiting reader ([unregistering](01-identity-and-authority.md#unregistering)), or a credential is backed by a user or a retained record ([cleanup](02-access.md#ownerless-credentials)) |
-| `authority` | `403` | the call needs a standing the caller's route cannot give: a record import must come over the caller's own login socket ([setup § encrypted record backups](07-setup.md#encrypted-record-backups)) |
+| `authority` | `403` | the call needs a standing the caller's route cannot give: a record import must come over the caller's own login socket ([setup § encrypted record backups](administration.md#encrypted-record-backups)) |
 | `second-reader` | `409` | an inbox has an incompatible outstanding reader; sharing requires both readers to ask ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox)) |
 | `name-taken` | `412` | a registration that asked for an unheld name found it held ([registration](01-identity-and-authority.md#registration)) |
 | `full` | `429` | the receiver's queue is at its bound and refuses rather than loses ([messaging § overflow](04-messaging.md#overflow)) |
@@ -496,7 +496,7 @@ address it binds, not a name anybody has to make resolve.
 | It wants | Default |
 |---|---|
 | where to listen | `127.0.0.1:6780`, with `AGENT_BUS_WEB_ADDR` in the unit's environment; the face takes no flags |
-| a certificate | **none**, unless setup turned TLS on ([setup § TLS](07-setup.md#tls)). Then `AGENT_BUS_WEB_TLS_DIR` names the face's copy of the node's certificate, and the port answers TLS, redirecting plain HTTP to `https://`. By hand, `AGENT_BUS_WEB_CERT` *and* `AGENT_BUS_WEB_KEY` still serve HTTPS alone on the address it was given. Ask for one and miss it and it **refuses to start**: either variable is the ask, either without the other is the same refusal, and a log line nobody reads is not an answer when the page they open is unencrypted |
+| a certificate | **none**, unless setup turned TLS on ([setup § TLS](administration.md#tls)). Then `AGENT_BUS_WEB_TLS_DIR` names the face's copy of the node's certificate, and the port answers TLS, redirecting plain HTTP to `https://`. By hand, `AGENT_BUS_WEB_CERT` *and* `AGENT_BUS_WEB_KEY` still serve HTTPS alone on the address it was given. Ask for one and miss it and it **refuses to start**: either variable is the ask, either without the other is the same refusal, and a log line nobody reads is not an answer when the page they open is unencrypted |
 | a port it may not bind | an error. No port is a default any more, so every one was asked for on purpose and none is silently traded for another |
 
 **The web face listens on loopback**, so the page is for the person at the machine; agents on other hosts use the daemon's own TCP address instead.

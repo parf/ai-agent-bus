@@ -36,7 +36,7 @@
 
 ## macOS uninstall command
 
-Deferred by the owner on 2026-10-30; use the [manual macOS uninstall steps](../../docs/07-setup.md#uninstall-the-macos-test-daemon).
+Deferred by the owner on 2026-10-30; use the [manual macOS uninstall steps](mac2b-run-list.md#role-account-reuse).
 
 ## Shell installer
 
