@@ -19,7 +19,7 @@ func known(t testing.TB, b *core.Bus, names ...string) {
 	user := func(name string) {
 		s.Users = append(s.Users, protocol.User{Name: name, Status: "active"})
 		s.Records = append(s.Records, protocol.Record{
-			Name: name, Owner: name, Kind: protocol.KindUser, Personal: true,
+			Name: name, Owner: name, Kind: protocol.KindUser, Tags: []string{"personal"},
 			Full: protocol.OverflowStrict, At: time.Now(),
 		})
 	}

@@ -40,7 +40,10 @@ PY
 			time.Sleep(time.Millisecond)
 		}
 	}
-	until(func() bool { record, _ := b.Lookup("owner@h", "#fixture@h"); return record.Reading })
+	until(func() bool {
+		record, _ := b.Lookup("owner@h", "#fixture@h")
+		return record.Readers != nil && *record.Readers > 0
+	})
 	if err := os.WriteFile(script, []byte(body(true)), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +94,7 @@ PY
 		t.Fatal(err)
 	}
 	record, _ := b.Lookup("owner@h", "#fixture@h")
-	if !record.Reading || status.Agents[0].State != "running" {
+	if (record.Readers == nil || *record.Readers == 0) || status.Agents[0].State != "running" {
 		t.Fatalf("replacement not ready: %+v", status)
 	}
 }

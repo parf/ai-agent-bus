@@ -58,7 +58,7 @@ func TestRegistrationRefusesWhatItDoesNotWrite(t *testing.T) {
 		"secret": `"K=V"`, "secret_sha": `"abc"`,
 		"at": `"2001-01-01T00:00:00Z"`, "created_at": `"2001-01-01T00:00:00Z"`, "last_used": `"2001-01-01T00:00:00Z"`,
 		"can_manage": `true`, "can_transfer": `true`, "route_allowed": `true`,
-		"reading": `true`, "readers": `1`, "queued": `5`, "in": `3`, "out": `3`,
+		"readers": `1`, "queued": `5`, "in": `3`, "out": `3`,
 		"dropped": `1`, "expired": `1`, "oldest": `"1m"`, "at_bound": `true`,
 	} {
 		req := `{"kind":"agent","name":"#f@h","` + field + `":` + value + `}`

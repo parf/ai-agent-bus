@@ -97,7 +97,7 @@ func TestCLIProtocolHandshake(t *testing.T) {
 }
 func TestCLIRealDaemonProtocolAndRemovedRoute(t *testing.T) {
 	bus := core.New()
-	bus.Restore(ports.Snapshot{Clean: true, Users: []protocol.User{{Name: "owner@fixture", Status: "active"}}, Records: []protocol.Record{{Name: "owner@fixture", Owner: "owner@fixture", Kind: protocol.KindUser, Personal: true, Full: protocol.OverflowStrict}}})
+	bus.Restore(ports.Snapshot{Clean: true, Users: []protocol.User{{Name: "owner@fixture", Status: "active"}}, Records: []protocol.Record{{Name: "owner@fixture", Owner: "owner@fixture", Kind: protocol.KindUser, Tags: []string{"personal"}, Full: protocol.OverflowStrict}}})
 	bus.Persistence(memory.NewState())
 	tokens, err := auth.Load(memory.NewTokens(), "owner@fixture")
 	if err != nil {

@@ -125,7 +125,7 @@ func TestAssignedRolesUseRuntimeTermsAndPersonalActorConstraints(t *testing.T) {
 	if got := sendRoles(t, b, "#svc@h", "#svc@h", "#svc@h"); !slices.Equal(got, []string{"cohort", "self"}) {
 		t.Fatal(got)
 	}
-	if _, e := b.Manage("alice@h", Management{Name: "#svc@h", Maintainers: ptr(protocol.MaintainerList{}), Personal: ptr(true)}); e != nil {
+	if _, e := b.Manage("alice@h", Management{Name: "#svc@h", Maintainers: ptr(protocol.MaintainerList{}), Tags: ptr([]string{"personal"})}); e != nil {
 		t.Fatal(e)
 	}
 	if _, e := b.Manage("alice@h", Management{Name: "#svc@h", Allow: ptr([]string{"bob@h(deploy)"})}); !errors.Is(e, ErrPersonal) {
@@ -237,7 +237,7 @@ func TestRoleAssignmentDeltasAndNameCleanup(t *testing.T) {
 		t.Fatalf("new name inherited roles %v", got)
 	}
 	grant(t, b, "#svc@h", "@owner(cohort)")
-	if _, e := b.Register(protocol.Record{Name: "#personal@h", Owner: "alice@h", Kind: protocol.KindAgent, Personal: true, Allow: []string{"#svc@h(read)"}}); e != nil {
+	if _, e := b.Register(protocol.Record{Name: "#personal@h", Owner: "alice@h", Kind: protocol.KindAgent, Tags: []string{"personal"}, Allow: []string{"#svc@h(read)"}}); e != nil {
 		t.Fatal(e)
 	}
 	if _, e := b.Manage("alice@h", Management{Name: "#svc@h", Owner: ptr("eve@h")}); e != nil {

@@ -561,7 +561,7 @@ func subCount(st *memory.State, source uint32) int {
 // does not admit #bus, and a Personal agent (its Allow reaches no further than its owner's agents).
 func TestSubAddRefusesATargetThatCannotTakeCopiesFromTheBus(t *testing.T) {
 	b := subFixture(t, nil)
-	if _, err := b.Register(protocol.Record{Name: "#alice/oncall@h", Kind: protocol.KindAgent, Owner: "alice@h", Personal: true, Allow: []string{"@owner"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Name: "#alice/oncall@h", Kind: protocol.KindAgent, Owner: "alice@h", Tags: []string{"personal"}, Allow: []string{"@owner"}}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.Register(protocol.Record{Name: "#nobus@h", Kind: protocol.KindAgent, Owner: "alice@h", Allow: []string{"alice@h"}}); err != nil {

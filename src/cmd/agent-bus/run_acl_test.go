@@ -19,13 +19,13 @@ func TestRunnerSharingIsExplicit(t *testing.T) {
 		personal bool
 	}{
 		{[]string{"echo@h", "echo ok"}, 0, false},
-		{[]string{"echo@h", "echo ok", "--allow", "peer@h", "--personal"}, 1, true},
+		{[]string{"echo@h", "echo ok", "--allow", "peer@h", "--tags", "personal"}, 1, true},
 	} {
 		ag, err := describe(tc.args)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(ag.Allow) != tc.entries || ag.Personal != tc.personal {
+		if len(ag.Allow) != tc.entries || protocol.HasTag(ag.Tags, "personal") != tc.personal {
 			t.Fatalf("sharing settings: %+v", ag)
 		}
 		if tc.entries != 0 && ag.Allow[0] != "peer@h" {
@@ -38,7 +38,7 @@ func TestRemovedMasterOptionsAreRejected(t *testing.T) {
 	if _, err := describe([]string{"echo@h", "echo ok", "--no-master"}); err == nil || !strings.Contains(err.Error(), "unknown option --no-master") {
 		t.Fatalf("removed runner flag was accepted: %v", err)
 	}
-	if err := register([]string{"svc@h", "--no-master"}); err == nil || !strings.Contains(err.Error(), "unknown option --no-master") {
+	if err := register([]string{"svc@h", "--kind", "agent", "--no-master"}); err == nil || !strings.Contains(err.Error(), "unknown option --no-master") {
 		t.Fatalf("removed register flag was accepted: %v", err)
 	}
 
@@ -81,10 +81,10 @@ func TestRunnerRegistrationCarriesExplicitSharing(t *testing.T) {
 			}))
 			defer server.Close()
 			transport = func() (*http.Client, string) { return server.Client(), server.URL }
-			args := []string{"echo@h", "echo ok", "--allow", "peer@h", "--personal", "--tags", "Build-Notes,claude"}
+			args := []string{"echo@h", "echo ok", "--allow", "peer@h", "--tags", "Build-Notes,claude,personal"}
 			if jsonInput {
 				path := filepath.Join(t.TempDir(), "agent.json")
-				if err := os.WriteFile(path, []byte(`{"name":"echo@h","script":"echo ok","allow":["peer@h"],"personal":true,"tags":["Build-Notes,claude"]}`), 0600); err != nil {
+				if err := os.WriteFile(path, []byte(`{"name":"echo@h","script":"echo ok","allow":["peer@h"],"tags":["Build-Notes,claude,personal"]}`), 0600); err != nil {
 					t.Fatal(err)
 				}
 				input, err := os.Open(path)
@@ -101,12 +101,12 @@ func TestRunnerRegistrationCarriesExplicitSharing(t *testing.T) {
 			if err == nil || !strings.Contains(err.Error(), "fixture stops after registration") || seen != 1 {
 				t.Fatalf("run did not reach exactly one registration: calls=%d err=%v", seen, err)
 			}
-			if got.Name != "#echo@h" || len(got.Allow) != 1 || got.Allow[0] != "peer@h" || !got.Personal {
+			if got.Name != "#echo@h" || len(got.Allow) != 1 || got.Allow[0] != "peer@h" || !got.IsPersonal() {
 				t.Fatalf("registration lost explicit sharing: %+v", got)
 			}
 			// A script the runner serves is a name on this bus, so it
 			// registers as an agent rather than taking the external default.
-			if !slices.Equal(got.Tags, []string{"build-notes", "claude"}) {
+			if !slices.Equal(got.Tags, []string{"build-notes", "claude", "personal"}) {
 				t.Fatalf("registration tags: %v", got.Tags)
 			}
 			if got.Kind != protocol.KindAgent {
@@ -150,16 +150,23 @@ func TestRegisterCarriesPersonal(t *testing.T) {
 	}))
 	defer server.Close()
 	transport = func() (*http.Client, string) { return server.Client(), server.URL }
-	if err := register([]string{"svc@h", "--allow", "peer@h", "--personal"}); err != nil {
+	if err := register([]string{"svc@h", "--kind", "agent", "--allow", "peer@h", "--tags", "personal"}); err != nil {
 		t.Fatal(err)
 	}
-	if got.Name != "svc@h" || !got.Personal || len(got.Allow) != 1 || got.Allow[0] != "peer@h" {
+	if got.Name != "svc@h" || !got.IsPersonal() || len(got.Allow) != 1 || got.Allow[0] != "peer@h" {
 		t.Fatalf("register lost Personal classification: %+v", got)
 	}
-	// Personal is an agent-only classification, so --personal alone states the
-	// kind. Without this the CLI sends the external default and the daemon
-	// refuses the registration for want of an address.
+	// A non-hash name needs an explicit Agent kind.
 	if got.Kind != protocol.KindAgent {
 		t.Fatalf("--personal registered kind %q, want %s", got.Kind, protocol.KindAgent)
+	}
+}
+
+func TestPersonalBooleanFlagRefused(t *testing.T) {
+	if _, err := describe([]string{"#example", "echo", "--personal"}); err == nil {
+		t.Fatal("run accepted removed --personal")
+	}
+	if err := register([]string{"#example", "--personal"}); err == nil {
+		t.Fatal("register accepted removed --personal")
 	}
 }

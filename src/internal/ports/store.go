@@ -18,21 +18,22 @@ import "time"
 // issued before its principal was bound and is bound at the next check.
 // See docs/02-access.md#token-lifetime.
 type Credential struct {
-	Name     string
-	Current  string
-	Previous string
+	Name     string `json:"name"`
+	Current  string `json:"current"`
+	Previous string `json:"previous"`
 	// When this credential was minted. Durable like the token itself: a
 	// credential nobody can date is one nobody can decide to retire.
-	Issued time.Time
+	Issued time.Time `json:"issued"`
 	// When it last authenticated, as of the last flush; zero means never.
-	Used time.Time
+	Used time.Time `json:"used"`
 	CredentialPair
 }
 
 // CredentialPair is who a credential answers for: always a User, and for an
 // Agent's credential that Agent too.
 type CredentialPair struct {
-	UserID, AgentID uint32
+	UserID  uint32 `json:"user_id"`
+	AgentID uint32 `json:"agent_id"`
 }
 
 // TokenStore keeps credentials one row at a time, so writing one principal's

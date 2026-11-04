@@ -31,7 +31,6 @@ type Management struct {
 	// Status is active or inactive; the one edit an inactive record takes.
 	Status      *string                  `json:"status,omitempty"`
 	Maintainers *protocol.MaintainerList `json:"maintainers,omitempty"`
-	Personal    *bool                    `json:"personal,omitempty"`
 	Owner       *string                  `json:"owner,omitempty"`
 	TTL         *string                  `json:"ttl,omitempty"`
 	Bound       *int                     `json:"bound,omitempty"`
@@ -133,7 +132,7 @@ func (b *Bus) administratorsAreUsers() {
 		}
 		// Every User has exactly one user record (docs/constitution.md#-user).
 		if _, known := b.records[name]; !known {
-			b.setRecord(name, protocol.Record{Name: name, Owner: name, Kind: protocol.KindUser, Personal: true, Full: protocol.OverflowStrict, At: time.Now()})
+			b.setRecord(name, protocol.Record{Name: name, Owner: name, Kind: protocol.KindUser, Tags: []string{"personal"}, Full: protocol.OverflowStrict, At: time.Now()})
 			b.ensure(name)
 		}
 	}
@@ -241,7 +240,7 @@ func (b *Bus) canSee(caller string, r protocol.Record) bool {
 // makes that ACL entry inert rather than retroactively changing the tag.
 // Caller holds b.mu.
 func (b *Bus) validatePersonal(r protocol.Record) error {
-	if !r.Personal {
+	if !r.IsPersonal() {
 		return nil
 	}
 	// A user's own record is always Personal, and who reaches it follows the
@@ -590,10 +589,10 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 	// follows daemon ownership, it has no Maintainers, and its membership is
 	// the daemon Owner's to set with SetGroup (docs/constitution.md#-group).
 	// validateKind below also refuses Personal classification through Tags.
-	if name == AdministratorsGroup && (change.Owner != nil || change.Maintainers != nil || change.Allow != nil || change.Personal != nil || change.Status != nil) {
+	if name == AdministratorsGroup && (change.Owner != nil || change.Maintainers != nil || change.Allow != nil || change.Status != nil) {
 		return protocol.Record{}, fmt.Errorf("%w: %s changes only with daemon ownership and its own membership rule", ErrNotOwner, AdministratorsGroup)
 	}
-	if (change.Owner != nil || change.Maintainers != nil || change.Personal != nil) && who != r.Owner && who != b.admin {
+	if (change.Owner != nil || change.Maintainers != nil) && who != r.Owner && who != b.admin {
 		return protocol.Record{}, ErrNotOwner
 	}
 	if change.Owner != nil {
@@ -629,7 +628,7 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 			// record would admit an agent outside the cohort it names
 			// (docs/03-records.md#personal-and-shared).
 			for other, o := range b.records {
-				if other == name || o.Owner != r.Owner || !o.Personal {
+				if other == name || o.Owner != r.Owner || !o.IsPersonal() {
 					continue
 				}
 				allow, maint := dropACL(o.Allow, name), drop1(o.Maintainers, name)
@@ -654,26 +653,14 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 			return protocol.Record{}, fmt.Errorf("%w: %v", ErrBadName, err)
 		}
 		personal := protocol.HasTag(tags, "personal")
-		if change.Personal != nil && *change.Personal != personal {
-			return protocol.Record{}, fmt.Errorf("%w: personal tag and legacy Personal field disagree", ErrPersonal)
-		}
-		if personal != r.Personal && who != r.Owner && who != b.admin {
+		if personal != r.IsPersonal() && who != r.Owner && who != b.admin {
 			return protocol.Record{}, fmt.Errorf("%w: only the Owner changes the personal tag", ErrNotOwner)
 		}
 		if r.Kind == protocol.KindUser && !personal {
 			return protocol.Record{}, fmt.Errorf("%w: a user's record requires the personal tag", ErrPersonal)
 		}
-		r.Tags, r.Personal = tags, personal
+		r.Tags = tags
 	}
-	if change.Personal != nil {
-		// Everything not Personal is shared, and a User is not
-		// (docs/constitution.md#common-record-fields).
-		if r.Kind == protocol.KindUser && !*change.Personal {
-			return protocol.Record{}, fmt.Errorf("%w: a user's own record is always personal", ErrPersonal)
-		}
-		r.Personal = *change.Personal
-	}
-	r.SyncTags()
 	if change.Subs != nil {
 		// Not asked here whether the kind has a list at all: validateKind
 		// below asks that of the record this edit would leave behind, which
@@ -1027,5 +1014,5 @@ func membershipOnly(c Management) bool {
 func statusOnly(c Management) bool {
 	return c.Descr == nil && c.Addr == nil && c.Proto == nil && c.Allow == nil && c.Subs == nil &&
 		c.Add.empty() && c.AddToSet.empty() && c.Remove.empty() &&
-		c.Maintainers == nil && c.Personal == nil && c.Owner == nil && c.TTL == nil && c.Bound == nil && c.Full == nil && c.Roles == nil && c.Tags == nil
+		c.Maintainers == nil && c.Owner == nil && c.TTL == nil && c.Bound == nil && c.Full == nil && c.Roles == nil && c.Tags == nil
 }

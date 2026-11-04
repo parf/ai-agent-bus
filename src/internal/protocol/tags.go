@@ -62,15 +62,5 @@ func HasEveryTag(tags, labels []string) bool {
 	return true
 }
 
-// SyncTags mirrors the legacy Personal field after the caller validates tags.
-func (r *Record) SyncTags() {
-	r.Tags, _ = NormalizeTags(r.Tags)
-	if r.Personal {
-		if !HasTag(r.Tags, "personal") {
-			r.Tags = append(r.Tags, "personal")
-			slices.Sort(r.Tags)
-		}
-	} else if HasTag(r.Tags, "personal") {
-		r.Tags = slices.DeleteFunc(r.Tags, func(t string) bool { return t == "personal" })
-	}
-}
+// IsPersonal derives the owner's classification from the canonical tag.
+func (r Record) IsPersonal() bool { return HasTag(r.Tags, "personal") }

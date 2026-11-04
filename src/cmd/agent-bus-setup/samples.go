@@ -297,7 +297,7 @@ func addSamples() error {
 			return err
 		}
 		if r.personal {
-			if err := c.must("make "+r.name+" Personal", "POST", "/manage", map[string]any{"name": r.name, "personal": true}); err != nil {
+			if err := c.must("make "+r.name+" Personal", "POST", "/manage", map[string]any{"name": r.name, "tags": []string{"personal"}}); err != nil {
 				return err
 			}
 		}

@@ -82,8 +82,8 @@ func TestRestoreIgnoresAUserSharingAnIdentity(t *testing.T) {
 				second,
 			},
 			Records: []protocol.Record{
-				{Name: "alice@h", ID: 10, Kind: protocol.KindUser, Owner: "alice@h", Personal: true, Full: protocol.OverflowStrict},
-				{Name: "bob@h", ID: 11, Kind: protocol.KindUser, Owner: "bob@h", Personal: true, Full: protocol.OverflowStrict},
+				{Name: "alice@h", ID: 10, Kind: protocol.KindUser, Owner: "alice@h", Tags: []string{"personal"}, Full: protocol.OverflowStrict},
+				{Name: "bob@h", ID: 11, Kind: protocol.KindUser, Owner: "bob@h", Tags: []string{"personal"}, Full: protocol.OverflowStrict},
 				{Name: "#bobs@h", ID: 12, Kind: protocol.KindAgent, Owner: "bob@h", Full: protocol.OverflowStrict},
 			},
 		})

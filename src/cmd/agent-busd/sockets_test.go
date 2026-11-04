@@ -15,7 +15,7 @@ import (
 )
 
 func userRecord(name string) protocol.Record {
-	return protocol.Record{Name: name, Owner: name, Kind: protocol.KindUser, Personal: true, Full: protocol.OverflowStrict}
+	return protocol.Record{Name: name, Owner: name, Kind: protocol.KindUser, Tags: []string{"personal"}, Full: protocol.OverflowStrict}
 }
 
 // The bus child serves each inherited socket: the daemon account's as the

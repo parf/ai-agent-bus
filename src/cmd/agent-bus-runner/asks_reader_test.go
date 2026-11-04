@@ -90,17 +90,14 @@ func TestReaderlessEntryWithABadManifestAnswersStatusOnly(t *testing.T) {
 }
 
 // The runner's asks-only reader is an outstanding consume request, so a listing counts it in
-// readers; it takes no ordinary message, so reading (an unfiltered read) stays false.
-func TestAsksOnlyReaderCountsInReadersAndIsNotReading(t *testing.T) {
+// readers, even though it takes no ordinary message.
+func TestAsksOnlyReaderCountsInReaders(t *testing.T) {
 	r, b, _ := configurationFixture(t, "itself", "printf 'missing token' >&2\nexit 78\n")
 	awaitConfigurationState(t, r, "unconfigured")
 	deadline := time.Now().Add(5 * time.Second)
 	for {
 		rec, _ := b.Lookup("owner@h", "#fixture@h")
 		if rec.Readers != nil && *rec.Readers == 1 {
-			if rec.Reading {
-				t.Fatalf("an asks-only reader is reading: %+v", rec)
-			}
 			return
 		}
 		if time.Now().After(deadline) {

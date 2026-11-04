@@ -99,7 +99,7 @@ func TestARecordOwnedByAnotherUserIDIsIgnored(t *testing.T) {
 	b.Journal(rep)
 	b.Restore(ports.Snapshot{
 		Users:      []protocol.User{{Name: "alice@h", ID: 9, Status: "active"}},
-		Records:    []protocol.Record{{Name: "alice@h", Owner: "alice@h", OwnerID: 9, Kind: protocol.KindUser, Personal: true}, {Name: "jobs@h", Owner: "alice@h", OwnerID: 5, Kind: protocol.KindQueue}},
+		Records:    []protocol.Record{{Name: "alice@h", Owner: "alice@h", OwnerID: 9, Kind: protocol.KindUser, Tags: []string{"personal"}}, {Name: "jobs@h", Owner: "alice@h", OwnerID: 5, Kind: protocol.KindQueue}},
 		NextUserID: 10, NextRecordID: 10,
 	})
 	if err := b.EstablishDaemonOwner("alice@h"); err != nil {

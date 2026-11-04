@@ -59,7 +59,7 @@ func TestARegisterThatCreatedAnAgentAnswersItsToken(t *testing.T) {
 		return st.You
 	}
 
-	do(tok("admin@h"), "/user", `{"kind":"agent","name":"alice@h","person_name":"Alice","create":true}`, false, 200)
+	do(tok("admin@h"), "/user", `{"name":"alice@h","person_name":"Alice","create":true}`, false, 200)
 	alice := tok("alice@h")
 
 	// The User creating an agent mints nothing: /token is theirs for it.

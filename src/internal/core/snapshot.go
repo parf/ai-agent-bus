@@ -324,8 +324,6 @@ func (b *Bus) Restore(s ports.Snapshot) {
 			}
 		}
 		r.Tags, _ = protocol.NormalizeTags(tags)
-		r.Personal = r.Personal || protocol.HasTag(r.Tags, "personal")
-		r.SyncTags()
 		b.records[r.Name] = r
 	}
 	b.indexIDs()

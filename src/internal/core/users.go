@@ -688,7 +688,7 @@ func (b *Bus) SetUserWithProfileDetails(caller string, in protocol.User, create,
 		if _, backed := b.dirs[parsed.Realm]; backed {
 			return protocol.User{}, ErrEnrol
 		}
-		record := protocol.Record{Name: in.Name, Owner: in.Name, Kind: protocol.KindUser, Personal: true, Full: protocol.OverflowStrict, At: time.Now()}
+		record := protocol.Record{Name: in.Name, Owner: in.Name, Kind: protocol.KindUser, Tags: []string{"personal"}, Full: protocol.OverflowStrict, At: time.Now()}
 		if err := validateKind(record); err != nil {
 			return protocol.User{}, err
 		}

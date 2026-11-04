@@ -9,9 +9,8 @@ import (
 	"strings"
 )
 
-// All request schemas ignore unknown members. Known members retain their
-// types and may occur only once (including case-insensitive spellings that
-// encoding/json accepts). Map keys and RawMessage remain caller data.
+// Request schemas accept only their exact member names and types, once each.
+// Map keys and RawMessage remain opaque caller data.
 func decodeRequest(r io.Reader, out any) error {
 	dec := json.NewDecoder(r)
 	var raw json.RawMessage
@@ -84,8 +83,11 @@ func checkMembers(dec *json.Decoder, t reflect.Type) error {
 			return err
 		}
 		key := token.(string)
+		if strings.EqualFold(key, "personal") || strings.EqualFold(key, "reading") {
+			return fmt.Errorf("unsupported field %q", key)
+		}
 		match := -1
-		// Exact matches win, as in encoding/json; fall back to a folded match.
+		// Only the declared spelling is accepted.
 		for i, f := range fields {
 			if f.PkgPath != "" || (f.Anonymous && strings.Split(f.Tag.Get("json"), ",")[0] == "") {
 				continue
@@ -95,21 +97,15 @@ func checkMembers(dec *json.Decoder, t reflect.Type) error {
 				continue
 			}
 			if name == "" {
-				name = f.Name
+				name = strings.ToLower(f.Name)
 			}
 			if key == name {
 				match = i
 				break
 			}
-			if match < 0 && strings.EqualFold(key, name) {
-				match = i
-			}
 		}
 		if match < 0 {
-			if err := dec.Decode(new(json.RawMessage)); err != nil {
-				return err
-			}
-			continue
+			return fmt.Errorf("unknown field %q", key)
 		}
 		if seen[match] {
 			return fmt.Errorf("duplicate field %q", key)

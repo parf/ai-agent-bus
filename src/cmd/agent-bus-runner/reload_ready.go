@@ -57,7 +57,7 @@ func (r *runner) reloadStatus(parent context.Context, wait time.Duration) status
 			if as != nil {
 				raw, code, err := as.do(ctx, "GET", "/lookup", url.Values{"name": {name}}, nil)
 				var record protocol.Record
-				if err == nil && code == 200 && json.Unmarshal(raw, &record) == nil && (record.Reading || record.Readers != nil && *record.Readers > 0) {
+				if err == nil && code == 200 && json.Unmarshal(raw, &record) == nil && (record.Readers != nil && *record.Readers > 0) {
 					delete(pending, name)
 				}
 			}

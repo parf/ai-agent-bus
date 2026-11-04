@@ -202,7 +202,7 @@ func TestScriptExit78AnswersAndLeavesNextMessageQueuedUntilReload(t *testing.T) 
 		rec, _ := b.Lookup("owner@h", "#fixture@h")
 		// The runner's asks-only reader still waits and counts in readers ("filtered and unfiltered together",
 		// docs/05-discovery.md); only an unfiltered read that could take "second" would show as reading.
-		if !rec.Reading {
+		if rec.Readers == nil || *rec.Readers == 0 {
 			break
 		}
 		if time.Now().After(deadline) {

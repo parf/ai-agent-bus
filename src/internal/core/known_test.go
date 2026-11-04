@@ -23,7 +23,7 @@ func known(t *testing.T, b *Bus, names ...string) {
 			records = append(records, protocol.Record{Name: name, Kind: protocol.KindAgent, Owner: fixtureOwner, Allow: []string{"*"}})
 		} else {
 			users = append(users, name)
-			records = append(records, protocol.Record{Name: name, Kind: protocol.KindUser, Owner: name, Personal: true})
+			records = append(records, protocol.Record{Name: name, Kind: protocol.KindUser, Owner: name, Tags: []string{"personal"}})
 		}
 	}
 	provision(t, b, append(users, fixtureOwner), records...)
@@ -80,7 +80,7 @@ func provisionState(b *Bus, users []string, records ...protocol.Record) error {
 		held[n] = true
 		s.Users = append(s.Users, protocol.User{Name: n, Status: "active"})
 		if !have[n] {
-			s.Records = append(s.Records, protocol.Record{Name: n, Kind: protocol.KindUser, Owner: n, Personal: true, Full: protocol.OverflowStrict, At: time.Now()})
+			s.Records = append(s.Records, protocol.Record{Name: n, Kind: protocol.KindUser, Owner: n, Tags: []string{"personal"}, Full: protocol.OverflowStrict, At: time.Now()})
 			have[n] = true
 		}
 	}
@@ -142,5 +142,5 @@ func withUsers(s ports.Snapshot, names ...string) ports.Snapshot {
 
 // userRecord is a User's own record, as every User has one.
 func userRecord(name string) protocol.Record {
-	return protocol.Record{Name: name, Owner: name, Kind: protocol.KindUser, Personal: true, Full: protocol.OverflowStrict}
+	return protocol.Record{Name: name, Owner: name, Kind: protocol.KindUser, Tags: []string{"personal"}, Full: protocol.OverflowStrict}
 }

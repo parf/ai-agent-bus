@@ -40,8 +40,8 @@ func TestAnUnknownNameCannotActAndCannotBeIssuedACredential(t *testing.T) {
 		{"GET", "/ls", ""},
 		{"GET", "/users", ""},
 		{"POST", "/send", `{"to":"admin@h","body":"x"}`},
-		{"POST", "/manage", `{"kind":"agent","name":"admin@h","disabled":true}`},
-		{"POST", "/unregister", `{"kind":"agent","name":"admin@h"}`},
+		{"POST", "/manage", `{"name":"admin@h","disabled":true}`},
+		{"POST", "/unregister", `{"name":"admin@h"}`},
 		{"POST", "/register", `{"kind":"agent","name":"#theirs@h"}`},
 		{"POST", "/register", `{"kind":"agent","name":"#ghost@h"}`},
 	} {
@@ -54,7 +54,7 @@ func TestAnUnknownNameCannotActAndCannotBeIssuedACredential(t *testing.T) {
 	}
 
 	// Nobody is handed a credential either, however authorised the asker.
-	if code, body := call("admin@h", "POST", "/token", `{"kind":"agent","name":"#nobody@h"}`); code != 401 {
+	if code, body := call("admin@h", "POST", "/token", `{"name":"#nobody@h"}`); code != 401 {
 		t.Fatalf("a credential was minted for a name the daemon knows nothing about: %d %s", code, body)
 	}
 
@@ -63,7 +63,7 @@ func TestAnUnknownNameCannotActAndCannotBeIssuedACredential(t *testing.T) {
 	if code, body := call("admin@h", "POST", "/register", `{"kind":"agent","name":"#ghost@h"}`); code != 200 {
 		t.Fatalf("the owner could not register the name: %d %s", code, body)
 	}
-	if code, body := call("admin@h", "POST", "/token", `{"kind":"agent","name":"#ghost@h"}`); code != 200 {
+	if code, body := call("admin@h", "POST", "/token", `{"name":"#ghost@h"}`); code != 200 {
 		t.Fatalf("a registered name could not be issued a credential: %d %s", code, body)
 	}
 	if code, body := call("#ghost@h", "GET", "/status", ""); code != 200 {

@@ -31,7 +31,7 @@ func TestDaemonAgentListsOnlyTheOriginalCallersRecords(t *testing.T) {
 	}
 	for _, r := range []protocol.Record{
 		{Name: "#private@h", Kind: protocol.KindAgent, Owner: "admin@h"},
-		{Name: "#personal@h", Kind: protocol.KindAgent, Owner: "alice@h", Personal: true},
+		{Name: "#personal@h", Kind: protocol.KindAgent, Owner: "alice@h", Tags: []string{"personal"}},
 		{Name: "#worker@h", Kind: protocol.KindAgent, Owner: "alice@h", Tags: []string{"ops", "team"}, Allow: []string{"*"}},
 		{Name: "#opsonly@h", Kind: protocol.KindAgent, Owner: "alice@h", Tags: []string{"ops"}, Allow: []string{"*"}},
 		{Name: "#visitor@h", Kind: protocol.KindAgent, Owner: "bob@h", Allow: []string{"#bus"}},

@@ -19,7 +19,6 @@ func daemonAgentRecord(old protocol.Record, owner string) protocol.Record {
 	if r.At.IsZero() {
 		r.At = time.Now()
 	}
-	r.SyncTags()
 	return r
 }
 

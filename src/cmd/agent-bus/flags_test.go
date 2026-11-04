@@ -63,7 +63,7 @@ func TestEveryVerbRefusesUnknownFlagsBeforeRequests(t *testing.T) {
 }
 
 func TestBooleanFlagsLeaveFollowingName(t *testing.T) {
-	for _, flag := range []string{"follow", "personal", "share", "network", "int", "json", "add", "replace", "help", "mcp", "force", "all", "template"} {
+	for _, flag := range []string{"follow", "share", "network", "int", "json", "add", "replace", "help", "mcp", "force", "all", "template"} {
 		pos, f, err := split([]string{"--" + flag, "fixture"})
 		if err != nil {
 			t.Fatal(err)
@@ -182,11 +182,11 @@ func TestMissingValuedFlagsFailBeforeRequests(t *testing.T) {
 }
 
 func TestExplicitEmptyValuesRemainAvailable(t *testing.T) {
-	pos, flags, err := split([]string{"fixture", "--descr=", "--personal=false"})
-	if err := only(flags, err, "descr", "personal"); err != nil {
+	pos, flags, err := split([]string{"fixture", "--descr=", "--all=false"})
+	if err := only(flags, err, "descr", "all"); err != nil {
 		t.Fatal(err)
 	}
-	if len(pos) != 1 || pos[0] != "fixture" || !has(flags, "descr") || flags["descr"] != "" || !has(flags, "personal") {
+	if len(pos) != 1 || pos[0] != "fixture" || !has(flags, "descr") || flags["descr"] != "" || !has(flags, "all") {
 		t.Errorf("explicit clear or boolean presence lost: %v %v", pos, flags)
 	}
 }

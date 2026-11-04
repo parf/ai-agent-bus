@@ -47,7 +47,6 @@ type agent struct {
 	metadata   *agentmeta.Manifest
 	Name       string   `json:"name"`
 	Allow      []string `json:"allow,omitempty"`
-	Personal   bool     `json:"personal,omitempty"`
 	Algo       string   `json:"algo"`      // json: envelope on stdin · args: body as argv[1]
 	Script     string   `json:"script"`    // the program to run
 	Descr      string   `json:"descr"`     // what ls and the MCP catalog show
@@ -120,7 +119,7 @@ func serveScript(args []string) error {
 
 	if err := postQuiet("/register", protocol.Record{
 		Name: ag.Name, Kind: protocol.KindAgent, Script: ag.Script, Descr: ag.Descr,
-		Allow: ag.Allow, Personal: ag.Personal, Roles: ag.Roles, Tags: ag.Tags,
+		Allow: ag.Allow, Roles: ag.Roles, Tags: ag.Tags,
 	}); err != nil {
 		return err
 	}
@@ -194,7 +193,7 @@ func unregisterStopped(name string) error {
 			if json.Unmarshal(out, &record) != nil || record.Name != name || record.Readers == nil || record.Queued != 0 {
 				return refusal
 			}
-			if *record.Readers == 0 && !record.Reading {
+			if *record.Readers == 0 {
 				break
 			}
 			select {
@@ -242,7 +241,7 @@ var runUsage = verbUsage("run")
 func describe(args []string) (agent, error) {
 	var ag agent
 	pos, flags, err := split(args)
-	if err := only(flags, err, "algo", "descr", "sandbox", "allow", "personal", "network", "roles", "tags", "stay-registered", "package-dir", "no-asks"); err != nil {
+	if err := only(flags, err, "algo", "descr", "sandbox", "allow", "network", "roles", "tags", "stay-registered", "package-dir", "no-asks"); err != nil {
 		return ag, err
 	}
 
@@ -329,9 +328,6 @@ func describe(args []string) (agent, error) {
 	}
 	if has(flags, "allow") {
 		ag.Allow = allow(flags)
-	}
-	if has(flags, "personal") {
-		ag.Personal = true
 	}
 	if has(flags, "network") {
 		ag.Network = true

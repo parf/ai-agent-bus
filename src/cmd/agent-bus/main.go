@@ -196,7 +196,7 @@ func tokenFor(name string) (string, error) {
 
 func register(args []string) error {
 	pos, flags, err := split(args)
-	if err := only(flags, err, "kind", "service-addr", "addr", "descr", "overflow", "personal", "allow", "ttl", "bound", "protocol",
+	if err := only(flags, err, "kind", "service-addr", "addr", "descr", "overflow", "allow", "ttl", "bound", "protocol",
 		"uri", "template", "source", "mime", "title", "size", "mcp-name", "icons", "annotations", "tags"); err != nil {
 		return err
 	}
@@ -218,12 +218,6 @@ func register(args []string) error {
 		return err
 	}
 	kind := flags["kind"]
-	// --personal names an agent: it is the owner's own agent, grouped in their
-	// view, and no other kind may carry the flag. Stating both is allowed and
-	// stating a different one is the caller's error to see.
-	if kind == "" && has(flags, "personal") {
-		kind = protocol.KindAgent
-	}
 	if kind == "" && res != nil {
 		kind = protocol.KindResource
 	}
@@ -235,7 +229,7 @@ func register(args []string) error {
 		Name: pos[0], Kind: kind, Addr: flags["addr"], Descr: flags["descr"],
 		Full: flags["overflow"], Proto: flags["protocol"],
 		TTL: flags["ttl"], Bound: n,
-		Allow: allow(flags), Personal: has(flags, "personal"), Resource: res, Tags: tags,
+		Allow: allow(flags), Resource: res, Tags: tags,
 	})
 }
 
@@ -1130,7 +1124,7 @@ func warn(format string, a ...any) {
 // is recorded as present and empty.
 // Flags that are on or off. Without this the word after one is taken as its
 // value, and `--follow consume` reads as follow="consume".
-var onOff = map[string]bool{"follow": true, "personal": true, "share": true, "network": true,
+var onOff = map[string]bool{"follow": true, "share": true, "network": true,
 	"int": true, "json": true, "memory": true, "add": true, "replace": true, "help": true, "help-config": true, "help-secret": true, "help-json": true, "mcp": true, "force": true, "all": true, "template": true, "stay-registered": true, "no-color": true, "no-asks": true}
 
 // askOf is what --help or --mcp asks: it travels as the envelope's ask with

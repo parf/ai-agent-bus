@@ -118,9 +118,8 @@ func TestOwnerACLIsNeverAStoredOrAuthorityGroup(t *testing.T) {
 	if _, err := b.Manage("#bob-service@h", Management{Name: "#target@h", Descr: &descr}); !errors.Is(err, ErrUnknown) {
 		t.Fatalf("@owner as Maintainer reached another user's agent: %v", err)
 	}
-	personal := true
 	allow := []string{OwnerGroup, AgentTerm}
-	if _, err := b.Manage("alice@h", Management{Name: "#target@h", Personal: &personal, Allow: &allow}); err != nil {
+	if _, err := b.Manage("alice@h", Management{Name: "#target@h", Tags: ptr([]string{"personal"}), Allow: &allow}); err != nil {
 		t.Fatalf("a Personal agent refused the runtime terms: %v", err)
 	}
 }
