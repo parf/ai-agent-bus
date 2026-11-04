@@ -359,8 +359,9 @@ Error paragraph: `id=group-error`.
 
 Keep secrets in Secret and config in Configuration ([rule](../../../docs/03-records-agent.md#configuring-a-template)).
 In the normal group editor, **Configuration (JSON)** follows Secret, with the
-same management access. Blank keeps it; nonempty JSON replaces it on Save.
-Invalid JSON is rejected before membership or settings writes. Configuration is pretty-printed for Owner and Maintainers; invalid Configuration edits are retained for correction; Secret is never displayed. See [Configuration and Secret](records.md#private-configuration).
+same management access. Invalid JSON is rejected before membership or settings
+writes. Display, blank-value semantics and refusal recovery follow
+[Configuration and Secret](records.md#private-configuration).
 
 ## POST /groups
 
@@ -449,11 +450,6 @@ User, `name` and the validated `return`; an out-of-range page is clamped to the
 available range. The card shows the matching count and page count. An empty
 search result offers **Clear the search**; no owned records still shows “None”.
 Active and inactive records keep their existing links and badges.
-
-## Worth fixing in the rewrite
-
-History: the Go face's defects and its differences from older docs are in
-[web-go-face-differences § people](../../../Plans/done/R0.8-MVP/done/web-go-face-differences.md#peoplemd).
 
 ## Documentation targets
 

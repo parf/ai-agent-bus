@@ -1,7 +1,7 @@
 # Web face record pages
 
 📌 **TL;DR:** Every record page of the web face (`agent-bus-web`, `src/web`):
-the four kind lists and their Personal filter, four registration forms, the
+the five kind lists and their Personal filter, five registration forms, the
 detail, settings, deactivation and Danger Zone pages, and the two POST handlers. Each page gives its parameters, access by
 position, daemon calls, content, states, controls, form fields and links. The
 frame, problem pages, form recovery, paging and `return` rules are in
@@ -74,7 +74,7 @@ Every page reads records as JSON from `/ls`, `/inactive` or `/lookup`.
 | `last_used` | Listing and detail: relative last use, exact timestamp in the title; absent → blank in the listing and no detail field |
 | `addr`, `protocol` | Address, Protocol |
 | `ttl`, `bound`, `overflow` | Retention, Queue bound, When full (`ring` → drop the oldest, else refuse) |
-| `allow[]` | only in the settings form. **No page displays it** |
+| `allow[]` | editable in Settings; non-empty grants appear in Status & Policy |
 | `subs[]` | route destination (first entry) or Deliver-To list; list count on PubSub |
 | `secret_sha`, `config_sha` | authorized digests; Configuration is fetched separately for managers, Secret bytes never appear |
 | `can_manage`, `can_transfer` | which controls render |
@@ -86,7 +86,7 @@ Numbers use comma grouping; tables keep `0`.
 
 ## Lists
 
-`/agents` · `/services` · `/queues` · `/pubsub`, each with `?tag=personal`
+`/agents` · `/services` · `/queues` · `/pubsub` · `/resources`, each with `?tag=personal`
 
 One handler per kind. The page filters, sorts and pages one `/ls` +
 `/inactive` answer; the daemon has no paging. **Personal is a filter, not a
@@ -101,9 +101,9 @@ ones. The sidebar is the kind axis, so there is no Kind filter.
 | `q` | text, trimmed | case-insensitive substring of `name`, `descr` or `owner` | none |
 | `scope` | `my` | only records whose `owner` is you. Agents and Services only, and not with `tag=personal` | all |
 | `state` | `active`, `inactive` | status filter | active |
-| `readers` | `present` (readers > 0), `none` (= 0), `unavailable` (absent) | reader filter. Ignored on `/services`; **honoured but not offered** on `/pubsub` | any |
-| `work` | `held` | `queued > 0`. Ignored on `/services` and `/pubsub` | any |
-| `sort` | `updated` (newest `at` first), `last_used` (Agents only, most recently used first; never-used last), `queued` (most work first; on `/pubsub` the 📣's `in`) | order; ties and default by `name` ascending. `queued` is dropped on `/services` | name |
+| `readers` | `present` (readers > 0), `none` (= 0), `unavailable` (absent) | reader filter. Ignored on `/services` and `/resources`; **honoured but not offered** on `/pubsub` | any |
+| `work` | `held` | `queued > 0`. Ignored on `/services`, `/resources` and `/pubsub` | any |
+| `sort` | `updated` (newest `at` first), `last_used` (Agents only, most recently used first; never-used last), `queued` (most work first; on `/pubsub` the 📣's `in`) | order; ties and default by `name` ascending, except Agents put those with outstanding reads first. `queued` is dropped on `/services` and `/resources` | name |
 | `page` | integer | 1-based, clamped to 1…last | 1 |
 | `owner` | a name | with `tag=personal`, daemon Owner only: one owner's records. From anyone else: `303` to the same URL without `owner` | all visible owners |
 
@@ -145,9 +145,10 @@ Either registry list call failing fails the page ([shell](shell.md#problem-page)
 | 5 | Empty-state card, **or** the Personal note, the results line and the table |
 | 6 | `<nav aria-label="Record pages">` with `Previous page` / `Next page` |
 
-**Tabs.** Counts are computed by the face over the visible records of this
-kind, before toolbar filters: All counts shared records, My the shared ones you
-own, Personal the Personal ones (yours, or all for the daemon Owner). Tabs keep
+**Tabs.** Counts are computed before pagination, after search, state, reader
+and work filters. All counts shared records, My the shared ones you own; tag
+counts also respect the selected ownership scope. Personal records are limited
+to yours, or all visible owners for the daemon Owner. Tabs keep
 `state`, `q`, `readers`, `work` and `sort`; Personal also keeps the daemon
 Owner's `owner`. My has class `my-view`, Personal `personal-view` with a lock.
 
@@ -158,7 +159,7 @@ Owner's `owner`. My has class `my-view`, Personal `personal-view` with a lock.
 | Search | `<input id=record-query type=search name=q>`, visually hidden label `Search records`, placeholder `Search by name, owner, or description` (`Search by name or description` when the Owner column is hidden) |
 | Hidden | `tag`, `scope`, `state`, `readers`, `work`, `owner`, each only when set |
 | Sort | `<select id=record-sort name=sort data-submit-on-change>`: `""` Name (A–Z), `updated` Recently updated, `last_used` Recently used (Agents only), `queued` Queued (high–low) — `Accepted (high–low)` on PubSub, absent on Services |
-| Status filter | All · Active · Inactive |
+| Status filter | Active · Inactive |
 | Readers filter | not on Services or PubSub: All · Reading now · No reader now · Unavailable |
 | Queue filter | not on Services or PubSub: All · Holding work |
 
@@ -202,7 +203,7 @@ phone layout.
 | Category empty | card `No {agents|…} yet` (`No Personal {…} yet`) and the kind blurb (under the filter: `Personal records belong to their Owner's own view instead of the shared lists.`) |
 | Filters match nothing | card `No records match these filters` / `Change the active filters above or clear filters.` and `Clear filters` |
 | Personal list with rows | daemon Owner: `Only Personal records visible through your normal access; not a node-wide inventory.`; others: `Owned by <code>you</code>.` |
-| Inactive records | listed with `Inactive` under All and Inactive |
+| Inactive records | listed with `Inactive` under the Inactive state filter |
 | Pagination | 100 rows. Links keep every parameter |
 | Bus unavailable, refusal | problem page ([shell](shell.md#problem-page)) |
 
@@ -233,7 +234,7 @@ Rows → detail with `return`; tabs; filter links; Clear filters (keeps
 
 ## Register
 
-`/agents/new` · `/services/new` · `/queues/new` · `/pubsub/new`
+`/agents/new` · `/services/new` · `/queues/new` · `/pubsub/new` · `/resources/new`
 
 ### Route
 
@@ -257,7 +258,7 @@ Any signed-in caller gets the form; the caller becomes the Owner. Signed out:
 | 1 | `Back to {Agents|Services|Queues|PubSub}` (`Back to Personal …`) → the list |
 | 2 | `<h1>` kind mark + title; sub line: the kind blurb, then `You become its Owner.` |
 | 3 | form error summary (after a refusal) |
-| 4 | `<form id=form-create method=post action=/service>`, button = the title, `Cancel` |
+| 4 | `<form id=form-create method=post action=/record>`, button = the title, `Cancel` |
 | 5 | help popovers for the fields shown (below) |
 
 ### Forms
@@ -272,7 +273,7 @@ message `roles` or `AB_ROLE_*`. ACL help shows a parenthesized multi-role exampl
 and whole-save refusal for generated names. Both hover/focus tooltips show `@dev(deploy, read_only)` directly; clicking
 opens the fuller explanation.
 
-Hidden: `action=create`, `kind={agent|service|queue|pubsub}`,
+Hidden: `action=create`, `kind={agent|service|queue|pubsub|resource}`,
 `edit_sharing=1`. The submitted `tags` preserve the Personal classification.
 
 | `name` | Control | Kinds | Required | Prefill | Placeholder / values | Meaning |
@@ -329,14 +330,14 @@ Back to the list; Cancel.
 
 ## Record detail
 
-`/agent` · `/service` · `/queue` · `/pubsub/channel`
+`/agent` · `/service` · `/queue` · `/pubsub/channel` · `/resource`
 
 ### Route
 
 | Parameter | Meaning |
 |---|---|
 | `name` | the record, exact |
-| `return` | local list URL for Back; used only when its path is the record's own list, else that list ([shell](shell.md#return-addresses)) |
+| `return` | local list URL for Back; used only when its path is the record's own list, `/runner` or `/runner-settings`, else the list ([shell](shell.md#return-addresses)) |
 | `range`, `at` | the Activity card's range, as on [/activity](node.md#activity) |
 | `events` | `all` expands the agent’s full retained log; any other value shows the recent preview |
 
@@ -348,7 +349,7 @@ Back to the list; Cancel.
 
 | Position | Gets |
 |---|---|
-| Owner, Maintainer, record itself, daemon Owner (`can_manage`) | full page with Edit settings, the route settings link, Deliver-To Remove buttons and the Danger Zone link |
+| Owner, Maintainer, record itself, daemon Owner (`can_manage`) | full page with Edit settings, the route settings link and the Danger Zone link |
 | Other visible caller | read-only page and `You can view this record; its owner and assigned maintainers can manage it.` |
 | Stranger, missing name | `404 No such name` |
 | Inactive record | [inactive view](#inactive-record-view) instead |
@@ -434,7 +435,6 @@ read this agent’s events.”, never entries. Other record kinds have no Events
 |---|---|---|
 | Edit settings, route settings link, Danger Zone | shown (Danger Zone not for a user inbox) | omitted |
 | Deactivate → `GET /record-deactivate` | in Danger Zone, not for a user inbox or group | omitted |
-| Deliver-To Remove | shown | omitted |
 | Take my inbox off | anyone whose name is on `subs` | same |
 
 ### Forms
@@ -458,10 +458,10 @@ Served by the detail addresses when `name` is in `/inactive`.
 | Part | Detail |
 |---|---|
 | Visibility | daemon Owner: every inactive record; others: those their ACL, ownership or maintenance admits |
-| Calls | `/status`, `/inactive` only |
+| Calls | `/status`, `/inactive`; agents also request their Events card |
 | Title | `{Noun} {name}` |
 | Content | `Back to records`; `<h1>` kind mark, name, badge `INACTIVE`; kind pill; `Owner` chip, never linked; Status card with the `Inactive` pill and three bullets, the second `Its queued work is kept: {queued} held when observed.` (service: without the count) |
-| Manager (not a user inbox) | `<form method=post action=/service>` hidden `name`, button `name=action value=reactivate` → `POST /manage {name, status: "active"}` → `303` detail |
+| Manager (not a user inbox) | `<form method=post action=/record>` hidden `name`, button `name=action value=reactivate` → `POST /manage {name, status: "active"}` → `303` detail |
 | Others | `Its owner and assigned maintainers can reactivate it.` |
 | Absent | settings, Danger Zone, activity, counters |
 
@@ -470,7 +470,7 @@ answers `404 No such name`.
 
 ## Settings
 
-`/agent/edit` · `/service/edit` · `/queue/edit` · `/pubsub/channel/edit`
+`/agent/edit` · `/service/edit` · `/queue/edit` · `/pubsub/channel/edit` · `/resource/edit`
 
 ### Route
 
@@ -502,15 +502,15 @@ An inactive record is `404`.
 | 1 | `Back to {name}` → detail with `return` |
 | 2 | `<h1>` kind mark + `Edit {Noun} {name}`, with **Locks** → `/locks?q=<name>` and **Store** → the record’s KV page; both always shown |
 | 3 | error summary |
-| 4 | `<form id=form-save method=post action=/service>`, button `Save settings`, `Cancel` |
+| 4 | `<form id=form-save method=post action=/record>`, button `Save settings`, `Cancel` |
 | 5 | help popovers; red `Danger Zone` link |
 
 ### Private configuration
 
 Keep secrets in Secret and config in Configuration; see [configuration](../../../docs/03-records-agent.md#configuring-a-template).
 
-Owner and Maintainers always see **Configuration (JSON)** on the record page
-and in its editor, pretty-printed. Agent and service editors put it after
+Owner and Maintainers see stored **Configuration (JSON)** on the record page
+when configured, and can edit it in the editor, pretty-printed. Agent and service editors put it after
 Secret; groups use the same field. Only authorized callers fetch it through
 `GET /config`; general management rights alone do not grant this read.
 Secret (ENV) always starts empty and is never displayed.
@@ -546,12 +546,12 @@ always, and only what the form showed:
 |---|---|
 | `addr` or `protocol` present | `addr`, `protocol` |
 | any of `bound`, `ttl`, `overflow` present | `bound` (must be a whole number, else `400` field `bound`, no call), `ttl`, `overflow` |
-| `edit_allow` present | `allow` (whitespace-split; empty clears) |
-| `edit_subs` present | `subs` (whitespace-split; empty clears) |
+| `edit_allow` present | `allow` (split outside role parentheses; empty clears) |
+| `edit_subs` present | `subs` (split outside role parentheses; empty clears) |
 | `edit_sharing` present | `maintainers` |
 | `tags` present | normalized `tags` array |
 
-Then, if `secret` is non-empty, `POST /secret {name, secret}` (CRLF → LF).
+Then, if `secret` is non-empty, `POST /secret {name, secret}` (CRLF → LF); non-empty Configuration follows through `POST /configure`, as described in [Private configuration](#private-configuration).
 
 | Outcome | Answer |
 |---|---|
@@ -563,7 +563,7 @@ Then, if `secret` is non-empty, `POST /secret {name, secret}` (CRLF → LF).
 | Settings saved, secret refused | `502`: `The settings were saved and its secret was not stored: {reason} Set it with: agent-bus secret {name} '...'` |
 
 Kept on refusal: `descr`, `addr`, `protocol`, `ttl`, `overflow`, `bound`,
-`allow`, `edit_allow`, `subs`, `edit_subs`, `tags`,
+`allow`, `edit_allow`, `subs`, `edit_subs`, `tags`, `roles`, `config`,
 `maintainers`, `edit_sharing`, `return`. Never: `secret`. Error element id
 `save-error`; summary anchor `#form-save`. The record is re-read, so a record
 that vanished answers `404`.
@@ -634,7 +634,7 @@ first, then `/status`. Each success is a `303` with a flash message.
 | `action` | Fields | Daemon calls | Success `303` |
 |---|---|---|---|
 | `create` | see [Register](#register) | `POST /register`, then `POST /secret` | detail |
-| `save` | see [Settings](#settings) | `POST /manage`, then `POST /secret` | detail |
+| `save` | see [Settings](#settings) | `POST /manage`, then submitted Secret and Configuration through `/secret` and `/configure` | detail |
 | `configure` | `name=#bus`, `config` | `POST /configure {name, config}` | `/agent/edit?name=%23bus` |
 | `deactivate` | `name` | re-read, `POST /manage {name, status:"inactive"}` | detail |
 | `reactivate` | `name` | `POST /manage {name, status:"active"}`, `GET /lookup` | detail |
@@ -658,12 +658,6 @@ different `queued`, reader count or lost `can_manage` (delete) answers
 `configure` is restricted to `#bus` settings; `transfer` returns the Danger Zone; a refused transfer keeps and
 marks `owner`. `delete`, `deactivate`, `reactivate` and the Deliver-To actions
 go to the problem page.
-
-## Differences from the older specs
-
-History: the Go face's differences from older specs, and what was worth
-revisiting in the rewrite, are in
-[web-go-face-differences § records](../../../Plans/done/R0.8-MVP/done/web-go-face-differences.md#recordsmd).
 
 ## Locks
 
@@ -706,10 +700,10 @@ Only a record's Owner, Maintainers and own Agent see or change its store
 
 ## Record labels
 
-The existing top browse row contains All, My and tag(count) filters. My is a
+The top browse row contains All, My and tag(count) filters. My is a
 hardcoded ownership filter, not a tag. The [tag contract](../../../docs/03-records.md#tags)
 owns normalization, count scope, sorting and the expandable remainder. Tags
-follow Description in every record editor; ACL list parsing is unchanged.
+follow Description in every record editor.
 
 ## Documentation targets
 
@@ -731,7 +725,7 @@ external-link behavior and field-help targets.
 
 ### Agent roles display
 
-An agent’s read-only Roles section is hidden unless application roles are declared or explicitly assigned. It contains only those roles and assignments. Non-empty Allow and Maintainers appear as compact name rows in Status & Policy for every record kind, independently of Roles; empty lists have no row or placeholder. Group grants remain group names; the face does not invent membership or effective authority.
+The [detail content table](#content-2) separates application Roles from Allow and Maintainers in Status & Policy. Group grants remain group names; the face does not invent membership or effective authority.
 
 ## Agent metadata
 
@@ -783,7 +777,7 @@ has a distinct style. Record pages put them once in the header metadata line,
 after kind and owner; every badge links to the agents tag filter. The synthetic
 empty-tag filter is never a record label.
 The My listing omits Owner; other listings mark the signed-in owner's records
-with the existing you badge.
+with the you badge.
 
 While an agent page is open, one asynchronous request asks its status as the
 visitor, with a 1.8-second budget. Its escaped answer appears next to the record

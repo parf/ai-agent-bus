@@ -297,7 +297,7 @@ the two drift.
 
 ## Color
 
-**Red and orange are reserved** for errors, warnings and dangerous actions (owner, 2026-10-27). Nothing else uses them: not tags, not the personal tag, not the "you" badge, not neutral states.
+**Red and orange are reserved** for errors, warnings and dangerous actions. Nothing else uses them: not tags, not the personal tag, not the "you" badge, not neutral states.
 
 | Use | Color |
 |---|---|
@@ -330,7 +330,7 @@ A page never scrolls sideways at 1440, 768 or 390 px.
 | Parameter | `page`, 1-based. Missing, invalid or out of range is clamped to 1…last |
 | Links | `<nav aria-label="Record pages">` (or `"Directory pages"`): `Previous page`, `Page N of M`, `Next page`, each link only when it exists. Links keep every filter |
 | Summary | `Showing {start}–{end} of {matched} matching records, …`, plus `Clear filters` when a filter is set |
-| Counts | tab counts are totals before filters, not page counts |
+| Counts | counts are computed before pagination; each page defines which active filters apply |
 | Source | the face pages one caller-visible `/ls` + `/inactive` answer. The daemon has no paging |
 
 ## Return addresses
@@ -341,14 +341,9 @@ and parse with no scheme, host or user. Anything else becomes `/`.
 | Where | Allowed | Fallback |
 |---|---|---|
 | `POST /signin` | any local path and query | `/` |
-| Record detail and settings | only the record's own list path (`/agents`, `/services`, `/queues`, `/pubsub`), with its query, `?tag=personal` included; fragment dropped | the record's list, with `?tag=personal` for a Personal record |
+| Record detail and settings | the record's own list path (`/agents`, `/services`, `/queues`, `/pubsub`, `/resources`), `/runner` or `/runner-settings`, with the query, `?tag=personal` included; fragment dropped | the record's list, with `?tag=personal` for a Personal record |
 | User pages | `/users` or `/diagnostics`, with query; fragment dropped. After a state change, the user's own page | `/users` |
 | Problem-page back link | the Referer when it is this host | none |
-
-## Differences from older docs
-
-History: what the Go face and older docs said differently is in
-[web-go-face-differences § shell](../../../Plans/done/R0.8-MVP/done/web-go-face-differences.md#shellmd).
 
 ## GitHub documentation
 
@@ -357,7 +352,7 @@ content. Links are outlined `docs-link` badges with Lucide book-open and
 external-link marks, distinct from ordinary navigation. Text remains usable
 without JavaScript. The strip wraps on narrow screens.
 
-Destinations use the owner's requested
+Destinations use the fixed
 `https://github.com/parf/ai-agent-bus/blob/main/docs/` prefix. They are fixed
 public file/section targets: record names, query strings, submitted values and
 credentials are never included. Links open a new tab with `noopener noreferrer`,
@@ -376,7 +371,6 @@ keep their text. Fields with documented rules gain a help button when needed.
 |---|---|
 | name | [Names](../../../docs/01-identity-and-authority.md#names) |
 | tags | [Tags](../../../docs/03-records.md#tags), including [Personal](../../../docs/03-records.md#personal-and-shared) |
-
 | allow | [ACL](../../../docs/02-access.md#acl) |
 | maintainers, owner | [Record authority](../../../docs/01-identity-and-authority.md#record-authority), [ownership](../../../docs/01-identity-and-authority.md#ownership) |
 | roles | [Roles](../../../docs/03-records-agent.md#roles) |
