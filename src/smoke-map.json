@@ -745,7 +745,7 @@
           "-v",
           "test_logwatch.WatcherTests.test_tail_is_unfiltered_oldest_first_and_ring_is_bounded",
           "test_logwatch.WatcherTests.test_mark_excludes_old_lines_and_since_uses_arrival_time",
-          "test_logwatch.WatcherTests.test_cleaning_preserves_plain_text_and_removes_exact_legacy_forms",
+          "test_logwatch.WatcherTests.test_cleaning_preserves_plain_text_and_removes_terminal_controls",
           "test_logwatch.WatcherTests.test_parser_config_and_filters_refuse_unknowns_and_bound_regex"
         ],
         "cwd": "agents/standalone/logwatch"
