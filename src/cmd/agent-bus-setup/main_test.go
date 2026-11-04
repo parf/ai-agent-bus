@@ -196,3 +196,17 @@ func TestSetupRejectsRetiredOptionsBeforeActions(t *testing.T) {
 		}
 	}
 }
+
+func TestSetupRejectsPositionalsBeforeActions(t *testing.T) {
+	oldArgs, oldFlags := os.Args, flag.CommandLine
+	defer func() { os.Args, flag.CommandLine = oldArgs, oldFlags }()
+	for _, args := range [][]string{{"--print-unit", "junk"}, {"--runner", "install", "--dry-run", "junk", "-retired"}} {
+		fs := flag.NewFlagSet("setup", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		flag.CommandLine = fs
+		os.Args = append([]string{"setup"}, args...)
+		if err := setup(); err == nil || !strings.Contains(err.Error(), "unexpected positional arguments") {
+			t.Fatalf("positional input reached action: %v: %v", args, err)
+		}
+	}
+}

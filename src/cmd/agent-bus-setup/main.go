@@ -135,6 +135,9 @@ func setup() (err error) {
 	if err := display.ParseFlags(fs, os.Args[1:]); err != nil {
 		return err
 	}
+	if fs.NArg() != 0 {
+		return fmt.Errorf("unexpected positional arguments: %v", fs.Args())
+	}
 	if runtime.GOOS == "darwin" {
 		return darwinSetup(fs, darwinInstall, *owner, *addr, *exe, *keyF, *printUnit, *dry, tlsC)
 	}
