@@ -574,7 +574,7 @@ Final Fable review of T0 `af1c7e06` ([issues](../issues/2026-11/2026-11-02.md), 
 
 ## T-31 Client APIs and event examples
 
-- ✅ T-31 All six clients run the shared event-log and subscription vectors with executed native examples, using plain send/call to `#bus`; [completion evidence](done/t31-client-events.md#landed-evidence) records Q322 approval and the landed parts. The [audit](clients-events.md#audit-snapshot) remains a dated snapshot.
+- ✅ T-31 All six clients run the shared event-log and subscription vectors with executed native examples, using plain send/call to `#bus`; [completion evidence](done/t31-client-events.md#landed-evidence) records Q322 approval and the landed parts. The [audit](../issues/done/2026-11/2026-11-02-client-api-audit.md#audit-snapshot) remains a dated snapshot.
 
 ## T-32 Good-agent checklist
 

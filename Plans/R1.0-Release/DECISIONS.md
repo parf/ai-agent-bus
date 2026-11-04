@@ -37,7 +37,7 @@
 - **An event subscription is authorized once, when it is created** (Q325) — owner, 2026-11-02: "daemon do not care about app roles; ignore; - yes creation time only". For the daemon's `#bus` agent logs (T-29), the right to read the source log is checked when the subscription is created, not again; ordinary delivery admission to the target still applies to each send. `#eventlog`, `#logwatch` and `#discord` still recheck the source on every delivery through the shared helper; whether they follow is [Q326](../R1.1/QUESTIONS.md#access-context).
   - Home: [shared subscriptions](../../docs/agents/subscriptions.md).
 - **Client libraries get event-log support in 1.0.0** (Q322) — owner, 2026-11-02: "agree". An example per client, shared test cases and a subscribe helper only where needed, after the T-29 daemon parts.
-  - Home: [clients and agent events](clients-events.md).
+  - Home: [clients and agent events](../issues/done/2026-11/2026-11-02-client-api-audit.md).
 - **An agent's alerts are kept on disk in 1.0.0 and survive a daemon restart** (Q321) — owner, 2026-11-02: "agree". Notices and warnings stay in memory; the daemon restarts on every daemon deploy, and agent alerts are not in syslog. Built in T-29 after subscriptions.
   - Home: [agent events](agent-events/README.md#levels).
 - **macOS archives and the macOS npm client packages ship in 1.0.0** (Q313) — owner, 2026-11-02: "agree". The release workflow cross-builds darwin arm64 and x64, verifies and attaches them; one more Mac check runs on the published 1.0.0.

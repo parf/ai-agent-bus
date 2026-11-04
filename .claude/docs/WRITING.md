@@ -28,6 +28,7 @@
 - **No walls of text.** Bullets over paragraphs; anything longer than ~3 lines becomes bullets or a table.
 - **One simple idea per bullet**, understandable at a glance.
 - **Proportionate detail.** One simple setting gets one direct sentence: its name, purpose and default. Use a table for several comparable settings; do not add “Only one setting”, “Keys” and a disclosure around a single row. Omit empty or unnecessary sections. If defaults are sufficient, say so; show only the optional change the reader needs, without a full configuration ceremony.
+- **Review reports are evidence.** Put dated audits and review findings in `Plans/issues/`; closed reports go under `done/`. Release topic pages hold stable knowledge, not coverage snapshots or superseded estimates.
 - **No empty planning layers.** If a completed plan only points to current documentation, merge any unique rule into its owning reference, retarget incoming links and remove the redundant page. Keep completion evidence in its historical home.
 - **One home per fact.** Deduplicate claims, instructions, tables and examples across the whole page. Use a section link instead of a second explanation; retain a repeat only for a concrete need such as a warning beside a destructive action.
 - **Release-user path first.** Bundled agents are already built and installed. Explain selecting/enabling/configuring the supplied package; no source checkout, package.sh, Go or Bun build in a release-user procedure. Keep contributor build instructions in contributor docs.

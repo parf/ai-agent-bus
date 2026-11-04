@@ -203,3 +203,9 @@ A completed plan page that only redirects to current contracts does not need a s
 
 - Applied to `Plans/R1.0-Release/roles.md`: its syntax, assigned/generated roles, propagation and script usage already live in `docs/03-records-agent.md#roles`; completion evidence remains in R1 DONE and `done/assigned-roles.md`.
 - Applied to `Plans/R1.0-Release/modules.md`: architecture links go to `src/MODULES.md`; shared executable protocol cases are described in `src/clients/README.md#protocol-conformance`. The existing R1.1 architecture plan retains its future boundaries.
+
+## Review reports are evidence, not release topics
+
+Dated code audits, coverage tables, review findings and superseded work estimates belong under `Plans/issues/` (closed reports under `done/`), with a source revision/date. A release index links the current contract and completion result; historical decisions may link the audit as evidence.
+
+Applied to the client API audit: moved from `Plans/R1.0-Release/clients-events.md` to `Plans/issues/done/2026-11/2026-11-02-client-api-audit.md`. Its audit snapshot and review evidence are preserved; all incoming links are repaired.

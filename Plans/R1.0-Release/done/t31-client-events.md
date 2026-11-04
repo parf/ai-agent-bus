@@ -7,8 +7,8 @@ through ordinary calls and sends. Native examples run against the shared real
 fixture, and client READMEs link the executed sources without copied output.
 No event-specific SDK helper was needed.
 
-The [audit](../clients-events.md#audit-snapshot) is a dated snapshot, not the
-current contract. The [implementation acceptance](../clients-events.md#implementation-acceptance)
+The [audit](../../issues/done/2026-11/2026-11-02-client-api-audit.md#audit-snapshot) is a dated snapshot, not the
+current contract. The [implementation acceptance](../../issues/done/2026-11/2026-11-02-client-api-audit.md#implementation-acceptance)
 records the built scope.
 
 ## Landed evidence
