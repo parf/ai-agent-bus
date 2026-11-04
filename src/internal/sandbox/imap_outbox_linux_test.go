@@ -14,7 +14,7 @@ import (
 
 // The actual runner bwrap+seccomp backend, not a directory-permission mock.
 // No service, host account, provider, cgroup-limit rejection or journal write.
-func TestImapOutboxPublishesInsideTheRunnerSandbox(t *testing.T) {
+func TestImapGenerationLockInsideTheRunnerSandbox(t *testing.T) {
 	code, err := filepath.Abs(filepath.Join("..", "..", "agents", "imap"))
 	if err != nil {
 		t.Fatal(err)
@@ -33,7 +33,7 @@ func TestImapOutboxPublishesInsideTheRunnerSandbox(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer fd.Close()
-	script := `import errno, os, pathlib, sys
+	script := `import os, pathlib, sys
 sys.path.insert(0, sys.argv[1])
 import outbox
 assert not pathlib.Path('/etc/passwd').exists(), 'sandbox mount policy was bypassed'
@@ -42,23 +42,25 @@ probe = work / 'link-source'
 probe.write_bytes(b'probe')
 os.link(probe, work / 'link-target')
 assert probe.stat().st_ino == (work / 'link-target').stat().st_ino
-for mode in ('normal', 'fallback'):
-    directory = work / mode
-    directory.mkdir()
-    original = outbox.os.link
-    def refused(*args, **kwargs):
-        raise OSError(errno.EPERM, 'fixture link refusal')
-    if mode == 'fallback': outbox.os.link = refused
+with outbox.Outbox(work):
     try:
-        with outbox.Outbox(directory) as box:
-            name = outbox.filename('fixture', 7, 100)
-            assert box.put(name, b'raw fixture mail')
-            assert box.get(name) == b'raw fixture mail'
-            assert box.sweep({name}) == 0
-            assert box.sweep(set()) == 1
-    finally:
-        outbox.os.link = original
-print('normal and fallback publication confined')
+        outbox.Outbox(work, lock_wait=0)
+    except outbox.PreviousGeneration:
+        pass
+    else:
+        raise AssertionError('concurrent generation admitted')
+with outbox.Outbox(work):
+    pass
+obsolete = work / 'mail-outbox' / 'pending.eml'
+obsolete.write_bytes(b'pending fixture')
+try:
+    outbox.Outbox(work)
+except outbox.OutboxError as error:
+    assert 'unsupported generation directory contents' in str(error)
+else:
+    raise AssertionError('pending body adopted')
+assert obsolete.read_bytes() == b'pending fixture', 'refusal deleted pending body'
+print('current generation lock confined; pending bodies refused')
 `
 	job := ports.Job{Argv: []string{"/usr/bin/python3", "-B", "-c", script, code, work},
 		Work: work, Read: []string{code}, Seccomp: true}
@@ -69,7 +71,7 @@ print('normal and fallback publication confined')
 	cmd.ExtraFiles = []*os.File{fd}
 	cmd.Env = []string{"PATH=/usr/bin", "PYTHONDONTWRITEBYTECODE=1"}
 	out, err := cmd.CombinedOutput()
-	if err != nil || !strings.Contains(string(out), "normal and fallback publication confined") {
+	if err != nil || !strings.Contains(string(out), "current generation lock confined; pending bodies refused") {
 		t.Fatalf("sandboxed outbox: %v\n%s", err, out)
 	}
 }

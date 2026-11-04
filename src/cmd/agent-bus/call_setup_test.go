@@ -37,6 +37,8 @@ func TestTaggedSetupSharesDeadline(t *testing.T) {
 				}
 				status, body := 200, `{}`
 				switch r.URL.Path {
+				case "/identity":
+					body = `{"protocol":1,"protocol_min":1}`
 				case "/status":
 					body = `{"you":"caller@h"}`
 				case "/lookup":

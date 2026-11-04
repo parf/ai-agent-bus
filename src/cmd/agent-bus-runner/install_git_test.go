@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"github.com/parf/ai-agent-bus/internal/protocol"
@@ -125,6 +126,10 @@ func TestDeployFromGitInstallsOnlyTheReviewedRootPackage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	inventoryBefore, err := os.ReadFile(filepath.Join(r.host, "agents.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := r.installPackage(context.Background(), "install --replace fixture git https://fixture.invalid/repo "+nested); err == nil || !strings.Contains(err.Error(), "agent.json at the repository root") {
 		t.Fatalf("subdirectory deploy accepted or wrong refusal: %v", err)
 	}
@@ -132,12 +137,9 @@ func TestDeployFromGitInstallsOnlyTheReviewedRootPackage(t *testing.T) {
 	if err != nil || before != after {
 		t.Fatalf("failed layout check changed live tree: %s %s %v", before, after, err)
 	}
-	entries, err := readAgents(r.host)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(entries["fixture"]["enabled"]) != "true" || entries["fixture"]["origin"] != nil {
-		t.Fatal("failed layout check changed canonical inventory")
+	inventoryAfter, err := os.ReadFile(filepath.Join(r.host, "agents.json"))
+	if err != nil || !bytes.Equal(inventoryBefore, inventoryAfter) {
+		t.Fatalf("failed layout check changed canonical inventory: %v", err)
 	}
 
 }

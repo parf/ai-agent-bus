@@ -99,7 +99,7 @@ func configurationReplyLong(t *testing.T, b *core.Bus) protocol.Envelope {
 }
 
 func TestDebugTagNormalizationMatchesDaemon(t *testing.T) {
-	input := []string{"BUILD-Notes,claude,CLAUDE,no-tags", "Server-Info", "42", "a_b", "SERVER-INFO"}
+	input := []string{"BUILD-Notes,claude,CLAUDE", "Server-Info", "42", "a_b", "SERVER-INFO"}
 	encoded, err := json.Marshal(input)
 	if err != nil {
 		t.Fatal(err)

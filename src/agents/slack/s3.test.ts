@@ -118,6 +118,7 @@ t("username and icon map to Slack's customize fields", async () => {
 });
 
 t("post appearance keys in Secret are refused before provider work", async () => {
+  behave({});
   const base = `SLACK_BOT_TOKEN=xoxb-fixture\nSLACK_APP_TOKEN=xapp-fixture\nSLACK_API_URL=http://127.0.0.1:${fakePort}/api/\n`;
   try {
     await fx.call(fx.ownerToken, "POST", "/secret", {name,secret:base+"SLACK_USERNAME=deploy-bot\n"});

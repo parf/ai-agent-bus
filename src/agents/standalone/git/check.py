@@ -51,7 +51,7 @@ def autopull_check(tokens, ask):
         run(['git','-C',str(seed),'push'])
         return run(['git','-C',str(seed),'rev-parse','HEAD']).strip()
     command='autopull-cmd@localhost';log='autopull-log@localhost';queue='autopull-results@localhost'
-    for name,kind in [(command,'pubsub'),(log,'pubsub'),(queue,'queue')]:cli('channel','create',name,'--kind',kind)
+    for name,kind in [(command,'pubsub'),(log,'pubsub'),(queue,'queue')]:cli('register',name,'--kind',kind)
     cli('manage',command,'--add-allow','#plain@localhost','--deliver-to',NAME)
     cli('manage',log,'--add-allow',NAME,'--deliver-to',queue)
     config={'repos':{'ab':{'path':str(repo),'access':'deploy','follow':True,'mode':'ff'}},'autopull-cmd':command,'autopull-log':log}

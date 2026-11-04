@@ -44,7 +44,7 @@ const runnerUsage = ` — serve installed agents · ` + display.Homepage + `
 
 USAGE
   agent-bus-runner --host=<directory> [--agents=<directory>] [--bundled=<directory>]
-  agent-bus-runner -h, --help | --version
+  agent-bus-runner --help | --version
 
 DESCRIPTION
   Run a person's installed agents on the bus. --host is the runner
@@ -62,7 +62,7 @@ OPTIONS
   --bundled=directory — bundled packages; opt-in through agents.json
 
 GLOBAL OPTIONS
-  -h, --help — show program help; use alone
+  --help — show program help; use alone
   --version — print version and build; use alone
 
 BUS COMMANDS
@@ -97,6 +97,20 @@ SEE ALSO
   ` + display.SourceURL + `/docs/runner/configuration.md`
 
 func parseRunnerFlags(fs *flag.FlagSet, args []string) error {
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--help" && len(args) != 1 {
+			return fmt.Errorf("--help must be used alone")
+		}
+		name, _, hasValue := strings.Cut(strings.TrimPrefix(arg, "--"), "=")
+		if strings.HasPrefix(arg, "--") && !hasValue {
+			if f := fs.Lookup(name); f != nil {
+				if b, ok := f.Value.(interface{ IsBoolFlag() bool }); !ok || !b.IsBoolFlag() {
+					i++
+				}
+			}
+		}
+	}
 	if err := display.ParseFlags(fs, args); err != nil {
 		return err
 	}
@@ -107,6 +121,10 @@ func parseRunnerFlags(fs *flag.FlagSet, args []string) error {
 }
 
 func main() {
+	if len(os.Args) == 2 && os.Args[1] == "--help" {
+		fmt.Fprintln(os.Stdout, "agent-bus-runner "+version.String+usage+"\n\n"+display.Footer())
+		return
+	}
 	if version.Print() {
 		return
 	}
