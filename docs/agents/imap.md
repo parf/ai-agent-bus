@@ -176,7 +176,7 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 | `sync` says more remains | Run `sync` again |
 | `expired` in a call log | The delivered deadline expired while queued; no IMAP operation started |
 | `dropped` grows in `sub list` | The target refused or the author lost permission; the subscription stays and the next mail is tried again |
-| A legacy subscription shows `invalid subscription state` | It could not be moved to the shared shape; an Owner or Maintainer deletes it and adds it again |
+| `unsupported IMAP state` | Startup requires current state from a clean installation; it does not convert or delete unsupported data |
 | Forwarding state invalid | Sync is blocked too; delete all subscriptions, then add to explicitly rebaseline |
 | A UID reported as skipped | It was oversized, malformed or refused repeatedly; `read` it to retry |
 | A UID refused as expunged | The mail is gone from the server; it was removed from the cache |
@@ -213,7 +213,7 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 | `status` | One cached health line per synced or subscribed folder, with IDLE/polling mode, without connecting to IMAP |
 
 - Add `--folder <name>` to `sync`, `list`, `search`, `read`, `mark`, `flag`, `headers`, `parts`, `part`, `copy`, `move`, `trash`, `delete` or `publish`; JSON uses `folder`. The default is Configuration `mailbox`, then INBOX. Quote names with spaces: `read 123 --no-mark --folder "Login Mail"`.
-- `<uids>` is `123`, `123,130` or `100:200`, at most 1000 UIDs, with a per-UID result. Over-limit sets are refused whole. One failed UID does not prevent results for the others; an unknown write outcome is never retried. JSON `uids` is a string (one integer also works); `mark` still accepts the legacy single `uid`.
+- `<uids>` is `123`, `123,130` or `100:200`, at most 1000 UIDs, with a per-UID result. Over-limit sets are refused whole. One failed UID does not prevent results for the others; an unknown write outcome is never retried. JSON `uids` is a string (one integer also works).
 - `flag` changes only the named flags and needs the server to permit them persistently. JSON `flags` is an array and `action` is `add` or `remove`. Read, mark and flag stay under ordinary admission.
 - Search criteria are ANDed in one server SEARCH and intersected with the cache. Free text matches cached raw mail locally; sync first for uncached mail. `--limit` is 1..100; dates accept `YYYY-MM-DD` or `DD-Mon-YYYY`; JSON uses `no_flag`. Non-ASCII server criteria need UTF8=ACCEPT support; local free text does not.
 - With `part <uid> <part-id> --bigfile <name>`, store the decoded part on this instance and return its size and SHA-256 instead of its bytes. Download it with `agent-bus bigfile get <instance> <name>`. The instance's access list also controls downloads.
@@ -286,7 +286,6 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 - The inclusive 256 KiB bound includes this provenance; larger mail is dropped and counted. No automatic attachment extraction or remote fetch occurs.
 - Forwarding progress moves past a UID before its copies are sent: a stop mid-send loses those copies and never sends them twice. A refused or unknown send is dropped and counted, never retried; the subscription stays active.
 - A refused header fetch is retried on the next two polls, then the UID is skipped. Deleting the last subscription for a folder clears only that folder's blocked forwarding progress; its next add explicitly rebaselines.
-- Subscriptions stored in the older format move to the shared shape at start: their id gains the first free four-digit hex suffix (`0000` unless taken), they keep target, author, filter and start, and held copies and earlier skips count as dropped. A row that cannot be read is listed to the Owner and Maintainers as invalid for deletion.
 - Each folder processes at most 100 arrivals per minute. Headers are fetched first; unmatched mail needs no body. Authentication and throttle failures back off 15 min, doubling to 1 h, and appear in status. The poller is one process with one serialized cache writer and an independent read-only session/frontier per subscribed folder. Folders take turns within a soft two-second pass. IDLE connections are armed between passes; DONE precedes every subsequent command. Event checks run each second, with a ten-second drain for buffered notifications; servers without working IDLE retain polling. A lost connection reconnects with backoff, never advancing a delivery frontier from a guessed event.
 
 </details>
@@ -310,7 +309,8 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 <summary>The cache</summary>
 
 - The cache is keyed by server, account, mailbox, UIDVALIDITY and UID. A cached UID is never fetched again while present, including across restarts. A changed identity or UIDVALIDITY discards only that folder's old cache; evicted mail may be fetched again on an explicit read.
-- The existing cache is adopted in place for the configured default folder without re-sync. Other folders have separate cache directories and sync/forwarding progress; adding or syncing one never resets another. Status keeps folder-name descriptors. Older non-default-folder cache entries may record only a hash: the first normal provider connection recovers their names by matching a read-only LIST against those hashes, without fetching mail or changing progress. Status itself never opens a provider connection.
+- The configured default folder uses `mail-cache` and `imap.progress`; other folders have separate cache directories and progress. Folder descriptors are recorded during explicit operations. Status reads those descriptors without opening a provider connection.
+- Unsupported subscription, progress or generation-directory state stops forwarding without conversion or deletion. Current UIDVALIDITY changes still reset only the affected mailbox. Existing cache metadata is never used to infer a missing delivery frontier.
 - Sync advances a descending history frontier so eviction does not make it re-fetch earlier pages within that pass.
 - Cache directories are 0700, files 0600; a file lock serializes process generations. Interrupted writes never become cached mail.
 - Corrupt state rebuilds the cache; stray files, symlinks and invalid cached bodies are removed without following them, and the reply reports a repair count. A symlinked cache directory itself is refused. Never edit it while an instance is running.

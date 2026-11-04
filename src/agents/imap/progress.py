@@ -9,7 +9,6 @@ import copy
 MAX_UID = 4294967295
 FIELDS = {'version', 'identity', 'validity', 'cursor', 'retry', 'baseline',
           'observe', 'history', 'history_ceiling'}
-LEGACY = {'identity', 'validity', 'cursor'}
 
 
 class ProgressError(ValueError):
@@ -49,7 +48,7 @@ def validate(value):
 
 
 def load(previous, identity, validity, uidnext):
-    """Return (new snapshot, reset), preserving old cache retry/cursor.
+    """Return (new snapshot, reset), validating persisted progress before reuse.
 
     First observation and a real mailbox reset establish B=O=UIDNEXT. A
     matching restored mailbox retains O even if UIDNEXT has moved. H covers
@@ -59,21 +58,10 @@ def load(previous, identity, validity, uidnext):
         raise ProgressError('invalid mailbox identity')
     integer(validity, 1)
     integer(uidnext, 1, MAX_UID + 1)
-    legacy = False
     if previous is not None:
-        if not isinstance(previous, dict):
-            raise ProgressError('invalid mailbox progress state')
-        legacy = set(previous) in (LEGACY, LEGACY | {'retry'})
-        if legacy:
-            if not isinstance(previous['identity'], str) or not 1 <= len(previous['identity']) <= 512:
-                raise ProgressError('invalid legacy mailbox identity')
-            integer(previous['validity'], 1)
-            integer(previous['cursor'])
-            validate_retry(previous.get('retry'))
-        else:
-            validate(previous)
+        validate(previous)
     same = previous is not None and previous['identity'] == identity and previous['validity'] == validity
-    if same and not legacy:
+    if same:
         if uidnext < previous['observe'] or uidnext < previous['history_ceiling'] + 1:
             raise ProgressError('UIDNEXT regressed without a UIDVALIDITY change; forwarding paused', 'regressed')
         return copy.deepcopy(previous), False

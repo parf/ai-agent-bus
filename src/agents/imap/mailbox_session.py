@@ -210,7 +210,3 @@ class Session:
                     cache.put(number, raw)
                 return cache.get(number)
         return self.operation(read)
-
-    def legacy(self):
-        with self.cache() as cache:
-            return dict(cache.state)

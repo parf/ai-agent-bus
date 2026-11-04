@@ -42,7 +42,9 @@ class Arguments(unittest.TestCase):
         self.assertEqual(operations.parse_call('search --since 2026-10-01')['since'], '01-Oct-2026')
         for body in ('flag 7 add "\\Deleted"', 'list --flag "a) STORE"', 'headers 7 --unknown x', 'part 7 1] ', 'search --from "x\r\ny"', 'search --since invalid', 'search --larger -1', 'list 101', 'headers 1:1001'):
             with self.subTest(body=body), self.assertRaises(ValueError): operations.parse_call(body)
-        self.assertEqual(operations.parse_call('{"method":"mark","uid":7,"state":"read"}')['uids'], [7])
+        with self.assertRaises(ValueError):
+            operations.parse_call('{"method":"mark","uid":7,"state":"read"}')
+        self.assertEqual(operations.parse_call('{"method":"mark","uids":"7","state":"read"}')['uids'], [7])
 
 
 class Calls(unittest.TestCase):

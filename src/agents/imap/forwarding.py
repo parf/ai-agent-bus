@@ -5,7 +5,6 @@ are sent, so a stop can lose that UID's copies but never sends them twice. Each
 copy is checked and sent once by the shared engine; a refused or unknown copy is
 dropped, counted and warned, and the subscription stays active.
 """
-import datetime
 import json
 import sys
 import time
@@ -21,21 +20,8 @@ import wire
 import subscriptions as shared   # src/agents/shared, on the path imap.py sets
 
 PROGRESS = 'imap.progress'
-SCAN = 'imap.discovery'   # the per-subscription discovery snapshot of before B.29; removed at start
 BLOCK = 'imap.progress_error'
-LEGACY = {'id', 'target', 'created_by', 'created_at', 'filter', 'ledger'}
 FETCH_TRIES = 3
-MIGRATE_TRIES = 16
-JOURNAL = 'imap.migrate.'
-LEDGER = {'version', 'identity', 'validity', 'start', 'floor', 'pause', 'entries', 'intake', 'intake_cleared',
-          'last_reset_pause', 'sent', 'skipped', 'skipped_first', 'skipped_last', 'skips', 'discarded', 'resets'}
-ENTRY = {'state', 'bytes', 'attempts', 'due', 'reason'}
-STATES = {'pending', 'sending', 'retrying', 'sent', 'skipped', 'paused'}
-MAX_COUNTER = 2**63 - 1
-MAX_PENDING, MAX_BYTES, MAX_VALUE, MAX_ENTRIES = 64, 16 * 1024 * 1024, 96 * 1024, 128
-REASONS = {'backlog', 'unconfirmed', 'acl', 'oversize', 'malformed', 'ambiguous',
-           'fetch', 'unmatched', 'regex', 'reset', 'refused'}
-TERMINAL = {'sent', 'skipped'}
 MESSAGES = {
     'invalid_target': 'target must be one queue or agent name of at most 64 ASCII characters',
     'invalid_selector': 'invalid subscription selector',
@@ -76,80 +62,6 @@ def selected(value, event):
     return event['validity'] != value['validity'] or event['uid'] >= value['from_uid']
 
 
-def legacy_ledger(value):
-    """The removed pre-B.29 ledger validator, kept verbatim for the migration: a ledger it
-    refused stays raw and inert as invalid_state, never an active row."""
-    if not isinstance(value, dict) or set(value) != LEDGER or type(value['version']) is not int or value['version'] != 1:
-        raise progress.ProgressError('invalid subscription delivery state')
-    if not isinstance(value['identity'], str) or not 1 <= len(value['identity']) <= 512:
-        raise progress.ProgressError('invalid subscription mailbox identity')
-    progress.integer(value['validity'], 1)
-    progress.integer(value['start'], 1, progress.MAX_UID + 1)
-    progress.integer(value['floor'], value['start'], progress.MAX_UID + 1)
-    if value['pause'] is not None and (not isinstance(value['pause'], str) or value['pause'] not in {'acl', 'unconfirmed'}):
-        raise progress.ProgressError('invalid subscription pause reason')
-    if value['intake'] is not None and (not isinstance(value['intake'], str) or value['intake'] not in {'backlog', 'regex'}):
-        raise progress.ProgressError('invalid subscription intake reason')
-    if value['last_reset_pause'] is not None and (not isinstance(value['last_reset_pause'], str) or value['last_reset_pause'] not in {'acl', 'unconfirmed'}):
-        raise progress.ProgressError('invalid historical reset reason')
-    entries = value['entries']
-    if not isinstance(entries, dict) or len(entries) > MAX_ENTRIES:
-        raise progress.ProgressError('subscription delivery entry cap exceeded')
-    for uid, entry in entries.items():
-        if not isinstance(uid, str) or len(uid) > 10 or not uid.isascii() or not uid.isdigit() or uid != str(int(uid)):
-            raise progress.ProgressError('invalid subscription delivery UID')
-        progress.integer(int(uid), value['start'])
-        if not isinstance(entry, dict) or set(entry) != ENTRY or not isinstance(entry['state'], str) or entry['state'] not in STATES:
-            raise progress.ProgressError('invalid subscription delivery entry')
-        progress.integer(entry['bytes'], 0, 2 * 1024 * 1024)
-        progress.integer(entry['attempts'], 0, MAX_COUNTER)
-        progress.integer(entry['due'], 0, MAX_COUNTER)
-        if entry['reason'] is not None and (not isinstance(entry['reason'], str) or entry['reason'] not in REASONS):
-            raise progress.ProgressError('invalid subscription delivery reason')
-        if entry['state'] in TERMINAL and entry['bytes'] != 0:
-            raise progress.ProgressError('terminal delivery retains a body reference')
-        if entry['state'] in {'sending', 'retrying', 'sent'} and entry['attempts'] < 1:
-            raise progress.ProgressError('attempted delivery lacks its sending marker')
-        if (entry['state'] == 'pending' or (entry['state'] == 'skipped' and entry['reason'] not in {'refused', 'fetch', 'oversize', 'malformed'})) and entry['attempts'] != 0:
-            raise progress.ProgressError('unattempted delivery has an attempt count')
-        if (entry['state'] == 'retrying') != (entry['due'] > 0):
-            raise progress.ProgressError('delivery backoff does not match its state')
-        if entry['state'] in {'pending', 'sending', 'retrying', 'sent'} and entry['reason'] is not None:
-            raise progress.ProgressError('delivery state has an unexpected reason')
-        if entry['state'] == 'skipped' and entry['reason'] is None:
-            raise progress.ProgressError('skipped delivery lacks its reason')
-        if entry['state'] == 'skipped' and entry['reason'] == 'refused' and entry['attempts'] < 1:
-            raise progress.ProgressError('refused delivery lacks its attempt')
-        if entry['state'] == 'paused' and (entry['reason'] not in {'acl', 'unconfirmed'} or value['pause'] is None):
-            raise progress.ProgressError('paused delivery lacks its visible reason')
-        if entry['state'] == 'paused' and entry['reason'] == 'unconfirmed' and entry['attempts'] < 1:
-            raise progress.ProgressError('uncertain delivery lacks its sending marker')
-    holds = {int(uid): entry['bytes'] for uid, entry in value['entries'].items() if entry['state'] not in TERMINAL}
-    if len(holds) > MAX_PENDING or sum(holds.values()) > MAX_BYTES:
-        raise progress.ProgressError('subscription pending delivery budget exceeded')
-    for field in ('sent', 'skipped', 'discarded', 'resets', 'intake_cleared'):
-        progress.integer(value[field], 0, MAX_COUNTER)
-    first, last = value['skipped_first'], value['skipped_last']
-    if value['skipped']:
-        progress.integer(first, 1)
-        progress.integer(last, first)
-    elif first is not None or last is not None:
-        raise progress.ProgressError('empty skipped counter has a UID range')
-    if not isinstance(value['skips'], dict) or len(value['skips']) > len(REASONS):
-        raise progress.ProgressError('invalid per-reason skip counters')
-    for reason, counter in value['skips'].items():
-        if reason not in REASONS - {'unmatched'} or not isinstance(counter, dict) or set(counter) != {'count', 'first', 'last'}:
-            raise progress.ProgressError('invalid per-reason skip counter')
-        progress.integer(counter['count'], 1, MAX_COUNTER)
-        progress.integer(counter['first'], 1)
-        progress.integer(counter['last'], counter['first'])
-    if sum(counter['count'] for counter in value['skips'].values()) != value['skipped']:
-        raise progress.ProgressError('skip totals do not agree')
-    if len(json.dumps(value, separators=(',', ':'), ensure_ascii=False).encode()) > MAX_VALUE:
-        raise progress.ProgressError('subscription delivery value exceeds 96 KiB')
-    return value
-
-
 class Forwarder:
     def __init__(self, bus, name, work, source, clock=time.monotonic, wall=time.time, send_one=None):
         self.bus, self.name, self.source, self.clock, self.wall = bus, name, source, clock, wall
@@ -170,7 +82,7 @@ class Forwarder:
         self.view_at = None
         self.backlog = 0
         try:
-            self.migrate()
+            self.validate_state()
         except BaseException:
             self.generation.close()   # as a stopped process would release it
             raise
@@ -190,60 +102,28 @@ class Forwarder:
     def set(self, key, value):
         self.kv.set(key, value, kind='json', mode='set')
 
-    def migrate(self):
-        """Move pre-B.29 rows onto the shared shape before anything is served; held copies are dropped and counted.
-
-        A row keeps its target, author, filter and start; its 8-hex id gains the first suffix
-        "0000", "0001", ... whose key is free. The journal names that key before the row is
-        created, so the next start finishes an interrupted move into it and an occupied key is
-        never taken for one of ours. The old key goes only after the new row is stored. One that
-        cannot be read is kept as it was under the new id, for the Owner and Maintainers to delete.
-        """
+    def validate_state(self):
+        """Refuse unsupported storage before serving; never convert or discard it."""
         listing = self.kv.list()
-        names = [row.get('name') for row in listing.get('json', []) if isinstance(row, dict)]
-        legacy = [n for n in names if isinstance(n, str) and n.startswith('sub.') and len(n) == 12]
-        for key in legacy:
-            value = self.get(key)
-            if value is None:
-                continue
-            journal = JOURNAL + key[4:]
-            mark = self.get(journal)
-            new = mark.get('to') if isinstance(mark, dict) else None
-            if not (isinstance(new, str) and len(new) == 16 and new.startswith(key) and all(c in '0123456789abcdef' for c in new[12:])):
-                new = next((f'{key}{suffix:04x}' for suffix in range(MIGRATE_TRIES) if self.get(f'{key}{suffix:04x}') is None), None)
-                if new is None:
-                    raise ValueError(f'no free subscription id for {key[4:]}')
-                self.kv.set(journal, {'to': new}, kind='json', mode='set')
-            try:
-                self.kv.set(new, self.migrated(value, new[4:]), kind='json', mode='add')
-            except Refusal as error:
-                if error.status != 412:
-                    raise   # 412: the journal reserved this key, so it is our create from before a stop
-            self.kv.delete(key, kind='json')
-            self.kv.delete(journal, kind='json')
-        for name in names:
-            if isinstance(name, str) and name.startswith(JOURNAL) and 'sub.' + name[len(JOURNAL):] not in legacy:
-                self.kv.delete(name, kind='json')   # stopped after the old key went
-        if SCAN in names:
-            self.kv.delete(SCAN, kind='json')
-        self.generation.sweep(set())   # the held copies of before B.29
-
-    def migrated(self, value, sub_id):
-        try:
-            if not isinstance(value, dict) or set(value) != LEGACY:
-                raise ValueError()
-            state = legacy_ledger(value['ledger'])
-            # As the old mailbox reset counted its losses: earlier discards, counted skips
-            # (compacted entries included) and the copies still held; unmatched mail is no loss.
-            held = sum(1 for entry in state['entries'].values() if entry['state'] not in ('sent', 'skipped'))
-            row = {'id': sub_id, 'target': shared.target_text(value['target']),
-                   'selector': selector({'validity': state['validity'], 'from_uid': state['start']}),
-                   'filter': value['filter'], 'created_by': shared.identity(value['created_by']),
-                   'created_at': shared.stamp(lambda: datetime.datetime.fromisoformat(value['created_at']).timestamp()),
-                   'sent': state['sent'], 'dropped': state['discarded'] + state['skipped'] + held}
-            return self.subs._row(row, sub_id)
-        except (KeyError, ValueError, TypeError, AttributeError, shared.SubscriptionError, progress.ProgressError):
-            return value
+        for kind, items in listing.items():
+            if not isinstance(items, list):
+                raise ValueError('unsupported IMAP state: listing')
+            for item in items:
+                name = item.get('name') if isinstance(item, dict) else None
+                if kind != 'json' or not isinstance(name, str):
+                    raise ValueError('unsupported IMAP state: key')
+                if name.startswith('sub.'):
+                    if not shared.ID.fullmatch(name[4:]):
+                        raise ValueError('unsupported IMAP state: subscription id')
+                    row = self.get(name)
+                    if not isinstance(row, dict) or set(row) != shared.FIELDS or row.get('id') != name[4:]:
+                        raise ValueError('unsupported IMAP state: subscription fields')
+                elif name == PROGRESS or name.startswith(PROGRESS + '.'):
+                    progress.validate(self.get(name))
+                elif name == BLOCK or name.startswith(BLOCK + '.') or name.startswith('imap.folder.'):
+                    continue
+                else:
+                    raise ValueError('unsupported IMAP state: key')
 
     def rows(self):
         try:
@@ -260,17 +140,13 @@ class Forwarder:
         if self.get(BLOCK) is not None and not first_add:
             raise progress.ProgressError('forwarding state invalid; delete all subscriptions then add to rebaseline')
         existing = previous
-        if first_add and previous is None:
-            previous = self.source.legacy()
-        elif previous is None:
+        if previous is None and not first_add:
             raise progress.ProgressError('forwarding progress is missing; explicit rebaseline required')
         try:
             value, _reset = progress.load(previous, identity, validity, uidnext)
         except progress.ProgressError as error:
-            if not first_add:
-                self.set(BLOCK, {'reason': error.code})
-                raise
-            value, _reset = progress.load(self.source.legacy(), identity, validity, uidnext)
+            self.set(BLOCK, {'reason': error.code})
+            raise
         if first_add:
             value = progress.fast_forward(value, uidnext, [], [])
         if first_add or value != existing:
@@ -295,7 +171,7 @@ class Forwarder:
         self.subs.delete(message, sub_id)
         rows, damaged = self.rows()
         if not rows and not damaged:
-            for key in (PROGRESS, SCAN, BLOCK):
+            for key in (PROGRESS, BLOCK):
                 self.kv.delete(key, kind='json')
             self.source.close()
         self.next_run = 0
