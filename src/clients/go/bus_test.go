@@ -37,7 +37,7 @@ func TestDialDiscoversAccountSocket(t *testing.T) {
 	}
 	defer ln.Close()
 	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`{"you":"test@h"}`))
+		w.Write([]byte(`{"you":"test@h","protocol":1,"protocol_min":1}`))
 	})}
 	go srv.Serve(ln)
 	defer srv.Close()

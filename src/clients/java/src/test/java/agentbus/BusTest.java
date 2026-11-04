@@ -1118,7 +1118,7 @@ public final class BusTest {
                             int n = c.getInputStream().read(buf);
                             if (n > 0) {
                                 requestBytes.addAndGet(n);
-                                c.getOutputStream().write("HTTP/1.1 200 OK\r\nContent-Length: 13\r\nConnection: close\r\n\r\n{\"you\":\"tls\"}".getBytes(StandardCharsets.US_ASCII));
+                                c.getOutputStream().write("HTTP/1.1 200 OK\r\nContent-Length: 43\r\nConnection: close\r\n\r\n{\"you\":\"tls\",\"protocol\":1,\"protocol_min\":1}".getBytes(StandardCharsets.US_ASCII));
                             }
                         } catch (Exception e) {
                             if (ss.isClosed()) return;

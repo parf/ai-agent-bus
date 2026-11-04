@@ -160,7 +160,7 @@ test('uncertain POST and destructive consume are surfaced, never replayed, budge
 });
 test('certificate pins are verified before any credentials; correct pin permits HTTPS',async()=>{
  const key=join(scratch,'key.pem'),cert=join(scratch,'cert.pem');const created=spawnSync('openssl',['req','-x509','-newkey','rsa:2048','-nodes','-days','1','-subj','/CN=localhost','-keyout',key,'-out',cert],{stdio:'ignore'});expect(created.status).toBe(0);
- let credentials=0;const server=createTLS({key:readFileSync(key),cert:readFileSync(cert)},(req,res)=>{if(req.headers['x-agent-bus-token'])credentials++;res.end('{"you":"#caller@fixture"}');});servers.push(server);await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));const addr=`https://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}`;
+ let credentials=0;const server=createTLS({key:readFileSync(key),cert:readFileSync(cert)},(req,res)=>{if(req.headers['x-agent-bus-token'])credentials++;res.end('{"you":"#caller@fixture","protocol":1,"protocol_min":1}');});servers.push(server);await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));const addr=`https://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}`;
  const wrong=Bus.connect({addr,token:'must-not-leak',fingerprint:'00'.repeat(32)});buses.push(wrong);await expect(wrong.whoami()).rejects.toBeInstanceOf(BusUnreachable);expect(credentials).toBe(0);
  const pin=createHash('sha256').update(new X509Certificate(readFileSync(cert)).raw).digest('hex');const right=Bus.connect({addr,token:'dummy',fingerprint:pin});buses.push(right);expect((await right.whoami()).you).toBe('#caller@fixture');expect(credentials).toBe(2);
 });

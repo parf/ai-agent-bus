@@ -753,7 +753,7 @@ section('the README example, run as written', function () use ($addr, $me) {
     $paths = [];
     foreach (['serve', 'call'] as $i => $name) {
         $paths[$name] = "$dir/$name.php";
-        file_put_contents($paths[$name], "<?php\n" . $blocks[1][$i]);
+        file_put_contents($paths[$name], $blocks[1][$i]);
     }
     foreach (['#mailer@localhost', '#caller@localhost'] as $name) {
         $me->register(['kind' => 'agent', 'name' => $name, 'allow' => ['*']]);

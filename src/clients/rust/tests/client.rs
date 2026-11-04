@@ -169,7 +169,7 @@ async fn fixture() -> (Bus, Arc<Fixture>) {
         .route("/status", get(status))
         .route(
             "/identity",
-            get(|| async { Json(json!({"node":"fixture"})) }),
+            get(|| async { Json(json!({"node":"fixture","protocol":1,"protocol_min":1})) }),
         )
         .route("/config", get(config))
         .route("/secret", get(secret))

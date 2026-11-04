@@ -312,6 +312,10 @@ func TestTLSFingerprintRejectsBeforeCredentialsAndUnixHTTP(t *testing.T) {
 		if r.Header.Get("X-Agent-Bus-Token") != "" {
 			credentials.Add(1)
 		}
+		if r.URL.Path == "/identity" {
+			fmt.Fprint(w, `{"protocol":1,"protocol_min":1}`)
+			return
+		}
 		statusReply(w)
 	}))
 	defer s.Close()
@@ -341,7 +345,7 @@ func TestTLSFingerprintRejectsBeforeCredentialsAndUnixHTTP(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { statusReply(w) })}
+	server := &http.Server{Handler: protocolFixtureHandler(func(w http.ResponseWriter, r *http.Request) { statusReply(w) })}
 	go server.Serve(listener)
 	defer server.Close()
 	defer os.Remove(path)
