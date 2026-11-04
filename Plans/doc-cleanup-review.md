@@ -170,6 +170,6 @@ The catalogue generator selects the release packager's runtime/standalone invent
 - Supplemental offline audit of 107 changed public/source documents: 1866 Markdown links, 33 HTML links and 6 local-repository GitHub targets; no missing paths or anchors.
 - README retains all three original image assets and four byte-identical Mermaid diagrams.
 - The executable guide shard passes 122/0: three source-excerpt comparisons, 18 executable command blocks and five output comparisons. It ran again in the final normal gate.
-- Independent reviews, reproduced findings and focused compiling mutation evidence are recorded in [the integration review](issues/2026-11/2026-11-04.md) and the owning commits. The first aborted integration run is retained there as a failed attempt, not a passing gate.
+- Independent reviews and reproduced findings are recorded in [the integration review](issues/2026-11/2026-11-04.md); the [mutation record](R1.0-Release/done/clean-inputs-verification.md#mutation-runs) preserves all credited focused runs and their execution boundaries. The first aborted integration run is retained there as a failed attempt, not a passing gate.
 
 No live deployment, provider request, push, publication or tag was performed. Historical material stays in Plans; user-facing guides describe the current product.

@@ -89,7 +89,7 @@ Canonical inputs are implemented across registry/storage, credentials, CLI/runne
 - Stored snapshots and credentials validate before serving; fresh account-map seeds validate before any listener binds.
 - Typed JSON schemas reject wrong case, repeated fields and duplicate map entries while opaque Configuration remains application data.
 - Retired command/flag/route aliases, unbound credentials, obsolete schema readers, state migrations and obsolete package adapters are removed, with callers, help, fixtures and guides updated together.
-- Independent reviews and the fixes they found are recorded in [the integration review](../issues/2026-11/2026-11-04.md). The owning commits record compiling mutants failing their intended assertions and restored checks passing.
+- Independent reviews and the fixes they found are recorded in [the integration review](../issues/2026-11/2026-11-04.md). The [mutation record](done/clean-inputs-verification.md#mutation-runs) preserves the owning assertions, restored results and execution boundaries before scratch cleanup.
 - Final normal: 1298/0, exit 0, 61.213 seconds; all 63 selected shards at normal. The sole skipped real-service-restart case belongs to slow.
 - Documentation checks, exact source excerpts and executable guide examples pass; the [cleanup ledger](../doc-cleanup-review.md#final-verification) records link and asset coverage.
 
