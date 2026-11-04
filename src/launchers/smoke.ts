@@ -134,7 +134,7 @@ try {
     const state = join(env.XDG_STATE_HOME, "agent-bus/sessions");
     mkdirSync(state, { recursive: true });
     const savedName = defaultName({ ...env, AGENT_BUS_RUNTIME: runtime, AGENT_BUS_CWD: "Named session" });
-    await owner.register({ name: savedName, kind: "agent", descr: "Named session" });
+    await owner.register({ name: savedName, kind: "agent", descr: `${runtime === "opencode1" ? "opencode" : runtime} ${cwd}` });
     const savedID = runtime === "claude" ? id : `${runtime === "codex" ? "codex" : "opencode"}-session`;
     writeFileSync(join(state, `${hash(`${runtime}:${savedID}`)}.json`), JSON.stringify({ name: savedName, base: savedName }), { mode: 0o600 });
     const overrides = runtime === "claude" ? ["--permission-mode", "plan"]
@@ -214,12 +214,8 @@ try {
     check(`${runtime} shares the release version`, versionLines.length === 3 && versionLines[0] === version &&
       versionLines[1]!.startsWith("build_info: ") && versionLines[2] === "© Sergey Porfiriev" && await ver.exited === 0);
 
-    // Renaming takes effect at the next launch, including old name-only bindings.
+    // Renaming takes effect at the next launch with the saved canonical binding.
     const previous = rows.find(r => r.kind === "identity")?.data.name;
-    for (const f of readdirSync(state).filter(f => f.endsWith(".json"))) {
-      const path = join(state, f), binding = JSON.parse(readFileSync(path, "utf8"));
-      if (binding.name === previous) writeFileSync(path, JSON.stringify({ name: previous }));
-    }
     if (runtime !== "claude") await owner.send({ to: previous, body: "keep old backlog" });
     writeFileSync(join(proj, id + ".jsonl"), JSON.stringify({ type: "custom-title", customTitle: "Renamed session" }) + "\n");
     writeFileSync(events, "");

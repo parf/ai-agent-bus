@@ -151,7 +151,8 @@ process.on("SIGINT", () => {
 
 async function main(): Promise<number> {
   if (runtime !== "claude" && runtime !== "codex" && runtime !== "opencode" && runtime !== "opencode1") throw new Error("expected claude, codex, opencode or opencode1");
-  if (has("--version", "-V")) { console.log(versionOutput()); return 0; }
+  if (has("-V")) throw new Error("use --version");
+  if (has("--version")) { console.log(versionOutput()); return 0; }
   if (has("-h")) throw new Error("use --help");
   if (has("--help")) {
     console.log(`ab-${runtime}: launch ${runtime === "opencode1" ? "opencode 1.x, the archived variant" : runtime} with agent-bus tools and messaging.

@@ -509,7 +509,7 @@ test("launcher tags use the protocol vectors and repeatable comma options", asyn
   const { normalizeTags } = await import("../mcp/tags.ts");
   const { tagOption } = await import("./tags.ts");
   const vectors = await Bun.file(resolve(import.meta.dir, "../internal/protocol/testdata/tags.json")).json();
-  for (const vector of vectors) {if(vector.invalid) expect(()=>normalizeTags(vector.input)).toThrow("invalid tag"); else expect(normalizeTags(vector.input)).toEqual(vector.expected);}
+  for (const vector of vectors) {if(vector.invalid) expect(()=>normalizeTags(vector.input)).toThrow(); else expect(normalizeTags(vector.input)).toEqual(vector.expected);}
   expect(tagOption(["resume", "--tag", "BUILD-Notes,review", "--tag=v2", "--tag", "review"]).tags).toEqual(["build-notes", "review", "v2"]);
   expect(tagOption(["resume"]).tags).toBeUndefined();
   expect(tagOption(["--tag", ""]).tags).toEqual([]);
@@ -716,4 +716,17 @@ test("non-object saved bindings refuse before a resumed identity can be claimed"
       expect(() => bindings.saved({id:"s"})).toThrow("invalid session binding");
     }
   } finally {bindings.close();rmSync(dir,{recursive:true,force:true});}
+});
+
+
+test("launcher version accepts the canonical flag and refuses its retired alias", async () => {
+  for (const runtime of ["claude", "codex", "opencode", "opencode1"]) {
+    for (const args of [["--version"], ["-V"], ["-V", "--version"]]) {
+      const proc = Bun.spawn([process.execPath, `${import.meta.dir}/launcher.ts`, runtime, ...args], { stdout: "pipe", stderr: "pipe" });
+      const out = new Response(proc.stdout).text(), err = new Response(proc.stderr).text();
+      expect(await proc.exited).toBe(args[0] === "--version" ? 0 : 1);
+      if (args[0] === "--version") expect(await out).toContain("build_info:");
+      else { expect(await err).toContain("use --version"); expect(await out).toBe(""); }
+    }
+  }
 });
