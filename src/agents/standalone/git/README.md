@@ -6,11 +6,11 @@ for setup, calls and settings.
 
 ## Implementation
 
-`git_agent.py` owns bounded parsing, repository caps and the legacy method
+`git_agent.py` owns bounded parsing, repository caps and the command
 vectors. The keeper serves its own bus identity; `autopull.Runtime` routes only
-authenticated command-channel deliveries to the event engine. Legacy calls run
+authenticated command-channel deliveries to the event engine. Direct calls run
 in isolated token-free children with delivered roles. Separate bounded pools
-keep Git work off the reader. `timers.py` only retires owned legacy units.
+keep Git work off the reader.
 
 `autopull.attempt` serializes through the existing checkout lock, publishes a
 safe result, then calls `after_attempt(repo, checkout, record, publish)` while

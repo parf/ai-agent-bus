@@ -279,34 +279,10 @@ class Core(unittest.TestCase):
 
 
 
-class Retirement(unittest.TestCase):
-    def test_reinstall_retires_only_owned_timer_units_idempotently(self):
-        import tempfile
-        import timers
-        with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory);unit=root/'agent-bus-git.service';marker='# agent-bus standalone: #git@fixture.test\n'
-            unit.write_text(marker+'[Service]\n');old=[]
-            for suffix in ('service','timer'):
-                path=root/('agent-bus-git-autopull-ab.'+suffix);path.write_text(marker+'[Unit]\n');old.append(path)
-            unrelated=root/'agent-bus-other.timer';unrelated.write_text('keep')
-            with patch.object(timers.starter,'command') as command:
-                timers.retire(unit,'#git@fixture.test','fixture-systemctl')
-                self.assertEqual(command.call_args_list[0].args[0],['fixture-systemctl','disable','--now','agent-bus-git-autopull-ab.timer'])
-                self.assertEqual(command.call_args_list[2].args[0],['fixture-systemctl','disable','--now','agent-bus-git-autopull-ab.service'])
-                count=command.call_count;timers.retire(unit,'#git@fixture.test','fixture-systemctl')
-                self.assertEqual(command.call_count,count)
-            self.assertTrue(unit.exists());self.assertEqual(unrelated.read_text(),'keep')
-            self.assertTrue(all(not path.exists() for path in old))
-            foreign=root/'agent-bus-git-autopull-outside.timer';foreign.write_text('foreign')
-            with patch.object(timers.starter,'command') as command,self.assertRaises(ValueError):
-                timers.retire(unit,'#git@fixture.test','fixture-systemctl')
-            command.assert_not_called();self.assertEqual(foreign.read_text(),'foreign')
-            foreign.unlink();foreign.symlink_to(unrelated)
-            with self.assertRaises(ValueError):timers.retire(unit,'#git@fixture.test','fixture-systemctl')
-
+class InstallerArguments(unittest.TestCase):
     def test_removed_flag_refused_before_any_installer_action(self):
         program=Path(a.__file__).with_name('install.py')
         for flag in ('--autopull=ab=5m','--autopull'):
-            value=subprocess.run([sys.executable,str(program),'install','--name','#git@fixture.test',flag],capture_output=True,text=True,timeout=2)
+            value=subprocess.run([sys.executable,str(program),'install','--name','#git@fixture.test','--user','nobody',flag],capture_output=True,text=True,timeout=2)
             self.assertEqual(value.returncode,2)
-            self.assertIn('Configuration',value.stderr);self.assertIn('timers were removed',value.stderr)
+            self.assertIn('unrecognized arguments',value.stderr)

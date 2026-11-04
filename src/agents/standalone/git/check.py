@@ -105,7 +105,6 @@ def autopull_check(tokens, ask):
         pair=[record(),record()]
         assert {r['id'] for r in pair}=={'parallel-1','parallel-2'} and all(r['result']=='skip' for r in pair)
         assert bus.consume(inbox=queue,wait=0) is None,'concurrent attempts duplicated publication'
-        assert not list((ROOT/'units').glob('*-autopull-*')),'reinstall retained old timers'
     print('private installed startup, channel authority, exact records, mirror and log failure verified')
 
 

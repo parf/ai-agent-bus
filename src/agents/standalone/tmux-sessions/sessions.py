@@ -6,7 +6,6 @@ from pathlib import Path
 import pwd
 import re
 import signal
-import stat
 import subprocess
 import sys
 import time
@@ -20,11 +19,6 @@ from envfile import parse as parse_envfile
 PACKAGE = Path(__file__).resolve().parent
 READY_WAIT = 2.0
 STOP_GRACE = 10.0
-# The standalone units kept each instance's window state here (RT31).
-LEGACY_STATE = Path('/var/lib')
-
-
-
 def environment(value):
     if isinstance(value, str):
         if len(value.encode()) > 512 * 1024:
@@ -45,22 +39,6 @@ def environment(value):
             raise ValueError('invalid value for environment key ' + key)
     return values
 
-def legacy_state(identity):
-    # The old standalone unit gave its windows XDG_STATE_HOME under /var/lib;
-    # keep it so their launchers still find their locks and sessions.
-    parts = identity.removeprefix('#').split('/')
-    if parts[0] != 'tmux-sessions' or len(parts) > 2 or not all(re.fullmatch(r'[A-Za-z0-9_-]+', p) for p in parts):
-        return None
-    place = LEGACY_STATE / '-'.join(['agent-bus', *parts])
-    try:
-        info = os.lstat(place)
-    except OSError:
-        return None
-    if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid():
-        return None
-    return str(place)
-
-
 def configuration(raw):
     try:
         config = json.loads(raw) if raw else {}
@@ -70,9 +48,7 @@ def configuration(raw):
         raise ValueError('Configuration allows only session, windows and state_home')
     identity = os.environ.get('AGENT_BUS_NAME', '#tmux-sessions').split('@', 1)[0]
     state = config.get('state_home')
-    if state is None:
-        state = legacy_state(identity)
-    elif (not isinstance(state, str) or '\0' in state or len(state.encode()) > 4096
+    if 'state_home' in config and (not isinstance(state, str) or '\0' in state or len(state.encode()) > 4096
           or not Path(state).is_absolute() or not Path(state).is_dir()):
         raise ValueError('state_home: expected an existing absolute directory')
     session = config.get('session', identity.removeprefix('#').rsplit('/', 1)[-1])
