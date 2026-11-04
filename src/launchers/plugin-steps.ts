@@ -2,19 +2,30 @@ import { randomUUID } from "node:crypto";
 import { closeSync, linkSync, mkdirSync, openSync, readFileSync, readlinkSync, renameSync, rmSync, statSync, writeSync } from "node:fs";
 import { join } from "node:path";
 
-// Install only into a fresh Claude home or finish the current source's setup.
-// A recorded plugin from another tree is not silently replaced or adopted.
-export type PluginState = { source: string; knownPath?: string; installed: boolean };
+// Which `claude plugin` commands bring Claude's copy of the agent-bus channel
+// plugin to this launcher's own tree. Claude keeps its own copy: a release's
+// directory changes with a current-format update or its recovery, so a release
+// replaces the current plugin source; a checkout keeps the selected source.
+// knownPath: undefined when no marketplace is recorded, "" when one is but its
+// path cannot be read — then nothing is re-pointed, never every launch.
+export type PluginState = { compiled: boolean; source: string; knownPath?: string; installed: boolean };
 
-export function pluginSteps({ source, knownPath, installed }: PluginState): string[][] {
-  if ((knownPath !== undefined && knownPath !== source) || (installed && knownPath === undefined))
-    throw new Error("existing Claude plugin does not match this installation; clean installation is required");
-  if (installed) return [];
+export function pluginSteps({ compiled, source, knownPath, installed }: PluginState): string[][] {
+  const known = knownPath !== undefined;
+  const stale = compiled && known && knownPath !== "" && knownPath !== source;
+  if (installed && !stale) return [];
   const steps: string[][] = [];
-  if (knownPath === undefined) steps.push(["marketplace", "add", source]);
+  if (stale) {
+    if (installed) steps.push(["uninstall", "agent-bus@agent-bus-local"]);
+    steps.push(["marketplace", "remove", "agent-bus-local"]);
+  }
+  if (!known || stale) steps.push(["marketplace", "add", source]);
   steps.push(["install", "agent-bus@agent-bus-local", "--scope", "user"]);
   return steps;
 }
+
+/** A step whose failure means only that what it removes is already gone. */
+export const removal = (step: string[]) => step[0] === "uninstall" || (step[0] === "marketplace" && step[1] === "remove");
 
 /** Runs fn holding `<dir>/.agent-bus-plugin.lock`, waiting up to waitMs.
  *  The file names its holder's pid; a holder that is gone left it behind, and

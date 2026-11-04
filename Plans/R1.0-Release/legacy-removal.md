@@ -1,16 +1,17 @@
 # Remove prerelease compatibility before R1
 
-📌 **TL;DR:** R1 supports clean installation and one canonical form for each bus input.
+📌 **TL;DR:** R1 supports clean installation, current-format updates and one canonical form for each bus input.
 Remove prerelease readers, aliases, migrations and generated recommendations together.
 Keep current authority, delivery uncertainty, transactional safety and supported external standards.
 
 ## Scope
 
-The owner requires implementation before R1, with no existing-install preservation or
-conversion path. An existing installation is refused without modification. No one-off
-conversion is part of this release or a prerequisite for its acceptance. Clean installation
-does not authorize deleting an existing node, its credentials, queues or runtime sessions.
-No `Plans/R1.0.1/` deferral applies.
+The owner requires clean R1 inputs, with no preservation or conversion of prerelease
+formats. Current-format installation, idempotent configuration and code updates remain
+supported through the same setup entry. Current-operation recovery preserves transaction
+safety; it must validate the complete current manifest and current schema, never accept an
+old package/layout adapter. No one-off conversion is required or shipped. No
+`Plans/R1.0.1/` deferral applies.
 
 The initial inventory was read at `01dbbb77`; implementation starts from `562de7d8`.
 “Current use” below identifies source callers and fixtures, not observed live installations.
@@ -29,10 +30,10 @@ an unknown field or translate it into another supported form.
 | Empty tags and old snapshot/account payloads: core `snapshot.go`, `tags.go`, `account.go`, `transfer.go`; snapshot/account tests | Remove prerelease defaults/conversions and old import representations. | Fresh current-format round trips retain authority, counters, keys and queues. Reject incompatible formats without creating empty replacement state. |
 | SQL schema migration: `src/internal/store`, store migration tests | Remove prerelease ALTER/copy/adoption paths. Fresh schema is the only installation schema. | Fresh creation succeeds; incompatible schema is refused before mutation. Current transaction/commit recovery remains covered. |
 | CLI spellings: `src/cmd/agent-bus`, `src/cmd/agent-busd`, setup parser tests; help goldens | Remove ignored `--web`, single-dash long flags, `-h`, `--agent`, verb aliases (`get`, `list`, template aliases, channel creation aliases), and implicit runner `#`. | Canonical `--help`, `ls --table`, full `#name` and `--service-addr` appear in every owned caller. Reject retired spellings before effects. Keep `--flag=value`, `--flag value`, legitimate short options and documented positional forms. |
-| Setup/upgrade: `src/cmd/agent-bus-setup/{install,upgrade,rollback}.go`, setup tests | Remove old rollback payload readers, syslog upgrades and upgrade/reinstall paths for existing installations. | Clean install succeeds; existing installation refuses without touching it. Current attempt cleanup and foreign-path refusal remain fail-closed. |
+| Setup/upgrade: `src/cmd/agent-bus-setup/{install,upgrade,rollback}.go`, setup tests | Remove old rollback payload readers, syslog conversion and destructive --reinstall cutover. Keep current-format --upgrade and --recover. | Clean install, current-format update/configuration and interrupted-operation recovery succeed. Incompatible packages/schema refuse before changes; foreign paths remain fail-closed. |
 | Launcher bindings: `src/launchers/{sessions,identity,launcher}.ts`, `local.test.ts`, `smoke.ts` | Remove base-less inference, automatic dot-name conversion and fixed `pid` reclamation. Keep current session rename, numbered claims and realm-bound resume. | Current `{name,base}` resumes; missing base refuses; fixed PID state is not reclaimed. UUID lock race tests still protect another live claimant. |
 | Launcher source bundles: four `src/launchers/ab-*` wrappers, source entrypoint tests | Remove `launcher.js` preference. Checkout runs `.ts`; packaged release runs its compiled binary. | A stale `.js` cannot replace source execution; both canonical source and release layouts retain tests. |
-| Claude plugin source: `src/launchers/plugin-steps.ts`, `plugin-steps.test.ts` | Remove uninstall/repoint adoption across release/checkout trees. | Fresh setup and same-source continuation work; mismatched or unreadable recorded source refuses before plugin commands. |
+| Claude plugin source: `src/launchers/plugin-steps.ts`, `plugin-steps.test.ts` | Keep source replacement for current-format deployment; remove assumptions about old bundle formats. | Fresh setup and current-format source replacement work under the plugin lock; no obsolete bundle path is installed. |
 | SDK/MCP protocol: six `src/clients` protocol implementations; `src/mcp/{protocol,bus,server}.ts`; shared `identity.json` and `refusals.json` | Require protocol 1 and minimum 1 exactly. Remove absent-as-zero, old-daemon warnings APIs and operation-error rewriting. | Every SDK and MCP rejects absent, zero, malformed and unsupported future pairs before application requests. Current pair succeeds; refusal kind/cause remains intact. |
 | SDK socket guessing: six SDK discovery functions and discovery tests | Remove `/tmp/agent-bus-<uid>.sock` fallback. Preserve explicit transport/address, current XDG discovery and installed system endpoints. | Missing discovery never targets a world-writable temporary socket; tokenless callers retain user endpoint selection. |
 | Record live state: MCP `Record_`, web `ctx.ts`, `agent-status.tsx`, examples `run.sh`, launcher smoke mocks | Remove `reading` boolean; `readers` is the current count. | Readiness and sorting consume the count; no writer/fixture emits `reading`. Reject retired input where it was accepted. |
@@ -41,7 +42,7 @@ an unknown field or translate it into another supported form.
 | Logwatch migration: `standalone/logwatch/{subscription_migration,logwatch}.py`, `test_logwatch.py` | Remove old fields/IDs/filter conversion and migration checkpoint handling. | Current authors, targets and filters work; malformed/obsolete rows cannot enable delivery; packaging contains no removed helper. |
 | Cron/at migration: shared `scheduler.py`, cron/at tests | Remove noncanonical ID moves, `migrated_from`, paused-state adoption and obsolete outcome adoption. Keep current `sending` recovery and settled-claim cleanup. | Current one-shot restart, slot deduplication, ACL recheck and uncertain-send handling pass. Old rows never become fresh scheduled sends. |
 | IMAP migration: `forwarding.py`, `progress.py`, `mailbox_session.py`, `imap.py`, cache tests | Remove ledger/ID/journal conversions and cache-to-progress adoption; use one canonical internal state layout. | Current discovery/delivery cursors remain distinct; UIDVALIDITY reset, bounded retry, missing bodies and no redelivery stay covered. No conversion prerequisite. |
-| Git-install old service cleanup: `src/git-install.sh`, release/deploy and install tests | Remove old timer/logwatch unit cleanup/adoption and previous-layout suggestions. | Only the canonical install layout is produced; foreign/existing installations are refused rather than silently cleaned. |
+| Git-install old service cleanup: `src/git-install.sh`, release/deploy and install tests | Remove old timer/logwatch unit cleanup/adoption and previous-layout suggestions. | Only canonical layouts are produced or updated; foreign and obsolete installations are refused rather than converted. |
 
 ## Current behavior that remains supported
 
