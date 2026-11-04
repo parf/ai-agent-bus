@@ -98,7 +98,9 @@ The [dedicated runner](../06-dedicated-runner.md#sandboxing) is off by default. 
 - **Taking it over,** the runner clears the `script` an earlier `agent-bus run` left on the record, so listings no longer name a program that does not serve it.
 - **Author settings** (`agent.json` and `env.dist`), including their packaged help, are read only from regular files; a final symlink is refused by filename.
 
-The Owner provisions an existing agent’s token once in the runner’s private `tokens/` directory, in a file named for the percent-encoded full agent name. Use mode `0600`, owned by the runner account, then reload. Do not expose the token in a command argument or transcript. The [credential handoff procedure](../agents/create-agent-prompt.md#self-serving-credential-handoff) covers this operation.
+- The Owner provisions the token in the runner’s private `tokens/` directory, named for the percent-encoded full agent name.
+- Use mode `0600`, owned by the runner account, then reload. Keep tokens out of command arguments and transcripts.
+- Follow the [credential handoff procedure](../agents/create-agent-prompt.md#self-serving-credential-handoff).
 
 ## What the code is told, and what it may trust
 

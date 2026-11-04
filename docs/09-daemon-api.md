@@ -152,7 +152,9 @@ Both live on a record and answer to its management authority.
 
 `GET /identity` supplies `protocol: 1` and `protocol_min: 1`. Clients require both fields and these exact values before using the bus. Missing, malformed or unsupported versions fail connection; no older-format mode or warning-only fallback is provided.
 
-The protocol number identifies the wire contract, independently of the installed program’s version. Requests use the documented field names and types; unknown keys, duplicate keys and retired forms are refused rather than ignored or converted. Configuration and message bodies remain application-owned data.
+- The protocol number identifies the wire contract, independently of the installed program’s version.
+- Requests use the documented field names and types; unknown keys, duplicates and retired forms are refused.
+- Configuration and message bodies remain application-owned data.
 
 | Class | Purpose |
 |---|---|
