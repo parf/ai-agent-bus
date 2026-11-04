@@ -93,8 +93,8 @@ def collect(section):
     return [execute(["smartctl", "-H", disk]) for disk in disks]
 
 
-def describe():
-    return metadata_answer(PACKAGE, allowed=set(available()) | {'all'})
+def describe(ask='help'):
+    return metadata_answer(PACKAGE, ask, allowed=set(available()) | {'all'})
 
 
 def answer(body):
@@ -127,7 +127,7 @@ def answer(body):
 
 
 def main():
-    result = dispatch(PACKAGE, os.environ.get('AGENT_BUS_ASK'), handlers={'help': describe})
+    result = dispatch(PACKAGE, os.environ.get('AGENT_BUS_ASK'), handlers={ask: lambda ask=ask: describe(ask) for ask in ASKS})
     if result is not None:
         print(result)
     elif len(sys.argv) != 2:

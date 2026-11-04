@@ -371,6 +371,9 @@ def main():
             print(result)
             return
         body = ' '.join(sys.argv[1:]).strip()
+        if body == 'help' or body.startswith('{') and json.loads(body) == {'method': 'help'}:
+            print(dispatch(PACKAGE, 'help'))
+            return
         print(request(body, configuration(os.environ.get('AGENT_BUS_CONFIG'))))
     except (OSError, ValueError, subprocess.TimeoutExpired) as error:
         print(('failed: ' if ask == 'status' else 'error: ') + str(error)[:300].replace('\n', ' '))

@@ -134,6 +134,12 @@ def build(envelope, config):
 
 
 def answer(envelope, config, env):
+    # Help is an advertised JSON body method and needs no mail Configuration.
+    try:
+        if json.loads(envelope.get('body', ''), object_pairs_hook=unique_object) == {'method': 'help'}:
+            return dispatch(HERE, 'help'), 0
+    except (ValueError, TypeError, AttributeError):
+        pass
     transport, timer = None, None
     secrets = [env.get(name, '') for name in ('SMTP_PASSWORD', 'SMTP_CLIENT_SECRET', 'SMTP_REFRESH_TOKEN')]
     user = env.get('SMTP_USERNAME', '')

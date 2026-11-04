@@ -1,4 +1,5 @@
 {
+  "help": "native",
   "description": "Find host resource and service problems before choosing a fix. Read system, network, storage and certificate facts without changing the host. Start with load or disks; available sections depend on the Linux account running this agent.",
   "license": "LicenseRef-PolyForm-Strict-1.0.0",
   "author": "Sergey Porfiriev",

@@ -362,5 +362,14 @@ class SMTPTests(unittest.TestCase):
         self.assertNotIn(PASSWORD, result.stdout + result.stderr)
 
 
+class HelpContract(unittest.TestCase):
+    def test_json_help_precedes_configuration_and_transport(self):
+        envelope={'body':'{"method":"help"}'}
+        with patch.object(smtp,'configuration',side_effect=AssertionError('Configuration during help')), patch.object(smtp,'SMTP',side_effect=AssertionError('SMTP during help')):
+            output,code=smtp.answer(envelope,{}, {})
+        self.assertEqual(code,0)
+        self.assertEqual(output,smtp.dispatch(HERE,'help'))
+
+
 if __name__ == '__main__':
     unittest.main()
