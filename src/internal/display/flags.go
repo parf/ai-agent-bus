@@ -38,8 +38,17 @@ func ParseFlags(fs *flag.FlagSet, args []string) error {
 			return fmt.Errorf("invalid option %q: use --name", arg)
 		}
 		name, _, hasValue := strings.Cut(arg[2:], "=")
+		if name == "help" {
+			if len(args) != 1 || hasValue {
+				return fmt.Errorf("--help must be used alone")
+			}
+			continue
+		}
 		f := fs.Lookup(name)
-		if f == nil || hasValue {
+		if f == nil {
+			return fmt.Errorf("unknown option --%s", name)
+		}
+		if hasValue {
 			continue
 		}
 		if boolean, ok := f.Value.(interface{ IsBoolFlag() bool }); ok && boolean.IsBoolFlag() {
