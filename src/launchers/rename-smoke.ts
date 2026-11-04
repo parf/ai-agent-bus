@@ -132,21 +132,21 @@ try {
   let attempts = 0;
   const cancelled = {
     unregister: async () => { if (++attempts === 1) throw new BusError(409, "reader still waiting"); },
-    ls: async () => [{ name: old, reading: false, readers: 0, queued: 0 }],
+    ls: async () => [{ name: old, readers: 0, queued: 0 }],
   } as unknown as Bus;
   check("rename releases its old address when cancellation ends between refusal and listing",
     await releaseIdle(cancelled, old) === `released ${old}` && attempts === 2);
   attempts = 0;
   const queued = {
     unregister: async () => { attempts++; throw new BusError(409, "queue is not empty"); },
-    ls: async () => [{ name: old, reading: false, readers: 0, queued: 1 }],
+    ls: async () => [{ name: old, readers: 0, queued: 1 }],
   } as unknown as Bus;
   check("rename immediately retains an old queued address",
     (await releaseIdle(queued, old)).startsWith(`kept ${old}:`) && attempts === 1);
   attempts = 0;
   const live = {
     unregister: async () => { attempts++; throw new BusError(409, "reader still waiting"); },
-    ls: async () => [{ name: old, reading: true, readers: 1, queued: 0 }],
+    ls: async () => [{ name: old, readers: 1, queued: 0 }],
   } as unknown as Bus;
   check("rename retains an old live reader after bounded cancellation retries",
     (await releaseIdle(live, old)).startsWith(`kept ${old}:`) && attempts === 26);
@@ -183,7 +183,7 @@ try {
     const after = afterEvent.data.name;
     const renamed = renamedEvent.data;
     if (code || renamed.isError) console.log(diagnostic, JSON.stringify(renamed));
-    const expected = defaultName({ ...env, AGENT_BUS_REALM: realm, AGENT_BUS_RUNTIME: runtime, AGENT_BUS_CWD: title }, "/");
+    const expected = defaultName({ ...env, AGENT_BUS_REALM: realm, AGENT_BUS_RUNTIME: runtime, AGENT_BUS_CWD: title });
     check(`${runtime} names its session in the bus realm`, before.endsWith(`@${realm}`) && after.endsWith(`@${realm}`));
     check(`${runtime} concurrent rename claims one address`, rows.filter(r => r.kind === "renamed").length === 2 && rows.filter(r => r.kind === "renamed").every(r => !r.data.isError) && after === expected);
     check(`${runtime} reads the runtime title immediately on a no-argument repeat`, rows.some(r => r.kind === "rename-repeat" && !r.data.isError && JSON.stringify(r.data).includes(after)));

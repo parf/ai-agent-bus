@@ -152,7 +152,8 @@ process.on("SIGINT", () => {
 async function main(): Promise<number> {
   if (runtime !== "claude" && runtime !== "codex" && runtime !== "opencode" && runtime !== "opencode1") throw new Error("expected claude, codex, opencode or opencode1");
   if (has("--version", "-V")) { console.log(versionOutput()); return 0; }
-  if (has("--help", "-h")) {
+  if (has("-h")) throw new Error("use --help");
+  if (has("--help")) {
     console.log(`ab-${runtime}: launch ${runtime === "opencode1" ? "opencode 1.x, the archived variant" : runtime} with agent-bus tools and messaging.
 Discovers your local socket; AGENT_BUS_ADDR overrides discovery. AGENT_BUS_TOKEN supplies a token when needed.
 AGENT_BUS_NAME sets the preferred bus identity. Automatic execution and continuation are enforced.${runtime === "claude" ? `

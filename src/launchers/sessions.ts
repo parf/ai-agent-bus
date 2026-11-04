@@ -5,7 +5,7 @@ import { createInterface } from "node:readline";
 import { join } from "node:path";
 
 export type Session = { id: string; name?: string | null; file?: string };
-type Binding = { name: string; base?: string };
+type Binding = { name: string; base: string };
 export const hash = (s: string) => createHash("sha256").update(s).digest("hex");
 export function numberedName(base: string, number: number): string {
   if (number === 1) return base;
@@ -13,10 +13,7 @@ export function numberedName(base: string, number: number): string {
   return `${base.slice(0, at).slice(0, 64 - (base.length - at) - suffix.length)}${suffix}${base.slice(at)}`;
 }
 export function sameBase(saved: Binding, base: string): boolean {
-  if (saved.base) return saved.base === base;
-  // Older bindings stored only the allocated address, possibly suffixed/truncated.
-  const suffix = saved.name.match(/\.([2-9]|[1-9][0-9]+)@/);
-  return saved.name === base || (!!suffix && saved.name === numberedName(base, Number(suffix[1])));
+  return saved.base === base;
 }
 const titles = new Map<string, { offset: number; mtime: number; ino: number; title?: string }>();
 
@@ -114,6 +111,7 @@ export class Bindings {
     let saved: Binding | undefined;
     try { saved = JSON.parse(readFileSync(file, "utf8")); }
     catch (e: any) { if (e.code !== "ENOENT") throw e; }
+    if (saved && (typeof saved.name !== "string" || typeof saved.base !== "string" || !saved.name || !saved.base)) throw new Error("invalid session binding: name and base are required");
     if (saved && explicit && saved.name !== explicit && !sameBase(saved, explicit)) throw new Error("resumed session has a different bus name; use its existing identity");
     return saved;
   }
@@ -124,8 +122,7 @@ export class Bindings {
   #retire(path: string): boolean {
     try {
       const files = readdirSync(path);
-      if (files.length !== 1 || !/^pid(?:\.[a-f0-9-]+)?$/.test(files[0]!)) return false;
-      // TODO after 0.9: remove legacy fixed "pid" compatibility.
+      if (files.length !== 1 || !/^pid\.[a-f0-9-]+$/.test(files[0]!)) return false;
       const owner = join(path, files[0]!);
       const pid = Number(readFileSync(owner, "utf8").trim());
       if (!Number.isInteger(pid) || pid <= 0) return false;

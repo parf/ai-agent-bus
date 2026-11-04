@@ -59,11 +59,11 @@ export type Record_ = { name: string; kind: string; addr?: string; descr?: strin
   // here (docs/02-access.md#acl).
   allow?: string[];
   // Personal records admit only their owner's cohort (docs/03-records.md#personal-and-shared).
-  personal?: boolean; tags?: string[];
+  tags?: string[];
   // How to call it, and whether anything is actually serving it. A registry
   // entry says a name exists; these say whether a call through the bus will
   // reach anyone (docs/05-discovery.md#what-a-listing-answers).
-  protocol?: string; reading?: boolean; readers?: number; queued?: number; last_used?: string;
+  protocol?: string; readers?: number; queued?: number; last_used?: string;
   // The digest of a configuration, never the configuration itself: it is
   // how a caller sees that a record is configured, and that its setup
   // still matches the one it knew (docs/03-records-agent.md#why-a-digest-at-all).
@@ -214,7 +214,7 @@ export class Bus {
   async bigList(record:string):Promise<any>{const result=await this.#call('GET','/bigfile/list?'+new URLSearchParams({record}));return {record:result.record,keys:result.keys.map((k:any)=>({name:k.name,size:k.size,sha256:k.sha256,held:k.held,expires:k.expires}))};}
   async bigDelete(record:string,name:string):Promise<any>{bigKey(name);const result=await this.#call('POST','/bigfile/delete',{record,name});return {record,name,deleted:result.deleted};}
 
-  register(rec: { name: string; kind?: string; addr?: string; descr?: string; allow?: string[]; personal?: boolean; tags?: string[] }, createOnly = false): Promise<Record_> {
+  register(rec: { name: string; kind?: string; addr?: string; descr?: string; allow?: string[]; tags?: string[] }, createOnly = false): Promise<Record_> {
     return this.#call("POST", "/register", rec, undefined, createOnly ? { "If-None-Match": "*" } : {});
   }
 
@@ -265,26 +265,26 @@ export class Bus {
 // human refers to a session anyway. The NATS version names channels the same way.
 // The rule is docs/01-identity-and-authority.md#names — a-z0-9._- either side, 64 total,
 // and an Agent's name begins with "#", which counts toward the 64.
-export function defaultName(env: NodeJS.ProcessEnv = process.env, separator: "." | "/" = "."): string {
-  return build(slug(env.AGENT_BUS_REALM || hostname()), env, separator);
+export function defaultName(env: NodeJS.ProcessEnv = process.env): string {
+  return build(slug(env.AGENT_BUS_REALM || hostname()), env);
 }
 
 // The same name in a realm kept exactly as given (a realm the daemon has
 // already validated: slug would turn `team_` into `team`, a different realm).
 // It refuses, rather than return a name the bus would reject, when the runtime
 // and the realm leave no room for any instance.
-export function defaultNameIn(realm: string, env: NodeJS.ProcessEnv, separator: "." | "/" = "."): string {
-  return build(realm, env, separator, true);
+export function defaultNameIn(realm: string, env: NodeJS.ProcessEnv): string {
+  return build(realm, env, true);
 }
 
-function build(realm: string, env: NodeJS.ProcessEnv, separator: "." | "/", strict = false): string {
+function build(realm: string, env: NodeJS.ProcessEnv, strict = false): string {
   const runtime = slug(env.AGENT_BUS_RUNTIME || "agent");
   const where = slug(env.AGENT_BUS_CWD || process.cwd());
   // Trim from the front: the tail of a path is the part that identifies it.
   const room = MAX_NAME - AGENT_PREFIX.length - realm.length - 1 - runtime.length - 1;
-  if (strict && room < 1) throw new Error(`the realm ${realm} leaves no room in a ${MAX_NAME}-character name for ${AGENT_PREFIX}${runtime}${separator}<session>@${realm}; automatic naming is refused`);
+  if (strict && room < 1) throw new Error(`the realm ${realm} leaves no room in a ${MAX_NAME}-character name for ${AGENT_PREFIX}${runtime}/<session>@${realm}; automatic naming is refused`);
   const tail = where.length > room ? where.slice(where.length - room) : where;
-  return `${AGENT_PREFIX}${runtime}${separator}${trimEdges(tail)}@${realm}`;
+  return `${AGENT_PREFIX}${runtime}/${trimEdges(tail)}@${realm}`;
 }
 
 // AGENT_PREFIX begins every Agent's name (docs/constitution.md#actors-and-ascii-textarea-syntax).

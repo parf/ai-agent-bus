@@ -576,11 +576,10 @@ function sessionTitle(): string | undefined {
 
 // The same derivation the launcher uses for a session address
 // (docs/01-identity-and-authority.md#names), so a rename here and a restart there agree on
-// the name. The separator is whatever this session already registered with.
+// the canonical automatic name.
 function derive(title: string): string {
   return defaultName(
     { ...process.env, AGENT_BUS_RUNTIME: process.env.AGENT_BUS_RUNTIME ?? "agent", AGENT_BUS_CWD: title },
-    bus.name.includes("/") ? "/" : ".",
   );
 }
 

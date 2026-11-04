@@ -15,5 +15,5 @@ export async function shareFixtureInbox(bus: Bus): Promise<void> {
   if (!record) throw new Error(`fixture inbox ${bus.name} was not registered`);
   // What a registration writes, and nothing a listing adds: the owner, the
   // times and the counters are the daemon's, and stating one is refused.
-  await bus.register({ name: record.name, kind: record.kind, descr: record.descr, personal: record.personal, allow: withFixtureSharing(record.allow, record.personal === true) });
+  await bus.register({ name: record.name, kind: record.kind, descr: record.descr, tags: record.tags, allow: withFixtureSharing(record.allow, record.tags?.includes("personal")) });
 }
