@@ -46,7 +46,7 @@ without a profile (`kind: record`) and leftover credentials (`kind: credential`)
 | `q` | search text, trimmed; case-insensitive substring of name, person name, email, GitHub login, company, location, Twitter/X joined by spaces. Default empty |
 | `state` | `active` (default; any other value), `inactive`, `all` |
 | `page` | 1-based integer, 100 rows per page, clamped to `1…last`; junk reads as 1 |
-| `kind` | `kind=other` → **303** `/diagnostics#leftovers` once signed in. Anything else ignored |
+| `kind` | not a user-directory parameter; supplying it is refused |
 
 | Access | |
 |---|---|
@@ -267,15 +267,15 @@ credential**; **Cancel**. Success → `return`.
 
 ## Groups `/groups`
 
-| Route | `GET /groups`; `personal=1` shows the Personal groups |
+| Route | `GET /groups`; `tag=personal` shows the Personal groups |
 |---|---|
 | Access | any signed-in principal; stranger 401 sign-in |
 | Daemon calls | `/status`; `GET /groups` (every live group name, members only where readable); `GET /ls` (group records the caller may see: member or manager) |
 
 | Part | Content |
 |---|---|
-| Title | `Groups` (`Groups · Personal`); h1 👥 Groups + ⓘ (tooltip and five bullets: what a group is; `@owner` is ACL syntax; anyone may register; who edits; who sees what); **Register group** → `/groups/new` (**Register Personal group** → `/groups/new?personal=1`), **for everybody** |
-| Tabs | **All (N)** (shared groups) · **Personal (N)** → `/groups?personal=1` |
+| Title | `Groups` (`Groups · Personal`); h1 👥 Groups + ⓘ (tooltip and five bullets: what a group is; `@owner` is ACL syntax; anyone may register; who edits; who sees what); **Register group** → `/groups/new` (**Register Personal group** → `/groups/new?tag=personal`), **for everybody** |
+| Tabs | **All (N)** (shared groups) · **Personal (N)** → `/groups?tag=personal` |
 | Table | caption “N groups”; rows by name |
 
 | Column | Cell |
@@ -290,7 +290,7 @@ Empty: “No groups registered”, or “No Personal groups yet” with the nami
 
 ## Register group `/groups/new`
 
-| Route | `GET /groups/new`; `personal=1` starts the form Personal |
+| Route | `GET /groups/new`; `tag=personal` starts the form Personal |
 |---|---|
 | Access | any signed-in principal; the daemon decides at submit (a User, or an Agent acting for one, becomes Owner) |
 | Daemon calls | `/status`, `/groups`, `/ls` |
@@ -350,8 +350,7 @@ record is visible with `can_transfer` (its Owner or the daemon Owner).
 | `name` | text, required (register) | typed value on refusal | `@<you>/team or @operators`; “One name for the set. It cannot be changed afterwards. You become its Owner. A Personal group is named `@<you>/…`.” Extra note when the typed value is `@owner` | register |
 | `descr` | text | stored `descr`, typed on refusal | “What this group is for”; “Shown beside the group's name.” | register; edit when the record is visible. Otherwise **disabled** with “This group's record is not visible to you, so its description is left as it is.” |
 | `members` | line-list textarea, sized to its content | members one per line; typed text on refusal | `user@realm` / `#agent@realm` / `@nested-group`; “One user, #agent or nested group per line; @owner is reserved for ACLs.” | every editor |
-| `edit_personal` | hidden `1` | — | says the form carried Personal | rendered only with *assign* |
-| `personal` | checkbox “Personal”, details in hover help | stored flag; typed on refusal; on from `?personal=1` | with assign: “Puts this group in its Owner's Personal view. A Personal group's members and Maintainers may name only its Owner and the Owner's own agents.” | *assign*; else **disabled** |
+| `tags` | comma-separated labels with help | stored tags; typed on refusal; `personal` from `?tag=personal` | Personal groups belong in their Owner's Personal view and restrict members and Maintainers to the Owner and the Owner's agents | editable when the record is manageable; the daemon restricts Personal changes to its Owner or daemon Owner |
 | `edit_sharing` | hidden `1` | — | — | edit with *assign* |
 | `maintainers` | line-list textarea | stored, one per line; typed on refusal | “One user, group or agent per line. They change this group's members as its Owner does.” | register and edit; *assign*, else **disabled** |
 | `secret` | Secret (ENV), textarea, 1 row, `autocomplete=off`, `spellcheck=false` | always empty | `TOKEN=...`; register: “Optional. Its Owner and Maintainers read it back with agent-bus secret.” Edit: whether a secret is stored, and that blank keeps it | register; edit when visible and `can_manage`; else **disabled** (an Administrator is not a manager by rank) |
@@ -370,9 +369,9 @@ Invalid JSON is rejected before membership or settings writes. Configuration is 
 | 1 | `action` ≠ `save` → local refusal **400** “That group action is not available.” |
 | 2 | `members` split on whitespace, sorted; empty is `[]`, never absent |
 | 3 | Register (`new=1`) of a name that exists (case-insensitive) → the form again, **409** “that name is already registered”, `name` marked, before any call |
-| 4 | Register with `personal` and a name not starting `@<you>/` (case-insensitive) → the form again, **400** “A Personal group is named for its owner: call it @<you>/<name>.”, `name` marked, before any call |
-| 5 | Existing group other than `@administrators`: one `POST /manage` `{"name","allow": members,"descr"?,"maintainers"?,"personal"?}`: `descr` if the field was submitted, `maintainers` only with `edit_sharing`, `personal` only with `edit_personal` |
-| 6 | A new group: one conditional `POST /register` with `kind=group`, members as `allow`, description, Personal and Maintainers, validated and stored together. The protected `@administrators` group still uses `POST /group` for membership. |
+| 4 | Register with the `personal` tag and a name not starting `@<you>/` (case-insensitive) → the form again, **400** “A Personal group is named for its owner: call it @<you>/<name>.”, `name` marked, before any call |
+| 5 | Existing group other than `@administrators`: one `POST /manage` `{"name","allow": members,"descr"?,"maintainers"?,"tags"?}`: `descr` if the field was submitted, `maintainers` only with `edit_sharing`, `tags` when submitted |
+| 6 | A new group: one conditional `POST /register` with `kind=group`, members as `allow`, description, tags and Maintainers, validated and stored together. The protected `@administrators` group still uses `POST /group {name, members}` for membership. |
 | 7 | A non-empty secret → `POST /secret` `{"name","secret"}`; failure → **502** saved-in-part page “The group <name> was saved, and its secret was not stored: <reason> Set it with: agent-bus secret <name> '...'” |
 | 8 | Success → **303** `/group?name=<stored name>` |
 
@@ -380,7 +379,7 @@ Invalid JSON is rejected before membership or settings writes. Configuration is 
 `maintainers` with `edit_sharing`) lines; a hit prefixes `Line N: ` and marks
 that field whatever the code. Preserved code or a line hit → the form again with
 the refusal status; retained `name`, `members`, `new`, `descr`, `maintainers`,
-`personal`, never `secret`. With no line hit the field is `name` on a register
+`tags`, never `secret`. With no line hit the field is `name` on a register
 or on the Personal-naming refusal, else `members`. Any other refusal → problem
 page (e.g. 403 “that record belongs to someone else: owner must remain an
 administrator” when the Owner is removed from `@administrators`).

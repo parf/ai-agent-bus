@@ -28,9 +28,8 @@ request with the visitor's session.
 |---|---|---|
 | `AGENT_BUS_WEB_ADDR` | listen `host:port` | `127.0.0.1:6780` |
 | `AGENT_BUS_WEB_TLS_DIR` | TLS on the port beside plain HTTP, which is redirected to `https://`; a directory with `cert.pem`, `key.pem` (0640 or tighter) and optionally `chain.pem`, as setup writes it | none |
-| `RUNTIME_DIRECTORY`, `AGENT_BUS_WEB_RUNTIME` | with TLS on, where the TLS server's unix socket sits behind the port's front | systemd's (`https.sock`), else `$XDG_RUNTIME_DIR`, else `/tmp` |
-| `AGENT_BUS_WEB_CERT`, `AGENT_BUS_WEB_KEY` | serve HTTPS alone; either without the other, or a missing file, stops the start rather than serving plain HTTP | none: plain HTTP |
-| `AGENT_BUS_ADDR` | the daemon: a socket path or `http://host:port` | `$XDG_RUNTIME_DIR/agent-bus/bus.sock`, else `/tmp/agent-bus-<uid>.sock`; the unit gives the shared socket |
+| `RUNTIME_DIRECTORY`, `XDG_RUNTIME_DIR` | with TLS on, where the TLS server's Unix socket sits behind the port's front | systemd runtime directory (`https.sock`), else XDG runtime directory, else `/tmp` (a process-specific socket name) |
+| `AGENT_BUS_ADDR` | the daemon: a socket path or `http://host:port` | `$XDG_RUNTIME_DIR/agent-bus/bus.sock`, else `/run/agent-bus/bus.sock`; the unit gives the shared socket |
 | `AGENT_BUS_WEB_DEV` | `1` serves `/_styleguide` | off |
 
 With TLS on, a plain `GET /healthz` is answered by the front: `200` only when the app's socket takes a connection.
@@ -157,7 +156,7 @@ bar with the brand and the theme toggle, and no sidebar.
 
 The current section gets `aria-current=page`; a user inbox marks Queues, and a
 problem page marks none. While a page has the Personal filter on, the Agents,
-Services, Queues, PubSub, Resources and Groups entries keep `?personal=1` and show a lock.
+Services, Queues, PubSub, Resources and Groups entries keep `?tag=personal` and show a lock.
 `⌘K` / `Ctrl-K` opens the command palette, `/` focuses the page's search and
 `?` lists the shortcuts ([interactive features](../../../Plans/done/R0.8-MVP/web/README.md#interactive-features)).
 
@@ -342,7 +341,7 @@ and parse with no scheme, host or user. Anything else becomes `/`.
 | Where | Allowed | Fallback |
 |---|---|---|
 | `POST /signin` | any local path and query | `/` |
-| Record detail and settings | only the record's own list path (`/agents`, `/services`, `/queues`, `/pubsub`), with its query, `?personal=1` included; fragment dropped | the record's list, with `?personal=1` for a Personal record |
+| Record detail and settings | only the record's own list path (`/agents`, `/services`, `/queues`, `/pubsub`), with its query, `?tag=personal` included; fragment dropped | the record's list, with `?tag=personal` for a Personal record |
 | User pages | `/users` or `/diagnostics`, with query; fragment dropped. After a state change, the user's own page | `/users` |
 | Problem-page back link | the Referer when it is this host | none |
 
@@ -376,8 +375,8 @@ keep their text. Fields with documented rules gain a help button when needed.
 | Field | Canonical destination |
 |---|---|
 | name | [Names](../../../docs/01-identity-and-authority.md#names) |
-| tags | [Tags](../../../docs/03-records.md#tags) |
-| personal | [Personal](../../../docs/03-records.md#personal-and-shared) |
+| tags | [Tags](../../../docs/03-records.md#tags), including [Personal](../../../docs/03-records.md#personal-and-shared) |
+
 | allow | [ACL](../../../docs/02-access.md#acl) |
 | maintainers, owner | [Record authority](../../../docs/01-identity-and-authority.md#record-authority), [ownership](../../../docs/01-identity-and-authority.md#ownership) |
 | roles | [Roles](../../../docs/03-records-agent.md#roles) |
