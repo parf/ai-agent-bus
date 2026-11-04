@@ -52,7 +52,7 @@ const IdentityPill = ({ u }: { u: UserRow }) => u.daemon_owner
 // ------------------------------------------------------------------ /users
 
 async function usersPage(ctx: Ctx): Promise<Response> {
-  if (ctx.q("kind") === "other") return redirect("/diagnostics#leftovers");
+  if (ctx.url.searchParams.has("kind")) throw new LocalProblem(400, "Use /diagnostics for leftovers; kind is not a users filter.");
   const { st, users, records } = await load(ctx);
   const q = ctx.q("q"), state = ["inactive", "all"].includes(ctx.q("state")) ? ctx.q("state") : "active";
   const people = users.filter(u => u.kind === "user");

@@ -222,7 +222,7 @@ Explicit flags override these:
 
 - `AGENT_BUS_ADDR` never sets the listening address; use `--addr`.
 - `AGENT_BUS_TLS_DIR` selects installed TLS files for setup, the token helper and admin. The bus itself needs an explicit `--tls-dir` to serve TLS ([TLS setup](../administration.md#tls)).
-- **Dashboard TLS by hand:** set `AGENT_BUS_WEB_CERT` and `AGENT_BUS_WEB_KEY` in its unit and it serves HTTPS on its address ([where it listens](../05-discovery.md#where-it-listens)).
+- **Dashboard TLS by hand:** set `AGENT_BUS_WEB_TLS_DIR` to the certificate directory; its port serves HTTPS and redirects plain HTTP ([where it listens](../05-discovery.md#where-it-listens)).
 
 <details>
 <summary>Where alerts go</summary>

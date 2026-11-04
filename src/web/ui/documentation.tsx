@@ -48,7 +48,6 @@ export const DocumentationLinks=({section,path,method,signedIn}:{section:string;
 export const FIELD_DOCUMENTATION:Record<string,Doc & {tip:string}>={
  name:{label:"Naming rules",target:"01-identity-and-authority.md#names",tip:"Names identify records and cannot be changed after registration."},
  tags:{...tags,tip:"Comma-separated labels; letters, digits, hyphens and underscores only; no spaces. Stored lowercase. The personal tag retains its existing Owner and audience rules."},
- personal:{label:"Personal records",target:"03-records.md#personal-and-shared",tip:"Personal classification retains the Owner's audience and management restrictions."},
  allow:{...access,tip:"The allow list decides who may see and use this record."},
  maintainers:{label:"Record authority",target:"01-identity-and-authority.md#record-authority",tip:"Maintainers manage the record; its Owner or the daemon Owner assigns management positions."},
  owner:{label:"Ownership",target:"01-identity-and-authority.md#ownership",tip:"The owning User holds authority over this record."},

@@ -29,7 +29,7 @@ beforeAll(async () => {
     const b = Bun.spawnSync(["go", "build", "-o", bin + "/", "./cmd/agent-busd", "./cmd/agent-bus"], { cwd: join(import.meta.dir, "../.."), stderr: "pipe" });
     if (b.exitCode) throw new Error(b.stderr.toString());
   }
-  daemon = Bun.spawn([join(bin, "agent-busd"), "-addr", "127.0.0.1:0", "-socket", join(dir, "bus.sock"), "-owner", "owner@test", "-db", join(dir, "bus.db"), "-create", "-flush-every", "0", "-dashboard", "", "-ssh-keys", join(dir, "ssh", "authorized_keys"), "-ssh-token", "/usr/local/bin/agent-bus-token"], { stdout: "ignore", stderr: "ignore" });
+  daemon = Bun.spawn([join(bin, "agent-busd"), "--addr", "127.0.0.1:0", "--socket", join(dir, "bus.sock"), "--owner", "owner@test", "--db", join(dir, "bus.db"), "--create", "--flush-every", "0", "--dashboard", "", "--ssh-keys", join(dir, "ssh", "authorized_keys"), "--ssh-token", "/usr/local/bin/agent-bus-token"], { stdout: "ignore", stderr: "ignore" });
   const user = join(dir, `user-${userInfo().username}.sock`);
   for (let i = 0; i < 100 && !existsSync(user); i++) await Bun.sleep(50);
   owner = Bun.spawnSync([join(bin, "agent-bus"), "token", "owner@test"], { env: { ...process.env, AGENT_BUS_ADDR: user } }).stdout.toString().trim();
@@ -559,10 +559,9 @@ describe("pages as the daemon owner", () => {
     expect(own).toContain("<h1>");
     expect(own).not.toContain('id="form-ssh-key"');
   });
-  test("signed in, /users?kind=other goes to the leftovers", async () => {
+  test("the retired users kind filter refuses", async () => {
     const r = await req("/users?kind=other", { cookie: s });
-    expect(r.status).toBe(303);
-    expect(r.headers.get("location")).toBe("/diagnostics#leftovers");
+    expect(r.status).toBe(400);
   });
   test("a bad return on a user action cannot fail it afterwards", async () => {
     const r = await req("/user", { cookie: s, form: { action: "active", name: "bob", return: "/user?a\r\nb" } });
@@ -675,7 +674,8 @@ describe("pages as the daemon owner", () => {
     expect(plain).not.toContain("?tag=personal\" class=\"side-link");
     expect(plain).toMatch(/<th[^>]*>Owner<\/th>/);
     const form = await (await req("/services/new?tag=personal", { cookie: s })).text();
-    expect(form).toMatch(/name="personal" value="on" checked/);
+    expect(form).toMatch(/name="tags"[^>]*value="personal"/);
+    expect(form).not.toContain('name="personal"');
     expect(form).toContain('href="/services?tag=personal"');
     // A Personal record's page leads back to its Personal list and keeps the sidebar's filter.
     const detail = await (await req("/service?name=mine@test", { cookie: s })).text();
@@ -808,19 +808,12 @@ describe("pages as the daemon owner", () => {
     expect(html).toContain('href="https://datatracker.ietf.org/doc/html/rfc6570">URI Template syntax</a>');
     expect(html).toContain('href="https://modelcontextprotocol.io/specification/latest/server/resources"');
   });
-  test("Personal uses a creation checkbox and an edit tag", async () => {
+  test("Personal uses the Tags editor on creation and edit", async () => {
     for (const path of ["/agents/new", "/services/new", "/queues/new", "/pubsub/new", "/resources/new", "/groups/new", "/agent/edit?name=%23helper%40test", "/group/edit?name=%40ops"]) {
       const html = await (await req(path, { cookie: s })).text();
-      if (path.includes("/edit")) {
-        expect(html).toContain('name="tags"');
-        expect(html).not.toContain('type="checkbox" name="personal"');
-      } else {
-        expect(html).toContain('type="checkbox" name="personal"');
-        expect(html).toMatch(/<div class="field-heading"><label for="(?:create-name|f-name)">Name[\s\S]*?name="personal"/);
-        expect(html).toMatch(/<button[^>]*aria-label="About Personal records"[^>]*data-tooltip=/);
-      }
+      expect(html).toContain('name="tags"');
+      expect(html).not.toContain('type="checkbox" name="personal"');
       expect(html).not.toContain("<legend>Classification</legend>");
-      expect(html).not.toMatch(/Personal<span class="hint">/);
     }
   });
   test("queue settings share one header and keep their submitted controls", async () => {

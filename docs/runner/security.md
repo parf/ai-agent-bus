@@ -19,7 +19,7 @@
 - ✅ **Callers you choose:** who may call an agent is its record's [ACL](../02-access.md#acl), set the ordinary way; a fresh one admits only its Owner and Maintainers.
 - ⚠️ **An agent that [serves itself](configuration.md#agents-that-serve-themselves)** is handed its own token, and only its own, since reading its inbox is its job.
 - ⚠️ **Network access is broader than a list of hosts:** see [isolation today](#isolation-today).
-- ⚠️ **Some keys are accepted and do nothing:** see [what is accepted but inert](#what-is-accepted-but-inert).
+- ✅ **Strict configuration:** unknown keys and unsupported forms are refused ([configuration controls](#configuration-controls)).
 - 🚫 **`"sandbox": "off"`:** read [what it gives up](#isolation-today) before enabling it.
 
 ## Try this first
@@ -53,7 +53,7 @@ Network isolation does not restrict what the agent writes in an answer or sends 
 |---|---|
 | System files | All of `/usr` is mounted read-only, with `/bin`, `/sbin`, `/lib` and `/lib64` pointing into it. This includes readable files under `/usr/local`: other agents' public code installed there is visible too |
 | Its code | Its selected package is mounted read-only, with host file overrides mounted read-only over their packaged paths. Git-checkout bundled agents also get the public `src/agents/shared`, Python and TypeScript client roots, and `src/internal/version`, read-only |
-| Persistent host writes | Its own work directory is bound writable and is the working directory; `HOME` points there. The work bind is the only writable host directory added by the sandbox; system and package mounts are read-only. `needs.writable` adds no paths |
+| Persistent host writes | Its own work directory is bound writable and is the working directory; `HOME` points there. The work bind is the only writable host directory added by the sandbox; system and package mounts are read-only. |
 | Temporary files | A private `/tmp` tmpfs, sized from the memory limit, lasts for that child process; a kept process retains it across messages. It disappears when that sandbox ends |
 | Other host files | Host home directories, runner settings, credentials and other work directories are not mounted as whole trees. Files outside the mounts above are unavailable by path; this is not a promise to hide a file placed inside `/usr`, the selected package, a mounted support root or the work directory. Ordinary account permissions still apply to visible files |
 | Local interfaces | A private `/proc` shows the sandbox's processes and `/dev` supplies basic devices. With network enabled, existing resolver and certificate paths under `/etc` are mounted read-only; the rest of the host's `/etc` is not mounted. The self-serving socket exception is described above |
@@ -205,22 +205,15 @@ What the logs mask:
 - **An agent's own replies** are its code's responsibility.
 - **The digest covers the whole file:** compare the hash, not a secret store. It confirms what was written, but does not hide a tiny guessable value.
 
-## What is accepted but inert
+## Configuration controls
 
-`agent.json` and `agents.json` are read strictly: an unknown field is refused by name, so a typo cannot pass. These real keys are accepted in silence and change nothing:
+`agent.json` and `agents.json` refuse unknown fields by name. Only the keys in [package metadata](configuration.md#package-options) and [host entries](configuration.md#inventory) are accepted.
 
-| Key | Where | Would control |
-|---|---|---|
-| `needs.writable` | `agent.json` | writable paths beyond the work directory |
-| `version` | `agents.json` | host-side package version pin |
-| `origin`, `first_started`, `last_started` | `agents.json` | recording where an agent came from and when it ran |
-
-- **`needs.network` has the [network effect described above](#isolation-today);** host names do not restrict destinations.
-- **`processes` is half in force for a one-message script:** its maximum bounds how many copies run at once, its minimum does nothing, so `0..1` and `1` behave identically. For a `jsonl` agent both ends are in force.
-- **An agent that serves itself** is kept at its `processes` count, restarted when one exits.
-- **`"sandbox"` is fully in force.**
-- **Unsupported forms fail loudly instead:** `msgpack` and `std` are refused by name. The table above is the set that fails silently.
-- **Versions:** generated help shows the package's `agent.json` version (the shared bus version when omitted); the version in runner `status` is the **runner's**.
+- **Network:** `needs.network` has the [effect described above](#isolation-today); host names do not restrict destinations.
+- **Per-message scripts:** `processes` sets the maximum parallel copies; a minimum cannot keep an `args` or `json` script running between messages.
+- **JSONL agents:** both ends of the `processes` range control the pool.
+- **Self-serving agents:** the runner keeps the configured number of processes alive.
+- **Versions:** generated help shows the package's `agent.json` version, or the shared bus version when omitted. Runner `status` reports the runner's version.
 
 ## Technical details
 

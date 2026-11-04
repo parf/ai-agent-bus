@@ -25,7 +25,7 @@ test("retired channel routes do not redirect or invoke a compatibility handler",
     expect(match("GET",path).route).toBeDefined();
 });
 
-import {makeHandler} from "../server.ts";
+import {makeHandler,webArguments} from "../server.ts";
 import type {Config} from "../config.ts";
 test("the HTTP entry point refuses retired fields before a handler can act", async () => {
   const saved=globalThis.fetch;
@@ -42,4 +42,11 @@ test("the HTTP entry point refuses retired fields before a handler can act", asy
     expect(form.status).toBe(400);
     expect(calls.every(call=>call.startsWith("GET "))).toBe(true);
   } finally {globalThis.fetch=saved;}
+});
+
+test("version is the sole web argument and cannot bypass invalid options",()=>{
+  expect(webArguments([])).toBe("start");
+  expect(webArguments(["--version"])).toBe("version");
+  for(const args of [["-version"],["--unknown"],["--version","--unknown"],["--unknown","--version"]])
+    expect(()=>webArguments(args)).toThrow("Unknown web option");
 });

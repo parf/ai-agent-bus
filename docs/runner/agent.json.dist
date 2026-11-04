@@ -22,10 +22,7 @@
     "network": [
       "imap.example.com"
     ],
-    "memory": "256M",
-    "writable": [
-      "cache"
-    ]
+    "memory": "256M"
   },
   "license": "MIT",
   "author": "Example author",

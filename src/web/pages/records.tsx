@@ -64,7 +64,7 @@ export const KINDS: Record<Kind, { list: string; newPath: string; noun: string; 
 const isKind = (k: string): k is Kind => k in KINDS;
 
 export function noun(kind: string) { return kind === "user" ? "User" : isKind(kind) ? KINDS[kind].noun : kind === "group" ? "Group" : kind; }
-/** The list a record lives on; a Personal record lives on its kind's list with `personal=1`. */
+/** The list a record lives on; a Personal record lives on its kind's list with `tag=personal`. */
 export function listOf(r: Rec): string {
   if (r.kind === "group") return isPersonal(r) ? "/groups?tag=personal" : "/groups";
   if (r.kind === "user") return "/users";
@@ -89,7 +89,7 @@ function listUrl(path: string, p: Record<string, string | undefined>, drop: stri
   return q.size ? `${path}?${q}` : path;
 }
 
-// One list per kind; `personal=1` is the Personal filter on it. The sidebar is
+// One list per kind; `tag=personal` is the Personal filter on it. The sidebar is
 // the kind axis, so the page has no kind filter of its own.
 async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   const kind = LIST_KIND[key];
@@ -812,6 +812,7 @@ async function postRecordSettings(ctx: Ctx): Promise<Response> {
       return flashRedirect(ctx, recordHref(fresh, ret ? { return: ret } : undefined), "saved");
     }
     case "configure": { // the bus setup form
+      if (name !== BUS) throw new LocalProblem(400, "Use the record settings form to save Configuration.");
       const rec = await activeRecord(ctx, name);
       const invalid = (message: string, status: number) => rec.kind === "group"
         ? (() => { throw new LocalProblem(status, message); })()

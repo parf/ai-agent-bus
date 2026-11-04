@@ -5,7 +5,7 @@
 import { basename } from "node:path";
 import { versionOutput } from "./mcp/version.ts";
 
-if (process.argv.length === 3 && ["--version", "-version"].includes(process.argv[2]!)) {
+if (process.argv.length === 3 && process.argv[2] === "--version") {
   console.log(versionOutput());
   process.exit(0);
 }

@@ -62,7 +62,7 @@ Replace the name with the one from your listing. The answer includes each agent'
 | `stopped` | enabled and supported, but not being served: a `stop` call (its `reason` says so), or an agent whose registration failed |
 
 - **`agent_dir`** names the selected package directory. Shared packages override bundles of the same name; see [agent directories](configuration.md#agent-directories).
-- **`processes`** reports `running`, `min` and `max`. For a per-message `args` or `json` script only `max` is in force ([what is accepted but inert](security.md#what-is-accepted-but-inert)).
+- **`processes`** reports `running`, `min` and `max`. For a per-message `args` or `json` script only `max` is in force ([configuration controls](security.md#configuration-controls)).
 - **More fields** (start times, paths, sandbox, limits, last exit) are under [Technical details](#technical-details).
 
 ## Controlling one agent
@@ -196,8 +196,7 @@ Every reason is a sentence in the `status` row and in the journal. The common on
 | `agent.json: json: unknown field "comand"` | a misspelled key; the files are read strictly, by name |
 | `agent.json: command is required` | a required field |
 | `agent.json: description is required` | description is missing, empty or whitespace-only |
-| `agent.json: form "x" is not args, json, std, jsonl or msgpack` | a form that does not exist |
-| `the std form is not served …` | `std` and `msgpack` are refused by name; use `args`, `json` or `jsonl` |
+| `agent.json: form "x" is not args, json or jsonl` | a form that does not exist |
 | `… serves itself, so the runner does not register it; its Owner registers it and hands it over once …` | register the agent yourself and put its token in the named file ([agents that serve themselves](configuration.md#agents-that-serve-themselves)) |
 | `an agent that serves itself takes a fixed count of processes` | give `processes` a number, not a range |
 | `a template: configure an instance under runner/mail/<instance>/env (it needs IMAP_USER)` | `env.dist` requires a variable, so the agent runs only as a configured instance |

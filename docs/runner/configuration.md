@@ -225,7 +225,6 @@ The [isolation rules](security.md#isolation-today) define which code and support
 | `share` | `true` makes this agent's reads say they are one of a pool, so a second runner may read the same name beside it; default `false`. The second runner is handed the name's token once, as for any name it did not register, and its entry says `share` too. Each read also states the runner's host, the machine's hostname, which the listing shows; a hostname the daemon would refuse is left out, never failing the read ([where a pool member says it is](../05-discovery.md#where-a-pool-member-says-it-is)) |
 | `sandbox` | `on` (default) or `off` for this entry only; read [security](security.md#isolation-today) first |
 | `limits` | The whole agent's [limits](#limits) |
-| `version`, `origin`, `first_started`, `last_started` | Reserved for the runner; never set by hand |
 
 Disable a package and give an instance its own name; merge these into your existing file:
 
