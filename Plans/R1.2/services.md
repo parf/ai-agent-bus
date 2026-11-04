@@ -66,7 +66,7 @@ Every row is two agents, one each way.
 | | From | |
 |---|---|---|
 | **slack** | owner | one agent: post, read, directory tools, and subscriptions forwarding a channel to an agent, queue or pubsub ([Slack agent](done/slack/README.md#slack-agent)) |
-| **telegram · discord · whatsapp · google chat · microsoft teams · facebook** | owner | the same shape, one instance per account; the four new ones are in [R1 bundled agents](../R1.0-Release/TODO.md#bundled-agents) (owner, 2026-10-29) |
+| **telegram · discord · whatsapp · google chat · microsoft teams · facebook** | owner | the same shape, one instance per account; Slack and Telegram are shipped; [Discord](../R1.1/discord.md#discord-agent-b27a) is in R1.1, [Google Chat](google-chat.md#google-chat-agent-b27b) in R1.2, and [Teams, WhatsApp and Messenger](../R2.0-Future/README.md#topics) are deferred |
 | **sms** | owner | send only — there is no inbound half worth having on most carriers |
 | **notify** | owner | a system notification on the box's own display — `notify-send` and the OSD forms, which is the `--algo=args` case the rules already name. Send only, like **sms**; and per host, like **shell** ([rules they all obey](#rules-they-all-obey)) — `#notify@srv1` reaches whoever is at that machine, which makes it the cheapest first hop of a delivery chain: the desk first, the phone only if the desk did not answer |
 | **mail** | owner | **IMAP** in, **SMTP** out; both clients are selected for [R1](../R1.0-Release/agents.md#mail-clients). The design's own running example is a mail reader ([runner § what an instance is](../R1.0-Release/runner-implementation.md#what-an-instance-is)), and it is the one channel every business already has |

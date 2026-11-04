@@ -481,7 +481,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
 - ✅ B.27 Messaging agents, the [Slack and Telegram shape](../R1.2/services.md#people-and-the-world-outside): post and read, replies routed to the asking session, `sub` forwarding a conversation; one instance per account, the provider token as the record's Secret (owner, 2026-10-29). Built: Slack (`62d90c9e`, [guide](../../docs/agents/slack.md#what-it-does)) and Telegram (B.1, [guide](../../docs/agents/telegram.md#what-it-does)); every other service needs a plan of its own, with methods and Configuration proposed for approval, before code ([plans](messaging/README.md#plans))
   - B.27a Discord: moved to R1.1 (owner, 2026-10-30: "move discord to 1.1"); the code stays on main, outside the R1 bundle and archives. [R1.1 task](../R1.1/TODO.md#discord)
   - ✅ B.27m Discord leaves the R1 bundle: `src/agents/package.sh` and setup's file list drop it, and the packager test fails if an R1 package holds a discord tree
-  - B.27b Google Chat: moved to [R1.2](../R1.2/TODO.md#messaging-agents) (owner, 2026-11-01: a corporate account is needed); [plan](messaging/google-chat.md#proposed-methods-for-approval)
+  - B.27b Google Chat: moved to [R1.2](../R1.2/TODO.md#messaging-agents) (owner, 2026-11-01: a corporate account is needed); [plan](../R1.2/google-chat.md#proposed-methods-for-approval)
   - B.27c Microsoft Teams: deferred to R2.0 until a public HTTPS address is decided, [plan](../R2.0-Future/teams.md)
   - B.27d WhatsApp: deferred to R2.0 until a public HTTPS address is decided, [plan](../R2.0-Future/whatsapp.md)
   - B.27e Facebook Messenger: deferred to R2.0 until a public HTTPS address is decided, [plan](../R2.0-Future/messenger.md)

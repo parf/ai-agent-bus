@@ -45,7 +45,7 @@ not: a phone number is not an avatar, and the alerter needs everybody's.
 
 ## Messaging agents
 
-Google Chat ([B.27b](TODO.md#objective), [plan](../R1.0-Release/messaging/google-chat.md#proposed-methods-for-approval)) moved here from R1 (owner, 2026-11-01: a corporate account is needed). No sign-up or live call was made.
+Google Chat ([B.27b](TODO.md#objective), [plan](google-chat.md#proposed-methods-for-approval)) moved here from R1 (owner, 2026-11-01: a corporate account is needed). No sign-up or live call was made.
 
 - ❓ Q247 Google Chat: which Google account type hosts the app
   - Context: Whether personal Google accounts can host Chat apps is unconfirmed; Workspace is assumed

@@ -9,6 +9,7 @@ of the stage are marked in [the catalogue](services.md#the-catalogue). Tools bui
 |---|---|
 | Federation | [Chaining](federation.md#chaining), moved from R1 on 2026-10-17 |
 | Bundled agents | [Bundled agents](services.md#bundled-agents) |
+| Google Chat | [Agent plan](google-chat.md#google-chat-agent-b27b); corporate account required |
 | Agent runtimes | [Agent runtimes](services.md#agent-runtimes) |
 | Declared record state | [Down and retired](records.md#down-and-retired) |
 | Record lifetime | [Record lifetime](records.md#how-long-a-record-lives) |

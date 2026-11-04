@@ -79,10 +79,10 @@
 
 - **Pub/Sub pull** (Q245): outbound only; no HTTP endpoint. #ab-dir, 2026-10-30.
 - **Direct messages and @mentions only** (Q246): history and members stay off. #ab-dir, 2026-10-30.
-- **Record:** [decision RD173](../DECISIONS.md#recorded-decisions).
+- **Record:** [decision RD173](../R1.0-Release/DECISIONS.md#recorded-decisions).
 
 ## Open for the owner
 
 - **Q247** Which Google account type hosts the app (Workspace or personal)?
 - **Q248** Who creates the Cloud project, the app and its service account, in which organisation?
-- See [questions](../../R1.2/QUESTIONS.md#messaging-agents); moved to R1.2 with B.27b (owner, 2026-11-01).
+- See [questions](QUESTIONS.md#messaging-agents); moved to R1.2 with B.27b (owner, 2026-11-01).
