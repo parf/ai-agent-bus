@@ -22,10 +22,6 @@
 
 - Read [channel, not topic](#channel-not-topic), then see [the two channel kinds](#the-two-channel-kinds); a label on one message is the `--topic` option of `send`.
 
-## Technical details
-
-The reference below keeps every section as it was; other pages link to these sections.
-
 ## Channel, not topic
 
 **A channel is the record; a topic is a label on one message.** One word

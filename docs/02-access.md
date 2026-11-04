@@ -40,10 +40,6 @@ agent-bus may-send '#ab-lead1'
 
 </details>
 
-## Technical details
-
-The reference below keeps every section as it was; other pages link to these sections.
-
 For ownership and management, see [Identity and authority](01-identity-and-authority.md#positions-and-scopes).
 Reaching the bus from another host — HTTP, HTTPS, a forwarded socket — is [remote access](02-access-remote.md#choosing-a-way).
 

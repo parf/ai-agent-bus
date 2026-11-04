@@ -41,10 +41,6 @@ agent-bus ls '#ab-w1b' | jq -c 'if type=="array" then .[0] else . end | {name,ki
 
 </details>
 
-## Technical details
-
-The reference below keeps every section as it was; other pages link to these sections.
-
 ## Scope
 
 Names, profiles, registration, record ownership, groups and status are built

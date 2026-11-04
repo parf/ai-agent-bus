@@ -23,10 +23,6 @@
 
 - Read [choosing a way](#choosing-a-way), pick the row that suits you, then give any command the `--addr` option for your address.
 
-## Technical details
-
-The reference below keeps every section as it was; other pages link to these sections.
-
 ## Choosing a way
 
 | Way | Proves who you are | Protects the connection | Suits |

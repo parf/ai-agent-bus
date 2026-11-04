@@ -39,10 +39,6 @@ ps -ww -u agent-busd -o args | grep '^agent-busd' | cut -d';' -f2-
 
 </details>
 
-## Technical details
-
-The reference below keeps every section as it was; other pages link to these sections.
-
 ## The rule
 
 The supervisor owns listeners and child lifetime. The bus owns state and

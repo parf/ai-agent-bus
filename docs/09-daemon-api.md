@@ -39,10 +39,6 @@ agent-bus status | jq -c '{realm,you}'
 
 </details>
 
-## Technical details
-
-The reference below keeps every section as it was; other pages link to these sections.
-
 ## How a call is made
 
 | | |

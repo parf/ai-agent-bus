@@ -21,10 +21,6 @@
 
 - Read [what a service is](#what-a-service-is), then look at a card with `agent-bus ls` and its name once one is registered.
 
-## Technical details
-
-The reference below keeps every section as it was; other pages link to these sections.
-
 ## What a service is
 
 `service` is one of the [record kinds](03-records.md#record-kinds),

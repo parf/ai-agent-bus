@@ -38,10 +38,6 @@ agent-bus status | jq -c .kinds
 
 </details>
 
-## Technical details
-
-The reference below keeps every section as it was; other pages link to these sections.
-
 ## What a record is
 
 **A record is a name with a job.** Someone to talk to, somewhere to send,

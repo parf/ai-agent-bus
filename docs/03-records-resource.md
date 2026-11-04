@@ -37,10 +37,6 @@ agent-bus ls smoke-gate@parf.us | jq -c 'if type=="array" then .[0] else . end |
 
 </details>
 
-## Technical details
-
-The reference below keeps every section as it was; other pages link to these sections.
-
 ## What a resource is
 
 A 📚 Resource is information, not a service and not an

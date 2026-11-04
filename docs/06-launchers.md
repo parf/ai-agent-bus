@@ -38,10 +38,6 @@ ab-claude: launch claude with agent-bus tools and messaging.
 
 </details>
 
-## Technical details
-
-The reference below keeps every section as it was; other pages link to these sections.
-
 This page owns the runtime adapters and the session launchers.
 
 ## Adapters

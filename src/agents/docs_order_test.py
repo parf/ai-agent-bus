@@ -117,7 +117,8 @@ def check(text):
             if part and part not in heads and re.match(r'^\s{0,3}#{1,6}\s', line):
                 heads[part] = pos
     placed = {p: heads.get(p, starts[p]) for p in starts}
-    missing = [p for p in PARTS if p not in starts]
+    # Technical reference is optional; when present, it still comes last.
+    missing = [p for p in PARTS if p != "technical" and p not in starts]
     if missing:
         failures.append(('missing-part', 'no ' + ', '.join(missing) + ' part'))
     present = [p for p in PARTS if p in starts]
@@ -322,6 +323,10 @@ class Checker(unittest.TestCase):
 
     def test_a_page_in_order_passes(self):
         self.assertEqual(check(GOOD), [])
+
+    def test_a_page_needs_no_technical_details_section(self):
+        page = mutate(GOOD, '\n## Technical details\n', '')
+        self.assertEqual(check(page), [])
 
     def test_details_first_fails(self):
         technical = '## Technical details\n\n- Messages are held until read.\n\n'

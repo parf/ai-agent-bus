@@ -75,10 +75,6 @@ agent-bus ls '#ab-w1b' | jq -c 'if type=="array" then .[0] else . end | {name,ov
 
 </details>
 
-## Technical details
-
-The reference below keeps every section as it was; other pages link to these sections.
-
 A successful request and reply, using the caller's own return address.
 Each inbox belongs to a registered name; replies use the same topic and tag.
 Taking a message does not prove the work finished—see [receipts](#receipts).

@@ -41,10 +41,6 @@ USAGE
 
 </details>
 
-## Technical details
-
-The reference below keeps every section as it was; other pages link to these sections.
-
 This page owns `agent-bus run`. [Session launchers](06-launchers.md) put a live
 AI session behind a name instead of a script.
 

@@ -40,10 +40,6 @@ agent-bus ls --tag=ab-dvp | jq length
 
 </details>
 
-## Technical details
-
-The reference below keeps every section as it was; other pages link to these sections.
-
 ## What a listing answers
 
 **Being in the registry and being callable are different facts.** "There is a MySQL on `db1:3306`" is a complete 📡 registration ([records § record kinds](03-records.md#record-kinds)) and nothing on this bus answers for it; an agent template is registered and deliberately does not run ([records § agent templates](03-records-agent.md#agent-templates)).
