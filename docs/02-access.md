@@ -15,6 +15,7 @@
 - Authenticated sender identities that message text cannot override.
 - Access lists and nested groups for each record.
 - Tokens, local account sockets and key-possession enrolment.
+- 🎯 ✅ **A stated trust boundary:** what the bus protects and what it does not.
 
 ## Try this first
 

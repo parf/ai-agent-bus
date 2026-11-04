@@ -4031,9 +4031,8 @@ samples() {
   curl -s --unix-socket "$D/smp/bus.sock" -H "X-Agent-Bus-Token: $STOK" -d '{"name":"rplain","create":true}' http://unix/user >/dev/null
   out=$(AGENT_BUS_ADDR=$S "$D/agent-bus-setup" --runner install --for rplain --dry-run 2>&1); rc=$?
   if [ -e /var/lib/agent-bus/runners ] || [ -L /var/lib/agent-bus/runners ]; then
-    # A checkout can be gated before the one-time dev migration. Setup must
-    # refuse the real legacy tree before asking this fixture daemon anything.
-    bad_exit "a legacy runner tree needs a manual migration first" $rc
+    # Unsupported host layouts are refused before this fixture daemon is asked.
+    bad_exit "an unsupported runner tree requires a clean installation" $rc
     has "refusal names the tree" "$out" 'legacy runner tree /var/lib/agent-bus/runners'
     lacks "refusal plans no host changes" "$out" 'would '
   else

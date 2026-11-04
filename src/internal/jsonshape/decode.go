@@ -51,10 +51,17 @@ func checkMembers(dec *json.Decoder, t reflect.Type) error {
 		if tok != json.Delim('{') {
 			return fmt.Errorf("expected JSON object")
 		}
+		seen := map[string]bool{}
 		for dec.More() {
-			if _, err := dec.Token(); err != nil {
+			token, err := dec.Token()
+			if err != nil {
 				return err
 			}
+			key := token.(string)
+			if seen[key] {
+				return fmt.Errorf("duplicate field %q", key)
+			}
+			seen[key] = true
 			if err := checkMembers(dec, t.Elem()); err != nil {
 				return err
 			}
