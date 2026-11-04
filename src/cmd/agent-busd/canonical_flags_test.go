@@ -21,7 +21,7 @@ func TestDaemonRequiresCanonicalFlags(t *testing.T) {
 		cmd := exec.Command(os.Args[0], "-test.run=^TestDaemonFlagFixture$")
 		cmd.Env = append(os.Environ(), "DAEMON_FLAG_FIXTURE="+arg)
 		out, err := cmd.CombinedOutput()
-		if err == nil || (!strings.Contains(string(out), "invalid option") && !strings.Contains(string(out), "flag provided but not defined")) {
+		if err == nil || (!strings.Contains(string(out), "invalid option") && !strings.Contains(string(out), "unknown option")) {
 			t.Errorf("%s: %v %s", arg, err, out)
 		}
 	}
