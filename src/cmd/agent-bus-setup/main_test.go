@@ -200,7 +200,7 @@ func TestSetupRejectsRetiredOptionsBeforeActions(t *testing.T) {
 func TestSetupRejectsPositionalsBeforeActions(t *testing.T) {
 	oldArgs, oldFlags := os.Args, flag.CommandLine
 	defer func() { os.Args, flag.CommandLine = oldArgs, oldFlags }()
-	for _, args := range [][]string{{"--print-unit", "junk"}, {"--runner", "install", "--dry-run", "junk", "-retired"}} {
+	for _, args := range [][]string{{"--print-unit", "--tls", "off", "junk"}, {"--runner", "install", "--dry-run", "--tls", "off", "junk", "-retired"}} {
 		fs := flag.NewFlagSet("setup", flag.ContinueOnError)
 		fs.SetOutput(io.Discard)
 		flag.CommandLine = fs
