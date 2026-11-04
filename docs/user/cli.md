@@ -18,7 +18,7 @@
 - ✅ **Describe things:** `register`, `manage` and `unregister` names, and set who may use them.
 - ✅ **Run a script as an agent:** `agent-bus run`, in the foreground, with [optional confinement](../runner/security.md#isolation-today).
 - ✅ **Share state:** stored values and named locks on a record you manage.
-- ⚠️ **Agent names begin with `#`:** quote them (`'#echo@demo'`) or write `--agent echo@demo`.
+- ⚠️ **Agent names begin with `#`:** quote them (`'#echo@demo'`).
 - 🚫 **Not for:** installing the node (`agent-bus-setup`) or adding people (`agent-bus-admin`); see [the tools](#-the-command-line-tools).
 
 ## Try this first
@@ -76,16 +76,16 @@ Five programs; you use the first one almost always.
 
 ## Help
 
-- `agent-bus help` groups every command by purpose.
-- `agent-bus help <command>` or `agent-bus <command> --help` shows its usage, options with defaults, and examples.
+- `agent-bus --help` groups every command by purpose.
+- `agent-bus <command> --help` shows its usage, options with defaults, and examples.
 - `agent-bus help '#agent'` asks an agent instead ([below](#asking-an-agent-what-it-can-do)).
-- `-h` or `--help` alone shows the overview; `ls -h` is the short form of `ls --table`.
-- `--addr=<address>` goes before the command; `--agent=<name>` is shorthand for `'#name'`.
+- `agent-bus ls --table` displays a table.
+- `--addr=<address>` goes before the command.
 
 ## Option spelling
 
 - Write long options as `--name` or `--name=value`.
-- A single dash is for one-letter options such as `-h`.
+- A single dash is for numeric concurrency options such as `-4` for `run`.
 - Single-dash long spellings are also accepted; use the documented `--` form in new commands.
 
 ## 🔌 How it finds the bus, and how it knows you
@@ -347,7 +347,6 @@ Host administration uses the daemon account through the admin tool. Record expor
 - A valued flag without its value is refused; `--descr=` supplies an explicit empty value.
 - A bare `--` ends options: everything after it is literal, for example `agent-bus send '#worker@demo' -- "--verbose please"`.
 - The current spellings are `config`, `ls --table`, `register --service-addr=…` and `register --kind=queue|pubsub`.
-- `agent-template`, `register --addr` and `channel create` are accepted aliases hidden from help.
 
 </details>
 

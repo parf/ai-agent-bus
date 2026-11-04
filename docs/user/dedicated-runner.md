@@ -165,8 +165,7 @@ See [AI CLI integration](ai-cli.md#try-this-first) for naming, messages, permiss
 | `-N` | run up to N messages at once, e.g. `-4` |
 | `--descr=<text>` | description |
 | `--allow=<names\|*\|@owner>` | who may call it, comma-separated |
-| `--personal` | a personal agent |
-| `--tags=<tags>` | comma-separated tags |
+| `--tags=<tags>` | Comma-separated tags; include `personal` for Personal classification |
 | `--sandbox=<on\|off>` | request the [dedicated isolation rules](../runner/security.md#isolation-today) |
 | `--network` | allow network inside the sandbox |
 | `--package-dir=<path>` | package metadata for asks; an absolute path |

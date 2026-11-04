@@ -31,7 +31,7 @@ Choose a returned name to inspect with `agent-bus ls <name>`. The record shows i
 | | |
 |---|---|
 | Owner | always a User, never another Agent; an Agent acting for its Owner gains no authority over what it creates ([ownership](01-identity-and-authority.md#ownership)) |
-| Name | begins with `#` — `#worker@team`, `#claude/session@host` — so the name alone says it is an Agent; record targets require `#`; the CLI also takes `--agent worker@team` and the dedicated runner can add it to a launch name ([names](01-identity-and-authority.md#names)) |
+| Name | begins with `#` — `#worker@team`, `#claude/session@host` — so the name alone says it is an Agent; every CLI and runner target requires the complete name, quoted in the shell ([names](01-identity-and-authority.md#names)) |
 | Credential | its own token, issued by its Owner, which acts as the Agent: it is the sending, reading principal ([what a call carries](02-access.md#what-a-call-carries), [getting a token](02-access.md#getting-a-token)) |
 | Inbox | the queue it reads; who may send to it is its allow list, and it may answer a User that list admits ([inbox queues](04-messaging.md#inbox-queues), [ACL](02-access.md#acl)) |
 | Readers | one reader at a time unless each says it shares; a pool of workers is one name ([one reader per inbox](04-messaging.md#one-reader-per-inbox)) |

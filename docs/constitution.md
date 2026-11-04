@@ -187,9 +187,7 @@ says what a term names:
   it serves, what a caller sends to. Nothing strips it, so `name` is unique
   across kinds and no term needs a lookup to say what it names.
 - Agent identities in API and MCP arguments, registration, credential issue and configuration use the `#` prefix. An unprefixed record target does not select an Agent. The dedicated runner requires the same complete Agent name; it never guesses or adds a prefix.
-- Because a shell reads an unquoted `#` as a comment, the CLI MUST also accept
-  `--agent worker@srv1`, which names `#worker@srv1`. It adds the `#` only when
-  absent, never a second one; a quoted `'#worker@srv1'` stays valid.
+- Quote Agent names in the shell: `'#worker@srv1'`. An unquoted `#` starts a shell comment.
 - In a URL the `#` MUST be percent-encoded as `%23`, since an unescaped one
   starts a fragment and the rest of the name never reaches the daemon.
 - The last three terms resolve at each check instead of naming a stored entity.
