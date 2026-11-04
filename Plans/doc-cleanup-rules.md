@@ -33,6 +33,7 @@ Line references below refer to main `1ab9031a`, before cleanup.
 | Example | Genuine command/output, diagram or worked scenario. | Keep useful examples; remove test provenance and disclose abbreviations. |
 | Development evidence | Build status, test counts, mutant results, run dates or acceptance procedures. | Move to Plans/done or contributor evidence; remove from user pages. |
 | History or roadmap | Release/stage changes, superseded designs, owner attribution, future capabilities. | Keep in the appropriate plan/history home; remove from user pages. |
+| Repeated information | The same fact, procedure, example, table or caveat appears more than once without adding a distinct use. | Combine into one primary section and link to it; retain a repeat only for a specific reader need. |
 | Editorial filler | Text explaining document ownership, section placement or writing policy. | Delete; put an actual authoring rule in .claude/docs if needed. |
 | Suspect claim | Contradictions, inflated guarantees or questionable commands. | Check implementation/shipping evidence; record the result before rewriting. |
 | Deprecated support | Old aliases, mirrors, formats, migrations or fallback behavior actually implemented. | Inventory separately for 1.0.1; keep current technical facts truthful until changed. |
@@ -106,6 +107,17 @@ The first screen should give the recommended action and the same entry for later
 
 Choose existing homes first. Create a new reference only for a genuinely missing home, then move the original content and update links; do not copy it into another competing manual.
 
+## Dedup pass on every page
+
+After the content/scope review, read the complete page again specifically for semantic repetition. Different wording does not make the same information new.
+
+- Give each fact, capability, procedure, example and reference table one primary location. Merge overlapping blocks, retain their unique conditions and link from other relevant places.
+- Check the lead, benefits, how-to, details, tables, code fences and troubleshooting against one another. Avoid repeating a full command sequence or output; use one complete example and a useful section link.
+- A short opening may state an outcome that the how-to then demonstrates. The how-to must add instructions/details rather than repeat the opening in more words.
+- Keep an action-specific security or destructive-operation warning beside the command when the reader could miss an earlier warning. A necessary copy-and-paste step may be repeated in a self-contained procedure. State the reason for each retained repetition in the review notes.
+- For changelogs, group a change once. Later behavioral deltas may mention the same feature, but describe only the new difference and preserve its range/chronology.
+- Record removed/merged repetitions and justified exceptions in the file's review row. Completion requires this pass even when automated duplicate-text searches find nothing.
+
 ## Before and after: proposed edits
 
 These are editorial proposals, not executed commands or invented output.
@@ -129,6 +141,7 @@ These are editorial proposals, not executed commands or invented output.
 - No removal or weakening of current security, privacy, data-loss, platform or recovery caveats to make a page shorter.
 - No automatic deletion of technical detail. An API field reference, backup recovery procedure or setting can be useful in the correct guide.
 - No silent image/diagram loss. Preserve useful assets; review whether a screenshot still represents the described behavior.
+- No repeated claim, example or instruction merely to fill another section. A repetition needs a distinct purpose; linking to the primary section is preferred.
 - No duplicate contract/reference after moving content. Preserve useful navigation and repair all inbound links and anchors.
 - No operational provider calls, messages, host changes, builds or runtime suites merely to remove prose. Reuse existing evidence; make only necessary, authorized read-only checks when a concrete claim cannot otherwise be verified.
 
@@ -140,7 +153,7 @@ These are editorial proposals, not executed commands or invented output.
 4. Keep history and future scope in Plans. Review public governance/reference pages such as docs/decisions.md and constitution.md too: preserve current rules while removing dated provenance, roadmap and internal stage navigation from the user path.
 5. Update governing instructions after owner review: CLAUDE.md still says docs cover MVP with built/pending explicit, conflicting with WRITING.md and the owner's shipped-product rule. Replace that conflict so subsequent writers do not restore the noise.
 6. Update generated-content sources and inbound links as part of each move. Inspect generator selection and manifests before excluding an unshipped helper; keep documentation-only scope unless a code defect is separately assigned.
-7. Re-read edited pages as a first-time user, then audit navigation across pages. Every retained block must help the reader choose, act, understand a relevant result/contract or recover from a concrete problem.
+7. Perform the explicit per-page dedup pass above. Re-read edited pages as a first-time user, then audit navigation across pages. Every retained block must help the reader choose, act, understand a relevant result/contract or recover from a concrete problem.
 8. Validate changed paths, anchors, references and assets. Focused documentation-checker changes need their own proof only if the checker must change; no full product gate solely for prose.
 
 ## Owner review checklist
@@ -149,6 +162,7 @@ These are editorial proposals, not executed commands or invented output.
 - [ ] The short setup shape and proposed reference destinations are acceptable.
 - [ ] Verification questions V01–V07 stay separate from cosmetic rewriting.
 - [ ] Actual deprecated-support removal remains 1.0.1 work.
+- [ ] Every page gets a semantic dedup pass, with necessary repetitions justified.
 - [ ] All offered documentation gets a file-by-file disposition after these rules are reviewed.
 
 Status: **draft for review**. The sampled user files have not been cleaned by this change; publication remains on hold.
