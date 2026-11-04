@@ -5,10 +5,7 @@
 Activity, Diagnostics, liveness, the static assets and the redirects that are
 not record pages. Every page follows the [shell](shell.md#web-face-shell).
 
-Every page below uses the same headings: route, access, daemon calls,
-content, states, controls, forms and links. A heading with nothing to say is
-omitted. "Frame" means the [page frame](shell.md#page-frame); every rendered
-page makes the anonymous `GET /identity` for it.
+"Frame" means the [page frame](shell.md#page-frame); every rendered page makes the anonymous `GET /identity` for it.
 
 ## `/` signed out: landing and sign-in
 
@@ -315,7 +312,7 @@ Navigation; range links; the grid and calendar day links.
 |---|---|---|---|
 | GET | `/diagnostics` | none | `#refusals`, `#stuck`, `#exchanges`, `#loss`, `#leftovers`, `#message-{id}` per exchange row |
 
-Links here: navigation entry 9; Overview refusal items (`#refusals`); `/users?kind=other` (`303` → `#leftovers`); user pages' `return=/diagnostics`.
+Links here: navigation entry 9; Overview refusal items (`#refusals`); user pages' `return=/diagnostics`.
 
 ### Access
 
@@ -454,20 +451,14 @@ Another method on any of them gets the framed `405`.
 
 ## Redirects and catch-alls
 
-Record-page aliases (`/channels`, `/channels/new`, `/channel`, `/channel/edit`)
-are specified with the [record pages](records.md#lists).
+`/channels`, `/channels/new`, `/channel` and `/channel/edit` are unsupported and receive the unknown-path response.
 
 | From | To | Status | Rule |
 |---|---|---|---|
-| `GET /users?kind=other`, signed in | `/diagnostics#leftovers` | `303` | any other `kind` is ignored |
+| `GET /users?kind=…` | — | `400` | use the Users directory without a kind query; leftover credentials are in Diagnostics |
 | Daemon `GET /` on its TCP API port (exact root) | the dashboard URL, default `http://127.0.0.1:6780/` | `301` | served by `agent-busd` ([where it listens](../../../docs/05-discovery.md#where-it-listens)) |
 | Any unknown path | — | `404` | framed `No such page` ([shell § problem page](shell.md#problem-page)) |
 | Known path, wrong method | — | `405` | framed `Not answered this way` |
-
-## Inconsistencies worth fixing in the rewrite
-
-History: the Go face's list, and each page's differences from older docs, are in
-[web-go-face-differences § node](../../../Plans/done/R0.8-MVP/done/web-go-face-differences.md#nodemd).
 
 ## Documentation targets
 

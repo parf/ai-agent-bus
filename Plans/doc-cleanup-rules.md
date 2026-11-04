@@ -1,13 +1,13 @@
 # Documentation cleanup rules
 
-📌 **TL;DR:** Draft for owner review, based on Astra's complete read of eight representative files. User documentation describes the shipped product and helps someone use it; development history, future scope and editorial process stay outside that reading path. Owner-directed application is in progress; product behavior is unchanged.
+📌 **TL;DR:** User documentation describes the shipped product and helps someone use it; development history, future scope and editorial process stay outside that reading path. The owner-directed cleanup passes are recorded in the [review ledger](doc-cleanup-review.md#file-dispositions). Final integrated verification remains pending.
 
 ## Review baseline
 
 - Owner direction: public docs cover the shipped R1 scope, without product release/stage narration. Setup is a short guide with the user's AI executing AI-SETUP.md as the recommended first path. The same entry handles requested updates and tuning.
 - The owner requires a **clean R1 installation with canonical forms only**. Retired project formats, aliases and migrations are removed from code, scripts, fixtures and docs together; no prerelease-state preservation or one-off conversion is required.
 - Astra reviewed all blocks in the eight files below: **2,743 lines**, plus CLAUDE.md and [.claude/docs/WRITING.md](../.claude/docs/WRITING.md#how-we-write-docs). No edits, tests, builds, installs or provider calls were part of its analysis.
-- The sample is the first review batch, not a claim that all documentation has been read. The wider inventory has 65 Markdown files under docs/ and 37 tracked source README/INSTALL candidates, plus root entry points and other linked references.
+- The sample and line references below preserve the initial review basis. The expanded inventory, completed family passes, added contributor references and moved pages are recorded in the [review ledger](doc-cleanup-review.md#file-dispositions).
 - Publication, push and the final tag remain on hold.
 
 | Sample file | Main findings |
@@ -79,7 +79,7 @@ Line references below refer to main `1ab9031a`, before cleanup.
 - C02 — Remove launcher binding, name and bundle fallbacks. Preserve deliberate current runtime support and live-session concurrency safeguards, using one canonical stored and generated representation.
 - Extend this inventory across CLI aliases, all six clients, package formats and stored-state paths during the full pass. A search hit containing “legacy” is not itself proof of deprecated project support.
 - For each real compatibility path, record its reader, writer, consumer, current tests and removal consequence. Removing support must have a named refusal or deliberate replacement behavior and preserve valid current data.
-- Do not silently delete active input/output fields, migration safeguards or security refusals while editing prose. Do not publish a claim that they are already removed.
+- Do not delete active input/output fields or current recovery/security safeguards merely while editing prose. Coordinate canonical-only behavior changes with their owning implementation and tests.
 
 ## Setup page: target shape and destinations
 
@@ -156,46 +156,32 @@ These are editorial proposals, not executed commands or invented output.
 2. Maintain one review row per file: audience, all blocks reviewed, issue classes, keep/delete/move/verify decisions, related links/assets and remaining questions. Every candidate gets a disposition, including “keep as-is.”
 3. Start with entry points and setup, then concepts/access/messaging, runner/user guides, agent guides/catalogue, SDKs/examples and remaining references. Do not stop after the first batch or after search hits disappear.
 4. Keep history and future scope in Plans. Review public governance/reference pages such as docs/decisions.md and constitution.md too: preserve current rules while removing dated provenance, roadmap and internal stage navigation from the user path.
-5. Update governing instructions after owner review: CLAUDE.md still says docs cover MVP with built/pending explicit, conflicting with WRITING.md and the owner's shipped-product rule. Replace that conflict so subsequent writers do not restore the noise.
+5. Keep CLAUDE.md and WRITING.md aligned with the shipped-product rule so subsequent writers do not restore stage/status narration.
 6. Update generated-content sources and inbound links as part of each move. Inspect generator selection and manifests before excluding an unshipped helper; keep documentation-only scope unless a code defect is separately assigned.
 7. Perform the explicit per-page dedup pass above. Re-read edited pages as a first-time user, then audit navigation across pages. Every retained block must help the reader choose, act, understand a relevant result/contract or recover from a concrete problem.
 8. Validate changed paths, anchors, references and assets. Focused documentation-checker changes need their own proof only if the checker must change; no full product gate solely for prose.
 
-## Owner review checklist
+## Completion criteria
 
-- [ ] The block classes and to-avoid exceptions match the intended cleanup.
-- [ ] The short setup shape and proposed reference destinations are acceptable.
-- [ ] Verification questions V01–V07 stay separate from cosmetic rewriting.
-- [ ] Retired formats and aliases are removed from runtime, scripts, examples and help; positive canonical and negative retired-input checks pass.
-- [ ] Every page gets a semantic dedup pass, with necessary repetitions justified.
-- [ ] All offered documentation gets a file-by-file disposition after these rules are reviewed.
+- Apply the agreed block classes, short setup shape and proportionate settings throughout the offered reading surface.
+- Resolve correctness questions separately from cosmetic rewriting; keep current recovery and security boundaries.
+- Verify canonical runtime/script/help forms with positive and negative checks.
+- Record each page's full review, dedup decision and justified repetitions in the ledger.
+- Complete the integrated verification listed there before closing the cleanup.
 
-Status: **applying owner feedback**. The first batch has been analyzed and classified; every offered page still needs its recorded full review and dedup pass. Publication remains on hold.
+Status: **cleanup passes applied; integrated verification pending**. The initial sample findings above are retained as the rationale for these rules, not a pending-all task list. Publication remains on hold.
 
 ## Application log
 
-| Files | Applied / checked | Remaining full-page review |
-|---|---|---|
-| `.claude/docs/WRITING.md`, `CLAUDE.md` | Release-user install path, proportionate configuration, dedup and no editorial filler rules. | Reconcile older maintainer release pointers separately. |
-| `docs/agents/voyage.md` | Bundled enablement, one-sentence model default, fixed provider origin instead of a false sandbox allowlist. | Full dedup/wording pass. |
-| `docs/agents/{ai,at,cron,debug,eventlog,fetch,imap,qdrant,rag,slack,sms,smtp,telegram,webhook}.md` | Read installation/configuration blocks; replace source packaging with bundled enablement, preserve credentials, explicit enablement and grants; correct IMAP free-text/server search distinction. | Full-page provenance, scope and dedup pass. |
-| `docs/agents/{git,logwatch,server-info,systemd,tmux-sessions}.md` | Read installation/configuration blocks; standalone commands use shipped installer paths. Systemd's single setting is direct, retaining safety and dedicated-instance scope. | Full-page provenance, scope and dedup pass. |
+The [per-file ledger](doc-cleanup-review.md#file-dispositions) records the full-block and semantic dedup dispositions, audiences, moved guides and narrower contributor-reference reviews. It supersedes the earlier installation-block-only progress tables.
 
-Astra's second analysis read every block in ten further files: runner configuration, security and operations; daemon API; identity; discovery; IMAP; subscriptions; constitution; Voyage (3,955 lines). Its correctness findings remain part of the full review; a repaired installation block does not mark the entire page complete.
+- Root/overview/setup and runner/operator references: short AI-first entry, manual fallback and current operational limits; detailed references have separate homes.
+- Authority/runtime/user families: complete prose and semantic dedup passes, with corrected authority, delivery, backup and tutorial caveats.
+- Agent catalogue and guides: supplied-package installation, proportionate settings, portable examples and shipped-inventory generation; full guide pass applied.
+- Source README/INSTALL/MODULES family: audience separation, actual package/SDK prerequisites, current contracts and retained contributor build/test mechanics.
+- Closure: runner setup and macOS reread, missing source-reference classification, current web route/status contract corrections.
 
-| Setup split | Applied / checked | Remaining |
-|---|---|---|
-| `docs/07-setup.md` | Reduced from 893 to 64 lines: AI-assisted install first, manual fallback, existing install checks, update/configuration. Removed program inventory and acceptance/status/publication narrative. | Final cross-page dedup review. |
-| `docs/administration.md`, `docs/runner/setup.md`, `docs/platforms/macos.md` | Moved accounts/TLS/backup/operator facts and platform limits to relevant references; removed process evidence and source-packaging from ordinary runner enablement; preserve private data warnings and explicit enablement. | Prose tightening and cross-reference review. |
-| `.claude/docs/deployment.md`, `Plans/done/setup-upgrade-history.md` | Maintainer deployment and historical transitions leave the product install page. All existing incoming section links retargeted. | Historical links remain historical; active compatibility removal is still separate. |
-
-Static link and whitespace checks pass for this batch. No runtime builds, installations or gates run for prose.
-
-| `docs/00-overview.md` | Removed release-line opening, editorial ownership narration, future/acceptance navigation and repeated architecture summaries; retained real example and trade-offs. Renamed navigation to Guides and repaired incoming links. | Full cross-page review continues. |
-
-| Agent correctness pass | Applied / checked | Remaining |
-|---|---|---|
-| SMS, logwatch, cron, at, fetch, RAG, debug, systemd, tmux-sessions and git guides | Correct access defaults, stale folding behavior, one-attempt delivery wording, usable RAG search, actual allowlist shape and installed-user checks. Simplify SMS settings; remove irrelevant historical commit output. | Full semantic dedup and remaining provenance removal continue. |
+Static checks on individual batches are evidence only for those batches. Final integrated links, assets, source quotes and canonical-form checks remain [pending](doc-cleanup-review.md#final-verification-still-pending), as does the runtime landing gate required by the combined code changes.
 
 ## Remove thin planning layers
 

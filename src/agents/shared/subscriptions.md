@@ -1,7 +1,7 @@
 # Shared subscription implementation contract
 
 📌 **TL;DR:** the Python engine implements shared admission, filtering and
-once-only forwarding. The TypeScript twin must pass the same vectors; agent
+one-attempt forwarding. The TypeScript twin must pass the same vectors; agent
 adapters still enforce method roles and supply their own selectors.
 
 The Python engine and TypeScript twin implement the same pure-operation JSON
