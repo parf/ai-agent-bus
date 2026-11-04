@@ -11,7 +11,7 @@ serving itself through the [TypeScript client](../../../../src/clients/typescrip
 Status: **built 2026-10-17 at 0.8.137** (S.1–S.4 by OpenCode, review fixes and
 S.5–S.7 by Claude, every task reviewed by Codex); deployed on the dev node under
 the runner since 0.8.156, 2026-10-17. Running it:
-[the agent's README](../../../../src/agents/slack/README.md#running-it) ([TODO](TODO.md#tasks)). Code goes in `src/agents/slack/`.
+[the agent's README](../../../../src/agents/slack/README.md#contributor-package) ([TODO](TODO.md#tasks)). Code goes in `src/agents/slack/`.
 
 ## One agent, both ways
 

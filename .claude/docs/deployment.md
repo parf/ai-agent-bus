@@ -94,4 +94,4 @@ A live Git checkout is never a reset/clean/push/autopull test fixture.
 
 ### From a checkout
 
-Use the contributor [checkout installation procedure](../../src/INSTALL.md#from-a-checkout).
+Use the contributor [checkout installation procedure](../../src/INSTALL.md#contributor-checkout).

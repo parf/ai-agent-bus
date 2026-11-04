@@ -137,7 +137,7 @@ stays separate from **systemd** below: different instance, different grant.
 #### server-info
 
 Built in R1 as [the server-info agent](../../src/agents/standalone/server-info/README.md#server-info-agent),
-including every owner-accepted [section](../../src/agents/standalone/server-info/README.md#sections)
+including every owner-accepted [section](../../docs/agents/server-info.md#calls)
 (2026-10-19). Its shared standalone starter keeps the sandbox off so it
 reports the host rather than a private network; calls accept a section name
 or `all`, never command arguments.

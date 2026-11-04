@@ -57,7 +57,7 @@ a link to the start of a record wrapper does not establish absence.
 [check.sh:17](../../../../src/clients/check.sh#L17) builds the private
 [Go fixture:31](../../../../src/clients/fixture/main.go#L31) and dispatches the native
 checks. All six read `send`, `call`, `self-call`, `kv`, `locks`, `identity` and
-`refusals` from the same [RT8 directory](../../../../src/testdata/client-conformance/README.md#state-identity-and-refusal-vectors-t-24).
+`refusals` from the same [RT8 directory](../../../../src/testdata/client-conformance/README.md#state-identity-and-refusal-vectors).
 Only Go, Python and TypeScript run `bigfile`, because only those expose it.
 The rows above cite send/call and state adapters; identity/refusal adapters are
 at the refusal evidence links and their adjacent identity tests. This is
@@ -85,7 +85,7 @@ adding Python's selector is approximately 5–8 min with a selected-read test.
 These are separate optional parity work, not prerequisites invented for T-31.
 
 The audit found docs/09's S2 status stale. That follow-up is built at
-`a3e3962d`; the [current status](../../../../docs/09-daemon-api.md#status) records S2v.
+`a3e3962d`; the [current status](../../../../docs/09-daemon-api.md#stability-and-compatibility) records S2v.
 This historical audit does not imply a missing event-log helper.
 
 
@@ -156,7 +156,7 @@ verified runner provenance for an entry.
   - Landed evidence: T-31a `3249e133` (vectors, fixture, Go); T-31b `b4928628` (Python/TypeScript/Rust); T-31c `fc298c4c` (Java/PHP).
   - Confirmed write, Owner read/list, private refusals, writer-own-read refusal, empty versus missing and no-wait inbox fencing are built with executed native examples. Subscription copies, notice receipt handling and deletion/cancellation are built: T-31d `18efe47d` (shared subscription vectors and Go), T-31g `d4bf4814` (Python/TypeScript/Rust), T-31f `25be118f` (Java/PHP).
 - Put representative event calls and subscription receipt cases into the
-  [shared client vectors](../../../../src/testdata/client-conformance/README.md#state-identity-and-refusal-vectors-t-24),
+  [shared client vectors](../../../../src/testdata/client-conformance/README.md#state-identity-and-refusal-vectors),
   with a native adapter in all six clients. Reuse engine vectors for ring rules;
   do not copy the whole engine suite into every SDK.
 - Each example verifies confirmed append/read/list, private refusal before

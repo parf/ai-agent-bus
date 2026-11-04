@@ -5,8 +5,8 @@
 ## Result
 
 The former identity and owner-model documents now live in
-[Identity and roles](../../../../docs/01-identity-and-authority.md#scope).
-[Access](../../../../docs/02-access.md#scope) owns authentication, credentials,
+[Identity and roles](../../../../docs/01-identity-and-authority.md#identities).
+[Access](../../../../docs/02-access.md#what-a-call-carries) owns authentication, credentials,
 ACL evaluation and the trust boundary. Old files were removed; incoming
 references point to the defining sections in the new split.
 

@@ -41,7 +41,7 @@ and a subscription forwarding a chat to an agent, 📮 queue or 📣 pubsub.
 
 ## Systemd
 
-Built: [B.2 calls and installation](../../src/agents/standalone/systemd/README.md#calls).
+Built: [B.2 calls and installation](../../docs/agents/systemd.md#who-may-use-it).
 
 Methods: `list [type]`, `timers`, `failed`, `status`, `start`, `restart`, `reload`,
 `stop`, `enable`, `disable`, and `logs`, for every unit on the node. No installed
@@ -50,7 +50,7 @@ unit set is used; unit names and optional types are validated exactly.
 Use case (owner, 2026-10-19): "I got an error report; I check service status on
 many nodes; I check logs; I restart the failing ones; or I restart after an
 autopull deploy". Each instance carries the `systemd` tag for discovery; see
-the [many-node recipe](../../src/agents/standalone/systemd/README.md#many-nodes).
+the [many-node recipe](../../docs/agents/systemd.md#many-nodes).
 
 | Tier | Methods added |
 |---|---|
@@ -58,7 +58,7 @@ the [many-node recipe](../../src/agents/standalone/systemd/README.md#many-nodes)
 | operate | start, restart, reload, logs |
 | admin | stop, enable, disable |
 
-[Calls and log filters](../../src/agents/standalone/systemd/README.md#logs) define
+[Calls and log filters](../../docs/agents/systemd.md#logs) define
 the accepted arguments.
 
 **The runner does not keep this one.** It is standalone, as root, under a unit
