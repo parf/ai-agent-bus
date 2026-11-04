@@ -34,36 +34,12 @@ func bindBigKeys(bus *core.Bus, home string, idx ports.BigIndex) {
 	bus.SetBigStore(s)
 }
 
-// The directory was called big-keys before bigfile became the feature's name.
-const (
-	bigDir    = "bigfile"
-	oldBigDir = "big-keys"
-)
-
-// migrateBigDir moves an old directory to its new name. One of them alone is
-// the simple case: the old one is renamed, the new one is used. Both at once
-// is not guessed at: the start refuses, and the cause names both, so an
-// operator decides which holds the files.
-func migrateBigDir(home string) error {
-	oldPath, newPath := filepath.Join(home, oldBigDir), filepath.Join(home, bigDir)
-	_, oldErr := os.Lstat(oldPath)
-	_, newErr := os.Lstat(newPath)
-	for _, e := range []error{oldErr, newErr} {
-		if e != nil && !errors.Is(e, os.ErrNotExist) {
-			return e
-		}
-	}
-	switch {
-	case oldErr == nil && newErr == nil:
-		return fmt.Errorf("both %s and %s exist; keep the one that holds the bigfiles and remove the other", oldPath, newPath)
-	case oldErr == nil:
-		return os.Rename(oldPath, newPath)
-	}
-	return nil
-}
+const bigDir = "bigfile"
 
 func openBigKeys(home string, idx ports.BigIndex) (ports.BigStore, error) {
-	if err := migrateBigDir(home); err != nil {
+	if _, err := os.Lstat(filepath.Join(home, "big-keys")); err == nil {
+		return nil, fmt.Errorf("unsupported big-keys layout; use a clean data directory")
+	} else if !errors.Is(err, os.ErrNotExist) {
 		return nil, err
 	}
 	s, err := bigfile.Open(filepath.Join(home, bigDir), idx, time.Now())
@@ -71,7 +47,7 @@ func openBigKeys(home string, idx ports.BigIndex) (ports.BigStore, error) {
 		return nil, err
 	}
 	// A start that removed anything says how much, by count, so a loss on the
-	// way up from an older layout or after a crash is never silent.
+	// way up after a crash is never silent.
 	if r := s.Start; r != (bigfile.Reconciled{}) {
 		log.Printf("bigfile start: removed %d rows without files, %d files without rows, %d temporary files", r.RowsWithoutFiles, r.FilesWithoutRows, r.Temporary)
 	}

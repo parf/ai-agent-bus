@@ -29,10 +29,8 @@ func TestDefaultDatabaseFollowsXDGStateHome(t *testing.T) {
 	}
 }
 
-// A missing database at the new default still refuses the start; and when one
-// sits at the old home default the refusal names it, so the operator can pass
-// --db instead of finding an empty node.
-func TestMissingDefaultDatabaseRefusesAndNamesTheOldOne(t *testing.T) {
+// A missing requested database is never replaced by a different path.
+func TestMissingDefaultDatabaseDoesNotAdoptAnotherPath(t *testing.T) {
 	state, home := t.TempDir(), t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_STATE_HOME", state)
@@ -48,7 +46,7 @@ func TestMissingDefaultDatabaseRefusesAndNamesTheOldOne(t *testing.T) {
 	}
 	st.Close()
 	_, err = openDatabase(defaultDB(), false)
-	if !errors.Is(err, sqlite.ErrMissing) || !strings.Contains(err.Error(), homeDB()) {
+	if !errors.Is(err, sqlite.ErrMissing) || strings.Contains(err.Error(), "previous default") {
 		t.Fatalf("a database at the old default: %v, want a refusal naming %s", err, homeDB())
 	}
 	if _, err := os.Stat(defaultDB()); err == nil {

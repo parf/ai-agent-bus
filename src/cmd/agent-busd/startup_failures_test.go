@@ -31,10 +31,10 @@ func TestStartupFailureFixture(t *testing.T) {
 		c.owner = "bad@@h"
 	case "owner", "init owner":
 		// Exercise main's role dispatch, not just runBus's direct check.
-		os.Args = []string{os.Args[0], "-owner", "bad@@h", "-db", c.db, "-log-dir", c.logDir}
+		os.Args = []string{os.Args[0], "--owner", "bad@@h", "--db", c.db, "--log-dir", c.logDir}
 		os.Setenv(roleEnv, roleBus)
 		if mode == "init owner" {
-			os.Args = append(os.Args, "-init")
+			os.Args = append(os.Args, "--init")
 		}
 		main()
 		return

@@ -23,7 +23,7 @@ var Build = "development (unstamped)"
 
 // Print handles the version query before any credentials, files or listeners.
 func Print() bool {
-	if len(os.Args) != 2 || (os.Args[1] != "--version" && os.Args[1] != "-version") {
+	if len(os.Args) != 2 || os.Args[1] != "--version" {
 		return false
 	}
 	fmt.Print(Text())
