@@ -4320,12 +4320,12 @@ agent_eventlog() {
 agent_subscriptions() {
   sec "shared subscription vectors, authority and bounded delivery"
   local out rc
-  local suite
-  for suite in test_subscriptions.py test_scheduler_state.py; do
-    out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/shared -p "$suite" -v 2>&1); rc=$?
-    echo "$out" | sed 's/^/  /'
-    ok_exit "shared scheduling and subscriptions: $suite" "$rc"
-  done
+  out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/shared -p test_subscriptions.py -v 2>&1); rc=$?
+  echo "$out" | sed 's/^/  /'
+  ok_exit "subscription parity and bounded delivery" "$rc"
+  out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest agents.cron.test_scheduler_state -v 2>&1); rc=$?
+  echo "$out" | sed 's/^/  /'
+  ok_exit "canonical scheduler state and interrupted-send recovery" "$rc"
 }
 
 # The container image from this tree's release archive, under rootless podman

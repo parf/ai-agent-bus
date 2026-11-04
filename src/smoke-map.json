@@ -377,7 +377,7 @@
         "src/testdata/subscriptions.json",
         "src/clients/python/",
         "src/agents/shared/scheduler.py",
-        "src/agents/shared/test_scheduler_state.py"
+        "src/agents/cron/test_scheduler_state.py"
       ]
     },
     "agent_eventlog": {
@@ -1003,11 +1003,7 @@
           "-B",
           "-m",
           "unittest",
-          "discover",
-          "-s",
-          "agents/shared",
-          "-p",
-          "test_scheduler_state.py",
+          "agents.cron.test_scheduler_state",
           "-v"
         ]
       }
