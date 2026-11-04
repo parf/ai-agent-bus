@@ -2,7 +2,7 @@
 
 🏢 **An enterprise platform that connects your AI agents, tools and people, governs every access, and runs managed agents with [documented isolation](docs/runner/security.md#isolation-today).**
 
-💻 **Runs on Linux and macOS:** everything on Linux; on macOS the bus, the runner and the command line.
+💻 **Runs on Linux and macOS:** full system services on Linux; on macOS, a client, local bus and runner with [platform limits](docs/platforms/macos.md).
 
 Not a single tool but a whole platform: it runs on localhost and grows to many hosts, users and teams.
 
@@ -16,7 +16,7 @@ Not a single tool but a whole platform: it runs on localhost and grows to many h
 - 🔑 **Secrets:** shared passwords on the bus; a script's own stay on its host.
 - 🔒 **Secure communications:** other machines can connect over HTTPS with a pinned certificate, or over SSH; one port serves HTTP and HTTPS; on one host, a private socket only your account can reach.
 - 📦 **Confinement:** managed scripts use the [documented network, filesystem and resource boundaries](docs/runner/security.md#isolation-today).
-- 🧱 **Ready helpers:** chat, mail, text messages, databases, server checks.
+- 🧱 **Ready helpers:** chat, mail, text messages and server checks.
 - ⏰ **Scheduling:** wake an assistant at a time or on a rhythm.
 - 🚨 **Alerts:** a server error reaches an assistant, then you on Slack (or Telegram, SMS).
 - 🌐 **Clients:** libraries for six common programming languages.
@@ -83,7 +83,6 @@ The runner's [isolation rules](docs/runner/security.md#isolation-today) explain 
 - 📱 **Phone:** a text message.
 - ⏰ **Schedule:** at a time, on a rhythm, or later.
 - 🖥️ **Servers:** logs, disks, services, code.
-- 🗄️ **Data:** safe database access for your AI, from read-only to full access — the password never leaves the server.
 - 🧠 **RAG:** a shared memory for your AI: it sorts your texts into your own topics and finds them by keyword.
 - 🌐 **Web:** AI reads web pages as text or Markdown and makes bounded HTTP requests; limit it to the sites you allow.
 - 🤖 **AI:** ask a model.
@@ -138,7 +137,6 @@ flowchart LR
 
 ## Start here
 
-- **New:** the [user guide](docs/user/README.md) is the shortest path from nothing to a running assistant or script.
 - **Recommended: let your AI do the setup.** Start your AI agent on the target computer and ask: “Read and execute [AI-SETUP.md](AI-SETUP.md#how-to-start) to install AgentBus.” Answer any questions about your preferences or accounts; the AI reads the main docs and does the applicable work.
 - **Already installed? Use the same entry point.** Ask your AI to execute `AI-SETUP.md` to update AgentBus, configure the bus or tune any agent. It checks what exists, preserves working settings and asks only for missing choices. Updates happen when you request them.
 - **Manual installation:** [INSTALL](src/INSTALL.md), with details in [setup](docs/07-setup.md#install).
@@ -156,12 +154,10 @@ flowchart LR
 <dt><strong><a href="docs/05-discovery.md#mcp-minimum">MCP tools</a></strong></dt>
 <dd>AI CLI tools see agents, services, queues and pubsub channels over MCP, and can list, send, consume and reply.</dd>
 <dt><strong><a href="docs/06-dedicated-runner.md#script-agents">Turn any shell script into an agent</a></strong></dt>
-<dd><code>agent-bus run</code> serves it under a name, through restarts.</dd>
+<dd><code>agent-bus run</code> serves it under a name while the command runs. Use the runner for a managed background agent.</dd>
 <dt><strong><a href="src/clients/README.md">Client libraries for every major language</a></strong></dt>
 <dd>Python, TypeScript, Go, Rust, Java and PHP, all MIT. Each one can call, serve and publish, and use KV, locks and record configuration.
 <a href="src/clients/examples/README.md">Examples</a> in all six languages call each other over one bus.</dd>
-<dt><strong><a href="CLAUDE.md#mutation-first-then-belief">Tested by breaking it</a></strong></dt>
-<dd>Every check has been seen to fail first.</dd>
 </dl>
 
 ### Web management panel
@@ -189,7 +185,7 @@ flowchart LR
 <dt><strong><a href="docs/constitution.md#authority-rules">Users own everything</a></strong></dt>
 <dd>An Agent never owns what it creates.</dd>
 <dt><strong><a href="docs/08-processes.md#the-rule">Least privilege</a></strong></dt>
-<dd>Separate accounts, hardened units, no secrets in logs.</dd>
+<dd>Separate service accounts and documented sandbox boundaries limit what managed code can reach. Agent code still needs to be trusted with its credentials.</dd>
 <dt><strong><a href="docs/04-messaging.md#durability">Durable where it matters</a></strong></dt>
 <dd>Administrative writes commit before they are answered.</dd>
 </dl>
@@ -232,7 +228,7 @@ An optional realm (<code>@team</code>) is part of the name.
 <dt><strong><a href="docs/constitution.md#-private-values">Private values</a></strong></dt>
 <dd>Keep secrets in Secret and config in Configuration. See <a href="docs/03-records-agent.md#configuring-a-template">configuration</a> for authorized display, access and the script environment.</dd>
 <dt><strong><a href="docs/constitution.md#common-record-fields">Active / Inactive</a></strong></dt>
-<dd>Turns any record on or off — a user, agent, group or service. An inactive one is hidden and refused; its name is kept.</dd>
+<dd>An inactive record refuses use and keeps its name reserved; authorized managers can still inspect it.</dd>
 </dl>
 
 ### Messaging
@@ -243,7 +239,7 @@ An optional realm (<code>@team</code>) is part of the name.
 <dt><strong><a href="docs/constitution.md#-channels">Forwarding</a></strong></dt>
 <dd>An agent or queue may pass what it receives on to one destination, which must allow it.</dd>
 <dt><strong><a href="docs/04-messaging.md#request-and-reply">Request and reply</a></strong></dt>
-<dd>Replies are ordinary messages matched by topic and tag; the daemon keeps no conversation state.</dd>
+<dd>Replies are ordinary messages matched by topic and tag; clients track the exchange, and the daemon provides bounded reply reservations.</dd>
 <dt><strong><a href="docs/04-messaging.md#receipts">Receipts and deadlines</a></strong></dt>
 <dd>A reader may confirm it took or finished a message, and a caller may say when an answer stops being useful.</dd>
 <dt><strong><a href="docs/04-messaging.md#one-reader-per-inbox">One reader per inbox</a></strong></dt>
@@ -263,46 +259,9 @@ An optional realm (<code>@team</code>) is part of the name.
 
 ### Persistent KV storage per registry record (Redis- or NATS-like, built in)
 
-Each registry record has its own persistent [key-value store](docs/03-records-kv.md#key-value-store)
-for string, integer and JSON values, with atomic updates that let workers safely
-share job state across daemon restarts.
+Keep small shared values—settings, counters and job checkpoints—on the record they belong to. String, integer and JSON values support atomic updates and survive daemon restarts.
 
-| Feature | What it provides |
-|---|---|
-| Value kinds | String (any bytes), integer, JSON object — each its own namespace. |
-| Basic operations | `kv get`, `kv set` and `kv delete`; `--add` writes only if absent, and `--replace` writes only if present. |
-| Atomic counters | `kv inc` increments or decrements an integer in one operation; a missing counter starts at zero. |
-| Atomic JSON edits | Set or remove fields, increment counters, push or pop array elements, and add or remove set members; a list of operations succeeds or fails as a whole. |
-| Shared work | Workers can atomically `shift` different jobs from a JSON array; use the record's shared locks when coordinating several reads and writes. |
-| Access | The record's Owner, Maintainers and own Agent. |
-| Persistence | Writes commit before success is returned; transferring a record preserves its store, while deleting the record deletes its values. |
-
-The following KV examples assume these Agent, Service, Group and Queue records
-already exist and you may manage them.
-
-**Per record means on any record** — a 👾 Agent, a 📡 Service, a 👥 Group, a 📮 queue, a User's own record — each with its own namespace ([examples](docs/03-records-kv.md#key-value-store)):
-
-```sh
-agent-bus kv set --json '#indexer@team' progress '{"cursor":1200}'   # an Agent's checkpoint
-agent-bus kv set --int db@team schema 42                              # a Service's migration level
-agent-bus kv set @oncall@team current alice@team                       # a Group's shared state
-agent-bus kv json jobs@team batch '[{"op":"push","key":"todo","value":"img-1"}]'   # a queue's work list
-```
-
-**Suggested uses** ([patterns](docs/03-records-kv.md#suggested-use)):
-
-| Pattern | How |
-|---|---|
-| Scatter / gather | push jobs onto a list; each worker `shift`s its own, writes its result with `--add`, and `inc`s a counter — the one whose `inc` reaches the total tells the coordinator |
-| Sharding with failover | claim a shard with `set --add`, hold the record's lock on it with a TTL, keep a cursor in the store; a dead worker's lock expires and the next one resumes from the cursor |
-| Rebalancing | rewrite the shard map under one lock and bump an epoch counter that workers re-check |
-| Retry | `unshift` a failed job back to the front, or `push` it onto a failed list |
-| Suspend / resume | a `paused` flag the workers check before each claim, and a checkpoint per job that survives worker crashes and daemon restarts |
-
-Available through the CLI, API and MCP; see the [KV contract](docs/03-records-kv.md#key-value-store)
-for operations and limits, the [KV plan](Plans/R1.0-Release/done/kv.md#per-record-storage)
-for design reasoning, and the [KV CLI checks](src/clients/tests/kv/README.md#kv) for a runnable
-test of every operation.
+Use [KV operations and coordination patterns](docs/03-records-kv.md#key-value-store) for details. Separate operations are not a transaction; a crash between them can require reconciliation. For large payloads, pass a [bigfile](docs/03-records-kv.md#bigfiles) name instead of bytes in a message.
 
 ### Faces, logs & storage
 
@@ -313,8 +272,8 @@ test of every operation.
 <dd>Its own process and hardened unit: overview, every record and person, activity history by day, week and month, and diagnostics, with bodies never shown.</dd>
 <dt><strong><a href="docs/constitution.md#logs">Logs</a></strong></dt>
 <dd>An audit log of every administrative action, an error log copied to syslog, and an on-demand debug log.</dd>
-<dt><strong><a href="docs/07-setup.md#storage">SQLite storage</a></strong></dt>
-<dd>The Go daemon handles the registry and messaging with an embedded database; no separate database or message broker to administer. Remote PostgreSQL and MySQL support is <a href="Plans/R1.1/storage.md">coming soon</a>.</dd>
+<dt><strong><a href="docs/administration.md#storage">SQLite storage</a></strong></dt>
+<dd>The Go daemon handles the registry and messaging with an embedded database; no separate database or message broker to administer.</dd>
 </dl>
 
 The [constitution](docs/constitution.md#project-constitution) is the model in
@@ -328,13 +287,7 @@ The daemon itself answers as [#bus](docs/agents/bus.md#try-this-first), with sta
 [Write your own agent](docs/10-writing-an-agent.md#3-ways-to-run-agents): choose an execution path and follow the good-agent checklist.
 The [create-agent prompt](docs/agents/create-agent-prompt.md#prompt-to-paste) helps your coding AI implement it.
 
-New here? The [user guide](docs/user/README.md) is the shortest path from
-nothing to a running agent. See [INSTALL](src/INSTALL.md) for installation
-instructions and [setup](docs/07-setup.md#install) for details;
-building from source is [source instructions](src/README.md#build-and-check).
-[Client libraries](src/clients/README.md) include native examples that call each other.
-For scripts installed on a host and run when called, see the
-[runner guide](docs/runner/README.md).
+The [client libraries](src/clients/README.md) provide native examples. For scripts managed in the background, use the [runner guide](docs/runner/README.md).
 
 ### CLI tools and examples
 
@@ -343,12 +296,6 @@ The [CLI guide](docs/user/cli.md#-the-command-line-tools) has every command.
 Everything you do with the bus from a terminal goes through one program, `agent-bus`: register records, send and read messages, call agents, take locks, keep KV values and run a script as an agent. On your own machine it finds your login socket by itself, so no token is needed; from elsewhere, set `AGENT_BUS_ADDR` and a credential.
 
 The other programs are used rarely. `agent-bus-setup` installs the node once, `agent-bus-admin` lets the bus operator add people and hand out credentials, `agent-bus-runner` serves installed scripts, and `agent-busd` is the daemon itself. The [CLI guide](docs/user/cli.md#-the-command-line-tools) covers each one.
-
-Fetch your login-socket credential:
-
-```sh
-agent-bus token >/dev/null
-```
 
 List all visible records in a readable table:
 
@@ -365,7 +312,7 @@ printf '#!/bin/sh\necho "hello $1"\n' > "$HOME/hello.sh" && chmod +x "$HOME/hell
 Run it as an agent in this terminal:
 
 ```sh
-agent-bus run hello "$HOME/hello.sh"
+agent-bus run hello "$HOME/hello.sh" --no-asks
 ```
 
 Call it from another terminal and get "hello world" back:
@@ -374,13 +321,13 @@ Call it from another terminal and get "hello world" back:
 agent-bus call '#hello' --wait 10s world
 ```
 
-Ask the debug agent what it can do:
+Ask the daemon's built-in agent what it can do:
 
 ```sh
-agent-bus help '#debug@parf.us'
+agent-bus help '#bus'
 ```
 
-List the agents tagged systemd:
+If you have enabled systemd helpers, list them:
 
 ```sh
 agent-bus ls --tag systemd
@@ -403,12 +350,6 @@ Publish a job to it:
 ```sh
 agent-bus publish --channel build-jobs@srv1 "build main"
 ```
-
-## Plans
-
-Each stage's status, scope and work: [Plans § stages](Plans/README.md#stages).
-
-All local conventions live in [CLAUDE.md](CLAUDE.md#working-rules).
 
 ## License
 
