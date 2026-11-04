@@ -59,46 +59,18 @@ as the [constitution](constitution.md#project-constitution) states them;
 
 ## Names
 
-Names look like `alice`, `alice@host` or `template/instance@host`. The realm
-after the last `@` identifies a namespace, not the process's physical location,
-and is optional. Names are lowercase and taken as written: nothing completes a
-bare name with a hostname.
+Use a name to address someone or something on the bus:
 
-- An additional instance of the same agent takes a numeric dot suffix before the realm: `#telegram/parf.2@parf.us`, then `#telegram/parf.3@parf.us`.
-- Use `.2`, never `-2`, for the second instance.
-- Launchers use the same rule when allocating duplicate session names; a saved session keeps its reserved name.
+- `alice` — a person.
+- `#worker` — an agent.
+- `@support` — a group.
+- `#telegram/work` and `#telegram/home` — separate instances, each with its own settings.
 
-<details>
-<summary>Name syntax and examples</summary>
+An optional ending such as `@team` distinguishes names: `#worker@team`. It names a namespace, not necessarily the computer running the agent. `alice` and `alice@team` are different names; the bus never adds an ending for you.
 
-| Rule | Meaning |
-|---|---|
-| Length | At most 64 ASCII characters, including separators |
-| Components | Start alphanumeric; use `a-z`, `0-9`, `.`, `_`, `-` |
-| Local part | Also allows `+` and internal `@`; each `@`-separated part must be non-empty |
-| Realm | Optional; follows the last `@` and contains neither `@` nor `/`. A name with no `@` has no realm |
-| Template | Optional prefix separated by one `/`; part of the identity, not a lookup |
-| Normalization | Lowercase and trim the whole name and each component; internal spaces are invalid |
+Keep names lowercase and at most 64 characters. For another instance of the same agent, use `.2`, `.3`, and so on: `#telegram/work.2@team`.
 
-- `mail-sender/parf@comfi.com@srv1` names template `mail-sender`, instance `parf@comfi.com`, realm `srv1`.
-- The bus does not treat that instance as a mailbox.
-- ` PARF@Localhost ` and `parf@localhost` identify the same principal.
-- Two instances of an [agent template](03-records-agent.md#agent-templates) have separate names, records and configurations.
-
-</details>
-
-- The realm is optional on every name and every kind.
-- A name without a realm is a complete name rather than a shorthand: nothing is appended to it, and `alice` and `alice@srv1` are two distinct principals that may both exist, each reachable only by its own spelling.
-- The two separators are fixed whatever else a name contains: the first `/` separates the template, and the last `@` separates the realm, so a realm-less name is one carrying no `@` at all.
-- Every name valid before keeps its template and realm split.
-- Setup's default Owner is the installer's Unix account name alone, so the clean reinstall bootstraps `parf` rather than `parf@host`, and the runner account's principal is its own account name.
-- Agents that would otherwise collide across machines still carry a realm: the [launchers](06-launchers.md#session-names) keep deriving `runtime/instance@host`, with the host name as the realm.
-
-- An Agent's canonical name begins with `#` — `#worker`, `#worker@srv1`, `#claude/home@srv1` — the way a group name begins with `@`, so one name column is unique across every kind and no lookup is needed to know what a name refers to.
-- In a URL that `#` is percent-encoded as `%23`.
-- The kind is `agent` exactly when the name carries `#`; an unprefixed name names a User, a channel or a service.
-- The CLI's `--agent worker@srv1` spelling adds the `#` and never a second one.
-- Every record, an Agent's included, is owned by a User, and a User cannot be created under a `#` name.
+See [record names](constitution.md#common-record-fields) for the reference and [session names](06-launchers.md#session-names) for names chosen by AI launchers.
 
 ## Positions and scopes
 
