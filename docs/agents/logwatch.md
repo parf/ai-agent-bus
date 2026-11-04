@@ -5,14 +5,6 @@
 - **Outcome:** you or your AI ask "what went wrong in the last five minutes?" over the bus and get the matching lines back, or have new errors sent to one inbox.
 - **Start:** ask it what it can do: `agent-bus help '#logwatch@node.example'` ([Try this first](#try-this-first)).
 
-## Why you'd want it
-
-- 🔑 **Troubleshooting needs a login on the server.** Now you ask the helper; nobody logs in.
-- 🔍 **The clue is one line in thousands.** Now you ask for lines containing "error", or for the last five minutes.
-- 🧪 **After a deploy you cannot tell what it changed.** Now you set a mark, restart, and read only what came after.
-- 🔔 **You must watch a screen to catch errors.** Now each matching error arrives in an inbox.
-- 🛡️ **Logs hold private data.** Now only the people you allow can ask, and it only reads.
-
 ## What it does
 
 - ✅ **Recent lines on request:** the latest lines, or only those matching a word or pattern.
@@ -22,8 +14,6 @@
 - ✅ **Honest memory:** it keeps the latest lines in memory; after a restart or a full history it says so rather than show an incomplete story.
 - ✅ **Read only:** it never changes a program or its logs.
 - 🚫 **Not for:** long-term storage or search over weeks, or editing and rotating logs.
-
-The calls, last:
 
 | Call | Does |
 |---|---|
@@ -36,7 +26,6 @@ The calls, last:
 
 - Subscription definitions and delivery counts survive restarts; a failed copy is counted and never resent.
 - Subscriptions follow [the shared behaviour](subscriptions.md#the-shared-behaviour).
-- To change a subscription, delete it and add it again; `sub edit` is refused.
 
 ## You'll need
 
@@ -54,8 +43,6 @@ Use the complete name of your [enabled instance](#installing-it) in the commands
 agent-bus help '#logwatch@node.example'
 ```
 
-- See [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do).
-
 ## Use examples
 
 | I want to… | Command |
@@ -70,15 +57,7 @@ agent-bus help '#logwatch@node.example'
 | Check what is watched | `agent-bus call '#logwatch@node.example' sources` |
 
 <details>
-<summary>More use cases and rules for repairs</summary>
-
-| Use case | What you do | What you get |
-|---|---|---|
-| Site shows errors | Ask for recent lines containing "error" | The matching lines, with their file or service |
-| A deploy just failed | Ask for the last five minutes | Everything logged since |
-| Check a repair | Set a mark, restart, ask what came after | Only the lines the restart produced |
-| On-call alerts | Subscribe an AI session to `ERROR` | Each matching new error arrives in its inbox |
-| A log seems ignored | Ask which sources it watches | Watched, skipped and unreadable files |
+<summary>Repair checks</summary>
 
 - The repair itself is another helper's call, such as a [systemd](systemd.md#who-may-use-it) restart, which needs its own permission.
 - Give concurrent repairs different mark names.
@@ -108,7 +87,7 @@ unset AGENT_BUS_TOKEN
 - `sources` should list your logs; `tail 5` says `(no lines)` if they are empty.
 - Narrower account: omit `--user root` to create `ab-logwatch`, give it read access to the files, and for the journal add it to `systemd-journal` (or `adm`) with `sudo usermod -aG systemd-journal ab-logwatch`, then `sudo systemctl restart agent-bus-logwatch`.
 - Group membership does not make every application log readable; `sources` shows permission errors.
-- Remove: same installer, `remove --name '#logwatch@node.example'`, with current credentials. Other log readers such as `rd-tail-log` are left alone.
+- Remove: same installer, `remove --name '#logwatch@node.example'`, with current credentials. Other log readers are left alone.
 
 </details>
 
@@ -190,7 +169,7 @@ None.
 - At start each nonempty file contributes its last ten complete lines from the final `startup_bytes`; a newly found file starts at its end, so old content is never sent as a new alert. Empty files wait for content. New files are found every `rescan_interval`.
 - An oversized line keeps its head and ends with `…[truncated N bytes]`, counted in `line_bytes`. A poll reads at most 64 KiB per file.
 - History stops at `ring_size` lines or `ring_bytes`, oldest evicted first. An oversized journal record keeps its raw head under `journal:unknown`.
-- Colour codes are removed and control characters become `...`, using the tail-log cleaner.
+- Colour codes are removed and control characters become `...`, before returning lines.
 - Implementation notes: [source README](../../src/agents/standalone/logwatch/README.md).
 
 </details>

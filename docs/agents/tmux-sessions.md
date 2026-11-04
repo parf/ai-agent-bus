@@ -5,13 +5,6 @@
 - **Outcome:** you write the list once (window name, folder, command), and one call brings back whatever is missing, from anywhere on the bus.
 - **Start:** ask what the helper can do: `agent-bus help '#tmux-sessions@node.example'` ([Try this first](#try-this-first)).
 
-## Why you'd want it
-
-- 🔁 **A reboot kills every session.** Now one `start` brings them all back, each in its folder.
-- 🧰 **A stuck session needs a login to fix.** Now someone, or an AI, restarts just that window.
-- 👀 **You cannot tell what is really running.** Now `list` and the status answer say which windows are up.
-- 🖥️ **You want to look.** Now each program is a tab in the tmux status bar and you attach to see it.
-
 ## What it does
 
 - ✅ **Bring windows back:** start what is missing; running ones answer `already running` (`start [<name>...]`, no names means all).

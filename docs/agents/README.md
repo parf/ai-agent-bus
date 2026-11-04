@@ -5,21 +5,6 @@
 - **Outcome:** ready-made helpers do the job under their own name; an administrator installs one once and chooses who may use it, and people and AIs call it by name and never see its passwords.
 - **Start:** pick a job in [Choose an agent](#choose-an-agent), then ask the helper what it can do: `agent-bus help '#<helper>'`.
 
-## Why you want these helpers
-
-- 🔑 **Passwords spread everywhere.** Now they stay with the helper; callers only get its answers.
-- 🧱 **A login gives too much.** Now you grant one helper, or one role on it, per person or AI.
-- 🧩 **Each tool is its own island.** Now an AI reads from one helper, decides with another and posts through a third.
-- 🗂️ **One account for everybody.** Now each team gets its own instance with its own settings and access.
-
-## What you get
-
-- ✅ **One name per job:** `#systemd`, `#smtp/work`; callers ask the helper, not the server.
-- ✅ **Keys stay put:** provider keys and passwords live with the helper.
-- ✅ **Access per job:** grant a person or AI one helper, or one role on it, rather than a host login.
-- ✅ **Helpers combine:** [incoming events](#incoming-events-go-to-a-queue-or-an-agent) flow into queues or AI sessions, as in the [mail help desk](#example-a-mail-help-desk).
-- ✅ **Many instances:** [run as many as you need](#run-as-many-instances-as-you-need).
-
 ## Run as many instances as you need
 
 - Most helpers can run as **many instances**, side by side (`#bus` is the exception).
@@ -29,7 +14,7 @@
 | Instances | Why |
 |---|---|
 | `#smtp/support`, `#smtp/billing` | One per mailbox; the support AI can send only as support |
-| `#fetch/docs` | Limited to your documentation sites; an AI granted only this one cannot browse elsewhere |
+| `#fetch/docs` | Limits this helper to your documentation sites; other tools and host access have their own boundaries |
 | `#cron/team`, `#cron/ops` | One per trust group, so a destination allows only the group it trusts |
 | `#systemd/web` | Only the web units, for the web team |
 
@@ -53,7 +38,7 @@ someone reads them) or an **agent** directly, which may be an AI session.
 
 A queue suits work that may wait or is shared by several readers. An agent suits work one helper or AI should handle right away.
 
-Subscriptions in every helper are meant to work one way: who may add one, what a refused copy does, what `sub list` shows ([subscriptions § the shared behaviour](subscriptions.md#the-shared-behaviour)).
+Helpers share [subscription permissions, delivery limits and counters](subscriptions.md#the-shared-behaviour), with the differences listed there.
 
 ### Example: a mail help desk
 
@@ -63,7 +48,7 @@ Questions from customers come in by mail. A help system written as an Obsidian v
 |---|---|
 | 1. Fetch new mail | [`#imap`](imap.md#what-it-does) subscription to the `support` queue |
 | 2. Find the answer in the help pages | The vault in Git, read through [`#git`](git.md#what-it-does), or stored in [`#rag`](rag.md#what-it-does) for keyword search |
-| 3. Decide: answer, route or escalate | A sandboxed AI session that has only these grants, or an [`#ai` typed decision](ai.md#typed-decisions) |
+| 3. Decide: answer, route or escalate | An AI session granted these helpers, or an [`#ai` typed decision](ai.md#typed-decisions) |
 | 4. Reply to the customer | [`#smtp`](smtp.md#what-it-does) `send`, with a recipient allowlist if wanted |
 | 5. Alert a person when it matters | [`#slack`](slack.md#what-it-does) `post` or [`#sms-telnyx`](sms.md#what-it-does) |
 
@@ -76,7 +61,7 @@ A subscription forwards each new mail by itself; nothing is forwarded until some
 
 - **What job?** Pick the helper named for it below; each page opens with when to use it and when not to.
 - **Who installs it?** The table under [Choose an agent](#choose-an-agent) says whether it needs an administrator, a runner or nothing at all.
-- **Who may call it?** Most start owner-only; the Owner grants people and AIs.
+- **Who may call it?** Check the instance's access list before use; its Owner grants people and AIs.
 - **One for everybody, or one each?** Run a separate [instance](#run-as-many-instances-as-you-need) per account, team or site list, each with its own settings and access.
 
 ## Bundled agents
@@ -153,7 +138,7 @@ Writing your own agent? Use the [prompt for your coding AI](create-agent-prompt.
 
 ### Before you install
 
-An administrator does this part. The bus and CLI must already be [installed](../07-setup.md#install). Pages use example names such as `node.example`; replace them with your server and account.
+The person managing the helper needs its runner or host access. The bus and CLI must already be [installed](../07-setup.md#install). Pages use example names such as `node.example`; replace them with your server and account.
 
 Bundled packages are already installed under `/usr/local/lib/agent-bus/current/agents`. Enable an instance in the [runner inventory](../runner/configuration.md#inventory); do not build or copy another package. Standalone installers below use the installed bundle paths.
 
@@ -174,11 +159,11 @@ Systemd, git, server-info, logwatch and tmux-sessions have their own Linux servi
 | Another computer | `ssh agent-busd@<node> token --fingerprint` | `ssh agent-busd@<node> token` |
 | The bus server itself | `agent-bus token --fingerprint` | `agent-bus token` |
 
-On the server, `agent-bus token` uses your login socket's identity; without one, pass the name, such as `agent-bus token ann`. Then:
+On the server, `agent-bus token` uses your login socket's identity; without one, pass the name, such as `agent-bus token ann`. Replace the example address and fingerprint with the values for your node:
 
 ```sh
 export AGENT_BUS_ADDR=https://bus.example.com:6767
-export AGENT_BUS_TLS_FINGERPRINT='sha256:…' # paste the fingerprint
+export AGENT_BUS_TLS_FINGERPRINT='sha256:…'
 read -rsp 'Your bus token: ' AGENT_BUS_TOKEN; printf '\n'
 export AGENT_BUS_TOKEN
 ```

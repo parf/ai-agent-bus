@@ -5,14 +5,6 @@
 - **Outcome:** you or your AI see what is deployed and bring it up to date without a server login, within a ceiling the administrator sets per project.
 - **Start:** ask what the helper can do: `agent-bus help '#git@node.example'` ([Try this first](#try-this-first)).
 
-## Why you'd want it
-
-- 🔑 **Everyone needs a login to update code.** Now one helper does it, using the server's own Git account and keys, never the caller's.
-- 🧱 **An update can wipe someone's work.** Now each project has a ceiling, "look only" or "may update", and nobody, not even the owner, goes above it.
-- 🔍 **You cannot tell what is deployed.** Now you ask for the status or the last changes.
-- 🚀 **Ten servers, ten logins.** Now one announcement from your build system updates every server that follows the project.
-- 🤖 **An AI should deploy, not roam.** Now it gets "may update" on one project and nothing else.
-
 ## What it does
 
 - ✅ **Look:** see what is deployed, recent changes and differences (`list`, `status`, `log`, `rev`, `fetch`, `diff`).
@@ -23,7 +15,7 @@
 - 🚫 **Not for:** day-to-day coding in a shared working copy, merging or resolving conflicts, or arbitrary Git commands.
 - ↩️ **Roll out or back one revision:** publish a deploy event with a commit; every following server moves to exactly that commit.
 
-Every call names a project declared in [Configuration](#configuration).
+Repository operations name a project declared in [Configuration](#configuration). Use names returned by `list`; `ab`, `site` and `docs` below are example configurations.
 
 ## You'll need
 
@@ -40,8 +32,6 @@ Use the complete name of your [enabled instance](#installing-it) in the commands
 ```sh
 agent-bus help '#git@node.example'
 ```
-
-- More on this: [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do).
 
 ## Use examples
 
@@ -154,7 +144,7 @@ unset AGENT_BUS_TOKEN
 
 ### Calls
 
-- Every call is a project name plus a few words; `--help` lists them all.
+- Repository methods take a project name and their documented arguments; `--help` lists them.
 - Options and shell commands are never accepted.
 
 ## Autopull

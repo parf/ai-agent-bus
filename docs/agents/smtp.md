@@ -5,20 +5,9 @@
 - **Outcome:** people, scripts and AI assistants send an email from one of your mail accounts without seeing its password; each call sends one message once, and you decide who may send, and to whom.
 - **Start:** ask what the helper can do: `agent-bus help '#smtp/work@node.example'` ([Try this first](#try-this-first)).
 
-## Why you'd want it
-
-- 🔑 **Every script needs the mail password.** Now it stays in one private file next to this helper; callers only get "send as this mailbox".
-- 📧 **A report must reach a person.** Now a script or AI mails a report, summary or alert in one call.
-- 🧱 **A script could mail anyone.** Now you limit the recipients to your own domain or a list.
-- 🗂️ **Work and personal mail mix.** Now one helper per account keeps them apart.
-
 ## What it does
 
 - ✅ **Send one message:** a subject, plain text, optional HTML, to up to 20 recipients across to, cc and bcc (`send`).
-- ✅ **Nightly build report:** the team gets "Build passed" each morning.
-- ✅ **AI review summary:** ask your AI to mail you the result.
-- ✅ **Server alert:** a monitor sends an alert mail, only to your own domain.
-- ✅ **Weekly status:** a readable HTML report with a plain-text copy.
 - ✅ **From is always the configured account;** callers cannot change it or add other headers.
 - ⚠️ **Each call submits once and never retries;** HTML is never rendered and nothing is fetched.
 - 🚫 **Not for:** reading mail (use [IMAP](imap.md#what-it-does)), attachments (not supported), or bulk mailing lists.
@@ -71,16 +60,7 @@ Use the SMTP package included with the bus installation. Add one instance per ma
 4. Check with a mail to yourself at another address: `agent-bus call '#smtp/gmail@node.example' '{"method":"send","to":["ann@example.com"],"subject":"Test","text":"Hello"}'`.
    - Gmail files mail you send to your own Gmail address under Sent, not the inbox.
 
-<details>
-<summary>Step by step</summary>
-
-1. Select the bundled SMTP package; no build or package copy is needed.
-2. Add an instance to the [runner inventory](../runner/configuration.md#inventory).
-3. Put the account's keys in its private host file ([Secret keys](#secret-keys)).
-
-Reload the runner after changing the package or its private host environment.
-
-</details>
+For another SMTP provider, set the [Configuration](#configuration) and [private credentials](#secret-keys), enable the instance in the runner inventory, then reload. Preserve other inventory entries.
 
 ## Configuration
 

@@ -5,14 +5,6 @@
 - **Outcome:** when your build finishes green, it announces the new code once, and every server that follows the project updates itself, runs its own after-update script and reports one result line.
 - **Start:** check the last automatic update on a server: `agent-bus call '#git@node.example' 'autopull site'` ([Try this first](#try-this-first)).
 
-## Why you'd want it
-
-- 🔑 **Your build system needs SSH to every host.** Now it only announces new code; servers pull what they are allowed to.
-- 🕒 **Timers guess when to update.** Now an update starts on an event, once at start to catch up, or when an operator asks.
-- ➕ **A new server means changing the pipeline.** Now adding a server is a Configuration change on that server.
-- 👀 **You cannot see what happened.** Now every attempt is one result record, host first.
-- ↩️ **A bad release needs a fast way back.** Now one `deploy` event moves every server to one exact revision.
-
 ## What you get
 
 - ✅ **One announcement requests an update on the servers** that follow that project and branch ([how it works](#how-it-works)).
@@ -23,6 +15,8 @@
 - 🚫 **Not a CI system,** not a build step, not a scheduler: it reacts to announcements, catches up once at start, and does what an operator asks.
 
 ## Try this first
+
+Use an installed [Git instance](git.md#installing-it) and a repository name from its `list` result; the examples use `site`.
 
 - Ask a server for the last automatic update (read-only):
 
@@ -56,17 +50,7 @@ Each project picks one mode in its Configuration (`"mode":"ff"` or `"mode":"mirr
 | Use it for | Development and staging servers, shared copies where someone may be working | Dedicated production copies nobody edits by hand |
 | Needs | Project access `deploy` or `commit` | The same, chosen explicitly |
 
-### Which one, and why
-
-| Situation | Mode | Why |
-|---|---|---|
-| A developer or reviewer may edit files on that server | `ff` | Their work is never thrown away; the update waits, reports `dirty`, and continues once they commit or clean up |
-| A staging server that should track `main` but where hot-fixes sometimes happen | `ff` | A hot-fix shows up as `diverged` instead of vanishing silently; someone decides |
-| A production copy deployed only through CI | `mirror` | Stray edits, leftover build files or a half-applied hot-fix must never block a release; the server always ends up exactly on the announced code |
-| A fleet of identical web servers | `mirror` | Every host converges to the same commit; the result's `discarded` count shows which host had drifted |
-| You need one exact revision now, or a roll-back | either mode, with `deploy` | `deploy` moves to the named revision in both modes |
-
-Rule of thumb: if a person might ever type on that server, use `ff`; if only the pipeline should change it, use `mirror`.
+Use `ff` when people may edit the checkout. Use `mirror` only for a dedicated deployment copy.
 
 - Only projects with `"follow":true` react to channel events and check once at start.
 - A `push` event always moves to the fetched tip, so replaying an old announcement never rolls a server back.
@@ -105,7 +89,6 @@ Only a delivery through the exact configured `autopull-cmd` pubsub channel is an
 - An invalid event for a served remote produces `invalid_event`; ambiguous or malformed JSON cannot identify a repository and is ignored.
 
 - A push always moves to the **fetched tip**; its commit must be visible and an ancestor of that tip.
-- Replaying an old push never rolls back a mirror.
 - Deploy may select any reachable older revision.
 - A commit not visible after three bounded fetch attempts fails `not_in_branch` without changing the copy.
 
@@ -165,7 +148,7 @@ Each admitted attempt saves its last result locally and, when `autopull-log` is 
 - Errors have a fixed `code` and safe `text`: `dirty`, `diverged`, `not_in_branch`, `fetch`, `timeout`, `lock`, `invalid_event` or `script`.
 - The Git component never adds checkout paths, origin URLs, credentials or commit messages to these records or update answers.
 - A script-failure record includes the script's own first stderr line; that text may contain such details, so the script author must choose safe diagnostic output.
-- Legacy `log` still returns requested commit titles.
+- The `log` method returns requested commit titles.
 
 - Log failure changes neither the Git result nor post-update work.
 - It is never retried: acceptance may be uncertain.

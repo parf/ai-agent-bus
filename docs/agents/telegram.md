@@ -5,13 +5,6 @@
 - **Outcome:** it sends you the question on Telegram; you tap **Reply** and your answer goes back to the same AI conversation.
 - **Start:** ask it what it can do: `agent-bus help '#telegram/ann@node.example'` ([Try this first](#try-this-first)).
 
-## Why you'd want it
-
-- ⏳ **The AI waits for you at your desk.** Now it asks on your phone and carries on when you answer.
-- 📣 **Alerts come from many services.** Now several of them can send into one Telegram chat.
-- 👥 **A group wants to talk to an AI.** Now a group chat can reach one chosen AI session.
-- 🔑 **The bot's password would be in the AI's hands.** Now the token stays on the server; the AI never sees it.
-
 ## What it does
 
 - ✅ **Messages to your phone:** the AI posts an update or asks a question.
@@ -22,16 +15,9 @@
 - ✅ **Control:** only people you list may pick sessions; an open group can be limited to one session.
 - 🚫 **Not for:** teams that live in Slack (use [Slack](slack.md)), a plain text message to someone without Telegram (use [SMS](sms.md)), or content that must not pass through Telegram's servers.
 
-| Ability | In plain words |
-|---|---|
-| `post` | Send a message (to the default chat if none is named) |
-| `read` | Show recent messages the bot has seen in a chat |
-| `sub add`, `sub list`, `sub delete` | Forward matching chat messages to an AI session |
-| `refused`, `channels` | Show who the bot refused and which chats it has seen |
-| `whoami` | Name the bot |
-| Edits, reactions, deletion | Change or react to messages |
+- Other methods edit, react to or delete messages; `refused` and `channels` identify blocked senders and known chats, and `whoami` names the bot.
 
-- Slack uses the same router; this page owns the [shared routing rules](#reply-routing).
+- Slack uses the same [reply routing](#reply-routing).
 - How its subscriptions differ from the shared rules is in [what each helper does today](subscriptions.md#what-each-helper-does-today), the same as Slack.
 
 ## You'll need
@@ -50,8 +36,6 @@ Use the complete name of your [enabled instance](#installing-it) in the commands
 agent-bus help '#telegram/ann@node.example'
 ```
 
-- It lists every call and setting; see [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do).
-
 ## Use examples
 
 | I want to… | Command |
@@ -63,21 +47,11 @@ agent-bus help '#telegram/ann@node.example'
 | List or remove forwards | `… 'sub list'`, `… 'sub delete <id>'` |
 
 <details>
-<summary>Rules for these calls, and more use cases</summary>
+<summary>Read formats and subscriptions</summary>
 
 - `read` also accepts JSON: `{"method":"read","channel":"#dev","limit":5}`.
-- Each author lists and deletes their own subscriptions; direct Owners and Maintainers manage all. To change one, use `sub delete` and `sub add` (there is no `sub edit`). Matching messages are forwarded.
-- The author must be allowed to send to both this helper and the destination, checked at add and before every forward ([may-send for another name](../09-daemon-api.md#checking-permission-to-send)); a refused or uncertain copy is dropped, counted and warned, and the next match stays active. An unavailable permission check sends nothing.
+- Subscription management, author checks and refused-copy behavior follow the [shared subscription rules](subscriptions.md#the-shared-behaviour).
 - To silence a chat, set its `chats` entry to `{"handler":"drop"}` ([per-chat routing](#per-chat-routing)).
-
-| Use case | What you do | What you get |
-|---|---|---|
-| Deploy report | AI posts when a deploy ends | A message on your phone |
-| "Should I proceed?" | AI asks; you tap Reply | The AI continues with your answer |
-| Quick instruction | Send `#b please check the logs` | That AI session does it and answers |
-| Group alerts | Forward group messages matching "error" | The AI session sees only the errors |
-| Catch up on a group | Ask for the last five messages | What the bot saw there |
-| Quiet a noisy chat | Tell the bot to ignore that chat | Nothing from it reaches the AI |
 
 </details>
 
@@ -116,7 +90,7 @@ Paths follow [runner helpers](README.md#runner-helpers).
 2. Use the Telegram package included with the bus installation. Add an [inventory](../runner/configuration.md#inventory) entry to `/var/lib/agent-bus/ann-ab-runner/agents.json`, keeping other entries:
 
    ```json
-   "telegram": { "name": "#telegram/ann@node.example", "enabled": true }
+   {"telegram": {"name": "#telegram/ann@node.example", "enabled": true}}
    ```
 
 3. Give the runner this agent's own bus credential (not the bot token):
@@ -261,8 +235,6 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 | `read` is empty | Send a new message where the bot can see it; older history is not fetched |
 | Can read a channel but not post | Give it channel-admin posting permission |
 | Repeated handling failures | Administrator checks the runner journal |
-
-- `agent-bus help '#telegram/ann@node.example'` lists every call.
 
 ## Technical details
 

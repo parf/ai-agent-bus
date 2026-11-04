@@ -5,13 +5,6 @@
 - **Outcome:** one call answers ✅ or ❌ for each part of the bus and for the other helpers on a server, without logging in.
 - **Start:** ask it what it can do: `agent-bus help '#debug@node.example'` ([Try this first](#try-this-first)).
 
-## Why you'd want it
-
-- 🔎 **Nobody knows if the bus is healthy.** Now one call gives the same checks and one verdict every time.
-- 🚀 **A deploy needs a yes or no.** Now the post-deploy check and your AI ask the same question.
-- 🧩 **Odd symptoms are hard to pin down.** Now a big message, special characters or the roles actually delivered are one call away.
-- 🔒 **A diagnostic tool must not leak.** Now its own password stays hidden in every answer.
-
 ## What it does
 
 - ✅ **Bus check in a minute:** six quick checks, each ✅ or ❌, with the failing step named.
@@ -20,8 +13,6 @@
 - ✅ **What the bus delivered:** your roles and the message fields exactly as they arrived.
 - ✅ **Its own limits:** the restrictions and settings it runs with, secrets masked.
 - 🚫 **Not for:** checking your own permissions (use `agent-bus may-send`), fixing anything, or monitoring over time.
-
-The calls, last:
 
 | Call | Does |
 |---|---|
@@ -47,8 +38,6 @@ Use the complete name of your [enabled instance](#installing-it) in the commands
 agent-bus help '#debug@node.example'
 ```
 
-- See [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do).
-
 ## Check the bus in a minute
 
 ```sh
@@ -65,25 +54,11 @@ agent-bus call '#debug@node.example' doctor
 
 | I want to… | Command |
 |---|---|
-| Run the bus checks | `agent-bus call '#debug@node.example' selftest` |
-| Get a health overview | `agent-bus call '#debug@node.example' doctor` |
 | See raw disk facts | `agent-bus call '#debug@node.example' 'doctor disks'` |
 | See delivered roles | `agent-bus call '#debug@node.example' roles` |
 | Check I may send to a helper | `agent-bus may-send <name>`, as you |
 
-<details>
-<summary>More use cases, and why debug has no permission check</summary>
-
-| Use case | What you do | What you get |
-|---|---|---|
-| Something is off | Ask `doctor` | One verdict per check: failed services, full disk, old versions, certificate |
-| Disk or certificate warning | Ask `doctor full` or `doctor disks` | The raw facts behind the verdict |
-| Wrong permissions arrive | Ask `roles` | The roles the bus actually delivered |
-| Big or non-English messages break | Ask `big 64` or `unicode` | A known test message to compare |
-
-- There is no `can` method: debug cannot act as you, so a check made as debug would only describe debug's own access.
-
-</details>
+For a large or non-English test answer, call `big 64` or `unicode`. Debug has no `can` method: it cannot act as you, so use `agent-bus may-send` as your own identity.
 
 ## Installing it
 

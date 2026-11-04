@@ -1,24 +1,14 @@
 # AI: ask a language model without sharing its password
 
 📌 **TL;DR:**
-- **Problem:** a paid AI model needs an account key; copied into every script and AI session, it leaks and nobody knows who spends the money.
+- **Problem:** scripts and AI sessions need model access without each holding the account key.
 - **Outcome:** everyone on the bus asks one shared door and gets the answer; the key stays on the server and the administrator decides who may ask.
 - **Start:** see what the helper offers: `agent-bus help '#ai@node.example'` ([Try this first](#try-this-first)).
-
-## Why you'd want it
-
-- 🔑 **The key is copied everywhere.** Now it sits in one locked place; callers get a door, not the key.
-- 💸 **Nobody knows who spends.** Now the administrator controls who may open the door and can close it any time.
-- 🧩 **Each script needs its own model code.** Now one call asks, in plain text or as a full chat request.
-- 🎯 **You need a choice, not an essay.** Now `decide` returns each fixed choice with its probability.
 
 ## What it does
 
 - ✅ **Ask:** send a question or a full chat request, get the answer text or the provider's full reply (`ask`, or just your text).
 - ✅ **Decide:** send a question with fixed choices, get each choice with its probability (`decide`, see [typed decisions](#typed-decisions)).
-- ✅ **Explain, summarise, translate:** short answers for scripts, bots and AI sessions.
-- ✅ **Share one account:** several people or sessions use one model account under one access list.
-- ✅ **Use cases:** explain an error, summarise a nightly build log, sort tickets by category, translate a notice, or feed [RAG](rag.md#what-it-does) to sort stored texts.
 - 🚫 **Not for:** long conversations with memory (each call stands alone: send the context again), live word-by-word output (no streaming), or text that must never reach an outside AI provider (the provider sees every prompt).
 
 ## Typed decisions
@@ -59,7 +49,6 @@ agent-bus help '#ai@node.example'
 - **Send a full chat request:** `agent-bus call '#ai@node.example' --wait=60s '{"messages":[{"role":"user","content":"Say hello in French."}],"temperature":0.2}'`
 - **Use another model once:** add `"model":"openai/gpt-4.1-mini"` to the JSON.
 - **Get probabilities for fixed choices:** a `decide` call, [above](#typed-decisions).
-- **See the supported model setting:** `agent-bus help '#ai@node.example' config`
 - **Ask from my AI session:** say "Ask the AI helper to explain this error."
 
 ## Installing it
@@ -69,8 +58,6 @@ agent-bus help '#ai@node.example'
 3. Set `enabled:true` for `ai` in the [runner inventory](../runner/configuration.md#inventory), preserving other entries, then reload the runner.
 4. Set the default model: `agent-bus config '#ai@node.example' '{"model":"openai/gpt-4.1-mini"}'`.
 5. Grant access only to callers who may spend the provider balance.
-
-The provider key is required for model calls.
 
 ## Configuration
 
@@ -100,7 +87,6 @@ agent-bus manage '#ai@node.example' --remove-allow '*'
 
 - The caller's wait bounds a request, up to the package's 60-second timeout.
 - Requests and answers are at most 1 MiB each.
-- Logs record the caller's bus name, model, byte sizes and status.
 
 </details>
 
