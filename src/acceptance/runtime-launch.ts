@@ -143,7 +143,7 @@ const aliveNow = (pids: number[]) => pids.filter(p => { try { process.kill(p, 0)
 
 // ---- disposable daemon and profile ------------------------------------------
 const fd = openSync(join(out, "daemon.log"), "w");
-const daemon = Bun.spawn([join(bin, "agent-busd"), "-addr", "127.0.0.1:0", "-socket", join(out, "bus.sock"), "-owner", "owner@fixture", "-db", join(out, "bus.db"), "-create", "-flush-every", "0"], { env, stdout: fd, stderr: fd });
+const daemon = Bun.spawn([join(bin, "agent-busd"), "--addr", "127.0.0.1:0", "--socket", join(out, "bus.sock"), "--owner", "owner@fixture", "--db", join(out, "bus.db"), "--create", "--flush-every", "0"], { env, stdout: fd, stderr: fd });
 closeSync(fd);
 const runtimeEnv: Record<string, string> = { HOME: home, XDG_CONFIG_HOME: join(home, "config"), XDG_DATA_HOME: join(home, "data"), XDG_STATE_HOME: join(home, "state"), XDG_CACHE_HOME: join(home, "cache"), AGENT_BUS_REALM: "fixture" };
 if (live) {

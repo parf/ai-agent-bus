@@ -78,9 +78,7 @@ def crash(label):
     check(after != before, label + " uses a replacement bus process")
 
 # No periodic flush: every write the gate sees on disk is an administrative one.
-unit = fx.unit(binary / "agent-bus-setup", binary / "agent-busd", owner_name, flags="-flush-every 0")
-unit = "\n".join(l.replace(" -web", "") if l.startswith("ExecStart=") else l
-                 for l in unit.splitlines()) + "\n"
+unit = fx.unit(binary / "agent-bus-setup", binary / "agent-busd", owner_name, flags="--flush-every 0")
 try:
     # A bounded filesystem of its own, so the storage failure below is a real
     # ENOSPC from the kernel and the live disk is never the one filled.

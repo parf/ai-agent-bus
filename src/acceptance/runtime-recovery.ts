@@ -120,7 +120,7 @@ async function until(test: () => boolean | Promise<boolean>, label: string, ms =
 let daemon: ReturnType<typeof Bun.spawn> | undefined, daemons = 0;
 function startDaemon() {
   const fd = openSync(join(out, `daemon-${++daemons}.log`), "w");
-  daemon = Bun.spawn([join(bin, "agent-busd"), "-addr", "127.0.0.1:0", "-socket", join(out, "bus.sock"), "-owner", "owner@fixture", "-db", join(out, "bus.db"), "-create", "-flush-every", "0"], { env, stdout: fd, stderr: fd });
+  daemon = Bun.spawn([join(bin, "agent-busd"), "--addr", "127.0.0.1:0", "--socket", join(out, "bus.sock"), "--owner", "owner@fixture", "--db", join(out, "bus.db"), "--create", "--flush-every", "0"], { env, stdout: fd, stderr: fd });
   closeSync(fd);
 }
 const children = (pid: number) => Bun.spawnSync(["pgrep", "-P", String(pid)]).stdout.toString().split(/\s+/).filter(Boolean).map(Number);

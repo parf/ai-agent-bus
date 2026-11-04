@@ -49,7 +49,7 @@ cat >/root/snapshot.py <<'PY'
 import hashlib, json, subprocess, sys
 def out(*a): return subprocess.check_output(a, text=True)
 records = json.loads(out("agent-bus", "ls"))
-volatile = {"oldest", "readers", "reading"}
+volatile = {"oldest", "readers"}
 records = sorted(({k: v for k, v in r.items() if k not in volatile} for r in records), key=lambda r: r["name"])
 token = open("/root/snapshot-owner.token").read().strip()
 users = json.loads(out("curl", "-fsS", "--unix-socket", "/run/agent-bus/bus.sock",
@@ -116,15 +116,15 @@ if [ "$phase" = source ]; then
   printf '%s\n' 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIalicefixture alice@fresh' | agent-bus-admin user add alice@fresh - >/dev/null
   printf '%s\n' 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIbobfixture bob@fresh' | agent-bus-admin user add bob@fresh - >/dev/null
   agent-bus register '#worker@fresh' --kind agent --allow owner@fresh,alice@fresh --descr 'a worker' >/dev/null
-  agent-bus agent-template '#worker@fresh' '{"model":"m1","n":1}' >/dev/null
+  agent-bus config '#worker@fresh' '{"model":"m1","n":1}' >/dev/null
   agent-bus register backlog@fresh --kind queue --allow owner@fresh,alice@fresh --bound 50 --overflow ring >/dev/null
   agent-bus register tiny@fresh --kind queue --allow owner@fresh --bound 2 --overflow ring >/dev/null
   agent-bus register sink@fresh --kind queue --allow owner@fresh >/dev/null
-  agent-bus channel create news@fresh --kind pubsub --descr news >/dev/null
+  agent-bus register news@fresh --kind pubsub --descr news >/dev/null
   agent-bus manage news@fresh --add-deliver-to sink@fresh >/dev/null
   agent-bus manage sink@fresh --add-allow news@fresh >/dev/null
   agent-bus group @team@fresh alice@fresh bob@fresh >/dev/null
-  agent-bus register mysql@fresh --addr 127.0.0.1:3306 --protocol mysql --allow owner@fresh >/dev/null
+  agent-bus register mysql@fresh --kind service --service-addr 127.0.0.1:3306 --protocol mysql --allow owner@fresh >/dev/null
   agent-bus secret mysql@fresh 'PASSWORD=first' >/dev/null
   for i in 1 2 3; do agent-bus send backlog@fresh --topic t --tag g "backlog $i" >/dev/null; done
   for i in 1 2 3 4; do agent-bus send tiny@fresh "tiny $i" >/dev/null; done
@@ -170,7 +170,7 @@ if [ "$phase" = source ]; then
   agent-bus-admin token carol@fresh >"$shared/carol.token"
   agent-bus-admin token alice@fresh --rotate >"$shared/alice-rotated.token"
   agent-bus send backlog@fresh --topic t --tag g 'backlog 4' >/dev/null
-  agent-bus agent-template '#worker@fresh' '{"model":"m2","n":2}' >/dev/null
+  agent-bus config '#worker@fresh' '{"model":"m2","n":2}' >/dev/null
   agent-bus secret mysql@fresh 'PASSWORD=second' >/dev/null
   agent-bus register newer@fresh --kind queue --allow owner@fresh >/dev/null
   agent-bus manage tiny@fresh --owner bob@fresh >/dev/null

@@ -2,7 +2,7 @@
 
 The generated unit is kept as setup prints it; only the installation paths,
 unit-owned directory names and listed flags change. The database is made the
-way setup makes it (agent-busd -init as the daemon account), because the unit
+way setup makes it (agent-busd --init as the daemon account), because the unit
 never creates one. Nothing here names or opens the live installation.
 """
 import json
@@ -63,7 +63,7 @@ class Fixture:
         root("chmod", "0700", self.state)
         root("mkdir", "-m", "0750", "-p", self.logs)
         root("chown", "agent-busd:agent-busd", self.logs)
-        root("runuser", "-u", "agent-busd", "--", busd, "-owner", owner, "-db", self.db, "-init")
+        root("runuser", "-u", "agent-busd", "--", busd, "--owner", owner, "--db", self.db, "--init")
 
     def install(self, text, out, label="unit.service"):
         (out / label).write_text(text)

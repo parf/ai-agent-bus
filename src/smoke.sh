@@ -776,7 +776,7 @@ has "its owner may still change it" \
 has "and the record itself may refresh its own, as an agent does on every start" \
   "$(ab '#owned@srv1' register '#owned@srv1' --kind agent --allow '*' --descr "self" >/dev/null; ab nobody2@srv1 ls '#owned@srv1')" '"descr":"self"'
 # Only a service is reached at an address (K.28): an agent is sent to by name.
-out=$(ab owner@srv1 register '#owned@srv1' --kind agent --allow '*' --descr "self" --addr x:1 2>&1); rc=$?
+out=$(ab owner@srv1 register '#owned@srv1' --kind agent --allow '*' --descr "self" --service-addr x:1 2>&1); rc=$?
 bad_exit "an agent registered with an address is refused" $rc
 has "and told only a service takes one" "$out" 'only a service does'
 lacks "leaving no address on it" "$(ab nobody2@srv1 ls '#owned@srv1')" '"addr"'
@@ -923,7 +923,7 @@ users drive-by@srv1 nobody-here@srv1
 # spellings are not kept as aliases. See docs/03-records-channel.md.
 has "the old topic verb is gone, and the refusal names what the CLI has" \
   "$(ab owner@srv1 topic create gone@srv1 --kind pubsub 2>&1)" 'unknown verb'
-ab owner@srv1 channel create news@srv1 --allow '*' --kind pubsub --descr "broadcast" >/dev/null
+ab owner@srv1 register news@srv1 --allow '*' --kind pubsub --descr "broadcast" >/dev/null
 lacks "publish no longer takes --topic for the channel" \
   "$(ab owner@srv1 publish --topic news@srv1 "by the old flag" 2>&1)" '"message_id"'
 has "and names the refused flag" \
@@ -967,7 +967,7 @@ is_empty "while the topic itself keeps nothing" \
 has "though its publications are counted" "$(ab owner@srv1 ls news@srv1)" '"in":2'
 # Nobody to take it is a broken flow, refused and counted nowhere
 # (docs/constitution.md#pubsub-routing), and not a message kept for later.
-ab owner@srv1 channel create void@srv1 --allow '*' --kind pubsub >/dev/null
+ab owner@srv1 register void@srv1 --allow '*' --kind pubsub >/dev/null
 has "a publish with nobody on the list is refused" \
   "$(ab drive-by@srv1 publish --channel void@srv1 "into the void" 2>&1)" 'has no recipient to take it'
 is_empty "and kept and counted for nobody" "$(ab owner@srv1 ls void@srv1 | grep -o '"queued":[1-9][0-9]*\|"in":[1-9][0-9]*')"
@@ -984,7 +984,7 @@ has "a known user cannot be on the list" \
 has "and a refused list stores none of itself" "$(ab owner@srv1 ls news@srv1)" '"subs":\["#sub-a@srv1"\]'
 # A queue topic that EXISTS, so the refusal is about its kind and not about
 # the name being unknown.
-ab owner@srv1 channel create work@srv1 --allow '*' --descr "a queue topic" >/dev/null
+ab owner@srv1 register work@srv1 --kind queue --allow '*' --descr "a queue topic" >/dev/null
 # A queue's deliver_to is one slot (docs/04-messaging.md#deliver-to).
 has "and a queue delivers to one destination, not two" \
   "$(deliver_to work@srv1 '["#sub-a@srv1","#sub-b@srv1"]' 2>&1)" 'holds one destination'
@@ -994,14 +994,14 @@ has "refused for its kind, not for being unknown" "$out" 'only a pubsub channel 
 # The two lists are separate, and that is the whole point: the ACL decides
 # publishing and decides nothing about who receives. Asserted on a topic
 # whose ACL admits ONLY its owner, with somebody else on the Deliver-To list.
-ab owner@srv1 channel create members@srv1 --kind pubsub --allow owner@srv1 >/dev/null
+ab owner@srv1 register members@srv1 --kind pubsub --allow owner@srv1 >/dev/null
 deliver_to members@srv1 '["#sub-b@srv1"]' >/dev/null
 ab owner@srv1 publish --channel members@srv1 "members only" >/dev/null
 has "a recipient the ACL does not admit still receives" \
   "$(ab '#sub-b@srv1' consume --wait 5s)" 'members only'
 out=$(ab '#sub-b@srv1' publish --channel members@srv1 "may I?" 2>&1); rc=$?
 bad_exit "while that same name may not publish there" $rc
-ab owner@srv1 channel create members@srv1 --kind pubsub --allow owner@srv1 --descr "restated" >/dev/null
+ab owner@srv1 register members@srv1 --kind pubsub --allow owner@srv1 --descr "restated" >/dev/null
 has "the list survives the record being restated" "$(ab owner@srv1 ls members@srv1)" '"subs":\["#sub-b@srv1"\]'
 # A @group on the list stands for its members at the publish, so somebody
 # added to the group afterwards receives without the list being touched.
@@ -1011,7 +1011,7 @@ ab owner@srv1 register '#grp-a@srv1' --allow '*' --kind agent >/dev/null
 ab owner@srv1 register '#grp-b@srv1' --allow '*' --kind agent >/dev/null
 post_body "$OWNER" /group '{"name":"@smoke-readers","members":["#grp-a@srv1"]}' >/dev/null
 # Only a manager of the group puts it on a list (docs/04-messaging.md#deliver-to).
-post_body "$OWNER" /manage '{"name":"@smoke-readers","maintainers":"owner@srv1"}' >/dev/null
+post_body "$OWNER" /manage '{"name":"@smoke-readers","maintainers":["owner@srv1"]}' >/dev/null
 deliver_to members@srv1 '["@smoke-readers"]' >/dev/null
 ab owner@srv1 publish --channel members@srv1 "to the group" >/dev/null
 has "a group on the list delivers to its member" "$(ab '#grp-a@srv1' consume --wait 5s)" 'to the group'
@@ -1183,7 +1183,7 @@ has "a call to nobody fails" "$(ab caller@srv1 call ghost@nowhere --wait 2s hi 2
 
 sec "channels: a publisher with no record of its own, a consumer that was down"
 users reader@srv1
-ab owner@srv1 channel create jobs@srv1 --allow '*' --descr "work queue" >/dev/null
+ab owner@srv1 register jobs@srv1 --kind queue --allow '*' --descr "work queue" >/dev/null
 has "the topic is in ls" "$(ab owner@srv1 ls --kind queue)" 'jobs@srv1'
 ab drive-by@srv1 publish --channel jobs@srv1 "sweep the floor" >/dev/null
 has "a consumer that was down still finds it" "$(ab reader@srv1 consume --inbox jobs@srv1 --wait 5s)" 'sweep the floor'
@@ -2053,7 +2053,7 @@ if normal; then
   sec "a record's locks: one holder, a ttl, --force, and the record's own life"
   # caller owns the record: her going inactive is later what deactivates it
   users outsider@srv1
-  ab caller@srv1 channel create deploy@srv1 --allow outsider@srv1 >/dev/null
+  ab caller@srv1 register deploy@srv1 --kind queue --allow outsider@srv1 >/dev/null
   post_code caller@srv1 /manage '{"name":"deploy@srv1","maintainers":["launcher@srv1"]}' >/dev/null
   has "the Owner takes a lock" \
     "$(abt caller@srv1 try-lock deploy@srv1 db --ttl 2m 2>&1)" '"holder":"caller@srv1"'
@@ -2340,14 +2340,14 @@ has "lookup answers about a single name" \
 has "and says so when there is none" \
   "$(code owner@srv1 "/lookup?name=absent-entirely@srv1")" '404'
 # The caller's own record is checked with this, not by pulling the registry.
-# The verb is agent-template from 0.6.6. The old spelling is not a second
+# The verb is config from 0.6.6. The old spelling is not a second
 # name for it: an unknown verb is refused, naming what the CLI does have.
 # See docs/03-records-agent.md#agent-templates.
 lacks "the old service-template spelling is gone" \
   "$(ab owner@srv1 service-template '#looked@srv1' 2>&1)" '"config'
 has "and the refusal names the verb rather than failing quietly" \
   "$(ab owner@srv1 service-template '#looked@srv1' 2>&1)" 'unknown verb'
-echo '{"s":1}' | ab owner@srv1 agent-template '#looked@srv1' - >/dev/null
+echo '{"s":1}' | ab owner@srv1 config '#looked@srv1' - >/dev/null
 is_empty "a lookup never carries a configuration" \
   "$(ab owner@srv1 ls '#looked@srv1' | grep -o '"config":[^,}]*')"
 # Querying one record is how its Owner checks its setup without reading it
@@ -2370,14 +2370,14 @@ has "and says so when there is no such record" \
 sec "human listing"
 ab owner@srv1 register '#human@srv1' --allow '*' --kind agent --descr $'first\nsecond\tthird' >/dev/null
 ab owner@srv1 send '#human@srv1' queued >/dev/null
-human=$(ab owner@srv1 ls -h --kind agent)
+human=$(ab owner@srv1 ls --table --kind agent)
 has "human listing has table columns" "$human" '^NAME  *KIND  *OWNER  *READERS  *QUEUED  *LAST USED  *DESCRIPTION$'
 has "human listing shows queue and flattens description" "$human" '^#human@srv1  *👾 Agent  *owner@srv1  *0  *1  *-  *first second third$'
 # The kind filter excludes the other four kinds, not merely the templates:
 # jobs@srv1 is a queue registered earlier and is a name this filter must drop.
 is_empty "human kind filter excludes the kinds it did not ask for" "$(printf '%s\n' "$human" | grep '^jobs@srv1 ')"
 has "and the queue is there when that is the kind asked for" \
-  "$(ab owner@srv1 ls -h --kind queue)" '^jobs@srv1  *📮 Queue'
+  "$(ab owner@srv1 ls --table --kind queue)" '^jobs@srv1  *📮 Queue'
 has "human single lookup works with flag after name" \
   "$(ab owner@srv1 ls '#human@srv1' -h)" '^#human@srv1  *👾 Agent  *owner@srv1  *0  *1  *-  *first second third$'
 abx '#human@srv1' consume --topic NeverArrives --wait 5s >"$D/human-reader" 2>&1 & HPID=$!
@@ -2392,25 +2392,25 @@ raw_human=$(ab owner@srv1 ls --kind agent)
 has "ordinary listing remains JSON" "$raw_human" '^\[.*"name":"#human@srv1"'
 has "JSON retains the machine kind" "$raw_human" '"kind":"agent"'
 lacks "JSON contains no display glyph" "$raw_human" '👤\|👾\|⚙️'
-has "empty human listing is explicit" "$(ab owner@srv1 ls -h --kind no-such-kind)" '^No matching records\.$'
-human_error=$(ab owner@srv1 ls -h absent-entirely@srv1 2>&1)
+has "empty human listing is explicit" "$(ab owner@srv1 ls --table --kind no-such-kind)" '^No matching records\.$'
+human_error=$(ab owner@srv1 ls --table absent-entirely@srv1 2>&1)
 bad_exit "human missing lookup fails" "$?"
 has "human missing lookup reports the error" "$human_error" 'no such name'
-ab owner@srv1 register human-external@srv1 --allow '*' --protocol http --addr http://localhost >/dev/null
+ab owner@srv1 register human-external@srv1 --kind service --allow '*' --protocol http --service-addr http://localhost >/dev/null
 # A service is external and has no queue here, so the listing reports no reader
 # count and no backlog for it rather than a zero it never measured.
 # See docs/03-records.md#record-kinds.
 has "an external service reports no queue it does not have" \
-  "$(ab owner@srv1 ls -h human-external@srv1)" '^human-external@srv1  *📡 Service  *owner@srv1  *-  *-'
+  "$(ab owner@srv1 ls --table human-external@srv1)" '^human-external@srv1  *📡 Service  *owner@srv1  *-  *-'
 # A group is marked like every other kind, and has no queue to count either.
 has "a group is marked and reports no queue it does not have" \
-  "$(ab "$OWNER" ls -h @administrators)" "^@administrators  *👥 Group  *$OWNER  *-  *-"
+  "$(ab "$OWNER" ls --table @administrators)" "^@administrators  *👥 Group  *$OWNER  *-  *-"
 has "while an agent's own counts are still measured" \
-  "$(ab owner@srv1 ls -h '#human@srv1')" '^#human@srv1  *👾 Agent  *owner@srv1  *[0-9]  *[0-9]'
+  "$(ab owner@srv1 ls --table '#human@srv1')" '^#human@srv1  *👾 Agent  *owner@srv1  *[0-9]  *[0-9]'
 # The legend has to spell the cell the table prints. It explained an em dash
 # while every such cell held "-", which explains nothing.
 has "and the legend spells the character those cells hold" \
-  "$(ab owner@srv1 ls -h human-external@srv1)" '^ *-  for 📡, which is external and has no queue here'
+  "$(ab owner@srv1 ls --table human-external@srv1)" '^ *-  for 📡, which is external and has no queue here'
 lacks "and nothing may be sent to the external one" \
   "$(ab owner@srv1 send human-external@srv1 nope 2>&1)" '"message_id"'
 has "which says why, naming the address to call instead" \
@@ -2418,7 +2418,7 @@ has "which says why, naming the address to call instead" \
 ab '#human@srv1' consume --wait 0s >/dev/null
 ab '#human@srv1' consume --wait 10s >"$D/human-reader" & HUMAN_READER=$!
 for _ in $(seq 1 100); do
-  human=$(ab owner@srv1 ls -h '#human@srv1')
+  human=$(ab owner@srv1 ls --table '#human@srv1')
   printf '%s\n' "$human" | grep -q '^#human@srv1 *👾 Agent *owner@srv1 *1 ' && break
   sleep .02
 done
@@ -2470,8 +2470,9 @@ for route in "GET /status" "POST /register" "POST /unregister" "GET /ls" "GET /l
 done
 
 sec "a caller states a record, never what the daemon observes"
-is_empty "a registration cannot claim a reader it does not have" \
-  "$(post_body owner@srv1 /register '{"name":"#probe@srv1","kind":"agent","reading":true,"readers":99,"queued":77}' | grep -o '"reading":true\|"readers":99\|"queued":77')"
+has "a retired reading field is refused" \
+  "$(post_code owner@srv1 /register '{"name":"#probe@srv1","kind":"agent","reading":true}')" '400'
+post_body owner@srv1 /register '{"name":"#probe@srv1","kind":"agent","readers":99,"queued":77}' >/dev/null
 is_empty "and the claim does not survive into a listing" \
   "$(ab nobody@srv1 ls '#probe@srv1' | grep -o '"reading":true\|"readers":99')"
 is_empty "a registration cannot claim a call count" \
@@ -2531,7 +2532,7 @@ if normal; then
   sec "a listing says whether a call would reach anyone"
   # Being in the registry and being callable are different facts: "there is a
   # MySQL on db1:3306" registers fine and nothing on this bus answers for it.
-  ab owner@srv1 register db.main@srv1 --allow '*' --protocol mysql --addr db1:3306 --descr "the main database" >/dev/null
+  ab owner@srv1 register db.main@srv1 --kind service --allow '*' --protocol mysql --service-addr db1:3306 --descr "the main database" >/dev/null
   has "a registration can say how to call it" "$(ab nobody@srv1 ls db.main@srv1)" '"protocol":"mysql"'
   # Asserted on the record itself, not on an empty grep: an is_empty that a
   # failed query also satisfies is a check that passes with the daemon down.
@@ -2542,14 +2543,14 @@ if normal; then
     "$(ab nobody@srv1 ls '#plain.svc@srv1' | grep -o '"protocol":[^,}]*')"
   has "a registered name nobody serves is not shown as read" \
     "$(ab nobody@srv1 ls '#plain.svc@srv1' | grep -o '"reading":[a-z]*\|"readers":[0-9]*\|"name":"#plain.svc@srv1"')" '"name":"#plain.svc@srv1"'
-  is_empty "and reading is absent rather than false" \
+  is_empty "an unserved agent has no waiting readers" \
     "$(ab nobody@srv1 ls '#plain.svc@srv1' | grep -o '"reading":true\|"readers":[1-9][0-9]*')"
   # And with a reader attached, the same query says so.
   ab owner@srv1 register '#reader-box@srv1' --kind agent --allow '*' >/dev/null
   ab '#reader-box@srv1' consume --wait 6s >/dev/null 2>&1 &
   reader_pid=$!
   sleep 1
-  has "a name something is reading says so" "$(ab nobody@srv1 ls '#reader-box@srv1')" '"reading":true.*"readers":1'
+  has "a name something is reading says so" "$(ab nobody@srv1 ls '#reader-box@srv1')" '"readers":1'
   ab nobody@srv1 send '#reader-box@srv1' "wake up" >/dev/null
   wait $reader_pid
   has "and the depth of what is waiting is visible" \
@@ -2562,21 +2563,21 @@ sec "configuring an agent template produces a configured record"
 users nosy@srv1 thief@srv1 smuggler@srv1
 # The configuration is arbitrary JSON and stays opaque; the one thing that
 # matters to the bus is that it never shows up where it should not.
-echo '{"model":"opus","depth":3}' | ab owner@srv1 agent-template '#code-review/cfg@rdvp' - >/dev/null
+echo '{"model":"opus","depth":3}' | ab owner@srv1 config '#code-review/cfg@rdvp' - >/dev/null
 has "the configuration comes back as it went in, to the agent" \
-  "$(ab '#code-review/cfg@rdvp' agent-template '#code-review/cfg@rdvp')" '{"model":"opus","depth":3}'
+  "$(ab '#code-review/cfg@rdvp' config '#code-review/cfg@rdvp')" '{"model":"opus","depth":3}'
 has "and to the owner who set it" \
-  "$(ab owner@srv1 agent-template '#code-review/cfg@rdvp' 2>&1)" '"depth":3'
+  "$(ab owner@srv1 config '#code-review/cfg@rdvp' 2>&1)" '"depth":3'
 has "and that is an answer, not a refusal" \
   "$(code owner@srv1 "/config?name=%23code-review/cfg@rdvp")" '200'
 
 is_empty "a listing never carries it" \
   "$(ab owner@srv1 ls --all | grep -o '"config":[^,}]*')"
 is_empty "and neither does the answer to setting one" \
-  "$(echo '{"secret":"x"}' | ab owner@srv1 agent-template '#echoes@srv1' - | grep -o '"config":[^,}]*')"
+  "$(echo '{"secret":"x"}' | ab owner@srv1 config '#echoes@srv1' - | grep -o '"config":[^,}]*')"
 # What a query gets instead: enough to see that a write landed and that two
 # are the same, without handing anyone the configuration.
-sha=$(echo '{"secret":"x"}' | ab owner@srv1 agent-template '#digested@srv1' - | grep -o '"config_sha":"[a-f0-9]*"')
+sha=$(echo '{"secret":"x"}' | ab owner@srv1 config '#digested@srv1' - | grep -o '"config_sha":"[a-f0-9]*"')
 has "setting one answers with its digest" "$sha" '"config_sha":"'
 has "sharing the configured record succeeds" "$(post_code owner@srv1 /manage '{"name":"#digested@srv1","allow":["nobody@srv1"]}')" '200'
 has "and a query carries the same digest" "$(ab owner@srv1 ls --all)" "$sha"
@@ -2585,9 +2586,9 @@ has "the caller it was shared with lists it" "$row" '"name":"#digested@srv1"'
 lacks "without its digest" "$row" 'config_sha'
 has "the digest is sha256 of the stored bytes" "$sha" "$(printf '%s' '{"secret":"x"}' | sha256sum | cut -d' ' -f1)"
 has "reformatting is not a change" \
-  "$(printf '{ "secret" : "x" }' | ab owner@srv1 agent-template '#reformatted@srv1' - | grep -o '"config_sha":"[a-f0-9]*"')" "$sha"
+  "$(printf '{ "secret" : "x" }' | ab owner@srv1 config '#reformatted@srv1' - | grep -o '"config_sha":"[a-f0-9]*"')" "$sha"
 has "a different configuration is a different digest" \
-  "$(if [ "$(echo '{"secret":"y"}' | ab owner@srv1 agent-template '#other@srv1' - | grep -o '"config_sha":"[a-f0-9]*"')" != "$sha" ]; then echo differs; fi)" 'differs'
+  "$(if [ "$(echo '{"secret":"y"}' | ab owner@srv1 config '#other@srv1' - | grep -o '"config_sha":"[a-f0-9]*"')" != "$sha" ]; then echo differs; fi)" 'differs'
 is_empty "an unconfigured record has no digest at all" \
   "$(ab owner@srv1 register '#plain@srv1' --kind agent --allow '*' | grep -o '"config_sha":[^,}]*')"
 # A send is refused unless the receiver has a record, so this proves the
@@ -2598,31 +2599,31 @@ has "configuring creates the record, so it can be sent to" \
 # A stranger the record's ACL does not admit learns only that there is no such
 # name, as for a secret (docs/03-records-agent.md#configuring-a-template).
 has "a stranger may not read it either" \
-  "$(ab nosy@srv1 agent-template '#code-review/cfg@rdvp' 2>&1)" 'no such name'
+  "$(ab nosy@srv1 config '#code-review/cfg@rdvp' 2>&1)" 'no such name'
 # The text alone would still read right if every refusal collapsed to a 500.
 has "and is refused as unknown, not as our own fault" \
   "$(code nosy@srv1 "/config?name=%23code-review/cfg@rdvp")" '404'
 
 has "and may not overwrite it" \
-  "$(ab nosy@srv1 agent-template '#code-review/cfg@rdvp' '{"model":"theirs"}' 2>&1)" 'belongs to someone else'
+  "$(ab nosy@srv1 config '#code-review/cfg@rdvp' '{"model":"theirs"}' 2>&1)" 'belongs to someone else'
 has "the owner's configuration survived that" \
-  "$(ab '#code-review/cfg@rdvp' agent-template '#code-review/cfg@rdvp')" '"model":"opus"'
+  "$(ab '#code-review/cfg@rdvp' config '#code-review/cfg@rdvp')" '"model":"opus"'
 
 has "a configuration that is not JSON is refused" \
-  "$(ab owner@srv1 agent-template '#code-review/cfg@rdvp' 'not json' 2>&1)" 'a configuration is JSON'
+  "$(ab owner@srv1 config '#code-review/cfg@rdvp' 'not json' 2>&1)" 'a configuration is JSON'
 # The CLI refuses that one before it leaves; the daemon has to refuse it too,
 # and the shape that reaches it is a body carrying no configuration at all.
 has "and the daemon refuses an empty one on its own" \
   "$(post_code owner@srv1 /configure '{"name":"#code-review/cfg@rdvp"}')" '400'
 has "null is not a configuration either" \
-  "$(ab owner@srv1 agent-template '#code-review/cfg@rdvp' null 2>&1)" 'null is the absence of one'
+  "$(ab owner@srv1 config '#code-review/cfg@rdvp' null 2>&1)" 'null is the absence of one'
 
 # An agent registers itself on every start. That must refresh its
 # description without destroying what it was configured with, and without
 # handing the record to whoever registered last.
 ab '#code-review/cfg@rdvp' register '#code-review/cfg@rdvp' --allow '*' --kind agent --descr "refreshed" >/dev/null
 has "a re-registration keeps the configuration" \
-  "$(ab '#code-review/cfg@rdvp' agent-template '#code-review/cfg@rdvp')" '"model":"opus"'
+  "$(ab '#code-review/cfg@rdvp' config '#code-review/cfg@rdvp')" '"model":"opus"'
 
 has "and still refreshes the description" \
   "$(ab owner@srv1 ls --all)" '"descr":"refreshed"'
@@ -2630,9 +2631,9 @@ ab thief@srv1 register '#code-review/cfg@rdvp' --allow '*' --kind agent >/dev/nu
 # Ownership is observable through a WRITE: nobody can read a configuration
 # but the agent, so a read cannot tell us who owns the record.
 has "and does not hand the record to whoever registered last" \
-  "$(ab thief@srv1 agent-template '#code-review/cfg@rdvp' '{"mine":"now"}' 2>&1)" 'belongs to someone else'
+  "$(ab thief@srv1 config '#code-review/cfg@rdvp' '{"mine":"now"}' 2>&1)" 'belongs to someone else'
 has "a registration may not smuggle a configuration in" \
-  "$(post_code thief@srv1 /register '{"kind":"agent","name":"#code-review/cfg@rdvp","config":{"evil":true}}' >/dev/null; ab '#code-review/cfg@rdvp' agent-template '#code-review/cfg@rdvp')" '"model":"opus"'
+  "$(post_code thief@srv1 /register '{"kind":"agent","name":"#code-review/cfg@rdvp","config":{"evil":true}}' >/dev/null; ab '#code-review/cfg@rdvp' config '#code-review/cfg@rdvp')" '"model":"opus"'
 
 # On a name that does not exist yet there is no old configuration to keep, so
 # this is the only shape that proves register drops --kind agent the field rather than
@@ -2644,21 +2645,21 @@ lacks "and stores nothing" "$out" '"name":"#fresh@srv1"'
 
 # An agent reads its own configuration and does not write it: private values
 # are its Owner's and Maintainers' to set (docs/constitution.md#-private-values).
-ab '#keeper@srv1' agent-template '#theirs@srv1' '{"by":"keeper"}' >/dev/null
+ab '#keeper@srv1' config '#theirs@srv1' '{"by":"keeper"}' >/dev/null
 has "an agent may not configure itself" \
-  "$(ab '#theirs@srv1' agent-template '#theirs@srv1' '{"by":"itself"}' 2>&1)" 'belongs to someone else'
+  "$(ab '#theirs@srv1' config '#theirs@srv1' '{"by":"itself"}' 2>&1)" 'belongs to someone else'
 has "and its configuration is untouched by the attempt" \
-  "$(ab '#theirs@srv1' agent-template '#theirs@srv1')" '"by":"keeper"'
+  "$(ab '#theirs@srv1' config '#theirs@srv1')" '"by":"keeper"'
 
 # Reading must work where it is actually used: a script, with no terminal.
 has "a read works with no terminal on stdin" \
-  "$(ab '#code-review/cfg@rdvp' agent-template '#code-review/cfg@rdvp' </dev/null)" '"depth":3'
+  "$(ab '#code-review/cfg@rdvp' config '#code-review/cfg@rdvp' </dev/null)" '"depth":3'
 
 sec "a service's secret"
 # The credential for reaching something outside, read back by the record's
 # Owner and Maintainers; the allow list grants use of the service, not its
 # credential. See docs/constitution.md#-private-values.
-ab owner@srv1 register vault@srv1 --addr db.example:5432 --protocol postgresql --allow reader@srv1 >/dev/null
+ab owner@srv1 register vault@srv1 --kind service --service-addr db.example:5432 --protocol postgresql --allow reader@srv1 >/dev/null
 stored=$(ab owner@srv1 secret vault@srv1 'PGPASSWORD=hunter2')
 has "setting one answers with its digest" "$stored" '"secret_sha":"[0-9a-f]\{64\}"'
 lacks "and never with the bytes that were just sent" "$stored" 'hunter2'
@@ -2712,12 +2713,12 @@ has "nor a digest claiming there is one" \
 has "and neither stored a record" "$(ab thief@srv1 secret smuggled@srv1 2>&1)" 'no such name'
 # The other direction of the same rule: a service that re-registers to
 # refresh its description must not lose the credential it was given.
-ab owner@srv1 register vault@srv1 --addr db.example:5432 --protocol postgresql --allow reader@srv1 --descr "refreshed" >/dev/null
+ab owner@srv1 register vault@srv1 --kind service --service-addr db.example:5432 --protocol postgresql --allow reader@srv1 --descr "refreshed" >/dev/null
 has "and a re-registration keeps the one already stored" \
   "$(ab owner@srv1 secret vault@srv1)" '^PGPASSWORD=rotated$'
 # Never given one is a different answer from given an empty one, and the
 # second is refused so that the two cannot be confused.
-ab owner@srv1 register keyless@srv1 --addr h:1 --protocol https --allow '*' >/dev/null
+ab owner@srv1 register keyless@srv1 --kind service --service-addr h:1 --protocol https --allow '*' >/dev/null
 has "a service that was never given one says so" \
   "$(ab owner@srv1 secret keyless@srv1 2>&1)" 'holds no secret'
 is_empty "and carries no digest to suggest otherwise" \
@@ -2726,7 +2727,7 @@ has "an empty secret is the absence of one, not a secret" \
   "$(post_body owner@srv1 /secret '{"name":"keyless@srv1","secret":""}')" 'holds no secret'
 # Every other kind is reached by sending to its name, so there is nothing
 # outside for a credential to unlock and the field would say something untrue.
-ab owner@srv1 channel create plainq@srv1 --allow '*' >/dev/null
+ab owner@srv1 register plainq@srv1 --kind queue --allow '*' >/dev/null
 has "a queue cannot hold one" \
   "$(ab owner@srv1 secret plainq@srv1 'K=v' 2>&1)" 'on an agent, a service or a group and on no other kind'
 is_empty "and nothing was stored on it by the attempt" \
@@ -3066,7 +3067,7 @@ has "while its owner gets the record" \
   "$(code acl-owner@srv1 "/lookup?name=%23direct-svc@srv1")" '200'
 # One check per write verb: a shared guard passes the whole set while any
 # one path is still open.
-ab acl-owner@srv1 channel create shut-topic@srv1 --descr "not yours" --allow acl-owner@srv1 >/dev/null
+ab acl-owner@srv1 register shut-topic@srv1 --kind queue --descr "not yours" --allow acl-owner@srv1 >/dev/null
 has "publishing to a topic that will not have you is refused" \
   "$(post_code alice@srv1 /send '{"to":"shut-topic@srv1","topic":"anything","body":"by nobody"}')" '403'
 has "and so is registering over its name" \
@@ -3342,7 +3343,7 @@ has "and both reads are still counted" "$(dsvc out)" '^2$'
 # have written it down whether the write did or not. Set here, before the
 # message that dies with the process, because writing it checkpoints.
 # See docs/03-records-service.md#secrets.
-dab register vault@srv1 --addr db.example:5432 --protocol postgresql --allow '*' >/dev/null
+dab register vault@srv1 --kind service --service-addr db.example:5432 --protocol postgresql --allow '*' >/dev/null
 dab secret vault@srv1 'PGPASSWORD=survives-the-kill' >/dev/null
 # SIGKILL: no flush happens, so the queues on disk are the ones the start
 # wrote, and its unclean mark is what says the run ended badly.
@@ -3625,7 +3626,7 @@ core_8() {
 sec "the CLI manages a record: status, lists by delta, routes and groups"
 # K.16: management through the supported face, each answer read back from the
 # daemon rather than from the command's own output.
-ab owner@srv1 channel create cli-jobs@srv1 --allow owner@srv1 >/dev/null
+ab owner@srv1 register cli-jobs@srv1 --kind queue --allow owner@srv1 >/dev/null
 ab owner@srv1 register '#cli-box@srv1' --kind agent --allow cli-jobs@srv1 >/dev/null
 users cli-bob@srv1
 ab owner@srv1 manage cli-jobs@srv1 --add-to-set-allow cli-bob@srv1 >/dev/null
@@ -4010,7 +4011,7 @@ samples() {
   # is given no digest of it (issues/done/2026-10/2026-10-17.md#A16).
   has "a service has Maintainers" "$(sget '/lookup?name=death-star%40empire')" '"maintainers":\["@empire"\]'
   lacks "and the node owner is given no digest of its secret" "$(sget '/lookup?name=death-star%40empire')" 'secret_sha'
-  has "a queue and a topic are Personal" "$(sget '/lookup?name=falcon-repairs%40corellia')$(sget '/lookup?name=jedi-journal%40dagobah')" '"personal":true.*"personal":true'
+  has "a queue and a topic are Personal" "$(sget '/lookup?name=falcon-repairs%40corellia')$(sget '/lookup?name=jedi-journal%40dagobah')" '"tags":\["personal"\].*"tags":\["personal"\]'
   has "and one record is inactive" "$(sget /inactive)" 'death-star-ii@endor'
   again=$(AGENT_BUS_ADDR=$S "$D/agent-bus-setup" --samples 2>&1); rc=$?
   ok_exit "a second run succeeds, the inactive sample included" $rc
@@ -4319,9 +4320,12 @@ agent_eventlog() {
 agent_subscriptions() {
   sec "shared subscription vectors, authority and bounded delivery"
   local out rc
-  out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/shared -p test_subscriptions.py -v 2>&1); rc=$?
-  echo "$out" | sed 's/^/  /'
-  ok_exit "subscription parity, revoked creators, drop without pause, bounded helpers" "$rc"
+  local suite
+  for suite in test_subscriptions.py test_scheduler_state.py; do
+    out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/shared -p "$suite" -v 2>&1); rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "shared scheduling and subscriptions: $suite" "$rc"
+  done
 }
 
 # The container image from this tree's release archive, under rootless podman

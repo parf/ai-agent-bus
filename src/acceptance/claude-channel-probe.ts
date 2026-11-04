@@ -37,7 +37,7 @@ const env = {
   ANTHROPIC_MODEL: "claude-sonnet-4-6", CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1",
 };
 const fd = openSync(join(out, "daemon.log"), "w");
-const daemon = Bun.spawn([join(bin, "agent-busd"), "-addr", "127.0.0.1:0", "-socket", join(out, "bus.sock"), "-owner", "owner@fixture", "-db", join(out, "bus.db"), "-create", "-flush-every", "0"], { env, stdout: fd, stderr: fd }); closeSync(fd);
+const daemon = Bun.spawn([join(bin, "agent-busd"), "--addr", "127.0.0.1:0", "--socket", join(out, "bus.sock"), "--owner", "owner@fixture", "--db", join(out, "bus.db"), "--create", "--flush-every", "0"], { env, stdout: fd, stderr: fd }); closeSync(fd);
 let proc: ReturnType<typeof Bun.spawn> | undefined, output = "";
 const text = () => output.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, "");
 async function until(test: () => boolean | Promise<boolean>, label: string) {
