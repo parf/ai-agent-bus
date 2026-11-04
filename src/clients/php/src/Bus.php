@@ -364,7 +364,6 @@ final class Bus
             $p = !$hasToken && $account !== '' ? "$dir/user-$account.sock" : "$dir/bus.sock";
             if (file_exists($p) && filetype($p) === 'socket') { return $p; }
         }
-        $d = getenv('XDG_RUNTIME_DIR');
-        return $d ? "$d/agent-bus/bus.sock" : sys_get_temp_dir() . '/agent-bus-' . (function_exists('posix_getuid') ? posix_getuid() : 0) . '.sock';
+        return !$hasToken && $account !== '' ? "/run/agent-bus/user-$account.sock" : '/run/agent-bus/bus.sock';
     }
 }

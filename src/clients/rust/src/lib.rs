@@ -1100,16 +1100,7 @@ fn default_socket(token: bool) -> String {
             return p.to_string_lossy().into_owned();
         }
     }
-    if let Ok(runtime) = std::env::var("XDG_RUNTIME_DIR") {
-        return PathBuf::from(runtime)
-            .join("agent-bus/bus.sock")
-            .to_string_lossy()
-            .into_owned();
-    }
-    std::env::temp_dir()
-        .join(format!("agent-bus-{}.sock", users::get_current_uid()))
-        .to_string_lossy()
-        .into_owned()
+    format!("/run/agent-bus/{}", if token { "bus.sock".to_owned() } else { account.map(|a| format!("user-{a}.sock")).unwrap_or_else(|| "bus.sock".into()) })
 }
 
 fn mutating(method: &Method, path: &str) -> bool {
