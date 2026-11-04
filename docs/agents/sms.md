@@ -73,30 +73,16 @@ More: agent-bus help '#sms-telnyx@parf.us' config | secret | json
 
 ## Installing it
 
-- An administrator does this once: install the package, put the Telnyx key in a private file on the server, set the sender number.
-
-<details>
-<summary>Step by step (runner account <code>ann-ab-runner</code>)</summary>
-
-1. Package it on the runner host (see [runner helpers](README.md#runner-helpers)):
+1. Use the SMS helper included with the bus installation.
+2. Put `TELNYX_API_KEY` in this instance's private [host environment file](../runner/configuration.md#environment-files), owned by the runner account with mode 0600.
+3. Set `enabled:true` for `sms-telnyx` in the [runner inventory](../runner/configuration.md#inventory), preserving other entries, then reload the runner.
+4. Set the sender and optional recipient nicknames:
 
    ```sh
-   sudo src/agents/sms-telnyx/package.sh /var/lib/agent-bus/agent.d/sms-telnyx
-   ```
-
-2. Write one `TELNYX_API_KEY` line to `/var/lib/agent-bus/ann-ab-runner/sms-telnyx/env`, mode `0600`, owned by the runner account ([where settings belong](../runner/configuration.md#where-settings-belong)).
-3. Reload, set the sender and nicknames, and open it to all callers:
-
-   ```sh
-   agent-bus call '#runner/ann@node.example' reload
    agent-bus config '#sms-telnyx@node.example' '{"from":"+12025550100","aliases":{"oncall":"+12025550142"}}'
-   agent-bus manage '#sms-telnyx@node.example' --add-to-set-allow '*'
    ```
 
-- The daemon keeps the allow list across reloads.
-- Without the key the runner refuses calls.
-
-</details>
+Check the [access list](#who-may-use-it) before allowing callers to send real SMS.
 
 ## Configuration
 

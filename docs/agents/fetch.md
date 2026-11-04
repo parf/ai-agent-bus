@@ -66,11 +66,9 @@ agent-bus help '#fetch@node.example'
 
 ## Installing it
 
-- An administrator installs `src/agents/fetch/package.sh <agent.d/fetch>` through a [person's runner](../07-setup.md#a-persons-runner).
-- One instance and one access list per trust group, for example `#fetch/team@node.example`.
-- The runner [inventory](../runner/configuration.md#inventory) gives each instance its name and enabled and sandbox settings; its record holds its own Configuration.
-- While configuring, use an explicit `enabled:false` inventory entry: an absent entry defaults to enabled.
-- Keep the sandbox on; no daemon or web change is needed.
+Use the fetch package included with the bus installation. Add an instance in the [runner inventory](../runner/configuration.md#inventory) for each trust group, for example `#fetch/team@node.example`.
+
+Set its [Configuration](#configuration), keep the sandbox on, then set `enabled:true` and reload the runner. Preserve other inventory entries. Bundled agents stay off until explicitly enabled.
 
 ## Configuration
 

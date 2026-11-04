@@ -116,11 +116,11 @@ agent-bus call '#logwatch@parf.us' --wait 15s stats | jq -r .body | jq 'del(.ver
 <details>
 <summary>Step by step</summary>
 
-From the checkout root, with [installation credentials](README.md#standalone-helpers):
+With [installation credentials](README.md#standalone-helpers):
 
 ```sh
 sudo --preserve-env=AGENT_BUS_ADDR,AGENT_BUS_TOKEN,AGENT_BUS_TLS_FINGERPRINT \
-  ./src/agents/standalone/logwatch/install.py install \
+  /usr/local/lib/agent-bus/current/agents/standalone/logwatch/install.py install \
   --name '#logwatch@node.example' --user root --allow '@owner' \
   --bus-binary /usr/local/bin/agent-bus
 agent-bus call '#logwatch@node.example' sources

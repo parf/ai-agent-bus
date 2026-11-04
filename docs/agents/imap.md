@@ -148,7 +148,7 @@ ok: manual cache only; subscriptions=0 damaged=0 backlog=0 sent=0 dropped=0 warn
 
 ## Installing it
 
-- An administrator packages it once and enables one instance per mail account, only after its account and Configuration are ready.
+Use the IMAP package included with the bus installation. Enable one instance per mail account, after its credentials and Configuration are ready.
 
 ### Connect a Gmail account
 
@@ -180,12 +180,12 @@ ok: manual cache only; subscriptions=0 damaged=0 backlog=0 sent=0 dropped=0 warn
 <details>
 <summary>Step by step, and uninstalling</summary>
 
-1. Package with `src/agents/imap/package.sh <agent.d/imap>`; it includes its Python client and licenses.
+1. Select the bundled IMAP package; no build or package copy is needed.
 2. This is a [serves-itself agent](../runner/configuration.md#agents-that-serve-themselves): the owner registers the instance, grants its callers and hands its own bus token to the runner once.
 3. Put the account's keys in its private host file ([Secret keys](#secret-keys)) and set its Configuration.
 4. Enable it in the [runner inventory](../runner/configuration.md#inventory). It keeps the sandbox on.
 
-- To uninstall: the cache contains private mail. Disable the instance, then remove its package and its `mail-cache` and `mail-outbox` directories under that instance's `AGENT_BUS_WORK`; `mail-outbox` now holds only the lock that keeps one generation forwarding.
+- To remove an instance: set `enabled:false` in the inventory and reload the runner. Its cache contains private mail; remove only that instance's `mail-cache` and `mail-outbox` directories under its `AGENT_BUS_WORK`. Keep the bundled package used by other instances.
 - Removing the cache loses no server mail; rebuilding fetches it again.
 - Its subscriptions and forwarding progress live in its private bus KV; delete the subscriptions to remove them.
 - Do not remove another instance's work directory or credential files.
@@ -301,7 +301,7 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 - There is no JSON wrapper, MIME rendering or resource fetch.
 - Invalid UTF-8 bytes appear as hexadecimal backslash escapes in bus text; echoed account secrets are masked. Cache bytes stay raw.
 - List and search summaries repeat the external-content warning per row. Date is as sent by the author, not a verified receive time. Missing fields say `(unknown)`; repeated fields say `(multiple)`. Summary text is decoded, flattened and bounded; `read` retains the raw content.
-- Search is local and case-insensitive, over the raw source including its MIME transfer encoding; encoded headers and bodies are not decoded. Search text is never sent to the server as an IMAP command.
+- Free-text search is local and case-insensitive, over the cached raw source including its MIME transfer encoding; encoded headers and bodies are not decoded. Structured criteria use server-side IMAP SEARCH; free text is never sent to the server.
 - The warning plus mail must fit 256 KiB; oversized publication is refused, with no partial message sent. A failed or unknown bus submission is reported without an automatic retry.
 
 </details>

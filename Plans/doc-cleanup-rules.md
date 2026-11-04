@@ -57,7 +57,7 @@ Line references below refer to main `1ab9031a`, before cleanup.
 | F11 | catalogue:98,124; docs/agents/discord.md | Match the catalogue and generated index to shipped packages. Discord is outside the selected R1 scope: move its user-guide material to its plan and remove it from the R1 selection paths. Update generation inputs rather than hand-editing the generated block. |
 | F12 | launchers:51–58,61,65,76–97,101–165,212,397–404,426–431 | Remove Status/MVP/Scope tracking, Built labels, owner dates, decision IDs and acceptance narratives. Keep current adapter, naming, retry, takeover and recovery behavior. |
 | F14 | Voyage install:55; same pattern in other helper guides | Release users enable/configure the supplied bundle. Remove source checkout/package.sh build steps from user installation; retain genuine external prerequisites. |
-| F15 | Voyage Configuration:61–74 | One setting gets one sentence with name, purpose and default. Remove “Only…”, “Keys” and single-row disclosure scaffolding; scale the explanation to the actual complexity. |
+| F15 | Voyage Configuration:61–74 | One setting gets one sentence with name, purpose and default. If defaults suffice, say so; do not turn a simple optional change into a multi-step setup. Remove “Only…”, “Keys” and single-row disclosure scaffolding; scale the explanation to the actual complexity. |
 | F13 | setup:201,215 | Remove the conflicting “verified”/“still needs acceptance” process claims. Publish the actual supported Mac procedure and limits. |
 
 ### Verify meaning before editing
@@ -171,3 +171,14 @@ These are editorial proposals, not executed commands or invented output.
 - [ ] All offered documentation gets a file-by-file disposition after these rules are reviewed.
 
 Status: **applying owner feedback**. The first batch has been analyzed and classified; every offered page still needs its recorded full review and dedup pass. Publication remains on hold.
+
+## Application log
+
+| Files | Applied / checked | Remaining full-page review |
+|---|---|---|
+| `.claude/docs/WRITING.md`, `CLAUDE.md` | Release-user install path, proportionate configuration, dedup and no editorial filler rules. | Reconcile older maintainer release pointers separately. |
+| `docs/agents/voyage.md` | Bundled enablement, one-sentence model default, fixed provider origin instead of a false sandbox allowlist. | Full dedup/wording pass. |
+| `docs/agents/{ai,at,cron,debug,eventlog,fetch,imap,qdrant,rag,slack,sms,smtp,telegram,webhook}.md` | Read installation/configuration blocks; replace source packaging with bundled enablement, preserve credentials, explicit enablement and grants; correct IMAP free-text/server search distinction. | Full-page provenance, scope and dedup pass. |
+| `docs/agents/{git,logwatch,server-info,systemd,tmux-sessions}.md` | Read installation/configuration blocks; standalone commands use shipped installer paths. Systemd's single setting is direct, retaining safety and dedicated-instance scope. | Full-page provenance, scope and dedup pass. |
+
+Astra's second analysis read every block in ten further files: runner configuration, security and operations; daemon API; identity; discovery; IMAP; subscriptions; constitution; Voyage (3,955 lines). Its correctness findings remain part of the full review; a repaired installation block does not mark the entire page complete.

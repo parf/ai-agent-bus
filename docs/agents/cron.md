@@ -95,23 +95,17 @@ agent-bus call '#cron@node.example' 'later +1m #claude/main@node.example hello f
 
 ## Installing it
 
-- An administrator does this once: install the package, register the name and hand its token to the runner, enable it.
+1. Use the `cron` package included with the bus installation.
+2. The owner registers the instance with owner-only access and hands its bus token privately to the runner, as for [agents that serve themselves](../runner/configuration.md#agents-that-serve-themselves).
+3. Set `enabled:true` for `cron` in the [runner inventory](../runner/configuration.md#inventory), preserving other entries, then reload the runner.
+4. Grant callers and allow `#cron` on each destination it should reach.
 
-<details>
-<summary>Step by step</summary>
-
-1. Build `src/agents/cron/package.sh <agent.d/cron>`.
-2. Register the name with owner-only access and hand its token privately to the runner, as for [agents that serve themselves](../runner/configuration.md#agents-that-serve-themselves); the runner does not register this mode.
-3. Enable `cron` in the [runner inventory](../runner/configuration.md#inventory) and reload the runner.
-4. Grant callers, and allow cron on each destination it should reach.
-
-- It keeps one sandboxed process and needs no network beyond the bus socket.
-
-</details>
+It needs no network beyond the bus socket.
 
 ## Configuration
 
-- Only `tz`, the IANA time zone for schedules, default `UTC` (`{"tz":"America/New_York"}`).
+`tz` sets the IANA time zone for schedules; default: `UTC`. Example: `{"tz":"America/New_York"}`.
+
 - A zone missing from the host's time zone data makes the Configuration invalid: cron then answers every call with the error, fires nothing and leaves stored entries untouched until it is fixed.
 
 ## Secret keys

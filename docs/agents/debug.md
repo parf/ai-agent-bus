@@ -104,7 +104,7 @@ agent-bus call '#debug@node.example' doctor
 ## Installing it
 
 - Debug [serves itself](../runner/configuration.md#agents-that-serve-themselves), so the runner never registers it.
-- Package it into the runner's code folder, register it as its Owner, hand the runner its token once, then reload the runner.
+- Use the bundled debug package, register it as its Owner, hand the runner its token once, then enable it in the [runner inventory](../runner/configuration.md#inventory) and reload the runner.
 - Keep its access list at `@owner`.
 
 <details>
@@ -113,16 +113,13 @@ agent-bus call '#debug@node.example' doctor
 For `alice`'s runner on `node.example`:
 
 ```sh
-sudo src/agents/debug/package.sh /var/lib/agent-bus/agent.d/debug   # a release: copy /usr/local/lib/agent-bus/current/agents/debug
 agent-bus register '#debug@node.example' --allow=@owner
 agent-bus token '#debug@node.example' | sudo install -o alice-ab-runner -m 600 /dev/stdin \
   '/var/lib/agent-bus/alice-ab-runner/tokens/%23debug@node.example'
 agent-bus call '#runner/alice@node.example' reload
 ```
 
-- Until it holds the token, the runner refuses debug by name and says where the token goes.
-- Later changes need only the package and a reload ([deploy only the changed component](../07-setup.md#deploy-only-the-changed-component)).
-- The package holds the Python bus client, metadata helper and version; copy the whole package, never only `debug.py`.
+- Before reloading, set `enabled:true` for `debug` in the inventory, preserving other entries. Without its token, the runner refuses debug and says where the token goes.
 - With explicit arguments `debug.py` runs one method and exits; KV, selftest and doctor need the serving process.
 
 </details>

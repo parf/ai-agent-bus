@@ -100,9 +100,9 @@ eventlog: 0 active logs
 
 ## Installing it
 
-- Package `src/agents/eventlog/package.sh <destination>` for a runner instance; the package includes its Python client and shared helpers, so no source checkout is needed.
+- Use the eventlog package included with the bus installation.
 - Eventlog [serves itself](../runner/configuration.md#agents-that-serve-themselves), so the runner never registers it. The owner registers it, grants callers their roles, and hands the runner its token once; without the token the runner refuses to enable it.
-- Then enable it through your runner inventory and reload the runner.
+- Set `enabled:true` in the [runner inventory](../runner/configuration.md#inventory), preserving other entries, then reload the runner.
 - Keep each instance's work directory separate: `AGENT_BUS_WORK` selects it, otherwise the runner's working directory is used. State is never written into the package.
 - The agent is bus-only, kept and sandboxed.
 - On termination it finishes the current bounded bus operation, closes its resources and exits cleanly.
@@ -120,12 +120,7 @@ eventlog: 0 active logs
 
 ## Log model
 
-- This section owns the shared ring rules; eventlog's retention is described
-  under [persistence](#technical-details).
-- The daemon's per-agent logs use these rules through [#bus](bus.md#agent-logs).
-  The bus guide distinguishes its built and pending parts.
-- This page describes the eventlog agent's named logs. The bus guide owns
-  per-agent usage; both hosts keep alerts across restarts.
+The daemon's [per-agent logs](bus.md#agent-logs) use the same ring rules. Both retain alerts across restarts; see [eventlog persistence](#technical-details).
 
 Default rings:
 

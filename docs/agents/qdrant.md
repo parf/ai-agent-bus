@@ -86,35 +86,15 @@ agent-bus call '#qdrant@parf.us' 'request GET /collections' | jq -r .body
 
 ## Installing it
 
-- An administrator installs the package, sets the store address and puts the key in the runner's private file.
-- Help works before either is set.
+Use the Qdrant helper included with the bus installation. Set its `url` and private [API key](#secret-keys), set `enabled:true` for `qdrant` in the [runner inventory](../runner/configuration.md#inventory), preserving other entries, then reload the runner.
 
-<details>
-<summary>Step by step</summary>
-
-- Build `src/agents/qdrant/package.sh <agent.d/qdrant>`, enable it in the [runner inventory](../runner/configuration.md#inventory), then set Configuration and the host key as below.
-- The package uses standard-library Python and `needs.network:["*"]`; the runner grants the whole network, not a hostname firewall.
-
-</details>
+Help works before the store address and key are set.
 
 ## Configuration
 
-- **Only the store's address,** `url`, required.
-- **Plain `http://` to a remote store sends the key unencrypted.**
+`url` is the required Qdrant HTTP(S) base URL, with no default; for example `https://store.example/qdrant` or `http://127.0.0.1:6333` for a local store. A reverse-proxy prefix is allowed; credentials, query strings and fragments are refused.
 
-<details>
-<summary>Keys</summary>
-
-| Key | Meaning |
-|---|---|
-| `url` | Required Qdrant HTTP(S) base URL, no default, e.g. `https://store.example/qdrant` |
-
-- A reverse-proxy prefix is allowed.
-- For the local store above, set `http://127.0.0.1:6333`; no localhost endpoint is assumed.
-- HTTPS verifies certificates; a non-loopback HTTP call logs one notice per call.
-- URLs must not contain credentials, query strings or fragments.
-
-</details>
+HTTPS verifies certificates. Plain HTTP to a remote store sends the key unencrypted and logs a notice per call.
 
 ## Secret keys
 

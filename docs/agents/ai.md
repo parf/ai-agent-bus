@@ -88,36 +88,18 @@ More: agent-bus help '#ai@parf.us' config | secret | json
 
 ## Installing it
 
-- An administrator installs the package, puts the provider key in the runner's private file, then chooses who may call and the default model.
-
-<details>
-<summary>Step by step</summary>
-
-1. Package it: `sudo src/agents/ai/package.sh /var/lib/agent-bus/agent.d/ai` (gives `ai.py`, `agent.json`, `env.dist`, `LICENSE.md`).
-2. Enable `"ai": {"enabled": true, "sandbox": "on"}` in the [runner inventory](../runner/configuration.md#inventory) and reload the runner; without a key the runner reports `needs OPENROUTER_API_KEY` and does not start it.
-3. Choose callers: `agent-bus manage '#ai@node.example' --add-to-set-allow '*'` (or a narrower list).
+1. Use the AI package included with the bus installation.
+2. Put `OPENROUTER_API_KEY` in the instance's private [host environment file](../runner/configuration.md#environment-files), owned by the runner account with mode 0600.
+3. Set `enabled:true` for `ai` in the [runner inventory](../runner/configuration.md#inventory), preserving other entries, then reload the runner.
 4. Set the default model: `agent-bus config '#ai@node.example' '{"model":"openai/gpt-4.1-mini"}'`.
-5. The host administrator puts `OPENROUTER_API_KEY` in the agent's private [host environment file](../runner/configuration.md#environment-files), then reloads the runner.
+5. Grant access only to callers who may spend the provider balance.
 
-- The runner must be configured before the agent answers help or model calls.
-
-</details>
+The runner needs the key before the agent answers help or model calls.
 
 ## Configuration
 
-- **Which model answers by default,** and which provider address to use.
-- **Only the administrator should change `base_url`:** it receives the provider key.
-- **Redirects are not followed;** the shipped network declaration permits only `openrouter.ai`.
-
-<details>
-<summary>Keys</summary>
-
-| Key | Meaning |
-|---|---|
-| `model` | Default chat model when a call names none, e.g. `openai/gpt-4.1-mini`; not used by `decide` |
-| `base_url` | OpenAI-compatible API root, default `https://openrouter.ai/api/v1` |
-
-</details>
+- `model` is the default chat model when a call names none, for example `openai/gpt-4.1-mini`; it is not used by `decide`.
+- `base_url` is the OpenAI-compatible API root; default: `https://openrouter.ai/api/v1`. Only a trusted administrator should change it: it receives the provider key. Redirects are not followed.
 
 ## Secret keys
 

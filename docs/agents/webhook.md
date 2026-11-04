@@ -62,7 +62,7 @@ error: Configuration, required Secret or listener unavailable
 
 ## Installing it
 
-- Build `src/agents/webhook/package.sh <agent.d/webhook>`.
+- Use the webhook package included with the bus installation.
 - Register the selected name with `--allow='@owner'` and privately hand its token to the runner, as for [agents that serve themselves](../runner/configuration.md#agents-that-serve-themselves).
 - Merge an initially disabled entry into the [runner inventory](../runner/configuration.md#inventory), preserving other agents.
 - Configure targets and Secret, then reload and enable it when you are ready to expose it.

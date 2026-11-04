@@ -58,7 +58,7 @@ With [installation credentials](README.md#standalone-helpers):
 
 ```sh
 sudo --preserve-env=AGENT_BUS_ADDR,AGENT_BUS_TOKEN,AGENT_BUS_TLS_FINGERPRINT \
-  python3 src/agents/standalone/systemd/install.py install \
+  python3 /usr/local/lib/agent-bus/current/agents/standalone/systemd/install.py install \
   --name '#systemd/web@node.example' --user root --allow '@owner'
 agent-bus config '#systemd/web@node.example' '{"units":"nginx.service,web-worker.service,backup.timer"}'
 agent-bus manage '#systemd/web@node.example' --add-allow 'ann@node.example(operate)'
@@ -73,26 +73,13 @@ unset AGENT_BUS_TOKEN
 
 ## Configuration
 
-- **One setting:** the list of services this helper may touch.
-- **Without it:** every service on the host.
-- **Invalid list:** an error, never whole-host access.
+`units` limits the helper to comma-separated exact service names, for example `nginx.service,backup.timer`. Omitted: every host unit. Empty or invalid values are refused; wildcards and paths are not allowed.
 
-<details>
-<summary>Keys</summary>
-
-| Key | Meaning |
-|---|---|
-| `units` | Comma-separated exact names, such as `nginx.service,backup.timer`. Omitted: every host unit |
-
-Names need their ending (`.service`, `.timer`); no wildcards or paths. An empty or invalid list is an error, never whole-host access.
-
-</details>
+Changes apply on the next call.
 
 ### Dedicated instances
 
-- **One named helper per team or application,** each with its own service list and access list.
-- **Inside the list:** listing, status, actions and logs stay there.
-- **When it applies:** changes apply on the next call.
+Use a named instance per team or application, with its own service list and access list. Listing, status, actions and logs stay within that instance's `units` list.
 
 ## Secret keys
 

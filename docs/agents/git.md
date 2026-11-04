@@ -123,7 +123,7 @@ With [installation credentials](README.md#standalone-helpers):
 
 ```sh
 sudo --preserve-env=AGENT_BUS_ADDR,AGENT_BUS_TOKEN,AGENT_BUS_TLS_FINGERPRINT \
-  python3 src/agents/standalone/git/install.py install \
+  python3 /usr/local/lib/agent-bus/current/agents/standalone/git/install.py install \
   --name '#git@node.example' --user deploy --allow '@owner'
 agent-bus config '#git@node.example' '{"repos":{"ab":{"path":"/srv/ab","access":"read","branch":"main"}}}'
 agent-bus call '#git@node.example' list

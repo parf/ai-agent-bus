@@ -84,20 +84,13 @@ error: configure RAG block names and collection
 
 ## Installing it
 
-- An administrator does this once: install the package, create the storage collection, let RAG use the three blocks, set its Configuration.
-
-<details>
-<summary>Step by step</summary>
-
-1. Build `src/agents/rag/package.sh <agent.d/rag>`.
+1. Use the RAG package included with the bus installation.
 2. Register the name with owner-only access and hand its token privately to the runner, as for [agents that serve themselves](../runner/configuration.md#agents-that-serve-themselves); the runner does not register this mode.
-3. Enable `rag` in the [runner inventory](../runner/configuration.md#inventory).
+3. Set `enabled:true` for `rag` in the [runner inventory](../runner/configuration.md#inventory), preserving other entries.
 4. Copy the [Configuration example](../../src/agents/rag/config.json.dist), set the record Configuration, provision the collection and grants below, reload the runner.
 
 - It is a kept, sandboxed package with one worker, serializing replacement and prompt-cache changes.
 - Help works before Configuration is set: `agent-bus help '#rag@node.example'` and the status ask answer on an unconfigured helper, while a plain-text call such as `agent-bus call '#rag@node.example' help` is data and is refused with `error: configure RAG block names and collection`, as every other agent refuses nonsense.
-
-</details>
 
 ### Owner provisions the collection
 

@@ -67,14 +67,14 @@ failed: session tmux-sessions absent
 - It belongs in the person's [user-account runner](../07-setup.md#a-persons-user-account-runner), which runs as them.
 - An administrator installs that runner once (`sudo /usr/local/bin/agent-bus-setup --runner install --user-runner --for <person>`) and the person adds this package to it.
 - Running the main record and an instance in one runner takes sibling inventory keys, with the base key disabled ([how](../07-setup.md#a-persons-user-account-runner)).
-- The older way, its own Linux service per person, is below.
+- Alternatively, install it as a separate Linux service for that person:
 
 <details>
 <summary>Step by step</summary>
 
 ```sh
 sudo --preserve-env=AGENT_BUS_ADDR,AGENT_BUS_TOKEN,AGENT_BUS_TLS_FINGERPRINT \
-  src/agents/standalone/tmux-sessions/install.py install \
+  /usr/local/lib/agent-bus/current/agents/standalone/tmux-sessions/install.py install \
   --name '#tmux-sessions@node.example' --user ann --allow '@owner'
 ```
 

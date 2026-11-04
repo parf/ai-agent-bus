@@ -129,11 +129,7 @@ Paths follow [runner helpers](README.md#runner-helpers).
    unset BOT_TOKEN
    ```
 
-2. Package it and add an [inventory](../runner/configuration.md#inventory) entry to `/var/lib/agent-bus/ann-ab-runner/agents.json`, keeping other entries:
-
-   ```sh
-   sudo src/agents/telegram/package.sh /var/lib/agent-bus/agent.d/telegram
-   ```
+2. Use the Telegram package included with the bus installation. Add an [inventory](../runner/configuration.md#inventory) entry to `/var/lib/agent-bus/ann-ab-runner/agents.json`, keeping other entries:
 
    ```json
    "telegram": { "name": "#telegram/ann@node.example", "enabled": true }

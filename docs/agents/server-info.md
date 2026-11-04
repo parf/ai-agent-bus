@@ -57,7 +57,7 @@ With [installation credentials](README.md#standalone-helpers):
 
 ```sh
 sudo --preserve-env=AGENT_BUS_ADDR,AGENT_BUS_TOKEN,AGENT_BUS_TLS_FINGERPRINT \
-  src/agents/standalone/server-info/install.sh install \
+  /usr/local/lib/agent-bus/current/agents/standalone/server-info/install.sh install \
   --name '#server-info@node.example' --allow '@owner'
 unset AGENT_BUS_TOKEN
 ```

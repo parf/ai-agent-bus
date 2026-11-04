@@ -141,11 +141,7 @@ Paths follow [runner helpers](README.md#runner-helpers).
    unset BOT_TOKEN APP_TOKEN
    ```
 
-2. Package it:
-
-   ```sh
-   sudo src/agents/slack/package.sh /var/lib/agent-bus/agent.d/slack
-   ```
+2. Use the Slack package included with the bus installation. Set `enabled:true` for `slack` in the [runner inventory](../runner/configuration.md#inventory), preserving other entries.
 
 3. Give the runner this agent's own bus credential (not a Slack token):
 

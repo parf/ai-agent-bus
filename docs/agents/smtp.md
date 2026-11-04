@@ -68,7 +68,7 @@ Send mail once through a configured account with verified TLS
 
 ## Installing it
 
-- An administrator packages it once and adds one instance per mail account.
+Use the SMTP package included with the bus installation. Add one instance per mail account.
 
 ### Connect a Gmail account
 
@@ -96,11 +96,11 @@ Send mail once through a configured account with verified TLS
 <details>
 <summary>Step by step</summary>
 
-1. Package with `src/agents/smtp/package.sh <agent.d/smtp>`.
+1. Select the bundled SMTP package; no build or package copy is needed.
 2. Add an instance to the [runner inventory](../runner/configuration.md#inventory).
 3. Put the account's keys in its private host file ([Secret keys](#secret-keys)).
 
-- It uses only Python's standard library and the runner's network sandbox; a package refresh needs no restart.
+Reload the runner after changing the package or its private host environment.
 
 </details>
 
