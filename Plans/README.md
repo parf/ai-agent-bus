@@ -18,7 +18,7 @@ MVP (R0.8) is released and archived, complete 2026-09-23. The 0.8 feature line c
 
 Document ownership and plan lifecycle are in [working rules](../CLAUDE.md#working-rules).
 
-How the AI team itself could be organised, an undecided idea, is in [Team v2](Team.v2/README.md#team-v2).
+The adopted [Team v2](Team.v2/README.md#team-v2) carried out most of the 0.9 development; its roles and operating workflow are documented there.
 
 ## How an item is written
 

@@ -16,3 +16,9 @@
   - Why: owner instruction; each team has three workers (Claude on account 1, Claude on account 2, Codex) and a QA on z.ai, and `#ab-dir` splits work between them by subsystem
   - Supersedes: TD1
   - Home: [shape](README.md#shape)
+
+- ✅ TD4 Team v2 is the adopted development structure
+  - Date: 2026-11-03
+  - Why: the owner confirms that most of the 0.9 development was carried out with this team; it is decided, not an unapproved proposal
+  - Responsibilities: consolidate standing CEO/DIR handoff instructions; omit temporary capacity, queue and deployment state
+  - Home: [status](README.md#status), [roles](README.md#roles), [operations](README.md#operations-and-authority)

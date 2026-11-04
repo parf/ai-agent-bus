@@ -1,82 +1,49 @@
 # Team v2
 
-📌 **TL;DR:** An idea, not decided: a layered AI team for this repository. The
-owner talks only to `#ab-ceo`. `#ab-dir` splits tickets, two leads route work to
-workers, QA checks every diff, and a script agent `#ab-gate` alone lands on
-main. The coordinating layer runs on `/fast` and reads only short receipts. The
-heavy work runs below it on ordinary models.
+📌 **TL;DR:** The adopted AI development team for this repository: the owner works through a CEO, a director/CTO coordinates two technical leads, workers implement, independent readers review, and a script gate lands the work.
 
 ## Status
 
-Idea from the owner, 2026-10-29; partly running from 2026-10-30 with two teams
-([decision](DECISIONS.md#recorded-decisions)). Node-local, not in Git, under
-`local/`: the role prompts, `start-ceo.sh` for the `#ab-ceo` kitty window,
-`gate.sh` behind `#ab-gate`, and the `#tmux-sessions/ab-dvp@parf.us`
-Configuration that starts `DIR`, `LEAD1..2`, `W1A..C`, `W2A..C`, `QA1..2` and `GATE`. The
-team before it is in [today's team](#today). Open choices are in
-[questions](QUESTIONS.md#open-questions).
+Team v2 began operating with two teams on 2026-10-30. The owner confirmed on 2026-11-03 that it is decided and was used for most of the 0.9 development ([decision](DECISIONS.md#recorded-decisions)). Specific open operational questions remain in [questions](QUESTIONS.md#open-questions); they do not make the team structure a proposal.
+
+The responsibilities below incorporate the standing instructions in node-local `local/ceo/handoff.md` and `local/dir/handoff.md`, with `local/ceo.md`, `local/dir.md`, `local/lead1.md`, `local/worker1.md` and `local/qa1.md` as supporting role prompts. The later standing handoff instructions supersede conflicting earlier prompt text.
+
+The role prompts, `start-ceo.sh`, `gate.sh`, launcher configuration and per-window notes live under `local/`, outside Git. The managed tmux session is `AB-DVP`, reached through `#tmux-sessions/ab-dvp@parf.us`.
 
 ## Shape
 
-Two teams run ([TD3](DECISIONS.md#recorded-decisions)): `#ab-lead1` leads team 1 and
-`#ab-lead2` team 2, each with three workers and a QA. Names carry the project
-prefix `ab-` ([TD2](DECISIONS.md#recorded-decisions)). Team 1 runs in the repository root and team 2 in `Plans/`; `#ab-ceo` and
-`#ab-dir` have their own directories, `local/ceo/` and `local/dir/`. Each name
-resumes its own conversation.
+Two teams use the project prefix `ab-` ([TD2/TD3](DECISIONS.md#recorded-decisions)). Each has a lead developer, three workers and a QA; implementation and review are separate assignments.
 
 ```mermaid
-%%{init: {"flowchart": {"wrappingWidth": 420}}}%%
 flowchart TD
-  parf(["parf — owner"]) <-->|talks only to| ceo
-  ceo["`**#ab-ceo** · kitty · Claude /fast · local/ceo/
-  owner's single contact, answers at once
-  writes tickets, hands them to #ab-dir
-  keeps the waiting-on-owner list
-  reports results; never executes or waits`"]
-  dir["`**#ab-dir** · tmux DIR · Claude /fast · local/dir/
-  splits tickets into tasks on disjoint paths
-  picks the team by subsystem, balances load
-  sets deadlines, requeues overdue tasks
-  settles cross-team conflicts; no code`"]
-  lead1["`**#ab-lead1** · team 1
-  repository root`"]
-  lead2["`**#ab-lead2** · team 2
-  Plans/`"]
-  gate[["`**#ab-gate** · script, no model
-  sole lander on main`"]]
-  main[("main")]
-  ceo -->|ticket| dir
-  dir -->|task| lead1 & lead2
-  lead1 & lead2 -->|land| gate
-  gate -->|ff-merge| main
+  owner([Owner]) <--> ceo["#ab-ceo"]
+  ceo --> dir["#ab-dir · CTO"]
+  dir --> lead1["#ab-lead1"] & lead2["#ab-lead2"]
+  lead1 & lead2 --> gate[["#ab-gate · script"]]
+  gate --> main[(main)]
 ```
 
-Inside team N (1 or 2), every session runs in the team's directory:
+Inside team N, the established worker mix is Claude on two accounts and Codex; QA uses z.ai through opencode. Model/account assignments do not change the role boundaries.
 
 ```mermaid
-%%{init: {"flowchart": {"wrappingWidth": 420}}}%%
 flowchart TD
-  lead["`**#ab-leadN** · tmux LEADN · Claude /fast
-  assigns tasks by fit, reads receipts only
-  sends to QA, then to #ab-gate; decides bump`"]
-  wa["`**#ab-wNa**
-  Claude
-  account 1`"]
-  wb["`**#ab-wNb**
-  Claude
-  account 2`"]
-  wc["`**#ab-wNc**
-  Codex`"]
-  qa["`**#ab-qaN**
-  opencode, z.ai
-  read-only`"]
-  gate[["#ab-gate"]]
-  lead -->|task| wa & wb & wc
-  lead -->|check| qa
-  lead -->|land| gate
+  lead["#ab-leadN"] --> wa["#ab-wNa"] & wb["#ab-wNb"] & wc["#ab-wNc"]
+  lead --> qa["#ab-qaN · independent review"]
+  lead --> gate[["#ab-gate"]]
 ```
 
-A task's path, each arrow one bus message:
+## Roles
+
+| Role | Responsibility | Boundary |
+|---|---|---|
+| `#ab-ceo` | The owner's contact: turns requests into tickets, sends them to DIR, tracks owner decisions and reports outcomes. Executes authorized operational work itself: coordinated deploys, runner reloads/restarts, web/window restarts and fast-forward pushes on DIR's readiness. Checks facts before asking the owner for a missing decision, password, account access, money or GUI action. | Does not self-authorize wider scope, provider sends, new credentials or host changes. No feature implementation or gate runs; delegates technical investigation. |
+| `#ab-dir` | Acts as CTO: owns technical direction, work split and quality bar. Agrees non-trivial approaches with the lead before implementation, assigns disjoint paths, sets acceptance/deadlines and resolves cross-team conflicts. Settles in-plan questions, coordinates review and deploy readiness, and checks the push range before sending push-ready. | No implementation, gate runs, main merges or operational restarts. Routes owner-only decisions and execution to CEO with options and a recommendation. |
+| `#ab-lead1`, `#ab-lead2` | Lead developers, not message routers: judge design, challenge stale/unclear tasks, propose the split and acceptance, then assign a suitable worker. Arrange non-author review, decide whether a change merits a version bump, submit reviewed work to the gate, return findings/red results to the author and coordinate close-out. Check a reader is available before assigning it. | Workers write the implementation. Leads do not run gates, merge main, push, execute deployments or restart windows. |
+| `#ab-w<team>a..c` | Implements one assigned task in its own worktree; supplies code, appropriate checks/mutation proof and current user docs. Reports the exact branch/revision, findings and deploy needs; checkpoints between tasks and removes the worktree/branch after landing. | No unassigned scope, normal landing gate, independent main merge/push or version bump. Host/credential/provider actions require the standing authorization or an explicit owner decision. |
+| `#ab-qa1`, `#ab-qa2` and assigned independent readers | Read-only review of the specified revision against behavior, acceptance, docs and verification requirements. Reproduce findings, give severity/file:line/concrete failure/fix, and return a clear verdict. | Never edit the reviewed branch, approve their own implementation, deploy or push. A HIGH finding blocks the ordinary landing path. |
+| `#ab-gate` | Script-only landing service: validates the request, rebases, takes the gate lock, runs normal, applies only the requested bump/stable operation, fast-forwards main, records range/logs and returns a machine-readable receipt. | Receives a branch only after the required independent reviews. It cannot answer planning questions or supply a model's review. |
+
+## Work, review and landing
 
 ```mermaid
 sequenceDiagram
@@ -84,58 +51,48 @@ sequenceDiagram
   participant dir as ab-dir
   participant lead as ab-leadN
   participant w as ab-wNx
-  participant qa as ab-qaN
+  participant qa as independent reader
   participant gate as ab-gate
   ceo->>dir: ticket T-n
-  dir->>lead: task: goal, plan item, paths, acceptance, deadline
-  lead->>w: task T-n
-  Note over w: own worktree tmp/<name>-T-n<br/>commits, tests, mutant, docs, plan
-  w->>lead: ready <branch> T-n
-  lead->>qa: check <branch> T-n
-  qa->>lead: no high | HIGH …
-  alt HIGH finding
-    lead->>w: finding, fix in the same branch
-  else no high
-    lead->>gate: <branch> T-n [bump] -- <line>
-    Note over gate: rebase on main · smoke-gate lock<br/>--normal, one rerun · bump only if marked<br/>ff-merge main · release lock
-    gate->>lead: landed main <commit>, <version> | red | refused
-    alt landed
-      lead->>w: remove worktree and branch
-      lead->>dir: done T-n
-      dir->>ceo: done T-n
-    else red or refused
-      lead->>w: receipt, fix and resend
-    end
+  dir->>lead: goal, plan, paths, acceptance, deadline
+  lead->>w: agreed task
+  w->>lead: ready branch + revision
+  lead->>qa: check branch + revision
+  qa->>lead: verdict + reproduced findings
+  alt blocking finding
+    lead->>w: fix on the same branch
+  else required reviews complete
+    lead->>gate: branch [T-n] [bump or stable] [-- line]
+    gate->>lead: landed commit/version or red/refused
+    lead->>dir: outcome + close-out/deploy needs
+    dir->>ceo: result or operational readiness
   end
 ```
 
-## Roles
+- Non-trivial work starts after DIR and the lead agree the approach, risks, split, acceptance and an ETA based on observed agent pace. Simple known fixes and routing changes can start directly.
+- The [sensitive subsystems](../subsystems.md) require two independent readers and the required mutant proof; other changes use one reader. Test-only work in a sensitive area uses the documented one-reader rule. An author never counts as a reader.
+- `#ab-gate` is a script: send `<branch> [T-n] [bump | stable] [-- line]`, not a prose request. A red/refused receipt returns to the author; a retry is not a substitute for identifying and fixing a recurring failure. Gate behavior is implemented in node-local `local/gate.sh`.
+- Code branches do not perform issue/DONE close-out. After landing, a small docs close-out reconciles the owning TODO, DONE/done evidence, issue disposition and resolved questions/decisions. It names the landed revision and readers; fixed issues are marked and archived without losing evidence.
+- State and readiness travel on the bus; repository plans hold the task's knowledge and acceptance. A context window or private transcript is not the only record of unfinished work.
 
-| Role | Runs as | Does | Never |
-|---|---|---|---|
-| `#ab-ceo` | `/fast`, a kitty window rather than tmux | is the owner's single contact; answers at once from its board and status events; writes the ticket, queues it, acknowledges it with its ID; reports results; keeps the list of what waits on the owner | calls down, waits, executes |
-| `#ab-dir` | `/fast`, tmux | takes tickets; splits large ones into tasks on disjoint paths; sets deadlines; balances leads; requeues timeouts; settles cross-team conflicts over shared files and order | code |
-| `#ab-lead1`, `#ab-lead2` | `/fast`, tmux | assigns a task to a worker by fit; sends the finished branch to QA and to `#ab-gate` together; reads receipts; marks done or failed; returns a red result to the same worker | gates, merges, code fixes, docs, reading logs or diffs |
-| `#ab-w<team>a..c` | three per team: Claude on account 1, Claude on account 2 and Codex; the lead gives architecture and refactors to Claude, scoped fixes and tests to Codex; tmux | one task at a time in its own worktree; done means commits, tests, a mutant where [verification](../../CLAUDE.md#mutation-first-then-belief) asks for one, docs, and the plan's TODO and DONE in the same change; runs fast checks only; sends a receipt on done or blocked | the version file, the changelog, merging to main |
-| `#ab-qa1`, `#ab-qa2` | z.ai through opencode, a vendor other than every worker's | checks every diff of its team; findings carry file:line and a fix, reproduced first; doc drift is a standard finding; advisory, blocks a merge only at high severity | code |
-| `#ab-gate` | a script agent, no model | sole reader of the gate queue; rebases on main, runs the normal gate, bumps the version and adds the changelog line only when the lead marks the landing `bump`, fast-forwards main and logs the landed commit range with its branch and topic; the lead sends a branch only after QA reports no high finding; reruns once on a flake; sends a receipt | — |
+## Operations and authority
 
-## Principles
-
-| Principle | Why |
+| Operation | Permanent routing and checks |
 |---|---|
-| The `/fast` layer reads receipts only | `/fast` costs more per token; logs, diffs and long reports belong below it |
-| Only `#ab-gate` lands on main | removes landing before QA, version slot races and gate lock contention in one place |
-| Teams own subsystems | team paths follow the letters in [the subsystem map](../subsystems.md), so tasks rarely collide; for example core, daemon, runner and install in one team, faces, web and agents in the other |
-| State lives on the bus | the tasks queue and the board hold it, not a model's context, so closing the `#ab-ceo` window loses nothing |
-| Owner-only actions stay the owner's | push, live sends, a daemon restart and widening scope; `#ab-ceo` shows them as a list instead of blocking silently |
-| Plans stay canonical | workers update the owning `Plans/<release>/TODO.md` and `DONE.md`; there is no separate team plan file |
+| Deploy | DIR coordinates a gate-idle window and holds both leads, then sends CEO `deploy-ready <sha>` with the affected programs and steps. Go changes need a stamped rebuild before they are live. CEO performs the authorized minimal deployment, runs check-deploy, checks reconnection/readers and reports done before DIR releases the leads. |
+| Agent package refresh | Replace the package tree rather than overlay stale modules. Verify every affected instance; use runner reload for configuration/package changes instead of a service restart unless one is required and authorized. |
+| Push | DIR verifies VERSION, folded changelog, conflict-marker absence and the reviewed commit range, then sends CEO `push-ready <sha>`. CEO performs a fast-forward push under the standing row in node-local `CLAUDE.local.md`; owner holds and extra restrictions still apply. Other roles use local refs. |
+| Worker/window recovery | Worker writes a checkpoint at a clean boundary. Lead sends DIR `compact <WIN>` or `restart <WIN>` with its path; DIR forwards to CEO, which executes the authorized action and restores the window's identity/role/checkpoint. Leads and DIR never restart another session themselves. |
+| Owner questions | Worker/reader → lead → DIR → CEO. DIR resolves questions already inside the approved plan; the owner decides new scope or missing authority. Present owner choices in [item form](../MARKUP.md#options-and-threads), with a recommendation. Nobody waits on an approval prompt in their own window. |
+| No response | Check the actual status/work, resend once after ten minutes, then record a still-unresolved blocker and continue independent work. Do not flood an unavailable session with repeated requests. |
+| Shared gate resource | Follow [the lock rule](../../CLAUDE.md#verification), acquire in a separate call and read the grant before starting work, extend a hold you actually own before expiry and release at the batch boundary. An unexpected “already held by you” on the shared parf identity is not a new grant. |
+| Focused Mac acceptance | Use the approved Mac run instructions through ssh mac, one checkout/workspace and cleanup after the run. Privileged actions and heavy work need their specific authorization; temporary access/deploy state does not widen it. |
 
 ## Window directories
 
-Each window is meant to run in its own directory, `local/<bus name without '#'>/` (for example `local/ab-w1a/`), so its
+Each worker, lead and QA window runs in its own directory, `local/<bus name without '#'>/` (for example `local/ab-w1a/`), so its
 Claude memory is its own and not shared with every other window started from the same directory. `DIR` and the CEO already
-have theirs and keep them. The mechanism is node-local, like the rest of `local/`, and the owner's side applies it.
+have theirs and keep them. The CEO applies the node-local mechanism between tasks. Run the commands below from the repository root.
 
 | Step | What it does |
 |---|---|
@@ -148,9 +105,9 @@ have theirs and keep them. The mechanism is node-local, like the rest of `local/
 - **Restart cost:** a window resumes its saved session by its directory, so one moved to a new directory starts without its old transcript; apply it between tasks.
 - **Checks:** `python3 -m unittest local/windows/test_windows.py` covers the dry run writing nothing, one window's apply touching no other, the originals staying, the no-overwrite rule and DIR's exemption; each of those has a mutant that fails it.
 
-## Today
+## Before Team v2
 
-The team as it runs on 2026-10-29, as reported by `#claude/ab2`.
+Historical predecessor, reported by `#claude/ab2` on 2026-10-29, before Team v2 was adopted. These are not the Team v2 assignments.
 
 <details>
 <summary>Sessions, flow and pain points</summary>
@@ -162,8 +119,8 @@ The team as it runs on 2026-10-29, as reported by `#claude/ab2`.
 | `#claude/ab2-review` | main reviewer, usually after landing |
 | `#opencode/oab` | occasional reviewer |
 
-Tmux session `AB-DVP` holds the windows, kept by `#tmux-sessions/ab-dvp@parf.us`.
-There is no task queue: an assignment is a bus message plus the TODO line.
+Tmux session `AB-DVP` held the windows, kept by `#tmux-sessions/ab-dvp@parf.us`.
+There was no task queue: an assignment was a bus message plus the TODO line.
 
 | Pain point | Answer in this design |
 |---|---|
