@@ -100,3 +100,16 @@ func TestAdminPagesAreComplete(t *testing.T) {
 		t.Fatal("lost short help or SSH restriction")
 	}
 }
+
+func TestAdminRetiredVerbsAndExtraArgumentsRefuseBeforeHandover(t *testing.T) {
+	for _, args := range [][]string{{"user", "rm", "alice"}, {"user", "delete", "alice"}, {"account", "rm", "alice"}, {"tls", "-h"}, {"user", "list", "-h"}, {"account", "list", "junk"}} {
+		if err := canonicalAdminArgs(args); err == nil {
+			t.Fatalf("accepted %q", args)
+		}
+	}
+	for _, args := range [][]string{{"user", "remove", "alice"}, {"account", "remove", "alice"}, {"tls"}, {"user", "list"}, {"account", "list"}} {
+		if err := canonicalAdminArgs(args); err != nil {
+			t.Fatalf("canonical %q: %v", args, err)
+		}
+	}
+}
