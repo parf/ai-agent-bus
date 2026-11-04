@@ -82,7 +82,7 @@ A subscription forwards each new mail by itself; nothing is forwarded until some
 
 ## What a guide leaves out
 
-- **Build status, versions, ids and plan links:** none; a guide is in the present tense and says nothing outside the release, as [WRITING.md](../../WRITING.md#how-we-write-docs) sets out.
+- **Build status, versions, ids and plan links:** none; a guide is in the present tense and says nothing outside the release, as [WRITING.md](../../.claude/docs/WRITING.md#how-we-write-docs) sets out.
 
 ## Bundled agents
 

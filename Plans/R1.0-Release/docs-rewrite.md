@@ -3,12 +3,12 @@
 📌 **TL;DR:**
 - **Problem:** the docs explain parts (daemon, queues, records) before they say why anyone cares, and few pages show something you can run.
 - **Outcome:** every doc answers, in this order, why it exists, what you get, how to use it with a real working example, and only then the technical details.
-- **How:** one standard, [WRITING.md](../../WRITING.md#how-we-write-docs), pointed to from [CLAUDE.md](../../CLAUDE.md#writing-conventions), a per-page check, and batches on disjoint paths that both teams can work in parallel.
+- **How:** one standard, [WRITING.md](../../.claude/docs/WRITING.md#how-we-write-docs), pointed to from [CLAUDE.md](../../CLAUDE.md#writing-conventions), a per-page check, and batches on disjoint paths that both teams can work in parallel.
 - **Size:** about 130 working hours over 11 batches, no version bump. Status: approved 2026-10-30 by the owner; the rule lands in CLAUDE.md, then `docs/runner/README.md` is written first for the owner's review.
 
 ## The rule
 
-- **Owner:** [WRITING.md](../../WRITING.md#how-we-write-docs) holds the whole standard: order, voice, form, examples and the page checklist.
+- **Owner:** [WRITING.md](../../.claude/docs/WRITING.md#how-we-write-docs) holds the whole standard: order, voice, form, examples and the page checklist.
 - **Applies to:** every page under `docs/` (except the pages below), agent and runner guides, client READMEs, each `agent.json` description and method help, the CLI help pages, and the intro text of each web page.
 
 ## Not rewritten
@@ -79,7 +79,7 @@ Each batch is one worktree and one landing through `#ab-gate`, no bump; manifest
 
 ## Acceptance
 
-- **Standard:** every page meets [the checklist in WRITING.md](../../WRITING.md#-checklist-for-a-page); the rest of this list says how each point is checked.
+- **Standard:** every page meets [the checklist in WRITING.md](../../.claude/docs/WRITING.md#-checklist-for-a-page); the rest of this list says how each point is checked.
 - **Per page, checked by the checker where it can be, by a reviewer where it cannot:**
   - Order: the four parts appear in order (why, what you get, how, technical); the technical part is last.
   - First 10-20%: why, what you get and one way to start sit within the first fifth of the page by length.

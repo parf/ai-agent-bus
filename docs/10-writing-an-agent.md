@@ -77,7 +77,7 @@ agent-bus help run
 
 ## Before you share it
 
-- Provide a `docs/agents/` end-user page covering useful work, safe calls, settings, access and troubleshooting. Follow [the writing guide](../WRITING.md#how-we-write-docs).
+- Provide a `docs/agents/` end-user page covering useful work, safe calls, settings, access and troubleshooting. Follow [the writing guide](../.claude/docs/WRITING.md#how-we-write-docs).
 - Check actual help, a safe answer and relevant refusal/interruption behavior. [Debug](agents/debug.md#check-the-bus-in-a-minute) and check-deploy check the bus path; they do not prove your business result.
 
 ## Technical details

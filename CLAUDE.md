@@ -94,7 +94,7 @@ is read by byte offset while it runs — never edit it mid-run.
 - Write long CLI options as `--name` or `--name=value`; reserve a single dash for one-letter options such as `-o`.
 
 - Small files, main ideas only, tables over prose; terse English.
-- Doc style is owned by [WRITING.md](WRITING.md#how-we-write-docs): order, voice, form, examples and the page checklist, for every doc, `agent.json` description, method help and web page intro. Every current doc opens with a `📌 **TL;DR:**` of two to four lines.
+- Doc style is owned by [WRITING.md](.claude/docs/WRITING.md#how-we-write-docs): order, voice, form, examples and the page checklist, for every doc, `agent.json` description, method help and web page intro. Every current doc opens with a `📌 **TL;DR:**` of two to four lines.
 - Use R0.8, R1, R1.1, R1.2, R1.3 and R2.0 for stages; Legacy-V1 for the NATS system.
 - Beyond the TL;DR marker, no glyph by default. Use question, conflict, failure, blocked, cancelled, deferred, partial, done, handed-off and superseded glyphs only when they add information. One glyph per cell.
 

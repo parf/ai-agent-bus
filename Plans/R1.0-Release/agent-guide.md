@@ -17,7 +17,7 @@ It is not a daemon introduction, installation tutorial or SDK implementation gui
 Use a TL;DR, the opening choice below, and the three tiers; keep the checklist
 within 1,200 prose words. Worked examples live on separate pages. Each item
 gets one short paragraph and one link to its owning reference. Follow
-[WRITING.md's order](../../WRITING.md#-the-order-of-every-page) and the R1 README's
+[WRITING.md's order](../../.claude/docs/WRITING.md#-the-order-of-every-page) and the R1 README's
 plain voice: the behavior a caller gets first, details through links.
 No copied limits, default values, role tables, schemas or protocol rules.
 The checklist owns the reading path, not another version of those contracts.
@@ -334,7 +334,7 @@ as a gap is a proposed place to resolve it, not evidence of a rule already there
 safe calls, settings, access, diagnostics and troubleshooting, and check actual
 help, a safe call and relevant refusal/interruption behavior. Debug checks bus
 health, not the business result. Follow
-[How we write docs](../../WRITING.md#how-we-write-docs). This closing deliverable
+[How we write docs](../../.claude/docs/WRITING.md#how-we-write-docs). This closing deliverable
 is not an agent-code checklist item.
 
 ## Gaps to resolve before writing
