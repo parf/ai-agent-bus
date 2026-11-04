@@ -89,12 +89,9 @@ func TestTheWildcardAdmitsNoChannelAsASource(t *testing.T) {
 func TestAnIgnoredRecordKeepsItsCredential(t *testing.T) {
 	b := New()
 	b.Journal(&reports{})
-	b.Restore(withUsers(ports.Snapshot{Clean: true, Records: []protocol.Record{
+	assertRestoreRefused(t, b, canonicalFixture(withUsers(ports.Snapshot{Clean: true, Records: []protocol.Record{
 		{Name: "#broken@h", Kind: protocol.KindAgent, Owner: "nobody@h", Full: protocol.OverflowStrict},
-	}}, "owner@h"))
-	if got := b.Ownerless([]string{"#broken@h", "#never@h"}); len(got) != 1 || got[0] != "#never@h" {
-		t.Fatalf("the ownerless sweep would take %v; an ignored record's credential stays", got)
-	}
+	}}, "owner@h"), ""))
 }
 
 // A local account maps to a User or an Agent, and goes with the name when it

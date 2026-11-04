@@ -44,10 +44,7 @@ func TestAGroupIsARecordInTheSharedIDSpace(t *testing.T) {
 	rep := &reports{}
 	c := New()
 	c.Journal(rep)
-	c.Restore(withUsers(ports.Snapshot{Clean: true, Records: []protocol.Record{{Name: "@loose", Owner: "owner@h", Allow: []string{"owner@h"}}}}, "owner@h"))
-	if !rep.has("stored record @loose is ignored") || c.member("owner@h", "@loose") {
-		t.Errorf("a group record without its kind was loaded: %v", rep.lines)
-	}
+	assertRestoreRefused(t, c, withUsers(ports.Snapshot{Clean: true, Records: []protocol.Record{{Name: "@loose", Owner: "owner@h", Allow: []string{"owner@h"}}}}, "owner@h"))
 }
 
 // Its Owner, its Maintainers and the daemon's Administrators change its

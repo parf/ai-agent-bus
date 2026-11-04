@@ -56,6 +56,9 @@ func (b *Bus) SetDaemonOwner(owner string) {
 
 // setDaemonOwner updates the role nesting while caller holds b.mu.
 func (b *Bus) setDaemonOwner(owner string) {
+	if b.admin == "" {
+		b.setAccounts(b.accounts)
+	}
 	b.setOwner(owner)
 	b.administratorsAreUsers()
 	if r, ok := b.records[DaemonAgent]; ok {
@@ -79,8 +82,7 @@ func (b *Bus) setDaemonOwner(owner string) {
 	}
 }
 
-// EstablishDaemonOwner applies setup's owner only to a first or legacy
-// snapshot. A current snapshot is authoritative: damage is an error rather
+// EstablishDaemonOwner applies setup's owner only to an empty store. A current snapshot is authoritative: damage is an error rather
 // than an excuse to resurrect the setup seed after a transfer.
 func (b *Bus) EstablishDaemonOwner(seed string) error {
 	owner, err := canon(seed)

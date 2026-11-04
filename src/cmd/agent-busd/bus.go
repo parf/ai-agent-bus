@@ -79,7 +79,9 @@ func runBus(c config) {
 			log.Print("WARNING: " + msg)
 			logs.Report(ports.Warning, msg)
 		}
-		bus.Restore(s)
+		if err := bus.Restore(s); err != nil {
+			fatal("database %s: %v", c.db, err)
+		}
 	}
 	// Bound before the first write, so setup's seed below commits like any
 	// other change.
@@ -87,8 +89,14 @@ func runBus(c config) {
 	// Today's and yesterday's stored days put each ring back
 	// (docs/05-discovery.md#activity-history).
 	bus.RestoreActivityDays()
-	if err := bus.EstablishDaemonOwner(me.String()); err != nil {
-		fatal("owner: %v", err)
+	activeAccounts := map[string]string{}
+	if raw := os.Getenv(accountsEnv); raw == "" {
+		fatal("%s is empty: the bus is started by the supervisor, not by hand", accountsEnv)
+	} else if err := json.Unmarshal([]byte(raw), &activeAccounts); err != nil {
+		fatal("%s: %v", accountsEnv, err)
+	}
+	if err := bus.EstablishDaemon(me.String(), activeAccounts); err != nil {
+		fatal("initialize: %v", err)
 	}
 	host, _ := os.Hostname()
 	if err := bus.EstablishDaemonAgent(host); err != nil {
@@ -97,15 +105,6 @@ func runBus(c config) {
 	bus.ReportKVOrphans()
 	bindBigKeys(bus, filepath.Dir(c.db), st)
 	bus.PruneBigOrphans()
-	activeAccounts := map[string]string{}
-	if raw := os.Getenv(accountsEnv); raw == "" {
-		fatal("%s is empty: the bus is started by the supervisor, not by hand", accountsEnv)
-	} else if err := json.Unmarshal([]byte(raw), &activeAccounts); err != nil {
-		fatal("%s: %v", accountsEnv, err)
-	}
-	if err := bus.EstablishAccounts(activeAccounts); err != nil {
-		fatal("local accounts: %v", err)
-	}
 	owner := bus.DaemonOwner()
 	tokens, err := auth.Load(st.Tokens(), owner)
 	if err != nil {

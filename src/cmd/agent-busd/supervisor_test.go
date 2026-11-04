@@ -8,7 +8,9 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/ports"
+	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/store/sqlite"
 )
 
@@ -78,6 +80,14 @@ func storeAccounts(t *testing.T, path string, accounts map[string]string) {
 		t.Fatal(err)
 	}
 	defer st.Close()
+	b := core.New()
+	b.Persistence(st)
+	b.SetDaemonOwner("owner@h")
+	for _, principal := range accounts {
+		if _, err := b.SetUser("owner@h", protocol.User{Name: principal}, true); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if err := st.Commit(ports.Change{Accounts: accounts}); err != nil {
 		t.Fatal(err)
 	}

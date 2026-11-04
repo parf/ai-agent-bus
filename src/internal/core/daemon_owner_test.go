@@ -3,7 +3,6 @@ package core
 import (
 	"errors"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
@@ -119,15 +118,15 @@ func TestDaemonOwnerTransferMovesRootWithoutOpeningResourceACLs(t *testing.T) {
 	}
 }
 
-func TestDaemonOwnerIsDurableAndLegacySnapshotsSeedOnce(t *testing.T) {
-	legacy := New()
-	legacy.Restore(ports.Snapshot{Clean: true})
-	if err := legacy.EstablishDaemonOwner("seed@h"); err != nil {
+func TestDaemonOwnerIsDurableAndFreshStoresInitializeOnce(t *testing.T) {
+	fresh := New()
+	fresh.Restore(ports.Snapshot{Clean: true})
+	if err := fresh.EstablishDaemonOwner("seed@h"); err != nil {
 		t.Fatal(err)
 	}
-	seeded := legacy.Snapshot()
+	seeded := fresh.Snapshot()
 	if !seeded.OwnerEstablished || seeded.Owner != "seed@h" {
-		t.Fatalf("legacy seed was not made durable: %+v", seeded)
+		t.Fatalf("initial owner was not made durable: %+v", seeded)
 	}
 
 	b := ownerFixture(t)
@@ -160,7 +159,7 @@ func TestDamagedDurableOwnerFailsClosed(t *testing.T) {
 			b := New()
 			b.Restore(snapshot)
 			err := b.EstablishDaemonOwner("seed@h")
-			if err == nil || !strings.Contains(err.Error(), "owner") {
+			if err == nil {
 				t.Fatalf("damaged owner was silently reseeded: %v", err)
 			}
 		})

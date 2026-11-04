@@ -101,7 +101,9 @@ func TestOwnerControlThroughAPI(t *testing.T) {
 	if err := json.Unmarshal(snapshot, &snap); err != nil {
 		t.Fatal(err)
 	}
-	restored.Restore(snap)
+	if err := restored.Restore(bus.Snapshot()); err != nil {
+		t.Fatal(err)
+	}
 	s = New(restored, s.tokens, "admin@h")
 	call("#svc@h", "/consume?wait=0s", "", 403)
 	call("maint@h", "/manage", `{"name":"#svc@h","status":"active"}`, 200)

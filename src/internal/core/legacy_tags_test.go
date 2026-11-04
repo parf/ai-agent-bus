@@ -16,13 +16,7 @@ func TestStoredEmptyTagSentinelIsRefusedWithoutRepair(t *testing.T) {
 	restored := New()
 	j := &reports{}
 	restored.Journal(j)
-	restored.Restore(snap)
-	if _, ok := restored.records["jobs@h"]; ok {
-		t.Fatal("stored sentinel was accepted or repaired")
-	}
-	if !j.has("no-tags") {
-		t.Fatalf("missing refusal report: %v", j.lines)
-	}
+	assertRestoreRefused(t, restored, snap)
 	if _, err := b.Manage("alice@h", Management{Name: "jobs@h", AddToSet: &ListDelta{Tags: []string{"no-tags"}}}); err == nil {
 		t.Fatal("sentinel accepted on write")
 	}

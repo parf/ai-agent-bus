@@ -49,7 +49,7 @@ func derivedClaims(u protocol.User) []string {
 
 func TestRestoredDerivedFieldsAreStrippedAndDoNotReachTheNextSnapshot(t *testing.T) {
 	b := New()
-	b.Restore(ports.Snapshot{Clean: true, Users: []protocol.User{forged()}, Records: []protocol.Record{userRecord("alice@h")}})
+	b.Restore(canonicalFixture(ports.Snapshot{Clean: true, Users: []protocol.User{{Name: "owner@h", Status: "active"}, forged()}, Records: []protocol.Record{userRecord("owner@h"), userRecord("alice@h")}}, ""))
 
 	b.mu.Lock()
 	stored := b.users["alice@h"]
@@ -79,7 +79,7 @@ func TestRestoredDerivedFieldsAreStrippedAndDoNotReachTheNextSnapshot(t *testing
 func TestRestoreKeepsDurableProfileLifecycleAndProviderState(t *testing.T) {
 	b := New()
 	want := forged()
-	b.Restore(ports.Snapshot{Clean: true, Users: []protocol.User{want}, Records: []protocol.Record{userRecord("alice@h")}})
+	b.Restore(canonicalFixture(ports.Snapshot{Clean: true, Users: []protocol.User{{Name: "owner@h", Status: "active"}, want}, Records: []protocol.Record{userRecord("owner@h"), userRecord("alice@h")}}, ""))
 	b.mu.Lock()
 	got := b.users["alice@h"]
 	b.mu.Unlock()

@@ -20,6 +20,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/tlsdir"
 )
 
@@ -84,7 +85,7 @@ func runSupervisor(c config) {
 	if err := os.Chmod(c.sock, 0o666); err != nil {
 		log.Fatalf("chmod %s: %v", c.sock, err)
 	}
-	// Setup flags seed a legacy installation once. After the bus has written
+	// Setup flags seed a fresh installation once. After the bus has written
 	// the establishment marker, the snapshot is authoritative: otherwise an
 	// operator's change would be undone by the unchanged systemd command line.
 	explicit, err := supervisorAccounts(c)
@@ -183,8 +184,11 @@ func supervisorAccounts(c config) (accounts, error) {
 	if err != nil {
 		return accounts{}, err
 	}
-	if !snapshot.AccountsEstablished && len(snapshot.Accounts) == 0 {
+	if snapshot.Empty() {
 		return editableAccounts(c.users)
+	}
+	if err := core.ValidateSnapshot(snapshot); err != nil {
+		return accounts{}, err
 	}
 	if !snapshot.AccountsEstablished {
 		return accounts{}, fmt.Errorf("snapshot has local account mappings without establishment marker")

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"slices"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
@@ -197,7 +196,14 @@ func (b *Bus) unlock() {
 // through a quiet hour. Uptime is not restored: it is this run's. It must not
 // run while a queue flush is in flight: a flush's corrections cover commits,
 // not a restore (the daemon restores once, before the first flush).
-func (b *Bus) Restore(s ports.Snapshot) {
+func (b *Bus) Restore(s ports.Snapshot) error {
+	if err := ValidateSnapshot(s); err != nil {
+		b.mu.Lock()
+		b.ownerRestoreErr = err
+		b.accountRestoreErr = err
+		b.mu.Unlock()
+		return err
+	}
 	b.mu.Lock()
 	defer b.unlock()
 	if b.events != nil {
@@ -213,40 +219,14 @@ func (b *Bus) Restore(s ports.Snapshot) {
 		}
 	}
 
-	b.ownerRestored = s.OwnerEstablished || s.Owner != ""
-	b.ownerRestoreErr = nil
-	if s.Owner != "" && !s.OwnerEstablished {
-		b.admin = ""
-		b.ownerRestoreErr = fmt.Errorf("snapshot has daemon owner without establishment marker")
-	}
+	b.ownerRestored, b.accountsRestored = s.OwnerEstablished, s.AccountsEstablished
+	b.ownerRestoreErr, b.accountRestoreErr = nil, nil
 	if s.OwnerEstablished {
-		b.admin = ""
-		owner, err := canon(s.Owner)
-		if err != nil {
-			b.ownerRestoreErr = fmt.Errorf("snapshot daemon owner: %w", err)
-		} else {
-			b.admin = owner
-		}
+		b.admin = s.Owner
 	}
-	b.accountsRestored = s.AccountsEstablished || len(s.Accounts) > 0
-	b.accountRestoreErr = nil
 	b.accounts = map[string]string{}
-	if len(s.Accounts) > 0 && !s.AccountsEstablished {
-		b.accountRestoreErr = fmt.Errorf("snapshot has local account mappings without establishment marker")
-	}
-	if s.AccountsEstablished {
-		for _, mapping := range s.Accounts {
-			principal, err := canon(mapping.Principal)
-			if mapping.Account == "" || err != nil {
-				b.accountRestoreErr = fmt.Errorf("snapshot local account mapping %q=%q is invalid", mapping.Account, mapping.Principal)
-				break
-			}
-			if _, duplicate := b.accounts[mapping.Account]; duplicate {
-				b.accountRestoreErr = fmt.Errorf("snapshot repeats local account %q", mapping.Account)
-				break
-			}
-			b.accounts[mapping.Account] = principal
-		}
+	for _, mapping := range s.Accounts {
+		b.accounts[mapping.Account] = mapping.Principal
 	}
 	// A database that has never been written has had no run to lose.
 	b.unclean = !s.Clean && !s.At.IsZero()
@@ -257,67 +237,23 @@ func (b *Bus) Restore(s ports.Snapshot) {
 		b.nextUserID = s.NextUserID
 	}
 	for _, user := range s.Users {
-		// A snapshot may come from another version or an embedding caller.
 		// Derived answers belong to this process and its current visitor.
 		clearDerivedUser(&user)
 		b.users[user.Name] = user
-	}
-	// The groups that carry authority are checked before anything serves: a
-	// stored runtime term, a nested administrators group, or one whose Owner
-	// is not the daemon Owner refuses the start (docs/constitution.md#-group).
-	for _, r := range s.Records {
-		if b.ownerRestoreErr != nil {
-			break
-		}
-		switch {
-		case reservedTerm(r.Name):
-			b.ownerRestoreErr = fmt.Errorf("snapshot contains runtime ACL term %s as a stored group", r.Name)
-		case r.Name == AdministratorsGroup:
-			for _, member := range r.Allow {
-				if groupName(member) {
-					b.ownerRestoreErr = fmt.Errorf("snapshot %s contains nested group %s; administrative membership is direct-only", AdministratorsGroup, member)
-					break
-				}
-			}
-			if b.ownerRestoreErr == nil && s.OwnerEstablished && r.Owner != b.admin {
-				b.ownerRestoreErr = fmt.Errorf("snapshot %s is owned by %s, not the daemon owner %s", AdministratorsGroup, r.Owner, b.admin)
-			}
-		}
-	}
-	if s.OwnerEstablished && b.ownerRestoreErr == nil {
-		if _, known := b.users[b.admin]; !known {
-			b.ownerRestoreErr = fmt.Errorf("snapshot daemon owner %s is not a registered user", b.admin)
-		} else if !b.userActive(b.admin) {
-			b.ownerRestoreErr = fmt.Errorf("snapshot daemon owner %s is not active", b.admin)
-		}
 	}
 	// Restore loads; it commits nothing and repairs nothing.
 	b.staging = nil
 	for _, r := range s.Records {
 		// Live fields are derived from this process, never durable state.
 		clearLiveRecord(&r)
-		if r.Name == DaemonAgent {
-			r = b.restoreDaemonAgent(r)
-		}
 		b.records[r.Name] = r
 	}
 	b.indexIDs()
-	b.ignoreIncorrect()
-	b.ignoreNonUserAdministrators()
-	b.ignoreActorlessAccounts()
 	for name, r := range b.records {
 		r.ParsedAllow, _ = protocol.CompileACL(r.Allow)
 		b.records[name] = r
 	}
 	for _, q := range s.Queues {
-		// A queue whose record is absent, ignored, or of a kind that holds no
-		// queue is incorrect like the record would be: ignored and reported,
-		// never reattached (docs/constitution.md#persistence-and-loading).
-		r, known := b.records[q.Name]
-		if !known || !onBus(r) {
-			b.report(ports.Alert, "stored queue %s has no record that can hold it; its %d messages are ignored", q.Name, len(q.Messages))
-			continue
-		}
 		in := b.ensure(q.Name)
 		in.in, in.out = q.In, q.Out
 		in.dropped, in.expired = q.Dropped, q.Expired
@@ -338,13 +274,11 @@ func (b *Bus) Restore(s ports.Snapshot) {
 		}
 	}
 
+	return nil
 }
 
 // indexIDs rebuilds the ID indexes from the loaded entities and moves the
-// high-water marks past every ID in use. A stored database always carries an
-// ID; an entity without one comes from a test or an embedding caller and is
-// given the next. Two entities claiming one ID are damage: the second is
-// ignored and reported (docs/constitution.md#persistence-and-loading).
+// high-water marks past every validated ID in use.
 // Caller holds b.mu.
 func (b *Bus) indexIDs() {
 	b.recordByID, b.userByID = map[uint32]string{}, map[uint32]string{}
@@ -361,17 +295,7 @@ func (b *Bus) indexIDs() {
 	}
 	for _, name := range names {
 		r := b.records[name]
-		if r.ID == 0 {
-			r.ID = b.nextRecordID
-			b.nextRecordID++
-			b.records[name] = r
-		}
-		if other, taken := b.recordByID[r.ID]; taken {
-			b.report(ports.Alert, "stored records %s and %s share internal ID %d; %s is ignored", other, name, r.ID, name)
-			delete(b.records, name)
-			b.ignored[name] = true
-			continue
-		}
+
 		b.recordByID[r.ID] = name
 	}
 	users := make([]string, 0, len(b.users))
@@ -386,16 +310,7 @@ func (b *Bus) indexIDs() {
 	}
 	for _, name := range users {
 		u := b.users[name]
-		if u.ID == 0 {
-			u.ID = b.nextUserID
-			b.nextUserID++
-			b.users[name] = u
-		}
-		if other, taken := b.userByID[u.ID]; taken {
-			b.report(ports.Alert, "stored users %s and %s share internal ID %d; %s is ignored", other, name, u.ID, name)
-			delete(b.users, name)
-			continue
-		}
+
 		b.userByID[u.ID] = name
 	}
 }
@@ -414,157 +329,6 @@ func (b *Bus) UserName(id uint32) (string, bool) {
 	defer b.unlock()
 	name, ok := b.userByID[id]
 	return name, ok
-}
-
-// ignoreIncorrect takes out of the loaded view every entity this version could
-// not have written, and reports each: an incorrect record is always ignored —
-// not loaded, not repaired — while the rest of the node starts
-// (docs/constitution.md#persistence-and-loading). It runs to a fixed point,
-// because ignoring a User makes the records that User owned incorrect too.
-// The database is not touched; what is ignored stays there for an operator.
-// Caller holds b.mu.
-func (b *Bus) ignoreIncorrect() {
-	b.ignoreSharedIdentities()
-	for {
-		var gone []string
-		names := make([]string, 0, len(b.records))
-		for name := range b.records {
-			names = append(names, name)
-		}
-		sort.Strings(names)
-		for _, name := range names {
-			if why := b.incorrect(b.records[name]); why != "" {
-				b.report(ports.Alert, "stored record %s is ignored: %s", name, why)
-				gone = append(gone, name)
-				b.ignored[name] = true
-			}
-		}
-		users := make([]string, 0, len(b.users))
-		for name := range b.users {
-			users = append(users, name)
-		}
-		sort.Strings(users)
-		for _, name := range users {
-			if r, has := b.records[name]; !has || r.Kind != protocol.KindUser {
-				b.report(ports.Alert, "stored user %s has no user record of its own and is ignored", name)
-				// Ignored, so its credential stays for the operator who
-				// repairs it, and a User made again under the name inherits
-				// nothing it was granted.
-				b.ignored[name] = true
-				delete(b.userByID, b.users[name].ID)
-				delete(b.users, name)
-				gone = append(gone, "user "+name)
-			}
-		}
-		for _, name := range gone {
-			if r, has := b.records[name]; has {
-				delete(b.recordByID, r.ID)
-				delete(b.records, name)
-			}
-		}
-		if len(gone) == 0 {
-			return
-		}
-	}
-}
-
-// ignoreNonUserAdministrators ignores every @administrators line that names
-// no User once the load has ignored what it could not have written: only a
-// User administers, and a missing one is not manufactured. A daemon Owner so
-// ignored refuses the start. Caller holds b.mu.
-func (b *Bus) ignoreNonUserAdministrators() {
-	admins, ok := b.records[AdministratorsGroup]
-	if ok {
-		kept := admins.Allow[:0:0]
-		for _, m := range admins.Allow {
-			if _, user := b.users[m]; !user {
-				b.report(ports.Alert, "stored %s member %s is ignored: it is no user", AdministratorsGroup, m)
-				continue
-			}
-			kept = append(kept, m)
-		}
-		if len(kept) != len(admins.Allow) {
-			admins.Allow = kept
-			b.records[AdministratorsGroup] = admins
-		}
-	}
-	if b.ownerRestoreErr == nil && b.admin != "" && b.ownerRestored {
-		if _, user := b.users[b.admin]; !user {
-			b.ownerRestoreErr = fmt.Errorf("snapshot daemon owner %s is not a registered user", b.admin)
-		}
-	}
-}
-
-// ignoreActorlessAccounts ignores and reports every stored account mapping
-// whose principal is no User or Agent once the load has ignored what it could
-// not have written: a socket for nobody would answer for whoever took the name
-// next. The row stays in the database, and removing it is still an ordinary
-// account edit (docs/02-access.md#local-socket). Caller holds b.mu.
-func (b *Bus) ignoreActorlessAccounts() {
-	b.ignoredAccounts = map[string]string{}
-	b.unservedAccounts = map[string]bool{}
-	for account, principal := range b.accounts {
-		if principal == DaemonAgent {
-			b.report(ports.Alert, "stored local account %s is ignored: #bus is an in-process identity", account)
-			b.ignoredAccounts[account] = principal
-			b.unservedAccounts[account] = true
-			delete(b.accounts, account)
-			continue
-		}
-		if _, user := b.users[principal]; user {
-			continue
-		}
-		if r, ok := b.records[principal]; ok && r.Kind == protocol.KindAgent {
-			continue
-		}
-		b.report(ports.Alert, "stored local account %s is ignored: its principal %s is no user or agent", account, principal)
-		b.ignoredAccounts[account] = principal
-		b.unservedAccounts[account] = true
-		delete(b.accounts, account)
-	}
-}
-
-// ignoreSharedIdentities ignores every stored User that holds an identifying
-// field an earlier User (by ID) already holds: no write of this version lets
-// two Users share an email, a GitHub login or a Twitter/X name. The first
-// keeps it; the later one is reported and ignored, and the records it owned
-// with it. Caller holds b.mu.
-func (b *Bus) ignoreSharedIdentities() {
-	names := make([]string, 0, len(b.users))
-	for name := range b.users {
-		names = append(names, name)
-	}
-	sort.Slice(names, func(i, j int) bool { return b.users[names[i]].ID < b.users[names[j]].ID })
-	held := map[string]string{}
-	for _, name := range names {
-		u := b.users[name]
-		keys := map[string]string{}
-		if u.Email != "" {
-			keys["email "+u.Email] = "email " + u.Email
-		}
-		if u.GithubUser != "" {
-			keys["github "+u.GithubUser] = "GitHub login " + u.GithubUser
-		}
-		if u.GithubTwitterUsername != "" {
-			keys["twitter "+strings.ToLower(u.GithubTwitterUsername)] = "Twitter/X name " + u.GithubTwitterUsername
-		}
-		clash := ""
-		for key, field := range keys {
-			if first, taken := held[key]; taken {
-				clash = fmt.Sprintf("its %s is %s's", field, first)
-				break
-			}
-		}
-		if clash != "" {
-			b.report(ports.Alert, "stored user %s is ignored: %s", name, clash)
-			delete(b.userByID, u.ID)
-			delete(b.users, name)
-			continue
-		}
-		for key := range keys {
-			held[key] = name
-		}
-	}
 }
 
 // validateRestored checks durable representation without rewriting it.
@@ -611,9 +375,8 @@ func (b *Bus) incorrect(r protocol.Record) string {
 		return "its owner " + r.Owner + " is not a user"
 	}
 	// Owned by a User of that name who is not this one: the one who owned it
-	// vanished and the name was given again. 0 is a record stored before the
-	// owner's ID was, which the migration filled wherever the owner existed.
-	if r.OwnerID != 0 && r.OwnerID != u.ID {
+	// vanished and the name was given again.
+	if r.OwnerID != u.ID {
 		return fmt.Sprintf("its owner %s is user %d, not the user %d that owned it", r.Owner, u.ID, r.OwnerID)
 	}
 	if r.Kind == protocol.KindUser && r.Owner != r.Name {

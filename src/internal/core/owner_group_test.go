@@ -2,7 +2,6 @@ package core
 
 import (
 	"errors"
-	"strings"
 	"testing"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
@@ -155,8 +154,6 @@ func TestAgentTermIsTheRecordsOwnAgentAndOnlyOnAnAgent(t *testing.T) {
 
 func TestStoredOwnerGroupFailsClosed(t *testing.T) {
 	b := New()
-	b.Restore(ports.Snapshot{Records: []protocol.Record{{Name: OwnerGroup, Kind: protocol.KindGroup, Owner: "root@h", Allow: []string{"alice@h"}}}})
-	if err := b.EstablishDaemonOwner("root@h"); err == nil || !strings.Contains(err.Error(), "runtime ACL term @owner") {
-		t.Fatalf("stored runtime group did not fail closed: %v", err)
-	}
+	s := withUsers(ports.Snapshot{Records: []protocol.Record{{Name: OwnerGroup, Kind: protocol.KindGroup, Owner: "root@h", Allow: []string{"alice@h"}}}}, "root@h", "alice@h")
+	assertRestoreRefused(t, b, s)
 }

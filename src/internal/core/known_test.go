@@ -1,6 +1,8 @@
 package core
 
 import (
+	"reflect"
+	"sort"
 	"testing"
 	"time"
 
@@ -109,7 +111,10 @@ func provisionState(b *Bus, users []string, records ...protocol.Record) error {
 			s.Records = append(s.Records, r)
 		}
 	}
-	b.Restore(s)
+	s = canonicalFixture(s, b.admin)
+	if err := b.Restore(s); err != nil {
+		return err
+	}
 	// A record has an inbox from the moment it exists, which registering does
 	// and restoring a record with no queue behind it does not.
 	b.mu.Lock()
@@ -137,10 +142,71 @@ func withUsers(s ports.Snapshot, names ...string) ports.Snapshot {
 		s.Users = append(s.Users, protocol.User{Name: n, Status: "active"})
 		s.Records = append(s.Records, userRecord(n))
 	}
-	return s
+	return canonicalFixture(s, s.Owner)
 }
 
 // userRecord is a User's own record, as every User has one.
 func userRecord(name string) protocol.Record {
 	return protocol.Record{Name: name, Owner: name, Kind: protocol.KindUser, Tags: []string{"personal"}, Full: protocol.OverflowStrict}
+}
+
+func canonicalFixture(s ports.Snapshot, owner string) ports.Snapshot {
+	if owner == "" && len(s.Users) > 0 {
+		owner = s.Users[0].Name
+	}
+	s.Owner, s.OwnerEstablished, s.AccountsEstablished = owner, true, true
+	sort.Slice(s.Users, func(i, j int) bool { return s.Users[i].Name < s.Users[j].Name })
+	nextUser, nextRecord := uint32(1), uint32(1)
+	for _, u := range s.Users {
+		if u.ID >= nextUser {
+			nextUser = u.ID + 1
+		}
+	}
+	for _, r := range s.Records {
+		if r.ID >= nextRecord {
+			nextRecord = r.ID + 1
+		}
+	}
+	ids := map[string]uint32{}
+	for i := range s.Users {
+		if s.Users[i].ID == 0 {
+			s.Users[i].ID = nextUser
+			nextUser++
+		}
+		ids[s.Users[i].Name] = s.Users[i].ID
+	}
+	for i := range s.Records {
+		if s.Records[i].ID == 0 {
+			s.Records[i].ID = nextRecord
+			nextRecord++
+		}
+		if s.Records[i].OwnerID == 0 {
+			s.Records[i].OwnerID = ids[s.Records[i].Owner]
+		}
+	}
+	if nextUser > s.NextUserID {
+		s.NextUserID = nextUser
+	}
+	if nextRecord > s.NextRecordID {
+		s.NextRecordID = nextRecord
+	}
+	return s
+}
+
+func assertRestoreRefused(t *testing.T, b *Bus, s ports.Snapshot) {
+	t.Helper()
+	before := b.Snapshot()
+	if err := b.Restore(s); err == nil {
+		t.Fatal("unsupported snapshot accepted")
+	}
+	after := b.Snapshot()
+	before.At, after.At = time.Time{}, time.Time{}
+	for _, snap := range []*ports.Snapshot{&before, &after} {
+		sort.Slice(snap.Users, func(i, j int) bool { return snap.Users[i].Name < snap.Users[j].Name })
+		sort.Slice(snap.Records, func(i, j int) bool { return snap.Records[i].Name < snap.Records[j].Name })
+		sort.Slice(snap.Queues, func(i, j int) bool { return snap.Queues[i].Name < snap.Queues[j].Name })
+	}
+	if !reflect.DeepEqual(before, after) {
+		t.Fatal("refused snapshot changed existing state")
+	}
 }

@@ -893,23 +893,21 @@ func TestEveryPathThatStoresARecordAsksTheSameShapeQuestion(t *testing.T) {
 		restarted := New()
 		rep := &reports{}
 		restarted.Journal(rep)
-		restarted.Restore(ports.Snapshot{
+		restarted.Restore(canonicalFixture(ports.Snapshot{
 			Users:   []protocol.User{{Name: "alice@h", Status: "active"}},
 			Records: []protocol.Record{{Name: "alice@h", Owner: "alice@h", Kind: protocol.KindUser, Tags: []string{"personal"}}, record},
-		})
-		if err := restarted.EstablishDaemonOwner("alice@h"); err != nil {
-			t.Fatalf("an ignored record stopped the start: %v", err)
+		}, "alice@h"))
+		if err := restarted.EstablishDaemonOwner("alice@h"); err == nil {
+			t.Fatalf("unsupported %s snapshot accepted", name)
 		}
-		if _, loaded := restarted.Lookup("alice@h", "x@h"); loaded {
-			t.Errorf("a snapshot holding a %s record served it", name)
+		if len(restarted.records) != 0 {
+			t.Fatal("refused snapshot partially loaded")
 		}
-		if !rep.has("stored record x@h is ignored") {
-			t.Errorf("the ignored %s record was not reported: %v", name, rep.lines)
-		}
+
 	}
 	// Falsifiable: a snapshot of records this version can serve restores.
 	restarted := New()
-	restarted.Restore(ports.Snapshot{
+	restarted.Restore(canonicalFixture(ports.Snapshot{
 		Users: []protocol.User{{Name: "alice@h", Status: "active"}},
 		Records: []protocol.Record{
 			{Name: "alice@h", Owner: "alice@h", Kind: protocol.KindUser, Tags: []string{"personal"}},
@@ -919,7 +917,7 @@ func TestEveryPathThatStoresARecordAsksTheSameShapeQuestion(t *testing.T) {
 			{Name: "#peer@h", Owner: "alice@h", Kind: protocol.KindAgent},
 			{Name: "db@h", Owner: "alice@h", Kind: protocol.KindService, Addr: "h:1", Proto: "https"},
 		},
-	})
+	}, "alice@h"))
 	if err := restarted.EstablishDaemonOwner("alice@h"); err != nil {
 		t.Fatalf("a restorable snapshot was refused: %v", err)
 	}
@@ -1066,28 +1064,12 @@ func TestOnlyAnAgentCarriesAScript(t *testing.T) {
 func TestStoredNonServiceAddressIsRefused(t *testing.T) {
 	b, rep := New(), &reports{}
 	b.Journal(rep)
-	b.Restore(ports.Snapshot{
+	assertRestoreRefused(t, b, canonicalFixture(ports.Snapshot{
 		Users: []protocol.User{{Name: "o@h", Status: "active"}},
 		Records: []protocol.Record{userRecord("o@h"),
 			{Name: "#w@h", Kind: protocol.KindAgent, Owner: "o@h", Addr: "/opt/w.sh", Full: protocol.OverflowStrict},
 			{Name: "jobs@h", Kind: protocol.KindQueue, Owner: "o@h", Proto: "https", Full: protocol.OverflowStrict}},
-	})
-	if err := b.EstablishDaemonOwner("o@h"); err != nil {
-		t.Fatal(err)
-	}
-	for _, name := range []string{"#w@h", "jobs@h"} {
-		r, ok := b.records[name]
-		if ok {
-			t.Fatalf("%s after load: %+v %v", name, r, ok)
-		}
-		if !rep.has("stored record " + name + " is ignored") {
-			t.Errorf("the drop on %s was not said: %v", name, rep.lines)
-		}
-	}
-	r, err := b.Register(protocol.Record{Name: "#w@h", Kind: protocol.KindAgent, Owner: "o@h", Script: "/opt/w.sh"})
-	if err != nil || r.Addr != "" || r.Script != "/opt/w.sh" {
-		t.Fatalf("after a new start: addr %q script %q, %v", r.Addr, r.Script, err)
-	}
+	}, ""))
 }
 
 // Only a service takes an address and a protocol: registration and a

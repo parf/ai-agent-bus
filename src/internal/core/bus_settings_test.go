@@ -166,19 +166,7 @@ func TestBusSetupStoredInvalidIsIgnoredAtRestore(t *testing.T) {
 	journal := &reports{}
 	restored := New()
 	restored.Journal(journal)
-	restored.Restore(snap)
-	if !journal.has("stored bus setup is invalid") {
-		t.Fatal("invalid stored setup was not reported")
-	}
-	if err := restored.EstablishDaemonOwner("owner@h"); err != nil {
-		t.Fatal(err)
-	}
-	if err := restored.EstablishDaemonAgent("fallback.host"); err != nil {
-		t.Fatal(err)
-	}
-	if restored.Realm() != "fallback.host" {
-		t.Fatalf("invalid stored realm survived: %q", restored.Realm())
-	}
+	assertRestoreRefused(t, restored, canonicalFixture(snap, ""))
 }
 
 func TestBusSetupHostThatIsNoRealmSavesNone(t *testing.T) {

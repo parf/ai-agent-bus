@@ -113,12 +113,5 @@ func TestBadTagsAreRefusedWithoutRepair(t *testing.T) {
 	restored := New()
 	j := &reports{}
 	restored.Journal(j)
-	restored.Restore(snapshot)
-	got, ok := restored.Lookup("alice@h", "jobs@h")
-	if ok {
-		t.Fatalf("record or good tags lost: %v %v", ok, got.Tags)
-	}
-	if !j.has("bad tag") || !j.has("is ignored") {
-		t.Fatalf("bad stored tag not reported: %v", j.lines)
-	}
+	assertRestoreRefused(t, restored, snapshot)
 }

@@ -76,17 +76,9 @@ func TestAPrefixedGroupOwnedByAnotherIsIgnoredAtLoad(t *testing.T) {
 	b := New()
 	rep := &reports{}
 	b.Journal(rep)
-	b.Restore(withUsers(ports.Snapshot{Clean: true, Records: []protocol.Record{
+	assertRestoreRefused(t, b, canonicalFixture(withUsers(ports.Snapshot{Clean: true, Records: []protocol.Record{
 		{Name: "@alice/friends", Kind: protocol.KindGroup, Owner: "bob@h", Allow: []string{"bob@h"}},
 		{Name: "@crew", Kind: protocol.KindGroup, Owner: "bob@h", Allow: []string{"bob@h"}, Tags: []string{"personal"}},
 		{Name: "@bob@h/mine", Kind: protocol.KindGroup, Owner: "bob@h", Allow: []string{"bob@h"}, Tags: []string{"personal"}},
-	}}, "alice", "bob@h"))
-	for _, name := range []string{"@alice/friends", "@crew"} {
-		if _, known := b.entity(name); known {
-			t.Errorf("%s loaded although its name does not fit its owner", name)
-		}
-	}
-	if _, known := b.entity("@bob@h/mine"); !known {
-		t.Error("a correct prefixed Personal group was not loaded")
-	}
+	}}, "alice", "bob@h"), ""))
 }

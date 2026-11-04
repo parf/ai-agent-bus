@@ -29,27 +29,7 @@ func TestANameFreedByAnIgnoredRecordInheritsNoStoredQueue(t *testing.T) {
 	b.Journal(&reports{})
 	b.Persistence(st)
 	saved, _ := st.Load()
-	b.Restore(saved)
-	b.SetDaemonOwner("owner@h")
-	if _, err := b.SetUser("owner@h", protocol.User{Name: "keeper@h"}, true); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := b.Register(protocol.Record{Name: "#lost@h", Owner: "keeper@h", Kind: protocol.KindAgent}); err != nil {
-		t.Fatal(err)
-	}
-	after, _ := st.Load()
-	for _, q := range after.Queues {
-		if q.Name == "#lost@h" {
-			t.Fatalf("the new #lost@h inherits the ignored record's stored queue: %+v", q)
-		}
-	}
-	recovered := New()
-	rep := &reports{}
-	recovered.Journal(rep)
-	recovered.Restore(after)
-	if r, ok := recovered.Lookup("keeper@h", "#lost@h"); !ok || r.Owner != "keeper@h" || r.Queued != 0 {
-		t.Fatalf("the restarted #lost@h is %+v (found %v), want keeper@h's with nothing queued; reports %v", r, ok, rep.lines)
-	}
+	assertRestoreRefused(t, b, canonicalFixture(saved, ""))
 }
 
 // Every record is owned by a User. An Agent that creates one registers it for
@@ -103,7 +83,12 @@ func TestAFreshDatabaseIsNotAnUncleanStop(t *testing.T) {
 		t.Fatal("a fresh database reads as an unclean stop")
 	}
 	c := New()
-	c.Restore(ports.Snapshot{At: time.Now()})
+	b.SetDaemonOwner("owner@h")
+	saved := b.Snapshot()
+	saved.At = time.Now()
+	if err := c.Restore(saved); err != nil {
+		t.Fatal(err)
+	}
 	if !c.Status().Unclean {
 		t.Fatal("a run that did not stop gracefully reads as clean")
 	}

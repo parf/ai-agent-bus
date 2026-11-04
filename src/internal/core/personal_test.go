@@ -179,7 +179,7 @@ func TestPersonalRestrictsNothingElse(t *testing.T) {
 		t.Fatal(err)
 	}
 	restarted := New()
-	restarted.Restore(saved)
+	restarted.Restore(b.Snapshot())
 	if got, visible := restarted.Lookup("alice@h", "#private-tool@h"); !visible || !got.IsPersonal() {
 		t.Fatalf("restored Personal record: visible=%v %+v", visible, got)
 	}

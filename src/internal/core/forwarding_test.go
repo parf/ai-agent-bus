@@ -428,16 +428,8 @@ func TestStoredPubsubQueueSettingsAreRefused(t *testing.T) {
 	b := New()
 	j := &reports{}
 	b.Journal(j)
-	b.Restore(withUsers(ports.Snapshot{Clean: true, Records: []protocol.Record{
+	assertRestoreRefused(t, b, canonicalFixture(withUsers(ports.Snapshot{Clean: true, Records: []protocol.Record{
 		{Name: "plain@h", Kind: protocol.KindPubSub, Owner: "alice@h", Full: protocol.OverflowStrict},
 		{Name: "timed@h", Kind: protocol.KindPubSub, Owner: "alice@h", TTL: "1h", Bound: 5, Full: protocol.OverflowRing},
-	}}, "alice@h"))
-	for _, name := range []string{"plain@h", "timed@h"} {
-		if _, loaded := b.records[name]; loaded {
-			t.Fatalf("%s accepted or repaired", name)
-		}
-		if !j.has("stored record " + name + " is ignored") {
-			t.Fatalf("missing refusal: %v", j.lines)
-		}
-	}
+	}}, "alice@h"), ""))
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"github.com/parf/ai-agent-bus/internal/protocol"
-	"strings"
 	"testing"
 	"time"
 )
@@ -73,7 +72,7 @@ func TestDaemonAgentRestoreKeepsQueueButRejectsStoredTakeover(t *testing.T) {
 	if err := b.EstablishDaemonAgent("node.example"); err != nil {
 		t.Fatal(err)
 	}
-	e, err := b.Send(protocol.Envelope{From: "alice@h", To: DaemonAgent, Body: "status"})
+	_, err := b.Send(protocol.Envelope{From: "alice@h", To: DaemonAgent, Body: "status"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,25 +90,5 @@ func TestDaemonAgentRestoreKeepsQueueButRejectsStoredTakeover(t *testing.T) {
 	journal := &reports{}
 	restored := New()
 	restored.Journal(journal)
-	restored.Restore(snap)
-	if !strings.Contains(strings.Join(journal.lines, "\n"), "stored #bus metadata conflicts") {
-		t.Fatal("stored takeover was not reported")
-	}
-	if err := restored.EstablishDaemonOwner("owner@h"); err != nil {
-		t.Fatal(err)
-	}
-	if r, ok := restored.Lookup("alice@h", DaemonAgent); !ok || r.Owner != "owner@h" || len(r.Subs) != 0 {
-		t.Fatalf("restore exposed takeover before startup: %+v", r)
-	}
-	if err := restored.EstablishDaemonAgent("node.example"); err != nil {
-		t.Fatal(err)
-	}
-	r, ok := restored.Lookup("alice@h", DaemonAgent)
-	if !ok || r.Owner != "owner@h" || strings.Join(r.Allow, ",") != "*" || len(r.Subs) != 0 || r.Secret != "" || r.SecretSHA != "" {
-		t.Fatalf("stored takeover survived: %+v", r)
-	}
-	got, err := restored.Consume(context.Background(), DaemonAgent, "", "", false, false)
-	if err != nil || got.ID != e.ID {
-		t.Fatalf("durable request lost: %+v %v", got, err)
-	}
+	assertRestoreRefused(t, restored, canonicalFixture(snap, ""))
 }

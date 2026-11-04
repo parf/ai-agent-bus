@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	"reflect"
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
@@ -43,28 +42,10 @@ func (b *Bus) EstablishDaemonAgent(host string) error {
 	if err := b.commit(); err != nil {
 		return err
 	}
-	// A first start, or a start after an invalid stored setup was dropped,
-	// chooses the realm without the Owner, so it is audited as the daemon's.
+	// A first start chooses the realm without the Owner, so it is audited as the daemon's.
 	if saved && b.journal != nil {
 		b.journal.Audit(ports.AuditEntry{At: time.Now(), Actor: "(daemon start)", Operation: "set realm", Target: DaemonAgent,
 			Result: "ok: (none) -> " + busRealm(r.Config)})
 	}
 	return nil
-}
-
-// Restore never trusts stored ACL, routing, private data or ownership for the
-// reserved identity. Queue contents and record IDs retain normal durability.
-func (b *Bus) restoreDaemonAgent(r protocol.Record) protocol.Record {
-	next := daemonAgentRecord(r, b.admin)
-	if len(next.Config) > 0 && validBusConfig(next.Config) != nil {
-		next.Config = nil
-		b.report(ports.Warning, "stored bus setup is invalid; ignored")
-	}
-	if user, ok := b.users[b.admin]; ok {
-		next.OwnerID = user.ID
-	}
-	if !reflect.DeepEqual(r, next) {
-		b.report(ports.Warning, "stored #bus metadata conflicts with the daemon-owned identity; ignored")
-	}
-	return next
 }

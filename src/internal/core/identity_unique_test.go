@@ -76,28 +76,18 @@ func TestRestoreIgnoresAUserSharingAnIdentity(t *testing.T) {
 		b := New()
 		rep := &reports{}
 		b.Journal(rep)
-		b.Restore(ports.Snapshot{Clean: true,
-			Users: []protocol.User{
-				{Name: "alice@h", ID: 1, Email: "a@example.com", GithubUser: "alice-gh", GithubTwitterUsername: "alice_x", Status: "active"},
-				second,
-			},
-			Records: []protocol.Record{
-				{Name: "alice@h", ID: 10, Kind: protocol.KindUser, Owner: "alice@h", Tags: []string{"personal"}, Full: protocol.OverflowStrict},
-				{Name: "bob@h", ID: 11, Kind: protocol.KindUser, Owner: "bob@h", Tags: []string{"personal"}, Full: protocol.OverflowStrict},
-				{Name: "#bobs@h", ID: 12, Kind: protocol.KindAgent, Owner: "bob@h", Full: protocol.OverflowStrict},
-			},
+		t.Run(field, func(t *testing.T) {
+			assertRestoreRefused(t, b, canonicalFixture(ports.Snapshot{Clean: true,
+				Users: []protocol.User{
+					{Name: "alice@h", ID: 1, Email: "a@example.com", GithubUser: "alice-gh", GithubTwitterUsername: "alice_x", Status: "active"},
+					second,
+				},
+				Records: []protocol.Record{
+					{Name: "alice@h", ID: 10, Kind: protocol.KindUser, Owner: "alice@h", Tags: []string{"personal"}, Full: protocol.OverflowStrict},
+					{Name: "bob@h", ID: 11, Kind: protocol.KindUser, Owner: "bob@h", Tags: []string{"personal"}, Full: protocol.OverflowStrict},
+					{Name: "#bobs@h", ID: 12, Kind: protocol.KindAgent, Owner: "bob@h", Full: protocol.OverflowStrict},
+				},
+			}, "alice@h"))
 		})
-		if !b.IsPerson("alice@h") || b.IsPerson("bob@h") {
-			t.Errorf("%s: the earlier user must stay and the later go", field)
-		}
-		if !rep.has("stored user bob@h is ignored: its " + field) {
-			t.Errorf("%s: the shared identity was not reported: %v", field, rep.lines)
-		}
-		if _, ok := b.RecordName(12); ok {
-			t.Errorf("%s: the ignored user's agent was loaded", field)
-		}
-		if _, ok := b.RecordName(10); !ok {
-			t.Errorf("%s: the kept user's record was not loaded", field)
-		}
 	}
 }

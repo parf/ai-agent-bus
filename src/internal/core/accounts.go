@@ -7,8 +7,8 @@ import (
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
-// EstablishAccounts applies setup's mappings only to a first or legacy
-// snapshot. active is also retained separately: a persisted change cannot be
+// EstablishAccounts applies setup's mappings only to a first initialization.
+// active is retained separately: a persisted change cannot be
 // called active until the supervisor has restarted and opened those sockets.
 func (b *Bus) EstablishAccounts(active map[string]string) error {
 	normalized := map[string]string{}
@@ -162,4 +162,44 @@ func (b *Bus) mayMapPrincipal(who, principal string) bool {
 		return r.Owner == who
 	}
 	return principal == who
+}
+
+// EstablishDaemon initializes the owner and local-account map in one durable
+// commit. A restart only records the supervisor's active mappings.
+func (b *Bus) EstablishDaemon(seed string, active map[string]string) error {
+	owner, err := canon(seed)
+	if err != nil {
+		return fmt.Errorf("daemon owner: %w", err)
+	}
+	normalized := map[string]string{}
+	for account, raw := range active {
+		principal, err := canon(raw)
+		if account == "" || err != nil || principal == DaemonAgent {
+			return fmt.Errorf("local account mapping %q is invalid", account)
+		}
+		normalized[account] = principal
+	}
+	b.mu.Lock()
+	defer b.unlock()
+	if b.ownerRestoreErr != nil {
+		return b.ownerRestoreErr
+	}
+	if b.accountRestoreErr != nil {
+		return b.accountRestoreErr
+	}
+	if !b.ownerRestored {
+		b.setDaemonOwner(owner)
+		for account, principal := range normalized {
+			if _, err := b.pairFor(principal); err != nil {
+				return fmt.Errorf("local account %s: %w", account, err)
+			}
+		}
+		b.setAccounts(normalized)
+		if err := b.commit(); err != nil {
+			return err
+		}
+		b.ownerRestored, b.accountsRestored = true, true
+	}
+	b.activeAccounts = cloneAccounts(normalized)
+	return nil
 }
