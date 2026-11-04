@@ -1,5 +1,6 @@
 """Run the Containerfile's actual pre-unpack checksum step, without a build."""
 import hashlib
+import json
 import os
 import shlex
 from pathlib import Path
@@ -20,6 +21,20 @@ def verification_step():
 
 
 class ContainerChecksums(unittest.TestCase):
+    def test_default_image_command_prints_help(self):
+        text = (HERE / 'Containerfile').read_text()
+        command = json.loads(next(line[4:] for line in text.splitlines()
+                                  if line.startswith('CMD ')))
+        entrypoint = json.loads(next(line[11:] for line in text.splitlines()
+                                     if line.startswith('ENTRYPOINT ')))
+        self.assertEqual(entrypoint, ['/usr/local/sbin/agent-bus-container'])
+        result = subprocess.run(['bash', str(HERE / 'agent-bus-container'), *command],
+                                capture_output=True, text=True, timeout=5)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('daemon   agent-busd', result.stdout)
+        self.assertIn('runner   agent-bus-runner', result.stdout)
+        self.assertEqual(result.stderr, '')
+
     def verify(self, *, aggregate=True, tampered=False, missing=False, sidecar=False):
         (ROOT / 'tmp').mkdir(exist_ok=True)
         with tempfile.TemporaryDirectory(prefix='container-checksum-', dir=ROOT / 'tmp') as directory:

@@ -67,4 +67,4 @@ RUN set -eu; \
 VOLUME ["/var/lib/agent-bus/daemon", "/var/lib/agent-bus/runner"]
 EXPOSE 6767
 ENTRYPOINT ["/usr/local/sbin/agent-bus-container"]
-CMD ["help"]
+CMD ["--help"]
