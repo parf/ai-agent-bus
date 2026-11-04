@@ -493,6 +493,12 @@ func (s *Server) ownAgent(owner protocol.Name, token string) (protocol.Name, boo
 // so restarting the web child logs nobody out.
 // See docs/05-discovery.md#signing-in.
 func (s *Server) session(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+	// A local account socket authenticates without a token. Establish its
+	// current principal pair before a session starts referring to that token.
+	if _, err := s.bus.IssueFor(caller.String(), caller.String(), s.tokens.IssuePair); err != nil {
+		s.reply(w, nil, err)
+		return
+	}
 	id, err := s.tokens.StartSession(caller.String())
 	if err != nil {
 		oops(w, err)
