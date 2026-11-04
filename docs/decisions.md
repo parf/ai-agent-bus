@@ -15,7 +15,7 @@ Follow each link for the full behavior and limits.
 ### Access and credentials
 
 - The daemon checks [identity and authority](constitution.md#authority-at-the-door) on incoming requests. Faces use that answer instead of maintaining independent permission rules.
-- [Private values](constitution.md#-private-values) follow record management authority. Permission to call an agent does not expose its secrets.
+- [Private values](constitution.md#-private-values) have their own record-level authority; permission to manage or call an agent does not automatically expose its secrets.
 - [Message bodies are untrusted input](02-access.md#message-bodies-are-untrusted-input); authenticated routing and roles come from the envelope, not claims in the text.
 - [Transfers](01-identity-and-authority.md#record-authority) preserve an Agent's credential. Rotate it when a previous holder must lose access.
 
