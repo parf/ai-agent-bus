@@ -22,6 +22,9 @@
 # out of the serial run starts with a fixture of the names it used to inherit.
 # The last line is always `passed N, failed M`, summed over every shard.
 set -u
+# Every HTTP probe is bounded, including probes inside readiness loops. Tests
+# of long polling may explicitly override the default with their own deadline.
+curl() { command curl --connect-timeout 1 --max-time 5 "$@"; }
 cd "$(dirname "$0")"
 SELF=$PWD/$(basename "$0")
 source "$PWD/clients/cargo-target.sh"
@@ -272,10 +275,14 @@ DPID=$!
 # bus that serves it exists, so the file appearing means nothing yet.
 # Any answer at all will do — a refusal is the bus answering. An unserved
 # socket gives nothing back, because the connection waits in the backlog.
-ready() { for _ in $(seq 1 100); do
-  [ -n "$(curl -s --max-time 1 --unix-socket "$1" http://unix/status 2>/dev/null)" ] && return 0
-  sleep 0.1
-done; return 1; }
+ready() {
+  local deadline=$((SECONDS+10))
+  while [ "$SECONDS" -lt "$deadline" ]; do
+    [ -n "$(curl -s --max-time 0.2 --unix-socket "$1" http://unix/status 2>/dev/null)" ] && return 0
+    sleep 0.1
+  done
+  return 1
+}
 ready "$D/bus.sock" || { echo "daemon did not start"; cat "$D/daemon.log"; exit 1; }
 # The owner's credential is in the daemon's database, which the daemon holds
 # exclusively; it is asked for the way the owner would, over the daemon
@@ -593,22 +600,27 @@ has "a write lands under the socket's principal, not under nobody" \
 # arrangement, and is not provable with one socket.
 if id -u nobody >/dev/null 2>&1; then
   mkdir -p "$D/multi"
+  timeout 4 "$D/agent-busd" --addr 127.0.0.1:$((PORT+6)) --socket "$D/multi/rejected.sock" \
+    --owner "$OWNER" --user "nobody=nemo@srv1" --db "$D/multi/rejected.db" --create >"$D/multi/rejected.log" 2>&1
+  rejected_rc=$?
+  bad_exit "an unknown initial mapped principal refuses startup" "$rejected_rc"
+  lacks "the refusal exits without waiting for a child restart loop" "$rejected_rc" '^124$'
+  has "the refusal identifies the account" "$(cat "$D/multi/rejected.log")" 'local account nobody'
+  is_empty "the refused start binds no Unix listener" "$(find "$D/multi" -name '*.sock' -print)"
   "$D/agent-busd" --addr 127.0.0.1:$((PORT+6)) --socket "$D/multi/bus.sock" \
-    --owner "$OWNER" --user "nobody=nemo@srv1" --db "$D/multi/bus.db" --create --flush-every 0 >"$D/multi.log" 2>&1 &
+    --owner "$OWNER" --db "$D/multi/bus.db" --create --flush-every 0 >"$D/multi.seed.log" 2>&1 &
   MPID2=$!
-  ready "$D/multi/user-nobody.sock" || echo "  WARNING: $D/multi/user-nobody.sock never answered"
-  has "a second account gets a socket of its own" "$([ -S "$D/multi/user-nobody.sock" ] && echo yes)" 'yes'
-  # Socket ownership identifies a caller; it does not create a bus user.
-  for route in "GET /status" "POST /register" "POST /token" "POST /user" "POST /session"; do
-    m=${route%% *}; path=${route#* }
-    has "an unknown mapped user cannot $route, even for itself" \
-      "$(curl -s -o /dev/null -w '%{http_code}' -X "$m" --unix-socket "$D/multi/user-nobody.sock" \
-        -d '{"name":"nemo@srv1","create":true}' "http://unix$path")" '^401$'
-  done
-  has "and the refusal is about an unknown principal" \
-    "$(curl -s --unix-socket "$D/multi/user-nobody.sock" http://unix/status)" 'answers for nobody'
+  ready "$D/multi/user-$ACCOUNT.sock" || { kill "$MPID2"; wait "$MPID2"; exit 1; }
   curl -fsS --unix-socket "$D/multi/user-$ACCOUNT.sock" \
     -d '{"name":"nemo@srv1","create":true}' http://unix/user >/dev/null || exit 1
+  AGENT_BUS_HOME=$D/admin-home AGENT_BUS_ADDR=$D/multi/user-$ACCOUNT.sock \
+    "$D/agent-bus-admin" account set nobody nemo@srv1 >/dev/null || exit 1
+  kill "$MPID2"; wait "$MPID2"
+  "$D/agent-busd" --addr 127.0.0.1:$((PORT+6)) --socket "$D/multi/bus.sock" \
+    --owner "$OWNER" --db "$D/multi/bus.db" --flush-every 0 >"$D/multi.log" 2>&1 &
+  MPID2=$!
+  ready "$D/multi/user-nobody.sock" || { kill "$MPID2"; wait "$MPID2"; exit 1; }
+  has "a second account gets a socket of its own" "$([ -S "$D/multi/user-nobody.sock" ] && echo yes)" 'yes'
   has "and is a different principal on it" \
     "$(curl -s --unix-socket "$D/multi/user-nobody.sock" "http://unix/status")" '"you":"nemo@srv1"'
   has "while the owner's socket in the same directory is still the owner" \
@@ -634,7 +646,7 @@ if id -u nobody >/dev/null 2>&1; then
   "$D/agent-busd" --addr 127.0.0.1:$((PORT+6)) --socket "$D/multi/bus.sock" \
     --owner "$OWNER" --user "nobody=nemo@srv1" --db "$D/multi/bus.db" --create --flush-every 0 >"$D/multi.log2" 2>&1 &
   MPID2=$!
-  ready "$D/multi/user-nobody.sock" || echo "  WARNING: the remapped socket never answered"
+  ready "$D/multi/user-nobody.sock" || { kill "$MPID2"; wait "$MPID2"; exit 1; }
   has "the durable map overrides the contrary setup seed after restart" \
     "$(curl -s --unix-socket "$D/multi/user-nobody.sock" http://unix/status)" '"you":"mapped@srv1"'
   has "the changed mapping reveals what the replacement principal may see" \
@@ -939,12 +951,10 @@ is "a name cannot put itself on a Deliver-To list" \
 has "and is told whose list it is" "$out" 'decides who news@srv1 delivers to'
 is_empty "so the topic names nobody" \
   "$(ab owner@srv1 ls news@srv1 | grep -o '"subs"')"
-# The wire moved too: the field is channel, so an old client's topic field is
-# not read and the daemon is handed an empty name. Both halves are asserted
-# against a name that exists, or the refusal is about the caller instead
-# and the pair passes whichever field the daemon reads.
-has "and /subscribe no longer reads a topic field" \
-  "$(post_body '#sub-a@srv1' /subscribe '{"topic":"news@srv1"}' 2>&1)" 'bad name \\"\\"'
+# A retired request member is refused before dispatch; the canonical channel
+# field still reaches the existing channel under the same caller.
+has "/subscribe refuses the retired topic field" \
+  "$(post_body '#sub-a@srv1' /subscribe '{"topic":"news@srv1"}' 2>&1)" 'unknown field \\"topic\\"'
 has "while the channel field names the channel for real" \
   "$(post_body '#sub-a@srv1' /subscribe '{"channel":"news@srv1"}' 2>&1)" 'delivers to'
 deliver_to news@srv1 '["#sub-a@srv1","#sub-b@srv1"]' >/dev/null
@@ -1480,7 +1490,7 @@ has "and answers as its own agent" "$st" '\\"runner\\":\\"#runner/launcher@srv1\
 has "an existing agent it was never handed is refused by name" "$st" '\\"name\\":\\"#held@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"#held@srv1 exists and its token is not kept here'
 lacks "and the runner holds no token of its person's" "$(cat "$RH"/runner/tokens/* 2>/dev/null)" "$(tok launcher@srv1)"
 has "the runner serves an installed agent" "$st" '\\"name\\":\\"#hello@srv1\\",\\"enabled\\":true,\\"state\\":\\"idle\\",\\"processes\\":{\\"running\\":0,\\"min\\":0,\\"max\\":3}'
-has "a malformed agent.json is refused by name" "$st" '\\"name\\":\\"#typo@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"agent.json: json: unknown field'
+has "a malformed agent.json is refused by name" "$st" '\\"name\\":\\"#typo@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"agent.json: unknown field'
 has "missing required key refuses the plain agent" "$st" '\\"name\\":\\"#mail@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"needs IMAP_USER'
 hi=$(ab greeter@srv1 call '#hello@srv1' --wait 15s world)
 has "a call to an agent is answered through the runner" "$hi" '"body":"hello, world"'
@@ -2284,14 +2294,14 @@ has "and requires an explicit owner before opening listeners" "$out" 'required -
 mkdir -p "$D/pub"
 "$D/agent-busd" --addr 0.0.0.0:$((PORT+1)) --socket "$D/pub/bus.sock" --owner "$OWNER" --db "$D/pub/bus.db" --create --flush-every 0 >"$D/pub/log" 2>&1 &
 PUBPID=$!
-for _ in $(seq 1 50); do curl -fsS "http://127.0.0.1:$((PORT+1))/identity" >/dev/null 2>&1 && break; sleep 0.1; done
+for _ in $(seq 1 50); do curl -fsS --max-time 0.2 "http://127.0.0.1:$((PORT+1))/identity" >/dev/null 2>&1 && break; sleep 0.1; done
 out=$(curl -fsS "http://127.0.0.1:$((PORT+1))/identity" 2>&1)
 kill $PUBPID 2>/dev/null; wait $PUBPID 2>/dev/null
 has "the daemon binds a non-loopback address and answers on it" "$out" '"version"'
 has "and warns that it is plain HTTP there" "$(cat "$D/pub/log")" 'not loopback: tokens and message bodies cross that network as plain HTTP'
 # AGENT_BUS_ADDR is the CLI's socket path; the daemon's TCP address is its own
 # flag, so a shell that points the CLI at a socket cannot move the listener.
-out=$(AGENT_BUS_ADDR="$D/cli-only.sock" "$D/agent-busd" -h 2>&1)
+out=$(AGENT_BUS_ADDR="$D/cli-only.sock" "$D/agent-busd" --help 2>&1)
 has "the daemon's TCP address does not follow the CLI's AGENT_BUS_ADDR" "$out" 'default "127.0.0.1:6767"'
 lacks "and never becomes that socket path" "$out" 'cli-only.sock'
 
@@ -2315,7 +2325,7 @@ has "a name may not hold two slashes" \
 # Only the template part is wrong here: the instance name and the realm are
 # both fine, so nothing but the template's own check can refuse it.
 has "a bad template part is refused on its own" \
-  "$(ab owner@srv1 register -nope/claude@rdvp --kind agent --allow '*' 2>&1)" 'bad template'
+  "$(ab owner@srv1 register '#-nope/claude@rdvp' --kind agent --allow '*' 2>&1)" 'bad template'
 # The host is the LAST "@" part, so an instance may be named after the address
 # it reads. This is the shape that breaks anything splitting on the first "@".
 ab owner@srv1 register '#mail-sender/parf@comfi.com@host' --allow '*' --kind agent >/dev/null
@@ -2379,10 +2389,10 @@ is_empty "human kind filter excludes the kinds it did not ask for" "$(printf '%s
 has "and the queue is there when that is the kind asked for" \
   "$(ab owner@srv1 ls --table --kind queue)" '^jobs@srv1  *📮 Queue'
 has "human single lookup works with flag after name" \
-  "$(ab owner@srv1 ls '#human@srv1' -h)" '^#human@srv1  *👾 Agent  *owner@srv1  *0  *1  *-  *first second third$'
+  "$(ab owner@srv1 ls '#human@srv1' --table)" '^#human@srv1  *👾 Agent  *owner@srv1  *0  *1  *-  *first second third$'
 abx '#human@srv1' consume --topic NeverArrives --wait 5s >"$D/human-reader" 2>&1 & HPID=$!
 for _ in $(seq 1 100); do
-  human=$(ab owner@srv1 ls '#human@srv1' -h)
+  human=$(ab owner@srv1 ls '#human@srv1' --table)
   printf '%s\n' "$human" | grep -q '^#human@srv1  *👾 Agent  *owner@srv1  *1  *1 ' && break
   sleep 0.01
 done
@@ -2867,12 +2877,13 @@ sec "--wait is the caller's deadline, not just the daemon's"
 # daemon is asked for cannot bound a transfer that never finishes, so the
 # deadline has to be on the client's own request.
 bun -e "Bun.serve({port:$((PORT+3)),async fetch(r){const u=new URL(r.url);
+  if(u.pathname==='/identity')return Response.json({protocol:1,protocol_min:1});
   if(u.pathname==='/consume'){await Bun.sleep(30000);return new Response('{}');}
   if(u.pathname==='/ls')return new Response('[]');
   if(u.pathname==='/status')return new Response('{\"you\":\"impatient@srv1\"}');
   return new Response('{}');}})" >/dev/null 2>&1 &
 MPID=$!
-for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$((PORT+3))/ls" && break; sleep 0.2; done
+for _ in $(seq 1 50); do curl -s --max-time 0.2 -o /dev/null "http://127.0.0.1:$((PORT+3))/ls" && break; sleep 0.2; done
 # This stalled-response fixture accepts any token; it is not the real bus.
 out=$(AGENT_BUS_ADDR=http://127.0.0.1:$((PORT+3)) AGENT_BUS_TOKEN=fixture-token \
       timeout 5 "$D/agent-bus" call '#slow@srv1' --wait 500ms "are you there?" 2>&1); rc=$?
@@ -3455,14 +3466,8 @@ fi
 
 }
 orphans() {
-sec "a start ignores and reports the records it could not have written"
-# docs/constitution.md#persistence-and-loading: an incorrect stored record is
-# ignored — not loaded, not repaired, not deleted — and reported, while the rest
-# of the node starts. Its own daemon and its own store, because what is under
-# test is what a start reads off disk.
-#
-# The store is edited between the stop and the start, and that is the only way
-# to present one: a running daemon refuses every call that would write one.
+sec "a start refuses records it could not have written"
+# Invalid stored state refuses the whole start without repairing or dropping rows.
 mkdir -p "$D/orph"
 orph_up() {
   "$D/agent-busd" --addr 127.0.0.1:$((PORT+7)) --socket "$D/orph/bus.sock" \
@@ -3511,112 +3516,47 @@ orph_checks() {
   opost /user/state '{"name":"barred@srv1","status":"inactive"}'
   LOSTTOK=$(otok '#lost@srv1')
   CHAINTOK=$(otok '#chain-a@srv1')
-  has "the records authenticate before the start that ignores them" \
+  has "the records authenticate before the stored-state checks" \
     "$(ocode "$LOSTTOK")$(ocode "$CHAINTOK")" '200200'
   orph_down
 
-  # The hand edit, with sqlite3 on the stopped daemon's database: a running
-  # daemon holds it exclusively.
   ODB=$D/orph/bus.db
   osql() { sqlite3 "$ODB" "$@"; }
-  osql "UPDATE records SET body = replace(body, '\"owner\":\"ghost@srv1\"', '\"owner\":\"vanished@srv1\"') WHERE name = '#lost@srv1'"
-  osql "DELETE FROM records WHERE name = 'drifter@srv1'"
-  has "the store now holds a record owned by a name nothing knows" \
-    "$(osql "SELECT body FROM records WHERE name = '#lost@srv1'")" '"owner":"vanished@srv1"'
-  lacks "and a User without its user record" "$(osql 'SELECT name FROM records')" 'drifter@srv1'
-  has "whose user row is still there" "$(osql 'SELECT name FROM users')" 'drifter@srv1'
-  # And every trace of the daemon owner as a *principal* goes with it: their
-  # profile, and their line in the administrators group, which a reload could
-  # otherwise turn back into a profile. A stored owner must fail closed on that
-  # damage rather than silently resurrecting setup's seed.
-  cp "$ODB" "$D/orph/before-owner-edit.db"
-  # A Group is a record: its membership is the record's allow list.
-  osql "DELETE FROM users WHERE name = '$OWNER'; UPDATE records SET body = json_set(body, '\$.allow', json('[]')) WHERE name = '@administrators'"
-  EDUSERS=$(osql 'SELECT name FROM users')
-  EDGROUPS=$(osql "SELECT name || '=' || coalesce(json_extract(body, '\$.allow'), '[]') FROM records WHERE kind = 'group'")
-  has "the edited store still lists the users it kept" "$EDUSERS" 'keeper@srv1'
-  has "and still has a maintainers group to read" "$EDGROUPS" '@administrators='
-  lacks "but no profile for the daemon owner, as a hand-edited store may not" \
-    "$EDUSERS" "$OWNER"
-  lacks "nor a line in the group a reload would rebuild one from" "$EDGROUPS" "$OWNER"
-
-  "$D/agent-busd" --addr 127.0.0.1:$((PORT+7)) --socket "$D/orph/bus.sock" \
-    --owner "$OWNER" --db "$ODB" --flush-every 0 >"$D/orph/damaged.log" 2>&1 &
-  OPID=$!
-  sleep 0.5
-  is_empty "a damaged current owner never reaches a serving bus" \
-    "$(curl -s --max-time 0.2 --unix-socket "$D/orph/bus.sock" http://unix/status 2>/dev/null)"
-  has "and startup names the missing durable owner" \
-    "$(cat "$D/orph/damaged.log")" "snapshot daemon owner $OWNER is not a registered user"
-  orph_down
-  # The owner damage has made its point; the rest runs on the store before it.
-  cp "$D/orph/before-owner-edit.db" "$ODB"
-
-  rm -f "$D/orph/logs/error.log"
-  orph_up second || { echo "  FAIL the start over the edited store did not come up"; fail=$((fail+1)); return 1; }
-  ERRLOG=$(cat "$D/orph/logs/error.log" 2>/dev/null)
-  has "the start reports the record whose owner is nobody" "$ERRLOG" 'stored record #lost@srv1 is ignored: its owner vanished@srv1 is not a user'
-  has "and the User without its user record" "$ERRLOG" 'stored user drifter@srv1 has no user record of its own and is ignored'
-  has "and, on the same start, the agent that User owned" "$ERRLOG" 'stored record #chain-a@srv1 is ignored: its owner drifter@srv1 is not a user'
-  has "and the queues that went with them" "$ERRLOG" 'stored queue #lost@srv1 has no record that can hold it'
-  lacks "while no control is reported" "$ERRLOG" 'steady\|napped\|barred-svc\|owner-svc'
-  REG=$(oab ls --all)
-  lacks "an ignored record is not listed" "$REG" '#lost@srv1'
-  lacks "nor the agent of an ignored User" "$REG" '#chain-a@srv1'
-  has "while a record untouched by the edit is" "$REG" 'ghost@srv1'
-  has "the credential that answered for an ignored record no longer authenticates" \
-    "$(ocode "$LOSTTOK")" '401'
-  has "nor the one for the ignored User's agent" "$(ocode "$CHAINTOK")" '401'
-  # Every control keeps its queue. A stopped owner is not a missing one.
-  for s in '#steady@srv1' '#owner-svc@srv1'; do
-    has "$s survives the start with its queue" "$(oab ls "$s")" '"queued":1'
+  cp "$ODB" "$D/orph/canonical.db"
+  refuse_snapshot() {
+    local name=$1 edit=$2 expected=$3 result before after
+    cp "$D/orph/canonical.db" "$ODB"
+    osql "$edit"
+    before=$(osql '.dump')
+    timeout 4 "$D/agent-busd" --addr 127.0.0.1:$((PORT+7)) --socket "$D/orph/bus.sock" \
+      --owner "$OWNER" --db "$ODB" --flush-every 0 >"$D/orph/$name.log" 2>&1
+    result=$?
+    bad_exit "$name refuses startup" "$result"
+    lacks "$name exits without a restart loop" "$result" '^124$'
+    has "$name identifies the invalid state" "$(cat "$D/orph/$name.log")" "$expected"
+    is_empty "$name binds no Unix listeners" "$(find "$D/orph" -name '*.sock' -print)"
+    after=$(osql '.dump')
+    has "$name leaves durable rows untouched" "$([ "$before" = "$after" ] && echo unchanged)" '^unchanged$'
+  }
+  refuse_snapshot missing-owner "DELETE FROM users WHERE name = '$OWNER'" \
+    "snapshot daemon owner $OWNER is not an active registered user"
+  refuse_snapshot wrong-record-owner "UPDATE records SET body = json_set(body, '\$.owner', 'vanished@srv1') WHERE name = '#lost@srv1'" \
+    'snapshot record #lost@srv1: its owner vanished@srv1 is not a user'
+  refuse_snapshot missing-user-record "DELETE FROM records WHERE name = 'drifter@srv1'" \
+    'drifter@srv1'
+  cp "$D/orph/canonical.db" "$ODB"
+  orph_up canonical || { echo "  FAIL canonical state did not restart"; fail=$((fail+1)); return 1; }
+  for s in '#steady@srv1' '#owner-svc@srv1' '#lost@srv1' '#chain-a@srv1'; do
+    has "$s keeps its queue on a canonical restart" "$(oab ls "$s")" '"queued":1'
   done
-  # An inactive User's agents are no such records, and so are only in the
-  # read-only view — where they are, with their queues, not ignored.
   OINACT=$(curl -s --unix-socket "$D/orph/bus.sock" -H "X-Agent-Bus-Token: $OTOK" http://unix/inactive)
   for s in '#napped@srv1' '#barred-svc@srv1'; do
-    has "$s survives the start with its queue" "$(printf '%s' "$OINACT" | grep -o "{\"name\":\"$s\"[^}]*")" '"queued":1'
+    has "$s keeps its queue while its owner is inactive" "$(printf '%s' "$OINACT" | grep -o "{\"name\":\"$s\"[^}]*")" '"queued":1'
   done
-  # The name is free on the running bus, and carries nothing across.
-  oas keeper@srv1 register '#lost@srv1' --kind agent --allow '*' --descr "somebody else's now" >/dev/null
-  has "and the freed name registers to somebody else" "$(oab ls '#lost@srv1')" "somebody else's now"
-  is_empty "who is handed none of what was queued for the old one" \
-    "$(oas '#lost@srv1' consume --wait 0s 2>&1)"
-  # The old bytes are refused NOW, with the name registered again. A name with
-  # no record is refused at the gate whether or not its credential was ever
-  # dropped, so the 401 above proves nothing on its own.
-  has "and the credential the old holder kept does not answer for the new one" \
-    "$(ocode "$LOSTTOK")" '401'
-  # What the start committed is on disk before anything stops gracefully: the
-  # daemon is killed outright. The positive half comes first: `lacks` on an
-  # empty or unreadable store passes for every absence there is.
-  OKIDS=$(pgrep -P "$OPID" | tr '\n' ' ')
-  kill -9 "$OPID" 2>/dev/null; wait "$OPID" 2>/dev/null
-  for _ in $(seq 1 40); do [ -z "$(ps -o pid= -p $OKIDS 2>/dev/null)" ] && break; sleep 0.1; done
-  has "the controls are in the store" "$(osql 'SELECT name FROM records')" '#owner-svc@srv1'
-  has "and their queued work is in it" "$(osql "SELECT body FROM messages WHERE queue = '#steady@srv1'")" 'queued before the stop'
-  # Ignored is not deleted: the database keeps what it held for an operator.
-  has "the ignored agent is still in the database" "$(osql 'SELECT name FROM records')" '#chain-a@srv1'
-  has "with its queued work" "$(osql "SELECT body FROM messages WHERE queue = '#chain-a@srv1'")" 'queued before the stop'
-  has "the new #lost@srv1 is keeper's in the store" "$(osql "SELECT body FROM records WHERE name = '#lost@srv1'")" '"owner":"keeper@srv1"'
-  # A freed name is born without a stored queue: the ignored record's messages
-  # would otherwise reattach to the new owner on the next start.
-  is_empty "and the old holder's queued work went with the old record" \
-    "$(osql "SELECT body FROM messages WHERE queue = '#lost@srv1'")"
+  has "current bound credentials still authenticate after canonical restart" \
+    "$(ocode "$LOSTTOK")$(ocode "$CHAINTOK")" '^200200$'
+  has "the preserved queue still delivers its body" "$(oas '#steady@srv1' consume --wait 0s)" 'queued before the stop'
 
-  # And a third start reads that store the same way: ignoring is not a repair.
-  rm -f "$D/orph/logs/error.log"
-  if orph_up third; then
-    THIRD=$(oab ls --all)
-    has "a third start reads that store" "$THIRD" '"name":"#owner-svc@srv1"'
-    has "with the queue that survived still on it" "$(oab ls '#steady@srv1')" '"queued":1'
-    has "and the work still in it" "$(oas '#steady@srv1' consume --wait 0s)" 'queued before the stop'
-    lacks "and still does not load the ignored agent" "$THIRD" '#chain-a@srv1'
-    has "and reports it again" "$(cat "$D/orph/logs/error.log" 2>/dev/null)" 'stored record #chain-a@srv1 is ignored'
-    has "while the renamed holder's record loads as keeper's" "$(oab ls '#lost@srv1')" '"owner":"keeper@srv1"'
-  else
-    echo "  FAIL a third start reads that store: it never answered"; fail=$((fail+1))
-  fi
 }
 orph_checks
 orph_down
@@ -3748,9 +3688,12 @@ rm -f "$D/pair/logs/error.log"
 SINCE=$(date '+%Y-%m-%d %H:%M:%S')
 timeout 4 "$D/agent-busd" --addr 127.0.0.1:$((PORT+5)) --socket "$D/pair/bus.sock" \
   --owner "$OWNER" --db "$D/pair/bus.db" --flush-every 0 >"$D/pair/refused.log" 2>&1
-has "a refused start says so on stderr" "$(cat "$D/pair/refused.log")" "owned by $GHOST"
-has "and in the error log, at alert" "$(grep -F "owned by $GHOST" "$D/pair/logs/error.log" 2>/dev/null | head -1)" ' alert "the daemon cannot start: '
-lacks "a refused test start does not write host syslog" "$(journalctl -t agent-busd --since "$SINCE" --no-pager -o cat 2>/dev/null)" "the daemon cannot start: .*owned by $GHOST"
+refused_rc=$?
+bad_exit "corrupt authority refuses startup" "$refused_rc"
+lacks "corrupt authority exits without a restart loop" "$refused_rc" '^124$'
+has "a refused start says so on stderr" "$(cat "$D/pair/refused.log")" "its owner $GHOST"
+has "and in the error log, at alert" "$(grep -F "its owner $GHOST" "$D/pair/logs/error.log" 2>/dev/null | head -1)" ' alert "the daemon cannot start: '
+lacks "a refused test start does not write host syslog" "$(journalctl -t agent-busd --since "$SINCE" --no-pager -o cat 2>/dev/null)" "the daemon cannot start: .*its owner $GHOST"
 
 }
 supervisor() {
@@ -3759,17 +3702,15 @@ sec "the supervisor holds the sockets, and the bus serves them"
 # request; the process that serves is handed listeners that already exist and
 # could not make one. See docs/08-processes.md#the-rule.
 mkdir -p "$D/sup"
-# --web ran the Go dashboard as a child until 0.8.50; a unit written before
-# then still passes it, so it is accepted and does nothing.
 SUPUNIT=""
 "$D/agent-busd" --addr 127.0.0.1:$((PORT+13)) --socket "$D/sup/bus.sock" \
-  --owner "$OWNER" --db "$D/sup/bus.db" --create --flush-every 0 --web >"$D/sup/log" 2>&1 &
+  --owner "$OWNER" --db "$D/sup/bus.db" --create --flush-every 0 >"$D/sup/log" 2>&1 &
 SUPRUN=$!
 SUP=$SUPRUN
-ready "$D/sup/bus.sock" || echo "  WARNING: $D/sup/bus.sock never answered"
+ready "$D/sup/bus.sock" || { kill "$SUP"; wait "$SUP"; exit 1; }
 # By parent pid throughout: a pattern would match anything else on the host.
 has "the daemon is a supervisor and its one child, the bus" "$(pgrep -P "$SUP" | wc -l)" '^1$'
-lacks "and the old --web asks for no dashboard child" "$(pgrep -P "$SUP" -a)" 'agent-bus-web\|bwrap'
+lacks "and it starts no dashboard child" "$(pgrep -P "$SUP" -a)" 'agent-bus-web\|bwrap'
 descendants() {
   local child
   for child in $(pgrep -P "$1"); do echo "$child"; descendants "$child"; done
@@ -3777,7 +3718,7 @@ descendants() {
 BUSPID=$(pgrep -P "$SUP" -x agent-busd)
 INODE=$(stat -c %i "$D/sup/user-$ACCOUNT.sock")
 kill -9 "$BUSPID" 2>/dev/null
-ready "$D/sup/bus.sock" || echo "  WARNING: the bus never came back"
+ready "$D/sup/bus.sock" || { kill "$SUP"; wait "$SUP"; exit 1; }
 has "a bus that dies is replaced, and the supervisor is untouched" \
   "$(ps -o pid= -p "$SUP" | tr -d ' ')" "^$SUP\$"
 NEWBUS=$(pgrep -P "$SUP" -x agent-busd)
@@ -3806,7 +3747,7 @@ is_empty "and takes the sockets it made with it" "$(ls "$D/sup/"*.sock 2>/dev/nu
   "$D/agent-busd" --addr 127.0.0.1:$((PORT+13)) --socket "$D/sup/bus.sock" \
   --owner "$OWNER" --db "$D/sup/bus.db" --create --flush-every 0 >"$D/sup/log2" 2>&1 &
 SUP2=$!
-ready "$D/sup/bus.sock" || echo "  WARNING: $D/sup/bus.sock never answered the second time"
+ready "$D/sup/bus.sock" || { kill "$SUP2"; wait "$SUP2"; exit 1; }
 KIDS2=$(pgrep -P "$SUP2" | tr '\n' ' ')
 kill -9 "$SUP2" 2>/dev/null; wait "$SUP2" 2>/dev/null
 LEFT=$(gone "$KIDS2")

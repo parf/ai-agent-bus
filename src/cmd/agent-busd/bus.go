@@ -152,11 +152,6 @@ func runBus(c config) {
 		face.SSHKeys(c.sshKeys, program)
 	}
 
-	// A record whose owner is not a User was ignored at load and reported
-	// (docs/constitution.md#persistence-and-loading), so its name is not
-	// known here; the credential sweep below is what takes a credential that
-	// answered for it.
-
 	// A credential whose name has no record and no registered user answers for
 	// nothing, and is dropped here — at start, at a known moment, never by
 	// expiry (docs/02-access.md#ownerless-credentials).
@@ -219,7 +214,7 @@ func runBus(c config) {
 			fatal("%v", err)
 		}
 		if h == nil {
-			log.Printf("socket for %s is not served: its account mapping was ignored at load", in.who)
+			log.Printf("socket for %s is not served: its principal is unavailable", in.who)
 			in.l.Close()
 			continue
 		}
