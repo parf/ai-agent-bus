@@ -704,3 +704,16 @@ test("bindings require an explicit base and leave obsolete state untouched", () 
     expect(bindings.lock("fixed")).toBe(false);
   } finally { bindings.close(); rmSync(dir, {recursive: true, force: true}); }
 });
+
+
+test("non-object saved bindings refuse before a resumed identity can be claimed", () => {
+  const root = resolve(import.meta.dir, "../../tmp/binding-format");
+  mkdirSync(root, {recursive: true});
+  const dir = mkdtempSync(join(root, "invalid-")), bindings = new Bindings(dir, "codex");
+  try {
+    for (const value of [null, false, 0, "", [], {name:"#codex/a@t"}, {name:"#codex/a@t",base:"#codex/a@t",old:true}]) {
+      writeFileSync(bindings.file("s"), JSON.stringify(value));
+      expect(() => bindings.saved({id:"s"})).toThrow("invalid session binding");
+    }
+  } finally {bindings.close();rmSync(dir,{recursive:true,force:true});}
+});

@@ -84,3 +84,26 @@ function takeOverIfGone(lock: string): void {
     }
   } finally { rmSync(taken, { force: true }); }
 }
+
+export function readPluginState(dir: string): {knownPath?: string; installed: boolean} {
+  const object = (value: unknown): value is Record<string, any> =>
+    value !== null && typeof value === "object" && !Array.isArray(value);
+  const read = (file: string): Record<string, any> | undefined => {
+    let text: string;
+    try { text = readFileSync(join(dir, file), "utf8"); }
+    catch (error: any) { if (error.code === "ENOENT") return undefined; throw error; }
+    const value: unknown = JSON.parse(text);
+    if (!object(value)) throw new Error(`invalid Claude plugin metadata: ${file} must be an object`);
+    return value;
+  };
+  const known = read("known_marketplaces.json")?.["agent-bus-local"];
+  if (known !== undefined && (!object(known) || !object(known.source) || typeof known.source.path !== "string" || !known.source.path))
+    throw new Error("invalid Claude plugin metadata: marketplace source path is required");
+  const installed = read("installed_plugins.json");
+  if (installed !== undefined && !object(installed.plugins))
+    throw new Error("invalid Claude plugin metadata: plugins must be an object");
+  const entries = installed?.plugins["agent-bus@agent-bus-local"];
+  if (entries !== undefined && (!Array.isArray(entries) || entries.some(value => !object(value))))
+    throw new Error("invalid Claude plugin metadata: installed plugin entries must be objects");
+  return {knownPath: known?.source.path, installed: !!entries?.length};
+}

@@ -20,7 +20,7 @@ import { automaticBase, claimFork, claimIdentity, releaseIdle } from "./identity
 import { serveControl } from "./control.ts";
 import { codexAuth } from "./runtime-auth.ts";
 import { restartOption, RestartBackoff } from "./restart.ts";
-import { pluginSteps, removal, withPluginLock } from "./plugin-steps.ts";
+import { pluginSteps, readPluginState, removal, withPluginLock } from "./plugin-steps.ts";
 import { tagOption } from "./tags.ts";
 import { descriptionOption } from "./description.ts";
 import { ForeignListener, startOwnedServer } from "./runtime-listener.ts";
@@ -622,16 +622,10 @@ ${COPYRIGHT}`);
 function ensureClaudePlugin(binary: string, env: NodeJS.ProcessEnv): void {
   const plugin = "agent-bus@agent-bus-local";
   const dir = join(claudeHome(), "plugins");
-  const read = (file: string) => { try { return JSON.parse(readFileSync(join(dir, file), "utf8")); } catch { return {}; } };
-  const state = () => {
-    const known = read("known_marketplaces.json")["agent-bus-local"];
-    const path = known?.source?.path;
-    return pluginSteps({
-      compiled, source: compiled ? dirname(process.execPath) : dirname(import.meta.dir),
-      knownPath: known ? (typeof path === "string" ? path : "") : undefined,
-      installed: !!read("installed_plugins.json").plugins?.[plugin]?.length,
-    });
-  };
+  const state = () => pluginSteps({
+    compiled, source: compiled ? dirname(process.execPath) : dirname(import.meta.dir),
+    ...readPluginState(dir),
+  });
   if (!state().length) return;
   // Several launchers may start at once during setup: one installs the
   // plugin under a lock, and each decides again once it holds it.

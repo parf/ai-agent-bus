@@ -108,10 +108,13 @@ export class Bindings {
   }
   saved(s: Session, explicit?: string): Binding | undefined {
     const file = this.file(s.id);
-    let saved: Binding | undefined;
+    let saved: Binding;
     try { saved = JSON.parse(readFileSync(file, "utf8")); }
-    catch (e: any) { if (e.code !== "ENOENT") throw e; }
-    if (saved && (typeof saved.name !== "string" || typeof saved.base !== "string" || !saved.name || !saved.base)) throw new Error("invalid session binding: name and base are required");
+    catch (e: any) { if (e.code === "ENOENT") return undefined; throw e; }
+    if (!saved || typeof saved !== "object" || Array.isArray(saved) ||
+        Object.keys(saved).some(key => key !== "name" && key !== "base") ||
+        typeof saved.name !== "string" || typeof saved.base !== "string" || !saved.name || !saved.base)
+      throw new Error("invalid session binding: name and base are required");
     if (saved && explicit && saved.name !== explicit && !sameBase(saved, explicit)) throw new Error("resumed session has a different bus name; use its existing identity");
     return saved;
   }
