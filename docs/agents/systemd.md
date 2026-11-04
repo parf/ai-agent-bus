@@ -107,7 +107,7 @@ Use a named instance per team or application, with its own service list and acce
 ### Many nodes
 
 - Find the helpers: `agent-bus ls --tag=systemd`.
-- Ask them all: `call --tagged=systemd`; each server answers separately.
+- Ask them all: `agent-bus call --tagged=systemd list`; each server answers separately.
 
 ## Troubleshooting
 

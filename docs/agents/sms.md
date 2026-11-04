@@ -86,20 +86,8 @@ Check the [access list](#who-may-use-it) before allowing callers to send real SM
 
 ## Configuration
 
-- **What:** your sender number and optional nicknames for people you text often.
-
-<details>
-<summary>Keys</summary>
-
-| Key | Meaning |
-|---|---|
-| `from` | Your Telnyx sender number, with country code |
-| `aliases` | Optional recipient nicknames, e.g. `{"oncall": "+12025550142"}` |
-
-- `TELNYX_API_URL` defaults to `https://api.telnyx.com/v2/messages` in `env.dist`; `TELNYX_API_KEY= # required` declares the key.
-- The live entry accepts only the Telnyx host; fake-provider tests use a loopback URL and cannot reach a real provider.
-
-</details>
+- `from` is your Telnyx sender number, including the country code.
+- `aliases` optionally names frequent recipients, for example `{"oncall":"+12025550142"}`.
 
 ## Secret keys
 
@@ -108,12 +96,12 @@ Check the [access list](#who-may-use-it) before allowing callers to send real SM
 
 ## Who may use it
 
-- **Any bus caller may send.**
+- **Callers admitted by the bus access list may send.**
 - **Only the owner and maintainers** may change the sender, nicknames or allow list.
 - **Logs hold** the caller, the last four digits of the number, status and message id; never the text or the key.
 
 <details>
-<summary>Restrict it to the owner</summary>
+<summary>Restrict an existing public grant to the owner and their agents</summary>
 
 ```sh
 agent-bus manage '#sms-telnyx@node.example' --add-to-set-allow '@owner'

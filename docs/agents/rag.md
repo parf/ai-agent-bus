@@ -20,7 +20,7 @@
 - ✅ **Build the keyword index:** `keyword_index` adds the vector search needs to a collection that lacks it and gives every stored text its words; safe to repeat.
 - ✅ **Delete:** one record, or a whole table when you confirm it (`delete`).
 - ✅ **Keep topic lists:** read or set a table's topics (`prompts`); changing a list affects only texts added afterwards.
-- ✅ **Safe to repeat:** a failure says plainly whether **nothing changed** or the outcome is **unknown**; repeating the same call is always safe; nothing retries by itself.
+- ✅ **Recover from an interrupted call:** the answer distinguishes **nothing changed**, **unknown** and **incomplete**. Follow the operation's recovery instructions; repeating an upsert can spend provider balance again and replace concurrent changes. Nothing retries by itself.
 - ✅ **Use cases:** sort a support inbox into billing, bug, sales and spam; a team knowledge base; meeting and call notes; research clippings; facts an AI session wants to keep.
 - ⚙️ **Records:** live in a **namespace** (say, a team) and a **table** (say, `notes`), each with its own `id`; two optional keys (`key1`, `key2`) tag records further; texts can be plain, Markdown, HTML or JSON.
 - 🚫 **Not for:** a few pages (just paste them), exact lookups by id or number (use a database), or anything that must stay out of an AI provider (the text goes to the classifier and embedding services).
@@ -145,7 +145,7 @@ agent-bus manage '#ai@node.example' --add-to-set-allow '#rag@node.example'
 | `embedding_model` | Fixed embedding model, checked against collection metadata |
 | `dimensions` | Fixed vector size the model supports |
 | `decision_model` | Jev model, default `typesafe/jev-1.14` |
-| `keyword_search` | `builtin` (default): `search` uses the collection's BM25 sparse vector `text`; `external`: `search` asks an engine connected to the helper, and no built-in words are stored |
+| `keyword_search` | `builtin` (default): `search` uses the collection's BM25 sparse vector `text`; `external` is accepted but has no connected engine in this helper and cannot search |
 
 </details>
 
@@ -166,14 +166,14 @@ agent-bus manage '#ai@node.example' --add-to-set-allow '#rag@node.example'
 |---|---|
 | A refusal about collection settings or grants | Create the collection and grants as in [Installing it](#installing-it) |
 | `not stored; prior record unchanged` | Fix the request; nothing changed |
-| The outcome is **unknown** | Repeat the same request; nothing retries automatically |
+| The outcome is **unknown** | Inspect the affected record and follow that operation's recovery instructions; a repeated upsert can spend provider balance again or replace newer content |
 | `incomplete: repeat the same delete to continue` | Repeat the delete |
 | A stale-cursor error | Start `list` again without a cursor |
-| `search` says `keyword index not built yet` | Run `keyword_index` ([Installing it](#installing-it)); or set `keyword_search` to `external` |
+| `search` says `keyword index not built yet` | Run `keyword_index` ([Installing it](#installing-it)) |
 | `search` says `keyword index incomplete (n chunks left)` | An interrupted build left some texts without words; run `keyword_index` again until it answers `ok`; searches are refused until then rather than answering from part of the data |
 | `search` answers `incomplete: search window exhausted before enough records were found` | The best matches were texts nobody can read any more (never-published drafts, replaced revisions awaiting cleanup) or too few records match; narrow the query, add `tableName` or keys, or remove the leftovers |
 | `search` says the text vector lacks the idf modifier | Recreate that vector with `{"sparse":{"modifier":"idf"}}`; Qdrant cannot change a modifier in place |
-| `search` says no external keyword engine is connected | Connect one, or set `keyword_search` back to `builtin` |
+| `search` says no external keyword engine is connected | Set `keyword_search` to `builtin`; this helper has no external engine |
 
 ## Warnings and alerts
 

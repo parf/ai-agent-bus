@@ -86,7 +86,7 @@ agent-bus call '#bus' 'ls --kind agent --tag runner' | jq -r .body | head -3
 
 An alert is on disk within about 100 ms; a clean stop flushes all.
 
-- **Built:** private per-agent logs, runner observations, subscriptions and the web record-page preview with expand. Alerts, id reservations and subscription definitions survive daemon restarts; notices and warnings stay in memory.
+- Private per-agent logs include runner observations, subscriptions and a preview on the web record page. Alerts, id reservations and subscription definitions survive daemon restarts; notices and warnings stay in memory.
 - The runner forwards masked stderr and lifecycle observations using the agent's own credential. Alerts go first in their own lane; forwarding never blocks the child. A full or unavailable event path drops and counts the event without retrying. An agent can write a misleading line about itself, seen only by its own Owner and Maintainers; no line proves who produced it.
 - `write <agent> notice|warning|alert <text>` writes the agent's own log; the daemon Owner may also write. A write answers only when `wait` is set; a reply to the caller’s own inbox also requires its Allow to admit `#bus`, following the [normal reply ACL](../04-messaging.md#reply-routing).
 - `read <agent> [level]`, `list`, `pull <agent> [level] [count]` and `clean <agent> [level] [id]` use the [shared log model](eventlog.md#log-model) and [reply forms](eventlog.md#technical-details). Only the log's Owner, Maintainers and daemon Owner may read or manage it; only the daemon Owner may read `#bus`'s own log.
@@ -162,20 +162,7 @@ echo '{"realm":"parf.us"}' | agent-bus config '#bus' -
 
 ## Warnings and alerts
 
-Automatic daemon-authored entries below are pending. The built agent-log
-methods and runner forwarding are described under [agent logs](#agent-logs).
-
-`#bus` is the daemon itself, so its entries are the daemon's own life; the daemon Owner sees them, in addition to the daemon's error log and syslog.
-
-| Level | When | What to do |
-|---|---|---|
-| alert | An impossible state: a broken rule, corrupt stored data, an answer it could not give with authority | Read the daemon's error log; restore from backup if stored data is damaged |
-| alert | A write to its database failed: disk full or an I/O error | Free space or fix the disk, then restart the daemon |
-| alert | A listen address could not be taken at start, or a TLS certificate expired | Free the port or fix the address; renew the certificate |
-| alert | The previous run ended without a clean stop (shown at the next start) | Check the host's service log for why it stopped |
-| warning | A pubsub copy dropped for a stopped or full recipient; a ring queue dropping its oldest; a forward refused | Check that recipient or raise its bound |
-| warning | Free disk space under 10 %, a TLS certificate expiring within 14 days, many failed sign-ins from one address, the clock stepped back | Act before it turns into an alert |
-| notice | Started or stopped; the bus setup changed; the debug log turned on or off; a backup or restore finished | — |
+Inspect the daemon's [diagnostic logs](../administration.md#logs) for startup, storage and connection failures. For an individual agent, use its [agent log](#agent-logs).
 
 ## Technical details
 

@@ -15,10 +15,10 @@
 
 ## What you get
 
-- ✅ **One announcement updates every server** that follows that project and branch ([how it works](#how-it-works)).
+- ✅ **One announcement requests an update on the servers** that follow that project and branch ([how it works](#how-it-works)).
 - ✅ **Safe by default:** `ff` mode only moves forward and never discards local work; `mirror` (production copies) is chosen per project, and only where the project allows deploy ([two modes](#two-modes)).
 - ✅ **After the update,** each server runs its own success or fail script from a host-approved list: reload the application, run tests, post to chat ([after an update](#after-an-update)).
-- ✅ **Visibility:** every attempt and every failed script is one JSON record, host first, on the log channel; `autopull <project>` shows the last one on that server.
+- ✅ **Visibility:** admitted attempts record their outcome locally; `autopull <project>` shows the last one. A configured log channel receives one best-effort publication attempt; overload or invalid configuration can prevent an attempt from being recorded.
 - ✅ **Control:** the announcement channel's access list says who may announce code; `deploy <project> <branch> [<rev>]` moves one server, a `deploy` event moves all of them to one revision, for roll-out or roll-back.
 - 🚫 **Not a CI system,** not a build step, not a scheduler: it reacts to announcements, catches up once at start, and does what an operator asks.
 

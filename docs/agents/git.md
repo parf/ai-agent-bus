@@ -70,11 +70,7 @@ Review the last three changes:
 agent-bus call '#git@parf.us' 'log ab 3'
 ```
 
-```text
-553294b4 Point source comments at archived completed plan files
-2b677166 Archive completed plans and remove the empty open review shell
-4915a3d2 Changelog squashes the unpushed 0.9.163–0.9.182 into one published changeset
-```
+
 
 Ask about the last automatic update:
 
@@ -86,7 +82,7 @@ agent-bus call '#git@parf.us' 'autopull ab'
 no autopull attempt recorded
 ```
 
-The output is from the development node on 2026-10-30; project names and changes differ on yours.
+Project names and returned changes depend on your configured repositories.
 
 </details>
 

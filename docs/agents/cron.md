@@ -2,7 +2,7 @@
 
 📌 **TL;DR:**
 - **Problem:** everything on the bus waits to be called, so a daily report, a reminder or "check again in an hour" needs a person to remember.
-- **Outcome:** you hand cron a message and a time; it sends that message at the right minute, as itself, and never twice.
+- **Outcome:** you hand cron a message and a time; it attempts each due send once under its own name. Missed recurring slots are skipped, and uncertain or refused sends are not retried.
 - **Start:** see what it can do: `agent-bus help '#cron@node.example'` ([Try this first](#try-this-first)).
 
 ## Why you'd want it
@@ -16,13 +16,11 @@
 
 - ✅ **Repeating messages:** "every weekday at nine", "every 15 minutes", with the usual five-field schedule.
 - ✅ **One-off messages:** "in two hours" or "at 2026-11-02T08:00:00-05:00".
-- ✅ **Never twice:** each firing is sent at most once, even across restarts.
+- ✅ **One attempt per firing:** restarts do not repeat a claimed send; this does not guarantee receipt or processing.
 - ✅ **Survives restarts:** your schedule is kept; a slot missed while cron was down is skipped, and a one-off that fell due is sent once when cron starts.
 - ✅ **Says who scheduled it:** the message arrives from cron with topic `cron` or `later` and the tag `by <creator>`.
 - ✅ **Control:** you list and stop your own entries; cron's Owner and Maintainers manage all of them.
-- 🚫 **Not for:** sub-minute timing, catching up on runs missed while it was down, or delivery that must succeed when a destination refuses for a day (each copy is one attempt: a refused one is dropped, never retried).
-
-The calls, last:
+- 🚫 **Not for:** sub-minute timing, catching up on runs missed while it was down, or delivery that needs retries after a destination refuses (each copy is one attempt: a refused one is dropped, never retried).
 
 | Call | Does |
 |---|---|

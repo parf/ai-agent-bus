@@ -74,7 +74,7 @@ Set its [Configuration](#configuration), keep the sandbox on, then set `enabled:
 
 - **No Configuration, or `{}`:** public destinations only, on ports 80, 443, 8080 and 8443.
 - **`allow`:** an optional list that limits both methods.
-- **`[]`:** denies every request.
+- **`{"allow":[]}`:** denies every request; Configuration itself is an object, not a root array.
 
 ```json
 {"allow":["https://api.example.org/v1/*","https://internal.example:8443/health"]}

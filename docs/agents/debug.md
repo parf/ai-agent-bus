@@ -70,7 +70,7 @@ agent-bus call '#debug@node.example' selftest
 agent-bus call '#debug@node.example' doctor
 ```
 
-- Any ❌ fails the [post-deploy check](../../.claude/docs/deployment.md#post-deploy-check).
+- Any ❌ names a failed check; inspect its diagnostic before changing the bus.
 - `doctor full` and `doctor disks` add the raw facts.
 - `selftest` exercises ping, echo, a short wait and an error locally, then debug's own KV and lock through the bus; your request and its reply are the external round trip.
 - It does not test self-addressed bus calls.
@@ -79,7 +79,6 @@ agent-bus call '#debug@node.example' doctor
 
 | I want to… | Command |
 |---|---|
-| Check after a deploy | `src/check-deploy.sh` |
 | Run the bus checks | `agent-bus call '#debug@node.example' selftest` |
 | Get a health overview | `agent-bus call '#debug@node.example' doctor` |
 | See raw disk facts | `agent-bus call '#debug@node.example' 'doctor disks'` |
@@ -91,7 +90,6 @@ agent-bus call '#debug@node.example' doctor
 
 | Use case | What you do | What you get |
 |---|---|---|
-| Post-deploy check | Run `src/check-deploy.sh` | Pass or fail, with the failing step |
 | Something is off | Ask `doctor` | One verdict per check: failed services, full disk, old versions, certificate |
 | Disk or certificate warning | Ask `doctor full` or `doctor disks` | The raw facts behind the verdict |
 | Wrong permissions arrive | Ask `roles` | The roles the bus actually delivered |
@@ -110,7 +108,7 @@ agent-bus call '#debug@node.example' doctor
 <details>
 <summary>Step by step</summary>
 
-For `alice`'s runner on `node.example`:
+For `alice`'s runner on `node.example`, set `enabled:true` for `debug` in the inventory first, preserving other entries. Then register it, hand over its token and reload:
 
 ```sh
 agent-bus register '#debug@node.example' --allow=@owner
@@ -119,7 +117,6 @@ agent-bus token '#debug@node.example' | sudo install -o alice-ab-runner -m 600 /
 agent-bus call '#runner/alice@node.example' reload
 ```
 
-- Before reloading, set `enabled:true` for `debug` in the inventory, preserving other entries. Without its token, the runner refuses debug and says where the token goes.
 - With explicit arguments `debug.py` runs one method and exits; KV, selftest and doctor need the serving process.
 
 </details>

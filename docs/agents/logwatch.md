@@ -214,7 +214,6 @@ None.
 - An oversized line keeps its head and ends with `…[truncated N bytes]`, counted in `line_bytes`. A poll reads at most 64 KiB per file.
 - History stops at `ring_size` lines or `ring_bytes`, oldest evicted first. An oversized journal record keeps its raw head under `journal:unknown`.
 - Colour codes are removed and control characters become `...`, using the tail-log cleaner.
-- Alerts: the first occurrence is sent at once; identical lines from one source are counted, and a summary such as `×37 in 5 min` follows when the five-minute window closes. A queue or channel can also be a destination, under the same access checks.
 - Implementation notes: [source README](../../src/agents/standalone/logwatch/README.md).
 
 </details>

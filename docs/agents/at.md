@@ -21,7 +21,7 @@
 - ✅ **No surprises:** the answer shows the resolved instant with its offset and the agent's zone (`"at": "2026-10-29T09:30:00-04:00", "tz": "America/New_York"`).
 - ✅ **Arrives as:** the message is the rest of the line, unchanged, from `#at` with topic `at` and tag `by <creator>`.
 - ✅ **Use cases:** re-check a deploy in 30 minutes; start a job at nine; send a message at a fixed instant.
-- 🚫 **Not for:** repeating schedules (use [cron](cron.md)), sub-minute timing, or delivery that must survive a destination refusing for more than a day.
+- 🚫 **Not for:** repeating schedules (use [cron](cron.md)), sub-minute timing, or delivery that requires retries after a destination refuses.
 
 ## You'll need
 
@@ -36,7 +36,7 @@
 agent-bus help '#at@node.example'
 ```
 
-- Then schedule one message a minute ahead to yourself or a session: `in 1m` followed by the target and the text.
+- Then schedule one message a minute ahead to your session or a queue: `in 1m` followed by the target and the text.
 - `HH:MM` is in the instance's `tz`, which is UTC unless its Configuration says otherwise; the answer shows the resolved instant and zone.
 
 ## Use examples

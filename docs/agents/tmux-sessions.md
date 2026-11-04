@@ -147,7 +147,7 @@ Start from the shipped [config.json.dist](../../src/agents/standalone/tmux-sessi
 
 ## Warnings and alerts
 
-`#tmux-sessions` has its own Linux service, so the [runner entries](README.md#warnings-and-alerts) do not apply; it reports these itself.
+When installed as a separate Linux service, `#tmux-sessions` reports these entries itself. When managed by a runner, the [runner entries](README.md#warnings-and-alerts) also apply.
 
 | Level | When | What to do |
 |---|---|---|
