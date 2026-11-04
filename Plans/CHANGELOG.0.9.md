@@ -49,7 +49,7 @@
 - **0.9.163–0.9.189:** Python/TypeScript subscription engines shared vectors for filters, revocation, authority failures and refused copies. Added standalone `#eventlog` with named notice/warning/alert rings, bounded retention, private lock mode, null-Configuration defaults and clean interrupted-request shutdown.
 - **0.9.199–0.9.242:** logwatch, IMAP, Slack, Telegram, cron and at moved to the shared engine. Each refused copy was dropped/counted with a warning while later matches remained usable. Deterministic or random 12-hex IDs replaced older IDs through interruption-safe migration; damaged legacy state stayed inert. `sub edit` was replaced by delete-and-add.
 - **0.9.261:** subscription filters used CPU budgets rather than wall time to avoid load-induced false timeouts.
-- **0.9.289–0.9.293:** added private per-agent event rings in the daemon and `#bus` write/read/list/pull/clean and subscription operations. Runner starts, masked stderr warnings and exits fed those logs; the web exposed them only to the Agent's managers. Schema 10 persisted subscriptions and schema 11 persisted bounded alert snapshots, batched for disk writes and flushed on clean shutdown.
+- **0.9.289–0.9.302:** added private per-agent event rings in the daemon and `#bus` write/read/list/pull/clean and subscription operations. Runner starts, masked stderr warnings and exits fed those logs; the web exposed them only to the Agent's managers. Schema 10 persisted subscriptions and schema 11 persisted bounded alert snapshots; 0.9.302 grouped snapshot writes and flushed them on clean shutdown.
 
 ## Bundled helpers and applications
 
