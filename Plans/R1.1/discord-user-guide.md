@@ -70,7 +70,7 @@ The local fixture used this Configuration:
 }
 ```
 
-An alias without `id` is refused at load. Two keys resolving to the same id are refused, naming both. Channel `route`, `tags` and `anyone` have the [shared reply-routing meanings](slack.md#configuration).
+An alias without `id` is refused at load. Two keys resolving to the same id are refused, naming both. Channel `route`, `tags` and `anyone` have the [shared reply-routing meanings](../../docs/agents/slack.md#configuration).
 
 ## Secret keys
 
@@ -82,7 +82,7 @@ An alias without `id` is refused at load. Two keys resolving to the same id are 
 
 - A reply to a session’s post returns to that session. A listed person may choose a session by its `#tag`; addressed messages with no tag use the configured route. Unlisted people cannot choose sessions. A channel with `anyone: true` accepts them only for its explicit route or a reply to a mapped post.
 - Each session gets a short permanent tag on its posts. Reply mappings last seven days. DMs and mentions are addressed messages; ordinary channel chatter is silent unless a subscription matches.
-- `sub add`, `sub list` and `sub delete` follow [the shared subscription behaviour](subscriptions.md#the-shared-behaviour). The author must be allowed to send to both this helper and the target. A refused copy is dropped and counted with one warning; the next match stays active. To change a subscription, delete it and add it again.
+- `sub add`, `sub list` and `sub delete` follow [the shared subscription behaviour](../../docs/agents/subscriptions.md#the-shared-behaviour). The author must be allowed to send to both this helper and the target. A refused copy is dropped and counted with one warning; the next match stays active. To change a subscription, delete it and add it again.
 - The bot’s own messages, edits and repeated gateway events do not make subscription copies.
 
 ## Troubleshooting

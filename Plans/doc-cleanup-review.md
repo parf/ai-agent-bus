@@ -34,9 +34,9 @@ Astra read every block in all 68 docs/ Markdown pages plus root README and AI-SE
 | [docs/agents/bus.md](../docs/agents/bus.md) | Users | All blocks read by Astra | Pending final pass |
 | [docs/agents/create-agent-prompt.md](../docs/agents/create-agent-prompt.md) | Users | All blocks read by Astra | Pending final pass |
 | [docs/agents/cron.md](../docs/agents/cron.md) | Users | All blocks read by Astra | Pending final pass |
-| [docs/agents/db.md](../docs/agents/db.md) | Users | All blocks read by Astra | Pending final pass |
+| [src/agents/db/guide.md](../src/agents/db/guide.md) | Source-package users | All blocks read by Astra | Pending final pass |
 | [docs/agents/debug.md](../docs/agents/debug.md) | Users | All blocks read by Astra | Pending final pass |
-| [docs/agents/discord.md](../docs/agents/discord.md) | Users | All blocks read by Astra | Pending final pass |
+| [docs/agents/discord.md](R1.1/discord-user-guide.md) | Users | All blocks read by Astra | Pending final pass |
 | [docs/agents/eventlog.md](../docs/agents/eventlog.md) | Users | All blocks read by Astra | Pending final pass |
 | [docs/agents/fetch.md](../docs/agents/fetch.md) | Users | All blocks read by Astra | Pending final pass |
 | [docs/agents/git-autopull.md](../docs/agents/git-autopull.md) | Users | All blocks read by Astra | Pending final pass |
@@ -76,44 +76,44 @@ Astra read every block in all 68 docs/ Markdown pages plus root README and AI-SE
 | [docs/user/write-agent-cli.md](../docs/user/write-agent-cli.md) | Users | All blocks read by Astra | Pending final pass |
 | [docs/user/write-agent-process.md](../docs/user/write-agent-process.md) | Users | All blocks read by Astra | Pending final pass |
 | [docs/user/write-agent-runner.md](../docs/user/write-agent-runner.md) | Users | All blocks read by Astra | Pending final pass |
-| [src/INSTALL.md](../src/INSTALL.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/MODULES.md](../src/MODULES.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/README.md](../src/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/agents/ai/README.md](../src/agents/ai/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/agents/db/README.md](../src/agents/db/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/agents/debug/README.md](../src/agents/debug/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/agents/discord/README.md](../src/agents/discord/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/agents/fetch/README.md](../src/agents/fetch/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/agents/rag/README.md](../src/agents/rag/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/agents/slack/README.md](../src/agents/slack/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/agents/sms-telnyx/README.md](../src/agents/sms-telnyx/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/agents/standalone/README.md](../src/agents/standalone/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/agents/standalone/git/README.md](../src/agents/standalone/git/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/agents/standalone/logwatch/README.md](../src/agents/standalone/logwatch/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/agents/standalone/server-info/README.md](../src/agents/standalone/server-info/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/agents/standalone/systemd/README.md](../src/agents/standalone/systemd/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/agents/telegram/README.md](../src/agents/telegram/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/agents/voyage/README.md](../src/agents/voyage/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/agents/webhook/README.md](../src/agents/webhook/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/clients/README.md](../src/clients/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/clients/examples/README.md](../src/clients/examples/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/clients/examples/codestats/README.md](../src/clients/examples/codestats/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/clients/examples/go/README.md](../src/clients/examples/go/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/clients/examples/python/README.md](../src/clients/examples/python/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/clients/examples/rust/README.md](../src/clients/examples/rust/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/clients/examples/ts/README.md](../src/clients/examples/ts/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/clients/go/README.md](../src/clients/go/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/clients/java/README.md](../src/clients/java/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/clients/php/README.md](../src/clients/php/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/clients/python/README.md](../src/clients/python/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/clients/rust/README.md](../src/clients/rust/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/clients/tests/kv/README.md](../src/clients/tests/kv/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/clients/typescript/README.md](../src/clients/typescript/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/container/README.md](../src/container/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/internal/envfile/testdata/README.md](../src/internal/envfile/testdata/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/mcp/README.md](../src/mcp/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/npm/README.md](../src/npm/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
-| [src/testdata/client-conformance/README.md](../src/testdata/client-conformance/README.md) | User/developer scope to classify | Pending full review | Pending final pass |
+| [src/INSTALL.md](../src/INSTALL.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/MODULES.md](../src/MODULES.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/README.md](../src/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/agents/ai/README.md](../src/agents/ai/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/agents/db/README.md](../src/agents/db/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/agents/debug/README.md](../src/agents/debug/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/agents/discord/README.md](../src/agents/discord/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/agents/fetch/README.md](../src/agents/fetch/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/agents/rag/README.md](../src/agents/rag/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/agents/slack/README.md](../src/agents/slack/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/agents/sms-telnyx/README.md](../src/agents/sms-telnyx/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/agents/standalone/README.md](../src/agents/standalone/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/agents/standalone/git/README.md](../src/agents/standalone/git/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/agents/standalone/logwatch/README.md](../src/agents/standalone/logwatch/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/agents/standalone/server-info/README.md](../src/agents/standalone/server-info/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/agents/standalone/systemd/README.md](../src/agents/standalone/systemd/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/agents/telegram/README.md](../src/agents/telegram/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/agents/voyage/README.md](../src/agents/voyage/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/agents/webhook/README.md](../src/agents/webhook/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/clients/README.md](../src/clients/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/clients/examples/README.md](../src/clients/examples/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/clients/examples/codestats/README.md](../src/clients/examples/codestats/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/clients/examples/go/README.md](../src/clients/examples/go/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/clients/examples/python/README.md](../src/clients/examples/python/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/clients/examples/rust/README.md](../src/clients/examples/rust/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/clients/examples/ts/README.md](../src/clients/examples/ts/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/clients/go/README.md](../src/clients/go/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/clients/java/README.md](../src/clients/java/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/clients/php/README.md](../src/clients/php/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/clients/python/README.md](../src/clients/python/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/clients/rust/README.md](../src/clients/rust/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/clients/tests/kv/README.md](../src/clients/tests/kv/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/clients/typescript/README.md](../src/clients/typescript/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/container/README.md](../src/container/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/internal/envfile/testdata/README.md](../src/internal/envfile/testdata/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/mcp/README.md](../src/mcp/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/npm/README.md](../src/npm/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
+| [src/testdata/client-conformance/README.md](../src/testdata/client-conformance/README.md) | User/developer scope to classify | All blocks read by Astra | Pending final pass |
 
 ## Correctness findings to resolve
 
@@ -136,3 +136,7 @@ Astra read every block in all 68 docs/ Markdown pages plus root README and AI-SE
 - Plans retain genuine future scope and dated evidence; user pages describe current behavior without internal history.
 
 Agent guide example pass: removed 17 duplicated private development-node sessions and their dates/build versions; retained the portable use commands and the meaningful cron outcome-window explanation. Instance-dependent commands explicitly require an enabled instance. No provider requests were made.
+
+Catalogue scope: derive generated descriptions from the release packager's actual runtime/standalone inventory, not every source directory. DB source guide and deferred Discord guide leave docs/; source manifest and golden docs URLs follow their real homes. The static regression fails on the old generator because it includes db.
+
+Source-guide analysis is complete: Astra fully read all 38 original source README/INSTALL/MODULES candidates. Remaining corrections include installed-vs-source runtime paths (MCP/container/source index), PHP executable snippets and prerequisites, SDK setup/identity prerequisites, misleading fixtures' no-side-effects claims, source-only history/filler and client Plan-as-contract links. Final cleanup and per-page dedup remain pending until applied.

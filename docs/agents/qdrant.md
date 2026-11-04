@@ -20,7 +20,7 @@
 - ✅ **Check what is stored:** list collections or count points.
 - ✅ **Admin maintenance:** grant one admin to create collections and indexes.
 - ✅ **Adds nothing of its own:** no RAG logic and no schema; the operator runs the store itself ([below](#run-a-store)).
-- 🚫 **Not for:** ordinary rows and numbers (use a [database](db.md#what-it-does)), or separating teams inside one store (rights cover the whole store, not one collection).
+- 🚫 **Not for:** ordinary rows and numbers (use a [database](../../src/agents/db/guide.md#what-it-does)), or separating teams inside one store (rights cover the whole store, not one collection).
 
 ## You'll need
 

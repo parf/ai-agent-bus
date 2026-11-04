@@ -87,7 +87,7 @@ Owner-moved from R1 on 2026-10-30; task IDs and acceptance are preserved.
 
 Owner-moved from R1 on 2026-10-30 ("move discord to 1.1"); the task ID is preserved.
 
-- ✅ B.27a Discord: approved methods, Configuration and gateway implemented on `ab-w1c/B27a`, fake-provider and private-bus acceptance; [guide](../../docs/agents/discord.md#discord), [plan](discord.md#discord-agent-b27a), [evidence](../R1.0-Release/DONE.md#b27a-discord). Owner application/server choice [Q244](QUESTIONS.md#messaging-agents) remains before live deployment.
+- ✅ B.27a Discord: approved methods, Configuration and gateway implemented on `ab-w1c/B27a`, fake-provider and private-bus acceptance; [guide](discord-user-guide.md#discord), [plan](discord.md#discord-agent-b27a), [evidence](../R1.0-Release/DONE.md#b27a-discord). Owner application/server choice [Q244](QUESTIONS.md#messaging-agents) remains before live deployment.
 - ⏳ Ship Discord in R1.1 (B.27a follow-up): add `agents/discord/package.sh` back to `src/agents/package.sh` and the file list in `src/cmd/agent-bus-setup/package_install.go`, and turn the packager test that refuses a discord tree into one that requires it
   - Acceptance: the R1.1 archive holds the discord tree and setup accepts it; the check that the R1 archive holds none is replaced, not deleted
 
@@ -202,7 +202,7 @@ Owner, 2026-11-01; plan in [filescan](filescan.md#steps-and-estimate), owner cho
 
 Owner, 2026-11-02; plan in [dbsync](dbsync.md#steps-and-estimate), open [Q314–Q320](QUESTIONS.md#dbsync). Plan only: no code until the owner approves.
 
-- ⛔ DS.1 `#dbsync/<name>`: a runner agent that tracks new and changed rows of one table by an `updated` column, asks through a read-only [DB agent](../../docs/agents/db.md#what-it-does), and hands the rows to subscribed agents; steps D0–D3 with an estimate of four to five hours of agent time
+- ⛔ DS.1 `#dbsync/<name>`: a runner agent that tracks new and changed rows of one table by an `updated` column, asks through a read-only [DB agent](../../src/agents/db/guide.md#what-it-does), and hands the rows to subscribed agents; steps D0–D3 with an estimate of four to five hours of agent time
   - Depends: the DB agent (built); the owner's answers to [Q314–Q319](QUESTIONS.md#dbsync); [FS.1](#filescan) for the shared core if Q314 says so
   - Follow-up, outside R1.1: [Q320](QUESTIONS.md#dbsync), a counter mode for `updated`
   - Acceptance, each against the DB fixture and a fake subscriber, never the live bus:

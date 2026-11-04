@@ -60,6 +60,13 @@ class AgentDocs(unittest.TestCase):
         found = [p for n, page, _, docs in self.agents if n not in agent_docs.PENDING for p in self.problems(n, page, docs)]
         self.assertEqual(found, [])
 
+    def test_catalogue_excludes_source_only_and_deferred_agents(self):
+        names = {name for name, *_ in self.agents}
+        self.assertNotIn('db', names)
+        self.assertNotIn('discord', names)
+        self.assertIn('slack', names)
+        self.assertIn('git', names)
+
     def test_pending_entries_are_still_needed(self):
         names = {n for n, *_ in self.agents}
         for name in agent_docs.PENDING:

@@ -1,6 +1,6 @@
 # Discord implementation
 
-The [current guide](../../../docs/agents/discord.md#discord) owns user behaviour.
+The [current guide](../../../Plans/R1.1/discord-user-guide.md#discord) owns user behaviour.
 
 - `api.ts` reads credentials through a callback, serializes requests under a deadline, bounds replies and stops invalid-request loops. URL overrides accept loopback fixtures only.
 - `gateway.ts` owns hello, intents, heartbeat ACKs, session resume, fatal refusals and explicit reload. No inbound HTTP endpoint runs in the agent.

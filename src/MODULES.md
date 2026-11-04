@@ -92,7 +92,7 @@ Standing implementation requirements, first set for the [0.7 work](../Plans/done
 - Record export and import use `age` for the [encrypted archive](../docs/administration.md#encrypted-record-backups); a missing executable is an error, never a plaintext fallback.
 - Sessions uses `tmux` for [detached session sets](../docs/agents/tmux-sessions.md#installing-it); a missing executable is reported as an error.
 - Server-info uses `openssl x509` for [public TLS certificate facts](../docs/agents/server-info.md#tls-certificate); absence is reported as unavailable.
-- The database proxy bundles two libraries, because it needs a database client in-process: `pymysql` (MIT) and `psycopg` 3 (LGPL-3.0-only, [psycopg.org](https://psycopg.org)), copied into the package with their licenses and a notice ([database agent](../docs/agents/db.md#installing-it)). A missing driver is reported by name, never replaced by another protocol.
+- The database proxy bundles two libraries, because it needs a database client in-process: `pymysql` (MIT) and `psycopg` 3 (LGPL-3.0-only, [psycopg.org](https://psycopg.org)), copied into the package with their licenses and a notice ([database agent](agents/db/guide.md#installing-it)). A missing driver is reported by name, never replaced by another protocol.
 - Prefer the language's built-in, then an existing system tool for occasional work, then an established library for work that must stay in-process. Never write custom cryptographic primitives or invent a new protocol for convenience.
 
 #### Our own small module

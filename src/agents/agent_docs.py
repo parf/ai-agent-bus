@@ -33,10 +33,15 @@ def go_const(name):
 
 
 def manifests():
-    """Every bundled agent.json, keyed by its template name."""
+    """Manifests exported by the release packager, keyed by template name."""
+    package = (AGENTS / 'package.sh').read_text()
+    # Runtime package calls and the standalone manifest entries are the shipping
+    # inventory. Source directories alone do not make an agent a bundled feature.
+    shipped = set(re.findall(r'"\$here/([^"\n]+)/package\.sh"', package))
+    shipped.update(re.findall(r'\b(standalone/[a-z0-9-]+)/agent\.json\b', package))
     found = {}
     for path in sorted(AGENTS.glob('**/agent.json')):
-        if 'node_modules' in path.parts:
+        if 'node_modules' in path.parts or path.parent.relative_to(AGENTS).as_posix() not in shipped:
             continue
         name = path.parent.name
         if name in found:

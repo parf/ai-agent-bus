@@ -2,7 +2,7 @@
 
 📌 **TL;DR:**
 - **Problem:** a table of orders, tickets or customers changes all day, and the agents that should react to it (an index, an AI, a chat alert) never hear about it.
-- **Outcome:** `#dbsync/<name>` watches one table through a [DB agent](../../docs/agents/db.md#what-it-does), tells each subscribed agent which rows were added or changed, and marks a row done only after that agent answers ok.
+- **Outcome:** `#dbsync/<name>` watches one table through a [DB agent](../../src/agents/db/guide.md#what-it-does), tells each subscribed agent which rows were added or changed, and marks a row done only after that agent answers ok.
 - **Start:** `agent-bus call '#dbsync/orders@node.example' 'sub add #rag@node.example'` ([how it is used](#how-it-is-used)).
 
 Plan only, for R1.1; nothing here is built. A separate agent, a sibling of [FileScan](filescan.md#why) (owner, 2026-11-02: "separate agent similar to filesync"). The open choices are [Q314–Q320](QUESTIONS.md#dbsync).
@@ -57,7 +57,7 @@ flowchart LR
 
 - One poll at a time: a lock file in the work directory is held for the poll, so a timer poll and a poll asked for by hand never overlap.
 - A row is *pending* for a subscriber until that subscriber's reply says ok; then it is *tracked*. A failed or unanswered send stays pending and goes out again on the next tick ([Q310](QUESTIONS.md#filescan) applies the same way).
-- The only thing DBSync asks the database for is one `query` of the [DB agent](../../docs/agents/db.md#what-it-does), a read; the only place it writes is its own work directory.
+- The only thing DBSync asks the database for is one `query` of the [DB agent](../../src/agents/db/guide.md#what-it-does), a read; the only place it writes is its own work directory.
 
 ## Shared with FileScan, and different
 
@@ -136,7 +136,7 @@ This is [FileScan's model](filescan.md#who-may-use-it) and the [shared subscript
 
 ## What the DB agent offers, and what DBSync does not assume
 
-DBSync relies only on what [`#db`](../../docs/agents/db.md#what-it-does) does today and invents no call format.
+DBSync relies only on what [`#db`](../../src/agents/db/guide.md#what-it-does) does today and invents no call format.
 
 - One `query` statement per call, with **no bind parameters**: the statement is text, so DBSync builds it from validated settings and numeric or timestamp cursor values only ([Q318](QUESTIONS.md#dbsync)). Table and column names must match a plain identifier pattern or the configuration is refused.
 - Results are cut at `max_rows` (1 to 10000, default 1000) with a notice, which DBSync reads as "more to fetch".

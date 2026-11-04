@@ -2,27 +2,27 @@
 
 Moved from R1 to R1.1 on 2026-10-30 (owner: "move discord to 1.1"). The code stays on main; the R1 bundle and archives leave it out.
 
-📌 **TL;DR:** The Discord helper implements the approved methods and Configuration with an outbound gateway and the shared subscriptions engine. Its current contract is in the [agent guide](../../docs/agents/discord.md#discord). All acceptance runs use fake Discord endpoints; the owner's application/server choice remains Q244.
+📌 **TL;DR:** The Discord helper implements the approved methods and Configuration with an outbound gateway and the shared subscriptions engine. Its current contract is in the [agent guide](discord-user-guide.md#discord). All acceptance runs use fake Discord endpoints; the owner's application/server choice remains Q244.
 
 ## What you get
 
-The [current methods](../../docs/agents/discord.md#technical-details) post and read, react, edit the bot's text, delete messages, start threads, route replies and forward subscriptions. The record's Secret holds the bot token.
+The [current methods](discord-user-guide.md#technical-details) post and read, react, edit the bot's text, delete messages, start threads, route replies and forward subscriptions. The record's Secret holds the bot token.
 
 ## One way to start (once approved)
 
-See [installation](../../docs/agents/discord.md#installing-it). A live deployment still needs the owner to create and own the application and choose its server; no live Discord call or sign-up was made by this task.
+See [installation](discord-user-guide.md#installing-it). A live deployment still needs the owner to create and own the application and choose its server; no live Discord call or sign-up was made by this task.
 
 ## Proposed methods (for approval)
 
-Approved by the owner, 2026-10-30; implemented in `src/agents/discord/agent.json`. The [owning guide](../../docs/agents/discord.md#technical-details) has their current behaviour. Discord permits editing text only by its author; manage-messages permission permits deleting another person's message, not editing its text ([Discord](https://docs.discord.com/developers/resources/message#edit-message)).
+Approved by the owner, 2026-10-30; implemented in `src/agents/discord/agent.json`. The [owning guide](discord-user-guide.md#technical-details) has their current behaviour. Discord permits editing text only by its author; manage-messages permission permits deleting another person's message, not editing its text ([Discord](https://docs.discord.com/developers/resources/message#edit-message)).
 
 ## Proposed Configuration keys (for approval)
 
-Approved by the owner, 2026-10-30; see [Configuration](../../docs/agents/discord.md#configuration) and [Secret keys](../../docs/agents/discord.md#secret-keys). The director confirmed the channel alias shape as within that approval: missing alias ids and duplicate resolved ids are refused at load, with both duplicate keys named.
+Approved by the owner, 2026-10-30; see [Configuration](discord-user-guide.md#configuration) and [Secret keys](discord-user-guide.md#secret-keys). The director confirmed the channel alias shape as within that approval: missing alias ids and duplicate resolved ids are refused at load, with both duplicate keys named.
 
 ## How it receives
 
-See [connection details](../../docs/agents/discord.md#technical-details). This implements the gateway choice; no incoming HTTP endpoint is exposed.
+See [connection details](discord-user-guide.md#technical-details). This implements the gateway choice; no incoming HTTP endpoint is exposed.
 
 ## Provider facts that matter
 

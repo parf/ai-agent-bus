@@ -1,9 +1,11 @@
-# Database: let your AI run SQL without the password
+# Database proxy: source-package guide
 
 📌 **TL;DR:**
 - **Problem:** your AI or a teammate needs numbers from a database that lives elsewhere, and sharing the password gives away everything that account can do, forever.
 - **Outcome:** they ask SQL questions through a door to one database account; the password stays on the server and the database itself decides what each caller may do.
 - **Start:** ask what the helper can do: `agent-bus help '#mysql/billing-ro@node.example'` ([Try this first](#try-this-first)).
+
+This guide is for the source-only database proxy; it is not included in the installed agent bundle.
 
 ## Why you'd want it
 
@@ -20,7 +22,7 @@
 - ✅ **Safe exploration:** a read-only agent; any write is refused by the database.
 - ✅ **Capped results:** long results are cut at `max_rows` and the answer says so.
 - ✅ **Best practice:** one agent per real database account, such as `#mysql/billing-ro` (read only) and `#mysql/billing-rw` (read and write); who may read or write is set by [roles](#who-may-use-it).
-- 🚫 **Not for:** bulk export or big data moves (results are capped), long transactions over several calls (one statement per call). For a shared notebook with keyword search, use [RAG](rag.md#what-it-does).
+- 🚫 **Not for:** bulk export or big data moves (results are capped), long transactions over several calls (one statement per call). For a shared notebook with keyword search, use [RAG](../../../docs/agents/rag.md#what-it-does).
 
 ## You'll need
 
@@ -63,7 +65,7 @@ agent-bus help '#mysql/billing-ro@node.example'
 
 - Build with `src/agents/db/package.sh <agent.d/db>`.
 - It installs the pinned `pymysql` (MIT) and `psycopg` 3 (LGPL-3.0-only, [psycopg.org](https://psycopg.org)) wheels of `requirements.txt`, hash-checked, into `support/lib`, with their licenses and a `NOTICE`; the host's own Python packages are never read. Packaging needs pip and the package index, or a directory of those wheels in `AB_DB_WHEELS`. Replace either driver by installing another build there.
-- Enable it in the [runner inventory](../runner/configuration.md#inventory); one instance serves one database.
+- Enable it in the [runner inventory](../../../docs/runner/configuration.md#inventory); one instance serves one database.
 
 </details>
 
@@ -87,7 +89,7 @@ agent-bus help '#mysql/billing-ro@node.example'
 
 ## Secret keys
 
-- **Database logins live only** in the private host `db/env` file ([environment files](../runner/configuration.md#environment-files)), never in Configuration or a call.
+- **Database logins live only** in the private host `db/env` file ([environment files](../../../docs/runner/configuration.md#environment-files)), never in Configuration or a call.
 
 <details>
 <summary>Keys</summary>
@@ -103,8 +105,8 @@ agent-bus help '#mysql/billing-ro@node.example'
 
 - **Preferred: one agent per real SQL user.** Create database accounts with the rights you want and run one agent per account, named for it; the access list says who may call each, the database enforces what each may do.
 - **Fallback: roles on one agent,** only when you cannot create normal SQL users with correct permissions; give `read` its own read-only account (`DB_READ_*`) if you can.
-- **No role means read only:** the opposite of [`#qdrant`](qdrant.md#who-may-use-it), where no role means write.
-- **The highest role held picks the tier** ([roles](../03-records-agent.md#roles)):
+- **No role means read only:** the opposite of [`#qdrant`](../../../docs/agents/qdrant.md#who-may-use-it), where no role means write.
+- **The highest role held picks the tier** ([roles](../../../docs/03-records-agent.md#roles)):
 
 | Role on the message | Tier | May run |
 |---|---|---|
@@ -129,7 +131,7 @@ agent-bus help '#mysql/billing-ro@node.example'
 
 ## Warnings and alerts
 
-Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#db` reports these.
+Besides the [entries every runner agent gets](../../../docs/agents/README.md#warnings-and-alerts), `#db` reports these.
 
 | Level | When | What to do |
 |---|---|---|

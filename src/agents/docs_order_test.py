@@ -42,9 +42,9 @@ ENFORCED = ['docs/runner/%s.md' % name for name in (
     '00-overview', '01-identity-and-authority', '02-access', '02-access-remote', '03-records', '03-records-agent',
     '03-records-channel', '03-records-kv', '03-records-resource', '03-records-service', '04-messaging', '05-discovery')] + [
     'docs/agents/%s.md' % name for name in (
-    'ai', 'db', 'fetch', 'git', 'git-autopull', 'qdrant', 'rag', 'server-info', 'systemd', 'voyage',
+    'ai', 'fetch', 'git', 'git-autopull', 'qdrant', 'rag', 'server-info', 'systemd', 'voyage',
     'README', 'at', 'bus', 'sms', 'smtp', 'tmux-sessions', 'webhook',
-    'discord', 'cron', 'debug', 'eventlog', 'imap', 'logwatch', 'slack', 'subscriptions', 'telegram')]
+    'cron', 'debug', 'eventlog', 'imap', 'logwatch', 'slack', 'subscriptions', 'telegram')]
 
 ENFORCED += ['docs/%s.md' % name for name in ('06-dedicated-runner', '06-launchers', '08-processes', '09-daemon-api')]
 
