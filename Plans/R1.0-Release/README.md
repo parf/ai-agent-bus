@@ -24,7 +24,7 @@ the tools stage is [R1.2](../R1.2/README.md#scope).
 | Record tags | [Classification and filtering](tags.md#classification-and-filtering) |
 | Agents for the runner | [What R1 adds](agents.md#what-moved-and-what-r1-adds); the shared shape stays in the [catalogue](../R1.2/services.md#rules-they-all-obey) |
 | RAG service | [RAG](rag/README.md#rag-service), built from agents as blocks; steps in [its TODO](rag/TODO.md#steps) |
-| Record-defined roles | [Roles](roles.md#record-defined-roles) |
+| Record-defined roles | [Roles](../../docs/03-records-agent.md#roles) |
 | Daemon configuration | [RT22 approved plan](daemon-configuration.md#approved-plan) |
 | Method metadata | [Method metadata](done/method-metadata.md#method-metadata) |
 | Good-agent checklist | [Three ways to run the same agent](agent-guide.md#3-ways-to-run-agents), then the minimum, suggested and optional checklist |

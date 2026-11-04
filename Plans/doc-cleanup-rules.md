@@ -196,3 +196,10 @@ Static link and whitespace checks pass for this batch. No runtime builds, instal
 | Agent correctness pass | Applied / checked | Remaining |
 |---|---|---|
 | SMS, logwatch, cron, at, fetch, RAG, debug, systemd, tmux-sessions and git guides | Correct access defaults, stale folding behavior, one-attempt delivery wording, usable RAG search, actual allowlist shape and installed-user checks. Simplify SMS settings; remove irrelevant historical commit output. | Full semantic dedup and remaining provenance removal continue. |
+
+## Remove thin planning layers
+
+A completed plan page that only redirects to current contracts does not need a separate topic file. Retarget its incoming links to the owning contract or completion evidence, preserve any unique current rule there, and remove the empty planning layer. Keep historical decisions and evidence in their existing historical homes.
+
+- Applied to `Plans/R1.0-Release/roles.md`: its syntax, assigned/generated roles, propagation and script usage already live in `docs/03-records-agent.md#roles`; completion evidence remains in R1 DONE and `done/assigned-roles.md`.
+- Applied to `Plans/R1.0-Release/modules.md`: architecture links go to `src/MODULES.md`; shared executable protocol cases are described in `src/clients/README.md#protocol-conformance`. The existing R1.1 architecture plan retains its future boundaries.

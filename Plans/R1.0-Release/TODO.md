@@ -29,21 +29,21 @@ the 0.8 line; R1 releases as 1.0.0 ([decision](DECISIONS.md#recorded-decisions))
 - ✅ RT3 [Key-value store](done/kv.md#per-record-storage)
   - State: built in 0.8.77
 
-- ✅ RT4 [Roles reach Agents](roles.md#roles-are-for-agents): transport, generated `owner` and `maintainer`, supported list
+- ✅ RT4 [Roles reach Agents](../../docs/03-records-agent.md#roles): transport, generated `owner` and `maintainer`, supported list
   - State: built in 0.8.97–0.8.99
 
 - ✅ RT5 [Client libraries](done/client-libraries.md#scope): Python, TypeScript, Go, Rust, Java and PHP, with native examples
   - State: built in 0.8.100
   - Evidence: Built in 0.8.100, all six with examples and slow-gate checks; conformance-first protocol specification is settled as [№RD90](DECISIONS.md#recorded-decisions), implementation in №RT8
 
-- ✅ RT6 [Assigned roles](roles.md#role-syntax) in allow lists
+- ✅ RT6 [Assigned roles](../../docs/03-records-agent.md#roles) in allow lists
   - State: built in 0.8.110; [checks](done/assigned-roles.md#verification)
 
 - ✅ RT7 [Record tags](tags.md#classification-and-filtering)
   - State: built 0.8.143; [verification](done/record-tags.md#verification); multiple-tag matching is built ([№RTA1](#record-tags-acceptance))
 
 - ✅ RT8 A shared executable protocol conformance suite for the clients ([result](DONE.md#rt8-shared-client-conformance))
-  - Home: [protocol conformance](modules.md#protocol-conformance), [№RD90](DECISIONS.md#recorded-decisions)
+  - Home: [protocol conformance](../../src/clients/README.md#protocol-conformance), [№RD90](DECISIONS.md#recorded-decisions)
 
 - ✅ RT9 [Agent method metadata](done/method-metadata.md#method-metadata)
   - Format: settled with the owner on 2026-10-19 ([settled so far](done/method-metadata.md#settled-so-far)): typed fields in `agent.json`, commented `env.dist`, and the `help`, `help-config`, `help-secret` and `help-json` asks; MCP generation is [R1.2](../R1.2/TODO.md#dependencies)
@@ -135,7 +135,7 @@ no longer block this release.
 Repeated work has one editable item under Objective, with its dependency
 cells retained there. Distinctly named work keeps its own item here:
 
-- ✅ RT16 [Record-defined roles](roles.md#record-defined-roles) — no code of its own: the existing allow list and nested membership already do it (contract `2727d193`)
+- ✅ RT16 [Record-defined roles](../../docs/03-records-agent.md#roles) — no code of its own: the existing allow list and nested membership already do it (contract `2727d193`)
   - Evidence: Built using the existing allow list and nested membership; [current contract](../../docs/03-records-agent.md#roles)
 
 - [№RT15](#objective) — Federation moved to [R1.2](../R1.2/TODO.md#federation)

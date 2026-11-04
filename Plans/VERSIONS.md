@@ -29,12 +29,12 @@ The trust boundary: the daemon can read message bodies and stored configuration 
 
 | Major change from MVP | Result | Owning design |
 |---|---|---|
-| Record-defined roles | Built: a record states what its caller may do, and the daemon resolves but never interprets it | [Roles](R1.0-Release/roles.md#record-defined-roles) |
+| Record-defined roles | Built: a record states what its caller may do, and the daemon resolves but never interprets it | [Roles](../docs/03-records-agent.md#roles) |
 | **Managed agent lifecycle** | Built (runner waves M.1–M.11): agents become installed deployments with startup and restart behavior; kept children can retain state between messages | [Runner](R1.0-Release/runner-implementation.md#what-the-runner-does), [long-lived agents](R1.0-Release/runner-implementation.md#long-lived-agents) |
 | Distributed work and coordination | Pending: workers serving a shared name across hosts; built: shared locks coordinate work through the bus | [Pools](R1.0-Release/runner-implementation.md#one-name-on-many-hosts), [locks](R1.0-Release/done/locks.md#shared-locks) |
 | Deployment recovery | Pending: a user can recover deployment configuration from an encrypted backup without giving the daemon recovery authority | [Backup contract](R1.1/backups.md#backing-it-up) |
 | Installable distributions | Pending: published artifacts make installation and container startup possible without building from source | [Release artifacts](R1.0-Release/distribution.md#release-artifacts) |
-| Broader clients | Built: client libraries in six languages, sharing one protocol contract | [Clients](R1.0-Release/modules.md#modules) |
+| Broader clients | Built: client libraries in six languages, sharing one protocol contract | [Clients](../src/clients/README.md#what-you-get) |
 | Resource records | Built: an MCP Resource becomes a registry record kind the bus connects to rather than stores | [Resource records](R1.0-Release/done/resources.md#resource-records) |
 | Shared state | Built: per-record key-value storage and shared locks coordinate work through the bus | [Key-value store](R1.0-Release/done/kv.md#per-record-storage), [shared locks](R1.0-Release/done/locks.md#shared-locks) |
 

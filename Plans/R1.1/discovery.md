@@ -60,7 +60,7 @@ Four related proposals, which stand or fall largely together:
 | does one port weaken the split? | the separation is not only cosmetic: the web child is the least-trusted process and holds no credential ([process boundary](../../docs/08-processes.md#the-rule)). Sharing a listener must not share authority, and the API must not become reachable by anything that can reach the homepage |
 | what does a homepage publish? | it is a **public** page, so its contents are the same kind of decision as [what a node says about itself](../../docs/05-discovery.md#what-a-node-says-about-itself) — a closed list the owner sets, not whatever is convenient |
 | what starts the admin, and as whom? | on-demand start is a supervision question before it is a performance one. Who starts it, under which account, what happens to a request that arrives while it is starting, and what stops it |
-| Bun, for a process that faces the network | the dashboard rule today is [no JavaScript, no CDN, no external asset](../../docs/05-discovery.md#rules-it-is-built-to), and the Go child was chosen partly so the exposed surface stays small. A Bun admin is a different dependency and a different attack surface, and [module boundaries](../R1.0-Release/modules.md#modules) owns that call |
+| Bun, for a process that faces the network | the dashboard rule today is [no JavaScript, no CDN, no external asset](../../docs/05-discovery.md#rules-it-is-built-to), and the Go child was chosen partly so the exposed surface stays small. A Bun admin is a different dependency and a different attack surface, and [module boundaries](../../src/MODULES.md#modules) owns that call |
 | what happens to the built dashboard? | the MVP dashboard is built and its redesign is mid-flight. This proposal would replace its host process, so the two need sequencing rather than racing |
 
 ## Dashboard extensions
@@ -71,7 +71,7 @@ These additions do not remove its built diagnostic views.
 
 | View | Stage | Dependency |
 |---|---|---|
-| **advanced groups** — delegated administration | R1.1 | [roles](../R1.0-Release/roles.md#record-defined-roles); basic group and maintainer administration is [MVP](../../docs/01-identity-and-authority.md#groups); group expressions are [R1.3](../R1.3/composed-groups.md#group-expressions) |
+| **advanced groups** — delegated administration | R1.1 | [roles](../../docs/03-records-agent.md#roles); basic group and maintainer administration is [MVP](../../docs/01-identity-and-authority.md#groups); group expressions are [R1.3](../R1.3/composed-groups.md#group-expressions) |
 | **health** — up, down, and how long since the last probe | R1.1 | the health child ([health checker](#health-checker)) |
 | **advanced activity** — longer history, latency distributions, comparisons and export | R1.1 | [stats](#stats) and [exports](#exports); basic activity graphs are [MVP](../../docs/05-discovery.md#required-tabs) |
 | **runner** — what a `#runner/<instance>@<host>` manages: every agent it knows, which are enabled and which are up ([runner § what an instance is](../R1.0-Release/runner-implementation.md#what-an-instance-is)), with the verbs on each, and a form that installs a new instance | R1.1 | nothing new — the runner is a service and answers like one ([runner § reaching the runner](../R1.0-Release/runner-implementation.md#reaching-the-runner)). Every control **posts as the person** ([rules it is built to](../../docs/05-discovery.md#rules-it-is-built-to)), so the page drives a runner it has no authority over |

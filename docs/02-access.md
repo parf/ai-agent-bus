@@ -50,7 +50,7 @@ Reaching the bus from another host — HTTP, HTTPS, a forwarded socket — is [r
 ## Scope
 
 - Tokens, key-possession enrolment, account sockets, rotation, browser sessions, ACLs and nested groups are built, as are TCP on any address and optional TLS with fingerprint pinning ([remote access](02-access-remote.md#choosing-a-way)).
-- Record-defined roles and group expressions are [R1 work](../Plans/R1.0-Release/roles.md#record-defined-roles).
+- [Application roles](03-records-agent.md#roles) let an agent distinguish admitted callers without granting bus management authority.
 - Startup revocation is [best effort](#ownerless-credentials).
 - The [Owner-and-Maintainers empty ACL rule](#acl) applies to new and restored records.
 

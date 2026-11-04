@@ -162,7 +162,7 @@ built in 0.7.12 ([messaging § Deliver-To](../../docs/04-messaging.md#deliver-to
 | Chains | a forward may forward again, up to ten hops; a cycle ends with an error |
 | The queue that holds it | the destination's bound, TTL and overflow apply |
 | Publications | a 📣 copy to a managed agent follows that agent's `deliver_to` one step on, so agents on a Deliver-To list need no inbox of their own either |
-| Roles | worked out once, at the addressed record, and carried through unchanged; they cross to the runner only if the agent's Owner owns or maintains the runner, otherwise the forward fails loudly ([roles](roles.md#roles-are-for-agents)) |
+| Roles | worked out once, at the addressed record, and carried through unchanged; they cross to the runner only if the agent's Owner owns or maintains the runner, otherwise the forward fails loudly ([roles](../../docs/03-records-agent.md#roles)) |
 
 It is the **dual of a pool**, and the two are worth reading together:
 

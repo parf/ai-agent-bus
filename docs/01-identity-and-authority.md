@@ -253,8 +253,7 @@ Record management requires the [resource assignment](#record-authority).
 
 - A record has one Owner, explicitly assigned Maintainers and Members with access.
 - Owners control their resources without requiring Administrator status.
-- The following model is built.
-- **Record-defined roles** are [R1 work](../Plans/R1.0-Release/roles.md#record-defined-roles).
+- [Application roles](03-records-agent.md#roles) describe what an admitted caller may do inside an agent; they grant no bus management authority.
 - Maintainers is a list of named users, groups and records.
 - Only the record's Owner or daemon Owner replaces it; group entries use ordinary nested membership.
 - Human editors use one plain term per line, as ACL editors do.
@@ -362,8 +361,7 @@ own Agent. Its contract, operations and suggested patterns have their own page:
   user/group administration.
 * Membership nests. Stored group lists show direct entries;
   user views report effective membership. ACL and Maintainer checks use the
-  same reachability rule. Record-defined roles and the proposed expression
-  syntax are [R1 work](../Plans/R1.0-Release/roles.md#record-defined-roles).
+  same reachability rule. [Application roles](03-records-agent.md#roles) use the same live membership.
 * `@administrators` accepts direct user identities only; the Owner remains a
   direct member. Stored state that nests a group there is refused at startup.
   An ordinary group may name `@administrators`: its direct members then receive

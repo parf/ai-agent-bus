@@ -9,7 +9,7 @@ Status: target design, not current package layout. The [built layers](../../src/
 | Sessions | Core session logic for handshake, derivation and key confirmation; [crypto](access.md#encrypted-sessions) owns its contract |
 | AUTH distribution | VCS port and git adapter; [AUTH](auth.md#topology) owns distribution |
 
-What a boundary buys is with [R1's module boundaries](../R1.0-Release/modules.md#what-this-buys).
+What a boundary buys is with [R1's module boundaries](../../src/MODULES.md#the-rule).
 
 ## The hot path
 

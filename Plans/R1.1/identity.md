@@ -5,7 +5,7 @@ Status: proposed, not built. Open choices are in [questions](QUESTIONS.md#open-q
 ## Groups and roles
 
 Record-defined roles stayed with the release's own scope: see
-[roles](../R1.0-Release/roles.md#record-defined-roles). Nested membership itself is
+[roles](../../docs/03-records-agent.md#roles). Nested membership itself is
 [built](../../docs/01-identity-and-authority.md#groups).
 
 ## Sigils
@@ -16,7 +16,7 @@ themselves are current 0.7 scope, owned by
 [actor terms](../../docs/constitution.md#actors-and-ascii-textarea-syntax):
 `parf` a User, `#batcher@srv1` an Agent, `@dev` a Group, `*` every active User
 and Agent, and the reserved `@owner` and `@agent`. R1 adds only the role part
-([roles § role syntax](../R1.0-Release/roles.md#role-syntax)).
+([roles § role syntax](../../docs/03-records-agent.md#roles)).
 
 | | |
 |---|---|

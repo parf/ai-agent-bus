@@ -125,7 +125,7 @@ is in [TODO](TODO.md).
   - Result: all accepted host-fact sections, with a shared standalone systemd starter for №B.2; fixed section calls in text and JSON, root-only sections absent when unprivileged
   - Evidence: `agent_server_info` under `--slow`: real host interfaces, argument refusal, install idempotence, restart and removal after graceful stop or crash; sandbox and argument-forwarding mutants
 
-- ✅ RR1 [Assigned roles](roles.md#role-syntax)
+- ✅ RR1 [Assigned roles](../../docs/03-records-agent.md#roles)
   - Result: Built in 0.8.110; [current contract](../../docs/03-records-agent.md#roles)
   - Evidence: [verification](done/assigned-roles.md#verification)
 
@@ -133,7 +133,7 @@ is in [TODO](TODO.md).
   - Result: Built in 0.8.100, 2026-10-01: Python, TypeScript, Go, Rust, Java and PHP clients, MIT, each reviewed by another author, with [native examples](../../src/clients/examples/README.md) that call each other
   - Evidence: each client's suite and compiling mutants through the `--slow` client shards; 929/0 at 0.8.101
 
-- ✅ RR3 [Roles are for Agents](roles.md#roles-are-for-agents)
+- ✅ RR3 [Roles are for Agents](../../docs/03-records-agent.md#roles)
   - Result: Built in 0.8.97–0.8.99, 2026-09-30: a delivered message carries the generated `owner` and `maintainer` roles, worked out at `original_to` and passed through forwards; a script gets them as `AB_ROLE_*`; a role crossing to a record its source's Owner does not answer for fails loudly; an Agent lists the roles it understands. Assigned roles are now built ([contract](../../docs/03-records-agent.md#roles))
   - Evidence: `core` roles_test.go, `agent-bus` TestAChildHoldsOnlyTheRolesItWasHanded under sh and dash, smoke script_done and script_confined roles checks; reviewed by ag-bus and Codex
 

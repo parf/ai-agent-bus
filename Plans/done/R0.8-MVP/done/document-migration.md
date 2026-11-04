@@ -48,9 +48,9 @@
 | `docs/07-setup.md#storage` | [owner](../../../R2.0-Future/storage.md#storage) |
 | `docs/06-dedicated-runner.md#in-process-queue` | [owner](../../../R2.0-Future/local-queues.md#in-process-queue) |
 | `docs/05-discovery.md#debug-mode` | [owner](../../../R2.0-Future/debug.md#debug-mode) |
-| `src/MODULES.md#modules` | [owner](../../../R1.0-Release/modules.md#modules) |
+| `src/MODULES.md#modules` | [owner](../../../../src/MODULES.md#modules) |
 | `src/MODULES.md#the-hot-path` | [owner](../../../R1.1/modules.md#the-hot-path) |
-| `src/MODULES.md#what-this-buys` | [owner](../../../R1.0-Release/modules.md#what-this-buys) |
+| `src/MODULES.md#what-this-buys` | [owner](../../../../src/MODULES.md#the-rule) |
 | `docs/12-stages.md#poc` | owner (PoC plan, removed 2026-09-18) |
 | `docs/12-stages.md#r1` | [owner](../../../R1.0-Release/README.md#scope) |
 | `docs/12-stages.md#r11` | [owner](../../../R1.1/README.md#scope) |
@@ -239,7 +239,7 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D175 | owner (PoC plan, removed 2026-09-18) |
 | D176 | [owner](../../../../docs/04-messaging.md#push-and-pull) |
 | D177 | [owner](../../../../docs/06-launchers.md#adapters) |
-| D178 | [owner](../../../R1.0-Release/modules.md#modules) |
+| D178 | [owner](../../../../src/MODULES.md#modules) |
 | D179 | [owner](../../../../src/MODULES.md#languages) |
 | D180 | [owner](../../../../src/MODULES.md#external-tools) |
 | D181 | [owner](../../../../src/MODULES.md#external-tools) |

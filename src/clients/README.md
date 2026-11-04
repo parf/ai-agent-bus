@@ -47,6 +47,12 @@ src/clients/examples/run.sh codestats
 - Lock helpers have no fencing token.
 - Cached private copies outlive server revocation; refresh invalidates the client's cache.
 
+### Protocol conformance
+
+- [Shared executable request/answer cases](../testdata/client-conformance/README.md) specify the supported protocol.
+- All six libraries run the common cases while keeping native types and execution models; library-specific capabilities are in the [capability matrix](../../docs/09-daemon-api.md#client-capability-matrix).
+- Cases define observable behavior, not one library API or a generated wire schema.
+
 ### A send's wait
 
 - A send's `wait` states how long the sender will wait for an answer; the daemon turns it into the message's deadline and refuses a zero one.

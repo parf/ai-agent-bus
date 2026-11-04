@@ -402,23 +402,23 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 
 - ✅ RD8 Record-defined roles are R1's first topic (№Q98)
   - Earlier rows: 2026-09-22 owner decision; moved out of MVP; [№D249](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
-  - Home: [roles](roles.md#record-defined-roles)
+  - Home: [roles](../../docs/03-records-agent.md#roles)
 
 - ✅ RD9 R1's roles ship as flat terms; composing groups with `& | !` moved to R1.3 (№Q138)
   - Earlier rows: 2026-09-30 owner decision
-  - Home: [roles](roles.md#record-defined-roles), [composed groups](../R1.3/composed-groups.md#group-expressions)
+  - Home: [roles](../../docs/03-records-agent.md#roles), [composed groups](../R1.3/composed-groups.md#group-expressions)
 
 - ✅ RD10 Roles for Agents, generated roles and delivery
   - Earlier rows: 2026-09-30 owner decisions; naming revised 2026-10-16
-  - Home: [roles are for Agents](roles.md#roles-are-for-agents)
+  - Home: [roles are for Agents](../../docs/03-records-agent.md#roles)
 
 - ✅ RD11 Opaque application roles with the existing shell-safe naming alphabet
   - Earlier rows: 2026-10-16 owner clarification; resolves №Q148
-  - Home: [roles are for Agents](roles.md#roles-are-for-agents)
+  - Home: [roles are for Agents](../../docs/03-records-agent.md#roles)
 
 - ✅ RD12 Generated role names cannot be assigned in ACLs; reject the save
   - Earlier rows: 2026-10-16 owner confirmation; resolves №Q149
-  - Home: [roles are for Agents](roles.md#roles-are-for-agents)
+  - Home: [roles are for Agents](../../docs/03-records-agent.md#roles)
 
 - ✅ RD13 Locks are held in memory and never stored
   - Earlier rows: 2026-09-22 owner decision; built in 0.8.66; [№D64](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D65](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D66](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite). Sets of interchangeable locks moved to [R2.0](../R2.0-Future/lock-sets.md#a-set-of-locks) on 2026-09-30
@@ -454,7 +454,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 
 - ✅ RD22 Modules
   - Earlier rows: [№D178](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
-  - Home: [definition](modules.md#modules)
+  - Home: [definition](../../src/MODULES.md#modules)
 
 - ✅ RD23 Blocking lazy private-value properties in the Python client
   - Earlier rows: Owner accepts blocking reads; other execution choices remain open
@@ -792,7 +792,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 - ✅ RD90 Shared executable conformance cases specify the protocol supported by client libraries (№Q17)
   - Why: owner agreed to the recommended conformance-first specification; no new wire schema
   - Date: 2026-10-17
-  - Home: [protocol conformance](modules.md#protocol-conformance)
+  - Home: [protocol conformance](../../src/clients/README.md#protocol-conformance)
   - Question: How `protocol` is specified across client languages
   - (x) A conformance suite as the specification — one shared fixture of request and answer pairs every client must reproduce 🌟
   - 🚫 A prose contract in `docs/`, one section per call ⭐ — owner selected the recommended alternative
@@ -817,7 +817,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
   >
   > 💬 👤parf agree
   >
-  > 💬👾 Recorded as №RD90; the accepted substance is in [protocol conformance](modules.md#protocol-conformance).
+  > 💬👾 Recorded as №RD90; the accepted substance is in [protocol conformance](../../src/clients/README.md#protocol-conformance).
 
 - ✅ RD91 Federation moves from R1 to R1.2 (№Q137)
   - Why: owner moved the topic; R1 no longer carries chaining or its later-stage prerequisites
@@ -898,10 +898,10 @@ Unresolved choices live in [questions](QUESTIONS.md#open-questions).
   - Replaced by: [the bus's env-file syntax](../../docs/03-records-service.md#env-file-syntax) (RD88, №Q171), 2026-10-17
 
 - 🚫 RD67 Wider role alphabet proposed earlier on 2026-10-16
-  - Replaced by: [Existing shell-safe naming alphabet](roles.md#roles-are-for-agents), owner clarification on the same day
+  - Replaced by: [Existing shell-safe naming alphabet](../../docs/03-records-agent.md#roles), owner clarification on the same day
 
 - 🚫 RD68 The implementation's role-specific length cap
-  - Replaced by: [Revised naming policy](roles.md#roles-are-for-agents), 2026-10-16
+  - Replaced by: [Revised naming policy](../../docs/03-records-agent.md#roles), 2026-10-16
 
 - 🚫 RD69 A Resource is an Agent in disguise, and the bus switches the read (№Q112, 2026-09-23)
   - Replaced by: [Resource records](done/resources.md#resource-records): a card; its source, an Agent or an MCP Service, answers, 2026-09-30
