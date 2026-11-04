@@ -21,10 +21,10 @@ subscription matching. Own-post detection (bot user, bot id or app id plus
 Posted) precedes both, including API/Socket races. Routing retry exhaustion
 never skips subscription matching.
 
-## Compatibility
+## Credentials and post appearance
 
-`postas.ts` retains runner-env defaults and legacy Secret defaults for
-SLACK_USERNAME/SLACK_ICON; these are not routing Configuration keys.
+`postas.ts` uses call overrides and runner environment defaults for
+SLACK_USERNAME/SLACK_ICON. Secret accepts only provider token and endpoint keys.
 Token and workspace contexts stay per call; API errors are scrubbed before
 answers or logs. Counter persistence remains batched independently of routing.
 

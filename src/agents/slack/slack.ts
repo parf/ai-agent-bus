@@ -15,7 +15,7 @@ import { SubscriptionError } from "../shared/subscriptions.ts";
 import { createHash } from "node:crypto";
 import { hostname } from "node:os";
 import { Bus, type Message } from "../../clients/typescript/src/index.js";
-import { parseEnvFile } from "../shared/envfile.js";
+import { slackSecret } from "./secrets.js";
 import { DeadlinePassed, endpoint, httpStatusOf, scrub, slackWeb } from "./slackapi.js";
 import { parseCall, type Call } from "./parse.js";
 import { BusError, KVNotFound } from "../../clients/typescript/src/index.js";
@@ -61,7 +61,7 @@ const ok = (text: string, fields: Record<string, unknown> = {}): Result => ({ ok
 // a changed secret reaches the next message without a restart.
 async function secrets(): Promise<Record<string, string>> {
   const secret = await bus.record(name).secret();
-  return parseEnvFile("the bus secret", secret.reveal());
+  return slackSecret(secret.reveal());
 }
 
 /** The call's context, or, as a string, the configuration it lacks. Only a
@@ -288,8 +288,8 @@ async function post(ctx: Ctx, call: Extract<Call, { method: "post" }>, message: 
   const tag = config.enabled ? await router.tag(message.from, config) : undefined;
   const params: Record<string, unknown> = { channel: where.id, text: tag ? `${call.text}\n\n#${tag}` : call.text };
   if (call.thread_ts !== undefined) params.thread_ts = call.thread_ts;
-  // Its name and icon: the call's, the configuration's, the secret's (postas.ts).
-  Object.assign(params, postAs(call, process.env, ctx.env, hostname()));
+  // Appearance comes from the call or the runner environment.
+  Object.assign(params, postAs(call, process.env, hostname()));
   posted.begin();
   let sent: any;
   try {

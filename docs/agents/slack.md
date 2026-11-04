@@ -169,7 +169,7 @@ agent-bus config '#slack@node.example' '{"users":{"U012AB3CDE4":"ann"},"route":"
 <summary>Technical details: <code>username</code>, <code>icon</code> and host defaults</summary>
 
 - A JSON post may set `username` and `icon` for that message.
-- Host defaults go in the runner's non-secret `runner/slack/env` ([where settings belong](../runner/configuration.md#where-settings-belong)), then reload:
+- Secret rejects appearance settings. Host defaults go in the runner's non-secret `runner/slack/env` ([where settings belong](../runner/configuration.md#where-settings-belong)), then reload:
 
 ```sh
 SLACK_USERNAME="agent-bus@{host}"
