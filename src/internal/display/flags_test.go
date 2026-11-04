@@ -1,25 +1,30 @@
 package display
 
 import (
-	"bytes"
 	"flag"
-	"strings"
+	"io"
 	"testing"
 )
 
-func TestLongOptionHelpKeepsShortOptionsAndLegacyParsing(t *testing.T) {
-	for _, spelling := range []string{"-owner=alice", "--owner=alice"} {
-		fs := flag.NewFlagSet("fixture", flag.ContinueOnError)
-		owner := fs.String("owner", "", "initial owner")
-		fs.Bool("h", false, "help")
-		var out bytes.Buffer
-		fs.SetOutput(&out)
-		PrintFlagDefaults(fs)
-		if !strings.Contains(out.String(), "  --owner string") || !strings.Contains(out.String(), "  -h\t") || strings.Contains(out.String(), "  -owner ") {
-			t.Fatalf("help: %s", &out)
-		}
-		if err := fs.Parse([]string{spelling}); err != nil || *owner != "alice" {
-			t.Fatalf("legacy parsing: %q %v", *owner, err)
+func TestParseFlagsRequiresCanonicalOptionSpelling(t *testing.T) {
+	for _, tc := range []struct {
+		args  []string
+		valid bool
+	}{
+		{[]string{"--name", "-opaque", "--count=-2", "--ready"}, true},
+		{[]string{"--name=value", "--", "-name"}, true},
+		{[]string{"--name", "value", "positional", "-name"}, true},
+		{[]string{"-name", "value"}, false},
+		{[]string{"-ready"}, false},
+		{[]string{"-h"}, false},
+	} {
+		fs := flag.NewFlagSet("test", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		fs.String("name", "", "")
+		fs.Int("count", 0, "")
+		fs.Bool("ready", false, "")
+		if err := ParseFlags(fs, tc.args); (err == nil) != tc.valid {
+			t.Errorf("%q: %v", tc.args, err)
 		}
 	}
 }
