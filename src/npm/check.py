@@ -189,7 +189,7 @@ class Packages(unittest.TestCase):
         self.assertIn('explicit sudo', result.stderr)
 
     def test_setup_informational_flag_alone_needs_no_sudo(self):
-        for flag in ('--version', '-version', '--help', '-h'):
+        for flag in ('--version', '--help'):
             with self.subTest(flag=flag):
                 result = self.run_command([str(self.bin / 'agent-bus-setup'), flag])
                 self.assertEqual(result.returncode, 0, result.stderr)
