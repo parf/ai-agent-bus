@@ -3,7 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** a bus that trusts a name sent in a message lets anyone pretend to be anyone, and sharing one password gives away everything.
 - **Outcome:** a call carries a credential, the bus checks that the caller is known, active and allowed, and access lists and groups decide what it may reach; a name sent beside a credential cannot change who is calling.
-- **Start:** ask whether you may send to a name, with nothing sent: `agent-bus may-send '#name'` ([Try this first](#try-this-first)). Ownership and management are in [Identity and authority](01-identity-and-authority.md#positions-and-scopes); reaching the bus from another host is [remote access](02-access-remote.md#choosing-a-way).
+- **Start:** check your current identity: `agent-bus status` ([Try this first](#try-this-first)). Ownership and management are in [Identity and authority](01-identity-and-authority.md#positions-and-scopes); reaching the bus from another host is [remote access](02-access-remote.md#choosing-a-way).
 
 ## Why you'd want it
 
@@ -22,23 +22,13 @@
 
 ## Try this first
 
-- Ask whether you may send to a name; nothing is queued (read-only):
+Check which identity your credential or local socket represents:
 
 ```sh
-agent-bus may-send '#ab-lead1'
+agent-bus status
 ```
 
-<details>
-<summary>See it on a real node (ran today)</summary>
-
-```json
-{"may_send":true}
-```
-
-- `true` means a send to that name would pass the access check now.
-- The output is from the development node on 2026-10-30.
-
-</details>
+Look at `you`. To check permission without sending a message, use `agent-bus may-send <name>` with an existing destination from `agent-bus ls --all`.
 
 For ownership and management, see [Identity and authority](01-identity-and-authority.md#positions-and-scopes).
 Reaching the bus from another host — HTTP, HTTPS, a forwarded socket — is [remote access](02-access-remote.md#choosing-a-way).

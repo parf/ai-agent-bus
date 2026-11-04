@@ -21,25 +21,11 @@
 
 ## Try this first
 
-- See the options (read-only):
+See the available options:
 
 ```sh
 agent-bus help run
 ```
-
-<details>
-<summary>See it on a real node (ran today)</summary>
-
-```text
-USAGE
-  agent-bus run <name> <script>
-  agent-bus run [-N] -
-```
-
-- The first lines of the answer; the rest explains each option.
-- The output is from the development node on 2026-10-30.
-
-</details>
 
 This page owns `agent-bus run`. [Session launchers](06-launchers.md) put a live
 AI session behind a name instead of a script.

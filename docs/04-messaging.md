@@ -3,7 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** a message sent to a program that is busy, restarting or gone is lost, and nobody knows whether the work was done.
 - **Outcome:** messages wait in bounded inboxes, and taking a message is not completing it: a reader takes a message, does the work, and answers it. The verbs, request and reply, inbox selection, one reader per inbox, message fields and TTL, receipts and reply routing are owned here.
-- **Start:** check an inbox and whether anything reads it: `agent-bus ls '#ab-w1b'` ([Try this first](#try-this-first)).
+- **Start:** inspect the agents visible to you: `agent-bus ls --kind=agent` ([Try this first](#try-this-first)).
 
 ## Why you'd want it
 
@@ -57,30 +57,13 @@
 
 ## Try this first
 
-- See an inbox's state and whether a reader is waiting (read-only):
+List the agents you can see:
 
 ```sh
-agent-bus ls '#ab-w1b' | jq -c 'if type=="array" then .[0] else . end | {name,overflow,reading,readers}'
+agent-bus ls --kind=agent
 ```
 
-<details>
-<summary>See it on a real node (ran today)</summary>
-
-```json
-{"name":"#ab-w1b","overflow":"strict","reading":true,"readers":1}
-```
-
-- `reading` is true while a reader waits on the inbox; `overflow` is the rule for a full inbox.
-- The output is from the development node on 2026-10-30.
-
-</details>
-
-A successful request and reply, using the caller's own return address.
-Each inbox belongs to a registered name; replies use the same topic and tag.
-Taking a message does not prove the work finished—see [receipts](#receipts).
-
-How principals on the bus talk. The bus delivers securely and says who sent it;
-everything else is the receiver's business.
+Each record's `readers` field counts waiting reads; `queued` counts messages waiting in its inbox. A record can exist while no process is reading it. See [receipts](#receipts) for pickup and completion.
 
 ## Inbox queues
 

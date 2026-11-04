@@ -3,7 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** a bus holds very different things (people, programs, queues, outside services, data cards) and mixing them up leads to messages sent nowhere.
 - **Outcome:** every registered name is one of seven kinds: 👤 `user`, 👥 `group`, 👾 `agent`, 📮 `queue`, 📣 `pubsub`, 📡 `service` and 📚 `resource`. Three have an inbox here (👤, 👾, 📮), a 📣 copies each message on, a group is a named list of actors, a service says where something external is, and a resource is a card for data an MCP client may read.
-- **Start:** count the kinds on your bus: `agent-bus status | jq .kinds` ([Try this first](#try-this-first)). `kind` is a closed set the daemon answers for, never inferred from which fields are filled in.
+- **Start:** see the record kinds on your bus: `agent-bus status` ([Try this first](#try-this-first)). `kind` is a closed set the daemon answers for, never inferred from which fields are filled in.
 
 ## Why you'd want it
 
@@ -20,23 +20,13 @@
 
 ## Try this first
 
-- Count the records by kind (read-only):
+Inspect the bus:
 
 ```sh
-agent-bus status | jq -c .kinds
+agent-bus status
 ```
 
-<details>
-<summary>See it on a real node (ran today)</summary>
-
-```json
-{"agent":114,"group":2,"pubsub":0,"queue":0,"resource":1,"service":1,"user":8}
-```
-
-- Each number is how many records of that kind the bus holds.
-- The output is from the development node on 2026-10-30.
-
-</details>
+The `kinds` object counts records by kind. Your counts depend on what has been registered.
 
 ## What a record is
 

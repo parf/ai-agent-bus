@@ -3,7 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** a script, a long-running program or an AI session needs a name of its own on the bus, with its own credential and inbox.
 - **Outcome:** a 👾 Agent is the bus's working entity: a name beginning with `#`, owned by a User, that acts under its own credential and reads its own inbox. Every other kind exists to route to one, describe something outside, or group actors.
-- **Start:** look at an agent's record: `agent-bus ls '#ab-w1b'` ([Try this first](#try-this-first)).
+- **Start:** list visible agents: `agent-bus ls --kind=agent` ([Try this first](#try-this-first)).
 
 ## Why you'd want it
 
@@ -20,23 +20,13 @@
 
 ## Try this first
 
-- Look at an agent's record (read-only):
+List the agents you may see:
 
 ```sh
-agent-bus ls '#ab-w1b' | jq -c 'if type=="array" then .[0] else . end | {name,kind,owner,status}'
+agent-bus ls --kind=agent
 ```
 
-<details>
-<summary>See it on a real node (ran today)</summary>
-
-```json
-{"name":"#ab-w1b","kind":"agent","owner":"parf","status":"active"}
-```
-
-- The record shows the name, its kind, its Owner and whether it is active.
-- The output is from the development node on 2026-10-30.
-
-</details>
+Choose a returned name to inspect with `agent-bus ls <name>`. The record shows its owner, access list and current state; listing it does not start it.
 
 ## What an Agent is
 

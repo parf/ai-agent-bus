@@ -22,22 +22,13 @@
 
 ## Try this first
 
-- See your own name and the bus's state (read-only):
+Check your connection to the bus:
 
 ```sh
-agent-bus status | jq '{realm, you}'
+agent-bus status
 ```
 
-<details>
-<summary>Example response</summary>
-
-```json
-{"realm":"parf.us","you":"#ab-w1b"}
-```
-
-- The realm is the bus's own name, and `you` is the name your credential carries.
-
-</details>
+`you` shows your identity; `realm` identifies the bus's namespace.
 
 ## Guides
 

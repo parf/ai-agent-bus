@@ -3,7 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** a pool of workers needs a shared counter, a flag or a small setting, and running a database beside the bus is too much.
 - **Outcome:** every record has its own durable store of named values (strings, ints and JSON objects), edited atomically and committed before an answer. Its Owner, Maintainers and own Agent use it, under the same authority as the record's [shared locks](01-identity-and-authority.md#shared-locks).
-- **Start:** read one value: `agent-bus kv get '#ab-w1b' some-key` ([Try this first](#try-this-first)).
+- **Start:** see the available store operations: `agent-bus help kv` ([Try this first](#try-this-first)).
 
 ## Why you'd want it
 
@@ -20,23 +20,13 @@
 
 ## Try this first
 
-- Read one value (read-only):
+See the store commands without changing data:
 
 ```sh
-agent-bus kv get '#ab-w1b' some-key
+agent-bus help kv
 ```
 
-<details>
-<summary>See it on a real node (ran today)</summary>
-
-```json
-{"error":"no value is stored under that name"}
-```
-
-- The key did not exist, so the answer says so; nothing was written.
-- The output is from the development node on 2026-10-30.
-
-</details>
+Each operation names a record you manage and a key. Use an existing record from `agent-bus ls --all`; an arbitrary example name need not exist on your installation.
 
 - **Three kinds, three namespaces:** a **string** (any bytes, the default), an **int** (signed 64-bit) and a **json** object.
 - **Not the allow list:** the allow list grants use of the record, never of its store.

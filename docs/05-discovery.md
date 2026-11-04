@@ -3,7 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** being registered and being callable are different facts, and a plain list of names cannot say which names you may reach or whether anything answers for them.
 - **Outcome:** you discover the records you may reach and inspect what the daemon actually knows: a listing says what a name is and whether anything answers for it. The CLI listings, the MCP minimum and the dashboard tabs are here; the web pages' contract is [its site map](../src/web/web-face/site-map.md#every-address).
-- **Start:** list what you can reach: `agent-bus ls --tag=<tag>` ([Try this first](#try-this-first)).
+- **Start:** list the records visible to you: `agent-bus ls --all` ([Try this first](#try-this-first)).
 
 ## Why you'd want it
 
@@ -22,23 +22,13 @@
 
 ## Try this first
 
-- List the records you may reach with one tag (read-only):
+List the records visible to your identity:
 
 ```sh
-agent-bus ls --tag=ab-dvp | jq length
+agent-bus ls --all
 ```
 
-<details>
-<summary>See it on a real node (ran today)</summary>
-
-```text
-20
-```
-
-- The number is how many visible records carry the tag `ab-dvp`.
-- The output is from the development node on 2026-10-30.
-
-</details>
+Use a returned name with `agent-bus ls <name>` to inspect that record. An empty list means no records match your visibility and filters.
 
 ## What a listing answers
 

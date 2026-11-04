@@ -3,7 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** an AI client wants to read data some source holds, and the bus should point to it without copying or serving it.
 - **Outcome:** a 📚 Resource is a card for data an MCP client may read: its URI (or a URI template, 🧩), what it is, and who answers a read: an Agent, an MCP Service, or the web for a plain `https://` card. The card holds no content, and the daemon serves none.
-- **Start:** look at a resource card: `agent-bus ls <name>` ([Try this first](#try-this-first)).
+- **Start:** list resource cards: `agent-bus ls --kind=resource` ([Try this first](#try-this-first)).
 
 ## Why you'd want it
 
@@ -19,23 +19,13 @@
 
 ## Try this first
 
-- Look at a resource card (read-only):
+List visible resource cards:
 
 ```sh
-agent-bus ls smoke-gate@parf.us | jq -c 'if type=="array" then .[0] else . end | {name,kind,owner}'
+agent-bus ls --kind=resource
 ```
 
-<details>
-<summary>See it on a real node (ran today)</summary>
-
-```json
-{"name":"smoke-gate@parf.us","kind":"resource","owner":"parf"}
-```
-
-- It is a 📚 resource owned by `parf`.
-- The output is from the development node on 2026-10-30.
-
-</details>
+A fresh bus may have none. When a card exists, inspect its returned name with `agent-bus ls <name>`; listing the card does not fetch its source.
 
 ## What a resource is
 

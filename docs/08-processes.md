@@ -3,7 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** a bus that serves requests, holds listeners and shows a web page must keep their powers apart, or one flaw reaches everything.
 - **Outcome:** the supervisor owns listeners and child lifetime, the bus owns state and serves requests, and the web page, under its own account and unit, asks the bus for the visitor's own view. Passing a listener is a runtime boundary, separate from the module rules. The daemon never runs a program a user supplied.
-- **Start:** see the running processes by their titles: `ps -ww -u agent-busd -o args | grep '^agent-busd'` ([Try this first](#try-this-first)).
+- **Start:** on a Linux node, inspect the daemon processes: `ps -ww -u agent-busd -o args` ([Try this first](#try-this-first)).
 
 ## Why you'd want it
 
@@ -20,24 +20,13 @@
 
 ## Try this first
 
-- See the live supervisor and bus titles, without the version (read-only; they belong to the `agent-busd` account):
+On an installed Linux node, inspect the daemon's processes:
 
 ```sh
-ps -ww -u agent-busd -o args | grep '^agent-busd' | cut -d';' -f2-
+ps -ww -u agent-busd -o args
 ```
 
-<details>
-<summary>See it on a real node (ran today)</summary>
-
-```text
- supervisor
- Calls: 2913263 ; bus
-```
-
-- The bus title counts the requests it received; the supervisor serves none.
-- The output is from the development node on 2026-10-30.
-
-</details>
+Their titles distinguish the supervisor from the request-serving bus process. Client-only installations have no local daemon account.
 
 ## The rule
 

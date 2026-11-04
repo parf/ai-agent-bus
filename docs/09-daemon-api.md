@@ -21,23 +21,13 @@
 
 ## Try this first
 
-- Ask the bus for its status through the same API (read-only):
+Ask the bus for its status:
 
 ```sh
-agent-bus status | jq -c '{realm,you}'
+agent-bus status
 ```
 
-<details>
-<summary>See it on a real node (ran today)</summary>
-
-```json
-{"realm":"parf.us","you":"#ab-w1b"}
-```
-
-- The command line makes the HTTP call for you and prints the answer.
-- The output is from the development node on 2026-10-30.
-
-</details>
+The CLI makes the API call and prints the complete JSON response.
 
 ## How a call is made
 
