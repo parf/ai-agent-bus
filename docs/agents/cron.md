@@ -102,6 +102,8 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 
 ## Troubleshooting
 
+Stored entry IDs must be 12 lower-case hex characters. Unsupported state formats stop startup without rewriting state.
+
 | If you see | Do this |
 |---|---|
 | `you may not send to …, so cron will not send there for you` | Ask the destination's Owner to allow you |
@@ -114,7 +116,6 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 | `unknown destination …, or it does not allow cron` when adding | Check the name, or ask its Owner to allow cron |
 | `target_gone` | The target was removed or no longer allows cron; delete the entry, or allow cron again |
 | `send_refused` | The destination refused that copy, for example because its inbox was full; make room in it. Nothing is retried |
-| `sub edit …` | Not supported: delete it and add it again |
 | `Configuration: tz … is not in this host's time zone data` | Install tzdata on the runner host or use `UTC` |
 | A slot did not fire | Cron was down, the pass was late or the bus's KV store was unavailable; missed slots are skipped by design (`missed` in `sub list`) |
 
@@ -140,7 +141,6 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 - A destination whose access list does not admit cron (403) drops the copy as `admission_refused`, and one that no longer exists (404) as `target_gone`; neither is retried.
 - A new entry must name an existing queue or agent that cron can see.
 - Any other definite refusal (the destination is full) drops the copy as `send_refused`. Nothing is retried, held or paused.
-- An older stored paused subscription becomes active when cron starts, and a paused one-shot is dropped. A stored id that is not 12 hex moves once, to the first 12 hex of the SHA-256 of its old key (of that digest again while the id is taken), and the new entry is written before the old one is removed.
 - Each send carries a time to live so a destination that was away is not flooded: the time to the next slot, capped at 24 h; 24 h for a one-shot.
 - When cron cannot reach the bus 30 times in a row, 2 s apart, it exits and its runner starts it again. Until then, a slot that falls due is `missed`.
 

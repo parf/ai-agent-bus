@@ -64,6 +64,8 @@ It needs no network beyond the bus socket.
 
 ## Troubleshooting
 
+Unsupported stored entry IDs, fields or claim outcomes stop startup without rewriting state.
+
 | If you see | Do this |
 |---|---|
 | `you may not send to …, so at will not send there for you` | Ask the destination's Owner to allow you |
