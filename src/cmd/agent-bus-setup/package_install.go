@@ -263,21 +263,8 @@ var bundleFiles = []string{
 	"clients/python/agent_bus/transport.py",
 }
 
-// rollbackFiles is what an installed release needs to be run again. An older
-// release is held to its own manifest, not to today's bundle: before 0.8.50
-// it shipped the Go agent-bus-web binary and no web/ tree.
-var rollbackFiles = []string{
-	"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-setup", "agent-bus-token",
-	"internal/version/VERSION",
-}
-
-var legacyFiles = map[string]bool{"agent-bus-web": true}
-
-// Before the compiled agent-bus-ts (0.9.163) the MCP face and the launcher
-// were bun bundles, not executables; such a release is still rolled back to.
-var legacyBundles = map[string]bool{"mcp/server.js": true, "launchers/launcher.js": true}
-
 var executableFiles = map[string]bool{
+	"agents/standalone/git/autopull.py":            true,
 	"agents/eventlog/eventlog.py":                  true,
 	"agents/fetch/fetch.py":                        true,
 	"agents/sms-telnyx/sms.py":                     true,
@@ -328,8 +315,8 @@ func checkBundle(root string) (checkedBundle, error) {
 }
 
 // checkBundleVersion verifies the exact package allow-list. An empty expected
-// version is used only for an already-installed release: an upgrade has to
-// verify the old release before it can trust it as a rollback target.
+// version permits a different release version with the SAME current package
+// layout for a current-format update or recovery.
 func checkBundleVersion(root, expectedVersion string) (checkedBundle, error) {
 	var b checkedBundle
 	b.root = root
@@ -364,19 +351,6 @@ func checkBundleVersion(root, expectedVersion string) (checkedBundle, error) {
 	// The required artifacts, plus the web face's own sources under web/ —
 	// a tree whose files change with the face — and nothing else.
 	needed := bundleFiles
-	allowed := map[string]bool{}
-	if expectedVersion == "" {
-		needed = rollbackFiles
-		for _, name := range bundleFiles {
-			allowed[name] = true
-		}
-		for name := range legacyFiles {
-			allowed[name] = true
-		}
-		for name := range legacyBundles {
-			allowed[name] = true
-		}
-	}
 	required := map[string]bool{}
 	for _, name := range needed {
 		required[name] = true
@@ -385,7 +359,7 @@ func checkBundleVersion(root, expectedVersion string) (checkedBundle, error) {
 		}
 	}
 	for name := range b.fileHashes {
-		if !required[name] && !allowed[name] && !strings.HasPrefix(name, "web/") && !strings.HasPrefix(name, "agents/debug/") {
+		if !required[name] && !strings.HasPrefix(name, "web/") && !strings.HasPrefix(name, "agents/debug/") {
 			return b, fmt.Errorf("package manifest names %s, which is not a release artifact", name)
 		}
 	}
@@ -399,7 +373,7 @@ func checkBundleVersion(root, expectedVersion string) (checkedBundle, error) {
 		if !info.Mode().IsRegular() {
 			return b, fmt.Errorf("package artifact %s is not a regular file", name)
 		}
-		if (executableFiles[name] || legacyFiles[name]) && info.Mode().Perm()&0o111 == 0 {
+		if executableFiles[name] && info.Mode().Perm()&0o111 == 0 {
 			return b, fmt.Errorf("package artifact %s is not executable", name)
 		}
 		got, err := fileSHA256(path)
@@ -594,9 +568,7 @@ func copyBundleFile(srcRoot, dstRoot, name string) error {
 	}
 	defer in.Close()
 	mode := os.FileMode(0o644)
-	// Normalize the timer entry on copy without tightening validation of
-	// older rollback releases that shipped it without execute permission.
-	if executableFiles[name] || name == "agents/standalone/git/autopull.py" {
+	if executableFiles[name] {
 		mode = 0o755
 	}
 	out, err := os.OpenFile(dst, os.O_CREATE|os.O_EXCL|os.O_WRONLY, mode)

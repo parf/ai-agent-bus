@@ -7,27 +7,22 @@ import (
 	"testing"
 )
 
-func TestUpgradeAddsOnlyTheSyslogFlagToOldUnit(t *testing.T) {
-	old := []byte("# preserve this comment\n[Service]\nUser=agent-busd\nExecStart=/usr/local/lib/agent-bus/current/agent-busd -addr 127.0.0.1:7777 -owner owner@h -user alice=alice@h -tls-dir /private/tls\nRestart=on-failure\n")
-	want := strings.Replace(string(old), " -tls-dir /private/tls\n", " -tls-dir /private/tls --syslog\n", 1)
-	got := unitWithSyslog(old)
-	if string(got) != want {
-		t.Fatalf("upgrade must add only --syslog, preserving all operator settings:\n%s", got)
+func TestUpgradePreservesExactlyTheCurrentUnit(t *testing.T) {
+	unit := []byte(unitFor("/usr/local/lib/agent-bus/current/agent-busd", "127.0.0.1:7777", "owner@h", nil, ""))
+	j := upgradeJournal{UnitSHA256: bytesSHA256(unit)}
+	if !upgradeUnitMatches(j, unit) {
+		t.Fatal("current unit refused")
 	}
-	if string(unitWithSyslog(got)) != want {
-		t.Fatal("upgrade syslog repair is not idempotent")
-	}
-	j := upgradeJournal{UnitSHA256: bytesSHA256(got), UnitBefore: string(old)}
-	if !upgradeUnitMatches(j, old) || !upgradeUnitMatches(j, got) {
-		t.Fatal("recovery must recognize both sides of the managed syslog migration")
-	}
-	if upgradeUnitMatches(j, append(got, []byte("# operator edit\n")...)) {
-		t.Fatal("syslog migration must not authorize overwriting an operator edit")
+	if upgradeUnitMatches(j, append(unit, []byte("# operator edit\n")...)) {
+		t.Fatal("changed unit accepted")
 	}
 }
 
 func TestUnitAddressRequiresExplicitManagedAddress(t *testing.T) {
-	unit := []byte("[Service]\nExecStart=/usr/local/lib/agent-bus/current/agent-busd -addr 127.0.0.1:7777 -web\n")
+	if _, err := unitAddress([]byte("ExecStart=/bin/agent-busd -addr 127.0.0.1:7777\n")); err == nil {
+		t.Fatal("obsolete single-dash unit accepted")
+	}
+	unit := []byte("[Service]\nExecStart=/usr/local/lib/agent-bus/current/agent-busd --addr 127.0.0.1:7777\n")
 	got, err := unitAddress(unit)
 	if err != nil || got != "127.0.0.1:7777" {
 		t.Fatalf("address=%q err=%v", got, err)
@@ -36,7 +31,7 @@ func TestUnitAddressRequiresExplicitManagedAddress(t *testing.T) {
 	if got, err := unitAddress([]byte(current)); err != nil || got != "127.0.0.1:8888" {
 		t.Fatalf("current unit address=%q err=%v", got, err)
 	}
-	if _, err := unitAddress([]byte("[Service]\nExecStart=/bin/agent-busd -web\n")); err == nil || !strings.Contains(err.Error(), "-addr") {
+	if _, err := unitAddress([]byte("[Service]\nExecStart=/bin/agent-busd\n")); err == nil || !strings.Contains(err.Error(), "-addr") {
 		t.Fatalf("missing address: %v", err)
 	}
 }
@@ -56,7 +51,7 @@ func TestCurrentReleaseRejectsTargetsOutsideReleaseDirectory(t *testing.T) {
 
 func TestUpgradeJournalIsDurableAndStrict(t *testing.T) {
 	root, _ := withInstallPaths(t)
-	j := upgradeJournal{OldRelease: "0.5.68-old", NewRelease: "0.5.69-new", Backup: "/state/backup", UnitSHA256: "abc", UnitBefore: "old managed unit"}
+	j := upgradeJournal{OldRelease: "0.5.68-old", NewRelease: "0.5.69-new", Backup: "/state/backup", UnitSHA256: "abc"}
 	if err := writeUpgradeJournal(j); err != nil {
 		t.Fatal(err)
 	}

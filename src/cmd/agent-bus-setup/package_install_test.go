@@ -513,10 +513,8 @@ func TestCommandCollisionLeavesReleaseUnselected(t *testing.T) {
 	}
 }
 
-// An installed release from before 0.8.50 is a rollback target by its own
-// manifest: the Go web binary and no web/ tree. It is still refused as an
-// incoming package, and it still needs its daemon.
-func TestOlderReleaseIsARollbackTargetByItsOwnManifest(t *testing.T) {
+// Old Go-web and JavaScript bundle layouts are not current recovery inputs.
+func TestObsoleteReleaseLayoutIsNotARecoveryTarget(t *testing.T) {
 	old := func(t *testing.T, drop string) string {
 		t.Helper()
 		root := t.TempDir()
@@ -545,21 +543,10 @@ func TestOlderReleaseIsARollbackTargetByItsOwnManifest(t *testing.T) {
 		}
 		return root
 	}
-	root := old(t, "")
-	if b, err := checkBundleVersion(root, ""); err != nil || !strings.HasPrefix(b.releaseID, "0.8.27-") {
-		t.Fatalf("0.8.27-shaped rollback target: %v", err)
-	}
-	if _, err := checkBundle(root); err == nil || !strings.Contains(err.Error(), "agent-bus-runner") {
-		t.Fatalf("0.8.27-shaped incoming package: %v", err)
-	}
-	if _, err := checkBundleVersion(old(t, "agent-busd"), ""); err == nil || !strings.Contains(err.Error(), "agent-busd") {
-		t.Fatalf("rollback target without its daemon: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "agent-bus-web"), []byte("changed"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := checkBundleVersion(root, ""); err == nil || !strings.Contains(err.Error(), "does not match") {
-		t.Fatalf("changed legacy web binary: %v", err)
+	for _, drop := range []string{"", "agent-busd"} {
+		if _, err := checkBundleVersion(old(t, drop), ""); err == nil {
+			t.Fatal("obsolete package layout accepted for recovery")
+		}
 	}
 }
 

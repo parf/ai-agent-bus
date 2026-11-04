@@ -25,7 +25,6 @@ type upgradeJournal struct {
 	NewRelease string `json:"new_release"`
 	Backup     string `json:"backup,omitempty"`
 	UnitSHA256 string `json:"unit_sha256"`
-	UnitBefore string `json:"unit_before,omitempty"` // old binaries may not understand --syslog
 }
 
 func upgradeBundle(b checkedBundle) error {
@@ -59,11 +58,7 @@ func upgradeBundle(b checkedBundle) error {
 	if err := enoughBackupSpace(svcHome, stateRoot); err != nil {
 		return err
 	}
-	nextUnit := unitWithSyslog(unit)
-	j := upgradeJournal{OldRelease: oldID, NewRelease: b.releaseID, UnitSHA256: bytesSHA256(nextUnit)}
-	if string(nextUnit) != string(unit) {
-		j.UnitBefore = string(unit)
-	}
+	j := upgradeJournal{OldRelease: oldID, NewRelease: b.releaseID, UnitSHA256: bytesSHA256(unit)}
 	if err := writeUpgradeJournal(j); err != nil {
 		return err
 	}
@@ -93,18 +88,6 @@ func upgradeBundle(b checkedBundle) error {
 	}
 	if _, err := selectBundle(b.releaseID); err != nil {
 		return rollbackUpgrade(j, addr, fmt.Errorf("select new release: %w", err))
-	}
-	if j.UnitBefore != "" {
-		current, err := os.ReadFile(unitPath)
-		if err != nil || string(current) != j.UnitBefore {
-			return rollbackUpgrade(j, addr, fmt.Errorf("managed unit changed before syslog migration"))
-		}
-		if err := os.WriteFile(unitPath, nextUnit, 0o644); err != nil {
-			return rollbackUpgrade(j, addr, fmt.Errorf("enable unit syslog: %w", err))
-		}
-		if err := run("systemctl", "daemon-reload"); err != nil {
-			return rollbackUpgrade(j, addr, fmt.Errorf("reload unit: %w", err))
-		}
 	}
 	if err := startDaemon(); err != nil {
 		return rollbackUpgrade(j, addr, fmt.Errorf("start new release: %w", err))
@@ -216,18 +199,6 @@ func rollbackUpgrade(j upgradeJournal, addr string, cause error) error {
 
 func performRollback(j upgradeJournal, addr string) error {
 	_ = run("systemctl", "stop", "agent-busd")
-	if j.UnitBefore != "" {
-		unit, err := os.ReadFile(unitPath)
-		if err != nil || !upgradeUnitMatches(j, unit) {
-			return fmt.Errorf("refusing rollback: managed unit changed after upgrade began")
-		}
-		if err := os.WriteFile(unitPath, []byte(j.UnitBefore), 0o644); err != nil {
-			return err
-		}
-		if err := run("systemctl", "daemon-reload"); err != nil {
-			return err
-		}
-	}
 	if _, err := selectBundle(j.OldRelease); err != nil {
 		return fmt.Errorf("could not select %s: %w", j.OldRelease, err)
 	}
@@ -253,7 +224,7 @@ func performRollback(j upgradeJournal, addr string) error {
 }
 
 func upgradeUnitMatches(j upgradeJournal, unit []byte) bool {
-	return bytesSHA256(unit) == j.UnitSHA256 || (j.UnitBefore != "" && string(unit) == j.UnitBefore)
+	return bytesSHA256(unit) == j.UnitSHA256
 }
 
 func startDaemon() error {
@@ -282,33 +253,12 @@ func unitAddress(unit []byte) (string, error) {
 		}
 		fields := strings.Fields(strings.TrimPrefix(line, "ExecStart="))
 		for i := 0; i+1 < len(fields); i++ {
-			if fields[i] == "-addr" || fields[i] == "--addr" {
+			if fields[i] == "--addr" {
 				return fields[i+1], nil
 			}
 		}
 	}
 	return "", fmt.Errorf("refusing upgrade: %s has no explicit daemon --addr", unitPath)
-}
-
-// unitWithSyslog changes only the managed ExecStart, preserving operator options.
-func unitWithSyslog(unit []byte) []byte {
-	lines := strings.SplitAfter(string(unit), "\n")
-	for i, line := range lines {
-		if !strings.HasPrefix(line, "ExecStart=") {
-			continue
-		}
-		for _, word := range strings.Fields(line) {
-			if word == "-syslog" || word == "--syslog" || word == "-syslog=true" || word == "--syslog=true" {
-				return unit
-			}
-		}
-		lines[i] = strings.TrimSuffix(line, "\n") + " --syslog"
-		if strings.HasSuffix(line, "\n") {
-			lines[i] += "\n"
-		}
-		return []byte(strings.Join(lines, ""))
-	}
-	return unit
 }
 
 func waitIdentity(addr, wantVersion string, timeout time.Duration) error {
