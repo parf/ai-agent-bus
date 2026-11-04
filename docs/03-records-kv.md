@@ -152,7 +152,9 @@ agent-bus kv set --add jobs@team result/img-1 "done:42"                   # a re
 
 ## Bigfiles
 
-A bigfile is a named value of up to 32 MiB that is passed by name instead of inside a message. It is not a fourth kind of the store above: it is held in a private file (or, on request, in daemon memory), never in a queue or the database, and always expires.
+Use a bigfile for an attachment or large result that should not fill a message or AI context. Upload the bytes, then send the record and file name; an authorized recipient downloads them separately.
+
+A bigfile holds up to 32 MiB in a private file or, on request, daemon memory. It always expires and is not an archive. The database holds its index, not its contents.
 
 | Rule | |
 |---|---|
@@ -164,7 +166,6 @@ A bigfile is a named value of up to 32 MiB that is passed by name instead of ins
 | At start | the files are made to agree with the index: a row whose file is missing or is not the file it describes is removed, a file no row names is removed, and so is every temporary file; the daemon logs how many of each. A symlink directly under `bigfile/`, including a record directory or `.tmp`, makes it refuse to start the bigfile store, with the cause in the 503, and nothing is read or removed through it |
 | The record's life | removing the record removes its bigfiles; a transfer keeps them; keys of a record removed while the daemon was down are removed at start |
 | Unavailable | bigfiles are optional: if `bigfile/` cannot be prepared at start (a planted file, a mode change) the daemon still starts, reports an error, and answers the four bigfile calls with 503 naming the cause; a later call retries the directory at most once a minute, so a repaired directory recovers without a restart. Keys are never quietly held in memory instead |
-| Upgrading | from a release before the index lived in the database, files written earlier have no row: the first start removes them and logs how many, and nothing is imported. Bigfiles are handoffs that expire within 30 days |
 | Backups | the files live in `bigfile/` beside the database. A database backup holds the index rows but never the files, and a record export holds neither. After a restore, start drops every row whose file is not present, so a restore has no bigfiles unless their files are restored with it |
 | Integrity | a put answers the size and SHA-256 of what was stored, and refuses bytes that do not match an `X-Bigfile-Sha256` header; a get carries the hash in `X-Bigfile-Sha256` |
 
@@ -199,4 +200,3 @@ Trust and files:
 - Bytes are readable by the daemon and are not encrypted at rest ([trust boundary](02-access.md#trust-boundary)).
 - The file mode is 0600 in a 0700 directory.
 - The daemon checks that a directory is not a link before it uses it, which stops a planted link; it does not defend against someone who can already write as the daemon's own account.
-- The plan is [bigfiles](../Plans/R1.0-Release/bigfile.md#help-text).

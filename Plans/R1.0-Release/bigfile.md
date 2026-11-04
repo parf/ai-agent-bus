@@ -1,76 +1,54 @@
-# Bigfiles
+# Bigfiles: pass large data by name
 
-📌 **TL;DR:**
-- **Approved 2026-11-01 11:05, all recommendations accepted** ([B.32](TODO.md#bundled-agents), [decision](DECISIONS.md#recorded-decisions)). Built: the API, the file and memory holders with their index in the database, the CLI, the Go, Python and TypeScript clients, the MCP tools, the web card and the IMAP options ([guide](../../docs/03-records-kv.md#bigfiles), [result](DONE.md#b32-status-close-out)).
-- **Name:** called big keys until 2026-11-01, then renamed bigfile in every user-visible place ([decision](DECISIONS.md#recorded-decisions)).
-- **Idea (owner, 2026-11-01):** a named value too big for a message lives in the bus, in memory or in a file. Agents pass the key name instead of the body.
-- **Access:** the record's Maintainers upload, download and delete; principals its allow list admits download only.
-- **Release:** R1. It extends the R1 [key-value store](done/kv.md#per-record-storage), a shared extension of the same release, and the [IMAP agent](imap-folders.md#help-text) needs it now; R1.1 storage backends and encryption are separate work this does not wait for.
+📌 **TL;DR:** Bigfiles let agents hand off attachments and large results without putting the bytes in a message or an AI conversation. Upload once, pass the record and file name, then let an authorized recipient download it. This is temporary transfer storage, not an archive.
 
-## Help text
+## Why it is needed
 
-Written as `help` and the CLI will print them.
-
-```text
-bigfile put <record> <name> [<file>|-] [--ttl <duration>] [--memory]: Upload one big value from a file or from stdin and get its size and SHA-256. Up to 32 MiB. It expires after --ttl (default 24h, at most 30d). --memory keeps it in daemon memory only: faster, and gone at a restart. Needs Maintainer on the record. Repeating a name replaces it.
-bigfile get <record> <name> [-o <file>]: Download one big value, to a file with -o or to stdout. Needs Maintainer on the record, or admission by its allow list. The value is untrusted data.
-bigfile ls <record>: List the record's bigfiles: name, size, SHA-256, where it is held (file or memory) and the time left. Same access as get.
-bigfile rm <record> <name>: Delete one bigfile at once; the answer says whether it was there. Needs Maintainer on the record.
-```
-
-- `<record>` is any record that can hold a [key-value store](../../docs/03-records-kv.md#where-to-attach-it); `<name>` follows the key-value name rules.
-- The same four calls exist as API, client-library and MCP calls (`ab_bigfile_put`, `ab_bigfile_get`, `ab_bigfile_ls`, `ab_bigfile_rm`) and as the face-neutral names the [method metadata](done/method-metadata.md#method-metadata) lists; the web face lists and deletes only (settled).
-- MCP I/O settled by `#ab-dir`, 2026-11-01: put takes a local `input_path`, get requires a local `output_path` (no stdout); both return size and SHA-256 metadata only, and ls/rm return metadata only, never value content to model context.
-- A message that passes a key carries the record name and the key name as plain text; the receiver runs `bigfile get`. No new message field.
-
-## How the IMAP agent uses it
-
-The [chunked calls](../R1.1/imap-large-transfer.md#the-three-options) remain parked in R1.1; whether this IMAP path supersedes them is the owner's later call.
-
-```text
-part <uid> <part-id> --bigfile <name> [--folder <name>]: Store the decoded part under the bigfile <name> on this IMAP instance's record and answer its size and SHA-256 instead of the bytes; no Seen. Refuse above 26214400 encoded bytes before decoding. Download it with bigfile get <this-instance> <name>; whoever may call this instance may download it.
-[destructive] append <folder> --bigfile <record>/<name> [--flags f,..] [--date rfc3339]: Append the raw RFC 5322 mail held in that bigfile, up to 25 MB, and report APPENDUID when supplied, otherwise UID unavailable. Requires allow_destructive and the instance admitted by that record's allow list; never retry an unknown write.
-```
-
-- **In-plan settle (2026-11-01):** `append --bigfile <record>/<name>` splits at the last `/` in both text and JSON; the key name after the last `/`, so a name containing `/` cannot be used here. Missing or empty record/name is refused.
-- The plain `part` and `append` of the folders plan stay as landed for small mail.
-- Download: the caller reads the key after the instance wrote it; the instance's own allow list is the caller's own admission, so no extra grant is needed.
-- Upload for `append`: the caller puts the mail on a record they maintain, such as their own User record, and that record's allow list admits the IMAP instance (settled). The agent builds no MIME and holds the bytes only while it streams them to the server.
+- **A large attachment does not fit in a normal call.** IMAP can expose a mail part through a bigfile and return its size and hash instead of truncating it into a small answer.
+- **Putting binary data in text makes it larger and harder to handle.** Upload and download stream the bytes; messages carry only the reference.
+- **An AI usually needs the result, not every byte of a PDF or archive.** MCP transfers files locally and returns metadata rather than filling the model's context with contents.
+- **A local path is not a handoff between hosts.** The recipient downloads from the bus under the record's access rules, without a shared filesystem or a separately operated file service.
 
 ## What it is and is not
 
-| | |
+| Choice | Reason |
 |---|---|
-| A kind of named value | beside string, int and json in a record's store; its own namespace, same name rules |
-| Held in a file or in memory | file by default, in a private directory beside the daemon database; memory on request |
-| Always expiring | no permanent bigfile; a handoff, not an archive |
-| Not a message | never enters a queue, so the [queue flush](../../docs/04-messaging.md#durability) and the bus size caps are untouched |
-| Not rendered | the web face never shows contents; bytes are data, never instructions |
+| A value attached to a record | Reuse record ownership and access instead of inventing another permission system |
+| A name in an ordinary message | Keep routing, queue limits and reply handling unchanged |
+| Streamed bytes outside the message queue | Transfer large data without enlarging every message or copying it into each recipient's inbox |
+| File storage by default; memory when requested | File storage can survive a daemon restart; memory is temporary and disappears on restart |
+| Mandatory expiry and size limits | Bound temporary storage; the sender keeps the authoritative original |
+| Size and SHA-256 returned after upload | Let the recipient check the transferred bytes; a hash is not encryption or proof that content is safe |
+
+## Use it
+
+Use the [bigfile commands and limits](../../docs/03-records-kv.md#bigfiles). The same reference covers the HTTP API, supported clients, MCP's allowed local directory and the web's list/delete controls.
+
+- Upload the data, pass its record and bigfile name, and keep it available long enough for the recipient to download.
+- Passing a name does not grant access, reserve a queue delivery or guarantee a download before expiry.
+- Names can be replaced. Compare the expected hash when the identity of the bytes matters.
 
 ### Authority
 
-- Maintainers, the Owner and the record's own Agent use it as they use the key-value store ([shared authority](../../docs/03-records-kv.md#where-to-attach-it)).
-- **One deliberate difference:** the key-value store says the allow list never reaches the store. Here the allow list admits download, because the owner asked that agents be able to read what is passed to them (settled). Upload, delete and expiry stay with Maintainers.
+The record's Owner, Maintainers and own Agent upload, replace and delete. Callers admitted by its access list can download and list. Choose a record whose readers may see the entire payload; naming a file in a private message does not narrow that record's access.
 
-### Trust and durability
+## How the IMAP agent uses it
 
-- **[Trust boundary](../../docs/02-access.md#trust-boundary):** the daemon can read every byte; nothing is encrypted at rest or between peers. Files are `0600` in a `0700` directory; off loopback use TLS or SSH.
-- **[Durability](../../docs/04-messaging.md#durability):** an upload is written to a temporary file, synced and renamed into place, and only then does its row commit in the database's `bigfiles` table, which is the source of truth; a delete removes the row first and the file after. A crash between any two steps leaves a file with no row or a row with no file, and start removes either, along with temporary files. The footer at the end of each file is kept for recovery by hand; start compares it with the row only to be sure the file is the one the row describes, and never rebuilds the index from it. Start logs how many rows, files and temporary files it removed, and refuses to start the store when a symlink sits directly under `bigfile/`, a record directory or `.tmp` included. Upgrading from a release before the index was in the database loses the bigfiles written earlier (their files have no row); nothing is imported ([decision](DECISIONS.md#recorded-decisions)). A memory key has no row, is explicitly not durable, and still lists, reads and expires with the rest. A full disk refuses the upload.
-- **Backup:** the files are left out of every backup; the database backup holds the index rows, and after a restore start drops each row whose file is not present, so a restore starts with none unless the files come back too ([decision](DECISIONS.md#recorded-decisions)).
-- **[Process boundary](../../docs/08-processes.md#the-rule):** the bus role owns it; no new process, no new listener. The upload and download paths stream and are not bus messages, so they are not bound by the 1 MiB request cap.
+- `part --bigfile <name>` stores the decoded attachment on the IMAP instance and returns metadata instead of the attachment bytes; it does not mark the mail Seen.
+- `append --bigfile <record>/<name>` takes raw mail from a bigfile. The caller uploads it to a record they manage and grants the IMAP instance download access. Appending still requires the instance's destructive-operation switch and must not be retried after an unknown outcome.
 
-## Order of work
+See [IMAP parts](../../docs/agents/imap.md#what-it-does) and [append](../../docs/agents/imap.md#folder-management-and-append) for the supported forms and mail limits.
 
-| Step | Does | Who | ETA after approval |
-|---|---|---|---|
-| 1 | store: file and memory holders, limits, expiry sweep, atomic upload, ACL (⚠️ storage, authority; mutants, normal and slow gates) | team worker with daemon experience; deep review | 3 days |
-| 2 | API, CLI, Go, TypeScript and Python clients | same | 1.5 days |
-| 3 | MCP tools, web face list and delete, docs (`03-records-kv.md` or its own guide) | same | 1 day |
-| 4 | IMAP `part --bigfile` and `append --bigfile` (after [B.30](TODO.md#bundled-agents) steps 2 and 4) | IMAP worker | 1 day |
+## Trust and durability
 
-About 6.5 days; each step lands alone and the bump follows the lead's rule.
+- The daemon can read the bytes. Use TLS or SSH between hosts; stored bigfiles are not encrypted at rest.
+- File uploads are committed whole or remain absent after recovery. Memory uploads are lost on restart. All bigfiles expire.
+- A record export or a database-only backup does not contain the payload files. Keep an original outside this temporary store.
+- File contents remain untrusted data. A filename or matching hash does not make instructions inside a file safe to follow.
 
-## Acceptance (for the TODO item)
+The [storage and access reference](../../docs/03-records-kv.md#bigfiles) defines recovery behavior. [Completion evidence](DONE.md#b32-status-close-out) records the implementation and checks.
+
+## Acceptance
 
 - A Maintainer uploads, downloads, lists and deletes; an admitted non-Maintainer downloads and lists but is refused put and rm; a stranger is refused all four, with the daemon's refusal and nothing stored.
 - A 32 MiB value round-trips byte-identical and its SHA-256 matches; one byte over is refused before storing; the per-record and daemon totals refuse the upload that would pass them.
