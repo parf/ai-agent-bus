@@ -1,6 +1,6 @@
 # Documentation cleanup rules
 
-📌 **TL;DR:** Draft for owner review, based on Astra's complete read of eight representative files. User documentation describes the shipped product and helps someone use it; development history, future scope and editorial process stay outside that reading path. This draft changes no product behavior or user guide.
+📌 **TL;DR:** Draft for owner review, based on Astra's complete read of eight representative files. User documentation describes the shipped product and helps someone use it; development history, future scope and editorial process stay outside that reading path. Owner-directed application is in progress; product behavior is unchanged.
 
 ## Review baseline
 
@@ -56,6 +56,8 @@ Line references below refer to main `1ab9031a`, before cleanup.
 | F10 | agent catalogue:83–85; Telegram:25 | Delete “What a guide leaves out” and “The abilities, last.” These explain editing, not using the product. |
 | F11 | catalogue:98,124; docs/agents/discord.md | Match the catalogue and generated index to shipped packages. Discord is outside the selected R1 scope: move its user-guide material to its plan and remove it from the R1 selection paths. Update generation inputs rather than hand-editing the generated block. |
 | F12 | launchers:51–58,61,65,76–97,101–165,212,397–404,426–431 | Remove Status/MVP/Scope tracking, Built labels, owner dates, decision IDs and acceptance narratives. Keep current adapter, naming, retry, takeover and recovery behavior. |
+| F14 | Voyage install:55; same pattern in other helper guides | Release users enable/configure the supplied bundle. Remove source checkout/package.sh build steps from user installation; retain genuine external prerequisites. |
+| F15 | Voyage Configuration:61–74 | One setting gets one sentence with name, purpose and default. Remove “Only…”, “Keys” and single-row disclosure scaffolding; scale the explanation to the actual complexity. |
 | F13 | setup:201,215 | Remove the conflicting “verified”/“still needs acceptance” process claims. Publish the actual supported Mac procedure and limits. |
 
 ### Verify meaning before editing
@@ -68,6 +70,7 @@ Line references below refer to main `1ab9031a`, before cleanup.
 | V04 | catalogue:57 | Replace “meant to work” with the actual shared subscription behavior, retaining supported per-helper differences. |
 | V05 | launchers:243–250 | Determine how intentional clearing with `--tag ''` differs from refused empty labels; preserve the real distinction. |
 | V06 | setup:380 | The user-runner inventory example redirects into an existing file. Provide a fresh-file precondition or a merge procedure that preserves other entries. |
+| V08 | Voyage install:56; runner/security network-reach | needs.network hosts are not a sandbox destination allowlist. State the fixed provider origin enforced by the application without promising domain-restricted host networking. |
 | V07 | setup:389; AI-SETUP:52 | Distinguish shared-package defaults from bundled packages requiring explicit enabled:true. Check the actual loader before rewriting. |
 
 ### Separate 1.0.1 compatibility work
@@ -141,6 +144,8 @@ These are editorial proposals, not executed commands or invented output.
 - No removal or weakening of current security, privacy, data-loss, platform or recovery caveats to make a page shorter.
 - No automatic deletion of technical detail. An API field reference, backup recovery procedure or setting can be useful in the correct guide.
 - No silent image/diagram loss. Preserve useful assets; review whether a screenshot still represents the described behavior.
+- No source build/package instructions in the release-user path. Use ready bundled packages and distinguish external dependencies.
+- No table/disclosure/heading stack for one simple option; state the key and default directly.
 - No repeated claim, example or instruction merely to fill another section. A repetition needs a distinct purpose; linking to the primary section is preferred.
 - No duplicate contract/reference after moving content. Preserve useful navigation and repair all inbound links and anchors.
 - No operational provider calls, messages, host changes, builds or runtime suites merely to remove prose. Reuse existing evidence; make only necessary, authorized read-only checks when a concrete claim cannot otherwise be verified.
@@ -165,4 +170,4 @@ These are editorial proposals, not executed commands or invented output.
 - [ ] Every page gets a semantic dedup pass, with necessary repetitions justified.
 - [ ] All offered documentation gets a file-by-file disposition after these rules are reviewed.
 
-Status: **draft for review**. The sampled user files have not been cleaned by this change; publication remains on hold.
+Status: **applying owner feedback**. The first batch has been analyzed and classified; every offered page still needs its recorded full review and dedup pass. Publication remains on hold.

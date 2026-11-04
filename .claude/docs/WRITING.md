@@ -9,7 +9,7 @@
 | 1 | **Why** | What problem does this solve, and for whom? | 1–3 bullets, plain words |
 | 2 | **What you get** | What can the reader do now that they couldn't before? | short bullets, one outcome each |
 | 3 | **How to use it** | The one way to start, then real examples | a few commands; more in closed `<details>` |
-| 4 | **Technical details** | Internals, formats, limits | last, in `<details>` when long |
+| 4 | **Technical details, when needed** | Settings, formats and limits needed by this reader | last; use `<details>` only for genuinely long reference |
 
 - A reader who stops after the first 10–20% knows why it exists, what they get and how to start.
 - Never open with the mechanism. The component name is the *how*, not the headline.
@@ -27,6 +27,10 @@
 
 - **No walls of text.** Bullets over paragraphs; anything longer than ~3 lines becomes bullets or a table.
 - **One simple idea per bullet**, understandable at a glance.
+- **Proportionate detail.** One simple setting gets one direct sentence: its name, purpose and default. Use a table for several comparable settings; do not add “Only one setting”, “Keys” and a disclosure around a single row. Omit empty or unnecessary sections.
+- **One home per fact.** Deduplicate claims, instructions, tables and examples across the whole page. Use a section link instead of a second explanation; retain a repeat only for a concrete need such as a warning beside a destructive action.
+- **Release-user path first.** Bundled agents are already built and installed. Explain selecting/enabling/configuring the supplied package; no source checkout, package.sh, Go or Bun build in a release-user procedure. Keep contributor build instructions in contributor docs.
+- **No editorial/process prose.** Remove MVP/Built/Status tracking tables, roadmap/history, decision IDs, acceptance reports, “ran today”, development-node dates and explanations of document ownership. Keep real status commands, operational limits and necessary diagnostics.
 - **Glyphs** on product pages: one per point, to make bullets scannable.
 - **Simple Mermaid diagrams** where a picture explains faster: few boxes, plain labels.
 - **Tables** for comparisons and options.
@@ -53,5 +57,7 @@
 - [ ] No jargon or internals in the opening
 - [ ] Bullets, no walls of text
 - [ ] Examples real and run; one line + command
-- [ ] No future references on release pages
+- [ ] Only shipped behavior; no development history, roadmap, status tracking or evidence narration
+- [ ] Release users use supplied packages; no source-build steps
+- [ ] Simple settings are simple; each fact/example has one primary place
 - [ ] Links and images intact; no duplicates

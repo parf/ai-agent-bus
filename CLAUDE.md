@@ -12,7 +12,7 @@ Legacy-V1 lives at `/rd/service/agent-bus/`, with its design at `/rd/vhosts/real
 
 | Home | Owns |
 |---|---|
-| [Overview](docs/00-overview.md#document-ownership) | Current MVP topic ownership |
+| [Overview](docs/00-overview.md#document-ownership) | User documentation and current reference |
 | [Glossary](docs/glossary.md#names) | Current naming and links to definitions |
 | [Decisions](docs/decisions.md#settled) | Current decision names and links |
 | [Plans](Plans/README.md#stages) | Stage status and release scope navigation |
@@ -24,11 +24,11 @@ Legacy-V1 lives at `/rd/service/agent-bus/`, with its design at `/rd/vhosts/real
 ## Working rules
 
 - **No data models, schemas or wire formats until the owner asks.** Do not invent tables of fields, JSON shapes or endpoint lists during planning.
-- **Current scope.** `docs/` describes the whole MVP scope, with built and pending explicit. A pending requirement is not an implementation claim.
+- **Current scope.** `docs/` describes shipped behavior and useful current limits, without release-stage narration, build status, roadmap or internal evidence. Keep history and unshipped scope in Plans, and contributor mechanics in contributor docs.
 - **Future scope.** Future design belongs in `Plans/<release>/README.md` or its topic files. Use `Plans/R2.0-Future/` when the release or idea is undecided. Do not assign an idea to the current release merely because it was mentioned now.
 - **Canonical home.** Every value has one owning section. Any other document may restate its claim in one sentence with a section link. If changing the value would require editing the summary, remove the value. The root README CLI example block is the sole example exception.
 - **Plan lifecycle.** Follow `/rd/vhosts/realty/Plans/README.md`: README and topic files hold stable knowledge; TODO holds unfinished work, dependencies and falsifiable acceptance; DONE holds concise results; FUTURE holds follow-up; QUESTIONS holds only unresolved choices; DECISIONS holds dated decision names, brief rationale and links. Move completed task detail to `done/`, completed stages to `Plans/done/`. Never renumber task IDs.
-- **Promote on acceptance.** When future scope becomes current, move its accepted substance to the owning current doc, update built/pending status and links, and leave plan history pointing to that home. Do not maintain competing copies.
+- **Promote on acceptance.** When future scope becomes current, move its accepted substance to the owning current doc, update the owning plan status and links, and leave plan history pointing to that home. Do not add built/pending tracking to user docs. Do not maintain competing copies.
 - **Decisions need two edits.** Put substance in its owning current doc or future plan topic, and add a named link in `docs/decisions.md` for current scope or the owning plan's `DECISIONS.md` for future scope. A row names the decision; it does not restate values. Remove its resolved question at the same time.
 - **Revising decisions.** Change the substance, record the replacement, and move the old decision row to [the decision archive](Plans/done/decisions-archive.md#decision-archive); the archive is history, never a current contract. Do not reopen a settled decision without an owner reason; an implementation gap is pending work, not a new decision.
 - **Question IDs.** One namespace across all plans, including settled questions. Check decision records and Git history before allocating an ID; never reuse one merely because its question was removed.

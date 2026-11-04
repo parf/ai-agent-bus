@@ -45,28 +45,14 @@ agent-bus help '#voyage@node.example'
 
 ## Installing it
 
-- An administrator installs the package and puts the key in the runner's private file.
-
-<details>
-<summary>Step by step</summary>
-
-- Build with `src/agents/voyage/package.sh <agent.d/voyage>`, then enable it in the [runner inventory](../runner/configuration.md#inventory).
-- It uses Python's standard library; its network sandbox allows only `api.voyageai.com`.
-
-</details>
+- Voyage is included in the installed agent bundle; no build or package copy is needed.
+- Put `VOYAGE_API_KEY` in this instance's [private host env file](../runner/configuration.md#environment-files), owned by the runner account with mode 0600.
+- Enable `voyage` (or a named instance) in the [runner inventory](../runner/configuration.md#inventory), preserving other entries, then reload the runner.
+- Ask for help to check the instance; an embedding request uses the provider account and its balance.
 
 ## Configuration
 
-- **Only the default model.**
-
-<details>
-<summary>Keys</summary>
-
-| Key | Meaning |
-|---|---|
-| `model` | Default embedding model, default `voyage-3.5` |
-
-</details>
+`model` selects the default embedding model; its default is `voyage-3.5`.
 
 ## Secret keys
 
