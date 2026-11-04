@@ -7,7 +7,7 @@ import { mkdtempSync, rmSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir, userInfo } from "node:os";
 import { makeHandler } from "../server.ts";
-import { waits } from "../pages/runners.tsx";
+import { waits, currentRunnerAnswer } from "../pages/runners.tsx";
 
 const ORIGIN = "http://127.0.0.1:6782";
 const A = "#runner/alpha@test", B = "#runner/beta@test", C = "#runner/gamma@test", D = "#runner/delta@test";
@@ -16,6 +16,7 @@ let handle: (r: Request) => Promise<Response>;
 let owner = "", bob = "", carol = "", newerVersion = "";
 let serving = true;
 let refuseStop = false;
+let responseAgents: unknown[] | undefined;
 const asked: { runner: string; body: string }[] = [];
 /** The verbs the fake actually carried out: only a managing verb from the runner's Owner. */
 const ran: string[] = [];
@@ -46,15 +47,15 @@ async function fakeRunner(name: string, token: string, delay = 0) {
     if (managing && e.from === "owner@test") ran.push(verb);
     const answer = managing && e.from !== "owner@test" ? `error: ${verb} is for the runner's Owner and Maintainers: it reaches the host's files and their secrets`
       : refuseStop && verb === "stop" ? "error: fixture refuses stop"
-      : delay ? JSON.stringify({ runner: name, version: newerVersion, agents: [{ name: "#late@test", enabled: true, state: "idle" }] })
+      : delay ? JSON.stringify({ runner: name, version: newerVersion, agents: responseAgents ?? [{ name: "#late@test", key: "late", enabled: true, state: "idle" }] })
       : verb === "read" ? JSON.stringify(file in files ? { file, exists: true, content: files[file], ...(file.endsWith("/env") ? {sha256:createHash("sha256").update(files[file]!).digest("hex"), size:files[file]!.length, names:["NAME","BUS"]} : {}) } : { file, exists: false, content: "" })
       : verb === "write" && String(e.body).includes("bad") ? `error: ${file}: line 1: not KEY=value`
       : e.body === "status" || e.body === "reload" || ["start", "stop", "restart", "enable", "disable", "write", "create", "delete"].includes(verb)
-      ? JSON.stringify({ runner: name, version: newerVersion, agents: [
+      ? JSON.stringify({ runner: name, version: newerVersion, agents: responseAgents ?? [
           { name: "#hello@test", key: "hello", enabled: true, state: "idle", processes: { running: 0, min: 0, max: 1 }, serves: "runner", sandbox: "on", limits: { memory_bytes: 512 << 20, processes: 64, disk_bytes: 1 << 30 } },
           { name: "#secretive@test", key: "secretive", enabled: true, state: "unconfigured", reason: "exited 78: SLACK_BOT_TOKEN is not set", serves: "itself", sandbox: "off", last_exit: { code: 78, at: new Date().toISOString(), reason: "slack: SLACK_BOT_TOKEN is not set" } },
-          // As a runner before 0.8.203 answers: no sandbox, limits or lifecycle.
-          { name: "#plain@test", enabled: true, state: "idle" },
+          // A current row may have no observed protection or lifecycle yet.
+          { name: "#plain@test", key: "plain", enabled: true, state: "idle" },
         ], started_at: new Date(Date.now() - 7200_000).toISOString(), agent_dir: "/var/lib/agent-bus/agent.d", runner_dir: "/var/lib/agent-bus/alpha-ab-runner/runner" })
       : `unknown command ${e.body}; use status or reload`;
     await api("/send", { to: e.from, topic: e.topic, tag: e.tag, body: answer, re: e.id }, token);
@@ -69,7 +70,7 @@ beforeAll(async () => {
     const b = Bun.spawnSync(["go", "build", "-o", bin + "/", "./cmd/agent-busd", "./cmd/agent-bus"], { cwd: join(import.meta.dir, "../.."), stderr: "pipe" });
     if (b.exitCode) throw new Error(b.stderr.toString());
   }
-  daemon = Bun.spawn([join(bin, "agent-busd"), "-addr", "127.0.0.1:0", "-socket", join(dir, "bus.sock"), "-owner", "owner@test", "-db", join(dir, "bus.db"), "-create", "-flush-every", "0", "-dashboard", "", "-ssh-keys", join(dir, "ssh", "authorized_keys"), "-ssh-token", "/usr/local/bin/agent-bus-token"], { stdout: "ignore", stderr: "ignore" });
+  daemon = Bun.spawn([join(bin, "agent-busd"), "--addr", "127.0.0.1:0", "--socket", join(dir, "bus.sock"), "--owner", "owner@test", "--db", join(dir, "bus.db"), "--create", "--flush-every", "0", "--dashboard", "", "--ssh-keys", join(dir, "ssh", "authorized_keys"), "--ssh-token", "/usr/local/bin/agent-bus-token"], { stdout: "ignore", stderr: "ignore" });
   const user = join(dir, `user-${userInfo().username}.sock`);
   for (let i = 0; i < 100 && !existsSync(user); i++) await Bun.sleep(50);
   owner = Bun.spawnSync([join(bin, "agent-bus"), "token", "owner@test"], { env: { ...process.env, AGENT_BUS_ADDR: user } }).stdout.toString().trim();
@@ -410,7 +411,7 @@ test("the runner's page only informs and alerts; each agent's Manage, last in it
   expect(info).not.toContain('action="/runner-reload"');
   expect(info).toContain(`href="/runner-settings?name=${encodeURIComponent(A)}" data-host-settings`);
   expect(info).toMatch(new RegExp(`<tr data-agent="#hello@test">.*<td data-label="Manage"><a href="/runner-settings\\?name=${encodeURIComponent(A)}&amp;key=hello" data-manage>Manage</a></td></tr>`, "s")); // the limits' tooltip spans lines
-  expect(info).toMatch(/<tr data-agent="#plain@test">.*?<td data-label="Manage"><span class="muted">—<\/span><\/td><\/tr>/s); // no key: nothing to manage by
+  expect(info).toMatch(/<tr data-agent="#plain@test">.*?<td data-label="Manage"><a [^>]*key=plain" data-manage>Manage<\/a><\/td><\/tr>/s);
   expect(info).toMatch(/<ul class="alerts" data-alerts>.*<code>#secretive@test<\/code> is unconfigured: exited 78: SLACK_BOT_TOKEN is not set/);
   expect(info).toMatch(/<ul class="alerts" data-alerts>.*<code>#secretive@test<\/code> has its sandbox off/);
   expect((await req(`/runner-manage?name=${encodeURIComponent(A)}`, s)).status).toBe(404); // no page managing them all
@@ -610,3 +611,29 @@ test("RW21 a visitor who may see the runner but not manage it cannot start, stop
   const ownerRan = ran.slice(ranBefore.length);
   for (const verb of ["reload", "stop", "start", "restart", "enable", "disable"]) expect(ownerRan, `the Owner's ${verb} reaches the runner`).toContain(verb);
 }, 20_000);
+
+test("runner status requires current identity and control fields", () => {
+ const row = {name:"#worker@test",key:"worker",state:"refused",enabled:true};
+ expect(currentRunnerAnswer({agents:[row]})).toBe(true);
+ expect(currentRunnerAnswer({agents:[]})).toBe(true);
+ for (const key of ["name","key","state","enabled"]) {
+   const missing: Record<string,unknown> = {...row}; delete missing[key];
+   expect(currentRunnerAnswer({agents:[missing]})).toBe(false);
+   expect(currentRunnerAnswer({agents:[{...row,[key]:null}]})).toBe(false);
+ }
+ for (const bad of [null,[],{}, {agents:[false]}, {agents:[{...row,key:""}]}, {agents:[{...row,enabled:"true"}]}]) expect(currentRunnerAnswer(bad)).toBe(false);
+});
+
+test("unsupported runner rows cannot expose agent controls", async () => {
+ const session = await signIn(owner);
+ const row: Record<string,unknown> = {name:"#hello@test",key:"hello",state:"idle",enabled:true};
+ try {
+  for (const field of ["key","name","state","enabled"]) {
+   const bad = {...row}; delete bad[field]; responseAgents = [bad];
+   const page = await (await req(`/runner?name=${encodeURIComponent(A)}`,session)).text();
+   expect(page).toContain("unsupported status response");
+   expect(page).not.toContain('data-manage');
+   expect(page).not.toContain('data-agent="#hello@test"');
+  }
+ } finally {responseAgents = undefined;}
+});

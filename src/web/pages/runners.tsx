@@ -25,13 +25,24 @@ const CONTROLS = ["start", "stop", "restart", "enable", "disable"];
 type Exit = { code: number; at?: string; reason?: string };
 type AgentRow = {
   name: string; enabled: boolean; state: string; reason?: string; processes?: { running: number; min: number; max: number };
-  // Since 0.8.203 (Plans/R1.0-Release/DECISIONS.md#recorded-decisions, RD99); each absent when unknown.
+  // Protection and lifecycle fields are absent when unknown.
   serves?: "runner" | "itself"; sandbox?: "on" | "off"; limits?: { memory_bytes?: number; processes?: number; disk_bytes?: number };
   started_at?: string; last_exit?: Exit;
-  // Since 0.8.210: its agents.json key, which names its files and its controls.
-  key?: string;
+  // Its agents.json key names its files and controls.
+  key: string;
 };
 type Answer = { runner?: string; version?: string; error?: string; agents?: AgentRow[]; started_at?: string; agent_dir?: string; runner_dir?: string };
+
+/** Only current runner rows can identify agents and their controls. */
+export function currentRunnerAnswer(value: unknown): value is Answer {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const agents = (value as {agents?: unknown}).agents;
+  return Array.isArray(agents) && agents.every(row => row !== null && typeof row === "object" && !Array.isArray(row)
+    && typeof row.key === "string" && row.key.trim() !== ""
+    && typeof row.name === "string" && row.name.trim() !== ""
+    && typeof row.state === "string" && row.state.trim() !== ""
+    && typeof row.enabled === "boolean");
+}
 
 const bytes = (n?: number) => n == null ? "" : n >= 1 << 30 ? `${+(n / (1 << 30)).toFixed(1)} GiB` : `${Math.round(n / (1 << 20))} MiB`;
 
@@ -65,7 +76,8 @@ async function observe(ctx: Ctx, name: string, verb: string, waitMs: number): Pr
   if (r.kind === "lost") return { problem: `The call was sent, and waiting for its answer failed: ${r.why}.`, uncertain: true };
   try {
     const a = JSON.parse(r.body) as Answer;
-    if (a && typeof a === "object" && Array.isArray(a.agents)) return { answer: a, at: new Date() };
+    if (currentRunnerAnswer(a)) return { answer: a, at: new Date() };
+    return { problem: "The runner returned an unsupported status response; each agent needs key, name, state and enabled fields." };
   } catch {}
   // A runner's refusal of a verb is a text answer, shown as it said it.
   return { problem: `The runner answered: ${r.body.slice(0, 500)}` };
@@ -85,7 +97,6 @@ function alertsCard(answer: Answer, skew: number, nodeVersion?: string) {
   for (const a of agents.filter(a => a.last_exit && a.last_exit.code !== 0 && a.state !== "refused" && a.state !== "unconfigured"))
     items.push({ tone: "warn", text: <><code>{a.name}</code> last exited {exitText(a.last_exit!)}{a.last_exit!.reason ? <>: <code>{a.last_exit!.reason}</code></> : null}</> });
   if (skew < 0) items.push({ tone: "warn", text: <>The runner is older than this node's {nodeVersion}: restart it to update it</> });
-  if (agents.length && !agents.some(a => a.key)) items.push({ tone: "warn", text: <>The runner is older than 0.8.210: it has no per-agent control or settings until it is restarted</> });
   if (!items.length) return null;
   return <Card title="Alerts" icon="triangle-alert" id="alerts">
     <ul class="alerts" data-alerts>{items.map(i => <li data-tone={i.tone}><Pill tone={i.tone}>{i.tone === "bad" ? "error" : "warning"}</Pill> {i.text}</li>)}</ul>
@@ -210,8 +221,7 @@ async function runnerPage(ctx: Ctx, rec: Rec, o: Observed, note?: { done?: strin
               <td data-label="Protection" data-protection>{protection(a)}</td>
               <td data-label="Inbox" data-inbox>{r ? <>{(r.queued ?? 0) > 0 ? <>{number(r.queued)} queued{r.at_bound ? <> <Pill tone="warn">full</Pill></> : null}<br /></> : null}{number(r.readers)} reading</> : <Muted>—</Muted>}</td>
               <td data-label="Last used">{r?.last_used ? <span title={r.last_used}>{relative(r.last_used)}</span> : <Muted>—</Muted>}</td>
-              {/* A runner before 0.8.210 names no key, so nothing to manage by. */}
-              <td data-label="Manage">{a.key ? <a href={settingsHref(rec.name, a.key)} data-manage>Manage</a> : <Muted>—</Muted>}</td>
+              <td data-label="Manage"><a href={settingsHref(rec.name, a.key)} data-manage>Manage</a></td>
             </tr>;
           })}</tbody>
         </table></div></div>}
@@ -343,7 +353,7 @@ async function settingsPage(ctx: Ctx, rec: Rec, key: string, note?: { done?: str
       <p class="muted small">Reload asks the runner to read every installed agent and its settings again, for the whole runner: agents a stop took down are served again. It does not restart the runner itself, so it does not update an older runner.</p>
     </Card> : <Card id="control">
       {!seen || !("answer" in seen) ? <><p class="warn" data-runner-problem>{seen && "problem" in seen ? seen.problem : "Not asked."}</p>{danger}</>
-        : !row ? <><Muted>The runner names no agent {key}: it is not served here, or the runner is older than 0.8.210.</Muted>{danger ? <div class="agent-status">{danger}</div> : null}</>
+        : !row ? <><Muted>The runner names no agent {key}: it is not served here.</Muted>{danger ? <div class="agent-status">{danger}</div> : null}</>
         : <>
           {/* One line: its state, then what may be done to it now. */}
           <div class="agent-status" data-agent={row.name}>
