@@ -87,7 +87,7 @@ owning documentation, not in this index.
 
 | Decision topic | Substance | Why |
 |---|---|---|
-| Startup drops only the specified unusable fields while keeping an otherwise valid record (A5) | [what startup drops](../../docs/constitution.md#what-startup-drops) | 2026-10-19 owner clarification; an oversized Configuration must not discard the record’s grants or queue |
+| Startup drops only the specified unusable fields while keeping an otherwise valid record (A5) | [current refusal rule](../../docs/constitution.md#what-refuses-the-start) | 2026-10-19 owner clarification; an oversized Configuration must not discard the record’s grants or queue |
 | Startup refuses on a record body that does not decode, message rows without their queue, an out-of-range ID, a damaged `@administrators` and an account mapping to a missing OS account; everything else incorrect is ignored and reported (Q122) | [what refuses the start](../../docs/constitution.md#what-refuses-the-start) | 2026-09-30 owner agreement; each breaks the store's shape or the node's authority |
 | A crash may hand a message consumed since the last flush over again, with the same `message_id` (Q115) | [durability](../../docs/04-messaging.md#durability) | 2026-09-23 owner answer: simplicity and performance first; the window is one flush and opens only on a crash; the `message_id` lets a receiver drop the repeat |
 | A write is published by releasing the registry lock it staged under (Q106) | [persistence and loading](../../docs/constitution.md#persistence-and-loading) | 2026-09-23 owner answer; the rule is what a reader observes, so staging with an undo log under the one lock meets it; copy-on-write views are a [future candidate](../R2.0-Future/FUTURE.md#candidates) |

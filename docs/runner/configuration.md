@@ -59,9 +59,7 @@ Replace `<agent-name>` with its complete name. Secret help shows names and requi
 
 ## Agent directories
 
-The runner reads shared packages first, then bundled packages. The first package with a name wins, including when that package is refused; removing it lets the next `reload` fall back to the bundled copy.
-
-An invalid shared package still shadows its bundled copy as `refused`; remove the shared directory to select the bundle.
+The runner reads shared packages first, then bundled packages. The first package with a name wins, even if it is refused. Removing a shared package lets the next `reload` select the bundled copy.
 
 | Source | Default | Starts without an inventory entry? |
 |---|---|---|

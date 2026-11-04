@@ -35,7 +35,7 @@ Every User has exactly one 👤 record: `kind` = `user`, `owner_id` = that
 `user_id`. It MUST NOT be removed while the User exists, and removing it is
 refused. A User without its 👤 record, found at startup, is corrupt state and
 a [conceptual error](#errors-and-alerts), and so is a 👤 record whose
-`owner_id` names no User; like every incorrect record, each is ignored.
+`owner_id` names no User. Either refuses startup; neither is silently omitted.
 
 An inactive User makes every record it owns inactive too, under the
 [inactive-record rule](#common-record-fields): hidden and `404`, not a
@@ -83,9 +83,7 @@ A token acts as its User, or as one Agent that User owns. The stored identity pa
 <summary>User and Agent tokens, transfer, and a mismatched pair</summary>
 
 - Without `agent_id` the token acts as the User alone.
-- A credential MAY be issued before its principal is bound, such as the daemon
-  Owner's at the first start: it carries no `user_id` yet and is bound at the
-  next check. That empty pair is the one row that is not corrupt.
+- A credential MUST be issued only for a registered principal with its current internal IDs bound. A stored empty or structurally invalid pair refuses startup; no deferred binding is performed.
 - With `agent_id` the named User MUST be that Agent's Owner. The Agent is then
   the acting principal for access, routing and delivery, and the User is who it
   acts for; the User's inactivity refuses the token exactly as it suspends the
@@ -613,9 +611,8 @@ still checked.
 
 One write-through SQLite store: a write validates, commits as one transaction,
 then publishes, so no reader sees an uncommitted or partial change. Startup
-loads every durable entity. It reports and ignores an incorrect record; it
-never repairs a record. The specific field drops below keep an otherwise valid
-record loaded. Queue contents are flushed in batches, so a crash MAY lose the
+validates the registry snapshot as a whole and refuses an invalid one; it does
+not repair fields or serve a partial registry. Queue contents are flushed in batches, so a crash MAY lose the
 last minute of traffic.
 
 <details>
@@ -627,7 +624,7 @@ last minute of traffic.
 | A management write | validates, commits the complete change as one transaction, then publishes |
 | Publication | no reader ever observes a write before its commit: a write stages its entities under the one registry lock every reader also takes, and a failed commit restores every one of them before the lock is released |
 | Atomicity | invalid input fails the whole write; no partial update is ever visible |
-| Startup | load every durable entity, then build derived indexes such as token to principal and user ID to status. An incorrect record is ignored — not loaded, not repaired — and reported as a [conceptual error](#errors-and-alerts), and the rest of the node still starts, except for what [refuses the start](#what-refuses-the-start) |
+| Startup | validate the complete durable snapshot before loading entities and building derived indexes. Incorrect state [refuses the start](#what-refuses-the-start); no partial registry, field repair or record salvage is published |
 | List fields | the API MUST provide atomic add, add-if-absent and remove for `allow`, `maintainers` and `deliver_to` |
 
 That ordering is write-through. It covers record lifecycle changes too.
@@ -641,7 +638,7 @@ Queue contents and their `in`, `out`, `dropped` and `expired` counters keep the
 [checkpoint boundary](04-messaging.md#durability): in memory during traffic, flushed as one batch every minute and on graceful shutdown, never once
 per message, so a crash MAY lose changes since the last flush.
 A durable queue whose record is absent or cannot hold a queue is such an
-incorrect record: startup MUST ignore and report it, and MUST NOT silently drop
+incorrect record: startup MUST refuse it, and MUST NOT silently drop
 or reattach that backlog.
 
 </details>
@@ -651,51 +648,20 @@ or reattach that backlog.
 
 #### What refuses the start
 
-Some stored rows break the store's shape or the node's authority, and a node
-that started past them would serve a wrong answer. Startup MUST refuse on them
-rather than ignore them:
+Startup validates the whole registry snapshot before replacing registry state. These errors refuse the start:
 
-| Stored | Refuses because |
+| Stored state | Reason |
 |---|---|
-| a record body that does not decode | the store's shape is broken; nothing about it is known to ignore |
-| message rows whose queue is absent | a backlog with no record to hold it |
-| an internal ID out of range | IDs are the store's shape |
-| a damaged `@administrators` | it carries the node's administrative authority |
-| an account mapping to a missing OS account | a socket would be served to nobody, or to whoever takes the name |
+| Unknown, duplicate or differently cased schema members | Only the declared format is accepted; Configuration payloads remain opaque JSON |
+| Missing markers, invalid or duplicate internal IDs | Identity and account-map boundaries must be unambiguous |
+| A missing daemon Owner, User record or record Owner | The complete authority graph must exist |
+| Duplicate unique profile fields, broken Group references or invalid Personal assignments | Grants and identities cannot be selected or repaired by load order |
+| A queue without a receiving record, or message rows without their queue | Backlogs cannot be dropped or attached to another identity |
+| Invalid tags, disallowed inbox/endpoint fields or oversized Configuration | A stored record must satisfy the same constraints as a write |
+| A damaged `@administrators` or invalid account mapping | Administrative authority and local login principals must be valid |
+| A mapped OS account that does not exist | Its socket cannot be assigned safely |
 
-Everything else incorrect is ignored and reported.
-
-</details>
-
-<details>
-<summary>What startup ignores</summary>
-
-Startup also ignores and reports state that a valid write cannot produce, and
-keeps an ignored record's credential for the operator who repairs it:
-
-| Stored | Ignored because |
-|---|---|
-| a record or User | it shares an internal ID with one earlier by name order; SQLite's schema already forbids it, so only another store can hold one |
-| a record | its stored owner `user_id` is not the `user_id` of the User now holding its owner's name: that User vanished and the name was given again |
-| a Group | a nested member names no stored Group, so its grant would pass to whoever created the name |
-| a local account mapping | its principal is no User or Agent; its socket is [not served](02-access.md#local-socket) |
-
-</details>
-
-<details>
-<summary>What startup drops</summary>
-
-#### What startup drops
-
-These fields are dropped and reported; the rest of the record is still
-validated normally. A later write of that record persists the drop.
-
-| Stored | Dropped at startup |
-|---|---|
-| `ttl`, `bound` or `overflow` on a 📣 | these inbox settings have no meaning on a pubsub channel |
-| `addr` or `protocol` on a record other than a Service | endpoints belong only to Services |
-| A tag outside the [tag grammar](03-records.md#tags) | only the bad tag, retaining its record and valid tags |
-| Configuration over the [compact-JSON size limit](03-records-agent.md#configuring-a-template) | Configuration and its digest, keeping the record, grants and queue |
+The daemon does not skip bad entities or strip bad fields to make a partial node start. Well-formed [ownerless credentials](02-access.md#ownerless-credentials) have their own cleanup rule.
 
 </details>
 

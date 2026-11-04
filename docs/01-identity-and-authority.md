@@ -228,7 +228,7 @@ Existing credentials and copies already held follow the
   daemon separately retains trusted photo/provenance data and one bounded local
   thumbnail; a blank profile is still a registered user.
 * Email, GitHub login and Twitter/X name are syntax-checked, trimmed and unique across profiles: email and GitHub login in lowercase ASCII, and the Twitter/X name — 1 to 15 letters, digits and `_` — without regard to case.
-  - Checked on add, edit, import and restore; a restore finding two Users with one of them ignores the later and reports it.
+  - Checked on add, edit, import and restore; a stored duplicate refuses startup rather than selecting one User.
   - Provider aliases such as dots and plus-addresses are not merged.
   - Person names need not be unique.
 * A GitHub identity retains its own GitHub username; a matching profile field does not establish a cross-provider identity alias.
@@ -309,7 +309,7 @@ An active User or Agent can register an unheld name in an unbacked realm. A User
 - A name must first be created by an existing authorized principal or through enrolment.
 - The owner must be a registered User.
 - Enrolment creates a profile and self-owned record.
-- Ordinary registration that states no `kind` creates a 📡 `service`, which is why it must also carry an address and a protocol; a caller meaning another [kind](03-records.md#record-kinds) states that kind explicitly.
+- State the [kind](03-records.md#record-kinds) explicitly when registering. If omitted, a `#` name selects an Agent and an ordinary name selects a Service, which also requires an address and a protocol.
 
 A conditional creation refuses an existing canonical name, even for its owner;
 claim and insertion happen together. Launchers use this for unique session
@@ -354,20 +354,10 @@ not stop the process. Record authority is required. Drain live queued work and s
 
 ## Orphaned records
 
-- Every owner is a User, so a record whose owner is not a User is one no running daemon wrote.
-- At startup it is [ignored and reported](constitution.md#persistence-and-loading), not deleted: it is not loaded, its name is free on the running bus, and the database keeps it for an operator.
-- A User without its own 👤 record is ignored the same way, and so, on the same start, is every record it owned.
-- [Credential cleanup](02-access.md#ownerless-credentials) follows it.
-
-<details>
-<summary>Loading boundaries</summary>
-
-- An ignored record's stored queue is ignored and reported with it.
-- A record later registered under the freed name starts with no stored queue, so the old messages never reach the new owner.
-- Each start reads the database afresh, so an ignored record is reported again until an operator repairs or removes it, or the name is registered again: the new record replaces the stored row.
+- A record's Owner must be a registered User, and every User must have its own User record.
+- Stored state violating either rule refuses startup. The daemon does not free those names, serve a partial snapshot or attach their queues to new owners.
+- Well-formed credentials whose principal no longer exists have a separate [ownerless cleanup rule](02-access.md#ownerless-credentials).
 - Ownership is checked one step: an Agent never owns a record, so there are no ownership chains to follow.
-
-</details>
 
 ## Key-value store
 

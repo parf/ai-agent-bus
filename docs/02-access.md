@@ -238,11 +238,8 @@ state and authority checks.
 * Token bytes, issuance time and the User/Agent pair persist. Last use is
   written in one batch on the queue flush's cadence, never once per call, so
   a crash may lose the uses since the last flush.
-* At start, a stored credential whose pair disagrees with ownership, or that a
-  kind holding none carries, is invalid stored state: it is ignored,
-  authenticates nothing and is reported as an alert naming the User, the
-  Agent and the current Owner, never the credential. It is not repaired. A
-  credential issued before its principal was bound is bound on first check.
+* Tokens are issued only after their principal is registered and its internal IDs are bound. Stored credentials with missing or invalid IDs refuse startup.
+* Every authenticated call checks those bound IDs against the current registry. A removed identity's token cannot act for a later identity with the same name; ownership mismatches grant no access.
 * Credential listings show only identities the caller holds, using keyed
   fingerprints rather than token bytes.
 * A person's credential lasts while their user profile exists. Users and their own records are never deleted; see [record removal](01-identity-and-authority.md#unregistering).
@@ -254,7 +251,7 @@ state and authority checks.
 ## Ownerless credentials
 
 A credential with neither a user profile nor a registry record is collected at
-startup, after [orphaned records](01-identity-and-authority.md#orphaned-records).
+startup, after the complete registry has been validated.
 The Owner or an Administrator can also remove it explicitly; viewing a list
 never performs cleanup.
 
@@ -308,7 +305,7 @@ That directory is `/run/agent-bus` on Linux and `/usr/local/var/run/agent-bus` o
 - Setup flags seed the editable account map once.
 - The stored map is then authoritative and Owner/Administrators change it through the existing [administration path](administration.md#administering-the-account-map); a full daemon restart replaces the listeners.
 - The daemon account's implicit socket stays outside that map and answers as the daemon Owner of each request, so a transfer moves it without a restart.
-- A stored mapping whose principal is no User or Agent is [ignored at load](constitution.md#persistence-and-loading): its socket is not served, it is not listed, and `account remove` still deletes its row.
+- A stored mapping whose principal is not a registered User or Agent [refuses startup](constitution.md#what-refuses-the-start); it cannot silently drop a configured login socket.
 
 </details>
 

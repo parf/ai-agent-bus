@@ -89,8 +89,7 @@ The record's [ACL](02-access.md#acl) governs visibility and use according to its
 | 👾 `agent` | its launcher, the dedicated runner, the runner, or the agent itself when it starts |
 | 👥 📮 📣 📡 📚 | a User, or an Agent acting for its Owner |
 
-Registering with no kind stores `service`, the case a bare `register` is
-usually for; use `--kind=agent` when registering an Agent.
+State the kind explicitly when registering. If omitted, a `#` name selects an Agent and an ordinary name selects a Service.
 
 </details>
 
@@ -230,7 +229,7 @@ nothing from those already allowed.
 
 - Only the owner changes Personal.
 - A new registration may state it; an agent refreshing its metadata preserves the owner's stored choice.
-- A stored record whose lists reach outside its cohort is [ignored and reported](constitution.md#persistence-and-loading) at load.
+- A stored record whose lists reach outside its cohort [refuses startup](constitution.md#what-refuses-the-start).
 - A request that changes Personal and its assignments is checked as one final record, so an owner can remove sharing while enabling Personal, or disable Personal while adding sharing, in one operation.
 
 - Assignment validity is checked when a record is written, and kept true after it: removing an allowed agent takes every reference to it in the removal's commit ([unregistering](01-identity-and-authority.md#unregistering)), and transferring one to another User takes it off its old Owner's Personal records in the transfer's commit, since it has left that cohort.

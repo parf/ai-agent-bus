@@ -85,7 +85,7 @@ None.
 - If that access is lost, that copy is dropped with a warning and the subscription stays active for its next slot; when the check cannot be made, nothing is stored or sent.
 - Deleting or cancelling an entry needs its creator, or cron's Owner or Maintainers.
 - Lists show your own entries with their messages; cron's Owner and Maintainers also see the others' ids, targets and outcomes.
-- `later list` retains recent outcomes only since the last start, shown by `outcomes_since`.
+- `sub list` counts recurring outcomes since the last start, shown by `outcomes_since`.
 - Cron never schedules messages to itself.
 
 ## Warnings and alerts
@@ -151,6 +151,6 @@ Stored entry IDs must be 12 lower-case hex characters. Unsupported state formats
 
 - Forms: `{"method":"sub.add","cron":"0 9 * * 1-5","target":"…","body":"…"}`, `{"method":"later","in":"+15m"|"at":"…","target":"…","body":"…"}`, `sub.list`, `sub.delete`, `later.list`, `later.cancel` with `id`. Use JSON for a multi-line message.
 - Bounds: 100 subscriptions (20 per creator), 1000 pending one-shots (100 per creator), 16384 bytes per message.
-- Outcomes and the `sent` and `dropped` counts are kept in memory and reset on restart; a one-shot's finished record is kept.
+- Recurring outcomes and the `sent` and `dropped` counts reset on restart. The last 100 finished one-shots are stored and remain available through `later list` after a restart.
 
 </details>

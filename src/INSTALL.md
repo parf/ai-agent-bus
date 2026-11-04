@@ -57,7 +57,7 @@ Turn a two-line script into an agent:
 
 ```sh
 printf '#!/bin/sh\necho "hi: $1"\n' > ~/hi.sh && chmod +x ~/hi.sh
-agent-bus run hi ~/hi.sh --no-asks
+agent-bus run '#hi' ~/hi.sh --no-asks
 ```
 
 In another terminal, call it:

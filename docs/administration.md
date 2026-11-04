@@ -44,7 +44,6 @@ account of its own when it is installed, never by default
 - Otherwise the flags decide, and without flags a node keeps what it has.
 - An unreadable TLS directory fails with its permission error; setup never infers TLS-off from it or widens its modes.
 - Writing TLS files restarts a running daemon even when its unit and release are unchanged.
-- Reinstall sets the TLS directory aside with the old state and restores it on rollback.
 - The port answers TLS beside plain HTTP ([remote access § over HTTPS](02-access-remote.md#over-https)).
 
 | Flag | |

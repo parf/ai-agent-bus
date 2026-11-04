@@ -42,7 +42,7 @@ Give your AI this instruction: **Read AI-SETUP.md, inspect this computer, and he
 - Check that the selected package and platform artifact are available and installable. If unavailable, use a supplied verified archive with the user's agreement; report the actual result rather than relying only on npm's exit status.
 - Execute the chosen guide's installation steps yourself where access permits. Request the needed host-change approval once, or give the exact privileged command for the user to run when interactive authorization cannot be delegated. Do not ask the user to repeat work you can perform.
 - Verify checksums, manifests and build information as that installation path requires. Do not bypass a refused integrity check. A checksum error is an incomplete install, not a reason to continue with unchecked bytes.
-- Check the resulting command and running service. For a Linux node, use the documented [post-deploy check](.claude/docs/deployment.md#post-deploy-check) where its prerequisites are installed; report missing prerequisites separately. For a client, prove connection to its chosen bus.
+- Check the resulting command and running service. Use the installed version/status commands and check the selected service. If debug is enabled, run its [selftest](docs/agents/debug.md#check-the-bus-in-a-minute). For a client, prove connection to its chosen bus.
 - On macOS follow the [Mac limits](docs/platforms/macos.md#macos): reduced launchd setup differs from Linux, and sandboxing and a person's system runner are not available. Do not translate systemd commands into guessed launchd commands or weaken a requested sandbox silently.
 
 ### 4. Offer and perform agent tuning

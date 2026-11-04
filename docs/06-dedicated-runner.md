@@ -100,7 +100,7 @@ A forced kill or an error exit leaves the registration in place; remove an idle 
 
 - Keep secrets in Secret and config in Configuration ([rule](03-records-agent.md#configuring-a-template)).
 - Configuration reaches each script as `AGENT_BUS_CONFIG`: compact JSON, unset when unconfigured.
-- It is refreshed at the next invocation; see [configuration and jq](03-records-agent.md#configuring-a-template).
+- It is refreshed at the next invocation; see [configuration](03-records-agent.md#configuring-a-template).
 
 - The record's Secret (`KEY=value` lines, [env-file syntax](03-records-service.md#env-file-syntax)) reaches each script as environment variables too, read again for every message, so `agent-bus secret` takes effect without a restart, sandboxed or not.
 - It wins over the shell's value of the same name; the message's own `AGENT_BUS_*` fields win over it, and the credential is never set by it.

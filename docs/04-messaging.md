@@ -403,8 +403,7 @@ checks, depth and provenance.
 
 - The daemon takes SQLite's exclusive lock when it opens the database, so a second daemon on the same file cannot serve.
 - A missing database is created only by `agent-busd --init` or `--create`, never silently at start; an unreadable, damaged or incompatible one refuses the start.
-- A queue whose durable record is absent, ignored or cannot hold one is ignored and reported under the [incorrect-record rule](constitution.md#persistence-and-loading), and stays in the database.
-- A record later registered under that name starts with no stored queue: its first commit drops the old one, so its messages never reach a new owner.
+- A stored queue without a receiving record [refuses startup](constitution.md#what-refuses-the-start). It is neither discarded to make the node start nor attached to another owner.
 
 ## Administrative crash recovery
 
