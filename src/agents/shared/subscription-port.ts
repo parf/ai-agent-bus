@@ -1,8 +1,8 @@
 // The chat agents supply KV/transport and selectors; all subscription policy
 // and delivery accounting live in the shared TypeScript engine.
 import { Bus, BusError, KVNotFound } from "../../clients/typescript/src/index.js";
-import { Subscriptions, SubscriptionError, type Caller, type Port, type Row, type WarningCode } from "./subscriptions.ts";
-import { migrateSubscriptions, validAuthors } from "./subscription-migration.ts";
+import { Subscriptions, SubscriptionError, FIELDS, type Caller, type Port, type Row, type WarningCode } from "./subscriptions.ts";
+const validAuthors = (value: unknown): value is string[] => Array.isArray(value) && value.length <= 100 && value.every(u => typeof u === "string" && /^[A-Z][A-Z0-9]*$/.test(u));
 
 export const staff = (e: Caller, source: string) => (!e.original_to || e.original_to.toLowerCase() === source.toLowerCase()) && e.roles.some(r => r === "owner" || r === "maintainer");
 
@@ -31,13 +31,24 @@ export class ChatPort implements Port {
   }
   async load(): Promise<Map<string, unknown>> {
     const kv = this.bus.record(this.source).kv;
-    await migrateSubscriptions(kv, this.operation.bind(this));
     const listing = await kv.list(this.operation());
     const rows = new Map<string, unknown>();
-    for (const item of listing?.json ?? []) {
-      if (typeof item.name !== "string" || !item.name.startsWith("sub.")) continue;
-      try { rows.set(item.name, (await kv.get("json", item.name, this.operation())).value); }
-      catch (e) { if (!(e instanceof KVNotFound)) throw e; }
+    for (const [kind, items] of Object.entries(listing)) {
+      if (!Array.isArray(items)) throw Error("unsupported subscription state: listing");
+      for (const item of items) {
+        const name = item?.name;
+        // These string keys belong to the current chat history/reply router.
+        if (kind === "string" && typeof name === "string" &&
+            (["reply_routes", "offset", "chats", "users"].includes(name) || /^seen:-?[0-9]+$/.test(name))) continue;
+        if (kind !== "json" || typeof name !== "string" || !/^sub\.[0-9a-f]{12}$/.test(name))
+          throw Error("unsupported subscription state: key");
+        try {
+          const value = (await kv.get("json", name, this.operation())).value;
+          if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join() !== FIELDS || value.id !== name.slice(4))
+            throw Error("unsupported subscription state: row");
+          rows.set(name, value);
+        } catch (e) { if (!(e instanceof KVNotFound)) throw e; }
+      }
     }
     return rows;
   }
@@ -85,7 +96,7 @@ export class ChatSubscriptions {
   private run<T>(fn: () => Promise<T> | T, deadline = Date.now() + 15_000): Promise<T> {
     const next = this.tail.then(async () => {
       this.port.deadline = deadline;
-      await this.engine.reload(); // migration completes before anything serves
+      await this.engine.reload(); // Validate storage before calls or forwarding.
       return fn();
     });
     this.tail = next.catch(() => {});

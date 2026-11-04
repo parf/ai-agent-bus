@@ -96,7 +96,6 @@ function fromJSON(body: string): Call {
     return v === undefined || v === BAD ? v : isChat(v as string) ? v : BAD;
   };
   const m = p.method;
-  if (m === "sub.edit") return { method: "help", why: "sub edit was removed; use sub delete <id> and sub add <channel> <target> [filter]" };
   // A key the method does not take is refused by name, never ignored: a
   // misspelt "chanel" would otherwise post as if no channel were named.
   const allowed = Object.hasOwn(KEYS, m) ? KEYS[m] : undefined;
@@ -186,8 +185,6 @@ function fromText(body: string): Call {
         const filter = tail(4);
         return { method: "sub.add", channel, target, ...(filter !== "" ? { filter } : {}) };
       }
-      case "edit":
-        return { method: "help", why: "sub edit was removed; use sub delete <id> and sub add <channel> <target> [filter]" };
       case "delete":
         return n === 3 ? { method: "sub.delete", id: word(2)! } : helpCall;
       default:

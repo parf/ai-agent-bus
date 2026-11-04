@@ -82,7 +82,6 @@ function fromJSON(body: string): Call {
   const need = <T,>(v: Field<T>): v is T => v !== undefined && v !== BAD;
   const fine = (...vs: Field<unknown>[]) => vs.every(v => v !== BAD);
   const m = p.method;
-  if (m === "sub.edit") return { method: "help", why: "sub edit was removed; use sub delete <id> and sub add <channel> <target> [filter]" };
   // A key the method does not take is refused by name, never ignored: a
   // misspelt "chanel" would otherwise post as if no channel were named.
   const allowed = Object.hasOwn(KEYS, m) ? KEYS[m] : undefined;
@@ -185,8 +184,6 @@ function fromText(body: string): Call {
         const filter = tail(from === undefined ? 4 : 5);
         return { method: "sub.add", channel, target, ...(from_users !== undefined ? { from_users } : {}), ...(filter !== "" ? { filter } : {}) };
       }
-      case "edit":
-        return { method: "help", why: "sub edit was removed; use sub delete <id> and sub add <channel> <target> [filter]" };
       case "delete":
         return n === 3 ? { method: "sub.delete", id: word(2)! } : helpCall;
       default:

@@ -421,7 +421,6 @@ async function handle(e: Message): Promise<string | null> {
   const json = e.body.trim().startsWith("{");
   const call = parseCall(e.body);
   if (call.method === "help") {
-    if (call.why?.startsWith("sub edit")) return render(json, fail(call.why));
     const help = helpFor(e);
     // A JSON call that is no call is refused, with the help to say why.
     if (json && !isHelpCall(e.body)) return JSON.stringify({ ok: false, error: call.why ?? "not a call this agent knows", help });

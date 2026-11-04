@@ -108,7 +108,7 @@ function identity(value: unknown): string {
   try { return targetText(value); } catch { throw new SubscriptionError("not_author"); }
 }
 const SAFE = (n: unknown): n is number => Number.isSafeInteger(n) && (n as number) >= 0;
-const FIELDS = ["created_at", "created_by", "dropped", "filter", "id", "selector", "sent", "target"].join();
+export const FIELDS = ["created_at", "created_by", "dropped", "filter", "id", "selector", "sent", "target"].join();
 const STAMP = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/;
 const named = (v: unknown): v is string => { try { targetText(v); return true; } catch { return false; } };
 

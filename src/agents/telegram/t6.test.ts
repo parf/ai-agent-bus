@@ -218,7 +218,7 @@ t("removed editing cannot retarget a subscription", async () => {
  const created=JSON.parse(await t6call(JSON.stringify({method:"sub.add",channel:"#dev",target}),bobToken));
  expect(created.id).toBeDefined();
  const edit=JSON.parse(await t6call(JSON.stringify({method:"sub.edit",id:created.id,target:foreign}),bobToken));
- expect(edit.ok).toBe(false);expect(edit.error).toContain("sub delete");
+ expect(edit.ok).toBe(false);expect(edit.error).toBeDefined();
  const list=JSON.parse(await t6call('{"method":"sub.list"}',ownerToken));
  expect(list.subs.find((s:any)=>s.id===created.id).target).toBe(target);
 });

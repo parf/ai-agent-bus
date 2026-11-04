@@ -1,9 +1,7 @@
 import { expect, test } from "bun:test";
 import { fixture, row, caller, owner, source } from "./b29-fixture.ts";
-import { migrationId } from "../shared/subscription-migration.ts";
 import { Subscriptions } from "../shared/subscriptions.ts";
 
-const legacy = (id = "deadbeef", changes = {}) => ({ id, channel: "C1", target: "#target", filter: "", created_by: caller.from, created_at: "2026-10-30T00:00:00.000Z", ...changes });
 
 test("chat adapter instantiates the shared engine, not a local subscription implementation", () => {
   const f = fixture(); const s = f.make(); expect(s.engine).toBeInstanceOf(Subscriptions); s.close();
@@ -58,35 +56,27 @@ test("visibility and deletion are creator or direct source staff, never forwarde
   expect(await s.list(owner)).toEqual([]); s.close();
 });
 
-test("legacy migration preserves counts and selectors, removes disabled state and is idempotent", async () => {
-  const f = fixture({ "json:sub.deadbeef": legacy("deadbeef", { disabled: true, target: "#TARGET", from_users: ["U1"] }), "int:stat.deadbeef.forwarded": 7n }), s = f.make();
-  const listed = await s.list(owner);
-  expect(listed).toEqual([row(migrationId("sub.deadbeef"), { sent: 7, selector: { channel: "C1", from_users: ["U1"] } })]);
-  expect(f.values.has("json:sub.deadbeef")).toBe(false);
-  expect(f.values.has("int:stat.deadbeef.forwarded")).toBe(false);
-  const writes = f.writes(); expect(await s.list(owner)).toEqual(listed); expect(f.writes()).toBe(writes); s.close();
+test("unsupported subscription formats refuse without writes or delivery", async () => {
+  for (const initial of [
+    {"json:sub.deadbeef": {id:"deadbeef", channel:"C1"}},
+    {"json:sub.000000000001": {...row(), channel:"C1"}},
+    {"json:migration.sub.deadbeef": {oldKey:"sub.deadbeef",nextKey:"sub.deadbeef0000"}},
+    {"int:stat.deadbeef.forwarded": 7n},
+    {"string:stat.deadbeef.last_error": "refused"},
+  ]) {
+    const f=fixture(initial), s=f.make(), before=structuredClone(f.values);
+    await expect(s.ready()).rejects.toMatchObject({code:"store_unknown"});
+    await expect(s.deliver("C1","U1","match","match","chat")).rejects.toMatchObject({code:"store_unknown"});
+    expect(f.values).toEqual(before); expect(f.writes()).toBe(0); expect(f.sent).toEqual([]); s.close();
+  }
 });
 
-test("migration collisions preserve both distinct subscriptions and invalid filters stay inert", async () => {
-  const occupied = migrationId("sub.deadbeef");
-  const f = fixture({ [`json:sub.${occupied}`]: row(occupied), "json:sub.deadbeef": legacy("deadbeef", { filter: "/(/" }) }), s = f.make();
-  const listing = s.list(owner);
-  await expect(listing).resolves.toHaveLength(2);
-  const listed = await listing;
-  expect(listed).toHaveLength(2); expect(listed.find(r => r.id === migrationId("sub.deadbeef", 1))).toMatchObject({ reason: "invalid_filter", filter: "/(/" });
-  await s.deliver("C1", "U1", "match", "match", "chat");
-  expect(f.sent).toHaveLength(1); expect(f.warnings.filter(w => w.endsWith(":filter_invalid"))).toHaveLength(1); s.close();
-});
-
-test("a lost migration commit reply serves nothing until recovery and never serves both keys", async () => {
-  const f = fixture({ "json:sub.deadbeef": legacy() }), first = f.make();
-  f.state.afterWrite = (_kind, key) => { if (key === `sub.${migrationId("sub.deadbeef")}`) throw Error("reply lost"); };
-  await expect(first.deliver("C1", "U1", "one", "one", "chat")).rejects.toMatchObject({ code: "store_unknown" });
-  expect(f.sent).toEqual([]); expect(f.values.has("json:sub.deadbeef")).toBe(true); first.close();
-  f.state.afterWrite = undefined; const recovered = f.make();
-  expect(await recovered.list(owner)).toHaveLength(1);
-  await recovered.deliver("C1", "U1", "one", "one", "chat");
-  expect(f.sent.map(x => x.body)).toEqual(["one"]); expect(f.values.has("json:sub.deadbeef")).toBe(false); recovered.close();
+test("current rows and unrelated current chat state reload unchanged", async () => {
+  const f=fixture({"json:sub.000000000001":row("000000000001",{sent:7,dropped:3}),"string:reply_routes":"{}","string:offset":"12","string:seen:123":"[]","string:users":"[]","string:chats":"[]"}), s=f.make();
+  const before=structuredClone(f.values);
+  await s.ready();
+  expect(await s.list(owner)).toEqual([row("000000000001",{sent:7,dropped:3})]);
+  expect(f.values).toEqual(before); expect(f.writes()).toBe(0); s.close();
 });
 
 test("counter failure never retries a send or resurrects a deleted row", async () => {
@@ -98,19 +88,4 @@ test("counter failure never retries a send or resurrects a deleted row", async (
   await s.delete(caller, "000000000001");
   await s.deliver("C1", "U1", "next", "next", "chat");
   expect(f.sent).toHaveLength(1); expect(f.values.has("json:sub.000000000001")).toBe(false); s.close();
-});
-
-test("malformed legacy authors remain manager-only damaged definitions, never canonical selector rows", async () => {
-  for (const from_users of ["U1", [""], ["u1"], ["U1", null], Array(101).fill("U1")]) {
-    const f = fixture({ "json:sub.deadbeef": legacy("deadbeef", { from_users }) }), s = f.make();
-    try {
-      expect(await s.list(caller)).toEqual([]);
-      expect(await s.list(owner)).toEqual([{ id: migrationId("sub.deadbeef"), reason: "invalid_state" }]);
-      const retained = f.values.get(`json:sub.${migrationId("sub.deadbeef")}`);
-      expect(retained).toMatchObject({ invalid_legacy: true, from_users });
-      expect(retained).not.toHaveProperty("selector");
-      await s.deliver("C1", "U1", "one", "one", "chat");
-      expect(f.sent).toEqual([]);
-    } finally { s.close(); }
-  }
 });

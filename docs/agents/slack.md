@@ -201,6 +201,8 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 
 ## Troubleshooting
 
+Unsupported subscription keys, fields or counter formats stop subscription operations without converting, deleting or replaying state.
+
 | If you see this | Do this |
 |---|---|
 | “we do not know you” | Owner adds your Slack user id to `users`; the notice comes at most once an hour |

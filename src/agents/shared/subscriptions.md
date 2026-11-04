@@ -50,11 +50,10 @@ A damaged stored row is listed only to direct source Owner/Maintainers as
 `{id, reason: invalid_state}`; it is inert, only those managers may delete it,
 and it counts toward the subscription limit ([decision](../../../Plans/R1.0-Release/subscriptions.md#one-behaviour)).
 
-Keep `sub.<id>` keys. Agent migrations map their old selector fields into
-selector, preserve creator and valid counts, and remove obsolete pause/disabled
-and held-copy retry state. Unsupported filters, including overlong old patterns within the row storage bound, remain visible and inert with a
-fixed reason/warning; only deletion/re-add repairs them. Migration never turns
-an unsupported filter into match-all.
+Persist only the current `sub.<id>` shape. Adapters refuse unsupported IDs,
+fields, journals and standalone counters before serving or forwarding; they never
+convert, guess, delete or replay that state. Current malformed filter values remain
+inert and visible, rather than becoming match-all.
 
 `SubscriptionError.code` is stable; prose is not the parity contract. Initial
 codes: `invalid_target`, `invalid_selector`, `invalid_filter`, `invalid_id`,

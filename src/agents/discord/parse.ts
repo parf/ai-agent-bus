@@ -6,7 +6,6 @@ export function parse(body: string, aliases: string[] = []): Call {
   else {
     const words = body.trim().split(/\s+/); let method = words.shift() ?? '';
     if (method === 'sub') method += '.' + (words.shift() ?? '');
-    if(method==='sub.edit')throw Error('delete it and add it again');
     call = { method };
     const channelLike = (s?: string) => !!s && (s.startsWith('#') || aliases.includes(s) || /^id:[0-9]{1,20}$/.test(s));
     if (method === 'post') { if (words.length > 1 && channelLike(words[0])) call.channel = words.shift()!.replace(/^id:/,''); call.text = words.join(' '); }
@@ -21,7 +20,6 @@ export function parse(body: string, aliases: string[] = []): Call {
     if (!['post','channels'].includes(method) && words.length) throw Error('too many arguments');
   }
   if (!call || typeof call !== 'object' || Array.isArray(call) || typeof call.method !== 'string') throw Error('expected a Discord call');
-  if (call.method === 'sub.edit') throw Error('delete it and add it again');
   if (!names.includes(call.method)) throw Error('unknown method; use help');
   const fields: Record<string,string[]> = { post:['channel','text','reply_to'], read:['channel','limit'], channels:['filter'], channel:['channel'], react:['channel','id','emoji'], edit:['channel','id','text'], delete:['channel','id'], thread:['channel','id','name'], whoami:[], 'sub.add':['channel','target','filter'], 'sub.list':[], 'sub.delete':['id'], help:[] };
   for (const key of Object.keys(call)) if (key !== 'method' && !fields[call.method]!.includes(key)) throw Error(`unexpected argument ${key}`);

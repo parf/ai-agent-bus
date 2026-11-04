@@ -29,7 +29,7 @@ test('packaged self-serving agent reads its own record Secret and Configuration 
  const cli=spawn(['bash','-o','pipefail','-c',`agent-bus call "$DISCORD_AGENT" --wait 3s whoami | jq '.body | fromjson | .result'`],{env:{...process.env,PATH:bin+':'+process.env.PATH,DISCORD_AGENT:name,AGENT_BUS_ADDR:fx.socket,AGENT_BUS_TOKEN:fx.ownerToken,AGENT_BUS_NAME:fx.owner},stdout:'pipe',stderr:'pipe'});
  const cliOut=await new Response(cli.stdout).text(),cliErr=await new Response(cli.stderr).text();expect(await cli.exited,cliErr).toBe(0);expect(JSON.parse(cliOut)).toEqual({id:'9',username:'fixture-bot',guilds:[{id:'1',name:'allowed'}]});
  const help=await client.call(name,'',{ask:'help-json',timeout:3000});expect(help.kind).toBe('answer');if(help.kind!=='answer')throw Error('missing help');const data=JSON.parse(help.message.body);expect(data.methods['sub.edit']).toBeUndefined();expect(data.methods['sub.add']).toBeDefined();expect(JSON.stringify(data)).not.toContain('fake-secret');
- const edit=await client.call(name,'sub edit abc',{timeout:3000});expect(edit.kind).toBe('answer');if(edit.kind==='answer')expect(edit.message.body).toContain('delete it and add it again');
+ const edit=await client.call(name,'sub edit abc',{timeout:3000});expect(edit.kind).toBe('answer');if(edit.kind==='answer')expect(edit.message.body).toContain('error');
  // Exercise an actual provider refusal after packaging, not merely help or validation.
  f.state.failPath='/channels/10/messages';f.state.failMethod='GET';f.state.failStatus=403;
  const beforeRefusal=f.requests.length;

@@ -225,6 +225,8 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 
 ## Troubleshooting
 
+Unsupported subscription keys, fields or counter formats stop subscription operations without converting, deleting or replaying state.
+
 | If you see this | Do this |
 |---|---|
 | `409` or “another getUpdates request” | Stop the other program using this bot; only one receiver may |

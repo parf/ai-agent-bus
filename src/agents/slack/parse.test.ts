@@ -97,11 +97,9 @@ test("subscription authors have equivalent text and JSON forms, without local ed
 });
 
 
-test("removed sub.edit refuses both forms and names delete/add", () => {
+test("unknown subscription methods do not produce operations", () => {
   for (const body of ['sub edit abc target=#other', '{"method":"sub.edit","id":"abc","target":"#other"}']) {
     const result = parseCall(body);
     expect(result.method).toBe("help");
-    expect((result as { why?: string }).why).toContain("sub delete");
-    expect((result as { why?: string }).why).toContain("sub add");
   }
 });

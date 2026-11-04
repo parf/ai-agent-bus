@@ -20,7 +20,7 @@ test('Discord fast config requires alias ids and refuses duplicate destinations'
 test('Discord fast parsing preserves a named channel and rejects removed sub editing',()=>{
  expect(parse('post alerts hello',['alerts'])).toEqual({method:'post',channel:'alerts',text:'hello'});
  expect(parse('read #alerts 50')).toEqual({method:'read',channel:'#alerts',limit:50});
- expect(()=>parse('sub edit 123')).toThrow('delete it and add it again');
+ expect(()=>parse('sub edit 123')).toThrow();
 });
 test('Discord fast splitting bounds provider posts and truncates the eighth part',()=>{
  const out=chunks('x'.repeat(20000));expect(out).toHaveLength(8);expect(out.every(s=>[...s].length<=2000)).toBe(true);expect(out.at(-1)).toEndWith('… (truncated)');

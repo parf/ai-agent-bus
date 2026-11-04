@@ -307,7 +307,6 @@ async function _handle(e: Message): Promise<string | null> {
   const json = e.body.trim().startsWith("{");
   const call = parseCall(e.body);
   if (call.method === "help") {
-    if (call.why?.startsWith("sub edit")) return render(json, fail(call.why));
     const help = describe(mayChangeSubscriptions(e, name));
     if (json && !isHelpCall(e.body)) return JSON.stringify({ ok: false, error: call.why ?? "not a call this agent knows", help });
     return json ? describe(mayChangeSubscriptions(e, name), "help", true) : help;
