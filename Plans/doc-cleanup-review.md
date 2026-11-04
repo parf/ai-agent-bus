@@ -2,7 +2,7 @@
 
 Status: the recorded user-guide and source-guide cleanup/dedup passes are applied. Final integrated verification passed on 2026-11-04. Push, publication and tagging remain on hold.
 
-This ledger reconciles the earlier full-block Astra reviews with the completed family commits through `0dcc17c6`, plus the closure pass below. A commit alone is not treated as proof of a full semantic review: the evidence combines the recorded reviewer coverage, family handoffs and the actual page changes. Contributor references added late have narrower dispositions where a full dedup pass is not evidenced.
+This ledger reconciles the earlier full-block Astra reviews with the completed family commits through `0dcc17c6`, plus the closure pass below. A commit alone is not treated as proof of a full semantic review: the evidence combines the recorded reviewer coverage, family handoffs and the actual page changes. Contributor references are classified by their actual audience; useful dense implementation contracts are retained.
 
 ## Review evidence
 

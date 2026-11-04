@@ -169,7 +169,7 @@ These are editorial proposals, not executed commands or invented output.
 - Record each page's full review, dedup decision and justified repetitions in the ledger.
 - Complete the integrated verification listed there before closing the cleanup.
 
-Status: **cleanup passes applied; integrated verification pending**. The initial sample findings above are retained as the rationale for these rules, not a pending-all task list. Publication remains on hold.
+Status: **cleanup passes applied; integrated verification passed**. The initial sample findings above are retained as the rationale for these rules, not a pending-all task list. Publication remains on hold.
 
 ## Application log
 
@@ -181,7 +181,7 @@ The [per-file ledger](doc-cleanup-review.md#file-dispositions) records the full-
 - Source README/INSTALL/MODULES family: audience separation, actual package/SDK prerequisites, current contracts and retained contributor build/test mechanics.
 - Closure: runner setup and macOS reread, missing source-reference classification, current web route/status contract corrections.
 
-Static checks on individual batches are evidence only for those batches. Final integrated links, assets, source quotes and canonical-form checks remain [pending](doc-cleanup-review.md#final-verification-still-pending), as does the runtime landing gate required by the combined code changes.
+Static checks on individual batches are evidence only for those batches. Final integrated links, assets, source quotes, canonical-form checks and the required normal runtime gate [passed](doc-cleanup-review.md#final-verification).
 
 ## Remove thin planning layers
 
