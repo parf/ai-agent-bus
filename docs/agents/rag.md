@@ -185,7 +185,7 @@ Replacement and recovery:
 - Delete hides heads with a `deleted` tombstone, filter-deletes all chunk revisions, then removes the tombstone; it also sweeps headless chunks, including a failed first insertion.
 - A tombstone keeps source text until cleanup finishes; `incomplete: repeat the same delete to continue` resumes a large wipe.
 - A definite first-write refusal says **not stored; prior record unchanged**: 400, 401, 403, 404, 405, 413, 415, 422 or a local proxy role refusal; 408, 409, 429, 499 and other ambiguous failures never claim the prior state is unchanged; no cross-call transactions.
-- UUID namespace, tuple encoding and chunk-boundary version are permanent storage contracts; changing them needs a migration.
+- UUID namespace, tuple encoding and chunk-boundary version are permanent storage contracts; changing them makes persisted data incompatible.
 - Splitting prefers the last paragraph, line or space boundary in the latter half of a 4096-byte window, else hard-cuts at a complete UTF-8 character; identical prepared content rewrites the same points; different Jev labels or vectors give a new revision.
 - Search filters `_rag_kind=chunk` and checks each hit's revision against its head.
 

@@ -63,8 +63,8 @@ def check(test, directory, agent, name):
         test.assertEqual(whole['hidden_methods'], {'count':len(hidden),'roles':needed})
         test.assertEqual(len(whole['methods']), len(methods)-len(hidden))
         test.assertEqual(whole['body_formats'], ['text'] if name=='debug' else ['text','json'])
-    legacy = {key:value for key,value in manifest.items() if key!='body_formats'}
-    with patch('metadata.json.loads',return_value=legacy):
+    default_formats = {key:value for key,value in manifest.items() if key!='body_formats'}
+    with patch('metadata.json.loads',return_value=default_formats):
         test.assertEqual(data(directory,'help-json',roles=[])['body_formats'],['text'])
     unrestricted = next(method for method, entry in manifest['methods'].items() if not entry.get('role'))
     scoped = data(directory, 'help-json', allowed=[unrestricted], roles=[])

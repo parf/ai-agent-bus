@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'clients/python'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'shared'))
 import scheduler
 
 

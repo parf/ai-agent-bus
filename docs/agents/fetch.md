@@ -129,7 +129,7 @@ agent-bus config '#fetch/team@node.example' '{"allow":["https://api.example.org/
 |---|---|
 | A local error | A forbidden URL, address or port, an allowlist mismatch, a DNS, connect or TLS failure, or a bound; error text never reveals internal hosts or addresses |
 | `unknown: request was sent; …` | The request may have executed; reconcile a mutation before retrying; operators see only status classes and byte counts, never URLs, headers or payloads |
-| A page has little text | It relies on JavaScript, an undeclared legacy charset or complex layout |
+| A page has little text | It relies on JavaScript, an unsupported or undeclared charset or complex layout |
 | Private HTTPS fails | It needs a normally trusted certificate; weakening verification is not available |
 
 ## Warnings and alerts
