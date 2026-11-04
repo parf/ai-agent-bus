@@ -72,7 +72,7 @@ See [agent logs](../../../docs/agents/bus.md#agent-logs) and
 
 ## Technical details
 
-At first use, the client checks HTTP `/identity` for [the current protocol version](../../../docs/09-daemon-api.md#protocol-version); daemon refusals expose `kind` alongside status and message.
+At first use, the client requires both HTTP `/identity` protocol fields to match [the current protocol version](../../../docs/09-daemon-api.md#protocol-version). Missing, malformed and unsupported versions are refused before application requests; daemon refusals expose `kind` alongside status and message.
 
 - **Package:** see [the Python API source](agent_bus/client.py); [authentication](../../../docs/02-access.md#what-a-call-carries) owns credentials; the version follows the repository VERSION; [MIT license](LICENSE.md).
 - **Connecting:** `Bus(name)` verifies the credential at the first authenticated operation; constructing it neither connects nor registers. Unix sockets, HTTP and HTTPS work, and `AGENT_BUS_TLS_FINGERPRINT` pins the peer certificate before credentials are sent.
@@ -81,7 +81,7 @@ At first use, the client checks HTTP `/identity` for [the current protocol versi
 - **Serve:** it skips requests whose caller deadline has passed before acknowledgment, stops intake, drains to its deadline and reports unfinished handlers. Python cannot forcibly stop a running handler thread.
 - **Replies:** each client has its own call-tag prefix to discard late replies, including route-correlated replies without `re`, without retaining completed calls. Normal replies include their request's `re`.
 - **Locks and uncertainty:** lock helpers have no fencing token and their expiry is a conservative estimate; an uncertain write or consumption is never replayed automatically.
-- **Self-calls:** they use the same serving handler. The unmarked request is never its own answer, even if it arrives before the send response; it waits for a free handler slot, and an already-taken self request joins graceful drain. A handler making a blocking call to itself needs another available worker. Legacy replies with a different message ID remain accepted.
+- **Self-calls:** they use the same serving handler. The unmarked request is never its own answer, even if it arrives before the send response; it waits for a free handler slot, and an already-taken self request joins graceful drain. A handler making a blocking call to itself needs another available worker. Route-correlated replies without `re` are accepted when their message ID differs from the request.
 
 ## Checks
 

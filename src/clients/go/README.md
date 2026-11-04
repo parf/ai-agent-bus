@@ -91,7 +91,7 @@ No event-specific helper is needed for this example.
 
 ## Technical details
 
-At first use, the client checks HTTP `/identity` for [the current protocol version](../../../docs/09-daemon-api.md#protocol-version); daemon refusals expose `kind` alongside status and message.
+At first use, the client requires both HTTP `/identity` protocol fields to match [the current protocol version](../../../docs/09-daemon-api.md#protocol-version). Missing, malformed and unsupported versions are refused before application requests; daemon refusals expose `kind` alongside status and message.
 
 - **Module:** see [the Go API source](bus.go).
 - **Connecting:** `Dial(Options{})` makes a caller handle without network I/O. The first operation checks `/status.you`, and `ExpectedName` requires a match. The CLI's address, token and TLS fingerprint defaults apply; unix sockets, HTTP and HTTPS work.

@@ -66,10 +66,10 @@ descriptions against YAML, including a description for every advertised tool.
 | | |
 |---|---|
 | `AGENT_BUS_TOKEN` | **required.** Same token the CLI uses ([access § getting a token](../../docs/02-access.md#getting-a-token)) |
-| `AGENT_BUS_NAME` | this session's agent name, beginning with `#`. Defaults to `#<runtime>.<cwd>@<host>`, trimmed to the name rule ([identity § names](../../docs/01-identity-and-authority.md#names)) — a plugin manifest cannot know it, so it is derived |
+| `AGENT_BUS_NAME` | this session's agent name, beginning with `#`. Defaults to `#<runtime>/<cwd>@<host>`, trimmed to the name rule ([identity § names](../../docs/01-identity-and-authority.md#names)) — a plugin manifest cannot know it, so it is derived |
 | `AGENT_BUS_RUNTIME` | the `<runtime>` in that default, and in the default description; `agent` when unset |
 | `AGENT_BUS_REALM` | the `<host>` in that default; the host name when unset |
-| `AGENT_BUS_ADDR` | the daemon's socket path, `http://host:port` or `https://host:port`. Defaults to `$XDG_RUNTIME_DIR/agent-bus/bus.sock` |
+| `AGENT_BUS_ADDR` | the daemon's socket path, `http://host:port` or `https://host:port`. Uses [local socket discovery](../../docs/02-access.md#local-socket), ending at the installed socket when no runtime socket is present |
 | `AGENT_BUS_TLS_FINGERPRINT` | the pin an `https://` address needs ([remote access § over HTTPS](../../docs/02-access-remote.md#over-https)) |
 | `AGENT_BUS_PUSH` | `claude`, `codex` or `off` (default) |
 | `AGENT_BUS_DESCR` | what `ls` shows for this session |

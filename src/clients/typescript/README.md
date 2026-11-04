@@ -69,7 +69,7 @@ See [agent logs](../../../docs/agents/bus.md#agent-logs) and
 
 ## Technical details
 
-At first use, the client checks HTTP `/identity` for [the current protocol version](../../../docs/09-daemon-api.md#protocol-version); daemon refusals expose `kind` alongside status and message.
+At first use, the client requires both HTTP `/identity` protocol fields to match [the current protocol version](../../../docs/09-daemon-api.md#protocol-version). Missing, malformed and unsupported versions are refused before application requests; daemon refusals expose `kind` alongside status and message.
 
 - **Runtime:** an ESM client for Node 22+ and Bun 1.3+. All network I/O uses Node's built-in HTTP and HTTPS interfaces, including Unix sockets. Browsers are unsupported.
 - **Connecting:** `Bus.connect()` does no I/O. The first authenticated operation verifies `/status.you` against `expectName` when supplied, and `record(name)` selects a target, never a different caller.
@@ -84,7 +84,7 @@ At first use, the client checks HTTP `/identity` for [the current protocol versi
 - **TypeScript-only options:** `serve(handler, { onReply })` opts into unmatched non-receipt `re` messages; its callback shares worker and drain limits and sends no automatic ack or answer. `matchesReply(message)` also selects non-`re` answers by an application's stored correlation, and false leaves ordinary request handling unchanged. Classification runs within the serving worker budget, a slow classifier does not block pending call answers, and a thrown one is reported through `onError`. These options are covered by the [MIT license](LICENSE.md#mit-license) like the rest of the client.
 - **Key-value:** `record.kv` has typed string, int and JSON operations. Int64 reads return `bigint`, including values beyond the safe integer range. Static JSON operations are sent atomically, and the modes are set, add and replace. A 404 `KVNotFound` can mean a missing value or an unseen record.
 - **Locks:** `record.locks` exposes acquire, tryAcquire, extend, release, forceRelease and holders. There is no fencing token, so a stale same-caller release can release a newer acquisition, and cancelling a waiting acquire may race a grant; check holders or let its TTL expire.
-- **Self-calls:** they use the same serving handler and return its answer, never the unmarked request. Already-taken self requests wait for free worker capacity and join graceful drain, including an early send response and alternate reply inboxes. A handler awaiting a call to itself needs another free worker. Legacy unmarked answers with a different message ID remain supported.
+- **Self-calls:** they use the same serving handler and return its answer, never the unmarked request. Already-taken self requests wait for free worker capacity and join graceful drain, including an early send response and alternate reply inboxes. A handler awaiting a call to itself needs another free worker. Route-correlated answers without `re` are accepted when their message ID differs from the request.
 
 ## Build and checks
 
