@@ -1,5 +1,7 @@
 """Starter policy checks; no host units or bus records are changed."""
 import argparse
+import contextlib
+import io
 import json
 import importlib.util
 import os
@@ -14,6 +16,22 @@ from unittest.mock import patch
 spec = importlib.util.spec_from_file_location('starter', Path(__file__).parents[1] / 'install.py')
 starter = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(starter)
+
+
+class CanonicalArguments(unittest.TestCase):
+    def test_only_full_options_and_help_are_accepted_before_actions(self):
+        for args in [['-h'], ['install', '--na', '#server-info@test'], ['install', '-name', '#server-info@test']]:
+            with self.subTest(args=args), patch.object(sys, 'argv', ['install.py', *args]), patch.object(starter, 'install') as action, contextlib.redirect_stderr(io.StringIO()), contextlib.redirect_stdout(io.StringIO()):
+                with self.assertRaises(SystemExit) as result: starter.main()
+                self.assertEqual(result.exception.code, 2)
+                action.assert_not_called()
+        with patch.object(sys, 'argv', ['install.py', '--help']), patch.object(starter, 'install') as action, contextlib.redirect_stdout(io.StringIO()):
+            with self.assertRaises(SystemExit) as result: starter.main()
+            self.assertEqual(result.exception.code, 0)
+            action.assert_not_called()
+        with patch.object(sys, 'argv', ['install.py', 'install', '--name', '#server-info@test']), patch.object(starter, 'install', return_value='unit') as action, contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(starter.main(), 0)
+            self.assertEqual(action.call_args.args[0].name, '#server-info@test')
 
 
 class StarterPolicy(unittest.TestCase):

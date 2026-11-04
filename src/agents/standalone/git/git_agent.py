@@ -533,7 +533,7 @@ def main():
     if sys.argv[1:] == ['--serve']:
         import autopull
         return autopull.serve()
-    p = argparse.ArgumentParser(add_help=False)
+    p = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
     p.add_argument('body', nargs='?', default='')
     print(answer(p.parse_args().body))
 

@@ -184,7 +184,8 @@ def install(args):
 
 
 def main():
-    p = argparse.ArgumentParser(description=__doc__)
+    p = argparse.ArgumentParser(description=__doc__, add_help=False, allow_abbrev=False)
+    p.add_argument("--help", action="help", help="show this help message and exit")
     p.add_argument("action", choices=["install", "remove"])
     p.add_argument("--name", required=True)
     p.add_argument("--user", help="unit account; default: dedicated ab-<agent> system account")
