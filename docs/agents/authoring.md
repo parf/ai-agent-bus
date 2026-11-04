@@ -4,7 +4,9 @@
 without reading the implementation. Author it once in `agent.json` and
 `env.dist`; generated text stays short, while `help-json` retains the full data.
 
-Starting a package? Use the [create-agent prompt](create-agent-prompt.md#prompt-to-paste), then check the prose below.
+Starting a package? Use the [create-agent prompt](create-agent-prompt.md#prompt-to-paste).
+The [behavior checklist](../10-writing-an-agent.md#absolute-minimum--every-agent)
+covers correctness and safety; this page covers its description and help.
 
 ## Checklist: writing an agent's description and help
 
@@ -49,4 +51,4 @@ for validation and [Secret handling](../runner/security.md#secrets) for the valu
 | Start per-message unless retained state or connections require otherwise | Less lifecycle code to own |
 | Use existing services and the smallest dependency and privilege set | No undocumented authority paths |
 | Include a refusal; exercise destructive examples only in disposable fixtures | Prove scope without risking shared resources |
-| Keep application errors consistent and credentials out of answers and logs | Each agent owns the secrecy of its replies |
+| Keep application errors consistent | Callers can distinguish a refusal from a failure |

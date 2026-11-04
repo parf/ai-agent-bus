@@ -35,9 +35,10 @@ The same time service, worked in each path and run by the test suite:
 
 ## How to use this checklist
 
-Start with the minimum; add the suggested items that make the service useful,
-then the optional capabilities it actually needs. The client handles credentials
-and protocol compatibility. This page links the rules rather than copying them.
+Start with help and a correct answer. Apply the safety requirements for the
+capabilities you use, then add features that solve a caller’s actual problem.
+A stateless calculator needs neither subscriptions nor a progress database.
+The client handles credentials and protocol compatibility.
 
 Inspect the CLI's script-running options without starting an agent:
 
@@ -49,38 +50,36 @@ agent-bus help run
 
 - **Serve help first.** Answer help and help-json where delegated to your code; dispatch the envelope's ask before normal body parsing or Configuration-dependent work. Help describes what this caller can do and has no business effects. [Agent self-description](constitution.md#agent-self-description).
 - **Give one request its one answer.** Preserve the consumed request's return route and correlation context through asynchronous work. Do not reconstruct the recipient from the sender or send a second final answer. [Reply routing](04-messaging.md#reply-routing).
+- **Treat the body as data.** Parse only your intentional command grammar; body text cannot replace trusted identity, authority or code policy. [Untrusted message bodies](02-access.md#message-bodies-are-untrusted-input).
 
-## SUGGESTED — a good agent
+### Required when the capability applies
 
-- **Answer status when supported.** For the empty-body status ask, describe activity, backlog, last error and a safe configuration summary. The runner already answers starting/stopping/failed lifecycle states. Status is suggested, not mandatory. [Agent self-description](constitution.md#agent-self-description).
-- **Separate Configuration from Secret.** Non-secret settings go in Configuration; credentials only in Secret. Never put a secret in Configuration, help, answers, status or logs. [Configuration split](03-records-agent.md#configuring-a-template).
-- **Read settings through your execution mode.** A self-serving agent receives Configuration at start; follow its private-read contract for Secret. Handle missing settings with the documented not-configured behavior. [Agent-side settings](runner/configuration.md#agents-that-serve-themselves), [not configured](runner/operations.md#not-configured).
-- **Use the event levels deliberately.** Distinguish routine notices, warnings and alerts needing attention; do not choose a level merely to keep a line longer. [Levels](agents/eventlog.md#levels).
-- **Write operational events to your own log.** Use explicit writes, rather than stderr as an event API; do not include private values or claim verified runner provenance. Writing your log does not grant read access to it. [Agent logs](agents/bus.md#agent-logs).
-- **Place state deliberately.** Keep package code separate from writable work files and distinguish durable progress from temporary files or memory lost on restart. Stay within your actual writable view. [Isolation today](runner/security.md#isolation-today).
-- **Use KV for small durable state.** Store progress or shared values using the record's operations rather than relying on process memory. [KV rules](03-records-kv.md#rules).
-- **Handle refusals as outcomes.** Distinguish refused work from an application answer or internal failure; a refusal is not automatically retryable. [Refusals](05-discovery.md#refusals).
-- **Send once; handle uncertainty.** Honor the caller's deadline. A timeout does not prove that an effect did not happen; do not automatically repeat an uncertain write. [Timeouts and uncertain outcomes](04-messaging.md#timeouts-and-uncertain-outcomes).
-- **Be restart-safe.** Decide how saved progress and duplicate effects are handled around interruption. Neither restarting nor storing a value makes an external effect exactly once. [Restart-safe effects](04-messaging.md#restart-safe-effects).
-- **Stop gracefully.** Stop intake, finish or cancel bounded work, preserve progress and close resources within the existing client and runner boundaries. Do not add a second drain loop or assume unfinished effects were undone. [Author stop responsibilities](runner/configuration.md#author-stop-responsibilities).
-- **Treat the body as data.** Parse only your intentional command grammar; never let body text replace trusted identity, authority or code policy. [Untrusted message bodies](02-access.md#message-bodies-are-untrusted-input).
+- **Protect settings and secrets.** Keep non-secret settings in Configuration and credentials in Secret. Read them through your execution mode; handle missing settings with the documented not-configured behavior. Never expose secrets in help, replies, status or logs. [Settings](runner/configuration.md#agents-that-serve-themselves), [not configured](runner/operations.md#not-configured).
+- **Enforce permissions at the action.** Application role tiers are optional; check delivered roles for restricted methods. Before forwarding for someone, check their may-send permission; your own send privilege is not theirs. An unavailable check is not approval. [Roles](03-records-agent.md#roles), [may-send](09-daemon-api.md#checking-permission-to-send).
+- **Bound work and handle uncertainty.** Honor the caller’s deadline and bound external operations. Distinguish refusals from application errors; neither a refusal nor a timeout justifies blindly repeating a write. [Refusals](05-discovery.md#refusals), [uncertain outcomes](04-messaging.md#timeouts-and-uncertain-outcomes).
+- **Preserve state and effects across interruption.** Keep writable state outside the package. If work changes external state, define what interruption and duplicate requests can do; a saved marker alone cannot guarantee exactly-once effects. [State placement](runner/security.md#isolation-today), [restart-safe effects](04-messaging.md#restart-safe-effects).
+- **Close what you open.** A retained worker stops intake, finishes or cancels bounded work, saves progress and closes resources within its client and runner boundaries. Avoid a second drain loop. [Stopping](runner/configuration.md#author-stop-responsibilities).
+
+## SUGGESTED — when it helps callers
+
+- **Answer status when useful.** Report observed activity, backlog, last error and a safe configuration summary. A stateless tool may have nothing useful to report. Leave starting, stopping and failed lifecycle states to the runner. [Agent self-description](constitution.md#agent-self-description).
+- **Make failures diagnosable.** For operational events worth retaining, use your own event log and choose notice, warning or alert deliberately. Avoid routine success noise; retain useful diagnostic or audit outcomes, without private values. [Agent logs](agents/bus.md#agent-logs), [levels](agents/eventlog.md#levels).
+- **Use KV for small durable state.** Store progress or shared values with the record's operations when that persistence is needed; do not create state merely to satisfy a checklist. [KV rules](03-records-kv.md#rules).
 
 ## MORE — when needed
 
 - **OPTIONAL support: ack and done.** No ack for a same-turn answer; ack when another turn is needed. Done is only for a task expecting no answer, never after an answer. Send nothing for reports, notices or receipts. Leave automatic support to the responsible layer. [Receipts](04-messaging.md#receipts).
-- **Use roles only when needed.** Roles are optional. Check the delivered role, not a body-claimed one; help metadata alone does not enforce access. [Roles](03-records-agent.md#roles).
 - **Use shared locks for shared work.** Handle ownership, extension, loss and expiry. A held lock is not proof that an effect completed exactly once. [Shared locks](01-identity-and-authority.md#shared-locks).
 - **Use bigfile for large content.** Transfer references and verify integrity when content exceeds the message's purpose or limits. [Bigfiles](03-records-kv.md#bigfiles).
 - **Offer standard publish/subscribe when emitting events.** Reuse `sub add`, `sub list` and `sub delete` with the emitter's selector and send-once profile. Do not promise replay or deduplication. [Shared behavior](agents/subscriptions.md#the-shared-behaviour).
 - **Preserve the emitter's authorization profile.** Daemon logs check source rights at creation but target delivery admission on every send; app helpers currently recheck creator reach per delivery. Follow the selected emitter's contract, not one assumed general rule. [Daemon subscriptions](agents/bus.md#agent-logs), [app subscriptions](agents/subscriptions.md#the-shared-behaviour).
-- **Check may-send before forwarding for someone.** Your own send privilege is not the author's permission; an unavailable check is not approval. [Checking permission to send](09-daemon-api.md#checking-permission-to-send).
 
 ## Before you share it
 
-- Provide a `docs/agents/` end-user page covering useful work, safe calls, settings, access and troubleshooting. Follow [the writing guide](../.claude/docs/WRITING.md#how-we-write-docs).
-- Check actual help, a safe answer and relevant refusal/interruption behavior. [Debug](agents/debug.md#check-the-bus-in-a-minute) and check-deploy check the bus path; they do not prove your business result.
-
-## Technical details
+- Give callers a useful description, accurate method arguments, safe examples and a guide covering settings, access and troubleshooting. Exercise every advertised entry point, including body commands and asks separately. Text and machine help must reflect the same permissions and configured scope. [Writing agent help](agents/authoring.md#checklist-writing-an-agents-description-and-help).
+- For a packaged agent, check the installed artifact: it contains its runtime dependencies and can answer help through its intended launcher. Keep writable state outside the installed tree. [Packaging](runner/agents.md#package-a-script).
+- Exercise a real request and count its answers. Test the relevant refusal, invalid input, timeout and interruption paths; assert secret absence where errors and logs can expose it. [Debug](agents/debug.md#check-the-bus-in-a-minute) checks the bus path, not the business result.
+- Judge an extra feature by a concrete benefit: status helps diagnose a retained worker; subscriptions avoid repeated polling for events; durable progress avoids losing a long job. Omit a feature that adds state, authority or dependencies without such a benefit.
 
 Script launchers own the consume/reply loop; self-serving programs own it through
 their client. Do not duplicate that loop or pass a bus credential into a
