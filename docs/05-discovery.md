@@ -2,23 +2,8 @@
 
 📌 **TL;DR:**
 - **Problem:** being registered and being callable are different facts, and a plain list of names cannot say which names you may reach or whether anything answers for them.
-- **Outcome:** you discover the records you may reach and inspect what the daemon actually knows: a listing says what a name is and whether anything answers for it. The CLI listings, the MCP minimum and the dashboard tabs are here; the web pages' contract is [its site map](../src/web/web-face/site-map.md#every-address).
+- **Outcome:** you discover the records you may reach and inspect what the daemon actually knows: a listing says what a name is and whether anything answers for it.
 - **Start:** list the records visible to you: `agent-bus ls --all` ([Try this first](#try-this-first)).
-
-## Why you'd want it
-
-- 🔍 **You do not know what exists.** Now a listing shows the records you may reach.
-- 🔌 **A name may exist with nobody behind it.** Now each row says whether a reader is attached.
-- 🖥️ **You want one view for people and one for programs.** Now the command line, the MCP tools and the dashboard answer the same questions.
-- 🙈 **Not everything should be visible.** Now a listing shows only what you may see, and the dashboard counts what the node refused ([refusals](#refusals)).
-
-## What you get
-
-- ✅ **Listings:** records you may reach, filtered by tag or name, with their state.
-- ✅ **Readers:** who is attached to an inbox right now.
-- ✅ **Three ways to look:** the command line, a minimum set of MCP tools and the web dashboard.
-- ✅ **A dashboard:** tabs, a shell, recovery and acceptance checks.
-- 🚫 **Not for:** changing records; listing and inspecting only.
 
 ## Try this first
 
@@ -37,7 +22,7 @@ Use a returned name with `agent-bus ls <name>` to inspect that record. An empty 
 
 | Field | Says | Absent means |
 |---|---|---|
-| **`protocol`** | how to call a 📡, which is not through the bus ([services § how to call it](03-records-service.md#how-to-call-it)) | any other kind: send to the name |
+| **`protocol`** | how to call a 📡, which is not through the bus ([services § how to call it](03-records-service.md#how-to-call-it)) | use the [record kind](03-records.md#record-kinds) to choose how to use it |
 | **`readers`** | how many consume requests are outstanding now, filtered and unfiltered together | unavailable; a current daemon publishes measured zero explicitly |
 | **`reading`** | compatibility-only flag: an unfiltered read is outstanding now. Human faces render `readers`; new consumers should use it | no unfiltered read observed; this does not mean nobody is attached |
 | **`queued`** | how many messages are waiting in it | none are |
@@ -87,7 +72,7 @@ A pool is one name read by several machines, so the name no longer says which on
 
 ## CLI listing
 
-**Built:** `agent-bus ls --table` renders a table; plain `ls` retains JSON.
+`agent-bus ls --table` renders a table; plain `ls` retains JSON.
 **With no option, both list only the agents being read now** — agents with at least one reader, the ones that can take a message.
 - `--kind k` lists every record of that kind, readers or not; `--all` lists everything the caller may see; a single name looks that record up.
 - `ab_ls` follows the same rule, with `kind` and `all: true`.
@@ -106,33 +91,29 @@ Record [tags](03-records.md#tags) narrow the CLI listing, including idle records
 
 ## Faces
 
-| Face | Built |
+| Face | Capabilities |
 |---|---|
 | API | Registry, messaging, credentials, sessions and dashboard administration |
 | MCP | Bus tools and a catalog filtered by the daemon |
-| WEB | [Required tabs and controls](#required-tabs), filtered through the caller's API access; its own account and locked-down unit ([processes § the web face](08-processes.md#the-web-face)); [browser acceptance](#browser-acceptance) by its own tests; page contract in [the site map](../src/web/web-face/site-map.md#every-address) |
+| WEB | [Required tabs and controls](#required-tabs), filtered through the caller's API access; its own account and locked-down unit ([processes § the web face](08-processes.md#the-web-face)); page contract in [the site map](../src/web/web-face/site-map.md#every-address) |
 
 ## MCP minimum
 
-**Required for MVP:** the [runtime integrations](06-launchers.md#runtime-integration-delivery)
-and every shipped [launcher](06-launchers.md#smart-launchers) come with the bus MCP
-tools configured and callable in the session.
+The [session launchers](06-launchers.md#smart-launchers) configure the bus MCP tools in the session.
 
-| Capability | Required outcome | Existing implementation |
+| Capability | Outcome | Tool |
 |---|---|---|
 | List the bus | Find the agents being read now; `kind` or `all` for queues, pubsub channels, services and idle agents, through the caller's [catalogue view](#audience) | `ab_ls` in the [MCP face](../src/mcp/server.ts) |
 | Call a name on the bus | Send to an agent, user or queue and receive its correlated answer or explicit completion under the [request/reply contract](04-messaging.md#request-and-reply); bus acceptance alone is not completion. A 📡 is not sent to: the catalogue gives its address and the caller speaks to it itself | `ab_send` plus a filtered `ab_consume`, or delivery through the active push adapter; [MCP face](../src/mcp/server.ts) |
 
 - These are minimum capabilities, not a restriction on the remaining tools.
-- The tools and launcher wiring are built and passed [live acceptance](../Plans/done/R0.8-MVP/done/mcp-minimum.md#checks) in Codex, OpenCode and Claude on the development host, and [fresh-host acceptance](../Plans/done/R0.8-MVP/done/fresh-host-runtime.md#checks) on a package-only host.
 - Both capabilities use the caller's existing [ACL](02-access.md#acl); loading the tools grants no additional authority.
 
 ## Audience
 
 The daemon filters, because it holds the records and enforces the
 [ACL](02-access.md#acl). A face requests the caller's view and adds no
-independent access policy. There are no chained catalogs or group expressions
-in the MVP.
+independent access policy.
 
 ## Dashboard
 
@@ -140,9 +121,7 @@ in the MVP.
 - The daemon owns state and authorization: every page and form uses the visitor's authority, and the face has no independent privileges ([audience](#audience)).
 - The [required tabs](#required-tabs) use the same daemon authorization as direct API calls.
 
-It shows the envelope and nothing else
-([messaging § envelope](04-messaging.md#envelope)): no message bodies, here or
-anywhere.
+The diagnostics feed shows [envelopes](04-messaging.md#envelope), never message bodies.
 
 - Bodies are struck out **in the bus**, where the feed is written — so no reader has to be trusted to leave them alone.
 - The feed and the records beside it are both filtered per caller: you see the exchanges you were **party to**, sent or addressed to you, and the daemon Owner sees the node's through node-wide authority.
@@ -151,12 +130,11 @@ anywhere.
 - Somebody with no access sees nothing at all, which is the whole of the restriction.
 - A page showing them beside a caller-filtered list must say which is which: *the node refused 40 calls* and *you were refused 2* are both true, and neither is the other.
 
-- The diagnostics page carries the built rows of [what it shows](#what-it-shows); record, user and group administration and activity graphs have separate pages.
+- The diagnostics page carries the views in [what it shows](#what-it-shows); record, user and group administration and activity graphs have separate pages.
 - The ordering, the grouping and the late mark are the page's; everything else on it is an answer the bus gave that caller, so a view cannot show more than the caller may ask for.
 
 ### Required tabs
 
-**Built.** Owner confirmation of scope, 2026-09-13.
 The daemon owner has the administrative view; other visitors see and change only
 what the daemon permits. “All” means all visible to that visitor.
 
@@ -169,7 +147,7 @@ what the daemon permits. “All” means all visible to that visitor.
 | Users | List and details; add, edit, deactivate and reactivate; show caller-visible owned records, linked group membership and administrative authority. The directory lists 👤 Users only, laid out like the other list pages: one search and **Status** toolbar (**Active**, **Inactive**, **All states**, counted; opens on Active), then User, Authority, Contact, Agents owned and Last used columns, or an empty-state card when nothing matches. An inactive User is struck and marked beside the name rather than in a column of its own. It has no Other section: a name that is neither User nor Agent is [a Diagnostics leftover](#overview-and-diagnostics). **Edit profile** where allowed; deactivation starts from the user's Danger Zone and keeps its consequence confirmation, as does unused-credential removal |
 | Locks | The **Locks** page lists every lock on the records the visitor may use, with a kind filter and search; and on every record's page, for its Owner, Maintainers and own Agent: name, holder, time left, **Release** for one's own and **Force release**, behind a confirmation, for another's ([shared locks](01-identity-and-authority.md#shared-locks)) |
 | KV | The **KV** page lists every key-value store on the records the visitor may use, with a kind filter and search; a record's page carries an overview card, and each store and value its own page to add, edit, count and delete, for the record's Owner, Maintainers and own Agent ([key-value store](03-records-kv.md#key-value-store)) |
-| Groups | Compact linked table with inline members; create, edit and manage direct entries, including nested ordinary groups; show caller-visible records affected directly or through a nested group. Explain the protected daemon Administrator group and include groups named by records' Maintainers lists under the [authority rules](01-identity-and-authority.md#groups); retire groups by emptying them, with no delete control. **The `@administrators` page alone states the authority its membership carries and the three things it does not**, restating the [Administrator rule](01-identity-and-authority.md#daemon-administrators) rather than owning it; an ordinary group confers only what a resource assigns it, and says nothing |
+| Groups | Compact linked table with inline members; create, edit and manage direct entries, including nested ordinary groups; show caller-visible records affected directly or through a nested group. Explain the protected daemon Administrator group and include groups named by records' Maintainers lists under the [authority rules](01-identity-and-authority.md#groups); retire groups by emptying them, with no delete control. **The `@administrators` page alone states the authority its membership carries and its limits**, following the [Administrator rule](01-identity-and-authority.md#daemon-administrators); ordinary groups confer only the access assigned to them |
 | Activity graphs | Recent traffic, messages dequeued, drops, expirations and refusals; per-record filtering. Dequeued messages are not proof of successful execution. Day, Week and Month charts over [the stored days](#activity-history), in ten-minute slots of the node clock |
 | Queues | 📮 queue records, and the detail of a 👤 user's own inbox; create, edit and remove; owner, Maintainers list, permissions, Deliver-To route, TTL, capacity and overflow policy, Readers and held work |
 | PubSub | 📣 pub/sub records; create, edit and remove; owner, Maintainers list, permissions (who may publish) and the Deliver-To list. Accepted and copies-out counters; no held work and no reader filter, because a 📣 keeps nothing |
@@ -187,7 +165,6 @@ shared records only.
 - The signed-in identity in the top bar links to Account.
 - Account shows its optional user profile or own record, caller-visible owned records, held credential fingerprints and command-line rotation help.
 - A non-user principal does not need a user-directory row.
-- Diagnostics no longer duplicates credential facts.
 
 ### Registry filters and paging
 
@@ -234,7 +211,7 @@ section has a Kind filter: each lists one kind.
 - [Administrative and record authority](01-identity-and-authority.md#groups) applies to every control and to direct API calls.
 - Membership and policy changes survive restart.
 - User lifecycle effects are [daemon policy](01-identity-and-authority.md#user-states), not merely labels on the Users page.
-- Every [built view](#what-it-shows) is reachable from the navigation; [optional additions](../Plans/R1.1/discovery.md#dashboard-extensions) belong to R1.1.
+- The navigation links to the [available views](#what-it-shows).
 
 ### Compact administration pages
 
@@ -247,11 +224,8 @@ record ([records § register](../src/web/web-face/records.md#register)).
 | Fields by kind | a 👾 and a 📮 declare the TTL, capacity and overflow of the inbox they hold; a 📣 declares a [Deliver-To list](04-messaging.md#deliver-to) and no queue policy; a 📡, a 👾 and a 👥 offer a [secret](03-records-service.md#secrets), written by a second call and never filled in again |
 | Settings | every field the daemon lets that kind's manager change ([record fields](constitution.md#common-record-fields)): a 👤 user's own inbox its description and queue policy; a 👥 group its description, members, Personal, Maintainers and secret |
 | Not yours to change | a field the caller may not change is shown disabled, not hidden, and the form says which owner-only fields it carried, so a Maintainer saving a description cannot clear what it was not offered |
-| Danger Zone | deactivation, transfer and removal sit on a separate red page where applicable. A group has no deactivation or removal: it is retired by emptying it. Users have their own deactivation Danger Zone |
+| Danger Zone | deactivation, transfer and removal sit on a separate red page where applicable. The group form offers no deactivation or removal control; empty it to remove its membership grants. Users have their own deactivation Danger Zone |
 | Numbers | human-facing counts use grouped figures; JSON, URLs, form values and editable syntax stay plain. The Overview strip writes none as a dash; a table column keeps `0` |
-
-The Go dashboard's layout and styling prose is
-[history](../Plans/done/R0.8-MVP/done/web-go-face-differences.md#05-discoverymd).
 
 ### Overview and diagnostics
 
@@ -281,7 +255,7 @@ The Go dashboard's layout and styling prose is
 - Diagnostics retains the detailed refusal, held-work, bounded envelope and loss evidence.
 - Record names link to their visible record detail.
 - **It lists leftover names** — a credential with no record, or a self-owned record with no User — **only while one exists**, each with its removal review; the retired `/users?kind=other` link redirects there.
-- It no longer repeats the registry catalogue; the registry sections are its searchable home.
+- Use the registry sections to search records.
 - A daemon failure renders a recovery page without exposing the socket or other backend address, which is the general rule in [shell and recovery](#shell-and-recovery).
 
 ### Activity history
@@ -305,73 +279,43 @@ The Go dashboard's layout and styling prose is
 | Scope | A named view is record-scoped for all five series. The unfiltered view sums the live records the caller may see; Refused is node-wide for the daemon Owner, on the terms [refusals](#refusals) sets — every endpoint refusal, including authentication failures and malformed requests, and not the router's rejections or our own failures. Pub/sub copies count in the recipients' inboxes that accept them. Dequeued means handed to a reader, never completed work. Bodies never enter this history |
 | Web | Day: a fixed 24-hour axis, one continuous line per nonzero series on one scale, and a table of each slot; a past day reads its stored row. Week: hourly lines and seven rows of 144 cells, one row per day. Month: day bars with the other series over them, and a calendar of 30 cells. ‹ Prev and Next › step one range while the days are kept; a record's detail page carries the same ranges |
 
-The ring, its pointers, every clock rule and the day codec live in
-`src/internal/activity`; zstd is `github.com/klauspost/compress`, an
-established pure-Go library ([external tools](../src/MODULES.md#external-tools)). Export remains
-[R1.1](../Plans/R1.1/discovery.md#dashboard-extensions).
-
 </details>
-
-Who receives a 📣 copy is its managers'
-[Deliver-To list](04-messaging.md#deliver-to); a name can take itself off it
-and cannot put itself on.
 
 ### Rules it is built to
 
-| Rule | Why |
-|---|---|
-| **The anonymous page shows what the bus would answer a caller it cannot name — except for the facts the owner named.** A title, the project's description, links and picture, the sign-in form at its foot, how to get a token, and [what a node says about itself](#what-a-node-says-about-itself) | The default is still nothing, and the reasons hold: uptime is a restart oracle, a service count that moves is a covert channel anyone who can register writes to, and a traffic total is traffic analysis. The owner weighed each of those against a stranger being unable to tell what this node is or whose it is, and published a **closed list** anyway. Everything not on that list stays behind the gate, and the list grows only by an owner decision |
-| **No page ever renders a credential** — a fingerprint of it, when it was issued, when it was last used, and the command that rotates it | A token on a page is in the browser cache, the scrollback and every screenshot, and leaves no trace that it was read, so "was this leaked?" stops being answerable. A fingerprint is enough to match the one in your environment |
-| **Pinned, hashed assets only** | Fonts, Lucide, uPlot, styles and scripts ship with the web face and use content-hashed same-origin URLs; the CSP permits no external asset host ([shell § security headers](../src/web/web-face/shell.md#security-headers)). The script requests only the palette's `/palette.json`. Pages remain ordinary URL-backed forms. The landing picture is served from this node and photos are inline, never hotlinked: `img-src 'self' data:` refuses a picture named anywhere else |
-| **The web face writes nothing of its own.** A form posts *as the person*, never as the face | It is the least trusted process and the design gives it no write path ([processes § the web face](08-processes.md#the-web-face)). Built administration forms forward the visitor's session to daemon-enforced operations and require an exact matching Origin. Responses are not cached; Secret is never displayed; configuration is shown only to its Owner and Maintainers |
-| **The sign-in form takes a token and nothing else** | A call carries no name to get wrong ([access § what a call carries](02-access.md#what-a-call-carries)), so there is no second failure message for an anonymous visitor to read as an oracle for which names exist |
+- Public pages expose only the [node identity](#what-a-node-says-about-itself), project information and sign-in help.
+- Pages never show credential bytes or Secret values. Configuration appears only to its authorized editors.
+- Forms forward the visitor's session and require an exact matching Origin. Responses are not cached.
+- Fonts, icons, charts, styles and scripts ship with the face at content-hashed same-origin URLs. The CSP permits no external asset host; photos are inline and the landing artwork is served locally ([security headers](../src/web/web-face/shell.md#security-headers)).
+- Sign-in takes a token, without a separate name or password.
 
 ### What a node says about itself
 
-**Owner-settled, 2026-09-16; where the call counts show revised 2026-09-18.** A short closed list of facts about the node is published to **anybody who can reach the dashboard, signed in or not**: what it is, where it runs, whose it is and how long it has been up.
-- They appear in the shell every page shares and on the **sign-in page**, which is the whole point — somebody who arrives at a bus they do not have a credential for should be able to tell what it is and whose it is without asking anybody.
+`GET /identity` needs no credential. It publishes version, build information,
+hostname, daemon Owner name, uptime, call counts and the `protocol` and
+`protocol_min` [compatibility numbers](09-daemon-api.md#stability-and-compatibility).
 
-**Calls served is the one that moved.** By owner instruction the dashboard prints the counters in the signed-in [Overview node strip](#overview-and-diagnostics) instead of the shared footer, so an unauthenticated visitor no longer reads them from a page.
-- What the daemon publishes is unchanged: `GET /identity` still answers them to any caller with no credential, and the closed list below is still the closed list.
+It exposes no registry rows, credentials, refusal counts or per-caller traffic.
 
-| | |
+- The dashboard header shows `AgentBus v<release> @ <host>`, with build detail in the version tooltip and a mark based on the [project artwork](img/agent-bus.png).
+- Its footer shows Owner, uptime and page-generation time. Call counts appear on the signed-in Overview, but remain public through the API.
+- The hostname comes from the OS and is not the bus realm.
+- Anyone who can reach the API can learn who runs the node, how long it has been up and how much traffic it carries. Authentication does not hide these facts.
+
+**Call counts measure requests, not completed work.** Every HTTP request counts
+on arrival, including refusals, router errors and long polls. Loading a page
+also makes requests; leaving it open does not refresh it automatically.
+
+| Count | Meaning |
 |---|---|
-| what is published | release, host name, daemon owner name, uptime, **calls served** — and the build, plus the two wire-protocol numbers `protocol` and `protocol_min` that clients read to refuse a daemon they cannot speak ([what each means and when it rises](09-daemon-api.md#stability-and-compatibility)). **Nothing else**: no record names, no principals, no refusal counts, nothing about who is using it |
-| where each one shows | the brand at the top of the sidebar (the sign-in page's top bar) has a bus mark drawn after the [project artwork](img/agent-bus.png) and `AgentBus v<release> @ <host>`, with build detail in the version tooltip. The footer carries owner and uptime, and the time the page was generated, which is a fact about the page rather than about the node; the call counts sit in the signed-in Overview node strip. No separate build line or web-build value appears |
-| to whom | any caller that reaches the face, with no credential and no session |
-| host name | the machine's hostname as the OS reports it, `srv1`. The daemon has no node name of its own, so this is a new field rather than a restatement of one; it is not the realm, which the owner's name already carries |
-| uptime | a plain figure behind an explicit label, `uptime: 1h23m`, as the owner asked. It is what was true when the page rendered, and the page does not refresh itself |
-| calls served | the count of **HTTP requests the bus process has served**, over the **last minute** and **the last hour**, plus the **total since the daemon started**. Every request on every listener, gated or refused or served — it is counted before the handler runs, so it is traffic reaching the daemon rather than work it agreed to do. A node-wide figure, not this caller's. **No host reading is published**: the owner asked for the daemon's own calls only, and an OS load average is a fact about the machine rather than about this node |
-| what it costs | an unauthenticated visitor learns the host's name, who runs this node, how long it has been running and how much traffic it carries. Each was put to the owner and accepted. The call counts are the most revealing of these and were accepted explicitly: a total that moves is traffic analysis, and the answer is that it is a total — it names no record, no principal, no endpoint and no direction of business. The cost is paid at the API rather than on a page: `GET /identity` still answers the counts to anybody, and no dashboard page shows them before sign-in |
-| how it is read | **`GET /identity`**, a public daemon call answering these fields and the two protocol numbers, and nothing else, to a caller with no credential. There was no such call: every route but enrolment and a root redirect sits behind the token gate, and `GET /status` is authenticated and answers refusals and the caller's own standing besides. So this is a new endpoint rather than a relaxation of `/status`, which keeps its gate and its contents |
-| the face's part | it asks as anybody does. The face still holds no credential and still acts as the visitor for everything else ([processes § the web face](08-processes.md#the-web-face)): this is a fact the daemon publishes, not a privileged call the face makes |
+| Total | Exact cumulative count for this bus process; resets on restart |
+| Minute and hour | Differences from a 61-sample history, sampled at clock-minute boundaries. The baseline is the newest sample at or before the cutoff |
+| `observed` | Actual span of each sampled window, published by the API. The dashboard shows the window label without this span |
+| Short or delayed history | A new process has less than an hour of history; delayed samples can widen a window. A nominal minute can cover roughly one to two minutes, and an hour slightly more. Missing history is not measured zero |
 
-- The total needs no sampler at all: it is the counter itself.
-- The minute and hour windows come from a **separate 61-sample history of that counter** — plain readings, no records and no names in it — taken by the bus **at every minute of the clock**.
-- It is not the per-record [activity](#activity-history) the dashboard graphs, which is counted per record.
-
-**Why a total rather than a day.** A day window was asked for and withdrawn.
-- The counter is process-local and resets with the daemon, so on any node restarted within 24 hours `day:` would report everything since start while calling itself a day.
-- `total:` reports the same number and is honest about it — and it needs no span of its own, because `uptime:` is on the same line and scopes it.
-
-**This figure is nobody's listing.** It is a process-local counter, incremented where every HTTP request enters the bus process, with no caller, no record and no ACL anywhere in it.
-- That is what lets it be published to a stranger at all: there is no per-caller view to get wrong, because there is no per-caller view.
-- The dashboard's activity series is the other thing entirely — filtered to what one named caller may see, and unable to answer this question for a caller it cannot name, since for a stranger it would report a confident **zero** on a busy node.
-
-**What the counter can and cannot answer.** These are properties of what is
-being counted, not defects to be fixed here. They are documented here; the
-compact dashboard does not explain them:
-
-| | |
-|---|---|
-| it counts requests **admitted**, not work completed | the counter increments before the handler runs, so a refusal, a router 404, a bad token and a served call all count the same. A node being hammered with rejected requests reads as busy, which is correct — it is traffic reaching the daemon, not work the daemon agreed to do |
-| a long poll counts when it **starts** | a waiting `consume` holds one request open for as long as it waits, and it was counted on arrival. On a bus whose faces sit in long polls, a quiet minute in which several readers attach still shows calls. Nothing is wrong with the figure; it is answering a different question than "how much happened" |
-| the dashboard counts itself | `GET /identity` is a request like any other, so loading a page adds to the figures that page then shows. No page refreshes itself ([what it shows](#what-it-shows)), so an open page left alone generates nothing; it is a **person** reloading who moves the number they are watching |
-| the windows are **sampled**, and the page does not say by how much | a window begins at the newest reading at or before its cutoff, so its span is **whatever the readings allow**, not what its name says. With the usual minute cadence and enough history, `minute:` covers roughly one to two minutes and `hour:` a little over the hour; a delayed tick widens it, a young node shortens it below the nominal span entirely, and it matches exactly when the cutoff falls on a retained reading. None of those is the guaranteed case, which is why the daemon measures each span rather than reasoning about it. **The page prints the label alone**, by owner decision, taken with this stated: `uptime:` beside it shows how young the node is, and that was judged enough for a glance. The span is still measured and still published — `observed` on each window of `GET /identity` — but **no page says so**: the answer lives on the API, not in the dashboard |
-| history is **shorter than the window** after a restart | the counter starts at zero with the process, and an hour of readings takes an hour to accumulate. **A window's span is its own, not the node's age**: on a node up three minutes, `minute:` still finds a baseline near its own cutoff and covers about a minute, while `hour:` covers the three minutes it has. `observed` carries this on the wire; the page does not. **Unobserved history is never shown as zero** — that is the distinction this whole layer exists for |
-| `total:` is **exact**; the windows are not | the total is the counter read directly, with no sampling in it. Only `minute:` and `hour:` are differences between a reading and now, and only they carry an `observed` span on the wire |
-| the three may legitimately be **equal** | during the first minute, and whenever every call the node has served falls inside the shortest observed window. Nothing is wrong and nothing should be built assuming they differ — but nor do they collapse merely because the daemon is young: at ten minutes, `minute:` covers the last one while `hour:` and `total:` cover all ten |
-| all three reset on restart | the counter lives with the process. A restart is not a quiet node, and `uptime:` on the same line is what tells them apart |
+The counts can be equal when all traffic falls within the shortest window.
+They are node-wide and process-local, separate from caller-filtered
+[activity history](#activity-history).
 
 ### Signing in
 
@@ -379,21 +323,20 @@ A person signs in with **the token they already hold**
 ([access § what a call carries](02-access.md#what-a-call-carries)) — there is no
 name to type, no other kind of credential and no password anywhere.
 
-- The part worth stating is where the session lives: **in the bus**, which is the process that holds state ([processes § what is shared](08-processes.md#what-is-shared)).
+- The session lives in the bus ([shared state](08-processes.md#what-is-shared)).
 - The face forwards it once, the bus answers with an expiring session id, and from then on the browser carries that id and nothing else.
 
 | | |
 |---|---|
 | the cookie | the session id alone — `HttpOnly`, `SameSite=Strict`, and `Secure` when the face serves TLS. No `Max-Age`: the bus's idle timeout ends the session, and a fixed browser lifetime would sign out someone still working. Never the token, never in a URL |
-| a web-face restart | logs nobody out, because the face was holding nothing. A session map inside it would be a second store, of the worst possible contents: every signed-in person's live credential in the one process that is restarted on failure |
+| a web-face restart | keeps browser sessions valid; the bus holds them |
 | what the face holds | nothing. It reaches the bus only over the shared socket, which supplies no identity — a web face with the owner's authority would be a credential mint ([access § getting a token](02-access.md#getting-a-token)) |
 | enrolling | not here. The proof is a signature made by the host's own `ssh-keygen` ([identity § proving possession](02-access.md#proving-possession)); the browser script neither reads keys nor signs. The dashboard prints the host onboarding command |
 
 
 A bus restart invalidates browser sessions: their map is not persisted.
 
-**So does removing the credential they came from.** A session is a credential without being a token, so one that outlived its token would leave a name answering for up to the idle timeout after the daemon decided it answers for nothing — [no registration, no access](01-identity-and-authority.md#unregistering) not holding, quietly.
-- Unregistering, deleting a record and the [ownerless sweep](02-access.md#ownerless-credentials) all end that name's sessions with its token.
+Removing a credential also ends its browser sessions, including through unregistration, record deletion or the [ownerless sweep](02-access.md#ownerless-credentials).
 
 ### What it shows
 
@@ -411,7 +354,7 @@ A bus restart invalidates browser sessions: their map is not persisted.
 
 ### Retained exchanges
 
-**Built.** Diagnostics preserves each message's identity, routing labels and
+Diagnostics preserves each message's identity, routing labels and
 receipt references within the caller's [visible feed](#dashboard). A bounded
 history is an observation window: absent evidence does not establish failure
 or unfinished work, and a failed load is shown separately from an empty feed.
@@ -429,14 +372,12 @@ or unfinished work, and a failed load is shown separately from an empty feed.
 - Receipts from Deliver-To recipients or queue workers stay separate when their identity differs from the addressed channel; untagged ordinary messages get no inferred response links.
 - Rows sort by newest observed activity, with message identity breaking ties; displayed times include their UTC offset.
 - Bodies never enter this view.
-- [MVP verification](../Plans/done/R0.8-MVP/done/exchange-evidence.md#checks) records the implemented checks.
 
 ### Refusals
 
 - A bus that is quiet and one that is refusing every call look identical from outside.
 - Every refusal body is `{"error": "<text>", "kind": "<reason>"}`: the `kind` is the reason below, so a client acts on it and shows the text. A `500` is ours, carries no `kind`, and is not counted; clients say "internal daemon error".
 - `status` carries **how many calls were turned away and for what**, counted where a refusal becomes a status code so that the reason and the code cannot drift apart.
-- Every refusing path calls one shared counter, which is what keeps the figures whole — a fact about the paths there are, not a guarantee that a future one cannot answer around it.
 
 **An addressed endpoint's refusals are counted whatever the caller's standing**
 — a bad token and a malformed request alike. Two things are not counted, and
@@ -468,7 +409,6 @@ worth presenting a credential for.
 **An inactive caller and an inactive target are different answers.** A caller that is inactive is told it is the one refused, `403 suspended`: it is somebody, and nothing it presents makes it active.
 - A target that is inactive, itself or through its User, is no such name, `404 not_found`, whoever asks — the daemon Owner included — because an inactive record is no entity at all.
 - The dashboard follows it: a `suspended` refusal is a page saying the caller's access is suspended, not the permission page's "Not yours to see", and every problem page shows the daemon's sentence, never the envelope it arrived in.
-- Declared states beyond active and inactive are [R1.2 work](../Plans/R1.2/records.md#down-and-retired) and would each bring their own reason rather than borrow one.
 
 **Every supported reason appears**, including measured zero.
 - This keeps the reason vocabulary inspectable without making zero a health claim.
@@ -483,10 +423,9 @@ address it binds, not a name anybody has to make resolve.
 |---|---|
 | where to listen | `127.0.0.1:6780`, with `AGENT_BUS_WEB_ADDR` in the unit's environment; the face takes no flags |
 | a certificate | **none**, unless setup turned TLS on ([setup § TLS](administration.md#tls)). Then `AGENT_BUS_WEB_TLS_DIR` names the face's copy of the node's certificate, and the port answers TLS, redirecting plain HTTP to `https://`. By hand, `AGENT_BUS_WEB_CERT` *and* `AGENT_BUS_WEB_KEY` still serve HTTPS alone on the address it was given. Ask for one and miss it and it **refuses to start**: either variable is the ask, either without the other is the same refusal, and a log line nobody reads is not an answer when the page they open is unencrypted |
-| a port it may not bind | an error. No port is a default any more, so every one was asked for on purpose and none is silently traded for another |
+| a port it may not bind | a startup error; the face does not silently choose another port |
 
 **The web face listens on loopback**, so the page is for the person at the machine; agents on other hosts use the daemon's own TCP address instead.
-- A borrowed public hostname bought a certificate a browser would accept and nothing else; the one this project used had expired, which left the trust decision without even that to show for it.
 - Setup's `--tls` gives it the node's certificate; by hand, a certificate of your own.
 
 **The API's own root sends a browser here.** `http://127.0.0.1:6767/` is the daemon, which has no page: a person who typed it in wanted the dashboard, and gets `301` to it.
@@ -516,10 +455,6 @@ cannot help.
 
 ### Form recovery and keyboard entry
 
-Public and signed-in pages start with a keyboard skip link
-to the main content. It becomes visible when focused; the ordinary shell still
-supplies the page title, landmarks, current navigation and signed-in identity.
-
 - A refused record, user or group submission returns its form when the face can still render that target.
 - The page keeps only an explicit allowlist of nonsensitive values, including line-preserving ACL, Maintainer and Group textareas.
 - Tokens, secrets and unknown submitted fields never enter presentation state.
@@ -530,30 +465,6 @@ supplies the page title, landmarks, current navigation and signed-in identity.
 - The daemon remains the validator.
 - Its JSON error envelope is rendered as a human message, not raw JSON.
 - A malformed or retired browser action that never reaches the daemon says so on the shared shell rather than attributing the refusal to the daemon ([shell § form recovery](../src/web/web-face/shell.md#form-recovery)).
-
-## Browser acceptance
-
-**The TypeScript face's own tests.** `src/web/test` runs against a
-real daemon as the `web_ts` shard of `src/smoke.sh`; `src/web/probe-unit.sh`
-exercises the [unit's walls](08-processes.md#the-web-face) on an installed
-host. The page contract they check is [the web face spec](../src/web/web-face/site-map.md#every-address).
-
-**Installed, in a real browser.** `src/acceptance/installed-browser.sh
-<archive> <new-dir>` installs the release on a disposable real-systemd host with
-- the sample data, and Chromium walks the face: sign-in and the session cookie, the bundled fonts, icons and charts under the CSP, every page and sample record, the theme, the palette, no sideways scroll at 390 px, a web restart that keeps the session, a daemon restart that ends it, and sign-out.
-- The pages need no internet connection for their assets.
-
-**`TLS=1`** runs setup with `--tls self-signed` first and walks the face over
-`https://`: it must serve setup's copy of the certificate, answer plain HTTP
-with a `301`, and set the session cookie `Secure`.
-
-<details>
-<summary>History: the Go dashboard's acceptance</summary>
-
-- The removed Go dashboard was accepted on 0.8.26 by real Chromium on a package-only host, across every tab and position; those scripts went with it.
-- The [F.12 evidence](../Plans/done/R0.8-MVP/done/installed-browser-acceptance.md#checks) and [F.13.6 evidence](../Plans/done/R0.8-MVP/done/web-acceptance.md#budgets) record what they proved of that face.
-
-</details>
 
 ## Identity labels in web and CLI
 
@@ -595,7 +506,7 @@ the daemon did not state stays unlabeled.
 
 - ACL textareas use the project's plain-text ACL syntax, not the display glyphs.
 - Each ACL term occupies one line: a user, ordinary group, agent, service, runtime `@owner` term or `*`.
-- `@owner` means the record's direct Owner and the records directly owned by that Owner; it is not an editable group.
+- `@owner` means the record's direct Owner and that Owner's directly owned Agents; it is not an editable group.
 - Users must not need to type Unicode to identify one.
 - Blank lines are ignored; a refused line is reported against that line and the submitted text is preserved.
 - Keep glyphs in surrounding labels or read-only views.
@@ -612,7 +523,7 @@ user or a channel. A refused save names the offending line by number,
 never retyping or guessing a kind. See
 [typed actor terms](constitution.md#-registry-record).
 
-The [ACL contract](02-access.md#acl) defines access terms and their implementation status.
+The [ACL contract](02-access.md#acl) defines access terms.
 The [role syntax](03-records-agent.md#roles) allows labels after an ACL term;
 commas and spaces inside its parentheses remain part of that one term.
 
@@ -622,16 +533,10 @@ commas and spaces inside its parentheses remain part of that one term.
 - An authorized manager follows the red **Danger Zone** link to a separate page; the face repeats the caller-visible record lookup and the daemon remains the authority for every submitted action.
 
 - For active agents, services, queues, pubsub channels and users, deactivation starts here and keeps its consequence confirmation.
-- Groups have no deactivation state.
+- The browser offers no Group deactivation control; this is a UI limit, not an absence of daemon record state.
 - Configuration replacement is in the normal edit form after Secret (ENV); Configuration is shown to Owner and Maintainers; Secret is never displayed.
 - Keep secrets in Secret and config in Configuration ([rule](03-records-agent.md#configuring-a-template)).
 - Transfer and removal first post to a server-rendered confirmation that re-reads the record.
 - The final submission rechecks the facts shown by that confirmation and the daemon rechecks the operation itself.
 - A changed visible fact returns a distinct stale-confirmation page; an unchanged current-state refusal keeps the daemon's own reason.
 - Successful ordinary edits and configuration replacement return to the affected detail; successful removal returns to the matching section list.
-
-## Status
-
-| Release | Scope |
-|---|---|
-| Built | Filtered listings and catalog, all [required dashboard tabs](#required-tabs), administration, envelope-only diagnostics, [reader counts](#readers), the [web face](08-processes.md#the-web-face) under its own account and unit, and [browser acceptance](#browser-acceptance) by its own tests. |

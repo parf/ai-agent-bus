@@ -5,20 +5,6 @@
 - **Outcome:** one HTTP surface and the wire contract of its client part: the routes, how a call is made, and for the routes every client uses (send and consume, key-value, locks, bigfiles, status and identity, configuration) the fields, defaults, status codes and shapes. What a route means stays in the topic that owns it.
 - **Start:** make one call through the command line and see the answer: `agent-bus status` ([Try this first](#try-this-first)).
 
-## Why you'd want it
-
-- 🔌 **A client needs the routes.** Now they are grouped by what they do.
-- 🪪 **A call must say who it is.** Now each call carries a credential, checked before anything else.
-- 📖 **The meaning of a route is elsewhere.** Now each group points to the topic that owns it.
-
-## What you get
-
-- ✅ **How a call is made:** where it goes, who is calling and what returns.
-- ✅ **Routes in groups:** node, credentials, registry, messaging, channels, private data, locks, people.
-- ✅ **A contract for the client routes:** fields, defaults, status codes and answer shapes, with [what is stable](#stability-and-compatibility) and what is not.
-- ✅ **A closed list:** the page says what else does not exist.
-- 🚫 **Not for:** the meaning of a route; each topic owns that.
-
 ## Try this first
 
 Ask the bus for its status:
@@ -27,7 +13,7 @@ Ask the bus for its status:
 agent-bus status
 ```
 
-The CLI makes the API call and prints the complete JSON response.
+The CLI prints the complete JSON response. Use a client library or the routes below for programmatic calls.
 
 ## How a call is made
 
@@ -39,9 +25,7 @@ The CLI makes the API call and prints the complete JSON response.
 | Answer | JSON, and a refusal is `{"error": "...", "kind": "..."}` with the status code and the `kind` that [refusals](05-discovery.md#refusals) owns; a router rejection is a refusal too: `404` or `405` with kind `no_route` (`405` carries an `Allow` header) |
 | Unknown fields | an unknown JSON member or query key is ignored on every route; a known one is validated, and a duplicate or invalid value is `malformed`; a body is exactly one JSON document, anything after it is `malformed` |
 
-One exception: `GET /secret` answers the stored bytes as `text/plain`, because
-a credential goes into a shell or an environment and re-quoting it is a chance
-to mangle it ([secrets](03-records-service.md#secrets)).
+`GET /secret` answers stored bytes as `text/plain` ([secrets](03-records-service.md#secrets)); `GET /bigfile` returns raw bytes.
 
 ## Node
 
@@ -55,7 +39,7 @@ to mangle it ([secrets](03-records-service.md#secrets)).
 
 ## Credentials
 
-**Unstable, admin-only** except where [the client contract](#the-client-contract) lists the route: these may change in any release ([stability](#stability-and-compatibility)).
+**Unstable administrative interface** except where [the client contract](#the-client-contract) lists the route: these may change in any release ([stability](#stability-and-compatibility)).
 
 | Route | |
 |---|---|
@@ -66,7 +50,7 @@ to mangle it ([secrets](03-records-service.md#secrets)).
 
 ## Registry
 
-**Stable:** `GET /lookup` and `GET /ls` (read-only); **unstable, admin-only:** registering, managing and removing records, which the CLI, the web face and `agent-bus-admin` use.
+**Stable:** `GET /lookup` and `GET /ls` (read-only); **unstable administrative interface:** registering, managing and removing records, which the CLI, the web face and `agent-bus-admin` use.
 
 | Route | |
 |---|---|
@@ -149,7 +133,7 @@ Both live on a record and answer to its management authority.
 
 ## People, groups and accounts
 
-**Unstable, admin-only:** every route below, `POST /records/export` and `POST /records/import` included, may change in any release and is not part of the client contract. Who may call these is [positions and scopes](01-identity-and-authority.md#positions-and-scopes); most need daemon administration.
+**Unstable administrative interface:** every route below, `POST /records/export` and `POST /records/import` included, may change in any release and is not part of the client contract. Who may call these is [positions and scopes](01-identity-and-authority.md#positions-and-scopes); most need daemon administration.
 
 | Route | |
 |---|---|
@@ -169,9 +153,9 @@ Both live on a record and answer to its management authority.
 | Class | Routes | Promise |
 |---|---|---|
 | **Stable** | the [client contract](#the-client-contract) below: `/send`, `/consume`, `/may-send`, `/kv*`, the lock routes, `/bigfile*`, `/status`, `/identity`, `/config`, `/lookup`, `/ls` | a change that breaks a conforming client is a MAJOR version |
-| **Unstable, admin-only** | users, groups, accounts, profiles, keys, `/owner`, `/enrol`, `/token`, `/session`, `/names`, `/debug`, `/activity*`, `/recent`, `/records/export`, `/records/import`, `/register`, `/manage` and the other registry and credential routes | may change in any release; for the CLI, the web face and `agent-bus-admin`, not for third-party clients |
+| **Unstable administrative interface** | users, groups, accounts, profiles, keys, `/owner`, `/enrol`, `/token`, `/session`, `/names`, `/debug`, `/activity*`, `/recent`, `/records/export`, `/records/import`, `/register`, `/manage` and the other registry and credential routes | may change in any release; for the CLI, the web face and `agent-bus-admin`, not for third-party clients |
 
-- **Version rule.** `GET /identity` carries `protocol`, an integer starting at 1, and `protocol_min`, the oldest client protocol the daemon serves (1 now). Before 1.0.0, a wire change amends protocol 1 and the shared vectors; both integers stay 1 ([pre-1.0 protocol decision](../Plans/R1.0-Release/DECISIONS.md#recorded-decisions)). From 1.0.0, any wire change raises the protocol integer; a breaking change raises `protocol_min`, and so the MAJOR version.
+- **Version rule.** `GET /identity` carries `protocol`, an integer starting at 1, and `protocol_min`, the oldest client protocol the daemon serves (1 now). Before 1.0.0, a wire change amends protocol 1; both integers stay 1. From 1.0.0, any wire change raises the protocol integer; a breaking change raises `protocol_min`, and so the MAJOR version.
 - **What a client does.** A client built for protocol P:
   - P below `protocol_min`: "daemon too new for this client", fatal at connect;
   - daemon `protocol` below P: a "daemon too old" warning at connect, not fatal (the MCP face also adds one note to its first tool result, so the model sees it), and a later refusal of kind `no_route` reports "daemon too old for <operation>";
@@ -179,83 +163,80 @@ Both live on a record and answer to its management authority.
 - **Missing or malformed.** An `/identity` with neither field is an old daemon: protocol 0, minimum 0, the warning above. Fields that are present but not integers, negative, or with `protocol_min` above `protocol` are a fatal protocol error naming the field.
 - **Compatible changes** keep the protocol number's meaning: a new route, a new optional request field, a new answer field a client may ignore, a new value in an open list. A client must ignore answer fields it does not know.
 - **Refusal kinds are a closed set:** `acl`, `authority`, `busy`, `credential`, `enrolment`, `full`, `malformed`, `name-taken`, `second-reader`, `suspended`, `unavailable`, `not_found`, `no_route`. A new kind is a breaking change. A `500` has no kind and a client says "internal daemon error".
-- **Deprecation.** A route, field or kind is first documented as deprecated for at least one released MINOR version, and removed only in a MAJOR version. The removals made at the freeze, with no notice because nothing stable depended on them: `POST /subscriber/remove` and the `subscriber` fallback on `/deliver-to/remove` (use `recipient`), the `services` count in `/status` and the `services` list on a user (use `records`), and the web face's `/pubsub/topic*` and `/service-*` aliases. No CLI alias is removed.
+- **Deprecation.** A route, field or kind is first documented as deprecated for at least one released MINOR version, and removed only in a MAJOR version.
 
 
 ### Every route and its class
 
-One row for each route the daemon registers, read from every Go source. Two tests hold it:
-
-- `TestEveryRegisteredRouteHasAContractRow` fails for a route with no row, a row for a route that is not registered, or a registration it cannot read as `HandleFunc("METHOD /path", …)`.
-- `TestEveryStableRoutePathIsInTheClientContract` fails for a stable route whose whole path is missing from [the client contract](#the-client-contract).
+Use this index to check the stability class of a route. Authorization still follows the linked contract; “unstable” does not itself require administrator authority.
 
 | Route | Class | Where |
 |---|---|---|
-| `DELETE /session` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
-| `GET /accounts` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
-| `GET /activity` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
-| `GET /activity/days` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `DELETE /session` | unstable | [route groups](#node) |
+| `GET /accounts` | unstable | [route groups](#node) |
+| `GET /activity` | unstable | [route groups](#node) |
+| `GET /activity/days` | unstable | [route groups](#node) |
 | `GET /bigfile` | stable | [Bigfiles](#bigfiles) |
 | `GET /bigfile/list` | stable | [Bigfiles](#bigfiles) |
 | `GET /config` | stable | [Configuration](#configuration) |
 | `GET /consume` | stable | [Send and consume](#send-and-consume) |
-| `GET /debug` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
-| `GET /groups` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `GET /debug` | unstable | [route groups](#node) |
+| `GET /groups` | unstable | [route groups](#node) |
 | `GET /holders` | stable | [Locks](#locks) |
 | `GET /identity` | stable | [Status and identity](#status-and-identity) |
-| `GET /inactive` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `GET /inactive` | unstable | [route groups](#node) |
 | `GET /kv` | stable | [Key-value](#key-value) |
 | `GET /kv/list` | stable | [Key-value](#key-value) |
 | `GET /lookup` | stable | [what a listing answers](05-discovery.md#what-a-listing-answers) |
 | `GET /ls` | stable | [what a listing answers](05-discovery.md#what-a-listing-answers) |
-| `GET /manages` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `GET /manages` | unstable | [route groups](#node) |
 | `GET /may-send` | stable | [Checking permission to send](#checking-permission-to-send) |
-| `GET /names` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
-| `GET /recent` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
-| `GET /secret` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `GET /names` | unstable | [route groups](#node) |
+| `GET /recent` | unstable | [route groups](#node) |
+| `GET /secret` | unstable | [route groups](#node) |
 | `GET /status` | stable | [Status and identity](#status-and-identity) |
-| `GET /users` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `GET /users` | unstable | [route groups](#node) |
 | `GET /{$}` | unstable | browser redirect to the web face, not an API route |
-| `POST /account` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `POST /account` | unstable | [route groups](#node) |
 | `POST /bigfile/delete` | stable | [Bigfiles](#bigfiles) |
 | `POST /configure` | stable | [Configuration](#configuration) |
-| `POST /debug` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
-| `POST /deliver-to/remove` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
-| `POST /enrol` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `POST /debug` | unstable | [route groups](#node) |
+| `POST /deliver-to/remove` | unstable | [route groups](#node) |
+| `POST /enrol` | unstable | [route groups](#node) |
 | `POST /extend` | stable | [Locks](#locks) |
-| `POST /group` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
-| `POST /identity/remove` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `POST /group` | unstable | [route groups](#node) |
+| `POST /identity/remove` | unstable | [route groups](#node) |
 | `POST /kv/delete` | stable | [Key-value](#key-value) |
 | `POST /kv/inc` | stable | [Key-value](#key-value) |
 | `POST /kv/json` | stable | [Key-value](#key-value) |
 | `POST /kv/set` | stable | [Key-value](#key-value) |
 | `POST /lock` | stable | [Locks](#locks) |
-| `POST /manage` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
-| `POST /owner` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
-| `POST /profile` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
-| `POST /records/export` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
-| `POST /records/import` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
-| `POST /register` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `POST /manage` | unstable | [route groups](#node) |
+| `POST /owner` | unstable | [route groups](#node) |
+| `POST /profile` | unstable | [route groups](#node) |
+| `POST /records/export` | unstable | [route groups](#node) |
+| `POST /records/import` | unstable | [route groups](#node) |
+| `POST /register` | unstable | [route groups](#node) |
 | `POST /release` | stable | [Locks](#locks) |
 | `POST /release-force` | stable | [Locks](#locks) |
-| `POST /secret` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `POST /secret` | unstable | [route groups](#node) |
 | `POST /send` | stable | [Send and consume](#send-and-consume) |
-| `POST /session` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
-| `POST /subscribe` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
-| `POST /token` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `POST /session` | unstable | [route groups](#node) |
+| `POST /subscribe` | unstable | [route groups](#node) |
+| `POST /token` | unstable | [route groups](#node) |
 | `POST /try-lock` | stable | [Locks](#locks) |
-| `POST /unregister` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
-| `POST /user` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
-| `POST /user/github-refresh` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
-| `POST /user/key` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
-| `POST /user/state` | unstable | admin-only, [People, groups and accounts](#people-groups-and-accounts) and the groups above |
+| `POST /unregister` | unstable | [route groups](#node) |
+| `POST /user` | unstable | [route groups](#node) |
+| `POST /user/github-refresh` | unstable | [route groups](#node) |
+| `POST /user/key` | unstable | [route groups](#node) |
+| `POST /user/state` | unstable | [route groups](#node) |
 | `PUT /bigfile` | stable | [Bigfiles](#bigfiles) |
 
 ## The client contract
 
 Common to every route below:
 
-- **Credential** in `X-Agent-Bus-Token`, or the account socket in its place; none is `401`.
+- **Credential** in `X-Agent-Bus-Token`, or the account socket in its place; none is `401`, except for public `/identity`.
 - **Names** are canonical: a record name in a request is the name as [registered](01-identity-and-authority.md#names); an answer names the caller as `you` or `from`.
 - **Bodies** are JSON on a `POST` of at most 1 MiB, with the one exception of a key-value write, which allows a 512 KiB value escaped; a body that does not arrive in 30 s is `408` (a bigfile `PUT` has 30 s of silence and a [total budget](03-records-kv.md#bigfiles) instead); `GET` carries query parameters.
 - **Times** are RFC 3339 in UTC; **durations** are Go durations (`30s`, `5m`) except where a field says whole seconds.
@@ -268,7 +249,7 @@ Common to every route below:
 |---|---|---|
 | `to`, `body` | the caller | destination name and text; `body` is empty for an `ask` |
 | `topic`, `tag` | the caller | labels a receiver or a waiting reader filters on; both optional |
-| `receipt` | the caller | `ack` or `done`, only from the receiver of the message `re` names; any other value is `400` |
+| `receipt` | the caller | `ack` or `done`; any other value is `400`. Receivers use it to report progress on the message named by `re`; the daemon does not authenticate that correlation |
 | `re` | the caller | the `message_id` a receipt is about |
 | `ask` | the caller | `help`, `help-config`, `help-secret`, `help-json`, `mcp` or `status`; the body must be empty and no receipt may accompany it |
 | `reply_to` | the caller | `{name, topic?, tag?}`: where an answer goes when it is not the sender; `name` must be registered |
@@ -292,7 +273,7 @@ Common to every route below:
 | `asks` | none | `only` takes only messages that carry an `ask`; any other value is `400` |
 
 - **Answers:** `200` with the envelope; `204` with no body when nothing arrived in time, or the caller went away (the message goes back); `409 second-reader` for an incompatible reader; the refusals of send for the rest.
-- **Delivery** is at most once: a message handed to a caller that then vanishes is requeued only if the connection closed first.
+- **Delivery:** see [cancellation and reader behavior](04-messaging.md#one-reader-per-inbox) and [crash durability](04-messaging.md#durability); a crash can redeliver a message consumed since the last checkpoint.
 
 ### Key-value
 
@@ -307,8 +288,8 @@ A record's store has three kinds, `string`, `int` and `json`; `kind` defaults to
 | `POST /kv/json` | `{record, name, ops}`, at most 100 operations applied all or none | `{record, name, results:[{changed, value?}]}` |
 | `GET /kv/list` | query `record`, or none | with `record`: `{record, kind, values:{string,int,json}}`, each a list of `{name, size, preview \| preview_base64}`; without it, an array of `{record, kind, string, int, json}` counts |
 
-- **Limits:** a name is 1 to 256 bytes of UTF-8, a value at most 512 KiB, a record at most 10,000 names of one kind; a limit is `413 malformed`. An `int` is a signed 64-bit integer, sent as its digits (never rounded); one that does not fit, or a value of the wrong type, is `400 malformed`.
-- **Absent versus null:** an absent field is not a stored `null`; a JSON value may be `null` and is stored as such.
+- **Limits:** [KV limits](03-records-kv.md#rules) apply; exceeding a storage limit is `413 malformed`. Integers travel as exact digits, never rounded; an out-of-range integer or wrong value type is `400 malformed`.
+- **JSON values must be objects.** A top-level `null`, array or scalar is refused; an object may contain `null` members.
 - **Authority:** the record's Owner, Maintainers and own Agent; anyone else is `403 acl`; an unknown record is `404 not_found`. Meaning and the JSON operations: [key-value store](03-records-kv.md#key-value-store).
 
 ### Locks
@@ -337,7 +318,7 @@ A bigfile is a named value up to 32 MiB held for a limited time. The bytes are a
 | `GET /bigfile/list` | query `record` | `{record, keys:[{name, size, sha256, held, expires}]}` sorted by name, with no expired key and no uploader |
 | `POST /bigfile/delete` | `{record, name}` | `{record, name, deleted}` |
 
-- **Limits:** a name is 1 to 256 bytes of UTF-8; 32 MiB per key, 256 MiB and 100 keys per record, 1 GiB in the daemon; a put of no bytes is `400`; over a limit is `413 malformed`.
+- **Limits:** [bigfile storage limits](03-records-kv.md#bigfiles) apply; an empty put is `400`, exceeding a limit is `413 malformed`.
 - **Refusals:** `403 acl` (put and delete need the Owner, a Maintainer or the record's own Agent; get and list also admit the allow list), `404 not_found` (absent or expired key, unknown record), `400 malformed` (bad `ttl`, `memory`, name or hash, an empty body), `503 unavailable` with the cause in `error` when the bigfile store cannot be opened.
 - **Early refusal:** a refusal that comes before the body is read is sent after the daemon has read and discarded the declared bytes for at most two seconds, so a client still writing sees the status and its cause; a client may send `Expect: 100-continue` to see it before sending the body, and the connection is closed after such an answer.
 - **A replace** is a `200` with `replaced: true`, never a `412`. A put never retries; a lost reply may leave the key stored, and the client reads the list to see.
@@ -350,7 +331,7 @@ A bigfile is a named value up to 32 MiB held for a limited time. The bytes are a
 | `GET /identity` | none | `{version, build_info, owner, up, host, calls, protocol, protocol_min}`; `calls` is `{total, windows:[{window, observed, available, count}]}`; nothing else, and `Cache-Control: no-store` |
 | `GET /status` | required | `{up, realm?, records, queued, waiting, dropped, expired, unclean?, refused?, kinds, owner_inactive?, you, administrator?, daemon_owner?, today, activity_days_kept}`; `refused` is a count per kind, only for kinds that happened |
 
-- **`records`** counts live records; the older `services` count is removed.
+- **`records`** counts live records.
 - **A client** reads `you` for who the daemon says it is, and compares it with the name it expected.
 
 ### Configuration
@@ -375,19 +356,10 @@ A bigfile is a named value up to 32 MiB held for a limited time. The bytes are a
 | status, identity, configuration | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 - A dash is a capability the library does not have; the route still works for any HTTP caller.
-- The six libraries share one conformance suite; its coverage is [protocol conformance](../src/clients/README.md#protocol-conformance).
-- Event logs and subscriptions use plain send/call to `#bus`, not a separate library API. All six libraries run the shared event-log and event-subscription vectors with executed examples: [Go](../src/clients/go/README.md#event-logs), [Python](../src/clients/python/README.md#event-subscriptions), [TypeScript](../src/clients/typescript/README.md#event-subscriptions), [Rust](../src/clients/rust/README.md#event-subscriptions), [Java](../src/clients/java/README.md#event-logs) and [PHP](../src/clients/php/README.md#event-logs). The owning behavior is [agent logs](agents/bus.md#agent-logs).
+- Event logs and subscriptions use plain send/call to `#bus`; see [agent logs](agents/bus.md#agent-logs).
 
 ## Nothing else
 
 - The CLI, the MCP face and the web face are clients of exactly these routes and have no private channel into the daemon ([faces](05-discovery.md#faces)).
 - The web face's pages are served by a separate process ([processes](08-processes.md#the-web-face)).
 - The API's own root has no page: where a web-face address is configured, `GET /` permanently redirects to it, and nothing below the root redirects at all, so a mistyped route stays a 404 ([where it listens](05-discovery.md#where-it-listens)).
-
-## Status
-
-| MVP | Scope |
-|---|---|
-| Built | Every route above, and the frozen client contract: refusal `kind`, `protocol` 1 and `protocol_min` 1 in `/identity`, `no_route` for unknown routes, unknown fields ignored and duplicates refused, the retired aliases removed (0.9.264). |
-| Built, with V1 | A check that every route has a row here and every stable route is in the client contract (the two tests named above), and shared conformance vectors for key-value, locks, bigfiles, identity and refusals, run by the Go, Python and TypeScript clients ([vectors](../src/testdata/client-conformance/README.md#state-identity-and-refusal-vectors-t-24)). |
-| Built, with S2v | The Rust, PHP and Java adapters run the shared key-value, lock, identity and refusal vectors ([acceptance evidence](../Plans/R1.0-Release/DONE.md#t-24-s2v-the-rust-php-and-java-clients-run-the-shared-vectors)); bigfiles remain outside their client surface. |

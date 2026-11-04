@@ -5,19 +5,6 @@
 - **Outcome:** the supervisor owns listeners and child lifetime, the bus owns state and serves requests, and the web page, under its own account and unit, asks the bus for the visitor's own view. Passing a listener is a runtime boundary, separate from the module rules. The daemon never runs a program a user supplied.
 - **Start:** on a Linux node, inspect the daemon processes: `ps -ww -u agent-busd -o args` ([Try this first](#try-this-first)).
 
-## Why you'd want it
-
-- 🧱 **One process with every power is one flaw from disaster.** Now each process has only what it needs.
-- 🔎 **You must tell the processes apart.** Now each sets a title that names its role and call count.
-- 🚫 **A daemon that can start programs can be turned on you.** Now it never runs a program a user supplied.
-
-## What you get
-
-- ✅ **Three roles:** the supervisor, the bus and the web page.
-- ✅ **Stated privileges:** why the supervisor holds what it holds, and what is shared.
-- ✅ **Process titles:** a role and a call count you can read with `ps`.
-- 🚫 **Not for:** code dependency rules (see [modules](../src/MODULES.md#the-rule)).
-
 ## Try this first
 
 On an installed Linux node, inspect the daemon's processes:
@@ -37,21 +24,18 @@ remain separate.
 
 ## The processes
 
-| Built process | Owns | Runtime |
+| Process | Owns | Runtime |
 |---|---|---|
 | Supervisor | Listening sockets, socket ownership and child restart | `agent-busd` |
 | Bus | Registry, queues, tokens and browser sessions | Same executable, bus role |
 | Web face | HTTP rendering, no credential store | `agent-bus-web.service`: the compiled `agent-bus-ts`, or bun on a checkout, as the `agent-bus-web` account ([the web face](#the-web-face)) |
 | Dedicated runner | Its agent's inbox reader and script children | User-launched CLI; outside the daemon |
 
-The bus is the supervisor's only child. An AUTH role is
-[R1.1 work](../Plans/R1.1/auth.md#auth-role).
+The bus is the supervisor's only child.
 
 ## Process titles
 
-- All programs use the shared [working rules § versioning](../CLAUDE.md#versioning).
-- Every Go program accepts `--version` and prints the version and [setup § build information](../.claude/docs/deployment.md#build-information) before doing any work; its `--help` opens with the program and version ([build information](../.claude/docs/deployment.md#build-information)).
-- The MCP and web entry points accept the same flag, compiled or via `bun run server.ts`; the MCP handshake and the Codex adapter report that version too.
+- Use `--version` for the program version and build information; `--help` also names the program and version. MCP handshakes and the Codex adapter report the version too.
 
 | Process | Title in `ps -ww -o args` | Calls |
 |---|---|---|
@@ -66,31 +50,19 @@ The bus is the supervisor's only child. An AUTH role is
 - Scripts, arguments, credentials and message bodies are never added to titles.
 - The executable's short `comm` name stays unchanged.
 
-The Go helper wraps `gspt`, as in the reference Go API: it rewrites the OS
-argument area while preserving Go's arguments and environment for child exec;
-build requirements live in [setup § build information](../.claude/docs/deployment.md#build-information).
-
 ## Nothing the daemon runs may exec
 
-This is the target privilege boundary for the bus: it must not execute user
-programs. The supervisor necessarily executes its children, and the web face's
-unit can execute nothing but its runtime. User scripts run in the separate dedicated
-runner.
+The bus never executes user-supplied programs. Scripts run in a separate
+[dedicated runner](06-dedicated-runner.md) or [runner](runner/README.md).
 
-**`ssh-keygen` is allowed, and the boundary is about user programs.** The bus runs it to check a signature at enrolment, and that stays.
-- What the rule forbids is executing **what a user supplied** — a script behind an agent, anything whose contents somebody else chose.
-- A fixed verifier the daemon ships and invokes with arguments it built is a different thing from running a stranger's program, and collapsing the two would have bought nothing but a literal claim.
-
-So the boundary is not *no exec*, it is **no user programs**, and the check is
-what decides the argument rather than how the code is reached. An unavailable
-future AUTH child is not what settles this; the distinction is.
+The supervisor starts its bus child. The bus may invoke the fixed
+`ssh-keygen` verifier for enrolment signatures, with arguments it constructs.
+The web unit permits execution only of its configured runtime and libraries.
 
 ## Why the supervisor holds CAP_CHOWN
 
 - Per-account socket ownership needs this capability.
 - The installed unit grants it only to the supervisor; the supervisor clears ambient capabilities before starting its children.
-- A developer run without the capability cannot prove that boundary.
-- The [installed checks](../Plans/done/R0.8-MVP/done/installed-shared-host.md#checks) exercise two actual account sockets and mutations that remove the grant or let the bus inherit it.
 
 The supervisor reports a failed ownership change. That does not certify that
 another account can use the intended socket.
@@ -138,8 +110,7 @@ visitor's credentials and then uses their browser session.
 | Listen | [discovery § where it listens](05-discovery.md#where-it-listens) |
 | With TLS on | a small front on the port sniffs each connection: TLS is piped to the face's own server, which holds the certificate on a unix socket in its `RuntimeDirectory` (`/run/agent-bus-web/https.sock`); plain HTTP is answered at the front with a `301` to `https://` and never reaches the app, except `/healthz`, answered for the app. Without TLS the face binds the port itself, as before ([setup § TLS](administration.md#tls)) |
 
-**The face acts on the visitor's session, and on nothing else.** Owner-settled,
-2026-09-16. Every call a signed-in person causes is made with that person's
+**The face acts on the visitor's session.** Every call a signed-in person causes is made with that person's
 credential, so what the face can do is exactly what that person could do from
 the CLI. It is a face, not an authority.
 
@@ -164,9 +135,7 @@ the CLI. It is a face, not an authority.
 | Resources | `MemoryMax=256M`, `MemorySwapMax=0`, `TasksMax=64`, `CPUQuota=100%`, `LimitNOFILE=1024` |
 
 Reaching a limit may kill the face; systemd restarts it, and bus calls continue
-while it is absent. `src/web/probe-unit.sh` exercises these walls on an
-installed unit. The design and its checks are in
-[Web § process and account](../Plans/done/R0.8-MVP/web/README.md#process-and-account).
+while it is absent.
 
 </details>
 
@@ -182,7 +151,7 @@ child cannot make one and does not need the capability to.
 | `AGENT_BUS_ACCOUNTS` | the supervisor's active editable account map; the bus compares it with durable desired state to report whether a full restart is required |
 | `AGENT_BUS_SUPERVISOR_PID` | the spawning supervisor's PID, replacing any inherited value; the non-Linux child checks this exact parent before starting and while running |
 | `--owner` | required first-run Owner seed; the daemon account's socket answers as the durable daemon Owner, which a transfer moves ([daemon ownership](01-identity-and-authority.md#daemon-owner)) |
-| `--web` | accepted and ignored, so a unit from before 0.8.50 still starts; the [web face](#the-web-face) is its own unit |
+| `--web` | accepted and ignored for compatibility with older units; the [web face](#the-web-face) is its own unit |
 
 The bus child inherits the supervisor's environment.
 
@@ -195,9 +164,3 @@ On Linux the kernel sends the death signal (`PR_SET_PDEATHSIG`). Elsewhere,
 the bus child refuses startup if its expected supervisor is already gone;
 after startup it stops itself as on SIGTERM once that supervisor is gone
 ([macOS](platforms/macos.md#the-daemon)).
-
-## Status
-
-| MVP | Scope |
-|---|---|
-| Built | Supervisor, bus child, inherited listeners and versioned process titles; the [web face](#the-web-face) under its own account and unit; optional TLS beside plain HTTP on the [TCP port](#the-tcp-listener) and a TLS front on the web port. Installed account, socket and capability placement is accepted on a package-only real-systemd host. |

@@ -3,20 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** an AI session in your terminal cannot receive messages from the bus on its own.
 - **Outcome:** `ab-claude`, `ab-codex` and `ab-opencode` put a live AI session behind a bus name with the bus tools loaded, and push each message into the running session through that runtime's adapter. A script behind a name is the [dedicated runner](06-dedicated-runner.md)'s instead.
-- **Start:** see what a launcher offers: `ab-claude --help` ([Try this first](#try-this-first)). This page owns the runtime adapters and the session launchers.
-
-## Why you'd want it
-
-- 📥 **A session only hears you, not the bus.** Now each message is pushed into the running session.
-- 🏷️ **A session has no stable name.** Now it keeps a name across restarts, one live session per name.
-- 🔁 **A crash ends the conversation.** Now a launcher can restart the session after a crash, with `--restart`.
-
-## What you get
-
-- ✅ **One launcher per runtime:** Claude, Codex and OpenCode, each with the bus tools loaded.
-- ✅ **Names and tags:** stable session names, tags for filtering, and an explicit rename.
-- ✅ **Recovery:** an optional restart after a crash (`--restart`), and isolation between sessions.
-- 🚫 **Not for:** running a plain script behind a name (the [dedicated runner](06-dedicated-runner.md)).
+- **Start:** see what a launcher offers: `ab-claude --help` ([Try this first](#try-this-first)).
 
 ## Try this first
 
@@ -26,39 +13,31 @@
 ab-claude --help
 ```
 
-<details>
-<summary>See it on a real node (ran today)</summary>
-
-```text
-ab-claude: launch claude with agent-bus tools and messaging.
-```
-
-- The first line of the answer; the rest lists the options.
-- The output is from the development node on 2026-10-30.
-
-</details>
-
-This page owns the runtime adapters and the session launchers.
-
 ## Adapters
 
 **Agent runtimes get one push adapter each**: each runtime takes a message
 differently, so each gets its own adapter that reads the session's queue and
-pushes into the *running* session. Claude Code, Codex and opencode are proven here — `src/mcp`, run by `smoke.sh`.
+pushes into the *running* session.
 
-| Runtime | Push path | Status |
-|---|---|---|
-| Claude Code | Channels — `claude --channel`, `notifications/claude/channel`, reply tool | built and smoke-tested here |
-| Codex | App Server — `turn/steer` if busy, `turn/start` if idle, `thread/resume` after restart. **Two transports**: told where a shared app-server is, it attaches over a loopback WebSocket; told nothing, it spawns `codex app-server` and speaks newline-delimited JSON-RPC on stdio. What is ruled out is a WebSocket over a **unix socket**, which bun cannot open | both proven in the live run |
-| opencode | HTTP. The launcher starts `opencode serve`, selects an existing session or creates one, and starts the TUI and pusher on that explicit session ID. `POST /api/session/{id}/prompt` with `delivery: "queue"` delivers into that session, waiting for an idle turn rather than steering one. Initial TUI startup need not emit a selection event. `ab-opencode1` speaks the 1.x API and its `attach` TUI for hosts still on it | built and smoke-tested here |
-| ChatGPT | none — cannot be pushed; pull through the MCP inbox only | pull only |
+| Runtime | Push path |
+|---|---|
+| Claude Code | Channels — `claude --channel`, `notifications/claude/channel`, reply tool |
+| Codex | App Server — `turn/steer` if busy, `turn/start` if idle, `thread/resume` after restart. **Two transports**: told where a shared app-server is, it attaches over a loopback WebSocket; told nothing, it spawns `codex app-server` and speaks newline-delimited JSON-RPC on stdio. What is ruled out is a WebSocket over a **unix socket**, which bun cannot open |
+| opencode | HTTP. The launcher starts `opencode serve`, selects an existing session or creates one, and starts the TUI and pusher on that explicit session ID. `POST /api/session/{id}/prompt` with `delivery: "queue"` delivers into that session, waiting for an idle turn rather than steering one. Initial TUI startup need not emit a selection event. `ab-opencode1` speaks the 1.x API and its `attach` TUI for hosts still on it |
+| ChatGPT | none — cannot be pushed; pull through the MCP inbox only |
 
 **Push stops rather than repeats a refusal about who is asking.** A credential the daemon does not know and an inbox somebody else already holds are answers that asking again cannot change, so the loop says so once and leaves the session running without a channel.
-- A suspended principal is different: it can be reactivated, so push says so once and asks again every 30 minutes, and resumes by itself after reactivation (owner, 2026-09-23).
-- It is told by the daemon's own sentence for it, "user access is suspended"; any other 403 stops push as before.
-- A transient failure is retried after two seconds; a session that outlives its principal otherwise refuses its way through the daemon for as long as it lives.
+- A suspended principal is different: it can be reactivated, so push says so once and asks again every 30 minutes, and resumes by itself after reactivation.
+- It is told by the daemon's own sentence for it, "user access is suspended"; any other 403 stops push.
+- A transient failure is retried after two seconds.
 
-**A Codex `/compact` or `/review` no longer detaches it.** While such a turn runs, the App Server takes no new message; the push waits for the turn to end (up to five minutes) and delivers. If a delivery into the session fails for a reason that may clear (a turn that has not ended, an overloaded or unreachable app-server), the message is kept and the push the launcher restarts after 2, 10 and 30 seconds, at most three times, delivers it first; after the third failed try it is dropped. An app-server refusal of the input itself is dropped at once, and the inbox keeps flowing. A drop is one log line and one notice with the message id, the sender and the error, never the body. After the last restart the launcher says once that the push stays off. A refusal is never restarted. The App Server's `ActiveTurnNotSteerable` counts whether it comes as structured data or only as error text.
+**Codex delivery waits through `/compact` and `/review`.**
+
+- The adapter waits up to five minutes for a non-steerable turn to end, then delivers. `ActiveTurnNotSteerable` is recognized in structured data or error text.
+- On a transient delivery failure, the launcher restarts push after 2, 10 and 30 seconds, at most three times. The retained message is delivered first; a third failed retry drops it.
+- An App Server refusal of the input drops it immediately and allows the inbox to continue.
+- A drop produces one log line and one notice with message ID, sender and error, never the body. After the last restart, the launcher reports that push remains off.
+- Credential and permission refusals do not trigger these restarts.
 
 Session [help asks](../src/mcp/README.md#push-and-the-one-reader) are answered by the adapter without interrupting the model; ordinary messages still push through.
 
@@ -69,47 +48,22 @@ Follow the [receipt rules](04-messaging.md#receipts).
 - It never lets an incoming message change the session's permissions or mode — that is the adapter's policy as a receiver ([messaging § envelope](04-messaging.md#envelope)), not a rule of the bus.
 
 
-### Check delivery through compaction
-
-1. Start a throwaway Codex session with `AGENT_BUS_NAME='#ab-j60-live-check' ab-codex --tag ab-dvp`.
-2. Run `/compact` and send one uniquely labelled ping to that name from another session while compaction runs. Wait until the **“Compacting context” line disappears from the pane**. The Context percentage can jump to 100% when compaction starts.
-3. Confirm that the ping arrives once, then send a second labelled ping and confirm that it arrives once too, without restarting the session.
-
-
-## Runtime integration delivery
-
-**Built; passed [live acceptance](../Plans/done/R0.8-MVP/done/runtime-delivery.md#checks) on the development host and on a [fresh host](../Plans/done/R0.8-MVP/done/fresh-host-runtime.md#checks).** Ship usable Claude channels and Codex App Server integration with
-the [installation](07-setup.md#install), building on the existing
-[adapters](#adapters). Adapter smoke tests alone do not establish that a new
-user can install and launch either integration.
-
-Both integrations include the [MCP minimum](05-discovery.md#mcp-minimum).
-
-| Deliverable | Required behavior |
-|---|---|
-| Claude channel | Installed channel configuration, incoming messages in the running session, and replies through the bus; document required runtime support and activation |
-| Codex App Server | Ship the App Server integration with the [smart launcher](#smart-launchers), bus tools and live-session messaging. This is the owner's intended meaning of "Codex apps"; a separate app/plugin is outside the release |
-
-An official vendor listing is external and not part of the release.
-
 ## Smart launchers
 
-**Built.** `ab-claude`, `ab-codex` and `ab-opencode` are ordinary-user
-scripts, modelled on the Legacy-V1 launchers and independent of them;
-`ab-opencode1` is the archived 1.x variant of the last, kept beside it.
+`ab-claude`, `ab-codex` and `ab-opencode` start sessions as the current OS user.
+`ab-opencode1` supports the OpenCode 1.x runtime API.
 
-| Concern | Required behavior |
+| Concern | Behavior |
 |---|---|
-| Startup | Find the installed runtime and integration assets; explain missing prerequisites; work without `/rd` or a repository checkout |
-| Configuration | Use V2 [access](02-access.md#getting-a-token) and [face configuration](../src/mcp/README.md#environment); an explicit address wins. Without one, discover the socket of the account the launcher runs as, found by uid rather than `$USER`, in its login runtime directory, then the installed [local socket](02-access.md#local-socket). With a token, select the shared listener instead. An `https://` address needs `AGENT_BUS_TLS_FINGERPRINT` ([over HTTPS](02-access-remote.md#over-https)) |
+| Startup | Find the installed runtime and integration assets; explain missing prerequisites; work without a repository checkout |
+| Configuration | Use [access](02-access.md#getting-a-token) and [face configuration](../src/mcp/README.md#environment); an explicit address wins. Without one, discover the socket of the account the launcher runs as, found by uid rather than `$USER`, in its login runtime directory, then the installed [local socket](02-access.md#local-socket). With a token, select the shared listener instead. An `https://` address needs `AGENT_BUS_TLS_FINGERPRINT` ([over HTTPS](02-access-remote.md#over-https)) |
 | Bus tools | Load the [MCP minimum](05-discovery.md#mcp-minimum) into the launched session alongside message delivery; authorize the agent-bus MCP namespace in Claude and set Codex's server-specific `default_tools_approval_mode="approve"` so those calls need no initial tool prompt |
 | Session | Resume the current directory's conversation when available; otherwise start fresh. With an explicit `AGENT_BUS_NAME`, resume the newest conversation bound to that name, else the newest one bound to no name, else start fresh, so two names sharing a directory never take each other's conversation. Preserve caller arguments and route messages to the intended live session |
 | Automatic execution | Always enable Claude's `--enable-auto-mode`; configure Codex's App Server and fresh-thread TUI with `approval_policy="never"` and `sandbox_mode="danger-full-access"`, overriding contrary launch options. Remote TUI resumes inherit the server configuration and receive no permission overrides, including after a crash |
-| Continuation | Always continue the last available session in the launch directory. Claude uses `--continue`; Codex selects the latest thread and pins its ID when attaching the TUI. With no saved conversation, let the runtime create one; the Codex pusher attaches after the TUI creates its thread |
 | Accounts | `ab-claude` accepts `-2`, `-3` and `-4`: the Claude configuration home becomes `~/.claude2`, `~/.claude3` or `~/.claude4`, or a set `CLAUDE_CONFIG_DIR` with that digit appended, so several accounts run side by side with their own login, sessions and servers. The launcher consumes the flag; the runtime never receives it |
 | Session naming | Prefer an assigned session name under the [session naming contract](#session-names); use the launch directory as the fallback |
 | Claude wiring | Activate the installed channel and tools using the [loading contract](../src/mcp/README.md#loading-it) |
-| opencode wiring | Start the server the session runs on, and give it the face and the launcher's enforced permission through `OPENCODE_CONFIG_CONTENT`. The TUI starts on that server with `--server`; `ab-opencode1` attaches a 1.x TUI with `attach --dir`. The server is loopback with a password passed by environment, never as an argument: anything that reaches it can drive the session |
+| opencode wiring | Start the server the session runs on, and give it the face and the launcher's enforced permission through `OPENCODE_CONFIG_CONTENT`. The TUI starts on that server with `--server`; `ab-opencode1` attaches a 1.x TUI with `attach --dir`. The server binds loopback with a password passed by environment, never as an argument; authenticated access can drive the session |
 | Codex wiring | Connect the terminal and pusher to the same App Server, with the tools and inbox reader arranged as [documented](../src/mcp/README.md#one-app-server-two-clients) |
 | Readiness | Report whether bus integration is active. With no bus configuration, allow a plain runtime session with an explicit notice; failed integration must never be reported as connected |
 | Lifecycle | Wait for readiness before attaching; propagate the runtime's exit status and stop only the helper processes created by this launch on exit or startup failure. A helper that dies at startup is reported with the last lines of its own log, which cleanup then removes |
@@ -118,32 +72,31 @@ scripts, modelled on the Legacy-V1 launchers and independent of them;
 
 ## Terminal appearance
 
-**Built.** The shared helper lives under `src/launchers/` and is bundled into
-its launcher; it is not a command on `PATH` and has no `/rd` dependency.
+Launchers set terminal titles and colors when the terminal supports them.
 
 | Concern | Behavior |
 |---|---|
 | Title | `Claude(...)`, `Codex(...)` or `OpenCode(...)`; prefer the assigned session name, otherwise the last two directory components, with home abbreviated as `~`. Refresh when the session name changes |
 | Ownership | Disable the runtime's own title updates while the launcher controls an interactive terminal |
 | Exit | Restore the saved terminal title on normal exit, startup failure and handled termination; reset launcher tab colors to terminal defaults. Konsole restores its saved local and remote title formats |
-| Claude palette | Rotate blue/cyan shades, following the reference launcher |
-| Codex palette | Rotate green shades, following the reference launcher |
+| Claude palette | Rotate blue/cyan shades |
+| Codex palette | Rotate green shades |
 | OpenCode palette | Rotate a distinct violet palette; red stays reserved for production |
 | Styling | Kitty tab backgrounds with dimmed inactive tabs and contrasting text; Konsole tab backgrounds. Address the caller's tab/session, even when another tab has focus |
 | Compatibility | Standard terminal title sequences elsewhere; unsupported restoration falls back to clearing the title for the shell. Missing or denied optional terminal controls are harmless; pipes and dumb terminals receive no styling |
 
 ## Session names
 
-**Built.** Prefer the name assigned to the actual Claude or
-Codex session when the runtime exposes it. Otherwise identify it by runtime
-and launch directory, as the reference scripts do. The launch directory is
+Prefer the name assigned to the actual Claude or
+Codex session when the runtime exposes it. Otherwise use the runtime
+and launch directory. The launch directory is
 captured at startup; a later working-directory change does not rename the session.
 
 | Source | Use |
 |---|---|
 | Explicit bus name | Honor the caller's configured identity under the existing [face configuration](../src/mcp/README.md#environment) and [credential rules](02-access.md#what-a-call-carries) |
 | Runtime-assigned session name | Preferred human-readable label and basis for a derived bus name when no explicit bus name was supplied; obtain it from the session being launched or resumed |
-| No assigned name available | Fall back to runtime and launch directory, in a human-readable form such as `claude(/rd/)` |
+| No assigned name available | Fall back to runtime and launch directory, in a human-readable form such as `claude(~/project)` |
 
 - Human-readable labels and [canonical bus names](01-identity-and-authority.md#names) serve different purposes: keep the title for the terminal, and derive a valid bus name for routing.
 - Without `--descr`, the record description defaults to `<runtime> <absolute cwd>` (for example, `claude /usr/local/src/project`).
@@ -152,13 +105,13 @@ captured at startup; a later working-directory change does not rename the sessio
 - `--descr` explicitly replaces the description.
 - Resuming keeps the saved address; changing a purpose changes only its description.
 - A title is not a credential or a unique session identifier.
-- The `ab-*` launchers derive `#runtime/instance@host` from 0.7, with `claude`, `codex` or `opencode` as the template, the normalized session title (or directory) as the instance and the realm the bus reports ([bus setup](agents/bus.md#configuration)) as the realm, while the launching User stays realm-less. The bus's realm is used exactly as saved, never normalized or cut; a bus that reports no realm, or a realm too long to leave room for the session in 64 characters, refuses an automatic name; a bound session resumes its exact name when the realm changes, and an explicit name or `AGENT_BUS_REALM` is unchanged.
-- For example, a Codex session titled `home` on a bus whose realm is `parf.us` becomes `#codex/home@parf.us`, owned by `parf`.
-- They keep a realm in the name although [0.7 makes it optional](01-identity-and-authority.md#names): a bare `codex` or `runner` would be one name for every node and every user.
-- From 0.7 they also register those agents as [Personal](03-records.md#personal-and-shared): a session record belongs to the launching user, not on the shared web pages.
+- The `ab-*` launchers derive `#runtime/instance@host`, with `claude`, `codex` or `opencode` as the template, the normalized session title (or directory) as the instance and the realm the bus reports ([bus setup](agents/bus.md#configuration)) as the realm, while the launching User stays realm-less. The bus's realm is used exactly as saved, never normalized or cut; a bus that reports no realm, or a realm too long to leave room for the session in 64 characters, refuses an automatic name; a bound session resumes its exact name when the realm changes, and an explicit name or `AGENT_BUS_REALM` is unchanged.
+- For example, a Codex session titled `home` on a bus whose realm is `node.example` derives `#codex/home@node.example`, owned by the launching User.
+- They keep a realm in the name although [a realm is optional](01-identity-and-authority.md#names): a bare `codex` or `runner` would be one name for every node and every user.
+- They register those agents as [Personal](03-records.md#personal-and-shared): a session record belongs to the launching user, not on the shared web pages.
 - Saved dot-form addresses migrate on restart through the same address-change behavior below.
 - Explicit bus names and other clients' naming remain unchanged.
-- Canonical addresses use `.2`, `.3` before the realm, because `#` inside a name is not part of the grammar — from 0.7 it is the [agent prefix](01-identity-and-authority.md#names) and appears only at the front.
+- Canonical addresses use `.2`, `.3` before the realm, because `#` inside a name is not part of the grammar — it is the [agent prefix](01-identity-and-authority.md#names) and appears only at the front.
 - Allocation checks the visible registry and holds local locks; normalization and truncation collisions are checked on the resulting canonical name.
 - The daemon's [conditional registration](01-identity-and-authority.md#registration) arbitrates simultaneous new claims, including launchers with separate local state directories.
 
@@ -177,20 +130,15 @@ the record; resume after that session has stopped.
 - Avoid simultaneous starts of the same reserved session from different state directories.
 - Local lock directories are published atomically with their owner PID already inside; stale cleanup cannot remove another claimant’s replacement lock.
 
-A saved session with an unchanged title resumes exactly its saved address,
-including its collision suffix: after one second, after a crash with no reader,
-or after a long idle period. The exception is the person's own rename,
-described below; age and another session never rename it.
+A saved session with an unchanged title resumes its saved address, including
+its collision suffix, even after a crash or long idle period.
 
-- Dormant identities therefore accumulate in the registry.
-- Release an unwanted reservation explicitly with [unregister](01-identity-and-authority.md#unregistering).
-- The existing [explicit rename](#explicit-session-rename) also releases only the renamed session's own old record when idle.
-- Releasing a name makes it available to new sessions; keep reservations for sessions you intend to resume.
+- Dormant identities accumulate until released. Release makes the name available to new sessions, so keep reservations you intend to resume.
+- An [explicit rename](#explicit-session-rename) also releases the old record when idle.
 
 - Bind the selected identity to the runtime's actual session, consistently across the tools and pusher.
 - A runtime UI title change updates only the terminal label, never the purpose, until an explicit bus rename or restart.
 - On restart, `ab-claude` and `ab-codex` derive a new address if the session title has changed its normalized base; an explicit bus name stays fixed.
-- Otherwise resume reuses the saved address, including any collision suffix.
 - This restart behavior belongs only to these launchers, not other bus clients.
 - After claiming the new address, the launcher [unregisters](01-identity-and-authority.md#unregistering) the old one if idle.
 - If removal is refused, it reports the retained address; old queued messages stay there and are not moved to the new inbox.
@@ -203,9 +151,9 @@ described below; age and another session never rename it.
 
 ## One live session per name
 
-- 📌 **TL;DR:** A bus name has one live reader ([one reader per inbox](04-messaging.md#one-reader-per-inbox)).
+- A bus name has one live reader ([one reader per inbox](04-messaging.md#one-reader-per-inbox)).
 - A session whose name is already read does not start quietly deaf: every tool says so and names the holder.
-- It takes the name only on an explicit `--take-over`, and a forked or background session gets a name of its own ([RD129](../Plans/R1.0-Release/DECISIONS.md#recorded-decisions)).
+- It takes the name only on an explicit `--take-over`, and a forked or background session gets a name of its own.
 
 | Case | What happens |
 |---|---|
@@ -220,7 +168,7 @@ described below; age and another session never rename it.
 
 ## Start fresh
 
-- 📌 **TL;DR:** A start resumes the session bound to its name. `--fresh` starts that name in a new session instead.
+- A start resumes the session bound to its name. `--fresh` starts that name in a new session instead.
 - The name stays; the conversation is new. The old transcript stays on disk, and later starts resume the new session.
 
 | Case | What happens |
@@ -236,7 +184,7 @@ Resume the old conversation by its ID with `--resume <id>` (or the runtime's own
 ## Session tags
 
 - All four launchers accept repeatable `--tag a,b` options to group session records for `agent-bus ls --tag review` and `agent-bus call --tagged review 'check progress'`.
-- The [record tag grammar](03-records.md#tags) applies: invalid labels are refused, deduplicated and sorted; an empty or reserved label is refused by name.
+- The [record tag grammar](03-records.md#tags) applies: valid labels are deduplicated and sorted; invalid, reserved or empty comma-separated labels are refused. The standalone empty option below clears the custom set.
 
 ```sh
 ab-codex --tag review,billing --tag release-notes
@@ -250,11 +198,10 @@ ab-codex --tag review,billing --tag release-notes
 
 ## Restart after a crash
 
-**Built.** `ab-claude`, `ab-codex`, `ab-opencode` and `ab-opencode1` accept `--restart`
+`ab-claude`, `ab-codex`, `ab-opencode` and `ab-opencode1` accept `--restart`
 (default 30 seconds), `--restart=10` (seconds) or `--restart=2m` (minutes).
-Use a positive whole number; other timeout forms are refused. The flag belongs
-to the launcher and is not passed to the runtime. After `--`, it is a runtime
-argument and is left untouched.
+- Use a positive whole number; other timeout forms are refused.
+- The flag belongs to the launcher and is not passed to the runtime. After `--`, it is a runtime argument and is left untouched.
 
 - A nonzero exit or signal such as SIGSEGV restarts only the foreground TUI after the wait.
 - The launcher prints `<name> exited (<code or signal>); restarting in 30s (attempt 1/10) — Ctrl-C to stop` (with the current wait and attempt).
@@ -272,7 +219,7 @@ behaviour is unchanged.
 
 ## Explicit session rename
 
-**Built.** With an `ab-*` launcher, `ab_rename(name)` changes the runtime session title and bus address together.
+With an `ab-*` launcher, `ab_rename(name)` changes the runtime session title and bus address together.
 - Codex and OpenCode use their own session APIs; Claude appends its existing title metadata.
 - Without a name, the launcher reads the runtime's current title immediately.
 - Without a launcher, a bare MCP face holding only its agent's credential refuses a named rename and changes nothing, because the new address is its User's record: renaming is for `ab-*` sessions only.
@@ -302,7 +249,7 @@ OpenCode executable selection honors `OPENCODE_BIN`, then tries
 settings even when an interactive shell function hides a system executable.
 An explicit override that cannot run is an error, not a fallback.
 
-- Use the [Claude entry point](../src/launchers/ab-claude), [Codex entry point](../src/launchers/ab-codex), the [opencode entry point](../src/launchers/ab-opencode) — or the archived [1.x one](../src/launchers/ab-opencode1) on a host whose opencode is older — or the relocatable output of [the build script](../src/README.md#build-and-check).
+- Run the installed `ab-claude`, `ab-codex` or `ab-opencode`; use `ab-opencode1` for OpenCode 1.x.
 - Bun and the selected runtime must be installed.
 - Local socket discovery needs no environment setup; explicit addresses and tokens use the [face environment](../src/mcp/README.md#environment).
 
@@ -320,20 +267,14 @@ An explicit override that cannot run is an error, not a fallback.
 ## Claude channel plugin
 
 The plugin is installed per Claude account (`CLAUDE_CONFIG_DIR` or `-2`/`-3`/`-4`
-selects an alternate account). `ab-claude` installs it into the selected home when it is
-missing and stops if that fails; the manual equivalent is:
+selects an alternate account). `ab-claude` installs it into that home when
+missing and stops if installation fails. Start with `ab-claude`; no source
+checkout or manual marketplace path is needed.
 
-```sh
-claude plugin marketplace add /usr/local/src/ai-agent-bus/src
-claude plugin install agent-bus@agent-bus-local --scope user
-```
-
-- For a packaged release, use its installation's `current` directory instead of `/usr/local/src/ai-agent-bus/src`.
-- Both contain `.claude-plugin/marketplace.json`.
 - After updating the package, refresh it with `claude plugin update agent-bus@agent-bus-local`.
 - If an older launcher registered a local MCP server named `agent-bus`, remove that old definition once from each affected launch directory: `claude mcp remove --scope local agent-bus`.
 - Keep other servers and scopes.
-- The plugin now provides that server; loading both would create competing readers.
+- The plugin provides that server; loading both would create competing readers.
 
 - `ab-claude` always passes `--channels plugin:agent-bus@agent-bus-local`, with its namespaced tools allowed.
 - It never uses or falls back to the development channel flag, and never answers a confirmation dialog.
@@ -371,13 +312,12 @@ organizations using official channel plugins must include those entries too.
 
 ## Runtime isolation and recovery
 
-Every shipped runtime must keep session control private to its OS account.
-**Built:** launcher-owned Codex and OpenCode servers require per-run credentials;
+Session control is private to its OS account: launcher-owned Codex and OpenCode servers require per-run credentials;
 launcher rename control requires its own capability. Loopback alone is not a
 boundary.
 
 <details>
-<summary>Credentials and measured scope</summary>
+<summary>Credentials and limits</summary>
 
 - Codex uses native capability-token authentication before WebSocket upgrade.
 - Its token file is private inside the launcher's private run directory; the pusher supplies an Authorization header and the TUI reads its token from an environment variable.
@@ -390,14 +330,9 @@ boundary.
 - Root and processes already running as the same OS account are outside this account boundary.
 - If the runtime exits, an in-flight or immediate next request can reach a process that rebinds its freed port before the exit notification ends the session.
 
-- The [endpoint evidence](../Plans/done/R0.8-MVP/done/runtime-endpoint-auth.md#checks) includes actual second-account reads and renames, positive controls with authentication removed, and separate launcher/MCP/pusher fixture checks.
-- [H.9.5](../Plans/done/R0.8-MVP/DONE.md#done--mvp) passed for all three runtimes; Claude's channel needs a signed-in claude.ai login ([Claude channel checks](../Plans/done/R0.8-MVP/done/runtime-interactive.md#claude-channel-checks)).
-
 </details>
 
-- After a daemon restart or sidecar failure, an open interactive session must resume bus delivery or clearly report that integration is inactive and how to recover.
-- Recovery instructions must lead to a successful correlated exchange in that session.
-- It is accepted live for all three runtimes ([recovery evidence](../Plans/done/R0.8-MVP/done/runtime-recovery.md#checks)):
+The launcher reports recovery or the action needed to reconnect:
 
 | Failure | What the session does |
 |---|---|
@@ -418,13 +353,6 @@ boundary.
 
 - This adds no replay or exactly-once guarantee: [consumption](04-messaging.md#one-reader-per-inbox) and [queue checkpoints](04-messaging.md#durability) retain their loss boundaries.
 - A message consumed at the moment of a failure may be lost, and after a crash one consumed since the last flush may arrive again under its own `message_id`.
-
-## Status
-
-| MVP | Scope |
-|---|---|
-| Built | Runtime adapters and smart launchers with MCP tools. |
-| Accepted | [Runtime integration delivery](#runtime-integration-delivery), [smart launchers](#smart-launchers), [session names](#session-names) and [isolation and recovery](#runtime-isolation-and-recovery) passed live acceptance on the development host ([launchers](../Plans/done/R0.8-MVP/done/runtime-launch.md#checks)) and, installed from the package, on a [fresh host](../Plans/done/R0.8-MVP/done/fresh-host-runtime.md#checks). Codex's enforced mode is also given to the TUI that runs its thread ([gap closed](../Plans/done/R0.8-MVP/done/runtime-launch.md#defect-found)). |
 
 ### Read-only review
 

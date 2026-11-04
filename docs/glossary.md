@@ -1,13 +1,9 @@
 # Glossary
 
 📌 **TL;DR:** Names and terms, linked to their definitions: the programs, the
-current vocabulary and the glyphs in use. **One thing, one name**: docs,
-plans, code, help text and the web face all call each thing by the name here,
-and never by a second one.
+vocabulary and the glyphs used in the CLI and dashboard.
 
 ## Names
-
-Current naming index. Canonical values and definitions remain in the linked sections.
 
 | Name | Meaning | Definition |
 |---|---|---|
@@ -26,63 +22,33 @@ Current naming index. Canonical values and definitions remain in the linked sect
 
 ## Vocabulary
 
-Use service discovery for the overall capability, registration for one
-operation. Use realm for the name's authority namespace, and **agent template**
-for the unconfigured capability a configured name was made from — the CLI verb
-is `config`.
-
-**Channel is the record; topic is the message label.** They are
-two words for two things ([channel, not topic](03-records-channel.md#channel-not-topic)).
-A channel is published to and read; a topic rides on one envelope and is
-what a filtered read matches. `channel` is the CLI verb, the `publish` flag and
-the wire field; `topic` stays on `send`, `consume` and `reply`.
-
-**Deliver-To is who receives a 📣 copy; the ACL is who may publish.** A
-📣 channel carries both ([Deliver-To](04-messaging.md#deliver-to)).
-Say Deliver-To for the list and recipient for a name on it, never
-*subscriber* or *subscription*. `subs` stays the wire field, and `subscribe`
-only the CLI verb and route by which a name takes itself off the list.
-Subscribing named the old self-service join, which the manager's list replaces.
-
-**Service means the external case and nothing else.** It is one of
-the [record kinds](03-records.md#record-kinds): a card
-describing something this bus does not run. Anything running behind a bus name
-is an **agent**. Say record for a registered name whose kind does not matter to
-the sentence. Personal is an owner-selected
-[classification](03-records.md#personal-and-shared) of any kind, not a kind;
-the web face shows it as the `?personal=1` filter on each kind's list.
-`generic`, `topic` as a **kind**, and delivery *mode* once named kinds
-and name nothing now.
-
-**The name says the kind.** An agent's name begins with `#`
-(`#worker@srv1`), a group's with `@`, and any other name is a user, a channel,
-a service or a resource ([names](01-identity-and-authority.md#names)). The realm is optional:
-`parf` and `parf@srv1` are two names. **Inactive** is the one status besides
-active, and an inactive entity is no such entity
-([record status](constitution.md#common-record-fields)); *paused*, *banned*
-and *disabled* name nothing now.
+- **Service discovery** is the overall capability; **registration** is an operation.
+- **Channel** names a record; **topic** labels a message ([channels](03-records-channel.md#channel-not-topic)).
+- **Deliver-To** lists PubSub recipients; its ACL admits publishers. A recipient removes itself with `unsubscribe`; the API route remains `/subscribe` and its wire field `subs` ([delivery](04-messaging.md#deliver-to)).
+- **Helper subscriptions** forward selected external events, such as Slack messages or new mail ([subscriptions](agents/subscriptions.md)).
+- **Service** means an external system; a program answering through the bus is an **Agent** ([kinds](03-records.md#record-kinds)).
+- **Personal** classifies a record, rather than defining its kind ([Personal records](03-records.md#personal-and-shared)).
+- **Realm** is the name's namespace. A realm-less name and the same local part with a realm are distinct ([names](01-identity-and-authority.md#names)).
+- **Inactive** is the status besides active; use that term for the [record state](constitution.md#common-record-fields).
 
 ## Glyphs
 
-One glyph per meaning, and this table is where a meaning is fixed. Most rows
-name an entity type; `🔱` and `👮` name an authority, which is allowed because
-neither can appear often enough to become a column heading.
-[Web face glyphs](../src/web/web-face/shell.md#glyphs) owns where a
-glyph may appear, how it renders and what it must never carry on its own.
+Most glyphs identify entity types; `🔱` and `👮` identify authority.
+See [web glyph usage](../src/web/web-face/shell.md#glyphs) for placement and text labels.
 
-| Glyph | Code point | Name | Means | Status |
-|---|---|---|---|---|
-| 👤 | `U+1F464` | User | one registered person | built |
-| 👥 | `U+1F465` | Group | a group or team | built |
-| 👾 | `U+1F47E` | Agent | an agent, and the queue named after it | built |
-| 🪪 | `U+1FAAA` | Identity | an identity as such, no entity type asserted | built |
-| 🔑 | `U+1F511` | Credentials | credentials proving an identity; never the secret value | built |
-| 🔱 | `U+1F531` | Daemon owner | the one authority on a node that cannot be delegated | built |
-| 👮 | `U+1F46E` | Maintainers | the named list that may edit a record's settings and ACL | built |
-| ⚙️ | `U+2699 U+FE0F` | Daemon | the daemon itself, never a record | reserved for the daemon; labels nothing |
-| 📡 | `U+1F4E1` | Service | something external, not on this bus | built |
-| 📮 | `U+1F4EE` | Queue | a registered queue | built |
-| 📣 | `U+1F4E3` | PubSub | a pub/sub channel | built |
+| Glyph | Code point | Name | Means |
+|---|---|---|---|
+| 👤 | `U+1F464` | User | one registered person |
+| 👥 | `U+1F465` | Group | a group or team |
+| 👾 | `U+1F47E` | Agent | an agent, and the queue named after it |
+| 🪪 | `U+1FAAA` | Identity | an identity as such, no entity type asserted |
+| 🔑 | `U+1F511` | Credentials | credentials proving an identity; never the secret value |
+| 🔱 | `U+1F531` | Daemon owner | the one authority on a node that cannot be delegated |
+| 👮 | `U+1F46E` | Maintainers | the named list that may edit a record's settings and ACL |
+| ⚙️ | `U+2699 U+FE0F` | Daemon | the daemon itself, never a record |
+| 📡 | `U+1F4E1` | Service | something external, not on this bus |
+| 📮 | `U+1F4EE` | Queue | a registered queue |
+| 📣 | `U+1F4E3` | PubSub | a pub/sub channel |
 
 `📡`, `📮` and `📣` label [record kinds](03-records.md#record-kinds); `⚙️`
 labels no record and is held for the daemon.
@@ -125,13 +91,8 @@ labels no record and is held for the daemon.
 | Audience | Callers allowed to see and use a name | [definition](05-discovery.md#audience) |
 | Listing observations | Daemon-observed state | [definition](05-discovery.md#what-a-listing-answers) |
 | Dedicated runner | `agent-bus run`: one script behind one agent, in the foreground; never called just "runner" | [definition](06-dedicated-runner.md#what-it-does) |
-| Runner | `agent-bus-runner`: a person's service hosting their installed agents | [definition](../Plans/R1.0-Release/runner.md#runner), [guide](runner/README.md) |
+| Runner | `agent-bus-runner`: a person's service hosting their installed agents | [guide](runner/README.md) |
 | Session launcher | `ab-claude`, `ab-codex`, `ab-opencode`: a live AI session behind a name | [definition](06-launchers.md#smart-launchers) |
 | Adapter | Runtime transport or port implementation | [definition](06-launchers.md#adapters) |
 | Supervisor and bus | Listener lifetime and request processing roles | [definition](08-processes.md#the-processes) |
 | Port and face | Dependency seam and entry point | [definition](../src/MODULES.md#the-rule) |
-
-## Future vocabulary
-
-A plan uses the current names. A term for something not yet built is defined in its owning plan ([plan index](../Plans/README.md#stages)) and never renames a current one.
-The [historical glossary](../Plans/done/R0.8-MVP/done/glossary-before-rewrite.md#glossary) preserves earlier names and proposed verbs; it is not a list of shipped commands.

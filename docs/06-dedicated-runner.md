@@ -5,19 +5,11 @@
 - **Outcome:** `agent-bus run` puts one script behind one 👾 name: it stays in the foreground, reads that agent's queue and runs the script for each message. Installed agents, pools, reload and restarts are the [runner](runner/README.md)'s; [session launchers](06-launchers.md) put a live AI session behind a name instead of a script.
 - **Start:** see the options: `agent-bus help run` ([Try this first](#try-this-first)).
 
-## Why you'd want it
+## What it does
 
-- 🚀 **A script should answer messages now.** Now one command makes it an agent.
-- 🪪 **A script has no name on the bus.** Now it registers one and reads its own inbox.
-- 🧱 **A script should not touch the whole machine.** Now it can run sandboxed.
-
-## What you get
-
-- ✅ **One script, one name:** each message runs the script once and its output is the answer.
-- ✅ **What the script is told:** the message arrives as the script's argument, or as JSON on stdin.
-- ✅ **Who it runs as:** the account that started it.
-- ✅ **Optional sandbox:** see the [dedicated-runner network and filesystem boundaries](runner/security.md#isolation-today).
-- 🚫 **Not for:** installed or pooled agents, reloads and restarts (the [runner](runner/README.md)).
+- The dedicated runner, `agent-bus run`, stays in the foreground, registers an 👾 [agent](03-records.md#record-kinds) — the kind that has a queue here — obtains its credential and reads that queue.
+- It runs the script once per message.
+- It serves one agent, the one it was started for, and does not manage installed instances, autostart, reload or restart policies: those are the [runner](runner/README.md)'s.
 
 ## Try this first
 
@@ -26,15 +18,6 @@ See the available options:
 ```sh
 agent-bus help run
 ```
-
-This page owns `agent-bus run`. [Session launchers](06-launchers.md) put a live
-AI session behind a name instead of a script.
-
-## What it does
-
-- The dedicated runner, `agent-bus run`, stays in the foreground, registers an 👾 [agent](03-records.md#record-kinds) — the kind that has a queue here — obtains its credential and reads that queue.
-- It runs the script once per message.
-- It serves one agent, the one it was started for, and does not manage installed instances, autostart, reload or restart policies: those are the [runner](runner/README.md)'s.
 
 ## Script agents
 
@@ -56,7 +39,7 @@ agent-bus run -5 - < agent.json
 - The agent itself may be JSON on stdin, read only when `run` is given `-`; its fields are [the agent JSON](dedicated-runner/agent-json.md#fields).
 - With no arguments, `run` prints its usage and a link to the [dedicated runner guide](user/dedicated-runner.md#-the-one-liner) on GitHub and exits non-zero; JSON piped without `-` is refused.
 
-| Rule | Built behavior |
+| Rule | Behavior |
 |---|---|
 | Script argument | One shell command line; quote it if it contains arguments. Use an absolute script path: the child starts in its work directory, so `run` refuses any relative path; a bare command on `PATH` is allowed. Within the command line, the executable path must be unquoted and contain no whitespace; its arguments may use shell quoting |
 | The record's `script` | `run` writes the command line it serves into the Agent's `script` field each time it starts, so `agent-bus ls`, the MCP catalogue (`runs …`) and the Agent's web page say what is behind the name. It is informational: the daemon runs nothing and routes on nothing there, and only an 👾 carries one. A runner that takes the record over clears it ([hand-over](runner/security.md#what-runs-as-what)) |
@@ -69,11 +52,11 @@ agent-bus run -5 - < agent.json
 | Stop | Stop taking work and wait for scripts already running; unregister after a graceful stop when its inbox is idle, unless `--stay-registered` is set |
 | Daemon away | A restart, a missing socket, a dropped forward or link, or a 502/503/504: the dedicated runner logs it once, shows `; away` in its process title and reads again with backoff, 1 s doubling to 30 s with jitter, until the daemon is back. A long poll with no answer 15 s past its wait counts as away. Just after an absence, a second-reader refusal is its own last poll and is waited out for one poll. Ctrl-c or `stop` ends the wait at once |
 | Answer while away | A fast script sends only its answer (or done for quiet success). Work still outstanding after 2 s gets an ack, tried once for at most 2 s and never past the caller's deadline; an in-flight ack finishes before the answer. The answer or done is retried until the caller's deadline, or 2 min without one |
-| Refusal | Any other refusal, such as a revoked token or a second reader, ends the dedicated runner with an error; the name stays. Restarting a dead script is the [runner](../Plans/R1.0-Release/runner.md#runner)'s |
+| Refusal | Any other refusal, such as a revoked token or a second reader, ends the dedicated runner with an error; the name stays. Restarting a dead script is the [runner](runner/README.md)'s |
 | Work directory | One per agent; the script starts there |
 | One run per name | A second `run` of a name already being started or run from this account is refused, even when both begin at once |
 | Credentials | The launcher must be allowed to obtain that agent's credential; it cannot become somebody else's agent. The script never holds it: `AGENT_BUS_TOKEN` is taken out of the script's environment. On an account socket the dedicated runner or a [launcher](06-launchers.md#smart-launchers) stays there as its agent; a daemon before 0.8.63 moves it to the shared socket ([local socket](02-access.md#local-socket)) |
-| Sharing | State `--allow name,...`, `--allow '@owner'` or `--allow '*'`; JSON uses `allow`. `@owner` admits the records the direct Owner owns. Fresh registrations use the [restricted default](02-access.md#acl); omitted settings on restart follow [registration rules](01-identity-and-authority.md#registration). Reply inboxes need their own grants |
+| Sharing | State `--allow name,...`, `--allow '@owner'` or `--allow '*'`; JSON uses `allow`. `@owner` admits the direct Owner and that Owner's directly owned Agents. Fresh registrations use the [restricted default](02-access.md#acl); omitted settings on restart follow [registration rules](01-identity-and-authority.md#registration). Reply inboxes need their own grants |
 | Tags | `--tags "work notes,claude"`, or the `tags` array in JSON passed to `agent-bus run -`, supplies explicit [record labels](03-records.md#tags). The dedicated runner adds no automatic tag |
 
 ### Keeping a supervised registration
@@ -113,7 +96,7 @@ A forced kill or an error exit leaves the registration in place; remove an idle 
 - Their exact names are owned by [its source](../src/cmd/agent-bus/run.go).
 - These labels describe the work; `AB_ROLE_<NAME>=1` separately carries each role the bus granted toward this agent.
 - Use those grants to guard methods, never a sender-name comparison ([roles](03-records-agent.md#roles)).
-- The [runner](runner/README.md)'s agents get [configuration layers](../Plans/R1.0-Release/runner-implementation.md#the-three-env-layers) as well.
+- Installed agents also use the [runner configuration](runner/configuration.md).
 
 - Keep secrets in Secret and config in Configuration ([rule](03-records-agent.md#configuring-a-template)).
 - Configuration reaches each script as `AGENT_BUS_CONFIG`: compact JSON, unset when unconfigured.
@@ -159,9 +142,3 @@ unit only on request ([a person's runner](runner/setup.md#a-persons-runner)).
 The [isolation reference](runner/security.md#isolation-today) defines the optional `agent-bus run` sandbox, including network reach, readable files, writable paths and host requirements.
 
 Use `--sandbox=on` to request it and `--network` to request network access; startup reports the selected backend or its refusal.
-
-## Status
-
-| MVP | Scope |
-|---|---|
-| Built | Script agents, bounded parallel execution, graceful stop, logs, optional systemd sandbox. |
