@@ -29,7 +29,7 @@ as() { # as ACCOUNT COMMAND...
   exec "$@"
 }
 
-case ${1:-help} in
+case ${1:---help} in
   daemon)
     shift
     own "$daemon_home" agent-busd
@@ -58,8 +58,11 @@ case ${1:-help} in
     fi
     as agent-bus-runner agent-bus-runner --host="$runner_home" --agents="$agents" "$@"
     ;;
-  help | --help | -h)
+  --help)
     sed -n '2,6s/^# \{0,1\}//p' "$0"
+    ;;
+  -*)
+    fail "unknown option: $1; use --help"
     ;;
   *)
     exec "$@"
