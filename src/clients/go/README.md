@@ -3,9 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** a Go service that should take part on the bus has to handle HTTP, call correlation and uncertain writes itself.
 - **Outcome:** `Dial` gives you send, call, serve, key-value, locks and read-only settings with contexts and bounded goroutines.
-- **Start:** copy [the example](#try-this-first); it needs a name, a token and a running bus.
-
-Keep secrets in Secret and config in Configuration; see [configuration](../../../docs/03-records-agent.md#configuring-a-template).
+- **Start:** start with the [isolated examples](../examples/README.md#try-this-first), or adapt [the snippet](#try-this-first) to your bus.
 
 ## Why you'd want it
 
@@ -23,7 +21,11 @@ Keep secrets in Secret and config in Configuration; see [configuration](../../..
 
 ## Try this first
 
-Serve one handler and call it from the same process (a disposable bus, token in `AGENT_BUS_TOKEN`):
+Use Go 1.24 or later. In your application module, require `github.com/parf/ai-agent-bus/src/clients/go` and add a local `replace` pointing to this directory; the module is not published. The import below uses that module path.
+
+Register `#worker@localhost` as an Agent using an authorized CLI account, obtain its token with `agent-bus token '#worker@localhost'`, and set `AGENT_BUS_TOKEN` to that token. Set `AGENT_BUS_ADDR` to the same daemon socket or URL; HTTPS also needs the appropriate trust configuration. Construction alone does not register the identity.
+
+Serve one handler and call it from the same process:
 
 ```go
 package main
@@ -67,12 +69,12 @@ func main() {
 }
 ```
 
+On a fresh record (the counter increments on later runs):
+
 ```text
 pong hello
 1
 ```
-
-- ▶️ The [shared examples](../examples/README.md) run agents in every language together.
 
 ## Event logs
 
@@ -91,8 +93,7 @@ No event-specific helper is needed for this example.
 
 At first use, the client checks HTTP `/identity` for [wire compatibility](../../../docs/09-daemon-api.md#how-a-call-is-made); daemon refusals expose `kind` alongside status and message.
 
-
-- **Module:** the [reviewed Go API](../../../Plans/R1.0-Release/done/client-libraries/go.md) is implemented; the import is `github.com/parf/ai-agent-bus/src/clients/go`, which is not published.
+- **Module:** see [the Go API source](bus.go).
 - **Connecting:** `Dial(Options{})` makes a caller handle without network I/O. The first operation checks `/status.you`, and `ExpectedName` requires a match. The CLI's address, token and TLS fingerprint defaults apply; unix sockets, HTTP and HTTPS work.
 - **TLS and transport:** HTTPS validates normal certificates or an explicit SHA256 DER pin before sending credentials. HTTP/1 connections disable keep-alive and replay, and redirects are refused.
 - **Private values:** config and secrets are read on every call.
@@ -107,5 +108,5 @@ At first use, the client checks HTTP `/identity` for [wire compatibility](../../
 ## Checks
 
 - Use `bash src/clients/check.sh go` from the checkout root. It builds the real daemon fixture and sets an isolated temporary directory.
-- To use a copied crate, set `AB_GO_CLIENT_PATH` to its directory. Equivalent commands, with `AB_CLIENT_FIXTURE` and `TMPDIR` set, are `go test -race -count=1 ./...` and `go vet ./...`.
+- To use a copied module, set `AB_GO_CLIENT_PATH` to its directory. Equivalent commands, with `AB_CLIENT_FIXTURE` and `TMPDIR` set, are `go test -race -count=1 ./...` and `go vet ./...`.
 - Tests cover the real daemon, protocol refusals, uncertainty, correlation, binary and int64 KV, atomic JSON, locks, full-capacity nested calls, shutdown, secrets and TLS.

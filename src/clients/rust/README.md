@@ -3,9 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** an async service that should take part on the bus has to handle HTTP, call correlation and uncertain writes itself.
 - **Outcome:** `Bus` gives you send, call, serve, key-value, locks and read-only settings with bounded handler tasks.
-- **Start:** copy [the example](#try-this-first); it needs a name, a token and a running bus.
-
-Keep secrets in Secret and config in Configuration; see [configuration](../../../docs/03-records-agent.md#configuring-a-template).
+- **Start:** start with the [isolated examples](../examples/README.md#try-this-first), or adapt [the snippet](#try-this-first) to your bus.
 
 ## Why you'd want it
 
@@ -22,7 +20,11 @@ Keep secrets in Secret and config in Configuration; see [configuration](../../..
 
 ## Try this first
 
-Serve one handler and call it from the same process (a disposable bus, token in `AGENT_BUS_TOKEN`):
+Use a Rust toolchain supporting edition 2024. Add `agent-bus` as a path dependency pointing to this directory, and `tokio = { version = "1", features = ["rt-multi-thread", "macros"] }` to your application's Cargo dependencies. Save the example as `src/main.rs`.
+
+Register `#worker@localhost` as an Agent using an authorized CLI account, obtain its token with `agent-bus token '#worker@localhost'`, and set `AGENT_BUS_TOKEN` to that token. Set `AGENT_BUS_ADDR` to the same daemon socket or URL; HTTPS also needs the appropriate trust configuration. Construction alone does not register the identity.
+
+Serve one handler and call it from the same process:
 
 ```rust,no_run
 use agent_bus::{Bus, CallOptions, CallOutcome, CancellationToken, HandlerReply, KvValue, ServeOptions, SetMode};
@@ -60,8 +62,6 @@ async fn main() -> agent_bus::Result<()> {
 pong hello
 ```
 
-- ▶️ The [shared examples](../examples/README.md) run agents in every language together.
-
 ## Private agent-log example
 
 The [executed native example](tests/conformance_state.rs) (`example_event_log / native_event_example`) uses ordinary calls to `#bus` on a disposable daemon.
@@ -85,7 +85,7 @@ See [agent logs](../../../docs/agents/bus.md#agent-logs) and
 
 ## Technical details
 
-- **Package:** unpublished development code; `agent_bus::VERSION` comes from the checkout's canonical daemon version; the [reviewed API plan](../../../Plans/R1.0-Release/done/client-libraries/rust.md#surface) owns the intended scope.
+- **Package:** a local path dependency; `agent_bus::VERSION` comes from the checkout's canonical daemon version; see [the Rust API source](src/lib.rs).
 - **Roles:** `Bus` is the authenticated caller; `Record` selects a target without changing credentials, and KV and locks belong to the target handle.
 - **Address:** `AGENT_BUS_ADDR`, `AGENT_BUS_TOKEN` and `AGENT_BUS_TLS_FINGERPRINT` follow the CLI. Without an address, local socket discovery checks the XDG runtime, then `/run/agent-bus`, choosing an account socket without a token and `bus.sock` with one (the environment's or `.credential()`'s), then the CLI default.
 - **Sockets and TLS:** `.unix_socket(path)` supports forwarded sockets. HTTPS uses ordinary verification or an explicit SHA256 DER pin, and a pin mismatch aborts TLS before HTTP credentials. Redirects and transport retries are off. `.root_certificate(certificate)` adds a CA and keeps these policies.
@@ -105,4 +105,4 @@ See [agent logs](../../../docs/agents/bus.md#agent-logs) and
 - The real daemon test uses Go to run `src/clients/fixture`, or an `AGENT_BUS_FIXTURE_BINARY` built by the root integration runner.
 - `AB_RUST_CLIENT_PATH` selects a scratch crate for `src/clients/check.sh rust` and the `client_rust` slow shard; keep the relative canonical VERSION file when copying a crate for a mutation run.
 - Tests cover Unix, HTTP and TLS, identity, concurrent call correlation, receipt outcomes, cancellation, serving at capacity, caches and typed storage.
-- `./package.sh` produces and verifies a local archive. It snapshots the canonical version into the ignored `VERSION.local`, included in the archive so it builds outside the checkout; the package stays `publish = false` until release packaging is approved.
+- `./package.sh` produces and verifies a local archive. It snapshots the canonical version into the ignored `VERSION.local`, included in the archive so it builds outside the checkout; the package declares `publish = false`.

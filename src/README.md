@@ -2,7 +2,7 @@
 
 📌 **TL;DR:**
 - **Problem:** to work on the bus you need to know where each part lives and how to run a node of your own safely.
-- **Outcome:** this is the code of the current 0.9 line, following the released [MVP](../Plans/done/R0.8-MVP/README.md#scope): Go programs and internal packages for the daemon, CLI, installer and token program, and TypeScript on Bun for the MCP face, launchers and web face.
+- **Outcome:** this checkout contains Go programs and internal packages for the daemon, CLI, installer and token program, and TypeScript on Bun for the MCP face, launchers and web face.
 - **Start:** [three terminals](#try-this-first) give you a daemon, an agent and a caller in a few minutes.
 
 ## Why you'd want it
@@ -19,14 +19,6 @@
 | `cmd/agent-bus-setup` | the root-only installer: verified release, accounts, tree, daemon and web units |
 | `cmd/agent-bus-admin` | what edits the `agent-busd` account's files |
 | `cmd/agent-bus` | the CLI — `agent-bus help` lists every verb |
-| `internal/protocol` | names and envelopes, no behaviour |
-| `internal/core` | the registry and the queues — the only place a routing decision is made |
-| `internal/api` | the HTTP face: a request in, a core call out |
-| `internal/auth` | credentials: issue, rotate, resolve a token to its principal |
-| `internal/ports` | the interfaces core depends on — the seam every dependency is swapped at |
-| `internal/store` (SQLite, memory), `internal/directory` (GitHub, key files), `internal/signature`, `internal/sandbox`, `internal/journal` | the adapters behind those ports |
-| `internal/duallisten`, `internal/tlsdir` | TLS beside plain HTTP on one port; the TLS directory and its fingerprint |
-| `internal/activity`, `internal/callstats`, `internal/display`, `internal/keyproof`, `internal/proctitle`, `internal/dashboard`, `internal/version` | day-of-traffic rings, request sampling, human labels, the client half of key proof, process titles, the dashboard address, the shared release number |
 | [Client libraries](clients/README.md) | Language clients and isolated daemon conformance checks |
 | `mcp/` | the MCP face and its Claude, Codex and opencode push adapters, on bun — [mcp/README.md](mcp/README.md#the-mcp-face) |
 | `web/` | the web face, TypeScript on bun under its own account and unit — [processes § the web face](../docs/08-processes.md#the-web-face) |
@@ -34,11 +26,11 @@
 | `internal/tokencmd` | the CLI token verb, reached through the fixed wrapper behind an ordinary user’s SSH key; `--fingerprint` prints the node's TLS pin ([access § getting a token](../docs/02-access.md#getting-a-token)) |
 | `smoke.sh` | the automated acceptance checks |
 
-- Layering is the design's: protocol → core → api, faces outside, nothing pointing back in ([modules](MODULES.md#the-rule)).
+The [module map](MODULES.md#modules) describes internal packages and their layering.
 
 ## Try this first
 
-Build the binaries first; nothing installs them:
+From the `src/` directory, with the [build prerequisites](../.claude/docs/deployment.md#build-information) installed, build the binaries; this does not install them:
 
 ```sh
 bash ./build.sh
@@ -63,8 +55,8 @@ export AGENT_BUS_ADDR=$PWD/demo/user-$USER.sock
 ./agent-bus register "#echo@$(hostname -s)" --kind=agent --descr="answers"
 export AGENT_BUS_TOKEN=$(./agent-bus token "#echo@$(hostname -s)")
 ./agent-bus consume --wait 5m          # prints the envelope, with its message_id
-./agent-bus ack   <message-id>         # got it
-./agent-bus reply <message-id> "42"    # the answer
+./agent-bus ack   "<message-id>"         # got it
+./agent-bus reply "<message-id>" "42"    # the answer
 ```
 
 Or let a shell script be the agent, which is the same thing without the typing ([runner § script agents](../docs/06-dedicated-runner.md#script-agents)). `run` registers the name and fetches its credential itself; the script path must be absolute:
@@ -99,7 +91,7 @@ A queue needs nobody reading when it is sent; the consumer may start later:
 - Build requirements and version output follow [setup § build information](../.claude/docs/deployment.md#build-information); release numbering follows [working rules § versioning](../CLAUDE.md#versioning).
 - With an output-directory argument, the build also bundles the MCP face and launchers with Bun, copies the web face's sources and unit (no tests), the release version, license and standalone install guide, and exposes launcher entry points at the output root.
 - `package.sh` adds the exact artifact manifest and produces the supported tar archive plus its portable SHA-256 file.
-- Running a launcher requires Bun and the selected AI runtime; the installed dashboard requires Bun at `/usr/bin/bun`; the daemon requires neither.
+- Source launchers require Bun and the selected AI runtime; the checkout dashboard uses `/usr/bin/bun`. Release archives compile the TypeScript faces into `agent-bus-ts` and need no Bun or Node at runtime.
 
 ```sh
 bash ./build.sh       # build every Go program with build information
@@ -112,7 +104,6 @@ go test -race ./...
 ./smoke.sh --slow all  # release/STABLE: every subsystem slow
 ```
 
-- Historical reports use the old option names: their `--slow` means today's normal gate, and their `--heavy` means today's `--slow all`. The rename changes no test membership; the separate trim must bring the normal gate below 60 s.
 - `smoke.sh` needs `bun` for the MCP and web shards. It builds once and runs its shards in parallel, each with a temporary socket, token and daemon of its own, so it never touches a daemon you are running.
 - A run owns fifteen loopback ports per shard from its base. Without `PORT` it claims a free block of 1000 between 10000 and 21000 and holds its lock for the run (`smoke-port.sh`), so runs started at once never meet; `PORT=` pins the base, and two pinned runs need bases a thousand apart.
 - A check here is not believed until it has been seen to fail: [working rules § verification](../CLAUDE.md#verification).

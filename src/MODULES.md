@@ -13,11 +13,9 @@
 
 ## What you get
 
-The table describes built code.
-
 ### Modules
 
-| Built area | Responsibility |
+| Area | Responsibility |
 |---|---|
 | `internal/protocol` | Names, records, envelopes and JSON representation |
 | `internal/ports` | Durable-state store, activity store, key-value store, token store and credential index, directory, signature, journal and sandbox interfaces |
@@ -64,11 +62,9 @@ cd src && go list -deps ./internal/core | grep -E 'internal/(store|directory|sig
 - `Record.ParsedAllow` is an immutable, derived in-memory exception to the wire shape (`json:"-"`): core rebuilds it on ACL writes and restore and clears it from public and stored values. It rides the staged record value so failed commits undo it atomically.
 - Process startup and listener management belong to the command that assembles the runtime, not to the domain core.
 
-### 0.7 implementation requirements
+### Implementation requirements
 
-Standing implementation requirements, first set for the [0.7 work](../Plans/done/R0.8-MVP/0.7.0-TODO.md#verification):
-
-- Keep authority, validation and lifecycle rules in core, shared by every face and backend. Share list mechanics without merging distinct permission rules.
+- Share list mechanics without merging distinct permission rules.
 - Evolve small, consumer-driven persistence ports for actual operations. Adapters own SQL, driver errors and database locking; commands select them. Add abstractions for shared behavior or replaceable dependencies, not one interface per type or a generic CRUD framework.
 - Management writes persist affected state rather than rewriting the registry and queue backlog. Ownership transfer is one ordinary committed record update, followed by atomic publication of the new complete in-memory view; it neither reloads storage nor rewrites unrelated durable records. Agent and record removal is the explicit multi-record exception because it clears every stored reference to the removed name in one transaction.
 - Serve registry and authority reads from the loaded memory view. Maintain indexes where measured access patterns justify them; keep invalidation with the corresponding state change.
@@ -76,7 +72,7 @@ Standing implementation requirements, first set for the [0.7 work](../Plans/done
 
 #### Statistics persistence
 
-- Counters and last-use timestamps update in memory, without a database write per request, message or increment, and are coalesced into one batch every minute, skipping unchanged values and empty batches. Built for queue counters in 0.7.1, credential last use in 0.7.6 and the PubSub routing counters in 0.7.12. Runtime-only metrics stay in memory.
+- Counters and last-use timestamps update in memory, without a database write per request, message or increment, and are coalesced into one batch every minute, skipping unchanged values and empty batches. Runtime-only metrics stay in memory.
 - Persisted statistics flush on graceful shutdown; a crash may lose updates since the last successful flush. Dirty updates are retained after failed flushes, increments arriving during a flush are preserved, and the next scheduled flush retries without double-counting committed values.
 - Data changes persist immediately through write-through persistence. Queue contents and their `in`, `out`, `dropped` and `expired` counters form queue state: they flush together every minute and on graceful shutdown, preserving the [durability boundary](../docs/04-messaging.md#durability) and the distinction between a drained queue and a never-used one without a write per message.
 - Other statistics batches persist [PubSub router counters](../docs/constitution.md#pubsub-routing) and may update last-use timestamps; routing counters do not create a PubSub queue. Neither batch may rewrite policy or credential material.
@@ -116,7 +112,7 @@ Standing implementation requirements, first set for the [0.7 work](../Plans/done
 
 #### What we do shell out to
 
-| Built operation | System tool |
+| Operation | System tool |
 |---|---|
 | Sign or verify possession | `ssh-keygen` |
 | Optional script sandbox | `systemd-run --user` |

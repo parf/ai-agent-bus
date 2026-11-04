@@ -1,28 +1,8 @@
 # Git agent
 
 📌 **TL;DR:** Git uses the standalone starter and fixed command vectors; repository caps and caller tiers are intersected for each operation.
-Implementation and verification notes stay here; use the [user guide](../../../../docs/agents/git.md)
+Use the [user guide](../../../../docs/agents/git.md)
 for setup, calls and settings.
-
-## Calls
-
-See the [calls guide](../../../../docs/agents/git.md#calls).
-
-## Repositories and access levels
-
-See the [repositories and access levels guide](../../../../docs/agents/git.md#repositories-and-access-levels).
-
-## Roles and boundaries
-
-See the [roles and boundaries guide](../../../../docs/agents/git.md#who-may-use-it).
-
-## Install and identity
-
-See the [install and identity guide](../../../../docs/agents/git.md#installing-it).
-
-## Autopull
-
-See the [autopull guide](../../../../docs/agents/git.md#autopull).
 
 ## Implementation
 

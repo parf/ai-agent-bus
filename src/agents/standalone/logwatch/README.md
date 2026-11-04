@@ -1,8 +1,8 @@
 # Logwatch implementation
 
-The [user guide](../../../../docs/agents/logwatch.md) owns setup, calls,
-Configuration and access. This directory implements B.3; it does not replace
-or stop the existing rd-tail-log service.
+📌 **TL;DR:** Logwatch follows files and the journal and forwards matching arrivals.
+See the [user guide](../../../../docs/agents/logwatch.md) for setup, calls,
+Configuration and access.
 
 ## Design
 
@@ -11,8 +11,8 @@ The shared starter's `--serves-itself` mode supplies only its own agent token
 and name. Configuration is read at startup. The ring and marks are in memory;
 subscription definitions and sent/dropped counts are in the agent's JSON KV.
 `src/agents/shared/subscriptions.py` owns filtering, authority, management,
-storage and once-only delivery. Each matched arrival gets its own copy; no
-repeat folding, pause, retry or local subscription implementation remains.
+storage and once-only delivery. Each matched arrival gets its own copy, without
+repeat folding, pause or retry.
 
 At startup the adapter maps legacy definitions into shared rows, preserves
 creators and valid durable counts, and removes obsolete pause/disabled fields.
@@ -44,8 +44,8 @@ queue and does not block file collection on a destination.
 `#033`, SGR fragments and Unicode control runs. Default file selection, last-ten
 startup history, new-file EOF behavior and exclusions come from
 `/rd/var/tail-all` and its `exclude.conf`. Syslog selects the host's existing
-`/var/log/messages` or `/var/log/syslog` file. This port does not copy the
-legacy HTTP server or its service installation.
+`/var/log/messages` or `/var/log/syslog` file. The standalone installer creates its own unit; it does not replace an existing
+log service.
 
 ## Verification
 

@@ -1,28 +1,8 @@
 # Systemd agent
 
 📌 **TL;DR:** Systemd runs a fixed-argv script through the standalone starter; caller tiers and Configuration-defined coverage are checked before execution.
-Implementation and verification notes stay here; use the [user guide](../../../../docs/agents/systemd.md)
+Use the [user guide](../../../../docs/agents/systemd.md)
 for setup, calls and settings.
-
-## Calls
-
-See the [calls guide](../../../../docs/agents/systemd.md#who-may-use-it).
-
-## Logs
-
-See the [logs guide](../../../../docs/agents/systemd.md#logs).
-
-## Dedicated instances
-
-See the [dedicated instances guide](../../../../docs/agents/systemd.md#dedicated-instances).
-
-## Install
-
-See the [install guide](../../../../docs/agents/systemd.md#installing-it).
-
-## Many nodes
-
-See the [many nodes guide](../../../../docs/agents/systemd.md#many-nodes).
 
 ## Implementation
 
@@ -32,7 +12,6 @@ is validated at script startup; malformed units never widen coverage. The
 root/nobody fixture checks actual process privilege as well as application tiers.
 
 ## Verification
-
 
 The slow `agent_systemd` shard checks unconfigured services and timers, every
 role tier, strict names, typed listing, failed-unit columns, logs, body forgery,

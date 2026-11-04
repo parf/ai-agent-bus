@@ -23,6 +23,8 @@
 
 ## Try this first
 
+Set up the [harness prerequisites](../README.md#try-this-first) before running these commands from the checkout root.
+
 Crawl the checkout on a throwaway daemon:
 
 ```sh
@@ -59,4 +61,4 @@ saved as last_report on #demo@localhost (run 1)
 
 - `lines` counts newlines, plus one for a last line without one.
 - `todos` counts the text `TODO`.
-- A worker reads nothing outside `STATS_ROOT`, whatever a request names.
+- PHP and Java resolve paths beneath `STATS_ROOT` before opening them. Resolution and opening are separate, so use a trusted fixture tree without concurrent path replacement; this check is not race-proof confinement.

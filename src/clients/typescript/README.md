@@ -3,9 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** an async service that should take part on the bus has to handle HTTP, call correlation and uncertain writes itself.
 - **Outcome:** `Bus` gives you send, call, serve, key-value, locks and read-only settings with bounded async handlers.
-- **Start:** copy [the example](#try-this-first); it needs a name, a token and a running bus.
-
-Keep secrets in Secret and config in Configuration; see [configuration](../../../docs/03-records-agent.md#configuring-a-template).
+- **Start:** start with the [isolated examples](../examples/README.md#try-this-first), or adapt [the snippet](#try-this-first) to your bus.
 
 ## Why you'd want it
 
@@ -22,7 +20,11 @@ Keep secrets in Secret and config in Configuration; see [configuration](../../..
 
 ## Try this first
 
-Serve one handler and call it from the same process (a disposable bus, token in `AGENT_BUS_TOKEN`):
+Use Node 22+ or Bun 1.3+. For a checkout example, install this directory's dependencies with `bun install --frozen-lockfile`, save the snippet as a `.ts` file in this directory, replace its package import with `./src/index.ts`, and run it with Bun. For an application package, use the [local package build](#build-and-checks) and install its `dist/` directory as `@agent-bus/client`.
+
+Register `#worker@localhost` as an Agent using an authorized CLI account, obtain its token with `agent-bus token '#worker@localhost'`, and set `AGENT_BUS_TOKEN` to that token. Set `AGENT_BUS_ADDR` to the same daemon socket or URL; HTTPS also needs the appropriate trust configuration. Construction alone does not register the identity.
+
+Serve one handler and call it from the same process:
 
 ```ts
 import { Bus } from '@agent-bus/client';
@@ -37,12 +39,12 @@ await server;
 await bus.close();
 ```
 
+On a fresh record (the counter increments on later runs):
+
 ```text
 pong hello
 1n
 ```
-
-- ▶️ The [shared examples](../examples/README.md) run agents in every language together.
 
 ## Private agent-log example
 
@@ -69,7 +71,6 @@ See [agent logs](../../../docs/agents/bus.md#agent-logs) and
 
 At first use, the client checks HTTP `/identity` for [wire compatibility](../../../docs/09-daemon-api.md#how-a-call-is-made); daemon refusals expose `kind` alongside status and message.
 
-
 - **Runtime:** an ESM client for Node 22+ and Bun 1.3+. All network I/O uses Node's built-in HTTP and HTTPS interfaces, including Unix sockets. Browsers are unsupported.
 - **Connecting:** `Bus.connect()` does no I/O. The first authenticated operation verifies `/status.you` against `expectName` when supplied, and `record(name)` selects a target, never a different caller.
 - **TLS:** an HTTPS pin is the SHA256 of the actual peer certificate, checked before any HTTP credential is sent. Without a pin, HTTPS uses normal certificate validation.
@@ -79,7 +80,7 @@ At first use, the client checks HTTP `/identity` for [wire compatibility](../../
 - **Stop:** `stop()` ends intake and `serve()` drains to `drainTimeout` (milliseconds), raising `DrainTimeout` for unfinished work. JavaScript cannot forcibly stop a handler, so its promise may continue after the drain. `close()` closes connections and refuses all later operations; it does not unregister the record.
 - **Private values:** config and secrets are uncached async methods. `reveal()` explicitly returns a copy of the bytes, and bearer credentials are also omitted from client JSON and diagnostic inspection. A caller can log revealed bytes, so redaction is not a security boundary.
 - **Messages:** received envelopes, roles and nested metadata are frozen. Late answers carrying `re` or this Bus's private call-tag prefix do not become handler requests.
-- **Asks-only read:** `consume({ asks: 'only' })` takes only a message that carries an ask, leaves ordinary messages queued, and may wait beside the unfiltered reader of the same inbox; an agent uses it to answer `status` before it is ready. The Python client does not have it yet.
+- **Asks-only read:** `consume({ asks: 'only' })` takes only a message that carries an ask, leaves ordinary messages queued, and may wait beside the unfiltered reader of the same inbox; an agent uses it to answer `status` before it is ready.
 - **TypeScript-only options:** `serve(handler, { onReply })` opts into unmatched non-receipt `re` messages; its callback shares worker and drain limits and sends no automatic ack or answer. `matchesReply(message)` also selects non-`re` answers by an application's stored correlation, and false leaves ordinary request handling unchanged. Classification runs within the serving worker budget, a slow classifier does not block pending call answers, and a thrown one is reported through `onError`. These options are covered by the [MIT license](LICENSE.md#mit-license) like the rest of the client.
 - **Key-value:** `record.kv` has typed string, int and JSON operations. Int64 reads return `bigint`, including values beyond the safe integer range. Static JSON operations are sent atomically, and the modes are set, add and replace. A 404 `KVNotFound` can mean a missing value or an unseen record.
 - **Locks:** `record.locks` exposes acquire, tryAcquire, extend, release, forceRelease and holders. There is no fencing token, so a stale same-caller release can release a newer acquisition, and cancelling a waiting acquire may race a grant; check holders or let its TTL expire.
@@ -98,7 +99,7 @@ At first use, the client checks HTTP `/identity` for [wire compatibility](../../
 `record.bigfile` uses the same authenticated transport as KV. Upload a `Uint8Array`, or an `AsyncIterable<Uint8Array>` with an explicit `size`. Empty input and invalid size/ttl refuse before any request; an upload is streamed once and never retried.
 
 ```ts
-const big = bus.record('owner@node').bigfile;
+const big = bus.record('#worker@localhost').bigfile;
 const info = await big.put('mail', bytes, { ttl: '24h' });
 const { data, info: downloaded } = await big.get('mail');
 const keys = await big.list();
