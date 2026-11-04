@@ -121,8 +121,7 @@ func TestARangeReadsStoredDaysAndTheLiveRing(t *testing.T) {
 	}
 }
 
-// A restart rebuilds today's ring from the stored days; a database from before
-// durable days keeps the ring its queue carried.
+// A restart rebuilds today's ring from the stored days.
 func TestTodayIsLoadedBackAtStart(t *testing.T) {
 	clock := &testClock{dayAt(24, 9, 0)}
 	b, st := daysBus(t, clock)
@@ -147,21 +146,6 @@ func TestTodayIsLoadedBackAtStart(t *testing.T) {
 		t.Fatalf("node refusal at 09:00 after restart: %d", all[len(all)-13].Refused)
 	}
 
-	// Upgrade: no rows yet, the queue's saved ring still restores.
-	var total activity.Counts
-	ring := activity.Start(dayAt(24, 9, 0), total)
-	ring.Tick(dayAt(24, 9, 10), activity.Counts{In: 3})
-	legacy := ports.Snapshot{Records: saved.Records, Users: saved.Users, Owner: saved.Owner, OwnerEstablished: true,
-		Queues: []ports.Queue{{Name: "#quiet@h", In: 3, Activity: ring.Save(activity.Counts{In: 3})}}}
-	up := New()
-	up.Clock(clock.now)
-	up.Restore(legacy)
-	up.Persistence(memory.NewState())
-	up.RestoreActivityDays()
-	day, _ = up.Activity("alice@h", "#quiet@h")
-	if got := day[len(day)-13]; got.In != 3 {
-		t.Fatalf("a pre-upgrade ring after start: %+v", got.Counts)
-	}
 }
 
 // Once a day the boundary drops what is older than KeepDays.
@@ -324,9 +308,8 @@ func TestALongGapNeverDeletesADay(t *testing.T) {
 	}
 }
 
-// A ring carried from before durable days is written as rows at start, so the
-// first queue flush, which no longer carries rings, loses nothing.
-func TestACarriedRingIsWrittenAtStart(t *testing.T) {
+// A queue ring cannot seed the authoritative durable day store.
+func TestQueueRingDoesNotSeedDurableDays(t *testing.T) {
 	clock := &testClock{dayAt(24, 11, 0)}
 	ring := activity.Start(dayAt(24, 9, 0), activity.Counts{})
 	ring.Tick(dayAt(24, 9, 10), activity.Counts{In: 3})
@@ -339,8 +322,8 @@ func TestACarriedRingIsWrittenAtStart(t *testing.T) {
 	up.Restore(saved)
 	up.Persistence(st)
 	up.RestoreActivityDays()
-	if s := storedDay(t, st, "#quiet@h", 260924); s[54].In != 3 {
-		t.Fatalf("the carried 09:00 slot as a row: %d, want 3", s[54].In)
+	if got, err := st.ActivityDays(260924, 260924, nil); err != nil || len(got) != 0 {
+		t.Fatalf("queue ring seeded durable days: %v %v", got, err)
 	}
 }
 

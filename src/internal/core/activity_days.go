@@ -114,12 +114,9 @@ func (b *Bus) FlushActivity() error {
 	return as.SaveActivityDays(rows)
 }
 
-// RestoreActivityDays rebuilds each ring and each ledger from the stored days
-// of yesterday and today, after the store is bound. A name without rows keeps
-// the ring its queue carried — how a database from before durable days
-// starts — and that ring's days are written at once, so the first minute's
-// queue flush, which no longer carries rings, cannot lose them. A damaged row
-// is reported and read as nothing.
+// RestoreActivityDays rebuilds each ring and ledger from yesterday's and
+// today's stored days. Missing days contain no activity. Damaged rows are
+// reported and read as nothing.
 func (b *Bus) RestoreActivityDays() {
 	b.mu.Lock()
 	as := b.activityStore()
@@ -147,7 +144,6 @@ func (b *Bus) RestoreActivityDays() {
 		byName[r.Name][activity.Date(r.Date)] = &s
 	}
 	b.mu.Lock()
-	var carried []ports.ActivityDay
 	seed := func(l *activity.Ledger, days map[activity.Date]*activity.DaySlots) {
 		for d, s := range days {
 			l.Seed(d, *s)
@@ -157,15 +153,9 @@ func (b *Bus) RestoreActivityDays() {
 		if _, known := b.records[name]; !known {
 			continue
 		}
-		if days, has := byName[name]; has {
-			in.act = activity.FromDays(days, now, in.totals())
-			seed(&in.days, days)
-			continue
-		}
-		// The queue's own ring, from before durable days.
-		days := in.act.Days(in.totals())
+		days := byName[name]
+		in.act = activity.FromDays(days, now, in.totals())
 		seed(&in.days, days)
-		carried = append(carried, dayRows(name, &in.days, activity.Closed{})...)
 	}
 	for name, days := range byName {
 		if _, known := b.records[name]; !known || name == nodeSeries {
@@ -177,19 +167,10 @@ func (b *Bus) RestoreActivityDays() {
 			seed(&in.days, days)
 		}
 	}
-	if days, has := byName[nodeSeries]; has {
-		b.node = activity.FromDays(days, now, b.refusedTotal())
-		seed(&b.nodeDays, days)
-	} else {
-		seed(&b.nodeDays, b.node.Days(b.refusedTotal()))
-		carried = append(carried, dayRows(nodeSeries, &b.nodeDays, activity.Closed{})...)
-	}
+	days := byName[nodeSeries]
+	b.node = activity.FromDays(days, now, b.refusedTotal())
+	seed(&b.nodeDays, days)
 	b.unlock()
-	if len(carried) > 0 {
-		if err := as.SaveActivityDays(carried); err != nil {
-			b.report(ports.Error, "activity carried from before durable days not saved: %v", err)
-		}
-	}
 }
 
 func nameOr(n string) string {
