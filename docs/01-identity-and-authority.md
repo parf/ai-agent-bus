@@ -2,24 +2,19 @@
 
 📌 **TL;DR:**
 - **Problem:** without clear names and owners, nobody can tell who may do what on the bus, and a record can outlive everyone who understood it.
-- **Outcome:** every person, agent and service has one name, one owner and a clear chain of authority: the Owner controls the node, Administrators manage users and groups, Maintainers manage what they are assigned.
-- **Start:** check who you are on the bus: `agent-bus status` ([Try this first](#try-this-first)). Credentials and checks belong to [Access](02-access.md#what-a-call-carries).
+- **Outcome:** Owners control their records, Administrators manage users and groups, and Maintainers manage assigned records. Names keep people, agents and resources distinct.
+- **Start:** check who you are on the bus: `agent-bus status` ([Try this first](#try-this-first)). See [Access](02-access.md#what-a-call-carries).
 
 ## Why you'd want it
 
-- 🏷️ **Two things with the same name get confused.** Now a name is one record, and `alice` and `alice@srv1` are different names.
-- 👑 **Nobody is sure who decides.** Now each record has an Owner, and the node has one Owner above them.
-- 👥 **Giving access one by one does not scale.** Now groups, nested, carry access to many people at once.
-- 🧹 **Records are left with no one in charge.** Now ownership transfers, and an orphaned record is reported, not forgotten.
+- Assign responsibility without giving every operator control of the whole bus.
+- Share access through groups and transfer records when responsibility changes.
 
 ## What you get
 
-- ✅ **Names:** a name, an optional template and an optional realm, written the same everywhere.
-- ✅ **Positions:** the daemon Owner, Administrators, and per-record Owner, Maintainers and Members.
-- ✅ **Users and profiles:** a registered person with a profile and an active or inactive state.
-- ✅ **Registration and ownership:** who may register a record, change its owner, or unregister it.
-- ✅ **Groups, channels, shared locks and the key-value store:** the pieces other pages build on.
-- 🚫 **Not for:** credentials and permission checks (see [Access](02-access.md#what-a-call-carries)).
+- A name for each person, agent and resource.
+- Separate bus-wide and record-level authority.
+- Ownership and lifecycle rules that preserve credentials and queued work when appropriate.
 
 ## Try this first
 
@@ -30,12 +25,6 @@ agent-bus status
 ```
 
 The `you` field shows who you are on this connection.
-
-## Scope
-
-Names, profiles, registration, record ownership, groups and status are built
-as the [constitution](constitution.md#project-constitution) states them;
-[open choices](../Plans/done/R0.8-MVP/QUESTIONS.md#open-questions) stay in the plan.
 
 ## Identities
 
@@ -55,7 +44,9 @@ Use a name to address someone or something on the bus:
 
 An optional ending such as `@team` distinguishes names: `#worker@team`. It names a namespace, not necessarily the computer running the agent. `alice` and `alice@team` are different names; the bus never adds an ending for you.
 
-Keep names lowercase and at most 64 characters.
+- Names are normalized to lowercase ASCII and limited to 64 characters, including prefixes and the realm.
+- The last `@` separates the realm; an instance may itself contain an address-like name.
+- A realm contains letters, digits, `.`, `_` and `-`, starts with a letter or digit, and contains no slash.
 
 See [record names](constitution.md#common-record-fields) for the reference and [session names](06-launchers.md#session-names) for names chosen by AI launchers.
 
@@ -103,10 +94,10 @@ moves it at once ([local socket](02-access.md#local-socket)).
 
 - Only the current active Owner may transfer the position, to a different active registered User.
 - The recipient becomes an Administrator; the former Owner stays an Administrator until the new Owner changes that group.
-- A startup owner value seeds a legacy or first store only and cannot replace a transferred Owner.
+- A startup owner value seeds a store without an established Owner and cannot replace a transferred Owner.
 - Stored state with a missing, invalid, inactive or unknown Owner fails startup rather than silently restoring the seed.
 
-- Root management includes discovery, settings, ACL, Maintainers, ownership, configuration and removal.
+- Node-wide management includes discovery, settings, ACL, Maintainers, ownership and removal. It does not by itself grant access to [Configuration or Secret](constitution.md#-private-values).
 - It does not itself grant message use: the Owner uses a record only through its record authority or [ACL](02-access.md#acl).
 - Administrators gain no node-wide record authority from their administrative position.
 
@@ -122,49 +113,40 @@ Record management requires the [resource assignment](#record-authority).
 
 ## Record authority
 
-**These rules are about a record, whichever of the
-[seven kinds](03-records.md#record-kinds) it is.**
-
-- A record has one Owner, explicitly assigned Maintainers and Members with access.
-- Owners control their resources without requiring Administrator status.
+- The **Owner** controls the record without needing Administrator status.
 - [Application roles](03-records-agent.md#roles) describe what an admitted caller may do inside an agent; they grant no bus management authority.
-- Maintainers is a list of named users, groups and records.
+- Maintainers is a list of actor names, groups and the supported [runtime terms](02-access.md#acl).
 - Only the record's Owner or daemon Owner replaces it; group entries use ordinary nested membership.
 - Human editors use one plain term per line, as ACL editors do.
 
 | Position | Authority |
 |---|---|
 | Owner | All Maintainer/Member permissions; assign/revoke Maintainers and transfer ownership |
-| Maintainer | Edit settings and ACL |
+| Maintainer | Edit settings and ACL; read and write Configuration and Secret where supported |
 | Member | Use the record |
 
 <details>
 <summary>Management boundaries and availability</summary>
 
 * The owner, the resource's own principal and every direct or effective member of its Maintainers list can manage it.
-  - Only the record's Owner or daemon Owner may replace the list; only they may transfer ownership.
-  - A transfer leaves the record's credentials as they are: an Agent's token keeps working, so a former Owner who still holds its bytes can use it until someone rotates it (Q129).
   - Naming a group delegates its membership to [group administration](#groups); it does not give the record's owner control over who Administrators add to it.
 * A record's `status` is `active` or `inactive`, on every kind but a 👤, which lives with its User.
   - Deactivating makes it no such entity and retains queued messages; its name stays reserved, so nothing registers over it.
-  - Only its Owner or a Maintainer reactivates it, by a status-only edit; every other operation naming it is refused as unknown.
+  - Its Owner, a Maintainer or the daemon Owner can reactivate it with a status-only edit; ordinary operations naming it are refused as unknown.
   - Reactivating does not start a process.
   - Removing access refuses the next read; a read already waiting finishes as admitted, and delivered work is not recalled.
-* Every list — `allow` (a Group's membership), `maintainers` and `deliver_to` — is written whole, or changed by `add`, `add_to_set` and `remove` deltas that resolve against the record as the write finds it, so concurrent writers lose nothing.
+* Every list — `allow` (a Group's membership), `maintainers` and `deliver_to` — is written whole, or changed by `add`, `add_to_set` and `remove` deltas that resolve against the record as the write finds it, so concurrent list deltas do not overwrite one another.
   - `add` refuses a term already there, and an occupied one-slot `deliver_to`; `add_to_set` adds what is absent and succeeds on what is present; `remove` is a no-op for what is absent.
   - A list written whole and by a delta in one write is refused, and a delta takes the same authority and checks as the whole write it becomes.
 * Re-registration retains the [protected settings](#registration).
-* Management includes configuration, access, availability and removal, subject
-  to [removal conditions](#unregistering). Only the record itself may fetch its
-  [record configuration](03-records-agent.md#configuring-a-template).
-  Managed runtime start/stop remains [runner work](../Plans/R1.0-Release/runner-implementation.md#what-the-runner-does).
+* Management covers access, availability and removal, subject to [removal conditions](#unregistering). Configuration and Secret have their own [read/write authority](constitution.md#-private-values). Starting and stopping managed processes is [runner work](runner/operations.md).
 
 </details>
 
 ## Ownership
 
 - Changing a record's owner requires its current owner's or the daemon Owner's authority, and the new owner is a User.
-- Transfer changes who may manage the record and request its credential; it does not revoke existing tokens.
+- Transfer changes who may manage the record and request its credential; it does not revoke existing tokens. A former Owner holding token bytes can still use them until rotation removes their validity ([token lifetime](02-access.md#token-lifetime)).
 - Transferring an Agent rebinds its tokens to the new Owner in the transfer's own commit, so they keep working and act for the new Owner; a transfer whose commit fails moves neither the record nor its tokens.
 - See [constitution § Token](constitution.md#-token).
 
@@ -182,20 +164,15 @@ Existing credentials and copies already held follow the
 
 ## Groups
 
-- A Group is an ordinary record of kind `group`, named `@name`, or `@<owner>/<name>` for one reserved to its Owner and required of a Personal one ([constitution § Group](constitution.md#-group)), whose `allow` list is its membership ([constitution § Group](constitution.md#-group)).
+- A Group is an ordinary record of kind `group`, named `@name`, or `@<owner>/<name>` for one reserved to its Owner and required of a Personal one ([Group rules](constitution.md#-group)). Its `allow` list is its membership.
 - Any User creates one, and it belongs to that User.
-- Its Owner, its Maintainers and the daemon's Administrators change its membership; nobody else does.
+- Its Owner, Maintainers, the daemon Owner and Administrators may change membership. Administrator status alone permits no other record edit.
 - Members are actors — Users, Agents and other Groups — never the wildcard or a runtime term.
 - For shared management, create a group and add it to each resource's Maintainers list.
-- A list may instead name a record directly.
-- There is no automatic global assignment.
 - Choosing a group accepts its membership changes on every resource using it.
 - Retire an ordinary group by emptying it; groups are not deleted.
 - An inactive Group grants nothing and is [no such entity](constitution.md#common-record-fields) while its name stays reserved; at a publication it is skipped with an error-log warning and counts no drop.
-- Ordinary groups may contain principals and other groups.
-- Their membership follows the stored graph: cycles terminate, unknown group references stay inert until populated, and any path to a principal grants effective membership.
-- Every walk processes each group once.
-- ACL, directory, publication and role-assignment group walks are iterative.
+- Membership follows the stored graph: cycles terminate, and any valid path to a principal grants effective membership. Membership edits require existing Users, live Agents or live Groups; missing references grant nothing.
 
 <details>
 <summary>Administrative membership and shared-group limits</summary>
@@ -210,12 +187,12 @@ Existing credentials and copies already held follow the
   [private values](constitution.md#-private-values) are its Owner's and
   Maintainers', as on every record; membership does not read them. Emptying a group preserves references to its name; adding members
   later makes those references effective again. The protected group cannot be emptied.
-* Group names are available for resource-owner assignments; full membership
+* Group names are available for Maintainer assignments; full membership
   lists are visible to Administrators and to whom a Group's own ACL — its
   membership — and managers admit. Owning a record grants no daemon
   user/group administration.
 * Membership nests. Stored group lists show direct entries;
-  user views report effective membership. ACL and Maintainer checks use the
+  user views report effective membership. Administrators can edit membership on Group pages without gaining access to other record settings or private values. ACL and Maintainer checks use the
   same reachability rule. [Application roles](03-records-agent.md#roles) use the same live membership.
 * `@administrators` accepts direct user identities only; the Owner remains a
   direct member. Stored state that nests a group there is refused at startup.
@@ -232,15 +209,15 @@ Existing credentials and copies already held follow the
 ## Channels
 
 - A channel is a 📮 `queue` or a 📣 `pubsub` record: a name **nobody acts as**.
-- Its creator owns it, and the [record authority rules](#record-authority) apply.
+- Its creator's User owns it, under the [registration](#registration) and [record authority](#record-authority) rules.
 - The daemon provides queue or pub/sub delivery; joining, publishing or reading grants no ownership of the channel or another recipient's inbox.
-- [Channels](03-records-channel.md#the-two-channel-kinds) owns what each kind does; a message's `topic` is a [label on the envelope](04-messaging.md#envelope) and a different thing entirely.
+- See [channel delivery](03-records-channel.md#the-two-channel-kinds). A message's `topic` is a separate [envelope label](04-messaging.md#envelope).
 
 ## Users and profiles
 
-- Users can register records of any kind and become their owners.
+- Users can register records and become their owners.
 - A user may edit or clear only their own email; username, person name, GitHub name, state and authority stay protected.
-- Administrators and the Owner edit profiles below their level.
+- The daemon Owner may edit every profile; Administrators edit ordinary users below their level.
 - Person names come from an Administrator, the trusted local-account adapter or the GitHub directory used for key enrolment; imports fill a blank name and never overwrite an existing one.
 
 <details>
@@ -254,8 +231,7 @@ Existing credentials and copies already held follow the
   - Checked on add, edit, import and restore; a restore finding two Users with one of them ignores the later and reports it.
   - Provider aliases such as dots and plus-addresses are not merged.
   - Person names need not be unique.
-* A GitHub identity retains its own GitHub username. Proving cross-provider
-  aliases is [later work](../Plans/R1.3/QUESTIONS.md#open-questions).
+* A GitHub identity retains its own GitHub username; a matching profile field does not establish a cross-provider identity alias.
 * A GitHub challenge retains the provider's person name with the public keys;
   successful proof imports both from that lookup. A public GitHub email fills
   only a blank Email, and an imported email or Twitter/X name is skipped on a
@@ -278,7 +254,6 @@ Existing credentials and copies already held follow the
   identity or protected field. Email remains normalized and unique by the same
   rule as an administrative edit.
 * Administrators see the user directory; ordinary callers see their own details.
-  Administrators edit below their level; the Owner may edit every level.
 * The directory separates users, self-owned records and credential-only names.
   Classification comes from profiles and records, not spelling or blank fields.
   Only users have lifecycle controls; cleanup follows the
@@ -287,8 +262,7 @@ Existing credentials and copies already held follow the
   return from details; counts cover the visible entries, not the whole store.
   Entries link to relevant records; avatars do not trigger another directory
   fetch per person.
-* Profiles and membership persist in the database. Phone and IM routes belong to
-  [later contact routing](../Plans/R1.2/people.md#how-to-reach-a-person).
+* Profiles and membership persist in the database.
 
 </details>
 
@@ -316,7 +290,7 @@ Existing credentials and copies already held follow the
 * Credentials are kept, not rotated or revoked. Reactivation restores their
   use. Stored status survives restart; queued messages keep their expiry.
 * Nobody drains an inactive record's inbox, however admitted: the work waits
-  for its reactivation. This replaces the earlier drain permission.
+  for its reactivation.
 * A copy published to an inactive recipient beside live ones is that
   recipient's `dropped` and an error-log warning; see
   [Deliver-To](04-messaging.md#deliver-to).
@@ -325,8 +299,7 @@ Existing credentials and copies already held follow the
 
 ## Registration
 
-An active, known principal can register an unheld name in an unbacked realm and
-becomes its owner. Creating a name in a directory-backed realm requires
+An active User or Agent can register an unheld name in an unbacked realm. A User owns what they create; an Agent creates records for its User Owner. Creating a name in a directory-backed realm requires
 [key-possession enrolment](02-access.md#proving-possession).
 
 <details>
@@ -334,9 +307,9 @@ becomes its owner. Creating a name in a directory-backed realm requires
 
 - A credential-only unknown name cannot bootstrap itself by registering.
 - A name must first be created by an existing authorized principal or through enrolment.
-- An owner must have a profile or record of its own.
+- The owner must be a registered User.
 - Enrolment creates a profile and self-owned record.
-- Ordinary registration that states no `kind` creates a 📡 `service`, which is why it must also carry an address and a protocol; a caller meaning one of the other four [kinds](03-records.md#record-kinds) says so, and `--personal` says `agent`.
+- Ordinary registration that states no `kind` creates a 📡 `service`, which is why it must also carry an address and a protocol; a caller meaning another [kind](03-records.md#record-kinds) says so, and `--personal` says `agent`.
 
 A conditional creation refuses an existing canonical name, even for its owner;
 claim and insertion happen together. Launchers use this for unique session
@@ -376,7 +349,6 @@ not stop the process. Record authority is required. Drain live queued work and s
   Re-registration starts with an empty inbox, no configuration, no references
   and a new internal ID, so nothing the former holder kept answers for it.
   Existing history remains history.
-* Reserving a retired name is [later work](../Plans/R1.2/records.md#down-and-retired).
 
 </details>
 
@@ -399,16 +371,13 @@ not stop the process. Record authority is required. Drain live queued work and s
 
 ## Key-value store
 
-Every record keeps a durable store of string, int and JSON values, used by the
-same authority as its [shared locks](#shared-locks): its Owner, Maintainers and
-own Agent. Its contract, operations and suggested patterns have their own page:
-[key-value store](03-records-kv.md#key-value-store).
+Use a record's [key-value store](03-records-kv.md#key-value-store) for durable string, int and JSON values. Its Owner, Maintainers and own Agent have access, as with its [shared locks](#shared-locks).
 
 ## Shared locks
 
-- The daemon hands out named locks, each on a record; one holder has one at a time.
+- Each named lock belongs to a record and has one holder at a time.
 - The record is the lock's namespace, and its **Owner, its Maintainers** (nested groups and the `@owner` and `@agent` terms included) **and its own Agent** may use its locks — the record's [management authority](#record-authority), checked once when the lock call comes in and never again while it waits ([authority at the door](constitution.md#authority-at-the-door)).
-- Its allow list grants use of the record, not of its locks.
+- Its allow list grants use of the record, not of its locks. Locks have no fencing token: expiry cannot stop external work already running under an expired hold.
 - Every lock has a ttl, so a crashed holder cannot wedge the rest; the table is memory only, and a restart releases every lock.
 - A Maintainer that loses its grant keeps a lock it already holds until the ttl or a `--force` release; a deactivated User's locks still end at once.
 - A lock name is 1 to 256 bytes of UTF-8, as a [key-value](03-records-kv.md#key-value-store) name is, and one record holds at most 10,000 locks at once.

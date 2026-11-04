@@ -2,21 +2,19 @@
 
 📌 **TL;DR:**
 - **Problem:** a script, a long-running program or an AI session needs a name of its own on the bus, with its own credential and inbox.
-- **Outcome:** a 👾 Agent is the bus's working entity: a name beginning with `#`, owned by a User, that acts under its own credential and reads its own inbox. Every other kind exists to route to one, describe something outside, or group actors.
+- **Outcome:** a 👾 Agent is the bus's working entity: a name beginning with `#`, owned by a User, that acts under its own credential and reads its own inbox. Its Owner controls who can use and manage it.
 - **Start:** list visible agents: `agent-bus ls --kind=agent` ([Try this first](#try-this-first)).
 
 ## Why you'd want it
 
-- 🪪 **A program has no identity of its own.** Now it has a name, an owner and a credential.
-- 📬 **Work is lost when the program is busy or away.** Now its inbox holds the messages until it reads them.
-- 🔧 **One program, many copies.** Now a template makes instances, each with its own name and configuration.
+- Give a program or AI session its own identity without handing it your credential.
+- Run several instances of one program with separate names and settings.
 
 ## What you get
 
-- ✅ **A named working entity:** sending, answering and coordinating under its own credential.
-- ✅ **Roles and fields:** what an Agent carries and what is shown about it.
-- ✅ **Templates and instances:** one template, several configured instances.
-- 🚫 **Not for:** something outside the bus (that is a [service](03-records-service.md#what-a-service-is)).
+- An inbox that holds work while an agent is busy, within its lifetime and capacity limits.
+- Verified sender roles on each delivered message.
+- Discoverable help and separate Configuration and Secret values.
 
 ## Try this first
 
@@ -32,12 +30,12 @@ Choose a returned name to inspect with `agent-bus ls <name>`. The record shows i
 
 | | |
 |---|---|
-| Name | begins with `#` — `#worker@team`, `#claude/session@host` — so the name alone says it is an Agent; every face requires the `#`, and the CLI also takes `--agent worker@team` ([names](01-identity-and-authority.md#names)) |
 | Owner | always a User, never another Agent; an Agent acting for its Owner gains no authority over what it creates ([ownership](01-identity-and-authority.md#ownership)) |
+| Name | begins with `#` — `#worker@team`, `#claude/session@host` — so the name alone says it is an Agent; record targets require `#`; the CLI also takes `--agent worker@team` and the dedicated runner can add it to a launch name ([names](01-identity-and-authority.md#names)) |
 | Credential | its own token, issued by its Owner, which acts as the Agent: it is the sending, reading principal ([what a call carries](02-access.md#what-a-call-carries), [getting a token](02-access.md#getting-a-token)) |
 | Inbox | the queue it reads; who may send to it is its allow list, and it may answer a User that list admits ([inbox queues](04-messaging.md#inbox-queues), [ACL](02-access.md#acl)) |
 | Readers | one reader at a time unless each says it shares; a pool of workers is one name ([one reader per inbox](04-messaging.md#one-reader-per-inbox)) |
-| Its own rights | an Agent reads its own [configuration and secret](constitution.md#-private-values), uses its own record's [locks](01-identity-and-authority.md#shared-locks) and [key-value store](03-records-kv.md#key-value-store), and edits what a Maintainer may on its own record |
+| Its own rights | an Agent reads its own [configuration and secret](constitution.md#-private-values), uses its own record's [locks](01-identity-and-authority.md#shared-locks) and [key-value store](03-records-kv.md#key-value-store), and manages its own settings; writing Configuration or Secret still requires an explicit Maintainer grant |
 | Personal | session agents the [`ab-*` launchers](06-launchers.md#session-names) start are Personal, with `@owner` in their allow list ([Personal and shared](03-records.md#personal-and-shared)) |
 | Roles | an Agent is told on every message what its sender holds ([roles](#roles)) |
 
@@ -76,10 +74,7 @@ agent-written descriptions; the agent still checks every call.
 
 ## Roles
 
-**A role is what a sender holds toward the record it addressed, and an Agent
-is told it on every message.** The daemon works roles out; a sender never
-states them, and the daemon never interprets them — an Agent reads them, or
-ignores them.
+**Roles tell an Agent what authority the sender has toward the addressed record.** The daemon computes generated and assigned labels; a sender cannot supply them. The Agent decides what each application role permits.
 
 | | |
 |---|---|
@@ -89,7 +84,7 @@ ignores them.
 | On every message | the envelope carries `roles: [...]` for any reader — the CLI, the API, MCP's `ab_consume`, and a push names them too |
 | As environment | a script `agent-bus run` runs gets `AB_ROLE_<NAME>=1` for each, upper-cased: `AB_ROLE_OWNER=1`. A role not held is absent: the child's own shell clears every `AB_ROLE_*` it started with — the runner's, or a sandbox's user manager's — before setting the held ones, and leaves every other variable as it was. A key no shell can name, such as `AB_ROLE_A-B`, is beyond its reach, and can be no role |
 | Forwarding | worked out once, at the record the sender addressed (`original_to`), and carried unchanged through every forward and published copy — a worker behind a queue sees the sender's standing toward the queue |
-| Crossing owners | a message holding roles passes from record A to B only when A's Owner owns B or is one of its Maintainers. Otherwise that forward **fails loudly**: refused, and in the error log — the send itself when it was the only route, that one branch of a publication. So a record's Owner publishing to its own 📣 reaches only recipients that Owner answers for; a message holding no roles passes as before |
+| Crossing owners | a message holding roles passes from record A to B only when A's Owner owns B or is one of its Maintainers. Otherwise that forward **fails loudly**: refused, and in the error log — the send itself when it was the only route, that one branch of a publication. So a record's Owner publishing to its own 📣 reaches only recipients that Owner answers for; a message holding no roles follows ordinary forwarding checks |
 | Names | Nonempty lowercase ASCII letters, digits and `_`, without conversion. Uppercase, hyphens and shell punctuation are invalid. No role-specific length cap; ordinary request limits apply |
 | What it understands | the Agent's `roles` list, set by `agent-bus run --roles a,b`, `manage --roles`, registration or the web settings; informational, never checked against what a message carries |
 | Stated by a sender | a message carrying `roles` fails loudly: it is refused, and the error log names the sender and the record, and counts the roles claimed. Roles are the daemon's, like `original_to` |
@@ -103,12 +98,12 @@ ignores them.
 - Nested groups resolve against live membership, including cycles; the protected Administrator group remains direct-only.
 - Changing an assignment or membership affects the next send, not messages already queued.
 
-CLI examples (quote parentheses):
+For an existing `@dev` group and user `bob`, register a new `#worker` and edit its grants. Replace these names with your group, user and unused Agent name; quote parentheses:
 
 ```sh
 agent-bus register '#worker' --kind agent --allow '@dev(deploy, read_only),*(guest)'
 agent-bus manage '#worker' --add-allow 'bob(admin)'
-agent-bus manage '#worker' --remove-allow 'bob'  # revoke all grants to bob
+agent-bus manage '#worker' --remove-allow 'bob'
 ```
 
 Removing a bare actor from the allow list removes all its grants, decorated
@@ -119,8 +114,9 @@ On the web, put one term per line. The agent edit page's Roles and allow-list
 help explains assignment and usage. The supported-role list never assigns
 roles and never restricts which application labels may be assigned.
 
+A script can restrict a method to its Owner:
+
 ```sh
-# a script that answers its Owner only
 [ "$AB_ROLE_OWNER" = 1 ] || { echo "only my owner may ask this"; exit 0; }
 ```
 
@@ -134,13 +130,12 @@ roles and never restricts which application labels may be assigned.
 
 ## Agent Templates
 
-- `name@realm` stands alone; `template/instance@realm` says which **agent template** that instance was configured from.
+- `#name@realm` stands alone; `#template/instance@realm` names an instance of an **agent template**.
 - The prefix is naming, not a group and not an instruction to fan out: the parser accepts it for a name of any [kind](03-records.md#record-kinds) and reads no meaning out of it.
-- Each complete name is a record of its own, with its own configuration and — for the four kinds that have one — its own queue.
+- Each complete name is a separate record. Its kind determines whether it holds Configuration or an inbox.
 - Nothing parses configuration out of an instance's name.
 
-**A record's method information is its description, and nothing else.** The record's one free-text field is what `ls` and the MCP catalog show, so anything whose callers need to know its verbs writes them into that sentence.
-- The release has no method list, no per-method destructive hint and nothing generated from one; a better representation is proposed in [R1 method metadata](../Plans/R1.0-Release/done/method-metadata.md#method-metadata).
+The record's description summarizes its purpose in listings. Ask the running agent for its [methods and settings](#about-an-agent); names do not encode its interface.
 
 ## Configuring a template
 
@@ -148,28 +143,25 @@ roles and never restricts which application labels may be assigned.
 its Owner and Maintainers and handed to scripts; put credentials in
 [Secret](03-records-service.md#secrets), never in Configuration.
 
-Configuring an agent template **is** what produces a configured name. One verb
-does it, and reads it back:
+Use the same command to set or read a configuration. Include the `#` prefix when naming an Agent:
 
 | | |
 |---|---|
-| `cat cfg.json \| agent-bus config <template/instance@realm> -` | configure it, JSON on stdin |
-| `agent-bus config <template/instance@realm> '{"k":"v"}'` | the same, inline |
-| `agent-bus config <template/instance@realm>` | print that configuration |
+| `cat cfg.json \| agent-bus config '#template/instance@realm' -` | configure it, JSON on stdin |
+| `agent-bus config '#template/instance@realm' '{"k":"v"}'` | the same, inline |
+| `agent-bus config '#template/instance@realm'` | print that configuration |
 
 - The direction is decided by whether a configuration was handed to it, and setting one answers with its digest rather than with what was set.
-- The verb is **one hyphenated word** so that it stays a single verb in every face, including as an MCP tool name ([glossary § names that are enforced](glossary.md#names)).
 
-- The record is created if it does not exist, with the defaults a bare registration gets — configuring is not a second way to describe a record, only the way to give it a configuration.
-- What it creates is an 👾 `agent`: a 📡 `service` could not be created here, having no address to be registered with ([record kinds](03-records.md#record-kinds)).
-- A standalone `name@realm` takes a configuration the same way; the template prefix is not what makes one configurable.
+- Configuring an absent Agent name creates an Agent under the [registration authority rules](01-identity-and-authority.md#registration). It does not create an external service or bypass directory-backed enrolment.
+- A standalone `#name@realm` takes Configuration the same way; the template prefix is not what makes an Agent configurable. Existing Services and Groups also hold Configuration.
 
 | | |
 |---|---|
 | the configuration | **arbitrary JSON, stored opaque** and compacted before storage and hashing. The compact representation must be at most **65,536 bytes (64 KiB)** so it fits in `AGENT_BUS_CONFIG`; larger writes are refused with the limit. JSON syntax is checked, not interpreted. Nothing looks for a server, a user, a mailbox or a credential. At load, an oversized stored configuration and its digest are dropped and reported, preserving the record, grants and queue. A configuration that is not compact JSON still makes its record [ignored and reported](constitution.md#persistence-and-loading) |
 | who may write it | the record's **Owner and Maintainers** ([private values](constitution.md#-private-values)). Unlike a registration, a configuration is not something any caller may overwrite — and registering does not overwrite one either, so an agent restarting keeps what it was configured with. A registration carries **neither half**: not the bytes, and not the digest, which is derived from them and would otherwise let anyone claim any setup |
 | who may read it | the record's **Owner and Maintainers**, and an 👾 agent its own. The allow list and a 👥's membership grant use, not the configuration. A caller who sees the record and may not read it is told it is private; one who may not see it learns only that there is no such name |
-| what a query gets | **`config_sha`**, a SHA-256 of the stored bytes, on every answer that carries a record to a caller who may read it — the whole listing, a query for one name (`agent-bus ls <name>`), and the answer to setting one ([why a digest at all](#why-a-digest-at-all)). Anyone else gets neither: a digest of a short value is the value to whoever tries candidates |
+| what a query gets | **`config_sha`**, a SHA-256 of the stored bytes, on every answer that carries a record to a caller who may read it — listings, a query for one name and the answer to setting one ([configuration digests](#why-a-digest-at-all)). Other callers receive no digest |
 | presentation | Owner and Maintainers always see pretty-printed configuration on the web record page and editor; Save sends compact JSON. Secret is never displayed. Listings still carry only the authorized digest |
 | nothing to store | refused: no configuration at all, something that is not JSON, and `null` — which would read back exactly like never having been configured |
 | an empty *value* | kept. `{}`, `[]`, `""`, `0` and `false` are configurations; the bus does not judge what is inside |
@@ -179,13 +171,11 @@ The runner and `agent-bus run` pass the stored compact JSON as
 is **unset**, distinct from `{}`. Per-message scripts see changes on their next
 run; a kept process sees them after restart or runner `reload`.
 
-```sh
-channel=$(printf '%s' "$AGENT_BUS_CONFIG" | jq -r .channel)
-```
+An Agent can also read its own current configuration directly:
 
-Keep credentials in Secret, not Configuration. Configuration access remains
-Owner/Maintainer-only (plus an Agent reading its own); “public” does not grant
-other callers access.
+```sh
+agent-bus config "$AGENT_BUS_NAME"
+```
 
 ### Why a digest at all
 
@@ -199,14 +189,10 @@ flowchart LR
     Store -->|Digest only| Listing[Owner and Maintainers listing]
 ```
 
-The digest lets a caller compare configurations without reading their contents.
-This is an access boundary, not encryption from the daemon.
-
 </details>
 
 **So that authorized readers can compare settings without fetching every
-configuration.** Owner and Maintainers can also read the JSON directly or view
-it on the web. The digest identifies the stored compact bytes:
+configuration.** The digest identifies the stored compact bytes:
 
 | Asking | How |
 |---|---|
@@ -227,12 +213,3 @@ A digest of a short, guessable configuration can be recovered by trying
 candidates. The current configuration is plaintext in daemon state, including
 the database. The caller restrictions are real; secrecy from the daemon
 is not claimed.
-
-An Agent that talks to the bus can read its own configuration directly;
-Owner and Maintainers can read it too. A script instead receives the next-start
-`AGENT_BUS_CONFIG` snapshot described above:
-
-```sh
-cfg=$(agent-bus config "$AGENT_BUS_NAME")
-```
-

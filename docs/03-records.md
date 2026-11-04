@@ -3,20 +3,18 @@
 📌 **TL;DR:**
 - **Problem:** a bus holds very different things (people, programs, queues, outside services, data cards) and mixing them up leads to messages sent nowhere.
 - **Outcome:** every registered name is one of seven kinds: 👤 `user`, 👥 `group`, 👾 `agent`, 📮 `queue`, 📣 `pubsub`, 📡 `service` and 📚 `resource`. Three have an inbox here (👤, 👾, 📮), a 📣 copies each message on, a group is a named list of actors, a service says where something external is, and a resource is a card for data an MCP client may read.
-- **Start:** see the record kinds on your bus: `agent-bus status` ([Try this first](#try-this-first)). `kind` is a closed set the daemon answers for, never inferred from which fields are filled in.
+- **Start:** see the record kinds on your bus: `agent-bus status` ([Try this first](#try-this-first)). Use the kind to choose the appropriate [guide](#pages-for-each-kind).
 
 ## Why you'd want it
 
-- 🧩 **Different things need different rules.** Now each kind says what it can receive, carry and refuse.
-- 📍 **A name should say what it is.** Now the kind is part of the record, fixed at registration.
-- 🔎 **Listings are hard to read when everything looks alike.** Now each kind has its own glyph and its own page.
+- Choose the right destination for a person, a worker, shared jobs or an external service.
+- Give each record an Owner, access rules and a clear purpose.
 
 ## What you get
 
-- ✅ **Seven kinds:** a closed set, each with its own page ([pages for each kind](#pages-for-each-kind)).
-- ✅ **Common fields and tags:** what every record carries, and how tags group them.
-- ✅ **Personal and shared:** who a record belongs to.
-- 🚫 **Not for:** inventing a new kind; the set is closed.
+- Seven record kinds with distinct delivery and data rules.
+- Tags for filtering and Personal classification for an Owner's own resources.
+- Shared locks and durable key-value storage for record managers.
 
 ## Try this first
 
@@ -78,17 +76,9 @@ are filled in.
 | 📡 | `service` | a card for something [external](03-records-service.md#what-a-service-is): its address and protocol |
 | 📚 | `resource` | a [card](03-records-resource.md#what-a-resource-is) for data an MCP client may read; 🧩 when it is a template |
 
-Only 👤 and 👾 names are acted as — by the person and by the agent; nobody
-acts as the other five.
+Only Users and Agents receive [credentials](02-access.md#what-a-call-carries) and act as callers. Channels route messages; services and resources describe external endpoints or data; groups collect actors.
 
-- **People and agents act;** they hold a [credential](02-access.md#what-a-call-carries),
-  send under their own name and answer. Channels are passive — they hold or
-  copy — and services and resources only describe.
-- **Acting is what a name is for,** not a check: a credential can be minted for
-  any registered name its owner asks for, and no check consults the kind.
-- **The kind does not change who may read a record:** one allow list governs it
-  in both directions ([ACL](02-access.md#acl)); splitting it is
-  [undecided](../Plans/R2.0-Future/acl-direction.md#where-direction-is-needed).
+The record's [ACL](02-access.md#acl) governs visibility and use according to its kind. Management and private values have separate authority.
 
 <details>
 <summary>Who registers each kind</summary>
@@ -106,9 +96,7 @@ usually for; `--personal` with no kind names an `agent`.
 
 ## Fields
 
-The normative rules for each field are the
-[constitution's](constitution.md#common-record-fields); this is what each one
-means.
+The fields below follow the [record rules](constitution.md#common-record-fields).
 
 ### Common fields
 
@@ -119,10 +107,10 @@ Every record carries these.
 | `name` | the identity, globally unique: `name`, `name@realm` or `template/instance@realm`. `#` begins an Agent's and `@` a Group's, so the name says the kind ([names](01-identity-and-authority.md#names)) |
 | `kind` | one of the seven; fixed for the record's life |
 | `owner` | the owning User, never an Agent, kept by name and by `user_id` ([ownership](01-identity-and-authority.md#ownership)) |
-| `descr` | one free-text line `ls`, MCP and the web show; a record's method information goes here ([agent templates](03-records-agent.md#agent-templates)) |
-| `status` | `active` or `inactive`. An inactive record is no such entity to anyone but those who may bring it back; it changes by a settings edit, never by registering |
+| `descr` | one free-text line `ls`, MCP and the web show; method details come from the agent's [self-description](03-records-agent.md#about-an-agent) |
+| `status` | `active` or `inactive`. Ordinary operations treat an inactive record as absent; an authorized read-only web view can show it ([inactive records](constitution.md#common-record-fields)). Status changes by a settings edit, never by registering |
 | `tags` | record labels used for classification and filtering ([Tags](#tags)) |
-| `personal` | compatibility mirror of the `personal` audience tag that keeps the web pages readable, not a permission; always true on a 👤 ([Personal and shared](#personal-and-shared)) |
+| `personal` | mirror of the `personal` audience tag, not a permission; always true on a 👤 ([Personal and shared](#personal-and-shared)) |
 | `allow` | who may use it — send to it, read it, see it; on a 👥, its membership ([ACL](02-access.md#acl)). Unused on a 👤 |
 | `maintainers` | who may manage it beside the Owner. Unused on a 👤 |
 | `created_at`, `at` | when it was made and last changed; the daemon's, never a caller's |
@@ -145,10 +133,8 @@ At load, `addr` and `protocol` on a stored record other than a service are
 dropped, with a warning naming its kind and record: “carried an address or
 protocol, which only a service has; they are dropped”.
 
-What a listing adds — `reading`, `readers`, `queued`, `in`, `out`, `dropped`,
-`expired`, `oldest`, `last_used`, `can_manage`, `route_allowed` — is observed
-live and answered, never stored, and a registration stating any of it is
-refused ([discovery](05-discovery.md#what-a-listing-answers)).
+- Listings also report `reading`, `readers`, `queued`, `in`, `out`, `dropped`, `expired`, `oldest`, `last_used`, `can_manage` and `route_allowed`.
+- These are observations or derived permissions, not editable registration fields ([discovery](05-discovery.md#what-a-listing-answers)). Activity and counters follow their [persistence rules](04-messaging.md#durability).
 
 ## How to call it
 
@@ -160,7 +146,8 @@ named in lists and a 📚 is read through MCP.
 
 | Kind | How a caller reaches it |
 |---|---|
-| 👤 👾 📮 📣 | **send to the name**: the daemon puts the message in its [queue](04-messaging.md#inbox-queues), and whoever reads it takes it |
+| 👤 👾 📮 | **send to the name**: its [inbox](04-messaging.md#inbox-queues) holds the message for a reader |
+| 📣 | **publish or send to the name**: it copies the message to eligible Deliver-To recipients and retains no message itself |
 | 📡 | **call it directly** at its own address ([services § how to call it](03-records-service.md#how-to-call-it)) |
 | 👥 📚 | neither: a Group is named in lists, and a resource is read through MCP |
 
@@ -192,10 +179,9 @@ labels are separate from the envelope's message-correlation `tag`.
   naming the tag, never silently removed. Stored invalid tags are dropped
   individually at startup with a warning; their record remains.
 - Duplicates are removed and labels sorted. `no-tags` is reserved for the empty-tag filter: it is neither stored nor
-  added to API records. Startup removes it from legacy stored records in one
-  idempotent transaction.
+  added to API records. Startup removes it from stored records in one transaction.
 - `personal` retains every [Personal rule](#personal-and-shared). Existing
-  Personal records acquire this label on load. The old `personal` field remains
+  Personal records acquire this label on load. The `personal` field remains
   a compatibility mirror; tags are the edit control.
 
 <details>
@@ -203,8 +189,8 @@ labels are separate from the envelope's message-correlation `tag`.
 
 - Registration adds tags to the existing set; it cannot change the Owner's Personal classification.
 - Manage replaces the stated set; `--remove-tags` removes labels, and `--add-to-set-tags` adds without removing others.
-- Changing `personal` needs the same Owner authority and audience validation as before.
-- At creation, a legacy Personal flag or a `personal` label enables it.
+- Changing `personal` requires Owner authority and audience validation.
+- At creation, the `personal` flag or a `personal` label enables it.
 - An edit that supplies conflicting flag and label values is refused.
 
 - Launchers add `claude`, `codex` or `opencode`.
@@ -220,8 +206,7 @@ labels are separate from the envelope's message-correlation `tag`.
 - All/My counts ignore their own scope and tag choice.
 - Counts never include inaccessible records.
 - Tags sort by count descending then label ascending; the first 25 and the selected tag stay visible, with the rest expandable.
-- One tag is selected at a time.
-- A multiple-tag query is comma-delimited (`ls --tag=a,b`, or the option repeated: `ls --tag=a --tag=b`) and selects the records carrying every label listed, in any order; one label selects what it always did. An unknown label gives an empty listing, and `no-tags` beside another tag is refused, since a record has no tags or has that one. An empty value (`--tag=`, alone or repeated, on `ls`, `call --tagged` and `#bus ls`) is refused by name rather than read as no filter. The web page still selects one tag at a time.
+- A multiple-tag query is comma-delimited (`ls --tag=a,b`, or the option repeated: `ls --tag=a --tag=b`) and selects the records carrying every label listed, in any order; one label selects what it always did. An unknown label gives an empty listing, and `no-tags` beside another tag is refused, since a record has no tags or has that one. An empty value (`--tag=`, alone or repeated, on `ls`, `call --tagged` and `#bus ls`) is refused by name rather than read as no filter. The web page selects one tag at a time.
 
 </details>
 
@@ -242,7 +227,7 @@ nothing from those already allowed.
 | `allow` and `maintainers` | only the Owner, the Owner's own agents by name, and the runtime [`@owner` and `@agent` terms](02-access.md#acl) |
 | Refused | another user's agent, an ordinary group, a user entry other than the Owner, and the [wildcard grant](02-access.md#acl) — each an error on every save, at creation and after it |
 | Everything else | unaffected: delivery, `deliver_to` and forwarding behave as on a shared record |
-| Main web pages | exclude Personal records; each kind's list shows them under its `?personal=1` filter |
+| Main web pages | hide Personal records by default; the Personal filter or a matching tag includes caller-visible Personal records ([browse counts](#tags)) |
 | Launchers | the [`ab-*` launchers](06-launchers.md#session-names) register their session agents Personal, with `@owner` in the ACL |
 
 </details>
