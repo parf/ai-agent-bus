@@ -70,9 +70,9 @@ See [record names](constitution.md#common-record-fields) for the reference and [
 
 ## Positions and scopes
 
-**Administrator** manages daemon users and groups. **Maintainer** manages an
-explicitly assigned record. These are separate positions; a resource **Member**
-has basic access and can be a user or another record.
+- 🛡️ **Administrator** — manages users and groups on the bus. This position does not grant control over their records.
+- 🛠️ **Maintainer** — manages the records explicitly assigned to them.
+- 🔑 **Member** — may use a record through its access list. A member can be a person or another record.
 
 <details>
 <summary>Diagram: separate position scopes</summary>
