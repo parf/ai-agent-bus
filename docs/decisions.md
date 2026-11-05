@@ -44,6 +44,7 @@ Follow each link for the full behavior and limits.
 
 - [Dedicated scripts](06-dedicated-runner.md#script-agents) use one foreground reader; [installed agents](runner/README.md) use the runner for supervision and configuration.
 - [Agent metadata](constitution.md#agent-self-description) lives with the agent's package, where methods and settings can change together.
+- [A package may be a linked checkout](runner/operations.md#install-a-custom-package): an owner develops an agent in its own git checkout and links it in, without a copy step.
 - [Temporary controls and persisted enablement](runner/operations.md#controlling-one-agent) are separate so stopping work now does not silently change what starts later.
 - [Host secrets](runner/security.md#secrets) stay under host access; bus-visible metadata need not disclose their values.
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/parf/ai-agent-bus/internal/protocol"
@@ -193,6 +194,82 @@ func TestBundledDirectoryDefaultsDistinguishGitFromReleaseLinks(t *testing.T) {
 		}
 		if got := bundledDirectory(link); got != tc.want {
 			t.Fatalf("%s default: %s, want %s", tc.name, got, tc.want)
+		}
+	}
+}
+
+// An owner may check an agent out anywhere and link it into agent.d; the link
+// target is the package. Links inside a package stay refused.
+func TestLinkedPackageLoadsFromItsCheckout(t *testing.T) {
+	r, b, script := configurationFixture(t, "", "printf old")
+	if err := os.RemoveAll(filepath.Dir(script)); err != nil {
+		t.Fatal(err)
+	}
+	checkout := directoryAgent(t, t.TempDir(), "fixture", "linked")
+	if err := os.Symlink(checkout, filepath.Join(r.agents, "fixture")); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(r.host, "agents.json"), `{"fixture":{"sandbox":"off","enabled":true}}`)
+	r.reload()
+	row := directoryRow(t, r, "fixture")
+	if !row.Enabled || row.AgentDir != checkout {
+		t.Fatalf("linked package: %+v, want code from %s", row, checkout)
+	}
+	want, err := packageDigest(checkout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.mu.Lock()
+	var digest string
+	for _, in := range r.installed {
+		if in.Key == "fixture" {
+			digest = in.Digest
+		}
+	}
+	r.mu.Unlock()
+	if digest != want {
+		t.Fatalf("linked package digest %q, want the checkout's %q", digest, want)
+	}
+	if _, err := b.Send(protocol.Envelope{From: "owner@h", To: "#fixture@h", Body: "hello"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := configurationReply(t, b); got.Body != "linked" {
+		t.Fatalf("linked command/defaults answered %q", got.Body)
+	}
+	file, err := r.readFile("agent.d/fixture/env.dist")
+	if err != nil || file.Content == nil || *file.Content != "FLAVOUR=linked\n" {
+		t.Fatalf("read through a linked package: %+v %v", file, err)
+	}
+	// A link inside the package is still refused.
+	other := filepath.Join(t.TempDir(), "env.dist")
+	writeFile(t, other, "FLAVOUR=elsewhere\n")
+	if err := os.Remove(filepath.Join(checkout, "env.dist")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(other, filepath.Join(checkout, "env.dist")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.readFile("agent.d/fixture/env.dist"); err == nil || !strings.Contains(err.Error(), "symbolic link") {
+		t.Fatalf("link inside a linked package: %v", err)
+	}
+}
+
+func TestBrokenPackageLinkIsRefusedByName(t *testing.T) {
+	root, host := t.TempDir(), t.TempDir()
+	file := filepath.Join(t.TempDir(), "plain")
+	writeFile(t, file, "")
+	for name, target := range map[string]string{"dangling": filepath.Join(root, "absent"), "tofile": file} {
+		if err := os.Symlink(target, filepath.Join(root, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	list, err := loadSources([]agentSource{{path: root}}, host)
+	if err != nil || len(list) != 2 {
+		t.Fatalf("broken links: %+v %v", list, err)
+	}
+	for _, in := range list {
+		if in.Refused == "" || !strings.Contains(in.Refused, filepath.Join(root, in.Key)) || !strings.Contains(in.Refused, "symbolic link") {
+			t.Fatalf("broken link %s not refused by name: %+v", in.Key, in)
 		}
 	}
 }

@@ -53,6 +53,7 @@ type installed struct {
 	Key          string // <agent> or <agent>/<instance>, the agents.json key
 	Dir          string // the package name, shared by host settings
 	Source       string // directory containing the selected package
+	Path         string // the package's own directory, a symbolic link's target resolved
 	Bundled      bool   // requires an explicit enabled:true
 	Digest       string // installed package files at load
 	Agent        agentFile
@@ -188,11 +189,20 @@ func loadSources(sources []agentSource, runnerDir string) ([]installed, error) {
 			return nil, err
 		}
 		for _, e := range entries {
-			if !e.IsDir() || strings.HasPrefix(e.Name(), ".") {
+			if strings.HasPrefix(e.Name(), ".") {
 				continue
 			}
 			dir := e.Name()
 			if packages[dir] {
+				continue
+			}
+			path, ok, err := packagePath(agentDir, dir)
+			if !ok {
+				continue
+			}
+			if err != nil {
+				packages[dir], seen[dir] = true, true
+				out = append(out, installed{Key: dir, Dir: dir, Source: agentDir, Bundled: source.bundled, Refused: err.Error()})
 				continue
 			}
 			if source.bundled {
@@ -218,7 +228,7 @@ func loadSources(sources []agentSource, runnerDir string) ([]installed, error) {
 			packages[dir] = true
 			digest := ""
 			if refused == "" {
-				digest, err = packageDigest(filepath.Join(agentDir, dir))
+				digest, err = packageDigest(path)
 				if err != nil {
 					refused = err.Error()
 				}
@@ -236,7 +246,7 @@ func loadSources(sources []agentSource, runnerDir string) ([]installed, error) {
 			sort.Strings(keys)
 			for _, k := range keys {
 				seen[k] = true
-				in := installed{Key: k, Dir: dir, Source: agentDir, Bundled: source.bundled, Digest: digest, Agent: a, Host: host[k], Span: sp, Refused: refused}
+				in := installed{Key: k, Dir: dir, Source: agentDir, Path: path, Bundled: source.bundled, Digest: digest, Agent: a, Host: host[k], Span: sp, Refused: refused}
 				if refused == "" {
 					if o, osp, ok, err := overridden(runnerDir, dir, k, author); err != nil {
 						in.Refused = err.Error()

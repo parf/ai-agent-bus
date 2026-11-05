@@ -96,7 +96,7 @@ The [dedicated runner](../06-dedicated-runner.md#sandboxing) is off by default. 
 - **It reads as that agent,** secret and inbox alike, so the answer leaves under the name that was addressed.
 - **An agent that already exists is refused by name** until you hand its token over once.
 - **Taking it over,** the runner clears the `script` an earlier `agent-bus run` left on the record, so listings no longer name a program that does not serve it.
-- **Author settings** (`agent.json` and `env.dist`), including their packaged help, are read only from regular files; a final symlink is refused by filename.
+- **Author settings** (`agent.json` and `env.dist`), including their packaged help, are read only from regular files; a final symlink is refused by filename. The package directory itself may be a link to a checkout; its target's writers then control the agent's code ([linked checkout](operations.md#install-a-custom-package)).
 
 - The Owner provisions the token in the runner’s private `tokens/` directory, named for the percent-encoded full agent name.
 - Use mode `0600`, owned by the runner account, then reload. Keep tokens out of command arguments and transcripts.

@@ -147,7 +147,7 @@ Replace the name with the one from your listing. The answer includes each agent'
 
 - **Example:** `create mail/home` adds an instance; `write runner/mail/home/env` with `IMAP_USER=carol` on the next line sets its variable.
 - **Each `status` row has a `key`,** the `<agent>` or `<agent>/<instance>` its files are named by.
-- **A path through a symbolic link is refused.**
+- **A path through a symbolic link is refused,** except the package directory itself ([linked checkout](#install-a-custom-package)).
 - **`tokens` and `work` under `runner/` are the runner's own,** so an agent of either name has its author's files read and no host files or instances.
 
 ## Installing, changing and removing an agent
@@ -163,6 +163,10 @@ Bundled agents stay off until explicitly enabled. Do not copy or build a second 
 ### Install a custom package
 
 Install reviewed code into the host's shared `agent.d/<agent>` directory, with its `agent.json` and `env.dist`, then configure and reload. Custom-package directories can run without an inventory entry; disable the entry while preparing credentials and access.
+
+- **A linked checkout works:** `agent.d/<agent>` may be a symbolic link to a directory, such as a git checkout elsewhere: `sudo ln -s /home/carol/src/hello /var/lib/agent-bus/agent.d/hello`, then `reload`. The runner reads and runs the link's target.
+- **Whoever can write the target changes the agent's code,** and the runner account must be able to read it.
+- **A link to nothing, or to a file, is refused by name.** Links inside the package stay refused.
 
 An inventory entry can disable a package, name it explicitly or declare its instances. The [directory-selection rules](configuration.md#agent-directories) explain shared packages and bundled fallback.
 
@@ -201,6 +205,7 @@ Every reason is a sentence in the `status` row and in the journal. The common on
 | `an agent that serves itself takes a fixed count of processes` | give `processes` a number, not a range |
 | `a template: configure an instance under runner/mail/<instance>/env (it needs IMAP_USER)` | `env.dist` requires a variable, so the agent runs only as a configured instance |
 | `needs IMAP_USER` | that instance is still missing one |
+| `…/agent.d/hello is a symbolic link that leads nowhere: …` or `… which is not a directory` | point the link at the package's directory, or remove it |
 | `agents.json: no agent mail is installed in agent.d` | an entry naming nothing installed — usually a typo left to look harmless |
 | `the sandbox is on and this host cannot give the agent a cgroup: …` | the runner's unit lacks a delegated cgroup subtree; reinstall it with setup, or turn the sandbox off for that agent ([isolation](security.md#isolation-today)) |
 | `it needs 2G of memory and this host gives it … bytes (limits.memory)` | raise the host's `limits.memory` for it, or lower its `needs.memory` ([limits](configuration.md#limits)) |

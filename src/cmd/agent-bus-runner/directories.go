@@ -53,6 +53,9 @@ func (r *runner) sources() []agentSource {
 }
 
 func (r *runner) codeDir(in installed) string {
+	if in.Path != "" {
+		return in.Path
+	}
 	root := in.Source
 	if root == "" {
 		root = r.agents
@@ -60,19 +63,44 @@ func (r *runner) codeDir(in installed) string {
 	return filepath.Join(root, in.Dir)
 }
 
+// packagePath answers where the package named name under source lives: the
+// directory itself, or the directory a symbolic link there points to, such as
+// a git checkout linked in by hand. Any other entry is not a package (false);
+// a link to anything but a directory is refused by name, never skipped.
+func packagePath(source, name string) (string, bool, error) {
+	p := filepath.Join(source, name)
+	fi, err := os.Lstat(p)
+	if err != nil {
+		return "", false, err
+	}
+	if fi.IsDir() {
+		return p, true, nil
+	}
+	if fi.Mode()&os.ModeSymlink == 0 {
+		return "", false, nil
+	}
+	real, err := filepath.EvalSymlinks(p)
+	if err != nil {
+		return "", true, fmt.Errorf("%s is a symbolic link that leads nowhere: %v", p, err)
+	}
+	if st, err := os.Stat(real); err != nil || !st.IsDir() {
+		return "", true, fmt.Errorf("%s is a symbolic link to %s, which is not a directory", p, real)
+	}
+	return real, true, nil
+}
+
 // File controls use the same first-wins choice as loading. Host files stay
 // under runner/<name>; only the read-only author's root changes.
 func (r *runner) packageRoot(name string) (string, error) {
 	for _, source := range r.sources() {
-		dir := filepath.Join(source.path, name)
-		fi, err := os.Lstat(dir)
+		dir, ok, err := packagePath(source.path, name)
 		if os.IsNotExist(err) {
 			continue
 		}
 		if err != nil {
 			return "", err
 		}
-		if !fi.IsDir() {
+		if !ok {
 			continue
 		}
 		if source.bundled {

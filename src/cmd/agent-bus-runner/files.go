@@ -82,7 +82,12 @@ func (r *runner) hostFile(name string) (string, string, error) {
 		if err != nil {
 			return "", "", err
 		}
-		return filepath.Join(root, parts[1], last), fileAuthor, r.noLinks(root, parts[1:]...)
+		// The package itself may be a linked checkout; nothing inside it may link.
+		pkg, _, err := packagePath(root, parts[1])
+		if err != nil {
+			return "", "", err
+		}
+		return filepath.Join(pkg, last), fileAuthor, r.noLinks(pkg, last)
 	case base == "runner" && len(parts) == 2 && last == "agents.json":
 		return filepath.Join(r.host, last), fileAgents, r.noLinks(r.host, last)
 	case base == "runner" && len(parts) >= 3 && (last == "env" || last == "agent.json"):
