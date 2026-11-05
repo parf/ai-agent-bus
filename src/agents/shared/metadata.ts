@@ -1,6 +1,6 @@
 // Bare/self-serving fallback for the runner's manifest-generated help contract.
 // This reads authored declarations only, never runtime Secret/env values.
-import { VERSION } from "../../clients/typescript/src/version.ts";
+import { VERSION } from "./version.ts";
 type Field = { help: string; type?: string | string[]; example?: unknown; default?: unknown };
 type Arg = Partial<Field> & { name: string; optional?: boolean; rest?: boolean; json_only?: boolean };
 type Method = Field & { args?: Arg[]; returns?: string; role?: string | string[]; destructive?: boolean; text?: string; example?: string };

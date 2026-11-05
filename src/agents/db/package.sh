@@ -11,9 +11,9 @@ install -m 0644 "$here/agent.json" "$here/env.dist" "$here/../../../LICENSE.md" 
 install -d -m 0755 "$dest/licenses"
 install -m 0644 "$here/../../../licenses/NOTICE.md" "$dest/licenses/NOTICE.md"
 
-mkdir -p "$dest/support/agents/shared" "$dest/support/internal/version" "$dest/support/lib"
+mkdir -p "$dest/support/agents/shared" "$dest/support/lib"
 install -m 0644 "$here/../shared/metadata.py" "$here/../shared/provider_http.py" "$dest/support/agents/shared/"
-install -m 0644 "$here/../../internal/version/VERSION" "$dest/support/internal/version/"
+install -m 0644 "$here/../VERSION" "$dest/support/agents/VERSION"
 # The drivers come from the pinned wheels in requirements.txt, never from the host's
 # site-packages, whose metadata varies by machine (J67). AB_DB_WHEELS names a directory
 # of those wheels for an offline build; AB_DB_REQUIREMENTS replaces the pin file (tests).

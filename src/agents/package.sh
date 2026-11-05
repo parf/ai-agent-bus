@@ -49,6 +49,7 @@ mkdir -p "$dest/clients/python/agent_bus" "$dest/internal/version"
 install -m 0644 "$here"/../clients/python/agent_bus/*.py "$dest/clients/python/agent_bus/"
 install -m 0644 "$here/../clients/LICENSE.md" "$dest/clients/LICENSE.md"
 install -m 0644 "$here/../internal/version/VERSION" "$dest/internal/version/VERSION"
+install -m 0644 "$here/VERSION" "$dest/agents/VERSION"
 
 install -m 0644 "$here/../../LICENSE.md" "$dest/agents/LICENSE.md"
 install -d -m 0755 "$dest/agents/licenses"

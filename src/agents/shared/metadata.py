@@ -6,7 +6,8 @@ import shlex
 from pathlib import Path
 
 ASKS = ['help', 'help-config', 'help-secret', 'help-json']
-VERSION = (Path(__file__).resolve().parents[2] / 'internal/version/VERSION').read_text().strip()
+# The agent pack's own SemVer, not the bus version (CLAUDE.md § versioning).
+VERSION = (Path(__file__).resolve().parents[1] / 'VERSION').read_text().strip()
 
 
 def secrets(source):

@@ -6,6 +6,7 @@ dest=${1:?usage: package.sh <agent.d/discord>}
 tmp=$(mktemp -d "${dest%/}.new.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
 AGENT_BUS_BUILD_VERSION=$(cat "$here/../../internal/version/VERSION") \
+AGENT_BUS_BUILD_AGENTS_VERSION=$(cat "$here/../VERSION") \
   bun build "$here/discord.ts" --target=bun --outfile "$tmp/discord.js" --env 'AGENT_BUS_BUILD_*' >/dev/null
 install -d -m 0755 "$tmp/licenses"
 install -m 0644 "$here/../../../licenses/NOTICE.md" "$tmp/licenses/NOTICE.md"

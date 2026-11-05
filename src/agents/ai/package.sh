@@ -16,4 +16,5 @@ install -m 0644 "$here/../shared/metadata.py" "$here/../shared/provider_http.py"
 install -m 0644 "$here/../../clients/python/agent_bus/"*.py "$dest/support/clients/python/agent_bus/"
 install -m 0644 "$here/../../clients/LICENSE.md" "$dest/support/clients/LICENSE.md"
 install -m 0644 "$here/../../internal/version/VERSION" "$dest/support/internal/version/"
+install -m 0644 "$here/../VERSION" "$dest/support/agents/VERSION"
 package_commit

@@ -24,6 +24,7 @@ test("the package is self-contained and names its bundle", () => {
     expect(bundle).not.toMatch(/from\s+["']\.\.\//);
     // Nor reads a file of the checkout's: the version is written in.
     expect(bundle).not.toContain("internal/version/VERSION");
+    expect(bundle).not.toContain("../VERSION");
     expect(bundle).toContain("class Subscriptions");
     expect(bundle).toContain("admission_refused");
     expect(bundle).toContain("filter_invalid");

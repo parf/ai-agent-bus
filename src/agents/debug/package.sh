@@ -11,6 +11,7 @@ cp "$here/../shared/metadata.py" "$tmp/support/agents/shared/"
 cp -r "$here/../../clients/python/agent_bus" "$tmp/support/clients/python/"
 find "$tmp" -type d -name __pycache__ -exec rm -rf {} +
 cp "$here/../../internal/version/VERSION" "$tmp/support/internal/version/"
+cp "$here/../VERSION" "$tmp/support/agents/VERSION"
 cp "$here/../../clients/LICENSE.md" "$tmp/support/clients/LICENSE.md"
 cp "$here/../../../LICENSE.md" "$tmp/LICENSE.md"
 chmod -R a+rX "$tmp"

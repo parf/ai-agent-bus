@@ -13,6 +13,7 @@ trap 'rm -rf "$tmp"' EXIT
 # The client reads the bus's version file beside the checkout; the bundle has
 # no checkout around it, so the version is written in at build time.
 AGENT_BUS_BUILD_VERSION=$(cat "$here/../../internal/version/VERSION") \
+AGENT_BUS_BUILD_AGENTS_VERSION=$(cat "$here/../VERSION") \
   bun build "$here/telegram.ts" --target=bun --outfile "$tmp/telegram.js" \
   --env 'AGENT_BUS_BUILD_*' >/dev/null
 # The bundle keeps telegram.ts's own #! line; one is added only if it is gone.
