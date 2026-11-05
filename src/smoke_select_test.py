@@ -13,20 +13,38 @@ class Selection(unittest.TestCase):
     def plan(self, paths, mode='normal', targets=''):
         return selector.plan(ROOT, mode, targets, paths)
 
-    def test_telegram_leaf_keeps_other_faces_fast(self):
-        p = self.plan(['src/agents/telegram/receive.ts'])
-        self.assertEqual(p['checks']['agent_telegram'], 'normal')
-        self.assertEqual(p['checks']['agent_slack'], 'fast')
-        self.assertEqual(p['modes']['A'], 'fast')
-        self.assertEqual(self.plan(['src/agents/telegram/receive.ts'], 'fast')['checks']['agent_slack'], 'skip')
+    def test_one_agent_runs_only_its_own_checks_and_the_pack_contract(self):
+        for mode in ('normal', 'fast'):
+            p = self.plan(['src/agents/telegram/receive.ts'], mode)
+            self.assertTrue(p['agents_only'])
+            self.assertEqual(p['checks']['agent_telegram'], mode)
+            self.assertEqual(p['checks']['agent_pack'], mode)
+            running = {name for name, level in p['checks'].items() if level != 'skip'}
+            self.assertEqual(running, {'agent_telegram', 'agent_pack'}, mode)
+
+    def test_a_shared_agent_helper_runs_the_agents_that_use_it_and_no_other(self):
+        p = self.plan(['src/agents/shared/mail.py'])
+        running = {name for name, level in p['checks'].items() if level != 'skip'}
+        self.assertEqual(running, {'agent_smtp', 'agent_imap', 'agent_pack'})
+
+    def test_a_daemon_or_runner_change_runs_the_agents_at_fast_only(self):
+        for path in ('src/internal/core/core.go', 'src/internal/protocol/envelope.go',
+                     'src/cmd/agent-bus-runner/serve.go', 'src/package.sh'):
+            with self.subTest(path=path):
+                p = self.plan([path])
+                self.assertFalse(p['agents_only'])
+                self.assertEqual(p['modes']['L'], 'fast')
+                agents = {level for name, level in p['checks'].items() if name.startswith('agent_') and name != 'agent_guide'}
+                self.assertEqual(agents - {'skip'}, {'fast'}, path)
 
     def test_imap_changes_include_bundle_and_runtime_contract_checks(self):
         for path in ('imap.py', 'agent.json', 'folders.py', 'package.sh'):
             with self.subTest(path=path):
                 plan = self.plan(['src/agents/imap/' + path])
-                for shard in ('go_checks', 'go_unit', 'go_release'):
-                    self.assertEqual(plan['checks'][shard], 'normal', shard)
-                self.assertEqual(plan['checks']['agent_slack'], 'fast')
+                self.assertEqual(plan['checks']['agent_imap'], 'normal')
+                self.assertEqual(plan['checks']['agent_pack'], 'normal')
+                for shard in ('go_checks', 'go_unit', 'go_release', 'agent_slack'):
+                    self.assertEqual(plan['checks'][shard], 'skip', shard)
 
     def test_every_bundled_manifest_selects_the_runner_reload_gate(self):
         import json
@@ -36,11 +54,10 @@ class Selection(unittest.TestCase):
         for path in manifests:
             rel = path.relative_to(ROOT).as_posix()
             with self.subTest(path=rel):
-                self.assertEqual(self.plan([rel], 'fast')['checks']['go_unit'], 'fast')
-                self.assertEqual(self.plan([rel], 'normal')['checks']['go_unit'], 'normal')
-        commands = json.loads((ROOT / 'src/smoke-map.json').read_text())['fast']['go_unit']
-        self.assertIn({'argv': ['go', 'test', '-count=1', './cmd/agent-bus-runner',
-                               '-run', '^TestEveryBundledManifestPassesRunnerReload$']}, commands)
+                self.assertEqual(self.plan([rel], 'fast')['checks']['agent_pack'], 'fast')
+                self.assertEqual(self.plan([rel], 'normal')['checks']['agent_pack'], 'normal')
+        shard = (ROOT / 'src/agents/smoke.sh').read_text()
+        self.assertIn("./cmd/agent-bus-runner -run '^TestEveryBundledManifestPassesRunnerReload$'", shard)
 
     def test_every_agent_manifest_selects_setup_runtime_checks_with_its_reason(self):
         manifests = sorted((ROOT / 'src/agents').rglob('agent.json'))
@@ -49,7 +66,7 @@ class Selection(unittest.TestCase):
         for path in manifests:
             with self.subTest(path=path):
                 plan = self.plan([path], 'normal')
-                self.assertEqual(plan['checks']['go_unit'], 'normal', path + ': setup runtime tests omitted')
+                self.assertEqual(plan['checks']['agent_pack'], 'normal', path + ': setup runtime tests omitted')
                 self.assertEqual(plan['reasons']['L'], 'changed: ' + path)
 
     def test_rag_manifest_selection_output_names_the_reason(self):
@@ -73,7 +90,9 @@ class Selection(unittest.TestCase):
             run = subprocess.run(['python3',str(repo/'src/smoke-select.py'),'--mode','normal','--out',str(repo/'plan')],capture_output=True,text=True,timeout=10)
             self.assertEqual(run.returncode,0,run.stdout+run.stderr)
             self.assertIn('L: normal — changed: src/agents/rag/agent.json',run.stdout)
-            self.assertIn('check go_unit: normal',run.stdout)
+            self.assertIn('check agent_pack: normal',run.stdout)
+            self.assertIn('agent pack only',run.stdout)
+            self.assertNotIn('check go_unit',run.stdout)
 
     def test_shared_router_selects_both_platforms(self):
         p = self.plan(['src/agents/shared/router.ts'])
@@ -87,19 +106,22 @@ class Selection(unittest.TestCase):
 
     def test_lower_layer_includes_reverse_dependencies(self):
         p = self.plan(['src/internal/protocol/envelope.go'])
-        for letter in 'ABCEFGHIJKL': self.assertEqual(p['modes'][letter], 'normal', letter)
+        for letter in 'ABCEFGHIJK': self.assertEqual(p['modes'][letter], 'normal', letter)
+        self.assertEqual(p['modes']['L'], 'fast')
         p = self.plan(['src/internal/core/core.go'])
         self.assertEqual(p['modes']['I'], 'normal')
-        self.assertEqual(p['checks']['agent_telegram'], 'normal')
+        self.assertEqual(p['checks']['agent_telegram'], 'fast')
 
     def test_version_and_every_root_changelog_are_always_ignored(self):
-        for paths in (['src/internal/version/VERSION'], ['CHANGELOG.0.9.md'], ['CHANGELOG.manual.md']):
+        for paths in (['src/internal/version/VERSION'], ['CHANGELOG.0.9.md'], ['CHANGELOG.manual.md'],
+                      ['src/agents/VERSION'], ['src/agents/CHANGELOG.md']):
             p = self.plan(paths)
             self.assertEqual(p['fallback'], 'nothing changed: all fast')
             self.assertEqual(set(p['modes'].values()), {'fast'})
             self.assertEqual(set(p['checks'].values()), {'fast','skip'})
         p = self.plan(['CHANGELOG.0.9.md', 'src/agents/telegram/config.ts'])
-        self.assertEqual(p['checks']['agent_slack'], 'fast')
+        self.assertEqual(p['checks']['agent_slack'], 'skip')
+        self.assertEqual(p['checks']['agent_telegram'], 'normal')
 
     def test_container_image_is_its_own_subsystem(self):
         p = self.plan(['src/container/Containerfile'])

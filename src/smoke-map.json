@@ -58,13 +58,13 @@
       "tags": "M"
     },
     "go_checks": {
-      "tags": "ABCDEFGHKLM"
+      "tags": "ABCDEFGHKM"
     },
     "go_unit": {
-      "tags": "ABCDEFGHKLM"
+      "tags": "ABCDEFGHKM"
     },
     "go_release": {
-      "tags": "ABCDEFGHKLM"
+      "tags": "ABCDEFGHKM"
     },
     "process_titles": {
       "tags": "GHM"
@@ -212,7 +212,16 @@
       "tags": "L",
       "paths": [
         "src/agents/slack/",
-        "src/agents/shared/",
+        "src/agents/shared/asks.ts",
+        "src/agents/shared/envfile.ts",
+        "src/agents/shared/metadata.ts",
+        "src/agents/shared/names.ts",
+        "src/agents/shared/own.ts",
+        "src/agents/shared/router.ts",
+        "src/agents/shared/subscriptions.ts",
+        "src/agents/shared/subscription-port.ts",
+        "src/agents/shared/subscriptions.test.ts",
+        "src/agents/shared/version.ts",
         "src/testdata/subscriptions.json"
       ]
     },
@@ -220,32 +229,41 @@
       "tags": "L",
       "paths": [
         "src/agents/telegram/",
-        "src/agents/shared/"
+        "src/agents/shared/asks.ts",
+        "src/agents/shared/envfile.ts",
+        "src/agents/shared/metadata.ts",
+        "src/agents/shared/names.ts",
+        "src/agents/shared/own.ts",
+        "src/agents/shared/router.ts",
+        "src/agents/shared/subscriptions.ts",
+        "src/agents/shared/subscription-port.ts",
+        "src/agents/shared/subscriptions.test.ts",
+        "src/agents/shared/version.ts"
       ]
     },
     "agent_server_info": {
-      "tags": "GL",
+      "tags": "L",
       "paths": [
         "src/agents/standalone/server-info/",
         "src/agents/standalone/install.py"
       ]
     },
     "agent_systemd": {
-      "tags": "FGL",
+      "tags": "L",
       "paths": [
         "src/agents/standalone/systemd/",
         "src/agents/standalone/install.py"
       ]
     },
     "agent_git": {
-      "tags": "BGL",
+      "tags": "L",
       "paths": [
         "src/agents/standalone/git/",
         "src/agents/standalone/install.py"
       ]
     },
     "agent_logwatch": {
-      "tags": "CGL",
+      "tags": "L",
       "paths": [
         "src/agents/standalone/logwatch/",
         "src/agents/standalone/install.py"
@@ -261,42 +279,46 @@
       "tags": "L",
       "paths": [
         "src/agents/ai/",
-        "src/agents/shared/"
+        "src/agents/shared/metadata.py",
+        "src/agents/shared/provider_http.py"
       ]
     },
     "agent_sms": {
       "tags": "L",
       "paths": [
         "src/agents/sms-telnyx/",
-        "src/agents/shared/"
+        "src/agents/shared/metadata.py"
       ]
     },
     "agent_voyage": {
       "tags": "L",
       "paths": [
         "src/agents/voyage/",
-        "src/agents/shared/"
+        "src/agents/shared/metadata.py",
+        "src/agents/shared/provider_http.py"
       ]
     },
     "agent_db": {
       "tags": "L",
       "paths": [
         "src/agents/db/",
-        "src/agents/shared/"
+        "src/agents/shared/metadata.py",
+        "src/agents/shared/provider_http.py"
       ]
     },
     "agent_qdrant": {
       "tags": "L",
       "paths": [
         "src/agents/qdrant/",
-        "src/agents/shared/"
+        "src/agents/shared/metadata.py",
+        "src/agents/shared/provider_http.py"
       ]
     },
     "agent_rag": {
       "tags": "L",
       "paths": [
         "src/agents/rag/",
-        "src/agents/shared/",
+        "src/agents/shared/metadata.py",
         "src/clients/python/"
       ]
     },
@@ -337,7 +359,8 @@
       "tags": "L",
       "paths": [
         "src/agents/webhook/",
-        "src/agents/shared/",
+        "src/agents/shared/envfile.py",
+        "src/agents/shared/metadata.py",
         "src/clients/python/"
       ]
     },
@@ -420,10 +443,22 @@
       "tags": "L",
       "paths": [
         "src/agents/discord/",
-        "src/agents/shared/",
+        "src/agents/shared/asks.ts",
+        "src/agents/shared/envfile.ts",
+        "src/agents/shared/metadata.ts",
+        "src/agents/shared/names.ts",
+        "src/agents/shared/own.ts",
+        "src/agents/shared/router.ts",
+        "src/agents/shared/subscriptions.ts",
+        "src/agents/shared/subscription-port.ts",
+        "src/agents/shared/subscriptions.test.ts",
+        "src/agents/shared/version.ts",
         "src/agents/slack/daemon.ts",
         "src/testdata/subscriptions.json"
       ]
+    },
+    "agent_pack": {
+      "tags": "L"
     },
     "agent_packages": {
       "tags": "L",
@@ -551,35 +586,9 @@
           "smoke_privacy_test.py",
           "-v"
         ]
-      },
-      {
-        "argv": [
-          "python3",
-          "-B",
-          "-m",
-          "unittest",
-          "discover",
-          "-s",
-          "agents",
-          "-p",
-          "agent_docs_test.py",
-          "-v"
-        ]
-      },
-      {
-        "argv": [
-          "python3",
-          "-B",
-          "-m",
-          "unittest",
-          "discover",
-          "-s",
-          "agents",
-          "-p",
-          "docs_order_test.py",
-          "-v"
-        ]
-      },
+      }
+    ],
+    "agent_pack": [
       {
         "argv": [
           "python3",

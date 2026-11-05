@@ -85,7 +85,7 @@ export GOCACHE=${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/go-build}
 # In file order of their first section. `core` is the serial run the fast mode
 # always was, in one process against one daemon; every other shard is a
 # section that is slow or keeps a daemon of its own, moved out of it.
-SHARDS=(core go_checks go_unit go_release agent_packages process_titles readers call_damage reply_to script_inbox
+SHARDS=(core go_checks go_unit go_release agent_pack agent_packages process_titles readers call_damage reply_to script_inbox
   script_done script_confined listing backlog ttl full_queue enrolment restart
   orphans transfer corrupt_pair supervisor
   mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename web_ts samples tls_port
@@ -105,6 +105,7 @@ fi
 source ./smoke-port.sh
 source ./smoke-gofail.sh
 source ./smoke-bun.sh
+source ./agents/smoke.sh
 smoke_port $((15 * ${#SHARDS[@]})) || exit 2
 
 if [ -n "${SMOKE_TEST_PATTERN:-}" ]; then
@@ -461,12 +462,6 @@ ok_exit "smoke port claim contract" "$rc"
 out=$(bash ./acceptance/guard-lock.test.sh 2>&1); rc=$?
 ok_exit "a private-store podman harness refuses to start a container nobody holds the smoke-gate lock for (J32)" "$rc"
 [ "$rc" = 0 ] || echo "$out"
-out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents -p agent_docs_test.py -v 2>&1); rc=$?
-ok_exit "every bundled agent has its page, index entry and docs link" "$rc"
-[ "$rc" = 0 ] || echo "$out"
-out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents -p docs_order_test.py -v 2>&1); rc=$?
-ok_exit "the docs-order checker fails each way a page can break the rule, and the enforced pages follow it" "$rc"
-[ "$rc" = 0 ] || echo "$out"
 out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s . -p smoke_agent_pool_test.py -v 2>&1); rc=$?
 ok_exit "agent file pool accounts for every assertion" "$rc"
 [ "$rc" = 0 ] || echo "$out"
@@ -476,12 +471,6 @@ ok_exit "under pipefail a draining grep or line selector reports a large produce
 [ "$rc" = 0 ] || echo "$out"
 out=$(bash ./release-verify.test.sh 2>&1); rc=$?
 ok_exit "release-verify.sh fails an unstamped binary, an altered version, a missing licence and a changed file" "$rc"
-[ "$rc" = 0 ] || echo "$out"
-out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/shared -p test_help_golden.py -v 2>&1); rc=$?
-ok_exit "every bundled agent's help matches its golden" "$rc"
-[ "$rc" = 0 ] || echo "$out"
-out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/shared -p test_envfile.py -v 2>&1); rc=$?
-ok_exit "the shared env-file reader keeps its rules" "$rc"
 [ "$rc" = 0 ] || echo "$out"
 # A layer rule nobody checks is a comment. These are the two directions that
 # matter: nothing inward may name an adapter, and the adapter must actually

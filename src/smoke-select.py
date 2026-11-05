@@ -20,7 +20,8 @@ def prefixes(root):
 
 
 def ignored(path):
-    return path == 'src/internal/version/VERSION' or re.fullmatch(r'CHANGELOG\..*\.md', path) is not None
+    return (path in ('src/internal/version/VERSION', 'src/agents/VERSION', 'src/agents/CHANGELOG.md')
+            or re.fullmatch(r'CHANGELOG\..*\.md', path) is not None)
 
 
 def changed(root):
@@ -81,6 +82,14 @@ def plan(root, mode, targets='', paths=None):
                 broad.add(target)
                 why[target] = 'reverse dependency of '+source
                 todo.append(target)
+    # The agent pack has its own tests and version: a change inside it runs
+    # only the checks that own a changed path, never the daemon's or another
+    # agent's (CLAUDE.md § verification).
+    agents_only = not targets and not fallback and 'L' in direct and set(direct) <= set('LNOP')
+    # Another layer's change runs the agents at fast, never their full suite:
+    # the pack is tested at normal only when one of its own paths changed.
+    if 'L' in promoted and 'L' not in direct and not targets and not fallback:
+        promoted.discard('L'); broad.discard('L'); why.pop('L', None)
     modes = {c: mode if c in promoted and not fallback.startswith('nothing changed') else 'fast' for c in ALL}
     levels = {}
     for check, row in config['checks'].items():
@@ -90,7 +99,7 @@ def plan(root, mode, targets='', paths=None):
                 continue
             if 'paths' not in row or tag in broad or targets or any(p.startswith(prefix) for p in direct.get(tag, []) for prefix in row['paths']):
                 active.append(modes[tag])
-        levels[check] = max(active, key=lambda x: ('fast','normal','slow').index(x)) if active else ('skip' if mode == 'fast' else 'fast')
+        levels[check] = max(active, key=lambda x: ('fast','normal','slow').index(x)) if active else ('skip' if mode == 'fast' or agents_only else 'fast')
     # Prose-only changes still get a non-empty conservative fast run.
     if all(value == 'skip' for value in levels.values()):
         fallback = 'no executable checks for changed paths: all fast'
@@ -104,7 +113,7 @@ def plan(root, mode, targets='', paths=None):
     if any(level in ('normal','slow') for check,level in levels.items() if check.startswith('core_')):
         for check in levels:
             if check.startswith('core_') and levels[check] == 'skip': levels[check] = 'fast'
-    return {'paths': paths, 'fallback': fallback, 'modes': modes, 'reasons': why, 'checks': levels}
+    return {'paths': paths, 'fallback': fallback, 'modes': modes, 'reasons': why, 'checks': levels, 'agents_only': agents_only}
 
 
 if __name__ == '__main__':
@@ -121,6 +130,8 @@ if __name__ == '__main__':
     print('SELECTION '+('LANDING RUN' if args.mode!='fast' and not result['fallback'].startswith('nothing changed') else 'NOT A LANDING GATE'))
     if result['fallback']:
         print('  fallback: '+result['fallback'])
+    if result['agents_only']:
+        print('  agent pack only: checks that own no changed path are skipped')
     for letter,level in result['modes'].items():
         print(f"  {letter}: {level if args.mode != 'fast' or letter in result['reasons'] else 'not selected'} — {result['reasons'].get(letter,'unchanged')}")
     for name, level in result['checks'].items():
