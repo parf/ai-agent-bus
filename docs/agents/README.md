@@ -146,6 +146,10 @@ The person managing the helper needs its runner or host access. The bus and CLI 
 
 Bundled packages are already installed under `/usr/local/lib/agent-bus/current/agents`. Enable an instance in the [runner inventory](../runner/configuration.md#inventory); do not build or copy another package. Standalone installers below use the installed bundle paths.
 
+### Helper version
+
+The bundled helpers are one agent pack with a version of its own, separate from the bus version. A helper's help shows it, for example `v1.0.0`.
+
 ### Runner helpers
 
 - Helpers marked "Runner" above need [a person's runner](../runner/setup.md#a-persons-runner) (a background program that keeps a person's helpers running), such as `#runner/ann@node.example` running as `ann-ab-runner`.

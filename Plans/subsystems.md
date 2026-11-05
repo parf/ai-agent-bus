@@ -19,7 +19,7 @@ reused; a subsystem whose paths are gone loses its row. Built from
 | I | `src/web/` | Web face | forms and redirects, `returnTo` allowlist, CSRF and caching, what a page claims against the daemon |
 | J | `src/mcp/`, `src/launchers/` | MCP face and launchers | tool contracts, session files, receipts and routing, launcher arguments |
 | K | `src/clients/` | Client libraries | the six languages against the protocol and each other, examples and KV checks run, MIT licensing |
-| L | `src/agents/` | Bundled agents | Slack, Telegram, debug and the standalone agents: secrets, parsing, reconnects, root installs and what Configuration may widen |
+| L | `src/agents/` | Bundled agents | Slack, Telegram, debug and the standalone agents: secrets, parsing, reconnects, root installs and what Configuration may widen; the pack has its own version (`src/agents/VERSION`) and shards (`src/agents/smoke.sh`) |
 | Q | `src/container/` | ⚠️ Container image | runs as root until it drops to each role's account: volume ownership, archive verification, a sandbox refused never downgraded |
 | M | `src/acceptance/`, `src/smoke.sh`, `src/smoke-process.sh`, `src/` | Tests and harness | checks that cannot fail, the mutation-first shapes, shard isolation, scratch in tracked paths |
 | N | `docs/`, `README.md`, `AI-SETUP.md`, `.claude/docs/WRITING.md`, `CHANGELOG`, `LICENSE.md`, `licenses/NOTICE.md` | Current docs | built against pending, canonical homes, links and anchors, docs against code |

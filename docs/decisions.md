@@ -54,6 +54,7 @@ Follow each link for the full behavior and limits.
 - [When a subscription's source is checked](agents/subscriptions.md#source-check) is each helper's: at creation, or again before every send where revoking the author's reach must stop the copies (Q326).
 - [Git](agents/git.md#who-may-use-it) and [systemd](agents/systemd.md#who-may-use-it) apply application permissions within each instance's configured limits.
 - [Mail content](agents/imap.md#use-examples) stays visibly distinct from trusted instructions.
+- The [bundled helpers](agents/README.md#helper-version) are one agent pack with its own version, so a helper can change without a new bus release.
 
 ### Web, CLI, MCP and launchers
 
