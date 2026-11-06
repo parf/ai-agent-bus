@@ -1,7 +1,7 @@
 {
-  "text": "Get model answers without giving callers the provider key. Ask a question or request a structured decision. Send ask with a prompt, or decide with a decision request.\nask <prompt...>: Get a model answer. Send prompt text for a text reply, or an OpenAI chat request for the provider response as JSON.\n  prompt (json): Prompt text, or an OpenAI chat-completions object in JSON; text returns assistant text, an object returns provider JSON\ndecide <body...>: Get answers to typed decision questions. Send an OpenRouter Decisions request; the reply is the full provider response as JSON.\n  body (string): Raw JSON request, including state, questions and the decision model; sent unchanged\n\nv<version> · PolyForm Strict · parf.dev/agent-bus/ · © Sergey Porfiriev\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/ai.md\nMore: agent-bus help <name> config | secret | json",
+  "text": "Get model answers without giving callers the provider key. Ask a question, request a structured decision, embed text, or look up models, prices and the account's credit. Send ask with a prompt, or one of the methods below.\nask <prompt...>: Get a model answer. Send prompt text for a text reply with its tokens and cost, or an OpenAI chat request for the provider response as JSON.\n  prompt (json): Prompt text, or an OpenAI chat-completions object in JSON; text returns assistant text, an object returns provider JSON\ndecide <body...>: Get answers to typed decision questions. Send an OpenRouter Decisions request; the reply is the full provider response as JSON.\n  body (string): Raw JSON request, including state, questions and the decision model; sent unchanged\nmodels: List the provider's models; the configured default is marked.\nmodel <id>: See one model's context length, prices and input kinds, per provider endpoint.\n  id (string): Model ID, such as openai/gpt-4.1-mini\nembed <input...>: Turn text into vectors. Send a text, or a JSON list of texts; the reply is the model and one vector per text.\n  input (json): A text, or a JSON list of texts; too many texts for one answer are refused\nbalance: See the account's remaining credit; role: maintainer\nkey: See the key's spend limit, remaining credit and rate limit, never the key itself; role: maintainer\n\nv<version> · PolyForm Strict · parf.dev/agent-bus/ · © Sergey Porfiriev\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/ai.md\nMore: agent-bus help <name> config | secret | json",
   "json": {
-    "description": "Get model answers without giving callers the provider key. Ask a question or request a structured decision. Send ask with a prompt, or decide with a decision request.",
+    "description": "Get model answers without giving callers the provider key. Ask a question, request a structured decision, embed text, or look up models, prices and the account's credit. Send ask with a prompt, or one of the methods below.",
     "license": "LicenseRef-PolyForm-Strict-1.0.0",
     "author": "Sergey Porfiriev",
     "homepage": "https://parf.dev/agent-bus/",
@@ -10,7 +10,7 @@
     "methods": {
       "ask": {
         "type": "string",
-        "help": "Get a model answer. Send prompt text for a text reply, or an OpenAI chat request for the provider response as JSON.",
+        "help": "Get a model answer. Send prompt text for a text reply with its tokens and cost, or an OpenAI chat request for the provider response as JSON.",
         "args": [
           {
             "type": "json",
@@ -31,6 +31,46 @@
             "help": "Raw JSON request, including state, questions and the decision model; sent unchanged"
           }
         ]
+      },
+      "models": {
+        "type": "string",
+        "help": "List the provider's models; the configured default is marked.",
+        "args": []
+      },
+      "model": {
+        "type": "string",
+        "help": "See one model's context length, prices and input kinds, per provider endpoint.",
+        "args": [
+          {
+            "type": "string",
+            "name": "id",
+            "help": "Model ID, such as openai/gpt-4.1-mini"
+          }
+        ]
+      },
+      "embed": {
+        "type": "string",
+        "help": "Turn text into vectors. Send a text, or a JSON list of texts; the reply is the model and one vector per text.",
+        "args": [
+          {
+            "type": "json",
+            "name": "input",
+            "rest": true,
+            "help": "A text, or a JSON list of texts; too many texts for one answer are refused"
+          }
+        ]
+      },
+      "balance": {
+        "type": "string",
+        "help": "See the account's remaining credit",
+        "args": [],
+        "role": "maintainer"
+      },
+      "key": {
+        "type": "string",
+        "help": "See the key's spend limit, remaining credit and rate limit, never the key itself",
+        "args": [],
+        "role": "maintainer"
       }
     },
     "asks": [
@@ -45,9 +85,14 @@
         "help": "Default chat model ID for ask/text and chat JSON requests without model; not injected into decide",
         "example": "openai/gpt-4.1-mini"
       },
+      "embed_model": {
+        "type": "string",
+        "help": "Default embedding model ID for embed requests without model",
+        "example": "openai/text-embedding-3-small"
+      },
       "base_url": {
         "type": "string",
-        "help": "Trusted OpenAI-compatible API root; chat/completions is appended for ask, decide uses the same origin at /api/alpha/decisions",
+        "help": "Trusted OpenAI-compatible API root; ask, embed and the lookup methods append their path, decide uses the same origin at /api/alpha/decisions",
         "default": "https://openrouter.ai/api/v1"
       }
     },

@@ -1,5 +1,5 @@
 {
-  "description": "Get model answers without giving callers the provider key. Ask a question or request a structured decision. Send ask with a prompt, or decide with a decision request.",
+  "description": "Get model answers without giving callers the provider key. Ask a question, request a structured decision, embed text, or look up models, prices and the account's credit. Send ask with a prompt, or one of the methods below.",
   "command": "./ai.py",
   "form": "json",
   "processes": "0..3",
@@ -20,7 +20,7 @@
   ],
   "methods": {
     "ask": {
-      "help": "Get a model answer. Send prompt text for a text reply, or an OpenAI chat request for the provider response as JSON.",
+      "help": "Get a model answer. Send prompt text for a text reply with its tokens and cost, or an OpenAI chat request for the provider response as JSON.",
       "args": [
         {
           "name": "prompt",
@@ -40,6 +40,41 @@
           "help": "Raw JSON request, including state, questions and the decision model; sent unchanged"
         }
       ]
+    },
+    "models": {
+      "help": "List the provider's models; the configured default is marked.",
+      "args": []
+    },
+    "model": {
+      "help": "See one model's context length, prices and input kinds, per provider endpoint.",
+      "args": [
+        {
+          "name": "id",
+          "type": "string",
+          "help": "Model ID, such as openai/gpt-4.1-mini"
+        }
+      ]
+    },
+    "embed": {
+      "help": "Turn text into vectors. Send a text, or a JSON list of texts; the reply is the model and one vector per text.",
+      "args": [
+        {
+          "name": "input",
+          "type": "json",
+          "rest": true,
+          "help": "A text, or a JSON list of texts; too many texts for one answer are refused"
+        }
+      ]
+    },
+    "balance": {
+      "help": "See the account's remaining credit",
+      "args": [],
+      "role": "maintainer"
+    },
+    "key": {
+      "help": "See the key's spend limit, remaining credit and rate limit, never the key itself",
+      "args": [],
+      "role": "maintainer"
     }
   },
   "config": {
@@ -48,9 +83,14 @@
       "help": "Default chat model ID for ask/text and chat JSON requests without model; not injected into decide",
       "example": "openai/gpt-4.1-mini"
     },
+    "embed_model": {
+      "type": "string",
+      "help": "Default embedding model ID for embed requests without model",
+      "example": "openai/text-embedding-3-small"
+    },
     "base_url": {
       "type": "string",
-      "help": "Trusted OpenAI-compatible API root; chat/completions is appended for ask, decide uses the same origin at /api/alpha/decisions",
+      "help": "Trusted OpenAI-compatible API root; ask, embed and the lookup methods append their path, decide uses the same origin at /api/alpha/decisions",
       "default": "https://openrouter.ai/api/v1"
     }
   }

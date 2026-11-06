@@ -25,10 +25,21 @@ class Fake(http.server.BaseHTTPRequestHandler):
     def log_message(self, *_):
         pass
 
+    def do_GET(self):
+        self.server.requests.append((self.path, self.headers['Authorization'], None))
+        self.reply(*self.server.routes.get(self.path, (self.server.status, self.server.payload)))
+
+    def reply(self, status, payload):
+        self.send_response(status)
+        self.end_headers()
+        self.wfile.write(payload)
+
     def do_POST(self):
         raw = self.rfile.read(int(self.headers['Content-Length']))
         self.server.raw_requests.append(raw)
         self.server.requests.append((self.path, self.headers['Authorization'], json.loads(raw)))
+        if self.path in self.server.routes:
+            return self.reply(*self.server.routes[self.path])
         if self.server.delay:
             time.sleep(self.server.delay)
         self.send_response(self.server.status)
@@ -53,6 +64,7 @@ class Proxy(unittest.TestCase):
         self.server.url = f'http://127.0.0.1:{self.server.server_port}/v1'
         self.server.requests = []
         self.server.raw_requests = []
+        self.server.routes = {}
         create_connection = socket.create_connection
         def local_only(address, *args, **kwargs):
             if address[0] != '127.0.0.1':
@@ -70,19 +82,29 @@ class Proxy(unittest.TestCase):
         self.addCleanup(self.server.shutdown)
         self.config = {'model': 'fixture/default', 'base_url': self.server.url}
 
-    def call(self, body, deadline=None):
+    def call(self, body, deadline=None, roles=(), work=None):
         log = io.StringIO()
         envelope = {'from': '#fixture@h', 'body': body}
         if deadline:
             envelope['deadline'] = deadline
         with contextlib.redirect_stderr(log):
-            answer, code = proxy.answer(envelope, self.config, KEY)
+            answer, code = proxy.answer(envelope, self.config, KEY, set(roles), work)
         return answer, code, log.getvalue()
+
+    def route(self, path, payload, status=200):
+        self.server.routes['/v1' + path] = (status, json.dumps(payload).encode() if not isinstance(payload, bytes) else payload)
+
+    def work(self):
+        scratch = HERE.parents[2] / 'tmp'
+        scratch.mkdir(exist_ok=True)
+        directory = tempfile.TemporaryDirectory(dir=scratch, prefix='ai-work-')
+        self.addCleanup(directory.cleanup)
+        return directory.name
 
     def test_declared_ask_method_and_bare_forms_share_provider_handler(self):
         env = dict(os.environ, AGENT_BUS_ASK='help-json')
         help_result = subprocess.run([str(HERE / 'ai.py')], env=env, text=True, capture_output=True, check=True)
-        self.assertEqual(set(json.loads(help_result.stdout)['methods']), {'ask','decide'})
+        self.assertEqual(set(json.loads(help_result.stdout)['methods']), {'ask','decide','models','model','embed'})
         for body in ['hello', 'ask hello', json.dumps({'method':'ask', 'prompt':'hello'})]:
             self.assertEqual(self.call(body)[:2], ('Hello from the model', 0))
             self.assertEqual(self.server.requests[-1][2], {'model':'fixture/default','messages':[{'role':'user','content':'hello'}]})
@@ -292,8 +314,150 @@ class Proxy(unittest.TestCase):
             self.assertEqual(manifest['form'], 'json')
             self.assertNotIn('serves', manifest)
             self.assertTrue(manifest['needs']['network'])
-            self.assertEqual(set(manifest['config']), {'model', 'base_url'})
+            self.assertEqual(set(manifest['config']), {'model', 'embed_model', 'base_url'})
 
+    # Recorded provider shapes (OpenRouter API reference, 2026-11): replayed locally, never fetched live.
+    MODELS = {'data': [{'id': 'openai/gpt-4.1-mini', 'name': 'GPT-4.1 Mini', 'context_length': 1047576},
+                       {'id': 'fixture/default', 'name': 'Default', 'context_length': 8192}]}
+    ENDPOINTS = {'data': {'id': 'openai/gpt-4', 'name': 'GPT-4', 'architecture': {'input_modalities': ['text', 'image']},
+                          'endpoints': [{'name': 'OpenAI: GPT-4', 'provider_name': 'OpenAI', 'context_length': 8192, 'max_completion_tokens': 4096,
+                                         'pricing': {'prompt': '0.00003', 'completion': '0.00006', 'request': '0', 'image': '0'}, 'uptime_last_1d': 99.8},
+                                        {'name': 'Azure: GPT-4', 'provider_name': 'Azure', 'context_length': 32768, 'max_completion_tokens': 8192,
+                                         'pricing': {'prompt': '0.00006', 'completion': '0.00012', 'request': '0', 'image': '0'}, 'uptime_last_1d': 97.1}]}}
+    CREDITS = {'data': {'total_credits': 20, 'total_usage': 7.6544}}
+    KEY_INFO = {'data': {'label': 'sk-or-v1-abc...xyz', 'limit': 50, 'limit_remaining': 42.5, 'limit_reset': 'monthly', 'usage': 7.5,
+                         'is_free_tier': False, 'rate_limit': {'requests': 230, 'interval': '10s'},
+                         'free_model_daily_requests': {'used': 1, 'limit': 1000, 'remaining': 999}, 'include_byok_in_limit': False}}
+
+    def test_models_lists_the_provider_catalogue_with_the_default_marked(self):
+        self.route('/models', self.MODELS)
+        for body in ['models', ' models\n', '{"method":"models"}']:
+            answer, code, _ = self.call(body)
+            self.assertEqual((answer, code), ('openai/gpt-4.1-mini\nfixture/default (default)', 0))
+            self.assertEqual(self.server.requests[-1], ('/v1/models', 'Bearer ' + KEY, None))
+        self.assertEqual(len(self.server.requests), 3)
+
+    def test_model_keeps_each_endpoints_own_context_and_prices(self):
+        self.route('/models/openai/gpt-4/endpoints', self.ENDPOINTS)
+        for body in ['model openai/gpt-4', '{"method":"model","id":"openai/gpt-4"}']:
+            value = json.loads(self.call(body)[0])
+            self.assertEqual(self.server.requests[-1][0], '/v1/models/openai/gpt-4/endpoints')
+            self.assertEqual((value['id'], value['input']), ('openai/gpt-4', ['text', 'image']))
+            self.assertEqual([(e['provider'], e['context_length'], e['pricing']['prompt']) for e in value['endpoints']],
+                             [('OpenAI', 8192, '0.00003'), ('Azure', 32768, '0.00006')])
+        # A prompt that merely starts with "model" is still a prompt.
+        self.assertEqual(self.call('model this as a tree')[0], 'Hello from the model')
+        self.assertEqual(self.server.requests[-1][0], '/v1/chat/completions')
+
+    def test_balance_and_key_are_for_owner_and_maintainers_only(self):
+        self.route('/credits', self.CREDITS)
+        self.route('/key', self.KEY_INFO)
+        for method in ['balance', 'key']:
+            for roles in [(), ('guest',), ('admin', 'write')]:
+                self.assertEqual(self.call(method, roles=roles)[:2], (f'error: {method} needs the owner or maintainer role', 0))
+                self.assertEqual(self.call(json.dumps({'method': method}), roles=roles)[0], f'error: {method} needs the owner or maintainer role')
+        self.assertEqual(self.server.requests, [], 'a refused role must not reach the provider')
+        for roles in [('owner',), ('maintainer',)]:
+            self.assertEqual(self.call('balance', roles=roles)[0], '12.3456 USD left (20 USD bought, 7.6544 USD used)')
+            self.assertEqual(json.loads(self.call('key', roles=roles)[0]), {
+                'limit': 50, 'limit_remaining': 42.5, 'limit_reset': 'monthly', 'usage': 7.5, 'is_free_tier': False,
+                'rate_limit': {'requests': 230, 'interval': '10s'}, 'free_model_daily_requests': {'used': 1, 'limit': 1000, 'remaining': 999}})
+        self.assertEqual([r[0] for r in self.server.requests], ['/v1/credits', '/v1/key'] * 2)
+
+    def test_roles_come_from_the_delivered_environment_only(self):
+        self.route('/credits', self.CREDITS)
+        cases = [({'AB_ROLE_MAINTAINER': '1'}, True), ({'AB_ROLE_OWNER': '1'}, True), ({'AB_ROLE_OWNER': '0'}, False),
+                 ({'AB_ROLE_ADMIN': '1'}, False), ({}, False)]
+        for roles, served in cases:
+            result = subprocess.run([str(HERE / 'ai.py')], input=json.dumps({'body': 'balance'}), text=True, capture_output=True, timeout=5,
+                                    env={'PATH': os.environ['PATH'], 'OPENROUTER_API_KEY': KEY, 'AGENT_BUS_CONFIG': json.dumps(self.config), **roles})
+            self.assertEqual(result.stdout.strip(), '12.3456 USD left (20 USD bought, 7.6544 USD used)' if served
+                             else 'error: balance needs the owner or maintainer role', roles)
+        self.assertEqual(len(self.server.requests), 2)
+
+    def test_a_method_the_provider_lacks_is_refused_by_name(self):
+        for method, body in [('models', 'models'), ('model', 'model openai/gpt-4'), ('balance', 'balance'), ('key', 'key'), ('embed', 'embed hello')]:
+            self.server.status, self.server.payload = 404, b'{"error":{"message":"Not Found"}}'
+            self.config['embed_model'] = 'fixture/embed'
+            self.assertEqual(self.call(body, roles=('owner',))[:2], (f'error: provider has no {method}', 0))
+        self.assertEqual(len(self.server.requests), 5)
+
+    def test_text_answers_report_tokens_and_cost_from_usage(self):
+        self.server.payload = json.dumps({'choices': [{'message': {'content': 'Four.'}}],
+                                          'usage': {'prompt_tokens': 12, 'completion_tokens': 3, 'total_tokens': 15, 'cost': 0.000123}}).encode()
+        for body in ['What is two plus two?', 'ask What is two plus two?']:
+            self.assertEqual(self.call(body)[0], 'Four.\n\n[tokens 12 in, 3 out; cost 0.000123 USD]')
+        # A chat JSON request already carries the provider's usage object unchanged.
+        self.assertEqual(json.loads(self.call('{"messages":[]}')[0])['usage']['cost'], 0.000123)
+
+    def embeddings(self, count, dims, value=-1.7976931348623157e+308):
+        return {'object': 'list', 'model': 'fixture/embed', 'usage': {'prompt_tokens': count, 'total_tokens': count},
+                'data': [{'object': 'embedding', 'index': i, 'embedding': [value] * dims} for i in reversed(range(count))]}
+
+    def test_embed_sends_text_or_list_and_answers_vectors_in_order(self):
+        self.config['embed_model'] = 'fixture/embed'
+        data = {'object': 'list', 'data': [{'object': 'embedding', 'index': 1, 'embedding': [0.5, -0.25]},
+                                           {'object': 'embedding', 'index': 0, 'embedding': [0.125, 1]}]}
+        self.route('/embeddings', data)
+        value = json.loads(self.call('embed ["first","second"]')[0])
+        self.assertEqual(value, {'model': 'fixture/embed', 'vectors': [[0.125, 1], [0.5, -0.25]]})
+        self.assertEqual(self.server.requests[-1], ('/v1/embeddings', 'Bearer ' + KEY, {'model': 'fixture/embed', 'input': ['first', 'second']}))
+        self.route('/embeddings', {'data': [{'index': 0, 'embedding': [0.5]}]})
+        self.assertEqual(json.loads(self.call('embed one text')[0])['vectors'], [[0.5]])
+        self.assertEqual(self.server.requests[-1][2], {'model': 'fixture/embed', 'input': 'one text'})
+        self.call(json.dumps({'method': 'embed', 'input': 'x', 'model': 'fixture/other'}))
+        self.assertEqual(self.server.requests[-1][2], {'model': 'fixture/other', 'input': 'x'})
+        before = len(self.server.requests)
+        del self.config['embed_model']
+        for body in ['embed hello', 'embed []', 'embed [1]', json.dumps({'method': 'embed', 'input': ''}),
+                     json.dumps({'method': 'embed', 'input': 'x', 'extra': 1})]:
+            self.assertTrue(self.call(body)[0].startswith('error:'), body)
+        self.assertEqual(len(self.server.requests), before)
+
+    def test_embed_cap_is_exact_at_the_widest_float_and_remembers_dims(self):
+        self.config['embed_model'] = 'fixture/embed'
+        dims, work = 3, self.work()
+        cap = proxy.max_items('fixture/embed', dims)
+        self.assertEqual(cap, (proxy.ANSWER_LIMIT - len(b'{"model":"fixture/embed","vectors":[]}') - 1) // (dims * 25 + 2))
+        texts = lambda n: 'embed ' + json.dumps(['t'] * n)
+        self.route('/embeddings', self.embeddings(cap, dims))
+        answer, code, _ = self.call(texts(cap), work=work)
+        self.assertEqual(code, 0)
+        self.assertEqual(len(json.loads(answer)['vectors']), cap)
+        self.assertLessEqual(len(answer.encode()) + 1, proxy.ANSWER_LIMIT, 'the answer and its newline fit the runner bound')
+        self.assertIn('-1.7976931348623157e+308', answer)
+        # A model whose size is not yet known costs one provider call; then its size is kept.
+        other = proxy.max_items('fixture/new', dims)
+        self.config['embed_model'] = 'fixture/new'
+        self.route('/embeddings', self.embeddings(other + 1, dims))
+        before = len(self.server.requests)
+        self.assertEqual(self.call(texts(other + 1), work=work)[0], f'error: {other + 1} items × {dims} dims > max {other}')
+        self.assertEqual(len(self.server.requests), before + 1)
+        self.assertEqual(self.call(texts(other + 1), work=work)[0], f'error: {other + 1} items × {dims} dims > max {other}')
+        self.assertEqual(len(self.server.requests), before + 1, 'a known size is refused before any provider call')
+        self.assertEqual(json.loads((Path(work) / proxy.DIMS_FILE).read_text()), {'fixture/embed': dims, 'fixture/new': dims})
+
+    def test_key_never_appears_in_any_new_method_answer_or_error(self):
+        self.config['embed_model'] = 'fixture/embed'
+        encoded = ''.join('\\u%04x' % ord(c) for c in KEY)
+        echoes = [(500, ('{"error":{"message":"bad key ' + KEY + '"}}').encode()), (401, ('raw ' + KEY).encode()),
+                  (429, ('{"error":{"message":{"detail":"' + encoded + '"}}}').encode())]
+        bodies = ['models', 'model openai/gpt-4', 'balance', 'key', 'embed hello']
+        for status, payload in echoes:
+            self.server.status, self.server.payload = status, payload
+            for body in bodies:
+                answer, _, log = self.call(body, roles=('owner',))
+                self.assertTrue(answer.startswith(f'error: {status} '), (body, answer))
+                self.assertNotIn(KEY, answer + log)
+        self.route('/models', {'data': [{'id': 'fixture/' + KEY}]})
+        self.route('/models/openai/gpt-4/endpoints', {'data': {'id': 'openai/gpt-4', 'name': encoded, 'endpoints': [{'name': KEY, 'pricing': {}}]}})
+        self.route('/key', {'data': {'label': KEY, 'limit': None, 'usage': 0, 'rate_limit': {'note': KEY}}})
+        self.route('/embeddings', {'data': [{'index': 0, 'embedding': [1]}], 'model': KEY})
+        self.server.routes['/v1/models/openai/gpt-4/endpoints'] = (200, self.server.routes['/v1/models/openai/gpt-4/endpoints'][1].replace(b'\\\\u', b'\\u'))
+        for body in bodies:
+            answer, _, log = self.call(body, roles=('owner',))
+            self.assertNotIn(KEY, answer + log, body)
+        self.assertNotIn('label', self.call('key', roles=('owner',))[0])
 
 if __name__ == '__main__':
     unittest.main()

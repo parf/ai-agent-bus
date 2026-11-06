@@ -15,12 +15,208 @@ from metadata import dispatch
 
 from provider_http import MAX_BYTES, ProxyError, redact, scrub, provider_error, arm_deadline, connect, post
 
+MODEL_ID = r"[A-Za-z0-9._/~:@+-]{1,128}"
+# The runner cuts one answer at maxOutput (src/cmd/agent-bus-runner/serve.go): 1 MiB, stdout's newline included.
+ANSWER_LIMIT = MAX_BYTES
+# Python's widest float spelling, -1.7976931348623157e+308, is 24 characters; a comma follows each.
+FLOAT_WIDTH = 24
+# Balance and key describe the account, not a model answer: the record's Owner and Maintainers only.
+MANAGERS = {"owner", "maintainer"}
+KEY_FIELDS = ("limit", "limit_remaining", "limit_reset", "usage", "is_free_tier", "rate_limit", "free_model_daily_requests")
+DIMS_FILE = "embed-dims.json"
+EMBED_READ = 8 * MAX_BYTES
+
 
 def reject_constant(_value):
     raise ValueError("non-standard JSON constant")
 
 
-def answer(envelope, config, key):
+def delivered_roles(environ):
+    return {key[8:].lower() for key, value in environ.items() if key.startswith('AB_ROLE_') and value == '1'}
+
+
+def method_call(body):
+    """(method, argument) for the provider methods beyond ask and decide, or None for a chat request."""
+    word = body.strip()
+    if word in ("models", "balance", "key"):
+        return word, None
+    if body.startswith("model ") and re.fullmatch(MODEL_ID, body[6:].strip()):
+        return "model", body[6:].strip()
+    if body.startswith("embed "):
+        text = body[6:]
+        return "embed", {"input": json.loads(text) if text.lstrip().startswith("[") else text}
+    if not body.lstrip().startswith("{"):
+        return None
+    try:
+        request = json.loads(body)
+    except ValueError:
+        return None
+    name = request.get("method") if isinstance(request, dict) else None
+    if name in ("models", "balance", "key"):
+        if set(request) != {"method"}:
+            raise ProxyError(name + " takes no arguments")
+        return name, None
+    if name == "model":
+        if set(request) != {"method", "id"} or not isinstance(request["id"], str) or not re.fullmatch(MODEL_ID, request["id"]):
+            raise ProxyError("model takes exactly a model id")
+        return name, request["id"]
+    if name == "embed":
+        if not set(request) <= {"method", "input", "model"} or "input" not in request:
+            raise ProxyError("embed takes input and an optional model")
+        return name, {k: v for k, v in request.items() if k != "method"}
+    return None
+
+
+def max_items(model, dims):
+    """How many vectors of dims numbers fit in one answer, each number at its widest spelling."""
+    empty = len(json.dumps({"model": model, "vectors": []}, ensure_ascii=False, separators=(",", ":")).encode()) + 1
+    return (ANSWER_LIMIT - empty) // (dims * (FLOAT_WIDTH + 1) + 2)
+
+
+def known_dims(work):
+    try:
+        value = json.loads((Path(work) / DIMS_FILE).read_text()) if work else {}
+    except (OSError, ValueError):
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def remember_dims(work, model, dims):
+    if not work:
+        return
+    value = known_dims(work)
+    if value.get(model) == dims:
+        return
+    value[model] = dims
+    path = Path(work) / DIMS_FILE
+    try:
+        path.with_suffix(".tmp").write_text(json.dumps(value))
+        path.with_suffix(".tmp").replace(path)
+    except OSError:
+        pass
+
+
+def usd(value):
+    return f"{value:.6f}".rstrip("0").rstrip(".") + " USD"
+
+
+def usage_line(result):
+    usage = result.get("usage") if isinstance(result, dict) else None
+    if not isinstance(usage, dict):
+        return ""
+    parts = []
+    numbers = {k: usage.get(k) for k in ("prompt_tokens", "completion_tokens", "cost")}
+    numbers = {k: v for k, v in numbers.items() if isinstance(v, (int, float)) and not isinstance(v, bool)}
+    if "prompt_tokens" in numbers or "completion_tokens" in numbers:
+        parts.append(f"tokens {numbers.get('prompt_tokens', '?')} in, {numbers.get('completion_tokens', '?')} out")
+    if "cost" in numbers:
+        parts.append("cost " + usd(numbers["cost"]))
+    return "\n\n[" + "; ".join(parts) + "]" if parts else ""
+
+
+def exchange(envelope, base, verb, path, payload, key, limit=MAX_BYTES):
+    """One provider request under the caller's deadline: (status, raw body)."""
+    timer, remaining = arm_deadline(envelope)
+    connection = None
+    try:
+        connection = connect(base, remaining)
+        if verb == "POST":
+            response = post(connection, path, payload, key)
+        else:
+            connection.request("GET", path, headers={"Authorization": "Bearer " + key})
+            response = connection.getresponse()
+        raw = response.read(limit + 1)
+        if len(raw) > limit:
+            raise ProxyError(f"provider answer exceeds {limit} bytes")
+        return response.status, raw
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, timer)
+        if connection is not None:
+            connection.close()
+
+
+def provider_call(name, envelope, base, verb, path, payload, key, limit=MAX_BYTES):
+    """The provider's scrubbed JSON for one method, or the error answer as a string."""
+    status, raw = exchange(envelope, base, verb, path, payload, key, limit)
+    if status == 404:
+        return status, "error: provider has no " + name
+    try:
+        result = scrub(json.loads(raw, parse_constant=reject_constant), key)
+    except (ValueError, UnicodeError):
+        if status >= 300:
+            return status, provider_error(status, redact(raw.decode("utf-8", errors="replace"), key))
+        raise ProxyError("provider did not return JSON") from None
+    if status >= 300:
+        error = result.get("error", result) if isinstance(result, dict) else result
+        message = error.get("message", error) if isinstance(error, dict) else error
+        return status, provider_error(status, redact(json.dumps(message, ensure_ascii=False) if not isinstance(message, str) else message, key))
+    return status, result
+
+
+def provider_method(name, argument, envelope, config, key, roles, work, base):
+    """Answer models, model, balance, key or embed: (answer, status)."""
+    if name in ("balance", "key") and not roles & MANAGERS:
+        return f"error: {name} needs the owner or maintainer role", "refused"
+    root = base.path.rstrip("/")
+    if name == "embed":
+        model = argument.get("model", config.get("embed_model"))
+        if not isinstance(model, str) or not re.fullmatch(MODEL_ID, model):
+            raise ProxyError("set Configuration embed_model or provide a request model")
+        texts = argument["input"]
+        items = [texts] if isinstance(texts, str) else texts
+        if not isinstance(items, list) or not items or not all(isinstance(t, str) and t for t in items):
+            raise ProxyError("embed takes a text or a list of texts")
+        dims = known_dims(work).get(model)
+        if isinstance(dims, int) and dims > 0 and len(items) > max_items(model, dims):
+            return f"error: {len(items)} items × {dims} dims > max {max_items(model, dims)}", "refused"
+        payload = json.dumps({"model": model, "input": texts}, ensure_ascii=False).encode()
+        if len(payload) > MAX_BYTES:
+            raise ProxyError("request exceeds 1048576 bytes")
+        # Provider JSON spends bytes on per-row fields the answer drops, so a full answer's source is larger.
+        status, result = provider_call(name, envelope, base, "POST", root + "/embeddings", payload, key, EMBED_READ)
+        if isinstance(result, str):
+            return result, status
+        rows = sorted(result["data"], key=lambda row: row["index"])
+        vectors = [row["embedding"] for row in rows]
+        if len(vectors) != len(items) or not all(isinstance(v, list) and v and all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in v) for v in vectors):
+            raise ProxyError("provider answer has no vectors")
+        dims = len(vectors[0])
+        remember_dims(work, model, dims)
+        if len(items) > max_items(model, dims):
+            return f"error: {len(items)} items × {dims} dims > max {max_items(model, dims)}", status
+        return json.dumps({"model": model, "vectors": vectors}, ensure_ascii=False, separators=(",", ":")), status
+    path = {"models": "/models", "balance": "/credits", "key": "/key"}.get(name)
+    if name == "model":
+        path = "/models/" + urllib.parse.quote(argument, safe="/:@+~._-") + "/endpoints"
+    status, result = provider_call(name, envelope, base, "GET", root + path, None, key)
+    if isinstance(result, str):
+        return result, status
+    data = result["data"]
+    if name == "models":
+        default = config.get("model")
+        return "\n".join(row["id"] + (" (default)" if row["id"] == default else "") for row in data), status
+    if name == "model":
+        endpoints = [{"provider": e.get("provider_name"), "name": e.get("name"), "context_length": e.get("context_length"),
+                      "max_completion_tokens": e.get("max_completion_tokens"), "pricing": e.get("pricing")}
+                     for e in data["endpoints"]]
+        return json.dumps({"id": data["id"], "name": data.get("name"), "input": (data.get("architecture") or {}).get("input_modalities"),
+                           "endpoints": endpoints}, ensure_ascii=False), status
+    if name == "balance":
+        total, used = data["total_credits"], data["total_usage"]
+        return f"{usd(total - used)} left ({usd(total)} bought, {usd(used)} used)", status
+    # The key's label repeats part of the key itself, so only the named limits come back.
+    return json.dumps({field: data[field] for field in KEY_FIELDS if field in data}, ensure_ascii=False), status
+
+
+def trusted_base(config):
+    base = urllib.parse.urlsplit(config.get("base_url", "https://openrouter.ai/api/v1"))
+    if base.scheme not in ("https", "http") or not base.hostname or base.username or base.password or base.query or base.fragment:
+        raise ProxyError("base_url must be an http(s) URL without credentials, query or fragment")
+    return base
+
+
+def answer(envelope, config, key, roles=frozenset(), work=None):
     if not key:
         return "error: OPENROUTER_API_KEY is not set", 78
     status, model, sent, received = "invalid", "", 0, 0
@@ -30,8 +226,16 @@ def answer(envelope, config, key):
         body = envelope["body"]
         if not isinstance(body, str) or len(body.encode()) > MAX_BYTES:
             raise ProxyError("request exceeds 1048576 bytes or is not text")
-        if not isinstance(config, dict) or set(config) - {"model", "base_url"}:
-            raise ProxyError("Configuration accepts only model and base_url")
+        if not isinstance(config, dict) or set(config) - {"model", "embed_model", "base_url"}:
+            raise ProxyError("Configuration accepts only model, embed_model and base_url")
+        call = method_call(body)
+        if call is not None:
+            base = trusted_base(config)
+            output, status = provider_method(*call, envelope, config, key, set(roles), work, base)
+            output = redact(output, key)
+            if len(output.encode()) > MAX_BYTES:
+                raise ProxyError("provider answer exceeds 1048576 bytes")
+            return output, 0
         deciding = body.startswith("decide ") and body[7:].lstrip().startswith("{")
         decision_body = body[7:] if deciding else None
         if not deciding:
@@ -69,9 +273,7 @@ def answer(envelope, config, key):
             payload = json.dumps(request, ensure_ascii=False).encode()
         if request.get("stream"):
             raise ProxyError("streaming is not supported")
-        base = urllib.parse.urlsplit(config.get("base_url", "https://openrouter.ai/api/v1"))
-        if base.scheme not in ("https", "http") or not base.hostname or base.username or base.password or base.query or base.fragment:
-            raise ProxyError("base_url must be an http(s) URL without credentials, query or fragment")
+        base = trusted_base(config)
         sent = len(payload)
         if sent > MAX_BYTES:
             raise ProxyError("request exceeds 1048576 bytes")
@@ -103,6 +305,7 @@ def answer(envelope, config, key):
                 raise ProxyError("provider answer has no assistant text") from None
             if not isinstance(output, str):
                 raise ProxyError("provider answer has no assistant text")
+            output += usage_line(result)
         if len(output.encode()) > MAX_BYTES:
             raise ProxyError("provider answer exceeds 1048576 bytes")
         return output, 0
@@ -146,7 +349,7 @@ def main():
             raise ValueError()
         envelope = json.loads(raw)
         config = json.loads(os.environ.get("AGENT_BUS_CONFIG", "{}"))
-        output, code = answer(envelope, config, key)
+        output, code = answer(envelope, config, key, delivered_roles(os.environ), os.environ.get("AGENT_BUS_WORK"))
     except (ValueError, TypeError):
         output, code = "error: invalid message or Configuration", 0
     print(output)
