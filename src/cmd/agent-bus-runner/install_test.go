@@ -267,7 +267,7 @@ func TestDeployReleaseStandaloneUsesItsPackagerForSelfContainedCode(t *testing.T
 	release := t.TempDir()
 	r.bundled = filepath.Join(release, "agents")
 	source := filepath.Join("..", "..")
-	for _, rel := range []string{"agents/standalone/tmux-sessions/agent.json", "agents/standalone/tmux-sessions/package.sh", "agents/standalone/tmux-sessions/sessions.py", "agents/standalone/tmux-sessions/config.json.dist", "agents/shared/metadata.py", "agents/shared/envfile.py", "internal/version/VERSION"} {
+	for _, rel := range []string{"agents/standalone/tmux-sessions/agent.json", "agents/standalone/tmux-sessions/package.sh", "agents/standalone/tmux-sessions/sessions.py", "agents/standalone/tmux-sessions/config.json.dist", "agents/shared/metadata.py", "agents/shared/envfile.py", "agents/VERSION", "internal/version/VERSION"} {
 		data, err := os.ReadFile(filepath.Join(source, rel))
 		if err != nil {
 			t.Fatal(err)

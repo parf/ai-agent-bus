@@ -30,6 +30,15 @@ func checkoutCronTree(t *testing.T) (string, string) {
 			t.Fatal(err)
 		}
 	}
+	// The agents read the pack's own version beside them (src/agents/VERSION).
+	if err := os.MkdirAll(filepath.Join(src, "agents"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if data, err := os.ReadFile(filepath.Join("..", "..", "agents", "VERSION")); err != nil {
+		t.Fatal(err)
+	} else if err := os.WriteFile(filepath.Join(src, "agents", "VERSION"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
 	host := filepath.Join(root, "runner")
 	writeFile(t, filepath.Join(host, "agents.json"), `{"cron":{"enabled":true}}`)
 	return filepath.Join(src, "agents"), host
@@ -99,7 +108,7 @@ func TestCheckoutSupportReadsNeverApplyToSharedOrReleasePackages(t *testing.T) {
 	}
 	r := &runner{agents: filepath.Join(host, "agent.d"), bundled: bundled}
 	dir := filepath.Join(bundled, "cron")
-	want := []string{dir, filepath.Join(bundled, "shared"), filepath.Join(filepath.Dir(bundled), "clients", "python"), filepath.Join(filepath.Dir(bundled), "clients", "typescript"), filepath.Join(filepath.Dir(bundled), "internal", "version")}
+	want := []string{dir, filepath.Join(bundled, "shared"), filepath.Join(bundled, "VERSION"), filepath.Join(filepath.Dir(bundled), "clients", "python"), filepath.Join(filepath.Dir(bundled), "clients", "typescript"), filepath.Join(filepath.Dir(bundled), "internal", "version")}
 	if got := r.codeReads(installed{Bundled: true}, dir); !reflect.DeepEqual(got, want) {
 		t.Fatalf("checkout read roots: %v, want %v", got, want)
 	}

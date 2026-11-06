@@ -50,6 +50,15 @@ func checkoutBunAgent(t *testing.T, agent string) {
 			t.Fatal(err)
 		}
 	}
+	// The agents read the pack's own version beside them (src/agents/VERSION).
+	if err := os.MkdirAll(filepath.Join(src, "agents"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if data, err := os.ReadFile(filepath.Join("..", "..", "agents", "VERSION")); err != nil {
+		t.Fatal(err)
+	} else if err := os.WriteFile(filepath.Join(src, "agents", "VERSION"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
 	// Copy the actual runtime dependency, never a link back into /usr and
 	// never a precompiled bundle that could hide the client's import graph.
 	dependency := filepath.Join("..", "..", "clients", "typescript", "node_modules", "lossless-json")

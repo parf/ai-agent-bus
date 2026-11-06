@@ -175,6 +175,7 @@ func (r *runner) codeReads(in installed, dir string) []string {
 	src := filepath.Dir(r.bundled)
 	for _, path := range []string{
 		filepath.Join(r.bundled, "shared"),
+		filepath.Join(r.bundled, "VERSION"), // the agent pack's own version, read by every agent
 		filepath.Join(src, "clients", "python"),
 		filepath.Join(src, "clients", "typescript"),
 		filepath.Join(src, "internal", "version"),
