@@ -1,6 +1,6 @@
-// Package bigmem is the memory holder of bigfiles: the minimal holder behind
-// ports.BigStore. Everything is lost at a restart; the file holder follows in
-// the same release (Plans/R1.0-Release/bigfile.md#order-of-work).
+// Package bigmem is a memory-only BigStore for core unit tests.
+// Production and client conformance use package bigfile, which supports both
+// file-backed values and explicitly requested memory values.
 package bigmem
 
 import (

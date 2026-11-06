@@ -16,7 +16,7 @@ import (
 	"github.com/parf/ai-agent-bus/internal/auth"
 	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/protocol"
-	"github.com/parf/ai-agent-bus/internal/store/bigmem"
+	"github.com/parf/ai-agent-bus/internal/store/bigfile"
 	"github.com/parf/ai-agent-bus/internal/store/memory"
 )
 
@@ -27,13 +27,30 @@ func must(err error) {
 	}
 }
 
-func main() {
+func main() { must(run()) }
+
+func run() error {
+	dir, err := os.MkdirTemp("", "agent-bus-client-bigfile-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(dir)
+	big, err := bigfile.Open(dir, bigfile.NewMemoryIndex(), time.Now())
+	if err != nil {
+		return err
+	}
 	bus := core.New()
-	must(bus.Persistence(memory.NewState()))
-	must(bus.EstablishDaemon("owner@fixture", nil))
-	bus.SetBigStore(bigmem.New())
+	if err := bus.Persistence(memory.NewState()); err != nil {
+		return err
+	}
+	if err := bus.EstablishDaemon("owner@fixture", nil); err != nil {
+		return err
+	}
+	bus.SetBigStore(big)
 	tokens, err := auth.Load(memory.NewTokens())
-	must(err)
+	if err != nil {
+		return err
+	}
 	s := api.New(bus, tokens, "owner@fixture")
 	defer s.Close()
 	credentials := map[string]string{}
@@ -41,44 +58,63 @@ func main() {
 		if name != "owner@fixture" {
 			_, err = bus.Register(protocol.Record{Name: name, Owner: "owner@fixture", Kind: protocol.KindAgent,
 				Allow: []string{"*"}, Full: protocol.OverflowStrict})
-			must(err)
+			if err != nil {
+				return err
+			}
 		}
 		credentials[name], err = tokens.Issue(name)
-		must(err)
+		if err != nil {
+			return err
+		}
 	}
 	_, err = bus.Register(protocol.Record{Name: "jobs@fixture", Owner: "owner@fixture", Kind: protocol.KindQueue,
 		Allow: []string{"*"}, Full: protocol.OverflowStrict})
-	must(err)
+	if err != nil {
+		return err
+	}
 	for _, name := range []string{"#worker@fixture", "#helper@fixture"} {
 		_, err = bus.Configure(name, "owner@fixture", json.RawMessage(`{"workers":1,"label":"fixture"}`))
-		must(err)
+		if err != nil {
+			return err
+		}
 		_, err = bus.SetSecret(name, "owner@fixture", "TOKEN=dummy-fixture-only\n")
-		must(err)
+		if err != nil {
+			return err
+		}
 	}
 	// The daemon's own #bus agent and its reader, as the real daemon starts
 	// them, so event calls reach the landed event verbs and never a fake.
-	must(bus.EstablishDaemonAgent("fixture.example"))
+	if err := bus.EstablishDaemonAgent("fixture.example"); err != nil {
+		return err
+	}
 	stopBus := s.ServeDaemonAgent(context.Background())
 	defer stopBus()
-	must(busReady(bus))
+	if err := busReady(bus); err != nil {
+		return err
+	}
 	l, err := net.Listen("tcp", "127.0.0.1:0")
-	must(err)
+	if err != nil {
+		return err
+	}
 	server := &http.Server{Handler: s.Handler(), ReadHeaderTimeout: 5 * time.Second}
+	defer server.Close()
 	go func() { _ = server.Serve(l) }()
 	var local *http.Server
 	if len(os.Args) > 1 {
 		unix, e := net.Listen("unix", os.Args[1])
-		must(e)
+		if e != nil {
+			return e
+		}
 		defer os.Remove(os.Args[1])
 		local = &http.Server{Handler: s.HandlerFor(protocol.Name{Local: "owner", Realm: "fixture"}), ReadHeaderTimeout: 5 * time.Second}
+		defer local.Close()
 		go func() { _ = local.Serve(unix) }()
 	}
-	must(json.NewEncoder(os.Stdout).Encode(map[string]any{"addr": "http://" + l.Addr().String(), "tokens": credentials}))
-	_, _ = io.Copy(io.Discard, os.Stdin)
-	_ = server.Close()
-	if local != nil {
-		_ = local.Close()
+	if err := json.NewEncoder(os.Stdout).Encode(map[string]any{"addr": "http://" + l.Addr().String(), "tokens": credentials}); err != nil {
+		return err
 	}
+	_, _ = io.Copy(io.Discard, os.Stdin)
+	return nil
 }
 
 // busReady proves the #bus reader answers before the fixture says it is ready:
