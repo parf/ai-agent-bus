@@ -32,10 +32,7 @@ Facts, 2026-11-05 18:00 → 11-06 01:40: 338 commits, of which 47 version bumps,
   - ( ) Two readers and mutants for every behaviour change, as now ⭐
   > 💡👾 Risk-based: the readers are the scarcest quota, and a wording fix does not need two of them.
 
-- ❓ Q350 Version bumps
-  - ( ) One bump per deploy window, by #ab-ceo at deploy time, with one changelog entry for the window 🌟
-  - ( ) A bump per landing marked `bump`, as now ⭐
-  > 💡👾 Per deploy: 20 PATCH numbers in one night say nothing a deploy note does not.
+- ✅ Q350 → [TD6](DECISIONS.md#TD6)
 
 - ❓ Q351 Close-out and issue bookkeeping
   - ( ) The issue/TODO update rides in the landing commit; no separate close-out commit or gate 🌟

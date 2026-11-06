@@ -26,3 +26,9 @@
   - Date: 2026-11-05
   - Why: owner, after comparing the two teams: "yes, apply this rules to us too". Both Claude workers ran out of quota mid-release with nobody tracking it, and a stale-worktree commit nearly reverted a reviewed fix
   - Home: [shared rules](roles/common.md#team-v2--shared-rules)
+- ✅ TD6 <a id="TD6"></a>One version bump per deploy; small and medium tasks land together
+  - Date: 2026-11-06
+  - Why: owner on Q350: "yes - makes bumps more significant; combine small/medium tasks into one make => test together". The night of 11-05 gave 20 PATCH numbers and 47 changelog edits for about 35 items
+  - Rule: a landing carries no bump; #ab-ceo raises PATCH once per deploy window and writes one changelog entry for it. Leads group small and medium tasks into one branch and one gate run instead of a gate per task
+  - Home: pending T-44 (CLAUDE.md § Versioning, [roles](README.md#roles), lead and worker role files, gate.sh)
+
