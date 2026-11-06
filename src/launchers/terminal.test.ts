@@ -28,8 +28,24 @@ test("labels lose every control and bidi override and are capped by graphemes", 
   expect(cleanLabel("  W1B\t\tT-35  ")).toBe("W1B T-35");
   expect(cleanLabel("\x1b\x07  ")).toBeUndefined();
   const coder = "👩‍💻";
-  expect(cleanLabel(coder.repeat(30))).toBe(coder.repeat(24));
+  expect(cleanLabel(coder.repeat(30))).toBe(coder.repeat(19)); // five UTF-16 units each, 95 of 96
+  expect(cleanLabel("🔶".repeat(30))).toBe("🔶".repeat(24));
   expect(cleanLabel("x".repeat(30))).toBe("x".repeat(24));
+  // One grapheme with 3000 combining marks is still bounded in UTF-16 units.
+  const heavy = cleanLabel("ab" + String.fromCharCode(0x301).repeat(3000))!;
+  expect(heavy).toBe("a");
+  expect(cleanLabel("é".repeat(10) + "a" + String.fromCharCode(0x301).repeat(90))).toBe("é".repeat(10));
+});
+
+test("a hostile launch directory is cleaned like any other label", async () => {
+  const { Terminal } = await import("./terminal.ts");
+  const saved = process.env.AB_TAB_TITLE;
+  delete process.env.AB_TAB_TITLE;
+  try {
+    const cwd = "/work/x\x1b]0;pwn\x07y" + String.fromCharCode(0x202e) + "z" + "q".repeat(80);
+    expect(new Terminal("claude", cwd, 1, "/home/me").recommended()).toBe("x]0;pwnyz" + "q".repeat(15));
+    expect(new Terminal("claude", "/", 1, "/home/me").recommended()).toBe("/");
+  } finally { if (saved !== undefined) process.env.AB_TAB_TITLE = saved; }
 });
 
 test("PTY titles restore once; palettes rotate, target this tab and reset; missing helpers and pipes are harmless", async () => {

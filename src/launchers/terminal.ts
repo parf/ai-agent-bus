@@ -15,6 +15,7 @@ const palettes = {
   opencode1: ["#512da8", "#7e57c2", "#9575cd"],
 };
 export const LABEL_GRAPHEMES = 24;
+export const LABEL_UNITS = 96;
 const graphemes = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 
 // A label reaches an escape sequence, kitty and tmux, and may come from a
@@ -22,9 +23,15 @@ const graphemes = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 // graphemes so an emoji is never cut in half.
 export function cleanLabel(s?: string): string | undefined {
   if (s === undefined) return undefined;
-  const text = s.replace(/\s+/g, " ").replace(/[\x00-\x1f\x7f-\x9f؜‎‏‪-‮⁦-⁩]/g, "").trim();
-  const parts = [...graphemes.segment(text)];
-  return (parts.length > LABEL_GRAPHEMES ? parts.slice(0, LABEL_GRAPHEMES).map(p => p.segment).join("").trimEnd() : text) || undefined;
+  const text = s.replace(/\s+/g, " ").replace(/[\x00-\x1f\x7f-\x9f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, "").trim();
+  // Whole graphemes only, and a UTF-16 bound too: one base letter can carry
+  // thousands of combining marks and still count as one grapheme.
+  let out = "", count = 0;
+  for (const { segment } of graphemes.segment(text)) {
+    if (++count > LABEL_GRAPHEMES || out.length + segment.length > LABEL_UNITS) break;
+    out += segment;
+  }
+  return out.trimEnd() || undefined;
 }
 
 // The part of a bus name that tells sessions apart: #ab-w1b → ab-w1b,
@@ -102,7 +109,7 @@ export class Terminal {
   }
 
   label(): string { return this.override ?? this.recommended(); }
-  recommended(): string { return this.env ?? busLabel(this.bus) ?? cleanLabel(this.name) ?? directoryLabel(this.cwd, this.home); }
+  recommended(): string { return this.env ?? busLabel(this.bus) ?? cleanLabel(this.name) ?? cleanLabel(directoryLabel(this.cwd, this.home)) ?? "/"; }
 
   // The session's own name: the default label when there is no bus name.
   set(name?: string): void { this.name = name; this.refresh(); }
