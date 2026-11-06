@@ -510,6 +510,22 @@ class DeliveryTests(Base):
         subs,row=self.add();r=self.round(deadline=time.monotonic()-1)[row['id']]
         self.assertEqual((r['sent'],r['pending'],self.bus.sent),(0,2,[]))
 
+    def test_a_deadline_that_passes_during_the_authority_check_sends_nothing(self):
+        subs,row=self.add();real=self.bus.may_send
+        def slow(who,target):time.sleep(0.15);return real(who,target)
+        self.bus.may_send=slow
+        r=self.round(deadline=time.monotonic()+0.2)[row['id']];self.assertEqual((r['sent'],self.bus.sent),(0,[]))
+
+    def test_a_round_of_refusals_writes_twice_not_per_attempt_and_keeps_the_counters(self):
+        subs,row=self.add();self.bus.send_refused.add('#q@n.test');real=self.state.save;saves=[]
+        with patch.object(self.state,'save',lambda d:(saves.append(1),real(d))[1]):self.round()
+        self.assertEqual(len(saves),2,'the record written before the sends, and its taking back with the counters');stored=self.state.load()['subs'][row['id']];self.assertEqual((stored['sent'],stored['dropped'],stored['confirmed']),(1,1,0))
+
+    def test_marks_are_saved_per_confirming_subscriber_and_a_later_subscribers_counters_in_the_last_save(self):
+        subs,first=self.add();_,second=self.add('#q2@n.test');self.bus.send_refused.add('#q2@n.test');real=self.state.save;saves=[]
+        with patch.object(self.state,'save',lambda d:(saves.append(1),real(d))[1]):self.round()
+        self.assertEqual(len(saves),4,'two per subscriber: before the sends and after');stored=self.state.load()['subs'];self.assertEqual((stored[first['id']]['confirmed'],stored[second['id']]['dropped']),(2,1))
+
     def test_nothing_is_written_when_nothing_was_tried(self):
         subs,row=self.add();self.round();before=self.state.path.stat().st_mtime_ns
         with patch.object(self.state,'save',side_effect=AssertionError('saved')):self.round()

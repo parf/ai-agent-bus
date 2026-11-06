@@ -292,13 +292,15 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
     - The author's may-send to the target and to the source, and the target's record, are checked again before every send.
     - A refusal, a timeout or no answer leaves the change pending; one stuck subscriber never holds up the others.
     - The round ends by `deadline` (default ROUND_MAX seconds from now) and no wait on a target runs past it, so a silent
-      agent cannot keep the state held longer than a `sub add` or `sub delete` waits for it.
-    - The state is saved after each subscriber's batch, so a later failure keeps the earlier subscribers' confirmations. A crash
+      agent cannot keep the state held longer than a `sub add` or `sub delete` waits for it. Only the waits are
+      bounded: a send already started is not interrupted, and the deadline is checked again after the authority check.
+    - Marks are saved after each subscriber that confirmed something, so a later failure keeps the earlier subscribers'
+      confirmations; the sent and dropped counters wait in memory for the round's last save (so a round of refusals writes once). A crash
       between a confirmation and its save sends that subscriber's batch again (at least once). A save that fails (`state_full`,
       a write error) is reported through `warning` and ends the round: nothing more is sent whose confirmation cannot be kept.
     """
     if deadline is None:deadline=time.monotonic()+ROUND_MAX
-    results={}
+    results={};dirty=False
     with state.hold():
         data=state.load()
         for sub_id in sorted(data['subs']):
@@ -318,6 +320,7 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
                     left=deadline-time.monotonic()
                     if left<=0:break
                     code,kind=_admit(bus,source,row)
+                    if not code and time.monotonic()>=deadline:break  # the check itself may have used the time left
                     if code:
                         count['dropped']+=1;row['dropped']=min(base.MAX_SAFE,row['dropped']+1);warning(code,sub_id);break
                     attempted.add(key)
@@ -351,10 +354,16 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
                 for k in owed:
                     if k not in attempted:_restore(data['maybe'][sub_id],k,prior);restored=True
                 count['pending']=len(pending(data,sub_id,lambda key,row=row:matches(row,key)))
-            if count['sent'] or count['dropped'] or count['skipped'] or restored:
-                try:state.save(data)
+            # Marks (and a taken-back record) are saved as soon as a subscriber has any; the counters wait in memory for the round's last save.
+            if count['confirmed'] or count['skipped'] or restored:
+                try:state.save(data);dirty=False
                 except SyncError as error:
                     count['unsaved']=True;warning(error.code,sub_id);break
+            elif count['sent'] or count['dropped']:dirty=True
+        else:
+            if dirty:
+                try:state.save(data)
+                except SyncError as error:warning(error.code,None)
     return results
 
 
