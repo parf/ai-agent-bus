@@ -103,6 +103,7 @@ The [isolation rules](security.md#isolation-today) define which code and support
 | `roles` | Roles the agent understands, registered on its record; grants no caller any role |
 | `depends` | Agents started before this one, as bus names (`#db`); see below |
 | `needs.network` | Requests the [network access described by the isolation rules](security.md#isolation-today) |
+| `needs.dir` | `true`: the directory named by the agent's Configuration key `dir` is bound read-only into its sandbox, and its checked real path is given as `AGENT_BUS_DIR` ([rules](security.md#isolation-today)) |
 | `needs.memory` | Memory the agent needs, as `2G`; above the host's `limits.memory` the agent is refused by name |
 
 <details>
