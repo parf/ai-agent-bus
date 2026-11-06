@@ -67,7 +67,11 @@ func validBusConfig(raw json.RawMessage) error {
 	}
 	total := 0
 	for _, level := range []string{"notice", "warning", "alert"} {
-		n := map[string]int{"notice": 200, "warning": 200, "alert": 50}[level]
+		// The defaults are BusSettings' own, so changing one there changes this sum.
+		n, ok := declared[level+"_entries"].Default.(int)
+		if !ok {
+			return fmt.Errorf("%w: %s_entries has no whole-number default", ErrConfig, level)
+		}
 		if v, ok := values[level+"_entries"].(json.Number); ok {
 			parsed, _ := v.Int64()
 			n = int(parsed)
