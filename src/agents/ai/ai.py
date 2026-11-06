@@ -83,9 +83,15 @@ def method_call(body):
         if not model_path(body[6:].strip()):
             raise ProxyError("model takes an author/slug model id")
         return "model", body[6:].strip()
-    if body.startswith("embed "):
-        text = body[6:]
-        return "embed", {"input": json.loads(text) if text.lstrip().startswith("[") else text}
+    # Only JSON after "embed " is the method: a "text", a [list] or an {"input":…} object.
+    # "embed this video in my page" stays a prompt.
+    if body.startswith("embed ") and body[6:].lstrip()[:1] in ('"', "[", "{"):
+        value = json.loads(body[6:])
+        if isinstance(value, dict):
+            if not set(value) <= {"input", "model"} or "input" not in value:
+                raise ProxyError("embed takes input and an optional model")
+            return "embed", value
+        return "embed", {"input": value}
     if not body.lstrip().startswith("{"):
         return None
     try:

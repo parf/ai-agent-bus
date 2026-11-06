@@ -134,6 +134,22 @@ class Proxy(unittest.TestCase):
         self.assertTrue(self.call('image {"prompt":', roles=('owner',))[0].startswith('error:'))
         self.assertEqual(len(self.server.requests), 3)
 
+    def test_english_embed_prompts_remain_chat(self):
+        self.config['embed_model'] = 'fixture/embed'
+        for body in ['embed this video in my page', 'embed hello', 'embed 3 photos in a grid']:
+            self.assertEqual(self.call(body)[:2], ('Hello from the model', 0))
+            self.assertEqual(self.server.requests[-1], ('/v1/chat/completions', 'Bearer '+KEY,
+                {'model':'fixture/default','messages':[{'role':'user','content':body}]}))
+        self.route('/embeddings', {'data': [{'index': 0, 'embedding': [0.5]}]})
+        for body, sent in [('embed "a text"', 'a text'), ('embed ["a text"]', ['a text']),
+                           ('embed {"input":"a text","model":"fixture/other"}', 'a text')]:
+            self.assertEqual(json.loads(self.call(body)[0])['vectors'], [[0.5]])
+            self.assertEqual(self.server.requests[-1][2]['input'], sent)
+        self.assertEqual(self.server.requests[-1][2]['model'], 'fixture/other')
+        for bad in ['embed "unterminated', 'embed {"text":"x"}', 'embed {"input":"x","extra":1}']:
+            self.assertTrue(self.call(bad)[0].startswith('error:'), bad)
+        self.assertEqual(len(self.server.requests), 6)
+
     def test_model_log_supports_presets_and_variants(self):
         for model in ['@preset/demo', 'provider/model+variant']:
             for body in [json.dumps({'model':model,'messages':[]}), 'decide '+json.dumps({'model':model})]:
@@ -393,7 +409,7 @@ class Proxy(unittest.TestCase):
 
     def test_a_method_the_provider_lacks_is_refused_by_name(self):
         for method, body in [('models', 'models'), ('models', 'models --images'), ('model', 'model openai/gpt-4'), ('balance', 'balance'),
-                             ('key', 'key'), ('embed', 'embed hello')]:
+                             ('key', 'key'), ('embed', 'embed "hello"')]:
             self.server.status, self.server.payload = 404, b'{"error":{"message":"Not Found"}}'
             self.config['embed_model'] = 'fixture/embed'
             self.assertEqual(self.call(body, roles=('owner',))[:2], (f'error: provider has no {method}', 0))
@@ -422,13 +438,13 @@ class Proxy(unittest.TestCase):
         self.assertEqual(value, {'model': 'fixture/embed', 'vectors': [[0.125, 1], [0.5, -0.25]]})
         self.assertEqual(self.server.requests[-1], ('/v1/embeddings', 'Bearer ' + KEY, {'model': 'fixture/embed', 'input': ['first', 'second']}))
         self.route('/embeddings', {'data': [{'index': 0, 'embedding': [0.5]}]})
-        self.assertEqual(json.loads(self.call('embed one text')[0])['vectors'], [[0.5]])
+        self.assertEqual(json.loads(self.call('embed "one text"')[0])['vectors'], [[0.5]])
         self.assertEqual(self.server.requests[-1][2], {'model': 'fixture/embed', 'input': 'one text'})
         self.call(json.dumps({'method': 'embed', 'input': 'x', 'model': 'fixture/other'}))
         self.assertEqual(self.server.requests[-1][2], {'model': 'fixture/other', 'input': 'x'})
         before = len(self.server.requests)
         del self.config['embed_model']
-        for body in ['embed hello', 'embed []', 'embed [1]', json.dumps({'method': 'embed', 'input': ''}),
+        for body in ['embed "hello"', 'embed []', 'embed [1]', json.dumps({'method': 'embed', 'input': ''}),
                      json.dumps({'method': 'embed', 'input': 'x', 'extra': 1})]:
             self.assertTrue(self.call(body)[0].startswith('error:'), body)
         self.assertEqual(len(self.server.requests), before)
@@ -518,7 +534,7 @@ class Proxy(unittest.TestCase):
         encoded = ''.join('\\u%04x' % ord(c) for c in KEY)
         echoes = [(500, ('{"error":{"message":"bad key ' + KEY + '"}}').encode()), (401, ('raw ' + KEY).encode()),
                   (429, ('{"error":{"message":{"detail":"' + encoded + '"}}}').encode())]
-        bodies = ['models', 'models --images', 'model openai/gpt-4', 'balance', 'key', 'embed hello']
+        bodies = ['models', 'models --images', 'model openai/gpt-4', 'balance', 'key', 'embed "hello"']
         for status, payload in echoes:
             self.server.status, self.server.payload = status, payload
             for body in bodies:
@@ -607,7 +623,7 @@ class Proxy(unittest.TestCase):
 
     def test_refused_key_and_credit_are_named_for_every_method(self):
         self.config['embed_model'] = 'fixture/embed'
-        bodies = ['hello', '{"messages":[]}', 'decide {}', 'models', 'models --images', 'model openai/gpt-4', 'balance', 'key', 'embed hello']
+        bodies = ['hello', '{"messages":[]}', 'decide {}', 'models', 'models --images', 'model openai/gpt-4', 'balance', 'key', 'embed "hello"']
         cases = [(401, b'{"error":{"message":"User not found."}}', 'the provider refused the configured key (401: User not found.)'),
                  (403, b'{"error":{"message":"Key disabled"}}', 'the provider refused the configured key (403: Key disabled)'),
                  (401, ('{"error":{"message":"bad key ' + KEY + '"}}').encode(), 'the provider refused the configured key (401: bad key ***)'),

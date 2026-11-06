@@ -9,7 +9,7 @@
 
 - ✅ **Ask:** send a question or a full chat request, get the answer text or the provider's full reply (`ask`, or just your text). A text answer ends with its tokens and cost.
 - ✅ **Decide:** send a question with fixed choices, get each choice with its probability (`decide`, see [typed decisions](#typed-decisions)).
-- ✅ **Embed:** send a text or a list of texts, get one vector per text (`embed`, see [embeddings](#embeddings)).
+- ✅ **Embed:** send a JSON text or list of texts, get one vector per text (`embed`, see [embeddings](#embeddings)).
 - ✅ **Models:** list the provider's models, with your default marked (`models`, or `models --images` for image models), or see one model's context length, prices and input kinds for each provider that serves it (`model <id>`; for an image model, its parameters and prices).
 - ✅ **Account:** see the remaining credit (`balance`) or the key's spend limit, remaining credit and rate limit, never the key itself (`key`). Only the Owner and Maintainers may ask.
 - ✅ **Same as the provider:** every method goes to the configured provider and answers what it says. A provider without one of these methods gets `provider has no <method>`.
@@ -28,7 +28,8 @@ agent-bus call '#ai@node.example' 'decide {"model":"typesafe/jev-1.14","state":"
 ## Embeddings
 
 - **What:** `embed` sends texts to the provider's `/embeddings` and answers `{"model":...,"vectors":[[...],...]}`, one vector per text, in order.
-- **Model:** set `embed_model` in Configuration, or put `"model"` in a JSON request.
+- **Form:** `embed "one text"`, `embed ["first","second"]` or `embed {"input":[...],"model":"..."}`. Other text after `embed` is an ordinary prompt.
+- **Model:** set `embed_model` in Configuration, or put `"model"` in the request object.
 - **Size:** one answer, with its reply envelope, holds at most 1 MiB, so a large batch is refused as `N items × D dims > max M`. Split it and send again.
 - **Cost:** the agent learns a model's vector size from its first answer. So the first over-limit request to a new model costs one provider call; later ones are refused before any call.
 
@@ -150,7 +151,7 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 - Prompt forms return assistant text; chat-body forms return the provider's JSON, including choices and usage.
 - A JSON request may set `"model"` for that request only; streaming is not supported.
 - A text answer ends with `[tokens <in> in, <out> out; cost <n> USD]` when the provider reports usage.
-- `models`, `balance` and `key` are the whole body; `model <id>` takes one model ID; `embed <text>` or `embed [<texts>]` takes the rest. Other text is a prompt. JSON forms: `{"method":"models"}`, `{"method":"model","id":"..."}`, `{"method":"embed","input":...,"model":"..."}`.
+- `models`, `balance` and `key` are the whole body; `model <id>` takes one model ID; `embed` takes a JSON string, list or `{"input":...}` object, and `image` a JSON object; other text after any of them is a prompt. JSON forms: `{"method":"models"}`, `{"method":"model","id":"..."}`, `{"method":"embed","input":...,"model":"..."}`.
 
 </details>
 

@@ -64,13 +64,14 @@
       ]
     },
     "embed": {
-      "help": "Turn text into vectors. Send a text, or a JSON list of texts; the reply is the model and one vector per text.",
+      "text": "embed <JSON text, list or request>",
+      "help": "Turn text into vectors. Send a JSON string, a JSON list of strings, or {\"input\":...,\"model\":...}; the reply is the model and one vector per text. Other text after embed is a prompt.",
       "args": [
         {
           "name": "input",
           "type": "json",
           "rest": true,
-          "help": "A text, or a JSON list of texts; too many texts for one answer are refused"
+          "help": "A JSON string, a JSON list of strings, or an object with input and an optional model; too many texts for one answer are refused"
         }
       ]
     },
