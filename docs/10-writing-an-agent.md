@@ -72,7 +72,7 @@ agent-bus help run
 - **Use shared locks for shared work.** Handle ownership, extension, loss and expiry. A held lock is not proof that an effect completed exactly once. [Shared locks](01-identity-and-authority.md#shared-locks).
 - **Use bigfile for large content.** Transfer references and verify integrity when content exceeds the message's purpose or limits. [Bigfiles](03-records-kv.md#bigfiles).
 - **Offer standard publish/subscribe when emitting events.** Reuse `sub add`, `sub list` and `sub delete` with the emitter's selector and send-once profile. Do not promise replay or deduplication. [Shared behavior](agents/subscriptions.md#the-shared-behaviour).
-- **Preserve the emitter's authorization profile.** Daemon logs check source rights at creation but target delivery admission on every send; app helpers currently recheck creator reach per delivery. Follow the selected emitter's contract, not one assumed general rule. [Daemon subscriptions](agents/bus.md#agent-logs), [app subscriptions](agents/subscriptions.md#the-shared-behaviour).
+- **Preserve the emitter's authorization profile.** Every emitter checks target admission on every send; whether it rechecks the author's reach to the source differs by emitter. Follow the selected emitter's contract, not one assumed general rule. [Which emitter checks the source when](agents/subscriptions.md#source-check).
 
 ## Before you share it
 

@@ -168,14 +168,6 @@ type Config struct {
 	NewID            func() string
 	MaxSubscriptions int // at most 100
 	MaxPerCreator    int // at most 20
-	// RecheckSourcePerDelivery makes the author's management of the source a
-	// check before every send, as the Python helper does. The daemon's own agent
-	// logs leave it off: the author's right to the source is checked when the
-	// subscription is created and not again (Q325). Every send still meets the
-	// author's reach to the target and the target's own admission of the sender.
-	// Off is the zero value on purpose; only the shared vectors, which pin the
-	// helper's behaviour, turn it on.
-	RecheckSourcePerDelivery bool
 }
 
 // Engine is one source's subscriptions.
@@ -768,12 +760,6 @@ func (e *Engine) send(rows []Row, body, topic, tag string, end time.Time, out ma
 		if code := e.admit(row.CreatedBy, row.Target, cache); code != nil {
 			out[row.ID] = outcome{code: admissionWarning(code)}
 			continue
-		}
-		if e.cfg.RecheckSourcePerDelivery {
-			if code := e.admitManage(row.CreatedBy, cache); code != nil {
-				out[row.ID] = outcome{code: admissionWarning(code)}
-				continue
-			}
 		}
 		if name, err := e.destination(row.Target); err != nil || name != row.Target {
 			code := warnAdmissionRefused

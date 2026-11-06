@@ -187,7 +187,7 @@ class Agent:
         self.bus = bus
         self.warning = warning or (lambda code: print('eventlog: '+code,file=sys.stderr))
         self.rings = rings.Rings(directory,configuration,clock=clock)
-        self.subs = Subscriptions(bus,bus.name,validate_selector=selector,selector_matches=matches,warning=self.warning,clock=clock)
+        self.subs = Subscriptions(bus,bus.name,validate_selector=selector,selector_matches=matches,warning=self.warning,clock=clock,source_at_creation_only=True)
 
     def handle(self,message):
         try:end=deadline(message)

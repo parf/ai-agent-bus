@@ -49,6 +49,7 @@ Follow each link for the full behavior and limits.
 ### Bundled agents
 
 - [Helper subscriptions](agents/subscriptions.md) forward external events with explicit permissions and observable delivery limits.
+- [When a subscription's source is checked](agents/subscriptions.md#source-check) is each helper's: at creation, or again before every send where revoking the author's reach must stop the copies (Q326).
 - [Git](agents/git.md#who-may-use-it) and [systemd](agents/systemd.md#who-may-use-it) apply application permissions within each instance's configured limits.
 - [Mail content](agents/imap.md#use-examples) stays visibly distinct from trusted instructions.
 

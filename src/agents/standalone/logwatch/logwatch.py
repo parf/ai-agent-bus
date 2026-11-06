@@ -82,7 +82,8 @@ class Agent:
         self.stop = threading.Event()
         self.subscriptions = shared_subscriptions.Subscriptions(
             bus, bus.name, validate_selector=selector, selector_matches=lambda _selector, _event: True,
-            warning=lambda code: self.log('subscription: ' + code), clock=lambda: self.clock(), delivery=delivery)
+            warning=lambda code: self.log('subscription: ' + code), clock=lambda: self.clock(), delivery=delivery,
+            source_at_creation_only=True)
         self.lock = threading.RLock()
         self.queue = queue.Queue(maxsize=1000)
         self.forward_dropped = 0

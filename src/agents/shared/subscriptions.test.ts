@@ -66,9 +66,11 @@ function fake(initial: Row[]) {
   return { port, state, store };
 }
 
-// A case tagged for the daemon's profile pins what the daemon's own logs do (Q325);
-// this engine keeps its per-delivery source check.
-for (const c of (vectors.cases as Record<string, any>[]).filter((c) => c.profile !== "daemon")) {
+// A creation-only case pins engines that check the author's reach to the source only
+// when a subscription is made (Q326); this engine asks again before every send.
+const cases = (vectors.cases as Record<string, any>[]).filter((c) => c.profile !== "creation-only");
+test("runs every case but the creation-only ones", () => expect(cases.length).toBe(33));
+for (const c of cases) {
   test(`case ${c.name}`, async () => {
     const { port, state } = fake(c.initial ?? []);
     const ids = [...(c.ids ?? [])];

@@ -185,10 +185,23 @@ func TestSharedOperationVectors(t *testing.T) {
 	if err = json.Unmarshal(raw, &file); err != nil {
 		t.Fatal(err)
 	}
-	if len(file.Cases) != 36 {
-		t.Fatalf("%d operation vectors, want 36: the file changed", len(file.Cases))
+	if len(file.Cases) != 41 {
+		t.Fatalf("%d operation vectors, want 41: the file changed", len(file.Cases))
 	}
+	// The daemon checks the author's reach to the source only when a
+	// subscription is made (Q326): a case for engines that ask again before
+	// every send is not this engine's.
+	ran := 0
+	defer func() {
+		if ran != 35 {
+			t.Errorf("ran %d operation vectors, want 35 (41 less 6 per-delivery)", ran)
+		}
+	}()
 	for _, c := range file.Cases {
+		if c.Profile == "per-delivery" {
+			continue
+		}
+		ran++
 		t.Run(c.Name, func(t *testing.T) {
 			store := &vectorStore{rows: map[string][]byte{}}
 			for _, row := range c.Initial {
@@ -219,9 +232,6 @@ func TestSharedOperationVectors(t *testing.T) {
 					return fmt.Sprintf("%012x", serial)
 				},
 				MaxSubscriptions: c.Limits["max_subscriptions"], MaxPerCreator: c.Limits["max_per_creator"],
-				// The vectors pin the helper's per-delivery source check; the cases
-				// tagged for the daemon's profile run with it off.
-				RecheckSourcePerDelivery: c.Profile != "daemon",
 			}
 			engine, err := New(store, bus, cfg)
 			if err != nil {

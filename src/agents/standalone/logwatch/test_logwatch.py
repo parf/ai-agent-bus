@@ -130,7 +130,10 @@ class WatcherTests(unittest.TestCase):
         bus = FakeBus()
         def delivery(rows, body, topic, tag, deadline):
             cache = {}
-            return {r['id']: logwatch.shared_subscriptions.deliver_one(bus, bus.name, r, body, topic, tag, deadline, cache) for r in rows}
+            # As the production child does: with the engine's own source rule (Q326).
+            creation_only = agent.subscriptions.source_at_creation_only
+            return {r['id']: logwatch.shared_subscriptions.deliver_one(bus, bus.name, r, body, topic, tag, deadline, cache,
+                                                                       source_at_creation_only=creation_only) for r in rows}
         agent = Agent(bus, configuration({'sources': [], 'excludes': [], **overrides}), log=lambda _:None, delivery=delivery)
         self.addCleanup(agent.close)
         return agent
@@ -261,7 +264,7 @@ time.sleep(30)
         self.assertEqual((row['sent'], row['dropped']), (1, 1))
         self.assertNotIn('paused', row)
 
-    def test_author_is_checked_for_target_and_source_at_add_and_each_copy(self):
+    def test_author_is_checked_for_target_and_source_at_add_and_target_at_each_copy(self):
         agent = self.agent(); warnings = []; agent.log = warnings.append
         for target in ('#target@t', agent.bus.name):
             agent.bus.may = {('#caller@t', target):False}
@@ -269,15 +272,21 @@ time.sleep(30)
             self.assertEqual(agent.bus.kv.values, {})
         agent.bus.may = True
         agent.handle(message('sub add #target@t /error/i'))
-        for target in ('#target@t', agent.bus.name):
-            agent.bus.may = {('#caller@t', target):False}
-            before = len(agent.bus.sent)
-            agent.forward([agent.ring.add('file', 'ERROR revoked')])
-            self.assertEqual(len(agent.bus.sent), before)
-            self.assertEqual(warnings[-1], 'subscription: admission_refused')
-            agent.bus.may = True
-            agent.forward([agent.ring.add('file', 'ERROR recovered')])
-            self.assertEqual(len(agent.bus.sent), before + 1)
+        agent.bus.may = {('#caller@t', '#target@t'):False}
+        before = len(agent.bus.sent)
+        agent.forward([agent.ring.add('file', 'ERROR revoked')])
+        self.assertEqual(len(agent.bus.sent), before)
+        self.assertEqual(warnings[-1], 'subscription: admission_refused')
+        agent.bus.may = True
+        agent.forward([agent.ring.add('file', 'ERROR recovered')])
+        self.assertEqual(len(agent.bus.sent), before + 1)
+        # Its reach to #logwatch was settled when the subscription was made (Q326).
+        agent.bus.may = {('#caller@t', agent.bus.name):False}
+        warned = len(warnings)
+        agent.forward([agent.ring.add('file', 'ERROR source revoked')])
+        self.assertEqual([body for _, body, _ in agent.bus.sent[before + 1:]], ['[file] ERROR source revoked'])
+        self.assertEqual(len(warnings), warned)
+        agent.bus.may = True
         for failure in (BusError('down'), UnexpectedAnswer('old daemon'), OSError('socket')):
             agent.bus.may = failure
             before = len(agent.bus.sent)
@@ -290,7 +299,8 @@ time.sleep(30)
         rows = json.loads(agent.handle(message('sub list')))['subs']
         self.assertEqual(len(rows), 1)
         row = rows[0]
-        self.assertEqual((row['sent'], row['dropped']), (3, 5))
+        # Sent: recovered, source revoked, recovered; dropped: the revoked target and the three outages.
+        self.assertEqual((row['sent'], row['dropped']), (3, 4))
         self.assertNotIn('paused', row)
 
     def test_creators_manage_only_their_rows_and_forwarded_manager_roles_do_not_expand_visibility(self):

@@ -96,13 +96,18 @@ class Parity(unittest.TestCase):
                     self.assertEqual(result,row['match'],row)
 
     def test_operation_vectors(self):
+        # The helper asks the author's reach to the source before every send by default (#imap);
+        # source_at_creation_only=True, as #eventlog and #logwatch run it, asks only at creation
+        # (Q326). A case without a profile holds either way, so it runs both ways.
+        runs=0
         for case in json.loads(VECTORS.read_text())['cases']:
-            # A case tagged for the daemon's profile pins what the daemon's own logs do
-            # (Q325); this engine keeps its per-delivery source check.
-            if case.get('profile')=='daemon':continue
-            with self.subTest(case=case['name']):self.case(case)
+            profile=case.get('profile')
+            for creation_only in {'per-delivery':(False,),'creation-only':(True,)}.get(profile,(False,True)):
+                with self.subTest(case=case['name'],creation_only=creation_only):self.case(case,creation_only)
+                runs+=1
+        self.assertEqual(runs,6+8+2*27)
 
-    def case(self,case):
+    def case(self,case,creation_only=False):
         bus=Bus(case['source'],case.get('initial',[]));warnings=[];ids=list(case.get('ids',[]));serial=0
         def next_id():
             nonlocal serial
@@ -113,8 +118,9 @@ class Parity(unittest.TestCase):
             return f'{serial:012x}'
         now=datetime.fromisoformat(case.get('now','2026-10-29T00:00:00.000Z').replace('Z','+00:00')).timestamp()
         def delivery(rows,body,topic,tag,deadline):
-            cache={};return {row['id']:s.deliver_one(bus,bus.name,row,body,topic,tag,deadline,cache) for row in rows}
-        engine=s.Subscriptions(bus,bus.name,validate_selector=selector,selector_matches=selected,warning=warnings.append,clock=lambda:now,id_factory=next_id,delivery=delivery,**case.get('limits',{}))
+            cache={};return {row['id']:s.deliver_one(bus,bus.name,row,body,topic,tag,deadline,cache,source_at_creation_only=creation_only) for row in rows}
+        engine=s.Subscriptions(bus,bus.name,validate_selector=selector,selector_matches=selected,warning=warnings.append,clock=lambda:now,id_factory=next_id,delivery=delivery,
+                               source_at_creation_only=creation_only,**case.get('limits',{}))
         try:
             for step in case['steps']:
                 bus.step=bus.kv.step=step;bus.answers=list(step.get('checks',[]));bus.queries=[];bus.attempts=[];bus.kv.writes=0;warnings.clear()
@@ -311,6 +317,18 @@ class Delivery(unittest.TestCase):
                 wanted=['dest@fixture.test'] if target=='dest@fixture.test' else ['dest@fixture.test','#eventlog@fixture.test']
                 self.assertEqual([q for path,q,_ in self.calls if path=='/may-send'],[{'who':['alice@fixture.test'],'name':[name]} for name in wanted])
                 self.assertFalse(any(path=='/send' for path,_,_ in self.calls))
+    def test_creation_only_engine_asks_only_the_target_before_a_send(self):
+        """#eventlog and #logwatch run the helper so, through the same send-only child (Q326)."""
+        self.refuse=False;self.engine.close()
+        self.engine=s.Subscriptions(self.bus,self.bus.name,validate_selector=selector,selector_matches=selected,warning=self.warnings.append,
+                                    id_factory=lambda:'000000000001',source_at_creation_only=True)
+        self.assertEqual(len(self.engine.list(message({'author':'alice@fixture.test'}))),1)  # the stored row, made in setUp
+        for revoked,outcome in (('#eventlog@fixture.test',{'matched':1,'sent':1,'dropped':0}),('dest@fixture.test',{'matched':1,'sent':0,'dropped':1})):
+            with self.subTest(revoked=revoked):
+                self.calls.clear();self.accepted.clear();self.warnings.clear();self.revoked=revoked
+                self.assertEqual(self.deliver(),outcome)
+                self.assertEqual([q for path,q,_ in self.calls if path=='/may-send'],[{'who':['alice@fixture.test'],'name':['dest@fixture.test']}])
+                self.assertEqual(len(self.accepted),outcome['sent'])
     def test_stalled_authority_is_bounded_and_leaves_no_worker(self):
         self.slow=True;self.refuse=False
         self.assertEqual(self.deliver(2),{'matched':1,'sent':0,'dropped':1})

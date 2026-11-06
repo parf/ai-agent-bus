@@ -754,6 +754,7 @@
     },
     {
       "name": "drop-refused-then-next-active",
+      "profile": "per-delivery",
       "source": "#eventlog@fixture.test",
       "initial": [
         {
@@ -860,7 +861,106 @@
       ]
     },
     {
+      "name": "creation-only-drop-refused-then-next-active",
+      "profile": "creation-only",
+      "source": "#eventlog@fixture.test",
+      "initial": [
+        {
+          "id": "000000000001",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "created_by": "#writer@fixture.test",
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        }
+      ],
+      "steps": [
+        {
+          "op": "deliver",
+          "event": {
+            "log": "deploys",
+            "level": "alert",
+            "text": "tests FAILED",
+            "id": 1
+          },
+          "checks": [
+            true
+          ],
+          "send": "refused",
+          "expect": {
+            "matched": 1,
+            "sent": 0,
+            "dropped": 1,
+            "warnings": [
+              "send_refused"
+            ],
+            "attempts": 1,
+            "queries": [
+              {
+                "who": "#writer@fixture.test",
+                "target": "events@fixture.test"
+              }
+            ]
+          }
+        },
+        {
+          "op": "deliver",
+          "event": {
+            "log": "deploys",
+            "level": "alert",
+            "text": "tests FAILED",
+            "id": 2
+          },
+          "checks": [
+            true
+          ],
+          "send": "ok",
+          "expect": {
+            "matched": 1,
+            "sent": 1,
+            "dropped": 0,
+            "warnings": [],
+            "attempts": 1,
+            "queries": [
+              {
+                "who": "#writer@fixture.test",
+                "target": "events@fixture.test"
+              }
+            ]
+          }
+        },
+        {
+          "op": "list",
+          "author": "#writer@fixture.test",
+          "roles": [],
+          "expect": {
+            "rows": [
+              {
+                "id": "000000000001",
+                "target": "events@fixture.test",
+                "selector": {
+                  "log": "deploys",
+                  "level": "alert"
+                },
+                "filter": "/failed/i",
+                "created_by": "#writer@fixture.test",
+                "created_at": "2026-10-29T00:00:00.000Z",
+                "sent": 1,
+                "dropped": 1
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "drop-unknown-then-next-active",
+      "profile": "per-delivery",
       "source": "#eventlog@fixture.test",
       "initial": [
         {
@@ -967,6 +1067,104 @@
       ]
     },
     {
+      "name": "creation-only-drop-unknown-then-next-active",
+      "profile": "creation-only",
+      "source": "#eventlog@fixture.test",
+      "initial": [
+        {
+          "id": "000000000001",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "created_by": "#writer@fixture.test",
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        }
+      ],
+      "steps": [
+        {
+          "op": "deliver",
+          "event": {
+            "log": "deploys",
+            "level": "alert",
+            "text": "tests FAILED",
+            "id": 1
+          },
+          "checks": [
+            true
+          ],
+          "send": "unknown",
+          "expect": {
+            "matched": 1,
+            "sent": 0,
+            "dropped": 1,
+            "warnings": [
+              "send_unknown"
+            ],
+            "attempts": 1,
+            "queries": [
+              {
+                "who": "#writer@fixture.test",
+                "target": "events@fixture.test"
+              }
+            ]
+          }
+        },
+        {
+          "op": "deliver",
+          "event": {
+            "log": "deploys",
+            "level": "alert",
+            "text": "tests FAILED",
+            "id": 2
+          },
+          "checks": [
+            true
+          ],
+          "send": "ok",
+          "expect": {
+            "matched": 1,
+            "sent": 1,
+            "dropped": 0,
+            "warnings": [],
+            "attempts": 1,
+            "queries": [
+              {
+                "who": "#writer@fixture.test",
+                "target": "events@fixture.test"
+              }
+            ]
+          }
+        },
+        {
+          "op": "list",
+          "author": "#writer@fixture.test",
+          "roles": [],
+          "expect": {
+            "rows": [
+              {
+                "id": "000000000001",
+                "target": "events@fixture.test",
+                "selector": {
+                  "log": "deploys",
+                  "level": "alert"
+                },
+                "filter": "/failed/i",
+                "created_by": "#writer@fixture.test",
+                "created_at": "2026-10-29T00:00:00.000Z",
+                "sent": 1,
+                "dropped": 1
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "revoked-target",
       "source": "#eventlog@fixture.test",
       "initial": [
@@ -1017,6 +1215,7 @@
     },
     {
       "name": "revoked-source",
+      "profile": "per-delivery",
       "source": "#eventlog@fixture.test",
       "initial": [
         {
@@ -1745,6 +1944,7 @@
     },
     {
       "name": "kind-changed-before-send",
+      "profile": "per-delivery",
       "source": "#eventlog@fixture.test",
       "initial": [
         {
@@ -1798,6 +1998,56 @@
       ]
     },
     {
+      "name": "creation-only-kind-changed-before-send",
+      "profile": "creation-only",
+      "source": "#eventlog@fixture.test",
+      "initial": [
+        {
+          "id": "000000000001",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "created_by": "#writer@fixture.test",
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        }
+      ],
+      "steps": [
+        {
+          "op": "deliver",
+          "event": {
+            "log": "deploys",
+            "level": "alert",
+            "text": "tests FAILED",
+            "id": 1
+          },
+          "checks": [
+            true
+          ],
+          "kind": "pubsub",
+          "expect": {
+            "matched": 1,
+            "sent": 0,
+            "dropped": 1,
+            "warnings": [
+              "admission_refused"
+            ],
+            "attempts": 0,
+            "queries": [
+              {
+                "who": "#writer@fixture.test",
+                "target": "events@fixture.test"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "expired-before-admission",
       "source": "#eventlog@fixture.test",
       "initial": [
@@ -1840,6 +2090,7 @@
     },
     {
       "name": "admission-cache-per-entry",
+      "profile": "per-delivery",
       "source": "#eventlog@fixture.test",
       "initial": [
         {
@@ -1935,7 +2186,95 @@
       ]
     },
     {
+      "name": "creation-only-admission-cache-per-entry",
+      "profile": "creation-only",
+      "source": "#eventlog@fixture.test",
+      "initial": [
+        {
+          "id": "000000000001",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "created_by": "#writer@fixture.test",
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        },
+        {
+          "id": "000000000002",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "created_by": "#writer@fixture.test",
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        }
+      ],
+      "steps": [
+        {
+          "op": "deliver",
+          "event": {
+            "log": "deploys",
+            "level": "alert",
+            "text": "tests FAILED",
+            "id": 1
+          },
+          "checks": [
+            true
+          ],
+          "send": "ok",
+          "expect": {
+            "matched": 2,
+            "sent": 2,
+            "dropped": 0,
+            "attempts": 2,
+            "warnings": [],
+            "queries": [
+              {
+                "who": "#writer@fixture.test",
+                "target": "events@fixture.test"
+              }
+            ]
+          }
+        },
+        {
+          "op": "deliver",
+          "event": {
+            "log": "deploys",
+            "level": "alert",
+            "text": "tests FAILED",
+            "id": 2
+          },
+          "checks": [
+            true
+          ],
+          "send": "ok",
+          "expect": {
+            "matched": 2,
+            "sent": 2,
+            "dropped": 0,
+            "attempts": 2,
+            "warnings": [],
+            "queries": [
+              {
+                "who": "#writer@fixture.test",
+                "target": "events@fixture.test"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "counter-write-unknown-once",
+      "profile": "per-delivery",
       "source": "#eventlog@fixture.test",
       "initial": [
         {
@@ -1996,6 +2335,70 @@
               {
                 "who": "#writer@fixture.test",
                 "target": "#eventlog@fixture.test"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "creation-only-counter-write-unknown-once",
+      "profile": "creation-only",
+      "source": "#eventlog@fixture.test",
+      "initial": [
+        {
+          "id": "000000000001",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "created_by": "#writer@fixture.test",
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        },
+        {
+          "id": "000000000002",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "created_by": "#writer@fixture.test",
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        }
+      ],
+      "steps": [
+        {
+          "op": "deliver",
+          "event": {
+            "log": "deploys",
+            "level": "alert",
+            "text": "tests FAILED",
+            "id": 1
+          },
+          "checks": [
+            true
+          ],
+          "send": "ok",
+          "counter_store": "unknown",
+          "expect": {
+            "matched": 2,
+            "sent": 2,
+            "dropped": 0,
+            "attempts": 2,
+            "warnings": [
+              "store_unknown"
+            ],
+            "queries": [
+              {
+                "who": "#writer@fixture.test",
+                "target": "events@fixture.test"
               }
             ]
           }
@@ -2452,8 +2855,8 @@
       ]
     },
     {
-      "name": "daemon-profile-source-not-rechecked-per-delivery",
-      "profile": "daemon",
+      "name": "creation-only-source-not-rechecked-per-delivery",
+      "profile": "creation-only",
       "source": "#eventlog@fixture.test",
       "initial": [
         {
@@ -2522,8 +2925,8 @@
       ]
     },
     {
-      "name": "daemon-profile-target-reach-rechecked-per-delivery",
-      "profile": "daemon",
+      "name": "creation-only-target-reach-rechecked-per-delivery",
+      "profile": "creation-only",
       "source": "#eventlog@fixture.test",
       "initial": [
         {
@@ -2594,8 +2997,8 @@
       ]
     },
     {
-      "name": "daemon-profile-self-target-is-plain-target-admission",
-      "profile": "daemon",
+      "name": "creation-only-self-target-is-plain-target-admission",
+      "profile": "creation-only",
       "source": "#eventlog@fixture.test",
       "initial": [
         {

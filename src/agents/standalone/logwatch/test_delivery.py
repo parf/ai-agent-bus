@@ -115,10 +115,15 @@ class SharedDelivery(unittest.TestCase):
         self.expect_body('[fixture] restored target')
         self.assertIsNone(self.take())
         self.assertEqual(self.counts(), (1, 1))
+        # The author's reach to the source was checked when the subscription was made (Q326).
+        allow = self.owner.record(self.source.name).lookup().get('allow') or []
         self.owner.record(self.source.name).manage(allow=[])
         self.forward('revoked source')
+        self.expect_body('[fixture] revoked source')
         self.assertIsNone(self.take())
-        self.assertEqual(self.warnings, ['subscription: admission_refused'] * 2)
+        self.assertEqual(self.warnings, ['subscription: admission_refused'])
+        self.owner.record(self.source.name).manage(allow=allow)   # so the author may ask for the counts again
+        self.assertEqual(self.counts(), (2, 1))
 
 
 if __name__ == '__main__': unittest.main()

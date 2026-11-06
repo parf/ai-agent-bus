@@ -43,7 +43,7 @@ Enable the chosen helper using its guide below. Replace example helper and targe
 | Rule | Every subscription |
 |---|---|
 | Calls | `sub add <target> [selector] [/regex/]`, `sub list`, `sub delete <id>`; the target is a queue or an agent |
-| Authority | The author must be allowed to send to the target and to the helper itself, checked at `sub add` and again before every send |
+| Authority | The author must be allowed to send to the target and to the helper itself, both checked at `sub add`; the target is checked again before every send, the helper as [the next paragraph](#source-check) says |
 | Delivery | Each match is one message into the target's own inbox, sent once and never retried |
 | Refused send | A full, revoked or unreachable target: that copy is dropped and counted, the helper writes a warning, and the subscription stays active for the next match; no pause, retry or outbox. A copy whose acceptance is unknown counts as dropped, though it may have arrived |
 | Start | From the moment it is added; nothing earlier is replayed |
@@ -52,7 +52,15 @@ Enable the chosen helper using its guide below. Replace example helper and targe
 | Management | Each author lists and deletes only their own; the helper record's Owner and Maintainers list and delete all. A role reached through a forward does not count. The helper's own roles decide who may subscribe at all |
 | Invalid stored state | A stored filter the grammar no longer accepts stays listed with `reason: invalid_filter`, matches nothing and warns, never becoming match-all. A stored entry that is not a subscription at all is listed only to the Owner and Maintainers, as its id with `reason: invalid_state`; it counts toward the limit and only they can delete it |
 
-`#eventlog` checks the application role when the subscription is created, then rechecks the author's bus access to source and target before each delivery. `#bus` checks source-log authority at creation only. Both check that the target admits the forwarding sender before each send.
+<a id="source-check"></a>
+The author's reach to the helper itself, the source, is checked again before each send only where removing it must stop the copies at once:
+
+| Source checked | Helpers |
+|---|---|
+| At `sub add` only | [`#bus`](bus.md#agent-logs), [`#eventlog`](eventlog.md), [`#logwatch`](logwatch.md#what-it-does) |
+| At `sub add` and before every send | [`#imap`](imap.md#what-it-does): its source is a mailbox, and an author whose reach to it is removed must stop receiving its mail; [`#slack`](slack.md#what-it-does) and [`#telegram`](telegram.md#reply-routing), whose shared TypeScript helper asks before every send |
+
+`#eventlog` also checks the application role when the subscription is created. Every helper checks that the target admits the forwarding sender before each send.
 
 ### What each helper does today
 

@@ -253,9 +253,10 @@ class Daemon(unittest.TestCase):
         self.assertEqual(self.inbox(self.target),[]);self.assertEqual(self.warnings,['send_refused','admission_refused'])
         self.owner.record(self.target.name).manage(allow=[self.reader.name,self.worker.name])
         self.owner.record(self.worker.name).manage(allow=[self.target.name+'(write)',self.stranger.name])
-        result=self.ask('write deploys alert source-revoked');self.assertEqual(result['deliveries']['dropped'],1)
-        self.assertEqual(self.inbox(self.target),[])
-        rows=self.ask('sub list')['subscriptions'];self.assertEqual((rows[0]['sent'],rows[0]['dropped']),(1,3))
+        # The author's reach to #eventlog was checked when the subscription was made, not again (Q326).
+        result=self.ask('write deploys alert source-revoked');self.assertEqual(result['deliveries'],{'matched':1,'sent':1,'dropped':0})
+        self.assertEqual([json.loads(m.body)['text'] for m in self.inbox(self.target)],['source-revoked'])
+        rows=self.ask('sub list')['subscriptions'];self.assertEqual((rows[0]['sent'],rows[0]['dropped']),(2,2))
         self.assertEqual(len(self.ask('pull deploys')['entries']),4)
     def test_real_forwarded_owner_and_bare_acl_cannot_read_or_destroy(self):
         self.ask('write deploys alert retained')

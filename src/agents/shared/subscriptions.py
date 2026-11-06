@@ -109,14 +109,19 @@ def destination(bus,target):
     return target_text(value.get('name'))
 
 
-def deliver_one(bus,source,row,body,topic,tag,deadline,cache,on_send=None):
-    """Pure decision path shared by injected fixtures and private send helpers."""
+def deliver_one(bus,source,row,body,topic,tag,deadline,cache,on_send=None,source_at_creation_only=False):
+    """Pure decision path shared by injected fixtures and private send helpers.
+
+    The author's reach to the target is asked before every send. Its reach to the source is asked
+    again only when source_at_creation_only is off; on, it was settled when the subscription was
+    made, as #bus does (Q326)."""
     if time.monotonic()>=deadline:return 'dropped','deadline'
     who,target=row['created_by'],row['target']
     code=checked_admission(bus,who,target,cache)
     if code:return 'dropped',code
-    code=checked_admission(bus,who,source,cache)
-    if code:return 'dropped',code
+    if not source_at_creation_only:
+        code=checked_admission(bus,who,source,cache)
+        if code:return 'dropped',code
     try:
         if destination(bus,target)!=target:return 'dropped','admission_refused'
     except SubscriptionError:return 'dropped','admission_refused'
@@ -134,7 +139,7 @@ def deliver_one(bus,source,row,body,topic,tag,deadline,cache,on_send=None):
 class Subscriptions:
     def __init__(self,bus,source,*,validate_selector,selector_matches,warning,
                  clock=time.time,id_factory=lambda:uuid.uuid4().hex[:12],
-                 max_subscriptions=100,max_per_creator=20,delivery=None):
+                 max_subscriptions=100,max_per_creator=20,delivery=None,source_at_creation_only=False):
         self.bus,self.source=bus,target_text(source)
         self.kv=bus.record(source).kv
         self.validate_selector,self.selector_matches=validate_selector,selector_matches
@@ -143,6 +148,10 @@ class Subscriptions:
             raise SubscriptionError('limit')
         self.maximum,self.per_creator=max_subscriptions,max_per_creator
         self.delivery=delivery
+        # #eventlog and #logwatch check the author's reach to the source only when a subscription is
+        # made (Q326); #imap keeps asking before every forward, since the source is a mailbox.
+        if type(source_at_creation_only) is not bool:raise SubscriptionError('limit')
+        self.source_at_creation_only=source_at_creation_only
         self.lock=threading.RLock()
         self.process_lock=threading.Lock();self.process_condition=threading.Condition(self.process_lock);self.processes=set();self.closed=False
 
@@ -374,7 +383,8 @@ class Subscriptions:
             groups={}
             for row in rows:groups.setdefault(row['created_by'],[]).append(row)
             def group(wanted):
-                request={'source':self.source,'connection':connection,'rows':wanted,'body':body,'topic':topic,'tag':tag,'deadline':end}
+                request={'source':self.source,'connection':connection,'rows':wanted,'body':body,'topic':topic,'tag':tag,'deadline':end,
+                         'source_at_creation_only':self.source_at_creation_only}
                 payload=json.dumps(request,ensure_ascii=True,allow_nan=False).encode()
                 raw,complete=self._helper(Path(__file__).resolve(),payload,end,('--deliver',))
                 known={r['id'] for r in wanted};result={};started=set();invalid=False
@@ -438,7 +448,8 @@ def delivery_worker():
                         running=True
                         signal.setitimer(signal.ITIMER_REAL,left)
                         def sending():print(json.dumps({'id':sub_id,'phase':'sending'}),flush=True)
-                        status,code=deliver_one(bus,source,row,request['body'],request['topic'],request['tag'],min(deadline,time.monotonic()+1),cache,sending)
+                        status,code=deliver_one(bus,source,row,request['body'],request['topic'],request['tag'],min(deadline,time.monotonic()+1),cache,sending,
+                                                request['source_at_creation_only'] is True)
                         running=False
                 except TimeoutError:
                     running=False;status,code='dropped','send_unknown'
