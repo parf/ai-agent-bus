@@ -86,6 +86,8 @@ Only unresolved choices, in [agent markup](http://localhost:7777/mdhouse/doc/age
 
 Policy choices for the [M.14 hardening proposal](runner-hardening.md#runner-hardening-proposal), separate from [current isolation](../../docs/runner/security.md#isolation-today). All await the owner; no mechanism or implementation is selected. №Q279 and №Q280 are **added from T-18 review, owner to confirm**, not part of the owner's original three boundaries.
 
+> 💬 👤parf (in chat to #ab-ceo, 2026-11-06 ~10:45): "Runner hardening => postpone to R.1.2"
+
 - ❓ Q276 Which runtime files and shared public code must remain visible after narrowing `/usr`
   - Decide the supported agent/runtime compatibility set and any explicit exception for sibling public code; the goal is to exclude unrelated package contents.
   - Impact: determines the positive and negative read fixtures, without choosing how the view is constructed.
