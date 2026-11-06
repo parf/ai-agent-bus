@@ -6,7 +6,7 @@ dest=${1:?usage: package.sh <agent.d/rag>}
 . "$here/../package-tree.sh"
 package_begin "$dest"
 mkdir -p "$dest/support/agents/shared" "$dest/support/clients/python/agent_bus" "$dest/support/internal/version"
-for name in rag.py rules.py core.py chunks.py prompts.py blocks.py agent.json env.dist CHANGELOG.md config.json.dist; do
+for name in rag.py rules.py core.py namespaces.py chunks.py prompts.py blocks.py agent.json env.dist CHANGELOG.md config.json.dist; do
   install -m 0644 "$here/$name" "$dest/$name"
 done
 chmod 0755 "$dest/rag.py"

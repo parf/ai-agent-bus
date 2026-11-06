@@ -54,6 +54,7 @@ class Store:
         return {'data':[{'index':i,'embedding':[.5]*self.dimensions} for i in range(len(request['input']))]}
     def matches(self,point,condition):
         def check(c):
+            if 'is_empty' in c:return point['payload'].get(c['is_empty']['key']) is None
             if 'has_vector' in c:return isinstance(point['vector'],dict) and c['has_vector'] in point['vector']
             if 'has_id' in c:return point['id'] in c['has_id']
             return point['payload'].get(c['key'])==c['match']['value']
@@ -129,7 +130,7 @@ class Store:
             for p in values:
                 payload=p['payload']
                 if isinstance(body['with_payload'],dict):payload={k:payload[k] for k in body['with_payload']['include'] if k in payload}
-                projected.append({'id':p['id'],'payload':deepcopy(payload)})
+                projected.append({'id':p['id'],'payload':deepcopy(payload),**({'vector':deepcopy(p['vector'])} if body.get('with_vector') else {})})
             return {'points':projected,'next_page_offset':following}
         else:raise AssertionError('unexpected fake Qdrant operation')
         return {'status':'completed'}
@@ -141,7 +142,7 @@ class Keyword(unittest.TestCase):
         self.store=Store();self.store.sparse=True;self.kv=KV();self.app=Core(CFG,self.store,self.kv)
         self.app.cache.set('team','notes',PROMPT)
     def put(self,id,data,**more):
-        v={'method':'upsert','namespace':'team','tableName':'notes','id':id,'data':data,**more}
+        v={'method':'upsert','namespace':'team','tableName':'notes','id':id,'data':data,'source':'notes/'+id,**more}
         return self.app.run(parse(dumps(v)))
     def find(self,query,**more):
         return self.app.run(parse(dumps({'method':'search','namespace':'team','query':query,**more})))

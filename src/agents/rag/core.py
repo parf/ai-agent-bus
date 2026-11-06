@@ -9,11 +9,13 @@ from prompts import Cache
 from rules import (RagError,Unknown,Refused,Deadline,Incomplete,RECORD_MAX,SUMMARY_MAX,SCALARS_MAX,INDEXES,SUMMARY_FIELDS,BM25_VECTOR,NO_VECTOR,NO_IDF,INDEX_BYTES,INDEX_RECHECK,
                    config,dumps,identity,match,point_id,revision,scope,number,sparse,vector,summary,text,DATA_MAX)
 from blocks import Budget
+from namespaces import Catalogue,manager,SCHEMA
+from rules import NamedRefusal
 
 
 class Core:
     def __init__(self,cfg,backend,kv,keyword=None):
-        self.cfg=config(cfg);self.backend=backend;self.cache=Cache(kv);self.keyword=keyword
+        self.cfg=config(cfg);self.backend=backend;self.cache=Cache(kv);self.keyword=keyword;self.catalogue=Catalogue(kv,backend,self.cfg);self.index_state={}
         self.budget=Budget();self.cursors=OrderedDict();self.health='unknown: collection not verified';self.bm25=False;self.keyword_state=NO_VECTOR;self.indexed=False;self.checked=0.0
     def verify(self):
         try:
@@ -39,24 +41,33 @@ class Core:
     def run(self,request,envelope=None):
         self.budget=Budget(envelope);self.backend.begin(self.budget)
         method=request['method']
-        if method=='prompts':
-            action=request['action'];n=request['namespace'];t=request['tableName']
-            if action=='get':return self.cache.get(n,t)
-            if action=='set':self.cache.set(n,t,request['data'])
-            else:self.cache.delete(n,t)
-            return {'status':'ok'}
+        if method in ('keyword_index','namespaces','drop_namespace'):manager(envelope)
         self.verify()
-        if method=='upsert':return self.upsert(request)
-        if method=='get':return self.get(request)
-        if method=='list':return self.list(request)
-        if method=='search':return self.search(request)
-        if method=='keyword_index':return self.keyword_index(envelope)
-        if method=='delete':return self.delete(request)
-        raise RagError('unknown method')
-    def prepare(self,v):
+        # This count is a provisioning check, not an unscoped record read.
+        legacy=self.backend.qdrant('POST','/points/count',{'filter':{'must':[{'is_empty':{'key':'namespace'}}]},'exact':True})
+        if not isinstance(legacy,dict) or type(legacy.get('count')) is not int or legacy['count']<0:raise RagError('invalid legacy count')
+        if legacy['count']:raise NamedRefusal('legacy_data','namespace-free rows require owner re-feed into a fresh collection')
+        repo=self.catalogue.bind(request['namespace'],self.cache,request.get('tableName'))
+        try:
+            if method=='prompts':
+                result=repo.prompt(request['action'],request['tableName'],request.get('data'))
+                return result if request['action']=='get' else {'status':'ok'}
+            if method=='upsert':return self.upsert(request,repo)
+            if method=='get':
+                result=self.get(request,repo)
+                if result is None:raise NamedRefusal('not_found','record is absent from this namespace')
+                return result
+            if method=='list':return self.list(request,repo)
+            if method=='search':return self.search(request,repo)
+            if method=='keyword_index':return self.keyword_index(envelope,repo)
+            if method=='delete':return self.delete(request,repo)
+            raise RagError('unknown method')
+        finally:
+            if method in ('upsert','delete','keyword_index'):self.index_state.pop(repo.name,None)
+    def prepare(self,v,repo):
         source,chunks=extract(v); dimensions=self.cfg['dimensions']
         if len(chunks)*dimensions>SCALARS_MAX:raise RagError('chunks times dimensions exceeds 8192 scalars before provider work')
-        settings=self.cache.get(v['namespace'],v['tableName'])
+        settings=repo.prompt('get',v['tableName'])
         if settings is None:raise RagError('classification prompts are not configured')
         # Upper bound every possible selected label, before paying either provider.
         keys=sorted(settings['labels'],key=lambda x:len(dumps(x,ascii=True)),reverse=True)[:settings['top_k']]
@@ -98,31 +109,31 @@ class Core:
         summary={k:full[k] for k in SUMMARY_FIELDS if k in full}
         if len(dumps(summary,ascii=True).encode())>SUMMARY_MAX:raise RagError('prepared summary exceeds byte cap')
         return full,chunks,vectors
-    def upsert(self,v):
-        full,chunks,vectors=self.prepare(v)
+    def upsert(self,v,repo):
+        full,chunks,vectors=self.prepare(v,repo)
         rev=revision(v,vectors,self.cfg['embedding_model'],full['classification_ids'])
         fields={k:full[k] for k in ('namespace','tableName','id','key1','key2') if k in full}
-        ids=[point_id(v,rev,i) for i in range(len(chunks))]
-        points=[{'id':pid,'vector':{'':vec,BM25_VECTOR:sparse(chunk)} if self.bm25 else vec,'payload':{**fields,'_rag_kind':'chunk','_rag_rev':rev,'_rag_labels':list(full['classification_ids']),'_rag_text':chunk}}
-                for pid,vec,chunk in zip(ids,vectors,chunks)]
+        ids=[repo.point_id(v,rev,i) for i in range(len(chunks))]
+        points=[repo.point(v,{'':vec,BM25_VECTOR:sparse(chunk)} if self.bm25 else vec,{**fields,'_rag_kind':'chunk','_rag_index':i,'_rag_rev':rev,'_rag_labels':list(full['classification_ids']),'_rag_text':chunk},rev,i)
+                for i,(pid,vec,chunk) in enumerate(zip(ids,vectors,chunks))]
         head={k:value for k,value in full.items() if k!='embeddings'}
-        head.update(_rag_kind='head',_rag_rev=rev,_rag_chunks=ids,_rag_labels=list(full['classification_ids']))
+        head.update(_rag_schema=SCHEMA,_rag_kind='head',_rag_rev=rev,_rag_chunks=ids,_rag_labels=list(full['classification_ids']))
         stage=0
         try:
-            self.backend.qdrant('PUT','/points?wait=true',{'points':points},write=True)
+            repo.qdrant('PUT','/points?wait=true',{'points':points},write=True)
             stage=1
-            self.backend.qdrant('PUT','/points?wait=true',{'points':[{'id':point_id(v),'vector':[1.0]+[0.0]*(self.cfg['dimensions']-1),'payload':head}]},write=True)
-            old=scope(v,kind='chunk',exact=True);old['must_not']=[match('_rag_rev',rev)]
-            self.backend.qdrant('POST','/points/delete?wait=true',{'filter':old},write=True)
+            repo.qdrant('PUT','/points?wait=true',{'points':[repo.point(v,[1.0]+[0.0]*(self.cfg['dimensions']-1),head)]},write=True)
+            old=repo.select(v,kind='chunk',exact=True);old['must_not']=[match('_rag_rev',rev)]
+            repo.qdrant('POST','/points/delete?wait=true',{'filter':old},write=True)
         except (Refused,Deadline) as error:
             if stage==0:raise RagError('not stored; prior record unchanged: '+str(error)) from None
             raise Unknown('storage outcome unknown; repeating the same upsert/delete is safe') from None
         except RagError:
             raise Unknown('storage outcome unknown; repeating the same upsert/delete is safe') from None
         return full
-    def get(self,v):
+    def get(self,v,repo):
         for attempt in range(2):
-            try:head=self.backend.qdrant('GET','/points/'+point_id(v)+'?with_vector=false')
+            try:head=repo.qdrant('GET','/points/'+repo.point_id(v)+'?with_vector=false')
             except RagError as error:
                 # Backend adapters represent a missing point explicitly, never by accepting another record.
                 if getattr(error,'missing',False):return None
@@ -131,11 +142,11 @@ class Core:
             try:
                 payload=head['payload']
                 if payload.get('_rag_kind')=='deleted':return None
-                if head['id']!=point_id(v) or payload.get('_rag_kind')!='head' or identity(payload)!=identity(v):raise RagError('invalid canonical head')
+                if head['id']!=repo.point_id(v) or payload.get('_rag_kind')!='head' or identity(payload)!=identity(v):raise RagError('invalid canonical head')
                 ids=payload['_rag_chunks']
                 if not isinstance(ids,list) or not 1<=len(ids)<=8 or len(ids)*self.cfg['dimensions']>SCALARS_MAX or len(set(ids))!=len(ids):raise RagError('invalid chunk references')
-                if any(pid!=point_id(v,payload['_rag_rev'],i) for i,pid in enumerate(ids)):raise RagError('chunk identity mismatch')
-                rows=self.backend.qdrant('POST','/points',{'ids':ids,'with_payload':False,'with_vector':True})
+                if any(pid!=repo.point_id(v,payload['_rag_rev'],i) for i,pid in enumerate(ids)):raise RagError('chunk identity mismatch')
+                rows=repo.qdrant('POST','/points',{'ids':ids,'with_payload':False,'with_vector':True})
                 # A collection with a sparse vector answers each point's vectors by name; the dense one is the unnamed one.
                 found={row['id']:row['vector'].get('') if isinstance(row['vector'],dict) else row['vector'] for row in rows}
                 if set(found)!=set(ids) or len(rows)!=len(ids):
@@ -148,8 +159,8 @@ class Core:
                 return result
             except (KeyError,TypeError,AttributeError):raise RagError('invalid stored record') from None
         raise RagError('record changed or is incomplete')
-    def list(self,v):
-        selected=scope(v,kind='head');signature=dumps([selected,v['limit']])
+    def list(self,v,repo):
+        selected=repo.select(v,kind='head');signature=dumps([selected,v['limit']])
         offset=None
         if 'cursor' in v:
             entry=self.cursors.get(v['cursor'])
@@ -157,7 +168,7 @@ class Core:
             self.cursors.move_to_end(v['cursor']);offset=entry[2]
         query={'filter':selected,'limit':v['limit'],'with_payload':{'include':list(SUMMARY_FIELDS)},'with_vector':False}
         if offset is not None:query['offset']=offset
-        page=self.backend.qdrant('POST','/points/scroll',query)
+        page=repo.qdrant('POST','/points/scroll',query)
         try:
             rows=page['points'];following=page['next_page_offset']
             if not isinstance(rows,list) or len(rows)>v['limit']:raise RagError('invalid scroll size')
@@ -167,7 +178,7 @@ class Core:
                 if not rows or str(uuid.UUID(following))!=following or following<=ids[-1]:raise RagError('invalid scroll offset')
             records=[]
             for row in rows:
-                record=summary(row['payload'])
+                record=summary({k:row['payload'][k] for k in SUMMARY_FIELDS if k in row['payload']})
                 if record.get('namespace')!=v['namespace']:raise RagError('invalid scroll payload projection')
                 if any(record.get(k)!=v[k] for k in ('tableName','key1','key2') if k in v):raise RagError('scroll filter mismatch')
                 if len(dumps(record,ascii=True).encode())>SUMMARY_MAX:raise RagError('stored summary exceeds byte cap')
@@ -178,7 +189,7 @@ class Core:
             token=secrets.token_urlsafe(24);self.cursors[token]=(time.monotonic()+600,signature,following)
             while len(self.cursors)>128:self.cursors.popitem(last=False)
         return {'records':records,'cursor':token}
-    def search(self,v):
+    def search(self,v,repo):
         """Records whose stored text best matches the query's words, best first, one row per record.
 
         A chunk answers only while its record's live head lists it: a draft whose head never landed, a
@@ -186,17 +197,15 @@ class Core:
         """
         if self.cfg['keyword_search']=='external':
             if self.keyword is None:raise RagError('keyword_search is external and no external keyword engine is connected')
-            found=self.keyword(deepcopy(v))
-            if not isinstance(found,dict) or not isinstance(found.get('records'),list):raise RagError('invalid external keyword answer')
-            return found
+            return repo.external_search(self.keyword,v)
         if not self.bm25:raise RagError(self.keyword_state)
-        left=self._unindexed()
+        left=self._unindexed(repo)
         if left:raise RagError(f'keyword index incomplete ({left} chunks left); run {{"method":"keyword_index"}}')
         best={};want=min(64,v['limit']*4);exhausted=False
         for page in range(4):
-            query={'query':sparse(v['query'],query=True),'using':BM25_VECTOR,'filter':scope(v,kind='chunk'),'limit':want,'offset':page*want,
+            query={'query':sparse(v['query'],query=True),'using':BM25_VECTOR,'filter':repo.select(v,kind='chunk'),'limit':want,'offset':page*want,
                    'with_payload':{'include':[*SUMMARY_FIELDS[:5],'_rag_text']},'with_vector':False}
-            answer=self.backend.qdrant('POST','/points/query',query)
+            answer=repo.qdrant('POST','/points/query',query)
             try:
                 rows=answer['points']
                 if not isinstance(rows,list) or len(rows)>want:raise RagError('invalid query size')
@@ -204,10 +213,10 @@ class Core:
                     payload=row['payload'];number(row['score'],0,float('inf'),'score')
                     if payload.get('namespace')!=v['namespace']:raise RagError('invalid query payload projection')
                     if any(payload.get(k)!=v[k] for k in ('tableName','key1','key2') if k in v):raise RagError('query filter mismatch')
-                live=self._live(rows)
+                live=self._live(rows,repo)
                 for row in rows:
                     payload=row['payload'];key=identity(payload)
-                    if key in best or row['id'] not in live.get(point_id(payload),()):continue
+                    if key in best or row['id'] not in live.get(repo.point_id(payload),()):continue
                     record={k:payload[k] for k in SUMMARY_FIELDS[:5] if k in payload}
                     record['score']=row['score'];record['text']=text(payload.get('_rag_text'),'stored text',DATA_MAX,empty=True)
                     best[key]=record
@@ -217,28 +226,29 @@ class Core:
         # An empty answer must mean no match, never a window that dead chunks filled.
         if exhausted and len(best)<v['limit']:raise Incomplete('search window exhausted before enough records were found; narrow the query, add filters or run cleanup')
         return {'records':sorted(best.values(),key=lambda r:(-r['score'],r['id']))[:v['limit']]}
-    def _unindexed(self):
+    def _unindexed(self,repo):
         """How many chunks still lack the text vector; known complete once it was counted as none."""
         # Another writer, an older build or a restore can add chunks without the vector, so a zero holds for a minute only.
-        if self.indexed and time.monotonic()-self.checked<INDEX_RECHECK:return 0
-        found=self.backend.qdrant('POST','/points/count',{'filter':{'must':[match('_rag_kind','chunk')],'must_not':[{'has_vector':BM25_VECTOR}]},'exact':True})
+        complete,checked=self.index_state.get(repo.name,(False,0))
+        if complete and time.monotonic()-checked<INDEX_RECHECK:return 0
+        found=repo.qdrant('POST','/points/count',{'filter':{'must':[match('_rag_kind','chunk')],'must_not':[{'has_vector':BM25_VECTOR}]},'exact':True})
         try:n=found['count']
         except (KeyError,TypeError):raise RagError('invalid count response') from None
         if type(n) is not int or n<0:raise RagError('invalid count response')
-        self.indexed=n==0;self.checked=time.monotonic()
+        self.index_state[repo.name]=(n==0,time.monotonic())
         return n
-    def _live(self,rows):
+    def _live(self,rows,repo):
         """Head id -> the chunk ids its live head lists, for the records the rows belong to; a missing or deleted head lists none."""
-        heads=sorted({point_id(row['payload']) for row in rows})
+        heads=sorted({repo.point_id(row['payload']) for row in rows})
         if not heads:return {}
-        found=self.backend.qdrant('POST','/points',{'ids':heads,'with_payload':{'include':['_rag_kind','_rag_chunks']},'with_vector':False})
+        found=repo.qdrant('POST','/points',{'ids':heads,'with_payload':{'include':['_rag_kind','_rag_chunks']},'with_vector':False})
         live={}
         for head in found:
             payload=head.get('payload') or {}
             chunks=payload.get('_rag_chunks')
             if payload.get('_rag_kind')=='head' and isinstance(chunks,list):live[head['id']]=set(chunks)
         return live
-    def keyword_index(self,envelope):
+    def keyword_index(self,envelope,repo):
         """Add the text sparse vector when the collection lacks it, then give every chunk its words; safe to repeat.
 
         Chunks already carrying the vector are not listed again, so a repeat after an interruption continues where it
@@ -248,7 +258,7 @@ class Core:
         if self.cfg['keyword_search']=='external':raise RagError('keyword_search is external; there is no built-in keyword index to build')
         self.verify()
         if self.keyword_state==NO_VECTOR:
-            try:self.backend.qdrant('PUT','/vectors/'+BM25_VECTOR,{'sparse':{'modifier':'idf'}},write=True)
+            try:repo.qdrant('PUT','/vectors/'+BM25_VECTOR,{'sparse':{'modifier':'idf'}},write=True)
             except Refused as error:
                 raise RagError(f'adding the text vector needs the Qdrant proxy\'s admin role ({error}); run as its owner: request PUT /collections/{self.cfg["collection"]}/vectors/{BM25_VECTOR} {{"sparse":{{"modifier":"idf"}}}} , then repeat this command') from None
             self.verify()
@@ -257,13 +267,13 @@ class Core:
         while True:
             try:self.budget.left(10)
             except Deadline:raise Incomplete(f'{done} chunks indexed so far; repeat the same command to continue') from None
-            page=self.backend.qdrant('POST','/points/scroll',{'filter':{'must':[match('_rag_kind','chunk')],'must_not':[{'has_vector':BM25_VECTOR}]},
+            page=repo.qdrant('POST','/points/scroll',{'filter':{'must':[match('_rag_kind','chunk')],'must_not':[{'has_vector':BM25_VECTOR}]},
                 'limit':64,'with_payload':{'include':['_rag_text']},'with_vector':False})
             try:
                 rows=page['points']
                 if not isinstance(rows,list) or len(rows)>64:raise RagError('invalid scroll size')
                 if not rows:
-                    self.indexed=True;self.checked=time.monotonic();return {'status':'ok','indexed':done}
+                    self.index_state[repo.name]=(True,time.monotonic());return {'status':'ok','indexed':done}
                 if seen&{row['id'] for row in rows}:raise RagError('the chunks just indexed still lack the vector; stopping')
                 update=[];size=0
                 for row in rows:
@@ -273,23 +283,24 @@ class Core:
                     if update and size>INDEX_BYTES:break
                     update.append(item)
             except (KeyError,TypeError,AttributeError):raise RagError('invalid scroll response') from None
-            self.backend.qdrant('PUT','/points/vectors?wait=true',{'points':update},write=True)
+            repo.qdrant('PUT','/points/vectors?wait=true',{'points':update},write=True)
             seen.update(item['id'] for item in update);done+=len(update)
-    def delete(self,v):
-        try:return self._delete(v)
+    def delete(self,v,repo):
+        if 'id' in v and self.get(v,repo) is None:raise NamedRefusal('not_found','record is absent from this namespace')
+        try:return self._delete(v,repo)
         except Deadline:raise Incomplete('repeat the same delete to continue') from None
         except RagError:raise Unknown('storage outcome unknown; repeating the same upsert/delete is safe') from None
-    def _delete(self,v):
+    def _delete(self,v,repo):
         # A tombstone removes the head from reads first, retaining identities for
         # repeatable filtered cleanup if a later step fails. No source is lost to an upsert failure.
-        live=scope(v,kind='head')
-        self.backend.qdrant('POST','/points/payload?wait=true',{'payload':{'_rag_kind':'deleted'},'filter':live},write=True)
+        live=repo.select(v,kind='head')
+        repo.qdrant('POST','/points/payload?wait=true',{'payload':{'_rag_kind':'deleted'},'filter':live},write=True)
         if 'id' in v:
-            self._finish_delete(v)
+            self._finish_delete(v,repo)
         else:
             while True:
                 self.budget.left(10)
-                page=self.backend.qdrant('POST','/points/scroll',{'filter':scope(v,kind='deleted'),'limit':16,
+                page=repo.qdrant('POST','/points/scroll',{'filter':repo.select(v,kind='deleted'),'limit':16,
                     'with_payload':{'include':['namespace','tableName','id','key1','key2','_rag_kind']},'with_vector':False})
                 try:rows=page['points']
                 except (KeyError,TypeError):raise RagError('invalid deletion scroll') from None
@@ -298,13 +309,13 @@ class Core:
                 for row in rows:
                     record=row['payload']
                     if not isinstance(record,dict) or record.get('namespace')!=v['namespace']:raise RagError('invalid deletion scope')
-                    if row.get('id')!=point_id(record) or record.get('_rag_kind')!='deleted':raise RagError('invalid deletion head')
+                    if row.get('id')!=repo.point_id(record) or record.get('_rag_kind')!='deleted':raise RagError('invalid deletion head')
                     if any(record.get(k)!=v[k] for k in ('tableName','key1','key2') if k in v):raise RagError('invalid deletion filter')
-                    self._finish_delete(record)
+                    self._finish_delete(record,repo)
             # Also remove pre-head chunks from a failed first upsert. Public key
             # filters are present on every chunk; this never broadens the selection.
-            self.backend.qdrant('POST','/points/delete?wait=true',{'filter':scope(v,kind='chunk')},write=True)
+            repo.qdrant('POST','/points/delete?wait=true',{'filter':repo.select(v,kind='chunk')},write=True)
         return {'status':'ok'}
-    def _finish_delete(self,v):
-        self.backend.qdrant('POST','/points/delete?wait=true',{'filter':scope(v,kind='chunk',exact=True)},write=True)
-        self.backend.qdrant('POST','/points/delete?wait=true',{'filter':scope(v,kind='deleted',exact=True)},write=True)
+    def _finish_delete(self,v,repo):
+        repo.qdrant('POST','/points/delete?wait=true',{'filter':repo.select(v,kind='chunk',exact=True)},write=True)
+        repo.qdrant('POST','/points/delete?wait=true',{'filter':repo.select(v,kind='deleted',exact=True)},write=True)
