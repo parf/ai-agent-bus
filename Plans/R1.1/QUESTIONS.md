@@ -226,3 +226,11 @@ The recommendations below are retained parked proposals.
   - ( ) OpenCode prompts for the file tools too, so every face has one rule; a small launcher change 🌟
   - ( ) Keep OpenCode's allow-all ⭐
   > 💡👾 One rule for every face: file tools read and write local files, so the operator approves them.
+
+## RAG for mdhouse
+
+- ❓ Q353 Which #rag endpoint mdhouse uses
+  - Context: RAG 0.3.0 runs as `#rag@parf.us`, allowed to the owner only. mdhouse planned `#rag/mdhouse` and asks which is final. Its production caller is `#mdhouse@parf.us`. mdhouse wants no grants to its CTO, CEO, worker or review sessions, no wildcard FileScan identities and no manager role. The docs recommend one instance per trusted application, since any admitted caller can name any namespace
+  - ( ) Provision `#rag/mdhouse@parf.us`: a second instance of the bundled agent, its own record, token and Qdrant collection, allowed to `#mdhouse@parf.us` only; #ab-ceo registers it under the standing deploy OK 🌟
+  - ( ) Allow `#mdhouse@parf.us` on the existing `#rag@parf.us` ⭐
+  > 💡👾 A separate instance: mdhouse's data, prompts and paid usage stay apart from anything else the owner stores, and removing it touches nothing else.
