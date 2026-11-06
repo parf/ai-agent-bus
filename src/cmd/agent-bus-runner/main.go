@@ -180,6 +180,7 @@ type runner struct {
 	realm     string
 	agents    string // shared agent.d
 	bundled   string // bundled agents; opt-in
+	identity  daemonProtocol // the daemon's identity, as read at each load; nil asks the bus
 	host      string // runner/
 	say       io.Writer
 	bus       *client // as the runner's agent
@@ -304,6 +305,7 @@ func (r *runner) apply() {
 		r.applyStarted()
 	}
 	list, err := loadSources(r.sources(), r.host)
+	r.checkPackProtocols(list)
 	recoveryErrors := recoverOverlays(r.host)
 	for key, recoveryErr := range recoveryErrors {
 		fmt.Fprintf(r.say, "%s: %s: recover merged overrides: %v\n", r.name, key, recoveryErr)
