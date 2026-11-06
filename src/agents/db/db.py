@@ -79,16 +79,17 @@ def redact(text, secrets):
     return text
 
 
-def redact_result(value, passwords):
-    """Mask password-bearing data before JSON escaping, preserving structural keys."""
+def redact_result(value, passwords, *, keys=False):
+    """Mask password-bearing data before JSON escaping, preserving structural keys unless the object is cell data."""
     if isinstance(value, str):
         for password in passwords:
             value = value.replace(password, '***')
         return value
     if isinstance(value, dict):
-        return {key: redact_result(item, passwords) for key, item in value.items()}
+        return {redact_result(key, passwords) if keys else key:
+                redact_result(item, passwords, keys=keys) for key, item in value.items()}
     if isinstance(value, (list, tuple)):
-        return [redact_result(item, passwords) for item in value]
+        return [redact_result(item, passwords, keys=keys) for item in value]
     return value
 
 
@@ -123,9 +124,9 @@ def statement_of(body):
     return sql
 
 
-def cell(value, passwords=()):
+def cell(value, passwords):
     """A deterministic, bounded text or JSON value for any driver type."""
-    value = redact_result(value, passwords)
+    value = redact_result(value, passwords, keys=True)
     if value is None or isinstance(value, (bool, int, str)):
         pass
     elif isinstance(value, float):
@@ -150,7 +151,7 @@ def cell(value, passwords=()):
 class Collect:
     """Rows up to the row cap and the byte cap; remembers that it cut."""
 
-    def __init__(self, cap, passwords=()):
+    def __init__(self, cap, passwords):
         self.passwords = passwords
         self.cap, self.rows, self.size, self.cut, self.columns = cap, [], 0, False, []
 
@@ -172,7 +173,7 @@ class Collect:
         return {'columns': self.columns, 'rows': self.rows, 'truncated': self.cut}
 
 
-def run_mysql(config, tier, user, password, sql, cap, seconds, passwords=()):
+def run_mysql(config, tier, user, password, sql, cap, seconds, passwords):
     import pymysql
     from pymysql.cursors import SSCursor
     args = {'user': user, 'password': password, 'database': config.get('database'),
@@ -229,7 +230,7 @@ def run_mysql(config, tier, user, password, sql, cap, seconds, passwords=()):
             pass
 
 
-def run_postgres(config, tier, user, password, sql, cap, seconds, passwords=()):
+def run_postgres(config, tier, user, password, sql, cap, seconds, passwords):
     import psycopg
     options = f'-c statement_timeout={int(seconds * 1000)}'
     if tier == 'read':
@@ -272,7 +273,7 @@ class DatabaseError(ProxyError):
     """The database's own answer; it goes back to the caller."""
 
 
-def run_clickhouse(config, tier, user, password, sql, cap, seconds, passwords=()):
+def run_clickhouse(config, tier, user, password, sql, cap, seconds, passwords):
     settings = {'default_format': 'JSONCompact', 'max_execution_time': int(seconds),
                 'max_result_rows': cap + 1, 'result_overflow_mode': 'break'}
     if tier == 'read':

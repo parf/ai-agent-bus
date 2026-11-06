@@ -225,6 +225,12 @@ class Redaction(unittest.TestCase):
         self.assertEqual(json.loads(row[0]), {'a': '***', 'nested': ['***']})
         self.assertEqual(json.loads(row[1]), ['***', {'a': '***'}])
 
+    def test_nested_cell_keys_are_data_but_result_keys_are_structure(self):
+        password = 'p"w\\x'
+        value = {password: [{password: password}]}
+        self.assertEqual(json.loads(proxy.cell(value, (password,))), {'***': [{'***': '***'}]})
+        self.assertEqual(proxy.redact_result({password: password}, (password,)), {password: '***'})
+
     def test_all_account_errors_mask_users_as_tokens_and_passwords_as_substrings(self):
         env = {'DB_USER': 'ro', 'DB_PASSWORD': 'pass'}
         for tier in proxy.TIERS:
@@ -291,14 +297,14 @@ class ServerSideLimit(unittest.TestCase):
 class Cells(unittest.TestCase):
     def test_deterministic_bounded_values(self):
         import datetime, decimal
-        self.assertEqual(proxy.cell(decimal.Decimal('1.50')), '1.50')
-        self.assertEqual(proxy.cell(datetime.datetime(2026, 1, 2, 3, 4, 5)), '2026-01-02T03:04:05')
-        self.assertEqual(proxy.cell(float('nan')), 'nan')
-        self.assertEqual(proxy.cell(b'\x00\xff'), 'base64:AP8=')
-        self.assertEqual(len(proxy.cell('x' * (1 << 17))), 1 << 16)
+        self.assertEqual(proxy.cell(decimal.Decimal('1.50'), ()), '1.50')
+        self.assertEqual(proxy.cell(datetime.datetime(2026, 1, 2, 3, 4, 5), ()), '2026-01-02T03:04:05')
+        self.assertEqual(proxy.cell(float('nan'), ()), 'nan')
+        self.assertEqual(proxy.cell(b'\x00\xff', ()), 'base64:AP8=')
+        self.assertEqual(len(proxy.cell('x' * (1 << 17), ())), 1 << 16)
 
     def test_row_cap_cuts_and_says_so(self):
-        c = proxy.Collect(2)
+        c = proxy.Collect(2, ())
         self.assertEqual([c.add([i]) for i in range(3)], [True, True, False])
         self.assertTrue(c.cut)
 
