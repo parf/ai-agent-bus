@@ -56,6 +56,8 @@
   - Home: [RAG installing it](../../docs/agents/rag.md#installing-it).
 - **R1 releases as 1.0.0** — owner, 2026-11-01 13:20.
   - Home: [versioning](../../CLAUDE.md#versioning), its Stable row.
+- **RAG extras: all four** (Q360) — owner, 2026-11-06: "yes - implement this all": `count`, `similar`, `complete` and `classify` (R.8); mdhouse is one of many RAG users, so the common uses are covered out of the box; `classify` calls #ai only when it must, and tests never use the live key.
+  - Home: [R.8](rag/TODO.md).
 - **RAG keyword search ships in R1** (Q301) — owner, 2026-11-01: "do it in R1 - its EZ and keyword search is essential". A setting chooses Qdrant's built-in BM25 or an external engine, default built-in (Q194), with a working built-in BM25 search checked against real Qdrant; an external engine itself is not built.
   - Home: [RAG rules](rag/README.md#rules).
 - **The MAC.2 test keeps the role account** — owner, 2026-11-01 13:58: reuse only the verified hidden, non-login `_agentbusd` user/group pair; no deletion between acceptance runs. Supersedes Q298's local-terminal deletion requirement.
