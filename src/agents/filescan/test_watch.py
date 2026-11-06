@@ -56,6 +56,24 @@ class WatcherTests(unittest.TestCase):
         self.assertTrue(eventually(lambda:self.seen('d/deep/f.md')),self.got)
         (Path(self.root)/'d/deep/g.md').write_text('y');self.assertTrue(eventually(lambda:self.seen('d/deep/g.md')),'a file in the new directory later')
 
+    def test_a_file_made_while_a_new_directory_gets_its_watch_is_still_reported(self):
+        # J116: the directory was listed and only then watched, so a file made between the two was in neither the list nor
+        # an event. The hook makes the file at the very moment the watch is being added, the worst moment for that order.
+        self.start();real=self.w._watch;made=[]
+        def hooked(rel):
+            if rel=='d/deep' and not made:
+                made.append(1);(Path(self.root)/'d/deep/f.md').write_text('early')
+            return real(rel)
+        self.w._watch=hooked
+        os.makedirs(Path(self.root)/'d/deep')
+        self.assertTrue(eventually(lambda:self.seen('d/deep/f.md')),self.got)
+        self.assertEqual(made,[1],'the hook ran, so the watch was added after the file existed')
+
+    def test_a_deep_new_tree_is_listed_with_every_file_and_watched_in_every_directory(self):
+        self.start();(Path(self.root)/'t/a/b').mkdir(parents=True);(Path(self.root)/'t/a/b/x.md').write_text('x');(Path(self.root)/'t/y.md').write_text('y')
+        self.assertTrue(eventually(lambda:self.seen('t/a/b/x.md') and self.seen('t/y.md')),self.got)
+        self.assertTrue({'t','t/a','t/a/b'}<=set(self.w.by_path),sorted(self.w.by_path))
+
     def test_a_removed_directory_is_reported_as_a_prefix(self):
         os.makedirs(Path(self.root)/'d');(Path(self.root)/'d/f.md').write_text('x');self.start()
         import shutil;shutil.rmtree(Path(self.root)/'d');self.assertTrue(eventually(lambda:self.seen('d/')))
@@ -63,7 +81,7 @@ class WatcherTests(unittest.TestCase):
     def test_excluded_directories_and_links_are_not_watched(self):
         os.makedirs(Path(self.root)/'.git');outside=tempfile.mkdtemp(prefix='fs-out-');self.addCleanup(lambda:__import__('shutil').rmtree(outside))
         os.symlink(outside,Path(self.root)/'link')
-        self.start(excluded=lambda rel:rel.startswith('.'))
+        self.start(exclude=['.*','*/.*'])
         self.assertEqual(sorted(self.w.by_path),[''])
         (Path(outside)/'x.md').write_text('x');(Path(self.root)/'.git/y').write_text('y');time.sleep(0.3);self.assertEqual(self.got,[])
 
@@ -176,6 +194,20 @@ class AgentWatchTests(base.Base):
     def test_a_written_file_reaches_the_subscriber_within_a_second_without_a_poll(self):
         self.add();self.agent.tick();self.watch_agent();self.put('hot.md','fire')
         self.assertTrue(eventually(lambda:any(json_path(b)=='hot.md' for _,b,_ in self.bus.sent),1.0),self.bus.sent)
+
+    def test_a_file_that_is_both_listed_and_raises_an_event_is_one_change(self):
+        # J116: with the watch added before the listing, a file made right after the watch exists is in the listing and
+        # also raises its own event. The subscriber must still get exactly one change for it.
+        self.add();self.agent.tick();self.bus.sent.clear();self.watch_agent({'mode':'watch'});watcher=self.agent.watcher;real=watcher._watch;made=[]
+        def hooked(rel):
+            real(rel)
+            if rel=='d/deep' and not made:made.append(1);(Path(self.root)/'d/deep/f.md').write_text('both')
+        watcher._watch=hooked
+        os.makedirs(Path(self.root)/'d/deep')
+        self.assertTrue(eventually(lambda:any(json_path(b)=='d/deep/f.md' for _,b,_ in self.bus.sent),3.0),self.bus.sent)
+        time.sleep(0.4);self.agent.tick()
+        self.assertEqual([json_path(b) for _,b,_ in self.bus.sent].count('d/deep/f.md'),1,'listed and evented, yet one change')
+        self.assertEqual(made,[1])
 
     def test_the_same_file_by_watch_and_by_poll_is_sent_once(self):
         self.add();self.agent.tick();self.watch_agent({'mode':'both'});self.put('once.md','x')
