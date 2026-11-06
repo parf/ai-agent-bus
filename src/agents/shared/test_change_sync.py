@@ -351,6 +351,33 @@ class DeliveryTests(Base):
         self.assertEqual(([b for _,b,_ in self.bus.sent],r['pending']),(['change a','delete b'],0))
         self.assertEqual(self.state.load()['marks'][row['id']],{'a':'1b'})
 
+    def test_a_timed_out_applied_create_must_still_get_its_delete(self):
+        subs,row=self.add('#rag@n.test',kind='agent');self.bus.replies['#rag@n.test']='timeout';self.round()
+        self.assertEqual(self.state.load()['marks'][row['id']],{},'never confirmed')
+        data=self.state.load();del data['items']['a'];self.state.save(data);self.bus.replies['#rag@n.test']='ok';self.bus.calls.clear()
+        r=self.round()[row['id']]
+        self.assertIn('delete a',[b for _,b,_ in self.bus.calls]);self.assertEqual(r['pending'],0)
+        self.assertEqual(self.state.load()['maybe'][row['id']].get('a'),None,'the delete cleared it')
+
+    def test_a_confirmed_create_whose_save_failed_still_gets_its_delete(self):
+        subs,row=self.add();real=self.state.save;calls=[]
+        def flaky(d):
+            calls.append(1)
+            if len(calls)==2:raise cs.SyncError('state_unwritable')
+            return real(d)
+        with patch.object(self.state,'save',flaky):self.round()
+        self.assertEqual(len(self.bus.sent),2,'both were sent and accepted')
+        data=self.state.load();self.assertEqual(data['marks'][row['id']],{},'the marks were lost with the failed save');del data['items']['a'];self.state.save(data)
+        self.bus.sent.clear();self.round()
+        self.assertIn('delete a',[b for _,b,_ in self.bus.sent])
+
+    def test_the_possibly_delivered_record_is_written_before_the_send(self):
+        subs,row=self.add();seen=[]
+        real=self.bus.send
+        def spy(to,body,**o):seen.append(dict(self.state.load()['maybe'][row['id']]));return real(to,body,**o)
+        self.bus.send=spy;self.round()
+        self.assertEqual(seen[0],{'a':'1','b':'2'});self.assertEqual(self.state.load()['maybe'][row['id']],{})
+
     def test_an_unconfirmed_delete_stays_pending(self):
         subs,row=self.add('#rag@n.test',kind='agent');self.round()
         data=self.state.load();del data['items']['a'];self.state.save(data);self.bus.replies['#rag@n.test']='timeout'
@@ -360,24 +387,24 @@ class DeliveryTests(Base):
         subs,row=self.add();self.round(matches=lambda sub,key:key=='b')
         self.assertEqual([b for _,b,_ in self.bus.sent],['create b'])
 
-    def test_a_crash_before_the_save_sends_the_batch_again(self):
+    def test_a_save_that_fails_before_the_sends_sends_nothing_and_the_next_round_does(self):
         subs,row=self.add()
         warnings=[]
         with patch.object(self.state,'save',side_effect=cs.SyncError('state_unwritable')):
             r=self.round(warning=lambda code,sub:warnings.append(code))[row['id']]
-        self.assertEqual((r['unsaved'],warnings),(True,['state_unwritable']))
+        self.assertEqual((r['unsaved'],warnings,self.bus.sent),(True,['state_unwritable'],[]),'nothing is sent whose outcome cannot be recorded')
         self.assertEqual(len(cs.pending(self.state.load(),row['id'])),2)
-        self.round();self.assertEqual(len(self.bus.sent),4)
+        self.round();self.assertEqual(len(self.bus.sent),2)
 
     def test_each_subscribers_confirmations_are_saved_before_the_next_is_tried(self):
         subs,first=self.add();_,second=self.add('#q2@n.test');real=self.state.save;calls=[];warnings=[]
         def flaky(data):
             calls.append(1)
-            if len(calls)==2:raise cs.SyncError('state_full','state full: 1 of 1 bytes')
+            if len(calls)==3:raise cs.SyncError('state_full','state full: 1 of 1 bytes')  # the second subscriber's first save
             return real(data)
         with patch.object(self.state,'save',flaky):
             got=self.round(warning=lambda code,sub:warnings.append((code,sub)))
-        self.assertEqual(len(calls),2);self.assertEqual(warnings,[('state_full',second['id'])])
+        self.assertEqual(len(calls),3);self.assertEqual(warnings,[('state_full',second['id'])])
         self.assertTrue(got[second['id']]['unsaved']);self.assertNotIn('unsaved',got[first['id']])
         marks=self.state.load()['marks'];self.assertEqual(len(marks[first['id']]),2,'the earlier subscriber kept its marks')
         self.assertEqual(len(marks[second['id']]),0)
@@ -387,7 +414,7 @@ class DeliveryTests(Base):
         with patch.object(self.state,'save',side_effect=cs.SyncError('state_full')):
             got=self.round()
         self.assertEqual(sorted(got),[first['id']],'ended after the first failed save')
-        self.assertEqual(len(self.bus.sent),2)
+        self.assertEqual(self.bus.sent,[],'nothing was sent past a save that failed')
 
     def test_a_silent_agent_cannot_hold_the_state_past_the_round_deadline(self):
         self.put({f'k{n}':item(str(n)) for n in range(6)});subs,row=self.add('#rag@n.test',kind='agent');self.bus.delay=0.2;self.bus.replies['#rag@n.test']='timeout'

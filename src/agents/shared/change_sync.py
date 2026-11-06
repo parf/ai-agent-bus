@@ -44,15 +44,15 @@ class SyncError(Exception):
 def _no_constant(name):raise ValueError('NaN and Infinity are not state')
 
 
-def _fresh():return {'version':VERSION,'items':{},'subs':{},'marks':{},'meta':{}}
+def _fresh():return {'version':VERSION,'items':{},'subs':{},'marks':{},'maybe':{},'meta':{}}
 
 
 def _check_state(state):
     """A state that is not exactly ours is refused, never read as empty."""
     bad=lambda:SyncError('state_corrupt')
-    if not isinstance(state,dict) or set(state)!={'version','items','subs','marks','meta'} or state['version']!=VERSION:raise bad()
-    items,subs,marks,meta=state['items'],state['subs'],state['marks'],state['meta']
-    if not all(isinstance(v,dict) for v in (items,subs,marks,meta)):raise bad()
+    if not isinstance(state,dict) or set(state)!={'version','items','subs','marks','maybe','meta'} or state['version']!=VERSION:raise bad()
+    items,subs,marks,maybe,meta=state['items'],state['subs'],state['marks'],state['maybe'],state['meta']
+    if not all(isinstance(v,dict) for v in (items,subs,marks,maybe,meta)):raise bad()
     for key,record in items.items():
         if not isinstance(record,dict) or not isinstance(record.get('fp'),str):raise bad()
     for sub_id,row in subs.items():
@@ -62,8 +62,9 @@ def _check_state(state):
         if not isinstance(row['selector'],dict) or not isinstance(row['created_at'],str):raise bad()
         for field in ('sent','confirmed','dropped'):
             if type(row[field]) is not int or not 0<=row[field]<=base.MAX_SAFE:raise bad()
-    for sub_id,mark in marks.items():
-        if sub_id not in subs or not isinstance(mark,dict) or not all(isinstance(v,str) for v in mark.values()):raise bad()
+    for table in (marks,maybe):
+        for sub_id,mark in table.items():
+            if sub_id not in subs or not isinstance(mark,dict) or not all(isinstance(v,str) for v in mark.values()):raise bad()
     return state
 
 
@@ -165,22 +166,23 @@ class _Hold:
 
 def reset(state):
     """Drops items and marks; subscriptions stay, so everything replays to each of them."""
-    state['items']={};state['marks']={sub_id:{} for sub_id in state['subs']};state['meta']={}
+    state['items']={};state['marks']={sub_id:{} for sub_id in state['subs']};state['maybe']={sub_id:{} for sub_id in state['subs']};state['meta']={}
     return state
 
 
 def pending(state,sub_id,matches=lambda key:True):
     """What this subscriber has not confirmed: (key, 'create'|'change'|'delete', record), sorted by key.
     A key the subscriber has no mark for is `create`, one whose mark differs is `change`, one it has a mark for that is gone is `delete`.
+    A key whose send was started but never confirmed (`maybe`) is gone-and-owed-a-delete too: the target may have applied it.
 
     Derived from the items and the subscriber's marks, so a send that was never
     confirmed is pending again without any separate bookkeeping.
     """
-    mark=state['marks'].get(sub_id,{});result=[]
-    for key in sorted(set(state['items'])|set(mark)):
+    mark=state['marks'].get(sub_id,{});maybe=state['maybe'].get(sub_id,{});result=[]
+    for key in sorted(set(state['items'])|set(mark)|set(maybe)):
         if not matches(key):continue
         record=state['items'].get(key)
-        if record is None:result.append((key,'delete',None))
+        if record is None:result.append((key,'delete',None))  # a mark, or a send whose outcome is unknown, still earns its delete
         elif key not in mark:result.append((key,'create',record))
         elif mark[key]!=record['fp']:result.append((key,'change',record))
     return result
@@ -235,7 +237,7 @@ class SyncSubscriptions:
             row={'id':sub_id,'target':target,'selector':selector,'created_by':who,'created_at':base.stamp(self.clock),'sent':0,'confirmed':0,'dropped':0}
             state['subs'][sub_id]=row
             # Replay by default: no marks, so every item is pending. replay:false marks what exists as already done.
-            state['marks'][sub_id]={} if replay else {k:r['fp'] for k,r in state['items'].items()}
+            state['marks'][sub_id]={} if replay else {k:r['fp'] for k,r in state['items'].items()};state['maybe'][sub_id]={}
             try:self.state.save(state)
             except SyncError as error:raise SubscriptionError('store_unknown') from error
             return copy.deepcopy(row)
@@ -257,7 +259,7 @@ class SyncSubscriptions:
             state=self._loaded();row=state['subs'].get(sub_id)
             if row is None:raise SubscriptionError('not_found')
             if not base.own_manager(message,self.source) and row['created_by']!=who:raise SubscriptionError('not_author')
-            del state['subs'][sub_id];state['marks'].pop(sub_id,None)
+            del state['subs'][sub_id];state['marks'].pop(sub_id,None);state['maybe'].pop(sub_id,None)
             try:self.state.save(state)
             except SyncError as error:raise SubscriptionError('store_unknown') from error
             return True
@@ -278,6 +280,8 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
 
     - Per subscriber: pending changes in key order, at most `batch`; stops at the first one not confirmed, so order holds.
     - A change is marked done for that subscriber only after the target confirms it: an agent answers ok, a queue accepts the send.
+      Before the sends, every create and change of the batch is recorded as possibly delivered (and saved), so a send whose
+      outcome is never learned still earns its delete if the source later removes the key.
     - The author's may-send to the target and to the source, and the target's record, are checked again before every send.
     - A refusal, a timeout or no answer leaves the change pending; one stuck subscriber never holds up the others.
     - The round ends by `deadline` (default ROUND_MAX seconds from now) and no wait on a target runs past it, so a silent
@@ -292,9 +296,17 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
         data=state.load()
         for sub_id in sorted(data['subs']):
             row=data['subs'][sub_id];count={'sent':0,'confirmed':0,'dropped':0,'pending':0};results[sub_id]=count
-            todo=pending(data,sub_id,lambda key,row=row:matches(row,key))
+            todo=pending(data,sub_id,lambda key,row=row:matches(row,key))[:batch]
+            # Written down before any send: a send whose outcome is never learned (a timeout, a crash, a failed save) may
+            # have been applied, so a later delete of that key must still be sent. Cleared by the confirmation.
+            owed={k:r['fp'] for k,a,r in todo if a!='delete' and data['maybe'][sub_id].get(k)!=r['fp']}
+            if owed:
+                data['maybe'][sub_id].update(owed)
+                try:state.save(data)
+                except SyncError as error:
+                    count['unsaved']=True;warning(error.code,sub_id);break
             try:
-                for key,action,record in todo[:batch]:
+                for key,action,record in todo:
                     left=deadline-time.monotonic()
                     if left<=0:break
                     code,kind=_admit(bus,source,row)
@@ -312,6 +324,7 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
                     if not confirmed:
                         count['dropped']+=1;row['dropped']=min(base.MAX_SAFE,row['dropped']+1);warning(code if code else 'unconfirmed',sub_id);break
                     count['confirmed']+=1;row['confirmed']=min(base.MAX_SAFE,row['confirmed']+1)
+                    data['maybe'][sub_id].pop(key,None)
                     if action=='delete':data['marks'][sub_id].pop(key,None)
                     else:data['marks'][sub_id][key]=record['fp']
             finally:
