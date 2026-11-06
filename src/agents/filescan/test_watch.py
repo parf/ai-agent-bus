@@ -6,6 +6,7 @@ import tempfile
 import threading
 import time
 import unittest
+import unittest.mock
 
 HERE=Path(__file__).resolve().parent
 sys.path.insert(0,str(HERE));sys.path.insert(0,str(HERE.parent/'shared'));sys.path.insert(0,str(HERE.parents[1]/'clients/python'))
@@ -95,6 +96,30 @@ class PollPathsTests(unittest.TestCase):
         import shutil;shutil.rmtree(Path(self.root)/'d');plan=scan.poll_paths(items,self.root,self.s,['d/'],now=time.time())
         self.assertEqual(plan['deletes'],['d/b.md','d/e/c.md'])
         os.unlink(Path(self.root)/'a.md');plan=scan.poll_paths(items,self.root,self.s,['a.md'],now=time.time());self.assertEqual(plan['deletes'],['a.md'])
+
+    def test_an_event_directly_on_an_unreadable_directory_withholds_every_delete_under_it(self):
+        if os.geteuid()==0:self.skipTest('root reads everything')
+        items={};self.put('one/blocked/a.md','a');self.put('one/ok.md','o');scan.apply(items,scan.poll(items,self.root,self.s,now=time.time()))
+        d=Path(self.root)/'one'/'blocked';os.chmod(d,0);self.addCleanup(lambda:os.chmod(d,0o700))
+        plan=scan.poll_paths(items,self.root,self.s,['one/blocked/'],now=time.time())
+        self.assertEqual(plan['deletes'],[],'one/blocked/a.md still exists, it merely cannot be read');self.assertIn(('one/blocked','unreadable'),plan['skipped'])
+
+    def test_an_unreadable_directory_blocks_only_its_own_subtree_not_same_named_ones(self):
+        if os.geteuid()==0:self.skipTest('root reads everything')
+        items={};self.put('a/blocked/x.md','x');self.put('b/blocked/y.md','y');scan.apply(items,scan.poll(items,self.root,self.s,now=time.time()))
+        d=Path(self.root)/'a'/'blocked';os.chmod(d,0);self.addCleanup(lambda:os.chmod(d,0o700))
+        os.unlink(Path(self.root)/'b/blocked/y.md')
+        plan=scan.poll(items,self.root,self.s,now=time.time())
+        self.assertEqual(plan['deletes'],['b/blocked/y.md'],'b/blocked is a different directory and its delete is real')
+        plan=scan.poll_paths(items,self.root,self.s,['b/'],now=time.time());self.assertEqual(plan['deletes'],['b/blocked/y.md'])
+
+    def test_an_excluded_event_directory_is_never_opened(self):
+        self.put('private/key.txt','secret');opened=[];real=os.open
+        def spy(path,*a,**k):opened.append(os.fsdecode(path));return real(path,*a,**k)
+        s={**self.s,'exclude':['private/*','private']}
+        with unittest.mock.patch.object(scan.os,'open',spy):plan=scan.poll_paths({},self.root,s,['private/'],now=time.time())
+        self.assertEqual(plan['upserts'],{});self.assertNotIn('private',opened,'the excluded directory was entered, not merely filtered')
+        self.assertFalse([o for o in opened if o.endswith('key.txt')])
 
     def test_directory_event_deletes_missing_immediate_child(self):
         items={};self.put('sub/a.md','a');self.put('sub/b.md','b');scan.apply(items,scan.poll(items,self.root,self.s,now=time.time()))

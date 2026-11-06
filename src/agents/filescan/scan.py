@@ -26,42 +26,48 @@ def excluded(rel,exclude):
 def walk(root,include,exclude,sub=''):
     """(kind, relative path, stat or errno) for every regular file under root, never through a link.
 
-    Kind `file` carries the stat; `error` an errno for a file it could not stat; `direrror` one for a directory it could not read
-    (just its own name when it is below the top, empty for the top itself; see `is_blocked`).
+    Kind `file` carries the stat; `error` an errno for a file it could not stat; `direrror` one for a directory it could
+    not read, named by its full path relative to root (empty only when the whole root cannot be opened).
     Links, sockets, pipes and devices are skipped, and an excluded directory is not entered. With `sub` (a directory path
     relative to root) only that directory is walked, reached without following a link, and paths and the include and
     exclude globs are those relative to root, as in a whole walk.
     """
-    errors=[]
     lead=sub+'/' if sub else ''
     try:top=open_dir(root,sub)
     except OSError as error:
-        yield ('error','',error.errno);return
+        yield ('direrror',sub,error.errno);return
+    stack=[(top,lead)]
     try:
-        def onerror(error):errors.append(('direrror',os.path.basename((error.filename or '').rstrip('/')) if isinstance(error.filename,str) else '',error.errno))
-        for base,dirs,files,fd in os.fwalk(dir_fd=top,top='.',follow_symlinks=False,onerror=onerror):
-            prefix=lead if base=='.' else lead+base[2:]+'/'
-            keep=[]
-            for d in sorted(dirs):
-                try:link=stat.S_ISLNK(os.stat(d,dir_fd=fd,follow_symlinks=False).st_mode)
-                except OSError:link=True
-                if not link and not excluded(prefix+d,exclude):keep.append(d)
-            dirs[:]=keep
-            for name in sorted(files):
-                rel=prefix+name
-                if not selected(rel,include,exclude):continue
-                try:st=os.stat(name,dir_fd=fd,follow_symlinks=False)
+        while stack:
+            fd,prefix=stack.pop()
+            try:
+                try:entries=sorted(os.scandir(fd),key=lambda e:e.name)
                 except OSError as error:
-                    yield ('error',rel,error.errno);continue
-                if stat.S_ISREG(st.st_mode):yield ('file',rel,st)
-    finally:os.close(top)
-    yield from errors
+                    yield ('direrror',prefix[:-1],error.errno);continue
+                children=[]
+                for entry in entries:
+                    rel=prefix+entry.name
+                    try:
+                        if entry.is_symlink():continue
+                        if entry.is_dir(follow_symlinks=False):
+                            if excluded(rel,exclude):continue
+                            try:children.append((os.open(entry.name,OPEN_DIR,dir_fd=fd),rel+'/'))
+                            except OSError as error:yield ('direrror',rel,error.errno)
+                            continue
+                        if not selected(rel,include,exclude):continue
+                        st=entry.stat(follow_symlinks=False)
+                    except OSError as error:
+                        yield ('error',rel,error.errno);continue
+                    if stat.S_ISREG(st.st_mode):yield ('file',rel,st)
+                stack.extend(reversed(children))
+            finally:os.close(fd)
+    finally:
+        for fd,_ in stack:os.close(fd)
 
 
 def is_blocked(key,blocked):
-    """Whether `key` lies under a directory that could not be read. The walker only learns that directory's own name,
-    so any directory of that name withholds its deletes: more cautious than exact, never a false delete."""
-    return any(key.startswith(b) or '/'+b in key for b in blocked)
+    """Whether `key` lies under a directory that could not be read, named by its full relative path."""
+    return any(key.startswith(b) for b in blocked)
 
 
 def open_dir(root,sub=''):
@@ -160,7 +166,7 @@ def poll(items,root,settings,*,now,hasher=None):
     hasher=hasher or digest
     plan=_new_plan();present=set();taken=0;blocked=[]
     for kind,rel,info in walk(root,settings['include'],settings['exclude']):
-        if kind in ('direrror','error') and rel=='':
+        if kind=='direrror' and rel=='':
             plan['unreadable_root']=info;continue
         if kind=='direrror':
             blocked.append(rel+'/');plan['skipped'].append((rel,'unreadable'));continue
