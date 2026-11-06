@@ -459,3 +459,27 @@ func TestSubAddCannotDistinguishAnUnreachableTargetFromAnAbsentOne(t *testing.T)
 		t.Fatalf("expected equal refusals, got %s (%v)", hidden, err)
 	}
 }
+
+func TestSubscriptionTextFiltersIgnoreTrailingWhitespaceWithoutChangingJSON(t *testing.T) {
+	a := newSubAPI(t)
+	for _, tc := range []struct{ body, filter string }{
+		{"sub add q@h #a@h /x/\n", "/x/"},
+		{"sub add q@h #a@h alert /x/i \t\r\n\u00a0", "/x/i"},
+		{"sub add q@h #a@h fatal \n", "fatal"},
+	} {
+		var row map[string]any
+		out := a.mustAsk("admin@h", tc.body)
+		if err := json.Unmarshal([]byte(out), &row); err != nil || row["filter"] != tc.filter {
+			t.Fatalf("text filter %q: %s (%v), want filter %q", tc.body, out, err, tc.filter)
+		}
+	}
+	// Whitespace inside a structured field is data, not a line terminator.
+	const structured = `{"method":"sub.add","target":"q@h","log":"#a@h","filter":"/x/\n"}`
+	parsed, err := parseEventCall(structured)
+	if err != nil || parsed.Filter != "/x/\n" {
+		t.Fatalf("JSON filter changed: %+v %v", parsed, err)
+	}
+	if code := errorCode(t, a.mustAsk("admin@h", structured)); code != "invalid_filter" {
+		t.Fatalf("JSON filter newline silently trimmed: %s", code)
+	}
+}

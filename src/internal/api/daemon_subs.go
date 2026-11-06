@@ -78,12 +78,12 @@ func parseSubCall(body string, c eventCall) (eventCall, error) {
 			if log, rest = subWord(rest); log == "" {
 				return c, bad
 			}
-			// The filter is the rest of the line after the optional level, its
-			// own whitespace kept.
+			// The filter is the rest of the line after the optional level;
+			// a text command may end with whitespace outside that filter.
 			if word, after := subWord(rest); eventlog.IsLevel(word) {
 				level, rest = word, after
 			}
-			filter = rest
+			filter = strings.TrimRightFunc(rest, unicode.IsSpace)
 		case "sub.list":
 			if log, rest = subWord(rest); rest != "" {
 				return c, bad
