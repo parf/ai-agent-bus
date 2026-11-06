@@ -661,6 +661,8 @@ Startup validates the whole registry snapshot before replacing registry state. T
 | A damaged `@administrators` or invalid account mapping | Administrative authority and local login principals must be valid |
 | A mapped OS account that does not exist | Its socket cannot be assigned safely |
 
+An ACL role term that names an inactive Group, or a name nobody has registered yet, loads and grants nothing, as at run time; a term naming a Group that does not exist refuses the start.
+
 The daemon does not skip bad entities or strip bad fields to make a partial node start. Well-formed [ownerless credentials](02-access.md#ownerless-credentials) have their own cleanup rule.
 
 </details>
