@@ -13,7 +13,7 @@
 
 ## What you get
 
-- ✅ **Call and serve:** `Call(ctx, to, body, opts...)` returns an outcome; `Serve(ctx, handler, opts...)` answers with a bounded pool of goroutines.
+- ✅ **Call and serve:** `Call(ctx, to, body, opts...)` returns an outcome; `Serve(ctx, handler, opts...)` answers with a bounded pool of goroutines, and `WithOnReply` reads the answers to your own sends.
 - ✅ **Targets:** `Record(name)` selects a record and exposes `KV`, `Bigfile` and `Locks`.
 - ✅ **Bigfile values:** `Record(name).Bigfile` has `Put`, `Get`, `List` and `Delete` for values up to 32 MiB that expire; `Put` and `Get` stream and check the SHA-256, and a mismatch is `*BigfileHashMismatch`.
 - ✅ **Your own name works:** a call to yourself is answered by your own handler.
@@ -101,7 +101,9 @@ No event-specific helper is needed for this example.
 - **TLS and transport:** HTTPS validates normal certificates or an explicit SHA256 DER pin before sending credentials. HTTP/1 connections disable keep-alive and replay, and redirects are refused.
 - **Private values:** config and secrets are read on every call.
 - **Calls:** each registers a fresh client-specific tag before sending. One dispatcher owns reads, routes exact pending-call filters even at full worker capacity, and consumes new work only with a reserved slot. Raw consume excludes calls and serving.
-- **Receipts and replies:** receipts must name the accepted request ID, and replies honor `reply_to`. Serving ignores receipts, explicit replies and late answers carrying its own call prefix. `Done` is nil; a pointer to an empty string sends an empty answer.
+- **Receipts and replies:** receipts must name the accepted request ID, and replies honor `reply_to`. Serving ignores receipts, explicit replies and late answers carrying its own call prefix.
+- **Answers to a send:** `Serve(ctx, handler, WithOnReply(fn))` hands `fn` each message carrying `Re` that no pending call claims, within the workers and drain, and with `WithTopic` only those on that topic; a late answer to this client's own call never reaches it. `fn` gets no automatic ack, reply or done, as when the answer is dropped without it, and its error counts as a failure. Match `Re` against the IDs `Send` returned and ignore any other, since any sender can write `Re`. This mirrors the TypeScript client's `onReply`.
+- **Call waits:** a call's timeout is its wait, sent as the envelope wait; `Call` refuses `WithWait`. For a longer bus deadline, `Send` with `WithWait` and read the answer with `WithOnReply`. `Done` is nil; a pointer to an empty string sends an empty answer.
 - **Self-calls:** a call to the client's own name is answered by its own serving handler. The request it took back is work for a free slot, never the answer, and is drained like other taken work; a handler waiting on such a call needs another slot.
 - **Timeouts:** calls default to the connection timeout (30 seconds), bounded further by their context or `WithTimeout`. Individual requests share the caller's deadline and a 30-second default transport timeout. Raw consumes default to 100 milliseconds, and `WithWait` ranges from zero to the daemon's 60-second cap. Lock waits default to zero, and the transport budget adds the requested lock or consume wait; a caller context can shorten the total.
 - **Uncertainty:** an unconfirmed mutation or destructive consume is `UncertainOutcome`, with the underlying error retained. A confirmed call timeout is `ErrCallTimeout`, including the observed ack. No uncertain request is retried, and closing wakes waiters without unregistering records.
