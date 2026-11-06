@@ -478,9 +478,13 @@ export class Codex {
     this.#respond(id, { result: { action: ours ? "accept" : "decline", content: {} } });
   }
 
+  // Every notification of the bound thread, for the launcher's tab marker.
+  onEvent?: (method: string, params: Record<string, unknown>) => void;
+
   // Only turn boundaries matter: they decide steer vs start.
   #notification(method: string, params: unknown): void {
     const p = (params ?? {}) as { threadId?: string; turn?: { id?: string } };
+    if (p.threadId === this.#thread && this.#thread) this.onEvent?.(method, p as Record<string, unknown>);
     if (p.threadId !== this.#thread || typeof p.turn?.id !== "string") return;
     if (method === "turn/started") {
       this.#turnEpoch++;

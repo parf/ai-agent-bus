@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
+import type { TabState } from "./state-events.ts";
 
 type Runtime = "claude" | "codex" | "opencode" | "opencode1";
 // The glyph leads the title, so a narrow tab still shows which runtime and
@@ -51,8 +52,10 @@ export function glyph(runtime: Runtime, account = 1): string {
   return set[account - 1] ?? set[0]!;
 }
 
-export function terminalTitle(runtime: Runtime, label: string, account = 1): string {
-  return `${glyph(runtime, account)} ${label}`;
+const markers: Record<TabState, string> = { "": "", ask: "❓", stop: "🟥" };
+// Glyph, then the state, then the label: what a narrow tab cuts is the label's end.
+export function terminalTitle(runtime: Runtime, label: string, account = 1, state: TabState = ""): string {
+  return [glyph(runtime, account), markers[state], label].filter(Boolean).join(" ");
 }
 
 function directoryLabel(cwd: string, home: string): string {
@@ -88,6 +91,7 @@ export class Terminal {
   private override?: string;
   private bus?: string;
   private name?: string;
+  private state: TabState = "";
 
   constructor(private runtime: Runtime, private cwd: string, private account = 1, private home = homedir()) {
     if (!this.active) return;
@@ -114,6 +118,7 @@ export class Terminal {
   // The session's own name: the default label when there is no bus name.
   set(name?: string): void { this.name = name; this.refresh(); }
   setBus(name?: string): void { this.bus = name; this.refresh(); }
+  setState(state: TabState): void { this.state = state; this.refresh(); }
   // A label the session chose (ab_tab_title): the terminal only, for this launcher's life.
   setLabel(text?: string): { current: string; recommended: string } {
     if (text !== undefined) {
@@ -127,7 +132,7 @@ export class Terminal {
 
   private refresh(): void {
     if (!this.active || this.closed) return;
-    const title = terminalTitle(this.runtime, this.label(), this.account);
+    const title = terminalTitle(this.runtime, this.label(), this.account, this.state);
     if (title === this.title) return;
     this.title = title;
     this.write(`\x1b]0;${title}\x07`);
@@ -135,7 +140,7 @@ export class Terminal {
     // Konsole ignores the xterm title stack. Save and restore its formats
     // through the caller's session, never the currently focused tab.
     if (this.formats.length) this.session("setTitle", "1", title);
-    if (this.tmux) this.command("tmux", ["rename-window", "-t", this.tmux.window, "--", tmuxName(`${this.tmux.name} ${glyph(this.runtime, this.account)}`)]);
+    if (this.tmux) this.command("tmux", ["rename-window", "-t", this.tmux.window, "--", tmuxName([this.tmux.name, glyph(this.runtime, this.account), markers[this.state]].filter(Boolean).join(" "))]);
   }
 
   restore(): void {

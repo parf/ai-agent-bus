@@ -1,0 +1,231 @@
+{
+ "_source": "Recorded 2026-11-05 (T-35 probes). opencode: GET /api/event of opencode v2.0.30 serve with permission ask, a permission created and replied twice, a form created and replied, a shell run; no model turn. claude: HTTP hooks of claude 2.1.319 posted to a loopback listener during a -p run with an unknown model, so the API call failed before a turn. Paths shortened to /work and /home/me.",
+ "opencode": [
+  {
+   "id": "evt_1ae9915550013Qn6H7eF1wbpZP",
+   "type": "server.connected",
+   "data": {}
+  },
+  {
+   "id": "evt_1ae991913001XzCJtmu2BZH51s",
+   "created": 1793930631443,
+   "type": "session.created",
+   "location": {
+    "directory": "/work"
+   },
+   "data": {
+    "sessionID": "ses_e5166e6f3ffeXQFc4zbyadO0E4",
+    "slug": "neon-cactus",
+    "version": "2.0.30",
+    "projectID": "e533e3d06f535ab0ab2faef2c74f1455291b0ea9",
+    "location": {
+     "directory": "/work"
+    },
+    "subpath": "work"
+   },
+   "durable": {
+    "aggregateID": "ses_e5166e6f3ffeXQFc4zbyadO0E4",
+    "seq": 0,
+    "version": 1
+   }
+  },
+  {
+   "id": "evt_1ae99191e001rFVXFnQK6JBi4O",
+   "created": 1793930631454,
+   "type": "permission.asked",
+   "location": {
+    "directory": "/work"
+   },
+   "data": {
+    "id": "per_1ae99191d001T4kSAC263aLr7T",
+    "sessionID": "ses_e5166e6f3ffeXQFc4zbyadO0E4",
+    "action": "bash",
+    "resources": [
+     "ls"
+    ]
+   }
+  },
+  {
+   "id": "evt_1ae991d100017hKWR1mHQvdazn",
+   "created": 1793930632464,
+   "type": "permission.replied",
+   "location": {
+    "directory": "/work"
+   },
+   "data": {
+    "sessionID": "ses_e5166e6f3ffeXQFc4zbyadO0E4",
+    "requestID": "per_1ae99191d001T4kSAC263aLr7T",
+    "reply": "once"
+   }
+  },
+  {
+   "id": "evt_1ae991d16002E39wkAtTArPnDY",
+   "created": 1793930632470,
+   "type": "permission.asked",
+   "location": {
+    "directory": "/work"
+   },
+   "data": {
+    "id": "per_1ae991d160014qXLGxSYYntsTr",
+    "sessionID": "ses_e5166e6f3ffeXQFc4zbyadO0E4",
+    "action": "bash",
+    "resources": [
+     "rm x"
+    ]
+   }
+  },
+  {
+   "id": "evt_1ae991f140016dM090dItTjs2y",
+   "created": 1793930632980,
+   "type": "permission.replied",
+   "location": {
+    "directory": "/work"
+   },
+   "data": {
+    "sessionID": "ses_e5166e6f3ffeXQFc4zbyadO0E4",
+    "requestID": "per_1ae991d160014qXLGxSYYntsTr",
+    "reply": "reject"
+   }
+  },
+  {
+   "id": "evt_1ae991f21002azB7yOf5s42t17",
+   "created": 1793930632993,
+   "type": "form.created",
+   "location": {
+    "directory": "/work"
+   },
+   "data": {
+    "form": {
+     "id": "frm_1ae991f21001vBuA7Z31lvlBux",
+     "sessionID": "ses_e5166e6f3ffeXQFc4zbyadO0E4",
+     "title": "q",
+     "fields": [
+      {
+       "key": "a",
+       "title": "A",
+       "type": "boolean"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "evt_1ae992121001lrmwXspkQhZ62L",
+   "created": 1793930633506,
+   "type": "form.replied",
+   "location": {
+    "directory": "/work"
+   },
+   "data": {
+    "id": "frm_1ae991f21001vBuA7Z31lvlBux",
+    "sessionID": "ses_e5166e6f3ffeXQFc4zbyadO0E4",
+    "answer": {
+     "a": true
+    }
+   }
+  },
+  {
+   "id": "evt_1ae992134001OLlXIo6P4rnDbo",
+   "created": 1793930633524,
+   "type": "session.shell.started",
+   "location": {
+    "directory": "/work"
+   },
+   "data": {
+    "sessionID": "ses_e5166e6f3ffeXQFc4zbyadO0E4",
+    "shell": {
+     "id": "sh_1ae9921310018hoJi2y2u1WiWA",
+     "status": "running",
+     "command": "true",
+     "cwd": "/work",
+     "shell": "/usr/bin/zsh",
+     "file": "/home/me/.local/share/opencode/shell/e533e3d06f535ab0ab2faef2c74f1455291b0ea9/sh_1ae9921310018hoJi2y2u1WiWA.out",
+     "metadata": {
+      "sessionID": "ses_e5166e6f3ffeXQFc4zbyadO0E4",
+      "background": true
+     },
+     "time": {
+      "started": 1793930633521
+     },
+     "pid": 569505
+    }
+   },
+   "durable": {
+    "aggregateID": "ses_e5166e6f3ffeXQFc4zbyadO0E4",
+    "seq": 1,
+    "version": 1
+   }
+  },
+  {
+   "id": "evt_1ae9921370014pcTFEEGRyvFh6",
+   "created": 1793930633527,
+   "type": "session.shell.ended",
+   "location": {
+    "directory": "/work"
+   },
+   "data": {
+    "sessionID": "ses_e5166e6f3ffeXQFc4zbyadO0E4",
+    "shell": {
+     "id": "sh_1ae9921310018hoJi2y2u1WiWA",
+     "status": "exited",
+     "command": "true",
+     "cwd": "/work",
+     "shell": "/usr/bin/zsh",
+     "file": "/home/me/.local/share/opencode/shell/e533e3d06f535ab0ab2faef2c74f1455291b0ea9/sh_1ae9921310018hoJi2y2u1WiWA.out",
+     "metadata": {
+      "sessionID": "ses_e5166e6f3ffeXQFc4zbyadO0E4",
+      "background": true
+     },
+     "time": {
+      "started": 1793930633521,
+      "completed": 1793930633527
+     },
+     "pid": 569505,
+     "exit": 0
+    },
+    "output": {
+     "output": "",
+     "cursor": 0,
+     "size": 0,
+     "truncated": false
+    }
+   },
+   "durable": {
+    "aggregateID": "ses_e5166e6f3ffeXQFc4zbyadO0E4",
+    "seq": 2,
+    "version": 1
+   }
+  }
+ ],
+ "claude": [
+  {
+   "session_id": "e839517c-63df-4f35-a3c4-15cee8449dbb",
+   "transcript_path": "/home/me/.claude/projects/-work/e839517c-63df-4f35-a3c4-15cee8449dbb.jsonl",
+   "cwd": "/work",
+   "prompt_id": "cf5a4bc9-d741-4fb6-957c-e5f6398bb398",
+   "permission_mode": "auto",
+   "hook_event_name": "UserPromptSubmit",
+   "prompt": "say hi"
+  },
+  {
+   "session_id": "e839517c-63df-4f35-a3c4-15cee8449dbb",
+   "transcript_path": "/home/me/.claude/projects/-work/e839517c-63df-4f35-a3c4-15cee8449dbb.jsonl",
+   "cwd": "/work",
+   "prompt_id": "cf5a4bc9-d741-4fb6-957c-e5f6398bb398",
+   "effort": {
+    "level": "high"
+   },
+   "hook_event_name": "StopFailure",
+   "error": "model_not_found",
+   "last_assistant_message": "There's an issue with the selected model (claude-t35-nonexistent). It may not exist or you may not have access to it. Run --model to pick a different model."
+  },
+  {
+   "session_id": "e839517c-63df-4f35-a3c4-15cee8449dbb",
+   "transcript_path": "/home/me/.claude/projects/-work/e839517c-63df-4f35-a3c4-15cee8449dbb.jsonl",
+   "cwd": "/work",
+   "prompt_id": "cf5a4bc9-d741-4fb6-957c-e5f6398bb398",
+   "hook_event_name": "SessionEnd",
+   "reason": "other"
+  }
+ ]
+}

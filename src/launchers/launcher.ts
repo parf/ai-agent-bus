@@ -16,6 +16,8 @@ import { version, versionOutput, COPYRIGHT } from "../mcp/version.ts";
 import { Bindings, claudeSessions, claudeStart, claudeTitle, sameBase, type Session } from "./sessions.ts";
 import { localAddress, runtimeBinary } from "./local.ts";
 import { accountOf, Terminal } from "./terminal.ts";
+import { claudeHook, CodexState, opencodeEvent } from "./state-events.ts";
+import { loopbackNoProxy, withStateHooks } from "./claude-hooks.ts";
 import { automaticBase, claimFork, claimIdentity, releaseIdle } from "./identity.ts";
 import { serveControl } from "./control.ts";
 import { codexAuth } from "./runtime-auth.ts";
@@ -377,6 +379,8 @@ ${COPYRIGHT}`);
     }
     if (!ready) throw new Error(`App Server did not become ready: ${why(join(runDir, "app-server.log"))}`);
     codex = new Codex(cwd, adapterLog, remote, password);
+    const codexState = new CodexState();
+    codex.onEvent = (method, params) => { const next = codexState.event(method, params); if (next !== undefined) terminal?.setState(next); };
     await codex.start();
     const sessions = await codex.threads();
     const resumeIndex = tuiArgs.indexOf("resume");
@@ -536,7 +540,11 @@ ${COPYRIGHT}`);
     writeFileSync(join(runDir!, `fork-${forkId}.json.new`), JSON.stringify({ ...inherited, AGENT_BUS_NAME: claimed.name, AGENT_BUS_TOKEN: forkToken, AGENT_BUS_DESCR: claimed.description }), { mode: 0o600 });
     renameSync(join(runDir!, `fork-${forkId}.json.new`), join(runDir!, `fork-${forkId}.json`));
     return claimed.name;
-  }), text => terminal!.setLabel(text));
+  }), text => terminal!.setLabel(text), event => {
+    if (runtime !== "claude") return;
+    const next = claudeHook(event, join(claudeHome(), "projects"));
+    if (next !== undefined) terminal?.setState(next);
+  });
   Object.assign(faceEnv, control.env);
   faceEnv.AGENT_BUS_TAB_LABEL = terminal.recommended();
   saveEnv();
@@ -605,6 +613,16 @@ ${COPYRIGHT}`);
     }); } catch (e) { warn(`session metadata refresh failed: ${e}`); }
     finally { refreshing = false; }
   }, 2000);
+  // The tab's state marker (docs/06-launchers.md#terminal-appearance): Claude
+  // posts its hooks to the control endpoint, OpenCode's server streams events.
+  if (terminal.active && runtime === "claude") {
+    runtimeArgs = withStateHooks(runtimeArgs, control.env.AGENT_BUS_CONTROL_ADDR);
+    Object.assign(tuiEnv, loopbackNoProxy(process.env));
+  }
+  if (terminal.active && opencode instanceof Opencode) opencode.watch(event => {
+    const next = opencodeEvent(event, session.id);
+    if (next !== undefined) terminal?.setState(next);
+  }, () => terminal?.setState(""));
   note(`${label} → ${name}`);
   terminal.set(session.name ? label : undefined);
   const serverExit = serverChild?.exited.then(() => {

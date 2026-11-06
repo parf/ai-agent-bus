@@ -116,10 +116,34 @@ export class Opencode {
     });
   }
 
-  // No event stream and no polling live here: v2 makes it volatile by
-  // contract, and nothing the launcher does needs per-turn state. Kept as a
-  // method because the launcher's cleanup calls it unconditionally.
-  stop(): void {}
+  // Delivery needs no event stream. The launcher's tab marker reads one: the
+  // stream is volatile by contract, so every reconnect starts from a clear
+  // state (onReset) rather than a guess, and nothing is polled.
+  #watching?: AbortController;
+  watch(onEvent: (event: Record<string, unknown>) => void, onReset: () => void): void {
+    const abort = this.#watching = new AbortController();
+    void (async () => {
+      while (!abort.signal.aborted) {
+        try {
+          const response = await fetch(this.#url + "/api/event", { headers: this.#auth ? { authorization: this.#auth } : {}, signal: abort.signal });
+          if (!response.ok || !response.body) throw new Error(`answered ${response.status}`);
+          let buffer = "";
+          for await (const chunk of response.body.pipeThrough(new TextDecoderStream())) {
+            buffer += chunk;
+            const lines = buffer.split("\n");
+            buffer = lines.pop()!;
+            for (const line of lines) if (line.startsWith("data: ")) {
+              try { onEvent(JSON.parse(line.slice(6))); } catch { /* not an event */ }
+            }
+          }
+        } catch { /* reconnect below */ }
+        onReset();
+        await new Promise(done => setTimeout(done, 1000));
+      }
+    })();
+  }
+
+  stop(): void { this.#watching?.abort(); }
 
   async #request<T = any>(method: string, path: string, body?: unknown, timeoutMs = 30_000): Promise<T> {
     const headers: Record<string, string> = {};
