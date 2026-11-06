@@ -179,3 +179,13 @@ The recommendations below are retained parked proposals.
 ## AI agent settings
 
 - ✅ Q337 → [№Q337](resolved.md#Q337)
+
+## Container image tags
+
+- ❓ Q341 Which image tag after a change to the agent pack only (T-39)
+  - Context: the agent pack gets its own version (№Q331). The standing image-push OK names "that commit's VERSION and `latest`"; a change to the agents alone does not change the bus VERSION
+  - ( ) Keep today's tags: push only when the bus VERSION changes, so agent fixes ship with the next bus bump (several a day) 🌟
+  - ( ) Tag `<bus>-agents.<pack>` plus `latest`; never re-push an existing tag ⭐
+  - ( ) Re-push the bus tag with the new agents; a tag then no longer names one image
+  > 💡👾 Keep today's tags: no new scheme, no change to the standing push OK.
+
