@@ -18,7 +18,7 @@ Use `--for <person>` for another active bus User. Add `--dry-run` to inspect the
 | `/var/lib/agent-bus/agent.d/` | shared agents' code, root-owned, 755, readable by every runner account |
 | `/var/lib/agent-bus/alice-ab-runner/` | `alice-ab-runner`'s alone, 700: its token in `runner.env`, the tokens of the agents it created, their work directories |
 | `#runner/alice@<realm>` | her Agent, allowing `@owner`; the runner uses its own token ([runner identity](security.md#what-runs-as-what)) |
-| `agent-bus-runner@alice.service` | systemd unit under the separate account; only its private directory is writable, with delegated cgroups and no capabilities. It waits for the daemon and requires `runner.env` |
+| `agent-bus-runner@alice.service` | systemd unit under the separate account; only its private directory is writable, with delegated cgroups and no capabilities. It starts the runner of the current release, so an upgrade moves it; setup run from a checkout starts the runner beside it. It waits for the daemon and requires `runner.env` |
 
 Replace `install` with a lifecycle verb when needed:
 

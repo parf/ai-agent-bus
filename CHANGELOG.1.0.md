@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.47 — 2026-11-06
+
+The root runner unit starts the current release's runner, so an upgrade moves it; setup from a checkout starts the runner beside it
+
 ## 1.0.46 — 2026-11-06
 
 Runner controls run on one FIFO worker, so status answers at once during an install and says installing; a stop or remove during an install's fetch supersedes its publish
