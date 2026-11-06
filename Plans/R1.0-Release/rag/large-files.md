@@ -122,14 +122,27 @@ Frozen for team 2's L.2, which sends it; it ships in L.1.
 | `sha256` | the SHA-256 of the file's bytes | it equals the upsert's `content_hash`; the download hashes to it |
 
 - The rest of the upsert is as today: `namespace`, `tableName`, `id`, `source`, optional `key1` and `key2`. `content_hash` is required and is the same SHA-256. `mime-type` is `text/markdown`, which is also the default.
-- **Checked before any paid call:** these four fields when the call is parsed, then the download's size and hash, then that the bytes are UTF-8 text. A download that is not the referenced version is refused `bigfile_mismatch`, and nothing is stored or paid for.
+- **Checked before any paid call:** these four fields when the call is parsed, then the download's size and hash, then that the bytes are UTF-8 text.
 
 **The deadline.** RAG works to the envelope's `deadline`, which is the sender's stated wait (the send's `wait` option), never to the message's `ttl`.
 
-- **`deadline`:** RAG stops before its next paid call or write once it passes. A large upsert gets at most 30 minutes, and less when the sender's wait is shorter. A send with no stated wait gets the 30 minutes. A deadline that passes before the head is published leaves the previous version answering: an unknown outcome, settled by the completeness check.
+- **`deadline`:** RAG stops before its next paid call or write once it passes. A large upsert gets at most 30 minutes, and less when the sender's wait is shorter. A send with no stated wait gets the 30 minutes. A deadline that passes before the head is written is the definite `deadline: not stored; prior record unchanged`; one that passes after it is unknown.
 - **Message `ttl`:** it bounds only the wait in RAG's queue. A message whose ttl ends there is never delivered, so RAG does no work and pays nothing. Once RAG has taken the message, its ttl no longer matters; a download already under way is not dropped for it.
 - **The sender:** FileScan sends with a `wait` of 30 minutes and a `ttl` at least as long, and does not block on it. Within that wait it never resends. It may run the free check early: `complete: true` with the current hash and source confirms the file at once.
 - **Three different bounds:** `bigfile_ttl` ([Q370](QUESTIONS.md#large-files), 1 hour) is the reference's lifetime, and an expired one is refused `bigfile_unavailable` and re-uploaded. The `wait` is RAG's working time. The message `ttl` is the queue wait.
+
+**How it ends.** Three classes, and only the last needs the completeness check:
+
+| Class | Answers | Meaning |
+|---|---|---|
+| Refused before any paid call | a parse refusal; `bigfile_forbidden`; `bigfile_unavailable`; `bigfile_mismatch`; `bigfile is not UTF-8 text`; `deadline_too_short` | nothing was paid for or stored; the previous version answers |
+| Stopped early, definite | `deadline: not stored; prior record unchanged`, or `not stored; prior record unchanged: …` for a storage refusal before the head | the head was never written, so the previous version answers in full; chunks paid for may sit stored but unpublished, and a resend reuses them |
+| Unknown | `storage outcome unknown; …`, a storage error or deadline after the head write, or a lost answer | run the check |
+
+- **Parse refusals**, worded as the parser words them: `bigfile needs record, name, size and sha256`; `bigfile size integer out of range` (outside 1 byte to 1 MiB); `bigfile sha256 must be lower-case SHA256`; `content_hash must equal the bigfile sha256`; `bigfile replaces data and embeddings`; `a bigfile upsert takes text/markdown only`. A `content_hash` that differs from `sha256` is one of these, never `bigfile_mismatch`, which names a download that is not the referenced version.
+- **A late start does not eat the wait.** The deadline is absolute and RAG takes one call at a time, so a message can be taken late. When less than 120 seconds remain, RAG refuses `deadline_too_short` before the download and before any paid call.
+- **Paid work is kept.** RAG stores each embedded batch as soon as it is paid for, and publishes the head last. A resend reuses every stored chunk with the same identity and hash, whether a published version or an interrupted attempt stored it, so a resend never pays again for a chunk RAG still holds. The chunk identity rule is unchanged: the match is on identity and hash, which every chunk carries, and point ids stay per version.
+- **The reference on a resend:** FileScan keeps the bigfile key until the file is confirmed, so a resend reuses it while it lives. A resend after its hour is refused `bigfile_unavailable` before any paid call, and FileScan uploads it again.
 
 ## Cost and limits
 
