@@ -11,6 +11,10 @@ Read your role file, this file, `CLAUDE.md` and `CLAUDE.local.md`, then your che
 Confirm your role and current assignment to whoever told you to read it, in one line. If you have no
 assignment, wait: a team launch is not a task.
 
+## Owner questions
+
+Every owner choice is an item in the owning plan's QUESTIONS.md, in [mdhouse's agent markup](http://localhost:7777/mdhouse/doc/agent-markup.md) (owner, 2026-11-05), so the owner answers it in the document: `- ❓ Qnnn title`, details indented, `( )` options with 🌟/⭐, one `> 💡👾` suggestion, IDs mentioned as `№Qnnn`. It reaches the owner through `#ab-ceo`, never as a chat-only question.
+
 ## Task lifecycle
 
 `assigned` → `working` → `ready` → `reviewed` → `landed` → `done`.

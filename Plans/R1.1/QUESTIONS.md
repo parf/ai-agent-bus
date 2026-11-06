@@ -1,5 +1,7 @@
 # R1.1 questions
 
+<!-- AB: #ab-ceo -->
+
 ## Open questions
 
 Only unresolved choices. IDs retain their migration identity; missing numbers belong to another plan.
@@ -131,6 +133,13 @@ None open: Q191 is [settled](DECISIONS.md#recorded-decisions); [RT23](TODO.md#ag
 - RT19: decide whether the root runner replaces the standalone starter or sits beside it, the sandbox under each account, and how one person’s agents stay isolated from another’s ([proposal](runner.md#root-runner)).
 
 ## Filescan
+
+- ❓ Q334 Build FileScan and DBSync with every suggested answer below (№Q305–№Q310, [№Q314–№Q320](#dbsync))
+  - Context: both plans are written ([FileScan](filescan.md#steps-and-estimate), [DBSync](dbsync.md#steps-and-estimate)); order: the shared core, then FileScan, then DBSync, about 8–10 hours of agent time after T-35 and T-36. Your steps at the end: the folder and database account to watch, and a live RAG run (one paid embedding per file)
+  - ( ) Yes: take every 🌟 option below and build 🌟
+  - ( ) Answer the questions one by one below first
+  > 💡👾 The suggestions hold. Mind №Q306: notes over 32 KiB do not reach RAG until RAG takes bigger texts; and №Q308: folders under your home only, for now.
+
 
 Open choices for [filescan](filescan.md#questions).
 
