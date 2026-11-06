@@ -10,7 +10,7 @@
 - ✅ **Ask:** send a question or a full chat request, get the answer text or the provider's full reply (`ask`, or just your text). A text answer ends with its tokens and cost.
 - ✅ **Decide:** send a question with fixed choices, get each choice with its probability (`decide`, see [typed decisions](#typed-decisions)).
 - ✅ **Embed:** send a JSON text or list of texts, get one vector per text (`embed`, see [embeddings](#embeddings)).
-- ✅ **Models:** list the provider's models, with your default marked (`models`, or `models --images` for image models), or see one model's context length, prices and input kinds for each provider that serves it (`model <id>`; for an image model, its parameters and prices).
+- ✅ **Models:** list the provider's models as a table of context length, price per million tokens and input kinds, with your default marked (`models`; `models --images` gives image models and their price per image or megapixel), or see one model's context length, prices and input kinds for each provider that serves it (`model <id>`; for an image model, its parameters and prices).
 - ✅ **Account:** see the remaining credit (`balance`) or the key's spend limit, remaining credit and rate limit, never the key itself (`key`). Only the Owner and Maintainers may ask.
 - ✅ **Same as the provider:** every method goes to the configured provider and answers what it says. A provider without one of these methods gets `provider has no <method>`.
 - 🚫 **Images:** `image` checks the request and answers `image generation is not available yet`; no provider call is made, since `#ai` has nowhere to store the pictures.
@@ -65,7 +65,7 @@ agent-bus help '#ai@node.example'
 - **Ask one question:** `agent-bus call '#ai@node.example' --wait=60s 'Explain a database backup in one sentence.'`
 - **Send a full chat request:** `agent-bus call '#ai@node.example' --wait=60s '{"messages":[{"role":"user","content":"Say hello in French."}],"temperature":0.2}'`
 - **Use another model once:** add `"model":"openai/gpt-4.1-mini"` to the JSON.
-- **Pick a model:** `agent-bus call '#ai@node.example' models`, then `agent-bus call '#ai@node.example' 'model openai/gpt-4.1-mini'` for its prices per provider.
+- **Pick a model:** `agent-bus call '#ai@node.example' 'models claude'` (or `models free`), then `agent-bus call '#ai@node.example' 'model openai/gpt-4.1-mini'` for its prices per provider.
 - **Find an image model:** `agent-bus call '#ai@node.example' 'models --images'`, then `model <id>` for its parameters and prices.
 - **Embed texts:** `agent-bus call '#ai@node.example' 'embed ["first text","second text"]'`.
 - **Check the account:** `agent-bus call '#ai@node.example' balance` or `... key` (Owner and Maintainers).
@@ -151,7 +151,7 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 - Prompt forms return assistant text; chat-body forms return the provider's JSON, including choices and usage.
 - A JSON request may set `"model"` for that request only; streaming is not supported.
 - A text answer ends with `[tokens <in> in, <out> out; cost <n> USD]` when the provider reports usage.
-- `models`, `balance` and `key` are the whole body; `model <id>` takes one model ID; `embed` takes a JSON string, list or `{"input":...}` object, and `image` a JSON object; other text after any of them is a prompt. JSON forms: `{"method":"models"}`, `{"method":"model","id":"..."}`, `{"method":"embed","input":...,"model":"..."}`.
+- `models [--images] [--json] [<word>]`, `balance` and `key` are the whole body; `models` keeps rows whose ID or name contains the word, or only free models for `free`; `--json` returns the provider's full records instead of the table, and the table's last line names the default (`default: unset`, or `(not listed)` when the listing lacks it); a configured variant such as `:nitro` marks its base model, and a canonical slug marks its model; `model <id>` takes one model ID; `embed` takes a JSON string, list or `{"input":...}` object, and `image` a JSON object; other text after any of them is a prompt. JSON forms: `{"method":"models","images":false,"json":false,"filter":"..."}` (each field optional), `{"method":"model","id":"..."}`, `{"method":"embed","input":...,"model":"..."}`.
 
 </details>
 

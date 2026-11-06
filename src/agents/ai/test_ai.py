@@ -347,8 +347,21 @@ class Proxy(unittest.TestCase):
             self.assertEqual(set(manifest['config']), {'model', 'embed_model', 'image_model', 'base_url'})
 
     # Recorded provider shapes (OpenRouter API reference, 2026-11): replayed locally, never fetched live.
-    MODELS = {'data': [{'id': 'openai/gpt-4.1-mini', 'name': 'GPT-4.1 Mini', 'context_length': 1047576},
-                       {'id': 'fixture/default', 'name': 'Default', 'context_length': 8192}]}
+    MODELS = {'data': [{'id': 'openai/gpt-4.1-mini', 'canonical_slug': 'openai/gpt-4.1-mini-2025-04-14', 'name': 'GPT-4.1 Mini', 'context_length': 1047576,
+                        'architecture': {'input_modalities': ['text', 'image']}, 'pricing': {'prompt': '0.0000004', 'completion': '0.0000016'}},
+                       {'id': 'fixture/default', 'name': 'Default', 'context_length': 8192,
+                        'architecture': {'input_modalities': ['text']}, 'pricing': {'prompt': '0.000003', 'completion': '0.000015'}},
+                       {'id': 'google/gemma-4-31b-it:free', 'name': 'Gemma 4 31B (free)', 'context_length': 262144,
+                        'architecture': {'input_modalities': ['text']}, 'pricing': {'prompt': '0', 'completion': '0'}},
+                       {'id': 'fixture/zero', 'name': 'Zero', 'context_length': 4096,
+                        'architecture': {'input_modalities': ['text']}, 'pricing': {'prompt': '0', 'completion': '0.0'}},
+                       {'id': 'openrouter/auto', 'name': 'Auto Router', 'context_length': 2000000, 'pricing': {'prompt': '-1', 'completion': '-1'}}]}
+    TABLE = ['  id                          context  $/M in  $/M out  input',
+             '  openai/gpt-4.1-mini         1047576  0.4     1.6      text,image',
+             '* fixture/default             8192     3       15       text',
+             '  google/gemma-4-31b-it:free  262144   0       0        text',
+             '  fixture/zero                4096     0       0        text',
+             '  openrouter/auto             2000000  varies  varies   -']
     ENDPOINTS = {'data': {'id': 'openai/gpt-4', 'name': 'GPT-4', 'architecture': {'input_modalities': ['text', 'image']},
                           'endpoints': [{'name': 'OpenAI: GPT-4', 'provider_name': 'OpenAI', 'context_length': 8192, 'max_completion_tokens': 4096,
                                          'pricing': {'prompt': '0.00003', 'completion': '0.00006', 'request': '0', 'image': '0'}, 'uptime_last_1d': 99.8},
@@ -363,9 +376,44 @@ class Proxy(unittest.TestCase):
         self.route('/models', self.MODELS)
         for body in ['models', ' models\n', '{"method":"models"}']:
             answer, code, _ = self.call(body)
-            self.assertEqual((answer, code), ('openai/gpt-4.1-mini\nfixture/default (default)', 0))
+            self.assertEqual((answer, code), ('\n'.join(self.TABLE + ['default: fixture/default']), 0))
             self.assertEqual(self.server.requests[-1], ('/v1/models', 'Bearer ' + KEY, None))
         self.assertEqual(len(self.server.requests), 3)
+
+    def test_models_filters_by_word_and_free(self):
+        self.route('/models', self.MODELS)
+        cells = lambda lines: [line.split() for line in lines]
+        for body in ['models GPT', '{"method":"models","filter":"gpt"}']:
+            self.assertEqual(cells(self.call(body)[0].split('\n')), cells([self.TABLE[0], self.TABLE[1], 'default: fixture/default']))
+        for body in ['models free', '{"method":"models","filter":"free"}']:
+            self.assertEqual(cells(self.call(body)[0].split('\n')), cells([self.TABLE[0], self.TABLE[3], self.TABLE[4], 'default: fixture/default']))
+        # A filter that hides the default still reports it as listed.
+        self.assertEqual(self.call('models gemma')[0].split('\n')[-1], 'default: fixture/default')
+        for bad in ['{"method":"models","filter":"two words"}', '{"method":"models","json":1}', '{"method":"models","x":1}']:
+            self.assertTrue(self.call(bad)[0].startswith('error:'), bad)
+        # More than one word after models is an English prompt, not the method.
+        self.call('models are getting cheaper, why?')
+        self.assertEqual(self.server.requests[-1][0], '/v1/chat/completions')
+
+    def test_models_default_matches_variant_and_canonical_slug_and_says_when_unset(self):
+        self.route('/models', self.MODELS)
+        for default, mark, footer in [('fixture/default:nitro', 'fixture/default', 'default: fixture/default:nitro'),
+                                      ('openai/gpt-4.1-mini-2025-04-14', 'openai/gpt-4.1-mini', 'default: openai/gpt-4.1-mini-2025-04-14'),
+                                      ('google/gemma-4-31b-it:free', 'google/gemma-4-31b-it:free', 'default: google/gemma-4-31b-it:free'),
+                                      ('fixture/gone', None, 'default: fixture/gone (not listed)'),
+                                      (None, None, 'default: unset')]:
+            self.config['model'] = default
+            if default is None:
+                del self.config['model']
+            lines = self.call('models')[0].split('\n')
+            self.assertEqual([line.split()[1] for line in lines[1:-1] if line.startswith('* ')], [mark] if mark else [], default)
+            self.assertEqual(lines[-1], footer)
+
+    def test_models_json_passes_the_provider_records_through(self):
+        self.route('/models', self.MODELS)
+        for body in ['models --json', '{"method":"models","json":true}']:
+            self.assertEqual(json.loads(self.call(body)[0]), self.MODELS['data'])
+        self.assertEqual(json.loads(self.call('models --json free')[0]), self.MODELS['data'][2:4])
 
     def test_model_keeps_each_endpoints_own_context_and_prices(self):
         self.route('/models/openai/gpt-4/endpoints', self.ENDPOINTS)
@@ -553,6 +601,7 @@ class Proxy(unittest.TestCase):
         self.assertNotIn('label', self.call('key', roles=('owner',))[0])
     IMAGE_MODELS = {'data': [{'id': 'bytedance-seed/seedream-4.5', 'name': 'Seedream 4.5', 'architecture': {'input_modalities': ['text', 'image'], 'output_modalities': ['image']},
                               'supported_parameters': {'resolution': {'type': 'enum', 'values': ['1K', '2K', '4K']}, 'seed': {'type': 'boolean'}},
+                              'pricing': [{'billable': 'output_image', 'unit': 'image', 'cost_usd': 0.06}, {'billable': 'output_image', 'unit': 'image', 'cost_usd': 0.03}],
                               'endpoints': '/api/v1/images/models/bytedance-seed/seedream-4.5/endpoints'},
                              {'id': 'openai/gpt-image-2', 'name': 'GPT Image 2'}]}
     IMAGE_ENDPOINTS = {'data': {'id': 'bytedance-seed/seedream-4.5', 'name': 'Seedream 4.5', 'architecture': {'input_modalities': ['text', 'image']},
@@ -568,8 +617,12 @@ class Proxy(unittest.TestCase):
         self.route('/images/models', self.IMAGE_MODELS)
         self.config['image_model'] = 'openai/gpt-image-2'
         for body in ['models --images', '{"method":"models","images":true}']:
-            self.assertEqual(self.call(body)[0], 'bytedance-seed/seedream-4.5\nopenai/gpt-image-2 (default)')
+            self.assertEqual(self.call(body)[0].split('\n'), ['  id                           price USD   input',
+                                                               '  bytedance-seed/seedream-4.5  0.03/image  text,image',
+                                                               '* openai/gpt-image-2           -           -',
+                                                               'default: openai/gpt-image-2'])
             self.assertEqual(self.server.requests[-1], ('/v1/images/models', 'Bearer ' + KEY, None))
+        self.assertEqual(json.loads(self.call('models --images --json seedream')[0]), self.IMAGE_MODELS['data'][:1])
         for bad in ['{"method":"models","images":1}', '{"method":"models","images":true,"x":1}']:
             self.assertTrue(self.call(bad)[0].startswith('error:'), bad)
 

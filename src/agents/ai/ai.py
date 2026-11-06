@@ -65,13 +65,99 @@ def model_path(value):
             and (not variant and ":" not in value or re.fullmatch(r"[A-Za-z0-9._-]+", variant) is not None))
 
 
+FILTER_WORD = r"[A-Za-z0-9._:/~+-]{1,64}"
+
+
+def models_options(words):
+    """models [--images] [--json] [<word>], or None: anything else after models is a prompt, not the method."""
+    options = {"images": False, "json": False, "filter": None}
+    for word in words:
+        flag = {"--images": "images", "--json": "json"}.get(word)
+        if flag and not options[flag]:
+            options[flag] = True
+        elif not word.startswith("-") and options["filter"] is None and re.fullmatch(FILTER_WORD, word):
+            options["filter"] = word
+        else:
+            return None
+    return options
+
+
+def per_million(value):
+    """A per-token price string as USD per million tokens; a negative price means the router decides."""
+    try:
+        price = float(value)
+    except (TypeError, ValueError):
+        return "-"
+    if price < 0:
+        return "varies"
+    return f"{price * 1e6:.4f}".rstrip("0").rstrip(".")
+
+
+def image_price(row):
+    """The cheapest per-image or per-megapixel price the listing gives, or -."""
+    prices = [(p["cost_usd"], p["unit"]) for p in row.get("pricing") or [] if isinstance(p, dict)
+              and p.get("unit") in ("image", "megapixel") and isinstance(p.get("cost_usd"), (int, float))]
+    if not prices:
+        return "-"
+    cost, unit = min(prices)
+    return f"{cost:g}/{unit}"
+
+
+def is_free(row):
+    pricing = row.get("pricing") or {}
+    return row["id"].endswith(":free") or (isinstance(pricing, dict) and per_million(pricing.get("prompt")) == "0"
+                                           and per_million(pricing.get("completion")) == "0")
+
+
+def default_row(rows, default):
+    """The listed row the configured default names: its id, canonical slug, or its base id under an unlisted variant."""
+    if not isinstance(default, str) or not default:
+        return None
+    for want in (default, default.partition(":")[0]):
+        for row in rows:
+            if want in (row["id"], row.get("canonical_slug")):
+                return row
+    return None
+
+
+def models_answer(rows, options, default):
+    """A compact table of the listing, filtered; --json passes the provider's full records through."""
+    marked = default_row(rows, default)
+    word = (options["filter"] or "").lower()
+    if word == "free":
+        rows = [row for row in rows if (image_price(row).startswith("0/") if options["images"] else is_free(row))]
+    elif word:
+        rows = [row for row in rows if word in row["id"].lower() or word in str(row.get("name", "")).lower()]
+    if options["json"]:
+        # Compact and unescaped, the records never outgrow the provider answer, which is read up to 1 MiB.
+        return json.dumps(rows, ensure_ascii=False, separators=(",", ":"))
+    if options["images"]:
+        table = [("id", "price USD", "input")]
+        table += [(row["id"], image_price(row), ",".join((row.get("architecture") or {}).get("input_modalities") or []) or "-") for row in rows]
+    else:
+        table = [("id", "context", "$/M in", "$/M out", "input")]
+        for row in rows:
+            pricing = row.get("pricing") if isinstance(row.get("pricing"), dict) else {}
+            table.append((row["id"], str(row.get("context_length") or "-"), per_million(pricing.get("prompt")),
+                          per_million(pricing.get("completion")), ",".join((row.get("architecture") or {}).get("input_modalities") or []) or "-"))
+    widths = [max(len(line[i]) for line in table) for i in range(len(table[0]))]
+    lines = [("* " if marked is not None and line[0] == marked["id"] and n else "  ")
+             + "  ".join(cell.ljust(width) for cell, width in zip(line, widths)).rstrip() for n, line in enumerate(table)]
+    if not isinstance(default, str) or not default:
+        lines.append("default: unset")
+    else:
+        lines.append("default: " + default + ("" if marked is not None else " (not listed)"))
+    return "\n".join(lines)
+
+
 def method_call(body):
     """(method, argument) for the provider methods beyond ask and decide, or None for a chat request."""
     word = body.strip()
-    if word in ("models", "balance", "key"):
+    if word in ("balance", "key"):
         return word, None
-    if word == "models --images":
-        return "models", "images"
+    options = models_options(word.split()[1:]) if word.split(None, 1)[:1] == ["models"] else None
+    if options is not None:
+        return "models", options
     # Like decide, only a JSON object after "image " is the method: "image recognition is…" stays a prompt.
     if body.startswith("image ") and body[6:].lstrip().startswith("{"):
         request = json.loads(body[6:])
@@ -99,11 +185,17 @@ def method_call(body):
     except ValueError:
         return None
     name = request.get("method") if isinstance(request, dict) else None
-    if name == "models" and set(request) == {"method", "images"} and request["images"] is True:
-        return name, "images"
-    if name in ("models", "balance", "key"):
+    if name == "models":
+        if not set(request) <= {"method", "images", "json", "filter"} or any(
+                type(request.get(flag, False)) is not bool for flag in ("images", "json")):
+            raise ProxyError("models takes images and json as booleans and an optional filter word")
+        filter_word = request.get("filter")
+        if filter_word is not None and not (isinstance(filter_word, str) and re.fullmatch(FILTER_WORD, filter_word)):
+            raise ProxyError("models filter is one word")
+        return name, {"images": request.get("images", False), "json": request.get("json", False), "filter": filter_word}
+    if name in ("balance", "key"):
         if set(request) != {"method"}:
-            raise ProxyError(name + " takes no arguments" if name != "models" else "models takes only images: true")
+            raise ProxyError(name + " takes no arguments")
         return name, None
     if name == "image":
         return name, {k: v for k, v in request.items() if k != "method"}
@@ -302,7 +394,7 @@ def provider_method(name, argument, envelope, config, key, roles, work, base):
         if len(items) > max_items(model, dims, envelope):
             return f"error: {len(items)} items × {dims} dims > max {max_items(model, dims, envelope)}", status
         return json.dumps({"model": model, "vectors": vectors}, ensure_ascii=False, separators=(",", ":")), status
-    path = {"models": "/images/models" if argument == "images" else "/models", "balance": "/credits", "key": "/key"}.get(name)
+    path = {"models": "/images/models" if name == "models" and argument["images"] else "/models", "balance": "/credits", "key": "/key"}.get(name)
     if name == "model":
         path = "/models/" + urllib.parse.quote(argument, safe="/:@+~._-") + "/endpoints"
     status, result = provider_call(name, envelope, base, "GET", root + path, None, key)
@@ -315,8 +407,7 @@ def provider_method(name, argument, envelope, config, key, roles, work, base):
         return result, status
     data = result["data"]
     if name == "models":
-        default = config.get("image_model" if argument == "images" else "model")
-        return "\n".join(row["id"] + (" (default)" if row["id"] == default else "") for row in data), status
+        return models_answer(data, argument, config.get("image_model" if argument["images"] else "model")), status
     if name == "model":
         fields = ("context_length", "max_completion_tokens", "pricing") if kind == "text" else ("pricing", "supported_parameters")
         endpoints = [{"provider": e.get("provider_name"), "name": e.get("name"), **{f: e.get(f) for f in fields}}

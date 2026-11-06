@@ -42,14 +42,26 @@
       ]
     },
     "models": {
-      "text": "models [--images]",
-      "help": "List the provider's models; the configured default is marked. With --images, list image models, with image_model marked.",
+      "text": "models [--images] [--json] [<word>]",
+      "help": "List the provider's models as a table: context length, USD per million input and output tokens, input kinds; the configured default is marked. With --images, image models and their price per image or megapixel, with image_model marked.",
       "args": [
         {
           "name": "images",
           "type": "bool",
           "optional": true,
           "help": "List image models instead"
+        },
+        {
+          "name": "json",
+          "type": "bool",
+          "optional": true,
+          "help": "Return the provider's full records instead of the table"
+        },
+        {
+          "name": "filter",
+          "type": "string",
+          "optional": true,
+          "help": "Keep models whose ID or name contains this word; free keeps free models"
         }
       ]
     },
