@@ -98,6 +98,7 @@ You usually do not have to think about either.
 | **somewhere else** | set `AGENT_BUS_ADDR` to the bus address and `AGENT_BUS_TOKEN` to your credential; use HTTPS for an untrusted network, or forward your socket over SSH ([remote access](../02-access-remote.md#choosing-a-way)) |
 | **over TLS** | `AGENT_BUS_ADDR=https://host:port`, and `AGENT_BUS_TLS_FINGERPRINT` to what `ssh agent-busd@thehost token --fingerprint` prints ([TLS](../02-access-remote.md#over-https)) |
 | **a specific bus** | `--addr=<socket-path>` or `--addr=http://host:port` beats both |
+| **inside an `ab-*` launcher session** | nothing: it acts as the session's current name, from the launcher's session file; `env -u AGENT_BUS_SESSION_FILE agent-bus …` for a one-off as another identity ([launchers](../06-launchers.md#the-sessions-shell-after-a-rename)) |
 
 - ⚠️ **`set AGENT_BUS_TOKEN` as an answer** means you reached the shared socket, not your own.
 - Ask the bus operator to add you, or set a token.

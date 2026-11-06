@@ -65,10 +65,11 @@ func RoleEnv(roles []string) []string {
 // ChildEnv is env with every AB_ROLE_* and the token taken out: a role in
 // the runner's own environment would be one nobody holds, and a script never
 // holds the agent's credential (docs/06-dedicated-runner.md#script-agents).
+// A launcher's AGENT_BUS_SESSION_FILE goes too: the CLI takes its token from it.
 func ChildEnv(env []string) []string {
 	out := env[:0:0]
 	for _, kv := range env {
-		if !strings.HasPrefix(kv, "AB_ROLE_") && !strings.HasPrefix(kv, "AGENT_BUS_TOKEN=") && !strings.HasPrefix(kv, "AGENT_BUS_CONFIG=") {
+		if !strings.HasPrefix(kv, "AB_ROLE_") && !strings.HasPrefix(kv, "AGENT_BUS_TOKEN=") && !strings.HasPrefix(kv, "AGENT_BUS_CONFIG=") && !strings.HasPrefix(kv, "AGENT_BUS_SESSION_FILE=") {
 			out = append(out, kv)
 		}
 	}

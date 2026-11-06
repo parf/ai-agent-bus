@@ -29,6 +29,9 @@ func TestAScriptGetsNoTokenAndNoReceipts(t *testing.T) {
 	defer func() { transport = saved }()
 	transport = func() (*http.Client, string) { return server.Client(), server.URL }
 	t.Setenv("AGENT_BUS_TOKEN", "the-agents-secret")
+	// Started from a launcher session's shell: its session file would hand the
+	// script's CLI that session's token.
+	t.Setenv("AGENT_BUS_SESSION_FILE", "/launcher-run/bus-env.json")
 
 	dir := t.TempDir()
 	runs, seen := filepath.Join(dir, "runs"), filepath.Join(dir, "env")
@@ -46,6 +49,9 @@ func TestAScriptGetsNoTokenAndNoReceipts(t *testing.T) {
 	}
 	if strings.Contains(string(env), "the-agents-secret") {
 		t.Fatal("the script was handed the agent's token")
+	}
+	if strings.Contains(string(env), "/launcher-run/bus-env.json") {
+		t.Fatal("the script was handed the launcher's session file")
 	}
 	if !strings.Contains(string(env), "AGENT_BUS_MESSAGE_ID=m1") {
 		t.Fatalf("the script lost its envelope: %s", env)

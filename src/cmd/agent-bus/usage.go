@@ -84,7 +84,7 @@ func generalHelp() string {
 		}
 	}
 	b.WriteString(globalOptions)
-	b.WriteString("\n\nNAMES\n  Quote #agent names: the shell treats # as a comment.\n\nENVIRONMENT\n  AGENT_BUS_ADDR — daemon address (or automatic local socket discovery)\n  AGENT_BUS_TOKEN — caller credential; unnecessary on your login socket\n  AGENT_BUS_TLS_FINGERPRINT — HTTPS certificate pin\n  NO_COLOR — disable help colour\n\nEXIT STATUS\n  0 — success\n  1 — invalid input, refusal, transport failure or deadline exceeded\n\nSEE ALSO\n  " + display.SourceURL + "/docs/user/cli.md\n  " + display.Source)
+	b.WriteString("\n\nNAMES\n  Quote #agent names: the shell treats # as a comment.\n\nENVIRONMENT\n  AGENT_BUS_ADDR — daemon address (or automatic local socket discovery)\n  AGENT_BUS_TOKEN — caller credential; unnecessary on your login socket\n  AGENT_BUS_TLS_FINGERPRINT — HTTPS certificate pin\n  AGENT_BUS_SESSION_FILE — a launcher session's file; when set, it supplies the token, name, address and TLS pin\n  NO_COLOR — disable help colour\n\nEXIT STATUS\n  0 — success\n  1 — invalid input, refusal, transport failure or deadline exceeded\n\nSEE ALSO\n  " + display.SourceURL + "/docs/user/cli.md\n  " + display.Source)
 	return display.ManText(b.String()) + "\n\n" + display.Footer()
 }
 func verbUsage(verb string) string {

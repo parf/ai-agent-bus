@@ -61,6 +61,9 @@ func main() {
 			return
 		}
 	}
+	if err := loadSessionFile(); err != nil {
+		die("%v", err)
+	}
 	var err error
 	switch verb {
 	case "token":

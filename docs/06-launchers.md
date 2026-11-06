@@ -248,9 +248,20 @@ With an `ab-*` launcher, `ab_rename(name)` changes the runtime session title and
 - An explicit `AGENT_BUS_NAME` pins the address and refuses this operation.
 - Older running launchers must be restarted; their MCP face must not change addresses independently.
 
-The internal control listener binds loopback and requires a random credential
-kept in the private session file. It can rename only its own launcher; it does
-not accept an arbitrary principal or expose the owner's bus credential.
+The internal control listener binds loopback and requires a random credential.
+
+- The control token lets the session's own children rename or fork this session; it grants nothing beyond the session's bus token, which they already hold.
+- It does not accept an arbitrary principal or expose the owner's bus credential.
+
+### The session's shell after a rename
+
+`agent-bus` in the session's shell acts as the session's current name.
+
+- The runtime carries `AGENT_BUS_SESSION_FILE`, the private file the launcher rewrites on a rename.
+- When it is set, the CLI takes its token, name, address and TLS pin from that file, never from the environment the runtime started with.
+- A file that cannot be read refuses the call and names the file; the CLI never falls back to the environment's identity.
+- For a one-off call as another identity: `env -u AGENT_BUS_SESSION_FILE agent-bus …`.
+- A script run by `agent-bus run` receives neither the variable nor a token.
 
 ## Running the launchers
 
