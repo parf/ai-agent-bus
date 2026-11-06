@@ -63,7 +63,8 @@ A re-sync replaces the record's chunk set as one change. A stale chunk never ans
 - RAG answers a file's upsert only after every chunk is stored and the new head is published.
 - The answer is the stored record. It repeats the identity (namespace, table, id and source) and the whole-file hash that RAG ingested. FileScan already counts an upsert as stored only when every one of those fields matches what it sent ([FileScan § RAG](../../../docs/agents/filescan.md#reference-for-a-consumer)).
 - Because the answer echoes the hash it ingested, an answer for an older version never confirms a file that changed mid-sync: its hash differs, and the file stays pending. A rerun compares hashes and skips files whose confirmed hash is unchanged.
-- An answer that does not come, or comes incomplete, confirms nothing. FileScan sends the file again. Thanks to chunk reuse, a repeat embeds only the chunks not yet stored.
+- A large upsert is not waited on inline. FileScan's delivery rounds are short, so the upsert goes out with a long sender deadline and counts as maybe-delivered. FileScan does not resend it while that deadline runs. On a later round, the confirmation comes from the echoed reply or from a `get` of the record that matches its hash ([transport](#transport)).
+- An answer that does not come within the deadline, or comes incomplete, confirms nothing, and only then does FileScan send the file again. Thanks to chunk reuse, a repeat embeds only the chunks not yet stored.
 - **Deletion, today:** a file gone from the folder gets FileScan's `as rag` delete for its id, the path. RAG's delete of that id removes the head and every chunk of every revision. It answers `ok`, or `not_found` when nothing is held, and FileScan counts both as done. An interrupted delete answers `incomplete: repeat the same delete to continue`; FileScan sends it again until it finishes. So a confirmed removal by path, covering every chunk, exists today, and a large file stored as one record inherits it.
 - A file over the size cap ([Q371](QUESTIONS.md#large-files)) is skipped and named in `status`. Its earlier version is deleted, as today, because stale text must not answer. It is never cut short or chunked partway.
 
@@ -71,17 +72,19 @@ A re-sync replaces the record's chunk set as one change. A stale chunk never ans
 
 - Each new chunk is one paid embedding through `#voyage`, and a chunk is at most 4 KiB of text. Reused chunks cost nothing.
 - A file's first sync pays for all its chunks. A re-sync pays only for changed chunks.
-- Classification by Jev runs once per record over at most 32 KiB. For a large file, the build step proposes the first 32 KiB of extracted text and its reviewer settles it; it is not an owner choice.
+- Classification by Jev runs once per record over at most 32 KiB. For a large file it classifies the first 32 KiB of extracted text, and `rag.md` will say so.
 - The per-file size cap, and with it the most one file can cost, is the owner's choice: [Q371](QUESTIONS.md#large-files).
-- A large file needs more embedding calls than today's 120-second call budget allows. Its upsert gets a deadline that grows with its chunk count, up to what the cap allows, and FileScan's call timeout matches it. A call that runs out is an unknown outcome, handled as in [whole-file confirmation](#whole-file-confirmation).
+- A large file needs more embedding calls than today's 120-second budget allows. RAG's budget comes from the sender's deadline: `deadline` in a serves-itself agent's `agent.json` is only its stop wait. So FileScan sends a large upsert with a deadline that grows with the file's size, up to what the cap allows. A call that runs out is an unknown outcome, handled as in [whole-file confirmation](#whole-file-confirmation).
 
 ## Transport
 
 These steps assume Q368's bigfile reference.
 
 - **FileScan:** lift the refusal of `bigfile` together with `as rag`. For an `as rag` subscriber, a text file over 32 KiB and within the cap is sent as RAG's upsert with a bigfile reference in place of the text. A file over the cap, or not text, stays skipped and named in `status`.
+- **Not waited on inline:** FileScan delivers in rounds of at most 8 seconds and waits 5 seconds for a confirmation (`change_sync.py`), short on purpose for the hold wait. A large upsert therefore goes out with its long deadline and is left in flight. While that deadline runs, the file counts as maybe-delivered and is never resent. Without this, every large file would time out each round and be sent again, and RAG, which handles one call at a time, would run duplicate paid upserts. A later round confirms the file from the echoed reply, or from a `get` whose record matches the identity and hash.
+- **Mixed subscriptions:** one `as rag` subscription can carry inline files and reference files together, so FileScan tracks bigfile keys per file.
 - **Read grant:** RAG downloads the bigfile from the FileScan instance's record, so that record's allow list must admit the RAG instance ([Q369](QUESTIONS.md#large-files)). FileScan cannot check this at `sub add`. An unadmitted RAG is refused at download, and the file stays pending with that reason.
-- **Expiry:** RAG downloads at the start of the call, before any paid work, so `bigfile_ttl` must cover the time a file waits pending, not RAG's processing time ([Q370](QUESTIONS.md#large-files)). An expired reference is refused by name. FileScan then uploads again on its next attempt, because it keeps the key until RAG has confirmed the file.
+- **Expiry:** RAG downloads at the start of the call, before any paid work, so `bigfile_ttl` must cover the time a file waits, not RAG's processing time ([Q370](QUESTIONS.md#large-files)). RAG handles one call at a time, so a file can wait in RAG's queue longer than `bigfile_ttl`. An expired reference is refused by name, and FileScan uploads again on its next attempt, which covers that wait. FileScan keeps the key until RAG has confirmed the file.
 
 ## Steps
 
@@ -90,7 +93,7 @@ Estimates are AI time, from observed agent wall-clock. Each step is one branch, 
 | Step | Builds | Estimate |
 |---|---|---|
 | L.1 | RAG: download and check a bigfile reference; the heading chunker and its chunk identity; per-chunk hashes and vector reuse; the head naming hashed chunks; the hit citation (heading path, lines); the size-scaled deadline. Mutants: drop the head check, cite a running index, confirm before the head is published | ~60 min |
-| L.2 | FileScan: `as rag` with a bigfile reference within the cap; skip and delete over it; re-upload an expired reference; the unadmitted-download reason in `status`. Mutants: confirm on download, keep a stale key | ~30 min |
+| L.2 | FileScan: `as rag` with a bigfile reference within the cap; skip and delete over it. The large upsert goes with a long sender deadline and is not waited on inline; it counts as maybe-delivered, with no resend while within its deadline; a later round confirms it from the echoed reply or a `get` of the record by hash. Re-upload an expired reference; bigfile keys tracked per file for a subscription mixing inline and reference files; the unadmitted-download reason in `status`. Mutants: resend while in flight, confirm on download, keep a stale key | ~40 min |
 | L.3 | Docs (`rag.md`, `filescan.md`), the replay fixture, and a fake-provider end-to-end for a 200 KiB Markdown file: edit one section and only that section is re-embedded; delete the file and no chunk answers | ~25 min |
 
-The three steps total about two hours, plus review and one agent-only gate per step. The owner's answers to Q368–Q371 come first.
+The three steps total about two hours and a quarter, plus review and one agent-only gate per step. The owner's answers to Q368–Q371 come first.

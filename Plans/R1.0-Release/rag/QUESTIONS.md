@@ -23,7 +23,7 @@ Choices for [large Markdown files](large-files.md#large-markdown-files-in-rag).
   > 💡👾 The allow-list term: read-only, one per FileScan instance, and it gives RAG nothing beyond the download.
 
 - ❓ Q370 How long a reference made for RAG lives
-  - Context: RAG downloads at the start of the call, so the lifetime covers a file's wait while pending, not RAG's processing; FileScan keeps the key until RAG confirms the file
+  - Context: RAG downloads at the start of the call, so the lifetime covers a file's wait, not RAG's processing; RAG handles one call at a time, so that wait can outlast the lifetime, and the re-upload on expiry covers it; FileScan keeps the key until RAG confirms the file
   - ( ) Keep `bigfile_ttl` (1 hour by default); an expired reference is refused by name, and FileScan uploads again on its next attempt 🌟
   - ( ) Raise the default for `as rag` to 24 hours, so a long backlog never re-uploads ⭐
   > 💡👾 Keep the hour: a re-upload is a local copy, never a paid call, and short keys keep a record's 100-key limit free.
