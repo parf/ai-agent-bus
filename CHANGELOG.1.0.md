@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.38 — 2026-11-06
+
+Telegram retries its startup identity lookup with a capped backoff, warns while it is unknown and keeps serving
+
 ## 1.0.37 — 2026-11-06
 
 New DBSync agent pages one MySQL or PostgreSQL table through a read-only #db and sends new, changed and soft-deleted rows to subscribers

@@ -16,17 +16,17 @@ const me: Reply = { status: 200, body: JSON.stringify({ ok: true, result: { id: 
 let servers: ReturnType<typeof Bun.serve>[] = [];
 afterEach(() => { for (const s of servers) s.stop(true); servers = []; });
 
-/** A fake Telegram whose getMe answers next() each time; asks counts them. */
-function fakeTelegram(next: () => Reply) {
+/** A fake Telegram whose getMe answers next() each time, which may hold the answer; asks counts them. */
+function fakeTelegram(next: () => Reply | Promise<Reply>) {
   const seen = { asks: 0 };
-  const server = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch(req) {
+  const server = Bun.serve({ port: 0, hostname: "127.0.0.1", async fetch(req) {
     if (!new URL(req.url).pathname.endsWith("/getMe")) return new Response("no", { status: 404 });
     seen.asks++;
-    const r = next();
+    const r = await next();
     return new Response(r.body, { status: r.status, headers: { "content-type": "application/json" } });
   } });
   servers.push(server);
-  const ask = () => telegramWeb("111:fixture", `http://127.0.0.1:${server.port}`, "read", "getMe", {}, Date.now() + 2000);
+  const ask = (signal?: AbortSignal) => telegramWeb("111:fixture", `http://127.0.0.1:${server.port}`, "read", "getMe", {}, Date.now() + 2000, signal);
   return { seen, ask };
 }
 
@@ -108,5 +108,27 @@ test("a stop ends the asking at once, with no timer left behind", async () => {
   expect(await learning).toBeUndefined();
   expect(Date.now() - started).toBeLessThan(1000);
   expect(set).toBe(false);
+  expect(tg.seen.asks).toBe(1);
+});
+
+test("a stop during a held getMe ends the asking at once and nothing is set or said, even when the answer comes later", async () => {
+  let release!: (r: Reply) => void;
+  const held = new Promise<Reply>(r => { release = r; });
+  const tg = fakeTelegram(() => held);
+  const stop = new AbortController(), logs: string[] = [];
+  let botId: string | undefined;
+  let settled = false;
+  const learning = learnBotId(tg.ask, v => { botId = v; }, { firstMs: 10, capMs: 10, signal: stop.signal, log: l => logs.push(l) });
+  void learning.then(() => { settled = true; });
+  await until(() => tg.seen.asks === 1);
+  const stopped = Date.now();
+  stop.abort();
+  await until(() => settled);
+  expect(Date.now() - stopped).toBeLessThan(200);
+  expect(await learning).toBeUndefined();
+  release(me); // the held answer arrives after the stop
+  await Bun.sleep(50);
+  expect(botId).toBeUndefined();
+  expect(logs).toEqual([]);
   expect(tg.seen.asks).toBe(1);
 });

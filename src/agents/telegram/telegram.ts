@@ -67,10 +67,10 @@ async function secrets(): Promise<Record<string, string>> {
 /** Every Telegram call goes through here: the secret's token and endpoint,
  *  under the pinned policy for the kind — a write is one attempt plus the
  *  429 retry, a read retries once on 5xx. */
-async function thisCall(kind: "read" | "write", method: string, params: Record<string, unknown> = {}, deadline = Date.now() + defaultBudgetMs) {
+async function thisCall(kind: "read" | "write", method: string, params: Record<string, unknown> = {}, deadline = Date.now() + defaultBudgetMs, signal?: AbortSignal) {
   const env = await secrets();
   if (!env.TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN is not set");
-  return telegramWeb(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_API_URL, kind, method, params, deadline);
+  return telegramWeb(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_API_URL, kind, method, params, deadline, signal);
 }
 
 /** The first thing the agent cannot work without, as an answer to its caller. */
@@ -463,7 +463,7 @@ try {
   process.exit(1);
 }
 // The bot id is asked for again, at a capped backoff, until getMe names it; the agent serves meanwhile.
-void learnBotId(() => thisCall("read", "getMe"), id => { receiver.botId = id; }, { signal: stop.signal, log: line => console.error(`telegram: ${line}`) });
+void learnBotId(signal => thisCall("read", "getMe", {}, Date.now() + defaultBudgetMs, signal), id => { receiver.botId = id; }, { signal: stop.signal, log: line => console.error(`telegram: ${line}`) });
 receiver.start();
 await bus.serve(handle, { signal: stop.signal, drainTimeout: 5000, matchesReply: message => router.matchesReply(message), onReply: message => router.answer(message) });
 forwarder.stop();
