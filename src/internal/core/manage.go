@@ -252,7 +252,9 @@ func (b *Bus) validatePersonal(r protocol.Record) error {
 	}
 	// Personal is an audience: the Owner and the Agents that Owner owns. Its
 	// lists may name that cohort, directly or by @owner and @agent, and
-	// nothing wider; every save is checked against the whole record.
+	// nothing wider; every save is checked against the whole record. Allow may
+	// also name the daemon's own #bus, which is nobody's agent and only sends
+	// the copies a manager subscribed to; Maintainers may not (Q328).
 	// See docs/03-records.md#personal-and-shared.
 	cohort := func(term string) bool {
 		switch {
@@ -269,7 +271,7 @@ func (b *Bus) validatePersonal(r protocol.Record) error {
 		if err != nil {
 			return fmt.Errorf("%w: %s", ErrBadName, err)
 		}
-		if !cohort(term) {
+		if !cohort(term) && term != DaemonAgent {
 			return fmt.Errorf("%w: %s reaches outside the owner's own agents", ErrPersonal, term)
 		}
 	}

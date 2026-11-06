@@ -337,9 +337,8 @@ func (b *Bus) SubAdd(caller, source, target, level, filter string) (subscription
 }
 
 // subTargetTakesBus refuses, when a subscription is made, a target that can never receive its copies:
-// #bus itself, and any target whose Allow does not admit #bus, which is every Personal agent (its Allow
-// reaches no further than its owner's own agents). A target that does not exist, or is the wrong kind,
-// is left to the engine's own answer.
+// #bus itself, and any target whose Allow does not admit #bus; a Personal agent may list #bus (Q328).
+// A target that does not exist, or is the wrong kind, is left to the engine's own answer.
 func (b *Bus) subTargetTakesBus(caller, target string) error {
 	name, err := canon(target)
 	if err != nil {
@@ -354,7 +353,7 @@ func (b *Bus) subTargetTakesBus(caller, target string) error {
 		return nil
 	}
 	if err := b.MaySend(DaemonAgent, name); errors.Is(err, ErrNotAllow) {
-		return eventlog.Refusal{Code: "invalid_target", Text: "The target does not admit #bus: list #bus in its Allow (a Personal agent cannot be a target)."}
+		return eventlog.Refusal{Code: "invalid_target", Text: "The target does not admit #bus: list #bus in its Allow."}
 	}
 	return nil
 }

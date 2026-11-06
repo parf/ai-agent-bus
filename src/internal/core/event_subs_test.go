@@ -557,8 +557,8 @@ func subCount(st *memory.State, source uint32) int {
 }
 
 // A target that can never receive the copies is refused when the subscription is made, with the
-// protocol's own code for a bad target and the reason in the text: #bus itself, a target whose Allow
-// does not admit #bus, and a Personal agent (its Allow reaches no further than its owner's agents).
+// protocol's own code for a bad target and the reason in the text: #bus itself, and a target whose
+// Allow does not admit #bus, Personal or not. A Personal agent that lists #bus is a target (Q328).
 func TestSubAddRefusesATargetThatCannotTakeCopiesFromTheBus(t *testing.T) {
 	b := subFixture(t, nil)
 	if _, err := b.Register(protocol.Record{Name: "#alice/oncall@h", Kind: protocol.KindAgent, Owner: "alice@h", Tags: []string{"personal"}, Allow: []string{"@owner"}}); err != nil {
@@ -569,6 +569,9 @@ func TestSubAddRefusesATargetThatCannotTakeCopiesFromTheBus(t *testing.T) {
 	}
 	if _, err := b.Register(protocol.Record{Name: "#opens@h", Kind: protocol.KindAgent, Owner: "alice@h", Allow: []string{DaemonAgent}}); err != nil {
 		t.Fatal(err)
+	}
+	if _, err := b.Register(protocol.Record{Name: "#alice/pager@h", Kind: protocol.KindAgent, Owner: "alice@h", Tags: []string{"personal"}, Allow: []string{"@owner", DaemonAgent}}); err != nil {
+		t.Fatalf("a Personal agent may list #bus in its Allow (Q328): %v", err)
 	}
 	for _, tc := range []struct{ target, why string }{
 		{DaemonAgent, "#bus cannot be a subscription target"},
@@ -586,8 +589,10 @@ func TestSubAddRefusesATargetThatCannotTakeCopiesFromTheBus(t *testing.T) {
 	if rows, err := b.SubList("alice@h", "#a@h"); err != nil || len(rows) != 0 {
 		t.Fatalf("a refused target left a subscription: %v %v", rows, err)
 	}
-	if _, err := b.SubAdd("alice@h", "#a@h", "#opens@h", "", ""); err != nil {
-		t.Fatalf("a target that admits #bus was refused: %v", err)
+	for _, target := range []string{"#opens@h", "#alice/pager@h"} {
+		if _, err := b.SubAdd("alice@h", "#a@h", target, "", ""); err != nil {
+			t.Fatalf("target %s admits #bus and was refused: %v", target, err)
+		}
 	}
 	if _, err := b.SubAdd("alice@h", "#a@h", "nobody@h", "", ""); eventlog.Code(err) != "admission_refused" {
 		t.Fatalf("an absent target keeps the engine's own answer: %v", err)

@@ -11,6 +11,7 @@ Follow each link for the full behavior and limits.
 - [Names](01-identity-and-authority.md#names) identify records independently of a running process, so an agent can stop and resume without changing its address.
 - [Conditional registration](01-identity-and-authority.md#registration) arbitrates competing new claims. [Unregistration](01-identity-and-authority.md#unregistering) removes old group membership so a later holder does not inherit access.
 - [Administrative and record authority](01-identity-and-authority.md#positions-and-scopes) are separate: administering people does not make someone every record's maintainer.
+- [A Personal record's Allow may name `#bus`](03-records.md#personal-and-shared), its Maintainers may not (Q328).
 
 ### Access and credentials
 

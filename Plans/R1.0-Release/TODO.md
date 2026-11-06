@@ -573,7 +573,7 @@ Final Fable review of T0 `af1c7e06` ([issues](../issues/2026-11/2026-11-02.md), 
 - ✅ FR.I2 team 1: `src/web/web-face/records.md` describes the Events card (`0ffd8572`, no bump).
 - ✅ FR.A2 team 2: agent-log calls resolve the target with `b.entity` and answer `not_found` for an inactive record or User (`09018860`).
 - ✅ FR.A3 team 2 (with A4): `sub add` refuses a target that cannot admit `#bus`, and `#bus` itself; the bus guide says a Personal agent is no target (`4d0fb211`).
-  Letting Personal agents admit `#bus` is [Q328](../R1.1/QUESTIONS.md#access-context).
+  Letting Personal agents admit `#bus` was [№Q328](../R1.1/resolved.md#Q328), now [the Personal rules](../../docs/03-records.md#personal-and-shared).
 - ✅ FR.D1 team 1: one name grammar through `protocol.ParseName`, with a shared vector for the Python and TypeScript helpers (`f32f605d`, 0.9.303).
 - ✅ FR.C1 team 2: one daemon-wide bucket groups dirty alert snapshots into transactions (`4b2610a5`).
   Alerts reach disk within about 100 ms; a clean stop flushes all. `dropped` stays admission-only and unchanged.

@@ -184,3 +184,35 @@ func TestPersonalRestrictsNothingElse(t *testing.T) {
 		t.Fatalf("restored Personal record: visible=%v %+v", visible, got)
 	}
 }
+
+// A Personal Allow may name the daemon's own #bus, so a person's agent can take
+// the copies of an agent-log subscription; its Maintainers may not, and nothing
+// else outside the cohort comes in with it (Q328).
+func TestPersonalAllowMayNameBusButMaintainersMayNot(t *testing.T) {
+	b := personalFixture(t)
+	if err := b.EstablishDaemonAgent("h"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#pager@h", Owner: "alice@h", Tags: []string{"personal"}, Allow: []string{OwnerGroup, DaemonAgent}}); err != nil {
+		t.Fatalf("#bus was refused in a Personal registration's Allow: %v", err)
+	}
+	allow := []string{OwnerGroup, DaemonAgent + "(read)"}
+	if _, err := b.Manage("alice@h", Management{Name: "#pager@h", Allow: &allow}); err != nil {
+		t.Fatalf("#bus with roles was refused in a Personal Allow by management: %v", err)
+	}
+	maintainers := protocol.MaintainerList{DaemonAgent}
+	if _, err := b.Manage("alice@h", Management{Name: "#pager@h", Maintainers: &maintainers}); !errors.Is(err, ErrPersonal) {
+		t.Fatalf("#bus was accepted as a Personal Maintainer: %v", err)
+	}
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#pager2@h", Owner: "alice@h", Tags: []string{"personal"}, Maintainers: protocol.MaintainerList{DaemonAgent}}); !errors.Is(err, ErrPersonal) {
+		t.Fatalf("#bus was accepted as a Personal registration's Maintainer: %v", err)
+	}
+	wider := []string{DaemonAgent, "#bobs@h"}
+	if _, err := b.Manage("alice@h", Management{Name: "#pager@h", Allow: &wider}); !errors.Is(err, ErrPersonal) {
+		t.Fatalf("another user's agent came in beside #bus: %v", err)
+	}
+	got, _ := b.Lookup("alice@h", "#pager@h")
+	if len(got.Allow) != 2 || got.Allow[1] != DaemonAgent+"(read)" || len(got.Maintainers) != 0 {
+		t.Fatalf("a refused change touched the record: %+v", got)
+	}
+}

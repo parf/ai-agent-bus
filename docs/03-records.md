@@ -217,6 +217,7 @@ nothing from those already allowed.
 | Carried by | every kind; the tag is not a kind ([record kinds](#record-kinds)) |
 | 👤 user record | always Personal and cannot be made shared |
 | `allow` and `maintainers` | only the Owner, the Owner's own agents by name, and the runtime [`@owner` and `@agent` terms](02-access.md#acl) |
+| `allow` only | also the daemon's own `#bus`, so the record can receive the copies of an [agent-log subscription](agents/bus.md#agent-logs); `#bus` is nobody's agent and is never a Personal Maintainer |
 | Refused | another user's agent, an ordinary group, a user entry other than the Owner, and the [wildcard grant](02-access.md#acl) — each an error on every save, at creation and after it |
 | Everything else | unaffected: delivery, `deliver_to` and forwarding behave as on a shared record |
 | Main web pages | hide Personal records by default; the Personal filter or a matching tag includes caller-visible Personal records ([browse counts](#tags)) |

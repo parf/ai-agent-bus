@@ -429,6 +429,9 @@ func TestSubAddTargetThatCannotTakeBusCopiesIsInvalidTargetWithItsReason(t *test
 		if out.Error.Code != "invalid_target" || !strings.Contains(out.Error.Text, why) {
 			t.Errorf("%s answered %+v, want invalid_target mentioning %q", body, out.Error, why)
 		}
+		if strings.Contains(out.Error.Text, "Personal") {
+			t.Errorf("%s still says a Personal agent cannot be a target (Q328): %q", body, out.Error.Text)
+		}
 	}
 }
 

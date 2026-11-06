@@ -231,7 +231,7 @@ kind, and a field a kind cannot have is refused. Inactive records and failed del
 | `name` | canonical `name`, `name@team` or `template/instance@team`; globally unique and required. The realm is optional and the last `@` separates it. A 👾 name begins with `#` and a 👥 name with `@`, so the name alone says the kind. The ordinary rules still apply after the prefix, so `@support@srv1` is a Group with a realm |
 | `description` | |
 | wire names | the API spells `description` as `descr`, `deliver_to` as `subs`, `updated_at` as `at`, and `owner_id` as `owner`, the owning User's name; the store keeps the owner's `user_id` beside it, on no answer |
-| `tags` containing `personal` | the intended audience is the Owner and the Agents that Owner owns; its `allow` and `maintainers` admit that cohort and nothing wider |
+| `tags` containing `personal` | the intended audience is the Owner and the Agents that Owner owns; its `allow` and `maintainers` admit that cohort and nothing wider, except that `allow` may also name the daemon's `#bus` ([Personal rules](03-records.md#personal-and-shared)) |
 | `maintainers` | typed actor terms |
 | `allow` | typed actor terms: the ACL on every kind that has one, and the membership list on a 👥 |
 | `status` | `active` or `inactive` |
