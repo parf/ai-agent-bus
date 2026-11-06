@@ -257,3 +257,17 @@ The recommendations below are retained parked proposals.
   - ( ) decoded text for text parts in windows as well ⭐
   > 💡👾 base64 in windows; exact reassembly and the hash, and a split character never shows escapes
   - Impact: the other choice cannot promise the whole-part hash for text parts
+
+## Agent pack and runner links
+
+- ❓ Q331 Land W1A's agent-pack branch as the first step of [AS.1](TODO.md#agents-split)
+  - Context: branch `ab-w1a/agent-pack` (`01aba112`, 11-03/04, 42 files) gives the bundled agents their own SemVer 1.0.0 and changelog, makes setup require it, and moves the agent checks to `src/agents/smoke.sh`, still in this repository. You asked on 11-02 to split the agents pack with its own repository and SemVer (AS.1), which waits for an approved plan; the branch is that split without the separate repository, and it contradicts the current "Shared SemVer" rule in CLAUDE.md
+  - ( ) Keep the branch parked as input to the AS.1 plan; the plan decides repository, versioning and gate together, then the branch is rebased or redone 🌟
+  - ( ) Land it now as AS.1's first step: own version inside this repository, CLAUDE.md's versioning rule amended, two readers
+  - ( ) Drop it
+  > 💡👾 Park it for the AS.1 plan: a second version line now, before the repository question is settled, would likely be redone.
+- ❓ Q332 May an `agent.d` package be a symbolic link to its source checkout
+  - Context: branch `ab-w1a/agentd-links` (`8029f6fd`, 11-04): the runner loads, digests, runs and serves a package through a link to its checkout; a dangling link or a link to a file is refused, links inside a package stay refused. It widens which paths the runner trusts; today packages are deployed by copy
+  - ( ) Yes, as an R1.1 item, landing with two readers and a mutant ⭐
+  - ( ) No, keep copy-only packages 🌟
+  > 💡👾 Keep copy-only: a link lets anyone who can write the checkout change a running agent without a deploy.
