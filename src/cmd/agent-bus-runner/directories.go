@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -99,7 +100,11 @@ func packagePath(source, host, name string) (string, bool, error) {
 		if guarded.dir == "" {
 			continue
 		}
-		if resolved, ok := canonicalDir(guarded.dir); ok && within(real, resolved) {
+		resolved, err := canonicalDir(guarded.dir)
+		if err != nil {
+			return "", true, fmt.Errorf("%s is a symbolic link, and %s cannot be resolved to check it against %s: %v", p, guarded.dir, guarded.why, err)
+		}
+		if within(real, resolved) {
 			return "", true, fmt.Errorf("%s is a symbolic link to %s, which is inside %s; a package link points at a checkout elsewhere", p, real, guarded.why)
 		}
 	}
@@ -107,13 +112,17 @@ func packagePath(source, host, name string) (string, bool, error) {
 }
 
 // canonicalDir is dir made absolute with its links resolved.
-func canonicalDir(dir string) (string, bool) {
+func canonicalDir(dir string) (string, error) {
 	abs, err := filepath.Abs(dir)
 	if err != nil {
-		return "", false
+		return "", err
 	}
 	resolved, err := filepath.EvalSymlinks(abs)
-	return resolved, err == nil
+	if errors.Is(err, os.ErrNotExist) {
+		// A root that does not exist yet has no links to resolve; no real path can lie inside it.
+		return abs, nil
+	}
+	return resolved, err
 }
 
 // within is whether path is dir or something under it; both are already resolved.

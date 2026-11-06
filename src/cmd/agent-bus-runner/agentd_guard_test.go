@@ -103,3 +103,24 @@ func TestAPackageLinkIntoARelativeHostDirectoryIsStillRefused(t *testing.T) {
 		t.Fatalf("a relative link into the host directory loaded: %+v %v", list, err)
 	}
 }
+
+// The guard fails closed: a protected root that cannot be resolved refuses the link, instead of
+// skipping the comparison. A root that does not exist has no links to resolve and is compared by its
+// absolute path.
+func TestGuardRefusesWhenAProtectedRootCannotBeResolved(t *testing.T) {
+	root := t.TempDir()
+	checkout := directoryAgent(t, t.TempDir(), "private", "private")
+	if err := os.Symlink(checkout, filepath.Join(root, "pkg")); err != nil {
+		t.Fatal(err)
+	}
+	// A host path under a regular file cannot be resolved: ENOTDIR, not "does not exist".
+	file := filepath.Join(t.TempDir(), "file")
+	writeFile(t, file, "x")
+	if _, _, err := packagePath(root, filepath.Join(file, "host"), "pkg"); err == nil {
+		t.Fatal("an unresolvable protected host was silently skipped")
+	}
+	// A host that does not exist yet cannot hold the checkout: the link stands.
+	if _, ok, err := packagePath(root, filepath.Join(t.TempDir(), "missing-host"), "pkg"); err != nil || !ok {
+		t.Fatalf("a missing host refused a link elsewhere: ok=%v err=%v", ok, err)
+	}
+}
