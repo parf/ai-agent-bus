@@ -14,7 +14,7 @@ var commandGroups = []struct {
 }{
 	{"MAIN COMMANDS", []commandHelp{
 		{"status", "status", "Show bus status and your name", ""},
-		{"ls", "ls [<name>]", "List visible records (readers by default)", "--kind=user|agent|queue|pubsub|service|resource  List every visible record of this kind\n--tag=tag  Filter by tag; repeat it or comma-separate to require every tag\n--all  Include every visible kind\n--table  Print a human-readable table (default JSON)"},
+		{"ls", "ls [<name>]", "List visible records (readers by default)", "--kind=user|agent|queue|pubsub|service|resource  List every visible record of this kind\n--tag=tag  Filter by tag; repeat it or comma-separate to require every tag\n--all  Include every visible kind\n--table  Force a human-readable table (default on a terminal)\n--json  Force JSON (default when piped or redirected)"},
 		{"send", "send <to> [<text>|-]", "Send once without waiting", "--topic=topic  Message topic\n--tag=tag  Correlation tag\n--reply-to=name  Reply inbox\n--ttl=duration  Lifetime (default recipient retention; shorter wins)\n--help  Ask the destination for help (with <to>)\n--help-config  Ask for Configuration declarations\n--help-secret  Ask for environment declarations\n--help-json  Ask for machine metadata\n--status  Ask for agent status\n--mcp  Ask for MCP tools"},
 		{"call", "call <to> [<text>|-]\n  agent-bus call --tagged=<tag> <body>", "Send once and wait for the answer", "--topic=topic  Message topic\n--tag=tag  Correlation tag\n--tagged=tag  Call every visible matching agent\n--wait=duration  Answer deadline (default 30s)\n--help  Ask the destination for help (with <to>)\n--help-config  Ask for Configuration declarations\n--help-secret  Ask for environment declarations\n--help-json  Ask for machine metadata\n--status  Ask for agent status\n--mcp  Ask for MCP tools"},
 		{"consume", "consume", "Read messages from your inbox", "--inbox=name  Inbox to read\n--topic=topic  Match topic\n--tag=tag  Match tag\n--wait=duration  Long-poll deadline (default 30s)\n--follow  Keep reading\n--share  Read as one of several workers\n--host=name  State where this reader runs"},
@@ -53,7 +53,7 @@ var commandGroups = []struct {
 	}},
 }
 
-const globalOptions = "\n\nGLOBAL OPTIONS\n  --addr=<address>  Daemon address; place before the command\n  --help  Overview when used alone; <command> --help shows its page\n  --version  Print version and build; use alone"
+const globalOptions = "\n\nGLOBAL OPTIONS\n  --addr=<address>  Daemon address; place before the command\n  -h, --help  Overview when used alone; <command> -h or --help shows its page\n  --version  Print version and build; use alone"
 
 func commandPage(text string) string {
 	return display.ManText(strings.Replace(text, "\n\nEXAMPLES", globalOptions+"\n\nEXAMPLES", 1)) + "\n\n" + display.Footer()
@@ -63,7 +63,7 @@ var usage = generalHelp()
 
 func generalHelp() string {
 	var b strings.Builder
-	b.WriteString("agent-bus " + version.String + " — talk to agent-busd · " + display.Homepage + "\n\nUSAGE\n  agent-bus [--addr=<address>] <command> [<args>]\n  agent-bus help <command> · help '#agent' · --version | --help\n\nDESCRIPTION\n  Talk to the bus: send messages, list records and run agents.\n")
+	b.WriteString("agent-bus " + version.String + " — talk to agent-busd · " + display.Homepage + "\n\nUSAGE\n  agent-bus [--addr=<address>] <command> [<args>]\n  agent-bus help <command> · help '#agent' · --version | --help | -h\n\nDESCRIPTION\n  Talk to the bus: send messages, list records and run agents.\n")
 	for _, g := range commandGroups {
 		b.WriteString("\n" + g.title + "\n")
 		for _, c := range g.commands {

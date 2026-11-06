@@ -123,9 +123,9 @@ func TestParserFlagsMatchCommandHelp(t *testing.T) {
 			}
 			// These legacy spellings remain accepted but are deliberately hidden.
 			accepted = slices.DeleteFunc(accepted, func(f string) bool { return name == "register" && f == "addr" })
-			// --table is handled before split, just like its hidden -h alias.
+			// Listing format flags are handled before split.
 			if name == "ls" {
-				accepted = append(accepted, "table")
+				accepted = append(accepted, "table", "json")
 			}
 			slices.Sort(accepted)
 			accepted = slices.Compact(accepted)
@@ -185,7 +185,7 @@ func TestManHelpDispatchAndExitCodes(t *testing.T) {
 	}
 }
 func TestRetiredAliasesRefusedBeforeDaemonCalls(t *testing.T) {
-	for _, args := range [][]string{{"agent-template"}, {"channel", "create", "queue"}, {"enroll"}, {"-h"}, {"-version"}, {"get"}, {"list"}, {"template"}} {
+	for _, args := range [][]string{{"agent-template"}, {"channel", "create", "queue"}, {"enroll"}, {"-version"}, {"get"}, {"list"}, {"template"}} {
 		out, code := cliHelpRun(t, args...)
 		if code == 0 || !strings.Contains(out, "unknown verb") {
 			t.Fatalf("retired %q: %d %s", args, code, out)

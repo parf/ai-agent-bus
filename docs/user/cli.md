@@ -76,10 +76,10 @@ Five programs; you use the first one almost always.
 
 ## Help
 
-- `agent-bus --help` groups every command by purpose.
-- `agent-bus <command> --help` shows its usage, options with defaults, and examples.
+- `agent-bus --help` or `agent-bus -h` groups every command by purpose.
+- `agent-bus <command> --help` or `<command> -h` shows its usage, options with defaults, and examples. Local help answers even when a launcher session file is no longer readable.
 - `agent-bus help '#agent'` asks an agent instead ([below](#asking-an-agent-what-it-can-do)).
-- `agent-bus ls --table` displays a table.
+- `agent-bus ls` displays a table on a terminal and JSON when piped or redirected. `--table` and `--json` force either form.
 - `--addr=<address>` goes before the command.
 
 ## Option spelling

@@ -55,6 +55,15 @@ func main() {
 		die(usage)
 	}
 	verb, rest := args[0], args[1:]
+	if verb == "-h" {
+		verb = "--help"
+	}
+	if shortHelp(verb, rest) {
+		if help := verbUsage(verb); help != "" {
+			fmt.Println(help)
+			return
+		}
+	}
 	if len(rest) == 1 && rest[0] == "--help" {
 		if help := verbUsage(verb); help != "" {
 			fmt.Println(help)
@@ -249,12 +258,15 @@ func resourceFlags(flags map[string]string) (*protocol.Resource, error) {
 // than the configuration itself.
 // See docs/03-records-agent.md#configuring-a-template.
 func ls(args []string) error {
-	human, all := false, false
+	human := outputTerminal(os.Stdout)
 	filtered := make([]string, 0, len(args))
-	options := true
+	options, format := true, ""
 	for _, arg := range args {
-		if options && arg == "--table" {
-			human = true
+		if options && (arg == "--table" || arg == "--json") {
+			if format != "" && format != arg {
+				return fmt.Errorf("--table and --json cannot be combined")
+			}
+			format, human = arg, arg == "--table"
 			continue
 		}
 		filtered = append(filtered, arg)
@@ -266,7 +278,7 @@ func ls(args []string) error {
 	if err := only(flags, err, "kind", "all", "tag"); err != nil {
 		return err
 	}
-	all = has(flags, "all")
+	all := has(flags, "all")
 	if len(pos) > 1 {
 		return fmt.Errorf("ls takes one name, or none")
 	}
@@ -1316,6 +1328,31 @@ func localHelp(verb string, rest []string) bool {
 			}
 		}
 		return true
+	}
+	return false
+}
+
+// -h is local command help, including subcommands. A delimiter and option
+// values stay opaque; --help with a destination remains an agent ask.
+func shortHelp(verb string, args []string) bool {
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--" {
+			return false
+		}
+		if arg == "-h" {
+			return true
+		}
+		if arg == "-o" {
+			i++
+			continue
+		}
+		if strings.HasPrefix(arg, "--") && !strings.Contains(arg, "=") {
+			key := strings.TrimPrefix(arg, "--")
+			if !onOff[key] && !(key == "status" && (verb == "send" || verb == "call")) {
+				i++
+			}
+		}
 	}
 	return false
 }
