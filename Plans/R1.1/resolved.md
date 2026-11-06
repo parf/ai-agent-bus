@@ -294,3 +294,11 @@
   > 💬 👤parf (in chat) default: anthropic/claude-sonnet-5.5: stronger and more expensive.
   >
   > 💬👾 → `#ai` Configuration `{"model":"anthropic/claude-sonnet-5.5"}` set 2026-11-05; `models` marks it (default).
+  >
+  > 💬 👤parf (in chat) can we ask to use latest sonnet?
+  >
+  > 💬👾 Yes: OpenRouter's alias `~anthropic/claude-sonnet-latest` always routes to the newest Sonnet; set it as the default.
+  >
+  > 💬 👤parf (in chat) reconsidered - use haiku `anthropic/claude-haiku-5.5`: fast and cheap for routine bus asks
+  >
+  > 💬👾 → `#ai` Configuration `{"model":"anthropic/claude-haiku-5.5"}` set 2026-11-05; `models` marks it (default).

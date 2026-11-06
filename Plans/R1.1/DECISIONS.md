@@ -6,7 +6,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30; the R1 rows are in 
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
-| Q337 `#ai` defaults to `anthropic/claude-sonnet-5.5` (its Configuration `model`) | [resolved](resolved.md#Q337) | Owner, 2026-11-05 |
+| Q337 `#ai` defaults to `anthropic/claude-haiku-5.5` (its Configuration `model`) | [resolved](resolved.md#Q337) | Owner, 2026-11-05 |
 | Q268, Q178 MCP: hand-write the Go face's small JSON-RPC part; the runner adds the `mcp` tag | [resolved](resolved.md#Q268) | Owner, 2026-11-05 |
 | Q326, Q328 Subscriptions: one rule everywhere (source checked at creation); a Personal agent may list `#bus` in its Allow | [resolved](resolved.md#Q326) | Owner, 2026-11-05 |
 | Q334, Q305–Q310, Q314–Q320 Build FileScan and DBSync: shared core, replay the existing base by default, system paths allowed, MySQL and PostgreSQL first | [resolved](resolved.md#Q334) | Owner, 2026-11-05 |
