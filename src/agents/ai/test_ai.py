@@ -814,6 +814,9 @@ class Proxy(unittest.TestCase):
                      [{'b64_json': base64.b64encode(PNG).decode()}] * (proxy.IMAGE_N_MAX + 1)]:
             self.route('/images', {'data': data})
             self.assertEqual(self.image(), 'error: provider returned no image', data)
+        # A paid answer without a usable image still says what it cost.
+        self.route('/images', {'data': [{'b64_json': 'not base64!'}], 'usage': {'cost': 0.04}})
+        self.assertEqual(self.image(), 'error: provider returned no image\n\n[cost 0.04 USD]')
         self.route('/images', {'data': [{'url': 'data:image/png;base64,' + base64.b64encode(PNG).decode()}]})
         self.assertRegex(self.image(), '^' + self.KEPT % ('png', 'png', len(PNG)) + '$')
         self.assertEqual(len(self.store.bigfile.puts), 1)

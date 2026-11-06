@@ -51,8 +51,9 @@ RECORD_KEYS = 100
 RECORD_BYTES = 256 * 1024 * 1024
 IMAGE_TTL = 86400
 IMAGE_TYPES = {"image/png": "png", "image/jpeg": "jpeg", "image/webp": "webp", "image/gif": "gif", "image/svg+xml": "svg"}
-# The provider answer carries every image in base64, a third larger than its bytes.
-IMAGE_READ = IMAGE_N_MAX * (IMAGE_MAX // 3 * 4 + 4) + MAX_BYTES
+# The provider answer carries every image in base64, a third larger than its bytes. It is held about three times
+# over while it is parsed and decoded, so the read stays well inside the runner's default 512M memory limit.
+IMAGE_READ = 96 * 1024 * 1024
 
 
 def refusal(status, message):
@@ -468,8 +469,11 @@ def generate_images(request, envelope, base, key, store):
     status, result = provider_call("image", envelope, base, "POST", base.path.rstrip("/") + "/images", payload, key, IMAGE_READ)
     if isinstance(result, str):
         return result, status
-    images = decoded_images(result)
     paid = usage_line(result)
+    try:
+        images = decoded_images(result)
+    except ProxyError as error:
+        return "error: " + str(error) + paid, status
     lines, kept = [], [(media, data) for media, data in images if len(data) <= IMAGE_MAX]
     try:
         refused = record_full(store, len(kept), sum(len(data) for _, data in kept))
