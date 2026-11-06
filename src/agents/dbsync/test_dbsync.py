@@ -227,6 +227,20 @@ class PollTests(Base):
         reply=json.loads(self.agent.handle(msg(json.dumps({'method':'sub.add','target':QUEUE,'replay':'no'}))))
         self.assertEqual(reply.get('error',{}).get('code'),'invalid_request',reply)
 
+    def test_a_subscriber_added_while_a_page_is_read_still_gets_the_pruned_rows(self):
+        for k in range(1,4):self.db.put(k,f'2026-11-05 10:00:0{k}')
+        self.subscribe();self.agent.poll()
+        self.assertEqual((self.agent.status()['window'],len(self.bus.sent)),(0,3))
+        answer=self.db.answer;added=[]
+        def during(body):
+            result=answer(body)
+            if ' LIMIT ' in body and not added:added.append(self.subscribe(who='#late@n.test'))
+            return result
+        self.db.answer=during
+        self.agent.poll();self.agent.poll()
+        self.assertEqual(len(added),1)
+        self.assertEqual(sorted(self.keys(),key=int),['1','1','2','2','3','3'])
+
 
 class SoftDeleteTests(Base):
     config=dict(Base.config,deleted='note',deleted_value='del')

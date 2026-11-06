@@ -328,10 +328,12 @@ class DBSync:
                     here=pair
                 if here is not None:pos[sub_id]=list(here)
             self._prune(data)
-            # The window now covers only what lies above the lowest active position, so one that comes back below it
-            # (unparked, or new) makes the next poll read again from there.
+            # `base` is what the window really covers: rows above it were read and are held unless every active
+            # subscriber is past them. It rises with the lowest position once all are at or above it; it is never
+            # lowered here, so one that joined below it (unparked, or added while a page was read) is still below it,
+            # and the next poll reads again from there.
             any_active,floor=self._floor(data)
-            if any_active:meta['base']=floor
+            if any_active and self.order(floor)>=base_order:meta['base']=floor
             self.state.save(data)
 
     def _confirmed(self,data,sub_id,key):
