@@ -1,6 +1,6 @@
 # Large Markdown files in RAG
 
-📌 **TL;DR:** A plan, with no code until the owner approves it. Markdown files over 32 KiB reach RAG today only as a skip. FileScan would hand RAG a bigfile reference, and RAG would chunk the file by its headings. Every chunk carries its source, hash and citation. RAG confirms a file only once all of it is stored. Open choices: [Q368–Q371](QUESTIONS.md#large-files).
+📌 **TL;DR:** A plan, approved by the owner on 2026-11-06 (Q368–Q371, all recommended options). Markdown files over 32 KiB reach RAG today only as a skip. FileScan would hand RAG a bigfile reference, and RAG would chunk the file by its headings. Every chunk carries its source, hash and citation. RAG confirms a file only once all of it is stored, and a free [completeness check](#the-completeness-check) proves it.
 
 Owner, 2026-11-06, through mdhouse: "let AB plan and implement it if it makes sense". The need comes from mdhouse's [RAG contract](http://localhost:7777/mdhouse/Plans/R3/RAG-CONTRACT.md): five of its 194 Markdown files are over 32 KiB, and coverage must never be reported as full while they are skipped.
 
@@ -16,7 +16,7 @@ Owner, 2026-11-06, through mdhouse: "let AB plan and implement it if it makes se
 
 ## Direction
 
-Settled by `#ab-dir`, 2026-11-06: RAG does the chunking, and FileScan is only the transport. How RAG gets the bytes is [Q368](QUESTIONS.md#large-files); this plan assumes the recommended bigfile reference.
+Settled by `#ab-dir`, 2026-11-06: RAG does the chunking, and FileScan is only the transport. RAG gets the bytes through FileScan's bigfile reference and never opens a host path ([Q368](QUESTIONS.md#large-files)).
 
 - **One file is one record.** The record keeps today's id, which is the path. A file that grows past 32 KiB keeps its record, and only its chunking changes.
 - **Inline files are unchanged.** A file of at most 32 KiB keeps today's path and chunk format. The heading chunker applies only to files that arrive by reference.
@@ -30,6 +30,8 @@ A chunk keeps the same identity across re-syncs when its text has not changed.
 - It is never a running index over the whole file. An edit in one section therefore leaves the identities of every other section unchanged.
 - A section too long for one chunk splits at paragraph, then line, then whitespace boundaries. The parts are numbered within the section only.
 - Text before the first heading has an empty heading path.
+- **Repeated sibling headings:** siblings with the same title under the same parent are told apart by their ordinal among same-titled siblings, counted from 1 in file order. Two `## Notes` sections under one `# Plan` are `Plan / Notes #1` and `Plan / Notes #2`.
+- **Fenced code never changes the structure:** a heading is an ATX heading (`#` to `######`) outside a fenced code block. A `#` line inside a ```` ``` ```` or `~~~` fence is text. Fence content never starts a section or moves a split point. A fence is split only when it alone exceeds a chunk, and then at line boundaries.
 - This is a new chunk format, with its own permanent version beside today's ([technical details](../../../docs/agents/rag.md#technical-details)). The file's text lives only in its chunks. A large file's head holds the whole-file hash and the chunk list, never the text, because today's head stores the full `data` under the 32 KiB data limit.
 
 ## Hashes
@@ -63,24 +65,59 @@ A re-sync replaces the record's chunk set as one change. A stale chunk never ans
 - RAG answers a file's upsert only after every chunk is stored and the new head is published.
 - The answer is the stored record. It repeats the identity (namespace, table, id and source) and the whole-file hash that RAG ingested. FileScan already counts an upsert as stored only when every one of those fields matches what it sent ([FileScan § RAG](../../../docs/agents/filescan.md#reference-for-a-consumer)).
 - Because the answer echoes the hash it ingested, an answer for an older version never confirms a file that changed mid-sync: its hash differs, and the file stays pending. A rerun compares hashes and skips files whose confirmed hash is unchanged.
-- A large upsert is not waited on inline. FileScan's delivery rounds are short, so the upsert goes out with a long sender deadline and counts as maybe-delivered. FileScan does not resend it while that deadline runs. On a later round, the confirmation comes from the echoed reply or from a [completeness check](#whole-file-confirmation) whose record matches its hash ([transport](#transport)).
-- An answer that does not come within the deadline, or comes incomplete, confirms nothing, and only then does FileScan send the file again. Thanks to chunk reuse, a repeat embeds only the chunks not yet stored.
-- **A free completeness check proves completion for that hash.** RAG publishes the head last: after classification, after every chunk of the new version is stored, and carrying the labels, metadata and the list of chunks it names. Today `get` reads that head and every chunk it names, and answers "record changed or is incomplete" if one is missing. But it also returns the data and every vector under its read caps, so a large record fails with "stored record exceeds read cap". L.1 therefore adds a `check` option to `get`, a light completeness read. It reads the head and confirms that every chunk it names exists, without returning vectors or data, and answers with the namespace, table, id, source and whole-file hash. `get` keeps its caps. A completeness check that answers with all five matching proves three things for that hash: the chunks are stored, the head is committed, and the new set replaced the old one for every answer. Team 2's sync runs this check before any paid resend. The hash alone proves less, as `rag.md` says ([unknown outcome](../../../docs/agents/rag.md#if-an-upserts-outcome-is-unknown)): an older head can sit beside an equal hash with another source, so the source must match too.
+- A large upsert is not waited on inline. FileScan's delivery rounds are short, so the upsert goes out with a long sender deadline and counts as maybe-delivered. Nothing resends it while that deadline runs. On a later round, the confirmation comes from the echoed reply or from a [completeness check](#the-completeness-check) whose record matches its hash ([transport](#transport)).
+- An answer that does not come within the deadline, or comes incomplete, confirms nothing.
+- **Resend authority:** no path resends a large file automatically without first running the free completeness check. Under a sync, only the caller resends. Under the standing watch, a resend happens only after the check shows the file incomplete or absent, within the watch's existing resend bound (the shared core's confirmed delivery with resend, [S1](../../R1.1/filescan.md#stages)). Thanks to chunk reuse, a resend embeds only the chunks not yet stored.
+- **A free completeness check proves completion for that hash.** RAG publishes the head last: after classification, after every chunk of the new version is stored, and carrying the labels, metadata and the list of chunks it names. A [completeness check](#the-completeness-check) that answers `complete: true`, with namespace, table, id, source and whole-file hash all matching, proves three things for that hash: the chunks are stored, the head is committed, and the new set replaced the old one for every answer. Team 2's sync runs this check before any paid resend. The hash alone proves less, as `rag.md` says ([unknown outcome](../../../docs/agents/rag.md#if-an-upserts-outcome-is-unknown)): an older head can sit beside an equal hash with another source, so the source must match too.
 - **Gap: physical cleanup.** Chunks of the previous version are deleted after the head is published, and the completeness check does not prove that this finished. They never answer, because search keeps only the chunks the current head names, and a later upsert or delete sweeps them up. A sync needs nothing more for a file to count as complete; only the storage they still take is unproved.
 - **Deletion, today:** a file gone from the folder gets FileScan's `as rag` delete for its id, the path. RAG's delete of that id removes the head and every chunk of every revision. It answers `ok`, or `not_found` when nothing is held, and FileScan counts both as done. An interrupted delete answers `incomplete: repeat the same delete to continue`; FileScan sends it again until it finishes. So a confirmed removal by path, covering every chunk, exists today, and a large file stored as one record inherits it.
 - A file over the size cap ([Q371](QUESTIONS.md#large-files)) is skipped and named in `status`. Its earlier version is deleted, as today, because stale text must not answer. It is never cut short or chunked partway.
+
+## The completeness check
+
+The interface is frozen here for team 2, which builds against it. It ships in L.1; `rag.md` and the method help describe it once it is built.
+
+Today `get` reads the head and every chunk it names, and answers "record changed or is incomplete" if one is missing. But it also returns the data and every vector under its read caps, so a large record fails with "stored record exceeds read cap". The check is therefore an option of `get` that returns neither. `get` without it is unchanged, caps included.
+
+- **Call:** `get` with `"check": true` beside the usual `namespace`, `tableName` and `id`. Example: `{"method":"get","namespace":"mdhouse","tableName":"docs","id":"Plans/R3/README.md","check":true}`.
+- **Free:** it reads storage only, with no provider call. It reads the head and asks whether each chunk the head names exists, without vectors.
+- **Every record:** it works the same for today's small records and for large ones.
+
+The answer always carries all seven fields:
+
+| Field | Value |
+|---|---|
+| `namespace` | as sent |
+| `tableName` | as sent |
+| `id` | as sent |
+| `source` | the stored version's source |
+| `content_hash` | the stored version's whole-file SHA-256: of the exact text for a small record, of the file's bytes for a large one |
+| `indexed_at` | when that version was stored, as `get` reports it |
+| `complete` | `true` when the head is committed and every chunk it names exists; `false` when a chunk the head names is still missing after one re-read |
+
+It never carries `data`, `embeddings`, labels or chunk text. `complete: false` confirms nothing; the caller treats the file as not stored.
+
+Refusals, worded as `get`'s:
+
+| Refusal | When |
+|---|---|
+| `not_found: record is absent from this namespace` | no head for the id in this namespace, a deleted record, or an id held only in another namespace |
+| `check must be true` | `check` is present and is anything but `true` |
+| `invalid canonical head`, `invalid chunk references`, `chunk identity mismatch` | the stored head is damaged, as for `get` |
+| the argument refusals of `get` | a missing or invalid `namespace`, `tableName` or `id`, or an unknown argument |
+| a storage error or deadline | the outcome is unknown; run the check again, never a paid upsert on its strength |
 
 ## Cost and limits
 
 - Each new chunk is one paid embedding through `#voyage`, and a chunk is at most 4 KiB of text. Reused chunks cost nothing.
 - A file's first sync pays for all its chunks. A re-sync pays only for changed chunks.
 - Classification by Jev runs once per record over at most 32 KiB. For a large file it classifies the first 32 KiB of extracted text, and `rag.md` will say so.
-- The per-file size cap, and with it the most one file can cost, is the owner's choice: [Q371](QUESTIONS.md#large-files).
+- The per-file cap is 1 MiB, about 256 chunks ([Q371](QUESTIONS.md#large-files)), which bounds what one file can cost.
 - A large file needs more embedding calls than today's 120-second budget allows. RAG's budget comes from the sender's deadline: `deadline` in a serves-itself agent's `agent.json` is only its stop wait. So FileScan sends a large upsert with a deadline that grows with the file's size, up to what the cap allows. A call that runs out is an unknown outcome, handled as in [whole-file confirmation](#whole-file-confirmation).
 
 ## Transport
 
-These steps assume Q368's bigfile reference.
+FileScan's side is step L.2, owned by team 2.
 
 - **FileScan:** lift the refusal of `bigfile` together with `as rag`. For an `as rag` subscriber, a text file over 32 KiB and within the cap is sent as RAG's upsert with a bigfile reference in place of the text. A file over the cap, or not text, stays skipped and named in `status`.
 - **Not waited on inline:** FileScan delivers in rounds of at most 8 seconds and waits 5 seconds for a confirmation (`change_sync.py`), short on purpose for the hold wait. A large upsert therefore goes out with its long deadline and is left in flight. While that deadline runs, the file counts as maybe-delivered and is never resent. Without this, every large file would time out each round and be sent again, and RAG, which handles one call at a time, would run duplicate paid upserts. A later round confirms the file from the echoed reply, or from a completeness check whose record matches the identity and hash.
@@ -94,8 +131,8 @@ Estimates are AI time, from observed agent wall-clock. Each step is one branch, 
 
 | Step | Builds | Estimate |
 |---|---|---|
-| L.1 | RAG: download and check a bigfile reference; the heading chunker and its chunk identity; per-chunk hashes and vector reuse; the head naming hashed chunks; the hit citation (heading path, lines); the completeness check, `get` with `check`: the head plus the existence of every chunk it names, with no vectors and no data, echoing namespace, table, id, source and whole-file hash; `get` keeps its caps. Mutants: drop the head check, a completeness check that answers with a chunk missing, cite a running index, confirm before the head is published | ~60 min |
+| L.1 | RAG: download and check a bigfile reference; the heading chunker and its chunk identity; per-chunk hashes and vector reuse; the head naming hashed chunks; the hit citation (heading path, lines); the [completeness check](#the-completeness-check); `get` keeps its caps. Today's small-record heads keep answering unchanged, with no reindex. Tests: repeated sibling headings and a `#` line inside a fence, before any reuse claim. Mutants: drop the head check, a completeness check that answers with a chunk missing, cite a running index, confirm before the head is published, reuse a vector when the heading path changed | ~60 min |
 | L.2 | FileScan: `as rag` with a bigfile reference within the cap; skip and delete over it. The large upsert goes with a long sender deadline and is not waited on inline; it counts as maybe-delivered, with no resend while within its deadline; a later round confirms it from the echoed reply or a completeness check (`get` with `check`) by hash. Re-upload an expired reference; bigfile keys tracked per file for a subscription mixing inline and reference files; the unadmitted-download reason in `status`. Mutants: resend while in flight, confirm on download, keep a stale key | ~40 min |
 | L.3 | Docs (`rag.md`, `filescan.md`), the replay fixture, and a fake-provider end-to-end for a 200 KiB Markdown file: edit one section and only that section is re-embedded; delete the file and no chunk answers | ~25 min |
 
-The three steps total about two hours and a quarter, plus review and one agent-only gate per step. The owner's answers to Q368–Q371 come first.
+The three steps total about two hours and a quarter, plus review and one agent-only gate per step. L.1 and L.3 are RAG's and L.2 is team 2's; the completeness check is frozen first, so L.2 builds against it.
