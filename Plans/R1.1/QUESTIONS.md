@@ -132,7 +132,7 @@ Four open questions for the [on-demand sync](filescan.md#on-demand-sync) (T-48).
 <a id="Q375"></a>
 
 - ❓ Q375 Whether `sync` runs beside the watch on any instance, or only on an on-demand one
-  - Context: the goal is a finite sync with no watch or subscription. An instance that also watches has a standing feed for the same files, with its own marks
+  - Context: the goal is a finite sync with no watch or subscription; either way, a finished sync run leaves no subscription, watch or timer behind. An instance that also watches has a standing feed for the same files, with its own marks
   - Settled by: the owner
   - ( ) Only on an instance configured for on-demand use: no watch, no timer, no subscriptions; a call on another instance is refused by name 🌟
   - ( ) On any instance, sharing its scan lock; its marks stay separate from the subscriptions' ⭐
