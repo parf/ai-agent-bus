@@ -38,6 +38,7 @@ Only unresolved choices, in [agent markup](http://localhost:7777/mdhouse/doc/age
   - ( ) Defer the peer registry with the auth work moved to R2.0 (T-37): signing records needs that work's node keys 🌟
   - ( ) Peers are only nodes you own and trust: accept their records unsigned, document the risk, use a per-record version number instead of clocks ⭐
   - ( ) Build signed records now: each node signs what it publishes and a node accepts a record only from its home node
+  > 💬 move to R1.3
 
 ## Access context
 
@@ -51,12 +52,15 @@ Only unresolved choices, in [agent markup](http://localhost:7777/mdhouse/doc/age
   - ( ) Only the daemon's own `#bus` may answer any agent that may ask it; agent-to-agent answers stay as today 🌟
   - ( ) Any answer to an accepted ask passes the asker's Allow; the daemon then has to remember each ask
   > 💡👾 Only `#bus`: it is the daemon itself and only answers, so this fixes the trap without new reply state or wider agent reach.
+  >
+  > 💬 in order to ack agent must be in ACL
+  > bus should have * in ACL;
 
 - ✅ Q326 → [№Q326](resolved.md#Q326)
 
 - ❓ Q339 Does `#imap` also check a subscription only at creation (T-41, after [№Q326](resolved.md#Q326))
   - Context: `#eventlog` and `#logwatch` forward log copies; `#imap` forwards mail through the same helper. Checking only at creation lets an author who has lost access to a mailbox keep receiving its mail. `#cron` does not use the helper; Discord waits for R1.2
-  - ( ) `#imap` keeps the per-delivery check, for mail confidentiality; only `#eventlog` and `#logwatch` check at creation 🌟
+  - (x) `#imap` keeps the per-delivery check, for mail confidentiality; only `#eventlog` and `#logwatch` check at creation 🌟
   - ( ) `#imap` checks at creation too: one rule everywhere ⭐
   > 💡👾 Keep the check for mail. Either answer is a one-line switch.
 
@@ -114,6 +118,16 @@ None open: [№Q191](DECISIONS.md#recorded-decisions) is [settled](DECISIONS.md#
 - ❓ Q336 RT19: does the root runner replace the standalone starter or sit beside it
   - Context: also the sandbox under each account, and how one person's agents stay isolated from another's ([proposal](runner.md#root-runner))
   - Settled by: the owner
+  > 💬 replaced it
+  >
+  > for  root runner (and for real-user runner) we need to come with "default" policy
+  > than will protect other root/user agents data (protect other agents secret files we hide)
+  >
+  > ideally come with idea how to protect env files from user itself in users runner 
+  > seems liike we cant (and should not) protect root runners from root itself by its nature
+
+> **Serg Parf:** create dedicated readme/todo plan for this section - use combined document
+> in next question file - just point - X open  questions in LINK
 
 ## Filescan
 
