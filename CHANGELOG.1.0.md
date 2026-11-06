@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/changelogs/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.52 — 2026-11-06
+
+Agents and clients: FileScan include patterns match the whole path (a directory named x.md no longer widens a scan) and **/ matches the folder root; the Python, Go, Rust, Java, PHP and TypeScript clients route late serve answers to an optional reply callback (J122–J125)
+
 ## 1.0.51 — 2026-11-06
 
 Second published 1.0 changeset: 1.0.1–1.0.51, squashed.
