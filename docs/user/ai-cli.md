@@ -71,6 +71,7 @@ AGENT_BUS_NAME='#reviewer' ab-codex
 | `ab_reply` | answer a message by its id |
 | `ab_receipt` | `ack` = got it; `done` = finished, nothing to send back |
 | `ab_rename` | register under a new name; no argument takes the session's own title |
+| `ab_tab_title` | read or set the terminal tab label after the glyph, such as `W1B T-35`; the tab only, never the bus name |
 | `ab_lock`, `ab_lock_release`, `ab_lock_extend`, `ab_lock_holders` | a named lock on a record, one holder at a time; its Owner, Maintainers and own Agent may take one |
 | `ab_kv_get`, `ab_kv_set`, `ab_kv_delete`, `ab_kv_inc`, `ab_kv_json` | the record's key-value store |
 | `ab_bigfile_put`, `ab_bigfile_get`, `ab_bigfile_ls`, `ab_bigfile_rm` | a record's [bigfiles](../03-records-kv.md#bigfiles): up to 32 MiB, passed by name |

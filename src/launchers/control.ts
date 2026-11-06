@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 
-// Two capabilities: rename this launcher, and name a fork of its session. Never accepts an arbitrary bus address
-// or principal. The credential is kept in the existing private session file.
-export function serveControl(rename: (title?: string) => Promise<string>, fork?: (id: string) => Promise<string>) {
+// Three capabilities: rename this launcher, name a fork of its session, and set its terminal label. Never
+// accepts an arbitrary bus address or principal. The credential is kept in the existing private session file.
+export function serveControl(rename: (title?: string) => Promise<string>, fork?: (id: string) => Promise<string>,
+  label?: (text?: string) => { current: string; recommended: string }) {
   const token = randomUUID();
   const server = Bun.serve({
     hostname: "127.0.0.1", port: 0, maxRequestBodySize: 4096,
@@ -18,6 +19,15 @@ export function serveControl(rename: (title?: string) => Promise<string>, fork?:
           const input = await req.json() as { id?: unknown };
           if (typeof input.id !== "string" || !/^[0-9a-f-]{36}$/i.test(input.id)) return new Response("id must be a session id", { status: 400 });
           return new Response(await fork(input.id));
+        } catch (e) { return new Response(e instanceof Error ? e.message : String(e), { status: 400 }); }
+      }
+      // The third: the terminal label only. It reaches neither the rename nor
+      // the binding, so it is no authority over the bus name.
+      if (req.method === "POST" && path === "/label" && label) {
+        try {
+          const input = await req.json() as { label?: unknown };
+          if (input.label !== undefined && typeof input.label !== "string") return new Response("label must be a string", { status: 400 });
+          return Response.json(label(input.label as string | undefined));
         } catch (e) { return new Response(e instanceof Error ? e.message : String(e), { status: 400 }); }
       }
       if (req.method !== "POST" || path !== "/rename") return new Response("not found", { status: 404 });

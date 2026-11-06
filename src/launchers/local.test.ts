@@ -670,6 +670,31 @@ test("each fork of one session gets a name of its own, and a resumed fork gets i
   } finally { bindings.close(); rmSync(dir, { recursive: true, force: true }); }
 });
 
+test("the control endpoint's label capability needs the bearer token and reaches neither the rename, the binding nor the bus name", async () => {
+  const bus = { name: "#claude/home@t", binding: "home" };
+  const renamed: (string | undefined)[] = [], forked: string[] = [], labels: (string | undefined)[] = [];
+  let label = "home";
+  const control = serveControl(async t => { renamed.push(t); bus.name = "#claude/moved@t"; bus.binding = "moved"; return "renamed"; },
+    async id => { forked.push(id); return "#claude/fork@t"; },
+    text => { labels.push(text); if (text !== undefined) label = text; return { current: label, recommended: "home" }; });
+  try {
+    const at = (path: string, body: unknown, auth = true) => fetch(`${control.env.AGENT_BUS_CONTROL_ADDR}${path}`, {
+      method: "POST", body: JSON.stringify(body),
+      headers: auth ? { authorization: `Bearer ${control.env.AGENT_BUS_CONTROL_TOKEN}` } : {},
+    });
+    expect((await at("/label", { label: "W1B T-35" }, false)).status).toBe(401);
+    expect(labels).toEqual([]);
+    expect((await at("/label", { label: 7 })).status).toBe(400);
+    expect(await (await at("/label", {})).json()).toEqual({ current: "home", recommended: "home" });
+    const set = await at("/label", { label: "W1B T-35", name: "#claude/other@t" });
+    expect(await set.json()).toEqual({ current: "W1B T-35", recommended: "home" });
+    expect(labels).toEqual([undefined, "W1B T-35"]);
+    expect(renamed).toEqual([]);
+    expect(forked).toEqual([]);
+    expect(bus).toEqual({ name: "#claude/home@t", binding: "home" });
+  } finally { control.stop(); }
+});
+
 test("the control endpoint's fork capability takes a session id only, under the bearer token", async () => {
   const asked: string[] = [];
   const control = serveControl(async () => "renamed", async id => { asked.push(id); return "#claude/x.job@fixture"; });

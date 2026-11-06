@@ -536,8 +536,9 @@ ${COPYRIGHT}`);
     writeFileSync(join(runDir!, `fork-${forkId}.json.new`), JSON.stringify({ ...inherited, AGENT_BUS_NAME: claimed.name, AGENT_BUS_TOKEN: forkToken, AGENT_BUS_DESCR: claimed.description }), { mode: 0o600 });
     renameSync(join(runDir!, `fork-${forkId}.json.new`), join(runDir!, `fork-${forkId}.json`));
     return claimed.name;
-  }));
+  }), text => terminal!.setLabel(text));
   Object.assign(faceEnv, control.env);
+  faceEnv.AGENT_BUS_TAB_LABEL = terminal.recommended();
   saveEnv();
   // The same session, the same binding: what to type when this one cannot recover in place.
   const resumeHint = () => `resume this session with \`ab-${runtime} ${codex ? `resume ${session.id}` : opencode ? `--session ${session.id}` : `--resume ${session.id}`}\` in ${cwd}`;

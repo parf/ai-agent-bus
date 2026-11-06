@@ -77,7 +77,7 @@ try {
 
   const list = await request("tools/list");
   const names = (list.result?.tools ?? []).map((t: any) => t.name).sort();
-  const expected = ["ab_bigfile_get", "ab_bigfile_ls", "ab_bigfile_put", "ab_bigfile_rm", "ab_consume", "ab_kv_delete", "ab_kv_get", "ab_kv_inc", "ab_kv_json", "ab_kv_set", "ab_lock", "ab_lock_extend", "ab_lock_holders", "ab_lock_release", "ab_ls", "ab_receipt", "ab_rename", "ab_reply", "ab_send"];
+  const expected = ["ab_bigfile_get", "ab_bigfile_ls", "ab_bigfile_put", "ab_bigfile_rm", "ab_consume", "ab_kv_delete", "ab_kv_get", "ab_kv_inc", "ab_kv_json", "ab_kv_set", "ab_lock", "ab_lock_extend", "ab_lock_holders", "ab_lock_release", "ab_ls", "ab_receipt", "ab_rename", "ab_reply", "ab_send", "ab_tab_title"];
   check("exactly the ab_ tools", JSON.stringify(names) === JSON.stringify(expected), names.join(","));
   const descriptions = Bun.YAML.parse(await Bun.file(new URL("tools.yaml", import.meta.url)).text()) as Record<string, string>;
   check("tools/list sends the YAML descriptions", JSON.stringify(Object.keys(descriptions).sort()) === JSON.stringify(names) &&
@@ -301,6 +301,13 @@ try {
   await Bun.sleep(600);
   const after = await call("ab_consume", { wait: "5s" });
   check("a cancelled ab_consume does not eat the next message", after.text.includes("survives a cancelled read"), after.text.slice(0, 120));
+
+  // ab_tab_title is the launcher's terminal label; without one it is refused.
+  {
+    const label = await call("ab_tab_title", { label: "smoke" });
+    check("ab_tab_title without a launcher is refused and says why",
+      label.isError && label.text.includes("needs an ab-* launcher"), label.text.slice(0, 160));
+  }
 
   // ab_rename. Address changes are register-then-unregister, so the failure
   // that matters is the one where the old address still holds something.

@@ -44,7 +44,7 @@ if (process.argv.length > 2) {
 function loadSessionEnv(): void {
   if (!process.env.AGENT_BUS_SESSION_FILE) return;
   const env = JSON.parse(readFileSync(process.env.AGENT_BUS_SESSION_FILE, "utf8"));
-  for (const key of ["AGENT_BUS_TOKEN", "AGENT_BUS_NAME", "AGENT_BUS_ADDR", "AGENT_BUS_TLS_FINGERPRINT", "AGENT_BUS_BIGFILE_DIR", "AGENT_BUS_DESCR", "AGENT_BUS_CWD", "AGENT_BUS_RUNTIME", "AGENT_BUS_PUSH", "AGENT_BUS_CONTROL_ADDR", "AGENT_BUS_CONTROL_TOKEN", "AGENT_BUS_SESSION_ID", "AGENT_BUS_TAKEOVER"]) {
+  for (const key of ["AGENT_BUS_TOKEN", "AGENT_BUS_NAME", "AGENT_BUS_ADDR", "AGENT_BUS_TLS_FINGERPRINT", "AGENT_BUS_BIGFILE_DIR", "AGENT_BUS_DESCR", "AGENT_BUS_CWD", "AGENT_BUS_RUNTIME", "AGENT_BUS_PUSH", "AGENT_BUS_CONTROL_ADDR", "AGENT_BUS_CONTROL_TOKEN", "AGENT_BUS_SESSION_ID", "AGENT_BUS_TAKEOVER", "AGENT_BUS_TAB_LABEL"]) {
     if (typeof env[key] === "string") process.env[key] = env[key];
   }
 }
@@ -164,6 +164,16 @@ const tools = [
       type: "object",
       properties: {
         name: { type: "string", description: "the title to register under; omit to use the session's own title" },
+      },
+    },
+  },
+  {
+    name: "ab_tab_title",
+    description: descriptions.ab_tab_title,
+    inputSchema: {
+      type: "object",
+      properties: {
+        label: { type: "string", description: "the label after the glyph, a few words such as W1B T-35; omit to read the current and recommended label" },
       },
     },
   },
@@ -315,7 +325,8 @@ const server = new Server(
       // connection outright, not just the notification.
       ...(mode === "claude" ? { experimental: { "claude/channel": {} } } : {}),
     },
-    instructions: general.instructions.replaceAll("{{name}}", bus.name),
+    instructions: general.instructions.replaceAll("{{name}}", bus.name) + (process.env.AGENT_BUS_TAB_LABEL
+      ? ` ${general.tab.replaceAll("{{label}}", process.env.AGENT_BUS_TAB_LABEL)}` : ""),
   },
 );
 
@@ -525,6 +536,16 @@ const callTool = async (req: { params: { name: string; arguments?: Record<string
         // (docs/06-launchers.md#explicit-session-rename, Q105).
         return text(`renaming ${bus.name} needs an ab-* launcher: the new address would be ${next}, and this face holds only its own agent's credential. No address was changed.`, true);
 
+      }
+      case "ab_tab_title": {
+        const address = process.env.AGENT_BUS_CONTROL_ADDR;
+        const token = process.env.AGENT_BUS_CONTROL_TOKEN;
+        if (!address || !token) return text("the tab label needs an ab-* launcher; this session has none", true);
+        const response = await fetch(address + "/label", {
+          method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+          body: JSON.stringify({ label: maybe(args, "label") }), signal: AbortSignal.timeout(5_000),
+        }).catch((e) => new Response(String(e), { status: 502 }));
+        return text(await response.text(), !response.ok);
       }
       default:
         return text(`unknown tool ${req.params.name}`, true);
