@@ -245,6 +245,7 @@
       "tags": "L",
       "paths": [
         "src/agents/standalone/server-info/",
+        "src/agents/standalone/systemctl-fixture.py",
         "src/agents/standalone/install.py"
       ]
     },
@@ -266,6 +267,7 @@
       "tags": "L",
       "paths": [
         "src/agents/standalone/logwatch/",
+        "src/agents/standalone/systemctl-fixture.py",
         "src/agents/standalone/install.py"
       ]
     },

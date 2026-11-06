@@ -2,6 +2,13 @@
 # run with its helpers (sec, ok_exit, normal) from the src directory. An agent
 # change runs these and the changed agent's shard, never the daemon's checks.
 
+# `^(TestA|TestB)$` for every test function in <package>/<name>_test.go.
+agent_go_tests() {
+  local dir=$1; shift
+  local names; names=$(for f in "$@"; do sed -n 's/^func \(Test[A-Za-z0-9_]*\)(t \*testing\.T).*/\1/p' "$dir/${f}_test.go"; done | paste -sd'|')
+  printf '^(%s)$' "$names"
+}
+
 # The pack contract every agent shares: help goldens, the docs each agent owes,
 # and the packaged tree built, installed and run outside the checkout.
 agent_pack() {
@@ -20,11 +27,19 @@ agent_pack() {
     out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents -p docs_order_test.py -v 2>&1); rc=$?
     ok_exit "the docs-order checker fails each way a page can break the rule, and the enforced pages follow it" "$rc"
     [ "$rc" = 0 ] || echo "$out"
-    out=$(go test -count=1 ./cmd/agent-bus-setup -run '^(TestBundledAgentsRunOutsideCheckout|TestBuildShipsAgentRuntimeAndSetupKeepsItRunnable|TestPackagerOutputIsAcceptedBySetup)$' 2>&1); rc=$?
+    # The Go tests that run agent code: an agent-only change selects no Go
+    # check, so they run here, every test of each file that executes src/agents.
+    out=$(go test -count=1 ./cmd/agent-bus-setup -run "$(agent_go_tests cmd/agent-bus-setup agent_runtime package_agents_listed package_delivery package_install review_fixes)" 2>&1); rc=$?
     ok_exit "the packaged agents run outside the checkout, report the pack version, and setup accepts the package" "$rc"
+    [ "$rc" = 0 ] || echo "$out"
+    out=$(go test -count=1 ./cmd/agent-bus-runner -run "$(agent_go_tests cmd/agent-bus-runner bundled_metadata checkout_bun checkout_sandbox debug_doctor imap_poll install manifest_golden receipt_deadline secret_read)" 2>&1); rc=$?
+    ok_exit "the runner starts, sandboxes, deploys and masks the bundled agents" "$rc"
     [ "$rc" = 0 ] || echo "$out"
     out=$(go test -count=1 ./cmd/agent-bus-runner -run '^TestEveryBundledManifestPassesRunnerReload$' 2>&1); rc=$?
     ok_exit "every bundled manifest passes a runner reload" "$rc"
+    [ "$rc" = 0 ] || echo "$out"
+    out=$(go test -count=1 ./internal/agentmeta ./internal/envfile 2>&1); rc=$?
+    ok_exit "agent metadata help and the Python env-file vectors" "$rc"
     [ "$rc" = 0 ] || echo "$out"
   fi
 }

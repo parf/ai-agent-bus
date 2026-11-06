@@ -1,7 +1,9 @@
 """The selection contract, without building or running any runtime fixture."""
 import importlib.util
+import json
 from pathlib import Path
 import re
+import subprocess
 import unittest
 
 spec = importlib.util.spec_from_file_location('select_checks', Path(__file__).with_name('smoke-select.py'))
@@ -294,6 +296,33 @@ class Selection(unittest.TestCase):
         stale = sorted(set(self.NAMES_ONLY) - found)
         self.assertEqual(stale, [], 'NAMES_ONLY entries no longer in src/: remove them')
         self.assertTrue(all(reason.strip() for reason in self.NAMES_ONLY.values()))
+
+    def test_an_agent_file_no_check_owns_runs_every_agent_check(self):
+        # Fail closed: a pack file outside every check's paths is a shared
+        # helper, so every agent check runs, and still nothing outside the pack.
+        p = self.plan(['src/agents/shared/metadata_contract.py'], 'normal')
+        config = json.loads((ROOT/'src/smoke-map.json').read_text())
+        agent_checks = {n for n, row in config['checks'].items() if 'L' in row['tags']}
+        self.assertGreater(len(agent_checks), 10)
+        self.assertEqual({n for n in agent_checks if p['checks'][n] != 'normal'}, set())
+        # Beyond them only the core sections an L-tagged core section needs, at fast.
+        others = {n: level for n, level in p['checks'].items() if level != 'skip' and n not in agent_checks}
+        self.assertEqual({n for n, level in others.items() if not n.startswith('core_') or level != 'fast'}, set())
+
+    def test_every_agent_file_is_owned(self):
+        # Every tracked src/agents/ file is owned by a check's paths, by the
+        # pack contract (agent_pack reads or runs it), or is prose.
+        pack = {'src/agents/' + f for f in (
+            'VERSION', 'CHANGELOG.md', 'smoke.sh', 'package.sh', 'agent_docs.py', 'agent_docs_test.py',
+            'docs_order_test.py', 'shared/test_help_golden.py', 'shared/metadata_contract.py', 'shared/test_envfile.py')}
+        config = json.loads((ROOT/'src/smoke-map.json').read_text())
+        prefixes = [prefix for row in config['checks'].values() for prefix in row.get('paths', [])]
+        files = subprocess.check_output(['git', '-C', str(ROOT), 'ls-files', 'src/agents/'], text=True).split()
+        self.assertGreater(len(files), 100)
+        unowned = [f for f in files if f not in pack and not f.endswith('.md') and not any(f.startswith(p) for p in prefixes)]
+        self.assertEqual(unowned, [], 'own each in src/smoke-map.json or the pack list above')
+        for f in pack:
+            self.assertIn(f, files, 'a pack-owned file that no longer exists')
 
     def test_map_covers_every_shard_and_core_section(self):
         script = (ROOT/'src/smoke.sh').read_text()
