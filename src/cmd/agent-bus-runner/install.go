@@ -83,18 +83,21 @@ func (r *runner) stageInstall(ctx context.Context, in installRequest) (temp, sta
 		return "", "", nil, fmt.Errorf("create install staging directory: %w", err)
 	}
 	// dir, not the result temp: a failing return has already blanked temp.
+	// held, not the result lease: a failing return has already blanked the results.
+	var held *os.File
 	defer func() {
 		if err != nil {
-			if lease != nil {
-				lease.Close()
+			if held != nil {
+				held.Close()
 			}
 			os.RemoveAll(dir)
 		}
 	}()
-	lease, err = holdLease(dir)
+	held, err = holdLease(dir)
 	if err != nil {
 		return "", "", nil, err
 	}
+	lease = held
 	temp = dir
 	staged = filepath.Join(temp, in.agent)
 	if in.remote != "" {

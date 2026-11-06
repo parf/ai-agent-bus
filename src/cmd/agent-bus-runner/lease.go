@@ -25,17 +25,21 @@ func holdLease(dir string) (*os.File, error) {
 	return f, nil
 }
 
-// leased says whether someone is still working in dir: its lease is held, or it was made so
-// recently that its owner has not yet taken the lease. A directory whose lease can be taken, or
-// that never had one and is not new, is abandoned.
+// leased says whether someone is still working in dir: its lease is held, or the lease is so new
+// that its owner may not have taken the lock yet (it creates the file, then locks it). A directory
+// whose lease can be taken and is not new, or that never had one and is not new, is abandoned.
 func leased(dir string, info os.FileInfo) bool {
+	const grace = 10 * time.Second
 	f, err := os.OpenFile(filepath.Join(dir, leaseFile), os.O_RDWR, 0)
 	if err != nil {
-		return time.Since(info.ModTime()) < 10*time.Second
+		return time.Since(info.ModTime()) < grace
 	}
 	defer f.Close()
 	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
 		return errors.Is(err, syscall.EWOULDBLOCK)
+	}
+	if st, err := f.Stat(); err != nil || time.Since(st.ModTime()) < grace {
+		return true
 	}
 	return false
 }

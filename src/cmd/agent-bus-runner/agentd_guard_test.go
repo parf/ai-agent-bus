@@ -87,4 +87,19 @@ func TestAPackageLinkIntoARelativeHostDirectoryIsStillRefused(t *testing.T) {
 	if err != nil || len(list) != 1 || !strings.Contains(list[0].Refused, "inside") {
 		t.Fatalf("a link into the host directory under a relative agents directory loaded: %+v %v", list, err)
 	}
+	// A relative link target under a relative agents directory resolves to a relative path.
+	target, err := filepath.Rel(root, filepath.Join(host, "private"))
+	if err != nil {
+		t.Skip(err)
+	}
+	if err := os.Remove(filepath.Join(root, "hostpkg")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, filepath.Join(root, "hostpkg")); err != nil {
+		t.Fatal(err)
+	}
+	list, err = loadSources([]agentSource{{path: relativeRoot}}, host)
+	if err != nil || len(list) != 1 || !strings.Contains(list[0].Refused, "inside") {
+		t.Fatalf("a relative link into the host directory loaded: %+v %v", list, err)
+	}
 }

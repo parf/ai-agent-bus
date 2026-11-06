@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"testing"
 	"time"
@@ -274,5 +275,60 @@ func TestStartSweepKeepsAnotherRunnersLiveStaging(t *testing.T) {
 	b.sweepStaging()
 	if _, err := os.Lstat(dead); !os.IsNotExist(err) {
 		t.Fatalf("an abandoned staging directory survived: %v", err)
+	}
+}
+
+// Between creating its lease file and locking it, an install's directory looks unlocked: a sweep
+// must still leave a young lease alone, and take an old unlocked one.
+func TestStartSweepKeepsAYoungLeaseBeforeItIsLocked(t *testing.T) {
+	r, _, _ := configurationFixture(t, "", "printf old")
+	b := &runner{name: "#runner2@h", agents: r.agents, host: r.host, say: &bytes.Buffer{}}
+	young := filepath.Join(r.agents, ".install-young")
+	writeFile(t, filepath.Join(young, ".lease"), "")
+	writeFile(t, filepath.Join(young, "newagent", "agent.json"), "{}")
+	old := time.Now().Add(-time.Hour)
+	// The directory is old but its lease file was just made: only the lease's age protects it.
+	if err := os.Chtimes(young, old, old); err != nil {
+		t.Fatal(err)
+	}
+	stale := filepath.Join(r.agents, ".install-oldlease")
+	writeFile(t, filepath.Join(stale, ".lease"), "")
+	for _, p := range []string{filepath.Join(stale, ".lease"), stale} {
+		if err := os.Chtimes(p, old, old); err != nil {
+			t.Fatal(err)
+		}
+	}
+	b.sweepStaging()
+	if _, err := os.Lstat(filepath.Join(young, "newagent", "agent.json")); err != nil {
+		t.Fatalf("a sweep removed staging whose lease was created but not yet locked: %v", err)
+	}
+	if _, err := os.Lstat(stale); !os.IsNotExist(err) {
+		t.Fatalf("an old unlocked lease was not swept: %v", err)
+	}
+}
+
+// A failed install closes its lease: nothing is left open however many fail.
+func TestAFailedInstallClosesItsLease(t *testing.T) {
+	r, _, _ := configurationFixture(t, "", "printf old")
+	r.fetch = func(ctx context.Context, in installRequest, dest string) error { return os.ErrInvalid }
+	open := func() int {
+		entries, err := os.ReadDir("/proc/self/fd")
+		if err != nil {
+			t.Skip("no /proc/self/fd")
+		}
+		return len(entries)
+	}
+	_ = r.installPackage(context.Background(), "install newagent git https://fixture.invalid/repo "+installPin) // warm up
+	// A leaked *os.File is closed by its finalizer at the next collection: hold the collector off so
+	// the count shows what the code itself closed.
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+	before := open()
+	for range 5 {
+		if err := r.installPackage(context.Background(), "install newagent git https://fixture.invalid/repo "+installPin); err == nil {
+			t.Fatal("the stub fetch should fail")
+		}
+	}
+	if after := open(); after > before {
+		t.Fatalf("%d descriptors left open by 5 failed installs", after-before)
 	}
 }
