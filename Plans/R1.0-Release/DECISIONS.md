@@ -57,6 +57,7 @@
 - **R1 releases as 1.0.0** — owner, 2026-11-01 13:20.
   - Home: [versioning](../../CLAUDE.md#versioning), its Stable row.
 - **RAG builds all four extras: `count`, `similar`, `complete` and `classify`** (Q360) — owner, 2026-11-06: "yes - implement this all; mdhouse is just one of many possible rag-system-users; we need to cover most common use cases out of the box". Only `classify` pays, and it is off unless configured ([methods](rag/README.md#methods)).
+- **RAG indexes a file over 32 KiB in chunks, fetched as FileScan's bigfile, up to 1 MiB per file** (Q368–Q371) — owner, 2026-11-06 ~13:57: "all recommended options, go". RAG never opens a host path; the `as rag` subscriber admits RAG to the FileScan instance's bigfiles; references keep the 1-hour `bigfile_ttl` ([large files](rag/large-files.md))
 - **RAG keyword search ships in R1** (Q301) — owner, 2026-11-01: "do it in R1 - its EZ and keyword search is essential". A setting chooses Qdrant's built-in BM25 or an external engine, default built-in (Q194), with a working built-in BM25 search checked against real Qdrant; an external engine itself is not built.
   - Home: [RAG rules](rag/README.md#rules).
 - **The MAC.2 test keeps the role account** — owner, 2026-11-01 13:58: reuse only the verified hidden, non-login `_agentbusd` user/group pair; no deletion between acceptance runs. Supersedes Q298's local-terminal deletion requirement.

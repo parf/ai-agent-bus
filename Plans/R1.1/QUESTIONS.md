@@ -103,40 +103,19 @@ Four open questions for the [on-demand sync](filescan.md#on-demand-sync) (T-48).
 
 <a id="Q372"></a>
 
-- ❓ Q372 How a `sync` call answers a run that takes minutes
-  - Context: a sync of a big folder sends one paid upsert per file and waits for each confirmation, so it can outlast a call's deadline. FileScan's call deadline is 30 s (its `agent.json`), so blocking means a bound under 30 s per call, and how often a caller must call again, unless the sync gets a deadline of its own. Either way the final answer is confirmed, incomplete or failed, never "started" mistaken for done
-  - Settled by: the owner
-  - ( ) The call blocks up to a bound and then ends incomplete with its counts; the caller calls again and the rerun resumes 🌟
-  - ( ) The call answers "started" at once and FileScan sends the caller one final report message when the run ends ⭐
-  > 💡👾 Block with a bound: one call, one answer, nothing to correlate later, and an incomplete run already resumes on the next call.
+- ✅ Q372 → [№Q372](resolved.md#Q372)
 
 <a id="Q373"></a>
 
-- ❓ Q373 What a sync does with a file gone from the folder but still in RAG
-  - Context: a file confirmed by an earlier sync and since deleted is still searchable in RAG. What RAG does on removal by source path is [RAG's](../R1.0-Release/rag/large-files.md#whole-file-confirmation)
-  - Settled by: the owner
-  - ( ) Remove it: the sync sends RAG's removal and counts the file done only when the removal is confirmed; the mass-delete guard still holds a large removal 🌟
-  - ( ) Report it as stale: the sync lists it and leaves RAG unchanged; a sync with stale files is not success ⭐
-  > 💡👾 Remove it: a caller asking "is this folder in RAG" means the folder as it is now, and the guard already stops an emptied or unmounted folder from wiping the index.
+- ✅ Q373 → [№Q373](resolved.md#Q373)
 
 <a id="Q374"></a>
 
-- ❓ Q374 What bounds one sync run and its cost
-  - Context: every upsert pays for embeddings, and a first sync of a big vault sends one per file. `max_per_scan` (200) bounds the standing scan today
-  - Settled by: the owner
-  - ( ) `max_per_scan` bounds each sync run too; a larger folder needs several calls, each ending incomplete until the last 🌟
-  - ( ) No count bound: one run sends the whole folder, bounded only by time ⭐
-  - ( ) Like the first, and a run that would send more than a set number of files the target has never confirmed is refused unless the call says `confirm:true`
-  > 💡👾 Reuse `max_per_scan`: the cost bound already exists and is set per instance, and resume makes several calls cheap.
+- ✅ Q374 → [№Q374](resolved.md#Q374)
 
 <a id="Q375"></a>
 
-- ❓ Q375 Whether `sync` runs beside the watch on any instance, or only on an on-demand one
-  - Context: the goal is a finite sync with no watch or subscription; either way, a finished sync run leaves no subscription, watch or timer behind. An instance that also watches has a standing feed for the same files, with its own marks
-  - Settled by: the owner
-  - ( ) Only on an instance configured for on-demand use: no watch, no timer, no subscriptions; a call on another instance is refused by name 🌟
-  - ( ) On any instance, sharing its scan lock; its marks stay separate from the subscriptions' ⭐
-  > 💡👾 On-demand only: two delivery paths to the same RAG target would pay twice for one change and could disagree on what is confirmed.
+- ✅ Q375 → [№Q375](resolved.md#Q375)
 
 ## DBSync
 
@@ -237,12 +216,7 @@ The recommendations below are retained parked proposals.
 
 The T-49 setup gives mdhouse its own stack on the user-account runner ([№Q353](resolved.md#Q353)): `#rag/mdhouse` with its own `#qdrant/mdhouse`, `#voyage/mdhouse` and `#ai/mdhouse`, collection `rag_mdhouse`, nothing borrowed from the root `#rag`. Three things it needs come from the owner.
 
-- ❓ Q376 Which Qdrant store mdhouse's RAG uses
-  - Context: the collection and its index are made once through the new proxy, with a temporary admin grant removed afterwards. In real use mdhouse brings its own store
-  - ( ) A `#qdrant/mdhouse` proxy to the Qdrant server already running here, collection `rag_mdhouse` only 🌟
-  - ( ) A new local Qdrant server for mdhouse alone ⭐
-  - ( ) A remote store mdhouse names, with its key
-  > 💡👾 The existing server: nothing new to run on the dev node; the proxy is the boundary, since the server's key reaches every collection.
+- ✅ Q376 → [№Q376](resolved.md#Q376)
 
 - ✅ Q377 → [№Q377](resolved.md#Q377)
 
