@@ -276,11 +276,16 @@ class BigBus(Bus):
     """Own-record bigfiles through the REAL client (agent_bus.storage.Record), over a daemon stand-in that answers the documented
     shape `{record,name,size,sha256,held,expires,replaced}`, refuses bytes that do not match X-Bigfile-Sha256, and keeps what it stores."""
     def __init__(self):
-        super().__init__();self.files={};self.puts=[];self.put_refused=None
+        super().__init__();self.files={};self.puts=[];self.deletes=[];self.put_refused=None;self.delete_refused=None
     def record(self,name):
         if name==self.name:return bus_storage.Record(self,name)
         return super().record(name)
     def _request(self,method,path,query=None,headers=None,upload=None,total=None,**more):
+        if path=='/bigfile/delete':
+            body=query;key=(body['record'],body['name'])
+            if self.delete_refused:raise Refusal(*self.delete_refused)
+            if key not in self.files:raise Refusal(404,'not_found: no such bigfile')
+            del self.files[key];self.deletes.append(body['name']);return {'record':body['record'],'name':body['name'],'deleted':True}
         assert (method,path)==('PUT','/bigfile'),(method,path)
         if self.put_refused:
             for _ in upload:pass
@@ -343,6 +348,41 @@ class BigfileTests(Base):
             self.call('scan')
         finally:fs.scanning.digest=real
         (m,)=self.messages();self.assertEqual(m['bigfile']['sha256'],hashlib.sha256(self.BIG.encode()).hexdigest())
+
+    def keys(self):return sorted(name for _,name in self.bus.files)
+
+    def sha(self,text):return hashlib.sha256(text.encode()).hexdigest()
+
+    def settle_all(self):
+        self.call('scan');self.call('scan')
+
+    def test_a_superseded_version_is_deleted_once_every_opted_in_subscriber_confirmed_the_newer_one(self):
+        self.bus.kinds['#q2@n.test']='queue'
+        self.put('big.txt',self.BIG);self.add(extra='bigfile');self.add('#q2@n.test',extra='bigfile');self.call('scan')
+        self.assertEqual(self.keys(),[self.sha(self.BIG)])
+        newer='y'*50;self.put('big.txt',newer,mtime=time.time()+5);self.bus.send_refused.add('#q2@n.test');self.call('scan')
+        self.assertEqual(sorted(self.keys()),sorted([self.sha(self.BIG),self.sha(newer)]),'the second subscriber has not confirmed the newer one: the old key stays')
+        self.bus.send_refused.clear();self.call('scan')
+        self.assertEqual(self.keys(),[self.sha(newer)],'one key for the path after two changes');self.assertEqual(self.bus.deletes,[self.sha(self.BIG)])
+        self.call('scan');self.assertEqual(self.bus.deletes,[self.sha(self.BIG)],'deleted once')
+
+    def test_a_deleted_file_loses_its_bigfile_after_the_delete_is_confirmed_and_shared_content_stays_while_another_path_has_it(self):
+        for i in range(10):self.put(f'k{i}.txt','k')
+        self.put('one.txt',self.BIG);self.put('two.txt',self.BIG);self.add(extra='bigfile');self.call('scan');self.assertEqual(self.keys(),[self.sha(self.BIG)],'same bytes, one key')
+        os.unlink(Path(self.root)/'one.txt');self.call('scan');self.assertEqual(self.keys(),[self.sha(self.BIG)],'two.txt still has these bytes')
+        os.unlink(Path(self.root)/'two.txt');self.call('scan');self.assertEqual(self.keys(),[]);self.assertEqual(self.bus.deletes,[self.sha(self.BIG)])
+
+    def test_a_failed_delete_is_tried_again_and_an_absent_key_counts_as_deleted(self):
+        for i in range(10):self.put(f'k{i}.txt','k')
+        self.put('big.txt',self.BIG);self.add(extra='bigfile');self.call('scan');newer='z'*45
+        self.put('big.txt',newer,mtime=time.time()+5);self.bus.delete_refused=(503,'unavailable');self.call('scan')
+        self.assertEqual(len(self.keys()),2);self.bus.delete_refused=None;self.call('scan');self.assertEqual(self.keys(),[self.sha(newer)])
+        self.bus.files.clear();os.unlink(Path(self.root)/'big.txt')
+        self.call('scan');self.call('scan');held=self.agent.state.load()['meta']['bigfiles']
+        self.assertEqual(held,{},'the key had expired (404): nothing is kept to delete')
+
+    def test_a_subscriber_without_the_option_makes_no_key_to_collect(self):
+        self.put('big.txt',self.BIG);self.add();self.call('scan');self.assertEqual(self.bus.puts,[]);self.assertNotIn('bigfiles',self.agent.state.load()['meta'])
 
     def test_bigfile_is_a_queue_option_and_cannot_join_as_rag(self):
         self.assertEqual(fs.parse('sub add #q@n /\\.bin$/ bigfile replay:false'),('sub.add',{'target':'#q@n','pattern':'/\\.bin$/','bigfile':True,'replay':False}))

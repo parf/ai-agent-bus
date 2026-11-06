@@ -23,7 +23,7 @@ sys.path.insert(0,str(SUPPORT/'clients/python'))
 sys.path.insert(0,str(SUPPORT/'agents/shared'))
 sys.path.insert(0,str(HERE))
 from agent_bus import Bus
-from agent_bus.errors import BusError
+from agent_bus.errors import BusError, Refusal
 import change_sync as core
 from metadata import dispatch, answer as metadata_answer
 from subscriptions import SubscriptionError
@@ -159,7 +159,7 @@ class FileScan:
         self.subs=core.SyncSubscriptions(bus,bus.name,self.state,validate_selector=selector,agent_contract=lambda sel:bool(sel.get('rag')),clock=clock)
         self.lock=threading.Lock()
         self.matched={};self.skipped={}
-        self.watcher=None;self.fallback=None;self._sent_delete=False;self._sent_upsert=None
+        self.watcher=None;self._uploaded=[];self.fallback=None;self._sent_delete=False;self._sent_upsert=None
         try:self.state.clean_temporaries()
         except core.SyncError:pass
 
@@ -325,7 +325,7 @@ class FileScan:
         if size>BIGFILE_MAX:return {'contents':f'omitted: over the {BIGFILE_MAX>>20} MiB bigfile limit'}
         with os.fdopen(scanning.open_under(self.root,key),'rb') as reader:
             result=self.bus.record(self.bus.name).bigfile.put(sha,reader,size=size,ttl=int(self.settings['bigfile_ttl']),sha256=sha)
-        found={'record':self.bus.name,'name':sha,'size':size,'sha256':sha}
+        self._uploaded.append((key,sha));found={'record':self.bus.name,'name':sha,'size':size,'sha256':sha}
         if isinstance(result,dict) and 'expires' in result:found['expires']=result['expires']
         return {'bigfile':found}
 
@@ -340,7 +340,40 @@ class FileScan:
 
     def _round(self):
         self.prepare_matches(self.state.load())
-        return self.deliver()
+        result=self.deliver()
+        self._collect_bigfiles()
+        return result
+
+    def _collect_bigfiles(self):
+        """Delete a bigfile once nothing needs it: no present file has that hash any more, and every `bigfile` subscriber that wants
+        the paths it was made for has confirmed what they are now (a newer version, or the delete). What this agent holds is
+        remembered by name in the state's `meta`; a crash between an upload and that note, or a `reset`, leaves a key that
+        `bigfile_ttl` removes. A delete that fails is tried again next round."""
+        uploaded,self._uploaded=self._uploaded,[]
+        try:
+            with self.state.hold():
+                data=self.state.load();held=data['meta'].setdefault('bigfiles',{})
+                for path,name in uploaded:
+                    paths=held.setdefault(name,[])
+                    if path not in paths:paths.append(path)
+                if not held:return
+                rows=[r for r in data['subs'].values() if r['selector'].get('bigfile')]
+                present={r['fp'] for r in data['items'].values() if not r.get('gone')}
+                def settled(row,path):
+                    if not self._wanted(row,path):return True
+                    item=data['items'].get(path);mark=data['marks'][row['id']].get(path);unsure=path in data['maybe'][row['id']]
+                    if item is None or item.get('gone'):return mark is None and not unsure
+                    return mark==item['fp'] and not unsure
+                changed=bool(uploaded)
+                for name,paths in list(held.items()):
+                    if name in present or not all(settled(row,path) for row in rows for path in paths):continue
+                    try:self.bus.record(self.bus.name).bigfile.delete(name)
+                    except Refusal as failure:
+                        if failure.status!=404:continue   # 404: it is already gone (expired)
+                    except Exception:continue
+                    del held[name];changed=True
+                if changed:self.state.save(data)
+        except core.SyncError:pass   # the next round does it
 
     # --- calls ----------------------------------------------------------------------------------------------------
     def status(self):
