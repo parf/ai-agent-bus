@@ -46,6 +46,14 @@ Owner, 2026-10-30: after the Windows launchers exist in Go ([WIN.3](../R1.1/TODO
   - Mutant: disable the upstream lookup and the cross-node call must fail
   - Home: [chaining](federation.md#chaining), [scope and namespace decisions](../R1.0-Release/DECISIONS.md#recorded-decisions)
 
+## Discord
+
+Owner-moved from R1 on 2026-10-30 ("move discord to 1.1"), then to R1.2 on 2026-11-05 ("discord => 1.2"); the task ID is preserved.
+
+- ✅ B.27a Discord: approved methods, Configuration and gateway implemented on `ab-w1c/B27a`, fake-provider and private-bus acceptance; [guide](discord-user-guide.md#discord), [plan](discord.md#discord-agent-b27a), [evidence](../R1.0-Release/DONE.md#b27a-discord). Owner application/server choice [Q244](QUESTIONS.md#messaging-agents) remains before live deployment.
+- ⏳ Ship Discord in R1.2 (B.27a follow-up): add `agents/discord/package.sh` back to `src/agents/package.sh` and the file list in `src/cmd/agent-bus-setup/package_install.go`, and turn the packager test that refuses a discord tree into one that requires it
+  - Acceptance: the R1.2 archive holds the discord tree and setup accepts it; the check that the R1 archive holds none is replaced, not deleted
+
 ## Messaging agents
 
 - ⏳ B.27b Google Chat, moved from [R1 B.27](../R1.0-Release/TODO.md#bundled-agents) (owner, 2026-11-01: "we need corp acct. cant use personal")

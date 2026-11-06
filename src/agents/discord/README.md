@@ -1,6 +1,6 @@
 # Discord implementation
 
-📌 **TL;DR:** Source implementation of the Discord bridge. See the [Discord design guide](../../../Plans/R1.1/discord-user-guide.md#discord) for its setup and behavior; this directory is not part of the installed agent bundle.
+📌 **TL;DR:** Source implementation of the Discord bridge. See the [Discord design guide](../../../Plans/R1.2/discord-user-guide.md#discord) for its setup and behavior; this directory is not part of the installed agent bundle.
 
 - `api.ts` reads credentials through a callback, serializes requests under a deadline, bounds replies and stops invalid-request loops. URL overrides accept loopback fixtures only.
 - `gateway.ts` owns hello, intents, heartbeat ACKs, session resume, fatal refusals and explicit reload. No inbound HTTP endpoint runs in the agent.

@@ -148,7 +148,7 @@ This ledger reconciles the earlier full-block Astra reviews with the completed f
 | Former path | Disposition |
 |---|---|
 | `docs/agents/db.md` | Moved to [source-package guide](../src/agents/db/guide.md); excluded from shipped catalogue |
-| `docs/agents/discord.md` | Moved to [deferred guide](R1.1/discord-user-guide.md); excluded from shipped catalogue |
+| `docs/agents/discord.md` | Moved to [deferred guide](R1.2/discord-user-guide.md); excluded from shipped catalogue |
 | Dated entries in `docs/decisions.md` | Moved to [decision archive](done/decisions-archive.md); current index links contracts |
 | Setup deployment/history blocks | Maintainer procedure in [.claude/docs/deployment.md](../.claude/docs/deployment.md); prior transitions in [setup history](done/setup-upgrade-history.md) |
 

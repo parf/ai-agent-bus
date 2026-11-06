@@ -20,28 +20,29 @@ Only unresolved choices, in [agent markup](http://localhost:7777/mdhouse/doc/age
 - ❓ Q268 The Go MCP face's protocol: hand-write the stdio JSON-RPC, or take a Go MCP SDK
   - Context: it needs initialize, tools, resources and the Claude channel notification at the revision the face speaks today; decided at the start of WIN.3 by what the SDK covers ([windows CLI § what it costs](windows-cli.md#what-it-costs))
   - Settled by: the owner, at WIN.3
-  > 💡👾 Hand-write the small part, as `mcp/rpc.ts` already does for transport.
+  > ✅ 💡👾 Hand-write the small part, as `mcp/rpc.ts` already does for transport.
+  >
+  > 💬 👤parf agree
 
 ## MCP agents
 
 - ❓ Q178 Who adds the `mcp` tag, and when
   - Context: the runner asks each agent it serves `--mcp` at start and reload; or the daemon asks at registration; or the agent states it and nobody checks ([MCP agents](mcp-agents.md#mcp-agents))
   - Settled by: the owner
-  > 💡👾 The runner, the way it adds `runner`, with an agent's own registration allowed to state it.
+  > ✅ 💡👾 The runner, the way it adds `runner`, with an agent's own registration allowed to state it.
+  >
+  > 💬 👤parf agree
 
 ## Messaging agents
 
-- ❓ Q244 Discord: who creates and owns the application and bot, for which server
-  - Context: needed before any live test; no sign-up was made. Moved from R1 with the Discord agent ([plan](discord.md#open-for-the-owner))
-  - Proposal: the owner names the account and the server
-  - Impact: none of the Discord agent can be tried live before this
-  - Settled by: the owner
+[№Q244](../R1.2/QUESTIONS.md#messaging-agents) moved to R1.2 with Discord (owner, 2026-11-05).
 
 ## Registry context
 
 - ❓ Q5 Peer sync trusts unsigned records and has no clock authority
   - Context: a peer can push an unsigned record for any name, and "newer wins" compares clocks that are not synchronised ([registry § registry sync](registry.md#registry-sync))
   - Settled by: the owner
+  > 💬 👤parf elaborate
 
 ## Access context
 

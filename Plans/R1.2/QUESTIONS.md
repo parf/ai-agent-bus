@@ -45,6 +45,12 @@ not: a phone number is not an avatar, and the alerter needs everybody's.
 
 ## Messaging agents
 
+- ❓ Q244 Discord: who creates and owns the application and bot, for which server
+  - Context: needed before any live test; no sign-up was made. Moved from R1 to R1.1, then to R1.2 with the Discord agent ([plan](discord.md#open-for-the-owner))
+  - Proposal: the owner names the account and the server
+  - Impact: none of the Discord agent can be tried live before this
+  - Settled by: the owner
+
 Google Chat ([B.27b](TODO.md#objective), [plan](google-chat.md#proposed-methods-for-approval)) moved here from R1 (owner, 2026-11-01: a corporate account is needed). No sign-up or live call was made.
 
 - ❓ Q247 Google Chat: which Google account type hosts the app

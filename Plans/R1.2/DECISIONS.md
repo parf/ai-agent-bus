@@ -6,6 +6,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
+| Discord (B.27a) moves from R1.1 to R1.2; its code stays on main and releases leave it out | [Discord plan](discord.md#discord-agent-b27a), [task](TODO.md#discord) | Owner, 2026-11-05: "discord => 1.2" |
 | How to reach a person | [definition](people.md#how-to-reach-a-person) | D23, D159 |
 | Agent to agent | [definition](access.md#agent-to-agent) | D62 |
 | How long a record lives | [definition](records.md#how-long-a-record-lives) | D130, D131, D132 |
