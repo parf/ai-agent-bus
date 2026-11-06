@@ -1,3 +1,4 @@
+import { assertTestLoopback } from "../shared/test-network.ts";
 // One Slack Web API call: POST with the bot token as a bearer and a form body
 // (Plans/R1.2/done/slack/README.md#behaviour-pinned-by-the-review). A form is the
 // one encoding every method takes — `chat.getPermalink` and other reads refuse
@@ -15,7 +16,9 @@
 
 /** The endpoint a call goes to: the secret's URL, or Slack's own. Nothing else. */
 export function endpoint(api: string | undefined): string {
-  return ((api && api.trim()) || "https://slack.com/api/").replace(/\/+$/, "");
+  const base = ((api && api.trim()) || "https://slack.com/api/").replace(/\/+$/, "");
+  assertTestLoopback(base);
+  return base;
 }
 
 /** The caller stopped waiting: nothing more is begun on its behalf. */

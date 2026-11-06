@@ -30,7 +30,10 @@ beforeAll(async () => {
   bareToken = (await fx.call(fx.ownerToken, "POST", "/token", { name: bare })).token;
   fake = { port: 0, saw: [] };
   fakeServer = Bun.serve({ port: 0, hostname: "127.0.0.1", async fetch(req) {
-    fake.saw.push({ method: new URL(req.url).pathname, auth: req.headers.get("authorization") ?? "" });
+    const method = new URL(req.url).pathname;
+    fake.saw.push({ method, auth: req.headers.get("authorization") ?? "" });
+    if (method === "/api/apps.connections.open")
+      return Response.json({ ok: false, error: "fixture_socket_disabled" });
     return Response.json({ ok: true, user: "agentbot", user_id: "UBOT", team: "Fixture Team", url: "https://fixture-team.slack.com" });
   } });
   fake.port = fakeServer.port;
@@ -259,4 +262,23 @@ t("every ask is answered before normal provider work", async () => {
       else expect(result.message.body.length).toBeGreaterThan(0);
     }
   } finally {bus.close();}
+});
+
+// The fake must not hand SocketMode the team's real HTTPS URL as a socket URL.
+t("the startup socket stays inside the fake", async () => {
+  await stopAgents();
+  await setSecret(secret({}));
+  const before = fake.saw.length;
+  startAgent(agentToken, name);
+  await waitForRegistration();
+  const logFile = Bun.file(join(fx.dir, `agent-${agents.length - 1}.log`));
+  let log = "";
+  for (let i = 0; i < 100; i++) {
+    log = await logFile.text();
+    if (log.includes("socket:")) break;
+    await Bun.sleep(20);
+  }
+  expect(fake.saw.slice(before).some(r => r.method === "/api/apps.connections.open")).toBe(true);
+  expect(log).toContain("socket:");
+  expect(log).not.toContain("test endpoint must be loopback");
 });

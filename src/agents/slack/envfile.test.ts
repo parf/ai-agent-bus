@@ -20,7 +20,14 @@ describe("the shared dotenv conformance table", () => {
 
 describe("the endpoint and scrubbing", () => {
   test("the endpoint is the secret's URL or Slack's own, never the environment", () => {
-    expect(endpoint(undefined)).toBe("https://slack.com/api");
+    const guard = process.env.AGENT_TEST_LOOPBACK_ONLY;
+    try {
+      delete process.env.AGENT_TEST_LOOPBACK_ONLY;
+      expect(endpoint(undefined)).toBe("https://slack.com/api");
+    } finally {
+      if (guard === undefined) delete process.env.AGENT_TEST_LOOPBACK_ONLY;
+      else process.env.AGENT_TEST_LOOPBACK_ONLY = guard;
+    }
     expect(endpoint("http://127.0.0.1:9/api/")).toBe("http://127.0.0.1:9/api");
   });
 

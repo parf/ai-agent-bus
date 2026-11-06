@@ -1,3 +1,4 @@
+import { assertTestLoopback } from "../shared/test-network.ts";
 import { setTimeout as abortableSleep } from "node:timers/promises";
 // One Telegram Bot API call (Plans/R1.0-Release/done/telegram/README.md § methods
 // and the forms row): POST with a JSON body to
@@ -26,7 +27,9 @@ export type TgAnswer = {
 
 /** The endpoint a call goes to: the secret's URL, or Telegram's own. Nothing else. */
 export function endpoint(api: string | undefined): string {
-  return ((api && api.trim()) || "https://api.telegram.org").replace(/\/+$/, "");
+  const base = ((api && api.trim()) || "https://api.telegram.org").replace(/\/+$/, "");
+  assertTestLoopback(base);
+  return base;
 }
 
 /** The caller stopped waiting: nothing more is begun on their behalf. */

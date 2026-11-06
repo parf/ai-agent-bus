@@ -13,6 +13,8 @@ const repo = resolve(import.meta.dir, "../../..");
 // expect that name, nor the agent the test spawns. Cleared before any test
 // builds a client (src/clients/examples/run.sh does the same).
 for (const key of Object.keys(process.env)) if (key.startsWith("AGENT_BUS_")) delete process.env[key];
+// Every agent child inherits this guard: an omitted fake API must fail before fetch.
+process.env.AGENT_TEST_LOOPBACK_ONLY = "1";
 
 function daemonBinary(): string {
   if (process.env.SMOKE_BIN) return join(process.env.SMOKE_BIN, "agent-busd");

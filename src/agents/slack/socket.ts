@@ -4,6 +4,7 @@
 // backoff when it drops or Slack says disconnect, and refresh a connection
 // that has been silent past the watchdog (README § behaviour pinned by the
 // review). Stopping ends the connection and every timer; nothing reconnects.
+import { assertTestLoopback } from "../shared/test-network.ts";
 import { scrub, slackWeb } from "./slackapi.js";
 
 const backoffFirstMs = Number(process.env.SLACK_AGENT_BACKOFF_MS ?? "1000");
@@ -99,8 +100,11 @@ export class SocketMode {
     if (this.stopped) return;
     let ws: WebSocket;
     try {
+      assertTestLoopback(url);
       ws = new WebSocket(url);
-    } catch {
+    } catch (error) {
+      if (process.env.AGENT_TEST_LOOPBACK_ONLY === "1" && error instanceof Error && error.message === "test endpoint must be loopback")
+        return this.again(error.message);
       // The URL itself may carry a ticket: it is never logged (slack-review-S.5).
       return this.again("Slack answered a socket URL that cannot be opened");
     }

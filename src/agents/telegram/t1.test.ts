@@ -224,7 +224,7 @@ const startConfigured = async (label: string, config: unknown): Promise<Subproce
   const agent = `#telegram-cfg-${label}-${process.pid}@t`;
   await fx.call(fx.ownerToken, "POST", "/register", { name: agent, kind: "agent", allow: ["*"] });
   const token = (await fx.call(fx.ownerToken, "POST", "/token", { name: agent })).token;
-  await fx.call(fx.ownerToken, "POST", "/secret", { name: agent, secret: "TELEGRAM_BOT_TOKEN=111:fixture-bot\n" });
+  await fx.call(fx.ownerToken, "POST", "/secret", { name: agent, secret: secret({}) });
   await fx.call(fx.ownerToken, "POST", "/configure", { name: agent, config });
   return startAgent(token, agent);
 };
@@ -254,7 +254,7 @@ t("no bus at all at start is also not unconfigured: nonzero, never 78", async ()
   const agent = `#telegram-deadaddr-${process.pid}@t`;
   await fx.call(fx.ownerToken, "POST", "/register", { name: agent, kind: "agent", allow: ["*"] });
   const token = (await fx.call(fx.ownerToken, "POST", "/token", { name: agent })).token;
-  await fx.call(fx.ownerToken, "POST", "/secret", { name: agent, secret: "TELEGRAM_BOT_TOKEN=111:fixture-bot\n" });
+  await fx.call(fx.ownerToken, "POST", "/secret", { name: agent, secret: secret({}) });
   const proc = spawn(["bun", "telegram.ts"], {
     cwd: import.meta.dir,
     env: { ...process.env, AGENT_BUS_ADDR: "127.0.0.1:1", AGENT_BUS_NAME: agent, AGENT_BUS_TOKEN: token },
@@ -272,6 +272,7 @@ t("a well-formed configuration starts and serves", async () => {
   const proc = await startConfigured("ok", { default: "#dev", aliases: { "#dev": "-1001234567890", "@alice": "12345678" } });
   await waitForRegistration(`#telegram-cfg-ok-${process.pid}@t`);
   expect(proc.exitCode).toBeNull(); // serving, not exited
+  expect(await call("whoami", callerToken, `#telegram-cfg-ok-${process.pid}@t`)).toBe("@fixture_bot (id 42)");
 });
 
 t("an alias key without its sigil exits 78 naming the key", async () => {
