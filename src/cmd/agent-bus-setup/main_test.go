@@ -51,6 +51,29 @@ func TestSetupInstallsTheLogrotateRule(t *testing.T) {
 	}
 }
 
+// One rule for one log set: what setup writes is the tracked rule on the shelf
+// (src/maintenance/agent-bus.logrotate, daily, 10 MiB, three archives), byte for
+// byte, so repeating setup never swaps the node's rule for another.
+func TestSetupWritesTheTrackedLogrotateRuleByteForByte(t *testing.T) {
+	want, err := os.ReadFile(filepath.Join("..", "..", "maintenance", "agent-bus.logrotate"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "logrotate.d", "agent-bus")
+	if err := installLogrotate(path); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := os.ReadFile(path)
+	if string(got) != string(want) {
+		t.Fatalf("setup's rule differs from the tracked one:\n--- setup\n%s--- tracked\n%s", got, want)
+	}
+	for _, line := range []string{"daily", "maxsize 10M", "rotate 3"} {
+		if !strings.Contains(string(got), line) {
+			t.Errorf("the rule lacks %q:\n%s", line, got)
+		}
+	}
+}
+
 // The daemon's unit names the account's authorized_keys and the credential
 // program beside the installed daemon, so a key pasted in the web face lands
 // where sshd reads it and reaches the program agent-bus-admin names.
