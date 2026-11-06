@@ -6,6 +6,12 @@
 # and is refreshed by `agent-bus-setup --runner refresh --user-runner`.
 # Exits 1, after trying every instance, if any restart failed.
 set -u
+# The listing is captured first: read straight from a process substitution, a failing
+# systemctl would look like "no instances" and exit 0.
+listing=$(systemctl list-units 'agent-bus-runner@*.service' --state=active --plain --no-legend) || {
+    echo "warning: could not list the active runner instances (systemctl exit $?); none was restarted" >&2
+    exit 1
+}
 failed=0
 while read -r unit _; do
     [ -n "$unit" ] || continue
@@ -15,5 +21,5 @@ while read -r unit _; do
         echo "warning: $unit did not restart; run: systemctl restart $unit" >&2
         failed=1
     fi
-done < <(systemctl list-units 'agent-bus-runner@*.service' --state=active --plain --no-legend)
+done <<<"$listing"
 exit "$failed"

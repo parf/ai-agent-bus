@@ -11,6 +11,7 @@ cat >"$d/bin/systemctl" <<'FAKE'
 printf '%s\n' "$*" >>"$CALLS"
 case $1 in
   list-units)
+    [ -z "${LIST_FAIL:-}" ] || exit 7
     # The fake honours --state=active the way systemctl does.
     echo "agent-bus-runner@alice.service loaded active running agent-bus runner for alice"
     echo "agent-bus-runner@bob.service loaded active running agent-bus runner for bob"
@@ -36,6 +37,12 @@ rc=0; out=$(bash ./git-install-runners.sh 2>&1) || rc=$?
 [ "$rc" = 1 ] || { echo "a failed restart exited $rc, want 1: $out"; exit 1; }
 [[ $out == *"warning: agent-bus-runner@alice.service did not restart"* ]] || { echo "no warning naming the failed instance: $out"; exit 1; }
 grep -qx 'restart agent-bus-runner@bob.service' "$CALLS" || { echo "the instance after the failed one was skipped: $(cat "$CALLS")"; exit 1; }
+# A failing listing is a failure that says so, never "no instances": nothing is restarted.
+: >"$CALLS"
+rc=0; out=$(LIST_FAIL=1 bash ./git-install-runners.sh 2>&1) || rc=$?
+[ "$rc" != 0 ] || { echo "a failing list-units exited 0: $out"; exit 1; }
+[[ $out == *"could not list the active runner instances"* ]] || { echo "no message for a failing listing: $out"; exit 1; }
+! grep -q '^restart ' "$CALLS" || { echo "restarted after a failed listing: $(cat "$CALLS")"; exit 1; }
 # Nothing active: nothing restarted, success.
 cat >"$d/bin/systemctl" <<'EMPTY'
 #!/bin/bash
