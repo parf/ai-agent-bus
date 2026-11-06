@@ -2,6 +2,9 @@ package main
 
 import (
 	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -175,5 +178,52 @@ func TestADaemonProtocolChangeBetweenTwoReloadsIsSeenByTheSecond(t *testing.T) {
 	current = identityIs("1", "1")
 	if why := refusal(t, r, "packed"); why != "" {
 		t.Fatalf("after it came back, reload must load again; got %q", why)
+	}
+}
+
+func TestAFourHundredIdentityAnswerRefusesAndAFiveHundredOrNoAnswerChecksNothing(t *testing.T) {
+	for _, c := range []struct {
+		code    int
+		refused bool
+	}{{http.StatusBadRequest, true}, {http.StatusUnauthorized, true}, {http.StatusForbidden, true}, {http.StatusNotFound, true},
+		{http.StatusInternalServerError, false}, {http.StatusServiceUnavailable, false}} {
+		t.Run(http.StatusText(c.code), func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { http.Error(w, "no", c.code) }))
+			defer server.Close()
+			r := packFixture(t, `{"protocol":1,"protocol_min":1}`)
+			r.bus = &client{http: server.Client(), base: server.URL}
+			why := refusal(t, r, "packed")
+			if c.refused != (why != "") {
+				t.Fatalf("HTTP %d: reason %q, refused wanted %v", c.code, why, c.refused)
+			}
+			if c.refused && !strings.Contains(why, fmt.Sprint(c.code)) {
+				t.Fatalf("the reason names no status: %q", why)
+			}
+		})
+	}
+	// The same through the swappable reader: a refusal value refuses, any other error does not.
+	r := packFixture(t, `{"protocol":1,"protocol_min":1}`)
+	r.identity = func() ([]byte, error) { return nil, &identityRefused{403} }
+	if why := refusal(t, r, "packed"); !strings.Contains(why, "403") {
+		t.Fatalf("a refused identity request: %q", why)
+	}
+	r.identity = func() ([]byte, error) { return nil, errors.New("transport") }
+	if why := refusal(t, r, "packed"); why != "" {
+		t.Fatalf("a transport error: %q", why)
+	}
+}
+
+func TestANullFieldInTheIdentityIsNotAZero(t *testing.T) {
+	// JSON null decodes into an int as 0 without an error: against a pack that speaks 0..1 a null protocol_min would pass as 0.
+	r := packFixture(t, `{"protocol":1,"protocol_min":0}`)
+	r.identity = identityIs("1", "0")
+	if why := refusal(t, r, "packed"); why != "" {
+		t.Fatalf("a real 1..0 is not a range, and 0..1 is: refused %q", why)
+	}
+	for _, body := range []string{`{"protocol":1,"protocol_min":null}`, `{"protocol":null,"protocol_min":0}`} {
+		r.identity = func() ([]byte, error) { return []byte(body), nil }
+		if why := refusal(t, r, "packed"); !strings.HasPrefix(why, "pack protocol unsupported: ") {
+			t.Fatalf("identity %s: reason %q", body, why)
+		}
 	}
 }

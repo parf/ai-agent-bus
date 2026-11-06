@@ -80,11 +80,20 @@ func (r *runner) fetchIdentity() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	if code >= 400 && code < 500 {
+		return nil, &identityRefused{code}
+	}
 	if code >= 400 {
 		return nil, fmt.Errorf("identity answered %d", code)
 	}
 	return out, nil
 }
+
+// identityRefused is the daemon answering the identity request with a refusal (a 4xx): it is up and said no, so an agent of the pack
+// cannot be shown to work with it. A 5xx or a transport error is the daemon not answering, which checks nothing.
+type identityRefused struct{ code int }
+
+func (e *identityRefused) Error() string { return fmt.Sprintf("the daemon refused its identity request (%d)", e.code) }
 
 // daemonRange reads protocol and protocol_min from an identity answer.
 func daemonRange(body []byte) (protocol, protocolMin int, err error) {
@@ -116,6 +125,10 @@ func packProtocolRefusal(in installed, bundledRoot string, identity []byte, iden
 	protocol, protocolMin, err := readPackProtocol(file)
 	if err != nil {
 		return "pack protocol unsupported: " + err.Error()
+	}
+	var refused *identityRefused
+	if errors.As(identityErr, &refused) {
+		return "pack protocol unsupported: " + refused.Error()
 	}
 	if identityErr != nil {
 		return ""
