@@ -2,7 +2,7 @@
 
 ## 0.4.1
 
-Add `count` (live records and records per label for a filter) and `similar` (records nearest a stored record's vectors), both free, and `classify` (labels for a text without storing it), one paid `#ai` call, off unless the new `classify` setting is true.
+Add `count` (live records and records per label for a filter), `similar` (records nearest a stored record's vectors) and `complete` (endings of a typed word from stored text, through a prefix index `keyword_index` now creates), all free, and `classify` (labels for a text without storing it), one paid `#ai` call, off unless the new `classify` setting is true.
 
 ## 0.4.0
 

@@ -10,10 +10,10 @@
 - ✅ **Store a text:** it is sorted into your topics, fingerprinted and kept (`upsert`).
 - ✅ **Read it back:** one record, or a page of records in a namespace (`get`, `list`).
 - ✅ **Find evidence:** `search` selects keyword, semantic or hybrid retrieval, with one live excerpt per record and its source, hash and indexing time. An optional rerank reorders the hits in one paid call. It returns evidence, without generating an answer.
-- ✅ **Count, compare and label:** `count` gives how many records match a filter and how many carry each topic; `similar` finds records like a given one from what is already stored; both are free. `classify` names a text's topics without storing it, in one paid call, when the owner turns it on.
+- ✅ **Count, compare, complete and label:** `count` gives how many records match a filter and how many carry each topic; `similar` finds records like a given one from what is already stored; `complete` suggests how a typed word ends from the stored texts; all three are free. `classify` names a text's topics without storing it, in one paid call, when the owner turns it on.
 - ✅ **Discover without payment:** `capabilities` names the methods, modes, limits and configured model, even before setup. It makes no storage or provider call and does not claim readiness.
 - ✅ **Manage namespaces:** the agent's Owner or Maintainers can list names and live-record counts, or explicitly confirm removal of one namespace.
-- ✅ **Build the keyword index:** `keyword_index` adds the vector search needs to a collection that lacks it and gives the selected namespace's stored texts their words; safe to repeat.
+- ✅ **Build the keyword index:** `keyword_index` adds the prefix index `complete` needs and the vector search needs to a collection that lacks them, and gives the selected namespace's stored texts their words; safe to repeat.
 - ✅ **Delete:** one record, or a whole table when you confirm it (`delete`).
 - ✅ **Keep topic lists:** read or set a table's topics (`prompts`); changing a list affects only texts added afterwards.
 - ✅ **Recover from an interrupted call:** the answer distinguishes **nothing changed**, **unknown** and **incomplete**. Follow the operation's recovery instructions; repeating an upsert can spend provider balance again and replace concurrent changes. Nothing retries by itself.
@@ -53,6 +53,7 @@ agent-bus call '#rag@node.example' '{"method":"prompts","action":"set","namespac
 - **Find by words:** `agent-bus call '#rag@node.example' '{"method":"search","namespace":"team","query":"green tea","limit":5}'` returns the effective `mode` and live citations; `tableName`, `key1` and `key2` narrow it. Set `mode` to `semantic` for meaning or `hybrid` for both.
 - **Best first, paid:** add `"rerank":true` to a search to reorder its hits with the `rerank_model`; one Voyage call per search.
 - **How many per topic:** `agent-bus call '#rag@node.example' '{"method":"count","namespace":"team","tableName":"notes"}'`
+- **Finish a typed word:** `agent-bus call '#rag@node.example' '{"method":"complete","namespace":"team","prefix":"green te","limit":5}'`
 - **More like this one:** `agent-bus call '#rag@node.example' '{"method":"similar","namespace":"team","tableName":"notes","id":"tea","limit":5}'`
 - **Topics for a text, paid, not stored:** `agent-bus call '#rag@node.example' '{"method":"classify","namespace":"team","tableName":"notes","data":"Green tea with lemon."}'`
 - **See what is stored:** `agent-bus call '#rag@node.example' '{"method":"list","namespace":"team","limit":16}'`
@@ -107,6 +108,7 @@ agent-bus manage '#ai@node.example' --add-to-set-allow '#rag@node.example'
 - **Build it on an existing collection:** `agent-bus call '#rag@node.example' --wait=120s '{"method":"keyword_index","namespace":"team"}'`, as the helper's Owner or a Maintainer. It adds the vector with the `idf` modifier and then gives that namespace's stored texts their words in batches; run it again if it answers `incomplete`, or after an interruption, and it continues where it stopped; each update is kept under 512 KiB of vectors, one scroll and one update per batch of at most 64 texts.
 - A second run on a finished collection changes nothing and answers `indexed: 0`.
 - Keyword or hybrid search checks once a minute that no text lacks its words (another writer, an older build or a restore can add some) and refuses with `keyword index incomplete` until `keyword_index` has run.
+- **The prefix index for `complete`:** the same call first adds a `text` payload index on the stored chunk text, with the `prefix` tokenizer and lower-casing, when the collection lacks it; with `keyword_search` external it adds this index and then refuses the keyword part. If the proxy refuses it, the answer names the owner's `request PUT /collections/notes/index?wait=true …` command, as for the vector.
 - **If the proxy refuses to add the vector,** the answer names one command to run as the Qdrant proxy's owner: `request PUT /collections/notes/vectors/text {"sparse":{"modifier":"idf"}}`, because adding a vector needs the proxy's admin role and the helper only has write. Then run `keyword_index` again.
 - The [collection API](https://api.qdrant.tech/api-reference/collections/create-collection) supports model metadata; [strict filtering](https://qdrant.tech/documentation/search/text-search/text-filtering/) requires payload indexes.
 - [Collection information](https://api.qdrant.tech/api-reference/collections/get-collection) defines `config.metadata` and the keyword payload type; the [Decisions reference](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-request) defines string state, typed Choice questions and `answers.<name>.probabilities`.
@@ -178,15 +180,16 @@ agent-bus manage '#ai@node.example' --add-to-set-allow '#rag@node.example'
 | `invalid_answer` | The answer was not one relevance score for each candidate |
 | `request_too_large` | The candidates' excerpts exceed the 1 MiB request cap; nothing was sent |
 
-## Count, similar and classify
+## Count, similar, complete and classify
 
 | Method | Answers | Provider work |
 |---|---|---|
 | `count` | `count` of live records for the namespace and optional `tableName`, `key1`, `key2`; `labels`: records per topic, most first, at most 64, with `labels_truncated:true` when more exist | None |
 | `similar` | Up to `limit` (16 at most) live records nearest the given record's stored vectors, in its namespace and table and the optional keys, as search citations with a `similarity` score; never the record itself | None: Qdrant compares the stored vectors |
+| `complete` | Up to `limit` (16 at most) completions of the prefix's last word, lower-cased with the earlier words, as `{text, records}`, most records first; the earlier words must appear in the same stored chunk. It reads at most 64 matching chunks; `sampled:true` says more matched | None |
 | `classify` | `labels` the table's prompts would keep on upsert (threshold, `top_k`) and `probabilities` for every topic; nothing is stored | One `#ai` Jev call, only with `classify` set to `true` |
 
-- A deleted record is neither counted nor similar, and `similar` of an absent or deleted record answers `not_found`.
+- A deleted record is neither counted, similar nor completed from, and `similar` of an absent or deleted record answers `not_found`.
 - `classify` checks the text, its type and the table's prompts before the call; with `classify` off it is refused as `classify_unavailable` before any call.
 
 ## Namespace state and removal
@@ -214,6 +217,7 @@ agent-bus manage '#ai@node.example' --add-to-set-allow '#rag@node.example'
 | `search` says `keyword index incomplete (n chunks left)` | An interrupted build left some texts without words; run `keyword_index` again until it answers `ok`; searches are refused until then rather than answering from part of the data |
 | `search` answers `incomplete: search window exhausted before enough records were found` | The best matches were texts nobody can read any more (never-published drafts, replaced revisions awaiting cleanup) or too few records match; narrow the query, add `tableName` or keys, or remove the leftovers |
 | `search` says the text vector lacks the idf modifier | Recreate that vector with `{"sparse":{"modifier":"idf"}}`; Qdrant cannot change a modifier in place |
+| `complete_unavailable` | The prefix index is absent: the agent's Owner or a Maintainer runs `keyword_index` once ([Installing it](#installing-it)) |
 | `classify_unavailable` | Set `classify` to `true` to allow its paid call, or classify on upsert |
 | `rerank_unavailable` | Set `rerank_model`, or search without `rerank`; external keyword search cannot be reranked |
 | `reranked: false` | The hits are valid, in their unreranked order; `rerank_failure` names why ([rerank](#rerank)) |

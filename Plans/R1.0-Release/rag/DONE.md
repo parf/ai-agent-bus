@@ -2,11 +2,11 @@
 
 Completed steps of the [RAG TODO](TODO.md#steps), newest first.
 
-## R.8 Count, similar and classify
+## R.8 Count, similar, complete and classify
 
 - **Landed:** app **0.4.1**, no shared bump.
-- **Built:** free `count` (live records and a Qdrant facet of records per label, `labels_truncated` past 64) and `similar` (a Qdrant recommend from the record's own chunk points, in the caller's namespace, table and keys); `classify` (one Jev call through the same request and answer check as upsert, nothing stored) behind the new `classify` setting, default off. [Guide](../../../docs/agents/rag.md#count-similar-and-classify).
-- **Checks:** fixture-only with fake facet, recommend and Jev; no live provider call.
+- **Built:** free `count` (live records and a Qdrant facet of records per label, `labels_truncated` past 64) and `similar` (a Qdrant recommend from the record's own chunk points, in the caller's namespace, table and keys); free `complete` (one scroll of at most 64 live chunks through a `prefix` text index on the chunk text, which manager-only `keyword_index` creates; `complete_unavailable` until then); `classify` (one Jev call through the same request and answer check as upsert, nothing stored) behind the new `classify` setting, default off. [Guide](../../../docs/agents/rag.md#count-similar-complete-and-classify).
+- **Checks:** fixture-only with fake facet, recommend, prefix match and Jev; no live provider call.
 
 ## R.7 Rerank
 

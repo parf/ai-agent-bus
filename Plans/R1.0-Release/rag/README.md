@@ -86,7 +86,7 @@ CRUD + extra functionality (like search completion, ..)"). JSON-only arguments f
 | CRUD | `upsert` (create or replace), `get`, `list` (filtered, paged), `delete` (by id, or filtered by namespace and table) |
 | Search | `search`: hybrid, filtered, optional rerank; each hit carries namespace, table, id, key1, key2, score, labels and the matched chunk's text, and the full data comes from `get` (owner, 2026-10-27, settling Q196) |
 | Prompts | read, set and delete the labels, questions and summary prompt of a namespace and table; each write invalidates the cache |
-| Extra | `complete`: search completion, suggestions for a typed prefix; `similar`: records like a given id; `count`: matches and per-label counts for a filter; `classify`: Jev labels for a text without storing it (owner, 2026-11-06, settling Q360); built ones are in the [guide](../../../docs/agents/rag.md#count-similar-and-classify) |
+| Extra | `complete`: search completion, suggestions for a typed prefix; `similar`: records like a given id; `count`: matches and per-label counts for a filter; `classify`: Jev labels for a text without storing it (owner, 2026-11-06, settling Q360); built ones are in the [guide](../../../docs/agents/rag.md#count-similar-complete-and-classify) |
 
 ## Open choices
 
