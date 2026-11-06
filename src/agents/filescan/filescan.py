@@ -27,6 +27,7 @@ from agent_bus.errors import BusError, Refusal
 import change_sync as core
 from metadata import dispatch, answer as metadata_answer
 from subscriptions import SubscriptionError
+import subscriptions as base
 import subscription_filters as filters
 import scan as scanning
 import settings as cfg
@@ -42,7 +43,8 @@ ERROR_TEXT={
     'admission_unavailable':'Creator admission could not be checked.','store_unknown':'State storage failed or is damaged.',
     'busy':'A scan or delivery is running; try again.','scan_busy':'A scan is already running.','state_full':'State is full.',
     'state_corrupt':'The state file is damaged; reset confirm:true starts over.','state_unwritable':'The state file cannot be written.',
-    'paused':'Paused; see status.','not_confirmed':'Add confirm:true after checking the folder.','no_dir':'No directory is bound for this agent.',
+    'paused':'Paused; see status.','not_on_demand':'This instance watches or polls; sync runs only on an instance with mode demand.',
+    'on_demand':'This instance is on demand: use sync, it takes no subscriptions.','no_namespace':'Name the namespace and table, here or in Configuration.','not_confirmed':'Add confirm:true after checking the folder.','no_dir':'No directory is bound for this agent.',
     'internal_error':'The operation could not be completed.'}
 
 
@@ -72,6 +74,7 @@ def parse(body):
             if w=='confirm:true':args['confirm']=True
             else:raise ValueError('invalid_request')
         return head,args
+    if head=='sync' and len(words)>=2:return 'sync',sync_args(text,words)
     if head=='sub' and len(words)>=2:
         if words[1]=='list' and len(words)==2:return 'sub.list',{}
         if words[1]=='delete' and len(words)==3:return 'sub.delete',{'id':words[2]}
@@ -99,6 +102,20 @@ def sub_args(text,words):
     return args
 
 
+def sync_args(text,words):
+    """sync <target> [as rag [<namespace> [<table>]]] [resend:true]"""
+    args={'target':words[1]};tokens=words[2:]
+    while tokens:
+        t=tokens.pop(0)
+        if t=='resend:true':args['resend']=True
+        elif t=='as' and tokens[:1]==['rag']:
+            tokens.pop(0)
+            for key in ('namespace','table'):
+                if tokens and ':' not in tokens[0]:args[key]=tokens.pop(0)
+        else:raise ValueError('invalid_request')
+    return args
+
+
 def selector(value):
     if not isinstance(value,dict) or set(value)-{'pattern','rag','namespace','table','bigfile'}:raise ValueError()
     if 'bigfile' in value and (value['bigfile'] is not True or value.get('rag')):raise ValueError()   # RAG takes text, never a reference
@@ -115,6 +132,33 @@ HINT_TTL=600.0   # seconds a paired rename waits for its new file to be taken in
 HINT_MAX=8192
 UPSERT_ECHO=('namespace','tableName','id','source','content_hash')   # what a RAG upsert's answer must repeat from the call
 RAG_SOURCE=2048   # RAG's own limit on `source`, in UTF-8 bytes
+SYNC_BOUND=20.0   # a `sync` call answers within this, well under the 30 s call deadline in agent.json; the rest waits for the next call
+SYNC_WAIT=5.0   # the longest one RAG answer is waited for inside a sync
+CHECK_FIELDS={'check':True}   # RAG's completeness check (Plans/R1.0-Release/rag/large-files.md#the-completeness-check)
+CHECK_ANSWER=('namespace','tableName','id','source','content_hash','indexed_at','complete')
+CHECK_DAMAGED=('invalid canonical head','invalid chunk references','chunk identity mismatch','invalid stored record')
+
+
+def rag_check(bus,target,namespace,table,path,content_hash,*,timeout):
+    """RAG's completeness check for one file, the one adapter for it. Free: it reads storage, never a provider.
+
+    'complete' only for `complete: true` with this file's current hash and source; 'incomplete' when RAG proves it does not hold
+    this version whole (absent, another version, a chunk missing, a damaged head), so a resend is allowed where the caller's rule
+    allows one; 'unknown' for anything else (a storage error, a deadline, an answer that is not the check's), which is never
+    grounds for a paid resend: the check runs again."""
+    ident,_=rag_id(path)
+    call={'method':'get','namespace':namespace,'tableName':table,'id':ident,**CHECK_FIELDS}
+    try:result=bus.call(target,dumps(call),timeout=timeout,topic='filescan')
+    except Exception:return 'unknown'
+    text=getattr(getattr(result,'message',None),'body','')
+    if not isinstance(text,str):return 'unknown'
+    if text.startswith('error: not_found') or any(text.startswith('error: '+why) for why in CHECK_DAMAGED):return 'incomplete'
+    try:record=json.loads(text)
+    except ValueError:return 'unknown'
+    if not isinstance(record,dict) or set(record)!=set(CHECK_ANSWER) or (record['namespace'],record['tableName'],record['id'])!=(namespace,table,ident):return 'unknown'
+    if record['complete'] is True and (record['content_hash'],record['source'])==(content_hash,path):return 'complete'
+    if record['complete'] in (True,False):return 'incomplete'   # another version, or this one with a chunk still missing
+    return 'unknown'
 
 
 def rag_id(path):
@@ -152,8 +196,9 @@ class Paused(Exception):
 
 
 class FileScan:
-    def __init__(self,bus,configuration,root,work,*,clock=time.time,warning=None):
-        self.bus,self.clock=bus,clock
+    def __init__(self,bus,configuration,root,work,*,clock=time.time,monotonic=time.monotonic,warning=None):
+        self.bus,self.clock,self.monotonic=bus,clock,monotonic
+        self.sync_lock=threading.Lock()
         self.settings=cfg.parse(configuration)
         self.root=root
         self.warning=warning or (lambda code,sub=None:print('filescan: '+code+(' '+sub if sub else ''),file=sys.stderr))
@@ -168,7 +213,7 @@ class FileScan:
     # --- watching -------------------------------------------------------------------------------------------------
     def start_watch(self,*,quiet=None,watch_limit=None):
         """Begin inotify when the mode asks for it; say why in `fallback` when it cannot, and poll instead."""
-        if self.settings['mode']=='poll':return False
+        if self.settings['mode'] in ('poll','demand'):return False
         try:
             import watch
             self.watcher=watch.Watcher(self.root,self.on_events,exclude=self.settings['exclude'],
@@ -186,6 +231,7 @@ class FileScan:
 
     def needs_timer(self):
         """The poll runs in poll and both; in watch mode only as the fallback when watching is partial or absent."""
+        if self.settings['mode']=='demand':return False
         return self.settings['mode']!='watch' or self.watcher is None or self.watcher.limit_hit
 
     def stop_watch(self):
@@ -437,6 +483,116 @@ class FileScan:
                 if changed:self.state.save(data)
         except core.SyncError:pass   # the next round does it
 
+    # --- on-demand sync (Plans/R1.1/filescan.md#on-demand-sync) -------------------------------------------------------
+    def sync(self,message,args):
+        """One finite run to one RAG target: walk, send what that target has not confirmed, answer within SYNC_BOUND.
+
+        The answer is `confirmed` only when every file of the folder is confirmed as the version this walk saw; `failed` when any
+        file was refused or cannot be sent; `unknown` when a send's outcome is not known (never resent here unless the caller says
+        `resend:true`, and settled first by RAG's completeness check); otherwise `incomplete`, with what is confirmed and what remains.
+        Marks are kept per target in the state's meta, apart from subscriptions, so a rerun resumes; `reset` clears them."""
+        if self.settings['mode']!='demand':raise ValueError('not_on_demand')
+        who=base.actor(message);target=base.target_text(args['target'])
+        namespace=args.get('namespace') or self.settings['namespace'];table=args.get('table') or self.settings['table']
+        if not namespace or not table:raise ValueError('no_namespace')
+        for key in (namespace,table):
+            if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,63}',key):raise ValueError('invalid_request')
+        cache={}
+        for wanted in (target,self.bus.name):
+            code=base.checked_admission(self.bus,who,wanted,cache)
+            if code:raise SubscriptionError(code)
+        try:
+            target=base.destination(self.bus,target)
+            kind=self.bus.record(target).lookup()['kind']
+        except SubscriptionError:raise
+        except Exception:raise SubscriptionError('admission_unavailable') from None
+        if kind!='agent':raise SubscriptionError('invalid_target')
+        if not self.sync_lock.acquire(blocking=False):raise SubscriptionError('busy')
+        try:
+            try:summary=self.scan()
+            except core.SyncError as failure:
+                if failure.code=='scan_busy':raise SubscriptionError('busy') from None
+                raise
+            if summary['held']:raise Paused(summary['held'])
+            return self._sync_run(target,namespace,table,bool(args.get('resend')),summary['capped'],summary['seen'])
+        finally:self.sync_lock.release()
+
+    def _sync_run(self,target,namespace,table,resend,capped,seen):
+        end=self.monotonic()+SYNC_BOUND;files=[];sent=0
+        try:hold=self.state.hold();hold.__enter__()
+        except core.SyncError as failure:
+            if failure.code=='scan_busy':raise SubscriptionError('busy') from None
+            raise
+        try:
+            data=self.state.load()
+            entry=data['meta'].setdefault('sync',{}).setdefault(f'{target} {namespace} {table}',{'marks':{},'unknown':{}})
+            marks,unknown=entry['marks'],entry['unknown']
+            present={k:r for k,r in data['items'].items() if not r.get('gone')}
+            todo=[(k,'delete',None) for k in sorted(set(marks)-set(present))]
+            todo+=[(k,'upsert',r) for k,r in sorted(present.items()) if marks.get(k)!=r['fp']]
+            # Files the walk saw but a capped scan has not taken in yet are remaining too.
+            remaining=len(todo)+max(0,seen-len(present));stop=False
+            for key,action,record in todo:
+                left=end-self.monotonic()
+                if stop or left<=0 or sent>=self.settings['max_per_scan']:break
+                ident,key1=rag_id(key);wait=max(0.05,min(SYNC_WAIT,left))
+                if action=='delete':
+                    sent+=1
+                    try:result=self.bus.call(target,dumps({'method':'delete','namespace':namespace,'tableName':table,'id':ident}),timeout=wait,topic='filescan')
+                    except Refusal as failure:files.append({'path':key,'state':'failed','reason':f'removal refused ({failure.status})'});continue
+                    except Exception:continue   # a removal is free and idempotent: it stays owed and goes again on the next call
+                    text=getattr(getattr(result,'message',None),'body','')
+                    if core.reply_ok(result) or (isinstance(text,str) and text.startswith('error: not_found')):
+                        marks.pop(key,None);unknown.pop(key,None);remaining-=1
+                    elif isinstance(text,str) and text.startswith('error:'):files.append({'path':key,'state':'failed','reason':'removal refused: '+text[7:200]})
+                    continue
+                fp=record['fp']
+                if unknown.get(key)==fp:
+                    verdict=rag_check(self.bus,target,namespace,table,key,fp,timeout=wait)
+                    if verdict=='complete':
+                        marks[key]=fp;unknown.pop(key,None);remaining-=1;continue
+                    if not resend:
+                        files.append({'path':key,'state':'unknown','reason':'sent before with no confirmation; RAG\'s check '+('shows it incomplete' if verdict=='incomplete' else 'proves nothing')+'; resend:true sends it again'})
+                        continue
+                why=self._sync_unsendable(key,record)
+                if why:
+                    files.append({'path':key,'state':'failed','reason':why});continue
+                sha,size,text=scanning.digest(self.root,key,RAG_TEXT)
+                if sha!=fp:continue   # changed since the walk: the next call's walk takes the new version
+                call={'method':'upsert','namespace':namespace,'tableName':table,'id':ident,'data':text,'mime-type':rag_mime(key),
+                      'source':key,'content_hash':hashlib.sha256(text.encode()).hexdigest()}
+                if key1:call['key1']=key1
+                # Written down before the send: an answer that never comes leaves the outcome unknown, never a resend.
+                unknown[key]=fp;self.state.save(data);sent+=1
+                try:result=self.bus.call(target,dumps(call),timeout=wait,topic='filescan')
+                except Refusal as failure:
+                    unknown.pop(key,None);files.append({'path':key,'state':'failed','reason':f'refused ({failure.status})'});continue
+                except Exception:
+                    files.append({'path':key,'state':'unknown','reason':'no answer before the deadline; RAG may have stored it'});continue
+                body=getattr(getattr(result,'message',None),'body','')
+                try:answer=json.loads(body)
+                except (TypeError,ValueError):answer=None
+                if isinstance(answer,dict) and 'error' not in answer and tuple(answer.get(k) for k in UPSERT_ECHO)==tuple(call[k] for k in UPSERT_ECHO):
+                    marks[key]=fp;unknown.pop(key,None);remaining-=1
+                elif isinstance(body,str) and body.startswith('error:'):
+                    unknown.pop(key,None);files.append({'path':key,'state':'failed','reason':'refused: '+body[7:200]})
+                else:files.append({'path':key,'state':'unknown','reason':'the answer did not confirm this version'})
+            self.state.save(data)
+            confirmed=sum(1 for k,r in present.items() if marks.get(k)==r['fp'])
+        finally:hold.__exit__()
+        states={f['state'] for f in files}
+        result='failed' if 'failed' in states else 'unknown' if 'unknown' in states else 'incomplete' if remaining or capped else 'confirmed'
+        return {'result':result,'confirmed':confirmed,'remaining':remaining,'capped':capped,'sent':sent,'files':files[:200]}
+
+    def _sync_unsendable(self,key,record):
+        """Why RAG cannot take this file, or None."""
+        if record['size']>RAG_TEXT:return f"{record['size']} bytes is over RAG's {RAG_TEXT} byte text limit"
+        if not rag_source_ok(key):return 'its path is not valid as a RAG source (over 2048 bytes or not NFC)'
+        try:_,_,text=scanning.digest(self.root,key,RAG_TEXT)
+        except OSError:return 'unreadable'
+        if text is None:return 'not UTF-8 text'
+        return None
+
     # --- calls ----------------------------------------------------------------------------------------------------
     def status(self):
         state=self.state.load();meta=state['meta']
@@ -447,7 +603,7 @@ class FileScan:
                 'skipped':meta.get('skipped',[]),'state_bytes':size,'state_max':self.settings['state_max'],'subscribers':subs,'paused':meta.get('paused'),'skipped_for_rag':{i:v for i,v in self.skipped.items() if v}}
 
     def effective_mode(self):
-        if self.settings['mode']=='poll':return 'poll'
+        if self.settings['mode'] in ('poll','demand'):return self.settings['mode']
         if self.watcher is None:return 'poll'
         return 'both' if self.settings['mode']=='both' or self.watcher.limit_hit else 'watch'
 
@@ -482,7 +638,7 @@ class FileScan:
         method,args=parse(message.body)
         if method=='help':return metadata_answer(HERE,roles=roles,as_json=message.body.lstrip().startswith('{'))
         manager=bool(roles&{'owner','maintainer'})
-        allowed=SUB_ROLES if method.startswith('sub.') or method in ('status','scan') else frozenset()
+        allowed=SUB_ROLES if method.startswith('sub.') or method in ('status','scan','sync') else frozenset()
         if not roles&(allowed|{'owner','maintainer'}):return error('forbidden')
         if method=='status':return dumps(self.status())
         if method in ('scan','reset'):
@@ -493,7 +649,9 @@ class FileScan:
                 return dumps(self.reset())
             summary=self.scan(confirm=bool(args.get('confirm')));self._round()
             return dumps(summary)
+        if method=='sync':return dumps(self.sync(message,args))
         if method=='sub.add':
+            if self.settings['mode']=='demand':return error('on_demand')
             value={k:args[k] for k in ('rag','namespace','table','bigfile') if k in args}
             if 'pattern' in args:value['pattern']=args['pattern']
             replay=args.get('replay',not self.settings['baseline'])
@@ -520,9 +678,10 @@ def run():
                 print('filescan: no directory is bound (AGENT_BUS_DIR)',file=sys.stderr);return 78
             agent=FileScan(bus,configuration,root,work)
             agent.start_watch()
-            every=agent.settings['every'] if agent.needs_timer() else 7*86400.0
-            timer=core.PollTimer(every,agent.tick,on_error=lambda e:print('filescan: tick failed',file=sys.stderr))
-            timer.start()
+            if agent.settings['mode']!='demand':   # on demand: no watch and no timer; only a `sync` call reads the folder
+                every=agent.settings['every'] if agent.needs_timer() else 7*86400.0
+                timer=core.PollTimer(every,agent.tick,on_error=lambda e:print('filescan: tick failed',file=sys.stderr))
+                timer.start()
             bus.serve(agent.handle,workers=2,stop=stop,drain_timeout=3)
             return 0
     except (cfg.SettingsError,core.SyncError,BusError) as failure:

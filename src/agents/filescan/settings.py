@@ -7,7 +7,7 @@ KEYS={'dir','include','exclude','mode','every','settle','namespace','table','bat
 DURATION=re.compile(r'(\d+)(s|m|h)\Z')
 SIZE=re.compile(r'(\d+)(B|KiB|MiB|GiB)?\Z')
 UNIT={'B':1,'KiB':1024,'MiB':1024**2,'GiB':1024**3}
-MODES=('poll','watch','both')
+MODES=('poll','watch','both','demand')   # demand: no watch, no timer, no subscriptions; only `sync` sends
 
 
 class SettingsError(ValueError):
@@ -53,7 +53,7 @@ def parse(config):
     unknown=sorted(set(config)-KEYS)
     if unknown:raise SettingsError(unknown[0],'unknown setting')
     mode=config.get('mode','both')
-    if mode not in MODES:raise SettingsError('mode','poll, watch or both')
+    if mode not in MODES:raise SettingsError('mode','poll, watch, both or demand')
     default_every=300.0 if mode=='poll' else 1800.0
     s={
         'mode':mode,

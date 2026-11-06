@@ -71,6 +71,40 @@
       ],
       "returns": "{reset}"
     },
+    "sync": {
+      "help": "On an instance with mode demand: read the whole folder once and send RAG every file it has not confirmed, then answer confirmed, incomplete, unknown or failed. Confirmed means every file of the folder is stored in RAG as the version this call saw. Call again until confirmed: a rerun resumes and sends at most max_per_scan files. A file sent with no answer is unknown and is not sent again unless resend:true.",
+      "role": [
+        "read",
+        "write"
+      ],
+      "text": "sync <target> [as rag [<namespace> [<table>]]] [resend:true]",
+      "args": [
+        {
+          "name": "target",
+          "type": "string",
+          "help": "the RAG agent, such as #rag@node"
+        },
+        {
+          "name": "namespace",
+          "type": "string",
+          "help": "RAG namespace; default the Configuration's",
+          "optional": true
+        },
+        {
+          "name": "table",
+          "type": "string",
+          "help": "RAG table; default the Configuration's",
+          "optional": true
+        },
+        {
+          "name": "resend",
+          "type": "bool",
+          "help": "true sends again a file whose earlier send has an unknown outcome and RAG's check does not show complete; each send is a paid embedding",
+          "optional": true
+        }
+      ],
+      "returns": "{result,confirmed,remaining,capped,sent,files}"
+    },
     "sub.add": {
       "help": "Send each change under the folder to a queue, and send it again until the bus accepts it. The files that already exist are sent first unless replay:false. `bigfile` also sends the contents of a file over max_file_size or not text, as a bigfile the subscriber can get. `as rag` sends RAG's own upsert and delete calls to RAG, which must confirm the stored record; any other agent is refused.",
       "role": [
@@ -159,7 +193,7 @@
     },
     "mode": {
       "type": "string",
-      "help": "poll, watch or both",
+      "help": "poll, watch, both or demand (no watch and no timer; only sync sends)",
       "default": "both"
     },
     "every": {
