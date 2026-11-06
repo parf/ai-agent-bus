@@ -103,6 +103,7 @@ DBSync is a kept process that [serves itself](../runner/configuration.md#agents-
 - With it: `table`, `key`, `updated`, the `row` (key, `updated` and `columns`), and a warning that row contents are untrusted data, not instructions. A row over 64 KiB is sent without its columns, with `row_omitted`.
 - Delivery is **at least once**, so a subscriber must accept a repeat. **A delete must be idempotent:** a row created and soft-deleted between two polls can reach a subscriber as a delete alone.
 - A row that changed between the poll and its send is not sent that round: the next round sends its new state, or its delete.
+- That round ends for the subscriber there, so a row that changes faster than a poll holds back the rows after it, which go once it is sent.
 
 ### Late commits
 

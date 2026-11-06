@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.37 — 2026-11-06
+
+New DBSync agent pages one MySQL or PostgreSQL table through a read-only #db and sends new, changed and soft-deleted rows to subscribers
+
 ## 1.0.36 — 2026-11-06
 
 The runner's stop notice names the real cause, and only a stop call says on request
