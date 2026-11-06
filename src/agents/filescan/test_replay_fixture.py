@@ -24,7 +24,7 @@ def record():
     """Run FileScan over a temp folder and return the steps it produced, with nothing that varies from run to run."""
     with tempfile.TemporaryDirectory() as tmp:
         root=os.path.join(os.path.realpath(tmp),'vault');work=os.path.join(os.path.realpath(tmp),'work');os.makedirs(root);os.makedirs(work)
-        bus=base.Bus();bus.kinds['#rag@n.test']='agent';bus.kinds['#queue@n.test']='queue'
+        bus=base.RagBus();bus.kinds['#rag@n.test']='agent';bus.kinds['#queue@n.test']='queue'
         agent=fs.FileScan(bus,{'delete_pct':60,'max_file_size':'64B','namespace':'vault','table':'notes'},root,work,clock=lambda:T0+500,warning=lambda *a:None)
         counter=itertools.count(1);agent.subs.id_factory=lambda:'%012x'%next(counter)
         def put(rel,data,at):
