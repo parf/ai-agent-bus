@@ -47,6 +47,7 @@ var bundleFiles = []string{
 	"agents/rag/rag.py",
 	"agents/rag/rules.py",
 	"agents/rag/core.py",
+	"agents/rag/namespaces.py",
 	"agents/rag/chunks.py",
 	"agents/rag/prompts.py",
 	"agents/rag/blocks.py",

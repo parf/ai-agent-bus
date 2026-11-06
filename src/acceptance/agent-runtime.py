@@ -33,7 +33,7 @@ def check(root):
     for relative in ('agents/eventlog/agent.json', 'agents/eventlog/eventlog.py', 'agents/eventlog/env.dist', 'agents/eventlog/config.json.dist', 'agents/eventlog/LICENSE.md', 'agents/eventlog/licenses/NOTICE.md', 'agents/eventlog/support/agents/shared/metadata.py', 'agents/eventlog/support/agents/shared/event_rings.py', 'agents/eventlog/support/agents/shared/subscriptions.py', 'agents/eventlog/support/agents/shared/subscription_filters.py', 'agents/eventlog/support/clients/LICENSE.md', 'agents/eventlog/support/internal/version/VERSION', 'agents/eventlog/support/clients/python/agent_bus/__init__.py', 'agents/eventlog/support/clients/python/agent_bus/_version.py', 'agents/eventlog/support/clients/python/agent_bus/client.py', 'agents/eventlog/support/clients/python/agent_bus/errors.py', 'agents/eventlog/support/clients/python/agent_bus/protocol.py', 'agents/eventlog/support/clients/python/agent_bus/message.py', 'agents/eventlog/support/clients/python/agent_bus/storage.py', 'agents/eventlog/support/clients/python/agent_bus/transport.py', 'agents/shared/event_rings.py'):
         if not (root / relative).is_file():
             raise ValueError('missing runtime artifact: ' + relative)
-    rag_files = ('agents/rag/rag.py', 'agents/rag/rules.py', 'agents/rag/core.py', 'agents/rag/chunks.py', 'agents/rag/prompts.py', 'agents/rag/blocks.py', 'agents/rag/support/agents/shared/metadata.py', 'agents/rag/support/clients/python/agent_bus/__init__.py', 'agents/rag/support/clients/python/agent_bus/_version.py', 'agents/rag/support/clients/python/agent_bus/client.py', 'agents/rag/support/clients/python/agent_bus/errors.py', 'agents/rag/support/clients/python/agent_bus/protocol.py', 'agents/rag/support/clients/python/agent_bus/message.py', 'agents/rag/support/clients/python/agent_bus/storage.py', 'agents/rag/support/clients/python/agent_bus/transport.py')
+    rag_files = ('agents/rag/rag.py', 'agents/rag/rules.py', 'agents/rag/core.py', 'agents/rag/namespaces.py', 'agents/rag/chunks.py', 'agents/rag/prompts.py', 'agents/rag/blocks.py', 'agents/rag/support/agents/shared/metadata.py', 'agents/rag/support/clients/python/agent_bus/__init__.py', 'agents/rag/support/clients/python/agent_bus/_version.py', 'agents/rag/support/clients/python/agent_bus/client.py', 'agents/rag/support/clients/python/agent_bus/errors.py', 'agents/rag/support/clients/python/agent_bus/protocol.py', 'agents/rag/support/clients/python/agent_bus/message.py', 'agents/rag/support/clients/python/agent_bus/storage.py', 'agents/rag/support/clients/python/agent_bus/transport.py')
     for relative in rag_files:
         if not (root / relative).is_file():
             raise ValueError('missing runtime artifact: ' + relative)
@@ -126,7 +126,7 @@ def check(root):
     rag_help = json.loads(output)
     rag_manifest = json.loads((rag / 'agent.json').read_text())
     assert rag_help['version'] == rag_manifest['version'], 'RAG own app version lost'
-    assert_methods('rag', {'upsert','get','list','search','keyword_index','delete','prompts'}, rag_help['methods'])
+    assert_methods('rag', {'upsert','get','list','search','keyword_index','delete','prompts','capabilities','namespaces','drop_namespace'}, rag_help['methods'])
     assert (rag / 'config.json.dist').is_file() and (rag / 'CHANGELOG.md').is_file()
     print('rag: app version, client/helper imports and JSON methods loaded without live blocks')
 
