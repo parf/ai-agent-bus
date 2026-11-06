@@ -43,3 +43,32 @@ func TestLookupMatchesTheLoginWithoutRegardToASCIICase(t *testing.T) {
 		t.Fatalf("an unknown login published keys: %+v", entry)
 	}
 }
+
+// The login ends at the first space or tab, and any run of them may follow it, as in authorized_keys;
+// what follows is kept as written.
+func TestLookupSplitsTheLineOnSpacesOrTabs(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "keys")
+	lines := "alice\tssh-ed25519 AAAAtab\n" +
+		"alice \t ssh-ed25519\tAAAAmixed\tcomment with  spaces\n" +
+		"  alice\t\tssh-rsa AAAArun\r\n" +
+		"alicia\tssh-ed25519 AAAAother\n" +
+		"alice\n" +
+		"alice\t\n" +
+		"alice ssh-ed25519 AAAAspace\n"
+	if err := os.WriteFile(path, []byte(lines), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	entry, err := New(path).Lookup("alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"ssh-ed25519 AAAAtab", "ssh-ed25519\tAAAAmixed\tcomment with  spaces", "ssh-rsa AAAArun", "ssh-ed25519 AAAAspace"}
+	if len(entry.Keys) != len(want) {
+		t.Fatalf("keys %q, want %q", entry.Keys, want)
+	}
+	for i := range want {
+		if entry.Keys[i] != want[i] {
+			t.Errorf("key %d is %q, want %q", i, entry.Keys[i], want[i])
+		}
+	}
+}

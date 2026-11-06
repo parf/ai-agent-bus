@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.34 — 2026-11-06
+
+A key-file login ends at the first space or tab and the line may end in CRLF
+
 ## 1.0.33 — 2026-11-06
 
 New FileScan agent watches an Owner-granted directory and syncs file changes to subscribers, with a RAG form; the runner binds needs.dir read-only inside configured roots

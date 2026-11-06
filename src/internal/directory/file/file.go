@@ -1,6 +1,6 @@
 // Package file is the directory adapter for manual enrolment: a text file of
 // `login key-type key-blob [comment]` lines, one or more per login, in the
-// same shape as an `authorized_keys` entry. The login is matched without regard to ASCII case. It is what a host uses before it
+// same shape as an `authorized_keys` entry. The login is matched without regard to ASCII case, and ends at the first space or tab. It is what a host uses before it
 // trusts a provider, and what a test uses instead of the network.
 // See docs/01-identity-and-authority.md#registration.
 package file
@@ -38,11 +38,14 @@ func (d *Directory) Lookup(login string) (ports.DirectoryEntry, error) {
 	}
 	var out []string
 	for _, line := range strings.Split(string(b), "\n") {
-		who, key, ok := strings.Cut(strings.TrimSpace(line), " ")
-		if !ok || asciiLower(who) != login {
+		// As in authorized_keys, the login ends at the first space or tab, and any run of them
+		// follows it; the key type, blob and comment after that are kept as written.
+		line = strings.TrimSpace(line)
+		i := strings.IndexAny(line, " \t")
+		if i < 0 || asciiLower(line[:i]) != login {
 			continue
 		}
-		if key = strings.TrimSpace(key); key != "" {
+		if key := strings.TrimSpace(line[i:]); key != "" {
 			out = append(out, key)
 		}
 	}
