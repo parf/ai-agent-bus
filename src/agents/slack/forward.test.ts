@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 process.env.SLACK_AGENT_QUEUE = "3";
 // A distinct module instance pins this fixture even if J22 imported the default first.
-const { Forwarder, identityGiveMs } = await import("./forward.ts?queue-fixture");
+const { Forwarder, identityGiveMs, identityRetry } = await import("./forward.ts?queue-fixture");
 delete process.env.SLACK_AGENT_QUEUE;
 const event = (text = "x", extra = {}) => ({ type: "message", channel: "C1", user: "U1", text, ts: text, ...extra });
 function fixture(over: any = {}) {
@@ -53,6 +53,19 @@ test("a definitive refusal of the identity is not waited out, a try-again answer
     expect(asked).toBe(calls);
     expect(x.sent).toEqual([]);
     expect(x.logs.filter(l => l.includes("warning")).length).toBe(1);
+  }
+});
+
+test("a bus or secret hiccup is asked again per event (4 calls) but does not hold the start; a refusal is neither", async () => {
+  expect(identityRetry("slack-transient")).toEqual({ atStart: true, perEvent: true });
+  expect(identityRetry("bus")).toEqual({ atStart: false, perEvent: true });
+  expect(identityRetry("refused")).toEqual({ atStart: false, perEvent: false });
+  for (const cause of ["slack-transient", "bus", "refused"] as const) {
+    let asked = 0;
+    const x = fixture({ identity: async () => { asked++; return undefined; }, identityRetryMs: [1, 1, 1], identityRetryable: () => identityRetry(cause).perEvent });
+    x.f.admit(event("hiccup"), "h-" + cause);
+    await x.f.stop(2000);
+    expect(asked).toBe(cause === "refused" ? 1 : 4);
   }
 });
 

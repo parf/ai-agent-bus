@@ -12,6 +12,17 @@ export function identityGiveMs(raw: string | undefined): { ms: number } | { erro
   if (/^[1-9][0-9]{0,8}$/.test(raw)) return { ms: Number(raw) };
   return { error: "SLACK_AGENT_IDENTITY_GIVE_MS must be a positive whole number of milliseconds" };
 }
+/** What a failed ask for the identity means for asking again. `atStart` holds the start-up wait;
+ *  `perEvent` lets one event's learn() ask again after short waits. A bus or secret hiccup is worth
+ *  asking again for an event but is not Slack's to wait out at start; a refusal is neither. */
+export type IdentityFailure = "bus" | "slack-transient" | "refused";
+export function identityRetry(cause: IdentityFailure): { atStart: boolean; perEvent: boolean } {
+  switch (cause) {
+    case "slack-transient": return { atStart: true, perEvent: true };
+    case "bus": return { atStart: false, perEvent: true };
+    default: return { atStart: false, perEvent: false };
+  }
+}
 export type Identity = { botUser?: string; botId?: string; appId?: string };
 export type ForwardDeps = {
   route?(event: any, identity: Identity): Promise<void | false>;

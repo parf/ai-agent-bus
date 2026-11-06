@@ -20,7 +20,7 @@ import { DeadlinePassed, endpoint, httpStatusOf, scrub, slackWeb } from "./slack
 import { parseCall, type Call } from "./parse.js";
 import { BusError, KVNotFound } from "../../clients/typescript/src/index.js";
 import { ChatPort, ChatSubscriptions, staff as mayChangeSubscriptions, subscriptionList } from "../shared/subscription-port.ts";
-import { Forwarder, Posted, identityGiveMs, type Identity } from "./forward.js";
+import { Forwarder, Posted, identityGiveMs, identityRetry, type Identity, type IdentityFailure } from "./forward.js";
 import { SocketMode } from "./socket.js";
 import { postAs } from "./postas.js";
 import { describe } from "./describe.js";
@@ -497,7 +497,7 @@ const forwarder = new Forwarder({
     }
   },
   identity: () => ensureIdentity(),
-  identityRetryable: () => identityRetryable,
+  identityRetryable: () => identityEventRetryable,
   posted: (channel, ts) => posted.mine(channel, ts),
   log: line => console.error(`slack: ${scrubKnown(line)}`),
   scrub: text => scrubKnown(text),
@@ -549,14 +549,14 @@ async function ensureIdentity(): Promise<Identity | undefined> {
   try {
     ctx = await eventCtx();
   } catch {
-    return lost(false, "the secret or the bus could not be read"); // not Slack: holding the start would only hide it
+    return lost("bus", "the secret or the bus could not be read"); // not Slack: holding the start would only hide it
   }
   if (identity && identityFor === ctx.key) return identity;
   let me: any;
   try {
     me = await web(ctx, "read", "auth.test");
   } catch {
-    return lost(true, "Slack did not answer"); // Slack did not answer
+    return lost("slack-transient", "Slack did not answer");
   }
   if (me.ok !== true || typeof me.user_id !== "string") {
     // By the HTTP status first: 429 and any 5xx are "try again" whatever the body says (a gateway's HTML
@@ -564,7 +564,7 @@ async function ensureIdentity(): Promise<Identity | undefined> {
     const http = httpStatusOf(me);
     const code = me.ok === false && typeof me.error === "string" ? me.error.slice(0, 60).replace(/[^\w ().-]/g, "") : "";
     const again = http === 429 || (http !== undefined && http >= 500) || ((http === undefined || http < 300) && transientSlack.test(code));
-    return lost(again, code || (http !== undefined ? `HTTP ${http}` : "Slack's answer had no user id"));
+    return lost(again ? "slack-transient" : "refused", code || (http !== undefined ? `HTTP ${http}` : "Slack's answer had no user id"));
   }
   identity = { botUser: me.user_id, botId: me.bot_id, appId: me.app_id };
   identityFor = ctx.key;
@@ -574,12 +574,17 @@ async function ensureIdentity(): Promise<Identity | undefined> {
  *  not worth holding the start for. */
 const transientSlack = /^(ratelimited|service_unavailable|internal_error|fatal_error|request_timeout)$/;
 let identityRetryable = false; // the last failed ask is one start-up should wait out
+let identityEventRetryable = false; // ... and one an event should ask again for (the forwarder's dependency)
+// The two flags are module globals written by whichever ask failed last (start-up, an event or the background asker); a
+// race between them can only make one retry more or fewer, never lose or duplicate an event.
 let identityWhy = ""; // what the last failed ask said, for `status`
 /** The identity is unknown again (a failed ask, or a changed token): once the
  *  agent is serving, something keeps asking, so `status` does not wait for an event to do it. */
-function lost(retryable: boolean, why: string): undefined {
+function lost(cause: IdentityFailure, why: string): undefined {
   identity = undefined;
-  identityRetryable = retryable;
+  const retry = identityRetry(cause);
+  identityRetryable = retry.atStart;
+  identityEventRetryable = retry.perEvent;
   identityWhy = why;
   if (serving) keepAsking();
   return undefined;
