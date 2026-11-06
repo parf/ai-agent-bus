@@ -369,6 +369,10 @@
   > 💬 👤parf (in chat, 2026-11-06 ~13:55): "same with rag - he owns it; he uses it. for now we are running under same user (because its our local dvp), but in real life scenarios it can be just a user with own server with access to our bus"
   >
   > 💬👾 → #rag/mdhouse runs on the user-account runner beside #filescan/mdhouse, as mdhouse's own. The setup is written as an external bus user's steps on its own server; parf does them here only because this node has one account.
+  >
+  > 💬 👤parf (in chat, 2026-11-06 ~13:52): "mdhouse cto acts as user (parf)"; "mdhouse process itself acts as an agent"; "it can create subagents (rag, filescan) for itself"
+  >
+  > 💬👾 → `#cx/mdhouse-cto`, acting as parf, registers `#mdhouse@parf.us` and its own sub-agents (`#rag/mdhouse` and its stores, further `#filescan/<x>`) from the T-49 step lists; the mdhouse process runs as `#mdhouse@parf.us`. Paid keys, the store ([№Q376](QUESTIONS.md#rag-for-mdhouse)–№Q378) and new runner roots stay the owner's.
 
 <a id="Q355"></a>
 
