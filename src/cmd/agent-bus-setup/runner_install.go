@@ -324,12 +324,16 @@ func (o runnerOps) removeTemplate() error {
 	return run("systemctl", "daemon-reload")
 }
 
+// runnerCalls are the calls a runner answers, as its registered description says
+// them; the runner's own refusal names the same ones (cmd/agent-bus-runner).
+const runnerCalls = "status, reload, start, stop, restart, enable, disable, read, write, create, delete, install, remove"
+
 // createRecord registers the runner's agent as its person, so it is theirs
 // from the start and its ACL is theirs to change.
 func (o runnerOps) createRecord(p personRunner) error {
 	return o.bus.mustAs(p.person, "create "+p.name, "POST", "/register", map[string]any{
 		"name": p.name, "kind": "agent", "allow": []string{"@owner"},
-		"descr": p.person + "'s runner: status, reload, start, stop, restart, enable, disable, read, write, create, delete",
+		"descr": p.person + "'s runner: " + runnerCalls,
 	})
 }
 

@@ -752,7 +752,7 @@ func (o hostUserOps) userctl(u userRunner, args ...string) error {
 func (o hostUserOps) createRecord(u userRunner) error {
 	return o.bus.mustAs(u.person, "create "+u.name, "POST", "/register", map[string]any{
 		"name": u.name, "kind": "agent", "allow": []string{"@owner"},
-		"descr": u.person + "'s user-account runner: status, reload, start, stop, restart, enable, disable, read, write, create, delete",
+		"descr": u.person + "'s user-account runner: " + runnerCalls,
 	})
 }
 
