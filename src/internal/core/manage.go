@@ -174,7 +174,8 @@ func (b *Bus) normalizeAllow(in []string, r protocol.Record) ([]string, error) {
 }
 
 // Stored terms retain their syntax and kind rules, but another principal's
-// later edits cannot make them malformed. Resolve references on writes only.
+// later edits cannot make them malformed. Stored groups must still exist, while
+// only fresh writes require them to be active and resolve other references.
 func (b *Bus) normalizeAllowTerms(in []string, r protocol.Record, checkReferences bool) ([]string, error) {
 	out := make([]string, 0, len(in))
 	seen := map[string]bool{}
@@ -200,6 +201,9 @@ func (b *Bus) normalizeAllowTerms(in []string, r protocol.Record, checkReference
 			a = strings.ToLower(a)
 			if !groupName(a) {
 				return nil, fmt.Errorf("%w: invalid ACL group %q", ErrBadName, raw)
+			}
+			if group, ok := b.records[a]; !ok || group.Kind != protocol.KindGroup {
+				return nil, fmt.Errorf("%w: ACL group %s", ErrUnknown, a)
 			}
 			if checkReferences {
 				if _, ok := b.groupMembers(a); !ok {

@@ -72,6 +72,7 @@ func TestRestoreStillRefusesMalformedAssignedACLTerms(t *testing.T) {
 	for _, tc := range []struct{ name, target, term string }{
 		{"bad-user", "#svc@h", "bad user(deploy)"},
 		{"bad-group", "#svc@h", "@bad group(deploy)"},
+		{"missing-group", "#svc@h", "@ghost(deploy)"},
 		{"wrong-kind", "jobs@h", "@agent(deploy)"},
 		{"reserved-role", "#svc@h", "bob@h(owner)"},
 	} {

@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.18 — 2026-11-05
+
+a restore no longer refuses the start over another User's legal ACL edit; restored group terms must still name an existing group
+
 ## 1.0.17 — 2026-11-05
 
 runner install and remove staging is claimed atomically and swept only when its lock is free; a package link into a guarded directory is refused, failing closed
