@@ -29,15 +29,24 @@ class Selection(unittest.TestCase):
         running = {name for name, level in p['checks'].items() if level != 'skip'}
         self.assertEqual(running, {'agent_smtp', 'agent_imap', 'agent_pack'})
 
-    def test_a_daemon_or_runner_change_runs_the_agents_at_fast_only(self):
+    def test_a_daemon_or_runner_change_still_runs_the_agents_at_normal(self):
+        # The pack narrows only an agent-only change; another layer's change
+        # keeps its reverse dependency on the agents, as before the pack.
         for path in ('src/internal/core/core.go', 'src/internal/protocol/envelope.go',
                      'src/cmd/agent-bus-runner/serve.go', 'src/package.sh'):
             with self.subTest(path=path):
                 p = self.plan([path])
                 self.assertFalse(p['agents_only'])
-                self.assertEqual(p['modes']['L'], 'fast')
-                agents = {level for name, level in p['checks'].items() if name.startswith('agent_') and name != 'agent_guide'}
-                self.assertEqual(agents - {'skip'}, {'fast'}, path)
+                self.assertEqual(p['modes']['L'], 'normal')
+                for name in ('agent_pack', 'agent_slack', 'agent_systemd', 'agent_git'):
+                    self.assertEqual(p['checks'][name], 'normal', (path, name))
+
+    def test_shards_that_install_or_sandbox_agents_keep_their_layer_tags(self):
+        # Standalone installs through setup (G); SSH identity (B), journals (C),
+        # privilege loss under the process boundary (F).
+        config = json.loads((ROOT/'src/smoke-map.json').read_text())
+        self.assertEqual({n: config['checks'][n]['tags'] for n in ('agent_git', 'agent_logwatch', 'agent_server_info', 'agent_systemd')},
+                         {'agent_git': 'BGL', 'agent_logwatch': 'CGL', 'agent_server_info': 'GL', 'agent_systemd': 'FGL'})
 
     def test_imap_changes_include_bundle_and_runtime_contract_checks(self):
         for path in ('imap.py', 'agent.json', 'folders.py', 'package.sh'):
@@ -108,11 +117,10 @@ class Selection(unittest.TestCase):
 
     def test_lower_layer_includes_reverse_dependencies(self):
         p = self.plan(['src/internal/protocol/envelope.go'])
-        for letter in 'ABCEFGHIJK': self.assertEqual(p['modes'][letter], 'normal', letter)
-        self.assertEqual(p['modes']['L'], 'fast')
+        for letter in 'ABCEFGHIJKL': self.assertEqual(p['modes'][letter], 'normal', letter)
         p = self.plan(['src/internal/core/core.go'])
         self.assertEqual(p['modes']['I'], 'normal')
-        self.assertEqual(p['checks']['agent_telegram'], 'fast')
+        self.assertEqual(p['checks']['agent_telegram'], 'normal')
 
     def test_version_and_every_root_changelog_are_always_ignored(self):
         for paths in (['src/internal/version/VERSION'], ['CHANGELOG.0.9.md'], ['CHANGELOG.manual.md'],

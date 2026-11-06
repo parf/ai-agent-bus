@@ -86,10 +86,6 @@ def plan(root, mode, targets='', paths=None):
     # only the checks that own a changed path, never the daemon's or another
     # agent's (CLAUDE.md § verification).
     agents_only = not targets and not fallback and 'L' in direct and set(direct) <= set('LNOP')
-    # Another layer's change runs the agents at fast, never their full suite:
-    # the pack is tested at normal only when one of its own paths changed.
-    if 'L' in promoted and 'L' not in direct and not targets and not fallback:
-        promoted.discard('L'); broad.discard('L'); why.pop('L', None)
     modes = {c: mode if c in promoted and not fallback.startswith('nothing changed') else 'fast' for c in ALL}
     levels = {}
     for check, row in config['checks'].items():

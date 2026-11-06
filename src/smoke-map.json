@@ -242,7 +242,7 @@
       ]
     },
     "agent_server_info": {
-      "tags": "L",
+      "tags": "GL",
       "paths": [
         "src/agents/standalone/server-info/",
         "src/agents/standalone/systemctl-fixture.py",
@@ -250,21 +250,21 @@
       ]
     },
     "agent_systemd": {
-      "tags": "L",
+      "tags": "FGL",
       "paths": [
         "src/agents/standalone/systemd/",
         "src/agents/standalone/install.py"
       ]
     },
     "agent_git": {
-      "tags": "L",
+      "tags": "BGL",
       "paths": [
         "src/agents/standalone/git/",
         "src/agents/standalone/install.py"
       ]
     },
     "agent_logwatch": {
-      "tags": "L",
+      "tags": "CGL",
       "paths": [
         "src/agents/standalone/logwatch/",
         "src/agents/standalone/systemctl-fixture.py",
