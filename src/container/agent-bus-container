@@ -20,24 +20,32 @@ fail() { echo "agent-bus-container: $*" >&2; exit 1; }
 # directory, keeps its owner and mode: changing them would lock its host owner out.
 # One that other users can write to is refused, never changed on the host's behalf.
 own() { # own DIR ACCOUNT
-  [ "$(id -u)" = 0 ] || return 0
-  if [ "$(stat -c %U "$1")" != "$2" ]; then
+  local root=0 owner uid
+  [ "$(id -u)" != 0 ] || root=1
+  owner=$(stat -c %U "$1")
+  uid=$(getent passwd "$2" | cut -d: -f3)
+  if [ "$owner" != "$2" ]; then
     if usable_by "$2" "$1"; then
       [ $(( 8#$(stat -c %a "$1") & 8#022 )) = 0 ] ||
-        fail "$1 is usable by $2 but writable by its group or others, and it holds secrets: make it $2's alone or mode 0700 on the host (rootless podman: podman unshare chown $(getent passwd "$2" | cut -d: -f3):$(getent passwd "$2" | cut -d: -f3) $1; chmod 0700 $1)"
+        fail "$1 is usable by $2 but writable by its group or others, and it holds secrets: make it $2's alone or mode 0700 on the host (rootless podman: podman unshare chown $uid:$uid $1; chmod 0700 $1)"
       return 0
     fi
-    # Not usable by the account: only an empty directory, a fresh volume, is taken over. One holding
-    # data is somebody's, and is never re-owned from here.
+    # Not usable by the account. Started as the account itself there is no way to take it over; as
+    # root only an empty directory, a fresh volume, is: one holding data is somebody's.
+    [ "$root" = 1 ] || fail "$1 is not usable by $2, and this start cannot change its owner: start as root, or make it $2's on the host (rootless podman: podman unshare chown $uid:$uid $1)"
     [ -z "$(ls -A "$1")" ] ||
-      fail "$1 holds data and is not usable by $2: make it $2's on the host (rootless podman: podman unshare chown $(getent passwd "$2" | cut -d: -f3):$(getent passwd "$2" | cut -d: -f3) $1)"
+      fail "$1 holds data and is not usable by $2: make it $2's on the host (rootless podman: podman unshare chown $uid:$uid $1)"
     chown "$2:$2" "$1"
   fi
   chmod 0700 "$1"
 }
 
 usable_by() { # usable_by ACCOUNT DIR: the account can read, write and enter it
-  setpriv --reuid="$1" --regid="$1" --init-groups -- test -r "$2" -a -w "$2" -a -x "$2"
+  if [ "$(id -u)" = 0 ]; then
+    setpriv --reuid="$1" --regid="$1" --init-groups -- test -r "$2" -a -w "$2" -a -x "$2"
+  else
+    setpriv --no-new-privs -- test -r "$2" -a -w "$2" -a -x "$2"
+  fi
 }
 
 as() { # as ACCOUNT COMMAND...

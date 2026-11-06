@@ -105,6 +105,22 @@ check "a group-writable mount is refused" errs 'writable by its group or others'
 STUB_UID=991 STUB_UN=agent-bus-runner ENTRY=runner run AGENT_BUS_ADDR=http://d:1 AGENT_BUS_TOKEN=t STUB_UID=991 STUB_UN=agent-bus-runner
 check "the non-root start sets no-new-privs" has '^--no-new-privs'
 
+# The account's own start, with no root to drop, applies the same directory rules and cannot chown.
+nonroot() { STUB_UID=991 STUB_UN=agent-bus-runner ENTRY=runner run AGENT_BUS_ADDR=http://d:1 AGENT_BUS_TOKEN=t STUB_UID=991 STUB_UN=agent-bus-runner "$@"; }
+chmod 0777 "$root/runner"
+nonroot STUB_OWNER=agent-bus-runner
+check "non-root: a directory it owns is tightened to 0700" bash -c "[ \"\$($real_stat -c %a '$root/runner')\" = 700 ]"
+check "non-root: and the runner starts" has '^runner'
+chmod 0755 "$root/runner"
+nonroot STUB_OWNER=hostuser STUB_MODE=777
+check "non-root: a foreign group- or other-writable directory is refused" errs 'writable by its group or others'
+check "non-root: refused untouched" bash -c "! grep -q '^runner' '$log' && [ \"\$($real_stat -c %a '$root/runner')\" = 755 ]"
+nonroot STUB_OWNER=hostuser STUB_MODE=755 STUB_UNUSABLE=1
+check "non-root: a foreign unusable directory is refused, not chowned" errs 'cannot change its owner'
+check "non-root: nothing was chowned" bash -c "! grep -q '^chown' '$log'"
+nonroot STUB_OWNER=hostuser STUB_MODE=755
+check "non-root: a foreign usable directory with no other writers is kept" has '^runner'
+
 # An agent directory name that would break the inventory's JSON is refused.
 mkdir -p "$root/agent.d/we\\ird"; : >"$root/agent.d/we\\ird/agent.json"; rm -f "$root/runner/agents.json"
 ENTRY=runner run AGENT_BUS_ADDR=http://d:1 AGENT_BUS_TOKEN=t STUB_MODE=700

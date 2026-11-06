@@ -43,7 +43,7 @@ release-set verification is described in the [maintainer deployment guide](../..
 | `runner` | `agent-bus-runner` (991) | `/var/lib/agent-bus/runner`: inventory, settings, agent tokens, work | `AGENT_BUS_ADDR`, `AGENT_BUS_TOKEN` of `#runner/<person>` |
 
 Each role starts as root only to give a fresh volume to its account, then runs
-as that account with no capabilities and no way to gain privilege (no new privileges, empty bounding set), so the image's setuid binaries stay inert. An empty volume is prepared: given to the account and set to mode 0700. A bind mount that already holds data must already be usable by the account and writable by nobody else, or the start is refused by name; it keeps its owner and mode. Under rootless podman a bind mount with data needs `podman unshare chown 990:990 <dir>` (991 for the runner) first, or use a named volume. The daemon's and the runner's secrets
+as that account with no capabilities and no way to gain privilege (no new privileges, empty bounding set), so the image's setuid binaries stay inert. A directory the account owns is set to mode 0700, whatever it was; an empty volume is also given to the account first. A bind mount owned by anyone else must already be usable by the account and not writable by its group or others, or the start is refused by name and the directory is left as it was; one that is usable keeps its owner and mode. A container started as the account itself (`--user 990`) follows the same rules and cannot change an owner, so it refuses a directory it cannot use. Under rootless podman a bind mount with data needs `podman unshare chown 990:990 <dir>` (991 for the runner) first, or use a named volume. The daemon's and the runner's secrets
 stay in separate containers.
 
 ```sh
