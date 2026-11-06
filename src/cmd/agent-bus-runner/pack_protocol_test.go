@@ -186,7 +186,8 @@ func TestAFourHundredIdentityAnswerRefusesAndAFiveHundredOrNoAnswerChecksNothing
 		code    int
 		refused bool
 	}{{http.StatusBadRequest, true}, {http.StatusUnauthorized, true}, {http.StatusForbidden, true}, {http.StatusNotFound, true},
-		{http.StatusInternalServerError, false}, {http.StatusServiceUnavailable, false}} {
+		{http.StatusInternalServerError, false}, {http.StatusServiceUnavailable, false},
+		{http.StatusRequestTimeout, false}, {http.StatusTooManyRequests, false}} {
 		t.Run(http.StatusText(c.code), func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { http.Error(w, "no", c.code) }))
 			defer server.Close()

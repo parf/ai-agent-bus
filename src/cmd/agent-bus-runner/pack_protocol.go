@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -80,7 +81,7 @@ func (r *runner) fetchIdentity() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if code >= 400 && code < 500 {
+	if code >= 400 && code < 500 && code != http.StatusRequestTimeout && code != http.StatusTooManyRequests {
 		return nil, &identityRefused{code}
 	}
 	if code >= 400 {
@@ -90,7 +91,8 @@ func (r *runner) fetchIdentity() ([]byte, error) {
 }
 
 // identityRefused is the daemon answering the identity request with a refusal (a 4xx): it is up and said no, so an agent of the pack
-// cannot be shown to work with it. A 5xx or a transport error is the daemon not answering, which checks nothing.
+// cannot be shown to work with it. A 5xx, a transport error, and the transient 408 and 429, are the daemon not answering now,
+// which checks nothing: a rate-limited identity at a reload must not stop every running pack agent.
 type identityRefused struct{ code int }
 
 func (e *identityRefused) Error() string { return fmt.Sprintf("the daemon refused its identity request (%d)", e.code) }
