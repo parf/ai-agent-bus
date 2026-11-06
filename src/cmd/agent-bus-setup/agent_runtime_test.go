@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -141,23 +140,16 @@ func TestAgentRuntimeMethodMismatchNamesAgentAndBothSets(t *testing.T) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("export runtime: %v: %s", err, out)
 	}
-	path := filepath.Join(root, "agents/rag/agent.json")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var manifest map[string]any
-	if err = json.Unmarshal(data, &manifest); err != nil {
-		t.Fatal(err)
-	}
-	methods := manifest["methods"].(map[string]any)
-	methods["unexpected_runtime_fixture"] = methods["get"]
-	delete(methods, "get")
-	data, err = json.Marshal(manifest)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = os.WriteFile(path, data, 0600); err != nil {
+	// The packaged RAG answers a method set its own agent.json does not list:
+	// get is gone and unexpected_runtime_fixture is new. The check reads the
+	// expected set from that agent.json, so it must name both.
+	stub := `import json, pathlib
+m = json.loads((pathlib.Path(__file__).parent / 'agent.json').read_text())
+methods = dict(m['methods'])
+methods['unexpected_runtime_fixture'] = methods.pop('get')
+print(json.dumps({'version': m['version'], 'methods': methods}))
+`
+	if err := os.WriteFile(filepath.Join(root, "agents/rag/rag.py"), []byte(stub), 0600); err != nil {
 		t.Fatal(err)
 	}
 	check, err := filepath.Abs("../../acceptance/agent-runtime.py")
@@ -200,8 +192,24 @@ except AssertionError as error:
 else:
     raise AssertionError('nonroot health incorrectly accepted')
 assert set(manifest['methods']) == {'help', 'health', 'sensors', 'load'}
+# Help that counts hidden methods may leave out only the role methods it counts.
+import json, os, pathlib, sys, tempfile
+gate = m['assert_manifest_methods']
+directory = pathlib.Path(tempfile.mkdtemp(dir=sys.argv[1]))
+(directory / 'agent.json').write_text(json.dumps({'methods': {'help': {}, 'list': {}, 'drop': {'role': 'admin'}}}))
+gate('other', directory, {'methods': {'help': {}, 'list': {}, 'drop': {}}})
+gate('other', directory, {'methods': {'help': {}, 'list': {}}, 'hidden_methods': {'count': 1}})
+for answer, word in [({'methods': {'help': {}}, 'hidden_methods': {'count': 1}}, "missing=['list']"),
+                     ({'methods': {'help': {}, 'list': {}}, 'hidden_methods': {'count': 0}}, 'hidden methods: count=0'),
+                     ({'methods': {'help': {}, 'list': {}}}, "missing=['drop']")]:
+    try:
+        gate('other', directory, answer)
+    except AssertionError as error:
+        assert word in str(error), (word, str(error))
+    else:
+        raise AssertionError('wrong help accepted: %r' % answer)
 `
-	cmd := exec.Command("python3", "-B", "-c", code)
+	cmd := exec.Command("python3", "-B", "-c", code, t.TempDir())
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("runtime scope comparison: %v: %s", err, out)
 	}

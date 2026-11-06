@@ -21,6 +21,18 @@ def expected_methods(agent, manifest, euid):
     return methods
 
 
+def assert_manifest_methods(agent, directory, answer):
+    # The packaged agent.json is the one method list. Help that counts hidden
+    # methods may leave out exactly those it counts, and only role methods.
+    manifest = json.loads((directory / 'agent.json').read_text())
+    expected = expected_methods(agent, manifest, os.geteuid())
+    if 'hidden_methods' in answer:
+        hidden = {name for name in expected - set(answer['methods']) if manifest['methods'][name].get('role')}
+        assert answer['hidden_methods']['count'] == len(hidden), f"{agent} hidden methods: count={answer['hidden_methods']['count']} role methods left out={sorted(hidden)!r}"
+        expected -= hidden
+    assert_methods(agent, expected, answer['methods'])
+
+
 def check(root):
     root = Path(root).resolve()
     # Negative fixtures remove these imports on purpose. Refuse before a child
@@ -64,7 +76,7 @@ def check(root):
     output, _ = run(['python3', str(eventlog / 'eventlog.py')], root,
                     {'AGENT_BUS_ASK':'help-json', 'AGENT_BUS_CONFIG':'invalid'})
     metadata = json.loads(output)
-    assert_methods('eventlog', {'help'}, metadata['methods'])
+    assert_manifest_methods('eventlog', eventlog, metadata)
     assert metadata['hidden_methods']['count'] == 9
     assert metadata['secrets'] == [] and metadata['body_formats'] == ['text', 'json']
     assert metadata['docs'].endswith('/eventlog.md')
@@ -79,7 +91,7 @@ def check(root):
             raise ValueError('missing runtime artifact: agents/dbsync/' + relative)
     output, _ = run(['python3', str(dbsync / 'dbsync.py')], root, {'AGENT_BUS_ASK':'help-json', 'AGENT_BUS_CONFIG':'invalid'})
     metadata = json.loads(output)
-    assert_methods('dbsync', {'help'}, metadata['methods'])
+    assert_manifest_methods('dbsync', dbsync, metadata)
     assert metadata['secrets'] == [] and metadata['docs'].endswith('/dbsync.md')
     assert metadata['version'] == version, 'dbsync reports the bus version, not the pack version'
     for shared in ('change_sync.py', 'subscriptions.py', 'subscription_filters.py'):
@@ -92,7 +104,7 @@ def check(root):
             raise ValueError('missing runtime artifact: agents/filescan/' + relative)
     output, _ = run(['python3', str(filescan / 'filescan.py')], root, {'AGENT_BUS_ASK':'help-json', 'AGENT_BUS_CONFIG':'invalid'})
     metadata = json.loads(output)
-    assert_methods('filescan', {'help'}, metadata['methods'])
+    assert_manifest_methods('filescan', filescan, metadata)
     assert metadata['secrets'] == [] and metadata['docs'].endswith('/filescan.md')
     assert metadata['version'] == version, 'filescan reports the bus version, not the pack version'
     assert json.loads((filescan / 'config.json.dist').read_text())['mode'] == 'both'
@@ -116,8 +128,7 @@ def check(root):
                 extra['AGENT_BUS_CONFIG'] = json.dumps({'repos':{'fixture':{'path':str(root),'access':'commit'}}})
             output, _ = run(['python3', str(script)], directory, extra)
         data = json.loads(output)
-        manifest = json.loads((directory / 'agent.json').read_text())
-        assert_methods(agent, expected_methods(agent, manifest, os.geteuid()), data['methods'])
+        assert_manifest_methods(agent, directory, data)
         assert data['version'] == version, agent + ' wrong version'
         assert 'config' in data and 'secrets' in data, agent + ' incomplete help'
         installer = directory / ('install.sh' if agent == 'server-info' else 'install.py')
@@ -129,7 +140,7 @@ def check(root):
     rag_help = json.loads(output)
     rag_manifest = json.loads((rag / 'agent.json').read_text())
     assert rag_help['version'] == rag_manifest['version'], 'RAG own app version lost'
-    assert_methods('rag', {'upsert','get','list','search','keyword_index','delete','prompts','capabilities','namespaces','drop_namespace'}, rag_help['methods'])
+    assert_manifest_methods('rag', rag, rag_help)
     assert (rag / 'config.json.dist').is_file() and (rag / 'CHANGELOG.md').is_file()
     print('rag: app version, client/helper imports and JSON methods loaded without live blocks')
 
@@ -139,19 +150,19 @@ def check(root):
                          {'OPENROUTER_API_KEY': ''}, status=78)
     assert (output, errors.strip()) == ('', 'OPENROUTER_API_KEY is not set'), 'AI entry failed outside checkout'
     output, _ = run(['python3', str(ai / 'ai.py')], root, {'AGENT_BUS_ASK': 'help-json'})
-    assert_methods('ai', {'ask', 'decide', 'models', 'model', 'embed', 'balance', 'key', 'image'}, json.loads(output)['methods'])
+    assert_manifest_methods('ai', ai, json.loads(output))
     assert (ai / 'agent.json').is_file() and (ai / 'env.dist').is_file()
     print('ai: kept entry, client/helper imports loaded without credentials')
     voyage = root / 'agents/voyage'
     output, _ = run(['python3', str(voyage / 'voyage.py')], root, {'VOYAGE_API_KEY':''}, status=78)
     assert output.strip() == 'error: VOYAGE_API_KEY is not set', 'Voyage entry failed outside checkout'
     output, _ = run(['python3', str(voyage / 'voyage.py')], root, {'AGENT_BUS_ASK':'help-json'})
-    assert_methods('voyage', {'embed', 'request'}, json.loads(output)['methods'])
+    assert_manifest_methods('voyage', voyage, json.loads(output))
     print('voyage: packaged helper and metadata loaded without credentials')
     fetch = root / 'agents/fetch'
     output, _ = run(['python3', str(fetch / 'fetch.py')], root, {'AGENT_BUS_ASK':'help-json', 'AGENT_BUS_CONFIG':'invalid'})
     metadata = json.loads(output)
-    assert_methods('fetch', {'get','curl'}, metadata['methods'])
+    assert_manifest_methods('fetch', fetch, metadata)
     assert metadata['version'] == version
     assert metadata['docs'].endswith('/fetch.md')
     assert set(metadata['config']) == {'allow'} and metadata['config']['allow']['type'] == 'list' and metadata['secrets'] == []
@@ -160,7 +171,7 @@ def check(root):
     webhook = root / 'agents/webhook'
     output, _ = run(['python3', str(webhook / 'webhook.py')], root, {'AGENT_BUS_ASK':'help-json', 'WEBHOOK_LISTEN':'invalid'})
     metadata = json.loads(output)
-    assert_methods('webhook', {'post','routes'}, metadata['methods'])
+    assert_manifest_methods('webhook', webhook, metadata)
     assert metadata['config']['(root)']['type'] == 'list'
     assert metadata['version'] == version
     assert json.loads((webhook / 'agent.json').read_text())['serves'] == 'itself'
@@ -170,7 +181,7 @@ def check(root):
     output, _ = run(['python3', str(imap / 'imap.py')], root, {'AGENT_BUS_ASK':'help-json'})
     metadata = json.loads(output)
     assert metadata['body_formats'] == ['text', 'json']
-    assert_methods('imap', {'sync', 'list', 'search', 'read', 'publish', 'help', 'sub add', 'sub list', 'sub delete', 'status', 'mark', 'folders', 'flag', 'headers', 'parts', 'part', 'copy', 'move', 'trash', 'delete', 'compact_trash', 'folder create', 'folder rename', 'folder delete', 'append'}, metadata['methods'])
+    assert_manifest_methods('imap', imap, metadata)
     assert metadata['docs'].endswith('/imap.md')
     assert all(not item.get('has_default') for item in metadata['secrets'])
     assert json.loads((imap / 'agent.json').read_text())['serves'] == 'itself'
@@ -185,12 +196,11 @@ def check(root):
     assert all(not item.get('has_default') for item in metadata['secrets'])
     print('smtp: packaged mail/metadata loaded without credentials or a server connection')
 
-    for name, methods in (('cron', {'sub.add', 'sub.list', 'sub.delete', 'later', 'later.list', 'later.cancel', 'help'}),
-                          ('at', {'in', 'at', 'list', 'cancel', 'help'})):
+    for name in ('cron', 'at'):
         package = root / 'agents' / name
         output, _ = run(['python3', str(package / (name + '.py'))], root, {'AGENT_BUS_ASK':'help-json'})
         metadata = json.loads(output)
-        assert_methods(name, methods, metadata['methods'])
+        assert_manifest_methods(name, package, metadata)
         assert metadata['docs'].endswith('/' + name + '.md')
         assert json.loads((package / 'agent.json').read_text())['serves'] == 'itself'
         for shared in ('scheduler.py', 'cronexpr.py'):
@@ -202,7 +212,7 @@ def check(root):
     assert output.strip() == 'error: QDRANT_API_KEY is not set', 'Qdrant entry failed outside checkout'
     output, _ = run(['python3', str(qdrant / 'qdrant.py')], root, {'AGENT_BUS_ASK':'help-json'})
     data = json.loads(output)
-    assert_methods('qdrant', {'request'}, data['methods'])
+    assert_manifest_methods('qdrant', qdrant, data)
     assert set(data['config']) == {'url'}, 'qdrant config keys'
     assert 'default' not in data['config']['url'], 'Qdrant must have no localhost default'
     assert json.loads((qdrant / 'agent.json').read_text())['roles'] == ['read', 'write', 'admin']
