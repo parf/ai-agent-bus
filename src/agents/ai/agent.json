@@ -47,7 +47,7 @@
       "args": [
         {
           "name": "images",
-          "type": "boolean",
+          "type": "bool",
           "optional": true,
           "help": "List image models instead"
         }
