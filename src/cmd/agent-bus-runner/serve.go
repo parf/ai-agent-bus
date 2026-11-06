@@ -517,8 +517,16 @@ func (r *runner) stop(name string, s *served, why string) {
 		return
 	}
 	r.waitRetired(s.in.Key)
-	if s.jail.group != nil {
-		s.jail.group.Remove() // stays while a process of it still runs
+	if group := s.jail.group; group != nil {
+		// The joined reader cannot take another slot. Each message already
+		// taken owns one until runOne returns, even before its goroutine has
+		// launched. Drain those runs off r.mu before closing the cgroup FD;
+		// retirement also keeps a replacement from reusing this group key.
+		r.retireWith(s.in.Key, func() {
+			for range cap(s.slots) {
+				s.slots <- struct{}{}
+			}
+		}, group.Remove)
 	}
 }
 
