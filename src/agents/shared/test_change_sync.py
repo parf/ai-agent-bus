@@ -495,6 +495,38 @@ class DeliveryTests(Base):
         data=self.state.load();del data['items']['a'];self.state.save(data);self.round()
         self.assertEqual([b for _,b,_ in self.bus.calls],['delete a','create b'])
 
+    def test_review_unknown_delete_then_reappeared_same_fingerprint_is_repaired(self):
+        subs,row=self.add('#rag@n.test',kind='agent');self.round();self.tomb('a','1|del')
+        self.bus.replies['#rag@n.test']='timeout';self.bus.calls.clear();self.round()
+        self.assertEqual(([b for _,b,_ in self.bus.calls],self.state.load()['maybe'][row['id']]),(['delete a'],{'a':'?'}),'the delete may have been applied')
+        self.put({'a':item('1')});self.bus.replies['#rag@n.test']='ok';self.bus.calls.clear();self.round();self.round()
+        self.assertEqual([b for _,b,_ in self.bus.calls],['change a'],'back at the fingerprint its mark holds, and sent once')
+        self.assertEqual((self.state.load()['marks'][row['id']],self.state.load()['maybe'][row['id']]),({'a':'1','b':'2'},{}))
+
+    def test_an_unknown_hard_delete_then_the_same_fingerprint_again_is_repaired(self):
+        subs,row=self.add('#rag@n.test',kind='agent');self.round()
+        data=self.state.load();del data['items']['a'];self.state.save(data)
+        self.bus.replies['#rag@n.test']='timeout';self.bus.calls.clear();self.round()
+        self.assertEqual(self.state.load()['maybe'][row['id']],{'a':'?'})
+        self.put({'a':item('1')});self.bus.replies['#rag@n.test']='ok';self.bus.calls.clear();self.round();self.round()
+        self.assertEqual([b for _,b,_ in self.bus.calls],['change a'])
+
+    def test_a_delete_refused_outright_leaves_nothing_owed_when_the_key_comes_back(self):
+        subs,row=self.add('#rag@n.test',kind='agent');self.round()
+        data=self.state.load();del data['items']['a'];self.state.save(data)
+        self.bus.replies['#rag@n.test']='refused';self.bus.calls.clear();self.round()
+        self.assertEqual(self.state.load()['maybe'][row['id']],{},'never queued, so the target still holds a')
+        self.put({'a':item('1')});self.bus.replies['#rag@n.test']='ok';self.bus.calls.clear();self.round()
+        self.assertEqual(self.bus.calls,[])
+
+    def test_a_delete_still_unknown_after_a_second_try_is_sent_until_confirmed(self):
+        subs,row=self.add('#rag@n.test',kind='agent');self.round()
+        data=self.state.load();del data['items']['a'];self.state.save(data)
+        self.bus.replies['#rag@n.test']='timeout';self.bus.calls.clear();self.round();self.round()
+        self.assertEqual(([b for _,b,_ in self.bus.calls],self.state.load()['maybe'][row['id']]),(['delete a','delete a'],{'a':'?'}))
+        self.bus.replies['#rag@n.test']='ok';self.round()
+        self.assertEqual((self.state.load()['marks'][row['id']],self.state.load()['maybe'][row['id']]),({'b':'2'},{}))
+
     def test_an_unconfirmed_delete_stays_pending(self):
         subs,row=self.add('#rag@n.test',kind='agent');self.round()
         data=self.state.load();del data['items']['a'];self.state.save(data);self.bus.replies['#rag@n.test']='timeout'

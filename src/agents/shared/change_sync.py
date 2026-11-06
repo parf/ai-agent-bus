@@ -175,7 +175,8 @@ def pending(state,sub_id,matches=lambda key:True):
     A key the subscriber has no mark for is `create`, one whose mark differs is `change`, one it has a mark for that is gone is `delete`.
     A key whose send was started but never confirmed (`maybe`) is owed a delete once it is gone, and a change while it is
     present with a different fingerprint than the send had (even when the mark equals the present one): the target may
-    hold what was sent. `?` stands for several unknown sends and differs from every fingerprint.
+    hold what was sent. `?` stands for several unknown sends, or a delete whose outcome is unknown, and differs from every
+    fingerprint: a key that comes back after such a delete is owed a change even at the fingerprint its mark holds.
     A tombstone (an item with `gone`, a row the source still sees as deleted) is a `delete` with its record for a subscriber
     that holds a mark or an unknown send of the key, and nothing for one that never got it: there is nothing to take back.
 
@@ -288,7 +289,8 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
     - Per subscriber: pending changes in key order, at most `batch`; stops at the first one not confirmed, so order holds.
     - A change is marked done for that subscriber only after the target confirms it: an agent answers ok, a queue accepts the send.
       Before the sends, every create and change of the batch is recorded as possibly delivered (and saved), so a send whose
-      outcome is never learned still earns its delete if the source later removes the key. A change the loop never reached,
+      outcome is never learned still earns its delete if the source later removes the key; every delete is recorded as `?`,
+      so a key that comes back after a delete of unknown outcome is sent again. A change the loop never reached,
       or whose send was refused outright, is taken back out; a timeout, an unknown result or a reply that is not ok keeps it.
       A `body` that returns None has nothing to send that subscriber: the change is counted as `skipped` and remembered
       (per subscriber, by fingerprint) so it is not skipped again, without writing a mark: only a confirmation does.
@@ -316,7 +318,12 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
             todo=pending(data,sub_id,lambda key,row=row:matches(row,key))[:batch]
             # Written down before any send: a send whose outcome is never learned (a timeout, a crash, a failed save) may
             # have been applied, so a later delete of that key must still be sent. Cleared by the confirmation.
-            owed={k:(r['fp'] if k not in data['maybe'][sub_id] else '?') for k,a,r in todo if a!='delete' and data['maybe'][sub_id].get(k)!=r['fp']}
+            # A delete is written as `?`: the target may still hold the key, or may not, so a key that comes back is owed again.
+            had=data['maybe'][sub_id];owed={}
+            for k,a,r in todo:
+                if a=='delete':
+                    if had.get(k)!='?':owed[k]='?'
+                elif had.get(k)!=r['fp']:owed[k]=r['fp'] if k not in had else '?'
             prior={k:data['maybe'][sub_id].get(k) for k in owed};attempted=set();restored=False
             gone=[k for k in data['skipped'][sub_id] if k not in data['items']]
             for k in gone:del data['skipped'][sub_id][k]  # a removed item's skip memory would otherwise live forever
