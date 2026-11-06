@@ -567,6 +567,10 @@ func (s *Store) BigDrop(record uint32) error {
 	return os.RemoveAll(filepath.Join(s.dir, strconv.FormatUint(uint64(record), 10)))
 }
 
+// The core's orphan check finds BigRecords by assertion, so an old signature
+// would skip it silently; this pins the signature at compile time.
+var _ interface{ BigRecords() ([]uint32, error) } = (*Store)(nil)
+
 // BigRecords is the IDs of every record holding a bigfile, for the start-up
 // check against the registry. An index fault is an error, never an empty
 // list: a check that read nothing must not conclude there is nothing.

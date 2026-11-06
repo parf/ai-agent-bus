@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.42 — 2026-11-06
+
+Bigfile sweep and index-read errors are reported instead of ignored, a failed read skips the orphan prune with an alert, and listing errors are counted refusals
+
 ## 1.0.41 — 2026-11-06
 
 The runner removes a taken cgroup only after its service has stopped and drained, so retirement no longer races a live process
