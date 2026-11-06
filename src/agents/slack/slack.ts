@@ -497,6 +497,7 @@ const forwarder = new Forwarder({
     }
   },
   identity: () => ensureIdentity(),
+  identityRetryable: () => identityRetryable,
   posted: (channel, ts) => posted.mine(channel, ts),
   log: line => console.error(`slack: ${scrubKnown(line)}`),
   scrub: text => scrubKnown(text),

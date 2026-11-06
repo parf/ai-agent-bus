@@ -44,6 +44,18 @@ test("an identity that Slack has not given yet is asked for again, and the event
   expect(x.logs.filter(l => l.includes("warning"))).toEqual([]);
 });
 
+test("a definitive refusal of the identity is not waited out, a try-again answer is, and each is counted", async () => {
+  for (const [retryable, calls] of [[false, 1], [true, 4], [undefined, 4]] as const) {
+    let asked = 0;
+    const x = fixture({ identity: async () => { asked++; return undefined; }, identityRetryMs: [1, 1, 1], ...(retryable === undefined ? {} : { identityRetryable: () => retryable }) });
+    x.f.admit(event("refused"), "r-" + retryable);
+    await x.f.stop(2000);
+    expect(asked).toBe(calls);
+    expect(x.sent).toEqual([]);
+    expect(x.logs.filter(l => l.includes("warning")).length).toBe(1);
+  }
+});
+
 test("an event lost for want of an identity is logged at warning with its channel and ts, never its text", async () => {
   const x = fixture({ identity: async () => undefined, identityRetryMs: [1, 1] });
   x.f.admit(event("secret body text", { ts: "1700.5" }), "gone");

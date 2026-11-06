@@ -19,6 +19,9 @@ export type ForwardDeps = {
   userName(id: string): Promise<string>;
   channelName(id: string): Promise<string>;
   identity(): Promise<Identity | undefined>;
+  /** Whether the failure of the last identity() is worth asking again after a wait: false after a
+   *  definitive refusal such as a bad token. Absent means yes. */
+  identityRetryable?(): boolean;
   /** Waits between tries to learn the agent's own identity for one event; default 250, 500 and 1000 ms. */
   identityRetryMs?: number[];
   posted(channel: string, ts: string): Promise<boolean>;
@@ -58,12 +61,14 @@ export class Forwarder {
       catch { this.deps.log("forward: subscription handling unavailable; event not replayed"); }
     }
   }
-  /** The agent's identity, asked again after each wait in identityRetryMs while it is unknown. */
+  /** The agent's identity, asked again after each wait in identityRetryMs while it is unknown and the
+   *  failure is one worth retrying. */
   private async learn(): Promise<Identity | undefined> {
     const waits = this.deps.identityRetryMs ?? [250, 500, 1000];
     for (let i = 0; ; i++) {
       const me = await this.deps.identity();
       if (me || i >= waits.length) return me;
+      if (this.deps.identityRetryable && !this.deps.identityRetryable()) return me; // a refusal will not pass by waiting
       await Bun.sleep(waits[i]!);
     }
   }

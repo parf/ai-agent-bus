@@ -13,6 +13,7 @@ let provider: ReturnType<typeof Bun.serve>;
 const name = `#slack-refused-${process.pid}@t`;
 let callerToken = "";
 let authCalls = 0;
+let sockets: any[] = [];
 
 beforeAll(async () => {
   fx = await startFixture();
@@ -30,7 +31,7 @@ beforeAll(async () => {
       if (path.endsWith("/conversations.list")) return Response.json({ ok: true, channels: [] });
       return Response.json({ ok: false, error: "no route" });
     },
-    websocket: { open() {}, message() {}, close() {} },
+    websocket: { open(ws) { sockets.push(ws); }, message() {}, close(ws) { sockets = sockets.filter(s => s !== ws); } },
   });
   await fx.call(fx.ownerToken, "POST", "/secret", { name, secret: `SLACK_BOT_TOKEN=xoxb-fixture\nSLACK_APP_TOKEN=xapp-fixture\nSLACK_API_URL=http://127.0.0.1:${provider.port}/api/\n` });
   agent = spawn(["bun", "slack.ts"], {
@@ -66,3 +67,17 @@ test("a refusal that will not pass does not hold the start: it serves and says n
   expect(authCalls).toBeGreaterThanOrEqual(2);
   expect(authCalls).toBeLessThanOrEqual(5);
 }, 40000);
+
+// An event that arrives while Slack refuses the token costs one ask, not the four of a try-again answer.
+test("an event under a definitive refusal is not retried: one auth.test call, then the warning", async () => {
+  for (let i = 0; i < 100 && sockets.length === 0; i++) await Bun.sleep(50);
+  expect(sockets.length).toBeGreaterThan(0);
+  const before = authCalls;
+  for (const ws of sockets) ws.send(JSON.stringify({ envelope_id: "e1", type: "events_api", payload: { event_id: "Ev1", event: { type: "message", channel: "C1", user: "U1", text: "hello", ts: "1.1" } } }));
+  let log = "";
+  for (let i = 0; i < 100 && !log.includes("identity is still unknown"); i++) { await Bun.sleep(50); log = await Bun.file(join(fx.dir, "agent.log")).text(); }
+  expect(log).toContain("identity is still unknown");
+  // The event's own ask, plus at most one tick of the background asker; a retried event would make four or more.
+  expect(authCalls - before).toBeGreaterThanOrEqual(1);
+  expect(authCalls - before).toBeLessThanOrEqual(2);
+}, 30000);
