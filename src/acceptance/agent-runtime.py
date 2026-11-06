@@ -72,6 +72,19 @@ def check(root):
         assert (eventlog / 'support/agents/shared' / shared).read_bytes() == (root / 'agents/shared' / shared).read_bytes(), 'eventlog engine copy'
     print('eventlog: offline metadata, private config example and shared engine copies loaded')
 
+    filescan = root / 'agents/filescan'
+    for relative in ('filescan.py', 'settings.py', 'scan.py', 'watch.py', 'path_filter.py', 'agent.json', 'env.dist', 'config.json.dist'):
+        if not (filescan / relative).is_file():
+            raise ValueError('missing runtime artifact: agents/filescan/' + relative)
+    output, _ = run(['python3', str(filescan / 'filescan.py')], root, {'AGENT_BUS_ASK':'help-json', 'AGENT_BUS_CONFIG':'invalid'})
+    metadata = json.loads(output)
+    assert_methods('filescan', {'help'}, metadata['methods'])
+    assert metadata['secrets'] == [] and metadata['docs'].endswith('/filescan.md')
+    assert json.loads((filescan / 'config.json.dist').read_text())['mode'] == 'both'
+    for shared in ('change_sync.py', 'subscriptions.py', 'subscription_filters.py'):
+        assert (filescan / 'support/agents/shared' / shared).read_bytes() == (root / 'agents/shared' / shared).read_bytes(), 'filescan engine copy'
+    print('filescan: offline metadata, config example and shared core copies loaded')
+
     for agent in ('systemd', 'server-info', 'git', 'logwatch', 'tmux-sessions'):
         directory = root / 'agents/standalone' / agent
         script = directory / {'git': 'git_agent.py', 'logwatch': 'logwatch.py', 'systemd': 'systemd.py', 'server-info': 'server-info.py', 'tmux-sessions': 'sessions.py'}[agent]
