@@ -337,6 +337,19 @@ class RenameWatchTests(AgentWatchTests):
         self.agent=self.make({'mode':'poll'});self.add();self.agent.tick();self.bus.sent.clear()
         self.r('a.md','b.md');self.agent.tick();self.assertEqual(sorted(self.changes()),[('created','b.md',None),('deleted','a.md',None)])
 
+    def test_two_moves_in_a_row_reach_a_subscriber_that_never_got_the_first_as_one_rename_from_what_it_holds(self):
+        [self.put(f'fill{i}.md',str(i)) for i in range(12)];self.put('a.md','text');self.agent=self.make({'batch':500})
+        self.add();self.add('#late@n.test');self.agent.tick();self.bus.sent.clear();self.watch_agent({'mode':'watch','batch':500})
+        self.bus.send_refused.add('#late@n.test');self.r('a.md','c.md')
+        self.assertTrue(eventually(lambda:'c.md' in self.agent.state.load()['items'] and any(c==('renamed','c.md','a.md') for c in self.changes())))
+        self.r('c.md','d.md');self.assertTrue(eventually(lambda:'d.md' in self.agent.state.load()['items']));time.sleep(0.4)
+        self.bus.send_refused.clear();self.agent.tick();self.agent._round();time.sleep(0.2)
+        by={}
+        for to,b,_ in self.bus.sent:
+            import json;m=json.loads(b);by.setdefault(to,[]).append((m['change'],m['path'],m.get('old_path')))
+        self.assertEqual(by['#q@n.test'],[('renamed','c.md','a.md'),('renamed','d.md','c.md')],'the one that kept up saw both moves')
+        self.assertEqual(by['#late@n.test'],[('renamed','d.md','a.md')],'it still held a: one rename from a, no stray delete or create')
+
     def test_a_filter_matching_one_side_sends_that_side_alone(self):
         self.start({'a.md':'x'},target_extra=r'/^a/');self.r('a.md','b.md');self.settle(1)
         self.assertEqual(self.changes(),[('deleted','a.md',None)],'only the old path matches')

@@ -778,6 +778,15 @@ class RenameTests(Base):
         self.assertEqual(self.sent(),[]);self.assertEqual(warnings,['body_failed']);self.assertEqual(self.state.load()['maybe'][row['id']],{})
         self.assertIn('a',self.state.load()['marks'][row['id']]);self.round();self.assertEqual(self.sent(),['rename c a'])
 
+    def test_a_chain_of_renames_is_sent_from_the_origin_each_subscriber_still_holds(self):
+        subs,one=self.add();subs,two=self.add('#r@n.test');subs,both=self.add('#s@n.test');self.round();self.bus.sent.clear()
+        data=self.state.load();data['items'].pop('a');data['items']['d']={'fp':'1','from':['c','a']}   # a to c to d, c never delivered to the first
+        data['marks'][two['id']]={'b':'2','c':'1'};data['marks'][both['id']]={'a':'1','b':'2','c':'1'};self.state.save(data)
+        self.round();got={t:[b for to,b,_ in self.bus.sent if to==t] for t in ('#q@n.test','#r@n.test','#s@n.test')}
+        self.assertEqual(got['#q@n.test'],['rename d a'],'holds a only')
+        self.assertEqual(got['#r@n.test'],['rename d c'],'holds c only')
+        self.assertEqual(sorted(got['#s@n.test']),['delete a','rename d c'],'holds both: the nearest origin is the rename, the other a plain delete')
+
     def test_a_from_that_is_not_a_pending_delete_names_nothing(self):
         subs,row=self.add();self.round();self.bus.sent.clear()
         data=self.state.load();data['items']['c']={'fp':'9','from':'b'};self.state.save(data)   # b is still present: not a rename

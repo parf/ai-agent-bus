@@ -237,15 +237,26 @@ class FileScan:
             for new,old in self.watcher.take_moves().items():self.hints[new]=(old,now)
         for key in [k for k,(_,t) in self.hints.items() if now-t>HINT_TTL]:del self.hints[key]
         if len(self.hints)>HINT_MAX:self.hints.clear()
-        for key in plan['deletes']:self.hints.pop(key,None)
         for key,record in plan['upserts'].items():
             if key in items:continue
             old=self.hints.pop(key,(None,0))[0]
             if old is None:
                 for prefix,(origin,_) in self.hints.items():
                     if prefix.endswith('/') and key.startswith(prefix):old=origin+key[len(prefix):];break
-            if old and old!=key and not old.endswith('/'):record['from']=old
-        plan['renamed']={r['from'] for r in plan['upserts'].values() if r.get('from')}&set(plan['deletes'])
+            if old and old!=key and not old.endswith('/'):
+                # Sequential moves a to c to d: a subscriber that never got c still holds a, so the origins of c follow, nearest first,
+                # and the delivery picks the first one that subscriber has pending as a delete.
+                chain=[old];cur=old
+                for _ in range(8):
+                    before=(items.get(cur) or {}).get('from') or (self.hints.get(cur) or (None,))[0]
+                    if not before:break
+                    more=before if isinstance(before,list) else [before]
+                    chain.extend(o for o in more if o not in chain and o!=key)
+                    if isinstance(before,list):break
+                    cur=before
+                record['from']=chain[0] if len(chain)==1 else chain
+        for key in plan['deletes']:self.hints.pop(key,None)
+        plan['renamed']={o for r in plan['upserts'].values() for o in ([r['from']] if isinstance(r.get('from'),str) else r.get('from') or [])}&set(plan['deletes'])
 
     def guard(self,state,plan):
         """(kind, reason) when this pass must not send deletes: an unreadable or emptied directory, or too many deletes."""

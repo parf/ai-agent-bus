@@ -421,8 +421,11 @@ def _fuse(entries,allowed):
     if not allowed:return entries
     deleted={k for k,a,_ in entries if a=='delete'};used=set();out=[]
     for k,a,r in entries:
-        old=r.get('from') if a=='create' else None
-        if isinstance(old,str) and old!=k and old in deleted and old not in used:out.append((k,'rename',r));used.add(old)
+        # `from` is the key renamed from, or the keys it came from through several renames, nearest first: the first the
+        # subscriber has pending as a delete is the one it still holds.
+        origins=(r['from'] if isinstance(r.get('from'),list) else [r.get('from')]) if a=='create' else []
+        chosen=next((o for o in origins if isinstance(o,str) and o!=k and o in deleted and o not in used),None)
+        if chosen is not None:out.append((k,'rename',{**r,'from':chosen}));used.add(chosen)
         else:out.append((k,a,r))
     return [e for e in out if not (e[1]=='delete' and e[0] in used)]
 
