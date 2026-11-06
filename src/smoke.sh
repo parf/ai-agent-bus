@@ -4323,6 +4323,9 @@ container_image() {
     out=$(bash container/labels_test.sh 2>&1); rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "the image carries its title, version, source and licenses labels, the version from a checked build argument" "$rc"
+    out=$(python3 -B container/checksum_test.py 2>&1); rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "the Containerfile's own checksum step verifies a release, and refuses a tampered archive and a missing sum line, without a build" "$rc"
     # The build never pulls: a host without the pinned base cannot build it,
     # and a selected check that cannot run fails rather than passing unrun.
     base=$(awk '$1 == "FROM" {print $2; exit}' container/Containerfile)

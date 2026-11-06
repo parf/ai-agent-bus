@@ -587,6 +587,20 @@
           "test_help_golden.py",
           "-v"
         ]
+      },
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "agents/shared",
+          "-p",
+          "test_envfile.py",
+          "-v"
+        ]
       }
     ],
     "mcp_rpc": [
@@ -1102,20 +1116,6 @@
           "agents.cron.test_scheduler_state",
           "-v"
         ]
-      },
-      {
-        "argv": [
-          "python3",
-          "-B",
-          "-m",
-          "unittest",
-          "discover",
-          "-s",
-          "agents/shared",
-          "-p",
-          "test_envfile.py",
-          "-v"
-        ]
       }
     ],
     "agent_eventlog": [
@@ -1214,6 +1214,13 @@
         "argv": [
           "bash",
           "container/labels_test.sh"
+        ]
+      },
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "container/checksum_test.py"
         ]
       }
     ]
