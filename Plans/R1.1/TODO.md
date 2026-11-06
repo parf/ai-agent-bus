@@ -233,7 +233,7 @@ Owner, 2026-11-02; approved 2026-11-05 ([Q334](resolved.md#Q334)); plan in [dbsy
     - Agent-only selection: a change only under `src/agents/` runs that agent's checks and the pack contract (`aeef6364`). The gate gives such a landing an agents-only receipt (J117, in the untracked `local/gate.sh`).
     - The pack's PATCH is raised once at deploy by `#ab-ceo` through `deploy-bump.sh --agents-summary`, never by a landing (T-39 `abc512b3`, usage `d45471cd`). Readers: `#ab-w1b`; earlier deltas `#ab-w1b` and `#ab-qa1`.
   - Remaining:
-    - The pack declares the daemon protocols it supports and refuses others. Today only each client library's own protocol check applies.
+    - ✅ The pack declares the daemon protocols it supports in `src/agents/protocol.json` (the two identity fields, equal to what the bundled clients speak), shipped in every package and the release layout; the runner refuses a pack agent the daemon cannot serve when it loads and reloads, by name, and never checks an agent of the user's own. Each client library's own check at connect remains the second line.
     - Whether a pack-only change gets its own image tag ([Q341](QUESTIONS.md#container-image-tags)).
   - Superseded by Q331: "its own repository" in the row and in its acceptance.
   - Depends: an owner-approved plan first: what stays in this repository (daemon, runner, CLI, MCP, clients), which protocol versions the pack declares it works with ([client contract](../../docs/09-daemon-api.md#the-client-contract)), and how install, packaging and the smoke gate change
