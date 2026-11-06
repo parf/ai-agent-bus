@@ -116,7 +116,7 @@ A deleted row leaves nothing for `updated > cursor` to see. R1.1 reports a delet
 
 | Way | Status |
 |---|---|
-| **Soft delete** | Built. The table marks a row deleted and keeps it with a new `updated`; DBSync sends it as a delete. The Owner names the marker column at configuration; a table without one reports no deletes, and the guide says so |
+| **Soft delete** | Planned for S3. The table marks a row deleted and keeps it with a new `updated`; DBSync sends it as a delete. The Owner names the marker column at configuration; a table without one reports no deletes, and the guide says so |
 | **Key diff** | Deferred, a later follow-up: a slow periodic query that lists all keys and compares them with the state, with a mass-delete guard like [FileScan's](filescan.md#the-mass-delete-guard). It is not offered by S3: no setting selects it and no code path for it ships |
 
 ## State
