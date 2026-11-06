@@ -22,6 +22,9 @@ from agent_bus.errors import BusError, Refusal, UnexpectedAnswer, UncertainOutco
 import subscription_filters as filters
 
 MAX_SAFE=2**53-1
+# One request of the delivery helper waits this long: the row's own budget (the 1 s alarm below, and the TypeScript port's 1000 ms per call).
+# A tighter bound read a daemon that was merely slow, a loaded node, as unavailable and dropped the copy (J115).
+REQUEST_TIMEOUT=1.0
 FIELDS={'id','target','selector','filter','created_by','created_at','sent','dropped'}
 ID=re.compile(r'[0-9a-f]{12}\Z')
 # protocol.ParseName: trim Go's Unicode space set, then require ASCII.
@@ -436,7 +439,7 @@ def delivery_worker():
         def alarm(*_):
             if running:raise TimeoutError()
         signal.signal(signal.SIGALRM,alarm)
-        with Bus(name=source,addr=connection['addr'],token=connection['token'],fingerprint=connection['fingerprint'],timeout=.2) as bus:
+        with Bus(name=source,addr=connection['addr'],token=connection['token'],fingerprint=connection['fingerprint'],timeout=REQUEST_TIMEOUT) as bus:
             cache={}
             for row in rows:
                 sub_id=validate_id(row['id'])

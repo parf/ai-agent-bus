@@ -293,7 +293,7 @@ class Daemon(unittest.TestCase):
         # goes through the slow relay; the agent keeps its direct one, so the case costs about a second.
         sub=self.ask('sub add '+self.target.name+' deploys alert',self.reader);self.assertIn('id',sub)
         self.owner.record(self.target.name).manage(allow=[self.worker.name])   # the author lost its reach to the target
-        relay=self.slow_daemon(0.3);real=self.worker._transport
+        relay=self.slow_daemon(0.25);real=self.worker._transport
         class ViaRelay:
             """The worker, but the connection it hands the delivery helper leads through the relay."""
             def __getattr__(self,name):return getattr(outer.worker,name)
@@ -305,7 +305,7 @@ class Daemon(unittest.TestCase):
         message=self.worker.consume(wait=3);self.assertIsNotNone(message)
         result=json.loads(agent.handle(message))
         self.assertEqual(result['deliveries'],{'matched':1,'sent':0,'dropped':1})
-        self.assertEqual(self.warnings,['admission_refused'],'a daemon that answers in 0.3 s is slow, not unavailable')
+        self.assertEqual(self.warnings,['admission_refused'],'a daemon that answers in 0.25 s is slow, not unavailable')
     def test_real_forwarded_owner_and_bare_acl_cannot_read_or_destroy(self):
         self.ask('write deploys alert retained')
         for body in ('read deploys','pull deploys','clean deploys','write deploys notice no'):
