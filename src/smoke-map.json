@@ -581,7 +581,17 @@
           "launchers/restart.test.ts",
           "launchers/sessions.test.ts",
           "mcp/rpc.test.ts",
-          "launchers/local.test.ts"
+          "launchers/local.test.ts",
+          "launchers/held.test.ts",
+          "launchers/review-settings.test.ts",
+          "mcp/pin.test.ts",
+          "mcp/bigfile-fence.test.ts",
+          "mcp/bus.test.ts",
+          "mcp/canonical-args.test.ts",
+          "mcp/inbox.test.ts",
+          "mcp/tags.test.ts",
+          "mcp/tool-access.test.ts",
+          "mcp/version.test.ts"
         ]
       }
     ],
@@ -665,7 +675,7 @@
           "-s",
           "agents/debug",
           "-p",
-          "test_metadata.py",
+          "test_*.py",
           "-v"
         ]
       },
@@ -1074,6 +1084,20 @@
           "-m",
           "unittest",
           "agents.cron.test_scheduler_state",
+          "-v"
+        ]
+      },
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "agents/shared",
+          "-p",
+          "test_envfile.py",
           "-v"
         ]
       }

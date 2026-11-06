@@ -407,8 +407,8 @@ bg_start "guard.test.sh killed mid-run never reaches a podman on PATH (J36)" bas
 out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s . -p smoke_privacy_test.py -v 2>&1); rc=$?
 ok_exit "live SMS recipient absent from tracked files" "$rc"
 [ "$rc" = 0 ] || echo "$out"
-out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s maintenance -p test_cleanup.py -v 2>&1); rc=$?
-ok_exit "node cleanup attribution and retention" "$rc"
+out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s maintenance -p 'test_*.py' -v 2>&1); rc=$?
+ok_exit "node cleanup attribution, retention and observation" "$rc"
 [ "$rc" = 0 ] || echo "$out"
 out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s . -p smoke_select_test.py -v 2>&1); rc=$?
 ok_exit "subsystem selector contract" "$rc"
@@ -464,6 +464,9 @@ ok_exit "release-verify.sh fails an unstamped binary, an altered version, a miss
 [ "$rc" = 0 ] || echo "$out"
 out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/shared -p test_help_golden.py -v 2>&1); rc=$?
 ok_exit "every bundled agent's help matches its golden" "$rc"
+[ "$rc" = 0 ] || echo "$out"
+out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/shared -p test_envfile.py -v 2>&1); rc=$?
+ok_exit "the shared env-file reader keeps its rules" "$rc"
 [ "$rc" = 0 ] || echo "$out"
 # A layer rule nobody checks is a comment. These are the two directions that
 # matter: nothing inward may name an adapter, and the adapter must actually
@@ -3823,7 +3826,7 @@ mcp_rpc_body() {
     # ever have one request in flight and never split a line across chunks, so
     # they leave most of rpc.ts unwatched (mcp/rpc.test.ts says why).
     face_fixture_env=(); [ -z "${SMOKE_CLIENT_FIXTURE:-}" ] || face_fixture_env=("AB_CLIENT_FIXTURE=$SMOKE_CLIENT_FIXTURE")   # one argv word, spaces kept
-    out=$(cd mcp && timeout 60 env ${face_fixture_env[@]+"${face_fixture_env[@]}"} bun test ../launchers/restart.test.ts ../launchers/no-bus-restart.test.ts ../launchers/sessions.test.ts ../launchers/plugin-steps.test.ts rpc.test.ts messages.test.ts catalogue.test.ts ../launchers/local.test.ts ../launchers/terminal.test.ts ../launchers/state-events.test.ts ../launchers/runtime-auth.test.ts adapter-status.test.ts push.test.ts codex-compact.test.ts push-supervise.test.ts face-mark.test.ts face.test.ts resources.test.ts 2>&1)
+    out=$(cd mcp && timeout 60 env ${face_fixture_env[@]+"${face_fixture_env[@]}"} bun test ../launchers/restart.test.ts ../launchers/no-bus-restart.test.ts ../launchers/sessions.test.ts ../launchers/plugin-steps.test.ts rpc.test.ts messages.test.ts catalogue.test.ts ../launchers/local.test.ts ../launchers/terminal.test.ts ../launchers/state-events.test.ts ../launchers/runtime-auth.test.ts adapter-status.test.ts push.test.ts codex-compact.test.ts push-supervise.test.ts face-mark.test.ts face.test.ts resources.test.ts ../launchers/held.test.ts ../launchers/review-settings.test.ts pin.test.ts bigfile-fence.test.ts bus.test.ts canonical-args.test.ts inbox.test.ts tags.test.ts tool-access.test.ts version.test.ts 2>&1)
     rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "rpc unit tests" $rc
@@ -4139,6 +4142,9 @@ agent_server_info() {
     out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/standalone/server-info -p 'test_*.py' -v 2>&1); rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "server-info fixed sections and argument refusal" "$rc"
+    out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/debug -p 'test_*.py' -v 2>&1); rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "debug agent doctor and required-settings tests" "$rc"
     out=$(PYTHONDONTWRITEBYTECODE=1 CLIENT_BIN="$D" timeout 120 ./clients/java/tests/daemon.sh python3 ./agents/standalone/server-info/check.py 2>&1); rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "standalone install, host facts and removal" "$rc"
