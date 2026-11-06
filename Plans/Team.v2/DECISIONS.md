@@ -31,4 +31,21 @@
   - Why: owner on Q350: "yes - makes bumps more significant; combine small/medium tasks into one make => test together". The night of 11-05 gave 20 PATCH numbers and 47 changelog edits for about 35 items
   - Rule: a landing carries no bump; #ab-ceo raises PATCH once per deploy window and writes one changelog entry for it. Leads group small and medium tasks into one branch and one gate run instead of a gate per task
   - Home: [roles](README.md#roles); one sentence in CLAUDE.md § Versioning and the lead and worker role files (T-44); gate.sh refuses `bump`
+- ✅ TD7 <a id="TD7"></a>Less overhead: real findings only, risk-based reads, bookkeeping in the landing, flaky checks quarantined
+  - Date: 2026-11-06
+  - Why: owner on Q348, Q349, Q351 and Q352, after the 11-05 night review (about a third of the items were polish): "moreover - we should be sceptical and reject findings that are useless / have no impact"
+  - Home: [shared rules § Less overhead](roles/common.md#less-overhead)
+- ✅ TD8 <a id="TD8"></a>The team is started by hand; no boot relaunch, and the old team's tmux instance is disabled
+  - Date: 2026-11-06
+  - Why: owner on Q343: "we have a new team now; we need to disable old one; new one started manually". The old instance is `#tmux-sessions@parf.us` (`tmux-sessions/main`: windows C1, C2, X1) on the user runner
+  - Home: [roles](README.md#roles); J107 closes with this decision
+- ✅ TD9 <a id="TD9"></a>#ab-dir and both leads may restart a stuck worker window themselves
+  - Date: 2026-11-06
+  - Why: owner on Q216: "do this"
+  - Rule: `#ab-dir`, `#ab-lead1` and `#ab-lead2` are on the allow list of `#tmux-sessions/ab-dvp@parf.us`, between tasks only, telling #ab-dir; config and commands stay the owner's
+  - Home: [roles](README.md#roles)
+- ✅ TD10 <a id="TD10"></a>Another project's sessions are restarted only to debug a critical bus issue, and only after asking the owner
+  - Date: 2026-11-06
+  - Why: owner on Q358: "you can do this only when debugging our critical issue (agent not attaching to session); next time - ask Parf before"
+  - Home: [roles](README.md#roles)
 

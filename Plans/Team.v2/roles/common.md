@@ -27,6 +27,18 @@ Owner, 2026-11-06: a change to one agent (`src/agents/<name>/`) is tested by tha
 
 Smoke lock identity: [CLAUDE.md § Verification](../../../CLAUDE.md#verification).
 
+## Less overhead
+
+Owner, 2026-11-06 ([TD7](../DECISIONS.md#TD7)):
+
+| Rule | Means |
+|---|---|
+| Findings | A task is a bug the owner or a user would hit, a security gap, or a MED+ finding. Be sceptical: reject a finding with no real impact, saying why. LOW and polish findings go to one list in the plan and are fixed only when their file is touched anyway |
+| Reads | A ⚠️ subsystem of [the subsystem map](../../subsystems.md) (authority, tokens, storage, parsers, runner, install) keeps two readers and a mutant; everything else gets one reader and no mutant. QA reads ⚠️ changes only |
+| Bookkeeping | The issue and TODO update rides in the landing commit; no separate close-out commit or gate |
+| Flaky checks | A check that goes green only on a rerun is quarantined at once (skipped, with a J-item to fix it), never rerun silently |
+| Batches | Small and medium tasks land together in one branch and one gate; one version bump per deploy ([TD6](../DECISIONS.md#TD6)) |
+
 ## Task lifecycle
 
 `assigned` → `working` → `ready` → `reviewed` → `landed` → `done`.
