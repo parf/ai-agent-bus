@@ -439,6 +439,42 @@ class DeliveryTests(Base):
         self.bus.send=spy;self.round()
         self.assertEqual(seen[0],{'a':'1','b':'2'});self.assertEqual(self.state.load()['maybe'][row['id']],{})
 
+    def tomb(self,key,fp):
+        data=self.state.load();data['items'][key]={'fp':fp,'gone':True};self.state.save(data)
+
+    def test_a_tombstone_for_a_subscriber_that_never_got_the_key_sends_nothing(self):
+        subs,row=self.add('#rag@n.test',kind='agent');self.tomb('a','1|del')
+        r=self.round()[row['id']]
+        self.assertEqual([b for _,b,_ in self.bus.calls],['create b'],'a was never sent, so there is nothing to take back')
+        self.assertEqual((r['pending'],self.state.load()['marks'][row['id']],self.state.load()['maybe'][row['id']]),(0,{'b':'2'},{}))
+
+    def test_a_tombstone_after_a_send_of_unknown_outcome_is_a_delete(self):
+        subs,row=self.add('#rag@n.test',kind='agent');self.bus.replies['#rag@n.test']='timeout';self.round()
+        self.assertEqual(self.state.load()['maybe'][row['id']],{'a':'1'})
+        self.tomb('a','1|del');self.bus.replies['#rag@n.test']='ok';self.bus.calls.clear();self.round();self.round()
+        self.assertEqual([b for _,b,_ in self.bus.calls],['delete a','create b'],'the target may hold a: it gets its delete, once')
+        self.assertEqual((self.state.load()['marks'][row['id']],self.state.load()['maybe'][row['id']]),({'b':'2'},{}))
+
+    def test_a_tombstone_after_a_confirmed_send_is_one_delete_that_carries_its_record(self):
+        subs,row=self.add();self.round();self.bus.sent.clear();self.tomb('b','2|del');got=[]
+        def body(row,key,action,record):got.append((key,action,record));return f'{action} {key}'
+        self.round(body=body);self.round(body=body)
+        self.assertEqual(got,[('b','delete',{'fp':'2|del','gone':True})]);self.assertEqual([b for _,b,_ in self.bus.sent],['delete b'])
+        self.assertEqual(self.state.load()['marks'][row['id']],{'a':'1'})
+
+    def test_a_tombstone_that_comes_back_is_a_create_again_and_replay_false_does_not_mark_it(self):
+        self.tomb('b','2|del');subs,row=self.add(replay=False)
+        self.assertEqual(self.state.load()['marks'][row['id']],{'a':'1'},'a tombstone is not something the subscriber holds')
+        self.put({'b':item('3')});self.round()
+        self.assertEqual([b for _,b,_ in self.bus.sent],['create b'])
+
+    def test_a_tombstone_flag_other_than_true_is_a_damaged_state(self):
+        for flag in ('false','1','"yes"'):
+            with self.subTest(flag):
+                self.state.path.write_text('{"version":1,"items":{"a":{"fp":"1","gone":%s}},"subs":{},"marks":{},"maybe":{},"meta":{}}'%flag)
+                with self.assertRaises(cs.SyncError) as caught:self.state.load()
+                self.assertEqual(caught.exception.code,'state_corrupt')
+
     def test_an_unconfirmed_delete_stays_pending(self):
         subs,row=self.add('#rag@n.test',kind='agent');self.round()
         data=self.state.load();del data['items']['a'];self.state.save(data);self.bus.replies['#rag@n.test']='timeout'

@@ -54,7 +54,7 @@ def _check_state(state):
     items,subs,marks,maybe,skipped,meta=state['items'],state['subs'],state['marks'],state['maybe'],state['skipped'],state['meta']
     if not all(isinstance(v,dict) for v in (items,subs,marks,maybe,skipped,meta)):raise bad()
     for key,record in items.items():
-        if not isinstance(record,dict) or not isinstance(record.get('fp'),str):raise bad()
+        if not isinstance(record,dict) or not isinstance(record.get('fp'),str) or record.get('gone',True) is not True:raise bad()
     for sub_id,row in subs.items():
         if not isinstance(row,dict) or set(row)!=SUB_FIELDS or row['id']!=sub_id:raise bad()
         try:base.validate_id(sub_id);base.target_text(row['target']);base.identity(row['created_by'])
@@ -176,6 +176,8 @@ def pending(state,sub_id,matches=lambda key:True):
     A key whose send was started but never confirmed (`maybe`) is owed a delete once it is gone, and a change while it is
     present with a different fingerprint than the send had (even when the mark equals the present one): the target may
     hold what was sent. `?` stands for several unknown sends and differs from every fingerprint.
+    A tombstone (an item with `gone`, a row the source still sees as deleted) is a `delete` with its record for a subscriber
+    that holds a mark or an unknown send of the key, and nothing for one that never got it: there is nothing to take back.
 
     Derived from the items and the subscriber's marks, so a send that was never
     confirmed is pending again without any separate bookkeeping.
@@ -185,6 +187,8 @@ def pending(state,sub_id,matches=lambda key:True):
         if not matches(key):continue
         record=state['items'].get(key)
         if record is None:result.append((key,'delete',None))  # a mark, or a send whose outcome is unknown, still earns its delete
+        elif record.get('gone'):
+            if key in mark or key in maybe:result.append((key,'delete',record))
         elif skipped.get(key)==record['fp']:continue  # the agent had nothing to send for this very version
         elif key not in mark:result.append((key,'create',record))
         elif mark[key]!=record['fp'] or maybe.get(key,record['fp'])!=record['fp']:result.append((key,'change',record))
@@ -239,8 +243,8 @@ class SyncSubscriptions:
             if sub_id in state['subs']:raise SubscriptionError('limit')
             row={'id':sub_id,'target':target,'selector':selector,'created_by':who,'created_at':base.stamp(self.clock),'sent':0,'confirmed':0,'dropped':0}
             state['subs'][sub_id]=row
-            # Replay by default: no marks, so every item is pending. replay:false marks what exists as already done.
-            state['marks'][sub_id]={} if replay else {k:r['fp'] for k,r in state['items'].items()};state['maybe'][sub_id]={};state['skipped'][sub_id]={}
+            # Replay by default: no marks, so every item is pending. replay:false marks what exists as already done (not a tombstone).
+            state['marks'][sub_id]={} if replay else {k:r['fp'] for k,r in state['items'].items() if not r.get('gone')};state['maybe'][sub_id]={};state['skipped'][sub_id]={}
             try:self.state.save(state)
             except SyncError as error:raise SubscriptionError('store_unknown') from error
             return copy.deepcopy(row)
