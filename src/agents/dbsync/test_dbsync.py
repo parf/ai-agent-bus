@@ -186,6 +186,29 @@ class PollTests(Base):
         self.agent.poll()
         self.assertEqual(self.keys(),['1'])
 
+    def test_a_refused_subscriber_is_parked_and_stops_holding_the_window_for_the_others(self):
+        self.agent=self.make(window_max=3)
+        for k in range(1,11):self.db.put(k,f'2026-11-05 10:00:{k:02}')
+        self.subscribe(who='#gone@n.test');self.subscribe()
+        self.bus.deny.add(('#gone@n.test',QUEUE))
+        for _ in range(3):self.agent.poll()
+        self.assertEqual(len(self.keys()),3)   # the full window waits for the refused one
+        self.now[0]+=601
+        for _ in range(6):self.agent.poll()
+        status={s['position'] is None and 'gone' or 'ok':s for s in self.agent.status()['subscribers']}
+        self.assertEqual(status['gone']['parked']['reason'],'admission_refused')
+        self.assertEqual(sorted(self.keys(),key=int),[str(k) for k in range(1,11)])
+        self.bus.deny.clear()
+        for _ in range(8):self.agent.poll()
+        self.assertEqual(len(self.keys()),20)   # back in: it gets all ten from where it stood
+
+    def test_a_subscriber_added_after_the_window_was_pruned_still_gets_every_row(self):
+        for k in range(1,4):self.db.put(k,f'2026-11-05 10:00:0{k}')
+        self.subscribe();self.agent.poll()
+        self.assertEqual(self.agent.status()['window'],0)
+        self.subscribe(who='#late@n.test');self.agent.poll()
+        self.assertEqual(sorted(self.keys(),key=int),['1','1','2','2','3','3'])
+
 
 class CallTests(Base):
     def test_a_caller_without_a_role_is_refused_and_reset_needs_a_manager_and_confirm(self):

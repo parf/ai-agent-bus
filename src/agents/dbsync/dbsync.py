@@ -304,6 +304,10 @@ class DBSync:
                     here=pair
                 if here is not None:pos[sub_id]=list(here)
             self._prune(data)
+            # The window now covers only what lies above the lowest active position, so one that comes back below it
+            # (unparked, or new) makes the next poll read again from there.
+            any_active,floor=self._floor(data)
+            if any_active:meta['base']=floor
             self.state.save(data)
 
     def _confirmed(self,data,sub_id,key):
@@ -328,7 +332,8 @@ class DBSync:
         if why=='admission_refused':back=self._admitted(data['subs'][sub_id])
         else:back=bool(count.get('confirmed')) or not count.get('pending') and now-parked[sub_id]['since']>=wait
         if back:
-            del parked[sub_id];health.clear();self.warning('unparked',sub_id)
+            # Rows it has not had may have left the window while it was parked: the next poll reads again from the lowest position.
+            del parked[sub_id];health.clear();meta['started']=None;self.warning('unparked',sub_id)
 
     def _admitted(self,row):
         code,_=core._admit(self.bus,self.bus.name,row)
