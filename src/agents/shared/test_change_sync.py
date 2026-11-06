@@ -24,7 +24,7 @@ SOURCE='#filescan/vault@n.test'
 
 class Bus:
     def __init__(self):
-        self.allow={};self.kinds={};self.sent=[];self.calls=[];self.queries=[];self.replies={};self.send_refused=set()
+        self.allow={};self.kinds={};self.sent=[];self.calls=[];self.timeouts=[];self.delay=0;self.queries=[];self.replies={};self.send_refused=set()
     def may_send(self,who,target):
         self.queries.append((who,target));value=self.allow.get((who,target),True)
         if value=='404':raise Refusal(404,'absent')
@@ -35,7 +35,8 @@ class Bus:
         if to in self.send_refused:raise Refusal(403,'refused')
         self.sent.append((to,body,options));return 'id'
     def call(self,to,body,*,timeout,**options):
-        self.calls.append((to,body,options));value=self.replies.get(to,'ok')
+        self.calls.append((to,body,options));self.timeouts.append(timeout);value=self.replies.get(to,'ok')
+        if self.delay:time.sleep(self.delay)
         if value=='timeout':raise BusTimeout()
         if value=='refused':raise Refusal(403,'refused')
         if value=='done':return CallDone(SimpleNamespace(body=''))
@@ -118,6 +119,30 @@ class StateFileTests(Base):
         (self.dir/'state.json.tmp.99.dead').write_text('half');(self.dir/'other.txt').write_text('x')
         self.assertEqual(self.state.clean_temporaries(),1)
         self.assertEqual(self.state.path.read_bytes(),before);self.assertTrue((self.dir/'other.txt').exists())
+
+    def test_non_finite_numbers_are_not_state_on_save_or_on_load(self):
+        self.put({'k':item('old')});before=self.state.path.read_bytes()
+        for bad in (float('nan'),float('inf'),float('-inf')):
+            data=self.state.load();data['items']['k']={'fp':'x','n':bad}
+            with self.assertRaises(cs.SyncError,msg=repr(bad)) as c:self.state.save(data)
+            self.assertEqual(c.exception.code,'state_corrupt');self.assertEqual(self.state.path.read_bytes(),before)
+        for token in ('NaN','Infinity','-Infinity'):
+            self.state.path.write_text('{"version":1,"items":{"k":{"fp":"x","n":%s}},"subs":{},"marks":{},"meta":{}}'%token)
+            with self.assertRaises(cs.SyncError,msg=token) as c:self.state.load()
+            self.assertEqual(c.exception.code,'state_corrupt')
+        self.state.path.write_bytes(before)
+        data=self.state.load();data['meta']['o']=object()
+        with self.assertRaises(cs.SyncError) as c:self.state.save(data)
+        self.assertEqual(c.exception.code,'state_corrupt')
+
+    def test_cleaning_temporaries_never_runs_beside_another_writer(self):
+        live=self.dir/'state.json.tmp.1.live';live.write_text('in flight')
+        with self.state.hold():
+            other=cs.StateFile(self.dir)
+            with self.assertRaises(cs.SyncError) as c:other.clean_temporaries()
+            self.assertEqual(c.exception.code,'scan_busy')
+        self.assertTrue(live.exists())
+        self.assertEqual(self.state.clean_temporaries(),1);self.assertFalse(live.exists())
 
     def test_a_missing_work_directory_is_refused(self):
         with self.assertRaises(cs.SyncError) as c:cs.StateFile(self.dir/'nope')
@@ -232,9 +257,15 @@ class SubscriptionTests(Base):
     def test_an_add_waits_for_a_running_round_and_refuses_when_it_never_ends(self):
         subs=self.subs()
         with patch.object(cs,'HOLD_WAIT',0.1),self.state.hold():
-            with self.assertRaises(cs.SyncError) as c:subs.add(msg('#me@n.test'),'#t1@n.test',{})
-        self.assertEqual(c.exception.code,'scan_busy')
+            with self.assertRaises(SubscriptionError) as c:subs.add(msg('#me@n.test'),'#t1@n.test',{})
+        self.assertEqual(c.exception.code,'busy')
         with self.state.hold():self.assertEqual(len(subs.list(msg('#me@n.test'))),0)  # a list reads, so it needs no hold
+
+    def test_a_damaged_state_is_a_store_error_for_add_list_and_delete(self):
+        subs=self.subs();self.state.path.write_text('{broken')
+        for call in (lambda:subs.add(msg('#me@n.test'),'#t1@n.test',{}),lambda:subs.list(msg('#me@n.test')),lambda:subs.delete(msg('#me@n.test'),'0'*12)):
+            with self.assertRaises(SubscriptionError) as c:call()
+            self.assertEqual(c.exception.code,'store_unknown')
 
 
 class DeliveryTests(Base):
@@ -331,10 +362,44 @@ class DeliveryTests(Base):
 
     def test_a_crash_before_the_save_sends_the_batch_again(self):
         subs,row=self.add()
+        warnings=[]
         with patch.object(self.state,'save',side_effect=cs.SyncError('state_unwritable')):
-            with self.assertRaises(cs.SyncError):self.round()
+            r=self.round(warning=lambda code,sub:warnings.append(code))[row['id']]
+        self.assertEqual((r['unsaved'],warnings),(True,['state_unwritable']))
         self.assertEqual(len(cs.pending(self.state.load(),row['id'])),2)
         self.round();self.assertEqual(len(self.bus.sent),4)
+
+    def test_each_subscribers_confirmations_are_saved_before_the_next_is_tried(self):
+        subs,first=self.add();_,second=self.add('#q2@n.test');real=self.state.save;calls=[];warnings=[]
+        def flaky(data):
+            calls.append(1)
+            if len(calls)==2:raise cs.SyncError('state_full','state full: 1 of 1 bytes')
+            return real(data)
+        with patch.object(self.state,'save',flaky):
+            got=self.round(warning=lambda code,sub:warnings.append((code,sub)))
+        self.assertEqual(len(calls),2);self.assertEqual(warnings,[('state_full',second['id'])])
+        self.assertTrue(got[second['id']]['unsaved']);self.assertNotIn('unsaved',got[first['id']])
+        marks=self.state.load()['marks'];self.assertEqual(len(marks[first['id']]),2,'the earlier subscriber kept its marks')
+        self.assertEqual(len(marks[second['id']]),0)
+
+    def test_a_full_state_ends_the_round_so_nothing_unkeepable_is_sent(self):
+        subs,first=self.add();_,second=self.add('#q2@n.test');_,third=self.add('#q3@n.test')
+        with patch.object(self.state,'save',side_effect=cs.SyncError('state_full')):
+            got=self.round()
+        self.assertEqual(sorted(got),[first['id']],'ended after the first failed save')
+        self.assertEqual(len(self.bus.sent),2)
+
+    def test_a_silent_agent_cannot_hold_the_state_past_the_round_deadline(self):
+        self.put({f'k{n}':item(str(n)) for n in range(6)});subs,row=self.add('#rag@n.test',kind='agent');self.bus.delay=0.2;self.bus.replies['#rag@n.test']='timeout'
+        started=time.monotonic();self.round(deadline=started+0.5,confirm_wait=30)
+        self.assertLess(time.monotonic()-started,1.0)
+        self.assertTrue(all(t<=0.5 for t in self.bus.timeouts),self.bus.timeouts)
+
+    def test_an_add_during_a_slow_round_gets_through(self):
+        subs,row=self.add('#rag@n.test',kind='agent');self.bus.delay=0.4;self.bus.replies['#rag@n.test']='timeout'
+        thread=threading.Thread(target=lambda:self.round(deadline=time.monotonic()+0.8));thread.start();time.sleep(0.1)
+        added=subs.add(msg('#me@n.test'),'#q9@n.test',{});thread.join(10)
+        self.assertIn(added['id'],self.state.load()['subs'])
 
     def test_an_expired_deadline_sends_nothing(self):
         subs,row=self.add();r=self.round(deadline=time.monotonic()-1)[row['id']]
