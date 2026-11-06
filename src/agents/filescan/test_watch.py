@@ -69,6 +69,15 @@ class WatcherTests(unittest.TestCase):
         self.assertTrue(eventually(lambda:self.seen('d/deep/f.md')),self.got)
         self.assertEqual(made,[1],'the hook ran, so the watch was added after the file existed')
 
+    def test_a_file_made_while_the_new_directory_itself_gets_its_watch_is_still_reported(self):
+        self.start();real=self.w._watch;made=[]
+        def hooked(rel):
+            if rel=='top' and not made:made.append(1);(Path(self.root)/'top/g.md').write_text('early')
+            return real(rel)
+        self.w._watch=hooked
+        os.makedirs(Path(self.root)/'top')
+        self.assertTrue(eventually(lambda:self.seen('top/g.md')),self.got);self.assertEqual(made,[1])
+
     def test_a_deep_new_tree_is_listed_with_every_file_and_watched_in_every_directory(self):
         self.start();(Path(self.root)/'t/a/b').mkdir(parents=True);(Path(self.root)/'t/a/b/x.md').write_text('x');(Path(self.root)/'t/y.md').write_text('y')
         self.assertTrue(eventually(lambda:self.seen('t/a/b/x.md') and self.seen('t/y.md')),self.got)
