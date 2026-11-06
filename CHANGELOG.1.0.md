@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.17 — 2026-11-05
+
+runner install and remove staging is claimed atomically and swept only when its lock is free; a package link into a guarded directory is refused, failing closed
+
 ## 1.0.16 — 2026-11-05
 
 ls -h and bigfile ls -h print the human table even when piped; --help after any subcommand is local help

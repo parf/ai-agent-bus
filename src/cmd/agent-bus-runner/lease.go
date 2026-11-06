@@ -80,6 +80,7 @@ func leased(dir string) bool {
 		return !errors.Is(err, os.ErrNotExist)
 	}
 	defer f.Close()
-	err = syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
-	return err != nil && errors.Is(err, syscall.EWOULDBLOCK)
+	// Only a clean acquire shows the lease is unheld; EWOULDBLOCK, and any other error (ENOLCK on a
+	// network file system, EINTR), leave the directory alone.
+	return syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB) != nil
 }
