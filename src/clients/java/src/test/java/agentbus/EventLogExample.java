@@ -19,16 +19,20 @@ final class EventLogExample {
 
     /** The lines the example prints, for the fixture's address and tokens. */
     static List<String> run(String addr, Map<?, ?> tokens) {
-        Bus agent = dial(addr, tokens, "#caller@fixture"), owner = dial(addr, tokens, "owner@fixture"), stranger = dial(addr, tokens, "#outsider@fixture");
-        List<String> lines = new ArrayList<>();
-        Map<?, ?> entry = (Map<?, ?>) call(agent, "write #caller@fixture alert disk full").get("entry");
-        lines.add("written: " + entry.get("level") + " " + entry.get("text"));
-        List<?> alerts = (List<?>) ((Map<?, ?>) call(owner, "read #caller@fixture").get("rings")).get("alert");
-        lines.add("owner reads: " + alerts.size() + " alert, newest " + ((Map<?, ?>) alerts.get(0)).get("text"));
-        lines.add("owner lists: " + ((Map<?, ?>) ((List<?>) call(owner, "list").get("logs")).get(0)).get("log"));
-        lines.add("a third party: " + ((Map<?, ?>) call(stranger, "read #caller@fixture").get("error")).get("code"));
-        lines.add("the writer reading its own log: " + ((Map<?, ?>) call(agent, "read #caller@fixture").get("error")).get("code"));
-        return lines;
+        // Each Bus holds a reader and a connection: close it when done.
+        try (Bus agent = dial(addr, tokens, "#caller@fixture");
+             Bus owner = dial(addr, tokens, "owner@fixture");
+             Bus stranger = dial(addr, tokens, "#outsider@fixture")) {
+            List<String> lines = new ArrayList<>();
+            Map<?, ?> entry = (Map<?, ?>) call(agent, "write #caller@fixture alert disk full").get("entry");
+            lines.add("written: " + entry.get("level") + " " + entry.get("text"));
+            List<?> alerts = (List<?>) ((Map<?, ?>) call(owner, "read #caller@fixture").get("rings")).get("alert");
+            lines.add("owner reads: " + alerts.size() + " alert, newest " + ((Map<?, ?>) alerts.get(0)).get("text"));
+            lines.add("owner lists: " + ((Map<?, ?>) ((List<?>) call(owner, "list").get("logs")).get(0)).get("log"));
+            lines.add("a third party: " + ((Map<?, ?>) call(stranger, "read #caller@fixture").get("error")).get("code"));
+            lines.add("the writer reading its own log: " + ((Map<?, ?>) call(agent, "read #caller@fixture").get("error")).get("code"));
+            return lines;
+        }
     }
 
     private static Bus dial(String addr, Map<?, ?> tokens, String name) {

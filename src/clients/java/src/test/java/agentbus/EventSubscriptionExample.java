@@ -21,22 +21,25 @@ final class EventSubscriptionExample {
 
     /** The lines the example prints, for the fixture's address and tokens. */
     static List<String> run(String addr, Map<?, ?> tokens) {
-        Bus agent = dial(addr, tokens, "#caller@fixture"), owner = dial(addr, tokens, "owner@fixture");
-        List<String> lines = new ArrayList<>();
-        String id = (String) call(owner, "sub add jobs@fixture #caller@fixture alert").get("id");
-        lines.add("listed: " + ((List<?>) call(owner, "sub list #caller@fixture").get("subscriptions")).size() + " subscription");
-        Map<?, ?> deliveries = (Map<?, ?>) call(agent, "write #caller@fixture alert disk full").get("deliveries");
-        lines.add("delivered: " + deliveries.get("sent") + " copy");
-        Optional<Message> copy = owner.consume(Consume.waiting(Duration.ofMillis(300)).inbox("jobs@fixture"));
-        if (copy.isEmpty()) throw new IllegalStateException("no subscription copy");
-        Map<?, ?> entry = (Map<?, ?>) Json.parse(copy.get().body());
-        lines.add("copy from " + copy.get().from() + ": " + entry.get("level") + " " + entry.get("text"));
-        // A notice: nothing is acknowledged or marked done.
-        lines.add("one copy only: " + owner.consume(Consume.waiting(Duration.ofMillis(300)).inbox("jobs@fixture")).isEmpty());
-        call(owner, "sub delete " + id);
-        Map<?, ?> after = (Map<?, ?>) call(agent, "write #caller@fixture alert after cancellation").get("deliveries");
-        lines.add("after cancelling, matched: " + after.get("matched"));
-        return lines;
+        // Each Bus holds a reader and a connection: close it when done.
+        try (Bus agent = dial(addr, tokens, "#caller@fixture");
+             Bus owner = dial(addr, tokens, "owner@fixture")) {
+            List<String> lines = new ArrayList<>();
+            String id = (String) call(owner, "sub add jobs@fixture #caller@fixture alert").get("id");
+            lines.add("listed: " + ((List<?>) call(owner, "sub list #caller@fixture").get("subscriptions")).size() + " subscription");
+            Map<?, ?> deliveries = (Map<?, ?>) call(agent, "write #caller@fixture alert disk full").get("deliveries");
+            lines.add("delivered: " + deliveries.get("sent") + " copy");
+            Optional<Message> copy = owner.consume(Consume.waiting(Duration.ofMillis(300)).inbox("jobs@fixture"));
+            if (copy.isEmpty()) throw new IllegalStateException("no subscription copy");
+            Map<?, ?> entry = (Map<?, ?>) Json.parse(copy.get().body());
+            lines.add("copy from " + copy.get().from() + ": " + entry.get("level") + " " + entry.get("text"));
+            // A notice: nothing is acknowledged or marked done.
+            lines.add("one copy only: " + owner.consume(Consume.waiting(Duration.ofMillis(300)).inbox("jobs@fixture")).isEmpty());
+            call(owner, "sub delete " + id);
+            Map<?, ?> after = (Map<?, ?>) call(agent, "write #caller@fixture alert after cancellation").get("deliveries");
+            lines.add("after cancelling, matched: " + after.get("matched"));
+            return lines;
+        }
     }
 
     private static Bus dial(String addr, Map<?, ?> tokens, String name) {
