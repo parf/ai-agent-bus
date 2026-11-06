@@ -60,10 +60,12 @@ class Base(unittest.TestCase):
 
     def subs(self,bus=None,**kw):
         self.bus=bus or Bus()
+        # An explicit test contract: this fixture's agents answer {status:ok}. Production agents each name their own.
+        kw.setdefault('agent_contract',lambda selector:True)
         return cs.SyncSubscriptions(self.bus,SOURCE,self.state,validate_selector=lambda v:v,id_factory=lambda:next(self.ids),**kw)
 
     def round(self,**kw):
-        args=dict(matches=lambda row,key:True,body=lambda row,key,action,record:f'{action} {key}',topic='t',tag='x')
+        args=dict(matches=lambda row,key:True,body=lambda row,key,action,record:f'{action} {key}',topic='t',tag='x',ok=cs.reply_ok)
         args.update(kw);return cs.deliver(self.bus,SOURCE,self.state,**args)
 
 
@@ -283,6 +285,20 @@ class DeliveryTests(Base):
         self.assertEqual([b for _,b,_ in self.bus.sent],['create a','create b']);self.assertEqual(self.bus.sent[0][2],{'topic':'t','tag':'x'})
         self.assertEqual(self.round()[row['id']]['sent'],0);self.assertEqual(len(self.bus.sent),2)
         stored=self.state.load()['subs'][row['id']];self.assertEqual((stored['sent'],stored['confirmed'],stored['dropped']),(2,2,0))
+
+    def test_an_agent_target_needs_a_named_answer_contract_at_add_and_at_every_send(self):
+        self.bus=Bus();self.bus.kinds['#rag@n.test']='agent'
+        for contract in (None,lambda selector:False):
+            subs=cs.SyncSubscriptions(self.bus,SOURCE,self.state,validate_selector=lambda v:v,id_factory=lambda:next(self.ids),agent_contract=contract)
+            with self.assertRaises(SubscriptionError) as c:subs.add(msg('#me@n.test'),'#rag@n.test',{})
+            self.assertEqual(c.exception.code,'agent_contract_missing');self.assertEqual(self.state.load()['subs'],{})
+        subs,row=self.add('#rag@n.test',kind='agent')
+        warnings=[]
+        self.round(ok=None,warning=lambda code,sub=None:warnings.append(code));self.assertEqual(self.bus.calls,[],'no confirm function: nothing is sent')
+        self.assertEqual(warnings,['agent_contract_missing'])
+        self.round(agent_contract=lambda r:False);self.assertEqual(self.bus.calls,[],'a row the contract does not cover: nothing is sent')
+        self.assertEqual(self.state.load()['subs'][row['id']]['sent'],0)
+        queue=self.add('#q@n.test')[1];self.round(ok=None);self.assertEqual(len(self.bus.sent),2,'a queue needs no contract');self.assertEqual(self.bus.calls,[])
 
     def test_an_agent_must_answer_ok_before_a_change_is_done(self):
         subs,row=self.add('#rag@n.test',kind='agent')

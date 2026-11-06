@@ -38,7 +38,7 @@ DB_WAIT=10.0       # one #db query waits at most this long
 SUB_ROLES=frozenset({'read','write'})
 ERROR_TEXT={
     'invalid_request':'Invalid call; ask help.','forbidden':'This call needs a direct instance role.',
-    'invalid_selector':'Invalid subscription selector.','invalid_target':'Destination must be an agent or queue.',
+    'invalid_selector':'Invalid subscription selector.','invalid_target':'Destination must be an agent or queue.','agent_contract_missing':'An agent destination needs an answer contract: none exists yet; the destination must be a queue.',
     'invalid_id':'Invalid subscription id.','not_found':'No such subscription.','not_author':'Only the creator or direct instance managers may do this.',
     'limit':'Subscription limit reached.','admission_refused':'Creator is not admitted to the source, the DB agent or the destination.',
     'admission_unavailable':'Creator admission could not be checked.','store_unknown':'State storage failed or is damaged.',

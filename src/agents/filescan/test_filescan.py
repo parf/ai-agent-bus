@@ -97,13 +97,6 @@ class FlowTests(Base):
         self.put('a.md');self.put('b.txt');self.put('sub/c.md');self.add(extra=r'/\.md$/');self.call('scan')
         self.assertEqual(sorted(m['path'] for m in self.sent()),['a.md','sub/c.md'])
 
-    def test_an_unconfirmed_change_is_sent_again_and_a_second_subscriber_is_not_held_up(self):
-        self.put('a.md');self.bus.kinds['#rag@n.test']='agent';self.bus.replies['#rag@n.test']='timeout'
-        self.add('#rag@n.test');self.add('#q@n.test');self.call('scan')
-        self.assertEqual([to for to,_,_ in self.bus.sent],['#q@n.test']);self.bus.replies['#rag@n.test']='ok'
-        self.call('scan');self.assertEqual(len(self.bus.calls),2,'sent again, then confirmed');self.call('scan');self.assertEqual(len(self.bus.calls),2)
-        status=self.call('status');self.assertEqual({s['target']:s['pending'] for s in status['subscribers']},{'#rag@n.test':0,'#q@n.test':0})
-
     def test_the_cap_per_scan_spreads_a_big_first_run(self):
         self.agent=self.make({'max_per_scan':2});[self.put(f'f{n}.md') for n in range(5)];self.add()
         self.assertTrue(self.call('scan')['capped']);self.assertEqual(len(self.sent()),2)
@@ -158,6 +151,39 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(fs.parse('sub add #t@n as rag vault'),('sub.add',{'target':'#t@n','rag':True,'namespace':'vault'}))
         self.assertEqual(fs.parse('scan confirm:true'),('scan',{'confirm':True}));self.assertEqual(fs.parse('sub delete abc'),('sub.delete',{'id':'abc'}))
         self.assertEqual(fs.parse('{"method":"status"}'),('status',{}))
+
+
+
+class AgentTargetTests(Base):
+    """An agent that does not answer {status:ok} must not be a target: a confirmation nobody can give stalls the subscription."""
+    def test_the_real_eventlog_agent_never_answers_status_ok_to_a_change_message(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            log=eventlog_agent.Agent(shared_fixture.Bus('#worker@fixture'),{},tmp)
+            try:
+                ask=lambda body:log.handle(SimpleNamespace(body=body,ask=None,envelope={'from':NAME,'roles':['write']}))
+                raw=ask(json.dumps({'change':'created','path':'a.md','warning':fs.WARNING}))
+                valid=ask('write defaults notice ready')
+            finally:log.close()
+        for what,answer in (('a raw change message',raw),('a valid write',valid)):
+            result=CallReply(SimpleNamespace(body=answer))
+            self.assertFalse(core.reply_ok(result),what+' would never confirm under status:ok: '+answer[:80])
+        self.assertIn('invalid_request',raw);self.assertIn('entry',json.loads(valid));self.assertNotIn('status',json.loads(valid))
+
+    def test_an_agent_target_without_an_answer_contract_is_refused_naming_it_and_a_queue_is_not(self):
+        self.bus.kinds['#eventlog@n.test']='agent'
+        r=self.call('sub add #eventlog@n.test',who='#me@n.test')
+        self.assertEqual(r['error']['code'],'agent_contract_missing');self.assertIn('as rag',r['error']['text'])
+        self.assertEqual(self.call('sub list')['subscriptions'],[],'nothing was stored')
+        self.assertNotIn('error',self.call('sub add #q@n.test'));self.bus.kinds[RAG]='agent'
+        self.assertNotIn('error',self.call('sub add #rag@n.test as rag vault notes'))
+        self.assertEqual(self.call('sub add #rag@n.test /x/')['error']['code'],'agent_contract_missing','a filter is not a contract')
+
+    def test_an_agent_row_without_a_contract_sends_nothing(self):
+        self.put('a.md');self.bus.kinds['#eventlog@n.test']='agent';self.add('#q@n.test')
+        row=self.agent.state.load()['subs'];sub_id=next(iter(row));data=self.agent.state.load()
+        data['subs'][sub_id]['target']='#eventlog@n.test';data['subs'][sub_id]['selector']={};self.agent.state.save(data)
+        self.call('scan');self.assertEqual(self.bus.calls,[]);self.assertEqual(self.bus.sent,[])
+        self.assertIn('agent_contract_missing',self.warnings)
 
 
 if __name__=='__main__':unittest.main()
@@ -220,6 +246,11 @@ class GuardTests(Base):
 
 
 RAG='#rag@n.test'
+sys.path.insert(0,str(HERE.parent/'eventlog'))
+import eventlog as eventlog_agent
+import importlib.util as _util
+_spec=_util.spec_from_file_location('shared_subscription_fixture',HERE.parent/'shared/test_subscriptions.py')
+shared_fixture=_util.module_from_spec(_spec);_spec.loader.exec_module(shared_fixture)
 
 
 class RagBus(Bus):
@@ -245,6 +276,13 @@ class RagTests(Base):
         self.bus.kinds[RAG]='agent';return self.add(RAG,extra=extra)
 
     def calls(self):return [json.loads(b) for _,b,_ in self.bus.calls]
+
+    def test_an_unconfirmed_change_is_sent_again_and_a_second_subscriber_is_not_held_up(self):
+        self.put('a.md');self.bus.replies['#rag@n.test']='timeout'
+        self.rag();self.add('#q@n.test');self.call('scan')
+        self.assertEqual([to for to,_,_ in self.bus.sent],['#q@n.test']);self.bus.replies['#rag@n.test']='ok'
+        self.call('scan');self.assertEqual(len(self.bus.calls),2,'sent again, then confirmed');self.call('scan');self.assertEqual(len(self.bus.calls),2)
+        status=self.call('status');self.assertEqual({s['target']:s['pending'] for s in status['subscribers']},{'#rag@n.test':0,'#q@n.test':0})
 
     def test_a_real_rag_upsert_is_confirmed_by_its_record_and_never_sent_again(self):
         self.put('a.md','hello');self.rag();self.call('scan')

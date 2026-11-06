@@ -36,7 +36,7 @@ MAX_REQUEST=4096
 SUB_ROLES=frozenset({'read','write'})
 ERROR_TEXT={
     'invalid_request':'Invalid call; ask help.','invalid_config':'Invalid Configuration.','forbidden':'This call needs a direct instance role.',
-    'invalid_selector':'Invalid subscription selector.','invalid_filter':'Unsupported path filter.','invalid_target':'Destination must be an agent or queue.',
+    'invalid_selector':'Invalid subscription selector.','invalid_filter':'Unsupported path filter.','invalid_target':'Destination must be an agent or queue.','agent_contract_missing':'An agent destination needs an answer contract: `as rag` is the only one; any other target must be a queue.',
     'invalid_id':'Invalid subscription id.','not_found':'No such subscription.','not_author':'Only the creator or direct instance managers may do this.',
     'limit':'Subscription limit reached.','admission_refused':'Creator is not admitted to source or destination.',
     'admission_unavailable':'Creator admission could not be checked.','store_unknown':'State storage failed or is damaged.',
@@ -153,7 +153,7 @@ class FileScan:
         self.root=root
         self.warning=warning or (lambda code,sub=None:print('filescan: '+code+(' '+sub if sub else ''),file=sys.stderr))
         self.state=core.StateFile(work,max_bytes=self.settings['state_max'])
-        self.subs=core.SyncSubscriptions(bus,bus.name,self.state,validate_selector=selector,clock=clock)
+        self.subs=core.SyncSubscriptions(bus,bus.name,self.state,validate_selector=selector,agent_contract=lambda sel:bool(sel.get('rag')),clock=clock)
         self.lock=threading.Lock()
         self.matched={};self.skipped={}
         self.watcher=None;self.fallback=None;self._sent_delete=False;self._sent_upsert=None
@@ -236,7 +236,7 @@ class FileScan:
     def deliver(self):
         def matches(row,key):return self._wanted(row,key)
         def body(row,key,action,record):return self._body(row,key,action,record)
-        return core.deliver(self.bus,self.bus.name,self.state,matches=matches,body=body,topic='filescan',tag='change',batch=self.settings['batch'],warning=lambda code,sub=None:self.warning(code,sub),ok=self._confirm)
+        return core.deliver(self.bus,self.bus.name,self.state,matches=matches,body=body,topic='filescan',tag='change',batch=self.settings['batch'],warning=lambda code,sub=None:self.warning(code,sub),ok=self._confirm,agent_contract=lambda row:bool(row['selector'].get('rag')))
 
     def _confirm(self,result):
         """The target's reply counts as confirmed only when it shows the job done. A RAG upsert answers with the stored record: it counts

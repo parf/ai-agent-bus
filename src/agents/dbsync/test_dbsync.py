@@ -55,9 +55,9 @@ class FakeDB:
 
 class Bus:
     def __init__(self,db):
-        self.name=NAME;self.db=db;self.sent=[];self.deny=set()
+        self.name=NAME;self.db=db;self.sent=[];self.deny=set();self.kinds={}
     def may_send(self,who,target):return (who,target) not in self.deny
-    def record(self,name):return SimpleNamespace(lookup=lambda:{'name':name,'kind':'queue'})
+    def record(self,name):return SimpleNamespace(lookup=lambda:{'name':name,'kind':self.kinds.get(name,'queue')})
     def send(self,to,body,**options):self.sent.append((to,json.loads(body)));return 'id'
     def call(self,to,body,*,timeout,**options):
         if to!=DB:raise Refusal(404,'absent')
@@ -439,6 +439,13 @@ class CallTests(Base):
     def test_a_subscriber_must_be_able_to_reach_the_db_agent_itself(self):
         self.bus.deny.add((AUTHOR,DB))
         self.assertEqual(json.loads(self.agent.handle(msg(f'sub add {QUEUE}')))['error']['code'],'admission_refused')
+
+    def test_an_agent_destination_is_refused_because_dbsync_has_no_answer_contract_for_one(self):
+        self.bus.kinds['#eventlog@n.test']='agent'   # the real eventlog answers {entry,deliveries}, never status:ok
+        reply=json.loads(self.agent.handle(msg('sub add #eventlog@n.test')))
+        self.assertEqual(reply['error']['code'],'agent_contract_missing');self.assertIn('queue',reply['error']['text'])
+        self.assertEqual(json.loads(self.agent.handle(msg('sub list')))['subscriptions'],[])
+        self.subscribe()
 
     def test_a_db_agent_error_is_named_and_its_text_kept(self):
         self.db.fail='error: relation "orders" does not exist'

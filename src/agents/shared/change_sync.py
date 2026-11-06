@@ -199,9 +199,11 @@ def pending(state,sub_id,matches=lambda key:True):
 class SyncSubscriptions:
     """`sub add`, `sub list`, `sub delete` over the state file, with the shared authority rules."""
 
-    def __init__(self,bus,source,state,*,validate_selector,max_subscriptions=100,max_per_creator=20,clock=time.time,id_factory=lambda:uuid.uuid4().hex[:12]):
+    def __init__(self,bus,source,state,*,validate_selector,agent_contract=None,max_subscriptions=100,max_per_creator=20,clock=time.time,id_factory=lambda:uuid.uuid4().hex[:12]):
         self.bus,self.source,self.state=bus,base.target_text(source),state
         self.validate_selector,self.clock,self.id_factory=validate_selector,clock,id_factory
+        # An agent target is accepted only for a selector the owner names a tested answer contract for: `agent_contract(selector)` is true.
+        self.agent_contract=agent_contract
         if type(max_subscriptions) is not int or not 1<=max_subscriptions<=100 or type(max_per_creator) is not int or not 1<=max_per_creator<=20:
             raise SubscriptionError('limit')
         self.maximum,self.per_creator=max_subscriptions,max_per_creator
@@ -237,9 +239,12 @@ class SyncSubscriptions:
             for wanted in (target,self.source):
                 code=base.checked_admission(self.bus,who,wanted,cache)
                 if code:raise SubscriptionError(code)
-            try:target=base.destination(self.bus,target)
+            try:
+                target=base.destination(self.bus,target)
+                kind=self.bus.record(target).lookup()['kind']
             except SubscriptionError:raise
             except Exception:raise SubscriptionError('admission_unavailable') from None
+            if kind=='agent' and not (self.agent_contract and self.agent_contract(selector)):raise SubscriptionError('agent_contract_missing')
             sub_id=base.validate_id(self.id_factory())
             if sub_id in state['subs']:raise SubscriptionError('limit')
             row={'id':sub_id,'target':target,'selector':selector,'created_by':who,'created_at':base.stamp(self.clock),'sent':0,'confirmed':0,'dropped':0}
@@ -283,7 +288,7 @@ def reply_ok(result):
     return isinstance(body,dict) and body.get('status')=='ok' and 'error' not in body
 
 
-def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,deadline=None,warning=lambda code,sub_id:None,ok=reply_ok):
+def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,deadline=None,warning=lambda code,sub_id:None,ok=None,agent_contract=None):
     """One delivery round for every subscriber; returns {sub_id: counts}.
 
     - Per subscriber: pending changes in key order, at most `batch`; stops at the first one not confirmed, so order holds.
@@ -341,6 +346,9 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
                     if not code and time.monotonic()>=deadline:break  # the check itself may have used the time left
                     if code:
                         count['dropped']+=1;row['dropped']=min(base.MAX_SAFE,row['dropped']+1);warning(code,sub_id);break
+                    if kind=='agent' and (ok is None or (agent_contract is not None and not agent_contract(row))):
+                        # No answer contract for an agent: nothing is sent, because nothing could say it was done.
+                        count['dropped']+=1;row['dropped']=min(base.MAX_SAFE,row['dropped']+1);warning('agent_contract_missing',sub_id);break
                     try:payload=body(row,key,action,record)
                     except Exception:
                         # Built before the key counts as attempted: nothing was sent, so its record is taken back below.
