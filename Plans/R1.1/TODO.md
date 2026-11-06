@@ -235,10 +235,12 @@ Owner, 2026-11-02; approved 2026-11-05 ([Q334](resolved.md#Q334)); plan in [dbsy
 ## Web Face AI chat
 
 - ☐ T-34 Web Face AI chat backed by an `ab-*` session; moved from R1 by the owner, 2026-11-03.
-  - Home: [Web Face chat](ai-setup.md#web-face-chat).
+  - Home: [Web Face chat](ai-setup.md#web-face-chat), [the backing session](ai-setup.md#the-backing-session).
+  - Session: one tmux session running Codex, Claude Code or OpenCode, with bus knowledge and the configured AgentBus skills, bundled in the user-account runner, which most likely starts it on demand. `agent-bus cli` runs the runner command, then tmux attach; the Web Face runs the runner command, then a bus call, into the same tmux session. The chat is per page or generic (owner, 2026-11-03 19:31–19:42 EST, quoted in [the backing session](ai-setup.md#the-backing-session)).
   - Depends: T-33's Markdown workflow; inspect the owner's mdhouse implementation before design/build.
   - Acceptance: a real conversation reaches its backing session, asks for required setup choices, performs the chosen configuration flow and shows progress/results across turns.
   - Acceptance: an email or Telegram setup journey reuses T-33; an unavailable session or unfinished step is shown plainly rather than reported as success.
+  - Acceptance: `agent-bus cli` has the runner start a tmux session for each of the three runtimes and attaches to it; a second `agent-bus cli` attaches to the same session, and that session answers a bus question and lists the configured AgentBus skills; a page chat answers about the page it was opened from, and a generic chat reaches the same session; with no session running, the first Web Face chat has the runner start it; a question asked in the Web Face shows in the attached tmux session, so the runner holds one session, not two.
 
 ## Launcher tab titles
 
