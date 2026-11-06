@@ -296,6 +296,8 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
     - After a crash a subscriber may get a delete for a key it never received (the record is written for the whole batch before
       the sends): deletes must be idempotent. Never the other way: a delete is not lost.
     - The author's may-send to the target and to the source, and the target's record, are checked again before every send.
+    - A `body` that raises sends nothing: the key's possibly-delivered record is taken back, `body_failed` is warned and the
+      subscriber's batch stops there, so order holds.
     - A refusal, a timeout or no answer leaves the change pending; one stuck subscriber never holds up the others.
     - The round ends by `deadline` (default ROUND_MAX seconds from now) and no wait on a target runs past it, so a silent
       agent cannot keep the state held longer than a `sub add` or `sub delete` waits for it. Only the waits are
@@ -332,9 +334,12 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
                     if not code and time.monotonic()>=deadline:break  # the check itself may have used the time left
                     if code:
                         count['dropped']+=1;row['dropped']=min(base.MAX_SAFE,row['dropped']+1);warning(code,sub_id);break
+                    try:payload=body(row,key,action,record)
+                    except Exception:
+                        # Built before the key counts as attempted: nothing was sent, so its record is taken back below.
+                        warning('body_failed',sub_id);break
                     attempted.add(key)
                     try:
-                        payload=body(row,key,action,record)
                         if payload is None:
                             # Nothing to send this subscriber for it (the agent says why): done, never blocking the rest.
                             count['skipped']+=1

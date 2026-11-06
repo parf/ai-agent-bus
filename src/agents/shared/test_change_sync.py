@@ -475,6 +475,26 @@ class DeliveryTests(Base):
                 with self.assertRaises(cs.SyncError) as caught:self.state.load()
                 self.assertEqual(caught.exception.code,'state_corrupt')
 
+    def test_a_body_that_raises_sends_nothing_and_leaves_no_possibly_delivered_record(self):
+        subs,row=self.add('#rag@n.test',kind='agent');warnings=[]
+        def body(row,key,action,record):
+            if key=='a':raise ValueError('row unreadable')
+            return f'{action} {key}'
+        r=self.round(body=body,warning=lambda code,sub_id:warnings.append(code))[row['id']]
+        self.assertEqual((self.bus.calls,warnings,r['sent'],r['pending']),([],['body_failed'],0,2),'the batch stops at a so order holds')
+        self.assertEqual(self.state.load()['maybe'][row['id']],{},'nothing was sent, so nothing is possibly delivered')
+        data=self.state.load();del data['items']['a'];self.state.save(data);self.round()
+        self.assertEqual([b for _,b,_ in self.bus.calls],['create b'],'no delete for a key that was never sent')
+
+    def test_a_body_failure_takes_back_to_an_earlier_unknown_send_not_to_nothing(self):
+        subs,row=self.add('#rag@n.test',kind='agent');self.bus.replies['#rag@n.test']='timeout';self.round()
+        self.put({'a':item('1b')});self.bus.calls.clear();self.bus.replies['#rag@n.test']='ok'
+        def body(row,key,action,record):raise ValueError('row unreadable')
+        self.round(body=body)
+        self.assertEqual((self.bus.calls,self.state.load()['maybe'][row['id']]),([],{'a':'1'}),'the first send may still have been applied')
+        data=self.state.load();del data['items']['a'];self.state.save(data);self.round()
+        self.assertEqual([b for _,b,_ in self.bus.calls],['delete a','create b'])
+
     def test_an_unconfirmed_delete_stays_pending(self):
         subs,row=self.add('#rag@n.test',kind='agent');self.round()
         data=self.state.load();del data['items']['a'];self.state.save(data);self.bus.replies['#rag@n.test']='timeout'
