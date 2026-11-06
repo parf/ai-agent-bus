@@ -75,10 +75,10 @@ class StateFileTests(Base):
         self.assertEqual(stat.S_IMODE(self.state.path.stat().st_mode),0o600)
 
     def test_a_damaged_file_is_refused_never_read_as_empty(self):
-        for text in ('{not json','[]','{"version":2,"items":{},"subs":{},"marks":{},"meta":{}}',
-                     '{"version":1,"items":{"a":{"nofp":1}},"subs":{},"marks":{},"meta":{}}',
-                     '{"version":1,"items":{},"subs":{},"marks":{"zz":{}},"meta":{}}',
-                     '{"version":1,"items":{},"subs":{"a":{}},"marks":{},"meta":{}}'):
+        for text in ('{not json','[]','{"version":2,"items":{},"subs":{},"marks":{},"maybe":{},"meta":{}}',
+                     '{"version":1,"items":{"a":{"nofp":1}},"subs":{},"marks":{},"maybe":{},"meta":{}}',
+                     '{"version":1,"items":{},"subs":{},"marks":{"zz":{}},"maybe":{},"meta":{}}',
+                     '{"version":1,"items":{},"subs":{"a":{}},"marks":{},"maybe":{},"meta":{}}'):
             self.state.path.write_text(text)
             with self.assertRaises(cs.SyncError,msg=text) as c:self.state.load()
             self.assertEqual(c.exception.code,'state_corrupt')
@@ -127,7 +127,7 @@ class StateFileTests(Base):
             with self.assertRaises(cs.SyncError,msg=repr(bad)) as c:self.state.save(data)
             self.assertEqual(c.exception.code,'state_corrupt');self.assertEqual(self.state.path.read_bytes(),before)
         for token in ('NaN','Infinity','-Infinity'):
-            self.state.path.write_text('{"version":1,"items":{"k":{"fp":"x","n":%s}},"subs":{},"marks":{},"meta":{}}'%token)
+            self.state.path.write_text('{"version":1,"items":{"k":{"fp":"x","n":%s}},"subs":{},"marks":{},"maybe":{},"meta":{}}'%token)
             with self.assertRaises(cs.SyncError,msg=token) as c:self.state.load()
             self.assertEqual(c.exception.code,'state_corrupt')
         self.state.path.write_bytes(before)
@@ -415,6 +415,16 @@ class DeliveryTests(Base):
             got=self.round()
         self.assertEqual(sorted(got),[first['id']],'ended after the first failed save')
         self.assertEqual(self.bus.sent,[],'nothing was sent past a save that failed')
+
+    def test_a_save_that_fails_after_the_sends_ends_the_round_too(self):
+        subs,first=self.add();_,second=self.add('#q2@n.test');_,third=self.add('#q3@n.test');real=self.state.save;calls=[]
+        def flaky(d):
+            calls.append(1)
+            if len(calls)==2:raise cs.SyncError('state_full')  # the first subscriber's save after its sends
+            return real(d)
+        with patch.object(self.state,'save',flaky):got=self.round()
+        self.assertEqual((sorted(got),got[first['id']].get('unsaved')),([first['id']],True))
+        self.assertEqual({to for to,_,_ in self.bus.sent},{'#q@n.test'},'the others were not tried')
 
     def test_a_silent_agent_cannot_hold_the_state_past_the_round_deadline(self):
         self.put({f'k{n}':item(str(n)) for n in range(6)});subs,row=self.add('#rag@n.test',kind='agent');self.bus.delay=0.2;self.bus.replies['#rag@n.test']='timeout'
