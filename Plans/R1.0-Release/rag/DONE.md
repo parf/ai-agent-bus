@@ -2,11 +2,11 @@
 
 Completed steps of the [RAG TODO](TODO.md#steps), newest first.
 
-## R.10 Large Markdown files, RAG's side
+## R.10 Large Markdown files
 
-- **Built in:** app **0.4.2**, no shared bump; steps L.1 and L.3 of [large files](large-files.md#steps).
+- **Landed:** RAG's L.1 and L.3 at `a055ac62`, app **0.4.2**, no shared bump; FileScan's L.2 at `a254f562` (team 2); steps of [large files](large-files.md#steps).
 - **Built:** `upsert` by `bigfile` reference up to 1 MiB, downloaded and checked before any paid call, worked to the sender's deadline (at most 30 minutes, refused under 120 s); md-heading-v1 chunks keyed by heading path, sibling ordinal and part, at most 256; per-chunk hashes, each paid batch stored at once and the head last; a vector reused only for byte-equal text under the same key; `get` with `check:true`; hits cite `heading_path` and `lines`; a delete of a headless id sweeps its chunks. Small-record heads keep answering unchanged, with no reindex. [Guide](../../../docs/agents/rag.md#large-markdown-files).
-- **Not built:** FileScan's side (L.2, team 2), including its replay fixture.
+- **FileScan:** L.2 sends a Markdown file over 32 KiB and within 1 MiB by bigfile reference, in flight to its own deadline and settled only by RAG's completeness check. [Guide](../../../docs/agents/filescan.md#what-it-does).
 - **Checks:** fixture-only, no live provider call. 17 mutants in `test_large` killed on assertions; a recorded 200 KiB session (`fixtures/large-session.jsonl`) fails when an edit re-embeds every section.
 - **Reader:** `#ab-w1b`.
 
