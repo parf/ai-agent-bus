@@ -170,7 +170,8 @@ def reset(state):
 
 
 def pending(state,sub_id,matches=lambda key:True):
-    """What this subscriber has not confirmed: (key, 'upsert'|'delete', record), sorted by key.
+    """What this subscriber has not confirmed: (key, 'create'|'change'|'delete', record), sorted by key.
+    A key the subscriber has no mark for is `create`, one whose mark differs is `change`, one it has a mark for that is gone is `delete`.
 
     Derived from the items and the subscriber's marks, so a send that was never
     confirmed is pending again without any separate bookkeeping.
@@ -180,7 +181,8 @@ def pending(state,sub_id,matches=lambda key:True):
         if not matches(key):continue
         record=state['items'].get(key)
         if record is None:result.append((key,'delete',None))
-        elif mark.get(key)!=record['fp']:result.append((key,'upsert',record))
+        elif key not in mark:result.append((key,'create',record))
+        elif mark[key]!=record['fp']:result.append((key,'change',record))
     return result
 
 

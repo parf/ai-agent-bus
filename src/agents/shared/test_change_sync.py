@@ -176,7 +176,7 @@ class PendingTests(Base):
         data['items']={'a':item('1'),'b':item('2'),'c':item('3')}
         data['marks']={'s':{'a':'1','b':'old','gone':'9'}}
         got=cs.pending({**data,'subs':{}} if False else data,'s')
-        self.assertEqual([(k,a) for k,a,_ in got],[('b','upsert'),('c','upsert'),('gone','delete')])
+        self.assertEqual([(k,a) for k,a,_ in got],[('b','change'),('c','create'),('gone','delete')])
         self.assertEqual([k for k,_,_ in cs.pending(data,'s',lambda k:k!='gone')],['b','c'])
         self.assertEqual(len(cs.pending(data,'nobody')),3)
 
@@ -280,7 +280,7 @@ class DeliveryTests(Base):
         subs,row=self.add()
         result=self.round()
         self.assertEqual(result[row['id']],{'sent':2,'confirmed':2,'dropped':0,'pending':0})
-        self.assertEqual([b for _,b,_ in self.bus.sent],['upsert a','upsert b']);self.assertEqual(self.bus.sent[0][2],{'topic':'t','tag':'x'})
+        self.assertEqual([b for _,b,_ in self.bus.sent],['create a','create b']);self.assertEqual(self.bus.sent[0][2],{'topic':'t','tag':'x'})
         self.assertEqual(self.round()[row['id']]['sent'],0);self.assertEqual(len(self.bus.sent),2)
         stored=self.state.load()['subs'][row['id']];self.assertEqual((stored['sent'],stored['confirmed'],stored['dropped']),(2,2,0))
 
@@ -292,7 +292,7 @@ class DeliveryTests(Base):
         self.assertEqual(len(self.bus.calls),1,'stops at the first unconfirmed change')
         self.bus.replies['#rag@n.test']='ok'
         r=self.round()[row['id']];self.assertEqual((r['confirmed'],r['pending']),(2,0))
-        self.assertEqual([b for _,b,_ in self.bus.calls],['upsert a','upsert a','upsert b'],'the unconfirmed one was sent again')
+        self.assertEqual([b for _,b,_ in self.bus.calls],['create a','create a','create b'],'the unconfirmed one was sent again')
 
     def test_no_answer_a_refusal_and_a_send_refusal_leave_the_change_pending(self):
         for reply,warn in (('timeout','send_unknown'),('refused','send_refused'),('not json','unconfirmed')):
@@ -341,14 +341,14 @@ class DeliveryTests(Base):
 
     def test_at_most_batch_changes_go_per_round_in_key_order(self):
         self.put({f'k{n}':item(str(n)) for n in range(5)});subs,row=self.add()
-        r=self.round(batch=3)[row['id']];self.assertEqual(([b for _,b,_ in self.bus.sent],r['pending']),(['upsert a','upsert b','upsert k0'],4))
+        r=self.round(batch=3)[row['id']];self.assertEqual(([b for _,b,_ in self.bus.sent],r['pending']),(['create a','create b','create k0'],4))
         self.assertEqual(self.round(batch=3)[row['id']]['pending'],1);self.assertEqual(self.round(batch=3)[row['id']]['pending'],0)
 
     def test_a_changed_item_is_sent_again_and_a_removed_one_is_a_delete(self):
         subs,row=self.add();self.round();self.bus.sent.clear()
         data=self.state.load();data['items']['a']=item('1b');del data['items']['b'];self.state.save(data)
         r=self.round()[row['id']]
-        self.assertEqual(([b for _,b,_ in self.bus.sent],r['pending']),(['upsert a','delete b'],0))
+        self.assertEqual(([b for _,b,_ in self.bus.sent],r['pending']),(['change a','delete b'],0))
         self.assertEqual(self.state.load()['marks'][row['id']],{'a':'1b'})
 
     def test_an_unconfirmed_delete_stays_pending(self):
@@ -358,7 +358,7 @@ class DeliveryTests(Base):
 
     def test_the_matcher_decides_what_a_subscriber_sees(self):
         subs,row=self.add();self.round(matches=lambda sub,key:key=='b')
-        self.assertEqual([b for _,b,_ in self.bus.sent],['upsert b'])
+        self.assertEqual([b for _,b,_ in self.bus.sent],['create b'])
 
     def test_a_crash_before_the_save_sends_the_batch_again(self):
         subs,row=self.add()
