@@ -90,7 +90,7 @@ SHARDS=(core go_checks go_unit go_release agent_packages process_titles readers 
   orphans transfer corrupt_pair supervisor
   mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename web_ts samples tls_port
   client_python client_rust client_php client_typescript client_java client_go client_examples agent_guide
-  agent_slack agent_telegram agent_discord agent_server_info agent_systemd agent_git agent_logwatch agent_sessions agent_ai agent_sms agent_voyage agent_db agent_qdrant agent_rag agent_webhook agent_fetch agent_smtp agent_imap agent_cron agent_at agent_filescan agent_subscriptions container_image distro_install agent_eventlog)
+  agent_slack agent_telegram agent_discord agent_server_info agent_systemd agent_git agent_logwatch agent_sessions agent_ai agent_sms agent_voyage agent_db agent_qdrant agent_rag agent_webhook agent_fetch agent_smtp agent_imap agent_cron agent_at agent_filescan agent_dbsync agent_subscriptions container_image distro_install agent_eventlog)
 if [ -n "$SHARD" ]; then
   case " ${SHARDS[*]} " in
     *" $SHARD "*) ;;
@@ -4267,6 +4267,22 @@ agent_filescan() {
   else skipped=$((skipped+1)); fi
 }
 
+agent_dbsync() {
+  if normal; then
+    sec "dbsync: statements per dialect, cursor and paging, lookback, soft delete, confirmed delivery, real MySQL and PostgreSQL"
+    local out rc
+    out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest agents.dbsync.test_dbsync agents.dbsync.test_statements_golden -v 2>&1); rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "dbsync statements, cursor, lookback, soft delete, park and confirmed delivery against a fake DB agent" "$rc"
+    # The real engines through the DB agent's own code, under journal-quiet like the database proxy's fixtures (J32).
+    out=$(PYTHONDONTWRITEBYTECODE=1 timeout 300 ./journal-quiet.sh ab-db-fixture python3 -m unittest discover -s agents/dbsync -p 'test_dbsync_engines.py' -v 2>&1); rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "dbsync pages, catches a late commit once and sends a soft delete on MariaDB and PostgreSQL" "$rc"
+    has "the dbsync engine fixtures wrote nothing to the host journal" "$out" "^journal-quiet: no journal entry for ab-db-fixture$"
+    out=$(PYTHONDONTWRITEBYTECODE=1 python3 agents/db/fixtures.py leaked 2>&1)
+    is_empty "no dbsync engine container outlives its test" "$out"
+  else skipped=$((skipped+1)); fi
+}
 agent_subscriptions() {
   sec "shared subscription vectors, authority and bounded delivery"
   local out rc

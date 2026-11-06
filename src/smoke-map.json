@@ -378,6 +378,18 @@
         "src/agents/shared/metadata.py"
       ]
     },
+    "agent_dbsync": {
+      "tags": "L",
+      "paths": [
+        "src/agents/dbsync/",
+        "src/agents/shared/change_sync.py",
+        "src/agents/shared/subscriptions.py",
+        "src/agents/shared/subscription_filters.py",
+        "src/agents/shared/metadata.py",
+        "src/agents/db/db.py",
+        "src/agents/db/fixtures.py"
+      ]
+    },
     "agent_subscriptions": {
       "tags": "L",
       "paths": [
@@ -1006,6 +1018,36 @@
           "agents/filescan",
           "-p",
           "test_scan.py",
+          "-v"
+        ]
+      }
+    ],
+    "agent_dbsync": [
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "agents/dbsync",
+          "-p",
+          "test_dbsync.py",
+          "-v"
+        ]
+      },
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "agents/dbsync",
+          "-p",
+          "test_statements_golden.py",
           "-v"
         ]
       }

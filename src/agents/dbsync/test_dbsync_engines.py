@@ -1,7 +1,7 @@
 """DBSync against real engines, through the DB agent's own code under its read tier: the db fixture's MariaDB and PostgreSQL.
 
-Slow-set lines: they start the shared db fixture (rootless podman for PostgreSQL), so they run only under the
-smoke-gate lock. What they prove that the sqlite fake cannot: each dialect's quoting and case, current_schema(),
+Normal-set lines of the agent_dbsync shard: they start the shared db fixture (rootless podman for PostgreSQL), so a
+hand run takes the smoke-gate lock like a gate. What they prove that the sqlite fake cannot: each dialect's quoting and case, current_schema(),
 the time query against a zoned and a naive column, microsecond ties, and the read tier refusing nothing DBSync sends.
 """
 import importlib.util
