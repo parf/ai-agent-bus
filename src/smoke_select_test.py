@@ -201,6 +201,13 @@ class Selection(unittest.TestCase):
             selected = self.plan(paths)['checks']
             self.assertEqual([selected[n] for n in ('go_checks', 'go_unit', 'go_release')], ['normal'] * 3)
 
+    def test_daemon_api_doc_selects_the_go_route_contract(self):
+        # api/route_contract_test.go reads docs/09-daemon-api.md; an edit there ran no Go test (J111).
+        p = self.plan(['docs/09-daemon-api.md'])
+        self.assertEqual(self.plan(['docs/09-daemon-api.md'], 'fast')['fallback'], '')
+        self.assertEqual(p['reasons']['E'], 'changed: docs/09-daemon-api.md')
+        self.assertEqual(p['checks']['go_unit'], 'normal')
+
     def test_map_covers_every_shard_and_core_section(self):
         script = (ROOT/'src/smoke.sh').read_text()
         names = re.search(r'SHARDS=\((.*?)\)', script, re.S)[1].split()
