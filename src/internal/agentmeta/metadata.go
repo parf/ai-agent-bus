@@ -108,6 +108,9 @@ type Config struct {
 type Needs struct {
 	Network []string `json:"network,omitempty"`
 	Memory  string   `json:"memory,omitempty"`
+	// Dir asks the runner to bind the directory named by the agent's
+	// Configuration key "dir" read-only, after resolving and checking it.
+	Dir bool `json:"dir,omitempty"`
 }
 
 // Manifest includes the existing runner fields so both consumers reject the

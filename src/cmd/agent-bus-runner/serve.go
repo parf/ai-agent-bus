@@ -87,7 +87,7 @@ type launchSettings struct {
 func (r *runner) launchSettings(s *served) launchSettings {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return launchSettings{read: r.codeReads(s.in, s.dir), key: s.in.Key, agent: s.in.Agent, cmd: s.cmd, env: s.env, secretEnv: s.secretEnv, box: s.box, net: s.net, jail: s.jail, over: s.in.Over, stream: s.stream}
+	return launchSettings{read: append(r.codeReads(s.in, s.dir), dirReads(s.in.Agent, s.env)...), key: s.in.Key, agent: s.in.Agent, cmd: s.cmd, env: s.env, secretEnv: s.secretEnv, box: s.box, net: s.net, jail: s.jail, over: s.in.Over, stream: s.stream}
 }
 
 // serveable says why an agent cannot be served by this wave, or "".
@@ -152,6 +152,10 @@ func (r *runner) environmentWithSecrets(in installed, as *client) ([]string, []s
 	env, err = configuration(context.Background(), as, r.agentName(in), env)
 	if err != nil {
 		return nil, nil, "its configuration: " + err.Error()
+	}
+	env, why := r.bindDir(in.Agent, env)
+	if why != "" {
+		return nil, nil, "its configuration: " + why
 	}
 	for _, warning := range agentmeta.Manifest(in.Agent).ConfigWarnings(env) {
 		fmt.Fprintf(r.say, "%s: warning: %s\n", r.agentName(in), warning)
