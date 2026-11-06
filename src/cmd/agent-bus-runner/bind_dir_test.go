@@ -193,9 +193,11 @@ func TestTheCheckedDirectoryIsBoundReadOnlyAndNothingElseIsWritable(t *testing.T
 func TestAnAgentThatAsksForADirGetsItBoundFromItsConfigurationAndIsRefusedOtherwise(t *testing.T) {
 	r, b, _ := configurationFixture(t, "itself", "true")
 	s := r.served["#fixture@h"]
-	s.in.Agent.Needs = &agentmeta.Needs{Dir: true}
 	vault := realTemp(t)
+	r.mu.Lock()
+	s.in.Agent.Needs = &agentmeta.Needs{Dir: true}
 	s.in.Host.Roots = []string{filepath.Dir(vault)}
+	r.mu.Unlock()
 
 	if _, why := r.environment(s.in, s.bus); !strings.HasPrefix(why, "its configuration: needs.dir: ") {
 		t.Fatalf("unconfigured: why %q", why)
@@ -207,7 +209,9 @@ func TestAnAgentThatAsksForADirGetsItBoundFromItsConfigurationAndIsRefusedOtherw
 	if why != "" || !slices.Contains(env, "AGENT_BUS_DIR="+vault) {
 		t.Fatalf("configured: env %v, why %q", env, why)
 	}
+	r.mu.Lock()
 	s.env = env
+	r.mu.Unlock()
 	launch := r.launchSettings(s)
 	if !slices.Equal(launch.roots, s.in.Host.Roots) {
 		t.Fatalf("launch roots %v", launch.roots)
@@ -368,8 +372,10 @@ func TestAPerMessageLaunchBindsTheCheckedDirAndRefusesAChangedOne(t *testing.T) 
 	r, b, _ := configurationFixture(t, "", `printf '%s' "${AGENT_BUS_DIR-unset}"`)
 	s := r.served["#fixture@h"]
 	vault := realTemp(t)
+	r.mu.Lock()
 	s.in.Agent.Needs = &agentmeta.Needs{Dir: true}
 	s.in.Host.Roots = []string{filepath.Dir(vault)}
+	r.mu.Unlock()
 	ask := func() string {
 		t.Helper()
 		r.runOne(s, protocol.Envelope{ID: "dir", From: "owner@h", To: s.name, Body: "go"})
@@ -393,8 +399,10 @@ func TestAKeptLaunchChecksTheDirOnTheConfigurationItJustRead(t *testing.T) {
 	r, b, _ := configurationFixture(t, "itself", `while :; do sleep .02; done`)
 	s := r.served["#fixture@h"]
 	vault := realTemp(t)
+	r.mu.Lock()
 	s.in.Agent.Needs = &agentmeta.Needs{Dir: true}
 	s.in.Host.Roots = []string{filepath.Dir(vault)}
+	r.mu.Unlock()
 	for _, tc := range []struct {
 		dir, want string
 	}{{vault, ""}, {"/", "needs.dir"}, {"relative", "needs.dir"}, {filepath.Join(vault, "missing"), "needs.dir"}} {
@@ -413,7 +421,9 @@ func TestAKeptLaunchChecksTheDirOnTheConfigurationItJustRead(t *testing.T) {
 
 func TestAPooledLaunchRefusesAnUnconfiguredDir(t *testing.T) {
 	st, _ := streamFixture(t, `cat`, 1)
+	st.r.mu.Lock()
 	st.s.in.Agent.Needs = &agentmeta.Needs{Dir: true}
+	st.r.mu.Unlock()
 	if _, err := st.start(); err == nil || !strings.Contains(err.Error(), "needs.dir") {
 		t.Fatalf("start with no dir: %v", err)
 	}

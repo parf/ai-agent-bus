@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.33 — 2026-11-06
+
+New FileScan agent watches an Owner-granted directory and syncs file changes to subscribers, with a RAG form; the runner binds needs.dir read-only inside configured roots
+
 ## 1.0.32 — 2026-11-06
 
 One lane rule from the parsed method serves every #bus call; sub add and sub delete are mutations, and WRITE or a nested write is no longer treated as a write
