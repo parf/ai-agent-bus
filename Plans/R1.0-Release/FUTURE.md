@@ -86,3 +86,9 @@ Deferred by the owner on 2026-10-30; use the [manual macOS uninstall steps](mac2
 - **For R1.1 — L1:** MySQL and PostgreSQL connections do not require TLS, and ClickHouse can send its key over plain HTTP to a non-loopback host. Add explicit TLS configuration and a clear refusal or warning for an unprotected remote connection.
 - **Deferred:** the db agent is disabled on this node and no owner use needs it in R1 (`#ab-dir`, 2026-11-01).
 - **To start it:** the R1.1 agent security work, or an owner use that needs the database agent sooner.
+
+## One reply route per key
+
+- **What:** the shared chat router (`src/agents/shared/router.ts`, Telegram, Slack and Discord) keeps every reply route, tag and gone mark in one KV value, rewritten whole on each change and kept under half the value limit by evicting the routes that expire first ([L4](../issues/2026-10/2026-10-19.md#bundled-agents)). One route per key would remove the cap and the whole-value rewrite.
+- **Deferred:** by `#ab-dir`, 2026-11-05; the minimal fix bounds the value and names every expired or evicted reply.
+- **To start it:** evictions show up in a router's log during normal use, or the rewrite cost shows in a profile.
