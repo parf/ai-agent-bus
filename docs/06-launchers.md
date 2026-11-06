@@ -78,7 +78,7 @@ Launchers set terminal titles and colors when the terminal supports them.
 |---|---|
 | Title | `<glyph> <label>`, glyph first so a narrow tab still tells sessions apart; no runtime word |
 | Glyph | ✴️ Claude, 🔶 `-2`, 🌟 `-3`, 🔷 `-4`; ❇️ Codex; 👾 OpenCode. Without a flag, a `CLAUDE_CONFIG_DIR` named `.claude2`–`.claude4` selects that account |
-| Label | The first of: the session's own choice through `ab_tab_title`, `AB_TAB_TITLE` from the start script, the bus name's distinguishing part (`#ab-w1b` → `ab-w1b`, `#claude/home@node` → `home`), the session name, the launch directory. Refresh when any of them changes |
+| Label | The first of: the session's own choice (`ab_tab_title`, or a title set in the runtime's UI while it runs), `AB_TAB_TITLE` from the start script, the bus name's distinguishing part (`#ab-w1b` → `ab-w1b`, `#claude/home@node` → `home`), the session name, the launch directory. Refresh when any of them changes |
 | `ab_tab_title` | No argument answers the current and the recommended label; a label sets it until the launcher restarts, when the recommendation returns. Terminal only: never the bus name, the identity or the session title, so it carries no authority. The MCP instructions name the recommended label |
 | Label text | Every label, the launch directory included: control characters (C0, C1, ESC, BEL) and bidi overrides are removed and whitespace collapsed; at most 24 whole graphemes and 96 UTF-16 units |
 | tmux | The window is renamed `<name> <glyph>`; its name before the launcher is saved on the window and put back on exit. After a crash, the next launcher in that window starts from the saved name. A `#` is passed literally, never as a tmux format |

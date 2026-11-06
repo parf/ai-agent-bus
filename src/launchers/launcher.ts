@@ -592,7 +592,8 @@ ${COPYRIGHT}`);
         // A UI title changes the terminal, not the record’s explicit purpose.
         label = next;
         session.name = title;
-        terminal?.set(next);
+        // A title chosen in the runtime's UI is the session choosing its tab label.
+        try { terminal?.setLabel(next); } catch { /* nothing printable: keep the label */ }
         faceEnv.AGENT_BUS_DESCR = description ?? "";
         saveEnv();
       }
