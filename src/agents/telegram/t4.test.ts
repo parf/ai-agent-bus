@@ -34,6 +34,9 @@ beforeAll(async () => {
   const fake = Bun.serve({ port: 0, hostname: "127.0.0.1", async fetch(req) {
     const method = new URL(req.url).pathname.split("/").pop()!;
     if (method === "getUpdates") return Response.json({ ok: true, result: [] }); // the receiver polls; not recorded
+    // The agent asks getMe at start and, until the answer names the bot, again after 1 s, 2 s, 4 s: those
+    // asks must never reach a test's script or its call list (a 1 s retry_after test counted one).
+    if (method === "getMe") return Response.json({ ok: true, result: { id: 42, is_bot: true, username: "t4_bot" } });
     const body = await req.json().catch(() => ({}));
     calls.push({ method, body });
     const out = script(method);
