@@ -24,4 +24,8 @@ Team (start it through the bus, never by hand)
 - Tickets go to #ab-dir only (topic = T-n, tag ab-dvp). #ab-dir reports back to you.
 - A window stuck: agent-bus call '#tmux-sessions/ab-dvp@parf.us' 'restart <window>'
 
+Deploys
+- Start only when `agent-bus holders smoke-gate@parf.us` shows no locks. A daemon restart first holds both leads through #ab-dir, then takes a daemon backup.
+- Never take the smoke-gate lock yourself: #ab-gate holds it as parf too, so a parf hold looks like its own and fails the queued landing (2026-11-06 01:02).
+
 On start: local/start-team --run, then --roles, then tell the owner who is up.
