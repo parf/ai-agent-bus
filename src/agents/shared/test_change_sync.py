@@ -455,6 +455,12 @@ class DeliveryTests(Base):
         data=self.state.load();del data['items']['a'];self.state.save(data);self.bus.replies['#rag@n.test']='ok';self.bus.calls.clear()
         self.round(body=lambda sub,key,action,record:f'{action} {key}');self.assertIn('delete a',[b for _,b,_ in self.bus.calls])
 
+    def test_a_create_skipped_on_first_sight_leaves_no_possibly_delivered_record(self):
+        subs,row=self.add();skip=lambda sub,key,action,record:None if key=='a' else f'{action} {key}'
+        self.round(body=skip);self.assertNotIn('a',self.state.load()['maybe'][row['id']],'nothing was ever sent for a, so it is not possibly delivered')
+        self.assertEqual(self.state.load()['marks'][row['id']]['a'],'1','but it is done: it is not skipped again every round')
+        self.assertEqual(self.round(body=skip)[row['id']]['skipped'],0)
+
     def test_a_skipped_delete_clears_its_record_and_does_not_loop(self):
         subs,row=self.add('#rag@n.test',kind='agent');self.bus.replies['#rag@n.test']='timeout';self.round()
         data=self.state.load();del data['items']['a'];self.state.save(data)

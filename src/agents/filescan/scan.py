@@ -36,33 +36,42 @@ def walk(root,include,exclude,sub=''):
     try:top=open_dir(root,sub)
     except OSError as error:
         yield ('direrror',sub,error.errno);return
-    stack=[(top,lead)]
+    # Open descriptors are only those along the current path, and each is on the stack before anything is yielded,
+    # so closing the generator at any point closes them all, and a wide directory costs no more than a deep one.
+    stack=[]
+    def listing(fd):
+        try:return sorted(os.scandir(fd),key=lambda e:e.name),None
+        except OSError as error:return None,error.errno
     try:
+        entries,err=listing(top)
+        if err is not None:
+            os.close(top);yield ('direrror',sub,err);return
+        stack.append((top,iter(entries),lead))
         while stack:
-            fd,prefix=stack.pop()
+            fd,it,prefix=stack[-1]
+            entry=next(it,None)
+            if entry is None:
+                stack.pop();os.close(fd);continue
+            rel=prefix+entry.name
             try:
-                try:entries=sorted(os.scandir(fd),key=lambda e:e.name)
-                except OSError as error:
-                    yield ('direrror',prefix[:-1],error.errno);continue
-                children=[]
-                for entry in entries:
-                    rel=prefix+entry.name
-                    try:
-                        if entry.is_symlink():continue
-                        if entry.is_dir(follow_symlinks=False):
-                            if excluded(rel,exclude):continue
-                            try:children.append((os.open(entry.name,OPEN_DIR,dir_fd=fd),rel+'/'))
-                            except OSError as error:yield ('direrror',rel,error.errno)
-                            continue
-                        if not selected(rel,include,exclude):continue
-                        st=entry.stat(follow_symlinks=False)
+                if entry.is_symlink():continue
+                if entry.is_dir(follow_symlinks=False):
+                    if excluded(rel,exclude):continue
+                    try:child=os.open(entry.name,OPEN_DIR,dir_fd=fd)
                     except OSError as error:
-                        yield ('error',rel,error.errno);continue
-                    if stat.S_ISREG(st.st_mode):yield ('file',rel,st)
-                stack.extend(reversed(children))
-            finally:os.close(fd)
+                        yield ('direrror',rel,error.errno);continue
+                    found,err=listing(child)
+                    if err is not None:
+                        os.close(child);yield ('direrror',rel,err);continue
+                    stack.append((child,iter(found),rel+'/'))
+                    continue
+                if not selected(rel,include,exclude):continue
+                st=entry.stat(follow_symlinks=False)
+            except OSError as error:
+                yield ('error',rel,error.errno);continue
+            if stat.S_ISREG(st.st_mode):yield ('file',rel,st)
     finally:
-        for fd,_ in stack:os.close(fd)
+        for fd,_,_ in stack:os.close(fd)
 
 
 def is_blocked(key,blocked):

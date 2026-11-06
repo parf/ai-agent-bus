@@ -7,6 +7,7 @@ import sys
 import tempfile
 import time
 import unittest
+import unittest.mock
 
 HERE=Path(__file__).resolve().parent
 sys.path.insert(0,str(HERE))
@@ -71,6 +72,56 @@ class LinkTests(Tree):
         put(outside,'secret.md','secret')
         p=Path(self.root)/'f.md';p.unlink();os.symlink(Path(outside)/'secret.md',p)
         with self.assertRaises(OSError):scan.digest(self.root,'f.md',100)
+
+
+class WalkDescriptorTests(Tree):
+    def fds(self):return len(os.listdir('/proc/self/fd'))
+
+    def test_closing_the_walk_midway_leaves_no_descriptor_open(self):
+        for n in range(6):put(self.root,f'd{n}/sub/f.md')
+        put(self.root,'top.md')
+        before=self.fds();gen=scan.walk(self.root,self.s['include'],self.s['exclude']);next(gen);gen.close()
+        self.assertEqual(self.fds(),before)
+        gen=scan.walk(self.root,self.s['include'],self.s['exclude']);[next(gen) for _ in range(3)];gen.close();self.assertEqual(self.fds(),before)
+
+    def test_a_walk_that_raises_midway_leaks_nothing(self):
+        for n in range(4):put(self.root,f'd{n}/f.md')
+        before=self.fds();gen=scan.walk(self.root,self.s['include'],self.s['exclude']);next(gen)
+        with self.assertRaises(RuntimeError):gen.throw(RuntimeError('stop'))
+        self.assertEqual(self.fds(),before)
+
+    def test_a_wide_directory_holds_no_more_descriptors_than_a_deep_one(self):
+        for n in range(150):os.makedirs(Path(self.root)/f'd{n:03d}'/'x')
+        for n in range(150):put(self.root,f'd{n:03d}/x/f.md')
+        peak=0;before=self.fds();gen=scan.walk(self.root,self.s['include'],self.s['exclude'])
+        count=0
+        for kind,rel,_ in gen:
+            count+=1;peak=max(peak,self.fds()-before)
+        self.assertEqual(count,150);self.assertLessEqual(peak,4,'only the path being walked is held open, not every sibling')
+        self.assertEqual(self.fds(),before)
+
+    def test_more_sibling_directories_than_the_descriptor_limit_are_all_walked(self):
+        import resource
+        for n in range(200):put(self.root,f'd{n:03d}/f.md')
+        soft,hard=resource.getrlimit(resource.RLIMIT_NOFILE);resource.setrlimit(resource.RLIMIT_NOFILE,(self.fds()+25,hard))
+        try:got=[(k,r) for k,r,_ in scan.walk(self.root,self.s['include'],self.s['exclude'])]
+        finally:resource.setrlimit(resource.RLIMIT_NOFILE,(soft,hard))
+        self.assertEqual(len([g for g in got if g[0]=='file']),200,got[:3]);self.assertEqual([g for g in got if g[0]!='file'],[],'no EMFILE read as an unreadable directory')
+
+    def test_a_directory_swapped_for_a_link_between_listing_and_opening_is_refused(self):
+        outside=tempfile.mkdtemp(prefix='fs-out-');self.addCleanup(lambda:__import__('shutil').rmtree(outside));put(outside,'s.md','secret')
+        put(self.root,'a/f.md');put(self.root,'b/g.md');real=os.scandir
+        class Listed(list):
+            def __enter__(self):return self
+            def __exit__(self,*a):return False
+        def swap(fd):
+            entries=Listed(real(fd))
+            if not getattr(swap,'done',False):
+                swap.done=True;import shutil;shutil.rmtree(Path(self.root)/'b');os.symlink(outside,Path(self.root)/'b')
+            return entries
+        with unittest.mock.patch.object(scan.os,'scandir',swap):
+            got=[(k,r) for k,r,_ in scan.walk(self.root,self.s['include'],self.s['exclude'])]
+        self.assertNotIn(('file','b/s.md'),got);self.assertIn(('file','a/f.md'),got)
 
 
 class DigestTests(Tree):
