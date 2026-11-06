@@ -274,24 +274,37 @@ class DBSync:
         return joined is None or o>self.order(tuple(joined))
 
     def _remember(self,data,sub_id,key,record):
-        """Note a confirmation inside the lookback, so the row read again is not sent again. At the cap the note is not
-        kept and the subscriber is degraded to its position alone until the notes drain under the cap: no lookback reads
-        for it, so a late commit can be missed, and a row read again is never sent again in a loop."""
+        """Note a confirmation inside the lookback, so the row read again is not sent again. All subscribers together keep
+        at most `window_max` notes: at that cap the subscriber with the most notes drops them all and is degraded to its
+        position alone, with no lookback reads, so a late commit can be missed for it and a row read again is never sent
+        again in a loop. A degraded subscriber keeps no notes."""
         meta=data['meta'];cutoff=meta.get('cutoff')
         if cutoff is None or self._before(record['u'],cutoff):return
-        recent=meta.setdefault('recent',{}).setdefault(sub_id,{})
-        if key not in recent and len(recent)>=self.settings['window_max']:
-            meta.setdefault('degraded',{}).setdefault(sub_id,self.clock());return
-        recent[key]=record['fp']
+        if sub_id in meta.get('degraded',{}):return
+        recent=meta.setdefault('recent',{});mine=recent.setdefault(sub_id,{})
+        if key not in mine and sum(len(notes) for notes in recent.values())>=self.settings['window_max']:
+            largest=max(recent,key=lambda s:(len(recent[s]),s==sub_id))
+            del recent[largest];meta.setdefault('degraded',{}).setdefault(largest,self.clock())
+            if largest==sub_id:return
+        mine[key]=record['fp']
 
     def _forget(self,meta,cutoff):
-        """Confirmations and join points older than the cutoff can never matter to a lookback read again: drop them."""
+        """Confirmations and join points older than the cutoff can never matter to a lookback read again: drop them. A
+        subscriber degraded for at least `lookback`, with the notes under half the cap, takes lookback reads again from
+        its position, as a `replay:false` subscriber joins: the rows it had while degraded have no notes."""
         old=lambda u:cutoff is None or self._before(u,cutoff)
-        for sub_id,recent in meta.get('recent',{}).items():
-            for key in [k for k,fp in recent.items() if old(fp.split('|',1)[0])]:del recent[key]
-            if len(recent)<self.settings['window_max']:meta.get('degraded',{}).pop(sub_id,None)
+        recent=meta.get('recent',{})
+        for notes in recent.values():
+            for key in [k for k,fp in notes.items() if old(fp.split('|',1)[0])]:del notes[key]
         joined=meta.get('joined',{})
         for sub_id in [s for s,pair in joined.items() if pair is not None and old(pair[0])]:del joined[sub_id]
+        degraded=meta.get('degraded',{});now=self.clock()
+        for sub_id in sorted(degraded,key=degraded.get):
+            if sum(len(notes) for notes in recent.values())*2>=self.settings['window_max']:break
+            if now-degraded[sub_id]<self.settings['lookback']:continue
+            del degraded[sub_id]
+            here=meta.get('pos',{}).get(sub_id)
+            if here is not None:joined[sub_id]=list(here);meta['joined']=joined
 
     def _replace(self,data,key,record,new):
         """Put a row's new record in the window. The subscribers owed it below their position, through the lookback, are

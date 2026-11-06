@@ -92,7 +92,7 @@ DBSync is a kept process that [serves itself](../runner/configuration.md#agents-
 | `cannot_sync … time zone form` | The database clock and `updated` differ in time zone form; use a column of the database's own type |
 | `db_unavailable` | The DB agent refused or did not answer; its own words are in the text. Check this instance's `read` grant |
 | A subscriber shows `parked` | It refused or did not confirm for `park_after`; fix the target. It resumes from its own position |
-| A subscriber shows `lookback_degraded` | More rows were confirmed inside the lookback than `window_max`; see [late commits](#late-commits) |
+| A subscriber shows `lookback_degraded` | The subscribers together confirmed more rows inside the lookback than `window_max`; see [late commits](#late-commits) |
 | `full` in `status` | `window_max` rows wait for the slowest subscriber; it catches up, or is parked |
 
 ## Technical details
@@ -109,4 +109,4 @@ DBSync is a kept process that [serves itself](../runner/configuration.md#agents-
 - A transaction that commits after a later one can carry an older `updated`. Each poll reads again every row whose `updated` is within `lookback` of the database's clock, and sends what a subscriber has not confirmed at that version.
 - **A row that commits later than `lookback` is not seen.** Raise `lookback` for long transactions.
 - `replay:false` starts at the newest row: a row committed later but stamped before that point is not sent to that subscriber.
-- Each subscriber remembers up to `window_max` confirmations inside the lookback. Past that it is `lookback_degraded`: it reads from its own position only, so a late commit can be missed for it, until the remembered ones age out of the lookback.
+- All subscribers together remember at most `window_max` confirmations inside the lookback, about 70 bytes each, so the state stays near `window_max` × (row record + 70 B) whatever the number of subscribers. At that cap the subscriber with the most drops them and is `lookback_degraded`: it reads from its own position only, so a late commit can be missed for it. After `lookback`, once the total is under half the cap, it reads the lookback again for rows after its position then.

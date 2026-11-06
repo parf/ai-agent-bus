@@ -306,8 +306,30 @@ class LookbackTests(Base):
         for _ in range(6):self.agent.poll()
         self.assertEqual(sorted(self.keys(),key=int),[str(k) for k in range(1,7)])   # each once: no row read again loops
         self.assertTrue(self.agent.status()['subscribers'][0]['lookback_degraded'])
-        self.db.now='2026-11-05 12:10:00';self.agent.poll()
+        self.db.now='2026-11-05 12:10:00';self.now[0]+=300;self.agent.poll()
         self.assertIsNone(self.agent.status()['subscribers'][0]['lookback_degraded'])
+
+    def test_all_subscribers_together_keep_at_most_the_cap_in_confirmations_and_each_row_goes_once(self):
+        self.agent=self.make(window_max=4)
+        for k in range(1,7):self.db.put(k,f'2026-11-05 11:58:{k:02}')
+        self.subscribe();self.subscribe(who='#other@n.test')
+        for _ in range(6):
+            self.agent.poll()
+            self.assertLessEqual(sum(len(n) for n in self.agent.state.load()['meta'].get('recent',{}).values()),4)
+        self.assertEqual(sorted(self.keys(),key=int),[str(k) for k in range(1,7) for _ in range(2)])
+        self.assertTrue(all(s['lookback_degraded'] for s in self.agent.status()['subscribers']))
+
+    def test_a_subscriber_back_from_degraded_gets_no_row_it_had_and_a_late_commit_after_again(self):
+        self.agent=self.make(window_max=2)
+        for k in range(1,5):self.db.put(k,f'2026-11-05 11:58:{k:02}')
+        self.subscribe()
+        for _ in range(4):self.agent.poll()
+        self.assertTrue(self.agent.status()['subscribers'][0]['lookback_degraded'])
+        self.now[0]+=300;self.agent.poll()
+        self.assertIsNone(self.agent.status()['subscribers'][0]['lookback_degraded'])
+        self.db.put(6,'2026-11-05 11:59:30');self.agent.poll()
+        self.db.put(5,'2026-11-05 11:59:10');self.agent.poll()   # late: below the position, after it came back
+        self.assertEqual(sorted(self.keys(),key=int),[str(k) for k in range(1,7)])
 
     def test_a_late_row_owed_when_seen_stays_owed_after_the_cutoff_passes_it(self):
         self.db.put(1,'2026-11-05 11:59:00');self.subscribe();self.agent.poll()
