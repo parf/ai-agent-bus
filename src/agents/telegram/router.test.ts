@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { Router, type Route } from "./router.ts";
-import { stateBudget, routeGone } from "../shared/router.ts";
+import { stateBudget, routeGone, idOrder } from "../shared/router.ts";
 import { parseConfig, type Config } from "./config.ts";
 
 function fixture() {
@@ -193,6 +193,10 @@ test("routes beyond the budget are evicted oldest first, the value stays under i
  for(let i=1;i<=n;i++)await r.posted("100",i,{to:"#alice@t",topic,tag:"x",re:"m"+i});
  const size=Buffer.byteLength(f.saved()!);
  expect(size).toBeLessThanOrEqual(stateBudget);expect(size).toBeGreaterThan(stateBudget/2);
+ // The ones evicted are exactly the earliest: what is kept is the newest run, what is gone the oldest.
+ const state=JSON.parse(f.saved()!),kept=Object.keys(state.messages).map(k=>Number(k.split(":")[1])).sort((a,b)=>a-b);
+ expect(kept).toEqual(Array.from({length:kept.length},(_,i)=>n-kept.length+1+i));
+ expect(Object.keys(state.gone).map(k=>Number(k.split(":")[1])).sort((a,b)=>a-b)).toEqual(Array.from({length:n-kept.length},(_,i)=>i+1));
  expect(f.logs.some(line=>line.includes("warning: evicted"))).toBe(true);
  await r.incoming({...message(),reply_to:n},"100");
  expect(f.sent.at(-1)?.route).toEqual({to:"#alice@t",topic,tag:"x",re:"m"+n});
@@ -232,4 +236,42 @@ test("an expired route's allocated tag is freed; a pinned tag and a session with
   expect(Object.keys(state.gone).sort()).toEqual(["100:1","100:2","100:3"]);
   expect(await r.tag("#bill@t",f.config)).toBe("b1");
  } finally {Date.now=now;}
+});
+
+test("past the gone-mark budget a chat keeps a watermark, so a reply to an unmarked evicted route is answered, never routed",async()=>{
+ const f=fixture();f.config.route="#default@t";
+ const now=Date.now(),messages:Record<string,unknown>={};
+ for(let i=1;i<=4000;i++)messages["100:"+i]={to:"#alice@t",topic:"x".repeat(150),re:"m"+i,until:now+1000+i};
+ messages["200:5"]={to:"#bob@t",re:"other",until:now+100000};
+ const r=new Router({...f.deps,get:async()=>JSON.stringify({tags:{},messages})});await r.load();
+ await r.posted("100",4001,{to:"#alice@t",re:"m4001"});
+ const state=JSON.parse(f.saved()!),gone=Object.keys(state.gone).map(k=>Number(k.split(":")[1])).sort((a,b)=>a-b);
+ expect(Buffer.byteLength(f.saved()!)).toBeLessThanOrEqual(stateBudget);
+ expect(state.before["100"].id).toBe(String(gone[0]!-1));expect(state.before["200"]).toBeUndefined();
+ expect(gone[0]).toBeGreaterThan(1000);
+ for(const old of [1,gone[0]!-1]){
+  await r.incoming({...message(),reply_to:old},"100");
+  expect(f.sent).toEqual([]);expect(f.told.at(-1)).toBe(routeGone+"; use #tag");
+ }
+ await r.incoming({...message(),reply_to:4001},"100");expect(f.sent.at(-1)?.route.to).toBe("#alice@t");
+ await r.incoming({...message(),reply_to:5},"200");expect(f.sent.at(-1)?.route.to).toBe("#bob@t");
+ await r.incoming({...message(),reply_to:7},"300");expect(f.sent.at(-1)?.route.to).toBe("#default@t");
+});
+
+test("a flood of unknown senders evicts their notices, never a route",async()=>{
+ const f=fixture(),now=Date.now(),notices:Record<string,number>={};
+ for(let n=0;n<9000;n++)notices["x".repeat(40)+n]=now+3_600_000;
+ const r=new Router({...f.deps,get:async()=>JSON.stringify({tags:{},messages:{},notices})});await r.load();
+ await r.posted("100",1,{to:"#alice@t",re:"m1"});
+ await r.incoming({...message(),from_id:"newcomer" as any},"100");
+ const state=JSON.parse(f.saved()!);
+ expect(Buffer.byteLength(f.saved()!)).toBeLessThanOrEqual(stateBudget);
+ expect(Object.keys(state.messages)).toEqual(["100:1"]);
+ expect(Object.keys(state.notices).length).toBeLessThan(9000);
+});
+
+test("message ids order as decimal numbers on every platform",()=>{
+ expect(idOrder("9","10")).toBeLessThan(0);expect(idOrder("1740000000.000002","1740000000.000010")).toBeLessThan(0);
+ expect(idOrder("1740000000.5","1740000000.50")).toBe(0);expect(idOrder("1234567890123456789","234567890123456789")).toBeGreaterThan(0);
+ expect(idOrder("abc","1")).toBeUndefined();
 });

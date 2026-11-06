@@ -10,8 +10,10 @@ type StoredRoute = Route & { until: number };
 type Refused = { id: string; username?: string; name?: string; chat: string; last_seen: string; count: number };
 type AnswerRoute<Id> = { chat: string; message: Id; sender: string; topic: string; tag: string; until: number };
 // gone: chat message keys whose route expired or was evicted, with the time, so a reply to one is
-// answered rather than routed as a new message.
-type State<Id> = { notices?: Record<string, number>; answers?: Record<string, AnswerRoute<Id>>; refused?: Refused[]; tags: Record<string, string>; messages: Record<string, StoredRoute>; gone?: Record<string, number> };
+// answered rather than routed as a new message. before: per chat, the newest message whose gone mark
+// was trimmed to fit, with the time; a reply to that message or an older one is answered the same way.
+type Watermark = { id: string; at: number };
+type State<Id> = { notices?: Record<string, number>; answers?: Record<string, AnswerRoute<Id>>; refused?: Refused[]; tags: Record<string, string>; messages: Record<string, StoredRoute>; gone?: Record<string, number>; before?: Record<string, Watermark> };
 export type RouterDeps<Id = number> = {
   get: () => Promise<string | undefined>;
   set: (value: State<Id>) => Promise<void>;
@@ -32,6 +34,21 @@ const goneBudget = stateBudget / 8;
 export const routeGone = "route expired or evicted";
 const bytes = (value: unknown) => Buffer.byteLength(JSON.stringify(value));
 const entryBytes = (key: string, value: unknown) => bytes(key) + bytes(value) + 2;
+// A route's key is "<chat>:<message>"; a chat id holds no colon on any platform, a message id may not.
+const split = (key: string) => { const i = key.indexOf(":"); return [key.slice(0, i), key.slice(i + 1)] as const; };
+// Telegram, Slack and Discord message ids grow with time within a chat: integers, Slack's
+// "<seconds>.<micros>" and Discord snowflakes. Compared as decimal numbers, exactly; another shape
+// compares as unknown (undefined).
+const decimal = /^(\d+)(?:\.(\d+))?$/;
+export function idOrder(a: string, b: string): number | undefined {
+  const x = decimal.exec(a), y = decimal.exec(b);
+  if (!x || !y) return undefined;
+  const [xi, yi] = [x[1]!.replace(/^0+(?=\d)/, ""), y[1]!.replace(/^0+(?=\d)/, "")];
+  if (xi.length !== yi.length) return xi.length - yi.length;
+  if (xi !== yi) return xi < yi ? -1 : 1;
+  const [xf, yf] = [(x[2] ?? "").replace(/0+$/, ""), (y[2] ?? "").replace(/0+$/, "")];
+  return xf === yf ? 0 : xf < yf ? -1 : 1;
+}
 import { parseBusName, busName, agentName } from "./names.ts";
 export { agentName } from "./names.ts";
 export const shortTag = /^[a-z][a-z0-9]*$/;
@@ -97,6 +114,8 @@ export class Router<Id = number> {
       this.deps.log("reply routing: ignored malformed stored gone routes");
     }
     for (const [key, at] of Object.entries(state.gone ?? {})) if (!Number.isFinite(at)) delete state.gone![key];
+    if (state.before !== undefined && (typeof state.before !== "object" || state.before === null || Array.isArray(state.before))) delete state.before;
+    for (const [chat, w] of Object.entries(state.before ?? {})) if (typeof w?.id !== "string" || !Number.isFinite(w.at)) delete state.before![chat];
     this.state = state;
   }
 
@@ -127,8 +146,9 @@ export class Router<Id = number> {
   private trim(next: State<Id>): void {
     const now = Date.now();
     const senders = new Set<string>();
-    const drop = (kind: "messages" | "answers", key: string) => {
-      if (kind === "messages") {
+    const drop = (kind: "notices" | "messages" | "answers", key: string) => {
+      if (kind === "notices") delete next.notices![key];
+      else if (kind === "messages") {
         senders.add(next.messages[key]!.to);
         delete next.messages[key];
         (next.gone ??= {})[key] = now;
@@ -141,7 +161,9 @@ export class Router<Id = number> {
     for (const [key, r] of Object.entries(next.answers ?? {})) if (r.until <= now) drop("answers", key);
     let size = bytes(next);
     if (size > stateBudget) {
+      // Notices go first: losing one repeats a notice at most, so unknown senders cannot evict routes.
       const queue = [
+        ...Object.entries(next.notices ?? {}).map(([key, until]) => ({ kind: "notices" as const, key, until: until - lifetime, size: entryBytes(key, until) })),
         ...Object.entries(next.messages).map(([key, r]) => ({ kind: "messages" as const, key, until: r.until, size: entryBytes(key, r) })),
         ...Object.entries(next.answers ?? {}).map(([key, r]) => ({ kind: "answers" as const, key, until: r.until, size: entryBytes(key, r) })),
       ].sort((a, b) => a.until - b.until);
@@ -165,8 +187,15 @@ export class Router<Id = number> {
       if (goneSize <= goneBudget) break;
       delete next.gone![key];
       goneSize -= entryBytes(key, at);
+      // The mark is gone, so the chat keeps the newest such message: a reply to it or older is still answered.
+      const [chat, id] = split(key);
+      const w = own(next.before, chat);
+      if (!w || (idOrder(id, w.id) ?? 1) > 0) (next.before ??= {})[chat] = { id, at: now };
+      else w.at = now;
     }
     if (next.gone && Object.keys(next.gone).length === 0) delete next.gone;
+    for (const [chat, w] of Object.entries(next.before ?? {})) if (w.at + lifetime <= now) delete next.before![chat];
+    if (next.before && Object.keys(next.before).length === 0) delete next.before;
     for (const sender of this.assigned) senders.delete(sender);
     this.assigned.clear();
     if (senders.size === 0) return;
@@ -306,7 +335,8 @@ export class Router<Id = number> {
     if (message.reply_to !== undefined) {
       const key = `${chat}:${message.reply_to}`;
       const stored = own(this.state.messages, key);
-      if ((stored && stored.until <= Date.now()) || (!stored && own(this.state.gone, key) !== undefined)) {
+      const w = own(this.state.before, chat);
+      if ((stored && stored.until <= Date.now()) || (!stored && (own(this.state.gone, key) !== undefined || (w !== undefined && (idOrder(String(message.reply_to), w.id) ?? -1) <= 0)))) {
         this.deps.log(`reply routing: warning: ${routeGone}: a reply to ${key}`);
         await this.deps.tell(chat, message.answer_to ?? message.message_id, `${routeGone}; use #tag`);
         return;
