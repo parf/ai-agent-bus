@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/parf/ai-agent-bus/internal/core"
@@ -23,8 +24,6 @@ type eventCall struct {
 	// to delete.
 	Target, Filter, SubID string
 }
-
-var eventWrite = regexp.MustCompile(`(?s)^write +(\S+) +(\S+) (.*)$`)
 
 const daemonMaxInput = 16384
 
@@ -163,13 +162,14 @@ func parseEventCall(body string) (eventCall, error) {
 			}
 		}
 	} else {
-		body = strings.TrimLeft(body, " ")
 		if c.Method == "write" {
-			m := eventWrite.FindStringSubmatch(body)
-			if m == nil {
+			_, rest := subWord(body)
+			c.Log, rest = subWord(rest)
+			// Keep the required separator before text, including an empty text.
+			if strings.IndexFunc(rest, unicode.IsSpace) < 0 {
 				return c, bad
 			}
-			c.Log, c.Level, c.Text = m[1], m[2], m[3]
+			c.Level, c.Text = subWord(rest)
 		} else {
 			args := strings.Fields(body)
 			if len(args) < 1 {

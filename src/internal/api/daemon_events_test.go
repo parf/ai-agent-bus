@@ -333,3 +333,26 @@ func TestForbiddenEventRepliesUseExactAuthorityTextPerVerb(t *testing.T) {
 		})
 	}
 }
+
+func TestEventWriteUsesTheSameWhitespaceAsOtherTextVerbs(t *testing.T) {
+	for _, body := range []string{
+		"write\t#a@h alert kept  spaces\tinside",
+		"write #a@h\talert kept  spaces\tinside",
+		"write #a@h alert\tkept  spaces\tinside",
+		"\twrite\n#a@h\u00a0alert\r\nkept  spaces\tinside",
+	} {
+		got, err := parseEventCall(body)
+		if err != nil || got.Method != "write" || got.Log != "#a@h" || got.Level != "alert" || got.Text != "kept  spaces\tinside" {
+			t.Fatalf("text write %q parsed as %+v: %v", body, got, err)
+		}
+	}
+	for _, body := range []string{"write #a@h alert", "write\t#a@h\talert"} {
+		if _, err := parseEventCall(body); eventlog.Code(err) != "invalid_request" {
+			t.Fatalf("missing text separator %q: %v", body, err)
+		}
+	}
+	got, err := parseEventCall(`{"method":"write","log":"#a@h","level":"alert","text":" \tkept\n "}`)
+	if err != nil || got.Text != " \tkept\n " {
+		t.Fatalf("JSON text changed: %+v %v", got, err)
+	}
+}
