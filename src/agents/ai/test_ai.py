@@ -314,7 +314,7 @@ class Proxy(unittest.TestCase):
             self.assertEqual(manifest['form'], 'json')
             self.assertNotIn('serves', manifest)
             self.assertTrue(manifest['needs']['network'])
-            self.assertEqual(set(manifest['config']), {'model', 'embed_model', 'base_url'})
+            self.assertEqual(set(manifest['config']), {'model', 'embed_model', 'image_model', 'base_url'})
 
     # Recorded provider shapes (OpenRouter API reference, 2026-11): replayed locally, never fetched live.
     MODELS = {'data': [{'id': 'openai/gpt-4.1-mini', 'name': 'GPT-4.1 Mini', 'context_length': 1047576},
@@ -378,11 +378,14 @@ class Proxy(unittest.TestCase):
         self.assertEqual(len(self.server.requests), 2)
 
     def test_a_method_the_provider_lacks_is_refused_by_name(self):
-        for method, body in [('models', 'models'), ('model', 'model openai/gpt-4'), ('balance', 'balance'), ('key', 'key'), ('embed', 'embed hello')]:
+        for method, body in [('models', 'models'), ('models', 'models --images'), ('model', 'model openai/gpt-4'), ('balance', 'balance'),
+                             ('key', 'key'), ('embed', 'embed hello')]:
             self.server.status, self.server.payload = 404, b'{"error":{"message":"Not Found"}}'
             self.config['embed_model'] = 'fixture/embed'
             self.assertEqual(self.call(body, roles=('owner',))[:2], (f'error: provider has no {method}', 0))
-        self.assertEqual(len(self.server.requests), 5)
+        # model asks the chat catalogue, then the Image API, before it says the provider has none.
+        self.assertEqual([r[0] for r in self.server.requests], ['/v1/models', '/v1/images/models', '/v1/models/openai/gpt-4/endpoints',
+                         '/v1/images/models/openai/gpt-4/endpoints', '/v1/credits', '/v1/key', '/v1/embeddings'])
 
     def test_text_answers_report_tokens_and_cost_from_usage(self):
         self.server.payload = json.dumps({'choices': [{'message': {'content': 'Four.'}}],
@@ -501,12 +504,13 @@ class Proxy(unittest.TestCase):
         encoded = ''.join('\\u%04x' % ord(c) for c in KEY)
         echoes = [(500, ('{"error":{"message":"bad key ' + KEY + '"}}').encode()), (401, ('raw ' + KEY).encode()),
                   (429, ('{"error":{"message":{"detail":"' + encoded + '"}}}').encode())]
-        bodies = ['models', 'model openai/gpt-4', 'balance', 'key', 'embed hello']
+        bodies = ['models', 'models --images', 'model openai/gpt-4', 'balance', 'key', 'embed hello']
         for status, payload in echoes:
             self.server.status, self.server.payload = status, payload
             for body in bodies:
                 answer, _, log = self.call(body, roles=('owner',))
-                self.assertTrue(answer.startswith(f'error: {status} '), (body, answer))
+                prefix = f'error: the provider refused the configured key ({status}: ' if status in (401, 403) else f'error: {status} '
+                self.assertTrue(answer.startswith(prefix), (body, answer))
                 self.assertNotIn(KEY, answer + log)
         self.route('/models', {'data': [{'id': 'fixture/' + KEY}]})
         self.route('/models/openai/gpt-4/endpoints', {'data': {'id': 'openai/gpt-4', 'name': encoded, 'endpoints': [{'name': KEY, 'pricing': {}}]}})
@@ -517,6 +521,98 @@ class Proxy(unittest.TestCase):
             answer, _, log = self.call(body, roles=('owner',))
             self.assertNotIn(KEY, answer + log, body)
         self.assertNotIn('label', self.call('key', roles=('owner',))[0])
+    IMAGE_MODELS = {'data': [{'id': 'bytedance-seed/seedream-4.5', 'name': 'Seedream 4.5', 'architecture': {'input_modalities': ['text', 'image'], 'output_modalities': ['image']},
+                              'supported_parameters': {'resolution': {'type': 'enum', 'values': ['1K', '2K', '4K']}, 'seed': {'type': 'boolean'}},
+                              'endpoints': '/api/v1/images/models/bytedance-seed/seedream-4.5/endpoints'},
+                             {'id': 'openai/gpt-image-2', 'name': 'GPT Image 2'}]}
+    IMAGE_ENDPOINTS = {'data': {'id': 'bytedance-seed/seedream-4.5', 'name': 'Seedream 4.5', 'architecture': {'input_modalities': ['text', 'image']},
+                                'supported_parameters': {'resolution': {'type': 'enum', 'values': ['1K', '2K', '4K']}},
+                                'endpoints': [{'provider_name': 'BytePlus', 'name': 'BytePlus: Seedream 4.5',
+                                               'pricing': [{'billable': 'output_image', 'unit': 'image', 'cost_usd': 0.03},
+                                                           {'billable': 'output_image', 'unit': 'image', 'cost_usd': 0.06, 'variant': '4k'}],
+                                               'supported_parameters': {'seed': {'type': 'boolean'}}},
+                                              {'provider_name': 'fal', 'name': 'fal: Seedream 4.5',
+                                               'pricing': [{'billable': 'output_image', 'unit': 'megapixel', 'cost_usd': 0.01}]}]}}
+
+    def test_models_images_lists_the_image_catalogue_with_its_default_marked(self):
+        self.route('/images/models', self.IMAGE_MODELS)
+        self.config['image_model'] = 'openai/gpt-image-2'
+        for body in ['models --images', '{"method":"models","images":true}']:
+            self.assertEqual(self.call(body)[0], 'bytedance-seed/seedream-4.5\nopenai/gpt-image-2 (default)')
+            self.assertEqual(self.server.requests[-1], ('/v1/images/models', 'Bearer ' + KEY, None))
+        for bad in ['{"method":"models","images":1}', '{"method":"models","images":true,"x":1}']:
+            self.assertTrue(self.call(bad)[0].startswith('error:'), bad)
+
+    def test_model_folds_in_image_endpoint_parameters_and_prices(self):
+        self.route('/models/bytedance-seed/seedream-4.5/endpoints', {'error': {'message': 'Not Found'}}, 404)
+        self.route('/images/models/bytedance-seed/seedream-4.5/endpoints', self.IMAGE_ENDPOINTS)
+        value = json.loads(self.call('model bytedance-seed/seedream-4.5')[0])
+        self.assertEqual((value['kind'], value['parameters']), ('image', {'resolution': {'type': 'enum', 'values': ['1K', '2K', '4K']}}))
+        self.assertEqual([(e['provider'], [p['cost_usd'] for p in e['pricing']]) for e in value['endpoints']], [('BytePlus', [0.03, 0.06]), ('fal', [0.01])])
+        self.assertEqual(value['endpoints'][0]['supported_parameters'], {'seed': {'type': 'boolean'}})
+        self.assertEqual([r[0] for r in self.server.requests], ['/v1/models/bytedance-seed/seedream-4.5/endpoints',
+                                                                 '/v1/images/models/bytedance-seed/seedream-4.5/endpoints'])
+        # A chat model answers from its own catalogue alone.
+        self.route('/models/openai/gpt-4/endpoints', self.ENDPOINTS)
+        self.assertEqual(json.loads(self.call('model openai/gpt-4')[0])['kind'], 'text')
+        self.assertEqual(len(self.server.requests), 3)
+
+    def test_image_is_for_owner_and_maintainers_and_sends_nothing_yet(self):
+        self.config['image_model'] = 'openai/gpt-image-2'
+        request = json.dumps({'method': 'image', 'prompt': 'a red panda', 'n': 2, 'aspect_ratio': '16:9'})
+        for body in ['image a red panda', request]:
+            for roles in [(), ('guest',), ('admin',)]:
+                self.assertEqual(self.call(body, roles=roles)[:2], ('error: image needs the owner or maintainer role', 0))
+            for roles in [('owner',), ('maintainer',)]:
+                self.assertEqual(self.call(body, roles=roles)[0], proxy.IMAGE_UNAVAILABLE)
+        self.assertEqual(self.server.requests, [], 'no image call reaches the provider before #ai can store its images')
+
+    def test_image_caps_n_options_references_and_request_size(self):
+        self.config['image_model'] = 'openai/gpt-image-2'
+        image = lambda **fields: self.call(json.dumps({'method': 'image', 'prompt': 'p', **fields}), roles=('owner',))[0]
+        self.assertEqual(image(n=proxy.IMAGE_N_MAX), proxy.IMAGE_UNAVAILABLE)
+        for n in [0, proxy.IMAGE_N_MAX + 1, 10, '2', True, 1.0]:
+            self.assertEqual(image(n=n), f'error: n is 1 to {proxy.IMAGE_N_MAX} images per call', n)
+        self.assertTrue(image(output_format='bmp').startswith('error: output_format is one of'))
+        self.assertTrue(image(stream=True).startswith('error: image options are'))
+        good = ['https://example.com/a.png', 'data:image/png;base64,iVBORw0KGgo=', {'type': 'image_url', 'image_url': {'url': 'https://example.com/b.jpg'}}]
+        self.assertEqual(image(input_references=good), proxy.IMAGE_UNAVAILABLE)
+        for bad in [['http://example.com/a.png'], ['file:///etc/passwd'], ['my-bigfile-name'], [{'url': 'https://x'}],
+                    ['https://example.com/x'] * (proxy.IMAGE_REFERENCES_MAX + 1), 'https://example.com/a.png']:
+            self.assertRegex(image(input_references=bad), r'^error: (an )?input', bad)
+        big = 'data:image/png;base64,' + 'A' * proxy.MAX_BYTES
+        self.assertEqual(proxy.image_request({'prompt': 'p', 'input_references': [big[:proxy.MAX_BYTES - 200]]}, self.config)[:1], b'{')
+        with self.assertRaisesRegex(proxy.ProxyError, 'request exceeds 1048576 bytes'):
+            proxy.image_request({'prompt': 'p', 'input_references': [big]}, self.config)
+        self.assertEqual(self.call(json.dumps({'method': 'image', 'prompt': 'p'}), roles=('owner',))[0], proxy.IMAGE_UNAVAILABLE)
+        del self.config['image_model']
+        self.assertEqual(image(), 'error: set Configuration image_model or provide a request model')
+        self.assertEqual(image(model='../../x'), 'error: set Configuration image_model or provide a request model')
+        self.assertEqual(self.call(json.dumps({'method': 'image', 'model': 'a/b'}), roles=('owner',))[0], 'error: image takes a prompt')
+        self.assertEqual(self.server.requests, [])
+
+    def test_refused_key_and_credit_are_named_for_every_method(self):
+        self.config['embed_model'] = 'fixture/embed'
+        bodies = ['hello', '{"messages":[]}', 'decide {}', 'models', 'models --images', 'model openai/gpt-4', 'balance', 'key', 'embed hello']
+        cases = [(401, b'{"error":{"message":"User not found."}}', 'the provider refused the configured key (401: User not found.)'),
+                 (403, b'{"error":{"message":"Key disabled"}}', 'the provider refused the configured key (403: Key disabled)'),
+                 (401, ('{"error":{"message":"bad key ' + KEY + '"}}').encode(), 'the provider refused the configured key (401: bad key ***)'),
+                 (403, ('denied ' + KEY).encode(), 'the provider refused the configured key (403: denied ***)'),
+                 (402, b'{"error":{"message":"Insufficient credits"}}', 'the provider refused for lack of credit (402: Insufficient credits)')]
+        for status, payload, expected in cases:
+            self.server.status, self.server.payload = status, payload
+            for body in bodies:
+                answer, _, log = self.call(body, roles=('owner',))
+                self.assertEqual(answer, 'error: ' + expected, (status, body))
+                self.assertNotIn(KEY, answer + log)
+
+    def test_a_failed_dims_write_leaves_no_partial_file(self):
+        work = self.work()
+        real = os.replace
+        with patch('os.replace', side_effect=OSError('disk full')):
+            proxy.remember_dims(work, 'fixture/m', 3)
+        self.assertEqual(list(Path(work).iterdir()), [])
+        self.assertIs(os.replace, real)
 
 if __name__ == '__main__':
     unittest.main()

@@ -42,11 +42,19 @@
       ]
     },
     "models": {
-      "help": "List the provider's models; the configured default is marked.",
-      "args": []
+      "text": "models [--images]",
+      "help": "List the provider's models; the configured default is marked. With --images, list image models, with image_model marked.",
+      "args": [
+        {
+          "name": "images",
+          "type": "boolean",
+          "optional": true,
+          "help": "List image models instead"
+        }
+      ]
     },
     "model": {
-      "help": "See one model's context length, prices and input kinds, per provider endpoint.",
+      "help": "See one model's context length, prices and input kinds, per provider endpoint; for an image model, its parameters and prices per endpoint.",
       "args": [
         {
           "name": "id",
@@ -75,6 +83,18 @@
       "help": "See the key's spend limit, remaining credit and rate limit, never the key itself",
       "args": [],
       "role": "maintainer"
+    },
+    "image": {
+      "help": "Generate images; not available yet: #ai cannot store images until it serves itself",
+      "args": [
+        {
+          "name": "prompt",
+          "type": "string",
+          "rest": true,
+          "help": "What to draw; the JSON form also takes model, n (1 to 4), aspect_ratio, resolution, size, output_format, quality, background, seed and input_references (https or data:image URLs)"
+        }
+      ],
+      "role": "maintainer"
     }
   },
   "config": {
@@ -87,6 +107,11 @@
       "type": "string",
       "help": "Default embedding model ID for embed requests without model",
       "example": "openai/text-embedding-3-small"
+    },
+    "image_model": {
+      "type": "string",
+      "help": "Default image model ID for image requests without model; models --images marks it",
+      "example": "openai/gpt-image-2"
     },
     "base_url": {
       "type": "string",

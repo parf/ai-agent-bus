@@ -1,5 +1,5 @@
 {
-  "text": "Get model answers without giving callers the provider key. Ask a question, request a structured decision, embed text, or look up models, prices and the account's credit. Send ask with a prompt, or one of the methods below.\nask <prompt...>: Get a model answer. Send prompt text for a text reply with its tokens and cost, or an OpenAI chat request for the provider response as JSON.\n  prompt (json): Prompt text, or an OpenAI chat-completions object in JSON; text returns assistant text, an object returns provider JSON\ndecide <body...>: Get answers to typed decision questions. Send an OpenRouter Decisions request; the reply is the full provider response as JSON.\n  body (string): Raw JSON request, including state, questions and the decision model; sent unchanged\nmodels: List the provider's models; the configured default is marked.\nmodel <id>: See one model's context length, prices and input kinds, per provider endpoint.\n  id (string): Model ID, such as openai/gpt-4.1-mini\nembed <input...>: Turn text into vectors. Send a text, or a JSON list of texts; the reply is the model and one vector per text.\n  input (json): A text, or a JSON list of texts; too many texts for one answer are refused\nbalance: See the account's remaining credit; role: maintainer\nkey: See the key's spend limit, remaining credit and rate limit, never the key itself; role: maintainer\n\nv<version> · PolyForm Strict · parf.dev/agent-bus/ · © Sergey Porfiriev\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/ai.md\nMore: agent-bus help <name> config | secret | json",
+  "text": "Get model answers without giving callers the provider key. Ask a question, request a structured decision, embed text, or look up models, prices and the account's credit. Send ask with a prompt, or one of the methods below.\nask <prompt...>: Get a model answer. Send prompt text for a text reply with its tokens and cost, or an OpenAI chat request for the provider response as JSON.\n  prompt (json): Prompt text, or an OpenAI chat-completions object in JSON; text returns assistant text, an object returns provider JSON\ndecide <body...>: Get answers to typed decision questions. Send an OpenRouter Decisions request; the reply is the full provider response as JSON.\n  body (string): Raw JSON request, including state, questions and the decision model; sent unchanged\nmodels [--images]: List the provider's models; the configured default is marked. With --images, list image models, with image_model marked.\n  images (boolean): List image models instead\nmodel <id>: See one model's context length, prices and input kinds, per provider endpoint; for an image model, its parameters and prices per endpoint.\n  id (string): Model ID, such as openai/gpt-4.1-mini\nembed <input...>: Turn text into vectors. Send a text, or a JSON list of texts; the reply is the model and one vector per text.\n  input (json): A text, or a JSON list of texts; too many texts for one answer are refused\nbalance: See the account's remaining credit; role: maintainer\nkey: See the key's spend limit, remaining credit and rate limit, never the key itself; role: maintainer\nimage <prompt...>: Generate images; not available yet: #ai cannot store images until it serves itself; role: maintainer\n  prompt (string): What to draw; the JSON form also takes model, n (1 to 4), aspect_ratio, resolution, size, output_format, quality, background, seed and input_references (https or data:image URLs)\n\nv<version> · PolyForm Strict · parf.dev/agent-bus/ · © Sergey Porfiriev\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/ai.md\nMore: agent-bus help <name> config | secret | json",
   "json": {
     "description": "Get model answers without giving callers the provider key. Ask a question, request a structured decision, embed text, or look up models, prices and the account's credit. Send ask with a prompt, or one of the methods below.",
     "license": "LicenseRef-PolyForm-Strict-1.0.0",
@@ -34,12 +34,20 @@
       },
       "models": {
         "type": "string",
-        "help": "List the provider's models; the configured default is marked.",
-        "args": []
+        "text": "models [--images]",
+        "help": "List the provider's models; the configured default is marked. With --images, list image models, with image_model marked.",
+        "args": [
+          {
+            "type": "boolean",
+            "name": "images",
+            "optional": true,
+            "help": "List image models instead"
+          }
+        ]
       },
       "model": {
         "type": "string",
-        "help": "See one model's context length, prices and input kinds, per provider endpoint.",
+        "help": "See one model's context length, prices and input kinds, per provider endpoint; for an image model, its parameters and prices per endpoint.",
         "args": [
           {
             "type": "string",
@@ -71,6 +79,19 @@
         "help": "See the key's spend limit, remaining credit and rate limit, never the key itself",
         "args": [],
         "role": "maintainer"
+      },
+      "image": {
+        "type": "string",
+        "help": "Generate images; not available yet: #ai cannot store images until it serves itself",
+        "args": [
+          {
+            "type": "string",
+            "name": "prompt",
+            "rest": true,
+            "help": "What to draw; the JSON form also takes model, n (1 to 4), aspect_ratio, resolution, size, output_format, quality, background, seed and input_references (https or data:image URLs)"
+          }
+        ],
+        "role": "maintainer"
       }
     },
     "asks": [
@@ -89,6 +110,11 @@
         "type": "string",
         "help": "Default embedding model ID for embed requests without model",
         "example": "openai/text-embedding-3-small"
+      },
+      "image_model": {
+        "type": "string",
+        "help": "Default image model ID for image requests without model; models --images marks it",
+        "example": "openai/gpt-image-2"
       },
       "base_url": {
         "type": "string",

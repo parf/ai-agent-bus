@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """One runner call, one OpenAI-compatible request; no persistent state."""
+import contextlib
 import http.client
 import json
 import os
@@ -28,6 +29,21 @@ KEY_FIELDS = ("limit", "limit_remaining", "limit_reset", "usage", "is_free_tier"
 DIMS_FILE = "embed-dims.json"
 EMBED_READ = 8 * MAX_BYTES
 DIMS_KEPT = 256
+# Image requests: options the provider takes, and this agent's own caps on one call.
+IMAGE_OPTIONS = {"aspect_ratio", "resolution", "size", "output_format", "quality", "n", "input_references", "background", "seed"}
+IMAGE_FORMATS = {"png", "jpeg", "webp", "svg", "gif"}
+IMAGE_N_MAX = 4
+IMAGE_REFERENCES_MAX = 16
+IMAGE_UNAVAILABLE = "error: image generation is not available yet: #ai cannot store images until it serves itself (T-36 step 2b)"
+
+
+def refusal(status, message):
+    """A provider error answer; a refused key or credit is named, since no retry helps."""
+    if status in (401, 403):
+        return f"error: the provider refused the configured key ({status}: {message})"
+    if status == 402:
+        return f"error: the provider refused for lack of credit (402: {message})"
+    return provider_error(status, message)
 
 
 def reject_constant(_value):
@@ -52,6 +68,10 @@ def method_call(body):
     word = body.strip()
     if word in ("models", "balance", "key"):
         return word, None
+    if word == "models --images":
+        return "models", "images"
+    if body.startswith("image "):
+        return "image", {"prompt": body[6:]}
     # One word with a slash is a model lookup; "model railways" stays a prompt.
     if body.startswith("model ") and re.fullmatch(r"\S*/\S*", body[6:].strip()):
         if not model_path(body[6:].strip()):
@@ -67,10 +87,14 @@ def method_call(body):
     except ValueError:
         return None
     name = request.get("method") if isinstance(request, dict) else None
+    if name == "models" and set(request) == {"method", "images"} and request["images"] is True:
+        return name, "images"
     if name in ("models", "balance", "key"):
         if set(request) != {"method"}:
-            raise ProxyError(name + " takes no arguments")
+            raise ProxyError(name + " takes no arguments" if name != "models" else "models takes only images: true")
         return name, None
+    if name == "image":
+        return name, {k: v for k, v in request.items() if k != "method"}
     if name == "model":
         if set(request) != {"method", "id"} or not isinstance(request["id"], str) or not model_path(request["id"]):
             raise ProxyError("model takes exactly an author/slug model id")
@@ -130,7 +154,9 @@ def remember_dims(work, model, dims):
             temporary.write(json.dumps(value))
         os.replace(temporary.name, Path(work) / DIMS_FILE)
     except OSError:
-        pass
+        # A write that failed part way leaves no hidden partial file behind.
+        with contextlib.suppress(OSError, NameError):
+            os.unlink(temporary.name)
 
 
 def usd(value):
@@ -182,20 +208,61 @@ def provider_call(name, envelope, base, verb, path, payload, key, limit=MAX_BYTE
         result = scrub(json.loads(raw, parse_constant=reject_constant), key)
     except (ValueError, UnicodeError):
         if status >= 300:
-            return status, provider_error(status, redact(raw.decode("utf-8", errors="replace"), key))
+            return status, refusal(status, redact(raw.decode("utf-8", errors="replace"), key))
         raise ProxyError("provider did not return JSON") from None
     if status >= 300:
         error = result.get("error", result) if isinstance(result, dict) else result
         message = error.get("message", error) if isinstance(error, dict) else error
-        return status, provider_error(status, redact(json.dumps(message, ensure_ascii=False) if not isinstance(message, str) else message, key))
+        return status, refusal(status, redact(json.dumps(message, ensure_ascii=False) if not isinstance(message, str) else message, key))
     return status, result
 
 
+def image_request(argument, config):
+    """The provider request for one image call, validated against this agent's caps."""
+    request = dict(argument)
+    model = request.pop("model", config.get("image_model"))
+    prompt = request.pop("prompt", None)
+    if not isinstance(model, str) or not model_path(model):
+        raise ProxyError("set Configuration image_model or provide a request model")
+    if not isinstance(prompt, str) or not prompt.strip():
+        raise ProxyError("image takes a prompt")
+    if set(request) - IMAGE_OPTIONS:
+        raise ProxyError("image options are " + ", ".join(sorted(IMAGE_OPTIONS)))
+    n = request.get("n", 1)
+    if type(n) is not int or not 1 <= n <= IMAGE_N_MAX:
+        raise ProxyError(f"n is 1 to {IMAGE_N_MAX} images per call")
+    if "output_format" in request and request["output_format"] not in IMAGE_FORMATS:
+        raise ProxyError("output_format is one of " + ", ".join(sorted(IMAGE_FORMATS)))
+    references = request.get("input_references", [])
+    if not isinstance(references, list) or len(references) > IMAGE_REFERENCES_MAX:
+        raise ProxyError(f"input_references is a list of at most {IMAGE_REFERENCES_MAX} images")
+    wrapped = []
+    for item in references:
+        url = item if isinstance(item, str) else (item.get("image_url") or {}).get("url") if isinstance(item, dict) else None
+        # A reference is a URL or inline base64; a bigfile name is not taken yet.
+        if not isinstance(url, str) or not (url.startswith("https://") or re.match(r"data:image/[a-z0-9.+-]+;base64,", url)):
+            raise ProxyError("an input reference is an https URL or a data:image/...;base64 URL")
+        wrapped.append({"type": "image_url", "image_url": {"url": url}})
+    if references:
+        request["input_references"] = wrapped
+    payload = json.dumps({"model": model, "prompt": prompt, **request}, ensure_ascii=False).encode()
+    if len(payload) > MAX_BYTES:
+        raise ProxyError("request exceeds 1048576 bytes")
+    return payload
+
+
+def generate_images(payload, envelope, base, key):
+    """Generate and store the images. #ai has no bus access of its own yet, so nothing is sent."""
+    return IMAGE_UNAVAILABLE, "unavailable"
+
+
 def provider_method(name, argument, envelope, config, key, roles, work, base):
-    """Answer models, model, balance, key or embed: (answer, status)."""
-    if name in ("balance", "key") and not roles & MANAGERS:
+    """Answer models, model, balance, key, embed or image: (answer, status)."""
+    if name in ("balance", "key", "image") and not roles & MANAGERS:
         return f"error: {name} needs the owner or maintainer role", "refused"
     root = base.path.rstrip("/")
+    if name == "image":
+        return generate_images(image_request(argument, config), envelope, base, key)
     if name == "embed":
         model = argument.get("model", config.get("embed_model"))
         if not isinstance(model, str) or not re.fullmatch(MODEL_ID, model):
@@ -223,22 +290,29 @@ def provider_method(name, argument, envelope, config, key, roles, work, base):
         if len(items) > max_items(model, dims, envelope):
             return f"error: {len(items)} items × {dims} dims > max {max_items(model, dims, envelope)}", status
         return json.dumps({"model": model, "vectors": vectors}, ensure_ascii=False, separators=(",", ":")), status
-    path = {"models": "/models", "balance": "/credits", "key": "/key"}.get(name)
+    path = {"models": "/images/models" if argument == "images" else "/models", "balance": "/credits", "key": "/key"}.get(name)
     if name == "model":
         path = "/models/" + urllib.parse.quote(argument, safe="/:@+~._-") + "/endpoints"
     status, result = provider_call(name, envelope, base, "GET", root + path, None, key)
+    kind = "text"
+    if name == "model" and status == 404:
+        # Not a chat model: an image model lists its endpoints under the Image API.
+        kind = "image"
+        status, result = provider_call(name, envelope, base, "GET", root + "/images" + path, None, key)
     if isinstance(result, str):
         return result, status
     data = result["data"]
     if name == "models":
-        default = config.get("model")
+        default = config.get("image_model" if argument == "images" else "model")
         return "\n".join(row["id"] + (" (default)" if row["id"] == default else "") for row in data), status
     if name == "model":
-        endpoints = [{"provider": e.get("provider_name"), "name": e.get("name"), "context_length": e.get("context_length"),
-                      "max_completion_tokens": e.get("max_completion_tokens"), "pricing": e.get("pricing")}
+        fields = ("context_length", "max_completion_tokens", "pricing") if kind == "text" else ("pricing", "supported_parameters")
+        endpoints = [{"provider": e.get("provider_name"), "name": e.get("name"), **{f: e.get(f) for f in fields}}
                      for e in data["endpoints"]]
-        return json.dumps({"id": data["id"], "name": data.get("name"), "input": (data.get("architecture") or {}).get("input_modalities"),
-                           "endpoints": endpoints}, ensure_ascii=False), status
+        detail = {"id": data["id"], "name": data.get("name"), "kind": kind, "input": (data.get("architecture") or {}).get("input_modalities")}
+        if kind == "image":
+            detail["parameters"] = data.get("supported_parameters")
+        return json.dumps({**detail, "endpoints": endpoints}, ensure_ascii=False), status
     if name == "balance":
         total, used = data["total_credits"], data["total_usage"]
         return f"{usd(total - used)} left ({usd(total)} bought, {usd(used)} used)", status
@@ -263,8 +337,8 @@ def answer(envelope, config, key, roles=frozenset(), work=None):
         body = envelope["body"]
         if not isinstance(body, str) or len(body.encode()) > MAX_BYTES:
             raise ProxyError("request exceeds 1048576 bytes or is not text")
-        if not isinstance(config, dict) or set(config) - {"model", "embed_model", "base_url"}:
-            raise ProxyError("Configuration accepts only model, embed_model and base_url")
+        if not isinstance(config, dict) or set(config) - {"model", "embed_model", "image_model", "base_url"}:
+            raise ProxyError("Configuration accepts only model, embed_model, image_model and base_url")
         call = method_call(body)
         if call is not None:
             base = trusted_base(config)
@@ -327,12 +401,12 @@ def answer(envelope, config, key, roles=frozenset(), work=None):
             result = scrub(json.loads(raw, **({"parse_constant": reject_constant} if deciding else {})), key)
         except (ValueError, UnicodeError):
             if status >= 300:
-                return provider_error(status, redact(raw.decode("utf-8", errors="replace"), key)), 0
+                return refusal(status, redact(raw.decode("utf-8", errors="replace"), key)), 0
             raise ProxyError("provider did not return JSON") from None
         if status >= 300:
             error = result.get("error", result) if isinstance(result, dict) else result
             message = error.get("message", error) if isinstance(error, dict) else error
-            return provider_error(status, message), 0
+            return refusal(status, redact(message if isinstance(message, str) else json.dumps(message, ensure_ascii=False), key)), 0
         if is_json:
             output = json.dumps(result, ensure_ascii=False, allow_nan=not deciding)
         else:
