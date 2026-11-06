@@ -19,6 +19,8 @@ Every owner choice is an item in the owning plan's QUESTIONS.md, in [mdhouse's a
 
 Owner, 2026-11-05: "do not run heavy tests unless really needed". Run focused tests by default. A normal gate runs only for a landing, through `#ab-gate`. No `--slow`, repeat or load loops, or podman runs unless the task truly needs one and the lead approves it. Never run suites concurrently. Kill what you started by pid before you stop.
 
+Owner, 2026-11-06: "do not run tests for minor changes, do not build release bundles - we are not close to release". A minor change (docs, plan, comments, a one-line fix with a focused check already seen red) lands without a normal gate or extra test runs; batch minor changes into the next real landing. No release bundles, container images, release.sh or podman matrix builds until the owner opens the release.
+
 Smoke lock identity: [CLAUDE.md § Verification](../../../CLAUDE.md#verification).
 
 ## Task lifecycle
