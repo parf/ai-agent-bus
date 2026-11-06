@@ -94,6 +94,27 @@ def retain_record_backups(directory):
                 remove(sidecar)
 
 
+def entries(directory):
+    # A bounded directory a node does not have yet (no abrt, no daemon backup) has nothing to bound.
+    return list(directory.iterdir()) if directory.is_dir() else []
+
+
+def retain_bounded(spool, releases, current, record_backups, backup):
+    crashes = [p for p in entries(spool) if p.is_dir() and not p.is_symlink() and ours_crash(p)]
+    # Only our crash entries count toward this cap. Foreign application dumps stay intact.
+    for p in sorted(crashes, key=lambda p: p.stat().st_mtime):
+        if sum(size(q) for q in crashes if q.exists()) <= 100 * 1024 ** 2:
+            break
+        remove(p)
+    retain([p for p in entries(releases) if p.is_dir() and not p.is_symlink()], 2, [current])
+    retain_record_backups(record_backups)
+    retain([p for p in entries(backup) if p.is_file() and (p.name.endswith('.tar') or p.name.endswith('.tar.gz'))], 3)
+    # Sidecar unit copies are kept only alongside a retained archive of the same stem.
+    for p in backup.glob('*.service'):
+        if not p.with_suffix('.tar').exists() and not p.with_suffix('.tar.gz').exists():
+            remove(p)
+
+
 def root_cleanup(age):
     uid = pwd.getpwnam('parf').pw_uid
     tests = set()
@@ -106,23 +127,9 @@ def root_cleanup(age):
             continue
         if ours_tmp(p, uid, tests) and not any(x == str(p) or x.startswith(str(p) + '/') for x in busy):
             remove(p)
-    spool = Path('/var/spool/abrt')
-    crashes = [p for p in spool.iterdir() if p.is_dir() and not p.is_symlink() and ours_crash(p)]
-    # Only our crash entries count toward this cap. Foreign application dumps stay intact.
-    for p in sorted(crashes, key=lambda p: p.stat().st_mtime):
-        if sum(size(q) for q in crashes if q.exists()) <= 100 * 1024 ** 2:
-            break
-        remove(p)
-    releases = Path('/usr/local/lib/agent-bus/releases')
-    current = Path('/usr/local/lib/agent-bus/current').resolve()
-    retain([p for p in releases.iterdir() if p.is_dir() and not p.is_symlink()], 2, [current])
-    retain_record_backups(Path('/var/lib/agent-bus/record-backups'))
-    backup = Path('/var/lib/agent-bus/daemon.backup')
-    retain([p for p in backup.iterdir() if p.is_file() and (p.name.endswith('.tar') or p.name.endswith('.tar.gz'))], 3)
-    # Sidecar unit copies are kept only alongside a retained archive of the same stem.
-    for p in backup.glob('*.service'):
-        if not p.with_suffix('.tar').exists() and not p.with_suffix('.tar.gz').exists():
-            remove(p)
+    retain_bounded(Path('/var/spool/abrt'), Path('/usr/local/lib/agent-bus/releases'),
+                   Path('/usr/local/lib/agent-bus/current').resolve(),
+                   Path('/var/lib/agent-bus/record-backups'), Path('/var/lib/agent-bus/daemon.backup'))
     # Live files are handled by logrotate; trim only rotated daemon log files here.
     logs = Path('/var/log/agent-bus')
     for name in ('audit', 'error', 'debug'):

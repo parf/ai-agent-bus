@@ -20,6 +20,22 @@ class CleanupTests(unittest.TestCase):
             c.retain(paths, 2, [paths[0]])
             self.assertEqual([p.exists() for p in paths], [True, False, False, True])
 
+    def test_a_missing_bounded_directory_does_not_stop_the_steps_after_it(self):
+        # A node without abrt, or with no daemon backup directory yet, still gets the release bound.
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            releases = root / 'releases'
+            releases.mkdir()
+            paths = [releases / str(i) for i in range(4)]
+            for i, p in enumerate(paths):
+                p.mkdir()
+                os.utime(p, (i, i))
+            try:
+                c.retain_bounded(root / 'no-abrt', releases, paths[0], root / 'no-record-backups', root / 'no-daemon-backup')
+            except FileNotFoundError as e:
+                self.fail('a missing bounded directory aborted the run: %s' % e)
+            self.assertEqual([p.exists() for p in paths], [True, False, False, True])
+
     def test_record_archives_have_separate_bounds_and_sidecars(self):
         with tempfile.TemporaryDirectory() as d:
             directory = Path(d)
