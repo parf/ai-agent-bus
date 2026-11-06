@@ -1,5 +1,5 @@
 {
-  "description": "Turn the files that change under one folder into messages. Watches a directory the node owner allows, tells each subscribed agent what was created, changed or deleted, and marks a file done only after that agent confirms it. Start with help, then status.",
+  "description": "Turn the files that change under one folder into messages. Watches a directory the node owner allows, tells each subscribed agent what was created, changed, renamed or deleted, and marks a file done only after that agent confirms it. Start with help, then status.",
   "command": "./filescan.py",
   "form": "args",
   "serves": "itself",
