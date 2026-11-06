@@ -72,12 +72,12 @@
       "returns": "{reset}"
     },
     "sub.add": {
-      "help": "Send each change under the folder to a queue, and send it again until the bus accepts it. The files that already exist are sent first unless replay:false. `as rag` sends RAG's own upsert and delete calls to RAG, which must confirm the stored record; any other agent is refused.",
+      "help": "Send each change under the folder to a queue, and send it again until the bus accepts it. The files that already exist are sent first unless replay:false. `bigfile` also sends the contents of a file over max_file_size or not text, as a bigfile the subscriber can get. `as rag` sends RAG's own upsert and delete calls to RAG, which must confirm the stored record; any other agent is refused.",
       "role": [
         "read",
         "write"
       ],
-      "text": "sub add <target> [/regex/] [as rag [<namespace> [<table>]]] [replay:false]",
+      "text": "sub add <target> [/regex/] [bigfile | as rag [<namespace> [<table>]]] [replay:false]",
       "args": [
         {
           "name": "target",
@@ -187,6 +187,11 @@
       "type": "string",
       "help": "Inline limit: a larger file is sent as size and hash only, never cut",
       "default": "32KiB"
+    },
+    "bigfile_ttl": {
+      "type": "string",
+      "help": "How long a bigfile for a subscriber that opted in lives: 1s to 7 days, such as 30m or 1h",
+      "default": "1h"
     },
     "max_per_scan": {
       "type": "int",

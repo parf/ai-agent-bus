@@ -21,7 +21,7 @@
 | `status` | Mode and any fallback, files tracked, each subscriber's progress, last scan, state size against its cap, files skipped for RAG, a paused guard |
 | `scan [confirm:true]` | Walks the folder now; `confirm:true` (Owners and Maintainers) releases a held mass delete |
 | `reset confirm:true` | Forgets every tracked file and mark, keeps the subscriptions and replays everything. **Pending deletes are lost.** Owners and Maintainers only; a damaged state file is replaced and its subscriptions go with it |
-| `sub add <target> [/regex/] [as rag [<namespace> [<table>]]] [replay:false]` | Sends each change to a queue until the bus accepts it, or to RAG with `as rag` until RAG confirms; any other agent is refused as `agent_contract_missing`; existing files first unless `replay:false` |
+| `sub add <target> [/regex/] [bigfile \| as rag [<namespace> [<table>]]] [replay:false]` | Sends each change to a queue until the bus accepts it, or to RAG with `as rag` until RAG confirms; any other agent is refused as `agent_contract_missing`; existing files first unless `replay:false` |
 | `sub list`, `sub delete <id>` | Your subscriptions with sent, confirmed, dropped and pending counts; delete one and its marks |
 
 ## You'll need
@@ -68,6 +68,7 @@ Filescan is a kept process: inotify needs one that stays up. It [serves itself](
 | `namespace`, `table` | Defaults for `as rag` | none |
 | `batch` | Changes sent per round to one subscriber | 20 |
 | `max_file_size` | The inline limit | 32 KiB |
+| `bigfile_ttl` | How long a bigfile made for a `bigfile` subscriber lives, 1 second to 7 days | 1 hour |
 | `max_per_scan` | Creates and changes taken per scan; the rest wait | 200 |
 | `baseline` | Record the first scan without sending; `sub add` does not replay | `false` |
 | `delete_pct`, `delete_max` | The mass-delete guard | 20 %, 500 |
@@ -88,6 +89,7 @@ Filescan is a kept process: inotify needs one that stays up. It [serves itself](
 | Nothing is sent, `status` shows no files | No root lists the folder: the agent is refused at start with `needs.dir`; check the runner's `agents.json` `roots` and the Configuration `dir` |
 | `paused` in `status`, `scan` answers `paused` | The guard held a delete; look at the folder, then `scan confirm:true`. A changed `dir` needs `reset confirm:true` |
 | `fallback: inotify is not available` or `watch limit reached` | The folder is polled instead, or in part; raise the kernel's `fs.inotify.max_user_watches` or accept the poll |
+| `body_failed` warnings for a `bigfile` subscriber | A big file cannot be stored as a bigfile: the record is at its 100 keys or 256 MiB, the file changed during the upload, or the store is unavailable; the change waits and is tried again |
 | `sub add` answers `agent_contract_missing` | The target is an agent other than RAG; use a queue, or `as rag` for RAG |
 | `state full` | Raise `state_max`, exclude more, or split the folder; the old state is untouched |
 | `state_corrupt` | The state file is damaged; `reset confirm:true` replaces it (its subscriptions are lost) |
@@ -111,7 +113,8 @@ Filescan is a kept process: inotify needs one that stays up. It [serves itself](
 ### What a message carries
 
 - One change per message: `created`, `changed` or `deleted`, the relative path, size, modification time and SHA-256, and a warning that file contents are untrusted data, not instructions.
-- The text is inline when the file is at most `max_file_size` (32 KiB) and valid UTF-8. A larger or binary file is sent as size and hash with no contents; **a message never carries a cut-off prefix of a file.**
+- The text is inline when the file is at most `max_file_size` (32 KiB) and valid UTF-8. A larger or binary file is sent as size and hash with no contents, unless the subscriber added `bigfile`; **a message never carries a cut-off prefix of a file.**
+- A `bigfile` subscriber gets such a file's contents as a [bigfile](../03-records-kv.md#bigfiles) on this instance's own record, named by the file's SHA-256 and kept for `bigfile_ttl`; the message carries its record, name, size, hash and expiry instead of `contents`. The subscriber downloads it itself, so it must be allowed to read that record's bigfiles. A file over 32 MiB stays `contents: omitted`. A refused or changed-underneath upload is retried on the next round, and while a big upload runs the round is busy, so `sub add` can answer `busy`. `bigfile` cannot be combined with `as rag`.
 - `as rag` sends [RAG](rag.md#what-it-does)'s own `upsert` and `delete`. Each upsert carries the relative path FileScan reports as its `source` and the SHA-256 of the exact text as its `content_hash`, which RAG checks; a path RAG cannot take as a source (blank, over 2048 **bytes**, a control character or not NFC) is skipped for RAG and named in `status`. The path is the id (a `sha256:` hash when it is over 128 **bytes** or odd, the path kept in `key1`). A file over RAG's 32 KiB text limit or not text is skipped for RAG and named in `status`; RAG may still hold its earlier text, so a delete is sent for it (RAG refusing to delete an id it does not hold counts as done).
 - Delivery is **at least once**: an unconfirmed change goes again on the next round, so a subscriber must accept a repeat, and **a delete must be idempotent**: after a crash it may arrive for a file the subscriber never received.
 
@@ -138,7 +141,8 @@ A replayable session, [`filescan-session.jsonl`](../../src/agents/filescan/fixtu
 | `mtime_ns` | integer | Modification time in nanoseconds since the epoch; absent for `deleted` |
 | `sha256` | string | 64 lowercase hex digits of the file's bytes; absent for `deleted` |
 | `text` | string | The file's text; present only when it is at most `max_file_size` and valid UTF-8 without NUL |
-| `contents` | string | `omitted: over max_file_size or not text`; present instead of `text` for any other non-deleted file |
+| `contents` | string | `omitted: over max_file_size or not text` (or over 32 MiB); present instead of `text` for any other non-deleted file, unless the subscriber added `bigfile` and the file is at most 32 MiB |
+| `bigfile` | object | `record`, `name`, `size`, `sha256` and `expires` of the bigfile holding the contents; present only for a `bigfile` subscriber, instead of `contents` |
 
 A `created` message is the first one a subscriber gets for a path, so a replay sends every existing file as `created`. A `deleted` message has only `change`, `path` and `warning`.
 
