@@ -170,8 +170,9 @@ Proposals to prioritize after the minimum. RT11 RW10–RW17, moved by Q299, and 
 
 Owner, 2026-11-01; approved 2026-11-05 ([Q334](resolved.md#Q334)); plan in [filescan](filescan.md#steps-and-estimate), owner choices in [decisions](DECISIONS.md#recorded-decisions), answers [Q305–Q310](resolved.md#Q305). Staged, each stage landing alone: S1 the shared core, S2 FileScan, S3 [DBSync](#dbsync) ([stages](filescan.md#stages)).
 
-- ☐ FS.1 `#filescan/<name>`: a runner agent that tracks new, changed, deleted and renamed files in one directory and hands them to subscribed agents, by polling, by inotify, or both ([modes](filescan.md#modes)); steps F0–F4 with an estimate of four to six hours of agent time
+- ✅ FS.1 `#filescan/<name>`: a runner agent that tracks new, changed, deleted and renamed files in one directory and hands them to subscribed agents, by polling, by inotify, or both ([modes](filescan.md#modes)); steps F0–F4 with an estimate of four to six hours of agent time
   - S1 built and landed: `src/agents/shared/change_sync.py` — state file (cap, atomic rename, one holder), subscriptions with authority over it, delivery that marks a change done only after the target confirms (a send of unknown outcome is recorded first, so a later delete is still sent), the poll timer; tests `test_change_sync.py`
+  - State: built in 1.0.33 (`a25330d9`; S1 core `5337290a`); readers `#ab-w1a`, `#ab-w1c`. The rows marked not built below move to FS.2
   - S2 built (F0–F4) on the S1 core: runner `needs.dir` with the node owner's `roots` (default empty), `src/agents/filescan/` with poll, inotify, the mass-delete guard, the RAG form, the package, `docs/agents/filescan.md`, a smoke shard. **Not built:** the single `renamed` change from kernel cookie pairing (a rename is a delete plus a create, which is also RAG's form), the bigfile opt-in for a file over the inline limit (size and hash only), binding the directory by file descriptor (the runner re-resolves it at every launch instead)
   - Depends: RT31 (user-account runner, landed); the S1 shared core library ([Q314](resolved.md#Q314)); F0 adds a read-only bind of one directory to the runner
   - Deploy: FileScan is a kept process (inotify) serving itself with its own token; the Owner registers its record and hands the token over once ([agents that serve themselves](../../docs/runner/configuration.md#agents-that-serve-themselves)), and the plan names that step in the guide
@@ -191,11 +192,14 @@ Owner, 2026-11-01; approved 2026-11-05 ([Q334](resolved.md#Q334)); plan in [file
   - Mutants (each must compile and fail on an assertion): send deletes while the guard is held; skip the `dir` symlink and root refusals; write the state in place instead of rename; mark tracked before the reply; drop the cookie pairing; ignore the overflow; drop the lock; ignore `state_max`
 
 
+- ☐ FS.2 FileScan follow-ups not built in FS.1: the single `renamed` change from kernel cookie pairing (today a rename is a delete plus a create); the bigfile opt-in for a file over the inline limit; the RAG form sending the file path as `source`, which RAG 0.3 requires
+
 ## DBSync
 
 Owner, 2026-11-02; approved 2026-11-05 ([Q334](resolved.md#Q334)); plan in [dbsync](dbsync.md#steps-and-estimate), answers [Q314–Q320](resolved.md#Q314). Stage S3, after the shared core and FileScan; MySQL and PostgreSQL first.
 
-- ☐ DS.1 `#dbsync/<name>`: a runner agent that tracks new and changed rows of one table by an `updated` column, asks through a read-only [DB agent](../../src/agents/db/guide.md#what-it-does), and hands the rows to subscribed agents; steps D0–D3 with an estimate of four to five hours of agent time
+- ✅ DS.1 `#dbsync/<name>`: a runner agent that tracks new and changed rows of one table by an `updated` column, asks through a read-only [DB agent](../../src/agents/db/guide.md#what-it-does), and hands the rows to subscribed agents; steps D0–D3 with an estimate of four to five hours of agent time
+  - State: built in 1.0.37 (`23cf6ff3`), proven on the fake DB agent and the MariaDB and PostgreSQL fixtures; readers `#ab-w1c`, `#ab-w1b`. A live run waits for the owner: #db is not deployed on this node
   - Depends: the DB agent (built); the S1 shared core library from [FS.1](#filescan) ([Q314](resolved.md#Q314))
   - Deploy: a kept process serving itself with its own token, handed over once like FileScan's; it holds no database credential, which stays in the read-only DB agent
   - Follow-ups, outside this stage: ClickHouse ([Q319](resolved.md#Q319)), the key-diff way to notice deletes ([Q316](resolved.md#Q316); soft delete is what S3 builds), and a counter mode for `updated` ([Q320](resolved.md#Q320))
