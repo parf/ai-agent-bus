@@ -70,6 +70,12 @@ func TestRunKeepsItsNameAndSerialReaderAfterDaemonRestart(t *testing.T) {
 			env = append(env, value)
 		}
 	}
+	// This fixture stores keys but never invokes an SSH forced command. Its
+	// helper is private and executable, independent of programs on the host.
+	sshToken := filepath.Join(dir, "agent-bus-token")
+	if err := os.WriteFile(sshToken, []byte("#!/bin/sh\nexit 1\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
 	socket := filepath.Join(dir, "bus.sock")
 	client, base := api.Dial(socket)
 	client.Timeout = 1500 * time.Millisecond
@@ -111,7 +117,7 @@ func TestRunKeepsItsNameAndSerialReaderAfterDaemonRestart(t *testing.T) {
 		log := &lockedBuffer{}
 		cmd := exec.CommandContext(ctx, binary, "--socket", socket, "--addr", "127.0.0.1:0", "--owner", "owner@fixture",
 			"--db", filepath.Join(dir, "bus.db"), "--create", "--flush-every", "0", "--dashboard", "",
-			"--ssh-keys", filepath.Join(dir, "authorized_keys"), "--ssh-token", "/bin/agent-bus-token")
+			"--ssh-keys", filepath.Join(dir, "authorized_keys"), "--ssh-token", sshToken)
 		cmd.Env = env
 		cmd.Stdout, cmd.Stderr = log, log
 		if err := cmd.Start(); err != nil {
@@ -138,6 +144,11 @@ func TestRunKeepsItsNameAndSerialReaderAfterDaemonRestart(t *testing.T) {
 			}
 		}
 		t.Cleanup(stop)
+		t.Cleanup(func() {
+			if t.Failed() {
+				t.Logf("disposable daemon log:\n%s", log.String())
+			}
+		})
 		wait("disposable daemon startup", 5*time.Second, func() bool {
 			_, code, err := request("GET", "/status", nil)
 			return err == nil && (code == 200 || code == 401)

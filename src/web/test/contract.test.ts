@@ -3,7 +3,7 @@
 // Go programs; without it they are built into a temporary directory.
 import { generateKeyPairSync } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync, existsSync, readFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir, userInfo } from "node:os";
 import { makeHandler } from "../server.ts";
@@ -29,7 +29,10 @@ beforeAll(async () => {
     const b = Bun.spawnSync(["go", "build", "-o", bin + "/", "./cmd/agent-busd", "./cmd/agent-bus"], { cwd: join(import.meta.dir, "../.."), stderr: "pipe" });
     if (b.exitCode) throw new Error(b.stderr.toString());
   }
-  daemon = Bun.spawn([join(bin, "agent-busd"), "--addr", "127.0.0.1:0", "--socket", join(dir, "bus.sock"), "--owner", "owner@test", "--db", join(dir, "bus.db"), "--create", "--flush-every", "0", "--dashboard", "", "--ssh-keys", join(dir, "ssh", "authorized_keys"), "--ssh-token", "/usr/local/bin/agent-bus-token"], { stdout: "ignore", stderr: "ignore" });
+  // SSH key storage needs a valid program path; this fixture never executes it.
+  const sshToken = join(dir, "agent-bus-token");
+  writeFileSync(sshToken, "#!/bin/sh\nexit 1\n", { mode: 0o700 });
+  daemon = Bun.spawn([join(bin, "agent-busd"), "--addr", "127.0.0.1:0", "--socket", join(dir, "bus.sock"), "--owner", "owner@test", "--db", join(dir, "bus.db"), "--create", "--flush-every", "0", "--dashboard", "", "--ssh-keys", join(dir, "ssh", "authorized_keys"), "--ssh-token", sshToken], { stdout: "ignore", stderr: "ignore" });
   const user = join(dir, `user-${userInfo().username}.sock`);
   for (let i = 0; i < 100 && !existsSync(user); i++) await Bun.sleep(50);
   owner = Bun.spawnSync([join(bin, "agent-bus"), "token", "owner@test"], { env: { ...process.env, AGENT_BUS_ADDR: user } }).stdout.toString().trim();
