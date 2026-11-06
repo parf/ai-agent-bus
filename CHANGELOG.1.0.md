@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.50 — 2026-11-06
+
+#bus answers any asker; any other answer needs the asker's Allow (Q323, J84); RAG 0.4.1 adds count, similar, complete and classify; release packaging leaves the everyday gates.
+
 ## 1.0.49 — 2026-11-06
 
 The runner checks each bundled agent against the daemon protocol its pack declares (AS.1); RAG 0.4 rerank; FileScan reports renames and can store big files.
