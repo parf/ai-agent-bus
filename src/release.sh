@@ -70,7 +70,7 @@ switch() { # release-dir
 
 if [ "${1:-}" = --rollback ]; then
     now=$(readlink -f "$root/current")
-    prev=$(ls -1dt "$root"/releases/*/ | sed 's:/$::' | { grep -vx "$now" || :; } | sed -n 1p)
+    prev=$(ls -1dt "$root"/releases/*/ | sed 's:/$::' | { grep -vxF "$now" || :; } | sed -n 1p)
     [ -n "$prev" ] || { echo "no earlier release to roll back to" >&2; exit 1; }
     switch "$prev"
     exit 0
