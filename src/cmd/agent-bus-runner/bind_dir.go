@@ -177,9 +177,3 @@ func resolved(p string) string {
 	}
 	return filepath.Clean(p)
 }
-
-// within reports whether p is dir or below it.
-func within(p, dir string) bool {
-	rel, err := filepath.Rel(dir, p)
-	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
-}
