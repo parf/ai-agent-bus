@@ -284,7 +284,7 @@ Replacement and recovery:
 <details>
 <summary>Limits</summary>
 
-- Source at most 32 KiB UTF-8, split into at most eight chunks of at most 4 KiB; whitespace break points may need more chunks and refuse early, naming the count and limit.
+- Source at most 32 KiB UTF-8 inline (a [large file](#large-markdown-files) up to 1 MiB comes by reference), split into at most eight chunks of at most 4 KiB; whitespace break points may need more chunks and refuse early, naming the count and limit.
 - HTML drops script, style, noscript and template without fetching and bounds stack depth and size, accounting for common omitted end tags; Markdown uses source text; JSON renders canonically.
 - Jev (`typesafe/jev-1.14`) classifies the extracted text (at most 32 KiB) once per record; unknown or missing labels and nonfinite probabilities are refused; threshold and top-k select by probability descending, then label ID.
 - Voyage: at most two batches of four chunks; each encoded request below 1 MiB; explicit `output_dimension` and float output; choose a size the model supports (Voyage 3.5: 256, 512, 1024, 2048); its refusal is not bypassed.
@@ -314,4 +314,4 @@ A timeout, a lost reply or an answer that says the outcome is **unknown** means 
 
 - **No end-to-end ingestion journey:** RAG stores what it is sent. It does not fetch, watch or schedule anything, and it keeps no job, progress or retry record. Feeding a folder is [FileScan](filescan.md#what-it-does)'s job.
 - **No historical revisions or generations:** `get` and `search` read the current record. Replacing a record removes its old content, `indexed_at` is the current revision's time, and there is no list of earlier versions and no rollback.
-- **No deduplication:** the same text sent twice is classified and embedded twice.
+- **No deduplication:** the same text sent twice is classified and embedded twice. A [large file](#large-markdown-files) keeps the vectors of unchanged chunks, so a resend pays Jev again and embeds only what changed.
