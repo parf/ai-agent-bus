@@ -247,15 +247,17 @@ class FileScan:
             if old and old!=key and not old.endswith('/'):
                 # Sequential moves a to c to d: a subscriber that never got c still holds a, so the origins of c follow, nearest first,
                 # and the delivery picks the first one that subscriber has pending as a delete.
-                chain=[old];cur=old
+                chain=[old];cur=old;moved.add(old)
                 for _ in range(8):
-                    before=(items.get(cur) or {}).get('from') or (self.hints.get(cur) or (None,))[0]
+                    persisted=(items.get(cur) or {}).get('from')
+                    before=persisted or (self.hints.get(cur) or (None,))[0]
                     if not before:break
-                    more=before if isinstance(before,list) else [before]
-                    chain.extend(o for o in more if o not in chain and o!=key)
+                    more=[o for o in (before if isinstance(before,list) else [before]) if o not in chain and o!=key]
+                    chain.extend(more)
+                    if not persisted:moved.update(more)   # moves this pass saw are moved away; an origin from an earlier pass may be a name reused since: a real delete
                     if isinstance(before,list):break
                     cur=before
-                record['from']=chain[0] if len(chain)==1 else chain;moved.add(chain[0])   # the older origins are held for subscribers only: a name reused since is a real delete
+                record['from']=chain[0] if len(chain)==1 else chain
         for key in plan['deletes']:self.hints.pop(key,None)
         plan['renamed']=moved&set(plan['deletes'])
 

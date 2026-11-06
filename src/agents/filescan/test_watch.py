@@ -369,6 +369,17 @@ class RenameWatchTests(AgentWatchTests):
         for i in range(10):os.unlink(Path(self.root)/f'old/f{i}.md');self.put(f'new/f{i}.md','v2 '+str(i),mtime=time.time()+9)
         self.agent.tick();self.assertIsNotNone(self.agent.status()['paused'],'ten real deletes of 32 tracked hold the guard')
 
+    def test_a_burst_of_double_moves_through_names_never_scanned_is_not_a_mass_delete(self):
+        for i in range(12):self.put(f'fill{i}.md',str(i))
+        for i in range(25):self.put(f'x{i}.md','text %d'%i)
+        self.agent=self.make({'mode':'poll','batch':500});self.add();self.agent.tick();self.bus.sent.clear()
+        for i in range(25):   # an editor's temporary name in between: x to t, then t to y, and the pass never sees t
+            os.rename(Path(self.root)/f'x{i}.md',Path(self.root)/f'y{i}.md')
+            now=self.agent.clock();self.agent.hints[f't{i}.md']=(f'x{i}.md',now);self.agent.hints[f'y{i}.md']=(f't{i}.md',now)
+        self.agent.tick()
+        self.assertIsNone(self.agent.status()['paused'],'25 files moved away are not 25 deletes')
+        got=self.changes();self.assertEqual(len(got),25);self.assertEqual({(c[0],c[2]) for c in got},{('renamed','x%d.md'%i) for i in range(25)})
+
     def test_a_reused_older_origin_deleted_in_the_same_pass_still_counts_toward_the_guard(self):
         for i in range(12):self.put(f'fill{i}.md',str(i))
         self.put('a.md','one');self.put('c.md','two');self.agent=self.make({'mode':'poll','batch':500});self.add();self.agent.tick();self.bus.sent.clear()
