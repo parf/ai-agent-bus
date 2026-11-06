@@ -1,8 +1,9 @@
 {
   "description": "Get model answers without giving callers the provider key. Ask a question, request a structured decision, embed text, or look up models, prices and the account's credit. Send ask with a prompt, or one of the methods below.",
   "command": "./ai.py",
+  "serves": "itself",
   "form": "json",
-  "processes": "0..3",
+  "processes": 2,
   "deadline": "60s",
   "needs": {
     "network": [
@@ -99,7 +100,7 @@
     },
     "image": {
       "text": "image <JSON request>",
-      "help": "Generate images; not available yet: #ai cannot store images until it serves itself. Only a JSON object is a request; other text after image is a prompt.",
+      "help": "Generate images into #ai's own bigfile record, kept 24 hours; the reply names each image with its type, size and the call's cost. Only a JSON object is a request; other text after image is a prompt.",
       "args": [
         {
           "name": "request",
@@ -124,7 +125,7 @@
     },
     "image_model": {
       "type": "string",
-      "help": "Default image model ID for image requests without model; models --images marks it",
+      "help": "Default image model ID for image requests without model; without it and without a request model, image is refused before any provider call; models --images marks it",
       "example": "openai/gpt-image-2"
     },
     "base_url": {

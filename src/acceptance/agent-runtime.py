@@ -106,11 +106,14 @@ def check(root):
     print('rag: app version, client/helper imports and JSON methods loaded without live blocks')
 
     ai = root / 'agents/ai'
-    output, _ = run(['python3', str(ai / 'ai.py')], root,
-                    {'OPENROUTER_API_KEY': ''}, status=78)
-    assert output.strip() == 'error: OPENROUTER_API_KEY is not set', 'AI entry failed outside checkout'
+    # 78 comes after the client library and helpers are imported, and before any bus connection.
+    output, errors = run(['python3', str(ai / 'ai.py')], root,
+                         {'OPENROUTER_API_KEY': ''}, status=78)
+    assert (output, errors.strip()) == ('', 'OPENROUTER_API_KEY is not set'), 'AI entry failed outside checkout'
+    output, _ = run(['python3', str(ai / 'ai.py')], root, {'AGENT_BUS_ASK': 'help-json'})
+    assert_methods('ai', {'ask', 'decide', 'models', 'model', 'embed', 'balance', 'key', 'image'}, json.loads(output)['methods'])
     assert (ai / 'agent.json').is_file() and (ai / 'env.dist').is_file()
-    print('ai: runner entry loaded without credentials')
+    print('ai: kept entry, client/helper imports loaded without credentials')
     voyage = root / 'agents/voyage'
     output, _ = run(['python3', str(voyage / 'voyage.py')], root, {'VOYAGE_API_KEY':''}, status=78)
     assert output.strip() == 'error: VOYAGE_API_KEY is not set', 'Voyage entry failed outside checkout'

@@ -1,26 +1,36 @@
 #!/usr/bin/env python3
-"""One runner call, one OpenAI-compatible request; no persistent state."""
+"""Kept processes that serve #ai's own inbox: one message at a time, one OpenAI-compatible request each."""
+import base64
+import binascii
 import contextlib
 import http.client
 import json
 import math
 import os
 import re
+import secrets
 import signal
 import sys
 import tempfile
 import urllib.parse
 
+from collections.abc import Mapping
 from pathlib import Path
 HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE / 'support/agents/shared' if (HERE / 'support').exists() else HERE.parent / 'shared'))
+SUPPORT = HERE / 'support' if (HERE / 'support').exists() else HERE.parents[1]
+sys.path.insert(0, str(SUPPORT / 'clients/python'))
+sys.path.insert(0, str(SUPPORT / 'agents/shared'))
 from metadata import dispatch
+from agent_bus import Bus
+from agent_bus.errors import BusError, Refusal
 
 from provider_http import MAX_BYTES, ProxyError, redact, scrub, provider_error, arm_deadline, connect, post
 
 MODEL_ID = r"[A-Za-z0-9._/~:@+-]{1,128}"
-# The runner posts each answer to /send as a JSON envelope (answerAs, src/cmd/agent-bus-runner/serve.go), and the
-# daemon reads at most 1 MiB of it (Server.read, src/internal/api/server.go): the envelope, not the body, is bounded.
+# Each answer goes to /send in a JSON request the daemon reads up to 1 MiB (Server.read, src/internal/api/server.go):
+# the request, not the body, is bounded. The cap below sizes the runner's answer envelope (answerAs,
+# src/cmd/agent-bus-runner/serve.go); the Python client's reply request #ai now sends carries no zero times and
+# escapes no <, > or &, so it is never larger, and the cap stays a safe bound.
 ANSWER_LIMIT = MAX_BYTES
 # Python's widest float spelling, -1.7976931348623157e+308, is 24 characters; a comma follows each.
 FLOAT_WIDTH = 24
@@ -35,7 +45,14 @@ IMAGE_OPTIONS = {"aspect_ratio", "resolution", "size", "output_format", "quality
 IMAGE_FORMATS = {"png", "jpeg", "webp", "svg", "gif"}
 IMAGE_N_MAX = 4
 IMAGE_REFERENCES_MAX = 16
-IMAGE_UNAVAILABLE = "error: image generation is not available yet: #ai cannot store images until it serves itself (T-36 step 2b)"
+# Generated images go to #ai's own bigfile record, under the daemon's per-record limits (docs/03-records-kv.md#bigfiles).
+IMAGE_MAX = 32 * 1024 * 1024
+RECORD_KEYS = 100
+RECORD_BYTES = 256 * 1024 * 1024
+IMAGE_TTL = 86400
+IMAGE_TYPES = {"image/png": "png", "image/jpeg": "jpeg", "image/webp": "webp", "image/gif": "gif", "image/svg+xml": "svg"}
+# The provider answer carries every image in base64, a third larger than its bytes.
+IMAGE_READ = IMAGE_N_MAX * (IMAGE_MAX // 3 * 4 + 4) + MAX_BYTES
 
 
 def refusal(status, message):
@@ -53,9 +70,14 @@ def reject_constant(_value):
     raise ValueError("non-standard JSON constant")
 
 
-def delivered_roles(environ):
-    # Only the two exact names the runner sets matter here; any other spelling is no role.
-    return {role for role in MANAGERS if environ.get("AB_ROLE_" + role.upper()) == "1"}
+def message_roles(message, name):
+    """The caller's roles on #ai, as the daemon set them on a message sent to #ai itself; the body cannot add one."""
+    envelope = message.envelope
+    original = envelope.get("original_to")
+    if original not in (None, "") and (not isinstance(original, str) or original.lower() != name.lower()):
+        return set()
+    roles = envelope.get("roles", ())
+    return {role for role in roles if role in MANAGERS} if isinstance(roles, (list, tuple)) else set()
 
 
 def model_path(value):
@@ -233,7 +255,7 @@ def go_json_size(value):
 
 
 def reply_size(envelope, body):
-    """The runner's /send request carrying body back along the message's route."""
+    """The runner's /send request carrying body back along the message's route: an upper bound on #ai's own reply."""
     back = envelope.get("reply_to") if isinstance(envelope.get("reply_to"), dict) else None
     to, topic, tag = (back.get("name"), back.get("topic"), back.get("tag")) if back else (envelope.get("from"), envelope.get("topic"), envelope.get("tag"))
     # protocol.Envelope always writes these five plus its zero times, which omitempty does not drop.
@@ -342,8 +364,11 @@ def image_request(argument, config):
     request = dict(argument)
     model = request.pop("model", config.get("image_model"))
     prompt = request.pop("prompt", None)
+    if model is None:
+        # Never a guessed model: a paid call goes only to a model somebody chose.
+        raise ProxyError("no image model configured: set Configuration image_model or give a request model")
     if not isinstance(model, str) or not model_path(model):
-        raise ProxyError("set Configuration image_model or provide a request model")
+        raise ProxyError("image model is an author/slug model id")
     if not isinstance(prompt, str) or not prompt.strip():
         raise ProxyError("image takes a prompt")
     if set(request) - IMAGE_OPTIONS:
@@ -368,21 +393,110 @@ def image_request(argument, config):
     payload = json.dumps({"model": model, "prompt": prompt, **request}, ensure_ascii=False).encode()
     if len(payload) > MAX_BYTES:
         raise ProxyError("request exceeds 1048576 bytes")
-    return payload
+    return payload, n
 
 
-def generate_images(payload, envelope, base, key):
-    """Generate and store the images. #ai has no bus access of its own yet, so nothing is sent."""
-    return IMAGE_UNAVAILABLE, "unavailable"
+def record_full(store, count, size):
+    """The refusal when count more keys of size bytes would not fit #ai's bigfile record, else None."""
+    rows = store.bigfile.list()
+    keys, used = len(rows), sum(row["size"] for row in rows)
+    if keys + count > RECORD_KEYS or used + size > RECORD_BYTES:
+        return full_answer(store, keys, used)
+    return None
 
 
-def provider_method(name, argument, envelope, config, key, roles, work, base):
+def full_answer(store, keys=None, used=None):
+    held = f"{keys} keys, {used} bytes of " if keys is not None else ""
+    return f"error: {store.name} bigfile record is full ({held}{RECORD_KEYS} keys / 256 MiB); try again after old images expire (24 h)"
+
+
+def sniffed(data):
+    """The media type the bytes themselves show, for an item the provider did not label."""
+    for magic, media in ((b"\x89PNG\r\n\x1a\n", "image/png"), (b"\xff\xd8\xff", "image/jpeg"), (b"GIF8", "image/gif")):
+        if data.startswith(magic):
+            return media
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    if re.match(rb"\s*(<\?xml[^>]*>\s*)?<svg[\s>]", data[:512]):
+        return "image/svg+xml"
+    return None
+
+
+def decoded_images(result):
+    """(media type, bytes) for each image in a provider answer; anything that is not an image is an error."""
+    items = result.get("data") if isinstance(result, dict) else None
+    if not isinstance(items, list) or not items or len(items) > IMAGE_N_MAX:
+        raise ProxyError("provider returned no image")
+    images = []
+    for item in items:
+        text = item.get("b64_json") if isinstance(item, dict) else None
+        url = item.get("url") if isinstance(item, dict) else None
+        if not isinstance(text, str) and isinstance(url, str) and re.match(r"data:image/[a-z0-9.+-]+;base64,", url):
+            text = url.partition(",")[2]
+        if not isinstance(text, str) or not text:
+            raise ProxyError("provider returned no image")
+        try:
+            data = base64.b64decode(text, validate=True)
+        except (binascii.Error, ValueError):
+            raise ProxyError("provider returned no image") from None
+        media = item.get("media_type")
+        media = media if media in IMAGE_TYPES else sniffed(data) if media is None else None
+        if media is None or not data:
+            raise ProxyError("provider returned no image")
+        images.append((media, data))
+    return images
+
+
+def store_refusal(store, error):
+    if isinstance(error, Refusal):
+        return f"error: {store.name} cannot store images ({error.status}: {error})"
+    return f"error: {store.name} cannot store images (the bus did not answer)"
+
+
+def generate_images(request, envelope, base, key, store):
+    """Generate the images and put each into #ai's own bigfile record; the answer names every one."""
+    payload, n = request
+    if store is None:
+        return "error: image needs the kept #ai process, which holds its bigfile record", "refused"
+    try:
+        # Checked before the paid call too, with room for n images at the largest size a key holds.
+        refused = record_full(store, n, n * IMAGE_MAX)
+    except BusError as error:
+        return store_refusal(store, error), "refused"
+    if refused:
+        return refused, "refused"
+    status, result = provider_call("image", envelope, base, "POST", base.path.rstrip("/") + "/images", payload, key, IMAGE_READ)
+    if isinstance(result, str):
+        return result, status
+    images = decoded_images(result)
+    paid = usage_line(result)
+    lines, kept = [], [(media, data) for media, data in images if len(data) <= IMAGE_MAX]
+    try:
+        refused = record_full(store, len(kept), sum(len(data) for _, data in kept))
+        if refused:
+            return refused + paid, status
+        for number, (media, data) in enumerate(images, 1):
+            if len(data) > IMAGE_MAX:
+                lines.append(f"error: image {number} is {len(data)} bytes, over the 32 MiB a bigfile holds; not kept")
+                continue
+            name = "image-" + secrets.token_hex(8) + "." + IMAGE_TYPES[media]
+            store.bigfile.put(name, data, ttl=IMAGE_TTL)
+            lines.append(f"{store.name}/{name} {media} {len(data)} bytes, kept 24 h")
+    except Refusal as error:
+        # Another process may fill the record between the check and the put.
+        lines.append(full_answer(store) if error.status == 413 else store_refusal(store, error))
+    except BusError as error:
+        lines.append(store_refusal(store, error))
+    return "\n".join(lines) + paid, status
+
+
+def provider_method(name, argument, envelope, config, key, roles, work, base, store=None):
     """Answer models, model, balance, key, embed or image: (answer, status)."""
     if name in ("balance", "key", "image") and not roles & MANAGERS:
         return f"error: {name} needs the owner or maintainer role", "refused"
     root = base.path.rstrip("/")
     if name == "image":
-        return generate_images(image_request(argument, config), envelope, base, key)
+        return generate_images(image_request(argument, config), envelope, base, key, store)
     if name == "embed":
         model = argument.get("model", config.get("embed_model"))
         if not isinstance(model, str) or not re.fullmatch(MODEL_ID, model):
@@ -446,7 +560,7 @@ def trusted_base(config):
     return base
 
 
-def answer(envelope, config, key, roles=frozenset(), work=None):
+def answer(envelope, config, key, roles=frozenset(), work=None, store=None):
     if not key:
         return "error: OPENROUTER_API_KEY is not set", 78
     status, model, sent, received = "invalid", "", 0, 0
@@ -461,7 +575,7 @@ def answer(envelope, config, key, roles=frozenset(), work=None):
         call = method_call(body)
         if call is not None:
             base = trusted_base(config)
-            output, status = provider_method(*call, envelope, config, key, set(roles), work, base)
+            output, status = provider_method(*call, envelope, config, key, set(roles), work, base, store)
             output = redact(output, key)
             if len(output.encode()) > MAX_BYTES:
                 raise ProxyError("provider answer exceeds 1048576 bytes")
@@ -562,6 +676,46 @@ def answer(envelope, config, key, roles=frozenset(), work=None):
                           "request_bytes": sent, "answer_bytes": received, "status": status}), file=sys.stderr)
 
 
+def thaw(value):
+    """A received envelope as the plain dicts and lists answer() reads."""
+    if isinstance(value, Mapping):
+        return {k: thaw(v) for k, v in value.items()}
+    if isinstance(value, tuple):
+        return [thaw(v) for v in value]
+    return value
+
+
+def handle(message, config, key, store, work):
+    """One message's answer text: a help ask, or the same answer a per-message run gave."""
+    roles = message_roles(message, store.name)
+    asked = dispatch(HERE, message.ask, roles=roles)
+    if asked is not None:
+        return asked
+    try:
+        return answer(thaw(message.envelope), config, key, roles, work, store)[0]
+    except (ValueError, TypeError, RecursionError):
+        return "error: invalid message or Configuration"
+
+
+def serve(bus, config, key, work):
+    """Read #ai's inbox in the main thread, so SIGALRM deadlines keep working, until SIGTERM or SIGHUP."""
+    stopping = []
+    # SIGHUP means the Configuration changed: finish, exit, and the runner starts a process with the new one.
+    for number in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+        signal.signal(number, lambda *_: stopping.append(True))
+    store = bus.record(bus.name)
+    while not stopping:
+        message = bus.consume(wait=5, share=True)
+        if message is None or message.receipt or message.re:
+            continue
+        reply = handle(message, config, key, store, work)
+        try:
+            message.reply(reply)
+        except BusError:
+            print("ai: answer delivery failed", file=sys.stderr)
+    return 0
+
+
 def main():
     result = dispatch(HERE, os.environ.get('AGENT_BUS_ASK'))
     if result is not None:
@@ -569,21 +723,20 @@ def main():
         return 0
     key = os.environ.get("OPENROUTER_API_KEY", "")
     if not key:
+        # A self-serving agent's env.dist is not enforced by the runner, so the process says it.
         print("OPENROUTER_API_KEY is not set", file=sys.stderr)
-        print("error: OPENROUTER_API_KEY is not set")
         return 78
     try:
-        # The envelope adds escaping and labels to the bounded body.
-        raw = sys.stdin.buffer.read(8 * MAX_BYTES + 1)
-        if len(raw) > 8 * MAX_BYTES:
-            raise ValueError()
-        envelope = json.loads(raw)
         config = json.loads(os.environ.get("AGENT_BUS_CONFIG", "{}"))
-        output, code = answer(envelope, config, key, delivered_roles(os.environ), os.environ.get("AGENT_BUS_WORK"))
-    except (ValueError, TypeError, RecursionError):
-        output, code = "error: invalid message or Configuration", 0
-    print(output)
-    return code
+    except ValueError:
+        print("ai: Configuration is not JSON", file=sys.stderr)
+        return 78
+    try:
+        with Bus(timeout=5) as bus:
+            return serve(bus, config, key, os.environ.get("AGENT_BUS_WORK"))
+    except BusError:
+        print("ai: bus unavailable", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

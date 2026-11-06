@@ -1,3 +1,4 @@
+import base64
 import contextlib
 import datetime
 import http.server
@@ -7,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import signal
 import socket
 from unittest.mock import patch
 import tempfile
@@ -19,6 +21,59 @@ spec = importlib.util.spec_from_file_location('proxy', HERE / 'ai.py')
 proxy = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(proxy)
 KEY = 'private-credential-for-fixtures'
+from agent_bus.message import Message
+from agent_bus.errors import Refusal, TransportError
+PNG = b'\x89PNG\r\n\x1a\n' + b'fixture-png-bytes'
+JPEG = b'\xff\xd8\xff' + b'fixture-jpeg'
+
+
+class Bigfile:
+    """#ai's bigfile record in memory: list and put as the client library answers them."""
+    def __init__(self, rows=(), refuse=None, puts_allowed=None):
+        self.rows = [dict(row) for row in rows]
+        self.puts, self.lists = [], 0
+        self.refuse, self.puts_allowed = refuse, puts_allowed
+
+    def list(self):
+        self.lists += 1
+        if self.refuse:
+            raise self.refuse
+        return [dict(row) for row in self.rows]
+
+    def put(self, name, data, *, ttl):
+        if self.puts_allowed is not None and len(self.puts) >= self.puts_allowed:
+            raise Refusal(413, 'bigfile limit reached')
+        self.puts.append((name, bytes(data), ttl))
+        self.rows.append({'name': name, 'size': len(data)})
+
+
+class Record:
+    def __init__(self, bigfile=None):
+        self.name = '#ai@t'
+        self.bigfile = bigfile or Bigfile()
+
+
+class FakeBus:
+    """Hands out queued envelopes as real Messages, keeps every reply, and sends itself SIGTERM once the queue is empty."""
+    def __init__(self, envelopes, store=None):
+        self.name = '#ai@t'
+        self.store = store or Record()
+        self.queue = [Message.received(envelope, self) for envelope in envelopes]
+        self.replies, self.consumed = [], []
+
+    def record(self, name):
+        assert name == self.name
+        return self.store
+
+    def consume(self, *, wait, share):
+        self.consumed.append((wait, share))
+        if not self.queue:
+            os.kill(os.getpid(), signal.SIGTERM)
+            return None
+        return self.queue.pop(0)
+
+    def reply(self, message, body):
+        self.replies.append((message.envelope.get('message_id'), body))
 
 
 class Fake(http.server.BaseHTTPRequestHandler):
@@ -81,15 +136,17 @@ class Proxy(unittest.TestCase):
         self.addCleanup(self.thread.join)
         self.addCleanup(self.server.shutdown)
         self.config = {'model': 'fixture/default', 'base_url': self.server.url}
+        self.store = Record()
 
     def call(self, body, deadline=None, roles=(), work=None, **route):
+        """One message through the kept process's entry: roles come from the envelope the daemon wrote."""
         log = io.StringIO()
-        envelope = {'from': '#fixture@h', 'body': body, **route}
+        envelope = {'from': '#fixture@h', 'body': body, 'roles': list(roles), **route}
         if deadline:
             envelope['deadline'] = deadline
         with contextlib.redirect_stderr(log):
-            answer, code = proxy.answer(envelope, self.config, KEY, set(roles), work)
-        return answer, code, log.getvalue()
+            answer = proxy.handle(Message.received(envelope, None), self.config, KEY, self.store, work)
+        return answer, 0, log.getvalue()
 
     def route(self, path, payload, status=200):
         self.server.routes['/v1' + path] = (status, json.dumps(payload).encode() if not isinstance(payload, bytes) else payload)
@@ -128,11 +185,12 @@ class Proxy(unittest.TestCase):
             self.assertEqual(self.server.requests[-1], ('/v1/chat/completions', 'Bearer '+KEY,
                 {'model':'fixture/default','messages':[{'role':'user','content':body}]}))
         # The method is a JSON object, after "image " or as {"method":"image"}.
+        self.route('/images', self.IMAGES)
         for request in ['image {"prompt":"a red panda"}', '{"method":"image","prompt":"a red panda"}']:
-            self.assertEqual(self.call(request, roles=('owner',))[0], proxy.IMAGE_UNAVAILABLE)
+            self.assertRegex(self.call(request, roles=('owner',))[0], r'^#ai@t/image-[0-9a-f]{16}\.png ')
             self.assertEqual(self.call(request)[0], 'error: image needs the owner or maintainer role')
         self.assertTrue(self.call('image {"prompt":', roles=('owner',))[0].startswith('error:'))
-        self.assertEqual(len(self.server.requests), 3)
+        self.assertEqual([r[0] for r in self.server.requests], ['/v1/chat/completions'] * 3 + ['/v1/images'] * 2)
 
     def test_english_embed_prompts_remain_chat(self):
         self.config['embed_model'] = 'fixture/embed'
@@ -259,10 +317,11 @@ class Proxy(unittest.TestCase):
         env = os.environ.copy()
         env.pop('OPENROUTER_API_KEY', None)
         env['AGENT_BUS_CONFIG'] = json.dumps(self.config)
-        result = subprocess.run([str(HERE / 'ai.py')], input='{"body":"hello"}', text=True,
-                                capture_output=True, env=env, timeout=2)
-        self.assertEqual(result.returncode, 78)
-        self.assertEqual(result.stdout.strip(), 'error: OPENROUTER_API_KEY is not set')
+        # Before any bus connection: the address below would refuse it, and the exit would be 1.
+        env.update(AGENT_BUS_ADDR='http://127.0.0.1:1', AGENT_BUS_NAME='#ai@t', AGENT_BUS_TOKEN='fixture-only')
+        result = subprocess.run([str(HERE / 'ai.py')], text=True, capture_output=True, env=env, timeout=5)
+        self.assertEqual((result.returncode, result.stdout), (78, ''))
+        self.assertEqual(result.stderr.strip(), 'OPENROUTER_API_KEY is not set')
         self.assertEqual(self.server.requests, [])
 
     def test_provider_error_and_key_never_appears_in_answers_or_logs(self):
@@ -324,25 +383,21 @@ class Proxy(unittest.TestCase):
         with tempfile.TemporaryDirectory(dir=scratch) as directory:
             package = Path(directory) / 'ai'
             subprocess.run([str(HERE / 'package.sh'), str(package)], check=True, capture_output=True)
-            result = subprocess.run([str(package / 'ai.py')], input=json.dumps({'body': 'hello', 'deadline': '0001-01-01T00:00:00Z'}),
-                                    text=True, capture_output=True, timeout=2, cwd=directory,
-                                    env={'PATH': os.environ['PATH'], 'OPENROUTER_API_KEY': KEY,
-                                         'AGENT_BUS_CONFIG': json.dumps(self.config)})
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(result.stdout.strip(), 'Hello from the model')
-            self.assertNotIn(KEY, result.stdout + result.stderr)
-            raw = '{ "model":"typesafe/jev-1.14", "questions":{} } '
-            result = subprocess.run([str(package / 'ai.py')], input=json.dumps({'body':'decide '+raw}),
-                                    text=True,capture_output=True,timeout=2,cwd=directory,
-                                    env={'PATH':os.environ['PATH'],'OPENROUTER_API_KEY':KEY,
-                                         'AGENT_BUS_CONFIG':json.dumps(self.config)})
-            self.assertEqual(result.returncode,0,result.stderr)
-            self.assertEqual(self.server.raw_requests[-1],raw.encode())
-            self.assertEqual(self.server.requests[-1][0],'/api/alpha/decisions')
-            self.assertEqual(json.loads(result.stdout),json.loads(self.server.payload))
+            env = {'PATH': os.environ['PATH'], 'OPENROUTER_API_KEY': KEY, 'AGENT_BUS_CONFIG': json.dumps(self.config),
+                   'AGENT_BUS_ADDR': 'http://127.0.0.1:1', 'AGENT_BUS_NAME': '#ai@t', 'AGENT_BUS_TOKEN': 'fixture-only'}
+            # The packaged program finds its client library: it gets as far as the bus, which is not there.
+            result = subprocess.run([str(package / 'ai.py')], text=True, capture_output=True, timeout=10, cwd=directory, env=env)
+            self.assertEqual((result.returncode, result.stdout), (1, ''), result.stderr)
+            self.assertIn('ai: bus unavailable', result.stderr)
+            self.assertNotIn(KEY, result.stderr)
+            result = subprocess.run([str(package / 'ai.py')], text=True, capture_output=True, timeout=5, cwd=directory,
+                                    env={**env, 'AGENT_BUS_ASK': 'help-json'})
+            self.assertEqual(set(json.loads(result.stdout)['methods']), {'ask', 'decide', 'models', 'model', 'embed'})
+            self.assertTrue((package / 'support/clients/python/agent_bus/client.py').is_file())
+            self.assertTrue((package / 'support/clients/LICENSE.md').is_file())
             manifest = json.loads((package / 'agent.json').read_text())
             self.assertEqual(manifest['form'], 'json')
-            self.assertNotIn('serves', manifest)
+            self.assertEqual((manifest['serves'], manifest['processes']), ('itself', 2))
             self.assertTrue(manifest['needs']['network'])
             self.assertEqual(set(manifest['config']), {'model', 'embed_model', 'image_model', 'base_url'})
 
@@ -458,18 +513,41 @@ class Proxy(unittest.TestCase):
                 'rate_limit': {'requests': 230, 'interval': '10s'}, 'free_model_daily_requests': {'used': 1, 'limit': 1000, 'remaining': 999}})
         self.assertEqual([r[0] for r in self.server.requests], ['/v1/credits', '/v1/key'] * 2)
 
-    def test_roles_come_from_the_delivered_environment_only(self):
+    def serve(self, envelopes, store=None):
+        """Run the kept loop over envelopes; it ends on the SIGTERM the fake bus sends once they are served."""
+        handlers = {number: signal.getsignal(number) for number in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)}
+        self.addCleanup(lambda: [signal.signal(number, handler) for number, handler in handlers.items()])
+        bus = FakeBus(envelopes, store)
+        with contextlib.redirect_stderr(io.StringIO()):
+            code = proxy.serve(bus, self.config, KEY, None)
+        return code, bus
+
+    def test_roles_come_from_the_daemon_set_envelope_only(self):
         self.route('/credits', self.CREDITS)
-        cases = [({'AB_ROLE_MAINTAINER': '1'}, True), ({'AB_ROLE_OWNER': '1'}, True), ({'AB_ROLE_OWNER': '0'}, False),
-                 ({'AB_ROLE_ADMIN': '1'}, False), ({'AB_ROLE_Owner': '1', 'AB_ROLE_maintainer': '1'}, False), ({}, False)]
-        # Roles a sender writes into the message are never read: only the delivered environment counts.
-        forged = {'body': 'balance', 'roles': ['owner', 'maintainer'], 'from': 'owner@h'}
-        for roles, served in cases:
-            result = subprocess.run([str(HERE / 'ai.py')], input=json.dumps(forged), text=True, capture_output=True, timeout=5,
-                                    env={'PATH': os.environ['PATH'], 'OPENROUTER_API_KEY': KEY, 'AGENT_BUS_CONFIG': json.dumps(self.config), **roles})
-            self.assertEqual(result.stdout.strip(), '12.3456 USD left (20 USD bought, 7.6544 USD used)' if served
-                             else 'error: balance needs the owner or maintainer role', roles)
-        self.assertEqual(len(self.server.requests), 2)
+        left, refused = '12.3456 USD left (20 USD bought, 7.6544 USD used)', 'error: balance needs the owner or maintainer role'
+        # Only the daemon-set roles count, and roles on a message first sent to another name are not #ai's.
+        cases = [('1', 'balance', ['maintainer'], None, left), ('2', 'balance', ['owner'], '#ai@t', left),
+                 ('3', 'balance', ['owner', 'admin'], '#AI@t', left), ('4', 'balance', [], None, refused),
+                 ('5', 'balance', ['admin', 'write'], None, refused), ('6', 'balance', ['owner'], '#other@t', refused),
+                 ('7', 'balance', 'owner', None, refused)]
+        envelopes = [{'message_id': mid, 'from': 'owner@h', 'body': body, 'roles': roles, **({'original_to': to} if to else {})}
+                     for mid, body, roles, to, _ in cases]
+        envelopes.insert(0, {'message_id': 'r', 'from': 'x@h', 'body': 'balance', 'roles': ['owner'], 'receipt': 'read'})
+        envelopes.insert(1, {'message_id': 'h', 'from': 'x@h', 'body': 'invalid normal input', 'ask': 'help-json', 'roles': ['owner']})
+        code, bus = self.serve(envelopes)
+        self.assertEqual(code, 0)
+        self.assertEqual(set(json.loads(bus.replies[0][1])['methods']), {'ask', 'decide', 'models', 'model', 'embed', 'balance', 'key', 'image'})
+        self.assertEqual(bus.replies[1:], [(mid, want) for mid, _, _, _, want in cases])
+        self.assertEqual(len(self.server.requests), 3, 'only the three served balance calls reach the provider')
+        self.assertTrue(all(share for _, share in bus.consumed))
+
+    def test_sigterm_and_sighup_end_the_loop_after_the_answer(self):
+        for number in (signal.SIGTERM, signal.SIGHUP):
+            stop = lambda *_: os.kill(os.getpid(), number)
+            # The signal arrives while a message is being answered: that answer is still sent, then the loop ends.
+            with patch.object(proxy, 'answer', side_effect=lambda *a, **k: (stop(), ('answered', 0))[1]):
+                code, bus = self.serve([{'message_id': 'a', 'body': 'hello'}, {'message_id': 'b', 'body': 'never read'}])
+            self.assertEqual((code, bus.replies, len(bus.queue)), (0, [('a', 'answered')], 1), number)
 
     def test_a_method_the_provider_lacks_is_refused_by_name(self):
         for method, body in [('models', 'models'), ('models', 'models --images'), ('model', 'model openai/gpt-4'), ('balance', 'balance'),
@@ -588,9 +666,6 @@ class Proxy(unittest.TestCase):
         except RecursionError:
             answer = 'RecursionError escaped answer()'
         self.assertEqual(answer, 'error: invalid request, Configuration or provider response')
-        result = subprocess.run([str(HERE / 'ai.py')], input=json.dumps({'body': 'x'})[:-1] + ',"n":' + '[' * 100000 + ']' * 100000 + '}',
-                                text=True, capture_output=True, timeout=5, env={'PATH': os.environ['PATH'], 'OPENROUTER_API_KEY': KEY})
-        self.assertEqual((result.returncode, result.stdout.strip()), (0, 'error: invalid message or Configuration'), result.stderr[-300:])
         self.assertEqual(self.server.requests, [])
 
     def test_key_never_appears_in_any_new_method_answer_or_error(self):
@@ -656,39 +731,125 @@ class Proxy(unittest.TestCase):
         self.assertEqual(json.loads(self.call('model openai/gpt-4')[0])['kind'], 'text')
         self.assertEqual(len(self.server.requests), 3)
 
-    def test_image_is_for_owner_and_maintainers_and_sends_nothing_yet(self):
+    IMAGES = {'created': 1748372400, 'data': [{'b64_json': base64.b64encode(PNG).decode(), 'media_type': 'image/png'}],
+              'usage': {'prompt_tokens': 0, 'completion_tokens': 4175, 'cost': 0.04}}
+    TWO_IMAGES = {'data': [{'b64_json': base64.b64encode(PNG).decode(), 'media_type': 'image/png'},
+                           {'b64_json': base64.b64encode(JPEG).decode()}], 'usage': {'cost': 0.08}}
+    KEPT = r'#ai@t/image-[0-9a-f]{16}\.%s image/%s %d bytes, kept 24 h'
+
+    def image(self, roles=('owner',), **fields):
+        return self.call(json.dumps({'method': 'image', 'prompt': 'a red panda', **fields}), roles=roles)[0]
+
+    def test_image_puts_each_picture_into_the_bigfile_record_and_names_it(self):
         self.config['image_model'] = 'openai/gpt-image-2'
-        request = json.dumps({'method': 'image', 'prompt': 'a red panda', 'n': 2, 'aspect_ratio': '16:9'})
-        for body in ['image {"prompt":"a red panda"}', request]:
+        self.route('/images', self.TWO_IMAGES)
+        lines = self.image(n=2, aspect_ratio='16:9').split('\n')
+        self.assertEqual(len(lines), 4, lines)
+        self.assertRegex(lines[0], '^' + self.KEPT % ('png', 'png', len(PNG)) + '$')
+        # The second item has no media type: its bytes say JPEG.
+        self.assertRegex(lines[1], '^' + self.KEPT % ('jpeg', 'jpeg', len(JPEG)) + '$')
+        self.assertEqual(lines[2:], ['', '[cost 0.08 USD]'])
+        puts = self.store.bigfile.puts
+        self.assertEqual([(lines[i].split()[0], data, ttl) for i, (_, data, ttl) in enumerate(puts)],
+                         [('#ai@t/' + name, data, 86400) for name, data, _ in puts])
+        self.assertEqual([data for _, data, _ in puts], [PNG, JPEG])
+        self.assertEqual(self.server.requests[-1], ('/v1/images', 'Bearer ' + KEY,
+                                                     {'model': 'openai/gpt-image-2', 'prompt': 'a red panda', 'n': 2, 'aspect_ratio': '16:9'}))
+        self.assertNotEqual(puts[0][0], puts[1][0])
+        self.image(n=2)
+        self.assertEqual(len({name for name, _, _ in self.store.bigfile.puts}), 4, 'every image gets a new random name')
+
+    def test_image_is_for_owner_and_maintainers_and_never_guesses_a_model(self):
+        self.route('/images', self.IMAGES)
+        self.config['image_model'] = 'openai/gpt-image-2'
+        for body in ['image {"prompt":"a red panda"}', json.dumps({'method': 'image', 'prompt': 'a red panda', 'n': 2})]:
             for roles in [(), ('guest',), ('admin',)]:
                 self.assertEqual(self.call(body, roles=roles)[:2], ('error: image needs the owner or maintainer role', 0))
-            for roles in [('owner',), ('maintainer',)]:
-                self.assertEqual(self.call(body, roles=roles)[0], proxy.IMAGE_UNAVAILABLE)
-        self.assertEqual(self.server.requests, [], 'no image call reaches the provider before #ai can store its images')
+        self.assertEqual(self.server.requests, [], 'a refused role must not reach the provider')
+        for roles in [('owner',), ('maintainer',)]:
+            self.assertRegex(self.image(roles=roles), '^' + self.KEPT % ('png', 'png', len(PNG)) + '\n')
+        del self.config['image_model']
+        before = len(self.server.requests)
+        self.assertEqual(self.image(), 'error: no image model configured: set Configuration image_model or give a request model')
+        self.assertEqual((len(self.server.requests), self.store.bigfile.lists), (before, 4), 'no provider call and no bigfile look without a model')
+        self.assertRegex(self.image(model='openai/gpt-image-2'), '^#ai@t/image-')
+
+    def test_a_full_record_is_refused_by_name_before_the_paid_call(self):
+        self.config['image_model'] = 'openai/gpt-image-2'
+        self.route('/images', self.IMAGES)
+        mib = 1024 * 1024
+        full = lambda keys, used: f'error: #ai@t bigfile record is full ({keys} keys, {used} bytes of 100 keys / 256 MiB); try again after old images expire (24 h)'
+        for rows, n, want in [([{'name': f'k{i}', 'size': 1} for i in range(100)], 1, full(100, 100)),
+                              ([{'name': f'k{i}', 'size': 1} for i in range(97)], 4, full(97, 97)),
+                              ([{'name': 'big', 'size': 256 * mib - 32 * mib + 1}], 1, full(1, 256 * mib - 32 * mib + 1))]:
+            self.store = Record(Bigfile(rows))
+            self.assertEqual(self.image(n=n), want)
+            self.assertEqual(self.store.bigfile.puts, [])
+        self.assertEqual(self.server.requests, [], 'a full record refuses before any paid call')
+        self.store = Record(Bigfile([{'name': 'big', 'size': 256 * mib - 32 * mib}]))
+        self.assertRegex(self.image(), '^#ai@t/image-', 'exactly room for one image at the largest size is room')
+
+    def test_a_record_filled_during_the_call_names_what_was_kept_and_the_cost(self):
+        self.config['image_model'] = 'openai/gpt-image-2'
+        self.route('/images', self.TWO_IMAGES)
+        # The other process filled the record between this one's check and its second put.
+        self.store = Record(Bigfile(puts_allowed=1))
+        lines = self.image(n=2).split('\n')
+        self.assertRegex(lines[0], '^' + self.KEPT % ('png', 'png', len(PNG)) + '$')
+        self.assertEqual(lines[1:], ['error: #ai@t bigfile record is full (100 keys / 256 MiB); try again after old images expire (24 h)', '', '[cost 0.08 USD]'])
+        self.assertEqual(len(self.store.bigfile.puts), 1)
+
+    def test_a_store_that_refuses_or_an_answer_without_an_image_is_named(self):
+        self.config['image_model'] = 'openai/gpt-image-2'
+        self.route('/images', self.IMAGES)
+        for error, want in [(Refusal(403, 'forbidden'), 'error: #ai@t cannot store images (403: forbidden)'),
+                            (Refusal(503, 'bigfile store unavailable'), 'error: #ai@t cannot store images (503: bigfile store unavailable)'),
+                            (TransportError('closed'), 'error: #ai@t cannot store images (the bus did not answer)')]:
+            self.store = Record(Bigfile(refuse=error))
+            self.assertEqual(self.image(), want)
+        self.assertEqual(self.server.requests, [])
+        self.store = Record()
+        for data in [[], [{'b64_json': 'not base64!'}], [{'b64_json': base64.b64encode(b'plain text').decode()}],
+                     [{'b64_json': base64.b64encode(PNG).decode(), 'media_type': 'text/html'}], [{'url': 'https://example.com/a.png'}],
+                     [{'b64_json': base64.b64encode(PNG).decode()}] * (proxy.IMAGE_N_MAX + 1)]:
+            self.route('/images', {'data': data})
+            self.assertEqual(self.image(), 'error: provider returned no image', data)
+        self.route('/images', {'data': [{'url': 'data:image/png;base64,' + base64.b64encode(PNG).decode()}]})
+        self.assertRegex(self.image(), '^' + self.KEPT % ('png', 'png', len(PNG)) + '$')
+        self.assertEqual(len(self.store.bigfile.puts), 1)
+        self.route('/images', {'error': {'message': 'model not found'}}, 400)
+        self.assertEqual(self.image(), 'error: 400 model not found')
+        # One image over what a bigfile key holds is named and skipped; the others are kept.
+        self.route('/images', self.TWO_IMAGES)
+        with patch.object(proxy, 'IMAGE_MAX', len(JPEG)):
+            lines = self.image(n=2).split('\n')
+        self.assertEqual(lines[0], f'error: image 1 is {len(PNG)} bytes, over the 32 MiB a bigfile holds; not kept')
+        self.assertRegex(lines[1], '^' + self.KEPT % ('jpeg', 'jpeg', len(JPEG)) + '$')
 
     def test_image_caps_n_options_references_and_request_size(self):
         self.config['image_model'] = 'openai/gpt-image-2'
-        image = lambda **fields: self.call(json.dumps({'method': 'image', 'prompt': 'p', **fields}), roles=('owner',))[0]
-        self.assertEqual(image(n=proxy.IMAGE_N_MAX), proxy.IMAGE_UNAVAILABLE)
+        self.route('/images', self.IMAGES)
+        image = lambda **fields: self.image(**fields)
+        self.assertRegex(image(n=proxy.IMAGE_N_MAX), '^#ai@t/image-')
         for n in [0, proxy.IMAGE_N_MAX + 1, 10, '2', True, 1.0]:
             self.assertEqual(image(n=n), f'error: n is 1 to {proxy.IMAGE_N_MAX} images per call', n)
         self.assertTrue(image(output_format='bmp').startswith('error: output_format is one of'))
         self.assertTrue(image(stream=True).startswith('error: image options are'))
         good = ['https://example.com/a.png', 'data:image/png;base64,iVBORw0KGgo=', {'type': 'image_url', 'image_url': {'url': 'https://example.com/b.jpg'}}]
-        self.assertEqual(image(input_references=good), proxy.IMAGE_UNAVAILABLE)
+        self.assertRegex(image(input_references=good), '^#ai@t/image-')
+        self.assertEqual(self.server.requests[-1][2]['input_references'], [{'type': 'image_url', 'image_url': {'url': u}} for u in
+                                                                        ['https://example.com/a.png', 'data:image/png;base64,iVBORw0KGgo=', 'https://example.com/b.jpg']])
         for bad in [['http://example.com/a.png'], ['file:///etc/passwd'], ['my-bigfile-name'], [{'url': 'https://x'}],
                     ['https://example.com/x'] * (proxy.IMAGE_REFERENCES_MAX + 1), 'https://example.com/a.png']:
             self.assertRegex(image(input_references=bad), r'^error: (an )?input', bad)
         big = 'data:image/png;base64,' + 'A' * proxy.MAX_BYTES
-        self.assertEqual(proxy.image_request({'prompt': 'p', 'input_references': [big[:proxy.MAX_BYTES - 200]]}, self.config)[:1], b'{')
+        self.assertEqual(proxy.image_request({'prompt': 'p', 'input_references': [big[:proxy.MAX_BYTES - 200]]}, self.config)[0][:1], b'{')
         with self.assertRaisesRegex(proxy.ProxyError, 'request exceeds 1048576 bytes'):
             proxy.image_request({'prompt': 'p', 'input_references': [big]}, self.config)
-        self.assertEqual(self.call(json.dumps({'method': 'image', 'prompt': 'p'}), roles=('owner',))[0], proxy.IMAGE_UNAVAILABLE)
-        del self.config['image_model']
-        self.assertEqual(image(), 'error: set Configuration image_model or provide a request model')
-        self.assertEqual(image(model='../../x'), 'error: set Configuration image_model or provide a request model')
+        sent = len(self.server.requests)
+        self.assertEqual(image(model='../../x'), 'error: image model is an author/slug model id')
         self.assertEqual(self.call(json.dumps({'method': 'image', 'model': 'a/b'}), roles=('owner',))[0], 'error: image takes a prompt')
-        self.assertEqual(self.server.requests, [])
+        self.assertEqual(len(self.server.requests), sent)
 
     def test_refused_key_and_credit_are_named_for_every_method(self):
         self.config['embed_model'] = 'fixture/embed'
