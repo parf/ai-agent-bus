@@ -55,3 +55,20 @@ func TestLoadRefusesTwoNamesOnOneToken(t *testing.T) {
 		}
 	}
 }
+
+// One name may retain the same credential in both rotation slots. Only a
+// token shared by different names is ambiguous.
+func TestLoadAllowsOneNameToReuseItsCurrentAsPrevious(t *testing.T) {
+	const token = "tok-same-name-fixture"
+	st := memory.NewTokens(ports.Credential{
+		Name: "alice@h", Current: token, Previous: token,
+		CredentialPair: ports.CredentialPair{UserID: 1},
+	})
+	tokens, err := Load(st)
+	if err != nil {
+		t.Fatalf("same-name current/previous credential refused: %v", err)
+	}
+	if who, ok := tokens.Principal(token); !ok || who != "alice@h" {
+		t.Fatalf("same-name credential backs %q (%v), want alice@h", who, ok)
+	}
+}

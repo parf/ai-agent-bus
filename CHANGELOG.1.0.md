@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.28 — 2026-11-06
+
+The credential store refuses to load when two names share one token, naming both, and the daemon does not start
+
 ## 1.0.27 — 2026-11-05
 
 The daemon's default --ssh-token is the helper beside its own resolved binary, and a missing or non-executable helper refuses the start
