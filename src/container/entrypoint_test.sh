@@ -9,6 +9,7 @@ bin=$work/bin root=$work/root log=$work/log
 mkdir -p "$bin" "$root"/{daemon,runner,agent.d}
 stub() { printf '#!/bin/bash\n%s\n' "$2" >"$bin/$1"; chmod +x "$bin/$1"; }
 stub id 'case $1 in -u) echo ${STUB_UID:-0};; -un) echo ${STUB_UN:-root};; *) echo 0;; esac'
+stub getent 'case $2 in agent-bus-runner) echo agent-bus-runner:x:991:991:::;; agent-busd) echo agent-busd:x:990:990:::;; esac'
 stub hostname 'echo ${STUB_HOST:-node}'
 stub chown 'echo "chown $*" >>"$STUB_LOG"'
 stub install 'echo "install $*" >>"$STUB_LOG"'
@@ -73,14 +74,26 @@ real_stat=$(command -v stat)
 stub stat 'case $2 in %U) echo ${STUB_OWNER:-hostuser};; %a) echo ${STUB_MODE:-755};; esac'
 ENTRY=runner run AGENT_BUS_ADDR=http://d:1 AGENT_BUS_TOKEN=t
 check "a usable foreign directory is not chowned" bash -c "! grep -q '^chown agent-bus-runner' '$log'"
+# A foreign directory the account cannot use: a non-empty one holds somebody's data and is refused,
+# untouched; an empty one is a fresh volume and is taken over.
+chmod 0755 "$root/runner"; touch "$root/runner/data"
 ENTRY=runner run AGENT_BUS_ADDR=http://d:1 AGENT_BUS_TOKEN=t STUB_UNUSABLE=1
-check "an unusable foreign directory is chowned to the account" has '^chown agent-bus-runner:agent-bus-runner '
+check "a non-empty unusable foreign directory is refused by name, with the runner's uid" errs 'holds data.*podman unshare chown 991:991'
+check "and it is neither chowned nor chmoded" bash -c "! grep -q '^chown' '$log' && [ \"\$($real_stat -c %a '$root/runner')\" = 755 ]"
+find "$root/runner" -mindepth 1 -delete
+ENTRY=runner run AGENT_BUS_ADDR=http://d:1 AGENT_BUS_TOKEN=t STUB_UNUSABLE=1
+check "an empty unusable foreign directory is chowned to the account" has '^chown agent-bus-runner:agent-bus-runner '
+check "and set to 0700" bash -c "[ \"\$($real_stat -c %a '$root/runner')\" = 700 ]"
+# The account's own directory is tightened to 0700, whatever it was.
+chmod 0777 "$root/runner"
 ENTRY=runner run AGENT_BUS_ADDR=http://d:1 AGENT_BUS_TOKEN=t STUB_OWNER=agent-bus-runner STUB_UNUSABLE=1
-check "a directory already the account's is left" bash -c "! grep -q '^chown agent-bus-runner:' '$log'"
+check "a directory already the account's is not chowned" bash -c "! grep -q '^chown agent-bus-runner:' '$log'"
+check "a role-owned 0777 directory ends 0700" bash -c "[ \"\$($real_stat -c %a '$root/runner')\" = 700 ]"
 ENTRY=runner run AGENT_BUS_ADDR=http://d:1 AGENT_BUS_TOKEN=t STUB_MODE=700
 check "the probe runs as the account" bash -c "grep -q '^--reuid=agent-bus-runner --regid=agent-bus-runner --init-groups \$' '$log'"
 STUB_MODE=777 ENTRY=runner run AGENT_BUS_ADDR=http://d:1 AGENT_BUS_TOKEN=t STUB_MODE=777
 check "a 0777 mount is refused by name" errs 'writable by its group or others'
+check "and its hint names the runner's uid, 991" errs 'podman unshare chown 991:991'
 check "and the runner is not started" bash -c "! grep -q '^runner' '$log'"
 ENTRY=runner run AGENT_BUS_ADDR=http://d:1 AGENT_BUS_TOKEN=t STUB_MODE=700
 check "a 0700 mount the account can use is kept" has '^runner'
@@ -96,5 +109,6 @@ check "the non-root start sets no-new-privs" has '^--no-new-privs'
 mkdir -p "$root/agent.d/we\\ird"; : >"$root/agent.d/we\\ird/agent.json"; rm -f "$root/runner/agents.json"
 ENTRY=runner run AGENT_BUS_ADDR=http://d:1 AGENT_BUS_TOKEN=t STUB_MODE=700
 check "a backslash in an agent name is refused" errs 'quote or backslash'
+check "and leaves no agents.json, whole or partial" bash -c "[ ! -e '$root/runner/agents.json' ] && [ -z \"\$(ls -A '$root/runner' | grep agents.json)\" ]"
 rm -rf "$root/agent.d/we\\ird"
 [ "$fails" = 0 ] && echo "entry point: all checks passed" || { echo "entry point: $fails failed"; exit 1; }

@@ -24,9 +24,13 @@ own() { # own DIR ACCOUNT
   if [ "$(stat -c %U "$1")" != "$2" ]; then
     if usable_by "$2" "$1"; then
       [ $(( 8#$(stat -c %a "$1") & 8#022 )) = 0 ] ||
-        fail "$1 is usable by $2 but writable by its group or others, and it holds secrets: make it $2's alone or mode 0700 on the host (rootless podman: podman unshare chown ${3:-990}:${3:-990} $1; chmod 0700 $1)"
+        fail "$1 is usable by $2 but writable by its group or others, and it holds secrets: make it $2's alone or mode 0700 on the host (rootless podman: podman unshare chown $(getent passwd "$2" | cut -d: -f3):$(getent passwd "$2" | cut -d: -f3) $1; chmod 0700 $1)"
       return 0
     fi
+    # Not usable by the account: only an empty directory, a fresh volume, is taken over. One holding
+    # data is somebody's, and is never re-owned from here.
+    [ -z "$(ls -A "$1")" ] ||
+      fail "$1 holds data and is not usable by $2: make it $2's on the host (rootless podman: podman unshare chown $(getent passwd "$2" | cut -d: -f3):$(getent passwd "$2" | cut -d: -f3) $1)"
     chown "$2:$2" "$1"
   fi
   chmod 0700 "$1"
@@ -77,18 +81,26 @@ case ${1:---help} in
     # runs with it off, said in the inventory a person can read and change.
     # The inventory lists the agents that are present, so a directory mounted over agent.d lists its own.
     if [ ! -e "$runner_home/agents.json" ]; then
+      # Every name is checked before anything is written, and the file appears whole or not at all:
+      # a half-written agents.json would be taken for the inventory at the next start.
+      present=()
+      for d in "$agents"/*/; do
+        [ -f "${d}agent.json" ] || continue
+        case $(basename "$d") in *\"*|*\\*) fail "the agent directory name $(basename "$d") holds a quote or backslash" ;; esac
+        present+=("$(basename "$d")")
+      done
       sep=""
+      tmp=$(mktemp "$runner_home/.agents.json.XXXXXX")
       {
         printf '{\n'
-        for d in "$agents"/*/; do
-          [ -f "${d}agent.json" ] || continue
-          case $(basename "$d") in *\"*|*\\*) fail "the agent directory name $(basename "$d") holds a quote or backslash" ;; esac
-          printf '%s  "%s": {"sandbox": "off"}' "$sep" "$(basename "$d")"
+        for name in ${present[@]+"${present[@]}"}; do
+          printf '%s  "%s": {"sandbox": "off"}' "$sep" "$name"
           sep=$',\n'
         done
         printf '\n}\n'
-      } >"$runner_home/agents.json"
-      [ "$(id -u)" != 0 ] || chown agent-bus-runner:agent-bus-runner "$runner_home/agents.json"
+      } >"$tmp"
+      [ "$(id -u)" != 0 ] || chown agent-bus-runner:agent-bus-runner "$tmp"
+      mv "$tmp" "$runner_home/agents.json"
     fi
     as agent-bus-runner agent-bus-runner --host="$runner_home" --agents="$agents" "$@"
     ;;
