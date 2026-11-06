@@ -148,6 +148,22 @@ func (b *Bus) Serve(ctx context.Context, handler func(context.Context, Envelope)
 			return
 		}
 		m := w.msg
+		if m != nil && o.onReply != nil && m.Receipt == "" && m.Re != "" && !strings.HasPrefix(m.Tag, b.prefix) {
+			// An answer to this Bus's own send: no ack, reply or done, exactly as when it is dropped.
+			active++
+			go func() {
+				defer w.release()
+				var err error
+				defer func() {
+					if p := recover(); p != nil {
+						err = fmt.Errorf("reply handler panic: %v", p)
+					}
+					completed <- err
+				}()
+				err = o.onReply(messageCtx, *m)
+			}()
+			return
+		}
 		if m == nil || m.Receipt != "" || m.Re != "" || (strings.HasPrefix(m.Tag, b.prefix) && !w.selfRequest) {
 			w.release()
 			return

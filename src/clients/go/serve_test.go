@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -254,5 +255,106 @@ func TestServingReservesCapacityBeforeConsuming(t *testing.T) {
 	}
 	if left != 2 {
 		t.Fatalf("consumed beyond available capacity: remaining %d want 2", left)
+	}
+}
+
+// serveAnswers serves a queue of a deferred answer to this Bus's own send, a late answer to one of its calls, and
+// one request, and returns what the reply handler and the request handler saw and what the Bus sent.
+func serveAnswers(t *testing.T, withReply bool) (replies, handled []string, sent []map[string]any) {
+	t.Helper()
+	q := &queueFixture{unfiltered: make(chan struct{}, 100)}
+	b := fakeBus(t, q.handler)
+	q.push(map[string]any{"message_id": "answer", "from": "#other", "to": "#me", "body": "deferred", "re": "asked", "topic": "long", "tag": "q1"})
+	q.push(map[string]any{"message_id": "late", "from": "#other", "to": "#me", "body": "late", "re": "called", "topic": "call", "tag": b.prefix + "gone"})
+	q.push(map[string]any{"message_id": "work", "from": "#caller", "to": "#me", "body": "work", "tag": "w"})
+	var mu sync.Mutex
+	opts := []Option{WithWorkers(2)}
+	if withReply {
+		opts = append(opts, WithOnReply(func(_ context.Context, m Envelope) error {
+			mu.Lock()
+			replies = append(replies, m.Body)
+			mu.Unlock()
+			return nil
+		}))
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	result := make(chan error, 1)
+	go func() {
+		result <- b.Serve(ctx, func(_ context.Context, m Envelope) (*string, error) {
+			mu.Lock()
+			handled = append(handled, m.Body)
+			mu.Unlock()
+			return Done, nil
+		}, opts...)
+	}()
+	deadline := time.After(2 * time.Second)
+	for {
+		q.mu.Lock()
+		left, writes := len(q.queue), len(q.sent)
+		q.mu.Unlock()
+		if left == 0 && writes >= 2 {
+			break
+		}
+		select {
+		case <-deadline:
+			t.Fatal("the queue was not served")
+		case <-time.After(time.Millisecond):
+		}
+	}
+	time.Sleep(20 * time.Millisecond)
+	cancel()
+	if e := <-result; e != nil {
+		t.Fatal(e)
+	}
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	mu.Lock()
+	defer mu.Unlock()
+	return replies, handled, q.sent
+}
+
+func answeredIDs(sent []map[string]any) []any {
+	ids := []any{}
+	for _, m := range sent {
+		ids = append(ids, m["re"])
+	}
+	return ids
+}
+
+func TestServeOnReplyGetsAnUnclaimedAnswerExactlyOnceAndAnswersNothing(t *testing.T) {
+	replies, handled, sent := serveAnswers(t, true)
+	if len(replies) != 1 || replies[0] != "deferred" {
+		t.Fatalf("the reply handler must get the deferred answer exactly once, and never the late call answer: %q", replies)
+	}
+	if len(handled) != 1 || handled[0] != "work" {
+		t.Fatalf("the request handler gets the work only: %q", handled)
+	}
+	// As when it is dropped: only the work is acknowledged and done; nothing answers either answer.
+	if ids := answeredIDs(sent); len(ids) != 2 || ids[0] != "work" || ids[1] != "work" {
+		t.Fatalf("only the work is answered: %v", ids)
+	}
+}
+
+func TestServeWithoutOnReplyDropsAnAnswerAsBefore(t *testing.T) {
+	replies, handled, sent := serveAnswers(t, false)
+	if len(handled) != 1 || handled[0] != "work" || len(replies) != 0 {
+		t.Fatalf("an answer never reaches the request handler: %q", handled)
+	}
+	if ids := answeredIDs(sent); len(ids) != 2 || ids[0] != "work" || ids[1] != "work" {
+		t.Fatalf("only the work is answered: %v", ids)
+	}
+}
+
+func TestCallRefusesAWaitOption(t *testing.T) {
+	q := &queueFixture{unfiltered: make(chan struct{}, 100)}
+	b := fakeBus(t, q.handler)
+	_, e := b.Call(context.Background(), "#other", "x", WithTimeout(time.Second), WithWait(30*time.Second))
+	if e == nil || !strings.Contains(e.Error(), "timeout is the wait") {
+		t.Fatalf("a wait option is refused: %v", e)
+	}
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	if len(q.sent) != 0 {
+		t.Fatalf("nothing is sent: %v", q.sent)
 	}
 }

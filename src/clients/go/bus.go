@@ -149,6 +149,7 @@ type settings struct {
 	share                     bool
 	waitSet                   bool
 	onAck                     func(Envelope)
+	onReply                   func(context.Context, Envelope) error
 }
 type Option func(*settings)
 
@@ -163,6 +164,13 @@ func WithDrainTimeout(v time.Duration) Option { return func(s *settings) { s.dra
 func WithReplyTo(v ReplyTo) Option            { return func(s *settings) { s.reply = &v } }
 func WithAckObserver(v func(Envelope)) Option { return func(s *settings) { s.onAck = v } }
 func WithShare(v bool) Option                 { return func(s *settings) { s.share = v } }
+
+// WithOnReply gives Serve a handler for answers to this Bus's own sends: a message carrying Re that no pending
+// call claims. It runs within the workers and drain, never gets the request handler's ack or answer, and never sees
+// a late answer to this Bus's own call. Without it such an answer is taken and dropped.
+func WithOnReply(v func(context.Context, Envelope) error) Option {
+	return func(s *settings) { s.onReply = v }
+}
 
 // WithAsk asks the receiver about itself, "help", "help-config", "help-secret", "help-json", "mcp" or "status", instead of giving it work; the body must be empty.
 func WithAsk(v string) Option { return func(s *settings) { s.ask = v } }
@@ -597,6 +605,9 @@ func (b *Bus) Consume(ctx context.Context, opts ...Option) (*Envelope, error) {
 }
 func (b *Bus) Call(ctx context.Context, to, body string, opts ...Option) (CallOutcome, error) {
 	s := config(opts)
+	if s.waitSet {
+		return CallOutcome{}, errors.New("call takes no wait option: its timeout is the wait, sent as the envelope wait")
+	}
 	if s.timeout < 0 {
 		return CallOutcome{}, errors.New("positive call timeout required")
 	}
