@@ -124,6 +124,9 @@ func (m Manifest) Answer(dir, ask string, roles []string, jsonForm bool, target 
 		}
 		v := m.Version
 		if v == "" {
+			v = packVersion(dir)
+		}
+		if v == "" {
 			v = version.String
 		}
 		data = struct {
@@ -278,4 +281,27 @@ func writeArgument(b *strings.Builder, prefix, name string, a Argument) {
 		fmt.Fprintf(b, "; default: %s", a.Default)
 	}
 	b.WriteByte('\n')
+}
+
+// packVersion is the agent pack's version for a bundled agent, as its own
+// shared/metadata.py reports it: support/agents/VERSION in a package, or the
+// pack tree's VERSION beside shared/ for an agent run from src/agents/<name>.
+// Any other agent has none and reports the bus version.
+func packVersion(dir string) string {
+	if dir == "" {
+		return ""
+	}
+	path := filepath.Join(dir, "support", "agents", "VERSION")
+	if _, err := os.Lstat(path); err != nil {
+		pack := filepath.Dir(filepath.Clean(dir))
+		if _, err := os.Lstat(filepath.Join(pack, "shared", "metadata.py")); err != nil {
+			return ""
+		}
+		path = filepath.Join(pack, "VERSION")
+	}
+	b, err := ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
 }

@@ -2,6 +2,7 @@ package agentmeta
 
 import (
 	"encoding/json"
+	"github.com/parf/ai-agent-bus/internal/version"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -139,7 +140,19 @@ func TestReadableHelpPreservesOrderAndSeparatesTextFromJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	body, err := m.Answer(t.TempDir(), "help", nil, false, "#chat/work@t")
+	// A bundled agent's help carries the pack version, as its Python helper's does.
+	bundled := filepath.Join(t.TempDir(), "support", "agents")
+	if err := os.MkdirAll(bundled, 0700); err != nil {
+		t.Fatal(err)
+	}
+	pack, err := os.ReadFile("../../agents/VERSION")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(bundled, "VERSION"), pack, 0600); err != nil {
+		t.Fatal(err)
+	}
+	body, err := m.Answer(filepath.Dir(filepath.Dir(bundled)), "help", nil, false, "#chat/work@t")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -266,6 +279,52 @@ func TestRejectUnsupportedManifestInputs(t *testing.T) {
 	for _, form := range []string{"args", "json", "jsonl"} {
 		if _, err := Decode([]byte(`{"description":"fixture","form":"` + form + `","needs":{"network":["example.com"],"memory":"64M"}}`)); err != nil {
 			t.Fatalf("current form %s: %v", form, err)
+		}
+	}
+}
+
+func TestHelpVersionIsThePackVersionOnlyForABundledAgent(t *testing.T) {
+	write := func(path, text string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(text), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	packaged := t.TempDir()
+	write(filepath.Join(packaged, "support/agents/VERSION"), "9.8.7\n")
+	tree := t.TempDir()
+	write(filepath.Join(tree, "VERSION"), "9.8.6\n")
+	write(filepath.Join(tree, "shared/metadata.py"), "")
+	source := filepath.Join(tree, "chat")
+	write(filepath.Join(source, "agent.json"), "{}")
+	plain := t.TempDir()
+	write(filepath.Join(filepath.Dir(plain), "VERSION"), "9.8.5\n") // a VERSION beside a non-pack agent is not the pack's
+	linked := t.TempDir()
+	write(filepath.Join(t.TempDir(), "elsewhere"), "9.8.4\n")
+	if err := os.MkdirAll(filepath.Join(linked, "support/agents"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(packaged, "support/agents/VERSION"), filepath.Join(linked, "support/agents/VERSION")); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		name, dir, manifest, want string
+	}{
+		{"package", packaged, "", "9.8.7"},
+		{"source tree", source, "", "9.8.6"},
+		{"plain agent", plain, "", version.String},
+		{"linked VERSION", linked, "", version.String},
+		{"manifest wins", packaged, "2.0.0", "2.0.0"},
+	} {
+		body, err := (Manifest{Description: "fixture", Version: c.manifest}).Answer(c.dir, "help-json", nil, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(body, `"version":"`+c.want+`"`) {
+			t.Errorf("%s: want version %s: %s", c.name, c.want, body)
 		}
 	}
 }
