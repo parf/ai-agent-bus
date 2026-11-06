@@ -300,6 +300,12 @@ class DeliveryTests(Base):
         self.assertEqual(self.state.load()['subs'][row['id']]['sent'],0)
         queue=self.add('#q@n.test')[1];self.round(ok=None);self.assertEqual(len(self.bus.sent),2,'a queue needs no contract');self.assertEqual(self.bus.calls,[])
 
+    def test_deliver_has_no_default_confirm_so_an_agent_is_never_confirmed_by_status_ok_alone(self):
+        subs,row=self.add('#rag@n.test',kind='agent');self.bus.replies['#rag@n.test']='ok'
+        warnings=[]
+        result=cs.deliver(self.bus,SOURCE,self.state,matches=lambda r,k:True,body=lambda r,k,a,rec:f'{a} {k}',topic='t',tag='x',warning=lambda code,sub=None:warnings.append(code))
+        self.assertEqual(self.bus.calls,[]);self.assertEqual(result[row['id']]['confirmed'],0);self.assertEqual(warnings,['agent_contract_missing'])
+
     def test_an_agent_must_answer_ok_before_a_change_is_done(self):
         subs,row=self.add('#rag@n.test',kind='agent')
         self.bus.replies['#rag@n.test']='{"error":{"code":"x"}}'

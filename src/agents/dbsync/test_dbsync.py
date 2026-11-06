@@ -447,6 +447,13 @@ class CallTests(Base):
         self.assertEqual(json.loads(self.agent.handle(msg('sub list')))['subscriptions'],[])
         self.subscribe()
 
+    def test_a_stored_row_whose_target_is_an_agent_sends_nothing_and_says_why(self):
+        self.db.put(1,'2026-11-05 10:00:01');self.subscribe()
+        data=self.agent.state.load();sub_id=next(iter(data['subs']));data['subs'][sub_id]['target']='#eventlog@n.test';self.agent.state.save(data)
+        self.bus.kinds['#eventlog@n.test']='agent';self.agent.poll()
+        self.assertEqual(self.bus.sent,[]);self.assertIn(('agent_contract_missing',sub_id),self.warnings)
+        self.assertEqual(self.agent.status()['subscribers'][0]['confirmed'],0)
+
     def test_a_db_agent_error_is_named_and_its_text_kept(self):
         self.db.fail='error: relation "orders" does not exist'
         reply=json.loads(self.agent.handle(msg(f'sub add {QUEUE}')))
