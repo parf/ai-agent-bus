@@ -259,7 +259,7 @@ advanced_checks "runner process" '#time-process@localhost' launcher@localhost re
 sec "Runner: confinement the packages run under"
 python3 -m http.server 0 --bind 127.0.0.1 >"$GB_DIR/http.log" 2>&1 &
 HTTP_PID=$!; GB_PIDS+=("$HTTP_PID")
-for _ in $(seq 1 50); do PORT=$(ss -ltnp 2>/dev/null | grep "pid=$HTTP_PID," | sed -n 's/.*127.0.0.1:\([0-9]*\) .*/\1/p' | head -1); [ -n "$PORT" ] && break; sleep 0.1; done
+for _ in $(seq 1 50); do PORT=$(ss -ltnp 2>/dev/null | grep "pid=$HTTP_PID," | sed -n 's/.*127.0.0.1:\([0-9]*\) .*/\1/p' | sed -n 1p); [ -n "$PORT" ] && break; sleep 0.1; done
 mkdir -p "$GB_DIR/outside"
 view=$(answer '#probe@localhost' asker@localhost "view $GB_DIR/outside/x")
 has "the package folder is read-only" "$view" 'package: read-only'

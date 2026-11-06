@@ -113,7 +113,7 @@ for name in ordinary operator; do
  grep -q '"you":"'"$name"'"' /evidence/"$name".status
  echo "PASS $name key receives a working token for its entitled identity"
 done
-remote operator user list | grep -q $'^ordinary\tagent-bus-token$' || fail 'operator user list lacks ordinary'
+remote operator user list | grep $'^ordinary\tagent-bus-token$' >/dev/null || fail 'operator user list lacks ordinary'
 if remote ordinary 'token operator' >/evidence/wrong-name.out 2>&1; then echo 'FAIL ordinary key obtained another identity'; exit 1; fi
 if remote operator 'token ordinary' >/evidence/wrong-operator.out 2>&1; then echo 'FAIL operator token delegated without its entitlement'; exit 1; fi
 grep -q 'this key may ask for ordinary, not operator' /evidence/wrong-name.out
@@ -142,7 +142,7 @@ done
 ssh-keygen -q -t ed25519 -N '' -f /evidence/newcomer
 remote operator user add newcomer - </evidence/newcomer.pub
 remote newcomer token >/evidence/newcomer.token
-curl -fsS -H "X-Agent-Bus-Token: $(cat /evidence/newcomer.token)" http://127.0.0.1:6767/status | grep -q '"you":"newcomer"'
+curl -fsS -H "X-Agent-Bus-Token: $(cat /evidence/newcomer.token)" http://127.0.0.1:6767/status | grep '"you":"newcomer"' >/dev/null
 echo 'PASS operator adds a usable ordinary key over SSH'
 for key in ordinary operator; do
  remote "$key" 'token --rotate' >/evidence/"$key"-rotated.token

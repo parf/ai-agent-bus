@@ -126,7 +126,7 @@ users() {
 # wait_reader NAME: until one reader waits on NAME's inbox, bounded.
 wait_reader() {
   for _ in $(seq 1 100); do
-    gb asker@localhost ls "$1" 2>/dev/null | grep -q '"readers":1' && return 0
+    gb asker@localhost ls "$1" 2>/dev/null | grep '"readers":1' >/dev/null && return 0
     sleep 0.1
   done
   return 1

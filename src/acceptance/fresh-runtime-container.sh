@@ -116,5 +116,5 @@ fi
 systemctl is-active --quiet agent-busd || fail "the installed node stopped during the gates"
 runuser -u alice -- agent-bus status >/dev/null 2>&1 || fail "alice lost her socket during the gates"
 cat "$results"
-! grep -v ' exit=0 ' "$results" | grep -q . || fail "a runtime gate failed"
+! grep -v ' exit=0 ' "$results" | grep . >/dev/null || fail "a runtime gate failed"
 pass "every $mode runtime gate passed against the installed programs"

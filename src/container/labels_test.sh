@@ -20,5 +20,5 @@ check "the README's build command passes the version from the VERSION file" 'bui
 # The one version literal is the VERSION file: no version number appears in a label.
 if grep -E 'image\.version="[0-9]' "$here/Containerfile" >/dev/null; then echo "FAIL a version literal in a label"; fails=$((fails + 1)); else echo "ok   no version literal in a label"; fi
 # The licenses label is the license the root LICENSE.md names.
-if head -1 "$here/../../LICENSE.md" | grep -q 'PolyForm Strict License 1\.0\.0'; then echo "ok   LICENSE.md is PolyForm Strict 1.0.0"; else echo "FAIL LICENSE.md is not PolyForm Strict 1.0.0"; fails=$((fails + 1)); fi
+if sed -n 1p "$here/../../LICENSE.md" | grep 'PolyForm Strict License 1\.0\.0' >/dev/null; then echo "ok   LICENSE.md is PolyForm Strict 1.0.0"; else echo "FAIL LICENSE.md is not PolyForm Strict 1.0.0"; fails=$((fails + 1)); fi
 [ "$fails" = 0 ] && echo "labels: all checks passed" || { echo "labels: $fails failed"; exit 1; }

@@ -20,7 +20,7 @@ since=$(journalctl --user -q -o verbose --after-cursor "$cursor" 2>&1) ||
 hits=$(grep -E "^ *(CONTAINER_NAME|PODMAN_NAME)=.*($pattern)" <<<"$since" | sort | uniq -c)
 if [ -n "$hits" ]; then
   echo "journal-quiet: the host journal gained entries for $pattern:"
-  echo "$hits" | head -5
+  head -5 <<<"$hits"
   exit 3
 fi
 echo "journal-quiet: no journal entry for $pattern"

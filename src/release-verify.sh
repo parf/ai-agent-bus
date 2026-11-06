@@ -65,7 +65,7 @@ if [ "$#" = 1 ] && [ -d "$1" ]; then
 fi
 for archive in "$@"; do
   name=$(basename "$archive" .tar.gz)
-  if ! echo "$name" | grep -Eq '^agent-bus(-client)?-[0-9]+\.[0-9]+\.[0-9]+-(linux|darwin)-(x86_64|aarch64)$'; then
+  if ! grep -Eq '^agent-bus(-client)?-[0-9]+\.[0-9]+\.[0-9]+-(linux|darwin)-(x86_64|aarch64)$' <<<"$name"; then
     bad "not a release archive name"; continue
   fi
   edition=full; [[ $name == agent-bus-client-* ]] && edition=client

@@ -465,6 +465,9 @@ out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s . -p smoke_agent
 ok_exit "agent file pool accounts for every assertion" "$rc"
 [ "$rc" = 0 ] || echo "$out"
 # These two ran only in the fast allowlist, so a normal go_checks never ran them (J44).
+out=$(bash ./pipefail-shape.test.sh 2>&1); rc=$?
+ok_exit "under pipefail a draining grep or line selector reports a large producer's match, and a real failure still fails (J93)" "$rc"
+[ "$rc" = 0 ] || echo "$out"
 out=$(bash ./release-verify.test.sh 2>&1); rc=$?
 ok_exit "release-verify.sh fails an unstamped binary, an altered version, a missing licence and a changed file" "$rc"
 [ "$rc" = 0 ] || echo "$out"

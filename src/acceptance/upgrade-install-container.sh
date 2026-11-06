@@ -172,7 +172,7 @@ grep -q 'queued before upgrade' <<<"$queued" || fail "queued message was lost"
 current=$(readlink -f /usr/local/lib/agent-bus/current)
 case "$current" in */releases/"$new_version"-*) ;; *) fail "current is not the new release: $current" ;; esac
 for command in agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token; do
-  [ "$("/usr/local/bin/$command" --version | head -1)" = "$new_version" ] || fail "$command is not $new_version"
+  [ "$("/usr/local/bin/$command" --version | sed -n 1p)" = "$new_version" ] || fail "$command is not $new_version"
 done
 cgroup=$(systemctl show agent-busd -p ControlGroup --value)
 daemons=0
@@ -192,5 +192,5 @@ grep -qF ">v$new_version</span>" /evidence/web.html || fail "web does not show t
 pass "successful upgrade preserves state and configuration and runs one intended release"
 
 systemctl show agent-busd -p ActiveState -p MainPID -p ControlGroup >/evidence/unit-state.txt
-systemctl --version | head -1 >/evidence/host.txt
+systemctl --version | sed -n 1p >/evidence/host.txt
 printf 'old=%s\nnew=%s\n' "$old_version" "$new_version" >>/evidence/host.txt

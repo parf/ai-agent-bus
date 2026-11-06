@@ -94,7 +94,7 @@ elif archive=$(ls "$dist"/agent-bus-[0-9]*.tar.gz) && release=$(basename "$archi
 else
   fail "image build: $(tail -3 "$work/build.log")"; finish
 fi
-got=$(podman run --rm "$image" agent-busd --version 2>&1 | head -1)
+got=$(podman run --rm "$image" agent-busd --version 2>&1 | sed -n 1p)
 [[ -n $version && $got == "$version" ]] && pass "the image runs release $version" || fail "agent-busd --version said '$got', expected '$version'"
 label=$(podman image inspect --format '{{index .Config.Labels "org.opencontainers.image.version"}}' "$image" 2>&1)
 [[ -n $version && $label == "$version" ]] && pass "the image's version label is $version" || fail "the version label says '$label', expected '$version'"
@@ -161,7 +161,7 @@ bus ls svc-check | python3 -c 'import json,sys
 r=json.loads(sys.stdin.read()); r=r[0] if isinstance(r,list) else r
 sys.exit(0 if r.get("name")=="svc-check" and r.get("kind")=="service" else 1)' 2>/dev/null &&
   pass "the registered service survives the recreated daemon" || fail "svc-check is gone after recreating the daemon"
-bus status | grep -q "\"you\":\"$owner\"" && pass "the issued credential still answers for $owner" || fail "the Owner's token no longer works"
+bus status | grep "\"you\":\"$owner\"" >/dev/null && pass "the issued credential still answers for $owner" || fail "the Owner's token no longer works"
 body="after the daemon was replaced $RANDOM"
 echo_within "$body" 30 && pass "the runner's credential works again and #echo answers" || fail "#echo no longer answers after the daemon was replaced"
 

@@ -23,7 +23,7 @@ export NPM_DIST=$dist
 python3 -B src/npm/acceptance.py
 [ "${1:-}" = --host-only ] && exit 0
 arch=$(uname -m)
-full=$(ls "$dist"/agent-bus-*-linux-"$arch".tar.gz | grep -v -- '-client-' | head -1)
+full=$(ls "$dist"/agent-bus-*-linux-"$arch".tar.gz | grep -v -- '-client-' | sed -n 1p)
 client=$dist/$(basename "$full" | sed 's/^agent-bus-/agent-bus-client-/')
 sums=$work/SHA256SUMS
 (cd "$dist" && sha256sum "$(basename "$full")" "$(basename "$client")") >"$sums"

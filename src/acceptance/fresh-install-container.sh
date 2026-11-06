@@ -65,7 +65,7 @@ status_field() { awk -v key="$2:" '$1 == key { print $2 }' "/proc/$1/status"; }
 find_bus_child() {
   local parent=$1 child
   for child in $(pgrep -P "$parent"); do
-    if tr '\0' '\n' <"/proc/$child/environ" | grep -qx 'AGENT_BUS_ROLE=bus'; then
+    if tr '\0' '\n' <"/proc/$child/environ" | grep -x 'AGENT_BUS_ROLE=bus' >/dev/null; then
       printf '%s\n' "$child"
       return 0
     fi
@@ -232,7 +232,7 @@ agent-bus-admin token owner@fresh >/root/owner.token
 jar=/root/web.jar
 curl -fsS -c "$jar" -o /dev/null -H 'Origin: http://127.0.0.1:6780' --data-urlencode "token=$(cat /root/owner.token)" http://127.0.0.1:6780/signin ||
   fail "the installed web face refused the owner's sign-in"
-curl -fsS -b "$jar" http://127.0.0.1:6780/ | grep -q 'Overview' || fail "the installed web face did not serve the Overview"
+curl -fsS -b "$jar" http://127.0.0.1:6780/ | grep 'Overview' >/dev/null || fail "the installed web face did not serve the Overview"
 pass "the installed web face signs the owner in and serves the Overview"
 # Its ps line, written over bun's argv inside the unit's sandbox.
 sleep 1.2 # the title refreshes once a second
@@ -312,17 +312,17 @@ pass "identical package reinstall is idempotent"
 grep -q 'sample data added: 9 users, 18 records, 4 groups' /evidence/samples.log || fail "samples did not report what they added: $(cat /evidence/samples.log)"
 agent-bus-admin token owner@fresh >/root/owner.token
 ownerget() { curl -fsS --unix-socket /run/agent-bus/bus.sock -H "X-Agent-Bus-Token: $(cat /root/owner.token)" "http://bus$1"; }
-ownerget '/lookup?name=%23c3po%40tatooine' | grep -q '"owner":"luke@tatooine"' || fail "the sample agent is not its user's"
-ownerget /inactive | grep -q 'death-star-ii@endor' || fail "the inactive sample is missing"
+ownerget '/lookup?name=%23c3po%40tatooine' | grep '"owner":"luke@tatooine"' >/dev/null || fail "the sample agent is not its user's"
+ownerget /inactive | grep 'death-star-ii@endor' >/dev/null || fail "the inactive sample is missing"
 sjar=/root/samples.jar
 curl -fsS -c "$sjar" -o /dev/null -H 'Origin: http://127.0.0.1:6780' --data-urlencode "token=$(cat /root/owner.token)" http://127.0.0.1:6780/signin
-curl -fsS -b "$sjar" http://127.0.0.1:6780/agents | grep -q 'c3po@tatooine' || fail "the web face does not list the sample agent"
-curl -fsS -b "$sjar" 'http://127.0.0.1:6780/queues?personal=1' | grep -q 'falcon-repairs@corellia' || fail "the web face does not list the Personal sample queue"
+curl -fsS -b "$sjar" http://127.0.0.1:6780/agents | grep 'c3po@tatooine' >/dev/null || fail "the web face does not list the sample agent"
+curl -fsS -b "$sjar" 'http://127.0.0.1:6780/queues?personal=1' | grep 'falcon-repairs@corellia' >/dev/null || fail "the web face does not list the Personal sample queue"
 ./agent-bus-setup --samples >/evidence/samples-again.log 2>&1 || fail "a second --samples failed"
 ./agent-bus-setup --remove-samples >/evidence/samples-removed.log 2>&1 || { cat /evidence/samples-removed.log >&2; fail "setup --remove-samples failed"; }
 grep -q 'sample data removed: 18 records unregistered' /evidence/samples-removed.log || fail "removal did not take every sample record: $(cat /evidence/samples-removed.log)"
-if ownerget /ls | grep -q 'c3po@tatooine\|death-star'; then fail "a sample record survived removal"; fi
-ownerget /users | grep -q '"name":"luke@tatooine"[^}]*"status":"inactive"' || fail "the sample users were not deactivated"
+if ownerget /ls | grep 'c3po@tatooine\|death-star' >/dev/null; then fail "a sample record survived removal"; fi
+ownerget /users | grep '"name":"luke@tatooine"[^}]*"status":"inactive"' >/dev/null || fail "the sample users were not deactivated"
 pass "setup adds the sample node, the web face shows it, and removal takes exactly it away"
 
 # TLS on the daemon's port (docs/07-setup.md#tls): setup generates the
@@ -332,13 +332,13 @@ daemon_window
 ./agent-bus-setup --owner owner@fresh --tls self-signed >/evidence/setup-tls.log 2>&1 || { cat /evidence/setup-tls.log >&2; fail "setup --tls self-signed failed"; }
 grep -q -- ' --tls-dir /etc/agent-bus/tls' /etc/systemd/system/agent-busd.service || fail "the unit does not name the TLS directory"
 [ "$(stat -c '%U:%G %a' /etc/agent-bus/tls/key.pem)" = "root:agent-busd 640" ] || fail "the TLS key is $(stat -c '%U:%G %a' /etc/agent-bus/tls/key.pem), not root:agent-busd 640"
-curl -fsS --cacert /etc/agent-bus/tls/cert.pem https://127.0.0.1:6767/identity | grep -q '"version"' || fail "the port does not answer TLS"
-curl -fsS http://127.0.0.1:6767/identity | grep -q '"version"' || fail "the port stopped answering plain HTTP"
+curl -fsS --cacert /etc/agent-bus/tls/cert.pem https://127.0.0.1:6767/identity | grep '"version"' >/dev/null || fail "the port does not answer TLS"
+curl -fsS http://127.0.0.1:6767/identity | grep '"version"' >/dev/null || fail "the port stopped answering plain HTTP"
 tls_fp=$(runuser -u agent-busd -- env SSH_ORIGINAL_COMMAND='token --fingerprint' /usr/local/bin/agent-bus-token owner@fresh)
 want_fp=sha256:$(openssl x509 -in /etc/agent-bus/tls/cert.pem -noout -fingerprint -sha256 | sed 's/.*=//; s/://g' | tr A-F a-f)
 [ "$tls_fp" = "$want_fp" ] || fail "the forced command's fingerprint $tls_fp is not the certificate's $want_fp"
 grep -q "AGENT_BUS_TLS_FINGERPRINT=$want_fp" /evidence/setup-tls.log || fail "setup did not print the client settings"
-AGENT_BUS_ADDR=https://127.0.0.1:6767 AGENT_BUS_TOKEN="$(cat /root/owner.token)" AGENT_BUS_TLS_FINGERPRINT="$tls_fp" agent-bus status | grep -q '"you":"owner@fresh"' ||
+AGENT_BUS_ADDR=https://127.0.0.1:6767 AGENT_BUS_TOKEN="$(cat /root/owner.token)" AGENT_BUS_TLS_FINGERPRINT="$tls_fp" agent-bus status | grep '"you":"owner@fresh"' >/dev/null ||
   fail "the CLI did not reach the https:// port by its pin"
 if AGENT_BUS_ADDR=https://127.0.0.1:6767 AGENT_BUS_TOKEN="$(cat /root/owner.token)" AGENT_BUS_TLS_FINGERPRINT=sha256:$(printf '0%.0s' $(seq 64)) agent-bus status >/dev/null 2>&1; then
   fail "a wrong pin reached the port"
@@ -353,14 +353,14 @@ pass "setup turns TLS on with a self-signed certificate; the port answers both; 
 [ -f /etc/systemd/system/agent-bus-web.service.d/tls.conf ] || fail "setup wrote no TLS drop-in for the web face"
 [ "$(stat -c '%U:%G %a' /etc/agent-bus/web-tls/key.pem)" = "root:agent-bus-web 640" ] || fail "the web key is $(stat -c '%U:%G %a' /etc/agent-bus/web-tls/key.pem), not root:agent-bus-web 640"
 [ "$(sha256sum </etc/agent-bus/tls/cert.pem)" = "$(sha256sum </etc/agent-bus/web-tls/cert.pem)" ] || fail "the web face does not serve the node's certificate"
-curl -fsS --cacert /etc/agent-bus/web-tls/cert.pem https://127.0.0.1:6780/ | grep -q '<html' || fail "the web face does not answer TLS"
+curl -fsS --cacert /etc/agent-bus/web-tls/cert.pem https://127.0.0.1:6780/ | grep '<html' >/dev/null || fail "the web face does not answer TLS"
 [ "$(curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' http://127.0.0.1:6780/agents)" = "301 https://127.0.0.1:6780/agents" ] || fail "plain HTTP on the web port is not redirected to https"
 [ "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:6780/healthz)" = 200 ] || fail "plain /healthz stopped answering"
 wjar=/root/web-tls.jar
 curl -fsS --cacert /etc/agent-bus/web-tls/cert.pem -c "$wjar" -D /evidence/web-tls-signin.txt -o /dev/null -H 'Origin: https://127.0.0.1:6780' \
   --data-urlencode "token=$(cat /root/owner.token)" https://127.0.0.1:6780/signin || fail "sign-in over https failed"
 grep -qi '^set-cookie: agent_bus_session=.*; Secure' /evidence/web-tls-signin.txt || fail "the session cookie over https is not Secure"
-curl -fsS --cacert /etc/agent-bus/web-tls/cert.pem -b "$wjar" https://127.0.0.1:6780/ | grep -q 'Overview' || fail "the signed-in Overview over https"
+curl -fsS --cacert /etc/agent-bus/web-tls/cert.pem -b "$wjar" https://127.0.0.1:6780/ | grep 'Overview' >/dev/null || fail "the signed-in Overview over https"
 daemon_window
 ./agent-bus-setup --owner owner@fresh --tls off >/evidence/setup-tls-off.log 2>&1 || fail "setup --tls off failed"
 [ ! -e /etc/systemd/system/agent-bus-web.service.d/tls.conf ] || fail "--tls off left the web face's TLS drop-in"
@@ -370,5 +370,5 @@ pass "the web face serves TLS with its own copy, redirects plain HTTP, keeps /he
 
 
 systemctl show agent-busd -p ActiveState -p User -p FragmentPath >/evidence/unit-state.txt
-systemctl --version | head -1 >/evidence/host.txt
+systemctl --version | sed -n 1p >/evidence/host.txt
 printf 'archive=%s\n' "$archive_name" >>/evidence/host.txt

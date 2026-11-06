@@ -63,7 +63,7 @@ pkg=/home/alice/.local/share/agent-bus/agent.d/tmux-sessions
 as_alice /usr/local/lib/agent-bus/current/agents/standalone/tmux-sessions/package.sh "$pkg" || fail "package tmux-sessions as alice"
 as_alice sh -c 'umask 077; printf "%s\n" "{\"tmux-sessions\":{\"enabled\":true,\"sandbox\":\"off\"}}" > /home/alice/.local/state/agent-bus/runner/agents.json'
 as_alice agent-bus call "#runner/alice-user@$host" --wait 20s reload >/evidence/reload1.out 2>&1 || { cat /evidence/reload1.out; fail "reload"; }
-tmux_name=$(as_alice agent-bus ls 2>/dev/null | grep -o '#tmux-sessions@[^"]*' | head -1)
+tmux_name=$(as_alice agent-bus ls 2>/dev/null | grep -o '#tmux-sessions@[^"]*' | sed -n 1p)
 [ -n "$tmux_name" ] || fail "no tmux-sessions record after reload: $(cat /evidence/reload1.out)"
 printf '%s' '{"session":"work","windows":[{"name":"w1","cwd":"/home/alice","command":"sleep 100000"}]}' | as_alice agent-bus config "$tmux_name" - >/evidence/config.out 2>&1 || fail "configure"
 as_alice agent-bus call "#runner/alice-user@$host" --wait 20s reload >/evidence/reload2.out 2>&1 || fail "reload after config"
@@ -79,7 +79,7 @@ pass "tmux-sessions answers through the runner and starts a session in its own s
 
 same() {
   [ -d /proc/$server ] && [ -d /proc/$pane ] || fail "$1: a tmux process is gone"
-  [ "$(pgrep -u alice -f 'tmux new-session -d -s work' | head -1)" = "$server" ] && [ "$(pgrep -u alice -fx 'sleep 100000')" = "$pane" ] || fail "$1: tmux pids changed"
+  [ "$(pgrep -u alice -f 'tmux new-session -d -s work' | sed -n 1p)" = "$server" ] && [ "$(pgrep -u alice -fx 'sleep 100000')" = "$pane" ] || fail "$1: tmux pids changed"
   uctl is-active --quiet ab-session-work.scope || fail "$1: the session scope is not active"
 }
 as_alice agent-bus call "#runner/alice-user@$host" --wait 20s reload >/dev/null 2>&1 || fail "reload"
@@ -115,7 +115,7 @@ grep -qx 'launcher: started' /evidence/old-start.out || fail "old unit did not s
 for _ in $(seq 1 50); do [ -s $old_state/sessions/launcher.lock ] && break; sleep .1; done
 old_pid=$(pgrep -u alice -fx 'sleep 100001' || true)
 [ -n "$old_pid" ] && [ "$(cat $old_state/sessions/launcher.lock)" = "$old_pid" ] || fail "old window pid or lock: ${old_pid:-none}"
-tr '\0' '\n' </proc/$old_pid/environ | grep -qx "XDG_STATE_HOME=$old_state" || fail "old window state home"
+tr '\0' '\n' </proc/$old_pid/environ | grep -x "XDG_STATE_HOME=$old_state" >/dev/null || fail "old window state home"
 old_lock=$(stat -c '%i %Y %s' $old_state/sessions/launcher.lock)
 printf '%s' "$old_config" | as_alice agent-bus config "$tmux_name" - >/evidence/config-old.out 2>&1 || fail "configure the old set"
 as_alice agent-bus call "#runner/alice-user@$host" --wait 20s reload >/dev/null 2>&1 || fail "reload with the old set"
@@ -129,7 +129,7 @@ as_alice agent-bus call "$tmux_name" --wait 30s restart launcher >/evidence/rest
 new_pid=
 for _ in $(seq 1 50); do new_pid=$(pgrep -u alice -fx 'sleep 100001' || true); [ -n "$new_pid" ] && [ "$new_pid" != "$old_pid" ] && break; sleep .1; done
 [ -n "$new_pid" ] && [ "$new_pid" != "$old_pid" ] || fail "restart did not replace the window: $(cat /evidence/restart-old.out)"
-tr '\0' '\n' </proc/$new_pid/environ | grep -qx "XDG_STATE_HOME=$old_state" || fail "the restarted window lost the old state home: $(tr '\0' '\n' </proc/$new_pid/environ | grep XDG_STATE || echo none)"
+tr '\0' '\n' </proc/$new_pid/environ | grep -x "XDG_STATE_HOME=$old_state" >/dev/null || fail "the restarted window lost the old state home: $(tr '\0' '\n' </proc/$new_pid/environ | grep XDG_STATE || echo none)"
 [ "$(cat $old_state/sessions/launcher.lock)" = "$new_pid" ] || fail "the restarted window did not write the old lock"
 pass "a set the old standalone unit started keeps its pid and lock under this runner; a restart keeps its state home"
 

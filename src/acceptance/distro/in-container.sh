@@ -74,7 +74,7 @@ install_from good >/evidence/install.log 2>&1 || { tail -40 /evidence/install.lo
 ! grep -q 'bubblewrap' /evidence/install.log || fail "install.sh warned about bubblewrap on a host that has it"
 version=$(cat /fixture/VERSION)
 [ "$(readlink /usr/local/lib/agent-bus/current)" != "" ] || fail "no current release link"
-/usr/local/bin/agent-busd --version | grep -qx "$version" || fail "agent-busd is not $version"
+/usr/local/bin/agent-busd --version | grep -x "$version" >/dev/null || fail "agent-busd is not $version"
 systemctl is-active --quiet agent-busd || fail "agent-busd is not running"
 for _ in $(seq 1 100); do curl -fsS -o /dev/null http://127.0.0.1:6780/healthz 2>/dev/null && break; sleep .1; done
 curl -fsS http://127.0.0.1:6780/healthz >/evidence/web-healthz.out || fail "the compiled web face does not answer"
@@ -181,7 +181,7 @@ grep -q ' /var/lib/agent-bus/alice-ab-runner/runner.env$' <<<"$config_before" ||
 record_before=$(as_alice agent-bus config "#kept@$realm")
 grep -q 'set before the update' <<<"$record_before" || fail "#kept@$realm's Configuration did not read back: $record_before"
 as_alice sh -c "curl -fsSL https://releases.test/next/install.sh | sh" >/evidence/update.log 2>&1 || { tail -30 /evidence/update.log >&2; fail "install.sh did not update to $next"; }
-/usr/local/bin/agent-busd --version | grep -qx "$next" || fail "agent-busd is not $next after the update"
+/usr/local/bin/agent-busd --version | grep -x "$next" >/dev/null || fail "agent-busd is not $next after the update"
 [ "$(release_of)" = "$next" ] || fail "current is not $next after the update"
 kept=$({ grep -lx "$version" /usr/local/lib/agent-bus/releases/*/internal/version/VERSION 2>/dev/null || true; } | wc -l)
 [ "$kept" = 1 ] || fail "the update kept $kept copies of $version for rollback, not one"
@@ -199,13 +199,13 @@ web_follows_code "after a re-run with nothing new" "$sig_next" "$applied_next"
 pass "the same command updated the node to $next: configuration, registrations, tokens and $version for rollback kept"
 
 as_bob sh -c "curl -fsSL https://releases.test/next/install.sh | sh -s -- --client" >/evidence/client-update.log 2>&1 || { cat /evidence/client-update.log >&2; fail "the client edition did not update"; }
-as_bob agent-bus --version | grep -qx "$next" || fail "the client edition is not $next after its update"
+as_bob agent-bus --version | grep -x "$next" >/dev/null || fail "the client edition is not $next after its update"
 as_bob sh -c "curl -fsSL https://releases.test/next/install.sh | sh -s -- --client --rollback" >/evidence/client-rollback.log 2>&1 || { cat /evidence/client-rollback.log >&2; fail "the client edition did not roll back"; }
-as_bob agent-bus --version | grep -qx "$version" || fail "the client edition is not $version after its rollback"
+as_bob agent-bus --version | grep -x "$version" >/dev/null || fail "the client edition is not $version after its rollback"
 pass "the client edition updated to $next and rolled back to $version"
 
 as_alice sh -c "curl -fsSL https://releases.test/next/install.sh | sh -s -- --version $version" >/evidence/rollback.log 2>&1 || { tail -30 /evidence/rollback.log >&2; fail "install.sh --version $version did not take the node back"; }
-/usr/local/bin/agent-busd --version | grep -qx "$version" || fail "agent-busd is not $version after the rollback"
+/usr/local/bin/agent-busd --version | grep -x "$version" >/dev/null || fail "agent-busd is not $version after the rollback"
 [ "$(release_of)" = "$version" ] || fail "current is not $version after the rollback"
 deploy_checked "after the rollback"
 web_follows_code "after the rollback" "$sig_next" "$applied_next"

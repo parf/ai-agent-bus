@@ -237,7 +237,7 @@ wait_api
 snapshot /evidence/after-restart.json
 same /evidence/before-restart.json /evidence/after-restart.json "graceful restart"
 [ "$(field backlog@fresh queued)" = 3 ] && [ "$(field backlog@fresh in)" = "$in_before" ] || fail "graceful restart lost unflushed traffic"
-if agent-bus status | grep -q '"unclean":true'; then fail "a graceful restart reported an unclean stop"; fi
+if agent-bus status | grep '"unclean":true' >/dev/null; then fail "a graceful restart reported an unclean stop"; fi
 pass "graceful restart keeps unflushed traffic and reports a clean stop"
 
 # Bus-child crash: the supervisor restarts it; what the periodic flush saved
@@ -260,7 +260,7 @@ done
 [ -n "$now" ] && [ "$now" != "$bus" ] || fail "the supervisor did not restart the bus child"
 [ "$(systemctl show agent-busd -p MainPID --value)" = "$supervisor" ] || fail "the crash took the supervisor down"
 wait_api
-agent-bus status | grep -q '"unclean":true' || fail "the crash was not reported as an unclean stop"
+agent-bus status | grep '"unclean":true' >/dev/null || fail "the crash was not reported as an unclean stop"
 journalctl --no-pager -u agent-busd >/evidence/crash.journal
 grep -q 'did not stop cleanly; queue changes after .* are gone' /evidence/crash.journal || fail "the crash-loss boundary was not reported"
 [ "$(field backlog@fresh queued)" = 4 ] || fail "backlog after crash: $(field backlog@fresh queued), not 4"

@@ -53,7 +53,7 @@ switch() { # release-dir
     systemctl restart "$unit"
     want=$(cat "$1/internal/version/VERSION")
     for _ in $(seq 1 50); do
-        systemctl is-active --quiet "$unit" && "$bindir/agent-busd" --version 2>/dev/null | grep -qx "$want" && break
+        systemctl is-active --quiet "$unit" && "$bindir/agent-busd" --version 2>/dev/null | grep -x "$want" >/dev/null && break
         sleep 0.2
     done
     systemctl is-active --quiet "$unit" || { echo "$unit did not start; roll back with: sudo $0 --rollback" >&2; exit 1; }
@@ -70,7 +70,7 @@ switch() { # release-dir
 
 if [ "${1:-}" = --rollback ]; then
     now=$(readlink -f "$root/current")
-    prev=$(ls -1dt "$root"/releases/*/ | sed 's:/$::' | grep -vx "$now" | head -1)
+    prev=$(ls -1dt "$root"/releases/*/ | sed 's:/$::' | { grep -vx "$now" || :; } | sed -n 1p)
     [ -n "$prev" ] || { echo "no earlier release to roll back to" >&2; exit 1; }
     switch "$prev"
     exit 0
