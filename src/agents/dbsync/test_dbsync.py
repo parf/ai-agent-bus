@@ -210,6 +210,42 @@ class PollTests(Base):
         self.assertEqual(sorted(self.keys(),key=int),['1','1','2','2','3','3'])
 
 
+
+class SoftDeleteTests(Base):
+    config=dict(Base.config,deleted='note',deleted_value='del')
+
+    def test_a_row_marked_deleted_after_it_was_delivered_goes_as_a_delete_without_its_columns(self):
+        self.db.put(1,'2026-11-05 10:00:01');self.subscribe();self.agent.poll()
+        self.assertEqual(self.agent.status()['window'],0)   # delivered and pruned: the window no longer holds it
+        self.db.put(1,'2026-11-05 10:05:00','del');self.agent.poll()
+        sent=self.bus.sent[-1][1]
+        self.assertEqual((sent['change'],sent['key'],sent['updated'],'row' in sent),('deleted','1','2026-11-05 10:05:00',False))
+        self.agent.poll()
+        self.assertEqual(len(self.bus.sent),2)   # confirmed once, never again
+
+    def test_a_replaying_subscriber_gets_no_delete_for_a_row_it_never_had(self):
+        self.db.put(1,'2026-11-05 10:00:01','del');self.db.put(2,'2026-11-05 10:00:02')
+        self.subscribe();self.agent.poll()
+        self.assertEqual([(m['change'],m['key']) for _,m in self.bus.sent],[('changed','2')])
+
+    def test_a_row_deleted_before_a_lagging_subscriber_got_it_sends_that_one_nothing(self):
+        self.db.put(1,'2026-11-05 10:00:01');self.subscribe();self.agent.poll()   # receiving: it has a position
+        self.bus.deny.add((AUTHOR,QUEUE))
+        self.db.put(2,'2026-11-05 10:00:02');self.agent.poll()   # refused: row 2 stays in the window with no mark for it
+        self.db.put(2,'2026-11-05 10:05:00','del');self.bus.deny.clear();self.agent.poll()
+        self.assertEqual([(m['change'],m['key']) for _,m in self.bus.sent],[('changed','1')])
+
+    def test_the_marker_matches_only_as_the_database_returned_it(self):
+        self.assertTrue(dbsync.DBSync._is(1,True));self.assertTrue(dbsync.DBSync._is('del','del'))
+        self.assertFalse(dbsync.DBSync._is('1',1));self.assertFalse(dbsync.DBSync._is(1,'1'));self.assertFalse(dbsync.DBSync._is(2,True))
+        self.assertFalse(dbsync.DBSync._is(True,1))   # a boolean column does not match a configured number
+
+    def test_a_marker_value_needs_its_column_and_a_plain_value(self):
+        base={'db':DB,'engine':'mysql','table':'t','key':'id','updated':'u'}
+        with self.assertRaisesRegex(cfg.SettingsError,'^deleted_value: only with deleted'):cfg.parse(dict(base,deleted_value=1))
+        with self.assertRaisesRegex(cfg.SettingsError,'^deleted_value: the value'):cfg.parse(dict(base,deleted='d',deleted_value=1.5))
+
+
 class CallTests(Base):
     def test_a_caller_without_a_role_is_refused_and_reset_needs_a_manager_and_confirm(self):
         self.assertEqual(json.loads(self.agent.handle(msg('status',roles=())))['error']['code'],'forbidden')

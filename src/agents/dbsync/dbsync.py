@@ -101,7 +101,7 @@ class DBSync:
         self.bus,self.clock=bus,clock
         self.settings=cfg.parse(configuration)
         s=self.settings
-        self.sql=statements.Builder(s['engine'],s['table'],s['key'],s['updated'],s['columns'],s['schema'])
+        self.sql=statements.Builder(s['engine'],s['table'],s['key'],s['updated'],s['columns']+([s['deleted']] if s['deleted'] else []),s['schema'])
         self.warning=warning or (lambda code,sub=None:print('dbsync: '+code+(' '+sub if sub else ''),file=sys.stderr))
         self.state=core.StateFile(work,max_bytes=s['state_max'])
         self.subs=core.SyncSubscriptions(bus,bus.name,self.state,validate_selector=selector,clock=clock)
@@ -215,14 +215,36 @@ class DBSync:
             with self.state.hold(core.HOLD_WAIT):
                 fresh=self.state.load();items=fresh['items']
                 for key,u,row in rows:
-                    record=items.get(key)
-                    if record is None or record['u']!=u:items[key]={'fp':u,'u':u}
+                    record=items.get(key);new=self._record(u,row)
+                    if record is None or record['fp']!=new['fp']:
+                        if new.get('gone') and record is None:self._owe_delete(fresh,key)
+                        items[key]=new
                     self.rows[key]=(u,row)
                 if rows:fresh['meta']['scan']=[rows[-1][1],rows[-1][0]]
                 fresh['meta'].pop('stuck',None);self.state.save(fresh)
             read+=len(rows)
             if not answer['truncated'] and len(rows)<limit:break   # an uncut short page is the end of the table
         return read
+
+    def _record(self,u,row):
+        """The state record of a row: a soft-deleted one is a tombstone, so it goes out as a delete."""
+        s=self.settings
+        if s['deleted'] and self._is(row.get(s['deleted']),s['deleted_value']):return {'fp':u+'|del','u':u,'gone':True}
+        return {'fp':u,'u':u}
+
+    @staticmethod
+    def _is(value,wanted):
+        # 1 is not true and '1' is not 1: the marker matches only as the database returned it.
+        if type(wanted) is bool:return value is wanted or type(value) is int and value==int(wanted)
+        return type(value) is type(wanted) and value==wanted
+
+    def _owe_delete(self,data,key):
+        """A tombstone for a key the window no longer holds: every subscriber already receiving may hold the row, so it is
+        owed the delete; one still at the start (a replay) never got it. A row made and deleted between two polls can
+        therefore reach a subscriber as a delete alone."""
+        pos=data['meta'].get('pos',{})
+        for sub_id in data['subs']:
+            if pos.get(sub_id) is not None and key not in data['marks'][sub_id]:data['marks'][sub_id][key]='?'
 
     def _rows(self,answer):
         """(key text, updated text, row dict) per row, checked so each value can go back into a statement."""

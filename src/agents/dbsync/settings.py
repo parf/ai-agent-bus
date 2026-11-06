@@ -4,8 +4,8 @@ import re
 
 import statements
 
-KEYS={'db','engine','schema','table','key','updated','updated_unit','columns','every','max_rows','batch','window_max',
-      'park_after','state_max'}
+KEYS={'db','engine','schema','table','key','updated','updated_unit','columns','deleted','deleted_value','every','max_rows','batch',
+      'window_max','park_after','state_max'}
 REQUIRED=('db','engine','table','key','updated')
 DURATION=re.compile(r'([0-9]{1,7})(s|m|h)\Z')
 SIZE=re.compile(r'([0-9]{1,13})(B|KiB|MiB|GiB)?\Z')
@@ -59,7 +59,12 @@ def parse(config):
     if not isinstance(columns,list) or len(columns)>64:raise SettingsError('columns','a list of at most 64 column names')
     unit=config.get('updated_unit')
     if unit not in (None,'s','ms'):raise SettingsError('updated_unit','s or ms, for an updated column that holds epoch time')
-    s={'db':db.lower(),'engine':config['engine'],'schema':None if config.get('schema') is None else identifier('schema',config['schema']),
+    deleted=None if config.get('deleted') is None else identifier('deleted',config['deleted'])
+    marker=config.get('deleted_value')
+    if deleted is None and 'deleted_value' in config:raise SettingsError('deleted_value','only with deleted, the soft-delete column')
+    if deleted is not None and (type(marker) not in (str,int,bool) or isinstance(marker,str) and len(marker)>200):
+        raise SettingsError('deleted_value','the value that marks a row deleted: text, a whole number, true or false')
+    s={'db':db.lower(),'deleted':deleted,'deleted_value':marker,'engine':config['engine'],'schema':None if config.get('schema') is None else identifier('schema',config['schema']),
        'table':identifier('table',config['table']),'key':identifier('key',config['key']),'updated':identifier('updated',config['updated']),
        'updated_unit':unit,'columns':[identifier('columns',c) for c in columns],
        'every':duration('every',config.get('every','60s'),5,86400),

@@ -136,6 +136,14 @@
       "type": "json",
       "help": "Other columns sent with each row, at most 64; key and updated are always sent"
     },
+    "deleted": {
+      "type": "string",
+      "help": "Soft-delete column: a row whose value equals deleted_value is sent as a delete; without it no delete is reported"
+    },
+    "deleted_value": {
+      "type": "json",
+      "help": "The value that marks a row deleted, exactly as the database returns it: text, a whole number, true or false"
+    },
     "every": {
       "type": "string",
       "help": "Poll interval, 5s..24h",
