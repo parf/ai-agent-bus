@@ -90,7 +90,7 @@ SHARDS=(core go_checks go_unit go_release agent_packages process_titles readers 
   orphans transfer corrupt_pair supervisor
   mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename web_ts samples tls_port
   client_python client_rust client_php client_typescript client_java client_go client_examples agent_guide
-  agent_slack agent_telegram agent_discord agent_server_info agent_systemd agent_git agent_logwatch agent_sessions agent_ai agent_sms agent_voyage agent_db agent_qdrant agent_rag agent_webhook agent_fetch agent_smtp agent_imap agent_cron agent_at agent_subscriptions container_image distro_install agent_eventlog)
+  agent_slack agent_telegram agent_discord agent_server_info agent_systemd agent_git agent_logwatch agent_sessions agent_ai agent_sms agent_voyage agent_db agent_qdrant agent_rag agent_webhook agent_fetch agent_smtp agent_imap agent_cron agent_at agent_filescan agent_subscriptions container_image distro_install agent_eventlog)
 if [ -n "$SHARD" ]; then
   case " ${SHARDS[*]} " in
     *" $SHARD "*) ;;
@@ -4254,6 +4254,16 @@ agent_eventlog() {
     out=$(EVENTLOG_BUS_FIXTURE="$fixture" PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/eventlog -p 'test_*.py' -v 2>&1); rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "eventlog bounds, fold/restart, pull/clean, direct roles, subscription-first and package" "$rc"
+  else skipped=$((skipped+1)); fi
+}
+
+agent_filescan() {
+  if normal; then
+    sec "filescan: link-free walk, guard, inotify, RAG form, confirmed delivery"
+    local out rc
+    out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/filescan -p 'test_*.py' -v 2>&1); rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "filescan scan, watch, guard, roles, RAG form and package" "$rc"
   else skipped=$((skipped+1)); fi
 }
 

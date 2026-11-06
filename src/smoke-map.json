@@ -368,6 +368,16 @@
         "src/build.sh"
       ]
     },
+    "agent_filescan": {
+      "tags": "L",
+      "paths": [
+        "src/agents/filescan/",
+        "src/agents/shared/change_sync.py",
+        "src/agents/shared/subscriptions.py",
+        "src/agents/shared/subscription_filters.py",
+        "src/agents/shared/metadata.py"
+      ]
+    },
     "agent_subscriptions": {
       "tags": "L",
       "paths": [
@@ -980,6 +990,22 @@
           "agents.fetch.test_curl.CurlHTTP.test_wildcard_and_no_list_never_reach_same_private_fixture",
           "agents.fetch.test_curl.Allowlist.test_path_scope_decodes_normalizes_then_sends_same_target",
           "agents.fetch.test_curl.Fields.test_request_header_smuggling_and_case_duplicates_refuse",
+          "-v"
+        ]
+      }
+    ],
+    "agent_filescan": [
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "agents/filescan",
+          "-p",
+          "test_scan.py",
           "-v"
         ]
       }
