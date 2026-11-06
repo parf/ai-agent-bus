@@ -2,7 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"io"
+	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -104,5 +107,51 @@ func TestASetSessionFileThatCannotBeReadRefusesLoudly(t *testing.T) {
 	defer seen.Unlock()
 	if len(seen.tokens) != 0 {
 		t.Fatalf("the CLI still called the bus with the environment's identity: %q", seen.tokens)
+	}
+}
+
+// A key the file lacks is the environment's stale value too: never used. With
+// only a token in the file, the CLI finds its bus as if no address were set
+// (here a socket under XDG_RUNTIME_DIR), not at the env's old AGENT_BUS_ADDR.
+func TestASessionFileWithoutAnAddressDropsTheEnvironmentsAddressAndPin(t *testing.T) {
+	runtime := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(runtime, "agent-bus"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	listener, err := net.Listen("unix", filepath.Join(runtime, "agent-bus", "bus.sock"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := &seenTokens{}
+	local := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/identity" {
+			io.WriteString(w, `{"protocol":1,"protocol_min":1}`)
+			return
+		}
+		found.Lock()
+		found.tokens = append(found.tokens, r.Header.Get("X-Agent-Bus-Token"))
+		found.Unlock()
+		w.Write([]byte(`{"you":"whoever"}`))
+	}))
+	local.Listener = listener
+	local.Start()
+	defer local.Close()
+	file := filepath.Join(t.TempDir(), "bus-env.json")
+	stale, out, err := sessionFileRun(t, file,
+		map[string]string{"AGENT_BUS_TOKEN": "token-after-rename"},
+		map[string]string{"AGENT_BUS_SESSION_FILE": file, "XDG_RUNTIME_DIR": runtime,
+			"AGENT_BUS_TLS_FINGERPRINT": "sha256:stale", "AGENT_BUS_NAME": "#claude/old@h"})
+	if err != nil {
+		t.Fatalf("status failed: %v\n%s", err, out)
+	}
+	stale.Lock()
+	defer stale.Unlock()
+	if len(stale.tokens) != 0 {
+		t.Fatalf("the CLI used the environment's stale AGENT_BUS_ADDR: %q", stale.tokens)
+	}
+	found.Lock()
+	defer found.Unlock()
+	if len(found.tokens) != 1 || found.tokens[0] != "token-after-rename" {
+		t.Fatalf("the discovered bus saw %q, want the file's token once", found.tokens)
 	}
 }
