@@ -16,6 +16,16 @@ lacks() { if grep -Eq -- "$3" <<<"$2"; then bad "$1" "[$2] still has [$3]"; else
 eq()    { if [ "$2" = "$3" ]; then ok "$1"; else bad "$1" "got [$2], want [$3]"; fi; }
 sec()   { echo "== $1"; }
 
+# A stale exported scope must not make our actual unit look foreign.
+require_guide_scope() {
+  local cgroup
+  while IFS= read -r cgroup; do
+    [[ $cgroup != */"$1" ]] || return 0
+  done < /proc/self/cgroup
+  printf 'FAIL not inside %s\n' "$1" >&2
+  return 1
+}
+
 # Ignore only positively foreign units. Short-lived children can exit before
 # journald enriches a record: unknown attribution still counts as stray output.
 # A foreign process without unit metadata can therefore still fail this check.
@@ -26,6 +36,8 @@ journal_silent() {
     journalctl -q -b -t agent-busd -t agent-bus-runner -t agent-bus \
       --since "$JOURNAL_START" -o json |
       jq -r --arg guide "${GUIDE_SCOPE:?the guide needs its own scope}" --arg runner "${RUNNER_SCOPE:-}" '
+        # A future agent-bus run --sandbox=on creates run-u*.service units;
+        # add those fixture units before using that mode in this guide.
         # user@UID.service alone is only a user-manager ancestor, not proof
         # that a record came from outside our user scopes.
         (._SYSTEMD_USER_UNIT //

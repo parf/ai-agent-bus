@@ -42,4 +42,9 @@ own=unknown-foreign
 check 'unattributed foreign output can still fail the gate' 1
 own="" query_error=1
 check 'journal query failure is never silence' 1
+if require_guide_scope "bogus-exported-guide.scope" >/dev/null 2>&1; then
+  echo 'FAIL a bogus inherited scope was accepted'; failures=$((failures+1))
+else
+  echo 'ok   a bogus inherited scope is refused'
+fi
 [ "$failures" = 0 ]

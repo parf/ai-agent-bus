@@ -22,6 +22,7 @@ if [ -z "${GUIDE_SCOPE:-}" ]; then
     env GUIDE_SCOPE="$scope" bash "$0" "$@"
 fi
 source "$here/lib.sh"
+require_guide_scope "$GUIDE_SCOPE" || exit 1
 bash "$here/journal_test.sh" || exit 1
 trap 'guide_down' EXIT
 trap 'exit 143' TERM INT
