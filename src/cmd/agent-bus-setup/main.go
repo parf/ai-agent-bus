@@ -392,7 +392,7 @@ func setup() (err error) {
 	if err != nil {
 		return err
 	}
-	if err := tlsC.startDaemon(active, !bytes.Equal(priorUnit, []byte(unit)) || !hadUnit,
+	if err := tlsC.startDaemon(active, unitChanged(priorUnit, hadUnit, unit),
 		*addr, wantVersion, wantBuild); err != nil {
 		return err
 	}
@@ -575,6 +575,13 @@ func installerKey() string {
 		}
 	}
 	return ""
+}
+
+// unitChanged is whether this run's unit differs from the one on the host: a
+// node set up by an older release (single-dash flags, say) is written again and
+// a running daemon restarted onto the new one.
+func unitChanged(prior []byte, hadUnit bool, unit string) bool {
+	return !hadUnit || !bytes.Equal(prior, []byte(unit))
 }
 
 // unitFor is the unit, and the only place its values are written down.
