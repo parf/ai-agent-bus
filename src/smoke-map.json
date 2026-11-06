@@ -221,6 +221,7 @@
         "src/agents/shared/subscriptions.ts",
         "src/agents/shared/subscription-port.ts",
         "src/agents/shared/subscriptions.test.ts",
+        "src/agents/shared/test-network.ts",
         "src/agents/shared/version.ts",
         "src/testdata/subscriptions.json"
       ]
@@ -238,6 +239,7 @@
         "src/agents/shared/subscriptions.ts",
         "src/agents/shared/subscription-port.ts",
         "src/agents/shared/subscriptions.test.ts",
+        "src/agents/shared/test-network.ts",
         "src/agents/shared/version.ts"
       ]
     },
