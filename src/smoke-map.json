@@ -1094,6 +1094,14 @@
           "fast"
         ]
       }
+    ],
+    "container_image": [
+      {
+        "argv": [
+          "bash",
+          "container/entrypoint_test.sh"
+        ]
+      }
     ]
   }
 }

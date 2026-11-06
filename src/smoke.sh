@@ -4278,6 +4278,10 @@ container_image() {
   if normal; then
     sec "container image: both roles, delivery, persistence, sandbox refusal"
     local out rc dist="$D/container-dist" base
+    # The entry point's own checks, stubbed: no podman, and the same check fast runs.
+    out=$(bash container/entrypoint_test.sh 2>&1); rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "the entry point drops privilege for good, refuses a container-id realm, lists the agents present and leaves a usable mount alone" "$rc"
     # The build never pulls: a host without the pinned base cannot build it,
     # and a selected check that cannot run fails rather than passing unrun.
     base=$(awk '$1 == "FROM" {print $2; exit}' container/Containerfile)
