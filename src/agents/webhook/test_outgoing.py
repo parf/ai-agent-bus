@@ -19,6 +19,13 @@ sys.path[:0]=[str(HERE),str(ROOT/'src/clients/python'),str(ROOT/'src/agents/shar
 from rules import Invalid,configuration
 from outgoing import post,PIPE_MAX
 
+
+def startup():
+    # A deadline also covers the helper's interpreter start, which a loaded host can stretch past a
+    # short fixed deadline before the helper's child is ready (J95): measure one start now.
+    start=time.monotonic();subprocess.run([sys.executable,'-B','-c','pass'],check=True,stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=60)
+    return time.monotonic()-start
+
 KEY='private-password-sentinel-849bc'
 
 
@@ -111,12 +118,14 @@ class Outgoing(unittest.TestCase):
         import datetime
         with tempfile.TemporaryDirectory() as directory:
             marker=Path(directory)/'child-survived';ready=Path(directory)/'child-ready'
-            child=f'import time,pathlib;pathlib.Path({str(ready)!r}).write_text("ready");time.sleep(1.3);pathlib.Path({str(marker)!r}).write_text("bad")'
+            # Two interpreters start before the descendant is ready; it outlives the deadline by a second.
+            budget=1+8*startup();linger=budget+1
+            child=f'import time,pathlib;pathlib.Path({str(ready)!r}).write_text("ready");time.sleep({linger});pathlib.Path({str(marker)!r}).write_text("bad")'
             code=f'import subprocess,sys,time;subprocess.Popen([sys.executable,"-c",{child!r}]);time.sleep(30)'
-            deadline=(datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(seconds=1)).isoformat()
+            deadline=(datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(seconds=budget)).isoformat()
             with self.assertRaises(Invalid):post(self.route(),'body',{}, {'deadline':deadline},helper=[sys.executable,'-c',code])
             self.assertTrue(ready.exists(),'descendant ran before the deadline; this check cannot pass without a child')
-            time.sleep(1.4);self.assertFalse(marker.exists())
+            time.sleep(linger+.1);self.assertFalse(marker.exists())
     def test_closed_port_is_not_sent_but_dropped_reply_is_unknown(self):
         with socket.socket() as reserve:
             reserve.bind(('127.0.0.1',0));closed=reserve.getsockname()[1]
