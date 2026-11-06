@@ -22,7 +22,7 @@ M.7 carries the named-host filtering goal from [RD33 / Q158](../R1.0-Release/DEC
 
 Owner, 2026-10-19: "root runner; allow to run services under specific user; or under root (optional drop permissions)"
 
-Proposed, not designed: today each person runs their own runner as `<person>-ab-runner`, and agents that need host access (systemd, logwatch, git) are standalone units on the shared starter. A root runner could keep all of them in one place, per agent `user: <account>` or `user: root` with `drop` of capabilities (e.g. keep only CAP_DAC_READ_SEARCH for logwatch)
+Approach written, for the owner's approval: [root runner](root-runner.md#what-the-starter-is-today). Q336 settled that it replaces the standalone starter; the choices left are in [QUESTIONS](QUESTIONS.md#root-runner). Where this section and that topic differ, the topic is current. Original proposal: today each person runs their own runner as `<person>-ab-runner`, and agents that need host access (systemd, logwatch, git) are standalone units on the shared starter. A root runner could keep all of them in one place, per agent `user: <account>` or `user: root` with `drop` of capabilities (e.g. keep only CAP_DAC_READ_SEARCH for logwatch)
 
 Settled, owner 2026-10-19: an agent's account or root is set by whoever has access to the host (the owner’s words, translated: "whoever has access to the host"): it lives in a root-owned host file the runner reads, never in a bus record or call, so no bus caller, Owner included, can raise an agent's privilege ([process boundary](../../docs/08-processes.md#the-rule))
 

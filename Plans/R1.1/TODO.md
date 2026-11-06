@@ -111,7 +111,7 @@ Moved by [Q299](../R1.0-Release/DECISIONS.md#recorded-decisions), owner, 2026-11
   - Mutant: set with the mechanism (M.7a): a request to a host outside the list reaches it, and the no-route bypass check passes without the proxy.
   - Home: [named hosts](runner.md#named-hosts); [open policy](QUESTIONS.md#runner-extensions).
 
-- 💡 RT19 A root runner: [proposal](runner.md#root-runner), [open choices](QUESTIONS.md#runner-extensions); no design approved.
+- 💡 RT19 A root runner that replaces the standalone starter (owner, [Q336](QUESTIONS.md#runner-extensions)): [approach](root-runner.md#what-the-starter-is-today) for approval, [open choices](QUESTIONS.md#root-runner); no format chosen and nothing built.
 
 ## Runner web additions
 
