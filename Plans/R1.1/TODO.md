@@ -243,11 +243,12 @@ Owner, 2026-11-02; plan in [dbsync](dbsync.md#steps-and-estimate), open [Q314–
 
 ## Launcher tab titles
 
-- ☐ T-35 Glyph-led tab titles in the `ab-*` launchers, from Linear PRF-67 (owner, 2026-11-05: "good, - go").
+- ✅ T-35 Glyph-led tab titles in the `ab-*` launchers, from Linear PRF-67 (owner, 2026-11-05: "good, - go").
   - Step 1: an agent glyph by runtime and account (✴️, 🔶, 🌟, 🔷 Claude accounts 1–4; ❇️ Codex; 👾 OpenCode), then the label; `AB_TAB_TITLE` sets the label, else the bus name's distinguishing part; an `ab_tab_title` MCP tool lets the model read the recommendation and set its own label; inside tmux the window is renamed too.
   - Step 2: a state marker after the glyph: ❓ the agent waits on a question or approval; 🟥 its last answer ends with the stop marker; cleared on new input or a new turn.
   - Home: [launchers](../../docs/06-launchers.md).
   - Acceptance: labels are sanitised and capped; a model-set label never changes the bus name, identity or session title and resets to the recommendation on launcher restart; the start script's title and the tmux window name are restored on exit, nested launchers leave the outer name alone; Codex and OpenCode events are decoded from recorded fixtures; a runtime without a confirmed event source shows glyph and label only.
+  - Done: step 1 `4fe73afc` (1.0.3), step 2 `6c6170c2` (1.0.8); readers W1B, QA1 (step 1) and W1B, W1C (step 2). Known limits: OpenCode shows ❓ only (no turn-end event without a model turn); a reused pid whose command line names a launcher keeps a dead owner's tmux claim; a multi-window kitty tab restores the title this window saved.
 
 ## AI agent methods
 
