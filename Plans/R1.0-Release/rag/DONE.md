@@ -4,11 +4,11 @@ Completed steps of the [RAG TODO](TODO.md#steps), newest first.
 
 ## R.10 Large Markdown files, RAG's side
 
-- **Landed:** app **0.4.2**, no shared bump; steps L.1 and L.3 of [large files](large-files.md#steps).
+- **Built in:** app **0.4.2**, no shared bump; steps L.1 and L.3 of [large files](large-files.md#steps).
 - **Built:** `upsert` by `bigfile` reference up to 1 MiB, downloaded and checked before any paid call, worked to the sender's deadline (at most 30 minutes, refused under 120 s); md-heading-v1 chunks keyed by heading path, sibling ordinal and part, at most 256; per-chunk hashes, each paid batch stored at once and the head last; a vector reused only for byte-equal text under the same key; `get` with `check:true`; hits cite `heading_path` and `lines`; a delete of a headless id sweeps its chunks. Small-record heads keep answering unchanged, with no reindex. [Guide](../../../docs/agents/rag.md#large-markdown-files).
 - **Not built:** FileScan's side (L.2, team 2), including its replay fixture.
-- **Checks:** fixture-only, no live provider call. 13 mutants in `test_large` killed on assertions; a recorded 200 KiB session (`fixtures/large-session.jsonl`) fails when an edit re-embeds every section.
-- **Review:** `#ab-w1b`.
+- **Checks:** fixture-only, no live provider call. 17 mutants in `test_large` killed on assertions; a recorded 200 KiB session (`fixtures/large-session.jsonl`) fails when an edit re-embeds every section.
+- **Reader:** `#ab-w1b`.
 
 ## R.8 Count, similar, complete and classify
 
