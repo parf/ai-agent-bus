@@ -58,6 +58,57 @@ class TestLists(unittest.TestCase):
         finally:
             checker.read = original
 
+    def names(self, problems):
+        return [p.split(":")[0] for p in problems]
+
+    # The mentions that are not runs (J110 review): each of these used to be credited.
+    def test_a_name_only_in_a_comment_goes_red(self):
+        smoke, smoke_map, tests = self.real()
+        smoke = self.without(smoke, "pin.test.ts") + "\n# mcp/pin.test.ts is listed in the mcp line\n"
+        smoke_map = json.loads(self.without(json.dumps(smoke_map), "pin.test.ts"))
+        self.assertIn("mcp/pin.test.ts", self.names(checker.check(tests, smoke, smoke_map)))
+
+    def test_a_trailing_comment_on_a_command_line_is_not_a_run_either(self):
+        smoke, smoke_map, tests = self.real()
+        smoke = self.without(smoke, "inbox.test.ts") + "\ntrue # mcp/inbox.test.ts\n"
+        smoke_map = json.loads(self.without(json.dumps(smoke_map), "inbox.test.ts"))
+        self.assertIn("mcp/inbox.test.ts", self.names(checker.check(tests, smoke, smoke_map)))
+
+    def test_a_discover_line_in_a_function_nothing_calls_goes_red(self):
+        smoke, smoke_map, tests = self.real()
+        smoke = smoke.replace("discover -s maintenance -p 'test_*.py'", "discover -s maintenance -p test_cleanup.py")
+        smoke += "\nnever_called() {\n  python3 -m unittest discover -s maintenance -p 'test_*.py' -v\n}\n"
+        self.assertIn("maintenance/test_observe.py", self.names(checker.check(tests, smoke, smoke_map)))
+
+    def test_a_function_a_check_calls_does_count(self):
+        smoke, smoke_map, tests = self.real()
+        smoke = smoke.replace("discover -s maintenance -p 'test_*.py'", "discover -s maintenance -p test_cleanup.py")
+        smoke += "\nmaintenance_all() {\n  python3 -m unittest discover -s maintenance -p 'test_*.py' -v\n}\ncore_1() { maintenance_all; }\n"
+        self.assertNotIn("maintenance/test_observe.py", self.names(checker.check(tests, smoke, smoke_map)))
+
+    def test_a_name_only_in_the_maps_checks_paths_goes_red(self):
+        smoke, smoke_map, tests = self.real()
+        smoke = self.without(smoke, "pin.test.ts")
+        smoke_map = json.loads(self.without(json.dumps(smoke_map), "pin.test.ts"))
+        smoke_map["checks"]["container_image"]["paths"].append("src/mcp/pin.test.ts")  # paths select; they do not run
+        self.assertIn("mcp/pin.test.ts", self.names(checker.check(tests, smoke, smoke_map)))
+
+    def test_an_exemption_whose_runner_only_comments_on_the_file_goes_red(self):
+        smoke, smoke_map, tests = self.real()
+        original = checker.read
+        try:
+            checker.read = lambda path: "# runs container_test.py somewhere\ntrue\n" if path == "npm/container-check.sh" else original(path)
+            self.assertTrue(any(p.startswith("EXEMPT npm/container_test.py") for p in checker.check(tests, smoke, smoke_map)))
+            checker.read = lambda path: "// exec.Command is mentioned: test_fresh_install.py\npackage main\n" if path == "cmd/agent-bus-setup/fresh_install_test.go" else original(path)
+            self.assertTrue(any(p.startswith("EXEMPT acceptance/test_fresh_install.py") for p in checker.check(tests, smoke, smoke_map)))
+        finally:
+            checker.read = original
+
+    def test_a_script_the_gate_does_not_run_does_not_cover_what_it_runs(self):
+        smoke, smoke_map, tests = self.real()
+        smoke = self.without(smoke, "guard.test.sh")
+        self.assertIn("acceptance/guard_liveness_test.py", self.names(checker.check(tests, smoke, smoke_map)))
+
     def test_a_new_unlisted_file_is_named_in_the_failure(self):
         smoke, smoke_map, tests = self.real()
         problems = checker.check(tests + ["mcp/brand-new.test.ts"], smoke, smoke_map)
