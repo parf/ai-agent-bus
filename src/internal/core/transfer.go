@@ -149,8 +149,7 @@ func rewriteBackup(data RecordBackup, realms map[string]string) (RecordBackup, m
 	for from, to := range realms {
 		for _, r := range []string{from, to} {
 			if r != "" {
-				n, e := protocol.ParseName("fixture@" + r)
-				if e != nil || n.Realm != r {
+				if protocol.ValidRealm(r) != nil {
 					return data, nil, fmt.Errorf("invalid realm mapping")
 				}
 			}

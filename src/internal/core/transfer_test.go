@@ -3,6 +3,7 @@ package core
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 	"sort"
 	"strings"
@@ -289,5 +290,37 @@ func TestRecordImportNeverAcceptsDerivedAuthorityClaims(t *testing.T) {
 	}
 	if target.DaemonOwner() != "owner@source" || target.IsAdministrator("peer@source") {
 		t.Fatal("archive changed daemon authority")
+	}
+}
+
+func TestRealmMappingsUseCanonicalRealmValidation(t *testing.T) {
+	for _, size := range []int{57, protocol.MaxName - 2} {
+		realm := strings.Repeat("r", size)
+		for _, pair := range [][2]string{{"h", realm}, {realm, "h"}, {"", realm}, {realm, ""}} {
+			from, to := pair[0], pair[1]
+			t.Run(fmt.Sprintf("%d/%d-to-%d", size, len(from), len(to)), func(t *testing.T) {
+				name := func(r string) string {
+					if r == "" {
+						return "a"
+					}
+					return "a@" + r
+				}
+				data := RecordBackup{Format: 1, Users: []protocol.User{{Name: name(from), Status: protocol.StatusActive}}}
+				got, renamed, err := rewriteBackup(data, map[string]string{from: to})
+				if err != nil {
+					t.Fatalf("canonical realm mapping refused: %v", err)
+				}
+				if len(got.Users) != 1 || got.Users[0].Name != name(to) || renamed[name(from)] != name(to) {
+					t.Fatalf("realm mapping: users=%v renamed=%v", got.Users, renamed)
+				}
+			})
+		}
+	}
+	for _, bad := range []string{strings.Repeat("r", protocol.MaxName-1), "UPPER", "trailing ", "x/y", "x@y", "x+y", "_node"} {
+		for _, pair := range [][2]string{{"h", bad}, {bad, "h"}} {
+			if _, _, err := rewriteBackup(RecordBackup{Format: 1}, map[string]string{pair[0]: pair[1]}); err == nil {
+				t.Errorf("noncanonical realm mapping accepted: %q -> %q", pair[0], pair[1])
+			}
+		}
 	}
 }
