@@ -178,28 +178,6 @@ xAI's Grok: general chat and reasoning, with live-web leaning.
 
 </details>
 
-### meta-llama (8)
-
-Meta's Llama: open-weight models anyone may run; cheap through many providers.
-
-| Model | What it is for | Context | $/M in | $/M out | Input | Added |
-|---|---|---|---|---|---|---|
-| ⭐ `meta-llama/llama-4-maverick` | Llama 4 Maverick 17B Instruct (128E) is a high-capacity multimodal language model from Meta, built on a mixture-of-experts (MoE) architecture with… | 524K | $0.35 | $1.00 | text, image | 2025-04-05 |
-| `meta-llama/llama-3.3-70b-instruct` | The Meta Llama 3.3 multilingual large language model (LLM) is a pretrained and instruction tuned generative model in 70B (text in/text out) | 131K | $0.59 | $0.79 | text | 2024-12-06 |
-| `meta-llama/llama-4-scout` | Llama 4 Scout 17B Instruct (16E) is a mixture-of-experts (MoE) language model developed by Meta, activating 17 billion parameters out of a total of… | 1.3M | $0.100 | $0.30 | text, image | 2025-04-05 |
-| `meta-llama/llama-guard-4-12b` | Llama Guard 4 is a Llama 4 Scout-derived multimodal pretrained model, fine-tuned for content safety classification | 164K | $0.18 | $0.18 | image, text | 2025-04-29 |
-
-<details><summary>Older meta-llama versions and lines (4)</summary>
-
-| Model | What it is for | Context | $/M in | $/M out | Input | Added |
-|---|---|---|---|---|---|---|
-| `meta-llama/llama-3.2-1b-instruct` | Llama 3.2 1B is a 1-billion-parameter language model focused on efficiently performing natural language tasks, such as summarization, dialogue, and… | 60K | $0.027 | $0.20 | text | 2024-09-24 |
-| `meta-llama/llama-3.2-3b-instruct` | Llama 3.2 3B is a 3-billion-parameter multilingual large language model, optimized for advanced natural language processing tasks like dialogue… | 131K | $0.051 | $0.34 | text | 2024-09-24 |
-| `meta-llama/llama-3.1-70b-instruct` | Meta's latest class of model (Llama 3.1) launched with a variety of sizes & flavors | 131K | $0.72 | $0.72 | text | 2024-07-22 |
-| `meta-llama/llama-3.1-8b-instruct` | Meta's latest class of model (Llama 3.1) launched with a variety of sizes & flavors | 131K | $0.050 | $0.080 | text | 2024-07-22 |
-
-</details>
-
 ### meta (8)
 
 Meta's newer models (Muse line).
@@ -439,8 +417,7 @@ Amazon's Nova: cheap general and multimodal models.
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
-| ⭐ `amazon/nova-premier-v1` | Amazon Nova Premier is the most capable of Amazon’s multimodal models for complex reasoning tasks and for use as the best teacher for distilling… | 1M | $2.50 | $12.50 | text, image | 2025-10-31 |
-| `amazon/nova-2-lite-v1` | A fast, cost-effective reasoning model for everyday workloads that can process text, images, and videos to generate text | 1M | $0.30 | $2.50 | text, image, video, file | 2025-12-02 |
+| ⭐ `amazon/nova-2-lite-v1` | A fast, cost-effective reasoning model for everyday workloads that can process text, images, and videos to generate text | 1M | $0.30 | $2.50 | text, image, video, file | 2025-12-02 |
 
 <details><summary>Older amazon versions and lines (3)</summary>
 
@@ -451,14 +428,6 @@ Amazon's Nova: cheap general and multimodal models.
 | `amazon/nova-pro-v1` | Amazon Nova Pro 1.0 is a capable multimodal model from Amazon focused on providing a combination of accuracy, speed, and cost for a wide range of… | 300K | $0.80 | $3.20 | text, image | 2024-12-05 |
 
 </details>
-
-### microsoft (1)
-
-Microsoft's Phi: small, cheap models.
-
-| Model | What it is for | Context | $/M in | $/M out | Input | Added |
-|---|---|---|---|---|---|---|
-| ⭐ `microsoft/phi-4` | Microsoft Research Phi-4 is designed to perform well in complex reasoning tasks and can operate efficiently in situations with limited memory or… | 16K | $0.070 | $0.14 | text | 2025-01-10 |
 
 ### cohere (6)
 
@@ -498,18 +467,6 @@ Cohere's Command: enterprise chat and retrieval (RAG).
 
 </details>
 
-### anthracite-org (1)
-
-| Model | What it is for | Context | $/M in | $/M out | Input | Added |
-|---|---|---|---|---|---|---|
-| ⭐ `anthracite-org/magnum-v4-72b` | This is a series of models designed to replicate the prose quality of the Claude 3 models, specifically… | 33K | $2.50 | $5.00 | text | 2024-10-21 |
-
-### bytedance (1)
-
-| Model | What it is for | Context | $/M in | $/M out | Input | Added |
-|---|---|---|---|---|---|---|
-| ⭐ `bytedance/ui-tars-1.5-7b` | UI-TARS-1.5 is a multimodal vision-language agent optimized for GUI-based environments, including desktop interfaces, web browsers, mobile systems,… | 128K | $0.100 | $0.20 | image, text | 2025-07-22 |
-
 ### bytedance-seed (6)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
@@ -528,12 +485,6 @@ Cohere's Command: enterprise chat and retrieval (RAG).
 
 </details>
 
-### cognitivecomputations (1)
-
-| Model | What it is for | Context | $/M in | $/M out | Input | Added |
-|---|---|---|---|---|---|---|
-| ⭐ `cognitivecomputations/dolphin-mistral-24b-venice-edition` | Venice Uncensored Dolphin Mistral 24B Venice Edition is a fine-tuned variant of Mistral-Small-24B-Instruct-2501, developed by dphn.ai in… | 128K | $0.20 | $0.90 | text | 2025-07-09 |
-
 ### dots-studio (1)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
@@ -551,12 +502,6 @@ Cohere's Command: enterprise chat and retrieval (RAG).
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `fireworks/ember-1` | A specialized reasoning model from Fireworks Research, built on Kimi K3 | 1.0M | $3.00 | $15.00 | text, image | 2026-09-23 |
-
-### gryphe (1)
-
-| Model | What it is for | Context | $/M in | $/M out | Input | Added |
-|---|---|---|---|---|---|---|
-| ⭐ `gryphe/mythomax-l2-13b` | One of the highest performing and most popular fine-tunes of Llama 2 13B, with rich descriptions and roleplay | 8K | $0.080 | $0.11 | text | 2023-07-01 |
 
 ### ibm-granite (1)
 
@@ -602,12 +547,6 @@ Cohere's Command: enterprise chat and retrieval (RAG).
 | ⭐ `liquid/lfm-2.5-24b-a2b` | A mixture-of-experts reasoning model from Liquid AI with 24B total and 2.45B active parameters | 128K | $0.050 | $0.70 | text | 2026-10-13 |
 | `liquid/lfm-2.5-2.6b` · :free | A compact reasoning model from Liquid AI | 128K | $0.35 | $0.50 | text | 2026-08-11 |
 
-### mancer (1)
-
-| Model | What it is for | Context | $/M in | $/M out | Input | Added |
-|---|---|---|---|---|---|---|
-| ⭐ `mancer/weaver` | An attempt to recreate Claude-style verbosity, but don't expect the same level of coherence or memory | 8K | $0.40 | $0.75 | text | 2023-08-01 |
-
 ### meituan (1)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
@@ -621,25 +560,12 @@ Cohere's Command: enterprise chat and retrieval (RAG).
 | ⭐ `moondream/moondream3.1-9b-a2b` | A vision-language model from Moondream, the successor to Moondream 3 Preview, with 9B total parameters and 2B active (mixture-of-experts) | 32K | $0.30 | $2.50 | text, image | 2026-10-15 |
 | `moondream/moondream3-preview` | A vision-language model from Moondream with 9B total parameters and 2B active (mixture-of-experts) | 32K | $0.30 | $2.50 | text, image | 2026-10-15 |
 
-### morph (2)
-
-| Model | What it is for | Context | $/M in | $/M out | Input | Added |
-|---|---|---|---|---|---|---|
-| ⭐ `morph/morph-v3-large` | Morph's high-accuracy apply model for complex code edits | 262K | $0.90 | $1.90 | text | 2025-07-07 |
-| `morph/morph-v3-fast` | Morph's fastest apply model for code edits | 262K | $0.80 | $1.20 | text | 2025-07-07 |
-
 ### nex-agi (2)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `nex-agi/nex-n2.5-pro` | Nex-N2.5 is an agentic model built to turn goals into working, verified outcomes | 262K | $0.075 | $0.25 | text, image | 2026-09-08 |
 | `nex-agi/nex-n2.5-mini` | Nex-N2.5 is an agentic model built to turn goals into working, verified outcomes | 262K | $0.025 | $0.100 | text, image | 2026-09-08 |
-
-### nousresearch (1)
-
-| Model | What it is for | Context | $/M in | $/M out | Input | Added |
-|---|---|---|---|---|---|---|
-| ⭐ `nousresearch/hermes-4-405b` | Hermes 4 is a large-scale reasoning model built on Meta-Llama-3.1-405B and released by Nous Research | 131K | $1.00 | $3.00 | text | 2025-08-26 |
 
 ### openrouter (4)
 
@@ -670,23 +596,6 @@ Cohere's Command: enterprise chat and retrieval (RAG).
 | ⭐ `perceptron/perceptron-mk1.5` | Perceptron's embodied reasoning model for physical agents | 37K | $0.15 | $1.50 | text, image, video, audio | 2026-09-25 |
 | `perceptron/perceptron-mk1` | Perceptron Mk1 (Mark One) is Perceptron's highest-quality vision-language model for video and embodied reasoning.** It accepts image and video inputs… | 33K | $0.15 | $1.50 | text, image, video | 2026-05-12 |
 
-### perplexity (5)
-
-| Model | What it is for | Context | $/M in | $/M out | Input | Added |
-|---|---|---|---|---|---|---|
-| ⭐ `perplexity/sonar-pro-search` | Exclusively available on the OpenRouter API, Sonar Pro's new Pro Search mode is Perplexity's most advanced agentic search system | 200K | $3.00 | $15.00 | text, image | 2025-10-30 |
-
-<details><summary>Older perplexity versions and lines (4)</summary>
-
-| Model | What it is for | Context | $/M in | $/M out | Input | Added |
-|---|---|---|---|---|---|---|
-| `perplexity/sonar-reasoning-pro` | Note: Sonar Pro pricing includes Perplexity search pricing | 128K | $2.00 | $8.00 | text, image | 2025-03-06 |
-| `perplexity/sonar-pro` | Note: Sonar Pro pricing includes Perplexity search pricing | 200K | $3.00 | $15.00 | text, image | 2025-03-06 |
-| `perplexity/sonar-deep-research` | A research-focused model designed for multi-step retrieval, synthesis, and reasoning across complex topics | 128K | $2.00 | $8.00 | text | 2025-03-06 |
-| `perplexity/sonar` | Lightweight, affordable, fast, and simple to use — now featuring citations and the ability to customize sources | 127K | $1.00 | $1.00 | text, image | 2025-01-27 |
-
-</details>
-
 ### prism-ml (2)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
@@ -711,14 +620,12 @@ Cohere's Command: enterprise chat and retrieval (RAG).
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `rekaai/reka-edge` | An extremely efficient 7B multimodal vision-language model that accepts image/video+text inputs and generates text outputs | 16K | $0.100 | $0.100 | image, text, video | 2026-03-20 |
-| `rekaai/reka-flash-3` | A general-purpose, instruction-tuned large language model with 21 billion parameters, developed by Reka | 66K | $0.100 | $0.20 | text | 2025-03-12 |
 
 ### relace (2)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `relace/relace-search` | The relace-search model uses 4-12 `view_file` and `grep` tools in parallel to explore a codebase and return relevant files to the user request | 256K | $1.00 | $3.00 | text | 2025-12-08 |
-| `relace/relace-apply-3` | A specialized code-patching LLM that merges AI-suggested edits straight into your source files | 256K | $0.85 | $1.25 | text | 2025-09-26 |
 
 ### ricursiveai (1)
 
@@ -734,13 +641,6 @@ Cohere's Command: enterprise chat and retrieval (RAG).
 | `sakana/fugu-ultra` | The higher-performance model in Sakana AI's Fugu family | 1M | $5.00 | $30.00 | text, image | 2026-06-24 |
 | `sakana/fugu-max` | The cost-performance model in Sakana AI's Fugu family | 1M | $2.00 | $6.00 | text, image, file | 2026-09-11 |
 | `sakana/sakana-namazu` | A Japanese-specialized reasoning model from Sakana AI, based on Kimi K2.6 with additional training for Japanese language and business contexts | 262K | $0.95 | $4.00 | text, image, file | 2026-08-10 |
-
-### sao10k (2)
-
-| Model | What it is for | Context | $/M in | $/M out | Input | Added |
-|---|---|---|---|---|---|---|
-| ⭐ `sao10k/l3.1-euryale-70b` | Euryale L3.1 70B v2.2 is a model focused on creative roleplay from Sao10k | 131K | $0.85 | $0.85 | text | 2024-08-27 |
-| `sao10k/l3-lunaris-8b` | Lunaris 8B is a versatile generalist and roleplaying model based on Llama 3 | 8K | $0.040 | $0.050 | text | 2024-08-12 |
 
 ### scaledown (2)
 
@@ -783,14 +683,6 @@ Cohere's Command: enterprise chat and retrieval (RAG).
 
 </details>
 
-### thedrummer (3)
-
-| Model | What it is for | Context | $/M in | $/M out | Input | Added |
-|---|---|---|---|---|---|---|
-| ⭐ `thedrummer/cydonia-24b-v4.1` | Uncensored and creative writing model based on Mistral Small 3.2 24B with good recall, prompt adherence, and intelligence | 131K | $0.30 | $0.50 | text | 2025-09-26 |
-| `thedrummer/skyfall-36b-v2` | Skyfall 36B v2 is an enhanced iteration of Mistral Small 2501, specifically fine-tuned for improved creativity, nuanced writing, role-playing, and… | 33K | $0.55 | $0.80 | text | 2025-03-10 |
-| `thedrummer/unslopnemo-12b` | UnslopNemo v4.1 is the latest addition from the creator of Rocinante, designed for adventure writing and role-play scenarios | 1.0M | $0.40 | $0.40 | text | 2024-11-08 |
-
 ### thinkingmachines (2)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
@@ -810,12 +702,6 @@ Cohere's Command: enterprise chat and retrieval (RAG).
 |---|---|---|---|---|---|---|
 | ⭐ `unbiased/pareto-26.9` | Pareto is a multimodal composite model built for research, coding, and agentic workflows, while delivering frontier-level performance across a broad… | 262K | $2.50 | $7.50 | text, image | 2026-10-13 |
 | `unbiased/pareto-26.10` | Pareto is a multimodal composite model built for research, coding, and agentic workflows, while delivering frontier-level performance across a broad… | 1.0M | $0.80 | $3.20 | text, image | 2026-10-15 |
-
-### undi95 (1)
-
-| Model | What it is for | Context | $/M in | $/M out | Input | Added |
-|---|---|---|---|---|---|---|
-| ⭐ `undi95/remm-slerp-l2-13b` | A recreation trial of the original MythoMax-L2-B13 but with updated models | 6K | $0.35 | $0.65 | text | 2023-07-21 |
 
 ### upstage (2)
 
@@ -1096,3 +982,33 @@ Google's Gemini: multimodal (text, images, audio, video in), very long context; 
 | ⭐ `tencent/hy-image-v3.5-preview` | A unified image generation and editing model from Tencent | text, image | image | 2026-10-05 |
 
 Image prices are per endpoint: `ab ai model <id>`.
+
+## Older than a year
+
+Released more than a year ago and not shown above; kept for reference, usually replaced by a newer line of the same vendor.
+
+| Model | What it is for | Context | $/M in | $/M out | Input | Added |
+|---|---|---|---|---|---|---|
+| `amazon/nova-premier-v1` | Amazon Nova Premier is the most capable of Amazon’s multimodal models for complex reasoning tasks and for use as the best teacher for distilling… | 1M | $2.50 | $12.50 | text, image | 2025-10-31 |
+| `anthracite-org/magnum-v4-72b` | This is a series of models designed to replicate the prose quality of the Claude 3 models, specifically… | 33K | $2.50 | $5.00 | text | 2024-10-21 |
+| `bytedance/ui-tars-1.5-7b` | UI-TARS-1.5 is a multimodal vision-language agent optimized for GUI-based environments, including desktop interfaces, web browsers, mobile systems,… | 128K | $0.100 | $0.20 | image, text | 2025-07-22 |
+| `cognitivecomputations/dolphin-mistral-24b-venice-edition` | Venice Uncensored Dolphin Mistral 24B Venice Edition is a fine-tuned variant of Mistral-Small-24B-Instruct-2501, developed by dphn.ai in… | 128K | $0.20 | $0.90 | text | 2025-07-09 |
+| `gryphe/mythomax-l2-13b` | One of the highest performing and most popular fine-tunes of Llama 2 13B, with rich descriptions and roleplay | 8K | $0.080 | $0.11 | text | 2023-07-01 |
+| `mancer/weaver` | An attempt to recreate Claude-style verbosity, but don't expect the same level of coherence or memory | 8K | $0.40 | $0.75 | text | 2023-08-01 |
+| `meta-llama/llama-guard-4-12b` | Llama Guard 4 is a Llama 4 Scout-derived multimodal pretrained model, fine-tuned for content safety classification | 164K | $0.18 | $0.18 | image, text | 2025-04-29 |
+| `meta-llama/llama-4-maverick` | Llama 4 Maverick 17B Instruct (128E) is a high-capacity multimodal language model from Meta, built on a mixture-of-experts (MoE) architecture with… | 524K | $0.35 | $1.00 | text, image | 2025-04-05 |
+| `meta-llama/llama-4-scout` | Llama 4 Scout 17B Instruct (16E) is a mixture-of-experts (MoE) language model developed by Meta, activating 17 billion parameters out of a total of… | 1.3M | $0.100 | $0.30 | text, image | 2025-04-05 |
+| `meta-llama/llama-3.3-70b-instruct` | The Meta Llama 3.3 multilingual large language model (LLM) is a pretrained and instruction tuned generative model in 70B (text in/text out) | 131K | $0.59 | $0.79 | text | 2024-12-06 |
+| `microsoft/phi-4` | Microsoft Research Phi-4 is designed to perform well in complex reasoning tasks and can operate efficiently in situations with limited memory or… | 16K | $0.070 | $0.14 | text | 2025-01-10 |
+| `morph/morph-v3-large` | Morph's high-accuracy apply model for complex code edits | 262K | $0.90 | $1.90 | text | 2025-07-07 |
+| `morph/morph-v3-fast` | Morph's fastest apply model for code edits | 262K | $0.80 | $1.20 | text | 2025-07-07 |
+| `nousresearch/hermes-4-405b` | Hermes 4 is a large-scale reasoning model built on Meta-Llama-3.1-405B and released by Nous Research | 131K | $1.00 | $3.00 | text | 2025-08-26 |
+| `perplexity/sonar-pro-search` | Exclusively available on the OpenRouter API, Sonar Pro's new Pro Search mode is Perplexity's most advanced agentic search system | 200K | $3.00 | $15.00 | text, image | 2025-10-30 |
+| `rekaai/reka-flash-3` | A general-purpose, instruction-tuned large language model with 21 billion parameters, developed by Reka | 66K | $0.100 | $0.20 | text | 2025-03-12 |
+| `relace/relace-apply-3` | A specialized code-patching LLM that merges AI-suggested edits straight into your source files | 256K | $0.85 | $1.25 | text | 2025-09-26 |
+| `sao10k/l3.1-euryale-70b` | Euryale L3.1 70B v2.2 is a model focused on creative roleplay from Sao10k | 131K | $0.85 | $0.85 | text | 2024-08-27 |
+| `sao10k/l3-lunaris-8b` | Lunaris 8B is a versatile generalist and roleplaying model based on Llama 3 | 8K | $0.040 | $0.050 | text | 2024-08-12 |
+| `thedrummer/cydonia-24b-v4.1` | Uncensored and creative writing model based on Mistral Small 3.2 24B with good recall, prompt adherence, and intelligence | 131K | $0.30 | $0.50 | text | 2025-09-26 |
+| `thedrummer/skyfall-36b-v2` | Skyfall 36B v2 is an enhanced iteration of Mistral Small 2501, specifically fine-tuned for improved creativity, nuanced writing, role-playing, and… | 33K | $0.55 | $0.80 | text | 2025-03-10 |
+| `thedrummer/unslopnemo-12b` | UnslopNemo v4.1 is the latest addition from the creator of Rocinante, designed for adventure writing and role-play scenarios | 1.0M | $0.40 | $0.40 | text | 2024-11-08 |
+| `undi95/remm-slerp-l2-13b` | A recreation trial of the original MythoMax-L2-B13 but with updated models | 6K | $0.35 | $0.65 | text | 2023-07-21 |
