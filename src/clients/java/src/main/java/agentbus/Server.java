@@ -133,7 +133,15 @@ public final class Server implements AutoCloseable {
                 try { Thread.sleep(500); } catch (InterruptedException ie) { return; }
                 continue;
             }
-            if (m == null || bus.route(m) || !request(m)) {
+            if (m == null || bus.route(m)) {
+                permits.release();
+                continue;
+            }
+            if (!m.isReceipt() && m.re().isPresent() && !bus.lateCallReply(m) && o.onReply().isPresent()) {
+                run(m, true);
+                continue;
+            }
+            if (!request(m)) {
                 permits.release();
                 continue;
             }
@@ -159,21 +167,23 @@ public final class Server implements AutoCloseable {
     }
 
     // Acks a request and hands it to a handler; the caller holds its permit.
-    private boolean run(Message m) {
+    private boolean run(Message m) { return run(m, false); }
+
+    private boolean run(Message m, boolean reply) {
         try {
-            bus.ack(m);
+            if (!reply) bus.ack(m);
         } catch (RuntimeException e) {
             Bus.LOG.log(WARNING, "agent-bus serve: could not ack " + m.id() + ": " + e.getClass().getSimpleName());
         }
         Context ctx = new Context(m);
         running.add(ctx);
         try {
-            pool.submit(() -> handle(m, ctx));
+            pool.submit(() -> handle(m, ctx, reply));
         } catch (RuntimeException e) {
             running.remove(ctx);
             throw e;
         }
-        served.incrementAndGet();
+        if (!reply) served.incrementAndGet();
         return true;
     }
 
@@ -187,15 +197,20 @@ public final class Server implements AutoCloseable {
         return true;
     }
 
-    private void handle(Message m, Context ctx) {
+    private void handle(Message m, Context ctx, boolean reply) {
         HANDLING.set(this);
         try {
-            Response r = handler.handle(m, ctx);
-            switch (r) {
-                case Response.Reply rep -> bus.reply(m, rep.body());
-                case Response.Done d -> bus.done(m);
-                case Response.None n -> { }
-                case null -> bus.done(m);
+            if (reply) {
+                // Already an answer: preserve the drop path's lack of ack/reply/done.
+                o.onReply().orElseThrow().accept(m);
+            } else {
+                Response r = handler.handle(m, ctx);
+                switch (r) {
+                    case Response.Reply rep -> bus.reply(m, rep.body());
+                    case Response.Done d -> bus.done(m);
+                    case Response.None n -> { }
+                    case null -> bus.done(m);
+                }
             }
         } catch (Throwable e) {
             if (o.onError().isPresent()) o.onError().get().accept(m, e);

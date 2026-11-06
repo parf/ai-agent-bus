@@ -50,6 +50,7 @@ public final class Bus implements AutoCloseable {
     private final ConcurrentHashMap<String, Semaphore> gates = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Pending> pending = new ConcurrentHashMap<>();
     private final AtomicReference<Server> serving = new AtomicReference<>();
+    private final String callPrefix = "call-" + HexFormat.of().formatHex(bytes(16)) + "-";
     /** Test only: false leaves a call's replies to whatever unfiltered reader runs. */
     volatile boolean pollReplies = true;
 
@@ -149,7 +150,7 @@ public final class Bus implements AutoCloseable {
         // identity check, the send and every wait each get what is left of it.
         Instant until = Instant.now().plus(o.timeout());
         t.open();
-        String tag = "call-" + HexFormat.of().formatHex(bytes(8));
+        String tag = callPrefix + HexFormat.of().formatHex(bytes(8));
         String inbox = o.replyTo().orElse(null);
         Pending p = new Pending(inbox == null ? who(left(until)) : inbox);
         String key = key(o.topic(), tag);
@@ -260,6 +261,8 @@ public final class Bus implements AutoCloseable {
         Duration d = Duration.between(Instant.now(), until);
         return d.isNegative() || d.isZero() ? Duration.ofMillis(1) : d;
     }
+
+    boolean lateCallReply(Message m) { return m.tag().orElse("").startsWith(callPrefix); }
 
     /** Hands a message to the pending call it belongs to, if any. */
     boolean route(Message m) {

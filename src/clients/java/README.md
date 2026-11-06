@@ -72,6 +72,7 @@ pong hello
 | Secret | `secret()` holds the bytes as delivered; `env()` is a single-line `NAME=value` reader, not the runner's dotenv grammar: a ` # note` stays in the value and a quoted value cannot span lines, so parse a PEM or multi-line value from `bytes()` |
 | Calls | each runs its own filtered wait, which the daemon serves ahead of any unfiltered reader; `serve` and `consume` hand it any stray reply. One budget bounds the whole exchange |
 | Serving | at most `workers` handlers on virtual threads, never a message taken ahead; a stop drains up to `drain`, then cancels and interrupts |
+| Reply callback | `Serve.workers(n).onReply(m -> ...)` routes unmatched non-receipt `re` answers to that callback, never to the request handler; without it they remain dropped. Pending calls keep their answers. Late answers bearing this Bus's private call-tag prefix are excluded. The callback shares worker/drain limits and sends no automatic ack, reply or done |
 | Calling yourself | answered by this client's own server: the call hands its own request to a free handler, never returns it as the answer; a handler waiting on such a call needs another worker |
 | Transport | HTTP/1.1 written here, one connection per request, never retried: a library that re-sends a request it thinks idempotent would repeat a consume |
 | Errors | `RefusalException` subclasses by HTTP status, with `kind()` the daemon's refusal kind; `TransportException`, `TimeoutException`, `UncertainOutcomeException` (never retried) |

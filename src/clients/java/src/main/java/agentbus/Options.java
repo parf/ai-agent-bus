@@ -76,21 +76,29 @@ public final class Options {
 
     /** Serving: how many handlers at once, which topic, how long a stop waits for running handlers, and whether this process is one of a pool. */
     public record Serve(int workers, Optional<String> topic, Duration drain, boolean share, Duration poll,
-                        Optional<java.util.function.BiConsumer<Message, Throwable>> onError) {
+                        Optional<java.util.function.BiConsumer<Message, Throwable>> onError,
+                        Optional<java.util.function.Consumer<Message>> onReply) {
+        /** Existing constructor: unmatched answers are dropped unless onReply is set. */
+        public Serve(int workers, Optional<String> topic, Duration drain, boolean share, Duration poll,
+                     Optional<java.util.function.BiConsumer<Message, Throwable>> onError) {
+            this(workers, topic, drain, share, poll, onError, Optional.empty());
+        }
         public static Serve workers(int n) {
             if (n < 1) throw new IllegalArgumentException("at least one worker");
             return new Serve(n, Optional.empty(), Duration.ofSeconds(30), false, Duration.ofSeconds(5), Optional.empty());
         }
-        public Serve topic(String t) { return new Serve(workers, Optional.of(t), drain, share, poll, onError); }
-        public Serve drain(Duration d) { return new Serve(workers, topic, d, share, poll, onError); }
-        public Serve shared() { return new Serve(workers, topic, drain, true, poll, onError); }
+        public Serve topic(String t) { return new Serve(workers, Optional.of(t), drain, share, poll, onError, onReply); }
+        public Serve drain(Duration d) { return new Serve(workers, topic, d, share, poll, onError, onReply); }
+        public Serve shared() { return new Serve(workers, topic, drain, true, poll, onError, onReply); }
         /** Each wait's length: a stop is seen at the latest after one. */
-        public Serve poll(Duration d) { return new Serve(workers, topic, drain, share, d, onError); }
+        public Serve poll(Duration d) { return new Serve(workers, topic, drain, share, d, onError, onReply); }
+        /** Unmatched re answers only; late answers to this Bus's calls are excluded. No automatic ack or completion. */
+        public Serve onReply(java.util.function.Consumer<Message> f) { return new Serve(workers, topic, drain, share, poll, onError, Optional.of(f)); }
         /**
          * Where a handler's failure goes. By default only the message id and the
          * exception's type are logged: its message may carry the request or a
          * private value.
          */
-        public Serve onError(java.util.function.BiConsumer<Message, Throwable> f) { return new Serve(workers, topic, drain, share, poll, Optional.of(f)); }
+        public Serve onError(java.util.function.BiConsumer<Message, Throwable> f) { return new Serve(workers, topic, drain, share, poll, Optional.of(f), onReply); }
     }
 }

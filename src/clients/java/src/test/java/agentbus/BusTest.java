@@ -566,6 +566,45 @@ public final class BusTest {
             }
         });
 
+        section("serve reply callback", () -> {
+            Bus svc = client("#j-svc@localhost");
+            List<String> requests = Collections.synchronizedList(new ArrayList<>());
+            List<String> replies = Collections.synchronizedList(new ArrayList<>());
+            // The opt-out still drops answers, while the following request is handled.
+            owner("POST", "/send", Json.write(Map.of("to", "#j-svc@localhost", "body", "drop", "re", "send-before-serve")));
+            me.send("#j-svc@localhost", "default fence");
+            CountDownLatch defaultFence = new CountDownLatch(1);
+            try (Server server = svc.serve((m, ctx) -> { requests.add(m.body()); defaultFence.countDown(); return Response.none(); }, Serve.workers(1).poll(ms(100)))) {
+                check("default serve reaches the request fence", defaultFence.await(3, TimeUnit.SECONDS));
+            }
+            check("without onReply an answer stays dropped", requests.equals(List.of("default fence")), requests);
+            requests.clear();
+            Outcome late = svc.call("#j-other@localhost", "no answer yet", Call.within(ms(200)));
+            check("late-answer fixture really timed out", late instanceof Outcome.TimedOut, late);
+            Message old = client("#j-other@localhost").consume(Consume.waiting(ms(1000))).orElseThrow();
+            owner("POST", "/send", Json.write(Map.of("to", "#j-svc@localhost", "body", "late call answer", "re", old.id(), "topic", old.topic().orElse(""), "tag", old.tag().orElse(""))));
+            owner("POST", "/send", Json.write(Map.of("to", "#j-svc@localhost", "body", "async answer", "re", "sent-id", "topic", "unmatched", "tag", "reply")));
+            owner("POST", "/send", Json.write(Map.of("to", "#j-svc@localhost", "receipt", "ack", "re", "sent-id")));
+            me.send("#j-svc@localhost", "reply fence");
+            CountDownLatch fence = new CountDownLatch(1);
+            try (Server server = svc.serve((m, ctx) -> { requests.add(m.body()); fence.countDown(); return Response.none(); },
+                    Serve.workers(1).onReply(m -> replies.add(m.body())).poll(ms(100)))) {
+                check("reply callback drains before the request fence", fence.await(3, TimeUnit.SECONDS));
+            }
+            check("onReply gets the unmatched answer exactly once, never the receipt or late call", replies.equals(List.of("async answer")), replies);
+            check("an unmatched answer never reaches the request handler", requests.equals(List.of("reply fence")), requests);
+            check("a routed answer sends no ack or completion", me.consume(Consume.now().topic("unmatched").tag("reply")).isEmpty());
+            // Force a pending call's answer through the unfiltered serving reader.
+            AtomicInteger stolen = new AtomicInteger();
+            Bus caller = client("#j-caller@localhost");
+            caller.pollReplies = false;
+            try (Server remote = svc.serve((m, ctx) -> Response.reply("pending answer"), Serve.workers(1).poll(ms(100)));
+                 Server local = caller.serve((m, ctx) -> Response.none(), Serve.workers(1).onReply(m -> stolen.incrementAndGet()).poll(ms(100)))) {
+                Outcome own = caller.call("#j-svc@localhost", "pending", Call.within(Duration.ofSeconds(3)));
+                check("a pending call keeps its answer with onReply enabled", own instanceof Outcome.Answer a && a.message().body().equals("pending answer") && stolen.get() == 0, own + " / " + stolen.get());
+            } finally { caller.pollReplies = true; caller.close(); svc.close(); }
+        });
+
         section("serve rules", () -> {
             Bus svc = client("#j-svc@localhost");
             List<String> ran = Collections.synchronizedList(new ArrayList<>());
