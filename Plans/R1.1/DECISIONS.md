@@ -14,6 +14,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30; the R1 rows are in 
 | Q377, Q378 mdhouse's `#rag/mdhouse` uses the shared `#voyage` and `#ai`, admitted on their allow lists; no own keys | [resolved](resolved.md#Q377) | Owner, 2026-11-06 |
 | Q372–Q375 FileScan gets a finite `sync` on on-demand instances only: a bounded call that resumes, removal of files gone from the folder, `max_per_scan` as the run bound | [resolved](resolved.md#Q372), [on-demand sync](filescan.md#on-demand-sync) | Owner, 2026-11-06 |
 | Q376 mdhouse's RAG stores through a `#qdrant/mdhouse` proxy to the existing Qdrant server, collection `rag_mdhouse` | [resolved](resolved.md#Q376) | Owner, 2026-11-06 |
+| Q391 `#ai@parf.us` stays open to every caller (`*`) for now | [resolved](resolved.md#Q391) | Owner, 2026-11-06 |
 | Q5 moved to R1.3 | [R1.3 decisions](../R1.3/DECISIONS.md#recorded-decisions) | |
 | Q339 `#imap` keeps the per-delivery subscription check; only `#eventlog` and `#logwatch` check at creation | [resolved](resolved.md#Q339) | Owner, 2026-11-06 |
 | Q336 The root runner (RT19) replaces the standalone starter; a default policy that protects other agents' data is wanted for it and for a user's runner | [resolved](resolved.md#Q336), [root runner](root-runner.md#what-the-starter-is-today) | Owner, 2026-11-06: "replaced it" |
