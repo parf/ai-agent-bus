@@ -9,7 +9,7 @@ from decimal import Decimal, InvalidOperation
 import re
 
 ENGINES=('mysql','postgres')
-IDENT=re.compile(r'[A-Za-z_][A-Za-z0-9_]{0,63}\Z')
+IDENT=re.compile(r'[A-Za-z_][A-Za-z0-9_]{0,62}\Z')   # 63: PostgreSQL truncates a longer name, and MySQL allows 64
 NUMBER=re.compile(r'-?[0-9]{1,40}(\.[0-9]{1,40})?([eE][+-]?[0-9]{1,3})?\Z')
 STAMP=re.compile(r'[0-9]{4}-[0-9]{2}-[0-9]{2}[T ][0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{1,9})?(Z|[+-][0-9]{2}:[0-9]{2})?\Z')
 NUMERIC_TYPES={'tinyint','smallint','mediumint','int','integer','bigint','decimal','numeric','float','double','real','double precision'}

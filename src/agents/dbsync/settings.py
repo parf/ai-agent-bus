@@ -42,7 +42,7 @@ def count(key,value,low,high):
 
 def identifier(key,value):
     try:return statements.name(value,key)
-    except statements.StatementError:raise SettingsError(key,'a plain identifier: a letter or underscore, then letters, digits or underscores, at most 64') from None
+    except statements.StatementError:raise SettingsError(key,'a plain identifier: a letter or underscore, then letters, digits or underscores, at most 63') from None
 
 
 def parse(config):

@@ -86,7 +86,8 @@ class StatementTests(unittest.TestCase):
     def test_names_are_quoted_for_their_dialect_and_anything_else_is_refused(self):
         self.assertEqual(statements.quote('mysql','orders'),'`orders`')
         self.assertEqual(statements.quote('postgres','orders'),'"orders"')
-        for bad in ('orders;drop','a b','"x"','1abc',''):
+        statements.quote('postgres','a'*63)
+        for bad in ('orders;drop','a b','"x"','1abc','','a'*64):
             with self.assertRaises(statements.StatementError):statements.quote('postgres',bad)
 
     def test_a_cursor_value_reaches_a_statement_only_in_its_strict_form(self):
