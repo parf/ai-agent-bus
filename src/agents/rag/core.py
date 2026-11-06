@@ -143,6 +143,8 @@ class Core:
             for batch in batches:
                 answer=self.backend.embed(batch)
                 try:
+                    if 'model' in answer and answer['model']!=self.cfg['embedding_model']:
+                        raise NamedRefusal('model_mismatch','provider answered with another model')
                     rows=answer['data']
                     if not isinstance(rows,list) or len(rows)!=len(batch['input']):raise RagError('embedding batch size mismatch')
                     ordered={row['index']:row['embedding'] for row in rows if type(row.get('index')) is int}

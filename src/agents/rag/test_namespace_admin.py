@@ -58,10 +58,12 @@ class Administration(unittest.TestCase):
             for id in ('first','second'):self.put(ns,id)
         cursors={ns:self.call('list',namespace=ns,limit=1)['cursor'] for ns in ('a','b')}
         self.app.index_state={'a':True,'b':True};b_points={k:deepcopy(p) for k,p in self.store.points.items() if p['payload']['namespace']=='b'}
-        b_prompt=deepcopy(self.kv.values[prompt_key('b','t')]);paid=len(self.store.paid)
+        b_prompt=deepcopy(self.kv.values.get(prompt_key('b','t')));paid=len(self.store.paid)
+        self.assertIsNotNone(b_prompt,'the B prompt sentinel must exist before the drop')
         self.assertEqual(self.drop(),{'status':'dropped','namespace':'a'})
         self.assertEqual(self.store.points,b_points,'the B sentinel must survive an A drop')
-        self.assertNotIn(prompt_key('a','t'),self.kv.values);self.assertEqual(self.kv.values[prompt_key('b','t')],b_prompt)
+        self.assertNotIn(prompt_key('a','t'),self.kv.values)
+        self.assertEqual(self.kv.values.get(prompt_key('b','t')),b_prompt,'the B prompt sentinel must survive an A drop')
         self.assertNotIn(prompt_key('a','t'),self.app.cache.values)
         self.assertNotIn(cursors['a'],self.app.cursors);self.assertIn(cursors['b'],self.app.cursors)
         self.assertEqual(self.app.index_state,{'b':True});self.assertEqual(len(self.store.paid),paid)

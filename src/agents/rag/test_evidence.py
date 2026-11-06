@@ -56,5 +56,15 @@ class Evidence(unittest.TestCase):
         self.store.paid.clear()
         with self.assertRaises(ValueError):self.put(content_hash='0'*64)
         self.assertEqual(self.store.paid,[]);self.assertEqual(self.store.points,{})
+    def test_document_embedding_model_drift_never_publishes(self):
+        self.put();before=deepcopy(self.store.points);original=self.store.embed
+        def drift(request):return original(request)|{'model':'another-model'}
+        self.store.embed=drift;error=None
+        try:self.put('Tea replacement')
+        except NamedRefusal as caught:error=caught
+        self.assertEqual(self.store.points,before,'a different document embedding model must never be published')
+        self.assertIsNotNone(error);self.assertEqual(error.code,'model_mismatch')
+        self.store.embed=lambda request:original(request)|{'model':CFG['embedding_model']}
+        self.assertEqual(self.put('Tea replacement')['data'],'Tea replacement')
 
 if __name__=='__main__':unittest.main()
