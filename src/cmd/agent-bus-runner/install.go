@@ -204,6 +204,9 @@ func (r *runner) installPackage(ctx context.Context, body string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	if r.afterInstallCheck != nil {
+		r.afterInstallCheck()
+	}
 	backup := filepath.Join(temp, "previous")
 	if existing {
 		if err := os.Rename(live, backup); err != nil {

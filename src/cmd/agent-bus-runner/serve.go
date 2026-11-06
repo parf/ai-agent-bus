@@ -418,7 +418,8 @@ func (r *runner) serve(ctx context.Context) {
 				old := s.kept
 				s.kept = nil
 				r.retire(in.Key, old, func() {
-					if r.served[name] == s && s.kept == nil {
+					// A replacement adopted once the runner is closing would outlive its stop.
+					if r.served[name] == s && s.kept == nil && !r.closing.Load() {
 						s.kept = r.keep(s, s.bus.token)
 					}
 				})
@@ -534,8 +535,13 @@ func (r *runner) retireWith(key string, stop func(), finish func()) {
 }
 
 // stopKept stops every kept agent, all at once and bounded each by its own
-// deadline: the runner itself is stopping.
+// deadline: the runner itself is stopping. It first waits for an apply under way, an install's
+// included, and marks the runner closing, so nothing it starts is left out of the stop (J100).
+// reloadMu is never held across a fetch or a build, so this wait is bounded by an apply.
 func (r *runner) stopKept() {
+	r.reloadMu.Lock()
+	r.closing.Store(true)
+	r.reloadMu.Unlock()
 	r.mu.Lock()
 	var ks []*keeper
 	type stoppingStream struct {

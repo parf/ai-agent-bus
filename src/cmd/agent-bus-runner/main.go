@@ -27,6 +27,7 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -192,6 +193,7 @@ type runner struct {
 	loadErr      string // a load that failed as a whole: agents.json unreadable
 	served       map[string]*served
 	stopped      map[string]bool   // installed keys a stop call took down; guarded by reloadMu
+	closing      atomic.Bool       // the runner is stopping: nothing new is started (J100); set under reloadMu
 	askers       map[string]*asker // names answered asks-only without an ordinary reader; guarded by mu
 
 	probe     sync.Once // whether this host can sandbox, asked once
@@ -204,6 +206,9 @@ type runner struct {
 	filterErr error
 
 	fetch func(context.Context, installRequest, string) error // the git fetch of an install; nil is fetchDeploy, a test sets its own
+	// afterInstallCheck runs after an install's last cancellation check, under reloadMu; nil but in a
+	// test that stops the runner exactly there (J100).
+	afterInstallCheck func()
 
 	events *eventSink // what the runner observed of each agent, written to its own log; nil writes nothing
 }
@@ -285,6 +290,9 @@ func (r *runner) reload() {
 // apply rereads what is installed and serves it, keeping what stop calls took
 // down stopped. It holds reloadMu.
 func (r *runner) apply() {
+	if r.closing.Load() {
+		return // stopKept has begun: what an install or reload published is served at the next start
+	}
 	list, err := loadSources(r.sources(), r.host)
 	recoveryErrors := recoverOverlays(r.host)
 	for key, recoveryErr := range recoveryErrors {

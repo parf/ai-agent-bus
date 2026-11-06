@@ -318,6 +318,7 @@ Optional observations describe the runner and the admitted settings, without rea
 - **Self-serving agents** ([agents that serve themselves](configuration.md#agents-that-serve-themselves)) are kept running: restarted with backoff when they exit, a killed one included, which `last_exit.signal` names; sent `SIGHUP` when their settings change and `SIGTERM` when they stop.
 - **A message leaves the bus only when a process slot is free,** so a busy agent holds nothing back from an idle one, and work not yet taken stays queued if the runner stops.
 - **The unit's first stop signal goes only to the runner** (`KillMode=mixed`), so it can drain agents itself.
+- **A stopping runner starts nothing new:** an install or reload under way finishes publishing first and its agents are stopped with the rest; one published after that is served at the next start.
 - **Systemd kills what is left after 30 seconds;** use a unit drop-in with a longer `TimeoutStopSec` when an agent needs a longer shutdown.
 
 </details>
