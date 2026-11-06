@@ -1,5 +1,9 @@
 # RAG changelog
 
+## 0.4.2
+
+Large Markdown files: `upsert` takes a `bigfile` reference up to 1 MiB, chunked by heading with per-chunk hashes, vector reuse for unchanged text, and heading-path and line citations; `get` with `check:true` answers a free completeness check. Existing records keep answering unchanged.
+
 ## 0.4.1
 
 Add `count` (live records and records per label for a filter), `similar` (records nearest a stored record's vectors) and `complete` (endings of a typed word from stored text, through a prefix index `keyword_index` now creates), all free, and `classify` (labels for a text without storing it), one paid `#ai` call, off unless the new `classify` setting is true.

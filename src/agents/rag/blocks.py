@@ -3,13 +3,15 @@ import datetime
 import re
 import time
 from agent_bus import CallReply
-from agent_bus.errors import BusError,Refusal
-from rules import BODY_MAX,RagError,Unknown,Refused,Deadline,dumps,loads
+from agent_bus.errors import BusError,Refusal,InvalidArgument
+from agent_bus.storage import BigfileHashMismatch
+from rules import BODY_MAX,RagError,Unknown,Refused,Deadline,NamedRefusal,dumps,loads
 
 
 class Budget:
-    def __init__(self,envelope=None):
-        self.end=time.monotonic()+120
+    def __init__(self,envelope=None,cap=120):
+        # The sender's deadline governs; cap is the most this agent allows one call, longer for a large upsert.
+        self.end=time.monotonic()+cap
         value=(envelope or {}).get('deadline')
         if value and not value.startswith('0001-'):
             try: stamp=datetime.datetime.fromisoformat(value.replace('Z','+00:00')).timestamp()
@@ -53,6 +55,19 @@ class Blocks:
         return result['result']
     def decide(self,request):return self.invoke('ai',{'method':'decide','body':dumps(request)})
     def embed(self,request):return self.invoke('voyage',{'method':'request','path':'/v1/embeddings','body':dumps(request)})
+    def bigfile(self,record,name,max_size):
+        """The bytes of another record's bigfile, which its allow list must admit this agent to; checked against the daemon's SHA-256."""
+        self.budget.left(10)
+        try:data,_=self.bus.record(record).bigfile.get(name,max_size=max_size)
+        except Refusal as error:
+            if error.status==404:raise NamedRefusal('bigfile_unavailable','the referenced bigfile is absent or expired; send it again') from None
+            if error.status==403:raise NamedRefusal('bigfile_forbidden','this RAG instance is not admitted to '+record+'\'s bigfiles') from None
+            if error.status==413:raise NamedRefusal('bigfile_too_large','the referenced bigfile exceeds 1 MiB') from None
+            raise RagError('bigfile download refused') from None
+        except InvalidArgument:raise NamedRefusal('bigfile_too_large','the referenced bigfile exceeds 1 MiB') from None
+        except BigfileHashMismatch:raise RagError('bigfile download did not match its SHA-256') from None
+        except BusError:raise RagError('bigfile download failed') from None
+        return data
     def rerank(self,request):return self.invoke('voyage',{'method':'request','path':'/v1/rerank','body':dumps(request)})
 
 

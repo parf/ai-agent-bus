@@ -15,6 +15,8 @@ DATA_MAX = 32 << 10
 CHUNK_BYTES = 4096
 CHUNK_MAX = 8
 SCALARS_MAX = 8192
+LARGE_MAX = 1 << 20       # a file by bigfile reference, at most (Q371)
+LARGE_DEADLINE = 1800     # seconds a large upsert may run, when its sender's deadline allows
 INDEXES = ('namespace','tableName','id','key1','key2','_rag_kind','_rag_labels','_rag_rev')
 PROVENANCE_FIELDS = ('source','content_hash','indexed_at')
 SUMMARY_FIELDS = ('namespace','tableName','id','key1','key2','mime-type','classification_ids',*PROVENANCE_FIELDS)
@@ -148,8 +150,8 @@ def parse(raw):
         integer(v.setdefault('limit',16),1,16,'limit')
         if 'cursor' in v: text(v['cursor'],'cursor',128)
         return v
-    allowed={'upsert':{'namespace','tableName','id','data','mime-type','key1','key2','embeddings','source','content_hash'},
-             'get':{'namespace','tableName','id'},'list':{'namespace','tableName','key1','key2','limit','cursor'},
+    allowed={'upsert':{'namespace','tableName','id','data','mime-type','key1','key2','embeddings','source','content_hash','bigfile'},
+             'get':{'namespace','tableName','id','check'},'list':{'namespace','tableName','key1','key2','limit','cursor'},
              'search':{'namespace','tableName','key1','key2','query','limit','mode','rerank'},
              'count':{'namespace','tableName','key1','key2'},'complete':{'namespace','prefix','tableName','key1','key2','limit'},'similar':{'namespace','tableName','id','key1','key2','limit'},
              'classify':{'namespace','tableName','data','mime-type'},
@@ -176,7 +178,18 @@ def parse(raw):
         text(v.get('prefix'),'prefix',QUERY_MAX)
         if not tokens(v['prefix']): raise RagError('prefix has no searchable words')
         integer(v.setdefault('limit',16),1,16,'limit')
-    if method=='upsert':
+    if method=='upsert' and 'bigfile' in v:
+        # A large Markdown file by reference: the bytes come from the sender's bigfile, checked against content_hash.
+        text(v.get('source'),'source',SOURCE_MAX,nfc=True)
+        if any(k in v for k in ('data','embeddings')): raise RagError('bigfile replaces data and embeddings')
+        ref=v['bigfile']
+        if not isinstance(ref,dict) or set(ref)!={'record','name','size','sha256'}: raise RagError('bigfile needs record, name, size and sha256')
+        text(ref['record'],'bigfile record',256,nfc=True);text(ref['name'],'bigfile name',256,nfc=True)
+        integer(ref['size'],1,LARGE_MAX,'bigfile size')
+        if not isinstance(ref['sha256'],str) or not re.fullmatch('[0-9a-f]{64}',ref['sha256']): raise RagError('bigfile sha256 must be lower-case SHA256')
+        if v.get('content_hash')!=ref['sha256']: raise RagError('content_hash must equal the bigfile sha256')
+        if v.setdefault('mime-type','text/markdown')!='text/markdown': raise RagError('a bigfile upsert takes text/markdown only')
+    elif method=='upsert':
         text(v.get('source'),'source',SOURCE_MAX,nfc=True)
         text(v.get('data'),'data',DATA_MAX,empty=True)
         if 'content_hash' in v:
@@ -193,6 +206,7 @@ def parse(raw):
         if v['mode'] in ('keyword','hybrid') and not tokens(v['query']): raise RagError('query has no searchable words')
         integer(v.setdefault('limit',16),1,16,'limit')
         if 'rerank' in v and type(v['rerank']) is not bool: raise RagError('rerank must be boolean')
+    if method=='get' and 'check' in v and v['check'] is not True: raise RagError('check must be true')
     if method=='delete':
         if 'all' in v and type(v['all']) is not bool: raise RagError('all must be boolean')
         if 'id' in v:

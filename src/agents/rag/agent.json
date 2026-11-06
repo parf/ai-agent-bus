@@ -1,6 +1,6 @@
 {
   "description": "Store namespaced documents and retrieve evidence by keyword, meaning or both. Start with free capabilities, then configure prompts and upsert records with their source path.",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "command": "./rag.py",
   "form": "args",
   "serves": "itself",
@@ -40,7 +40,7 @@
     },
     "data": {
       "type": "string",
-      "help": "UTF-8 source, at most 32768 bytes; no BOM, NUL or invalid encoding. For application/json, supply JSON text. The source cap is an upper bound: whitespace break points can require more than 8 chunks and refuse early.",
+      "help": "UTF-8 source, at most 32768 bytes; no BOM, NUL or invalid encoding. For application/json, supply JSON text. The source cap is an upper bound: whitespace break points can require more than 8 chunks and refuse early. Required unless bigfile is given.",
       "json_only": true
     },
     "mime-type": {
@@ -106,7 +106,7 @@
     "content_hash": {
       "type": "string",
       "json_only": true,
-      "help": "Optional lower-case SHA256 of exact submitted data UTF-8 bytes; a mismatch refuses before provider work. Computed when omitted."
+      "help": "Optional lower-case SHA256 of exact submitted data UTF-8 bytes; a mismatch refuses before provider work. Computed when omitted. With bigfile it is required and equals the bigfile's sha256."
     },
     "mode": {
       "type": [
@@ -130,11 +130,24 @@
       "type": "string",
       "json_only": true,
       "help": "For drop_namespace: must equal the requested namespace exactly. Missing or wrong confirmation refuses without changes."
+    },
+    "bigfile": {
+      "type": "object",
+      "optional": true,
+      "json_only": true,
+      "help": "A Markdown file of up to 1 MiB in a bigfile this agent may download: record, name, size and sha256 (the SHA-256 of the file's bytes, equal to content_hash, which is then required). Replaces data and embeddings; mime-type is text/markdown. Downloaded and checked before any paid call; less than 120 s of deadline left is refused deadline_too_short."
+    },
+    "check": {
+      "type": "bool",
+      "optional": true,
+      "json_only": true,
+      "default": false,
+      "help": "get only: true answers whether the stored version is complete, free, without data or vectors; any other value is refused."
     }
   },
   "methods": {
     "upsert": {
-      "help": "Classify and embed one sourced record, then publish its new revision. Provider failure changes no record; a first namespace binding can remain empty.",
+      "help": "Classify and embed one sourced record, then publish its new revision. Provider failure changes no record; a first namespace binding can remain empty. A Markdown file over 32 KiB, up to 1 MiB, comes by bigfile reference instead of data and is chunked by heading.",
       "text": "upsert (JSON only)",
       "args": [
         {
@@ -147,7 +160,12 @@
           "name": "id"
         },
         {
-          "name": "data"
+          "name": "data",
+          "optional": true
+        },
+        {
+          "name": "bigfile",
+          "optional": true
         },
         {
           "name": "source"
@@ -177,7 +195,7 @@
       "example": "agent-bus call '#rag@node.example' '{\"method\":\"upsert\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\",\"data\":\"Tea is a drink.\",\"source\":\"notes/tea.md\"}'"
     },
     "get": {
-      "help": "Get one record in the required namespace; a missing or foreign-namespace id answers not_found.",
+      "help": "Get one record in the required namespace; a missing or foreign-namespace id answers not_found. With check:true, a free completeness check instead: no data or vectors.",
       "text": "get (JSON only)",
       "args": [
         {
@@ -188,9 +206,14 @@
         },
         {
           "name": "id"
+        },
+        {
+          "name": "check",
+          "optional": true
         }
       ],
-      "example": "agent-bus call '#rag@node.example' '{\"method\":\"get\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\"}'"
+      "example": "agent-bus call '#rag@node.example' '{\"method\":\"get\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\"}'",
+      "returns": "The full record, at most 256 KiB; a large file's record exceeds this read cap, so use check. With check:true: namespace, tableName, id, source, content_hash, indexed_at and complete (true when the head is committed and every chunk it names exists)."
     },
     "list": {
       "help": "Browse record summaries in stable order, up to 16 per call; send the returned cursor for the next page.",

@@ -5,10 +5,11 @@ import re
 from types import MappingProxyType
 from rules import (RagError,NamedRefusal,Unknown,CATALOGUE_MAX,NAMESPACE_MAX,TABLES_MAX,
                    dumps,text,integer,number,match,point_id,scope,provenance,SUMMARY_FIELDS)
+from chunks import chunk_bound
 
 CATALOGUE_KEY='rag.namespaces'
 SCHEMA=3
-IDENTITY_FIELDS=['namespace','tableName','id','_rag_kind','_rag_rev','_rag_index','_rag_schema','_rag_chunks','source','content_hash','indexed_at']
+IDENTITY_FIELDS=['namespace','tableName','id','_rag_kind','_rag_rev','_rag_index','_rag_schema','_rag_chunks','_rag_format','source','content_hash','indexed_at']
 
 
 def manager(envelope):
@@ -147,12 +148,14 @@ class NamespaceAccess:
             kind=payload.get('_rag_kind')
             rev=payload.get('_rag_rev')
             if not isinstance(rev,str) or not re.fullmatch('[0-9a-f]{64}',rev):raise RagError('invalid point revision')
+            # A large file's head and chunks name their format; everything else is today's eight-chunk record.
+            bound=chunk_bound(payload)
             if kind in ('head','deleted'):
                 expected=point_id(payload)
                 chunks=payload.get('_rag_chunks')
-                if not isinstance(chunks,list) or not 1<=len(chunks)<=8 or any(pid!=point_id(payload,rev,i) for i,pid in enumerate(chunks)):raise RagError('invalid head chunk references')
+                if not isinstance(chunks,list) or not 1<=len(chunks)<=bound or any(pid!=point_id(payload,rev,i) for i,pid in enumerate(chunks)):raise RagError('invalid head chunk references')
             elif kind=='chunk':
-                index=integer(payload.get('_rag_index'),0,7,'chunk index')
+                index=integer(payload.get('_rag_index'),0,bound-1,'chunk index')
                 rev=payload.get('_rag_rev')
                 if not isinstance(rev,str) or not re.fullmatch('[0-9a-f]{64}',rev):raise RagError('invalid chunk revision')
                 expected=point_id(payload,rev,index)

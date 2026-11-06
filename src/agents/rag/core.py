@@ -13,7 +13,14 @@ from rules import (RagError,Unknown,Refused,Deadline,Incomplete,RECORD_MAX,SUMMA
                    config,dumps,identity,match,point_id,revision,scope,number,sparse,vector,summary,text,DATA_MAX,BODY_MAX)
 from blocks import Budget
 from namespaces import Catalogue,manager,SCHEMA
-from rules import NamedRefusal,PROVENANCE_FIELDS,provenance,FACET_MAX,PREFIX_FIELD,PREFIX_INDEX,COMPLETE_CHUNKS,tokens
+from rules import NamedRefusal,PROVENANCE_FIELDS,provenance,FACET_MAX,PREFIX_FIELD,PREFIX_INDEX,COMPLETE_CHUNKS,tokens,LARGE_MAX,LARGE_DEADLINE
+import chunks as mdchunks
+from chunks import LARGE_FORMAT,LARGE_CHUNKS,chunk_bound
+
+CITATION_FIELDS=('_rag_heading','_rag_lines')
+EMBED_BATCH=32      # chunks per #voyage request for a large file
+LARGE_FLOOR=120     # seconds a large upsert needs left before it starts
+WRITE_BYTES=512<<10 # one point write, well under the proxy's 1 MiB
 
 
 def finite(value):
@@ -60,7 +67,7 @@ class Core:
         if method=='classify' and not self.cfg['classify']:raise NamedRefusal('classify_unavailable','classify is off: set classify to true in the configuration')
         if method=='drop_namespace' and request.get('confirm')!=request['namespace']:
             raise NamedRefusal('confirmation_required','confirm must equal the requested namespace')
-        self.budget=Budget(envelope);self.backend.begin(self.budget)
+        self.budget=Budget(envelope,LARGE_DEADLINE if method=='upsert' and 'bigfile' in request else 120);self.backend.begin(self.budget)
         self.verify()
         # This count is a provisioning check, not an unscoped record read.
         legacy=self.backend.qdrant('POST','/points/count',{'filter':{'must':[{'is_empty':{'key':'namespace'}}]},'exact':True})
@@ -75,7 +82,7 @@ class Core:
                 return result if request['action']=='get' else {'status':'ok'}
             if method=='upsert':return self.upsert(request,repo)
             if method=='get':
-                result=self.get(request,repo)
+                result=self.check(request,repo) if request.get('check') else self.get(request,repo)
                 if result is None:raise NamedRefusal('not_found','record is absent from this namespace')
                 return result
             if method=='list':return self.list(request,repo)
@@ -152,19 +159,7 @@ class Core:
         vectors=supplied
         if vectors is None:
             vectors=[]
-            for batch in batches:
-                answer=self.backend.embed(batch)
-                try:
-                    # A provider answer that names a model must name the configured one. One that names none is tolerated: the
-                    # provider does not always echo it, and the collection's own model binding already pins what the vectors mean.
-                    if 'model' in answer and answer['model']!=self.cfg['embedding_model']:
-                        raise NamedRefusal('model_mismatch','provider answered with another model')
-                    rows=answer['data']
-                    if not isinstance(rows,list) or len(rows)!=len(batch['input']):raise RagError('embedding batch size mismatch')
-                    ordered={row['index']:row['embedding'] for row in rows if type(row.get('index')) is int}
-                    if set(ordered)!=set(range(len(rows))):raise RagError('embedding indexes mismatch')
-                    vectors.extend(vector(ordered[i],dimensions) for i in range(len(rows)))
-                except (KeyError,TypeError,AttributeError):raise RagError('invalid embedding response') from None
+            for batch in batches:vectors.extend(self._embed(batch))
         full={**base,'classification_ids':labels,'embeddings':vectors,
               'content_hash':hashlib.sha256(v['data'].encode()).hexdigest(),
               'indexed_at':datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00','Z')}
@@ -172,6 +167,21 @@ class Core:
         summary={k:full[k] for k in SUMMARY_FIELDS if k in full}
         if len(dumps(summary,ascii=True).encode())>SUMMARY_MAX:raise RagError('prepared summary exceeds byte cap')
         return full,chunks,vectors
+    def _embed(self,batch):
+        """One paid #voyage batch, as checked vectors in input order."""
+        dimensions=self.cfg['dimensions']
+        answer=self.backend.embed(batch)
+        try:
+            # A provider answer that names a model must name the configured one. One that names none is tolerated: the
+            # provider does not always echo it, and the collection's own model binding already pins what the vectors mean.
+            if 'model' in answer and answer['model']!=self.cfg['embedding_model']:
+                raise NamedRefusal('model_mismatch','provider answered with another model')
+            rows=answer['data']
+            if not isinstance(rows,list) or len(rows)!=len(batch['input']):raise RagError('embedding batch size mismatch')
+            ordered={row['index']:row['embedding'] for row in rows if type(row.get('index')) is int}
+            if set(ordered)!=set(range(len(rows))):raise RagError('embedding indexes mismatch')
+            return [vector(ordered[i],dimensions) for i in range(len(rows))]
+        except (KeyError,TypeError,AttributeError):raise RagError('invalid embedding response') from None
     def _classification(self,settings,source):
         """One Jev Choice question over the table's labels: upsert and classify ask the same."""
         return {'model':self.cfg['decision_model'],'state':source,'questions':{'labels':{'type':'choice','instructions':settings['instructions'],'criteria':settings['labels']}}}
@@ -223,7 +233,7 @@ class Core:
         scope={k:v[k] for k in ('namespace','tableName','key1','key2') if k in v}
         def page(want,offset):
             return {'filter':{**repo.select(scope,kind='chunk'),'must_not':[{'has_id':ids}]},'query':{'recommend':{'positive':ids}},
-                    'limit':want,'offset':offset,'with_payload':{'include':[*SUMMARY_FIELDS[:5],*PROVENANCE_FIELDS,'_rag_text']},'with_vector':False}
+                    'limit':want,'offset':offset,'with_payload':{'include':[*SUMMARY_FIELDS[:5],*PROVENANCE_FIELDS,'_rag_text',*CITATION_FIELDS]},'with_vector':False}
         ranked,_=self._collect({**scope,'limit':v['limit']},repo,page,'similarity',-1)
         return {'records':ranked[:v['limit']]}
     def complete(self,v,repo):
@@ -274,6 +284,9 @@ class Core:
                     record={k:payload[k] for k in SUMMARY_FIELDS[:5] if k in payload}
                     record.update(provenance(payload))
                     record['chunk_index']=payload['_rag_index']
+                    # A large file's chunk cites its heading path and lines; today's records carry neither.
+                    if payload.get('_rag_format')==LARGE_FORMAT:
+                        record['heading_path']=payload['_rag_heading'];record['lines']=payload['_rag_lines']
                     record['scores']={score:row['score']}
                     record['excerpt']=text(payload.get('_rag_text'),'stored text',DATA_MAX,empty=True)
                     best[key]=record
@@ -284,6 +297,7 @@ class Core:
         if exhausted and len(best)<v['limit']:raise Incomplete('search window exhausted before enough records were found; narrow the query, add filters or run cleanup')
         return sorted(best.values(),key=lambda r:(-next(iter(r['scores'].values())),r['tableName'],r['id'])),want
     def upsert(self,v,repo):
+        if 'bigfile' in v:return self.upsert_large(v,repo)
         full,chunks,vectors=self.prepare(v,repo)
         rev=revision(full,vectors,self.cfg['embedding_model'],full['classification_ids'])
         fields={k:full[k] for k in ('namespace','tableName','id','key1','key2',*PROVENANCE_FIELDS) if k in full}
@@ -305,6 +319,120 @@ class Core:
         except RagError:
             raise Unknown('storage outcome unknown; repeating the same upsert/delete is safe') from None
         return full
+    def upsert_large(self,v,repo):
+        """A Markdown file over the inline limit, by bigfile reference: chunked by heading, each paid batch stored at once, the head last."""
+        ref=v['bigfile'];dims=self.cfg['dimensions']
+        # A message taken late must not spend part of its wait and publish nothing.
+        if self.budget.end-time.monotonic()<LARGE_FLOOR:raise NamedRefusal('deadline_too_short',f'less than {LARGE_FLOOR} s of the deadline remain; not started')
+        raw=self.backend.bigfile(ref['record'],ref['name'],LARGE_MAX)
+        if len(raw)!=ref['size'] or hashlib.sha256(raw).hexdigest()!=ref['sha256']:
+            raise NamedRefusal('bigfile_mismatch','the bigfile is not the referenced version; send it again')
+        try:source=raw.decode('utf-8')
+        except UnicodeDecodeError:raise RagError('bigfile is not UTF-8 text') from None
+        text(source,'bigfile text',LARGE_MAX)
+        pieces=mdchunks.chunks(source)
+        settings=repo.prompt('get',v['tableName'])
+        if settings is None:raise RagError('classification prompts are not configured')
+        # Jev reads at most 32 KiB: a large file is classified by its first 32 KiB of text.
+        classification=self._classification(settings,source.encode()[:DATA_MAX].decode('utf-8',errors='ignore'))
+        stored=self._reusable(v,repo)
+        # A vector is kept only for byte-equal text under the same identity; everything else about the chunk is written anew.
+        reused={(p['key'],p['hash']):stored[(p['key'],p['hash'])][1] for p in pieces if stored.get((p['key'],p['hash']),(None,))[0]==p['text']}
+        missing=[p for p in pieces if (p['key'],p['hash']) not in reused]
+        batches=[missing[i:i+EMBED_BATCH] for i in range(0,len(missing),EMBED_BATCH)]
+        requests=[{'model':self.cfg['embedding_model'],'input':[p['text'] for p in batch],'input_type':'document','output_dimension':dims,'output_dtype':'float'} for batch in batches]
+        if any(len(dumps(x).encode())>(1<<20)-1024 for x in [classification,*requests]):raise RagError('provider request exceeds 1 MiB before provider work')
+        base={k:v[k] for k in ('namespace','tableName','id','key1','key2','mime-type','source') if k in v}
+        try:
+            labels,_=self._labels(self.backend.decide(classification),settings)
+            full={**base,'classification_ids':labels,'content_hash':ref['sha256'],
+                  'indexed_at':datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00','Z')}
+            if len(dumps({k:full[k] for k in SUMMARY_FIELDS if k in full},ascii=True).encode())>SUMMARY_MAX:raise RagError('prepared summary exceeds byte cap')
+            # The revision names every chunk by identity and hash, not by vector, so each batch is stored as soon as it is paid for.
+            rev=hashlib.sha256(dumps([LARGE_FORMAT,full['content_hash'],full['mime-type'],[full.get('key1'),full.get('key2')],sorted(labels),
+                                      self.cfg['embedding_model'],full['source'],full['indexed_at'],[[p['key'],p['hash']] for p in pieces]]).encode()).hexdigest()
+            fields={k:full[k] for k in ('namespace','tableName','id','key1','key2',*PROVENANCE_FIELDS) if k in full}
+            index={(p['key'],p['hash']):i for i,p in enumerate(pieces)}
+            def point(p,vec):
+                i=index[(p['key'],p['hash'])]
+                return repo.point(v,{'':vec,BM25_VECTOR:sparse(p['text'])} if self.bm25 else vec,
+                                  {**fields,'_rag_kind':'chunk','_rag_index':i,'_rag_rev':rev,'_rag_format':LARGE_FORMAT,'_rag_labels':list(labels),'_rag_text':p['text'],
+                                   '_rag_key':p['key'],'_rag_hash':p['hash'],'_rag_heading':p['heading'],'_rag_lines':p['lines']},rev,i)
+            self._store([point(p,reused[(p['key'],p['hash'])]) for p in pieces if (p['key'],p['hash']) in reused],repo)
+            for batch,request in zip(batches,requests):
+                self._store([point(p,vec) for p,vec in zip(batch,self._embed(request))],repo)
+        except Deadline:
+            raise NamedRefusal('deadline','not stored; prior record unchanged') from None
+        # The head holds the hash and the chunk list, never the text: the text lives in the chunks.
+        head={**full,'_rag_schema':SCHEMA,'_rag_kind':'head','_rag_rev':rev,'_rag_format':LARGE_FORMAT,
+              '_rag_chunks':[repo.point_id(v,rev,i) for i in range(len(pieces))],'_rag_labels':list(labels)}
+        try:
+            repo.qdrant('PUT','/points?wait=true',{'points':[repo.point(v,[1.0]+[0.0]*(dims-1),head)]},write=True)
+            old=repo.select(v,kind='chunk',exact=True);old['must_not']=[match('_rag_rev',rev)]
+            repo.qdrant('POST','/points/delete?wait=true',{'filter':old},write=True)
+        except RagError:
+            raise Unknown('storage outcome unknown; repeating the same upsert/delete is safe') from None
+        return {k:full[k] for k in SUMMARY_FIELDS if k in full}
+    def _store(self,points,repo):
+        """Unpublished chunk writes before the head: a failure here leaves the previous version answering."""
+        for group in self._groups(points):
+            try:repo.qdrant('PUT','/points?wait=true',{'points':group},write=True)
+            except Deadline:raise
+            except RagError as error:raise RagError('not stored; prior record unchanged: '+str(error)) from None
+    def _reusable(self,v,repo):
+        """(chunk key, chunk hash) -> (stored text, vector), from every large-format chunk this record holds: published, or left by an interrupted attempt."""
+        selected=repo.select(v,kind='chunk',exact=True);found={};offset=None
+        while True:
+            body={'filter':selected,'limit':16,'with_payload':{'include':['_rag_key','_rag_hash','_rag_format','_rag_text']},'with_vector':True}
+            if offset is not None:body['offset']=offset
+            # Sixteen vectors a page keep a 1024-dimension answer well under the proxy's 1 MiB.
+            page=repo.qdrant('POST','/points/scroll',body)
+            try:
+                for row in page['points']:
+                    stored=row['payload']
+                    if stored.get('_rag_format')!=LARGE_FORMAT or not all(isinstance(stored.get(k),str) for k in ('_rag_key','_rag_hash','_rag_text')):continue
+                    dense=row['vector'].get('') if isinstance(row['vector'],dict) else row['vector']
+                    found[(stored['_rag_key'],stored['_rag_hash'])]=(stored['_rag_text'],vector(dense,self.cfg['dimensions']))
+                offset=page['next_page_offset']
+            except (KeyError,TypeError,AttributeError):raise RagError('invalid scroll response') from None
+            if offset is None:return found
+    def _groups(self,points):
+        """Point writes of at most WRITE_BYTES each."""
+        group=[];size=0
+        for point in points:
+            length=len(dumps(point).encode())
+            if group and size+length>WRITE_BYTES:
+                yield group;group=[];size=0
+            group.append(point);size+=length
+        if group:yield group
+    def check(self,v,repo):
+        """The completeness check: the head and whether every chunk it names exists, without vectors or data; free."""
+        for attempt in range(2):
+            try:head=repo.qdrant('GET','/points/'+repo.point_id(v)+'?with_vector=false')
+            except RagError as error:
+                if getattr(error,'missing',False):return None
+                raise
+            if head is None:return None
+            try:
+                payload=head['payload']
+                if payload.get('_rag_kind')=='deleted':return None
+                if head['id']!=repo.point_id(v) or payload.get('_rag_kind')!='head' or identity(payload)!=identity(v):raise RagError('invalid canonical head')
+                ids=payload['_rag_chunks'];large=payload.get('_rag_format')==LARGE_FORMAT
+                # A large file's head may name up to 256 chunks; any other record keeps get's eight and its scalar cap.
+                if not isinstance(ids,list) or not 1<=len(ids)<=chunk_bound(payload) or len(set(ids))!=len(ids) or not large and len(ids)*self.cfg['dimensions']>SCALARS_MAX:
+                    raise RagError('invalid chunk references')
+                if any(pid!=repo.point_id(v,payload['_rag_rev'],i) for i,pid in enumerate(ids)):raise RagError('chunk identity mismatch')
+                present=set()
+                for i in range(0,len(ids),64):
+                    present.update(row['id'] for row in repo.qdrant('POST','/points',{'ids':ids[i:i+64],'with_payload':False,'with_vector':False}))
+                complete=present==set(ids)
+                if not complete and attempt==0:continue
+                answer={'namespace':v['namespace'],'tableName':v['tableName'],'id':v['id'],
+                        'source':payload['source'],'content_hash':payload['content_hash'],'indexed_at':payload['indexed_at'],'complete':complete}
+                provenance(answer)
+                return answer
+            except (KeyError,TypeError,AttributeError):raise RagError('invalid stored record') from None
+        raise RagError('record changed or is incomplete')
     def get(self,v,repo):
         for attempt in range(2):
             try:head=repo.qdrant('GET','/points/'+repo.point_id(v)+'?with_vector=false')
@@ -317,6 +445,8 @@ class Core:
                 payload=head['payload']
                 if payload.get('_rag_kind')=='deleted':return None
                 if head['id']!=repo.point_id(v) or payload.get('_rag_kind')!='head' or identity(payload)!=identity(v):raise RagError('invalid canonical head')
+                # A large file's text is in its chunks, never inline: get keeps its caps, and check answers for it.
+                if payload.get('_rag_format') is not None:raise RagError('stored record exceeds read cap')
                 ids=payload['_rag_chunks']
                 if not isinstance(ids,list) or not 1<=len(ids)<=8 or len(ids)*self.cfg['dimensions']>SCALARS_MAX or len(set(ids))!=len(ids):raise RagError('invalid chunk references')
                 if any(pid!=repo.point_id(v,payload['_rag_rev'],i) for i,pid in enumerate(ids)):raise RagError('chunk identity mismatch')
@@ -401,7 +531,7 @@ class Core:
         dense=self.query_embedding(v,repo) if mode in ('semantic','hybrid') else None
         def page(want,offset):
             query={'filter':repo.select(v,kind='chunk'),'limit':want,'offset':offset,
-                   'with_payload':{'include':[*SUMMARY_FIELDS[:5],*PROVENANCE_FIELDS,'_rag_text']},'with_vector':False}
+                   'with_payload':{'include':[*SUMMARY_FIELDS[:5],*PROVENANCE_FIELDS,'_rag_text',*CITATION_FIELDS]},'with_vector':False}
             if mode=='keyword':query.update(query=sparse(v['query'],query=True),using=BM25_VECTOR)
             elif mode=='semantic':query['query']=dense
             else:
@@ -532,7 +662,10 @@ class Core:
             # A retained tombstone is an explicit continuation, not a new delete
             # of an absent record. It must still be able to finish its cleanup.
             head=repo.qdrant('GET','/points/'+repo.point_id(v))
-            if head is None:raise NamedRefusal('not_found','record is absent from this namespace')
+            if head is None:
+                # Chunks of an upsert that never published its head would otherwise stay for good.
+                repo.qdrant('POST','/points/delete?wait=true',{'filter':repo.select(v,kind='chunk',exact=True)},write=True)
+                raise NamedRefusal('not_found','record is absent from this namespace')
             if head['payload']['_rag_kind'] not in ('head','deleted'):raise RagError('invalid deletion head')
         try:return self._delete(v,repo)
         except Deadline:raise Incomplete('repeat the same delete to continue') from None
