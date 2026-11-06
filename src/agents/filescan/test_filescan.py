@@ -270,6 +270,40 @@ class RagTests(Base):
         self.assertIn('earlier text was deleted',next(iter(self.call('status')['skipped_for_rag'].values()))['a.md'])
         self.bus.calls.clear();self.call('scan');self.assertEqual(self.bus.calls,[],'done, not repeated')
 
+    def test_rag_counts_bytes_so_a_wide_character_path_is_judged_as_rag_judges_it(self):
+        wide='/'.join(['\u6587'*80]*9)+'.md'   # 720 characters, over 2100 bytes: over RAG's 2048-byte source limit
+        self.assertLess(len(wide),2048);self.assertGreater(len(wide.encode()),2048)
+        self.assertFalse(fs.rag_source_ok(wide));self.assertTrue(fs.rag_source_ok('\u6587'*600))
+        self.assertFalse(fs.rag_source_ok('   '),'RAG refuses a blank source');self.assertFalse(fs.rag_source_ok(''))
+        plain=fs.rag_id('\u6587'*50+'.md')   # 150 bytes, over the 128-byte id limit though only 53 characters
+        self.assertEqual(plain[0][:7],'sha256:');self.assertEqual(plain[1],'\u6587'*50+'.md')
+        self.assertEqual(fs.rag_id('\u6587'*40+'.md'),('\u6587'*40+'.md',None))   # 123 bytes: still its own id
+        self.put(wide,'text');self.put('\u6587'*50+'.md','b');self.rag();self.call('scan')
+        sent=[c for c in self.calls() if c['method']=='upsert']
+        self.assertEqual([c['source'] for c in sent],['\u6587'*50+'.md'],'the wide path is skipped, and the 150-byte name goes out under a hashed id')
+        self.assertTrue(sent[0]['id'].startswith('sha256:') and sent[0]['key1']=='\u6587'*50+'.md')
+        self.assertTrue(any(wide in k for v in self.call('status')['skipped_for_rag'].values() for k in v),'named in status')
+
+    def test_a_file_that_became_unsendable_is_deleted_from_rag_on_create_too_after_a_reset(self):
+        self.agent=self.make({'max_file_size':'1MiB'});self.put('big.md','x'*(fs.RAG_TEXT+1));self.rag()
+        self.call('scan');self.assertEqual([c['method'] for c in self.calls()],['delete'],'RAG may still hold its old text, so a replay deletes it')
+        self.assertEqual(self.calls()[0]['id'],'big.md');self.bus.calls.clear();self.call('scan');self.assertEqual(self.bus.calls,[],'once, not every scan')
+
+    def test_rag_refusing_to_delete_an_id_it_does_not_hold_counts_as_the_delete_done(self):
+        self.agent=self.make({'max_file_size':'1MiB'})
+        for i in range(8):self.put(f'k{i}.md','k')
+        self.put('a.md','small');self.rag();self.call('scan');self.bus.calls.clear()
+        self.put('a.md','x'*(fs.RAG_TEXT+1),mtime=time.time()+5);self.call('scan')   # RAG deletes the stale text
+        self.assertEqual([c['method'] for c in self.calls()],['delete']);self.bus.calls.clear()
+        os.unlink(Path(self.root)/'a.md');self.bus.replies['#rag@n.test']='error: not_found: record is absent from this namespace'
+        self.call('scan');self.assertEqual([c['method'] for c in self.calls()],['delete'])
+        self.assertEqual(self.call('status')['subscribers'][0]['pending'],0,'the delete for an id already gone is settled, not retried forever')
+        self.bus.calls.clear();self.call('scan');self.assertEqual(self.bus.calls,[])
+
+    def test_the_not_found_answer_settles_only_a_delete_never_an_upsert(self):
+        self.put('a.md','x');self.rag();self.bus.replies['#rag@n.test']='error: not_found: record is absent from this namespace'
+        self.call('scan');self.assertEqual(self.call('status')['subscribers'][0]['pending'],1,'an upsert that is refused stays pending')
+
     def test_a_path_that_looks_like_a_hash_cannot_collide_with_a_hashed_one(self):
         import hashlib
         long='d/'+'y'*130;h=hashlib.sha256(long.encode()).hexdigest()
