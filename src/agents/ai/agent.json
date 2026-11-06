@@ -85,13 +85,14 @@
       "role": "maintainer"
     },
     "image": {
-      "help": "Generate images; not available yet: #ai cannot store images until it serves itself",
+      "text": "image <JSON request>",
+      "help": "Generate images; not available yet: #ai cannot store images until it serves itself. Only a JSON object is a request; other text after image is a prompt.",
       "args": [
         {
-          "name": "prompt",
-          "type": "string",
+          "name": "request",
+          "type": "json",
           "rest": true,
-          "help": "What to draw; the JSON form also takes model, n (1 to 4), aspect_ratio, resolution, size, output_format, quality, background, seed and input_references (https or data:image URLs)"
+          "help": "A JSON object with prompt, and optionally model, n (1 to 4), aspect_ratio, resolution, size, output_format, quality, background, seed and input_references (https or data:image URLs)"
         }
       ],
       "role": "maintainer"

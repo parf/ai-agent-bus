@@ -120,6 +120,20 @@ class Proxy(unittest.TestCase):
         self.assertEqual(self.server.requests[-1], ('/v1/chat/completions', 'Bearer '+KEY,
             {'model':'fixture/default','messages':[{'role':'user','content':body}]}))
 
+    def test_english_image_prompts_remain_chat_for_every_caller(self):
+        self.config['image_model'] = 'openai/gpt-image-2'
+        body = 'image recognition models are getting better; summarise why'
+        for roles in [(), ('owner',), ('maintainer',)]:
+            self.assertEqual(self.call(body, roles=roles)[:2], ('Hello from the model', 0))
+            self.assertEqual(self.server.requests[-1], ('/v1/chat/completions', 'Bearer '+KEY,
+                {'model':'fixture/default','messages':[{'role':'user','content':body}]}))
+        # The method is a JSON object, after "image " or as {"method":"image"}.
+        for request in ['image {"prompt":"a red panda"}', '{"method":"image","prompt":"a red panda"}']:
+            self.assertEqual(self.call(request, roles=('owner',))[0], proxy.IMAGE_UNAVAILABLE)
+            self.assertEqual(self.call(request)[0], 'error: image needs the owner or maintainer role')
+        self.assertTrue(self.call('image {"prompt":', roles=('owner',))[0].startswith('error:'))
+        self.assertEqual(len(self.server.requests), 3)
+
     def test_model_log_supports_presets_and_variants(self):
         for model in ['@preset/demo', 'provider/model+variant']:
             for body in [json.dumps({'model':model,'messages':[]}), 'decide '+json.dumps({'model':model})]:
@@ -560,7 +574,7 @@ class Proxy(unittest.TestCase):
     def test_image_is_for_owner_and_maintainers_and_sends_nothing_yet(self):
         self.config['image_model'] = 'openai/gpt-image-2'
         request = json.dumps({'method': 'image', 'prompt': 'a red panda', 'n': 2, 'aspect_ratio': '16:9'})
-        for body in ['image a red panda', request]:
+        for body in ['image {"prompt":"a red panda"}', request]:
             for roles in [(), ('guest',), ('admin',)]:
                 self.assertEqual(self.call(body, roles=roles)[:2], ('error: image needs the owner or maintainer role', 0))
             for roles in [('owner',), ('maintainer',)]:
@@ -599,12 +613,24 @@ class Proxy(unittest.TestCase):
                  (401, ('{"error":{"message":"bad key ' + KEY + '"}}').encode(), 'the provider refused the configured key (401: bad key ***)'),
                  (403, ('denied ' + KEY).encode(), 'the provider refused the configured key (403: denied ***)'),
                  (402, b'{"error":{"message":"Insufficient credits"}}', 'the provider refused for lack of credit (402: Insufficient credits)')]
+        encoded = ''.join('\\u%04x' % ord(c) for c in KEY)
+        for status, named in [(401, 'the configured key'), (402, 'for lack of credit'), (403, 'the configured key')]:
+            cases.append((status, ('{"error":{"message":"echo ' + encoded + '"}}').encode(), f'the provider refused {named} ({status}: echo ***)'))
         for status, payload, expected in cases:
             self.server.status, self.server.payload = status, payload
             for body in bodies:
                 answer, _, log = self.call(body, roles=('owner',))
                 self.assertEqual(answer, 'error: ' + expected, (status, body))
                 self.assertNotIn(KEY, answer + log)
+
+    def test_refused_key_answers_stay_within_one_mebibyte(self):
+        for status, named in [(401, 'the configured key'), (402, 'for lack of credit'), (403, 'the configured key')]:
+            self.server.status = status
+            for payload in [b'x' * (proxy.MAX_BYTES - 10), json.dumps({'error': {'message': 'y' * (proxy.MAX_BYTES - 40)}}).encode()]:
+                self.server.payload = payload
+                for body in ['hello', '{"messages":[]}', 'decide {}', 'models']:
+                    answer = self.call(body)[0]
+                    self.assertEqual(answer, f'error: the provider refused {named} ({status}: provider error exceeds 1048576 bytes)', (status, body))
 
     def test_a_failed_dims_write_leaves_no_partial_file(self):
         work = self.work()

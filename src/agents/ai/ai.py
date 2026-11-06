@@ -39,10 +39,12 @@ IMAGE_UNAVAILABLE = "error: image generation is not available yet: #ai cannot st
 
 def refusal(status, message):
     """A provider error answer; a refused key or credit is named, since no retry helps."""
-    if status in (401, 403):
-        return f"error: the provider refused the configured key ({status}: {message})"
-    if status == 402:
-        return f"error: the provider refused for lack of credit (402: {message})"
+    if status in (401, 403, 402):
+        named = "the configured key" if status != 402 else "for lack of credit"
+        output = f"error: the provider refused {named} ({status}: {message})"
+        if len(output.encode()) > MAX_BYTES:
+            output = f"error: the provider refused {named} ({status}: provider error exceeds 1048576 bytes)"
+        return output
     return provider_error(status, message)
 
 
@@ -70,8 +72,12 @@ def method_call(body):
         return word, None
     if word == "models --images":
         return "models", "images"
-    if body.startswith("image "):
-        return "image", {"prompt": body[6:]}
+    # Like decide, only a JSON object after "image " is the method: "image recognition is…" stays a prompt.
+    if body.startswith("image ") and body[6:].lstrip().startswith("{"):
+        request = json.loads(body[6:])
+        if not isinstance(request, dict) or "method" in request:
+            raise ProxyError("image takes a JSON request object")
+        return "image", request
     # One word with a slash is a model lookup; "model railways" stays a prompt.
     if body.startswith("model ") and re.fullmatch(r"\S*/\S*", body[6:].strip()):
         if not model_path(body[6:].strip()):
