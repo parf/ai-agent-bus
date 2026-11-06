@@ -226,13 +226,7 @@ The T-49 setup gives mdhouse its own stack on the user-account runner ([№Q353]
 
 ## Owner items from 2026-11-06
 
-- ❓ Q354 Which image model #ai uses
-  - Context: `image` is refused until an image model is configured ([Q333](DECISIONS.md)). #ai now runs on the realmo production key …9e4f (no spend limit), so every picture is paid from the site's account
-  - ( ) `google/gemini-3.1-flash-image` ($0.5 in / $3 out per million tokens) 🌟
-  - ( ) `google/gemini-3.1-flash-lite-image` ($0.25 / $1.5), cheapest ⭐
-  - ( ) `openai/gpt-5.4-image-2` ($8 / $15), strongest
-  - ( ) None for now: keep `image` refused
-  > 💡👾 Gemini 3.1 Flash Image: current, cheap, and good enough for agent use; switch per call if a job needs more.
+- ✅ Q354 → [№Q354](resolved.md#Q354)
 
 - ✅ Q355 → [№Q355](resolved.md#Q355)
 
@@ -242,10 +236,7 @@ The T-49 setup gives mdhouse its own stack on the user-account runner ([№Q353]
   - ( ) The owner creates new keys with a spend limit
   - ( ) Leave them; the feature is not in use
   > 💡👾 Reuse …5f45 now (no new spend), add limits later. This is the realty repository, so #ab-ceo only proposes; the owner or the realty team edits it.
+  >
+  > 💬 i gave u new keys; we can get rid of old one
 
-- ❓ Q359 Turn on rerank in #rag
-  - Context: RAG 0.4.0 (R.7, deployed 2026-11-06 02:40) can reorder a search's hits best first, but only when `rerank_model` is set and the caller asks `"rerank":true`. Each reranked search is one paid Voyage call (up to 64 candidate excerpts plus the query), on top of the query embedding semantic and hybrid already make. It is off today
-  - ( ) Leave it off until mdhouse is wired and asks for it 🌟
-  - ( ) Set `rerank_model` to `rerank-2.5` (Voyage's main rerank model)
-  - ( ) Set `rerank_model` to `rerank-2.5-lite` (cheaper, faster)
-  > 💡👾 Off for now: nobody searches yet, and callers must opt in per search anyway; turn it on when mdhouse's #rag instance (Q353) exists.
+- ✅ Q359 → [№Q359](resolved.md#Q359)
