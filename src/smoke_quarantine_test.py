@@ -17,8 +17,12 @@ spec.loader.exec_module(q)
 
 SMOKE = '''ok_exit "a web title" "$rc"
 has "an install title" "$out" 'x'
+ok_exit "a twin title" "$rc"
+lacks "a twin title" "$out" 'y'
 '''
 GO_TEST = 'package core\nimport "testing"\nfunc TestCoreRace(t *testing.T) {}\nfunc TestCLIRestart(t *testing.T) {}\n'
+# The same name in a second package: a -skip by name would reach both.
+GO_TWIN = 'package web\nimport "testing"\nfunc TestTwin(t *testing.T) {}\n'
 ISSUES = '''# Issues — Dec 24, 2026 · gate flakes
 
 ## Gate flakes
@@ -61,7 +65,9 @@ class Tree:
             shutil.copy(ROOT/f, self.root/f)
         (self.root/'src/smoke.sh').write_text(SMOKE)
         (self.root/'src/agents/smoke.sh').write_text('')
-        (self.root/'src/internal/core/core_test.go').write_text(GO_TEST)
+        (self.root/'src/internal/core/core_test.go').write_text(GO_TEST+'func TestTwin(t *testing.T) {}\n')
+        (self.root/'src/web').mkdir(parents=True)
+        (self.root/'src/web/web_test.go').write_text(GO_TWIN)
         (self.root/'Plans/issues/2026-12/2026-12-24.md').write_text(ISSUES)
         (self.root/'Plans/issues/done/2026-12/2026-12-20.md').write_text('- ⚪ J132 moved to done.\n')
         self.map({})
@@ -98,6 +104,13 @@ class Check(unittest.TestCase):
                 self.assertEqual(len(problems), 1, problems)
                 self.assertIn(says, problems[0])
 
+    def test_a_name_more_than_one_test_carries_fails(self):
+        self.t.map({'go_unit': {'TestTwin': 'J130'}, 'web_ts': {'a twin title': 'J130'}})
+        problems = q.check(self.t.root)
+        self.assertEqual(len(problems), 2, problems)
+        self.assertIn('name not unique: 2 packages define TestTwin', problems[0]+problems[1])
+        self.assertIn('name not unique: 2 assertions carry this title', problems[0]+problems[1])
+
     def test_a_name_the_tree_no_longer_holds_fails(self):
         self.t.map({'web_ts': {'a renamed title': 'J130'}, 'go_unit': {'TestGone': 'J130'}, 'no_shard': {'a web title': 'J130'}})
         problems = q.check(self.t.root)
@@ -122,6 +135,24 @@ class Failures(unittest.TestCase):
         self.assertEqual(items['web_ts', 'a web title']['risky'], False)
         self.assertEqual(items['agent_server_info', 'an install title']['risky'], True)  # tagged G
         self.assertEqual(items['agent_slack', None]['kind'], 'unnamed')
+
+    def test_a_name_more_than_one_test_carries_needs_its_lead(self):
+        log = ('[web_ts]     --- FAIL: TestTwin (0.10s)\n[web_ts]     FAIL\tgithub.com/parf/ai-agent-bus/web\t1.0s\n'
+               '[agent_slack]   FAIL a twin title: exit 1\n')
+        items = {i['name']: i for i in q.failures(self.t.root, log)}
+        self.assertEqual((items['TestTwin']['risky'], items['TestTwin']['why']), (True, 'name not unique: 2 packages define TestTwin'))
+        self.assertEqual((items['a twin title']['risky'], items['a twin title']['why']), (True, 'name not unique: 2 assertions carry this title'))
+
+    def test_a_package_red_with_no_test_named_is_filed_unnamed(self):
+        for line in ('[go_unit]     FAIL\tgithub.com/parf/ai-agent-bus/cmd/x [build failed]',
+                     '[go_unit]     panic: test timed out after 200s'):
+            with self.subTest(line=line):
+                # Alone, beside the shell title that wraps the go run, and beside a named test.
+                for extra in ('', '[go_unit]   FAIL go race: exit 1\n',
+                              '[go_unit]     --- FAIL: TestCLIRestart (1s)\n[go_unit]     FAIL\tgithub.com/parf/ai-agent-bus/cmd/x\t1s\n'):
+                    items = q.failures(self.t.root, extra+line+'\n')
+                    self.assertEqual([i['kind'] for i in items if i['name'] is None], ['unnamed'], items)
+                    self.assertEqual([i['name'] for i in items if i['name']], ['TestCLIRestart'] if 'TestCLIRestart' in extra else [])
 
     def test_a_title_the_tree_does_not_hold_is_unnamed(self):
         items = q.failures(self.t.root, '[web_ts]   FAIL a made-up title: exit 1\n')

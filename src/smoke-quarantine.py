@@ -75,14 +75,34 @@ def package_letter(root, package):
     return None
 
 
-def title_in_tree(root, title):
+def title_count(root, title):
+    """How many assertions carry this exact title, across both smoke scripts."""
     pattern = re.compile(r'\b(?:%s)\s+"%s"' % ('|'.join(HELPERS), re.escape(title)))
-    return any(pattern.search((root/f).read_text()) for f in SMOKES)
+    return sum(len(pattern.findall((root/f).read_text())) for f in SMOKES)
+
+
+def title_in_tree(root, title):
+    return title_count(root, title) > 0
+
+
+def go_packages(root, name):
+    """The directories whose tests define this Go test function: -skip matches it in each of them."""
+    pattern = re.compile(r'^func %s\(' % re.escape(name), re.M)
+    return sorted({str(p.parent.relative_to(root)) for p in root.glob('src/**/*_test.go')
+                   if 'node_modules' not in p.parts and pattern.search(p.read_text(errors='replace'))})
 
 
 def go_test_in_tree(root, name):
-    pattern = re.compile(r'^func %s\(' % re.escape(name), re.M)
-    return any(pattern.search(p.read_text(errors='replace')) for p in root.glob('src/**/*_test.go') if 'node_modules' not in p.parts)
+    return bool(go_packages(root, name))
+
+
+def not_unique(root, name):
+    """Why a skip by this name would also skip another test, or None."""
+    if GO_TEST.match(name):
+        found = go_packages(root, name)
+        return f'name not unique: {len(found)} packages define {name}' if len(found) > 1 else None
+    n = title_count(root, name)
+    return f'name not unique: {n} assertions carry this title' if n > 1 else None
 
 
 def first_run(log_text):
@@ -93,14 +113,14 @@ def first_run(log_text):
 def failures(root, text):
     """[{shard, name, kind, risky, why}] for every FAIL in one smoke run's output."""
     risky = risky_letters(root)
-    found, gone = {}, {}
+    found = {}
     pending = {}
     for line in text.splitlines():
         m = re.match(r'^\[([a-z0-9_]+)\]( +)(.*)$', line)
         if not m:
             continue
         shard, pad, rest = m[1], m[2], m[3]
-        shard_found = found.setdefault(shard, {'go': [], 'titles': [], 'unnamed': []})
+        shard_found = found.setdefault(shard, {'go': [], 'titles': [], 'unnamed': [], 'orphan': []})
         g = re.match(r'^--- FAIL: (Test[A-Za-z0-9_]*)', rest)
         if g:
             if g[1] not in pending.setdefault(shard, []):
@@ -108,8 +128,16 @@ def failures(root, text):
             continue
         p = re.match(r'^FAIL\t(\S+)', rest)
         if p:
-            for name in pending.pop(shard, []):
+            names = pending.pop(shard, [])
+            for name in names:
                 shard_found['go'].append((name, p[1]))
+            # A package that failed with no test named (a build failure, a panic or
+            # timeout) is red that no Go name covers.
+            if not names:
+                shard_found['orphan'].append(rest.replace('\t', ' '))
+            continue
+        if re.match(r'^panic: ', rest):
+            shard_found['orphan'].append(rest)
             continue
         # A check's own FAIL line: never a unittest "FAIL:" or "FAILED (" line, never go's indented output.
         if len(pad) <= 3 and rest.startswith('FAIL '):
@@ -119,7 +147,7 @@ def failures(root, text):
             else:
                 shard_found['unnamed'].append(rest[5:])
     for shard, names in pending.items():  # a test whose package line was cut off
-        found.setdefault(shard, {'go': [], 'titles': [], 'unnamed': []})['go'].extend((n, None) for n in names)
+        found.setdefault(shard, {'go': [], 'titles': [], 'unnamed': [], 'orphan': []})['go'].extend((n, None) for n in names)
     items = []
     for shard, f in found.items():
         tags = shard_tags(root, shard) or ''
@@ -131,19 +159,25 @@ def failures(root, text):
                     continue
                 seen.add(name)
                 letter = package_letter(root, package) if package else None
-                if letter is None:
+                twin = not_unique(root, name)
+                if twin:
+                    items.append(dict(shard=shard, name=name, kind='go', risky=True, why=twin))
+                elif letter is None:
                     items.append(dict(shard=shard, name=name, kind='go', risky=True, why='its package names no subsystem'))
                 else:
                     items.append(dict(shard=shard, name=name, kind='go', risky=letter in risky, why='subsystem '+letter))
-            continue
-        hit = sorted(set(tags) & risky)
-        for title in dict.fromkeys(f['titles']):
-            items.append(dict(shard=shard, name=title, kind='title', risky=bool(hit) or not tags,
-                              why='shard tags '+(''.join(hit) if hit else tags) if tags else 'the shard has no tags'))
+        else:
+            hit = sorted(set(tags) & risky)
+            for title in dict.fromkeys(f['titles']):
+                twin = not_unique(root, title)
+                items.append(dict(shard=shard, name=title, kind='title', risky=bool(hit) or not tags or bool(twin),
+                                  why=twin or ('shard tags '+(''.join(hit) if hit else tags) if tags else 'the shard has no tags')))
         # FAIL lines that name nothing are often a tool's own output under a named
-        # check; only a shard with no name at all is one UNNAMED item.
-        if not f['titles'] and f['unnamed']:
-            items.append(dict(shard=shard, name=None, kind='unnamed', risky=False, why=f['unnamed'][0][:200]))
+        # check, so they count only in a shard with no name at all. A Go package that
+        # failed with no test named is always red of its own.
+        orphan = f['orphan'] or ([] if f['go'] or f['titles'] else f['unnamed'])
+        if orphan:
+            items.append(dict(shard=shard, name=None, kind='unnamed', risky=False, why=orphan[0][:200]))
     return items
 
 
@@ -175,6 +209,9 @@ def check(root):
                 problems.append(f'{where}: no Go test {name} in the tree')
         elif not title_in_tree(root, name):
             problems.append(f'{where}: no assertion titled exactly so in {" or ".join(SMOKES)}')
+        twin = not_unique(root, name)
+        if twin:
+            problems.append(f'{where}: {twin}, so the skip would reach another test')
         m = re.fullmatch(r'J(\d+)', j)
         if not m:
             problems.append(f'{where}: "{j}" is not a J id')
