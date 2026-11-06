@@ -256,3 +256,9 @@ Owner, 2026-11-02; plan in [dbsync](dbsync.md#steps-and-estimate), open [Q314–
   - Step 2: a state marker after the glyph: ❓ the agent waits on a question or approval; 🟥 its last answer ends with the stop marker; cleared on new input or a new turn.
   - Home: [launchers](../../docs/06-launchers.md).
   - Acceptance: labels are sanitised and capped; a model-set label never changes the bus name, identity or session title and resets to the recommendation on launcher restart; the start script's title and the tmux window name are restored on exit, nested launchers leave the outer name alone; Codex and OpenCode events are decoded from recorded fixtures; a runtime without a confirmed event source shows glyph and label only.
+
+## AI agent methods
+
+- ☐ T-36 The [AI agent](../../docs/agents/ai.md) passes more of its provider's API through (owner, 2026-11-04: "if API have it - we provide it; our idea - transparent proxy"; 2026-11-05: "delay image only").
+  - Builds: `models`, `model <id>`, `balance`, `key`, `embed`, and each `ask` reporting its tokens and cost. A method the provider lacks is refused with that reason; image generation stays in [R2.0](../R2.0-Future/FUTURE.md).
+  - Acceptance: every method decoded from recorded provider answers, no live paid call in tests; `embed` caps its batch below the bus message limit and refuses an over-limit request by name; the provider key never appears in an answer.
