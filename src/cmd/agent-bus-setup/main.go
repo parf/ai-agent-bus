@@ -26,6 +26,7 @@ import (
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/tlsdir"
 	"github.com/parf/ai-agent-bus/internal/version"
+	"github.com/parf/ai-agent-bus/maintenance"
 )
 
 // Where the install puts things. Stated here because setup is the only thing
@@ -41,19 +42,10 @@ const (
 	logrotate  = "/etc/logrotate.d/agent-bus"
 )
 
-// logrotateConf rotates the three logs by copying and truncating, so the
-// daemon never has to reopen a file (docs/constitution.md#logs).
-const logrotateConf = `/var/log/agent-bus/*.log {
-    weekly
-    rotate 8
-    compress
-    delaycompress
-    missingok
-    notifempty
-    copytruncate
-    su agent-busd adm
-}
-`
+// logrotateConf rotates the logs by copying and truncating, so the daemon never
+// has to reopen a file (docs/constitution.md#logs). It is the tracked rule
+// itself, embedded, so setup and the file on the shelf cannot disagree.
+var logrotateConf = maintenance.Logrotate
 
 // installLogrotate writes the rule at path. A host without logrotate installed
 // has no logrotate.d; the rule is still written, so installing logrotate later
