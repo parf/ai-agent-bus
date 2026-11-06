@@ -391,7 +391,7 @@ class DBSync:
             for key in vanished:
                 # A hard-deleted row is not reported (soft delete is the only way): it leaves without a delete.
                 items.pop(key,None);self.rows.pop(key,None)
-                for sub_id in subs:data['marks'][sub_id].pop(key,None);data['maybe'][sub_id].pop(key,None)
+                for sub_id in subs:data['marks'][sub_id].pop(key,None);data['maybe'][sub_id].pop(key,None);data['skipped'][sub_id].pop(key,None)
             for key in stale:
                 held=self.rows.get(key)
                 if key in items and held is not None:self._replace(data,key,items[key],self._record(*held))
@@ -460,7 +460,7 @@ class DBSync:
             if all(self._confirmed(data,s,key) or not self._owes(data,s,key,items[key]) for s in active):
                 del items[key];self.rows.pop(key,None)
                 for sub_id in data['subs']:
-                    data['marks'][sub_id].pop(key,None)
+                    data['marks'][sub_id].pop(key,None);data['skipped'][sub_id].pop(key,None)
                     if sub_id not in parked:data['maybe'][sub_id].pop(key,None)
 
     # --- calls --------------------------------------------------------------------------------------------------
