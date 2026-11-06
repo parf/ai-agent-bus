@@ -2,6 +2,14 @@
 
 Completed steps of the [RAG TODO](TODO.md#steps), newest first.
 
+## T-43 Namespaces and hybrid search
+
+- **Landed:** `62dd9586` (base `64e168dc`…`273739ef`), app **0.3.0**, no shared bump; gate normal green on rerun, 2026-11-06.
+- **Built:** one namespace-bound access layer for every data call, prompts and `keyword_index`; `keyword`, `semantic` and `hybrid` search naming the effective mode; citations with source, content hash, excerpt, scores and `indexed_at`; manager-only `namespaces` and confirmed `drop_namespace`; a free static `capabilities`; a per-namespace model binding that refuses drift, including a provider answering with another model, before storage. Namespace-free data refuses as `legacy_data`.
+- **Not built:** request-id dedup (a replay may pay again); rerank; source ingestion and refresh (FileScan).
+- **Checks:** fixture-only (fake providers, private bus); no live provider call. The first gate went red on the generated agent index, the runtime acceptance and setup's allowlist missing `namespaces.py`; fixed in `93db87f9`.
+- **Review:** `#ab-w1b` and `#ab-qa1`, on both the change and the gate-red fix.
+
 ## T-25 Keyword search
 
 - **Landed:** `bdd10390`, **0.9.265**, app manifest unchanged at 0.1.0. A `keyword_search` setting (`builtin` default, `external`), BM25 ingest into a `text` sparse vector with Qdrant's idf modifier, a `search` method, and `keyword_index` to add the vector and backfill an existing collection. The fused dense plus keyword query, filters beyond the key fields and rerank stay in [R.7](TODO.md#steps). [Guide](../../../docs/agents/rag.md#what-it-does).
