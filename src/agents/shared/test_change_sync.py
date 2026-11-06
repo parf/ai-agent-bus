@@ -444,6 +444,24 @@ class DeliveryTests(Base):
         data=self.state.load();del data['items']['a'];self.state.save(data);self.bus.replies['#rag@n.test']='timeout'
         self.assertEqual(self.round()[row['id']]['pending'],1);self.assertIn('a',self.state.load()['marks'][row['id']])
 
+    def test_a_skip_after_an_unknown_send_does_not_loop_and_a_delete_stays_owed(self):
+        subs,row=self.add('#rag@n.test',kind='agent');self.bus.replies['#rag@n.test']='timeout';self.round()
+        self.assertEqual(self.state.load()['maybe'][row['id']]['a'],'1')
+        data=self.state.load();data['items']['a']=item('2');self.state.save(data)
+        skip=lambda sub,key,action,record:None if key=='a' else f'{action} {key}'
+        self.assertEqual(self.round(body=skip)[row['id']]['skipped'],1)
+        self.assertEqual(self.state.load()['maybe'][row['id']]['a'],'2','no longer owed a change, still owed a delete')
+        self.assertEqual(self.round(body=skip)[row['id']]['skipped'],0,'it does not skip again on every round')
+        data=self.state.load();del data['items']['a'];self.state.save(data);self.bus.replies['#rag@n.test']='ok';self.bus.calls.clear()
+        self.round(body=lambda sub,key,action,record:f'{action} {key}');self.assertIn('delete a',[b for _,b,_ in self.bus.calls])
+
+    def test_a_skipped_delete_clears_its_record_and_does_not_loop(self):
+        subs,row=self.add('#rag@n.test',kind='agent');self.bus.replies['#rag@n.test']='timeout';self.round()
+        data=self.state.load();del data['items']['a'];self.state.save(data)
+        never=lambda sub,key,action,record:None
+        self.round(body=never);self.assertEqual(self.round(body=never)[row['id']]['skipped'],0)
+        self.assertNotIn('a',self.state.load()['maybe'][row['id']])
+
     def test_a_body_with_nothing_to_send_is_skipped_marked_done_and_does_not_block_the_rest(self):
         subs,row=self.add();body=lambda sub,key,action,record:None if key=='a' else f'{action} {key}'
         r=self.round(body=body)[row['id']]

@@ -329,7 +329,10 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
                         if payload is None:
                             # Nothing to send this subscriber for it (the agent says why): done, never blocking the rest.
                             count['skipped']+=1
-                            if key in prior:_restore(data['maybe'][sub_id],key,prior)  # nothing was sent, so nothing is possibly delivered
+                            # Nothing was sent. An earlier unknown send of this key stays owed a delete, but is no longer owed a change.
+                            if action=='delete' or data['maybe'][sub_id].get(key) is None:data['maybe'][sub_id].pop(key,None)
+                            else:data['maybe'][sub_id][key]=record['fp']
+                            restored=True
                             if action=='delete':data['marks'][sub_id].pop(key,None)
                             else:data['marks'][sub_id][key]=record['fp']
                             continue
