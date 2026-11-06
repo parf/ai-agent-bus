@@ -258,6 +258,54 @@ class Daemon(unittest.TestCase):
         self.assertEqual([json.loads(m.body)['text'] for m in self.inbox(self.target)],['source-revoked'])
         rows=self.ask('sub list')['subscriptions'];self.assertEqual((rows[0]['sent'],rows[0]['dropped']),(2,2))
         self.assertEqual(len(self.ask('pull deploys')['entries']),4)
+    def slow_daemon(self,delay):
+        """A TCP relay to the fixture that holds every answer back `delay` seconds: a daemon on a loaded node."""
+        import socket,threading
+        host,port=self.info['addr'].split('//',1)[1].split(':');upstream=(host,int(port))
+        listener=socket.socket();listener.bind(('127.0.0.1',0));listener.listen(8);listener.settimeout(0.2);stop=threading.Event()
+        def pump(src,dst,wait):
+            try:
+                while True:
+                    data=src.recv(65536)
+                    if not data:break
+                    if wait:time.sleep(wait)
+                    dst.sendall(data)
+            except OSError:pass
+            finally:
+                for sock in (src,dst):
+                    try:sock.shutdown(socket.SHUT_RDWR)
+                    except OSError:pass
+        def accept():
+            while not stop.is_set():
+                try:client,_=listener.accept()
+                except OSError:continue
+                try:back=socket.create_connection(upstream,timeout=2)
+                except OSError:client.close();continue
+                threading.Thread(target=pump,args=(client,back,0),daemon=True).start()
+                threading.Thread(target=pump,args=(back,client,delay),daemon=True).start()
+        threading.Thread(target=accept,daemon=True).start()
+        def close():stop.set();listener.close()
+        self.addCleanup(close)
+        return 'http://127.0.0.1:%d'%listener.getsockname()[1]
+    def test_a_slow_daemon_still_gets_a_decisive_refusal_not_unavailable(self):
+        # J115: the delivery helper's requests had a 0.2 s timeout, tighter than its own 1 s row budget, so on a loaded node a
+        # revoked right was reported as admission_unavailable instead of admission_refused. Only the helper's own connection
+        # goes through the slow relay; the agent keeps its direct one, so the case costs about a second.
+        sub=self.ask('sub add '+self.target.name+' deploys alert',self.reader);self.assertIn('id',sub)
+        self.owner.record(self.target.name).manage(allow=[self.worker.name])   # the author lost its reach to the target
+        relay=self.slow_daemon(0.3);real=self.worker._transport
+        class ViaRelay:
+            """The worker, but the connection it hands the delivery helper leads through the relay."""
+            def __getattr__(self,name):return getattr(outer.worker,name)
+            _transport=SimpleNamespace(addr=relay,token=real.token,pin=real.pin)
+        outer=self
+        agent=e.Agent(ViaRelay(),{},self.temp.name+'/slow',warning=self.warnings.append)
+        self.addCleanup(agent.close);self.warnings.clear()
+        self.owner.send(self.worker.name,'write deploys alert failed')
+        message=self.worker.consume(wait=3);self.assertIsNotNone(message)
+        result=json.loads(agent.handle(message))
+        self.assertEqual(result['deliveries'],{'matched':1,'sent':0,'dropped':1})
+        self.assertEqual(self.warnings,['admission_refused'],'a daemon that answers in 0.3 s is slow, not unavailable')
     def test_real_forwarded_owner_and_bare_acl_cannot_read_or_destroy(self):
         self.ask('write deploys alert retained')
         for body in ('read deploys','pull deploys','clean deploys','write deploys notice no'):
