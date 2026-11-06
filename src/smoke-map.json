@@ -1251,7 +1251,7 @@
           "./internal/envfile",
           "./internal/api",
           "-run",
-          "^(TestEmptyACLRestrictsUseAndVisibilityOnNewAndRestoredRecords|TestMintHandsOutNothingItCouldNotWrite|TestKVRoundTripsAndSurvivesAReopen|TestSigilsAreFreeOfNames|TestENVConformanceCases|TestEmptyACLIsHiddenAndRefusesOtherCallersOverHTTP)$"
+          "^(TestEmptyACLRestrictsUseAndVisibilityOnNewAndRestoredRecords|TestMintHandsOutNothingItCouldNotWrite|TestKVRoundTripsAndSurvivesAReopen|TestSigilsAreFreeOfNames|TestENVConformanceCases|TestEmptyACLIsHiddenAndRefusesOtherCallersOverHTTP|TestEveryRegisteredRouteHasAContractRow|TestEveryStableRoutePathIsInTheClientContract)$"
         ]
       },
       {
