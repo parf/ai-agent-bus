@@ -79,7 +79,7 @@ or an operation.
 | Runner | Stamped `src/build.sh`, restart its `agent-bus-runner@<person>` unit | Runner status, the affected agent and `src/check-deploy.sh` |
 | Slack, Telegram or debug | Run that agent's `package.sh` into its installed `agent.d` directory, then call its runner's `reload`; a shared helper changes each bundle that includes it | The affected agent's `whoami` or `ping`, its new behaviour and process restart |
 | Standalone Python | Restart its unit; reinstall only when its unit arguments or installer changed | A read-only method and preserved ACL |
-| Daemon | Back up the stopped daemon home, stamped `src/build.sh`, restart `agent-busd` | Reconnection, the changed API/authority path and `src/check-deploy.sh` |
+| Daemon | Back up the stopped daemon home, stamped `src/build.sh`, restart `agent-busd`; `sudo src/git-install.sh` also restarts every active root-account `agent-bus-runner@*` | Reconnection, the changed API/authority path and `src/check-deploy.sh` |
 | Documentation | Link and accuracy checks, then commit | No version bump, mutant, build or restart |
 
 - Packagers at `src/agents/<name>/package.sh` replace their public code directory as a whole, removing files the package no longer ships.
