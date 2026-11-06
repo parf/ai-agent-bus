@@ -80,7 +80,7 @@ test("TG.9 reply routing uses the mapped sender and correlation, listed users on
   const state=JSON.parse(String((await owner.record(self).kv.get('string','reply_routes')).value));state.messages['100:'+first.telegram].until=Date.now()-1;
   await owner.record(self).kv.set('string','reply_routes',JSON.stringify(state),{mode:'set'});
   await start();
-  await incoming('too late',first.telegram);expect(sent.at(-1).text).toBe('that thread expired; use #tag');expect(await drain(A)).toEqual([]);expect(await drain(B)).toEqual([]);
+  await incoming('too late',first.telegram);expect(sent.at(-1).text).toBe('route expired or evicted; use #tag');expect(await drain(A)).toEqual([]);expect(await drain(B)).toEqual([]);
   await incoming('#a still the same session');expect((await drain(A,1)).map(m=>m.body)).toEqual(['[parf (TG)] still the same session']);
   // TG.10 exercises the actual channel_post receiver and configured group
   // scopes through the same real daemon, not just a router dependency mock.

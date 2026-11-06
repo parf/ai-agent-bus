@@ -163,8 +163,9 @@ An incoming message goes to the first match:
 
 - No match: the bot says “not understood” and lists known tags.
 - Only the expected session's answer returns, as a reply in the same place.
-- A tag stays assigned once used: removing a pin does not free it, and moving it to another session is refused.
-- Reply links last seven days and survive restarts.
+- A tag stays assigned while its session has a reply link; the session's last link expiring or being evicted frees it. A pinned tag stays, and moving it to another session is refused.
+- Reply links last seven days and survive restarts. All of them are one stored value kept under 256 KiB, half the [key-value limit](../03-records-kv.md#rules): past that, the links that expire first are evicted, with a warning in the log.
+- A reply to an expired or evicted link gets “route expired or evicted; use #tag” in the chat; a session's answer to one gets `error: route expired or evicted` and is not posted.
 - The listed person's name is shown; their bus permissions are never given to the bot or the receiving session.
 - Answers split into at most eight messages of 4096 UTF-16 units; longer ones end with “… (truncated)”. A posting failure is reported to the session.
 - A stored malformed route is logged and skipped; a delivered message stays successful if saving its reply route fails.
@@ -232,7 +233,7 @@ Unsupported subscription keys, fields or counter formats stop subscription opera
 | `409` or “another getUpdates request” | Stop the other program using this bot; only one receiver may |
 | “we do not know you” | Owner runs `refused`, adds the user id to `users` |
 | “not understood” | Reply to a session's post, use a known tag, or set a route |
-| “that thread expired; use #tag” | Start a new message with the session's tag |
+| “route expired or evicted; use #tag” | Start a new message with the session's tag |
 | Bot sees no group messages | Check membership and BotFather privacy |
 | `read` is empty | Send a new message where the bot can see it; older history is not fetched |
 | Can read a channel but not post | Give it channel-admin posting permission |

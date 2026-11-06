@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-// Session tags never expire; individual posted-message routes last seven days.
+// Posted-message routes last seven days. An allocated session tag lasts while a route to its session
+// does; a pinned tag stays. All of it is one KV value, kept under half the value limit.
 import { own } from "./own.ts";
 export type Config = { tags?: Record<string, string>; users?: Record<string, string>; route?: string; chats?: Record<string, { route?: string; tags?: boolean; anyone?: boolean; handler?: "drop" }> };
 export type Incoming<Id = number> = { message_id: Id; answer_to?: Id; channel_post?: boolean; from_id?: Id; username?: string; name?: string; text?: string; reply_to?: Id; date: number };
@@ -8,7 +9,9 @@ export type Route = { to: string; topic?: string; tag?: string; re: string };
 type StoredRoute = Route & { until: number };
 type Refused = { id: string; username?: string; name?: string; chat: string; last_seen: string; count: number };
 type AnswerRoute<Id> = { chat: string; message: Id; sender: string; topic: string; tag: string; until: number };
-type State<Id> = { notices?: Record<string, number>; answers?: Record<string, AnswerRoute<Id>>; refused?: Refused[]; tags: Record<string, string>; messages: Record<string, StoredRoute> };
+// gone: chat message keys whose route expired or was evicted, with the time, so a reply to one is
+// answered rather than routed as a new message.
+type State<Id> = { notices?: Record<string, number>; answers?: Record<string, AnswerRoute<Id>>; refused?: Refused[]; tags: Record<string, string>; messages: Record<string, StoredRoute>; gone?: Record<string, number> };
 export type RouterDeps<Id = number> = {
   get: () => Promise<string | undefined>;
   set: (value: State<Id>) => Promise<void>;
@@ -21,6 +24,14 @@ export type RouterDeps<Id = number> = {
   log: (line: string) => void;
 };
 const lifetime = 7 * 24 * 60 * 60 * 1000;
+// One KV value holds at most 512 KiB (docs/03-records-kv.md#rules). The state stays under half of it,
+// and the record of gone routes under an eighth of that, evicting the routes that expire first.
+export const kvValueLimit = 512 * 1024;
+export const stateBudget = kvValueLimit / 2;
+const goneBudget = stateBudget / 8;
+export const routeGone = "route expired or evicted";
+const bytes = (value: unknown) => Buffer.byteLength(JSON.stringify(value));
+const entryBytes = (key: string, value: unknown) => bytes(key) + bytes(value) + 2;
 import { parseBusName, busName, agentName } from "./names.ts";
 export { agentName } from "./names.ts";
 export const shortTag = /^[a-z][a-z0-9]*$/;
@@ -44,6 +55,9 @@ function answerChunks(text: string): string[] {
 
 export class Router<Id = number> {
   private state: State<Id> = { tags: {}, messages: {} };
+  private pinned = new Set<string>();
+  // Senders given a tag in the change being made: the caller is about to use it.
+  private assigned = new Set<string>();
   private pending: Promise<unknown> = Promise.resolve();
   constructor(private readonly deps: RouterDeps<Id>) {}
 
@@ -78,6 +92,11 @@ export class Router<Id = number> {
       }
       r.to = name;
     }
+    if (state.gone !== undefined && (typeof state.gone !== "object" || state.gone === null || Array.isArray(state.gone))) {
+      delete state.gone;
+      this.deps.log("reply routing: ignored malformed stored gone routes");
+    }
+    for (const [key, at] of Object.entries(state.gone ?? {})) if (!Number.isFinite(at)) delete state.gone![key];
     this.state = state;
   }
 
@@ -88,6 +107,7 @@ export class Router<Id = number> {
       const next = structuredClone(this.state);
       for (const [who, until] of Object.entries(next.notices ?? {})) if (until <= Date.now()) delete next.notices![who];
       const value = await f(next);
+      this.trim(next);
       if (JSON.stringify(next) !== JSON.stringify(this.state)) {
         try { await this.deps.set(next); }
         catch (error) {
@@ -102,7 +122,61 @@ export class Router<Id = number> {
     return result;
   }
 
+  // Drop expired routes, then evict the routes that expire first until the value fits its budget. A
+  // removed chat route is remembered in gone; a session left with no route loses its allocated tag.
+  private trim(next: State<Id>): void {
+    const now = Date.now();
+    const senders = new Set<string>();
+    const drop = (kind: "messages" | "answers", key: string) => {
+      if (kind === "messages") {
+        senders.add(next.messages[key]!.to);
+        delete next.messages[key];
+        (next.gone ??= {})[key] = now;
+      } else {
+        senders.add(next.answers![key]!.sender);
+        delete next.answers![key];
+      }
+    };
+    for (const [key, r] of Object.entries(next.messages)) if (r.until <= now) drop("messages", key);
+    for (const [key, r] of Object.entries(next.answers ?? {})) if (r.until <= now) drop("answers", key);
+    let size = bytes(next);
+    if (size > stateBudget) {
+      const queue = [
+        ...Object.entries(next.messages).map(([key, r]) => ({ kind: "messages" as const, key, until: r.until, size: entryBytes(key, r) })),
+        ...Object.entries(next.answers ?? {}).map(([key, r]) => ({ kind: "answers" as const, key, until: r.until, size: entryBytes(key, r) })),
+      ].sort((a, b) => a.until - b.until);
+      let evicted = 0;
+      for (const entry of queue) {
+        // The running size is an estimate (a route removed adds its gone mark): measure before stopping.
+        if (size <= stateBudget && (size = bytes(next)) <= stateBudget) break;
+        drop(entry.kind, entry.key);
+        size -= entry.size;
+        evicted++;
+      }
+      this.deps.log(`reply routing: warning: evicted ${evicted} routes that expire first, to keep the stored routes under ${stateBudget} bytes`);
+    }
+    const gone = Object.entries(next.gone ?? {}).filter(([key, at]) => {
+      if (at + lifetime > now) return true;
+      delete next.gone![key];
+      return false;
+    }).sort((a, b) => a[1] - b[1]);
+    let goneSize = gone.reduce((sum, [key, at]) => sum + entryBytes(key, at), 0);
+    for (const [key, at] of gone) {
+      if (goneSize <= goneBudget) break;
+      delete next.gone![key];
+      goneSize -= entryBytes(key, at);
+    }
+    if (next.gone && Object.keys(next.gone).length === 0) delete next.gone;
+    for (const sender of this.assigned) senders.delete(sender);
+    this.assigned.clear();
+    if (senders.size === 0) return;
+    for (const r of Object.values(next.messages)) senders.delete(r.to);
+    for (const r of Object.values(next.answers ?? {})) senders.delete(r.sender);
+    for (const [tag, sender] of Object.entries(next.tags)) if (senders.has(sender) && !this.pinned.has(tag)) delete next.tags[tag];
+  }
+
   private pins(state: State<Id>, config: Config): void {
+    this.pinned = new Set(Object.keys(config.tags ?? {}));
     for (const [tag, sender] of Object.entries(config.tags ?? {})) {
       const previous = Object.entries(state.tags).find(([, who]) => who === sender)?.[0];
       if ((Object.hasOwn(state.tags, tag) && state.tags[tag] !== sender) || (previous && previous !== tag)) throw Error(`tags: #${tag} conflicts with a permanent session tag`);
@@ -112,6 +186,7 @@ export class Router<Id = number> {
 
   private assign(next: State<Id>, sender: string, config: Config): string {
     this.pins(next, config);
+    this.assigned.add(sender);
     const existing = Object.entries(next.tags).find(([, who]) => who === sender)?.[0];
     if (existing) return existing;
     const first = sender.replace(/^#/, "").match(/[a-z]/)?.[0] ?? "a";
@@ -127,14 +202,16 @@ export class Router<Id = number> {
 
   async posted(chat: string, message: Id, route: Route): Promise<void> {
     await this.change(async next => {
-      for (const [key, old] of Object.entries(next.messages)) if (old.until <= Date.now()) delete next.messages[key];
       next.messages[`${chat}:${message}`] = { ...route, until: Date.now() + lifetime };
+      delete next.gone?.[`${chat}:${message}`];
     }, true);
   }
 
+  /** A message a reply routes from: a live route, or one that expired or was evicted, which the reply
+   *  is told about. */
   mapped(chat: string, message: Id): boolean {
-    const route = own(this.state.messages, `${chat}:${message}`);
-    return !!route && route.until > Date.now();
+    const key = `${chat}:${message}`;
+    return !!own(this.state.messages, key) || own(this.state.gone, key) !== undefined;
   }
 
   refused(): Refused[] { return structuredClone(this.state.refused ?? []); }
@@ -157,7 +234,6 @@ export class Router<Id = number> {
       const reply = { name: this.deps.self, topic: this.deps.platform?.topic ?? "telegram-router", tag: randomUUID() };
       const id = await this.deps.send(route, text, reply);
       next.answers ??= {};
-      for (const [key, old] of Object.entries(next.answers)) if (old.until <= Date.now()) delete next.answers[key];
       next.answers[id] = { chat, message, sender: route.to, topic: reply.topic, tag: reply.tag, until: Date.now() + lifetime };
     }, true);
   }
@@ -175,6 +251,16 @@ export class Router<Id = number> {
     await this.change(async next => {
       const route = message.re ? own(next.answers, message.re) :
         Object.values(next.answers ?? {}).find(candidate => candidate.sender === message.from && candidate.topic === message.topic && candidate.tag === message.tag);
+      if (message.re && (!route || route.until <= Date.now())) {
+        // The dispatch it answers expired or was evicted: say so, never drop it silently.
+        this.deps.log(`reply routing: warning: ${routeGone}: session reply ${message.message_id} from ${message.from}`);
+        if (message.body.startsWith("error: ")) return;
+        try {
+          await this.deps.send({ to: message.from, topic: message.topic, tag: message.tag },
+            `error: ${routeGone}; your answer was not posted to the chat`, { name: this.deps.self, topic: message.topic ?? "", tag: message.tag ?? "" });
+        } catch { this.deps.log("reply routing: could not notify the session of an expired or evicted route"); }
+        return;
+      }
       if (!route || route.until <= Date.now() || route.sender !== message.from || route.topic !== message.topic || route.tag !== message.tag) {
         this.deps.log(`reply routing: dropped unmatched session reply ${message.message_id} from ${message.from}`);
         return;
@@ -218,9 +304,11 @@ export class Router<Id = number> {
     let route: (Omit<Route, "re"> & { re?: string }) | undefined;
     let text = message.text ?? "";
     if (message.reply_to !== undefined) {
-      const stored = own(this.state.messages, `${chat}:${message.reply_to}`);
-      if (stored && stored.until <= Date.now()) {
-        await this.deps.tell(chat, message.answer_to ?? message.message_id, "that thread expired; use #tag");
+      const key = `${chat}:${message.reply_to}`;
+      const stored = own(this.state.messages, key);
+      if ((stored && stored.until <= Date.now()) || (!stored && own(this.state.gone, key) !== undefined)) {
+        this.deps.log(`reply routing: warning: ${routeGone}: a reply to ${key}`);
+        await this.deps.tell(chat, message.answer_to ?? message.message_id, `${routeGone}; use #tag`);
         return;
       }
       if (stored) route = { to: stored.to, topic: stored.topic, tag: stored.tag, re: stored.re };

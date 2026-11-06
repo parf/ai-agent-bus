@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { Router, type Route } from "./router.ts";
+import { stateBudget, routeGone } from "../shared/router.ts";
 import { parseConfig, type Config } from "./config.ts";
 
 function fixture() {
@@ -32,7 +33,7 @@ test("an expired reply is answered rather than routed", async () => {
   await r.posted("100",7,{to:"#bob@t",topic:"original",tag:"one",re:"m1"});
   Date.now=()=>7*24*60*60*1000+2;
   await r.incoming({...message(),reply_to:7},"100");
-  expect(f.sent).toEqual([]);expect(f.told).toEqual(["that thread expired; use #tag"]);
+  expect(f.sent).toEqual([]);expect(f.told).toEqual(["route expired or evicted; use #tag"]);
  } finally {Date.now=now;}
 });
 
@@ -183,4 +184,52 @@ test("Telegram handler resolves aliases and refuses unknown or combined options"
  expect(typeof result).toBe("object"); expect((result as Config).chats?.["-100"]).toEqual({handler: "drop"});
  for (const handler of ["other", true, null, 1, {}]) expect(parseConfig({chats: {"-100": {handler}}})).toBe("chats: -100.handler must be one of: drop");
  for (const key of ["route", "anyone", "tags"]) expect(parseConfig({chats: {"-100": {handler: "drop", [key]: key === "route" ? "#beta@t" : false}}})).toBe("chats: -100.handler cannot be combined with route, anyone or tags");
+});
+
+// L4: the routes are one KV value; past its budget the routes that expire first are evicted.
+test("routes beyond the budget are evicted oldest first, the value stays under it, and the newest still answer",async()=>{
+ const f=fixture(),r=new Router(f.deps);await r.load();
+ const topic="t".repeat(1000),n=Math.ceil(stateBudget/1000)*2;
+ for(let i=1;i<=n;i++)await r.posted("100",i,{to:"#alice@t",topic,tag:"x",re:"m"+i});
+ const size=Buffer.byteLength(f.saved()!);
+ expect(size).toBeLessThanOrEqual(stateBudget);expect(size).toBeGreaterThan(stateBudget/2);
+ expect(f.logs.some(line=>line.includes("warning: evicted"))).toBe(true);
+ await r.incoming({...message(),reply_to:n},"100");
+ expect(f.sent.at(-1)?.route).toEqual({to:"#alice@t",topic,tag:"x",re:"m"+n});
+ const sent=f.sent.length;
+ await r.incoming({...message(),reply_to:1},"100");
+ expect(f.sent.length).toBe(sent);expect(f.told.at(-1)).toBe(routeGone+"; use #tag");
+ expect(f.logs.some(line=>line.includes("warning: "+routeGone))).toBe(true);
+});
+
+test("an evicted dispatch's session reply gets the named answer, never a chat post or silence",async()=>{
+ const f=fixture(),r=new Router(f.deps);await r.load();
+ await r.incoming({...message(),text:"#b go"},"100");
+ const reply=JSON.parse(f.saved()!).answers["bus-1"];
+ const topic="t".repeat(1000);
+ for(let i=1;i<=Math.ceil(stateBudget/1000)*2;i++)await r.posted("100",i,{to:"#alice@t",topic,tag:"x",re:"m"+i});
+ expect(JSON.parse(f.saved()!).answers?.["bus-1"]).toBeUndefined();
+ await r.answer({message_id:"late",re:"bus-1",from:"#beta@t",topic:reply.topic,tag:reply.tag,body:"done"});
+ expect(f.told).toEqual([]);
+ expect(f.sent.at(-1)).toEqual({route:{to:"#beta@t",topic:reply.topic,tag:reply.tag},body:`error: ${routeGone}; your answer was not posted to the chat`});
+ expect(f.logs.some(line=>line.includes(`warning: ${routeGone}: session reply late`))).toBe(true);
+});
+
+test("an expired route's allocated tag is freed; a pinned tag and a session with a live route keep theirs",async()=>{
+ const f=fixture(),r=new Router(f.deps);await r.load();
+ const now=Date.now;
+ try {
+  Date.now=()=>1;
+  expect(await r.tag("#bob@t",f.config)).toBe("b1");expect(await r.tag("#carol@t",f.config)).toBe("c");expect(await r.tag("#beta@t",f.config)).toBe("b");
+  await r.posted("100",1,{to:"#bob@t",re:"m1"});await r.posted("100",2,{to:"#beta@t",re:"m2"});await r.posted("100",3,{to:"#carol@t",re:"m3"});
+  Date.now=()=>3*24*60*60*1000;
+  await r.posted("100",4,{to:"#carol@t",re:"m4"});
+  Date.now=()=>7*24*60*60*1000+2;
+  await r.posted("100",5,{to:"#dave@t",re:"m5"});
+  const state=JSON.parse(f.saved()!);
+  expect(state.tags).toEqual({b:"#beta@t",c:"#carol@t"});
+  expect(Object.keys(state.messages).sort()).toEqual(["100:4","100:5"]);
+  expect(Object.keys(state.gone).sort()).toEqual(["100:1","100:2","100:3"]);
+  expect(await r.tag("#bill@t",f.config)).toBe("b1");
+ } finally {Date.now=now;}
 });
