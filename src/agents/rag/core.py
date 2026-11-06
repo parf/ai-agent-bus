@@ -195,22 +195,33 @@ class Core:
         A chunk answers only while its record's live head lists it: a draft whose head never landed, a
         replaced revision and a deleted record are skipped, as get() would not return them.
         """
-        if self.cfg['keyword_search']=='external':
+        mode=v.get('mode','keyword')
+        if mode=='keyword' and self.cfg['keyword_search']=='external':
             if self.keyword is None:raise RagError('keyword_search is external and no external keyword engine is connected')
-            return repo.external_search(self.keyword,v)
-        if not self.bm25:raise RagError(self.keyword_state)
-        left=self._unindexed(repo)
-        if left:raise RagError(f'keyword index incomplete ({left} chunks left); run {{"method":"keyword_index"}}')
+            return {**repo.external_search(self.keyword,v),'mode':'keyword'}
+        if mode in ('keyword','hybrid'):
+            if self.cfg['keyword_search']=='external':raise NamedRefusal('unsupported_mode','hybrid requires the built-in BM25 index')
+            if not self.bm25:raise RagError(self.keyword_state)
+            left=self._unindexed(repo)
+            if left:raise RagError(f'keyword index incomplete ({left} chunks left); run keyword_index with this namespace')
+        dense=self.query_embedding(v,repo) if mode in ('semantic','hybrid') else None
         best={};want=min(64,v['limit']*4);exhausted=False
         for page in range(4):
-            query={'query':sparse(v['query'],query=True),'using':BM25_VECTOR,'filter':repo.select(v,kind='chunk'),'limit':want,'offset':page*want,
+            query={'filter':repo.select(v,kind='chunk'),'limit':want,'offset':page*want,
                    'with_payload':{'include':[*SUMMARY_FIELDS[:5],'_rag_text']},'with_vector':False}
+            if mode=='keyword':query.update(query=sparse(v['query'],query=True),using=BM25_VECTOR)
+            elif mode=='semantic':query['query']=dense
+            else:
+                # Fixed prefetch windows keep the same RRF candidate set across result pages.
+                query.update(query={'fusion':'rrf'},prefetch=[
+                    {'query':dense,'filter':repo.select(v,kind='chunk'),'limit':want*4},
+                    {'query':sparse(v['query'],query=True),'using':BM25_VECTOR,'filter':repo.select(v,kind='chunk'),'limit':want*4}])
             answer=repo.qdrant('POST','/points/query',query)
             try:
                 rows=answer['points']
                 if not isinstance(rows,list) or len(rows)>want:raise RagError('invalid query size')
                 for row in rows:
-                    payload=row['payload'];number(row['score'],0,float('inf'),'score')
+                    payload=row['payload'];number(row['score'],-1 if mode=='semantic' else 0,float('inf'),'score')
                     if payload.get('namespace')!=v['namespace']:raise RagError('invalid query payload projection')
                     if any(payload.get(k)!=v[k] for k in ('tableName','key1','key2') if k in v):raise RagError('query filter mismatch')
                 live=self._live(rows,repo)
@@ -225,7 +236,20 @@ class Core:
             exhausted=page==3
         # An empty answer must mean no match, never a window that dead chunks filled.
         if exhausted and len(best)<v['limit']:raise Incomplete('search window exhausted before enough records were found; narrow the query, add filters or run cleanup')
-        return {'records':sorted(best.values(),key=lambda r:(-r['score'],r['id']))[:v['limit']]}
+        return {'mode':mode,'records':sorted(best.values(),key=lambda r:(-r['score'],r['tableName'],r['id']))[:v['limit']]}
+    def query_embedding(self,v,repo):
+        # Catalogue and collection model checks have already completed before this one paid call.
+        cfg=repo.config
+        request={'model':cfg['embedding_model'],'input':[v['query']],'input_type':'query',
+                 'output_dimension':cfg['dimensions'],'output_dtype':'float'}
+        answer=self.backend.embed(request)
+        try:
+            rows=answer['data']
+            if not isinstance(rows,list) or len(rows)!=1 or type(rows[0].get('index')) is not int or rows[0]['index']!=0:raise RagError('invalid query embedding response')
+            if 'model' in answer and answer['model']!=cfg['embedding_model']:raise NamedRefusal('model_mismatch','provider answered with another model')
+            return vector(rows[0]['embedding'],cfg['dimensions'])
+        except (KeyError,TypeError,AttributeError):raise RagError('invalid query embedding response') from None
+
     def _unindexed(self,repo):
         """How many chunks still lack the text vector; known complete once it was counted as none."""
         # Another writer, an older build or a restore can add chunks without the vector, so a zero holds for a minute only.
