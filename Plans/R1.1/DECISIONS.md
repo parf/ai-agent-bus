@@ -6,6 +6,11 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30; the R1 rows are in 
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
+| Q268, Q178 MCP: hand-write the Go face's small JSON-RPC part; the runner adds the `mcp` tag | [resolved](resolved.md#Q268) | Owner, 2026-11-05 |
+| Q326, Q328 Subscriptions: one rule everywhere (source checked at creation); a Personal agent may list `#bus` in its Allow | [resolved](resolved.md#Q326) | Owner, 2026-11-05 |
+| Q334, Q305–Q310, Q314–Q320 Build FileScan and DBSync: shared core, replay the existing base by default, system paths allowed, MySQL and PostgreSQL first | [resolved](resolved.md#Q334) | Owner, 2026-11-05 |
+| Q281–Q284, Q286, Q287 IMAP large transfer: chunked calls, bounded staging, caller-built mail, optional hash, base64 windows | [resolved](resolved.md#Q281) | Owner, 2026-11-05 |
+| Q331 The agent pack keeps its own SemVer inside this one repository; Q332 an `agent.d` package may be a link to its checkout | [resolved](resolved.md#Q331) | Owner, 2026-11-05: "we have one monorepo, we just use diff semvers for daemon and agent-pack" |
 | Q333 AI agent images: only `#ai`'s Owner and Maintainers may generate them, stored in `#ai`'s own bigfile record with a 24-hour expiry; reference images by URL or inline | [T-36](TODO.md#ai-agent-methods) | Owner, 2026-11-05: "OK for #ai bigfile" |
 | T-34 Web Face AI setup chat moves from R1; T-33 Markdown workflow stays in R1 | [Chat scope](ai-setup.md#web-face-chat) | Owner, 2026-11-03 |
 | Q191: agent status only on its own page, no mass polling or `ab_ls` status; web restart on `failed` only | [RT23 proposal](agent-capabilities.md#proposal) | Owner, 2026-11-01; [decision](../R1.0-Release/DECISIONS.md#recorded-decisions) |

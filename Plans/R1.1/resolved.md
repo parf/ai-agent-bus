@@ -1,0 +1,281 @@
+# R1.1 resolved questions
+
+📌 **TL;DR:** answered R1.1 questions with their threads verbatim; the rules they set are in [decisions](DECISIONS.md#recorded-decisions).
+
+<a id="Q268"></a>
+
+- ✅ Q268 The Go MCP face's protocol: hand-write the stdio JSON-RPC, or take a Go MCP SDK
+  - Context: it needs initialize, tools, resources and the Claude channel notification at the revision the face speaks today; decided at the start of WIN.3 by what the SDK covers ([windows CLI § what it costs](windows-cli.md#what-it-costs))
+  - Settled by: the owner, at WIN.3
+  > ✅ 💡👾 Hand-write the small part, as `mcp/rpc.ts` already does for transport.
+  >
+  > 💬 👤parf agree
+  >
+  > 💬👾 → Hand-write the Go MCP face's small stdio JSON-RPC part.
+
+<a id="Q178"></a>
+
+- ✅ Q178 Who adds the `mcp` tag, and when
+  - Context: the runner asks each agent it serves `--mcp` at start and reload; or the daemon asks at registration; or the agent states it and nobody checks ([MCP agents](mcp-agents.md#mcp-agents))
+  - Settled by: the owner
+  > ✅ 💡👾 The runner, the way it adds `runner`, with an agent's own registration allowed to state it.
+  >
+  > 💬 👤parf agree
+  >
+  > 💬👾 → The runner adds the `mcp` tag, as it adds `runner`; an agent's own registration may state it.
+
+<a id="Q326"></a>
+
+- ✅ Q326 Do `#eventlog`, `#logwatch` and `#discord` also check a subscription's source only at creation
+  - Context: [№Q325](../R1.0-Release/DECISIONS.md#recorded-decisions) made the daemon's `#bus` logs check the source once, at creation. These three agents share a helper that rechecks the creator's reach to the source on every delivery ([shared subscriptions](../../docs/agents/subscriptions.md)), so today the two behave differently
+  - (x) Yes, one rule everywhere: changes shipped behaviour, about 20–30 minutes of agent time plus the shared test cases 🌟
+  - ( ) No, the agents keep their per-delivery recheck ⭐
+  > ✅ 💡👾 One rule everywhere is easier to explain in the agent guide; not urgent, after 1.0.0.
+  >
+  > 💬 👤parf agree
+  >
+  > 💬👾 → One rule everywhere: `#eventlog`, `#logwatch` and `#discord` check a subscription's source at creation only.
+
+<a id="Q328"></a>
+
+- ✅ Q328 May a Personal agent list `#bus` in its Allow, so it can receive copies of agent-log subscriptions
+  - Context: a Personal agent's Allow is limited to its owner's own agents, so `#bus` is refused ([final review A3](../issues/2026-11/2026-11-02.md)). For 1.0.0, `sub add` refuses such a target and the bus guide says so; this would widen authority policy
+  - (x) Let the Personal cohort include the daemon's own agent `#bus`, which is nobody's agent and sends only copies a manager subscribed to 🌟
+  - ( ) Keep it: a Personal agent is never a subscription target ⭐
+  > 💡👾 Allow `#bus`: it is the daemon itself, and a person's own on-call agent is the natural place for their alerts.
+  >
+  > 💬 they can, why not,
+  > BUT - do we even have functionality when bus is going to anything there
+  >
+  > 💬👾 → A Personal agent may list `#bus` in its Allow.
+
+<a id="Q334"></a>
+
+- ✅ Q334 Build FileScan and DBSync with every suggested answer below (№Q305–№Q310, [№Q314–№Q320](QUESTIONS.md#dbsync))
+  - Context: both plans are written ([FileScan](filescan.md#steps-and-estimate), [DBSync](dbsync.md#steps-and-estimate)); order: the shared core, then FileScan, then DBSync, about 8–10 hours of agent time after T-35 and T-36. Your steps at the end: the folder and database account to watch, and a live RAG run (one paid embedding per file)
+  - (x) Yes: take every 🌟 option below and build 🌟
+  - ( ) Answer the questions one by one below first
+  > 💡👾 The suggestions hold. Mind №Q306: notes over 32 KiB do not reach RAG until RAG takes bigger texts; and №Q308: folders under your home only, for now.
+  >
+  > 💬👾 → Build FileScan and DBSync: every 🌟 option, except where the owner picked another below.
+
+<a id="Q305"></a>
+
+- ✅ Q305 How a subscriber feeds RAG, and what a rename is
+  - Context: `sub add … as rag <namespace> <table>` sends RAG's own upsert and delete, with no bridge agent; RAG has no rename
+  - ( ) A rename is a delete of the old id plus an upsert of the new 🌟
+  - ( ) Add a rename to RAG first
+  > 💡👾 Delete plus upsert: RAG has no rename and no other agent would translate.
+  >
+  > 💬👾 → A rename is a delete of the old id plus an upsert of the new (via №Q334).
+
+<a id="Q306"></a>
+
+- ✅ Q306 A file over the inline limit (32 KiB, RAG's text cap)
+  - ( ) Skip it and say so in `status` for `as rag`; bigfile by hash only for a generic subscriber that opts in 🌟
+  - ( ) Teach RAG to accept a bigfile reference first, as its own item ⭐
+  > 💡👾 Skip and report for RAG (it cannot take a reference); a RAG bigfile item only if big notes matter.
+  >
+  > 💬👾 → A file over the inline limit is skipped for `as rag` and reported in `status` (via №Q334).
+
+<a id="Q307"></a>
+
+- ✅ Q307 A subscriber added later
+  - ( ) Start from now by default; `replay:true` optional, capped by `max_per_scan` 🌟
+  - (x) Replay every existing file by default
+  > 💡👾 From now: a replay into RAG is paid.
+  >
+  > 💬 u mean when we setup Filescan on exisitng file base -   first we should feed it all files
+  >
+  > 💬👾 → Replay every existing file by default: a new FileScan feeds the whole existing file base.
+
+<a id="Q308"></a>
+
+- ✅ Q308 May the system runner serve a path outside any person's home
+  - ( ) No, in this item: the user-account runner only, so a vault is read as its owner 🌟
+  - (x) Yes, system paths too
+  > 💡👾 No for now; a system path is a later, separate decision.
+  >
+  > 💬👾 → System paths too, not only a person's home.
+
+<a id="Q309"></a>
+
+- ✅ Q309 The read-only bind of one directory (step F0)
+  - (x) A general runner feature: an agent setting `dir`, with real-path checks, no symlink out, refusing `/`, the home root and the runner state directory 🌟
+  - ( ) A filescan-only special case
+  > 💡👾 The general feature: small, and other agents need the same bind.
+  >
+  > 💬👾 → The read-only bind of one directory is a general runner feature, the agent setting `dir`.
+
+<a id="Q310"></a>
+
+- ✅ Q310 Retry until confirmed, unlike the shared send-once subscription rule
+  - (x) Keep a change pending and resend on the next tick until confirmed; alert after a configured number of failures 🌟
+  - ( ) Send once, like other subscriptions
+  > 💡👾 Resend: a file index that silently drops a change is wrong.
+  >
+  > 💬👾 → Keep a change pending and resend until confirmed; alert after a configured number of failures.
+
+<a id="Q314"></a>
+
+- ✅ Q314 How DBSync and FileScan share code
+  - Context: both keep one state file, subscriptions with confirm and resend, and delivery
+  - (x) One shared core module that both agents use 🌟
+  - ( ) Copy the code into each agent ⭐
+  > 💡👾 Shared core: two copies of the resend and authority logic would drift, and the authority part is ⚠️.
+  >
+  > 💬👾 → One shared core module for DBSync and FileScan.
+
+<a id="Q315"></a>
+
+- ✅ Q315 Whose DB-agent grant the query runs under
+  - Context: the subscription author's rights to the target are checked as in [FileScan](filescan.md#who-may-use-it); the query itself reads data
+  - (x) The DBSync instance's own grant, fixed by its Owner; the author also needs may-send to the DB agent at `sub add` and before every forward, so nobody reads through DBSync what they could not read directly 🌟
+  - ( ) The instance's own grant alone, with no author check on the DB agent ⭐
+  - ( ) The subscriber's grant, forwarded per query
+  > 💡👾 Own grant plus the author's check: a forwarded grant has no way to travel through a timer-driven poll.
+  >
+  > 💬👾 → DBSync queries under its own grant; the author also needs may-send to the DB agent at `sub add` and before every forward.
+
+<a id="Q316"></a>
+
+- ✅ Q316 How a delete is noticed
+  - (x) Soft delete (a marked row keeps a new `updated`) first; the key diff later if wanted 🌟
+  - ( ) Periodic key diff with a mass-delete guard now ⭐
+  - ( ) Never; document that deletes are invisible
+  > 💡👾 Soft delete is exact and cheap; a key diff costs a full key listing capped by `max_rows`.
+  >
+  > 💬👾 → Soft delete first; the key diff later if wanted.
+
+<a id="Q317"></a>
+
+- ✅ Q317 The late-commit lookback
+  - (x) Default 5 minutes, configurable, with de-duplication marks for that window 🌟
+  - ( ) A long window (an hour) by default ⭐
+  - ( ) No lookback: the cursor alone, late commits lost
+  > 💡👾 Five minutes covers ordinary transactions at the price of a small re-read; a long one costs state and queries.
+  >
+  > 💬👾 → Late-commit lookback defaults to 5 minutes, configurable, with de-duplication marks.
+
+<a id="Q318"></a>
+
+- ✅ Q318 Cursor and key types without bind parameters
+  - Context: the DB agent takes one statement of text and has no binds
+  - (x) Only numeric or timestamp types in R1.1; the [type guard](dbsync.md#the-cursor) counts the declared cursor and key columns that are not and refuses at configuration and at `sub add`, never tolerant quoting 🌟
+  - ( ) Add binds to the DB agent first, as its own item ⭐
+  - ( ) Allow text keys through each engine's literal quoting
+  > 💡👾 Numeric and timestamp only: no quoting to get wrong; a DB-agent bind feature can widen it later.
+  >
+  > 💬👾 → Only numeric or timestamp cursor and key types, refused otherwise by the type guard.
+
+<a id="Q319"></a>
+
+- ✅ Q319 ClickHouse in R1.1
+  - Context: no transactions, so late-commit semantics differ
+  - (x) Support MySQL and PostgreSQL first; ClickHouse once its lookback behaviour is tested against the fixture ⭐
+  - ( ) All three from the start, with the lookback documented per engine 🌟
+  > 💡👾 All three: the DB fixture already has ClickHouse, and the cursor logic is the same.
+  >
+  > 💬👾 → MySQL and PostgreSQL first; ClickHouse once its lookback is tested.
+
+<a id="Q320"></a>
+
+- ✅ Q320 A counter as the `updated` column
+  - Context: R1.1 accepts only a timestamp, or epoch seconds or milliseconds, because the lookback needs database time; a version counter has no such unit
+  - (x) Later, a counter mode with its own lookback in counter units (rows with a counter below the high-water mark within a window) 🌟
+  - ( ) Never: refuse counters, tell the owner to add a timestamp ⭐
+  > 💡👾 Park it: refuse counters in R1.1; a counter mode is its own small step if a table needs it.
+  >
+  > 💬👾 → A counter mode later, with its own lookback in counter units.
+
+<a id="Q281"></a>
+
+- ✅ Q281 Chunked calls or a file handoff
+  - (x) chunked `part` and `upload` calls 🌟
+  - ( ) a file the agent writes and the caller reads
+  - ( ) a generic large-body mechanism ⭐
+  > 💡👾 chunked calls; the file is unreadable to remote callers and to other accounts, and the generic mechanism is daemon work no other agent needs
+  - Impact: decides whether anything outside `src/agents/imap` changes
+  >
+  > 💬👾 → IMAP large transfer uses chunked `part` and `upload` calls.
+
+<a id="Q282"></a>
+
+- ✅ Q282 Staging bounds and lifetime
+  - (x) 100 MB in total, one staging per caller, upload expires after an hour, download staging after 15 minutes 🌟
+  - ( ) tighter or looser ⭐
+  > 💡👾 those numbers; they fit the default 1 GiB disk check with room for the mail cache
+  - Impact: a lower total refuses 25 MB while another caller is mid-transfer
+  >
+  > 💬👾 → Staging: 100 MB in total, one per caller; uploads expire after an hour, download staging after 15 minutes.
+
+<a id="Q283"></a>
+
+- ✅ Q283 Caller convenience for a hundred calls
+  - (x) a documented shell loop in the guide only 🌟
+  - ( ) a CLI verb that loops ⭐
+  - ( ) an MCP helper
+  > 💡👾 the documented loop now; a verb only if the owner wants it, as client work outside this plan
+  - Impact: an AI caller can loop itself; a person at a shell needs the example
+  >
+  > 💬👾 → Caller convenience is a documented shell loop in the guide only.
+
+<a id="Q284"></a>
+
+- ✅ Q284 Should the agent build the MIME for an upload
+  - (x) the caller sends a finished RFC 5322 mail 🌟
+  - ( ) the agent assembles one from a text body and attachment files ⭐
+  > 💡👾 the caller sends the finished mail; MIME assembly is a parser surface the agent need not own
+  - Impact: building attachments is the caller's job
+  >
+  > 💬👾 → The caller sends a finished RFC 5322 mail; the agent builds no MIME.
+
+<a id="Q286"></a>
+
+- ✅ Q286 Is the SHA-256 at `upload begin` required
+  - (x) optional, checked when given 🌟
+  - ( ) required ⭐
+  > 💡👾 optional; `part` always reports the hash of the whole part
+  - Impact: required makes every upload verifiable but forces callers to hash first
+  >
+  > 💬👾 → The SHA-256 at `upload begin` is optional, checked when given.
+
+<a id="Q287"></a>
+
+- ✅ Q287 Do windowed `part` answers use base64 for text too
+  - (x) base64 for every type when `--offset` or `--limit` is given, and a plain `part` unchanged 🌟
+  - ( ) decoded text for text parts in windows as well ⭐
+  > 💡👾 base64 in windows; exact reassembly and the hash, and a split character never shows escapes
+  - Impact: the other choice cannot promise the whole-part hash for text parts
+  >
+  > 💬👾 → Windowed `part` answers are base64 for every type; a plain `part` is unchanged.
+
+<a id="Q331"></a>
+
+- ✅ Q331 Land W1A's agent-pack branch as the first step of [AS.1](TODO.md#agents-split)
+  - Context: branch `ab-w1a/agent-pack` (`01aba112`, 11-03/04, 42 files) gives the bundled agents their own SemVer 1.0.0 and changelog, makes setup require it, and moves the agent checks to `src/agents/smoke.sh`, still in this repository. You asked on 11-02 to split the agents pack with its own repository and SemVer (AS.1), which waits for an approved plan; the branch is that split without the separate repository, and it contradicts the current "Shared SemVer" rule in CLAUDE.md
+  - ( ) Keep the branch parked as input to the AS.1 plan; the plan decides repository, versioning and gate together, then the branch is rebased or redone 🌟
+  - ( ) Land it now as AS.1's first step: own version inside this repository, CLAUDE.md's versioning rule amended, two readers
+  - ( ) Drop it
+  > 💡👾 Park it for the AS.1 plan: a second version line now, before the repository question is settled, would likely be redone.
+  >
+  > 💬 so far
+  > we have one monorepo
+  >  we just use diff semvers for daemon and agent-pack
+  >
+  > 💬👾 → Land the agent pack with its own SemVer inside this one repository: daemon and agent pack keep separate versions.
+
+<a id="Q332"></a>
+
+- ✅ Q332 May an `agent.d` package be a symbolic link to its source checkout
+  - Context: branch `ab-w1a/agentd-links` (`8029f6fd`, 11-04): the runner loads, digests, runs and serves a package through a link to its checkout; a dangling link or a link to a file is refused, links inside a package stay refused. It widens which paths the runner trusts; today packages are deployed by copy
+  - (x) Yes, as an R1.1 item, landing with two readers and a mutant ⭐
+  - ( ) No, keep copy-only packages 🌟
+  > 💡👾 Keep copy-only: a link lets anyone who can write the checkout change a running agent without a deploy.
+  >
+  > 💬 thats the idea; i place symlink; i do git pull there
+  > if needed i'll ask runner to reload
+  >
+  > elaborate if u still have question
+  >
+  > 💬👾 → An `agent.d` package may be a symbolic link to its checkout; the owner updates it with git pull and a runner reload.
