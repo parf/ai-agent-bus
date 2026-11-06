@@ -32,6 +32,9 @@ type hostEntry struct {
 	Share   bool     `json:"share,omitempty"`
 	Sandbox string   `json:"sandbox,omitempty"`
 	Limits  *limits  `json:"limits,omitempty"`
+	// Roots are the directories an agent with needs.dir may watch: its
+	// Configuration dir must resolve inside one. Empty means none.
+	Roots []string `json:"roots,omitempty"`
 }
 
 type limits struct {

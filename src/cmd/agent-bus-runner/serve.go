@@ -73,6 +73,7 @@ type served struct {
 type launchSettings struct {
 	key       string
 	read      []string
+	roots     []string // the node owner's watch roots for needs.dir
 	agent     agentFile
 	cmd       string
 	env       []string
@@ -87,7 +88,7 @@ type launchSettings struct {
 func (r *runner) launchSettings(s *served) launchSettings {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return launchSettings{read: append(r.codeReads(s.in, s.dir), dirReads(s.in.Agent, s.env)...), key: s.in.Key, agent: s.in.Agent, cmd: s.cmd, env: s.env, secretEnv: s.secretEnv, box: s.box, net: s.net, jail: s.jail, over: s.in.Over, stream: s.stream}
+	return launchSettings{read: r.codeReads(s.in, s.dir), roots: s.in.Host.Roots, key: s.in.Key, agent: s.in.Agent, cmd: s.cmd, env: s.env, secretEnv: s.secretEnv, box: s.box, net: s.net, jail: s.jail, over: s.in.Over, stream: s.stream}
 }
 
 // serveable says why an agent cannot be served by this wave, or "".
@@ -153,7 +154,7 @@ func (r *runner) environmentWithSecrets(in installed, as *client) ([]string, []s
 	if err != nil {
 		return nil, nil, "its configuration: " + err.Error()
 	}
-	env, why := r.bindDir(in.Agent, env)
+	env, _, why := r.bindDir(in.Agent, in.Host.Roots, env)
 	if why != "" {
 		return nil, nil, "its configuration: " + why
 	}
@@ -900,6 +901,13 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 		r.answerAs(s.bus, e, "error: configuration unavailable")
 		return
 	}
+	env, dirRead, dirWhy := r.bindDir(launch.agent, launch.roots, env)
+	if dirWhy != "" {
+		fmt.Fprintf(r.say, "%s: %s; not run\n", s.name, dirWhy)
+		finishAck()
+		r.answerAs(s.bus, e, "error: "+dirWhy)
+		return
+	}
 	j := launch.jail
 	if j.group != nil {
 		if err := j.group.Prepare(); err != nil {
@@ -909,7 +917,7 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	}
 	argv := launch.box.Wrap(ports.Job{
 		Argv: script.Argv(launch.cmd, launch.agent.Form == "args", e.Body, e.Roles),
-		Work: s.work, Read: launch.read, Over: launch.over, Net: launch.net, TmpSize: j.tmp, Seccomp: len(j.seccomp) > 0,
+		Work: s.work, Read: append(launch.read, dirRead...), Over: launch.over, Net: launch.net, TmpSize: j.tmp, Seccomp: len(j.seccomp) > 0,
 	})
 	// Open files are a limit of the process, not of the cgroup: prlimit sets
 	// it and then is the sandbox, so every process of the agent inherits it.

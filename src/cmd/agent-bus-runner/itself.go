@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -214,9 +215,13 @@ func (k *keeper) command() (*exec.Cmd, *jail, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	env, dirRead, dirWhy := k.r.bindDir(launch.agent, launch.roots, env)
+	if dirWhy != "" {
+		return nil, nil, errors.New(dirWhy)
+	}
 	job := ports.Job{
 		Argv: []string{"/bin/sh", "-c", "exec " + launch.cmd},
-		Work: s.work, Read: launch.read, Over: launch.over, Net: launch.net, TmpSize: j.tmp, Seccomp: len(j.seccomp) > 0,
+		Work: s.work, Read: append(launch.read, dirRead...), Over: launch.over, Net: launch.net, TmpSize: j.tmp, Seccomp: len(j.seccomp) > 0,
 	}
 	addr := k.r.addr
 	if strings.HasPrefix(addr, "/") {

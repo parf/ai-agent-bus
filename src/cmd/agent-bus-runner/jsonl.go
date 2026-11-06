@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -252,9 +253,13 @@ func (st *stream) start() (*streamChild, error) {
 	if err != nil {
 		return nil, err
 	}
+	env, dirRead, dirWhy := r.bindDir(launch.agent, launch.roots, env)
+	if dirWhy != "" {
+		return nil, errors.New(dirWhy)
+	}
 	argv := launch.box.Wrap(ports.Job{
 		Argv: []string{"/bin/sh", "-c", "exec " + launch.cmd},
-		Work: s.work, Read: launch.read, Over: launch.over, Net: launch.net, TmpSize: j.tmp, Seccomp: len(j.seccomp) > 0,
+		Work: s.work, Read: append(launch.read, dirRead...), Over: launch.over, Net: launch.net, TmpSize: j.tmp, Seccomp: len(j.seccomp) > 0,
 	})
 	if j.files > 0 {
 		argv = append([]string{"prlimit", fmt.Sprintf("--nofile=%d:%d", j.files, j.files), "--"}, argv...)
