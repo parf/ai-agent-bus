@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.23 — 2026-11-05
+
+runner shutdown waits out an in-flight apply and starts nothing once closing, so no process outlives the runner
+
 ## 1.0.22 — 2026-11-05
 
 every pushed bus message names its reply route again, so call to a Codex or OpenCode session gets its answer

@@ -101,7 +101,11 @@ func TestAShutdownDuringAnApplyStopsWhatItStarts(t *testing.T) {
 	r.applyStarted = func() { close(reached); <-release }
 	reloaded := make(chan struct{})
 	go func() { r.reload(); close(reloaded) }()
-	<-reached
+	select {
+	case <-reached:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the reload never reached its apply")
+	}
 	stopped := make(chan struct{})
 	go func() { r.stopKept(); close(stopped) }()
 	select {
