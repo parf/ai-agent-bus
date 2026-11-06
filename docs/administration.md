@@ -268,7 +268,7 @@ readable by `adm` and by nobody else. The files are `0640`.
 | `debug.log` | only when asked for, by `--debug-log` at start or by the daemon Owner with `POST /debug {"on": true}` at run time |
 
 - Without `--log-dir`, a development daemon writes to `logs/` beside its database.
-- Setup installs `/etc/logrotate.d/agent-bus`: daily, or earlier at 10 MiB, three archives, compressed by copy and truncate so the daemon never reopens a file. It is the one rule for these logs; repeating setup writes the same file again.
+- Setup installs `/etc/logrotate.d/agent-bus`: daily, three archives, and a log over 10 MiB is rotated at the next daily run, compressed by copy and truncate so the daemon never reopens a file. It is the one rule for these logs; repeating setup writes the same file again.
 
 ### Config locations
 
