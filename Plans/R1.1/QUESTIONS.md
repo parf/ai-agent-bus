@@ -271,3 +271,13 @@ The recommendations below are retained parked proposals.
   - ( ) Yes, as an R1.1 item, landing with two readers and a mutant ⭐
   - ( ) No, keep copy-only packages 🌟
   > 💡👾 Keep copy-only: a link lets anyone who can write the checkout change a running agent without a deploy.
+
+## AI agent images
+
+- ❓ Q333 Who may generate images through the AI agent (T-36 step 2)
+  - Context: `#ai` can store an image only in its own [bigfile](../../docs/03-records-kv.md#bigfiles) record, and every caller `#ai` admits can list and read that record, so one caller would see another's images. Limits are 100 files and 256 MiB per record, 32 MiB per file. Reference images come by URL or inline only in every option: a bigfile name cannot yet be checked against the caller's own rights
+  - ( ) Only `#ai`'s Owner and Maintainers, who can already read its record: no one sees another person's images; files expire after 24 hours and a full record is refused 🌟
+  - ( ) Any caller `#ai` admits; every caller can see every caller's images, documented as a limit; 24-hour expiry ⭐
+  - ( ) Wait for a per-file read grant in the daemon (new authority work), then open it to every caller
+  > 💡👾 Owner and Maintainers now, which covers your own use safely; the per-file grant later if other callers need images.
+
