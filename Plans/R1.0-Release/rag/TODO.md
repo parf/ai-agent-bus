@@ -62,4 +62,5 @@ Blocks first (R.1–R.4), then the app (R.5–R.9).
 
 - ☐ R.10 Large Markdown files: over 32 KiB, through a bigfile reference, chunked by heading; plan only, no code until the owner approves
   - Home: [large files](large-files.md#large-markdown-files-in-rag); choices [Q368–Q371](QUESTIONS.md#large-files)
+  - State: RAG's side (L.1, L.3) built in app 0.4.2 ([done](DONE.md#r10-large-markdown-files-rags-side)); FileScan's L.2 is team 2's
   - Acceptance: fixture-only; a 200 KiB file is confirmed only after every chunk is stored, with its whole-file hash; editing one section re-embeds only that section; no stale chunk answers after a re-sync or a delete
