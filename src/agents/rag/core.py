@@ -21,6 +21,7 @@ CITATION_FIELDS=('_rag_heading','_rag_lines')
 EMBED_BATCH=32      # chunks per #voyage request for a large file
 LARGE_FLOOR=120     # seconds a large upsert needs left before it starts
 WRITE_BYTES=512<<10 # one point write, well under the proxy's 1 MiB
+STOPPED='not stored; prior record unchanged'
 
 
 def finite(value):
@@ -378,7 +379,7 @@ class Core:
         for group in self._groups(points):
             try:repo.qdrant('PUT','/points?wait=true',{'points':group},write=True)
             except Deadline:raise
-            except RagError as error:raise RagError('not stored; prior record unchanged: '+str(error)) from None
+            except RagError as error:raise RagError(STOPPED+': '+str(error)) from None
     def _reusable(self,v,repo):
         """(chunk key, chunk hash) -> (stored text, vector), from every large-format chunk this record holds: published, or left by an interrupted attempt."""
         selected=repo.select(v,kind='chunk',exact=True);found={};offset=None

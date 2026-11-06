@@ -214,6 +214,22 @@ class Large(unittest.TestCase):
         self.assertTrue(self.chunk_points(),'paid chunks were stored before the head')
         with self.assertRaisesRegex(RagError,'not_found'):self.call(method='delete',id='Plans/big.md')
         self.assertEqual(self.chunk_points(),[])
+    def test_the_sweep_takes_only_the_deleted_ids_chunks(self):
+        self.app.cache.set('team','notes',PROMPT)
+        self.put(document(),id='Plans/other.md')
+        ref=self.store.put_file(document())
+        self.call(method='upsert',tableName='notes',id='Plans/big.md',source='Plans/big.md',content_hash=ref['sha256'],bigfile=ref)
+        def owned(table,id):
+            return sorted(p['id'] for p in self.chunk_points() if (p['payload']['tableName'],p['payload']['id'])==(table,id))
+        before={k:owned(*k) for k in (('docs','Plans/other.md'),('notes','Plans/big.md'))}
+        head_id=point_id({'namespace':'team','tableName':'docs','id':'Plans/big.md'})
+        self.store.fail=lambda verb,path,body:verb=='PUT' and any(p['id']==head_id for p in body.get('points',[]))
+        with self.assertRaises(Unknown):self.put(document())
+        self.store.fail=None
+        with self.assertRaisesRegex(RagError,'not_found'):self.call(method='delete',id='Plans/big.md')
+        self.assertEqual(owned('docs','Plans/big.md'),[],'the headless chunks are swept')
+        self.assertTrue(all(before.values()))
+        self.assertEqual({k:owned(*k) for k in before},before,'another id, and the same id in another table, keep every chunk')
     def test_a_late_start_is_refused_before_the_download_and_any_paid_call(self):
         ref=self.store.put_file(document())
         envelope={'deadline':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime(time.time()+60))}
