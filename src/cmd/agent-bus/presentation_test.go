@@ -84,13 +84,15 @@ func cliPresentation(t *testing.T, tty bool, address, token string, args ...stri
 
 func TestCLIShortHelpAndTTYListing(t *testing.T) {
 	t.Run("short help precedes the session file for every verb", func(t *testing.T) {
-		cases := [][]string{{"-h"}, {"--help"}}
+		// ls and bigfile ls read -h as the human form (Unix ls -h); --help is help everywhere.
+		cases := [][]string{{"-h"}, {"--help"}, {"ls", "--help"}, {"bigfile", "--help"}, {"bigfile", "-h"}, {"call", "-h"}}
 		for _, group := range commandGroups {
 			for _, command := range group.commands {
-				cases = append(cases, []string{command.name, "-h"})
+				if command.name != "ls" {
+					cases = append(cases, []string{command.name, "-h"})
+				}
 			}
 		}
-		cases = append(cases, []string{"bigfile", "ls", "-h"})
 		for _, args := range cases {
 			out, stderr, err := cliPresentation(t, false, "", "", args...)
 			if err != nil || stderr != "" || !strings.Contains(out, "USAGE") {
@@ -101,6 +103,16 @@ func TestCLIShortHelpAndTTYListing(t *testing.T) {
 	out, stderr, err := cliPresentation(t, false, "", "", "status")
 	if err == nil || out != "" || !strings.Contains(stderr, "AGENT_BUS_SESSION_FILE:") {
 		t.Fatalf("fixture must preserve the missing session file: %v %q %q", err, out, stderr)
+	}
+	// A listing's -h needs the bus like any listing: a missing session file refuses it.
+	for _, args := range [][]string{{"ls", "-h"}, {"bigfile", "ls", "rec@h", "-h"}} {
+		out, stderr, err := cliPresentation(t, false, "", "", args...)
+		if err == nil || out != "" || strings.Contains(out, "USAGE") || !strings.Contains(stderr, "AGENT_BUS_SESSION_FILE:") {
+			t.Errorf("%q must be the listing, refused for the missing session file: %v %q %q", args, err, out, stderr)
+		}
+	}
+	if shortHelp("ls", []string{"-h"}) || shortHelp("bigfile", []string{"ls", "-h"}) || !shortHelp("bigfile", []string{"-h"}) {
+		t.Error("only the listings read -h as the human form")
 	}
 	for _, args := range [][]string{{"--", "-h"}, {"--topic", "-h"}, {"--topic=-h"}} {
 		if shortHelp("send", args) {
@@ -126,6 +138,7 @@ func TestCLIShortHelpAndTTYListing(t *testing.T) {
 		{"pipe defaults to JSON", false, false, nil},
 		{"terminal JSON override", true, false, []string{"--json"}},
 		{"pipe table override", false, true, []string{"--table"}},
+		{"pipe -h is the human form", false, true, []string{"-h"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			out, stderr, err := cliPresentation(t, c.tty, server.URL, "fixture-token", append([]string{"ls", "--all"}, c.flags...)...)
@@ -145,5 +158,30 @@ func TestCLIShortHelpAndTTYListing(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestBigfileLsHumanForm(t *testing.T) {
+	server := protocolTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/bigfile/list" {
+			http.Error(w, "wrong route", 400)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"keys":[{"name":"photo","size":1536,"sha256":"ab12","held":"disk","expires":"2999-01-01T00:00:00Z"}]}`)
+	}))
+	defer server.Close()
+	plain, stderr, err := cliPresentation(t, false, server.URL, "fixture-token", "bigfile", "ls", "rec@h")
+	if err != nil || stderr != "" || !strings.HasPrefix(plain, "photo\t1536\tab12\tdisk\t") {
+		t.Fatalf("default bigfile ls must stay tab-separated bytes: %v %q %q", err, plain, stderr)
+	}
+	human, stderr, err := cliPresentation(t, false, server.URL, "fixture-token", "bigfile", "ls", "rec@h", "-h")
+	if err != nil || stderr != "" || !strings.HasPrefix(human, "NAME") || !strings.Contains(human, "1.5K") || strings.Contains(human, "\t") || strings.Contains(human, "USAGE") {
+		t.Fatalf("bigfile ls -h, piped, must be the human table: %v %q %q", err, human, stderr)
+	}
+	for size, want := range map[int64]string{0: "0", 1023: "1023", 1024: "1.0K", 12 * 1024: "12K", 1536 * 1024: "1.5M", 5 << 30: "5.0G"} {
+		if got := humanSize(size); got != want {
+			t.Errorf("humanSize(%d) = %q, want %q", size, got, want)
+		}
 	}
 }

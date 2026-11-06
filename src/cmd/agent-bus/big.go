@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/api"
@@ -370,7 +371,19 @@ func bigGetVerb(args []string) error {
 }
 
 func bigLsVerb(args []string) error {
-	pos, f, err := split(args)
+	human, rest := false, make([]string, 0, len(args))
+	for i, a := range args {
+		if a == "--" {
+			rest = append(rest, args[i:]...)
+			break
+		}
+		if a == "-h" { // the human form, as in Unix ls -h
+			human = true
+			continue
+		}
+		rest = append(rest, a)
+	}
+	pos, f, err := split(rest)
 	if err := only(f, err); err != nil {
 		return err
 	}
@@ -393,14 +406,46 @@ func bigLsVerb(args []string) error {
 	if err := json.Unmarshal(out, &res); err != nil {
 		return err
 	}
+	var w io.Writer = os.Stdout
+	var table *tabwriter.Writer
+	if human {
+		table = tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+		w = table
+		fmt.Fprintln(w, "NAME\tSIZE\tSHA256\tHELD\tEXPIRES IN")
+	}
 	for _, k := range res.Keys {
 		left := k.Expires
 		if t, e := time.Parse(time.RFC3339, k.Expires); e == nil {
 			left = time.Until(t).Round(time.Second).String()
 		}
-		fmt.Printf("%s\t%d\t%s\t%s\t%s\n", k.Name, k.Size, k.SHA256, k.Held, left)
+		size := strconv.FormatInt(k.Size, 10)
+		if human {
+			size = humanSize(k.Size)
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", k.Name, size, k.SHA256, k.Held, left)
+	}
+	if table != nil {
+		return table.Flush()
 	}
 	return nil
+}
+
+// humanSize writes bytes as Unix ls -h does: 1023, 1.0K, 12K, 1.5M.
+func humanSize(n int64) string {
+	if n < 1024 {
+		return strconv.FormatInt(n, 10)
+	}
+	v, unit := float64(n), ""
+	for _, u := range []string{"K", "M", "G", "T", "P", "E"} {
+		v, unit = v/1024, u
+		if v < 1024 {
+			break
+		}
+	}
+	if v < 10 {
+		return strconv.FormatFloat(v, 'f', 1, 64) + unit
+	}
+	return strconv.FormatFloat(v, 'f', 0, 64) + unit
 }
 
 func bigRmVerb(args []string) error {

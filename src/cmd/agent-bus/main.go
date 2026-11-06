@@ -262,9 +262,12 @@ func ls(args []string) error {
 	filtered := make([]string, 0, len(args))
 	options, format := true, ""
 	for _, arg := range args {
-		if options && (arg == "--table" || arg == "--json") {
+		if options && (arg == "--table" || arg == "-h" || arg == "--json") {
+			if arg == "-h" { // Unix ls -h: the human form, even when piped
+				arg = "--table"
+			}
 			if format != "" && format != arg {
-				return fmt.Errorf("--table and --json cannot be combined")
+				return fmt.Errorf("--table (-h) and --json cannot be combined")
 			}
 			format, human = arg, arg == "--table"
 			continue
@@ -1341,8 +1344,13 @@ func localHelp(verb string, rest []string) bool {
 }
 
 // -h is local command help, including subcommands. A delimiter and option
-// values stay opaque; --help with a destination remains an agent ask.
+// values stay opaque; --help with a destination remains an agent ask. The
+// listings are the exception: `ls -h` and `bigfile ls -h` mean the human
+// form, as in Unix ls.
 func shortHelp(verb string, args []string) bool {
+	if verb == "ls" || verb == "bigfile" && len(args) > 0 && args[0] == "ls" {
+		return false
+	}
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		if arg == "--" {

@@ -14,7 +14,7 @@ var commandGroups = []struct {
 }{
 	{"MAIN COMMANDS", []commandHelp{
 		{"status", "status", "Show bus status and your name", ""},
-		{"ls", "ls [<name>]", "List visible records (readers by default)", "--kind=user|agent|queue|pubsub|service|resource  List every visible record of this kind\n--tag=tag  Filter by tag; repeat it or comma-separate to require every tag\n--all  Include every visible kind\n--table  Force a human-readable table (default on a terminal)\n--json  Force JSON (default when piped or redirected)"},
+		{"ls", "ls [<name>]", "List visible records (readers by default)", "--kind=user|agent|queue|pubsub|service|resource  List every visible record of this kind\n--tag=tag  Filter by tag; repeat it or comma-separate to require every tag\n--all  Include every visible kind\n-h, --table  Force a human-readable table, as Unix ls -h (default on a terminal)\n--json  Force JSON (default when piped or redirected)"},
 		{"send", "send <to> [<text>|-]", "Send once without waiting", "--topic=topic  Message topic\n--tag=tag  Correlation tag\n--reply-to=name  Reply inbox\n--ttl=duration  Lifetime (default recipient retention; shorter wins)\n--help  Ask the destination for help (with <to>)\n--help-config  Ask for Configuration declarations\n--help-secret  Ask for environment declarations\n--help-json  Ask for machine metadata\n--status  Ask for agent status\n--mcp  Ask for MCP tools"},
 		{"call", "call <to> [<text>|-]\n  agent-bus call --tagged=<tag> <body>", "Send once and wait for the answer", "--topic=topic  Message topic\n--tag=tag  Correlation tag\n--tagged=tag  Call every visible matching agent\n--wait=duration  Answer deadline (default 30s)\n--body  Print only the answer body (single target; like jq -r .body)\n--help  Ask the destination for help (with <to>)\n--help-config  Ask for Configuration declarations\n--help-secret  Ask for environment declarations\n--help-json  Ask for machine metadata\n--status  Ask for agent status\n--mcp  Ask for MCP tools"},
 		{"consume", "consume", "Read messages from your inbox", "--inbox=name  Inbox to read\n--topic=topic  Match topic\n--tag=tag  Match tag\n--wait=duration  Long-poll deadline (default 30s)\n--follow  Keep reading\n--share  Read as one of several workers\n--host=name  State where this reader runs"},
@@ -40,7 +40,7 @@ var commandGroups = []struct {
 	}},
 	{"STORAGE AND LOCKS", []commandHelp{
 		{"kv", "kv get <record> <key>\n  agent-bus kv set <record> <key> <value|->\n  agent-bus kv delete <record> <key>\n  agent-bus kv inc <record> <key> [n]\n  agent-bus kv json <record> <key> <ops>", "Read or change stored values", "--int  Integer storage (get,set,delete)\n--json  JSON storage (get,set,delete)\n--add  Set only if absent (set only)\n--replace  Set only if present (set only)"},
-		{"bigfile", "bigfile put <record> <name> [<file>|-]\n  agent-bus bigfile get <record> <name> [-o <file>]\n  agent-bus bigfile ls <record>\n  agent-bus bigfile rm <record> <name>", "Pass values too big for a message, by name", "--ttl=duration  Lifetime, h m s or d (put; default 24h, at most 30d)\n--memory  Keep in daemon memory only (put)\n-o file  Write to a file instead of stdout (get)"},
+		{"bigfile", "bigfile put <record> <name> [<file>|-]\n  agent-bus bigfile get <record> <name> [-o <file>]\n  agent-bus bigfile ls <record>\n  agent-bus bigfile rm <record> <name>", "Pass values too big for a message, by name", "--ttl=duration  Lifetime, h m s or d (put; default 24h, at most 30d)\n--memory  Keep in daemon memory only (put)\n-o file  Write to a file instead of stdout (get)\n-h  Human table with sizes like 1.5K (ls)"},
 		{"lock", "lock <record> <name>", "Wait for and take a named lock", "--ttl=duration  Lease lifetime (default 30s)\n--wait=duration  Acquisition deadline (default 30s)"},
 		{"try-lock", "try-lock <record> <name>", "Take a named lock or refuse immediately", "--ttl=duration  Lease lifetime (default 30s)"},
 		{"release", "release <record> <name>", "Release a named lock", "--force  Release another holder (manager only)"},
@@ -53,7 +53,7 @@ var commandGroups = []struct {
 	}},
 }
 
-const globalOptions = "\n\nGLOBAL OPTIONS\n  --addr=<address>  Daemon address; place before the command\n  -h, --help  Overview when used alone; <command> -h or --help shows its page\n  --version  Print version and build; use alone"
+const globalOptions = "\n\nGLOBAL OPTIONS\n  --addr=<address>  Daemon address; place before the command\n  -h, --help  Overview when used alone; <command> -h or --help shows its page; for ls and bigfile ls, -h is the human form\n  --version  Print version and build; use alone"
 
 func commandPage(text string) string {
 	return display.ManText(strings.Replace(text, "\n\nEXAMPLES", globalOptions+"\n\nEXAMPLES", 1)) + "\n\n" + display.Footer()

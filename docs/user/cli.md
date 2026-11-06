@@ -77,9 +77,10 @@ Five programs; you use the first one almost always.
 ## Help
 
 - `agent-bus --help` or `agent-bus -h` groups every command by purpose.
-- `agent-bus <command> --help` or `<command> -h` shows its usage, options with defaults, and examples. Local help answers even when a launcher session file is no longer readable.
+- `agent-bus <command> --help` or `<command> -h` shows its usage, options with defaults, and examples. The listings are the exception: in `ls` and `bigfile ls`, `-h` is the human form, as in Unix `ls -h`. Local help answers even when a launcher session file is no longer readable.
 - `agent-bus help '#agent'` asks an agent instead ([below](#asking-an-agent-what-it-can-do)).
-- `agent-bus ls` displays a table on a terminal and JSON when piped or redirected. `--table` and `--json` force either form.
+- `agent-bus ls` displays a table on a terminal and JSON when piped or redirected. `-h` or `--table` and `--json` force either form.
+- `agent-bus bigfile ls <record> -h` adds a header and sizes like `1.5K`; without it, lines are tab-separated with sizes in bytes.
 - `--addr=<address>` goes before the command.
 
 ## Option spelling
