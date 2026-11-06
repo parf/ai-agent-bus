@@ -278,6 +278,12 @@ class WatchResend(SyncBase):
         self.assertIn('never stored it whole',next(iter(named.values()))['a.md'])
         self.put('a.md','one, edited');self.scan();self.assertEqual(len(self.bus.upserts('a.md')),2+fs.RESEND_MAX,'a new version starts again')
 
+    def test_the_resend_bound_holds_across_a_restart(self):
+        self.bus.store=False;self.bus.lose.add('a.md');self.put('a.md','one');self.scan();self.scan()
+        self.agent=self.make({})
+        for _ in range(fs.RESEND_MAX+4):self.scan()
+        self.assertEqual(len(self.bus.upserts('a.md')),1+fs.RESEND_MAX,'a restart does not start the count again')
+
     def test_a_refusal_goes_again_without_a_check(self):
         self.put('a.md','one');self.bus.refuse.add('a.md');self.scan();self.bus.refuse.clear();self.scan()
         self.assertEqual([c['method'] for c in self.bus.calls],['upsert','upsert'])
@@ -346,6 +352,21 @@ class LargeWatch(SyncBase):
         self.bus.reject_large.clear();self.wall.now+=fs.LARGE_WAIT+1;self.scan()
         self.assertEqual(len(self.bus.upserts('big.md')),2,'after it, a check that does not prove it stored allows the resend')
         self.scan();self.assertEqual(self.pending(),0)
+
+    def test_a_restart_inside_the_deadline_sends_nothing_twice(self):
+        self.put('big.md',LARGE);self.bus.reject_large.add('big.md');self.scan()
+        self.agent=self.make({})   # a runner reload: a fresh process on the same state
+        for _ in range(3):self.scan()
+        self.assertEqual(len(self.bus.upserts('big.md')),1,'in flight across the restart: only checked')
+        self.bus.reject_large.clear();self.wall.now+=fs.LARGE_WAIT+1;self.agent=self.make({});self.scan()
+        self.assertEqual(len(self.bus.upserts('big.md')),2,'after the deadline the check allows one resend')
+
+    def test_files_in_flight_past_a_batch_never_hold_up_a_later_file(self):
+        self.agent=self.make({'batch':2})
+        for n in range(3):self.put(f'a{n}.md',LARGE+str(n))
+        self.bus.reject_large.update({'a0.md','a1.md','a2.md'});self.put('z.md','small');self.scan();self.scan()
+        self.assertEqual(len(self.bus.upserts('z.md')),1,'a later small file goes while three large ones are in flight')
+        self.assertEqual(len(self.bus.upserts()),4,'each large file went once')
 
     def test_a_large_file_that_is_not_markdown_is_skipped_for_rag_and_named(self):
         self.put('big.txt',LARGE);self.scan()

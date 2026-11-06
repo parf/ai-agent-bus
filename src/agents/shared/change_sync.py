@@ -30,6 +30,7 @@ from subscriptions import SubscriptionError
 VERSION=1
 DEFAULT_STATE_MAX=64*1024*1024
 HOLD_WAIT=10.0  # `sub add` and `sub delete` wait this long for a running scan or delivery round
+SETTLE_WAIT=1.0  # one `settle` question's share of a round: many rows asked about never use up the round
 ROUND_MAX=8.0   # a delivery round ends within this, so it always lets an add or delete through inside HOLD_WAIT
 SUB_FIELDS={'id','target','selector','created_by','created_at','sent','confirmed','dropped'}
 CODES={'state_full','state_corrupt','state_unwritable','scan_busy'}
@@ -312,7 +313,8 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
       fingerprint) had an unknown outcome: 'confirmed' marks it done with no send, 'resend' sends it as without the hook, anything else
       leaves it pending and untouched for this round while the rest of the batch goes on. A key edited since that send has another
       fingerprint and is sent without asking; a send refused outright was never possibly delivered, so it is not asked either.
-      Without `settle` nothing changes.
+      Such rows take no place in the batch (up to `batch` of them are asked after it), and each question gets at most
+      SETTLE_WAIT. Without `settle` nothing changes.
     - After a crash a subscriber may get a delete for a key it never received (the record is written for the whole batch before
       the sends): deletes must be idempotent. Never the other way: a delete is not lost.
     - The author's may-send to the target and to the source, and the target's record, are checked again before every send.
@@ -333,7 +335,13 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
         data=state.load()
         for sub_id in sorted(data['subs']):
             row=data['subs'][sub_id];count={'sent':0,'confirmed':0,'dropped':0,'pending':0,'skipped':0};results[sub_id]=count
-            todo=_fuse(pending(data,sub_id,lambda key,row=row:matches(row,key)),bool(rename and rename(row)))[:batch]
+            entries=_fuse(pending(data,sub_id,lambda key,row=row:matches(row,key)),bool(rename and rename(row)))
+            if settle is None:todo=entries[:batch]
+            else:
+                # Rows whose earlier send of this version is unknown are only asked about, so they take no place in the batch:
+                # a run of them (large files in flight) never holds up the files behind them. Each kind is capped at `batch`.
+                unsettled=lambda e:e[1] in ('create','change') and data['maybe'][sub_id].get(e[0])==e[2]['fp']
+                todo=[e for e in entries if not unsettled(e)][:batch]+[e for e in entries if unsettled(e)][:batch]
             # Written down before any send: a send whose outcome is never learned (a timeout, a crash, a failed save) may
             # have been applied, so a later delete of that key must still be sent. Cleared by the confirmation.
             # A delete is written as `?`: the target may still hold the key, or may not, so a key that comes back is owed again.
@@ -365,7 +373,7 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
                         # No answer contract for an agent: nothing is sent, because nothing could say it was done.
                         count['dropped']+=1;row['dropped']=min(base.MAX_SAFE,row['dropped']+1);warning('agent_contract_missing',sub_id);break
                     if settle is not None and action in ('create','change') and earlier.get(key)==record['fp']:
-                        verdict=settle(row,key,record,max(0.05,min(confirm_wait,deadline-time.monotonic())))
+                        verdict=settle(row,key,record,max(0.05,min(SETTLE_WAIT,deadline-time.monotonic())))
                         if verdict=='confirmed':
                             attempted.add(key);count['confirmed']+=1;row['confirmed']=min(base.MAX_SAFE,row['confirmed']+1)
                             data['maybe'][sub_id].pop(key,None);data['skipped'][sub_id].pop(key,None);data['marks'][sub_id][key]=record['fp']

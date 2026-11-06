@@ -141,7 +141,7 @@ An `as rag` upsert whose answer never came may still be stored and paid for, so 
 
 - A file edited since the lost send goes out at once with its new hash; the check is for the same version only.
 - A refusal is a definite answer: the file goes again on the next round with no check.
-- The resend count lives in memory: a restart starts it again.
+- What is in flight and the resend count are written to `rag-flight.json` in the work directory before the send, so a restart keeps both; `reset confirm:true` clears them.
 
 ### Large files in RAG
 
@@ -149,7 +149,6 @@ An `as rag` upsert whose answer never came may still be stored and paid for, so 
 - RAG stores it in chunks and has 30 minutes to do so: the upsert goes with that deadline and is not waited on. **Until then the file is never sent again**, only checked; it shows in `pending`, and `sync` lists it as `in_flight`.
 - FileScan cannot read RAG's direct answer to such an upsert, so a refusal is not seen at once: the file stays pending until the 30 minutes end. After them, the check settles it: stored whole confirms it, anything less sends it again under the watch (within the bound above) or reports it `unknown` to `sync`.
 - Every send uploads the bigfile afresh, kept at least 1 hour, so a resend never names an expired key. The key is deleted once no present file has that hash.
-- A file in flight when FileScan restarts is checked at once on the watch path; a duplicate paid upsert is possible then.
 
 ### On-demand sync
 

@@ -460,6 +460,15 @@ class DeliveryTests(Base):
         self.assertEqual([b for _,b,_ in self.bus.calls],['create b','create a'],'resend sends it as without the hook')
         self.assertEqual(self.state.load()['marks'][row['id']],{'a':'1','b':'2'})
 
+    def test_rows_settle_is_asked_about_take_no_place_in_the_batch(self):
+        subs,row=self.add('#rag@n.test',kind='agent');self.put({'c':item('3'),'z':item('9')})
+        body=lambda r,key,action,record:(f'{action} {key}',{'wait':1800}) if key!='z' else f'{action} {key}'
+        self.round(body=body,batch=3,settle=lambda *a:'wait')
+        self.assertEqual([b for _,b,_ in self.bus.sent],['create a','create b','create c'],'three in flight fill the first batch')
+        self.round(body=body,batch=3,settle=lambda *a:'wait')
+        self.assertEqual([b for _,b,_ in self.bus.calls],['create z'],'a batch of rows in flight never holds up the file behind them')
+        self.assertEqual(self.state.load()['marks'][row['id']],{'z':'9'})
+
     def test_a_body_may_give_one_send_its_own_call_options(self):
         subs,row=self.add('#rag@n.test',kind='agent')
         self.round(body=lambda r,key,action,record:(f'{action} {key}',{'ttl':1800}) if key=='a' else f'{action} {key}')

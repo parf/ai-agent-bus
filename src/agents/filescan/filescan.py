@@ -134,6 +134,7 @@ UPSERT_ECHO=('namespace','tableName','id','source','content_hash')   # what a RA
 RAG_SOURCE=2048   # RAG's own limit on `source`, in UTF-8 bytes
 RAG_CAP=1<<20   # the largest file sent to RAG, by bigfile reference (Q371)
 LARGE_NOT_MARKDOWN='over 32 KiB and not Markdown (.md or .markdown): RAG takes a large file by reference as text/markdown only'
+FLIGHT_FILE='rag-flight.json'
 RESEND_MAX=3        # check-driven resends of one version of one file to RAG under the watch; each pays RAG's classification again
 LARGE_WAIT=1800.0   # a large upsert's deadline, RAG's working time; also its queue `ttl`. In flight until then: no resend, only RAG's free check
 SYNC_BOUND=20.0   # a `sync` call answers within this, well under the 30 s call deadline in agent.json; the rest waits for the next call
@@ -219,8 +220,9 @@ class FileScan:
         self.subs=core.SyncSubscriptions(bus,bus.name,self.state,validate_selector=selector,agent_contract=lambda sel:bool(sel.get('rag')),clock=clock)
         self.lock=threading.Lock()
         self.matched={};self.skipped={}
-        self.resends={}    # (sub id, path) -> (hash, count): check-driven resends of that version; memory only, a restart starts again
-        self.inflight={}   # (sub id, path) -> (hash, until): large RAG upserts left in flight; memory only, so a restart checks at once
+        # The watch path's RAG memory, kept in its own file and written before the send it describes, so a restart inside a
+        # large upsert's deadline sends nothing twice: (sub id, path) -> (hash, until) and (sub id, path) -> (hash, count).
+        self.flight_path=Path(work)/FLIGHT_FILE;self.inflight,self.resends=self._load_flight()
         self.watcher=None;self._uploaded=[];self._sent_key=None;self.hints={};self.fallback=None;self._sent_delete=False;self._sent_upsert=None
         try:self.state.clean_temporaries()
         except core.SyncError:pass
@@ -349,20 +351,60 @@ class FileScan:
         namespace=sel.get('namespace') or self.settings['namespace'];table=sel.get('table') or self.settings['table']
         if not namespace or not table:return 'resend'   # the body names why it is skipped
         verdict=rag_check(self.bus,row['target'],namespace,table,key,record['fp'],timeout=wait)
-        flight=self.inflight.get((row['id'],key))
+        ident=(row['id'],key);flight=self.inflight.get(ident)
         if flight and flight[0]==record['fp'] and self.clock()<flight[1]:
-            return 'confirmed' if verdict=='complete' else 'wait'   # a large upsert still in flight is never sent again
-        self.inflight.pop((row['id'],key),None)
+            if verdict!='complete':return 'wait'   # a large upsert still in flight is never sent again
         if verdict=='complete':
-            self.resends.pop((row['id'],key),None);return 'confirmed'
+            self.inflight.pop(ident,None);self.resends.pop(ident,None)
+            try:self._save_flight()
+            except OSError:pass   # a stale note only costs a free check
+            return 'confirmed'
         if verdict!='incomplete':return 'wait'
-        fp,count=self.resends.get((row['id'],key),(None,0))
+        fp,count=self.resends.get(ident,(None,0))
         if fp!=record['fp']:count=0
         if count>=RESEND_MAX:
             self._skip(row['id'],key,f'sent {count+1} times and RAG never stored it whole; it goes again when the file changes or after `reset`')
             return 'wait'
-        self.resends[(row['id'],key)]=(record['fp'],count+1)
+        self.inflight.pop(ident,None);self.resends[ident]=(record['fp'],count+1)
+        try:self._save_flight()
+        except OSError:return 'wait'   # a resend that could not be counted is not sent
         return 'resend'
+
+    def _load_flight(self):
+        """The watch path's RAG memory; a missing file is empty, and a damaged one is named and read as empty."""
+        inflight,resends={},{}
+        try:raw=json.loads(self.flight_path.read_bytes())
+        except FileNotFoundError:return inflight,resends
+        except (OSError,ValueError,UnicodeError,RecursionError):
+            self.warning('flight_corrupt');return inflight,resends
+        try:
+            for sub,path,sha,until in raw['inflight']:inflight[(str(sub),str(path))]=(str(sha),float(until))
+            for sub,path,sha,count in raw['resends']:resends[(str(sub),str(path))]=(str(sha),int(count))
+        except (KeyError,TypeError,ValueError):
+            self.warning('flight_corrupt');return {},{}
+        return inflight,resends
+
+    def _save_flight(self):
+        """Written whole to a temporary file, flushed, then renamed; raises OSError when it cannot be written."""
+        data=json.dumps({'inflight':[[s,p,h,u] for (s,p),(h,u) in sorted(self.inflight.items())],
+                         'resends':[[s,p,h,c] for (s,p),(h,c) in sorted(self.resends.items())]},separators=(',',':')).encode()
+        temp=self.flight_path.with_name(self.flight_path.name+'.tmp')
+        fd=os.open(temp,os.O_WRONLY|os.O_CREAT|os.O_TRUNC|os.O_NOFOLLOW,0o600)
+        try:
+            view=memoryview(data)
+            while view:view=view[os.write(fd,view):]
+            os.fsync(fd)
+        finally:os.close(fd)
+        os.replace(temp,self.flight_path)
+
+    def _trim_flight(self,state):
+        """Forget notes for a subscription or file that is gone."""
+        keep=lambda k:k[0] in state['subs'] and k[1] in state['items'] and not state['items'][k[1]].get('gone')
+        stale=[k for k in self.inflight if not keep(k)]+[k for k in self.resends if not keep(k)]
+        if not stale:return
+        for k in stale:self.inflight.pop(k,None);self.resends.pop(k,None)
+        try:self._save_flight()
+        except OSError:pass
 
     def _confirm(self,result):
         """The target's reply counts as confirmed only when it shows the job done. A RAG upsert answers with the stored record: it counts
@@ -439,6 +481,7 @@ class FileScan:
         call=rag_reference_upsert(namespace,table,ident,key,key1,reference,'text/markdown')
         self.skipped.get(row['id'],{}).pop(key,None)
         self.inflight[(row['id'],key)]=(sha,self.clock()+LARGE_WAIT)
+        self._save_flight()   # before the send: a restart inside the deadline must know it is in flight (an OSError sends nothing)
         self._sent_upsert=tuple(call[k] for k in UPSERT_ECHO);self._sent_key=(row['id'],key)
         return dumps(call),{'wait':LARGE_WAIT,'ttl':LARGE_WAIT}   # RAG honours `wait`; `ttl` is its time in RAG's queue (large-files.md#transport)
 
@@ -488,7 +531,7 @@ class FileScan:
             if failure.code!='scan_busy':self.warning(failure.code)
 
     def _round(self):
-        self.prepare_matches(self.state.load())
+        state=self.state.load();self.prepare_matches(state);self._trim_flight(state)
         result=self.deliver()
         self._collect_bigfiles()
         self._trim_origins()
@@ -699,6 +742,9 @@ class FileScan:
                 # A damaged file cannot be read back, so its subscriptions are lost with it.
                 state={'version':core.VERSION,'items':{},'subs':{},'marks':{},'meta':{}}
             core.reset(state);self.state.save(state)
+            self.inflight.clear();self.resends.clear()
+            try:self._save_flight()
+            except OSError:pass
         return {'reset':True}
 
     def handle(self,message):
