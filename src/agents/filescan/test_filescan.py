@@ -439,6 +439,20 @@ class BigfileTests(Base):
         self.assertEqual(m['bigfile']['sha256'],self.sha(newer));self.assertEqual(self.keys(),[self.sha(newer)],'the key that was sent is still there')
         self.assertEqual(self.bus.deletes,[]);self.assertEqual(self.agent.state.load()['items']['big.txt']['fp'],self.sha(newer))
 
+    def test_a_file_rewritten_during_the_upload_is_refused_by_the_store_and_sent_once_next_round(self):
+        for i in range(10):self.put(f'k{i}.txt','k')
+        self.put('big.txt',self.BIG);self.add(extra='bigfile');real=fs.scanning.open_under;done=[]
+        def rewriting(root,rel):
+            if rel=='big.txt':done.append(1)
+            if rel=='big.txt' and len(done)==3:(Path(root)/rel).write_text('w'*40)   # opens: the poll's hash, the body's hash, then the upload;os.utime(Path(root)/rel,(time.time()+9,time.time()+9))   # same size, other bytes
+            return real(root,rel)
+        fs.scanning.open_under=rewriting
+        try:
+            self.call('scan');self.assertEqual([m for m in self.messages() if m['path']=='big.txt'],[],'the store refused bytes that do not match the hash')
+            self.assertEqual(self.bus.puts,[]);self.call('scan');self.call('scan')
+        finally:fs.scanning.open_under=real
+        (m,)=[m for m in self.messages() if m['path']=='big.txt'];self.assertEqual(m['bigfile']['sha256'],self.sha('w'*40));self.assertEqual(self.keys(),[self.sha('w'*40)])
+
     def test_bigfile_is_a_queue_option_and_cannot_join_as_rag(self):
         self.assertEqual(fs.parse('sub add #q@n /\\.bin$/ bigfile replay:false'),('sub.add',{'target':'#q@n','pattern':'/\\.bin$/','bigfile':True,'replay':False}))
         self.assertEqual(self.call('sub add #q@n.test bigfile as rag vault notes')['error']['code'],'invalid_selector')
