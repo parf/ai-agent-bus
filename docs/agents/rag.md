@@ -238,3 +238,20 @@ Replacement and recovery:
 - The 120-second message cap is one budget across all stages; the caller's earlier deadline wins; provider calls get at most min(30 seconds, remaining); Qdrant and KV calls min(10 seconds, remaining), without resetting between stages.
 
 </details>
+
+### If an upsert's outcome is unknown
+
+A timeout, a lost reply or an answer that says the outcome is **unknown** means RAG may or may not have stored the record. RAG has no deduplication: an upsert carries no request id or idempotency key, so a repeat is a new write.
+
+- **Check first, at no cost:** `get` the same `namespace`, `tableName` and `id`. It reads storage only and makes no provider call.
+- **Compare `content_hash`:** it is the SHA-256 of the exact text's UTF-8 bytes. Compute the same hash of the text you sent.
+- **Same hash:** the record is stored. Do not retry.
+- **`not_found`:** it is not stored (or was deleted). A retry classifies and embeds the text again, so it can spend provider balance a second time.
+- **Another hash:** a different version is stored, yours or a newer one. A retry replaces it, so compare `indexed_at` and retry only when yours should win.
+- **Wait the call's own deadline before checking:** an attempt still in flight can store the record after your check, and a retry then pays twice.
+
+### What 0.3 does not claim
+
+- **No end-to-end ingestion journey:** RAG stores what it is sent. It does not fetch, watch or schedule anything, and it keeps no job, progress or retry record. Feeding a folder is [FileScan](filescan.md#what-it-does)'s job.
+- **No historical revisions or generations:** `get` and `search` read the current record. Replacing a record removes its old content, `indexed_at` is the current revision's time, and there is no list of earlier versions and no rollback.
+- **No deduplication:** the same text sent twice is classified and embedded twice.
