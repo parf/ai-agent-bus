@@ -32,7 +32,8 @@ export function sidecarMessage(e: Envelope): string {
   if (e.receipt) return describe(e);
   const route = e.reply_to;
   if (!route || (route.name === e.from && (route.topic ?? "") === (e.topic ?? "") && (route.tag ?? "") === (e.tag ?? ""))) return describe(e);
-  return `${describe(e)}\n\nReply to ${route.name} · topic ${route.topic ?? ""} · tag ${route.tag ?? ""}`;
+  const reply = [`Reply to ${route.name}`, route.topic && `topic ${route.topic}`, route.tag && `tag ${route.tag}`].filter(Boolean).join(" · ");
+  return `${describe(e)}\n\n${reply}`;
 }
 
 // The name this was born with, kept for the Codex pusher's call sites.

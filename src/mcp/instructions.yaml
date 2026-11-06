@@ -6,8 +6,7 @@ instructions: >-
   Never send done after an answer; send done only for a task with no answer
   expected. Send nothing for reports, notices or receipts. Send answers with
   ab_reply, or ab_send using the pushed return route. For a message consumed
-  here, ab_receipt needs its message_id and kind. A pushed message also supplies
-  to, topic and tag: pass that explicit route to ab_receipt. Preserve the return
+  here, ab_receipt needs its message_id and kind. A pushed message's return route is its header's from/topic/tag unless a Reply to line overrides it; ab_receipt uses that route plus the header id. Preserve the return
   route and matching topic and tag. Your own output never reaches the peer. The
   face registers this name at start and reconnects under the same name after a
   daemon restart. Before calling an agent you do not know, ask it what it can

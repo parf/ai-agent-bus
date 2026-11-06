@@ -21,14 +21,18 @@ test("an explicit return route matching the header needs no tail", () => {
   expect(codexMessage({ ...untagged, reply_to: { name: message.from, topic: "", tag: "" } })).toBe(describe(untagged));
 });
 test("a change to any return-route field is shown without inheriting omitted fields", () => {
-  for (const route of [
-    { name: "collector@h", topic: "original", tag: "tag" },
-    { name: "sender@h", topic: "return", tag: "tag" },
-    { name: "sender@h", topic: "original", tag: "match" },
-    { name: "sender@h" },
+  for (const { route, line } of [
+    { route: { name: "collector@h", topic: "original", tag: "tag" }, line: "Reply to collector@h · topic original · tag tag" },
+    { route: { name: "sender@h", topic: "return", tag: "tag" }, line: "Reply to sender@h · topic return · tag tag" },
+    { route: { name: "sender@h", topic: "original", tag: "match" }, line: "Reply to sender@h · topic original · tag match" },
+    { route: { name: "sender@h" }, line: "Reply to sender@h" },
   ]) {
-    expect(codexMessage({ ...message, reply_to: route })).toBe(`${describe(message)}\n\nReply to ${route.name} · topic ${route.topic ?? ""} · tag ${route.tag ?? ""}`);
+    expect(codexMessage({ ...message, reply_to: route })).toBe(`${describe(message)}\n\n${line}`);
   }
+});
+test("a reply line omits empty topic and tag fields", () => {
+  expect(codexMessage({ ...message, reply_to: { name: "collector@h", topic: "", tag: "" } })).toBe(`${describe(message)}\n\nReply to collector@h`);
+  expect(codexMessage({ ...message, reply_to: { name: "collector@h", tag: "match" } })).toBe(`${describe(message)}\n\nReply to collector@h · tag match`);
 });
 test("Codex receipts render unchanged even with a different return route", () => {
   for (const receipt of ["ack", "done"] as const) {
@@ -59,5 +63,8 @@ test("instructions and receipt tool teach RD103", async () => {
     for (const rule of ["same turn", "another turn", "Never send done after an answer", "done only for a task with no answer expected", "nothing for reports, notices or receipts"]) expect(source).toContain(rule);
     expect(source).not.toContain("Confirm receipt of every");
     expect(source).not.toContain("always send an ack");
+    expect(source).toContain("header's from/topic/tag");
+    expect(source).toContain("Reply to line overrides");
+    expect(source).toContain("header id");
   }
 });

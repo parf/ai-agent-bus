@@ -13,7 +13,7 @@ ab_reply: >-
   Answer a message this session consumed, by its id. Writing the reply in your own output leaves it in this session and the asker never sees it. A pushed message says which tool answers it: a Codex push arrives from a sidecar whose reply context this process does not hold, and spells out an ab_send instead. Routing comes from the original — sender, topic and tag — so the asker can match it.
 
 ab_receipt: >-
-  If you answer in the same turn, send only the answer, no ack. Send an ack only when the answer needs another turn. Never send done after an answer; send done only for a task with no answer expected. Send nothing for reports, notices or receipts. For a message consumed here, provide message_id and kind; for a pushed message, also pass its explicit to, topic and tag return route. Neither ack nor done is an answer.
+  If you answer in the same turn, send only the answer, no ack. Send an ack only when the answer needs another turn. Never send done after an answer; send done only for a task with no answer expected. Send nothing for reports, notices or receipts. For a message consumed here, provide message_id and kind; for a pushed message, its return route is its header's from/topic/tag unless a Reply to line overrides it; pass that route plus the header id. Neither ack nor done is an answer.
 
 ab_rename: >-
   Change the address this session is registered under, so peers find it by what it is working on rather than by when it started. With an ab-* launcher, a supplied name renames the runtime session and bus address together; with no argument it reads the current session title. The old address is released only when nothing is queued or waiting there; a busy one is kept and reported, so no message is lost.
