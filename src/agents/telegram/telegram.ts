@@ -22,6 +22,7 @@ import { Seen } from "./seen.ts";
 import { Receiver } from "./receive.ts";
 import { Router } from "./router.ts";
 import { Forwarder } from "./forward.ts";
+import { learnBotId } from "./identity.ts";
 import { ChatPort, ChatSubscriptions, staff as mayChangeSubscriptions, subscriptionList } from "../shared/subscription-port.ts";
 import { SubscriptionError } from "../shared/subscriptions.ts";
 
@@ -461,12 +462,8 @@ try {
   console.error(`telegram: ${e instanceof Error ? e.message : "the offset could not be read"}`);
   process.exit(1);
 }
-void (async () => {
-  try {
-    const me = await thisCall("read", "getMe");
-    if (me.ok === true && me.result?.id !== undefined) receiver.botId = String(me.result.id);
-  } catch { /* the bot id stays unknown until the endpoint answers */ }
-})();
+// The bot id is asked for again, at a capped backoff, until getMe names it; the agent serves meanwhile.
+void learnBotId(() => thisCall("read", "getMe"), id => { receiver.botId = id; }, { signal: stop.signal, log: line => console.error(`telegram: ${line}`) });
 receiver.start();
 await bus.serve(handle, { signal: stop.signal, drainTimeout: 5000, matchesReply: message => router.matchesReply(message), onReply: message => router.answer(message) });
 forwarder.stop();

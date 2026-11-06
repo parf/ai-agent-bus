@@ -222,6 +222,7 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 | alert | Another program receives for this bot (`409`): nothing arrives here | Stop the other receiver or webhook |
 | alert | Configuration is malformed at start, so it does not run | Fix the key the entry names |
 | warning | A receive poll failed and a later one recovered | Nothing; if it repeats, check the network |
+| warning | Telegram has not said who the bot is (`getMe` failing): it serves on, lets the bot's own posts through, and asks again, waiting at most 30 s between asks; a second line says when it is known | Nothing if the second line follows; otherwise check the token and the network |
 | warning | A routed message was refused, or failed after three tries | Check that the session exists and allows this agent |
 | warning | A subscription copy was dropped (author refused, target gone) | Restore access or fix the target; the next match stays active |
 
