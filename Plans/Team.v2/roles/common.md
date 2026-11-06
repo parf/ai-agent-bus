@@ -21,6 +21,8 @@ Owner, 2026-11-05: "do not run heavy tests unless really needed". Run focused te
 
 Owner, 2026-11-06: "do not run tests for minor changes, do not build release bundles - we are not close to release". A minor change (docs, plans, comments, wording, metadata) gets no test runs and no gate of its own: a link check at most, or it rides the next real landing. Whether a small code fix counts as minor is the lead's call; when in doubt, ask #ab-dir. No release bundles, container images, release.sh or podman matrix builds until the owner opens the release.
 
+Owner, 2026-11-06: the live `#ai@parf.us` runs on a paid production key shared with the realmo.com site. Never call it, or any live paid provider (`#voyage`, SMS, mail), for a test, a check or a demo; tests use their fixture servers. A live call needs the owner's OK each time. `models` is free and allowed.
+
 Smoke lock identity: [CLAUDE.md § Verification](../../../CLAUDE.md#verification).
 
 ## Task lifecycle
