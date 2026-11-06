@@ -135,7 +135,7 @@ export class Terminal {
     // Konsole ignores the xterm title stack. Save and restore its formats
     // through the caller's session, never the currently focused tab.
     if (this.formats.length) this.session("setTitle", "1", title);
-    if (this.tmux) this.command("tmux", ["rename-window", "-t", this.tmux.window, tmuxName(`${this.tmux.name} ${glyph(this.runtime, this.account)}`)]);
+    if (this.tmux) this.command("tmux", ["rename-window", "-t", this.tmux.window, "--", tmuxName(`${this.tmux.name} ${glyph(this.runtime, this.account)}`)]);
   }
 
   restore(): void {
@@ -188,7 +188,7 @@ export class Terminal {
     this.tmux = { window, name, auto };
   }
   private tmuxRelease({ window, name, auto }: { window: string; name: string; auto: string }): void {
-    this.command("tmux", ["rename-window", "-t", window, tmuxName(name)]);
+    this.command("tmux", ["rename-window", "-t", window, "--", tmuxName(name)]);
     this.command("tmux", auto ? ["set-option", "-w", "-t", window, "automatic-rename", auto] : ["set-option", "-uw", "-t", window, "automatic-rename"]);
     for (const option of ["@ab_title_owner", "@ab_title_orig", "@ab_title_auto"]) this.command("tmux", ["set-option", "-uw", "-t", window, option]);
   }

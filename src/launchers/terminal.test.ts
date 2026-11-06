@@ -206,6 +206,12 @@ ${restore ? "t.restore();" : ""}`;
     expect(nested.output).toBe("");
     expect(nested.rows).toEqual([]);
     expect(name()).toBe("outer ✴️");
+    // A name that looks like an option is still a name.
+    outer.kill();
+    t("rename-window", "-t", "t", "--", "-x");
+    t("set-option", "-uw", "-t", "t", "@ab_title_owner");
+    expect((await run(inTmux)).seen).toBe("-x ✴️");
+    expect(name()).toBe("-x");
   } finally {
     outer?.kill();
     if (tmux && existsSync(sock)) t("kill-server");
