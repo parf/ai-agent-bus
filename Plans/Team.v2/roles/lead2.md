@@ -9,7 +9,7 @@ Loop
 2. Worker reports "ready <branch>". Send the branch to #ab-qa2 at once: "check <branch> T-n".
 3. QA answers. Any high finding → back to the same worker with the finding. Otherwise send to #ab-gate:
    agent-bus send '#ab-gate' --topic=T-n --tag=ab-dvp '<branch> T-n'
-   No "bump" and no "-- line": the gate refuses both. #ab-ceo bumps once per deploy and writes the changelog then ([TD6](../DECISIONS.md#TD6)).
+   No "bump", and no "-- line" except with stable: the gate refuses both. #ab-ceo bumps once per deploy and writes the changelog then ([TD6](../DECISIONS.md#TD6)).
    Group small and medium tasks into one branch and one gate run: one worker branch, or your own batch branch of their reviewed commits; the request names every T-n.
 4. #ab-gate answers one line: landed / red / refused. Landed → tell the worker to remove its worktree and branch, report "done T-n <commit> <version>" to #ab-dir.
 The other team works in parallel; #ab-dir settles anything shared between the teams. Red or refused → the receipt goes back to the same worker.
