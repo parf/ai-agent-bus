@@ -1,10 +1,12 @@
 """On-demand sync (Plans/R1.1/filescan.md#on-demand-sync) against a scripted RAG: nothing paid, a fake clock, no sleeps."""
+import hashlib
 import json
 import os
 from pathlib import Path
 import sys
 import tempfile
 import threading
+import time
 from types import SimpleNamespace
 import unittest
 
@@ -33,10 +35,24 @@ class FakeRag:
     name=NAME
     def __init__(self,clock):
         self.clock=clock;self.records={};self.calls=[];self.lose=set();self.refuse=set();self.error=set();self.incomplete_delete=set();self.partial=set();self.check_error=False;self.store=True
-        self.allow={};self.kinds={RAG:'agent'}
+        self.allow={};self.kinds={RAG:'agent'};self.bigfiles={};self.sends=[];self.ttls=[];self.reject_large=set()
     def may_send(self,who,target):return self.allow.get((who,target),True)
-    def record(self,name):return SimpleNamespace(lookup=lambda:{'name':name,'kind':self.kinds.get(name,'queue')})
-    def send(self,to,body,**options):raise AssertionError('a sync never sends to a queue')
+    def record(self,name):
+        def put(sha,reader,*,size,ttl,sha256):
+            data=reader.read();assert hashlib.sha256(data).hexdigest()==sha256==sha and len(data)==size
+            self.bigfiles[sha]=data;self.ttls.append(ttl);return {'expires':'2026-11-06T01:00:00Z'}
+        def delete(sha):self.bigfiles.pop(sha,None)
+        return SimpleNamespace(lookup=lambda:{'name':name,'kind':self.kinds.get(name,'queue')},bigfile=SimpleNamespace(put=put,delete=delete))
+    def send(self,to,body,**options):
+        # Only a large upsert is sent without waiting: a bigfile reference with its own deadline. RAG stores it later, unless it
+        # refuses it (`reject_large`), which the sender never hears about.
+        call=json.loads(body);assert to==RAG and call['method']=='upsert' and 'bigfile' in call and 'data' not in call,call
+        assert options.get('wait')==fs.LARGE_WAIT and options.get('ttl',0)>=fs.LARGE_WAIT,options
+        self.calls.append(call);self.sends.append(options)
+        reference=call['bigfile'];assert self.bigfiles.get(reference['name']) is not None,'the reference names an uploaded bigfile'
+        assert hashlib.sha256(self.bigfiles[reference['name']]).hexdigest()==call['content_hash']==reference['sha256']
+        if call['source'] not in self.reject_large:
+            self.records[(call['namespace'],call['tableName'],call['id'])]={k:call[k] for k in ('namespace','tableName','id','source','content_hash')}
     def upserts(self,path=None):return [c for c in self.calls if c['method']=='upsert' and (path is None or c['source']==path)]
     def call(self,to,body,*,timeout,**options):
         call=json.loads(body);self.calls.append(call);self.clock.now+=self.clock.step
@@ -75,10 +91,10 @@ class SyncBase(unittest.TestCase):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
         base=os.path.realpath(self.tmp.name);self.root=os.path.join(base,'vault');self.work=os.path.join(base,'work')
         os.makedirs(self.root);os.makedirs(self.work)
-        self.clock=Clock();self.bus=FakeRag(self.clock);self.agent=self.make({})
+        self.clock=Clock();self.wall=Clock();self.wall.now=time.time();self.bus=FakeRag(self.clock);self.agent=self.make({})
 
     def make(self,extra):
-        return fs.FileScan(self.bus,{**self.CONFIG,**extra},self.root,self.work,monotonic=self.clock,warning=lambda *a:None)
+        return fs.FileScan(self.bus,{**self.CONFIG,**extra},self.root,self.work,clock=self.wall,monotonic=self.clock,warning=lambda *a:None)
 
     def put(self,rel,data='x'):
         p=Path(self.root)/rel;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(data)
@@ -160,12 +176,12 @@ class Bounds(SyncBase):
 
     def test_failed_outranks_capped_and_names_each_file(self):
         self.agent=self.make({'max_per_scan':1})
-        self.put('a.md','one');self.put('big.md','x'*(fs.RAG_TEXT+1));self.put('c.md','three');self.put('d.md','four')
+        self.put('a.md','one');self.put('big.md','x'*(fs.RAG_CAP+1));self.put('c.md','three');self.put('d.md','four')
         self.bus.error.add('c.md')
         r=self.sync();self.sync();r=self.sync()
         self.assertEqual(r['result'],'failed')
         self.assertIn({'path':'big.md','state':'failed'},[{k:f[k] for k in ('path','state')} for f in r['files']])
-        self.assertIn('over RAG',[f for f in r['files'] if f['path']=='big.md'][0]['reason'])
+        self.assertIn('cap for RAG',[f for f in r['files'] if f['path']=='big.md'][0]['reason'])
 
     def test_a_refusal_fails_the_file(self):
         self.put('a.md','one');self.bus.refuse.add('a.md')
@@ -253,6 +269,15 @@ class WatchResend(SyncBase):
         self.bus.store=True;self.put('b.md','two');self.bus.lose.add('b.md');self.scan();self.bus.lose.clear();self.bus.partial.add('b.md')
         self.scan();self.assertEqual(len(self.bus.upserts('b.md')),2,'complete:false confirms nothing: sent again')
 
+    def test_check_driven_resends_of_one_version_stop_at_the_bound_and_status_names_the_file(self):
+        self.bus.store=False;self.bus.lose.add('a.md');self.put('a.md','one');self.put('b.md','two')
+        for _ in range(fs.RESEND_MAX+4):self.scan()
+        self.assertEqual(len(self.bus.upserts('a.md')),1+fs.RESEND_MAX,'each resend pays RAG again: bounded per file')
+        self.assertEqual(len(self.bus.upserts('b.md')),1,'the bound is per file: b was stored')
+        named=json.loads(self.agent.handle(msg('status')))['skipped_for_rag']
+        self.assertIn('never stored it whole',next(iter(named.values()))['a.md'])
+        self.put('a.md','one, edited');self.scan();self.assertEqual(len(self.bus.upserts('a.md')),2+fs.RESEND_MAX,'a new version starts again')
+
     def test_a_refusal_goes_again_without_a_check(self):
         self.put('a.md','one');self.bus.refuse.add('a.md');self.scan();self.bus.refuse.clear();self.scan()
         self.assertEqual([c['method'] for c in self.bus.calls],['upsert','upsert'])
@@ -260,3 +285,66 @@ class WatchResend(SyncBase):
 
 if __name__=='__main__':
     unittest.main()
+
+
+LARGE='# big\n'+'word '*8000   # over RAG's 32 KiB inline limit, within its 1 MiB cap
+
+
+class LargeSync(SyncBase):
+    """A file over 32 KiB goes to RAG as a bigfile reference with its own deadline. Inside that deadline only RAG's free check is
+    asked, whatever it answers; after it, a check that does not prove the file stored is unknown, and only `resend:true` sends it."""
+    def test_a_large_file_is_in_flight_then_confirmed_by_the_check_alone(self):
+        self.put('big.md',LARGE)
+        r=self.sync()
+        self.assertEqual((r['result'],r['sent'],[f['state'] for f in r['files']]),('incomplete',1,['in_flight']))
+        (up,)=self.bus.upserts('big.md');self.assertEqual(up['content_hash'],hashlib.sha256(LARGE.encode()).hexdigest())
+        self.assertEqual(up['bigfile']['size'],len(LARGE));self.assertEqual(up['mime-type'],'text/markdown')
+        self.assertGreater(self.bus.ttls[0],fs.LARGE_WAIT,'the key outlives the upsert\'s own deadline')
+        again=self.sync()
+        self.assertEqual((again['result'],again['confirmed'],again['sent']),('confirmed',1,0))
+        self.assertEqual(len(self.bus.upserts('big.md')),1,'a complete check confirms it with no second upsert')
+
+    def test_inside_its_deadline_a_refused_large_file_is_never_sent_again_even_with_resend(self):
+        self.put('big.md',LARGE);self.bus.reject_large.add('big.md');self.sync()
+        for extra in ('','resend:true'):
+            r=self.sync(extra)
+            self.assertEqual((r['result'],[f['state'] for f in r['files']]),('incomplete',['in_flight']))
+        self.assertEqual(len(self.bus.upserts('big.md')),1)
+        self.wall.now+=fs.LARGE_WAIT+1
+        r=self.sync();self.assertEqual((r['result'],[f['state'] for f in r['files']]),('unknown',['unknown']))
+        self.assertEqual(len(self.bus.upserts('big.md')),1,'after the deadline only the caller resends')
+        self.bus.reject_large.clear();self.sync('resend:true');self.assertEqual(len(self.bus.upserts('big.md')),2)
+        self.assertEqual(self.sync()['result'],'confirmed')
+
+    def test_a_file_over_rags_cap_fails(self):
+        self.put('huge.md','x'*(fs.RAG_CAP+1))
+        r=self.sync();self.assertEqual((r['result'],r['sent'],r['files'][0]['state']),('failed',0,'failed'))
+
+
+class LargeWatch(SyncBase):
+    CONFIG={'mode':'poll','namespace':'vault','table':'notes'}
+
+    def setUp(self):
+        super().setUp()
+        r=json.loads(self.agent.handle(msg(f'sub add {RAG} as rag vault notes')));self.assertNotIn('error',r,r)
+
+    def scan(self):self.assertNotIn('error',json.loads(self.agent.handle(msg('scan'))))
+    def pending(self):return json.loads(self.agent.handle(msg('status')))['subscribers'][0]['pending']
+
+    def test_a_large_file_stored_by_rag_is_confirmed_by_the_check_with_no_second_upsert(self):
+        self.put('big.md',LARGE);self.scan();self.assertEqual(self.pending(),1,'in flight shows as pending')
+        self.scan();self.assertEqual(self.pending(),0)
+        self.assertEqual([c['method'] for c in self.bus.calls],['upsert','get'])
+
+    def test_a_refused_large_file_is_only_checked_until_its_deadline_then_sent_again(self):
+        self.put('big.md',LARGE);self.bus.reject_large.add('big.md');self.scan()
+        for _ in range(3):self.scan()
+        self.assertEqual(len(self.bus.upserts('big.md')),1,'never sent again inside its deadline');self.assertEqual(self.pending(),1)
+        self.bus.reject_large.clear();self.wall.now+=fs.LARGE_WAIT+1;self.scan()
+        self.assertEqual(len(self.bus.upserts('big.md')),2,'after it, a check that does not prove it stored allows the resend')
+        self.scan();self.assertEqual(self.pending(),0)
+
+    def test_a_large_file_edited_in_flight_goes_at_once_with_its_new_hash(self):
+        self.put('big.md',LARGE);self.bus.reject_large.add('big.md');self.scan()
+        self.put('big.md',LARGE+'more');self.scan()
+        (old,new)=self.bus.upserts('big.md');self.assertNotEqual(old['content_hash'],new['content_hash'])

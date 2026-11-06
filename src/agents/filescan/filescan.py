@@ -133,6 +133,7 @@ HINT_MAX=8192
 UPSERT_ECHO=('namespace','tableName','id','source','content_hash')   # what a RAG upsert's answer must repeat from the call
 RAG_SOURCE=2048   # RAG's own limit on `source`, in UTF-8 bytes
 RAG_CAP=1<<20   # the largest file sent to RAG, by bigfile reference (Q371)
+RESEND_MAX=3        # check-driven resends of one version of one file to RAG under the watch; each pays RAG's classification again
 LARGE_WAIT=1800.0   # a large upsert's deadline, RAG's working time; also its queue `ttl`. In flight until then: no resend, only RAG's free check
 SYNC_BOUND=20.0   # a `sync` call answers within this, well under the 30 s call deadline in agent.json; the rest waits for the next call
 SYNC_WAIT=5.0   # the longest one RAG answer is waited for inside a sync
@@ -217,6 +218,7 @@ class FileScan:
         self.subs=core.SyncSubscriptions(bus,bus.name,self.state,validate_selector=selector,agent_contract=lambda sel:bool(sel.get('rag')),clock=clock)
         self.lock=threading.Lock()
         self.matched={};self.skipped={}
+        self.resends={}    # (sub id, path) -> (hash, count): check-driven resends of that version; memory only, a restart starts again
         self.inflight={}   # (sub id, path) -> (hash, until): large RAG upserts left in flight; memory only, so a restart checks at once
         self.watcher=None;self._uploaded=[];self._sent_key=None;self.hints={};self.fallback=None;self._sent_delete=False;self._sent_upsert=None
         try:self.state.clean_temporaries()
@@ -350,7 +352,16 @@ class FileScan:
         if flight and flight[0]==record['fp'] and self.clock()<flight[1]:
             return 'confirmed' if verdict=='complete' else 'wait'   # a large upsert still in flight is never sent again
         self.inflight.pop((row['id'],key),None)
-        return {'complete':'confirmed','incomplete':'resend'}.get(verdict,'wait')
+        if verdict=='complete':
+            self.resends.pop((row['id'],key),None);return 'confirmed'
+        if verdict!='incomplete':return 'wait'
+        fp,count=self.resends.get((row['id'],key),(None,0))
+        if fp!=record['fp']:count=0
+        if count>=RESEND_MAX:
+            self._skip(row['id'],key,f'sent {count+1} times and RAG never stored it whole; it goes again when the file changes or after `reset`')
+            return 'wait'
+        self.resends[(row['id'],key)]=(record['fp'],count+1)
+        return 'resend'
 
     def _confirm(self,result):
         """The target's reply counts as confirmed only when it shows the job done. A RAG upsert answers with the stored record: it counts
@@ -422,12 +433,17 @@ class FileScan:
         try:sha,size,text=scanning.digest(self.root,key,RAG_CAP)
         except OSError:return refused('unreadable')
         if text is None:return refused('not UTF-8 text')
-        reference=self._bigfile(key,sha,size,record['fp'])['bigfile']   # a file changed since the scan raises: tried again next round
+        reference=self._bigfile(key,sha,size,record['fp'],self._rag_ttl())['bigfile']   # a file changed since the scan raises: tried again next round
         call=rag_reference_upsert(namespace,table,ident,key,key1,reference,rag_mime(key))
         self.skipped.get(row['id'],{}).pop(key,None)
         self.inflight[(row['id'],key)]=(sha,self.clock()+LARGE_WAIT)
         self._sent_upsert=tuple(call[k] for k in UPSERT_ECHO);self._sent_key=(row['id'],key)
         return dumps(call),{'wait':LARGE_WAIT,'ttl':LARGE_WAIT}   # RAG honours `wait`; `ttl` is its time in RAG's queue (large-files.md#transport)
+
+    def _rag_ttl(self):
+        """A key RAG downloads must outlive the upsert's own deadline; every send uploads it afresh, so a resend never names a key
+        that expired (RAG would refuse it as `bigfile_unavailable`, which a send that is not waited on never hears)."""
+        return max(int(self.settings['bigfile_ttl']),int(2*LARGE_WAIT))
 
     def _skip(self,sub_id,key,why):
         found=self.skipped.setdefault(sub_id,{})
@@ -448,14 +464,14 @@ class FileScan:
             else:message['contents']='omitted: over max_file_size or not text'
         return dumps(message)
 
-    def _bigfile(self,key,sha,size,expected):
+    def _bigfile(self,key,sha,size,expected,ttl=None):
         """The contents of a file too big or not text, as a bigfile on this agent's own record named by the hash, for a subscriber
         that opted in. The upload is checked against the hash, so a file that changed under it is refused and tried again next
         round (the body raises), and a file past the 32 MiB bigfile limit is named as omitted, never cut."""
         if sha!=expected:raise OSError('the file changed since it was scanned')   # the state holds `expected`: send and keep only that hash
         if size>BIGFILE_MAX:return {'contents':f'omitted: over the {BIGFILE_MAX>>20} MiB bigfile limit'}
         with os.fdopen(scanning.open_under(self.root,key),'rb') as reader:
-            result=self.bus.record(self.bus.name).bigfile.put(sha,reader,size=size,ttl=int(self.settings['bigfile_ttl']),sha256=sha)
+            result=self.bus.record(self.bus.name).bigfile.put(sha,reader,size=size,ttl=int(ttl or self.settings['bigfile_ttl']),sha256=sha)
         self._uploaded.append((key,sha));found={'record':self.bus.name,'name':sha,'size':size,'sha256':sha}
         if isinstance(result,dict) and 'expires' in result:found['expires']=result['expires']
         return {'bigfile':found}
@@ -571,7 +587,7 @@ class FileScan:
         try:
             data=self.state.load()
             entry=data['meta'].setdefault('sync',{}).setdefault(f'{target} {namespace} {table}',{'marks':{},'unknown':{}})
-            marks,unknown=entry['marks'],entry['unknown']
+            marks,unknown=entry['marks'],entry['unknown'];flight=entry.setdefault('flight',{})   # path -> [hash, until]: large upserts
             present={k:r for k,r in data['items'].items() if not r.get('gone')}
             todo=[(k,'delete',None) for k in sorted(set(marks)-set(present))]
             todo+=[(k,'upsert',r) for k,r in sorted(present.items()) if marks.get(k)!=r['fp']]
@@ -588,22 +604,41 @@ class FileScan:
                     except Exception:continue   # a removal is free and idempotent: it stays owed and goes again on the next call
                     text=getattr(getattr(result,'message',None),'body','')
                     if core.reply_ok(result) or (isinstance(text,str) and text.startswith('error: not_found')):
-                        marks.pop(key,None);unknown.pop(key,None);remaining-=1
+                        marks.pop(key,None);unknown.pop(key,None);flight.pop(key,None);remaining-=1
                     elif isinstance(text,str) and text.startswith('error:'):files.append({'path':key,'state':'failed','reason':'removal refused: '+text[7:200]})
                     continue
                 fp=record['fp']
                 if unknown.get(key)==fp:
                     verdict=rag_check(self.bus,target,namespace,table,key,fp,timeout=wait)
                     if verdict=='complete':
-                        marks[key]=fp;unknown.pop(key,None);remaining-=1;continue
+                        marks[key]=fp;unknown.pop(key,None);flight.pop(key,None);remaining-=1;continue
+                    held=flight.get(key)
+                    if held and held[0]==fp and self.clock()<held[1]:
+                        # A large upsert still inside its own deadline: not stored yet is not a failure, and it is never sent again.
+                        files.append({'path':key,'state':'in_flight','reason':'sent as a large file; RAG has until '+time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime(held[1]))+' to store it, then its check settles it'})
+                        continue
+                    flight.pop(key,None)
                     if not resend:
                         files.append({'path':key,'state':'unknown','reason':'sent before with no confirmation; RAG\'s check '+('shows it incomplete' if verdict=='incomplete' else 'proves nothing')+'; resend:true sends it again'})
                         continue
                 why=self._sync_unsendable(key,record)
                 if why:
                     files.append({'path':key,'state':'failed','reason':why});continue
-                sha,size,text=scanning.digest(self.root,key,RAG_TEXT)
+                sha,size,text=scanning.digest(self.root,key,RAG_CAP)
                 if sha!=fp:continue   # changed since the walk: the next call's walk takes the new version
+                if size>RAG_TEXT:
+                    # A large file: a bigfile reference, sent with its own deadline and not waited on. Until that deadline only RAG's
+                    # free check is asked; after it, a check that does not prove it stored is reported unknown, like any other.
+                    try:reference=self._bigfile(key,sha,size,fp,self._rag_ttl())['bigfile']
+                    except Refusal as failure:
+                        files.append({'path':key,'state':'failed','reason':f'its bigfile upload was refused ({failure.status})'});continue
+                    except OSError:continue   # changed during the upload: the next call takes the new version
+                    unknown[key]=fp;flight[key]=[fp,self.clock()+LARGE_WAIT];self.state.save(data);sent+=1
+                    try:self.bus.send(target,dumps(rag_reference_upsert(namespace,table,ident,key,key1,reference,rag_mime(key))),topic='filescan',wait=LARGE_WAIT,ttl=LARGE_WAIT)
+                    except Refusal as failure:
+                        unknown.pop(key,None);flight.pop(key,None);files.append({'path':key,'state':'failed','reason':f'refused ({failure.status})'});continue
+                    except Exception:pass   # the send's own outcome is unknown: it is in flight to its deadline all the same
+                    files.append({'path':key,'state':'in_flight','reason':'sent as a large file; its check settles it'});continue
                 call={'method':'upsert','namespace':namespace,'tableName':table,'id':ident,'data':text,'mime-type':rag_mime(key),
                       'source':key,'content_hash':hashlib.sha256(text.encode()).hexdigest()}
                 if key1:call['key1']=key1
@@ -625,15 +660,16 @@ class FileScan:
             self.state.save(data)
             confirmed=sum(1 for k,r in present.items() if marks.get(k)==r['fp'])
         finally:hold.__exit__()
+        self._collect_bigfiles()   # notes what was uploaded; a key whose file is still present is kept
         states={f['state'] for f in files}
         result='failed' if 'failed' in states else 'unknown' if 'unknown' in states else 'incomplete' if remaining or capped else 'confirmed'
         return {'result':result,'confirmed':confirmed,'remaining':remaining,'capped':capped,'sent':sent,'files':files[:200]}
 
     def _sync_unsendable(self,key,record):
         """Why RAG cannot take this file, or None."""
-        if record['size']>RAG_TEXT:return f"{record['size']} bytes is over RAG's {RAG_TEXT} byte text limit"
+        if record['size']>RAG_CAP:return f"{record['size']} bytes is over the {RAG_CAP} byte cap for RAG"
         if not rag_source_ok(key):return 'its path is not valid as a RAG source (over 2048 bytes or not NFC)'
-        try:_,_,text=scanning.digest(self.root,key,RAG_TEXT)
+        try:_,_,text=scanning.digest(self.root,key,RAG_CAP)
         except OSError:return 'unreadable'
         if text is None:return 'not UTF-8 text'
         return None
