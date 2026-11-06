@@ -76,6 +76,14 @@ func Load(store ports.TokenStore) (*Tokens, error) {
 		if _, exists := t.tok[c.Name]; exists {
 			return nil, fmt.Errorf("credential store: duplicate name %s", c.Name)
 		}
+		// One token backs one name: keep would let the later row take it
+		// silently, so row order would pick the owner. The error names both
+		// names, never the token.
+		for _, token := range []string{c.Current, c.Previous} {
+			if other, taken := t.who[token]; c.Current != "" && token != "" && taken {
+				return nil, fmt.Errorf("credential store: %s and %s share one credential", other, c.Name)
+			}
+		}
 		h := held{current: c.Current, previous: c.Previous, issued: c.Issued, pair: c.CredentialPair, used: &atomic.Int64{}}
 		if !c.Used.IsZero() {
 			h.used.Store(c.Used.UnixNano())
