@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -309,5 +312,66 @@ func TestBundledPackageBuildNeverReceivesTheRunnerToken(t *testing.T) {
 	token, err := os.ReadFile(log)
 	if err != nil || string(token) != "unset" {
 		t.Fatalf("package.sh inherited AGENT_BUS_TOKEN: present=%v read-error=%v", string(token) != "unset", err)
+	}
+}
+
+// Cancelling a bundled build kills the whole build, not only /bin/sh: package.sh's own children go too.
+func TestCancellingABundledBuildKillsItsChildren(t *testing.T) {
+	r, _, _ := configurationFixture(t, "", "printf old")
+	r.bundled = t.TempDir()
+	directoryAgent(t, r.bundled, "fixture", "fresh")
+	source := filepath.Join(r.bundled, "fixture")
+	pidFile := filepath.Join(t.TempDir(), "grandchild.pid")
+	// package.sh starts a long-lived grandchild, records its pid, and waits for it.
+	writeFile(t, filepath.Join(source, "package.sh"), fmt.Sprintf("#!/bin/sh\nsleep 300 &\necho $! > %q.tmp\nmv %q.tmp %q\nwait\n", pidFile, pidFile, pidFile))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		temp, _, lease, err := r.stageInstall(ctx, installRequest{agent: "fixture"})
+		if lease != nil {
+			lease.Close()
+		}
+		if temp != "" {
+			os.RemoveAll(temp)
+		}
+		done <- err
+	}()
+	// The pid is taken before the cancel: a dead parent cannot be asked about its orphans.
+	var pid int
+	for deadline := time.Now().Add(10 * time.Second); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
+		if b, err := os.ReadFile(pidFile); err == nil {
+			if p, err := strconv.Atoi(strings.TrimSpace(string(b))); err == nil {
+				pid = p
+				break
+			}
+		}
+	}
+	if pid == 0 {
+		cancel()
+		t.Fatal("the build never recorded its grandchild")
+	}
+	t.Cleanup(func() { syscall.Kill(pid, syscall.SIGKILL) })
+	if err := syscall.Kill(pid, 0); err != nil {
+		t.Fatalf("the grandchild is not running before the cancel: %v", err)
+	}
+	cancel()
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("a cancelled build succeeded")
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("the cancelled build did not return")
+	}
+	gone := false
+	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
+		if err := syscall.Kill(pid, 0); errors.Is(err, syscall.ESRCH) {
+			gone = true
+			break
+		}
+	}
+	if !gone {
+		t.Fatalf("the build's grandchild %d still runs after the cancel", pid)
 	}
 }

@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.20 — 2026-11-05
+
+cancelling a runner package build kills its whole process group, not just the shell
+
 ## 1.0.19 — 2026-11-05
 
 only exact agent-bus-token or agent-bus-admin key lines name an owner, so user remove never deletes a foreign key; a bad --ssh-token refuses the daemon start

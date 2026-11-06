@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	scriptEnv "github.com/parf/ai-agent-bus/internal/script"
@@ -121,9 +122,18 @@ func (r *runner) stageInstall(ctx context.Context, in installRequest) (temp, sta
 		buildCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 		cmd := exec.CommandContext(buildCtx, "/bin/sh", script, staged)
 		cmd.Env = scriptEnv.ChildEnv(os.Environ())
+		// The build runs in its own process group and a cancel or timeout kills the whole group:
+		// CommandContext alone signals only /bin/sh, and package.sh's children would keep running.
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+		cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
+		cmd.WaitDelay = 2 * time.Second
 		// Only the host's trusted bundled packager is executed. Never a script
 		// from a fetched repository. Its output is not a secret-return channel.
 		err = cmd.Run()
+		// Whatever the build left running goes with it, finished or not.
+		if cmd.Process != nil {
+			syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		}
 		cancel()
 		if err != nil {
 			return "", "", nil, fmt.Errorf("bundled package build failed; live package unchanged")
