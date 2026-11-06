@@ -24,7 +24,9 @@ func transferServer(t *testing.T) (*Server, *auth.Tokens) {
 	t.Helper()
 	b := core.New()
 	store := memory.NewState()
-	b.Persistence(store)
+	if err := b.Persistence(store); err != nil {
+		t.Fatal(err)
+	}
 	if e := b.EstablishDaemonOwner("owner@h"); e != nil {
 		t.Fatal(e)
 	}

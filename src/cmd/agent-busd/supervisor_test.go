@@ -112,7 +112,9 @@ func storeAccounts(t *testing.T, path string, accounts map[string]string) {
 	if err := b.Restore(saved); err != nil {
 		t.Fatal(err)
 	}
-	b.Persistence(st)
+	if err := b.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	if err := b.EstablishDaemonOwner("owner@h"); err != nil {
 		t.Fatal(err)
 	}

@@ -58,7 +58,9 @@ func TestAFlushDoesNotHoldTheBus(t *testing.T) {
 func flushWhileUnregistering(t *testing.T, again bool) {
 	st := &slowSave{State: memory.NewState(), entered: make(chan struct{}), release: make(chan struct{})}
 	b := New()
-	b.Persistence(st)
+	if err := b.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	known(t, b, "alice@h")
 	provision(t, b, nil,
 		protocol.Record{Name: "#a@h", Kind: protocol.KindAgent, Owner: "alice@h", Allow: []string{"*"}, Full: protocol.OverflowStrict},

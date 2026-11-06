@@ -86,7 +86,9 @@ func (s *dispatchBarrierStore) ReserveEventIDs(id uint32, n uint64) error {
 func TestDaemonControlAndOtherReadsAnswerWhileAWriteIsBlocked(t *testing.T) {
 	st := &dispatchBarrierStore{State: memory.NewState(), entered: make(chan struct{}), release: make(chan struct{})}
 	b := core.New()
-	b.Persistence(st)
+	if err := b.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	s, _ := serverFor(t, b, "admin@h")
 	if err := b.EstablishDaemonAgent("node.example"); err != nil {
 		t.Fatal(err)
@@ -467,7 +469,9 @@ func (s *twoHungEventReads) EventHighWater(id uint32) (uint64, error) {
 func TestDaemonHealthMethodsAnswerWithBothEventReadersHung(t *testing.T) {
 	st := &twoHungEventReads{State: memory.NewState(), entered: make(chan uint32, 2), release: make(chan struct{})}
 	b := core.New()
-	b.Persistence(st)
+	if err := b.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	s, _ := serverFor(t, b, "admin@h")
 	b.EstablishDaemonAgent("node.example")
 	for _, name := range []string{"#a@h", "#b@h"} {

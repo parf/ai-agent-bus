@@ -16,7 +16,9 @@ func durabilityFixture(t *testing.T, st ports.Store) *Bus {
 	t.Helper()
 	b := New()
 	if st != nil {
-		b.Persistence(st)
+		if err := b.Persistence(st); err != nil {
+			t.Fatal(err)
+		}
 	}
 	b.SetDaemonOwner("admin@h")
 	for _, who := range []string{"alice@h", "bob@h", "friend@h"} {

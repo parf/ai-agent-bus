@@ -98,7 +98,9 @@ func TestCLIRealDaemonProtocolAndRemovedRoute(t *testing.T) {
 	if err := bus.EstablishDaemon("owner@fixture", nil); err != nil {
 		t.Fatal(err)
 	}
-	bus.Persistence(memory.NewState())
+	if err := bus.Persistence(memory.NewState()); err != nil {
+		t.Fatal(err)
+	}
 	tokens, err := auth.Load(memory.NewTokens())
 	if err != nil {
 		t.Fatal(err)

@@ -84,7 +84,9 @@ func checkoutBunAgent(t *testing.T, agent string) {
 	if err := b.EstablishDaemon("owner@h", nil); err != nil {
 		t.Fatal(err)
 	}
-	b.Persistence(memory.NewState())
+	if err := b.Persistence(memory.NewState()); err != nil {
+		t.Fatal(err)
+	}
 	const name = "#fixture@h"
 	if _, err := b.Register(protocol.Record{Name: name, Kind: protocol.KindAgent, Owner: "owner@h", Allow: []string{"@owner"}}); err != nil {
 		t.Fatal(err)

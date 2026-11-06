@@ -160,7 +160,9 @@ func BenchmarkManage(b *testing.B) {
 					b.Fatal(err)
 				}
 				defer st.Close()
-				bus.Persistence(st)
+				if err := bus.Persistence(st); err != nil {
+					b.Fatal(err)
+				}
 				b.ReportAllocs()
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {

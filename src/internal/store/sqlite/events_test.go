@@ -111,7 +111,9 @@ func (j *eventReports) Report(level ports.Severity, line string) {
 func TestOneDamagedEventLogDoesNotStopTheDaemonRegistry(t *testing.T) {
 	s, _ := open(t)
 	b := core.New()
-	b.Persistence(s)
+	if err := b.Persistence(s); err != nil {
+		t.Fatal(err)
+	}
 	b.SetDaemonOwner("admin@h")
 	for _, name := range []string{"#bad@h", "#good@h"} {
 		if _, err := b.Register(protocol.Record{Name: name, Kind: protocol.KindAgent, Owner: "admin@h", Allow: []string{"*"}}); err != nil {
@@ -130,7 +132,9 @@ func TestOneDamagedEventLogDoesNotStopTheDaemonRegistry(t *testing.T) {
 	j := &eventReports{}
 	restarted.Journal(j)
 	restarted.Restore(snap)
-	restarted.Persistence(s)
+	if err := restarted.Persistence(s); err != nil {
+		t.Fatal(err)
+	}
 	if err = restarted.EstablishDaemonAgent("node.example"); err != nil {
 		t.Fatalf("daemon startup refused: %v", err)
 	}

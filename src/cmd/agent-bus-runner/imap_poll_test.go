@@ -115,7 +115,9 @@ func TestImapPackagePollsThroughRunnerControlAndVerifiedTLS(t *testing.T) {
 		}
 	}()
 	r, b, script := configurationFixture(t, "itself", "sleep 30")
-	b.Persistence(memory.NewState())
+	if err := b.Persistence(memory.NewState()); err != nil {
+		t.Fatal(err)
+	}
 	if err := r.control("stop", "fixture"); err != nil {
 		t.Fatal(err)
 	}

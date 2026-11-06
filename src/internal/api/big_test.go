@@ -34,7 +34,9 @@ func bigReq(s *Server, token, method, path string, body []byte, sum string) *htt
 func bigServer(t *testing.T) (*Server, func(string) string) {
 	t.Helper()
 	b := core.New()
-	b.Persistence(memory.NewState())
+	if err := b.Persistence(memory.NewState()); err != nil {
+		t.Fatal(err)
+	}
 	store, err := bigfile.Open(filepath.Join(t.TempDir(), "big"), bigfile.NewMemoryIndex(), time.Now())
 	if err != nil {
 		t.Fatal(err)
@@ -134,7 +136,9 @@ func TestBigKeyRoundTripAnswersAndRefusals(t *testing.T) {
 // route answers 503 and names the cause.
 func TestBigKeyRoutesAnswer503NamingTheCauseWhenTheStoreIsUnavailable(t *testing.T) {
 	b := core.New()
-	b.Persistence(memory.NewState())
+	if err := b.Persistence(memory.NewState()); err != nil {
+		t.Fatal(err)
+	}
 	b.BigUnavailable(errors.New("bigfile is a plain file"), nil)
 	s, tok := serverFor(t, b, "admin@h")
 	if _, err := b.SetUser("admin@h", protocol.User{Name: "alice@h"}, true); err != nil {

@@ -27,7 +27,9 @@ func TestANameFreedByAnIgnoredRecordInheritsNoStoredQueue(t *testing.T) {
 	}
 	b := New()
 	b.Journal(&reports{})
-	b.Persistence(st)
+	if err := b.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	saved, _ := st.Load()
 	assertRestoreRefused(t, b, canonicalFixture(saved, ""))
 }
@@ -63,7 +65,9 @@ func TestAFailedCommitIsReported(t *testing.T) {
 	rep := &reports{}
 	b.Journal(rep)
 	st := memory.NewState()
-	b.Persistence(st)
+	if err := b.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	b.SetDaemonOwner("owner@h")
 	st.Err = errors.New("database or disk is full")
 	if _, err := b.SetUser("owner@h", protocol.User{Name: "new@h"}, true); err == nil {
@@ -101,7 +105,9 @@ func TestAFreshDatabaseIsNotAnUncleanStop(t *testing.T) {
 func TestARegisteredAgainNameIsFlushedAtTheOldMark(t *testing.T) {
 	st := memory.NewState()
 	b := New()
-	b.Persistence(st)
+	if err := b.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	b.SetDaemonOwner("owner@h")
 	if _, err := b.SetUser("owner@h", protocol.User{Name: "keeper@h"}, true); err != nil {
 		t.Fatal(err)

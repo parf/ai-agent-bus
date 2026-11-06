@@ -19,7 +19,9 @@ func transferBus(t *testing.T, owner string) (*Bus, *auth.Tokens, *memory.State)
 	t.Helper()
 	s := memory.NewState()
 	b := New()
-	b.Persistence(s)
+	if err := b.Persistence(s); err != nil {
+		t.Fatal(err)
+	}
 	if e := b.EstablishDaemonOwner(owner); e != nil {
 		t.Fatal(e)
 	}

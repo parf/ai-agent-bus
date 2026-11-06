@@ -52,7 +52,9 @@ func TestWebhookKeeperBindsHostLoopbackAndStopsBeforeReplacement(t *testing.T) {
 	if err := b.EstablishDaemon("owner@h", nil); err != nil {
 		t.Fatal(err)
 	}
-	b.Persistence(memory.NewState())
+	if err := b.Persistence(memory.NewState()); err != nil {
+		t.Fatal(err)
+	}
 	for _, rec := range []protocol.Record{{Name: "#fixture@h", Kind: protocol.KindAgent, Owner: "owner@h", Allow: []string{"@owner"}}, {Name: "events@h", Kind: protocol.KindQueue, Owner: "owner@h", Allow: []string{"#fixture@h"}}} {
 		if _, err = b.Register(rec); err != nil {
 			t.Fatal(err)

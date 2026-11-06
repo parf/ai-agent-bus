@@ -32,7 +32,9 @@ func transferNode(t *testing.T, path string, create bool) (*core.Bus, *auth.Toke
 	if e = b.Restore(snapshot); e != nil {
 		t.Fatal(e)
 	}
-	b.Persistence(store)
+	if err := b.Persistence(store); err != nil {
+		t.Fatal(err)
+	}
 	if e = b.EstablishDaemon("owner@fixture", nil); e != nil {
 		t.Fatal(e)
 	}

@@ -23,7 +23,9 @@ func subFixture(t *testing.T, st ports.Store) *Bus {
 	t.Helper()
 	b := New()
 	if st != nil {
-		b.Persistence(st)
+		if err := b.Persistence(st); err != nil {
+			t.Fatal(err)
+		}
 	}
 	b.SetDaemonOwner("owner@h")
 	for _, name := range []string{"alice@h", "bob@h", "maint@h"} {
@@ -318,7 +320,9 @@ func TestSubscriptionsSurviveARestartAndNothingIsReplayed(t *testing.T) {
 	}
 	again := New()
 	again.Restore(saved)
-	again.Persistence(st)
+	if err := again.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	if err := again.EstablishDaemonOwner("owner@h"); err != nil {
 		t.Fatal(err)
 	}

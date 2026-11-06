@@ -49,7 +49,9 @@ func newSubAPI(t *testing.T) *subAPI {
 	t.Helper()
 	st := &slowSubs{State: memory.NewState(), held: make(chan struct{}), freed: make(chan struct{})}
 	b := core.New()
-	b.Persistence(st)
+	if err := b.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	s, _ := serverFor(t, b, "admin@h")
 	if err := b.EstablishDaemonAgent("node.example"); err != nil {
 		t.Fatal(err)

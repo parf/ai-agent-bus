@@ -23,7 +23,9 @@ func TestEmptyBase64KVWriteMatchesOrdinaryEmptyBytes(t *testing.T) {
 	}
 	defer store.Close()
 	b := core.New()
-	b.Persistence(store)
+	if err := b.Persistence(store); err != nil {
+		t.Fatal(err)
+	}
 	s, tok := serverFor(t, b, "admin@h")
 	if _, err = b.Register(protocol.Record{Name: "jobs@h", Kind: protocol.KindQueue, Owner: "admin@h"}); err != nil {
 		t.Fatal(err)
@@ -63,7 +65,9 @@ func TestEmptyBase64KVWriteMatchesOrdinaryEmptyBytes(t *testing.T) {
 
 func TestKVValuePresenceAndDuplicateKeys(t *testing.T) {
 	b := core.New()
-	b.Persistence(memory.NewState())
+	if err := b.Persistence(memory.NewState()); err != nil {
+		t.Fatal(err)
+	}
 	s, tok := serverFor(t, b, "admin@h")
 	if _, err := b.Register(protocol.Record{Name: "jobs@h", Kind: protocol.KindQueue, Owner: "admin@h"}); err != nil {
 		t.Fatal(err)

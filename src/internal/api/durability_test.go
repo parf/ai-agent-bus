@@ -11,7 +11,9 @@ func TestPersistenceFailureIsAnHTTPFailureAndCanBeRetried(t *testing.T) {
 	b, s, token := groupFixture(t)
 	d := memory.NewState()
 	d.Err = errors.New("fixture database failed")
-	b.Persistence(d)
+	if err := b.Persistence(d); err != nil {
+		t.Fatal(err)
+	}
 	if code, body := post(t, s, token, "admin@h", "/user/state", `{"name":"plain@h","status":"inactive"}`); code != 500 {
 		t.Fatalf("failed persistence answered %d, want 500: %s", code, body)
 	}

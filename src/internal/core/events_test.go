@@ -152,7 +152,9 @@ func (s *blockedEventStore) ReserveEventIDs(id uint32, n uint64) error {
 func TestEventStoreIOLeavesOrdinaryKVWritesUnblocked(t *testing.T) {
 	st := &blockedEventStore{State: memory.NewState(), entered: make(chan struct{}), release: make(chan struct{})}
 	b := New()
-	b.Persistence(st)
+	if err := b.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	b.SetDaemonOwner("owner@h")
 	if _, err := b.Register(protocol.Record{Name: "#a@h", Kind: protocol.KindAgent, Owner: "owner@h"}); err != nil {
 		t.Fatal(err)
@@ -247,7 +249,9 @@ func TestEventAuthorityRecheckedAfterLoadBeforeCommit(t *testing.T) {
 			t.Run(method+"/"+change, func(t *testing.T) {
 				b := eventFixture(t)
 				st := &eventLoadBarrier{State: memory.NewState(), alerts: map[uint32][]ports.EventEntry{}, active: map[uint32]bool{}, entered: make(chan struct{}), release: make(chan struct{})}
-				b.Persistence(st)
+				if err := b.Persistence(st); err != nil {
+					t.Fatal(err)
+				}
 				if _, err := b.EventWrite("#a@h", "#a@h", "alert", "kept"); err != nil {
 					t.Fatal(err)
 				}
@@ -382,7 +386,9 @@ func TestEventReadFinalRecheckHidesDataRevokedDuringExpiryCommit(t *testing.T) {
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	b.Clock(func() time.Time { return now })
 	st := &eventLoadBarrier{State: memory.NewState(), alerts: map[uint32][]ports.EventEntry{}, active: map[uint32]bool{}, saveEntered: make(chan struct{}), saveRelease: make(chan struct{})}
-	b.Persistence(st)
+	if err := b.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	b.EventWrite("#a@h", "#a@h", "alert", "expired")
 	now = now.Add(24 * time.Hour)
 	b.EventWrite("#a@h", "#a@h", "alert", "kept")
@@ -442,7 +448,9 @@ func TestEventReadPrecommitDoesNotPruneAfterAuthorityRevocation(t *testing.T) {
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	b.Clock(func() time.Time { return now })
 	st := &eventLoadBarrier{State: memory.NewState(), alerts: map[uint32][]ports.EventEntry{}, active: map[uint32]bool{}, entered: make(chan struct{}), release: make(chan struct{})}
-	b.Persistence(st)
+	if err := b.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	b.EventWrite("#a@h", "#a@h", "alert", "expired")
 	now = now.Add(24 * time.Hour)
 	b.EventWrite("#a@h", "#a@h", "alert", "kept")
@@ -490,7 +498,9 @@ func TestEventListUsesBusClockAndSkipsOnlyDamagedLogs(t *testing.T) {
 	now := time.Date(2025, 3, 4, 5, 6, 7, 0, time.UTC)
 	b.Clock(func() time.Time { return now })
 	st := &oneBadEventStore{State: memory.NewState(), bad: b.records["#a@h"].ID}
-	b.Persistence(st)
+	if err := b.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := b.EventWrite("#other@h", "#other@h", "notice", "healthy"); err != nil {
 		t.Fatal(err)
 	}

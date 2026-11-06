@@ -40,7 +40,9 @@ func TestRestoreCanonicalStateOrRefuseBeforeMutation(t *testing.T) {
 func TestFreshDaemonInitializationIsAtomic(t *testing.T) {
 	st := memory.NewState()
 	b := New()
-	b.Persistence(st)
+	if err := b.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	st.Err = errors.New("write refused")
 	if err := b.EstablishDaemon("owner@h", map[string]string{"local": "owner@h"}); err == nil {
 		t.Fatal("failed commit accepted")

@@ -21,7 +21,9 @@ func kvFixture(t *testing.T) (*Bus, *memory.State) {
 	t.Helper()
 	st := memory.NewState()
 	b := New()
-	b.Persistence(st)
+	if err := b.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	b.SetDaemonOwner("admin@h")
 	for _, who := range []string{"alice@h", "bob@h", "carol@h", "eve@h"} {
 		if _, err := b.SetUser("admin@h", protocol.User{Name: who}, true); err != nil {

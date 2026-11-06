@@ -19,7 +19,9 @@ func daysBus(t *testing.T, clock *testClock) (*Bus, *memory.State) {
 	st := memory.NewState()
 	b := New()
 	b.Clock(clock.now)
-	b.Persistence(st)
+	if err := b.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	b.SetDaemonOwner("admin@h")
 	known(t, b, "alice@h", "bob@h")
 	b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#busy@h", Owner: "alice@h", Allow: []string{"*"}})
@@ -135,7 +137,9 @@ func TestTodayIsLoadedBackAtStart(t *testing.T) {
 	back := New()
 	back.Clock(clock.now)
 	back.Restore(saved)
-	back.Persistence(st)
+	if err := back.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	back.RestoreActivityDays()
 	day, _ := back.Activity("alice@h", "#busy@h")
 	if got := day[len(day)-13]; !got.At.Equal(dayAt(24, 9, 0)) || got.In != 1 {
@@ -193,7 +197,9 @@ func TestStartIgnoresTheDaysOfAnUnknownName(t *testing.T) {
 	back := New()
 	back.Clock(clock.now)
 	back.Restore(saved)
-	back.Persistence(st)
+	if err := back.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	back.RestoreActivityDays()
 	back.mu.Lock()
 	_, ghostInbox := back.inboxes["#ghost@h"]
@@ -320,7 +326,9 @@ func TestQueueRingDoesNotSeedDurableDays(t *testing.T) {
 	up := New()
 	up.Clock(clock.now)
 	up.Restore(saved)
-	up.Persistence(st)
+	if err := up.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	up.RestoreActivityDays()
 	if got, err := st.ActivityDays(260924, 260924, nil); err != nil || len(got) != 0 {
 		t.Fatalf("queue ring seeded durable days: %v %v", got, err)

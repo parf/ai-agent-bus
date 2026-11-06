@@ -15,7 +15,9 @@ import (
 // control character is six on the wire.
 func TestAKVValueAtItsLimitCrossesTheAPI(t *testing.T) {
 	b := core.New()
-	b.Persistence(memory.NewState())
+	if err := b.Persistence(memory.NewState()); err != nil {
+		t.Fatal(err)
+	}
 	s, tok := serverFor(t, b, "admin@h")
 	if _, err := b.Register(protocol.Record{Name: "jobs@h", Kind: protocol.KindQueue, Owner: "admin@h"}); err != nil {
 		t.Fatal(err)
@@ -35,7 +37,9 @@ func TestAKVValueAtItsLimitCrossesTheAPI(t *testing.T) {
 // caller may use.
 func TestKVListCrossesTheAPI(t *testing.T) {
 	b := core.New()
-	b.Persistence(memory.NewState())
+	if err := b.Persistence(memory.NewState()); err != nil {
+		t.Fatal(err)
+	}
 	s, tok := serverFor(t, b, "admin@h")
 	if _, err := b.Register(protocol.Record{Name: "jobs@h", Kind: protocol.KindQueue, Owner: "admin@h"}); err != nil {
 		t.Fatal(err)

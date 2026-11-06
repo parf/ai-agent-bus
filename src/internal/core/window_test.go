@@ -143,7 +143,9 @@ func TestATransferCannotHandARecordToSomebodyWhoCannotAct(t *testing.T) {
 func TestRemovingAnAddressAndItsCredentialIsOneOperation(t *testing.T) {
 	b := New()
 	st := memory.NewState()
-	b.Persistence(st)
+	if err := b.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	idx := newIndex()
 	b.SetDaemonOwner("admin@h")
 	known(t, b, "#svc@h")
@@ -199,7 +201,9 @@ func TestRemovingHoldsTheRegistryWhileItCommits(t *testing.T) {
 	known(t, b, "#svc@h", "other@h")
 	st := memory.NewState()
 	st.Enter, st.Release = make(chan struct{}), make(chan struct{})
-	b.Persistence(st)
+	if err := b.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	removed := make(chan error, 1)
 	go func() { removed <- b.Unregister("#svc@h", "#svc@h") }()
 	<-st.Enter

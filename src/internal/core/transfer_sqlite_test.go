@@ -24,7 +24,9 @@ func openTransferSQLite(t *testing.T, path string, create bool) (*Bus, *auth.Tok
 	}
 	b := New()
 	b.Restore(snapshot)
-	b.Persistence(store)
+	if err := b.Persistence(store); err != nil {
+		t.Fatal(err)
+	}
 	if e = b.EstablishDaemonOwner("owner@source"); e != nil {
 		t.Fatal(e)
 	}

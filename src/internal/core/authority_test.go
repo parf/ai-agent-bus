@@ -126,7 +126,9 @@ func TestARevocationCannotRaceAStaleAuthorizationIntoAWrite(t *testing.T) {
 	b := authorityFixture(t)
 	st := memory.NewState()
 	st.Enter, st.Release = make(chan struct{}), make(chan struct{})
-	b.Persistence(st)
+	if err := b.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	revoked := make(chan error, 1)
 	none := protocol.MaintainerList{}
 	go func() {

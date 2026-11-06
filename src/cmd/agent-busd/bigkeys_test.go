@@ -40,7 +40,9 @@ func bigBus(t *testing.T) (*core.Bus, *reports) {
 	b := core.New()
 	rep := &reports{}
 	b.Journal(rep)
-	b.Persistence(memory.NewState())
+	if err := b.Persistence(memory.NewState()); err != nil {
+		t.Fatal(err)
+	}
 	b.SetDaemonOwner("admin@h")
 	if _, err := b.SetUser("admin@h", protocol.User{Name: "alice@h"}, true); err != nil {
 		t.Fatal(err)

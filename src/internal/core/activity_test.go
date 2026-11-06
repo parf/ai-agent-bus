@@ -91,7 +91,9 @@ func TestActivitySurvivesARestart(t *testing.T) {
 	st := memory.NewState()
 	b := New()
 	b.Clock(clock.now)
-	b.Persistence(st)
+	if err := b.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	b.SetDaemonOwner("admin@h")
 	known(t, b, "alice@h")
 	b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "alice@h", Allow: []string{"*"}})
@@ -120,7 +122,9 @@ func TestActivitySurvivesARestart(t *testing.T) {
 	back := New()
 	back.Clock(clock.now)
 	back.Restore(saved)
-	back.Persistence(st)
+	if err := back.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	back.RestoreActivityDays()
 	day, err := back.Activity("alice@h", "#svc@h")
 	if err != nil {
@@ -183,7 +187,9 @@ func TestADamagedStoredDayIsReportedOnce(t *testing.T) {
 	st := memory.NewState()
 	b := New()
 	b.Clock(clock.now)
-	b.Persistence(st)
+	if err := b.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	b.SetDaemonOwner("admin@h")
 	known(t, b, "alice@h")
 	b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "alice@h", Allow: []string{"*"}})
@@ -197,7 +203,9 @@ func TestADamagedStoredDayIsReportedOnce(t *testing.T) {
 		r := New()
 		r.Clock(clock.now)
 		r.Journal(rep)
-		r.Persistence(st)
+		if err := r.Persistence(st); err != nil {
+			t.Fatal(err)
+		}
 		r.Restore(s)
 		return r, rep
 	}
@@ -228,7 +236,9 @@ func TestActivityGoesWithRemovalAndStaysWithTransfer(t *testing.T) {
 	st := memory.NewState()
 	b := New()
 	b.Clock(clock.now)
-	b.Persistence(st)
+	if err := b.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	b.SetDaemonOwner("admin@h")
 	known(t, b, "alice@h", "bob@h")
 	for _, name := range []string{"#kept@h", "#gone@h"} {
@@ -267,7 +277,9 @@ func TestActivityGoesWithRemovalAndStaysWithTransfer(t *testing.T) {
 	back := New()
 	back.Clock(clock.now)
 	back.Restore(saved)
-	back.Persistence(st)
+	if err := back.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	back.RestoreActivityDays()
 	if closed, _ := last(t, back, "bob@h", "#kept@h"); closed.In != 1 {
 		t.Fatalf("the transferred record lost its day: %+v", closed.Counts)

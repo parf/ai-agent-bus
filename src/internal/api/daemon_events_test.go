@@ -174,7 +174,9 @@ func TestEventErrorsNeverEchoStoreInternals(t *testing.T) {
 	b.EstablishDaemonAgent("node.example")
 	b.Register(protocol.Record{Name: "#a@h", Kind: protocol.KindAgent, Owner: "admin@h"})
 	st := memory.NewState()
-	b.Persistence(st)
+	if err := b.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	st.Err = errors.New(secret)
 	got, err := s.daemonAnswer(protocol.Envelope{From: "#a@h", Body: "write #a@h alert safe", Wait: "1s"})
 	if err != nil || got != "error: storage_unknown: Ring storage outcome is unknown; reopen validated state." || strings.Contains(got, secret) {

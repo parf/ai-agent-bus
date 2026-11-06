@@ -35,7 +35,9 @@ func TestImportPreflightReadsCredentialsWithoutScanningKV(t *testing.T) {
 			_, _, backup, _, current := transferSource(t)
 			store := &credentialsOnlyPreflightStore{State: memory.NewState()}
 			b := New()
-			b.Persistence(store)
+			if err := b.Persistence(store); err != nil {
+				t.Fatal(err)
+			}
 			if err := b.EstablishDaemonOwner("owner@source"); err != nil {
 				t.Fatal(err)
 			}

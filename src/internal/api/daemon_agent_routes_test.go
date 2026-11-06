@@ -121,7 +121,9 @@ func TestDaemonAgentReservationAcrossRegisteredAPIRoutes(t *testing.T) {
 			t.Run(who+route, func(t *testing.T) {
 				b := core.New()
 				s, token := serverFor(t, b, "owner@h")
-				b.Persistence(memory.NewState())
+				if err := b.Persistence(memory.NewState()); err != nil {
+					t.Fatal(err)
+				}
 				for _, name := range []string{"administrator@h", "ordinary@h"} {
 					if _, err := b.SetUser("owner@h", protocol.User{Name: name}, true); err != nil {
 						t.Fatal(err)

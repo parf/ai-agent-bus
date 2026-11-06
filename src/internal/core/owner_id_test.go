@@ -33,7 +33,9 @@ func start(t *testing.T, path string) (*Bus, *reports) {
 	b, rep := New(), &reports{}
 	b.Journal(rep)
 	b.Restore(snap)
-	b.Persistence(st)
+	if err := b.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	if err := b.EstablishDaemonOwner("owner@h"); err != nil {
 		t.Fatal(err)
 	}
