@@ -189,3 +189,11 @@ The recommendations below are retained parked proposals.
   - ( ) Re-push the bus tag with the new agents; a tag then no longer names one image
   > 💡👾 Keep today's tags: no new scheme, no change to the standing push OK.
 
+
+## Face tool approval
+
+- ❓ Q342 Should OpenCode ask before the bigfile file tools, like Claude and Codex
+  - Context: the OpenCode launcher pre-approves every agent-bus tool, the bigfile file tools included (accepted in R1). Claude and the Codex pusher leave the file tools to an operator prompt. The docs now state the difference
+  - ( ) OpenCode prompts for the file tools too, so every face has one rule; a small launcher change 🌟
+  - ( ) Keep OpenCode's allow-all ⭐
+  > 💡👾 One rule for every face: file tools read and write local files, so the operator approves them.
