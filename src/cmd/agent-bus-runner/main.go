@@ -217,6 +217,7 @@ func (r *runner) run(ctx context.Context) error {
 	}
 	r.events = newEventSink(r)
 	r.events.start()
+	r.sweepStaging() // an install that was cut off leaves staging; nothing runs yet
 	r.reload()
 	fmt.Fprintf(r.say, "%s is the runner (%s), %s\n", r.name, version.String, r.summary())
 	const poll = 55 * time.Second

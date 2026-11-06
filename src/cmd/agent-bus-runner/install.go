@@ -402,3 +402,33 @@ func (r *runner) removePackage(name string) error {
 	r.apply()
 	return nil
 }
+
+// sweepStaging removes what a crashed or killed install left in agents/ before the runner serves:
+// private .install- staging directories. One that holds a retained `previous` tree is the only copy
+// of a package after a failed restore, so it stays and is named. A link is removed as the link it
+// is, never followed: its target is not ours.
+func (r *runner) sweepStaging() {
+	entries, err := os.ReadDir(r.agents)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		if !strings.HasPrefix(e.Name(), ".install-") {
+			continue
+		}
+		path := filepath.Join(r.agents, e.Name())
+		fi, err := os.Lstat(path)
+		if err != nil {
+			continue
+		}
+		if fi.Mode()&os.ModeSymlink != 0 {
+			os.Remove(path)
+			continue
+		}
+		if _, err := os.Lstat(filepath.Join(path, "previous")); err == nil {
+			fmt.Fprintf(r.say, "%s: %s holds a previous package tree from an install that did not finish; kept for you to restore or remove\n", r.name, path)
+			continue
+		}
+		os.RemoveAll(path)
+	}
+}

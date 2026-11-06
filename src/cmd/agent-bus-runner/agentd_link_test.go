@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"io/fs"
 	"os"
@@ -153,5 +154,40 @@ func TestReloadPicksUpAPullInTheLinkedCheckout(t *testing.T) {
 	r.reload()
 	if got := ask(); got != "pulled" {
 		t.Fatalf("after the pull and a reload: %q", got)
+	}
+}
+
+// A runner that starts finds an install's cut-off staging in agents/ and removes it, but never
+// follows a link there, and keeps a staging directory that holds the only copy of a package.
+func TestStartSweepsLeftoverInstallStagingSafely(t *testing.T) {
+	r, _, _ := configurationFixture(t, "", "printf old")
+	var said bytes.Buffer
+	r.say = &said
+	outside := t.TempDir()
+	writeFile(t, filepath.Join(outside, "precious"), "keep")
+	stale := filepath.Join(r.agents, ".install-stale")
+	writeFile(t, filepath.Join(stale, "agent", "agent.json"), "{}")
+	kept := filepath.Join(r.agents, ".install-kept")
+	writeFile(t, filepath.Join(kept, "previous", "agent.json"), "{}")
+	if err := os.Symlink(outside, filepath.Join(r.agents, ".install-link")); err != nil {
+		t.Fatal(err)
+	}
+	r.sweepStaging()
+	for _, gone := range []string{stale, filepath.Join(r.agents, ".install-link")} {
+		if _, err := os.Lstat(gone); !os.IsNotExist(err) {
+			t.Fatalf("%s survived the sweep: %v", gone, err)
+		}
+	}
+	if got, err := os.ReadFile(filepath.Join(outside, "precious")); err != nil || string(got) != "keep" {
+		t.Fatalf("the sweep followed a link and touched its target: %q %v", got, err)
+	}
+	if _, err := os.Lstat(filepath.Join(kept, "previous", "agent.json")); err != nil {
+		t.Fatalf("the sweep removed a retained previous tree: %v", err)
+	}
+	if !strings.Contains(said.String(), ".install-kept") {
+		t.Fatalf("the kept tree was not named: %q", said.String())
+	}
+	if _, err := os.Lstat(filepath.Join(r.agents, "fixture")); err != nil {
+		t.Fatalf("the sweep touched a package: %v", err)
 	}
 }
