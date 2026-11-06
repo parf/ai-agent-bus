@@ -106,6 +106,20 @@ def selector(value):
     return value
 
 
+RAG_TEXT=32*1024
+
+
+def rag_id(path):
+    """(id, key1): the path itself as the id when RAG takes it, else a hash with the path kept in key1."""
+    import hashlib,unicodedata
+    if len(path)<=128 and path.isprintable() and unicodedata.normalize('NFC',path)==path:return path,None
+    return hashlib.sha256(path.encode()).hexdigest(),path[:256]
+
+
+def rag_mime(path):
+    return {'.md':'text/markdown','.markdown':'text/markdown','.html':'text/html','.htm':'text/html','.json':'application/json'}.get(os.path.splitext(path)[1].lower(),'text/plain')
+
+
 def path_matches(pattern,paths,*,limit=4.0):
     """Which of `paths` match the filter, evaluated in a private bounded process; None when it ran out of time."""
     request=json.dumps({'pattern':pattern,'paths':paths}).encode()
@@ -118,6 +132,10 @@ def path_matches(pattern,paths,*,limit=4.0):
     except (subprocess.TimeoutExpired,ValueError,OSError):return None
 
 
+class Paused(Exception):
+    """The mass-delete guard (or a changed directory) holds scanning; the text is the reason."""
+
+
 class FileScan:
     def __init__(self,bus,configuration,root,work,*,clock=time.time,warning=None):
         self.bus,self.clock=bus,clock
@@ -127,28 +145,54 @@ class FileScan:
         self.state=core.StateFile(work,max_bytes=self.settings['state_max'])
         self.subs=core.SyncSubscriptions(bus,bus.name,self.state,validate_selector=selector,clock=clock)
         self.lock=threading.Lock()
-        self.matched={}
+        self.matched={};self.skipped={}
         try:self.state.clean_temporaries()
         except core.SyncError:pass
 
     # --- scanning -------------------------------------------------------------------------------------------------
     def scan(self,confirm=False):
-        """One walk under the state hold: what changed is folded into the saved items, then saved."""
-        try:
-            with self.state.hold():
-                state=self.state.load()
-                plan=scanning.poll(state['items'],self.root,self.settings,now=self.clock())
-                if plan['unreadable_root'] is not None:raise core.SyncError('state_corrupt','the directory cannot be read')
-                scanning.apply(state['items'],plan)
-                state['meta'].update(last_scan=self.clock(),dir=self.root,skipped=[[p,w] for p,w in plan['skipped']][:50])
-                first=not state['meta'].get('baselined')
-                if first:
-                    state['meta']['baselined']=True
-                    if self.settings['baseline']:
-                        for sub_id in state['subs']:state['marks'][sub_id]={k:r['fp'] for k,r in state['items'].items()}
-                self.state.save(state)
-        except core.SyncError as failure:raise
-        return {'seen':plan['seen'],'created_or_changed':len(plan['upserts']),'deleted':len(plan['deletes']),'skipped':len(plan['skipped']),'capped':plan['capped']}
+        """One walk under the state hold: what changed is folded into the saved items, then saved.
+
+        The mass-delete guard decides first whether the deletes may be applied (see `guard`). A paused agent
+        refuses to scan until `confirm` releases it; a changed directory needs `reset` instead.
+        """
+        with self.state.hold():
+            state=self.state.load();meta=state['meta']
+            paused=meta.get('paused')
+            if paused and paused.get('kind')=='dir':raise Paused(paused['reason'])
+            if paused and not confirm:raise Paused(paused['reason'])
+            if meta.get('dir') not in (None,self.root):
+                why=f"the directory changed from {meta['dir']} to {self.root}; reset confirm:true drops the old state and starts over"
+                meta['paused']={'kind':'dir','reason':why,'at':self.clock()};self.state.save(state);self.warning('guard_paused')
+                raise Paused(why)
+            plan=scanning.poll(state['items'],self.root,self.settings,now=self.clock())
+            hold_reason=None if confirm else self.guard(state,plan)
+            if hold_reason:
+                meta['paused']={'kind':hold_reason[0],'reason':hold_reason[1],'at':self.clock()};self.warning('guard_paused')
+            elif paused:meta.pop('paused',None)
+            if plan['unreadable_root'] is not None:
+                self.state.save(state);raise Paused((meta.get('paused') or {}).get('reason') or 'the directory still cannot be read')
+            scanning.apply(state['items'],plan,allow_deletes=hold_reason is None)
+            meta.update(last_scan=self.clock(),dir=self.root,skipped=[[p,w] for p,w in plan['skipped']][:50])
+            if not meta.get('baselined'):
+                meta['baselined']=True
+                if self.settings['baseline']:
+                    for sub_id in state['subs']:state['marks'][sub_id]={k:r['fp'] for k,r in state['items'].items()}
+            self.state.save(state)
+        return {'seen':plan['seen'],'created_or_changed':len(plan['upserts']),'deleted':0 if hold_reason else len(plan['deletes']),
+                'held':hold_reason[1] if hold_reason else None,'skipped':len(plan['skipped']),'capped':plan['capped']}
+
+    def guard(self,state,plan):
+        """(kind, reason) when this pass must not send deletes: an unreadable or emptied directory, or too many deletes."""
+        tracked=len(state['items'])
+        if plan['unreadable_root'] is not None:
+            return 'unreadable',f"the directory cannot be read (errno {plan['unreadable_root']}); is it mounted? scan confirm:true after checking"
+        if tracked and plan['seen']==0 and plan['deletes']:
+            return 'empty',f"the directory is empty but {tracked} files were tracked; scan confirm:true after checking the folder"
+        n=len(plan['deletes'])
+        if n>self.settings['delete_max'] or tracked and n*100>tracked*self.settings['delete_pct']:
+            return 'deletes',f"one pass would delete {n} of {tracked} tracked files (limits {self.settings['delete_pct']} % and {self.settings['delete_max']}); scan confirm:true after checking the folder"
+        return None
 
     def deliver(self):
         def matches(row,key):return self._wanted(row,key)
@@ -173,7 +217,32 @@ class FileScan:
                 self.warning('filter_timeout',sub_id);self.matched[(sub_id,pattern)]={};continue
             self.matched[(sub_id,pattern)]=dict(zip(keys,result))
 
+    def _rag_body(self,row,key,action,record):
+        """RAG's own upsert and delete, no bridge agent. A file RAG cannot take is skipped for it and named in status."""
+        sel=row['selector'];namespace=sel.get('namespace') or self.settings['namespace'];table=sel.get('table') or self.settings['table']
+        if not namespace or not table:
+            self.skipped.setdefault(row['id'],{})['*']='no namespace or table: set them on `sub add … as rag` or in Configuration'
+            return None
+        ident,key1=rag_id(key)
+        if action=='delete':
+            return dumps({'method':'delete','namespace':namespace,'tableName':table,'id':ident})
+        if record['size']>RAG_TEXT:
+            self._skip(row['id'],key,f"{record['size']} bytes is over RAG's {RAG_TEXT} byte text limit");return None
+        try:sha,size,text=scanning.digest(self.root,key,RAG_TEXT)
+        except OSError:self._skip(row['id'],key,'unreadable');return None
+        if text is None:
+            self._skip(row['id'],key,'not UTF-8 text, or over the limit');return None
+        call={'method':'upsert','namespace':namespace,'tableName':table,'id':ident,'data':text,'mime-type':rag_mime(key)}
+        if key1:call['key1']=key1
+        self.skipped.get(row['id'],{}).pop(key,None)
+        return dumps(call)
+
+    def _skip(self,sub_id,key,why):
+        found=self.skipped.setdefault(sub_id,{})
+        if len(found)<50 or key in found:found[key]=why
+
     def _body(self,row,key,action,record):
+        if row['selector'].get('rag'):return self._rag_body(row,key,action,record)
         change={'create':'created','change':'changed','delete':'deleted'}[action]
         message={'change':change,'path':key,'warning':WARNING}
         if action!='delete':
@@ -189,6 +258,7 @@ class FileScan:
         try:
             self.scan()
             self._round()
+        except Paused:pass  # the guard is named in status and was warned about once
         except core.SyncError as failure:
             if failure.code!='scan_busy':self.warning(failure.code)
 
@@ -203,7 +273,7 @@ class FileScan:
                'pending':len(core.pending(state,i,lambda k,row=r:self._wanted(row,k) if row['selector'].get('pattern') and (row['id'],row['selector']['pattern']) in self.matched else True))} for i,r in sorted(state['subs'].items())]
         size=len(json.dumps(state,separators=(',',':')))
         return {'mode':self.settings['mode'],'effective_mode':'poll','tracked':len(state['items']),'last_scan':meta.get('last_scan'),
-                'skipped':meta.get('skipped',[]),'state_bytes':size,'state_max':self.settings['state_max'],'subscribers':subs,'paused':meta.get('paused')}
+                'skipped':meta.get('skipped',[]),'state_bytes':size,'state_max':self.settings['state_max'],'subscribers':subs,'paused':meta.get('paused'),'skipped_for_rag':{i:v for i,v in self.skipped.items() if v}}
 
     def reset(self):
         with self.state.hold(core.HOLD_WAIT):
@@ -221,6 +291,7 @@ class FileScan:
         except SubscriptionError as failure:
             if failure.code in ('store_unknown','busy'):self.warning(failure.code)
             return error(failure.code)
+        except Paused as failure:return error('paused',str(failure))
         except core.SyncError as failure:return error(failure.code,str(failure))
         except BusError:return error('admission_unavailable')
         except Exception:

@@ -61,6 +61,7 @@ class FlowTests(Base):
         self.assertEqual(self.bus.sent[0][2],{'topic':'filescan','tag':'change'})
 
     def test_changed_and_deleted_files_and_a_touch(self):
+        for n in range(8):self.put(f'keep{n}.md')
         self.put('a.md','one',1000);self.add();self.call('scan');self.bus.sent.clear()
         self.put('a.md','one',2000);self.call('scan');self.assertEqual(self.sent(),[],'a touch with the same content sends nothing')
         self.put('a.md','two',3000);self.call('scan');self.assertEqual([m['change'] for m in self.sent()],['changed'])
@@ -155,3 +156,98 @@ class ParseTests(unittest.TestCase):
 
 
 if __name__=='__main__':unittest.main()
+
+
+class GuardTests(Base):
+    def populate(self,n=10):
+        for i in range(n):self.put(f'f{i}.md',str(i))
+        self.add();self.call('scan');self.bus.sent.clear()
+
+    def test_a_pass_deleting_more_than_the_share_pauses_and_sends_no_delete(self):
+        self.populate(10)
+        for i in range(3):os.unlink(Path(self.root)/f'f{i}.md')  # 30 % > the 20 % default
+        r=self.call('scan');self.assertEqual((r['deleted'],'3 of 10' in r['held']),(0,True))
+        self.assertEqual(self.sent(),[]);s=self.call('status');self.assertIn('3 of 10',s['paused']['reason'])
+        self.assertEqual(s['tracked'],10,'the files are still tracked')
+        self.assertEqual(self.call('scan')['error']['code'],'paused','a paused agent refuses further scans')
+        self.assertEqual(self.sent(),[])
+
+    def test_confirm_releases_it_and_then_the_deletes_go(self):
+        self.populate(10)
+        for i in range(3):os.unlink(Path(self.root)/f'f{i}.md')
+        self.call('scan');self.assertEqual(self.call('scan')['error']['code'],'paused');r=self.call('scan confirm:true',roles=('owner',));self.assertEqual(r['deleted'],3)
+        self.assertEqual(sorted((m['change'],m['path']) for m in self.sent()),[('deleted','f0.md'),('deleted','f1.md'),('deleted','f2.md')])
+        self.assertIsNone(self.call('status')['paused']);self.assertNotIn('error',self.call('scan'))
+
+    def test_a_pass_under_the_share_sends_its_deletes(self):
+        self.populate(10);os.unlink(Path(self.root)/'f0.md');os.unlink(Path(self.root)/'f1.md')  # 20 % is not more than 20 %
+        self.assertEqual(self.call('scan')['deleted'],2);self.assertEqual(len(self.sent()),2)
+
+    def test_the_absolute_limit_holds_for_a_big_tree(self):
+        self.agent=self.make({'delete_max':2,'delete_pct':100});self.populate(10);os.unlink(Path(self.root)/'f0.md');os.unlink(Path(self.root)/'f1.md');os.unlink(Path(self.root)/'f2.md')
+        self.assertIsNotNone(self.call('scan')['held']);self.assertEqual(self.sent(),[])
+
+    def test_an_emptied_or_missing_directory_never_deletes_anything(self):
+        self.populate(4)
+        for i in range(4):os.unlink(Path(self.root)/f'f{i}.md')
+        self.assertIn('empty',self.call('scan')['held']);self.assertIn('empty',self.call('status')['paused']['reason']);self.assertEqual(self.sent(),[])
+        self.setUp();self.populate(4);os.rename(self.root,self.root+'-gone')
+        r=self.call('scan');self.assertEqual(r['error']['code'],'paused');self.assertIn('cannot be read',r['error']['text']);self.assertEqual(self.sent(),[])
+        self.assertEqual(self.call('scan')['error']['code'],'paused')
+        self.assertEqual(self.call('status')['tracked'],4)
+        r=self.call('scan confirm:true',roles=('owner',));self.assertEqual(r['error']['code'],'paused','still unreadable even when confirmed')
+        os.rename(self.root+'-gone',self.root);self.assertNotIn('error',self.call('scan confirm:true',roles=('owner',)))
+
+    def test_a_changed_directory_is_a_reset_not_a_confirm(self):
+        self.populate(3);moved=os.path.join(os.path.dirname(self.root),'other');os.makedirs(moved);Path(moved,'z.md').write_text('z')
+        self.agent=fs.FileScan(self.bus,{},moved,self.work,warning=lambda *a:None)
+        r=self.call('scan');self.assertEqual(r['error']['code'],'paused');self.assertIn('changed from',r['error']['text'])
+        r=self.call('scan confirm:true',roles=('owner',));self.assertEqual(r['error']['code'],'paused','confirm does not release a changed directory')
+        self.call('reset confirm:true',roles=('owner',));self.assertNotIn('error',self.call('scan'))
+
+    def test_the_first_scan_of_an_empty_directory_is_not_a_guard_case(self):
+        self.assertNotIn('error',self.call('scan'));self.assertIsNone(self.call('status')['paused'])
+
+    def test_confirm_needs_a_manager(self):
+        self.populate(10)
+        for i in range(5):os.unlink(Path(self.root)/f'f{i}.md')
+        self.call('scan');self.assertEqual(self.call('scan confirm:true',roles=('write',))['error']['code'],'forbidden')
+
+
+class RagTests(Base):
+    def rag(self,extra='as rag vault notes'):
+        self.bus.kinds['#rag@n.test']='agent';return self.add('#rag@n.test',extra=extra)
+
+    def calls(self):return [json.loads(b) for _,b,_ in self.bus.calls]
+
+    def test_a_file_becomes_ragss_own_upsert_and_a_delete_its_own_delete(self):
+        for i in range(8):self.put(f'k{i}.md','k')
+        self.put('notes/a.md','hello');self.rag();self.call('scan')
+        mine=[c for c in self.calls() if c['id']=='notes/a.md']
+        self.assertEqual(mine,[{'method':'upsert','namespace':'vault','tableName':'notes','id':'notes/a.md','data':'hello','mime-type':'text/markdown'}])
+        self.bus.calls.clear();os.unlink(Path(self.root)/'notes/a.md');self.call('scan')
+        self.assertEqual(self.calls(),[{'method':'delete','namespace':'vault','tableName':'notes','id':'notes/a.md'}])
+
+    def test_nothing_is_tracked_on_a_refusal_and_it_is_sent_again(self):
+        self.put('a.md','x');self.rag();self.bus.replies['#rag@n.test']='{"error":"no"}';self.call('scan')
+        self.assertEqual(len(self.bus.calls),1);self.assertEqual(self.call('status')['subscribers'][0]['pending'],1)
+        self.bus.replies['#rag@n.test']='ok';self.call('scan');self.assertEqual(len(self.bus.calls),2);self.assertEqual(self.call('status')['subscribers'][0]['pending'],0)
+
+    def test_a_long_path_is_hashed_with_the_path_kept_in_key1_and_an_odd_one_too(self):
+        long='d/'+'x'*130+'.md';self.put(long,'t');self.put('line break.md','t');self.rag();self.call('scan')
+        by={c['id']:c for c in self.calls()}
+        h=[c for c in by.values() if c.get('key1')==long]
+        self.assertEqual((len(h),len(h[0]['id'])),(1,64))
+        self.assertEqual(len([c for c in by.values() if c.get('key1','').startswith('line')]),1)
+
+    def test_a_file_over_rags_limit_or_not_text_is_skipped_for_rag_and_named_in_status(self):
+        self.put('big.md','x'*(fs.RAG_TEXT+1));Path(self.root,'bin.dat').write_bytes(b'\xff\xfe\x01');self.put('ok.md','fine')
+        self.agent=self.make({'max_file_size':'1MiB'});self.rag();self.call('scan')
+        self.assertEqual([c['id'] for c in self.calls()],['ok.md'])
+        skipped=self.call('status')['skipped_for_rag'];names=set(next(iter(skipped.values())))
+        self.assertEqual(names,{'big.md','bin.dat'});self.assertEqual(self.call('status')['subscribers'][0]['pending'],0)
+
+    def test_without_a_namespace_and_table_rag_gets_nothing_and_status_says_so(self):
+        self.put('a.md');self.rag(extra='as rag');self.call('scan');self.assertEqual(self.bus.calls,[])
+        self.assertIn('namespace',next(iter(self.call('status')['skipped_for_rag'].values()))['*'])
+        self.agent=self.make({'namespace':'vault','table':'notes'});self.call('scan')
