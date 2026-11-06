@@ -150,6 +150,14 @@ class AgentWatchTests(base.Base):
         self.watch_agent({'mode':'watch'},watch_limit=2);s=self.agent.status()
         self.assertIn('watch limit reached',s['fallback']);self.assertTrue(self.agent.needs_timer());self.assertEqual(s['effective_mode'],'both')
 
+    def test_an_overflow_runs_a_full_scan_and_finds_what_the_events_missed(self):
+        self.add();self.agent.tick();self.bus.sent.clear();self.put('missed.md','x')
+        self.agent.on_events([],True);self.assertEqual([json_path(b) for _,b,_ in self.bus.sent],['missed.md'])
+        self.put('named.md','y');self.bus.sent.clear();self.agent.on_events(['named.md'],False)
+        self.assertEqual([json_path(b) for _,b,_ in self.bus.sent],['named.md'])
+        self.put('other.md','z');self.bus.sent.clear();self.agent.on_events(['named.md'],False)
+        self.assertEqual(self.bus.sent,[],'without an overflow only the named paths are looked at')
+
     def test_poll_mode_never_starts_a_watch(self):
         self.agent=self.make({'mode':'poll'});self.assertFalse(self.agent.start_watch());self.assertIsNone(self.agent.watcher);self.assertTrue(self.agent.needs_timer())
 
