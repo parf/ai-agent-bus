@@ -54,6 +54,6 @@ Facts, 2026-11-05 18:00 → 11-06 01:40: 338 commits, of which 47 version bumps,
 
 - ❓ Q358 Restarting mdhouse's Codex/OpenCode tabs (ceo, cto, w3, review) for T-33
   - Context: T-33 fixed reply routing; a session picks it up only after a restart. Restarting another project's sessions is the owner's call
-  - ( ) Yes, between their tasks, after telling mdhouse's CTO 🌟
-  - ( ) No, they restart on their own schedule ⭐
+  - ( ) No, they restart on their own schedule 🌟
+  - ( ) Yes, between their tasks, after telling mdhouse's CTO ⭐
   > 💡👾 Let mdhouse restart on its own schedule unless a reply bug shows up.
