@@ -44,10 +44,13 @@ type held struct {
 // it is kept in is an adapter's business, and swapping a file for a database
 // does not reach this file (src/MODULES.md#the-rule).
 type Tokens struct {
-	mu    sync.RWMutex
-	store ports.TokenStore
-	who   map[string]string // token -> principal, current and previous alike
-	tok   map[string]held   // principal -> what it holds
+	mu sync.RWMutex
+	// flushMu keeps one FlushUsed at a time; it is never held with mu while
+	// the store is written.
+	flushMu sync.Mutex
+	store   ports.TokenStore
+	who     map[string]string // token -> principal, current and previous alike
+	tok     map[string]held   // principal -> what it holds
 	// Sessions are credentials too, and deliberately not in the two maps
 	// above: those are saved and these are never written down (sessions.go).
 	sess map[string]*session
@@ -434,23 +437,32 @@ func (t *Tokens) PairOf(f func(string) (ports.CredentialPair, error)) {
 // FlushUsed writes the last-use times that moved since the last flush, as one
 // batch, on the queue flush's cadence: a disk write per authenticated call is
 // not a price anybody pays for a timestamp (docs/02-access.md#token-lifetime).
+// The batch is taken under the lock and written outside it, so no
+// authenticated call waits on the disk. Touch only updates rows that exist, so
+// a credential forgotten meanwhile is not brought back; a time written over a
+// fresher one is rewritten by the next flush, which still sees it as moved.
 func (t *Tokens) FlushUsed() error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+	t.flushMu.Lock()
+	defer t.flushMu.Unlock()
+	t.mu.RLock()
 	moved := map[string]time.Time{}
 	for name, h := range t.tok {
 		if ns := h.used.Load(); ns > h.flushed {
 			moved[name] = time.Unix(0, ns)
 		}
 	}
+	t.mu.RUnlock()
 	if err := t.store.Touch(moved); err != nil {
 		t.failed("last-use times", "", err)
 		return err
 	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	for name, at := range moved {
-		h := t.tok[name]
-		h.flushed = at.UnixNano()
-		t.tok[name] = h
+		if h, has := t.tok[name]; has && at.UnixNano() > h.flushed {
+			h.flushed = at.UnixNano()
+			t.tok[name] = h
+		}
 	}
 	return nil
 }
