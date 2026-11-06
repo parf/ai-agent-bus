@@ -354,9 +354,10 @@ func (r *runner) serve(ctx context.Context) {
 			continue
 		}
 		name, as, env, box := p.name, p.as, p.env, p.box
-		// The package directory is fixed at adoption, as is the serving mode.
-		// Retire either change before adopting its replacement.
-		if s := r.served[name]; s != nil && (in.Source != s.in.Source || (s.in.Agent.Serves == "itself") != (in.Agent.Serves == "itself") || (s.stream != nil) != isStream(*in)) {
+		// The package directory, serving mode and process span are fixed at
+		// adoption: slots and keeper loops cannot be resized in place. Retire
+		// any change before adopting its replacement.
+		if s := r.served[name]; s != nil && (in.Source != s.in.Source || in.Span != s.in.Span || (s.in.Agent.Serves == "itself") != (in.Agent.Serves == "itself") || (s.stream != nil) != isStream(*in)) {
 			r.stop(name, s)
 		}
 		r.waitRetired(in.Key)
