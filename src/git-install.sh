@@ -133,6 +133,8 @@ if ! systemctl is-active --quiet "$unit"; then
     exit 1
 fi
 echo "$unit restarted from the checkout"
+# One log rotation rule: the tracked one replaces the weekly rule setup writes (same file).
+"$src/git-install-logrotate.sh" || echo "warning: the log rotation rule was not installed; run: sudo $src/git-install-logrotate.sh" >&2
 # Every active root-account runner restarts on the new runner and template, so a
 # fix to its sandbox or limits reaches a running one (an in-flight call can fail).
 "$src/git-install-runners.sh" ||
