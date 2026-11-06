@@ -57,7 +57,7 @@ Follow the [receipt rules](04-messaging.md#receipts).
 |---|---|
 | Startup | Find the installed runtime and integration assets; explain missing prerequisites; work without a repository checkout |
 | Configuration | Use [access](02-access.md#getting-a-token) and [face configuration](../src/mcp/README.md#environment); an explicit address wins. Without one, discover the socket of the account the launcher runs as, found by uid rather than `$USER`, in its login runtime directory, then the installed [local socket](02-access.md#local-socket). With a token, select the shared listener instead. An `https://` address needs `AGENT_BUS_TLS_FINGERPRINT` ([over HTTPS](02-access-remote.md#over-https)) |
-| Bus tools | Load the [MCP minimum](05-discovery.md#mcp-minimum) into the launched session alongside message delivery; authorize the agent-bus MCP namespace in Claude and set Codex's server-specific `default_tools_approval_mode="approve"` so those calls need no initial tool prompt |
+| Bus tools | Load the [MCP minimum](05-discovery.md#mcp-minimum) into the launched session alongside message delivery; pre-approve Claude's non-file bus tools by name and configure Codex's non-file tools without an initial prompt; the two file tools follow their [runtime approval rules](03-records-kv.md#file-tool-approval) |
 | Session | Resume the current directory's conversation when available; otherwise start fresh. With an explicit `AGENT_BUS_NAME`, resume the newest conversation bound to that name, else the newest one bound to no name, else start fresh, so two names sharing a directory never take each other's conversation. Preserve caller arguments and route messages to the intended live session |
 | Automatic execution | Always enable Claude's `--enable-auto-mode`; configure Codex's App Server and fresh-thread TUI with `approval_policy="never"` and `sandbox_mode="danger-full-access"`, overriding contrary launch options. Remote TUI resumes inherit the server configuration and receive no permission overrides, including after a crash |
 | Accounts | `ab-claude` accepts `-2`, `-3` and `-4`: the Claude configuration home becomes `~/.claude2`, `~/.claude3` or `~/.claude4`, or a set `CLAUDE_CONFIG_DIR` with that digit appended, so several accounts run side by side with their own login, sessions and servers. The launcher consumes the flag; the runtime never receives it |
@@ -298,7 +298,7 @@ checkout or manual marketplace path is needed.
 - Keep other servers and scopes.
 - The plugin provides that server; loading both would create competing readers.
 
-- `ab-claude` always passes `--channels plugin:agent-bus@agent-bus-local`, with its namespaced tools allowed.
+- `ab-claude` always passes `--channels plugin:agent-bus@agent-bus-local`; file tools retain their [approval rules](03-records-kv.md#file-tool-approval).
 - It never uses or falls back to the development channel flag, and never answers a confirmation dialog.
 - The plugin gets its face path and private session environment from the launcher; persistent plugin files contain no bus token, name or socket.
 - Other runtimes are unchanged.
