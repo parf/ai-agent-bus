@@ -237,6 +237,7 @@ class FileScan:
             for new,old in self.watcher.take_moves().items():self.hints[new]=(old,now)
         for key in [k for k,(_,t) in self.hints.items() if now-t>HINT_TTL]:del self.hints[key]
         if len(self.hints)>HINT_MAX:self.hints.clear()
+        moved=set()   # the origins of the files this pass saw renamed in; a persisted chain on a changed file exempts nothing
         for key,record in plan['upserts'].items():
             if key in items:continue
             old=self.hints.pop(key,(None,0))[0]
@@ -254,9 +255,9 @@ class FileScan:
                     chain.extend(o for o in more if o not in chain and o!=key)
                     if isinstance(before,list):break
                     cur=before
-                record['from']=chain[0] if len(chain)==1 else chain
+                record['from']=chain[0] if len(chain)==1 else chain;moved.update(chain)
         for key in plan['deletes']:self.hints.pop(key,None)
-        plan['renamed']={o for r in plan['upserts'].values() for o in ([r['from']] if isinstance(r.get('from'),str) else r.get('from') or [])}&set(plan['deletes'])
+        plan['renamed']=moved&set(plan['deletes'])
 
     def guard(self,state,plan):
         """(kind, reason) when this pass must not send deletes: an unreadable or emptied directory, or too many deletes."""
@@ -379,6 +380,7 @@ class FileScan:
         self.prepare_matches(self.state.load())
         result=self.deliver()
         self._collect_bigfiles()
+        self._trim_origins()
         return result
 
     def _collect_bigfiles(self):
@@ -415,6 +417,23 @@ class FileScan:
                     del held[name];changed=True
                 if changed:self.state.save(data)
         except core.SyncError:self._uploaded[:0]=uploaded   # the notes are kept, so the next round still collects these keys
+
+    def _trim_origins(self):
+        """Forget `from` on a file once no subscriber holds any of its origins, as a mark or as a possibly delivered send: the rename
+        is confirmed everywhere it was owed, so the origins must not outlive it. Kept longer, a stale chain would excuse deletes in the
+        mass-delete guard and could pair a reused name with a rename that is long done."""
+        try:
+            with self.state.hold():
+                data=self.state.load();changed=False
+                held=set()
+                for table in ('marks','maybe'):
+                    for entries in data[table].values():held.update(entries)
+                for item in data['items'].values():
+                    origins=item.get('from')
+                    if origins is None or item.get('gone'):continue
+                    if not held.intersection(origins if isinstance(origins,list) else [origins]):del item['from'];changed=True
+                if changed:self.state.save(data)
+        except core.SyncError:pass   # the next round does it
 
     # --- calls ----------------------------------------------------------------------------------------------------
     def status(self):

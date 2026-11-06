@@ -350,6 +350,41 @@ class RenameWatchTests(AgentWatchTests):
         self.assertEqual(by['#q@n.test'],[('renamed','c.md','a.md'),('renamed','d.md','c.md')],'the one that kept up saw both moves')
         self.assertEqual(by['#late@n.test'],[('renamed','d.md','a.md')],'it still held a: one rename from a, no stray delete or create')
 
+    def test_the_origin_is_forgotten_once_the_rename_is_delivered_to_everyone_who_wants_it(self):
+        self.start({'a.md':'x'});self.bus.send_refused.add('#q@n.test');self.r('a.md','b.md')
+        item=lambda:self.agent.state.load()['items'].get('b.md',{})
+        self.assertTrue(eventually(lambda:item().get('from')=='a.md'));time.sleep(0.3);self.assertEqual(item().get('from'),'a.md','not delivered yet: kept')
+        self.bus.send_refused.clear();self.agent.tick();self.agent._round()
+        self.assertEqual(self.changes(),[('renamed','b.md','a.md')]);self.assertNotIn('from',item(),'delivered: the chain is dropped')
+
+    def test_a_delivered_rename_does_not_excuse_a_later_mass_delete(self):
+        for i in range(12):self.put(f'fill{i}.md',str(i))
+        for i in range(10):self.put(f'old/f{i}.md','v1 '+str(i))
+        self.agent=self.make({'batch':500});self.add();self.agent.tick();self.bus.sent.clear()
+        os.rename(Path(self.root)/'old',Path(self.root)/'new');self.agent.hints['new/']=('old/',self.agent.clock())   # what the cookie pairing hands over
+        self.agent.tick();self.assertEqual([c[0] for c in self.changes()],['renamed']*10,'the move is delivered');self.assertIsNone(self.agent.status()['paused'])
+        self.assertTrue(all('from' not in r for r in self.agent.state.load()['items'].values()),'nobody holds the old paths: the chains are gone')
+        for i in range(10):self.put(f'old/f{i}.md','restored '+str(i))   # an unrelated old/ is made and delivered
+        self.agent.tick();self.bus.sent.clear()
+        for i in range(10):os.unlink(Path(self.root)/f'old/f{i}.md');self.put(f'new/f{i}.md','v2 '+str(i),mtime=time.time()+9)
+        self.agent.tick();self.assertIsNotNone(self.agent.status()['paused'],'ten real deletes of 32 tracked hold the guard')
+
+    def test_an_origin_is_kept_while_a_subscriber_may_still_hold_it(self):
+        self.start({'a.md':'x'});self.r('a.md','b.md');self.settle(1)
+        data=self.agent.state.load();sub_id=next(iter(data['subs']));data['items']['b.md']['from']='a.md';data['maybe'][sub_id]['a.md']='?';self.agent.state.save(data)
+        self.bus.send_refused.add('#q@n.test');self.agent._round()   # the owed delete of a is refused, so the unknown send stays
+        self.assertEqual(self.agent.state.load()['items']['b.md'].get('from'),'a.md','an unknown send of a: keep')
+        self.bus.send_refused.clear();self.agent._round();self.assertNotIn('from',self.agent.state.load()['items']['b.md'])
+
+    def test_a_changed_file_with_an_old_chain_does_not_exempt_its_recreated_origins_from_the_guard(self):
+        for i in range(12):self.put(f'fill{i}.md',str(i))
+        self.put('a.md','one');self.put('b.md','two');self.agent=self.make({'mode':'poll','batch':500});self.add();self.agent.tick();self.bus.sent.clear()
+        data=self.agent.state.load();data['items']['b.md']['from']='a.md';self.agent.state.save(data)   # b came from a once, and a was made again since
+        self.put('b.md','two, changed',mtime=time.time()+5);os.unlink(Path(self.root)/'a.md')
+        for i in range(2):os.unlink(Path(self.root)/f'fill{i}.md')
+        self.agent.tick();self.assertIsNotNone(self.agent.status()['paused'],'3 of 14 tracked is over 20 %: the old chain exempts none of them')
+        self.assertEqual([c for c in self.changes() if c[0]=='deleted'],[])
+
     def test_a_filter_matching_one_side_sends_that_side_alone(self):
         self.start({'a.md':'x'},target_extra=r'/^a/');self.r('a.md','b.md');self.settle(1)
         self.assertEqual(self.changes(),[('deleted','a.md',None)],'only the old path matches')
