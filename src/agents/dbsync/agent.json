@@ -38,8 +38,9 @@
     "poll": {
       "help": "Read the rows after the scan position now and send what is new or changed.",
       "role": [
-        "read",
-        "write"
+        "write",
+        "owner",
+        "maintainer"
       ],
       "args": [],
       "returns": "{read}"

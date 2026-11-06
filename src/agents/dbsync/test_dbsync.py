@@ -430,6 +430,11 @@ class CallTests(Base):
         self.assertEqual(json.loads(self.agent.handle(msg('reset',roles=('owner',))))['error']['code'],'not_confirmed')
         self.assertEqual(json.loads(self.agent.handle(msg('reset confirm:true',roles=('owner',)))),{'reset':True})
 
+    def test_poll_needs_write_or_a_manager_and_a_reader_cannot_make_the_db_agent_work(self):
+        self.assertEqual(json.loads(self.agent.handle(msg('poll'))).get('error',{}).get('code'),'forbidden')
+        self.assertEqual(self.db.queries,[])
+        for roles in (('write',),('maintainer',)):self.assertIn('read',json.loads(self.agent.handle(msg('poll',roles=roles))))
+
     def test_a_subscriber_must_be_able_to_reach_the_db_agent_itself(self):
         self.bus.deny.add((AUTHOR,DB))
         self.assertEqual(json.loads(self.agent.handle(msg(f'sub add {QUEUE}')))['error']['code'],'admission_refused')

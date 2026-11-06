@@ -550,7 +550,10 @@ class DBSync:
         manager=bool(roles&{'owner','maintainer'})
         if not manager and not roles&SUB_ROLES:return error('forbidden')
         if method=='status':return dumps(self.status())
-        if method=='poll':return dumps(self.poll())
+        if method=='poll':
+            # Reading the table now costs the DB agent a query: a reader waits for `every`, as FileScan's `scan confirm`.
+            if not manager and 'write' not in roles:return error('forbidden')
+            return dumps(self.poll())
         if method=='reset':
             if not manager:return error('forbidden')
             if args.get('confirm') is not True:return error('not_confirmed')

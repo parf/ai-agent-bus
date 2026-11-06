@@ -19,7 +19,7 @@
 | Call | Result |
 |---|---|
 | `status` | The table, scan position, rows held against `window_max`, last poll and error, and each subscriber's position, counts, `parked` and `lookback_degraded` |
-| `poll` | Reads and delivers now, instead of waiting for `every` |
+| `poll` | Reads and delivers now, instead of waiting for `every`. `write`, Owners and Maintainers only |
 | `reset confirm:true` | Forgets every row and position, keeps the subscriptions and replays the table. Owners and Maintainers only |
 | `sub add <target> [replay:false]` | Sends each row to a queue or an agent until it confirms; the whole table first unless `replay:false` |
 | `sub list`, `sub delete <id>` | Your subscriptions with sent, confirmed, dropped and pending counts; delete one |
