@@ -189,9 +189,9 @@ that answers who may do anything else.
 
 | Store | Holds |
 |---|---|
-| SQLite database `agent-bus.db`, mode 0600, held exclusively | Daemon Owner, local-account map, users, registry, groups, credentials and issued times, queue contents, counters, each record's [key-value store](03-records-kv.md#key-value-store), the index of each record's [bigfiles](03-records-kv.md#bigfiles), its [activity history](05-discovery.md#activity-history) by day, and the clean-stop marker; only the current schema is accepted |
+| SQLite database `agent-bus.db`, mode 0600, held exclusively | Daemon Owner, local-account map, users, registry, groups, credentials and issued times, queue contents, counters, each record's [key-value store](03-records-kv.md#key-value-store), the index of each record's [bigfiles](03-records-kv.md#bigfiles), its [activity history](05-discovery.md#activity-history) by day, [agent-log](agents/bus.md#agent-logs) alert rings, subscription definitions and counters, id reservations, and the clean-stop marker; only the current schema is accepted |
 | Files in `bigfile/` beside the database, 0600 in a 0700 directory | The bytes of each record's [bigfiles](03-records-kv.md#bigfiles), whole or absent and expiring. Their index is a table in the database, so a database backup holds the rows and not the files, and start drops each restored row whose file is not present. |
-| Memory only | Browser sessions, outstanding readers, [locks](01-identity-and-authority.md#shared-locks), uptime and recent envelope feed |
+| Memory only | Agent-log notices and warnings, browser sessions, outstanding readers, [locks](01-identity-and-authority.md#shared-locks), uptime and recent envelope feed |
 
 - The daemon is told where the database is with `--db`; setup runs `agent-busd --init` once, as the daemon account, to create it, and the unit never passes `--create`.
 - An empty file a create left behind is finished by the next create, and refused as empty without one; a file holding anything else is never taken for one.
