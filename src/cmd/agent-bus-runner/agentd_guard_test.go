@@ -55,3 +55,36 @@ func TestAFileCallThroughAHostDirectoryLinkIsRefused(t *testing.T) {
 		t.Fatalf("read through a link into the runner's directory: %v", err)
 	}
 }
+
+// The guard compares absolute paths: a relative --host cannot let a link into it through.
+func TestAPackageLinkIntoARelativeHostDirectoryIsStillRefused(t *testing.T) {
+	root, host := t.TempDir(), t.TempDir()
+	directoryAgent(t, host, "private", "secret")
+	if err := os.Symlink(filepath.Join(host, "private"), filepath.Join(root, "hostpkg")); err != nil {
+		t.Fatal(err)
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	relativeHost, err := filepath.Rel(cwd, host)
+	if err != nil || filepath.IsAbs(relativeHost) {
+		t.Skipf("no relative path from %s to %s: %v", cwd, host, err)
+	}
+	list, err := loadSources([]agentSource{{path: root}}, relativeHost)
+	if err != nil || len(list) != 1 {
+		t.Fatalf("%+v %v", list, err)
+	}
+	if !strings.Contains(list[0].Refused, "inside") {
+		t.Fatalf("a link into a relative host directory loaded: %+v", list[0])
+	}
+	// A relative agents directory too.
+	relativeRoot, err := filepath.Rel(cwd, root)
+	if err != nil {
+		t.Skip(err)
+	}
+	list, err = loadSources([]agentSource{{path: relativeRoot}}, host)
+	if err != nil || len(list) != 1 || !strings.Contains(list[0].Refused, "inside") {
+		t.Fatalf("a link into the host directory under a relative agents directory loaded: %+v %v", list, err)
+	}
+}

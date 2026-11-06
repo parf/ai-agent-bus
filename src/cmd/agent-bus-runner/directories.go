@@ -80,7 +80,13 @@ func packagePath(source, host, name string) (string, bool, error) {
 	if fi.Mode()&os.ModeSymlink == 0 {
 		return "", false, nil
 	}
-	real, err := filepath.EvalSymlinks(p)
+	// Every path compared below is absolute, so a relative --host or agents directory cannot
+	// bypass the guard against an absolute target.
+	abs, err := filepath.Abs(p)
+	if err != nil {
+		return "", true, fmt.Errorf("%s is a symbolic link that cannot be resolved: %v", p, err)
+	}
+	real, err := filepath.EvalSymlinks(abs)
 	if err != nil {
 		return "", true, fmt.Errorf("%s is a symbolic link that leads nowhere: %v", p, err)
 	}
@@ -93,11 +99,21 @@ func packagePath(source, host, name string) (string, bool, error) {
 		if guarded.dir == "" {
 			continue
 		}
-		if resolved, err := filepath.EvalSymlinks(guarded.dir); err == nil && within(real, resolved) {
+		if resolved, ok := canonicalDir(guarded.dir); ok && within(real, resolved) {
 			return "", true, fmt.Errorf("%s is a symbolic link to %s, which is inside %s; a package link points at a checkout elsewhere", p, real, guarded.why)
 		}
 	}
 	return real, true, nil
+}
+
+// canonicalDir is dir made absolute with its links resolved.
+func canonicalDir(dir string) (string, bool) {
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return "", false
+	}
+	resolved, err := filepath.EvalSymlinks(abs)
+	return resolved, err == nil
 }
 
 // within is whether path is dir or something under it; both are already resolved.
