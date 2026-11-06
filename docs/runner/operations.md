@@ -168,7 +168,7 @@ Install reviewed code into the host's shared `agent.d/<agent>` directory, with i
 - **Whoever can write the target changes the agent's code,** and the runner account must be able to read it.
 - **A link to nothing, to a file, into the runner's own directory or back into `agent.d` is refused by name.** The file calls (`read`, `write`) refuse a link inside the package.
 - **`reload` picks up a `git pull`** in the checkout. `install --replace` replaces the link with a real directory, and `remove` unlinks it; the checkout is never written to or deleted.
-- **A runner that starts removes the staging a cut-off install or remove left** (`.install-*` and `.remove-*` directories, a link there only as a link); one that holds the previous package or settings is kept and named in the journal, and one a running install or remove still holds, even from another runner, is left alone.
+- **A runner that starts removes the staging a cut-off install or remove left** (`.install-*` and `.remove-*` directories, a link there only as a link); one that holds the previous package or settings is kept and named in the journal, and one a running install or remove still holds, even from another runner, is left alone: a staging directory takes its name only after its lease is locked, so a directory whose lease nobody holds is abandoned, however new.
 
 An inventory entry can disable a package, name it explicitly or declare its instances. The [directory-selection rules](configuration.md#agent-directories) explain shared packages and bundled fallback.
 

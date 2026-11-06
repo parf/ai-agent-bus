@@ -278,32 +278,76 @@ func TestStartSweepKeepsAnotherRunnersLiveStaging(t *testing.T) {
 	}
 }
 
-// Between creating its lease file and locking it, an install's directory looks unlocked: a sweep
-// must still leave a young lease alone, and take an old unlocked one.
-func TestStartSweepKeepsAYoungLeaseBeforeItIsLocked(t *testing.T) {
+// A directory is never visible under its final name before its lease is locked: claimDir builds it
+// under a claim name, locks, then renames. So the sweep needs no age test: a final-named directory
+// whose lease nobody holds is dead however new it is, and a creator stalled before its lock loses
+// only an empty claim directory and gets an error, never a staged package.
+func TestClaimDirIsLockedFromTheFirstMomentItHasItsName(t *testing.T) {
 	r, _, _ := configurationFixture(t, "", "printf old")
-	b := &runner{name: "#runner2@h", agents: r.agents, host: r.host, say: &bytes.Buffer{}}
-	young := filepath.Join(r.agents, ".install-young")
-	writeFile(t, filepath.Join(young, ".lease"), "")
-	writeFile(t, filepath.Join(young, "newagent", "agent.json"), "{}")
-	old := time.Now().Add(-time.Hour)
-	// The directory is old but its lease file was just made: only the lease's age protects it.
-	if err := os.Chtimes(young, old, old); err != nil {
+	dir, lease, err := claimDir(r.agents, ".install-")
+	if err != nil {
 		t.Fatal(err)
 	}
-	stale := filepath.Join(r.agents, ".install-oldlease")
-	writeFile(t, filepath.Join(stale, ".lease"), "")
-	for _, p := range []string{filepath.Join(stale, ".lease"), stale} {
-		if err := os.Chtimes(p, old, old); err != nil {
-			t.Fatal(err)
-		}
+	defer lease.Close()
+	if !strings.HasPrefix(filepath.Base(dir), ".install-") {
+		t.Fatalf("claimed directory %s", dir)
 	}
+	if !leased(dir) {
+		t.Fatal("a freshly claimed directory is not protected by its lease")
+	}
+	if left, _ := filepath.Glob(filepath.Join(r.agents, claimPrefix+"*")); len(left) != 0 {
+		t.Fatalf("claim directory left behind: %v", left)
+	}
+	writeFile(t, filepath.Join(dir, "newagent", "agent.json"), "{}")
+	b := &runner{name: "#runner2@h", agents: r.agents, host: r.host, say: &bytes.Buffer{}}
 	b.sweepStaging()
-	if _, err := os.Lstat(filepath.Join(young, "newagent", "agent.json")); err != nil {
-		t.Fatalf("a sweep removed staging whose lease was created but not yet locked: %v", err)
+	if _, err := os.Lstat(filepath.Join(dir, "newagent", "agent.json")); err != nil {
+		t.Fatalf("a sweep removed a claimed directory held by a live creator: %v", err)
 	}
-	if _, err := os.Lstat(stale); !os.IsNotExist(err) {
-		t.Fatalf("an old unlocked lease was not swept: %v", err)
+	lease.Close()
+	b.sweepStaging()
+	if _, err := os.Lstat(dir); !os.IsNotExist(err) {
+		t.Fatalf("a directory whose lease is no longer held, however new, was kept: %v", err)
+	}
+}
+
+// A creator stalled between making its claim directory and locking it: the sweep takes the
+// claim, and the creator's rename fails loudly. Nothing was staged under a name that outlives it.
+func TestAStalledClaimIsSweptAndTheCreatorFailsWithoutLoss(t *testing.T) {
+	r, _, _ := configurationFixture(t, "", "printf old")
+	claim, err := os.MkdirTemp(r.agents, claimPrefix)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, err := os.OpenFile(filepath.Join(claim, leaseFile), os.O_CREATE|os.O_RDWR, 0600) // opened, not yet locked
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	b := &runner{name: "#runner2@h", agents: r.agents, host: r.host, say: &bytes.Buffer{}}
+	b.sweepStaging()
+	if _, err := os.Lstat(claim); !os.IsNotExist(err) {
+		t.Fatalf("an unlocked claim directory was kept: %v", err)
+	}
+	if err := os.Rename(claim, filepath.Join(r.agents, ".install-late")); err == nil {
+		t.Fatal("the stalled creator's rename succeeded over a swept claim")
+	}
+}
+
+// A final-named directory with an unlocked lease, or none, is abandoned at any age.
+func TestStartSweepTakesAnUnlockedLeaseAtAnyAge(t *testing.T) {
+	r, _, _ := configurationFixture(t, "", "printf old")
+	b := &runner{name: "#runner2@h", agents: r.agents, host: r.host, say: &bytes.Buffer{}}
+	fresh := filepath.Join(r.agents, ".install-fresh")
+	writeFile(t, filepath.Join(fresh, ".lease"), "")
+	writeFile(t, filepath.Join(fresh, "newagent", "agent.json"), "{}")
+	none := filepath.Join(r.agents, ".install-none")
+	writeFile(t, filepath.Join(none, "newagent", "agent.json"), "{}")
+	b.sweepStaging()
+	for _, d := range []string{fresh, none} {
+		if _, err := os.Lstat(d); !os.IsNotExist(err) {
+			t.Fatalf("%s: an unlocked directory survived the sweep: %v", d, err)
+		}
 	}
 }
 

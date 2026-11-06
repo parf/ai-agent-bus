@@ -4,8 +4,8 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
-	"time"
 )
 
 const leaseFile = ".lease"
@@ -25,21 +25,40 @@ func holdLease(dir string) (*os.File, error) {
 	return f, nil
 }
 
-// leased says whether someone is still working in dir: its lease is held, or the lease is so new
-// that its owner may not have taken the lock yet (it creates the file, then locks it). A directory
-// whose lease can be taken and is not new, or that never had one and is not new, is abandoned.
-func leased(dir string, info os.FileInfo) bool {
-	const grace = 10 * time.Second
+// claimDir makes a private directory parent/prefix<random> that holds a locked lease from the first
+// moment it is visible under that name: the directory is built under a claim name, locked, then
+// renamed (the lock follows the file). A sweep therefore never sees a final-named directory whose
+// owner has not locked it yet, and needs no age test. The claim name itself is swept when unlocked;
+// a creator paused before its lock then fails at the rename and reports an error, losing nothing.
+func claimDir(parent, prefix string) (string, *os.File, error) {
+	claim, err := os.MkdirTemp(parent, claimPrefix)
+	if err != nil {
+		return "", nil, err
+	}
+	f, err := holdLease(claim)
+	if err != nil {
+		os.RemoveAll(claim)
+		return "", nil, err
+	}
+	final := filepath.Join(parent, prefix+strings.TrimPrefix(filepath.Base(claim), claimPrefix))
+	if err := os.Rename(claim, final); err != nil {
+		f.Close()
+		os.RemoveAll(claim)
+		return "", nil, err
+	}
+	return final, f, nil
+}
+
+const claimPrefix = ".claim-"
+
+// leased says whether someone is still working in dir: its lease is held by a live process. A
+// directory with no lease, or with one nobody holds, is abandoned.
+func leased(dir string) bool {
 	f, err := os.OpenFile(filepath.Join(dir, leaseFile), os.O_RDWR, 0)
 	if err != nil {
-		return time.Since(info.ModTime()) < grace
+		return false
 	}
 	defer f.Close()
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
-		return errors.Is(err, syscall.EWOULDBLOCK)
-	}
-	if st, err := f.Stat(); err != nil || time.Since(st.ModTime()) < grace {
-		return true
-	}
-	return false
+	err = syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
+	return err != nil && errors.Is(err, syscall.EWOULDBLOCK)
 }

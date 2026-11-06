@@ -78,13 +78,12 @@ func (r *runner) installTarget(in installRequest) (existing bool, entries map[st
 // of the runner, stop and disable included, waits for reloadMu. On failure it
 // removes the staging directory.
 func (r *runner) stageInstall(ctx context.Context, in installRequest) (temp, staged string, lease *os.File, err error) {
-	dir, err := os.MkdirTemp(r.agents, ".install-")
+	dir, held, err := claimDir(r.agents, ".install-")
 	if err != nil {
 		return "", "", nil, fmt.Errorf("create install staging directory: %w", err)
 	}
 	// dir, not the result temp: a failing return has already blanked temp.
 	// held, not the result lease: a failing return has already blanked the results.
-	var held *os.File
 	defer func() {
 		if err != nil {
 			if held != nil {
@@ -93,10 +92,6 @@ func (r *runner) stageInstall(ctx context.Context, in installRequest) (temp, sta
 			os.RemoveAll(dir)
 		}
 	}()
-	held, err = holdLease(dir)
-	if err != nil {
-		return "", "", nil, err
-	}
 	lease = held
 	temp = dir
 	staged = filepath.Join(temp, in.agent)
@@ -351,13 +346,8 @@ func (r *runner) removePackage(name string) error {
 	if err != nil {
 		return err
 	}
-	temp, err := os.MkdirTemp(r.agents, ".remove-")
+	temp, lease, err := claimDir(r.agents, ".remove-")
 	if err != nil {
-		return err
-	}
-	lease, err := holdLease(temp)
-	if err != nil {
-		os.RemoveAll(temp)
 		return err
 	}
 	defer lease.Close() // after the removal below
@@ -382,13 +372,9 @@ func (r *runner) removePackage(name string) error {
 	host := filepath.Join(r.host, name)
 	trash := ""
 	if _, err := os.Lstat(host); err == nil {
-		trash, err = os.MkdirTemp(r.host, ".remove-")
+		var trashLease *os.File
+		trash, trashLease, err = claimDir(r.host, ".remove-")
 		if err != nil {
-			return restore(err)
-		}
-		trashLease, err := holdLease(trash)
-		if err != nil {
-			os.RemoveAll(trash)
 			return restore(err)
 		}
 		defer trashLease.Close()
@@ -435,6 +421,8 @@ func (r *runner) sweepStaging() {
 	r.sweepDir(r.agents, ".install-", "previous")
 	r.sweepDir(r.agents, ".remove-", "package")
 	r.sweepDir(r.host, ".remove-", "settings")
+	r.sweepDir(r.agents, claimPrefix)
+	r.sweepDir(r.host, claimPrefix)
 }
 
 func (r *runner) sweepDir(dir, prefix string, keep ...string) {
@@ -455,7 +443,7 @@ func (r *runner) sweepDir(dir, prefix string, keep ...string) {
 			os.Remove(path)
 			continue
 		}
-		if leased(path, fi) {
+		if leased(path) {
 			continue // a running install or remove, here or in another runner
 		}
 		held := false
