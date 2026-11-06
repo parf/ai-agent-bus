@@ -214,7 +214,7 @@ About four to six hours of agent time in all, after the shared core; the owner's
 
 ## On-demand sync
 
-**Proposed, plan only (T-48); the owner approves before any code.** Open choices are [Q372–Q375](QUESTIONS.md#filescan-on-demand-sync).
+**Built (T-48, [FS.3](TODO.md#filescan)); the current contract is [the guide's on-demand sync](../../docs/agents/filescan.md#on-demand-sync).** The rules below are the plan's record; owner choices [Q372–Q375](QUESTIONS.md#filescan-on-demand-sync).
 
 One call reads the folder once, delivers every file to RAG and answers only when the result is known. It is for a caller such as mdhouse that wants "this folder is in RAG now", not a standing feed: the call starts no watch and needs no subscription. Today nothing gives that answer: `pending` 0 means caught up for what was scanned, not that the folder is read ([progress](../../docs/agents/filescan.md#reference-for-a-consumer)).
 
@@ -228,7 +228,7 @@ One call reads the folder once, delivers every file to RAG and answers only when
 | 6. One at a time | A second `sync`, or a `sync` while a scan or delivery round of the same instance runs, is refused as busy; it never waits in line or merges with the running one |
 | 7. Deleted files | A file confirmed by an earlier sync and now gone from the folder is still in RAG. What RAG does on removal by source path is RAG's ([whole-file confirmation](../R1.0-Release/rag/large-files.md#whole-file-confirmation)); whether a sync removes it or only reports it as stale is [№Q373](QUESTIONS.md#Q373) |
 
-- **Files over 32 KiB:** FileScan stays a transport and hands such a file over by its bigfile reference; RAG chunks it. Until RAG takes that form, a sync over a folder with such a file ends failed, naming each one.
+- **Files over 32 KiB:** FileScan stays a transport and hands such a file over by its bigfile reference; RAG chunks it ([large files in RAG](../../docs/agents/filescan.md#large-files-in-rag)).
 - **Paid calls:** every upsert pays for embeddings, so the cost bound of [№Q374](QUESTIONS.md#Q374) applies to the first run of a big folder.
 - **Nothing left running:** a sync run, however it ends, leaves no subscription, watch or timer behind; only its marks stay, for the next run.
 - **Coexistence with the watch:** whether `sync` runs on any instance or only on one that neither watches nor polls is [№Q375](QUESTIONS.md#Q375).
