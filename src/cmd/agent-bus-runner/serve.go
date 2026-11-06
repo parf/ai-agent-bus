@@ -224,15 +224,15 @@ func (r *runner) serve(ctx context.Context) {
 	// A renamed bus record still uses the same cgroup key. Retire its old
 	// name before a replacement can take that key, not in the final sweep.
 	for name, s := range r.served {
-		stop := byKey[s.in.Key] != "" && byKey[s.in.Key] != name
+		stop, why := byKey[s.in.Key] != "" && byKey[s.in.Key] != name, "its key now belongs to another agent name"
 		for key := range byKey {
 			if byKey[s.in.Key] == "" && key != s.in.Key && (strings.HasPrefix(key, s.in.Key+"/") || strings.HasPrefix(s.in.Key, key+"/")) {
-				stop = true
+				stop, why = true, "its key overlaps another agent's"
 				break
 			}
 		}
 		if stop {
-			r.stop(name, s, "its key now belongs to another agent name")
+			r.stop(name, s, why)
 		}
 	}
 	// Preflight once before work-overlap decisions: an unconfigured template
@@ -446,7 +446,8 @@ func (r *runner) serve(ctx context.Context) {
 	}
 	for name, s := range r.served {
 		if !want[name] {
-			r.stop(name, s, "it is no longer installed or enabled")
+			// Still installed, enabled and not stopped means preflight or the jail refused it.
+			r.stop(name, s, r.notReadyWhy(s, conflicts))
 			fmt.Fprintf(r.say, "%s: no longer serving %s\n", r.name, name)
 		}
 	}
