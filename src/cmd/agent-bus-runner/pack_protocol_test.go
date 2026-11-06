@@ -16,6 +16,14 @@ func identityIs(protocol, min string) daemonProtocol {
 	}
 }
 
+// packRoot is a bundled directory that declares the protocol the fixture daemon speaks, as the real pack does.
+func packRoot(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, packProtocolName), `{"protocol":1,"protocol_min":1}`)
+	return root
+}
+
 func packFixture(t *testing.T, declaration string) *runner {
 	t.Helper()
 	r, _, _ := configurationFixture(t, "", "printf old")

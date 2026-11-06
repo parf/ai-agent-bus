@@ -215,7 +215,7 @@ func TestStagedInstallCannotChangeLiveMergedOverrides(t *testing.T) {
 		t.Fatal("staging did not compute its own digest")
 	}
 	// The real install staging path rejects a package dropping the shipped file.
-	r.bundled = t.TempDir()
+	r.bundled = packRoot(t)
 	directoryAgent(t, r.bundled, "fixture", "new")
 	if err := r.installPackage(context.Background(), "install --replace fixture"); err == nil || !strings.Contains(err.Error(), "does not ship") {
 		t.Fatalf("package dropping an overridden file was not refused: %v", err)

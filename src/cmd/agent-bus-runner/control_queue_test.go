@@ -106,7 +106,7 @@ func fixtureState(t *testing.T, body string) string {
 // with it until the returned gate opens.
 func blockedInstall(t *testing.T, r *runner) *hookGate {
 	t.Helper()
-	r.bundled = t.TempDir()
+	r.bundled = packRoot(t)
 	directoryAgent(t, r.bundled, "fixture", "deployed")
 	g := newHookGate(t)
 	r.afterInstallCheck = g.hook

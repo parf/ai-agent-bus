@@ -68,7 +68,7 @@ func linkedFixture(t *testing.T) (*runner, string) {
 // into the checkout.
 func TestInstallReplaceOverALinkedPackageReplacesTheLinkNotTheCheckout(t *testing.T) {
 	r, checkout := linkedFixture(t)
-	r.bundled = t.TempDir()
+	r.bundled = packRoot(t)
 	directoryAgent(t, r.bundled, "fixture", "deployed")
 	before := tree(t, checkout)
 	if err := r.installPackage(context.Background(), "install fixture"); err == nil || !strings.Contains(err.Error(), "--replace") {

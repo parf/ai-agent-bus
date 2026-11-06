@@ -18,7 +18,7 @@ import (
 
 func TestDeployReplacementIsExplicitAndReplacesTheWholeTree(t *testing.T) {
 	r, b, _ := configurationFixture(t, "", "printf old")
-	r.bundled = t.TempDir()
+	r.bundled = packRoot(t)
 	directoryAgent(t, r.bundled, "fixture", "deployed")
 	old := filepath.Join(r.agents, "fixture", "obsolete")
 	writeFile(t, old, "stale")
@@ -94,7 +94,7 @@ func TestDeployRemoveKeepsDataTokenAndBusRecord(t *testing.T) {
 
 func TestDeployRefusesBundledRemovalInsteadOfExposingItsFallback(t *testing.T) {
 	r, _, _ := configurationFixture(t, "", "printf old")
-	r.bundled = t.TempDir()
+	r.bundled = packRoot(t)
 	directoryAgent(t, r.bundled, "fixture", "bundled")
 	if err := r.removePackage("fixture"); err == nil || !strings.Contains(err.Error(), "fixture") || !strings.Contains(err.Error(), "disable it instead") {
 		t.Fatalf("bundled-name remove accepted or unclear: %v", err)
@@ -106,7 +106,7 @@ func TestDeployRefusesBundledRemovalInsteadOfExposingItsFallback(t *testing.T) {
 
 func TestDeployRefusesReadOnlyAgentsDirectory(t *testing.T) {
 	r, _, _ := configurationFixture(t, "", "printf old")
-	r.bundled = t.TempDir()
+	r.bundled = packRoot(t)
 	directoryAgent(t, r.bundled, "fixture", "bundled")
 	if err := os.Chmod(r.agents, 0555); err != nil {
 		t.Fatal(err)
@@ -140,7 +140,7 @@ func TestDeployRefusesSubdirectoryPackagesAndEscapingLinks(t *testing.T) {
 
 func TestDeployCallsRequireDirectManagementAndNeverReturnSecrets(t *testing.T) {
 	r, b, _ := configurationFixture(t, "", "printf old")
-	r.bundled = t.TempDir()
+	r.bundled = packRoot(t)
 	directoryAgent(t, r.bundled, "fixture", "bundled")
 	writeFile(t, filepath.Join(r.host, "fixture", "env"), "SECRET=private-sentinel\n")
 	for _, body := range []string{"install --replace fixture", "remove fixture"} {
@@ -168,7 +168,7 @@ func TestDeployCallsRequireDirectManagementAndNeverReturnSecrets(t *testing.T) {
 
 func TestDeployFreshBundleAndFailedChecksKeepHostState(t *testing.T) {
 	r, _, script := configurationFixture(t, "", "printf old")
-	r.bundled = t.TempDir()
+	r.bundled = packRoot(t)
 	directoryAgent(t, r.bundled, "fixture", "fresh")
 	if err := os.RemoveAll(filepath.Dir(script)); err != nil {
 		t.Fatal(err)
@@ -235,7 +235,7 @@ func TestDeployInventoryFailureRestoresThePreviousWholeTree(t *testing.T) {
 		t.Skip("permission fixture requires an unprivileged account")
 	}
 	r, _, _ := configurationFixture(t, "", "printf old")
-	r.bundled = t.TempDir()
+	r.bundled = packRoot(t)
 	directoryAgent(t, r.bundled, "fixture", "changed")
 	before, err := packageDigest(filepath.Join(r.agents, "fixture"))
 	if err != nil {
@@ -267,7 +267,7 @@ func TestDeployReleaseStandaloneUsesItsPackagerForSelfContainedCode(t *testing.T
 	release := t.TempDir()
 	r.bundled = filepath.Join(release, "agents")
 	source := filepath.Join("..", "..")
-	for _, rel := range []string{"agents/standalone/tmux-sessions/agent.json", "agents/standalone/tmux-sessions/package.sh", "agents/standalone/tmux-sessions/sessions.py", "agents/standalone/tmux-sessions/config.json.dist", "agents/shared/metadata.py", "agents/shared/envfile.py", "agents/VERSION", "internal/version/VERSION"} {
+	for _, rel := range []string{"agents/standalone/tmux-sessions/agent.json", "agents/standalone/tmux-sessions/package.sh", "agents/standalone/tmux-sessions/sessions.py", "agents/standalone/tmux-sessions/config.json.dist", "agents/shared/metadata.py", "agents/shared/envfile.py", "agents/VERSION", "agents/protocol.json", "internal/version/VERSION"} {
 		data, err := os.ReadFile(filepath.Join(source, rel))
 		if err != nil {
 			t.Fatal(err)
@@ -299,7 +299,7 @@ func TestDeployReleaseStandaloneUsesItsPackagerForSelfContainedCode(t *testing.T
 
 func TestBundledPackageBuildNeverReceivesTheRunnerToken(t *testing.T) {
 	r, _, _ := configurationFixture(t, "", "printf old")
-	r.bundled = t.TempDir()
+	r.bundled = packRoot(t)
 	directoryAgent(t, r.bundled, "fixture", "fresh")
 	source := filepath.Join(r.bundled, "fixture")
 	log := filepath.Join(t.TempDir(), "package-token")
@@ -318,7 +318,7 @@ func TestBundledPackageBuildNeverReceivesTheRunnerToken(t *testing.T) {
 // Cancelling a bundled build kills the whole build, not only /bin/sh: package.sh's own children go too.
 func TestCancellingABundledBuildKillsItsChildren(t *testing.T) {
 	r, _, _ := configurationFixture(t, "", "printf old")
-	r.bundled = t.TempDir()
+	r.bundled = packRoot(t)
 	directoryAgent(t, r.bundled, "fixture", "fresh")
 	source := filepath.Join(r.bundled, "fixture")
 	pidFile := filepath.Join(t.TempDir(), "grandchild.pid")

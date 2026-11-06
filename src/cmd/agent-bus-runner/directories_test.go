@@ -38,7 +38,7 @@ func TestBundledAgentIsAvailableUntilExplicitlyEnabled(t *testing.T) {
 	if err := os.RemoveAll(filepath.Dir(script)); err != nil {
 		t.Fatal(err)
 	}
-	r.bundled = t.TempDir()
+	r.bundled = packRoot(t)
 	dir := directoryAgent(t, r.bundled, "fixture", "bundled")
 	r.reload()
 	for _, inventory := range []string{`{"fixture":{"sandbox":"off"}}`, `{"fixture":{"sandbox":"off","name":"#fixture@h"}}`} {
@@ -78,7 +78,7 @@ func TestBundledAgentIsAvailableUntilExplicitlyEnabled(t *testing.T) {
 
 func TestSharedAgentWinsAndRemovalFallsBackToBundle(t *testing.T) {
 	r, b, _ := configurationFixture(t, "", "printf old")
-	r.bundled = t.TempDir()
+	r.bundled = packRoot(t)
 	shared := directoryAgent(t, r.agents, "fixture", "shared")
 	bundled := directoryAgent(t, r.bundled, "fixture", "bundled")
 	writeFile(t, filepath.Join(r.host, "agents.json"), `{"fixture":{"sandbox":"off","enabled":true}}`)
@@ -118,7 +118,7 @@ func TestSharedAgentWinsAndRemovalFallsBackToBundle(t *testing.T) {
 
 func TestReloadFindsNewBundledAndStandaloneAgents(t *testing.T) {
 	r, _, _ := configurationFixture(t, "", "printf old")
-	r.bundled = t.TempDir()
+	r.bundled = packRoot(t)
 	directoryAgent(t, r.bundled, "first", "first")
 	writeFile(t, filepath.Join(r.bundled, "shared", "support.py"), "# support\n")
 	r.reload()

@@ -41,7 +41,7 @@ func (g *hookGate) open() { g.openOnce.Do(func() { close(g.release) }) }
 func TestAShutdownDuringAnInstallLeavesNoProcessRunning(t *testing.T) {
 	r, _, _ := configurationFixture(t, "itself", "exec sleep 30")
 	awaitConfigurationState(t, r, "running")
-	r.bundled = t.TempDir()
+	r.bundled = packRoot(t)
 	pkg := filepath.Join(r.bundled, "fixture")
 	writeFile(t, filepath.Join(pkg, "run.sh"), "exec sleep 31\n")
 	writeFile(t, filepath.Join(pkg, "agent.json"), string(mustJSON(map[string]any{"description": "Test agent", "command": "/bin/sh " + filepath.Join(r.agents, "fixture", "run.sh"), "serves": "itself", "processes": 1, "deadline": "100ms"})))

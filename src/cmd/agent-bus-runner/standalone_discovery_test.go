@@ -19,6 +19,7 @@ func TestStandaloneOnlyPackagesDoNotAppearAsRefusedRunnerAgents(t *testing.T) {
 		}
 		writeFile(t, filepath.Join(bundled, "standalone", name, "agent.json"), string(data))
 	}
+	writeFile(t, filepath.Join(bundled, packProtocolName), `{"protocol":1,"protocol_min":1}`)
 	r := &runner{ctx: context.Background(), agents: filepath.Join(root, "shared"), bundled: bundled, host: host, say: io.Discard, served: map[string]*served{}}
 	r.reload()
 	rows := r.status().Agents

@@ -71,6 +71,9 @@ func packProtocolFile(in installed, bundledRoot string) (string, bool) {
 type daemonProtocol func() ([]byte, error)
 
 func (r *runner) fetchIdentity() ([]byte, error) {
+	if r.bus == nil {
+		return nil, errors.New("no bus")
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	out, code, err := r.bus.do(ctx, "GET", "/identity", nil, nil)
