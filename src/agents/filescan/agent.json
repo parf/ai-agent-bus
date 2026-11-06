@@ -185,7 +185,7 @@
     },
     "include": {
       "type": "json",
-      "help": "Globs matched against a file's whole relative path, so a folder is taken with `sub/*`, and a bare `sub` selects nothing (status warns); default all files"
+      "help": "Globs matched against a file's whole relative path, so a folder is taken with `sub/*`, and a bare `sub` selects nothing (status warns); a `**/` also matches no folder, so `**/*.md` takes a root file; default all files"
     },
     "exclude": {
       "type": "json",

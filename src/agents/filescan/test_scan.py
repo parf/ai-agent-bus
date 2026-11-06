@@ -67,6 +67,15 @@ class SelectionTests(Tree):
         self.assertEqual((paths['upserts'],paths['deletes']),({},[]))
         self.assertIn('x.md/secret.txt',items,'the key stays')
 
+    def test_a_double_star_slash_also_matches_no_directory_so_root_files_are_taken(self):
+        # J125: fnmatch has no globstar, so `**/*.md` needed a slash and never took a root file.
+        put(self.root,'a.md');put(self.root,'d/a.md');put(self.root,'d/e/a.md');put(self.root,'d/e/b.txt');put(self.root,'a.mdx')
+        self.assertEqual(self.names(include=['**/*.md']),['a.md','d/a.md','d/e/a.md'])
+        put(self.root,'skip/f.md');put(self.root,'d/skip/g.md');put(self.root,'keep.md')
+        self.assertEqual(self.names(include=['**/*.md'],exclude=['**/skip']),['a.md','d/a.md','d/e/a.md','keep.md'],'an exclude gets the same zero-directory case')
+        self.assertEqual(self.names(include=['d/**/a.md']),['d/a.md','d/e/a.md'],'a middle `**/` also matches no directory')
+        self.assertEqual(self.names(include=['*.md'],exclude=['d/**']),['a.md','keep.md','skip/f.md'],'a trailing `/**` is unchanged')
+
     def test_an_excluded_directory_is_not_entered(self):
         put(self.root,'skip/deep/f.md');put(self.root,'keep/f.md')
         self.assertEqual(self.names(exclude=['skip']),['keep/f.md'])

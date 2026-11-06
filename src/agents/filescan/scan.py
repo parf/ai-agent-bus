@@ -1,8 +1,10 @@
 """The poll walk and what a message carries; no symlink under `dir` is ever followed."""
 import errno
 import fnmatch
+import functools
 import hashlib
 import os
+import re
 import stat
 
 CHUNK=1024*1024
@@ -10,17 +12,41 @@ OPEN_FILE=os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK|os.O_NOCTTY|os.O_CLOEXEC
 OPEN_DIR=os.O_RDONLY|os.O_NOFOLLOW|os.O_DIRECTORY|os.O_CLOEXEC
 
 
+GLOBSTAR=re.compile(r'(?<![^/])\*\*/')
+GLOBSTARS_MAX=4
+
+
+@functools.lru_cache(maxsize=1024)
+def _variants(pattern):
+    """The pattern, plus (J125) each way of letting a leading-segment `**/` match no directory: fnmatch has no globstar,
+    so `**/*.md` alone needs a slash and never takes a root file. With more than four `**/` only none or all are dropped."""
+    spots=[m.span() for m in GLOBSTAR.finditer(pattern)]
+    if not spots:return (pattern,)
+    out=[]
+    choices=range(1<<len(spots)) if len(spots)<=GLOBSTARS_MAX else (0,(1<<len(spots))-1)
+    for mask in choices:
+        text=pattern
+        for i in reversed(range(len(spots))):
+            if mask>>i&1:text=text[:spots[i][0]]+text[spots[i][1]:]
+        out.append(text)
+    return tuple(dict.fromkeys(out))
+
+
+def glob(path,pattern):
+    return any(fnmatch.fnmatchcase(path,v) for v in _variants(pattern))
+
+
 def selected(rel,include,exclude):
     """A regular file's relative path: `include` globs match the whole path, never a directory above it; exclude wins.
 
     `exclude` also matches a directory above the file, so what is below an excluded directory is out: that only narrows.
     A directory named like an include glob (`x.md/`) therefore pulls in nothing below it (J124)."""
-    return any(fnmatch.fnmatchcase(rel,p) for p in include) and not excluded(rel,exclude)
+    return any(glob(rel,p) for p in include) and not excluded(rel,exclude)
 
 
 def excluded(rel,exclude):
     parts=rel.split('/')
-    return any(fnmatch.fnmatchcase(rel,p) or any(fnmatch.fnmatchcase('/'.join(parts[:i]),p) for i in range(1,len(parts))) for p in exclude)
+    return any(glob(rel,p) or any(glob('/'.join(parts[:i]),p) for i in range(1,len(parts))) for p in exclude)
 
 
 def walk(root,include,exclude,sub='',before=None,named=None):
@@ -65,7 +91,7 @@ def walk(root,include,exclude,sub='',before=None,named=None):
                     if excluded(rel,exclude):continue
                     if named is not None:
                         for p in include:
-                            if fnmatch.fnmatchcase(rel,p):named.setdefault(rel,p);break
+                            if glob(rel,p):named.setdefault(rel,p);break
                     try:child=os.open(entry.name,OPEN_DIR,dir_fd=fd)
                     except OSError as error:
                         yield ('direrror',rel,error.errno);continue
