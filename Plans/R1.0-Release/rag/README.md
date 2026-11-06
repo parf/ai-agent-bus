@@ -87,6 +87,7 @@ CRUD + extra functionality (like search completion, ..)"). JSON-only arguments f
 | Search | `search`: hybrid, filtered, optional rerank; each hit carries namespace, table, id, key1, key2, score, labels and the matched chunk's text, and the full data comes from `get` (owner, 2026-10-27, settling Q196) |
 | Prompts | read, set and delete the labels, questions and summary prompt of a namespace and table; each write invalidates the cache |
 | Extra | `complete`: search completion, suggestions for a typed prefix; `similar`: records like a given id; `count`: matches and per-label counts for a filter; `classify`: Jev labels for a text without storing it (owner, 2026-11-06, settling Q360); built ones are in the [guide](../../../docs/agents/rag.md#count-similar-complete-and-classify) |
+| Large files | Markdown over 32 KiB through a bigfile reference, chunked by heading; a plan: [large files](large-files.md#large-markdown-files-in-rag) |
 
 ## Open choices
 
