@@ -95,8 +95,12 @@ def retain_record_backups(directory):
 
 
 def entries(directory):
-    # A bounded directory a node does not have yet (no abrt, no daemon backup) has nothing to bound.
-    return list(directory.iterdir()) if directory.is_dir() else []
+    # A bounded directory a node does not have yet (no abrt, no daemon backup) has nothing to bound; any other
+    # error (a permission, a file where a directory belongs) is real and stops the run loudly.
+    try:
+        return list(directory.iterdir())
+    except FileNotFoundError:
+        return []
 
 
 def retain_bounded(spool, releases, current, record_backups, backup):

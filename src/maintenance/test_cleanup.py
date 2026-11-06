@@ -36,6 +36,19 @@ class CleanupTests(unittest.TestCase):
                 self.fail('a missing bounded directory aborted the run: %s' % e)
             self.assertEqual([p.exists() for p in paths], [True, False, False, True])
 
+    def test_a_real_listing_error_is_not_an_absent_directory(self):
+        with tempfile.TemporaryDirectory() as d:
+            with patch.object(Path, 'iterdir', side_effect=PermissionError('denied')):
+                with self.assertRaises(PermissionError):
+                    c.entries(Path(d))
+                with self.assertRaises(PermissionError):
+                    c.retain_bounded(Path(d) / 'abrt', Path(d) / 'releases', Path(d) / 'cur', Path(d) / 'rb', Path(d) / 'bk')
+            # A file where a directory belongs is an error too, not "nothing to bound".
+            f = Path(d) / 'a-file'
+            f.touch()
+            with self.assertRaises(NotADirectoryError):
+                c.entries(f)
+
     def test_record_archives_have_separate_bounds_and_sidecars(self):
         with tempfile.TemporaryDirectory() as d:
             directory = Path(d)

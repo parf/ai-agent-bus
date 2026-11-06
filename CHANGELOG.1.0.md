@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.43 — 2026-11-06
+
+Deploy restarts the active root runners and installs the tracked logrotate rule atomically; node-cleanup skips only absent directories; the runner lists install and remove
+
 ## 1.0.42 — 2026-11-06
 
 Bigfile sweep and index-read errors are reported instead of ignored, a failed read skips the orphan prune with an alert, and listing errors are counted refusals
