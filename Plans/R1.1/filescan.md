@@ -212,6 +212,40 @@ About four to six hours of agent time in all, after the shared core; the owner's
 
 [The TODO item](TODO.md#filescan) holds the falsifiable list; every ⚠️ part (runner bind, state writes, parsers, the guard) carries a mutant that fails on an assertion.
 
+## On-demand sync
+
+**Proposed, plan only (T-48); the owner approves before any code.** Open choices are [Q372–Q375](QUESTIONS.md#filescan-on-demand-sync).
+
+One call reads the folder once, delivers every file to RAG and answers only when the result is known. It is for a caller such as mdhouse that wants "this folder is in RAG now", not a standing feed: the call starts no watch and needs no subscription. Today nothing gives that answer: `pending` 0 means caught up for what was scanned, not that the folder is read ([progress](../../docs/agents/filescan.md#reference-for-a-consumer)).
+
+| Rule | Meaning |
+|---|---|
+| 1. The call | A `sync` call on a FileScan instance names one RAG target, namespace and table, as `sub add … as rag` does, and the same authority checks apply: the caller may send to the target and to the instance. It walks the whole folder under the instance's `include` and `exclude`, sends each file and waits for RAG's confirmations. How it answers a long run is [№Q372](QUESTIONS.md#Q372) |
+| 2. Done means confirmed | The run succeeds only when every source file in the folder is confirmed by RAG, as a whole file. A confirmation counts only when it names the file's path and the hash of the exact version sent, so a late answer for an older version never confirms a newer one. For a file RAG stores in chunks, what "confirmed" means is RAG's: [whole-file confirmation](../R1.0-Release/rag/large-files.md#whole-file-confirmation) |
+| 3. A cap is never success | A run stopped by a bound ([№Q374](QUESTIONS.md#Q374)) ends **incomplete**, with how many files are confirmed and how many remain. It never reports success, however much was delivered |
+| 4. Failure | A file that is not confirmed — refused, unreadable, not text, a path RAG cannot take as a source, or no answer — makes the run fail. The answer lists each such file with its reason; files confirmed in the same run stay confirmed |
+| 5. Rerun resumes | The confirmed marks are kept per target, keyed by path and hash. A rerun skips a file whose path and hash are already confirmed and sends only new, changed and unconfirmed ones, so an incomplete or failed run resumes where it stopped; nothing starts over unless `reset confirm:true` drops the marks |
+| 6. One at a time | A second `sync`, or a `sync` while a scan or delivery round of the same instance runs, is refused as busy; it never waits in line or merges with the running one |
+| 7. Deleted files | A file confirmed by an earlier sync and now gone from the folder is still in RAG. What RAG does on removal by source path is RAG's ([whole-file confirmation](../R1.0-Release/rag/large-files.md#whole-file-confirmation)); whether a sync removes it or only reports it as stale is [№Q373](QUESTIONS.md#Q373) |
+
+- **Files over 32 KiB:** FileScan stays a transport and hands such a file over by its bigfile reference; RAG chunks it. Until RAG takes that form, a sync over a folder with such a file ends failed, naming each one.
+- **Paid calls:** every upsert pays for embeddings, so the cost bound of [№Q374](QUESTIONS.md#Q374) applies to the first run of a big folder.
+- **Coexistence with the watch:** whether `sync` runs on any instance or only on one that neither watches nor polls is [№Q375](QUESTIONS.md#Q375).
+- **The mass-delete guard** applies as in a scan: a missing, unmounted or emptied folder pauses the instance, and a sync answers paused, never success and never a delete.
+
+### Sync estimate
+
+AI time, agent wall-clock, including review and gate, after the owner answers Q372–Q375 and RAG's large-file confirmation has landed.
+
+| Step | Builds | Estimate |
+|---|---|---|
+| Y1 | The `sync` call: one walk, per-target marks by path and hash, the busy refusal, the guard | 45 to 60 min |
+| Y2 | Completion: confirmed, incomplete and failed answers with counts and the per-file list; the bound | 30 to 45 min |
+| Y3 | Deleted files, per №Q373, and files over 32 KiB by bigfile reference | 30 to 45 min |
+| Y4 | Tests with a fake RAG (no paid call), mutants on completion and the stale-ack check, the guide | 45 to 60 min |
+
+About two and a half to three and a half hours.
+
 ## Questions
 
-Answered: [Q305–Q310](resolved.md#Q305), under [Q334](resolved.md#Q334). Its sibling for database rows is [DBSync](dbsync.md#shared-with-filescan-and-different); the shared code is [Q314](resolved.md#Q314).
+Answered: [Q305–Q310](resolved.md#Q305), under [Q334](resolved.md#Q334). Open, for the [on-demand sync](#on-demand-sync): [Q372–Q375](QUESTIONS.md#filescan-on-demand-sync). Its sibling for database rows is [DBSync](dbsync.md#shared-with-filescan-and-different); the shared code is [Q314](resolved.md#Q314).

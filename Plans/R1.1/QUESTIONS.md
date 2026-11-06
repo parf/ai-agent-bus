@@ -97,6 +97,47 @@ Open choices for [filescan](filescan.md#questions).
 
 - ✅ Q310 → [№Q310](resolved.md#Q310)
 
+## Filescan on-demand sync
+
+Four open questions for the [on-demand sync](filescan.md#on-demand-sync) (T-48).
+
+<a id="Q372"></a>
+
+- ❓ Q372 How a `sync` call answers a run that takes minutes
+  - Context: a sync of a big folder sends one paid upsert per file and waits for each confirmation, so it can outlast a call's deadline. Either way the final answer is confirmed, incomplete or failed, never "started" mistaken for done
+  - Settled by: the owner
+  - ( ) The call blocks up to a bound and then ends incomplete with its counts; the caller calls again and the rerun resumes 🌟
+  - ( ) The call answers "started" at once and FileScan sends the caller one final report message when the run ends ⭐
+  > 💡👾 Block with a bound: one call, one answer, nothing to correlate later, and an incomplete run already resumes on the next call.
+
+<a id="Q373"></a>
+
+- ❓ Q373 What a sync does with a file gone from the folder but still in RAG
+  - Context: a file confirmed by an earlier sync and since deleted is still searchable in RAG. What RAG does on removal by source path is [RAG's](../R1.0-Release/rag/large-files.md#whole-file-confirmation)
+  - Settled by: the owner
+  - ( ) Remove it: the sync sends RAG's removal and counts the file done only when the removal is confirmed; the mass-delete guard still holds a large removal 🌟
+  - ( ) Report it as stale: the sync lists it and leaves RAG unchanged; a sync with stale files is not success ⭐
+  > 💡👾 Remove it: a caller asking "is this folder in RAG" means the folder as it is now, and the guard already stops an emptied or unmounted folder from wiping the index.
+
+<a id="Q374"></a>
+
+- ❓ Q374 What bounds one sync run and its cost
+  - Context: every upsert pays for embeddings, and a first sync of a big vault sends one per file. `max_per_scan` (200) bounds the standing scan today
+  - Settled by: the owner
+  - ( ) `max_per_scan` bounds each sync run too; a larger folder needs several calls, each ending incomplete until the last 🌟
+  - ( ) No count bound: one run sends the whole folder, bounded only by time ⭐
+  - ( ) Like the first, and a run that would send more than a set number of files the target has never confirmed is refused unless the call says `confirm:true`
+  > 💡👾 Reuse `max_per_scan`: the cost bound already exists and is set per instance, and resume makes several calls cheap.
+
+<a id="Q375"></a>
+
+- ❓ Q375 Whether `sync` runs beside the watch on any instance, or only on an on-demand one
+  - Context: the goal is a finite sync with no watch or subscription. An instance that also watches has a standing feed for the same files, with its own marks
+  - Settled by: the owner
+  - ( ) Only on an instance configured for on-demand use: no watch, no timer, no subscriptions; a call on another instance is refused by name 🌟
+  - ( ) On any instance, sharing its scan lock; its marks stay separate from the subscriptions' ⭐
+  > 💡👾 On-demand only: two delivery paths to the same RAG target would pay twice for one change and could disagree on what is confirmed.
+
 ## DBSync
 
 Open choices for [dbsync](dbsync.md#questions).
