@@ -473,6 +473,38 @@ class BigfileTests(Base):
         finally:fs.scanning.open_under=real
         (m,)=[m for m in self.messages() if m['path']=='big.txt'];self.assertEqual(m['bigfile']['sha256'],self.sha('w'*40));self.assertEqual(self.keys(),[self.sha('w'*40)])
 
+    def big_rename_setup(self):
+        for i in range(12):self.put(f'k{i}.txt','k')
+        self.put('a.bin',self.BIG);self.add(extra='bigfile');self.call('scan');self.bus.sent.clear()
+
+    def move(self,old,new,text=None):
+        os.rename(Path(self.root)/old,Path(self.root)/new)
+        if text is not None:self.put(new,text,mtime=time.time()+9)
+        self.agent.hints[new]=(old,self.agent.clock())   # what the watch's cookie pairing hands over
+
+    def test_a_renamed_big_file_with_the_same_content_carries_the_reference_and_keeps_the_key_while_unconfirmed(self):
+        self.big_rename_setup();sha=self.sha(self.BIG);self.move('a.bin','b.bin')
+        self.bus.send_refused.add('#q@n.test');self.call('scan');self.assertEqual(self.keys(),[sha],'unconfirmed rename: the key stays')
+        self.bus.send_refused.clear();self.call('scan')
+        (m,)=self.messages();self.assertEqual((m['change'],m['path'],m['old_path']),('renamed','b.bin','a.bin'))
+        self.assertEqual(m['bigfile']['name'],sha);self.assertEqual(self.keys(),[sha],'b.bin still has these bytes: the key stays, once')
+
+    def test_a_renamed_big_file_with_new_content_keeps_both_keys_until_confirmed_then_only_the_new(self):
+        self.big_rename_setup();old=self.sha(self.BIG);newer='n'*55;self.move('a.bin','b.bin',newer)
+        self.bus.send_refused.add('#q@n.test');self.call('scan');self.call('scan')
+        self.assertIn(old,self.keys(),'the subscriber still holds a.bin with the old reference')
+        self.bus.send_refused.clear();self.call('scan')
+        (m,)=self.messages();self.assertEqual((m['change'],m['bigfile']['name']),('renamed',self.sha(newer)))
+        self.call('scan');self.assertEqual(self.keys(),[self.sha(newer)],'the old key goes once the rename is confirmed')
+
+    def test_a_renamed_big_file_whose_send_is_unknown_keeps_the_old_key(self):
+        self.big_rename_setup();old=self.sha(self.BIG);self.move('a.bin','b.bin','u'*55);real=self.bus.send
+        def lost(*a,**k):real(*a,**k);raise TimeoutError('no answer')
+        self.bus.send=lost
+        try:self.call('scan')
+        finally:self.bus.send=real
+        self.assertIn(old,self.keys(),'an unknown rename send: the old reference may still be what the subscriber has')
+
     def test_bigfile_is_a_queue_option_and_cannot_join_as_rag(self):
         self.assertEqual(fs.parse('sub add #q@n /\\.bin$/ bigfile replay:false'),('sub.add',{'target':'#q@n','pattern':'/\\.bin$/','bigfile':True,'replay':False}))
         self.assertEqual(self.call('sub add #q@n.test bigfile as rag vault notes')['error']['code'],'invalid_selector')
