@@ -12,6 +12,7 @@ use std::{
     fmt,
     future::Future,
     path::PathBuf,
+    pin::Pin,
     sync::{Arc, Mutex, Weak},
     time::{Duration, Instant},
 };
@@ -248,12 +249,19 @@ pub enum HandlerReply {
     Done,
     Manual,
 }
-#[derive(Debug, Clone)]
+/// Handles an answer to this Bus's own send; see [`ServeOptions::on_reply`].
+pub type ReplyHandler =
+    Arc<dyn Fn(Message) -> Pin<Box<dyn Future<Output = Result<()>> + Send>> + Send + Sync>;
+#[derive(Clone)]
 pub struct ServeOptions {
     pub workers: usize,
     pub inbox: Option<String>,
     pub share: bool,
     pub drain_timeout: Duration,
+    /// Answers to this Bus's own sends: a message carrying `re` that no pending call claims goes here, within
+    /// the workers and drain, with no automatic ack or answer, never to the request handler, and never a late
+    /// answer to this Bus's own call. Without it such an answer is taken and dropped.
+    pub on_reply: Option<ReplyHandler>,
 }
 impl Default for ServeOptions {
     fn default() -> Self {
@@ -262,7 +270,19 @@ impl Default for ServeOptions {
             inbox: None,
             share: false,
             drain_timeout: Duration::from_secs(30),
+            on_reply: None,
         }
+    }
+}
+impl fmt::Debug for ServeOptions {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ServeOptions")
+            .field("workers", &self.workers)
+            .field("inbox", &self.inbox)
+            .field("share", &self.share)
+            .field("drain_timeout", &self.drain_timeout)
+            .field("on_reply", &self.on_reply.is_some())
+            .finish()
     }
 }
 #[derive(Debug, Default)]
@@ -831,6 +851,7 @@ impl Bus {
             return Err(BusError::Validation("workers must be positive".into()));
         }
         let (tx, mut rx) = mpsc::channel(options.workers);
+        let on_reply = options.on_reply.clone();
         {
             let mut s = self.inner.reader.lock().unwrap();
             if s.raw || s.serving.is_some() {
@@ -857,7 +878,7 @@ impl Bus {
                 Some(joined) = tasks.join_next(), if !tasks.is_empty() => count(joined, &mut report),
                 work = rx.recv() => match work {
                     Some(Ok(work)) => {
-                        spawn_work(&mut tasks, work, self.clone(), handler.clone());
+                        spawn_work(&mut tasks, work, self.clone(), handler.clone(), on_reply.clone());
                     }
                     Some(Err(error)) => { intake_error = Some(error); break; }
                     None => break,
@@ -870,7 +891,7 @@ impl Bus {
             // open until every known successful take reaches this drain.
             while let Some(work) = rx.recv().await {
                 match work {
-                    Ok(work) => spawn_work(&mut tasks, work, self.clone(), handler.clone()),
+                    Ok(work) => spawn_work(&mut tasks, work, self.clone(), handler.clone(), on_reply.clone()),
                     Err(error) => {
                         if intake_error.is_none() {
                             intake_error = Some(error)
@@ -895,14 +916,27 @@ impl Bus {
         Ok(report)
     }
 }
-fn spawn_work<H, F>(tasks: &mut JoinSet<Result<()>>, work: Work, bus: Bus, handler: Arc<H>)
-where
+fn spawn_work<H, F>(
+    tasks: &mut JoinSet<Result<()>>,
+    work: Work,
+    bus: Bus,
+    handler: Arc<H>,
+    on_reply: Option<ReplyHandler>,
+) where
     H: Fn(Message) -> F + Send + Sync + 'static,
     F: Future<Output = Result<HandlerReply>> + Send + 'static,
 {
     tasks.spawn(async move {
         let _permit = work._permit;
         let message = work.message;
+        if let Some(on_reply) = on_reply.filter(|_| {
+            message.receipt.is_empty()
+                && !message.re.is_empty()
+                && !message.tag.starts_with(&bus.inner.call_prefix)
+        }) {
+            // An answer to this Bus's own send: no ack, reply or done, exactly as when it is dropped.
+            return on_reply(message).await;
+        }
         if !message.receipt.is_empty()
             || !message.re.is_empty()
             || (!work.own && message.tag.starts_with(&bus.inner.call_prefix))

@@ -766,3 +766,96 @@ async fn node_identity_is_separate_from_authenticated_caller() {
     assert_eq!(bus.name(), "#worker");
     bus.close().await.unwrap();
 }
+
+/// Serves a deferred answer to this Bus's own send, a late answer to one of its calls, and one request; returns
+/// what the reply handler and the request handler saw and every response the Bus sent after the call.
+async fn serve_answers(with_reply: bool) -> (Vec<String>, Vec<String>, Vec<Value>) {
+    let (bus, s) = fixture().await;
+    let timed_out = bus
+        .call(
+            "#ack-only",
+            "never answered",
+            CallOptions {
+                timeout: Duration::from_millis(100),
+                ..Default::default()
+            },
+        )
+        .await;
+    assert!(timed_out.is_err());
+    let call = s.sent.lock().unwrap().last().unwrap().clone();
+    let before = s.sent.lock().unwrap().len();
+    s.push("#worker", json!({"message_id":"answer","from":"#other","to":"#worker","topic":"long","tag":"q1","body":"deferred","re":"asked"}));
+    s.push("#worker", json!({"message_id":"late","from":"#ack-only","to":"#worker","topic":call["topic"],"tag":call["tag"],"body":"late","re":call["message_id"]}));
+    s.push("#worker", request("work", "w"));
+    let replies = Arc::new(Mutex::new(Vec::<String>::new()));
+    let handled = Arc::new(Mutex::new(Vec::<String>::new()));
+    let on_reply: Option<ReplyHandler> = if with_reply {
+        let replies = replies.clone();
+        Some(Arc::new(move |m: Message| {
+            let replies = replies.clone();
+            Box::pin(async move {
+                replies.lock().unwrap().push(m.body().to_string());
+                Ok(())
+            })
+        }))
+    } else {
+        None
+    };
+    let cancel = CancellationToken::new();
+    let (b, c, h) = (bus.clone(), cancel.clone(), handled.clone());
+    let server = tokio::spawn(async move {
+        b.serve(
+            move |m: Message| {
+                let h = h.clone();
+                async move {
+                    h.lock().unwrap().push(m.body().to_string());
+                    Ok(HandlerReply::Done)
+                }
+            },
+            ServeOptions {
+                workers: 2,
+                on_reply,
+                ..Default::default()
+            },
+            c,
+        )
+        .await
+        .unwrap()
+    });
+    tokio::time::timeout(Duration::from_secs(2), async {
+        loop {
+            if s.sent.lock().unwrap()[before..].iter().any(|v| v["receipt"] == "done") {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(2)).await;
+        }
+    })
+    .await
+    .unwrap();
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    cancel.cancel();
+    server.await.unwrap();
+    let sent = s.sent.lock().unwrap()[before..].to_vec();
+    bus.close().await.unwrap();
+    let (r, h) = (replies.lock().unwrap().clone(), handled.lock().unwrap().clone());
+    (r, h, sent)
+}
+
+#[tokio::test]
+async fn on_reply_gets_an_unclaimed_answer_exactly_once_and_answers_nothing() {
+    let (replies, handled, sent) = serve_answers(true).await;
+    assert_eq!(replies, vec!["deferred"], "exactly once, and never the late call answer");
+    assert_eq!(handled, vec!["work"], "the request handler gets the work only");
+    // As when it is dropped: only the work is acknowledged and done.
+    let answered: Vec<&Value> = sent.iter().map(|v| &v["re"]).collect();
+    assert_eq!(answered, vec![&json!("w"), &json!("w")]);
+}
+
+#[tokio::test]
+async fn without_on_reply_an_answer_is_dropped_as_before() {
+    let (replies, handled, sent) = serve_answers(false).await;
+    assert!(replies.is_empty());
+    assert_eq!(handled, vec!["work"], "an answer never reaches the request handler");
+    let answered: Vec<&Value> = sent.iter().map(|v| &v["re"]).collect();
+    assert_eq!(answered, vec![&json!("w"), &json!("w")]);
+}
