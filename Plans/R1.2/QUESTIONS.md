@@ -66,3 +66,7 @@ Google Chat ([B.27b](TODO.md#objective), [plan](google-chat.md#proposed-methods-
   - Impact: none of the Google Chat agent can be tried live before this
   - Settled by: the owner
   > 💬 👤parf see q247
+
+## Runner hardening
+
+Moved from R1.1 with M.14 (owner, 2026-11-06): 5 open questions in [runner hardening](runner-hardening.md#questions) (№Q276–Q280).

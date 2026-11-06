@@ -13,8 +13,7 @@ stage is [R1.2](../R1.2/README.md#scope).
 | Streaming answers (proposed) | [Streaming](streaming.md#streaming) |
 | Web Face AI setup chat (T-34, moved from R1) | [Chat scope](ai-setup.md#web-face-chat) |
 | Discovery and observability | [Discovery and observability](discovery.md#where-a-member-says-it-is) |
-| One front door (proposed) | [One front door](discovery.md#one-front-door) |
-| Runner hardening (M.14, moved from R1) | [Proposal](runner-hardening.md#runner-hardening-proposal); [acceptance](TODO.md#runner-hardening) |
+| Runner hardening (M.14) | moved to R1.2 on 2026-11-06: [Runner hardening](../R1.2/runner-hardening.md#runner-hardening-proposal) |
 | Runner extensions moved from R1 | [Edges, named hosts and root runner](runner.md#edge-runners); [web additions](runner-web.md#useful-additions); [macOS sandbox](macos.md#mac3-sandbox) |
 | Agent capabilities (RT23) | [Proposal](agent-capabilities.md#proposal); [Q191](QUESTIONS.md#agent-capabilities) |
 | Node cleanup (B.15) | [Lasting bounds](node-cleanup.md#lasting-bounds) |

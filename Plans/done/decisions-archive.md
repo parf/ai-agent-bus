@@ -167,6 +167,7 @@ History only; these rows are never a current contract. See [current decisions](.
 | Record Maintainers use the same line-list editor pattern as ACLs and become a list of named principals and groups | [record authority](../../docs/01-identity-and-authority.md#record-authority) | 2026-09-17 — Owner instruction; replaces the planned single-group selector while preserving owner-only assignment |
 | Dangerous resource controls leave ordinary detail | [resource Danger Zone](../../docs/05-discovery.md#resource-danger-zone) | 2026-09-17 — Owner instruction; the red link keeps configuration replacement, transfer and removal on their own server-rendered path |
 | Deactivation starts in the Danger Zone | [resource Danger Zone](../../docs/05-discovery.md#resource-danger-zone) | 2026-09-29 — Owner instruction; active registry items with a deactivation action lead through the Danger Zone to confirmation |
+| 🚫 One front door (Q72): one port for web and API, a public homepage, sign-in moved to `/admin/` and the admin dashboard as an on-demand Bun process. Its plan text asked first whether one port weakens the split between the web child and the daemon, what a public homepage may publish, what starts the admin and as whom, whether a network-facing Bun process is acceptable, and how it sequences with the built dashboard | [resolved](../R1.1/resolved.md#Q72), [the dashboard today](../../docs/05-discovery.md#required-tabs) | 2026-11-06 owner decision: "NO - reject this idea; lots of troubles for no gain"; raised 2026-09-18 |
 
 ## Versioning and project process
 

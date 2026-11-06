@@ -316,3 +316,41 @@
   > bus should have * in ACL;
   >
   > 💬👾 → `#bus` answers any asker, on the asker's own route only; every other answer needs the asker's Allow, and a refused answer names the rule ([answers](../../docs/02-access.md#answers)).
+
+<a id="Q339"></a>
+
+- ✅ Q339 Does `#imap` also check a subscription only at creation (T-41, after [№Q326](#Q326))
+  - Context: `#eventlog` and `#logwatch` forward log copies; `#imap` forwards mail through the same helper. Checking only at creation lets an author who has lost access to a mailbox keep receiving its mail. `#cron` does not use the helper; Discord waits for R1.2
+  - (x) `#imap` keeps the per-delivery check, for mail confidentiality; only `#eventlog` and `#logwatch` check at creation 🌟
+  - ( ) `#imap` checks at creation too: one rule everywhere ⭐
+  > ✅ 💡👾 Keep the check for mail. Either answer is a one-line switch.
+  >
+  > 💬👾 → `#imap` keeps the per-delivery check; only `#eventlog` and `#logwatch` check at creation (owner, 2026-11-06). The code already does this, so nothing changes: only those two agents set `source_at_creation_only`, and the [shared-behaviour table](../../docs/agents/subscriptions.md#source-check) says so.
+
+<a id="Q336"></a>
+
+- ✅ Q336 RT19: does the root runner replace the standalone starter or sit beside it
+  - Context: also the sandbox under each account, and how one person's agents stay isolated from another's ([proposal](runner.md#root-runner))
+  - Settled by: the owner
+  > 💬 replaced it
+  >
+  > for  root runner (and for real-user runner) we need to come with "default" policy
+  > than will protect other root/user agents data (protect other agents secret files we hide)
+  >
+  > ideally come with idea how to protect env files from user itself in users runner 
+  > seems liike we cant (and should not) protect root runners from root itself by its nature
+  >
+  > 💬 **Serg Parf:** create dedicated readme/todo plan for this section - use combined document
+  > in next question file - just point - X open  questions in LINK
+  >
+  > 💬👾 → The root runner replaces the standalone starter (owner, 2026-11-06). The approach and its open choices are in [root runner](root-runner.md#what-the-starter-is-today).
+
+<a id="Q72"></a>
+
+- 🚫 Q72 Whether to take the single front door, and in what order
+  - Context: one port serving both web and API, a public homepage describing agent-bus with repository and API links, sign-in moved to `/admin/`, and the administrative dashboard run as an on-demand Bun process on a socket rather than an always-running Go child. Raised 2026-09-18; four proposals that need not all be accepted; the questions they must answer first are in the [decision archive](../done/decisions-archive.md#web-cli-mcp-and-launchers), where the plan text went
+  - Context: since 0.8.50 the dashboard is a Bun process under its own always-running unit, and since 0.8.62 its port serves TLS beside plain HTTP
+  - Settled by: the owner
+  > 💬 NO - reject this idea; lots of troubles for no gain
+  >
+  > 💬👾 → Rejected (owner, 2026-11-06): nothing of the single front door is built or planned.

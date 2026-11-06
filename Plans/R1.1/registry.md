@@ -19,4 +19,4 @@ live replication protocol.
   caches answers, nothing more
   ([federation § chaining](../R1.2/federation.md#chaining)).
 
-Unresolved details: [questions](QUESTIONS.md#open-questions).
+Unresolved details: [questions](../R1.3/QUESTIONS.md#peer-registry), where №Q5 moved on 2026-11-06.

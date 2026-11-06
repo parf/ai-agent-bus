@@ -29,16 +29,7 @@ Only unresolved choices, in [agent markup](http://localhost:7777/mdhouse/doc/age
 
 ## Registry context
 
-- ❓ Q5 Peer sync trusts unsigned records and has no clock authority
-  - Context: a peer can push an unsigned record for any name, and "newer wins" compares clocks that are not synchronised ([registry § registry sync](registry.md#registry-sync))
-  - Settled by: the owner
-  > 💬 👤parf elaborate
-  >
-  > 💬👾 The peer registry (R1.1) would let two of your nodes share records, so an agent registered on one is known on the other. Two holes today: (1) a node accepts any record a peer sends, unsigned, so a compromised or misconfigured peer can publish a record under any name, yours included; (2) when both nodes changed a record, "newer wins" compares the two machines' clocks, which drift, so the wrong version can win silently. It only matters once you run more than one node.
-  - ( ) Defer the peer registry with the auth work moved to R2.0 (T-37): signing records needs that work's node keys 🌟
-  - ( ) Peers are only nodes you own and trust: accept their records unsigned, document the risk, use a per-record version number instead of clocks ⭐
-  - ( ) Build signed records now: each node signs what it publishes and a node accepts a record only from its home node
-  > 💬 move to R1.3
+[№Q5](../R1.3/QUESTIONS.md#Q5) moved to R1.3 (owner, 2026-11-06), with [№Q367](../R1.3/QUESTIONS.md#Q367), which asks whether the whole peer registry follows it.
 
 ## Access context
 
@@ -50,11 +41,7 @@ Only unresolved choices, in [agent markup](http://localhost:7777/mdhouse/doc/age
 
 - ✅ Q326 → [№Q326](resolved.md#Q326)
 
-- ❓ Q339 Does `#imap` also check a subscription only at creation (T-41, after [№Q326](resolved.md#Q326))
-  - Context: `#eventlog` and `#logwatch` forward log copies; `#imap` forwards mail through the same helper. Checking only at creation lets an author who has lost access to a mailbox keep receiving its mail. `#cron` does not use the helper; Discord waits for R1.2
-  - (x) `#imap` keeps the per-delivery check, for mail confidentiality; only `#eventlog` and `#logwatch` check at creation 🌟
-  - ( ) `#imap` checks at creation too: one rule everywhere ⭐
-  > 💡👾 Keep the check for mail. Either answer is a one-line switch.
+- ✅ Q339 → [№Q339](resolved.md#Q339)
 
 - ✅ Q328 → [№Q328](resolved.md#Q328)
 
@@ -68,37 +55,13 @@ Only unresolved choices, in [agent markup](http://localhost:7777/mdhouse/doc/age
 
 ## Front door
 
-- 🚫 Q72 Whether to take the single front door, and in what order
-  - Context: one port serving both web and API, a public homepage describing agent-bus with repository and API links, sign-in moved to `/admin/`, and the administrative dashboard run as an on-demand Bun process on a socket rather than an always-running Go child. Raised 2026-09-18; four proposals that need not all be accepted; the questions they must answer first are in [one front door](discovery.md#one-front-door)
-  - Context: since 0.8.50 the dashboard is a Bun process under its own always-running unit, and since 0.8.62 its port serves TLS beside plain HTTP
-  - Settled by: the owner
-  > 💬 NO - reject this idea; lots of troubles for no gain
+- 🚫 Q72 → [№Q72](resolved.md#Q72)
 
 ## Runner hardening
 
-Policy choices for the [M.14 hardening proposal](runner-hardening.md#runner-hardening-proposal), separate from [current isolation](../../docs/runner/security.md#isolation-today). All await the owner; no mechanism or implementation is selected. №Q279 and №Q280 are **added from T-18 review, owner to confirm**, not part of the owner's original three boundaries.
+Moved to R1.2 with M.14: 5 open questions in [runner hardening](../R1.2/runner-hardening.md#questions) (№Q276–Q280).
 
 > 💬 👤parf (in chat to #ab-ceo, 2026-11-06 ~10:45): "Runner hardening => postpone to R.1.2"
-
-- ❓ Q276 Which runtime files and shared public code must remain visible after narrowing `/usr`
-  - Decide the supported agent/runtime compatibility set and any explicit exception for sibling public code; the goal is to exclude unrelated package contents.
-  - Impact: determines the positive and negative read fixtures, without choosing how the view is constructed.
-
-- ❓ Q277 Which bus operations may a managed self-serving agent perform
-  - Decide the required inbox/reply and supporting operations, any deliberately allowed broader authority, and whether the same boundary applies over IP as over a local socket.
-  - Impact: defines the allowed and denied calls; no transport, token or enforcement mechanism is chosen here.
-
-- ❓ Q278 Where the host's `share` policy must apply
-  - Decide whether it governs a self-serving agent's own consume calls as well as runner-issued reads, and what a changed setting means for active readers and in-flight messages on reload.
-  - Impact: preserves the approved exclusive/shared semantics while making the scope and transitions explicit; no consumer, daemon or protocol change is selected.
-
-- ❓ Q279 Whether to add live `jsonl` work-size control — **added from T-18 review, owner to confirm**
-  - First approve or decline this addition. If approved, choose the limit semantics, maximum response delay, over-limit action and treatment of in-flight work.
-  - Impact: supplies the measurable bound and expected outcome for the live-pool test, without selecting a checking or enforcement mechanism.
-
-- ❓ Q280 Whether to give agents a finite CPU default — **added from T-18 review, owner to confirm**
-  - First approve or decline this addition. If approved, choose the default aggregate CPU bound, measurement window/tolerance and permitted override/reload policy.
-  - Impact: defines a falsifiable busy-agent test and compatibility requirements; no new setting or scheduling mechanism is selected.
 
 ## Agent capabilities
 
@@ -109,17 +72,7 @@ None open: [№Q191](DECISIONS.md#recorded-decisions) is [settled](DECISIONS.md#
 - ❓ Q335 M.7: which named-host filtering mechanism, and its format
   - Context: chosen and approved before implementation ([proposal](runner.md#named-hosts))
   - Settled by: the owner
-- ❓ Q336 RT19: does the root runner replace the standalone starter or sit beside it
-  - Context: also the sandbox under each account, and how one person's agents stay isolated from another's ([proposal](runner.md#root-runner))
-  - Settled by: the owner
-  > 💬 replaced it
-  >
-  > for  root runner (and for real-user runner) we need to come with "default" policy
-  > than will protect other root/user agents data (protect other agents secret files we hide)
-  >
-  > ideally come with idea how to protect env files from user itself in users runner 
-  > seems liike we cant (and should not) protect root runners from root itself by its nature
-
+- ✅ Q336 → [№Q336](resolved.md#Q336)
 
 ## Root runner
 

@@ -6,6 +6,10 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30; the R1 rows are in 
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
+| Q5 moved to R1.3 | [R1.3 decisions](../R1.3/DECISIONS.md#recorded-decisions) | |
+| Q339 `#imap` keeps the per-delivery subscription check; only `#eventlog` and `#logwatch` check at creation | [resolved](resolved.md#Q339) | Owner, 2026-11-06 |
+| Q336 The root runner (RT19) replaces the standalone starter; a default policy that protects other agents' data is wanted for it and for a user's runner | [resolved](resolved.md#Q336), [root runner](root-runner.md#what-the-starter-is-today) | Owner, 2026-11-06: "replaced it" |
+| Q72 The single front door (one port, a public homepage, sign-in under `/admin/`, an on-demand Bun admin) is rejected | [resolved](resolved.md#Q72), [archive](../done/decisions-archive.md#web-cli-mcp-and-launchers) | Owner, 2026-11-06: "NO - reject this idea; lots of troubles for no gain" |
 | Q337 `#ai` defaults to `anthropic/claude-haiku-5.5` (its Configuration `model`) | [resolved](resolved.md#Q337) | Owner, 2026-11-05 |
 | Q268, Q178 MCP: hand-write the Go face's small JSON-RPC part; the runner adds the `mcp` tag | [resolved](resolved.md#Q268) | Owner, 2026-11-05 |
 | Q326, Q328 Subscriptions: one rule everywhere (source checked at creation); a Personal agent may list `#bus` in its Allow | [resolved](resolved.md#Q326) | Owner, 2026-11-05 |
@@ -21,7 +25,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30; the R1 rows are in 
 | T-34 Web Face AI setup chat moves from R1; T-33 Markdown workflow stays in R1 | [Chat scope](ai-setup.md#web-face-chat) | Owner, 2026-11-03 |
 | Q191: agent status only on its own page, no mass polling or `ab_ls` status; web restart on `failed` only | [RT23 proposal](agent-capabilities.md#proposal) | Owner, 2026-11-01; [decision](../R1.0-Release/DECISIONS.md#recorded-decisions) |
 | R1 cut scope: RT23, M.7, M.6b, RT11 RW10–RW17, RT19, MAC.3 and B.15 moved to R1.1 (Q299), retaining IDs | [Runner extensions](TODO.md#runner-extensions), [web additions](TODO.md#runner-web-additions), [capabilities](TODO.md#agent-capabilities), [cleanup](TODO.md#node-cleanup), [macOS](TODO.md#macos-sandbox) | Owner, 2026-11-01; [decision](../R1.0-Release/DECISIONS.md#recorded-decisions) |
-| M.14 moved from R1 | [Runner hardening proposal](runner-hardening.md#runner-hardening-proposal), [task](TODO.md#runner-hardening), [Q276–Q280](QUESTIONS.md#runner-hardening) | 2026-11-01 owner decision: defer to R1.1 |
+| M.14 and Q276–Q280 moved from R1.1 to R1.2 (they moved from R1 to R1.1 on 2026-11-01), keeping their IDs | [Runner hardening proposal](../R1.2/runner-hardening.md#runner-hardening-proposal), [task](../R1.2/TODO.md#runner-hardening), [Q276–Q280](../R1.2/runner-hardening.md#questions) | Owner, in chat to #ab-ceo, 2026-11-06 ~10:45: "Runner hardening => postpone to R.1.2" ([quoted](QUESTIONS.md#runner-hardening)) |
 | Windows CLI client: a client-only `agent-bus` build for Windows in R1.1; reverses the 2026-10-19 "no windows" for that build alone | [windows CLI](windows-cli.md#windows-cli-client), [WIN.1](TODO.md#windows-cli-client) | 2026-10-30 owner instruction; reverses 2026-10-19 "no windows, mac/linux" ([R1 platforms](../R1.0-Release/TODO.md#objective))
 | Windows client state: the CLI writes only its reply-context cache under the user's cache directory and needs no state directory or lock file; the keeper's file-name encoding is dropped | [files the client writes](windows-cli.md#files-the-client-writes-and-reads) | 2026-10-30 owner answer (was Q261: "what files? it is a simple client") |
 | Windows `agent` (keeper) and `run` left out of the build, with a refusal | [what stays out](windows-cli.md#what-stays-out) | 2026-10-30 owner answer (was Q262) |

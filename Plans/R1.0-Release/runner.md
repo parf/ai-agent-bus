@@ -201,7 +201,7 @@ Detail is in the
 
 ## Runner hardening proposal
 
-M.14 moved to [R1.1 runner hardening](../R1.1/runner-hardening.md#runner-hardening-proposal) by owner decision on 2026-11-01.
+M.14 moved to [R1.2 runner hardening](../R1.2/runner-hardening.md#runner-hardening-proposal) by owner decision (to R1.1 on 2026-11-01, to R1.2 on 2026-11-06).
 
 ## Open decisions
 

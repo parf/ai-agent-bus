@@ -59,3 +59,22 @@ Owner-moved from R1 on 2026-10-30 ("move discord to 1.1"), then to R1.2 on 2026-
 - ⏳ B.27b Google Chat, moved from [R1 B.27](../R1.0-Release/TODO.md#bundled-agents) (owner, 2026-11-01: "we need corp acct. cant use personal")
   - Builds: the [Google Chat plan](google-chat.md#proposed-methods-for-approval); technical choices decided
   - Depends: a corporate Google account and project ([Q247, Q248](QUESTIONS.md#messaging-agents))
+
+## Runner hardening
+
+Owner-moved from R1 to R1.1 on 2026-11-01, then to R1.2 on 2026-11-06; M.14 and Q276–Q280 keep their IDs.
+
+- ⛔ M.14 Runner hardening — T-18b, **plan only; owner approval required before code**
+  - Details: The owner named runtime-file exposure, self-serving bus access and host sharing policy; live `jsonl` work-size checks and a finite CPU default are **added from T-18 review, owner to confirm**. No mechanism or implementation is selected.
+  - Depends: the five open policy questions, [Q276–Q280](runner-hardening.md#questions)
+  - Home: [proposal](runner-hardening.md#runner-hardening-proposal)
+
+| Boundary | Falsifiable acceptance after approval |
+|---|---|
+| 1. Runtime files | Put distinct readable markers in this agent's package, an unrelated sibling bundle under `/usr/local`, and an unrelated host directory. An approved representative agent still starts and reads its required runtime/code; unapproved sibling and unrelated markers cannot be read. Writing the runtime or package is refused, while own-work writes succeed. Repeat for per-message, `jsonl` and self-serving forms |
+| 2. Self-serving bus access | A self-serving fixture receives and answers one correlated call and performs each approved supporting operation. Attempts at an unapproved operation and access to another account's socket fail without effect. Exercise the owner-approved IP behavior separately, including attempts to bypass any required restriction. An ordinary per-message child gains no bus access from this change |
+| 3. Inbox sharing | Test host `share=false` and `share=true` on two readers: the first refuses a conflicting reader, the second admits sharing and handles every sent message once with no loss or duplicate. Exercise runner-issued reads and the owner-selected self-serving scope, then change the setting on reload and assert the approved transition, including in-flight work |
+| 4. Work-size checks — **added from T-18 review, owner to confirm** | Keep a `jsonl` process alive, grow its work directory one byte past the approved limit, and assert the approved over-limit response within the approved deadline without a restart/reload trigger. Check work below the limit still succeeds and all processes in the pool count toward the same boundary |
+| 5. CPU default — **added from T-18 review, owner to confirm** | Run a busy agent with no CPU override and measure that its whole process group stays within the approved finite default over the approved observation window/tolerance. Check explicit overrides and reload follow the approved policy; a second agent remains able to answer a bounded probe |
+
+The question answers must state observable allowed/denied operations, bounds, transitions and compatibility requirements before implementation acceptance is final. They choose **policy**, not a technical mechanism. Tests use sandboxed fixtures and harmless markers; no real host secret or live account socket is read. Removing each implemented boundary must fail its owning assertion, rather than a setup or build failure. Until approval, no code, runtime experiment or rollout belongs to this item.

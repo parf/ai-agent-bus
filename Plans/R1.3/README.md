@@ -9,6 +9,7 @@ Exploratory and unscheduled. These ideas were explicitly deferred until after th
 | Agent identity and shared state | [Agent identity and shared state](exploration.md#shared-secrets-and-a-kv-with-locks) |
 | Daemon components as agents | [Daemon components as agents](exploration.md#whether-the-daemons-own-parts-become-agents) |
 | Composed groups | [Group expressions](composed-groups.md#group-expressions) |
+| Peer registry trust (Q5, moved from R1.1 on 2026-11-06) | [Registry sync](../R1.1/registry.md#registry-sync); [questions](QUESTIONS.md#peer-registry) |
 
 Open choices are in [questions](QUESTIONS.md#open-questions); recorded choices are in [decisions](DECISIONS.md#recorded-decisions).
 Execution prerequisites are in [TODO](TODO.md#objective).
