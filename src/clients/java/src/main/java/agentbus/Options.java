@@ -78,14 +78,9 @@ public final class Options {
     public record Serve(int workers, Optional<String> topic, Duration drain, boolean share, Duration poll,
                         Optional<java.util.function.BiConsumer<Message, Throwable>> onError,
                         Optional<java.util.function.Consumer<Message>> onReply) {
-        /** Existing constructor: unmatched answers are dropped unless onReply is set. */
-        public Serve(int workers, Optional<String> topic, Duration drain, boolean share, Duration poll,
-                     Optional<java.util.function.BiConsumer<Message, Throwable>> onError) {
-            this(workers, topic, drain, share, poll, onError, Optional.empty());
-        }
         public static Serve workers(int n) {
             if (n < 1) throw new IllegalArgumentException("at least one worker");
-            return new Serve(n, Optional.empty(), Duration.ofSeconds(30), false, Duration.ofSeconds(5), Optional.empty());
+            return new Serve(n, Optional.empty(), Duration.ofSeconds(30), false, Duration.ofSeconds(5), Optional.empty(), Optional.empty());
         }
         public Serve topic(String t) { return new Serve(workers, Optional.of(t), drain, share, poll, onError, onReply); }
         public Serve drain(Duration d) { return new Serve(workers, topic, d, share, poll, onError, onReply); }
