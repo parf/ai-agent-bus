@@ -1,0 +1,180 @@
+{
+  "text": "Turn the rows of one database table that are new or changed into messages. Reads through a read-only DB agent under its own name, holds no database credential, tells each subscribed agent about each row, and marks a row done only after that agent confirms it. Start with help, then status.\nstatus: The DB agent and table, the page size, the scan position, rows held against the window cap, a stuck row, the last poll and its error, and each subscriber's position, counts and any park.; returns: {db,table,page,scan,window,window_max,full,stuck,last_poll,error,subscribers,limits}; role: read|write\npoll: Read the rows after the scan position now and send what is new or changed.; returns: {read}; role: read|write\nreset confirm:true: Forget every held row, position and confirmed mark, keeping the subscriptions, so each subscriber is sent every row again. Owners and Maintainers only; a damaged state file is replaced and its subscriptions are lost with it.; returns: {reset}; role: owner|maintainer\n  confirm (bool): must be true\nsub add <target>: Send each new or changed row to a queue or an agent's inbox, and send it again until the target confirms it. Every row is sent first. You must be able to call the DB agent yourself.; returns: {id,target,selector,created_by,created_at,sent,confirmed,dropped}; role: read|write\n  target (string): Destination queue or agent; the creator's grants on it and on the DB agent are checked at add and before every send\nsub list: List your subscriptions with sent, confirmed, dropped and pending counts; Owners and Maintainers see all.; returns: {subscriptions:[{id,target,selector,created_by,created_at,sent,confirmed,dropped,pending}]}; role: read|write\nsub delete <id>: Remove one subscription and its marks. The creator, or an Owner or Maintainer, may do it.; returns: {deleted}; role: read|write\n  id (string): The id from sub add or sub list\n\nv<version> · PolyForm Strict · parf.dev/agent-bus/ · © Sergey Porfiriev\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/dbsync.md\nMore: agent-bus help <name> config | secret | json",
+  "json": {
+    "description": "Turn the rows of one database table that are new or changed into messages. Reads through a read-only DB agent under its own name, holds no database credential, tells each subscribed agent about each row, and marks a row done only after that agent confirms it. Start with help, then status.",
+    "license": "LicenseRef-PolyForm-Strict-1.0.0",
+    "author": "Sergey Porfiriev",
+    "homepage": "https://parf.dev/agent-bus/",
+    "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/dbsync.md",
+    "version": "<version>",
+    "methods": {
+      "help": {
+        "type": "string",
+        "help": "Find available methods and their limits.",
+        "args": [],
+        "example": "agent-bus call '#dbsync/orders@parf.us' help"
+      },
+      "status": {
+        "type": "string",
+        "help": "The DB agent and table, the page size, the scan position, rows held against the window cap, a stuck row, the last poll and its error, and each subscriber's position, counts and any park.",
+        "role": [
+          "read",
+          "write"
+        ],
+        "args": [],
+        "returns": "{db,table,page,scan,window,window_max,full,stuck,last_poll,error,subscribers,limits}"
+      },
+      "poll": {
+        "type": "string",
+        "help": "Read the rows after the scan position now and send what is new or changed.",
+        "role": [
+          "read",
+          "write"
+        ],
+        "args": [],
+        "returns": "{read}"
+      },
+      "reset": {
+        "type": "string",
+        "help": "Forget every held row, position and confirmed mark, keeping the subscriptions, so each subscriber is sent every row again. Owners and Maintainers only; a damaged state file is replaced and its subscriptions are lost with it.",
+        "role": [
+          "owner",
+          "maintainer"
+        ],
+        "text": "reset confirm:true",
+        "args": [
+          {
+            "type": "bool",
+            "name": "confirm",
+            "help": "must be true"
+          }
+        ],
+        "returns": "{reset}"
+      },
+      "sub.add": {
+        "type": "string",
+        "help": "Send each new or changed row to a queue or an agent's inbox, and send it again until the target confirms it. Every row is sent first. You must be able to call the DB agent yourself.",
+        "role": [
+          "read",
+          "write"
+        ],
+        "text": "sub add <target>",
+        "args": [
+          {
+            "type": "string",
+            "name": "target",
+            "help": "Destination queue or agent; the creator's grants on it and on the DB agent are checked at add and before every send"
+          }
+        ],
+        "returns": "{id,target,selector,created_by,created_at,sent,confirmed,dropped}"
+      },
+      "sub.list": {
+        "type": "string",
+        "help": "List your subscriptions with sent, confirmed, dropped and pending counts; Owners and Maintainers see all.",
+        "role": [
+          "read",
+          "write"
+        ],
+        "text": "sub list",
+        "args": [],
+        "returns": "{subscriptions:[{id,target,selector,created_by,created_at,sent,confirmed,dropped,pending}]}"
+      },
+      "sub.delete": {
+        "type": "string",
+        "help": "Remove one subscription and its marks. The creator, or an Owner or Maintainer, may do it.",
+        "role": [
+          "read",
+          "write"
+        ],
+        "text": "sub delete <id>",
+        "args": [
+          {
+            "type": "string",
+            "name": "id",
+            "help": "The id from sub add or sub list"
+          }
+        ],
+        "returns": "{deleted}"
+      }
+    },
+    "asks": [
+      "help",
+      "help-config",
+      "help-secret",
+      "help-json"
+    ],
+    "config": {
+      "db": {
+        "type": "string",
+        "help": "The read-only DB agent to read through, such as #db/orders@node.example; grant this agent only its read role there"
+      },
+      "engine": {
+        "type": "string",
+        "help": "mysql or postgres, the DB agent's dialect"
+      },
+      "schema": {
+        "type": "string",
+        "help": "Schema of the table; default the connection's own"
+      },
+      "table": {
+        "type": "string",
+        "help": "The table to watch, a plain identifier"
+      },
+      "key": {
+        "type": "string",
+        "help": "Unique key column, numeric or a timestamp"
+      },
+      "updated": {
+        "type": "string",
+        "help": "Column the application sets on every insert and update: a timestamp, or epoch time with updated_unit"
+      },
+      "updated_unit": {
+        "type": "string",
+        "help": "s or ms, when updated holds epoch time"
+      },
+      "columns": {
+        "type": "json",
+        "help": "Other columns sent with each row, at most 64; key and updated are always sent"
+      },
+      "every": {
+        "type": "string",
+        "help": "Poll interval, 5s..24h",
+        "default": "60s"
+      },
+      "max_rows": {
+        "type": "int",
+        "help": "The DB agent's max_rows; a page is this minus a tenth, 1..10000",
+        "default": 1000
+      },
+      "batch": {
+        "type": "int",
+        "help": "Rows sent per round to one subscriber, 1..500",
+        "default": 20
+      },
+      "window_max": {
+        "type": "int",
+        "help": "Rows held until every subscriber has them; a full window waits for the slowest, 1..100000",
+        "default": 10000
+      },
+      "park_after": {
+        "type": "string",
+        "help": "How long a subscriber may refuse or not confirm before it is parked and the others go on",
+        "default": "10m"
+      },
+      "state_max": {
+        "type": "string",
+        "help": "Cap on the state file, 1MiB..1GiB",
+        "default": "64MiB"
+      }
+    },
+    "secrets": [],
+    "body_formats": [
+      "text",
+      "json"
+    ],
+    "hidden_methods": {
+      "count": 0,
+      "roles": []
+    }
+  }
+}

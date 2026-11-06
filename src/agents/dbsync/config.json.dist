@@ -1,0 +1,13 @@
+{
+  "db": "#db/orders@node.example",
+  "engine": "postgres",
+  "table": "orders",
+  "key": "id",
+  "updated": "updated_at",
+  "columns": [
+    "status",
+    "total"
+  ],
+  "every": "60s",
+  "max_rows": 1000
+}
