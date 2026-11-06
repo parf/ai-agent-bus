@@ -6,6 +6,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30; the R1 rows are in 
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
+| Q333 AI agent images: only `#ai`'s Owner and Maintainers may generate them, stored in `#ai`'s own bigfile record with a 24-hour expiry; reference images by URL or inline | [T-36](TODO.md#ai-agent-methods) | Owner, 2026-11-05: "OK for #ai bigfile" |
 | T-34 Web Face AI setup chat moves from R1; T-33 Markdown workflow stays in R1 | [Chat scope](ai-setup.md#web-face-chat) | Owner, 2026-11-03 |
 | Q191: agent status only on its own page, no mass polling or `ab_ls` status; web restart on `failed` only | [RT23 proposal](agent-capabilities.md#proposal) | Owner, 2026-11-01; [decision](../R1.0-Release/DECISIONS.md#recorded-decisions) |
 | R1 cut scope: RT23, M.7, M.6b, RT11 RW10–RW17, RT19, MAC.3 and B.15 moved to R1.1 (Q299), retaining IDs | [Runner extensions](TODO.md#runner-extensions), [web additions](TODO.md#runner-web-additions), [capabilities](TODO.md#agent-capabilities), [cleanup](TODO.md#node-cleanup), [macOS](TODO.md#macos-sandbox) | Owner, 2026-11-01; [decision](../R1.0-Release/DECISIONS.md#recorded-decisions) |
