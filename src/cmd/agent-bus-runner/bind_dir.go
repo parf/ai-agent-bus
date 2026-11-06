@@ -64,7 +64,10 @@ const bindSockets = 100000
 // pseudo are the directories that expose the host rather than files: process
 // environments, kernel and device state, and the runtime directory with the
 // account sockets. None may be a bind root, lie inside one, or hold one.
-var pseudo = []string{"/proc", "/sys", "/dev", "/run", "/var/run"}
+//
+// The bus's own state and configuration directories are listed too: they hold the
+// tokens and environment files of every agent, which the runner account can read.
+var pseudo = []string{"/proc", "/sys", "/dev", "/run", "/var/run", "/var/lib/agent-bus", "/etc/agent-bus"}
 
 // resolveBindDir turns the configured value into the real path to bind, or says
 // why not. The path must lie inside one of the node owner's roots, after

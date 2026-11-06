@@ -418,3 +418,25 @@ func TestAPooledLaunchRefusesAnUnconfiguredDir(t *testing.T) {
 		t.Fatalf("start with no dir: %v", err)
 	}
 }
+
+func TestTheBusOwnStateAndConfigurationDirectoriesAreNeverBindable(t *testing.T) {
+	for _, p := range []string{"/var/lib/agent-bus", "/etc/agent-bus"} {
+		if !slices.Contains(pseudo, p) {
+			t.Fatalf("%s is not in the refused host directories %v", p, pseudo)
+		}
+	}
+	// The same rule, in both directions, on a stand-in that exists here.
+	stand := realTemp(t)
+	old := pseudo
+	pseudo = append(append([]string{}, old...), stand)
+	defer func() { pseudo = old }()
+	inside := filepath.Join(stand, "sub")
+	if err := os.Mkdir(inside, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, raw := range []string{stand, inside, filepath.Dir(stand)} {
+		if got, err := resolveBindDir(raw, everywhere, nil, "", ""); err == nil || !strings.Contains(err.Error(), "exposes the host") {
+			t.Fatalf("%s: %q, %v", raw, got, err)
+		}
+	}
+}
