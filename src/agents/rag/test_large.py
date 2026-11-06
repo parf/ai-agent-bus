@@ -296,6 +296,15 @@ class Large(unittest.TestCase):
         with self.assertRaisesRegex(RagError,'content_hash must equal'):parse(dumps({**base,'content_hash':'0'*64,'bigfile':ref}))
         with self.assertRaisesRegex(RagError,'replaces data'):parse(dumps({**base,'bigfile':ref,'data':'x'}))
         with self.assertRaisesRegex(RagError,'text/markdown only'):parse(dumps({**base,'bigfile':ref,'mime-type':'text/plain'}))
+    def test_a_bigfile_that_is_not_an_object_is_refused_unpaid_and_never_downloaded(self):
+        ref=self.store.put_file(document())
+        for bad in ('Plans/big.md',['record','name','size','sha256'],[ref['record'],ref['name'],ref['size'],ref['sha256']]):
+            try:
+                self.call(method='upsert',id='Plans/big.md',source='Plans/big.md',content_hash=ref['sha256'],bigfile=bad)
+                outcome='accepted'
+            except Exception as error:outcome=f'{type(error).__name__}: {error}'
+            self.assertRegex(outcome,'^RagError: bigfile needs record, name, size and sha256$',repr(bad))
+        self.assertEqual((self.store.downloads,self.store.paid),([],[]))
     def test_classification_reads_the_first_32_kib(self):
         text=document();self.put(text)
         state=next(r['state'] for t,r in self.store.paid if t=='ai')
