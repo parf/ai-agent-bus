@@ -15,6 +15,10 @@ assignment, wait: a team launch is not a task.
 
 Every owner choice is an item in the owning plan's QUESTIONS.md, in [mdhouse's agent markup](http://localhost:7777/mdhouse/doc/agent-markup.md) (owner, 2026-11-05), so the owner answers it in the document: `- ❓ Qnnn title`, details indented, `( )` options with 🌟/⭐, one `> 💡👾` suggestion, IDs mentioned as `№Qnnn`. It reaches the owner through `#ab-ceo`, never as a chat-only question.
 
+## Light on the host
+
+Owner, 2026-11-05: "do not run heavy tests unless really needed". Run focused tests by default. A normal gate runs only for a landing, through `#ab-gate`. No `--slow`, repeat or load loops, or podman runs unless the task truly needs one and the lead approves it, and never two workers running suites at once. Kill what you started by pid before you stop.
+
 ## Task lifecycle
 
 `assigned` → `working` → `ready` → `reviewed` → `landed` → `done`.
