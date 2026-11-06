@@ -27,6 +27,12 @@ import fetch
 from test_policy import answers
 
 
+def startup(imports):
+    # A deadline also covers the helper's start, which a loaded host can stretch past a short fixed
+    # deadline before the helper reaches the server (J42, J95): measure it now.
+    start=time.monotonic();subprocess.run([sys.executable,'-B','-c',f'import sys;sys.path.insert(0,{str(HERE)!r});{imports}'],check=True,stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=60)
+    return time.monotonic()-start
+
 class Allowlist(unittest.TestCase):
     def test_omitted_empty_and_invalid_lists_fail_closed(self):
         self.assertFalse(Policy({}).authorize('https://example.org/')[1])
@@ -263,8 +269,10 @@ class CurlHTTP(unittest.TestCase):
         self.server.response=lambda event:None
         with self.assertRaises(Uncertain):self.call()
         self.assertEqual(len(self.server.calls),1)
-        self.server.calls.clear();self.server.response=lambda event:(200,[],[b'x']*100)
-        stamp=(datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(seconds=1.5)).isoformat()
+        # The deadline also covers the helper's start (J42); the reply outlasts it by a second.
+        budget=1.5+4*startup('import worker');pieces=max(100,int((budget+1)/.05))
+        self.server.calls.clear();self.server.response=lambda event:(200,[],[b'x']*pieces)
+        stamp=(datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(seconds=budget)).isoformat()
         with contextlib.redirect_stderr(io.StringIO()):
             result=fetch.answer({'body':'curl POST '+self.url+' payload','deadline':stamp},{'allow':['127.0.0.1']})
         self.assertTrue(result.startswith('unknown:'));self.assertEqual(len(self.server.calls),1)
