@@ -351,6 +351,17 @@ class RenameWatchTests(AgentWatchTests):
         self.assertEqual(self.changes(),[]);self.bus.send_refused.clear();self.agent.tick();self.agent._round()
         self.assertEqual(self.changes(),[('renamed','b.md','a.md')],'the stored marks still held a.md, so it came back as the rename')
 
+    def test_a_file_changed_or_touched_before_its_rename_is_delivered_is_still_the_one_rename(self):
+        import json
+        self.start({'a.md':'x'});self.bus.send_refused.add('#q@n.test');self.r('a.md','b.md')
+        item=lambda:self.agent.state.load()['items'].get('b.md',{})
+        self.assertTrue(eventually(lambda:item().get('from')=='a.md'))
+        (Path(self.root)/'b.md').write_text('rewritten')
+        self.assertTrue(eventually(lambda:item().get('size')==9));self.assertEqual(item().get('from'),'a.md','a change keeps the rename it came from')
+        os.utime(Path(self.root)/'b.md',(1,1));self.agent.tick();self.assertEqual(item().get('from'),'a.md','a touch keeps it too')
+        self.bus.send_refused.clear();self.agent.tick();self.agent._round()
+        self.assertEqual(self.changes(),[('renamed','b.md','a.md')]);self.assertEqual(json.loads(self.bus.sent[0][1])['text'],'rewritten')
+
     def test_rag_has_no_rename_so_its_rows_keep_delete_then_upsert(self):
         self.bus=RagBus();self.agent=self.make({'mode':'watch'});self.put('a.md','text');self.bus.kinds[base.RAG]='agent'
         self.add(base.RAG,extra='as rag vault notes');self.agent.tick();self.bus.calls.clear()
