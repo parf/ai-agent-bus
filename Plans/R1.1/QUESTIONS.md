@@ -157,6 +157,12 @@ Choices the [RT19 approach](root-runner.md#open-choices-that-touch-a-step) needs
   - Recommended: (a). It reads as what it is, and a person or an edge named `root` is refused already by the plain-name rule, so it cannot clash.
   - Settled by: the owner
 
+- ❓ Q365 Open RT19's build now, or later
+  - Context: R1.1 is closed to new scope ("missing parts and fixing bugs"). №Q336 settled the design (the root runner replaces the standalone starter); the [approach](root-runner.md) has 5 steps, about 9 agent-hours, touching install (⚠️), and needs №Q361 before steps 3–4
+  - ( ) Later: keep the approach, build when R1.1 opens or a person runner on this node needs it 🌟
+  - ( ) Now: open RT19 as an exception, after №Q361–№Q364 are answered ⭐
+  > 💡👾 Later: one owner account on this node, so the starter works today; the team stays on fixes and R.8.
+
 ## Filescan
 
 - ✅ Q334 → [№Q334](resolved.md#Q334)
