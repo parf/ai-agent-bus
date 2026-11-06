@@ -134,31 +134,32 @@ class Selection(unittest.TestCase):
         self.assertEqual(p['checks']['agent_telegram'], 'normal')
 
     def test_container_image_is_its_own_subsystem(self):
-        # The image is release packaging; its stubbed tests are in the go_checks fast allowlist.
-        p = self.plan(['src/container/Containerfile'])
-        self.assertEqual({c for c, m in p['modes'].items() if m != 'fast'}, {'Q'})
-        self.assertEqual({c for c, l in p['checks'].items() if l == 'normal'}, set())
-        self.assertEqual(p['checks']['go_checks'], 'fast')
-        self.assertEqual(self.plan([], 'normal', 'Q')['checks']['container_image'], 'skip')
+        # The image is release packaging; outside the release run a container
+        # change runs the image's stubbed tests, its fast allowlist (T-47).
+        for mode in ('fast', 'normal'):
+            with self.subTest(mode=mode):
+                p = self.plan(['src/container/Containerfile'], mode)
+                self.assertEqual({c for c, m in p['modes'].items() if m != 'fast'}, set() if mode == 'fast' else {'Q'})
+                running = {c for c, l in p['checks'].items() if l != 'skip'}
+                self.assertIn('container_image', running)
+                self.assertEqual(p['checks']['container_image'], 'fast')
+                self.assertEqual({c for c, l in p['checks'].items() if l in ('normal', 'slow')}, set())
+        self.assertEqual(self.plan([], 'normal', 'Q')['checks']['container_image'], 'fast')
         self.assertEqual(self.plan([], 'slow', 'all')['checks']['container_image'], 'slow')
 
     def test_release_packaging_runs_only_in_the_release_run(self):
         # Owner, 2026-11-06: "no release bundles until the release".
         config = json.loads((ROOT/'src/smoke-map.json').read_text())
         self.assertEqual(set(config['release']), {'go_release', 'container_image', 'distro_install'})
-        for name in config['release']:
-            self.assertNotIn(name, config['fast'])
+        self.assertEqual(set(config['release']) & set(config['fast']), {'container_image'})
         paths = ['install.sh', 'src/acceptance/distro/in-container.sh', 'src/cmd/agent-bus-setup/upgrade.go',
                  'src/build.sh', 'src/package.sh', 'src/container/Containerfile', 'src/smoke.sh']
-        for path in paths:
-            for mode in ('fast', 'normal', 'slow'):
-                with self.subTest(path=path, mode=mode):
-                    checks = self.plan([path], mode)['checks']
-                    self.assertEqual({checks[n] for n in config['release']}, {'skip'})
-        for mode in ('fast', 'normal', 'slow'):
-            for target in selector.ALL:
-                checks = self.plan([], mode, target)['checks']
-                self.assertEqual({checks[n] for n in config['release']}, {'skip'}, (mode, target))
+        plans = [(path, mode, self.plan([path], mode)) for path in paths for mode in ('fast', 'normal', 'slow')]
+        plans += [('', mode + ':' + t, self.plan([], mode, t)) for mode in ('fast', 'normal', 'slow') for t in selector.ALL]
+        for path, mode, p in plans:
+            with self.subTest(path=path, mode=mode):
+                self.assertEqual({p['checks'][n] for n in ('go_release', 'distro_install')}, {'skip'})
+                self.assertIn(p['checks']['container_image'], ('skip', 'fast'))
         checks = self.plan([], 'slow', 'all')['checks']
         self.assertEqual({checks[n] for n in config['release']}, {'slow'})
 

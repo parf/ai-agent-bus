@@ -465,17 +465,6 @@ ok_exit "the link check fails a moved or deleted file that a file nobody edited 
 out=$(PYTHONDONTWRITEBYTECODE=1 python3 ./check-links.py 2>&1); rc=$?
 ok_exit "this tree leaves no Markdown link to nothing, and none to a file it moved or deleted" "$rc"
 [ "$rc" = 0 ] || echo "$out"
-# The container entry point, labels and checksum step, stubbed: no podman and no
-# image, so they guard src/container/ at fast and normal; the image itself is release-only.
-out=$(bash container/entrypoint_test.sh 2>&1); rc=$?
-ok_exit "the entry point drops privilege for good, refuses a container-id realm, lists the agents present and leaves a usable mount alone" "$rc"
-[ "$rc" = 0 ] || echo "$out"
-out=$(bash container/labels_test.sh 2>&1); rc=$?
-ok_exit "the image carries its title, version, source and licenses labels, the version from a checked build argument" "$rc"
-[ "$rc" = 0 ] || echo "$out"
-out=$(python3 -B container/checksum_test.py 2>&1); rc=$?
-ok_exit "the Containerfile's own checksum step verifies a release, and refuses a tampered archive and a missing sum line, without a build" "$rc"
-[ "$rc" = 0 ] || echo "$out"
 out=$(bash ./smoke-port.test.sh 2>&1); rc=$?
 ok_exit "smoke port claim contract" "$rc"
 [ "$rc" = 0 ] || echo "$out"
@@ -4143,7 +4132,8 @@ agent_guide() {
 
 
 
-# Release packaging, selected only by the release run (smoke-map.json "release").
+# Release packaging (smoke-map.json "release"): outside the release run only its fast
+# allowlist runs, the stubbed tests below, never the image.
 # The container image from this tree's release archive, under rootless podman
 # (src/container/README.md#acceptance). The archive sits in the shard's own
 # directory, which its cleanup removes; the acceptance removes what it made.
@@ -4151,6 +4141,16 @@ container_image() {
   if normal; then
     sec "container image: both roles, delivery, persistence, sandbox refusal"
     local out rc dist="$D/container-dist" base
+    # The entry point's own checks, stubbed: no podman, and the same check fast runs.
+    out=$(bash container/entrypoint_test.sh 2>&1); rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "the entry point drops privilege for good, refuses a container-id realm, lists the agents present and leaves a usable mount alone" "$rc"
+    out=$(bash container/labels_test.sh 2>&1); rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "the image carries its title, version, source and licenses labels, the version from a checked build argument" "$rc"
+    out=$(python3 -B container/checksum_test.py 2>&1); rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "the Containerfile's own checksum step verifies a release, and refuses a tampered archive and a missing sum line, without a build" "$rc"
     # The build never pulls: a host without the pinned base cannot build it,
     # and a selected check that cannot run fails rather than passing unrun.
     base=$(awk '$1 == "FROM" {print $2; exit}' container/Containerfile)
