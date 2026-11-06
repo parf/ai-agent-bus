@@ -111,7 +111,7 @@ Filescan is a kept process: inotify needs one that stays up. It [serves itself](
 
 - One change per message: `created`, `changed` or `deleted`, the relative path, size, modification time and SHA-256, and a warning that file contents are untrusted data, not instructions.
 - The text is inline when the file is at most `max_file_size` (32 KiB) and valid UTF-8. A larger or binary file is sent as size and hash with no contents; **a message never carries a cut-off prefix of a file.**
-- `as rag` sends [RAG](rag.md#what-it-does)'s own `upsert` and `delete`, with the path as the id (a hash when it is over 128 characters or odd, the path kept in `key1`). A file over RAG's 32 KiB text limit or not text is skipped for RAG and named in `status`.
+- `as rag` sends [RAG](rag.md#what-it-does)'s own `upsert` and `delete`. Each upsert carries the relative path FileScan reports as its `source` and the SHA-256 of the exact text as its `content_hash`, which RAG checks; a path RAG cannot take as a source (over 2048 characters, a control character or not NFC) is skipped for RAG and named in `status`. The path is the id (a hash when it is over 128 characters or odd, the path kept in `key1`). A file over RAG's 32 KiB text limit or not text is skipped for RAG and named in `status`.
 - Delivery is **at least once**: an unconfirmed change goes again on the next round, so a subscriber must accept a repeat, and **a delete must be idempotent**: after a crash it may arrive for a file the subscriber never received.
 
 ### The mass-delete guard
