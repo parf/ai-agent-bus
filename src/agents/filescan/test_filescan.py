@@ -238,7 +238,7 @@ class RagTests(Base):
         self.assertEqual(c['content_hash'],hashlib.sha256((Path(self.root)/'d/x.md').read_bytes()).hexdigest())
 
     def test_a_deleted_file_needs_no_source_and_a_path_rag_cannot_take_is_skipped(self):
-        self.put('d/ok.md','a');self.put('e/'+'z'*2100+'.md','b');self.put('e/nfd-e\u0301.md','c')
+        self.put('d/ok.md','a');self.put('e/'+'/'.join(['z'*200]*11)+'.md','b');self.put('e/nfd-e\u0301.md','c')
         self.rag();self.call('scan');ids=[c['id'] for c in self.calls()]
         self.assertEqual(ids,['d/ok.md'],'a 2048+ character path and a non-NFC path cannot be RAG sources')
         names=next(iter(self.call('status')['skipped_for_rag'].values()))
@@ -249,12 +249,12 @@ class RagTests(Base):
         self.assertEqual(len(self.bus.calls),1);self.assertEqual(self.call('status')['subscribers'][0]['pending'],1)
         self.bus.replies['#rag@n.test']='ok';self.call('scan');self.assertEqual(len(self.bus.calls),2);self.assertEqual(self.call('status')['subscribers'][0]['pending'],0)
 
-    def test_a_long_path_is_hashed_with_the_path_kept_in_key1_and_an_odd_one_too(self):
+    def test_a_long_path_is_hashed_with_the_path_kept_in_key1_and_an_odd_one_is_skipped(self):
         long='d/'+'x'*130+'.md';self.put(long,'t');self.put('line break.md','t');self.rag();self.call('scan')
         by={c['id']:c for c in self.calls()}
         h=[c for c in by.values() if c.get('key1')==long]
         self.assertEqual((len(h),len(h[0]['id'])),(1,71))
-        self.assertEqual(len([c for c in by.values() if c.get('key1','').startswith('line')]),1)
+        self.assertEqual([c for c in by.values() if c.get('key1','').startswith('line')],[],'a path with a control or line separator cannot be a RAG source, so it is skipped, not sent')
 
     def test_a_file_over_rags_limit_or_not_text_is_skipped_for_rag_and_named_in_status(self):
         self.put('big.md','x'*(fs.RAG_TEXT+1));Path(self.root,'bin.dat').write_bytes(b'\xff\xfe\x01');self.put('ok.md','fine')

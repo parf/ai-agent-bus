@@ -5,6 +5,7 @@ The shared sync core keeps the state file, the subscriptions and the confirmed d
 walks the tree, answers the calls and builds each message. The directory is bound read-only by the
 runner (`needs.dir`) and arrives as AGENT_BUS_DIR; nothing a caller sends can change it.
 """
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -14,6 +15,7 @@ import subprocess
 import sys
 import threading
 import time
+import unicodedata
 
 HERE=Path(__file__).resolve().parent
 SUPPORT=HERE/'support' if (HERE/'support').is_dir() else HERE.parents[1]
@@ -106,14 +108,19 @@ def selector(value):
 
 
 RAG_TEXT=32*1024
+RAG_SOURCE=2048   # RAG's own limit on `source`
 
 
 def rag_id(path):
     """(id, key1): the path itself as the id when RAG takes it, else a hash with the path kept in key1."""
-    import hashlib,unicodedata
     if len(path)<=128 and path.isprintable() and unicodedata.normalize('NFC',path)==path and not path.startswith('sha256:'):return path,None
     # A distinct form: no plain path can equal it, so a file named like a hash never collides with a hashed one.
     return 'sha256:'+hashlib.sha256(path.encode()).hexdigest(),path[:256]
+
+
+def rag_source_ok(path):
+    """Whether RAG accepts this path as a `source`: at most RAG_SOURCE characters, printable, already in NFC."""
+    return 0<len(path)<=RAG_SOURCE and path.isprintable() and unicodedata.normalize('NFC',path)==path
 
 
 def rag_mime(path):
@@ -264,7 +271,10 @@ class FileScan:
         try:sha,size,text=scanning.digest(self.root,key,RAG_TEXT)
         except OSError:return refused('unreadable')
         if text is None:return refused('not UTF-8 text, or over the limit')
-        call={'method':'upsert','namespace':namespace,'tableName':table,'id':ident,'data':text,'mime-type':rag_mime(key)}
+        if not rag_source_ok(key):return refused('its path is not valid as a RAG source (over 2048 characters or not NFC)')
+        # RAG 0.3 requires `source`; it is the path FileScan itself reports for the file, and RAG checks the hash against the text.
+        call={'method':'upsert','namespace':namespace,'tableName':table,'id':ident,'data':text,'mime-type':rag_mime(key),
+              'source':key,'content_hash':hashlib.sha256(text.encode()).hexdigest()}
         if key1:call['key1']=key1
         self.skipped.get(row['id'],{}).pop(key,None)
         return dumps(call)
