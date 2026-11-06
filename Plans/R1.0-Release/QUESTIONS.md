@@ -19,4 +19,10 @@ suggestion with `✅ 💡` or `🚫 💡`.
   > 💡👾 The upgrade step: it keeps one canonical interface, costs about 30 minutes to build and 10 to run here, and helps anyone on a 0.9 image.
   > 
   > 💬👾 First step either way: a names-only check of a copy of this node's store, to see every refused form. The script is ready (`tmp/scripts/j98-store-check.sh`, read by me), but this session is not allowed to run it as root because it copies the credential store; run it yourself: `! sudo bash /usr/local/src/ai-agent-bus/tmp/scripts/j98-store-check.sh`
+  >
+  > 💬 👤parf (in chat) we do not care about pre 1.0 at all
+  >
+  > 💬👾 Understood: no upgrade step for 0.9 users and no compatible loader. Your check of this node found one form only, the retired `personal` member on ~120 records, plus 3 records with no owner (`agent-bus-runner`, `newcomer@h`, `rtest`). One choice left for this node:
+  - ( ) Convert this node once, offline after a backup: drop `personal`, delete the 3 ownerless test leftovers; every record, token, KV value and queue is kept 🌟
+  - ( ) Start this node on an empty 1.0 store: every agent, user, token and stored value is lost and set up again ⭐
 
