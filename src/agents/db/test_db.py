@@ -165,7 +165,7 @@ class Engines:
 
 
 class Redaction(unittest.TestCase):
-    def test_exceptions_and_logs_never_carry_a_password(self):
+    def test_exceptions_results_and_logs_never_carry_a_password(self):
         env = {'DB_USER': 'u', 'DB_PASSWORD': SENTINEL}
         for raised in (RuntimeError('driver says ' + SENTINEL), ConnectionRefusedError(SENTINEL), proxy.DatabaseError('db says ' + SENTINEL)):
             def runner(*_args, _raised=raised):
@@ -176,15 +176,39 @@ class Redaction(unittest.TestCase):
             self.assertTrue(out.startswith('error:'), out)
             self.assertNotIn(SENTINEL, out + log.getvalue())
 
+        with unittest.mock.patch.dict(proxy.RUNNERS, {'mysql': lambda *a: {'columns': ['c'], 'rows': [[SENTINEL]], 'truncated': False}}), \
+                contextlib.redirect_stderr(io.StringIO()):
+            out, _ = proxy.answer({'body': 'SELECT 1'}, {'engine': 'mysql', 'host': 'h'}, env)
+        self.assertNotIn(SENTINEL, out)
+
     def test_short_user_never_changes_result_keys_or_values(self):
-        result = {'columns': ['ro', 'rows', SENTINEL],
-                  'rows': [['ro', 'a broad row', SENTINEL]], 'truncated': False}
+        result = {'columns': ['ro', 'rows', 'normal column'],
+                  'rows': [['ro', 'a broad row', 'normal value']], 'truncated': False}
         with unittest.mock.patch.dict(proxy.RUNNERS, {'mysql': lambda *a: result}), \
                 contextlib.redirect_stderr(io.StringIO()):
             out, code = proxy.answer({'body': 'SELECT 1'}, {'engine': 'mysql', 'host': 'h'},
                                      {'DB_USER': 'ro', 'DB_PASSWORD': SENTINEL})
         self.assertEqual(code, 0)
         self.assertEqual(json.loads(out), result)
+
+    def test_read_result_masks_every_tier_password_before_json_escaping(self):
+        env = {'DB_USER': 'ro', 'DB_PASSWORD': 'shared-pass'}
+        for tier in proxy.TIERS:
+            env[f'DB_{tier.upper()}_USER'] = f'{tier}_user'
+            env[f'DB_{tier.upper()}_PASSWORD'] = f'{tier}\"pass\\end'
+        passwords = [value for key, value in env.items() if key.endswith('PASSWORD')]
+        result = {'columns': ['column-' + value for value in passwords],
+                  'rows': [['dsn=' + value + ';' for value in passwords]], 'truncated': False}
+        runner = unittest.mock.Mock(return_value=result)
+        with unittest.mock.patch.dict(proxy.RUNNERS, {'mysql': runner}), \
+                contextlib.redirect_stderr(io.StringIO()):
+            out, _ = proxy.answer({'body': 'SELECT 1'}, {'engine': 'mysql', 'host': 'h'}, env)
+        self.assertEqual(runner.call_args.args[1], 'read')
+        self.assertEqual(json.loads(out), {'columns': ['column-***'] * len(passwords),
+                                         'rows': [['dsn=***;'] * len(passwords)], 'truncated': False})
+        for password in passwords:
+            self.assertNotIn(password, out)
+            self.assertNotIn(json.dumps(password)[1:-1], out)
 
     def test_all_account_errors_mask_users_as_tokens_and_passwords_as_substrings(self):
         env = {'DB_USER': 'ro', 'DB_PASSWORD': 'pass'}

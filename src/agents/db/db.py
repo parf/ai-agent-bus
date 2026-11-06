@@ -79,6 +79,19 @@ def redact(text, secrets):
     return text
 
 
+def redact_result(value, passwords):
+    """Mask password-bearing data before JSON escaping, preserving structural keys."""
+    if isinstance(value, str):
+        for password in passwords:
+            value = value.replace(password, '***')
+        return value
+    if isinstance(value, dict):
+        return {key: redact_result(item, passwords) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [redact_result(item, passwords) for item in value]
+    return value
+
+
 def check_config(config):
     if not isinstance(config, dict) or set(config) - CONFIG_KEYS:
         raise ProxyError('Configuration accepts only ' + ', '.join(sorted(CONFIG_KEYS)))
@@ -308,11 +321,11 @@ def answer(envelope, config, environ):
         user, password = tier_account(environ, tier)
         timer, remaining = arm_deadline(envelope)
         result = RUNNERS[engine](config, tier, user, password, sql, cap, remaining)
-        output = json.dumps(result, ensure_ascii=False, default=str)
+        output = json.dumps(redact_result(result, secrets[0]), ensure_ascii=False, default=str)
         if len(output.encode()) > MAX_BYTES:
             raise ProxyError('database answer exceeds 1048576 bytes')
         status = 'ok'
-        # Query results are data, not diagnostic text: never rewrite keys or values.
+        # Usernames and structural keys are data; only password substrings are masked.
         return output, 0
     except TimeoutError:
         status = 'timeout'
