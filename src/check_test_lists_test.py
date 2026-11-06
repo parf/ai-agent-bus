@@ -14,9 +14,22 @@ class TestLists(unittest.TestCase):
     def test_every_test_file_in_the_tree_runs_somewhere(self):
         self.assertEqual(checker.check(), [])
 
+    def test_a_sourced_shard_file_counts_and_its_loss_goes_red(self):
+        # The agent shards live in agents/smoke.sh, sourced by smoke.sh (T-39).
+        text = checker.smoke_text()
+        self.assertIn(checker.read("agents/smoke.sh"), text)
+        self.assertNotRegex(checker.read("smoke.sh"), r"agent_slack\(\)")
+        original = checker.read
+        try:
+            checker.read = lambda path: "" if path == "agents/smoke.sh" else original(path)
+            problems = [p.split(":")[0] for p in checker.check()]
+        finally:
+            checker.read = original
+        self.assertIn("agents/slack/package.test.ts", problems)
+
     # The mutants: the same real lists with one file taken out must go red, naming that file.
     def real(self):
-        return checker.read("smoke.sh"), json.loads(checker.read("smoke-map.json")), checker.test_files()
+        return checker.smoke_text(), json.loads(checker.read("smoke-map.json")), checker.test_files()
 
     def without(self, text, name):
         return re.sub(r"(?<![\w-])" + re.escape(name) + r"(?![\w-])", "gone", text)

@@ -50,6 +50,16 @@ def read(path):
         return f.read()
 
 
+def smoke_text():
+    """smoke.sh as bash runs it: each top-level `source ./FILE` line replaced by that file, so the
+    agent shards in agents/smoke.sh count like the rest."""
+    out = []
+    for line in read("smoke.sh").split("\n"):
+        m = re.match(r"^(?:source|\.)\s+\./(\S+)\s*$", line)
+        out.append(read(m.group(1)) if m else line)
+    return "\n".join(out)
+
+
 def strip_shell_comment(line):
     """The line without its # comment: a # outside quotes at the start of a word."""
     quote, i = None, 0
@@ -182,7 +192,7 @@ def covered(path, code, argvs, ambiguous, smoke_code):
 def check(tests=None, smoke=None, smoke_map=None, named_code=None):
     """The problems found, as lines; none means every test file is accounted for."""
     tests = test_files() if tests is None else tests
-    smoke = read("smoke.sh") if smoke is None else smoke
+    smoke = smoke_text() if smoke is None else smoke
     smoke_map = json.loads(read("smoke-map.json")) if smoke_map is None else smoke_map
     argvs = list(fast_argvs(smoke_map))
     smoke_code = running_code(smoke, smoke_map.get("checks", {}).keys())
