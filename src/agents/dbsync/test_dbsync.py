@@ -291,17 +291,23 @@ class LookbackTests(Base):
         self.assertEqual(recent(),set())
         self.assertEqual(len(self.bus.sent),2)
 
-    def test_past_the_confirmation_cap_a_row_may_go_twice_but_is_never_lost(self):
+    def test_past_the_confirmation_cap_the_subscriber_keeps_to_its_position_and_every_row_goes(self):
         self.agent=self.make(window_max=2)
-        for k,u in ((1,'11:58:00'),(2,'11:58:10'),(3,'11:58:20')):self.db.put(k,'2026-11-05 '+u)
+        for k in range(1,7):self.db.put(k,f'2026-11-05 11:58:{k:02}')
         self.subscribe()
-        for _ in range(3):self.agent.poll()
+        for _ in range(6):self.agent.poll()
+        self.assertEqual(sorted(self.keys(),key=int),[str(k) for k in range(1,7)])   # each once: no row read again loops
         self.assertTrue(self.agent.status()['subscribers'][0]['lookback_degraded'])
-        keys=self.keys()
-        self.assertEqual(set(keys),{'1','2','3'})
-        self.assertGreater(len(keys),3)   # the one not noted was read again and sent again
         self.db.now='2026-11-05 12:10:00';self.agent.poll()
         self.assertIsNone(self.agent.status()['subscribers'][0]['lookback_degraded'])
+
+    def test_a_late_row_owed_when_seen_stays_owed_after_the_cutoff_passes_it(self):
+        self.db.put(1,'2026-11-05 11:59:00');self.subscribe();self.agent.poll()
+        self.bus.deny.add((AUTHOR,QUEUE))
+        self.db.put(2,'2026-11-05 11:58:30');self.agent.poll()
+        self.assertIn('2',self.agent.state.load()['items'])
+        self.db.now='2026-11-05 12:10:00';self.bus.deny.clear();self.agent.poll()
+        self.assertEqual(self.keys(),['1','2'])
 
     def test_a_subscriber_added_after_another_confirmed_the_lookback_rows_still_gets_them(self):
         self.delivered()

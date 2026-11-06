@@ -260,11 +260,14 @@ class DBSync:
 
     def _owes(self,data,sub_id,key,record):
         """Whether this subscriber is owed this record: one it confirmed at this fingerprint inside the lookback never;
-        otherwise one above its position, or one inside the lookback (a late commit below its position) after it joined."""
+        otherwise one above its position, one the window holds as owed to it, or one inside the lookback (a late commit
+        below its position) after it joined, unless it is degraded to its position alone."""
         meta=data['meta']
         if meta.get('recent',{}).get(sub_id,{}).get(key)==record['fp']:return False
         o=self.order(self.item_pair(key,record));here=meta.get('pos',{}).get(sub_id)
         if o>self.order(None if here is None else tuple(here)):return True
+        if sub_id in record.get('owed',()):return True
+        if sub_id in meta.get('degraded',{}):return False
         cutoff=meta.get('cutoff')
         if cutoff is None or self._before(record['u'],cutoff):return False
         joined=meta.get('joined',{}).get(sub_id)
@@ -272,7 +275,8 @@ class DBSync:
 
     def _remember(self,data,sub_id,key,record):
         """Note a confirmation inside the lookback, so the row read again is not sent again. At the cap the note is not
-        kept and the subscriber is degraded: the row may then go twice, never not at all."""
+        kept and the subscriber is degraded to its position alone until the notes drain under the cap: no lookback reads
+        for it, so a late commit can be missed, and a row read again is never sent again in a loop."""
         meta=data['meta'];cutoff=meta.get('cutoff')
         if cutoff is None or self._before(record['u'],cutoff):return
         recent=meta.setdefault('recent',{}).setdefault(sub_id,{})
@@ -290,8 +294,17 @@ class DBSync:
         for sub_id in [s for s,pair in joined.items() if pair is not None and old(pair[0])]:del joined[sub_id]
 
     def _replace(self,data,key,record,new):
-        """Put a row's new record in the window; a tombstone the window did not hold is owed as a delete to those that may
-        hold the row. One that replaces a held record is owed only by the marks and sends that record has."""
+        """Put a row's new record in the window. The subscribers owed it below their position, through the lookback, are
+        written into it as seen now, so being owed does not lapse when the cutoff passes the row: only a confirmation ends
+        it. A tombstone the window did not hold is owed as a delete to those that may hold the row; one that replaces a
+        held record is owed only by the marks and sends that record has."""
+        parked=data['meta'].get('parked',{});pos=data['meta'].get('pos',{})
+        owed=set(record.get('owed',())) if record else set()
+        o=self.order(self.item_pair(key,new))
+        for sub_id in data['subs']:
+            here=pos.get(sub_id)
+            if sub_id not in parked and here is not None and o<=self.order(tuple(here)) and self._owes(data,sub_id,key,new):owed.add(sub_id)
+        if owed:new['owed']=sorted(owed)
         if new.get('gone') and record is None:self._owe_delete(data,key,new)
         data['items'][key]=new
 
@@ -384,7 +397,11 @@ class DBSync:
                 if key in items and held is not None:self._replace(data,key,items[key],self._record(*held))
             for sub_id in subs:
                 for key,record in items.items():
-                    if self._confirmed(data,sub_id,key):self._remember(data,sub_id,key,record)
+                    if self._confirmed(data,sub_id,key):
+                        self._remember(data,sub_id,key,record)
+                        if sub_id in record.get('owed',()):
+                            record['owed']=[s for s in record['owed'] if s!=sub_id]
+                            if not record['owed']:del record['owed']
             ordered=sorted(items,key=lambda k:self.order(self.item_pair(k,items[k])))
             scan=meta.get('scan');scan_order=self.order(None if scan is None else tuple(scan))
             base_order=self.order(None if meta.get('base') is None else tuple(meta['base']))
