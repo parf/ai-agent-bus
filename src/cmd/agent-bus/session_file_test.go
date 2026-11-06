@@ -28,6 +28,9 @@ func TestSessionFileMainFixture(t *testing.T) {
 		return
 	}
 	os.Args = []string{"agent-bus", "status"}
+	if args := os.Getenv("AB_SESSION_FILE_ARGS"); args != "" {
+		os.Args = append([]string{"agent-bus"}, strings.Split(args, "\x1f")...)
+	}
 	main()
 }
 
@@ -153,5 +156,41 @@ func TestASessionFileWithoutAnAddressDropsTheEnvironmentsAddressAndPin(t *testin
 	defer found.Unlock()
 	if len(found.tokens) != 1 || found.tokens[0] != "token-after-rename" {
 		t.Fatalf("the discovered bus saw %q, want the file's token once", found.tokens)
+	}
+}
+
+// TestHelpAnswersBeforeAnUnreadableSessionFile: help that needs no bus answers
+// even when the session has ended; help that asks an agent still refuses.
+func TestHelpAnswersBeforeAnUnreadableSessionFile(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "ended", "bus-env.json")
+	cases := []struct {
+		args   []string
+		answer bool
+	}{
+		{[]string{"--help"}, true},
+		{[]string{"help"}, true},
+		{[]string{"help", "send"}, true},
+		{[]string{"help", "--no-color", "send"}, true},
+		{[]string{"send", "--help"}, true},
+		{[]string{"help", "#debug"}, false},
+		{[]string{"status"}, false},
+	}
+	for _, c := range cases {
+		cmd := exec.Command(os.Args[0], "-test.run=^TestSessionFileMainFixture$")
+		for _, kv := range os.Environ() {
+			if !strings.HasPrefix(kv, "AGENT_BUS_") {
+				cmd.Env = append(cmd.Env, kv)
+			}
+		}
+		cmd.Env = append(cmd.Env, "AB_SESSION_FILE_FIXTURE=1", "AGENT_BUS_SESSION_FILE="+missing,
+			"AB_SESSION_FILE_ARGS="+strings.Join(c.args, "\x1f"))
+		out, err := cmd.CombinedOutput()
+		refused := strings.Contains(string(out), "AGENT_BUS_SESSION_FILE:")
+		if c.answer && (err != nil || refused || !strings.Contains(string(out), "USAGE")) {
+			t.Errorf("%q: want help, got err=%v\n%s", c.args, err, out)
+		}
+		if !c.answer && (err == nil || !refused) {
+			t.Errorf("%q: want the session-file refusal, got err=%v\n%s", c.args, err, out)
+		}
 	}
 }

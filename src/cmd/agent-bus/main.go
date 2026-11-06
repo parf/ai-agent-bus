@@ -61,8 +61,10 @@ func main() {
 			return
 		}
 	}
-	if err := loadSessionFile(); err != nil {
-		die("%v", err)
+	if !localHelp(verb, rest) {
+		if err := loadSessionFile(); err != nil {
+			die("%v", err)
+		}
 	}
 	var err error
 	switch verb {
@@ -1299,4 +1301,21 @@ func group(args []string) error {
 		return nil
 	}
 	return post("/group", map[string]any{"name": pos[0], "members": pos[1:]})
+}
+
+// localHelp reports a help request answered without the bus, so an unreadable
+// session file cannot refuse it. help '#agent' asks the agent and still loads.
+func localHelp(verb string, rest []string) bool {
+	switch verb {
+	case "--help":
+		return true
+	case "help":
+		for _, a := range rest {
+			if !strings.HasPrefix(a, "-") {
+				return !strings.HasPrefix(a, "#")
+			}
+		}
+		return true
+	}
+	return false
 }
