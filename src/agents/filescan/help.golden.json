@@ -1,0 +1,230 @@
+{
+  "text": "Turn the files that change under one folder into messages. Watches a directory the node owner allows, tells each subscribed agent what was created, changed or deleted, and marks a file done only after that agent confirms it. Start with help, then status.\nstatus: Mode and any fallback, files tracked, each subscriber's progress, the last scan, the state size against its cap, files skipped for RAG, and a paused guard.; returns: {mode,effective_mode,fallback,tracked,last_scan,skipped,state_bytes,state_max,subscribers,paused,skipped_for_rag}; role: read|write\nscan [confirm:true]: Walk the folder now and send what changed. confirm:true (Owners and Maintainers) releases a held mass delete after you have checked the folder.; returns: {seen,created_or_changed,deleted,held,skipped,capped}; role: read|write\n  confirm (bool): true releases a paused mass-delete guard; Owners and Maintainers only\nreset confirm:true: Forget every tracked file and every confirmed mark, keeping the subscriptions, so each subscriber is sent every file again. Pending deletes are lost. Owners and Maintainers only; a damaged state file is replaced and its subscriptions are lost with it.; returns: {reset}; role: owner|maintainer\n  confirm (bool): must be true\nsub add <target> [/regex/] [as rag [<namespace> [<table>]]] [replay:false] [bigfile:true]: Send each change under the folder to a queue or an agent's inbox, and send it again until the target confirms it. The files that already exist are sent first unless replay:false. `as rag` sends RAG's own upsert and delete calls.; returns: {id,target,selector,created_by,created_at,sent,confirmed,dropped}; role: read|write\n  target (string): Destination queue or agent; the creator's grants are checked at add and before every send\n  pattern (string): Portable /pattern/imsu regex on the relative path, at most 200 characters\n  rag (bool): true: send RAG's upsert and delete calls\n  namespace (string): RAG namespace\n  table (string): RAG table\n  replay (bool): false: send only later changes\n  bigfile (bool): reserved: send a file over the inline limit as a bigfile\nsub list: List your subscriptions with sent, confirmed, dropped and pending counts; Owners and Maintainers see all.; returns: {subscriptions:[{id,target,selector,created_by,created_at,sent,confirmed,dropped,pending}]}; role: read|write\nsub delete <id>: Remove one subscription and its marks. The creator, or an Owner or Maintainer, may do it.; returns: {deleted}; role: read|write\n  id (string): The id from sub add or sub list\n\nv<version> · PolyForm Strict · parf.dev/agent-bus/ · © Sergey Porfiriev\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/filescan.md\nMore: agent-bus help <name> config | secret | json",
+  "json": {
+    "description": "Turn the files that change under one folder into messages. Watches a directory the node owner allows, tells each subscribed agent what was created, changed or deleted, and marks a file done only after that agent confirms it. Start with help, then status.",
+    "license": "LicenseRef-PolyForm-Strict-1.0.0",
+    "author": "Sergey Porfiriev",
+    "homepage": "https://parf.dev/agent-bus/",
+    "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/filescan.md",
+    "version": "<version>",
+    "methods": {
+      "help": {
+        "type": "string",
+        "help": "Find available methods and their limits.",
+        "args": [],
+        "example": "agent-bus call '#filescan/vault@parf.us' help"
+      },
+      "status": {
+        "type": "string",
+        "help": "Mode and any fallback, files tracked, each subscriber's progress, the last scan, the state size against its cap, files skipped for RAG, and a paused guard.",
+        "role": [
+          "read",
+          "write"
+        ],
+        "args": [],
+        "returns": "{mode,effective_mode,fallback,tracked,last_scan,skipped,state_bytes,state_max,subscribers,paused,skipped_for_rag}"
+      },
+      "scan": {
+        "type": "string",
+        "help": "Walk the folder now and send what changed. confirm:true (Owners and Maintainers) releases a held mass delete after you have checked the folder.",
+        "role": [
+          "read",
+          "write"
+        ],
+        "text": "scan [confirm:true]",
+        "args": [
+          {
+            "type": "bool",
+            "name": "confirm",
+            "help": "true releases a paused mass-delete guard; Owners and Maintainers only",
+            "optional": true
+          }
+        ],
+        "returns": "{seen,created_or_changed,deleted,held,skipped,capped}"
+      },
+      "reset": {
+        "type": "string",
+        "help": "Forget every tracked file and every confirmed mark, keeping the subscriptions, so each subscriber is sent every file again. Pending deletes are lost. Owners and Maintainers only; a damaged state file is replaced and its subscriptions are lost with it.",
+        "role": [
+          "owner",
+          "maintainer"
+        ],
+        "text": "reset confirm:true",
+        "args": [
+          {
+            "type": "bool",
+            "name": "confirm",
+            "help": "must be true"
+          }
+        ],
+        "returns": "{reset}"
+      },
+      "sub.add": {
+        "type": "string",
+        "help": "Send each change under the folder to a queue or an agent's inbox, and send it again until the target confirms it. The files that already exist are sent first unless replay:false. `as rag` sends RAG's own upsert and delete calls.",
+        "role": [
+          "read",
+          "write"
+        ],
+        "text": "sub add <target> [/regex/] [as rag [<namespace> [<table>]]] [replay:false] [bigfile:true]",
+        "args": [
+          {
+            "type": "string",
+            "name": "target",
+            "help": "Destination queue or agent; the creator's grants are checked at add and before every send"
+          },
+          {
+            "type": "string",
+            "name": "pattern",
+            "help": "Portable /pattern/imsu regex on the relative path, at most 200 characters",
+            "optional": true
+          },
+          {
+            "type": "bool",
+            "name": "rag",
+            "help": "true: send RAG's upsert and delete calls",
+            "optional": true
+          },
+          {
+            "type": "string",
+            "name": "namespace",
+            "help": "RAG namespace",
+            "optional": true
+          },
+          {
+            "type": "string",
+            "name": "table",
+            "help": "RAG table",
+            "optional": true
+          },
+          {
+            "type": "bool",
+            "name": "replay",
+            "help": "false: send only later changes",
+            "optional": true
+          },
+          {
+            "type": "bool",
+            "name": "bigfile",
+            "help": "reserved: send a file over the inline limit as a bigfile",
+            "optional": true
+          }
+        ],
+        "returns": "{id,target,selector,created_by,created_at,sent,confirmed,dropped}"
+      },
+      "sub.list": {
+        "type": "string",
+        "help": "List your subscriptions with sent, confirmed, dropped and pending counts; Owners and Maintainers see all.",
+        "role": [
+          "read",
+          "write"
+        ],
+        "text": "sub list",
+        "args": [],
+        "returns": "{subscriptions:[{id,target,selector,created_by,created_at,sent,confirmed,dropped,pending}]}"
+      },
+      "sub.delete": {
+        "type": "string",
+        "help": "Remove one subscription and its marks. The creator, or an Owner or Maintainer, may do it.",
+        "role": [
+          "read",
+          "write"
+        ],
+        "text": "sub delete <id>",
+        "args": [
+          {
+            "type": "string",
+            "name": "id",
+            "help": "The id from sub add or sub list"
+          }
+        ],
+        "returns": "{deleted}"
+      }
+    },
+    "asks": [
+      "help",
+      "help-config",
+      "help-secret",
+      "help-json"
+    ],
+    "config": {
+      "dir": {
+        "type": "string",
+        "help": "The folder to watch, an absolute path inside a root the node owner listed for this agent (runner agents.json, roots); only its checked real path is used"
+      },
+      "include": {
+        "type": "json",
+        "help": "Globs on the relative path; default all files"
+      },
+      "exclude": {
+        "type": "json",
+        "help": "Globs on the relative path; exclude wins; default dotfiles and dot directories"
+      },
+      "mode": {
+        "type": "string",
+        "help": "poll, watch or both",
+        "default": "both"
+      },
+      "every": {
+        "type": "string",
+        "help": "Poll interval such as 30m; default 30m in both and 5m in poll"
+      },
+      "settle": {
+        "type": "string",
+        "help": "How long a file must stay quiet before it is sent, such as 5s; default none"
+      },
+      "namespace": {
+        "type": "string",
+        "help": "Default RAG namespace for `as rag`"
+      },
+      "table": {
+        "type": "string",
+        "help": "Default RAG table for `as rag`"
+      },
+      "batch": {
+        "type": "int",
+        "help": "Changes sent per round to one subscriber, 1..500",
+        "default": 20
+      },
+      "max_file_size": {
+        "type": "string",
+        "help": "Inline limit: a larger file is sent as size and hash only, never cut",
+        "default": "32KiB"
+      },
+      "max_per_scan": {
+        "type": "int",
+        "help": "Creates and changes taken per scan; the rest wait, 1..100000",
+        "default": 200
+      },
+      "baseline": {
+        "type": "bool",
+        "help": "true records the files that exist at the first scan without sending them, and sub add does not replay",
+        "default": false
+      },
+      "delete_pct": {
+        "type": "int",
+        "help": "Mass-delete guard: more than this share of tracked files in one pass pauses deletes",
+        "default": 20
+      },
+      "delete_max": {
+        "type": "int",
+        "help": "Mass-delete guard: more than this many deletes in one pass pauses them",
+        "default": 500
+      },
+      "state_max": {
+        "type": "string",
+        "help": "Cap on the state file, 1MiB..1GiB",
+        "default": "64MiB"
+      }
+    },
+    "secrets": [],
+    "body_formats": [
+      "text",
+      "json"
+    ],
+    "hidden_methods": {
+      "count": 0,
+      "roles": []
+    }
+  }
+}

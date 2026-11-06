@@ -1,0 +1,10 @@
+{
+  "dir": "/srv/vault",
+  "mode": "both",
+  "every": "30m",
+  "include": [
+    "*.md"
+  ],
+  "batch": 20,
+  "baseline": false
+}
