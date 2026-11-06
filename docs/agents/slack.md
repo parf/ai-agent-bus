@@ -222,6 +222,7 @@ Unsupported subscription keys, fields or counter formats stop subscription opera
 Order, tags, seven-day thread links, `anyone` and `drop` follow [Telegram's reply routing](telegram.md#reply-routing) and [per-chat routing](telegram.md#per-chat-routing), with these differences:
 
 - Only DMs, mentions of the bot and mapped session threads enter routing; ordinary channel chatter gets no reply.
+- A reply in a thread whose link expired or was evicted gets “route expired or evicted; use #tag”. Once a large eviction has forgotten that link, a reply there that is not a DM or a mention is ignored, never routed.
 - Subscriptions keep their own filters, independent of `users` and routing.
 - `{"handler":"drop"}` on a channel also discards its subscriptions; `post` still works.
 - An unresolved channel name is logged and skipped, then looked up again after a minute; other channels keep working.

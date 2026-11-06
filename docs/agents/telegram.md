@@ -164,7 +164,7 @@ An incoming message goes to the first match:
 - No match: the bot says “not understood” and lists known tags.
 - Only the expected session's answer returns, as a reply in the same place.
 - A tag stays assigned while its session has a reply link; the session's last link expiring or being evicted frees it. A pinned tag stays, and moving it to another session is refused.
-- Reply links last seven days and survive restarts. All of them are one stored value kept under 256 KiB, half the [key-value limit](../03-records-kv.md#rules): past that, the links that expire first are evicted, with a warning in the log.
+- Reply links last seven days and survive restarts. All of them are one stored value kept under 256 KiB, half the [key-value limit](../03-records-kv.md#rules): past that, the links that expire first are evicted, with a warning in the log. An expired or evicted link is remembered for seven more days; a reply after that, 14 days after the post, is routed as a new message.
 - A reply to an expired or evicted link gets “route expired or evicted; use #tag” in the chat; a session's answer to one gets `error: route expired or evicted` and is not posted. After an eviction too large to remember each link, a reply to any message as old as the last forgotten one in that chat gets the same answer, never a route.
 - “We do not know you” notices are forgotten before any link.
 - The listed person's name is shown; their bus permissions are never given to the bot or the receiving session.

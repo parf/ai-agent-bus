@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.21 — 2026-11-05
+
+the chat agents' reply router stays under a size budget, prunes freed tags, and answers a reply to an expired or evicted route by name
+
 ## 1.0.20 — 2026-11-05
 
 cancelling a runner package build kills its whole process group, not just the shell
