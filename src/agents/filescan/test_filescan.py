@@ -109,18 +109,25 @@ class FlowTests(Base):
 
 class CallTests(Base):
     def test_status_warns_with_a_count_when_an_include_names_a_directory_and_selects_no_file(self):
-        # J124: `a?` names the directories a1 and a2 but not a file below them; `a?/*` takes the subtree.
-        self.put('a1/f.md');self.put('a2/g.md');self.put('top.md')
-        self.agent=self.make({'include':['a?','top.md']});self.agent.tick()
-        self.assertEqual(self.agent.status()['warnings'],[{'code':'include_names_directory','pattern':'a?','count':2,'message':"include 'a?' names a directory; use 'a?/*'"}])
+        # J124: a bare `sub` names the folder, not the files below it; `sub/*` takes them. A wildcard pattern gets no advice.
+        self.put('sub/f.md');self.put('top.md')
+        self.agent=self.make({'include':['sub','top.md']});self.agent.tick()
+        self.assertEqual(self.agent.status()['warnings'],[{'code':'include_names_directory','pattern':'sub','count':1,'message':"include 'sub' names a directory; use 'sub/*'"}])
         self.assertEqual(self.agent.status()['tracked'],1,'only top.md is taken')
-        self.agent=self.make({'include':['a?/*','top.md']});self.agent.tick()
-        self.assertEqual(self.agent.status()['warnings'],[]);self.assertEqual(self.agent.status()['tracked'],3)
+        self.agent=self.make({'include':['sub/*','top.md']});self.agent.tick()
+        self.assertEqual(self.agent.status()['warnings'],[]);self.assertEqual(self.agent.status()['tracked'],2)
+        self.put('a1/f.md');self.put('a2/g.md')
+        self.agent=self.make({'include':['a?']});self.agent.tick()
+        self.assertEqual(self.agent.status()['warnings'],[{'code':'include_names_directory','pattern':'a?','count':2,'message':"include 'a?' names a directory ('a1') and selects no file below it"}])
 
-    def test_status_does_not_warn_for_a_normal_glob_or_a_directory_with_a_selected_file(self):
-        self.put('a.md');self.put('sub/c.md');self.put('b.md/inner.md')
-        self.agent=self.make({'include':['*.md']});self.agent.tick()
-        self.assertEqual(self.agent.status()['warnings'],[],'b.md holds a selected file, so it is not a stranded directory name')
+    def test_status_does_not_warn_for_a_normal_glob_a_default_include_or_a_directory_without_a_file_to_select(self):
+        self.put('a.md');self.put('sub/c.md');self.put('b.md/inner.md');self.put('b.md/note.txt')   # b.md holds a selected file and a stray one
+        os.makedirs(Path(self.root)/'empty');self.put('dots/.x');os.makedirs(Path(self.root)/'docs'/'sub')
+        for include in (['*.md'],['*'],['docs/*']):
+            self.agent=self.make({'include':include});self.agent.tick()
+            self.assertEqual(self.agent.status()['warnings'],[],include)
+        self.agent=self.make({});self.agent.tick()
+        self.assertEqual(self.agent.status()['warnings'],[],'the default include names every directory, empty, dotfile-only or not')
 
     def test_status_names_mode_tracked_files_subscribers_and_state_size(self):
         self.put('a.md');self.add();self.call('scan');s=self.call('status')

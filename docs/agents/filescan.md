@@ -67,7 +67,7 @@ Filescan is a kept process: inotify needs one that stays up. It [serves itself](
 | Key | Meaning | Default |
 |---|---|---|
 | `dir` | The folder, an absolute path inside a root the node owner listed | none, required |
-| `include`, `exclude` | Globs on the relative path. `include` matches a file's whole path, so `*.md` never takes the files below a folder named `x.md`, and a folder is taken with `sub/*` (`*` crosses folders): a `**/` also matches no folder, so `**/*.md` takes `a.md` as well as `d/a.md` (in `exclude` too); a bare `sub` selects nothing and `status` warns `include 'sub' names a directory; use 'sub/*'`, with a count; a file already sent that no longer matches is left as it is, neither updated nor deleted; `exclude` wins and also removes everything below a folder it matches | all files; no dotfiles |
+| `include`, `exclude` | Globs on the relative path; `exclude` wins; [glob rules](#glob-rules) | all files; no dotfiles |
 | `mode`, `every`, `settle` | See [modes](#modes); `demand` for [on-demand sync](#on-demand-sync) | `both`, 30 minutes (5 in `poll`), none |
 | `namespace`, `table` | Defaults for `as rag` | none |
 | `batch` | Changes sent per round to one subscriber | 20 |
@@ -77,6 +77,14 @@ Filescan is a kept process: inotify needs one that stays up. It [serves itself](
 | `baseline` | Record the first scan without sending; `sub add` does not replay | `false` |
 | `delete_pct`, `delete_max` | The mass-delete guard | 20 %, 500 |
 | `state_max` | Cap on the state file; past it a scan is refused with `state full` and the old file stays | 64 MiB |
+
+### Glob rules
+
+- **`include` matches a file's whole path:** `*.md` takes `a.md` and `d/a.md`, never the files below a folder named `x.md`. `*` crosses folders, so `sub/*` takes the whole subtree.
+- **A bare folder selects nothing:** `include 'sub'` takes no file, and `status` shows a warning with a count, `include 'sub' names a directory; use 'sub/*'`, updated by each whole walk. A wildcard pattern that names folders without selecting a file below them gets the same warning without the advice. A folder with no file in it, or only excluded ones, never warns.
+- **`**/` also matches no folder:** `**/*.md` takes `a.md` as well as `d/a.md`, in `include` and `exclude`. A glob holds at most four `**/`; more is refused by name.
+- **`exclude` wins and removes everything below a folder it matches.**
+- **A file already sent that no longer matches** is left as it is: neither updated nor deleted, until removed by hand.
 
 - State is one file in the instance's work directory, written whole to a temporary file and renamed, so a crash never leaves a truncated one.
 - A damaged state file is refused by name and never read as empty; `reset confirm:true` replaces it.

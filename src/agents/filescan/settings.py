@@ -39,10 +39,15 @@ def count(key,value,low,high):
     return value
 
 
+GLOBSTAR=re.compile(r'(?<![^/])\*\*/')
+
+
 def globs(key,value,default):
     if value is None:return list(default)
     if not isinstance(value,list) or len(value)>64 or not all(isinstance(v,str) and v and len(v)<=256 and '\0' not in v for v in value):
         raise SettingsError(key,'a list of at most 64 glob patterns')
+    for v in value:
+        if len(GLOBSTAR.findall(v))>4:raise SettingsError(key,f'a glob with at most four `**/`, not {v!r}')
     return list(value)
 
 

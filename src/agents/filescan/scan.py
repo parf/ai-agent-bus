@@ -13,18 +13,16 @@ OPEN_DIR=os.O_RDONLY|os.O_NOFOLLOW|os.O_DIRECTORY|os.O_CLOEXEC
 
 
 GLOBSTAR=re.compile(r'(?<![^/])\*\*/')
-GLOBSTARS_MAX=4
 
 
 @functools.lru_cache(maxsize=1024)
 def _variants(pattern):
     """The pattern, plus (J125) each way of letting a leading-segment `**/` match no directory: fnmatch has no globstar,
-    so `**/*.md` alone needs a slash and never takes a root file. With more than four `**/` only none or all are dropped."""
+    so `**/*.md` alone needs a slash and never takes a root file."""
     spots=[m.span() for m in GLOBSTAR.finditer(pattern)]
     if not spots:return (pattern,)
     out=[]
-    choices=range(1<<len(spots)) if len(spots)<=GLOBSTARS_MAX else (0,(1<<len(spots))-1)
-    for mask in choices:
+    for mask in range(1<<len(spots)):   # settings refuses more than four, so at most sixteen
         text=pattern
         for i in reversed(range(len(spots))):
             if mask>>i&1:text=text[:spots[i][0]]+text[spots[i][1]:]
@@ -49,7 +47,7 @@ def excluded(rel,exclude):
     return any(glob(rel,p) or any(glob('/'.join(parts[:i]),p) for i in range(1,len(parts))) for p in exclude)
 
 
-def walk(root,include,exclude,sub='',before=None,named=None):
+def walk(root,include,exclude,sub='',before=None,named=None,stray=None):
     """(kind, relative path, stat or errno) for every regular file under root, never through a link.
 
     Kind `file` carries the stat; `error` an errno for a file it could not stat; `direrror` one for a directory it could
@@ -60,7 +58,8 @@ def walk(root,include,exclude,sub='',before=None,named=None):
     relative to root (the top is `sub`, '' for the root) and the descriptor the walker has pinned for it, just before that
     directory is listed, so a caller can start watching exactly that directory first: whatever appears later raises an event,
     and whatever appeared earlier is in the listing. A callback that raises leaves no descriptor open.
-    `named`, a dict, is filled with each directory an include glob matches by name: directory path -> that glob (J124).
+    `named`, a dict, is filled with each directory an include glob matches by name: directory path -> that glob (J124);
+    `stray`, a set, with each regular file that is not excluded and that no include glob selects.
     """
     lead=sub+'/' if sub else ''
     try:top=open_dir(root,sub)
@@ -102,7 +101,9 @@ def walk(root,include,exclude,sub='',before=None,named=None):
                         stack.pop();os.close(child);yield ('direrror',rel,err);continue
                     stack[-1][1]=iter(found)
                     continue
-                if not selected(rel,include,exclude):continue
+                if not selected(rel,include,exclude):
+                    if stray is not None and not excluded(rel,exclude) and entry.is_file(follow_symlinks=False):stray.add(rel)
+                    continue
                 st=entry.stat(follow_symlinks=False)
             except OSError as error:
                 yield ('error',rel,error.errno);continue
@@ -212,8 +213,8 @@ def poll(items,root,settings,*,now,hasher=None):
     """
     hasher=hasher or digest
     plan=_new_plan();present=set();taken=0;blocked=[]
-    named={}
-    for kind,rel,info in walk(root,settings['include'],settings['exclude'],named=named):
+    named={};stray=set()
+    for kind,rel,info in walk(root,settings['include'],settings['exclude'],named=named,stray=stray):
         if kind=='direrror' and rel=='':
             plan['unreadable_root']=info;continue
         if kind=='direrror':
@@ -224,15 +225,19 @@ def poll(items,root,settings,*,now,hasher=None):
         taken=_consider(items,root,settings,now,hasher,plan,rel,info,taken)
     if plan['unreadable_root'] is None:
         plan['deletes']=sorted(k for k in items if k not in present and selected(k,settings['include'],settings['exclude']) and not is_blocked(k,blocked))
-    plan['include_dirs']=include_dirs(named,present)
+    plan['include_dirs']=include_dirs(named,present,stray)
     return plan
 
 
-def include_dirs(named,present):
-    """Include glob -> how many directories it names by name while selecting no file below them (`sub` where `sub/*` was meant)."""
+def include_dirs(named,present,stray):
+    """Include glob -> [count, first directory]: directories it names by name, holding files the walk saw but selecting none.
+
+    A directory with no file in it, or only excluded ones, is not counted: a default `*` names every directory."""
     count={}
-    for directory,pattern in named.items():
-        if not any(k.startswith(directory+'/') for k in present):count[pattern]=count.get(pattern,0)+1
+    for directory,pattern in sorted(named.items()):
+        below=directory+'/'
+        if any(k.startswith(below) for k in stray) and not any(k.startswith(below) for k in present):
+            found=count.setdefault(pattern,[0,directory]);found[0]+=1
     return count
 
 

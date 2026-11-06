@@ -76,6 +76,14 @@ class SelectionTests(Tree):
         self.assertEqual(self.names(include=['d/**/a.md']),['d/a.md','d/e/a.md'],'a middle `**/` also matches no directory')
         self.assertEqual(self.names(include=['*.md'],exclude=['d/**']),['a.md','keep.md','skip/f.md'],'a trailing `/**` is unchanged')
 
+    def test_more_than_four_globstars_in_a_glob_are_refused_by_name_and_four_work(self):
+        five='**/a/**/**/**/**/b/c.md'
+        for key in ('include','exclude'):
+            with self.assertRaisesRegex(cfg.SettingsError,key+'.*at most four `\\*\\*/`'):cfg.parse({key:[five]})
+        put(self.root,'a/x/b/c.md');put(self.root,'a/b/c.md');put(self.root,'c.md')
+        four='**/a/**/**/**/b/c.md'
+        self.assertEqual(self.names(include=cfg.parse({'include':[four]})['include']),['a/b/c.md','a/x/b/c.md'])
+
     def test_an_excluded_directory_is_not_entered(self):
         put(self.root,'skip/deep/f.md');put(self.root,'keep/f.md')
         self.assertEqual(self.names(exclude=['skip']),['keep/f.md'])
