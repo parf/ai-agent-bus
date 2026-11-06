@@ -18,5 +18,11 @@
       "io_weight": 100,
       "disk": "2G"
     }
+  },
+  "filescan": {
+    "enabled": true,
+    "roots": [
+      "/srv/vault"
+    ]
   }
 }

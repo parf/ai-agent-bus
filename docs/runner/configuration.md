@@ -103,7 +103,7 @@ The [isolation rules](security.md#isolation-today) define which code and support
 | `roles` | Roles the agent understands, registered on its record; grants no caller any role |
 | `depends` | Agents started before this one, as bus names (`#db`); see below |
 | `needs.network` | Requests the [network access described by the isolation rules](security.md#isolation-today) |
-| `needs.dir` | `true`: the directory named by the agent's Configuration key `dir` is bound read-only into its sandbox, and its checked real path is given as `AGENT_BUS_DIR` ([rules](security.md#isolation-today)) |
+| `needs.dir` | `true`: the directory named by the agent's Configuration key `dir` is bound read-only into its sandbox, and its checked real path is given as `AGENT_BUS_DIR`; it must lie inside one of the node owner's [`roots`](#inventory) ([rules](security.md#isolation-today)) |
 | `needs.memory` | Memory the agent needs, as `2G`; above the host's `limits.memory` the agent is refused by name |
 
 <details>
@@ -224,6 +224,7 @@ The [isolation rules](security.md#isolation-today) define which code and support
 | `share` | `true` makes this agent's reads say they are one of a pool, so a second runner may read the same name beside it; default `false`. The second runner is handed the name's token once, as for any name it did not register, and its entry says `share` too. Each read also states the runner's host, the machine's hostname, which the listing shows; a hostname the daemon would refuse is left out, never failing the read ([where a pool member says it is](../05-discovery.md#where-a-pool-member-says-it-is)) |
 | `sandbox` | `on` (default) or `off` for this entry only; read [security](security.md#isolation-today) first |
 | `limits` | The whole agent's [limits](#limits) |
+| `roots` | Absolute directories an agent with `needs.dir` may watch; its Configuration `dir` must resolve, symlinks followed, inside one of them. Default empty: such an agent is refused until the node owner lists a root ([`needs.dir`](security.md#isolation-today)) |
 
 Disable a package and give an instance its own name; merge these into your existing file:
 

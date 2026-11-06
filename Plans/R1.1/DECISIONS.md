@@ -11,6 +11,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30; the R1 rows are in 
 | Q326, Q328 Subscriptions: one rule everywhere (source checked at creation); a Personal agent may list `#bus` in its Allow | [resolved](resolved.md#Q326) | Owner, 2026-11-05 |
 | Q334, Q305–Q310, Q314–Q320 Build FileScan and DBSync: shared core, replay the existing base by default, system paths allowed, MySQL and PostgreSQL first | [resolved](resolved.md#Q334) | Owner, 2026-11-05 |
 | FileScan host boundary | [host and sandbox](filescan.md#host-and-sandbox) | Owner, 2026-11-05 (Q308) |
+| FileScan watch roots are the node owner's | [host and sandbox](filescan.md#host-and-sandbox) | #ab-dir, 2026-11-05 (replaces the record Owner setting `dir`) |
 | FileScan content | [what a message carries](filescan.md#what-a-message-carries) | Owner, 2026-11-01 and 2026-11-05 |
 | Kept-process deployment | [host and sandbox](filescan.md#host-and-sandbox), [DBSync decisions](dbsync.md#decisions) | Owner, 2026-11-05 |
 | DBSync credential boundary | [DBSync decisions](dbsync.md#decisions), [who may use it](dbsync.md#who-may-use-it) | Owner, 2026-11-05 |
