@@ -373,7 +373,7 @@ class FileScan:
                     except Exception:continue
                     del held[name];changed=True
                 if changed:self.state.save(data)
-        except core.SyncError:pass   # the next round does it
+        except core.SyncError:self._uploaded[:0]=uploaded   # the notes are kept, so the next round still collects these keys
 
     # --- calls ----------------------------------------------------------------------------------------------------
     def status(self):

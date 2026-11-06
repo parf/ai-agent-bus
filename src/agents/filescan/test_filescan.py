@@ -398,6 +398,26 @@ class BigfileTests(Base):
         self.assertIn(self.sha(self.BIG),self.keys(),'two.txt has not yet been told its new version')
         self.call('scan');self.assertEqual(self.keys(),[self.sha('w'*60)])
 
+    def test_a_failed_state_hold_keeps_the_notes_and_a_later_round_collects_the_key_once(self):
+        for i in range(10):self.put(f'k{i}.txt','k')
+        self.put('big.txt',self.BIG);self.add(extra='bigfile');real=self.agent.state.hold;newer='n'*70
+        self.call('scan')   # uploads and notes the first key
+        self.put('big.txt',newer,mtime=time.time()+5)
+        def failing(*a,**k):
+            raise core.SyncError('state_unwritable')
+        calls=[]
+        orig=self.agent._collect_bigfiles
+        def collect():
+            calls.append(1)
+            if len(calls)==1:self.agent.state.hold=failing
+            try:return orig()
+            finally:self.agent.state.hold=real
+        self.agent._collect_bigfiles=collect
+        self.call('scan')   # delivers the newer version and uploads it; the collection after it cannot hold the state
+        self.assertEqual(sorted(self.keys()),sorted([self.sha(self.BIG),self.sha(newer)]))
+        self.call('scan');self.assertEqual(self.keys(),[self.sha(newer)]);self.assertEqual(self.bus.deletes,[self.sha(self.BIG)],'collected once')
+        self.assertEqual(list(self.agent.state.load()['meta']['bigfiles']),[self.sha(newer)],'the lost round did not lose the new key')
+
     def test_a_subscriber_without_the_option_makes_no_key_to_collect(self):
         self.put('big.txt',self.BIG);self.add();self.call('scan');self.assertEqual(self.bus.puts,[]);self.assertNotIn('bigfiles',self.agent.state.load()['meta'])
 
