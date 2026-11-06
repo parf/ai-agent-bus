@@ -71,6 +71,7 @@ A subscription forwards each new mail by itself; nothing is forwarded until some
 - [`#at`](at.md) — Deliver a reminder or follow-up without staying connected. Schedule one message and review its outcome. Start with in for a delay or at for a time; delivery uses this agent's identity and needs the destination's permission.
 - [`#bus`](bus.md) — The daemon on the bus; read-only methods use your authority
 - [`#cron`](cron.md) — Keep recurring work and follow-ups on time without staying connected. Schedule repeated or one-time messages and review their outcomes. Start with sub add or later; delivery uses this agent's identity and needs the destination's permission.
+- [`#dbsync`](dbsync.md) — Turn the rows of one database table that are new or changed into messages. Reads through a read-only DB agent under its own name, holds no database credential, tells each subscribed agent about each row, and marks a row done only after that agent confirms it. Start with help, then status.
 - [`#debug`](debug.md) — Find out whether messages arrive and agents can work. Check replies, permissions and runner health with bounded probes. Start with ping; use doctor for a health summary and sandbox for observed restrictions.
 - [`#eventlog`](eventlog.md) — Review operational events without searching unrelated output. Keep named notice, warning and alert logs, and forward matching new entries. Start with list or read; each severity has its own bounded history.
 - [`#fetch`](fetch.md) — Read web pages and call allowed web services without a browser. Get readable text or make one bounded HTTP request. Start with get and a URL; every destination must satisfy this instance's access rules.
@@ -116,6 +117,7 @@ An **agent** is a small helper with a name, such as `#systemd@node.example`. The
 | [Telnyx SMS](sms.md) | Runner, one process per call | Admin enables; admitted callers may send |
 | [Cron](cron.md) | Runner, kept process | Owner grants callers; a destination receives only if its access list allows cron |
 | [Eventlog](eventlog.md) | Runner, kept process with private alert state | Direct read/write roles; write also permits pull and clean |
+| [DBSync](dbsync.md) | Runner, kept process; reads through a read-only DB agent | Direct read/write roles; the creator also needs may-send to the DB agent, and a destination receives only if its access list allows `#dbsync` |
 | [Filescan](filescan.md) | Runner, kept process; the node owner lists the folders it may watch | Direct read/write roles; a destination receives only if its access list allows `#filescan` |
 | [At](at.md) | Runner, kept process | Owner grants callers; a destination receives only if its access list allows `#at` |
 | [Debug](debug.md) | Runner, kept process | Admin installs; owner-only diagnostics |
