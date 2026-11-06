@@ -1,4 +1,4 @@
-"""The only SQL DBSync sends: four SELECT shapes built from checked names and checked cursor values.
+"""The only SQL DBSync sends: five SELECT shapes built from checked names and checked cursor values.
 
 There are no bind parameters in a `#db` call, so nothing reaches the text unless it is a plain identifier (quoted
 for its dialect) or a cursor value that is a number or a timestamp in a strict form. A value is never escaped to
@@ -78,7 +78,7 @@ class Builder:
         self.engine=engine;self.table=name(table,'table');self.key=name(key,'key');self.updated=name(updated,'updated')
         self.schema=None if schema is None else name(schema,'schema')
         self.columns=[name(c,'column') for c in columns]
-        self.kinds={}
+        self.kinds={};self.zoned=False   # zoned: the updated column carries a time zone (set by the type guard)
 
     def _q(self,value):return quote(self.engine,value)
 
@@ -92,16 +92,28 @@ class Builder:
             if c not in out:out.append(c)
         return out
 
-    def page(self,after,limit):
-        """Rows after the pair `after` (or from the start), ordered by (updated, key), at most `limit`."""
+    def page(self,after,limit,since=None):
+        """Rows after the pair `after`, or from `updated` value `since`, or from the start; ordered by (updated, key), at most `limit`."""
         if type(limit) is not int or not 1<=limit<=10000:raise StatementError('invalid_limit','a page holds 1 to 10000 rows')
         u,k=self._q(self.updated),self._q(self.key)
         where=f'{u} IS NOT NULL'
+        if since is not None:where+=f' AND {u} >= {literal(self.kinds["updated"],since)}'
         if after is not None:
             au,ak=literal(self.kinds['updated'],after[0]),literal(self.kinds['key'],after[1])
             where+=f' AND ({u} > {au} OR ({u} = {au} AND {k} > {ak}))'
         cols=', '.join(self._q(c) for c in self.selected())
         return f'SELECT {cols} FROM {self._from()} WHERE {where} ORDER BY {u}, {k} LIMIT {limit}'
+
+    def cutoff(self,seconds,unit=None):
+        """The database's own now() minus `seconds`, in the form of the `updated` column: epoch s or ms, or timestamp text."""
+        if type(seconds) is not int or not 0<seconds<=86400:raise StatementError('invalid_lookback','a lookback is 1 second to 1 day')
+        if unit in ('s','ms'):
+            m=1000 if unit=='ms' else 1
+            now='UNIX_TIMESTAMP(NOW(6))' if self.engine=='mysql' else 'EXTRACT(EPOCH FROM CURRENT_TIMESTAMP)'
+            return f'SELECT FLOOR({now} * {m}) - {seconds*m}'
+        if self.engine=='mysql':return f"SELECT DATE_FORMAT(NOW(6) - INTERVAL {seconds} SECOND, '%Y-%m-%d %H:%i:%s.%f')"
+        if self.zoned:return f"SELECT to_char(CURRENT_TIMESTAMP - interval '{seconds} seconds', 'YYYY-MM-DD HH24:MI:SS.USTZH:TZM')"
+        return f"SELECT to_char(LOCALTIMESTAMP - interval '{seconds} seconds', 'YYYY-MM-DD HH24:MI:SS.US')"
 
     def newest(self):
         """The highest (updated, key) pair, where a subscriber that wants only later changes starts."""

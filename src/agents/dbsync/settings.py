@@ -4,8 +4,8 @@ import re
 
 import statements
 
-KEYS={'db','engine','schema','table','key','updated','updated_unit','columns','deleted','deleted_value','every','max_rows','batch',
-      'window_max','park_after','state_max'}
+KEYS={'db','engine','schema','table','key','updated','updated_unit','columns','deleted','deleted_value','every','lookback','max_rows',
+      'batch','window_max','park_after','state_max'}
 REQUIRED=('db','engine','table','key','updated')
 DURATION=re.compile(r'([0-9]{1,7})(s|m|h)\Z')
 SIZE=re.compile(r'([0-9]{1,13})(B|KiB|MiB|GiB)?\Z')
@@ -68,6 +68,7 @@ def parse(config):
        'table':identifier('table',config['table']),'key':identifier('key',config['key']),'updated':identifier('updated',config['updated']),
        'updated_unit':unit,'columns':[identifier('columns',c) for c in columns],
        'every':duration('every',config.get('every','60s'),5,86400),
+       'lookback':duration('lookback',config.get('lookback','5m'),0,86400),
        'max_rows':count('max_rows',config.get('max_rows',1000),1,10000),
        'batch':count('batch',config.get('batch',20),1,500),
        'window_max':count('window_max',config.get('window_max',10000),1,100000),

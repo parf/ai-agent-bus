@@ -147,7 +147,7 @@ class DBSync:
             else:kinds[role]=kind
         if failures:
             raise CannotSync(f'cannot sync: {len(failures)} of 2 cursor columns is not numeric or timestamp: '+'; '.join(failures))
-        self.sql.kinds=kinds
+        self.sql.kinds=kinds;self.sql.zoned='with time zone' in str(found.get(s['updated'].lower(),'')).lower()
         return kinds
 
     # --- pairs --------------------------------------------------------------------------------------------------
@@ -200,33 +200,69 @@ class DBSync:
             if meta.get('started') is None or self.order(floor)<self.order(base_pair):
                 # A new or returning subscriber sits below what the window covers: read again from its position.
                 meta['scan']=floor;meta['base']=floor;meta['started']=True;self.state.save(data)
-        end=time.monotonic()+POLL_MAX;read=0
-        while time.monotonic()<end:
-            data=self.state.load();meta=data['meta'];room=self.settings['window_max']-len(data['items'])
-            if room<1:break
-            limit=min(page,room);after=meta.get('scan')
-            answer=self.query(self.sql.page(None if after is None else tuple(after),limit))
+        cutoff=self._cutoff()
+        with self.state.hold(core.HOLD_WAIT):
+            data=self.state.load();meta=data['meta'];meta['cutoff']=cutoff
+            self._forget_before(meta,cutoff);self.state.save(data)
+        # The earlier of the cutoff and the scan position: in steady state the scan is recent, so the last `lookback`
+        # is read again for rows that committed late with an older `updated`; with a backlog the scan is older and
+        # the poll goes on strictly after it.
+        since=None;after=meta.get('scan')
+        if cutoff is not None and after is not None and self._before(cutoff,after[0]):after=None;since=cutoff
+        end=time.monotonic()+POLL_MAX;read=0;full=False
+        while time.monotonic()<end and not full:
+            if len(self.state.load()['items'])>=self.settings['window_max']:break
+            answer=self.query(self.sql.page(None if after is None else tuple(after),page,since))
             rows=self._rows(answer)
             if answer['truncated'] and not rows:
-                meta['stuck']={'after':after,'since':meta.get('stuck',{}).get('since') or self.clock()}
+                stuck={'after':after,'since':self.state.load()['meta'].get('stuck',{}).get('since') or self.clock()}
                 with self.state.hold(core.HOLD_WAIT):
-                    fresh=self.state.load();fresh['meta']['stuck']=meta['stuck'];self.state.save(fresh)
+                    fresh=self.state.load();fresh['meta']['stuck']=stuck;self.state.save(fresh)
                 self.warning('no_progress')
                 raise CannotSync('cannot sync: a row after the scan position is larger than the DB agent returns; narrow columns, or the row must change'
                                  +('' if after is None else f' (after key {after[1]})'))
             with self.state.hold(core.HOLD_WAIT):
-                fresh=self.state.load();items=fresh['items']
+                fresh=self.state.load();items=fresh['items'];dedup=fresh['meta'].setdefault('dedup',{});last=None
                 for key,u,row in rows:
                     record=items.get(key);new=self._record(u,row)
-                    if record is None or record['fp']!=new['fp']:
+                    if record is None and dedup.get(key)==new['fp']:pass            # delivered to all and pruned: not again
+                    elif record is None or record['fp']!=new['fp']:
+                        if record is None and len(items)>=self.settings['window_max']:full=True;break
+                        if record is None and self._late(fresh,cutoff,(u,key)):new['late']=True
                         if new.get('gone') and record is None:self._owe_delete(fresh,key)
                         items[key]=new
-                    self.rows[key]=(u,row)
-                if rows:fresh['meta']['scan']=[rows[-1][1],rows[-1][0]]
+                    self.rows[key]=(u,row);last=(u,key);read+=1
+                if last is not None:fresh['meta']['scan']=[last[0],last[1]];after=last;since=None
                 fresh['meta'].pop('stuck',None);self.state.save(fresh)
-            read+=len(rows)
-            if not answer['truncated'] and len(rows)<limit:break   # an uncut short page is the end of the table
+            if not answer['truncated'] and len(rows)<page:break   # an uncut short page is the end of the table
         return read
+
+    def _cutoff(self):
+        """The lookback cutoff as the database's own clock gives it, in the `updated` column's form; None with no lookback."""
+        seconds=self.settings['lookback']
+        if not seconds:return None
+        rows=self.query(self.sql.cutoff(int(seconds),self.settings['updated_unit']))['rows']
+        if len(rows)!=1 or len(rows[0])!=1:raise DBError('the DB agent answered the time query in an unknown shape')
+        value=statements.text_of(rows[0][0]);statements.literal(self.sql.kinds['updated'],value)
+        return value
+
+    def _before(self,a,b):
+        """Whether `updated` value a sorts before b; a database time and a column of another time zone form cannot be compared."""
+        kind=self.sql.kinds['updated']
+        try:return statements.order_key(kind,a)<statements.order_key(kind,b)
+        except TypeError:
+            raise CannotSync('cannot sync: the database time and the updated column differ in time zone form; use a column of the same type') from None
+
+    def _late(self,data,cutoff,pair):
+        """A row first seen inside the lookback below a subscriber's position committed late: that one is still owed it."""
+        if cutoff is None or self._before(pair[0],cutoff):return False
+        pos=data['meta'].get('pos',{});o=self.order(pair)
+        return any(pos.get(s) is not None and self.order(tuple(pos[s]))>=o for s in data['subs'])
+
+    def _forget_before(self,meta,cutoff):
+        """De-duplication marks older than the cutoff can never be read again by a lookback: drop them."""
+        dedup=meta.get('dedup',{})
+        for key in [k for k,fp in dedup.items() if cutoff is None or self._before(fp.split('|',1)[0],cutoff)]:del dedup[key]
 
     def _record(self,u,row):
         """The state record of a row: a soft-deleted one is a tombstone, so it goes out as a delete."""
@@ -265,9 +301,11 @@ class DBSync:
         for key,record in data['items'].items():order[key]=self.order(self.item_pair(key,record))
         lows={s:self.order(None if pos.get(s) is None else tuple(pos[s])) for s in data['subs']}
         refused=set();vanished=set();cache={}
+        late={k for k,r in data['items'].items() if r.get('late')}
         def matches(row,key):
-            # Only rows in the window and above this subscriber's position: one it is past was delivered already.
-            return key in order and order[key]>lows.get(row['id'],(0,))
+            # Only rows in the window and above this subscriber's position: one it is past was delivered already,
+            # unless it committed late, below positions that had moved on.
+            return key in order and (order[key]>lows.get(row['id'],(0,)) or key in late)
         def body(row,key,action,record):
             code=base.checked_admission(self.bus,row['created_by'],self.settings['db'],cache)
             if code:
@@ -372,7 +410,11 @@ class DBSync:
         if not active:return
         for key in list(items):
             pair=self.item_pair(key,items[key]);o=self.order(pair)
-            if all(self.order(None if pos.get(s) is None else tuple(pos[s]))>=o or self._confirmed(data,s,key) for s in active):
+            past=lambda s:not items[key].get('late') and self.order(None if pos.get(s) is None else tuple(pos[s]))>=o
+            if all(past(s) or self._confirmed(data,s,key) for s in active):
+                cutoff=meta.get('cutoff')
+                # Inside the lookback the row is read again: remember it was delivered, so it is not sent twice.
+                if cutoff is not None and not self._before(items[key]['u'],cutoff):meta.setdefault('dedup',{})[key]=items[key]['fp']
                 del items[key];self.rows.pop(key,None)
                 for sub_id in data['subs']:
                     data['marks'][sub_id].pop(key,None)
@@ -396,7 +438,8 @@ class DBSync:
         return {'db':self.settings['db'],'table':self.settings['table'],'page':page,'scan':meta.get('scan'),'window':len(data['items']),
                 'window_max':self.settings['window_max'],'full':len(data['items'])>=self.settings['window_max'],'stuck':meta.get('stuck'),
                 'last_poll':self.last['poll'],'error':self.last['error'],'subscribers':subs,
-                'limits':'hard deletes are not reported; a soft delete marker is the only way'}
+                'lookback':self.settings['lookback'],
+                'limits':'hard deletes are not reported, a soft delete marker is the only way; a row that commits later than the lookback is not seen'}
 
     def reset(self):
         with self.state.hold(core.HOLD_WAIT):

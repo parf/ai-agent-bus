@@ -33,7 +33,7 @@
         "write"
       ],
       "args": [],
-      "returns": "{db,table,page,scan,window,window_max,full,stuck,last_poll,error,subscribers,limits}"
+      "returns": "{db,table,page,scan,window,window_max,full,stuck,last_poll,error,subscribers,lookback,limits}"
     },
     "poll": {
       "help": "Read the rows after the scan position now and send what is new or changed.",
@@ -154,6 +154,11 @@
       "type": "string",
       "help": "Poll interval, 5s..24h",
       "default": "60s"
+    },
+    "lookback": {
+      "type": "string",
+      "help": "Each poll reads again the rows whose updated is within this much of the database clock, for transactions that commit late; 0s turns it off, up to 24h",
+      "default": "5m"
     },
     "max_rows": {
       "type": "int",

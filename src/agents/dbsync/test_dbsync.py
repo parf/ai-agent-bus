@@ -1,6 +1,8 @@
 """DBSync against a fake `#db` agent: sqlite answers the statements the Builder makes, in the DB agent's reply shape."""
+from datetime import datetime, timedelta
 import json
 from pathlib import Path
+import re
 import sqlite3
 import sys
 import tempfile
@@ -27,7 +29,7 @@ class FakeDB:
     def __init__(self,max_rows=10,types=None):
         self.conn=sqlite3.connect(':memory:',check_same_thread=False)
         self.conn.execute('CREATE TABLE "orders" ("id" INTEGER PRIMARY KEY, "updated_at" TEXT, "note" TEXT)')
-        self.max_rows=max_rows;self.queries=[];self.fail=None
+        self.max_rows=max_rows;self.queries=[];self.fail=None;self.now='2026-11-05 12:00:00'   # the database's clock
         self.types=types or {'id':'bigint','updated_at':'timestamp'}
 
     def put(self,key,updated,note='n'):
@@ -39,6 +41,10 @@ class FakeDB:
     def answer(self,body):
         assert body.startswith('query ');sql=body[6:];self.queries.append(sql)
         if self.fail:return self.fail
+        if sql.startswith('SELECT to_char(LOCALTIMESTAMP - interval '):
+            seconds=int(re.match(r"SELECT to_char\(LOCALTIMESTAMP - interval '(\d+) seconds'",sql).group(1))
+            cut=datetime.fromisoformat(self.now)-timedelta(seconds=seconds)
+            return json.dumps({'columns':['to_char'],'rows':[[cut.strftime('%Y-%m-%d %H:%M:%S')]],'truncated':False})
         if 'information_schema' in sql:
             rows=[[c,t] for c,t in self.types.items() if f"'{c}'" in sql]
             return json.dumps({'columns':['column_name','data_type'],'rows':rows,'truncated':False})
@@ -158,6 +164,7 @@ class PollTests(Base):
         self.assertEqual(status['subscribers'][0]['position'],['2026-11-05 10:00:03','3'])
 
     def test_a_cut_page_with_no_row_after_the_position_refuses_by_name_instead_of_looping(self):
+        self.agent=self.make(lookback=0)   # every query answers the same cut page, the time query too
         self.db.put(1,'2026-11-05 10:00:00');self.subscribe()
         self.db.fail=json.dumps({'columns':['id','updated_at','note'],'rows':[],'truncated':True})
         self.agent.check_types=lambda:self.agent.sql.kinds.update(key='numeric',updated='timestamp')
@@ -240,6 +247,56 @@ class PollTests(Base):
         self.agent.poll();self.agent.poll()
         self.assertEqual(len(added),1)
         self.assertEqual(sorted(self.keys(),key=int),['1','1','2','2','3','3'])
+
+
+class LookbackTests(Base):
+    """The database clock is 12:00:00 and the lookback 5 minutes, so the cutoff is 11:55:00."""
+    def delivered(self):
+        for k,u in ((1,'11:58:00'),(2,'11:59:00')):self.db.put(k,'2026-11-05 '+u)
+        self.subscribe();self.agent.poll()
+        self.assertEqual(sorted(self.keys(),key=int),['1','2'])
+
+    def test_a_row_that_commits_late_with_an_older_updated_is_still_sent_once(self):
+        self.delivered()
+        self.db.put(3,'2026-11-05 11:58:30')   # committed after row 2 was read, stamped before it
+        self.agent.poll()
+        self.assertEqual(self.keys()[2:],['3'])
+        self.agent.poll();self.agent.poll()
+        self.assertEqual(len(self.bus.sent),3)   # the lookback reads 1, 2 and 3 again; none goes twice
+
+    def test_each_poll_reads_again_from_the_cutoff_by_the_database_clock(self):
+        self.delivered();self.agent.poll()
+        last=[q for q in self.db.queries if ' LIMIT ' in q][-1]
+        self.assertIn('"updated_at" >= \'2026-11-05 11:55:00\'',last)
+        self.assertNotIn('"updated_at" > \'',last)
+
+    def test_a_row_that_commits_later_than_the_lookback_is_not_seen(self):
+        self.delivered()
+        self.db.put(3,'2026-11-05 11:50:00');self.agent.poll()
+        self.assertEqual(len(self.bus.sent),2)
+
+    def test_a_scan_older_than_the_cutoff_goes_on_strictly_after_it(self):
+        self.db.max_rows=3;self.agent=self.make(max_rows=3)   # pages of 2: a backlog
+        for k in range(1,6):self.db.put(k,f'2026-11-05 11:0{k}:00')
+        self.subscribe();self.agent.poll()
+        pages=[q for q in self.db.queries if ' LIMIT ' in q]
+        self.assertFalse(any(' >= ' in q for q in pages),pages)
+        self.assertEqual(sorted(self.keys(),key=int),['1','2','3','4','5'])
+
+    def test_de_duplication_marks_older_than_the_cutoff_are_forgotten(self):
+        self.delivered()
+        self.assertEqual(set(self.agent.state.load()['meta']['dedup']),{'1','2'})
+        self.db.now='2026-11-05 12:10:00';self.agent.poll()
+        self.assertEqual(self.agent.state.load()['meta']['dedup'],{})
+        self.assertEqual(len(self.bus.sent),2)
+
+    def test_a_late_row_whose_send_is_refused_stays_until_it_is_delivered(self):
+        self.delivered()
+        self.bus.deny.add((AUTHOR,QUEUE))
+        self.db.put(3,'2026-11-05 11:58:30');self.agent.poll()
+        self.assertIn('3',self.agent.state.load()['items'])
+        self.bus.deny.clear();self.agent.poll()
+        self.assertEqual(self.keys()[2:],['3'])
 
 
 class SoftDeleteTests(Base):
