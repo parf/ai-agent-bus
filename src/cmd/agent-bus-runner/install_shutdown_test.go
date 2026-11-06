@@ -4,9 +4,36 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
+
+// hookGate parks a test hook until the test opens it. The test's cleanup opens it too, so a hook
+// that arrives after a failure never parks for good holding reloadMu; a second arrival fails the test
+// instead of panicking on a closed channel.
+type hookGate struct {
+	t                   *testing.T
+	reached, release    chan struct{}
+	reachOnce, openOnce sync.Once
+}
+
+func newHookGate(t *testing.T) *hookGate {
+	g := &hookGate{t: t, reached: make(chan struct{}), release: make(chan struct{})}
+	t.Cleanup(g.open)
+	return g
+}
+
+func (g *hookGate) hook() {
+	first := false
+	g.reachOnce.Do(func() { close(g.reached); first = true })
+	if !first {
+		g.t.Error("the hook ran a second time")
+	}
+	<-g.release
+}
+
+func (g *hookGate) open() { g.openOnce.Do(func() { close(g.release) }) }
 
 // J100: a shutdown that begins after an install's last cancellation check must not leave a process
 // the install's apply starts once stopKept has gone by. The runner's stop waits for the install to
@@ -18,12 +45,12 @@ func TestAShutdownDuringAnInstallLeavesNoProcessRunning(t *testing.T) {
 	pkg := filepath.Join(r.bundled, "fixture")
 	writeFile(t, filepath.Join(pkg, "run.sh"), "exec sleep 31\n")
 	writeFile(t, filepath.Join(pkg, "agent.json"), string(mustJSON(map[string]any{"description": "Test agent", "command": "/bin/sh " + filepath.Join(r.agents, "fixture", "run.sh"), "serves": "itself", "processes": 1, "deadline": "100ms"})))
-	reached, release := make(chan struct{}), make(chan struct{})
-	r.afterInstallCheck = func() { close(reached); <-release }
+	g := newHookGate(t)
+	r.afterInstallCheck = g.hook
 	installed := make(chan error, 1)
 	go func() { installed <- r.installPackage(context.Background(), "install --replace fixture") }()
 	select {
-	case <-reached:
+	case <-g.reached:
 	case <-time.After(10 * time.Second):
 		t.Fatal("the install never reached its last check")
 	}
@@ -34,7 +61,7 @@ func TestAShutdownDuringAnInstallLeavesNoProcessRunning(t *testing.T) {
 	case <-stopped:
 	case <-time.After(300 * time.Millisecond):
 	}
-	close(release)
+	g.open()
 	for name, ch := range map[string]<-chan struct{}{"the install": wait(installed), "the shutdown": stopped} {
 		select {
 		case <-ch:
@@ -97,12 +124,12 @@ func TestAShutdownDuringAnApplyStopsWhatItStarts(t *testing.T) {
 	r.served = make(map[string]*served)
 	r.mu.Unlock()
 	r.closing.Store(false)
-	reached, release := make(chan struct{}), make(chan struct{})
-	r.applyStarted = func() { close(reached); <-release }
+	g := newHookGate(t)
+	r.applyStarted = g.hook
 	reloaded := make(chan struct{})
 	go func() { r.reload(); close(reloaded) }()
 	select {
-	case <-reached:
+	case <-g.reached:
 	case <-time.After(10 * time.Second):
 		t.Fatal("the reload never reached its apply")
 	}
@@ -112,7 +139,7 @@ func TestAShutdownDuringAnApplyStopsWhatItStarts(t *testing.T) {
 	case <-stopped:
 	case <-time.After(300 * time.Millisecond):
 	}
-	close(release)
+	g.open()
 	for name, ch := range map[string]<-chan struct{}{"the reload": reloaded, "the shutdown": stopped} {
 		select {
 		case <-ch:
