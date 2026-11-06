@@ -424,6 +424,106 @@ class LiveClient(unittest.TestCase):
         answer = self.owner.consume(topic="reply-re", tag="one", wait=1)
         self.assertEqual(answer.re, request_id)
 
+    def record_answers(self, bus):
+        """Every response this Bus sends, as (to, re): a POST /send that carries `re`."""
+        answered = []
+        original = bus._request
+        def recording(method, path, *args, **options):
+            if method == "POST" and path == "/send" and args and isinstance(args[0], dict) and "re" in args[0]:
+                answered.append((args[0]["to"], args[0]["re"]))
+            return original(method, path, *args, **options)
+        patcher = patch.object(bus, "_request", recording)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        return answered
+
+    def deferred_answer(self, body, tag):
+        """A plain send with a long envelope wait, answered by the worker: the answer carries `re`."""
+        sent = self.caller.send(self.worker.name, "long question " + tag, wait=60, topic="long", tag=tag)
+        request = self.worker.consume(topic="long", tag=tag, wait=1)
+        self.assertEqual(request.id, sent)
+        request.reply(body)
+        return sent
+
+    def settled_by_work(self, handled):
+        """Work sent after the answers is handled only once the dispatcher has read past them."""
+        self.owner.send(self.caller.name, "work")
+        end = time.monotonic() + 2
+        while "work" not in handled and time.monotonic() < end:
+            time.sleep(0.01)
+        self.assertEqual(handled, ["work"], "the request handler gets the work and nothing else")
+
+    def test_on_reply_gets_an_unclaimed_answer_exactly_once_and_answers_nothing(self):
+        replies, handled = [], []
+        answered = self.record_answers(self.caller)
+        self.serve(self.caller, lambda m: handled.append(m.body), on_reply=replies.append)
+        sent = self.deferred_answer("deferred answer", "one")
+        self.settled_by_work(handled)
+        time.sleep(0.1)
+        self.assertEqual([(m.body, m.re) for m in replies], [("deferred answer", sent)])
+        # The same as a dropped answer: no ack, reply or done goes out for it, and it is not marked answered.
+        self.assertEqual([a for a in answered if a[0] == self.worker.name], [])
+        self.assertNotIn(replies[0].id, [re for _, re in answered])
+        self.assertFalse(replies[0]._completion.terminal)
+
+    def test_without_on_reply_an_answer_is_dropped_as_before(self):
+        handled = []
+        answered = self.record_answers(self.caller)
+        self.serve(self.caller, lambda m: handled.append(m.body))
+        self.deferred_answer("dropped answer", "two")
+        self.settled_by_work(handled)
+        self.assertEqual([a for a in answered if a[0] == self.worker.name], [], "nothing is answered for a dropped answer")
+        self.assertEqual(len(answered), 2, "only the work is acknowledged and done")
+
+    def test_a_pending_call_claims_its_own_answer_and_on_reply_sees_none(self):
+        replies = []
+        self.serve(self.worker, lambda m: "pong")
+        self.serve(self.caller, lambda m: None, on_reply=replies.append)
+        try:
+            answer = self.caller.call(self.worker.name, "ping", timeout=2)
+        except BusTimeout:
+            answer = None
+        self.assertEqual(getattr(getattr(answer, "message", None), "body", None), "pong")
+        self.assertEqual(replies, [])
+
+    def test_a_late_answer_to_a_timed_out_call_never_reaches_on_reply(self):
+        original = self.caller._request
+        def timeout_after_send(method, path, *args, **options):
+            result = original(method, path, *args, **options)
+            if path == "/send":
+                raise BusTimeout()
+            return result
+        with patch.object(self.caller, "_request", timeout_after_send):
+            with self.assertRaises(BusTimeout):
+                self.caller.call(self.worker.name, "timed out", timeout=2, topic="old-call")
+        expired = self.worker.consume(topic="old-call", wait=1)
+        replies, handled = [], []
+        self.serve(self.caller, lambda m: handled.append(m.body), on_reply=replies.append)
+        expired.reply("late answer")
+        sent = self.deferred_answer("marker", "three")
+        self.settled_by_work(handled)
+        time.sleep(0.1)
+        self.assertEqual([(m.body, m.re) for m in replies], [("marker", sent)], "the late call answer is not a deferred answer")
+
+    def test_call_refuses_a_wait_option(self):
+        sends = []
+        original = self.caller._request
+        def recording(method, path, *args, **options):
+            if path == "/send":
+                sends.append(path)
+            return original(method, path, *args, **options)
+        with patch.object(self.caller, "_request", recording):
+            try:
+                self.caller.call(self.worker.name, "x", timeout=1, wait=30)
+                refused = None
+            except Exception as exc:  # any other outcome must fail on the assertion, not error out
+                refused = exc
+        self.assertIsInstance(refused, InvalidArgument)
+        self.assertIn("timeout is the wait", str(refused))
+        self.assertEqual(sends, [], "nothing was sent")
+        with self.assertRaises(InvalidArgument):
+            self.caller.serve(lambda m: None, on_reply="not callable")
+
     def test_expired_lease_does_not_release_new_hold(self):
         locks = self.worker.locks
         old = locks.acquire("reused", ttl=0.04)

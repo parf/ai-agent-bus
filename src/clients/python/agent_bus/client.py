@@ -46,6 +46,7 @@ class Serving:
     error: object = None
     accepting: bool = True
     polling: int = 0
+    on_reply: object = None
 
 
 class Bus:
@@ -274,6 +275,8 @@ class Bus:
             self._dispatcher.start()
 
     def call(self, to, body, *, timeout, on_receipt=None, **options):
+        if "wait" in options:
+            raise InvalidArgument("call takes no wait option: its timeout is the wait, sent as the envelope wait")
         deadline = time.monotonic() + seconds(timeout, positive=True)
         self._ensure_identity(min(deadline, time.monotonic() + self.timeout))
         if "tag" in options:
@@ -434,12 +437,27 @@ class Bus:
                     future = serving.executor.submit(self._handle, serving, message)
                     serving.futures.add(future)
                     future.add_done_callback(lambda done, owner=serving: self._finished(owner, done))
+                elif (target is None and serving is self._serving and serving.on_reply is not None
+                      and message.re and not message.receipt
+                      and not (message.tag or "").startswith(self._call_prefix)):
+                    # An answer no pending call claims, to a send this client made: the opted-in reply
+                    # handler gets it on a serving worker. A late answer to this client's own call is not one.
+                    future = serving.executor.submit(self._reply, serving, message)
+                    serving.futures.add(future)
+                    future.add_done_callback(lambda done, owner=serving: self._finished(owner, done))
                 self._condition.notify_all()
 
     def _finished(self, serving, future):
         with self._condition:
             serving.futures.discard(future)
             self._condition.notify_all()
+
+    def _reply(self, serving, message):
+        # Already an answer: no ack, reply or done is sent for it, exactly as when it is dropped.
+        try:
+            serving.on_reply(message)
+        except Exception:
+            _log.error("agent-bus reply handler failed for message %s", message.id)
 
     def _handle(self, serving, message):
         try:
@@ -458,13 +476,16 @@ class Bus:
             _log.error("agent-bus handler failed for message %s", message.id)
 
     def serve(self, handler, *, inbox=None, topic=None, share=False, workers=1,
-              stop=None, drain_timeout=30):
+              stop=None, drain_timeout=30, on_reply=None):
         self._check()
         if not callable(handler) or isinstance(workers, bool) or not isinstance(workers, int) or workers < 1:
             raise InvalidArgument("serve requires a handler and positive worker count")
+        if on_reply is not None and not callable(on_reply):
+            raise InvalidArgument("serve on_reply must be callable")
         seconds(drain_timeout)
         serving = Serving(handler, inbox or self.name, topic, share, workers,
-                          ThreadPoolExecutor(max_workers=workers, thread_name_prefix="agent-bus-handler"))
+                          ThreadPoolExecutor(max_workers=workers, thread_name_prefix="agent-bus-handler"),
+                          on_reply=on_reply)
         with self._condition:
             if self._raw or self._serving:
                 serving.executor.shutdown(wait=False)

@@ -13,7 +13,7 @@
 
 ## What you get
 
-- ✅ **Call and serve:** `bus.call(to, body, timeout=...)` returns a reply; `bus.serve(handler, workers=...)` answers messages with a bounded pool.
+- ✅ **Call and serve:** `bus.call(to, body, timeout=...)` returns a reply; `bus.serve(handler, workers=...)` answers messages with a bounded pool, and `on_reply=` reads the answers to your own sends.
 - ✅ **Targets:** `bus.record(name)` gives that record's `kv` and `locks`; `bus.config` reads the agent's Configuration.
 - ✅ **Your own name works:** a call to yourself is answered by your own handler.
 - ✅ **Safe secrets:** representations are redacted; `reveal()` returns bytes only when you ask.
@@ -83,6 +83,8 @@ See [agent logs](../../../docs/agents/bus.md#agent-logs) and
 - **Dispatch:** one dispatcher owns call and serve polling, and raw consume is exclusive with those modes. Call callbacks run on the calling thread; handlers run on bounded threads.
 - **Serve:** it skips requests whose caller deadline has passed before acknowledgment, stops intake, drains to its deadline and reports unfinished handlers. Python cannot forcibly stop a running handler thread.
 - **Replies:** each client has its own call-tag prefix to discard late replies, including route-correlated replies without `re`, without retaining completed calls. Normal replies include their request's `re`.
+- **Calls:** `timeout` is the wait and goes out as the envelope `wait`; a `wait` option is refused. For a longer bus deadline, `send(..., wait=...)` and read the answer with `on_reply`.
+- **Answers to a send:** `serve(handler, on_reply=fn)` hands `fn` each message carrying `re` that no pending call claims, on the same workers and drain as the handler; a late answer to this client's own call never reaches it. `fn` gets no automatic ack, reply or done, as when the answer is dropped without `on_reply`. Match `message.re` against the ids `send()` returned and ignore any other, since any sender can write `re`. Without `on_reply`, such an answer is taken and dropped. This mirrors the TypeScript client's `onReply`, without its `matchesReply`.
 - **Locks and uncertainty:** lock helpers have no fencing token and their expiry is a conservative estimate; an uncertain write or consumption is never replayed automatically.
 - **Self-calls:** they use the same serving handler. The unmarked request is never its own answer, even if it arrives before the send response; it waits for a free handler slot, and an already-taken self request joins graceful drain. A handler making a blocking call to itself needs another available worker. Route-correlated replies without `re` are accepted when their message ID differs from the request.
 
