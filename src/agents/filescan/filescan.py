@@ -108,6 +108,7 @@ def selector(value):
 
 
 RAG_TEXT=32*1024
+UPSERT_ECHO=('namespace','tableName','id','source','content_hash')   # what a RAG upsert's answer must repeat from the call
 RAG_SOURCE=2048   # RAG's own limit on `source`, in UTF-8 bytes
 
 
@@ -155,7 +156,7 @@ class FileScan:
         self.subs=core.SyncSubscriptions(bus,bus.name,self.state,validate_selector=selector,clock=clock)
         self.lock=threading.Lock()
         self.matched={};self.skipped={}
-        self.watcher=None;self.fallback=None;self._sent_delete=False
+        self.watcher=None;self.fallback=None;self._sent_delete=False;self._sent_upsert=None
         try:self.state.clean_temporaries()
         except core.SyncError:pass
 
@@ -239,10 +240,15 @@ class FileScan:
         return core.deliver(self.bus,self.bus.name,self.state,matches=matches,body=body,topic='filescan',tag='change',batch=self.settings['batch'],warning=lambda code,sub=None:self.warning(code,sub),ok=self._confirm)
 
     def _confirm(self,result):
-        """The target's reply counts as confirmed: ok, or, for a RAG delete, RAG's `not_found` refusal (it does not hold that id,
-        so the delete's job is done). The same refusal to an upsert is not a confirmation."""
-        if core.reply_ok(result):return True
+        """The target's reply counts as confirmed only when it shows the job done. A RAG upsert answers with the stored record: it counts
+        when that record is the namespace, table, id, source and content hash that were sent. A RAG delete counts on ok, or on
+        RAG's `not_found` refusal (it does not hold that id). Any other answer, `not_found` to an upsert included, is not confirmed."""
         text=getattr(getattr(result,'message',None),'body','')
+        if self._sent_upsert is not None:
+            try:record=json.loads(text)
+            except (TypeError,ValueError):return False
+            return isinstance(record,dict) and 'error' not in record and tuple(record.get(k) for k in UPSERT_ECHO)==self._sent_upsert
+        if core.reply_ok(result):return True
         return self._sent_delete and isinstance(text,str) and text.startswith('error: not_found:')
 
     def _wanted(self,row,key):
@@ -289,6 +295,7 @@ class FileScan:
               'source':key,'content_hash':hashlib.sha256(text.encode()).hexdigest()}
         if key1:call['key1']=key1
         self.skipped.get(row['id'],{}).pop(key,None)
+        self._sent_upsert=tuple(call[k] for k in UPSERT_ECHO)
         return dumps(call)
 
     def _skip(self,sub_id,key,why):
@@ -296,7 +303,7 @@ class FileScan:
         if len(found)<50 or key in found:found[key]=why
 
     def _body(self,row,key,action,record):
-        self._sent_delete=False
+        self._sent_delete=False;self._sent_upsert=None
         if row['selector'].get('rag'):return self._rag_body(row,key,action,record)
         change={'create':'created','change':'changed','delete':'deleted'}[action]
         message={'change':change,'path':key,'warning':WARNING}

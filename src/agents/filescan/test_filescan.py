@@ -1,4 +1,6 @@
 """FileScan end to end against a fake bus: scan, subscribe, deliver, confirm, answer calls."""
+import contextlib
+import io
 import json
 import os
 from pathlib import Path
@@ -14,6 +16,9 @@ import filescan as fs
 import change_sync as core
 import test_change_sync as fake
 from agent_bus.message import CallReply
+sys.path.insert(0,str(HERE.parent/'rag'))
+import rag as rag_agent
+import test_rag
 
 NAME='#filescan/vault@n.test'
 
@@ -214,11 +219,56 @@ class GuardTests(Base):
         self.call('scan');self.assertEqual(self.call('scan confirm:true',roles=('write',))['error']['code'],'forbidden')
 
 
+RAG='#rag@n.test'
+
+
+class RagBus(Bus):
+    """Stands in for #rag: an `ok` answer is the real RAG agent's own answer, from its real Core over a fixture store with fake
+    providers (nothing paid). Any other `replies` value is a scripted failure, as in the base bus."""
+    def __init__(self):
+        super().__init__()
+        self.store=test_rag.Store();self.rag=rag_agent.Agent(None,test_rag.CFG);self.rag.core=rag_agent.Core(test_rag.CFG,self.store,test_rag.KV())
+        for table in ('notes','docs'):self.rag.core.cache.set('vault',table,test_rag.PROMPT)
+    def call(self,to,body,*,timeout,**options):
+        if to!=RAG or self.replies.get(to,'ok')!='ok':return super().call(to,body,timeout=timeout,**options)
+        self.calls.append((to,body,options));self.timeouts.append(timeout)
+        with contextlib.redirect_stderr(io.StringIO()):
+            answer=self.rag.handle(SimpleNamespace(ask=None,body=body,envelope={'from':NAME,'roles':['write']},roles=('write',)))
+        return CallReply(SimpleNamespace(body=answer))
+
+
 class RagTests(Base):
+    def setUp(self):
+        super().setUp();self.bus=RagBus();self.agent=self.make({})
+
     def rag(self,extra='as rag vault notes'):
-        self.bus.kinds['#rag@n.test']='agent';return self.add('#rag@n.test',extra=extra)
+        self.bus.kinds[RAG]='agent';return self.add(RAG,extra=extra)
 
     def calls(self):return [json.loads(b) for _,b,_ in self.bus.calls]
+
+    def test_a_real_rag_upsert_is_confirmed_by_its_record_and_never_sent_again(self):
+        self.put('a.md','hello');self.rag();self.call('scan')
+        self.assertEqual(len(self.calls()),1);self.assertEqual(self.call('status')['subscribers'][0]['pending'],0)
+        record=self.bus.rag.core.get({'namespace':'vault','tableName':'notes','id':'a.md'},self.bus.rag.core.catalogue.bind('vault',self.bus.rag.core.cache,'notes'))
+        self.assertEqual((record['source'],record['content_hash']),('a.md',__import__('hashlib').sha256(b'hello').hexdigest()),'RAG holds what was sent')
+        paid=len(self.bus.store.paid);self.call('scan');self.call('scan')
+        self.assertEqual(len(self.calls()),1,'a confirmed upsert is not resent');self.assertEqual(len(self.bus.store.paid),paid,'and no provider work is paid again')
+
+    def test_an_upsert_is_confirmed_only_by_the_record_that_was_sent(self):
+        import hashlib
+        self.put('a.md','hello');self.rag();digest=hashlib.sha256(b'hello').hexdigest()
+        base={'namespace':'vault','tableName':'notes','id':'a.md','source':'a.md','content_hash':digest}
+        self.bus.replies[RAG]=json.dumps(base|{'data':'hello'})   # the echo of the call is a confirmation
+        self.call('scan');self.assertEqual(self.call('status')['subscribers'][0]['pending'],0)
+        for what,reply in (('status:ok alone','{"status":"ok"}'),('another hash',json.dumps(base|{'content_hash':'0'*64})),
+                           ('another id',json.dumps(base|{'id':'b.md'})),('another source',json.dumps(base|{'source':'old.md'})),
+                           ('another table',json.dumps(base|{'tableName':'docs'})),('another namespace',json.dumps(base|{'namespace':'team'})),
+                           ('a refusal',json.dumps(base|{'error':'x'})),('not_found text','error: not_found: record is absent from this namespace'),
+                           ('not json','stored')):
+            with self.subTest(what):
+                self.agent=self.make({});self.call('reset confirm:true',roles=('owner',))
+                self.bus.replies[RAG]=reply;self.call('scan');status=self.call('status')['subscribers'][0]
+                self.assertEqual(status['pending'],1,what)
 
     def test_a_file_becomes_ragss_own_upsert_and_a_delete_its_own_delete(self):
         for i in range(8):self.put(f'k{i}.md','k')
