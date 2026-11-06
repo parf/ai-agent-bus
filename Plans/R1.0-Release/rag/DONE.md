@@ -2,6 +2,13 @@
 
 Completed steps of the [RAG TODO](TODO.md#steps), newest first.
 
+## R.7 Rerank
+
+- **Landed:** `9cc0521e`, fix `66cf5f08`, app **0.4.0**, no shared bump; gate agents-only path green, 2026-11-06.
+- **Built:** `search` with `rerank:true` reorders its candidate window (at most four times `limit`, after the filters) in one paid Voyage rerank call with the new `rerank_model` setting, and adds a `rerank` score. A failed or invalid rerank keeps the unreranked order and answers `reranked:false` with a named `rerank_failure`; without a model the call is refused as `rerank_unavailable` before any paid call. [Guide](../../../docs/agents/rag.md#rerank).
+- **Checks:** fixture-only with a fake rerank provider; no live provider call. 11 mutants killed. W1C's MED (a score too large for a float raised instead of falling back) fixed in `66cf5f08`.
+- **Review:** `#ab-w1c` and `#ab-w2b`.
+
 ## T-43 Namespaces and hybrid search
 
 - **Landed:** `62dd9586` (base `64e168dc`…`273739ef`), app **0.3.0**, no shared bump; gate normal green on rerun, 2026-11-06.

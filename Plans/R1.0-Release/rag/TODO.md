@@ -48,8 +48,8 @@ Blocks first (R.1–R.4), then the app (R.5–R.9).
 
 - ✅ R.6 `#rag` core: CRUD and prompts — app **0.1.0**, shared integration **0.9.132–0.9.133**, source `2960c44b`, reader-mode correction `4c1a31d1`; final normal **1212/0**, check-deploy **6/6**. [Evidence and reviewed plan](DONE.md#r6-core-crud-and-prompts). Live ingestion waits for owner provisioning and provider approval.
 
-- ☐ R.7 `#rag` search
-  - State: keyword search built in 0.9.265 (`bdd10390`); semantic and hybrid (Qdrant RRF) search, namespace-bound filters and citation fields built in app 0.3.0 (`62dd9586`); remaining: rerank. [Keyword](DONE.md#t-25-keyword-search), [namespaces and hybrid](DONE.md#t-43-namespaces-and-hybrid-search)
+- ✅ R.7 `#rag` search
+  - State: keyword search built in 0.9.265 (`bdd10390`); semantic and hybrid (Qdrant RRF) search, namespace-bound filters and citation fields built in app 0.3.0 (`62dd9586`); optional rerank built in app 0.4.0 (`9cc0521e`, `66cf5f08`). [Keyword](DONE.md#t-25-keyword-search), [namespaces and hybrid](DONE.md#t-43-namespaces-and-hybrid-search), [rerank](DONE.md#r7-rerank)
   - Builds: hybrid `search` with filters and optional rerank; the keyword configuration option and default follow [Q194](README.md#rules). R.5 supplies comparison evidence, not the backend choice.
   - Acceptance: on a fixture set, filters hold exactly; a keyword-only match and a meaning-only match both appear; rerank reorders; hits carry the agreed fields
 
