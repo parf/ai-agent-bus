@@ -365,6 +365,10 @@
   > 💬 👤parf (in chat to #ab-ceo, 2026-11-06 ~13:50): provision it; mdhouse controls it, not #ab-ceo: "it should control it; not you - it should have grants"; then chose Maintainer grants over a new mdhouse User
   >
   > 💬👾 → `#rag/mdhouse@parf.us`, a separate instance with its own collection. parf stays Owner (a record can be owned only by a User); mdhouse's control identity (`#cx/mdhouse-cto`, and `#mdhouse@parf.us` once registered) is Maintainer: configuration, access list, subscriptions. #ab-ceo does the one-time registration and token handoff only.
+  >
+  > 💬 👤parf (in chat, 2026-11-06 ~13:55): "same with rag - he owns it; he uses it. for now we are running under same user (because its our local dvp), but in real life scenarios it can be just a user with own server with access to our bus"
+  >
+  > 💬👾 → #rag/mdhouse runs on the user-account runner beside #filescan/mdhouse, as mdhouse's own. The setup is written as an external bus user's steps on its own server; parf does them here only because this node has one account.
 
 <a id="Q355"></a>
 

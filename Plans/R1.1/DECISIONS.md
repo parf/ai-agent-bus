@@ -6,7 +6,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30; the R1 rows are in 
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
-| Q353 mdhouse gets its own `#rag/mdhouse@parf.us`, controlled by mdhouse as Maintainer; parf stays Owner | [resolved](resolved.md#Q353) | Owner, 2026-11-06 |
+| Q353 mdhouse gets its own `#rag/mdhouse@parf.us` on its runner (here the user-account runner), owned and used by mdhouse as an external user would; on this one-account node parf stays Owner and mdhouse is Maintainer | [resolved](resolved.md#Q353) | Owner, 2026-11-06 |
 | Q355 FileScan's first root is `/home/parf/src/mdhouse` for `#filescan/mdhouse` on the user-account runner, controlled by mdhouse as Maintainer | [resolved](resolved.md#Q355) | Owner, 2026-11-06 |
 | Q5 moved to R1.3 | [R1.3 decisions](../R1.3/DECISIONS.md#recorded-decisions) | |
 | Q339 `#imap` keeps the per-delivery subscription check; only `#eventlog` and `#logwatch` check at creation | [resolved](resolved.md#Q339) | Owner, 2026-11-06 |
