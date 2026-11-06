@@ -60,30 +60,36 @@ func newDaemonDispatchWorkers(ctx context.Context, run func(protocol.Envelope), 
 	context.AfterFunc(ctx, func() { d.mu.Lock(); d.changed.Broadcast(); d.mu.Unlock() })
 	return d
 }
-func mutationTarget(e protocol.Envelope) (string, bool) {
+
+// laneOf is the one lane rule, from the parsed call: a write, pull, clean or
+// subscription add is a mutation ordered with its log's other mutations; a
+// subscription delete is ordered with the caller's own; an ask, or anything
+// not an event method, is a health call; every other event call is control.
+func laneOf(e protocol.Envelope, c eventCall) (key string, mutation, health bool) {
 	if e.Ask != "" {
-		return "", false
+		return "", false, true
 	}
-	method := eventMethod(e.Body)
-	if !writeLooking(e.Body) && method != "pull" && method != "clean" {
-		return "", false
+	switch c.Method {
+	case "write", "pull", "clean", "sub.add":
+		if c.Log != "" {
+			key, mutation = c.Log, true
+			if n, err := protocol.ParseName(key); err == nil {
+				key = n.String()
+			}
+		}
+	case "sub.delete":
+		key, mutation = e.From, true
 	}
-	c, _ := parseEventCall(e.Body)
-	key := c.Log
-	if key == "" {
-		key = e.From
-	}
-	if n, err := protocol.ParseName(key); err == nil {
-		key = n.String()
-	}
-	return key, true
+	return key, mutation, !isEventMethod(c.Method) && !mutation
 }
 
 // enqueue is the scheduler-level entry used by component checks. The server
-// enters through dispatchDaemonTask, which checks input and authority first.
+// enters through dispatchDaemonTask, which checks input and authority first;
+// both take the lane from laneOf.
 func (d *daemonDispatch) enqueue(e protocol.Envelope) bool {
-	key, mutation := mutationTarget(e)
-	return d.enqueueAt(e, key, mutation, e.Ask != "" || !isEventMethod(eventMethod(e.Body)) && !mutation)
+	c, _ := scanDaemonInput(e.Body)
+	key, mutation, health := laneOf(e, c)
+	return d.enqueueAt(e, key, mutation, health)
 }
 func (d *daemonDispatch) enqueueAt(e protocol.Envelope, key string, mutation, health bool) bool {
 	if !mutation {

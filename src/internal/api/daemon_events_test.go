@@ -233,7 +233,9 @@ func TestExpiredAndWriteLookingObservationsQueueNoAnswer(t *testing.T) {
 		t.Fatal(err)
 	}
 	b.Restore(snap)
-	for _, body := range []string{"WRITE #a@h notice uppercase", `{"method":"Write","log":"#a@h","level":"notice","text":"upper"}`, `{"method":"write","log":`} {
+	// A write is named exactly: a cut top-level "method":"write" is still a
+	// write and stays silent; a folded case or a nested member is not one.
+	for _, body := range []string{`{"method":"write","log":`, `{"log":"#a@h","method":"write","level":`} {
 		if _, err = b.Send(protocol.Envelope{From: "#a@h", To: core.DaemonAgent, Body: body}); err != nil {
 			t.Fatal(err)
 		}
@@ -254,15 +256,21 @@ func TestExpiredAndWriteLookingObservationsQueueNoAnswer(t *testing.T) {
 	if r.Queued != 0 {
 		t.Fatalf("expired/write-looking answers queued: %d", r.Queued)
 	}
-	unknown, err := b.Send(protocol.Envelope{From: "#a@h", To: core.DaemonAgent, Body: "unrecognized-method"})
-	if err != nil {
-		t.Fatal(err)
+	answered := map[string]string{}
+	for _, body := range []string{"unrecognized-method", "WRITE #a@h notice uppercase", `{"method":"Write","log":"#a@h","level":"notice","text":"upper"}`, `{"x":{"method":"write"}}`} {
+		m, err := b.Send(protocol.Envelope{From: "#a@h", To: core.DaemonAgent, Body: body})
+		if err != nil {
+			t.Fatal(err)
+		}
+		answered[m.ID] = body
 	}
-	answer, err = b.Consume(ctx, "#a@h", "", "", false, false)
-	if err != nil || answer.Re != unknown.ID || !strings.HasPrefix(answer.Body, "error: unknown method") {
-		t.Fatalf("ordinary unknown no-wait verb stopped answering: %+v %v", answer, err)
+	for n := len(answered); n > 0; n-- {
+		answer, err = b.Consume(ctx, "#a@h", "", "", false, false)
+		if _, ok := answered[answer.Re]; err != nil || !ok || !strings.HasPrefix(answer.Body, "error: unknown method") {
+			t.Fatalf("a no-wait call that is not a write got no ordinary answer (left %v): %+v %v", answered, answer, err)
+		}
+		delete(answered, answer.Re)
 	}
-
 }
 
 func TestDaemonPrivateAgentWriteStoresWithoutWideningReplyACL(t *testing.T) {

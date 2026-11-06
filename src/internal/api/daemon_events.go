@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
@@ -29,36 +28,17 @@ const daemonMaxInput = 16384
 
 const eventFilterHelp = "Filter syntax: " + display.SourceURL + "/docs/agents/subscriptions.md#filters"
 
-// Oversized input is never passed to JSON, regexp or an unbounded token scan.
-func shortWriteLooking(body string) bool {
-	prefix := strings.ToLower(strings.TrimSpace(body[:min(len(body), 256)]))
-	fields := strings.Fields(prefix)
-	if len(fields) > 0 && fields[0] == "write" {
-		return true
-	}
-	if strings.HasPrefix(prefix, "{") {
-		if _, rest, ok := strings.Cut(prefix, `"method"`); ok {
-			rest = strings.TrimSpace(rest)
-			if strings.HasPrefix(rest, ":") {
-				return strings.HasPrefix(strings.TrimSpace(rest[1:]), `"write"`)
-			}
-		}
-	}
-	return false
-}
+// eventMethod is the one method rule: lane, write silence and refusal form
+// all read it. JSON names its method in an exact top-level "method" member;
+// text names it in its first word, or "sub" and the next. Case is never folded
+// and a nested member never counts. Oversized input is read only through a
+// 256-byte prefix, never by a full JSON or token scan.
 func eventMethod(body string) string {
 	if len(body) > daemonMaxInput {
-		if shortWriteLooking(body) {
-			return "write"
-		}
-		return ""
+		body = body[:256]
 	}
 	if strings.HasPrefix(strings.TrimSpace(body), "{") {
-		var v struct {
-			Method string `json:"method"`
-		}
-		_ = json.Unmarshal([]byte(body), &v)
-		return v.Method
+		return topMethod(body)
 	}
 	parts := strings.Fields(body)
 	if len(parts) > 1 && parts[0] == "sub" && (parts[1] == "add" || parts[1] == "list" || parts[1] == "delete") {
@@ -70,13 +50,38 @@ func eventMethod(body string) string {
 	return ""
 }
 
-var eventWriteMember = regexp.MustCompile(`(?i)"method"\s*:\s*"write"`)
-
-func writeLooking(body string) bool {
-	if len(body) > daemonMaxInput {
-		return shortWriteLooking(body)
+// topMethod reads the top-level members in order up to the first error, so a
+// cut or malformed object still names the method it began with. A repeated or
+// non-string "method" names none.
+func topMethod(body string) string {
+	d := json.NewDecoder(strings.NewReader(body))
+	if tok, err := d.Token(); err != nil || tok != json.Delim('{') {
+		return ""
 	}
-	return strings.EqualFold(eventMethod(body), "write") || strings.HasPrefix(strings.TrimSpace(body), "{") && eventWriteMember.MatchString(body)
+	method, seen := "", false
+	for d.More() {
+		tok, err := d.Token()
+		key, ok := tok.(string)
+		if err != nil || !ok {
+			break
+		}
+		var v json.RawMessage
+		if d.Decode(&v) != nil {
+			if key == "method" && !seen {
+				// A value cut inside its own string names nothing.
+				return method
+			}
+			break
+		}
+		if key != "method" {
+			continue
+		}
+		if seen || json.Unmarshal(v, &method) != nil {
+			return ""
+		}
+		seen = true
+	}
+	return method
 }
 
 func isEventMethod(method string) bool {
@@ -324,11 +329,7 @@ func (s *Server) eventHelp(caller string) string {
 // behind this guard lets the owning check count full scans, not time a machine.
 func inspectDaemonInput(e protocol.Envelope, scan func(string) (eventCall, error)) (eventCall, error) {
 	if len(e.Body) > daemonMaxInput {
-		c := eventCall{}
-		if shortWriteLooking(e.Body) {
-			c.Method = "write"
-		}
-		return c, eventlog.Error("invalid_request")
+		return eventCall{Method: eventMethod(e.Body)}, eventlog.Error("invalid_request")
 	}
 	if e.Ask != "" {
 		return eventCall{}, nil
@@ -350,33 +351,19 @@ func (s *Server) dispatchDaemonTask(d *daemonDispatch, e protocol.Envelope) bool
 	}
 	// Reject forbidden subjects before they can reserve anybody's lane. This
 	// check does no store I/O; the execution and precommit checks still decide.
-	key := ""
-	mutation := false
 	if e.Ask == "" && isEventMethod(c.Method) && c.Method != "list" && c.Log != "" {
-		_, err = s.bus.EventAdmit(e.From, c.Log, c.Method == "write")
-		if err != nil {
+		if _, err = s.bus.EventAdmit(e.From, c.Log, c.Method == "write"); err != nil {
 			s.replyDaemonTask(e, eventFailure(err, c.Method == "write"))
 			return false
 		}
-		key = c.Log
-		if n, er := protocol.ParseName(key); er == nil {
-			key = n.String()
-		}
-		mutation = c.Method == "write" || c.Method == "pull" || c.Method == "clean" || c.Method == "sub.add"
-	} else if e.Ask == "" && c.Method == "sub.delete" {
-		// A delete is ordered with the caller's own, not with any log's writes.
-		key, mutation = e.From, true
-	} else if e.Ask == "" && writeLooking(e.Body) {
-		key = e.From
-		mutation = true
 	}
-	health := e.Ask != "" || (!isEventMethod(c.Method) && !mutation)
+	key, mutation, health := laneOf(e, c)
 	if d.enqueueAt(e, key, mutation, health) {
 		return true
 	}
 	if c.Method == "write" {
 		s.bus.EventAdmissionDrop(e.From, c.Log)
 	}
-	s.replyDaemonTask(e, eventFailure(eventlog.Error("busy"), writeLooking(e.Body)))
+	s.replyDaemonTask(e, eventFailure(eventlog.Error("busy"), c.Method == "write"))
 	return false
 }

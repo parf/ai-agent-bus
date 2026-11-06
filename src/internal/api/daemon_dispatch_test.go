@@ -586,3 +586,134 @@ func TestDaemonPullAndCleanWaitForTheSameAgentsWrite(t *testing.T) {
 		})
 	}
 }
+
+// A7/D5: the scheduler entry (enqueue) and the server entry (dispatchDaemonTask)
+// take one lane rule. A subscription add waits for its log's write, a delete for
+// the same caller's delete; a body that only resembles a write never takes the
+// sender's mutation lane.
+func TestBothEntriesTakeOneLaneRule(t *testing.T) {
+	type entry func(*Server, *daemonDispatch, protocol.Envelope) bool
+	entries := map[string]entry{
+		"enqueue":  func(_ *Server, d *daemonDispatch, e protocol.Envelope) bool { return d.enqueue(e) },
+		"dispatch": func(s *Server, d *daemonDispatch, e protocol.Envelope) bool { return s.dispatchDaemonTask(d, e) },
+	}
+	setup := func(t *testing.T) *Server {
+		b := core.New()
+		s, _ := serverFor(t, b, "admin@h")
+		b.EstablishDaemonAgent("node.example")
+		for _, name := range []string{"#a@h", "#b@h"} {
+			if _, err := b.Register(protocol.Record{Name: name, Kind: protocol.KindAgent, Owner: "admin@h", Allow: []string{"*"}}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return s
+	}
+	ordered := []struct{ name, heldFrom, held, from, op string }{
+		{"sub add waits for its log's write", "#a@h", "write #a@h notice held", "admin@h", "sub add q@h #a@h"},
+		{"sub delete waits for the caller's delete", "admin@h", "sub delete 000000000001", "admin@h", "sub delete 000000000002"},
+	}
+	for entryName, enter := range entries {
+		for _, tc := range ordered {
+			t.Run(entryName+": "+tc.name, func(t *testing.T) {
+				s := setup(t)
+				ctx, cancel := context.WithCancel(context.Background())
+				heldStarted, heldRelease, heldReturned := make(chan struct{}), make(chan struct{}), make(chan struct{})
+				probeStarted, probeRelease := make(chan struct{}, 2), make(chan struct{})
+				opStarted := make(chan bool, 1)
+				d := newDaemonDispatch(ctx, func(e protocol.Envelope) {
+					switch e.ID {
+					case "held":
+						close(heldStarted)
+						<-heldRelease
+						close(heldReturned)
+					case "probe":
+						probeStarted <- struct{}{}
+						<-probeRelease
+					case "op":
+						select {
+						case <-heldReturned:
+							opStarted <- false
+						default:
+							opStarted <- true
+						}
+					}
+				})
+				var once sync.Once
+				defer func() { once.Do(func() { close(heldRelease) }); close(probeRelease); cancel(); d.wg.Wait() }()
+				if !enter(s, d, protocol.Envelope{ID: "held", From: tc.heldFrom, Body: tc.held}) {
+					t.Fatal("held mutation refused")
+				}
+				select {
+				case <-heldStarted:
+				case <-time.After(time.Second):
+					t.Fatal("held mutation never started")
+				}
+				if !enter(s, d, protocol.Envelope{ID: "op", From: tc.from, Body: tc.op}) {
+					t.Fatal("operation refused")
+				}
+				// Both control workers take a held probe. Had the operation been put on
+				// that FIFO lane, it has returned before the second probe can start.
+				for range 2 {
+					if !enter(s, d, protocol.Envelope{ID: "probe", From: "admin@h", Body: "read #b@h"}) {
+						t.Fatal("probe refused")
+					}
+				}
+				for range 2 {
+					select {
+					case <-probeStarted:
+					case <-time.After(time.Second):
+						t.Fatal("both probes did not start")
+					}
+				}
+				select {
+				case <-opStarted:
+					t.Fatalf("%q ran on the control lane, not behind %q", tc.op, tc.held)
+				default:
+				}
+				once.Do(func() { close(heldRelease) })
+				select {
+				case overlap := <-opStarted:
+					if overlap {
+						t.Fatalf("%q overlapped %q", tc.op, tc.held)
+					}
+				case <-time.After(time.Second):
+					t.Fatalf("%q never ran", tc.op)
+				}
+			})
+		}
+		for _, body := range []string{"WRITE #a@h notice upper", `{"method":"Write","log":"#a@h","level":"notice","text":"upper"}`, `{"x":{"method":"write"}}`} {
+			t.Run(entryName+": not a write: "+body, func(t *testing.T) {
+				s := setup(t)
+				ctx, cancel := context.WithCancel(context.Background())
+				heldStarted, heldRelease := make(chan struct{}), make(chan struct{})
+				opStarted := make(chan struct{}, 1)
+				d := newDaemonDispatch(ctx, func(e protocol.Envelope) {
+					switch e.ID {
+					case "held":
+						close(heldStarted)
+						<-heldRelease
+					case "op":
+						opStarted <- struct{}{}
+					}
+				})
+				defer func() { close(heldRelease); cancel(); d.wg.Wait() }()
+				if !enter(s, d, protocol.Envelope{ID: "held", From: "#a@h", Body: "write #a@h notice held"}) {
+					t.Fatal("held write refused")
+				}
+				select {
+				case <-heldStarted:
+				case <-time.After(time.Second):
+					t.Fatal("held write never started")
+				}
+				if !enter(s, d, protocol.Envelope{ID: "op", From: "#a@h", Body: body}) {
+					t.Fatal("operation refused")
+				}
+				select {
+				case <-opStarted:
+				case <-time.After(time.Second):
+					t.Fatalf("%q waited behind the sender's write: it took a mutation lane", body)
+				}
+			})
+		}
+	}
+}

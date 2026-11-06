@@ -55,7 +55,7 @@ func (s *Server) runDaemonTask(e protocol.Envelope) {
 }
 func (s *Server) replyDaemonTask(e protocol.Envelope, body string) {
 	// Plain writes are observations, never fresh input for the sender's process.
-	if e.Ask == "" && writeLooking(e.Body) && (e.Wait == "" || (!e.Deadline.IsZero() && !time.Now().Before(e.Deadline))) {
+	if e.Ask == "" && eventMethod(e.Body) == "write" && (e.Wait == "" || (!e.Deadline.IsZero() && !time.Now().Before(e.Deadline))) {
 		return
 	}
 	back := protocol.ReplyTo{Name: e.From, Topic: e.Topic, Tag: e.Tag}
