@@ -109,6 +109,10 @@ def plan(root, mode, targets='', paths=None):
     if any(level in ('normal','slow') for check,level in levels.items() if check.startswith('core_')):
         for check in levels:
             if check.startswith('core_') and levels[check] == 'skip': levels[check] = 'fast'
+    # Release packaging runs only in the release run (CLAUDE.md § verification).
+    if not (mode == 'slow' and targets == 'all'):
+        for check in config.get('release', {}):
+            levels[check] = 'skip'
     return {'paths': paths, 'fallback': fallback, 'modes': modes, 'reasons': why, 'checks': levels, 'agents_only': agents_only}
 
 

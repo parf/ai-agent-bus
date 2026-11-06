@@ -134,17 +134,33 @@ class Selection(unittest.TestCase):
         self.assertEqual(p['checks']['agent_telegram'], 'normal')
 
     def test_container_image_is_its_own_subsystem(self):
+        # The image is release packaging; its stubbed tests are in the go_checks fast allowlist.
         p = self.plan(['src/container/Containerfile'])
         self.assertEqual({c for c, m in p['modes'].items() if m != 'fast'}, {'Q'})
-        self.assertEqual({c for c, l in p['checks'].items() if l == 'normal'}, {'container_image'})
-        self.assertEqual(self.plan([], 'normal', 'Q')['checks']['container_image'], 'normal')
+        self.assertEqual({c for c, l in p['checks'].items() if l == 'normal'}, set())
+        self.assertEqual(p['checks']['go_checks'], 'fast')
+        self.assertEqual(self.plan([], 'normal', 'Q')['checks']['container_image'], 'skip')
+        self.assertEqual(self.plan([], 'slow', 'all')['checks']['container_image'], 'slow')
 
-    def test_distro_install_runs_only_in_the_slow_set_for_its_paths(self):
-        for path in ['install.sh', 'src/acceptance/distro/in-container.sh', 'src/cmd/agent-bus-setup/upgrade.go']:
-            self.assertEqual(self.plan([path], 'slow')['checks']['distro_install'], 'slow', path)
-            self.assertEqual(self.plan([path], 'fast')['checks']['distro_install'], 'skip', path)
-        self.assertEqual(self.plan(['src/agents/telegram/receive.ts'], 'slow')['checks']['distro_install'], 'skip')
-        self.assertEqual(self.plan([], 'slow', 'all')['checks']['distro_install'], 'slow')
+    def test_release_packaging_runs_only_in_the_release_run(self):
+        # Owner, 2026-11-06: "no release bundles until the release".
+        config = json.loads((ROOT/'src/smoke-map.json').read_text())
+        self.assertEqual(set(config['release']), {'go_release', 'container_image', 'distro_install'})
+        for name in config['release']:
+            self.assertNotIn(name, config['fast'])
+        paths = ['install.sh', 'src/acceptance/distro/in-container.sh', 'src/cmd/agent-bus-setup/upgrade.go',
+                 'src/build.sh', 'src/package.sh', 'src/container/Containerfile', 'src/smoke.sh']
+        for path in paths:
+            for mode in ('fast', 'normal', 'slow'):
+                with self.subTest(path=path, mode=mode):
+                    checks = self.plan([path], mode)['checks']
+                    self.assertEqual({checks[n] for n in config['release']}, {'skip'})
+        for mode in ('fast', 'normal', 'slow'):
+            for target in selector.ALL:
+                checks = self.plan([], mode, target)['checks']
+                self.assertEqual({checks[n] for n in config['release']}, {'skip'}, (mode, target))
+        checks = self.plan([], 'slow', 'all')['checks']
+        self.assertEqual({checks[n] for n in config['release']}, {'slow'})
 
     def test_agent_guide_shard_is_selected_with_a_named_reason_for_each_of_its_paths(self):
         # One shard runs every guide example (src/acceptance/agent-guide); each owner of what it exercises selects it.
@@ -171,7 +187,8 @@ class Selection(unittest.TestCase):
         # The subsystem table is the selector's own input, so a change to it can move any selection.
         for path in ['src/smoke.sh', 'src/go.mod', 'src/web/bun.lock', 'new-unknown-file', 'Plans/subsystems.md']:
             p = self.plan([path])
-            self.assertEqual(set(p['checks'].values()), {'normal'}, path)
+            config = json.loads((ROOT/'src/smoke-map.json').read_text())
+            self.assertEqual({check for check, level in p['checks'].items() if level != 'normal'}, set(config['release']), path)
 
     def test_a_linked_node_modules_is_not_a_change(self):
         # Every worktree links node_modules from the main checkout. A symlink is a file to git, so
@@ -221,7 +238,7 @@ class Selection(unittest.TestCase):
         p = self.plan(['src/smoke.sh'], 'fast')
         self.assertEqual({check for check,level in p['checks'].items() if level != 'skip'},set(config['fast']))
         p = self.plan(['src/smoke.sh'])
-        self.assertEqual(set(p['checks'].values()),{'normal'})
+        self.assertEqual({check for check,level in p['checks'].items() if level != 'normal'},set(config['release']))
 
     def test_split_go_checks_keep_the_original_selection_for_every_subsystem(self):
         for mode in ('fast', 'normal', 'slow'):
@@ -229,10 +246,10 @@ class Selection(unittest.TestCase):
                 with self.subTest(mode=mode, target=target):
                     selected = self.plan([], mode, target)['checks']
                     self.assertEqual(selected['go_unit'], selected['go_checks'])
-                    self.assertEqual(selected['go_release'], selected['go_checks'])
+                    self.assertEqual(selected['go_release'], 'skip')
         for paths in (['src/npm/pack.py'], ['src/internal/core/core.go'], ['src/smoke.sh']):
             selected = self.plan(paths)['checks']
-            self.assertEqual([selected[n] for n in ('go_checks', 'go_unit', 'go_release')], ['normal'] * 3)
+            self.assertEqual([selected[n] for n in ('go_checks', 'go_unit', 'go_release')], ['normal', 'normal', 'skip'])
 
     def test_daemon_api_doc_selects_the_go_route_contract(self):
         # api/route_contract_test.go reads docs/09-daemon-api.md; an edit there ran no Go test (J111).

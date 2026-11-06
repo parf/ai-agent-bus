@@ -489,6 +489,11 @@
       ]
     }
   },
+  "release": {
+    "go_release": "release packaging: package.sh host and client archives, release-verify.real.test.sh, the npm tarballs, the GOOS=darwin cross-builds and package-darwin.test.sh; only the release run (--slow all) builds release bundles (owner, 2026-11-06)",
+    "container_image": "release packaging: package.sh plus a podman image build and acceptance; only the release run (--slow all); its stubbed entry point, label and checksum tests run in go_checks (owner, 2026-11-06)",
+    "distro_install": "release packaging: installs from the release archive in three distro containers; only the release run (--slow all), even when src/build.sh or src/package.sh change (owner, 2026-11-06)"
+  },
   "fast": {
     "go_checks": [
       {
@@ -624,6 +629,31 @@
           "-p",
           "docs_order_test.py",
           "-v"
+        ]
+      },
+      {
+        "argv": [
+          "bash",
+          "release-verify.test.sh"
+        ]
+      },
+      {
+        "argv": [
+          "bash",
+          "container/entrypoint_test.sh"
+        ]
+      },
+      {
+        "argv": [
+          "bash",
+          "container/labels_test.sh"
+        ]
+      },
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "container/checksum_test.py"
         ]
       }
     ],
@@ -1254,41 +1284,12 @@
         ]
       }
     ],
-    "go_release": [
-      {
-        "argv": [
-          "bash",
-          "release-verify.test.sh"
-        ]
-      }
-    ],
     "agent_guide": [
       {
         "argv": [
           "bash",
           "acceptance/agent-guide/guide.sh",
           "fast"
-        ]
-      }
-    ],
-    "container_image": [
-      {
-        "argv": [
-          "bash",
-          "container/entrypoint_test.sh"
-        ]
-      },
-      {
-        "argv": [
-          "bash",
-          "container/labels_test.sh"
-        ]
-      },
-      {
-        "argv": [
-          "python3",
-          "-B",
-          "container/checksum_test.py"
         ]
       }
     ]
