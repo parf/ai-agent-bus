@@ -58,20 +58,24 @@ export function absence(state: Absence, live: number, now: number, limit = FACE_
   return "alarm";
 }
 
-/** Faces still running, and faces that died without being let go. A pid that
- *  is alive but started at another time than its mark says was reused by
- *  another process, so that face is gone too. Lost marks are removed, so each
- *  loss is reported once. */
-export function faceMarks(runDir: string): { live: number; lost: number } {
+/** Faces still running, and faces that died without being let go. Lost marks
+ *  are removed, so each loss is reported once. A pid that is alive but started
+ *  at another time than its mark says was reused, so that face is not live; its
+ *  mark is left alone, because a new face under the same pid may be rewriting
+ *  it right now, and the absence watch reports the gap. */
+export function faceMarks(runDir: string, read = (path: string) => readFileSync(path, "utf8")): { live: number; lost: number } {
   let live = 0, lost = 0;
   let names: string[] = [];
   try { names = readdirSync(runDir); } catch { return { live, lost }; }
   for (const name of names) {
     const pid = Number(name.match(MARK)?.[1] ?? 0);
     if (!pid) continue;
-    let written: string;
-    try { written = readFileSync(join(runDir, name), "utf8").trim(); } catch { continue; } // let go meanwhile
-    if (alive(pid) && written === startTime(pid)) { live++; continue; }
+    if (alive(pid)) {
+      let written: string;
+      try { written = read(join(runDir, name)).trim(); } catch { continue; } // let go meanwhile
+      if (written === startTime(pid)) live++;
+      continue;
+    }
     lost++;
     rmSync(join(runDir, name), { force: true });
   }

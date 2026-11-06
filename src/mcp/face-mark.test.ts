@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { absence, alive, faceEvent, faceMarks, markFace, holders, evict, startTime, FACE_ABSENT_MS, type Absence } from "./face-mark.ts";
 
@@ -140,19 +140,33 @@ test("a face that was let go cleanly is silent to faceEvent, which is why absenc
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("a mark whose pid now belongs to another process is a lost face, so absence still alarms", () => {
+test("a mark whose pid now belongs to another process is not a live face, so absence still alarms", () => {
   const dir = scratch();
   try {
     // This process is alive, but the mark says it started at another time: its pid was reused.
     const actual = startTime(process.pid);
-    expect(actual).not.toBe("");
+    if (!actual) return; // no /proc: kill(0) alone is the answer, and a reused pid cannot be told
     writeFileSync(join(dir, `face-${process.pid}`), actual === "1" ? "2" : "1");
     const marks = faceMarks(dir);
-    expect(marks).toEqual({ live: 0, lost: 1 });
-    expect(existsSync(join(dir, `face-${process.pid}`))).toBe(false);
+    expect(marks).toEqual({ live: 0, lost: 0 });
     expect(absence({ since: 0, alarmed: false }, marks.live, FACE_ABSENT_MS)).toBe("alarm");
     // The same pid with its own start time is the live face.
     writeFileSync(join(dir, `face-${process.pid}`), actual);
+    expect(faceMarks(dir)).toEqual({ live: 1, lost: 0 });
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("a stale mark is never removed, so a new face rewriting it under the same pid keeps its mark", () => {
+  const dir = scratch();
+  try {
+    const actual = startTime(process.pid);
+    if (!actual) return;
+    const mark = join(dir, `face-${process.pid}`);
+    writeFileSync(mark, actual === "1" ? "2" : "1");
+    // The new face writes its mark just after this watch read the stale one.
+    const read = (path: string) => { const stale = readFileSync(path, "utf8"); writeFileSync(path, actual); return stale; };
+    expect(faceMarks(dir, read)).toEqual({ live: 0, lost: 0 });
+    expect(existsSync(mark)).toBe(true);
     expect(faceMarks(dir)).toEqual({ live: 1, lost: 0 });
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
