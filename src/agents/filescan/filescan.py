@@ -111,6 +111,8 @@ def selector(value):
 
 RAG_TEXT=32*1024
 BIGFILE_MAX=32<<20   # the bus's own limit for one bigfile
+HINT_TTL=600.0   # seconds a paired rename waits for its new file to be taken in
+HINT_MAX=8192
 UPSERT_ECHO=('namespace','tableName','id','source','content_hash')   # what a RAG upsert's answer must repeat from the call
 RAG_SOURCE=2048   # RAG's own limit on `source`, in UTF-8 bytes
 
@@ -159,7 +161,7 @@ class FileScan:
         self.subs=core.SyncSubscriptions(bus,bus.name,self.state,validate_selector=selector,agent_contract=lambda sel:bool(sel.get('rag')),clock=clock)
         self.lock=threading.Lock()
         self.matched={};self.skipped={}
-        self.watcher=None;self._uploaded=[];self.fallback=None;self._sent_delete=False;self._sent_upsert=None
+        self.watcher=None;self._uploaded=[];self.hints={};self.fallback=None;self._sent_delete=False;self._sent_upsert=None
         try:self.state.clean_temporaries()
         except core.SyncError:pass
 
@@ -208,6 +210,7 @@ class FileScan:
                 raise Paused(why)
             if paths is None:plan=scanning.poll(state['items'],self.root,self.settings,now=self.clock())
             else:plan=scanning.poll_paths(state['items'],self.root,self.settings,paths,now=self.clock())
+            self._attach_renames(state['items'],plan)
             hold_reason=None if confirm else self.guard(state,plan)
             if hold_reason:
                 meta['paused']={'kind':hold_reason[0],'reason':hold_reason[1],'at':self.clock()};self.warning('guard_paused')
@@ -224,6 +227,26 @@ class FileScan:
         return {'seen':plan['seen'],'created_or_changed':len(plan['upserts']),'deleted':0 if hold_reason else len(plan['deletes']),
                 'held':hold_reason[1] if hold_reason else None,'skipped':len(plan['skipped']),'capped':plan['capped']}
 
+    def _attach_renames(self,items,plan):
+        """Name the old path on a file the watch saw renamed here: a create whose old path the watch paired with it by cookie.
+
+        The hint is only a hint: it is used for a file that is new to the items, and the delivery fuses it with the old path's
+        delete only where that delete is still pending, so a stale one names nothing. Hints age out."""
+        now=self.clock()
+        if self.watcher:
+            for new,old in self.watcher.take_moves().items():self.hints[new]=(old,now)
+        for key in [k for k,(_,t) in self.hints.items() if now-t>HINT_TTL]:del self.hints[key]
+        if len(self.hints)>HINT_MAX:self.hints.clear()
+        for key in plan['deletes']:self.hints.pop(key,None)
+        for key,record in plan['upserts'].items():
+            if key in items:continue
+            old=self.hints.pop(key,(None,0))[0]
+            if old is None:
+                for prefix,(origin,_) in self.hints.items():
+                    if prefix.endswith('/') and key.startswith(prefix):old=origin+key[len(prefix):];break
+            if old and old!=key and not old.endswith('/'):record['from']=old
+        plan['renamed']={r['from'] for r in plan['upserts'].values() if r.get('from')}&set(plan['deletes'])
+
     def guard(self,state,plan):
         """(kind, reason) when this pass must not send deletes: an unreadable or emptied directory, or too many deletes."""
         tracked=len(state['items'])
@@ -231,7 +254,7 @@ class FileScan:
             return 'unreadable',f"the directory cannot be read (errno {plan['unreadable_root']}); is it mounted? scan confirm:true after checking"
         if tracked and plan['seen']==0 and plan['deletes']:
             return 'empty',f"the directory is empty but {tracked} files were tracked; scan confirm:true after checking the folder"
-        n=len(plan['deletes'])
+        n=len([k for k in plan['deletes'] if k not in plan.get('renamed',())])   # a file renamed away is moved, not removed
         if n>self.settings['delete_max'] or tracked and n*100>tracked*self.settings['delete_pct']:
             return 'deletes',f"one pass would delete {n} of {tracked} tracked files (limits {self.settings['delete_pct']} % and {self.settings['delete_max']}); scan confirm:true after checking the folder"
         return None
@@ -239,7 +262,8 @@ class FileScan:
     def deliver(self):
         def matches(row,key):return self._wanted(row,key)
         def body(row,key,action,record):return self._body(row,key,action,record)
-        return core.deliver(self.bus,self.bus.name,self.state,matches=matches,body=body,topic='filescan',tag='change',batch=self.settings['batch'],warning=lambda code,sub=None:self.warning(code,sub),ok=self._confirm,agent_contract=lambda row:bool(row['selector'].get('rag')))
+        def rename(row):return not row['selector'].get('rag')   # RAG has no rename: its rows keep delete then upsert (Q305)
+        return core.deliver(self.bus,self.bus.name,self.state,matches=matches,body=body,topic='filescan',tag='change',batch=self.settings['batch'],warning=lambda code,sub=None:self.warning(code,sub),ok=self._confirm,agent_contract=lambda row:bool(row['selector'].get('rag')),rename=rename)
 
     def _confirm(self,result):
         """The target's reply counts as confirmed only when it shows the job done. A RAG upsert answers with the stored record: it counts
@@ -307,8 +331,9 @@ class FileScan:
     def _body(self,row,key,action,record):
         self._sent_delete=False;self._sent_upsert=None
         if row['selector'].get('rag'):return self._rag_body(row,key,action,record)
-        change={'create':'created','change':'changed','delete':'deleted'}[action]
+        change={'create':'created','change':'changed','delete':'deleted','rename':'renamed'}[action]
         message={'change':change,'path':key,'warning':WARNING}
+        if action=='rename':message['old_path']=record['from']
         if action!='delete':
             try:sha,size,text=scanning.digest(self.root,key,self.settings['max_file_size'])
             except OSError:sha,size,text=record['fp'],record['size'],None

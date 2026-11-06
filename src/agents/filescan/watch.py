@@ -20,6 +20,7 @@ IN_Q_OVERFLOW=0x4000;IN_IGNORED=0x8000;IN_ISDIR=0x40000000;IN_ONLYDIR=0x1000000;
 IN_NONBLOCK=0o4000;IN_CLOEXEC=0o2000000
 MASK=IN_CLOSE_WRITE|IN_MOVED_FROM|IN_MOVED_TO|IN_CREATE|IN_DELETE|IN_DELETE_SELF|IN_MOVE_SELF|IN_ONLYDIR|IN_DONT_FOLLOW|IN_EXCL_UNLINK
 HEADER=struct.Struct('iIII')
+MOVES_MAX=4096   # renames remembered between two looks; the oldest goes first, and a missing pair is only a delete and a create
 
 
 class Unavailable(OSError):
@@ -52,6 +53,7 @@ class Watcher:
             e=ctypes.get_errno();raise Unavailable(e,os.strerror(e))
         self.fd=fd;self.wd={};self.by_path={};self.unwatched=0;self.limit_hit=False
         self._stop=threading.Event();self._thread=None;self._wake=os.pipe()
+        self._halves={};self._moves={};self._moves_lock=threading.Lock()   # a rename's two halves share a cookie
         for r in self._wake:os.set_blocking(r,False)
 
     def start(self):
@@ -71,6 +73,13 @@ class Watcher:
         return done
 
     def excluded(self,rel):return scan.excluded(rel,self.exclude)
+
+    def take_moves(self):
+        """The renames seen since the last call, {new path: old path}; a directory pair is `new/` to `old/`. A rename counts only
+        when both halves arrived in one quiet batch, in one watch of this tree: a lone half is a delete or a create as ever."""
+        with self._moves_lock:
+            moves,self._moves=self._moves,{}
+        return moves
 
     def add_tree(self,rel):
         """Watch `rel` (a directory) and below, then return the files in it, as relative paths.
@@ -114,7 +123,7 @@ class Watcher:
                 o=self._parse(data,dirty);overflow=overflow or o
                 if data:last=time.monotonic()
             if last is not None and time.monotonic()>=last+self.quiet:
-                batch,over=sorted(dirty),overflow;dirty=set();overflow=False;last=None
+                batch,over=sorted(dirty),overflow;dirty=set();overflow=False;last=None;self._halves.clear()
                 try:self.on_events(batch,over)
                 except Exception:pass
 
@@ -126,6 +135,14 @@ class Watcher:
             rel=self.wd.get(wd)
             if rel is None:continue
             child=(rel+'/' if rel else '')+os.fsdecode(name) if name else rel
+            if cookie and name and mask&(IN_MOVED_FROM|IN_MOVED_TO):
+                suffix='/' if mask&IN_ISDIR else ''
+                if mask&IN_MOVED_FROM:self._halves[cookie]=child+suffix
+                elif cookie in self._halves:
+                    old=self._halves.pop(cookie)
+                    with self._moves_lock:
+                        if len(self._moves)>=MOVES_MAX:self._moves.pop(next(iter(self._moves)))
+                        self._moves[child+suffix]=old
             if mask&IN_ISDIR and name:
                 if self.excluded(child):continue
                 if mask&(IN_CREATE|IN_MOVED_TO):

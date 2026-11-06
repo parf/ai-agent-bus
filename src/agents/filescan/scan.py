@@ -165,6 +165,7 @@ def _consider(items,root,settings,now,hasher,plan,rel,st,taken):
     except OSError:
         plan['skipped'].append((rel,'unreadable'));return taken
     record={'fp':sha,'size':size,'mtime_ns':st.st_mtime_ns}
+    if item and item.get('from'):record['from']=item['from']   # the rename this file came from stays until it is delivered
     if item and item['fp']==sha:
         plan['refresh'][rel]=record;return taken
     plan['upserts'][rel]=record

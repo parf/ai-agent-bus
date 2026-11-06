@@ -15,6 +15,7 @@ import settings as cfg
 import watch
 import test_filescan as base
 import filescan as fs
+from test_filescan import RagBus
 
 
 def eventually(check,seconds=3.0):
@@ -268,6 +269,94 @@ class AgentWatchTests(base.Base):
 
     def test_a_full_watch_needs_no_timer(self):
         self.watch_agent({'mode':'watch'});self.assertFalse(self.agent.needs_timer())
+
+
+class RenameWatchTests(AgentWatchTests):
+    """A rename inside the tree is ONE `renamed` change, paired by the kernel's cookie; every test counts the changes exactly."""
+    def setUp(self):
+        super().setUp();self.out=tempfile.TemporaryDirectory();self.addCleanup(self.out.cleanup);self.outside=os.path.realpath(self.out.name)
+
+    def start(self,files,mode='watch',target_extra='',config=None):
+        for i in range(12):self.put(f'fill{i}.md',str(i))   # enough files that one rename is not a mass delete
+        for name,text in files.items():self.put(name,text)
+        self.agent=self.make({'batch':500});self.add(extra=target_extra);self.agent.tick();self.bus.sent.clear()
+        self.watch_agent(dict({'mode':mode,'batch':500},**(config or {})))
+
+    def changes(self):
+        import json
+        return [(m['change'],m['path'],m.get('old_path')) for m in (json.loads(b) for _,b,_ in self.bus.sent)]
+
+    def settle(self,count,seconds=3.0):
+        self.assertTrue(eventually(lambda:len(self.bus.sent)>=count,seconds),self.changes());time.sleep(0.4)   # then no stray extra
+
+    def r(self,old,new):os.rename(Path(self.root)/old,Path(self.root)/new)
+
+    def test_a_rename_in_one_directory_is_one_renamed_change(self):
+        self.start({'a.md':'text'});self.r('a.md','b.md');self.settle(1)
+        self.assertEqual(self.changes(),[('renamed','b.md','a.md')],'one change: no stray delete or create')
+        import json;m=json.loads(self.bus.sent[0][1]);self.assertEqual((m['size'],m['text']),(4,'text'))
+        marks=self.agent.state.load()['marks'][next(iter(self.agent.state.load()['subs']))]
+        self.assertIn('b.md',marks);self.assertNotIn('a.md',marks)
+
+    def test_a_rename_across_directories_is_one_renamed_change(self):
+        self.start({'d1/a.md':'x','d2/keep.md':'k'});self.r('d1/a.md','d2/b.md');self.settle(1)
+        self.assertEqual(self.changes(),[('renamed','d2/b.md','d1/a.md')])
+
+    def test_a_directory_rename_is_one_renamed_change_per_file(self):
+        self.start({'old/a.md':'1','old/sub/b.md':'2'});self.r('old','new');self.settle(2)
+        self.assertEqual(sorted(self.changes()),[('renamed','new/a.md','old/a.md'),('renamed','new/sub/b.md','old/sub/b.md')])
+
+    def test_renaming_many_files_at_once_is_not_a_mass_delete(self):
+        self.start({f'big/f{i}.md':str(i) for i in range(30)});self.r('big','moved');self.settle(30,6.0)
+        self.assertEqual(len([c for c in self.changes() if c[0]=='renamed']),30);self.assertEqual(len(self.changes()),30)
+        self.assertIsNone(self.agent.status()['paused'],'files moved away are not deletes to the guard')
+
+    def test_a_move_out_of_the_tree_is_a_delete_and_a_move_in_is_a_create(self):
+        self.start({'a.md':'x'});os.rename(Path(self.root)/'a.md',Path(self.outside)/'a.md');self.settle(1)
+        self.assertEqual(self.changes(),[('deleted','a.md',None)])
+        self.bus.sent.clear();os.rename(Path(self.outside)/'a.md',Path(self.root)/'in.md');self.settle(1)
+        self.assertEqual(self.changes(),[('created','in.md',None)])
+
+    def test_an_unpaired_half_stays_a_delete_or_a_create(self):
+        self.start({'a.md':'x'});self.agent.watcher._halves[7]='ghost.md'   # a from-half whose partner never came
+        self.r('a.md','b.md');self.settle(1);self.assertEqual(self.changes(),[('renamed','b.md','a.md')])
+        self.assertEqual(self.agent.watcher.take_moves(),{},'taken once')
+
+    def test_a_write_right_after_the_rename_is_one_renamed_change_carrying_the_new_content(self):
+        import hashlib,json
+        self.start({'a.md':'old'});self.r('a.md','b.md');(Path(self.root)/'b.md').write_text('brand new');self.settle(1)
+        self.assertEqual(self.changes(),[('renamed','b.md','a.md')]);m=json.loads(self.bus.sent[0][1])
+        self.assertEqual((m['sha256'],m['text']),(hashlib.sha256(b'brand new').hexdigest(),'brand new'))
+
+    def test_a_write_after_the_rename_was_delivered_is_a_changed(self):
+        self.start({'a.md':'old'});self.r('a.md','b.md');self.settle(1);(Path(self.root)/'b.md').write_text('later');self.settle(2)
+        self.assertEqual(self.changes(),[('renamed','b.md','a.md'),('changed','b.md',None)])
+
+    def test_poll_mode_has_no_cookie_so_a_rename_is_a_delete_and_a_create(self):
+        [self.put(f'fill{i}.md',str(i)) for i in range(12)];self.put('a.md','x')
+        self.agent=self.make({'mode':'poll'});self.add();self.agent.tick();self.bus.sent.clear()
+        self.r('a.md','b.md');self.agent.tick();self.assertEqual(sorted(self.changes()),[('created','b.md',None),('deleted','a.md',None)])
+
+    def test_a_filter_matching_one_side_sends_that_side_alone(self):
+        self.start({'a.md':'x'},target_extra=r'/^a/');self.r('a.md','b.md');self.settle(1)
+        self.assertEqual(self.changes(),[('deleted','a.md',None)],'only the old path matches')
+        self.agent.stop_watch();self.bus.sent.clear();self.put('c.md','y');self.agent.tick();self.bus.sent.clear()
+        self.agent=self.make({'mode':'watch'});self.add('#q2@n.test',extra=r'/^z/');self.agent.tick();self.bus.sent.clear()
+        self.watch_agent({'mode':'watch'});self.r('c.md','z.md');self.settle(1)
+        self.assertEqual([c for c in self.changes() if c[1]=='z.md'],[('created','z.md',None)],'only the new path matches')
+
+    def test_a_rename_refused_by_the_target_is_sent_again_as_a_rename(self):
+        self.start({'a.md':'x'});self.bus.send_refused.add('#q@n.test');self.r('a.md','b.md')
+        self.assertTrue(eventually(lambda:self.agent.state.load()['items'].get('b.md',{}).get('from')=='a.md'));time.sleep(0.3)
+        self.assertEqual(self.changes(),[]);self.bus.send_refused.clear();self.agent.tick();self.agent._round()
+        self.assertEqual(self.changes(),[('renamed','b.md','a.md')],'the stored marks still held a.md, so it came back as the rename')
+
+    def test_rag_has_no_rename_so_its_rows_keep_delete_then_upsert(self):
+        self.bus=RagBus();self.agent=self.make({'mode':'watch'});self.put('a.md','text');self.bus.kinds[base.RAG]='agent'
+        self.add(base.RAG,extra='as rag vault notes');self.agent.tick();self.bus.calls.clear()
+        self.watch_agent({'mode':'watch'});self.r('a.md','b.md');self.assertTrue(eventually(lambda:len(self.bus.calls)>=2,3.0));time.sleep(0.4)
+        import json;calls=[json.loads(b) for _,b,_ in self.bus.calls]
+        self.assertEqual([(c['method'],c['id']) for c in calls],[('delete','a.md'),('upsert','b.md')])
 
 
 def json_path(body):
