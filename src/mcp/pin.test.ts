@@ -16,6 +16,11 @@ describe("pin comparison", () => {
 
 // A real TLS port with a self-signed certificate: a pinned Bus reaches it, a
 // wrong pin and no pin are both refused, and nothing retries over plain HTTP.
+// A daemon that passes the handshake (the current protocol on /identity), so that what refuses a call
+// in these tests is the pin and nothing else.
+const daemon = (you: string) => (req: Request) =>
+  new URL(req.url).pathname === "/identity" ? Response.json({ protocol: 1, protocol_min: 1 }) : Response.json({ you });
+
 describe("an https:// daemon", () => {
   let dir = "", server: ReturnType<typeof Bun.serve>, pin = "";
   beforeAll(() => {
@@ -28,7 +33,7 @@ describe("an https:// daemon", () => {
     server = Bun.serve({
       hostname: "127.0.0.1", port: 0,
       tls: { cert: Bun.file(join(dir, "cert.pem")), key: Bun.file(join(dir, "key.pem")) },
-      fetch: () => Response.json({ you: "#pinned@test" }),
+      fetch: daemon("#pinned@test"),
     });
     const der = Bun.spawnSync(["openssl", "x509", "-in", join(dir, "cert.pem"), "-outform", "DER"]).stdout;
     pin = fingerprint(der);
@@ -43,7 +48,7 @@ describe("an https:// daemon", () => {
     await expect(bus("sha256:" + "0".repeat(64)).status()).rejects.toThrow("not the pinned");
   });
   test("no pin trusts nothing self-signed", async () => {
-    await expect(bus().status()).rejects.toThrow();
+    await expect(bus().status()).rejects.toThrow("self signed certificate");
   });
   // The checked certificate, not the first connection, is what every call
   // trusts: once another certificate answers on that port — a relay that
@@ -59,8 +64,9 @@ describe("an https:// daemon", () => {
     server = Bun.serve({
       hostname: "127.0.0.1", port,
       tls: { cert: Bun.file(join(dir, "cert2.pem")), key: Bun.file(join(dir, "key2.pem")) },
-      fetch: () => Response.json({ you: "#impostor@test" }),
+      fetch: daemon("#impostor@test"),
     });
-    await expect(b.status()).rejects.toThrow();
+    // The certificate itself is what refuses it (the impostor answers a valid handshake): not a protocol error.
+    await expect(b.status()).rejects.toThrow("self signed certificate");
   });
 });
