@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/changelogs/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.51 — 2026-11-06
+
+Agents only: FileScan on-demand sync and large files sent to RAG by bigfile; RAG app 0.4.2 indexes Markdown over 32 KiB in chunks with a completeness check (T-48)
+
 ## 1.0.50 — 2026-11-06
 
 #bus answers any asker; any other answer needs the asker's Allow (Q323, J84); RAG 0.4.1 adds count, similar, complete and classify; release packaging leaves the everyday gates.

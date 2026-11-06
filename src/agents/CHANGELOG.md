@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes to the bundled agents in `src/agents/`, newest first.
 The pack has its own SemVer in `src/agents/VERSION`, separate from the bus version.
 
+## 1.0.3 — 2026-11-06
+
+FileScan: finite on-demand `sync` (bounded, resumable, removes files gone from the folder) and `as rag` large files by bigfile reference; RAG 0.4.2: chunked large-file upsert, completeness `check` (T-48)
+
 ## 1.0.2 — 2026-11-06
 
 RAG 0.4.1: count, similar, complete (prefix index via keyword_index) and classify (off unless configured); agent method sets come from each agent.json.
