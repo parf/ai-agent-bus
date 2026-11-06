@@ -48,13 +48,23 @@ if require_guide_scope "bogus-exported-guide.scope" >/dev/null 2>&1; then
 else
   echo 'ok   a bogus inherited scope is refused'
 fi
-# Explicit manager detection accepts degraded managers, not an unavailable bus.
-systemctl() { printf '%s\n' "$manager_state"; return "$manager_rc"; }
-manager_state=offline manager_rc=1
-if guide_user_manager; then echo 'FAIL an absent manager was detected as present'; failures=$((failures+1)); else echo 'ok   an absent user manager is detected'; fi
-manager_state=degraded manager_rc=1
+# Stub host socket presence separately from the connection environment.
+guide_manager_socket_present() { [ "$socket_present" = yes ]; }
+systemctl() { [ -z "$manager_state" ] || printf '%s\n' "$manager_state"; return "$manager_rc"; }
+socket_present=no manager_state=offline manager_rc=1
+if guide_user_manager; then echo 'FAIL an absent manager was detected as present'; failures=$((failures+1)); else echo 'ok   an absent user manager is detected from the host'; fi
+socket_present=yes manager_state=degraded manager_rc=1
 if guide_user_manager; then echo 'ok   a degraded user manager is still present'; else echo 'FAIL a degraded manager was skipped'; failures=$((failures+1)); fi
+manager_state="" manager_rc=1
+rc=0
+out=$(guide_user_manager 2>&1) || rc=$?
+if [ "$rc" = 2 ] && [[ $out == *'FAIL user systemd manager socket exists but cannot be reached'* ]]; then
+  echo 'ok   present socket with empty connection failure is a failure, never absence'
+else
+  echo 'FAIL a stripped connection environment silently skipped the manager'; failures=$((failures+1))
+fi
 GUIDE_JOURNAL=0
-out=$(journal_silent attribution)
-if [ "$out" = 'no user systemd manager: journal silence not checked' ]; then echo 'ok   only the journal assertion is skipped with its reason'; else echo 'FAIL no-manager skip lost its reason'; failures=$((failures+1)); fi
+skip=0
+out=$(journal_silent attribution; printf '\nSKIP_COUNT=%s' "$skip")
+if [ "$out" = $'SKIP no user systemd manager: journal silence not checked\n\nSKIP_COUNT=1' ]; then echo 'ok   the journal skip is named and counted'; else echo "FAIL no-manager skip lost its reason or count: $out"; failures=$((failures+1)); fi
 [ "$failures" = 0 ]

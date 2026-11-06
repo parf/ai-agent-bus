@@ -9,7 +9,7 @@
 #   slow    normal, plus the CPU limit actually enforced (the deliberate over-limit run)
 # GUIDE_BIN names a directory holding agent-busd, agent-bus and agent-bus-runner
 # (smoke passes the build it already made); without it they are built here.
-# Prints "  ok" / "  FAIL" lines and "passed N, failed M"; exits 1 on any failure.
+# Prints "  ok" / "  FAIL" lines and "passed N, failed M, skipped K"; exits 1 on any failure.
 set -uo pipefail
 MODE=${1:-normal}
 case $MODE in fast|normal|slow) ;; *) echo "usage: guide.sh fast|normal|slow" >&2; exit 2 ;; esac
@@ -18,7 +18,9 @@ source "$here/lib.sh"
 # Detect an absent manager before attempting a scope. A manager whose scope
 # cannot start is a failure, never a reason to disable the journal assertion.
 GUIDE_JOURNAL=0
-if guide_user_manager; then
+manager_rc=0
+guide_user_manager || manager_rc=$?
+if [ "$manager_rc" = 0 ]; then
   GUIDE_JOURNAL=1
   if [ -z "${GUIDE_SCOPE:-}" ]; then
     scope="agent-guide-$$-$RANDOM.scope"
@@ -26,6 +28,8 @@ if guide_user_manager; then
       env GUIDE_SCOPE="$scope" bash "$0" "$@"
   fi
   require_guide_scope "$GUIDE_SCOPE" || exit 1
+elif [ "$manager_rc" != 1 ]; then
+  exit 1
 fi
 bash "$here/journal_test.sh" || exit 1
 trap 'guide_down' EXIT
@@ -102,7 +106,7 @@ page_quotes docs/user/write-agent-process.md
 page_quotes docs/user/write-agent-runner.md 0   # it runs the same files; it quotes no region of its own
 page_run docs/user/write-agent-cli.md cli-simple time-simple
 gb "$GB_OWNER" unregister "$T" >/dev/null 2>&1
-finish() { echo; echo "passed $pass, failed $fail"; [ "$fail" -eq 0 ]; exit; }
+finish() { echo; echo "passed $pass, failed $fail, skipped $skip"; [ "$fail" -eq 0 ]; exit; }
 if [ "$MODE" = fast ]; then
   journal_silent "the daemon and the CLI wrote nothing to the host journal"
   finish

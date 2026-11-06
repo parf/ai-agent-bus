@@ -6,7 +6,7 @@
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
 EX=$ROOT/src/clients/examples/agent-guide
 PKG=$EX/packages
-pass=0; fail=0
+pass=0; fail=0; skip=0
 
 ok()   { echo "  ok   $1"; pass=$((pass+1)); }
 bad()  { echo "  FAIL $1${2:+: $2}"; fail=$((fail+1)); }
@@ -16,15 +16,18 @@ lacks() { if grep -Eq -- "$3" <<<"$2"; then bad "$1" "[$2] still has [$3]"; else
 eq()    { if [ "$2" = "$3" ]; then ok "$1"; else bad "$1" "got [$2], want [$3]"; fi; }
 sec()   { echo "== $1"; }
 
-# A user manager can be degraded (exit 1) and still run scopes. This probes
-# the manager explicitly; a failed systemd-run is never used as detection.
+# Decide absence from the host, not from a stripped login environment.
+guide_manager_socket_present() { [ -S "/run/user/$(id -u)/systemd/private" ]; }
+
+# A present but unreachable manager is a failure (2), never absence (1).
+# A degraded manager exits 1 but can still run scopes.
 guide_user_manager() {
   local state
-  command -v systemctl >/dev/null 2>&1 || return 1
-  state=$(systemctl --user is-system-running 2>/dev/null) || :
+  guide_manager_socket_present || return 1
+  state=$(systemctl --user is-system-running 2>&1) || :
   case $state in
     running|degraded|initializing|starting|maintenance|stopping) return 0 ;;
-    *) return 1 ;;
+    *) printf 'FAIL user systemd manager socket exists but cannot be reached: %s\n' "${state:-systemctl returned no status}" >&2; return 2 ;;
   esac
 }
 
@@ -43,7 +46,8 @@ require_guide_scope() {
 # A foreign process without unit metadata can therefore still fail this check.
 journal_silent() {
   if [ "${GUIDE_JOURNAL:-1}" = 0 ]; then
-    echo 'no user systemd manager: journal silence not checked'
+    echo 'SKIP no user systemd manager: journal silence not checked'
+    skip=$((skip+1))
     return 0
   fi
   local out
