@@ -25,7 +25,7 @@ The trust boundary: the daemon can read message bodies and stored configuration 
 
 ## R1
 
-**The release's own extensions, and what one bus needs to connect to another.** R1 keeps the shared extensions (locks, the key-value store, Resource records, method metadata), installable distribution, the runner and the client libraries. Built ahead of the release on the 0.8 line: roles, locks, the key-value store, Resource records, the six client libraries and the runner's waves M.1–M.11 ([done](R1.0-Release/DONE.md)); the rest is pending, and several choices remain open ([R1 scope](R1.0-Release/README.md#scope), [dependencies](R1.0-Release/TODO.md#objective)). Distributed identity, encryption and observability moved to [R1.1](#r11).
+**The release's own extensions, and what one bus needs to connect to another.** R1 keeps the shared extensions (locks, the key-value store, Resource records, method metadata), installable distribution, the runner and the client libraries. Built ahead of the release on the 0.8 line: roles, locks, the key-value store, Resource records, the six client libraries and the runner's waves M.1–M.11 ([done](R1.0-Release/DONE.md)); the rest is pending, and several choices remain open ([R1 scope](R1.0-Release/README.md#scope), [dependencies](R1.0-Release/TODO.md#objective)). Observability remains in [R1.1](#r11); distributed identity and encryption wait in [R2.0](#r20) (owner, 2026-11-05).
 
 | Major change from MVP | Result | Owning design |
 |---|---|---|
@@ -42,17 +42,15 @@ Namespace composition, runner activation and what the kept topics need from R1.1
 
 ## R1.1
 
-**Move from a shared local bus to distributed identity and a stronger trust boundary.** The old R1's identity half: distributed identity and policy, scoped credentials, end-to-end body encryption, and the observability that supervises them. It is not started and follows R1 ([R1.1 scope](R1.1/README.md#scope), [prerequisites](R1.1/TODO.md#dependencies)).
+**Extend operations, clients and storage.** Discovery and observability, operations, additional storage backends and the peer registry remain here; new auth and encryption wait in [R2.0](#r20). It is not started and follows R1 ([R1.1 scope](R1.1/README.md#scope), [prerequisites](R1.1/TODO.md#dependencies)).
 
 | Major change from MVP | Proposed result | Owning design |
 |---|---|---|
-| **Distributed identity and policy** | Identity administration can span deployments, with richer organizational access decisions | [AUTH](R1.1/auth.md#bundle) |
-| **A stronger trust boundary** | Credentials can be limited to their destination, and endpoint encryption can keep bodies unreadable to the bus | [Scoped credentials](R1.1/access.md#token-scope), [encryption](R1.1/access.md#encrypted-sessions) |
 | Richer operations | Health, load history, deployment controls and record origin extend the MVP's current-state view | [Dashboard extensions](R1.1/discovery.md#dashboard-extensions), [reload](R1.1/operations.md#reload) |
-| Streamed answers | Long answers can stream once their protocol contract is agreed | [Streaming](R1.1/access.md#streaming) |
+| Streamed answers | Long answers can stream once their protocol contract is agreed | [Streaming](R1.1/streaming.md#streaming) |
 | Peer registry | Peer nodes can exchange registry records | [Peer registry](R1.1/registry.md#registry-sync) |
 
-Peer authenticity and clocks, encrypted delivery to absent receivers and authorization freshness remain [open R1.1 choices](R1.1/QUESTIONS.md#open-questions).
+Peer authenticity and clocks remain [open R1.1 choices](R1.1/QUESTIONS.md#registry-context). Encrypted delivery to absent receivers and authorization freshness are [future auth choices](R2.0-Future/QUESTIONS.md#access-context).
 
 ## R1.2
 
@@ -86,6 +84,8 @@ Catalogue selection, shared-state authority and contact visibility still have [o
 
 | Direction | Potential change | Owning proposal |
 |---|---|---|
+| **Distributed identity and policy** | Identity administration can span deployments, with richer organizational access decisions | [AUTH](R2.0-Future/auth.md#bundle) |
+| **A stronger trust boundary** | Credentials can be limited to their destination, and endpoint encryption can keep bodies unreadable to the bus | [Scoped credentials](R2.0-Future/access.md#token-scope), [encryption](R2.0-Future/access.md#encrypted-sessions) |
 | Paid agents | Add charging and balance enforcement around routed use | [Billing](R2.0-Future/billing.md#billing-role--future) |
 | Additional identity and public lookup | Broaden identity sources or expose a public directory, subject to their distinct access decisions | [Directory integration](R2.0-Future/ldap-ad.md#one-source-not-two), [public directory](R2.0-Future/public-directory.md#a-public-directory-of-people-and-their-keys) |
 | Storage alternatives | Reconsider persistence, encryption at rest and replication after evaluating the actual engine properties | [Storage](R2.0-Future/storage.md#storage) |

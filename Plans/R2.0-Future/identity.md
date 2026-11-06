@@ -71,7 +71,7 @@ the [AUTH consistency contract](auth.md#consistency-window):
 The owner and maintainers model is now
 [required MVP](../../docs/01-identity-and-authority.md#groups), including flat
 groups before AUTH. R1 adds [runner controls](../R1.0-Release/runner-implementation.md#what-the-runner-does);
-R1.1 adds the distributed record behavior below.
+The future proposal adds the distributed record behavior below.
 
 - **Every record is owned by a User** from 0.7
   ([registry record](../../docs/constitution.md#-registry-record)); there are no

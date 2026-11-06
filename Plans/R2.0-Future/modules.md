@@ -1,4 +1,4 @@
-# R1.1 module boundaries
+# Future auth module boundaries
 
 ## Modules
 

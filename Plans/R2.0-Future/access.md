@@ -100,11 +100,6 @@ Unresolved details: [questions](QUESTIONS.md#open-questions).
 Proposed admission modes: open enrolment with a minimal grant, or closed enrolment
 with an approval queue. This is not the current key-proof implementation.
 
-## Streaming
-
-Long answers may stream in R1.1. The framing and client contract wait for the
-owner-approved protocol work; this is a scope candidate, not a new wire format.
-
 ## Payload
 
 The earlier target permits JSON with optional msgpack encoding and encrypted

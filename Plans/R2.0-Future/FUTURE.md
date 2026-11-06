@@ -21,3 +21,17 @@ The stable proposals are indexed in [topics](README.md#topics). Assign a release
 If a Claude Code plugin named `ab` is shipped, its commands, skills and agents
 use the `ab:` namespace. That namespace is not an MCP tool name. No plugin release
 is committed by reserving the name.
+
+## Auth dependencies
+
+Moved from R1.1 by the owner on 2026-11-05; these are undecided future
+work, not a delivery commitment. Resolve the linked choices before naming
+implementation waves.
+
+| Candidate work | Must precede it |
+|---|---|
+| ☐ Scoped credentials and encryption | [Settled lifetime policy](../../docs/02-access.md#token-lifetime); remaining key recovery and token grammar decisions |
+| ☐ D.1–D.4 encryption carried from MVP | [Encryption acceptance](encryption-wave.md#d--the-bus-stops-reading-payloads); key lifecycle decisions |
+| ☐ AUTH authorization freshness | [Q35](QUESTIONS.md#authorization-refresh), independently of credential lifetime |
+
+Crypto acceptance must test what the daemon cannot decrypt.

@@ -2,21 +2,16 @@
 
 ## Scope
 
-Not started. The distributed-identity half of the old R1: identity and policy,
-AUTH distribution, scoped credentials and encryption, discovery and
-observability, operations, the additional storage backends and the peer
-registry, plus [runner backups](backups.md#backing-it-up) moved from R1. The release's own extensions — record-defined roles, federation chaining, locks, the key-value store, Resource records,
+Not started. Discovery and observability, operations, additional storage
+backends and the peer registry, plus [runner backups](backups.md#backing-it-up) moved from R1. The release's own extensions — record-defined roles, federation chaining, locks, the key-value store, Resource records,
 method metadata, the runner, the client libraries and installable
 distribution — stayed in [R1](../R1.0-Release/README.md#scope); the tools
 stage is [R1.2](../R1.2/README.md#scope).
 
 | Topic | Canonical knowledge |
 |---|---|
+| Streaming answers (proposed) | [Streaming](streaming.md#streaming) |
 | Web Face AI setup chat (T-34, moved from R1) | [Chat scope](ai-setup.md#web-face-chat) |
-| Identity extensions (sigils, delegation, ownership) | [Identity extensions](identity.md#sigils) |
-| AUTH distribution | [AUTH distribution](auth.md#bundle) |
-| Scoped credentials and encryption | [Scoped credentials and encryption](access.md#token-scope) |
-| Encryption waves | [Encryption waves](encryption-wave.md#acceptance) |
 | Discovery and observability | [Discovery and observability](discovery.md#where-a-member-says-it-is) |
 | One front door (proposed) | [One front door](discovery.md#one-front-door) |
 | Runner hardening (M.14, moved from R1) | [Proposal](runner-hardening.md#runner-hardening-proposal); [acceptance](TODO.md#runner-hardening) |
@@ -29,10 +24,12 @@ stage is [R1.2](../R1.2/README.md#scope).
 | Database sync (DS.1, plan only) | [DBSync plan](dbsync.md#steps-and-estimate); [task](TODO.md#dbsync) |
 | Storage backends | [Storage backends](storage.md#backends) |
 | Peer registry | [Registry sync](registry.md#registry-sync) |
-| Module boundaries | [R1.1 modules](modules.md#modules) |
 | MCP agents: `--mcp` answering a tools list, and the `mcp` tag (proposed) | [MCP agents](mcp-agents.md#mcp-agents) |
 | MCP latest revision (waiting for Codex and OpenCode) | [K.37](TODO.md#mcp-latest-revision); the rule is the [constitution's](../../docs/constitution.md#external-protocols) |
 
 Open choices are in [questions](QUESTIONS.md#open-questions); recorded choices
 are in [decisions](DECISIONS.md#recorded-decisions). Execution prerequisites
 are in [TODO](TODO.md#objective).
+
+New identity, AUTH distribution, scoped credentials, encryption and their module
+boundaries wait in [R2.0](../R2.0-Future/README.md#topics) (owner, 2026-11-05).

@@ -42,14 +42,14 @@ wins.
 | **canonical name** | the one spelling everything compares and routes on: lower-case, ASCII, trimmed per component, within the bound | [identity § names](../../../../docs/01-identity-and-authority.md#names) |
 | **token** | the one thing every call carries, and the whole identity; persisted, previous one kept | [access § token lifetime](../../../../docs/02-access.md#token-lifetime) |
 | **service ACL / master ACL** | the two access layers, service asked first | [identity § acl](../../../../docs/02-access.md#acl) |
-| **`*`** | the term for anyone who can authenticate; `allow: *` opens a service to the world | [identity § sigils](../../../R1.1/identity.md#sigils) |
+| **`*`** | the term for anyone who can authenticate; `allow: *` opens a service to the world | [identity § sigils](../../../R2.0-Future/identity.md#sigils) |
 | **`agent-bus-admin`** | the program that edits what the `agent-busd` account owns — *not* a role; the setup user simply holds master | [setup § the programs](../../../../docs/user/cli.md) |
-| **role** | service-defined string saying what a principal may do, written in parentheses after the term and handed over as written | [identity § sigils](../../../R1.1/identity.md#sigils) |
-| **`@`** · **`#`** (ACL) | a leading `@` is a group, a leading `#` a service, and anything else is a user | [identity § sigils](../../../R1.1/identity.md#sigils) |
-| **`term(roles)`** | an ACL entry: the term says who, the parentheses what the service is told; omitted when there are no roles | [identity § sigils](../../../R1.1/identity.md#sigils) |
+| **role** | service-defined string saying what a principal may do, written in parentheses after the term and handed over as written | [identity § sigils](../../../R2.0-Future/identity.md#sigils) |
+| **`@`** · **`#`** (ACL) | a leading `@` is a group, a leading `#` a service, and anything else is a user | [identity § sigils](../../../R2.0-Future/identity.md#sigils) |
+| **`term(roles)`** | an ACL entry: the term says who, the parentheses what the service is told; omitted when there are no roles | [identity § sigils](../../../R2.0-Future/identity.md#sigils) |
 | **`GithubUser`** | the GitHub login on a record, equal to the username when the record came from GitHub; unique across records like every other identifier | [identity § registration](../../../../docs/01-identity-and-authority.md#registration) |
 | **maintainer** (of the daemon) | who may write user records — everything below their own level and nothing at it; the owner is always one | [identity § who may write a record](../../../../docs/01-identity-and-authority.md#users-and-profiles) |
-| **delegation / on-behalf-of** | A calls B for U, carrying a claim | [identity § delegation](../../../R1.1/identity.md#delegation) |
+| **delegation / on-behalf-of** | A calls B for U, carrying a claim | [identity § delegation](../../../R2.0-Future/identity.md#delegation) |
 | **service-to-service token** | one service's credential, narrowed to the service it is calling, asked for over the bus and as itself | [access § service to service](../../../R1.2/access.md#agent-to-agent) |
 | **generic · agent · consumer · publisher** | the service kinds | [services § service kinds](../../../../docs/03-records.md#record-kinds) |
 | **`lock` · `try-lock` · `release`** | a named lock the daemon grants to one holder for a ttl; the first waits, the second does not | [messaging § shared locks](../../../R1.0-Release/done/locks.md#shared-locks) |
@@ -67,10 +67,10 @@ wins.
 | **ack / done** | the two optional receipts, both emitted by the receiver: `ack` = got it, `done` = finished processing | [messaging § receipts](../../../../docs/04-messaging.md#receipts) |
 | **ring / strict** | the two overflow modes | [messaging § overflow](../../../../docs/04-messaging.md#overflow) |
 | **envelope** | everything the bus can see; bodies are not in it | [messaging § envelope](../../../../docs/04-messaging.md#envelope) |
-| **static · pairwise · derived** | the three key modes | [access § key modes](../../../R1.1/access.md#key-modes) |
-| **epoch** | one hour; the lifetime of a derived key | [access § key modes](../../../R1.1/access.md#key-modes) |
-| **bundle · generation (`gen`)** | signed AUTH data in git, newer wins | [AUTH role § bundle](../../../R1.1/auth.md#bundle) |
-| **`master_secret`** | out-of-band file, AUTH replicas only | [AUTH role § where it runs](../../../R1.1/auth.md#where-it-runs) |
+| **static · pairwise · derived** | the three key modes | [access § key modes](../../../R2.0-Future/access.md#key-modes) |
+| **epoch** | one hour; the lifetime of a derived key | [access § key modes](../../../R2.0-Future/access.md#key-modes) |
+| **bundle · generation (`gen`)** | signed AUTH data in git, newer wins | [AUTH role § bundle](../../../R2.0-Future/auth.md#bundle) |
+| **`master_secret`** | out-of-band file, AUTH replicas only | [AUTH role § where it runs](../../../R2.0-Future/auth.md#where-it-runs) |
 | **chaining / upstream** | query up, never replicate | [overview § chaining](../../../R1.0-Release/federation.md#chaining) |
 | **audience** | who may see and use a service or topic | [discovery § audience](../../../../docs/05-discovery.md#audience) |
 | **debug mode** | admin-only message trace on one service | [discovery § debug mode](../../../R2.0-Future/debug.md#debug-mode) |

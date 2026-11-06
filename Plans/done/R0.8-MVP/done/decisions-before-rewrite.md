@@ -23,8 +23,8 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Process titles and call counts | [processes § process titles](../../../../docs/08-processes.md#process-titles) |
 | Names are `user@realm`; the name is the identity, provider ids are only a check | [identity § names](../../../../docs/01-identity-and-authority.md#names) |
 | What characters a name may hold, and that it starts alphanumeric | [identity § names](../../../../docs/01-identity-and-authority.md#names) |
-| An ACL entry is `term(roles)`: `user`, `@group`, `#service` or `*`, with roles in parentheses and left out when there are none | [identity § sigils](../../../R1.1/identity.md#sigils) |
-| Being in the list is the access, so there is no access level beside the role | [identity § sigils](../../../R1.1/identity.md#sigils) |
+| An ACL entry is `term(roles)`: `user`, `@group`, `#service` or `*`, with roles in parentheses and left out when there are none | [identity § sigils](../../../R2.0-Future/identity.md#sigils) |
+| Being in the list is the access, so there is no access level beside the role | [identity § sigils](../../../R2.0-Future/identity.md#sigils) |
 | Setup installs the separate-user arrangement, and where the accounts live | [setup § the two accounts](../../../../docs/administration.md#the-two-accounts) |
 | One program per privilege, split no finer | [setup § the programs](../../../../docs/user/cli.md) |
 | Over SSH a key reaches one forced command; the admin's is a superset, and the token verb is the same either way | [setup § the programs](../../../../docs/user/cli.md) |
@@ -43,22 +43,22 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | How to reach a person — ordered, per severity — is part of the person's record in the daemon, not an alerter's configuration | [identity § how to reach a person](../../../R1.2/people.md#how-to-reach-a-person) |
 | More identity sources later: Google, LinkedIn, Facebook — not designed | [identity § registration](../../../../docs/01-identity-and-authority.md#registration) |
 | ACL is two layers: the service's record first, then master ACL; a service may refuse master access; `*:` covers the rest | [identity § acl](../../../../docs/02-access.md#acl) |
-| A sigil says what an ACL entry is: bare is a user, `@` a group, `#` a role | [identity § sigils](../../../R1.1/identity.md#sigils) |
-| A user starts alphanumeric, which every name does — so a sigil is free to lead | [identity § sigils](../../../R1.1/identity.md#sigils) |
-| A group is only ever an ACL subject; a role only ever reaches a service, and as written | [identity § sigils](../../../R1.1/identity.md#sigils) |
-| A group is local to one daemon, because every ACL a daemon enforces is its own | [identity § sigils](../../../R1.1/identity.md#sigils) |
-| A group never travels: an upstream decides with its own list, so two daemons may both have `@dev` | [identity § sigils](../../../R1.1/identity.md#sigils) |
+| A sigil says what an ACL entry is: bare is a user, `@` a group, `#` a role | [identity § sigils](../../../R2.0-Future/identity.md#sigils) |
+| A user starts alphanumeric, which every name does — so a sigil is free to lead | [identity § sigils](../../../R2.0-Future/identity.md#sigils) |
+| A group is only ever an ACL subject; a role only ever reaches a service, and as written | [identity § sigils](../../../R2.0-Future/identity.md#sigils) |
+| A group is local to one daemon, because every ACL a daemon enforces is its own | [identity § sigils](../../../R2.0-Future/identity.md#sigils) |
+| A group never travels: an upstream decides with its own list, so two daemons may both have `@dev` | [identity § sigils](../../../R2.0-Future/identity.md#sigils) |
 | The daemon filters, because it holds the record — not a face | [discovery § audience](../../../../docs/05-discovery.md#audience) |
 | The MVP does not claim bodies are end to end; the bus is trusted on its own host | [access § encrypted sessions](../../../../docs/02-access.md#trust-boundary) |
 | Possession is proved in a step of its own; the `directory` port only fetches | [identity § proving possession](../../../../docs/02-access.md#proving-possession) |
 | A realm with a directory behind it is enrolled into, never registered into | [identity § proving possession](../../../../docs/02-access.md#proving-possession) |
 | An enrolled record is owned by the name itself, and the proof hands out its credential | [identity § proving possession](../../../../docs/02-access.md#proving-possession) |
 | `allow: *` means anyone who can authenticate | [identity § acl](../../../../docs/02-access.md#acl) |
-| Delegation: A authenticates, adds an on-behalf-of claim | [identity § delegation](../../../R1.1/identity.md#delegation) |
+| Delegation: A authenticates, adds an on-behalf-of claim | [identity § delegation](../../../R2.0-Future/identity.md#delegation) |
 | Publish a service or topic: any authenticated principal; change: owner or maintainer | [identity § ownership](../../../../docs/01-identity-and-authority.md#ownership) |
 | Changing a record is the owner's, and the record's own; publishing a new name stays open | [identity § ownership](../../../../docs/01-identity-and-authority.md#ownership) |
 | Registry records are writer-signed where a key exists; static-token writes are unsigned | [identity § ownership](../../../../docs/01-identity-and-authority.md#ownership) |
-| Sealed private config, opt-in, daemon cannot read it | [identity § sealed private config](../../../R1.1/identity.md#sealed-private-config) |
+| Sealed private config, opt-in, daemon cannot read it | [identity § sealed private config](../../../R2.0-Future/identity.md#sealed-private-config) |
 | A call carries a token and no name — the token is the principal | [access § what a call carries](../../../../docs/02-access.md#what-a-call-carries) |
 | Three ways to get a token: over SSH, `token` on the box, or a key that signs a challenge | [access § getting a token](../../../../docs/02-access.md#getting-a-token) |
 | `token` is the credential verb, `register` the registry one | [access § getting a token](../../../../docs/02-access.md#getting-a-token) |
@@ -75,12 +75,12 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | A start that follows an unclean stop says so, and from when it is missing traffic | [messaging § durability](../../../../docs/04-messaging.md#durability) |
 | The socket is a credential, not an exemption from having one; one host, many users | [access § local socket](../../../../docs/02-access.md#local-socket) |
 | Socket layout, ownership and the one capability it needs | [access § local socket](../../../../docs/02-access.md#local-socket) |
-| Three key modes: static, pairwise, derived | [access § key modes](../../../R1.1/access.md#key-modes) |
+| Three key modes: static, pairwise, derived | [access § key modes](../../../R2.0-Future/access.md#key-modes) |
 | No forward secrecy | [access § encrypted sessions](../../../../docs/02-access.md#trust-boundary) |
 | Bodies end-to-end encrypted; `encryption: off` per service for development | [access § encrypted sessions](../../../../docs/02-access.md#trust-boundary) |
 | Wire is JSON, msgpack optional | [messaging § envelope](../../../../docs/04-messaging.md#envelope) |
 | A service exchanges the credential it holds for one scoped to the service it is calling, as itself — which is not delegation and does not cover its first credential | [access § service to service](../../../R1.2/access.md#agent-to-agent) |
-| Wrong key at handshake: re-query AUTH once, then alert loudly | [access § key confirmation](../../../R1.1/access.md#key-confirmation) |
+| Wrong key at handshake: re-query AUTH once, then alert loudly | [access § key confirmation](../../../R2.0-Future/access.md#key-confirmation) |
 | The daemon grants named locks — blocking, non-blocking, and a ttl that is the only other release — because a pool already shares exactly one authority | [messaging § shared locks](../../../R1.0-Release/done/locks.md#shared-locks) |
 | A set of locks is how a shared service shares countable resources: take any free one and be told which, rather than a semaphore that says only *you may* | [messaging § a set of locks](../../../R1.0-Release/done/locks.md#shared-locks) |
 | Sets are not a second lock mechanism: a plain named lock is a member of the default set, and a declared set is the same thing plus the claim that its members are interchangeable | [messaging § a set of locks](../../../R1.0-Release/done/locks.md#shared-locks) |
@@ -121,9 +121,9 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | The bus holds the store, and the supervisor holds nothing durable | [processes § what is shared](../../../../docs/08-processes.md#what-is-shared) |
 | One binary, the role from the environment; the supervisor opens every listener and hands it down | [processes § how a child is started](../../../../docs/08-processes.md#how-a-child-is-started) |
 | AUTH merged into `agent-busd` as an optional role; WEB child cgroup-limited | [overview § roles](../../../../docs/08-processes.md#the-processes) |
-| Bundle in git over SSH; gaps resolved newer-generation-wins; master/slave | [AUTH role § topology](../../../R1.1/auth.md#topology) |
-| `master_secret` is an out-of-band file | [AUTH role § where it runs](../../../R1.1/auth.md#where-it-runs) |
-| Admin keys live in the bundle; root on the box is the break-glass | [AUTH role § SSH admin](../../../R1.1/auth.md#ssh-admin) |
+| Bundle in git over SSH; gaps resolved newer-generation-wins; master/slave | [AUTH role § topology](../../../R2.0-Future/auth.md#topology) |
+| `master_secret` is an out-of-band file | [AUTH role § where it runs](../../../R2.0-Future/auth.md#where-it-runs) |
+| Admin keys live in the bundle; root on the box is the break-glass | [AUTH role § SSH admin](../../../R2.0-Future/auth.md#ssh-admin) |
 | Minimal billing as an optional role: RADIUS balance, flat or per-call, no balance = denied | [future/billing.md](../../../R2.0-Future/billing.md#billing-role--future) |
 | Paid public API platform; the payment gateway is an ordinary bus service | [future/billing.md](../../../R2.0-Future/billing.md#billing-role--future) |
 | One push adapter per agent runtime; ChatGPT pull-only | [runner § adapters](../../../../docs/06-launchers.md#adapters) |
@@ -199,7 +199,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | No verb exists only in a face: every CLI and MCP operation is first a core API | [modules § languages](../../../../src/MODULES.md#languages) |
 | Do not reinvent the wheel: built-in first, then the system's tool, then a well-known library, never our own | [modules § external tools](../../../../src/MODULES.md#external-tools) |
 | HTTP is a first-class citizen and always the built-in client, never a subprocess — unless the caller is a script | [modules § HTTP is built in](../../../../src/MODULES.md#external-tools) |
-| The per-message hot path stays in-process: a well-known library, never our own primitives | [modules § the hot path](../../../R1.1/modules.md#the-hot-path) |
+| The per-message hot path stays in-process: a well-known library, never our own primitives | [modules § the hot path](../../../R2.0-Future/modules.md#the-hot-path) |
 | Plumbing written a third time becomes one small internal module, preferred over a dependency | [modules § our own small module](../../../../src/MODULES.md#external-tools) |
 | A registration never carries a configuration or its digest; the digest is derived | [services § configuring a template](../../../../docs/03-records-agent.md#configuring-a-template) |
 | An inbox belongs to a registered name: consuming as an unregistered one is refused | [messaging § inbox queues](../../../../docs/04-messaging.md#inbox-queues) |
@@ -266,7 +266,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | The web child stops reaching the bus as the owner once people sign in | [discovery § signing in](../../../../docs/05-discovery.md#signing-in) |
 | Which dashboard views are MVP, and what each one costs the daemon | [discovery § what it shows](../../../../docs/05-discovery.md#what-it-shows) |
 | A person record carries three description fields; status and role are not among them | [identity § registration](../../../../docs/01-identity-and-authority.md#registration) |
-| A group before AUTH is a flat named set expanded where `allow` is checked | [identity § groups and roles](../../../R1.1/identity.md#groups-and-roles) |
+| A group before AUTH is a flat named set expanded where `allow` is checked | [identity § groups and roles](../../../R2.0-Future/identity.md#groups-and-roles) |
 | A script service is started by its owner: becoming a name needs that name's credential | [runner § script services](../../../../docs/06-dedicated-runner.md#script-agents) |
 | A script service is the name it registered — it reads and answers as that name | [runner § script services](../../../../docs/06-dedicated-runner.md#script-agents) |
 | A script service takes a message only when a worker is free; stopping waits for the running ones | [runner § script services](../../../../docs/06-dedicated-runner.md#script-agents) |
@@ -281,7 +281,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Per-method pricing needs the method name in the envelope | owner | [future/billing.md](../../../R2.0-Future/billing.md#billing-role--future) |
 | A newcomer with no balance cannot reach `pay` | owner | [future/billing.md](../../../R2.0-Future/billing.md#billing-role--future) |
 | Direct talk bypasses billing | owner | [future/billing.md](../../../R2.0-Future/billing.md#billing-role--future) |
-| `authorized_keys` regeneration would drop the setup-installed token key | owner | [AUTH role § SSH admin](../../../R1.1/auth.md#ssh-admin) |
+| `authorized_keys` regeneration would drop the setup-installed token key | owner | [AUTH role § SSH admin](../../../R2.0-Future/auth.md#ssh-admin) |
 | Peer sync trusts unsigned records; no clock authority for "newer wins" | owner | [services § registry sync](../../../R1.1/registry.md#registry-sync) |
 | How a queued body is decrypted by a receiver that was not present when it was sent | owner, with the MVP | [access § encrypted sessions](../../../../docs/02-access.md#trust-boundary) |
 | What carries a service's method information | owner, with the MVP faces | [services § service and template](../../../../docs/03-records-agent.md#agent-templates) |
@@ -313,7 +313,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 |---|---|
 | A principal writes its own details, and its own contact list | only a maintainer writes a user's fields; trust comes from who may write rather than from the person's say-so — [identity § who may write a record](../../../../docs/01-identity-and-authority.md#users-and-profiles) |
 | `kv` is ours and not a gateway: memory-only or persistent, chosen per instance | the first version is an access wrapper around `kvrocks` — the data structures are that server's, ours is the namespace and the ACL over it — [bundled services § data](../../../R1.2/services.md#data) |
-| `#` marks a **role**, and an entry is a subject mapped to access and an optional role — `parf@github => rw, #admin` | `#` marks a **service**, roles moved into parentheses, and the access level went away with them: being in the list *is* the access — [identity § sigils](../../../R1.1/identity.md#sigils) |
+| `#` marks a **role**, and an entry is a subject mapped to access and an optional role — `parf@github => rw, #admin` | `#` marks a **service**, roles moved into parentheses, and the access level went away with them: being in the list *is* the access — [identity § sigils](../../../R2.0-Future/identity.md#sigils) |
 | Owner is an expression, with `owner` and `maintainer` as tiers | one owner, exactly one user, and the maintainer is a group — [identity § ownership](../../../../docs/01-identity-and-authority.md#ownership) |
 | `autostart.json` — the host's file, listing what to bring up | `services.json`, listing everything **installed** with `autostart` as one field on each row, so a configured instance can be kept and started by hand — [runner § the list of what is installed](../../../R1.0-Release/runner-implementation.md#the-list-of-what-is-installed) |
 | The runner has no `reload`; there is no long-lived child to signal | long-lived services arrive in R1, and a kept child is exactly something to signal — [runner § what the runner does](../../../R1.0-Release/runner-implementation.md#what-the-runner-does) |

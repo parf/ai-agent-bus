@@ -8,22 +8,22 @@
 
 | Original section | Destination |
 |---|---|
-| `docs/06-auth-role.md#bundle` | [owner](../../../R1.1/auth.md#bundle) |
-| `docs/06-auth-role.md#where-it-runs` | [owner](../../../R1.1/auth.md#where-it-runs) |
-| `docs/06-auth-role.md#topology` | [owner](../../../R1.1/auth.md#topology) |
-| `docs/06-auth-role.md#reference-deployment` | [owner](../../../R1.1/auth.md#reference-deployment) |
-| `docs/06-auth-role.md#consistency-window` | [owner](../../../R1.1/auth.md#consistency-window) |
-| `docs/06-auth-role.md#ssh-admin` | [owner](../../../R1.1/auth.md#ssh-admin) |
-| `docs/01-identity.md#groups-and-roles` | [owner](../../../R1.1/identity.md#groups-and-roles) |
-| `docs/01-identity.md#sigils` | [owner](../../../R1.1/identity.md#sigils) |
-| `docs/01-identity.md#delegation` | [owner](../../../R1.1/identity.md#delegation) |
-| `docs/01-identity.md#resolved-at-login` | [owner](../../../R1.1/identity.md#resolved-at-login) |
-| `docs/01-identity.md#ownership` | [owner](../../../R1.1/identity.md#ownership) |
-| `docs/01-identity.md#sealed-private-config` | [owner](../../../R1.1/identity.md#sealed-private-config) |
-| `docs/02-access.md#token-scope` | [owner](../../../R1.1/access.md#token-scope) |
-| `docs/02-access.md#key-modes` | [owner](../../../R1.1/access.md#key-modes) |
-| `docs/02-access.md#encrypted-sessions` | [owner](../../../R1.1/access.md#encrypted-sessions) |
-| `docs/02-access.md#key-confirmation` | [owner](../../../R1.1/access.md#key-confirmation) |
+| `docs/06-auth-role.md#bundle` | [owner](../../../R2.0-Future/auth.md#bundle) |
+| `docs/06-auth-role.md#where-it-runs` | [owner](../../../R2.0-Future/auth.md#where-it-runs) |
+| `docs/06-auth-role.md#topology` | [owner](../../../R2.0-Future/auth.md#topology) |
+| `docs/06-auth-role.md#reference-deployment` | [owner](../../../R2.0-Future/auth.md#reference-deployment) |
+| `docs/06-auth-role.md#consistency-window` | [owner](../../../R2.0-Future/auth.md#consistency-window) |
+| `docs/06-auth-role.md#ssh-admin` | [owner](../../../R2.0-Future/auth.md#ssh-admin) |
+| `docs/01-identity.md#groups-and-roles` | [owner](../../../R2.0-Future/identity.md#groups-and-roles) |
+| `docs/01-identity.md#sigils` | [owner](../../../R2.0-Future/identity.md#sigils) |
+| `docs/01-identity.md#delegation` | [owner](../../../R2.0-Future/identity.md#delegation) |
+| `docs/01-identity.md#resolved-at-login` | [owner](../../../R2.0-Future/identity.md#resolved-at-login) |
+| `docs/01-identity.md#ownership` | [owner](../../../R2.0-Future/identity.md#ownership) |
+| `docs/01-identity.md#sealed-private-config` | [owner](../../../R2.0-Future/identity.md#sealed-private-config) |
+| `docs/02-access.md#token-scope` | [owner](../../../R2.0-Future/access.md#token-scope) |
+| `docs/02-access.md#key-modes` | [owner](../../../R2.0-Future/access.md#key-modes) |
+| `docs/02-access.md#encrypted-sessions` | [owner](../../../R2.0-Future/access.md#encrypted-sessions) |
+| `docs/02-access.md#key-confirmation` | [owner](../../../R2.0-Future/access.md#key-confirmation) |
 | `docs/00-overview.md#chaining` | [owner](../../../R1.0-Release/federation.md#chaining) |
 | `docs/03-records.md#registry-sync` | [owner](../../../R1.1/registry.md#registry-sync) |
 | `docs/04-messaging.md#shared-locks` | [owner](../../../R1.0-Release/done/locks.md#shared-locks) |
@@ -49,12 +49,12 @@
 | `docs/06-dedicated-runner.md#in-process-queue` | [owner](../../../R2.0-Future/local-queues.md#in-process-queue) |
 | `docs/05-discovery.md#debug-mode` | [owner](../../../R2.0-Future/debug.md#debug-mode) |
 | `src/MODULES.md#modules` | [owner](../../../../src/MODULES.md#modules) |
-| `src/MODULES.md#the-hot-path` | [owner](../../../R1.1/modules.md#the-hot-path) |
+| `src/MODULES.md#the-hot-path` | [owner](../../../R2.0-Future/modules.md#the-hot-path) |
 | `src/MODULES.md#what-this-buys` | [owner](../../../../src/MODULES.md#the-rule) |
 | `docs/12-stages.md#poc` | owner (PoC plan, removed 2026-09-18) |
 | `docs/12-stages.md#r1` | [owner](../../../R1.0-Release/README.md#scope) |
 | `docs/12-stages.md#r11` | [owner](../../../R1.1/README.md#scope) |
-| `Plans/done/R0.8-MVP/TODO.md#d--the-bus-stops-reading-payloads` | [owner](../../../R1.1/encryption-wave.md#d--the-bus-stops-reading-payloads) |
+| `Plans/done/R0.8-MVP/TODO.md#d--the-bus-stops-reading-payloads` | [owner](../../../R2.0-Future/encryption-wave.md#d--the-bus-stops-reading-payloads) |
 
 ## Decision mapping
 
@@ -67,8 +67,8 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D3 | [owner](../../../../docs/08-processes.md#process-titles) |
 | D4 | [owner](../../../../docs/01-identity-and-authority.md#names) |
 | D5 | [owner](../../../../docs/01-identity-and-authority.md#names) |
-| D6 | [owner](../../../R1.1/identity.md#sigils) |
-| D7 | [owner](../../../R1.1/identity.md#sigils) |
+| D6 | [owner](../../../R2.0-Future/identity.md#sigils) |
+| D7 | [owner](../../../R2.0-Future/identity.md#sigils) |
 | D8 | [owner](../../../../docs/administration.md#the-two-accounts) |
 | D9 | [owner](../../../../docs/user/cli.md) |
 | D10 | [owner](../../../../docs/user/cli.md) |
@@ -79,7 +79,7 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D15 | [owner](../../../../docs/02-access.md#acl) |
 | D16 | [owner](../../../../docs/01-identity-and-authority.md#registration) |
 | D17 | [owner](../../../../docs/01-identity-and-authority.md#registration) |
-| D18 | [owner](../../../R1.1/access.md#enrolment-policy) |
+| D18 | [owner](../../../R2.0-Future/access.md#enrolment-policy) |
 | D19 | [owner](../../../../docs/01-identity-and-authority.md#users-and-profiles) |
 | D20 | [owner](../../../../docs/01-identity-and-authority.md#users-and-profiles) |
 | D21 | [owner](../../../../docs/01-identity-and-authority.md#users-and-profiles) |
@@ -88,26 +88,26 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D24 | [owner](../../../R2.0-Future/FUTURE.md#candidates) |
 | D25 | [owner](../../../../docs/02-access.md#acl) |
 | D26 | [owner](decisions-before-rewrite.md#superseded) |
-| D27 | [owner](../../../R1.1/identity.md#sigils) |
-| D28 | [owner](../../../R1.1/identity.md#sigils) |
-| D29 | [owner](../../../R1.1/identity.md#sigils) |
-| D30 | [owner](../../../R1.1/identity.md#sigils) |
+| D27 | [owner](../../../R2.0-Future/identity.md#sigils) |
+| D28 | [owner](../../../R2.0-Future/identity.md#sigils) |
+| D29 | [owner](../../../R2.0-Future/identity.md#sigils) |
+| D30 | [owner](../../../R2.0-Future/identity.md#sigils) |
 | D31 | [owner](../../../../docs/05-discovery.md#audience) |
 | D32 | [owner](../../../../docs/02-access.md#trust-boundary) |
 | D33 | [owner](../../../../docs/02-access.md#proving-possession) |
 | D34 | [owner](../../../../docs/02-access.md#proving-possession) |
 | D35 | [owner](../../../../docs/02-access.md#proving-possession) |
 | D36 | [owner](../../../../docs/02-access.md#acl) |
-| D37 | [owner](../../../R1.1/identity.md#delegation) |
-| D38 | [owner](../../../R1.1/identity.md#ownership) |
+| D37 | [owner](../../../R2.0-Future/identity.md#delegation) |
+| D38 | [owner](../../../R2.0-Future/identity.md#ownership) |
 | D39 | [owner](../../../../docs/01-identity-and-authority.md#ownership) |
-| D40 | [owner](../../../R1.1/identity.md#ownership) |
-| D41 | [owner](../../../R1.1/identity.md#sealed-private-config) |
+| D40 | [owner](../../../R2.0-Future/identity.md#ownership) |
+| D41 | [owner](../../../R2.0-Future/identity.md#sealed-private-config) |
 | D42 | [owner](../../../../docs/02-access.md#what-a-call-carries) |
 | D43 | [owner](../../../../docs/02-access.md#getting-a-token) |
 | D44 | [owner](../../../../docs/02-access.md#getting-a-token) |
 | D45 | [owner](../../../../docs/02-access.md#what-a-call-carries) |
-| D46 | [owner](../../../R1.1/access.md#token-scope) |
+| D46 | [owner](../../../R2.0-Future/access.md#token-scope) |
 | D47 | [owner](../../../../docs/02-access.md#getting-a-token) |
 | D48 | [owner](../../../../docs/02-access.md#local-socket) |
 | D49 | [owner](../../../../docs/02-access.md#token-lifetime) |
@@ -119,12 +119,12 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D55 | [owner](../../../../docs/04-messaging.md#durability) |
 | D56 | [owner](../../../../docs/02-access.md#local-socket) |
 | D57 | [owner](../../../../docs/02-access.md#local-socket) |
-| D58 | [owner](../../../R1.1/access.md#key-modes) |
-| D59 | [owner](../../../R1.1/access.md#encrypted-sessions) |
-| D60 | [owner](../../../R1.1/access.md#encrypted-sessions) |
+| D58 | [owner](../../../R2.0-Future/access.md#key-modes) |
+| D59 | [owner](../../../R2.0-Future/access.md#encrypted-sessions) |
+| D60 | [owner](../../../R2.0-Future/access.md#encrypted-sessions) |
 | D61 | [owner](../../../R1.0-Release/runner-implementation.md#additional-script-forms) |
 | D62 | [owner](../../../R1.2/access.md#agent-to-agent) |
-| D63 | [owner](../../../R1.1/access.md#key-confirmation) |
+| D63 | [owner](../../../R2.0-Future/access.md#key-confirmation) |
 | D64 | [owner](../../../R1.0-Release/done/locks.md#shared-locks) |
 | D65 | [owner](../../../R1.0-Release/done/locks.md#shared-locks) |
 | D66 | [owner](../../../R1.0-Release/done/locks.md#shared-locks) |
@@ -164,10 +164,10 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D100 | [owner](../../../R2.0-Future/debug.md#debug-mode) |
 | D101 | [owner](../../../../docs/08-processes.md#what-is-shared) |
 | D102 | [owner](../../../../docs/08-processes.md#how-a-child-is-started) |
-| D103 | [owner](../../../R1.1/auth.md#where-it-runs) |
-| D104 | [owner](../../../R1.1/auth.md#topology) |
-| D105 | [owner](../../../R1.1/auth.md#where-it-runs) |
-| D106 | [owner](../../../R1.1/auth.md#ssh-admin) |
+| D103 | [owner](../../../R2.0-Future/auth.md#where-it-runs) |
+| D104 | [owner](../../../R2.0-Future/auth.md#topology) |
+| D105 | [owner](../../../R2.0-Future/auth.md#where-it-runs) |
+| D106 | [owner](../../../R2.0-Future/auth.md#ssh-admin) |
 | D107 | [owner](../../../R2.0-Future/billing.md#billing-role--future) |
 | D108 | [owner](../../../R2.0-Future/billing.md#billing-role--future) |
 | D109 | [owner](../../../../docs/06-launchers.md#adapters) |
@@ -194,9 +194,9 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D130 | [owner](../../../R1.2/records.md#how-long-a-record-lives) |
 | D131 | [owner](../../../R1.2/records.md#how-long-a-record-lives) |
 | D132 | [owner](../../../R1.2/records.md#how-long-a-record-lives) |
-| D133 | [owner](../../../R1.1/identity.md#ownership) |
-| D134 | [owner](../../../R1.1/identity.md#ownership) |
-| D135 | [owner](../../../R1.1/identity.md#ownership) |
+| D133 | [owner](../../../R2.0-Future/identity.md#ownership) |
+| D134 | [owner](../../../R2.0-Future/identity.md#ownership) |
+| D135 | [owner](../../../R2.0-Future/identity.md#ownership) |
 | D136 | [owner](../../../R1.1/backups.md#backing-it-up) |
 | D137 | [owner](../../../R1.1/backups.md#backing-it-up) |
 | D138 | [owner](../../../R1.0-Release/runner-implementation.md#the-list-of-what-is-installed) |
@@ -310,7 +310,7 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D246 | [owner](../../../../docs/05-discovery.md#signing-in) |
 | D247 | [owner](../../../../docs/05-discovery.md#what-it-shows) |
 | D248 | [owner](../../../../docs/01-identity-and-authority.md#users-and-profiles) |
-| D249 | [owner](../../../R1.1/identity.md#groups-and-roles) |
+| D249 | [owner](../../../R2.0-Future/identity.md#groups-and-roles) |
 | D250 | [owner](../../../../docs/06-dedicated-runner.md#script-agents) |
 | D251 | [owner](../../../../docs/06-dedicated-runner.md#script-agents) |
 | D252 | [owner](../../../../docs/06-dedicated-runner.md#script-agents) |

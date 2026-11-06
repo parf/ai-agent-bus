@@ -6,6 +6,11 @@ Generic undecided or unassigned plans, formerly Future. R2.0 names where they wa
 
 | Topic | Canonical knowledge |
 |---|---|
+| Identity extensions (sigils, delegation, ownership) | [Identity extensions](identity.md#sigils) |
+| AUTH distribution | [AUTH distribution](auth.md#bundle) |
+| Scoped credentials and encryption | [Scoped credentials and encryption](access.md#token-scope) |
+| Encryption waves | [Encryption waves](encryption-wave.md#acceptance) |
+| Module boundaries | [Auth module boundaries](modules.md#modules) |
 | Billing | [Billing](billing.md#billing-role--future) |
 | LDAP and AD | [LDAP and AD](ldap-ad.md#ldap--active-directory--future) |
 | Public directory | [Public directory](public-directory.md#a-public-directory-of-people-and-their-keys) |

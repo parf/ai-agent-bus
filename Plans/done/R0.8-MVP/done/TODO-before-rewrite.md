@@ -195,7 +195,7 @@ waiting on it since the PoC.
 
 🚫 **Cut from this stage.** The sentence is not reachable in the MVP's key
 mode: the daemon issues the token and holds it on the local socket
-([access § key modes](../../../R1.1/access.md#key-modes),
+([access § key modes](../../../R2.0-Future/access.md#key-modes),
 [access § encrypted sessions](../../../../docs/02-access.md#trust-boundary)), so
 AEAD over it would pass every check but the one that matters. The docs now say
 the bus is trusted on its own host and end to end is R1's, on the
@@ -215,7 +215,7 @@ built, and the rows stay as the shape R1 inherits.
 - an exact plaintext round trip between two real endpoints, one Go and one
   bun;
 - a tampered body, a wrong key and a replayed message are each **rejected**
-  ([access § key confirmation](../../../R1.1/access.md#key-confirmation)) —
+  ([access § key confirmation](../../../R2.0-Future/access.md#key-confirmation)) —
   opaque-looking bytes pass a weaker check, and so does base64;
 - the daemon's own key material **cannot** decrypt a captured body. If that
   check cannot be made to pass, the blocker was real and the docs change
@@ -340,7 +340,7 @@ the binaries arrive, and are built
 | H.2 | ✅ _done_, and now H.4's program — it creates the two accounts and the tree they own, writes the unit and starts the daemon as one of them, refusing without root rather than half-installing; `--dry-run` / `--print-unit` need nothing ([setup § the two accounts](../../../../docs/administration.md#the-two-accounts)). Unprivileged checks cover everything it would write; **running it for real is the privileged check below** |
 | H.3 | ✅ _done_ — the account, its home, the one declarative capability and restart, all in the unit and each falsified on its own |
 | H.4 | ✅ _done_ — `agent-bus-setup` is its own program, root-only, and prints the `sudo` line rather than failing flat ([setup § the programs](../../../../docs/user/cli.md)) |
-| H.5 | ✅ _done_ — `agent-bus-admin` writes the account's `authorized_keys`: `user add` / `list` / `remove`, each line a forced command and no shell, an operator's pointing at this program and everybody else's at `agent-bus-token` ([AUTH role § SSH admin](../../../R1.1/auth.md#ssh-admin)). It re-runs itself under `sudo -u agent-busd` when it is not that account, and hands the shared `token` verb to the smaller program rather than owning a second copy. ⚠️ *ACL editing waits on where an ACL is written down — the ❓ in [setup § the programs](../../../../docs/user/cli.md)* |
+| H.5 | ✅ _done_ — `agent-bus-admin` writes the account's `authorized_keys`: `user add` / `list` / `remove`, each line a forced command and no shell, an operator's pointing at this program and everybody else's at `agent-bus-token` ([AUTH role § SSH admin](../../../R2.0-Future/auth.md#ssh-admin)). It re-runs itself under `sudo -u agent-busd` when it is not that account, and hands the shared `token` verb to the smaller program rather than owning a second copy. ⚠️ *ACL editing waits on where an ACL is written down — the ❓ in [setup § the programs](../../../../docs/user/cli.md)* |
 | H.6 | ✅ _done_ — `agent-bus-token` prints a credential and nothing else. Under SSH the authorized_keys line is the entitlement and `$SSH_ORIGINAL_COMMAND` is the request, so a key may only ask for the name its line names. The CLI's `token` verb went with it |
 | H.7 | ✅ _done_ — `--key` proves the name against what the realm publishes and gets a credential with no credential to start from ([access § getting a token](../../../../docs/02-access.md#getting-a-token)). It is enrolment's own challenge with a second caller; the one change the daemon needed was to stop asking `/enrol` for a credential, which was a circle ([identity § proving possession](../../../../docs/02-access.md#proving-possession)) |
 

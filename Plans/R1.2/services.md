@@ -156,7 +156,7 @@ something up beforehand is how that question goes unanswered.
 | | |
 |---|---|
 | **one contract, not a second one** | ring for the past, a 📣 channel for the future, the poll the common one — exactly what `logwatch` does and for the same reason ([reading the box](#reading-the-box)). A level is an instance of its own, so a flood of warnings cannot push the errors out of theirs |
-| **the ring needs nothing new in the daemon** | the daemon already publishes its own events onto a 📣 channel — a key that does not match is written down that way today ([access § key confirmation](../R1.1/access.md#key-confirmation)). Anything on the bus can publish to the same topics, and the agent is only what **remembers** them |
+| **the ring needs nothing new in the daemon** | the daemon already publishes its own events onto a 📣 channel — a key that does not match is written down that way today ([access § key confirmation](../R2.0-Future/access.md#key-confirmation)). Anything on the bus can publish to the same topics, and the agent is only what **remembers** them |
 | **the alerter delivers nothing** | it speaks no SMTP, no Telegram API, nothing. Each hop out is an ordinary call to `notify`, `telegram`, `sms`, `mail` or `slack`, so a new way to reach people is a new instance of something already here and not a change to this agent. An alerter that learned to send mail would be a second, worse copy of `mail` |
 | **an alert names a person, not a medium** | which is the same identity everything else uses ([identity § names](../../docs/01-identity-and-authority.md#names)). Turning `parf@srv1` into *telegram first, then SMS* **is** the whole job, and it is the reason this is an agent rather than a rule in whoever raised the alert |
 | **the order is per person and per severity, and it is not the alerter's** | the list is part of the person's record in the daemon ([identity § how to reach a person](people.md#how-to-reach-a-person)), because it is the person's: several alerters reach the same human, and a phone that changed has to change once |
@@ -245,7 +245,7 @@ is the access model above it.
 | | |
 |---|---|
 | **the personal namespace belongs to the name, so a pool shares one** | members of a pool are one name ([runner § one name on many hosts](../R1.0-Release/runner-implementation.md#one-name-on-many-hosts)), so they land in the same namespace — the batcher's shared list, with nothing configured and nothing granted |
-| **read · write · rw is a role, not a flag** | roles are how the daemon says *what* a principal may do, already — `@team(rw)`, `parf@srv1(read)` ([identity § sigils](../R1.1/identity.md#sigils)): it is stated per principal in the record, delivered with the call, and the agent reads what it was handed. That is not the same as an agent checking who is calling, which the rule above forbids — and it is why this does not need `kv-ro` and `kv-rw` as two names. **A flag cannot be granted; a role is nothing but a grant** |
+| **read · write · rw is a role, not a flag** | roles are how the daemon says *what* a principal may do, already — `@team(rw)`, `parf@srv1(read)` ([identity § sigils](../R2.0-Future/identity.md#sigils)): it is stated per principal in the record, delivered with the call, and the agent reads what it was handed. That is not the same as an agent checking who is calling, which the rule above forbids — and it is why this does not need `kv-ro` and `kv-rw` as two names. **A flag cannot be granted; a role is nothing but a grant** |
 
 ### Other buses
 

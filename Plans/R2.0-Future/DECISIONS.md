@@ -7,6 +7,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
 | Constitution | [0.7 work](../done/R0.8-MVP/0.7.0-TODO.md#objective) | Owner assigned implementation to 0.7; current decision is indexed in [MVP decisions](../../docs/decisions.md#settled) |
+| New auth work moved from R1.1 | [Topics](README.md#topics); [dependencies](FUTURE.md#auth-dependencies); [questions](QUESTIONS.md#access-context) | owner, 2026-11-05 |
 | Candidates | [definition](FUTURE.md#candidates) | D24, D219 |
 | Storage | [definition](storage.md#storage) | D88 |
 | Debug mode | [definition](debug.md#debug-mode) | D100 |

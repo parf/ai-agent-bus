@@ -22,7 +22,7 @@ falls through. Applies to identities, ACL/roles and record lookups.
 
 Unresolved AUTH propagation details stay in [R1.1 questions](../R1.1/QUESTIONS.md#open-questions).
 
-- Upstream answers follow the [AUTH consistency contract](../R1.1/auth.md#consistency-window);
+- Upstream answers follow the [AUTH consistency contract](../R2.0-Future/auth.md#consistency-window);
   cache refresh does not replace credentials. Handling stale answers while an
   upstream is unreachable is part of that contract's open propagation decision.
 - `master_secret` does not span levels → cross-level access uses pairwise keys

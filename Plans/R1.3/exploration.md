@@ -49,7 +49,7 @@ hop *after the first* needs no key. What stays open is the first one, on a box
 with no runner and nobody to ask, which is the only place this want still bites.
 
 The future identity proposal assumes credential storage sealed **to the agent's
-own key** ([identity § sealed private config](../R1.1/identity.md#sealed-private-config)),
+own key** ([identity § sealed private config](../R2.0-Future/identity.md#sealed-private-config)),
 and nothing yet says where that key comes from. Deliberately nothing in the
 main documents does — the owner key would appear only in a **backup** of a
 agent key, as a recovery path rather than a run-time dependency, and that
@@ -82,7 +82,7 @@ is not a feature:
 
 | | |
 |---|---|
-| **sealed private config** | the proposed daemon would hold opaque bytes it cannot read, sealed to the agent's key, versioned ([identity § sealed private config](../R1.1/identity.md#sealed-private-config)). The secrets want may be this plus *the agent may write it*, rather than a new mechanism |
+| **sealed private config** | the proposed daemon would hold opaque bytes it cannot read, sealed to the agent's key, versioned ([identity § sealed private config](../R2.0-Future/identity.md#sealed-private-config)). The secrets want may be this plus *the agent may write it*, rather than a new mechanism |
 | **`kv` in the catalogue** | already listed, and its first version is an access wrapper around `kvrocks` ([bundled agents § data](../R1.2/services.md#data)) — values with a ttl, `cas`, hashes, lists with blocking forms and pull-push, none of it ours to build. `cas` and pull-push each claim work without a lock, which is most of the state want |
 | **redis · kvrocks gateways** | also already listed — and fast shared KV with locks is exactly what they do. If a gateway serves this, *ours* has to justify existing |
 

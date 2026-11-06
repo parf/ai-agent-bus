@@ -57,3 +57,34 @@ what routes through it. *Settled by:* owner.
 ## Storage context
 
 ❓ **Which persistent data belongs in a replacement store?** The original question assumed unbuilt database and snapshot choices. [Current storage](../../docs/administration.md#storage) is the baseline; selecting a replacement remains the owner’s decision.
+
+## Access context
+
+<a id="Q16"></a>
+
+- ❓ Q16 How a per-destination token argument is told apart from asking for a name you own
+  - Context: today the argument names a *principal*, which is what lets the daemon's owner get a credential for any name and a runner collect one for an agent it started. Once it names a *destination*, those two readings of one argument have to be told apart ([access § token scope](access.md#token-scope))
+  - Settled by: the owner, when the future auth work is taken up
+
+<a id="Q6"></a>
+
+- ❓ Q6 A queued body outlives the session that encrypted it
+  - Context: the proposed handshake is live between two endpoints, but an inbox belongs to a name and waits for a reader that may not exist yet ([messaging § inbox queues](../../docs/04-messaging.md#inbox-queues)), and a dump reloads a backlog into a restarted daemon ([messaging § durability](../../docs/04-messaging.md#durability)). So a stored body needs a key recoverable without the sender present ([access § key modes](access.md#key-modes))
+  - Context: under the settled [credential lifetime policy](../../docs/02-access.md#token-lifetime), clock-driven replacement is excluded. The design must cover deterministic derivation, identifying the needed material, and retaining or recovering it after a manual change. It must also tell refusal of new authentication apart from the ability to decrypt old work: a manual revocation needs an explicit backlog outcome
+  - Settled by: the owner, when the future auth work is taken up
+
+## Auth context
+
+<a id="Q4"></a>
+
+- ❓ Q4 `authorized_keys` regeneration would drop the setup-installed token key
+  - Context: `authorized_keys` is regenerated from the bundle each generation, which would drop the key `agent-bus-setup` installed for issuing tokens ([access § getting a token](../../docs/02-access.md#getting-a-token)) the moment AUTH is switched on ([AUTH role § SSH admin](auth.md#ssh-admin))
+  - Settled by: the owner
+
+## Authorization refresh
+
+<a id="Q35"></a>
+
+- ❓ Q35 How authorization caches observe policy changes and explicit revocations
+  - Context: removing the token epoch also removes the earlier bound on stale AUTH answers. Decide when cached permissions are refreshed, how an explicit revocation reaches replicas and live sessions, and what a disconnected caller may do. This is authorization freshness, not a reopened token-expiry decision ([AUTH consistency](auth.md#consistency-window))
+  - Settled by: the owner, when the future auth work is taken up
