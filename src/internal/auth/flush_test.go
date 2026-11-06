@@ -140,3 +140,66 @@ func TestARefusedLastUseFlushIsRetried(t *testing.T) {
 		t.Fatal("the time a refused flush held back was never written")
 	}
 }
+
+// A name in the flushed batch that is forgotten while the write is in flight
+// stays forgotten, and a use made during the write is the time the next flush
+// stores: the batch advances nothing past what it wrote.
+func TestAFlushKeepsAForgetAndANewerUseMadeDuringItsWrite(t *testing.T) {
+	st := &slowTouch{Tokens: memory.NewTokens()}
+	tokens, err := testTokens(st, "owner@h")
+	if err != nil {
+		t.Fatal(err)
+	}
+	alice, _ := tokens.Issue("alice@h")
+	carol, _ := tokens.Issue("carol@h")
+	tokens.Credential(alice)
+	tokens.Credential(carol)
+	st.entered, st.release = make(chan struct{}), make(chan struct{})
+	var once sync.Once
+	open := func() { once.Do(func() { close(st.release) }) }
+	defer open()
+	flushed := make(chan error, 1)
+	go func() { flushed <- tokens.FlushUsed() }()
+	select {
+	case <-st.entered:
+	case <-time.After(time.Second):
+		t.Fatal("the flush never reached the store")
+	}
+	// carol is in the batch being written; forget her now.
+	if err := tokens.Forget("carol@h"); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(2 * time.Millisecond)
+	tokens.Credential(alice)
+	newer := tokens.LastUsed([]string{"alice@h"})["alice@h"]
+	open()
+	if err := <-flushed; err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range tokens.Names() {
+		if name == "carol@h" {
+			t.Fatal("a name forgotten during the flush is held again")
+		}
+	}
+	if _, ok := tokens.Principal(carol); ok {
+		t.Fatal("a token forgotten during the flush authenticates")
+	}
+	rows, err := st.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range rows {
+		if c.Name == "carol@h" {
+			t.Fatal("a credential forgotten during the flush is stored again")
+		}
+	}
+	st.entered = nil
+	for range 2 {
+		if err := tokens.FlushUsed(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := storedUsed(t, st, "alice@h"); !got.Equal(newer) {
+		t.Fatalf("stored last use %v, want the newer use %v made during the write", got, newer)
+	}
+}
