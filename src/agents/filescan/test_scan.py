@@ -108,6 +108,23 @@ class WalkDescriptorTests(Tree):
         finally:resource.setrlimit(resource.RLIMIT_NOFILE,(soft,hard))
         self.assertEqual(len([g for g in got if g[0]=='file']),200,got[:3]);self.assertEqual([g for g in got if g[0]!='file'],[],'no EMFILE read as an unreadable directory')
 
+    def test_a_callback_that_raises_leaves_no_descriptor_open_for_the_top_or_a_child(self):
+        put(self.root,'a/f.md');put(self.root,'b/g.md');before=self.fds()
+        def fail_at(target):
+            def cb(rel,fd):
+                if rel==target:raise RuntimeError('callback')
+            return cb
+        for target in ('','a','b'):
+            with self.assertRaises(RuntimeError,msg=repr(target)):list(scan.walk(self.root,self.s['include'],self.s['exclude'],before=fail_at(target)))
+            self.assertEqual(self.fds(),before,'a callback that raised at %r leaked a descriptor'%target)
+
+    def test_the_callback_gets_each_directory_and_its_pinned_descriptor(self):
+        put(self.root,'a/b/f.md');seen=[]
+        def cb(rel,fd):seen.append((rel,os.fstat(fd).st_ino))
+        list(scan.walk(self.root,self.s['include'],self.s['exclude'],before=cb))
+        self.assertEqual([r for r,_ in seen],['','a','a/b'])
+        self.assertEqual(seen[2][1],(Path(self.root)/'a/b').stat().st_ino,'the descriptor is the directory it names')
+
     def test_a_directory_swapped_for_a_link_between_listing_and_opening_is_refused(self):
         outside=tempfile.mkdtemp(prefix='fs-out-');self.addCleanup(lambda:__import__('shutil').rmtree(outside));put(outside,'s.md','secret')
         put(self.root,'a/f.md');put(self.root,'b/g.md');real=os.scandir

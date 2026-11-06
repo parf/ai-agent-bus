@@ -30,9 +30,10 @@ def walk(root,include,exclude,sub='',before=None):
     not read, named by its full path relative to root (empty only when the whole root cannot be opened).
     Links, sockets, pipes and devices are skipped, and an excluded directory is not entered. With `sub` (a directory path
     relative to root) only that directory is walked, reached without following a link, and paths and the include and
-    exclude globs are those relative to root, as in a whole walk. `before(directory)` is called with each directory's path
-    relative to root (the top is `sub`, '' for the root) just before that directory is listed, so a caller can start watching
-    it first: whatever appears later raises an event, and whatever appeared earlier is in the listing.
+    exclude globs are those relative to root, as in a whole walk. `before(directory, fd)` is called with each directory's path
+    relative to root (the top is `sub`, '' for the root) and the descriptor the walker has pinned for it, just before that
+    directory is listed, so a caller can start watching exactly that directory first: whatever appears later raises an event,
+    and whatever appeared earlier is in the listing. A callback that raises leaves no descriptor open.
     """
     lead=sub+'/' if sub else ''
     try:top=open_dir(root,sub)
@@ -45,11 +46,12 @@ def walk(root,include,exclude,sub='',before=None):
         try:return sorted(os.scandir(fd),key=lambda e:e.name),None
         except OSError as error:return None,error.errno
     try:
-        if before:before(sub)
+        stack.append([top,iter(()),lead])   # on the stack before anything can raise, so every path below closes it
+        if before:before(sub,top)
         entries,err=listing(top)
         if err is not None:
-            os.close(top);yield ('direrror',sub,err);return
-        stack.append((top,iter(entries),lead))
+            stack.pop();os.close(top);yield ('direrror',sub,err);return
+        stack[-1][1]=iter(entries)
         while stack:
             fd,it,prefix=stack[-1]
             entry=next(it,None)
@@ -63,11 +65,12 @@ def walk(root,include,exclude,sub='',before=None):
                     try:child=os.open(entry.name,OPEN_DIR,dir_fd=fd)
                     except OSError as error:
                         yield ('direrror',rel,error.errno);continue
-                    if before:before(rel)
+                    stack.append([child,iter(()),rel+'/'])   # registered before the callback, which may raise
+                    if before:before(rel,child)
                     found,err=listing(child)
                     if err is not None:
-                        os.close(child);yield ('direrror',rel,err);continue
-                    stack.append((child,iter(found),rel+'/'))
+                        stack.pop();os.close(child);yield ('direrror',rel,err);continue
+                    stack[-1][1]=iter(found)
                     continue
                 if not selected(rel,include,exclude):continue
                 st=entry.stat(follow_symlinks=False)

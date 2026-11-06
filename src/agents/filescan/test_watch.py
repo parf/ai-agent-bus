@@ -60,10 +60,10 @@ class WatcherTests(unittest.TestCase):
         # J116: the directory was listed and only then watched, so a file made between the two was in neither the list nor
         # an event. The hook makes the file at the very moment the watch is being added, the worst moment for that order.
         self.start();real=self.w._watch;made=[]
-        def hooked(rel):
+        def hooked(rel,fd):
             if rel=='d/deep' and not made:
                 made.append(1);(Path(self.root)/'d/deep/f.md').write_text('early')
-            return real(rel)
+            return real(rel,fd)
         self.w._watch=hooked
         os.makedirs(Path(self.root)/'d/deep')
         self.assertTrue(eventually(lambda:self.seen('d/deep/f.md')),self.got)
@@ -71,12 +71,26 @@ class WatcherTests(unittest.TestCase):
 
     def test_a_file_made_while_the_new_directory_itself_gets_its_watch_is_still_reported(self):
         self.start();real=self.w._watch;made=[]
-        def hooked(rel):
+        def hooked(rel,fd):
             if rel=='top' and not made:made.append(1);(Path(self.root)/'top/g.md').write_text('early')
-            return real(rel)
+            return real(rel,fd)
         self.w._watch=hooked
         os.makedirs(Path(self.root)/'top')
         self.assertTrue(eventually(lambda:self.seen('top/g.md')),self.got);self.assertEqual(made,[1])
+
+    def test_a_parent_swapped_for_a_link_after_it_was_opened_cannot_redirect_a_watch(self):
+        outside=Path(self.root).parent/(Path(self.root).name+'-outside');(outside/'b').mkdir(parents=True);self.addCleanup(lambda:__import__('shutil').rmtree(outside))
+        (Path(self.root)/'a/b').mkdir(parents=True)
+        self.start();w=self.w;real=w._watch;swapped=[]
+        def swap(rel,fd):
+            if rel=='a/b' and not swapped:
+                swapped.append(1);(Path(self.root)/'a').rename(Path(self.root)/'saved');(Path(self.root)/'a').symlink_to(outside,target_is_directory=True)
+            return real(rel,fd)
+        w._watch=swap;w.by_path.clear();w.add_tree('')   # walk the whole tree again, swapping a parent midway
+        self.assertEqual(swapped,[1])
+        info=Path('/proc/self/fdinfo/%d'%w.fd).read_text()
+        self.assertNotIn('ino:%x '%(outside/'b').stat().st_ino,info,'a watch went onto the directory outside the root')
+        self.assertIn('ino:%x '%(Path(self.root)/'saved'/'b').stat().st_ino,info,'it watched the inode that was opened')
 
     def test_a_deep_new_tree_is_listed_with_every_file_and_watched_in_every_directory(self):
         self.start();(Path(self.root)/'t/a/b').mkdir(parents=True);(Path(self.root)/'t/a/b/x.md').write_text('x');(Path(self.root)/'t/y.md').write_text('y')
@@ -208,8 +222,8 @@ class AgentWatchTests(base.Base):
         # J116: with the watch added before the listing, a file made right after the watch exists is in the listing and
         # also raises its own event. The subscriber must still get exactly one change for it.
         self.add();self.agent.tick();self.bus.sent.clear();self.watch_agent({'mode':'watch'});watcher=self.agent.watcher;real=watcher._watch;made=[]
-        def hooked(rel):
-            real(rel)
+        def hooked(rel,fd):
+            real(rel,fd)
             if rel=='d/deep' and not made:made.append(1);(Path(self.root)/'d/deep/f.md').write_text('both')
         watcher._watch=hooked
         os.makedirs(Path(self.root)/'d/deep')

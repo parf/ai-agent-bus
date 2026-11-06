@@ -83,12 +83,14 @@ class Watcher:
             if kind=='file':files.append(path)
         return files
 
-    def _watch(self,rel):
+    def _watch(self,rel,fd):
+        """Watch the directory `rel` through the walker's pinned descriptor `fd`: the watch goes on exactly that inode, so a
+        parent swapped for a link after it was opened cannot send the watch somewhere else. The kernel needs the magic link
+        dereferenced for this, so IN_DONT_FOLLOW is dropped for it; the link names the pinned inode, never a path."""
         if rel in self.by_path:return
         if self.watch_limit is not None and len(self.wd)>=self.watch_limit:
             self.unwatched+=1;self.limit_hit=True;return
-        path=os.path.join(self.root,rel) if rel else self.root
-        wd=self.lib.inotify_add_watch(self.fd,os.fsencode(path),MASK)
+        wd=self.lib.inotify_add_watch(self.fd,os.fsencode('/proc/self/fd/%d'%fd),MASK&~IN_DONT_FOLLOW)
         if wd<0:
             e=ctypes.get_errno()
             if e==errno.ENOSPC:self.limit_hit=True
