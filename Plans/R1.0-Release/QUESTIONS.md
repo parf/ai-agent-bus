@@ -10,7 +10,7 @@ suggestion with `✅ 💡` or `🚫 💡`.
 
 ## Upgrading pre-1.0 data
 
-- ❓ 🔴 Q338 How does a pre-1.0 store reach 1.0.x
+- ✅ 🔴 Q338 How does a pre-1.0 store reach 1.0.x
   - Context: on 2026-11-05 the 1.0.9 daemon refused to start on this node's store (`record #ab-ceo: unsupported field "personal"`); the node runs 0.9.303 again until this is settled. 1.0 dropped every pre-1.0 form (CLAUDE.md "one canonical interface"), and 0.9.303 wrote some of them: `personal` and `reading` members, maintainers as a string, non-canonical tags, credentials bound lazily, and old runner inventory members
   - Context: the `docker.io/parf/agent-bus` images were pushed with 0.9.x tags since 10-30, so other people may hold 0.9 stores that 1.0.x refuses
   - ( ) A one-time offline conversion: run with the daemon stopped, after a backup; for this node now, and shipped as a documented `agent-bus-admin` upgrade step for 0.9 users 🌟
@@ -26,12 +26,16 @@ suggestion with `✅ 💡` or `🚫 💡`.
   - ( ) Convert this node once, offline after a backup: drop `personal`, delete the 3 ownerless test leftovers; every record, token, KV value and queue is kept 🌟
   - ( ) Start this node on an empty 1.0 store: every agent, user, token and stored value is lost and set up again ⭐
 
-- ❓ Q340 Which legacy records to delete in the same offline pass as №Q338
+- ✅ Q340 Which legacy records to delete in the same offline pass as №Q338
   - Context: owner, 2026-11-05: "clean up all legacy records if we have some". These have no reader now. Deleting is done in the offline conversion, after the backup; this session may not unregister records itself. AI-session names come back by themselves the next time that session starts
-  - [ ] The old AB team (13): `#claude/ab-dvp-b`, `#claude/ab-dvp`, `#claude/ab`, `#claude/ab2`, `#claude/ab2-review`, `#codex/xab`, `#codex/xab2`, `#codex/ab-dvp`, `#codex/ab-dvp-3`, `#opencode/oab`, `#opencode/oc-ab`, `#opencode/oc-ab2`, and W1A's stale forks `#ab-w1a.job`, `#ab-w1a.job.2` 🌟
-  - [ ] Idle AI sessions of other projects, unused for 7 days or more (about 30: the `hbfr-*`, `rd*`, `home-parf-*`, `radaris`, `realmomove`, `spartan-test`, `cod-misc`, `run-dnf-update`, `j60-live`, `random`, `oc-main` names) 🌟
-  - [ ] Demo and example agents from September and October: `#demo@localhost`, `#stats-go`, `-java`, `-php`, `-python`, `-rust`, `-ts@localhost`, `#kv-example`, `#agent1@parf-dvp.difive.com`, `#dev-runner@rdvp` 🌟
-  - [ ] Test users and fixtures: `alice@`, `bob@`, `carol@`, `dave@`, `eve@fresh`, `newcomer@h`, `rtest`, the Star Wars and Spaceballs fixture records (`luke@tatooine`, `leia@alderaan`, `han@corellia`, `vader@empire`, `yoda@dagobah`, `dark-helmet@spaceball`, `lone-starr@druidia`, `vespa@druidia`, `yogurt@vega`), and the ownerless `agent-bus-runner` 🌟
+  - [x] The old AB team (13): `#claude/ab-dvp-b`, `#claude/ab-dvp`, `#claude/ab`, `#claude/ab2`, `#claude/ab2-review`, `#codex/xab`, `#codex/xab2`, `#codex/ab-dvp`, `#codex/ab-dvp-3`, `#opencode/oab`, `#opencode/oc-ab`, `#opencode/oc-ab2`, and W1A's stale forks `#ab-w1a.job`, `#ab-w1a.job.2` 🌟
+  - [x] Idle AI sessions of other projects, unused for 7 days or more (about 30: the `hbfr-*`, `rd*`, `home-parf-*`, `radaris`, `realmomove`, `spartan-test`, `cod-misc`, `run-dnf-update`, `j60-live`, `random`, `oc-main` names) 🌟
+  - [x] Demo and example agents from September and October: `#demo@localhost`, `#stats-go`, `-java`, `-php`, `-python`, `-rust`, `-ts@localhost`, `#kv-example`, `#agent1@parf-dvp.difive.com`, `#dev-runner@rdvp` 🌟
+  - [x] Test users and fixtures: `alice@`, `bob@`, `carol@`, `dave@`, `eve@fresh`, `newcomer@h`, `rtest`, the Star Wars and Spaceballs fixture records (`luke@tatooine`, `leia@alderaan`, `han@corellia`, `vader@empire`, `yoda@dagobah`, `dark-helmet@spaceball`, `lone-starr@druidia`, `vespa@druidia`, `yogurt@vega`), and the ownerless `agent-bus-runner` 🌟
   - [ ] Unclear, keep unless you say: the user `maxavg`, the service `hdb3`, the group `@ops`
-  > 💡👾 The first four groups; the fifth only if you know they are unused. Recent sessions (used in the last week) and `#db`, `#discord` (disabled, configured) stay.
+  > ✅ 💡👾 The first four groups; the fifth only if you know they are unused. Recent sessions (used in the last week) and `#db`, `#discord` (disabled, configured) stay.
+  >
+  > 💬 👤parf agree
+  >
+  > 💬👾 → №Q338: convert this node once, offline after a backup (implied by the cleanup); no legacy support for anyone else. №Q340: groups 1–4 are deleted in the same pass; the list is node-local in `local/ceo/j102-delete.txt` (79 names); `maxavg`, `hdb3` and `@ops` stay.
 
