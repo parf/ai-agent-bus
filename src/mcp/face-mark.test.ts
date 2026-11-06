@@ -139,3 +139,20 @@ test("a face that was let go cleanly is silent to faceEvent, which is why absenc
     expect(absence(s, marks.live, 1 + FACE_ABSENT_MS)).toBe("alarm");
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+test("a mark whose pid now belongs to another process is a lost face, so absence still alarms", () => {
+  const dir = scratch();
+  try {
+    // This process is alive, but the mark says it started at another time: its pid was reused.
+    const actual = startTime(process.pid);
+    expect(actual).not.toBe("");
+    writeFileSync(join(dir, `face-${process.pid}`), actual === "1" ? "2" : "1");
+    const marks = faceMarks(dir);
+    expect(marks).toEqual({ live: 0, lost: 1 });
+    expect(existsSync(join(dir, `face-${process.pid}`))).toBe(false);
+    expect(absence({ since: 0, alarmed: false }, marks.live, FACE_ABSENT_MS)).toBe("alarm");
+    // The same pid with its own start time is the live face.
+    writeFileSync(join(dir, `face-${process.pid}`), actual);
+    expect(faceMarks(dir)).toEqual({ live: 1, lost: 0 });
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
