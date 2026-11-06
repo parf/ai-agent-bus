@@ -438,17 +438,19 @@ func (t *Tokens) PairOf(f func(string) (ports.CredentialPair, error)) {
 // batch, on the queue flush's cadence: a disk write per authenticated call is
 // not a price anybody pays for a timestamp (docs/02-access.md#token-lifetime).
 // The batch is taken under the lock and written outside it, so no
-// authenticated call waits on the disk. Touch only updates rows that exist, so
-// a credential forgotten meanwhile is not brought back; a time written over a
-// fresher one is rewritten by the next flush, which still sees it as moved.
+// authenticated call waits on the disk. Touch only updates a row that still
+// holds the token the batch read, so a credential forgotten meanwhile is not
+// brought back, and one forgotten and issued anew never takes the old one's
+// time (J109); a time written over a fresher one is rewritten by the next
+// flush, which still sees it as moved.
 func (t *Tokens) FlushUsed() error {
 	t.flushMu.Lock()
 	defer t.flushMu.Unlock()
 	t.mu.RLock()
-	moved := map[string]time.Time{}
+	moved := map[string]ports.LastUse{}
 	for name, h := range t.tok {
 		if ns := h.used.Load(); ns > h.flushed {
-			moved[name] = time.Unix(0, ns)
+			moved[name] = ports.LastUse{Current: h.current, At: time.Unix(0, ns)}
 		}
 	}
 	t.mu.RUnlock()
@@ -458,9 +460,9 @@ func (t *Tokens) FlushUsed() error {
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	for name, at := range moved {
-		if h, has := t.tok[name]; has && at.UnixNano() > h.flushed {
-			h.flushed = at.UnixNano()
+	for name, u := range moved {
+		if h, has := t.tok[name]; has && h.current == u.Current && u.At.UnixNano() > h.flushed {
+			h.flushed = u.At.UnixNano()
 			t.tok[name] = h
 		}
 	}

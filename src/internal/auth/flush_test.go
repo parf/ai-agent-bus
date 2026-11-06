@@ -13,12 +13,17 @@ import (
 // A store whose Touch can be held open, so a flush can be caught mid-write.
 type slowTouch struct {
 	*memory.Tokens
+	// between runs once the batch is taken, before it is written.
+	between func()
 	entered chan struct{}
 	release chan struct{}
 	fail    error
 }
 
-func (s *slowTouch) Touch(used map[string]time.Time) error {
+func (s *slowTouch) Touch(used map[string]ports.LastUse) error {
+	if s.between != nil {
+		s.between()
+	}
 	if s.entered != nil {
 		s.entered <- struct{}{}
 		<-s.release
@@ -101,7 +106,7 @@ func TestASlowLastUseFlushBlocksNoCredentialCall(t *testing.T) {
 	if err := tokens.FlushUsed(); err != nil {
 		t.Fatal(err)
 	}
-	var wrote map[string]time.Time
+	var wrote map[string]ports.LastUse
 	probe := &recordTouch{slowTouch: st, wrote: &wrote}
 	tokens.store = probe
 	if err := tokens.FlushUsed(); err != nil || len(wrote) != 0 {
@@ -111,10 +116,10 @@ func TestASlowLastUseFlushBlocksNoCredentialCall(t *testing.T) {
 
 type recordTouch struct {
 	*slowTouch
-	wrote *map[string]time.Time
+	wrote *map[string]ports.LastUse
 }
 
-func (r *recordTouch) Touch(used map[string]time.Time) error {
+func (r *recordTouch) Touch(used map[string]ports.LastUse) error {
 	*r.wrote = used
 	return r.slowTouch.Touch(used)
 }
@@ -201,5 +206,47 @@ func TestAFlushKeepsAForgetAndANewerUseMadeDuringItsWrite(t *testing.T) {
 	}
 	if got := storedUsed(t, st, "alice@h"); !got.Equal(newer) {
 		t.Fatalf("stored last use %v, want the newer use %v made during the write", got, newer)
+	}
+}
+
+// J109: a credential forgotten and issued anew between the flush's snapshot
+// and its write never takes the old credential's last use.
+func TestAReissueDuringAFlushKeepsNoStaleLastUse(t *testing.T) {
+	st := &slowTouch{Tokens: memory.NewTokens()}
+	tokens, err := testTokens(st, "owner@h")
+	if err != nil {
+		t.Fatal(err)
+	}
+	old, err := tokens.Issue("alice@h")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, ok := tokens.Credential(old); !ok {
+		t.Fatal("alice's token is not accepted")
+	}
+	var fresh string
+	st.between = func() {
+		st.between = nil
+		tokens.Forget("alice@h")
+		if fresh, err = tokens.Issue("alice@h"); err != nil {
+			t.Error(err)
+		}
+	}
+	if err := tokens.FlushUsed(); err != nil {
+		t.Fatal(err)
+	}
+	if fresh == "" || fresh == old {
+		t.Fatal("the hook did not issue alice anew")
+	}
+	if got := storedUsed(t, st, "alice@h"); !got.IsZero() {
+		t.Fatalf("the new credential took the old one's last use: %v", got)
+	}
+	// The new credential's own use is written by the next flush.
+	tokens.Credential(fresh)
+	if err := tokens.FlushUsed(); err != nil {
+		t.Fatal(err)
+	}
+	if storedUsed(t, st, "alice@h").IsZero() {
+		t.Fatal("the new credential's own use was never written")
 	}
 }

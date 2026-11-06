@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.45 — 2026-11-06
+
+A credential forgotten and re-issued during a last-use flush no longer takes the old credential's last-use time
+
 ## 1.0.44 — 2026-11-06
 
 The runner's override merge keeps every number as written, so an integer above 2^53 or a 1.50 survives the overlay

@@ -719,7 +719,7 @@ func (t tokens) Drop(name string) error {
 	return err
 }
 
-func (t tokens) Touch(used map[string]time.Time) error {
+func (t tokens) Touch(used map[string]ports.LastUse) error {
 	if len(used) == 0 {
 		return nil
 	}
@@ -728,8 +728,8 @@ func (t tokens) Touch(used map[string]time.Time) error {
 		return err
 	}
 	defer tx.Rollback()
-	for name, at := range used {
-		if _, err := tx.Exec(`UPDATE credentials SET used = ? WHERE name = ?`, formatTime(at), name); err != nil {
+	for name, u := range used {
+		if _, err := tx.Exec(`UPDATE credentials SET used = ? WHERE name = ? AND current = ?`, formatTime(u.At), name, u.Current); err != nil {
 			return err
 		}
 	}

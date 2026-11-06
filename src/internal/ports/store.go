@@ -47,8 +47,18 @@ type TokenStore interface {
 	// Drop removes one credential; absent is success.
 	Drop(name string) error
 	// Touch records when each named credential last authenticated, in one
-	// batch on the queue flush's cadence rather than once per call.
-	Touch(map[string]time.Time) error
+	// batch on the queue flush's cadence rather than once per call. A row is
+	// written only while it still holds the LastUse's Current token, checked
+	// in the same write: a credential forgotten and issued anew since the
+	// batch was taken keeps its own, empty, last use.
+	Touch(map[string]LastUse) error
+}
+
+// LastUse is when a credential last authenticated, and which token it held
+// when that was read.
+type LastUse struct {
+	Current string
+	At      time.Time
 }
 
 // CredentialIndex is core's view of the credentials a face holds: what each

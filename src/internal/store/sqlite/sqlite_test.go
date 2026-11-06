@@ -164,12 +164,17 @@ func TestCredentials(t *testing.T) {
 		t.Fatal(err)
 	}
 	used := time.Date(2026, 9, 22, 12, 0, 0, 0, time.UTC)
-	if err := tok.Touch(map[string]time.Time{"#a@h": used}); err != nil {
+	// A last use read under another token is not written: the row was
+	// forgotten and issued anew since (J109).
+	if err := tok.Touch(map[string]ports.LastUse{"#a@h": {Current: "c", At: used}, "b@h": {Current: "stale", At: used}}); err != nil {
 		t.Fatal(err)
 	}
 	got, err := tok.Load()
 	if err != nil || len(got) != 2 || got[0].Name != "#a@h" || got[0].Previous != "p" || got[0].CredentialPair != pair || !got[0].Used.Equal(used) {
 		t.Fatalf("%+v %v", got, err)
+	}
+	if !got[1].Used.IsZero() {
+		t.Fatalf("a last use read under another token was written: %+v", got[1])
 	}
 	// One row at a time: dropping one leaves the other.
 	if err := tok.Drop("#a@h"); err != nil {

@@ -9,7 +9,6 @@ import (
 	"sort"
 	"strconv"
 	"sync"
-	"time"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
@@ -62,15 +61,15 @@ func (t *Tokens) Drop(name string) error {
 	return nil
 }
 
-func (t *Tokens) Touch(used map[string]time.Time) error {
+func (t *Tokens) Touch(used map[string]ports.LastUse) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if t.Err != nil {
 		return t.Err
 	}
-	for name, at := range used {
-		if c, has := t.creds[name]; has {
-			c.Used = at
+	for name, u := range used {
+		if c, has := t.creds[name]; has && c.Current == u.Current {
+			c.Used = u.At
 			t.creds[name] = c
 		}
 	}
