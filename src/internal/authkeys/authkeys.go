@@ -17,6 +17,8 @@ import (
 	"strings"
 	"syscall"
 	"unicode"
+
+	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
 // ErrKey is text that is not one ssh-ed25519 public key.
@@ -127,6 +129,10 @@ func Whose(line string) (name, program string) {
 		}
 	}
 	if !slices.Contains(Programs, filepath.Base(program)) {
+		return "", ""
+	}
+	// Only a canonical bus name is an owner.
+	if parsed, err := protocol.ParseName(name); err != nil || parsed.String() != name {
 		return "", ""
 	}
 	return name, filepath.Base(program)

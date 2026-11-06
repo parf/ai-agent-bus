@@ -154,6 +154,8 @@ func TestWhoseTakesTheLastFieldAndIgnoresForeignCommands(t *testing.T) {
 		"an option as the name":    "/bin/ls -l",
 		"no name":                  "/bin/sh",
 		"a python hook":            "/usr/bin/python3 /opt/hook.py alice@h",
+		"printf with arguments":    "/usr/bin/printf hello alice@h",
+		"a non-canonical name":     "/usr/local/bin/agent-bus-token Alice@H",
 		"a two-field foreign one":  "/usr/bin/foo alice@h",
 		"a foreign spaced path":    "/opt/my tools/other-program alice@h",
 	} {
