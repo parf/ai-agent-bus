@@ -135,6 +135,13 @@ class PollTests(Tree):
         d=Path(self.root)/'d';os.chmod(d,0);self.addCleanup(lambda:os.chmod(d,0o700))
         plan=self.poll(items);self.assertEqual(plan['deletes'],[]);self.assertIn(('d','unreadable'),plan['skipped'])
 
+    def test_unreadable_nested_directory_is_not_a_delete(self):
+        if os.geteuid()==0:self.skipTest('root reads everything')
+        items={};put(self.root,'sub/blocked/a.md');put(self.root,'sub/ok.md');scan.apply(items,self.poll(items))
+        d=Path(self.root)/'sub'/'blocked';os.chmod(d,0);self.addCleanup(lambda:os.chmod(d,0o700))
+        plan=self.poll(items);self.assertEqual(plan['deletes'],[],'sub/blocked/a.md must not be called deleted');self.assertTrue(plan['skipped'])
+        plan=scan.poll_paths(items,self.root,self.s,['sub/'],now=time.time());self.assertEqual(plan['deletes'],[])
+
     def test_an_unreadable_root_is_reported_and_deletes_nothing(self):
         items={'a.md':{'fp':'x','size':1,'mtime_ns':1}}
         plan=scan.poll(items,self.root+'/missing',self.s,now=time.time())

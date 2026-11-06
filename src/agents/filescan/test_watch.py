@@ -96,6 +96,12 @@ class PollPathsTests(unittest.TestCase):
         self.assertEqual(plan['deletes'],['d/b.md','d/e/c.md'])
         os.unlink(Path(self.root)/'a.md');plan=scan.poll_paths(items,self.root,self.s,['a.md'],now=time.time());self.assertEqual(plan['deletes'],['a.md'])
 
+    def test_directory_event_deletes_missing_immediate_child(self):
+        items={};self.put('sub/a.md','a');self.put('sub/b.md','b');scan.apply(items,scan.poll(items,self.root,self.s,now=time.time()))
+        os.unlink(Path(self.root)/'sub/a.md');os.unlink(Path(self.root)/'sub/b.md')
+        plan=scan.poll_paths(items,self.root,self.s,['sub/'],now=time.time())
+        self.assertEqual(plan['deletes'],['sub/a.md','sub/b.md'],'the directory exists but is empty')
+
     def test_a_new_directory_prefix_is_walked(self):
         items={};self.put('n/x.md');self.put('n/m/y.md');plan=scan.poll_paths(items,self.root,self.s,['n/'],now=time.time())
         self.assertEqual(sorted(plan['upserts']),['n/m/y.md','n/x.md'])

@@ -27,7 +27,7 @@ def walk(root,include,exclude,sub=''):
     """(kind, relative path, stat or errno) for every regular file under root, never through a link.
 
     Kind `file` carries the stat; `error` an errno for a file it could not stat; `direrror` one for a directory it could not read
-    (its path may be empty for the root).
+    (just its own name when it is below the top, empty for the top itself; see `is_blocked`).
     Links, sockets, pipes and devices are skipped, and an excluded directory is not entered. With `sub` (a directory path
     relative to root) only that directory is walked, reached without following a link, and paths and the include and
     exclude globs are those relative to root, as in a whole walk.
@@ -38,7 +38,7 @@ def walk(root,include,exclude,sub=''):
     except OSError as error:
         yield ('error','',error.errno);return
     try:
-        def onerror(error):errors.append(('direrror',(lead+(error.filename or '').lstrip('./') if isinstance(error.filename,str) else sub),error.errno))
+        def onerror(error):errors.append(('direrror',os.path.basename((error.filename or '').rstrip('/')) if isinstance(error.filename,str) else '',error.errno))
         for base,dirs,files,fd in os.fwalk(dir_fd=top,top='.',follow_symlinks=False,onerror=onerror):
             prefix=lead if base=='.' else lead+base[2:]+'/'
             keep=[]
@@ -56,6 +56,12 @@ def walk(root,include,exclude,sub=''):
                 if stat.S_ISREG(st.st_mode):yield ('file',rel,st)
     finally:os.close(top)
     yield from errors
+
+
+def is_blocked(key,blocked):
+    """Whether `key` lies under a directory that could not be read. The walker only learns that directory's own name,
+    so any directory of that name withholds its deletes: more cautious than exact, never a false delete."""
+    return any(key.startswith(b) or '/'+b in key for b in blocked)
 
 
 def open_dir(root,sub=''):
@@ -163,7 +169,7 @@ def poll(items,root,settings,*,now,hasher=None):
         present.add(rel);plan['seen']+=1
         taken=_consider(items,root,settings,now,hasher,plan,rel,info,taken)
     if plan['unreadable_root'] is None:
-        plan['deletes']=sorted(k for k in items if k not in present and selected(k,settings['include'],settings['exclude']) and not any(k.startswith(b) for b in blocked))
+        plan['deletes']=sorted(k for k in items if k not in present and selected(k,settings['include'],settings['exclude']) and not is_blocked(k,blocked))
     return plan
 
 
@@ -191,7 +197,7 @@ def poll_paths(items,root,settings,paths,*,now,hasher=None):
                 if kind!='file':continue
                 present.add(full)
                 taken=_consider(items,root,settings,now,hasher,plan,full,info,taken)
-            gone.update(k for k in below if k not in present and selected(k,settings['include'],settings['exclude']) and not any(k.startswith(b) for b in blocked))
+            gone.update(k for k in below if k not in present and selected(k,settings['include'],settings['exclude']) and not is_blocked(k,blocked))
             continue
         if not selected(path,settings['include'],settings['exclude']):continue
         st=stat_under(root,path)
