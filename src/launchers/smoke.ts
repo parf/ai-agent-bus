@@ -119,7 +119,8 @@ try {
     const fixture = resolve(import.meta.dir, "../mcp/launcher-runtime-fixture.ts");
     writeFileSync(executable, `#!/bin/sh\nulimit -c 0\nexec '${process.execPath}' '${fixture}' "$@"\n`, { mode: 0o700 });
     const events = join(dir, runtime + ".events");
-    const env = { ...process.env, AGENT_BUS_NAME: "", TEST_RUNTIME: runtime,
+    // An exported tab label or an outer launcher's ownership must not reach the title checks.
+    const env = { ...process.env, AGENT_BUS_NAME: "", AB_TAB_TITLE: "", AGENT_BUS_TITLE_OWNER: "", TEST_RUNTIME: runtime,
       CLAUDE_BIN: executable, CODEX_BIN: executable, OPENCODE_BIN: executable, CLAUDE_CONFIG_DIR: home,
       XDG_STATE_HOME: join(dir, "state"), TEST_EVENTS: events, TEST_PEER: peerName,
       TEST_TITLE: "Named session", TEST_EXIT: "17", TEST_DENIED: deniedName,
