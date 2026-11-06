@@ -92,7 +92,7 @@ The [isolation rules](security.md#isolation-today) define which code and support
 | `description` | Nonempty text registered on the bus; missing or blank refuses the package by name |
 | `form` | `args` passes the body as an argument; `json` (default) passes one envelope on stdin; `jsonl` keeps a process and sends one envelope per line ([lifecycle](operations.md#technical-details)) |
 | `serves` | `runner` (default): a script per message; `itself`: kept processes that read their own inbox ([below](#agents-that-serve-themselves)) |
-| `version` | Own version shown in help; bundled agents use the shared bus version instead |
+| `version` | Own version shown in help. A bundled agent omits it and shows the [agent pack's version](../agents/README.md#helper-version); any other agent without one shows the bus version |
 | `license`, `author`, `homepage` | License (SPDX), author and documentation link shown in help |
 | `body_formats`, `arguments`, `methods`, `config` | Call, method and Configuration descriptions ([package help](#package-help)) |
 | `processes` | A count or `min..max`, default `0..1`. Per-message scripts use the maximum; `jsonl` pools use both bounds. An agent that serves itself takes a fixed count |

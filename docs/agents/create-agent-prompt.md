@@ -59,7 +59,7 @@ Follow the [authoring checklist](authoring.md#checklist-writing-an-agents-descri
 including its recommendations. Author `agent.json`, executable, tests and README.
 Use SPDX `license`, `author`, `homepage`, `tags`, ordered `methods`, shared
 `arguments` and `config`. Set `version` for an independent package; bundled agents
-omit it and use the shared version. Method arguments support types/enum arrays,
+omit it and use the agent pack's version. Method arguments support types/enum arrays,
 `optional`, final `rest`, `json_only` and defaults; methods support text usage,
 roles, destructive marks and real examples. Configuration keys need help/examples.
 
