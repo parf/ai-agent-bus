@@ -29,10 +29,11 @@ call and again with the decoded sizes, then puts each picture under a random
 vector size, at most 256 models, in `$AGENT_BUS_WORK/embed-dims.json`, and sizes
 its cap from the runner's answer envelope (`answerAs`), an upper bound on the
 client's reply request, which the daemon reads up to 1 MiB. Request and response
-bodies are bounded at 1 MiB, except an image answer, read up to 96 MiB so that
-parsing and decoding it stays inside the runner's default 512M memory limit. Each provider request has an alarm 100 ms before the
-delivered deadline, capped at 60 seconds; the loop runs in the main thread so
-SIGALRM works. Provider, bigfile and validation failures are normal `error:`
+bodies are bounded at 1 MiB, except an image answer ([image limits](../../../docs/agents/ai.md#images)).
+The image cap budgets parsing and decoding for both kept processes sharing the
+memory limit. Each provider request has an alarm 100 ms before the delivered
+deadline, capped at 60 seconds; image requests leave a further 15 seconds for
+storage and the reply. The loop runs in the main thread so SIGALRM works. Provider, bigfile and validation failures are normal `error:`
 answers.
 
 JSON object requests retain all fields except that an absent model is filled

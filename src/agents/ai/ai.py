@@ -51,9 +51,12 @@ RECORD_KEYS = 100
 RECORD_BYTES = 256 * 1024 * 1024
 IMAGE_TTL = 86400
 IMAGE_TYPES = {"image/png": "png", "image/jpeg": "jpeg", "image/webp": "webp", "image/gif": "gif", "image/svg+xml": "svg"}
-# The provider answer carries every image in base64, a third larger than its bytes. It is held about three times
-# over while it is parsed and decoded, so the read stays well inside the runner's default 512M memory limit.
-IMAGE_READ = 96 * 1024 * 1024
+# Both kept processes share 512 MiB. Budget three copies while parsing each
+# answer, 64 MiB baseline per process and 64 MiB shared headroom:
+# (512 - 2*64 - 64) / (2*3) = 53.3 MiB; round down to 48 MiB.
+IMAGE_READ = 48 * 1024 * 1024
+# Leave storage puts and the reply time inside the runner's 60s stop deadline.
+IMAGE_REPLY_RESERVE = 15
 
 
 def refusal(status, message):
@@ -320,11 +323,16 @@ def usage_line(result):
     return "\n\n[" + "; ".join(parts) + "]" if parts else ""
 
 
-def exchange(envelope, base, verb, path, payload, key, limit=MAX_BYTES):
+def exchange(envelope, base, verb, path, payload, key, limit=MAX_BYTES, image=False):
     """One provider request under the caller's deadline: (status, raw body)."""
     timer, remaining = arm_deadline(envelope)
     connection = None
     try:
+        if image:
+            remaining -= IMAGE_REPLY_RESERVE
+            if remaining <= 0:
+                raise TimeoutError()
+            signal.setitimer(signal.ITIMER_REAL, remaining)
         connection = connect(base, remaining)
         if verb == "POST":
             response = post(connection, path, payload, key)
@@ -333,7 +341,7 @@ def exchange(envelope, base, verb, path, payload, key, limit=MAX_BYTES):
             response = connection.getresponse()
         raw = response.read(limit + 1)
         if len(raw) > limit:
-            raise ProxyError(f"provider answer exceeds {limit} bytes")
+            raise ProxyError(f"{'image' if image else 'provider'} answer exceeds {limit} bytes")
         return response.status, raw
     finally:
         signal.setitimer(signal.ITIMER_REAL, 0)
@@ -344,7 +352,7 @@ def exchange(envelope, base, verb, path, payload, key, limit=MAX_BYTES):
 
 def provider_call(name, envelope, base, verb, path, payload, key, limit=MAX_BYTES):
     """The provider's scrubbed JSON for one method, or the error answer as a string."""
-    status, raw = exchange(envelope, base, verb, path, payload, key, limit)
+    status, raw = exchange(envelope, base, verb, path, payload, key, limit, image=name == "image")
     if status == 404:
         return status, "error: provider has no " + name
     try:
@@ -712,9 +720,18 @@ def serve(bus, config, key, work):
         message = bus.consume(wait=5, share=True)
         if message is None or message.receipt or message.re:
             continue
-        reply = handle(message, config, key, store, work)
         try:
-            message.reply(reply)
+            reply = handle(message, config, key, store, work).rstrip("\n")
+        except Exception:
+            # A malformed response or MemoryError must not kill the kept
+            # reader. Never log the exception: it may include the payload.
+            print("ai: message handling failed", file=sys.stderr)
+            reply = "error: message handling failed"
+        try:
+            if reply:
+                message.reply(reply)
+            else:
+                message.done()
         except BusError:
             print("ai: answer delivery failed", file=sys.stderr)
     return 0

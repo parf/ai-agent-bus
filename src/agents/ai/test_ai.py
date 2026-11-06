@@ -10,7 +10,7 @@ from pathlib import Path
 import subprocess
 import signal
 import socket
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 import tempfile
 import threading
 import time
@@ -59,7 +59,7 @@ class FakeBus:
         self.name = '#ai@t'
         self.store = store or Record()
         self.queue = [Message.received(envelope, self) for envelope in envelopes]
-        self.replies, self.consumed = [], []
+        self.replies, self.consumed, self.dones = [], [], []
 
     def record(self, name):
         assert name == self.name
@@ -74,6 +74,9 @@ class FakeBus:
 
     def reply(self, message, body):
         self.replies.append((message.envelope.get('message_id'), body))
+
+    def done(self, message):
+        self.dones.append(message.envelope.get('message_id'))
 
 
 class Fake(http.server.BaseHTTPRequestHandler):
@@ -522,6 +525,30 @@ class Proxy(unittest.TestCase):
             code = proxy.serve(bus, self.config, KEY, None)
         return code, bus
 
+    def test_kept_plain_answers_trim_only_trailing_newlines(self):
+        with patch.object(proxy, 'handle', return_value='answer\n\n'):
+            code, bus = self.serve([{'message_id': 'a', 'body': 'hello'}])
+        self.assertEqual((code, bus.replies, bus.dones), (0, [('a', 'answer')], []))
+
+    def test_kept_empty_answer_sends_done_without_a_reply(self):
+        with patch.object(proxy, 'handle', return_value='\n\n'):
+            code, bus = self.serve([{'message_id': 'a', 'body': 'hello'}])
+        self.assertEqual((code, bus.replies, bus.dones), (0, [], ['a']))
+
+    def test_kept_handler_failure_is_generic_and_next_message_still_answers(self):
+        for error in (RuntimeError('private payload ' + KEY), MemoryError('private payload ' + KEY)):
+            with self.subTest(error=type(error).__name__):
+                escaped = None
+                with patch.object(proxy, 'handle', side_effect=[error, 'second']), patch('builtins.print') as logged:
+                    try:
+                        code, bus = self.serve([{'message_id': 'a', 'body': 'poison'}, {'message_id': 'b', 'body': 'hello'}])
+                    except Exception as failure:
+                        escaped = type(failure).__name__
+                self.assertIsNone(escaped, 'an unexpected handler error ended the kept reader')
+                self.assertEqual((code, bus.replies), (0, [('a', 'error: message handling failed'), ('b', 'second')]))
+                self.assertEqual(logged.call_count, 1)
+                self.assertEqual(logged.call_args.args, ('ai: message handling failed',))
+
     def test_roles_come_from_the_daemon_set_envelope_only(self):
         self.route('/credits', self.CREDITS)
         left, refused = '12.3456 USD left (20 USD bought, 7.6544 USD used)', 'error: balance needs the owner or maintainer role'
@@ -889,12 +916,57 @@ class Proxy(unittest.TestCase):
         self.assertEqual(list(Path(work).iterdir()), [])
         self.assertIs(os.replace, real)
 
+class ImageReadBounds(unittest.TestCase):
+    def transport(self, size):
+        response = Mock(status=200)
+        # Valid JSON padded to the exact byte boundary, without a paid provider.
+        response.read.side_effect = lambda _limit: b'{}' + b' ' * (size - 2)
+        connection = Mock()
+        return response, connection
+
+    def test_image_answer_exact_cap_and_cap_plus_one(self):
+        self.assertEqual(proxy.IMAGE_READ, 48 * 1024 * 1024)
+        manifest = json.loads((HERE / 'agent.json').read_text())
+        self.assertEqual(manifest['processes'], 2)
+        self.assertLessEqual(2 * (3 * proxy.IMAGE_READ + 64 * 1024 * 1024) + 64 * 1024 * 1024, 512 * 1024 * 1024)
+        base = proxy.trusted_base({'base_url': 'https://fixture.invalid/v1'})
+        for extra in (0, 1):
+            response, connection = self.transport(proxy.IMAGE_READ + extra)
+            with self.subTest(extra=extra), patch.object(proxy, 'arm_deadline', return_value=(signal.SIG_DFL, 60)), patch.object(proxy, 'connect', return_value=connection), patch.object(proxy, 'post', return_value=response), patch.object(signal, 'setitimer'), patch.object(signal, 'signal'):
+                if extra:
+                    with self.assertRaisesRegex(proxy.ProxyError, '^image answer exceeds ' + str(proxy.IMAGE_READ) + ' bytes$'):
+                        proxy.provider_call('image', {}, base, 'POST', '/images', b'{}', KEY, proxy.IMAGE_READ)
+                else:
+                    try:
+                        answer = proxy.provider_call('image', {}, base, 'POST', '/images', b'{}', KEY, proxy.IMAGE_READ)
+                    except proxy.ProxyError as failure:
+                        answer = str(failure)
+                    self.assertEqual(answer, (200, {}), 'an image answer exactly at the cap must be accepted')
+                response.read.assert_called_once_with(proxy.IMAGE_READ + 1)
+                connection.close.assert_called_once()
+
+    def test_image_reserves_fifteen_seconds_for_storage_and_reply(self):
+        base = proxy.trusted_base({'base_url': 'https://fixture.invalid/v1'})
+        for remaining, expected in ((60, 45), (25, 10), (10, None)):
+            response, connection = self.transport(2)
+            with self.subTest(remaining=remaining), patch.object(proxy, 'arm_deadline', return_value=(signal.SIG_DFL, remaining)), patch.object(proxy, 'connect', return_value=connection) as connect, patch.object(proxy, 'post', return_value=response), patch.object(signal, 'setitimer') as alarm, patch.object(signal, 'signal'):
+                if expected is None:
+                    with self.assertRaises(TimeoutError):
+                        proxy.provider_call('image', {}, base, 'POST', '/images', b'{}', KEY, proxy.IMAGE_READ)
+                    connect.assert_not_called()
+                else:
+                    self.assertEqual(proxy.provider_call('image', {}, base, 'POST', '/images', b'{}', KEY, proxy.IMAGE_READ), (200, {}))
+                    connect.assert_called_once_with(base, expected)
+                    self.assertEqual(alarm.call_args_list[0].args, (signal.ITIMER_REAL, expected))
+                self.assertEqual(alarm.call_args_list[-1].args, (signal.ITIMER_REAL, 0))
+
+
 if __name__ == '__main__':
     unittest.main()
 
 class AskDispatch(unittest.TestCase):
     def test_asks_never_reach_provider_or_normal_body(self):
-        from unittest.mock import patch
+        from unittest.mock import Mock, patch
         import sys
         program = HERE / ("ai.py" if HERE.name == "ai" else "sms.py")
         for ask in ['help','help-config','help-secret','help-json','mcp','status','not-a-known-ask']:
