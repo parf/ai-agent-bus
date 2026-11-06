@@ -197,18 +197,11 @@ func TestScriptExit78AnswersAndLeavesNextMessageQueuedUntilReload(t *testing.T) 
 	case <-time.After(time.Second):
 		t.Fatal("exit78 did not cancel its reader")
 	}
-	deadline = time.Now().Add(time.Second)
-	for {
-		rec, _ := b.Lookup("owner@h", "#fixture@h")
-		// The runner's asks-only reader still waits and counts in readers ("filtered and unfiltered together",
-		// docs/05-discovery.md); only an unfiltered read that could take "second" would show as reading.
-		if rec.Readers == nil || *rec.Readers == 0 {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("exit78 kept reading its inbox")
-		}
-		time.Sleep(2 * time.Millisecond)
+	// The runner's asks-only reader takes over and counts in readers ("filtered and unfiltered together",
+	// docs/05-discovery.md), so a zero count is only a gap between its reads. An ask goes to an unfiltered
+	// reader while one waits, so the asks-only status answer proves no read is left that could take "second".
+	if got := askAnswer(t, b, protocol.AskStatus); got != "failed: missing configuration" {
+		t.Fatalf("exit78 kept reading its inbox: status ask answered %q", got)
 	}
 	if _, err := b.Send(protocol.Envelope{From: "owner@h", To: "#fixture@h", Body: "second"}); err != nil {
 		t.Fatal(err)
