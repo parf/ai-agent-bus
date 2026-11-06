@@ -4,7 +4,7 @@
 
 Source: OpenRouter `/api/v1/models` and `/api/v1/images/models`, fetched 2026-11-05 (454 text and media entries, 63 image models). Prices are US$ per million tokens; variants (`:free`, `:batch`, `:thinking`) and `~` aliases are noted on their base model.
 
-## Which to use
+# Which to use
 
 | Need | Start with |
 |---|---|
@@ -15,15 +15,15 @@ Source: OpenRouter `/api/v1/models` and `/api/v1/images/models`, fetched 2026-11
 | Images or PDFs as input | any row whose Input lists image or file |
 | Making images | the Image generation section |
 
-## Always-latest aliases
+# Always-latest aliases
 
 Each routes to the vendor's newest model of that line at request time, e.g. `ab ai ask` with `"model":"~anthropic/claude-sonnet-latest"`.
 
 `~anthropic/claude-fable-latest` · `~anthropic/claude-haiku-latest` · `~anthropic/claude-opus-latest` · `~anthropic/claude-sonnet-latest` · `~deepseek/deepseek-flash-latest` · `~deepseek/deepseek-pro-latest` · `~deepseek/deepseek-v4-flash-latest` · `~google/gemini-flash-latest` · `~google/gemini-pro-latest` · `~moonshotai/kimi-latest` · `~openai/gpt-astra-latest` · `~openai/gpt-luna-latest` · `~openai/gpt-mini-latest` · `~openai/gpt-sol-latest` · `~openai/gpt-terra-latest` · `~unbiased/pareto-latest` · `~x-ai/grok-latest` · `~z-ai/glm-flash-latest` · `~z-ai/glm-latest`
 
-## Text and chat
+# Text and chat
 
-### anthropic (15)
+## anthropic (15)
 
 Anthropic's Claude: strong at coding, agents, careful writing and following instructions; Fable is the top tier, then Opus, Sonnet, Haiku (fastest, cheapest).
 
@@ -52,7 +52,7 @@ Anthropic's Claude: strong at coding, agents, careful writing and following inst
 
 </details>
 
-### openai (56)
+## openai (56)
 
 OpenAI's GPT models: general chat, coding and reasoning; "pro" variants think longer for harder problems.
 
@@ -122,7 +122,7 @@ OpenAI's GPT models: general chat, coding and reasoning; "pro" variants think lo
 
 </details>
 
-### google (21)
+## google (21)
 
 Google's Gemini: multimodal (text, images, audio, video in), very long context; Pro is the strong tier, Flash the fast one.
 
@@ -157,7 +157,7 @@ Google's Gemini: multimodal (text, images, audio, video in), very long context; 
 
 </details>
 
-### x-ai (7)
+## x-ai (7)
 
 xAI's Grok: general chat and reasoning, with live-web leaning.
 
@@ -178,7 +178,7 @@ xAI's Grok: general chat and reasoning, with live-web leaning.
 
 </details>
 
-### meta (8)
+## meta (8)
 
 Meta's newer models (Muse line).
 
@@ -200,7 +200,7 @@ Meta's newer models (Muse line).
 
 </details>
 
-### mistralai (20)
+## mistralai (20)
 
 Mistral (France): open-weight and commercial models; strong value for price, good at European languages.
 
@@ -234,7 +234,7 @@ Mistral (France): open-weight and commercial models; strong value for price, goo
 
 </details>
 
-### deepseek (14)
+## deepseek (14)
 
 DeepSeek (China): open-weight, very cheap for their strength, good at reasoning and coding.
 
@@ -262,7 +262,7 @@ DeepSeek (China): open-weight, very cheap for their strength, good at reasoning 
 
 </details>
 
-### qwen (41)
+## qwen (41)
 
 Alibaba's Qwen: open-weight family, strong multilingual and coding models in many sizes.
 
@@ -317,7 +317,7 @@ Alibaba's Qwen: open-weight family, strong multilingual and coding models in man
 
 </details>
 
-### moonshotai (8)
+## moonshotai (8)
 
 Moonshot's Kimi: long context and agentic tool use.
 
@@ -339,7 +339,7 @@ Moonshot's Kimi: long context and agentic tool use.
 
 </details>
 
-### z-ai (17)
+## z-ai (17)
 
 Zhipu's GLM: Chinese open-weight family, good at agents and coding; FlashX variants are cheap.
 
@@ -370,7 +370,7 @@ Zhipu's GLM: Chinese open-weight family, good at agents and coding; FlashX varia
 
 </details>
 
-### minimax (5)
+## minimax (5)
 
 MiniMax: long-context, cheap general models.
 
@@ -389,7 +389,7 @@ MiniMax: long-context, cheap general models.
 
 </details>
 
-### nvidia (8)
+## nvidia (8)
 
 NVIDIA's Nemotron: tuned open models, often free to try.
 
@@ -411,7 +411,7 @@ NVIDIA's Nemotron: tuned open models, often free to try.
 
 </details>
 
-### amazon (5)
+## amazon (5)
 
 Amazon's Nova: cheap general and multimodal models.
 
@@ -429,7 +429,7 @@ Amazon's Nova: cheap general and multimodal models.
 
 </details>
 
-### cohere (6)
+## cohere (6)
 
 Cohere's Command: enterprise chat and retrieval (RAG).
 
@@ -449,7 +449,7 @@ Cohere's Command: enterprise chat and retrieval (RAG).
 
 </details>
 
-### aion-labs (6)
+## aion-labs (6)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
@@ -467,7 +467,7 @@ Cohere's Command: enterprise chat and retrieval (RAG).
 
 </details>
 
-### bytedance-seed (6)
+## bytedance-seed (6)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
@@ -485,31 +485,31 @@ Cohere's Command: enterprise chat and retrieval (RAG).
 
 </details>
 
-### dots-studio (1)
+## dots-studio (1)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `dots-studio/dots-3-note-preview:free` | Dots3-Note Preview is an open-weight mixture-of-experts model from Dots Studio, with 16B active parameters out of 280B total | 512K | free | free | text, image | 2026-08-14 |
 
-### elorian (1)
+## elorian (1)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `elorian/glimpse` | A multimodal visual reasoning model from Elorian, built for visual understanding and complex visual reasoning in the physical world | 262K | $0.60 | $3.00 | text, image, video | 2026-10-16 |
 
-### fireworks (1)
+## fireworks (1)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `fireworks/ember-1` | A specialized reasoning model from Fireworks Research, built on Kimi K3 | 1.0M | $3.00 | $15.00 | text, image | 2026-09-23 |
 
-### ibm-granite (1)
+## ibm-granite (1)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `ibm-granite/granite-4.2-8b` | A dense reasoning model from IBM | 131K | $0.060 | $0.25 | text | 2026-08-31 |
 
-### inception (3)
+## inception (3)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
@@ -517,7 +517,7 @@ Cohere's Command: enterprise chat and retrieval (RAG).
 | `inception/mercury-2.5` | The fastest reasoning LLM, and the latest diffusion LLM (dLLM) from Inception | 260K | $0.040 | $0.15 | text | 2026-09-08 |
 | `inception/mercury-2` | An extremely fast reasoning LLM, and the first reasoning diffusion LLM (dLLM) | 128K | $0.25 | $0.75 | text | 2026-03-04 |
 
-### inclusionai (4)
+## inclusionai (4)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
@@ -533,41 +533,41 @@ Cohere's Command: enterprise chat and retrieval (RAG).
 
 </details>
 
-### inference-net (2)
+## inference-net (2)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `inference-net/schematron-v2-small` | A 3B-parameter HTML-to-JSON extraction model from Inference.net | 128K | $0.050 | $0.23 | text | 2026-09-11 |
 | `inference-net/schematron-v2-turbo` | A 3B-parameter HTML-to-JSON extraction model from Inference.net | 128K | $0.030 | $0.15 | text | 2026-09-11 |
 
-### liquid (2)
+## liquid (2)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `liquid/lfm-2.5-24b-a2b` | A mixture-of-experts reasoning model from Liquid AI with 24B total and 2.45B active parameters | 128K | $0.050 | $0.70 | text | 2026-10-13 |
 | `liquid/lfm-2.5-2.6b` · :free | A compact reasoning model from Liquid AI | 128K | $0.35 | $0.50 | text | 2026-08-11 |
 
-### meituan (1)
+## meituan (1)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `meituan/longcat-2.0` | A sparse mixture-of-experts language model from Meituan, with 48B active parameters out of 1.6T total | 1.0M | $0.30 | $1.20 | text | 2026-07-20 |
 
-### moondream (2)
+## moondream (2)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `moondream/moondream3.1-9b-a2b` | A vision-language model from Moondream, the successor to Moondream 3 Preview, with 9B total parameters and 2B active (mixture-of-experts) | 32K | $0.30 | $2.50 | text, image | 2026-10-15 |
 | `moondream/moondream3-preview` | A vision-language model from Moondream with 9B total parameters and 2B active (mixture-of-experts) | 32K | $0.30 | $2.50 | text, image | 2026-10-15 |
 
-### nex-agi (2)
+## nex-agi (2)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `nex-agi/nex-n2.5-pro` | Nex-N2.5 is an agentic model built to turn goals into working, verified outcomes | 262K | $0.075 | $0.25 | text, image | 2026-09-08 |
 | `nex-agi/nex-n2.5-mini` | Nex-N2.5 is an agentic model built to turn goals into working, verified outcomes | 262K | $0.025 | $0.100 | text, image | 2026-09-08 |
 
-### openrouter (4)
+## openrouter (4)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
@@ -583,57 +583,57 @@ Cohere's Command: enterprise chat and retrieval (RAG).
 
 </details>
 
-### particle-ai (1)
+## particle-ai (1)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `particle-ai/particle-1` | A token-efficient agentic coding model from Particle AI, post-trained on DeepSeek V4.1 Flash | 1.0M | $0.050 | $0.50 | text, image | 2026-10-28 |
 
-### perceptron (2)
+## perceptron (2)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `perceptron/perceptron-mk1.5` | Perceptron's embodied reasoning model for physical agents | 37K | $0.15 | $1.50 | text, image, video, audio | 2026-09-25 |
 | `perceptron/perceptron-mk1` | Perceptron Mk1 (Mark One) is Perceptron's highest-quality vision-language model for video and embodied reasoning.** It accepts image and video inputs… | 33K | $0.15 | $1.50 | text, image, video | 2026-05-12 |
 
-### prism-ml (2)
+## prism-ml (2)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `prism-ml/ternary-bonsai-2-27b` | Bonsai 2 27B is a 27B-parameter reasoning model from PrismML derived from Qwen3.8-27B | 262K | $0.075 | $0.50 | text, image | 2026-09-18 |
 | `prism-ml/ternary-bonsai-2-9b` | PrismML’s compact, open-weight language model for conversational AI, reasoning, and tool use | 262K | $0.080 | $0.13 | text, image | 2026-10-16 |
 
-### recursive (1)
+## recursive (1)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `recursive/flint-v1.0:free` | Flint is an open-weight mixture-of-experts model from Recursive, with about 2.5B active parameters out of 40B total, built by Recursive's… | 262K | free | free | text | 2026-10-21 |
 
-### reflection (1)
+## reflection (1)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `reflection/beam-1.0-501b-a23b` | Beam 1.0 is Reflection's open-weight reasoning model for coding and long-horizon agentic workflows | 1.0M | $0.30 | $1.00 | text | 2026-10-16 |
 
-### rekaai (2)
+## rekaai (2)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `rekaai/reka-edge` | An extremely efficient 7B multimodal vision-language model that accepts image/video+text inputs and generates text outputs | 16K | $0.100 | $0.100 | image, text, video | 2026-03-20 |
 
-### relace (2)
+## relace (2)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `relace/relace-search` | The relace-search model uses 4-12 `view_file` and `grep` tools in parallel to explore a codebase and return relevant files to the user request | 256K | $1.00 | $3.00 | text | 2025-12-08 |
 
-### ricursiveai (1)
+## ricursiveai (1)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `ricursiveai/ripple-65b-preview` | Ripple-65B-Preview by ricursiveAI, a 65B model with native tool calling, served in BF16 | 1.0M | $0.20 | $0.60 | text | 2026-11-04 |
 
-### sakana (4)
+## sakana (4)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
@@ -642,20 +642,20 @@ Cohere's Command: enterprise chat and retrieval (RAG).
 | `sakana/fugu-max` | The cost-performance model in Sakana AI's Fugu family | 1M | $2.00 | $6.00 | text, image, file | 2026-09-11 |
 | `sakana/sakana-namazu` | A Japanese-specialized reasoning model from Sakana AI, based on Kimi K2.6 with additional training for Japanese language and business contexts | 262K | $0.95 | $4.00 | text, image, file | 2026-08-10 |
 
-### scaledown (2)
+## scaledown (2)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `scaledown/summarize` | An abstractive summarization model from ScaleDown | 1M | $0.040 | free | text, image, file | 2026-10-13 |
 | `scaledown/extract` | A description-driven entity extraction model from ScaleDown | 1M | $0.040 | free | text, image, file | 2026-10-13 |
 
-### stealth (1)
+## stealth (1)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `stealth/crouton-alpha` | A lightweight model built for scalable coding, agentic, and multimodal workflows | 1.0M | free | free | text, image, video, file, audio | 2026-11-02 |
 
-### stepfun (3)
+## stepfun (3)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
@@ -663,7 +663,7 @@ Cohere's Command: enterprise chat and retrieval (RAG).
 | `stepfun/step-5-preview` | StepFun's flagship model for agentic work, built on a sparse Mixture-of-Experts architecture (27B active / 600B total parameters) | 1.0M | $1.00 | $2.70 | text, image, video | 2026-10-08 |
 | `stepfun/step-3.5-flash` | StepFun's most capable open-source foundation model | 262K | $0.100 | $0.30 | text | 2026-01-29 |
 
-### tencent (8)
+## tencent (8)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
@@ -683,40 +683,40 @@ Cohere's Command: enterprise chat and retrieval (RAG).
 
 </details>
 
-### thinkingmachines (2)
+## thinkingmachines (2)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `thinkingmachines/inkling` | An open-weight multimodal mixture-of-experts model from Thinking Machines Lab, with 41B active parameters out of 975B total | 524K | $1.00 | $4.05 | text, image, audio | 2026-07-17 |
 | `thinkingmachines/inkling-small` | An open-weight multimodal mixture-of-experts model from Thinking Machines Lab, with 12B active parameters out of 276B total | 524K | $0.45 | $1.20 | text, image, audio | 2026-07-30 |
 
-### typesafe (1)
+## typesafe (1)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `typesafe/jev-router` | Jev Router picks the best model and reasoning effort for each request, balancing quality, speed, and cost | 1M | $-1000000.000 | $-1000000.000 | audio, file, image, text, video | 2026-09-25 |
 
-### unbiased (2)
+## unbiased (2)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `unbiased/pareto-26.9` | Pareto is a multimodal composite model built for research, coding, and agentic workflows, while delivering frontier-level performance across a broad… | 262K | $2.50 | $7.50 | text, image | 2026-10-13 |
 | `unbiased/pareto-26.10` | Pareto is a multimodal composite model built for research, coding, and agentic workflows, while delivering frontier-level performance across a broad… | 1.0M | $0.80 | $3.20 | text, image | 2026-10-15 |
 
-### upstage (2)
+## upstage (2)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `upstage/solar-pro4` | Upstage's cost-efficient large language model, featuring a 524K context window | 524K | $0.15 | $0.60 | text | 2026-08-10 |
 | `upstage/solar-mini4` | Upstage's compact, cost-efficient language model, a 35B-parameter mixture-of-experts with 3B active parameters and a 524K context window | 524K | $0.050 | $0.20 | text | 2026-09-23 |
 
-### writer (1)
+## writer (1)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `writer/palmyra-x5` | Writer's most advanced model, purpose-built for building and scaling AI agents across the enterprise | 1.0M | $0.60 | $6.00 | text | 2026-01-21 |
 
-### xiaomi (5)
+## xiaomi (5)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
@@ -733,15 +733,15 @@ Cohere's Command: enterprise chat and retrieval (RAG).
 
 </details>
 
-### xingchen-agi (1)
+## xingchen-agi (1)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
 | ⭐ `xingchen-agi/xing4.0-29b-a4b:free` | Xing4.0-29B-A4B is an open-weight mixture-of-experts language model from China Telecom's AI team (TeleAI) and the successor to the TeleChat series | 262K | free | free | text | 2026-10-16 |
 
-## Video, audio and multimodal output
+# Video, audio and multimodal output
 
-### openai (5)
+## openai (5)
 
 OpenAI's GPT models: general chat, coding and reasoning; "pro" variants think longer for harder problems.
 
@@ -760,7 +760,7 @@ OpenAI's GPT models: general chat, coding and reasoning; "pro" variants think lo
 
 </details>
 
-### google (11)
+## google (11)
 
 Google's Gemini: multimodal (text, images, audio, video in), very long context; Pro is the strong tier, Flash the fast one.
 
@@ -785,7 +785,7 @@ Google's Gemini: multimodal (text, images, audio, video in), very long context; 
 
 </details>
 
-### openrouter (3)
+## openrouter (3)
 
 | Model | What it is for | Context | $/M in | $/M out | Input | Added |
 |---|---|---|---|---|---|---|
@@ -793,9 +793,9 @@ Google's Gemini: multimodal (text, images, audio, video in), very long context; 
 | `openrouter/auto-code` | OpenRouter’s router built specifically for coding agents and harnesses | 2M | $-1000000.000 | $-1000000.000 | text, image, audio, file, video | 2026-11-05 |
 | `openrouter/auto-beta` | The experimental version of our Auto Router where we test new improvements | 2M | $-1000000.000 | $-1000000.000 | text, image, audio, file, video | 2026-07-17 |
 
-## Image generation
+# Image generation
 
-### openai (10)
+## openai (10)
 
 | Model | What it is for | Input | Output | Added |
 |---|---|---|---|---|
@@ -817,7 +817,7 @@ Google's Gemini: multimodal (text, images, audio, video in), very long context; 
 
 </details>
 
-### google (7)
+## google (7)
 
 | Model | What it is for | Input | Output | Added |
 |---|---|---|---|---|
@@ -836,19 +836,19 @@ Google's Gemini: multimodal (text, images, audio, video in), very long context; 
 
 </details>
 
-### x-ai (1)
+## x-ai (1)
 
 | Model | What it is for | Input | Output | Added |
 |---|---|---|---|---|
 | ⭐ `x-ai/grok-imagine-image-2.0` | An image generation and editing model from xAI | text, image | image | 2026-08-11 |
 
-### meta (1)
+## meta (1)
 
 | Model | What it is for | Input | Output | Added |
 |---|---|---|---|---|
 | ⭐ `meta/muse-image` | An agentic image generation model from Meta that generates and edits images from text and reference images | text, image | image | 2026-08-26 |
 
-### qwen (4)
+## qwen (4)
 
 | Model | What it is for | Input | Output | Added |
 |---|---|---|---|---|
@@ -864,7 +864,7 @@ Google's Gemini: multimodal (text, images, audio, video in), very long context; 
 
 </details>
 
-### microsoft (4)
+## microsoft (4)
 
 | Model | What it is for | Input | Output | Added |
 |---|---|---|---|---|
@@ -880,7 +880,7 @@ Google's Gemini: multimodal (text, images, audio, video in), very long context; 
 
 </details>
 
-### black-forest-labs (6)
+## black-forest-labs (6)
 
 | Model | What it is for | Input | Output | Added |
 |---|---|---|---|---|
@@ -898,7 +898,7 @@ Google's Gemini: multimodal (text, images, audio, video in), very long context; 
 
 </details>
 
-### bytedance-seed (4)
+## bytedance-seed (4)
 
 | Model | What it is for | Input | Output | Added |
 |---|---|---|---|---|
@@ -914,7 +914,7 @@ Google's Gemini: multimodal (text, images, audio, video in), very long context; 
 
 </details>
 
-### krea (4)
+## krea (4)
 
 | Model | What it is for | Input | Output | Added |
 |---|---|---|---|---|
@@ -930,7 +930,7 @@ Google's Gemini: multimodal (text, images, audio, video in), very long context; 
 
 </details>
 
-### recraft (16)
+## recraft (16)
 
 | Model | What it is for | Input | Output | Added |
 |---|---|---|---|---|
@@ -958,7 +958,7 @@ Google's Gemini: multimodal (text, images, audio, video in), very long context; 
 
 </details>
 
-### sourceful (5)
+## sourceful (5)
 
 | Model | What it is for | Input | Output | Added |
 |---|---|---|---|---|
@@ -975,7 +975,7 @@ Google's Gemini: multimodal (text, images, audio, video in), very long context; 
 
 </details>
 
-### tencent (1)
+## tencent (1)
 
 | Model | What it is for | Input | Output | Added |
 |---|---|---|---|---|
@@ -983,7 +983,7 @@ Google's Gemini: multimodal (text, images, audio, video in), very long context; 
 
 Image prices are per endpoint: `ab ai model <id>`.
 
-## Older than a year
+# Older than a year
 
 Released more than a year ago and not shown above; kept for reference, usually replaced by a newer line of the same vendor.
 
