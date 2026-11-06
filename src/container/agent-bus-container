@@ -18,10 +18,15 @@ fail() { echo "agent-bus-container: $*" >&2; exit 1; }
 # under it, so a volume from another image is not silently rewritten. A
 # directory the account can already use, such as a bind mount of a host
 # directory, keeps its owner and mode: changing them would lock its host owner out.
+# One that other users can write to is refused, never changed on the host's behalf.
 own() { # own DIR ACCOUNT
   [ "$(id -u)" = 0 ] || return 0
   if [ "$(stat -c %U "$1")" != "$2" ]; then
-    ! usable_by "$2" "$1" || return 0
+    if usable_by "$2" "$1"; then
+      [ $(( 8#$(stat -c %a "$1") & 8#022 )) = 0 ] ||
+        fail "$1 is usable by $2 but writable by its group or others, and it holds secrets: make it $2's alone or mode 0700 on the host (rootless podman: podman unshare chown ${3:-990}:${3:-990} $1; chmod 0700 $1)"
+      return 0
+    fi
     chown "$2:$2" "$1"
   fi
   chmod 0700 "$1"
@@ -39,7 +44,7 @@ as() { # as ACCOUNT COMMAND...
     exec setpriv --reuid="$who" --regid="$who" --init-groups --inh-caps=-all --bounding-set=-all --no-new-privs -- "$@"
   fi
   [ "$(id -un)" = "$who" ] || fail "run as root or as $who, not $(id -un)"
-  exec "$@"
+  exec setpriv --no-new-privs -- "$@"
 }
 
 case ${1:---help} in
@@ -77,6 +82,7 @@ case ${1:---help} in
         printf '{\n'
         for d in "$agents"/*/; do
           [ -f "${d}agent.json" ] || continue
+          case $(basename "$d") in *\"*|*\\*) fail "the agent directory name $(basename "$d") holds a quote or backslash" ;; esac
           printf '%s  "%s": {"sandbox": "off"}' "$sep" "$(basename "$d")"
           sep=$',\n'
         done

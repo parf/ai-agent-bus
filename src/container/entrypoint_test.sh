@@ -8,7 +8,7 @@ trap 'rm -rf "$work"' EXIT
 bin=$work/bin root=$work/root log=$work/log
 mkdir -p "$bin" "$root"/{daemon,runner,agent.d}
 stub() { printf '#!/bin/bash\n%s\n' "$2" >"$bin/$1"; chmod +x "$bin/$1"; }
-stub id 'case $1 in -u) echo ${STUB_UID:-0};; -un) echo root;; *) echo 0;; esac'
+stub id 'case $1 in -u) echo ${STUB_UID:-0};; -un) echo ${STUB_UN:-root};; *) echo 0;; esac'
 stub hostname 'echo ${STUB_HOST:-node}'
 stub chown 'echo "chown $*" >>"$STUB_LOG"'
 stub install 'echo "install $*" >>"$STUB_LOG"'
@@ -70,11 +70,31 @@ check "no agents gives an empty, valid inventory" bash -c "python3 -c \"import j
 # Q8: a directory the account can already use keeps its owner and mode; one it cannot is given over.
 mkdir -p "$root/bind"; chmod 0755 "$root/bind"
 real_stat=$(command -v stat)
-stub stat "echo \${STUB_OWNER:-hostuser}"
+stub stat 'case $2 in %U) echo ${STUB_OWNER:-hostuser};; %a) echo ${STUB_MODE:-755};; esac'
 ENTRY=runner run AGENT_BUS_ADDR=http://d:1 AGENT_BUS_TOKEN=t
 check "a usable foreign directory is not chowned" bash -c "! grep -q '^chown agent-bus-runner' '$log'"
 ENTRY=runner run AGENT_BUS_ADDR=http://d:1 AGENT_BUS_TOKEN=t STUB_UNUSABLE=1
 check "an unusable foreign directory is chowned to the account" has '^chown agent-bus-runner:agent-bus-runner '
 ENTRY=runner run AGENT_BUS_ADDR=http://d:1 AGENT_BUS_TOKEN=t STUB_OWNER=agent-bus-runner STUB_UNUSABLE=1
 check "a directory already the account's is left" bash -c "! grep -q '^chown agent-bus-runner:' '$log'"
+ENTRY=runner run AGENT_BUS_ADDR=http://d:1 AGENT_BUS_TOKEN=t STUB_MODE=700
+check "the probe runs as the account" bash -c "grep -q '^--reuid=agent-bus-runner --regid=agent-bus-runner --init-groups \$' '$log'"
+STUB_MODE=777 ENTRY=runner run AGENT_BUS_ADDR=http://d:1 AGENT_BUS_TOKEN=t STUB_MODE=777
+check "a 0777 mount is refused by name" errs 'writable by its group or others'
+check "and the runner is not started" bash -c "! grep -q '^runner' '$log'"
+ENTRY=runner run AGENT_BUS_ADDR=http://d:1 AGENT_BUS_TOKEN=t STUB_MODE=700
+check "a 0700 mount the account can use is kept" has '^runner'
+check "and not chowned" bash -c "! grep -q '^chown agent-bus-runner' '$log'"
+ENTRY=runner run AGENT_BUS_ADDR=http://d:1 AGENT_BUS_TOKEN=t STUB_MODE=775
+check "a group-writable mount is refused" errs 'writable by its group or others'
+
+# The account's own start, with no root to drop, still takes no new privileges.
+STUB_UID=991 STUB_UN=agent-bus-runner ENTRY=runner run AGENT_BUS_ADDR=http://d:1 AGENT_BUS_TOKEN=t STUB_UID=991 STUB_UN=agent-bus-runner
+check "the non-root start sets no-new-privs" has '^--no-new-privs'
+
+# An agent directory name that would break the inventory's JSON is refused.
+mkdir -p "$root/agent.d/we\\ird"; : >"$root/agent.d/we\\ird/agent.json"; rm -f "$root/runner/agents.json"
+ENTRY=runner run AGENT_BUS_ADDR=http://d:1 AGENT_BUS_TOKEN=t STUB_MODE=700
+check "a backslash in an agent name is refused" errs 'quote or backslash'
+rm -rf "$root/agent.d/we\\ird"
 [ "$fails" = 0 ] && echo "entry point: all checks passed" || { echo "entry point: $fails failed"; exit 1; }
