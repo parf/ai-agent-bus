@@ -51,6 +51,8 @@ if [ "$revert" = yes ]; then
     done
     systemctl restart "$unit"
     echo "$unit restarted from real binaries"
+    "$src/git-install-runners.sh" ||
+        echo "warning: some runner instances did not restart; in each affected instance run: systemctl restart agent-bus-runner@<person>.service" >&2
     exit 0
 fi
 
@@ -131,6 +133,10 @@ if ! systemctl is-active --quiet "$unit"; then
     exit 1
 fi
 echo "$unit restarted from the checkout"
+# Every active root-account runner restarts on the new runner and template, so a
+# fix to its sandbox or limits reaches a running one (an in-flight call can fail).
+"$src/git-install-runners.sh" ||
+    echo "warning: some runner instances did not restart; in each affected instance run: systemctl restart agent-bus-runner@<person>.service" >&2
 # A person's user-account runner restarts on the new runner and template
 # (docs/07-setup.md#a-persons-user-account-runner); their tmux sessions stay.
 if [ -f /etc/systemd/user/agent-bus-runner.service ]; then

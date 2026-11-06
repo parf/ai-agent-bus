@@ -410,6 +410,9 @@ ok_exit "live SMS recipient absent from tracked files" "$rc"
 out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s maintenance -p 'test_*.py' -v 2>&1); rc=$?
 ok_exit "node cleanup attribution, retention and observation" "$rc"
 [ "$rc" = 0 ] || echo "$out"
+out=$(bash ./git-install-runners.test.sh 2>&1); rc=$?
+ok_exit "git-install restarts each active root-account runner once, and only those" "$rc"
+[ "$rc" = 0 ] || echo "$out"
 out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s . -p smoke_select_test.py -v 2>&1); rc=$?
 ok_exit "subsystem selector contract" "$rc"
 [ "$rc" = 0 ] || echo "$out"
