@@ -259,6 +259,7 @@ Owner, 2026-11-02; plan in [dbsync](dbsync.md#steps-and-estimate), open [Q314–
 
 ## AI agent methods
 
-- ☐ T-36 The [AI agent](../../docs/agents/ai.md) passes more of its provider's API through (owner, 2026-11-04: "if API have it - we provide it; our idea - transparent proxy"; 2026-11-05: "delay image only").
-  - Builds: `models`, `model <id>`, `balance`, `key`, `embed`, and each `ask` reporting its tokens and cost. A method the provider lacks is refused with that reason; image generation stays in [R2.0](../R2.0-Future/FUTURE.md).
+- ☐ T-36 The [AI agent](../../docs/agents/ai.md) passes more of its provider's API through (owner, 2026-11-04: "if API have it - we provide it; our idea - transparent proxy"; 2026-11-05: "delay image only", then images too).
+  - Builds, step 1: `models`, `model <id>`, `balance`, `key`, `embed`, and each `ask` reporting its tokens and cost. A method the provider lacks is refused with that reason.
+  - Builds, step 2 (owner, 2026-11-05: "maybe we can do all"): image generation, with the image models listing and per-endpoint parameters and prices; every image goes to [bigfile](../../docs/03-records-kv.md#bigfiles) and the answer names it.
   - Acceptance: every method decoded from recorded provider answers, no live paid call in tests; `embed` caps its batch below the bus message limit and refuses an over-limit request by name; the provider key never appears in an answer.
