@@ -248,3 +248,11 @@ Owner, 2026-11-02; plan in [dbsync](dbsync.md#steps-and-estimate), open [Q314–
   - Depends: T-33's Markdown workflow; inspect the owner's mdhouse implementation before design/build.
   - Acceptance: a real conversation reaches its backing session, asks for required setup choices, performs the chosen configuration flow and shows progress/results across turns.
   - Acceptance: an email or Telegram setup journey reuses T-33; an unavailable session or unfinished step is shown plainly rather than reported as success.
+
+## Launcher tab titles
+
+- ☐ T-35 Glyph-led tab titles in the `ab-*` launchers, from Linear PRF-67 (owner, 2026-11-05: "good, - go").
+  - Step 1: an agent glyph by runtime and account (✴️, 🔶, 🌟, 🔷 Claude accounts 1–4; ❇️ Codex; 👾 OpenCode), then the label; `AB_TAB_TITLE` sets the label, else the bus name's distinguishing part; an `ab_tab_title` MCP tool lets the model read the recommendation and set its own label; inside tmux the window is renamed too.
+  - Step 2: a state marker after the glyph: ❓ the agent waits on a question or approval; 🟥 its last answer ends with the stop marker; cleared on new input or a new turn.
+  - Home: [launchers](../../docs/06-launchers.md).
+  - Acceptance: labels are sanitised and capped; a model-set label never changes the bus name, identity or session title and resets to the recommendation on launcher restart; the start script's title and the tmux window name are restored on exit, nested launchers leave the outer name alone; Codex and OpenCode events are decoded from recorded fixtures; a runtime without a confirmed event source shows glyph and label only.
