@@ -55,7 +55,7 @@ Filescan is a kept process: inotify needs one that stays up. It [serves itself](
 1. **The node owner lists the folder.** In `runner/agents.json` give the instance a `roots` list, for example `"filescan/vault": {"enabled": true, "roots": ["/srv/vault"]}` ([inventory](../runner/configuration.md#inventory)). The default is empty, so nothing is watched until a root is listed; `dir` must resolve, symlinks followed, inside one.
 2. **The Owner registers the record, sets Configuration `dir`** (an absolute path inside a root) **and grants callers their roles.**
 3. **Hand the runner the instance's token once,** as in [self-serving credential handoff](create-agent-prompt.md#self-serving-credential-handoff).
-4. Reload the runner. The agent starts as the runner's per-agent user, with the folder bound **read-only**; it cannot change a file.
+4. Reload the runner. The agent starts as the runner's own account (on a user-account runner, yours). With the sandbox on, the default, the folder is bound **read-only** and it cannot change a file; with the sandbox off nothing is bound and the account's own rights apply.
 5. `status` should show `effective_mode` and no `paused`.
 
 ## Configuration
