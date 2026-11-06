@@ -108,6 +108,29 @@ Refusals, worded as `get`'s:
 | the argument refusals of `get` | a missing or invalid `namespace`, `tableName` or `id`, or an unknown argument |
 | a storage error or deadline | the outcome is unknown; run the check again, never a paid upsert on its strength |
 
+## The upsert by reference
+
+Frozen for team 2's L.2, which sends it; it ships in L.1.
+
+**The reference.** A large file's upsert carries `bigfile` in place of `data`, and never `embeddings`. RAG reads four fields from it:
+
+| Field | Meaning | RAG checks |
+|---|---|---|
+| `record` | the FileScan instance's record holding the bigfile | it may download from it, or the upsert is refused `bigfile_forbidden` |
+| `name` | the bigfile's name on that record | it exists, or the upsert is refused `bigfile_unavailable` (absent or expired) |
+| `size` | the file's size in bytes | 1 byte to 1 MiB; the download has exactly this size |
+| `sha256` | the SHA-256 of the file's bytes | it equals the upsert's `content_hash`; the download hashes to it |
+
+- The rest of the upsert is as today: `namespace`, `tableName`, `id`, `source`, optional `key1` and `key2`. `content_hash` is required and is the same SHA-256. `mime-type` is `text/markdown`, which is also the default.
+- **Checked before any paid call:** these four fields when the call is parsed, then the download's size and hash, then that the bytes are UTF-8 text. A download that is not the referenced version is refused `bigfile_mismatch`, and nothing is stored or paid for.
+
+**The deadline.** RAG works to the envelope's `deadline`, which is the sender's stated wait (the send's `wait` option), never to the message's `ttl`.
+
+- **`deadline`:** RAG stops before its next paid call or write once it passes. A large upsert gets at most 30 minutes, and less when the sender's wait is shorter. A send with no stated wait gets the 30 minutes. A deadline that passes before the head is published leaves the previous version answering: an unknown outcome, settled by the completeness check.
+- **Message `ttl`:** it bounds only the wait in RAG's queue. A message whose ttl ends there is never delivered, so RAG does no work and pays nothing. Once RAG has taken the message, its ttl no longer matters; a download already under way is not dropped for it.
+- **The sender:** FileScan sends with a `wait` of 30 minutes and a `ttl` at least as long, and does not block on it. Within that wait it never resends. It may run the free check early: `complete: true` with the current hash and source confirms the file at once.
+- **Three different bounds:** `bigfile_ttl` ([Q370](QUESTIONS.md#large-files), 1 hour) is the reference's lifetime, and an expired one is refused `bigfile_unavailable` and re-uploaded. The `wait` is RAG's working time. The message `ttl` is the queue wait.
+
 ## Cost and limits
 
 - Each new chunk is one paid embedding through `#voyage`, and a chunk is at most 4 KiB of text. Reused chunks cost nothing.
