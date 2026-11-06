@@ -13,8 +13,12 @@ it in bus Secret or Configuration. The `# required` declaration in `env.dist`
 uses the runner's standard missing-key report: `needs OPENROUTER_API_KEY`.
 The entry also exits 78 if invoked directly without a key.
 
-HTTP(S) uses the configured root plus `/chat/completions`, no redirects and
-no automatic retries. Request and response bodies are bounded at 1 MiB.
+HTTP(S) uses the configured root plus `/chat/completions`, `/models`,
+`/models/<id>/endpoints`, `/credits`, `/key` or `/embeddings`, no redirects and
+no automatic retries. A 404 answers `provider has no <method>`. `balance` and
+`key` need `AB_ROLE_OWNER` or `AB_ROLE_MAINTAINER` before any call; `key`
+answers only its limit fields. `embed` keeps each model's vector size in
+`$AGENT_BUS_WORK/embed-dims.json`. Request and response bodies are bounded at 1 MiB.
 A whole-request alarm expires 100 ms before the delivered deadline, capped
 at 60 seconds when the caller supplies no longer deadline; the runner also
 enforces its process deadline. Provider and validation failures are normal `error:` answers.
@@ -35,4 +39,6 @@ runtime files. No dependencies beyond Python 3's standard library.
 `python3 -B -m unittest discover -s src/agents/ai -v` uses a private fake
 provider, including an outside-checkout package execution. The `agent_ai`
 smoke shard runs these checks in fast and normal. The credential mutant disables
-`redact`; its owning secrecy test must fail on an assertion.
+`redact`; its owning secrecy test must fail on an assertion. For the provider
+methods, removing the role gate fails the balance/key role tests, and removing
+every redaction in their path fails the new-method key test.

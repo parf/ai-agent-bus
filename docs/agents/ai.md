@@ -7,8 +7,12 @@
 
 ## What it does
 
-- ✅ **Ask:** send a question or a full chat request, get the answer text or the provider's full reply (`ask`, or just your text).
+- ✅ **Ask:** send a question or a full chat request, get the answer text or the provider's full reply (`ask`, or just your text). A text answer ends with its tokens and cost.
 - ✅ **Decide:** send a question with fixed choices, get each choice with its probability (`decide`, see [typed decisions](#typed-decisions)).
+- ✅ **Embed:** send a text or a list of texts, get one vector per text (`embed`, see [embeddings](#embeddings)).
+- ✅ **Models:** list the provider's models, with your default marked (`models`), or see one model's context length, prices and input kinds for each provider that serves it (`model <id>`).
+- ✅ **Account:** see the remaining credit (`balance`) or the key's spend limit, remaining credit and rate limit, never the key itself (`key`). Only the Owner and Maintainers may ask.
+- ✅ **Same as the provider:** every method goes to the configured provider and answers what it says. A provider without one of these methods gets `provider has no <method>`.
 - 🚫 **Not for:** long conversations with memory (each call stands alone: send the context again), live word-by-word output (no streaming), or text that must never reach an outside AI provider (the provider sees every prompt).
 
 ## Typed decisions
@@ -18,6 +22,17 @@
 
 ```sh
 agent-bus call '#ai@node.example' 'decide {"model":"typesafe/jev-1.14","state":"Tea","questions":{"drink":{"type":"choice","instructions":"Which drink?","criteria":{"tea":"Tea","coffee":"Coffee"}}}}'
+```
+
+## Embeddings
+
+- **What:** `embed` sends texts to the provider's `/embeddings` and answers `{"model":...,"vectors":[[...],...]}`, one vector per text, in order.
+- **Model:** set `embed_model` in Configuration, or put `"model"` in a JSON request.
+- **Size:** one answer holds at most 1 MiB, so a large batch is refused as `N items × D dims > max M`. Split it and send again.
+- **Cost:** the agent learns a model's vector size from its first answer. So the first over-limit request to a new model costs one provider call; later ones are refused before any call.
+
+```sh
+agent-bus call '#ai@node.example' 'embed ["first text","second text"]'
 ```
 
 ## You'll need
@@ -48,6 +63,9 @@ agent-bus help '#ai@node.example'
 - **Ask one question:** `agent-bus call '#ai@node.example' --wait=60s 'Explain a database backup in one sentence.'`
 - **Send a full chat request:** `agent-bus call '#ai@node.example' --wait=60s '{"messages":[{"role":"user","content":"Say hello in French."}],"temperature":0.2}'`
 - **Use another model once:** add `"model":"openai/gpt-4.1-mini"` to the JSON.
+- **Pick a model:** `agent-bus call '#ai@node.example' models`, then `agent-bus call '#ai@node.example' 'model openai/gpt-4.1-mini'` for its prices per provider.
+- **Embed texts:** `agent-bus call '#ai@node.example' 'embed ["first text","second text"]'`.
+- **Check the account:** `agent-bus call '#ai@node.example' balance` or `... key` (Owner and Maintainers).
 - **Get probabilities for fixed choices:** a `decide` call, [above](#typed-decisions).
 - **Ask from my AI session:** say "Ask the AI helper to explain this error."
 
@@ -61,7 +79,8 @@ agent-bus help '#ai@node.example'
 
 ## Configuration
 
-- `model` is the default chat model when a call names none, for example `openai/gpt-4.1-mini`; it is not used by `decide`.
+- `model` is the default chat model when a call names none, for example `openai/gpt-4.1-mini`; it is not used by `decide`. `models` marks it.
+- `embed_model` is the default embedding model for `embed`, for example `openai/text-embedding-3-small`.
 - `base_url` is the OpenAI-compatible API root; default: `https://openrouter.ai/api/v1`. Only a trusted administrator should change it: it receives the provider key. Redirects are not followed.
 
 ## Secret keys
@@ -72,7 +91,8 @@ agent-bus help '#ai@node.example'
 ## Who may use it
 
 - **Only callers on the agent's allowed list;** it alone decides who spends the provider balance.
-- **No roles or per-caller limits.**
+- **`balance` and `key` are for the Owner and Maintainers only.** Anyone else gets `<method> needs the owner or maintainer role`, and no provider call is made.
+- **No other roles or per-caller limits.**
 - **The provider sees each prompt** and may keep it under its own policy.
 
 <details>
@@ -101,6 +121,9 @@ agent-bus manage '#ai@node.example' --remove-allow '*'
 | Invalid request or Configuration | Check the model, API root and JSON; do not request streaming |
 | Provider request timed out | Shorten the request or wait longer, at most 60 seconds |
 | Answer exceeds the size bound | Ask the model for a shorter answer |
+| `provider has no <method>` | The configured provider lacks that method; use OpenRouter, or skip it |
+| `N items × D dims > max M` | Send at most M texts per `embed` call |
+| `balance needs the owner or maintainer role` | Ask the Owner; only the Owner and Maintainers see the account |
 
 ## Warnings and alerts
 
@@ -122,6 +145,18 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 - `ask` accepts a bare prompt, `ask <prompt>`, `{"method":"ask","prompt":"Hello"}`, `{"method":"ask","prompt":{"messages":[...]}}` or a chat-completions JSON object.
 - Prompt forms return assistant text; chat-body forms return the provider's JSON, including choices and usage.
 - A JSON request may set `"model"` for that request only; streaming is not supported.
+- A text answer ends with `[tokens <in> in, <out> out; cost <n> USD]` when the provider reports usage.
+- `models`, `balance` and `key` are the whole body; `model <id>` takes one model ID; `embed <text>` or `embed [<texts>]` takes the rest. Other text is a prompt. JSON forms: `{"method":"models"}`, `{"method":"model","id":"..."}`, `{"method":"embed","input":...,"model":"..."}`.
+
+</details>
+
+<details>
+<summary>Lookups and embeddings</summary>
+
+- `models` reads `GET /models`, `model <id>` reads `GET /models/<id>/endpoints`, `balance` reads `GET /credits`, `key` reads `GET /key`, and `embed` posts to `/embeddings`, each under the configured `base_url`.
+- `model <id>` lists every endpoint with its own context length and prices; they are never merged.
+- `key` answers only the limit fields; the provider's key label is dropped, since it repeats part of the key.
+- `embed` allows at most floor((1048576 − O) / (25·D + 2)) texts for a D-dimension model. O is the empty answer's size, and each number takes at most 24 characters plus a comma. Known vector sizes are kept in the agent's work directory.
 
 </details>
 
@@ -134,7 +169,7 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 - The raw string is validated as a non-streaming JSON object, then sent byte for byte, including whitespace and duplicate keys.
 - The full provider JSON comes back, including every Choice probability; values are equal after JSON parsing, decimal spelling and arbitrary precision are not preserved, and non-standard NaN and Infinity are refused.
 - `decide` uses the scheme, host and port of the trusted `base_url`, discards its path and posts to `/api/alpha/decisions`; `ask` appends `/chat/completions` to the configured base path.
-- Both methods spend the same key under the same ACL, with the same limits, deadline, masking, no-redirect and no-retry rules.
+- Every method spends the same key under the same ACL, with the same limits, deadline, masking, no-redirect and no-retry rules.
 - Logs hold the caller, a bounded model ID (or `invalid`), byte sizes and status, never the request, response or key.
 
 </details>
