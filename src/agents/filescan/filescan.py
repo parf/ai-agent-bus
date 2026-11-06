@@ -114,9 +114,10 @@ RAG_SOURCE=2048   # RAG's own limit on `source`, in UTF-8 bytes
 def rag_id(path):
     """(id, key1): the path itself as the id when RAG takes it, else a hash with the path kept in key1."""
     # RAG counts UTF-8 bytes, not characters: 128 bytes for an id.
-    if len(path.encode())<=128 and path.isprintable() and unicodedata.normalize('NFC',path)==path and not path.startswith('sha256:'):return path,None
+    if path.strip() and len(path.encode())<=128 and path.isprintable() and unicodedata.normalize('NFC',path)==path and not path.startswith('sha256:'):return path,None
     # A distinct form: no plain path can equal it, so a file named like a hash never collides with a hashed one.
-    return 'sha256:'+hashlib.sha256(path.encode()).hexdigest(),path[:256]
+    # key1 is capped at 256 UTF-8 bytes too: cut on a character boundary, never in the middle of one.
+    return 'sha256:'+hashlib.sha256(path.encode()).hexdigest(),path.encode()[:256].decode('utf-8','ignore')
 
 
 def rag_source_ok(path):
