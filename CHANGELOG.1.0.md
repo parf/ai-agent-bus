@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.14 — 2026-11-05
+
+agent-bus -h is help again; ls prints a table on a terminal (JSON when piped, --json/--table force either); call --body prints only the reply body
+
 ## 1.0.13 — 2026-11-05
 
 ai image calls get a 90 s ceiling (75 s generation), other methods keep 60 s; a too-short --wait names the minimum

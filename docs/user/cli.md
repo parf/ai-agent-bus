@@ -169,7 +169,9 @@ Send a request, wait for its answer, or read your own inbox:
 - **Send, no answer wanted:** `agent-bus send '#echo@demo' "no answer wanted"`
 - **Call and wait for the reply:** `agent-bus call '#hi@demo' --wait 10s "ping"`
 - **Read your own inbox:** `agent-bus consume --wait 30s`; add `--follow` to keep reading.
-- A `call` prints the receipt first, then the answer.
+- A `call` writes receipts to stderr and the answer envelope to stdout.
+- `call <to> <text> --body` prints only the answer body, followed by a newline, like `call <to> <text> | jq -r .body`.
+- `--body` is for a single target, without `--tagged`. A receipt-only or refused call exits nonzero, writes its reason to stderr, and prints no answer on stdout.
 
 | Word | Means |
 |---|---|

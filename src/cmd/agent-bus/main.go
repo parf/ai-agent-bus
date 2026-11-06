@@ -444,7 +444,7 @@ func send(args []string) error {
 // (docs/04-messaging.md#one-reader-per-inbox).
 func callVerb(args []string) error {
 	pos, flags, err := splitJoined(args, true, "tagged")
-	if err := only(flags, err, "topic", "tag", "tagged", "wait", "help", "mcp", "help-config", "help-secret", "help-json", "status"); err != nil {
+	if err := only(flags, err, "topic", "tag", "tagged", "wait", "help", "mcp", "help-config", "help-secret", "help-json", "status", "body"); err != nil {
 		return err
 	}
 	wait, err := callWait(flags["wait"])
@@ -475,6 +475,14 @@ func callVerb(args []string) error {
 	}
 	body, err := callTarget(ctx, protocol.Envelope{To: pos[0], Topic: topic, Tag: tag, Body: strings.Join(pos[1:], " "), Ask: ask}, wait, os.Stderr)
 	if err != nil {
+		return err
+	}
+	if has(flags, "body") {
+		var answer protocol.Envelope
+		if err := json.Unmarshal(body, &answer); err != nil {
+			return fmt.Errorf("invalid answer envelope: %w", err)
+		}
+		_, err = fmt.Fprintln(os.Stdout, answer.Body)
 		return err
 	}
 	_, err = os.Stdout.Write(body)
@@ -1080,7 +1088,7 @@ func warn(format string, a ...any) {
 // Flags that are on or off. Without this the word after one is taken as its
 // value, and `--follow consume` reads as follow="consume".
 var onOff = map[string]bool{"follow": true, "share": true, "network": true,
-	"int": true, "json": true, "memory": true, "add": true, "replace": true, "help": true, "help-config": true, "help-secret": true, "help-json": true, "mcp": true, "force": true, "all": true, "template": true, "stay-registered": true, "no-color": true, "no-asks": true}
+	"body": true, "int": true, "json": true, "memory": true, "add": true, "replace": true, "help": true, "help-config": true, "help-secret": true, "help-json": true, "mcp": true, "force": true, "all": true, "template": true, "stay-registered": true, "no-color": true, "no-asks": true}
 
 // askOf is what --help or --mcp asks: it travels as the envelope's ask with
 // no body, never as text, so text beside it is refused
