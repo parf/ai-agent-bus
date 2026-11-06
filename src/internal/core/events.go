@@ -13,17 +13,25 @@ import (
 	"github.com/parf/ai-agent-bus/internal/subscription"
 )
 
-// A nil store explicitly selects memory-only operation. Every bound adapter,
-// including wrappers, must carry the alert port rather than lose durability.
-func eventAlertStore(st ports.Store) (ports.EventAlertStore, error) {
+// A nil store explicitly selects memory-only operation. Bound adapters and
+// wrappers must expose the complete event family before serving requests.
+func validateEventStore(st ports.Store) error {
 	if st == nil {
-		return nil, nil
+		return nil
 	}
-	alerts, ok := st.(ports.EventAlertStore)
-	if !ok {
-		return nil, errors.New("persistent store requires ports.EventAlertStore for durable alerts")
+	if _, ok := st.(ports.EventIDStore); !ok {
+		return errors.New("persistent store requires ports.EventIDStore")
 	}
-	return alerts, nil
+	if _, ok := st.(ports.EventAlertStore); !ok {
+		return errors.New("persistent store requires ports.EventAlertStore")
+	}
+	if _, ok := st.(ports.EventStatePruner); !ok {
+		return errors.New("persistent store requires ports.EventStatePruner")
+	}
+	if _, ok := st.(ports.SubscriptionStore); !ok {
+		return errors.New("persistent store requires ports.SubscriptionStore")
+	}
+	return nil
 }
 
 // Unbound embedded buses keep private reservations in memory. A bound store
@@ -91,14 +99,13 @@ func (b *Bus) eventAccess(caller, target string, write bool) (protocol.Record, *
 	}
 	if b.events == nil {
 		var ids ports.EventIDStore
-		alerts, err := eventAlertStore(b.store)
-		if err != nil {
-			return protocol.Record{}, nil, nil, err
-		}
+		var alerts ports.EventAlertStore
 		if b.store == nil {
 			ids = &eventIDs{high: map[uint32]uint64{}}
 		} else {
-			ids, _ = b.store.(ports.EventIDStore)
+			// Persistence validates these ports before binding.
+			ids = b.store.(ports.EventIDStore)
+			alerts = b.store.(ports.EventAlertStore)
 		}
 		b.events = eventlog.New(ids, alerts, b.clock)
 	}

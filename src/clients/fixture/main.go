@@ -29,7 +29,7 @@ func must(err error) {
 
 func main() {
 	bus := core.New()
-	bus.Persistence(memory.NewState())
+	must(bus.Persistence(memory.NewState()))
 	must(bus.EstablishDaemon("owner@fixture", nil))
 	bus.SetBigStore(bigmem.New())
 	tokens, err := auth.Load(memory.NewTokens())
