@@ -245,7 +245,7 @@ A timeout, a lost reply or an answer that says the outcome is **unknown** means 
 
 - **Check first, at no cost:** `get` the same `namespace`, `tableName` and `id`. It reads storage only and makes no provider call.
 - **Compare `content_hash`:** it is the SHA-256 of the exact text's UTF-8 bytes. Compute the same hash of the text you sent.
-- **Same hash:** the record is stored. Do not retry.
+- **Same hash, and the same `source`, `tableName` and `id` as you sent:** the text is stored. Do not retry for the text. The hash proves the stored text only: a head that failed to publish can leave an old `source` beside an equal hash, and classification, metadata or old-chunk cleanup are not proved by it. If any field differs, repeat the upsert.
 - **`not_found`:** it is not stored (or was deleted). A retry classifies and embeds the text again, so it can spend provider balance a second time.
 - **Another hash:** a different version is stored, yours or a newer one. A retry replaces it, so compare `indexed_at` and retry only when yours should win.
 - **Wait the call's own deadline before checking:** an attempt still in flight can store the record after your check, and a retry then pays twice.

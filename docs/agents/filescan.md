@@ -141,7 +141,7 @@ A replayable session, [`filescan-session.jsonl`](../../src/agents/filescan/fixtu
 
 A `created` message is the first one a subscriber gets for a path, so a replay sends every existing file as `created`. A `deleted` message has only `change`, `path` and `warning`.
 
-**The `as rag` form** sends RAG's own calls, which RAG confirms with `{"status":"ok"}`:
+**The `as rag` form** sends RAG's own calls. FileScan counts an upsert as stored only when RAG answers with the stored record and that record repeats the `namespace`, `tableName`, `id`, `source` and `content_hash` sent; it counts a delete on `{"status":"ok"}` or on RAG's `not_found` refusal. Any other answer leaves the file pending, and it is sent again:
 
 | Call | Fields |
 |---|---|
@@ -157,7 +157,7 @@ A `created` message is the first one a subscriber gets for a path, so a replay s
 | `sub add` | `id`, `target`, `selector`, `created_by`, `created_at`, `sent`, `confirmed`, `dropped` |
 | `sub list` | `subscriptions`: those fields and `pending` for each |
 
-**Progress** is the `status` snapshot: files tracked, and for each subscriber its `sent`, `confirmed`, `dropped` and `pending` counts. A subscriber is caught up when `pending` is 0.
+**Progress** is the `status` snapshot: files tracked, and for each subscriber its `sent`, `confirmed`, `dropped` and `pending` counts. A subscriber is caught up when `pending` is 0 **and** `paused` is null: while a mass delete is held, the held deletes are not counted as pending.
 
 **What does not exist:**
 
