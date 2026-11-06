@@ -354,3 +354,26 @@
   > 💬 NO - reject this idea; lots of troubles for no gain
   >
   > 💬👾 → Rejected (owner, 2026-11-06): nothing of the single front door is built or planned.
+
+<a id="Q353"></a>
+
+- ✅ Q353 Which #rag endpoint mdhouse uses
+  - Context: RAG 0.3.0 runs as `#rag@parf.us`, allowed to the owner only. mdhouse planned `#rag/mdhouse` and asks which is final. Its production caller is `#mdhouse@parf.us`. mdhouse wants no grants to its CTO, CEO, worker or review sessions, no wildcard FileScan identities and no manager role. The docs recommend one instance per trusted application, since any admitted caller can name any namespace
+  - ( ) Provision `#rag/mdhouse@parf.us`: a second instance of the bundled agent, its own record, token and Qdrant collection, allowed to `#mdhouse@parf.us` only; #ab-ceo registers it under the standing deploy OK 🌟
+  - ( ) Allow `#mdhouse@parf.us` on the existing `#rag@parf.us` ⭐
+  > 💡👾 A separate instance: mdhouse's data, prompts and paid usage stay apart from anything else the owner stores, and removing it touches nothing else.
+  > 💬 👤parf (in chat to #ab-ceo, 2026-11-06 ~13:50): provision it; mdhouse controls it, not #ab-ceo: "it should control it; not you - it should have grants"; then chose Maintainer grants over a new mdhouse User
+  >
+  > 💬👾 → `#rag/mdhouse@parf.us`, a separate instance with its own collection. parf stays Owner (a record can be owned only by a User); mdhouse's control identity (`#cx/mdhouse-cto`, and `#mdhouse@parf.us` once registered) is Maintainer: configuration, access list, subscriptions. #ab-ceo does the one-time registration and token handoff only.
+
+<a id="Q355"></a>
+
+- ✅ Q355 Which folders FileScan may read on this node
+  - Context: FileScan is installed and refused at start: its `roots` in `runner/agents.json` are empty by default, and system and bus directories are refused whatever the roots say. mdhouse will want one instance per project
+  - ( ) None until mdhouse names its projects; then one root per project directory 🌟
+  - ( ) A root the owner names now (path)
+  > 💡👾 Wait for mdhouse's project list: a root grants read access to everything under it.
+  > 💬👾 2026-11-06: the RAG-sink resend fix W1C found is landed (`0f5340c3`, an upsert counts only when RAG echoes the stored record) and deployed with FileScan at 03:38; a root no longer pays for repeat embeds
+  > 💬 👤parf (in chat to #ab-ceo, 2026-11-06 ~13:50): as Q353, mdhouse controls it with Maintainer grants
+  >
+  > 💬👾 → root `/home/parf/src/mdhouse` for `#filescan/mdhouse`, include `*.md`, dotfiles and `node_modules/**` excluded, namespace `mdhouse`, table `docs`. `/home/parf` is 0700, so it runs on parf's user-account runner. No subscription or ingestion until mdhouse starts it.

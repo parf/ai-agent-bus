@@ -192,11 +192,7 @@ The recommendations below are retained parked proposals.
 
 ## RAG for mdhouse
 
-- ❓ Q353 Which #rag endpoint mdhouse uses
-  - Context: RAG 0.3.0 runs as `#rag@parf.us`, allowed to the owner only. mdhouse planned `#rag/mdhouse` and asks which is final. Its production caller is `#mdhouse@parf.us`. mdhouse wants no grants to its CTO, CEO, worker or review sessions, no wildcard FileScan identities and no manager role. The docs recommend one instance per trusted application, since any admitted caller can name any namespace
-  - ( ) Provision `#rag/mdhouse@parf.us`: a second instance of the bundled agent, its own record, token and Qdrant collection, allowed to `#mdhouse@parf.us` only; #ab-ceo registers it under the standing deploy OK 🌟
-  - ( ) Allow `#mdhouse@parf.us` on the existing `#rag@parf.us` ⭐
-  > 💡👾 A separate instance: mdhouse's data, prompts and paid usage stay apart from anything else the owner stores, and removing it touches nothing else.
+- ✅ Q353 → [№Q353](resolved.md#Q353)
 
 ## Owner items from 2026-11-06
 
@@ -208,12 +204,7 @@ The recommendations below are retained parked proposals.
   - ( ) None for now: keep `image` refused
   > 💡👾 Gemini 3.1 Flash Image: current, cheap, and good enough for agent use; switch per call if a job needs more.
 
-- ❓ Q355 Which folders FileScan may read on this node
-  - Context: FileScan is installed and refused at start: its `roots` in `runner/agents.json` are empty by default, and system and bus directories are refused whatever the roots say. mdhouse will want one instance per project
-  - ( ) None until mdhouse names its projects; then one root per project directory 🌟
-  - ( ) A root the owner names now (path)
-  > 💡👾 Wait for mdhouse's project list: a root grants read access to everything under it.
-  > 💬👾 2026-11-06: the RAG-sink resend fix W1C found is landed (`0f5340c3`, an upsert counts only when RAG echoes the stored record) and deployed with FileScan at 03:38; a root no longer pays for repeat embeds
+- ✅ Q355 → [№Q355](resolved.md#Q355)
 
 - ❓ Q356 The dead realmo.com site key
   - Context: `AI.RealmoPropertyProfileOverview.api-key` (…730c) in `realmo.com/config.yaml` answers 401 "User not found", so that feature's AI calls fail; `common.yaml` `AI.OpenRouter.api-key` (…85e6) is dead too. The six working keys share one account ($175 left)
