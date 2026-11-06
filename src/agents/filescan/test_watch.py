@@ -109,6 +109,25 @@ class PollPathsTests(unittest.TestCase):
         items={'keep/z.md':{'fp':'1','size':1,'mtime_ns':1}};self.put('.hidden','x')
         plan=scan.poll_paths(items,self.root,self.s,['.hidden'],now=time.time());self.assertEqual((plan['upserts'],plan['deletes']),({},[]))
 
+    def test_a_directory_event_never_reads_what_the_exclude_globs_hold_back(self):
+        self.put('private/key.txt','secret');self.put('pub/a.md','a')
+        s={**self.s,'exclude':['private/*','private']}
+        plan=scan.poll_paths({},self.root,s,['private/','pub/'],now=time.time())
+        self.assertEqual(sorted(plan['upserts']),['pub/a.md'],'private/key.txt is excluded, whichever way it was named')
+
+    def test_a_directory_event_does_not_delete_what_include_matches_by_its_full_path(self):
+        self.put('docs/new/x/a.md','a');self.put('other/b.md','b')
+        s={**self.s,'include':['docs/*']};items={}
+        scan.apply(items,scan.poll(items,self.root,s,now=time.time()));self.assertEqual(sorted(items),['docs/new/x/a.md'])
+        plan=scan.poll_paths(items,self.root,s,['docs/new/'],now=time.time())
+        self.assertEqual((plan['deletes'],plan['upserts']),([],{}),'no false delete from matching globs against the path under the event directory')
+
+    def test_a_directory_is_walked_through_no_link_even_one_swapped_in_midway(self):
+        outside=tempfile.mkdtemp(prefix='fs-out-');self.addCleanup(lambda:__import__('shutil').rmtree(outside));Path(outside,'s.md').write_text('s')
+        self.put('d/ok.md','ok');os.symlink(outside,Path(self.root)/'d'/'ln')
+        os.symlink(outside,Path(self.root)/'swapped')
+        plan=scan.poll_paths({},self.root,self.s,['d/','swapped/'],now=time.time());self.assertEqual(sorted(plan['upserts']),['d/ok.md'])
+
     def test_the_guard_sees_an_emptied_tree_through_the_watch_path(self):
         items={f'f{i}.md':{'fp':str(i),'size':1,'mtime_ns':1} for i in range(4)}
         plan=scan.poll_paths(items,self.root,self.s,[f'f{i}.md' for i in range(4)],now=time.time())

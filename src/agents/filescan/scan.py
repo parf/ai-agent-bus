@@ -23,21 +23,24 @@ def excluded(rel,exclude):
     return any(fnmatch.fnmatchcase(rel,p) or any(fnmatch.fnmatchcase('/'.join(parts[:i]),p) for i in range(1,len(parts))) for p in exclude)
 
 
-def walk(root,include,exclude):
+def walk(root,include,exclude,sub=''):
     """(kind, relative path, stat or errno) for every regular file under root, never through a link.
 
     Kind `file` carries the stat; `error` an errno for a file it could not stat; `direrror` one for a directory it could not read
     (its path may be empty for the root).
-    Links, sockets, pipes and devices are skipped, and an excluded directory is not entered.
+    Links, sockets, pipes and devices are skipped, and an excluded directory is not entered. With `sub` (a directory path
+    relative to root) only that directory is walked, reached without following a link, and paths and the include and
+    exclude globs are those relative to root, as in a whole walk.
     """
     errors=[]
-    try:top=os.open(root,OPEN_DIR)
+    lead=sub+'/' if sub else ''
+    try:top=open_dir(root,sub)
     except OSError as error:
         yield ('error','',error.errno);return
     try:
-        def onerror(error):errors.append(('direrror',(error.filename or '').lstrip('./') if isinstance(error.filename,str) else '',error.errno))
+        def onerror(error):errors.append(('direrror',(lead+(error.filename or '').lstrip('./') if isinstance(error.filename,str) else sub),error.errno))
         for base,dirs,files,fd in os.fwalk(dir_fd=top,top='.',follow_symlinks=False,onerror=onerror):
-            prefix='' if base=='.' else base[2:]+'/'
+            prefix=lead if base=='.' else lead+base[2:]+'/'
             keep=[]
             for d in sorted(dirs):
                 try:link=stat.S_ISLNK(os.stat(d,dir_fd=fd,follow_symlinks=False).st_mode)
@@ -53,6 +56,18 @@ def walk(root,include,exclude):
                 if stat.S_ISREG(st.st_mode):yield ('file',rel,st)
     finally:os.close(top)
     yield from errors
+
+
+def open_dir(root,sub=''):
+    """A directory fd for root/sub, opened one component at a time without following a link."""
+    fd=os.open(root,OPEN_DIR)
+    try:
+        for part in (sub.split('/') if sub else []):
+            if part in ('','.','..'):raise OSError('bad relative path')
+            nxt=os.open(part,OPEN_DIR,dir_fd=fd);os.close(fd);fd=nxt
+    except BaseException:
+        os.close(fd);raise
+    return fd
 
 
 def open_under(root,rel):
@@ -159,7 +174,7 @@ def poll_paths(items,root,settings,paths,*,now,hasher=None):
     still present among the saved items plus new ones, so the guard can tell an emptied tree.
     """
     hasher=hasher or digest
-    plan=_new_plan();taken=0;gone=set();present=set()
+    plan=_new_plan();taken=0;gone=set();present=set();blocked=[]
     for path in paths:
         if path.endswith('/'):
             sub=path[:-1]
@@ -167,11 +182,16 @@ def poll_paths(items,root,settings,paths,*,now,hasher=None):
             below=[k for k in items if k.startswith(path)]
             if st is None or not stat.S_ISDIR(st.st_mode):
                 gone.update(below);continue
-            for kind,rel,info in walk(os.path.join(root,sub),settings['include'],settings['exclude']):
+            if excluded(sub,settings['exclude']):continue  # an excluded directory is neither read nor reported
+            for kind,full,info in walk(root,settings['include'],settings['exclude'],sub):
+                if kind=='direrror':
+                    blocked.append(full+'/');plan['skipped'].append((full,'unreadable'));continue
+                if kind=='error':
+                    present.add(full);plan['skipped'].append((full,'unreadable'));continue
                 if kind!='file':continue
-                full=path+rel;present.add(full)
+                present.add(full)
                 taken=_consider(items,root,settings,now,hasher,plan,full,info,taken)
-            gone.update(k for k in below if k not in present and not any(os.path.dirname(k)==sub for _ in [0]) and k not in present)
+            gone.update(k for k in below if k not in present and selected(k,settings['include'],settings['exclude']) and not any(k.startswith(b) for b in blocked))
             continue
         if not selected(path,settings['include'],settings['exclude']):continue
         st=stat_under(root,path)
