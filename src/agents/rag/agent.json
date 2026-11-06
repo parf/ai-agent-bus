@@ -132,7 +132,7 @@
       "help": "For drop_namespace: must equal the requested namespace exactly. Missing or wrong confirmation refuses without changes."
     },
     "bigfile": {
-      "type": "object",
+      "type": "json",
       "optional": true,
       "json_only": true,
       "help": "A Markdown file of up to 1 MiB in a bigfile this agent may download: record, name, size and sha256 (the SHA-256 of the file's bytes, equal to content_hash, which is then required). Replaces data and embeddings; mime-type is text/markdown. Downloaded and checked before any paid call; less than 120 s of deadline left is refused deadline_too_short."
