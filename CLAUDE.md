@@ -42,6 +42,8 @@ A code change lands after `src/smoke.sh --normal` is green: normal checks for ch
 
 Selection uses the worktree diff against main, including staged and untracked files. In the main checkout on main this is the uncommitted pre-commit diff; a clean or ignored-only tree prints "nothing changed: all fast" and "NOT A LANDING GATE". Selection uses the path letters in [the subsystem map](Plans/subsystems.md), and reverse dependencies in `src/smoke-map.json`. Shared test/build dependencies or unmapped paths promote every subsystem to the requested set. Selection always ignores `src/internal/version/VERSION`, `src/agents/VERSION`, `src/agents/CHANGELOG.md` and root `CHANGELOG.*.md`, whether generated or manual. The output names the set and reason for each subsystem. Fast checks use explicit essential-operation allowlists in that map; they can overlap normal. A fast candidate over 15 seconds fails with a report and must be narrowed, never given a bigger budget. Normal retains its regression and security checks; slow-set moves require proving the same production mutant fails a faster normal check.
 
+A check that goes green only on the gate's rerun is quarantined in the `quarantine` key of `src/smoke-map.json`, by Go test name or assertion title, with its open J-item; a ⚠️ test is filed for its lead instead. Fast and normal skip an entry and print a counted `QUARANTINED` line; slow runs it; go_checks fails an entry whose J is closed, so the fix removes it. `src/smoke-quarantine.py` owns these rules.
+
 The agent shards live in `src/agents/smoke.sh`, and each agent names the shared files it uses:
 
 | Diff | Agent checks |
