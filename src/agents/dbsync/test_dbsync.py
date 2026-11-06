@@ -329,6 +329,16 @@ class LookbackTests(Base):
         self.db.put(3,'2026-11-05 11:59:30');self.agent.poll()
         self.assertEqual(self.keys(),['3'])
 
+    def test_a_held_late_row_that_changed_stays_owed_when_read_again_past_the_cutoff(self):
+        self.agent=self.make(window_max=1)
+        self.db.put(1,'2026-11-05 11:59:00');self.subscribe();self.agent.poll()
+        self.bus.deny.add((AUTHOR,QUEUE))
+        self.db.put(2,'2026-11-05 11:58:00','first');self.agent.poll()   # late, held, refused: the window is full
+        self.db.put(2,'2026-11-05 11:58:10','revised');self.db.now='2026-11-05 12:10:00';self.bus.deny.clear()
+        self.agent=self.make(window_max=1)   # a new process: the body is read again, stale, and replaced past the cutoff
+        self.agent.poll();self.agent.poll()
+        self.assertEqual([m['row']['note'] for _,m in self.bus.sent if m['key']=='2'],['revised'])
+
     def test_a_late_row_whose_send_is_refused_stays_until_it_is_delivered(self):
         self.delivered()
         self.bus.deny.add((AUTHOR,QUEUE))
