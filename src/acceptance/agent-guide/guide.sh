@@ -14,7 +14,15 @@ set -uo pipefail
 MODE=${1:-normal}
 case $MODE in fast|normal|slow) ;; *) echo "usage: guide.sh fast|normal|slow" >&2; exit 2 ;; esac
 here=$(cd "$(dirname "$0")" && pwd)
+# Own the whole fixture tree, including short-lived CLI and agent descendants.
+# The runner uses a separately named delegated scope, included by journal_silent.
+if [ -z "${GUIDE_SCOPE:-}" ]; then
+  scope="agent-guide-$$-$RANDOM.scope"
+  exec systemd-run --user --scope --quiet --unit="$scope" \
+    env GUIDE_SCOPE="$scope" bash "$0" "$@"
+fi
 source "$here/lib.sh"
+bash "$here/journal_test.sh" || exit 1
 trap 'guide_down' EXIT
 trap 'exit 143' TERM INT
 
@@ -91,8 +99,7 @@ page_run docs/user/write-agent-cli.md cli-simple time-simple
 gb "$GB_OWNER" unregister "$T" >/dev/null 2>&1
 finish() { echo; echo "passed $pass, failed $fail"; [ "$fail" -eq 0 ]; exit; }
 if [ "$MODE" = fast ]; then
-  since_log=$(journalctl -q -t agent-busd -t agent-bus-runner -t agent-bus --since "$JOURNAL_START" -o cat 2>&1)
-  eq "the daemon and the CLI wrote nothing to the host journal" "$since_log" ""
+  journal_silent "the daemon and the CLI wrote nothing to the host journal"
   finish
 fi
 
@@ -188,8 +195,7 @@ cli_stop
 gb "$GB_OWNER" unregister "$A" >/dev/null 2>&1
 
 # What our programs wrote to the host journal and syslog during the run: nothing.
-since_log=$(journalctl -q -t agent-busd -t agent-bus-runner -t agent-bus --since "$JOURNAL_START" -o cat 2>&1)
-eq "the daemon and the CLI wrote nothing to the host journal" "$since_log" ""
+journal_silent "the daemon and the CLI wrote nothing to the host journal"
 
 # ---- the runner: the same services, packaged, with private settings and confinement --
 sec "Runner: the same services, packaged"
@@ -293,6 +299,5 @@ if [ "$MODE" = slow ]; then
 fi
 # What our programs wrote to the host journal and syslog during the run: nothing.
 # (systemd's own one-line scope notice for the runner's scope is not ours: Q327.)
-since_log=$(journalctl -q -t agent-busd -t agent-bus-runner -t agent-bus --since "$JOURNAL_START" -o cat 2>&1)
-eq "the daemon, the runner and the CLI wrote nothing to the host journal" "$since_log" ""
+journal_silent "the daemon, the runner and the CLI wrote nothing to the host journal"
 finish

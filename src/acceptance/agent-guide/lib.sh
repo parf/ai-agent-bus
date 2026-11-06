@@ -16,6 +16,29 @@ lacks() { if grep -Eq -- "$3" <<<"$2"; then bad "$1" "[$2] still has [$3]"; else
 eq()    { if [ "$2" = "$3" ]; then ok "$1"; else bad "$1" "got [$2], want [$3]"; fi; }
 sec()   { echo "== $1"; }
 
+# Ignore only positively foreign units. Short-lived children can exit before
+# journald enriches a record: unknown attribution still counts as stray output.
+# A foreign process without unit metadata can therefore still fail this check.
+journal_silent() {
+  local out
+  if out=$(
+    set -o pipefail
+    journalctl -q -b -t agent-busd -t agent-bus-runner -t agent-bus \
+      --since "$JOURNAL_START" -o json |
+      jq -r --arg guide "${GUIDE_SCOPE:?the guide needs its own scope}" --arg runner "${RUNNER_SCOPE:-}" '
+        # user@UID.service alone is only a user-manager ancestor, not proof
+        # that a record came from outside our user scopes.
+        (._SYSTEMD_USER_UNIT //
+          (._SYSTEMD_UNIT // "" | if test("^user@[0-9]+\\.service$") then "" else . end)) as $unit |
+        select($unit == "" or $unit == $guide or ($runner != "" and $unit == $runner)) |
+        .MESSAGE'
+  ); then
+    eq "$1" "$out" ""
+  else
+    bad "$1" "journal query or attribution failed: $out"
+  fi
+}
+
 # A private daemon, its socket and database under tmp/, and an owner token.
 guide_up() {
   GB_BIN=$1
@@ -98,8 +121,9 @@ runner_up() {
   gb launcher@localhost register '#runner/launcher@localhost' --kind agent --allow '@owner' >/dev/null || return 1
   command -v systemd-run >/dev/null || { echo "FAIL no systemd-run: the runner's cgroup scope needs it"; return 1; }
   RUNNER_LOG=$GB_DIR/runner.log
+  RUNNER_SCOPE="agent-guide-runner-$$-$RANDOM.scope"
   AGENT_BUS_ADDR=$GB_ADDR AGENT_BUS_TOKEN=$(gtok '#runner/launcher@localhost') \
-    systemd-run --user --scope --quiet -p Delegate=yes "$GB_BIN/agent-bus-runner" --agents "$RH/agent.d" --host "$RH/runner" >>"$RUNNER_LOG" 2>&1 &
+    systemd-run --user --scope --quiet --unit="$RUNNER_SCOPE" -p Delegate=yes "$GB_BIN/agent-bus-runner" --agents "$RH/agent.d" --host "$RH/runner" >>"$RUNNER_LOG" 2>&1 &
   RUNNER_PID=$!; GB_PIDS+=("$RUNNER_PID")
   for _ in $(seq 1 100); do grep -q 'is the runner' "$RUNNER_LOG" 2>/dev/null && return 0; sleep 0.1; done
   echo "FAIL the runner did not report that it is serving"; cat "$RUNNER_LOG"; return 1
