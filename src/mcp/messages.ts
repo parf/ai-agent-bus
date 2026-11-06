@@ -26,17 +26,13 @@ export function describe(e: Envelope): string {
 }
 
 // The launcher and standalone pusher share one rendering and reply route.
-//
-// A sidecar holds the inbox read, so the session it pushes into never
-// consumed the message and has no reply context of its own: the route has to
-// be spelled out, or the answer stays in the session
-// (docs/06-launchers.md#adapters).
+// The header supplies the sender, topic and tag; only an override needs a
+// separate reply line (docs/06-launchers.md#adapters).
 export function sidecarMessage(e: Envelope): string {
   if (e.receipt) return describe(e);
-  const route = e.reply_to
-    ? { to: e.reply_to.name, topic: e.reply_to.topic, tag: e.reply_to.tag }
-    : { to: e.from, topic: e.topic, tag: e.tag };
-  return `${describe(e)}\n\nRoute ${JSON.stringify(route)}: ab_send for answers; ab_receipt with ${JSON.stringify({ message_id: e.message_id })} and this route only if needed (answer this turn: no ack; later turn: ack; never done after an answer; done only for a task expecting no answer; nothing for reports, notices or receipts).`;
+  const route = e.reply_to;
+  if (!route || (route.name === e.from && (route.topic ?? "") === (e.topic ?? "") && (route.tag ?? "") === (e.tag ?? ""))) return describe(e);
+  return `${describe(e)}\n\nReply to ${route.name} · topic ${route.topic ?? ""} · tag ${route.tag ?? ""}`;
 }
 
 // The name this was born with, kept for the Codex pusher's call sites.

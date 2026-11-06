@@ -1,25 +1,43 @@
 import { expect, test } from "bun:test";
-import { codexMessage } from "./messages.ts";
+import { codexMessage, describe } from "./messages.ts";
 import type { Envelope } from "./bus.ts";
 
 const message: Envelope = { message_id: "m", from: "sender@h", to: "session@h", body: "question", at: "now", topic: "original", tag: "tag" };
-test("Codex replies follow the requested return route", () => {
-  const text = codexMessage({ ...message, reply_to: { name: "collector@h", topic: "return", tag: "match" } });
-  expect(text).toContain('"to":"collector@h","topic":"return","tag":"match"');
-  expect(text).not.toContain('"to":"sender@h"');
-  expect(text).toContain("ab_receipt");
-  expect(text).toContain('"message_id":"m"');
-  expect(text).not.toContain("Confirm receipt using");
-  expect(text.match(/"to":/g)).toHaveLength(1);
-  for (const rule of ["answer this turn: no ack", "later turn: ack", "never done after an answer", "done only for a task expecting no answer", "nothing for reports, notices or receipts"]) expect(text).toContain(rule);
+test("a plain pushed message has no routing or etiquette tail", () => {
+  const text = codexMessage(message);
+  expect(text).toBe("from sender@h · topic original · tag tag · id m\n\nquestion");
+  for (const tail of ["Route {", "Reply to ", "ab_receipt", "answer this turn", "later turn", "never done", "reports, notices or receipts"]) expect(text).not.toContain(tail);
 });
-test("Codex receipts never ask for a reply", () => {
-  for (const receipt of ["ack", "done"] as const) {
-    const text = codexMessage({ ...message, body: "", receipt });
-    expect(text).toContain(`receipt: ${receipt}`);
-    expect(text).not.toContain("ab_send");
+test("Codex replies show a different requested return route exactly once", () => {
+  const text = codexMessage({ ...message, reply_to: { name: "collector@h", topic: "return", tag: "match" } });
+  expect(text).toBe(`${describe(message)}\n\nReply to collector@h · topic return · tag match`);
+  expect(text.match(/^Reply to /gm)).toHaveLength(1);
+  expect(text).not.toContain("Route {");
+  expect(text).not.toContain("ab_receipt");
+});
+test("an explicit return route matching the header needs no tail", () => {
+  expect(codexMessage({ ...message, reply_to: { name: message.from, topic: message.topic, tag: message.tag } })).toBe(describe(message));
+  const untagged = { ...message, topic: undefined, tag: undefined };
+  expect(codexMessage({ ...untagged, reply_to: { name: message.from, topic: "", tag: "" } })).toBe(describe(untagged));
+});
+test("a change to any return-route field is shown without inheriting omitted fields", () => {
+  for (const route of [
+    { name: "collector@h", topic: "original", tag: "tag" },
+    { name: "sender@h", topic: "return", tag: "tag" },
+    { name: "sender@h", topic: "original", tag: "match" },
+    { name: "sender@h" },
+  ]) {
+    expect(codexMessage({ ...message, reply_to: route })).toBe(`${describe(message)}\n\nReply to ${route.name} · topic ${route.topic ?? ""} · tag ${route.tag ?? ""}`);
   }
-  expect(codexMessage({ ...message, receipt: "done" })).toContain("do not wait");
+});
+test("Codex receipts render unchanged even with a different return route", () => {
+  for (const receipt of ["ack", "done"] as const) {
+    const e = { ...message, body: "", receipt, re: "previous", reply_to: { name: "collector@h", topic: "return", tag: "match" } };
+    const expected = receipt === "done"
+      ? "from sender@h · topic original · tag tag · id m\n\nreceipt: done — sender@h finished previous and sent no answer. Nothing further is coming; do not wait for it."
+      : "from sender@h · topic original · tag tag · id m\n\nreceipt: ack — sender@h received previous. Not an answer; the answer is still to come.";
+    expect(codexMessage(e)).toBe(expected);
+  }
 });
 test("a message says the roles its sender holds, and none when it holds none", async () => {
   const { describe } = await import("./messages.ts");
