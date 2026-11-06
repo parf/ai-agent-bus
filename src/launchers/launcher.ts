@@ -209,9 +209,12 @@ ${COPYRIGHT}`);
   if (!configured) {
     warn("bus is not configured; starting a plain runtime session");
     if (runtime === "claude") {
+      // Each start, a restart too, continues the directory's newest transcript
+      // once one exists: the first session may have written it since.
+      const plain = async () => [binary, ...claudeArgs(args), "--enable-auto-mode", ...((await claudeSessions(claudeHome(), cwd)).length ? ["--continue"] : [])];
       const sessions = await claudeSessions(claudeHome(), cwd);
       terminal.set(option(["-n", "--name"]) || sessions[0]?.name || undefined);
-      return await foreground([binary, ...claudeArgs(args), "--enable-auto-mode", ...(sessions.length ? ["--continue"] : [])], cleanEnv, () => runtime);
+      return await foreground(await plain(), cleanEnv, () => runtime, plain);
     }
     if (runtime === "opencode" || runtime === "opencode1") {
       // The launcher already resolved the directory and moved there; --dir is

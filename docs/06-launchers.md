@@ -218,6 +218,7 @@ ab-codex --tag review,billing --tag release-notes
 - After ten consecutive runs that fail before staying alive for 60 seconds, the launcher stops with a named crash-loop error.
 - A run lasting at least 60 seconds resets the count and backoff; waiting does not.
 - The launcher preserves the original user arguments and resumes the same session.
+- With no bus configured, `ab-claude` continues the directory's newest transcript, including one the crashed run started.
 - The bus name, record and local binding locks stay reserved during the wait; a conflicting live name is refused.
 - Ctrl-C during the wait ends the launcher and releases its locks normally.
 

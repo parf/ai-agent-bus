@@ -3823,7 +3823,7 @@ mcp_rpc_body() {
     # ever have one request in flight and never split a line across chunks, so
     # they leave most of rpc.ts unwatched (mcp/rpc.test.ts says why).
     face_fixture_env=(); [ -z "${SMOKE_CLIENT_FIXTURE:-}" ] || face_fixture_env=("AB_CLIENT_FIXTURE=$SMOKE_CLIENT_FIXTURE")   # one argv word, spaces kept
-    out=$(cd mcp && timeout 60 env ${face_fixture_env[@]+"${face_fixture_env[@]}"} bun test ../launchers/restart.test.ts ../launchers/sessions.test.ts ../launchers/plugin-steps.test.ts rpc.test.ts messages.test.ts catalogue.test.ts ../launchers/local.test.ts ../launchers/terminal.test.ts ../launchers/state-events.test.ts ../launchers/runtime-auth.test.ts adapter-status.test.ts push.test.ts codex-compact.test.ts push-supervise.test.ts face-mark.test.ts face.test.ts resources.test.ts 2>&1)
+    out=$(cd mcp && timeout 60 env ${face_fixture_env[@]+"${face_fixture_env[@]}"} bun test ../launchers/restart.test.ts ../launchers/no-bus-restart.test.ts ../launchers/sessions.test.ts ../launchers/plugin-steps.test.ts rpc.test.ts messages.test.ts catalogue.test.ts ../launchers/local.test.ts ../launchers/terminal.test.ts ../launchers/state-events.test.ts ../launchers/runtime-auth.test.ts adapter-status.test.ts push.test.ts codex-compact.test.ts push-supervise.test.ts face-mark.test.ts face.test.ts resources.test.ts 2>&1)
     rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "rpc unit tests" $rc
