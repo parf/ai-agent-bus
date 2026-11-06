@@ -284,6 +284,18 @@ class RagTests(Base):
         self.assertTrue(sent[0]['id'].startswith('sha256:') and sent[0]['key1']=='\u6587'*50+'.md')
         self.assertTrue(any(wide in k for v in self.call('status')['skipped_for_rag'].values() for k in v),'named in status')
 
+    def test_key1_is_cut_by_bytes_on_a_character_boundary_and_a_blank_name_takes_a_hashed_id(self):
+        name='/'.join(['\u6587'*50,'\u6587'*50])+'.md'    # 304 bytes: a valid source, too long for RAG's 256-byte key1
+        ident,key1=fs.rag_id(name)
+        self.assertEqual(ident[:7],'sha256:');self.assertLessEqual(len(key1.encode()),256);self.assertGreater(len(key1.encode()),250)
+        self.assertTrue(name.startswith(key1));key1.encode().decode('utf-8')   # whole characters only
+        for blank in ('   ','\t','\u00a0'):
+            i,k=fs.rag_id(blank);self.assertEqual(i[:7],'sha256:',repr(blank));self.assertEqual(k,blank)
+        self.put('   ','blank');self.put(name,'wide');self.rag();self.call('scan')
+        for c in self.calls():
+            self.assertTrue(c['id'].strip(),c);self.assertLessEqual(len(c.get('key1','').encode()),256)
+        self.assertEqual(self.call('status')['subscribers'][0]['pending'],0,'neither file stalls the subscription')
+
     def test_a_file_that_became_unsendable_is_deleted_from_rag_on_create_too_after_a_reset(self):
         self.agent=self.make({'max_file_size':'1MiB'});self.put('big.md','x'*(fs.RAG_TEXT+1));self.rag()
         self.call('scan');self.assertEqual([c['method'] for c in self.calls()],['delete'],'RAG may still hold its old text, so a replay deletes it')
