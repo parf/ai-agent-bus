@@ -316,9 +316,12 @@ class LargeSync(SyncBase):
         self.bus.reject_large.clear();self.sync('resend:true');self.assertEqual(len(self.bus.upserts('big.md')),2)
         self.assertEqual(self.sync()['result'],'confirmed')
 
-    def test_a_file_over_rags_cap_fails(self):
-        self.put('huge.md','x'*(fs.RAG_CAP+1))
-        r=self.sync();self.assertEqual((r['result'],r['sent'],r['files'][0]['state']),('failed',0,'failed'))
+    def test_a_file_over_rags_cap_or_a_large_file_that_is_not_markdown_fails(self):
+        for name,data in (('huge.md','x'*(fs.RAG_CAP+1)),('big.txt',LARGE)):
+            with self.subTest(name):
+                self.setUp();self.put(name,data)
+                r=self.sync();self.assertEqual((r['result'],r['sent'],r['files'][0]['state']),('failed',0,'failed'))
+                self.assertEqual(self.bus.calls,[],'nothing is sent')
 
 
 class LargeWatch(SyncBase):
@@ -343,6 +346,12 @@ class LargeWatch(SyncBase):
         self.bus.reject_large.clear();self.wall.now+=fs.LARGE_WAIT+1;self.scan()
         self.assertEqual(len(self.bus.upserts('big.md')),2,'after it, a check that does not prove it stored allows the resend')
         self.scan();self.assertEqual(self.pending(),0)
+
+    def test_a_large_file_that_is_not_markdown_is_skipped_for_rag_and_named(self):
+        self.put('big.txt',LARGE);self.scan()
+        self.assertEqual(self.bus.upserts(),[]);self.assertEqual(self.bus.sends,[])
+        named=json.loads(self.agent.handle(msg('status')))['skipped_for_rag']
+        self.assertIn('not Markdown',next(iter(named.values()))['big.txt'])
 
     def test_a_large_file_edited_in_flight_goes_at_once_with_its_new_hash(self):
         self.put('big.md',LARGE);self.bus.reject_large.add('big.md');self.scan()

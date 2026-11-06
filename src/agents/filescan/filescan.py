@@ -133,6 +133,7 @@ HINT_MAX=8192
 UPSERT_ECHO=('namespace','tableName','id','source','content_hash')   # what a RAG upsert's answer must repeat from the call
 RAG_SOURCE=2048   # RAG's own limit on `source`, in UTF-8 bytes
 RAG_CAP=1<<20   # the largest file sent to RAG, by bigfile reference (Q371)
+LARGE_NOT_MARKDOWN='over 32 KiB and not Markdown (.md or .markdown): RAG takes a large file by reference as text/markdown only'
 RESEND_MAX=3        # check-driven resends of one version of one file to RAG under the watch; each pays RAG's classification again
 LARGE_WAIT=1800.0   # a large upsert's deadline, RAG's working time; also its queue `ttl`. In flight until then: no resend, only RAG's free check
 SYNC_BOUND=20.0   # a `sync` call answers within this, well under the 30 s call deadline in agent.json; the rest waits for the next call
@@ -430,11 +431,12 @@ class FileScan:
         """A text file over RAG's inline limit and within the cap: uploaded as a bigfile on this instance's record, RAG's upsert names it.
         The upsert is sent with its own deadline and not waited on; until that deadline it is never sent again, only checked (`_settle`)."""
         if not rag_source_ok(key):return refused('its path is not valid as a RAG source (over 2048 characters or not NFC)')
+        if rag_mime(key)!='text/markdown':return refused(LARGE_NOT_MARKDOWN)
         try:sha,size,text=scanning.digest(self.root,key,RAG_CAP)
         except OSError:return refused('unreadable')
         if text is None:return refused('not UTF-8 text')
         reference=self._bigfile(key,sha,size,record['fp'],self._rag_ttl())['bigfile']   # a file changed since the scan raises: tried again next round
-        call=rag_reference_upsert(namespace,table,ident,key,key1,reference,rag_mime(key))
+        call=rag_reference_upsert(namespace,table,ident,key,key1,reference,'text/markdown')
         self.skipped.get(row['id'],{}).pop(key,None)
         self.inflight[(row['id'],key)]=(sha,self.clock()+LARGE_WAIT)
         self._sent_upsert=tuple(call[k] for k in UPSERT_ECHO);self._sent_key=(row['id'],key)
@@ -634,7 +636,7 @@ class FileScan:
                         files.append({'path':key,'state':'failed','reason':f'its bigfile upload was refused ({failure.status})'});continue
                     except OSError:continue   # changed during the upload: the next call takes the new version
                     unknown[key]=fp;flight[key]=[fp,self.clock()+LARGE_WAIT];self.state.save(data);sent+=1
-                    try:self.bus.send(target,dumps(rag_reference_upsert(namespace,table,ident,key,key1,reference,rag_mime(key))),topic='filescan',wait=LARGE_WAIT,ttl=LARGE_WAIT)
+                    try:self.bus.send(target,dumps(rag_reference_upsert(namespace,table,ident,key,key1,reference,'text/markdown')),topic='filescan',wait=LARGE_WAIT,ttl=LARGE_WAIT)
                     except Refusal as failure:
                         unknown.pop(key,None);flight.pop(key,None);files.append({'path':key,'state':'failed','reason':f'refused ({failure.status})'});continue
                     except Exception:pass   # the send's own outcome is unknown: it is in flight to its deadline all the same
@@ -669,6 +671,7 @@ class FileScan:
         """Why RAG cannot take this file, or None."""
         if record['size']>RAG_CAP:return f"{record['size']} bytes is over the {RAG_CAP} byte cap for RAG"
         if not rag_source_ok(key):return 'its path is not valid as a RAG source (over 2048 bytes or not NFC)'
+        if record['size']>RAG_TEXT and rag_mime(key)!='text/markdown':return LARGE_NOT_MARKDOWN
         try:_,_,text=scanning.digest(self.root,key,RAG_CAP)
         except OSError:return 'unreadable'
         if text is None:return 'not UTF-8 text'
