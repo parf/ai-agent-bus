@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net"
 	"os"
 	"path/filepath"
 	"slices"
@@ -25,9 +26,12 @@ func realTemp(t *testing.T) string {
 	return p
 }
 
+// everywhere lets a test reach the check it names without a root list in the way.
+var everywhere = []string{"/"}
+
 func mustRefuse(t *testing.T, raw string, state []string, home, want string) {
 	t.Helper()
-	got, err := resolveBindDir(raw, state, home)
+	got, err := resolveBindDir(raw, everywhere, state, home, "")
 	if err == nil {
 		t.Fatalf("resolveBindDir(%q) = %q, want a refusal containing %q", raw, got, want)
 	}
@@ -47,12 +51,12 @@ func TestResolveBindDirAcceptsADirectoryAndBindsItsRealPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, raw := range []string{vault, vault + "/", filepath.Join(base, "x", "..", "vault"), link} {
-		if got, err := resolveBindDir(raw, nil, ""); err != nil || got != vault {
+		if got, err := resolveBindDir(raw, everywhere, nil, "", ""); err != nil || got != vault {
 			t.Fatalf("resolveBindDir(%q) = %q, %v; want %q", raw, got, err, vault)
 		}
 	}
 	// A system path outside any home is allowed (Q308).
-	if _, err := resolveBindDir("/usr/share", nil, ""); err != nil {
+	if _, err := resolveBindDir("/usr/share", everywhere, nil, "", ""); err != nil {
 		t.Fatalf("a system path is refused: %v", err)
 	}
 }
@@ -95,7 +99,7 @@ func TestResolveBindDirChecksTheResolvedPathSoALinkCannotLaunderAForbiddenOne(t 
 	if err := os.Mkdir(inside, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := resolveBindDir(inside, nil, home); err != nil || got != inside {
+	if got, err := resolveBindDir(inside, everywhere, nil, home, ""); err != nil || got != inside {
 		t.Fatalf("a folder inside a home = %q, %v", got, err)
 	}
 }
@@ -117,7 +121,7 @@ func TestResolveBindDirRefusesTheRunnersOwnStateInEveryDirection(t *testing.T) {
 	for _, raw := range []string{state, below, base, viaLink} {
 		mustRefuse(t, raw, []string{state}, "", "runner's own state")
 	}
-	if got, err := resolveBindDir(outside, []string{state, ""}, ""); err != nil || got != outside {
+	if got, err := resolveBindDir(outside, everywhere, []string{state, ""}, "", ""); err != nil || got != outside {
 		t.Fatalf("a sibling of the runner state = %q, %v", got, err)
 	}
 }
@@ -132,24 +136,21 @@ func TestBindDirSetsOnlyTheCheckedPathAndOnlyForAnAgentThatAsked(t *testing.T) {
 	forged := "AGENT_BUS_DIR=/etc"
 
 	// An agent without needs.dir never carries the variable, forged or not.
-	env, why := r.bindDir(agentFile{}, []string{"A=1", forged, `AGENT_BUS_CONFIG={"dir":"` + vault + `"}`})
-	if why != "" || slices.ContainsFunc(env, func(kv string) bool { return strings.HasPrefix(kv, "AGENT_BUS_DIR=") }) {
-		t.Fatalf("agent without needs.dir: env %v, why %q", env, why)
-	}
-	if got := dirReads(agentFile{}, []string{forged}); got != nil {
-		t.Fatalf("dirReads for an agent that did not ask = %v", got)
+	env, reads, why := r.bindDir(agentFile{}, []string{base}, []string{"A=1", forged, `AGENT_BUS_CONFIG={"dir":"` + vault + `"}`})
+	if why != "" || reads != nil || slices.ContainsFunc(env, func(kv string) bool { return strings.HasPrefix(kv, "AGENT_BUS_DIR=") }) {
+		t.Fatalf("agent without needs.dir: env %v, reads %v, why %q", env, reads, why)
 	}
 
 	// One that asked gets the resolved path, and the forged value is replaced.
-	env, why = r.bindDir(dirAgent(), []string{"A=1", forged, `AGENT_BUS_CONFIG={"dir":"` + vault + `/"}`})
+	env, reads, why = r.bindDir(dirAgent(), []string{base}, []string{"A=1", forged, `AGENT_BUS_CONFIG={"dir":"` + vault + `/"}`})
 	if why != "" {
 		t.Fatal(why)
 	}
 	if n := countPrefix(env, "AGENT_BUS_DIR="); n != 1 || !slices.Contains(env, "AGENT_BUS_DIR="+vault) {
 		t.Fatalf("env %v", env)
 	}
-	if got := dirReads(dirAgent(), env); !slices.Equal(got, []string{vault}) {
-		t.Fatalf("dirReads = %v, want [%s]", got, vault)
+	if !slices.Equal(reads, []string{vault}) {
+		t.Fatalf("reads = %v, want [%s]", reads, vault)
 	}
 
 	for name, env := range map[string][]string{
@@ -161,7 +162,7 @@ func TestBindDirSetsOnlyTheCheckedPathAndOnlyForAnAgentThatAsked(t *testing.T) {
 		"forbidden dir":     {`AGENT_BUS_CONFIG={"dir":"/"}`},
 		"runner state":      {`AGENT_BUS_CONFIG={"dir":"` + base + `"}`},
 	} {
-		if env, why := r.bindDir(dirAgent(), env); why == "" || env != nil || !strings.HasPrefix(why, "needs.dir: ") {
+		if env, reads, why := r.bindDir(dirAgent(), []string{base}, env); why == "" || env != nil || reads != nil || !strings.HasPrefix(why, "needs.dir: ") {
 			t.Errorf("%s: env %v, why %q; want a needs.dir refusal", name, env, why)
 		}
 	}
@@ -178,7 +179,7 @@ func countPrefix(env []string, prefix string) int {
 }
 
 func TestTheCheckedDirectoryIsBoundReadOnlyAndNothingElseIsWritable(t *testing.T) {
-	argv := sandbox.Bwrap{}.Wrap(ports.Job{Argv: []string{"/bin/true"}, Work: "/w", Read: dirReads(dirAgent(), []string{"AGENT_BUS_DIR=/data/vault"})})
+	argv := sandbox.Bwrap{}.Wrap(ports.Job{Argv: []string{"/bin/true"}, Work: "/w", Read: []string{"/data/vault"}})
 	joined := strings.Join(argv, " ")
 	if !strings.Contains(joined, "--ro-bind /data/vault /data/vault") {
 		t.Fatalf("no read-only bind: %s", joined)
@@ -193,6 +194,7 @@ func TestAnAgentThatAsksForADirGetsItBoundFromItsConfigurationAndIsRefusedOtherw
 	s := r.served["#fixture@h"]
 	s.in.Agent.Needs = &agentmeta.Needs{Dir: true}
 	vault := realTemp(t)
+	s.in.Host.Roots = []string{filepath.Dir(vault)}
 
 	if _, why := r.environment(s.in, s.bus); !strings.HasPrefix(why, "its configuration: needs.dir: ") {
 		t.Fatalf("unconfigured: why %q", why)
@@ -205,8 +207,14 @@ func TestAnAgentThatAsksForADirGetsItBoundFromItsConfigurationAndIsRefusedOtherw
 		t.Fatalf("configured: env %v, why %q", env, why)
 	}
 	s.env = env
-	if read := r.launchSettings(s).read; !slices.Contains(read, vault) || !slices.Contains(read, s.dir) {
-		t.Fatalf("launch reads %v, want the package and %s", read, vault)
+	launch := r.launchSettings(s)
+	if !slices.Equal(launch.roots, s.in.Host.Roots) {
+		t.Fatalf("launch roots %v", launch.roots)
+	}
+	// The launch asks again on the Configuration it just read.
+	_, reads, why := r.bindDir(launch.agent, launch.roots, env)
+	if why != "" || !slices.Equal(reads, []string{vault}) {
+		t.Fatalf("launch bind %v, %q", reads, why)
 	}
 	for _, bad := range []string{"/", "relative", filepath.Join(vault, "missing"), filepath.Dir(r.host)} {
 		if _, err := b.Configure("#fixture@h", "owner@h", []byte(`{"dir":"`+bad+`"}`)); err != nil {
@@ -215,5 +223,142 @@ func TestAnAgentThatAsksForADirGetsItBoundFromItsConfigurationAndIsRefusedOtherw
 		if env, why := r.environment(s.in, s.bus); env != nil || !strings.Contains(why, "needs.dir") {
 			t.Fatalf("dir %q: env %v, why %q; want a refusal", bad, env, why)
 		}
+	}
+}
+
+func TestOnlyTheNodeOwnersRootsAreWatchable(t *testing.T) {
+	base := realTemp(t)
+	root := filepath.Join(base, "srv")
+	vault := filepath.Join(root, "vault")
+	other := filepath.Join(base, "other")
+	for _, d := range []string{vault, other} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// A link inside the root that leads out of it.
+	escape := filepath.Join(root, "escape")
+	if err := os.Symlink(other, escape); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := resolveBindDir(vault, []string{root}, nil, "", ""); err != nil || got != vault {
+		t.Fatalf("inside the root: %q, %v", got, err)
+	}
+	if got, err := resolveBindDir(root, []string{root}, nil, "", ""); err != nil || got != root {
+		t.Fatalf("the root itself: %q, %v", got, err)
+	}
+	// The empty list is the default: nothing is watchable until the owner opts a root in.
+	for _, roots := range [][]string{nil, {}} {
+		if got, err := resolveBindDir(vault, roots, nil, "", ""); err == nil || !strings.Contains(err.Error(), "allows no watch root") || !strings.Contains(err.Error(), "roots") {
+			t.Fatalf("empty list: %q, %v", got, err)
+		}
+	}
+	if _, err := resolveBindDir(other, []string{root}, nil, "", ""); err == nil || !strings.Contains(err.Error(), "outside this node's watch roots") {
+		t.Fatalf("outside every root: %v", err)
+	}
+	if _, err := resolveBindDir(escape, []string{root}, nil, "", ""); err == nil || !strings.Contains(err.Error(), "outside this node's watch roots") {
+		t.Fatalf("a link out of the root: %v", err)
+	}
+	if _, err := resolveBindDir(vault, []string{"srv"}, nil, "", ""); err == nil || !strings.Contains(err.Error(), "not an absolute path") {
+		t.Fatalf("a relative root: %v", err)
+	}
+	// A root named through a link still bounds the real path.
+	rootLink := filepath.Join(base, "root-link")
+	if err := os.Symlink(root, rootLink); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := resolveBindDir(vault, []string{rootLink}, nil, "", ""); err != nil || got != vault {
+		t.Fatalf("a root given by link: %q, %v", got, err)
+	}
+	// Any one of several roots will do.
+	if got, err := resolveBindDir(other, []string{root, other}, nil, "", ""); err != nil || got != other {
+		t.Fatalf("second root: %q, %v", got, err)
+	}
+}
+
+func TestHostExposingDirectoriesAreRefusedInBothDirections(t *testing.T) {
+	runtime := realTemp(t)
+	for _, p := range []string{"/proc", "/proc/self", "/sys", "/sys/kernel", "/dev", "/dev/shm", "/run", "/var/run"} {
+		if _, err := os.Stat(p); err != nil {
+			continue
+		}
+		mustRefuse(t, p, nil, "", "exposes the host")
+	}
+	// A directory that holds the runtime directory is refused as well.
+	parent := filepath.Dir(runtime)
+	if _, err := resolveBindDir(parent, everywhere, nil, "", runtime); err == nil || !strings.Contains(err.Error(), "exposes the host") {
+		t.Fatalf("a parent of the runtime directory: %v", err)
+	}
+	if _, err := resolveBindDir(runtime, everywhere, nil, "", runtime); err == nil || !strings.Contains(err.Error(), "exposes the host") {
+		t.Fatalf("the runtime directory: %v", err)
+	}
+	// Reached through a link, it is still refused.
+	link := filepath.Join(realTemp(t), "to-proc")
+	if err := os.Symlink("/proc", link); err != nil {
+		t.Fatal(err)
+	}
+	mustRefuse(t, link, nil, "", "exposes the host")
+}
+
+func TestATreeHoldingASocketIsRefused(t *testing.T) {
+	base := realTemp(t)
+	deep := filepath.Join(base, "a", "b")
+	if err := os.MkdirAll(deep, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := resolveBindDir(base, []string{base}, nil, "", ""); err != nil || got != base {
+		t.Fatalf("a tree without a socket: %q, %v", got, err)
+	}
+	l, err := net.Listen("unix", filepath.Join(deep, "s"))
+	if err != nil {
+		t.Skipf("no unix sockets here: %v", err)
+	}
+	defer l.Close()
+	if _, err := resolveBindDir(base, []string{base}, nil, "", ""); err == nil || !strings.Contains(err.Error(), "unix socket") || !strings.Contains(err.Error(), filepath.Join(deep, "s")) {
+		t.Fatalf("a socket two levels down: %v", err)
+	}
+}
+
+func TestVarHomeLayoutRefusesVarThroughTheStateRule(t *testing.T) {
+	base := realTemp(t)
+	state := filepath.Join(base, "var", "lib", "agent-bus", "runner")
+	home := filepath.Join(base, "var", "home", "me")
+	for _, d := range []string{state, home} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// /var holds the runner state on a /var/home system: refused as a container of it, not as a home root.
+	mustRefuse(t, filepath.Join(base, "var"), []string{state}, home, "runner's own state")
+	mustRefuse(t, filepath.Join(base, "var", "home"), nil, home, "home root")
+	mustRefuse(t, home, nil, home, "home root")
+	if got, err := resolveBindDir(filepath.Join(home, "notes"), everywhere, nil, home, ""); err == nil {
+		t.Fatalf("a missing folder passed: %q", got)
+	}
+}
+
+func TestACheckedPathSwappedForALinkIsRefusedAtTheNextLaunch(t *testing.T) {
+	base := realTemp(t)
+	root := filepath.Join(base, "srv")
+	vault := filepath.Join(root, "vault")
+	outside := filepath.Join(base, "outside")
+	for _, d := range []string{vault, outside} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	r := &runner{host: filepath.Join(base, "runner")}
+	env := []string{`AGENT_BUS_CONFIG={"dir":"` + vault + `"}`}
+	if _, reads, why := r.bindDir(dirAgent(), []string{root}, env); why != "" || !slices.Equal(reads, []string{vault}) {
+		t.Fatalf("first check: %v %q", reads, why)
+	}
+	if err := os.Remove(vault); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, vault); err != nil {
+		t.Fatal(err)
+	}
+	if _, reads, why := r.bindDir(dirAgent(), []string{root}, env); why == "" || reads != nil || !strings.Contains(why, "outside this node's watch roots") {
+		t.Fatalf("after the swap: %v %q", reads, why)
 	}
 }
