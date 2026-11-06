@@ -209,6 +209,8 @@ type runner struct {
 	// afterInstallCheck runs after an install's last cancellation check, under reloadMu; nil but in a
 	// test that stops the runner exactly there (J100).
 	afterInstallCheck func()
+	// applyStarted runs in apply once it is past its closing check; nil but in a test (J100).
+	applyStarted func()
 
 	events *eventSink // what the runner observed of each agent, written to its own log; nil writes nothing
 }
@@ -292,6 +294,9 @@ func (r *runner) reload() {
 func (r *runner) apply() {
 	if r.closing.Load() {
 		return // stopKept has begun: what an install or reload published is served at the next start
+	}
+	if r.applyStarted != nil {
+		r.applyStarted()
 	}
 	list, err := loadSources(r.sources(), r.host)
 	recoveryErrors := recoverOverlays(r.host)

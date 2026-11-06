@@ -86,3 +86,42 @@ func TestAReloadAfterShutdownStartsNothing(t *testing.T) {
 		t.Fatalf("a reload after shutdown served %d agents", len(r.served))
 	}
 }
+
+// J100: a stop that begins while an apply is already past its closing check waits for it, then stops
+// what it started.
+func TestAShutdownDuringAnApplyStopsWhatItStarts(t *testing.T) {
+	r, _, _ := configurationFixture(t, "itself", "exec sleep 30")
+	awaitConfigurationState(t, r, "running")
+	r.stopKept() // the first keeper is gone; the reload below adopts the agent again
+	r.mu.Lock()
+	r.served = make(map[string]*served)
+	r.mu.Unlock()
+	r.closing.Store(false)
+	reached, release := make(chan struct{}), make(chan struct{})
+	r.applyStarted = func() { close(reached); <-release }
+	reloaded := make(chan struct{})
+	go func() { r.reload(); close(reloaded) }()
+	<-reached
+	stopped := make(chan struct{})
+	go func() { r.stopKept(); close(stopped) }()
+	select {
+	case <-stopped:
+	case <-time.After(300 * time.Millisecond):
+	}
+	close(release)
+	for name, ch := range map[string]<-chan struct{}{"the reload": reloaded, "the shutdown": stopped} {
+		select {
+		case <-ch:
+		case <-time.After(10 * time.Second):
+			t.Fatalf("%s did not finish within 10 s", name)
+		}
+	}
+	time.Sleep(300 * time.Millisecond)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for key, s := range r.served {
+		if s.kept != nil && s.kept.ctx.Err() == nil {
+			t.Errorf("%s has a live keeper after shutdown", key)
+		}
+	}
+}
