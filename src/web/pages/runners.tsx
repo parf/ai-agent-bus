@@ -159,7 +159,7 @@ export function versionOrder(a: string, b: string): number {
 
 
 /** The states in the order a reader looks for trouble. */
-const STATE_ORDER = ["refused", "unconfigured", "stopped", "running", "idle", "disabled"];
+const STATE_ORDER = ["refused", "unconfigured", "stopped", "installing", "running", "idle", "disabled"];
 
 /** One runner's page: what it answered, or why it did not, and what may be asked of it.
  *  `done` is a success the runner answered; `warning` an outcome the visitor must not read as one. */

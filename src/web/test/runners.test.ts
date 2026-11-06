@@ -640,3 +640,12 @@ test("unsupported runner rows cannot expose agent controls", async () => {
   }
  } finally {responseAgents = undefined;}
 });
+
+test("a package the runner is installing is counted as installing, not as other", async () => {
+ const session = await signIn(owner);
+ try {
+  responseAgents = [{name:"#hello@test",key:"hello",state:"installing",reason:"an install of hello is under way",enabled:true}];
+  const page = await (await req(`/runner?name=${encodeURIComponent(A)}`,session)).text();
+  expect(page).toContain("<span data-counts>1 installing</span>");
+ } finally {responseAgents = undefined;}
+});
