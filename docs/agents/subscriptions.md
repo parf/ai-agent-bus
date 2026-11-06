@@ -79,6 +79,7 @@ says. Telegram works like Slack.
 <summary>Filters</summary>
 
 - A filter is a bare pattern or `/pattern/flags`, with flags `i`, `m`, `s` and `u`.
+- A `#bus` text `sub add` trims trailing white space from the filter; write `/error /` to keep a trailing space.
 - In a `#bus` text `sub add`, bare `notice`, `warning` and `alert` select a level; use `/alert/` to filter for the word `alert`, and likewise for the other level words.
 - It is the regular-expression subset JavaScript and Python agree on: groups, alternation, anchors, ASCII classes, `\d \w \s`, and quantifiers up to 100, at most 20 of them.
 - Lookaround, backreferences, named groups, inline flags, nested quantified groups and non-ASCII classes are refused at `sub add`.
