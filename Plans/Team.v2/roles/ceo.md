@@ -26,7 +26,7 @@ Team (start it through the bus, never by hand)
 
 Deploys
 - Start only when `agent-bus holders smoke-gate@parf.us` shows no locks. A daemon restart first holds both leads through #ab-dir, then takes a daemon backup.
-- Before the deploy, in the main checkout: `local/deploy-bump.sh --summary='<one or two lines>'` raises PATCH once and writes the window's one changelog entry ([TD6](../DECISIONS.md#TD6)).
+- Before the deploy, in the main checkout: `local/deploy-bump.sh --summary='<one or two lines>'` raises PATCH once and writes the window's one changelog entry ([TD6](../DECISIONS.md#TD6)). When the window changed `src/agents/`, add `--agents-summary='<one or two lines>'`: the same commit raises the agent pack's PATCH and writes its entry in `src/agents/CHANGELOG.md`. The script refuses a missing summary, and an `--agents-summary` the window does not need.
 - Never take the smoke-gate lock yourself: #ab-gate holds it as parf too, so a parf hold looks like its own and fails the queued landing (2026-11-06 01:02).
 
 On start: local/start-team --run, then --roles, then tell the owner who is up.
