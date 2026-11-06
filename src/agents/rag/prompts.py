@@ -20,6 +20,8 @@ def validate(v):
 
 class Cache:
     def __init__(self,kv,maximum=128): self.kv=kv;self.maximum=maximum;self.values=OrderedDict()
+    @staticmethod
+    def key(namespace,table):return prompt_key(namespace,table)
     def get(self,namespace,table):
         key=prompt_key(namespace,table)
         if key not in self.values:

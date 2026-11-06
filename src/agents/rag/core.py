@@ -41,14 +41,18 @@ class Core:
         except RagError:
             self.health='failed: collection verification failed';raise
     def run(self,request,envelope=None):
-        self.budget=Budget(envelope);self.backend.begin(self.budget)
         method=request['method']
         if method in ('keyword_index','namespaces','drop_namespace'):manager(envelope)
+        if method=='drop_namespace' and request.get('confirm')!=request['namespace']:
+            raise NamedRefusal('confirmation_required','confirm must equal the requested namespace')
+        self.budget=Budget(envelope);self.backend.begin(self.budget)
         self.verify()
         # This count is a provisioning check, not an unscoped record read.
         legacy=self.backend.qdrant('POST','/points/count',{'filter':{'must':[{'is_empty':{'key':'namespace'}}]},'exact':True})
         if not isinstance(legacy,dict) or type(legacy.get('count')) is not int or legacy['count']<0:raise RagError('invalid legacy count')
         if legacy['count']:raise NamedRefusal('legacy_data','namespace-free rows require owner re-feed into a fresh collection')
+        if method=='namespaces':return self.namespaces(request)
+        if method=='drop_namespace':return self.drop_namespace(request)
         repo=self.catalogue.bind(request['namespace'],self.cache,request.get('tableName'))
         try:
             if method=='prompts':
@@ -66,6 +70,45 @@ class Core:
             raise RagError('unknown method')
         finally:
             if method in ('upsert','delete','keyword_index'):self.index_state.pop(repo.name,None)
+
+    def namespaces(self,v):
+        names=sorted(self.catalogue.load());signature=dumps(['namespaces',v['limit']]);after=None
+        if 'cursor' in v:
+            entry=self.cursors.get(v['cursor'])
+            if not entry or entry[0]<time.monotonic() or entry[1]!=signature:raise RagError('stale or mismatched cursor')
+            after=entry[2];self.cursors.move_to_end(v['cursor'])
+        remaining=[name for name in names if after is None or name>after]
+        page=remaining[:v['limit']];rows=[]
+        for name in page:
+            repo=self.catalogue.existing(name,self.cache)
+            rows.append({'namespace':name,'count':repo.count({'must':[match('_rag_kind','head')]})})
+        cursor=None
+        if len(remaining)>len(page):
+            cursor=secrets.token_urlsafe(24);self.cursors[cursor]=(time.monotonic()+600,signature,page[-1],None)
+            while len(self.cursors)>128:self.cursors.popitem(last=False)
+        return {'namespaces':rows,'cursor':cursor}
+
+    def drop_namespace(self,v):
+        name=v['namespace'];rows=self.catalogue.load();row=rows.get(name)
+        repo=self.catalogue.existing(name,self.cache)
+        if row is None:
+            if repo.count():raise NamedRefusal('legacy_data','nonempty namespace has no model binding; owner re-feed required')
+            return {'status':'absent','namespace':name}
+        # This confirmed intent survives all partial/uncertain work below. Ordinary
+        # data calls refuse it; only another explicit confirmed drop continues.
+        row['state']='dropping';self.catalogue.save(rows)
+        self.index_state.pop(name,None)
+        for token,entry in list(self.cursors.items()):
+            if entry[3]==name:self.cursors.pop(token,None)
+        for table in row['tables']:self.cache.values.pop(self.cache.key(name,table),None)
+        try:
+            answer=repo.qdrant('POST','/points/delete?wait=true',{'filter':{}},write=True)
+            if not isinstance(answer,dict) or answer.get('status')!='completed':raise Unknown('namespace deletion completion unknown')
+            for table in row['tables']:repo.prompt('delete',table)
+            rows.pop(name);self.catalogue.save(rows)
+        except Exception:
+            raise Unknown('namespace drop incomplete or outcome unknown; explicitly confirm continuation') from None
+        return {'status':'dropped','namespace':name}
     def prepare(self,v,repo):
         source,chunks=extract(v); dimensions=self.cfg['dimensions']
         if len(chunks)*dimensions>SCALARS_MAX:raise RagError('chunks times dimensions exceeds 8192 scalars before provider work')
@@ -191,7 +234,7 @@ class Core:
         except (KeyError,ValueError,TypeError,AttributeError):raise RagError('invalid scroll response') from None
         token=None
         if following is not None:
-            token=secrets.token_urlsafe(24);self.cursors[token]=(time.monotonic()+600,signature,following)
+            token=secrets.token_urlsafe(24);self.cursors[token]=(time.monotonic()+600,signature,following,repo.name)
             while len(self.cursors)>128:self.cursors.popitem(last=False)
         return {'records':records,'cursor':token}
     def search(self,v,repo):

@@ -47,7 +47,11 @@ class Catalogue:
 
     def save(self,rows):
         value={'schema':SCHEMA,'namespaces':deepcopy(rows)}
-        if len(rows)>NAMESPACE_MAX or len(dumps(value,ascii=True).encode())>CATALOGUE_MAX:
+        # Reserve the longer dropping state for every row, so a full catalogue
+        # can still persist a destructive intent without first removing metadata.
+        reserved=deepcopy(value)
+        for row in reserved['namespaces'].values():row['state']='dropping'
+        if len(rows)>NAMESPACE_MAX or len(dumps(reserved,ascii=True).encode())>CATALOGUE_MAX:
             raise NamedRefusal('limit','namespace catalogue is full')
         try:self.kv.set(CATALOGUE_KEY,value)
         except Exception:raise Unknown('namespace metadata outcome unknown; inspect before repeating') from None
@@ -70,6 +74,11 @@ class Catalogue:
             if len(row['tables'])>=TABLES_MAX:raise NamedRefusal('limit','namespace table catalogue is full')
             row['tables'].append(table);row['tables'].sort();changed=True
         if changed:self.save(rows) # Confirm before a prompt write, classifier or embedding call.
+        return NamespaceAccess(name,self.backend,cache,MappingProxyType(deepcopy(self.cfg)))
+
+    def existing(self,name,cache):
+        """Metadata administration never creates a binding or infers a model."""
+        namespace(name)
         return NamespaceAccess(name,self.backend,cache,MappingProxyType(deepcopy(self.cfg)))
 
 
@@ -108,6 +117,12 @@ class NamespaceAccess:
         # Top-level AND cannot be replaced by an inner OR or caller filter.
         result['must']=[match('namespace',self.name),*result.get('must',[])]
         return result
+
+    def count(self,selected=None):
+        answer=self.qdrant('POST','/points/count',{'filter':selected or {},'exact':True})
+        if not isinstance(answer,dict) or type(answer.get('count')) is not int or answer['count']<0:
+            raise RagError('invalid namespace count')
+        return answer['count']
 
     def prompt(self,action,table,value=None):
         text(table,'tableName',128,nfc=True)
