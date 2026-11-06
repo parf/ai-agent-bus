@@ -16,6 +16,14 @@ from namespaces import Catalogue,manager,SCHEMA
 from rules import NamedRefusal,PROVENANCE_FIELDS,provenance
 
 
+def finite(value):
+    """A JSON number as a finite float, else None: never bool, and an integer too large for a float is refused, not raised."""
+    if type(value) is int:
+        try:value=float(value)
+        except OverflowError:return None
+    return value if type(value) is float and math.isfinite(value) else None
+
+
 class Core:
     def __init__(self,cfg,backend,kv,keyword=None):
         self.cfg=config(cfg);self.backend=backend;self.cache=Cache(kv);self.keyword=keyword;self.catalogue=Catalogue(kv,backend,self.cfg);self.index_state={}
@@ -342,8 +350,9 @@ class Core:
             for row in rows:
                 index,score=row['index'],row['relevance_score']
                 if type(index) is not int or not 0<=index<len(candidates) or index in scores:return 'invalid_answer'
-                if type(score) not in (int,float) or not math.isfinite(score):return 'invalid_answer'
-                scores[index]=float(score)
+                score=finite(score)
+                if score is None:return 'invalid_answer'
+                scores[index]=score
         except (KeyError,TypeError,AttributeError):return 'invalid_answer'
         order=sorted(scores,key=lambda i:(-scores[i],i))
         for i in order:candidates[i]['scores']['rerank']=scores[i]

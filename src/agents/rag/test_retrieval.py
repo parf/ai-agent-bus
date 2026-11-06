@@ -197,6 +197,18 @@ class Rerank(unittest.TestCase):
                     self.assertIs(got['reranked'],False);self.assertEqual(got['rerank_failure'],code)
                     self.assertEqual(got['records'],base['records'])
                     self.assertNotIn('sk-live',dumps(got));self.assertEqual(len(self.reranks()),1)
+    def test_an_unrepresentable_score_is_an_invalid_answer_not_a_crash(self):
+        # JSON integers have no size limit; 10**400 has no float and must not escape as an exception.
+        base=self.base()
+        for score in (10**400,-10**400):
+            self.store.rerank_answer=lambda request,score=score:{'data':[{'index':i,'relevance_score':score if i==0 else .5} for i in range(len(request['documents']))]}
+            try:got=self.search(rerank=True)
+            except Exception as error:self.fail(f'score {str(score)[:8]}... escaped as {type(error).__name__}')
+            self.assertEqual((got['reranked'],got['rerank_failure'],got['records']),(False,'invalid_answer',base['records']))
+        self.store.rerank_answer=lambda request:{'data':[{'index':i,'relevance_score':10**300 if i==0 else i} for i in range(len(request['documents']))]}
+        got=self.search(rerank=True)
+        self.assertIs(got['reranked'],True);self.assertEqual(got['records'][0]['id'],base['records'][0]['id'])
+        self.assertEqual(got['records'][0]['scores']['rerank'],1e300)
     def test_an_oversized_request_is_not_sent(self):
         import core
         saved=core.BODY_MAX;core.BODY_MAX=200
