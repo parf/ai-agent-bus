@@ -145,7 +145,7 @@ const safeRetiringName = "#old@h"
 func TestRunnerShutdownWaitsForAlreadyRetiringKeepers(t *testing.T) {
 	r, s, began, release, _ := retiringFixture(t, safeRetiringName)
 	r.mu.Lock()
-	r.stop(s.name, s)
+	r.stop(s.name, s, "a test stops it")
 	r.mu.Unlock()
 	awaitRetirement(t, began)
 	done := make(chan struct{})

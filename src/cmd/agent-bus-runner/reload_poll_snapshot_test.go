@@ -18,7 +18,7 @@ func pollingReloadFixture(t *testing.T, consume func(*http.Request) (*http.Respo
 	t.Helper()
 	r, _, _ := configurationFixture(t, "", "printf answer")
 	r.mu.Lock()
-	r.stop("#fixture@h", r.served["#fixture@h"])
+	r.stop("#fixture@h", r.served["#fixture@h"], "a test stops it")
 	r.mu.Unlock()
 	c := *r.bus.http
 	base := c.Transport

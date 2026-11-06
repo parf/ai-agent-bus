@@ -136,7 +136,7 @@ func (r *runner) notConfigured(s *served, k *keeper, reason string) {
 	if s.kept != nil {
 		s.kept.cancel()
 	}
-	r.stop(s.name, s)
+	r.stop(s.name, s, "it exited as not configured")
 	for i := range r.installed {
 		if r.installed[i].Key == s.in.Key {
 			r.installed[i].Unconfigured = true

@@ -316,7 +316,7 @@ func TestReloadWaitsForOldJsonlWorkBeforeReplacement(t *testing.T) {
 	go func() { _, err := st.do(ctx, message("old")); done <- err }()
 	await(t, filepath.Join(dir, "busy"), "b", time.Second)
 	r.mu.Lock()
-	r.stop(s.name, s)
+	r.stop(s.name, s, "a test stops it")
 	r.waitRetired(s.in.Key) // serve does this immediately before adopting a replacement
 	r.mu.Unlock()
 	drained := make(chan struct{})
@@ -391,7 +391,7 @@ func TestLateTakenJsonlMessageNeverFallsBackToOneShotAfterThePoolRetires(t *test
 	r.mu.Unlock()
 	awaitLive(t, st, 1, time.Second)
 	r.mu.Lock()
-	r.stop(s.name, s)
+	r.stop(s.name, s, "a test stops it")
 	r.waitRetired(s.in.Key)
 	r.mu.Unlock()
 	r.runOne(s, message("taken-before-reload"))

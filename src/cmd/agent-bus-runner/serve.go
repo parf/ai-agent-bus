@@ -232,7 +232,7 @@ func (r *runner) serve(ctx context.Context) {
 			}
 		}
 		if stop {
-			r.stop(name, s)
+			r.stop(name, s, "its key now belongs to another agent name")
 		}
 	}
 	// Preflight once before work-overlap decisions: an unconfigured template
@@ -290,11 +290,11 @@ func (r *runner) serve(ctx context.Context) {
 			if s.in.Key != in.Key {
 				// The same bus name with another key is another cgroup. Finish
 				// the old identity before this reload adopts its replacement.
-				r.stop(name, s)
+				r.stop(name, s, "its package key changed")
 				r.waitRetired(s.in.Key)
 			} else if why := r.stillServes(s.bus, name); why != "" {
 				fmt.Fprintf(r.say, "%s: %s is stopped: %s\n", r.name, name, why)
-				r.stop(name, s)
+				r.stop(name, s, "its bus record no longer lets the runner serve it")
 			}
 		}
 		r.waitRetired(in.Key)
@@ -338,7 +338,7 @@ func (r *runner) serve(ctx context.Context) {
 	// runnable overlapping replacement can bind its work directory.
 	for name, s := range r.served {
 		if _, ok := ready[s.in.Key]; !ok || conflicts[s.in.Key] != "" {
-			r.stop(name, s)
+			r.stop(name, s, r.notReadyWhy(s, conflicts))
 		}
 	}
 	for i := range r.installed {
@@ -364,7 +364,7 @@ func (r *runner) serve(ctx context.Context) {
 		// any change before adopting its replacement. Compare the whole span:
 		// a minimum-only change also changes the pool policy.
 		if s := r.served[name]; s != nil && (in.Source != s.in.Source || in.Span != s.in.Span || (s.in.Agent.Serves == "itself") != (in.Agent.Serves == "itself") || (s.stream != nil) != isStream(*in)) {
-			r.stop(name, s)
+			r.stop(name, s, "its package, process span or serving mode changed")
 		}
 		r.waitRetired(in.Key)
 		var old *jail
@@ -383,7 +383,7 @@ func (r *runner) serve(ctx context.Context) {
 			if r.codeDir(*in) != s.dir || in.Digest != s.in.Digest || cmd != s.cmd || strings.Join(env, "\x00") != strings.Join(s.env, "\x00") ||
 				strings.Join(p.secretEnv, "\x00") != strings.Join(s.secretEnv, "\x00") || jailChanged(s, *in, box) ||
 				in.Span != s.in.Span || inFlight(in.Agent) != inFlight(s.in.Agent) {
-				r.stop(name, s)
+				r.stop(name, s, "its launch settings changed")
 				r.waitRetired(in.Key)
 				// The replacement starts only once the old pool has drained and
 				// its cgroup is given up, so it gets a jail of its own rather
@@ -446,22 +446,45 @@ func (r *runner) serve(ctx context.Context) {
 	}
 	for name, s := range r.served {
 		if !want[name] {
-			r.stop(name, s)
+			r.stop(name, s, "it is no longer installed or enabled")
 			fmt.Fprintf(r.say, "%s: no longer serving %s\n", r.name, name)
 		}
 	}
 	r.syncAskers(ctx)
 }
 
+// notReadyWhy names, in plain words, why a served agent did not come through this reload's
+// preflight: it is gone from the inventory, switched off, stopped by a request, overlapped by another, or
+// refused.
+func (r *runner) notReadyWhy(s *served, conflicts map[string]string) string {
+	for _, in := range r.installed {
+		if in.Key != s.in.Key {
+			continue
+		}
+		switch {
+		case !in.enabled():
+			return "it is disabled"
+		case in.Stopped:
+			return "it was stopped on request" // by a stop call (control.go): the one cause that is a request
+		case conflicts[in.Key] != "":
+			return "its key overlaps another agent's"
+		}
+		return "it was refused at reload"
+	}
+	return "it is no longer installed"
+}
+
 // stop ends serving an agent: its reader stops and its cgroup is given up
-// once nothing runs in it. Messages wait in its inbox. It holds r.mu.
-func (r *runner) stop(name string, s *served) {
+// once nothing runs in it. Messages wait in its inbox. It holds r.mu. why is the
+// cause, in plain words, written to the agent's log: the runner never stops one
+// only because somebody asked.
+func (r *runner) stop(name string, s *served, why string) {
 	s.cancel()
 	if s.readDone != nil {
 		<-s.readDone
 	}
 	delete(r.served, name)
-	r.event(s, levelNotice, "runner stopped serving this agent on request")
+	r.event(s, levelNotice, "runner stopped serving this agent: "+why)
 	if st := s.stream; st != nil {
 		// Called under r.mu: its processes drain off the lock, and the key
 		// stays retiring until they have, so a replacement waits for them.
@@ -1137,7 +1160,7 @@ func (r *runner) checkDisk(s *served, j *jail) {
 	if s.kept != nil {
 		s.kept.cancel()
 	}
-	r.stop(s.name, s)
+	r.stop(s.name, s, "its work directory is over its disk limit")
 	for i := range r.installed {
 		if r.agentName(r.installed[i]) == s.name {
 			r.installed[i].Refused = why
