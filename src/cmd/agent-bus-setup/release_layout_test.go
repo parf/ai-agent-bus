@@ -42,7 +42,7 @@ switch "$1"
 		t.Fatal(err)
 	}
 	root := t.TempDir()
-	files := []string{"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-runner", "agent-bus-setup", "agent-bus-token", "agent-bus-ts", "launchers/ab-claude", "launchers/ab-codex", "launchers/ab-opencode", "launchers/ab-opencode1", "internal/version/VERSION", "web/agent-bus-web.service"}
+	files := []string{"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-runner", "agent-bus-setup", "agent-bus-token", "agent-bus-ts", "launchers/ab-claude", "launchers/ab-codex", "launchers/ab-opencode", "launchers/ab-opencode1", "internal/version/VERSION", "agents/VERSION", "web/agent-bus-web.service"}
 	for _, name := range files {
 		path := filepath.Join(root, name)
 		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
@@ -93,6 +93,16 @@ switch "$1"
 			t.Fatal(err)
 		}
 	}
+	// The agent pack's version is part of the layout.
+	pack := filepath.Join(root, "agents/VERSION")
+	if err := os.Remove(pack); err != nil {
+		t.Fatal(err)
+	}
+	check(false)
+	if err := os.WriteFile(pack, []byte("fixture"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	check(true)
 	if err := os.Remove(filepath.Join(root, "agent-bus-ts")); err != nil {
 		t.Fatal(err)
 	}
