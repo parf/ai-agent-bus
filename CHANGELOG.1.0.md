@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.41 — 2026-11-06
+
+The runner removes a taken cgroup only after its service has stopped and drained, so retirement no longer races a live process
+
 ## 1.0.40 — 2026-11-06
 
 Scripts with pipefail no longer misread a closed grep or head as a failure; release rollback with no earlier release reports it instead of exiting 1

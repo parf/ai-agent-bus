@@ -60,7 +60,7 @@ func TestATakenOneShotKeepsItsCgroupUntilItAnswers(t *testing.T) {
 			switch stop {
 			case "stop":
 				r.mu.Lock()
-				r.stop(s.name, s)
+				r.stop(s.name, s, "a test stops it")
 				r.mu.Unlock()
 			case "not-configured":
 				r.notConfigured(s, nil, "fixture configuration missing")
