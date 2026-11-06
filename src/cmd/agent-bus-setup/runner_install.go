@@ -226,6 +226,37 @@ func runnerPlan(verb string, p personRunner, st runnerState, want string, purge 
 // runnerLayoutRoot is fixed in production; tests use a disposable legacy tree.
 var runnerLayoutRoot = stateRoot
 
+// runnerExecutable is the program the runner's unit starts. os.Executable
+// resolves symlinks, so a setup run from a managed release names that one
+// release directory, which an upgrade moves past and a prune deletes (the unit
+// would then fail with 203/EXEC): a managed release is started through
+// installRoot/current, which follows the live one. Any other setup, such as a
+// checkout build, starts the runner beside it.
+func runnerExecutable(self string) string {
+	dir := filepath.Dir(self)
+	if strings.HasPrefix(dir+"/", filepath.Join(installRoot, "releases")+"/") {
+		return filepath.Join(installRoot, "current", "agent-bus-runner")
+	}
+	return filepath.Join(dir, "agent-bus-runner")
+}
+
+// runnerProgram is runnerExecutable, checked for an install: the runner must be
+// beside setup, and for a managed release installRoot/current must reach one, so
+// a unit is never written that points at nothing.
+func runnerProgram(self, verb string) (string, error) {
+	exe := runnerExecutable(self)
+	if verb != "install" {
+		return exe, nil
+	}
+	if _, err := os.Stat(filepath.Join(filepath.Dir(self), "agent-bus-runner")); err != nil {
+		return "", fmt.Errorf("no runner beside agent-bus-setup: %w", err)
+	}
+	if _, err := os.Stat(exe); err != nil {
+		return "", fmt.Errorf("the runner's unit would start %s, which does not exist: %w", exe, err)
+	}
+	return exe, nil
+}
+
 // runnerVerb runs one verb for one person.
 func runnerVerb(verb, person string, purge, dry bool) error {
 	if !runnerVerbs[verb] {
@@ -259,9 +290,9 @@ func runnerVerb(verb, person string, purge, dry bool) error {
 	if err != nil {
 		return err
 	}
-	exe := filepath.Join(filepath.Dir(self), "agent-bus-runner")
-	if _, err := os.Stat(exe); err != nil && verb == "install" {
-		return fmt.Errorf("no runner beside agent-bus-setup: %w", err)
+	exe, err := runnerProgram(self, verb)
+	if err != nil {
+		return err
 	}
 	ops := runnerOps{bus: bus}
 	st, err := observeRunner(p, ops)
