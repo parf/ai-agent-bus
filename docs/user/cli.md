@@ -359,7 +359,7 @@ Host administration uses the daemon account through the admin tool. Record expor
 
 - `call --tagged=<tag> [--wait=D] <body>` selects caller-visible agents from the tag-filtered listing, including agents with no reader right now.
 - Tags label records; they grant no access and do not prove an agent is healthy.
-- `ls --tag=<tag>` lists every visible matching record, readers or not.
+- `ls --tag=<tag>` lists the visible matching agents being read now, as plain `ls` does; add `--all` (or `--kind`) for every visible matching record, readers or not.
 - The tagged form refuses an explicit target and every call flag except `--wait`.
 - It is `--tagged` because `--tag` on a single call is the correlation value; `call <target> --topic t --tag g <body>` keeps that meaning.
 - Each target gets a fresh topic and correlation tag; calls run concurrently.

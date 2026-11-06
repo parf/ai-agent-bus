@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.25 — 2026-11-05
+
+ls --tag lists only agents being read now, like plain ls; --all or --kind lists every matching record
+
 ## 1.0.24 — 2026-11-05
 
 Container start tightens dirs it owns to 0700 and refuses foreign unusable or group-writable state dirs untouched, as root or --user

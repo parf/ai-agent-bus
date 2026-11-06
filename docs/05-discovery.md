@@ -79,7 +79,7 @@ A pool is one name read by several machines, so the name no longer says which on
 - It is the [listing observation](#what-a-listing-answers), not a health check.
 - An empty result says `No matching records.`; lookup errors remain errors.
 
-Record [tags](03-records.md#tags) narrow the CLI listing, including idle records:
+Record [tags](03-records.md#tags) narrow the CLI listing, and the readers rule still applies:
 
 - `ls --tag t` keeps the records carrying that tag, and still only the agents being read now: a bus record does not mean it is running. Add `--all`, or `--kind`, to see the rest.
 - `ls --tag a,b`, or `ls --tag a --tag b`, keeps the records carrying both.
