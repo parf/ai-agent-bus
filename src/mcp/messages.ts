@@ -26,12 +26,12 @@ export function describe(e: Envelope): string {
 }
 
 // The launcher and standalone pusher share one rendering and reply route.
-// The header supplies the sender, topic and tag; only an override needs a
-// separate reply line (docs/06-launchers.md#adapters).
+// A pushed session may not share the sidecar's consumed-message context.
+// Spell out the whole return route even when it matches the header
+// (docs/06-launchers.md#adapters).
 export function sidecarMessage(e: Envelope): string {
   if (e.receipt) return describe(e);
-  const route = e.reply_to;
-  if (!route || (route.name === e.from && (route.topic ?? "") === (e.topic ?? "") && (route.tag ?? "") === (e.tag ?? ""))) return describe(e);
+  const route = e.reply_to ?? { name: e.from, topic: e.topic, tag: e.tag };
   const reply = [`Reply to ${route.name}`, route.topic && `topic ${route.topic}`, route.tag && `tag ${route.tag}`].filter(Boolean).join(" · ");
   return `${describe(e)}\n\n${reply}`;
 }

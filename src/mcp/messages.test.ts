@@ -3,10 +3,11 @@ import { codexMessage, describe } from "./messages.ts";
 import type { Envelope } from "./bus.ts";
 
 const message: Envelope = { message_id: "m", from: "sender@h", to: "session@h", body: "question", at: "now", topic: "original", tag: "tag" };
-test("a plain pushed message has no routing or etiquette tail", () => {
+test("a plain pushed message spells out its whole reply route without etiquette", () => {
   const text = codexMessage(message);
-  expect(text).toBe("from sender@h · topic original · tag tag · id m\n\nquestion");
-  for (const tail of ["Route {", "Reply to ", "ab_receipt", "answer this turn", "later turn", "never done", "reports, notices or receipts"]) expect(text).not.toContain(tail);
+  expect(text).toBe("from sender@h · topic original · tag tag · id m\n\nquestion\n\nReply to sender@h · topic original · tag tag");
+  expect(text.match(/^Reply to /gm)).toHaveLength(1);
+  for (const tail of ["Route {", "ab_receipt", "answer this turn", "later turn", "never done", "reports, notices or receipts"]) expect(text).not.toContain(tail);
 });
 test("Codex replies show a different requested return route exactly once", () => {
   const text = codexMessage({ ...message, reply_to: { name: "collector@h", topic: "return", tag: "match" } });
@@ -15,10 +16,10 @@ test("Codex replies show a different requested return route exactly once", () =>
   expect(text).not.toContain("Route {");
   expect(text).not.toContain("ab_receipt");
 });
-test("an explicit return route matching the header needs no tail", () => {
-  expect(codexMessage({ ...message, reply_to: { name: message.from, topic: message.topic, tag: message.tag } })).toBe(describe(message));
+test("an explicit return route matching the header is still spelled out", () => {
+  expect(codexMessage({ ...message, reply_to: { name: message.from, topic: message.topic, tag: message.tag } })).toBe(`${describe(message)}\n\nReply to sender@h · topic original · tag tag`);
   const untagged = { ...message, topic: undefined, tag: undefined };
-  expect(codexMessage({ ...untagged, reply_to: { name: message.from, topic: "", tag: "" } })).toBe(describe(untagged));
+  expect(codexMessage({ ...untagged, reply_to: { name: message.from, topic: "", tag: "" } })).toBe(`${describe(untagged)}\n\nReply to sender@h`);
 });
 test("a change to any return-route field is shown without inheriting omitted fields", () => {
   for (const { route, line } of [
