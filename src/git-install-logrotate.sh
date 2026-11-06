@@ -7,5 +7,10 @@
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 dest=${1:-/etc/logrotate.d/agent-bus}
-install -m 0644 "$here/maintenance/agent-bus.logrotate" "$dest"
+# Staged in the destination's own directory and renamed over it, so logrotate never reads a half-written rule and a
+# failed copy leaves the old one as it was.
+stage=$(mktemp "$(dirname "$dest")/.agent-bus.XXXXXX")
+trap 'rm -f "$stage"' EXIT
+install -m 0644 "$here/maintenance/agent-bus.logrotate" "$stage"
+mv -f "$stage" "$dest"
 echo "rotating the daemon's logs by $here/maintenance/agent-bus.logrotate ($dest)"
