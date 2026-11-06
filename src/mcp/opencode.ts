@@ -24,6 +24,9 @@
 
 import { resolve } from "node:path";
 
+// The longest unfinished event-stream line the tab-marker watch keeps, in characters.
+export const SSE_LINE_MAX = 1 << 20;
+
 export type Session = { id: string; title?: string | null; parentID?: string | null; location?: { directory?: string } };
 
 export class OpencodeError extends Error {
@@ -132,6 +135,8 @@ export class Opencode {
             buffer += chunk;
             const lines = buffer.split("\n");
             buffer = lines.pop()!;
+            // A line that never ends is not an event; drop the connection rather than grow.
+            if (buffer.length > SSE_LINE_MAX) throw new Error("event line too long");
             for (const line of lines) if (line.startsWith("data: ")) {
               try { onEvent(JSON.parse(line.slice(6))); } catch { /* not an event */ }
             }

@@ -4,6 +4,9 @@ import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { accountOf, busLabel, cleanLabel, glyph, terminalTitle } from "./terminal.ts";
 
+// An outer launcher marks its window as owned; these checks own their own.
+delete process.env.AGENT_BUS_TITLE_OWNER;
+
 test("titles lead with the runtime and account glyph, then the label, with no runtime word", () => {
   expect(terminalTitle("claude", "CEO")).toBe("✴️ CEO");
   expect(terminalTitle("claude", "DIR", 2)).toBe("🔶 DIR");
@@ -53,7 +56,7 @@ test("PTY titles restore once; palettes rotate, target this tab and reset; missi
   mkdirSync(root, { recursive: true });
   const dir = mkdtempSync(join(root, "run-"));
   const calls = join(dir, "calls");
-  const env = { ...process.env, TERM: "xterm-256color", KITTY_WINDOW_ID: "", KONSOLE_DBUS_SERVICE: "", KONSOLE_DBUS_SESSION: "", TMUX: "", PATH: dir, XDG_CACHE_HOME: dir, TEST_CALLS: calls };
+  const env = { ...process.env, TERM: "xterm-256color", KITTY_WINDOW_ID: "", KONSOLE_DBUS_SERVICE: "", KONSOLE_DBUS_SESSION: "", TMUX: "", AB_TAB_TITLE: "", AGENT_BUS_TITLE_OWNER: "", PATH: dir, XDG_CACHE_HOME: dir, TEST_CALLS: calls };
   const helper = `#!${process.execPath}\nimport { appendFileSync } from 'node:fs';\nappendFileSync(process.env.TEST_CALLS, JSON.stringify(process.argv.slice(1))+'\\n');\nif(process.argv.includes('org.kde.konsole.Session.tabTitleFormat')) console.log(process.argv.at(-1)==='0'?'%d : %n':'%u@%h');\n`;
   for (const bin of ["kitty", "konsoleprofile", "qdbus6"]) writeFileSync(join(dir, bin), helper, { mode: 0o700 });
   const entry = join(import.meta.dir, "terminal.ts");

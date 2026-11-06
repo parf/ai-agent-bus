@@ -23,6 +23,8 @@ export function withStateHooks(args: string[], control: string, read = (path: st
     try { parsed = JSON.parse(value.trimStart().startsWith("{") ? value : read(value)); }
     catch (e) { throw new Error(`--settings is not a JSON object or a readable JSON file: ${e instanceof Error ? e.message : e}`); }
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("--settings must be a JSON object");
+    const hooks = (parsed as { hooks?: unknown }).hooks;
+    if (hooks !== undefined && (!hooks || typeof hooks !== "object" || Array.isArray(hooks))) throw new Error("--settings hooks must be a JSON object");
     user = merge(user, parsed as Record<string, unknown>);
   }
   const hook = {

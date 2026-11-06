@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 
+export const SMALL_BODY = 4096;
+
 // Four capabilities: rename this launcher, name a fork of its session, set its terminal label, and take a
 // runtime hook's event for the tab's state marker. Never accepts an arbitrary bus address or principal. The
 // credential is kept in the existing private session file.
@@ -12,11 +14,18 @@ export function serveControl(rename: (title?: string) => Promise<string>, fork?:
     async fetch(req) {
       if (req.headers.get("authorization") !== `Bearer ${token}`) return new Response("unauthorized", { status: 401 });
       const path = new URL(req.url).pathname;
-      // Everything but /state keeps the old 4 KiB bound.
+      // Everything but /state keeps the old 4 KiB bound, in bytes: refused from
+      // Content-Length before any read, else when the read passes it.
       const small = async () => {
-        const text = await req.text();
-        if (text.length > 4096) throw new Error("request body too large");
-        return JSON.parse(text);
+        if (Number(req.headers.get("content-length") ?? 0) > SMALL_BODY) throw new Error("request body too large");
+        const chunks: Uint8Array[] = [];
+        let size = 0;
+        for await (const chunk of req.body ?? []) {
+          size += chunk.byteLength;
+          if (size > SMALL_BODY) throw new Error("request body too large");
+          chunks.push(chunk);
+        }
+        return JSON.parse(Buffer.concat(chunks).toString("utf8"));
       };
       // The second capability: a forked session asks for a name of its own. It
       // names its session id, never an address or a principal, and is answered

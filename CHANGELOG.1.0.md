@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.8 — 2026-11-05
+
+Launcher tab titles show ❓ when an agent waits on the operator and 🟥 when its last answer ends with 🟥🟥🟥 (Claude hooks, Codex events; OpenCode ❓ only)
+
 ## 1.0.7 — 2026-11-05
 
 the daemon refuses to start when its store lacks a durable event or subscription port, instead of keeping them in memory

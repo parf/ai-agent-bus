@@ -18,7 +18,9 @@ export function transcriptTail(path: unknown, projects: string, read = readTail)
   let real: string, root: string;
   try { real = realpathSync(path); root = realpathSync(projects); } catch { return undefined; }
   if (!real.startsWith(root + sep)) return undefined;
-  const lines = read(real).split("\n").slice(1).reverse(); // the first line may be cut
+  const tail = read(real);
+  // Only a read that starts mid-file can cut its first line.
+  const lines = tail.text.split("\n").slice(tail.cut ? 1 : 0).reverse();
   for (const line of lines) {
     try {
       const entry = JSON.parse(line) as { type?: string; message?: { content?: unknown } };
@@ -31,13 +33,13 @@ export function transcriptTail(path: unknown, projects: string, read = readTail)
   return undefined;
 }
 
-export function readTail(path: string, bytes = TAIL_BYTES): string {
+export function readTail(path: string, bytes = TAIL_BYTES): { text: string; cut: boolean } {
   const fd = openSync(path, "r");
   try {
     const size = fstatSync(fd).size, length = Math.min(size, bytes);
     const buf = Buffer.alloc(length);
     readSync(fd, buf, 0, length, size - length);
-    return buf.toString("utf8");
+    return { text: buf.toString("utf8"), cut: length < size };
   } finally { closeSync(fd); }
 }
 
