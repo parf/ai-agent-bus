@@ -11,14 +11,19 @@ func statusLine(st statusAnswer) string {
 		return "failed: no agents loaded"
 	}
 	kept, running, healthy := 0, 0, 0
-	var demand, bad []string
+	var demand, bad, installing []string
 	for _, a := range st.Agents {
-		if !a.Enabled {
-			continue
-		}
 		label := a.Key
 		if label == "" {
 			label = a.Name
+		}
+		// An install under way is neither up nor broken: it is said as such.
+		if a.State == "installing" {
+			installing = append(installing, label)
+			continue
+		}
+		if !a.Enabled {
+			continue
 		}
 		onDemand := a.Processes != nil && a.Processes.Min == 0
 		if onDemand {
@@ -49,6 +54,9 @@ func statusLine(st statusAnswer) string {
 	}
 	if len(bad) > 0 {
 		line += "; " + strings.Join(bad, ", ")
+	}
+	if len(installing) > 0 {
+		line += "; installing " + strings.Join(installing, ", ")
 	}
 	return line
 }

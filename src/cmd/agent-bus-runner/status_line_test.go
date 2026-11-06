@@ -21,6 +21,13 @@ func TestStatusLineUsesRealAgentStates(t *testing.T) {
 	if got := statusLine(st); got != "degraded: 0/1 running, 1 on demand (ai); chat (starting)" {
 		t.Fatal(got)
 	}
+	st.Agents[0].State = "installing"
+	st.Agents = append(st.Agents, agentStatus{Key: "new", State: "installing"})
+	if got := statusLine(st); got != "ok: 0/0 running, 1 on demand (ai); installing chat, new" {
+		t.Fatal(got)
+	}
+	st.Agents = st.Agents[:3]
+	st.Agents[0].State = "starting"
 	st.Agents[1].State = "refused"
 	st.Agents[1].Processes = nil
 	if got := statusLine(st); !strings.HasPrefix(got, "failed:") || !strings.Contains(got, "ai (refused)") {
