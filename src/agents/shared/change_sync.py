@@ -288,10 +288,11 @@ def reply_ok(result):
     return isinstance(body,dict) and body.get('status')=='ok' and 'error' not in body
 
 
-def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,deadline=None,warning=lambda code,sub_id:None,ok=None,agent_contract=None,rename=None):
+def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,deadline=None,warning=lambda code,sub_id:None,ok=None,agent_contract=None,rename=None,settle=None):
     """One delivery round for every subscriber; returns {sub_id: counts}.
 
-    - Per subscriber: pending changes in key order, at most `batch`; stops at the first one not confirmed, so order holds.
+    - Per subscriber: pending changes in key order, at most `batch`; stops at the first one not confirmed, so order holds (a row
+      `settle` leaves unknown is passed over, never a stop).
     - A change is marked done for that subscriber only after the target confirms it: an agent answers ok, a queue accepts the send.
       Before the sends, every create and change of the batch is recorded as possibly delivered (and saved), so a send whose
       outcome is never learned still earns its delete if the source later removes the key; every delete is recorded as `?`,
@@ -305,6 +306,11 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
       keys are recorded as possibly delivered before the send and both marks move on the confirmation; a crash or an
       unconfirmed send leaves both pending, so the same rename is sent again, never a bare create. A `body` for a rename
       must return a message; None is a failure of the body. Without `rename` a rename is a delete and a create, as ever.
+    - `settle(row, key, record, wait)` is asked before sending again a create or change whose earlier send of this very version (same
+      fingerprint) had an unknown outcome: 'confirmed' marks it done with no send, 'resend' sends it as without the hook, anything else
+      leaves it pending and untouched for this round while the rest of the batch goes on. A key edited since that send has another
+      fingerprint and is sent without asking; a send refused outright was never possibly delivered, so it is not asked either.
+      Without `settle` nothing changes.
     - After a crash a subscriber may get a delete for a key it never received (the record is written for the whole batch before
       the sends): deletes must be idempotent. Never the other way: a delete is not lost.
     - The author's may-send to the target and to the source, and the target's record, are checked again before every send.
@@ -330,6 +336,7 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
             # have been applied, so a later delete of that key must still be sent. Cleared by the confirmation.
             # A delete is written as `?`: the target may still hold the key, or may not, so a key that comes back is owed again.
             had=data['maybe'][sub_id];owed={}
+            earlier={k:had.get(k) for k,_,_ in todo}   # before this batch is written down: what an earlier round left unknown
             for k,a,r in todo:
                 if a=='rename' and had.get(r['from'])!='?':owed[r['from']]='?'
                 if a=='delete':
@@ -355,6 +362,14 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
                     if kind=='agent' and (ok is None or (agent_contract is not None and not agent_contract(row))):
                         # No answer contract for an agent: nothing is sent, because nothing could say it was done.
                         count['dropped']+=1;row['dropped']=min(base.MAX_SAFE,row['dropped']+1);warning('agent_contract_missing',sub_id);break
+                    if settle is not None and action in ('create','change') and earlier.get(key)==record['fp']:
+                        verdict=settle(row,key,record,max(0.05,min(confirm_wait,deadline-time.monotonic())))
+                        if verdict=='confirmed':
+                            attempted.add(key);count['confirmed']+=1;row['confirmed']=min(base.MAX_SAFE,row['confirmed']+1)
+                            data['maybe'][sub_id].pop(key,None);data['skipped'][sub_id].pop(key,None);data['marks'][sub_id][key]=record['fp']
+                            continue
+                        if verdict!='resend':
+                            count['unsettled']=count.get('unsettled',0)+1;continue   # still unknown: this row waits, the others go on
                     try:payload=body(row,key,action,record)
                     except Exception:
                         # Built before the key counts as attempted: nothing was sent, so its record is taken back below.

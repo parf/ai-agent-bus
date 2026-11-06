@@ -323,7 +323,18 @@ class FileScan:
         def matches(row,key):return self._wanted(row,key)
         def body(row,key,action,record):return self._body(row,key,action,record)
         def rename(row):return not row['selector'].get('rag')   # RAG has no rename: its rows keep delete then upsert (Q305)
-        return core.deliver(self.bus,self.bus.name,self.state,matches=matches,body=body,topic='filescan',tag='change',batch=self.settings['batch'],warning=lambda code,sub=None:self.warning(code,sub),ok=self._confirm,agent_contract=lambda row:bool(row['selector'].get('rag')),rename=rename)
+        return core.deliver(self.bus,self.bus.name,self.state,matches=matches,body=body,topic='filescan',tag='change',batch=self.settings['batch'],warning=lambda code,sub=None:self.warning(code,sub),ok=self._confirm,agent_contract=lambda row:bool(row['selector'].get('rag')),rename=rename,settle=self._settle)
+
+    def _settle(self,row,key,record,wait):
+        """Before a RAG upsert whose earlier send of this version has an unknown outcome is sent again: RAG's completeness check.
+        Complete with this hash and source confirms it with no paid resend; proof that RAG does not hold it whole allows the resend;
+        anything else waits for the next round. A queue's earlier send is simply sent again, as before."""
+        sel=row['selector']
+        if not sel.get('rag'):return 'resend'
+        namespace=sel.get('namespace') or self.settings['namespace'];table=sel.get('table') or self.settings['table']
+        if not namespace or not table:return 'resend'   # the body names why it is skipped
+        verdict=rag_check(self.bus,row['target'],namespace,table,key,record['fp'],timeout=wait)
+        return {'complete':'confirmed','incomplete':'resend'}.get(verdict,'wait')
 
     def _confirm(self,result):
         """The target's reply counts as confirmed only when it shows the job done. A RAG upsert answers with the stored record: it counts

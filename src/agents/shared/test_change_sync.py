@@ -435,6 +435,43 @@ class DeliveryTests(Base):
         self.setUp();subs,row=self.add('#rag@n.test',kind='agent');self.bus.replies['#rag@n.test']='refused';self.round()
         self.assertEqual(self.state.load()['maybe'][row['id']],{},'a Refusal from the send of a call is definite too')
 
+    def unknown_a(self):
+        """A round in which the send of `a` times out: its outcome is unknown, `b` is never reached."""
+        subs,row=self.add('#rag@n.test',kind='agent');self.bus.replies['#rag@n.test']='timeout';self.round()
+        self.assertEqual(self.state.load()['maybe'][row['id']],{'a':'1'})
+        self.bus.replies['#rag@n.test']='ok';self.bus.calls.clear();return row
+
+    def test_settle_is_asked_before_an_unknown_send_of_the_same_version_goes_again(self):
+        row=self.unknown_a();asked=[]
+        def settle(r,key,record,wait):asked.append((key,record['fp']));return 'confirmed'
+        result=self.round(settle=settle)
+        self.assertEqual(asked,[('a','1')],'asked only for the key whose earlier send of this version is unknown')
+        self.assertEqual([b for _,b,_ in self.bus.calls],['create b'],'confirmed by settle: not sent again')
+        data=self.state.load();self.assertEqual(data['marks'][row['id']],{'a':'1','b':'2'});self.assertEqual(data['maybe'][row['id']],{})
+        self.assertEqual(result[row['id']]['confirmed'],2)
+
+    def test_a_row_settle_leaves_unknown_waits_and_the_rest_of_the_batch_goes_on(self):
+        row=self.unknown_a()
+        result=self.round(settle=lambda r,key,record,wait:'wait')
+        self.assertEqual([b for _,b,_ in self.bus.calls],['create b'],'the unknown row is passed over, never a stop')
+        data=self.state.load();self.assertEqual(data['maybe'][row['id']],{'a':'1'});self.assertNotIn('a',data['marks'][row['id']])
+        self.assertEqual(result[row['id']]['pending'],1)
+        self.round(settle=lambda r,key,record,wait:'resend')
+        self.assertEqual([b for _,b,_ in self.bus.calls],['create b','create a'],'resend sends it as without the hook')
+        self.assertEqual(self.state.load()['marks'][row['id']],{'a':'1','b':'2'})
+
+    def test_settle_is_not_asked_for_an_edited_key_or_after_a_refusal(self):
+        row=self.unknown_a();asked=[]
+        data=self.state.load();data['items']['a']=item('1b');self.state.save(data)
+        self.round(settle=lambda r,key,record,wait:asked.append(key) or 'wait')
+        self.assertEqual(asked,[],'edited since the unknown send: another version, sent without asking')
+        self.assertEqual([b for _,b,_ in self.bus.calls],['create a','create b'])
+        self.setUp();subs,row=self.add('#rag@n.test',kind='agent');self.bus.replies['#rag@n.test']='refused';self.round()
+        self.bus.replies['#rag@n.test']='ok';self.bus.calls.clear()
+        self.round(settle=lambda r,key,record,wait:asked.append(key) or 'wait')
+        self.assertEqual(asked,[],'refused outright: certainly not delivered, sent again without asking')
+        self.assertEqual([b for _,b,_ in self.bus.calls],['create a','create b'])
+
     def test_an_earlier_unknown_outcome_survives_a_later_refusal_of_the_same_change(self):
         subs,row=self.add('#rag@n.test',kind='agent');self.bus.replies['#rag@n.test']='timeout';self.round()
         self.assertEqual(self.state.load()['maybe'][row['id']],{'a':'1'})

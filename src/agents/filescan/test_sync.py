@@ -32,7 +32,7 @@ class FakeRag:
     stores nothing on a lost answer."""
     name=NAME
     def __init__(self,clock):
-        self.clock=clock;self.records={};self.calls=[];self.lose=set();self.refuse=set();self.error=set();self.incomplete_delete=set();self.partial=set();self.store=True
+        self.clock=clock;self.records={};self.calls=[];self.lose=set();self.refuse=set();self.error=set();self.incomplete_delete=set();self.partial=set();self.check_error=False;self.store=True
         self.allow={};self.kinds={RAG:'agent'}
     def may_send(self,who,target):return self.allow.get((who,target),True)
     def record(self,name):return SimpleNamespace(lookup=lambda:{'name':name,'kind':self.kinds.get(name,'queue')})
@@ -53,6 +53,7 @@ class FakeRag:
         if call['method']=='get':
             # The frozen completeness check: seven fields, never data (large-files.md#the-completeness-check).
             assert call.get('check') is True,call
+            if self.check_error:return CallReply(SimpleNamespace(body='error: storage request failed'))
             if key not in self.records:return CallReply(SimpleNamespace(body='error: not_found: record is absent from this namespace'))
             record=self.records[key]
             return CallReply(SimpleNamespace(body=json.dumps({**record,'indexed_at':'2026-11-06T00:00:00Z','complete':record['id'] not in self.partial})))
@@ -213,6 +214,48 @@ class Removal(SyncBase):
         for n in range(5):os.unlink(Path(self.root)/f'n{n}.md')
         r=self.sync();self.assertEqual(r['error']['code'],'paused')
         self.assertEqual(len(self.bus.calls),calls,'no removal is sent while the guard holds');self.assertEqual(len(self.bus.records),5)
+
+
+class WatchResend(SyncBase):
+    """The standing feed (`sub add … as rag`): an upsert whose answer was lost goes again only after RAG's check shows the file is not
+    stored whole as this version; a refusal goes again without asking."""
+    CONFIG={'mode':'poll','namespace':'vault','table':'notes'}
+
+    def setUp(self):
+        super().setUp()
+        r=json.loads(self.agent.handle(msg(f'sub add {RAG} as rag vault notes')));self.assertNotIn('error',r,r)
+
+    def scan(self):self.assertNotIn('error',json.loads(self.agent.handle(msg('scan'))))
+
+    def test_a_lost_answer_then_a_complete_check_sends_no_second_upsert(self):
+        self.put('a.md','one');self.bus.lose.add('a.md');self.scan();self.bus.lose.clear()
+        for _ in range(3):self.scan()
+        self.assertEqual(len(self.bus.upserts('a.md')),1,'RAG holds it whole: no paid resend')
+        self.assertEqual([c['method'] for c in self.bus.calls],['upsert','get'])
+        self.assertEqual(json.loads(self.agent.handle(msg('status')))['subscribers'][0]['pending'],0)
+
+    def test_a_file_edited_after_a_lost_answer_goes_once_more_with_its_new_hash(self):
+        self.put('a.md','one');self.bus.lose.add('a.md');self.scan();self.bus.lose.clear()
+        self.put('a.md','two, edited');self.scan();self.scan()
+        (old,new)=self.bus.upserts('a.md')
+        self.assertNotEqual(old['content_hash'],new['content_hash']);self.assertEqual(new['data'],'two, edited')
+
+    def test_a_check_that_proves_nothing_waits_and_the_other_files_go_on(self):
+        self.put('a.md','one');self.bus.lose.add('a.md');self.scan();self.bus.lose.clear();self.bus.check_error=True
+        self.put('b.md','two');self.scan();self.scan()
+        self.assertEqual(len(self.bus.upserts('a.md')),1,'an unknown check is never grounds for a paid resend')
+        self.assertEqual(len(self.bus.upserts('b.md')),1,'one unknown file never holds up the others')
+        self.bus.check_error=False;self.scan();self.assertEqual(len(self.bus.upserts('a.md')),1)
+
+    def test_a_check_showing_it_absent_or_partial_allows_one_resend(self):
+        self.bus.store=False;self.put('a.md','one');self.bus.lose.add('a.md');self.scan();self.bus.lose.clear()
+        self.scan();self.assertEqual(len(self.bus.upserts('a.md')),2)
+        self.bus.store=True;self.put('b.md','two');self.bus.lose.add('b.md');self.scan();self.bus.lose.clear();self.bus.partial.add('b.md')
+        self.scan();self.assertEqual(len(self.bus.upserts('b.md')),2,'complete:false confirms nothing: sent again')
+
+    def test_a_refusal_goes_again_without_a_check(self):
+        self.put('a.md','one');self.bus.refuse.add('a.md');self.scan();self.bus.refuse.clear();self.scan()
+        self.assertEqual([c['method'] for c in self.bus.calls],['upsert','upsert'])
 
 
 if __name__=='__main__':

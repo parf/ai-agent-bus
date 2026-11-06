@@ -267,8 +267,13 @@ class RagBus(Bus):
     def call(self,to,body,*,timeout,**options):
         if to!=RAG or self.replies.get(to,'ok')!='ok':return super().call(to,body,timeout=timeout,**options)
         self.calls.append((to,body,options));self.timeouts.append(timeout)
+        request=json.loads(body);check=request.pop('check',None) is True and request.get('method')=='get'
         with contextlib.redirect_stderr(io.StringIO()):
-            answer=self.rag.handle(SimpleNamespace(ask=None,body=body,envelope={'from':NAME,'roles':['write']},roles=('write',)))
+            answer=self.rag.handle(SimpleNamespace(ask=None,body=json.dumps(request) if check else body,envelope={'from':NAME,'roles':['write']},roles=('write',)))
+        if check and answer.startswith('{'):
+            # The completeness check (large-files.md#the-completeness-check) until RAG's L.1 ships it: the record `get` reads, as the
+            # check's seven fields, complete because `get` read the head and every chunk it names.
+            got=json.loads(answer);answer=json.dumps({k:got.get(k) for k in fs.CHECK_ANSWER[:-1]}|{'complete':True})
         return CallReply(SimpleNamespace(body=answer))
 
 
@@ -533,7 +538,8 @@ class RagTests(Base):
         self.put('a.md');self.bus.replies['#rag@n.test']='timeout'
         self.rag();self.add('#q@n.test');self.call('scan')
         self.assertEqual([to for to,_,_ in self.bus.sent],['#q@n.test']);self.bus.replies['#rag@n.test']='ok'
-        self.call('scan');self.assertEqual(len(self.bus.calls),2,'sent again, then confirmed');self.call('scan');self.assertEqual(len(self.bus.calls),2)
+        self.call('scan');self.assertEqual([c['method'] for c in self.calls()],['upsert','get','upsert'],'checked, sent again, confirmed')
+        self.call('scan');self.assertEqual(len(self.bus.calls),3)
         status=self.call('status');self.assertEqual({s['target']:s['pending'] for s in status['subscribers']},{'#rag@n.test':0,'#q@n.test':0})
 
     def test_a_real_rag_upsert_is_confirmed_by_its_record_and_never_sent_again(self):
@@ -587,7 +593,8 @@ class RagTests(Base):
     def test_nothing_is_tracked_on_a_refusal_and_it_is_sent_again(self):
         self.put('a.md','x');self.rag();self.bus.replies['#rag@n.test']='{"error":"no"}';self.call('scan')
         self.assertEqual(len(self.bus.calls),1);self.assertEqual(self.call('status')['subscribers'][0]['pending'],1)
-        self.bus.replies['#rag@n.test']='ok';self.call('scan');self.assertEqual(len(self.bus.calls),2);self.assertEqual(self.call('status')['subscribers'][0]['pending'],0)
+        self.bus.replies['#rag@n.test']='ok';self.call('scan');self.assertEqual([c['method'] for c in self.calls()],['upsert','get','upsert'])
+        self.assertEqual(self.call('status')['subscribers'][0]['pending'],0)
 
     def test_a_long_path_is_hashed_with_the_path_kept_in_key1_and_an_odd_one_is_skipped(self):
         long='d/'+'x'*130+'.md';self.put(long,'t');self.put('line break.md','t');self.rag();self.call('scan')
