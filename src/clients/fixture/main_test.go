@@ -60,8 +60,15 @@ func TestFixtureUsesFileAndMemoryBigfilesAndCleansUp(t *testing.T) {
 	}
 	client := &http.Client{Timeout: 2 * time.Second}
 	defer client.CloseIdleConnections()
-	for _, held := range []string{"file", "memory"} {
-		q := url.Values{"record": {"jobs@fixture"}, "name": {held}, "memory": {"false"}}
+	for _, mode := range []string{"default", "file", "memory"} {
+		held := mode
+		if mode == "default" {
+			held = "file"
+		}
+		q := url.Values{"record": {"jobs@fixture"}, "name": {mode}, "memory": {"false"}}
+		if mode == "default" {
+			q.Del("memory")
+		}
 		if held == "memory" {
 			q.Set("memory", "true")
 		}
@@ -108,5 +115,42 @@ func TestFixtureUsesFileAndMemoryBigfilesAndCleansUp(t *testing.T) {
 	entries, err := os.ReadDir(work)
 	if err != nil || len(entries) != 0 {
 		t.Fatalf("fixture left temporary bigfiles: %v, %v", entries, err)
+	}
+}
+
+// A startup error must unwind run's temporary store before main exits.
+func TestFixtureFailedStartupCleansUpBigfiles(t *testing.T) {
+	if os.Getenv("C4_FIXTURE_FAILED_CHILD") == "1" {
+		os.Args = []string{os.Args[0], os.Getenv("C4_FIXTURE_BAD_SOCKET")}
+		main()
+		os.Exit(0)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	work := t.TempDir()
+	// A regular file cannot be the parent of the requested Unix socket.
+	blocker := work + "/not-a-directory"
+	if err := os.WriteFile(blocker, []byte("block"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.CommandContext(ctx, exe, "-test.run=^TestFixtureFailedStartupCleansUpBigfiles$")
+	cmd.Env = append(os.Environ(), "C4_FIXTURE_FAILED_CHILD=1", "C4_FIXTURE_BAD_SOCKET="+blocker+"/fixture.sock", "TMPDIR="+work)
+	out, err := cmd.CombinedOutput()
+	if ctx.Err() != nil {
+		t.Fatal("fixture startup failure did not return before its deadline")
+	}
+	if exit, ok := err.(*exec.ExitError); !ok || exit.ExitCode() != 1 {
+		t.Fatalf("unusable socket must fail startup with exit 1: %v", err)
+	}
+	if !bytes.Contains(out, []byte(blocker+"/fixture.sock")) || !bytes.Contains(out, []byte("not a directory")) {
+		t.Fatalf("startup refusal must name the unusable socket: %s", out)
+	}
+	entries, err := os.ReadDir(work)
+	if err != nil || len(entries) != 1 || entries[0].Name() != "not-a-directory" {
+		t.Fatalf("failed startup left temporary bigfiles: %v, %v", entries, err)
 	}
 }

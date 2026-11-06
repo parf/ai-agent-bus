@@ -34,6 +34,8 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	// SIGKILL cannot run this cleanup; an agent-bus-client-bigfile-* dir
+	// left by a SIGKILLed fixture is accepted.
 	defer os.RemoveAll(dir)
 	big, err := bigfile.Open(dir, bigfile.NewMemoryIndex(), time.Now())
 	if err != nil {
