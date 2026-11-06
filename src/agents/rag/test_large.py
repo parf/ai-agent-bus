@@ -16,6 +16,7 @@ from blocks import Blocks,Budget
 from core import Core
 from agent_bus.errors import Refusal
 from test_rag import CFG,PROMPT,KV,Store
+from test_extras import Extras
 
 
 def section(title,words,level=2):
@@ -42,6 +43,10 @@ class LargeStore(Store):
         self.downloads.append((record,name))
         if (record,name) not in self.files:raise NamedRefusal('bigfile_unavailable','the referenced bigfile is absent or expired; send it again')
         return self.files[(record,name)]
+
+
+class Similar(LargeStore,Extras):
+    pass
 
 
 class Large(unittest.TestCase):
@@ -255,6 +260,16 @@ class Large(unittest.TestCase):
         lines=text.split('\n')[mine['lines'][0]-1:mine['lines'][1]]
         self.assertTrue(any('assam' in l for l in lines),'the cited lines hold the hit')
         self.assertEqual(lines[0],'## Part 6')
+    def test_similar_recommends_from_eight_chunks_spread_over_a_large_file(self):
+        self.store=Similar();self.app=Core(CFG,self.store,self.kv);self.app.cache.set('team','docs',PROMPT)
+        self.put(document());self.put(document(),id='Plans/twin.md')
+        ids=self.store.points[point_id({'namespace':'team','tableName':'docs','id':'Plans/big.md'})]['payload']['_rag_chunks']
+        self.assertGreater(len(ids),8)
+        found=self.call(method='similar',id='Plans/big.md',limit=4)['records']
+        self.assertEqual([r['id'] for r in found],['Plans/twin.md'])
+        query=next(body for _,path,body,_ in self.store.calls if path=='/points/query')
+        self.assertEqual(query['query']['recommend']['positive'],[ids[i*len(ids)//8] for i in range(8)])
+        self.assertEqual(query['filter']['must_not'],[{'has_id':ids}],'every chunk of the record itself is still excluded')
     def test_a_small_record_hit_keeps_todays_fields(self):
         self.call(method='upsert',id='small',source='small.md',data='Tea is a drink.')
         hit=self.call(method='search',query='tea')['records'][0]

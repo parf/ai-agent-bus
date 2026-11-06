@@ -21,6 +21,7 @@ CITATION_FIELDS=('_rag_heading','_rag_lines')
 EMBED_BATCH=32      # chunks per #voyage request for a large file
 LARGE_FLOOR=120     # seconds a large upsert needs left before it starts
 WRITE_BYTES=512<<10 # one point write, well under the proxy's 1 MiB
+SIMILAR_POSITIVES=8 # similar recommends from at most a small record's chunk count, spread over a large file
 STOPPED='not stored; prior record unchanged'
 
 
@@ -231,9 +232,10 @@ class Core:
         head=repo.qdrant('GET','/points/'+repo.point_id(subject))
         if head is None or head['payload'].get('_rag_kind')!='head':raise NamedRefusal('not_found','record is absent from this namespace')
         ids=head['payload']['_rag_chunks']
+        positive=ids if len(ids)<=SIMILAR_POSITIVES else [ids[i*len(ids)//SIMILAR_POSITIVES] for i in range(SIMILAR_POSITIVES)]
         scope={k:v[k] for k in ('namespace','tableName','key1','key2') if k in v}
         def page(want,offset):
-            return {'filter':{**repo.select(scope,kind='chunk'),'must_not':[{'has_id':ids}]},'query':{'recommend':{'positive':ids}},
+            return {'filter':{**repo.select(scope,kind='chunk'),'must_not':[{'has_id':ids}]},'query':{'recommend':{'positive':positive}},
                     'limit':want,'offset':offset,'with_payload':{'include':[*SUMMARY_FIELDS[:5],*PROVENANCE_FIELDS,'_rag_text',*CITATION_FIELDS]},'with_vector':False}
         ranked,_=self._collect({**scope,'limit':v['limit']},repo,page,'similarity',-1)
         return {'records':ranked[:v['limit']]}
