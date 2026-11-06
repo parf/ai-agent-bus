@@ -381,6 +381,23 @@ class BigfileTests(Base):
         self.call('scan');self.call('scan');held=self.agent.state.load()['meta']['bigfiles']
         self.assertEqual(held,{},'the key had expired (404): nothing is kept to delete')
 
+    def test_a_key_stays_until_the_delete_of_its_path_is_confirmed(self):
+        for i in range(10):self.put(f'k{i}.txt','k')
+        self.put('one.txt',self.BIG);self.add(extra='bigfile');self.call('scan');os.unlink(Path(self.root)/'one.txt')
+        self.bus.send_refused.add('#q@n.test');self.call('scan');self.assertEqual(self.keys(),[self.sha(self.BIG)],'the delete is not confirmed yet')
+        self.bus.send_refused.clear();self.call('scan');self.assertEqual(self.keys(),[])
+
+    def test_a_key_shared_by_two_paths_waits_for_both(self):
+        for i in range(10):self.put(f'k{i}.txt','k')
+        self.put('one.txt',self.BIG);self.put('two.txt',self.BIG);self.agent=self.make({'max_file_size':'10B','batch':1})
+        self.add(extra='bigfile')
+        for _ in range(14):self.call('scan')   # one change per round
+        self.assertEqual(self.keys(),[self.sha(self.BIG)])
+        os.unlink(Path(self.root)/'one.txt');(Path(self.root)/'two.txt').write_text('w'*60);os.utime(Path(self.root)/'two.txt',(time.time()+9,time.time()+9))
+        self.call('scan')   # round one: only one.txt's delete (sorted first) is confirmed
+        self.assertIn(self.sha(self.BIG),self.keys(),'two.txt has not yet been told its new version')
+        self.call('scan');self.assertEqual(self.keys(),[self.sha('w'*60)])
+
     def test_a_subscriber_without_the_option_makes_no_key_to_collect(self):
         self.put('big.txt',self.BIG);self.add();self.call('scan');self.assertEqual(self.bus.puts,[]);self.assertNotIn('bigfiles',self.agent.state.load()['meta'])
 
