@@ -171,6 +171,7 @@ Proposals to prioritize after the minimum. RT11 RW10–RW17, moved by Q299, and 
 Owner, 2026-11-01; approved 2026-11-05 ([Q334](resolved.md#Q334)); plan in [filescan](filescan.md#steps-and-estimate), owner choices in [decisions](DECISIONS.md#recorded-decisions), answers [Q305–Q310](resolved.md#Q305). Staged, each stage landing alone: S1 the shared core, S2 FileScan, S3 [DBSync](#dbsync) ([stages](filescan.md#stages)).
 
 - ☐ FS.1 `#filescan/<name>`: a runner agent that tracks new, changed, deleted and renamed files in one directory and hands them to subscribed agents, by polling, by inotify, or both ([modes](filescan.md#modes)); steps F0–F4 with an estimate of four to six hours of agent time
+  - S1 built: `src/agents/shared/change_sync.py` — state file (cap, atomic rename, one holder), subscriptions with authority over it, delivery that marks a change done only after the target confirms, the poll timer; tests `test_change_sync.py`. Not yet an agent
   - Depends: RT31 (user-account runner, landed); the S1 shared core library ([Q314](resolved.md#Q314)); F0 adds a read-only bind of one directory to the runner
   - Deploy: FileScan is a kept process (inotify) serving itself with its own token; the Owner registers its record and hands the token over once ([agents that serve themselves](../../docs/runner/configuration.md#agents-that-serve-themselves)), and the plan names that step in the guide
   - Acceptance, each against a fixture directory and a fake subscriber, never the live bus:
