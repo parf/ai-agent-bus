@@ -8,6 +8,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 |---|---|---|
 | Runner hardening (M.14) and Q276–Q280 move from R1.1 to R1.2, keeping their IDs | [Runner hardening proposal](runner-hardening.md#runner-hardening-proposal), [task](TODO.md#runner-hardening), [questions](runner-hardening.md#questions) | Owner, in chat to #ab-ceo, 2026-11-06 ~10:45: "Runner hardening => postpone to R.1.2" ([quoted](../R1.1/QUESTIONS.md#runner-hardening)) |
 | Discord (B.27a) moves from R1.1 to R1.2; its code stays on main and releases leave it out | [Discord plan](discord.md#discord-agent-b27a), [task](TODO.md#discord) | Owner, 2026-11-05: "discord => 1.2" |
+| Google Chat needs a corporate Google Workspace account; a personal account cannot host it, and the Cloud project, app and service account are created in that organisation when it exists (Q247, Q248) | [Google Chat plan](google-chat.md#proposed-methods-for-approval) | Owner, 2026-11-06: "we need corp acct. cant use personal"; Q248: "see q247" |
 | How to reach a person | [definition](people.md#how-to-reach-a-person) | D23, D159 |
 | Agent to agent | [definition](access.md#agent-to-agent) | D62 |
 | How long a record lives | [definition](records.md#how-long-a-record-lives) | D130, D131, D132 |

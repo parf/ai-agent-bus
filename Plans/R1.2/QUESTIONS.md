@@ -53,19 +53,9 @@ not: a phone number is not an avatar, and the alerter needs everybody's.
 
 Google Chat ([B.27b](TODO.md#objective), [plan](google-chat.md#proposed-methods-for-approval)) moved here from R1 (owner, 2026-11-01: a corporate account is needed). No sign-up or live call was made.
 
-- ❓ Q247 Google Chat: which Google account type hosts the app
-  - Context: Whether personal Google accounts can host Chat apps is unconfirmed; Workspace is assumed
-  - Proposal: Workspace, or a personal account if it works
-  - Impact: decides who may install and administer the app
-  - Settled by: the owner
-  > 💬 👤parf move R1.2 - we need corp acct. cant use personal
+- ✅ Q247 → [Google Chat needs a corporate Workspace account](DECISIONS.md#recorded-decisions)
 
-- ❓ Q248 Google Chat: who creates the Cloud project, the app and its service account, in which organisation
-  - Context: Needed before any live test; no sign-up was made
-  - Proposal: The owner names them
-  - Impact: none of the Google Chat agent can be tried live before this
-  - Settled by: the owner
-  > 💬 👤parf see q247
+- ✅ Q248 → [Google Chat needs a corporate Workspace account](DECISIONS.md#recorded-decisions)
 
 ## Runner hardening
 
