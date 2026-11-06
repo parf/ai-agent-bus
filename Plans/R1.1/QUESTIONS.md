@@ -194,6 +194,28 @@ The recommendations below are retained parked proposals.
 
 - ✅ Q353 → [№Q353](resolved.md#Q353)
 
+The T-49 setup gives mdhouse its own stack on the user-account runner ([№Q353](resolved.md#Q353)): `#rag/mdhouse` with its own `#qdrant/mdhouse`, `#voyage/mdhouse` and `#ai/mdhouse`, collection `rag_mdhouse`, nothing borrowed from the root `#rag`. Three things it needs come from the owner.
+
+- ❓ Q376 Which Qdrant store mdhouse's RAG uses
+  - Context: the collection and its index are made once through the new proxy, with a temporary admin grant removed afterwards. In real use mdhouse brings its own store
+  - ( ) A `#qdrant/mdhouse` proxy to the Qdrant server already running here, collection `rag_mdhouse` only 🌟
+  - ( ) A new local Qdrant server for mdhouse alone ⭐
+  - ( ) A remote store mdhouse names, with its key
+  > 💡👾 The existing server: nothing new to run on the dev node; the proxy is the boundary, since the server's key reaches every collection.
+
+- ❓ Q377 Which Voyage key `#voyage/mdhouse` uses
+  - Context: embeddings are paid per token; about 194 Markdown files today. `#voyage@parf.us` is not visible to parf today
+  - ( ) A new key on the same Voyage account, so mdhouse's spend shows apart 🌟
+  - ( ) The current Voyage key, shared ⭐
+  - ( ) A key from mdhouse's own account
+  > 💡👾 A new key on the same account: no new billing, and it can be revoked alone.
+
+- ❓ Q378 Which OpenRouter key `#ai/mdhouse` uses
+  - Context: the production `#ai` key …9e4f is never used ([shared rules](../Team.v2/roles/common.md#light-on-the-host)). The working realmo keys share one account
+  - ( ) A new key with a spend limit, made by the owner 🌟
+  - ( ) An unused realmo key such as …5f45 ⭐
+  > 💡👾 A new key with a limit: mdhouse's classification calls cannot drain the site's account.
+
 ## Owner items from 2026-11-06
 
 - ❓ Q354 Which image model #ai uses
