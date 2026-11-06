@@ -10,6 +10,10 @@
   - `complete`: suggestions for a typed prefix (search completion, not LLM text); free
   - `classify`: labels for a text without storing it; paid when it calls #ai
   - ( ) `count` + `similar` + `complete` now; `classify` only when mdhouse asks for it 🌟
-  - ( ) All four
+  - (x) All four
   - ( ) None for now ⭐
   > 💡👾 The three free ones first: they cost nothing per call and mdhouse can use them as soon as it is wired; `classify` waits for a real caller.
+  >
+  > 💬 yes - implement this all;
+  > mdhouse is just one of many possible rag-system-users 
+  > we need to cover most common use cases out of the box
