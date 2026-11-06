@@ -23,7 +23,7 @@ CHUNK_FORMAT = 'utf8-ws4096-half-v1'
 KEYWORD_MODES = ('builtin','external')
 QUERY_MAX = 1024
 SEARCH_MODES = ('keyword','semantic','hybrid')
-METHODS = ('upsert','get','list','search','count','similar','classify','keyword_index','delete','prompts','capabilities','namespaces','drop_namespace')
+METHODS = ('upsert','get','list','search','count','similar','complete','classify','keyword_index','delete','prompts','capabilities','namespaces','drop_namespace')
 FACET_MAX = 64      # distinct labels count answers; more says labels_truncated
 # Below own-KV's 512 KiB and the proxy body cap, including worst-case JSON escaping.
 CATALOGUE_MAX = 256 << 10
@@ -36,6 +36,10 @@ BM25_K1 = 1.2
 BM25_B = 0.75
 BM25_AVG_TOKENS = 128
 TOKEN_MAX = 64
+PREFIX_FIELD = '_rag_text'
+# complete's index: every word of a chunk's stored text, indexed by its prefixes, case-folded.
+PREFIX_INDEX = {'type':'text','tokenizer':'prefix','lowercase':True,'min_token_len':1,'max_token_len':TOKEN_MAX}
+COMPLETE_CHUNKS = 64   # chunks one complete reads; more says sampled
 INDEX_BYTES = 512 << 10
 INDEX_RECHECK = 60   # seconds a count of zero unindexed chunks is trusted
 NO_VECTOR = 'keyword index not built yet; run {"method":"keyword_index"}'
@@ -147,7 +151,7 @@ def parse(raw):
     allowed={'upsert':{'namespace','tableName','id','data','mime-type','key1','key2','embeddings','source','content_hash'},
              'get':{'namespace','tableName','id'},'list':{'namespace','tableName','key1','key2','limit','cursor'},
              'search':{'namespace','tableName','key1','key2','query','limit','mode','rerank'},
-             'count':{'namespace','tableName','key1','key2'},'similar':{'namespace','tableName','id','key1','key2','limit'},
+             'count':{'namespace','tableName','key1','key2'},'complete':{'namespace','prefix','tableName','key1','key2','limit'},'similar':{'namespace','tableName','id','key1','key2','limit'},
              'classify':{'namespace','tableName','data','mime-type'},
              'keyword_index':{'namespace'},'drop_namespace':{'namespace','confirm'},
              'delete':{'namespace','tableName','id','key1','key2','all'},'prompts':{'namespace','tableName','action','data'}}
@@ -168,6 +172,10 @@ def parse(raw):
         text(v.get('data'),'data',DATA_MAX)
         if v.setdefault('mime-type','text/plain') not in ('text/plain','text/markdown','text/html','application/json'): raise RagError('unsupported mime-type')
     if method=='similar':integer(v.setdefault('limit',16),1,16,'limit')
+    if method=='complete':
+        text(v.get('prefix'),'prefix',QUERY_MAX)
+        if not tokens(v['prefix']): raise RagError('prefix has no searchable words')
+        integer(v.setdefault('limit',16),1,16,'limit')
     if method=='upsert':
         text(v.get('source'),'source',SOURCE_MAX,nfc=True)
         text(v.get('data'),'data',DATA_MAX,empty=True)

@@ -40,7 +40,7 @@ class Store:
     def __init__(self,dimensions=2):
         self.points={};self.calls=[];self.paid=[];self.fail=None;self.fail_paid=None;self.fail_get=False
         self.enforce_projection=False
-        self.sparse=False;self.refuse_vector=False;self.modifier='idf';self.dimensions=dimensions;self.indexes={k:{'data_type':'keyword'} for k in INDEXES}
+        self.sparse=False;self.refuse_vector=False;self.refuse_index=False;self.modifier='idf';self.dimensions=dimensions;self.indexes={k:{'data_type':'keyword'} for k in INDEXES}
         self.model='voyage-3.5';self.probabilities={'drink':.8,'other':.2}
     def begin(self,budget):self.budget=budget
     def decide(self,request):
@@ -88,6 +88,9 @@ class Store:
             return {'points':[{'id':p['id'],'score':s,'payload':{k:v for k,v in p['payload'].items() if k in keep}} for s,p in scored[start:start+body['limit']]]}
         if verb=='POST' and path=='/points/count':
             return {'count':sum(1 for p in self.points.values() if self.matches(p,body['filter']))}
+        if verb=='PUT' and path=='/index?wait=true':
+            if self.refuse_index:raise Refused('Qdrant grant missing: requires admin role')
+            self.indexes[body['field_name']]={'data_type':body['field_schema']['type'],'params':deepcopy(body['field_schema'])};return {'status':'completed'}
         if verb=='PUT' and path=='/vectors/text':
             if self.refuse_vector:raise Refused('Qdrant grant missing: requires admin role')
             self.sparse=True;self.modifier=body['sparse']['modifier'];return {'status':'completed'}

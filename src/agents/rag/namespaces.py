@@ -192,7 +192,7 @@ class NamespaceAccess:
             if len(found)!=len(wanted) or {p['id'] for p in found}!=set(wanted):raise RagError('vector update includes a missing or foreign point')
         elif verb=='PUT' and path.startswith('/points?'):
             for row in body['points']:self._validate(row)
-        elif path.startswith('/vectors/'):
+        elif path.startswith('/vectors/') or verb=='PUT' and path=='/index?wait=true':
             # Shared schema definition, never a data scan/backfill.
             pass
         else:raise RagError('unbound data operation is not allowed')

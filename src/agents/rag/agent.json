@@ -93,6 +93,11 @@
       "help": "Required search query, 1..1024 UTF-8 bytes. Keyword and hybrid require a searchable word; semantic accepts any non-blank query.",
       "json_only": true
     },
+    "prefix": {
+      "type": "string",
+      "help": "Typed text to complete, at most 1024 UTF-8 bytes with at least one word; its last word is completed, and a prefix ending between words has no completion.",
+      "json_only": true
+    },
     "source": {
       "type": "string",
       "json_only": true,
@@ -308,6 +313,36 @@
       "returns": "JSON {records:[citations]} like search, one best chunk per record, excluding the given record; scores contains similarity. A missing or deleted record answers not_found.",
       "example": "agent-bus call '#rag@node.example' '{\"method\":\"similar\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\",\"limit\":5}'"
     },
+    "complete": {
+      "help": "Suggest completions of the last word of a typed prefix from the stored text of live records; free. Needs the prefix index keyword_index creates.",
+      "text": "complete (JSON only)",
+      "args": [
+        {
+          "name": "namespace"
+        },
+        {
+          "name": "prefix"
+        },
+        {
+          "name": "tableName",
+          "optional": true
+        },
+        {
+          "name": "key1",
+          "optional": true
+        },
+        {
+          "name": "key2",
+          "optional": true
+        },
+        {
+          "name": "limit",
+          "optional": true
+        }
+      ],
+      "returns": "JSON {suggestions:[{text, records}], sampled}: the prefix's earlier words plus a completed last word, lower-cased, most records first; the earlier words must appear in the same chunk. It reads at most 64 matching chunks, and sampled:true says more matched. Without the prefix index it is refused as complete_unavailable.",
+      "example": "agent-bus call '#rag@node.example' '{\"method\":\"complete\",\"namespace\":\"team\",\"prefix\":\"green te\",\"limit\":5}'"
+    },
     "classify": {
       "help": "Label a text with the table's classification prompts as upsert would, without storing it; one paid #ai call, off unless the classify setting is true.",
       "text": "classify (JSON only)",
@@ -330,14 +365,14 @@
       "example": "agent-bus call '#rag@node.example' '{\"method\":\"classify\",\"namespace\":\"team\",\"tableName\":\"notes\",\"data\":\"Green tea with lemon.\"}'"
     },
     "keyword_index": {
-      "help": "Build only the selected namespace's keyword index. Owner or Maintainers only; collection vector provisioning remains a shared infrastructure action.",
+      "help": "Create complete's prefix index when the collection lacks it, then build the selected namespace's keyword index. Owner or Maintainers only; both are shared collection settings, created once and safe to repeat.",
       "text": "keyword_index (JSON only)",
       "args": [
         {
           "name": "namespace"
         }
       ],
-      "returns": "JSON {status:\"ok\",indexed:n} when every chunk has its words (n counts this run), or \"incomplete: ...\" to repeat. If the Qdrant proxy refuses to add the vector, the answer names the owner's one-time command.",
+      "returns": "JSON {status:\"ok\",indexed:n} when every chunk has its words (n counts this run), or \"incomplete: ...\" to repeat. If the Qdrant proxy refuses to add the prefix index or the vector, the answer names the owner's one-time command. With keyword_search external it creates the prefix index, then refuses the keyword part.",
       "example": "agent-bus call '#rag@node.example' --wait=120s '{\"method\":\"keyword_index\",\"namespace\":\"team\"}'",
       "role": [
         "owner",

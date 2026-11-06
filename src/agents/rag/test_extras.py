@@ -9,13 +9,18 @@ import unittest
 HERE=Path(__file__).resolve().parent
 sys.path.insert(0,str(HERE))
 from test_rag import Store,KV,CFG,PROMPT
-from rules import RagError,NamedRefusal,parse,dumps,point_id,FACET_MAX,config
+from rules import RagError,NamedRefusal,parse,dumps,point_id,FACET_MAX,config,tokens,PREFIX_INDEX,COMPLETE_CHUNKS
 from core import Core
 
 
 class Extras(Store):
-    """The fixture store, plus Qdrant's facet and a recommend query over the stored dense vectors."""
+    """The fixture store, plus Qdrant's facet, a recommend query over the stored dense vectors and a prefix text match."""
     facet_extra=0
+    def matches(self,point,condition):
+        text=[c for c in condition.get('must',[]) if 'text' in c.get('match',{})]
+        rest={**condition,'must':[c for c in condition.get('must',[]) if c not in text]}
+        words=tokens(str(point['payload'].get('_rag_text','')))
+        return super().matches(point,rest) and all(any(w.startswith(c['match']['text']) for w in words) for c in text)
     def qdrant(self,verb,path,body=None,write=False):
         if verb=='POST' and path=='/facet':
             if hasattr(self,'budget'):self.budget.left(10)
@@ -195,6 +200,75 @@ class Classify(Base):
     def test_upsert_keeps_the_same_labels_through_the_shared_check(self):
         record=self.put('tea',[1,0],{'drink':.8,'other':.6})
         self.assertEqual(record['classification_ids'],{'drink':.8,'other':.6})
+
+
+class Complete(Base):
+    def setUp(self):
+        super().setUp()
+        self.store.sparse=True;self.app=Core(self.cfg,self.store,self.kv)
+        for id,data,more in (('tea','Green tea is great.',{}),('pot','A teapot for tea.',{'key1':'k'}),('team','The team drinks coffee.',{}),
+                             ('gone','Tea, teal and tears.',{})):
+            self.put(id,[1,0],data=data,**more)
+        self.put('far',[1,0],data='tea tea tea',namespace='other')
+        self.run_('delete',tableName='notes',id='gone')
+    def build(self,roles=('owner',)):
+        return self.app.run({'method':'keyword_index','namespace':'team'},{'roles':list(roles)})
+    def complete(self,prefix,**more):
+        return self.run_('complete',prefix=prefix,**more)
+    def text_reads(self):
+        return [c for c in self.store.calls if c[1]=='/points/scroll' and any('text' in m.get('match',{}) for m in c[2]['filter']['must'])]
+    def test_without_the_prefix_index_it_is_refused_and_reads_nothing(self):
+        self.fresh()
+        with self.assertRaises(NamedRefusal) as c:self.complete('te')
+        self.assertEqual(c.exception.code,'complete_unavailable')
+        self.assertIn('keyword_index',str(c.exception))
+        self.assertEqual(self.text_reads(),[])
+    def test_keyword_index_creates_the_index_once_and_only_for_a_manager(self):
+        for roles in ((),('write',)):
+            with self.subTest(roles=roles),self.assertRaisesRegex(RagError,'Owner or Maintainers'):self.build(roles)
+        self.assertNotIn('_rag_text',self.store.indexes)
+        self.fresh();self.build()
+        puts=[c for c in self.store.calls if c[1]=='/index?wait=true']
+        self.assertEqual([(verb,body,write) for verb,_,body,write in puts],[('PUT',{'field_name':'_rag_text','field_schema':PREFIX_INDEX},True)])
+        self.assertEqual(self.store.indexes['_rag_text']['params'],{'type':'text','tokenizer':'prefix','lowercase':True,'min_token_len':1,'max_token_len':64})
+        self.fresh();self.build()
+        self.assertFalse(any(c[1]=='/index?wait=true' for c in self.store.calls))   # a repeat is a no-op for the index
+        self.assertEqual(self.complete('te')['suggestions'][0],{'text':'tea','records':2})
+    def test_a_proxy_without_the_admin_role_names_the_owners_step(self):
+        self.store.refuse_index=True
+        with self.assertRaisesRegex(RagError,'admin role.*request PUT /collections/notes/index\\?wait=true .*"tokenizer":"prefix".*repeat this command'):self.build()
+        self.assertNotIn('_rag_text',self.store.indexes)
+    def test_external_keyword_search_still_gets_the_prefix_index(self):
+        self.app=Core({**self.cfg,'keyword_search':'external'},self.store,self.kv)
+        with self.assertRaisesRegex(RagError,'external'):self.build()
+        self.assertIn('_rag_text',self.store.indexes)
+    def test_the_last_word_is_completed_from_live_records_most_first(self):
+        self.build();self.fresh()
+        self.assertEqual(self.complete('te'),{'suggestions':[{'text':'tea','records':2},{'text':'team','records':1},{'text':'teapot','records':1}],'sampled':False})
+        self.assertEqual(self.complete('TE')['suggestions'],self.complete('te')['suggestions'])   # case-folded
+        self.assertEqual(self.complete('green te')['suggestions'],[{'text':'green tea','records':1}])
+        self.assertEqual(self.complete('te',key1='k')['suggestions'],[{'text':'tea','records':1},{'text':'teapot','records':1}])
+        self.assertEqual(self.complete('te',limit=1)['suggestions'],[{'text':'tea','records':1+1}])
+        self.assertEqual(self.complete('tea ')['suggestions'],[])   # ends between words
+        self.assertEqual(self.store.paid,[])
+    def test_the_read_stays_in_scope_and_skips_deleted_records(self):
+        self.build();self.fresh()
+        words={s['text'] for s in self.complete('te')['suggestions']}
+        self.assertFalse(words&{'teal','tears'})   # only the deleted record holds them
+        read=self.text_reads()[0][2]
+        for condition in ({'key':'namespace','match':{'value':'team'}},{'key':'_rag_kind','match':{'value':'chunk'}},{'key':'_rag_text','match':{'text':'te'}}):
+            self.assertIn(condition,read['filter']['must'])
+        self.assertEqual((read['limit'],read['with_vector']),(COMPLETE_CHUNKS,False))
+    def test_more_matching_chunks_than_one_read_says_sampled(self):
+        for n in range(COMPLETE_CHUNKS):self.put(f'n{n:02}',[1,0],data='tea')
+        self.build()
+        answer=self.complete('te')
+        self.assertTrue(answer['sampled'])
+    def test_a_prefix_needs_a_word_and_a_bounded_limit(self):
+        for prefix in ('','  ','?!'):
+            with self.subTest(prefix=prefix),self.assertRaises(RagError):self.complete(prefix)
+        for limit in (0,17):
+            with self.subTest(limit=limit),self.assertRaises(RagError):self.complete('te',limit=limit)
 
 
 if __name__=='__main__':unittest.main()

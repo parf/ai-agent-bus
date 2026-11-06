@@ -13,7 +13,7 @@ from rules import (RagError,Unknown,Refused,Deadline,Incomplete,RECORD_MAX,SUMMA
                    config,dumps,identity,match,point_id,revision,scope,number,sparse,vector,summary,text,DATA_MAX,BODY_MAX)
 from blocks import Budget
 from namespaces import Catalogue,manager,SCHEMA
-from rules import NamedRefusal,PROVENANCE_FIELDS,provenance,FACET_MAX
+from rules import NamedRefusal,PROVENANCE_FIELDS,provenance,FACET_MAX,PREFIX_FIELD,PREFIX_INDEX,COMPLETE_CHUNKS,tokens
 
 
 def finite(value):
@@ -27,7 +27,7 @@ def finite(value):
 class Core:
     def __init__(self,cfg,backend,kv,keyword=None):
         self.cfg=config(cfg);self.backend=backend;self.cache=Cache(kv);self.keyword=keyword;self.catalogue=Catalogue(kv,backend,self.cfg);self.index_state={}
-        self.budget=Budget();self.cursors=OrderedDict();self.health='unknown: collection not verified';self.bm25=False;self.keyword_state=NO_VECTOR;self.indexed=False;self.checked=0.0
+        self.budget=Budget();self.cursors=OrderedDict();self.health='unknown: collection not verified';self.bm25=False;self.prefix=False;self.keyword_state=NO_VECTOR;self.indexed=False;self.checked=0.0
     def verify(self):
         try:
             info=self.backend.qdrant('GET','')
@@ -43,6 +43,10 @@ class Core:
             if metadata.get('embedding_model')!=self.cfg['embedding_model']:raise RagError('collection embedding model mismatch')
             indexes=info['payload_schema']
             if any(indexes.get(k,{}).get('data_type')!='keyword' for k in INDEXES):raise RagError('collection needs owner-created keyword indexes')
+            # complete's own index, which keyword_index creates; the rest of the agent works without it.
+            found=indexes.get(PREFIX_FIELD) or {}
+            params=found.get('params') or {}
+            self.prefix=found.get('data_type')=='text' and params.get('tokenizer')=='prefix' and params.get('lowercase',True) is True
             self.health='ok: collection verified' if info['status']=='green' else 'degraded: collection optimizing'
         except (KeyError,TypeError,AttributeError):
             self.health='failed: invalid collection settings'
@@ -78,6 +82,7 @@ class Core:
             if method=='search':return self.search(request,repo)
             if method=='count':return self.count(request,repo)
             if method=='similar':return self.similar(request,repo)
+            if method=='complete':return self.complete(request,repo)
             if method=='classify':return self.classify(request,repo)
             if method=='keyword_index':return self.keyword_index(envelope,repo)
             if method=='delete':return self.delete(request,repo)
@@ -221,6 +226,33 @@ class Core:
                     'limit':want,'offset':offset,'with_payload':{'include':[*SUMMARY_FIELDS[:5],*PROVENANCE_FIELDS,'_rag_text']},'with_vector':False}
         ranked,_=self._collect({**scope,'limit':v['limit']},repo,page,'similarity',-1)
         return {'records':ranked[:v['limit']]}
+    def complete(self,v,repo):
+        """Completions of the prefix's last word from the stored text of live records, most records first; free.
+
+        The words before it must appear in the same chunk. One read of at most 64 matching chunks; more says sampled.
+        """
+        if not self.prefix:raise NamedRefusal('complete_unavailable','the prefix index is absent; the agent\'s Owner or a Maintainer runs {"method":"keyword_index","namespace":"…"} once to create it')
+        words=tokens(v['prefix']);partial=words[-1];earlier=words[:-1]
+        # A prefix that ends between words has no word to complete.
+        if not v['prefix'][-1:].isalnum() and v['prefix'][-1:]!='_':return {'suggestions':[],'sampled':False}
+        selected=repo.select(v,kind='chunk')
+        selected['must'].extend({'key':PREFIX_FIELD,'match':{'text':word}} for word in dict.fromkeys(words))
+        page=repo.qdrant('POST','/points/scroll',{'filter':selected,'limit':COMPLETE_CHUNKS,'with_payload':{'include':['_rag_text']},'with_vector':False})
+        try:
+            rows=page['points']
+            if not isinstance(rows,list) or len(rows)>COMPLETE_CHUNKS:raise RagError('invalid scroll size')
+            live=self._live(rows,repo)
+            found={}
+            for row in rows:
+                payload=row['payload'];head=live.get(repo.point_id(payload))
+                if head is None or row['id'] not in head['_rag_chunks'] or payload['_rag_rev']!=head['_rag_rev']:continue
+                stored=tokens(text(payload.get('_rag_text'),'stored text',DATA_MAX,empty=True))
+                if not set(earlier)<=set(stored):continue
+                for word in {t for t in stored if t.startswith(partial)}:found.setdefault(word,set()).add(identity(payload))
+            sampled=page['next_page_offset'] is not None
+        except (KeyError,TypeError,AttributeError):raise RagError('invalid scroll response') from None
+        ranked=sorted(found.items(),key=lambda x:(-len(x[1]),x[0]))[:v['limit']]
+        return {'suggestions':[{'text':' '.join([*earlier,word]),'records':len(ids)} for word,ids in ranked],'sampled':sampled}
     def _collect(self,v,repo,page,score,low):
         """One row per live record from up to four query pages, best first, and the window size each page asked for."""
         best={};want=min(64,v['limit']*4);exhausted=False
@@ -452,14 +484,21 @@ class Core:
             if payload.get('_rag_kind')=='head' and isinstance(chunks,list):live[head['id']]=payload
         return live
     def keyword_index(self,envelope,repo):
-        """Add the text sparse vector when the collection lacks it, then give every chunk its words; safe to repeat.
+        """Add complete's prefix index and the text sparse vector when the collection lacks them, then give every chunk its words; safe to repeat.
 
         Chunks already carrying the vector are not listed again, so a repeat after an interruption continues where it
         stopped. The proxy asks for its admin role to add the vector; the answer then names the owner's step.
         """
         if not {'owner','maintainer'}&set((envelope or {}).get('roles') or []):raise RagError('keyword_index is for this helper\'s Owner or Maintainers')
-        if self.cfg['keyword_search']=='external':raise RagError('keyword_search is external; there is no built-in keyword index to build')
         self.verify()
+        # complete's prefix index first: it serves every keyword_search setting and costs nothing to repeat.
+        if not self.prefix:
+            try:repo.qdrant('PUT','/index?wait=true',{'field_name':PREFIX_FIELD,'field_schema':PREFIX_INDEX},write=True)
+            except Refused as error:
+                raise RagError(f'adding the prefix index needs the Qdrant proxy\'s admin role ({error}); run as its owner: request PUT /collections/{self.cfg["collection"]}/index?wait=true {dumps({"field_name":PREFIX_FIELD,"field_schema":PREFIX_INDEX})} , then repeat this command') from None
+            self.verify()
+            if not self.prefix:raise RagError('the prefix index was not created as asked')
+        if self.cfg['keyword_search']=='external':raise RagError('keyword_search is external; there is no built-in keyword index to build')
         if self.keyword_state==NO_VECTOR:
             try:repo.qdrant('PUT','/vectors/'+BM25_VECTOR,{'sparse':{'modifier':'idf'}},write=True)
             except Refused as error:
