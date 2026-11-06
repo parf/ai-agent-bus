@@ -705,6 +705,87 @@ class DeliveryTests(Base):
         self.assertFalse(cs.reply_ok(None));self.assertFalse(cs.reply_ok('ok'))
 
 
+class RenameTests(Base):
+    """A pending create that names `from`, with the pending delete of that key, travels as one rename."""
+    def setUp(self):
+        super().setUp();self.put({'a':item('1'),'b':item('2')})
+
+    def add(self,target='#q@n.test',kind='queue',**kw):
+        subs=self.subs(self.bus if hasattr(self,'bus') else None);self.bus.kinds[target]=kind
+        return subs,subs.add(msg('#me@n.test'),target,{},**kw)
+
+    def rename(self,old,new,fp='1',**more):
+        data=self.state.load();data['items'].pop(old);data['items'][new]={'fp':fp,'from':old,**more};self.state.save(data)
+
+    def round(self,rename=lambda row:True,**kw):
+        def body(row,key,action,record):return f"rename {key} {record['from']}" if action=='rename' else f'{action} {key}'
+        args=dict(matches=lambda row,key:True,body=body,topic='t',tag='x',ok=cs.reply_ok,rename=rename);args.update(kw)
+        return cs.deliver(self.bus,SOURCE,self.state,**args)
+
+    def sent(self):return [b for _,b,_ in self.bus.sent]+[b for _,b,_ in self.bus.calls]
+
+    def marks(self,sub_id):return sorted(self.state.load()['marks'][sub_id])
+
+    def test_one_rename_is_one_send_that_moves_both_marks(self):
+        subs,row=self.add();self.round();self.bus.sent.clear()
+        self.rename('a','c');r=self.round()[row['id']]
+        self.assertEqual(self.sent(),['rename c a'],'one send, no stray delete or create')
+        self.assertEqual((r['sent'],r['confirmed'],r['pending']),(1,1,0));self.assertEqual(self.marks(row['id']),['b','c'])
+        self.assertEqual(self.state.load()['maybe'][row['id']],{});self.bus.sent.clear();self.round();self.assertEqual(self.sent(),[])
+
+    def test_without_the_row_opting_in_a_rename_is_a_delete_and_a_create(self):
+        subs,row=self.add();self.round();self.bus.sent.clear()
+        self.rename('a','c');self.round(rename=lambda r:False)
+        self.assertEqual(sorted(self.sent()),['create c','delete a']);self.bus.sent.clear()
+        self.rename('b','d');self.round(rename=None);self.assertEqual(sorted(self.sent()),['create d','delete b'])
+
+    def test_a_subscriber_that_never_held_the_old_key_gets_a_plain_create(self):
+        self.rename('a','c');subs,row=self.add();self.round()
+        self.assertEqual(sorted(self.sent()),['create b','create c'],'there is no old key to take back')
+
+    def test_an_unconfirmed_rename_is_sent_again_as_a_rename_with_both_keys_still_pending(self):
+        subs,row=self.add('#rag@n.test',kind='agent');self.round();self.bus.calls.clear()
+        self.rename('a','c');self.bus.replies['#rag@n.test']='timeout';self.round()
+        self.assertEqual(self.sent(),['rename c a']);state=self.state.load()
+        self.assertIn('a',state['marks'][row['id']]);self.assertNotIn('c',state['marks'][row['id']],'neither mark moved')
+        self.assertEqual({k:v for k,v in state['maybe'][row['id']].items()},{'a':'?','c':'1'},'both keys recorded as possibly delivered')
+        self.bus.replies['#rag@n.test']='ok';self.round()
+        self.assertEqual(self.sent(),['rename c a','rename c a'],'the same rename again, never a bare create')
+        self.assertEqual(self.marks(row['id']),['b','c']);self.assertEqual(self.state.load()['maybe'][row['id']],{})
+
+    def test_a_rename_refused_outright_leaves_nothing_owed_and_is_still_a_rename_later(self):
+        subs,row=self.add();self.round();self.bus.sent.clear();self.rename('a','c')
+        self.bus.send_refused.add('#q@n.test');self.round();self.assertEqual(self.sent(),[])
+        self.assertEqual(self.state.load()['maybe'][row['id']],{},'refused outright is not possibly delivered')
+        self.bus.send_refused.clear();self.round();self.assertEqual(self.sent(),['rename c a'])
+
+    def test_a_filter_matching_one_side_sends_that_side_alone(self):
+        subs,row=self.add();self.round();self.bus.sent.clear();self.rename('a','c')
+        self.round(matches=lambda row,key:key!='c');self.assertEqual(self.sent(),['delete a'],'only the old path matches: a delete')
+        self.bus.sent.clear();subs,row2=self.add('#r@n.test');self.round(matches=lambda row,key:key!='x')   # replay for the new row: create b, c
+        self.bus.sent.clear();self.rename('b','d');self.rename('d','e',fp='2')
+        self.round(matches=lambda row,key:key=='e');sent=[b for t,b,_ in self.bus.sent if t=='#r@n.test']
+        self.assertEqual(sent,['create e'],'only the new path matches: a create')
+
+    def test_a_rename_in_a_batch_is_one_entry_and_never_split(self):
+        self.put({f'k{n}':item('x') for n in range(5)});subs,row=self.add();self.round(batch=100);self.bus.sent.clear()
+        self.rename('a','zz');self.round(batch=1);self.assertEqual(self.sent(),['rename zz a'],'the rename took the one slot of the batch')
+        self.bus.sent.clear();self.round(batch=1);self.assertEqual(self.sent(),[])
+
+    def test_a_body_with_nothing_to_send_for_a_rename_is_a_failure_that_keeps_the_pair_pending(self):
+        subs,row=self.add();self.round();self.bus.sent.clear();self.rename('a','c');warnings=[]
+        self.round(body=lambda row,key,action,record:None,warning=lambda code,sub=None:warnings.append(code))
+        self.assertEqual(self.sent(),[]);self.assertEqual(warnings,['body_failed']);self.assertEqual(self.state.load()['maybe'][row['id']],{})
+        self.assertIn('a',self.state.load()['marks'][row['id']]);self.round();self.assertEqual(self.sent(),['rename c a'])
+
+    def test_a_from_that_is_not_a_pending_delete_names_nothing(self):
+        subs,row=self.add();self.round();self.bus.sent.clear()
+        data=self.state.load();data['items']['c']={'fp':'9','from':'b'};self.state.save(data)   # b is still present: not a rename
+        self.round();self.assertEqual(self.sent(),['create c'])
+        data=self.state.load();data['items']['d']={'fp':'8','from':'d'};self.state.save(data);self.bus.sent.clear()
+        self.round();self.assertEqual(self.sent(),['create d'],'a key cannot be renamed from itself')
+
+
 class TimerTests(unittest.TestCase):
     def test_it_runs_at_start_and_then_on_the_interval(self):
         hits=[];timer=cs.PollTimer(0.03,lambda:hits.append(time.monotonic()));timer.start()

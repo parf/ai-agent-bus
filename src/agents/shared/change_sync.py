@@ -288,7 +288,7 @@ def reply_ok(result):
     return isinstance(body,dict) and body.get('status')=='ok' and 'error' not in body
 
 
-def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,deadline=None,warning=lambda code,sub_id:None,ok=None,agent_contract=None):
+def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,deadline=None,warning=lambda code,sub_id:None,ok=None,agent_contract=None,rename=None):
     """One delivery round for every subscriber; returns {sub_id: counts}.
 
     - Per subscriber: pending changes in key order, at most `batch`; stops at the first one not confirmed, so order holds.
@@ -300,6 +300,11 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
       A `body` that returns None has nothing to send that subscriber: the change is counted as `skipped` and remembered
       (per subscriber, by fingerprint) so it is not skipped again, without writing a mark: only a confirmation does.
       A second unknown send of the same key turns its record into `?`, which stays owed until a confirmation.
+    - `rename(row)` true lets a pending create whose record names `from` (the key it was renamed from) travel as ONE `rename`
+      change with the delete of that key, when the subscriber has both pending (it holds, or may hold, the old key). Both
+      keys are recorded as possibly delivered before the send and both marks move on the confirmation; a crash or an
+      unconfirmed send leaves both pending, so the same rename is sent again, never a bare create. A `body` for a rename
+      must return a message; None is a failure of the body. Without `rename` a rename is a delete and a create, as ever.
     - After a crash a subscriber may get a delete for a key it never received (the record is written for the whole batch before
       the sends): deletes must be idempotent. Never the other way: a delete is not lost.
     - The author's may-send to the target and to the source, and the target's record, are checked again before every send.
@@ -320,12 +325,13 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
         data=state.load()
         for sub_id in sorted(data['subs']):
             row=data['subs'][sub_id];count={'sent':0,'confirmed':0,'dropped':0,'pending':0,'skipped':0};results[sub_id]=count
-            todo=pending(data,sub_id,lambda key,row=row:matches(row,key))[:batch]
+            todo=_fuse(pending(data,sub_id,lambda key,row=row:matches(row,key)),bool(rename and rename(row)))[:batch]
             # Written down before any send: a send whose outcome is never learned (a timeout, a crash, a failed save) may
             # have been applied, so a later delete of that key must still be sent. Cleared by the confirmation.
             # A delete is written as `?`: the target may still hold the key, or may not, so a key that comes back is owed again.
             had=data['maybe'][sub_id];owed={}
             for k,a,r in todo:
+                if a=='rename' and had.get(r['from'])!='?':owed[r['from']]='?'
                 if a=='delete':
                     if had.get(k)!='?':owed[k]='?'
                 elif had.get(k)!=r['fp']:owed[k]=r['fp'] if k not in had else '?'
@@ -353,7 +359,9 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
                     except Exception:
                         # Built before the key counts as attempted: nothing was sent, so its record is taken back below.
                         warning('body_failed',sub_id);break
-                    attempted.add(key)
+                    if payload is None and action=='rename':
+                        warning('body_failed',sub_id);break   # as a body that raised: nothing sent, so the pair is taken back
+                    attempted.update(_keys(key,action,record))
                     try:
                         if payload is None:
                             # Nothing to send this subscriber for it (the agent says why): done, never blocking the rest.
@@ -375,12 +383,14 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
                     except Refusal:
                         # Refused outright, so never queued: it is not possibly delivered (a timeout or a bad reply is).
                         confirmed=False;code='send_refused'
-                        if key in prior:_restore(data['maybe'][sub_id],key,prior);restored=True
+                        for k in _keys(key,action,record):
+                            if k in prior:_restore(data['maybe'][sub_id],k,prior);restored=True
                     except Exception:confirmed=False;code='send_unknown'
                     if not confirmed:
                         count['dropped']+=1;row['dropped']=min(base.MAX_SAFE,row['dropped']+1);warning(code if code else 'unconfirmed',sub_id);break
                     count['confirmed']+=1;row['confirmed']=min(base.MAX_SAFE,row['confirmed']+1)
-                    data['maybe'][sub_id].pop(key,None);data['skipped'][sub_id].pop(key,None)
+                    for k in _keys(key,action,record):data['maybe'][sub_id].pop(k,None);data['skipped'][sub_id].pop(k,None)
+                    if action=='rename':data['marks'][sub_id].pop(record['from'],None)
                     if action=='delete':data['marks'][sub_id].pop(key,None)
                     else:data['marks'][sub_id][key]=record['fp']
             finally:
@@ -399,6 +409,22 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
                 try:state.save(data)
                 except SyncError as error:warning(error.code,None)
     return results
+
+
+def _keys(key,action,record):
+    """The keys one change settles: a rename settles the new key and the one it came from."""
+    return (key,record['from']) if action=='rename' else (key,)
+
+
+def _fuse(entries,allowed):
+    """Join each pending create that names `from` with the pending delete of that key into one `rename` at the new key."""
+    if not allowed:return entries
+    deleted={k for k,a,_ in entries if a=='delete'};used=set();out=[]
+    for k,a,r in entries:
+        old=r.get('from') if a=='create' else None
+        if isinstance(old,str) and old!=k and old in deleted and old not in used:out.append((k,'rename',r));used.add(old)
+        else:out.append((k,a,r))
+    return [e for e in out if not (e[1]=='delete' and e[0] in used)]
 
 
 def _restore(maybe,key,prior):
