@@ -46,6 +46,12 @@ Normal and fast runs write nothing to the host journal or syslog; systemd's own 
 
 Prove each behavioural fix can fail ([below](#mutation-first-then-belief)); reproduce review findings before accepting them. Documentation-only changes need path/anchor and scope/status checks (`src/check-links.py` reads every link in the changed files and every link, in any file, to a path the change moved or deleted), without a version bump or runtime gate solely for prose.
 
+Workers take every smoke or mutant lock under their own bus name via MCP `ab_lock`, never the `parf` CLI; `parf` holds only for `#ab-gate` and the owner.
+
+Claude workers run `smoke.sh` from their session shell as-is, keeping `AGENT_BUS_SESSION_FILE`: it checks their identity before clearing the session itself.
+
+Codex shells stay identity-less: Codex workers never run normal or slow smoke; they run only focused tests and mutants, taking required locks through MCP under their own bus name. Hand-run focused test commands keep `env -u AGENT_BUS_SESSION_FILE -u AGENT_BUS_TOKEN`.
+
 Before any normal, `--slow`, or mutant gate, take the `slow` bus lock on `smoke-gate@parf.us` with a 15-minute ttl, extend before expiry if needed, and release it afterward; focused non-mutant checks need no lock. This resource record (`lock://smoke-gate`) is owned by `parf`; `#ab-gate` takes it as `parf` for every landing, and its Maintainers are the workers `#ab-w1a..c` and `#ab-w2a..c` for their mutant runs ([Team v2](Plans/Team.v2/README.md#roles)). If absent, its Owner registers it and grants those Maintainers before gates run.
 
 Normal and slow smoke runs, including hand-run shards, refuse when the caller does not hold that lock. Marked children reuse their driver's check. This prevents accidental unlocked runs; it is not a security boundary: deliberately exporting `SMOKE_CHILD_SHARD`, `SMOKE_CHILD_PLAN` and `SMOKE_PLAN` for an existing plan file can bypass it.

@@ -46,6 +46,7 @@ except (ValueError,TypeError,AttributeError): sys.exit(1)' <<<"$status") || {
   holder=$(awk '$1 == "smoke-gate@parf.us" && $2 == "slow" {print $3}' <<<"$holders")
   if [ "$holder" != "$caller" ]; then
     echo "smoke-gate: $caller must hold slow; holder: ${holder:-none}; no shards started" >&2
+    echo "smoke-gate: A Claude worker: run smoke from your session shell (do not unset AGENT_BUS_SESSION_FILE) after taking the lock under your own name. A Codex worker: normal and slow runs are the gate's." >&2
     return 2
   fi
 }

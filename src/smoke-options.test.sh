@@ -63,14 +63,18 @@ probe() {
   PROBE_OUTPUT=$output
 }
 probe no-lock-normal 2 --normal
+[[ $PROBE_OUTPUT == *"A Claude worker: run smoke from your session shell (do not unset AGENT_BUS_SESSION_FILE) after taking the lock under your own name. A Codex worker: normal and slow runs are the gate's."* ]] || { echo 'no-lock-normal: missing actionable session-shell guidance'; exit 1; }
 [[ $PROBE_OUTPUT == *'holder: none'* ]]
 probe no-lock-slow 2 --slow all
 PROBE_HOLDER=parf
-probe another-holder 2 --normal
+probe worker-refuses-parf-holder 2 --normal
 [[ $PROBE_OUTPUT == *'holder: parf'* ]]
+PROBE_HOLDER='#stranger@test'
+probe worker-refuses-other-worker 2 --normal
 PROBE_HOLDER='#worker@test'
 probe own-lock 77 --normal
 AGENT_BUS_NAME=parf PROBE_HOLDER=parf probe gate-identity 77 --normal
+AGENT_BUS_NAME=parf PROBE_HOLDER='#worker@test' probe parf-refuses-worker-holder 2 --normal
 PROBE_STATUS_ERROR=1 probe status-error 2 --normal
 PROBE_BAD_JSON=1 probe bad-status 2 --normal
 PROBE_HOLDER_ERROR=1 probe holder-error 2 --normal

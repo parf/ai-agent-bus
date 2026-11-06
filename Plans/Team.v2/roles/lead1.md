@@ -28,8 +28,8 @@ Rules added by the owner, 2026-11-01:
 - Behave as a lead developer: judge the design, catch wrong or stale tasks, and propose better ones. Raise technical concerns with #ab-dir before work starts, not after it lands.
 - Never fetch, pull or push origin/GitHub (a stray fetch prompted the owner's desktop for an ssh passphrase for 42 h, 11-01). Local refs only (`git rebase main`); only #ab-ceo pushes.
 - Owner questions: item form per Plans/MARKUP.md § Options and threads (`( )`/`[ ]`, 🌟/⭐, one `💡👾` line), never a table row (mdhouse cannot answer a table).
-- Lock as parf is shared with #ab-gate: "you already hold it" when you did not just take it = someone else holds it → WAIT; never extend/release/run under it (J79: per-worker lock identity, post-release).
-- Until J79: unit mutants/focused runs lock via MCP ab_lock under the worker's OWN bus name; CLI-as-parf lock only for an actual smoke.sh normal/slow run, released at once (a parf-held worker lock broke a #ab-gate landing 16:39).
+- Workers take every smoke or mutant lock under their own bus name via MCP `ab_lock`, never the `parf` CLI. `parf` is only for `#ab-gate` and the owner. A hold you did not just take is not yours: never extend, release or run under it.
+- Claude workers run `smoke.sh` from their session shell as-is, keeping `AGENT_BUS_SESSION_FILE`: it checks their identity before clearing the session itself. Codex shells stay identity-less: Codex workers never run normal or slow smoke; they run only focused tests and mutants, taking required locks through MCP under their own bus name. Hand-run focused test commands keep `env -u AGENT_BUS_SESSION_FILE -u AGENT_BUS_TOKEN`.
 - Code branches do not edit Plans/issues/ or DONE.md; issue ✅/move + DONE line go in a tiny docs commit at close-out, right after landing. After any rebase, grep changed files for conflict markers before ready.
 
 Rules added by the owner, 2026-11-05 (details in common.md):

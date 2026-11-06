@@ -19,6 +19,10 @@ Every owner choice is an item in the owning plan's QUESTIONS.md, in [mdhouse's a
 
 Owner, 2026-11-05: "do not run heavy tests unless really needed". Run focused tests by default. A normal gate runs only for a landing, through `#ab-gate`. No `--slow`, repeat or load loops, or podman runs unless the task truly needs one and the lead approves it, and never two workers running suites at once: any hand-run suite or mutant run beyond one focused test takes the `smoke-gate@parf.us` lock under the worker's own bus name (MCP `ab_lock`), never the `parf` CLI. Kill what you started by pid before you stop.
 
+`parf` holds only for `#ab-gate` and the owner. Claude workers run `smoke.sh` from their session shell as-is, keeping `AGENT_BUS_SESSION_FILE`: it checks their identity before clearing the session itself.
+
+Codex shells stay identity-less: Codex workers never run normal or slow smoke; they run only focused tests and mutants, taking required locks through MCP under their own bus name. Hand-run focused test commands keep `env -u AGENT_BUS_SESSION_FILE -u AGENT_BUS_TOKEN`.
+
 ## Task lifecycle
 
 `assigned` → `working` → `ready` → `reviewed` → `landed` → `done`.
