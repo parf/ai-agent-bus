@@ -246,7 +246,22 @@ class Core:
         mode=v.get('mode','keyword')
         if mode=='keyword' and self.cfg['keyword_search']=='external':
             if self.keyword is None:raise RagError('keyword_search is external and no external keyword engine is connected')
-            return {**repo.external_search(self.keyword,v),'mode':'keyword'}
+            found=repo.external_search(self.keyword,v);seen=set()
+            for record in found['records']:
+                key=(record['tableName'],record['id'])
+                if key in seen:raise RagError('duplicate external citation')
+                seen.add(key)
+                head=repo.qdrant('GET','/points/'+repo.point_id(record))
+                if head is None or head['payload']['_rag_kind']!='head':raise RagError('external citation has no live head')
+                payload=head['payload'];index=record['chunk_index']
+                if index>=len(payload['_rag_chunks']):raise RagError('external citation chunk is absent')
+                chunk=repo.qdrant('GET','/points/'+payload['_rag_chunks'][index])
+                if chunk is None or chunk['payload']['_rag_kind']!='chunk' or chunk['payload']['_rag_rev']!=payload['_rag_rev']:
+                    raise RagError('external citation is not a live chunk')
+                if record['excerpt']!=chunk['payload'].get('_rag_text') or any(record[k]!=payload[k] or record[k]!=chunk['payload'][k] for k in PROVENANCE_FIELDS):
+                    raise RagError('external citation provenance mismatch')
+                if any(record[k]!=payload.get(k) for k in SUMMARY_FIELDS if k in record):raise RagError('external citation summary mismatch')
+            return {**found,'mode':'keyword'}
         if mode in ('keyword','hybrid'):
             if self.cfg['keyword_search']=='external':raise NamedRefusal('unsupported_mode','hybrid requires the built-in BM25 index')
             if not self.bm25:raise RagError(self.keyword_state)
@@ -363,7 +378,12 @@ class Core:
             repo.qdrant('PUT','/points/vectors?wait=true',{'points':update},write=True)
             seen.update(item['id'] for item in update);done+=len(update)
     def delete(self,v,repo):
-        if 'id' in v and self.get(v,repo) is None:raise NamedRefusal('not_found','record is absent from this namespace')
+        if 'id' in v:
+            # A retained tombstone is an explicit continuation, not a new delete
+            # of an absent record. It must still be able to finish its cleanup.
+            head=repo.qdrant('GET','/points/'+repo.point_id(v))
+            if head is None:raise NamedRefusal('not_found','record is absent from this namespace')
+            if head['payload']['_rag_kind'] not in ('head','deleted'):raise RagError('invalid deletion head')
         try:return self._delete(v,repo)
         except Deadline:raise Incomplete('repeat the same delete to continue') from None
         except RagError:raise Unknown('storage outcome unknown; repeating the same upsert/delete is safe') from None

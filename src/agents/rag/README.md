@@ -1,6 +1,5 @@
 # RAG core
 
-📌 **TL;DR:** A JSON-only record store using Qdrant, Voyage and AI through the bus.
-See the [guide](../../../docs/agents/rag.md#what-it-does) for keyword search,
-bounds and provisioning, and the [changelog](CHANGELOG.md) for its independent
-application version history.
+📌 **TL;DR:** Store namespaced texts and retrieve source evidence through bus blocks.
+The [guide](../../../docs/agents/rag.md#what-it-does) covers retrieval and provisioning.
+The [changelog](CHANGELOG.md) records this app's independent version history.

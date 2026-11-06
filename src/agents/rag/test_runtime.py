@@ -1,6 +1,7 @@
 """Real bus fixture and exported package; no provider HTTP and no live data."""
 import concurrent.futures
 import contextlib
+from copy import deepcopy
 import io
 import json
 import os
@@ -24,6 +25,7 @@ from rag import Agent
 from rules import dumps,RagError
 from test_rag import Store,PROMPT
 from test_rag import CFG
+from test_retrieval import RetrievalStore
 
 
 class Runtime(unittest.TestCase):
@@ -48,7 +50,7 @@ class Runtime(unittest.TestCase):
             # Asks are not data calls: the unconfigured instance answers them, and refuses every data call by name.
             self.assertIn('upsert',agent.handle(SimpleNamespace(ask='help',roles=[],body='',envelope={})))
             self.assertIn('RAG',agent.handle(SimpleNamespace(ask='status',roles=[],body='',envelope={})))
-            for body in ('help','{"method":"list","namespace":"team"}','{"method":"search","namespace":"team","query":"tea"}','{"method":"keyword_index"}'):
+            for body in ('{"method":"list","namespace":"team"}','{"method":"search","namespace":"team","query":"tea"}','{"method":"keyword_index","namespace":"team"}'):
                 self.assertEqual(agent.handle(SimpleNamespace(ask=None,roles=['owner'],body=body,envelope={})),'error: configure RAG block names and collection',body)
             self.assertEqual(json.loads((package/'agent.json').read_text())['version'],json.loads((HERE/'agent.json').read_text())['version'])
             self.assertTrue((package/'support/clients/python/agent_bus/client.py').is_file())
@@ -62,7 +64,7 @@ class Runtime(unittest.TestCase):
         agent.core.cache.set('team','notes',PROMPT)
         log=io.StringIO();marker='private-source-sentinel-xyz'
         with contextlib.redirect_stderr(log):
-            answer=agent.handle(SimpleNamespace(ask=None,roles=[],envelope={},body=dumps({'method':'upsert','namespace':'team','tableName':'notes','id':'a','data':marker})))
+            answer=agent.handle(SimpleNamespace(ask=None,roles=[],envelope={},body=dumps({'method':'upsert','namespace':'team','tableName':'notes','id':'a','data':marker,'source':'notes/a.md'})))
             refused=agent.handle(SimpleNamespace(ask=None,roles=[],envelope={},body=dumps({'method':marker})))
         self.assertIn(marker,answer);self.assertTrue(refused.startswith('error:'))
         self.assertNotIn(marker,log.getvalue())
@@ -91,7 +93,7 @@ class Runtime(unittest.TestCase):
                     return proxy.qdrant(verb,path,body,write=write) if write else original(verb,path,body)
                 store.qdrant=call
                 with self.assertRaises(RagError) as error:
-                    app.run(parse(dumps({'method':'upsert','namespace':'team','tableName':'notes','id':'a','data':'Tea'})))
+                    app.run(parse(dumps({'method':'upsert','namespace':'team','tableName':'notes','id':'a','data':'Tea','source':'notes/a.md'})))
                 self.assertEqual(isinstance(error.exception,Unknown),unknown)
                 if not unknown:self.assertIn('not stored; prior record unchanged',str(error.exception))
                 if 'requires' in text:self.assertIn('grant missing',str(error.exception))
@@ -140,7 +142,7 @@ class Runtime(unittest.TestCase):
             with self.assertRaises(Refusal):caller.call(helper.name,'must not reach downstream',timeout=1)
             self.assertEqual(len(seen),1)
             # Replace the helper handler without changing its actual bus identity/grant.
-            store=Store()
+            store=RetrievalStore();store.sparse=True
             def fake_blocks(message):
                 seen.append((message.envelope['from'],tuple(message.roles),json.loads(message.body)))
                 request=json.loads(message.body)
@@ -155,12 +157,38 @@ class Runtime(unittest.TestCase):
             actual=Agent(app,CFG|{'qdrant':helper.name,'voyage':helper.name,'ai':helper.name})
             app._serving.handler=actual.handle
             def call(value):return json.loads(caller.call(app.name,dumps(value),timeout=3).message.body)
+            def admin(value):return json.loads(owner.call(app.name,dumps(value),timeout=3).message.body)
+            paid=len(store.paid)
+            capabilities=call({'method':'capabilities'})
+            self.assertEqual(capabilities['version'],json.loads((HERE/'agent.json').read_text())['version'])
+            self.assertEqual(capabilities['modes'],['keyword','semantic','hybrid']);self.assertEqual(len(store.paid),paid)
             self.assertEqual(call({'method':'prompts','action':'set','namespace':'team','tableName':'notes','data':PROMPT}),{'status':'ok'})
-            record=call({'method':'upsert','namespace':'team','tableName':'notes','id':'tea','data':'Tea'})
+            record=call({'method':'upsert','namespace':'team','tableName':'notes','id':'tea','data':'Tea','source':'notes/tea.md'})
             self.assertEqual(record['classification_ids'],{'drink':.8})
             self.assertEqual(call({'method':'get','namespace':'team','tableName':'notes','id':'tea'}),record)
             self.assertEqual(len(call({'method':'list','namespace':'team'})['records']),1)
+            for mode in ('keyword','semantic','hybrid'):
+                answer=call({'method':'search','namespace':'team','query':'tea','mode':mode})
+                self.assertEqual(answer['mode'],mode);hit=answer['records'][0]
+                self.assertEqual((hit['namespace'],hit['id'],hit['source'],hit['excerpt'],hit['chunk_index']),('team','tea','notes/tea.md','Tea',0))
+                self.assertEqual(hit['content_hash'],record['content_hash']);self.assertEqual(hit['indexed_at'],record['indexed_at'])
+                self.assertEqual(set(hit['scores']),{dict(keyword='bm25',semantic='dense',hybrid='rrf')[mode]})
+            for ns in ('team','other'):
+                self.assertEqual(call({'method':'prompts','action':'set','namespace':ns,'tableName':'notes','data':PROMPT}),{'status':'ok'})
+            call({'method':'upsert','namespace':'other','tableName':'notes','id':'tea','data':'Other secret','source':'other.md'})
+            self.assertEqual(admin({'method':'namespaces'})['namespaces'],[{'namespace':'other','count':1},{'namespace':'team','count':1}])
+            before=deepcopy(store.points)
+            denied=caller.call(app.name,dumps({'method':'drop_namespace','namespace':'team','confirm':'team'}),timeout=3).message.body
+            self.assertIn('forbidden',denied);self.assertEqual(store.points,before)
+            unconfirmed=owner.call(app.name,dumps({'method':'drop_namespace','namespace':'team'}),timeout=3).message.body
+            self.assertIn('confirmation_required',unconfirmed);self.assertEqual(store.points,before)
             self.assertEqual(call({'method':'delete','namespace':'team','tableName':'notes','id':'tea'}),{'status':'ok'})
+            missing=caller.call(app.name,dumps({'method':'get','namespace':'team','tableName':'notes','id':'tea'}),timeout=3).message.body
+            self.assertIn('not_found',missing)
+            self.assertEqual(call({'method':'get','namespace':'other','tableName':'notes','id':'tea'})['data'],'Other secret')
+            self.assertEqual(admin({'method':'drop_namespace','namespace':'team','confirm':'team'}),{'status':'dropped','namespace':'team'})
+            self.assertEqual(admin({'method':'namespaces'})['namespaces'],[{'namespace':'other','count':1}])
+            self.assertEqual(admin({'method':'drop_namespace','namespace':'other','confirm':'other'})['status'],'dropped')
             self.assertTrue(all(item[0]==app.name and item[1]==('write',) for item in seen))
             self.assertEqual(store.points,{})
         finally:

@@ -2,7 +2,6 @@
 from copy import deepcopy
 import unittest
 from unittest.mock import patch
-from test_namespaces import Boundary
 from test_rag import Core,CFG,Store,KV,PROMPT
 from rules import parse,dumps,NamedRefusal,Unknown,RagError,prompt_key
 from namespaces import CATALOGUE_KEY
@@ -20,18 +19,22 @@ class Administration(unittest.TestCase):
 
     def test_inventory_is_manager_only_before_any_read(self):
         self.put('a');before=deepcopy(self.store.points);reads=self.kv.reads;self.store.calls.clear()
-        for method,fields in (('namespaces',{}),('drop_namespace',{'namespace':'a','confirm':'a'})):
-            with self.assertRaises(NamedRefusal) as c:self.call(method,roles=(),**fields)
-            self.assertEqual(c.exception.code,'forbidden')
+        for method,fields in (('drop_namespace',{'namespace':'a','confirm':'a'}),('namespaces',{})):
+            error=None
+            try:self.call(method,roles=(),**fields)
+            except NamedRefusal as caught:error=caught
             self.assertEqual(self.store.points,before,'an admitted reader must not remove a sentinel')
+            self.assertIsNotNone(error);self.assertEqual(error.code,'forbidden')
         self.assertEqual(self.store.calls,[]);self.assertEqual(self.kv.reads,reads)
 
     def test_missing_or_wrong_confirmation_preserves_the_sentinel(self):
         self.put('a');before=deepcopy(self.store.points);metadata=deepcopy(self.kv.values);self.store.calls.clear()
         for fields in ({},{'confirm':'b'}):
-            with self.assertRaises(NamedRefusal) as c:self.call('drop_namespace',namespace='a',**fields)
-            self.assertEqual(c.exception.code,'confirmation_required')
+            error=None
+            try:self.call('drop_namespace',namespace='a',**fields)
+            except NamedRefusal as caught:error=caught
             self.assertEqual(self.store.points,before,'missing confirmation must never remove data')
+            self.assertIsNotNone(error);self.assertEqual(error.code,'confirmation_required')
             self.assertEqual(self.kv.values,metadata)
         self.assertEqual(self.store.calls,[])
 

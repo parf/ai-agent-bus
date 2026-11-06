@@ -18,6 +18,7 @@ from rules import *
 from chunks import extract
 from prompts import Cache
 from core import Core
+from namespaces import IDENTITY_FIELDS,SCHEMA
 
 CFG={'qdrant':'#qdrant@fixture','voyage':'#voyage@fixture','ai':'#ai@fixture',
      'collection':'notes','embedding_model':'voyage-3.5','dimensions':2}
@@ -119,7 +120,7 @@ class Store:
             return rows
         elif path=='/points/scroll':
             if self.enforce_projection:
-                assert body['with_payload']=={'include':list(SUMMARY_FIELDS)}, 'scroll must project summaries before proxy reply cap'
+                assert body['with_payload']=={'include':list(dict.fromkeys([*SUMMARY_FIELDS,*IDENTITY_FIELDS]))}, 'scroll must project summaries before proxy reply cap'
                 assert body['with_vector'] is False, 'scroll cannot retrieve vectors'
             values=[p for p in self.points.values() if self.matches(p,body['filter'])]
             values.sort(key=lambda p:p['id'])
@@ -203,7 +204,7 @@ class Keyword(unittest.TestCase):
         self.put('keyed','Tea with a key.',key1='y')
         for change,more in (({'namespace':'other'},{}),({'tableName':'elsewhere'},{'tableName':'notes'}),({'key1':'x'},{'key1':'y'})):
             self.store.qdrant=lying(change)
-            with self.assertRaisesRegex(RagError,'projection|filter mismatch'):self.find('tea',**more)
+            with self.assertRaisesRegex(RagError,'scope_mismatch|identity mismatch|projection|filter mismatch'):self.find('tea',**more)
         self.store.qdrant=real
     def test_a_draft_whose_head_never_landed_is_never_searched(self):
         self.put('tea','Tea is a drink.')
@@ -216,7 +217,7 @@ class Keyword(unittest.TestCase):
         self.store.fail=fail
         with self.assertRaisesRegex(Unknown,'unknown'):self.put('saffron','Saffron is a rare spice.')
         self.store.fail=None
-        self.assertIsNone(self.app.run(parse(dumps({'method':'get','namespace':'team','tableName':'notes','id':'saffron'}))))
+        with self.assertRaisesRegex(NamedRefusal,'not_found'):self.app.run(parse(dumps({'method':'get','namespace':'team','tableName':'notes','id':'saffron'})))
         self.assertTrue(any(p['payload'].get('_rag_kind')=='chunk' and p['payload'].get('id')=='saffron' for p in self.store.points.values()))   # the draft is stored
         self.assertEqual(self.find('saffron')['records'],[])
         self.assertEqual([r['id'] for r in self.find('tea')['records']],['tea'])
@@ -229,7 +230,7 @@ class Keyword(unittest.TestCase):
         self.assertEqual(len(chunks),2)   # both revisions are stored
         self.assertEqual(self.find('tea')['records'],[])
         found=self.find('coffee')['records']
-        self.assertEqual([(r['id'],r['text']) for r in found],[('tea','Coffee is a drink.')])
+        self.assertEqual([(r['id'],r['excerpt']) for r in found],[('tea','Coffee is a drink.')])
         self.assertEqual(len(self.find('drink')['records']),1)
     def test_a_deleted_record_whose_chunks_remain_is_hidden(self):
         self.put('tea','Tea is a drink.')
@@ -239,18 +240,18 @@ class Keyword(unittest.TestCase):
         self.assertEqual(self.find('tea')['records'],[])
     def test_dead_chunks_that_outrank_live_ones_do_not_crowd_them_out(self):
         self.put('live','tea')
-        for n in range(6):   # six drafts, each scoring higher than the live record
-            self.store.points[f'00000000-0000-0000-0000-00000000000{n}']={'id':f'00000000-0000-0000-0000-00000000000{n}','vector':{'':[.5,.5],'text':sparse('tea tea tea tea')},
-                'payload':{'namespace':'team','tableName':'notes','id':f'draft{n}','_rag_kind':'chunk','_rag_text':'tea tea tea tea'}}
+        self.drafts(6)   # drafts score higher than the live record
         self.assertEqual([r['id'] for r in self.find('tea',limit=1)['records']],['live'])
     def build(self,roles):
-        try:return self.app.run({'method':'keyword_index'},roles)
+        try:return self.app.run({'method':'keyword_index','namespace':'team'},roles)
         except RagError as error:self.fail(f'keyword_index refused: {error}')
     def drafts(self,count):
-        for n in range(count):   # chunks of records with no head, each scoring higher than a live 'tea' text
-            pid=f'00000000-0000-0000-0000-{n:012d}'
-            self.store.points[pid]={'id':pid,'vector':{'':[.5,.5],'text':sparse('tea tea tea tea')},
-                'payload':{'namespace':'team','tableName':'notes','id':f'draft{n}','_rag_kind':'chunk','_rag_text':'tea tea tea tea'}}
+        template=deepcopy(next(p for p in self.store.points.values() if p['payload']['_rag_kind']=='chunk'))
+        for n in range(count):
+            payload=deepcopy(template['payload']);payload.update(id=f'draft{n}',_rag_rev='d'*64,_rag_index=0,_rag_text='tea tea tea tea')
+            payload.update(source=f'draft{n}.md',content_hash=hashlib.sha256(payload['_rag_text'].encode()).hexdigest())
+            pid=point_id(payload,payload['_rag_rev'],0)
+            self.store.points[pid]={'id':pid,'vector':{'':[.5,.5],'text':sparse(payload['_rag_text'])},'payload':payload}
     def test_a_window_filled_by_dead_chunks_is_an_incomplete_answer_never_an_empty_one(self):
         self.put('live','tea')
         self.drafts(15)   # the live chunk is the 16th of the 16 rows the four pages read
@@ -268,20 +269,20 @@ class Keyword(unittest.TestCase):
                 updates.append(1);return len(updates)==2
             return False
         self.store.fail=fail
-        with self.assertRaises(RagError):self.app.run({'method':'keyword_index'},owner)
+        with self.assertRaises(RagError):self.app.run({'method':'keyword_index','namespace':'team'},owner)
         self.store.fail=None
-        with self.assertRaisesRegex(RagError,r'keyword index incomplete \(6 chunks left\); run \{"method":"keyword_index"\}'):self.find('tea')
+        with self.assertRaisesRegex(RagError,r'keyword index incomplete \(6 chunks left\); run keyword_index with this namespace'):self.find('tea')
         with self.assertRaisesRegex(RagError,'keyword index incomplete'):self.find('tea')   # still refused on the next search, not just the first
         self.assertEqual(self.build(owner),{'status':'ok','indexed':6})
         self.assertEqual(len(self.find('tea',limit=16)['records']),16)
-        counts=len([c for c in self.store.calls if c[1]=='/points/count']);self.find('tea');self.find('number')
-        self.assertEqual(len([c for c in self.store.calls if c[1]=='/points/count']),counts)   # a whole index is not counted again
+        counts=len([c for c in self.store.calls if c[1]=='/points/count' and any('has_vector' in x for x in c[2]['filter'].get('must_not',[]))]);self.find('tea');self.find('number')
+        self.assertEqual(len([c for c in self.store.calls if c[1]=='/points/count' and any('has_vector' in x for x in c[2]['filter'].get('must_not',[]))]),counts)   # a whole index is not counted again
     def test_a_zero_count_is_trusted_for_a_minute_and_then_counted_again(self):
         self.put('tea','Tea is a drink.')
         now=[1000.0]
         with unittest.mock.patch('core.time.monotonic',lambda:now[0]):
             self.assertEqual(len(self.find('tea')['records']),1)
-            counts=lambda:len([c for c in self.store.calls if c[1]=='/points/count'])
+            counts=lambda:len([c for c in self.store.calls if c[1]=='/points/count' and any('has_vector' in x for x in c[2]['filter'].get('must_not',[]))])
             first=counts()
             for n in range(2):   # chunks another writer (an older build, a restore) stored without the vector
                 pid=f'00000000-0000-0000-0000-0000000000a{n}'
@@ -319,7 +320,7 @@ class Keyword(unittest.TestCase):
                 return len(updates)==2
             return False
         self.store.fail=fail
-        with self.assertRaises(RagError):self.app.run({'method':'keyword_index'},owner)
+        with self.assertRaises(RagError):self.app.run({'method':'keyword_index','namespace':'team'},owner)
         self.store.fail=None
         done=sum(1 for p in self.store.points.values() if isinstance(p['vector'],dict) and 'text' in p['vector'])
         self.assertEqual(done,64)   # the first batch stayed
@@ -343,19 +344,20 @@ class Keyword(unittest.TestCase):
         self.assertLess(max(sizes),(1<<20)-4096)
     def test_keyword_index_is_for_the_owner_and_maintainers_and_only_in_builtin_mode(self):
         for roles in ({'roles':[]},{'roles':['write']},{}):
-            with self.assertRaisesRegex(RagError,'Owner or Maintainers'):self.app.run({'method':'keyword_index'},roles)
+            with self.assertRaisesRegex(RagError,'Owner or Maintainers'):self.app.run({'method':'keyword_index','namespace':'team'},roles)
         self.assertEqual(self.store.points,{})
         self.app=Core({**CFG,'keyword_search':'external'},self.store,self.kv)
-        with self.assertRaisesRegex(RagError,'external'):self.app.run({'method':'keyword_index'},{'roles':['owner']})
+        with self.assertRaisesRegex(RagError,'external'):self.app.run({'method':'keyword_index','namespace':'team'},{'roles':['owner']})
     def test_a_proxy_without_the_admin_role_names_the_owners_step(self):
         self.store.sparse=False;self.store.refuse_vector=True
         self.app=Core(CFG,self.store,self.kv)
-        with self.assertRaisesRegex(RagError,'admin role.*request PUT /collections/notes/vectors/text .*repeat this command'):self.app.run({'method':'keyword_index'},{'roles':['owner']})
+        with self.assertRaisesRegex(RagError,'admin role.*request PUT /collections/notes/vectors/text .*repeat this command'):self.app.run({'method':'keyword_index','namespace':'team'},{'roles':['owner']})
         self.assertFalse(self.store.sparse)
-    def test_keyword_index_takes_no_fields(self):
-        parse(dumps({'method':'keyword_index'}))
-        for extra in ({'namespace':'team'},{'limit':1},{'all':True}):
-            with self.assertRaises(RagError):parse(dumps({'method':'keyword_index',**extra}))
+    def test_keyword_index_requires_only_its_namespace(self):
+        parse(dumps({'method':'keyword_index','namespace':'team'}))
+        for extra in ({'limit':1},{'all':True}):
+            with self.assertRaises(RagError):parse(dumps({'method':'keyword_index','namespace':'team',**extra}))
+        with self.assertRaises(RagError):parse(dumps({'method':'keyword_index'}))
     def test_search_ranks_by_the_words_and_returns_one_row_per_record(self):
         self.put('tea','Tea is a drink made from leaves.')
         self.put('cats','Cats sleep. Tea is not for cats.')
@@ -365,8 +367,8 @@ class Keyword(unittest.TestCase):
         self.assertEqual(ids[0],'tea')
         self.assertEqual(sorted(ids),['cats','long','tea'])
         self.assertEqual(len(ids),len(set(ids)))
-        self.assertTrue(all(set(r)>={'namespace','tableName','id','score','text'} for r in answer['records']))
-        self.assertEqual(answer['records'][0]['text'],'Tea is a drink made from leaves.')
+        self.assertTrue(all(set(r)>={'namespace','tableName','id','scores','excerpt','source','content_hash','indexed_at','chunk_index'} for r in answer['records']))
+        self.assertEqual(answer['records'][0]['excerpt'],'Tea is a drink made from leaves.')
         one=self.find('tea leaves',limit=1)['records']
         self.assertEqual([r['id'] for r in one],['tea'])
         self.assertEqual(len(self.find('tea leaves',limit=2)['records']),2)
@@ -378,7 +380,7 @@ class Keyword(unittest.TestCase):
         self.assertEqual((verb,path,write),('POST','/points/query',False))
         self.assertEqual(body['using'],'text');self.assertEqual(body['limit'],12)
         self.assertEqual(body['query'],sparse('tea drink',query=True))
-        self.assertEqual(body['filter'],scope({'namespace':'team','tableName':'notes','key1':'hot'},kind='chunk'))
+        self.assertEqual(body['filter'],self.app.catalogue.bind('team',self.app.cache).filter(scope({'namespace':'team','tableName':'notes','key1':'hot'},kind='chunk')))
         self.assertEqual(self.find('tea',key1='other')['records'],[])
     def test_another_namespace_never_matches(self):
         self.put('tea','Tea is a drink.')
@@ -398,11 +400,17 @@ class Keyword(unittest.TestCase):
         with self.assertRaisesRegex(RagError,'no external keyword engine'):self.find('tea')
         self.assertFalse(any(c[1]=='/points/query' for c in self.store.calls))
         seen=[]
-        self.app.keyword=lambda request:seen.append(request) or {'records':[{'id':'x'}]}
-        self.assertEqual(self.find('tea')['records'],[{'id':'x'}])
+        head=next(p['payload'] for p in self.store.points.values() if p['payload']['_rag_kind']=='head')
+        evidence={k:head[k] for k in SUMMARY_FIELDS if k in head}
+        evidence.update(chunk_index=0,excerpt=chunk['payload']['_rag_text'],scores={'bm25':1.0})
+        self.app.keyword=lambda request:seen.append(request) or {'records':[evidence]}
+        self.assertEqual(self.find('tea')['records'],[evidence])
         self.assertEqual(seen[0]['query'],'tea')
         self.app.keyword=lambda request:'nonsense'
         with self.assertRaisesRegex(RagError,'invalid external'):self.find('tea')
+        self.app.keyword=lambda request:{'records':[evidence|{'excerpt':'fabricated'}]}
+        with self.assertRaisesRegex(RagError,'provenance mismatch'):self.find('tea')
+
 
 
 class Rag(unittest.TestCase):
@@ -412,16 +420,18 @@ class Rag(unittest.TestCase):
     def req(self,method='upsert',**changes):
         v={'method':method,'namespace':'team'}
         if method in ('upsert','get'):v.update(tableName='notes',id='tea')
-        if method=='upsert':v['data']='Tea is a drink.'
+        if method=='upsert':v.update(data='Tea is a drink.',source='notes/tea.md')
         v.update(changes);return parse(dumps(v))
     def call(self,method='upsert',**changes):return self.app.run(self.req(method,**changes))
-    def test_upsert_get_idempotency_and_shrinking_chunks(self):
+    def test_repeated_upsert_get_and_shrinking_chunks(self):
         first=self.call(data='x'*5000)
         self.assertEqual(len(first['embeddings']),2)
         self.assertEqual(len(self.store.points),3)
         ids=set(self.store.points)
-        self.assertEqual(self.call(data='x'*5000),first)
-        self.assertEqual(set(self.store.points),ids)
+        repeated=self.call(data='x'*5000)
+        self.assertEqual({k:v for k,v in repeated.items() if k!='indexed_at'},{k:v for k,v in first.items() if k!='indexed_at'})
+        self.assertEqual(len(self.store.points),3)
+        self.assertEqual(self.call('get'),repeated)
         self.call(data='short',key1='new')
         self.assertEqual(len(self.store.points),2)
         self.assertEqual(self.call('get')['data'],'short')
@@ -456,14 +466,14 @@ class Rag(unittest.TestCase):
         body=[c[2] for c in self.store.calls if '/delete?' in c[1]][-1]
         self.assertIn('filter',body)
         cleanup=body['filter']
-        self.assertEqual(cleanup['must'][:3],[match('namespace','team'),match('tableName','notes'),match('id','tea')])
+        self.assertEqual(cleanup['must'][:4],[match('namespace','team'),match('namespace','team'),match('tableName','notes'),match('id','tea')])
         self.assertEqual(cleanup['must_not'][0]['key'],'_rag_rev')
         self.assertNotIn('has_id',dumps(cleanup))
     def test_delete_hides_head_before_failed_chunk_cleanup_and_repeats(self):
         self.call(data='old')
         self.store.fail=lambda verb,path,body:'/delete?' in path and any(c.get('match',{}).get('value')=='chunk' for c in body['filter']['must'])
         with self.assertRaises(Unknown):self.call('delete',tableName='notes',id='tea')
-        self.assertIsNone(self.call('get'))
+        with self.assertRaisesRegex(NamedRefusal,'not_found'):self.call('get')
         self.assertTrue(any(p['payload']['_rag_kind']=='chunk' for p in self.store.points.values()))
         self.store.fail=None
         self.call('delete',tableName='notes',id='tea')
@@ -501,8 +511,8 @@ class Rag(unittest.TestCase):
         self.assertEqual(len(result['records']),16)
         self.assertTrue(result['cursor'])
         query=self.store.calls[-1][2]
-        self.assertEqual(query,{'filter':{'must':[match('namespace','team'),match('_rag_kind','head')]},'limit':16,
-            'with_payload':{'include':list(SUMMARY_FIELDS)},'with_vector':False})
+        self.assertEqual(query,{'filter':{'must':[match('namespace','team'),match('namespace','team'),match('_rag_kind','head')]},'limit':16,
+            'with_payload':{'include':list(dict.fromkeys([*SUMMARY_FIELDS,*IDENTITY_FIELDS]))},'with_vector':False})
         self.assertNotIn('data',dumps(result));self.assertNotIn('embeddings',dumps(result))
         self.assertLess(len(dumps(result,ascii=True)),1<<20)
         last=self.call('list',cursor=result['cursor'])
@@ -523,10 +533,10 @@ class Rag(unittest.TestCase):
             self.assertEqual(store.paid,[]);self.assertEqual(store.points,{})
             self.assertTrue(all(c[0]=='GET' for c in store.calls))
     def test_prepaid_worst_case_and_vector_bounds(self):
-        app=Core(CFG|{'dimensions':1024},Store(1024),self.kv)
+        app=Core(CFG|{'dimensions':1024},Store(1024),KV());app.cache.set('team','notes',PROMPT)
         with self.assertRaisesRegex(RagError,'before provider work'):app.run(self.req(data='界'*10000))
         self.assertEqual(app.backend.paid,[])
-        app=Core(CFG|{'dimensions':2731},Store(2731),self.kv)
+        app=Core(CFG|{'dimensions':2731},Store(2731),KV());app.cache.set('team','notes',PROMPT)
         with self.assertRaisesRegex(RagError,'8192'):app.run(self.req(data='x'*9000))
         self.assertEqual(app.backend.paid,[])
         for vectors in [[[True,1]],[[float('nan'),0]],[[1e39,0]],[[1]]]:
@@ -608,7 +618,7 @@ class Rag(unittest.TestCase):
         self.store.fail=None
         self.call('delete',all=True)
         self.assertEqual(self.store.points,{})
-        self.assertEqual(self.store.calls[-1][2],{'filter':{'must':[match('namespace','team'),match('_rag_kind','chunk')]}})
+        self.assertEqual(self.store.calls[-1][2],{'filter':{'must':[match('namespace','team'),match('namespace','team'),match('_rag_kind','chunk')]}})
 
     def test_embedding_dimension_dtype_and_one_classification_per_record(self):
         self.call(data='x'*32768)
@@ -682,24 +692,33 @@ class Rag(unittest.TestCase):
 
     def test_get_exact_byte_cap_without_chunk_text_or_vector_duplication(self):
         cfg=CFG|{'dimensions':1024};store=Store(1024);app=Core(cfg,store,self.kv)
+        app.catalogue.bind('team',app.cache,'notes')
         v=self.req();rev='a'*64
         ids=[point_id(v,rev,i) for i in range(8)]
         vec=vector([1.1754943508222875e-38]*1024,1024)
         payload={'namespace':'team','tableName':'notes','id':'tea','mime-type':'text/plain',
-                 'data':'x'*32768,'classification_ids':{'drink':.8}}
+                 'data':'x'*32768,'classification_ids':{'drink':.8},'source':'notes/tea.md',
+                 'content_hash':'0'*64,'indexed_at':'2026-11-05T00:00:00Z'}
         full={**payload,'embeddings':[vec]*8}
         extra=RECORD_MAX-len(dumps(full,ascii=True).encode())
         self.assertGreater(extra,0)
         five,one=divmod(extra,5)
         self.assertLess(five+one,32768)
         payload['data']='\x01'*five+'\n'*one+'x'*(32768-five-one)
-        payload.update(_rag_kind='head',_rag_rev=rev,_rag_chunks=ids)
+        payload['content_hash']=hashlib.sha256(payload['data'].encode()).hexdigest()
+        payload.update(_rag_schema=SCHEMA,_rag_kind='head',_rag_rev=rev,_rag_chunks=ids)
         store.points[point_id(v)]={'id':point_id(v),'payload':payload,'vector':vec}
-        for pid in ids:store.points[pid]={'id':pid,'vector':vec,'payload':{'_rag_text':'must not retrieve this'}}
+        for i,pid in enumerate(ids):
+            chunk={k:payload[k] for k in ('namespace','tableName','id','source','content_hash','indexed_at')}
+            chunk.update(_rag_schema=SCHEMA,_rag_kind='chunk',_rag_rev=rev,_rag_index=i,_rag_text='must not retrieve this')
+            store.points[pid]={'id':pid,'vector':vec,'payload':chunk}
         result=app.run(self.req('get'))
         self.assertEqual(len(dumps(result,ascii=True).encode()),RECORD_MAX)
-        self.assertEqual(store.calls[-1][2],{'ids':ids,'with_payload':False,'with_vector':True})
+        query=store.calls[-1][2]
+        self.assertEqual(query['with_payload'],{'include':list(IDENTITY_FIELDS)})
+        self.assertTrue(query['with_vector']);self.assertIn({'has_id':ids},query['filter']['must'])
         payload['data']=payload['data'][:-1]+'\n'
+        payload['content_hash']=hashlib.sha256(payload['data'].encode()).hexdigest()
         with self.assertRaisesRegex(RagError,'cap'):app.run(self.req('get'))
 
     def test_get_missing_chunk_reloads_head_once_then_refuses(self):
@@ -708,15 +727,15 @@ class Rag(unittest.TestCase):
         del self.store.points[pid]
         before=len(self.store.calls)
         with self.assertRaisesRegex(RagError,'incomplete'):self.call('get')
-        reads=[c for c in self.store.calls[before:] if c[0]=='GET' and '/points/' in c[1]]
+        reads=[c for c in self.store.calls[before:] if c[1]=='/points/scroll' and c[2]['filter']['must'][-1].get('has_id')==[point_id(self.req())]]
         self.assertEqual(len(reads),2)
 
-    def test_permanent_storage_identity_vectors(self):
-        v=self.req()
+    def test_storage_identity_and_citation_revision_vectors(self):
+        v=self.req();v.update(content_hash=hashlib.sha256(v['data'].encode()).hexdigest(),indexed_at='2026-11-05T00:00:00Z')
         rev=revision(v,[[.5,.25]],"voyage-3.5",{"drink":.8})
         self.assertEqual(point_id(v),'d73f39e4-7cd4-535d-9805-49fcd10ffe08')
-        self.assertEqual(rev,'fcd6026ef966f0d659a2f063e6f7c3bde30c682330bb7d5471227e4e4c6e5526')
-        self.assertEqual(point_id(v,rev,0),'66ae5bd7-42f9-5b35-bff8-3112f340df0c')
+        self.assertEqual(rev,'c9ede491b865fd7b4d15930940eebb765afc4b34a11e7609847e89ea7dd82000')
+        self.assertEqual(point_id(v,rev,0),'86c60096-73bd-51ae-9f78-0714e589ad2b')
 
     def test_ids_are_typed_revision_specific_and_keyword_is_not_claimed(self):
         v=self.req()

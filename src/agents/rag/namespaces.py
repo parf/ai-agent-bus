@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import re
 from types import MappingProxyType
 from rules import (RagError,NamedRefusal,Unknown,CATALOGUE_MAX,NAMESPACE_MAX,TABLES_MAX,
-                   dumps,text,integer,match,point_id,scope,provenance)
+                   dumps,text,integer,number,match,point_id,scope,provenance,SUMMARY_FIELDS)
 
 CATALOGUE_KEY='rag.namespaces'
 SCHEMA=3
@@ -92,10 +92,15 @@ class NamespaceAccess:
     def external_search(self,engine,request):
         if request.get('namespace')!=self.name:raise NamedRefusal('scope_mismatch','search is outside the bound namespace')
         found=engine(deepcopy(request))
-        if not isinstance(found,dict) or not isinstance(found.get('records'),list) or len(found['records'])>request['limit']:raise RagError('invalid external keyword answer')
+        if not isinstance(found,dict) or set(found)!={'records'} or not isinstance(found.get('records'),list) or len(found['records'])>request['limit']:raise RagError('invalid external keyword answer')
         for record in found['records']:
             if not isinstance(record,dict) or record.get('namespace')!=self.name:raise NamedRefusal('scope_mismatch','external engine returned a foreign namespace')
+            if set(record)-set(SUMMARY_FIELDS)-{'chunk_index','excerpt','scores'}:raise RagError('invalid external citation fields')
             for key in ('tableName','id'):text(record.get(key),key,128,nfc=True)
+            provenance(record);integer(record.get('chunk_index'),0,7,'chunk index')
+            text(record.get('excerpt'),'excerpt',4096,empty=True)
+            if not isinstance(record.get('scores'),dict) or set(record['scores'])!={'bm25'}:raise RagError('invalid external keyword score')
+            number(record['scores']['bm25'],0,1e30,'score')
             if any(record.get(key)!=request[key] for key in ('tableName','key1','key2') if key in request):raise RagError('external search filter mismatch')
         return found
 
@@ -159,7 +164,8 @@ class NamespaceAccess:
     def _projection(self,body):
         # Identity validation applies even when the handler only needs vectors or a summary.
         keep=body.get('with_payload')
-        if isinstance(keep,dict) and isinstance(keep.get('include'),list):
+        if keep is False:body['with_payload']={'include':list(IDENTITY_FIELDS)}
+        elif isinstance(keep,dict) and isinstance(keep.get('include'),list):
             body['with_payload']={'include':list(dict.fromkeys([*keep['include'],*IDENTITY_FIELDS]))}
         else:body['with_payload']=True
 

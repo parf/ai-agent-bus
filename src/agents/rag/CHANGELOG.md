@@ -1,5 +1,11 @@
 # RAG changelog
 
+## 0.3.0
+
+Retrieve namespaced evidence with keyword, dense semantic or Qdrant RRF hybrid search.
+Require source provenance and immutable namespace model bindings; refuse legacy data.
+Add free static capabilities and manager-only namespace inventory and confirmed, resumable drop.
+
 ## 0.2.0
 
 Add keyword search: a `keyword_search` setting (`builtin` or `external`), BM25 ingest into a

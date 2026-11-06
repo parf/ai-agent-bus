@@ -74,10 +74,18 @@ class RealKeyword(unittest.TestCase):
         self.wire.http('PUT','/collections/'+self.collection,body)
         for field in INDEXES:
             self.wire.http('PUT',f'/collections/{self.collection}/index?wait=true',{'field_name':field,'field_schema':'keyword'})
-        self.app=Core({**CFG,'collection':self.collection,'dimensions':DIM},self.wire,KV())
+        self.kv=KV();self.app=Core({**CFG,'collection':self.collection,'dimensions':DIM},self.wire,self.kv)
         self.app.cache.set('team','notes',PROMPT)
         self.addCleanup(self.wire.http,'DELETE','/collections/'+self.collection)
-    def put(self,id,data):return self.app.run(parse(dumps({'method':'upsert','namespace':'team','tableName':'notes','id':id,'data':data})))
+    def put(self,id,data):return self.app.run(parse(dumps({'method':'upsert','namespace':'team','tableName':'notes','id':id,'data':data,'source':'notes/'+id+'.md'})))
+    def draft(self,id,data,*,sparse_vector=False):
+        # A canonical but unpublished revision: no live head references it.
+        payload={'namespace':'team','tableName':'notes','id':id,'_rag_schema':3,
+                 '_rag_kind':'chunk','_rag_rev':'d'*64,'_rag_index':0,'_rag_text':data,
+                 'source':'notes/'+id+'.md','content_hash':hashlib.sha256(data.encode()).hexdigest(),
+                 'indexed_at':'2026-11-05T00:00:00Z'}
+        vector={'':[.5]*DIM,'text':sparse(data)} if sparse_vector else [.5]*DIM
+        return {'id':point_id(payload,payload['_rag_rev'],0),'vector':vector,'payload':payload}
     def find(self,query,**more):
         try:return self.app.run(parse(dumps({'method':'search','namespace':'team','query':query,**more})))
         except RagError as error:self.fail(f'the real server refused search {query!r}: {error}')
@@ -89,7 +97,15 @@ class RealKeyword(unittest.TestCase):
         self.assertTrue(self.app.bm25)   # verify() saw the sparse vector with the idf modifier
         self.assertEqual({r['id'] for r in found['records']},{'tea','cats'})
         self.assertEqual(found['records'][0]['id'],'tea')   # the shorter text weighs the term more
-        self.assertTrue(all(r['score']>0 and r['text'] for r in found['records']))
+        # The gate also checks the real server accepts our dense and RRF requests;
+        # providers remain deterministic stand-ins, never live paid services.
+        for mode,score in (('semantic','dense'),('hybrid','rrf')):
+            retrieved=self.find('tea',mode=mode)
+            self.assertEqual(retrieved['mode'],mode)
+            self.assertIn('tea',{r['id'] for r in retrieved['records']})
+            self.assertTrue(all(set(r['scores'])=={score} for r in retrieved['records']))
+
+        self.assertTrue(all(r['scores']['bm25']>0 and r['excerpt'] for r in found['records']))
         # idf: a rare term outweighs a common one in the same query
         both=self.find('tea saffron')
         self.assertEqual(both['records'][0]['id'],'saffron')
@@ -108,10 +124,8 @@ class RealKeyword(unittest.TestCase):
 
     def test_a_draft_without_a_head_is_not_returned_by_the_real_server(self):
         self.put('tea','Tea is a drink.')
-        draft=next(p for p in self.wire.http('POST',f'/collections/{self.collection}/points/scroll',{'filter':{'must':[{'key':'_rag_kind','match':{'value':'chunk'}}]},'limit':5,'with_payload':True,'with_vector':True})['result']['points'])
-        orphan='00000000-0000-0000-0000-0000000000aa'
-        self.wire.http('PUT',f'/collections/{self.collection}/points?wait=true',{'points':[{'id':orphan,'vector':{'':[.5]*DIM,'text':sparse('saffron spice')},
-            'payload':{'namespace':'team','tableName':'notes','id':'draft','_rag_kind':'chunk','_rag_rev':'x','_rag_text':'saffron spice'}}]})
+        orphan=self.draft('draft','saffron spice',sparse_vector=True)
+        self.wire.http('PUT',f'/collections/{self.collection}/points?wait=true',{'points':[orphan]})
         self.assertEqual(self.find('saffron')['records'],[])
         self.assertEqual([r['id'] for r in self.find('tea')['records']],['tea'])
 
@@ -127,25 +141,23 @@ class RealKeywordIndex(RealKeyword):
         self.put('cats','Cats sleep all day. Tea is not for cats.')
         with self.assertRaisesRegex(RagError,'keyword index not built yet'):
             self.app.run(parse(dumps({'method':'search','namespace':'team','query':'tea'})))
-        try:first=self.app.run({'method':'keyword_index'},{'roles':['owner']})
+        try:first=self.app.run({'method':'keyword_index','namespace':'team'},{'roles':['owner']})
         except RagError as error:self.fail(f'the real server refused the build: {error}')
         self.assertEqual(first,{'status':'ok','indexed':3})
         self.assertEqual({r['id'] for r in self.find('tea')['records']},{'tea','cats'})
         self.assertEqual(self.find('tea saffron')['records'][0]['id'],'saffron')
-        self.assertEqual(self.app.run({'method':'keyword_index'},{'roles':['owner']}),{'status':'ok','indexed':0})
+        self.assertEqual(self.app.run({'method':'keyword_index','namespace':'team'},{'roles':['owner']}),{'status':'ok','indexed':0})
         got=self.app.run(parse(dumps({'method':'get','namespace':'team','tableName':'notes','id':'tea'})))
         self.assertEqual(got['embeddings'],[[.5]*DIM])   # the dense vector survived the update
         self.put('tea','Coffee is a drink.')   # a new upsert after the build carries its words
         self.assertEqual([r['id'] for r in self.find('coffee')['records']],['tea'])
         # A chunk without the vector (an interrupted build, or one written before it existed) makes search say so, counted by the real server.
-        stray='00000000-0000-0000-0000-0000000000bb'
-        self.wire.http('PUT',f'/collections/{self.collection}/points?wait=true',{'points':[{'id':stray,'vector':[.5]*DIM,
-            'payload':{'namespace':'team','tableName':'notes','id':'stray','_rag_kind':'chunk','_rag_rev':'x','_rag_text':'stray words'}}]})
-        fresh=Core({**CFG,'collection':self.collection,'dimensions':DIM},self.wire,KV())
+        self.wire.http('PUT',f'/collections/{self.collection}/points?wait=true',{'points':[self.draft('stray','stray words')]})
+        fresh=Core({**CFG,'collection':self.collection,'dimensions':DIM},self.wire,self.kv)
         fresh.cache.set('team','notes',PROMPT)
         with self.assertRaisesRegex(RagError,r'keyword index incomplete \(1 chunks left\)'):
             fresh.run(parse(dumps({'method':'search','namespace':'team','query':'tea'})))
-        try:self.assertEqual(fresh.run({'method':'keyword_index'},{'roles':['owner']}),{'status':'ok','indexed':1})
+        try:self.assertEqual(fresh.run({'method':'keyword_index','namespace':'team'},{'roles':['owner']}),{'status':'ok','indexed':1})
         except RagError as error:self.fail(f'the real server refused the repair: {error}')
         self.assertEqual([r['id'] for r in fresh.run(parse(dumps({'method':'search','namespace':'team','query':'coffee'})))['records']],['tea'])
 
