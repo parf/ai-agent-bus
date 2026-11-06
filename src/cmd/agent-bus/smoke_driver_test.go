@@ -63,6 +63,10 @@ func smokeInterrupt(t *testing.T, startDelay time.Duration) {
 			t.Fatal(err)
 		}
 	}
+	// An empty quarantine list: the driver runs it before any shard.
+	if err := os.WriteFile(filepath.Join(dir, "smoke-quarantine.py"), nil, 0600); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(script, []byte(driver), 0700); err != nil {
 		t.Fatal(err)
 	}
