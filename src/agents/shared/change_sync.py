@@ -44,15 +44,15 @@ class SyncError(Exception):
 def _no_constant(name):raise ValueError('NaN and Infinity are not state')
 
 
-def _fresh():return {'version':VERSION,'items':{},'subs':{},'marks':{},'maybe':{},'meta':{}}
+def _fresh():return {'version':VERSION,'items':{},'subs':{},'marks':{},'maybe':{},'skipped':{},'meta':{}}
 
 
 def _check_state(state):
     """A state that is not exactly ours is refused, never read as empty."""
     bad=lambda:SyncError('state_corrupt')
-    if not isinstance(state,dict) or set(state)!={'version','items','subs','marks','maybe','meta'} or state['version']!=VERSION:raise bad()
-    items,subs,marks,maybe,meta=state['items'],state['subs'],state['marks'],state['maybe'],state['meta']
-    if not all(isinstance(v,dict) for v in (items,subs,marks,maybe,meta)):raise bad()
+    if not isinstance(state,dict) or set(state)!={'version','items','subs','marks','maybe','skipped','meta'} or state['version']!=VERSION:raise bad()
+    items,subs,marks,maybe,skipped,meta=state['items'],state['subs'],state['marks'],state['maybe'],state['skipped'],state['meta']
+    if not all(isinstance(v,dict) for v in (items,subs,marks,maybe,skipped,meta)):raise bad()
     for key,record in items.items():
         if not isinstance(record,dict) or not isinstance(record.get('fp'),str):raise bad()
     for sub_id,row in subs.items():
@@ -62,7 +62,7 @@ def _check_state(state):
         if not isinstance(row['selector'],dict) or not isinstance(row['created_at'],str):raise bad()
         for field in ('sent','confirmed','dropped'):
             if type(row[field]) is not int or not 0<=row[field]<=base.MAX_SAFE:raise bad()
-    for table in (marks,maybe):
+    for table in (marks,maybe,skipped):
         for sub_id,mark in table.items():
             if sub_id not in subs or not isinstance(mark,dict) or not all(isinstance(v,str) for v in mark.values()):raise bad()
     return state
@@ -166,7 +166,7 @@ class _Hold:
 
 def reset(state):
     """Drops items and marks; subscriptions stay, so everything replays to each of them."""
-    state['items']={};state['marks']={sub_id:{} for sub_id in state['subs']};state['maybe']={sub_id:{} for sub_id in state['subs']};state['meta']={}
+    state['items']={};state['marks']={sub_id:{} for sub_id in state['subs']};state['maybe']={sub_id:{} for sub_id in state['subs']};state['skipped']={sub_id:{} for sub_id in state['subs']};state['meta']={}
     return state
 
 
@@ -180,11 +180,12 @@ def pending(state,sub_id,matches=lambda key:True):
     Derived from the items and the subscriber's marks, so a send that was never
     confirmed is pending again without any separate bookkeeping.
     """
-    mark=state['marks'].get(sub_id,{});maybe=state['maybe'].get(sub_id,{});result=[]
+    mark=state['marks'].get(sub_id,{});maybe=state['maybe'].get(sub_id,{});skipped=state['skipped'].get(sub_id,{});result=[]
     for key in sorted(set(state['items'])|set(mark)|set(maybe)):
         if not matches(key):continue
         record=state['items'].get(key)
         if record is None:result.append((key,'delete',None))  # a mark, or a send whose outcome is unknown, still earns its delete
+        elif skipped.get(key)==record['fp']:continue  # the agent had nothing to send for this very version
         elif key not in mark:result.append((key,'create',record))
         elif mark[key]!=record['fp'] or maybe.get(key,record['fp'])!=record['fp']:result.append((key,'change',record))
     return result
@@ -239,7 +240,7 @@ class SyncSubscriptions:
             row={'id':sub_id,'target':target,'selector':selector,'created_by':who,'created_at':base.stamp(self.clock),'sent':0,'confirmed':0,'dropped':0}
             state['subs'][sub_id]=row
             # Replay by default: no marks, so every item is pending. replay:false marks what exists as already done.
-            state['marks'][sub_id]={} if replay else {k:r['fp'] for k,r in state['items'].items()};state['maybe'][sub_id]={}
+            state['marks'][sub_id]={} if replay else {k:r['fp'] for k,r in state['items'].items()};state['maybe'][sub_id]={};state['skipped'][sub_id]={}
             try:self.state.save(state)
             except SyncError as error:raise SubscriptionError('store_unknown') from error
             return copy.deepcopy(row)
@@ -261,7 +262,7 @@ class SyncSubscriptions:
             state=self._loaded();row=state['subs'].get(sub_id)
             if row is None:raise SubscriptionError('not_found')
             if not base.own_manager(message,self.source) and row['created_by']!=who:raise SubscriptionError('not_author')
-            del state['subs'][sub_id];state['marks'].pop(sub_id,None);state['maybe'].pop(sub_id,None)
+            del state['subs'][sub_id];state['marks'].pop(sub_id,None);state['maybe'].pop(sub_id,None);state['skipped'].pop(sub_id,None)
             try:self.state.save(state)
             except SyncError as error:raise SubscriptionError('store_unknown') from error
             return True
@@ -285,7 +286,8 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
       Before the sends, every create and change of the batch is recorded as possibly delivered (and saved), so a send whose
       outcome is never learned still earns its delete if the source later removes the key. A change the loop never reached,
       or whose send was refused outright, is taken back out; a timeout, an unknown result or a reply that is not ok keeps it.
-      A `body` that returns None has nothing to send that subscriber: the change is marked done and counted as `skipped`.
+      A `body` that returns None has nothing to send that subscriber: the change is counted as `skipped` and remembered
+      (per subscriber, by fingerprint) so it is not skipped again, without writing a mark: only a confirmation does.
       A second unknown send of the same key turns its record into `?`, which stays owed until a confirmation.
     - After a crash a subscriber may get a delete for a key it never received (the record is written for the whole batch before
       the sends): deletes must be idempotent. Never the other way: a delete is not lost.
@@ -333,8 +335,10 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
                             if action=='delete' or (prior[key] if key in prior else data['maybe'][sub_id].get(key)) is None:data['maybe'][sub_id].pop(key,None)
                             else:data['maybe'][sub_id][key]=record['fp']
                             restored=True
-                            if action=='delete':data['marks'][sub_id].pop(key,None)
-                            else:data['marks'][sub_id][key]=record['fp']
+                            # Skip bookkeeping stays out of the marks: only a real confirmation writes one, and only a mark or a
+                            # possibly-delivered record earns a delete.
+                            if action=='delete':data['marks'][sub_id].pop(key,None);data['skipped'][sub_id].pop(key,None)
+                            else:data['skipped'][sub_id][key]=record['fp']
                             continue
                         count['sent']+=1;row['sent']=min(base.MAX_SAFE,row['sent']+1)
                         if kind=='queue':
@@ -349,7 +353,7 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
                     if not confirmed:
                         count['dropped']+=1;row['dropped']=min(base.MAX_SAFE,row['dropped']+1);warning(code if code else 'unconfirmed',sub_id);break
                     count['confirmed']+=1;row['confirmed']=min(base.MAX_SAFE,row['confirmed']+1)
-                    data['maybe'][sub_id].pop(key,None)
+                    data['maybe'][sub_id].pop(key,None);data['skipped'][sub_id].pop(key,None)
                     if action=='delete':data['marks'][sub_id].pop(key,None)
                     else:data['marks'][sub_id][key]=record['fp']
             finally:

@@ -75,10 +75,10 @@ class StateFileTests(Base):
         self.assertEqual(stat.S_IMODE(self.state.path.stat().st_mode),0o600)
 
     def test_a_damaged_file_is_refused_never_read_as_empty(self):
-        for text in ('{not json','[]','{"version":2,"items":{},"subs":{},"marks":{},"maybe":{},"meta":{}}',
-                     '{"version":1,"items":{"a":{"nofp":1}},"subs":{},"marks":{},"maybe":{},"meta":{}}',
-                     '{"version":1,"items":{},"subs":{},"marks":{"zz":{}},"maybe":{},"meta":{}}',
-                     '{"version":1,"items":{},"subs":{"a":{}},"marks":{},"maybe":{},"meta":{}}'):
+        for text in ('{not json','[]','{"version":2,"items":{},"subs":{},"marks":{},"maybe":{},"skipped":{},"meta":{}}',
+                     '{"version":1,"items":{"a":{"nofp":1}},"subs":{},"marks":{},"maybe":{},"skipped":{},"meta":{}}',
+                     '{"version":1,"items":{},"subs":{},"marks":{"zz":{}},"maybe":{},"skipped":{},"meta":{}}',
+                     '{"version":1,"items":{},"subs":{"a":{}},"marks":{},"maybe":{},"skipped":{},"meta":{}}'):
             self.state.path.write_text(text)
             with self.assertRaises(cs.SyncError,msg=text) as c:self.state.load()
             self.assertEqual(c.exception.code,'state_corrupt')
@@ -127,7 +127,7 @@ class StateFileTests(Base):
             with self.assertRaises(cs.SyncError,msg=repr(bad)) as c:self.state.save(data)
             self.assertEqual(c.exception.code,'state_corrupt');self.assertEqual(self.state.path.read_bytes(),before)
         for token in ('NaN','Infinity','-Infinity'):
-            self.state.path.write_text('{"version":1,"items":{"k":{"fp":"x","n":%s}},"subs":{},"marks":{},"maybe":{},"meta":{}}'%token)
+            self.state.path.write_text('{"version":1,"items":{"k":{"fp":"x","n":%s}},"subs":{},"marks":{},"maybe":{},"skipped":{},"meta":{}}'%token)
             with self.assertRaises(cs.SyncError,msg=token) as c:self.state.load()
             self.assertEqual(c.exception.code,'state_corrupt')
         self.state.path.write_bytes(before)
@@ -458,8 +458,29 @@ class DeliveryTests(Base):
     def test_a_create_skipped_on_first_sight_leaves_no_possibly_delivered_record(self):
         subs,row=self.add();skip=lambda sub,key,action,record:None if key=='a' else f'{action} {key}'
         self.round(body=skip);self.assertNotIn('a',self.state.load()['maybe'][row['id']],'nothing was ever sent for a, so it is not possibly delivered')
-        self.assertEqual(self.state.load()['marks'][row['id']]['a'],'1','but it is done: it is not skipped again every round')
+        self.assertNotIn('a',self.state.load()['marks'][row['id']],'a skip is not a confirmation: no mark');self.assertEqual(self.state.load()['skipped'][row['id']],{'a':'1'},'but it is remembered, so it is not skipped again every round')
         self.assertEqual(self.round(body=skip)[row['id']]['skipped'],0)
+
+    def test_a_skipped_first_create_that_is_then_removed_sends_no_delete(self):
+        subs,row=self.add();skip=lambda sub,key,action,record:None if key=='a' else f'{action} {key}'
+        self.round(body=skip)
+        data=self.state.load();del data['items']['a'];self.state.save(data);self.bus.sent.clear()
+        r=self.round(body=skip)[row['id']]
+        self.assertNotIn('delete a',[b for _,b,_ in self.bus.sent],'a was never sent, so there is nothing to delete');self.assertEqual(r['pending'],0)
+
+    def test_a_skipped_key_that_becomes_sendable_is_a_create_or_a_change_by_its_mark(self):
+        subs,row=self.add();only_b=lambda sub,key,action,record:None if key=='a' else f'{action} {key}'
+        self.round(body=only_b);data=self.state.load();data['items']['a']=item('1b');self.state.save(data);self.bus.sent.clear()
+        self.round();self.assertIn('create a',[b for _,b,_ in self.bus.sent],'never confirmed, so a create')
+        data=self.state.load();data['items']['b']=item('2b');self.state.save(data)
+        self.round(body=lambda sub,key,action,record:None if key=='b' else f'{action} {key}');self.bus.sent.clear()
+        data=self.state.load();data['items']['b']=item('2c');self.state.save(data);self.round()
+        self.assertIn('change b',[b for _,b,_ in self.bus.sent],'confirmed once, so a change when it becomes sendable')
+
+    def test_a_confirmation_clears_the_skip_memory(self):
+        subs,row=self.add();self.round(body=lambda sub,key,action,record:None if key=='a' else f'{action} {key}')
+        data=self.state.load();data['items']['a']=item('9');self.state.save(data);self.round()
+        self.assertEqual(self.state.load()['skipped'][row['id']],{})
 
     def test_a_skipped_delete_clears_its_record_and_does_not_loop(self):
         subs,row=self.add('#rag@n.test',kind='agent');self.bus.replies['#rag@n.test']='timeout';self.round()
@@ -473,7 +494,7 @@ class DeliveryTests(Base):
         r=self.round(body=body)[row['id']]
         self.assertEqual((r['sent'],r['confirmed'],r['skipped'],r['pending']),(1,1,1,0));self.assertEqual([b for _,b,_ in self.bus.sent],['create b'])
         self.assertEqual(self.round(body=body)[row['id']]['skipped'],0,'a skipped change is done, not retried')
-        self.assertEqual(self.state.load()['marks'][row['id']],{'a':'1','b':'2'})
+        self.assertEqual((self.state.load()['marks'][row['id']],self.state.load()['skipped'][row['id']]),({'b':'2'},{'a':'1'}))
 
     def test_the_matcher_decides_what_a_subscriber_sees(self):
         subs,row=self.add();self.round(matches=lambda sub,key:key=='b')
