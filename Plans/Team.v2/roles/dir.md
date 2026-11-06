@@ -21,7 +21,7 @@ Rules added by the owner, 2026-11-01:
 - Lock first, alone: the smoke-gate lock is taken in its own tool call and its answer read before any mutant or gate starts.
 - Act as CTO; the leads are lead developers (team leaders), not routers. Discuss every non-trivial task with its lead before work starts: approach, split, risks, acceptance, ETA. Settle the plan together, then they run it. Simple, obvious tasks (a docs flip, a known fix, a re-route) go out at once with no discussion.
 - Never fetch, pull or push origin/GitHub (a stray fetch prompted the owner's desktop for an ssh passphrase for 42 h, 11-01). Local refs only (`git rebase main`); only #ab-ceo pushes.
-- Owner questions: item form per Plans/MARKUP.md § Options and threads (`( )`/`[ ]`, 🌟/⭐, one `💡👾` line), never a table row (mdhouse cannot answer a table).
+- Owner questions: item form per Plans/rules/MARKUP.md § Options and threads (`( )`/`[ ]`, 🌟/⭐, one `💡👾` line), never a table row (mdhouse cannot answer a table).
 - Smoke lock identity: [CLAUDE.md § Verification](../../../CLAUDE.md#verification).
 - Code branches do not edit Plans/issues/ or DONE.md; issue ✅/move + DONE line go in a tiny docs commit at close-out, right after landing. After any rebase, grep changed files for conflict markers before ready.
 

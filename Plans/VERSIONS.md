@@ -1,6 +1,6 @@
 # Version comparison
 
-Release stages, in order. Each section describes the major change from the preceding stage; the linked plans own scope and status. Program release numbers follow [shared versioning](../CLAUDE.md#versioning), and individual shipped changes belong in the changelog for their release line: the current stable [1.0](../CHANGELOG.1.0.md#changelog-10), and the closed development [0.9](CHANGELOG.0.9.md#changelog-09), [0.8](CHANGELOG.0.8.md#changelog-08), [0.7](CHANGELOG.0.7.md#changelog-07), [0.6](CHANGELOG.0.6.md#changelog-06) and [0.5](CHANGELOG.0.5.md#changelog-05) kept here.
+Release stages, in order. Each section describes the major change from the preceding stage; the linked plans own scope and status. Program release numbers follow [shared versioning](../CLAUDE.md#versioning), and individual shipped changes belong in the changelog for their release line: the current stable [1.0](../CHANGELOG.1.0.md#changelog-10), and the closed development [0.9](changelogs/CHANGELOG.0.9.md#changelog-09), [0.8](changelogs/CHANGELOG.0.8.md#changelog-08), [0.7](changelogs/CHANGELOG.0.7.md#changelog-07), [0.6](changelogs/CHANGELOG.0.6.md#changelog-06) and [0.5](changelogs/CHANGELOG.0.5.md#changelog-05) kept here.
 
 Credential lifetime follows the same [manual-change policy](../docs/02-access.md#token-lifetime) throughout these stages; future encryption does not introduce scheduled token retirement.
 
@@ -25,40 +25,42 @@ The trust boundary: the daemon can read message bodies and stored configuration 
 
 ## R1
 
-**The release's own extensions, and what one bus needs to connect to another.** R1 keeps the shared extensions (locks, the key-value store, Resource records, method metadata), installable distribution, the runner and the client libraries. Built ahead of the release on the 0.8 line: roles, locks, the key-value store, Resource records, the six client libraries and the runner's waves M.1–M.11 ([done](R1.0-Release/DONE.md)); the rest is pending, and several choices remain open ([R1 scope](R1.0-Release/README.md#scope), [dependencies](R1.0-Release/TODO.md#objective)). Observability remains in [R1.1](#r11); distributed identity and encryption wait in [R2.0](#r20) (owner, 2026-11-05).
+**An installable bus with managed agents and shared extensions.** The stable 1.0 line is published; [publication evidence](R1.0-Release/done/release-1.0-publication.md#published-release) records the artifacts and installation checks. Roles, locks, key-value storage, Resource records, method metadata, clients and the runner are delivered. Remaining work stays in the [R1 TODO](R1.0-Release/TODO.md#objective); shipped updates are in the [1.0 changelog](../CHANGELOG.1.0.md#changelog-10). New identity and encryption remain [R2.0](#r20).
 
 | Major change from MVP | Result | Owning design |
 |---|---|---|
 | Record-defined roles | Built: a record states what its caller may do, and the daemon resolves but never interprets it | [Roles](../docs/03-records-agent.md#roles) |
-| **Managed agent lifecycle** | Built (runner waves M.1–M.11): agents become installed deployments with startup and restart behavior; kept children can retain state between messages | [Runner](R1.0-Release/runner-implementation.md#what-the-runner-does), [long-lived agents](R1.0-Release/runner-implementation.md#long-lived-agents) |
+| **Managed agent lifecycle** | Built: agents are managed deployments with installation, status, restart and kept-process behavior | [Runner](R1.0-Release/runner-implementation.md#what-the-runner-does), [long-lived agents](R1.0-Release/runner-implementation.md#long-lived-agents) |
 | Distributed work and coordination | Pending: workers serving a shared name across hosts; built: shared locks coordinate work through the bus | [Pools](R1.0-Release/runner-implementation.md#one-name-on-many-hosts), [locks](R1.0-Release/done/locks.md#shared-locks) |
-| Deployment recovery | Pending: a user can recover deployment configuration from an encrypted backup without giving the daemon recovery authority | [Backup contract](R1.1/backups.md#backing-it-up) |
-| Installable distributions | Pending: published artifacts make installation and container startup possible without building from source | [Release artifacts](R1.0-Release/distribution.md#release-artifacts) |
+| **Installable distributions** | Published npm packages, release archives and a container image | [Release artifacts](R1.0-Release/distribution.md#release-artifacts), [publication](R1.0-Release/done/release-1.0-publication.md#published-release) |
 | Broader clients | Built: client libraries in six languages, sharing one protocol contract | [Clients](../src/clients/README.md#what-you-get) |
 | Resource records | Built: an MCP Resource becomes a registry record kind the bus connects to rather than stores | [Resource records](R1.0-Release/done/resources.md#resource-records) |
 | Shared state | Built: per-record key-value storage and shared locks coordinate work through the bus | [Key-value store](R1.0-Release/done/kv.md#per-record-storage), [shared locks](R1.0-Release/done/locks.md#shared-locks) |
 
-Namespace composition, runner activation and what the kept topics need from R1.1 remain [open R1 choices](R1.0-Release/QUESTIONS.md#open-questions). Recording a target does not close those dependencies.
+Bundled integrations and the composed RAG app have their own [scope](R1.0-Release/agents.md#what-moved-and-what-r1-adds) and [RAG plan](R1.0-Release/rag/README.md#rag-service). Their remaining acceptance is separate from publication of the bus.
 
 ## R1.1
 
-**Extend operations, clients and storage.** Discovery and observability, operations, additional storage backends and the peer registry remain here; new auth and encryption wait in [R2.0](#r20). It is not started and follows R1 ([R1.1 scope](R1.1/README.md#scope), [prerequisites](R1.1/TODO.md#dependencies)).
+**Operations, observability and storage proposals.** R1.1 has no open implementation scope until the owner opens it; current missing parts and fixes continue on 1.0.x ([scope decision](R1.1/QUESTIONS.md#scope)). The [plan](R1.1/README.md#scope) retains operations, storage, backups and peer-registry proposals; new identity and encryption wait in [R2.0](#r20).
 
 | Major change from MVP | Proposed result | Owning design |
 |---|---|---|
 | Richer operations | Health, load history, deployment controls and record origin extend the MVP's current-state view | [Dashboard extensions](R1.1/discovery.md#dashboard-extensions), [reload](R1.1/operations.md#reload) |
 | Streamed answers | Long answers can stream once their protocol contract is agreed | [Streaming](R1.1/streaming.md#streaming) |
+| Deployment recovery | Recover deployment configuration from an encrypted backup | [Backup contract](R1.1/backups.md#backing-it-up) |
 | Peer registry | Peer nodes can exchange registry records | [Peer registry](R1.1/registry.md#registry-sync) |
 
-Peer authenticity and clocks remain [open R1.1 choices](R1.1/QUESTIONS.md#registry-context). Encrypted delivery to absent receivers and authorization freshness are [future auth choices](R2.0-Future/QUESTIONS.md#access-context).
+Peer authenticity and clocks moved to [R1.3](R1.3/QUESTIONS.md#peer-registry); moving the whole registry plan remains an open choice there. Encrypted delivery to absent receivers and authorization freshness are [future auth choices](R2.0-Future/QUESTIONS.md#access-context).
 
 ## R1.2
 
-**Make the platform useful out of the box with a catalogue of ordinary agents.** Where R1 and R1.1 build the operating mechanisms, R1.2 proposes tools that use them, adds the catalogue to the image and improves agent-to-agent and person-facing workflows. It is not started and depends on R1 and R1.1; catalogue entries are intended to use the ordinary agent interface, while other stage extensions may require daemon work ([R1.2 scope](R1.2/README.md#scope), [prerequisites](R1.2/TODO.md#dependencies)).
+**Make the platform useful out of the box with a catalogue of ordinary agents.** Where R1 and R1.1 build the operating mechanisms, R1.2 proposes tools that use them, adds the catalogue to the image and improves agent-to-agent and person-facing workflows. Stage extensions are not started; catalogue entries already built are marked in the catalogue. Entries use the ordinary agent interface, while other extensions may require daemon work ([R1.2 scope](R1.2/README.md#scope), [prerequisites](R1.2/TODO.md#objective)).
 
 | Major change from R1.1 | Proposed result | Owning design |
 |---|---|---|
-| Federation | Discovery and calls can reach upstream agents | [Chaining](R1.2/federation.md#chaining), moved from R1 by the owner on 2026-10-17 |
+| Federation | Discovery and calls can reach upstream agents | [Chaining](R1.2/federation.md#chaining) |
+| Runner hardening | Deferred runner safety and isolation work | [Hardening proposal](R1.2/runner-hardening.md#runner-hardening-proposal), moved from R1.1 |
+| Additional chat integrations | Discord and Google Chat; Google Chat requires a corporate Workspace account | [Discord](R1.2/discord.md#discord-agent-b27a), [Google Chat](R1.2/google-chat.md#google-chat-agent-b27b) |
 | **Bundled useful agents** | Teams can deploy existing tools instead of first writing every integration themselves | [Catalogue](R1.2/services.md#the-catalogue) |
 | An ordinary extension path | Bundled tools exercise the same interface available to independently written agents | [Catalogue contract](R1.2/services.md#rules-they-all-obey) |
 | **Catalogue distribution** | The image gains useful agents already installed | [Image](R1.2/image.md#the-image) |
@@ -76,6 +78,7 @@ Catalogue selection, shared-state authority and contact visibility still have [o
 |---|---|---|
 | **Independent agent identity and shared state** | How agents obtain their own key and share secrets or mutable state, including whether the storage provider must be unable to read it | [Agent identity and state](R1.3/exploration.md#shared-secrets-and-a-kv-with-locks) |
 | **Daemon components as ordinary agents** | Whether some built-in responsibilities should move behind the same agent interface as the catalogue | [Component placement](R1.3/exploration.md#whether-the-daemons-own-parts-become-agents) |
+| Peer registry trust | Record authenticity and clock authority; the location of the whole registry plan is still undecided | [Peer registry questions](R1.3/QUESTIONS.md#peer-registry) |
 | Cross-provider person linkage | How separately authenticated principals can be established as the same person | [Identity linkage](R1.3/QUESTIONS.md#identity-linkage) |
 
 ## R2.0

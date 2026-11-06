@@ -10,7 +10,7 @@ disable-model-invocation: true
 Adapted for agent-bus from mdhouse's skill of the same name. Writes issues for the owner to triage on the
 page — mdhouse serves this repo at `http://localhost:7777/ai-agent-bus/` — and `/fix-issues` acts on the
 triage. States, identities, committing: [qa-states.md](../qa-states.md). The item form:
-[plan markup](../../../Plans/MARKUP.md#an-item). Never edits code or docs.
+[plan markup](../../../Plans/rules/MARKUP.md#an-item). Never edits code or docs.
 
 - `scope` — default: **since the last review** — `<sha>..HEAD`, the `<sha>` after `..` in the last `# Issues — … · <from>..<sha>`
   heading of the newest `Plans/issues/*/*.md`. The very first run (no issues file yet) reviews the whole
@@ -112,7 +112,7 @@ R1 RGW1); W1 is invented.
 - **Serious first**: an issue that loses stored records or secrets, leaks a secret or a credential, or
   lets a caller past an authority boundary goes right under the section heading, above the subsystems.
 - **An item is a title line, a sub-list and the fix** — fields are a sub-list, because mdhouse collapses
-  plain `Label:` lines into one paragraph ([why](../../../Plans/MARKUP.md#why-the-fields-are-a-sub-list)):
+  plain `Label:` lines into one paragraph ([why](../../../Plans/rules/MARKUP.md#why-the-fields-are-a-sub-list)):
   1. the severity glyph first (🔴 wrong / unsafe now · 🟠 matters, not now · ⚪ low · 🔵 informational — treated as done or not relevant),
      the id, `file:line` (each one, for a shared cause), **the claim and its consequence — one line**;
   2. `- Evidence:` — what was run or read, and what it gave;

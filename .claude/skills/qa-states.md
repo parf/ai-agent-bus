@@ -6,7 +6,7 @@ questions and decisions follow [CLAUDE.md § working rules](../../CLAUDE.md#work
 
 One reference, so the skills never drift: every rule below is stated here only. It is how mdhouse
 renders the file — the skills read it the way the page does. The item form, the stage glyphs and the
-fields: [plan markup](../../Plans/MARKUP.md#an-item), whose [glyph table](../../Plans/MARKUP.md#glyphs)
+fields: [plan markup](../../Plans/rules/MARKUP.md#an-item), whose [glyph table](../../Plans/rules/MARKUP.md#glyphs)
 is the subset mdhouse acts on; what every glyph means: [glossary § glyphs](../../docs/glossary.md#glyphs).
 Where this file and the plan markup disagree, the plan markup wins.
 
@@ -77,7 +77,7 @@ carry; `✅` without it — the agent, and for the agent the `✅` alone is enou
 | | the agent's own `💬` is last (it proposed something) | the user said yes: do what you proposed → `✅` |
 | | no `💬` — a question / an issue with one `💡` / with options | find out, reply, `❓` / do the `💡` → `✅` / reply "which one?", `❓` |
 | `⚠️` | the user's `💬` (else the item text) says what is missing | finish → `✅`; unclear → reply "what is missing?", `❓` |
-| `🎫` | a ticket requested; the user's `💬` names who (`👤name` / `👥team`) | this repo tracks work in its plans, not GitHub: add an item to the owning plan's `TODO.md` in the [plan markup](../../Plans/MARKUP.md#an-item), with an ID by its [rules](../../Plans/MARKUP.md#ids) and the issue linked → `✅` + `💬👾 🎫<ID> → 👤name`. Anything outside the repo (a GitHub issue, a message) only on the owner's word |
+| `🎫` | a ticket requested; the user's `💬` names who (`👤name` / `👥team`) | this repo tracks work in its plans, not GitHub: add an item to the owning plan's `TODO.md` in the [plan markup](../../Plans/rules/MARKUP.md#an-item), with an ID by its [rules](../../Plans/rules/MARKUP.md#ids) and the issue linked → `✅` + `💬👾 🎫<ID> → 👤name`. Anything outside the repo (a GitHub issue, a message) only on the owner's word |
 | `⛔` `❌` | blocked / failed | nobody — list them in the report |
 | `✅` `🚫` `⏸️` | closed | nobody |
 | `📌` | a decision — settled, applies | nobody acts on it as a task; follow it in all work; never change it — reply under it |

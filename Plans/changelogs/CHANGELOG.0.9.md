@@ -1,6 +1,6 @@
 # Changelog 0.9
 
-📌 **TL;DR:** Archived changes **0.9.0–0.9.303**, 2026-10-19–2026-11-02, grouped by area. These record development transitions, including choices later replaced. Earlier: [0.8](CHANGELOG.0.8.md#changelog-08); next: [1.0](../CHANGELOG.1.0.md#changelog-10).
+📌 **TL;DR:** Archived changes **0.9.0–0.9.303**, 2026-10-19–2026-11-02, grouped by area. These record development transitions, including choices later replaced. Earlier: [0.8](CHANGELOG.0.8.md#changelog-08); next: [1.0](../../CHANGELOG.1.0.md#changelog-10).
 
 ## Protocol, discovery and command line
 
@@ -86,4 +86,4 @@
 - **0.9.190–0.9.194:** container/database fixtures used capped private logs, suppressed host-journal events and identified runs by PID plus start time. Cleanup handled interrupted startup and dead-run sweep; unreadable inventory/journal data failed closed. Fixture startup required the smoke-gate lock before any Podman call.
 - **0.9.163–0.9.303:** a digest-pinned container image ran daemon/runner roles from release files; later image builds verified downloaded archives against SHA256SUMS. Release workflows used pinned actions and version tags on main, verified every artifact before upload and could update an existing release's assets.
 
-The early folds recorded fast/normal/slow subsystem selection and mutation checks. Their “under one minute” statement was a gate timing target/evidence, not a runtime guarantee. Later five-distribution Linux RC and native Mac RC results are [separate release-candidate evidence](R1.0-Release/done/rc-linux-installation.md#candidates-and-order), not changes shipped by a 0.9 patch.
+The early folds recorded fast/normal/slow subsystem selection and mutation checks. Their “under one minute” statement was a gate timing target/evidence, not a runtime guarantee. Later five-distribution Linux RC and native Mac RC results are [separate release-candidate evidence](../R1.0-Release/done/rc-linux-installation.md#candidates-and-order), not changes shipped by a 0.9 patch.

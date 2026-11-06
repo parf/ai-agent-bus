@@ -85,4 +85,4 @@ All restored checks passed. The runner-row restored check passed 13 assertions; 
 
 ## Final integration and static checks
 
-The [integration review](../../issues/2026-11/2026-11-04.md) records found defects and fixes. The [cleanup ledger](../../doc-cleanup-review.md#final-verification) owns final runtime, links, assets and executed-guide coverage. Temporary raw logs are not a remaining acceptance dependency.
+The [integration review](../../issues/2026-11/2026-11-04.md) records found defects and fixes. The [cleanup ledger](../../reviews/doc-cleanup-review.md#final-verification) owns final runtime, links, assets and executed-guide coverage. Temporary raw logs are not a remaining acceptance dependency.

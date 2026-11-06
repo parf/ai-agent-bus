@@ -371,7 +371,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 - 📌 RD82 Plans adopt the mdhouse item profile without losing plan knowledge
   - Why: owner instruction to commit the profile and convert R1 documents
   - Date: 2026-10-17
-  - Home: [plan markup](../MARKUP.md#an-item)
+  - Home: [plan markup](../rules/MARKUP.md#an-item)
 
 - ✅ RD1 R1 Runners web face wraps runner APIs and links to existing agent pages
   - Earlier rows: 2026-10-17 owner request; planned, not built

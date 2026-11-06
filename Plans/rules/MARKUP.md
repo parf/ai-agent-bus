@@ -11,7 +11,7 @@ converts without losing anything.
 |---|---|
 | Upstream | `doc/agent-markup.md` and `doc/qa.md` in the mdhouse checkout at `/home/parf/src/mdhouse`, served on this node at [agent-markup](http://localhost:7777/mdhouse/doc/agent-markup.md). Every upstream rule holds unless this file overrides it; the rules most easily missed are restated below |
 | Reviewed against | the parser — `src/lib/qa.ts`, `qa-html.ts`, `legacy.ts` — on 2026-10-17. A claim here about rendering was run, not reasoned |
-| Glyph meanings | [glossary § glyphs](../docs/glossary.md#glyphs) owns this project's glyph vocabulary. The stage table below is the subset mdhouse acts on, not a second vocabulary |
+| Glyph meanings | [glossary § glyphs](../../docs/glossary.md#glyphs) owns this project's glyph vocabulary. The stage table below is the subset mdhouse acts on, not a second vocabulary |
 | Why a profile, not a fork | the upstream rules are generic and three skills under `/rd/.claude/skills/` read them. Ours are the field set, the ID rule and the conversion procedure |
 
 ## Why this is not cosmetic
@@ -24,7 +24,7 @@ from the page.
 
 | | |
 |---|---|
-| What stays a table | reference material: the stage table in [Plans](README.md#stages), rule and field tables in topic files, anything with no ID and no lifecycle |
+| What stays a table | reference material: the stage table in [Plans](../README.md#stages), rule and field tables in topic files, anything with no ID and no lifecycle |
 | What becomes an item | anything with an ID, a state, or something waiting on somebody: `TODO.md`, `QUESTIONS.md`, `DECISIONS.md`, `DONE.md`, `FUTURE.md`, and the items inside a topic file |
 | What is not converted | `Plans/done/` and every `done/` — history, which never holds a current contract. It carries its own older markup, including a second complete one in `R0.8-MVP/done/TODO-before-rewrite.md`, and rewriting it risks the record for no working gain |
 
@@ -37,7 +37,7 @@ from the page.
   - Format: the jsonl frame, to approve before any code (№Q160)
   - Acceptance: a kept process takes a second message without re-exec
   - Mutant: drop the keep-alive and the second message re-execs — that must fail
-  - Home: [runner waves](R1.0-Release/TODO.md#runner-waves)
+  - Home: [runner waves](../R1.0-Release/TODO.md#runner-waves)
   > 💬👾 Q160 asks whether each frame carries the message ID.
 ```
 
@@ -134,7 +134,7 @@ Every column our plan files carry today has a home here.
 | `Earlier rows:` | provenance into the pre-rewrite index | DECISIONS' *Earlier rows* |
 | `Moved:` | where an item went, with the date | the `⏩` row |
 | `Open:` | what is still open on something otherwise done | web DONE's *Open* |
-| `Home:` | the owning section, when the item is not it | [canonical home](../CLAUDE.md#working-rules) |
+| `Home:` | the owning section, when the item is not it | [canonical home](../../CLAUDE.md#working-rules) |
 
 Rules:
 
@@ -147,7 +147,7 @@ Rules:
   do, and the clauses themselves are carried verbatim.
 - `Mutant:` is required where one exists and **recorded as missing where it does
   not**. Documentation-only work has no code mutant by rule
-  ([verification](../CLAUDE.md#verification)); write
+  ([verification](../../CLAUDE.md#verification)); write
   `Mutant: none — documentation; link and anchor check only`. A migration never
   invents proof that was not there.
 
@@ -205,7 +205,7 @@ never starts with one.
 | | |
 |---|---|
 | Grammar | `ITEM_ID` is `^([A-Z][A-Z.-]*\d+[a-z]?(?:\.\d+)?)(?=\s\|$)` (`qa.ts:193`). `M.3`, `B.2`, `Q160`, `K.24`, `Q-R14` and `A.4b` match; lowercase or digit-initial does not, and a label that does not match is swallowed into the title with no anchor and no error |
-| Questions | `Q…` is one namespace across every plan, including settled ones ([working rules](../CLAUDE.md#working-rules)). Allocated only when the owner has a choice to make. A conversion never allocates one |
+| Questions | `Q…` is one namespace across every plan, including settled ones ([working rules](../../CLAUDE.md#working-rules)). Allocated only when the owner has a choice to make. A conversion never allocates one |
 | Waves and tasks | `M.3`, `B.2`, `P.1`, `K.24` — scoped to their series, not globally unique, and **never renumbered**. `B.1`–`B.4` already means two unrelated things: bundled agents in `R1.0-Release/TODO.md`, credentials in the archived pre-rewrite plan |
 | Migration labels | a row with no ID gets a scoped label from a new series whose prefix no live plan uses — `RT.1`, `RD.1`, `RW.1`. It is a label, not a question: it names a row that already existed. Record the series and its meaning where it is first used |
 | Definition against reference | one item defines an ID; everything else mentioning it is a reference. The same ID in `TODO.md` and `DONE.md` for the same work is one entity in two stages, not a clash |
@@ -228,7 +228,7 @@ distinct anchors — and inside `Plans/` itself there are about 2550 more.
 |---|---|
 | a section, from anywhere | the heading anchor, as today |
 | an item, in the same file | `№Q145` |
-| an item, from another file | `[№Q145](R1.0-Release/QUESTIONS.md#open-questions)` — the `№` names the item, the link lands on the section that holds it |
+| an item, from another file | `[№Q145](../R1.0-Release/QUESTIONS.md#open-questions)` — the `№` names the item, the link lands on the section that holds it |
 
 **Items stay under the heading that holds them today.** In `QUESTIONS.md` every
 question item stays under `## Open questions`; the detail sections — `## Record
@@ -306,7 +306,7 @@ can be read in a single diff.
 ## What does not change
 
 Terse English, small files, tables for reference material, and the
-[plan lifecycle](../CLAUDE.md#working-rules): README holds stable knowledge,
+[plan lifecycle](../../CLAUDE.md#working-rules): README holds stable knowledge,
 TODO unfinished work, DONE results, FUTURE follow-up, QUESTIONS open choices,
 DECISIONS the dated record. This markup changes how an item is written inside
 those files, not which file it belongs in.

@@ -1,25 +1,25 @@
 # Documentation cleanup rules
 
-📌 **TL;DR:** User documentation describes the shipped product and helps someone use it; development history, future scope and editorial process stay outside that reading path. The owner-directed cleanup passes are recorded in the [review ledger](doc-cleanup-review.md#file-dispositions). The final integrated normal and documentation checks passed; see the ledger’s verification section.
+📌 **TL;DR:** User documentation describes the shipped product and helps someone use it; development history, future scope and editorial process stay outside that reading path. The owner-directed cleanup passes are recorded in the [review ledger](../reviews/doc-cleanup-review.md#file-dispositions). The final integrated normal and documentation checks passed; see the ledger’s verification section.
 
 ## Review baseline
 
 - Owner direction: public docs cover the shipped R1 scope, without product release/stage narration. Setup is a short guide with the user's AI executing AI-SETUP.md as the recommended first path. The same entry handles requested updates and tuning.
 - The owner requires a **clean R1 installation with canonical forms only**. Retired project formats, aliases and migrations are removed from code, scripts, fixtures and docs together; no prerelease-state preservation or one-off conversion is required.
-- Astra reviewed all blocks in the eight files below: **2,743 lines**, plus CLAUDE.md and [.claude/docs/WRITING.md](../.claude/docs/WRITING.md#how-we-write-docs). No edits, tests, builds, installs or provider calls were part of its analysis.
-- The sample and line references below preserve the initial review basis. The expanded inventory, completed family passes, added contributor references and moved pages are recorded in the [review ledger](doc-cleanup-review.md#file-dispositions).
+- Astra reviewed all blocks in the eight files below: **2,743 lines**, plus CLAUDE.md and [.claude/docs/WRITING.md](../../.claude/docs/WRITING.md#how-we-write-docs). No edits, tests, builds, installs or provider calls were part of its analysis.
+- The sample and line references below preserve the initial review basis. The expanded inventory, completed family passes, added contributor references and moved pages are recorded in the [review ledger](../reviews/doc-cleanup-review.md#file-dispositions).
 - Publication, push and the final tag remain on hold.
 
 | Sample file | Main findings |
 |---|---|
-| [README.md](../README.md) | Competing first actions; roadmap, contributor-policy and evidence links inside the product narrative. |
-| [AI-SETUP.md](../AI-SETUP.md) | Mostly useful; repeated scope questions and publication-specific contingencies need tightening. |
-| [Overview](../docs/00-overview.md) | Old release-line opening, internal ownership prose, dated examples and future-plan navigation. |
-| [Setup](../docs/07-setup.md) | 893 lines mix installation with operator reference, development deployment, migrations and test reports. |
-| [Launchers](../docs/06-launchers.md) | Status/MVP tables, dated proof and historical narration mixed with useful runtime limits. |
-| [Records](../docs/03-records.md) | Historical compatibility text and roadmap links; actor and PubSub descriptions need verification. |
-| [Agent catalogue](../docs/agents/README.md) | Discord availability contradiction, editorial rules and a misleading sandbox/grants explanation. |
-| [Telegram](../docs/agents/telegram.md) | Useful operations/settings reference, with dated provenance and editorial narration to remove. |
+| [README.md](../../README.md) | Competing first actions; roadmap, contributor-policy and evidence links inside the product narrative. |
+| [AI-SETUP.md](../../AI-SETUP.md) | Mostly useful; repeated scope questions and publication-specific contingencies need tightening. |
+| [Overview](../../docs/00-overview.md) | Old release-line opening, internal ownership prose, dated examples and future-plan navigation. |
+| [Setup](../../docs/07-setup.md) | 893 lines mix installation with operator reference, development deployment, migrations and test reports. |
+| [Launchers](../../docs/06-launchers.md) | Status/MVP tables, dated proof and historical narration mixed with useful runtime limits. |
+| [Records](../../docs/03-records.md) | Historical compatibility text and roadmap links; actor and PubSub descriptions need verification. |
+| [Agent catalogue](../../docs/agents/README.md) | Discord availability contradiction, editorial rules and a misleading sandbox/grants explanation. |
+| [Telegram](../../docs/agents/telegram.md) | Useful operations/settings reference, with dated provenance and editorial narration to remove. |
 
 Line references below refer to main `1ab9031a`, before cleanup.
 
@@ -173,7 +173,7 @@ Status: **cleanup passes applied; integrated verification passed**. The initial 
 
 ## Application log
 
-The [per-file ledger](doc-cleanup-review.md#file-dispositions) records the full-block and semantic dedup dispositions, audiences, moved guides and narrower contributor-reference reviews. It supersedes the earlier installation-block-only progress tables.
+The [per-file ledger](../reviews/doc-cleanup-review.md#file-dispositions) records the full-block and semantic dedup dispositions, audiences, moved guides and narrower contributor-reference reviews. It supersedes the earlier installation-block-only progress tables.
 
 - Root/overview/setup and runner/operator references: short AI-first entry, manual fallback and current operational limits; detailed references have separate homes.
 - Authority/runtime/user families: complete prose and semantic dedup passes, with corrected authority, delivery, backup and tutorial caveats.
@@ -181,7 +181,7 @@ The [per-file ledger](doc-cleanup-review.md#file-dispositions) records the full-
 - Source README/INSTALL/MODULES family: audience separation, actual package/SDK prerequisites, current contracts and retained contributor build/test mechanics.
 - Closure: runner setup and macOS reread, missing source-reference classification, current web route/status contract corrections.
 
-Static checks on individual batches are evidence only for those batches. Final integrated links, assets, source quotes, canonical-form checks and the required normal runtime gate [passed](doc-cleanup-review.md#final-verification).
+Static checks on individual batches are evidence only for those batches. Final integrated links, assets, source quotes, canonical-form checks and the required normal runtime gate [passed](../reviews/doc-cleanup-review.md#final-verification).
 
 ## Remove thin planning layers
 

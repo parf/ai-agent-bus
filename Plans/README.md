@@ -24,7 +24,7 @@ The adopted [Team v2](Team.v2/README.md#team-v2) carried out most of the 0.9 dev
 
 Questions, decisions and tasks are list items with a glyph, an ID and fields —
 not table rows, because only a list item can carry a thread, an answer form or a
-selection. [Plan markup](MARKUP.md#an-item) owns the form, the glyph set and the
+selection. [Plan markup](rules/MARKUP.md#an-item) owns the form, the glyph set and the
 conversion rule; it is this project's profile of
 [mdhouse's item markup](http://localhost:7777/mdhouse/doc/agent-markup.md),
 which mdhouse parses and writes back. Reference tables stay tables.

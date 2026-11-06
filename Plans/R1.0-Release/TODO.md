@@ -25,7 +25,7 @@ identifies the backup acceptance paragraph. Existing M/B/P wave IDs are unchange
 
 Prepare the [proposed scope](README.md#scope). Started ahead of the release on
 the 0.8 line; R1 releases as 1.0.0 ([decision](DECISIONS.md#recorded-decisions)). Item glyphs follow
-[plan markup](../MARKUP.md#glyphs); built results are in [DONE](DONE.md).
+[plan markup](../rules/MARKUP.md#glyphs); built results are in [DONE](DONE.md).
 
 - ✅ RT1 [Shared locks](done/locks.md#shared-locks)
   - State: built in 0.8.66

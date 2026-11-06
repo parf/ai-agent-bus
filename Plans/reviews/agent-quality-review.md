@@ -1,6 +1,6 @@
 # Bundled agent quality review
 
-📌 **TL;DR:** The [agent checklist](../docs/10-writing-an-agent.md#absolute-minimum--every-agent)
+📌 **TL;DR:** The [agent checklist](../../docs/10-writing-an-agent.md#absolute-minimum--every-agent)
 separates essential behavior, safety required by an agent’s capabilities, and useful optional features.
 The source review covers every shipped package and the built-in `#bus`. Three help-contract gaps
 were corrected; this review does not certify unexecuted provider or lifecycle acceptance.
@@ -8,8 +8,8 @@ were corrected; this review does not certify unexecuted provider or lifecycle ac
 ## Scope and evidence
 
 Reviewed against `f308c291` on 2026-11-03 by two independent Astra inventory reviewers.
-The inventory comes from [the release exporter](../src/agents/package.sh) and
-[setup’s bundle contract](../src/cmd/agent-bus-setup/package_install.go), not directory names.
+The inventory comes from [the release exporter](../../src/agents/package.sh) and
+[setup’s bundle contract](../../src/cmd/agent-bus-setup/package_install.go), not directory names.
 There are 20 bundled packages and one built-in agent. DB and Discord have individual source
 packagers, but are absent from the release exporter and bundle contract.
 
@@ -46,7 +46,7 @@ that it passes or can detect a regression. Focused executed results are recorded
 ## Corrections
 
 The three verified source-level help inconsistencies are tracked separately in
-[the review findings](issues/2026-11/2026-11-03.md#bundled-agents).
+[the review findings](../issues/2026-11/2026-11-03.md#bundled-agents).
 They concern advertised behavior, not an instruction to add features to every agent.
 
 - `1f15eba0` fixes all three entry points and adds their regression assertions.
