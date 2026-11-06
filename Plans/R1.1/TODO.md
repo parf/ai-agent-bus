@@ -13,7 +13,7 @@ Other proposed work needs scope confirmation and resolution of
 ## CLI reply body
 
 
-- ☐ Add `agent-bus call --body` to print only the reply body, without the JSON envelope.
+- ✅ `agent-bus call --body` prints only the reply body, without the JSON envelope (`e43309f1`, 1.0.14).
   - Acceptance: `agent-bus call "#time-simple@$REALM" epoch --body` produces the same output as `agent-bus call "#time-simple@$REALM" epoch | jq -r .body`.
 
 ## Dependencies
