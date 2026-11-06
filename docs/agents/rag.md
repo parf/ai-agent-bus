@@ -192,6 +192,24 @@ agent-bus manage '#ai@node.example' --add-to-set-allow '#rag@node.example'
 - A deleted record is neither counted, similar nor completed from, and `similar` of an absent or deleted record answers `not_found`.
 - `classify` checks the text, its type and the table's prompts before the call; with `classify` off it is refused as `classify_unavailable` before any call.
 
+## Large Markdown files
+
+A Markdown file over 32 KiB, up to 1 MiB, comes by reference: put it in a bigfile, then `upsert` with `bigfile` in place of `data`. [agent.json](../../src/agents/rag/agent.json) owns the fields.
+
+| Step | What RAG does |
+|---|---|
+| Download | Reads the named file and refuses before any paid call when its size or SHA-256 differs from the reference, or `content_hash` differs from `sha256` |
+| Deadline | Works to the call's wait, at most 30 minutes; less than 120 seconds left is refused as `deadline_too_short` |
+| Chunks | One section per ATX heading (CommonMark: fenced code and front matter are text), split at paragraphs; at most 256 chunks |
+| Reuse | A chunk whose heading path and exact text match a stored chunk of the same record and model keeps its vector; labels and metadata are always rewritten |
+| Publish | Each embedded batch is stored at once; the record's head is written last, naming every chunk and its hash |
+
+- **Outcome:** a refusal before the head write answers `deadline` or another named failure with **not stored; prior record unchanged**; a failure while writing the head is unknown. A resend reuses chunks an earlier attempt already embedded and pays Jev again.
+- **Completeness check:** `get` with `check:true` answers `complete:true` only when the head is committed and every chunk it names exists, with the stored `content_hash`, `source` and `indexed_at`; it reads no data or vectors and is free. Plain `get` of a large record is refused: it exceeds the read cap.
+- **Citations:** a search hit from a large file adds `heading_path` (titles, `Title #n` for a repeated sibling) and `lines` (first and last source line).
+- **Delete:** deleting an id that has no head sweeps chunks a failed attempt left, then answers `not_found`.
+- Records stored before large files keep answering unchanged; no reindex is needed.
+
 ## Namespace state and removal
 
 - A new namespace binds immutably to the configured model and dimensions before any paid work. A failed first insertion can leave a known empty namespace. Binding drift refuses before payment.
