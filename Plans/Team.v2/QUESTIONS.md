@@ -17,3 +17,32 @@ Only unresolved choices for [Team v2](README.md#team-v2).
   - ( ) Alert only: at boot a unit tells the owner AB-DVP is down, by desktop notification or mail (a live send), since `#ab-ceo` is down too; the team stays idle until someone starts it ⭐
   - ( ) Neither: the owner starts the team after a reboot, as today
   > 💡👾 Relaunch at boot: windows resume their own sessions and the watchdog catches a deaf face; a deliberate shutdown can stop the unit.
+
+## Less overhead (2026-11-06 review)
+
+Facts, 2026-11-05 18:00 → 11-06 01:40: 338 commits, of which 47 version bumps, 47 changelog edits and 41 issue-file commits; 107 gate logs, 16 of them with a rerun. Of about 35 landed items, roughly a third were real bugs or features (T-38, J104–J106, B6, B7, C2-E2, F1, F2, J90, A5), a third polish or edge cases (F4, F5, F7, K1–K3, G2, J4, D2/D3, B4/B4b, A8, G5, N-docs), and a third test plumbing (J79, J93, J108, J108b, J110, J112, J114). Each small item still drew two readers, mutants, a gate, a version bump, a changelog line and a separate close-out commit.
+
+- ❓ Q348 Which findings become tasks
+  - ( ) Only a bug the owner or a user would hit, a security gap, or a MED+ finding; LOW and polish findings go to one list in the plan and are fixed when their file is touched anyway 🌟
+  - ( ) Every finding from an audit or recheck table becomes a task, as now ⭐
+  > 💡👾 Owner-visible bugs and MED+ only: half of tonight's items were LOW wording, examples and edge cases.
+
+- ❓ Q349 How many reads a change gets
+  - ( ) Risk-based: a ⚠️ subsystem (authority, tokens, storage, parsers, runner, install) keeps two readers and a mutant; everything else gets one reader and no mutant; QA reads ⚠️ only 🌟
+  - ( ) Two readers and mutants for every behaviour change, as now ⭐
+  > 💡👾 Risk-based: the readers are the scarcest quota, and a wording fix does not need two of them.
+
+- ❓ Q350 Version bumps
+  - ( ) One bump per deploy window, by #ab-ceo at deploy time, with one changelog entry for the window 🌟
+  - ( ) A bump per landing marked `bump`, as now ⭐
+  > 💡👾 Per deploy: 20 PATCH numbers in one night say nothing a deploy note does not.
+
+- ❓ Q351 Close-out and issue bookkeeping
+  - ( ) The issue/TODO update rides in the landing commit; no separate close-out commit or gate 🌟
+  - ( ) A separate close-out commit after each landing, as now ⭐
+  > 💡👾 Ride the landing: 41 issue-file commits tonight, each needing its own pass.
+
+- ❓ Q352 Flaky gates
+  - ( ) A check that goes green only on rerun is quarantined at once (skipped with a J-item) instead of being rerun; the gate never reruns silently 🌟
+  - ( ) Rerun and diagnose in parallel, as now ⭐
+  > 💡👾 Quarantine: 16 reruns tonight cost a full gate each.
