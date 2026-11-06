@@ -26,3 +26,12 @@ suggestion with `✅ 💡` or `🚫 💡`.
   - ( ) Convert this node once, offline after a backup: drop `personal`, delete the 3 ownerless test leftovers; every record, token, KV value and queue is kept 🌟
   - ( ) Start this node on an empty 1.0 store: every agent, user, token and stored value is lost and set up again ⭐
 
+- ❓ Q340 Which legacy records to delete in the same offline pass as №Q338
+  - Context: owner, 2026-11-05: "clean up all legacy records if we have some". These have no reader now. Deleting is done in the offline conversion, after the backup; this session may not unregister records itself. AI-session names come back by themselves the next time that session starts
+  - [ ] The old AB team (13): `#claude/ab-dvp-b`, `#claude/ab-dvp`, `#claude/ab`, `#claude/ab2`, `#claude/ab2-review`, `#codex/xab`, `#codex/xab2`, `#codex/ab-dvp`, `#codex/ab-dvp-3`, `#opencode/oab`, `#opencode/oc-ab`, `#opencode/oc-ab2`, and W1A's stale forks `#ab-w1a.job`, `#ab-w1a.job.2` 🌟
+  - [ ] Idle AI sessions of other projects, unused for 7 days or more (about 30: the `hbfr-*`, `rd*`, `home-parf-*`, `radaris`, `realmomove`, `spartan-test`, `cod-misc`, `run-dnf-update`, `j60-live`, `random`, `oc-main` names) 🌟
+  - [ ] Demo and example agents from September and October: `#demo@localhost`, `#stats-go`, `-java`, `-php`, `-python`, `-rust`, `-ts@localhost`, `#kv-example`, `#agent1@parf-dvp.difive.com`, `#dev-runner@rdvp` 🌟
+  - [ ] Test users and fixtures: `alice@`, `bob@`, `carol@`, `dave@`, `eve@fresh`, `newcomer@h`, `rtest`, the Star Wars and Spaceballs fixture records (`luke@tatooine`, `leia@alderaan`, `han@corellia`, `vader@empire`, `yoda@dagobah`, `dark-helmet@spaceball`, `lone-starr@druidia`, `vespa@druidia`, `yogurt@vega`), and the ownerless `agent-bus-runner` 🌟
+  - [ ] Unclear, keep unless you say: the user `maxavg`, the service `hdb3`, the group `@ops`
+  > 💡👾 The first four groups; the fifth only if you know they are unused. Recent sessions (used in the last week) and `#db`, `#discord` (disabled, configured) stay.
+
