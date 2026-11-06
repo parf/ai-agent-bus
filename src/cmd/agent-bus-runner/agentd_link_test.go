@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
@@ -172,7 +173,38 @@ func TestStartSweepsLeftoverInstallStagingSafely(t *testing.T) {
 	if err := os.Symlink(outside, filepath.Join(r.agents, ".install-link")); err != nil {
 		t.Fatal(err)
 	}
+	removeStale := filepath.Join(r.agents, ".remove-stale")
+	writeFile(t, filepath.Join(removeStale, "scratch"), "x")
+	removeKept := filepath.Join(r.agents, ".remove-kept")
+	writeFile(t, filepath.Join(removeKept, "package", "agent.json"), "{}")
+	hostStale := filepath.Join(r.host, ".remove-stale")
+	writeFile(t, filepath.Join(hostStale, "scratch"), "x")
+	hostKept := filepath.Join(r.host, ".remove-kept")
+	writeFile(t, filepath.Join(hostKept, "settings", "env"), "A=1")
+	if err := os.Symlink(outside, filepath.Join(r.agents, ".remove-link")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(r.host, ".remove-link")); err != nil {
+		t.Fatal(err)
+	}
+	// Abandoned means old enough that nobody is about to take its lease.
+	old := time.Now().Add(-time.Hour)
+	for _, dir := range []string{stale, kept, removeStale, removeKept, hostStale, hostKept} {
+		if err := os.Chtimes(dir, old, old); err != nil {
+			t.Fatal(err)
+		}
+	}
 	r.sweepStaging()
+	for _, gone := range []string{removeStale, hostStale, filepath.Join(r.agents, ".remove-link"), filepath.Join(r.host, ".remove-link")} {
+		if _, err := os.Lstat(gone); !os.IsNotExist(err) {
+			t.Fatalf("%s survived the sweep: %v", gone, err)
+		}
+	}
+	for _, kept := range []string{filepath.Join(removeKept, "package", "agent.json"), filepath.Join(hostKept, "settings", "env")} {
+		if _, err := os.Lstat(kept); err != nil {
+			t.Fatalf("the sweep removed a retained tree %s: %v", kept, err)
+		}
+	}
 	for _, gone := range []string{stale, filepath.Join(r.agents, ".install-link")} {
 		if _, err := os.Lstat(gone); !os.IsNotExist(err) {
 			t.Fatalf("%s survived the sweep: %v", gone, err)
@@ -184,10 +216,63 @@ func TestStartSweepsLeftoverInstallStagingSafely(t *testing.T) {
 	if _, err := os.Lstat(filepath.Join(kept, "previous", "agent.json")); err != nil {
 		t.Fatalf("the sweep removed a retained previous tree: %v", err)
 	}
-	if !strings.Contains(said.String(), ".install-kept") {
-		t.Fatalf("the kept tree was not named: %q", said.String())
+	for _, name := range []string{".install-kept", ".remove-kept"} {
+		if !strings.Contains(said.String(), name) {
+			t.Fatalf("the kept tree %s was not named: %q", name, said.String())
+		}
 	}
 	if _, err := os.Lstat(filepath.Join(r.agents, "fixture")); err != nil {
 		t.Fatalf("the sweep touched a package: %v", err)
+	}
+}
+
+// Two runners may share one agents/ directory (a root-owned shared agent.d): a runner that starts and
+// sweeps leftovers must not remove the staging another one is working in, and a remove's too.
+func TestStartSweepKeepsAnotherRunnersLiveStaging(t *testing.T) {
+	a, _, _ := configurationFixture(t, "", "printf old")
+	b := &runner{name: "#runner2@h", agents: a.agents, host: a.host, say: &bytes.Buffer{}}
+	entered, release := make(chan struct{}), make(chan struct{})
+	a.fetch = func(ctx context.Context, in installRequest, dest string) error {
+		writeFile(t, filepath.Join(dest, "agent.json"), "{}")
+		close(entered)
+		<-release
+		return os.ErrInvalid
+	}
+	done := make(chan error, 1)
+	go func() {
+		done <- a.installPackage(context.Background(), "install newagent git https://fixture.invalid/repo "+installPin)
+	}()
+	<-entered
+	staged := stagingLeft(t, a)
+	if len(staged) != 1 {
+		close(release)
+		t.Fatalf("staging while the fetch runs: %v", staged)
+	}
+	stagedFile := filepath.Join(a.agents, staged[0], "newagent", "agent.json")
+	// Old enough that only the lease, not its age, protects it.
+	old := time.Now().Add(-time.Hour)
+	if err := os.Chtimes(filepath.Join(a.agents, staged[0]), old, old); err != nil {
+		t.Fatal(err)
+	}
+	b.sweepStaging()
+	_, statErr := os.Lstat(stagedFile)
+	close(release)
+	<-done
+	if statErr != nil {
+		t.Fatalf("another runner's sweep removed a live install's staging: %v", statErr)
+	}
+	// Once its install is over, nothing of it is left, and a sweep finds nothing to do.
+	if left := stagingLeft(t, a); len(left) != 0 {
+		t.Fatalf("staging left after the install: %v", left)
+	}
+	// An abandoned staging directory (no lease held, not new) is removed.
+	dead := filepath.Join(a.agents, ".install-dead")
+	writeFile(t, filepath.Join(dead, "newagent", "agent.json"), "{}")
+	if err := os.Chtimes(dead, old, old); err != nil {
+		t.Fatal(err)
+	}
+	b.sweepStaging()
+	if _, err := os.Lstat(dead); !os.IsNotExist(err) {
+		t.Fatalf("an abandoned staging directory survived: %v", err)
 	}
 }

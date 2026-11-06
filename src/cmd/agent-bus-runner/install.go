@@ -77,41 +77,48 @@ func (r *runner) installTarget(in installRequest) (existing bool, entries map[st
 // fetch and a package build can each last two minutes, and every control call
 // of the runner, stop and disable included, waits for reloadMu. On failure it
 // removes the staging directory.
-func (r *runner) stageInstall(ctx context.Context, in installRequest) (temp, staged string, err error) {
+func (r *runner) stageInstall(ctx context.Context, in installRequest) (temp, staged string, lease *os.File, err error) {
 	dir, err := os.MkdirTemp(r.agents, ".install-")
 	if err != nil {
-		return "", "", fmt.Errorf("create install staging directory: %w", err)
+		return "", "", nil, fmt.Errorf("create install staging directory: %w", err)
 	}
 	// dir, not the result temp: a failing return has already blanked temp.
 	defer func() {
 		if err != nil {
+			if lease != nil {
+				lease.Close()
+			}
 			os.RemoveAll(dir)
 		}
 	}()
+	lease, err = holdLease(dir)
+	if err != nil {
+		return "", "", nil, err
+	}
 	temp = dir
 	staged = filepath.Join(temp, in.agent)
 	if in.remote != "" {
 		if err := os.Mkdir(staged, 0700); err != nil {
-			return "", "", err
+			return "", "", nil, err
 		}
 		fetch := r.fetchDeploy
 		if r.fetch != nil {
 			fetch = r.fetch
 		}
 		if err := fetch(ctx, in, staged); err != nil {
-			return "", "", err
+			return "", "", nil, err
 		}
-		return temp, staged, nil
+		return temp, staged, lease, nil
 	}
 	source, err := r.bundledInstallSource(in.agent)
 	if err != nil {
-		return "", "", err
+		return "", "", nil, err
 	}
 	script := filepath.Join(source, "package.sh")
 	scriptInfo, scriptErr := os.Lstat(script)
 	if scriptErr == nil || gitAgentDirectory(r.bundled) {
 		if scriptErr != nil || !scriptInfo.Mode().IsRegular() {
-			return "", "", fmt.Errorf("checkout bundled package has no regular package.sh")
+			return "", "", nil, fmt.Errorf("checkout bundled package has no regular package.sh")
 		}
 		buildCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 		cmd := exec.CommandContext(buildCtx, "/bin/sh", script, staged)
@@ -121,12 +128,12 @@ func (r *runner) stageInstall(ctx context.Context, in installRequest) (temp, sta
 		err = cmd.Run()
 		cancel()
 		if err != nil {
-			return "", "", fmt.Errorf("bundled package build failed; live package unchanged")
+			return "", "", nil, fmt.Errorf("bundled package build failed; live package unchanged")
 		}
 	} else if err := copyDeployTree(source, staged); err != nil {
-		return "", "", err
+		return "", "", nil, err
 	}
-	return temp, staged, nil
+	return temp, staged, lease, nil
 }
 
 func (r *runner) installPackage(ctx context.Context, body string) error {
@@ -144,10 +151,11 @@ func (r *runner) installPackage(ctx context.Context, body string) error {
 	if _, _, err := r.installTarget(in); err != nil {
 		return err
 	}
-	temp, staged, err := r.stageInstall(ctx, in)
+	temp, staged, lease, err := r.stageInstall(ctx, in)
 	if err != nil {
 		return err
 	}
+	defer lease.Close() // after the removal below: the lease outlives the staging
 	clean := true
 	defer func() {
 		if clean {
@@ -344,6 +352,12 @@ func (r *runner) removePackage(name string) error {
 	if err != nil {
 		return err
 	}
+	lease, err := holdLease(temp)
+	if err != nil {
+		os.RemoveAll(temp)
+		return err
+	}
+	defer lease.Close() // after the removal below
 	clean := true
 	defer func() {
 		if clean {
@@ -369,6 +383,12 @@ func (r *runner) removePackage(name string) error {
 		if err != nil {
 			return restore(err)
 		}
+		trashLease, err := holdLease(trash)
+		if err != nil {
+			os.RemoveAll(trash)
+			return restore(err)
+		}
+		defer trashLease.Close()
 		defer func() {
 			if clean {
 				os.RemoveAll(trash)
@@ -403,20 +423,27 @@ func (r *runner) removePackage(name string) error {
 	return nil
 }
 
-// sweepStaging removes what a crashed or killed install left in agents/ before the runner serves:
-// private .install- staging directories. One that holds a retained `previous` tree is the only copy
-// of a package after a failed restore, so it stays and is named. A link is removed as the link it
-// is, never followed: its target is not ours.
+// sweepStaging removes what a crashed or killed install or remove left before the runner serves:
+// private .install- and .remove- directories in agents/, and .remove- ones in the host directory.
+// One that still holds a tree it was working on (previous, package, settings) is the only copy
+// after a failed restore, so it stays and is named. A link is removed as the link it is, never
+// followed: its target is not ours.
 func (r *runner) sweepStaging() {
-	entries, err := os.ReadDir(r.agents)
+	r.sweepDir(r.agents, ".install-", "previous")
+	r.sweepDir(r.agents, ".remove-", "package")
+	r.sweepDir(r.host, ".remove-", "settings")
+}
+
+func (r *runner) sweepDir(dir, prefix string, keep ...string) {
+	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return
 	}
 	for _, e := range entries {
-		if !strings.HasPrefix(e.Name(), ".install-") {
+		if !strings.HasPrefix(e.Name(), prefix) {
 			continue
 		}
-		path := filepath.Join(r.agents, e.Name())
+		path := filepath.Join(dir, e.Name())
 		fi, err := os.Lstat(path)
 		if err != nil {
 			continue
@@ -425,8 +452,17 @@ func (r *runner) sweepStaging() {
 			os.Remove(path)
 			continue
 		}
-		if _, err := os.Lstat(filepath.Join(path, "previous")); err == nil {
-			fmt.Fprintf(r.say, "%s: %s holds a previous package tree from an install that did not finish; kept for you to restore or remove\n", r.name, path)
+		if leased(path, fi) {
+			continue // a running install or remove, here or in another runner
+		}
+		held := false
+		for _, name := range keep {
+			if _, err := os.Lstat(filepath.Join(path, name)); err == nil {
+				held = true
+			}
+		}
+		if held {
+			fmt.Fprintf(r.say, "%s: %s holds a package tree or settings from an install or remove that did not finish; kept for you to restore or remove\n", r.name, path)
 			continue
 		}
 		os.RemoveAll(path)
