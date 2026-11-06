@@ -5,7 +5,7 @@
 - **Outcome:** `#filescan/<name>` watches one directory, tells each subscribed agent what was added, changed, renamed or removed, and marks a file done only after that agent answers ok.
 - **Start:** `agent-bus call '#filescan/vault@node.example' 'sub add #rag@node.example'` ([how it is used](#how-it-is-used)).
 
-Plan only, for R1.1; nothing here is built. The owner's choices are in [decisions](DECISIONS.md#recorded-decisions), the open ones in [Q305–Q310](QUESTIONS.md#filescan).
+Approved by the owner on 2026-11-05 ([Q334](resolved.md#Q334)); built in the stages below, each landing alone. The owner's choices are in [decisions](DECISIONS.md#recorded-decisions) and the answers to [Q305–Q310](resolved.md#Q305).
 
 ## Why
 
@@ -19,14 +19,14 @@ Plan only, for R1.1; nothing here is built. The owner's choices are in [decision
 - ✅ **At once on Linux:** the kernel says when a file was finished or moved, and the message goes out then; a slow timer is only the safety net.
 - ✅ **Nothing lost to a slow target:** each subscriber keeps its own list of what it has confirmed, so one stuck agent does not hold up the others.
 - ✅ **A safe delete:** an unmounted or emptied folder never wipes an index; the agent stops and asks.
-- ✅ **A first run that costs what you chose:** record the existing files without sending them, or send at most N per scan.
+- ✅ **A first run that feeds the whole existing file base,** at most N per scan, or only records it when you say `baseline` ([cost note](#first-run)).
 - 🚫 **Not for:** reading a file's meaning (the subscriber does that), watching a file's growth line by line (use [logwatch](../../docs/agents/logwatch.md#what-it-does)), or Windows (macOS gets polling only).
 
 ## Use cases
 
 | Use | What the target does with it | Needs |
 |---|---|---|
-| A notes vault (Obsidian or any Markdown folder) | [RAG](../../docs/agents/rag.md#what-it-does) stores each note and deletes it when the file goes | `#rag`, which exists; its 32 KiB text limit applies ([Q306](QUESTIONS.md#filescan)) |
+| A notes vault (Obsidian or any Markdown folder) | [RAG](../../docs/agents/rag.md#what-it-does) stores each note and deletes it when the file goes | `#rag`, which exists; its 32 KiB text limit applies ([Q306](resolved.md#Q306)) |
 | A drop folder of invoices or PDFs | A processing agent reads each new file and files or answers it | a processing agent we do not have; the target is whatever the owner writes |
 | A notes or docs repository | Slack or Telegram say "`docs/plan.md` changed" | [Slack](../../docs/agents/slack.md#what-it-does) or [Telegram](../../docs/agents/telegram.md#what-it-does); watch mode, no contents wanted |
 | A log or report directory | [eventlog](../../docs/agents/eventlog.md#what-it-does) keeps a line per new report | `#eventlog`, which exists |
@@ -92,7 +92,7 @@ flowchart LR
 | `scan [confirm:true]` | Walks the tree now; `confirm:true` also releases a held mass delete |
 | `status` | Mode and fallback, files tracked, backlog per subscriber, pending count, last scan, state size against its cap, and a paused guard |
 | `reset confirm:true` | Drops the saved state and re-baselines from the folder as it is now |
-| `sub add <target> [/regex/] [as rag <namespace> <table>] [replay:true]` | Subscribes an agent or queue to changes whose relative path matches; `as rag` sends rag's own upsert and delete calls ([RAG](#rag)) |
+| `sub add <target> [/regex/] [as rag <namespace> <table>] [replay:false]` | Subscribes an agent or queue to changes whose relative path matches; the existing files are replayed first unless `replay:false`; `as rag` sends rag's own upsert and delete calls ([RAG](#rag)) |
 | `sub list` | Your subscriptions with sent, confirmed, pending and dropped counts |
 | `sub delete <id>` | Removes one and its saved marks |
 
@@ -107,9 +107,9 @@ Settings, in the agent's Configuration:
 | `settle` | Seconds a file must stay quiet before it is sent, for writers that close it several times | 0: send at once |
 | `namespace`, `table` | Default for a `sub add … as rag` that names none | none |
 | `batch` | Changes sent per round to one subscriber | 20 |
-| `max_file_size` | The inline limit: a larger file is not sent inline ([Q306](QUESTIONS.md#filescan)) | 32 KiB, rag's own limit |
+| `max_file_size` | The inline limit: a larger file is not sent inline ([what a message carries](#what-a-message-carries)) | 32 KiB, rag's own limit |
 | `max_per_scan` | Changes queued per scan; the rest wait for the next | 200 |
-| `baseline` | `true` records the files that exist at the first scan without sending them | `false` |
+| `baseline` | `true` records the files that exist at the first scan without sending them, so no subscriber gets a replay | `false` |
 | `delete_pct`, `delete_max` | The mass-delete guard: more than this share or this many deletes in one pass | 20 %, 500 |
 | `state_max` | Cap on the state file | 64 MiB |
 
@@ -117,7 +117,8 @@ Settings, in the agent's Configuration:
 
 - One change per message: `created`, `changed`, `deleted` or `renamed`, the relative path (and the old one for a rename), size, modification time and SHA-256.
 - The file's text is inline when it is at most `max_file_size` and readable as text; a deleted file has none.
-- A file over the limit is reported with its size and hash and no contents. For a subscriber that opts in the contents may go through a [bigfile](../../docs/03-records-kv.md#bigfiles) instead, named by the hash with a short lifetime; bigfiles have existed since T-20, so this fallback is one put and a name in the message ([Q306](QUESTIONS.md#filescan)).
+- **Inline by default, a bigfile above the inline limit, never a silent truncation** (owner, 2026-11-01): a file over the limit is reported with its size and hash and no contents, and a subscriber that opts in gets the contents through a [bigfile](../../docs/03-records-kv.md#bigfiles) instead, named by the hash with a short lifetime. A message never carries a cut-off prefix of a file.
+- `as rag` cannot take a reference, so a file over RAG's 32 KiB text limit is skipped for it and named in `status` ([Q306](resolved.md#Q306)).
 - Unreadable files are skipped, counted and named in a warning.
 
 ## Finding changes
@@ -135,8 +136,8 @@ This is [imap's model](../../docs/agents/imap.md#who-may-use-it) and the [shared
 - The author needs may-send to the target and to `#filescan` at `sub add`, and again before every forward; there is no Owner bypass.
 - The target must be a queue or an agent whose access list also admits `#filescan`; an unavailable author check never falls back to the agent's own authority.
 - Limits are per creator and per instance, as in the shared rules. The creator, or the instance's Owner or Maintainers, lists and deletes.
-- **One difference, deliberate:** the shared rule sends a copy once and never retries. A file index cannot lose a change, so a change stays pending and is sent again until the subscriber confirms ([Q310](QUESTIONS.md#filescan)). The authority check is repeated before each try.
-- Tracking is per subscriber; a subscriber added later starts from now ([Q307](QUESTIONS.md#filescan)).
+- **One difference, deliberate:** the shared rule sends a copy once and never retries. A file index cannot lose a change, so a change stays pending and is sent again until the subscriber confirms ([Q310](resolved.md#Q310)). The authority check is repeated before each try.
+- Tracking is per subscriber; a subscriber added later is sent every existing file first (a replay, [Q307](resolved.md#Q307)), unless it says `replay:false`.
 
 ## The mass-delete guard
 
@@ -160,8 +161,8 @@ An unmounted drive or a wiped folder looks like "every file was deleted", and an
 - RAG stores a text by namespace, table and id, and deletes one id. A subscriber added `as rag <namespace> <table>` receives those two calls directly, so no bridge agent sits between.
 - The id is the relative path when it is at most 128 characters; otherwise a hash of the path, with the path kept in a key field. A deleted file is a delete of that id.
 - A file counts as tracked only after RAG's ok reply; a refusal leaves it pending.
-- RAG has no rename. A rename is a delete of the old id and an upsert of the new one, sent in that order, and tracked after both are ok ([Q305](QUESTIONS.md#filescan)).
-- RAG's text limit is 32 KiB, so a larger note is not indexed ([Q306](QUESTIONS.md#filescan)).
+- RAG has no rename. A rename is a delete of the old id and an upsert of the new one, sent in that order, and tracked after both are ok ([Q305](resolved.md#Q305)).
+- RAG's text limit is 32 KiB, so a larger note is skipped for RAG and named in `status` ([Q306](resolved.md#Q306)).
 - Every upsert pays for embeddings, which is why `max_per_scan` is always on and `baseline` exists.
 
 ## Trust
@@ -170,17 +171,28 @@ Contents travel inline in the message body and stay in the target's queue until 
 
 ## First run
 
-- Default: the first scan queues every file, at most `max_per_scan` per scan, and `status` shows the backlog shrinking.
+- Default ([Q307](resolved.md#Q307)): the first scan, and a subscriber added later, queue every existing file, at most `max_per_scan` per scan, and `status` shows the backlog shrinking. **The cost is real:** a replay into a paid target sends one upsert, and so one embedding, per file.
 - `baseline: true` records what exists without sending it, so only later changes go out.
-- A paid target (RAG) should use `baseline` or a small `max_per_scan` on a big vault.
+- A paid target (RAG) on a big vault should use `baseline`, `replay:false` or a small `max_per_scan`; the guide says so next to the default.
 
 ## Host and sandbox
 
-- The agent runs on the person's user-account runner ([RT31](../R1.0-Release/DONE.md#rt31-user-account-runner-close-out)), as that person, so it reads only what they can read.
-- It needs the runner to bind exactly `dir` read-only into the sandbox. The sandbox can already bind read-only paths, but no agent setting asks for one today; that runner feature is step F0 ([Q309](QUESTIONS.md#filescan)).
+- **Who it runs as:** the runner's per-agent user, with no added privilege and no sudo ([Q308](resolved.md#Q308)). On a person's user-account runner ([RT31](../R1.0-Release/DONE.md#rt31-user-account-runner-close-out)) that is the person, who reads only what they can read; a system path through the system runner is allowed too, read as that runner's account.
+- **Who fixes the root:** the record's Owner sets `dir` when configuring the agent; a subscriber never can, and nothing in a call changes it.
+- It needs the runner to bind exactly `dir` read-only into the sandbox. The sandbox can already bind read-only paths, but no agent setting asks for one today; that runner feature is step F0 ([Q309](resolved.md#Q309)).
 - `dir` is resolved to its real path when saved, with no symlink leading out of it; `/`, the home root and the runner's own state directory are refused.
-- A system path through the system runner is not planned; it is an owner decision ([Q308](QUESTIONS.md#filescan)).
+- **A kept process:** inotify needs a process that stays up, so FileScan serves itself with its own token ([agents that serve themselves](../../docs/runner/configuration.md#agents-that-serve-themselves)); the deploy step is the Owner registering the record and handing its token over once, as in T-36's second step.
 - inotify watches inodes in the kernel, and a bind mount in the agent's own namespace shares the inode, so watches should work on a bound path. This is checked in F2's acceptance rather than assumed.
+
+## Stages
+
+Each stage lands alone, after the one before it.
+
+| Stage | Builds |
+|---|---|
+| S1 | The shared core as a library: the state file, subscriptions with authority, confirmed delivery with resend, and the poll timer ([Q314](resolved.md#Q314)); [DBSync](dbsync.md#stages) uses it too |
+| S2 | FileScan: steps F0–F4 below |
+| S3 | [DBSync](dbsync.md#stages) for MySQL and PostgreSQL |
 
 ## Steps and estimate
 
@@ -188,13 +200,13 @@ AI time, agent wall-clock, including reviews and gate loops.
 
 | Step | Builds | Estimate |
 |---|---|---|
-| F0 | Runner: an agent's `dir` setting becomes one read-only bind, resolved and checked at save ([Q309](QUESTIONS.md#filescan)) | 40 to 60 min |
-| F1 | Agent core: configuration, state file, flock, poll scan, `scan` `status` `reset`, subscriptions with confirm and resend | 90 to 120 min |
+| F0 | Runner: an agent's `dir` setting becomes one read-only bind, resolved and checked at save ([Q309](resolved.md#Q309)) | 40 to 60 min |
+| F1 | Agent core on the S1 library: configuration, poll scan, `scan` `status` `reset`, replay on `sub add` | 60 to 90 min |
 | F2 | inotify path: watches, cookie pairing, overflow rescan, watch-limit fallback, modes, `status` mode line | 60 to 90 min |
 | F3 | Mass-delete guard and the RAG form (`as rag`, rename as delete plus upsert, hashed ids) | 45 to 60 min |
 | F4 | Smoke lines, the user guide in `docs/agents/`, and the mutants | 45 to 60 min |
 
-About four to six hours of agent time in all; the owner's steps are only the Configuration of a real vault and, at the end, a live RAG run (one paid embedding call per file).
+About four to six hours of agent time in all, after the shared core; the owner's steps are the folder to watch, the token hand-over, and at the end a live RAG run (one paid embedding call per file).
 
 ## Acceptance
 
@@ -202,4 +214,4 @@ About four to six hours of agent time in all; the owner's steps are only the Con
 
 ## Questions
 
-[Q305–Q310](QUESTIONS.md#filescan), each with a recommendation. Its sibling for database rows is [DBSync](dbsync.md#shared-with-filescan-and-different); sharing code is [Q314](QUESTIONS.md#dbsync).
+Answered: [Q305–Q310](resolved.md#Q305), under [Q334](resolved.md#Q334). Its sibling for database rows is [DBSync](dbsync.md#shared-with-filescan-and-different); the shared code is [Q314](resolved.md#Q314).
