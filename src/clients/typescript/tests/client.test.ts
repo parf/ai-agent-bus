@@ -568,7 +568,7 @@ for(const row of conformanceCases('bigfile') as unknown as StateCase[]) test(`sh
 // Ordinary native calls over the same event vectors as every other adapter.
 type EventStep = {as: 'owner'|'agent'|'third'|'worker'; op: string; body?: string; name?:string; changes?:Record<string,unknown>; inbox?:string; expect?:Record<string,unknown>; same_answer_as?:number};
 for(const file of ['events','event-subscriptions']) {
-const eventCases = JSON.parse(readFileSync(join(root,`src/testdata/client-conformance/${file}.json`),'utf8')) as Array<{id:string;fresh:boolean;steps:EventStep[]}>;
+const eventCases = conformanceCases(file) as unknown as Array<{id:string;fresh:boolean;steps:EventStep[]}>;
 for (const row of eventCases) test(`shared ${file} vectors: ${row.id}`, async()=>{
  expect(row.fresh).toBe(true);
  const actors = {owner:bus('owner@fixture'), agent:bus('#caller@fixture'), third:bus('#outsider@fixture'), worker:bus('#worker@fixture')};
