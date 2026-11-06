@@ -32,3 +32,11 @@ Facts, 2026-11-05 18:00 → 11-06 01:40: 338 commits, of which 47 version bumps,
 
 - ✅ Q358 → [TD10](DECISIONS.md#TD10)
 
+
+## Repository rules
+
+- ❓ Q366 May a plan hold its own questions in a combined document
+  - Context: CLAUDE.md § Working rules, "Open choices", makes the owning plan's QUESTIONS file canonical, and a topic points to it. On 2026-11-06 the owner asked for RT19's questions to live in its combined plan ([root-runner.md § Questions](../R1.1/root-runner.md#questions)), with R1.1 QUESTIONS only pointing there; a lead then flagged it as a rule break
+  - ( ) Add to the rule: "or a combined plan document, when the owner asks for one, with the QUESTIONS file pointing to it" 🌟
+  - ( ) Keep the rule; RT19 is a one-off exception ⭐
+  > 💡👾 Add it: the rule then matches what the owner does, and nobody flags it again.
