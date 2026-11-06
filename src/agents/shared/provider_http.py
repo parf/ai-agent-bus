@@ -38,8 +38,8 @@ def expired(_signum, _frame):
     raise TimeoutError()
 
 
-def arm_deadline(envelope):
-    remaining = 60.0
+def arm_deadline(envelope, ceiling=60.0):
+    remaining = ceiling
     if envelope.get("deadline") and not envelope["deadline"].startswith("0001-"):
         deadline = datetime.datetime.fromisoformat(envelope["deadline"].replace("Z", "+00:00"))
         remaining = min(remaining, deadline.timestamp() - time.time() - 0.1)

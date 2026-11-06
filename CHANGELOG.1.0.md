@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.13 — 2026-11-05
+
+ai image calls get a 90 s ceiling (75 s generation), other methods keep 60 s; a too-short --wait names the minimum
+
 ## 1.0.12 — 2026-11-05
 
 The agent-bus CLI takes its identity from the launcher session file, so a renamed session acts as its new name; a no-bus launcher restart continues the conversation

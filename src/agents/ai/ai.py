@@ -325,7 +325,7 @@ def usage_line(result):
 
 def exchange(envelope, base, verb, path, payload, key, limit=MAX_BYTES, image=False):
     """One provider request under the caller's deadline: (status, raw body)."""
-    timer, remaining = arm_deadline(envelope)
+    timer, remaining = arm_deadline(envelope, ceiling=90) if image else arm_deadline(envelope)
     connection = None
     try:
         if image:
@@ -333,7 +333,7 @@ def exchange(envelope, base, verb, path, payload, key, limit=MAX_BYTES, image=Fa
             if remaining < 30:
                 # Refuse before connecting: a short default call must not pay
                 # for image generation that cannot finish and be stored.
-                raise ProxyError("image needs --wait of at least 60s")
+                raise ProxyError("image needs at least 30 s for generation: use --wait=60s or more (90s recommended)")
             signal.setitimer(signal.ITIMER_REAL, remaining)
         connection = connect(base, remaining)
         if verb == "POST":

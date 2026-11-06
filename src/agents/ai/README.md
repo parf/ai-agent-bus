@@ -32,7 +32,7 @@ client's reply request, which the daemon reads up to 1 MiB. Request and response
 bodies are bounded at 1 MiB, except an image answer ([image limits](../../../docs/agents/ai.md#images)).
 The image cap budgets parsing and decoding for both kept processes sharing the
 memory limit. Each provider request has an alarm 100 ms before the delivered
-deadline, capped at 60 seconds; image requests leave a further 15 seconds for
+deadline, capped at 60 seconds (90 for images); image requests leave a further 15 seconds for
 storage and the reply. The loop runs in the main thread so SIGALRM works. Provider, bigfile and validation failures are normal `error:`
 answers.
 
