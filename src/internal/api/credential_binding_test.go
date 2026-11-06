@@ -73,7 +73,9 @@ func startNode(t *testing.T, path string) *node {
 		t.Fatal(err)
 	}
 	n.bus.Restore(snap)
-	n.bus.Persistence(st)
+	if err := n.bus.Persistence(st); err != nil {
+		t.Fatal(err)
+	}
 	if err := n.bus.EstablishDaemonOwner("admin@h"); err != nil {
 		t.Fatal(err)
 	}
@@ -218,7 +220,9 @@ func TestAFailedTransferKeepsTheOwnerAndTheCredential(t *testing.T) {
 	before, _ := n.stored("#worker@h")
 	// A store that refuses the commit: the transfer is abandoned whole.
 	failing := &refusingStore{Store: n.st, err: errors.New("disk is full")}
-	n.bus.Persistence(failing)
+	if err := n.bus.Persistence(failing); err != nil {
+		t.Fatal(err)
+	}
 	bob := "bob@h"
 	if _, err := n.bus.Manage("alice@h", core.Management{Name: "#worker@h", Owner: &bob}); err == nil {
 		t.Fatal("a transfer whose commit failed was reported done")
@@ -232,7 +236,9 @@ func TestAFailedTransferKeepsTheOwnerAndTheCredential(t *testing.T) {
 	if after, _ := n.stored("#worker@h"); after.CredentialPair != before.CredentialPair {
 		t.Fatalf("a failed transfer rewrote the stored pair: %+v", after.CredentialPair)
 	}
-	n.bus.Persistence(n.st)
+	if err := n.bus.Persistence(n.st); err != nil {
+		t.Fatal(err)
+	}
 	n = n.restart()
 	if got := n.code(tok); got != 200 {
 		t.Fatalf("after a restart the old credential answers %d", got)
@@ -240,7 +246,7 @@ func TestAFailedTransferKeepsTheOwnerAndTheCredential(t *testing.T) {
 }
 
 type refusingStore struct {
-	ports.Store
+	*sqlite.Store
 	err error
 }
 
