@@ -149,7 +149,9 @@ A replayable session, [`filescan-session.jsonl`](../../src/agents/filescan/fixtu
 | `contents` | string | `omitted: over max_file_size or not text` (or over 32 MiB); present instead of `text` for any other non-deleted file, unless the subscriber added `bigfile` and the file is at most 32 MiB |
 | `bigfile` | object | `record`, `name`, `size`, `sha256` and `expires` of the bigfile holding the contents; present only for a `bigfile` subscriber, instead of `contents` |
 
-A `created` message is the first one a subscriber gets for a path, so a replay sends every existing file as `created`. A `deleted` message has only `change`, `path` and `warning`. A `renamed` message carries the new `path`, the `old_path`, and the size, time, hash and text of the file as it is now, so a file written right after its rename arrives as one `renamed` with the new content.
+A `created` message is the first one a subscriber gets for a path, so a replay sends every existing file as `created`. A `deleted` message has only `change`, `path` and `warning`.
+
+A `renamed` message carries the new `path`, the `old_path`, and the size, time, hash and text of the file as it is now, so a file written right after its rename arrives as one `renamed` with the new content.
 
 **The `as rag` form** sends RAG's own calls. FileScan counts an upsert as stored only when RAG answers with the stored record and that record repeats the `namespace`, `tableName`, `id`, `source` and `content_hash` sent; it counts a delete on `{"status":"ok"}` or on RAG's `not_found` refusal. Any other answer leaves the file pending, and it is sent again:
 
