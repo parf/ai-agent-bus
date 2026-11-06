@@ -104,7 +104,7 @@ Four open questions for the [on-demand sync](filescan.md#on-demand-sync) (T-48).
 <a id="Q372"></a>
 
 - ❓ Q372 How a `sync` call answers a run that takes minutes
-  - Context: a sync of a big folder sends one paid upsert per file and waits for each confirmation, so it can outlast a call's deadline. Either way the final answer is confirmed, incomplete or failed, never "started" mistaken for done
+  - Context: a sync of a big folder sends one paid upsert per file and waits for each confirmation, so it can outlast a call's deadline. FileScan's call deadline is 30 s (its `agent.json`), so blocking means a bound under 30 s per call, and how often a caller must call again, unless the sync gets a deadline of its own. Either way the final answer is confirmed, incomplete or failed, never "started" mistaken for done
   - Settled by: the owner
   - ( ) The call blocks up to a bound and then ends incomplete with its counts; the caller calls again and the rerun resumes 🌟
   - ( ) The call answers "started" at once and FileScan sends the caller one final report message when the run ends ⭐
