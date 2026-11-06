@@ -25,6 +25,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -192,9 +193,11 @@ type runner struct {
 	installed    []installed
 	loadErr      string // a load that failed as a whole: agents.json unreadable
 	served       map[string]*served
-	stopped      map[string]bool   // installed keys a stop call took down; guarded by reloadMu
-	closing      atomic.Bool       // the runner is stopping: nothing new is started (J100); set under reloadMu
-	askers       map[string]*asker // names answered asks-only without an ordinary reader; guarded by mu
+	stopped      map[string]bool          // installed keys a stop call took down; guarded by reloadMu
+	closing      atomic.Bool              // the runner is stopping: nothing new is started (J100); set under reloadMu
+	askers       map[string]*asker        // names answered asks-only without an ordinary reader; guarded by mu
+	installing   map[string]*installWatch // installs under way, by package; guarded by mu
+	queue        controlQueue             // the control worker's FIFO (control_queue.go)
 
 	probe     sync.Once // whether this host can sandbox, asked once
 	noSandbox error
@@ -233,6 +236,7 @@ func (r *runner) run(ctx context.Context) error {
 		e, got, err := r.bus.next(ctx, poll, r.readHost, false)
 		if ctx.Err() != nil {
 			fmt.Fprintf(r.say, "%s: stopping\n", r.name)
+			r.refuseQueued()
 			r.stopKept()
 			r.events.close()
 			return nil
@@ -243,6 +247,7 @@ func (r *runner) run(ctx context.Context) error {
 			select {
 			case <-time.After(2 * time.Second):
 			case <-ctx.Done():
+				r.refuseQueued()
 				r.stopKept()
 				r.events.close()
 				return nil
@@ -434,6 +439,28 @@ func (r *runner) status() statusAnswer {
 		}
 		st.Agents = append(st.Agents, a)
 	}
+	// An install under way is said as such until its publish, never as the
+	// settled state of the package it replaces.
+	pkgs := make([]string, 0, len(r.installing))
+	for pkg := range r.installing {
+		pkgs = append(pkgs, pkg)
+	}
+	sort.Strings(pkgs)
+	for _, pkg := range pkgs {
+		seen := false
+		for i := range st.Agents {
+			if a := &st.Agents[i]; a.Key == pkg || strings.HasPrefix(a.Key, pkg+"/") {
+				a.State, a.Reason, seen = "installing", "an install of "+pkg+" is under way", true
+			}
+		}
+		if !seen {
+			n := "#" + pkg
+			if r.realm != "" {
+				n += "@" + r.realm
+			}
+			st.Agents = append(st.Agents, agentStatus{Name: n, Key: pkg, State: "installing", Reason: "an install of " + pkg + " is under way"})
+		}
+	}
 	return st
 }
 
@@ -537,51 +564,40 @@ func (r *runner) handle(e protocol.Envelope) {
 	case managing[verbOf(body)] && !r.mayManage(e):
 		answer = fmt.Sprintf("error: %s is for the runner's Owner and Maintainers: it reaches the host's files and their secrets", verbOf(body))
 	case body == "reload":
-		go func() {
+		r.queueCall(e, controlJob{run: func() {
 			parent := r.ctx
 			if parent == nil {
 				parent = context.Background()
 			}
+			var cancel context.CancelFunc = func() {}
 			if !e.Deadline.IsZero() {
-				var cancel context.CancelFunc
 				parent, cancel = context.WithDeadline(parent, e.Deadline)
-				defer cancel()
 			}
-			r.answer(e, string(mustJSON(r.reloadStatus(parent, 15*time.Second))))
-		}()
+			// The worker moves on once the reload is applied; the wait for
+			// replacement readers answers this call on its own.
+			applied := make(chan struct{})
+			go func() {
+				defer cancel()
+				r.answer(e, string(mustJSON(r.reloadStatusThen(parent, 15*time.Second, func() { close(applied) }))))
+			}()
+			<-applied
+		}, refuse: func(reason string) { r.answer(e, "error: "+reason) }})
 		return
-	case verbOf(body) == "install" || verbOf(body) == "remove":
-		go func() {
-			ctx := r.ctx
-			if ctx == nil {
-				ctx = context.Background()
+	case verbOf(body) == "install":
+		r.install(e, body)
+		return
+	case verbOf(body) == "remove":
+		r.queueCall(e, r.messageJob(e, func() string {
+			args := strings.Fields(body)
+			if len(args) != 2 {
+				return "error: remove takes one package: remove <agent>"
 			}
-			if !e.Deadline.IsZero() {
-				var cancel context.CancelFunc
-				ctx, cancel = context.WithDeadline(ctx, e.Deadline)
-				defer cancel()
+			if err := r.removePackage(args[1]); err != nil {
+				return "error: " + err.Error()
 			}
-			var err error
-			if verbOf(body) == "install" {
-				err = r.installPackage(ctx, body)
-			} else {
-				args := strings.Fields(body)
-				if len(args) != 2 {
-					err = fmt.Errorf("remove takes one package: remove <agent>")
-				} else {
-					err = r.removePackage(args[1])
-				}
-			}
-			if err != nil {
-				r.answer(e, "error: "+err.Error())
-				return
-			}
-			answer := string(mustJSON(r.status()))
-			if verbOf(body) == "remove" {
-				answer += "\nkept work data, tokens and bus records"
-			}
-			r.answer(e, answer)
-		}()
+			r.supersede(args[1], "remove")
+			return string(mustJSON(r.status())) + "\nkept work data, tokens and bus records"
+		}))
 		return
 	case verbOf(body) == "read":
 		if f, err := r.readFile(strings.TrimSpace(strings.TrimPrefix(body, "read"))); err != nil {
@@ -590,42 +606,106 @@ func (r *runner) handle(e protocol.Envelope) {
 			answer = string(mustJSON(f))
 		}
 	case verbOf(body) == "write":
-		// The content is everything after the first line, exactly as sent.
-		first, content, _ := strings.Cut(strings.TrimLeft(e.Body, " \t\r\n"), "\n")
-		if err := r.writeHostFile(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(first), "write")), content); err != nil {
-			answer = "error: " + err.Error()
-		} else {
-			answer = string(mustJSON(r.status()))
-		}
+		r.queueCall(e, r.messageJob(e, func() string {
+			// The content is everything after the first line, exactly as sent.
+			first, content, _ := strings.Cut(strings.TrimLeft(e.Body, " \t\r\n"), "\n")
+			if err := r.writeHostFile(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(first), "write")), content); err != nil {
+				return "error: " + err.Error()
+			}
+			return string(mustJSON(r.status()))
+		}))
+		return
 	case verbOf(body) == "create" || verbOf(body) == "delete":
-		args := strings.Fields(body)
-		var err error
-		switch {
-		case len(args) != 2:
-			err = fmt.Errorf("%s takes one instance: %s <agent>/<instance>", args[0], args[0])
-		case args[0] == "create":
-			err = r.createInstance(args[1])
-		default:
-			err = r.deleteInstance(args[1])
-		}
-		if err != nil {
-			answer = "error: " + err.Error()
-		} else {
-			answer = string(mustJSON(r.status()))
-		}
+		r.queueCall(e, r.messageJob(e, func() string {
+			args := strings.Fields(body)
+			var err error
+			switch {
+			case len(args) != 2:
+				err = fmt.Errorf("%s takes one instance: %s <agent>/<instance>", args[0], args[0])
+			case args[0] == "create":
+				err = r.createInstance(args[1])
+			default:
+				err = r.deleteInstance(args[1])
+			}
+			if err != nil {
+				return "error: " + err.Error()
+			}
+			return string(mustJSON(r.status()))
+		}))
+		return
 	case controls[verbOf(body)]:
-		args := strings.Fields(body)
-		if len(args) != 2 {
-			answer = fmt.Sprintf("error: %s takes one agent: %s <agent>", args[0], args[0])
-		} else if err := r.control(args[0], args[1]); err != nil {
-			answer = "error: " + err.Error()
-		} else {
-			answer = string(mustJSON(r.status()))
-		}
+		r.queueCall(e, r.messageJob(e, func() string {
+			args := strings.Fields(body)
+			if len(args) != 2 {
+				return fmt.Sprintf("error: %s takes one agent: %s <agent>", args[0], args[0])
+			}
+			if err := r.control(args[0], args[1]); err != nil {
+				return "error: " + err.Error()
+			}
+			if args[0] == "stop" {
+				if key, err := r.keyOf(args[1]); err == nil {
+					r.supersede(key, "stop")
+				}
+			}
+			return string(mustJSON(r.status()))
+		}))
+		return
 	default:
 		answer = fmt.Sprintf("error: %s answers status, reload, start, stop, restart, enable, disable, read, write, create, delete, install and remove, not %q", r.name, strings.TrimSpace(e.Body))
 	}
 	r.answer(e, answer)
+}
+
+// queueCall hands a call to the control worker, or refuses it at once.
+func (r *runner) queueCall(e protocol.Envelope, j controlJob) {
+	if err := r.enqueue(j); err != nil {
+		r.answer(e, "error: "+err.Error())
+	}
+}
+
+// install stages a package off every lock, then queues its publish on the
+// control worker. The package shows as installing from here to the publish.
+func (r *runner) install(e protocol.Envelope, body string) {
+	in, err := parseInstall(body)
+	var w *installWatch
+	if err == nil {
+		w, err = r.beginInstall(in.agent)
+	}
+	if err != nil {
+		r.answer(e, "error: "+err.Error())
+		return
+	}
+	go func() {
+		defer r.endInstall(in.agent, w)
+		ctx := r.ctx
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		if !e.Deadline.IsZero() {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithDeadline(ctx, e.Deadline)
+			defer cancel()
+		}
+		err := r.installThrough(ctx, body, func(publish func() error) error {
+			done := make(chan error, 1)
+			if err := r.enqueue(controlJob{
+				run: func() {
+					err := publish()
+					r.endInstall(in.agent, w)
+					done <- err
+				},
+				refuse: func(reason string) { done <- errors.New(reason) },
+			}); err != nil {
+				return err
+			}
+			return <-done
+		})
+		if err != nil {
+			r.answer(e, "error: "+err.Error())
+			return
+		}
+		r.answer(e, string(mustJSON(r.status())))
+	}()
 }
 
 func (r *runner) answer(e protocol.Envelope, answer string) {

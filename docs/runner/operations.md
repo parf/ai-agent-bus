@@ -60,6 +60,7 @@ Replace the name with the one from your listing. The answer includes each agent'
 | `available` | Bundled code is installed; enable it in the inventory to serve it |
 | `disabled` | `"enabled": false` in `runner/agents.json` |
 | `stopped` | enabled and supported, but not being served: a `stop` call (its `reason` says so), or an agent whose registration failed |
+| `installing` | an install of its package is under way, from the call to its publish; a new package has a row of its own until then |
 
 - **`agent_dir`** names the selected package directory. Shared packages override bundles of the same name; see [agent directories](configuration.md#agent-directories).
 - **`processes`** reports `running`, `min` and `max`. For a per-message `args` or `json` script only `max` is in force ([configuration controls](security.md#configuration-controls)).
@@ -82,6 +83,9 @@ Replace the name with the one from your listing. The answer includes each agent'
 
 - **Each control rereads the host's files** as `reload` does, so its answer is what is on disk.
 - **Only `reload` itself** forgets what `stop` calls took down.
+- **Changes run one at a time, in the order the runner took them:** `reload`, the controls, `write`, `create`, `delete`, `remove` and an install's publish. `status` and `read` answer at once, even while a change waits.
+- **At most 16 changes wait.** One more is refused at once with `error: busy: …`; send it again once they are answered.
+- **A stopping runner answers every waiting change** with `error: runner stopping`.
 
 ## Deploying an agent
 
@@ -97,6 +101,8 @@ Replace the name with the one from your listing. The answer includes each agent'
 | `remove <agent>` | Removes the writable package, its inventory entries, env and overrides; answers what it kept: work data, tokens and bus records |
 
 - **Existing packages need `--replace`.** A failed fetch or package check leaves the installed tree and inventory unchanged.
+- **The fetch or build waits for nothing;** the publish then waits its turn with the other changes. A second install of the same package meanwhile is refused as busy.
+- **The later call wins:** a `stop` or `remove` of the package carried out while it is fetched or built drops the install. Its caller gets `error: superseded by stop: …` or `error: superseded by remove: …`, and the live package stays as the later call left it.
 - **Bundled names cannot be removed,** including a writable package shadowing a bundle: disable the agent instead.
 - **Repository rule:** a self-contained package with a regular `agent.json` at its root. Subdirectory layouts, special files and symbolic links escaping the package are refused.
 - **Pins only:** branches, tags, shortened commits and floating `HEAD` are refused. URLs carry no username, password, query or fragment; no credential or source bytes belong in the call.

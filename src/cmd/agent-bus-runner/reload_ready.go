@@ -13,6 +13,12 @@ import (
 // retirement. Serialize reload answers, but release the configuration lock
 // before waiting so status and start/stop controls remain available.
 func (r *runner) reloadStatus(parent context.Context, wait time.Duration) statusAnswer {
+	return r.reloadStatusThen(parent, wait, nil)
+}
+
+// reloadStatusThen is reloadStatus that calls applied, when not nil, once the
+// reload is applied and reloadMu released, before the wait for readers.
+func (r *runner) reloadStatusThen(parent context.Context, wait time.Duration, applied func()) statusAnswer {
 	r.reloadWaitMu.Lock()
 	defer r.reloadWaitMu.Unlock()
 	r.reloadMu.Lock()
@@ -35,6 +41,9 @@ func (r *runner) reloadStatus(parent context.Context, wait time.Duration) status
 	}
 	r.mu.Unlock()
 	r.reloadMu.Unlock()
+	if applied != nil {
+		applied()
+	}
 	tick := time.NewTicker(20 * time.Millisecond)
 	defer tick.Stop()
 	for len(pending) > 0 && ctx.Err() == nil {

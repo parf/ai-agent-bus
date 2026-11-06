@@ -145,6 +145,13 @@ func (r *runner) stageInstall(ctx context.Context, in installRequest) (temp, sta
 }
 
 func (r *runner) installPackage(ctx context.Context, body string) error {
+	return r.installThrough(ctx, body, func(publish func() error) error { return publish() })
+}
+
+// installThrough stages the package off every lock, then hands its publish to
+// through, which runs it: at once, or as a call answers it, on the control
+// worker after the calls accepted before it.
+func (r *runner) installThrough(ctx context.Context, body string, through func(publish func() error) error) error {
 	in, err := parseInstall(body)
 	if err != nil {
 		return err
@@ -170,10 +177,20 @@ func (r *runner) installPackage(ctx context.Context, body string) error {
 			os.RemoveAll(temp)
 		}
 	}()
+	return through(func() error { return r.publishInstall(ctx, in, temp, staged, &clean) })
+}
+
+// publishInstall replaces the live package with the staged one and serves it,
+// under reloadMu. A stop or remove of the package carried out since the
+// install was accepted supersedes it: the later call wins.
+func (r *runner) publishInstall(ctx context.Context, in installRequest, temp, staged string, clean *bool) error {
 	r.reloadMu.Lock()
 	defer r.reloadMu.Unlock()
 	if err := ctx.Err(); err != nil {
 		return err
+	}
+	if verb := r.supersededBy(in.agent); verb != "" {
+		return fmt.Errorf("superseded by %s: a %s of %s was carried out while it was being fetched or built; the install is dropped and the live package is unchanged", verb, verb, in.agent)
 	}
 	existing, entries, err := r.installTarget(in)
 	if err != nil {
@@ -216,7 +233,7 @@ func (r *runner) installPackage(ctx context.Context, body string) error {
 	if err := os.Rename(staged, live); err != nil {
 		if existing {
 			if e := os.Rename(backup, live); e != nil {
-				clean = false
+				*clean = false
 				return fmt.Errorf("publish failed: %v; restore failed, previous tree retained at %s: %w", err, backup, e)
 			}
 		}
@@ -225,12 +242,12 @@ func (r *runner) installPackage(ctx context.Context, body string) error {
 	if err := writeJSON(filepath.Join(r.host, "agents.json"), entries); err != nil {
 		// The old tree stays until inventory publication succeeds.
 		if e := os.Rename(live, staged); e != nil {
-			clean = false
+			*clean = false
 			return fmt.Errorf("inventory failed: %v; new tree could not be withdrawn, previous tree retained at %s: %w", err, backup, e)
 		}
 		if existing {
 			if e := os.Rename(backup, live); e != nil {
-				clean = false
+				*clean = false
 				return fmt.Errorf("inventory failed: %v; restore failed, previous tree retained at %s: %w", err, backup, e)
 			}
 		}
