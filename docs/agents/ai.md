@@ -82,6 +82,7 @@ agent-bus help '#ai@node.example'
 - **Send a full chat request:** `agent-bus call '#ai@node.example' --wait=60s '{"messages":[{"role":"user","content":"Say hello in French."}],"temperature":0.2}'`
 - **Use another model once:** add `"model":"openai/gpt-4.1-mini"` to the JSON.
 - **Pick a model:** `agent-bus call '#ai@node.example' 'models claude'` (or `models free`), then `agent-bus call '#ai@node.example' 'model openai/gpt-4.1-mini'` for its prices per provider.
+- **Which model for what:** [OpenRouter's models, Nov 5 2026](supplemental/OpenRouterModels-Nov-5.md#which-to-use) groups every model by kind and vendor, says what each is for, and puts each vendor's strongest current one first.
 - **Find an image model:** `agent-bus call '#ai@node.example' 'models --images'`, then `model <id>` for its parameters and prices.
 - **Embed texts:** `agent-bus call '#ai@node.example' 'embed ["first text","second text"]'`.
 - **Check the account:** `agent-bus call '#ai@node.example' balance` or `... key` (Owner and Maintainers).
