@@ -3,7 +3,7 @@
 #
 #   sh install.sh                 the full node: needs root (asks for sudo), then agent-bus-setup
 #   sh install.sh --client        the client edition into ~/.local, no root
-#   sh install.sh --version 0.9.x a given release instead of the latest; also the only way to go back
+#   sh install.sh --version <MAJOR.MINOR.PATCH> a given release instead of the latest; also the only way to go back
 #   sh install.sh --client --rollback   switch the client edition back to its previous release
 #   sh install.sh -- <setup args> everything after -- goes to agent-bus-setup (full node)
 #
