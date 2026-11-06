@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.12 — 2026-11-05
+
+The agent-bus CLI takes its identity from the launcher session file, so a renamed session acts as its new name; a no-bus launcher restart continues the conversation
+
 ## 1.0.11 — 2026-11-05
 
 #ai serves itself and generates images into its own bigfile store for its Owner and Maintainers

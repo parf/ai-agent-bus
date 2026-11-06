@@ -159,6 +159,30 @@ func TestASessionFileWithoutAnAddressDropsTheEnvironmentsAddressAndPin(t *testin
 	}
 }
 
+// TestASessionFileLeavesNoKeyItLacks: the Unix-socket case above cannot see
+// the pin, which only an https address reads, so assert the environment.
+func TestASessionFileLeavesNoKeyItLacks(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "bus-env.json")
+	if err := os.WriteFile(path, []byte(`{"AGENT_BUS_TOKEN":"file-token"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("AGENT_BUS_SESSION_FILE", path)
+	for _, key := range sessionKeys {
+		t.Setenv(key, "stale-"+key)
+	}
+	if err := loadSessionFile(); err != nil {
+		t.Fatal(err)
+	}
+	if got := os.Getenv("AGENT_BUS_TOKEN"); got != "file-token" {
+		t.Errorf("AGENT_BUS_TOKEN=%q, want the file's", got)
+	}
+	for _, key := range []string{"AGENT_BUS_NAME", "AGENT_BUS_ADDR", "AGENT_BUS_TLS_FINGERPRINT"} {
+		if v, ok := os.LookupEnv(key); ok {
+			t.Errorf("%s=%q survived a session file without it", key, v)
+		}
+	}
+}
+
 // TestHelpAnswersBeforeAnUnreadableSessionFile: help that needs no bus answers
 // even when the session has ended; help that asks an agent still refuses.
 func TestHelpAnswersBeforeAnUnreadableSessionFile(t *testing.T) {
