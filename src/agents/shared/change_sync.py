@@ -173,7 +173,9 @@ def reset(state):
 def pending(state,sub_id,matches=lambda key:True):
     """What this subscriber has not confirmed: (key, 'create'|'change'|'delete', record), sorted by key.
     A key the subscriber has no mark for is `create`, one whose mark differs is `change`, one it has a mark for that is gone is `delete`.
-    A key whose send was started but never confirmed (`maybe`) is gone-and-owed-a-delete too: the target may have applied it.
+    A key whose send was started but never confirmed (`maybe`) is owed a delete once it is gone, and a change while it is
+    present with a different fingerprint than the send had (even when the mark equals the present one): the target may
+    hold what was sent. `?` stands for several unknown sends and differs from every fingerprint.
 
     Derived from the items and the subscriber's marks, so a send that was never
     confirmed is pending again without any separate bookkeeping.
@@ -184,7 +186,7 @@ def pending(state,sub_id,matches=lambda key:True):
         record=state['items'].get(key)
         if record is None:result.append((key,'delete',None))  # a mark, or a send whose outcome is unknown, still earns its delete
         elif key not in mark:result.append((key,'create',record))
-        elif mark[key]!=record['fp']:result.append((key,'change',record))
+        elif mark[key]!=record['fp'] or maybe.get(key,record['fp'])!=record['fp']:result.append((key,'change',record))
     return result
 
 
@@ -283,6 +285,9 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
       Before the sends, every create and change of the batch is recorded as possibly delivered (and saved), so a send whose
       outcome is never learned still earns its delete if the source later removes the key. A change the loop never reached,
       or whose send was refused outright, is taken back out; a timeout, an unknown result or a reply that is not ok keeps it.
+      A second unknown send of the same key turns its record into `?`, which stays owed until a confirmation.
+    - After a crash a subscriber may get a delete for a key it never received (the record is written for the whole batch before
+      the sends): deletes must be idempotent. Never the other way: a delete is not lost.
     - The author's may-send to the target and to the source, and the target's record, are checked again before every send.
     - A refusal, a timeout or no answer leaves the change pending; one stuck subscriber never holds up the others.
     - The round ends by `deadline` (default ROUND_MAX seconds from now) and no wait on a target runs past it, so a silent
@@ -300,7 +305,7 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
             todo=pending(data,sub_id,lambda key,row=row:matches(row,key))[:batch]
             # Written down before any send: a send whose outcome is never learned (a timeout, a crash, a failed save) may
             # have been applied, so a later delete of that key must still be sent. Cleared by the confirmation.
-            owed={k:r['fp'] for k,a,r in todo if a!='delete' and data['maybe'][sub_id].get(k)!=r['fp']}
+            owed={k:(r['fp'] if k not in data['maybe'][sub_id] else '?') for k,a,r in todo if a!='delete' and data['maybe'][sub_id].get(k)!=r['fp']}
             prior={k:data['maybe'][sub_id].get(k) for k in owed};attempted=set();restored=False
             if owed:
                 data['maybe'][sub_id].update(owed)

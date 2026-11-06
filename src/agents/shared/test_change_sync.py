@@ -371,6 +371,34 @@ class DeliveryTests(Base):
         self.assertEqual([b for _,b,_ in self.bus.calls],['delete a'])
         self.assertEqual((self.state.load()['maybe'][row['id']],self.state.load()['marks'][row['id']]),({},{}))
 
+    def test_review_unknown_changed_then_original_fingerprint_still_pending(self):
+        subs,row=self.add('#rag@n.test',kind='agent');self.round()
+        data=self.state.load();data['items']['a']=item('NEW');self.state.save(data);self.bus.replies['#rag@n.test']='timeout';self.round()
+        data=self.state.load();data['items']['a']=item('1');self.state.save(data)  # the source reverts to what was confirmed
+        self.assertEqual(self.state.load()['marks'][row['id']]['a'],'1','the mark equals the present fingerprint')
+        self.assertIn(('a','change'),[(k,a) for k,a,_ in cs.pending(self.state.load(),row['id'])],'but the target may hold NEW')
+        self.bus.replies['#rag@n.test']='ok';self.bus.calls.clear();self.round()
+        self.assertIn('change a',[b for _,b,_ in self.bus.calls]);self.assertEqual(self.state.load()['maybe'][row['id']],{})
+
+    def test_two_unknown_sends_of_one_key_stay_owed_until_a_confirmation(self):
+        subs,row=self.add('#rag@n.test',kind='agent');self.round()
+        self.bus.replies['#rag@n.test']='timeout'
+        for fp in ('X','1'):
+            data=self.state.load();data['items']['a']=item(fp);self.state.save(data);self.round()
+        self.assertEqual(self.state.load()['maybe'][row['id']]['a'],'?','the second unknown send does not hide the first')
+        self.assertIn('a',[k for k,_,_ in cs.pending(self.state.load(),row['id'])])
+        self.bus.replies['#rag@n.test']='ok';self.round();self.assertEqual(self.state.load()['maybe'][row['id']],{})
+
+    def test_after_a_crash_mid_batch_an_extra_delete_may_go_but_never_a_lost_one(self):
+        subs,row=self.add();real=self.bus.send
+        def die(to,body,**o):raise SystemExit('killed')
+        self.bus.send=die
+        with self.assertRaises(SystemExit):self.round()
+        self.assertEqual(self.state.load()['maybe'][row['id']],{'a':'1','b':'2'},'the whole batch was recorded before the first send')
+        data=self.state.load();del data['items']['a'];del data['items']['b'];self.state.save(data)
+        self.bus.send=real;self.round()
+        self.assertEqual(sorted(b for _,b,_ in self.bus.sent),['delete a','delete b'],'b was never attempted, so its delete is the documented extra; a is not lost')
+
     def test_a_round_that_sent_nothing_still_saves_the_taken_back_record(self):
         subs,row=self.add();r=self.round(deadline=time.monotonic()-1)[row['id']]
         self.assertEqual((r['sent'],r['dropped']),(0,0));self.assertEqual(self.state.load()['maybe'][row['id']],{},'what was recorded for the batch was taken back on disk')
