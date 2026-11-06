@@ -322,7 +322,8 @@ class Selection(unittest.TestCase):
         # pack contract (agent_pack reads or runs it), or is prose.
         pack = {'src/agents/' + f for f in (
             'VERSION', 'CHANGELOG.md', 'smoke.sh', 'package.sh', 'agent_docs.py', 'agent_docs_test.py',
-            'docs_order_test.py', 'shared/test_help_golden.py', 'shared/metadata_contract.py', 'shared/test_envfile.py')}
+            'docs_order_test.py', 'shared/test_help_golden.py', 'shared/metadata_contract.py', 'shared/test_envfile.py',
+            'protocol.json', 'protocol_test.py')}
         config = json.loads((ROOT/'src/smoke-map.json').read_text())
         prefixes = [prefix for row in config['checks'].values() for prefix in row.get('paths', [])]
         files = subprocess.check_output(['git', '-C', str(ROOT), 'ls-files', 'src/agents/'], text=True).split()
