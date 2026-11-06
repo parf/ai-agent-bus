@@ -500,6 +500,13 @@
       },
       {
         "argv": [
+          "python3",
+          "-B",
+          "smoke_quarantine_test.py"
+        ]
+      },
+      {
+        "argv": [
           "bash",
           "smoke-options.test.sh"
         ]

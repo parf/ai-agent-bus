@@ -126,6 +126,12 @@ if [ -z "$SHARD" ]; then
   export SMOKE_PLAN=$B/plan
   python3 ./smoke-select.py --mode "$MODE" --targets "$TARGETS" --out "$SMOKE_PLAN" || exit 2
   load_plan
+  # Flaky checks quarantined in smoke-map.json (J120): fast and normal skip them, slow runs them.
+  : >"$B/quarantine"
+  if [ "$MODE" != slow ]; then
+    python3 -B ./smoke-quarantine.py list >"$B/quarantine" || { echo "FAIL the quarantine list"; exit 2; }
+  fi
+  export SMOKE_QUARANTINE=$B/quarantine
   selected=()
   for name in "${SHARDS[@]}"; do
     if [ "$name" = core ]; then
@@ -211,6 +217,9 @@ if [ -z "$SHARD" ]; then
       echo "         run ./smoke.sh --normal before landing a change."
     fi
   fi
+  if [ -s "$SMOKE_QUARANTINE" ]; then
+    echo "QUARANTINED $(wc -l <"$SMOKE_QUARANTINE") checks, skipped until their J lands: $(awk -F '\t' '{ printf "%s%s / %s (%s)", NR > 1 ? ", " : "", $1, $2, $3 }' "$SMOKE_QUARANTINE")"
+  fi
   if [ "$MODE" = fast ]; then
     awk '$1 > 15000 { print "FAST OVER 15s: " $2 " " $1/1000 "s (needs a narrower allowlist)" }' "$SMOKE_OUT"/*.wall
     echo "NOT A LANDING GATE"
@@ -238,6 +247,17 @@ if [ -z "${SMOKE_PLAN:-}" ]; then
   echo "SHARD OVERRIDE [$SHARD]: NOT A LANDING GATE"
 fi
 load_plan
+# This shard's quarantined checks (J120): a Go test is skipped through GOFLAGS, any
+# other name is an assertion title that quarantined() answers.
+declare -A QUAR
+if [ -n "${SMOKE_QUARANTINE:-}" ] && [ -s "$SMOKE_QUARANTINE" ]; then
+  quar_go=""
+  while IFS=$'\t' read -r q_shard q_name q_j; do
+    [ "$q_shard" = "$SHARD" ] || continue
+    if [[ $q_name =~ ^Test[A-Za-z0-9_]*$ ]]; then quar_go+="${quar_go:+|}$q_name"; else QUAR[$q_name]=$q_j; fi
+  done <"$SMOKE_QUARANTINE"
+  [ -z "$quar_go" ] || export GOFLAGS="${GOFLAGS:+$GOFLAGS }-skip=^($quar_go)\$"
+fi
 # A filtered mutant must exercise the normal production assertion, never a fast substitute.
 [ -z "${SMOKE_TEST_PATTERN:-}" ] || LEVELS[$SHARD]=normal
 # An explicit shard is always run, even when it is outside the changed paths.
@@ -319,6 +339,7 @@ pass=0; fail=0; skipped=0
 # happened to run first, and broke the moment another one dropped a message.
 count() { local n; n=$(ab parf@localhost status | sed -n "s/.*\"$1\":\([0-9]*\).*/\1/p"); echo "${n:-0}"; }
 delta() { # label expected before after
+  quarantined "$1" && return
   if [ "$(( $4 - $3 ))" -eq "$2" ]; then echo "  ok   $1"; pass=$((pass+1));
   else echo "  FAIL $1: expected +$2, got $3 -> $4"; fail=$((fail+1)); fi
 }
@@ -340,13 +361,15 @@ sec() {
   sec_name=${1:-}; sec_t0=$now
   [ -n "$sec_name" ] && echo "== $1"
 }
-has() { if echo "$2" | grep -q -- "$3"; then echo "  ok   $1"; pass=$((pass+1)); else echo "  FAIL $1: [$2] lacks [$3]"; fail=$((fail+1)); fi; }
-lacks() { if echo "$2" | grep -q -- "$3"; then echo "  FAIL $1: [$2] still has [$3]"; fail=$((fail+1)); else echo "  ok   $1"; pass=$((pass+1)); fi; }
-ok_exit()   { if [ "$2" -eq 0 ]; then echo "  ok   $1"; pass=$((pass+1)); else echo "  FAIL $1: exit $2"; fail=$((fail+1)); fi; }
-bad_exit()  { if [ "$2" -ne 0 ]; then echo "  ok   $1"; pass=$((pass+1)); else echo "  FAIL $1: expected failure, got exit 0"; fail=$((fail+1)); fi; }
+# A quarantined title (J120) is skipped and counted, never asserted.
+quarantined() { [ -n "${QUAR[$1]+x}" ] || return 1; echo "  QUARANTINED $1 (${QUAR[$1]})"; skipped=$((skipped+1)); }
+has() { quarantined "$1" && return; if echo "$2" | grep -q -- "$3"; then echo "  ok   $1"; pass=$((pass+1)); else echo "  FAIL $1: [$2] lacks [$3]"; fail=$((fail+1)); fi; }
+lacks() { quarantined "$1" && return; if echo "$2" | grep -q -- "$3"; then echo "  FAIL $1: [$2] still has [$3]"; fail=$((fail+1)); else echo "  ok   $1"; pass=$((pass+1)); fi; }
+ok_exit()   { quarantined "$1" && return; if [ "$2" -eq 0 ]; then echo "  ok   $1"; pass=$((pass+1)); else echo "  FAIL $1: exit $2"; fail=$((fail+1)); fi; }
+bad_exit()  { quarantined "$1" && return; if [ "$2" -ne 0 ]; then echo "  ok   $1"; pass=$((pass+1)); else echo "  FAIL $1: expected failure, got exit 0"; fail=$((fail+1)); fi; }
 # "nothing came back" needs its own check: `$(cmd; echo -n nothing)` contains
 # the word whatever cmd did, which is how two checks here passed hollow.
-is_empty()  { if [ -z "$2" ]; then echo "  ok   $1"; pass=$((pass+1)); else echo "  FAIL $1: got [$2]"; fail=$((fail+1)); fi; }
+is_empty()  { quarantined "$1" && return; if [ -z "$2" ]; then echo "  ok   $1"; pass=$((pass+1)); else echo "  FAIL $1: got [$2]"; fail=$((fail+1)); fi; }
 code() { curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $(tok "$1")" "http://unix$2"; }
 # One section of a rendered page, so that a check about one view cannot be
 # satisfied by a name that also appears in another — the registry lists every
@@ -410,6 +433,9 @@ ok_exit "git-install leaves one log rotation rule for the daemon logs, the track
 [ "$rc" = 0 ] || echo "$out"
 out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s . -p smoke_select_test.py -v 2>&1); rc=$?
 ok_exit "subsystem selector contract" "$rc"
+[ "$rc" = 0 ] || echo "$out"
+out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s . -p smoke_quarantine_test.py -v 2>&1); rc=$?
+ok_exit "a quarantined check names a test the tree holds and an open J, and smoke skips exactly it (J120)" "$rc"
 [ "$rc" = 0 ] || echo "$out"
 out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s . -p smoke_fast_test.py -v 2>&1); rc=$?
 ok_exit "fast allowlist refuses empty matches" "$rc"

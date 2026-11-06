@@ -117,6 +117,7 @@ names=re.search(r'SHARDS=\((.*?)\)',source,re.S)[1].split()
 out.write_text(''.join(f'{n}\t'+('normal' if n in ('go_checks','go_unit','go_release') else 'skip')+'\n' for n in names+[f'core_{i}' for i in range(1,11)]))
 SELECT
 printf '%s\n' '#!/bin/bash' 'exit 0' >"$d/src/build.sh"
+: >"$d/src/smoke-quarantine.py"   # an empty quarantine list
 rm -f "$PROBE_MARKER"
 rc=0
 output=$(TMPDIR="$d" PROBE_HOLDER='#worker@test' bash "$d/src/smoke.sh" --normal 2>&1) || rc=$?
