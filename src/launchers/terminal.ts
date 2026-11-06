@@ -151,7 +151,8 @@ export class Terminal {
   private kittyOwnTitle(): string {
     try {
       type Window = { id: number; title?: string };
-      const ls = JSON.parse(this.command("kitty", ["@", "ls", "--match", `window_id:${this.kitty}`]) || "[]") as { tabs: { title?: string; windows: Window[] }[] }[];
+      // kitty's ls takes no window match; find this window in the whole listing.
+      const ls = JSON.parse(this.command("kitty", ["@", "ls"]) || "[]") as { tabs: { title?: string; windows: Window[] }[] }[];
       for (const tab of ls.flatMap(o => o.tabs)) {
         const window = tab.windows.find(w => String(w.id) === this.kitty);
         if (window) return tab.title && tab.title !== window.title ? tab.title : "";

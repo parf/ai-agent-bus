@@ -68,7 +68,9 @@ test("PTY titles restore once; palettes rotate, target this tab and reset; missi
     const colors: Record<string, string> = {};
     for (const runtime of ["claude", "codex", "opencode"]) {
       const kitty = await run(runtime, { KITTY_WINDOW_ID: "42" });
-      expect(kitty.rows.every(r => r.includes("window_id:42"))).toBe(true);
+      // Every change targets this tab; only the listing reads the whole of kitty.
+      expect(kitty.rows.filter(r => r[2] !== "ls").every(r => r.includes("window_id:42"))).toBe(true);
+      expect(kitty.rows.filter(r => r[2] === "ls").map(r => r.slice(1))).toEqual([["@", "ls"]]);
       const color = kitty.rows.find(r => r.includes("set-tab-color"))!.find(a => a.startsWith("active_bg="))!;
       colors[runtime] = color;
       expect(kitty.rows.some(r => r.includes("set-tab-title") && r.at(-1) === "")).toBe(true);
@@ -151,7 +153,7 @@ ${restore ? "t.restore();" : ""}`;
   const t = (...a: string[]) => spawnSync(tmux!, ["-S", sock, ...a], { encoding: "utf8" }).stdout.trim();
   try {
     // A tab title given on purpose comes back; one that only followed its window is let go.
-    const kittyLs = (tab: string, window: string) => JSON.stringify([{ tabs: [{ title: tab, windows: [{ id: 42, title: window }] }] }]);
+    const kittyLs = (tab: string, window: string) => JSON.stringify([{ tabs: [{ title: "other", windows: [{ id: 7, title: "zsh" }] }, { title: tab, windows: [{ id: 42, title: window }] }] }]);
     expect(titles((await run({ KITTY_WINDOW_ID: "42", TEST_KITTY_LS: kittyLs("CEO", "zsh") })).rows)).toEqual(["✴️ path", "CEO"]);
     expect(titles((await run({ KITTY_WINDOW_ID: "42", TEST_KITTY_LS: kittyLs("zsh", "zsh") })).rows)).toEqual(["✴️ path", ""]);
     // An escape, a bell, a CSI and a bidi override never reach the terminal or kitty.
