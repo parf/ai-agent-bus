@@ -23,6 +23,8 @@ Owner, 2026-11-06: "do not run tests for minor changes, do not build release bun
 
 Owner, 2026-11-06: the live `#ai@parf.us` runs on a paid production key shared with the realmo.com site. Never call it, or any live paid provider (`#voyage`, SMS, mail), for a test, a check or a demo; tests use their fixture servers. A live call needs the owner's OK each time. `models` is free and allowed.
 
+Owner, 2026-11-06: a change to one agent (`src/agents/<name>/`) is tested by that agent's own tests only; it runs no daemon, runner or other subsystem checks. Its deploy replaces `agent.d/<name>` and restarts that one agent (`agent-bus call '#runner/<person>@<node>' restart <name>`), never the runner.
+
 Smoke lock identity: [CLAUDE.md § Verification](../../../CLAUDE.md#verification).
 
 ## Task lifecycle
