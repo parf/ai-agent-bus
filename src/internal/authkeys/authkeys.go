@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"unicode"
@@ -74,6 +75,10 @@ func SingleKey(text string) (string, error) {
 // ErrProgram is a forced-command program path that cannot be read back: one holding whitespace.
 var ErrProgram = errors.New("the program path holds whitespace, so the line could not be read back to revoke it")
 
+// Programs are the forced-command programs a line may name: the credential wrapper and the admin
+// program, as `user add` and the daemon write them. A command that runs anything else is not ours.
+var Programs = []string{"agent-bus-token", "agent-bus-admin"}
+
 // Line refuses any key that could add a second authorized_keys entry, and a program path that
 // Whose could not take apart again.
 func Line(program, name, key string) (string, error) {
@@ -90,7 +95,7 @@ func Line(program, name, key string) (string, error) {
 // Whose reads a line back: the name it is for, and the program it reaches. The command is the
 // program and then the name, which is its last field, so a hand-written program path with a space
 // still reads back (Line itself refuses to write one). A command of another shape is not ours and has
-// no owner: a program with arguments (a field after the first that begins with "-"), a spaced
+// no owner: a program that is not one of Programs, a program with arguments (a field after the first that begins with "-"), a spaced
 // program that is not an absolute path, or a name that is a path or an option.
 func Whose(line string) (name, program string) {
 	i := strings.Index(line, `command="`)
@@ -120,6 +125,9 @@ func Whose(line string) (name, program string) {
 				return "", ""
 			}
 		}
+	}
+	if !slices.Contains(Programs, filepath.Base(program)) {
+		return "", ""
 	}
 	return name, filepath.Base(program)
 }

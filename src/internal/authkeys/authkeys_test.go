@@ -153,6 +153,9 @@ func TestWhoseTakesTheLastFieldAndIgnoresForeignCommands(t *testing.T) {
 		"a path as the name":       "/bin/cat /etc/passwd",
 		"an option as the name":    "/bin/ls -l",
 		"no name":                  "/bin/sh",
+		"a python hook":            "/usr/bin/python3 /opt/hook.py alice@h",
+		"a two-field foreign one":  "/usr/bin/foo alice@h",
+		"a foreign spaced path":    "/opt/my tools/other-program alice@h",
 	} {
 		if who, program := Whose(line(cmd)); who != "" || program != "" {
 			t.Errorf("%s: attributed to %q %q", name, who, program)
