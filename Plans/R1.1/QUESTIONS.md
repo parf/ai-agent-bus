@@ -213,7 +213,7 @@ The recommendations below are retained parked proposals.
   - ( ) None until mdhouse names its projects; then one root per project directory 🌟
   - ( ) A root the owner names now (path)
   > 💡👾 Wait for mdhouse's project list: a root grants read access to everything under it.
-  > ⚠️👾 2026-11-06 01:51: no root before the FileScan RAG-sink fix is deployed. The landed sink resends every successful upsert, paying embeds and classification again each round (found by W1C in the T-45 review; fix by W1B, ETA ~02:20).
+  > 💬👾 2026-11-06: the RAG-sink resend fix W1C found is landed (`0f5340c3`, an upsert counts only when RAG echoes the stored record) and deployed with FileScan at 03:38; a root no longer pays for repeat embeds
 
 - ❓ Q356 The dead realmo.com site key
   - Context: `AI.RealmoPropertyProfileOverview.api-key` (…730c) in `realmo.com/config.yaml` answers 401 "User not found", so that feature's AI calls fail; `common.yaml` `AI.OpenRouter.api-key` (…85e6) is dead too. The six working keys share one account ($175 left)
