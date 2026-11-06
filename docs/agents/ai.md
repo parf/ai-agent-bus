@@ -10,9 +10,10 @@
 - ✅ **Ask:** send a question or a full chat request, get the answer text or the provider's full reply (`ask`, or just your text). A text answer ends with its tokens and cost.
 - ✅ **Decide:** send a question with fixed choices, get each choice with its probability (`decide`, see [typed decisions](#typed-decisions)).
 - ✅ **Embed:** send a text or a list of texts, get one vector per text (`embed`, see [embeddings](#embeddings)).
-- ✅ **Models:** list the provider's models, with your default marked (`models`), or see one model's context length, prices and input kinds for each provider that serves it (`model <id>`).
+- ✅ **Models:** list the provider's models, with your default marked (`models`, or `models --images` for image models), or see one model's context length, prices and input kinds for each provider that serves it (`model <id>`; for an image model, its parameters and prices).
 - ✅ **Account:** see the remaining credit (`balance`) or the key's spend limit, remaining credit and rate limit, never the key itself (`key`). Only the Owner and Maintainers may ask.
 - ✅ **Same as the provider:** every method goes to the configured provider and answers what it says. A provider without one of these methods gets `provider has no <method>`.
+- 🚫 **Images:** `image` checks the request and answers `image generation is not available yet`; no provider call is made, since `#ai` has nowhere to store the pictures.
 - 🚫 **Not for:** long conversations with memory (each call stands alone: send the context again), live word-by-word output (no streaming), or text that must never reach an outside AI provider (the provider sees every prompt).
 
 ## Typed decisions
@@ -64,6 +65,7 @@ agent-bus help '#ai@node.example'
 - **Send a full chat request:** `agent-bus call '#ai@node.example' --wait=60s '{"messages":[{"role":"user","content":"Say hello in French."}],"temperature":0.2}'`
 - **Use another model once:** add `"model":"openai/gpt-4.1-mini"` to the JSON.
 - **Pick a model:** `agent-bus call '#ai@node.example' models`, then `agent-bus call '#ai@node.example' 'model openai/gpt-4.1-mini'` for its prices per provider.
+- **Find an image model:** `agent-bus call '#ai@node.example' 'models --images'`, then `model <id>` for its parameters and prices.
 - **Embed texts:** `agent-bus call '#ai@node.example' 'embed ["first text","second text"]'`.
 - **Check the account:** `agent-bus call '#ai@node.example' balance` or `... key` (Owner and Maintainers).
 - **Get probabilities for fixed choices:** a `decide` call, [above](#typed-decisions).
@@ -81,6 +83,7 @@ agent-bus help '#ai@node.example'
 
 - `model` is the default chat model when a call names none, for example `openai/gpt-4.1-mini`; it is not used by `decide`. `models` marks it.
 - `embed_model` is the default embedding model for `embed`, for example `openai/text-embedding-3-small`.
+- `image_model` is the default image model, for example `openai/gpt-image-2`; `models --images` marks it.
 - `base_url` is the OpenAI-compatible API root; default: `https://openrouter.ai/api/v1`. Only a trusted administrator should change it: it receives the provider key. Redirects are not followed.
 
 ## Secret keys
@@ -115,7 +118,8 @@ agent-bus manage '#ai@node.example' --remove-allow '*'
 | If you see… | Do this |
 |---|---|
 | `needs OPENROUTER_API_KEY`, or `OPENROUTER_API_KEY is not set` when run directly | Ask the host administrator to set the host file, then reload |
-| `error: 401` or `error: 403` from the provider | Ask the administrator to check the key and provider account |
+| `the provider refused the configured key (401: …)` or `(403: …)` | Ask the administrator to check `OPENROUTER_API_KEY` and the provider account |
+| `the provider refused for lack of credit (402: …)` | Ask the administrator to add credit |
 | A bus permission refusal | Ask the owner to add you to the allowed list |
 | `set Configuration model or provide a request model` | Set a default model or put `model` in the JSON; no provider call happens until then |
 | Invalid request or Configuration | Check the model, API root and JSON; do not request streaming |
@@ -153,7 +157,9 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 <details>
 <summary>Lookups and embeddings</summary>
 
-- `models` reads `GET /models`, `model <id>` reads `GET /models/<id>/endpoints`, `balance` reads `GET /credits`, `key` reads `GET /key`, and `embed` posts to `/embeddings`, each under the configured `base_url`.
+- `models` reads `GET /models` (`--images`: `GET /images/models`), `model <id>` reads `GET /models/<id>/endpoints` and, when that is a 404, `GET /images/models/<id>/endpoints`, `balance` reads `GET /credits`, `key` reads `GET /key`, and `embed` posts to `/embeddings`, each under the configured `base_url`.
+- A 401 or 403 from any method names the refused key, and a 402 the missing credit, with the provider's text masked.
+- `image` is for the Owner and Maintainers. It takes a prompt, `model`, `n` from 1 to 4, `aspect_ratio`, `resolution`, `size`, `output_format` (png, jpeg, webp, svg or gif), `quality`, `background`, `seed`, and up to 16 `input_references` as https or `data:image/...;base64,` URLs, within 1 MiB. A request that passes these checks is not yet sent.
 - `model <id>` lists every endpoint with its own context length and prices; they are never merged.
 - `key` answers only the limit fields; the provider's key label is dropped, since it repeats part of the key.
 - `embed` allows at most floor((1048576 − O) / (25·D + 2)) texts for a D-dimension model. 1048576 bytes is the most the daemon reads of the answer envelope the runner sends back. O is that envelope around an empty answer: the reply route, its topic and tag, and the body's escaping. Each number takes at most 24 characters plus a comma. A batch over the cap gets only the refusal, never a cut answer. Known vector sizes are kept in the agent's work directory, at most 256 models.

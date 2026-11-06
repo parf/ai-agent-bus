@@ -15,7 +15,10 @@ The entry also exits 78 if invoked directly without a key.
 
 HTTP(S) uses the configured root plus `/chat/completions`, `/models`,
 `/models/<id>/endpoints`, `/credits`, `/key` or `/embeddings`, no redirects and
-no automatic retries. A 404 answers `provider has no <method>`. `balance` and
+no automatic retries. A 404 answers `provider has no <method>`; a 401 or 403
+names the refused key and a 402 the credit. `image` validates and gates its
+request but sends nothing: a per-message script has no bus token or socket to
+put the images into its bigfile record. `balance` and
 `key` need `AB_ROLE_OWNER` or `AB_ROLE_MAINTAINER` before any call; `key`
 answers only its limit fields. `embed` keeps each model's vector size, at most 256 models, in
 `$AGENT_BUS_WORK/embed-dims.json`, and sizes its cap from the `/send` envelope
