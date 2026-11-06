@@ -128,6 +128,13 @@ class Similar(Base):
     def test_a_missing_or_deleted_subject_is_not_found(self):
         with self.assertRaises(NamedRefusal) as c:self.run_('similar',tableName='notes',id='nobody')
         self.assertEqual(c.exception.code,'not_found')
+        # A delete whose chunk removal failed leaves the head marked deleted.
+        self.store.fail=lambda verb,path,body:verb=='POST' and '/delete?' in path
+        with self.assertRaises(RagError):self.run_('delete',tableName='notes',id='tea')
+        self.store.fail=None
+        self.assertEqual(self.store.points[point_id({'namespace':'team','tableName':'notes','id':'tea'})]['payload']['_rag_kind'],'deleted')
+        with self.assertRaises(NamedRefusal) as c:self.ids()
+        self.assertEqual(c.exception.code,'not_found')
         self.run_('delete',tableName='notes',id='tea')
         with self.assertRaises(NamedRefusal) as c:self.ids()
         self.assertEqual(c.exception.code,'not_found')

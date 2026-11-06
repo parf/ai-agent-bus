@@ -219,9 +219,9 @@ class Core:
         def page(want,offset):
             return {'filter':{**repo.select(scope,kind='chunk'),'must_not':[{'has_id':ids}]},'query':{'recommend':{'positive':ids}},
                     'limit':want,'offset':offset,'with_payload':{'include':[*SUMMARY_FIELDS[:5],*PROVENANCE_FIELDS,'_rag_text']},'with_vector':False}
-        ranked,_=self._collect({**scope,'limit':v['limit']},repo,page,'similarity',-1,skip=identity(subject))
+        ranked,_=self._collect({**scope,'limit':v['limit']},repo,page,'similarity',-1)
         return {'records':ranked[:v['limit']]}
-    def _collect(self,v,repo,page,score,low,skip=None):
+    def _collect(self,v,repo,page,score,low):
         """One row per live record from up to four query pages, best first, and the window size each page asked for."""
         best={};want=min(64,v['limit']*4);exhausted=False
         for number_ in range(4):
@@ -237,7 +237,7 @@ class Core:
                 for row in rows:
                     payload=row['payload'];key=identity(payload)
                     head=live.get(repo.point_id(payload))
-                    if key in best or key==skip or head is None or row['id'] not in head['_rag_chunks'] or payload['_rag_rev']!=head['_rag_rev']:continue
+                    if key in best or head is None or row['id'] not in head['_rag_chunks'] or payload['_rag_rev']!=head['_rag_rev']:continue
                     if provenance(payload)!=provenance(head):raise RagError('live chunk provenance mismatch')
                     record={k:payload[k] for k in SUMMARY_FIELDS[:5] if k in payload}
                     record.update(provenance(payload))
