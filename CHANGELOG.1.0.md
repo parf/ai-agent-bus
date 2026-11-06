@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.29 — 2026-11-06
+
+Text #bus write accepts tab and Unicode separators and keeps its text verbatim; a text sub add trims the filter's trailing white space
+
 ## 1.0.28 — 2026-11-06
 
 The credential store refuses to load when two names share one token, naming both, and the daemon does not start

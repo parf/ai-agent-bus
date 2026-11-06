@@ -339,7 +339,7 @@ func TestEventWriteUsesTheSameWhitespaceAsOtherTextVerbs(t *testing.T) {
 		"write\t#a@h alert kept  spaces\tinside",
 		"write #a@h\talert kept  spaces\tinside",
 		"write #a@h alert\tkept  spaces\tinside",
-		"\twrite\n#a@h\u00a0alert\r\nkept  spaces\tinside",
+		"\twrite\n#a@h\u00a0alert\nkept  spaces\tinside",
 	} {
 		got, err := parseEventCall(body)
 		if err != nil || got.Method != "write" || got.Log != "#a@h" || got.Level != "alert" || got.Text != "kept  spaces\tinside" {
@@ -354,5 +354,20 @@ func TestEventWriteUsesTheSameWhitespaceAsOtherTextVerbs(t *testing.T) {
 	got, err := parseEventCall(`{"method":"write","log":"#a@h","level":"alert","text":" \tkept\n "}`)
 	if err != nil || got.Text != " \tkept\n " {
 		t.Fatalf("JSON text changed: %+v %v", got, err)
+	}
+}
+
+func TestEventWritePreservesTextAfterExactlyOneSeparator(t *testing.T) {
+	for _, tc := range []struct{ body, text string }{
+		{"write #a@h alert   indented", "  indented"},
+		{"write #a@h alert\t \tindented \n", " \tindented \n"},
+		{"write #a@h alert\u00a0  indented", "  indented"},
+		{"write #a@h alert\r\nindented", "\nindented"},
+		{"write #a@h alert ", ""},
+	} {
+		got, err := parseEventCall(tc.body)
+		if err != nil || got.Text != tc.text {
+			t.Fatalf("write text %q: got %q, want %q: %v", tc.body, got.Text, tc.text, err)
+		}
 	}
 }

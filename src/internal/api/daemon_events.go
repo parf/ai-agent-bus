@@ -165,11 +165,14 @@ func parseEventCall(body string) (eventCall, error) {
 		if c.Method == "write" {
 			_, rest := subWord(body)
 			c.Log, rest = subWord(rest)
-			// Keep the required separator before text, including an empty text.
-			if strings.IndexFunc(rest, unicode.IsSpace) < 0 {
+			// Consume exactly one separator rune; the remaining text is verbatim.
+			i := strings.IndexFunc(rest, unicode.IsSpace)
+			if i < 0 {
 				return c, bad
 			}
-			c.Level, c.Text = subWord(rest)
+			c.Level, _ = subWord(rest)
+			_, size := utf8.DecodeRuneInString(rest[i:])
+			c.Text = rest[i+size:]
 		} else {
 			args := strings.Fields(body)
 			if len(args) < 1 {
