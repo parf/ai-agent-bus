@@ -42,6 +42,16 @@ class SelectionTests(Tree):
         self.assertEqual(self.names(include=['*.md'],exclude=['sub/*','.*','*/.*']),['a.md'])
         self.assertEqual(self.names(exclude=[]),['.git/x.md','.hidden','a.md','b.txt','sub/.d.md','sub/c.md'])
 
+    def test_an_include_glob_matches_a_files_whole_path_never_a_directory_prefix(self):
+        # J124: `*.md` must not pull in everything below a directory that is merely named like a Markdown file.
+        put(self.root,'a.md');put(self.root,'sub/c.md');put(self.root,'b.md/sub/c.md')
+        put(self.root,'x.md/secret.txt');put(self.root,'x.md/deep/key.pem');put(self.root,'y.md/ok.md')
+        found=self.names(include=['*.md'])
+        self.assertEqual(found,['a.md','b.md/sub/c.md','sub/c.md','y.md/ok.md'])
+        self.assertNotIn('x.md/secret.txt',found);self.assertNotIn('x.md/deep/key.pem',found)
+        self.assertFalse({'x.md','y.md','b.md','b.md/sub'}&set(found),'a directory is never a file match')
+        self.assertTrue(scan.selected('b.md/sub/c.md',['*.md'],[]));self.assertFalse(scan.selected('x.md/secret.txt',['*.md'],[]))
+
     def test_an_excluded_directory_is_not_entered(self):
         put(self.root,'skip/deep/f.md');put(self.root,'keep/f.md')
         self.assertEqual(self.names(exclude=['skip']),['keep/f.md'])

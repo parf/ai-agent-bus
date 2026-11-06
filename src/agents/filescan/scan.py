@@ -11,11 +11,11 @@ OPEN_DIR=os.O_RDONLY|os.O_NOFOLLOW|os.O_DIRECTORY|os.O_CLOEXEC
 
 
 def selected(rel,include,exclude):
-    """Globs on the relative path; exclude wins. A pattern also matches any path below a matching directory."""
-    def hit(patterns):
-        parts=rel.split('/')
-        return any(fnmatch.fnmatchcase(rel,p) or any(fnmatch.fnmatchcase('/'.join(parts[:i]),p) for i in range(1,len(parts))) for p in patterns)
-    return hit(include) and not hit(exclude)
+    """A regular file's relative path: `include` globs match the whole path, never a directory above it; exclude wins.
+
+    `exclude` also matches a directory above the file, so what is below an excluded directory is out: that only narrows.
+    A directory named like an include glob (`x.md/`) therefore pulls in nothing below it (J124)."""
+    return any(fnmatch.fnmatchcase(rel,p) for p in include) and not excluded(rel,exclude)
 
 
 def excluded(rel,exclude):
