@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.16 — 2026-11-05
+
+ls -h and bigfile ls -h print the human table even when piped; --help after any subcommand is local help
+
 ## 1.0.15 — 2026-11-05
 
 eventlog and logwatch check a subscription's source at creation only, imap still on every delivery; a Personal Allow may name #bus

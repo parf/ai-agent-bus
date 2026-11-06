@@ -430,19 +430,21 @@ func bigLsVerb(args []string) error {
 	return nil
 }
 
-// humanSize writes bytes as Unix ls -h does: 1023, 1.0K, 12K, 1.5M.
+// humanSize writes bytes as Unix ls -h does: 1023, 1.0K, 10K, 1.0M. A value
+// that would round to 1024 of a unit is shown in the next one.
 func humanSize(n int64) string {
 	if n < 1024 {
 		return strconv.FormatInt(n, 10)
 	}
+	units := []string{"K", "M", "G", "T", "P", "E"}
 	v, unit := float64(n), ""
-	for _, u := range []string{"K", "M", "G", "T", "P", "E"} {
+	for i, u := range units {
 		v, unit = v/1024, u
-		if v < 1024 {
+		if v < 1023.5 || i == len(units)-1 {
 			break
 		}
 	}
-	if v < 10 {
+	if v < 9.95 {
 		return strconv.FormatFloat(v, 'f', 1, 64) + unit
 	}
 	return strconv.FormatFloat(v, 'f', 0, 64) + unit

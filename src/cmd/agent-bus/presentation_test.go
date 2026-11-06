@@ -85,7 +85,18 @@ func cliPresentation(t *testing.T, tty bool, address, token string, args ...stri
 func TestCLIShortHelpAndTTYListing(t *testing.T) {
 	t.Run("short help precedes the session file for every verb", func(t *testing.T) {
 		// ls and bigfile ls read -h as the human form (Unix ls -h); --help is help everywhere.
-		cases := [][]string{{"-h"}, {"--help"}, {"ls", "--help"}, {"bigfile", "--help"}, {"bigfile", "-h"}, {"call", "-h"}}
+		cases := [][]string{{"-h"}, {"--help"}, {"ls", "--help"}, {"ls", "--all", "--help"}, {"bigfile", "--help"}, {"bigfile", "-h"}, {"bigfile", "ls", "--help"}, {"bigfile", "ls", "rec@h", "--help"}, {"call", "-h"}}
+		// --help after a subcommand is help too, for every subcommand a verb's usage names.
+		for _, group := range commandGroups {
+			for _, command := range group.commands {
+				for _, line := range strings.Split(command.synopsis, "\n") {
+					words := strings.Fields(strings.TrimPrefix(strings.TrimSpace(line), "agent-bus "))
+					if len(words) > 1 && words[0] == command.name && !strings.HasPrefix(words[1], "<") && !strings.HasPrefix(words[1], "[") && !strings.HasPrefix(words[1], "-") && command.name != "send" && command.name != "call" {
+						cases = append(cases, []string{command.name, words[1], "--help"})
+					}
+				}
+			}
+		}
 		for _, group := range commandGroups {
 			for _, command := range group.commands {
 				if command.name != "ls" {
@@ -113,6 +124,9 @@ func TestCLIShortHelpAndTTYListing(t *testing.T) {
 	}
 	if shortHelp("ls", []string{"-h"}) || shortHelp("bigfile", []string{"ls", "-h"}) || !shortHelp("bigfile", []string{"-h"}) {
 		t.Error("only the listings read -h as the human form")
+	}
+	if shortHelp("send", []string{"#a@h", "--help"}) || shortHelp("call", []string{"#a@h", "--help"}) || !shortHelp("call", []string{"#a@h", "-h"}) {
+		t.Error("--help on send and call asks the destination; -h stays local help")
 	}
 	for _, args := range [][]string{{"--", "-h"}, {"--topic", "-h"}, {"--topic=-h"}} {
 		if shortHelp("send", args) {
@@ -179,7 +193,7 @@ func TestBigfileLsHumanForm(t *testing.T) {
 	if err != nil || stderr != "" || !strings.HasPrefix(human, "NAME") || !strings.Contains(human, "1.5K") || strings.Contains(human, "\t") || strings.Contains(human, "USAGE") {
 		t.Fatalf("bigfile ls -h, piped, must be the human table: %v %q %q", err, human, stderr)
 	}
-	for size, want := range map[int64]string{0: "0", 1023: "1023", 1024: "1.0K", 12 * 1024: "12K", 1536 * 1024: "1.5M", 5 << 30: "5.0G"} {
+	for size, want := range map[int64]string{0: "0", 1023: "1023", 1024: "1.0K", 10188: "9.9K", 10189: "10K", 12 * 1024: "12K", 1047552: "1023K", 1048064: "1.0M", 1048575: "1.0M", 1536 * 1024: "1.5M", 1<<30 - 1: "1.0G", 5 << 30: "5.0G", 1<<40 - 1: "1.0T", 1<<60 - 1: "1.0E"} {
 		if got := humanSize(size); got != want {
 			t.Errorf("humanSize(%d) = %q, want %q", size, got, want)
 		}

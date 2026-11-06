@@ -1343,20 +1343,19 @@ func localHelp(verb string, rest []string) bool {
 	return false
 }
 
-// -h is local command help, including subcommands. A delimiter and option
-// values stay opaque; --help with a destination remains an agent ask. The
-// listings are the exception: `ls -h` and `bigfile ls -h` mean the human
-// form, as in Unix ls.
+// -h and --help are local command help, including after a subcommand
+// (`bigfile ls --help`). A delimiter and option values stay opaque. Two
+// exceptions: --help on send and call asks the destination agent, and in the
+// listings (`ls`, `bigfile ls`) -h is the human form, as in Unix ls.
 func shortHelp(verb string, args []string) bool {
-	if verb == "ls" || verb == "bigfile" && len(args) > 0 && args[0] == "ls" {
-		return false
-	}
+	listing := verb == "ls" || verb == "bigfile" && len(args) > 0 && args[0] == "ls"
+	asks := verb == "send" || verb == "call"
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		if arg == "--" {
 			return false
 		}
-		if arg == "-h" {
+		if arg == "-h" && !listing || arg == "--help" && !asks {
 			return true
 		}
 		if arg == "-o" {
@@ -1365,7 +1364,7 @@ func shortHelp(verb string, args []string) bool {
 		}
 		if strings.HasPrefix(arg, "--") && !strings.Contains(arg, "=") {
 			key := strings.TrimPrefix(arg, "--")
-			if !onOff[key] && !(key == "status" && (verb == "send" || verb == "call")) {
+			if !onOff[key] && !(key == "status" && asks) {
 				i++
 			}
 		}
