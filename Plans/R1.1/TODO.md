@@ -179,6 +179,13 @@ Owner, 2026-11-01; approved 2026-11-05 ([Q334](resolved.md#Q334)); plan in [file
 - ✅ FS.2 FileScan follow-ups not built in FS.1: the single `renamed` change from kernel cookie pairing, the bigfile opt-in for a file over the inline limit, and the RAG form sending the file path as `source`
   - State: ✅ the RAG form sends the file path as `source`, which RAG 0.3 requires (`d54821d5`), and confirms an upsert only by the stored record that echoes it (`0f5340c3`), both 1.0.48; the bigfile opt-in is built (`sub add … bigfile`, the file's SHA-256 as the bigfile name, `bigfile_ttl`); the single `renamed` change is built (kernel cookie pairing in the watch; a poll-only rename stays a delete plus a create, and `as rag` keeps delete then upsert, Q305)
 
+## Calendar
+
+Owner, 2026-11-03 11:04 EST: "todo - add "Calendar agent, add/edit/delete/subscribe/smart-query-with-cache"; 11:09: "in R1.1". Not planned: no plan, provider or acceptance yet, and no code until the owner approves a plan.
+
+- ☐ CAL.1 Calendar agent: add, edit and delete events, subscribe to changes, and answer smart queries from a cache
+  - Next: a plan in `calendar.md` naming the provider, what the cache holds and how it stays fresh, with steps, an estimate and falsifiable acceptance against a fake provider
+
 ## DBSync
 
 Owner, 2026-11-02; approved 2026-11-05 ([Q334](resolved.md#Q334)); plan in [dbsync](dbsync.md#steps-and-estimate), answers [Q314–Q320](resolved.md#Q314). Stage S3, after the shared core and FileScan; MySQL and PostgreSQL first.

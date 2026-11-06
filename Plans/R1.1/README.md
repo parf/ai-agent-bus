@@ -21,6 +21,7 @@ stage is [R1.2](../R1.2/README.md#scope).
 | Operations | [Operations](operations.md#reload) |
 | File scanner (FS.1, plan only) | [Filescan plan](filescan.md#steps-and-estimate); [task](TODO.md#filescan) |
 | Database sync (DS.1, plan only) | [DBSync plan](dbsync.md#steps-and-estimate); [task](TODO.md#dbsync) |
+| Calendar agent (CAL.1, not planned) | [task](TODO.md#calendar) |
 | Storage backends | [Storage backends](storage.md#backends) |
 | Peer registry | [Registry sync](registry.md#registry-sync) |
 | MCP agents: `--mcp` answering a tools list, and the `mcp` tag (proposed) | [MCP agents](mcp-agents.md#mcp-agents) |
