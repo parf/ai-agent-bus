@@ -146,15 +146,44 @@ class FileScan:
         self.subs=core.SyncSubscriptions(bus,bus.name,self.state,validate_selector=selector,clock=clock)
         self.lock=threading.Lock()
         self.matched={};self.skipped={}
+        self.watcher=None;self.fallback=None
         try:self.state.clean_temporaries()
         except core.SyncError:pass
 
+    # --- watching -------------------------------------------------------------------------------------------------
+    def start_watch(self,*,quiet=None,watch_limit=None):
+        """Begin inotify when the mode asks for it; say why in `fallback` when it cannot, and poll instead."""
+        if self.settings['mode']=='poll':return False
+        try:
+            import watch
+            exclude=self.settings['exclude']
+            self.watcher=watch.Watcher(self.root,self.on_events,excluded=lambda rel:scanning.excluded(rel,exclude),
+                                       quiet=max(self.settings['settle'],0.2) if quiet is None else quiet,watch_limit=watch_limit)
+            self.watcher.start()
+        except OSError as failure:
+            self.watcher=None;self.fallback=f'inotify is not available here ({failure}); polling instead';return False
+        if self.watcher.limit_hit:
+            self.fallback=f'watch limit reached: {self.watcher.unwatched} directories are left to the poll'
+        return True
+
+    def on_events(self,paths,overflow):
+        """Events settled: look at just those paths, or at everything when the kernel lost some."""
+        self.tick(None if overflow else [p for p in paths if scanning.selected(p.rstrip('/'),['*'],[]) ])
+
+    def needs_timer(self):
+        """The poll runs in poll and both; in watch mode only as the fallback when watching is partial or absent."""
+        return self.settings['mode']!='watch' or self.watcher is None or self.watcher.limit_hit
+
+    def stop_watch(self):
+        if self.watcher:self.watcher.stop()
+
     # --- scanning -------------------------------------------------------------------------------------------------
-    def scan(self,confirm=False):
+    def scan(self,confirm=False,paths=None):
         """One walk under the state hold: what changed is folded into the saved items, then saved.
 
         The mass-delete guard decides first whether the deletes may be applied (see `guard`). A paused agent
-        refuses to scan until `confirm` releases it; a changed directory needs `reset` instead.
+        refuses to scan until `confirm` releases it; a changed directory needs `reset` instead. `paths` (from the
+        watch) limits the walk to those paths; the guard judges that pass the same way.
         """
         with self.state.hold():
             state=self.state.load();meta=state['meta']
@@ -165,7 +194,8 @@ class FileScan:
                 why=f"the directory changed from {meta['dir']} to {self.root}; reset confirm:true drops the old state and starts over"
                 meta['paused']={'kind':'dir','reason':why,'at':self.clock()};self.state.save(state);self.warning('guard_paused')
                 raise Paused(why)
-            plan=scanning.poll(state['items'],self.root,self.settings,now=self.clock())
+            if paths is None:plan=scanning.poll(state['items'],self.root,self.settings,now=self.clock())
+            else:plan=scanning.poll_paths(state['items'],self.root,self.settings,paths,now=self.clock())
             hold_reason=None if confirm else self.guard(state,plan)
             if hold_reason:
                 meta['paused']={'kind':hold_reason[0],'reason':hold_reason[1],'at':self.clock()};self.warning('guard_paused')
@@ -253,10 +283,10 @@ class FileScan:
             else:message['contents']='omitted: over max_file_size or not text'
         return dumps(message)
 
-    def tick(self):
-        """The timer's work: walk, then deliver. A walk or round that overlaps another is skipped quietly."""
+    def tick(self,paths=None):
+        """The timer's and the watch's work: walk (all, or just `paths`), then deliver. An overlap is skipped quietly."""
         try:
-            self.scan()
+            self.scan(paths=paths)
             self._round()
         except Paused:pass  # the guard is named in status and was warned about once
         except core.SyncError as failure:
@@ -272,8 +302,13 @@ class FileScan:
         subs=[{'id':i,'target':r['target'],'sent':r['sent'],'confirmed':r['confirmed'],'dropped':r['dropped'],
                'pending':len(core.pending(state,i,lambda k,row=r:self._wanted(row,k) if row['selector'].get('pattern') and (row['id'],row['selector']['pattern']) in self.matched else True))} for i,r in sorted(state['subs'].items())]
         size=len(json.dumps(state,separators=(',',':')))
-        return {'mode':self.settings['mode'],'effective_mode':'poll','tracked':len(state['items']),'last_scan':meta.get('last_scan'),
+        return {'mode':self.settings['mode'],'effective_mode':self.effective_mode(),'fallback':self.fallback,'tracked':len(state['items']),'last_scan':meta.get('last_scan'),
                 'skipped':meta.get('skipped',[]),'state_bytes':size,'state_max':self.settings['state_max'],'subscribers':subs,'paused':meta.get('paused'),'skipped_for_rag':{i:v for i,v in self.skipped.items() if v}}
+
+    def effective_mode(self):
+        if self.settings['mode']=='poll':return 'poll'
+        if self.watcher is None:return 'poll'
+        return 'both' if self.settings['mode']=='both' or self.watcher.limit_hit else 'watch'
 
     def reset(self):
         with self.state.hold(core.HOLD_WAIT):
@@ -336,14 +371,16 @@ def run():
     signal.signal(signal.SIGTERM,lambda *_:stop.set());signal.signal(signal.SIGINT,lambda *_:stop.set())
     root=os.environ.get('AGENT_BUS_DIR')
     work=os.environ.get('AGENT_BUS_WORK') or os.getcwd()
-    timer=None
+    timer=None;agent=None
     try:
         with Bus(timeout=2) as bus:
             configuration=bus.record(bus.name).config
             if not root:
                 print('filescan: no directory is bound (AGENT_BUS_DIR)',file=sys.stderr);return 78
             agent=FileScan(bus,configuration,root,work)
-            timer=core.PollTimer(agent.settings['every'],agent.tick,on_error=lambda e:print('filescan: tick failed',file=sys.stderr))
+            agent.start_watch()
+            every=agent.settings['every'] if agent.needs_timer() else 7*86400.0
+            timer=core.PollTimer(every,agent.tick,on_error=lambda e:print('filescan: tick failed',file=sys.stderr))
             timer.start()
             bus.serve(agent.handle,workers=2,stop=stop,drain_timeout=3)
             return 0
@@ -351,6 +388,7 @@ def run():
         print('filescan: startup refused: '+str(failure),file=sys.stderr);return 78
     finally:
         if timer is not None:timer.stop(timeout=5)
+        if agent is not None:agent.stop_watch()
 
 
 if __name__=='__main__':sys.exit(run())
