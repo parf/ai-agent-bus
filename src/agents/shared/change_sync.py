@@ -306,6 +306,8 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
       keys are recorded as possibly delivered before the send and both marks move on the confirmation; a crash or an
       unconfirmed send leaves both pending, so the same rename is sent again, never a bare create. A `body` for a rename
       must return a message; None is a failure of the body. Without `rename` a rename is a delete and a create, as ever.
+    - `body` may return (text, options): the options go with that one send or call. Options with `wait` send to an agent without
+      waiting for its answer (RAG works to that deadline): the change stays possibly delivered for `settle` to resolve later.
     - `settle(row, key, record, wait)` is asked before sending again a create or change whose earlier send of this very version (same
       fingerprint) had an unknown outcome: 'confirmed' marks it done with no send, 'resend' sends it as without the hook, anything else
       leaves it pending and untouched for this round while the rest of the batch goes on. A key edited since that send has another
@@ -377,6 +379,8 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
                     if payload is None and action=='rename':
                         warning('body_failed',sub_id);break   # as a body that raised: nothing sent, so the pair is taken back
                     attempted.update(_keys(key,action,record))
+                    options={}
+                    if isinstance(payload,tuple):payload,options=payload   # (text, call options such as a longer `ttl`)
                     try:
                         if payload is None:
                             # Nothing to send this subscriber for it (the agent says why): done, never blocking the rest.
@@ -392,9 +396,13 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
                             continue
                         count['sent']+=1;row['sent']=min(base.MAX_SAFE,row['sent']+1)
                         if kind=='queue':
-                            bus.send(row['target'],payload,topic=topic,tag=tag);confirmed=True
+                            bus.send(row['target'],payload,topic=topic,tag=tag,**options);confirmed=True
+                        elif 'wait' in options:
+                            # Sent with its own deadline and not waited on: in flight, its outcome unknown until `settle` learns it.
+                            # It stays possibly delivered (never resent while `settle` says wait) and the rest of the batch goes on.
+                            bus.send(row['target'],payload,topic=topic,**options);count['in_flight']=count.get('in_flight',0)+1;continue
                         else:
-                            confirmed=ok(bus.call(row['target'],payload,timeout=max(0.05,min(confirm_wait,left)),topic=topic))
+                            confirmed=ok(bus.call(row['target'],payload,timeout=max(0.05,min(confirm_wait,left)),topic=topic,**options))
                     except Refusal:
                         # Refused outright, so never queued: it is not possibly delivered (a timeout or a bad reply is).
                         confirmed=False;code='send_refused'

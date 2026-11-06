@@ -603,16 +603,16 @@ class RagTests(Base):
         self.assertEqual((len(h),len(h[0]['id'])),(1,71))
         self.assertEqual([c for c in by.values() if c.get('key1','').startswith('line')],[],'a path with a control or line separator cannot be a RAG source, so it is skipped, not sent')
 
-    def test_a_file_over_rags_limit_or_not_text_is_skipped_for_rag_and_named_in_status(self):
-        self.put('big.md','x'*(fs.RAG_TEXT+1));Path(self.root,'bin.dat').write_bytes(b'\xff\xfe\x01');self.put('ok.md','fine')
+    def test_a_file_over_rags_cap_or_not_text_is_skipped_for_rag_and_named_in_status(self):
+        self.put('big.md','x'*(fs.RAG_CAP+1));Path(self.root,'bin.dat').write_bytes(b'\xff\xfe\x01');self.put('ok.md','fine')
         self.agent=self.make({'max_file_size':'1MiB'});self.rag();self.call('scan')
         self.assertEqual([c['id'] for c in self.calls() if c['method']=='upsert'],['ok.md']);self.assertEqual(sorted(c['id'] for c in self.calls() if c['method']=='delete'),['big.md','bin.dat'])
         skipped=self.call('status')['skipped_for_rag'];names=set(next(iter(skipped.values())))
         self.assertEqual(names,{'big.md','bin.dat'});self.assertEqual(self.call('status')['subscribers'][0]['pending'],0)
 
-    def test_a_file_that_grows_past_ragss_limit_has_its_stale_text_deleted_and_is_named(self):
+    def test_a_file_that_grows_past_rags_cap_has_its_stale_text_deleted_and_is_named(self):
         self.agent=self.make({'max_file_size':'1MiB'});self.put('a.md','small');self.rag();self.call('scan');self.bus.calls.clear()
-        self.put('a.md','x'*(fs.RAG_TEXT+1),mtime=time.time()+5);self.call('scan')
+        self.put('a.md','x'*(fs.RAG_CAP+1),mtime=time.time()+5);self.call('scan')
         self.assertEqual(self.calls(),[{'method':'delete','namespace':'vault','tableName':'notes','id':'a.md'}])
         self.assertIn('was deleted from RAG',next(iter(self.call('status')['skipped_for_rag'].values()))['a.md'])
         self.bus.calls.clear();self.call('scan');self.assertEqual(self.bus.calls,[],'done, not repeated')
@@ -644,7 +644,7 @@ class RagTests(Base):
         self.assertEqual(self.call('status')['subscribers'][0]['pending'],0,'neither file stalls the subscription')
 
     def test_a_file_that_became_unsendable_is_deleted_from_rag_on_create_too_after_a_reset(self):
-        self.agent=self.make({'max_file_size':'1MiB'});self.put('big.md','x'*(fs.RAG_TEXT+1));self.rag()
+        self.agent=self.make({'max_file_size':'1MiB'});self.put('big.md','x'*(fs.RAG_CAP+1));self.rag()
         self.call('scan');self.assertEqual([c['method'] for c in self.calls()],['delete'],'RAG may still hold its old text, so a replay deletes it')
         self.assertEqual(self.calls()[0]['id'],'big.md');self.bus.calls.clear();self.call('scan');self.assertEqual(self.bus.calls,[],'once, not every scan')
 
@@ -652,7 +652,7 @@ class RagTests(Base):
         self.agent=self.make({'max_file_size':'1MiB'})
         for i in range(8):self.put(f'k{i}.md','k')
         self.put('a.md','small');self.rag();self.call('scan');self.bus.calls.clear()
-        self.put('a.md','x'*(fs.RAG_TEXT+1),mtime=time.time()+5);self.call('scan')   # RAG deletes the stale text
+        self.put('a.md','x'*(fs.RAG_CAP+1),mtime=time.time()+5);self.call('scan')   # RAG deletes the stale text
         self.assertEqual([c['method'] for c in self.calls()],['delete']);self.bus.calls.clear()
         os.unlink(Path(self.root)/'a.md');self.bus.replies['#rag@n.test']='error: not_found: record is absent from this namespace'
         self.call('scan');self.assertEqual([c['method'] for c in self.calls()],['delete'])

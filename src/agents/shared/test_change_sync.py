@@ -460,6 +460,24 @@ class DeliveryTests(Base):
         self.assertEqual([b for _,b,_ in self.bus.calls],['create b','create a'],'resend sends it as without the hook')
         self.assertEqual(self.state.load()['marks'][row['id']],{'a':'1','b':'2'})
 
+    def test_a_body_may_give_one_send_its_own_call_options(self):
+        subs,row=self.add('#rag@n.test',kind='agent')
+        self.round(body=lambda r,key,action,record:(f'{action} {key}',{'ttl':1800}) if key=='a' else f'{action} {key}')
+        self.assertEqual([(b,o) for _,b,o in self.bus.calls],[('create a',{'topic':'t','ttl':1800}),('create b',{'topic':'t'})])
+        self.assertEqual(self.state.load()['marks'][row['id']],{'a':'1','b':'2'})
+
+    def test_a_send_with_its_own_deadline_is_in_flight_not_waited_on_and_never_resent_while_settle_waits(self):
+        subs,row=self.add('#rag@n.test',kind='agent')
+        body=lambda r,key,action,record:(f'{action} {key}',{'wait':1800,'ttl':1800}) if key=='a' else f'{action} {key}'
+        result=self.round(body=body)
+        self.assertEqual([(to,b,o) for to,b,o in self.bus.sent],[('#rag@n.test','create a',{'topic':'t','wait':1800,'ttl':1800})],'sent, not called')
+        self.assertEqual([b for _,b,_ in self.bus.calls],['create b'],'the rest of the batch goes on')
+        data=self.state.load();self.assertEqual(data['maybe'][row['id']],{'a':'1'});self.assertNotIn('a',data['marks'][row['id']])
+        self.assertEqual(result[row['id']]['in_flight'],1)
+        for _ in range(2):self.round(body=body,settle=lambda r,key,record,wait:'wait')
+        self.assertEqual(len(self.bus.sent),1,'in flight: never sent again while settle waits')
+        self.round(body=body,settle=lambda r,key,record,wait:'confirmed');self.assertEqual(self.state.load()['marks'][row['id']],{'a':'1','b':'2'})
+
     def test_settle_is_not_asked_for_an_edited_key_or_after_a_refusal(self):
         row=self.unknown_a();asked=[]
         data=self.state.load();data['items']['a']=item('1b');self.state.save(data)
