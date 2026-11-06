@@ -6,24 +6,37 @@
 # daemon's and the runner's secrets stay in separate containers and accounts.
 set -euo pipefail
 
-daemon_home=/var/lib/agent-bus/daemon
-runner_home=/var/lib/agent-bus/runner
-agents=/var/lib/agent-bus/agent.d
+# AGENT_BUS_CONTAINER_ROOT only moves the image's directory root, for the entry point's own test.
+root=${AGENT_BUS_CONTAINER_ROOT:-/var/lib/agent-bus}
+daemon_home=$root/daemon
+runner_home=$root/runner
+agents=$root/agent.d
 
 fail() { echo "agent-bus-container: $*" >&2; exit 1; }
 
 # A fresh volume is root's: give it to the role's account, never anything
-# under it, so a volume from another image is not silently rewritten.
+# under it, so a volume from another image is not silently rewritten. A
+# directory the account can already use, such as a bind mount of a host
+# directory, keeps its owner and mode: changing them would lock its host owner out.
 own() { # own DIR ACCOUNT
   [ "$(id -u)" = 0 ] || return 0
-  [ "$(stat -c %U "$1")" = "$2" ] || chown "$2:$2" "$1"
+  if [ "$(stat -c %U "$1")" != "$2" ]; then
+    ! usable_by "$2" "$1" || return 0
+    chown "$2:$2" "$1"
+  fi
   chmod 0700 "$1"
+}
+
+usable_by() { # usable_by ACCOUNT DIR: the account can read, write and enter it
+  setpriv --reuid="$1" --regid="$1" --init-groups -- test -r "$2" -a -w "$2" -a -x "$2"
 }
 
 as() { # as ACCOUNT COMMAND...
   local who=$1; shift
   if [ "$(id -u)" = 0 ]; then
-    exec setpriv --reuid="$who" --regid="$who" --init-groups --inh-caps=-all -- "$@"
+    # No capability can be kept or regained, and no exec can gain privilege: the image's setuid-root
+    # binaries (su, mount, ...) stay inert for the role's processes.
+    exec setpriv --reuid="$who" --regid="$who" --init-groups --inh-caps=-all --bounding-set=-all --no-new-privs -- "$@"
   fi
   [ "$(id -un)" = "$who" ] || fail "run as root or as $who, not $(id -un)"
   exec "$@"
@@ -40,7 +53,12 @@ case ${1:---help} in
     if [ "$(id -u)" = 0 ]; then install -d -m 0711 -o agent-busd -g agent-busd /run/agent-bus; fi
     flags=(--db "$db" --owner "$owner" --addr "${AGENT_BUS_LISTEN:-0.0.0.0:6767}" --socket /run/agent-bus/bus.sock)
     [ ! -d "$daemon_home/tls" ] || flags+=(--tls-dir "$daemon_home/tls")
-    if [ ! -e "$db" ]; then
+    if [ -e "$db" ]; then
+      echo "agent-bus-container: the Owner is kept from the first start; AGENT_BUS_OWNER is read only then (it is still required, but names no change)" >&2
+    else
+      # The first start saves the hostname as the realm for good: a container left on its default
+      # name, the 12 hex characters of its id, would keep that as its realm.
+      ! [[ $(hostname) =~ ^[0-9a-f]{12}$ ]] || fail "the hostname is the realm and is kept from the first start: pass --hostname <name> (the default, $(hostname), is a container id)"
       (as agent-busd agent-busd --init --db "$db" --owner "$owner") || fail "could not create $db"
     fi
     as agent-busd agent-busd "${flags[@]}" "$@"
@@ -52,8 +70,18 @@ case ${1:---help} in
     [ -n "${AGENT_BUS_TOKEN:-}" ] || fail "AGENT_BUS_TOKEN is the token of #runner/<person>@<realm>"
     # The container is the boundary and has no sandbox: the image's example
     # runs with it off, said in the inventory a person can read and change.
+    # The inventory lists the agents that are present, so a directory mounted over agent.d lists its own.
     if [ ! -e "$runner_home/agents.json" ]; then
-      printf '{\n  "echo": {"sandbox": "off"}\n}\n' >"$runner_home/agents.json"
+      sep=""
+      {
+        printf '{\n'
+        for d in "$agents"/*/; do
+          [ -f "${d}agent.json" ] || continue
+          printf '%s  "%s": {"sandbox": "off"}' "$sep" "$(basename "$d")"
+          sep=$',\n'
+        done
+        printf '\n}\n'
+      } >"$runner_home/agents.json"
       [ "$(id -u)" != 0 ] || chown agent-bus-runner:agent-bus-runner "$runner_home/agents.json"
     fi
     as agent-bus-runner agent-bus-runner --host="$runner_home" --agents="$agents" "$@"

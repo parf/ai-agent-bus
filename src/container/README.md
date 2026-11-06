@@ -39,11 +39,11 @@ release-set verification is described in the [maintainer deployment guide](../..
 
 | Role | Account | Volume | Needs |
 |---|---|---|---|
-| `daemon` | `agent-busd` (990) | `/var/lib/agent-bus/daemon`: the database, logs, TLS | `AGENT_BUS_OWNER=<user>@<realm>`; the hostname is the realm |
+| `daemon` | `agent-busd` (990) | `/var/lib/agent-bus/daemon`: the database, logs, TLS | `AGENT_BUS_OWNER=<user>@<realm>`; the hostname is the realm, saved at the first start |
 | `runner` | `agent-bus-runner` (991) | `/var/lib/agent-bus/runner`: inventory, settings, agent tokens, work | `AGENT_BUS_ADDR`, `AGENT_BUS_TOKEN` of `#runner/<person>` |
 
 Each role starts as root only to give a fresh volume to its account, then runs
-as that account with no capabilities. The daemon's and the runner's secrets
+as that account with no capabilities and no way to gain privilege (no new privileges, empty bounding set), so the image's setuid binaries stay inert. A directory the account can already use, such as a bind mount of a host directory, keeps its owner and mode; a fresh volume is given to the account. Under rootless podman a bind mount the account cannot use needs `podman unshare chown 990:990 <dir>` (991 for the runner) first, or use a named volume. The daemon's and the runner's secrets
 stay in separate containers.
 
 ```sh
@@ -63,7 +63,7 @@ podman run -d --name agent-bus-runner --network agent-bus \
 AGENT_BUS_ADDR=http://localhost:6767 AGENT_BUS_TOKEN="$OWNER_TOKEN" agent-bus call '#echo' hello
 ```
 
-The answer comes from `#echo`, served by the runner container.
+The first start of the daemon saves the hostname as the realm and the `AGENT_BUS_OWNER` as the Owner, both for good: pass `--hostname` then (a first start on the default container-id hostname is refused), and a later `AGENT_BUS_OWNER` is read but changes nothing. The answer comes from `#echo`, served by the runner container.
 
 <details>
 <summary>Persistence, access and agents</summary>
@@ -72,7 +72,7 @@ The answer comes from `#echo`, served by the runner container.
 |---|---|
 | Persistence | The [storage](../../docs/administration.md#storage) is the daemon volume. A new container on the same volume keeps every record and credential; a container without it starts a new bus |
 | Access | The port answers HTTP on `0.0.0.0:6767` (`AGENT_BUS_LISTEN` changes it). Put `cert.pem` and `key.pem` in the volume's `tls/` directory and it answers TLS too; clients then pin it with `AGENT_BUS_TLS_FINGERPRINT` ([TLS](../../docs/administration.md#tls)). The local socket serves only the daemon container's own processes ([access](../../docs/02-access.md#what-a-call-carries)) |
-| Agents | Shared agent code is `/var/lib/agent-bus/agent.d`: the image holds `echo`; bind-mount a directory there for others ([runner configuration](../../docs/runner/configuration.md#where-settings-belong)). An agent that serves itself needs its token handed over as the runner says |
+| Agents | Shared agent code is `/var/lib/agent-bus/agent.d`: the image holds `echo`; bind-mount a directory there for others; the runner's first-start inventory lists the agents present then, so a directory without `echo` lists no `#echo` ([runner configuration](../../docs/runner/configuration.md#where-settings-belong)). An agent that serves itself needs its token handed over as the runner says |
 | Updates | Build a new image and replace the containers; the volumes stay |
 
 </details>
