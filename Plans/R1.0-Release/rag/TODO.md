@@ -54,7 +54,7 @@ Blocks first (R.1–R.4), then the app (R.5–R.9).
   - Acceptance: on a fixture set, filters hold exactly; a keyword-only match and a meaning-only match both appear; rerank reorders; hits carry the agreed fields
 
 - ☐ R.8 `#rag` extras: `complete`, `similar`, `count`, `classify`
-  - Owner to confirm the list before this step
+  - Owner to confirm the list before this step: [Q360](QUESTIONS.md)
 
 - ☐ R.9 Summary, docs and end-to-end
   - Builds: the optional summary chunk through `#ai`; a user guide under `docs/agents/`; one end-to-end run on the owner's data, approved by the owner

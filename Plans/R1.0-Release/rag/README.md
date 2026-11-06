@@ -90,4 +90,4 @@ CRUD + extra functionality (like search completion, ..)"). JSON-only arguments f
 
 ## Open choices
 
-None open: Q194 is [settled](../DECISIONS.md#recorded-decisions); the keyword option and built-in default are defined in [rules](#rules). R.5 is a comparison, not a selection gate.
+Open: [Q360](QUESTIONS.md) (which extras to build). Q194 is [settled](../DECISIONS.md#recorded-decisions); the keyword option and built-in default are defined in [rules](#rules). R.5 is a comparison, not a selection gate.
