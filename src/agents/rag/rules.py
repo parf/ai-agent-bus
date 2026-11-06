@@ -88,7 +88,7 @@ def loads(raw, maximum=BODY_MAX):
     try:
         if not isinstance(raw,str) or len(raw.encode('utf-8'))>maximum: raise RagError('JSON body exceeds byte limit')
         return json.loads(raw,object_pairs_hook=pairs,parse_constant=reject)
-    except (ValueError,UnicodeError,TypeError):
+    except (ValueError,UnicodeError,TypeError,RecursionError):
         raise RagError('invalid JSON, encoding, duplicate key or byte limit') from None
 
 

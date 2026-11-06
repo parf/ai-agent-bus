@@ -600,6 +600,9 @@ class Rag(unittest.TestCase):
         for raw in ['{"p":NaN}','{"p":Infinity}','{"p":-Infinity}']:
             with self.assertRaises(RagError):loads(raw)
 
+    def test_a_deeply_nested_body_is_refused_as_rag_error_not_a_recursion_error(self):
+        with self.assertRaises(RagError):loads('['*200000)
+
     def test_corrupt_stored_fields_are_refused(self):
         self.call()
         head=self.store.points[point_id(self.req())]['payload']
