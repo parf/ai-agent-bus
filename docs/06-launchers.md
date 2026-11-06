@@ -76,9 +76,14 @@ Launchers set terminal titles and colors when the terminal supports them.
 
 | Concern | Behavior |
 |---|---|
-| Title | `Claude(...)`, `Codex(...)` or `OpenCode(...)`; prefer the assigned session name, otherwise the last two directory components, with home abbreviated as `~`. Refresh when the session name changes |
+| Title | `<glyph> <label>`, glyph first so a narrow tab still tells sessions apart; no runtime word |
+| Glyph | ✴️ Claude, 🔶 `-2`, 🌟 `-3`, 🔷 `-4`; ❇️ Codex; 👾 OpenCode. Without a flag, a `CLAUDE_CONFIG_DIR` named `.claude2`–`.claude4` selects that account |
+| Label | The first of: `AB_TAB_TITLE` from the start script, the bus name's distinguishing part (`#ab-w1b` → `ab-w1b`, `#claude/home@node` → `home`), the session name, the launch directory. Refresh when any of them changes |
+| Label text | Control characters (C0, C1, ESC, BEL) and bidi overrides are removed and whitespace collapsed; at most 24 graphemes |
+| tmux | The window is renamed `<name> <glyph>`; its name before the launcher is saved on the window and put back on exit. After a crash, the next launcher in that window starts from the saved name. A `#` is passed literally, never as a tmux format |
+| Nesting | A launcher started inside another live launcher's session, or in a tmux window another live launcher owns, leaves that tab, title and window name alone; `AB_TAB_TITLE` is not passed on |
 | Ownership | Disable the runtime's own title updates while the launcher controls an interactive terminal |
-| Exit | Restore the saved terminal title on normal exit, startup failure and handled termination; reset launcher tab colors to terminal defaults. Konsole restores its saved local and remote title formats |
+| Exit | Restore the saved terminal title on normal exit, startup failure and handled termination; reset launcher tab colors to terminal defaults. A kitty tab title set on purpose (`kitty launch --tab-title`) comes back; one that followed its window keeps following it. Konsole restores its saved local and remote title formats |
 | Claude palette | Rotate blue/cyan shades |
 | Codex palette | Rotate green shades |
 | OpenCode palette | Rotate a distinct violet palette; red stays reserved for production |

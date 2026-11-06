@@ -15,7 +15,7 @@ import { faceEvent, faceMarks } from "../mcp/face-mark.ts";
 import { version, versionOutput, COPYRIGHT } from "../mcp/version.ts";
 import { Bindings, claudeSessions, claudeStart, claudeTitle, sameBase, type Session } from "./sessions.ts";
 import { localAddress, runtimeBinary } from "./local.ts";
-import { Terminal } from "./terminal.ts";
+import { accountOf, Terminal } from "./terminal.ts";
 import { automaticBase, claimFork, claimIdentity, releaseIdle } from "./identity.ts";
 import { serveControl } from "./control.ts";
 import { codexAuth } from "./runtime-auth.ts";
@@ -181,18 +181,22 @@ ${COPYRIGHT}`);
     for (let i = args.indexOf(chosen[0]!); i >= 0; i = args.indexOf(chosen[0]!)) args.splice(i, 1);
     note(`account ${chosen[0]!.slice(1)}: ${home}`);
   }
+  const account = chosen.length ? Number(chosen[0]!.slice(1)) : runtime === "claude" ? accountOf(process.env) : 1;
   // opencode1 is the archived 1.x launcher; it still runs the opencode binary.
   const binary = runtimeBinary(runtime === "opencode1" ? "opencode" : runtime, process.env);
   if (!binary) throw new Error(`${runtime} executable not found; install the runtime or set ${runtime === "opencode1" ? "OPENCODE" : runtime.toUpperCase()}_BIN`);
   const dirOption = runtime === "codex" ? option(["-C", "--cd"]) : runtime !== "claude" ? option(["--dir"]) : undefined;
   const cwd = realpathSync(dirOption ? resolve(dirOption) : process.cwd());
   process.chdir(cwd);
-  terminal = new Terminal(runtime, cwd);
+  terminal = new Terminal(runtime, cwd, account);
   const address = localAddress(process.env);
   if (address) process.env.AGENT_BUS_ADDR = address;
   const cleanEnv = { ...process.env };
   for (const key of Object.keys(cleanEnv)) if (key.startsWith("AGENT_BUS_")) delete cleanEnv[key];
+  // The label is this launcher's; a launcher nested inside it leaves the tab alone.
+  delete cleanEnv.AB_TAB_TITLE;
   if (terminal.active) {
+    cleanEnv.AGENT_BUS_TITLE_OWNER = String(process.pid);
     cleanEnv.CLAUDE_CODE_DISABLE_TERMINAL_TITLE = "1";
     cleanEnv.OPENCODE_DISABLE_TERMINAL_TITLE = "1";
   }
@@ -388,6 +392,7 @@ ${COPYRIGHT}`);
   let { name, label, description: purpose } = await claimIdentity(owner, bindings, base, session.name || `${runtime}(${cwd})`, previous?.name, saved, runtime, undefined, description, tags, cwd, takeOver);
   description = purpose;
   bindings.save(session.id, name, base);
+  terminal.setBus(name);
   if (previous && previous.name !== name) {
     try { await owner.unregister(previous.name); }
     catch (e) {
@@ -516,6 +521,7 @@ ${COPYRIGHT}`);
     saveEnv();
     if (codex) bindThread({ id: session.id }, RENAME_READER_RETRY_MS);
     else if (opencode) bindSession(session.id, RENAME_READER_RETRY_MS);
+    terminal?.setBus(name);
     terminal?.set(label);
     const released = old === name ? "address unchanged" : await releaseIdle(owner, old);
     return `registered as ${name} (${label}); ${released}`;
