@@ -119,7 +119,8 @@ test('empty answer differs from done, manual answer stays single, exceptions pro
  const caller=bus('#caller@fixture'),worker=bus('#worker@fixture');let errors=0;
  await serve(worker,async msg=>{if(msg.body==='done')return null;if(msg.body==='fail')throw new Error('SECRET-do-not-log');if(msg.body==='manual'){await msg.reply('manual');return 'duplicate';}return '';},{onError:(_id,type)=>{expect(type).toBe('Error');errors++;}});
  expect((await caller.call('#worker@fixture','empty',{timeout:500})).kind).toBe('answer');expect((await caller.call('#worker@fixture','done',{timeout:500})).kind).toBe('done');const manual=await caller.call('#worker@fixture','manual',{timeout:500});expect(manual.kind==='answer'&&manual.message.body).toBe('manual');
- const result=await caller.call('#worker@fixture','fail',{timeout:160});expect(result).toEqual({kind:'timeout',acked:true});expect(errors).toBe(1);await expect(caller.consume({wait:0})).resolves.toBeNull();
+ // The budget is only the window in which no answer may come: what is proved is the ack and the error, so it is wide enough for a loaded host (J114).
+ let acks=0;const result=await caller.call('#worker@fixture','fail',{timeout:1000,onAck:()=>{acks++;}});expect(result).toEqual({kind:'timeout',acked:true});expect(acks).toBe(1);expect(errors).toBe(1);await expect(caller.consume({wait:0})).resolves.toBeNull();
 });
 test('no prefetch at capacity; stopping drains the taken message and pending handler call',async()=>{
  const caller=bus('#caller@fixture'),worker=bus('#worker@fixture'),helper=bus('#helper@fixture');let entered!:()=>void,release!:()=>void;const began=new Promise<void>(r=>entered=r),gate=new Promise<void>(r=>release=r);let count=0;
