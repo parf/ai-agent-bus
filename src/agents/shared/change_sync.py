@@ -5,6 +5,7 @@ authority, delivery that marks a change done only after the subscriber confirms
 it (and sends it again otherwise), and a poll timer that never overlaps itself.
 The agents decide what an item is; the core only needs a key and a fingerprint.
 """
+import contextlib
 import copy
 import errno
 import fcntl
@@ -29,6 +30,7 @@ from subscriptions import SubscriptionError
 VERSION=1
 DEFAULT_STATE_MAX=64*1024*1024
 HOLD_WAIT=10.0  # `sub add` and `sub delete` wait this long for a running scan or delivery round
+ROUND_MAX=8.0   # a delivery round ends within this, so it always lets an add or delete through inside HOLD_WAIT
 SUB_FIELDS={'id','target','selector','created_by','created_at','sent','confirmed','dropped'}
 CODES={'state_full','state_corrupt','state_unwritable','scan_busy'}
 
@@ -37,6 +39,9 @@ class SyncError(Exception):
     def __init__(self,code,text=None):
         assert code in CODES
         self.code=code;super().__init__(text or code)
+
+
+def _no_constant(name):raise ValueError('NaN and Infinity are not state')
 
 
 def _fresh():return {'version':VERSION,'items':{},'subs':{},'marks':{},'meta':{}}
@@ -77,14 +82,15 @@ class StateFile:
         try:raw=self.path.read_bytes()
         except FileNotFoundError:return _fresh()
         except OSError:raise SyncError('state_unwritable') from None
-        try:state=json.loads(raw)
-        except (ValueError,UnicodeError):raise SyncError('state_corrupt') from None
+        try:state=json.loads(raw,parse_constant=_no_constant)
+        except (ValueError,UnicodeError,RecursionError):raise SyncError('state_corrupt') from None
         return _check_state(state)
 
     def save(self,state):
         """Raises before touching the old file when the new one would pass the cap."""
         _check_state(state)
-        data=json.dumps(state,separators=(',',':'),sort_keys=True,allow_nan=False).encode()
+        try:data=json.dumps(state,separators=(',',':'),sort_keys=True,allow_nan=False).encode()
+        except (ValueError,TypeError,RecursionError):raise SyncError('state_corrupt','state holds a value that cannot be written (NaN, Infinity or not JSON)') from None
         if len(data)>self.max_bytes:
             raise SyncError('state_full',f'state full: {len(data)} of {self.max_bytes} bytes; raise state_max, exclude more, or split the folder')
         temp=self.dir/f'{self.name}{self.TEMP}{os.getpid()}.{uuid.uuid4().hex[:8]}'
@@ -111,12 +117,17 @@ class StateFile:
         except OSError:pass  # The rename is done; a directory flush that fails cannot undo it.
 
     def clean_temporaries(self):
-        """Leftovers of a write that died before its rename; the state itself is never touched."""
+        """Leftovers of a write that died before its rename; the state itself is never touched.
+
+        Takes the hold itself, so another writer's in-flight temporary is never removed:
+        it raises `scan_busy` while anyone holds the state, and must not be called with the hold taken.
+        """
         prefix=self.name+self.TEMP;count=0
-        for entry in self.dir.iterdir():
-            if entry.name.startswith(prefix) and entry.is_file() and not entry.is_symlink():
-                try:entry.unlink();count+=1
-                except OSError:pass
+        with self.hold():
+            for entry in self.dir.iterdir():
+                if entry.name.startswith(prefix) and entry.is_file() and not entry.is_symlink():
+                    try:entry.unlink();count+=1
+                    except OSError:pass
         return count
 
     def hold(self,wait=0.0):
@@ -191,10 +202,24 @@ class SyncSubscriptions:
             return result
         except Exception:raise SubscriptionError('invalid_selector') from None
 
+    # Errors are SubscriptionError codes. Beyond the shared ones: `busy` when a running scan or round did
+    # not end within HOLD_WAIT (nothing was changed), `store_unknown` when the state file is damaged or unwritable.
+    @contextlib.contextmanager
+    def _held(self):
+        hold=self.state.hold(HOLD_WAIT)
+        try:hold.__enter__()
+        except SyncError as error:raise SubscriptionError('busy' if error.code=='scan_busy' else 'store_unknown') from error
+        try:yield
+        finally:hold.__exit__()
+
+    def _loaded(self):
+        try:return self.state.load()
+        except SyncError as error:raise SubscriptionError('store_unknown') from error
+
     def add(self,message,target,selector,*,replay=True):
         who=base.actor(message);target=base.target_text(target);selector=self._selector(selector)
-        with self.state.hold(HOLD_WAIT):
-            state=self.state.load()
+        with self._held():
+            state=self._loaded()
             if len(state['subs'])>=self.maximum or sum(r['created_by']==who for r in state['subs'].values())>=self.per_creator:raise SubscriptionError('limit')
             cache={}
             for wanted in (target,self.source):
@@ -215,7 +240,7 @@ class SyncSubscriptions:
 
     def list(self,message,matches=None):
         who=base.actor(message)
-        state=self.state.load();manager=base.own_manager(message,self.source);result=[]
+        state=self._loaded();manager=base.own_manager(message,self.source);result=[]
         for sub_id in sorted(state['subs']):
             row=state['subs'][sub_id]
             if not manager and row['created_by']!=who:continue
@@ -226,8 +251,8 @@ class SyncSubscriptions:
 
     def delete(self,message,sub_id):
         base.validate_id(sub_id);who=base.actor(message)
-        with self.state.hold(HOLD_WAIT):
-            state=self.state.load();row=state['subs'].get(sub_id)
+        with self._held():
+            state=self._loaded();row=state['subs'].get(sub_id)
             if row is None:raise SubscriptionError('not_found')
             if not base.own_manager(message,self.source) and row['created_by']!=who:raise SubscriptionError('not_author')
             del state['subs'][sub_id];state['marks'].pop(sub_id,None)
@@ -246,15 +271,20 @@ def reply_ok(result):
     return isinstance(body,dict) and body.get('status')=='ok' and 'error' not in body
 
 
-def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=15.0,deadline=None,warning=lambda code,sub_id:None,ok=reply_ok):
+def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,deadline=None,warning=lambda code,sub_id:None,ok=reply_ok):
     """One delivery round for every subscriber; returns {sub_id: counts}.
 
     - Per subscriber: pending changes in key order, at most `batch`; stops at the first one not confirmed, so order holds.
     - A change is marked done for that subscriber only after the target confirms it: an agent answers ok, a queue accepts the send.
     - The author's may-send to the target and to the source, and the target's record, are checked again before every send.
     - A refusal, a timeout or no answer leaves the change pending; one stuck subscriber never holds up the others.
-    - The state is saved once per subscriber, so a crash between a confirmation and the save sends that batch again (at least once).
+    - The round ends by `deadline` (default ROUND_MAX seconds from now) and no wait on a target runs past it, so a silent
+      agent cannot keep the state held longer than a `sub add` or `sub delete` waits for it.
+    - The state is saved after each subscriber's batch, so a later failure keeps the earlier subscribers' confirmations. A crash
+      between a confirmation and its save sends that subscriber's batch again (at least once). A save that fails (`state_full`,
+      a write error) is reported through `warning` and ends the round: nothing more is sent whose confirmation cannot be kept.
     """
+    if deadline is None:deadline=time.monotonic()+ROUND_MAX
     results={}
     with state.hold():
         data=state.load()
@@ -263,7 +293,8 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=15.0
             todo=pending(data,sub_id,lambda key,row=row:matches(row,key))
             try:
                 for key,action,record in todo[:batch]:
-                    if deadline is not None and time.monotonic()>=deadline:break
+                    left=deadline-time.monotonic()
+                    if left<=0:break
                     code,kind=_admit(bus,source,row)
                     if code:
                         count['dropped']+=1;row['dropped']=min(base.MAX_SAFE,row['dropped']+1);warning(code,sub_id);break
@@ -273,7 +304,7 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=15.0
                         if kind=='queue':
                             bus.send(row['target'],payload,topic=topic,tag=tag);confirmed=True
                         else:
-                            confirmed=ok(bus.call(row['target'],payload,timeout=confirm_wait,topic=topic))
+                            confirmed=ok(bus.call(row['target'],payload,timeout=max(0.05,min(confirm_wait,left)),topic=topic))
                     except Refusal:confirmed=False;code='send_refused'
                     except Exception:confirmed=False;code='send_unknown'
                     if not confirmed:
@@ -283,7 +314,10 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=15.0
                     else:data['marks'][sub_id][key]=record['fp']
             finally:
                 count['pending']=len(pending(data,sub_id,lambda key,row=row:matches(row,key)))
-        if any(c['sent'] or c['dropped'] for c in results.values()):state.save(data)
+            if count['sent'] or count['dropped']:
+                try:state.save(data)
+                except SyncError as error:
+                    count['unsaved']=True;warning(error.code,sub_id);break
     return results
 
 
