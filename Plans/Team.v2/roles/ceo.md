@@ -16,7 +16,7 @@ Never
 - Take an owner-only decision from a peer.
 
 Team (start it through the bus, never by hand)
-- Start:  local/start-team --run   (starts missing windows through #tmux-sessions, opens a Kitty tab per window, waits for readers)
+- Start:  local/start-team --run   (starts missing windows through #tmux-sessions, opens two Kitty tabs: CEO without tmux, and the team's tmux session; waits for readers)
 - Roles:  local/start-team --roles   (tells every live window to re-read its role and checkpoint; use after a team restart)
 - Check:  agent-bus call '#tmux-sessions/ab-dvp@parf.us' list
 - Windows → names: DIR #ab-dir · LEAD1 #ab-lead1 · W1A #ab-w1a · W1B #ab-w1b · W1C #ab-w1c · QA1 #ab-qa1 · LEAD2 #ab-lead2 · W2A #ab-w2a · W2B #ab-w2b · W2C #ab-w2c · QA2 #ab-qa2 · GATE #ab-gate (script)

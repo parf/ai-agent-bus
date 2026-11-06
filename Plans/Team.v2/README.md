@@ -8,7 +8,7 @@ Team v2 began operating with two teams on 2026-10-30. The owner confirmed on 202
 
 The role prompts live in [roles/](roles/common.md#team-v2--shared-rules): one file per role, plus [shared rules](roles/common.md#team-v2--shared-rules) every role follows: the task lifecycle, a review bound to one commit, the hand-off checklist, usage and workload control, simple tasks done directly, area affinity and change-type review triggers (adopted from the mdhouse team, owner, 2026-11-05).
 
-`start-ceo.sh`, `start-team`, `gate.sh`, the launcher configuration and per-window notes stay node-local under `local/`, outside Git. The managed tmux session is `AB-DVP`, reached through `#tmux-sessions/ab-dvp@parf.us`; `local/start-team --run` starts missing windows through it and opens one Kitty tab per window, and `--roles` tells every live window to re-read its role.
+`start-ceo.sh`, `start-team`, `gate.sh`, the launcher configuration and per-window notes stay node-local under `local/`, outside Git. The managed tmux session is `AB-DVP`, reached through `#tmux-sessions/ab-dvp@parf.us`; `local/start-team --run` starts missing windows through it and opens two Kitty tabs, CEO (no tmux) and the team (its tmux session), and `--roles` tells every live window to re-read its role.
 
 ## Shape
 
