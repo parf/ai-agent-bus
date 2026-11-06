@@ -5,7 +5,7 @@
 📌 **TL;DR:**
 - **Problem:** a folder of notes, invoices or reports changes all day, and the agents that should react (an index, an AI, a chat alert) never hear about it.
 - **Outcome:** `#filescan/<name>` watches one folder the node owner allows, tells each subscribed agent what was created, changed or deleted, and marks a file done only after that agent answers ok.
-- **Start:** `agent-bus call '#filescan/vault@node.example' 'sub add #rag@node.example'` ([Try this first](#try-this-first)).
+- **Start:** `agent-bus call '#filescan/vault@node.example' 'sub add #rag@node.example as rag vault notes'` ([Try this first](#try-this-first)).
 
 ## What it does
 
@@ -21,14 +21,14 @@
 | `status` | Mode and any fallback, files tracked, each subscriber's progress, last scan, state size against its cap, files skipped for RAG, a paused guard |
 | `scan [confirm:true]` | Walks the folder now; `confirm:true` (Owners and Maintainers) releases a held mass delete |
 | `reset confirm:true` | Forgets every tracked file and mark, keeps the subscriptions and replays everything. **Pending deletes are lost.** Owners and Maintainers only; a damaged state file is replaced and its subscriptions go with it |
-| `sub add <target> [/regex/] [as rag [<namespace> [<table>]]] [replay:false]` | Sends each change to a queue or an agent until it confirms; existing files first unless `replay:false` |
+| `sub add <target> [/regex/] [as rag [<namespace> [<table>]]] [replay:false]` | Sends each change to a queue until the bus accepts it, or to RAG with `as rag` until RAG confirms; any other agent is refused as `agent_contract_missing`; existing files first unless `replay:false` |
 | `sub list`, `sub delete <id>` | Your subscriptions with sent, confirmed, dropped and pending counts; delete one and its marks |
 
 ## You'll need
 
 - A bus runner with Python 3 and Linux for the instant path.
 - The node owner's `roots` entry for this agent ([Installing it](#installing-it)): **without one it watches nothing.**
-- A grant with `read` or `write` on this instance, and a target queue or agent that admits both you and this instance.
+- A grant with `read` or `write` on this instance, and a target queue, or RAG with `as rag`, that admits both you and this instance.
 
 ## Try this first
 
@@ -43,7 +43,7 @@ agent-bus call '#filescan/vault@node.example' 'status'
 
 | I want to… | Command |
 |---|---|
-| Get "file changed" in a chat for Markdown files | `agent-bus call '#filescan/docs@node.example' 'sub add #telegram@node.example /\.md$/'` |
+| Get "file changed" in a chat for Markdown files | `agent-bus call '#filescan/docs@node.example' 'sub add notes-changed /\.md$/'` |
 | Scan now | `agent-bus call '#filescan/vault@node.example' 'scan'` |
 | Release a paused delete after checking the folder | `agent-bus call '#filescan/vault@node.example' 'scan confirm:true'` |
 | Start over | `agent-bus call '#filescan/vault@node.example' 'reset confirm:true'` |
@@ -88,9 +88,10 @@ Filescan is a kept process: inotify needs one that stays up. It [serves itself](
 | Nothing is sent, `status` shows no files | No root lists the folder: the agent is refused at start with `needs.dir`; check the runner's `agents.json` `roots` and the Configuration `dir` |
 | `paused` in `status`, `scan` answers `paused` | The guard held a delete; look at the folder, then `scan confirm:true`. A changed `dir` needs `reset confirm:true` |
 | `fallback: inotify is not available` or `watch limit reached` | The folder is polled instead, or in part; raise the kernel's `fs.inotify.max_user_watches` or accept the poll |
+| `sub add` answers `agent_contract_missing` | The target is an agent other than RAG; use a queue, or `as rag` for RAG |
 | `state full` | Raise `state_max`, exclude more, or split the folder; the old state is untouched |
 | `state_corrupt` | The state file is damaged; `reset confirm:true` replaces it (its subscriptions are lost) |
-| A subscriber's `pending` never drops | It does not answer ok or refuses; fix the target. Changes wait and are sent again |
+| A subscriber's `pending` never drops | RAG does not confirm the stored record, or the target refuses; fix the target. Changes wait and are sent again |
 
 ## Technical details
 

@@ -72,7 +72,7 @@
       "returns": "{reset}"
     },
     "sub.add": {
-      "help": "Send each change under the folder to a queue or an agent's inbox, and send it again until the target confirms it. The files that already exist are sent first unless replay:false. `as rag` sends RAG's own upsert and delete calls.",
+      "help": "Send each change under the folder to a queue, and send it again until the bus accepts it. The files that already exist are sent first unless replay:false. `as rag` sends RAG's own upsert and delete calls to RAG, which must confirm the stored record; any other agent is refused.",
       "role": [
         "read",
         "write"
@@ -82,7 +82,7 @@
         {
           "name": "target",
           "type": "string",
-          "help": "Destination queue or agent; the creator's grants are checked at add and before every send"
+          "help": "Destination queue, or RAG with `as rag`; the creator's grants are checked at add and before every send"
         },
         {
           "name": "pattern",

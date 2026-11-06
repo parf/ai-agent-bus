@@ -86,3 +86,9 @@ Deferred by the owner on 2026-10-30; use the [manual macOS uninstall steps](mac2
 - **What:** the shared chat router (`src/agents/shared/router.ts`, Telegram, Slack and Discord) keeps every reply route, tag and gone mark in one KV value, rewritten whole on each change and kept under half the value limit by evicting the routes that expire first ([L4](../issues/2026-10/2026-10-19.md#bundled-agents)). One route per key would remove the cap and the whole-value rewrite.
 - **Deferred:** by `#ab-dir`, 2026-11-05; the minimal fix bounds the value and names every expired or evicted reply.
 - **To start it:** evictions show up in a router's log during normal use, or the rewrite cost shows in a profile.
+
+## A FileScan or DBSync sink to a specific agent
+
+- **What:** FileScan and DBSync send only to a queue, and FileScan to RAG with `as rag`; any other agent target is refused as `agent_contract_missing`. A sink to a specific agent (for example `#telegram`) needs a named answer contract, tested against that real agent.
+- **Deferred:** a generic `as ok` contract would trust a claim about a peer's answer that no test checks, and the real eventlog answers neither `status: ok` nor a raw change message (J118, `#ab-lead1`, 2026-11-06).
+- **To start it:** someone needs that sink: add the contract's name, its confirm function checked against the real agent's answers, and a mutant that confirms on anything else.

@@ -5,7 +5,7 @@
 📌 **TL;DR:**
 - **Problem:** an orders, products or tickets table changes all day, and the agents that should react (an index, a chat alert, an event log) never hear about it.
 - **Outcome:** `#dbsync/<name>` reads one table through a read-only [DB agent](../../src/agents/db/guide.md#what-it-does), tells each subscribed agent about every new, changed or soft-deleted row, and marks a row done only after that agent confirms it.
-- **Start:** `agent-bus call '#dbsync/orders@node.example' 'sub add #eventlog@node.example'` ([Try this first](#try-this-first)).
+- **Start:** `agent-bus call '#dbsync/orders@node.example' 'sub add orders-feed'` ([Try this first](#try-this-first)).
 
 ## What it does
 
@@ -21,7 +21,7 @@
 | `status` | The table, scan position, rows held against `window_max`, last poll and error, and each subscriber's position, counts, `parked` and `lookback_degraded` |
 | `poll` | Reads and delivers now, instead of waiting for `every`. `write`, Owners and Maintainers only |
 | `reset confirm:true` | Forgets every row and position, keeps the subscriptions and replays the table. Owners and Maintainers only |
-| `sub add <target> [replay:false]` | Sends each row to a queue or an agent until it confirms; the whole table first unless `replay:false` |
+| `sub add <target> [replay:false]` | Sends each row to a queue until the bus accepts it; an agent destination is refused as `agent_contract_missing`; the whole table first unless `replay:false` |
 | `sub list`, `sub delete <id>` | Your subscriptions with sent, confirmed, dropped and pending counts; delete one |
 
 ## You'll need
@@ -29,14 +29,14 @@
 - A bus runner with Python 3.
 - A [DB agent](../../src/agents/db/guide.md#what-it-does) for the database, MySQL or PostgreSQL, that grants this instance its `read` role.
 - In the table: a unique key that is a number or a timestamp, and an `updated` column the application sets on every insert and update.
-- A grant with `read` or `write` on this instance, may-send to the DB agent yourself, and a target that admits both you and this instance.
+- A grant with `read` or `write` on this instance, may-send to the DB agent yourself, and a queue that admits both you and this instance.
 
 ## Try this first
 
 - Log each new or changed order, then watch the backlog shrink:
 
 ```sh
-agent-bus call '#dbsync/orders@node.example' 'sub add #eventlog@node.example'
+agent-bus call '#dbsync/orders@node.example' 'sub add orders-feed'
 agent-bus call '#dbsync/orders@node.example' 'status'
 ```
 
@@ -91,6 +91,7 @@ DBSync is a kept process that [serves itself](../runner/configuration.md#agents-
 | `cannot_sync … larger than the DB agent returns` | One row is bigger than the DB agent's answer limit; send fewer `columns`, or raise the DB agent's limit |
 | `cannot_sync … time zone form` | The database clock and `updated` differ in time zone form; use a column of the database's own type |
 | `db_unavailable` | The DB agent refused or did not answer; its own words are in the text. Check this instance's `read` grant |
+| `sub add` answers `agent_contract_missing` | The target is an agent; DBSync sends to a queue only |
 | A subscriber shows `parked` | It refused or did not confirm for `park_after`; fix the target. It resumes from its own position |
 | A subscriber shows `lookback_degraded` | The subscribers together confirmed more rows inside the lookback than `window_max`; see [late commits](#late-commits) |
 | `full` in `status` | `window_max` rows wait for the slowest subscriber; it catches up, or is parked |
