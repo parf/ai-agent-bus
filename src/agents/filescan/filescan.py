@@ -166,8 +166,7 @@ class FileScan:
         if self.settings['mode']=='poll':return False
         try:
             import watch
-            exclude=self.settings['exclude']
-            self.watcher=watch.Watcher(self.root,self.on_events,excluded=lambda rel:scanning.excluded(rel,exclude),
+            self.watcher=watch.Watcher(self.root,self.on_events,exclude=self.settings['exclude'],
                                        quiet=max(self.settings['settle'],0.2) if quiet is None else quiet,watch_limit=watch_limit)
             self.watcher.start()
         except OSError as failure:

@@ -13,6 +13,8 @@ import struct
 import threading
 import time
 
+import scan
+
 IN_CLOSE_WRITE=0x8;IN_MOVED_FROM=0x40;IN_MOVED_TO=0x80;IN_CREATE=0x100;IN_DELETE=0x200;IN_DELETE_SELF=0x400;IN_MOVE_SELF=0x800
 IN_Q_OVERFLOW=0x4000;IN_IGNORED=0x8000;IN_ISDIR=0x40000000;IN_ONLYDIR=0x1000000;IN_DONT_FOLLOW=0x2000000;IN_EXCL_UNLINK=0x4000000
 IN_NONBLOCK=0o4000;IN_CLOEXEC=0o2000000
@@ -43,8 +45,8 @@ class Watcher:
     directory beyond it is counted in `unwatched` and left to the poll.
     """
 
-    def __init__(self,root,on_events,*,excluded=lambda rel:False,quiet=0.2,watch_limit=None):
-        self.root=root;self.on_events=on_events;self.excluded=excluded;self.quiet=quiet;self.watch_limit=watch_limit
+    def __init__(self,root,on_events,*,exclude=(),quiet=0.2,watch_limit=None):
+        self.root=root;self.on_events=on_events;self.exclude=list(exclude);self.quiet=quiet;self.watch_limit=watch_limit
         self.lib=_libc();fd=self.lib.inotify_init1(IN_NONBLOCK|IN_CLOEXEC)
         if fd<0:
             e=ctypes.get_errno();raise Unavailable(e,os.strerror(e))
@@ -68,18 +70,17 @@ class Watcher:
                 except OSError:pass
         return done
 
+    def excluded(self,rel):return scan.excluded(rel,self.exclude)
+
     def add_tree(self,rel):
-        """Watch `rel` (a directory) and below, never through a link; return the files seen, as relative paths."""
-        files=[];top=os.path.join(self.root,rel) if rel else self.root
-        try:topfd=os.open(top,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
-        except OSError:return files
-        try:
-            for base,dirs,names,fd in os.fwalk('.',dir_fd=topfd,follow_symlinks=False):
-                here=os.path.join(rel,base[2:]) if base!='.' else rel
-                dirs[:]=sorted(d for d in dirs if not self.excluded((here+'/' if here else '')+d) and not os.path.islink(os.path.join(top,base,d)))
-                self._watch(here)
-                files.extend((here+'/' if here else '')+n for n in names)
-        finally:os.close(topfd)
+        """Watch `rel` (a directory) and below, then return the files in it, as relative paths.
+
+        FileScan's own no-follow walker does the listing, and each directory gets its watch just before it is listed, never
+        after: a file made in between is in the listing, one made later raises an event, and nothing falls between the two.
+        """
+        files=[]
+        for kind,path,_ in scan.walk(self.root,['*'],self.exclude,rel,before=self._watch):
+            if kind=='file':files.append(path)
         return files
 
     def _watch(self,rel):

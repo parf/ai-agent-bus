@@ -23,14 +23,16 @@ def excluded(rel,exclude):
     return any(fnmatch.fnmatchcase(rel,p) or any(fnmatch.fnmatchcase('/'.join(parts[:i]),p) for i in range(1,len(parts))) for p in exclude)
 
 
-def walk(root,include,exclude,sub=''):
+def walk(root,include,exclude,sub='',before=None):
     """(kind, relative path, stat or errno) for every regular file under root, never through a link.
 
     Kind `file` carries the stat; `error` an errno for a file it could not stat; `direrror` one for a directory it could
     not read, named by its full path relative to root (empty only when the whole root cannot be opened).
     Links, sockets, pipes and devices are skipped, and an excluded directory is not entered. With `sub` (a directory path
     relative to root) only that directory is walked, reached without following a link, and paths and the include and
-    exclude globs are those relative to root, as in a whole walk.
+    exclude globs are those relative to root, as in a whole walk. `before(directory)` is called with each directory's path
+    relative to root (the top is `sub`, '' for the root) just before that directory is listed, so a caller can start watching
+    it first: whatever appears later raises an event, and whatever appeared earlier is in the listing.
     """
     lead=sub+'/' if sub else ''
     try:top=open_dir(root,sub)
@@ -43,6 +45,7 @@ def walk(root,include,exclude,sub=''):
         try:return sorted(os.scandir(fd),key=lambda e:e.name),None
         except OSError as error:return None,error.errno
     try:
+        if before:before(sub)
         entries,err=listing(top)
         if err is not None:
             os.close(top);yield ('direrror',sub,err);return
@@ -60,6 +63,7 @@ def walk(root,include,exclude,sub=''):
                     try:child=os.open(entry.name,OPEN_DIR,dir_fd=fd)
                     except OSError as error:
                         yield ('direrror',rel,error.errno);continue
+                    if before:before(rel)
                     found,err=listing(child)
                     if err is not None:
                         os.close(child);yield ('direrror',rel,err);continue
