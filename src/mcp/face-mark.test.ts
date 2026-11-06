@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, spyOn, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { absence, alive, faceEvent, faceMarks, markFace, holders, evict, startTime, FACE_ABSENT_MS, type Absence } from "./face-mark.ts";
@@ -15,7 +15,7 @@ test("a face that is let go leaves no mark; a running one counts as live", () =>
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("a face that died on its own is reported once, then forgotten", async () => {
+test("a face that died on its own is reported once, and its mark stays", async () => {
   const dir = scratch();
   try {
     // A real process that is gone: its pid was ours to see and is now free.
@@ -25,10 +25,10 @@ test("a face that died on its own is reported once, then forgotten", async () =>
     writeFileSync(join(dir, "bus-env.json"), "{}"); // not a mark
     const live = markFace(join(dir, "bus-env.json"));
     expect(faceMarks(dir)).toEqual({ live: 1, lost: 1 });
-    expect(existsSync(join(dir, `face-${child.pid}`))).toBe(false);
+    expect(existsSync(join(dir, `face-${child.pid}`))).toBe(true); // never removed here
     expect(faceMarks(dir)).toEqual({ live: 1, lost: 0 });
     live();
-    expect(readdirSync(dir)).toEqual(["bus-env.json"]);
+    expect(readdirSync(dir).sort()).toEqual(["bus-env.json", `face-${child.pid}`]); // the dead mark stays, reported once
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -169,4 +169,30 @@ test("a stale mark is never removed, so a new face rewriting it under the same p
     expect(existsSync(mark)).toBe(true);
     expect(faceMarks(dir)).toEqual({ live: 1, lost: 0 });
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("a dead face's mark is never removed, so a new face under the same pid keeps the mark it just wrote", () => {
+  const dir = scratch();
+  const actual = startTime(process.pid);
+  if (!actual) { rmSync(dir, { recursive: true, force: true }); return; }
+  const mark = join(dir, `face-${process.pid}`);
+  writeFileSync(mark, actual === "1" ? "2" : "1");
+  // The old face is gone when its pid is asked about; a new face then writes the mark at once.
+  const kill = process.kill.bind(process);
+  let injected = false;
+  const spy = spyOn(process, "kill").mockImplementation(((pid: number, signal?: string | number) => {
+    if (pid === process.pid && signal === 0 && !injected) {
+      injected = true;
+      writeFileSync(mark, actual);
+      throw Object.assign(new Error("gone"), { code: "ESRCH" });
+    }
+    return kill(pid, signal);
+  }) as typeof process.kill);
+  try {
+    expect(faceMarks(dir)).toEqual({ live: 0, lost: 1 });
+    expect(injected).toBe(true);
+    spy.mockRestore();
+    expect(existsSync(mark)).toBe(true);
+    expect(faceMarks(dir)).toEqual({ live: 1, lost: 0 });
+  } finally { spy.mockRestore(); rmSync(dir, { recursive: true, force: true }); }
 });

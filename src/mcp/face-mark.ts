@@ -58,26 +58,35 @@ export function absence(state: Absence, live: number, now: number, limit = FACE_
   return "alarm";
 }
 
-/** Faces still running, and faces that died without being let go. Lost marks
- *  are removed, so each loss is reported once. A pid that is alive but started
- *  at another time than its mark says was reused, so that face is not live; its
- *  mark is left alone, because a new face under the same pid may be rewriting
- *  it right now, and the absence watch reports the gap. */
-export function faceMarks(runDir: string, read = (path: string) => readFileSync(path, "utf8")): { live: number; lost: number } {
+const reported = new Map<string, Set<string>>();
+
+/** Faces still running, and faces that died without being let go. A mark is
+ *  never removed here: between this read and a removal a new face under the
+ *  same pid may write its own, and removing that would hide a live face. So a
+ *  dead face is reported once through `seen`, keyed by its pid and start time,
+ *  and its mark stays until the face rewrites it or the launcher's run
+ *  directory goes. A pid that is alive but started at another time than its
+ *  mark says was reused: that face is neither live nor reported, and the
+ *  absence watch reports the gap. */
+export function faceMarks(runDir: string, read = (path: string) => readFileSync(path, "utf8"),
+  seen = reported.get(runDir) ?? reported.set(runDir, new Set()).get(runDir)!): { live: number; lost: number } {
   let live = 0, lost = 0;
   let names: string[] = [];
   try { names = readdirSync(runDir); } catch { return { live, lost }; }
   for (const name of names) {
     const pid = Number(name.match(MARK)?.[1] ?? 0);
     if (!pid) continue;
+    // Read before asking about the pid, so a dead verdict belongs to the face this mark named.
+    let written: string;
+    try { written = read(join(runDir, name)).trim(); } catch { continue; } // let go meanwhile
     if (alive(pid)) {
-      let written: string;
-      try { written = read(join(runDir, name)).trim(); } catch { continue; } // let go meanwhile
       if (written === startTime(pid)) live++;
       continue;
     }
+    const key = `${pid}:${written}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
     lost++;
-    rmSync(join(runDir, name), { force: true });
   }
   return { live, lost };
 }
