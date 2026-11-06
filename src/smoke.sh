@@ -4263,6 +4263,9 @@ agent_subscriptions() {
   out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/shared -p test_subscriptions.py -v 2>&1); rc=$?
   echo "$out" | sed 's/^/  /'
   ok_exit "subscription parity and bounded delivery" "$rc"
+  out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/shared -p test_change_sync.py -v 2>&1); rc=$?
+  echo "$out" | sed 's/^/  /'
+  ok_exit "change-sync core: state file, authority, confirmed delivery, poll timer" "$rc"
   out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest agents.cron.test_scheduler_state -v 2>&1); rc=$?
   echo "$out" | sed 's/^/  /'
   ok_exit "canonical scheduler state and interrupted-send recovery" "$rc"

@@ -374,6 +374,8 @@
         "src/agents/shared/subscriptions.py",
         "src/agents/shared/subscription_filters.py",
         "src/agents/shared/test_subscriptions.py",
+        "src/agents/shared/change_sync.py",
+        "src/agents/shared/test_change_sync.py",
         "src/testdata/subscriptions.json",
         "src/clients/python/",
         "src/agents/shared/scheduler.py",
