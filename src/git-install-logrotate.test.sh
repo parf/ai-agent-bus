@@ -6,9 +6,21 @@ mkdir -p ../tmp
 d=$(mktemp -d "$(cd .. && pwd)/tmp/git-install-logrotate.XXXXXX")
 trap 'rm -rf "$d"' EXIT
 mkdir "$d/logrotate.d"
-# What `agent-bus-setup` leaves: its weekly rule, at the same path.
-sed -n '/^const logrotateConf = `/,/^`$/p' cmd/agent-bus-setup/main.go | sed '1s/.*`//;$d' >"$d/logrotate.d/agent-bus"
-grep -q weekly "$d/logrotate.d/agent-bus" || { echo "the fixture is not setup's rule: $(cat "$d/logrotate.d/agent-bus")"; exit 1; }
+# What an older `agent-bus-setup` left at the same path: the retired weekly rule. Setup now writes the tracked rule itself
+# (cmd/agent-bus-setup tests pin that), so this fixture is a literal stale rule for git-install to replace.
+cat >"$d/logrotate.d/agent-bus" <<'RULE'
+/var/log/agent-bus/*.log {
+    weekly
+    rotate 8
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    su agent-busd adm
+}
+RULE
+grep -q weekly "$d/logrotate.d/agent-bus" || { echo "the stale-rule fixture was not written"; exit 1; }
 bash ./git-install-logrotate.sh "$d/logrotate.d/agent-bus" >/dev/null
 files=$(ls "$d/logrotate.d" | wc -l)
 [ "$files" = 1 ] || { echo "want one rule file, got $files: $(ls "$d/logrotate.d")"; exit 1; }
