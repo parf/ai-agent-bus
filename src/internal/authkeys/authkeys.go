@@ -81,11 +81,17 @@ var ErrProgram = errors.New("the program path holds whitespace, so the line coul
 // program, as `user add` and the daemon write them. A command that runs anything else is not ours.
 var Programs = []string{"agent-bus-token", "agent-bus-admin"}
 
+// ErrProgramName is a forced-command program Whose would not read back as ours.
+var ErrProgramName = errors.New("the forced-command program must be named agent-bus-token or agent-bus-admin, so the line can be read back to revoke it")
+
 // Line refuses any key that could add a second authorized_keys entry, and a program path that
 // Whose could not take apart again.
 func Line(program, name, key string) (string, error) {
 	if strings.IndexFunc(program, unicode.IsSpace) >= 0 {
 		return "", fmt.Errorf("%w: %q", ErrProgram, program)
+	}
+	if !slices.Contains(Programs, filepath.Base(program)) {
+		return "", fmt.Errorf("%w: %q", ErrProgramName, program)
 	}
 	key, err := SingleKey(key)
 	if err != nil {

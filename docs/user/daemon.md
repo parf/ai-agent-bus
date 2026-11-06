@@ -202,7 +202,7 @@ Replace the angle-bracket placeholders before running the command. `account list
 | `--syslog` | copy warnings, errors and alerts to host syslog; off by default, on in installed units |
 | `--log-dir` · `--debug-log` | where `audit.log`, `error.log` and the on-demand `debug.log` go, and whether the last starts on |
 | `--ssh-keys=path` | the bus account's `authorized_keys`, where an administrator may install a user's public key through the API; empty permits host-managed keys only ([SSH admin](../administration.md#ssh-admin)) |
-| `--ssh-token=path` | the forced-command program for those keys; defaults to the SSH credential wrapper beside the program |
+| `--ssh-token=path` | the forced-command program for those keys, which must be named `agent-bus-token` (any other name is refused when a key is added); defaults to the SSH credential wrapper beside the program |
 | `--dashboard=url` | where a browser opening the API address is sent; empty serves no root page |
 | `--web` | accepted and ignored; the dashboard runs as its own service |
 

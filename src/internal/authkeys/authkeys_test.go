@@ -118,7 +118,7 @@ func TestRestrictedLineRefusesASecondPublicKey(t *testing.T) {
 		}
 	}
 	for _, kind := range []string{"ssh-rsa", "ecdsa-sha2-nistp256", "sk-ssh-ed25519@openssh.com"} {
-		line, err := Line("/p/token", "alice@h", kind+" AAAA comment\n")
+		line, err := Line("/p/agent-bus-token", "alice@h", kind+" AAAA comment\n")
 		if err != nil || !strings.Contains(line, " "+kind+" AAAA comment") {
 			t.Fatalf("host-side key type lost: %s %v", kind, err)
 		}
@@ -168,5 +168,23 @@ func TestWhoseTakesTheLastFieldAndIgnoresForeignCommands(t *testing.T) {
 	}
 	if who, _ := Whose(key); who != "" {
 		t.Errorf("a plain key line has the owner %q", who)
+	}
+}
+
+// Whatever Line writes, Whose reads back: only the allowed programs are written.
+func TestLineWritesOnlyWhatWhoseReadsBack(t *testing.T) {
+	if l, err := Line("/opt/x/mytoken", "alice@h", Key(t)); !errors.Is(err, ErrProgramName) || l != "" {
+		t.Fatalf("a program with another name: line %q err %v", l, err)
+	} else if !strings.Contains(err.Error(), "agent-bus-token") || !strings.Contains(err.Error(), "agent-bus-admin") {
+		t.Fatalf("the error does not name the allowed programs: %v", err)
+	}
+	for _, program := range Programs {
+		l, err := Line("/usr/local/bin/"+program, "alice@h", Key(t))
+		if err != nil {
+			t.Fatalf("%s refused: %v", program, err)
+		}
+		if who, got := Whose(l); who != "alice@h" || got != program {
+			t.Errorf("%s read back as %q %q", program, who, got)
+		}
 	}
 }
