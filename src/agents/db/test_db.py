@@ -165,7 +165,7 @@ class Engines:
 
 
 class Redaction(unittest.TestCase):
-    def test_exceptions_results_and_logs_never_carry_a_password(self):
+    def test_exceptions_and_logs_never_carry_a_password(self):
         env = {'DB_USER': 'u', 'DB_PASSWORD': SENTINEL}
         for raised in (RuntimeError('driver says ' + SENTINEL), ConnectionRefusedError(SENTINEL), proxy.DatabaseError('db says ' + SENTINEL)):
             def runner(*_args, _raised=raised):
@@ -175,10 +175,37 @@ class Redaction(unittest.TestCase):
                 out, _ = proxy.answer({'body': 'SELECT 1'}, {'engine': 'mysql', 'host': 'h'}, env)
             self.assertTrue(out.startswith('error:'), out)
             self.assertNotIn(SENTINEL, out + log.getvalue())
-        with unittest.mock.patch.dict(proxy.RUNNERS, {'mysql': lambda *a: {'columns': ['c'], 'rows': [[SENTINEL]], 'truncated': False}}), \
+
+    def test_short_user_never_changes_result_keys_or_values(self):
+        result = {'columns': ['ro', 'rows', SENTINEL],
+                  'rows': [['ro', 'a broad row', SENTINEL]], 'truncated': False}
+        with unittest.mock.patch.dict(proxy.RUNNERS, {'mysql': lambda *a: result}), \
                 contextlib.redirect_stderr(io.StringIO()):
-            out, _ = proxy.answer({'body': 'SELECT 1'}, {'engine': 'mysql', 'host': 'h'}, env)
-        self.assertNotIn(SENTINEL, out)
+            out, code = proxy.answer({'body': 'SELECT 1'}, {'engine': 'mysql', 'host': 'h'},
+                                     {'DB_USER': 'ro', 'DB_PASSWORD': SENTINEL})
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(out), result)
+
+    def test_all_account_errors_mask_users_as_tokens_and_passwords_as_substrings(self):
+        env = {'DB_USER': 'ro', 'DB_PASSWORD': 'pass'}
+        for tier in proxy.TIERS:
+            env[f'DB_{tier.upper()}_USER'] = f'{tier}_user'
+            env[f'DB_{tier.upper()}_PASSWORD'] = f'{tier}_pass'
+        message = 'rows broad "ro" / ' + ' / '.join(env.values()) + ' / compassword'
+        expected = 'rows broad "***" / ' + ' / '.join(['***'] * len(env)) + ' / com***word'
+        for raised in (RuntimeError(message), proxy.ProxyError(message), ImportError(name=message)):
+            with self.subTest(error=type(raised).__name__):
+                log = io.StringIO()
+                with unittest.mock.patch.dict(proxy.RUNNERS, {'mysql': unittest.mock.Mock(side_effect=raised)}), \
+                        contextlib.redirect_stderr(log):
+                    out, _ = proxy.answer({'body': 'SELECT 1'}, {'engine': 'mysql', 'host': 'h'}, env)
+                if isinstance(raised, ImportError):
+                    self.assertEqual(out, 'error: the ' + expected + ' driver is not installed')
+                else:
+                    self.assertEqual(out, 'error: ' + expected)
+                for name, secret in env.items():
+                    if name.endswith('PASSWORD'):
+                        self.assertNotIn(secret, out + log.getvalue())
 
     def test_refused_connection_and_timeout_are_generic(self):
         log = io.StringIO()

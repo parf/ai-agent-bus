@@ -64,12 +64,18 @@ def tier_account(environ, tier):
 
 
 def secrets_of(environ):
-    return sorted({environ[name] for name in ENV_NAMES if environ.get(name)}, key=len, reverse=True)
+    # Passwords remain substring-masked; account names are whole tokens in free text only.
+    return tuple(sorted({environ[name] for name in ENV_NAMES
+                         if name.endswith(kind) and environ.get(name)}, key=len, reverse=True)
+                 for kind in ('PASSWORD', 'USER'))
 
 
 def redact(text, secrets):
-    for secret in secrets:
-        text = text.replace(secret, '***')
+    passwords, users = secrets
+    for password in passwords:
+        text = text.replace(password, '***')
+    for user in users:
+        text = re.sub(r'(?<!\w)' + re.escape(user) + r'(?!\w)', '***', text)
     return text
 
 
@@ -306,7 +312,8 @@ def answer(envelope, config, environ):
         if len(output.encode()) > MAX_BYTES:
             raise ProxyError('database answer exceeds 1048576 bytes')
         status = 'ok'
-        return redact(output, secrets), 0
+        # Query results are data, not diagnostic text: never rewrite keys or values.
+        return output, 0
     except TimeoutError:
         status = 'timeout'
         return 'error: database request timed out', 0
