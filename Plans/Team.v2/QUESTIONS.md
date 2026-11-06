@@ -20,7 +20,7 @@ Only unresolved choices for [Team v2](README.md#team-v2).
 
 ## Less overhead (2026-11-06 review)
 
-Facts, 2026-11-05 18:00 → 11-06 01:40: 338 commits, of which 47 version bumps, 47 changelog edits and 41 issue-file commits; 107 gate logs, 16 of them with a rerun. Of about 35 landed items, roughly a third were real bugs or features (T-38, J104–J106, B6, B7, C2-E2, F1, F2, J90, A5), a third polish or edge cases (F4, F5, F7, K1–K3, G2, J4, D2/D3, B4/B4b, A8, G5, N-docs), and a third test plumbing (J79, J93, J108, J108b, J110, J112, J114). Each small item still drew two readers, mutants, a gate, a version bump, a changelog line and a separate close-out commit.
+Facts, 2026-11-05 18:00 → 11-06 01:40: 338 commits, of which 47 version bumps, 47 changelog edits and 41 issue-file commits; 107 gate runs, at least 3 of them green only on a rerun. Of about 35 landed items, roughly a third were real bugs or features (T-38, J104–J106, B6, B7, C2-E2, F1, F2, J90, A5), a third polish or edge cases (F4, F5, F7, K1–K3, G2, J4, D2/D3, B4/B4b, A8, G5, N-docs), and a third test plumbing (J79, J93, J108, J108b, J110, J112, J114). Each small item still drew two readers, mutants, a gate, a version bump, a changelog line and a separate close-out commit.
 
 - ❓ Q348 Which findings become tasks
   - ( ) Only a bug the owner or a user would hit, a security gap, or a MED+ finding; LOW and polish findings go to one list in the plan and are fixed when their file is touched anyway 🌟
@@ -45,4 +45,4 @@ Facts, 2026-11-05 18:00 → 11-06 01:40: 338 commits, of which 47 version bumps,
 - ❓ Q352 Flaky gates
   - ( ) A check that goes green only on rerun is quarantined at once (skipped with a J-item) instead of being rerun; the gate never reruns silently 🌟
   - ( ) Rerun and diagnose in parallel, as now ⭐
-  > 💡👾 Quarantine: 16 reruns tonight cost a full gate each.
+  > 💡👾 Quarantine: each rerun costs a full gate, about 90 s at load.
