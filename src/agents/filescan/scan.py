@@ -23,7 +23,7 @@ def excluded(rel,exclude):
     return any(fnmatch.fnmatchcase(rel,p) or any(fnmatch.fnmatchcase('/'.join(parts[:i]),p) for i in range(1,len(parts))) for p in exclude)
 
 
-def walk(root,include,exclude,sub='',before=None):
+def walk(root,include,exclude,sub='',before=None,named=None):
     """(kind, relative path, stat or errno) for every regular file under root, never through a link.
 
     Kind `file` carries the stat; `error` an errno for a file it could not stat; `direrror` one for a directory it could
@@ -34,6 +34,7 @@ def walk(root,include,exclude,sub='',before=None):
     relative to root (the top is `sub`, '' for the root) and the descriptor the walker has pinned for it, just before that
     directory is listed, so a caller can start watching exactly that directory first: whatever appears later raises an event,
     and whatever appeared earlier is in the listing. A callback that raises leaves no descriptor open.
+    `named`, a dict, is filled with each directory an include glob matches by name: directory path -> that glob (J124).
     """
     lead=sub+'/' if sub else ''
     try:top=open_dir(root,sub)
@@ -62,6 +63,9 @@ def walk(root,include,exclude,sub='',before=None):
                 if entry.is_symlink():continue
                 if entry.is_dir(follow_symlinks=False):
                     if excluded(rel,exclude):continue
+                    if named is not None:
+                        for p in include:
+                            if fnmatch.fnmatchcase(rel,p):named.setdefault(rel,p);break
                     try:child=os.open(entry.name,OPEN_DIR,dir_fd=fd)
                     except OSError as error:
                         yield ('direrror',rel,error.errno);continue
@@ -151,7 +155,7 @@ def stat_under(root,rel):
 
 
 def _new_plan():
-    return {'upserts':{},'refresh':{},'deletes':[],'skipped':[],'capped':False,'seen':0,'unreadable_root':None}
+    return {'upserts':{},'refresh':{},'deletes':[],'skipped':[],'capped':False,'seen':0,'unreadable_root':None,'include_dirs':{}}
 
 
 def _consider(items,root,settings,now,hasher,plan,rel,st,taken):
@@ -182,7 +186,8 @@ def poll(items,root,settings,*,now,hasher=None):
     """
     hasher=hasher or digest
     plan=_new_plan();present=set();taken=0;blocked=[]
-    for kind,rel,info in walk(root,settings['include'],settings['exclude']):
+    named={}
+    for kind,rel,info in walk(root,settings['include'],settings['exclude'],named=named):
         if kind=='direrror' and rel=='':
             plan['unreadable_root']=info;continue
         if kind=='direrror':
@@ -193,7 +198,16 @@ def poll(items,root,settings,*,now,hasher=None):
         taken=_consider(items,root,settings,now,hasher,plan,rel,info,taken)
     if plan['unreadable_root'] is None:
         plan['deletes']=sorted(k for k in items if k not in present and selected(k,settings['include'],settings['exclude']) and not is_blocked(k,blocked))
+    plan['include_dirs']=include_dirs(named,present)
     return plan
+
+
+def include_dirs(named,present):
+    """Include glob -> how many directories it names by name while selecting no file below them (`sub` where `sub/*` was meant)."""
+    count={}
+    for directory,pattern in named.items():
+        if not any(k.startswith(directory+'/') for k in present):count[pattern]=count.get(pattern,0)+1
+    return count
 
 
 def poll_paths(items,root,settings,paths,*,now,hasher=None):

@@ -52,6 +52,21 @@ class SelectionTests(Tree):
         self.assertFalse({'x.md','y.md','b.md','b.md/sub'}&set(found),'a directory is never a file match')
         self.assertTrue(scan.selected('b.md/sub/c.md',['*.md'],[]));self.assertFalse(scan.selected('x.md/secret.txt',['*.md'],[]))
 
+    def test_a_tracked_file_the_include_no_longer_selects_is_left_alone(self):
+        # J124: a key stored under the old prefix match freezes: no update, no delete, no send; it stays until removed by hand.
+        put(self.root,'x.md/secret.txt','one',mtime=time.time()-3600);put(self.root,'a.md',mtime=time.time()-3600)
+        items={};scan.apply(items,self.poll(items,include=['*']))
+        self.assertIn('x.md/secret.txt',items)
+        put(self.root,'x.md/secret.txt','changed',mtime=time.time()-1800)
+        plan=self.poll(items,include=['*.md'])
+        self.assertEqual((plan['upserts'],plan['deletes']),({},[]),'neither a change nor a delete is sent for it')
+        self.assertEqual(self.poll(items,include=['*.md'])['seen'],1,'only a.md is seen')
+        os.unlink(Path(self.root)/'x.md'/'secret.txt')
+        self.assertEqual(self.poll(items,include=['*.md'])['deletes'],[],'a removal is not sent either')
+        paths=scan.poll_paths(items,self.root,{**self.s,'include':['*.md']},['x.md/secret.txt'],now=time.time())
+        self.assertEqual((paths['upserts'],paths['deletes']),({},[]))
+        self.assertIn('x.md/secret.txt',items,'the key stays')
+
     def test_an_excluded_directory_is_not_entered(self):
         put(self.root,'skip/deep/f.md');put(self.root,'keep/f.md')
         self.assertEqual(self.names(exclude=['skip']),['keep/f.md'])

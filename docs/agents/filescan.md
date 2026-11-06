@@ -67,7 +67,7 @@ Filescan is a kept process: inotify needs one that stays up. It [serves itself](
 | Key | Meaning | Default |
 |---|---|---|
 | `dir` | The folder, an absolute path inside a root the node owner listed | none, required |
-| `include`, `exclude` | Globs on the relative path. `include` matches a file's whole path, so `*.md` never takes the files below a folder named `x.md`; `exclude` wins and also removes everything below a folder it matches | all files; no dotfiles |
+| `include`, `exclude` | Globs on the relative path. `include` matches a file's whole path, so `*.md` never takes the files below a folder named `x.md`, and a folder is taken with `sub/*` (`*` crosses folders): a bare `sub` selects nothing and `status` warns `include 'sub' names a directory; use 'sub/*'`, with a count; a file already sent that no longer matches is left as it is, neither updated nor deleted; `exclude` wins and also removes everything below a folder it matches | all files; no dotfiles |
 | `mode`, `every`, `settle` | See [modes](#modes); `demand` for [on-demand sync](#on-demand-sync) | `both`, 30 minutes (5 in `poll`), none |
 | `namespace`, `table` | Defaults for `as rag` | none |
 | `batch` | Changes sent per round to one subscriber | 20 |

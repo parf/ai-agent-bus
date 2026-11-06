@@ -183,11 +183,11 @@
       },
       "include": {
         "type": "json",
-        "help": "Globs on the relative path; default all files"
+        "help": "Globs matched against a file's whole relative path, so a folder is taken with `sub/*`, and a bare `sub` selects nothing (status warns); default all files"
       },
       "exclude": {
         "type": "json",
-        "help": "Globs on the relative path; exclude wins; default dotfiles and dot directories"
+        "help": "Globs on the relative path; exclude wins and also removes everything below a folder it matches; default dotfiles and dot directories"
       },
       "mode": {
         "type": "string",

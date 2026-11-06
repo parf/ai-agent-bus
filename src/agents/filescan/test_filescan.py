@@ -108,6 +108,20 @@ class FlowTests(Base):
 
 
 class CallTests(Base):
+    def test_status_warns_with_a_count_when_an_include_names_a_directory_and_selects_no_file(self):
+        # J124: `a?` names the directories a1 and a2 but not a file below them; `a?/*` takes the subtree.
+        self.put('a1/f.md');self.put('a2/g.md');self.put('top.md')
+        self.agent=self.make({'include':['a?','top.md']});self.agent.tick()
+        self.assertEqual(self.agent.status()['warnings'],[{'code':'include_names_directory','pattern':'a?','count':2,'message':"include 'a?' names a directory; use 'a?/*'"}])
+        self.assertEqual(self.agent.status()['tracked'],1,'only top.md is taken')
+        self.agent=self.make({'include':['a?/*','top.md']});self.agent.tick()
+        self.assertEqual(self.agent.status()['warnings'],[]);self.assertEqual(self.agent.status()['tracked'],3)
+
+    def test_status_does_not_warn_for_a_normal_glob_or_a_directory_with_a_selected_file(self):
+        self.put('a.md');self.put('sub/c.md');self.put('b.md/inner.md')
+        self.agent=self.make({'include':['*.md']});self.agent.tick()
+        self.assertEqual(self.agent.status()['warnings'],[],'b.md holds a selected file, so it is not a stranded directory name')
+
     def test_status_names_mode_tracked_files_subscribers_and_state_size(self):
         self.put('a.md');self.add();self.call('scan');s=self.call('status')
         self.assertEqual((s['mode'],s['tracked'],len(s['subscribers']),s['state_max']),('both',1,1,64*1024*1024));self.assertGreater(s['state_bytes'],0)

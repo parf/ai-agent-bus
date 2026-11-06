@@ -282,6 +282,7 @@ class FileScan:
                 self.state.save(state);raise Paused((meta.get('paused') or {}).get('reason') or 'the directory still cannot be read')
             scanning.apply(state['items'],plan,allow_deletes=hold_reason is None)
             meta.update(last_scan=self.clock(),dir=self.root,skipped=[[p,w] for p,w in plan['skipped']][:50])
+            if paths is None:meta['include_dirs']=sorted(plan['include_dirs'].items())[:50]   # only a whole walk sees every directory
             if not meta.get('baselined'):
                 meta['baselined']=True
                 if self.settings['baseline']:
@@ -727,7 +728,7 @@ class FileScan:
                'pending':len(core.pending(state,i,lambda k,row=r:self._wanted(row,k) if row['selector'].get('pattern') and (row['id'],row['selector']['pattern']) in self.matched else True))} for i,r in sorted(state['subs'].items())]
         size=len(json.dumps(state,separators=(',',':')))
         return {'mode':self.settings['mode'],'effective_mode':self.effective_mode(),'fallback':self.fallback,'tracked':len(state['items']),'last_scan':meta.get('last_scan'),
-                'skipped':meta.get('skipped',[]),'state_bytes':size,'state_max':self.settings['state_max'],'subscribers':subs,'paused':meta.get('paused'),'skipped_for_rag':{i:v for i,v in self.skipped.items() if v}}
+                'skipped':meta.get('skipped',[]),'warnings':[{'code':'include_names_directory','pattern':p,'count':n,'message':f"include '{p}' names a directory; use '{p}/*'"} for p,n in meta.get('include_dirs',[])],'state_bytes':size,'state_max':self.settings['state_max'],'subscribers':subs,'paused':meta.get('paused'),'skipped_for_rag':{i:v for i,v in self.skipped.items() if v}}
 
     def effective_mode(self):
         if self.settings['mode'] in ('poll','demand'):return self.settings['mode']
