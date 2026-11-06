@@ -231,6 +231,7 @@ class Large(unittest.TestCase):
         self.store.fail=lambda verb,path,body:verb=='PUT' and any(p['id']==head_id for p in body.get('points',[]))
         with self.assertRaises(Unknown):self.put(document())
         self.store.fail=None
+        self.assertTrue(owned('docs','Plans/big.md'),'orphan chunks exist before the delete')
         with self.assertRaisesRegex(RagError,'not_found'):self.call(method='delete',id='Plans/big.md')
         self.assertEqual(owned('docs','Plans/big.md'),[],'the headless chunks are swept')
         self.assertTrue(all(before.values()))
