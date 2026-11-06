@@ -80,7 +80,41 @@ R1.1 is closed: the build starts when the owner opens it, so the times below are
 
 About nine hours in all, in that order; each step is its own branch with two readers. This topic itself, with the questions, is the only thing due now.
 
-## Open choices that touch a step
+## Questions
 
-- [Q361](QUESTIONS.md#root-runner) (accounts) blocks step 3 and 4. [Q362](QUESTIONS.md#root-runner) (default policy and capabilities) blocks step 1 and 2. [Q363](QUESTIONS.md#root-runner) (a person's own env files) blocks nothing in RT19's steps and may follow. [Q364](QUESTIONS.md#root-runner) (the root runner's name) blocks step 3.
-- [Q276–Q278](QUESTIONS.md#runner-hardening), the runner-hardening questions now in R1.2, do not block RT19: the secret-file hiding here rests on one account per agent. Q276 (sibling bundles under `/usr/local`) and Q277 (what a self-serving agent may do on the bus) will apply to the root runner when they are settled.
+Owner choices for RT19, in one place with the plan (owner, 2026-11-06: "create dedicated readme/todo plan for this section - use combined document"). №Q336 settled the design: the root runner replaces the starter.
+
+- ❓ Q361 Which Linux accounts the root runner starts agents as, and who creates them
+  - Context: the starter makes a dedicated `ab-<agent>` account per agent (nologin, no home) and keeps it after removal; the root runner needs an account per agent too ([what moves](#what-moves-and-what-is-dropped)). Blocks steps 3 and 4
+  - ( ) Both: setup creates `ab-<agent>` accounts by default, and the host file may name any existing account instead 🌟
+  - ( ) Setup creates `ab-<agent>` accounts as the starter does, and the host file names them ⭐
+  - ( ) The host file names any existing account; setup never creates one
+  > 💡👾 Both: today's dedicated-account default stays, and `git` can still run as the project owner. Leftover `ab-*` accounts are reused only if they still pass the nologin and no-home test.
+
+- ❓ Q362 What the default policy hides, and which capabilities a root agent can keep
+  - Context: the owner asked for a default that protects other agents' secret files; a root agent runs with capabilities dropped except those the host file lists ([default policy](#what-moves-and-what-is-dropped)). Blocks steps 1 and 2
+  - ( ) One account per agent plus the runner's sandbox, no capability kept unless listed, and a short never-list of capabilities that cannot be listed 🌟
+  - ( ) The same without the never-list; the host owner's word is final ⭐
+  > 💡👾 With the never-list: the host owner still decides; the list only stops a typo from letting a root agent escape its own sandbox. The owner names the list.
+
+- ❓ Q363 Whether a person's own env files can be protected from that person
+  - Context: a person's runner and a user-account runner run as the person, so the person can read what the runner reads; a root runner cannot be protected from root. Blocks nothing in RT19
+  - ( ) Not protected, stated plainly in the security page; bus Secret and Configuration records are the documented way to keep a secret from the person 🌟
+  - ( ) Not protected, stated plainly; nothing more ⭐
+  - ( ) A root-owned file only a root helper reads, for system runners only
+  > 💡👾 State it plainly and point to bus Secrets: a root helper inside a person's runner is what this design avoids.
+
+- ❓ Q364 The root runner's name on the bus
+  - Context: a person's runner is `#runner/<person>@<realm>` and an edge's `#runner/<edge>@<realm>` ([№Q165](../R1.0-Release/DECISIONS.md#recorded-decisions)); the root runner needs a name that is neither. Blocks step 3
+  - ( ) `#runner/root@<realm>` 🌟
+  - ( ) `#runner/<host>@<realm>` ⭐
+  - ( ) The node owner's choice at install, refused if it matches a person or an edge
+  > 💡👾 `root`: it reads as what it is, and a person or edge named `root` is already refused by the plain-name rule.
+
+- ❓ Q365 Open RT19's build now, or later
+  - Context: R1.1 is closed to new scope ("missing parts and fixing bugs"). The [steps](#steps-and-clock-time) take about 9 agent-hours and touch install (⚠️)
+  - ( ) Later: build when R1.1 opens or a person runner on this node needs it 🌟
+  - ( ) Now, as an exception, after №Q361–№Q364 are answered ⭐
+  > 💡👾 Later: this node has one owner account, so the starter works today.
+
+Not blocking: [Q276–Q278](QUESTIONS.md#runner-hardening), the runner-hardening questions moving to R1.2; the secret-file hiding here rests on one account per agent.

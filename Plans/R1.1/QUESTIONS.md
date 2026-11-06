@@ -128,42 +128,10 @@ None open: [№Q191](DECISIONS.md#recorded-decisions) is [settled](DECISIONS.md#
   > ideally come with idea how to protect env files from user itself in users runner 
   > seems liike we cant (and should not) protect root runners from root itself by its nature
 
-> **Serg Parf:** create dedicated readme/todo plan for this section - use combined document
-> in next question file - just point - X open  questions in LINK
 
 ## Root runner
 
-Choices the [RT19 approach](root-runner.md#open-choices-that-touch-a-step) needs before its steps. The question whether it replaces the starter is settled in [Q336](#runner-extensions); these four are about how.
-
-- ❓ Q361 Which Linux accounts the root runner starts agents as, and who creates them
-  - Context: the starter makes a dedicated `ab-<agent>` account per agent (nologin, no home) and keeps it after removal; the root runner needs an account per agent too ([what moves](root-runner.md#what-moves-and-what-is-dropped))
-  - Options: (a) setup creates `ab-<agent>` accounts as the starter does and the host file names them; (b) the host file names any existing account and setup never creates one; (c) both, with (a) as the default
-  - Recommended: (c). It keeps today's dedicated-account default and still lets `git` run as the project owner. The `ab-*` accounts the starter left are reused only if they still pass its nologin and no-home test.
-  - Settled by: the owner
-
-- ❓ Q362 What the default policy hides, and which capabilities a root agent can keep
-  - Context: Q336 asks for a default that protects other agents' secret files; a root agent runs with capabilities dropped except those the host file lists ([default policy](root-runner.md#what-moves-and-what-is-dropped))
-  - Options: (a) one account per agent plus the runner's sandbox, no capability kept unless listed, and a short list of capabilities that can never be listed; (b) the same without the never-list, the host owner's word being final
-  - Recommended: (a). The owner's rule is that the host owner decides, which (a) keeps; the never-list only stops a typo from giving a root agent the power to escape its own sandbox. The list itself is for the owner to name.
-  - Settled by: the owner
-
-- ❓ Q363 Whether a person's own env files can be protected from that person
-  - Context: Q336 says to find a way if one exists, and that a root runner cannot be protected from root; a person's runner and a user-account runner run as the person, so the person can read what the runner reads
-  - Options: (a) not protected, stated plainly in the security page (the account is the boundary); (b) secrets live in bus Secret and Configuration records the runner reads at start and never on disk the person can read; (c) a root-owned file only a root helper reads, for system runners only
-  - Recommended: (a) now, with (b) as the documented way to keep a secret from the person. (c) needs a root part inside a person's runner, which the proposal avoids.
-  - Settled by: the owner
-
-- ❓ Q364 The root runner's name on the bus
-  - Context: a person's runner is `#runner/<person>@<realm>` and an edge's `#runner/<edge>@<realm>`; the two never mean the same thing ([№Q165](../R1.0-Release/DECISIONS.md#recorded-decisions)); the node owner's root runner needs a name that is neither
-  - Options: (a) `#runner/root@<realm>`; (b) `#runner/<host>@<realm>`; (c) the node owner's choice at install time, refused if it matches a person or an edge
-  - Recommended: (a). It reads as what it is, and a person or an edge named `root` is refused already by the plain-name rule, so it cannot clash.
-  - Settled by: the owner
-
-- ❓ Q365 Open RT19's build now, or later
-  - Context: R1.1 is closed to new scope ("missing parts and fixing bugs"). №Q336 settled the design (the root runner replaces the standalone starter); the [approach](root-runner.md) has 5 steps, about 9 agent-hours, touching install (⚠️), and needs №Q361 before steps 3–4
-  - ( ) Later: keep the approach, build when R1.1 opens or a person runner on this node needs it 🌟
-  - ( ) Now: open RT19 as an exception, after №Q361–№Q364 are answered ⭐
-  > 💡👾 Later: one owner account on this node, so the starter works today; the team stays on fixes and R.8.
+5 open questions (№Q361–№Q365) in the [root runner plan](root-runner.md#questions), the combined README, TODO and questions for RT19 (owner, 2026-11-06).
 
 ## Filescan
 
