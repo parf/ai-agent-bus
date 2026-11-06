@@ -222,6 +222,13 @@ class SubscriptionTests(Base):
         self.assertTrue(subs.delete(msg('#boss@n.test',['owner']),other['id']))
         data=self.state.load();self.assertEqual((data['subs'],data['marks']),({},{}))
 
+    def test_an_add_that_meets_a_running_round_waits_for_it_to_finish(self):
+        subs=self.subs();got=[]
+        def add():got.append(subs.add(msg('#me@n.test'),'#t1@n.test',{}))
+        with self.state.hold():
+            thread=threading.Thread(target=add);thread.start();time.sleep(0.15);self.assertEqual(got,[])
+        thread.join(5);self.assertEqual(len(got),1)
+
     def test_an_add_waits_for_a_running_round_and_refuses_when_it_never_ends(self):
         subs=self.subs()
         with patch.object(cs,'HOLD_WAIT',0.1),self.state.hold():
@@ -356,6 +363,10 @@ class TimerTests(unittest.TestCase):
         hits=[];timer=cs.PollTimer(0.03,lambda:hits.append(time.monotonic()));timer.start()
         time.sleep(0.25);self.assertTrue(timer.stop());self.assertGreaterEqual(len(hits),3)
         stamp=len(hits);time.sleep(0.1);self.assertEqual(len(hits),stamp,'stopped')
+
+    def test_the_first_run_is_at_once_not_after_an_interval(self):
+        hits=[];timer=cs.PollTimer(30,lambda:hits.append(1));timer.start();time.sleep(0.2)
+        self.assertEqual(hits,[1]);self.assertTrue(timer.stop())
 
     def test_no_run_at_start_when_not_asked_for(self):
         hits=[];timer=cs.PollTimer(30,lambda:hits.append(1),immediate=False);timer.start();time.sleep(0.1)
