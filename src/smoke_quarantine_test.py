@@ -184,6 +184,16 @@ class Smoke(unittest.TestCase):
                                    'ok_exit "a web title" 1; ok_exit "b" 1; has "c" x y; echo "$pass $fail $skipped"')
         self.assertEqual(out.splitlines(), ['  QUARANTINED a web title (J5)', '  FAIL b: exit 1', '  FAIL c: [x] lacks [y]', '0 2 1'])
 
+    def test_the_driver_prints_one_counted_line_naming_each_entry(self):
+        text = (SRC/'smoke.sh').read_text()
+        block = text[text.index('  if [ -s "$SMOKE_QUARANTINE" ]; then\n'):]
+        block = block[:block.index('\n  fi\n')+5]
+        with tempfile.NamedTemporaryFile('w', suffix='.tsv') as f:
+            f.write('web_ts\ta web title\tJ5\ngo_unit\tTestA\tJ6\n')
+            f.flush()
+            out = subprocess.run(['bash', '-c', f'SMOKE_QUARANTINE={f.name}\n{block}'], capture_output=True, text=True, check=True)
+        self.assertEqual((out.stdout, out.stderr), ('QUARANTINED 2 checks, skipped until their J lands: web_ts / a web title (J5), go_unit / TestA (J6)\n', ''))
+
     def test_go_names_reach_goflags_and_only_this_shards(self):
         out = self.run_smoke_lines([('go_unit', 'TestA', 'J5'), ('go_unit', 'TestB', 'J6'), ('core', 'TestC', 'J7')], 'go_unit', 'echo "$GOFLAGS"')
         self.assertEqual(out.strip(), '-p=4 -skip=^(TestA|TestB)$')

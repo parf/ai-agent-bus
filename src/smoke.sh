@@ -218,7 +218,7 @@ if [ -z "$SHARD" ]; then
     fi
   fi
   if [ -s "$SMOKE_QUARANTINE" ]; then
-    echo "QUARANTINED $(wc -l <"$SMOKE_QUARANTINE") checks, skipped until their J lands: $(awk -F '\t' '{ printf "%s%s / %s (%s)", NR > 1 ? ", " : "", $1, $2, $3 }' "$SMOKE_QUARANTINE")"
+    echo "QUARANTINED $(wc -l <"$SMOKE_QUARANTINE") checks, skipped until their J lands: $(awk -F '\t' '{ printf "%s%s / %s (%s)", (NR > 1 ? ", " : ""), $1, $2, $3 }' "$SMOKE_QUARANTINE")"
   fi
   if [ "$MODE" = fast ]; then
     awk '$1 > 15000 { print "FAST OVER 15s: " $2 " " $1/1000 "s (needs a narrower allowlist)" }' "$SMOKE_OUT"/*.wall
