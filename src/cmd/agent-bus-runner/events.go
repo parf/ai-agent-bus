@@ -291,7 +291,6 @@ type teeLines struct {
 	r       *runner
 	s       *served
 	partial []byte
-	over    bool
 }
 
 func (t *teeLines) Write(p []byte) (int, error) {
@@ -303,8 +302,6 @@ func (t *teeLines) Write(p []byte) (int, error) {
 		}
 		if len(t.partial) < eventPartialMax {
 			t.partial = append(t.partial, b)
-		} else {
-			t.over = true
 		}
 	}
 	return n, err
@@ -312,7 +309,7 @@ func (t *teeLines) Write(p []byte) (int, error) {
 
 func (t *teeLines) line() {
 	text := strings.TrimSuffix(string(t.partial), "\r")
-	t.partial, t.over = t.partial[:0], false
+	t.partial = t.partial[:0]
 	if strings.TrimSpace(text) != "" {
 		t.r.event(t.s, levelWarning, text)
 	}
