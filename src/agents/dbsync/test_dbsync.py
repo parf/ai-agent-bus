@@ -194,6 +194,14 @@ class PollTests(Base):
         self.agent.poll()
         self.assertEqual(self.keys(),['1'])
 
+    def test_an_author_whose_db_agent_right_is_revoked_mid_batch_gets_no_further_row(self):
+        for k in range(1,4):self.db.put(k,f'2026-11-05 10:00:0{k}')
+        self.subscribe();send=self.bus.send
+        def revoke(to,body,**options):
+            self.bus.deny.add((AUTHOR,DB));return send(to,body,**options)
+        self.bus.send=revoke;self.agent.poll()
+        self.assertEqual(self.keys(),['1'])
+
     def test_a_refused_subscriber_is_parked_and_stops_holding_the_window_for_the_others(self):
         self.agent=self.make(window_max=3)
         for k in range(1,11):self.db.put(k,f'2026-11-05 10:00:{k:02}')

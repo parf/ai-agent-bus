@@ -343,11 +343,12 @@ class DBSync:
     # --- delivery -----------------------------------------------------------------------------------------------
     def _deliver(self):
         data=self.state.load();order=set(data['items'])
-        refused=set();vanished=set();stale=set();cache={}
+        refused=set();vanished=set();stale=set()
         def matches(row,key):
             return key in order and self._owes(data,row['id'],key,data['items'][key])
         def body(row,key,action,record):
-            code=base.checked_admission(self.bus,row['created_by'],self.settings['db'],cache)
+            # Checked before every forward, never once per round: a right revoked mid-batch stops the next row.
+            code=base.checked_admission(self.bus,row['created_by'],self.settings['db'],{})
             if code:
                 refused.add(row['id']);self.warning(code,row['id'])
                 raise SubscriptionError(code)
