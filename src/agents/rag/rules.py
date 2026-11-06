@@ -1,4 +1,5 @@
 """The RAG wire and storage bounds; IDs and chunking define the persisted format."""
+import datetime
 import hashlib
 import json
 import math
@@ -15,7 +16,8 @@ CHUNK_BYTES = 4096
 CHUNK_MAX = 8
 SCALARS_MAX = 8192
 INDEXES = ('namespace','tableName','id','key1','key2','_rag_kind','_rag_labels','_rag_rev')
-SUMMARY_FIELDS = ('namespace','tableName','id','key1','key2','mime-type','classification_ids')
+PROVENANCE_FIELDS = ('source','content_hash','indexed_at')
+SUMMARY_FIELDS = ('namespace','tableName','id','key1','key2','mime-type','classification_ids',*PROVENANCE_FIELDS)
 ID_NAMESPACE = uuid.UUID('14c03739-20d3-5372-b739-a919d36eeb4f')
 CHUNK_FORMAT = 'utf8-ws4096-half-v1'
 KEYWORD_MODES = ('builtin','external')
@@ -236,7 +238,7 @@ def point_id(v,revision=None,index=None):
 
 
 def revision(v,vectors,model,labels):
-    value=[v['data'],v['mime-type'],[v.get(k) for k in ('key1','key2')],sorted(labels),model,CHUNK_FORMAT,vectors]
+    value=[v['data'],v['mime-type'],[v.get(k) for k in ('key1','key2')],sorted(labels),model,CHUNK_FORMAT,vectors,v.get('source'),v.get('content_hash'),v.get('indexed_at')]
     return hashlib.sha256(dumps(value).encode()).hexdigest()
 
 
@@ -257,9 +259,23 @@ def scope(v, *, kind=None, exact=False):
     return {'must':must}
 
 
+def provenance(value):
+    try:
+        text(value.get('source'),'source',SOURCE_MAX,nfc=True)
+        digest=value.get('content_hash')
+        if not isinstance(digest,str) or not re.fullmatch('[0-9a-f]{64}',digest):raise ValueError()
+        stamp=value.get('indexed_at')
+        if not isinstance(stamp,str) or len(stamp)>40 or not stamp.endswith('Z'):raise ValueError()
+        parsed=datetime.datetime.fromisoformat(stamp[:-1]+'+00:00')
+        if parsed.utcoffset()!=datetime.timedelta():raise ValueError()
+    except (ValueError,TypeError,AttributeError):raise NamedRefusal('legacy_data','stored provenance is absent or invalid; re-feed required') from None
+    return {key:value[key] for key in PROVENANCE_FIELDS}
+
+
 def summary(value):
     if not isinstance(value,dict) or set(value)-set(SUMMARY_FIELDS):raise RagError('invalid record summary fields')
     for key in ('namespace','tableName','id'):text(value.get(key),key,128,nfc=True)
+    provenance(value)
     for key in ('key1','key2'):
         if key in value:text(value[key],key,256,empty=True,nfc=True)
     if value.get('mime-type') not in ('text/plain','text/markdown','text/html','application/json'):raise RagError('invalid stored mime-type')

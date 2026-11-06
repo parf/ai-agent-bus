@@ -1,6 +1,8 @@
 """Serialized RAG operations; providers prepare first, confirmed storage writes last."""
 from collections import OrderedDict
 from copy import deepcopy
+import datetime
+import hashlib
 import secrets
 import time
 import uuid
@@ -10,7 +12,7 @@ from rules import (RagError,Unknown,Refused,Deadline,Incomplete,RECORD_MAX,SUMMA
                    config,dumps,identity,match,point_id,revision,scope,number,sparse,vector,summary,text,DATA_MAX)
 from blocks import Budget
 from namespaces import Catalogue,manager,SCHEMA
-from rules import NamedRefusal
+from rules import NamedRefusal,PROVENANCE_FIELDS,provenance
 
 
 class Core:
@@ -72,7 +74,7 @@ class Core:
         # Upper bound every possible selected label, before paying either provider.
         keys=sorted(settings['labels'],key=lambda x:len(dumps(x,ascii=True)),reverse=True)[:settings['top_k']]
         label_budget=sum(len(dumps(k,ascii=True))+26 for k in keys)+2
-        base={k:v[k] for k in ('namespace','tableName','id','key1','key2','data','mime-type') if k in v}
+        base={k:v[k] for k in ('namespace','tableName','id','key1','key2','data','mime-type','source') if k in v}
         estimate=len(dumps(base,ascii=True).encode())+len(chunks)*dimensions*25+label_budget+4096
         if estimate>RECORD_MAX:raise RagError(f'worst-case record {estimate} bytes exceeds {RECORD_MAX} before provider work')
         summary_estimate=len(dumps({k:base[k] for k in SUMMARY_FIELDS if k in base},ascii=True).encode())+label_budget+1024
@@ -104,15 +106,17 @@ class Core:
                     if set(ordered)!=set(range(len(rows))):raise RagError('embedding indexes mismatch')
                     vectors.extend(vector(ordered[i],dimensions) for i in range(len(rows)))
                 except (KeyError,TypeError,AttributeError):raise RagError('invalid embedding response') from None
-        full={**base,'classification_ids':labels,'embeddings':vectors}
+        full={**base,'classification_ids':labels,'embeddings':vectors,
+              'content_hash':hashlib.sha256(v['data'].encode()).hexdigest(),
+              'indexed_at':datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00','Z')}
         if len(dumps(full,ascii=True).encode())>RECORD_MAX:raise RagError('prepared record exceeds byte cap')
         summary={k:full[k] for k in SUMMARY_FIELDS if k in full}
         if len(dumps(summary,ascii=True).encode())>SUMMARY_MAX:raise RagError('prepared summary exceeds byte cap')
         return full,chunks,vectors
     def upsert(self,v,repo):
         full,chunks,vectors=self.prepare(v,repo)
-        rev=revision(v,vectors,self.cfg['embedding_model'],full['classification_ids'])
-        fields={k:full[k] for k in ('namespace','tableName','id','key1','key2') if k in full}
+        rev=revision(full,vectors,self.cfg['embedding_model'],full['classification_ids'])
+        fields={k:full[k] for k in ('namespace','tableName','id','key1','key2',*PROVENANCE_FIELDS) if k in full}
         ids=[repo.point_id(v,rev,i) for i in range(len(chunks))]
         points=[repo.point(v,{'':vec,BM25_VECTOR:sparse(chunk)} if self.bm25 else vec,{**fields,'_rag_kind':'chunk','_rag_index':i,'_rag_rev':rev,'_rag_labels':list(full['classification_ids']),'_rag_text':chunk},rev,i)
                 for i,(pid,vec,chunk) in enumerate(zip(ids,vectors,chunks))]
@@ -154,6 +158,7 @@ class Core:
                     raise RagError('record changed or is incomplete; retry the read')
                 result=dict(summary({k:payload[k] for k in SUMMARY_FIELDS if k in payload}))
                 result['data']=text(payload.get('data'),'stored data',DATA_MAX,empty=True)
+                if hashlib.sha256(result['data'].encode()).hexdigest()!=result['content_hash']:raise RagError('stored content hash mismatch')
                 result['embeddings']=[vector(found[pid],self.cfg['dimensions']) for pid in ids]
                 if len(dumps(result,ascii=True).encode())>RECORD_MAX:raise RagError('stored record exceeds read cap')
                 return result
@@ -208,7 +213,7 @@ class Core:
         best={};want=min(64,v['limit']*4);exhausted=False
         for page in range(4):
             query={'filter':repo.select(v,kind='chunk'),'limit':want,'offset':page*want,
-                   'with_payload':{'include':[*SUMMARY_FIELDS[:5],'_rag_text']},'with_vector':False}
+                   'with_payload':{'include':[*SUMMARY_FIELDS[:5],*PROVENANCE_FIELDS,'_rag_text']},'with_vector':False}
             if mode=='keyword':query.update(query=sparse(v['query'],query=True),using=BM25_VECTOR)
             elif mode=='semantic':query['query']=dense
             else:
@@ -227,16 +232,21 @@ class Core:
                 live=self._live(rows,repo)
                 for row in rows:
                     payload=row['payload'];key=identity(payload)
-                    if key in best or row['id'] not in live.get(repo.point_id(payload),()):continue
+                    head=live.get(repo.point_id(payload))
+                    if key in best or head is None or row['id'] not in head['_rag_chunks'] or payload['_rag_rev']!=head['_rag_rev']:continue
+                    if provenance(payload)!=provenance(head):raise RagError('live chunk provenance mismatch')
                     record={k:payload[k] for k in SUMMARY_FIELDS[:5] if k in payload}
-                    record['score']=row['score'];record['text']=text(payload.get('_rag_text'),'stored text',DATA_MAX,empty=True)
+                    record.update(provenance(payload))
+                    record['chunk_index']=payload['_rag_index']
+                    record['scores']={dict(keyword='bm25',semantic='dense',hybrid='rrf')[mode]:row['score']}
+                    record['excerpt']=text(payload.get('_rag_text'),'stored text',DATA_MAX,empty=True)
                     best[key]=record
             except (KeyError,TypeError,AttributeError):raise RagError('invalid query response') from None
             if len(best)>=v['limit'] or len(rows)<want:break
             exhausted=page==3
         # An empty answer must mean no match, never a window that dead chunks filled.
         if exhausted and len(best)<v['limit']:raise Incomplete('search window exhausted before enough records were found; narrow the query, add filters or run cleanup')
-        return {'mode':mode,'records':sorted(best.values(),key=lambda r:(-r['score'],r['tableName'],r['id']))[:v['limit']]}
+        return {'mode':mode,'records':sorted(best.values(),key=lambda r:(-next(iter(r['scores'].values())),r['tableName'],r['id']))[:v['limit']]}
     def query_embedding(self,v,repo):
         # Catalogue and collection model checks have already completed before this one paid call.
         cfg=repo.config
@@ -265,12 +275,12 @@ class Core:
         """Head id -> the chunk ids its live head lists, for the records the rows belong to; a missing or deleted head lists none."""
         heads=sorted({repo.point_id(row['payload']) for row in rows})
         if not heads:return {}
-        found=repo.qdrant('POST','/points',{'ids':heads,'with_payload':{'include':['_rag_kind','_rag_chunks']},'with_vector':False})
+        found=repo.qdrant('POST','/points',{'ids':heads,'with_payload':{'include':['_rag_kind','_rag_chunks',*PROVENANCE_FIELDS]},'with_vector':False})
         live={}
         for head in found:
             payload=head.get('payload') or {}
             chunks=payload.get('_rag_chunks')
-            if payload.get('_rag_kind')=='head' and isinstance(chunks,list):live[head['id']]=set(chunks)
+            if payload.get('_rag_kind')=='head' and isinstance(chunks,list):live[head['id']]=payload
         return live
     def keyword_index(self,envelope,repo):
         """Add the text sparse vector when the collection lacks it, then give every chunk its words; safe to repeat.

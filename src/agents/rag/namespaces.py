@@ -4,11 +4,11 @@ from dataclasses import dataclass
 import re
 from types import MappingProxyType
 from rules import (RagError,NamedRefusal,Unknown,CATALOGUE_MAX,NAMESPACE_MAX,TABLES_MAX,
-                   dumps,text,integer,match,point_id,scope)
+                   dumps,text,integer,match,point_id,scope,provenance)
 
 CATALOGUE_KEY='rag.namespaces'
 SCHEMA=3
-IDENTITY_FIELDS=['namespace','tableName','id','_rag_kind','_rag_rev','_rag_index','_rag_schema','_rag_chunks']
+IDENTITY_FIELDS=['namespace','tableName','id','_rag_kind','_rag_rev','_rag_index','_rag_schema','_rag_chunks','source','content_hash','indexed_at']
 
 
 def manager(envelope):
@@ -123,8 +123,14 @@ class NamespaceAccess:
             for key in ('tableName','id'):text(payload.get(key),key,128,nfc=True)
             if type(payload.get('_rag_schema')) is not int or payload['_rag_schema']!=SCHEMA:
                 raise NamedRefusal('legacy_data','record has no current namespace/provenance contract; re-feed required')
+            provenance(payload)
             kind=payload.get('_rag_kind')
-            if kind in ('head','deleted'):expected=point_id(payload)
+            rev=payload.get('_rag_rev')
+            if not isinstance(rev,str) or not re.fullmatch('[0-9a-f]{64}',rev):raise RagError('invalid point revision')
+            if kind in ('head','deleted'):
+                expected=point_id(payload)
+                chunks=payload.get('_rag_chunks')
+                if not isinstance(chunks,list) or not 1<=len(chunks)<=8 or any(pid!=point_id(payload,rev,i) for i,pid in enumerate(chunks)):raise RagError('invalid head chunk references')
             elif kind=='chunk':
                 index=integer(payload.get('_rag_index'),0,7,'chunk index')
                 rev=payload.get('_rag_rev')
