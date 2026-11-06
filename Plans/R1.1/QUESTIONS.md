@@ -181,12 +181,4 @@ The recommendations below are retained parked proposals.
 
 ## AI agent settings
 
-- ❓ Q337 Which default models does `#ai` use
-  - Context: `#ai`'s Configuration is empty, so `models` marks no default and an `ask` without a `model` is refused ("set Configuration model or provide a request model"). `image_model` is unset too
-  - Context: Claude Haiku 5.5 costs $0.10 per million input tokens and $0.50 per million output tokens, with a 1M context window; Claude Sonnet 5.5 costs more
-  - ( ) `model` = `anthropic/claude-haiku-5.5`: fast and cheap for routine bus asks 🌟
-  - ( ) `model` = `anthropic/claude-sonnet-5.5`: stronger, dearer ⭐
-  - ( ) Another model: write its id in a reply
-  - ( ) No default: every caller names its model
-  > 💡👾 Haiku 5.5 as the default; callers that need more name a model per request. `image_model` can be picked once images work.
-
+- ✅ Q337 → [№Q337](resolved.md#Q337)

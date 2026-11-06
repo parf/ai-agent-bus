@@ -279,3 +279,18 @@
   > elaborate if u still have question
   >
   > 💬👾 → An `agent.d` package may be a symbolic link to its checkout; the owner updates it with git pull and a runner reload.
+
+<a id="Q337"></a>
+
+- ✅ Q337 Which default models does `#ai` use
+  - Context: `#ai`'s Configuration is empty, so `models` marks no default and an `ask` without a `model` is refused ("set Configuration model or provide a request model"). `image_model` is unset too
+  - Context: Claude Haiku 5.5 costs $0.10 per million input tokens and $0.50 per million output tokens, with a 1M context window; Claude Sonnet 5.5 costs more
+  - ( ) `model` = `anthropic/claude-haiku-5.5`: fast and cheap for routine bus asks 🌟
+  - ( ) `model` = `anthropic/claude-sonnet-5.5`: stronger, dearer ⭐
+  - ( ) Another model: write its id in a reply
+  - ( ) No default: every caller names its model
+  > 💡👾 Haiku 5.5 as the default; callers that need more name a model per request. `image_model` can be picked once images work.
+  >
+  > 💬 👤parf (in chat) default: anthropic/claude-sonnet-5.5: stronger and more expensive.
+  >
+  > 💬👾 → `#ai` Configuration `{"model":"anthropic/claude-sonnet-5.5"}` set 2026-11-05; `models` marks it (default).
