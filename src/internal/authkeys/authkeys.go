@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"unicode"
 )
 
 // ErrKey is text that is not one ssh-ed25519 public key.
@@ -70,8 +71,15 @@ func SingleKey(text string) (string, error) {
 	return key, nil
 }
 
-// Line refuses any key that could add a second authorized_keys entry.
+// ErrProgram is a forced-command program path that cannot be read back: one holding whitespace.
+var ErrProgram = errors.New("the program path holds whitespace, so the line could not be read back to revoke it")
+
+// Line refuses any key that could add a second authorized_keys entry, and a program path that
+// Whose could not take apart again.
 func Line(program, name, key string) (string, error) {
+	if strings.IndexFunc(program, unicode.IsSpace) >= 0 {
+		return "", fmt.Errorf("%w: %q", ErrProgram, program)
+	}
 	key, err := SingleKey(key)
 	if err != nil {
 		return "", err
@@ -79,7 +87,11 @@ func Line(program, name, key string) (string, error) {
 	return fmt.Sprintf("restrict,command=%q %s", program+" "+name, key), nil
 }
 
-// Whose reads a line back: the name it is for, and the program it reaches.
+// Whose reads a line back: the name it is for, and the program it reaches. The command is the
+// program and then the name, which is its last field, so a hand-written program path with a space
+// still reads back (Line itself refuses to write one). A command of another shape is not ours and has
+// no owner: a program with arguments (a field after the first that begins with "-"), a spaced
+// program that is not an absolute path, or a name that is a path or an option.
 func Whose(line string) (name, program string) {
 	i := strings.Index(line, `command="`)
 	if i < 0 {
@@ -91,10 +103,25 @@ func Whose(line string) (name, program string) {
 		return "", ""
 	}
 	fields := strings.Fields(rest[:j])
-	if len(fields) != 2 {
+	if len(fields) < 2 {
 		return "", ""
 	}
-	return fields[1], filepath.Base(fields[0])
+	name = fields[len(fields)-1]
+	if strings.HasPrefix(name, "-") || strings.Contains(name, "/") {
+		return "", ""
+	}
+	program = strings.Join(fields[:len(fields)-1], " ")
+	if len(fields) > 2 {
+		if !strings.HasPrefix(program, "/") {
+			return "", ""
+		}
+		for _, f := range fields[1 : len(fields)-1] {
+			if strings.HasPrefix(f, "-") {
+				return "", ""
+			}
+		}
+	}
+	return name, filepath.Base(program)
 }
 
 // Without is lines minus name's.

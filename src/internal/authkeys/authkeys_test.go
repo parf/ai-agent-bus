@@ -4,6 +4,7 @@ import (
 	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/binary"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -121,5 +122,46 @@ func TestRestrictedLineRefusesASecondPublicKey(t *testing.T) {
 		if err != nil || !strings.Contains(line, " "+kind+" AAAA comment") {
 			t.Fatalf("host-side key type lost: %s %v", kind, err)
 		}
+	}
+}
+
+// A program path with whitespace cannot be read back to revoke, so Line refuses it by name.
+func TestLineRefusesAProgramPathWithWhitespace(t *testing.T) {
+	for _, program := range []string{"/opt/my tools/agent-bus-token", "/opt/tab\there/agent-bus-token", "/opt/line\nbreak/x"} {
+		if l, err := Line(program, "alice@h", Key(t)); !errors.Is(err, ErrProgram) || l != "" {
+			t.Errorf("%q: line %q err %v", program, l, err)
+		}
+	}
+}
+
+// Whose takes the name as the last field, so a hand-written spaced path still revokes; a command
+// of another shape is not ours and has no owner.
+func TestWhoseTakesTheLastFieldAndIgnoresForeignCommands(t *testing.T) {
+	key := Key(t)
+	line := func(cmd string) string { return `restrict,command="` + cmd + `" ` + key }
+	if who, program := Whose(line("/opt/my tools/agent-bus-token alice@h")); who != "alice@h" || program != "agent-bus-token" {
+		t.Errorf("spaced path read back as %q %q", who, program)
+	}
+	lines := []string{line("/opt/my tools/agent-bus-token alice@h"), line("/opt/other/agent-bus-token bob@h")}
+	if got := Without(lines, "alice@h"); len(got) != 1 || got[0] != lines[1] {
+		t.Errorf("revoking a spaced-path line left %v", got)
+	}
+	for name, cmd := range map[string]string{
+		"a program with arguments": "/usr/bin/rsync --server -vlogDtpr . alice@h",
+		"a shell command":          "/bin/sh -c alice@h",
+		"a relative spaced path":   "my tools/agent-bus-token alice@h",
+		"a path as the name":       "/bin/cat /etc/passwd",
+		"an option as the name":    "/bin/ls -l",
+		"no name":                  "/bin/sh",
+	} {
+		if who, program := Whose(line(cmd)); who != "" || program != "" {
+			t.Errorf("%s: attributed to %q %q", name, who, program)
+		}
+		if got := Without([]string{line(cmd)}, "alice@h"); len(got) != 1 {
+			t.Errorf("%s: revoked as if it were ours", name)
+		}
+	}
+	if who, _ := Whose(key); who != "" {
+		t.Errorf("a plain key line has the owner %q", who)
 	}
 }
