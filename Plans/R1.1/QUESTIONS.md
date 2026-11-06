@@ -8,9 +8,12 @@ Only unresolved choices, in [agent markup](http://localhost:7777/mdhouse/doc/age
 
 ## Scope
 
-- ❓ Q136 Final R1.1 scope
+- ⏸️ Q136 Final R1.1 scope
   - Context: [R1.1 scope](README.md#scope)
   - Settled by: the owner
+  > 💬 👤parf (in chat, 2026-11-05) no open scope for R1.1 yet, maybe later; so far taking missing parts and fixing bugs/issues
+  >
+  > 💬👾 Deferred. Until it opens, work is 1.0.x: missing parts and fixes. The owner-approved T-35 (tab titles) and T-36 (`#ai` methods) continue; FileScan and DBSync wait on №Q334.
 
 ## Windows CLI
 
