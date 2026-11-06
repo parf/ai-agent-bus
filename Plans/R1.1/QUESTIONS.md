@@ -148,6 +148,35 @@ Open choices for [dbsync](dbsync.md#questions).
 
 - ✅ Q318 → [№Q318](resolved.md#Q318)
 
+### Live acceptance on this node
+
+DBSync is proven on fixtures and a fake #db. A live run needs these four; no database server runs here today and #db is disabled. The test plan is in `local/ab-w1a/T-38-S3-live-spec.local.md`.
+
+- ❓ Q344 Which engine the live DBSync test runs on
+  - Context: both dialects pass the fixture engines; PostgreSQL's `timestamptz` exercises the time-zone guard and mixed-case names, which the fake #db only imitates
+  - ( ) PostgreSQL, a local instance on this node, loopback only 🌟
+  - ( ) MySQL/MariaDB, a local instance on this node ⭐
+  - ( ) An existing database the owner names (host, engine, schema)
+  > 💡👾 PostgreSQL: the zoned `updated` path is the riskiest one, and a loopback-only instance keeps the test off shared data.
+
+- ❓ Q345 The database accounts for the live test
+  - Context: #db reads as `dbsync_ro` (SELECT on the probe table only, read-only by default); its password lives in the #db instance's Configuration secret, never in the repo
+  - ( ) Two accounts: `dbsync_ro` for #db, `dbsync_rw` for the hand-made test changes 🌟
+  - ( ) One read-only account; the owner makes the row changes as a superuser ⭐
+  > 💡👾 Two accounts: #db never holds a credential that can write, and the test needs no superuser.
+
+- ❓ Q346 Where the probe table lives
+  - Context: one table `dbsync_probe` with a primary key, an `updated_at` set on every update, a note column and a `gone` flag
+  - ( ) Its own `probe` schema 🌟
+  - ( ) The default schema ⭐
+  > 💡👾 Its own schema: the grant covers one table and dropping the schema removes the whole test.
+
+- ❓ Q347 Which #db instance the test uses
+  - Context: registering an instance, handing its token to the runner and the reload are owner steps (or #ab-ceo's under the standing deploy OK)
+  - ( ) A new `#db/probe` instance for this test only, removed after 🌟
+  - ( ) Point the main `#db` instance at the probe database ⭐
+  > 💡👾 A separate instance: removing it leaves the main #db untouched.
+
 - ✅ Q319 → [№Q319](resolved.md#Q319)
 
 - ✅ Q320 → [№Q320](resolved.md#Q320)
