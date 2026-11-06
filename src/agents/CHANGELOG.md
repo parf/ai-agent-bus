@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes to the bundled agents in `src/agents/`, newest first.
 The pack has its own SemVer in `src/agents/VERSION`, separate from the bus version.
 
+## 1.0.1 — 2026-11-06
+
+Agents declare their daemon protocol (protocol.json); RAG 0.4.0 with optional rerank; FileScan renamed changes, bigfile opt-in and safer RAG confirmation; DBSync shares the fixed change-sync core.
+
 ## 1.0.0 — 2026-11-06
 
 The pack's first version: the bundled agents are versioned separately from the bus. RAG keeps its own app version in its `agent.json`, apart from this one.
