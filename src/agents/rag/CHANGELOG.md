@@ -1,5 +1,10 @@
 # RAG changelog
 
+## 0.4.0
+
+Rerank: `search` with `rerank:true` reorders its candidate window, at most four times `limit`, in one paid Voyage rerank call with the `rerank_model` setting.
+A failed or invalid rerank keeps the unreranked order and answers `reranked:false` with a named `rerank_failure`; without a model, `rerank:true` is refused as `rerank_unavailable`.
+
 ## 0.3.0
 
 Retrieve namespaced evidence with keyword, dense semantic or Qdrant RRF hybrid search.

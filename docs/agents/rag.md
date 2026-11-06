@@ -9,7 +9,7 @@
 
 - ✅ **Store a text:** it is sorted into your topics, fingerprinted and kept (`upsert`).
 - ✅ **Read it back:** one record, or a page of records in a namespace (`get`, `list`).
-- ✅ **Find evidence:** `search` selects keyword, semantic or hybrid retrieval, with one live excerpt per record and its source, hash and indexing time. It returns evidence, without generating an answer.
+- ✅ **Find evidence:** `search` selects keyword, semantic or hybrid retrieval, with one live excerpt per record and its source, hash and indexing time. An optional rerank reorders the hits in one paid call. It returns evidence, without generating an answer.
 - ✅ **Discover without payment:** `capabilities` names the methods, modes, limits and configured model, even before setup. It makes no storage or provider call and does not claim readiness.
 - ✅ **Manage namespaces:** the agent's Owner or Maintainers can list names and live-record counts, or explicitly confirm removal of one namespace.
 - ✅ **Build the keyword index:** `keyword_index` adds the vector search needs to a collection that lacks it and gives the selected namespace's stored texts their words; safe to repeat.
@@ -50,6 +50,7 @@ agent-bus call '#rag@node.example' '{"method":"prompts","action":"set","namespac
 - **Store a note (sorted and fingerprinted):** `agent-bus call '#rag@node.example' --wait=120s '{"method":"upsert","namespace":"team","tableName":"notes","id":"tea","data":"Tea is a drink.","source":"notes/tea.md"}'`
 - **Read it back:** `agent-bus call '#rag@node.example' '{"method":"get","namespace":"team","tableName":"notes","id":"tea"}'`
 - **Find by words:** `agent-bus call '#rag@node.example' '{"method":"search","namespace":"team","query":"green tea","limit":5}'` returns the effective `mode` and live citations; `tableName`, `key1` and `key2` narrow it. Set `mode` to `semantic` for meaning or `hybrid` for both.
+- **Best first, paid:** add `"rerank":true` to a search to reorder its hits with the `rerank_model`; one Voyage call per search.
 - **See what is stored:** `agent-bus call '#rag@node.example' '{"method":"list","namespace":"team","limit":16}'`
 - **Wipe one table:** `agent-bus call '#rag@node.example' '{"method":"delete","namespace":"team","tableName":"notes","all":true}'`
 
@@ -126,6 +127,7 @@ agent-bus manage '#ai@node.example' --add-to-set-allow '#rag@node.example'
 | `dimensions` | Fixed vector size the model supports |
 | `decision_model` | Jev model, default `typesafe/jev-1.14` |
 | `keyword_search` | `builtin` (default): `search` uses the collection's BM25 sparse vector `text`; `external` is accepted but has no connected engine in this helper and cannot search |
+| `rerank_model` | Voyage rerank model for `search` with `rerank:true`, such as `rerank-2.5`; empty (default) turns rerank off |
 
 </details>
 
@@ -154,6 +156,23 @@ agent-bus manage '#ai@node.example' --add-to-set-allow '#rag@node.example'
 - Upsert requires `source`: a path or URI supplied as data, never opened by RAG. `content_hash` is SHA-256 of the exact submitted text's UTF-8 bytes, before extraction; a supplied hash must match. `indexed_at` is the published revision's UTC time.
 - Keep the citation's hash and excerpt: replacing a record removes its old content. `get` reads the current record, not historical revisions.
 
+### Rerank
+
+- **On:** `"rerank":true` in a search, with `rerank_model` set. It works in every mode. Without a model, or with `keyword_search` external, the search is refused as `rerank_unavailable` before any paid call.
+- **Cost:** each reranked search is **one paid Voyage call**, on top of the query embedding that semantic and hybrid already make. A search with no hits makes none.
+- **What is reranked:** the query's own candidates after the filters, at most four times `limit` (64 at most), never the whole namespace. Each candidate's excerpt is sent with the query.
+- **Answer:** `reranked: true`, the hits best first by the model, and each hit's `scores` gains `rerank` beside its `bm25`, `dense` or `rrf` score. The other fields are unchanged.
+- **If rerank fails:** the hits keep their unreranked order and scores, and the answer says `reranked: false` with `rerank_failure`. There is no partial reorder. The failure is one of:
+
+| `rerank_failure` | Meaning |
+|---|---|
+| `provider_unavailable` | `#voyage` failed or did not answer |
+| `provider_refused` | Voyage refused the request, such as an unknown model |
+| `deadline` | The message deadline was reached first |
+| `model_mismatch` | Voyage answered with another model than `rerank_model` |
+| `invalid_answer` | The answer was not one relevance score for each candidate |
+| `request_too_large` | The candidates' excerpts exceed the 1 MiB request cap; nothing was sent |
+
 ## Namespace state and removal
 
 - A new namespace binds immutably to the configured model and dimensions before any paid work. A failed first insertion can leave a known empty namespace. Binding drift refuses before payment.
@@ -179,6 +198,8 @@ agent-bus manage '#ai@node.example' --add-to-set-allow '#rag@node.example'
 | `search` says `keyword index incomplete (n chunks left)` | An interrupted build left some texts without words; run `keyword_index` again until it answers `ok`; searches are refused until then rather than answering from part of the data |
 | `search` answers `incomplete: search window exhausted before enough records were found` | The best matches were texts nobody can read any more (never-published drafts, replaced revisions awaiting cleanup) or too few records match; narrow the query, add `tableName` or keys, or remove the leftovers |
 | `search` says the text vector lacks the idf modifier | Recreate that vector with `{"sparse":{"modifier":"idf"}}`; Qdrant cannot change a modifier in place |
+| `rerank_unavailable` | Set `rerank_model`, or search without `rerank`; external keyword search cannot be reranked |
+| `reranked: false` | The hits are valid, in their unreranked order; `rerank_failure` names why ([rerank](#rerank)) |
 | `search` says no external keyword engine is connected | Set `keyword_search` to `builtin`; this helper has no external engine |
 
 ## Warnings and alerts

@@ -6,11 +6,19 @@ import sys
 import unittest
 HERE=Path(__file__).resolve().parent
 sys.path[:0]=[str(HERE),str(HERE.parents[1]/'clients/python'),str(HERE.parent/'shared')]
-from rules import parse,dumps,match,RagError,NamedRefusal
+from rules import parse,dumps,match,RagError,NamedRefusal,Refused,Deadline
 from core import Core
 from test_rag import Store,KV,CFG,PROMPT
 
 class RetrievalStore(Store):
+    rerank_answer=None   # None: the fake reverses the candidates; else a function of the request, or an exception to raise
+    def rerank(self,request):
+        if hasattr(self,'budget'):self.budget.left(30)
+        self.paid.append(('rerank',deepcopy(request)))
+        if isinstance(self.rerank_answer,Exception):raise self.rerank_answer
+        if self.rerank_answer is not None:return self.rerank_answer(request)
+        n=len(request['documents'])
+        return {'object':'list','data':[{'index':i,'relevance_score':(i+1)/n} for i in reversed(range(n))],'model':request['model']}
     def embed(self,request):
         result=super().embed(request)
         if request.get('input_type')=='query':return {'data':[{'index':0,'embedding':[1.0,0.0]}]}
@@ -87,5 +95,129 @@ class Retrieval(unittest.TestCase):
             self.store.calls.clear();self.store.embed=lambda request:{'data':[{'index':0,'embedding':bad}]}
             with self.assertRaises(RagError):self.search('semantic')
             self.assertFalse(any(path=='/points/query' for _,path,_,_ in self.store.calls))
+
+RERANK='rerank-2.5'
+SECRET='provider says: key sk-live-123 rejected'
+
+class Rerank(unittest.TestCase):
+    """Rerank reorders the query's own candidate window once, through one paid call, or keeps the fused order and says why."""
+    def setUp(self):
+        self.store=RetrievalStore();self.store.sparse=True;self.kv=KV();self.app=Core({**CFG,'rerank_model':RERANK},self.store,self.kv)
+        for table in ('t','u'):
+            self.app.run(parse(dumps({'method':'prompts','namespace':'a','tableName':table,'action':'set','data':PROMPT})))
+        for id,data,vec in (('meaning','automobile repair',[1,0]),('word','carpet car car',[0,1]),('third','a car and more car words',[1,1])):
+            self.upsert('t',id,data,vec)
+        self.upsert('u','other','car car car car',[0,1])
+        self.store.paid.clear();self.store.calls.clear()
+    def upsert(self,table,id,data,vec,chunks=1):
+        self.app.run(parse(dumps({'method':'upsert','namespace':'a','tableName':table,'id':id,'data':data,'source':id+'.md','embeddings':[vec]*chunks})))
+    def search(self,mode='hybrid',**more):
+        return self.app.run(parse(dumps({'method':'search','namespace':'a','query':'car','mode':mode,'tableName':'t',**more})))
+    def reranks(self):return [request for target,request in self.store.paid if target=='rerank']
+    def base(self,mode='hybrid',**more):
+        got=self.search(mode,**more);self.store.paid.clear();self.store.calls.clear();return got
+    def test_rerank_reverses_the_fused_order_in_one_call_and_keeps_every_field(self):
+        base=self.base()
+        got=self.search(rerank=True)
+        self.assertIs(got['reranked'],True);self.assertNotIn('rerank_failure',got);self.assertEqual(got['mode'],'hybrid')
+        ids=[r['id'] for r in base['records']]
+        self.assertEqual(len(ids),3);self.assertEqual([r['id'] for r in got['records']],ids[::-1])
+        self.assertEqual({'meaning','word'}-set(ids),set())   # a meaning-only and a keyword-only match both reach rerank
+        calls=self.reranks();self.assertEqual(len(calls),1)
+        self.assertEqual(calls[0]['model'],RERANK);self.assertEqual(calls[0]['query'],'car')
+        self.assertEqual(calls[0]['documents'],[r['excerpt'] for r in base['records']])
+        self.assertEqual([t for t,_ in self.store.paid],['voyage','rerank'])
+        for before,after in zip(base['records'][::-1],got['records']):
+            self.assertEqual(set(after),set(before))
+            self.assertEqual({k:v for k,v in after.items() if k!='scores'},{k:v for k,v in before.items() if k!='scores'})
+            self.assertEqual(after['scores']['rrf'],before['scores']['rrf']);self.assertEqual(set(after['scores']),{'rrf','rerank'})
+        self.assertEqual([r['scores']['rerank'] for r in got['records']],sorted((r['scores']['rerank'] for r in got['records']),reverse=True))
+    def test_filters_hold_before_rerank(self):
+        got=self.search(rerank=True)
+        self.assertEqual({r['tableName'] for r in got['records']},{'t'})
+        self.assertNotIn('car car car car',self.reranks()[0]['documents'])
+        self.assertEqual(len(self.reranks()[0]['documents']),3)
+    def test_keyword_and_semantic_rerank_too(self):
+        for mode in ('keyword','semantic'):
+            base=self.base(mode)
+            got=self.search(mode,rerank=True)
+            self.assertIs(got['reranked'],True);self.assertEqual(got['mode'],mode)
+            self.assertEqual([r['id'] for r in got['records']],[r['id'] for r in base['records']][::-1])
+            self.store.paid.clear()
+    def test_the_candidates_are_the_query_window_of_four_times_the_limit(self):
+        for i in range(9):self.upsert('t',f'n{i}','car '+'filler '*i,[0,1])
+        for limit,want in ((1,4),(2,8),(16,11)):   # 11 records hold the word: a window wider than the matches sends them all
+            self.store.paid.clear()
+            got=self.search('keyword',rerank=True,limit=limit)
+            self.assertEqual(len(self.reranks()[0]['documents']),want,limit);self.assertEqual(len(got['records']),min(limit,want))
+    def test_a_second_page_cannot_widen_the_candidates(self):
+        # One record's eight chunks fill the first page with a single record, so the second page adds a full window more.
+        self.upsert('t','dense','car '*7600,[0,1],chunks=8)
+        for i in range(9):self.upsert('t',f'n{i}','car '+'filler '*i,[0,1])
+        self.store.paid.clear()
+        self.search('keyword',rerank=True,limit=2)
+        pages=[body for _,path,body,_ in self.store.calls if path=='/points/query']
+        self.assertEqual(len(pages),2,'the fixture must reach the second page')
+        self.assertEqual(len(self.reranks()[0]['documents']),8)
+    def test_rerank_off_makes_no_rerank_call(self):
+        for more in ({},{'rerank':False}):
+            self.store.paid.clear()
+            got=self.search(**more)
+            self.assertEqual(self.reranks(),[]);self.assertNotIn('reranked',got);self.assertNotIn('rerank_failure',got)
+            self.assertEqual(set(got['records'][0]['scores']),{'rrf'})
+    def test_each_failure_keeps_the_fused_order_and_names_its_own_code(self):
+        def answer(rows,**more):return lambda request:{'data':rows(len(request['documents'])),**more}
+        good=lambda n:[{'index':i,'relevance_score':i/n} for i in range(n)]
+        cases={
+            'provider_unavailable':RagError(SECRET),
+            'provider_refused':Refused(SECRET),
+            'deadline':Deadline(SECRET),
+            'model_mismatch':answer(good,model='rerank-lite'),
+            'invalid_answer':[
+                lambda request:SECRET,
+                lambda request:{'model':RERANK},
+                answer(lambda n:good(n)[:-1]),
+                answer(lambda n:good(n)+[{'index':0,'relevance_score':1}]),
+                answer(lambda n:[{'index':0,'relevance_score':.1}]*n),
+                answer(lambda n:good(n)[:-1]+[{'index':n,'relevance_score':.9}]),
+                answer(lambda n:good(n)[:-1]+[{'index':-1,'relevance_score':.9}]),
+                answer(lambda n:good(n)[:-1]+[{'index':True,'relevance_score':.9}]),
+                answer(lambda n:good(n)[:-1]+[{'index':n-1,'relevance_score':'0.9'}]),
+                answer(lambda n:good(n)[:-1]+[{'index':n-1,'relevance_score':True}]),
+                answer(lambda n:good(n)[:-1]+[{'index':n-1,'relevance_score':float('nan')}]),
+                answer(lambda n:good(n)[:-1]+[{'index':n-1}]),
+                answer(lambda n:SECRET),
+            ]}
+        base=self.base()
+        for code,shapes in cases.items():
+            for shape in shapes if isinstance(shapes,list) else [shapes]:
+                with self.subTest(code=code,shape=shape):
+                    self.store.rerank_answer=shape;self.store.paid.clear()
+                    got=self.search(rerank=True)
+                    self.assertIs(got['reranked'],False);self.assertEqual(got['rerank_failure'],code)
+                    self.assertEqual(got['records'],base['records'])
+                    self.assertNotIn('sk-live',dumps(got));self.assertEqual(len(self.reranks()),1)
+    def test_an_oversized_request_is_not_sent(self):
+        import core
+        saved=core.BODY_MAX;core.BODY_MAX=200
+        try:got=self.search(rerank=True)
+        finally:core.BODY_MAX=saved
+        self.assertEqual((got['reranked'],got['rerank_failure']),(False,'request_too_large'));self.assertEqual(self.reranks(),[])
+    def test_no_candidates_pay_nothing(self):
+        got=self.app.run(parse(dumps({'method':'search','namespace':'a','query':'zebra','mode':'keyword','rerank':True})))
+        self.assertEqual((got['records'],got['reranked']),([],True));self.assertEqual(self.store.paid,[])
+    def test_rerank_without_a_model_or_on_external_keywords_is_refused_before_any_paid_call(self):
+        self.app.cfg['rerank_model']=''
+        with self.assertRaises(NamedRefusal) as c:self.search('semantic',rerank=True)
+        self.assertEqual(c.exception.code,'rerank_unavailable');self.assertEqual(self.store.paid,[])
+        self.app.cfg.update(rerank_model=RERANK,keyword_search='external')
+        with self.assertRaises(NamedRefusal) as c:self.search('keyword',rerank=True)
+        self.assertEqual(c.exception.code,'rerank_unavailable');self.assertEqual(self.store.paid,[])
+    def test_rerank_must_be_boolean_and_the_model_valid(self):
+        for bad in (1,'true',None):
+            with self.assertRaisesRegex(RagError,'rerank must be boolean'):parse(dumps({'method':'search','namespace':'a','query':'car','rerank':bad}))
+        for bad in ('has space',7,'x'*129):
+            with self.assertRaisesRegex(RagError,'rerank model'):Core({**CFG,'rerank_model':bad},self.store,self.kv)
+        self.assertEqual(Core(CFG,self.store,self.kv).cfg['rerank_model'],'')
 
 if __name__=='__main__':unittest.main()

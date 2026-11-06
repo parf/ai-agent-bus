@@ -145,7 +145,7 @@ def parse(raw):
         return v
     allowed={'upsert':{'namespace','tableName','id','data','mime-type','key1','key2','embeddings','source','content_hash'},
              'get':{'namespace','tableName','id'},'list':{'namespace','tableName','key1','key2','limit','cursor'},
-             'search':{'namespace','tableName','key1','key2','query','limit','mode'},
+             'search':{'namespace','tableName','key1','key2','query','limit','mode','rerank'},
              'keyword_index':{'namespace'},'drop_namespace':{'namespace','confirm'},
              'delete':{'namespace','tableName','id','key1','key2','all'},'prompts':{'namespace','tableName','action','data'}}
     if not isinstance(method,str) or method not in allowed: raise NamedRefusal('unsupported_method','unknown method')
@@ -177,6 +177,7 @@ def parse(raw):
         if v.setdefault('mode','keyword') not in SEARCH_MODES: raise NamedRefusal('unsupported_mode','expected keyword, semantic or hybrid')
         if v['mode'] in ('keyword','hybrid') and not tokens(v['query']): raise RagError('query has no searchable words')
         integer(v.setdefault('limit',16),1,16,'limit')
+        if 'rerank' in v and type(v['rerank']) is not bool: raise RagError('rerank must be boolean')
     if method=='delete':
         if 'all' in v and type(v['all']) is not bool: raise RagError('all must be boolean')
         if 'id' in v:
@@ -190,7 +191,7 @@ def parse(raw):
 
 def config(v):
     required={'qdrant','voyage','ai','collection','embedding_model','dimensions'}
-    if not isinstance(v,dict) or set(v)-required-{'decision_model','keyword_search'} or not required<=set(v): raise RagError('configure block names, collection, embedding_model and dimensions')
+    if not isinstance(v,dict) or set(v)-required-{'decision_model','keyword_search','rerank_model'} or not required<=set(v): raise RagError('configure block names, collection, embedding_model and dimensions')
     v=dict(v)
     if v.setdefault('keyword_search','builtin') not in KEYWORD_MODES: raise RagError('keyword_search is builtin or external')
     for k in ('qdrant','voyage','ai'):
@@ -200,6 +201,8 @@ def config(v):
     for k in ('embedding_model','decision_model'):
         if k=='decision_model': v.setdefault(k,'typesafe/jev-1.14')
         if not isinstance(v[k],str) or not re.fullmatch(r'[A-Za-z0-9._/~:@+-]{1,128}',v[k]): raise RagError('invalid model ID')
+    # Empty means rerank is off: search refuses rerank:true rather than calling a model nobody chose.
+    if v.setdefault('rerank_model','')!='' and (not isinstance(v['rerank_model'],str) or not re.fullmatch(r'[A-Za-z0-9._/~:@+-]{1,128}',v['rerank_model'])): raise RagError('invalid rerank model ID')
     integer(v['dimensions'],1,8192,'dimensions')
     return v
 

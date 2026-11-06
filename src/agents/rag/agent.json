@@ -1,6 +1,6 @@
 {
   "description": "Store namespaced documents and retrieve evidence by keyword, meaning or both. Start with free capabilities, then configure prompts and upsert records with their source path.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "command": "./rag.py",
   "form": "args",
   "serves": "itself",
@@ -113,6 +113,13 @@
       "optional": true,
       "default": "keyword",
       "help": "Keyword is free BM25; semantic embeds the query once; hybrid embeds once and fuses dense and BM25 by Qdrant RRF. No silent fallback."
+    },
+    "rerank": {
+      "type": "bool",
+      "json_only": true,
+      "optional": true,
+      "default": false,
+      "help": "true: one paid Voyage rerank call reorders the query's candidates, at most four times limit, by the rerank_model setting. A failed rerank keeps the unreranked order with reranked:false and a named rerank_failure."
     },
     "confirm": {
       "type": "string",
@@ -240,9 +247,13 @@
         {
           "name": "mode",
           "optional": true
+        },
+        {
+          "name": "rerank",
+          "optional": true
         }
       ],
-      "returns": "JSON with effective mode and live citations: namespace, tableName, id, chunk_index, source, content_hash, excerpt, scores, indexed_at. scores contains bm25 (keyword), dense (semantic) or rrf (hybrid); no component scores are invented. No generation or historical revision retrieval.",
+      "returns": "JSON with effective mode and live citations: namespace, tableName, id, chunk_index, source, content_hash, excerpt, scores, indexed_at. scores contains bm25 (keyword), dense (semantic) or rrf (hybrid); no component scores are invented. With rerank:true, one paid Voyage rerank call reorders the query's candidates and adds a rerank score; reranked:true says it did, reranked:false with rerank_failure keeps the unreranked order. No generation or historical revision retrieval.",
       "example": "agent-bus call '#rag@node.example' '{\"method\":\"search\",\"namespace\":\"team\",\"query\":\"green tea\",\"limit\":5}'"
     },
     "keyword_index": {
@@ -403,6 +414,12 @@
       "help": "Keyword search engine for search: builtin (default) uses the collection's BM25 sparse vector named text; external answers through an engine connected to the agent, and builtin ingest is then off",
       "default": "builtin",
       "example": "builtin"
+    },
+    "rerank_model": {
+      "type": "string",
+      "help": "Voyage rerank model for search with rerank:true; empty (default) turns rerank off and such a search is refused as rerank_unavailable",
+      "default": "",
+      "example": "rerank-2.5"
     }
   },
   "deadline": "120s",

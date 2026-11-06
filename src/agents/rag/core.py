@@ -3,13 +3,14 @@ from collections import OrderedDict
 from copy import deepcopy
 import datetime
 import hashlib
+import math
 import secrets
 import time
 import uuid
 from chunks import extract
 from prompts import Cache
 from rules import (RagError,Unknown,Refused,Deadline,Incomplete,RECORD_MAX,SUMMARY_MAX,SCALARS_MAX,INDEXES,SUMMARY_FIELDS,BM25_VECTOR,NO_VECTOR,NO_IDF,INDEX_BYTES,INDEX_RECHECK,
-                   config,dumps,identity,match,point_id,revision,scope,number,sparse,vector,summary,text,DATA_MAX)
+                   config,dumps,identity,match,point_id,revision,scope,number,sparse,vector,summary,text,DATA_MAX,BODY_MAX)
 from blocks import Budget
 from namespaces import Catalogue,manager,SCHEMA
 from rules import NamedRefusal,PROVENANCE_FIELDS,provenance
@@ -248,6 +249,10 @@ class Core:
         replaced revision and a deleted record are skipped, as get() would not return them.
         """
         mode=v.get('mode','keyword')
+        # Refused before any paid call: rerank needs a chosen model and the candidates this agent ranks itself.
+        if v.get('rerank'):
+            if not self.cfg['rerank_model']:raise NamedRefusal('rerank_unavailable','rerank_model is not configured')
+            if mode=='keyword' and self.cfg['keyword_search']=='external':raise NamedRefusal('rerank_unavailable','external keyword search cannot be reranked')
         if mode=='keyword' and self.cfg['keyword_search']=='external':
             if self.keyword is None:raise RagError('keyword_search is external and no external keyword engine is connected')
             found=repo.external_search(self.keyword,v);seen=set()
@@ -308,7 +313,42 @@ class Core:
             exhausted=page==3
         # An empty answer must mean no match, never a window that dead chunks filled.
         if exhausted and len(best)<v['limit']:raise Incomplete('search window exhausted before enough records were found; narrow the query, add filters or run cleanup')
-        return {'mode':mode,'records':sorted(best.values(),key=lambda r:(-next(iter(r['scores'].values())),r['tableName'],r['id']))[:v['limit']]}
+        ranked=sorted(best.values(),key=lambda r:(-next(iter(r['scores'].values())),r['tableName'],r['id']))
+        if not v.get('rerank'):return {'mode':mode,'records':ranked[:v['limit']]}
+        # The candidate set is the same window the query asked for, never the whole namespace.
+        candidates=ranked[:want]
+        failure=self._rerank(v['query'],candidates)
+        if failure:return {'mode':mode,'reranked':False,'rerank_failure':failure,'records':ranked[:v['limit']]}
+        return {'mode':mode,'reranked':True,'records':candidates[:v['limit']]}
+    def _rerank(self,query,candidates):
+        """Reorder candidates in place by the rerank model's relevance; None once reordered, else a failure code.
+
+        A failure leaves the list and every score untouched: no partial reorder. The code is ours, never provider text.
+        """
+        if not candidates:return None
+        request={'model':self.cfg['rerank_model'],'query':query,'documents':[r['excerpt'] for r in candidates],
+                 'return_documents':False,'truncation':True}
+        if len(dumps({'method':'request','path':'/v1/rerank','body':dumps(request)}).encode())>BODY_MAX:return 'request_too_large'
+        try:answer=self.backend.rerank(request)
+        except Deadline:return 'deadline'
+        except Refused:return 'provider_refused'
+        except RagError:return 'provider_unavailable'
+        try:
+            if not isinstance(answer,dict):return 'invalid_answer'
+            if 'model' in answer and answer['model']!=self.cfg['rerank_model']:return 'model_mismatch'
+            rows=answer['data']
+            if not isinstance(rows,list) or len(rows)!=len(candidates):return 'invalid_answer'
+            scores={}
+            for row in rows:
+                index,score=row['index'],row['relevance_score']
+                if type(index) is not int or not 0<=index<len(candidates) or index in scores:return 'invalid_answer'
+                if type(score) not in (int,float) or not math.isfinite(score):return 'invalid_answer'
+                scores[index]=float(score)
+        except (KeyError,TypeError,AttributeError):return 'invalid_answer'
+        order=sorted(scores,key=lambda i:(-scores[i],i))
+        for i in order:candidates[i]['scores']['rerank']=scores[i]
+        candidates[:]=[candidates[i] for i in order]
+        return None
     def query_embedding(self,v,repo):
         # Catalogue and collection model checks have already completed before this one paid call.
         cfg=repo.config

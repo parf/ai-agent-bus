@@ -53,6 +53,7 @@ class Blocks:
         return result['result']
     def decide(self,request):return self.invoke('ai',{'method':'decide','body':dumps(request)})
     def embed(self,request):return self.invoke('voyage',{'method':'request','path':'/v1/embeddings','body':dumps(request)})
+    def rerank(self,request):return self.invoke('voyage',{'method':'request','path':'/v1/rerank','body':dumps(request)})
 
 
 class OwnKV:
