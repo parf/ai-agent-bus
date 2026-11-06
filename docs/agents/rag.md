@@ -204,7 +204,7 @@ A Markdown file over 32 KiB, up to 1 MiB, comes by reference: put it in a bigfil
 | Reuse | A chunk whose heading path and exact text match a stored chunk of the same record and model keeps its vector; labels and metadata are always rewritten |
 | Publish | Each embedded batch is stored at once; the record's head is written last, naming every chunk and its hash |
 
-- **Outcome:** a refusal before the head write answers `deadline` or another named failure with **not stored; prior record unchanged**; a failure while writing the head is unknown. A resend reuses chunks an earlier attempt already embedded and pays Jev again.
+- **Outcome:** any failure before the head write, a `#voyage` or `#ai` failure included, says **not stored; prior record unchanged** (as `deadline: …` when the deadline passed); a failure at or after the head write is unknown. A resend reuses chunks an earlier attempt already embedded and pays Jev again.
 - **Completeness check:** `get` with `check:true` answers `complete:true` only when the head is committed and every chunk it names exists, with the stored `content_hash`, `source` and `indexed_at`; it reads no data or vectors and is free. Plain `get` of a large record is refused: it exceeds the read cap.
 - **Citations:** a search hit from a large file adds `heading_path` (titles, `Title #n` for a repeated sibling) and `lines` (first and last source line).
 - **Delete:** deleting an id that has no head sweeps chunks a failed attempt left, then answers `not_found`.

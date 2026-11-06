@@ -364,6 +364,11 @@ class Core:
                 self._store([point(p,vec) for p,vec in zip(batch,self._embed(request))],repo)
         except Deadline:
             raise NamedRefusal('deadline','not stored; prior record unchanged') from None
+        except RagError as error:
+            # Every failure before the head write is definite: the previous version still answers.
+            if str(error).startswith(STOPPED) or isinstance(error,NamedRefusal) and str(error).startswith(error.code+': '+STOPPED):raise
+            if isinstance(error,NamedRefusal):raise NamedRefusal(error.code,STOPPED+': '+str(error)[len(error.code)+2:]) from None
+            raise RagError(STOPPED+': '+str(error)) from None
         # The head holds the hash and the chunk list, never the text: the text lives in the chunks.
         head={**full,'_rag_schema':SCHEMA,'_rag_kind':'head','_rag_rev':rev,'_rag_format':LARGE_FORMAT,
               '_rag_chunks':[repo.point_id(v,rev,i) for i in range(len(pieces))],'_rag_labels':list(labels)}

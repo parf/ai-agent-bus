@@ -126,7 +126,7 @@ Frozen for team 2's L.2, which sends it; it ships in L.1.
 
 **The deadline.** RAG works to the envelope's `deadline`, which is the sender's stated wait (the send's `wait` option), never to the message's `ttl`.
 
-- **`deadline`:** RAG stops before its next paid call or write once it passes. A large upsert gets at most 30 minutes, and less when the sender's wait is shorter. A send with no stated wait gets the 30 minutes. A deadline that passes before the head is written is the definite `deadline: not stored; prior record unchanged`; one that passes after it is unknown.
+- **`deadline`:** RAG stops before its next paid call or write once it passes. A large upsert gets at most 30 minutes, and less when the sender's wait is shorter. A send with no stated wait gets the 30 minutes. A deadline that passes before the head write starts is the definite `deadline: not stored; prior record unchanged`; one that passes at or after the head write is unknown.
 - **Message `ttl`:** it bounds only the wait in RAG's queue. A message whose ttl ends there is never delivered, so RAG does no work and pays nothing. Once RAG has taken the message, its ttl no longer matters; a download already under way is not dropped for it.
 - **The sender:** FileScan sends with a `wait` of 30 minutes and a `ttl` at least as long, and does not block on it. Within that wait it never resends. It may run the free check early: `complete: true` with the current hash and source confirms the file at once.
 - **Three different bounds:** `bigfile_ttl` ([Q370](QUESTIONS.md#large-files), 1 hour) is the reference's lifetime, and an expired one is refused `bigfile_unavailable` and re-uploaded. The `wait` is RAG's working time. The message `ttl` is the queue wait.
@@ -136,8 +136,8 @@ Frozen for team 2's L.2, which sends it; it ships in L.1.
 | Class | Answers | Meaning |
 |---|---|---|
 | Refused before any paid call | a parse refusal; `bigfile_forbidden`; `bigfile_unavailable`; `bigfile_mismatch`; `bigfile is not UTF-8 text`; `deadline_too_short` | nothing was paid for or stored; the previous version answers |
-| Stopped early, definite | `deadline: not stored; prior record unchanged`; `not stored; prior record unchanged: …` for a storage refusal before the head; a `#voyage` or `#ai` failure partway, which also comes before the head | the head was never written, so the previous version answers in full; chunks paid for may sit stored but unpublished, and a resend reuses them |
-| Unknown | `storage outcome unknown; …`, a storage error or deadline after the head write, or a lost answer | run the check |
+| Stopped early, definite | `deadline: not stored; prior record unchanged`; `not stored; prior record unchanged: …` for a storage refusal or a `#voyage` or `#ai` failure before the head | the head was never written, so the previous version answers in full; chunks paid for may sit stored but unpublished, and a resend reuses them |
+| Unknown | `storage outcome unknown; …`, a storage error or deadline at or after the head write, or a lost answer | run the check |
 
 A sender that cannot read the reply learns every outcome from the check alone: `not_found`, or another hash or source, after a definite stop; `complete: true` with the current hash and source once the file is stored.
 

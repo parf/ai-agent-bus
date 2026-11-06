@@ -230,6 +230,15 @@ class Large(unittest.TestCase):
         self.assertEqual(owned('docs','Plans/big.md'),[],'the headless chunks are swept')
         self.assertTrue(all(before.values()))
         self.assertEqual({k:owned(*k) for k in before},before,'another id, and the same id in another table, keep every chunk')
+    def test_a_provider_failure_before_the_head_says_the_prior_record_is_unchanged(self):
+        old=document();self.put(old)
+        for provider,text in (('voyage','fake Voyage unavailable'),('ai','fake AI unavailable')):
+            self.store.fail_paid=provider
+            with self.assertRaisesRegex(RagError,'^not stored; prior record unchanged: '+text) as raised:
+                self.put(document((3,section('Part 3',2))))
+            self.assertNotIsInstance(raised.exception,Unknown)
+            self.assertEqual(self.check()['content_hash'],hashlib.sha256(old.encode()).hexdigest())
+        self.store.fail_paid=None
     def test_a_late_start_is_refused_before_the_download_and_any_paid_call(self):
         ref=self.store.put_file(document())
         envelope={'deadline':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime(time.time()+60))}
