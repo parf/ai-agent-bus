@@ -313,7 +313,7 @@ func TestBigKeysOfARecordRemovedWhileDownArePrunedAtStart(t *testing.T) {
 		t.Fatal(err)
 	}
 	b.PruneBigOrphans()
-	if got := s.BigRecords(); len(got) != 1 || got[0] == 4242 {
+	if got := records(t, s); len(got) != 1 || got[0] == 4242 {
 		t.Fatalf("records after the prune = %v", got)
 	}
 	if got := read(t, b, "alice@h", "live"); got != "kept" {
@@ -406,14 +406,51 @@ func TestBigKeyRecoveryPrunesOrphans(t *testing.T) {
 	}
 	b.BigUnavailable(errors.New("planted file"), func() (ports.BigStore, error) { return s, nil })
 	b.PruneBigOrphans() // the boot prune: no holder yet
-	if got := s.BigRecords(); len(got) != 1 {
+	if got := records(t, s); len(got) != 1 {
 		t.Fatalf("setup: records = %v", got)
 	}
 	now = now.Add(2 * time.Minute)
 	if _, _, err := b.BigList("alice@h", "#svc@h"); err != nil {
 		t.Fatalf("the recovering call = %v", err)
 	}
-	if got := s.BigRecords(); len(got) != 0 {
+	if got := records(t, s); len(got) != 0 {
 		t.Fatalf("the recovered holder kept orphan keys: %v", got)
+	}
+}
+
+// records is BigRecords for a test: an index fault fails the test.
+func records(t *testing.T, s interface{ BigRecords() ([]uint32, error) }) []uint32 {
+	t.Helper()
+	ids, err := s.BigRecords()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ids
+}
+
+// bigRowsFail is a bigfile store whose record listing fails.
+type bigRowsFail struct{ *bigfile.Store }
+
+func (bigRowsFail) BigRecords() ([]uint32, error) { return nil, errors.New("planted index fault") }
+
+// C2: an orphan check that cannot read the index removes nothing and says it did not run.
+func TestAnOrphanCheckThatCannotReadTheIndexRemovesNothingAndSaysSo(t *testing.T) {
+	b, s := fileBigFixture(t)
+	j := &flushWarnings{}
+	b.Journal(j)
+	if _, _, err := s.BigPut(4242, "orphan", strings.NewReader("x"), "", false, time.Now().Add(time.Hour), time.Now(),
+		ports.BigLimits{Value: 10, Record: 10, Total: 10, Names: 1}); err != nil {
+		t.Fatal(err)
+	}
+	b.SetBigStore(bigRowsFail{s})
+	b.PruneBigOrphans()
+	if got := records(t, s); len(got) != 1 || got[0] != 4242 {
+		t.Fatalf("records after a failed check = %v, want the orphan kept", got)
+	}
+	j.mu.Lock()
+	lines := append([]string(nil), j.lines...)
+	j.mu.Unlock()
+	if len(lines) != 1 || !strings.Contains(lines[0], "orphan check did not run") || !strings.Contains(lines[0], "planted index fault") {
+		t.Fatalf("journal = %q, want one line saying the check did not run, with the cause", lines)
 	}
 }

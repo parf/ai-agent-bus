@@ -191,11 +191,17 @@ func (b *Bus) PruneBigOrphans() {
 
 // pruneBigOrphans is PruneBigOrphans for a caller holding b.mu.
 func (b *Bus) pruneBigOrphans() {
-	lister, _ := b.big.(interface{ BigRecords() []uint32 })
+	lister, _ := b.big.(interface{ BigRecords() ([]uint32, error) })
 	if lister == nil {
 		return
 	}
-	for _, id := range lister.BigRecords() {
+	ids, err := lister.BigRecords()
+	if err != nil {
+		// Nothing read is not nothing held: prune nothing, and say the check did not run.
+		b.report(ports.Alert, "the bigfile orphan check did not run: the bigfile index could not be read: %v", err)
+		return
+	}
+	for _, id := range ids {
 		if _, known := b.recordByID[id]; !known {
 			b.dropBig(id)
 			b.report(ports.Alert, "bigfiles of record ID %d named no stored record and were removed", id)

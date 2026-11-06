@@ -290,11 +290,12 @@ func (s *Store) expire(now time.Time) error {
 }
 
 // Sweep removes expired bigfiles and their files; the daemon calls it on a
-// timer, and every read expires lazily too.
-func (s *Store) Sweep(now time.Time) {
+// timer, and every read expires lazily too. An index fault is returned for the
+// caller to report: the expired rows stay until a later sweep or call succeeds.
+func (s *Store) Sweep(now time.Time) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.expire(now)
+	return s.expire(now)
 }
 
 // usage is what the record holds and what the daemon holds, ignoring one name
@@ -567,13 +568,17 @@ func (s *Store) BigDrop(record uint32) error {
 }
 
 // BigRecords is the IDs of every record holding a bigfile, for the start-up
-// check against the registry.
-func (s *Store) BigRecords() []uint32 {
+// check against the registry. An index fault is an error, never an empty
+// list: a check that read nothing must not conclude there is nothing.
+func (s *Store) BigRecords() ([]uint32, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	seen := map[uint32]bool{}
 	var out []uint32
-	rows, _ := s.idx.BigRows()
+	rows, err := s.idx.BigRows()
+	if err != nil {
+		return nil, err
+	}
 	for _, r := range rows {
 		if !seen[r.Record] {
 			seen[r.Record] = true
@@ -586,5 +591,5 @@ func (s *Store) BigRecords() []uint32 {
 			out = append(out, k.record)
 		}
 	}
-	return out
+	return out, nil
 }

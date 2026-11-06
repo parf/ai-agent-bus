@@ -257,7 +257,7 @@ func TestARestoredIndexDropsRowsWhoseFilesAreNotPresent(t *testing.T) {
 		t.Fatalf("orphan rows survived the restore: %+v", rows)
 	}
 	absent(t, again, 1, "a", now)
-	if got := again.BigRecords(); len(got) != 0 {
+	if got := records(t, again); len(got) != 0 {
 		t.Fatalf("records = %v", got)
 	}
 }
@@ -517,7 +517,7 @@ func TestExpiryDropRecordAndSweepRemoveRowsAndFiles(t *testing.T) {
 	if rows, _ := idx.BigRows(); len(rows) != 0 {
 		t.Fatalf("rows left: %+v", rows)
 	}
-	if got := s.BigRecords(); len(got) != 0 {
+	if got := records(t, s); len(got) != 0 {
 		t.Fatalf("records = %v", got)
 	}
 }
@@ -743,5 +743,63 @@ func TestADeleteRemovesTheFileAsWellAsTheRow(t *testing.T) {
 	}
 	if got := filesUnder(dir); len(got) != 0 {
 		t.Fatalf("a delete left its file behind: %v", got)
+	}
+}
+
+// records is BigRecords for a test: an index fault fails the test.
+func records(t *testing.T, s interface{ BigRecords() ([]uint32, error) }) []uint32 {
+	t.Helper()
+	ids, err := s.BigRecords()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ids
+}
+
+// faultyIndex is a real index whose whole-table reads fail on demand.
+type faultyIndex struct {
+	*MemoryIndex
+	fail error
+}
+
+func (f *faultyIndex) BigRows() ([]ports.BigRow, error) {
+	if f.fail != nil {
+		return nil, f.fail
+	}
+	return f.MemoryIndex.BigRows()
+}
+
+func (f *faultyIndex) BigRowsDropExpired(now time.Time) ([]ports.BigRow, error) {
+	if f.fail != nil {
+		return nil, f.fail
+	}
+	return f.MemoryIndex.BigRowsDropExpired(now)
+}
+
+// C2: an index fault reaches the caller of Sweep and of BigRecords. It is
+// never a quiet sweep or an empty list that the orphan check would act on.
+func TestAnIndexFaultIsReturnedBySweepAndBigRecords(t *testing.T) {
+	idx := &faultyIndex{MemoryIndex: NewMemoryIndex()}
+	now := time.Now()
+	s, err := Open(filepath.Join(t.TempDir(), "big"), idx, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.BigPut(7, "short", strings.NewReader("s"), "", false, now.Add(time.Minute), now, lim); err != nil {
+		t.Fatal(err)
+	}
+	idx.fail = errors.New("planted index fault")
+	if err := s.Sweep(now.Add(time.Hour)); err == nil || !strings.Contains(err.Error(), "planted index fault") {
+		t.Fatalf("Sweep on a failing index = %v, want the index error", err)
+	}
+	if ids, err := s.BigRecords(); err == nil || ids != nil {
+		t.Fatalf("BigRecords on a failing index = %v, %v; want no IDs and the index error", ids, err)
+	}
+	idx.fail = nil
+	if err := s.Sweep(now.Add(time.Hour)); err != nil {
+		t.Fatalf("Sweep once the index answers = %v", err)
+	}
+	if _, found, _ := idx.BigRowGet(7, "short"); found {
+		t.Fatal("the recovered sweep kept the expired row")
 	}
 }

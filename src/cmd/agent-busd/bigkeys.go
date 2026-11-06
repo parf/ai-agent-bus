@@ -52,9 +52,25 @@ func openBigKeys(home string, idx ports.BigIndex) (ports.BigStore, error) {
 		log.Printf("bigfile start: removed %d rows without files, %d files without rows, %d temporary files", r.RowsWithoutFiles, r.FilesWithoutRows, r.Temporary)
 	}
 	go func() {
+		failing := ""
 		for range time.Tick(bigSweepEvery) {
-			s.Sweep(time.Now())
+			failing = sweepReport(failing, s.Sweep(time.Now()), log.Printf)
 		}
 	}()
 	return s, nil
+}
+
+// sweepReport says a failing sweep once, when it starts failing or its error
+// changes, and once when it works again: a lasting index fault is not a line a
+// minute. failing is the error last said, empty while sweeps succeed.
+func sweepReport(failing string, err error, logf func(string, ...any)) string {
+	switch {
+	case err != nil && err.Error() != failing:
+		logf("bigfile sweep: expired bigfiles were not removed: %v; the next sweep tries again", err)
+		return err.Error()
+	case err == nil && failing != "":
+		logf("bigfile sweep: expired bigfiles are removed again")
+		return ""
+	}
+	return failing
 }
