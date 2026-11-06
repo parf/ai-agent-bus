@@ -21,13 +21,20 @@ function eventLogExample(array $info): array
         if (!$outcome instanceof Answer) { throw new RuntimeException("no answer to $body"); }
         return json_decode($outcome->message->body, true, 512, JSON_THROW_ON_ERROR);
     };
-    $lines = [];
-    $entry = $call($agent, 'write #caller@fixture alert disk full')['entry'];
-    $lines[] = "written: {$entry['level']} {$entry['text']}";
-    $alerts = $call($owner, 'read #caller@fixture')['rings']['alert'];
-    $lines[] = 'owner reads: ' . count($alerts) . ' alert, newest ' . $alerts[0]['text'];
-    $lines[] = 'owner lists: ' . $call($owner, 'list')['logs'][0]['log'];
-    $lines[] = 'a third party: ' . $call($stranger, 'read #caller@fixture')['error']['code'];
-    $lines[] = 'the writer reading its own log: ' . $call($agent, 'read #caller@fixture')['error']['code'];
-    return $lines;
+    // Each Bus holds a reader and a connection: close it when done.
+    try {
+        $lines = [];
+        $entry = $call($agent, 'write #caller@fixture alert disk full')['entry'];
+        $lines[] = "written: {$entry['level']} {$entry['text']}";
+        $alerts = $call($owner, 'read #caller@fixture')['rings']['alert'];
+        $lines[] = 'owner reads: ' . count($alerts) . ' alert, newest ' . $alerts[0]['text'];
+        $lines[] = 'owner lists: ' . $call($owner, 'list')['logs'][0]['log'];
+        $lines[] = 'a third party: ' . $call($stranger, 'read #caller@fixture')['error']['code'];
+        $lines[] = 'the writer reading its own log: ' . $call($agent, 'read #caller@fixture')['error']['code'];
+        return $lines;
+    } finally {
+        $agent->close();
+        $owner->close();
+        $stranger->close();
+    }
 }
