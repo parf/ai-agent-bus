@@ -273,36 +273,52 @@ func TestExpiredAndWriteLookingObservationsQueueNoAnswer(t *testing.T) {
 	}
 }
 
-func TestDaemonPrivateAgentWriteStoresWithoutWideningReplyACL(t *testing.T) {
+func TestDaemonAnswersAPrivateAskerOnItsOwnRouteOnly(t *testing.T) {
 	b := core.New()
 	s, _ := serverFor(t, b, "admin@h")
 	b.EstablishDaemonAgent("node.example")
+	// Both private: neither Allow names #bus, nor anyone else.
 	b.Register(protocol.Record{Name: "#private@h", Kind: protocol.KindAgent, Owner: "admin@h"})
-	b.Register(protocol.Record{Name: "answers@h", Kind: protocol.KindQueue, Owner: "admin@h", Allow: []string{"*"}})
+	b.Register(protocol.Record{Name: "#third@h", Kind: protocol.KindAgent, Owner: "admin@h"})
+	logs := &recorder{}
+	s.Journal(logs)
 	stop := s.ServeDaemonAgent(context.Background())
 	defer stop()
-	if _, err := b.Send(protocol.Envelope{From: "#private@h", To: core.DaemonAgent, Body: "write #private@h notice private", Wait: "2s"}); err != nil {
-		t.Fatal(err)
-	}
-	// An authorized write to the same log with an admitted explicit return route
-	// fences completion without granting #bus access to the private inbox.
-	fence, err := b.Send(protocol.Envelope{From: "admin@h", To: core.DaemonAgent, Body: "write #private@h notice fence", Wait: "2s", ReplyTo: &protocol.ReplyTo{Name: "answers@h"}})
+	// Q323: #bus answers any asker, so the private asker hears its own answer.
+	ask, err := b.Send(protocol.Envelope{From: "#private@h", To: core.DaemonAgent, Body: "write #private@h notice private", Wait: "2s"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	answer, err := b.Consume(ctx, "answers@h", "", "", false, false)
-	if err != nil || answer.Re != fence.ID {
-		t.Fatalf("fence did not complete: %+v %v", answer, err)
+	answer, err := b.Consume(ctx, "#private@h", "", "", false, false)
+	if err != nil || answer.Re != ask.ID || answer.From != core.DaemonAgent {
+		t.Fatalf("the private asker got no answer from #bus: %+v %v", answer, err)
 	}
-	r, _ := b.Lookup("admin@h", "#private@h")
-	if r.Queued != 0 {
-		t.Fatalf("reply bypassed private Allow: %d messages", r.Queued)
+	// A return route naming anyone else is an ordinary send: #bus never carries
+	// an asker's message to a third party whose Allow does not name #bus.
+	if _, err := b.Send(protocol.Envelope{From: "#private@h", To: core.DaemonAgent, Body: "write #private@h notice relay", Wait: "2s", ReplyTo: &protocol.ReplyTo{Name: "#third@h"}}); err != nil {
+		t.Fatal(err)
+	}
+	refused := ""
+	for end := time.Now().Add(2 * time.Second); refused == "" && time.Now().Before(end); time.Sleep(10 * time.Millisecond) {
+		logs.mu.Lock()
+		for _, line := range logs.reports {
+			if strings.Contains(line, "#bus answer could not be delivered") {
+				refused = line
+			}
+		}
+		logs.mu.Unlock()
+	}
+	if !strings.Contains(refused, "only #bus answers any asker, and only on the asker's own route") {
+		t.Fatalf("the third-party refusal does not name the rule: %s", refused)
+	}
+	if r, _ := b.Lookup("admin@h", "#third@h"); r.Queued != 0 {
+		t.Fatalf("#bus delivered to a third party: %d messages", r.Queued)
 	}
 	v, err := b.EventRead("admin@h", "#private@h", "")
 	if err != nil || v.Counts["notice"] != 2 {
-		t.Fatalf("private waiting write was not stored: %+v %v", v, err)
+		t.Fatalf("the private writes were not stored: %+v %v", v, err)
 	}
 }
 

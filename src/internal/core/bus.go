@@ -1310,6 +1310,24 @@ func (b *Bus) sendTarget(from, to string) (protocol.Record, error) {
 	return rec, nil
 }
 
+// answerTarget is sendTarget for #bus answering the asker itself: the asker's
+// Allow is not asked, everything else is. Caller holds b.mu.
+func (b *Bus) answerTarget(to string) (protocol.Record, error) {
+	rec, known := b.entity(to)
+	if !known {
+		return protocol.Record{}, fmt.Errorf("no such receiver: %s (%w)", to, ErrUnknown)
+	}
+	if rec.Kind == protocol.KindUser {
+		if err := b.mayDeliverToUser(DaemonAgent, rec); err != nil {
+			return protocol.Record{}, err
+		}
+	}
+	if !onBus(rec) {
+		return protocol.Record{}, fmt.Errorf("%w: %s is external — call it at %s, it is not sent to over this bus", ErrKind, to, rec.Addr)
+	}
+	return rec, nil
+}
+
 // MaySend checks the authenticated caller's target permission without sending.
 // It is not a reservation of queue capacity or validation of a message body.
 func (b *Bus) MaySend(from, to string) error {
@@ -1330,6 +1348,40 @@ func (b *Bus) MaySend(from, to string) error {
 // Send delivers one message to one inbox. A waiting consume takes it
 // directly; otherwise it queues.
 func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
+	return b.send(e, "")
+}
+
+// AnswerAsker sends #bus's answer to an ask that #bus consumed from its own
+// inbox. #bus may answer any asker (Q323): the answer goes to the agent that
+// asked without the asker's Allow naming #bus, but only to that agent, on its
+// own route. An answer to any other reply address is an ordinary send, which
+// that address's Allow must admit, so #bus never carries an asker's message
+// to a third party. ask.From is the sender Send established from the
+// caller's credential (api/server.go sets it), never a field the asker
+// chose. See docs/02-access.md#answers.
+func (b *Bus) AnswerAsker(ask protocol.Envelope, body string) (protocol.Envelope, error) {
+	to, err := canon(ask.To)
+	if err != nil || to != DaemonAgent || ask.ID == "" || ask.From == "" {
+		return protocol.Envelope{}, fmt.Errorf("%w: only an ask #bus took from its own inbox has an answer from #bus", ErrNotAllow)
+	}
+	asker, err := canon(ask.From)
+	if err != nil {
+		return protocol.Envelope{}, err
+	}
+	back := protocol.ReplyTo{Name: asker, Topic: ask.Topic, Tag: ask.Tag}
+	if ask.ReplyTo != nil {
+		back = *ask.ReplyTo
+	}
+	answering := ""
+	if name, err := canon(back.Name); err == nil && name == asker {
+		answering = asker
+	}
+	return b.send(protocol.Envelope{From: DaemonAgent, To: back.Name, Topic: back.Topic, Tag: back.Tag, Re: ask.ID, Body: body}, answering)
+}
+
+// send is Send; answering names the asker that #bus answers through
+// AnswerAsker, and is empty for every other send.
+func (b *Bus) send(e protocol.Envelope, answering string) (protocol.Envelope, error) {
 	to, err := canon(e.To)
 	if err != nil {
 		return protocol.Envelope{}, err
@@ -1340,8 +1392,18 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	}
 	b.mu.Lock()
 	defer b.unlock()
-	rec, err := b.sendTarget(from, to)
+	var rec protocol.Record
+	if answering != "" && from == DaemonAgent && to == answering {
+		rec, err = b.answerTarget(to)
+	} else {
+		rec, err = b.sendTarget(from, to)
+	}
 	if err != nil {
+		// An answer is a send, so the asker's Allow governs it; say so, since the
+		// answerer did nothing but answer (docs/02-access.md#answers).
+		if e.Re != "" && errors.Is(err, ErrNotAllow) {
+			return protocol.Envelope{}, fmt.Errorf("%s may not answer %s: an answer needs the receiver's Allow to name the answerer; only #bus answers any asker, and only on the asker's own route: %w", from, to, ErrNotAllow)
+		}
 		return protocol.Envelope{}, err
 	}
 	// An answer that cannot be routed is the requester's problem to hear

@@ -422,7 +422,8 @@ func TestDaemonWaitingWriteToFullLaneGetsBusyAnswer(t *testing.T) {
 	release := make(chan struct{})
 	d := newDaemonDispatch(ctx, func(e protocol.Envelope) { entered <- struct{}{}; <-release })
 	defer func() { close(release); cancel(); d.wg.Wait() }()
-	e := protocol.Envelope{From: "#a@h", Body: "write #a@h alert queued"}
+	// As #bus consumes it: addressed to #bus, which is the only ask #bus answers (AnswerAsker).
+	e := protocol.Envelope{From: "#a@h", To: core.DaemonAgent, Body: "write #a@h alert queued"}
 	s.dispatchDaemonTask(d, e)
 	select {
 	case <-entered:

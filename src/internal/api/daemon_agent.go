@@ -58,11 +58,8 @@ func (s *Server) replyDaemonTask(e protocol.Envelope, body string) {
 	if e.Ask == "" && eventMethod(e.Body) == "write" && (e.Wait == "" || (!e.Deadline.IsZero() && !time.Now().Before(e.Deadline))) {
 		return
 	}
-	back := protocol.ReplyTo{Name: e.From, Topic: e.Topic, Tag: e.Tag}
-	if e.ReplyTo != nil {
-		back = *e.ReplyTo
-	}
-	if _, err := s.bus.Send(protocol.Envelope{From: core.DaemonAgent, To: back.Name, Topic: back.Topic, Tag: back.Tag, Re: e.ID, Body: body}); err != nil {
+	// #bus may answer any asker, on the asker's own route (docs/02-access.md#answers).
+	if _, err := s.bus.AnswerAsker(e, body); err != nil {
 		s.logs().Report(ports.Warning, "#bus answer could not be delivered: "+err.Error())
 	}
 }

@@ -329,6 +329,7 @@ explicit `reply-to` naming another; either way the destination is a
 
 A reply is an ordinary `send`. The client retains the consumed envelope and
 fills in its return destination, topic and tag for `reply <message-id>`.
+The receiver's ACL must admit the answerer, except that `#bus` answers any asker ([answers](02-access.md#answers)).
 
 - Reply context stays in the client: the MCP face keeps it in memory, and the CLI saves it for a later invocation.
 - The daemon separately holds bounded, temporary [reply reservations](#one-reader-per-inbox); it does not retain consumed envelopes for a later reply command.

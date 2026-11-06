@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/parf/ai-agent-bus/internal/protocol"
+	"strings"
 	"testing"
 	"time"
 )
@@ -91,4 +92,50 @@ func TestDaemonAgentRestoreKeepsQueueButRejectsStoredTakeover(t *testing.T) {
 	restored := New()
 	restored.Journal(journal)
 	assertRestoreRefused(t, restored, canonicalFixture(snap, ""))
+}
+
+// Q323: only #bus answers an asker whose Allow does not name it, and only an ask
+// #bus took from its own inbox; any other answer needs the asker's Allow, and its
+// refusal names the rule.
+func TestOnlyBusAnswersAnyAskerAndOnlyAnAskItTook(t *testing.T) {
+	b := ownerFixture(t)
+	if err := b.EstablishDaemonAgent("node.example"); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"#asker@h", "#helper@h"} {
+		if _, err := b.Register(protocol.Record{Name: name, Kind: protocol.KindAgent, Owner: "owner@h"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// An agent's answer is a send: the asker's Allow does not name #helper.
+	_, err := b.Send(protocol.Envelope{From: "#helper@h", To: "#asker@h", Re: "0123456789abcdef", Body: "answer"})
+	if !errors.Is(err, ErrNotAllow) || !strings.Contains(err.Error(), "only #bus answers any asker") {
+		t.Fatalf("an agent's answer outside the asker's Allow: %v", err)
+	}
+	// An envelope #bus never took is no ask: a forged Re earns no exemption.
+	for name, forged := range map[string]protocol.Envelope{
+		"addressed elsewhere": {ID: "0123456789abcdef", From: "#asker@h", To: "#helper@h"},
+		"no id":               {From: "#asker@h", To: DaemonAgent},
+		"no asker":            {ID: "0123456789abcdef", To: DaemonAgent},
+	} {
+		if _, err := b.AnswerAsker(forged, "answer"); !errors.Is(err, ErrNotAllow) {
+			t.Fatalf("%s: answered: %v", name, err)
+		}
+	}
+	if r, _ := b.Lookup("owner@h", "#asker@h"); r.Queued != 0 {
+		t.Fatalf("a refused answer was delivered: %d", r.Queued)
+	}
+	// The ask #bus took is answered, though the asker's Allow is empty.
+	ask, err := b.Send(protocol.Envelope{From: "#asker@h", To: DaemonAgent, Body: "status"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.AnswerAsker(ask, "ok"); err != nil {
+		t.Fatalf("#bus could not answer its asker: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if got, err := b.Consume(ctx, "#asker@h", "", "", false, false); err != nil || got.Re != ask.ID || got.From != DaemonAgent {
+		t.Fatalf("the asker did not get #bus's answer: %+v %v", got, err)
+	}
 }

@@ -224,6 +224,15 @@ state and authority checks.
 
 </details>
 
+### Answers
+
+**An answer is a send, so the asker's ACL must admit the answerer.** An agent that asks another agent lists it in its ACL.
+
+- **`#bus` answers any asker.** Its answer reaches the agent that asked, on that agent's own topic and tag, whether or not its ACL names `#bus`.
+- **Only the asker.** A `reply-to` naming anything else is an ordinary send, which that record's ACL must admit, so `#bus` never carries an asker's message to a third party.
+- **Copies are not answers.** `#bus` sends agent-event copies only to a target whose ACL admits it.
+- **A refused answer says so:** `<answerer> may not answer <asker>: an answer needs the receiver's Allow to name the answerer; only #bus answers any asker, and only on the asker's own route`.
+
 ## Token lifetime
 
 - Principal tokens never expire or rotate because of time, inactivity or restart.
