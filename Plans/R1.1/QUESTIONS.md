@@ -222,6 +222,12 @@ The T-49 setup gives mdhouse its own stack on the user-account runner ([№Q353]
 
 - ✅ Q378 → [№Q378](resolved.md#Q378)
 
+- ❓ Q391 Does `#ai@parf.us` stay open to every caller
+  - Context: its allow list is `*`, plus `#rag@parf.us` and `#rag/mdhouse@parf.us`, so any name on the bus can spend the realmo production key …9e4f, which has no spend limit
+  - ( ) Remove `*`; keep only named callers (`#rag@parf.us`, `#rag/mdhouse@parf.us`, and any the owner adds) 🌟
+  - ( ) Keep `*` ⭐
+  > 💡👾 Named callers only: a paid production key should be reachable only by the agents that need it.
+
 ## Owner items from 2026-11-06
 
 - ❓ Q354 Which image model #ai uses

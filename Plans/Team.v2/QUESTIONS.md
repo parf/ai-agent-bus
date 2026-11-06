@@ -40,3 +40,10 @@ Facts, 2026-11-05 18:00 → 11-06 01:40: 338 commits, of which 47 version bumps,
   - ( ) Add to the rule: "or a combined plan document, when the owner asks for one, with the QUESTIONS file pointing to it" 🌟
   - ( ) Keep the rule; RT19 is a one-off exception ⭐
   > 💡👾 Add it: the rule then matches what the owner does, and nobody flags it again.
+
+- ❓ Q392 Add the docs-only landing rule to CLAUDE.md § Verification
+  - Context: J121's gate is live (gate.sh a4b34ddad8e1, 2026-11-06 14:34): a docs-only diff lands on link checks plus the fast checks that read the changed pages, with no lock, following the owner's "do not run tests for minor changes". The rule is not yet in CLAUDE.md. Proposed line: "A Markdown-only diff containing docs/ pages, optionally with Plans/ or root Markdown, lands on link and marker checks plus selected fast checks, without a lock; LICENSE.md is excluded."
+  - ( ) Add the line as written 🌟
+  - ( ) Add it reworded (say how)
+  - ( ) Leave CLAUDE.md as it is ⭐
+  > 💡👾 Add it: the gate already behaves this way, and CLAUDE.md is where every agent reads the landing rules.
