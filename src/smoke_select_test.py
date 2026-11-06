@@ -209,6 +209,70 @@ class Selection(unittest.TestCase):
         self.assertEqual(p['reasons']['E'], 'changed: docs/09-daemon-api.md')
         self.assertEqual(p['checks']['go_unit'], 'normal')
 
+    # A test or tool that reads a Markdown file is a check of that file, so a change to the
+    # page must run the reader's own subsystem at normal. The docs checks are the exception:
+    # #ab-gate runs them for a Markdown-only landing, and go_checks' fast list in every other.
+    DOCS_CHECK_READERS = {
+        'src/check-links.py', 'src/check-markers.py',
+        'src/agents/agent_docs_test.py', 'src/agents/docs_order_test.py',
+    }
+    # (file, path): a literal that names a Markdown file and never reads it; one reason each.
+    NAMES_ONLY = {
+        ('src/internal/display/urls.go', 'docs/agents/bus.md'): 'the source URL printed in help',
+        ('src/cmd/agent-bus-runner/main.go', 'docs/runner/configuration.md'): 'the source URL printed in help',
+        ('src/cmd/agent-bus/usage.go', 'docs/user/cli.md'): 'the source URL printed in help',
+        ('src/cmd/agent-bus/usage.go', 'docs/user/dedicated-runner.md'): 'the source URL printed in help',
+        ('src/cmd/agent-bus/usage_test.go', 'docs/user/cli.md'): 'asserts the help URL text',
+        ('src/cmd/agent-bus/run_stdin_test.go', 'docs/user/dedicated-runner.md'): 'asserts the help URL text',
+    }
+
+    def markdown_literals(self):
+        """(file, path) for each string literal in src/ code naming a tracked Markdown file under docs/, Plans/ or the root."""
+        import os, subprocess
+        files = subprocess.check_output(['git', '-C', str(ROOT), 'ls-files'], text=True).split()
+        tracked = set(files)
+        literal = re.compile(r'''["'`]([A-Za-z0-9_./-]*/[A-Za-z0-9_.-]+\.md)["'`]''')
+        found = set()
+        for name in files:
+            # This file's literals are selection inputs and the lists above, not reads.
+            if not name.startswith('src/') or '/node_modules/' in name or name == 'src/smoke_select_test.py':
+                continue
+            if not name.endswith(('.go', '.py', '.ts', '.js', '.sh', '.rs')):
+                continue
+            for line in (ROOT/name).read_text(errors='replace').splitlines():
+                if line.strip().startswith(('#', '//', '*')):
+                    continue
+                for m in literal.finditer(line):
+                    for path in {os.path.normpath(os.path.join(os.path.dirname(name), m[1])), os.path.normpath(m[1].lstrip('/'))}:
+                        if path in tracked and (path.startswith(('docs/', 'Plans/')) or '/' not in path):
+                            found.add((name, path))
+        return found
+
+    def test_every_markdown_read_by_code_runs_its_reader(self):
+        import json
+        found = self.markdown_literals()
+        self.assertIn(('src/internal/api/route_contract_test.go', 'docs/09-daemon-api.md'), found)
+        fast = json.dumps(json.loads((ROOT/'src/smoke-map.json').read_text())['fast']['go_checks'])
+        for reader in self.DOCS_CHECK_READERS:
+            self.assertIn(Path(reader).name, fast, reader)
+        rows = selector.prefixes(ROOT)
+        def runs_reader(name, path):
+            letter = next((letter for prefix, letter in rows if name.startswith(prefix)), None)
+            modes = self.plan([path])['modes']
+            return all(m == 'normal' for m in modes.values()) if letter is None else modes[letter] == 'normal'
+        self.assertTrue(runs_reader('src/internal/api/route_contract_test.go', 'docs/09-daemon-api.md'))
+        self.assertFalse(runs_reader('src/internal/api/route_contract_test.go', 'docs/glossary.md'))
+        unowned = []
+        for name, path in sorted(found):
+            if name in self.DOCS_CHECK_READERS or (name, path) in self.NAMES_ONLY:
+                continue
+            if not runs_reader(name, path):
+                unowned.append(f'{name} reads {path}')
+        self.assertEqual(unowned, [], "map the page to the reader's subsystem, or list a name-only literal with a reason")
+        stale = sorted(set(self.NAMES_ONLY) - found)
+        self.assertEqual(stale, [], 'NAMES_ONLY entries no longer in src/: remove them')
+        self.assertTrue(all(reason.strip() for reason in self.NAMES_ONLY.values()))
+
     def test_map_covers_every_shard_and_core_section(self):
         script = (ROOT/'src/smoke.sh').read_text()
         names = re.search(r'SHARDS=\((.*?)\)', script, re.S)[1].split()
