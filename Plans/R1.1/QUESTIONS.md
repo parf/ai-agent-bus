@@ -234,3 +234,26 @@ The recommendations below are retained parked proposals.
   - ( ) Provision `#rag/mdhouse@parf.us`: a second instance of the bundled agent, its own record, token and Qdrant collection, allowed to `#mdhouse@parf.us` only; #ab-ceo registers it under the standing deploy OK 🌟
   - ( ) Allow `#mdhouse@parf.us` on the existing `#rag@parf.us` ⭐
   > 💡👾 A separate instance: mdhouse's data, prompts and paid usage stay apart from anything else the owner stores, and removing it touches nothing else.
+
+## Owner items from 2026-11-06
+
+- ❓ Q354 Which image model #ai uses
+  - Context: `image` is refused until an image model is configured ([Q333](DECISIONS.md)). #ai now runs on the realmo production key …9e4f (no spend limit), so every picture is paid from the site's account
+  - ( ) `google/gemini-3.1-flash-image` ($0.5 in / $3 out per million tokens) 🌟
+  - ( ) `google/gemini-3.1-flash-lite-image` ($0.25 / $1.5), cheapest ⭐
+  - ( ) `openai/gpt-5.4-image-2` ($8 / $15), strongest
+  - ( ) None for now: keep `image` refused
+  > 💡👾 Gemini 3.1 Flash Image: current, cheap, and good enough for agent use; switch per call if a job needs more.
+
+- ❓ Q355 Which folders FileScan may read on this node
+  - Context: FileScan is installed and refused at start: its `roots` in `runner/agents.json` are empty by default, and system and bus directories are refused whatever the roots say. mdhouse will want one instance per project
+  - ( ) None until mdhouse names its projects; then one root per project directory 🌟
+  - ( ) A root the owner names now (path)
+  > 💡👾 Wait for mdhouse's project list: a root grants read access to everything under it.
+
+- ❓ Q356 The dead realmo.com site key
+  - Context: `AI.RealmoPropertyProfileOverview.api-key` (…730c) in `realmo.com/config.yaml` answers 401 "User not found", so that feature's AI calls fail; `common.yaml` `AI.OpenRouter.api-key` (…85e6) is dead too. The six working keys share one account ($175 left)
+  - ( ) Point both at an existing working key, e.g. RealmoHighlights' …5f45 (unused this month) 🌟
+  - ( ) The owner creates new keys with a spend limit
+  - ( ) Leave them; the feature is not in use
+  > 💡👾 Reuse …5f45 now (no new spend), add limits later. This is the realty repository, so #ab-ceo only proposes; the owner or the realty team edits it.
