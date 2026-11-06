@@ -487,6 +487,22 @@
           "-B",
           "-m",
           "unittest",
+          "check_test_lists_test"
+        ]
+      },
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "check-test-lists.py"
+        ]
+      },
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
           "check_links_test"
         ]
       },

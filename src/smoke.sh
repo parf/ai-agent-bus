@@ -429,6 +429,12 @@ ok_exit "the conflict-marker check fails each marker and passes a setext heading
 out=$(PYTHONDONTWRITEBYTECODE=1 python3 ./check-markers.py 2>&1); rc=$?
 ok_exit "this tree adds no git conflict marker against main" "$rc"
 [ "$rc" = 0 ] || echo "$out"
+out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest check_test_lists_test 2>&1); rc=$?
+ok_exit "the test-list check fails a test file no check runs, a narrowed pattern and a name another directory shares (J110)" "$rc"
+[ "$rc" = 0 ] || echo "$out"
+out=$(PYTHONDONTWRITEBYTECODE=1 python3 ./check-test-lists.py 2>&1); rc=$?
+ok_exit "every test file in the tree runs in a check, or is exempt for a stated reason (J110)" "$rc"
+[ "$rc" = 0 ] || echo "$out"
 out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest check_links_test 2>&1); rc=$?
 ok_exit "the link check fails a moved or deleted file that a file nobody edited still links to" "$rc"
 [ "$rc" = 0 ] || echo "$out"
