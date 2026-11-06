@@ -46,9 +46,8 @@ func (r *runner) installTarget(in installRequest) (existing bool, entries map[st
 	if err := r.deployRoot(); err != nil {
 		return false, nil, err
 	}
-	if err := r.noLinks(r.agents, in.agent); err != nil {
-		return false, nil, err
-	}
+	// agents/<agent> itself may be a link to a checkout (the owner placed it); replacing it renames
+	// the link away and never writes through it. Nothing else is allowed to be a link.
 	if err := r.noLinks(r.host, in.agent); err != nil {
 		return false, nil, err
 	}
@@ -329,14 +328,12 @@ func (r *runner) removePackage(name string) error {
 	if err := r.deployRoot(); err != nil {
 		return err
 	}
-	if err := r.noLinks(r.agents, name); err != nil {
-		return err
-	}
 	if err := r.noLinks(r.host, name); err != nil {
 		return err
 	}
+	// A linked checkout is removed by moving the link aside and dropping it: the target is never touched.
 	live := filepath.Join(r.agents, name)
-	if fi, err := os.Lstat(live); err != nil || !fi.IsDir() {
+	if fi, err := os.Lstat(live); err != nil || !(fi.IsDir() || fi.Mode()&os.ModeSymlink != 0) {
 		return fmt.Errorf("no writable package %s is installed", name)
 	}
 	entries, err := readAgents(r.host)
