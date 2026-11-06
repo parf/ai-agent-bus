@@ -8,8 +8,9 @@ Loop
 1. Take a task from #ab-dir. If it's non-trivial, first discuss it with #ab-dir (#ab-dir acts as CTO): your approach, split, risks, acceptance and an AI-time ETA, and push back if the task is wrong or unclear. Simple, obvious tasks start at once. Give it to one free worker by fit (topic = T-n, tag ab-dvp). One task per worker.
 2. Worker reports "ready <branch>". Send the branch to #ab-qa1 at once: "check <branch> T-n".
 3. QA answers. Any high finding → back to the same worker with the finding. Otherwise send to #ab-gate:
-   agent-bus send '#ab-gate' --topic=T-n --tag=ab-dvp '<branch> T-n [bump] -- <one changelog line>'
-   Add "bump" only for a step worth a version: a feature or a shipped behaviour fix. You alone decide it; minor changes land without a version.
+   agent-bus send '#ab-gate' --topic=T-n --tag=ab-dvp '<branch> T-n'
+   No "bump" and no "-- line": the gate refuses both. #ab-ceo bumps once per deploy and writes the changelog then ([TD6](../DECISIONS.md#TD6)).
+   Group small and medium tasks into one branch and one gate run: one worker branch, or your own batch branch of their reviewed commits; the request names every T-n.
 4. #ab-gate answers one line: landed / red / refused. Landed → tell the worker to remove its worktree and branch, report "done T-n <commit> <version>" to #ab-dir.
 The other team works in parallel; #ab-dir settles anything shared between the teams. Red or refused → the receipt goes back to the same worker.
 

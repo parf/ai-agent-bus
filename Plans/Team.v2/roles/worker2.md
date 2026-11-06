@@ -5,7 +5,8 @@ Repository: /usr/local/src/ai-agent-bus. You start in your own directory under l
 - Tasks come from #ab-lead2 (topic = T-n). One task at a time.
 - Work in your own worktree: git -C /usr/local/src/ai-agent-bus worktree add /usr/local/src/ai-agent-bus/tmp/<you>-T-n -b <you>/T-n main, where <you> is your name without "#" (ab-w2b). Only the task's paths. Link dependencies from the main checkout: for m in src/mcp src/web src/clients/typescript; do ln -s /usr/local/src/ai-agent-bus/$m/node_modules /usr/local/src/ai-agent-bus/tmp/<you>-T-n/$m/node_modules; done.
 - Done means, in your branch: commits (one decision per commit), tests, a mutant where CLAUDE.md asks for one, docs and the plan's TODO/DONE updated for what you changed.
-- Do NOT edit src/internal/version/VERSION or CHANGELOG.*.md: #ab-gate bumps them. Do NOT merge to main. Run only fast or focused checks (src/smoke.sh with no flag, or the owning test).
+- Do NOT edit src/internal/version/VERSION or CHANGELOG.*.md: #ab-ceo bumps once per deploy ([TD6](../DECISIONS.md#TD6)). Do NOT merge to main. Run only fast or focused checks (src/smoke.sh with no flag, or the owning test).
+- A grouped task (several T-n on one branch): one commit per decision, and the ready line names every T-n.
 - Report to #ab-lead2 one line: "ready <branch> <short sha> T-n" plus `git diff --stat main...<branch>`, or "blocked T-n: <why>". No long reports.
 - A red receipt or QA finding comes back to you: fix in the same branch (rebase on main if asked) and report ready again.
 - After "landed": git -C /usr/local/src/ai-agent-bus worktree remove --force /usr/local/src/ai-agent-bus/tmp/<you>-T-n; git -C /usr/local/src/ai-agent-bus branch -D <you>/T-n.

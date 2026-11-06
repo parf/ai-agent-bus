@@ -36,12 +36,12 @@ flowchart TD
 
 | Role | Responsibility | Boundary |
 |---|---|---|
-| `#ab-ceo` | The owner's contact: turns requests into tickets, sends them to DIR, tracks owner decisions and reports outcomes. Executes authorized operational work itself: coordinated deploys, runner reloads/restarts, web/window restarts and fast-forward pushes on DIR's readiness. Checks facts before asking the owner for a missing decision, password, account access, money or GUI action. | Does not self-authorize wider scope, provider sends, new credentials or host changes. No feature implementation or gate runs; delegates technical investigation. |
+| `#ab-ceo` | The owner's contact: turns requests into tickets, sends them to DIR, tracks owner decisions and reports outcomes. Executes authorized operational work itself: coordinated deploys, raising PATCH once per deploy with node-local `local/deploy-bump.sh --summary='<one or two lines>'` in the main checkout, which commits VERSION and one changelog entry for every commit since the last version ([TD6](DECISIONS.md#TD6)), runner reloads/restarts, web/window restarts and fast-forward pushes on DIR's readiness. Checks facts before asking the owner for a missing decision, password, account access, money or GUI action. | Does not self-authorize wider scope, provider sends, new credentials or host changes. No feature implementation or gate runs; delegates technical investigation. |
 | `#ab-dir` | Acts as CTO: owns technical direction, work split and quality bar. Agrees non-trivial approaches with the lead before implementation, assigns disjoint paths, sets acceptance/deadlines and resolves cross-team conflicts. Settles in-plan questions, coordinates review and deploy readiness, and checks the push range before sending push-ready. | No implementation, gate runs, main merges or operational restarts. Routes owner-only decisions and execution to CEO with options and a recommendation. |
-| `#ab-lead1`, `#ab-lead2` | Lead developers, not message routers: judge design, challenge stale/unclear tasks, propose the split and acceptance, then assign a suitable worker. Arrange non-author review, decide whether a change merits a version bump, submit reviewed work to the gate, return findings/red results to the author and coordinate close-out. Check a reader is available before assigning it. | Workers write the implementation. Leads do not run gates, merge main, push, execute deployments or restart windows. |
+| `#ab-lead1`, `#ab-lead2` | Lead developers, not message routers: judge design, challenge stale/unclear tasks, propose the split and acceptance, then assign a suitable worker. Arrange non-author review, group small and medium tasks into one branch and one gate run, submit reviewed work to the gate, return findings/red results to the author and coordinate close-out. Check a reader is available before assigning it. | Workers write the implementation. Leads do not run gates, merge main, push, execute deployments or restart windows. |
 | `#ab-w<team>a..c` | Implements one assigned task in its own worktree; supplies code, appropriate checks/mutation proof and current user docs. Reports the exact branch/revision, findings and deploy needs; checkpoints between tasks and removes the worktree/branch after landing. | No unassigned scope, normal landing gate, independent main merge/push or version bump. Host/credential/provider actions require the standing authorization or an explicit owner decision. |
 | `#ab-qa1`, `#ab-qa2` and assigned independent readers | Read-only review of the specified revision against behavior, acceptance, docs and verification requirements. Reproduce findings, give severity/file:line/concrete failure/fix, and return a clear verdict. | Never edit the reviewed branch, approve their own implementation, deploy or push. A HIGH finding blocks the ordinary landing path. |
-| `#ab-gate` | Script-only landing service: validates the request, rebases, takes the gate lock, runs normal, applies only the requested bump/stable operation, fast-forwards main, records range/logs and returns a machine-readable receipt. | Receives a branch only after the required independent reviews. It cannot answer planning questions or supply a model's review. |
+| `#ab-gate` | Script-only landing service: validates the request, rebases, takes the gate lock, runs normal, applies only a requested stable operation and refuses `bump` by name, fast-forwards main, records range/logs and returns a machine-readable receipt. | Receives a branch only after the required independent reviews. It cannot answer planning questions or supply a model's review. |
 
 ## Work, review and landing
 
@@ -62,7 +62,7 @@ sequenceDiagram
   alt blocking finding
     lead->>w: fix on the same branch
   else required reviews complete
-    lead->>gate: branch [T-n] [bump or stable] [-- line]
+    lead->>gate: branch [T-n] [stable -- evidence]
     gate->>lead: landed commit/version or red/refused
     lead->>dir: outcome + close-out/deploy needs
     dir->>ceo: result or operational readiness
@@ -71,7 +71,7 @@ sequenceDiagram
 
 - Non-trivial work starts after DIR and the lead agree the approach, risks, split, acceptance and an ETA based on observed agent pace. Simple known fixes and routing changes can start directly.
 - The [sensitive subsystems](../subsystems.md) require two independent readers and the required mutant proof; other changes use one reader. Test-only work in a sensitive area uses the documented one-reader rule. An author never counts as a reader.
-- `#ab-gate` is a script: send `<branch> [T-n] [bump | stable] [-- line]`, not a prose request. A red/refused receipt returns to the author; a retry is not a substitute for identifying and fixing a recurring failure. Gate behavior is implemented in node-local `local/gate.sh`.
+- `#ab-gate` is a script: send `<branch> [T-n] [stable -- <reviewed tree and evidence>]`, not a prose request. `bump` is refused (`bump is retired: #ab-ceo bumps at deploy`), and so is `-- line` without `stable`; a landed receipt says `no bump`. A red/refused receipt returns to the author; a retry is not a substitute for identifying and fixing a recurring failure. Gate behavior is implemented in node-local `local/gate.sh`.
 - Code branches do not perform issue/DONE close-out. After landing, a small docs close-out reconciles the owning TODO, DONE/done evidence, issue disposition and resolved questions/decisions. It names the landed revision and readers; fixed issues are marked and archived without losing evidence.
 - State and readiness travel on the bus; repository plans hold the task's knowledge and acceptance. A context window or private transcript is not the only record of unfinished work.
 
@@ -127,7 +127,7 @@ There was no task queue: an assignment was a bus message plus the TODO line.
 | one gate lock, waits of minutes, port collisions | `#ab-gate` is the only gate runner |
 | flaky gate, manual reruns | one automatic rerun, reported in the receipt |
 | review after merge, one step costing several versions | a high finding blocks the merge |
-| version slot races | only `#ab-gate` bumps |
+| version slot races, a version per small step | one PATCH per deploy, raised by `#ab-ceo` ([TD6](DECISIONS.md#TD6)) |
 | long free-text reports | fixed receipts upward |
 | owner-only actions block without a visible queue | the `#ab-ceo` list |
 | session identity leaking into tests | fixed names, unchanged |
