@@ -32,8 +32,8 @@ def document(edit=None):
 
 
 class LargeStore(Store):
-    def __init__(self):
-        super().__init__();self.sparse=True;self.files={};self.downloads=[]
+    def __init__(self,dimensions=2):
+        super().__init__(dimensions);self.sparse=True;self.files={};self.downloads=[]
     def put_file(self,text,record='#filescan/vault@node',name=None):
         raw=text.encode();digest=hashlib.sha256(raw).hexdigest();name=name or digest
         self.files[(record,name)]=raw
@@ -117,6 +117,23 @@ class Large(unittest.TestCase):
     def test_the_check_refuses_a_false_check_and_an_absent_record(self):
         with self.assertRaisesRegex(RagError,'check must be true'):self.call(method='get',id='x',check=False)
         with self.assertRaisesRegex(RagError,'not_found'):self.check('absent')
+    def test_the_check_never_confirms_a_record_whose_head_is_a_delete_tombstone(self):
+        self.put(document())
+        self.store.points[point_id({'namespace':'team','tableName':'docs','id':'Plans/big.md'})]['payload']['_rag_kind']='deleted'
+        with self.assertRaisesRegex(RagError,'not_found'):self.check()
+    def test_a_small_head_names_at_most_eight_chunks_and_a_large_head_256(self):
+        self.put(document());self.call(method='upsert',id='small',source='small.md',data='Tea is a drink.')
+        for id,count in (('small',9),('Plans/big.md',LARGE_CHUNKS+1)):
+            head=self.store.points[point_id({'namespace':'team','tableName':'docs','id':id})]['payload']
+            head['_rag_chunks']=[point_id({'namespace':'team','tableName':'docs','id':id},head['_rag_rev'],i) for i in range(count)]
+            with self.assertRaisesRegex(RagError,'invalid head chunk references'):self.check(id)
+    def test_a_large_head_is_not_held_to_the_small_records_scalar_cap(self):
+        self.store=LargeStore(1024);self.app=Core({**CFG,'dimensions':1024},self.store,self.kv)
+        self.app.cache.set('team','docs',PROMPT)
+        self.put(document())
+        head=self.store.points[point_id({'namespace':'team','tableName':'docs','id':'Plans/big.md'})]['payload']
+        self.assertGreater(len(head['_rag_chunks'])*1024,SCALARS_MAX,'the large head is over the small path\'s scalar cap')
+        self.assertIs(self.check()['complete'],True)
     def test_plain_get_of_a_large_record_keeps_its_caps(self):
         self.put(document())
         with self.assertRaisesRegex(RagError,'stored record exceeds read cap'):self.call(method='get',id='Plans/big.md')
