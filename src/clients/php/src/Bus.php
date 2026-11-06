@@ -18,8 +18,11 @@ final class Bus
     private bool $serving = false;
     /** While serve() runs: hands one request to its handler. */
     private ?\Closure $handle = null;
+    private readonly string $callPrefix;
 
-    private function __construct(private Http $t, private ?string $as) {}
+    private function __construct(private Http $t, private ?string $as) {
+        $this->callPrefix = 'call-' . bin2hex(random_bytes(16)) . '-';
+    }
 
     /**
      * A client. Defaults are the CLI's: AGENT_BUS_ADDR, AGENT_BUS_TOKEN and
@@ -148,7 +151,7 @@ final class Bus
         $until = microtime(true) + $o->timeout;
         $this->closedCheck();
         if ($this->as !== null) { $this->who(max(0.001, $until - microtime(true))); }
-        $tag = 'call-' . bin2hex(random_bytes(8));
+        $tag = $this->callPrefix . bin2hex(random_bytes(8));
         $inbox = $o->replyTo;
         $sent = $this->envelope($to, $body, new SendOptions($o->topic, $tag, $o->ttl, $o->timeout,
             $inbox !== null ? new ReplyTo($inbox, $o->topic, $tag) : null, $o->ask), null, null, max(0.001, $until - microtime(true)));
@@ -240,7 +243,15 @@ final class Bus
                 $idleSince = microtime(true);
                 // A stray receipt or a late answer to an earlier call is no request:
                 // an answer names the message it answers.
-                if ($m->isReceipt() || $m->re !== null) { continue; }
+                if ($m->isReceipt()) { continue; }
+                if ($m->re !== null) {
+                    if ($o->onReply !== null && !str_starts_with($m->tag ?? '', $this->callPrefix)) {
+                        // Already an answer: preserve the drop path's lack of ack/reply/done.
+                        try { ($o->onReply)($m); }
+                        catch (\Throwable $e) { $log("agent-bus: reply handler failed on {$m->id}: " . get_class($e)); }
+                    }
+                    continue;
+                }
                 if ($m->tooLate()) {
                     $log("agent-bus: {$m->id} arrived after its caller gave up; not run");
                     continue;

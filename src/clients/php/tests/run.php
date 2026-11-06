@@ -447,6 +447,41 @@ section('serve', function () use ($me, $dir) {
     foreach ($pids as $p) { reap($p); }
 });
 
+section('serve reply callback', function () use ($me) {
+    $svc = client('#php-svc@localhost');
+    $requests = []; $replies = [];
+    owner('POST', '/send', ['to' => '#php-svc@localhost', 'body' => 'drop', 're' => 'send-before-serve']);
+    $me->send('#php-svc@localhost', 'default fence');
+    $svc->serve(function (Message $m, Bus $b) use (&$requests) { $requests[] = $m->body; $b->stop(); return null; },
+        new ServeOptions(idle: 1, poll: 0.1, log: fn() => null));
+    check('without onReply an answer stays dropped', $requests === ['default fence'], json_encode($requests));
+    $requests = [];
+    $late = $svc->call('#php-other@localhost', 'no answer yet', new CallOptions(timeout: 0.2));
+    check('late-answer fixture really timed out', $late instanceof TimedOut, get_class($late));
+    $old = client('#php-other@localhost')->consume(new ConsumeOptions(wait: 1));
+    if ($old === null) { throw new RuntimeException('the late call never sent its request'); }
+    owner('POST', '/send', ['to' => '#php-svc@localhost', 'body' => 'late call answer', 're' => $old->id, 'topic' => $old->topic, 'tag' => $old->tag]);
+    owner('POST', '/send', ['to' => '#php-svc@localhost', 'body' => 'async answer', 're' => 'sent-id', 'topic' => 'unmatched', 'tag' => 'reply']);
+    owner('POST', '/send', ['to' => '#php-svc@localhost', 'receipt' => 'ack', 're' => 'sent-id']);
+    $me->send('#php-svc@localhost', 'reply fence');
+    $pending = null;
+    $pid = child(function () {
+        client('#php-other@localhost')->serve(fn() => 'pending answer', new ServeOptions(maxMessages: 1, idle: 2, poll: 0.1));
+    });
+    try {
+        $served = $svc->serve(function (Message $m, Bus $b) use (&$requests, &$pending) {
+            $requests[] = $m->body;
+            $pending = $b->call('#php-other@localhost', 'pending', new CallOptions(timeout: 2));
+            $b->stop(); return null;
+        }, new ServeOptions(idle: 1, poll: 0.1, log: fn() => null,
+            onReply: function (Message $m) use (&$replies) { $replies[] = $m->body; }));
+        check('onReply gets the unmatched answer exactly once, never the receipt or late call', $replies === ['async answer'], json_encode($replies));
+        check('an unmatched answer never reaches the request handler', $requests === ['reply fence'] && $served === 1, json_encode($requests));
+        check('a pending call keeps its answer with onReply enabled', $pending instanceof Answer && $pending->message->body === 'pending answer', $pending ? get_class($pending) : 'none');
+        check('a routed answer sends no ack or completion', $me->consume(new ConsumeOptions(topic: 'unmatched', tag: 'reply', wait: 0)) === null);
+    } finally { reap($pid, 3); }
+});
+
 section('consume during serve', function () {
     $svc = client('#php-svc@localhost');
     $e = null;

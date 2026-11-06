@@ -62,6 +62,7 @@ final class ServeOptions
      * @param bool      $share       one of a pool of processes serving the same name
      * @param int|float $poll        each wait's length: a stop signal is seen at the latest after one
      * @param ?\Closure $log         where a handler failure is told; error_log by default
+     * @param ?\Closure $onReply     unmatched re answers only, excluding this client's late call answers; no automatic ack or completion
      */
     public function __construct(
         public readonly ?string $topic = null,
@@ -70,5 +71,6 @@ final class ServeOptions
         public readonly bool $share = false,
         public readonly int|float $poll = 5,
         public readonly ?\Closure $log = null,
+        public readonly ?\Closure $onReply = null,
     ) {}
 }

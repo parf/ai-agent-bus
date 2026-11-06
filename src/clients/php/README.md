@@ -67,6 +67,7 @@ sent to bob@example.com
 - **Package:** see [the PHP API source](src/Bus.php); [authentication](../../../docs/02-access.md#what-a-call-carries) owns credentials; [MIT license](LICENSE.md).
 - **Identity:** the credential's name calls. `as:` only checks it, throwing `IdentityMismatch` on the first call.
 - **Secret:** `secret()` holds the bytes as delivered; `env()` is a single-line `NAME=value` reader, not the runner's dotenv grammar: a ` # note` stays in the value and a quoted value cannot span lines, so parse a PEM or multi-line value from `bytes()`.
+- **Serve replies:** `new ServeOptions(onReply: fn(Message $m) => ...)` routes unmatched non-receipt `re` answers to the callback, never to the request handler; without it they remain dropped. Pending calls keep their answers. Late answers bearing this Bus's private call-tag prefix are excluded. The callback runs one at a time and sends no automatic ack, reply or done.
 - **Self-calls:** outside `serve()` a call that takes its own request throws, since nothing here can answer it.
 - **Not here:** administration, minting tokens, writing config or secrets, resource content, a pinned `https://` daemon.
 
