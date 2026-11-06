@@ -19,7 +19,7 @@ sec()   { echo "== $1"; }
 # A private daemon, its socket and database under tmp/, and an owner token.
 guide_up() {
   GB_BIN=$1
-  unset AGENT_BUS_ADDR AGENT_BUS_TOKEN AGENT_BUS_NAME AGENT_BUS_CONFIG AGENT_BUS_TLS_FINGERPRINT
+  unset AGENT_BUS_ADDR AGENT_BUS_TOKEN AGENT_BUS_NAME AGENT_BUS_CONFIG AGENT_BUS_TLS_FINGERPRINT AGENT_BUS_SESSION_FILE AGENT_BUS_CONTROL_ADDR AGENT_BUS_CONTROL_TOKEN
   mkdir -p "$ROOT/tmp"
   GB_DIR=$(mktemp -d "$ROOT/tmp/agent-guide.XXXXXX")
   export XDG_STATE_HOME=$GB_DIR/state XDG_CACHE_HOME=$GB_DIR/cache

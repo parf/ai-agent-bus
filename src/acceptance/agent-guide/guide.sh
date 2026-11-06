@@ -29,6 +29,9 @@ if [ -z "$BIN" ]; then
 fi
 JOURNAL_START=$(date '+%Y-%m-%d %H:%M:%S')
 guide_up "$BIN" || exit 1
+# The CLI takes its identity and bus from a launcher session file when one is set (docs/06-launchers.md), which
+# would send every call here to the live bus: the guide runs on its own bus, whatever shell it was started from.
+[ -z "${AGENT_BUS_SESSION_FILE:-}${AGENT_BUS_CONTROL_ADDR:-}${AGENT_BUS_CONTROL_TOKEN:-}" ] && ok "the private bus is the only bus the guide's CLI can reach" || bad "the private bus is the only bus the guide's CLI can reach" "a launcher session's variables are still set"
 users asker@localhost || { echo "FAIL could not create the caller"; exit 1; }
 
 NOW() { date -u +%s; }
