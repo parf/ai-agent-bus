@@ -359,6 +359,35 @@ class DeliveryTests(Base):
         self.assertIn('delete a',[b for _,b,_ in self.bus.calls]);self.assertEqual(r['pending'],0)
         self.assertEqual(self.state.load()['maybe'][row['id']].get('a'),None,'the delete cleared it')
 
+    def test_a_batch_that_stopped_early_keeps_a_record_only_for_what_it_tried(self):
+        self.put({'c':item('3')});subs,row=self.add('#rag@n.test',kind='agent');self.bus.replies['#rag@n.test']='timeout'
+        self.round(batch=3);self.assertEqual(len(self.bus.calls),1)
+        self.assertEqual(self.state.load()['maybe'][row['id']],{'a':'1'},'only the first was attempted: b and c were never sent')
+
+    def test_only_the_attempted_key_gets_a_delete_when_the_batch_stopped_early(self):
+        self.put({'c':item('3')});subs,row=self.add('#rag@n.test',kind='agent');self.bus.replies['#rag@n.test']='timeout';self.round(batch=3)
+        data=self.state.load();[data['items'].pop(k) for k in ('a','b','c')];self.state.save(data)
+        self.bus.replies['#rag@n.test']='ok';self.bus.calls.clear();self.round()
+        self.assertEqual([b for _,b,_ in self.bus.calls],['delete a'])
+        self.assertEqual((self.state.load()['maybe'][row['id']],self.state.load()['marks'][row['id']]),({},{}))
+
+    def test_a_refusal_outright_is_not_possibly_delivered_but_a_timeout_or_a_bad_reply_is(self):
+        subs,row=self.add();self.bus.send_refused.add('#q@n.test');self.round()
+        self.assertEqual(self.state.load()['maybe'][row['id']],{},'refused outright: never queued')
+        for reply in ('timeout','{"error":"no"}'):
+            with self.subTest(reply):
+                self.setUp();self.put({'a':item('1')});subs,row=self.add('#rag@n.test',kind='agent');self.bus.replies['#rag@n.test']=reply;self.round()
+                self.assertEqual(self.state.load()['maybe'][row['id']],{'a':'1'})
+        self.setUp();subs,row=self.add('#rag@n.test',kind='agent');self.bus.replies['#rag@n.test']='refused';self.round()
+        self.assertEqual(self.state.load()['maybe'][row['id']],{},'a Refusal from the send of a call is definite too')
+
+    def test_an_earlier_unknown_outcome_survives_a_later_refusal_of_the_same_change(self):
+        subs,row=self.add('#rag@n.test',kind='agent');self.bus.replies['#rag@n.test']='timeout';self.round()
+        self.assertEqual(self.state.load()['maybe'][row['id']],{'a':'1'})
+        data=self.state.load();data['items']['a']=item('1b');self.state.save(data)
+        self.bus.replies['#rag@n.test']='refused';self.round()
+        self.assertEqual(self.state.load()['maybe'][row['id']],{'a':'1'},'the earlier send may still have been applied')
+
     def test_a_confirmed_create_whose_save_failed_still_gets_its_delete(self):
         subs,row=self.add();real=self.state.save;calls=[]
         def flaky(d):

@@ -281,7 +281,8 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
     - Per subscriber: pending changes in key order, at most `batch`; stops at the first one not confirmed, so order holds.
     - A change is marked done for that subscriber only after the target confirms it: an agent answers ok, a queue accepts the send.
       Before the sends, every create and change of the batch is recorded as possibly delivered (and saved), so a send whose
-      outcome is never learned still earns its delete if the source later removes the key.
+      outcome is never learned still earns its delete if the source later removes the key. A change the loop never reached,
+      or whose send was refused outright, is taken back out; a timeout, an unknown result or a reply that is not ok keeps it.
     - The author's may-send to the target and to the source, and the target's record, are checked again before every send.
     - A refusal, a timeout or no answer leaves the change pending; one stuck subscriber never holds up the others.
     - The round ends by `deadline` (default ROUND_MAX seconds from now) and no wait on a target runs past it, so a silent
@@ -300,6 +301,7 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
             # Written down before any send: a send whose outcome is never learned (a timeout, a crash, a failed save) may
             # have been applied, so a later delete of that key must still be sent. Cleared by the confirmation.
             owed={k:r['fp'] for k,a,r in todo if a!='delete' and data['maybe'][sub_id].get(k)!=r['fp']}
+            prior={k:data['maybe'][sub_id].get(k) for k in owed};attempted=set();restored=False
             if owed:
                 data['maybe'][sub_id].update(owed)
                 try:state.save(data)
@@ -312,6 +314,7 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
                     code,kind=_admit(bus,source,row)
                     if code:
                         count['dropped']+=1;row['dropped']=min(base.MAX_SAFE,row['dropped']+1);warning(code,sub_id);break
+                    attempted.add(key)
                     try:
                         payload=body(row,key,action,record)
                         count['sent']+=1;row['sent']=min(base.MAX_SAFE,row['sent']+1)
@@ -319,7 +322,10 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
                             bus.send(row['target'],payload,topic=topic,tag=tag);confirmed=True
                         else:
                             confirmed=ok(bus.call(row['target'],payload,timeout=max(0.05,min(confirm_wait,left)),topic=topic))
-                    except Refusal:confirmed=False;code='send_refused'
+                    except Refusal:
+                        # Refused outright, so never queued: it is not possibly delivered (a timeout or a bad reply is).
+                        confirmed=False;code='send_refused'
+                        if key in prior:_restore(data['maybe'][sub_id],key,prior);restored=True
                     except Exception:confirmed=False;code='send_unknown'
                     if not confirmed:
                         count['dropped']+=1;row['dropped']=min(base.MAX_SAFE,row['dropped']+1);warning(code if code else 'unconfirmed',sub_id);break
@@ -328,12 +334,21 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
                     if action=='delete':data['marks'][sub_id].pop(key,None)
                     else:data['marks'][sub_id][key]=record['fp']
             finally:
+                # What was written down for the batch but never attempted (the loop stopped first) was not sent.
+                for k in owed:
+                    if k not in attempted:_restore(data['maybe'][sub_id],k,prior);restored=True
                 count['pending']=len(pending(data,sub_id,lambda key,row=row:matches(row,key)))
-            if count['sent'] or count['dropped']:
+            if count['sent'] or count['dropped'] or restored:
                 try:state.save(data)
                 except SyncError as error:
                     count['unsaved']=True;warning(error.code,sub_id);break
     return results
+
+
+def _restore(maybe,key,prior):
+    """Put back what `maybe` held for `key` before the batch was recorded."""
+    if prior.get(key) is None:maybe.pop(key,None)
+    else:maybe[key]=prior[key]
 
 
 def _admit(bus,source,row):
