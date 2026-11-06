@@ -98,6 +98,16 @@ Subsystems from [the map](../subsystems.md). ⚠️ rows get a mutant per bounda
 
 About 15 h of agent wall-clock in all, in that order; steps 3 to 7 can run in parallel once step 2b lands, so the elapsed time is nearer 9 h. Each step is its own branch with two readers where marked. No live calls anywhere: tests use fixture daemons and fake targets.
 
+**Also decided with the owner, 2026-11-06 14:10–14:30** (these override the ideas below where they differ; the plan text follows them when T-50 resumes):
+
+- Targets: the creator's own inbox, or any queue or agent the creator may already send to; a schedule gives no new target (owner: "да конечно")
+- Body: required; an empty body is refused at creation (owner: "empty events - путь к ошибкам")
+- Refused firing: skipped, counted and noticed to the creator; after X consecutive refusals the schedule is **disabled** (owner: "после X событий выключал (disable) timer")
+- Controls: enable (the default) and disable, which replaces pause; run now; firing history; `until` and `max_runs` (owner: "yes - and enable(default)/disable")
+- Max lateness: optional, off by default (owner: "да - good idea")
+- Docs: the schedule is described as core bus functionality, and a receiver keys on topic `schedule` plus `scheduled_by`, not on `#bus` alone (owner: "да - конечно")
+- Alerts and warnings are thought through as part of the plan: [№Q390](#q390)
+
 ## Questions
 
 Owner choices, in one place with the plan (the owner: "create separate doc, come with ideas and questions"). Form: [MARKUP](../rules/MARKUP.md). Q381 was drafted and withdrawn when the owner settled that there is no data and no proxy period; its number stays unused.
@@ -113,11 +123,7 @@ Owner choices, in one place with the plan (the owner: "create separate doc, come
 
 <a id="q380"></a>
 
-- ❓ Q380 Who a scheduled message comes from
-  - Context: today it arrives from `#cron` or `#at`, and a destination that allows them trusts everyone allowed to call them. Settled in the design: the may-send check runs before every firing ([delivery path](#ideas-a-schedule-as-a-daemon-owned-object)); only the sender's name is open
-  - ( ) From the owning record, checked against the destination's access list at every firing 🌟
-  - ( ) From one system name such as `#schedule`, with the creator checked at every firing as today ⭐
-  > 💡👾 The owning record: no shared sender to over-trust. A receiver that filters on `#cron` or `#at` must change its filter.
+- ✅ Q380 Who a scheduled message comes from → from `#bus`, with the topic always `schedule` (fixed, never chosen by the creator), a tag that may not be a daemon-event name, and `scheduled_by` and `schedule_id` stamped by the daemon; a reply goes to the creator; the creator's may-send is checked at every firing. Owner, 2026-11-06: "наверно #bus (agent #1)", then "да, пиши так - topic - обязательно" and "#2 agree"; an event copy reaches only an explicit subscriber, and nobody can subscribe a name they have no rights over
 
 <a id="q382"></a>
 
@@ -129,11 +135,7 @@ Owner choices, in one place with the plan (the owner: "create separate doc, come
 
 <a id="q383"></a>
 
-- ❓ Q383 Who may create, see and delete a schedule on a record
-  - Context: the owner: "any agent can setup own crons/at at will"; KV is used by the Owner, Maintainers and the record's own Agent
-  - ( ) Exactly KV's people: Owner, Maintainers and the record's own Agent 🌟
-  - ( ) The same, and anyone the record's access list admits may add one that targets only their own record ⭐
-  > 💡👾 KV's people: nothing new to trust, and an agent still sets its own schedules at will.
+- ✅ Q383 Who may create, see and delete a schedule on a record → exactly KV's people: Owner, Maintainers and the record's own Agent; a schedule goes with its record. Owner, 2026-11-06: "lf"
 
 <a id="q384"></a>
 
@@ -146,19 +148,11 @@ Owner choices, in one place with the plan (the owner: "create separate doc, come
 
 <a id="q385"></a>
 
-- ❓ Q385 What a schedule does when the daemon itself was down
-  - Context: the owner: "yes, but we have queues, which makes this much easier". A firing is a queued message, so a down recipient is no longer a miss; only the daemon's downtime is. Today a missed recurring slot is skipped and a due one-shot is sent once at start
-  - ( ) At start, send one message per recurring schedule for its latest missed slot, marked late, and every due one-shot once 🌟
-  - ( ) Keep today's rule: skip missed recurring slots, send due one-shots once ⭐
-  > 💡👾 One late message per schedule: the queue absorbs it like any other, nothing floods, and a daily report missed by a restart still arrives.
+- ✅ Q385 What a schedule does when the daemon itself was down → an *at* past due fires once at start with `late_by`; a recurring schedule fires one coalesced catch-up with `missed: N`, then keeps its slots. Owner, 2026-11-06: "ДА"
 
 <a id="q386"></a>
 
-- ❓ Q386 Time zones
-  - Context: today one zone per instance, set in Configuration; with the core there is no instance
-  - ( ) A zone on each schedule, defaulting to the node's, UTC unless the node owner sets another 🌟
-  - ( ) One zone for the whole node, no zone on a schedule ⭐
-  > 💡👾 Per schedule: two agents on one node can keep different wall-clock times, and the default is what an instance gets today.
+- ✅ Q386 Time zones → every time is stored and evaluated in UTC only and converted only for display; no zone on a schedule or the node. Owner, 2026-11-06: "always keep all times in UTC ONLY - convert only for display"
 
 <a id="q387"></a>
 
@@ -170,8 +164,28 @@ Owner choices, in one place with the plan (the owner: "create separate doc, come
 
 <a id="q388"></a>
 
-- ❓ Q388 How seconds are written
-  - Context: the owner: "no more than once/second looks reasonable". Today's five fields have no seconds; today's expressions must keep their meaning
-  - ( ) An optional sixth field for seconds: five fields fire at second 0 as today, six fields add seconds 🌟
-  - ( ) A separate interval form for seconds, such as every 5 seconds, beside the five fields ⭐
-  > 💡👾 The sixth field: one grammar, and `*/5` in it reads like every other field. The interval form is simpler to read but is a second way to say a schedule.
+- ✅ Q388 How seconds are written → an optional sixth field for seconds; five fields fire at second 0 as today. Owner, 2026-11-06: "да"
+
+<a id="q389"></a>
+
+- ❓ Q389 What happens to a schedule whose owning name is short-lived
+  - Context: a schedule goes with its record ([№Q383](#q383)); a session or temporary name can be pruned when unused, and its schedules would vanish with it, perhaps unnoticed (#ab-dir)
+  - ( ) It goes with the name, by design; creating one on a temporary name answers with a warning 🌟
+  - ( ) It belongs to the person who owns the record and survives the name ⭐
+  > 💡👾 With the name: one rule, nothing orphaned, and the warning says so at the only moment it matters.
+
+<a id="q390"></a>
+
+- ❓ Q390 Which alerts and warnings a schedule raises
+  - Context: the owner: "продумать alerts/warnings". Proposed on the agent events that already exist (T-29), nothing new:
+    - a refused firing: warning to the creator, in its log and as a `schedule` notice
+    - disabled after X refusals: alert to the creator and the record's Owner; red on the web
+    - a catch-up after daemon downtime (`missed`, `late_by`): notice to the creator
+    - skipped for max lateness: warning to the creator
+    - creation refused (cap, empty body, under 1 s): an error in the answer
+    - a record at 80 % of its cap: warning to the creator; the node at 80 % of 10 000: alert to the node owner
+    - deleted with its name; `until` or `max_runs` reached: notice to the record's Owner or the creator
+    - web: disabled by failure in red, disabled by hand in grey, a "has problems" filter on Crons and Ats, counts on the agent page
+  - ( ) This set 🌟
+  - ( ) This set, without the notices (warnings and alerts only) ⭐
+  > 💡👾 This set: every state change a creator would otherwise discover only by missing a message.
